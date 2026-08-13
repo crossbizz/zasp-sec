@@ -27,5 +27,10 @@ npm run typecheck
 npm run build
 ```
 
-The application uses Vinext and the OpenAI Sites runtime. Hosting bindings are
-declared in `.openai/hosting.json`.
+The application uses Vinext and targets the Cloudflare Workers runtime. Optional
+local D1 and R2 bindings can be enabled with `CLOUDFLARE_D1_BINDING` and
+`CLOUDFLARE_R2_BINDING`; no database or object-storage binding is required for
+the browser-local prototype.
+
+Application authentication will use Stytch B2B. The current prototype runs
+without an authentication gate until that integration is configured.
