@@ -81,11 +81,11 @@ clean after two fingerprint-specific exceptions for Stytch's documented public
 sandbox token. This is not live Stytch evidence: the task remains Blocked, and
 M0-03 remains downstream-blocked until a real Test-environment session passes.
 
-## Deferred findings
+## Review findings
 
 | Source | Finding | Ruling |
 | --- | --- | --- |
-| Prerequisite final review | Runnable UI workflow pins immutable but older v4 GitHub Action SHAs; the ignored review report mislabels the checkout release. | Non-load-bearing for M0 and the current UI gate. Refresh to current verified SHAs during release/dependency hardening before merge. |
+| Prerequisite final review | Runnable UI workflow pinned immutable but older v4 GitHub Action SHAs; GitHub later warned that their Node 20 runtimes were deprecated. | Resolved August 13, 2026: updated to the immutable official `actions/checkout` v7.0.1 and `actions/setup-node` v7.0.0 SHAs, both using the Node 24 action runtime. |
 
 ## Execution notes
 
@@ -103,6 +103,9 @@ M0-03 remains downstream-blocked until a real Test-environment session passes.
 - `PRE-02` completed with a GitHub Actions gate for pushes and pull requests.
   It pins Node 22.23.1/npm 10.9.8, uses the documented locked install, and
   runs `npm run verify`; a parsed-workflow test protects that contract.
+- The first remote gate passed but warned that the original v4 action pins used
+  deprecated Node 20 runtimes. The gate now pins the current official v7 action
+  releases by immutable SHA; both declare the Node 24 action runtime.
 - `M0-01` completed after independent review confirmed all 14 proof gates and
   the supported EKS Fargate scheduling signal.
 - `M0-02` is the first dependency blocker. Stytch requires a Test-environment

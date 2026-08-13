@@ -28,8 +28,8 @@ type PackageManifest = {
 };
 
 const repositoryRoot = process.cwd();
-const checkoutAction = "actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683";
-const setupNodeAction = "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020";
+const checkoutAction = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1";
+const setupNodeAction = "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020";
 
 async function readWorkflow(): Promise<Workflow> {
   const source = await readFile(
