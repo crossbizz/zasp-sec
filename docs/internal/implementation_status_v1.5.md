@@ -14,16 +14,16 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 724 |
+| Pending | 723 |
 | In progress | 1 |
-| Complete | 3 |
+| Complete | 4 |
 | Blocked | 0 |
 
 ## Milestone summary
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 23 | 1 | 3 | 0 |
+| M0 | 27 | 22 | 1 | 4 | 0 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -57,7 +57,7 @@ In progress, Complete, or Blocked is Pending.
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M0-04 | August 13, 2026 | Run ten concurrent read-only queries from a tiny Go program through the Neon pooled application endpoint and prove the client pool closes without leaked acquisitions. |
+| M0-05 | August 13, 2026 | Run one reversible migration through the direct Neon endpoint on a disposable Neon branch and prove the schema returns exactly to baseline. |
 
 ## Complete
 
@@ -66,6 +66,7 @@ In progress, Complete, or Blocked is Pending.
 | M0-01 | August 13, 2026 | Fourteen external/OSS proof gates have objective PASS/FAIL criteria and initial `Not run` status; task review approved after two fix rounds. |
 | M0-02 | August 13, 2026 | A disposable password-only Stytch Test Organization produced a real authenticated 60-minute Member session/JWT and was confirmed deleted; 33 black-box lifecycle/security tests, full verification, a pinned full-history Gitleaks scan, and independent review passed. |
 | M0-03 | August 13, 2026 | The exact-pinned official Stytch Node SDK validated a fresh B2B JWT locally and the same JWT through forced remote authentication; 49 focused tests, a live disposable proof, full verification, dependency audit, full-history secret scan, and independent review passed. |
+| M0-04 | August 13, 2026 | An exact-pinned Go/pgxpool proof derived and validated the effective Neon pooler destination, completed ten overlapping reads with zero acquired connections, closed cleanly, passed live hostname-verifying TLS, full gates, secret scan, and independent security re-review. |
 
 `PRE-01` and `PRE-02` are also complete prerequisite work and do not count as
 source-plan microtasks.
@@ -74,9 +75,9 @@ source-plan microtasks.
 
 No source-plan task or prerequisite is blocked.
 
-M0-04 is now in progress after M0-03 passed independent review. M0-05 remains
-dependency-waiting until the pooled Neon concurrent-read proof is complete and
-reviewed.
+M0-05 is now in progress after M0-04 passed independent security re-review.
+M0-06 remains dependency-waiting until the disposable Neon branch migration
+proof is complete and reviewed.
 
 ## Review findings
 
@@ -85,6 +86,8 @@ reviewed.
 | Prerequisite final review | Runnable UI workflow pinned immutable but older v4 GitHub Action SHAs; GitHub later warned that their Node 20 runtimes were deprecated. | Resolved August 13, 2026: updated to the immutable official `actions/checkout` v7.0.1 and `actions/setup-node` v7.0.0 SHAs, both using the Node 24 action runtime. |
 | M0-02 task review | Password migration/authentication responses did not validate every required identity-bearing Organization field. | Resolved in `da13230`: require a newly created Member and matching expanded Organizations at both boundaries, with fail-closed cleanup tests. |
 | M0-02 task review | Mixed credential, cleanup-failure precedence, and stalled-response deadline paths lacked direct regression tests. | Resolved in `da13230`: added black-box zero-I/O, dual-failure, and bounded stalled-body cleanup coverage; review rerun approved with no remaining findings. |
+| M0-04 task review | A validated Neon-looking URL could still use pgx query, environment, or file fallbacks to dial a different effective destination. | Resolved in `e8a8f5f`: explicit URL identity, minimal query allowlist, PG environment refusal, effective-config/TLS validation, and per-connection revalidation now fail closed; hostile regressions and live `verify-full` proof pass. |
+| M0-04 task review | Worker panics bypassed fixed errors/cleanup, and the documented live command changed directories before loading the root `.env`. | Resolved in `e8a8f5f`: each worker converts panics to one fixed result and cleanup is proven; the exact runnable root sequence is contract-tested. |
 
 ## Execution notes
 
@@ -119,6 +122,12 @@ reviewed.
   repository tests and quality gates passed, production dependency audit and
   pinned full-history secret scan were clean, and independent review found no
   Critical, Important, or Minor issues.
-- `M0-04` is the only source-plan task in progress. The supplied Neon URL is a
-  direct endpoint with required TLS; Neon's documented `-pooler` endpoint form
-  can be derived without exposing or replacing the direct URL needed by M0-05.
+- `M0-04` completed after its hardened effective pgx configuration, panic
+  cleanup, and runnable documentation passed independent re-review with no
+  remaining findings. The live proof completed ten concurrent pooled reads,
+  reported zero acquired connections, and closed under hostname-verifying TLS.
+- `M0-05` is the only source-plan task in progress. `DATABASE_URL` supplies the
+  required direct Neon connection, but no Neon API key or authenticated
+  `neonctl` state was found during the initial disposable-branch capability
+  audit; implementation must exhaust safe branch-lifecycle options before any
+  Blocked transition.
