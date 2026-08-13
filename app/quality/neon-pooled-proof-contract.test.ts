@@ -10,6 +10,13 @@ const repositoryRoot = process.cwd();
 const proofDirectory = "proofs/neon-pooled";
 const testCommand = `cd ${proofDirectory} && go test -race ./...`;
 const runCommand = `cd ${proofDirectory} && go run .`;
+const documentedRootSequence = [
+  "npm run proof:neon:test",
+  "set -a",
+  "source .env",
+  "set +a",
+  "npm run proof:neon:run",
+];
 
 describe("Neon pooled Go proof repository contract", () => {
   it("keeps the exact Go toolchain and pgx dependency pins", async () => {
@@ -32,13 +39,15 @@ describe("Neon pooled Go proof repository contract", () => {
     expect(packageManifest.scripts?.["proof:neon:run"]).toBe(runCommand);
   });
 
-  it("documents both commands and the ignored environment input", async () => {
+  it("documents a runnable root sequence that loads the ignored environment", async () => {
     const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const neonSection = readme.match(
+      /## Neon pooled proof[\s\S]*?```bash\n([\s\S]*?)\n```/,
+    );
+    const commands = neonSection?.[1]?.split("\n");
 
-    expect(readme).toContain(testCommand);
-    expect(readme).toContain(runCommand);
+    expect(commands).toEqual(documentedRootSequence);
     expect(readme).toContain("Go `1.26.5`");
     expect(readme).toContain("DATABASE_URL");
-    expect(readme).toContain(".env");
   });
 });

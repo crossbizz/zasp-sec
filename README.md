@@ -40,15 +40,14 @@ validates a TLS-required Neon URL, and uses the corresponding pooled endpoint
 without changing the ignored `.env` value.
 
 ```bash
-cd proofs/neon-pooled && go test -race ./...
+npm run proof:neon:test
 set -a
 source .env
 set +a
-cd proofs/neon-pooled && go run .
+npm run proof:neon:run
 ```
 
-The same commands are available from the repository root as `npm run
-proof:neon:test` and `npm run proof:neon:run`. The live command emits a fixed
+Run that sequence from the repository root. The live command emits a fixed
 summary; it never prints connection-string fields or query results.
 
 The application uses Vinext and targets the Cloudflare Workers runtime. Optional
