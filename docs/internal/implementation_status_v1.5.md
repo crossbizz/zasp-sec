@@ -14,16 +14,16 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 726 |
+| Pending | 725 |
 | In progress | 1 |
-| Complete | 1 |
+| Complete | 2 |
 | Blocked | 0 |
 
 ## Milestone summary
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 25 | 1 | 1 | 0 |
+| M0 | 27 | 24 | 1 | 2 | 0 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -57,13 +57,14 @@ In progress, Complete, or Blocked is Pending.
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M0-02 | August 13, 2026 | The live disposable Test flow passes with the review-required migration/authentication fields and timeout/cleanup regressions. Pinned full-history scan and repository verification pass; awaiting review rerun. |
+| M0-03 | August 13, 2026 | Prove the Stytch backend SDK's fresh-JWT local-validation path and its documented remote revalidation behavior for an old or expired JWT without exposing session material. |
 
 ## Complete
 
 | Task | Completed | Evidence |
 | --- | --- | --- |
 | M0-01 | August 13, 2026 | Fourteen external/OSS proof gates have objective PASS/FAIL criteria and initial `Not run` status; task review approved after two fix rounds. |
+| M0-02 | August 13, 2026 | A disposable password-only Stytch Test Organization produced a real authenticated 60-minute Member session/JWT and was confirmed deleted; 33 black-box lifecycle/security tests, full verification, a pinned full-history Gitleaks scan, and independent review passed. |
 
 `PRE-01` and `PRE-02` are also complete prerequisite work and do not count as
 source-plan microtasks.
@@ -72,25 +73,17 @@ source-plan microtasks.
 
 No source-plan task or prerequisite is blocked.
 
-M0-02 now has 33 loopback-HTTP CLI contract tests and a successful live Test
-flow. The runner creates a uniquely marked password-only Test Organization,
-migrates a synthetic Member with a per-run SHA-512 password hash, creates and
-validates a 60-minute authenticated session/JWT, and confirms deletion of the
-exact proof-owned Organization in `finally`. Tests cover cleanup on failure,
-cleanup ownership and confirmation, Test-only credential/host guards, bounded
-non-redirecting reads, required expanded Organization and Member-creation
-fields, consistent Test-scoped identifiers, mixed Test/Live credential refusal,
-cleanup-failure precedence, bounded stalled-body cancellation, and non-secret
-output. A pinned Gitleaks v8.30.1 redacted full-history scan is clean across the
-repository history, and the full repository verification passes. Independent
-task review is still required; M0-03 remains dependency-waiting until M0-02
-completes.
+M0-03 is now in progress after M0-02 passed independent review. M0-04 remains
+dependency-waiting until the fresh/old Stytch JWT validation proof is complete
+and reviewed.
 
 ## Review findings
 
 | Source | Finding | Ruling |
 | --- | --- | --- |
 | Prerequisite final review | Runnable UI workflow pinned immutable but older v4 GitHub Action SHAs; GitHub later warned that their Node 20 runtimes were deprecated. | Resolved August 13, 2026: updated to the immutable official `actions/checkout` v7.0.1 and `actions/setup-node` v7.0.0 SHAs, both using the Node 24 action runtime. |
+| M0-02 task review | Password migration/authentication responses did not validate every required identity-bearing Organization field. | Resolved in `da13230`: require a newly created Member and matching expanded Organizations at both boundaries, with fail-closed cleanup tests. |
+| M0-02 task review | Mixed credential, cleanup-failure precedence, and stalled-response deadline paths lacked direct regression tests. | Resolved in `da13230`: added black-box zero-I/O, dual-failure, and bounded stalled-body cleanup coverage; review rerun approved with no remaining findings. |
 
 ## Execution notes
 
@@ -116,3 +109,9 @@ completes.
 - `M0-02` resumed after Test-prefixed Stytch credentials became available in a
   separate ignored environment file. The values are not copied into this
   repository or emitted by proof output.
+- `M0-02` completed after its stricter disposable flow passed live against
+  Stytch Test, a pinned Gitleaks v8.30.1 full-history scan found no leaks, all
+  61 repository tests and quality gates passed, and independent re-review
+  approved the two security fix areas with no remaining findings.
+- `M0-03` is the only source-plan task in progress; it is the next strict
+  dependency after M0-02.
