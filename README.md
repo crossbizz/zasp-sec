@@ -33,6 +33,24 @@ Sharp build from source; the locked platform binary is used instead. `npm run
 verify` runs tests, type-checking, linting, and the production build in that
 order.
 
+## Neon pooled proof
+
+The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,
+validates a TLS-required Neon URL, and uses the corresponding pooled endpoint
+without changing the ignored `.env` value.
+
+```bash
+cd proofs/neon-pooled && go test -race ./...
+set -a
+source .env
+set +a
+cd proofs/neon-pooled && go run .
+```
+
+The same commands are available from the repository root as `npm run
+proof:neon:test` and `npm run proof:neon:run`. The live command emits a fixed
+summary; it never prints connection-string fields or query results.
+
 The application uses Vinext and targets the Cloudflare Workers runtime. Optional
 local D1 and R2 bindings can be enabled with `CLOUDFLARE_D1_BINDING` and
 `CLOUDFLARE_R2_BINDING`; no database or object-storage binding is required for
