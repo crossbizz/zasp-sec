@@ -15,15 +15,15 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 727 |
-| In progress | 0 |
-| Complete | 1 |
+| In progress | 1 |
+| Complete | 0 |
 | Blocked | 0 |
 
 ## Milestone summary
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 26 | 0 | 1 | 0 |
+| M0 | 27 | 26 | 1 | 0 | 0 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -55,16 +55,14 @@ In progress, Complete, or Blocked is Pending.
 
 ## In progress
 
-No source-plan task is in progress.
+| Task | Started | Deliverable |
+| --- | --- | --- |
+| M0-01 | August 13, 2026 | MVP external and OSS risk register with explicit pass/fail exit criteria; re-review corrections in progress. |
 
 ## Complete
 
-| Task | Completed | Deliverable | Verification |
-| --- | --- | --- | --- |
-| M0-01 | August 13, 2026 | MVP external and OSS risk register with explicit pass/fail exit criteria. | Register names every required uncertainty; each has an objective PASS/FAIL criterion, owner/decision consequence, and `Not run` initial status. |
-
-`PRE-01` and `PRE-02` are complete prerequisite work and do not complete a
-source-plan microtask.
+No source-plan task is complete. `PRE-01` and `PRE-02` are complete; they are
+prerequisite work and do not complete a source-plan microtask.
 
 ## Blocked
 

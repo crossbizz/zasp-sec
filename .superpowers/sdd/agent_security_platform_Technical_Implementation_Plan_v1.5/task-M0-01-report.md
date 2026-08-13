@@ -77,5 +77,37 @@ Comprehensive required-risk checklist: PASS
 - The Fargate proof names its scheduling signal, exact canary response,
   cleanup objects, allowlisted endpoint classes/ports, and denied direct-egress
   assertion.
-- M0-01 remains Complete because this correction finishes its risk-register
-  deliverable; all proof rows remain `Not run` and no later M0 task started.
+- At the end of round 1, M0-01 was Complete because the correction finished
+  the risk-register deliverable; all proof rows remained `Not run` and no
+  later M0 task started. Round 2 returns it to In progress for re-review.
+
+## Fix Round 2
+
+### Files changed
+
+- `docs/decisions/mvp-risk-register.md` — replaced the non-EKS scheduling
+  label with the assigned node metadata assertion
+  `eks.amazonaws.com/compute-type: fargate` while retaining the canary,
+  cleanup, allowlist, and direct-egress criteria.
+- `docs/internal/implementation_status_v1.5.md` — moved M0-01 from Complete
+  back to In progress and reconciled the source-task and M0 milestone counts.
+- `.superpowers/sdd/agent_security_platform_Technical_Implementation_Plan_v1.5/task-M0-01-report.md` — appended this correction record.
+
+### Verification commands and output
+
+```text
+$ git diff --check
+(no output; exit 0)
+
+$ for row in R-01 R-02 R-03 R-04 R-05 R-06 R-07 R-08 R-09 R-10 R-11 R-12 R-13 R-14; do rg -q -F "| $row" docs/decisions/mvp-risk-register.md || exit 1; done; printf 'All 14 risk rows: PASS\\n'; printf 'Initial Not run statuses: '; rg -c 'Not run —' docs/decisions/mvp-risk-register.md
+All 14 risk rows: PASS
+Initial Not run statuses: 14
+```
+
+### Self-review
+
+- The Fargate scheduling assertion now reads the supported
+  `eks.amazonaws.com/compute-type: fargate` metadata on the Pod's assigned
+  node, rather than an undefined `capacity-type` signal.
+- M0-01 is explicitly In progress during re-review; no proof row is marked
+  passed and no later M0 task has started.
