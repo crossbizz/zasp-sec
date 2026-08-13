@@ -40,7 +40,7 @@ Verification:
 
 ## Task 2: PRE-02 — enforce the runnable UI at every push
 
-Status: In progress.
+Status: Complete.
 
 Depends on: Task 1.
 
