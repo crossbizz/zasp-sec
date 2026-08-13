@@ -57,7 +57,7 @@ In progress, Complete, or Blocked is Pending.
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M0-02 | August 13, 2026 | The disposable Test Organization flow created a real 60-minute authenticated session, deleted its proof-owned Organization, and passed the pinned full-history secret scan and repository verification. Awaiting the required independent task review. |
+| M0-02 | August 13, 2026 | The live disposable Test flow passes with the review-required migration/authentication fields and timeout/cleanup regressions. Pinned full-history scan and repository verification pass; awaiting review rerun. |
 
 ## Complete
 
@@ -72,16 +72,19 @@ source-plan microtasks.
 
 No source-plan task or prerequisite is blocked.
 
-M0-02 now has 24 loopback-HTTP CLI contract tests and a successful live Test
+M0-02 now has 33 loopback-HTTP CLI contract tests and a successful live Test
 flow. The runner creates a uniquely marked password-only Test Organization,
 migrates a synthetic Member with a per-run SHA-512 password hash, creates and
 validates a 60-minute authenticated session/JWT, and confirms deletion of the
 exact proof-owned Organization in `finally`. Tests cover cleanup on failure,
 cleanup ownership and confirmation, Test-only credential/host guards, bounded
-non-redirecting reads, consistent Test-scoped identifiers, and non-secret
+non-redirecting reads, required expanded Organization and Member-creation
+fields, consistent Test-scoped identifiers, mixed Test/Live credential refusal,
+cleanup-failure precedence, bounded stalled-body cancellation, and non-secret
 output. A pinned Gitleaks v8.30.1 redacted full-history scan is clean across the
-repository history, and the full repository verification passes. Independent task review
-is still required; M0-03 remains dependency-waiting until M0-02 completes.
+repository history, and the full repository verification passes. Independent
+task review is still required; M0-03 remains dependency-waiting until M0-02
+completes.
 
 ## Review findings
 

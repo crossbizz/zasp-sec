@@ -37,6 +37,7 @@ type ProviderBehavior = {
   cleanupResponse?: (response: JsonObject) => JsonObject;
   createResponse?: (response: JsonObject) => JsonObject;
   migrateResponse?: (response: JsonObject) => JsonObject;
+  stallMigrateBody?: boolean;
   status?: Partial<Record<"authenticate" | "cleanup" | "create" | "migrate", number>>;
 };
 
@@ -151,8 +152,14 @@ async function startProofProvider(behavior: ProviderBehavior = {}, addressFamily
         sendJson(response, status, { provider_detail: "migrate-body-must-not-appear" });
         return;
       }
+      if (behavior.stallMigrateBody) {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.write('{"provider_detail":"stalled-body-must-not-appear"');
+        return;
+      }
       const baseResponse: JsonObject = {
         status_code: 200,
+        member_created: true,
         member_id: memberId,
         member: {
           member_id: memberId,
@@ -160,6 +167,15 @@ async function startProofProvider(behavior: ProviderBehavior = {}, addressFamily
           email_address: memberEmail,
           email_address_verified: true,
           status: "active",
+        },
+        organization: {
+          organization_id: organizationId,
+          organization_name: organizationName,
+          organization_slug: organizationSlug,
+          auth_methods: "RESTRICTED",
+          allowed_auth_methods: ["password"],
+          email_invites: "NOT_ALLOWED",
+          mfa_policy: "OPTIONAL",
         },
       };
       sendJson(response, 200, behavior.migrateResponse?.(baseResponse) ?? baseResponse);
@@ -188,6 +204,15 @@ async function startProofProvider(behavior: ProviderBehavior = {}, addressFamily
           member_session_id: memberSessionId,
           member_id: memberId,
           organization_id: organizationId,
+        },
+        organization: {
+          organization_id: organizationId,
+          organization_name: organizationName,
+          organization_slug: organizationSlug,
+          auth_methods: "RESTRICTED",
+          allowed_auth_methods: ["password"],
+          email_invites: "NOT_ALLOWED",
+          mfa_policy: "OPTIONAL",
         },
         session_jwt: "jwt-test-must-not-appear-in-output",
         session_token: "session-token-must-not-appear-in-output",
@@ -244,6 +269,12 @@ function nestedObject(value: unknown): JsonObject {
     throw new Error("Expected nested JSON object");
   }
   return value as JsonObject;
+}
+
+function withoutField(value: JsonObject, field: string): JsonObject {
+  const result = { ...value };
+  delete result[field];
+  return result;
 }
 
 afterEach(async () => {
@@ -392,6 +423,57 @@ describe("Stytch disposable B2B test-session proof CLI", () => {
 
   it.each([
     {
+      description: "missing",
+      migrateResponse: (response: JsonObject) => withoutField(response, "member_created"),
+    },
+    {
+      description: "false",
+      migrateResponse: (response: JsonObject) => ({ ...response, member_created: false }),
+    },
+  ])("rejects a $description member_created migration result and cleans up", async ({ migrateResponse }) => {
+    // Production break caught: reusing an existing Member would violate the proof's unique per-run identity guarantee.
+    const { baseUrl, requests } = await startProofProvider({ migrateResponse });
+
+    const result = await runProof({
+      STYTCH_PROOF_ALLOW_LOOPBACK: "1",
+      STYTCH_PROOF_BASE_URL: baseUrl,
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toBe("Stytch proof failed: migration did not create a new Member.\n");
+    expect(requests.at(-1)?.method).toBe("DELETE");
+  });
+
+  it.each([
+    {
+      description: "missing expanded Organization",
+      migrateResponse: (response: JsonObject) => withoutField(response, "organization"),
+      expectedError: "response did not include a non-empty Organization.",
+    },
+    {
+      description: "mismatched expanded Organization",
+      migrateResponse: (response: JsonObject) => ({
+        ...response,
+        organization: { ...nestedObject(response.organization), organization_id: "organization-test-other" },
+      }),
+      expectedError: "migrated Organization ID did not match.",
+    },
+  ])("rejects a $description in the migration result and cleans up", async ({ migrateResponse, expectedError }) => {
+    // Production break caught: accepting a missing or cross-tenant expanded Organization would under-validate the documented migration response.
+    const { baseUrl, requests } = await startProofProvider({ migrateResponse });
+
+    const result = await runProof({
+      STYTCH_PROOF_ALLOW_LOOPBACK: "1",
+      STYTCH_PROOF_BASE_URL: baseUrl,
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toBe(`Stytch proof failed: ${expectedError}\n`);
+    expect(requests.at(-1)?.method).toBe("DELETE");
+  });
+
+  it.each([
+    {
       description: "non-Test ID",
       createResponse: (response: JsonObject) => ({
         ...response,
@@ -444,6 +526,29 @@ describe("Stytch disposable B2B test-session proof CLI", () => {
     expect(`${result.stdout}${result.stderr}`).not.toContain("cleanup-body-must-not-appear");
   });
 
+  it("reports cleanup failure when the primary operation and cleanup both fail", async () => {
+    // Production break caught: preserving only the primary error would conceal that proof-owned identity state may remain after failed cleanup.
+    const { baseUrl, requests } = await startProofProvider({
+      status: { cleanup: 500, migrate: 500 },
+    });
+
+    const result = await runProof({
+      STYTCH_PROOF_ALLOW_LOOPBACK: "1",
+      STYTCH_PROOF_BASE_URL: baseUrl,
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toBe("Stytch proof failed: disposable Organization cleanup failed.\n");
+    expect(requests.map(({ method, url }) => `${method} ${url}`)).toEqual([
+      "POST /v1/b2b/organizations",
+      "POST /v1/b2b/passwords/migrate",
+      `DELETE /v1/b2b/organizations/${organizationId}`,
+    ]);
+    expect(`${result.stdout}${result.stderr}`).not.toContain("migrate-body-must-not-appear");
+    expect(`${result.stdout}${result.stderr}`).not.toContain("cleanup-body-must-not-appear");
+  });
+
   it("fails cleanup when Stytch confirms a different Organization ID", async () => {
     // Production break caught: a mismatched delete confirmation could be mistaken for cleanup of the exact proof-owned target.
     const { baseUrl } = await startProofProvider({
@@ -478,6 +583,34 @@ describe("Stytch disposable B2B test-session proof CLI", () => {
     },
   ])("fails closed and cleans up when the $description scope mismatches", async ({ authenticateResponse, expectedError }) => {
     // Production break caught: accepting a cross-Organization response component could bind a real session to the wrong tenant.
+    const { baseUrl, requests } = await startProofProvider({ authenticateResponse });
+
+    const result = await runProof({
+      STYTCH_PROOF_ALLOW_LOOPBACK: "1",
+      STYTCH_PROOF_BASE_URL: baseUrl,
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toBe(`Stytch proof failed: ${expectedError}\n`);
+    expect(requests.at(-1)?.method).toBe("DELETE");
+  });
+
+  it.each([
+    {
+      description: "missing expanded Organization",
+      authenticateResponse: (response: JsonObject) => withoutField(response, "organization"),
+      expectedError: "response did not include a non-empty Organization.",
+    },
+    {
+      description: "mismatched expanded Organization",
+      authenticateResponse: (response: JsonObject) => ({
+        ...response,
+        organization: { ...nestedObject(response.organization), organization_id: "organization-test-other" },
+      }),
+      expectedError: "authenticated Organization ID did not match.",
+    },
+  ])("fails closed and cleans up for an authentication result with a $description", async ({ authenticateResponse, expectedError }) => {
+    // Production break caught: accepting a missing or cross-tenant expanded Organization would under-validate the documented authenticate response.
     const { baseUrl, requests } = await startProofProvider({ authenticateResponse });
 
     const result = await runProof({
@@ -578,6 +711,28 @@ describe("Stytch disposable B2B test-session proof CLI", () => {
     expect(`${result.stdout}${result.stderr}`).not.toContain(liveSecret);
   });
 
+  it("rejects a Live secret paired with a Test project before network I/O", async () => {
+    // Production break caught: validating only the Project ID prefix could authorize destructive proof traffic with a Live secret.
+    let requests = 0;
+    const { baseUrl } = await startLoopbackServer((_request, response) => {
+      requests += 1;
+      response.end();
+    });
+
+    const result = await runProof({
+      STYTCH_PROJECT_ID: contractProjectId,
+      STYTCH_PROOF_ALLOW_LOOPBACK: "1",
+      STYTCH_PROOF_BASE_URL: baseUrl,
+      STYTCH_SECRET: liveSecret,
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toBe("Stytch proof failed: STYTCH_SECRET must be a Stytch Test secret.\n");
+    expect(requests).toBe(0);
+    expect(`${result.stdout}${result.stderr}`).not.toContain(liveSecret);
+  });
+
   it("rejects a loopback override until the explicit test gate is enabled", async () => {
     // Production break caught: an inherited environment variable could redirect credentialed create/delete traffic away from Stytch Test.
     let requests = 0;
@@ -662,4 +817,27 @@ describe("Stytch disposable B2B test-session proof CLI", () => {
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toBe("Stytch proof failed: response exceeded the 65536-byte limit.\n");
   });
+
+  it("aborts a stalled response body by the deadline and still attempts owned cleanup", async () => {
+    // Production break caught: a provider that never finishes a body could hang the CLI forever or bypass finally cleanup after ownership is established.
+    const { baseUrl, requests } = await startProofProvider({ stallMigrateBody: true });
+    const startedAt = performance.now();
+
+    const result = await runProof({
+      STYTCH_PROOF_ALLOW_LOOPBACK: "1",
+      STYTCH_PROOF_BASE_URL: baseUrl,
+    });
+    const elapsedMs = performance.now() - startedAt;
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toBe("Stytch proof failed: request timed out.\n");
+    expect(elapsedMs).toBeGreaterThanOrEqual(4_500);
+    expect(elapsedMs).toBeLessThan(8_000);
+    expect(requests.at(-1)).toMatchObject({
+      method: "DELETE",
+      url: `/v1/b2b/organizations/${organizationId}`,
+    });
+    expect(`${result.stdout}${result.stderr}`).not.toContain("stalled-body-must-not-appear");
+  }, 10_000);
 });

@@ -106,6 +106,9 @@ async function readBoundedJson(response) {
     }
   } catch (error) {
     if (error instanceof ProofError) throw error;
+    if (error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError")) {
+      throw new ProofError("request timed out.");
+    }
     throw new ProofError("Stytch response could not be read.");
   } finally {
     reader.releaseLock();
@@ -204,10 +207,21 @@ function requirePasswordOnlyOrganization(value) {
   }
 }
 
+function requireScopedOrganization(value, cleanupTarget, operation) {
+  requireNonEmptyObject(value.organization, "Organization");
+  if (value.organization.organization_id !== cleanupTarget.organizationId) {
+    throw new ProofError(`${operation} Organization ID did not match.`);
+  }
+}
+
 function requireMigratedMember(value, cleanupTarget, identity) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new ProofError("Stytch response was not valid JSON.");
   }
+  if (value.member_created !== true) {
+    throw new ProofError("migration did not create a new Member.");
+  }
+  requireScopedOrganization(value, cleanupTarget, "migrated");
 
   requireNonEmptyObject(value.member, "Member");
   const memberId = value.member.member_id;
@@ -231,6 +245,7 @@ function requireSessionResponse(value, cleanupTarget, identity, memberId) {
   if (value.organization_id !== cleanupTarget.organizationId) {
     throw new ProofError("response Organization ID did not match.");
   }
+  requireScopedOrganization(value, cleanupTarget, "authenticated");
 
   requireNonEmptyObject(value.member, "Member");
   if (!isTestId(value.member.member_id, "member") || value.member.member_id !== memberId || value.member_id !== memberId) {
