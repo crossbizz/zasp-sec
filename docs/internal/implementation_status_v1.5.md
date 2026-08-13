@@ -76,9 +76,10 @@ M0-02 has a locally verified partial runner and ten loopback-HTTP CLI contract
 tests. They verify Test-only credential/host guards, the documented sandbox
 request shape, non-empty `member`, `organization`, `member_session`, and
 `member_session_id`/`session_jwt` response fields, bounded non-redirecting
-reads, and non-secret output. This is not live Stytch evidence: the task
-remains Blocked, and M0-03 remains downstream-blocked until a real
-Test-environment session plus the required repository secret scan pass.
+reads, and non-secret output. A pinned Gitleaks v8.30.1 full-history scan is
+clean after two fingerprint-specific exceptions for Stytch's documented public
+sandbox token. This is not live Stytch evidence: the task remains Blocked, and
+M0-03 remains downstream-blocked until a real Test-environment session passes.
 
 ## Deferred findings
 
@@ -106,3 +107,5 @@ Test-environment session plus the required repository secret scan pass.
   the supported EKS Fargate scheduling signal.
 - `M0-02` is the first dependency blocker. Stytch requires a Test-environment
   Project ID and Secret for direct B2B API/SDK calls; neither is configured.
+  Local proof preparation and the dedicated full-history secret scan pass, so
+  the remaining blocker is limited to the live Test-environment session.

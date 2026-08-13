@@ -1,0 +1,5 @@
+# Stytch publishes this fixed B2B sandbox magic-link token for test requests.
+# Ignore only the two exact findings from its introduction commit. Any change,
+# relocation, or newly introduced credential remains detectable.
+b89460deb3a2eb95c8a02cd31183b9f075465cf0:proofs/stytch-b2b-test-session.mjs:generic-api-key:4
+b89460deb3a2eb95c8a02cd31183b9f075465cf0:app/quality/stytch-b2b-test-session-proof.test.ts:generic-api-key:100
