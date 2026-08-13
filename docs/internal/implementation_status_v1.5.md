@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 728 |
-| In progress | 0 |
+| Pending | 727 |
+| In progress | 1 |
 | Complete | 0 |
 | Blocked | 0 |
 
@@ -23,7 +23,7 @@ In progress, Complete, or Blocked is Pending.
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 27 | 0 | 0 | 0 |
+| M0 | 27 | 26 | 1 | 0 | 0 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -55,7 +55,9 @@ In progress, Complete, or Blocked is Pending.
 
 ## In progress
 
-No source-plan task or prerequisite is in progress.
+| Task | Started | Deliverable |
+| --- | --- | --- |
+| M0-01 | August 13, 2026 | MVP external and OSS risk register with explicit pass/fail exit criteria. |
 
 ## Complete
 
@@ -65,6 +67,12 @@ prerequisite work and do not complete a source-plan microtask.
 ## Blocked
 
 No source-plan task is blocked.
+
+## Deferred findings
+
+| Source | Finding | Ruling |
+| --- | --- | --- |
+| Prerequisite final review | Runnable UI workflow pins immutable but older v4 GitHub Action SHAs; the ignored review report mislabels the checkout release. | Non-load-bearing for M0 and the current UI gate. Refresh to current verified SHAs during release/dependency hardening before merge. |
 
 ## Execution notes
 
