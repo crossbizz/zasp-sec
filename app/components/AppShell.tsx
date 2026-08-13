@@ -5,7 +5,7 @@ import { useState, type ReactNode } from "react";
 import { NAV_GROUPS } from "../domain/routes";
 import type { AppRoute } from "../domain/types";
 import { useZaspStore } from "../domain/store";
-import { Badge, Button, SearchBox } from "./ui";
+import { Badge, SearchBox } from "./ui";
 
 function Icon({ name, size = 17 }: { name: string; size?: number }) {
   const Component = (Icons as unknown as Record<string, React.ComponentType<{ size?: number }>>)[name] ?? Icons.Circle;

@@ -17,15 +17,21 @@ storage. No credentials or production resources are changed.
 
 ## Development
 
-Requires Node.js `>=22.13.0`.
+Requires Node.js `22.23.1` and npm `10.9.8`. `.nvmrc` pins the Node runtime;
+after selecting it, activate the matching npm version with Corepack if needed.
 
 ```bash
-npm ci
+nvm use
+corepack prepare npm@10.9.8 --activate
+SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci
 npm run dev
-npm test
-npm run typecheck
-npm run build
+npm run verify
 ```
+
+`SHARP_IGNORE_GLOBAL_LIBVIPS=1` prevents Homebrew's global libvips from making
+Sharp build from source; the locked platform binary is used instead. `npm run
+verify` runs tests, type-checking, linting, and the production build in that
+order.
 
 The application uses Vinext and targets the Cloudflare Workers runtime. Optional
 local D1 and R2 bindings can be enabled with `CLOUDFLARE_D1_BINDING` and

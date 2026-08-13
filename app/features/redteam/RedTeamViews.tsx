@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { AlertTriangle, CalendarDays, CheckCircle2, CirclePlay, Clock3, Download, FileWarning, Filter, Radar, ScanSearch, ShieldAlert, Sparkles, Target, TerminalSquare, Timer } from "lucide-react";
-import { Badge, Button, Card, DonutChart, Drawer, Field, MetricGrid, Modal, PageHeader, ProgressBar, SearchBox, Select, Sparkline, Tabs } from "../../components/ui";
+import { useState } from "react";
+import { CalendarDays, CheckCircle2, CirclePlay, FileWarning, Radar, ShieldAlert, Target, TerminalSquare, Timer } from "lucide-react";
+import { Badge, Button, Card, DonutChart, Drawer, Field, MetricGrid, Modal, PageHeader, ProgressBar, Select, Sparkline, Tabs } from "../../components/ui";
 import { useZaspStore } from "../../domain/store";
 import type { AppRoute, ScanFinding, ScanRun, Severity } from "../../domain/types";
 

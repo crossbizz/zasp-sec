@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Activity, AlertTriangle, Blocks, CheckCircle2, Clock3, Download, FilePlus2, Filter, Fingerprint, Gauge, Network, ShieldCheck, Sparkles, UserRound, XCircle } from "lucide-react";
+import { AlertTriangle, Blocks, CheckCircle2, Download, FilePlus2, Filter, Fingerprint, ShieldCheck, UserRound, XCircle } from "lucide-react";
 import { Badge, Button, Card, DonutChart, Drawer, EmptyState, MetricGrid, PageHeader, ProgressBar, SearchBox, Select, Sparkline, Tabs } from "../../components/ui";
 import type { AppRoute, GuardrailEvent, GuardrailPolicy, Severity } from "../../domain/types";
 import { useZaspStore } from "../../domain/store";

@@ -50,16 +50,17 @@ In progress, Complete, or Blocked is Pending.
 
 | ID | Status | Purpose | Verification |
 | --- | --- | --- | --- |
-| PRE-01 | In progress | Restore a clean, reproducible UI quality baseline before M0 work. | Node 22 install, tests, type-check, lint, and production build pass without errors. |
+| PRE-01 | Complete | Restored a clean, reproducible UI quality baseline before M0 work. | Node 22.23.1/npm 10.9.8 install, tests, type-check, lint, and production build pass without errors. |
 | PRE-02 | Pending | Add a push quality gate that enforces the runnable-UI invariant. | The same clean-checkout command runs in CI and fails on a seeded defect. |
 
 ## In progress
 
-No source-plan task is in progress. `PRE-01` is the active prerequisite.
+No source-plan task is in progress.
 
 ## Complete
 
-No source-plan task is complete.
+No source-plan task is complete. `PRE-01` is complete; it is prerequisite work
+and does not complete a source-plan microtask.
 
 ## Blocked
 
@@ -76,4 +77,5 @@ No source-plan task is blocked.
   pinned to a verified Node 22 release as part of `PRE-01`.
 - On hosts with Homebrew libvips, dependency installation must set
   `SHARP_IGNORE_GLOBAL_LIBVIPS=1` so the locked Sharp binary is used.
-
+- `PRE-01` completed with pinned Node 22.23.1/npm 10.9.8, a root verification
+  command, and a clean lint baseline. No source-plan task status changed.

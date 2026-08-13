@@ -84,8 +84,10 @@ export function Sparkline({ values, color = "var(--brand)" }: { values: number[]
 
 export function DonutChart({ segments, center }: { segments: Array<{ label: string; value: number; color: string }>; center?: ReactNode }) {
   const total = segments.reduce((sum, segment) => sum + segment.value, 0);
-  let offset = 0;
-  const gradient = segments.map((segment) => { const start = offset; offset += (segment.value / total) * 360; return `${segment.color} ${start}deg ${offset}deg`; }).join(", ");
+  const gradient = segments.reduce(({ offset, stops }, segment) => {
+    const nextOffset = offset + (segment.value / total) * 360;
+    return { offset: nextOffset, stops: [...stops, `${segment.color} ${offset}deg ${nextOffset}deg`] };
+  }, { offset: 0, stops: [] as string[] }).stops.join(", ");
   return <div className="donut-wrap"><div className="donut" style={{ background: `conic-gradient(${gradient})` }}><div>{center}</div></div><div className="chart-legend">{segments.map((segment) => <span key={segment.label}><i style={{ background: segment.color }} />{segment.label}<strong>{segment.value}</strong></span>)}</div></div>;
 }
 

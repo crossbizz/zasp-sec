@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { CalendarDays, CheckCircle2, Download, FilePlus2, Filter, KeyRound, Network, RefreshCcw, Search, ShieldAlert, TicketCheck, UserRound, XCircle } from "lucide-react";
+import { useState } from "react";
+import { CalendarDays, CheckCircle2, Download, FilePlus2, Filter, KeyRound, Network, RefreshCcw, Search, ShieldAlert, UserRound, XCircle } from "lucide-react";
 import { useZaspStore } from "../../domain/store";
-import type { AppRoute, Identity, Policy, Severity, Violation } from "../../domain/types";
-import { Badge, Button, Card, DonutChart, Drawer, EmptyState, MetricGrid, Modal, PageHeader, ProgressBar, SearchBox, Select, Sparkline, Tabs, Toast } from "../../components/ui";
+import type { AppRoute, Identity, Policy, Violation } from "../../domain/types";
+import { Badge, Button, Card, DonutChart, Drawer, EmptyState, MetricGrid, Modal, PageHeader, SearchBox, Select, Sparkline, Tabs } from "../../components/ui";
 import { PolicyWizard } from "./PolicyWizard";
 
 const severityOrder = { critical: 4, high: 3, medium: 2, low: 1 };

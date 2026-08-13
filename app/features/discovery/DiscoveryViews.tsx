@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { ArrowDownUp, CalendarDays, Columns3, Download, Filter, Network, Plus, Search, ShieldCheck, SlidersHorizontal } from "lucide-react";
+import { useState } from "react";
+import { CalendarDays, Columns3, Download, Plus, ShieldCheck } from "lucide-react";
 import { useZaspStore } from "../../domain/store";
 import type { AppRoute, Asset, Severity } from "../../domain/types";
 import { Badge, Button, Card, Drawer, EmptyState, MetricGrid, PageHeader, ProgressBar, SearchBox, Select, Tabs } from "../../components/ui";

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Cloud, ExternalLink, Filter, Link2, PlugZap, RefreshCcw, Search, ShieldCheck, Unplug } from "lucide-react";
-import { Badge, Button, Card, Field, MetricGrid, Modal, PageHeader, SearchBox, Select, Tabs } from "../../components/ui";
+import { CheckCircle2, Cloud, ExternalLink, Filter, PlugZap, RefreshCcw, ShieldCheck, Unplug } from "lucide-react";
+import { Badge, Button, Card, Field, MetricGrid, Modal, PageHeader, SearchBox, Tabs } from "../../components/ui";
 import { useZaspStore } from "../../domain/store";
 import type { Connector } from "../../domain/types";
 
