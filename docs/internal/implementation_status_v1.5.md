@@ -72,12 +72,13 @@ source-plan microtasks.
 | --- | --- | --- | --- |
 | M0-02 | August 13, 2026 | No Stytch B2B Test-environment `project_id` or `secret` is available in the process environment or an ignored environment file. The task requires a real test login/session and cannot use Live credentials or fabricated responses. | Provision a non-production Stytch B2B Test environment and expose `STYTCH_PROJECT_ID` and `STYTCH_SECRET` to this worktree. Stytch's documented B2B sandbox organization and magic-link token can then create the proof session without a real inbox. |
 
-M0-02 has a locally verified partial runner and five loopback-HTTP CLI contract
+M0-02 has a locally verified partial runner and ten loopback-HTTP CLI contract
 tests. They verify Test-only credential/host guards, the documented sandbox
-request shape, response completeness, and non-secret output. This is not live
-Stytch evidence: the task remains Blocked, and M0-03 remains downstream-blocked
-until a real Test-environment session plus the required repository secret scan
-pass.
+request shape, non-empty `member`, `organization`, `member_session`, and
+`member_session_id`/`session_jwt` response fields, bounded non-redirecting
+reads, and non-secret output. This is not live Stytch evidence: the task
+remains Blocked, and M0-03 remains downstream-blocked until a real
+Test-environment session plus the required repository secret scan pass.
 
 ## Deferred findings
 

@@ -10,6 +10,7 @@ const contractProjectId = ["project", "test", "contract"].join("-");
 const contractSecret = ["secret", "test", "contract"].join("-");
 const liveProjectId = ["project", "live", "contract"].join("-");
 const liveSecret = ["secret", "live", "contract"].join("-");
+const responseByteLimit = 64 * 1024;
 const servers: Server[] = [];
 
 type RunnerResult = {
@@ -31,6 +32,29 @@ async function startLoopbackServer(
   }
 
   return { baseUrl: `http://127.0.0.1:${address.port}`, server };
+}
+
+async function startIpv6LoopbackServer(
+  handler: (request: IncomingMessage, response: ServerResponse) => void,
+): Promise<{ baseUrl: string; server: Server }> {
+  const server = createServer(handler);
+  servers.push(server);
+  server.listen(0, "::1");
+  try {
+    await Promise.race([
+      once(server, "listening"),
+      once(server, "error").then(([error]) => { throw error; }),
+    ]);
+  } catch (error) {
+    servers.splice(servers.indexOf(server), 1);
+    throw error;
+  }
+  const address = server.address();
+  if (!address || typeof address === "string") {
+    throw new Error("IPv6 loopback server did not expose a TCP address");
+  }
+
+  return { baseUrl: `http://[::1]:${address.port}`, server };
 }
 
 async function runProof(extraEnvironment: Record<string, string | undefined> = {}): Promise<RunnerResult> {
@@ -77,7 +101,7 @@ describe("Stytch B2B test-session proof CLI", () => {
         response.end(JSON.stringify({
           member: { member_id: "member-test-contract" },
           organization: { organization_id: "organization-test-contract" },
-          session: { session_id: "session-test-contract" },
+          member_session: { member_session_id: "member-session-test-contract" },
           session_jwt: "jwt-test-must-not-appear-in-output",
           session_token: "session-token-must-not-appear-in-output",
         }));
@@ -103,6 +127,40 @@ describe("Stytch B2B test-session proof CLI", () => {
     expect(`${result.stdout}${result.stderr}`).not.toContain(contractSecret);
     expect(`${result.stdout}${result.stderr}`).not.toContain("jwt-test-must-not-appear-in-output");
     expect(`${result.stdout}${result.stderr}`).not.toContain("session-token-must-not-appear-in-output");
+  });
+
+  it("accepts an explicitly gated IPv6 loopback override", async (context) => {
+    // Production break caught: rejecting [::1] would make the documented IPv6 loopback test gate unavailable.
+    let baseUrl: string;
+    try {
+      ({ baseUrl } = await startIpv6LoopbackServer((_request, response) => {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({
+          member: { member_id: "member-test-contract" },
+          member_session: { member_session_id: "member-session-test-contract" },
+          organization: { organization_id: "organization-test-contract" },
+          session_jwt: "jwt-test-must-not-appear-in-output",
+        }));
+      }));
+    } catch (error) {
+      const code = error instanceof Error ? (error as Error & { code?: string }).code : undefined;
+      if (code === "EADDRNOTAVAIL" || code === "EAFNOSUPPORT") {
+        context.skip();
+        return;
+      }
+      throw error;
+    }
+
+    const result = await runProof({
+      STYTCH_PROOF_ALLOW_LOOPBACK: "1",
+      STYTCH_PROOF_BASE_URL: baseUrl,
+    });
+
+    expect(result).toEqual({
+      exitCode: 0,
+      stderr: "",
+      stdout: "Stytch B2B Test session created.\n",
+    });
   });
 
   it("rejects Live credentials before attempting any request", async () => {
@@ -146,6 +204,109 @@ describe("Stytch B2B test-session proof CLI", () => {
     expect(`${result.stdout}${result.stderr}`).not.toContain(contractSecret);
   });
 
+  it("fails safely without following a provider redirect", async () => {
+    // Production break caught: following a provider redirect can forward authenticated proof traffic to an unintended host.
+    let redirectTargetRequests = 0;
+    const { baseUrl: redirectTargetUrl } = await startLoopbackServer((_request, response) => {
+      redirectTargetRequests += 1;
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ provider_detail: "redirect-body-must-not-appear-in-output" }));
+    });
+    const { baseUrl: redirectSourceUrl } = await startLoopbackServer((_request, response) => {
+      response.writeHead(302, { location: redirectTargetUrl });
+      response.end();
+    });
+
+    const result = await runProof({
+      STYTCH_PROOF_ALLOW_LOOPBACK: "1",
+      STYTCH_PROOF_BASE_URL: redirectSourceUrl,
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toBe("Stytch proof failed: Stytch request failed.\n");
+    expect(redirectTargetRequests).toBe(0);
+    expect(`${result.stdout}${result.stderr}`).not.toContain(contractSecret);
+    expect(`${result.stdout}${result.stderr}`).not.toContain("redirect-body-must-not-appear-in-output");
+  });
+
+  it("rejects an oversized declared provider response before parsing it", async () => {
+    // Production break caught: trusting an oversized Content-Length can let a provider response consume unbounded memory.
+    const { baseUrl } = await startLoopbackServer((_request, response) => {
+      response.writeHead(200, {
+        "content-length": String(responseByteLimit + 1),
+        "content-type": "application/json",
+      });
+      response.end(JSON.stringify({
+        member: { member_id: "member-test-contract" },
+        member_session: { member_session_id: "member-session-test-contract" },
+        organization: { organization_id: "organization-test-contract" },
+        provider_detail: "declared-oversize-body-must-not-appear-in-output",
+        session_jwt: "jwt-test-must-not-appear-in-output",
+      }));
+    });
+
+    const result = await runProof({
+      STYTCH_PROOF_ALLOW_LOOPBACK: "1",
+      STYTCH_PROOF_BASE_URL: baseUrl,
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toBe("Stytch proof failed: response exceeded the 65536-byte limit.\n");
+    expect(`${result.stdout}${result.stderr}`).not.toContain("declared-oversize-body-must-not-appear-in-output");
+    expect(`${result.stdout}${result.stderr}`).not.toContain(contractSecret);
+  });
+
+  it("rejects a streamed provider response that exceeds the byte limit", async () => {
+    // Production break caught: a chunked response can bypass a Content-Length-only limit and exhaust memory.
+    const { baseUrl } = await startLoopbackServer((_request, response) => {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({
+        member: { member_id: "member-test-contract" },
+        member_session: { member_session_id: "member-session-test-contract" },
+        organization: { organization_id: "organization-test-contract" },
+        provider_detail: "streamed-oversize-body-must-not-appear-in-output",
+        session_jwt: "jwt-test-must-not-appear-in-output",
+        unused_large_value: "x".repeat(responseByteLimit),
+      }));
+    });
+
+    const result = await runProof({
+      STYTCH_PROOF_ALLOW_LOOPBACK: "1",
+      STYTCH_PROOF_BASE_URL: baseUrl,
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toBe("Stytch proof failed: response exceeded the 65536-byte limit.\n");
+    expect(`${result.stdout}${result.stderr}`).not.toContain("streamed-oversize-body-must-not-appear-in-output");
+    expect(`${result.stdout}${result.stderr}`).not.toContain(contractSecret);
+  });
+
+  it("rejects a member session without its provider member_session_id", async () => {
+    // Production break caught: accepting an arbitrary member_session object can treat an incomplete Stytch response as authenticated.
+    const { baseUrl } = await startLoopbackServer((_request, response) => {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({
+        member: { member_id: "member-test-contract" },
+        member_session: { provider_detail: "member-session-id-must-not-be-optional" },
+        organization: { organization_id: "organization-test-contract" },
+        session_jwt: "jwt-test-must-not-appear-in-output",
+      }));
+    });
+
+    const result = await runProof({
+      STYTCH_PROOF_ALLOW_LOOPBACK: "1",
+      STYTCH_PROOF_BASE_URL: baseUrl,
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toBe("Stytch proof failed: response did not include a member session ID.\n");
+    expect(`${result.stdout}${result.stderr}`).not.toContain("member-session-id-must-not-be-optional");
+  });
+
   it("fails closed on an incomplete provider response without echoing its body", async () => {
     // Production break caught: treating a partial provider response as a usable authenticated session could bypass identity checks.
     const { baseUrl } = await startLoopbackServer((_request, response) => {
@@ -153,7 +314,7 @@ describe("Stytch B2B test-session proof CLI", () => {
       response.end(JSON.stringify({
         member: { member_id: "member-test-contract" },
         organization: { organization_id: "organization-test-contract" },
-        session: { session_id: "session-test-contract" },
+        member_session: { member_session_id: "member-session-test-contract" },
         provider_detail: "provider-body-must-not-appear-in-output",
       }));
     });

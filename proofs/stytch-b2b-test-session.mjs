@@ -4,6 +4,7 @@ const STYTCH_TEST_BASE_URL = "https://test.stytch.com";
 const STYTCH_B2B_MAGIC_LINK_TOKEN = "DOYoip3rvIMMW5lgItikFK-Ak1CfMsgjuiCyI7uuU94=";
 const SESSION_DURATION_MINUTES = 60;
 const REQUEST_TIMEOUT_MS = 5_000;
+const RESPONSE_BYTE_LIMIT = 64 * 1024;
 
 class ProofError extends Error {}
 
@@ -35,7 +36,7 @@ function resolveBaseUrl(environment) {
     throw new ProofError("STYTCH_PROOF_BASE_URL must be an HTTP loopback URL.");
   }
 
-  const isLoopback = parsed.hostname === "127.0.0.1" || parsed.hostname === "::1";
+  const isLoopback = parsed.hostname === "127.0.0.1" || parsed.hostname === "[::1]";
   if (
     parsed.protocol !== "http:" ||
     !isLoopback ||
@@ -64,9 +65,69 @@ function requireSessionResponse(value) {
 
   requireNonEmptyObject(value.member, "Member");
   requireNonEmptyObject(value.organization, "Organization");
-  requireNonEmptyObject(value.session, "Session");
+  requireNonEmptyObject(value.member_session, "Member session");
+  if (typeof value.member_session.member_session_id !== "string" || value.member_session.member_session_id.trim() === "") {
+    throw new ProofError("response did not include a member session ID.");
+  }
   if (typeof value.session_jwt !== "string" || value.session_jwt.trim() === "") {
     throw new ProofError("response did not include a session JWT.");
+  }
+}
+
+function responseTooLarge() {
+  return new ProofError(`response exceeded the ${RESPONSE_BYTE_LIMIT}-byte limit.`);
+}
+
+async function readBoundedJson(response) {
+  const declaredLength = response.headers.get("content-length");
+  if (declaredLength && /^\d+$/.test(declaredLength) && Number(declaredLength) > RESPONSE_BYTE_LIMIT) {
+    try {
+      await response.body?.cancel();
+    } catch {
+      // The response is already being rejected, so a best-effort cancellation is sufficient.
+    }
+    throw responseTooLarge();
+  }
+
+  if (!response.body) {
+    throw new ProofError("Stytch response was not valid JSON.");
+  }
+
+  const reader = response.body.getReader();
+  const chunks = [];
+  let byteLength = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      byteLength += value.byteLength;
+      if (byteLength > RESPONSE_BYTE_LIMIT) {
+        try {
+          await reader.cancel();
+        } catch {
+          // The response is already being rejected, so a best-effort cancellation is sufficient.
+        }
+        throw responseTooLarge();
+      }
+      chunks.push(value);
+    }
+  } catch (error) {
+    if (error instanceof ProofError) throw error;
+    throw new ProofError("Stytch response could not be read.");
+  } finally {
+    reader.releaseLock();
+  }
+
+  const bytes = new Uint8Array(byteLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  try {
+    return JSON.parse(new TextDecoder().decode(bytes));
+  } catch {
+    throw new ProofError("Stytch response was not valid JSON.");
   }
 }
 
@@ -88,6 +149,7 @@ async function createTestSession(environment) {
         magic_links_token: STYTCH_B2B_MAGIC_LINK_TOKEN,
         session_duration_minutes: SESSION_DURATION_MINUTES,
       }),
+      redirect: "error",
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
   } catch (error) {
@@ -101,12 +163,7 @@ async function createTestSession(environment) {
     throw new ProofError("Stytch returned an unsuccessful response.");
   }
 
-  let body;
-  try {
-    body = await response.json();
-  } catch {
-    throw new ProofError("Stytch response was not valid JSON.");
-  }
+  const body = await readBoundedJson(response);
   requireSessionResponse(body);
 }
 
