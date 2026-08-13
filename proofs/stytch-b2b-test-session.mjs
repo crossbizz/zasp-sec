@@ -138,7 +138,7 @@ async function createTestSession(environment) {
   let response;
 
   try {
-    response = await fetch(`${baseUrl}/v1/b2b/magic_links/authenticate`, {
+    response = await fetch(`${baseUrl}/v1/b2b/magic_links/email/authenticate`, {
       method: "POST",
       headers: {
         Accept: "application/json",

@@ -118,7 +118,7 @@ describe("Stytch B2B test-session proof CLI", () => {
       stderr: "",
       stdout: "Stytch B2B Test session created.\n",
     });
-    expect(requestUrl).toBe("/v1/b2b/magic_links/authenticate");
+    expect(requestUrl).toBe("/v1/b2b/magic_links/email/authenticate");
     expect(authorization).toBe(`Basic ${Buffer.from(`${contractProjectId}:${contractSecret}`).toString("base64")}`);
     expect(JSON.parse(requestBody)).toEqual({
       magic_links_token: "DOYoip3rvIMMW5lgItikFK-Ak1CfMsgjuiCyI7uuU94=",
