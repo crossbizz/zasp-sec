@@ -15,15 +15,15 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 726 |
-| In progress | 0 |
+| In progress | 1 |
 | Complete | 1 |
-| Blocked | 1 |
+| Blocked | 0 |
 
 ## Milestone summary
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 25 | 0 | 1 | 1 |
+| M0 | 27 | 25 | 1 | 1 | 0 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -55,7 +55,9 @@ In progress, Complete, or Blocked is Pending.
 
 ## In progress
 
-No source-plan task or prerequisite is in progress.
+| Task | Started | Current work |
+| --- | --- | --- |
+| M0-02 | August 13, 2026 | Test-prefixed Stytch B2B credentials are now available outside this repository. Run the prepared proof against Stytch, repeat the full-history secret scan, and complete task review. |
 
 ## Complete
 
@@ -68,9 +70,7 @@ source-plan microtasks.
 
 ## Blocked
 
-| Task | Blocked since | Blocker | Resume condition |
-| --- | --- | --- | --- |
-| M0-02 | August 13, 2026 | No Stytch B2B Test-environment `project_id` or `secret` is available in the process environment or an ignored environment file. The task requires a real test login/session and cannot use Live credentials or fabricated responses. | Provision a non-production Stytch B2B Test environment and expose `STYTCH_PROJECT_ID` and `STYTCH_SECRET` to this worktree. Stytch's documented B2B sandbox organization and magic-link token can then create the proof session without a real inbox. |
+No source-plan task or prerequisite is blocked.
 
 M0-02 has a locally verified partial runner and ten loopback-HTTP CLI contract
 tests. They verify Test-only credential/host guards, the documented sandbox
@@ -78,8 +78,8 @@ request shape, non-empty `member`, `organization`, `member_session`, and
 `member_session_id`/`session_jwt` response fields, bounded non-redirecting
 reads, and non-secret output. A pinned Gitleaks v8.30.1 full-history scan is
 clean after two fingerprint-specific exceptions for Stytch's documented public
-sandbox token. This is not live Stytch evidence: the task remains Blocked, and
-M0-03 remains downstream-blocked until a real Test-environment session passes.
+sandbox token. The live provider run and task review are now in progress;
+M0-03 remains dependency-waiting until M0-02 completes.
 
 ## Review findings
 
@@ -108,7 +108,6 @@ M0-03 remains downstream-blocked until a real Test-environment session passes.
   releases by immutable SHA; both declare the Node 24 action runtime.
 - `M0-01` completed after independent review confirmed all 14 proof gates and
   the supported EKS Fargate scheduling signal.
-- `M0-02` is the first dependency blocker. Stytch requires a Test-environment
-  Project ID and Secret for direct B2B API/SDK calls; neither is configured.
-  Local proof preparation and the dedicated full-history secret scan pass, so
-  the remaining blocker is limited to the live Test-environment session.
+- `M0-02` resumed after Test-prefixed Stytch credentials became available in a
+  separate ignored environment file. The values are not copied into this
+  repository or emitted by proof output.
