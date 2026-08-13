@@ -10,6 +10,8 @@ const contractProjectId = ["project", "test", "contract"].join("-");
 const contractSecret = ["secret", "test", "contract"].join("-");
 const liveProjectId = ["project", "live", "contract"].join("-");
 const liveSecret = ["secret", "live", "contract"].join("-");
+const contractMemberId = "member-test-contract";
+const contractOrganizationId = "organization-test-contract";
 const responseByteLimit = 64 * 1024;
 const servers: Server[] = [];
 
@@ -18,6 +20,43 @@ type RunnerResult = {
   stderr: string;
   stdout: string;
 };
+
+type ProviderContractFixture = {
+  member: { member_id: string; organization_id?: string };
+  member_authenticated: boolean;
+  member_id: string;
+  member_session: {
+    member_id: string;
+    member_session_id?: string;
+    organization_id?: string;
+  };
+  organization: { organization_id?: string } | null;
+  organization_id?: string;
+  session_jwt: string;
+  session_token: string;
+  status_code: number;
+};
+
+function validProviderResponse(): ProviderContractFixture {
+  return {
+    status_code: 200,
+    member_id: contractMemberId,
+    organization_id: contractOrganizationId,
+    member: {
+      member_id: contractMemberId,
+      organization_id: contractOrganizationId,
+    },
+    organization: null,
+    member_session: {
+      member_session_id: "member-session-test-contract",
+      member_id: contractMemberId,
+      organization_id: contractOrganizationId,
+    },
+    member_authenticated: true,
+    session_jwt: "jwt-test-must-not-appear-in-output",
+    session_token: "session-token-must-not-appear-in-output",
+  };
+}
 
 async function startLoopbackServer(
   handler: (request: IncomingMessage, response: ServerResponse) => void,
@@ -86,8 +125,8 @@ afterEach(async () => {
 });
 
 describe("Stytch B2B test-session proof CLI", () => {
-  it("authenticates the documented sandbox token and prints only a safe success summary", async () => {
-    // Production break caught: changing the request route, payload, auth, or success logging leaks a Stytch credential or session artifact.
+  it("accepts the null-expanded sandbox Organization when stable scopes match and prints only a safe summary", async () => {
+    // Production break caught: rejecting the real null-expanded sandbox shape prevents the proof, while changing request/auth/output handling can leak a credential or session artifact.
     let requestBody = "";
     let authorization = "";
     let requestUrl = "";
@@ -98,13 +137,7 @@ describe("Stytch B2B test-session proof CLI", () => {
       request.on("data", (chunk: string) => { requestBody += chunk; });
       request.on("end", () => {
         response.writeHead(200, { "content-type": "application/json" });
-        response.end(JSON.stringify({
-          member: { member_id: "member-test-contract" },
-          organization: { organization_id: "organization-test-contract" },
-          member_session: { member_session_id: "member-session-test-contract" },
-          session_jwt: "jwt-test-must-not-appear-in-output",
-          session_token: "session-token-must-not-appear-in-output",
-        }));
+        response.end(JSON.stringify(validProviderResponse()));
       });
     });
 
@@ -129,18 +162,128 @@ describe("Stytch B2B test-session proof CLI", () => {
     expect(`${result.stdout}${result.stderr}`).not.toContain("session-token-must-not-appear-in-output");
   });
 
+  it("accepts a matching expanded Organization when the provider returns one", async () => {
+    // Production break caught: rejecting a valid expanded Organization would make the proof incompatible with the documented non-sandbox response.
+    const providerResponse = validProviderResponse();
+    providerResponse.organization = { organization_id: contractOrganizationId };
+    const { baseUrl } = await startLoopbackServer((_request, response) => {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify(providerResponse));
+    });
+
+    const result = await runProof({
+      STYTCH_PROOF_ALLOW_LOOPBACK: "1",
+      STYTCH_PROOF_BASE_URL: baseUrl,
+    });
+
+    expect(result).toEqual({
+      exitCode: 0,
+      stderr: "",
+      stdout: "Stytch B2B Test session created.\n",
+    });
+  });
+
+  it.each([
+    { description: "missing", organizationId: undefined },
+    { description: "blank", organizationId: "   " },
+    { description: "non-Test", organizationId: "organization-live-contract" },
+  ])("rejects a $description top-level Organization ID", async ({ organizationId }) => {
+    // Production break caught: accepting a missing/blank stable Organization ID would create an unscoped authenticated session.
+    const providerResponse = validProviderResponse();
+    providerResponse.organization = { organization_id: contractOrganizationId };
+    providerResponse.organization_id = organizationId;
+    const { baseUrl } = await startLoopbackServer((_request, response) => {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify(providerResponse));
+    });
+
+    const result = await runProof({
+      STYTCH_PROOF_ALLOW_LOOPBACK: "1",
+      STYTCH_PROOF_BASE_URL: baseUrl,
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toBe("Stytch proof failed: response did not include a Test Organization ID.\n");
+  });
+
+  it.each([
+    {
+      description: "Member",
+      mutate: (response: ProviderContractFixture) => {
+        response.member.organization_id = "organization-test-other";
+      },
+    },
+    {
+      description: "Member session",
+      mutate: (response: ProviderContractFixture) => {
+        response.member_session.organization_id = "organization-test-other";
+      },
+    },
+  ])("rejects a $description scoped to a different Organization", async ({ description, mutate }) => {
+    // Production break caught: accepting cross-Organization response components could bind a session to the wrong tenant.
+    const providerResponse = validProviderResponse();
+    mutate(providerResponse);
+    const { baseUrl } = await startLoopbackServer((_request, response) => {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify(providerResponse));
+    });
+
+    const result = await runProof({
+      STYTCH_PROOF_ALLOW_LOOPBACK: "1",
+      STYTCH_PROOF_BASE_URL: baseUrl,
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toBe(`Stytch proof failed: ${description} Organization ID did not match.\n`);
+  });
+
+  it("rejects an expanded Organization scoped to a different Organization ID", async () => {
+    // Production break caught: trusting a mismatched expanded Organization could cross tenant boundaries despite a valid stable ID.
+    const providerResponse = validProviderResponse();
+    providerResponse.organization = { organization_id: "organization-test-other" };
+    const { baseUrl } = await startLoopbackServer((_request, response) => {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify(providerResponse));
+    });
+
+    const result = await runProof({
+      STYTCH_PROOF_ALLOW_LOOPBACK: "1",
+      STYTCH_PROOF_BASE_URL: baseUrl,
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toBe("Stytch proof failed: expanded Organization ID did not match.\n");
+  });
+
+  it("rejects a Member that is not fully authenticated", async () => {
+    // Production break caught: treating an intermediate authentication state as a full login could bypass required factors.
+    const providerResponse = validProviderResponse();
+    providerResponse.member_authenticated = false;
+    const { baseUrl } = await startLoopbackServer((_request, response) => {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify(providerResponse));
+    });
+
+    const result = await runProof({
+      STYTCH_PROOF_ALLOW_LOOPBACK: "1",
+      STYTCH_PROOF_BASE_URL: baseUrl,
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toBe("Stytch proof failed: Member was not fully authenticated.\n");
+  });
+
   it("accepts an explicitly gated IPv6 loopback override", async (context) => {
     // Production break caught: rejecting [::1] would make the documented IPv6 loopback test gate unavailable.
     let baseUrl: string;
     try {
       ({ baseUrl } = await startIpv6LoopbackServer((_request, response) => {
         response.writeHead(200, { "content-type": "application/json" });
-        response.end(JSON.stringify({
-          member: { member_id: "member-test-contract" },
-          member_session: { member_session_id: "member-session-test-contract" },
-          organization: { organization_id: "organization-test-contract" },
-          session_jwt: "jwt-test-must-not-appear-in-output",
-        }));
+        response.end(JSON.stringify(validProviderResponse()));
       }));
     } catch (error) {
       const code = error instanceof Error ? (error as Error & { code?: string }).code : undefined;
@@ -238,11 +381,8 @@ describe("Stytch B2B test-session proof CLI", () => {
         "content-type": "application/json",
       });
       response.end(JSON.stringify({
-        member: { member_id: "member-test-contract" },
-        member_session: { member_session_id: "member-session-test-contract" },
-        organization: { organization_id: "organization-test-contract" },
+        ...validProviderResponse(),
         provider_detail: "declared-oversize-body-must-not-appear-in-output",
-        session_jwt: "jwt-test-must-not-appear-in-output",
       }));
     });
 
@@ -263,11 +403,8 @@ describe("Stytch B2B test-session proof CLI", () => {
     const { baseUrl } = await startLoopbackServer((_request, response) => {
       response.writeHead(200, { "content-type": "application/json" });
       response.end(JSON.stringify({
-        member: { member_id: "member-test-contract" },
-        member_session: { member_session_id: "member-session-test-contract" },
-        organization: { organization_id: "organization-test-contract" },
+        ...validProviderResponse(),
         provider_detail: "streamed-oversize-body-must-not-appear-in-output",
-        session_jwt: "jwt-test-must-not-appear-in-output",
         unused_large_value: "x".repeat(responseByteLimit),
       }));
     });
@@ -286,13 +423,13 @@ describe("Stytch B2B test-session proof CLI", () => {
 
   it("rejects a member session without its provider member_session_id", async () => {
     // Production break caught: accepting an arbitrary member_session object can treat an incomplete Stytch response as authenticated.
+    const providerResponse = validProviderResponse();
+    providerResponse.member_session.member_session_id = undefined;
     const { baseUrl } = await startLoopbackServer((_request, response) => {
       response.writeHead(200, { "content-type": "application/json" });
       response.end(JSON.stringify({
-        member: { member_id: "member-test-contract" },
-        member_session: { provider_detail: "member-session-id-must-not-be-optional" },
-        organization: { organization_id: "organization-test-contract" },
-        session_jwt: "jwt-test-must-not-appear-in-output",
+        ...providerResponse,
+        provider_detail: "member-session-id-must-not-be-optional",
       }));
     });
 
@@ -309,12 +446,12 @@ describe("Stytch B2B test-session proof CLI", () => {
 
   it("fails closed on an incomplete provider response without echoing its body", async () => {
     // Production break caught: treating a partial provider response as a usable authenticated session could bypass identity checks.
+    const providerResponse = validProviderResponse();
+    providerResponse.session_jwt = "";
     const { baseUrl } = await startLoopbackServer((_request, response) => {
       response.writeHead(200, { "content-type": "application/json" });
       response.end(JSON.stringify({
-        member: { member_id: "member-test-contract" },
-        organization: { organization_id: "organization-test-contract" },
-        member_session: { member_session_id: "member-session-test-contract" },
+        ...providerResponse,
         provider_detail: "provider-body-must-not-appear-in-output",
       }));
     });

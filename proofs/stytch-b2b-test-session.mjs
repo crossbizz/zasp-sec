@@ -63,11 +63,33 @@ function requireSessionResponse(value) {
     throw new ProofError("Stytch response was not valid JSON.");
   }
 
+  const organizationId = value.organization_id;
+  if (typeof organizationId !== "string" || !/^organization-test-\S+$/.test(organizationId)) {
+    throw new ProofError("response did not include a Test Organization ID.");
+  }
+
   requireNonEmptyObject(value.member, "Member");
-  requireNonEmptyObject(value.organization, "Organization");
+  if (value.member.organization_id !== organizationId) {
+    throw new ProofError("Member Organization ID did not match.");
+  }
+
   requireNonEmptyObject(value.member_session, "Member session");
+  if (value.member_session.organization_id !== organizationId) {
+    throw new ProofError("Member session Organization ID did not match.");
+  }
   if (typeof value.member_session.member_session_id !== "string" || value.member_session.member_session_id.trim() === "") {
     throw new ProofError("response did not include a member session ID.");
+  }
+
+  if (value.organization !== null && value.organization !== undefined) {
+    requireNonEmptyObject(value.organization, "Organization");
+    if (value.organization.organization_id !== organizationId) {
+      throw new ProofError("expanded Organization ID did not match.");
+    }
+  }
+
+  if (value.member_authenticated !== true) {
+    throw new ProofError("Member was not fully authenticated.");
   }
   if (typeof value.session_jwt !== "string" || value.session_jwt.trim() === "") {
     throw new ProofError("response did not include a session JWT.");
