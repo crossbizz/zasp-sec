@@ -17,7 +17,7 @@ with product APIs. They do not mark any source-plan microtask complete.
 
 ## Task 1: PRE-01 — restore a reproducible clean UI baseline
 
-Status: In progress.
+Status: Complete.
 
 Deliverables:
 
@@ -40,7 +40,7 @@ Verification:
 
 ## Task 2: PRE-02 — enforce the runnable UI at every push
 
-Status: Pending.
+Status: In progress.
 
 Depends on: Task 1.
 

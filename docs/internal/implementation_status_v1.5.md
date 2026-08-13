@@ -51,11 +51,11 @@ In progress, Complete, or Blocked is Pending.
 | ID | Status | Purpose | Verification |
 | --- | --- | --- | --- |
 | PRE-01 | Complete | Restored a clean, reproducible UI quality baseline before M0 work. | Node 22.23.1/npm 10.9.8 install, tests, type-check, lint, and production build pass without errors. |
-| PRE-02 | Pending | Add a push quality gate that enforces the runnable-UI invariant. | The same clean-checkout command runs in CI and fails on a seeded defect. |
+| PRE-02 | In progress | Add a push quality gate that enforces the runnable-UI invariant. | The same clean-checkout command runs in CI and fails on a seeded defect. |
 
 ## In progress
 
-No source-plan task is in progress.
+No source-plan task is in progress. `PRE-02` is the active prerequisite.
 
 ## Complete
 
