@@ -19,6 +19,7 @@ type WorkflowJob = {
 
 type Workflow = {
   on?: Record<string, unknown>;
+  permissions?: Record<string, unknown>;
   jobs?: Record<string, WorkflowJob>;
 };
 
@@ -27,6 +28,8 @@ type PackageManifest = {
 };
 
 const repositoryRoot = process.cwd();
+const checkoutAction = "actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683";
+const setupNodeAction = "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020";
 
 async function readWorkflow(): Promise<Workflow> {
   const source = await readFile(
@@ -62,6 +65,7 @@ function assertRunnableUiWorkflow(
   expect(workflow.on).toHaveProperty("pull_request");
   expect(isUnrestrictedEvent(workflow.on?.push)).toBe(true);
   expect(isUnrestrictedEvent(workflow.on?.pull_request)).toBe(true);
+  expect(workflow.permissions).toEqual({ contents: "read" });
   expect(verificationCommands).toEqual([
     "npm test",
     "npm run typecheck",
@@ -83,8 +87,8 @@ function assertRunnableUiWorkflow(
   const verificationSteps = verificationJob.steps ?? [];
   expect(verificationSteps).toHaveLength(5);
   expect(verificationSteps.map((step) => step.uses ?? step.run)).toEqual([
-    expect.stringMatching(/^actions\/checkout@/),
-    expect.stringMatching(/^actions\/setup-node@/),
+    checkoutAction,
+    setupNodeAction,
     "npm install --global npm@10.9.8",
     "SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci",
     "npm run verify",
@@ -99,35 +103,119 @@ function assertRunnableUiWorkflow(
   }
 }
 
-describe("runnable UI GitHub Actions gate", () => {
-  it("rejects filtered, split, optional quality gates", async () => {
-    const packageManifest = await readPackageManifest();
-    const invalidWorkflow: Workflow = {
-      on: {
-        push: { branches: ["main"] },
-        pull_request: { paths: ["app/**"] },
+function validWorkflow(): Workflow {
+  return {
+    on: { push: null, pull_request: null },
+    permissions: { contents: "read" },
+    jobs: {
+      verify: {
+        steps: [
+          { uses: checkoutAction },
+          {
+            uses: setupNodeAction,
+            with: { "node-version": "22.23.1", cache: "npm" },
+          },
+          { run: "npm install --global npm@10.9.8" },
+          { run: "SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci" },
+          { run: "npm run verify" },
+        ],
       },
-      jobs: {
-        setup: {
-          steps: [
-            { uses: "actions/checkout@v4" },
-            {
-              uses: "actions/setup-node@v4",
-              with: { "node-version": "22.23.1", cache: "npm" },
-            },
-            { run: "npm install --global npm@10.9.8" },
-            { run: "SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci" },
-          ],
-        },
-        verify: {
-          if: false,
-          "continue-on-error": true,
-          steps: [{ run: "npm run verify", "continue-on-error": true }],
-        },
-      },
-    };
+    },
+  };
+}
 
-    expect(() => assertRunnableUiWorkflow(invalidWorkflow, packageManifest)).toThrow();
+describe("runnable UI GitHub Actions gate", () => {
+  const invalidWorkflowCases: Array<{
+    description: string;
+    workflow: Workflow;
+  }> = [
+    {
+      description: "a filtered push trigger",
+      workflow: {
+        ...validWorkflow(),
+        on: { push: { branches: ["main"] }, pull_request: null },
+      },
+    },
+    {
+      description: "a filtered pull-request trigger",
+      workflow: {
+        ...validWorkflow(),
+        on: { push: null, pull_request: { paths: ["app/**"] } },
+      },
+    },
+    {
+      description: "quality steps split across jobs",
+      workflow: {
+        ...validWorkflow(),
+        jobs: {
+          setup: {
+            steps: validWorkflow().jobs?.verify?.steps?.slice(0, 4),
+          },
+          verify: { steps: [{ run: "npm run verify" }] },
+        },
+      },
+    },
+    {
+      description: "quality steps in the wrong order",
+      workflow: {
+        ...validWorkflow(),
+        jobs: {
+          verify: {
+            steps: [
+              { uses: setupNodeAction, with: { "node-version": "22.23.1", cache: "npm" } },
+              { uses: checkoutAction },
+              { run: "npm install --global npm@10.9.8" },
+              { run: "SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci" },
+              { run: "npm run verify" },
+            ],
+          },
+        },
+      },
+    },
+    {
+      description: "a conditional verification job",
+      workflow: {
+        ...validWorkflow(),
+        jobs: { verify: { ...validWorkflow().jobs?.verify, if: false } },
+      },
+    },
+    {
+      description: "a continue-on-error verification job",
+      workflow: {
+        ...validWorkflow(),
+        jobs: {
+          verify: {
+            ...validWorkflow().jobs?.verify,
+            "continue-on-error": true,
+          },
+        },
+      },
+    },
+    {
+      description: "a continue-on-error quality step",
+      workflow: {
+        ...validWorkflow(),
+        jobs: {
+          verify: {
+            steps: [
+              { uses: checkoutAction },
+              {
+                uses: setupNodeAction,
+                with: { "node-version": "22.23.1", cache: "npm" },
+              },
+              { run: "npm install --global npm@10.9.8" },
+              { run: "SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci" },
+              { run: "npm run verify", "continue-on-error": true },
+            ],
+          },
+        },
+      },
+    },
+  ];
+
+  it.each(invalidWorkflowCases)("rejects $description", async ({ workflow }) => {
+    const packageManifest = await readPackageManifest();
+    expect(() => assertRunnableUiWorkflow(workflow, packageManifest)).toThrow();
   });
 
   it("runs the locked runnable-UI verification on every push and pull request", async () => {

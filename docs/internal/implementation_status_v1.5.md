@@ -73,8 +73,8 @@ No source-plan task is blocked.
 - The repository passed 20 tests, type-check, and production build under Node
   22.23.1 at preflight. Lint reported 37 errors and is part of `PRE-01`.
 - Node 26 exposes an experimental global `localStorage` that conflicts with the
-  current Vitest DOM setup. The project currently uses Node 22 types and will be
-  pinned to a verified Node 22 release as part of `PRE-01`.
+  current Vitest DOM setup. The project uses Node 22 types and is pinned to
+  verified Node 22.23.1 as part of completed `PRE-01`.
 - On hosts with Homebrew libvips, dependency installation must set
   `SHARP_IGNORE_GLOBAL_LIBVIPS=1` so the locked Sharp binary is used.
 - `PRE-01` completed with pinned Node 22.23.1/npm 10.9.8, a root verification
