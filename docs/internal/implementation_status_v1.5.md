@@ -14,16 +14,16 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 727 |
-| In progress | 1 |
-| Complete | 0 |
-| Blocked | 0 |
+| Pending | 726 |
+| In progress | 0 |
+| Complete | 1 |
+| Blocked | 1 |
 
 ## Milestone summary
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 26 | 1 | 0 | 0 |
+| M0 | 27 | 25 | 0 | 1 | 1 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -55,18 +55,22 @@ In progress, Complete, or Blocked is Pending.
 
 ## In progress
 
-| Task | Started | Deliverable |
-| --- | --- | --- |
-| M0-01 | August 13, 2026 | MVP external and OSS risk register with explicit pass/fail exit criteria; re-review corrections in progress. |
+No source-plan task or prerequisite is in progress.
 
 ## Complete
 
-No source-plan task is complete. `PRE-01` and `PRE-02` are complete; they are
-prerequisite work and do not complete a source-plan microtask.
+| Task | Completed | Evidence |
+| --- | --- | --- |
+| M0-01 | August 13, 2026 | Fourteen external/OSS proof gates have objective PASS/FAIL criteria and initial `Not run` status; task review approved after two fix rounds. |
+
+`PRE-01` and `PRE-02` are also complete prerequisite work and do not count as
+source-plan microtasks.
 
 ## Blocked
 
-No source-plan task is blocked.
+| Task | Blocked since | Blocker | Resume condition |
+| --- | --- | --- | --- |
+| M0-02 | August 13, 2026 | No Stytch B2B Test-environment `project_id` or `secret` is available in the process environment or an ignored environment file. The task requires a real test login/session and cannot use Live credentials or fabricated responses. | Provision a non-production Stytch B2B Test environment and expose `STYTCH_PROJECT_ID` and `STYTCH_SECRET` to this worktree. Stytch's documented B2B sandbox organization and magic-link token can then create the proof session without a real inbox. |
 
 ## Deferred findings
 
@@ -90,3 +94,7 @@ No source-plan task is blocked.
 - `PRE-02` completed with a GitHub Actions gate for pushes and pull requests.
   It pins Node 22.23.1/npm 10.9.8, uses the documented locked install, and
   runs `npm run verify`; a parsed-workflow test protects that contract.
+- `M0-01` completed after independent review confirmed all 14 proof gates and
+  the supported EKS Fargate scheduling signal.
+- `M0-02` is the first dependency blocker. Stytch requires a Test-environment
+  Project ID and Secret for direct B2B API/SDK calls; neither is configured.
