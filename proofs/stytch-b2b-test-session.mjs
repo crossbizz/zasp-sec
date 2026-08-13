@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 
 import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { pathToFileURL } from "node:url";
 
 const STYTCH_TEST_BASE_URL = "https://test.stytch.com";
 const SESSION_DURATION_MINUTES = 60;
 const REQUEST_TIMEOUT_MS = 5_000;
 const RESPONSE_BYTE_LIMIT = 64 * 1024;
 
-class ProofError extends Error {}
+export class ProofError extends Error {}
 
 function requireTestCredentials(environment) {
   const projectId = environment.STYTCH_PROJECT_ID;
@@ -275,6 +276,13 @@ function requireSessionResponse(value, cleanupTarget, identity, memberId) {
   if (typeof value.session_jwt !== "string" || value.session_jwt.trim() === "") {
     throw new ProofError("response did not include a session JWT.");
   }
+
+  return Object.freeze({
+    memberId,
+    memberSessionId: value.member_session.member_session_id,
+    organizationId: cleanupTarget.organizationId,
+    projectSessionJwt: value.session_jwt,
+  });
 }
 
 function assertCleanupTarget(cleanupTarget, identity) {
@@ -307,7 +315,7 @@ async function deleteProofOwnedOrganization({ authorization, baseUrl, cleanupTar
   }
 }
 
-async function createTestSession(environment) {
+export async function createTestSession(environment, verifySession) {
   const { projectId, secret } = requireTestCredentials(environment);
   const baseUrl = resolveBaseUrl(environment);
   const authorization = Buffer.from(`${projectId}:${secret}`).toString("base64");
@@ -359,7 +367,14 @@ async function createTestSession(environment) {
         session_duration_minutes: SESSION_DURATION_MINUTES,
       },
     });
-    requireSessionResponse(authenticateResponse, cleanupTarget, identity, memberId);
+    const session = requireSessionResponse(authenticateResponse, cleanupTarget, identity, memberId);
+    if (verifySession) {
+      await verifySession({
+        projectId,
+        projectSecret: secret,
+        session,
+      });
+    }
   } catch (error) {
     proofFailure = error;
   } finally {
@@ -375,11 +390,13 @@ async function createTestSession(environment) {
   if (proofFailure) throw proofFailure;
 }
 
-try {
-  await createTestSession(process.env);
-  console.log("Stytch B2B Test session created and disposable Organization deleted.");
-} catch (error) {
-  const message = error instanceof ProofError ? error.message : "unexpected failure.";
-  console.error(`Stytch proof failed: ${message}`);
-  process.exitCode = 1;
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  try {
+    await createTestSession(process.env);
+    console.log("Stytch B2B Test session created and disposable Organization deleted.");
+  } catch (error) {
+    const message = error instanceof ProofError ? error.message : "unexpected failure.";
+    console.error(`Stytch proof failed: ${message}`);
+    process.exitCode = 1;
+  }
 }

@@ -1,12 +1,15 @@
 import { createHash } from "node:crypto";
 import { once } from "node:events";
+import { readFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { spawn } from "node:child_process";
 import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
 const repositoryRoot = process.cwd();
 const runnerPath = resolve(repositoryRoot, "proofs/stytch-b2b-test-session.mjs");
+const jwtRunnerPath = resolve(repositoryRoot, "proofs/stytch-b2b-jwt.mjs");
 const contractProjectId = ["project", "test", "contract"].join("-");
 const contractSecret = ["secret", "test", "contract"].join("-");
 const liveProjectId = ["project", "live", "contract"].join("-");
@@ -30,6 +33,30 @@ type RunnerResult = {
   exitCode: number | null;
   stderr: string;
   stdout: string;
+};
+
+type JwtAuthenticateCall = {
+  maxTokenAgeSeconds: number | undefined;
+  parameterKeys: string[];
+  sessionJwtMatched: boolean;
+};
+
+type JwtClientCreation = {
+  projectIdMatched: boolean;
+  secretKind: "invalid-local" | "test" | "unexpected";
+};
+
+type JwtClientFactory = (config: { project_id: string; secret: string }) => {
+  sessions: {
+    authenticateJwt: (params: { session_jwt: string; max_token_age_seconds?: number }) => Promise<JsonObject>;
+  };
+};
+
+type JwtProofModule = {
+  runStytchJwtProof: (
+    environment: Record<string, string | undefined>,
+    dependencies: { createClient: JwtClientFactory },
+  ) => Promise<string>;
 };
 
 type ProviderBehavior = {
@@ -257,6 +284,99 @@ async function runProof(extraEnvironment: Record<string, string | undefined> = {
     child.on("error", reject);
     child.on("close", (exitCode) => resolveResult({ exitCode, stderr, stdout }));
   });
+}
+
+async function runJwtProof(extraEnvironment: Record<string, string | undefined> = {}): Promise<RunnerResult> {
+  return new Promise((resolveResult, reject) => {
+    const child = spawn(process.execPath, [jwtRunnerPath], {
+      cwd: repositoryRoot,
+      env: {
+        ...process.env,
+        STYTCH_PROJECT_ID: contractProjectId,
+        STYTCH_SECRET: contractSecret,
+        ...extraEnvironment,
+      },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk: Buffer) => { stdout += chunk.toString(); });
+    child.stderr.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
+    child.on("error", reject);
+    child.on("close", (exitCode) => resolveResult({ exitCode, stderr, stdout }));
+  });
+}
+
+async function loadJwtProof(): Promise<JwtProofModule> {
+  const moduleUrl = pathToFileURL(jwtRunnerPath).href;
+  return import(/* @vite-ignore */ moduleUrl) as Promise<JwtProofModule>;
+}
+
+function completeMemberSession(overrides: JsonObject = {}): JsonObject {
+  return {
+    authentication_factors: [],
+    custom_claims: {},
+    expires_at: "2099-08-13T22:00:00.000Z",
+    last_accessed_at: "2026-08-13T22:00:00.000Z",
+    member_id: memberId,
+    member_session_id: memberSessionId,
+    organization_id: organizationId,
+    organization_slug: "zasp-m0-03-proof",
+    roles: [],
+    started_at: "2026-08-13T22:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function createJwtClientFactory(behavior: {
+  failAt?: "fresh" | "remote";
+  freshSession?: JsonObject;
+  remoteMember?: JsonObject;
+  remoteOrganization?: JsonObject;
+  remoteSession?: JsonObject;
+} = {}) {
+  const calls: Record<"fresh" | "remote", JwtAuthenticateCall[]> = { fresh: [], remote: [] };
+  const creations: JwtClientCreation[] = [];
+
+  const createClient: JwtClientFactory = (config) => {
+    const secretKind = config.secret === "invalid-local-validation-only"
+      ? "invalid-local"
+      : config.secret === contractSecret
+        ? "test"
+        : "unexpected";
+    const path = secretKind === "invalid-local" ? "fresh" : "remote";
+    creations.push({ projectIdMatched: config.project_id === contractProjectId, secretKind });
+    return {
+      sessions: {
+        authenticateJwt: async (params) => {
+          calls[path].push({
+            maxTokenAgeSeconds: params.max_token_age_seconds,
+            parameterKeys: Object.keys(params).sort(),
+            sessionJwtMatched: params.session_jwt === "jwt-test-must-not-appear-in-output",
+          });
+          if (behavior.failAt === path) {
+            throw new Error("sdk-provider-detail-must-not-appear");
+          }
+          const response: JsonObject = {
+            member_session: path === "fresh"
+              ? (behavior.freshSession ?? completeMemberSession())
+              : (behavior.remoteSession ?? completeMemberSession()),
+            session_jwt: "jwt-returned-must-not-appear-in-output",
+          };
+          if (path === "remote") {
+            response.member = behavior.remoteMember ?? { member_id: memberId, organization_id: organizationId };
+            response.organization = behavior.remoteOrganization ?? { organization_id: organizationId };
+            response.request_id = "request-id-test-contract";
+            response.session_token = "session-token-must-not-appear-in-output";
+            response.status_code = 200;
+          }
+          return response;
+        },
+      },
+    };
+  };
+
+  return { calls, creations, createClient };
 }
 
 function requireBody(request: CapturedRequest): JsonObject {
@@ -840,4 +960,181 @@ describe("Stytch disposable B2B test-session proof CLI", () => {
     });
     expect(`${result.stdout}${result.stderr}`).not.toContain("stalled-body-must-not-appear");
   }, 10_000);
+});
+
+describe("Stytch B2B JWT proof CLI", () => {
+  it("validates the proof session through fresh-local and forced-remote SDK calls before cleanup", async () => {
+    // Production break caught: skipping either authenticateJwt mode, using the real credential for the local proof, passing the wrong arguments, or verifying after cleanup invalidates M0-03.
+    const { baseUrl, requests } = await startProofProvider();
+    const clients = createJwtClientFactory();
+    const { runStytchJwtProof } = await loadJwtProof();
+
+    const summary = await runStytchJwtProof({
+      STYTCH_PROJECT_ID: contractProjectId,
+      STYTCH_PROOF_ALLOW_LOOPBACK: "1",
+      STYTCH_PROOF_BASE_URL: baseUrl,
+      STYTCH_SECRET: contractSecret,
+    }, { createClient: clients.createClient });
+
+    expect(summary).toBe("Stytch B2B fresh JWT validated locally; old JWT validated through forced remote authentication; disposable Organization deleted.");
+    expect(clients.creations).toEqual([
+      { projectIdMatched: true, secretKind: "invalid-local" },
+      { projectIdMatched: true, secretKind: "test" },
+    ]);
+    expect(clients.calls).toEqual({
+      fresh: [{
+        maxTokenAgeSeconds: undefined,
+        parameterKeys: ["session_jwt"],
+        sessionJwtMatched: true,
+      }],
+      remote: [{
+        maxTokenAgeSeconds: 0,
+        parameterKeys: ["max_token_age_seconds", "session_jwt"],
+        sessionJwtMatched: true,
+      }],
+    });
+    expect(requests.map(({ method, url }) => `${method} ${url}`)).toEqual([
+      "POST /v1/b2b/organizations",
+      "POST /v1/b2b/passwords/migrate",
+      "POST /v1/b2b/passwords/authenticate",
+      `DELETE /v1/b2b/organizations/${organizationId}`,
+    ]);
+    expect(summary).not.toContain(organizationId);
+    expect(summary).not.toContain(memberId);
+    expect(summary).not.toContain(memberSessionId);
+    expect(summary).not.toContain(contractSecret);
+    expect(summary).not.toContain("jwt-test-must-not-appear-in-output");
+    expect(summary).not.toContain("jwt-returned-must-not-appear-in-output");
+  });
+
+  it.each([
+    { field: "member_session_id", path: "fresh" },
+    { field: "member_id", path: "fresh" },
+    { field: "organization_id", path: "fresh" },
+    { field: "member_session_id", path: "remote" },
+    { field: "member_id", path: "remote" },
+    { field: "organization_id", path: "remote" },
+  ] as const)("rejects a mismatched $path $field scope and still cleans up", async ({ field, path }) => {
+    // Production break caught: accepting any cross-session, cross-member, or cross-Organization SDK result could authorize the wrong tenant scope.
+    const { baseUrl, requests } = await startProofProvider();
+    const mismatchedSession = completeMemberSession({ [field]: `${field}-test-other` });
+    const clients = createJwtClientFactory(path === "fresh"
+      ? { freshSession: mismatchedSession }
+      : { remoteSession: mismatchedSession });
+    const { runStytchJwtProof } = await loadJwtProof();
+
+    await expect(runStytchJwtProof({
+      STYTCH_PROJECT_ID: contractProjectId,
+      STYTCH_PROOF_ALLOW_LOOPBACK: "1",
+      STYTCH_PROOF_BASE_URL: baseUrl,
+      STYTCH_SECRET: contractSecret,
+    }, { createClient: clients.createClient })).rejects.toThrow("Stytch JWT validation scope did not match.");
+    expect(requests.at(-1)).toMatchObject({
+      method: "DELETE",
+      url: `/v1/b2b/organizations/${organizationId}`,
+    });
+  });
+
+  it.each([
+    { field: "member_id", scopeObject: "member" },
+    { field: "organization_id", scopeObject: "member" },
+    { field: "organization_id", scopeObject: "organization" },
+  ] as const)("rejects a mismatched remote $scopeObject $field scope and still cleans up", async ({ field, scopeObject }) => {
+    // Production break caught: accepting an inconsistent expanded remote Member or Organization could hide a cross-scope remote authentication result.
+    const { baseUrl, requests } = await startProofProvider();
+    const clients = createJwtClientFactory(scopeObject === "member"
+      ? { remoteMember: { ...{ member_id: memberId, organization_id: organizationId }, [field]: `${field}-test-other` } }
+      : { remoteOrganization: { ...{ organization_id: organizationId }, [field]: `${field}-test-other` } });
+    const { runStytchJwtProof } = await loadJwtProof();
+
+    await expect(runStytchJwtProof({
+      STYTCH_PROJECT_ID: contractProjectId,
+      STYTCH_PROOF_ALLOW_LOOPBACK: "1",
+      STYTCH_PROOF_BASE_URL: baseUrl,
+      STYTCH_SECRET: contractSecret,
+    }, { createClient: clients.createClient })).rejects.toThrow("Stytch JWT validation scope did not match.");
+    expect(requests.at(-1)?.method).toBe("DELETE");
+  });
+
+  it.each([{ path: "fresh" }, { path: "remote" }] as const)("redacts a $path SDK failure and still cleans up", async ({ path }) => {
+    // Production break caught: an SDK error could bypass cleanup or expose provider/JWT details through the proof boundary.
+    const { baseUrl, requests } = await startProofProvider();
+    const clients = createJwtClientFactory({ failAt: path });
+    const { runStytchJwtProof } = await loadJwtProof();
+
+    const proof = runStytchJwtProof({
+      STYTCH_PROJECT_ID: contractProjectId,
+      STYTCH_PROOF_ALLOW_LOOPBACK: "1",
+      STYTCH_PROOF_BASE_URL: baseUrl,
+      STYTCH_SECRET: contractSecret,
+    }, { createClient: clients.createClient });
+    await expect(proof).rejects.toThrow("Stytch JWT validation failed.");
+    await expect(proof).rejects.not.toThrow("sdk-provider-detail-must-not-appear");
+    expect(requests.at(-1)?.method).toBe("DELETE");
+  });
+
+  it("reports cleanup failure instead of a verifier failure when both occur", async () => {
+    // Production break caught: retaining only the SDK error could conceal leaked proof-owned identity state after failed cleanup.
+    const { baseUrl, requests } = await startProofProvider({ status: { cleanup: 500 } });
+    const clients = createJwtClientFactory({ failAt: "fresh" });
+    const { runStytchJwtProof } = await loadJwtProof();
+
+    const proof = runStytchJwtProof({
+      STYTCH_PROJECT_ID: contractProjectId,
+      STYTCH_PROOF_ALLOW_LOOPBACK: "1",
+      STYTCH_PROOF_BASE_URL: baseUrl,
+      STYTCH_SECRET: contractSecret,
+    }, { createClient: clients.createClient });
+    await expect(proof).rejects.toThrow("disposable Organization cleanup failed.");
+    await expect(proof).rejects.not.toThrow("sdk-provider-detail-must-not-appear");
+    expect(requests.at(-1)?.method).toBe("DELETE");
+  });
+
+  it("rejects a Live project in the actual JWT CLI before provider I/O", async () => {
+    // Production break caught: the M0-03 wrapper must not weaken the reviewed Test-only credential boundary.
+    const result = await runJwtProof({ STYTCH_PROJECT_ID: liveProjectId, STYTCH_SECRET: liveSecret });
+
+    expect(result).toEqual({
+      exitCode: 1,
+      stderr: "Stytch JWT proof failed: STYTCH_PROJECT_ID must be a Stytch Test project.\n",
+      stdout: "",
+    });
+    expect(`${result.stdout}${result.stderr}`).not.toContain(liveSecret);
+  });
+
+  it("rejects a Live secret in the actual JWT CLI before provider I/O", async () => {
+    // Production break caught: the M0-03 wrapper must preserve the mixed Test/Live credential refusal.
+    let requests = 0;
+    const { baseUrl } = await startLoopbackServer((_request, response) => {
+      requests += 1;
+      response.end();
+    });
+
+    const result = await runJwtProof({
+      STYTCH_PROJECT_ID: contractProjectId,
+      STYTCH_PROOF_ALLOW_LOOPBACK: "1",
+      STYTCH_PROOF_BASE_URL: baseUrl,
+      STYTCH_SECRET: liveSecret,
+    });
+
+    expect(result).toEqual({
+      exitCode: 1,
+      stderr: "Stytch JWT proof failed: STYTCH_SECRET must be a Stytch Test secret.\n",
+      stdout: "",
+    });
+    expect(requests).toBe(0);
+    expect(`${result.stdout}${result.stderr}`).not.toContain(liveSecret);
+  });
+
+  it("pins the confirmed official Stytch Node backend SDK release", async () => {
+    // Production break caught: a floating or mismatched SDK can silently change the local/remote authenticateJwt contract.
+    const packageJson = JSON.parse(await readFile(resolve(repositoryRoot, "package.json"), "utf8")) as JsonObject;
+    const packageLock = JSON.parse(await readFile(resolve(repositoryRoot, "package-lock.json"), "utf8")) as {
+      packages?: Record<string, JsonObject>;
+    };
+    const dependencies = nestedObject(packageJson.dependencies);
+
+    expect(dependencies.stytch).toBe("14.2.0");
+    expect(packageLock.packages?.["node_modules/stytch"]?.version).toBe("14.2.0");
+  });
 });
