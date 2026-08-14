@@ -10,11 +10,16 @@ const maximumDepth = 16;
 const maximumStringLength = 16_384;
 const maximumCollectionSize = 32;
 const checkId = "iam_role_cross_service_confused_deputy_prevention";
+const expectedAccountId = "000000000000";
+const expectedRegion = "us-east-1";
+const expectedRoleName = "shared-fixture-role";
+const expectedRoleArn =
+  "arn:aws:iam::000000000000:role/shared-fixture-role";
 const accountIdPattern = /^\d{12}$/;
 const roleArnPattern = /^arn:aws:iam::(\d{12}):role\/([A-Za-z0-9+=,.@_/-]{1,512})$/;
 const observationPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.000Z$/;
-const utcInstantPattern =
-  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|\+00:00)$/;
+const utcInstantPartsPattern =
+  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,6}))?(?:Z|\+00:00)$/;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const forbiddenLabelPattern = /prowler|ocsf|docker|localstack|aws/i;
 
@@ -78,6 +83,7 @@ export function normalizeProwlerEvidence(organizationId, artifact, observedAt) {
   const arn = resource.uid;
   const canonicalResourceId = canonicalScopedSourceId(scope, "aws", "identity_role", arn);
   const ruleCode = "cloud_identity_role_confused_deputy";
+  const canonicalFindingId = findingId(scope, canonicalResourceId, ruleCode);
   const evidenceKind = "cloud_posture_check";
   const evidenceDigest = hash([
     scope,
@@ -100,6 +106,7 @@ export function normalizeProwlerEvidence(organizationId, artifact, observedAt) {
     ],
     findings: [
       {
+        id: canonicalFindingId,
         organization_id: scope,
         category: "privileged_identity",
         rule_code: ruleCode,
@@ -144,6 +151,7 @@ export function validateNormalizedProwlerEvidence(value) {
     ["id", "organization_id", "provider", "kind", "source_id"],
     "normalized resource",
   );
+  expectString(resource.source_id, "normalized resource.source_id");
   if (
     resource.organization_id !== scope ||
     resource.provider !== "aws" ||
@@ -163,7 +171,7 @@ export function validateNormalizedProwlerEvidence(value) {
   const finding = value.findings[0];
   expectKeys(
     finding,
-    ["organization_id", "category", "rule_code", "severity", "status", "resource_id"],
+    ["id", "organization_id", "category", "rule_code", "severity", "status", "resource_id"],
     "normalized finding",
   );
   if (
@@ -175,6 +183,9 @@ export function validateNormalizedProwlerEvidence(value) {
     finding.resource_id !== resource.id
   ) {
     throw new TypeError("normalized finding is invalid");
+  }
+  if (finding.id !== findingId(scope, resource.id, finding.rule_code)) {
+    throw new TypeError("normalized finding ID is invalid");
   }
 
   const evidence = value.evidence[0];
@@ -369,6 +380,16 @@ function validateResource(resource, finding) {
   expectKeys(resource.data, ["details", "metadata"], "resource.data");
   expectKeys(resource.group, ["name"], "resource.group");
   expectString(resource.data.details, "resource.data.details");
+  for (const [value, context] of [
+    [resource.cloud_partition, "resource.cloud_partition"],
+    [resource.region, "resource.region"],
+    [resource.group.name, "resource.group.name"],
+    [resource.name, "resource.name"],
+    [resource.type, "resource.type"],
+    [resource.uid, "resource.uid"],
+  ]) {
+    expectString(value, context);
+  }
   expectExactArrayLength(resource.labels, 0, "resource.labels");
   const metadata = resource.data.metadata;
   expectKeys(
@@ -388,6 +409,8 @@ function validateResource(resource, finding) {
   expectExactArrayLength(metadata.attached_policies, 0, "attached_policies");
   expectExactArrayLength(metadata.inline_policies, 0, "inline_policies");
   expectExactArrayLength(metadata.tags, 0, "tags");
+  expectString(metadata.name, "resource.data.metadata.name");
+  expectString(metadata.arn, "resource.data.metadata.arn");
   if (metadata.permissions_boundary !== null || metadata.is_service_role !== true) {
     throw new TypeError("IAM role metadata is invalid");
   }
@@ -395,11 +418,14 @@ function validateResource(resource, finding) {
   const arnMatch = roleArnPattern.exec(resource.uid);
   if (
     resource.cloud_partition !== "aws" ||
-    resource.region !== "us-east-1" ||
+    resource.region !== expectedRegion ||
     resource.group.name !== "iam" ||
     resource.type !== "AwsIamRole" ||
     !arnMatch ||
-    resource.name !== arnMatch[2] ||
+    resource.uid !== expectedRoleArn ||
+    resource.name !== expectedRoleName ||
+    arnMatch[1] !== expectedAccountId ||
+    arnMatch[2] !== expectedRoleName ||
     metadata.name !== resource.name ||
     metadata.arn !== resource.uid ||
     finding.unmapped.provider_uid !== arnMatch[1]
@@ -426,15 +452,28 @@ function validateCloud(cloud, resource, unmapped) {
   expectKeys(cloud, ["account", "org", "provider", "region"], "cloud");
   expectKeys(cloud.account, ["name", "type", "type_id", "uid", "labels"], "cloud.account");
   expectKeys(cloud.org, ["name", "uid"], "cloud.org");
+  expectString(resource.uid, "cloud resource.uid");
+  for (const [value, context] of [
+    [cloud.provider, "cloud.provider"],
+    [cloud.region, "cloud.region"],
+    [cloud.account.name, "cloud.account.name"],
+    [cloud.account.type, "cloud.account.type"],
+    [cloud.account.uid, "cloud.account.uid"],
+    [cloud.org.name, "cloud.org.name"],
+    [cloud.org.uid, "cloud.org.uid"],
+  ]) {
+    expectString(value, context);
+  }
   expectExactArrayLength(cloud.account.labels, 0, "cloud.account.labels");
   const match = roleArnPattern.exec(resource.uid);
   if (
     cloud.provider !== "aws" ||
-    cloud.region !== "us-east-1" ||
+    cloud.region !== expectedRegion ||
     cloud.account.name !== "" ||
     cloud.account.type !== "AWS Account" ||
     cloud.account.type_id !== 10 ||
     !accountIdPattern.test(cloud.account.uid) ||
+    cloud.account.uid !== expectedAccountId ||
     cloud.account.uid !== match?.[1] ||
     unmapped.provider_uid !== cloud.account.uid ||
     cloud.org.name !== "" ||
@@ -575,8 +614,7 @@ function validateObservationInstant(value) {
   if (
     typeof value !== "string" ||
     !observationPattern.test(value) ||
-    Number.isNaN(Date.parse(value)) ||
-    new Date(value).toISOString() !== value
+    utcInstantMilliseconds(value) === undefined
   ) {
     throw new TypeError("observation instant is invalid");
   }
@@ -645,15 +683,40 @@ function validateTimestampPair(seconds, instant, context) {
   if (
     !Number.isSafeInteger(seconds) ||
     seconds < 0 ||
-    typeof instant !== "string" ||
-    !utcInstantPattern.test(instant)
+    typeof instant !== "string"
   ) {
     throw new TypeError(`${context} must be a UTC timestamp pair`);
   }
-  const milliseconds = Date.parse(instant);
-  if (!Number.isFinite(milliseconds) || Math.floor(milliseconds / 1_000) !== seconds) {
+  const milliseconds = utcInstantMilliseconds(instant);
+  if (milliseconds === undefined || Math.floor(milliseconds / 1_000) !== seconds) {
     throw new TypeError(`${context} timestamp values do not match`);
   }
+}
+
+function utcInstantMilliseconds(value) {
+  if (typeof value !== "string") return undefined;
+  const match = utcInstantPartsPattern.exec(value);
+  if (!match) return undefined;
+  const [year, month, day, hour, minute, second] = match
+    .slice(1, 7)
+    .map((part) => Number(part));
+  if (year < 1) return undefined;
+  const millisecond = Number(`${match[7] ?? ""}000`.slice(0, 3));
+  const candidate = new Date(0);
+  candidate.setUTCFullYear(year, month - 1, day);
+  candidate.setUTCHours(hour, minute, second, millisecond);
+  if (
+    candidate.getUTCFullYear() !== year ||
+    candidate.getUTCMonth() !== month - 1 ||
+    candidate.getUTCDate() !== day ||
+    candidate.getUTCHours() !== hour ||
+    candidate.getUTCMinutes() !== minute ||
+    candidate.getUTCSeconds() !== second ||
+    candidate.getUTCMilliseconds() !== millisecond
+  ) {
+    return undefined;
+  }
+  return candidate.getTime();
 }
 
 function sameArray(actual, expected) {
@@ -666,4 +729,12 @@ function sameArray(actual, expected) {
 
 function hash(parts) {
   return createHash("sha256").update(JSON.stringify(parts)).digest("hex");
+}
+
+function findingId(organizationId, resourceId, ruleCode) {
+  return `${organizationId}:finding:${ruleCode}:${hash([
+    organizationId,
+    resourceId,
+    ruleCode,
+  ])}`;
 }

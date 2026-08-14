@@ -16,6 +16,8 @@ const resourceId =
 const evidenceId =
   "org_aaaaaaaaaaaaaaaa:evidence:cloud_posture_check:ceee7fb6289f6bca038c500f9c4f9f97d6f94c144a282d61f0a2e8fc2c75f403";
 const checkId = "iam_role_cross_service_confused_deputy_prevention";
+const findingId =
+  "org_aaaaaaaaaaaaaaaa:finding:cloud_identity_role_confused_deputy:b636729a9428ccdaf01accba0f8399a37bd6fd6855a0199d85b01d8dbf34f6c2";
 
 function clone(value) {
   return structuredClone(value);
@@ -180,6 +182,7 @@ function expectedNormalized() {
     ],
     findings: [
       {
+        id: findingId,
         organization_id: organizationA,
         category: "privileged_identity",
         rule_code: "cloud_identity_role_confused_deputy",
@@ -226,6 +229,7 @@ test("scopes the same provider resource and evidence independently for Organizat
 
   assert.deepEqual(firstA, secondA);
   assert.notEqual(firstA.resources[0].id, resultB.resources[0].id);
+  assert.notEqual(firstA.findings[0].id, resultB.findings[0].id);
   assert.notEqual(firstA.evidence[0].id, resultB.evidence[0].id);
   assert.equal(resultB.organization_id, organizationB);
   assert.equal(resultB.resources[0].organization_id, organizationB);
@@ -435,6 +439,27 @@ test("rejects ARN/account mismatches and any trust policy other than one unscope
   assertArtifactRejected(artifact(sourceScoped));
 });
 
+test("rejects coherent alternate accounts, role ARNs, and role names", () => {
+  const alternateAccount = exactOcsfFinding();
+  const alternateAccountId = "111111111111";
+  const alternateAccountArn =
+    `arn:aws:iam::${alternateAccountId}:role/${roleName}`;
+  alternateAccount[0].resources[0].uid = alternateAccountArn;
+  alternateAccount[0].resources[0].data.metadata.arn = alternateAccountArn;
+  alternateAccount[0].cloud.account.uid = alternateAccountId;
+  alternateAccount[0].unmapped.provider_uid = alternateAccountId;
+  assertArtifactRejected(artifact(alternateAccount));
+
+  const alternateRole = exactOcsfFinding();
+  const alternateRoleName = "other-fixture-role";
+  const alternateRoleArn = `arn:aws:iam::${accountId}:role/${alternateRoleName}`;
+  alternateRole[0].resources[0].name = alternateRoleName;
+  alternateRole[0].resources[0].uid = alternateRoleArn;
+  alternateRole[0].resources[0].data.metadata.name = alternateRoleName;
+  alternateRole[0].resources[0].data.metadata.arn = alternateRoleArn;
+  assertArtifactRejected(artifact(alternateRole));
+});
+
 test("excludes arbitrary upstream prose, timestamps, UUIDs, tags, remediation, and native labels", () => {
   const changed = exactOcsfFinding();
   changed[0].message = "different upstream message";
@@ -478,18 +503,68 @@ test("rejects upstream tenant scope claims instead of trusting them", () => {
 
 test("normalized validation rejects Organization and resource-link mismatches", () => {
   const validate = requireFunction(normalizerApi, "validateNormalizedProwlerEvidence");
+  assert.doesNotThrow(() => validate(expectedNormalized()));
 
   for (const mutate of [
     (value) => { value.resources[0].organization_id = organizationB; },
     (value) => { value.findings[0].organization_id = organizationB; },
     (value) => { value.evidence[0].organization_id = organizationB; },
     (value) => { value.findings[0].resource_id = `${organizationA}:aws:identity_role:${"0".repeat(64)}`; },
+    (value) => { value.findings[0].rule_code = "other_rule"; },
+    (value) => { value.findings[0].id = `${organizationA}:finding:cloud_identity_role_confused_deputy:${"0".repeat(64)}`; },
     (value) => { value.evidence[0].resource_id = `${organizationA}:aws:identity_role:${"0".repeat(64)}`; },
     (value) => { value.resources[0].id = `${organizationA}:aws:identity_role:${"0".repeat(64)}`; },
     (value) => { value.evidence[0].id = `${organizationA}:evidence:cloud_posture_check:${"0".repeat(64)}`; },
   ]) {
     const value = expectedNormalized();
     mutate(value);
+    assert.throws(() => validate(value), { name: "TypeError" });
+  }
+});
+
+test("rejects impossible OCSF calendar instants and accepts both canonical UTC forms", () => {
+  for (const instant of [
+    "2026-02-31T00:00:00Z",
+    "2026-02-31T00:00:00+00:00",
+  ]) {
+    for (const pair of [
+      ["created_time", "created_time_dt"],
+      ["time", "time_dt"],
+    ]) {
+      const value = exactOcsfFinding();
+      const target = pair[0] === "time" ? value[0] : value[0].finding_info;
+      target[pair[0]] = 1_772_496_000;
+      target[pair[1]] = instant;
+      assertArtifactRejected(artifact(value));
+    }
+  }
+
+  const zulu = exactOcsfFinding();
+  zulu[0].finding_info.created_time_dt = "2026-08-14T00:00:00Z";
+  zulu[0].time_dt = "2026-08-14T00:00:00Z";
+  assert.deepEqual(normalize(organizationA, zulu), expectedNormalized());
+});
+
+test("normalized validation rejects hostile source IDs without invoking coercion hooks", () => {
+  const validate = requireFunction(normalizerApi, "validateNormalizedProwlerEvidence");
+
+  for (const hostile of [
+    {
+      toString() {
+        throw new Error("toString must not run");
+      },
+    },
+    {
+      toString() {
+        return {};
+      },
+      valueOf() {
+        throw new Error("valueOf must not run");
+      },
+    },
+  ]) {
+    const value = expectedNormalized();
+    value.resources[0].source_id = hostile;
     assert.throws(() => validate(value), { name: "TypeError" });
   }
 });
