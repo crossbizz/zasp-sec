@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { EventEmitter } from "node:events";
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { createServer } from "node:net";
+import { createServer as createHttpServer } from "node:http";
+import { createServer as createNetServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
@@ -19,7 +20,7 @@ import {
   buildNeo4jRunArguments,
   buildNetworkCreateArguments,
   orchestrate,
-  probeLoopbackPort,
+  probeNeo4jReadiness,
   runBounded,
   runMain,
 } from "./run.mjs";
@@ -32,6 +33,8 @@ const neo4jID = "a".repeat(64);
 const cartographyID = "b".repeat(64);
 const neo4jImageID = `sha256:${"d".repeat(64)}`;
 const cartographyImageID = `sha256:${"e".repeat(64)}`;
+const boltHostPort = "49152";
+const httpHostPort = "49153";
 const proofDirectory = "/safe/proof";
 const dockerConfig = `/safe/tmp/${prefix}-docker-config-owned`;
 const baseContainerEnvironment = [
@@ -39,6 +42,11 @@ const baseContainerEnvironment = [
   "HOME=/tmp",
   "LANG=C.UTF-8",
   "PYTHONUNBUFFERED=1",
+];
+const neo4jRuntimeEnvironment = [
+  "NEO4J_AUTH=none",
+  "NEO4J_db_tx__log_preallocate=false",
+  "NEO4J_db_tx__log_rotation_size=128K",
 ];
 const expectedBootstrap = 'import runpy,sys;m=runpy.run_path(sys.argv[2]);raise SystemExit(m["bootstrap_main"](sys.argv[1:]))';
 
@@ -63,6 +71,11 @@ const rawGraph = {
     },
   ],
 };
+const readinessDocument = {
+  results: [{ columns: ["1"], data: [{ row: [1], meta: [null] }] }],
+  errors: [],
+  lastBookmarks: ["test-bookmark"],
+};
 
 test("pins both exact images and builds exact network and Neo4j mutations", () => {
   assert.equal(CARTOGRAPHY_IMAGE, "ghcr.io/cartography-cncf/cartography:0.139.1@sha256:f1d7c1f46a8a2137b9a955327d3cd47e8340c7d537d0447467d2e952af8bb8f0");
@@ -74,7 +87,10 @@ test("pins both exact images and builds exact network and Neo4j mutations", () =
     "run", "--detach", "--rm", "--name", `${prefix}-neo4j-a`,
     "--network", networkName,
     "--env", "NEO4J_AUTH=none",
+    "--env", "NEO4J_db_tx__log_preallocate=false",
+    "--env", "NEO4J_db_tx__log_rotation_size=128K",
     "--label", "zasp.proof=m0-10", "--label", `zasp.marker=${marker}`,
+    "--publish", "127.0.0.1::7474",
     "--publish", "127.0.0.1::7687", NEO4J_IMAGE,
   ]);
   assert.notDeepEqual(
@@ -375,8 +391,11 @@ test("rejects truncated IDs and wrong container image, name, labels, marker, net
     name: `${prefix}-neo4j-a`,
     imageID: neo4jImageID,
     image: NEO4J_IMAGE,
-    environment: ["NEO4J_AUTH=none"],
-    ports: { "7687/tcp": [{ HostIp: "127.0.0.1", HostPort: "49152" }] },
+    environment: [...neo4jRuntimeEnvironment],
+    ports: {
+      "7474/tcp": [{ HostIp: "127.0.0.1", HostPort: httpHostPort }],
+      "7687/tcp": [{ HostIp: "127.0.0.1", HostPort: boltHostPort }],
+    },
   });
   const wrongValues = [
     replaceInspectionField(expected, 0, neo4jID.slice(0, 12)),
@@ -388,7 +407,54 @@ test("rejects truncated IDs and wrong container image, name, labels, marker, net
     replaceInspectionField(expected, 6, "fedcba9876543210"),
     replaceInspectionField(expected, 7, "bridge"),
     expected.replace("NEO4J_AUTH=none", "NEO4J_AUTH=password"),
+    expected.replace("NEO4J_db_tx__log_preallocate=false", "NEO4J_db_tx__log_preallocate=true"),
+    expected.replace("NEO4J_db_tx__log_rotation_size=128K", "NEO4J_db_tx__log_rotation_size=256M"),
+    expected.replace(",\"NEO4J_db_tx__log_preallocate=false\"", ""),
+    expected.replace(",\"NEO4J_db_tx__log_rotation_size=128K\"", ""),
+    expected.replace(
+      "\"NEO4J_db_tx__log_preallocate=false\"",
+      "\"NEO4J_db_tx__log_preallocate=false\",\"NEO4J_db_tx__log_preallocate=true\"",
+    ),
+    expected.replace(
+      "\"NEO4J_db_tx__log_rotation_size=128K\"",
+      "\"NEO4J_db_tx__log_rotation_size=128K\",\"NEO4J_db_tx__log_rotation_size=256M\"",
+    ),
+    expected.replace(
+      "\"NEO4J_AUTH=none\"",
+      "\"NEO4J_AUTH=none\",\"NEO4J_server_http_enabled=true\"",
+    ),
+    expected.replace(
+      "\"NEO4J_AUTH=none\"",
+      "\"NEO4J_AUTH=none\",\"NEO4J_server_http_listen__address=0.0.0.0:7474\"",
+    ),
     expected.replace("127.0.0.1", "0.0.0.0"),
+    containerInspection({
+      token: neo4jID, name: `${prefix}-neo4j-a`, imageID: neo4jImageID,
+      image: NEO4J_IMAGE, environment: [...neo4jRuntimeEnvironment],
+      ports: { "7687/tcp": [{ HostIp: "127.0.0.1", HostPort: boltHostPort }] },
+    }),
+    containerInspection({
+      token: neo4jID, name: `${prefix}-neo4j-a`, imageID: neo4jImageID,
+      image: NEO4J_IMAGE, environment: [...neo4jRuntimeEnvironment],
+      ports: { "7474/tcp": [{ HostIp: "127.0.0.1", HostPort: httpHostPort }] },
+    }),
+    containerInspection({
+      token: neo4jID, name: `${prefix}-neo4j-a`, imageID: neo4jImageID,
+      image: NEO4J_IMAGE, environment: [...neo4jRuntimeEnvironment],
+      ports: {
+        "7474/tcp": [{ HostIp: "127.0.0.1", HostPort: httpHostPort }],
+        "7687/tcp": [{ HostIp: "0.0.0.0", HostPort: boltHostPort }],
+      },
+    }),
+    containerInspection({
+      token: neo4jID, name: `${prefix}-neo4j-a`, imageID: neo4jImageID,
+      image: NEO4J_IMAGE, environment: [...neo4jRuntimeEnvironment],
+      ports: {
+        "7474/tcp": [{ HostIp: "127.0.0.1", HostPort: httpHostPort }],
+        "7687/tcp": [{ HostIp: "127.0.0.1", HostPort: boltHostPort }],
+        "9999/tcp": [{ HostIp: "127.0.0.1", HostPort: "49154" }],
+      },
+    }),
   ];
   for (const value of wrongValues) {
     const runtime = new ScriptedRuntime([result(0, `${value}\n`)]);
@@ -399,17 +465,17 @@ test("rejects truncated IDs and wrong container image, name, labels, marker, net
   }
 });
 
-test("allows pinned-image Neo4j metadata and unbound exposed ports but only one loopback Bolt binding", async () => {
+test("allows pinned-image Neo4j metadata and only the exact loopback HTTP and Bolt bindings", async () => {
   const runtime = new ScriptedRuntime([result(0, `${containerInspection({
     token: neo4jID,
     name: `${prefix}-neo4j-a`,
     imageID: neo4jImageID,
     image: NEO4J_IMAGE,
-    environment: ["PATH=/opt/java/bin", "NEO4J_EDITION=community", "NEO4J_AUTH=none"],
+    environment: ["PATH=/opt/java/bin", "NEO4J_EDITION=community", ...neo4jRuntimeEnvironment],
     ports: {
       "7473/tcp": null,
-      "7474/tcp": null,
-      "7687/tcp": [{ HostIp: "127.0.0.1", HostPort: "49152" }],
+      "7474/tcp": [{ HostIp: "127.0.0.1", HostPort: httpHostPort }],
+      "7687/tcp": [{ HostIp: "127.0.0.1", HostPort: boltHostPort }],
     },
   })}\n`)]);
   runtime.networkToken = networkID;
@@ -577,8 +643,11 @@ test("reconciles ambiguous creates and removes only the same freshly re-proven c
     name: `${prefix}-neo4j-a`,
     imageID: neo4jImageID,
     image: NEO4J_IMAGE,
-    environment: ["NEO4J_AUTH=none"],
-    ports: { "7687/tcp": [{ HostIp: "127.0.0.1", HostPort: "49152" }] },
+    environment: [...neo4jRuntimeEnvironment],
+    ports: {
+      "7474/tcp": [{ HostIp: "127.0.0.1", HostPort: httpHostPort }],
+      "7687/tcp": [{ HostIp: "127.0.0.1", HostPort: boltHostPort }],
+    },
   });
   const runtime = new ScriptedRuntime([
     result(1),
@@ -623,8 +692,11 @@ test("reconciles rejected network and container creates through exact full owner
     name: `${prefix}-neo4j-a`,
     imageID: neo4jImageID,
     image: NEO4J_IMAGE,
-    environment: ["NEO4J_AUTH=none"],
-    ports: { "7687/tcp": [{ HostIp: "127.0.0.1", HostPort: "49152" }] },
+    environment: [...neo4jRuntimeEnvironment],
+    ports: {
+      "7474/tcp": [{ HostIp: "127.0.0.1", HostPort: httpHostPort }],
+      "7687/tcp": [{ HostIp: "127.0.0.1", HostPort: boltHostPort }],
+    },
   });
   const container = new ScriptedRuntime([
     new Failure("provider"),
@@ -642,8 +714,11 @@ test("accepts rejected container and network removes only after exact absence is
     name: `${prefix}-neo4j-a`,
     imageID: neo4jImageID,
     image: NEO4J_IMAGE,
-    environment: ["NEO4J_AUTH=none"],
-    ports: { "7687/tcp": [{ HostIp: "127.0.0.1", HostPort: "49152" }] },
+    environment: [...neo4jRuntimeEnvironment],
+    ports: {
+      "7474/tcp": [{ HostIp: "127.0.0.1", HostPort: httpHostPort }],
+      "7687/tcp": [{ HostIp: "127.0.0.1", HostPort: boltHostPort }],
+    },
   });
   const container = new ScriptedRuntime([
     result(0, `${inspection}\n`),
@@ -676,35 +751,90 @@ test("bridge calls use an exact finite deadline and reject malformed or overflow
   }
 });
 
-test("probes Neo4j readiness through an exact bounded loopback TCP signal", async () => {
-  const server = createServer((socket) => socket.destroy());
-  await new Promise((resolvePromise, rejectPromise) => {
-    server.once("error", rejectPromise);
-    server.listen(0, "127.0.0.1", resolvePromise);
+test("requires an exact transactional HTTP query instead of a shallow TCP-ready signal", async () => {
+  const shallow = createNetServer((socket) => socket.destroy());
+  const shallowPort = await listenLoopback(shallow);
+  assert.equal(await probeNeo4jReadiness(shallowPort), false);
+  await closeServer(shallow);
+
+  const observed = {};
+  const ready = createHttpServer(async (request, response) => {
+    const chunks = [];
+    for await (const chunk of request) chunks.push(chunk);
+    observed.method = request.method;
+    observed.url = request.url;
+    observed.accept = request.headers.accept;
+    observed.contentType = request.headers["content-type"];
+    observed.body = Buffer.concat(chunks).toString("utf8");
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end(JSON.stringify(readinessDocument));
   });
-  const address = server.address();
-  assert.notEqual(address, null);
-  assert.equal(typeof address, "object");
-  assert.equal(await probeLoopbackPort(address.port), true);
-  await new Promise((resolvePromise, rejectPromise) => {
-    server.close((error) => error === undefined ? resolvePromise() : rejectPromise(error));
+  const readyPort = await listenLoopback(ready);
+  assert.equal(await probeNeo4jReadiness(readyPort), true);
+  assert.deepEqual(observed, {
+    method: "POST",
+    url: "/db/neo4j/tx/commit",
+    accept: "application/json",
+    contentType: "application/json",
+    body: '{"statements":[{"statement":"RETURN 1"}]}',
   });
-  assert.equal(await probeLoopbackPort(address.port), false);
+  await closeServer(ready);
+  assert.equal(await probeNeo4jReadiness(readyPort), false);
 });
 
-test("uses the stored exact loopback port and 500 ms cap instead of spawning cypher-shell", async () => {
+test("rejects malformed, oversized, error, wrong-row, or extra readiness responses", async () => {
+  const invalid = [
+    { status: 503, body: JSON.stringify(readinessDocument) },
+    { status: 200, body: "{" },
+    { status: 200, body: "x".repeat(16_385) },
+    { status: 200, body: JSON.stringify({ ...readinessDocument, errors: [{ code: "unready" }] }) },
+    { status: 200, body: JSON.stringify({ results: [{ columns: ["1"], data: [{ row: [2], meta: [null] }] }], errors: [] }) },
+    { status: 200, body: JSON.stringify({ ...readinessDocument, unexpected: true }) },
+  ];
+  for (const response of invalid) {
+    assert.equal(await probeReadinessResponse(response), false);
+  }
+});
+
+test("readiness cancellation rejects immediately through the provider boundary", async () => {
+  const controller = new AbortController();
+  controller.abort();
+  await assert.rejects(
+    probeNeo4jReadiness(49153, { signal: controller.signal }),
+    (error) => error?.category === "provider",
+  );
+});
+
+test("readiness timeout and active cancellation drain request errors without escaping", async () => {
+  const server = createHttpServer((request) => request.resume());
+  const port = await listenLoopback(server);
+  assert.equal(await probeNeo4jReadiness(port, { timeoutMs: 5 }), false);
+
+  const controller = new AbortController();
+  const pending = probeNeo4jReadiness(port, { signal: controller.signal });
+  controller.abort();
+  await assert.rejects(pending, (error) => error?.category === "provider");
+  await new Promise((resolvePromise) => setImmediate(resolvePromise));
+  await closeServer(server);
+});
+
+test("uses the stored exact HTTP loopback port and 500 ms cap without spawning cypher-shell", async () => {
   const inspection = `${containerInspection({
     token: neo4jID,
     name: `${prefix}-neo4j-a`,
     imageID: neo4jImageID,
     image: NEO4J_IMAGE,
-    environment: ["NEO4J_AUTH=none"],
-    ports: { "7687/tcp": [{ HostIp: "127.0.0.1", HostPort: "49152" }] },
+    environment: [...neo4jRuntimeEnvironment],
+    ports: {
+      "7474/tcp": [{ HostIp: "127.0.0.1", HostPort: httpHostPort }],
+      "7687/tcp": [{ HostIp: "127.0.0.1", HostPort: boltHostPort }],
+    },
   })}\n`;
   const probes = [];
   const runtime = new ScriptedRuntime([
     result(0, inspection),
-    result(0, "127.0.0.1:49152\n"),
+    result(0, `127.0.0.1:${boltHostPort}\n`),
+    result(0, `127.0.0.1:${httpHostPort}\n`),
   ], {
     readinessProbe: async (port, options) => {
       probes.push({ port, options });
@@ -715,10 +845,10 @@ test("uses the stored exact loopback port and 500 ms cap instead of spawning cyp
   runtime.imageIDs.set(NEO4J_IMAGE, neo4jImageID);
   runtime.containerTokens.set("neo4j-a", neo4jID);
 
-  assert.equal(await runtime.neo4jPort("a"), 49152);
+  assert.equal(await runtime.neo4jPort("a"), Number(boltHostPort));
   assert.equal(await runtime.isNeo4jReady("a"), true);
   assert.deepEqual(probes, [{
-    port: 49152,
+    port: Number(httpHostPort),
     options: { signal: undefined, timeoutMs: 500 },
   }]);
   assert.equal(runtime.calls.some(({ args }) => args[0] === "exec"), false);
@@ -1114,6 +1244,38 @@ function replaceInspectionField(value, index, replacement) {
   const fields = value.split("|");
   fields[index] = replacement;
   return fields.join("|");
+}
+
+async function listenLoopback(server) {
+  await new Promise((resolvePromise, rejectPromise) => {
+    server.once("error", rejectPromise);
+    server.listen(0, "127.0.0.1", resolvePromise);
+  });
+  const address = server.address();
+  assert.notEqual(address, null);
+  assert.equal(typeof address, "object");
+  return address.port;
+}
+
+async function closeServer(server) {
+  server.closeAllConnections?.();
+  await new Promise((resolvePromise, rejectPromise) => {
+    server.close((error) => error === undefined ? resolvePromise() : rejectPromise(error));
+  });
+}
+
+async function probeReadinessResponse({ status, body }) {
+  const server = createHttpServer((request, response) => {
+    request.resume();
+    response.writeHead(status, { "content-type": "application/json" });
+    response.end(body);
+  });
+  const port = await listenLoopback(server);
+  try {
+    return await probeNeo4jReadiness(port);
+  } finally {
+    await closeServer(server);
+  }
 }
 
 function identityStat(dev, ino, link = false) {

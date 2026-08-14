@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import { lstat, mkdtemp, readdir, realpath, rm, readFile } from "node:fs/promises";
-import { connect } from "node:net";
+import { request } from "node:http";
 import { tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -35,6 +35,7 @@ const organizationBySlot = Object.freeze({
 });
 const fixtureMountpointBytes = Buffer.from("{}\n");
 const fixtureMountpointDigest = "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356";
+const readinessBody = Buffer.from('{"statements":[{"statement":"RETURN 1"}]}');
 
 export class Failure extends Error {
   constructor(category) {
@@ -78,8 +79,11 @@ export function buildNeo4jRunArguments(name, network) {
     "run", "--detach", "--rm", "--name", name,
     "--network", network,
     "--env", "NEO4J_AUTH=none",
+    "--env", "NEO4J_db_tx__log_preallocate=false",
+    "--env", "NEO4J_db_tx__log_rotation_size=128K",
     "--label", "zasp.proof=m0-10",
     "--label", `zasp.marker=${marker}`,
+    "--publish", "127.0.0.1::7474",
     "--publish", "127.0.0.1::7687",
     NEO4J_IMAGE,
   ];
@@ -185,20 +189,22 @@ export function runBounded(command, arguments_, options, spawnImplementation = s
   });
 }
 
-export function probeLoopbackPort(port, {
+export function probeNeo4jReadiness(port, {
   signal,
   timeoutMs = readinessTimeoutMs,
-  connectSocket = connect,
+  requestImplementation = request,
 } = {}) {
   if (
     !Number.isInteger(port) || port < 1024 || port > 65_535 ||
     !Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > readinessTimeoutMs ||
-    typeof connectSocket !== "function"
+    typeof requestImplementation !== "function"
   ) {
     throw new Failure("configuration");
   }
   return new Promise((resolvePromise, rejectPromise) => {
-    let socket;
+    const requestController = new AbortController();
+    let requestHandle;
+    let responseHandle;
     let timer;
     let settled = false;
     const finish = (callback) => {
@@ -206,35 +212,103 @@ export function probeLoopbackPort(port, {
       settled = true;
       clearTimeout(timer);
       signal?.removeEventListener?.("abort", abort);
-      socket?.removeListener?.("connect", connected);
-      socket?.removeListener?.("error", unavailable);
-      socket?.removeListener?.("close", unavailable);
-      socket?.destroy?.();
+      requestHandle?.destroy?.();
+      responseHandle?.destroy?.();
       callback();
     };
-    const connected = () => finish(() => resolvePromise(true));
     const unavailable = () => finish(() => resolvePromise(false));
-    const abort = () => finish(() => rejectPromise(new Failure("provider")));
+    const abort = () => finish(() => {
+      requestController.abort();
+      rejectPromise(new Failure("provider"));
+    });
+    const timeout = () => finish(() => {
+      requestController.abort();
+      resolvePromise(false);
+    });
+    if (signal?.aborted === true) {
+      abort();
+      return;
+    }
+    signal?.addEventListener?.("abort", abort, { once: true });
+    timer = setTimeout(timeout, timeoutMs);
     try {
-      socket = connectSocket({ host: "127.0.0.1", port });
+      requestHandle = requestImplementation({
+        protocol: "http:",
+        hostname: "127.0.0.1",
+        port,
+        method: "POST",
+        path: "/db/neo4j/tx/commit",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "Content-Length": readinessBody.byteLength,
+        },
+        signal: requestController.signal,
+      }, (response) => {
+        responseHandle = response;
+        if (
+          response === null || typeof response !== "object" ||
+          typeof response.on !== "function" || response.statusCode !== 200 ||
+          !/^application\/json(?:\s*;\s*charset=utf-8)?$/i.test(response.headers?.["content-type"] ?? "")
+        ) {
+          unavailable();
+          return;
+        }
+        const chunks = [];
+        let bytes = 0;
+        response.on("data", (chunk) => {
+          if (settled) return;
+          const value = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+          bytes += value.byteLength;
+          if (bytes > outputLimit) {
+            unavailable();
+            return;
+          }
+          chunks.push(value);
+        });
+        response.once("error", unavailable);
+        response.once("aborted", unavailable);
+        response.once("end", () => {
+          if (settled) return;
+          let document;
+          try { document = JSON.parse(Buffer.concat(chunks).toString("utf8")); } catch { unavailable(); return; }
+          finish(() => resolvePromise(validReadinessDocument(document)));
+        });
+      });
     } catch {
       unavailable();
       return;
     }
     if (
-      socket === null || typeof socket !== "object" ||
-      typeof socket.once !== "function" || typeof socket.destroy !== "function"
+      requestHandle === null || typeof requestHandle !== "object" ||
+      typeof requestHandle.once !== "function" || typeof requestHandle.end !== "function" ||
+      typeof requestHandle.destroy !== "function"
     ) {
       unavailable();
       return;
     }
-    socket.once("connect", connected);
-    socket.once("error", unavailable);
-    socket.once("close", unavailable);
-    signal?.addEventListener?.("abort", abort, { once: true });
-    timer = setTimeout(unavailable, timeoutMs);
-    if (signal?.aborted === true) abort();
+    requestHandle.once("error", unavailable);
+    requestHandle.end(readinessBody);
   });
+}
+
+function validReadinessDocument(value) {
+  if (!plainObject(value) || !isDeepStrictEqual(Object.keys(value).sort(), ["errors", "lastBookmarks", "results"])) return false;
+  const result = value.results?.[0];
+  const data = result?.data?.[0];
+  const bookmark = value.lastBookmarks?.[0];
+  return (
+    Array.isArray(value.errors) && value.errors.length === 0 &&
+    Array.isArray(value.results) && value.results.length === 1 && plainObject(result) &&
+    isDeepStrictEqual(Object.keys(result).sort(), ["columns", "data"]) &&
+    isDeepStrictEqual(result.columns, ["1"]) && Array.isArray(result.data) &&
+    result.data.length === 1 && plainObject(data) &&
+    isDeepStrictEqual(Object.keys(data).sort(), ["meta", "row"]) &&
+    isDeepStrictEqual(data.row, [1]) && isDeepStrictEqual(data.meta, [null]) &&
+    Array.isArray(value.lastBookmarks) && value.lastBookmarks.length === 1 &&
+    typeof bookmark === "string" && bookmark.length > 0 && bookmark.length <= 4_096 &&
+    !/[\u0000-\u001f\u007f]/.test(bookmark)
+  );
 }
 
 export class DockerRuntime {
@@ -251,7 +325,7 @@ export class DockerRuntime {
     statPath = lstat,
     readDirectory = readdir,
     wait = (milliseconds) => new Promise((resolvePromise) => setTimeout(resolvePromise, milliseconds)),
-    readinessProbe = probeLoopbackPort,
+    readinessProbe = probeNeo4jReadiness,
     readPath = readFile,
   } = {}) {
     if (
@@ -286,6 +360,7 @@ export class DockerRuntime {
     this.containerAttempts = new Set();
     this.imageIDs = new Map();
     this.neo4jPorts = new Map();
+    this.neo4jHttpPorts = new Map();
     this.fixtureMountpointIdentity = undefined;
     this.signal = undefined;
   }
@@ -698,13 +773,23 @@ export class DockerRuntime {
 
     if (kind.startsWith("neo4j-")) {
       const auth = environment.filter((value) => value.startsWith("NEO4J_AUTH="));
-      const bindings = ports["7687/tcp"];
+      const logPreallocate = environment.filter((value) => value.startsWith("NEO4J_db_tx__log_preallocate="));
+      const logRotationSize = environment.filter((value) => value.startsWith("NEO4J_db_tx__log_rotation_size="));
+      const httpOverrides = environment.filter((value) => value.startsWith("NEO4J_server_http_"));
+      const httpBindings = ports["7474/tcp"];
+      const boltBindings = ports["7687/tcp"];
       if (
         auth.length !== 1 || auth[0] !== "NEO4J_AUTH=none" ||
+        logPreallocate.length !== 1 || logPreallocate[0] !== "NEO4J_db_tx__log_preallocate=false" ||
+        logRotationSize.length !== 1 || logRotationSize[0] !== "NEO4J_db_tx__log_rotation_size=128K" ||
+        httpOverrides.length !== 0 ||
         environment.some((value) => value !== "NEO4J_AUTH=none" && forbiddenCredentialEnvironmentPattern.test(value)) ||
-        Object.entries(ports).some(([port, value]) => port !== "7687/tcp" && value !== null) ||
-        !Array.isArray(bindings) || bindings.length !== 1 ||
-        bindings[0]?.HostIp !== "127.0.0.1" || !highPort(bindings[0]?.HostPort)
+        Object.entries(ports).some(([port, value]) => !["7474/tcp", "7687/tcp"].includes(port) && value !== null) ||
+        !Array.isArray(httpBindings) || httpBindings.length !== 1 ||
+        httpBindings[0]?.HostIp !== "127.0.0.1" || !highPort(httpBindings[0]?.HostPort) ||
+        !Array.isArray(boltBindings) || boltBindings.length !== 1 ||
+        boltBindings[0]?.HostIp !== "127.0.0.1" || !highPort(boltBindings[0]?.HostPort) ||
+        httpBindings[0].HostPort === boltBindings[0].HostPort
       ) throw new Failure(category);
     } else if (
       environment.some((value) => forbiddenCredentialEnvironmentPattern.test(value)) ||
@@ -731,22 +816,34 @@ export class DockerRuntime {
     validateSlot(slot);
     const kind = `neo4j-${slot}`;
     const token = await this.verifyContainer(kind, "ownership");
-    const port = await this.readDocker(["port", token, "7687/tcp"], { category: "provider" });
-    const match = /^127\.0\.0\.1:([0-9]{4,5})\n?$/.exec(String(port?.stdout ?? ""));
-    if (port?.status !== 0 || port?.stderr !== "" || match === null || !highPort(match[1])) {
+    const bolt = await this.readDocker(["port", token, "7687/tcp"], { category: "provider" });
+    const http = await this.readDocker(["port", token, "7474/tcp"], { category: "provider" });
+    const boltMatch = /^127\.0\.0\.1:([0-9]{4,5})\n?$/.exec(String(bolt?.stdout ?? ""));
+    const httpMatch = /^127\.0\.0\.1:([0-9]{4,5})\n?$/.exec(String(http?.stdout ?? ""));
+    if (
+      bolt?.status !== 0 || bolt?.stderr !== "" || boltMatch === null || !highPort(boltMatch[1]) ||
+      http?.status !== 0 || http?.stderr !== "" || httpMatch === null || !highPort(httpMatch[1]) ||
+      boltMatch[1] === httpMatch[1]
+    ) {
       throw new Failure("ownership");
     }
-    const selected = Number(match[1]);
-    this.neo4jPorts.set(slot, selected);
-    return selected;
+    const boltPort = Number(boltMatch[1]);
+    this.neo4jPorts.set(slot, boltPort);
+    this.neo4jHttpPorts.set(slot, Number(httpMatch[1]));
+    return boltPort;
   }
 
   async isNeo4jReady(slot) {
     validateSlot(slot);
-    const port = this.neo4jPorts.get(slot);
-    if (!Number.isInteger(port) || port < 1024 || port > 65_535) throw new Failure("ownership");
+    const boltPort = this.neo4jPorts.get(slot);
+    const httpPort = this.neo4jHttpPorts.get(slot);
+    if (
+      !Number.isInteger(boltPort) || boltPort < 1024 || boltPort > 65_535 ||
+      !Number.isInteger(httpPort) || httpPort < 1024 || httpPort > 65_535 ||
+      boltPort === httpPort
+    ) throw new Failure("ownership");
     try {
-      const ready = await this.readinessProbe(port, {
+      const ready = await this.readinessProbe(httpPort, {
         signal: this.signal,
         timeoutMs: readinessTimeoutMs,
       });
