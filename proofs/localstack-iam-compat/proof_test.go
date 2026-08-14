@@ -25,7 +25,7 @@ func TestRunProof(t *testing.T) {
 	want := []string{
 		"source-identity", "target-identity", "list-principals", "list-roles",
 		"create-principal", "inspect-principal", "create-access-key",
-		"create-role", "inspect-role", "put-role-policy", "get-role-policy",
+		"create-role", "put-role-policy", "inspect-role", "get-role-policy",
 		"assume-role", "assumed-identity", "allowed-get-role", "denied-list-roles",
 		"cleanup-get-role-policy", "cleanup-inspect-role", "delete-role-policy",
 		"cleanup-inspect-principal", "delete-access-key", "delete-principal",

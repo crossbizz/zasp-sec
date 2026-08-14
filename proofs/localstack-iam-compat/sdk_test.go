@@ -65,7 +65,7 @@ func TestSDKBoundary_UsesExactIAMAndSTSQueryOperations(t *testing.T) {
 		case "GetCallerIdentity":
 			writeXML(w, `<GetCallerIdentityResponse><GetCallerIdentityResult><Account>000000000041</Account><Arn>arn:aws:iam::000000000041:root</Arn><UserId>source-root</UserId></GetCallerIdentityResult></GetCallerIdentityResponse>`)
 		case "ListUsers":
-			if r.Form.Get("PathPrefix") != "/"+marker+"/" {
+			if r.Form.Get("PathPrefix") != "" {
 				t.Fatalf("ListUsers PathPrefix = %q", r.Form.Get("PathPrefix"))
 			}
 			writeXML(w, `<ListUsersResponse><ListUsersResult><Users></Users></ListUsersResult></ListUsersResponse>`)
@@ -112,7 +112,7 @@ func TestSDKBoundary_UsesExactIAMAndSTSQueryOperations(t *testing.T) {
 			if strings.Contains(r.Header.Get("Authorization"), "Credential=000000000041/") {
 				t.Fatal("assumed ListRoles used source credentials")
 			}
-			writeError(w, http.StatusForbidden, "AccessDenied", "explicit deny")
+			writeError(w, http.StatusForbidden, "ExplicitDeny", "explicit deny")
 		case "DeleteRolePolicy", "DeleteRole", "DeleteAccessKey", "DeleteUser":
 			writeXML(w, `<`+action+`Response><ResponseMetadata><RequestId>x</RequestId></ResponseMetadata></`+action+`Response>`)
 		default:
@@ -183,7 +183,7 @@ func TestSDKBoundary_UsesExactIAMAndSTSQueryOperations(t *testing.T) {
 	if err := b.DeleteRole(context.Background(), role.Name); err != nil {
 		t.Fatal(err)
 	}
-	if got := strings.Join(actions, ","); !strings.Contains(got, "GetCallerIdentity,GetUser,ListUsers,CreateUser,GetUser,CreateAccessKey,ListAccessKeys,CreateRole,GetRole,PutRolePolicy,GetRolePolicy,AssumeRole,GetRole,ListRoles,DeleteRolePolicy,DeleteAccessKey,DeleteUser,DeleteRole") {
+	if got := strings.Join(actions, ","); !strings.Contains(got, "GetCallerIdentity,GetUser,ListUsers,CreateUser,GetUser,CreateAccessKey,ListAccessKeys,CreateRole,GetRole,GetRolePolicy,PutRolePolicy,GetRolePolicy,AssumeRole,GetRole,ListRoles,DeleteRolePolicy,DeleteAccessKey,DeleteUser,DeleteRole") {
 		t.Fatalf("action sequence = %s", got)
 	}
 }
@@ -238,10 +238,11 @@ func TestSDKBoundary_RejectsRedirectsAndBoundsMutationsAndReads(t *testing.T) {
 }
 
 func TestSDKBoundary_RejectsInvalidProviderPolicyRepresentations(t *testing.T) {
-	if _, ok := decodeProviderPolicy(`{"Version":"2012-10-17","Statement":[{}]}`); !ok {
+	if _, ok := decodeProviderPolicy(url.QueryEscape(`{"Version":"2012-10-17","Statement":[{}]}`)); !ok {
 		t.Fatal("valid policy representation was rejected")
 	}
 	for _, raw := range []string{
+		`{"Version":"2012-10-17","Statement":[{}]}`,
 		`null`,
 		`{"Version":"2012-10-17"}`,
 		`{"Version":"2012-10-17","Statement":[{}],"Unknown":true}`,
@@ -273,6 +274,114 @@ func TestSDKBoundary_PreservesDefinitiveStatusWhenBodyIsTooLarge(t *testing.T) {
 	var ambiguous ambiguousMutationError
 	if !errors.Is(err, errProvider) || errors.As(err, &ambiguous) {
 		t.Fatalf("CreatePrincipal() error = %v, want definitive provider error", err)
+	}
+}
+
+func TestSDKBoundary_OverlargeSuccessIsAmbiguous(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", "1048577")
+		_, _ = io.WriteString(w, `<CreateUserResponse/>`)
+	}))
+	defer server.Close()
+	b, err := NewSDKBoundary(context.Background(), server.URL, sourceNamespace, targetNamespace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	principal, _ := expectedSpecs(ProofOptions{Marker: "0123456789abcdef"})
+	_, err = b.CreatePrincipal(context.Background(), principal)
+	var ambiguous ambiguousMutationError
+	if !errors.As(err, &ambiguous) {
+		t.Fatalf("CreatePrincipal() error = %v, want ambiguous mutation", err)
+	}
+}
+
+func TestSDKBoundary_RunProofOverLoopback(t *testing.T) {
+	marker := "0123456789abcdef"
+	principal, role := expectedSpecs(ProofOptions{Marker: marker})
+	var principalExists, roleExists, policyExists bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			t.Fatal(err)
+		}
+		switch r.Form.Get("Action") {
+		case "GetCallerIdentity":
+			if strings.Contains(r.Header.Get("Authorization"), "Credential=ASIA") {
+				writeXML(w, `<GetCallerIdentityResponse><GetCallerIdentityResult><Account>000000000042</Account><Arn>arn:aws:sts::000000000042:assumed-role/`+role.Name+`/`+proofPrefix(marker)+`-session</Arn><UserId>AROA0123456789ABCDEF:`+proofPrefix(marker)+`-session</UserId></GetCallerIdentityResult></GetCallerIdentityResponse>`)
+			} else {
+				writeXML(w, `<GetCallerIdentityResponse><GetCallerIdentityResult><Account>000000000041</Account><Arn>arn:aws:iam::000000000041:root</Arn><UserId>source-root</UserId></GetCallerIdentityResult></GetCallerIdentityResponse>`)
+			}
+		case "GetUser":
+			if r.Form.Get("UserName") == "" {
+				writeXML(w, `<GetUserResponse><GetUserResult><User><Path>/</Path><UserName>target-root</UserName><UserId>target-root</UserId><Arn>arn:aws:iam::000000000042:root</Arn></User></GetUserResult></GetUserResponse>`)
+			} else {
+				writeXML(w, userResponse("GetUser", principal, "AIDA0123456789ABCDEF"))
+			}
+		case "ListUsers":
+			if r.Form.Get("PathPrefix") != "" {
+				t.Fatalf("ListUsers PathPrefix = %q, want no path filter", r.Form.Get("PathPrefix"))
+			}
+			if principalExists {
+				writeXML(w, `<ListUsersResponse><ListUsersResult><Users><member><Path>`+principal.Path+`</Path><UserName>`+principal.Name+`</UserName><UserId>AIDA0123456789ABCDEF</UserId><Arn>`+principal.ARN+`</Arn><Tags><member><Key>proof</Key><Value>`+marker+`</Value></member></Tags></member></Users></ListUsersResult></ListUsersResponse>`)
+			} else {
+				writeXML(w, `<ListUsersResponse><ListUsersResult><Users></Users></ListUsersResult></ListUsersResponse>`)
+			}
+		case "CreateUser":
+			principalExists = true
+			writeXML(w, userResponse("CreateUser", principal, "AIDA0123456789ABCDEF"))
+		case "CreateAccessKey":
+			writeXML(w, `<CreateAccessKeyResponse><CreateAccessKeyResult><AccessKey><AccessKeyId>AKIA0123456789ABCDEF</AccessKeyId><SecretAccessKey>source-secret</SecretAccessKey><Status>Active</Status><UserName>`+principal.Name+`</UserName></AccessKey></CreateAccessKeyResult></CreateAccessKeyResponse>`)
+		case "ListAccessKeys":
+			writeXML(w, `<ListAccessKeysResponse><ListAccessKeysResult><AccessKeyMetadata><member><UserName>`+principal.Name+`</UserName><AccessKeyId>AKIA0123456789ABCDEF</AccessKeyId><Status>Active</Status></member></AccessKeyMetadata></ListAccessKeysResult></ListAccessKeysResponse>`)
+		case "ListRoles":
+			if strings.Contains(r.Header.Get("Authorization"), "Credential=ASIA") {
+				writeError(w, http.StatusForbidden, "ExplicitDeny", "explicit")
+				return
+			}
+			if r.Form.Get("PathPrefix") != "" {
+				t.Fatalf("ListRoles PathPrefix = %q, want no path filter", r.Form.Get("PathPrefix"))
+			}
+			if roleExists {
+				writeXML(w, `<ListRolesResponse><ListRolesResult><Roles><member><Path>`+role.Path+`</Path><RoleName>`+role.Name+`</RoleName><RoleId>AROA0123456789ABCDEF</RoleId><Arn>`+role.ARN+`</Arn><AssumeRolePolicyDocument>`+xmlEscape(url.QueryEscape(role.TrustPolicy))+`</AssumeRolePolicyDocument><Description>`+role.Description+`</Description><Tags><member><Key>proof</Key><Value>`+marker+`</Value></member></Tags></member></Roles></ListRolesResult></ListRolesResponse>`)
+			} else {
+				writeXML(w, `<ListRolesResponse><ListRolesResult><Roles></Roles></ListRolesResult></ListRolesResponse>`)
+			}
+		case "CreateRole":
+			roleExists = true
+			writeXML(w, roleResponse("CreateRole", role, "AROA0123456789ABCDEF"))
+		case "GetRole":
+			writeXML(w, roleResponse("GetRole", role, "AROA0123456789ABCDEF"))
+		case "PutRolePolicy":
+			policyExists = true
+			writeXML(w, `<PutRolePolicyResponse/>`)
+		case "GetRolePolicy":
+			if !policyExists {
+				writeError(w, http.StatusNotFound, "NoSuchEntity", "absent")
+			} else {
+				writeXML(w, `<GetRolePolicyResponse><GetRolePolicyResult><RoleName>`+role.Name+`</RoleName><PolicyName>`+role.PolicyName+`</PolicyName><PolicyDocument>`+xmlEscape(url.QueryEscape(role.PermissionPolicy))+`</PolicyDocument></GetRolePolicyResult></GetRolePolicyResponse>`)
+			}
+		case "AssumeRole":
+			writeXML(w, `<AssumeRoleResponse><AssumeRoleResult><Credentials><AccessKeyId>ASIA0123456789ABCDEF</AccessKeyId><SecretAccessKey>assumed-secret</SecretAccessKey><SessionToken>assumed-token</SessionToken><Expiration>2030-01-01T00:00:00Z</Expiration></Credentials><AssumedRoleUser><Arn>arn:aws:sts::000000000042:assumed-role/`+role.Name+`/`+proofPrefix(marker)+`-session</Arn><AssumedRoleId>AROA0123456789ABCDEF:`+proofPrefix(marker)+`-session</AssumedRoleId></AssumedRoleUser><SourceIdentity>`+proofPrefix(marker)+`-source</SourceIdentity></AssumeRoleResult></AssumeRoleResponse>`)
+		case "DeleteRolePolicy":
+			policyExists = false
+			writeXML(w, `<DeleteRolePolicyResponse/>`)
+		case "DeleteAccessKey", "DeleteUser":
+			principalExists = false
+			writeXML(w, `<`+r.Form.Get("Action")+`Response/>`)
+		case "DeleteRole":
+			roleExists = false
+			writeXML(w, `<DeleteRoleResponse/>`)
+		default:
+			t.Fatalf("unexpected Action %q", r.Form.Get("Action"))
+		}
+	}))
+	defer server.Close()
+	b, err := NewSDKBoundary(context.Background(), server.URL, sourceNamespace, targetNamespace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := RunProof(context.Background(), ProofOptions{Marker: marker, Endpoint: server.URL, SourceAccountID: sourceNamespace, TargetAccountID: targetNamespace, Boundary: b, CleanupTimeout: 100 * time.Millisecond, PollInterval: time.Millisecond, Now: func() time.Time { return time.Date(2029, 1, 1, 0, 0, 0, 0, time.UTC) }})
+	if err != nil || result != (ProofResult{true, true, true, true, true, true}) {
+		t.Fatalf("RunProof() = %#v, %v", result, err)
 	}
 }
 

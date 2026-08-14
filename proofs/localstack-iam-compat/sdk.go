@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
@@ -54,9 +55,14 @@ func NewSDKBoundary(ctx context.Context, rawEndpoint, sourceAccount, targetAccou
 	httpClient := &http.Client{Timeout: 25 * time.Second, Transport: bodyBoundTransport{base: transport}, CheckRedirect: rejectRedirect}
 	sourceCredentials := aws.CredentialsProviderFunc(staticNamespaceCredentials(sourceAccount))
 	targetCredentials := aws.CredentialsProviderFunc(staticNamespaceCredentials(targetAccount))
+	readRetryer := retry.NewStandard(func(options *retry.StandardOptions) {
+		options.MaxAttempts = 2
+		options.MaxBackoff = 500 * time.Millisecond
+		options.Backoff = retry.BackoffDelayerFunc(func(int, error) (time.Duration, error) { return 500 * time.Millisecond, nil })
+	})
 	return &SDKBoundary{
-		sourceIAM: iam.New(iam.Options{Region: fixedRegion, BaseEndpoint: aws.String(endpoint.raw), HTTPClient: httpClient, Credentials: sourceCredentials, RetryMaxAttempts: 2}),
-		targetIAM: iam.New(iam.Options{Region: fixedRegion, BaseEndpoint: aws.String(endpoint.raw), HTTPClient: httpClient, Credentials: targetCredentials, RetryMaxAttempts: 2}),
+		sourceIAM: iam.New(iam.Options{Region: fixedRegion, BaseEndpoint: aws.String(endpoint.raw), HTTPClient: httpClient, Credentials: sourceCredentials, Retryer: readRetryer, RetryMaxAttempts: 2}),
+		targetIAM: iam.New(iam.Options{Region: fixedRegion, BaseEndpoint: aws.String(endpoint.raw), HTTPClient: httpClient, Credentials: targetCredentials, Retryer: readRetryer, RetryMaxAttempts: 2}),
 		sourceSTS: sts.New(sts.Options{Region: fixedRegion, BaseEndpoint: aws.String(endpoint.raw), HTTPClient: httpClient, Credentials: sourceCredentials, RetryMaxAttempts: 1}),
 		transport: transport, endpoint: endpoint, httpClient: httpClient,
 	}, nil
@@ -77,35 +83,39 @@ func validatedLoopbackTransport(ctx context.Context, raw string) (validatedEndpo
 		return validatedEndpoint{}, nil, errConfiguration
 	}
 	host, port := u.Hostname(), u.Port()
-	if host == "" || !allLoopback(ctx, host) {
+	_, ok := resolveLoopback(ctx, host)
+	if host == "" || !ok {
 		return validatedEndpoint{}, nil, errConfiguration
 	}
 	endpoint := validatedEndpoint{raw: raw, host: host, port: port}
 	dialer := &net.Dialer{Timeout: 5 * time.Second}
 	dialContext := func(callCtx context.Context, network, address string) (net.Conn, error) {
 		requestedHost, requestedPort, err := net.SplitHostPort(address)
-		if err != nil || requestedPort != endpoint.port || !sameHost(requestedHost, endpoint.host) || !allLoopback(callCtx, endpoint.host) {
+		addresses, ok := resolveLoopback(callCtx, endpoint.host)
+		if err != nil || requestedPort != endpoint.port || !sameHost(requestedHost, endpoint.host) || !ok {
 			return nil, errConfiguration
 		}
-		return dialer.DialContext(callCtx, network, net.JoinHostPort(endpoint.host, endpoint.port))
+		return dialer.DialContext(callCtx, network, net.JoinHostPort(addresses[0].IP.String(), endpoint.port))
 	}
 	return endpoint, dialContext, nil
 }
 
-func allLoopback(ctx context.Context, host string) bool {
+var lookupIPAddr = net.DefaultResolver.LookupIPAddr
+
+func resolveLoopback(ctx context.Context, host string) ([]net.IPAddr, bool) {
 	if ip := net.ParseIP(host); ip != nil {
-		return ip.IsLoopback()
+		return []net.IPAddr{{IP: ip}}, ip.IsLoopback()
 	}
-	addresses, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+	addresses, err := lookupIPAddr(ctx, host)
 	if err != nil || len(addresses) == 0 {
-		return false
+		return nil, false
 	}
 	for _, address := range addresses {
 		if !address.IP.IsLoopback() {
-			return false
+			return nil, false
 		}
 	}
-	return true
+	return addresses, true
 }
 
 func sameHost(left, right string) bool                    { return strings.Trim(left, "[]") == strings.Trim(right, "[]") }
@@ -119,21 +129,22 @@ func (t bodyBoundTransport) RoundTrip(request *http.Request) (*http.Response, er
 		return response, err
 	}
 	if response.ContentLength > maxBodySize {
-		_ = response.Body.Close()
-		return nil, errProvider
+		response.Body = &limitedReadCloser{ReadCloser: response.Body, remaining: 0, status: response.StatusCode}
+		return response, nil
 	}
-	response.Body = &limitedReadCloser{ReadCloser: response.Body, remaining: maxBodySize + 1}
+	response.Body = &limitedReadCloser{ReadCloser: response.Body, remaining: maxBodySize + 1, status: response.StatusCode}
 	return response, nil
 }
 
 type limitedReadCloser struct {
 	io.ReadCloser
 	remaining int64
+	status    int
 }
 
 func (r *limitedReadCloser) Read(p []byte) (int, error) {
 	if r.remaining <= 0 {
-		return 0, errBodyTooLarge{}
+		return 0, bodyStatusError{status: r.status}
 	}
 	if int64(len(p)) > r.remaining {
 		p = p[:r.remaining]
@@ -141,14 +152,15 @@ func (r *limitedReadCloser) Read(p []byte) (int, error) {
 	n, err := r.ReadCloser.Read(p)
 	r.remaining -= int64(n)
 	if r.remaining == 0 && err == nil {
-		return n, errBodyTooLarge{}
+		return n, bodyStatusError{status: r.status}
 	}
 	return n, err
 }
 
-type errBodyTooLarge struct{}
+type bodyStatusError struct{ status int }
 
-func (errBodyTooLarge) Error() string { return "response body too large" }
+func (e bodyStatusError) Error() string       { return "response body too large" }
+func (e bodyStatusError) HTTPStatusCode() int { return e.status }
 
 func (b *SDKBoundary) SourceIdentity(ctx context.Context) (CallerIdentity, error) {
 	out, err := b.sourceSTS.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
@@ -178,19 +190,27 @@ func (b *SDKBoundary) TargetIdentity(ctx context.Context) (CallerIdentity, error
 }
 
 func (b *SDKBoundary) ListPrincipals(ctx context.Context, prefix string) ([]PrincipalState, error) {
-	out, err := b.sourceIAM.ListUsers(ctx, &iam.ListUsersInput{PathPrefix: aws.String(prefix)})
-	if err != nil {
-		return nil, errProvider
-	}
-	states := make([]PrincipalState, 0, len(out.Users))
-	for _, user := range out.Users {
-		state, ok := principalFromUser(user)
-		if !ok {
-			return nil, errOwnership
+	var states []PrincipalState
+	var marker *string
+	for {
+		out, err := b.sourceIAM.ListUsers(ctx, &iam.ListUsersInput{Marker: marker})
+		if err != nil {
+			return nil, errProvider
 		}
-		states = append(states, state)
+		for _, user := range out.Users {
+			state, ok := principalFromUser(user)
+			if !ok {
+				return nil, errOwnership
+			}
+			if strings.HasPrefix(state.Name, prefix) {
+				states = append(states, state)
+			}
+		}
+		if !out.IsTruncated || out.Marker == nil || aws.ToString(out.Marker) == "" {
+			return states, nil
+		}
+		marker = out.Marker
 	}
-	return states, nil
 }
 func (b *SDKBoundary) CreatePrincipal(ctx context.Context, spec PrincipalSpec) (PrincipalState, error) {
 	out, err := b.sourceIAM.CreateUser(ctx, &iam.CreateUserInput{UserName: aws.String(spec.Name), Path: aws.String(spec.Path), Tags: iamTags(spec.Tags)}, oneAttemptIAM)
@@ -225,7 +245,7 @@ func (b *SDKBoundary) CreateAccessKey(ctx context.Context, user string) (string,
 	if err != nil {
 		return "", "", classifyMutationError(err)
 	}
-	if out.AccessKey == nil || aws.ToString(out.AccessKey.AccessKeyId) == "" || aws.ToString(out.AccessKey.SecretAccessKey) == "" {
+	if out.AccessKey == nil || aws.ToString(out.AccessKey.AccessKeyId) == "" || aws.ToString(out.AccessKey.SecretAccessKey) == "" || aws.ToString(out.AccessKey.UserName) != user || out.AccessKey.Status != iamtypes.StatusTypeActive {
 		return "", "", ambiguousMutationError{cause: errProvider}
 	}
 	return aws.ToString(out.AccessKey.AccessKeyId), aws.ToString(out.AccessKey.SecretAccessKey), nil
@@ -255,19 +275,27 @@ func (b *SDKBoundary) DeletePrincipal(ctx context.Context, user string) error {
 }
 
 func (b *SDKBoundary) ListRoles(ctx context.Context, prefix string) ([]RoleState, error) {
-	out, err := b.targetIAM.ListRoles(ctx, &iam.ListRolesInput{PathPrefix: aws.String(prefix)})
-	if err != nil {
-		return nil, errProvider
-	}
-	states := make([]RoleState, 0, len(out.Roles))
-	for _, role := range out.Roles {
-		state, ok := roleFromSDK(role)
-		if !ok {
-			return nil, errOwnership
+	var states []RoleState
+	var marker *string
+	for {
+		out, err := b.targetIAM.ListRoles(ctx, &iam.ListRolesInput{Marker: marker})
+		if err != nil {
+			return nil, errProvider
 		}
-		states = append(states, state)
+		for _, role := range out.Roles {
+			state, ok := roleFromSDK(role)
+			if !ok {
+				return nil, errOwnership
+			}
+			if strings.HasPrefix(state.Name, prefix) {
+				states = append(states, state)
+			}
+		}
+		if !out.IsTruncated || out.Marker == nil || aws.ToString(out.Marker) == "" {
+			return states, nil
+		}
+		marker = out.Marker
 	}
-	return states, nil
 }
 func (b *SDKBoundary) CreateRole(ctx context.Context, spec RoleSpec) (RoleState, error) {
 	out, err := b.targetIAM.CreateRole(ctx, &iam.CreateRoleInput{RoleName: aws.String(spec.Name), Path: aws.String(spec.Path), Description: aws.String(spec.Description), AssumeRolePolicyDocument: aws.String(spec.TrustPolicy), Tags: iamTags(spec.Tags)}, oneAttemptIAM)
@@ -281,6 +309,10 @@ func (b *SDKBoundary) CreateRole(ctx context.Context, spec RoleSpec) (RoleState,
 	if !ok {
 		return RoleState{}, ambiguousMutationError{cause: errProvider}
 	}
+	if !sameRoleDefinition(spec, state) {
+		return RoleState{}, ambiguousMutationError{cause: errProvider}
+	}
+	state.PolicyName, state.PermissionPolicy = spec.PolicyName, spec.PermissionPolicy
 	return state, nil
 }
 func (b *SDKBoundary) InspectRole(ctx context.Context, name string) (RoleState, error) {
@@ -295,6 +327,22 @@ func (b *SDKBoundary) InspectRole(ctx context.Context, name string) (RoleState, 
 	if !ok {
 		return RoleState{}, errOwnership
 	}
+	policyOutput, policyErr := b.targetIAM.GetRolePolicy(ctx, &iam.GetRolePolicyInput{RoleName: aws.String(state.Name), PolicyName: aws.String(state.PolicyName)})
+	if policyErr != nil {
+		var apiErr smithy.APIError
+		if !errors.As(policyErr, &apiErr) || !strings.EqualFold(apiErr.ErrorCode(), "NoSuchEntity") {
+			return RoleState{}, errProvider
+		}
+		return state, nil
+	}
+	if aws.ToString(policyOutput.RoleName) != state.Name || aws.ToString(policyOutput.PolicyName) != state.PolicyName {
+		return RoleState{}, errOwnership
+	}
+	policy, ok := decodeProviderPolicy(aws.ToString(policyOutput.PolicyDocument))
+	if !ok {
+		return RoleState{}, errOwnership
+	}
+	state.PermissionPolicy = policy
 	return state, nil
 }
 func (b *SDKBoundary) PutRolePolicy(ctx context.Context, role, name, document string) error {
@@ -302,6 +350,9 @@ func (b *SDKBoundary) PutRolePolicy(ctx context.Context, role, name, document st
 	return classifyMutationError(err)
 }
 func (b *SDKBoundary) GetRolePolicy(ctx context.Context, role, name string) (string, error) {
+	return b.rolePolicy(ctx, role, name)
+}
+func (b *SDKBoundary) rolePolicy(ctx context.Context, role, name string) (string, error) {
 	out, err := b.targetIAM.GetRolePolicy(ctx, &iam.GetRolePolicyInput{RoleName: aws.String(role), PolicyName: aws.String(name)})
 	if err != nil {
 		return "", errProvider
@@ -335,15 +386,15 @@ func (b *SDKBoundary) AssumeRole(ctx context.Context, request AssumeRequest, key
 	return sessionFromSDK(out)
 }
 func (b *SDKBoundary) AssumedIdentity(ctx context.Context, session AssumedSession) (CallerIdentity, error) {
-	client := b.assumedIAM(session)
-	out, err := client.GetUser(ctx, &iam.GetUserInput{})
+	out, err := b.assumedSTS(session).GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
 	if err != nil {
 		return CallerIdentity{}, errProvider
 	}
-	if out.User == nil {
+	identity := CallerIdentity{AccountID: aws.ToString(out.Account), ARN: aws.ToString(out.Arn), UserID: aws.ToString(out.UserId)}
+	if identity.AccountID != targetNamespace || identity.ARN == "" || identity.UserID == "" {
 		return CallerIdentity{}, errOwnership
 	}
-	return CallerIdentity{AccountID: targetNamespace, ARN: aws.ToString(out.User.Arn), UserID: aws.ToString(out.User.UserId)}, nil
+	return identity, nil
 }
 func (b *SDKBoundary) AllowedGetRole(ctx context.Context, session AssumedSession, role string) (RoleState, error) {
 	out, err := b.assumedIAM(session).GetRole(ctx, &iam.GetRoleInput{RoleName: aws.String(role)})
@@ -365,13 +416,18 @@ func (b *SDKBoundary) DeniedListRoles(ctx context.Context, session AssumedSessio
 		return errAuthorization
 	}
 	var apiErr smithy.APIError
-	if errors.As(err, &apiErr) && strings.EqualFold(apiErr.ErrorCode(), "AccessDenied") {
+	if errors.As(err, &apiErr) && strings.EqualFold(apiErr.ErrorCode(), "ExplicitDeny") {
 		return explicitDenyError{}
 	}
 	return errAuthorization
 }
 func (b *SDKBoundary) assumedIAM(session AssumedSession) *iam.Client {
 	return iam.New(iam.Options{Region: fixedRegion, BaseEndpoint: aws.String(b.endpoint.raw), HTTPClient: b.httpClient, Credentials: aws.CredentialsProviderFunc(func(context.Context) (aws.Credentials, error) {
+		return aws.Credentials{AccessKeyID: session.AccessKeyID, SecretAccessKey: session.SecretAccessKey, SessionToken: session.SessionToken, Source: "localstack-assumed"}, nil
+	}), RetryMaxAttempts: 2})
+}
+func (b *SDKBoundary) assumedSTS(session AssumedSession) *sts.Client {
+	return sts.New(sts.Options{Region: fixedRegion, BaseEndpoint: aws.String(b.endpoint.raw), HTTPClient: b.httpClient, Credentials: aws.CredentialsProviderFunc(func(context.Context) (aws.Credentials, error) {
 		return aws.Credentials{AccessKeyID: session.AccessKeyID, SecretAccessKey: session.SecretAccessKey, SessionToken: session.SessionToken, Source: "localstack-assumed"}, nil
 	}), RetryMaxAttempts: 2})
 }
@@ -388,6 +444,7 @@ func roleFromSDK(role iamtypes.Role) (RoleState, bool) {
 	}
 	state := RoleState{Name: aws.ToString(role.RoleName), ARN: aws.ToString(role.Arn), Path: aws.ToString(role.Path), RoleID: aws.ToString(role.RoleId), TrustPolicy: trust, Description: aws.ToString(role.Description), Tags: tagsFromIAM(role.Tags)}
 	state.Marker = state.Tags["proof"]
+	state.PolicyName = proofPrefix(state.Marker) + "-policy"
 	return state, state.Name != "" && state.ARN != "" && state.Path != "" && state.RoleID != "" && state.Marker != "" && len(state.Tags) == 1
 }
 func sessionFromSDK(out *sts.AssumeRoleOutput) (AssumedSession, error) {
@@ -441,9 +498,6 @@ func tagsFromIAM(tags []iamtypes.Tag) map[string]string {
 func decodeProviderPolicy(raw string) (string, bool) {
 	if len(raw) == 0 || len(raw) > maxBodySize {
 		return "", false
-	}
-	if validIAMPolicyDocument(raw) {
-		return raw, true
 	}
 	decoded, err := url.QueryUnescape(raw)
 	if err != nil || decoded == raw || len(decoded) > maxBodySize {

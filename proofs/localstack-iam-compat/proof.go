@@ -306,13 +306,13 @@ func createAndProveRole(ctx context.Context, options ProofOptions, target *roleT
 		created = *state
 	}
 	target.state = &created
-	observed, err := options.Boundary.InspectRole(ctx, target.spec.Name)
-	if err != nil || !exactRole(created, observed) {
-		return errOwnership
-	}
 	target.policyArmed = true
 	if err := options.Boundary.PutRolePolicy(ctx, target.spec.Name, target.spec.PolicyName, target.spec.PermissionPolicy); err != nil {
 		return errProvider
+	}
+	observed, err := options.Boundary.InspectRole(ctx, target.spec.Name)
+	if err != nil || !exactRole(created, observed) {
+		return errOwnership
 	}
 	policy, err := options.Boundary.GetRolePolicy(ctx, target.spec.Name, target.spec.PolicyName)
 	if err != nil || !sameJSON(policy, target.spec.PermissionPolicy) {
@@ -344,7 +344,7 @@ func proveAssumeAllowDeny(ctx context.Context, options ProofOptions, principal *
 	}
 	result.Assumed = true
 	read, err := options.Boundary.AllowedGetRole(ctx, session, role.state.Name)
-	if err != nil || !exactRole(*role.state, read) {
+	if err != nil || !sameRoleDefinition(*role.state, read) {
 		return result, errOwnership
 	}
 	result.AllowedRead = true
@@ -452,7 +452,7 @@ func cleanupAndAudit(ctx context.Context, options ProofOptions, principal *princ
 	}
 	if role.state != nil {
 		observed, err := safeCleanupValue(func() (RoleState, error) { return options.Boundary.InspectRole(ctx, role.state.Name) })
-		if err != nil || !exactRole(*role.state, observed) {
+		if err != nil || !sameRoleDefinition(*role.state, observed) {
 			cleanupOK = false
 		} else if err := safeCleanupCall(func() error { return options.Boundary.DeleteRole(ctx, role.state.Name) }); err != nil {
 			cleanupOK = false
@@ -569,6 +569,10 @@ func exactRole(expected RoleSpec, observed RoleState) bool {
 		return false
 	}
 	return sameJSON(expected.TrustPolicy, observed.TrustPolicy) && sameJSON(expected.PermissionPolicy, observed.PermissionPolicy)
+}
+
+func sameRoleDefinition(expected RoleSpec, observed RoleState) bool {
+	return expected.Name == observed.Name && expected.ARN == observed.ARN && expected.Path == observed.Path && expected.Marker == observed.Marker && expected.Description == observed.Description && exactTags(expected.Tags, observed.Tags) && observed.RoleID != "" && (expected.RoleID == "" || expected.RoleID == observed.RoleID) && sameJSON(expected.TrustPolicy, observed.TrustPolicy)
 }
 
 func exactTags(left, right map[string]string) bool {
