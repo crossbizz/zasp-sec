@@ -63,6 +63,12 @@ a successful live result.
   `dca67911095a110c2b5c36e26df6cac860c602033e456c0db47be498cdef1ebb`.
 - Kubernetes node image
   `kindest/node:v1.35.5@sha256:ce977ae6d65918d0b58a5f8b5e940429c2ce42fa3a5619ec2bbc60b949c0ac95`.
+- BusyBox fixture image index
+  `busybox:1.37.0@sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0`,
+  with arm64 descriptor
+  `sha256:f10e809bcf667d8e9f01d2baf82869049a495cd448cdfe1f4dee94078b960ae9`
+  and amd64 descriptor
+  `sha256:7a3ebe5bfd1a4a19797d20b0c0bb39d44393e9a03fd852c0865b0f540d868df0`.
 
 The implementation will retain platform-specific descriptors and complete
 runtime metadata rather than accepting a tag or mutable name as ownership.
