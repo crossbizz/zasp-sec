@@ -199,6 +199,82 @@ func TestRunProof_ReviewFixes(t *testing.T) {
 	})
 }
 
+func TestRunProof_ReviewRound2Fixes(t *testing.T) {
+	t.Run("uses STS assumed-role ARN without IAM path", func(t *testing.T) {
+		fake := newFakeBoundary()
+		if _, err := RunProof(context.Background(), fake.options); err != nil {
+			t.Fatalf("RunProof() error = %v", err)
+		}
+	})
+	t.Run("accepts root caller ARNs in the expected namespaces", func(t *testing.T) {
+		fake := newFakeBoundary()
+		fake.source.ARN = "arn:aws:iam::000000000041:root"
+		fake.target.ARN = "arn:aws:iam::000000000042:root"
+		if _, err := RunProof(context.Background(), fake.options); err != nil {
+			t.Fatalf("RunProof() error = %v", err)
+		}
+	})
+	t.Run("rejects invalid caller ARN partition service and resource combinations", func(t *testing.T) {
+		for _, arn := range []string{
+			"arn:aws-cn:iam::000000000041:root",
+			"arn:aws:s3::000000000041:root",
+			"arn:aws:sts::000000000041:root",
+			"arn:aws:iam::000000000041:assumed-role/name/session",
+			"arn:aws:sts::000000000041:user/name",
+		} {
+			if validCallerARN(arn, "000000000041") {
+				t.Fatalf("validCallerARN(%q) accepted an invalid caller identity", arn)
+			}
+		}
+	})
+	t.Run("does not adopt resources when preflight panics", func(t *testing.T) {
+		fake := newFakeBoundary()
+		principal, role := expectedSpecs(fake.options)
+		fake.principal = &PrincipalState{PrincipalSpec: principal, UserID: "existing-principal"}
+		role.RoleID = "existing-role"
+		fake.role = &role
+		fake.preexistingPrincipal = true
+		fake.preexistingRole = true
+		fake.panicSource = true
+		if _, err := RunProof(context.Background(), fake.options); !errors.Is(err, errProvider) {
+			t.Fatalf("RunProof() error = %v, want provider error", err)
+		}
+		if fake.principal == nil || fake.role == nil {
+			t.Fatal("preflight panic allowed cleanup to delete an unattempted resource")
+		}
+	})
+	t.Run("cleans invalid and panic-applied access keys", func(t *testing.T) {
+		for _, test := range []struct {
+			name string
+			set  func(*fakeBoundary)
+		}{
+			{"invalid success", func(f *fakeBoundary) { f.invalidAccessKeySuccess = true }},
+			{"panic after apply", func(f *fakeBoundary) { f.panicAfterAccessKey = true }},
+		} {
+			t.Run(test.name, func(t *testing.T) {
+				fake := newFakeBoundary()
+				test.set(fake)
+				if _, err := RunProof(context.Background(), fake.options); !errors.Is(err, errProvider) {
+					t.Fatalf("RunProof() error = %v, want provider error", err)
+				}
+				if fake.accessKeyPresent {
+					t.Fatal("access key remains after uncertain creation")
+				}
+			})
+		}
+	})
+	t.Run("does not delete an unproven role policy", func(t *testing.T) {
+		fake := newFakeBoundary()
+		fake.cleanupPolicyMismatch = true
+		if _, err := RunProof(context.Background(), fake.options); !errors.Is(err, errCleanup) {
+			t.Fatalf("RunProof() error = %v, want cleanup error", err)
+		}
+		if fake.deletedRolePolicy {
+			t.Fatal("cleanup deleted a policy after ownership proof failed")
+		}
+	})
+}
+
 func testOptions(boundary *fakeBoundary) ProofOptions {
 	return ProofOptions{
 		Marker: marker, Endpoint: "http://127.0.0.1:4566",
@@ -218,6 +294,8 @@ type fakeBoundary struct {
 	createdPrincipal                                                                                  PrincipalSpec
 	createdRole                                                                                       RoleSpec
 	policy                                                                                            string
+	accessKeyID                                                                                       string
+	accessKeyPresent                                                                                  bool
 	principalCollision, roleCollision, replacePrincipal, replaceRole                                  bool
 	wrongTrust, wrongPermission, wrongTags                                                            bool
 	missingExternalID, wrongSessionName, wrongSourceIdentity, wrongSessionTag                         bool
@@ -226,6 +304,8 @@ type fakeBoundary struct {
 	delayedRole                                                                                       int
 	panicAfterRole, cancelMain, cleanupMismatch, cleanupFails, cleanupContinuation, auditRemains      bool
 	requireAccessSecret, returnSTSIdentity, invalidPrincipalSuccess, invalidRoleSuccess, panicCleanup bool
+	panicSource, preexistingPrincipal, preexistingRole                                                bool
+	invalidAccessKeySuccess, panicAfterAccessKey, cleanupPolicyMismatch, deletedRolePolicy            bool
 	deletedReplacement, continuedCleanup                                                              bool
 	principalLists, roleLists, roleInspects, policyGets                                               int
 }
@@ -252,6 +332,9 @@ func (f *fakeBoundary) eventsSnapshot() []string {
 }
 func (f *fakeBoundary) SourceIdentity(context.Context) (CallerIdentity, error) {
 	f.event("source-identity")
+	if f.panicSource {
+		panic("preflight")
+	}
 	return f.source, nil
 }
 func (f *fakeBoundary) TargetIdentity(context.Context) (CallerIdentity, error) {
@@ -262,6 +345,9 @@ func (f *fakeBoundary) ListPrincipals(_ context.Context, _ string) ([]PrincipalS
 	f.principalLists++
 	if f.principalLists == 1 {
 		f.event("list-principals")
+		if f.preexistingPrincipal && f.principal != nil {
+			return []PrincipalState{*f.principal}, nil
+		}
 		if f.principalCollision {
 			return []PrincipalState{{}}, nil
 		}
@@ -312,7 +398,21 @@ func (f *fakeBoundary) InspectPrincipal(_ context.Context, _ string) (PrincipalS
 }
 func (f *fakeBoundary) CreateAccessKey(context.Context, string) (string, string, error) {
 	f.event("create-access-key")
+	f.accessKeyID = "key"
+	f.accessKeyPresent = true
+	if f.panicAfterAccessKey {
+		panic("access-key")
+	}
+	if f.invalidAccessKeySuccess {
+		return f.accessKeyID, "", nil
+	}
 	return "key", "secret", nil
+}
+func (f *fakeBoundary) ListAccessKeys(context.Context, string) ([]string, error) {
+	if !f.accessKeyPresent {
+		return nil, nil
+	}
+	return []string{f.accessKeyID}, nil
 }
 func (f *fakeBoundary) DeleteAccessKey(context.Context, string, string) error {
 	f.event("delete-access-key")
@@ -323,6 +423,7 @@ func (f *fakeBoundary) DeleteAccessKey(context.Context, string, string) error {
 	if f.cleanupFails {
 		return errors.New("cleanup")
 	}
+	f.accessKeyPresent = false
 	return nil
 }
 func (f *fakeBoundary) DeletePrincipal(context.Context, string) error {
@@ -335,6 +436,9 @@ func (f *fakeBoundary) ListRoles(_ context.Context, _ string) ([]RoleState, erro
 	f.roleLists++
 	if f.roleLists == 1 {
 		f.event("list-roles")
+		if f.preexistingRole && f.role != nil {
+			return []RoleState{*f.role}, nil
+		}
 		if f.roleCollision {
 			return []RoleState{{}}, nil
 		}
@@ -416,6 +520,9 @@ func (f *fakeBoundary) GetRolePolicy(context.Context, string, string) (string, e
 	if f.wrongPermission {
 		return "{}", nil
 	}
+	if f.cleanupPolicyMismatch && f.policyGets > 1 {
+		return "{}", nil
+	}
 	return f.policy, nil
 }
 func (f *fakeBoundary) AssumeRole(_ context.Context, request AssumeRequest, keyID, secret string) (AssumedSession, error) {
@@ -445,7 +552,7 @@ func (f *fakeBoundary) AssumeRole(_ context.Context, request AssumeRequest, keyI
 	roleARN := f.role.ARN
 	if f.returnSTSIdentity {
 		roleID += ":" + request.SessionName
-		roleARN = "arn:aws:sts::000000000042:assumed-role/" + strings.TrimPrefix(f.role.Path, "/") + f.role.Name + "/" + request.SessionName
+		roleARN = "arn:aws:sts::000000000042:assumed-role/" + f.role.Name + "/" + request.SessionName
 	}
 	return AssumedSession{AccessKeyID: "key", SecretAccessKey: "secret", SessionToken: "token", AssumedRoleARN: roleARN, AssumedRoleID: roleID, SourceIdentity: request.SourceIdentity, Expiration: time.Now().Add(time.Hour)}, nil
 }
@@ -479,6 +586,7 @@ func (f *fakeBoundary) DeniedListRoles(context.Context, AssumedSession) error {
 }
 func (f *fakeBoundary) DeleteRolePolicy(context.Context, string, string) error {
 	f.event("delete-role-policy")
+	f.deletedRolePolicy = true
 	return nil
 }
 func (f *fakeBoundary) DeleteRole(context.Context, string) error {

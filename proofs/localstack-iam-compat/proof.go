@@ -102,16 +102,19 @@ type explicitDenyError struct{}
 func (explicitDenyError) Error() string { return "explicit denial" }
 
 type principalTarget struct {
-	spec      PrincipalSpec
-	state     *PrincipalState
-	keyID     string
-	keySecret string
+	spec         PrincipalSpec
+	state        *PrincipalState
+	keyID        string
+	keySecret    string
+	attempted    bool
+	keyAttempted bool
 }
 
 type roleTarget struct {
 	spec        RoleSpec
 	state       *RoleState
 	policyArmed bool
+	attempted   bool
 }
 
 func RunProof(ctx context.Context, options ProofOptions) (result ProofResult, resultErr error) {
@@ -222,6 +225,7 @@ func preflightEmpty(ctx context.Context, options ProofOptions, principal Princip
 }
 
 func createAndProvePrincipal(ctx context.Context, options ProofOptions, target *principalTarget) error {
+	target.attempted = true
 	created, err := options.Boundary.CreatePrincipal(ctx, target.spec)
 	if err != nil {
 		var ambiguous ambiguousMutationError
@@ -250,16 +254,20 @@ func createAndProvePrincipal(ctx context.Context, options ProofOptions, target *
 	if err != nil || !exactPrincipal(created.PrincipalSpec, observed) || observed.UserID != created.UserID {
 		return errOwnership
 	}
+	target.keyAttempted = true
 	keyID, keySecret, err := options.Boundary.CreateAccessKey(ctx, target.spec.Name)
+	if keyID != "" {
+		target.keyID = keyID
+	}
 	if err != nil || keyID == "" || keySecret == "" {
 		return errProvider
 	}
-	target.keyID = keyID
 	target.keySecret = keySecret
 	return nil
 }
 
 func createAndProveRole(ctx context.Context, options ProofOptions, target *roleTarget) error {
+	target.attempted = true
 	created, err := options.Boundary.CreateRole(ctx, target.spec)
 	if err != nil {
 		var ambiguous ambiguousMutationError
@@ -396,18 +404,22 @@ func waitForPoll(ctx context.Context, interval time.Duration) {
 }
 
 func cleanupAndAudit(ctx context.Context, options ProofOptions, principal *principalTarget, role *roleTarget) (bool, bool) {
+	if !principal.attempted && !role.attempted {
+		return true, true
+	}
 	cleanupOK := true
 	if role.state != nil && role.policyArmed {
 		policy, err := safeCleanupValue(func() (string, error) {
 			return options.Boundary.GetRolePolicy(ctx, role.state.Name, role.state.PolicyName)
 		})
-		if err != nil || !sameJSON(policy, role.state.PermissionPolicy) {
+		policyOwned := err == nil && sameJSON(policy, role.state.PermissionPolicy)
+		if !policyOwned {
 			cleanupOK = false
 		}
 		observed, err := safeCleanupValue(func() (RoleState, error) { return options.Boundary.InspectRole(ctx, role.state.Name) })
 		if err != nil || !exactRole(*role.state, observed) {
 			cleanupOK = false
-		} else if err := safeCleanupCall(func() error { return options.Boundary.DeleteRolePolicy(ctx, role.state.Name, role.state.PolicyName) }); err != nil {
+		} else if policyOwned && safeCleanupCall(func() error { return options.Boundary.DeleteRolePolicy(ctx, role.state.Name, role.state.PolicyName) }) != nil {
 			cleanupOK = false
 		}
 	}
@@ -440,12 +452,17 @@ func cleanupAndAudit(ctx context.Context, options ProofOptions, principal *princ
 }
 
 func armUncertainTargets(ctx context.Context, options ProofOptions, principal *principalTarget, role *roleTarget) {
-	if principal.state == nil {
+	if principal.attempted && principal.state == nil {
 		if state, outcome := reconcilePrincipal(ctx, options.Boundary, principal.spec, options.PollInterval); outcome == reconciliationOwned {
 			principal.state = state
 		}
 	}
-	if role.state == nil {
+	if principal.state != nil && principal.keyAttempted && principal.keyID == "" {
+		if keyID, ok := reconcileAccessKey(ctx, options.Boundary, principal.state.Name); ok {
+			principal.keyID = keyID
+		}
+	}
+	if role.attempted && role.state == nil {
 		if state, outcome := reconcileRole(ctx, options.Boundary, role.spec, options.PollInterval); outcome == reconciliationOwned {
 			role.state = state
 		}
@@ -495,14 +512,40 @@ func iamRoleARN(account, path, name string) string {
 }
 
 func assumedRoleARN(role RoleState, sessionName string) string {
-	return "arn:aws:sts::" + targetNamespace + ":assumed-role/" + strings.TrimPrefix(role.Path, "/") + role.Name + "/" + sessionName
+	return "arn:aws:sts::" + targetNamespace + ":assumed-role/" + role.Name + "/" + sessionName
 }
 
-var callerARNPattern = regexp.MustCompile(`^arn:aws:(iam|sts)::([0-9]{12}):(user|role|assumed-role)/[A-Za-z0-9+=,.@_/-]+$`)
+type accessKeyReconciler interface {
+	ListAccessKeys(context.Context, string) ([]string, error)
+}
+
+func reconcileAccessKey(ctx context.Context, boundary IAMBoundary, principalName string) (string, bool) {
+	reconciler, ok := boundary.(accessKeyReconciler)
+	if !ok {
+		return "", false
+	}
+	keys, err := reconciler.ListAccessKeys(ctx, principalName)
+	if err != nil || len(keys) != 1 || keys[0] == "" {
+		return "", false
+	}
+	return keys[0], true
+}
+
+var callerARNPattern = regexp.MustCompile(`^arn:aws:(iam|sts)::([0-9]{12}):(root|(?:user|role|assumed-role)/[A-Za-z0-9+=,.@_/-]+)$`)
 
 func validCallerARN(arn, account string) bool {
 	matches := callerARNPattern.FindStringSubmatch(arn)
-	return len(matches) == 4 && matches[2] == account
+	if len(matches) != 4 || matches[2] != account {
+		return false
+	}
+	resource := matches[3]
+	if resource == "root" {
+		return matches[1] == "iam"
+	}
+	if matches[1] == "iam" {
+		return strings.HasPrefix(resource, "user/") || strings.HasPrefix(resource, "role/")
+	}
+	return matches[1] == "sts" && strings.HasPrefix(resource, "assumed-role/")
 }
 
 func exactPrincipal(expected PrincipalSpec, observed PrincipalState) bool {
