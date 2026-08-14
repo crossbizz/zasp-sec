@@ -2,7 +2,9 @@ import contextlib
 import io
 import json
 import os
+import tempfile
 import unittest
+from pathlib import Path
 from unittest import mock
 
 import fixture_runner
@@ -340,6 +342,62 @@ class InspectionTests(unittest.TestCase):
 
 
 class FileBoundaryTests(unittest.TestCase):
+    def test_read_fixture_reads_an_actual_regular_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture_path = Path(directory, "fixture.json")
+            fixture_path.write_bytes(RAW_BYTES)
+
+            with mock.patch.object(
+                fixture_runner, "FIXTURE_PATH", str(fixture_path)
+            ):
+                raw = fixture_runner._read_fixture(str(fixture_path))
+
+        self.assertEqual(raw, RAW_BYTES)
+
+    def test_read_fixture_rejects_an_actual_symlink(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target_path = Path(directory, "target.json")
+            target_path.write_bytes(RAW_BYTES)
+            fixture_path = Path(directory, "fixture.json")
+            fixture_path.symlink_to(target_path)
+
+            with (
+                mock.patch.object(fixture_runner, "FIXTURE_PATH", str(fixture_path)),
+                self.assertRaises((OSError, ValueError)),
+            ):
+                fixture_runner._read_fixture(str(fixture_path))
+
+    def test_read_fixture_rejects_an_actual_fifo_without_blocking(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture_path = Path(directory, "fixture.json")
+            os.mkfifo(fixture_path)
+
+            try:
+                with (
+                    mock.patch.object(
+                        fixture_runner, "FIXTURE_PATH", str(fixture_path)
+                    ),
+                    fixture_runner._absolute_deadline(0.25),
+                ):
+                    fixture_runner._read_fixture(str(fixture_path))
+            except TimeoutError:
+                self.fail("FIFO open blocked until the test deadline")
+            except (OSError, ValueError):
+                pass
+            else:
+                self.fail("FIFO fixture was accepted")
+
+    def test_read_fixture_rejects_an_actual_oversized_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture_path = Path(directory, "fixture.json")
+            fixture_path.write_bytes(b"x" * 16_385)
+
+            with (
+                mock.patch.object(fixture_runner, "FIXTURE_PATH", str(fixture_path)),
+                self.assertRaises(ValueError),
+            ):
+                fixture_runner._read_fixture(str(fixture_path))
+
     def test_read_fixture_rejects_symlink_without_opening_its_target(self):
         with mock.patch.object(os, "open", side_effect=OSError("symlink")) as open_mock:
             with self.assertRaises((TypeError, ValueError, OSError)):
@@ -403,6 +461,34 @@ class MainBoundaryTests(unittest.TestCase):
             ],
         )
         self.assertEqual(self.deadline_seconds, 45.0)
+
+    def test_run_main_enters_deadline_before_fixture_file_access(self):
+        events = []
+
+        @contextlib.contextmanager
+        def deadline(_seconds):
+            events.append("deadline-entered")
+            yield
+
+        def read_fixture(_path):
+            events.append("fixture-read")
+            return RAW_BYTES
+
+        with (
+            mock.patch.object(fixture_runner, "_read_fixture", read_fixture),
+            mock.patch.object(
+                fixture_runner, "_load_runtime", return_value=(FakeNeo4j, self.api)
+            ),
+            mock.patch.object(fixture_runner, "_absolute_deadline", deadline),
+        ):
+            code = fixture_runner.run_main(
+                ["--fixture", FIXTURE_PATH, "--neo4j-uri", NEO4J_URI],
+                ENVIRON,
+                io.StringIO(),
+            )
+
+        self.assertEqual(code, 0)
+        self.assertEqual(events[:2], ["deadline-entered", "fixture-read"])
 
     def test_run_main_rejects_every_nonbaseline_environment_entry_and_wrong_value(self):
         invalid_environments = [

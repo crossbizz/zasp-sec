@@ -170,8 +170,8 @@ def inspect_graph(session: object, fixture: Fixture) -> dict[str, object]:
 def run_main(argv: list[str], environ: Mapping[str, str], stdout: TextIO) -> int:
     try:
         fixture_path, neo4j_uri = _validate_boundary(argv, environ)
-        fixture = parse_fixture(_read_fixture(fixture_path))
         with _absolute_deadline(OPERATION_TIMEOUT_SECONDS):
+            fixture = parse_fixture(_read_fixture(fixture_path))
             neo4j, api = _load_runtime()
             with neo4j.GraphDatabase.driver(
                 neo4j_uri,
@@ -379,7 +379,7 @@ def _validate_boundary(
 def _read_fixture(path: str) -> bytes:
     if path != FIXTURE_PATH or not os.path.isabs(path):
         raise ValueError("invalid fixture path")
-    flags = os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW
+    flags = os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW | os.O_NONBLOCK
     descriptor = os.open(path, flags)
     try:
         metadata = os.fstat(descriptor)
