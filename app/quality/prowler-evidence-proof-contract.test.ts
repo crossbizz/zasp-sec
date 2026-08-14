@@ -20,8 +20,9 @@ const pythonTests = [
   "fixture_runner_test.FileBoundaryTests",
   "fixture_runner_test.MainBoundaryTests",
 ].join(" ");
-const testCommand = `cd ${proofDirectory} && node --test normalizer.test.mjs run.test.mjs && PYTHONDONTWRITEBYTECODE=1 /opt/homebrew/bin/python3.13 -m unittest -v ${pythonTests}`;
+const testCommand = `cd ${proofDirectory} && node --test normalizer.test.mjs run.test.mjs license-audit.test.mjs && PYTHONDONTWRITEBYTECODE=1 /opt/homebrew/bin/python3.13 -m unittest -v ${pythonTests}`;
 const runCommand = `node ${proofDirectory}/run.mjs`;
+const licenseCommand = `node ${proofDirectory}/license-audit.mjs`;
 const expectedR06Row = [
   "R-06",
   "**Prowler evidence normalization.** A relevant cloud-posture finding must map to product evidence.",
@@ -95,6 +96,7 @@ describe("Prowler evidence proof start contract", () => {
 
     expect(manifest.scripts?.["proof:prowler:test"]).toBe(testCommand);
     expect(manifest.scripts?.["proof:prowler:run"]).toBe(runCommand);
+    expect(manifest.scripts?.["proof:prowler:license"]).toBe(licenseCommand);
     expect(manifest.scripts?.["proof:prowler:test"]).not.toMatch(
       /docker|PinnedImageCompatibilityTests|env-file|source|credential|proxy/i,
     );
@@ -125,10 +127,14 @@ describe("Prowler evidence proof start contract", () => {
     expect(section).toContain("does not prove real-AWS authorization or parity");
     expect(section).toContain("proof-owned containers, network, output, and temporary directories");
     expect(section).toContain("M0-11 is In progress");
+    expect(section).toContain("npm run proof:prowler:license");
+    expect(section).toContain("LocalStack Community image");
+    expect(section).toContain("Apache-2.0 plus its tagged community EULA");
 
     const commands = section?.match(/```bash\n([\s\S]*?)\n```/)?.[1];
     expect(commands?.split("\n")).toEqual([
       "npm run proof:prowler:test",
+      "npm run proof:prowler:license",
       "npm run proof:prowler:run",
     ]);
   });

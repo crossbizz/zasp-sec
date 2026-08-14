@@ -45,6 +45,11 @@ const localstackImageExposedPorts = [
   "5678/tcp",
 ].sort();
 const localstackImageVolumes = ["/var/lib/localstack"];
+const localstackImageLabels = {
+  authors: "LocalStack Contributors",
+  description: "LocalStack Docker image",
+  maintainer: "LocalStack Team (info@localstack.cloud)",
+};
 
 const prowlerImageEnvironment = [
   "PATH=/home/prowler/.local/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
@@ -68,6 +73,22 @@ const prowlerProofEnvironment = [
   `AWS_ENDPOINT_URL=http://${localstackName}:4566`,
   "AWS_SHARED_CREDENTIALS_FILE=/nonexistent",
   "AWS_CONFIG_FILE=/nonexistent",
+];
+const prowlerImageLabels = {
+  maintainer: "https://github.com/prowler-cloud/prowler",
+  "org.opencontainers.image.created": "2026-08-13T09:21:15Z",
+  "org.opencontainers.image.description": "Open Source security tool for cloud security assessments, audits, incident response, continuous monitoring, hardening and forensics readiness",
+  "org.opencontainers.image.revision": "1bb6b3cb39e9bc603e89e9c8a9023582ad6e90d5",
+  "org.opencontainers.image.source": "https://github.com/prowler-cloud/prowler",
+  "org.opencontainers.image.title": "Prowler CLI",
+  "org.opencontainers.image.vendor": "ProwlerPro, Inc.",
+  "org.opencontainers.image.version": "5.39.0",
+};
+const readonlyPaths = ["/proc/bus", "/proc/fs", "/proc/irq", "/proc/sys", "/proc/sysrq-trigger"];
+const maskedPaths = [
+  "/proc/acpi", "/proc/asound", "/proc/interrupts", "/proc/kcore", "/proc/keys",
+  "/proc/latency_stats", "/proc/sched_debug", "/proc/scsi", "/proc/timer_list",
+  "/proc/timer_stats", "/sys/devices/virtual/powercap", "/sys/firmware",
 ];
 const bridgeEnvironment = [
   "PATH=/home/prowler/.local/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
@@ -105,7 +126,7 @@ function identityStat(dev = 1, ino = 2, { file = false, symlink = false, size = 
   };
 }
 
-function imageInspection({ imageID, environment, entrypoint, command = null, exposedPorts = null, volumes = null, user = "", workingDirectory = "" }) {
+function imageInspection({ imageID, environment, entrypoint, command = null, exposedPorts = null, volumes = null, user = "", workingDirectory = "", labels }) {
   return `${JSON.stringify([
     imageID,
     environment,
@@ -115,11 +136,37 @@ function imageInspection({ imageID, environment, entrypoint, command = null, exp
     Array.isArray(volumes) ? Object.fromEntries(volumes.map((entry) => [entry, {}])) : volumes,
     user,
     workingDirectory,
+    labels,
   ])}\n`;
 }
 
-function networkInspection({ internal = true, driver = "bridge", scope = "local", attachable = false, ingress = false } = {}) {
-  return `${networkID}|${networkName}|m0-11|${marker}|${internal}|${driver}|${scope}|${attachable}|${ingress}\n`;
+function networkInspection({
+  internal = true, driver = "bridge", scope = "local", attachable = false, ingress = false,
+  labels = { "zasp.marker": marker, "zasp.proof": "m0-11" }, enableIPv4 = true,
+  enableIPv6 = false, configOnly = false, configFrom = { Network: "" }, options = {},
+  ipam = { Config: [{ Gateway: "192.168.156.1", Subnet: "192.168.156.0/24" }], Driver: "default", Options: {} },
+  peers = {},
+} = {}) {
+  return `${JSON.stringify([
+    networkID, networkName, labels, internal, driver, scope, attachable, ingress,
+    enableIPv4, enableIPv6, configOnly, configFrom, options, ipam, peers,
+  ])}\n`;
+}
+
+function networkPeer(token, name, octet = 2) {
+  return {
+    [token]: {
+      EndpointID: String(octet).repeat(64).slice(0, 64),
+      IPv4Address: `192.168.156.${octet}/24`,
+      IPv6Address: "",
+      MacAddress: `02:42:c0:a8:9c:${String(octet).padStart(2, "0")}`,
+      Name: name,
+    },
+  };
+}
+
+function auditInspection(identifier, name, labels, kind) {
+  return `${JSON.stringify([identifier, kind === "container" ? `/${name}` : name, labels])}\n`;
 }
 
 function localstackInspection(overrides = {}) {
@@ -134,6 +181,7 @@ function localstackInspection(overrides = {}) {
     hostname: localstackName,
     imageID: localstackImageID,
     image: api?.LOCALSTACK_IMAGE,
+    labels: { ...localstackImageLabels, "zasp.marker": marker, "zasp.proof": "m0-11" },
     environment: [
       "ENFORCE_IAM=1", "PERSISTENCE=0", "SERVICES=iam,sts",
       ...localstackImageEnvironment,
@@ -144,11 +192,21 @@ function localstackInspection(overrides = {}) {
     binds: null,
     tmpfs: null,
     readonlyRootfs: false,
+    privileged: false,
+    capAdd: null,
     capDrop: null,
+    devices: [],
+    deviceRequests: null,
     securityOpt: null,
     pidsLimit: null,
     memory: 0,
     nanoCpus: 0,
+    pidMode: "",
+    ipcMode: "private",
+    usernsMode: "",
+    cgroupnsMode: "private",
+    readonlyPaths,
+    maskedPaths,
     user: "",
     workingDirectory: "/opt/code/localstack/",
     exposedPorts: localstackImageExposedPorts,
@@ -163,6 +221,7 @@ function prowlerInspection(overrides = {}) {
     hostname: prowlerName,
     imageID: prowlerImageID,
     image: api?.PROWLER_IMAGE,
+    labels: { ...prowlerImageLabels, "zasp.marker": marker, "zasp.proof": "m0-11" },
     environment: [...prowlerProofEnvironment, ...prowlerImageEnvironment],
     entrypoint: ["/usr/bin/env"],
     command: [
@@ -178,51 +237,73 @@ function prowlerInspection(overrides = {}) {
     binds: [`${proofDirectory}:/proof:ro`, `${outputDirectory}:/proof/output:rw`],
     tmpfs: { "/tmp": "rw,noexec,nosuid,nodev,size=32m" },
     readonlyRootfs: true,
+    privileged: false,
+    capAdd: null,
     capDrop: ["ALL"],
+    devices: [],
+    deviceRequests: null,
     securityOpt: ["no-new-privileges"],
     pidsLimit: 64,
     memory: 805306368,
     nanoCpus: 1_000_000_000,
+    pidMode: "",
+    ipcMode: "private",
+    usernsMode: "",
+    cgroupnsMode: "private",
+    readonlyPaths,
+    maskedPaths,
     user: "prowler",
     workingDirectory: "/home/prowler",
     exposedPorts: [],
+    attachedNetworkID: "",
     ...overrides,
   });
 }
 
 function containerInspection({
-  token, name, hostname, imageID, image, environment, entrypoint, command, mounts, binds, tmpfs,
-  readonlyRootfs, capDrop, securityOpt, pidsLimit, memory, nanoCpus, user, workingDirectory,
+  token, name, hostname, imageID, image, labels, environment, entrypoint, command, mounts, binds, tmpfs,
+  readonlyRootfs, privileged, capAdd, capDrop, devices, deviceRequests, securityOpt,
+  pidsLimit, memory, nanoCpus, pidMode, ipcMode, usernsMode, cgroupnsMode, readonlyPaths: selectedReadonlyPaths,
+  maskedPaths: selectedMaskedPaths, user, workingDirectory,
   exposedPorts, attachedNetworkID = networkID,
 }) {
-  return `${[
+  return `${JSON.stringify([
     token,
     `/${name}`,
     hostname,
     imageID,
     image,
-    "m0-11",
-    marker,
+    labels,
     networkName,
-    JSON.stringify({ [networkName]: { NetworkID: attachedNetworkID } }),
-    JSON.stringify(environment),
-    JSON.stringify({}),
-    JSON.stringify(Object.fromEntries(exposedPorts.map((port) => [port, null]))),
-    JSON.stringify(entrypoint),
-    JSON.stringify(command),
-    JSON.stringify(mounts),
-    JSON.stringify(binds),
-    JSON.stringify(null),
-    JSON.stringify(tmpfs),
-    JSON.stringify(readonlyRootfs),
-    JSON.stringify(capDrop),
-    JSON.stringify(securityOpt),
-    JSON.stringify(pidsLimit),
-    JSON.stringify(memory),
-    JSON.stringify(nanoCpus),
-    JSON.stringify(user),
-    JSON.stringify(workingDirectory),
-  ].join("|")}\n`;
+    { [networkName]: { NetworkID: attachedNetworkID } },
+    environment,
+    {},
+    Object.fromEntries(exposedPorts.map((port) => [port, null])),
+    entrypoint,
+    command,
+    mounts,
+    binds,
+    null,
+    tmpfs,
+    readonlyRootfs,
+    capAdd,
+    capDrop,
+    devices,
+    deviceRequests,
+    securityOpt,
+    privileged,
+    pidsLimit,
+    memory,
+    nanoCpus,
+    pidMode,
+    ipcMode,
+    usernsMode,
+    cgroupnsMode,
+    selectedReadonlyPaths,
+    selectedMaskedPaths,
+    user,
+    workingDirectory,
+  ])}\n`;
 }
 
 test("pins exact images and builds an internal proof network", () => {
@@ -324,7 +405,7 @@ test("orchestration maps either child pipe failure to one fixed line and still c
     assert.deepEqual(proof, { code: 1, line: "Prowler evidence proof failed: provider rejected." });
     assert.equal(proof.line.includes("secret"), false);
     assert.deepEqual(runtime.calls, [
-      "initialize", "preflight", "images", "cleanup-output", "prefix-absent",
+      "initialize", "preflight", "images", "settle-mutations", "cleanup-output", "prefix-absent",
       "cleanup-config", "temp-prefix-absent",
     ]);
   }
@@ -499,6 +580,7 @@ test("resolves exact full image metadata with one single-attempt pull", async ()
       volumes: localstackImageVolumes,
       user: null,
       workingDirectory: "/opt/code/localstack/",
+      labels: localstackImageLabels,
     })),
   ]);
   assert.equal(await runtime.resolveImage(api.LOCALSTACK_IMAGE), localstackImageID);
@@ -525,6 +607,7 @@ test("pulls only after an exact missing-image envelope and reconciles only throw
     volumes: localstackImageVolumes,
     user: "",
     workingDirectory: "/opt/code/localstack/",
+    labels: localstackImageLabels,
   }));
 
   const generic = scriptedRuntime([result(1), result(1)]);
@@ -548,11 +631,20 @@ test("pulls only after an exact missing-image envelope and reconciles only throw
 });
 
 test("preflight rejects owned container, internal-network, output, or temp prefix collisions", async () => {
-  const clean = scriptedRuntime([result(), result()]);
+  const clean = scriptedRuntime(Array.from({ length: 6 }, () => result()));
   await clean.preflight();
   for (const responses of [
-    [result(0, `${localstackID}|${localstackName}\n`), result()],
-    [result(), result(0, `${networkID}|${networkName}\n`)],
+    [
+      result(0, `${localstackID}|${localstackName}\n`), result(), result(),
+      result(0, auditInspection(localstackID, localstackName,
+        { ...localstackImageLabels, "zasp.marker": marker, "zasp.proof": "m0-11" }, "container")),
+      result(), result(), result(),
+    ],
+    [
+      result(), result(), result(), result(0, `${networkID}|${networkName}\n`), result(), result(),
+      result(0, auditInspection(networkID, networkName,
+        { "zasp.marker": marker, "zasp.proof": "m0-11" }, "network")),
+    ],
   ]) {
     await assert.rejects(scriptedRuntime(responses).preflight(), (error) => error?.category === "ownership");
   }
@@ -608,17 +700,172 @@ test("reconciles ambiguous mutations only through one exact full-ID owned resour
   assert.equal(await network.createNetwork(), networkID);
 
   const localstack = scriptedRuntime([
-    result(1),
+    new api.Failure("provider"),
     result(0, `${localstackID}|${localstackName}\n`),
     result(0, localstackInspection()),
+    result(0, networkInspection({ peers: networkPeer(localstackID, localstackName) })),
   ]);
   localstack.networkToken = networkID;
   localstack.imageIDs.set(api.LOCALSTACK_IMAGE, localstackImageID);
   assert.equal(await localstack.startLocalStack(), localstackID);
 });
 
+test("reconciles malformed successful creates while keeping nonzero rejections definitive", async () => {
+  const network = scriptedRuntime([
+    result(0, "\n"),
+    result(0, `${networkID}|${networkName}\n`),
+    result(0, networkInspection()),
+  ]);
+  assert.equal(await network.createNetwork(), networkID);
+
+  const localstack = scriptedRuntime([
+    result(0, "\n"),
+    result(0, `${localstackID}|${localstackName}\n`),
+    result(0, localstackInspection()),
+    result(0, networkInspection({ peers: networkPeer(localstackID, localstackName) })),
+  ]);
+  localstack.networkToken = networkID;
+  localstack.imageIDs.set(api.LOCALSTACK_IMAGE, localstackImageID);
+  assert.equal(await localstack.startLocalStack(), localstackID);
+
+  const incomplete = roleDocument();
+  delete incomplete.MaxSessionDuration;
+  const iam = scriptedRuntime([
+    result(0, `${JSON.stringify({ Role: incomplete })}\n`),
+    result(0, `${JSON.stringify({ Role: roleDocument() })}\n`),
+    result(0, `${JSON.stringify({ Tags: exactTags() })}\n`),
+  ]);
+  iam.containerTokens.set("localstack", localstackID);
+  iam.verifyContainer = async () => localstackID;
+  assert.deepEqual(await iam.createAndVerifyRole(), { arn: roleArn, role_id: roleID });
+});
+
+test("definitive network, LocalStack, Prowler, and IAM create rejections are never reconciled", async () => {
+  const network = scriptedRuntime([
+    result(1, "", "network rejected\n"),
+    result(0, `${networkID}|${networkName}\n`),
+    result(0, networkInspection()),
+  ]);
+  await assert.rejects(network.createNetwork(), (error) => error?.category === "provider");
+  assert.deepEqual(network.calls.map((call) => call.kind), ["mutation"]);
+
+  for (const kind of ["localstack", "prowler"]) {
+    const token = kind === "localstack" ? localstackID : prowlerID;
+    const name = kind === "localstack" ? localstackName : prowlerName;
+    const inspection = kind === "localstack" ? localstackInspection() : prowlerInspection();
+    const runtime = scriptedRuntime([
+      result(1, "", `${kind} rejected\n`),
+      result(0, `${token}|${name}\n`),
+      result(0, inspection),
+    ]);
+    runtime.networkToken = networkID;
+    runtime.imageIDs.set(kind === "localstack" ? api.LOCALSTACK_IMAGE : api.PROWLER_IMAGE,
+      kind === "localstack" ? localstackImageID : prowlerImageID);
+    if (kind === "prowler") {
+      runtime.roleIdentity = { arn: roleArn, role_id: roleID };
+      runtime.ensureFixture = async () => {};
+    }
+    await assert.rejects(
+      kind === "localstack" ? runtime.startLocalStack() : runtime.createProwler(),
+      (error) => error?.category === "provider",
+    );
+    assert.deepEqual(runtime.calls.map((call) => call.kind), ["mutation"], kind);
+  }
+
+  const iam = scriptedRuntime([
+    result(1, "", "iam rejected\n"),
+    result(0, `${JSON.stringify({ Role: roleDocument() })}\n`),
+    result(0, `${JSON.stringify({ Tags: exactTags() })}\n`),
+  ]);
+  iam.containerTokens.set("localstack", localstackID);
+  iam.verifyContainer = async () => localstackID;
+  await assert.rejects(iam.createAndVerifyRole(), (error) => error?.category === "provider");
+  assert.deepEqual(iam.calls.map((call) => call.kind), ["mutation"]);
+});
+
+test("global resource audit rejects renamed, proof-label-only, and marker-only resources", async () => {
+  const cases = [
+    { kind: "container", name: "renamed-container", labels: { "zasp.proof": "m0-11", "zasp.marker": marker } },
+    { kind: "network", name: "label-only-network", labels: { "zasp.proof": "m0-11" } },
+    { kind: "container", name: "marker-only-container", labels: { "zasp.marker": marker } },
+  ];
+  for (const testCase of cases) {
+    const identifier = testCase.kind === "network" ? networkID : localstackID;
+    const runtime = scriptedRuntime([]);
+    runtime.readDocker = async (args) => {
+      const filter = args[args.indexOf("--filter") + 1];
+      const listKind = args[0] === "network" ? "network" : "container";
+      if (args[0] === "inspect") return result(0, auditInspection(identifier, testCase.name, testCase.labels, "container"));
+      if (args[0] === "network" && args[1] === "inspect") return result(0, auditInspection(identifier, testCase.name, testCase.labels, "network"));
+      const selected = listKind === testCase.kind && (
+        filter === "label=zasp.proof=m0-11" && testCase.labels["zasp.proof"] === "m0-11" ||
+        filter === `label=zasp.marker=${marker}` && testCase.labels["zasp.marker"] === marker
+      );
+      return result(0, selected ? `${identifier}|${testCase.name}\n` : "");
+    };
+    await assert.rejects(runtime.requirePrefixAbsent(), (error) => error?.category === "ownership");
+  }
+});
+
+test("binds complete network configuration and exact connected peers", async () => {
+  const localPeer = networkPeer(localstackID, localstackName);
+  const runtime = scriptedRuntime([
+    result(0, networkInspection()),
+    result(0, networkInspection({ peers: localPeer })),
+  ]);
+  runtime.networkToken = networkID;
+  runtime.containerTokens.set("localstack", localstackID);
+  assert.equal(await runtime.verifyNetwork("ownership", []), networkID);
+  assert.equal(await runtime.verifyNetwork("ownership", ["localstack"]), networkID);
+
+  for (const changed of [
+    networkInspection({ labels: { "zasp.marker": marker, "zasp.proof": "m0-11", extra: "forbidden" } }),
+    networkInspection({ options: { "com.docker.network.bridge.enable_icc": "true" } }),
+    networkInspection({ enableIPv6: true }),
+    networkInspection({ peers: { ...localPeer, ...networkPeer(prowlerID, "foreign-peer", 3) } }),
+  ]) {
+    const candidate = scriptedRuntime([result(0, networkInspection()), result(0, changed)]);
+    candidate.networkToken = networkID;
+    candidate.containerTokens.set("localstack", localstackID);
+    await candidate.verifyNetwork("ownership", []);
+    await assert.rejects(candidate.verifyNetwork("ownership", ["localstack"]), (error) => error?.category === "ownership");
+  }
+});
+
+test("binds complete container labels, capabilities, devices, namespaces, and kernel path masks", async () => {
+  const exact = scriptedRuntime([result(0, prowlerInspection())]);
+  configureProwler(exact);
+  let expectedPeers;
+  exact.verifyNetwork = async (_category, peers) => { expectedPeers = peers; return networkID; };
+  assert.equal(await exact.verifyContainer("prowler"), prowlerID);
+  assert.deepEqual(expectedPeers, ["localstack"]);
+
+  for (const changed of [
+    prowlerInspection({ labels: { ...prowlerImageLabels, "zasp.marker": marker, "zasp.proof": "m0-11", extra: "forbidden" } }),
+    prowlerInspection({ privileged: true }),
+    prowlerInspection({ capAdd: ["NET_ADMIN"] }),
+    prowlerInspection({ capDrop: ["ALL", "ALL"] }),
+    prowlerInspection({ devices: [{ PathOnHost: "/dev/null", PathInContainer: "/dev/null", CgroupPermissions: "rwm" }] }),
+    prowlerInspection({ deviceRequests: [{ Driver: "", Count: 1, DeviceIDs: null, Capabilities: [["gpu"]], Options: null }] }),
+    prowlerInspection({ pidMode: "host" }),
+    prowlerInspection({ ipcMode: "host" }),
+    prowlerInspection({ usernsMode: "host" }),
+    prowlerInspection({ cgroupnsMode: "host" }),
+    prowlerInspection({ readonlyPaths: readonlyPaths.slice(1) }),
+    prowlerInspection({ maskedPaths: [...maskedPaths, "/extra"] }),
+  ]) {
+    const runtime = scriptedRuntime([result(0, changed)]);
+    configureProwler(runtime);
+    runtime.verifyNetwork = async () => networkID;
+    await assert.rejects(runtime.verifyContainer("prowler"), (error) => error?.category === "ownership");
+  }
+});
+
 test("verifies internal network and every LocalStack runtime ownership field", async () => {
-  const runtime = scriptedRuntime([result(0, networkInspection()), result(0, localstackInspection())]);
+  const runtime = scriptedRuntime([
+    result(0, networkInspection()), result(0, localstackInspection()),
+    result(0, networkInspection({ peers: networkPeer(localstackID, localstackName) })),
+  ]);
   runtime.networkToken = networkID;
   runtime.containerTokens.set("localstack", localstackID);
   runtime.imageIDs.set(api.LOCALSTACK_IMAGE, localstackImageID);
@@ -645,6 +892,7 @@ test("verifies internal network and every LocalStack runtime ownership field", a
     candidate.containerTokens.set("localstack", localstackID);
     candidate.imageIDs.set(api.LOCALSTACK_IMAGE, localstackImageID);
     candidate.imageRuntimeMetadata.set(api.LOCALSTACK_IMAGE, localstackImageMetadata());
+    candidate.verifyNetwork = async () => networkID;
     await assert.rejects(candidate.verifyContainer("localstack"), (error) => error?.category === "ownership");
   }
 });
@@ -775,12 +1023,12 @@ test("container inspection rejects duplicate JSON keys without requiring object 
   configureProwler(reordered);
   assert.equal(await reordered.verifyContainer("prowler"), prowlerID);
 
-  const duplicateNetworks = replaceInspectionField(
-    prowlerInspection(), 8,
-    `{${JSON.stringify(networkName)}:{"NetworkID":${JSON.stringify(networkID)}},${JSON.stringify(networkName)}:{"NetworkID":${JSON.stringify(networkID)}}}`,
+  const duplicateNetworks = prowlerInspection().replace(
+    JSON.stringify({ [networkName]: { NetworkID: "" } }),
+    `{${JSON.stringify(networkName)}:{"NetworkID":""},${JSON.stringify(networkName)}:{"NetworkID":""}}`,
   );
-  const duplicateTmpfs = replaceInspectionField(
-    prowlerInspection(), 17,
+  const duplicateTmpfs = prowlerInspection().replace(
+    JSON.stringify({ "/tmp": "rw,noexec,nosuid,nodev,size=32m" }),
     `{${JSON.stringify("/tmp")}:${JSON.stringify("rw,noexec,nosuid,nodev,size=32m")},${JSON.stringify("/tmp")}:${JSON.stringify("rw,noexec,nosuid,nodev,size=32m")}}`,
   );
   for (const inspection of [duplicateNetworks, duplicateTmpfs]) {
@@ -966,7 +1214,7 @@ test("orchestrates the exact lifecycle and cleanup in reverse dependency order",
   assert.deepEqual(runtime.calls, [
     "initialize", "preflight", "images", "network", "localstack", "ready",
     "role", "prowler", "run-prowler", "normalize",
-    "remove-prowler", "absent-prowler", "remove-localstack", "absent-localstack",
+    "settle-mutations", "remove-prowler", "absent-prowler", "remove-localstack", "absent-localstack",
     "remove-network", "absent-network", "cleanup-output", "prefix-absent",
     "cleanup-config", "temp-prefix-absent",
   ]);
@@ -1022,6 +1270,87 @@ test("joins delayed temp creation into cleanup and fences late main-phase mutati
   assert.deepEqual(proof, { code: 1, line: "Prowler evidence proof failed: operation rejected." });
 });
 
+test("journals each Docker mutation settlement once and exposes an explicit cleanup join", async () => {
+  const started = deferred();
+  const completion = deferred();
+  let commandCalls = 0;
+  const runtime = temporaryRuntime({
+    command: async () => {
+      commandCalls += 1;
+      started.resolve();
+      return completion.promise;
+    },
+  });
+  await runtime.initialize();
+  const mutation = runtime.dockerMutation(["network", "create"]);
+  await started.promise;
+  assert.equal(typeof runtime.settleMutations, "function", "mutation settlement join is absent");
+  let joined = false;
+  const joining = runtime.settleMutations("cleanup").then(() => { joined = true; });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(joined, false);
+  completion.resolve(result(0, `${networkID}\n`));
+  assert.deepEqual(await mutation, result(0, `${networkID}\n`));
+  await joining;
+  assert.equal(joined, true);
+  assert.equal(commandCalls, 1);
+});
+
+test("cleanup joins delayed applied network, container, and IAM mutations before removal and final audit", async () => {
+  for (const scenario of [
+    { method: "createNetwork", stage: "network", applied: networkID },
+    { method: "startLocalStack", stage: "localstack", applied: localstackID },
+    { method: "createAndVerifyRole", stage: "role", applied: { arn: roleArn, role_id: roleID } },
+  ]) {
+    const started = deferred();
+    const completion = deferred();
+    let settlementCalls = 0;
+    const runtime = new FakeRuntime({ cleanupFailures: new Set(["remove-network"]) });
+    runtime[scenario.method] = async () => {
+      runtime.record(scenario.stage);
+      started.resolve();
+      const value = await completion.promise;
+      runtime.record(`${scenario.stage}-settled`);
+      return value;
+    };
+    runtime.settleMutations = async () => {
+      runtime.record("settle-mutations");
+      settlementCalls += 1;
+      completion.resolve(scenario.applied);
+      await new Promise((resolve) => setImmediate(resolve));
+    };
+    let phase = 0;
+    let proof;
+    try {
+      proof = await api.orchestrate(runtime, {
+        readinessAttempts: 1,
+        wait: async () => {},
+        withDeadline: async (operation) => {
+          phase += 1;
+          const controller = new AbortController();
+          if (phase === 1) {
+            const pending = operation(controller.signal);
+            pending.catch(() => {});
+            await started.promise;
+            controller.abort();
+            throw new api.Failure("operation");
+          }
+          return operation(controller.signal);
+        },
+      });
+      assert.deepEqual(proof, { code: 1, line: "Prowler evidence proof failed: cleanup rejected." });
+      assert.equal(settlementCalls, 1, scenario.stage);
+      assert.equal(runtime.calls.filter((call) => call === scenario.stage).length, 1, scenario.stage);
+      assert.ok(runtime.calls.indexOf("settle-mutations") < runtime.calls.findIndex((call) => call.startsWith("remove-")), scenario.stage);
+      assert.ok(runtime.calls.indexOf(`${scenario.stage}-settled`) < runtime.calls.indexOf("prefix-absent"), scenario.stage);
+      assert.equal(runtime.calls.at(-2), "cleanup-config");
+      assert.equal(runtime.calls.at(-1), "temp-prefix-absent");
+    } finally {
+      completion.resolve(scenario.applied);
+    }
+  }
+});
+
 test("deadline, panic, output overflow, and stream failure expose one fixed line only", async () => {
   for (const runtime of [
     new FakeRuntime({ failAt: "images", failure: new Error("secret panic") }),
@@ -1061,6 +1390,7 @@ class FakeRuntime {
     return value;
   }
   hasTemporaryCreationStarted() { return true; }
+  async settleMutations() { this.record("settle-mutations"); }
   async initialize() { this.record("initialize"); }
   async preflight() { this.record("preflight"); }
   async resolveImages() { this.record("images"); }
@@ -1212,6 +1542,7 @@ function localstackImageMetadata() {
     volumes: localstackImageVolumes,
     user: "",
     workingDirectory: "/opt/code/localstack/",
+    labels: localstackImageLabels,
   };
 }
 
@@ -1224,6 +1555,7 @@ function prowlerImageMetadata() {
     volumes: [],
     user: "prowler",
     workingDirectory: "/home/prowler",
+    labels: prowlerImageLabels,
   };
 }
 
@@ -1232,6 +1564,7 @@ function configureProwler(runtime) {
   runtime.containerTokens.set("prowler", prowlerID);
   runtime.imageIDs.set(api.PROWLER_IMAGE, prowlerImageID);
   runtime.imageRuntimeMetadata.set(api.PROWLER_IMAGE, prowlerImageMetadata());
+  runtime.verifyNetwork = async () => networkID;
 }
 
 function roleDocument(tags = exactTags()) {
@@ -1273,13 +1606,6 @@ function missingContainer(token) {
 
 function missingImage(image) {
   return result(1, "\n", `Error response from daemon: No such image: ${image}\n`);
-}
-
-function replaceInspectionField(inspection, index, replacement) {
-  const fields = inspection.slice(0, -1).split("|");
-  assert.equal(fields.length, 26);
-  fields[index] = replacement;
-  return `${fields.join("|")}\n`;
 }
 
 function fakeChild({ stdout = [], stderr = [], code = 0, signal = null, neverClose = false } = {}) {

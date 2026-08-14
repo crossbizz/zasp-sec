@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "allowed_licenses": ["Apache-2.0"],
+  "images": [
+    {
+      "component": "localstack-community",
+      "reference": "localstack/localstack:4.7.0@sha256:12253acd9676770e9bd31cbfcf17c5ca6fd7fb5c0c62f3c46dd701f20304260c",
+      "repo_digests": ["localstack/localstack@sha256:12253acd9676770e9bd31cbfcf17c5ca6fd7fb5c0c62f3c46dd701f20304260c"],
+      "environment_sha256": "1e4fe2995cc9b2339761b690070d16ababb619a51bf41a49d5148ddac7517092",
+      "environment_count": 10,
+      "entrypoint": ["docker-entrypoint.sh"],
+      "command": null,
+      "user": "",
+      "working_directory": "/opt/code/localstack/",
+      "labels": {
+        "authors": "LocalStack Contributors",
+        "description": "LocalStack Docker image",
+        "maintainer": "LocalStack Team (info@localstack.cloud)"
+      }
+    },
+    {
+      "component": "prowler",
+      "reference": "prowlercloud/prowler:5.39.0@sha256:58c8a0eb0c947517bd89b6214cde0cc1d5f59df4eebbb99a87475ab741914959",
+      "repo_digests": ["prowlercloud/prowler@sha256:58c8a0eb0c947517bd89b6214cde0cc1d5f59df4eebbb99a87475ab741914959"],
+      "environment_sha256": "ad772f6f73ba34935ac3d0565005ef8571e039f3505b62065378906473609f7d",
+      "environment_count": 10,
+      "entrypoint": ["/home/prowler/.venv/bin/prowler"],
+      "command": null,
+      "user": "prowler",
+      "working_directory": "/home/prowler",
+      "labels": {
+        "maintainer": "https://github.com/prowler-cloud/prowler",
+        "org.opencontainers.image.created": "2026-08-13T09:21:15Z",
+        "org.opencontainers.image.description": "Open Source security tool for cloud security assessments, audits, incident response, continuous monitoring, hardening and forensics readiness",
+        "org.opencontainers.image.revision": "1bb6b3cb39e9bc603e89e9c8a9023582ad6e90d5",
+        "org.opencontainers.image.source": "https://github.com/prowler-cloud/prowler",
+        "org.opencontainers.image.title": "Prowler CLI",
+        "org.opencontainers.image.vendor": "ProwlerPro, Inc.",
+        "org.opencontainers.image.version": "5.39.0"
+      }
+    }
+  ],
+  "components": [
+    {
+      "name": "prowler",
+      "version": "5.39.0",
+      "license": "Apache-2.0",
+      "source_repository": "https://github.com/prowler-cloud/prowler",
+      "source_tag": "5.39.0",
+      "source_tag_object": "1bb6b3cb39e9bc603e89e9c8a9023582ad6e90d5",
+      "source_commit": "1bb6b3cb39e9bc603e89e9c8a9023582ad6e90d5",
+      "boundary": "Exact Prowler CLI image and the built-in IAM check/official OCSF conversion source used by the fixture adapter.",
+      "artifacts": [
+        {
+          "kind": "license",
+          "url": "https://raw.githubusercontent.com/prowler-cloud/prowler/1bb6b3cb39e9bc603e89e9c8a9023582ad6e90d5/LICENSE",
+          "sha256": "a0666bd9911fb4b653372b3721c500fdbd097ed1ca83466adb07e7ae7afb82e0"
+        },
+        {
+          "kind": "manifest",
+          "url": "https://raw.githubusercontent.com/prowler-cloud/prowler/1bb6b3cb39e9bc603e89e9c8a9023582ad6e90d5/pyproject.toml",
+          "sha256": "81bdd10a921ebf069d438c7f193c754e9ec6878174b86f4109d2c29f3a2e5cc7"
+        }
+      ]
+    },
+    {
+      "name": "py-ocsf-models",
+      "version": "0.10.0",
+      "license": "Apache-2.0",
+      "source_repository": "https://github.com/prowler-cloud/py-ocsf-models",
+      "source_tag": "0.10.0",
+      "source_tag_object": "8c12c2fc73e09c9fc103f5dec2e0d2762aa1a78b",
+      "source_commit": "8c12c2fc73e09c9fc103f5dec2e0d2762aa1a78b",
+      "boundary": "Direct load-bearing Prowler adapter dependency that materializes the official JSON-OCSF finding model.",
+      "artifacts": [
+        {
+          "kind": "license",
+          "url": "https://raw.githubusercontent.com/prowler-cloud/py-ocsf-models/8c12c2fc73e09c9fc103f5dec2e0d2762aa1a78b/LICENSE",
+          "sha256": "8678b7affde47af09002f92ff212e983d8d36970aff80ddf8c1570be4763b3d1"
+        },
+        {
+          "kind": "manifest",
+          "url": "https://raw.githubusercontent.com/prowler-cloud/py-ocsf-models/8c12c2fc73e09c9fc103f5dec2e0d2762aa1a78b/pyproject.toml",
+          "sha256": "2bdb4dbc5b13a0d21fd8a17c44811f67ef8d92574fa10445c88e3d112682f702"
+        }
+      ]
+    },
+    {
+      "name": "localstack-community",
+      "version": "4.7.0",
+      "license": "Apache-2.0",
+      "source_repository": "https://github.com/localstack/localstack",
+      "source_tag": "v4.7.0",
+      "source_tag_object": "dff59755581d7c1832e4e9e985362b6062b88a08",
+      "source_commit": "82de91e30b0185a6792dd5047168b29d69bbb1f9",
+      "boundary": "Exact free/community LocalStack image and tagged source used only for the disposable IAM/STS fixture; bundled third-party components retain their own terms and are not relicensed by this inventory.",
+      "artifacts": [
+        {
+          "kind": "license",
+          "url": "https://raw.githubusercontent.com/localstack/localstack/82de91e30b0185a6792dd5047168b29d69bbb1f9/LICENSE.txt",
+          "sha256": "dcf0bef59ebd52c34046e43df3480d47f26c2f1f2ebcc8dd1ba0bb71ce0b058b"
+        },
+        {
+          "kind": "supplemental-terms",
+          "url": "https://raw.githubusercontent.com/localstack/localstack/82de91e30b0185a6792dd5047168b29d69bbb1f9/docs/end_user_license_agreement/README.md",
+          "sha256": "5df76f56494d8cdbfb56a1d8e4c4c53cbe25281a4a09f4e8e9c63041dbe55a61"
+        },
+        {
+          "kind": "manifest",
+          "url": "https://raw.githubusercontent.com/localstack/localstack/82de91e30b0185a6792dd5047168b29d69bbb1f9/pyproject.toml",
+          "sha256": "48995e124a42ce9a20d2856eaab5123b257f3cbe3218705d6f17cff1e7c86f50"
+        }
+      ]
+    }
+  ]
+}

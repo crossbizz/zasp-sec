@@ -212,6 +212,14 @@ profile, proxy, provider endpoint or network-target input, disable IMDS, and do
 not load host Docker authentication. Only fixed synthetic credentials reach
 the disposable LocalStack fixture.
 
+The license audit binds the exact local image metadata to immutable tagged source
+fingerprints without reading dotenv files, provider credentials, profiles, proxy
+settings, or ambient Docker authentication. Prowler 5.39.0 and its direct
+`py-ocsf-models` 0.10.0 adapter dependency are Apache-2.0. The exact free/community
+LocalStack Community image is inventoried at the tagged source boundary as
+Apache-2.0 plus its tagged community EULA; bundled third-party components retain
+their own terms and are not relicensed or covered by that statement.
+
 The live command emits exactly one line. Its fixed success line is:
 
 ```text
@@ -226,6 +234,7 @@ then verifies their absence.
 
 ```bash
 npm run proof:prowler:test
+npm run proof:prowler:license
 npm run proof:prowler:run
 ```
 

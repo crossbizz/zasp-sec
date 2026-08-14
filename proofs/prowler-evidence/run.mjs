@@ -39,6 +39,14 @@ const region = "us-east-1";
 const roleName = "shared-fixture-role";
 const roleArn = `arn:aws:iam::${accountID}:role/${roleName}`;
 const bridgeLine = "Prowler fixture bridge produced one FAIL finding.\n";
+const defaultReadonlyPaths = Object.freeze([
+  "/proc/bus", "/proc/fs", "/proc/irq", "/proc/sys", "/proc/sysrq-trigger",
+]);
+const defaultMaskedPaths = Object.freeze([
+  "/proc/acpi", "/proc/asound", "/proc/interrupts", "/proc/kcore", "/proc/keys",
+  "/proc/latency_stats", "/proc/sched_debug", "/proc/scsi", "/proc/timer_list",
+  "/proc/timer_stats", "/sys/devices/virtual/powercap", "/sys/firmware",
+]);
 
 const localstackProofEnvironment = Object.freeze([
   "SERVICES=iam,sts",
@@ -304,14 +312,16 @@ export class DockerRuntime {
     ]);
     this.dockerConfigIdentity = undefined;
     this.outputIdentity = undefined;
-    this.networkAttempted = false;
+    this.networkMayHaveApplied = false;
     this.networkToken = undefined;
-    this.containerAttempts = new Set();
+    this.networkIdentity = undefined;
+    this.containerMayHaveApplied = new Set();
     this.containerTokens = new Map();
     this.containerVolumes = new Map();
     this.imageIDs = new Map();
     this.imageRuntimeMetadata = new Map();
     this.roleIdentity = undefined;
+    this.mutationSettlements = [];
   }
 
   setAbortSignal(signal) {
@@ -521,9 +531,28 @@ export class DockerRuntime {
     if (options.requireEmptyOutput === true) {
       await this.reproveTemporary("output", category, phase, false);
     }
-    const value = await this.command("docker", args, this.dockerOptions(options, phase), this.spawnProcess);
+    const mutation = Promise.resolve().then(() => this.command(
+      "docker", args, this.dockerOptions(options, phase), this.spawnProcess,
+    ));
+    const settlement = mutation.then(
+      (value) => ({ state: "fulfilled", value }),
+      (error) => ({ state: "rejected", error }),
+    );
+    this.mutationSettlements.push(settlement);
+    const value = await mutation;
     this.assertActive(category, phase);
     return value;
+  }
+
+  async settleMutations(category = "cleanup", phase = this.phase) {
+    this.assertActive(category, phase);
+    let joined = 0;
+    while (joined < this.mutationSettlements.length) {
+      const pending = this.mutationSettlements.slice(joined);
+      await Promise.all(pending);
+      joined += pending.length;
+      this.assertActive(category, phase);
+    }
   }
 
   async preflight(phase = this.phase) {
@@ -550,20 +579,41 @@ export class DockerRuntime {
 
   async requirePrefixAbsent(category = "ownership", phase = this.phase) {
     this.assertActive(category, phase);
-    const containers = await this.readDocker([
-      "ps", "--all", "--no-trunc", "--filter", "name=^/zasp-m0-11-", "--format", "{{.ID}}|{{.Names}}",
-    ], { category }, phase);
-    const networks = await this.readDocker([
-      "network", "ls", "--no-trunc", "--filter", "name=^zasp-m0-11-", "--format", "{{.ID}}|{{.Name}}",
-    ], { category }, phase);
-    this.assertActive(category, phase);
-    if (
-      containers?.status !== 0 || containers?.signal !== null || containers?.stderr !== "" ||
-      networks?.status !== 0 || networks?.signal !== null || networks?.stderr !== ""
-    ) throw new Failure(category);
-    for (const [identifier, name] of [...parsePairs(containers?.stdout), ...parsePairs(networks?.stdout)]) {
-      if (!objectIDPattern.test(identifier) || name.startsWith("zasp-m0-11-")) throw new Failure(category);
+    const candidates = [];
+    for (const kind of ["container", "network"]) {
+      const filters = kind === "container"
+        ? ["name=^/zasp-m0-11-", "label=zasp.proof=m0-11", `label=zasp.marker=${this.marker}`]
+        : ["name=^zasp-m0-11-", "label=zasp.proof=m0-11", `label=zasp.marker=${this.marker}`];
+      const unique = new Map();
+      for (const filter of filters) {
+        const listed = await this.readDocker(kind === "container"
+          ? ["ps", "--all", "--no-trunc", "--filter", filter, "--format", "{{.ID}}|{{.Names}}"]
+          : ["network", "ls", "--no-trunc", "--filter", filter, "--format", "{{.ID}}|{{.Name}}"],
+        { category }, phase);
+        if (listed?.status !== 0 || listed?.signal !== null || listed?.stderr !== "") throw new Failure(category);
+        for (const [identifier, name] of parsePairs(listed.stdout)) {
+          if (!objectIDPattern.test(identifier) || !exactDockerName(name)) throw new Failure(category);
+          if (unique.has(identifier) && unique.get(identifier) !== name) throw new Failure(category);
+          unique.set(identifier, name);
+        }
+      }
+      for (const [identifier, name] of unique) {
+        const inspected = await this.readDocker(kind === "container"
+          ? ["inspect", "--format", "[{{json .Id}},{{json .Name}},{{json .Config.Labels}}]", identifier]
+          : ["network", "inspect", "--format", "[{{json .Id}},{{json .Name}},{{json .Labels}}]", identifier],
+        { category }, phase);
+        let document;
+        try { document = parseUniqueJson(singleLine(inspected?.stdout)); } catch { throw new Failure(category); }
+        if (
+          inspected?.status !== 0 || inspected?.signal !== null || inspected?.stderr !== "" ||
+          !Array.isArray(document) || document.length !== 3 || document[0] !== identifier ||
+          document[1] !== (kind === "container" ? `/${name}` : name) || exactLabelMap(document[2], true) === undefined
+        ) throw new Failure(category);
+        candidates.push({ kind, identifier, name, labels: document[2] });
+      }
     }
+    this.assertActive(category, phase);
+    if (candidates.length !== 0) throw new Failure(category);
   }
 
   async resolveImages(phase = this.phase) {
@@ -575,7 +625,7 @@ export class DockerRuntime {
     this.assertActive("provider", phase);
     const args = [
       "image", "inspect", "--format",
-      "[{{json .Id}},{{json .Config.Env}},{{json .Config.Entrypoint}},{{json (index .Config \"Cmd\")}},{{json (index .Config \"ExposedPorts\")}},{{json (index .Config \"Volumes\")}},{{json (index .Config \"User\")}},{{json .Config.WorkingDir}}]",
+      "[{{json .Id}},{{json .Config.Env}},{{json .Config.Entrypoint}},{{json (index .Config \"Cmd\")}},{{json (index .Config \"ExposedPorts\")}},{{json (index .Config \"Volumes\")}},{{json (index .Config \"User\")}},{{json .Config.WorkingDir}},{{json .Config.Labels}}]",
       image,
     ];
     let inspected = await this.readDocker(args, { category: "provider" }, phase);
@@ -605,18 +655,27 @@ export class DockerRuntime {
 
   async createNetwork(phase = this.phase) {
     this.assertActive("provider", phase);
-    this.networkAttempted = true;
+    this.networkMayHaveApplied = true;
     let created;
     try { created = await this.dockerMutation(buildNetworkCreateArguments(this.networkName), { category: "provider" }, phase); }
     catch { this.assertActive("provider", phase); }
     const direct = singleLine(created?.stdout);
-    if (objectIDPattern.test(direct)) this.networkToken = direct;
-    if (created?.status !== 0 || created?.signal !== null || !objectIDPattern.test(direct)) {
+    const exactSuccess = created?.status === 0 && created?.signal === null && created?.stderr === "" &&
+      objectIDPattern.test(direct);
+    const definitiveRejection = Number.isInteger(created?.status) && created.status !== 0 && created?.signal === null;
+    if (definitiveRejection) {
+      this.networkMayHaveApplied = false;
+      throw new Failure("provider");
+    }
+    if (exactSuccess) {
+      this.networkMayHaveApplied = false;
+      this.networkToken = direct;
+    } else {
       const candidates = await this.namedNetworkCandidates("ownership", phase);
       if (candidates.length !== 1) throw new Failure("ownership");
       this.networkToken = candidates[0];
     }
-    await this.verifyNetwork("ownership", undefined, phase);
+    await this.verifyNetwork("ownership", [], undefined, phase);
     return this.networkToken;
   }
 
@@ -634,20 +693,42 @@ export class DockerRuntime {
     if (!objectIDPattern.test(token ?? "")) throw new Failure(category);
     return this.readDocker([
       "network", "inspect", "--format",
-      "{{.Id}}|{{.Name}}|{{index .Labels \"zasp.proof\"}}|{{index .Labels \"zasp.marker\"}}|{{.Internal}}|{{.Driver}}|{{.Scope}}|{{.Attachable}}|{{.Ingress}}",
+      "[{{json .Id}},{{json .Name}},{{json .Labels}},{{json .Internal}},{{json .Driver}},{{json .Scope}},{{json .Attachable}},{{json .Ingress}},{{json .EnableIPv4}},{{json .EnableIPv6}},{{json .ConfigOnly}},{{json .ConfigFrom}},{{json .Options}},{{json .IPAM}},{{json .Containers}}]",
       token,
     ], { category }, phase);
   }
 
-  async verifyNetwork(category = "ownership", inspectedResult, phase = this.phase) {
+  async verifyNetwork(category = "ownership", expectedKinds = [], inspectedResult, phase = this.phase) {
     const inspected = inspectedResult ?? await this.inspectNetwork(this.networkToken, category, phase);
-    const fields = singleLine(inspected?.stdout).split("|");
+    let document;
+    try { document = parseUniqueJson(singleLine(inspected?.stdout)); } catch { throw new Failure(category); }
     if (
-      inspected?.status !== 0 || inspected?.signal !== null || inspected?.stderr !== "" || fields.length !== 9 ||
-      !isDeepStrictEqual(fields, [
-        this.networkToken, this.networkName, "m0-11", this.marker, "true", "bridge", "local", "false", "false",
-      ])
+      inspected?.status !== 0 || inspected?.signal !== null || inspected?.stderr !== "" ||
+      !Array.isArray(document) || document.length !== 15 || !Array.isArray(expectedKinds) ||
+      new Set(expectedKinds).size !== expectedKinds.length ||
+      expectedKinds.some((kind) => !new Set(["localstack", "prowler"]).has(kind))
     ) throw new Failure(category);
+    const [identifier, name, labels, internal, driver, scope, attachable, ingress, enableIPv4,
+      enableIPv6, configOnly, configFrom, options, ipam, peers] = document;
+    const base = {
+      identifier, name, labels, internal, driver, scope, attachable, ingress, enableIPv4,
+      enableIPv6, configOnly, configFrom, options, ipam,
+    };
+    if (
+      identifier !== this.networkToken || name !== this.networkName ||
+      !isDeepStrictEqual(exactLabelMap(labels), { "zasp.marker": this.marker, "zasp.proof": "m0-11" }) ||
+      internal !== true || driver !== "bridge" || scope !== "local" || attachable !== false || ingress !== false ||
+      enableIPv4 !== true || enableIPv6 !== false || configOnly !== false ||
+      !isDeepStrictEqual(configFrom, { Network: "" }) || !isDeepStrictEqual(options, {}) ||
+      exactNetworkIPAM(ipam) === undefined
+    ) throw new Failure(category);
+    if (this.networkIdentity === undefined) this.networkIdentity = structuredClone(base);
+    else if (!isDeepStrictEqual(this.networkIdentity, base)) throw new Failure(category);
+    const expectedTokens = expectedKinds.map((kind) => this.containerTokens.get(kind));
+    if (expectedTokens.some((token) => !objectIDPattern.test(token ?? "")) || !exactNetworkPeers(
+      peers, expectedKinds, expectedTokens, this.networkIdentity.ipam,
+      (kind) => this.name(kind),
+    )) throw new Failure(category);
     return this.networkToken;
   }
 
@@ -671,7 +752,7 @@ export class DockerRuntime {
 
   async createContainer(kind, args, phase = this.phase) {
     this.assertActive("provider", phase);
-    this.containerAttempts.add(kind);
+    this.containerMayHaveApplied.add(kind);
     let created;
     try {
       created = await this.dockerMutation(args, {
@@ -681,8 +762,17 @@ export class DockerRuntime {
     catch { this.assertActive("provider", phase); }
     if (kind === "prowler") await this.reproveTemporary("output", "ownership", phase, false);
     const direct = singleLine(created?.stdout);
-    if (objectIDPattern.test(direct)) this.containerTokens.set(kind, direct);
-    if (created?.status !== 0 || created?.signal !== null || !objectIDPattern.test(direct)) {
+    const exactSuccess = created?.status === 0 && created?.signal === null && created?.stderr === "" &&
+      objectIDPattern.test(direct);
+    const definitiveRejection = Number.isInteger(created?.status) && created.status !== 0 && created?.signal === null;
+    if (definitiveRejection) {
+      this.containerMayHaveApplied.delete(kind);
+      throw new Failure("provider");
+    }
+    if (exactSuccess) {
+      this.containerMayHaveApplied.delete(kind);
+      this.containerTokens.set(kind, direct);
+    } else {
       const candidates = await this.namedContainerCandidates(kind, "ownership", phase);
       if (candidates.length !== 1) throw new Failure("ownership");
       this.containerTokens.set(kind, candidates[0]);
@@ -706,7 +796,7 @@ export class DockerRuntime {
     if (!objectIDPattern.test(token ?? "")) throw new Failure(category);
     return this.readDocker([
       "inspect", "--format",
-      "{{.Id}}|{{.Name}}|{{.Config.Hostname}}|{{.Image}}|{{.Config.Image}}|{{index .Config.Labels \"zasp.proof\"}}|{{index .Config.Labels \"zasp.marker\"}}|{{.HostConfig.NetworkMode}}|{{json .NetworkSettings.Networks}}|{{json .Config.Env}}|{{json .HostConfig.PortBindings}}|{{json .NetworkSettings.Ports}}|{{json .Config.Entrypoint}}|{{json (index .Config \"Cmd\")}}|{{json .Mounts}}|{{json (index .HostConfig \"Binds\")}}|{{json (index .HostConfig \"Mounts\")}}|{{json (index .HostConfig \"Tmpfs\")}}|{{json .HostConfig.ReadonlyRootfs}}|{{json (index .HostConfig \"CapDrop\")}}|{{json (index .HostConfig \"SecurityOpt\")}}|{{json .HostConfig.PidsLimit}}|{{json .HostConfig.Memory}}|{{json .HostConfig.NanoCpus}}|{{json .Config.User}}|{{json .Config.WorkingDir}}",
+      "[{{json .Id}},{{json .Name}},{{json .Config.Hostname}},{{json .Image}},{{json .Config.Image}},{{json .Config.Labels}},{{json .HostConfig.NetworkMode}},{{json .NetworkSettings.Networks}},{{json .Config.Env}},{{json .HostConfig.PortBindings}},{{json .NetworkSettings.Ports}},{{json .Config.Entrypoint}},{{json (index .Config \"Cmd\")}},{{json .Mounts}},{{json (index .HostConfig \"Binds\")}},{{json (index .HostConfig \"Mounts\")}},{{json (index .HostConfig \"Tmpfs\")}},{{json .HostConfig.ReadonlyRootfs}},{{json (index .HostConfig \"CapAdd\")}},{{json (index .HostConfig \"CapDrop\")}},{{json (index .HostConfig \"Devices\")}},{{json (index .HostConfig \"DeviceRequests\")}},{{json (index .HostConfig \"SecurityOpt\")}},{{json .HostConfig.Privileged}},{{json .HostConfig.PidsLimit}},{{json .HostConfig.Memory}},{{json .HostConfig.NanoCpus}},{{json .HostConfig.PidMode}},{{json .HostConfig.IpcMode}},{{json .HostConfig.UsernsMode}},{{json .HostConfig.CgroupnsMode}},{{json (index .HostConfig \"ReadonlyPaths\")}},{{json (index .HostConfig \"MaskedPaths\")}},{{json .Config.User}},{{json .Config.WorkingDir}}]",
       token,
     ], { category }, phase);
   }
@@ -721,25 +811,27 @@ export class DockerRuntime {
     if (!imageIDPattern.test(imageID ?? "") || imageRuntime === undefined) throw new Failure(category);
     const inspected = inspectedResult ?? await this.inspectContainer(token, category, phase);
     this.assertActive(category, phase);
-    const fields = singleLine(inspected?.stdout).split("|");
-    if (inspected?.status !== 0 || inspected?.signal !== null || inspected?.stderr !== "" || fields.length !== 26) {
-      throw new Failure(category);
-    }
-    const parsed = fields.slice(8).map((field) => {
-      try { return parseUniqueJson(field); } catch { throw new Failure(category); }
-    });
-    const [networks, environment, portBindings, ports, entrypoint, command, mounts, binds, hostMounts, tmpfs,
-      readonlyRootfs, capDrop, securityOpt, pidsLimit, memory, nanoCpus, user, workingDirectory] = parsed;
+    let fields;
+    try { fields = parseUniqueJson(singleLine(inspected?.stdout)); } catch { throw new Failure(category); }
+    if (inspected?.status !== 0 || inspected?.signal !== null || inspected?.stderr !== "" ||
+      !Array.isArray(fields) || fields.length !== 35) throw new Failure(category);
+    const [identifier, containerName, hostname, runtimeImageID, configuredImage, labels, networkMode,
+      networks, environment, portBindings, ports, entrypoint, command, mounts, binds, hostMounts, tmpfs,
+      readonlyRootfs, capAdd, capDrop, devices, deviceRequests, securityOpt, privileged, pidsLimit, memory,
+      nanoCpus, pidMode, ipcMode, usernsMode, cgroupnsMode, readonlyPaths, maskedPaths, user, workingDirectory] = fields;
     const attachedNetworkID = networks?.[this.networkName]?.NetworkID;
     const preStartProwler = kind === "prowler" && attachedNetworkID === "";
+    const expectedLabels = { ...imageRuntime.labels, "zasp.marker": this.marker, "zasp.proof": "m0-11" };
     if (
-      fields[0] !== token || fields[1] !== `/${this.name(kind)}` || fields[2] !== this.name(kind) ||
-      fields[3] !== imageID || fields[4] !== image || fields[5] !== "m0-11" || fields[6] !== this.marker ||
-      fields[7] !== this.networkName || !plainObject(networks) || Object.keys(networks).length !== 1 ||
+      identifier !== token || containerName !== `/${this.name(kind)}` || hostname !== this.name(kind) ||
+      runtimeImageID !== imageID || configuredImage !== image || !isDeepStrictEqual(exactLabelMap(labels), expectedLabels) ||
+      networkMode !== this.networkName || !plainObject(networks) || Object.keys(networks).length !== 1 ||
       (attachedNetworkID !== this.networkToken && !preStartProwler)
     ) throw new Failure(category);
     const common = { environment, portBindings, ports, entrypoint, command, mounts, binds, hostMounts, tmpfs,
-      readonlyRootfs, capDrop, securityOpt, pidsLimit, memory, nanoCpus, user, workingDirectory, imageRuntime };
+      readonlyRootfs, capAdd, capDrop, devices, deviceRequests, securityOpt, privileged, pidsLimit, memory,
+      nanoCpus, pidMode, ipcMode, usernsMode, cgroupnsMode, readonlyPaths, maskedPaths,
+      user, workingDirectory, imageRuntime };
     if (kind === "localstack") {
       const volumes = exactLocalStackRuntime(common);
       if (volumes === undefined) throw new Failure(category);
@@ -752,8 +844,9 @@ export class DockerRuntime {
         name: this.name("prowler"), localstackName: this.name("localstack"),
         proofDirectory: this.proofDirectory, outputDirectory: this.outputIdentity?.path,
       })) throw new Failure(category);
-      if (preStartProwler) await this.verifyNetwork(category, undefined, phase);
+      await this.verifyNetwork(category, preStartProwler ? ["localstack"] : ["localstack", "prowler"], undefined, phase);
     }
+    if (kind === "localstack") await this.verifyNetwork(category, ["localstack"], undefined, phase);
     return token;
   }
 
@@ -787,20 +880,28 @@ export class DockerRuntime {
     await this.verifyContainer("localstack", "ownership", undefined, phase);
     const tags = [`Key=zasp.marker,Value=${this.marker}`, "Key=zasp.proof,Value=m0-11"];
     let createdRole;
+    let created;
+    let ambiguous = false;
     try {
-      const created = await this.dockerMutation(this.awsExecArguments([
+      created = await this.dockerMutation(this.awsExecArguments([
         "iam", "create-role", "--role-name", roleName,
         "--assume-role-policy-document", trustPolicyArgument,
         "--tags", ...tags,
       ]), { category: "provider" }, phase);
       this.assertActive("provider", phase);
-      if (created?.status === 0 && created?.signal === null && created?.stderr === "") {
-        try { createdRole = parseRoleEnvelope(created.stdout, this.marker, true); }
-        catch { createdRole = undefined; }
-      }
     } catch {
       this.assertActive("provider", phase);
+      ambiguous = true;
     }
+    if (created !== undefined && created?.signal !== null) ambiguous = true;
+    else if (Number.isInteger(created?.status) && created.status !== 0) throw new Failure("provider");
+    else if (created?.status === 0 && created?.stderr === "") {
+      try { createdRole = parseRoleEnvelope(created.stdout, this.marker, true); }
+      catch { ambiguous = true; }
+    } else {
+      ambiguous = true;
+    }
+    if (createdRole === undefined && !ambiguous) throw new Failure("ownership");
     const fetched = await this.readDocker(this.awsExecArguments([
       "iam", "get-role", "--role-name", roleName,
     ]), { category: "provider" }, phase);
@@ -958,7 +1059,7 @@ export class DockerRuntime {
     } else {
       const candidates = await this.namedContainerCandidates(kind, "cleanup", phase);
       if (candidates.length === 0) return;
-      if (candidates.length !== 1) throw new Failure("cleanup");
+      if (!this.containerMayHaveApplied.has(kind) || candidates.length !== 1) throw new Failure("cleanup");
       token = candidates[0];
       this.containerTokens.set(kind, token);
     }
@@ -1017,11 +1118,11 @@ export class DockerRuntime {
     } else {
       const candidates = await this.namedNetworkCandidates("cleanup", phase);
       if (candidates.length === 0) return;
-      if (candidates.length !== 1) throw new Failure("cleanup");
+      if (!this.networkMayHaveApplied || candidates.length !== 1) throw new Failure("cleanup");
       token = candidates[0];
       this.networkToken = token;
     }
-    await this.verifyNetwork("cleanup", inspected, phase);
+    await this.verifyNetwork("cleanup", [], inspected, phase);
     let removed;
     try { removed = await this.dockerMutation(["network", "rm", token], { category: "cleanup" }, phase); }
     catch { await this.requireNetworkAbsent(phase); return; }
@@ -1087,6 +1188,7 @@ export async function orchestrate(runtime, options = {}) {
             throwIfAborted(signal, "cleanup");
             return passed;
           };
+          await cleanupStep(() => selected.settleMutations("cleanup"));
           let containersAbsent = true;
           for (const kind of ["prowler", "localstack"]) {
             if (!candidates.has(kind)) continue;
@@ -1137,7 +1239,9 @@ export async function runMain(runtime, options = {}) {
 
 function exactLocalStackRuntime({
   environment, portBindings, ports, entrypoint, command, mounts, binds, hostMounts, tmpfs,
-  readonlyRootfs, capDrop, securityOpt, pidsLimit, memory, nanoCpus, user, workingDirectory, imageRuntime,
+  readonlyRootfs, capAdd, capDrop, devices, deviceRequests, securityOpt, privileged, pidsLimit, memory,
+  nanoCpus, pidMode, ipcMode, usernsMode, cgroupnsMode, readonlyPaths, maskedPaths,
+  user, workingDirectory, imageRuntime,
 }) {
   if (
     !exactEnvironmentWithPrefix(environment, localstackProofEnvironment, imageRuntime?.environment) ||
@@ -1145,7 +1249,10 @@ function exactLocalStackRuntime({
     !isDeepStrictEqual(Object.keys(portBindings ?? {}).sort(), []) ||
     !plainObject(ports) || !isDeepStrictEqual(Object.keys(ports).sort(), imageRuntime?.exposedPorts) ||
     imageRuntime.exposedPorts.some((port) => ports[port] !== null) || binds !== null || hostMounts !== null || tmpfs !== null ||
-    readonlyRootfs !== false || capDrop !== null || securityOpt !== null || pidsLimit !== null || memory !== 0 || nanoCpus !== 0 ||
+    readonlyRootfs !== false || capAdd !== null || capDrop !== null || !isDeepStrictEqual(devices, []) ||
+    deviceRequests !== null || securityOpt !== null || privileged !== false || pidsLimit !== null || memory !== 0 || nanoCpus !== 0 ||
+    pidMode !== "" || ipcMode !== "private" || usernsMode !== "" || cgroupnsMode !== "private" ||
+    !exactStringSet(readonlyPaths, defaultReadonlyPaths) || !exactStringSet(maskedPaths, defaultMaskedPaths) ||
     user !== imageRuntime?.user || workingDirectory !== imageRuntime?.workingDirectory ||
     !isDeepStrictEqual(imageRuntime?.volumes, ["/var/lib/localstack"])
   ) return undefined;
@@ -1154,7 +1261,9 @@ function exactLocalStackRuntime({
 
 function exactProwlerRuntime({
   environment, portBindings, ports, entrypoint, command, mounts, binds, hostMounts, tmpfs,
-  readonlyRootfs, capDrop, securityOpt, pidsLimit, memory, nanoCpus, user, workingDirectory, imageRuntime,
+  readonlyRootfs, capAdd, capDrop, devices, deviceRequests, securityOpt, privileged, pidsLimit, memory,
+  nanoCpus, pidMode, ipcMode, usernsMode, cgroupnsMode, readonlyPaths, maskedPaths,
+  user, workingDirectory, imageRuntime,
   name, localstackName, proofDirectory: selectedProofDirectory, outputDirectory,
 }) {
   const proofEnvironment = [
@@ -1184,8 +1293,11 @@ function exactProwlerRuntime({
     ]) &&
     isDeepStrictEqual(sortedBinds, [`${selectedProofDirectory}:/proof:ro`, `${outputDirectory}:/proof/output:rw`].sort()) &&
     hostMounts === null && isDeepStrictEqual(tmpfs, { "/tmp": "rw,noexec,nosuid,nodev,size=32m" }) &&
-    readonlyRootfs === true && isDeepStrictEqual(capDrop, ["ALL"]) && isDeepStrictEqual(securityOpt, ["no-new-privileges"]) &&
+    readonlyRootfs === true && capAdd === null && exactStringSet(capDrop, ["ALL"]) && isDeepStrictEqual(devices, []) &&
+    deviceRequests === null && exactStringSet(securityOpt, ["no-new-privileges"]) && privileged === false &&
     pidsLimit === 64 && memory === 805_306_368 && nanoCpus === 1_000_000_000 &&
+    pidMode === "" && ipcMode === "private" && usernsMode === "" && cgroupnsMode === "private" &&
+    exactStringSet(readonlyPaths, defaultReadonlyPaths) && exactStringSet(maskedPaths, defaultMaskedPaths) &&
     user === "prowler" && workingDirectory === "/home/prowler"
   );
 }
@@ -1211,22 +1323,23 @@ function exactIntrinsicVolumes(mounts, destinations) {
 function parseImageMetadata(value) {
   let document;
   try { document = parseUniqueJson(singleLine(value)); } catch { return undefined; }
-  if (!Array.isArray(document) || document.length !== 8 || !imageIDPattern.test(document[0] ?? "")) return undefined;
+  if (!Array.isArray(document) || document.length !== 9 || !imageIDPattern.test(document[0] ?? "")) return undefined;
   const environment = exactEnvironment(document[1]);
   const entrypoint = exactStringArray(document[2]);
   const command = document[3] === null ? null : exactStringArray(document[3]);
   const exposedPorts = exactImageObjectKeys(document[4], exactPortArray);
   const volumes = exactImageObjectKeys(document[5], exactVolumeArray);
   const user = document[6] === null ? "" : document[6];
+  const labels = exactLabelMap(document[8], true);
   if (
     environment === undefined || entrypoint === undefined || command === undefined || exposedPorts === undefined || volumes === undefined ||
-    typeof user !== "string" || typeof document[7] !== "string"
+    typeof user !== "string" || typeof document[7] !== "string" || labels === undefined
   ) return undefined;
   return {
     identifier: document[0],
     runtime: Object.freeze({
       environment, entrypoint, command, exposedPorts, volumes,
-      user, workingDirectory: document[7],
+      user, workingDirectory: document[7], labels,
     }),
   };
 }
@@ -1237,6 +1350,26 @@ function exactEnvironmentWithPrefix(value, prefix, imageEnvironment) {
   if (environment === undefined || image === undefined || environment.length !== prefix.length + image.length) return false;
   return isDeepStrictEqual([...environment.slice(0, prefix.length)].sort(), [...prefix].sort()) &&
     isDeepStrictEqual(environment.slice(prefix.length), image);
+}
+
+function exactLabelMap(value, allowEmpty = false) {
+  if (!plainObject(value) || (!allowEmpty && Object.keys(value).length === 0) || Object.keys(value).length > 64) return undefined;
+  const normalized = {};
+  for (const key of Object.keys(value).sort()) {
+    const entry = value[key];
+    if (
+      typeof key !== "string" || key.length === 0 || Buffer.byteLength(key) > 256 || hasControlCharacter(key) ||
+      typeof entry !== "string" || Buffer.byteLength(entry) > 4_096 || hasControlCharacter(entry)
+    ) return undefined;
+    normalized[key] = entry;
+  }
+  return normalized;
+}
+
+function exactStringSet(value, expected) {
+  if (!Array.isArray(value) || !Array.isArray(expected) || value.length !== expected.length) return false;
+  if (value.some((entry) => typeof entry !== "string" || entry.length === 0) || new Set(value).size !== value.length) return false;
+  return isDeepStrictEqual([...value].sort(), [...expected].sort());
 }
 
 function exactEnvironment(value) {
@@ -1281,6 +1414,63 @@ function exactVolumeArray(value) {
   if (volumes === undefined || volumes.some((path) => !exactAbsolutePath(path) || path === "/")) return undefined;
   const sorted = [...volumes].sort();
   return new Set(sorted).size === sorted.length ? Object.freeze(sorted) : undefined;
+}
+
+function exactNetworkIPAM(value) {
+  if (
+    !plainObject(value) || !isDeepStrictEqual(Object.keys(value).sort(), ["Config", "Driver", "Options"]) ||
+    value.Driver !== "default" || !isDeepStrictEqual(value.Options, {}) ||
+    !Array.isArray(value.Config) || value.Config.length !== 1 || !plainObject(value.Config[0]) ||
+    !isDeepStrictEqual(Object.keys(value.Config[0]).sort(), ["Gateway", "Subnet"])
+  ) return undefined;
+  const subnet = parseIPv4Cidr(value.Config[0].Subnet);
+  const gateway = parseIPv4(value.Config[0].Gateway);
+  if (subnet === undefined || gateway === undefined || subnet.prefix < 1 || subnet.prefix > 30) return undefined;
+  const mask = (0xffffffff << (32 - subnet.prefix)) >>> 0;
+  if ((subnet.address & mask) >>> 0 !== subnet.address || gateway !== ((subnet.address + 1) >>> 0)) return undefined;
+  return value;
+}
+
+function exactNetworkPeers(value, expectedKinds, expectedTokens, ipam, expectedName) {
+  if (!plainObject(value) || exactNetworkIPAM(ipam) === undefined) return false;
+  if (!isDeepStrictEqual(Object.keys(value).sort(), [...expectedTokens].sort())) return false;
+  const subnet = parseIPv4Cidr(ipam.Config[0].Subnet);
+  const mask = (0xffffffff << (32 - subnet.prefix)) >>> 0;
+  for (let index = 0; index < expectedTokens.length; index += 1) {
+    const peer = value[expectedTokens[index]];
+    if (
+      !plainObject(peer) || !isDeepStrictEqual(Object.keys(peer).sort(), [
+        "EndpointID", "IPv4Address", "IPv6Address", "MacAddress", "Name",
+      ]) || !objectIDPattern.test(peer.EndpointID ?? "") || peer.Name !== expectedName(expectedKinds[index]) ||
+      peer.IPv6Address !== "" || !/^(?:[a-f0-9]{2}:){5}[a-f0-9]{2}$/.test(peer.MacAddress ?? "")
+    ) return false;
+    const address = parseIPv4Cidr(peer.IPv4Address);
+    if (address === undefined || address.prefix !== subnet.prefix || ((address.address & mask) >>> 0) !== subnet.address) return false;
+  }
+  return true;
+}
+
+function parseIPv4Cidr(value) {
+  if (typeof value !== "string") return undefined;
+  const match = /^(\d{1,3}(?:\.\d{1,3}){3})\/(\d{1,2})$/.exec(value);
+  if (match === null) return undefined;
+  const address = parseIPv4(match[1]);
+  const prefix = Number(match[2]);
+  return address === undefined || !Number.isInteger(prefix) || prefix < 0 || prefix > 32
+    ? undefined
+    : { address, prefix };
+}
+
+function parseIPv4(value) {
+  if (typeof value !== "string") return undefined;
+  const parts = value.split(".");
+  if (parts.length !== 4 || parts.some((part) => !/^(?:0|[1-9]\d{0,2})$/.test(part) || Number(part) > 255)) return undefined;
+  return parts.reduce((result, part) => ((result << 8) | Number(part)) >>> 0, 0);
+}
+
+function exactDockerName(value) {
+  return typeof value === "string" && value.length <= 255 &&
+    /^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(value) && !hasControlCharacter(value);
 }
 
 function parseRoleEnvelope(source, marker, requireTags) {
@@ -1443,7 +1633,7 @@ function runtimeContract(runtime) {
     "initialize", "preflight", "resolveImages", "createNetwork", "startLocalStack", "isLocalStackReady",
     "createAndVerifyRole", "createProwler", "runProwler", "normalizeArtifact", "removeContainer",
     "requireContainerAbsent", "removeNetwork", "requireNetworkAbsent", "cleanupOutput", "cleanupDockerConfig",
-    "requirePrefixAbsent", "requireTemporaryPrefixAbsent", "hasTemporaryCreationStarted",
+    "requirePrefixAbsent", "requireTemporaryPrefixAbsent", "hasTemporaryCreationStarted", "settleMutations",
   ].every((name) => typeof runtime[name] === "function");
 }
 
