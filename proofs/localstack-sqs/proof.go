@@ -12,6 +12,7 @@ import (
 	"io"
 	"net"
 	"net/url"
+	"reflect"
 	"regexp"
 	"sort"
 	"strings"
@@ -625,6 +626,9 @@ func decodeExactJSON(raw string, target any) error {
 	if err := rejectDuplicateJSONKeys(raw); err != nil {
 		return err
 	}
+	if err := validateExactJSONSchema(json.RawMessage(raw), reflect.TypeOf(target)); err != nil {
+		return err
+	}
 	decoder := json.NewDecoder(strings.NewReader(raw))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(target); err != nil {
@@ -632,6 +636,57 @@ func decodeExactJSON(raw string, target any) error {
 	}
 	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
 		return errors.New("trailing JSON")
+	}
+	return nil
+}
+
+func validateExactJSONSchema(raw json.RawMessage, targetType reflect.Type) error {
+	if targetType == nil {
+		return errors.New("missing JSON schema")
+	}
+	for targetType.Kind() == reflect.Pointer {
+		targetType = targetType.Elem()
+	}
+	switch targetType.Kind() {
+	case reflect.Struct:
+		var object map[string]json.RawMessage
+		if err := json.Unmarshal(raw, &object); err != nil || object == nil {
+			return errors.New("invalid JSON object")
+		}
+		fields := make(map[string]reflect.Type)
+		for index := 0; index < targetType.NumField(); index++ {
+			field := targetType.Field(index)
+			if !field.IsExported() {
+				continue
+			}
+			name := strings.Split(field.Tag.Get("json"), ",")[0]
+			if name == "-" {
+				continue
+			}
+			if name == "" {
+				name = field.Name
+			}
+			fields[name] = field.Type
+		}
+		for key, value := range object {
+			fieldType, ok := fields[key]
+			if !ok {
+				return errors.New("non-exact JSON schema key")
+			}
+			if err := validateExactJSONSchema(value, fieldType); err != nil {
+				return err
+			}
+		}
+	case reflect.Slice, reflect.Array:
+		var values []json.RawMessage
+		if err := json.Unmarshal(raw, &values); err != nil || values == nil {
+			return errors.New("invalid JSON array")
+		}
+		for _, value := range values {
+			if err := validateExactJSONSchema(value, targetType.Elem()); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }

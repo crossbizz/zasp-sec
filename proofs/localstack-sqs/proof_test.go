@@ -311,6 +311,66 @@ func TestDecodeExactJSONRejectsNestedDuplicateEnvelopeMembers(t *testing.T) {
 	}
 }
 
+func TestDecodeExactJSONRejectsCaseVariantSchemaKeys(t *testing.T) {
+	t.Parallel()
+
+	redrive := `{"deadLetterTargetArn":"expected","maxReceiveCount":"3"}`
+	allow := `{"redrivePermission":"byQueue","sourceQueueArns":["expected"]}`
+	event := `{"event_id":"event-one","organization_id":"org-one","kind":"agent.event","sequence":1}`
+	envelope := `{"version":"1","batch_id":"batch-one","organization_id":"org-one","workspace_id":"workspace-one","environment_id":"environment-one","events":[` + event + `]}`
+	tests := []struct {
+		name         string
+		raw          string
+		exactMember  string
+		foreignValue string
+		target       func() any
+	}{
+		{name: "redrive dead letter target", raw: redrive, exactMember: `"deadLetterTargetArn":"expected"`, foreignValue: `"foreign"`, target: func() any { return &redrivePolicy{} }},
+		{name: "redrive receive count", raw: redrive, exactMember: `"maxReceiveCount":"3"`, foreignValue: `"99"`, target: func() any { return &redrivePolicy{} }},
+		{name: "allow permission", raw: allow, exactMember: `"redrivePermission":"byQueue"`, foreignValue: `"allowAll"`, target: func() any { return &redriveAllowPolicy{} }},
+		{name: "allow source arns", raw: allow, exactMember: `"sourceQueueArns":["expected"]`, foreignValue: `["foreign"]`, target: func() any { return &redriveAllowPolicy{} }},
+		{name: "envelope version", raw: envelope, exactMember: `"version":"1"`, foreignValue: `"foreign"`, target: func() any { return &eventEnvelope{} }},
+		{name: "envelope batch id", raw: envelope, exactMember: `"batch_id":"batch-one"`, foreignValue: `"foreign"`, target: func() any { return &eventEnvelope{} }},
+		{name: "envelope organization", raw: envelope, exactMember: `"organization_id":"org-one"`, foreignValue: `"foreign"`, target: func() any { return &eventEnvelope{} }},
+		{name: "envelope workspace", raw: envelope, exactMember: `"workspace_id":"workspace-one"`, foreignValue: `"foreign"`, target: func() any { return &eventEnvelope{} }},
+		{name: "envelope environment", raw: envelope, exactMember: `"environment_id":"environment-one"`, foreignValue: `"foreign"`, target: func() any { return &eventEnvelope{} }},
+		{name: "envelope events", raw: envelope, exactMember: `"events":[` + event + `]`, foreignValue: `[]`, target: func() any { return &eventEnvelope{} }},
+		{name: "event id", raw: event, exactMember: `"event_id":"event-one"`, foreignValue: `"foreign"`, target: func() any { return &normalizedEvent{} }},
+		{name: "event organization", raw: event, exactMember: `"organization_id":"org-one"`, foreignValue: `"foreign"`, target: func() any { return &normalizedEvent{} }},
+		{name: "event kind", raw: event, exactMember: `"kind":"agent.event"`, foreignValue: `"foreign"`, target: func() any { return &normalizedEvent{} }},
+		{name: "event sequence", raw: event, exactMember: `"sequence":1`, foreignValue: `99`, target: func() any { return &normalizedEvent{} }},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			parts := strings.SplitN(test.exactMember, ":", 2)
+			if len(parts) != 2 {
+				t.Fatal("invalid test member fixture")
+			}
+			alias := strings.ToUpper(parts[0])
+			variants := map[string]string{
+				"single alias":     alias + ":" + parts[1],
+				"alias then exact": alias + ":" + test.foreignValue + "," + test.exactMember,
+				"exact then alias": test.exactMember + "," + alias + ":" + test.foreignValue,
+			}
+			for variantName, replacement := range variants {
+				variantName, replacement := variantName, replacement
+				t.Run(variantName, func(t *testing.T) {
+					t.Parallel()
+					mutated := strings.Replace(test.raw, test.exactMember, replacement, 1)
+					if mutated == test.raw {
+						t.Fatal("test fixture did not mutate")
+					}
+					if err := decodeExactJSON(mutated, test.target()); err == nil {
+						t.Fatal("decodeExactJSON() accepted a case-variant schema key")
+					}
+				})
+			}
+		})
+	}
+}
+
 func TestRunProofHonorsCancellationAndUsesIndependentCleanupContext(t *testing.T) {
 	t.Parallel()
 
