@@ -203,10 +203,10 @@ git commit -m "feat: normalize Tetragon signals"
 
 **Interfaces:**
 
-- Consumes: a validated lowercase hexadecimal marker and the resolved host
-  platform.
+- Consumes: a validated lowercase hexadecimal marker, the resolved host
+  platform, and the Docker node platform.
 - Produces:
-  `buildFixture({ marker, platform }): { pins, names, kindConfig, resources }`.
+  `buildFixture({ marker, hostPlatform, platform }): { pins, names, kindConfig, resources }`.
 
 - [ ] **Step 1: Write tests for immutable pins and topology**
 
@@ -215,7 +215,7 @@ arm64/amd64 descriptors from the design. Require `/proc` to `/procHost`, Helm
 `tetragon.hostProcPath=/procHost`, metrics on port 2112, and no enforcement.
 
 ```js
-const fixture = buildFixture({ marker: "0123456789abcdef", platform: "linux/arm64" })
+const fixture = buildFixture({ marker: "0123456789abcdef", hostPlatform: "darwin/arm64", platform: "linux/arm64" })
 assert.equal(fixture.pins.tetragon.indexDigest, "sha256:deda51c3f88e4d26b4d76c99ea207f2b05f9e40c210e0f04a37ca632ab7bf527")
 assert.deepEqual(fixture.kindConfig.nodes[0].extraMounts, [
   { hostPath: "/proc", containerPath: "/procHost" },
@@ -252,7 +252,11 @@ export const PINS: Readonly<{
   busybox: { indexDigest: "sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0" },
 }>
 export function validateMarker(marker: string): string
-export function buildFixture(input: { marker: string, platform: "linux/arm64" | "linux/amd64" }): Fixture
+export function buildFixture(input: {
+  marker: string,
+  hostPlatform: "darwin/arm64" | "darwin/amd64" | "linux/arm64" | "linux/amd64",
+  platform: "linux/arm64" | "linux/amd64",
+}): Fixture
 ```
 
 - [ ] **Step 5: Verify and commit**
