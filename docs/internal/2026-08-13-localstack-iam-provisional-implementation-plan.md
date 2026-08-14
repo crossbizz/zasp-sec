@@ -63,6 +63,7 @@ type IAMBoundary interface {
     CreatePrincipal(context.Context, PrincipalSpec) (PrincipalState, error)
     InspectPrincipal(context.Context, string) (PrincipalState, error)
     CreateAccessKey(context.Context, string) (string, string, error)
+    ListAccessKeys(context.Context, string) ([]string, error)
     DeleteAccessKey(context.Context, string, string) error
     DeletePrincipal(context.Context, string) error
     ListRoles(context.Context, string) ([]RoleState, error)

@@ -258,21 +258,26 @@ func createAndProvePrincipal(ctx context.Context, options ProofOptions, target *
 	}
 	target.keyAttempted = true
 	keyID, keySecret, err := options.Boundary.CreateAccessKey(ctx, target.spec.Name)
+	if err != nil {
+		var ambiguous ambiguousMutationError
+		if !errors.As(err, &ambiguous) {
+			return errProvider
+		}
+	} else if keyID != "" && keySecret != "" {
+		target.keyID = keyID
+		target.keySecret = keySecret
+		return nil
+	}
 	if keyID != "" {
 		target.keyID = keyID
-	}
-	if err != nil || keyID == "" || keySecret == "" {
-		if target.keyID == "" {
-			reconcileCtx, cancel := context.WithTimeout(ctx, options.CleanupTimeout)
-			defer cancel()
-			if reconciled, ok := reconcileAccessKey(reconcileCtx, options.Boundary, target.state.Name, options.PollInterval); ok {
-				target.keyID = reconciled
-			}
+	} else {
+		reconcileCtx, cancel := context.WithTimeout(context.Background(), options.CleanupTimeout)
+		defer cancel()
+		if reconciled, ok := reconcileAccessKey(reconcileCtx, options.Boundary, target.state.Name, options.PollInterval); ok {
+			target.keyID = reconciled
 		}
-		return errProvider
 	}
-	target.keySecret = keySecret
-	return nil
+	return errProvider
 }
 
 func createAndProveRole(ctx context.Context, options ProofOptions, target *roleTarget) error {

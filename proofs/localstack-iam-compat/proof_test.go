@@ -309,6 +309,89 @@ func TestRunProof_ReviewRound3Fixes(t *testing.T) {
 	})
 }
 
+func TestRunProof_ReviewRound4Fixes(t *testing.T) {
+	t.Run("does not reconcile or delete after a definitive access-key rejection", func(t *testing.T) {
+		fake := newFakeBoundary()
+		fake.definitiveAccessKeyError = true
+		if _, err := RunProof(context.Background(), fake.options); !errors.Is(err, errProvider) {
+			t.Fatalf("RunProof() error = %v, want provider error", err)
+		}
+		if fake.accessKeyLists != 0 {
+			t.Fatalf("ListAccessKeys() calls = %d, want 0 after definitive rejection", fake.accessKeyLists)
+		}
+		if fake.accessKeyDeletes != 0 {
+			t.Fatalf("DeleteAccessKey() calls = %d, want 0 for an unowned key", fake.accessKeyDeletes)
+		}
+		if !fake.accessKeyPresent {
+			t.Fatal("proof deleted an unowned key exposed after definitive rejection")
+		}
+	})
+
+	for _, test := range []struct {
+		name string
+		run  func(*testing.T, *fakeBoundary) error
+	}{
+		{
+			name: "canceled ambiguous access-key creation",
+			run: func(_ *testing.T, fake *fakeBoundary) error {
+				ctx, cancel := context.WithCancel(context.Background())
+				fake.cancelAccessKeyContext = cancel
+				return runProofError(ctx, fake)
+			},
+		},
+		{
+			name: "timed-out ambiguous access-key creation",
+			run: func(t *testing.T, fake *fakeBoundary) error {
+				ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+				defer cancel()
+				fake.waitForAccessKeyContext = true
+				err := runProofError(ctx, fake)
+				if !errors.Is(ctx.Err(), context.DeadlineExceeded) {
+					t.Fatalf("main context error = %v, want deadline exceeded", ctx.Err())
+				}
+				return err
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			fake := newFakeBoundary()
+			if err := test.run(t, fake); !errors.Is(err, errProvider) {
+				t.Fatalf("RunProof() error = %v, want provider error", err)
+			}
+			if fake.accessKeyPresent {
+				t.Fatal("access key remains after an ambiguous canceled mutation")
+			}
+			if fake.accessKeyLists == 0 {
+				t.Fatal("ambiguous access-key mutation was not reconciled")
+			}
+			if fake.accessKeyListSawCanceledContext {
+				t.Fatal("access-key reconciliation reused the canceled main context")
+			}
+		})
+	}
+
+	t.Run("cleanup failure wins after independent access-key reconciliation", func(t *testing.T) {
+		fake := newFakeBoundary()
+		ctx, cancel := context.WithCancel(context.Background())
+		fake.cancelAccessKeyContext = cancel
+		fake.cleanupFails = true
+		if _, err := RunProof(ctx, fake.options); !errors.Is(err, errCleanup) {
+			t.Fatalf("RunProof() error = %v, want cleanup error", err)
+		}
+		if fake.accessKeyLists == 0 || fake.accessKeyDeletes == 0 {
+			t.Fatalf("access-key reconciliation/deletion calls = %d/%d, want both non-zero", fake.accessKeyLists, fake.accessKeyDeletes)
+		}
+		if fake.accessKeyListSawCanceledContext {
+			t.Fatal("cleanup reconciliation reused the canceled main context")
+		}
+	})
+}
+
+func runProofError(ctx context.Context, fake *fakeBoundary) error {
+	_, err := RunProof(ctx, fake.options)
+	return err
+}
+
 func testOptions(boundary *fakeBoundary) ProofOptions {
 	return ProofOptions{
 		Marker: marker, Endpoint: "http://127.0.0.1:4566",
@@ -340,8 +423,11 @@ type fakeBoundary struct {
 	requireAccessSecret, returnSTSIdentity, invalidPrincipalSuccess, invalidRoleSuccess, panicCleanup bool
 	panicSource, preexistingPrincipal, preexistingRole                                                bool
 	invalidAccessKeySuccess, panicAfterAccessKey, cleanupPolicyMismatch, deletedRolePolicy            bool
-	ambiguousAccessKey, emptyAccessKeySuccess                                                         bool
+	ambiguousAccessKey, emptyAccessKeySuccess, definitiveAccessKeyError                               bool
+	waitForAccessKeyContext, accessKeyListSawCanceledContext                                          bool
+	cancelAccessKeyContext                                                                            context.CancelFunc
 	delayedAccessKey                                                                                  int
+	accessKeyLists, accessKeyDeletes                                                                  int
 	deletedReplacement, continuedCleanup                                                              bool
 	principalLists, roleLists, roleInspects, policyGets                                               int
 }
@@ -432,8 +518,13 @@ func (f *fakeBoundary) InspectPrincipal(_ context.Context, _ string) (PrincipalS
 	}
 	return state, nil
 }
-func (f *fakeBoundary) CreateAccessKey(context.Context, string) (string, string, error) {
+func (f *fakeBoundary) CreateAccessKey(ctx context.Context, _ string) (string, string, error) {
 	f.event("create-access-key")
+	if f.definitiveAccessKeyError {
+		f.accessKeyID = "foreign-key"
+		f.accessKeyPresent = true
+		return "", "", errors.New("rejected")
+	}
 	f.accessKeyID = "key"
 	f.accessKeyPresent = true
 	if f.panicAfterAccessKey {
@@ -441,6 +532,14 @@ func (f *fakeBoundary) CreateAccessKey(context.Context, string) (string, string,
 	}
 	if f.ambiguousAccessKey {
 		return "", "", ambiguousMutationError{cause: errors.New("uncertain")}
+	}
+	if f.cancelAccessKeyContext != nil {
+		f.cancelAccessKeyContext()
+		return "", "", ambiguousMutationError{cause: context.Canceled}
+	}
+	if f.waitForAccessKeyContext {
+		<-ctx.Done()
+		return "", "", ambiguousMutationError{cause: ctx.Err()}
 	}
 	if f.emptyAccessKeySuccess {
 		return "", "", nil
@@ -450,7 +549,11 @@ func (f *fakeBoundary) CreateAccessKey(context.Context, string) (string, string,
 	}
 	return "key", "secret", nil
 }
-func (f *fakeBoundary) ListAccessKeys(context.Context, string) ([]string, error) {
+func (f *fakeBoundary) ListAccessKeys(ctx context.Context, _ string) ([]string, error) {
+	f.accessKeyLists++
+	if ctx.Err() != nil {
+		f.accessKeyListSawCanceledContext = true
+	}
 	if !f.accessKeyPresent {
 		return nil, nil
 	}
@@ -462,6 +565,7 @@ func (f *fakeBoundary) ListAccessKeys(context.Context, string) ([]string, error)
 }
 func (f *fakeBoundary) DeleteAccessKey(context.Context, string, string) error {
 	f.event("delete-access-key")
+	f.accessKeyDeletes++
 	f.continuedCleanup = f.cleanupContinuation
 	if f.panicCleanup {
 		panic("cleanup")
