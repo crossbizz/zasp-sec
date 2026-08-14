@@ -121,10 +121,12 @@ git commit -m "docs: start M0-12 Tetragon proof"
 **Interfaces:**
 
 - Consumes:
-  `normalizeTetragonProof({ organizationId, expected, eventsText, metricsBeforeText, metricsAfterText }): TetragonProofResult`.
+  `normalizeTetragonProof({ organizationId, expected, events, metricsBefore, metricsAfter }): TetragonProofResult`,
+  where all three captured payloads are bounded `Uint8Array` values.
 - Produces:
-  `{ process, file, network, workload, sensor, cleanup: boolean }`, where every
-  event references the same exact normalized workload ID.
+  `{ process, file, network, identity, capability, drops, workload, sensor }`,
+  where every event references the same exact normalized workload ID. The
+  orchestrator adds the separately proved cleanup result.
 
 - [ ] **Step 1: Define strict failing event tests**
 
@@ -137,9 +139,9 @@ file path, destination IP/port, policy name, and sensor version.
 const result = normalizeTetragonProof({
   organizationId: "org_aaaaaaaaaaaaaaaa",
   expected: exactExpectedFixture,
-  eventsText: [execEvent, fileEvent, connectEvent].map(JSON.stringify).join("\n"),
-  metricsBeforeText: healthyMetrics,
-  metricsAfterText: healthyMetrics,
+  events: Buffer.from([execEvent, fileEvent, connectEvent].map(JSON.stringify).join("\n")),
+  metricsBefore: Buffer.from(healthyMetrics),
+  metricsAfter: Buffer.from(healthyMetrics),
 })
 assert.deepEqual(result.classes, ["process", "file", "network"])
 assert.equal(new Set(result.events.map(event => event.workloadId)).size, 1)
