@@ -257,6 +257,31 @@ The selected immutable runtime includes:
 - `quay.io/cilium/tetragon-operator:v1.7.0@sha256:074ffbd19208eed79f68e191ed606e05009f910b4bb5148efcf2973e13504b82`
 - `kindest/node:v1.35.5@sha256:ce977ae6d65918d0b58a5f8b5e940429c2ce42fa3a5619ec2bbc60b949c0ac95`
 
+Run the hermetic parser, manifest, and lifecycle tests with Node.js 22.23.1:
+
+```bash
+npm run proof:tetragon:test
+```
+
+The disposable live proof requires Docker, kind 0.32.0, Helm 3, and kubectl on
+the explicit tool path. It downloads and verifies the pinned kind binary and
+Helm chart, uses an owned Docker configuration and kubeconfig, and does not load `.env`,
+ambient kubeconfig, cloud credentials, profiles, or proxy variables. Run it with:
+
+```bash
+npm run proof:tetragon:run
+```
+
+Success is exactly:
+
+```text
+Tetragon signal proof passed: process=true file=true network=true identity=true capability=true drops=0 cleanup=true.
+```
+
+Every lifecycle uses exact-owned cleanup for the namespace, chart, cluster,
+node container, network, kubeconfig, downloaded assets, and temporary files.
+Failures emit only a fixed category line.
+
 The workload's outbound TCP action targets only an in-cluster fixture sink; it
 does not prove internet egress. The proof does not enable enforcement, treat
 Tetragon as semantic truth, or claim production-kernel coverage. R-07 remains

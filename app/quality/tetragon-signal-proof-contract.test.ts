@@ -119,6 +119,34 @@ describe("Tetragon signal proof contract", () => {
     expect(section).toContain("M0-09 and PROV-01 remain Blocked");
   });
 
+  it("exposes exact hermetic and live root commands with fixed runtime boundaries", async () => {
+    const [packageText, readme] = await Promise.all([
+      readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+    ]);
+    const packageJson = JSON.parse(packageText) as { scripts?: Record<string, string> };
+    const section = readme.match(/## Tetragon signal proof[\s\S]*?## Real AWS cross-account IAM proof/)?.[0];
+
+    expect(packageJson.scripts?.["proof:tetragon:test"]).toBe(
+      "node --test proofs/tetragon-signal/*.test.mjs",
+    );
+    expect(packageJson.scripts?.["proof:tetragon:run"]).toBe(
+      "node proofs/tetragon-signal/run.mjs",
+    );
+    expect(section).toContain("npm run proof:tetragon:test");
+    expect(section).toContain("npm run proof:tetragon:run");
+    expect(section).toContain("Node.js 22.23.1");
+    expect(section).toContain("Docker");
+    expect(section).toContain("kind 0.32.0");
+    expect(section).toContain("Helm 3");
+    expect(section).toContain("kubectl");
+    expect(section).toContain("Tetragon signal proof passed: process=true file=true network=true identity=true capability=true drops=0 cleanup=true.");
+    expect(section).toContain("does not load `.env`");
+    expect(section).toContain("ambient kubeconfig");
+    expect(section).toContain("proxy variables");
+    expect(section).toContain("exact-owned cleanup");
+  });
+
   it("binds R-07 to one exact six-cell Not run row", async () => {
     const riskRegister = await readFile(
       resolve(repositoryRoot, "docs/decisions/mvp-risk-register.md"),
