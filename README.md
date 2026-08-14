@@ -47,8 +47,24 @@ set +a
 npm run proof:neon:run
 ```
 
-Run that sequence from the repository root. The live command emits a fixed
-summary; it never prints connection-string fields or query results.
+## Neon migration proof
+
+This proof requires the ignored `DATABASE_URL`, `NEON_API_KEY`, and
+`NEON_PROJECT_ID` values. It accepts a validated direct or pooler parent URL,
+then uses the official Neon API to match exactly one canonical direct endpoint
+inside that project. The proof creates one proof-owned disposable branch and
+compute, always connects through the child direct endpoint, runs the versioned
+migration up and down, checks the baseline, then deletes the branch. Output
+stays fixed and contains no provider or database identifiers.
+
+```bash
+npm run proof:neon:migration:test
+npm run proof:neon:migration:run
+```
+
+Run that sequence from the repository root. The command uses Node's dotenv loader.
+It emits a fixed summary and never prints connection-string fields or query
+results.
 
 The application uses Vinext and targets the Cloudflare Workers runtime. Optional
 local D1 and R2 bindings can be enabled with `CLOUDFLARE_D1_BINDING` and

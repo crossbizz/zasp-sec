@@ -13,6 +13,8 @@
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
     "proof:neon:run": "cd proofs/neon-pooled && go run .",
     "proof:neon:test": "cd proofs/neon-pooled && go test -race ./...",
+    "proof:neon:migration:run": "node --env-file=.env proofs/neon-pooled/run-migration.mjs",
+    "proof:neon:migration:test": "cd proofs/neon-pooled && go test -race -count=1 ./...",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",

@@ -238,8 +238,37 @@ func validatedPGXConnection(raw string) (validatedConnection, error) {
 	if err != nil {
 		return validatedConnection{}, errConfiguration
 	}
+	return validatedPGXConnectionURL(pooledURL)
+}
 
-	parsed, err := url.Parse(pooledURL)
+func validatedDirectPGXConnection(parentRawURL, childHost string) (validatedConnection, error) {
+	if pgEnvironmentConfigured() {
+		return validatedConnection{}, errConfiguration
+	}
+	if _, err := pooledNeonURL(parentRawURL); err != nil {
+		return validatedConnection{}, errConfiguration
+	}
+	parent, err := url.Parse(parentRawURL)
+	if err != nil {
+		return validatedConnection{}, errConfiguration
+	}
+	if childHost != strings.ToLower(childHost) || strings.Contains(childHost, ":") {
+		return validatedConnection{}, errConfiguration
+	}
+	child := *parent
+	if port := parent.Port(); port != "" {
+		child.Host = net.JoinHostPort(childHost, port)
+	} else {
+		child.Host = childHost
+	}
+	if _, err := pooledNeonURL(child.String()); err != nil {
+		return validatedConnection{}, errConfiguration
+	}
+	return validatedPGXConnectionURL(child.String())
+}
+
+func validatedPGXConnectionURL(raw string) (validatedConnection, error) {
+	parsed, err := url.Parse(raw)
 	if err != nil {
 		return validatedConnection{}, errConfiguration
 	}
