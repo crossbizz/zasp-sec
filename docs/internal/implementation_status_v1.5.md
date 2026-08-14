@@ -14,16 +14,16 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 720 |
+| Pending | 719 |
 | In progress | 1 |
-| Complete | 7 |
+| Complete | 8 |
 | Blocked | 0 |
 
 ## Milestone summary
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 19 | 1 | 7 | 0 |
+| M0 | 27 | 18 | 1 | 8 | 0 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -57,7 +57,7 @@ In progress, Complete, or Blocked is Pending.
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M0-08 | August 13, 2026 | Index one Organization-scoped session event in a disposable OpenSearch target and prove exact session/environment filtering plus a cross-Organization zero-hit query. |
+| M0-09 | August 13, 2026 | Prove one allowed and one denied operation after assuming a disposable cross-account read-only role in an isolated real-AWS test account. |
 
 ## Complete
 
@@ -70,6 +70,7 @@ In progress, Complete, or Blocked is Pending.
 | M0-05 | August 13, 2026 | A disposable Neon branch accepted one versioned up/down migration through a direct hostname-verifying pgx connection, returned exactly to its baseline fingerprint, and was absent from the active branch list after cleanup; 34 Go race tests, all repository gates, a full-history secret scan, and two independent security-review fix rounds passed. |
 | M0-06 | August 13, 2026 | LocalStack created a uniquely owned Standard queue and DLQ, round-tripped exact redrive attributes and one two-event Organization-scoped batch, deleted the message, proved the source empty, and removed both queues; 22 Go behavior groups, live SDK proof, full gates, secret scan, and independent security re-review passed. |
 | M0-07 | August 13, 2026 | An exact-digest disposable LocalStack target proved direct KMS encryption/decryption, an Organization-scoped SSE-KMS S3 object, and a KMS-backed secret; exact cleanup, prefix-wide current-SDK audit, container absence, full gates, secret scan, and final independent security re-review passed. |
+| M0-08 | August 13, 2026 | A disposable exact-image OpenSearch target indexed one metadata-only Organization A session event; the scoped session/environment query returned exactly that event for A and zero hits for B, followed by exact index/container cleanup, full gates, secret scan, and final independent security re-review. |
 
 `PRE-01` and `PRE-02` are also complete prerequisite work and do not count as
 source-plan microtasks.
@@ -78,8 +79,8 @@ source-plan microtasks.
 
 No source-plan task or prerequisite is blocked.
 
-M0-08 is now in progress after M0-07 passed its live encrypted-storage proof
-and final independent security re-review. M0-09 remains dependency-waiting.
+M0-09 is now in progress after M0-08 passed its live scoped OpenSearch proof
+and final independent security re-review. M0-10 remains dependency-waiting.
 
 ## Review findings
 
@@ -96,6 +97,8 @@ and final independent security re-review. M0-09 remains dependency-waiting.
 | M0-06 re-review | Go's case-insensitive struct-field matching allowed case-variant JSON aliases to bypass exact-key policy and envelope validation. | Resolved in `ba02323`: recursive exact JSON-tag schema validation rejects 42 alias forms across every policy, envelope, and nested-event member while preserving duplicate, unknown, trailing, malformed, null-container, and type checks. |
 | M0-07 task review | Non-idempotent KMS key creation inherited SDK retries, prefix-wide audits could miss extra proof resources, and several definite post-create results were not retained early enough for cleanup. | Resolved in `8617ca7`: key creation is single-attempt, preflight/final audit reject prefix extras and duplicate proof keys, and staged key/alias/object targets plus exact ambiguous-write reconciliation preserve fail-closed cleanup. |
 | M0-07 task review | Readiness did not enforce hard body/time limits, pre-orchestrator construction could escape the fixed-output boundary, and the endpoint validator accepted a slash path. | Resolved in `8617ca7`: readiness has byte and absolute-time caps, all construction/orchestration failures emit one fixed line, and only an exactly empty endpoint path is accepted; final re-review found no remaining issues. |
+| M0-08 task review | Index ownership did not validate the proof discriminator, and definitive HTTP failures could reconcile overwrite-capable document writes or adopt pre-existing exact-looking resources. | Resolved in `cb54031`: exact proof metadata now gates inspection/reconciliation/cleanup, non-2xx mutations are definitive, document writes are create-only, and only ambiguous applied-success outcomes may reconcile exact provider state. |
+| M0-08 re-review | Unexpected successful 2xx mutation statuses were classified as definitive, so an applied index or document could bypass reconciliation and strand owned state. | Resolved in `959f033`: unexpected 2xx outcomes are ambiguous while non-2xx remains definitive; applied-exact, unapplied, and mismatched index/document regressions pass and final re-review found no remaining issues. |
 
 ## Execution notes
 
@@ -153,7 +156,14 @@ and final independent security re-review. M0-09 remains dependency-waiting.
   infrastructure was unchanged. Local evidence does not claim real-AWS
   encryption, IAM, durability, or release parity. Final re-review found no
   remaining issues.
-- `M0-08` is the only source-plan task in progress. It must index one
-  Organization-scoped session event in a disposable OpenSearch target and
-  prove the exact session/environment query returns one hit for Organization A
-  and zero hits for the same query under Organization B scope.
+- `M0-08` completed after an exact-image disposable OpenSearch target indexed
+  one strict metadata-only Organization A session event. The scoped EventStore
+  returned exactly one matching session/environment hit for A and zero for B,
+  then prefix-wide audit found zero active proof indices and the disposable
+  container was absent. This local proof does not claim AWS OpenSearch Service,
+  IAM, durability, or release parity. Final independent re-review found no
+  remaining issues.
+- `M0-09` is the only source-plan task in progress. It must use an isolated
+  real-AWS test account to assume one disposable cross-account read-only role,
+  prove one explicitly allowed call succeeds, and prove one explicitly denied
+  call fails. LocalStack cannot satisfy this release-parity gate.
