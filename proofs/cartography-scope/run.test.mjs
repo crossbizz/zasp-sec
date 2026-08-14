@@ -789,6 +789,8 @@ test("rejects malformed, oversized, error, wrong-row, or extra readiness respons
     { status: 200, body: "x".repeat(16_385) },
     { status: 200, body: JSON.stringify({ ...readinessDocument, errors: [{ code: "unready" }] }) },
     { status: 200, body: JSON.stringify({ results: [{ columns: ["1"], data: [{ row: [2], meta: [null] }] }], errors: [] }) },
+    { status: 200, body: JSON.stringify({ ...readinessDocument, lastBookmarks: ["bad\u0000bookmark"] }) },
+    { status: 200, body: JSON.stringify({ ...readinessDocument, lastBookmarks: ["bad\u007fbookmark"] }) },
     { status: 200, body: JSON.stringify({ ...readinessDocument, unexpected: true }) },
   ];
   for (const response of invalid) {

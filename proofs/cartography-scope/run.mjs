@@ -307,8 +307,16 @@ function validReadinessDocument(value) {
     isDeepStrictEqual(data.row, [1]) && isDeepStrictEqual(data.meta, [null]) &&
     Array.isArray(value.lastBookmarks) && value.lastBookmarks.length === 1 &&
     typeof bookmark === "string" && bookmark.length > 0 && bookmark.length <= 4_096 &&
-    !/[\u0000-\u001f\u007f]/.test(bookmark)
+    !hasControlCharacter(bookmark)
   );
+}
+
+function hasControlCharacter(value) {
+  for (const character of value) {
+    const codePoint = character.codePointAt(0);
+    if (codePoint <= 0x1f || codePoint === 0x7f) return true;
+  }
+  return false;
 }
 
 export class DockerRuntime {
