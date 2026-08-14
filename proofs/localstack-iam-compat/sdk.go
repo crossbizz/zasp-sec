@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/retry"
@@ -286,9 +287,9 @@ func (b *SDKBoundary) ListRoles(ctx context.Context, prefix string) ([]RoleState
 			return nil, errProvider
 		}
 		for _, role := range out.Roles {
-			state, ok := roleFromSDK(role)
-			if !ok {
-				return nil, errOwnership
+			state, conversionErr := roleFromSDK(role)
+			if conversionErr != nil {
+				return nil, conversionErr
 			}
 			if strings.HasPrefix(state.Name, prefix) {
 				states = append(states, state)
@@ -308,8 +309,8 @@ func (b *SDKBoundary) CreateRole(ctx context.Context, spec RoleSpec) (RoleState,
 	if out.Role == nil {
 		return RoleState{}, ambiguousMutationError{cause: errProvider}
 	}
-	state, ok := roleFromSDK(*out.Role)
-	if !ok {
+	state, conversionErr := roleFromSDK(*out.Role)
+	if conversionErr != nil {
 		return RoleState{}, ambiguousMutationError{cause: errProvider}
 	}
 	if !sameRoleDefinition(spec, state) {
@@ -326,9 +327,9 @@ func (b *SDKBoundary) InspectRole(ctx context.Context, name string) (RoleState, 
 	if out.Role == nil {
 		return RoleState{}, errOwnership
 	}
-	state, ok := roleFromSDK(*out.Role)
-	if !ok {
-		return RoleState{}, errOwnership
+	state, conversionErr := roleFromSDK(*out.Role)
+	if conversionErr != nil {
+		return RoleState{}, conversionErr
 	}
 	policyOutput, policyErr := b.targetIAM.GetRolePolicy(ctx, &iam.GetRolePolicyInput{RoleName: aws.String(state.Name), PolicyName: aws.String(state.PolicyName)})
 	if policyErr != nil {
@@ -343,7 +344,7 @@ func (b *SDKBoundary) InspectRole(ctx context.Context, name string) (RoleState, 
 	}
 	policy, ok := decodeProviderPolicy(aws.ToString(policyOutput.PolicyDocument))
 	if !ok {
-		return RoleState{}, errOwnership
+		return RoleState{}, errProvider
 	}
 	state.PermissionPolicy = policy
 	return state, nil
@@ -365,7 +366,7 @@ func (b *SDKBoundary) rolePolicy(ctx context.Context, role, name string) (string
 	}
 	document, ok := decodeProviderPolicy(aws.ToString(out.PolicyDocument))
 	if !ok {
-		return "", errOwnership
+		return "", errProvider
 	}
 	return document, nil
 }
@@ -407,9 +408,9 @@ func (b *SDKBoundary) AllowedGetRole(ctx context.Context, session AssumedSession
 	if out.Role == nil {
 		return RoleState{}, errOwnership
 	}
-	state, ok := roleFromSDK(*out.Role)
-	if !ok {
-		return RoleState{}, errOwnership
+	state, conversionErr := roleFromSDK(*out.Role)
+	if conversionErr != nil {
+		return RoleState{}, conversionErr
 	}
 	return state, nil
 }
@@ -440,15 +441,18 @@ func principalFromUser(user iamtypes.User) (PrincipalState, bool) {
 	state.Marker = state.Tags["proof"]
 	return state, state.Name != "" && state.ARN != "" && state.Path != "" && state.UserID != "" && state.Marker != "" && len(state.Tags) == 1
 }
-func roleFromSDK(role iamtypes.Role) (RoleState, bool) {
+func roleFromSDK(role iamtypes.Role) (RoleState, error) {
 	trust, ok := decodeProviderPolicy(aws.ToString(role.AssumeRolePolicyDocument))
 	if !ok {
-		return RoleState{}, false
+		return RoleState{}, errProvider
 	}
 	state := RoleState{Name: aws.ToString(role.RoleName), ARN: aws.ToString(role.Arn), Path: aws.ToString(role.Path), RoleID: aws.ToString(role.RoleId), TrustPolicy: trust, Description: aws.ToString(role.Description), Tags: tagsFromIAM(role.Tags)}
 	state.Marker = state.Tags["proof"]
 	state.PolicyName = proofPrefix(state.Marker) + "-policy"
-	return state, state.Name != "" && state.ARN != "" && state.Path != "" && state.RoleID != "" && state.Marker != "" && len(state.Tags) == 1
+	if state.Name == "" || state.ARN == "" || state.Path == "" || state.RoleID == "" || state.Marker == "" || len(state.Tags) != 1 {
+		return RoleState{}, errOwnership
+	}
+	return state, nil
 }
 func sessionFromSDK(out *sts.AssumeRoleOutput) (AssumedSession, error) {
 	if out == nil || out.Credentials == nil || out.AssumedRoleUser == nil {
@@ -503,7 +507,7 @@ func decodeProviderPolicy(raw string) (string, bool) {
 		return "", false
 	}
 	decoded, err := url.PathUnescape(raw)
-	if err != nil || decoded == raw || len(decoded) > maxBodySize || encodeRFC3986Component(decoded) != raw {
+	if err != nil || decoded == raw || len(decoded) > maxBodySize || !utf8.ValidString(decoded) || encodeRFC3986Component(decoded) != raw {
 		return "", false
 	}
 	if !validIAMPolicyDocument(decoded) {

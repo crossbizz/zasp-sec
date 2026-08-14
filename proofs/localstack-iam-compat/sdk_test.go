@@ -305,6 +305,77 @@ func TestSDKBoundary_DecodesCanonicalUTF8AndEscapesEveryReservedByte(t *testing.
 	}
 }
 
+func TestSDKBoundary_RejectsCanonicalPoliciesContainingInvalidUTF8(t *testing.T) {
+	const prefix = `%7B%22Version%22%3A%222012-10-17%22%2C%22Statement%22%3A%5B%7B%22Condition%22%3A%22`
+	const suffix = `%22%7D%5D%7D`
+	for _, tc := range []struct {
+		name, encodedBytes string
+	}{
+		{name: "invalid byte", encodedBytes: `%FF`},
+		{name: "truncated two byte sequence", encodedBytes: `%C3`},
+		{name: "malformed two byte sequence", encodedBytes: `%C3%28`},
+		{name: "truncated three byte sequence", encodedBytes: `%E2%82`},
+		{name: "truncated four byte sequence", encodedBytes: `%F0%9F%92`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			encoded := prefix + tc.encodedBytes + suffix
+			if decoded, ok := decodeProviderPolicy(encoded); ok {
+				parsed, _ := decodeStrictJSON(decoded)
+				t.Fatalf("decodeProviderPolicy(%q) accepted invalid UTF-8 as %#v", encoded, parsed)
+			}
+		})
+	}
+}
+
+func TestSDKBoundary_ClassifiesInvalidUTF8InProviderPolicyFields(t *testing.T) {
+	_, role := expectedSpecs(ProofOptions{Marker: "0123456789abcdef"})
+	for _, encodedBytes := range []string{`%FF`, `%E2%82`, `%C3%28`} {
+		t.Run("trust policy "+encodedBytes, func(t *testing.T) {
+			invalidPolicy := invalidUTF8PolicyFixture(encodedBytes)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if err := r.ParseForm(); err != nil {
+					t.Fatal(err)
+				}
+				switch r.Form.Get("Action") {
+				case "GetRole":
+					response := roleResponse("GetRole", role, "AROA0123456789ABCDEF")
+					response = strings.Replace(response, canonicalPolicyFixture(role.TrustPolicy), invalidPolicy, 1)
+					writeXML(w, response)
+				case "GetRolePolicy":
+					writeXML(w, `<GetRolePolicyResponse><GetRolePolicyResult><RoleName>`+role.Name+`</RoleName><PolicyName>`+role.PolicyName+`</PolicyName><PolicyDocument>`+xmlEscape(canonicalPolicyFixture(role.PermissionPolicy))+`</PolicyDocument></GetRolePolicyResult></GetRolePolicyResponse>`)
+				default:
+					t.Fatalf("unexpected Action %q", r.Form.Get("Action"))
+				}
+			}))
+			defer server.Close()
+
+			boundary, err := NewSDKBoundary(context.Background(), server.URL, sourceNamespace, targetNamespace)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := boundary.InspectRole(context.Background(), role.Name); !errors.Is(err, errProvider) {
+				t.Fatalf("InspectRole() error = %v, want provider error", err)
+			}
+		})
+
+		t.Run("permission policy "+encodedBytes, func(t *testing.T) {
+			invalidPolicy := invalidUTF8PolicyFixture(encodedBytes)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				writeXML(w, `<GetRolePolicyResponse><GetRolePolicyResult><RoleName>`+role.Name+`</RoleName><PolicyName>`+role.PolicyName+`</PolicyName><PolicyDocument>`+invalidPolicy+`</PolicyDocument></GetRolePolicyResult></GetRolePolicyResponse>`)
+			}))
+			defer server.Close()
+
+			boundary, err := NewSDKBoundary(context.Background(), server.URL, sourceNamespace, targetNamespace)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := boundary.GetRolePolicy(context.Background(), role.Name, role.PolicyName); !errors.Is(err, errProvider) {
+				t.Fatalf("GetRolePolicy() error = %v, want provider error", err)
+			}
+		})
+	}
+}
+
 func TestSDKBoundary_RejectsHostileResolverRebinding(t *testing.T) {
 	targetHits := 0
 	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -632,6 +703,9 @@ func assertExactForm(t *testing.T, r *http.Request, want map[string]string) {
 }
 func canonicalPolicyFixture(raw string) string {
 	return strings.ReplaceAll(url.QueryEscape(raw), "+", "%20")
+}
+func invalidUTF8PolicyFixture(encodedBytes string) string {
+	return `%7B%22Version%22%3A%222012-10-17%22%2C%22Statement%22%3A%5B%7B%22Condition%22%3A%22` + encodedBytes + `%22%7D%5D%7D`
 }
 func writeXML(w http.ResponseWriter, body string) {
 	w.Header().Set("Content-Type", "text/xml")
