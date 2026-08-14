@@ -26,6 +26,8 @@ const (
 	neonOfficialAPIBaseURL  = "https://console.neon.tech/api/v2"
 	migrationSchemaPrefix   = "zasp_m005_"
 	migrationBranchPrefix   = "zasp-m0-05-"
+	migrationAnnotationKey  = "zasp-proof-marker"
+	neonBranchObjectType    = "console/branch"
 )
 
 var (
@@ -115,13 +117,14 @@ type neonOperation struct {
 }
 
 type ownedBranch struct {
-	projectID    string
-	parentID     string
-	branchID     string
-	branchName   string
-	marker       string
-	endpointID   string
-	endpointHost string
+	projectID            string
+	parentID             string
+	branchID             string
+	branchName           string
+	marker               string
+	endpointID           string
+	endpointHost         string
+	providerMarkerProven bool
 }
 
 type endpointsResponse struct {
@@ -129,13 +132,19 @@ type endpointsResponse struct {
 }
 
 type branchesResponse struct {
-	Branches    []neonBranch `json:"branches"`
-	Annotations map[string]struct {
-		Value map[string]string `json:"value"`
-	} `json:"annotations"`
-	Pagination struct {
+	Branches    []neonBranch              `json:"branches"`
+	Annotations map[string]neonAnnotation `json:"annotations"`
+	Pagination  struct {
 		Next string `json:"next"`
 	} `json:"pagination"`
+}
+
+type neonAnnotation struct {
+	Object struct {
+		Type string `json:"type"`
+		ID   string `json:"id"`
+	} `json:"object"`
+	Value map[string]string `json:"value"`
 }
 
 type branchOperationsResponse struct {
@@ -185,29 +194,19 @@ func executeMigrationProof(ctx context.Context, config migrationRunConfig, depen
 	if err := dependencies.api.requireUniqueBranchName(ctx, config.projectID, branchName); err != nil {
 		return "", err
 	}
-	target, operations, uncertainCreate, err := dependencies.api.createBranch(ctx, config.projectID, parent.BranchID, branchName, config.marker)
-	if err != nil {
-		cleanupTarget := target
-		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), migrationCleanupTimeout(config))
-		defer cancel()
-		if uncertainCreate && !cleanupTarget.validFor(config.projectID, parent.BranchID, config.marker) {
-			recovered, recoveryErr := dependencies.api.recoverOwnedBranchUntil(cleanupCtx, config.projectID, parent.BranchID, branchName, config.marker, config.pollInterval)
-			if recoveryErr == nil {
-				cleanupTarget = recovered
-			}
-		}
-		if cleanupTarget.validForCleanup(config.projectID, parent.BranchID, config.marker) {
-			if cleanupErr := dependencies.api.deleteOwnedBranch(cleanupCtx, cleanupTarget, config.pollInterval); cleanupErr != nil {
-				return "", errMigrationCleanup
-			}
-		} else if uncertainCreate {
-			return "", errMigrationCleanup
-		}
-		return "", err
+	target, operations, createAttempted, createErr := dependencies.api.createBranch(ctx, config.projectID, parent.BranchID, branchName, config.marker)
+	if !createAttempted {
+		return "", createErr
 	}
-	if !target.validFor(config.projectID, parent.BranchID, config.marker) {
-		return "", errMigrationOwnership
+	confirmationCtx, confirmationCancel := context.WithTimeout(context.WithoutCancel(ctx), migrationCleanupTimeout(config))
+	confirmedTarget, confirmationErr := dependencies.api.confirmOwnedBranchUntil(
+		confirmationCtx, target, config.projectID, parent.BranchID, branchName, config.marker, config.pollInterval,
+	)
+	confirmationCancel()
+	if confirmationErr != nil && !confirmedTarget.validForCleanup(config.projectID, parent.BranchID, config.marker) {
+		return "", errMigrationCleanup
 	}
+	target = confirmedTarget
 
 	defer func() {
 		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), migrationCleanupTimeout(config))
@@ -217,6 +216,18 @@ func executeMigrationProof(ctx context.Context, config migrationRunConfig, depen
 			resultErr = errMigrationCleanup
 		}
 	}()
+	if confirmationErr != nil {
+		if createErr != nil {
+			return "", createErr
+		}
+		return "", errMigrationAPI
+	}
+	if createErr != nil {
+		return "", createErr
+	}
+	if !target.validFor(config.projectID, parent.BranchID, config.marker) {
+		return "", errMigrationOwnership
+	}
 
 	if err := dependencies.api.waitOperations(ctx, target, operations, config.pollInterval); err != nil {
 		return "", err
@@ -350,59 +361,76 @@ func (client *neonAPIClient) requireUniqueBranchName(ctx context.Context, projec
 	return nil
 }
 
-func (client *neonAPIClient) recoverOwnedBranch(ctx context.Context, projectID, parentID, branchName, marker string) (ownedBranch, error) {
+func (client *neonAPIClient) confirmOwnedBranch(ctx context.Context, expected ownedBranch, projectID, parentID, branchName, marker string) (ownedBranch, error) {
 	response, err := client.listBranchesResponse(ctx, projectID, branchName)
 	if err != nil {
 		return ownedBranch{}, err
 	}
 	matches := make([]neonBranch, 0, 1)
 	for _, branch := range response.Branches {
-		annotation := response.Annotations[branch.ID].Value["zasp-proof-marker"]
+		annotation, annotated := response.Annotations[branch.ID]
 		if branch.ProjectID == projectID && branch.ParentID == parentID && branch.Name == branchName &&
 			validCreatedBranchState(branch.State) && !branch.Default && !branch.Protected && validBranchID(branch.ID) &&
-			annotation == marker {
+			(expected.branchID == "" || branch.ID == expected.branchID) && annotated &&
+			annotation.Object.Type == neonBranchObjectType && annotation.Object.ID == branch.ID &&
+			annotation.Value[migrationAnnotationKey] == marker {
 			matches = append(matches, branch)
 		}
 	}
 	if len(matches) != 1 {
 		return ownedBranch{}, errMigrationOwnership
 	}
+	target := ownedBranch{
+		projectID: projectID, parentID: parentID, branchID: matches[0].ID,
+		branchName: branchName, marker: marker, providerMarkerProven: true,
+	}
 	endpoints, err := client.listEndpoints(ctx, projectID)
 	if err != nil {
 		return ownedBranch{}, err
 	}
 	endpointMatches := make([]neonEndpoint, 0, 1)
+	branchEndpointCount := 0
 	for _, endpoint := range endpoints {
-		if endpoint.BranchID == matches[0].ID && endpoint.Type == "read_write" && !endpoint.Disabled && validEndpoint(endpoint, projectID, matches[0].ID) {
+		if endpoint.BranchID == matches[0].ID {
+			branchEndpointCount++
+		}
+		if endpoint.BranchID == matches[0].ID && endpoint.Type == "read_write" && !endpoint.Disabled &&
+			validCreatedEndpointState(endpoint.State) && validEndpoint(endpoint, projectID, matches[0].ID) &&
+			(expected.endpointID == "" || endpoint.ID == expected.endpointID) &&
+			(expected.endpointHost == "" || endpoint.Host == expected.endpointHost) {
 			endpointMatches = append(endpointMatches, endpoint)
 		}
 	}
 	if len(endpointMatches) != 1 {
+		if branchEndpointCount == 0 && target.validForCleanup(projectID, parentID, marker) {
+			return target, errMigrationAPI
+		}
 		return ownedBranch{}, errMigrationOwnership
 	}
-	target := ownedBranch{
-		projectID: projectID, parentID: parentID, branchID: matches[0].ID,
-		branchName: branchName, marker: marker, endpointID: endpointMatches[0].ID,
-		endpointHost: endpointMatches[0].Host,
-	}
+	target.endpointID = endpointMatches[0].ID
+	target.endpointHost = endpointMatches[0].Host
 	if !target.validFor(projectID, parentID, marker) {
 		return ownedBranch{}, errMigrationOwnership
 	}
 	return target, nil
 }
 
-func (client *neonAPIClient) recoverOwnedBranchUntil(ctx context.Context, projectID, parentID, branchName, marker string, pollInterval time.Duration) (ownedBranch, error) {
+func (client *neonAPIClient) confirmOwnedBranchUntil(ctx context.Context, expected ownedBranch, projectID, parentID, branchName, marker string, pollInterval time.Duration) (ownedBranch, error) {
 	if pollInterval <= 0 {
 		pollInterval = 100 * time.Millisecond
 	}
+	var branchOnlyTarget ownedBranch
 	for {
-		target, err := client.recoverOwnedBranch(ctx, projectID, parentID, branchName, marker)
+		target, err := client.confirmOwnedBranch(ctx, expected, projectID, parentID, branchName, marker)
 		if err == nil {
 			return target, nil
 		}
+		if target.validForCleanup(projectID, parentID, marker) {
+			branchOnlyTarget = target
+		}
 		select {
 		case <-ctx.Done():
-			return ownedBranch{}, errMigrationAPI
+			return branchOnlyTarget, errMigrationAPI
 		case <-time.After(pollInterval):
 		}
 	}
@@ -452,20 +480,22 @@ func (client *neonAPIClient) createBranch(ctx context.Context, projectID, parent
 	body.Endpoints = append(body.Endpoints, struct {
 		Type string `json:"type"`
 	}{Type: "read_write"})
-	body.Annotation = map[string]string{"zasp-proof-marker": marker}
+	body.Annotation = map[string]string{migrationAnnotationKey: marker}
 
 	var response branchOperationsResponse
-	if err := client.doJSON(ctx, http.MethodPost, "/projects/"+projectID+"/branches", body, http.StatusCreated, &response); err != nil {
-		return ownedBranch{}, nil, true, err
-	}
 	target := ownedBranch{
-		projectID: projectID, parentID: parentID, branchID: response.Branch.ID,
-		branchName: response.Branch.Name, marker: marker,
+		projectID: projectID, parentID: parentID, branchName: branchName, marker: marker,
+	}
+	if err := client.doJSON(ctx, http.MethodPost, "/projects/"+projectID+"/branches", body, http.StatusCreated, &response); err != nil {
+		return target, nil, true, err
+	}
+	if validBranchID(response.Branch.ID) {
+		target.branchID = response.Branch.ID
 	}
 	if response.Branch.ProjectID != projectID || response.Branch.ParentID != parentID ||
 		response.Branch.Name != branchName || response.Branch.Default || response.Branch.Protected ||
-		!validCreatedBranchState(response.Branch.State) || !target.validForCleanup(projectID, parentID, marker) {
-		return ownedBranch{}, nil, true, errMigrationAPI
+		!validCreatedBranchState(response.Branch.State) || !validBranchID(response.Branch.ID) || response.Branch.ID == parentID {
+		return target, nil, true, errMigrationAPI
 	}
 	if len(response.Endpoints) != 1 {
 		return target, nil, true, errMigrationAPI
@@ -475,19 +505,30 @@ func (client *neonAPIClient) createBranch(ctx context.Context, projectID, parent
 	target.endpointHost = strings.ToLower(endpoint.Host)
 	if !validEndpoint(endpoint, projectID, response.Branch.ID) ||
 		endpoint.Type != "read_write" || endpoint.Disabled || !validCreatedEndpointState(endpoint.State) ||
-		!target.validFor(projectID, parentID, marker) {
+		!validUnprovenTarget(target, projectID, parentID, marker) {
 		return target, nil, true, errMigrationAPI
 	}
 	if len(response.Operations) == 0 || !validOperations(response.Operations, target) {
 		return target, nil, true, errMigrationAPI
 	}
-	return target, response.Operations, false, nil
+	return target, response.Operations, true, nil
 }
 
 func (client *neonAPIClient) waitOperations(ctx context.Context, target ownedBranch, operations []neonOperation, pollInterval time.Duration) error {
 	if !target.validFor(target.projectID, target.parentID, target.marker) || !validOperations(operations, target) {
 		return errMigrationOwnership
 	}
+	return client.waitOperationSet(ctx, target, operations, pollInterval)
+}
+
+func (client *neonAPIClient) waitDeleteOperations(ctx context.Context, target ownedBranch, operations []neonOperation, pollInterval time.Duration) error {
+	if !target.validForCleanup(target.projectID, target.parentID, target.marker) || !validOperations(operations, target) {
+		return errMigrationOwnership
+	}
+	return client.waitOperationSet(ctx, target, operations, pollInterval)
+}
+
+func (client *neonAPIClient) waitOperationSet(ctx context.Context, target ownedBranch, operations []neonOperation, pollInterval time.Duration) error {
 	if pollInterval <= 0 {
 		pollInterval = 100 * time.Millisecond
 	}
@@ -526,14 +567,17 @@ func (client *neonAPIClient) waitResourcesReady(ctx context.Context, target owne
 		pollInterval = 100 * time.Millisecond
 	}
 	for {
-		branches, err := client.listBranches(ctx, target.projectID, target.branchName)
+		response, err := client.listBranchesResponse(ctx, target.projectID, target.branchName)
 		if err != nil {
 			return err
 		}
 		branchMatches := make([]neonBranch, 0, 1)
-		for _, branch := range branches {
+		for _, branch := range response.Branches {
+			annotation, annotated := response.Annotations[branch.ID]
 			if branch.ID == target.branchID && branch.ProjectID == target.projectID && branch.ParentID == target.parentID &&
-				branch.Name == target.branchName && !branch.Default && !branch.Protected {
+				branch.Name == target.branchName && !branch.Default && !branch.Protected && annotated &&
+				annotation.Object.Type == neonBranchObjectType && annotation.Object.ID == branch.ID &&
+				annotation.Value[migrationAnnotationKey] == target.marker {
 				branchMatches = append(branchMatches, branch)
 			}
 		}
@@ -569,20 +613,65 @@ func (client *neonAPIClient) deleteOwnedBranch(ctx context.Context, target owned
 	if !target.validForCleanup(target.projectID, target.parentID, target.marker) {
 		return errMigrationOwnership
 	}
-	var response branchOperationsResponse
-	path := "/projects/" + target.projectID + "/branches/" + target.branchID
-	if err := client.doJSON(ctx, http.MethodDelete, path, nil, http.StatusOK, &response); err != nil {
+	response, status, err := client.deleteBranch(ctx, target)
+	if err != nil {
 		return errMigrationCleanup
 	}
-	if response.Branch.ID != target.branchID || response.Branch.ProjectID != target.projectID ||
-		response.Branch.ParentID != target.parentID || response.Branch.Name != target.branchName ||
-		response.Branch.Default || response.Branch.Protected || len(response.Operations) == 0 ||
-		!validOperations(response.Operations, target) {
-		return errMigrationCleanup
+	if status == http.StatusOK {
+		if response.Branch.ID != target.branchID || response.Branch.ProjectID != target.projectID ||
+			response.Branch.ParentID != target.parentID || response.Branch.Name != target.branchName ||
+			response.Branch.Default || response.Branch.Protected || len(response.Operations) == 0 ||
+			!validOperations(response.Operations, target) {
+			return errMigrationCleanup
+		}
+		if err := client.waitDeleteOperations(ctx, target, response.Operations, pollInterval); err != nil {
+			return errMigrationCleanup
+		}
 	}
-	if err := client.waitOperations(ctx, target, response.Operations, pollInterval); err != nil {
-		return errMigrationCleanup
+	return client.requireOwnedBranchAbsent(ctx, target)
+}
+
+func (client *neonAPIClient) deleteBranch(ctx context.Context, target ownedBranch) (branchOperationsResponse, int, error) {
+	if ctx == nil {
+		return branchOperationsResponse{}, 0, errMigrationAPI
 	}
+	requestURL := *client.baseURL
+	requestURL.Path = strings.TrimSuffix(client.baseURL.Path, "/") + "/projects/" + target.projectID + "/branches/" + target.branchID
+	request, err := http.NewRequestWithContext(ctx, http.MethodDelete, requestURL.String(), nil)
+	if err != nil {
+		return branchOperationsResponse{}, 0, errMigrationAPI
+	}
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("Authorization", "Bearer "+client.apiKey)
+	response, err := client.httpClient.Do(request)
+	if err != nil {
+		return branchOperationsResponse{}, 0, errMigrationAPI
+	}
+	defer response.Body.Close()
+	limited := io.LimitReader(response.Body, neonAPIResponseLimit+1)
+	encoded, err := io.ReadAll(limited)
+	if err != nil || len(encoded) > neonAPIResponseLimit {
+		return branchOperationsResponse{}, 0, errMigrationAPI
+	}
+	if response.StatusCode == http.StatusNoContent {
+		if len(encoded) != 0 {
+			return branchOperationsResponse{}, 0, errMigrationAPI
+		}
+		return branchOperationsResponse{}, http.StatusNoContent, nil
+	}
+	if response.StatusCode != http.StatusOK ||
+		!strings.HasPrefix(strings.ToLower(response.Header.Get("Content-Type")), "application/json") || len(encoded) == 0 {
+		return branchOperationsResponse{}, 0, errMigrationAPI
+	}
+	var decoded branchOperationsResponse
+	decoder := json.NewDecoder(bytes.NewReader(encoded))
+	if err := decoder.Decode(&decoded); err != nil || decoder.Decode(&struct{}{}) != io.EOF {
+		return branchOperationsResponse{}, 0, errMigrationAPI
+	}
+	return decoded, http.StatusOK, nil
+}
+
+func (client *neonAPIClient) requireOwnedBranchAbsent(ctx context.Context, target ownedBranch) error {
 	branches, err := client.listBranches(ctx, target.projectID, target.branchName)
 	if err != nil {
 		return errMigrationCleanup
@@ -656,6 +745,10 @@ func (target ownedBranch) validFor(projectID, parentID, marker string) bool {
 }
 
 func (target ownedBranch) validForCleanup(projectID, parentID, marker string) bool {
+	return target.providerMarkerProven && validUnprovenTarget(target, projectID, parentID, marker)
+}
+
+func validUnprovenTarget(target ownedBranch, projectID, parentID, marker string) bool {
 	return target.projectID == projectID && target.parentID == parentID && target.marker == marker &&
 		apiResourcePattern.MatchString(projectID) && validBranchID(parentID) && validBranchID(target.branchID) &&
 		target.branchID != parentID && target.branchName == migrationBranchPrefix+marker && validBranchName(target.branchName)

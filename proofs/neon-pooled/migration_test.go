@@ -65,6 +65,8 @@ func TestExecuteMigrationProofRunsOwnedBranchAndMigrationInOrder(t *testing.T) {
 		"api:list-endpoints",
 		"api:list-branches-preflight",
 		"api:create-branch",
+		"api:wait-readiness-branch",
+		"api:wait-readiness-endpoints",
 		"api:wait-operation",
 		"api:wait-readiness-branch",
 		"api:wait-readiness-endpoints",
@@ -123,6 +125,133 @@ func TestExecuteMigrationProofReconcilesMalformedSuccessfulCreateAndDeletes(t *t
 	}
 	if got := events.snapshot(); !equalStrings(got, want) {
 		t.Fatalf("malformed-create cleanup order = %#v, want %#v", got, want)
+	}
+}
+
+func TestExecuteMigrationProofRequiresProviderStoredAnnotationBeforeDatabaseOrDelete(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		partial  bool
+		behavior providerBehavior
+	}{
+		{name: "normal missing annotation", behavior: providerBehavior{omitAnnotation: true}},
+		{name: "normal wrong marker", behavior: providerBehavior{annotationMarker: "fedcba9876543210"}},
+		{name: "normal wrong object type", behavior: providerBehavior{annotationObjectType: "console/endpoint"}},
+		{name: "normal mismatched object id", behavior: providerBehavior{annotationObjectID: "br-other-dawn-123456"}},
+		{name: "partial missing annotation", partial: true, behavior: providerBehavior{omitAnnotation: true}},
+		{name: "partial wrong marker", partial: true, behavior: providerBehavior{annotationMarker: "fedcba9876543210"}},
+		{name: "partial wrong object type", partial: true, behavior: providerBehavior{annotationObjectType: "console/endpoint"}},
+		{name: "partial mismatched object id", partial: true, behavior: providerBehavior{annotationObjectID: "br-other-dawn-123456"}},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			events := &eventLog{}
+			behavior := test.behavior
+			behavior.omitCreatedEndpoint = test.partial
+			behavior.recoverCreated = test.partial
+			provider := newProviderServer(t, events, behavior)
+			api, err := newNeonAPIClient(provider.URL, testAPIKey, provider.Client())
+			if err != nil {
+				t.Fatalf("newNeonAPIClient() error = %v", err)
+			}
+			opened := false
+
+			_, err = executeMigrationProof(context.Background(), migrationRunConfig{
+				apiKey: testAPIKey, cleanupTimeout: 20 * time.Millisecond, databaseURL: validDirectNeonURL(), marker: testMarker,
+				projectID: testProjectID, pollInterval: time.Millisecond,
+			}, migrationDependencies{api: api, openDatabase: func(context.Context, validatedConnection) (migrationDatabase, error) {
+				opened = true
+				return nil, errors.New("must not open")
+			}})
+
+			if !errors.Is(err, errMigrationCleanup) {
+				t.Fatalf("executeMigrationProof() error = %v, want cleanup failure", err)
+			}
+			if opened {
+				t.Fatal("database opened without provider-stored annotation ownership")
+			}
+			if containsString(events.snapshot(), "api:delete-branch") {
+				t.Fatal("branch deleted without provider-stored annotation ownership")
+			}
+		})
+	}
+}
+
+func TestDeleteOwnedBranchAccepts204OnlyAfterExactAbsence(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		branchPresent bool
+		wantError     bool
+	}{
+		{name: "absent", wantError: false},
+		{name: "ambiguous presence", branchPresent: true, wantError: true},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			events := &eventLog{}
+			provider := newProviderServer(t, events, providerBehavior{
+				deleteStatus: http.StatusNoContent, cleanupBranchPresent: test.branchPresent,
+			})
+			api, err := newNeonAPIClient(provider.URL, testAPIKey, provider.Client())
+			if err != nil {
+				t.Fatalf("newNeonAPIClient() error = %v", err)
+			}
+			target := ownedBranch{
+				projectID: testProjectID, parentID: testParentBranch, branchID: testBranchID,
+				branchName: testBranchName, marker: testMarker, endpointID: testEndpointID, endpointHost: testChildHost,
+				providerMarkerProven: true,
+			}
+
+			err = api.deleteOwnedBranch(context.Background(), target, time.Millisecond)
+
+			if test.wantError && !errors.Is(err, errMigrationCleanup) {
+				t.Fatalf("deleteOwnedBranch() error = %v, want cleanup failure", err)
+			}
+			if !test.wantError && err != nil {
+				t.Fatalf("deleteOwnedBranch() error = %v, want nil", err)
+			}
+			if !containsString(events.snapshot(), "api:list-branches-cleanup") {
+				t.Fatal("DELETE 204 was not reconciled against exact active branch absence")
+			}
+		})
+	}
+}
+
+func TestExecuteMigrationProofDeletesProviderProvenBranchWithoutEndpoint(t *testing.T) {
+	t.Parallel()
+
+	events := &eventLog{}
+	provider := newProviderServer(t, events, providerBehavior{
+		omitCreatedEndpoint: true, omitRecoveredEndpoint: true, recoverCreated: true,
+	})
+	api, err := newNeonAPIClient(provider.URL, testAPIKey, provider.Client())
+	if err != nil {
+		t.Fatalf("newNeonAPIClient() error = %v", err)
+	}
+
+	_, err = executeMigrationProof(context.Background(), migrationRunConfig{
+		apiKey: testAPIKey, cleanupTimeout: 20 * time.Millisecond, databaseURL: validDirectNeonURL(), marker: testMarker,
+		projectID: testProjectID, pollInterval: time.Millisecond,
+	}, migrationDependencies{api: api, openDatabase: func(context.Context, validatedConnection) (migrationDatabase, error) {
+		t.Fatal("database opened for a branch without an exact endpoint")
+		return nil, nil
+	}})
+
+	if !errors.Is(err, errMigrationAPI) {
+		t.Fatalf("executeMigrationProof() error = %v, want fixed API failure", err)
+	}
+	if !containsString(events.snapshot(), "api:delete-branch") {
+		t.Fatal("provider-proven branch-only cleanup was not attempted")
 	}
 }
 
@@ -506,6 +635,10 @@ func TestMigrationAssetsRenderOnlyAQuotedSafeIdentifier(t *testing.T) {
 }
 
 type providerBehavior struct {
+	annotationMarker      string
+	annotationObjectID    string
+	annotationObjectType  string
+	cleanupBranchPresent  bool
 	createOperationStatus string
 	createdBranchName     string
 	createdBranchState    string
@@ -513,7 +646,9 @@ type providerBehavior struct {
 	createStatus          int
 	deleteStatus          int
 	duplicateParent       bool
+	omitAnnotation        bool
 	omitCreatedEndpoint   bool
+	omitRecoveredEndpoint bool
 	operationFailures     int
 	parentHost            string
 	parentProjectID       string
@@ -525,6 +660,15 @@ func newProviderServer(t *testing.T, events *eventLog, behavior providerBehavior
 	t.Helper()
 	if behavior.createdBranchName == "" {
 		behavior.createdBranchName = testBranchName
+	}
+	if behavior.annotationMarker == "" {
+		behavior.annotationMarker = testMarker
+	}
+	if behavior.annotationObjectID == "" {
+		behavior.annotationObjectID = testBranchID
+	}
+	if behavior.annotationObjectType == "" {
+		behavior.annotationObjectType = "console/branch"
 	}
 	if behavior.createdBranchState == "" {
 		behavior.createdBranchState = "ready"
@@ -570,24 +714,28 @@ func newProviderServer(t *testing.T, events *eventLog, behavior providerBehavior
 				duplicate = fmt.Sprintf(`,{"host":%q,"id":"ep-duplicate-123456","project_id":%q,"branch_id":%q,"region_id":"aws-us-east-2","autoscaling_limit_min_cu":0.25,"autoscaling_limit_max_cu":1,"type":"read_write","current_state":"idle","settings":{"pg_settings":{}},"pooler_enabled":false,"pooler_mode":"transaction","disabled":false,"passwordless_access":false,"creation_source":"console","created_at":"2026-08-13T00:00:00Z","updated_at":"2026-08-13T00:00:00Z","proxy_host":"us-east-2.aws.neon.tech","suspend_timeout_seconds":0,"provisioner":"k8s-neonvm"}`, behavior.parentHost, behavior.parentProjectID, testParentBranch)
 			}
 			recoveredEndpoint := ""
-			if recovering || afterCreate {
+			if (recovering || afterCreate) && !behavior.omitRecoveredEndpoint {
 				recoveredEndpoint = fmt.Sprintf(`,{"host":%q,"id":%q,"project_id":%q,"branch_id":%q,"region_id":"aws-us-east-2","autoscaling_limit_min_cu":0.25,"autoscaling_limit_max_cu":1,"type":"read_write","current_state":"active","settings":{"pg_settings":{}},"pooler_enabled":false,"pooler_mode":"transaction","disabled":false,"passwordless_access":false,"creation_source":"api","created_at":"2026-08-13T00:00:00Z","updated_at":"2026-08-13T00:00:00Z","proxy_host":"us-east-2.aws.neon.tech","suspend_timeout_seconds":0,"provisioner":"k8s-neonvm"}`, testChildHost, testEndpointID, testProjectID, testBranchID)
 			}
 			fmt.Fprintf(response, `{"endpoints":[{"host":%q,"id":"ep-cool-darkness-123456","project_id":%q,"branch_id":%q,"region_id":"aws-us-east-2","autoscaling_limit_min_cu":0.25,"autoscaling_limit_max_cu":1,"type":"read_write","current_state":"idle","settings":{"pg_settings":{}},"pooler_enabled":false,"pooler_mode":"transaction","disabled":false,"passwordless_access":false,"creation_source":"console","created_at":"2026-08-13T00:00:00Z","updated_at":"2026-08-13T00:00:00Z","proxy_host":"us-east-2.aws.neon.tech","suspend_timeout_seconds":0,"provisioner":"k8s-neonvm"}%s%s]}`, behavior.parentHost, behavior.parentProjectID, testParentBranch, duplicate, recoveredEndpoint)
 		case request.Method == http.MethodGet && request.URL.Path == "/projects/"+testProjectID+"/branches" && request.URL.Query().Get("search") == testBranchName:
 			if containsString(events.snapshot(), "api:delete-branch") {
 				events.add("api:list-branches-cleanup")
-				_, _ = response.Write([]byte(`{"branches":[],"annotations":{},"pagination":{}}`))
+				if behavior.cleanupBranchPresent {
+					writeOwnedBranchList(response, behavior)
+				} else {
+					_, _ = response.Write([]byte(`{"branches":[],"annotations":{},"pagination":{}}`))
+				}
 			} else if behavior.recoverCreated && containsString(events.snapshot(), "api:create-branch") {
 				events.add("api:list-branches-recovery")
 				if countString(events.snapshot(), "api:list-branches-recovery") < behavior.recoveryVisibleAfter {
 					_, _ = response.Write([]byte(`{"branches":[],"annotations":{},"pagination":{}}`))
 				} else {
-					fmt.Fprintf(response, `{"branches":[{"id":%q,"project_id":%q,"parent_id":%q,"name":%q,"current_state":"ready","state_changed_at":"2026-08-13T00:00:00Z","creation_source":"api","created_at":"2026-08-13T00:00:00Z","updated_at":"2026-08-13T00:00:00Z","default":false,"protected":false,"cpu_used_sec":0,"active_time_seconds":0,"compute_time_seconds":0,"written_data_bytes":0,"data_transfer_bytes":0}],"annotations":{%q:{"value":{"zasp-proof-marker":%q}}},"pagination":{}}`, testBranchID, testProjectID, testParentBranch, testBranchName, testBranchID, testMarker)
+					writeOwnedBranchList(response, behavior)
 				}
 			} else if containsString(events.snapshot(), "api:create-branch") {
 				events.add("api:wait-readiness-branch")
-				fmt.Fprintf(response, `{"branches":[{"id":%q,"project_id":%q,"parent_id":%q,"name":%q,"current_state":"ready","state_changed_at":"2026-08-13T00:00:00Z","creation_source":"api","created_at":"2026-08-13T00:00:00Z","updated_at":"2026-08-13T00:00:00Z","default":false,"protected":false,"cpu_used_sec":0,"active_time_seconds":0,"compute_time_seconds":0,"written_data_bytes":0,"data_transfer_bytes":0}],"annotations":{},"pagination":{}}`, testBranchID, testProjectID, testParentBranch, testBranchName)
+				writeOwnedBranchList(response, behavior)
 			} else {
 				events.add("api:list-branches-preflight")
 				_, _ = response.Write([]byte(`{"branches":[],"annotations":{},"pagination":{}}`))
@@ -626,6 +774,14 @@ func newProviderServer(t *testing.T, events *eventLog, behavior providerBehavior
 			response.WriteHeader(http.StatusNotFound)
 		}
 	}))
+}
+
+func writeOwnedBranchList(response http.ResponseWriter, behavior providerBehavior) {
+	annotation := ""
+	if !behavior.omitAnnotation {
+		annotation = fmt.Sprintf(`%q:{"object":{"type":%q,"id":%q},"value":{"zasp-proof-marker":%q}}`, testBranchID, behavior.annotationObjectType, behavior.annotationObjectID, behavior.annotationMarker)
+	}
+	fmt.Fprintf(response, `{"branches":[{"id":%q,"project_id":%q,"parent_id":%q,"name":%q,"current_state":"ready","state_changed_at":"2026-08-13T00:00:00Z","creation_source":"api","created_at":"2026-08-13T00:00:00Z","updated_at":"2026-08-13T00:00:00Z","default":false,"protected":false,"cpu_used_sec":0,"active_time_seconds":0,"compute_time_seconds":0,"written_data_bytes":0,"data_transfer_bytes":0}],"annotations":{%s},"pagination":{}}`, testBranchID, testProjectID, testParentBranch, behavior.createdBranchName, annotation)
 }
 
 type recordingMigrationDB struct {
