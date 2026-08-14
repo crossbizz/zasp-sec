@@ -12,7 +12,7 @@ import { mergeNormalizedGraphs, normalizeGraph, parseRawGraph } from "./normaliz
 export const CARTOGRAPHY_IMAGE = "ghcr.io/cartography-cncf/cartography:0.139.1@sha256:f1d7c1f46a8a2137b9a955327d3cd47e8340c7d537d0447467d2e952af8bb8f0";
 export const NEO4J_IMAGE = "neo4j:5.26-community@sha256:d9dd3dc7d1c78fa959191ff02dbdcbefadceaf83eee23428fb92a58cac8ad3fe";
 export const SUCCESS_LINE = "Cartography scope proof passed: fixtures=2 nodes=8 relationships=4 isolated=true labels_safe=true cleanup=true.";
-export const CARTOGRAPHY_BOOTSTRAP = 'import os,re,runpy,sys;h=os.environ.get("HOSTNAME","");e=sys.argv[1];(h==e and re.fullmatch(r"zasp-m0-10-[0-9a-f]{16}-cartography-[ab]",h)) or sys.exit(1);os.environ.clear();os.environ.update({"PATH":"/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin","HOME":"/tmp","LANG":"C.UTF-8","PYTHONUNBUFFERED":"1","HOSTNAME":h});sys.argv=sys.argv[2:];runpy.run_path(sys.argv[0],run_name="__main__")';
+export const CARTOGRAPHY_BOOTSTRAP = 'import runpy,sys;m=runpy.run_path(sys.argv[2]);raise SystemExit(m["bootstrap_main"](sys.argv[1:]))';
 
 const allowedCategories = new Set([
   "configuration", "provider", "ownership", "normalization", "cleanup", "operation",

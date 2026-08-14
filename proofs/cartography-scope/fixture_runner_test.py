@@ -2,9 +2,11 @@ import contextlib
 import io
 import json
 import os
+import stat
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 import fixture_runner
@@ -58,6 +60,12 @@ RAW_GRAPH = {
 }
 RAW_BYTES = json.dumps(RAW_GRAPH, separators=(",", ":")).encode("utf-8")
 
+LAUNCHER_PATH = "/var/cartography/.local/bin/cartography"
+LAUNCHER_TARGET = "/var/cartography/.local/share/uv/tools/cartography/bin/cartography"
+INTERPRETER_PATH = "/var/cartography/.local/share/uv/tools/cartography/bin/python"
+INTERPRETER_TARGET = "/usr/local/bin/python3.13"
+EXPECTED_SHEBANG = f"#!{INTERPRETER_PATH}\n".encode("ascii")
+
 
 class FakeAPI:
     AWSAccountSchema = staticmethod(lambda: "AWSAccountSchema")
@@ -78,6 +86,45 @@ class FakeResult:
 
     def __iter__(self):
         return iter(self._records)
+
+
+class FakeBootstrapFilesystem:
+    def __init__(self):
+        self.modes = {
+            LAUNCHER_PATH: stat.S_IFLNK | 0o777,
+            LAUNCHER_TARGET: stat.S_IFREG | 0o755,
+            INTERPRETER_PATH: stat.S_IFLNK | 0o777,
+            INTERPRETER_TARGET: stat.S_IFREG | 0o755,
+        }
+        self.realpaths = {
+            LAUNCHER_PATH: LAUNCHER_TARGET,
+            INTERPRETER_PATH: INTERPRETER_TARGET,
+        }
+        self.links = {
+            LAUNCHER_PATH: LAUNCHER_TARGET,
+            INTERPRETER_PATH: "/usr/local/bin/python",
+        }
+        self.shebang = EXPECTED_SHEBANG
+        self.read_limits = []
+
+    def lstat(self, path):
+        return SimpleNamespace(st_mode=self.modes[path])
+
+    def realpath(self, path):
+        return self.realpaths[path]
+
+    def readlink(self, path):
+        return self.links[path]
+
+    def read_first_line(self, path, limit):
+        if path != LAUNCHER_TARGET:
+            raise OSError("unexpected path")
+        self.read_limits.append(limit)
+        return self.shebang
+
+
+class ExecCaptured(BaseException):
+    pass
 
 
 class FakeSession:
@@ -430,6 +477,100 @@ class MainBoundaryTests(unittest.TestCase):
     def fake_deadline(self, seconds):
         self.deadline_seconds = seconds
         yield
+
+    def test_bootstrap_execs_only_the_pinned_image_interpreter_with_exact_boundary(self):
+        filesystem = FakeBootstrapFilesystem()
+        calls = []
+
+        def execve(path, argv, environ):
+            calls.append((path, argv, environ))
+            raise ExecCaptured()
+
+        argv = [
+            ENVIRON["HOSTNAME"],
+            "/proof/fixture_runner.py",
+            "--fixture",
+            FIXTURE_PATH,
+            "--neo4j-uri",
+            NEO4J_URI,
+        ]
+        ambient = dict(
+            ENVIRON,
+            AWS_SECRET_ACCESS_KEY="must-disappear",
+            GITHUB_TOKEN="must-disappear",
+            HTTPS_PROXY="http://must-disappear.invalid",
+            IMAGE_METADATA="must-disappear",
+        )
+        with self.assertRaises(ExecCaptured):
+            fixture_runner.bootstrap_runtime(
+                argv,
+                ambient,
+                filesystem=filesystem,
+                execve=execve,
+            )
+
+        self.assertEqual(filesystem.read_limits, [256])
+        self.assertEqual(
+            calls,
+            [
+                (
+                    INTERPRETER_PATH,
+                    [INTERPRETER_PATH, "-I", *argv[1:]],
+                    {**fixture_runner.BASE_ENVIRONMENT, "HOSTNAME": ENVIRON["HOSTNAME"]},
+                )
+            ],
+        )
+
+    def test_bootstrap_rejects_launcher_interpreter_shebang_and_target_swaps(self):
+        mutations = []
+
+        def mutate_launcher(filesystem):
+            filesystem.realpaths[LAUNCHER_PATH] = "/unexpected/cartography"
+
+        mutations.append(mutate_launcher)
+
+        def mutate_shebang(filesystem):
+            filesystem.shebang = b"#!/unexpected/python\n"
+
+        mutations.append(mutate_shebang)
+
+        def mutate_interpreter_link(filesystem):
+            filesystem.links[INTERPRETER_PATH] = "/unexpected/python"
+
+        mutations.append(mutate_interpreter_link)
+
+        def mutate_launcher_target(filesystem):
+            filesystem.modes[LAUNCHER_TARGET] = stat.S_IFDIR | 0o755
+
+        mutations.append(mutate_launcher_target)
+
+        def mutate_interpreter_target(filesystem):
+            filesystem.modes[INTERPRETER_TARGET] = stat.S_IFDIR | 0o755
+
+        mutations.append(mutate_interpreter_target)
+
+        argv = [
+            ENVIRON["HOSTNAME"],
+            "/proof/fixture_runner.py",
+            "--fixture",
+            FIXTURE_PATH,
+            "--neo4j-uri",
+            NEO4J_URI,
+        ]
+        for mutation in mutations:
+            filesystem = FakeBootstrapFilesystem()
+            mutation(filesystem)
+            calls = []
+            self.assertEqual(
+                fixture_runner.bootstrap_runtime(
+                    argv,
+                    ENVIRON,
+                    filesystem=filesystem,
+                    execve=lambda *arguments: calls.append(arguments),
+                ),
+                1,
+            )
+            self.assertEqual(calls, [])
 
     def run_main(self, *, argv=None, environ=None, stdout=None):
         argv = argv or ["--fixture", FIXTURE_PATH, "--neo4j-uri", NEO4J_URI]

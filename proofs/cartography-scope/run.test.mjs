@@ -40,7 +40,7 @@ const baseContainerEnvironment = [
   "LANG=C.UTF-8",
   "PYTHONUNBUFFERED=1",
 ];
-const expectedBootstrap = 'import os,re,runpy,sys;h=os.environ.get("HOSTNAME","");e=sys.argv[1];(h==e and re.fullmatch(r"zasp-m0-10-[0-9a-f]{16}-cartography-[ab]",h)) or sys.exit(1);os.environ.clear();os.environ.update({"PATH":"/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin","HOME":"/tmp","LANG":"C.UTF-8","PYTHONUNBUFFERED":"1","HOSTNAME":h});sys.argv=sys.argv[2:];runpy.run_path(sys.argv[0],run_name="__main__")';
+const expectedBootstrap = 'import runpy,sys;m=runpy.run_path(sys.argv[2]);raise SystemExit(m["bootstrap_main"](sys.argv[1:]))';
 
 const rawGraph = {
   schema_version: 1,
@@ -112,10 +112,10 @@ test("builds two exact one-shot Cartography creates with a read-only proof mount
   assert.equal(CARTOGRAPHY_BOOTSTRAP, expectedBootstrap);
 });
 
-test("Cartography bootstrap erases image environment and passes only exact bridge argv", () => {
+test("Cartography bootstrap delegates the exact owned runtime argv to the mounted bridge", () => {
   const directory = mkdtempSync(join(tmpdir(), "zasp-m0-10-bootstrap-test-"));
   const probe = join(directory, "probe.py");
-  writeFileSync(probe, "import json,os,sys\nprint(json.dumps({'env':dict(os.environ),'argv':sys.argv},sort_keys=True,separators=(',',':')))\n");
+  writeFileSync(probe, "import json\ndef bootstrap_main(argv):\n print(json.dumps({'argv':argv},sort_keys=True,separators=(',',':')))\n return 0\n");
   const hostname = `${prefix}-cartography-a`;
   const runnerArguments = [probe, "--fixture", "/proof/fixtures/org-a.json", "--neo4j-uri", `bolt://${prefix}-neo4j-a:7687`];
   try {
@@ -133,17 +133,8 @@ test("Cartography bootstrap erases image environment and passes only exact bridg
     assert.equal(process.status, 0);
     assert.equal(process.stderr, "");
     assert.deepEqual(JSON.parse(process.stdout), {
-      env: Object.fromEntries([...baseContainerEnvironment, `HOSTNAME=${hostname}`].map((entry) => entry.split(/=(.*)/s).slice(0, 2))),
-      argv: runnerArguments,
+      argv: [hostname, ...runnerArguments],
     });
-
-    const rejected = spawnSync("/opt/homebrew/bin/python3.13", ["-I", "-c", CARTOGRAPHY_BOOTSTRAP, hostname, ...runnerArguments], {
-      encoding: "utf8",
-      env: { HOSTNAME: `${prefix}-cartography-b` },
-    });
-    assert.equal(rejected.status, 1);
-    assert.equal(rejected.stdout, "");
-    assert.equal(rejected.stderr, "");
   } finally {
     rmSync(directory, { recursive: true, force: false, maxRetries: 0 });
   }

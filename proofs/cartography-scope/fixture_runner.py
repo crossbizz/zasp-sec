@@ -22,6 +22,17 @@ BASE_ENVIRONMENT = {
     "LANG": "C.UTF-8",
     "PYTHONUNBUFFERED": "1",
 }
+RUNTIME_LAUNCHER_PATH = "/var/cartography/.local/bin/cartography"
+RUNTIME_LAUNCHER_TARGET = (
+    "/var/cartography/.local/share/uv/tools/cartography/bin/cartography"
+)
+RUNTIME_INTERPRETER_PATH = (
+    "/var/cartography/.local/share/uv/tools/cartography/bin/python"
+)
+RUNTIME_INTERPRETER_LINK = "/usr/local/bin/python"
+RUNTIME_INTERPRETER_TARGET = "/usr/local/bin/python3.13"
+RUNTIME_SHEBANG = f"#!{RUNTIME_INTERPRETER_PATH}\n".encode("ascii")
+RUNTIME_SHEBANG_LIMIT = 256
 
 _ACCOUNT_ID = "000000000000"
 _ROLE_ARN = "arn:aws:iam::000000000000:role/shared-fixture-role"
@@ -105,6 +116,114 @@ class CartographyAPI:
     AWSRoleSchema: Callable[[], object]
     GitHubOrganizationSchema: Callable[[], object]
     GitHubRepositorySchema: Callable[[], object]
+
+
+class _SystemBootstrapFilesystem:
+    @staticmethod
+    def lstat(path: str) -> os.stat_result:
+        return os.lstat(path)
+
+    @staticmethod
+    def realpath(path: str) -> str:
+        return os.path.realpath(path)
+
+    @staticmethod
+    def readlink(path: str) -> str:
+        return os.readlink(path)
+
+    @staticmethod
+    def read_first_line(path: str, limit: int) -> bytes:
+        descriptor = os.open(
+            path,
+            os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW | os.O_NONBLOCK,
+        )
+        try:
+            metadata = os.fstat(descriptor)
+            if not stat.S_ISREG(metadata.st_mode):
+                raise ValueError("invalid launcher")
+            prefix = os.read(descriptor, limit + 1)
+        finally:
+            os.close(descriptor)
+        newline = prefix.find(b"\n")
+        if newline < 0 or newline + 1 > limit:
+            raise ValueError("invalid launcher")
+        return prefix[: newline + 1]
+
+
+def bootstrap_runtime(
+    argv: list[str],
+    environ: Mapping[str, str],
+    *,
+    filesystem: object | None = None,
+    execve: Callable[[str, list[str], Mapping[str, str]], object] | None = None,
+) -> int:
+    filesystem = filesystem or _SystemBootstrapFilesystem()
+    execve = execve or os.execve
+    try:
+        if (
+            type(argv) is not list
+            or len(argv) != 6
+            or type(argv[0]) is not str
+            or argv[1] != "/proof/fixture_runner.py"
+            or argv[2] != "--fixture"
+            or argv[3] != FIXTURE_PATH
+            or argv[4] != "--neo4j-uri"
+            or type(argv[5]) is not str
+        ):
+            raise ValueError("invalid bootstrap arguments")
+        hostname = environ.get("HOSTNAME")
+        cartography_match = _CARTOGRAPHY_HOST.fullmatch(argv[0])
+        neo4j_match = _NEO4J_URI.fullmatch(argv[5])
+        if (
+            type(hostname) is not str
+            or hostname != argv[0]
+            or cartography_match is None
+            or neo4j_match is None
+            or cartography_match.groups() != neo4j_match.groups()
+        ):
+            raise ValueError("invalid bootstrap boundary")
+
+        launcher = filesystem.lstat(RUNTIME_LAUNCHER_PATH)
+        launcher_target = filesystem.lstat(RUNTIME_LAUNCHER_TARGET)
+        interpreter = filesystem.lstat(RUNTIME_INTERPRETER_PATH)
+        interpreter_target = filesystem.lstat(RUNTIME_INTERPRETER_TARGET)
+        if (
+            not stat.S_ISLNK(launcher.st_mode)
+            or filesystem.readlink(RUNTIME_LAUNCHER_PATH)
+            != RUNTIME_LAUNCHER_TARGET
+            or filesystem.realpath(RUNTIME_LAUNCHER_PATH)
+            != RUNTIME_LAUNCHER_TARGET
+            or not stat.S_ISREG(launcher_target.st_mode)
+            or stat.S_ISLNK(launcher_target.st_mode)
+            or launcher_target.st_mode & 0o111 == 0
+            or filesystem.read_first_line(
+                RUNTIME_LAUNCHER_TARGET, RUNTIME_SHEBANG_LIMIT
+            )
+            != RUNTIME_SHEBANG
+            or not stat.S_ISLNK(interpreter.st_mode)
+            or filesystem.readlink(RUNTIME_INTERPRETER_PATH)
+            != RUNTIME_INTERPRETER_LINK
+            or filesystem.realpath(RUNTIME_INTERPRETER_PATH)
+            != RUNTIME_INTERPRETER_TARGET
+            or not stat.S_ISREG(interpreter_target.st_mode)
+            or stat.S_ISLNK(interpreter_target.st_mode)
+            or interpreter_target.st_mode & 0o111 == 0
+        ):
+            raise ValueError("invalid image runtime")
+
+        clean_environment = {**BASE_ENVIRONMENT, "HOSTNAME": hostname}
+        execve(
+            RUNTIME_INTERPRETER_PATH,
+            [RUNTIME_INTERPRETER_PATH, "-I", *argv[1:]],
+            clean_environment,
+        )
+    except Exception:
+        return 1
+    return 1
+
+
+def bootstrap_main(argv: list[str]) -> int:
+    return bootstrap_runtime(argv, os.environ)
 
 
 def parse_fixture(raw: bytes) -> Fixture:
