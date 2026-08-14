@@ -14,16 +14,16 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 723 |
+| Pending | 722 |
 | In progress | 1 |
-| Complete | 4 |
+| Complete | 5 |
 | Blocked | 0 |
 
 ## Milestone summary
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 22 | 1 | 4 | 0 |
+| M0 | 27 | 21 | 1 | 5 | 0 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -57,7 +57,7 @@ In progress, Complete, or Blocked is Pending.
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M0-05 | August 13, 2026 | Run one reversible migration through the direct Neon endpoint on a disposable Neon branch and prove the schema returns exactly to baseline. |
+| M0-06 | August 13, 2026 | Prove a LocalStack SQS queue and DLQ configuration with a batched event message round trip and asserted redrive attributes. |
 
 ## Complete
 
@@ -67,6 +67,7 @@ In progress, Complete, or Blocked is Pending.
 | M0-02 | August 13, 2026 | A disposable password-only Stytch Test Organization produced a real authenticated 60-minute Member session/JWT and was confirmed deleted; 33 black-box lifecycle/security tests, full verification, a pinned full-history Gitleaks scan, and independent review passed. |
 | M0-03 | August 13, 2026 | The exact-pinned official Stytch Node SDK validated a fresh B2B JWT locally and the same JWT through forced remote authentication; 49 focused tests, a live disposable proof, full verification, dependency audit, full-history secret scan, and independent review passed. |
 | M0-04 | August 13, 2026 | An exact-pinned Go/pgxpool proof derived and validated the effective Neon pooler destination, completed ten overlapping reads with zero acquired connections, closed cleanly, passed live hostname-verifying TLS, full gates, secret scan, and independent security re-review. |
+| M0-05 | August 13, 2026 | A disposable Neon branch accepted one versioned up/down migration through a direct hostname-verifying pgx connection, returned exactly to its baseline fingerprint, and was absent from the active branch list after cleanup; 34 Go race tests, all repository gates, a full-history secret scan, and two independent security-review fix rounds passed. |
 
 `PRE-01` and `PRE-02` are also complete prerequisite work and do not count as
 source-plan microtasks.
@@ -75,9 +76,8 @@ source-plan microtasks.
 
 No source-plan task or prerequisite is blocked.
 
-M0-05 is now in progress after M0-04 passed independent security re-review.
-M0-06 remains dependency-waiting until the disposable Neon branch migration
-proof is complete and reviewed.
+M0-06 is now in progress after M0-05 passed its live disposable-branch proof
+and final independent security re-review. M0-07 remains dependency-waiting.
 
 ## Review findings
 
@@ -88,6 +88,8 @@ proof is complete and reviewed.
 | M0-02 task review | Mixed credential, cleanup-failure precedence, and stalled-response deadline paths lacked direct regression tests. | Resolved in `da13230`: added black-box zero-I/O, dual-failure, and bounded stalled-body cleanup coverage; review rerun approved with no remaining findings. |
 | M0-04 task review | A validated Neon-looking URL could still use pgx query, environment, or file fallbacks to dial a different effective destination. | Resolved in `e8a8f5f`: explicit URL identity, minimal query allowlist, PG environment refusal, effective-config/TLS validation, and per-connection revalidation now fail closed; hostile regressions and live `verify-full` proof pass. |
 | M0-04 task review | Worker panics bypassed fixed errors/cleanup, and the documented live command changed directories before loading the root `.env`. | Resolved in `e8a8f5f`: each worker converts panics to one fixed result and cleanup is proven; the exact runnable root sequence is contract-tested. |
+| M0-05 task review | Successful and partial create responses could authorize cleanup without re-fetching the provider-stored run marker; DELETE 204 responses were not reconciled. | Resolved in `ba0d2b3`: exact provider annotation value/type/ID now gates database access and deletion, branch-only emergency cleanup retains that proof, and both 200/204 delete outcomes require exact active-list absence. |
+| M0-05 re-review | Valid but stale branch or endpoint identifiers in malformed create responses could override stronger provider-listed ownership and strand the proof branch. | Resolved in `37d638f`: incomplete responses provide no identifier authority, provider branch/annotation proof is established independently, and endpoint/hint mismatches block database access while preserving exact cleanup. |
 
 ## Execution notes
 
@@ -126,8 +128,12 @@ proof is complete and reviewed.
   cleanup, and runnable documentation passed independent re-review with no
   remaining findings. The live proof completed ten concurrent pooled reads,
   reported zero acquired connections, and closed under hostname-verifying TLS.
-- `M0-05` is the only source-plan task in progress. `DATABASE_URL` supplies the
-  required direct Neon connection, but no Neon API key or authenticated
-  `neonctl` state was found during the initial disposable-branch capability
-  audit; implementation must exhaust safe branch-lifecycle options before any
-  Blocked transition.
+- `M0-05` completed after a current-code live run applied and reverted the
+  embedded migration, restored the exact namespace fingerprint, deleted the
+  disposable branch, and found zero active proof branches. The final
+  independent re-review found no remaining issues after two cleanup-ownership
+  fix rounds; Neon soft deletion means the evidence does not claim immediate
+  physical erasure.
+- `M0-06` is the only source-plan task in progress. It must exercise LocalStack
+  SQS through the intended SDK boundary, assert queue/DLQ redrive attributes,
+  and prove one batched event message round trip before M0-07 may start.
