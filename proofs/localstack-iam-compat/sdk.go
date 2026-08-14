@@ -507,7 +507,7 @@ func decodeProviderPolicy(raw string) (string, bool) {
 		return "", false
 	}
 	decoded, err := url.PathUnescape(raw)
-	if err != nil || decoded == raw || len(decoded) > maxBodySize || !utf8.ValidString(decoded) || encodeRFC3986Component(decoded) != raw {
+	if err != nil || decoded == raw || len(decoded) > maxBodySize || !utf8.ValidString(decoded) || encodePinnedLocalStackPolicy(decoded) != raw {
 		return "", false
 	}
 	if !validIAMPolicyDocument(decoded) {
@@ -516,13 +516,13 @@ func decodeProviderPolicy(raw string) (string, bool) {
 	return decoded, true
 }
 
-func encodeRFC3986Component(raw string) string {
+func encodePinnedLocalStackPolicy(raw string) string {
 	const upperHex = "0123456789ABCDEF"
 	var encoded strings.Builder
 	encoded.Grow(len(raw) * 3)
 	for index := 0; index < len(raw); index++ {
 		value := raw[index]
-		if (value >= 'A' && value <= 'Z') || (value >= 'a' && value <= 'z') || (value >= '0' && value <= '9') || value == '-' || value == '.' || value == '_' || value == '~' {
+		if (value >= 'A' && value <= 'Z') || (value >= 'a' && value <= 'z') || (value >= '0' && value <= '9') || value == '-' || value == '.' || value == '_' || value == '~' || value == '/' {
 			encoded.WriteByte(value)
 			continue
 		}

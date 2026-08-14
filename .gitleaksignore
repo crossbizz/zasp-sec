@@ -3,3 +3,9 @@
 # relocation, or newly introduced credential remains detectable.
 b89460deb3a2eb95c8a02cd31183b9f075465cf0:proofs/stytch-b2b-test-session.mjs:generic-api-key:4
 b89460deb3a2eb95c8a02cd31183b9f075465cf0:app/quality/stytch-b2b-test-session-proof.test.ts:generic-api-key:100
+
+# The LocalStack IAM SDK boundary uses one fixed synthetic AWS access key in
+# loopback-only response fixtures. Ignore only its current file finding and
+# exact introduction-commit finding; moved or changed values remain detectable.
+proofs/localstack-iam-compat/sdk_test.go:generic-api-key:61
+6dd91aecbcb12673c61c7422dc3fd60caae57bab:proofs/localstack-iam-compat/sdk_test.go:generic-api-key:59

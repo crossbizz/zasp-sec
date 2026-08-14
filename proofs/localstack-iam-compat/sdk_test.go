@@ -106,7 +106,7 @@ func TestSDKBoundary_UsesExactIAMAndSTSQueryOperations(t *testing.T) {
 			writeXML(w, `<PutRolePolicyResponse><ResponseMetadata><RequestId>x</RequestId></ResponseMetadata></PutRolePolicyResponse>`)
 		case "GetRolePolicy":
 			assertForm(t, r, map[string]string{"RoleName": role.Name, "PolicyName": role.PolicyName})
-			writeXML(w, `<GetRolePolicyResponse><GetRolePolicyResult><RoleName>`+role.Name+`</RoleName><PolicyName>`+role.PolicyName+`</PolicyName><PolicyDocument>`+xmlEscape(canonicalPolicyFixture(role.PermissionPolicy))+`</PolicyDocument></GetRolePolicyResult></GetRolePolicyResponse>`)
+			writeXML(w, `<GetRolePolicyResponse><GetRolePolicyResult><RoleName>`+role.Name+`</RoleName><PolicyName>`+role.PolicyName+`</PolicyName><PolicyDocument>`+xmlEscape(pinnedLocalStackPolicyFixture(role.PermissionPolicy))+`</PolicyDocument></GetRolePolicyResult></GetRolePolicyResponse>`)
 		case "AssumeRole":
 			assertForm(t, r, map[string]string{"RoleArn": role.ARN, "RoleSessionName": "session", "ExternalId": "external", "SourceIdentity": "source", "Tags.member.1.Key": "proof", "Tags.member.1.Value": marker})
 			writeXML(w, `<AssumeRoleResponse><AssumeRoleResult><Credentials><AccessKeyId>ASIA0123456789ABCDEF</AccessKeyId><SecretAccessKey>assumed-secret</SecretAccessKey><SessionToken>assumed-token</SessionToken><Expiration>2030-01-01T00:00:00Z</Expiration></Credentials><AssumedRoleUser><Arn>arn:aws:sts::000000000042:assumed-role/`+role.Name+`/session</Arn><AssumedRoleId>AROA0123456789ABCDEF:session</AssumedRoleId></AssumedRoleUser><SourceIdentity>source</SourceIdentity></AssumeRoleResult></AssumeRoleResponse>`)
@@ -297,9 +297,20 @@ func TestSDKBoundary_DecodesCanonicalRFC3986PolicyOnce(t *testing.T) {
 	}
 }
 
-func TestSDKBoundary_DecodesCanonicalUTF8AndEscapesEveryReservedByte(t *testing.T) {
+func TestSDKBoundary_DecodesPinnedLocalStackPathSafePolicyOnce(t *testing.T) {
+	raw := `{"Version":"2012-10-17","Statement":[{"Condition":"arn:aws:iam::000000000041:user/proof/name"}]}`
+	encoded := pinnedLocalStackPolicyFixture(raw)
+	if got, ok := decodeProviderPolicy(encoded); !ok || got != raw {
+		t.Fatalf("decodeProviderPolicy(pinned LocalStack representation) = %q, %v", got, ok)
+	}
+	if _, ok := decodeProviderPolicy(canonicalPolicyFixture(raw)); ok {
+		t.Fatal("accepted fully slash-escaped alias for pinned LocalStack representation")
+	}
+}
+
+func TestSDKBoundary_DecodesPinnedLocalStackUTF8AndPreservesOnlySlash(t *testing.T) {
 	const raw = `{"Version":"2012-10-17","Statement":[{"Condition":"AZaz09-._~ :@&=+$,/?#[]!é"}]}`
-	const canonical = `%7B%22Version%22%3A%222012-10-17%22%2C%22Statement%22%3A%5B%7B%22Condition%22%3A%22AZaz09-._~%20%3A%40%26%3D%2B%24%2C%2F%3F%23%5B%5D%21%C3%A9%22%7D%5D%7D`
+	const canonical = `%7B%22Version%22%3A%222012-10-17%22%2C%22Statement%22%3A%5B%7B%22Condition%22%3A%22AZaz09-._~%20%3A%40%26%3D%2B%24%2C/%3F%23%5B%5D%21%C3%A9%22%7D%5D%7D`
 	if got, ok := decodeProviderPolicy(canonical); !ok || got != raw {
 		t.Fatalf("decodeProviderPolicy(canonical UTF-8 representation) = %q, %v", got, ok)
 	}
@@ -339,10 +350,10 @@ func TestSDKBoundary_ClassifiesInvalidUTF8InProviderPolicyFields(t *testing.T) {
 				switch r.Form.Get("Action") {
 				case "GetRole":
 					response := roleResponse("GetRole", role, "AROA0123456789ABCDEF")
-					response = strings.Replace(response, canonicalPolicyFixture(role.TrustPolicy), invalidPolicy, 1)
+					response = strings.Replace(response, pinnedLocalStackPolicyFixture(role.TrustPolicy), invalidPolicy, 1)
 					writeXML(w, response)
 				case "GetRolePolicy":
-					writeXML(w, `<GetRolePolicyResponse><GetRolePolicyResult><RoleName>`+role.Name+`</RoleName><PolicyName>`+role.PolicyName+`</PolicyName><PolicyDocument>`+xmlEscape(canonicalPolicyFixture(role.PermissionPolicy))+`</PolicyDocument></GetRolePolicyResult></GetRolePolicyResponse>`)
+					writeXML(w, `<GetRolePolicyResponse><GetRolePolicyResult><RoleName>`+role.Name+`</RoleName><PolicyName>`+role.PolicyName+`</PolicyName><PolicyDocument>`+xmlEscape(pinnedLocalStackPolicyFixture(role.PermissionPolicy))+`</PolicyDocument></GetRolePolicyResult></GetRolePolicyResponse>`)
 				default:
 					t.Fatalf("unexpected Action %q", r.Form.Get("Action"))
 				}
@@ -611,7 +622,7 @@ func runSDKProofOverLoopback(t *testing.T, enforceDeny bool) (ProofResult, error
 				t.Fatalf("ListRoles PathPrefix = %q, want no path filter", r.Form.Get("PathPrefix"))
 			}
 			if roleExists {
-				writeXML(w, `<ListRolesResponse><ListRolesResult><Roles><member><Path>`+role.Path+`</Path><RoleName>`+role.Name+`</RoleName><RoleId>AROA0123456789ABCDEF</RoleId><Arn>`+role.ARN+`</Arn><AssumeRolePolicyDocument>`+xmlEscape(canonicalPolicyFixture(role.TrustPolicy))+`</AssumeRolePolicyDocument><Description>`+role.Description+`</Description><Tags><member><Key>proof</Key><Value>`+marker+`</Value></member></Tags></member></Roles></ListRolesResult></ListRolesResponse>`)
+				writeXML(w, `<ListRolesResponse><ListRolesResult><Roles><member><Path>`+role.Path+`</Path><RoleName>`+role.Name+`</RoleName><RoleId>AROA0123456789ABCDEF</RoleId><Arn>`+role.ARN+`</Arn><AssumeRolePolicyDocument>`+xmlEscape(pinnedLocalStackPolicyFixture(role.TrustPolicy))+`</AssumeRolePolicyDocument><Description>`+role.Description+`</Description><Tags><member><Key>proof</Key><Value>`+marker+`</Value></member></Tags></member></Roles></ListRolesResult></ListRolesResponse>`)
 			} else {
 				writeXML(w, `<ListRolesResponse><ListRolesResult><Roles></Roles></ListRolesResult></ListRolesResponse>`)
 			}
@@ -628,7 +639,7 @@ func runSDKProofOverLoopback(t *testing.T, enforceDeny bool) (ProofResult, error
 			if !policyExists {
 				writeError(w, http.StatusNotFound, "NoSuchEntity", "absent")
 			} else {
-				writeXML(w, `<GetRolePolicyResponse><GetRolePolicyResult><RoleName>`+role.Name+`</RoleName><PolicyName>`+role.PolicyName+`</PolicyName><PolicyDocument>`+xmlEscape(canonicalPolicyFixture(storedPolicy))+`</PolicyDocument></GetRolePolicyResult></GetRolePolicyResponse>`)
+				writeXML(w, `<GetRolePolicyResponse><GetRolePolicyResult><RoleName>`+role.Name+`</RoleName><PolicyName>`+role.PolicyName+`</PolicyName><PolicyDocument>`+xmlEscape(pinnedLocalStackPolicyFixture(storedPolicy))+`</PolicyDocument></GetRolePolicyResult></GetRolePolicyResponse>`)
 			}
 		case "AssumeRole":
 			writeXML(w, `<AssumeRoleResponse><AssumeRoleResult><Credentials><AccessKeyId>ASIA0123456789ABCDEF</AccessKeyId><SecretAccessKey>assumed-secret</SecretAccessKey><SessionToken>assumed-token</SessionToken><Expiration>2030-01-01T00:00:00Z</Expiration></Credentials><AssumedRoleUser><Arn>arn:aws:sts::000000000042:assumed-role/`+role.Name+`/`+proofPrefix(marker)+`-session</Arn><AssumedRoleId>AROA0123456789ABCDEF:`+proofPrefix(marker)+`-session</AssumedRoleId></AssumedRoleUser><SourceIdentity>`+proofPrefix(marker)+`-source</SourceIdentity></AssumeRoleResult></AssumeRoleResponse>`)
@@ -704,6 +715,9 @@ func assertExactForm(t *testing.T, r *http.Request, want map[string]string) {
 func canonicalPolicyFixture(raw string) string {
 	return strings.ReplaceAll(url.QueryEscape(raw), "+", "%20")
 }
+func pinnedLocalStackPolicyFixture(raw string) string {
+	return strings.ReplaceAll(canonicalPolicyFixture(raw), "%2F", "/")
+}
 func invalidUTF8PolicyFixture(encodedBytes string) string {
 	return `%7B%22Version%22%3A%222012-10-17%22%2C%22Statement%22%3A%5B%7B%22Condition%22%3A%22` + encodedBytes + `%22%7D%5D%7D`
 }
@@ -723,7 +737,7 @@ func userResponse(action string, spec PrincipalSpec, id string) string {
 	return `<` + action + `Response><` + action + `Result><User><Path>` + spec.Path + `</Path><UserName>` + spec.Name + `</UserName><UserId>` + id + `</UserId><Arn>` + spec.ARN + `</Arn><Tags><member><Key>proof</Key><Value>` + spec.Marker + `</Value></member></Tags></User></` + action + `Result></` + action + `Response>`
 }
 func roleResponse(action string, spec RoleSpec, id string) string {
-	return `<` + action + `Response><` + action + `Result><Role><Path>` + spec.Path + `</Path><RoleName>` + spec.Name + `</RoleName><RoleId>` + id + `</RoleId><Arn>` + spec.ARN + `</Arn><AssumeRolePolicyDocument>` + xmlEscape(canonicalPolicyFixture(spec.TrustPolicy)) + `</AssumeRolePolicyDocument><Description>` + spec.Description + `</Description><Tags><member><Key>proof</Key><Value>` + spec.Marker + `</Value></member></Tags></Role></` + action + `Result></` + action + `Response>`
+	return `<` + action + `Response><` + action + `Result><Role><Path>` + spec.Path + `</Path><RoleName>` + spec.Name + `</RoleName><RoleId>` + id + `</RoleId><Arn>` + spec.ARN + `</Arn><AssumeRolePolicyDocument>` + xmlEscape(pinnedLocalStackPolicyFixture(spec.TrustPolicy)) + `</AssumeRolePolicyDocument><Description>` + spec.Description + `</Description><Tags><member><Key>proof</Key><Value>` + spec.Marker + `</Value></member></Tags></Role></` + action + `Result></` + action + `Response>`
 }
 
 var _ = time.Second
