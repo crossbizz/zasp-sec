@@ -499,7 +499,7 @@ Record exact pins, RED/GREEN counts, live fixed output, cardinality/isolation/la
 
 For every accepted finding, preserve a genuine focused RED, apply the minimal fix in a separate commit, rerun all affected/full gates, update ignored evidence, and request scoped re-review. Do not controller-fix subagent findings.
 
-- [ ] **Step 8: Mark M0-10 Complete after zero-finding review**
+- [x] **Step 8: Mark M0-10 Complete after zero-finding review**
 
 Move M0-10 from In progress to Complete. Counts become Pending `718`, In progress `0`, Complete `9`, Blocked `1`; M0 becomes Pending `17`, In progress `0`, Complete `9`, Blocked `1`. Keep M0-09/PROV-01 Blocked and R-03 incomplete.
 

@@ -161,7 +161,7 @@ The runner accepts no dotenv input, never uses shared development LocalStack,
 and emits only a fixed result line. PROV-01 cannot complete M0-09 or R-03.
 PROV-01 is Blocked on LocalStack 4.7.0 because the live provider did not return
 SourceIdentity and accepted a wrong SourceIdentity despite the required trust
-condition. M0-10 is In progress under the Cartography delivery waiver for a
+condition. M0-10 is Complete under the Cartography delivery waiver for a
 fixture-only normalization and OSS integration proof; it makes no AWS/GitHub
 authorization-parity claim. Official LocalStack v4.14.0 source retains the
 same unsupported forwarding path; that is source review only, not a claim that
@@ -191,7 +191,7 @@ npm run proof:cartography:test
 npm run proof:cartography:run
 ```
 
-This fixture-only integration proof does not prove AWS/GitHub authorization parity. M0-10 remains In progress; M0-09 and PROV-01 remain Blocked, and R-03 remains incomplete.
+This fixture-only integration proof does not prove AWS/GitHub authorization parity. M0-10 is Complete; M0-09 and PROV-01 remain Blocked, and R-03 remains incomplete.
 
 ## Real AWS cross-account IAM proof
 

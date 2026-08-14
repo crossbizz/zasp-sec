@@ -48,12 +48,12 @@ describe("Cartography scope proof delivery-waiver status contract", () => {
     expect(readme).toContain("customer-label normalization");
     expect(readme).toContain("cleanup");
     expect(readme).toContain("does not prove AWS/GitHub authorization parity");
-    expect(tracker).toContain("M0-10 remains In progress");
+    expect(tracker).toContain("M0-10 is Complete");
     expect(tracker).toContain("M0-09 and PROV-01 remain Blocked");
     expect(tracker).toContain("R-03 remains incomplete");
   });
 
-  it("starts M0-10 without changing the blocked provider dependencies", async () => {
+  it("completes M0-10 without changing the blocked provider dependencies", async () => {
     const [waiver, tracker, readme, sourcePlan] = await Promise.all([
       readFile(
         resolve(repositoryRoot, "docs/internal/2026-08-14-m0-10-cartography-delivery-waiver-design.md"),
@@ -68,17 +68,18 @@ describe("Cartography scope proof delivery-waiver status contract", () => {
     ]);
 
     expect(tracker).toContain("| Pending | 718 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 8 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 9 |");
     expect(tracker).toContain("| Blocked | 1 |");
-    expect(tracker).toMatch(/\| M0 \| 27 \| 17 \| 1 \| 8 \| 1 \|/);
+    expect(tracker).toMatch(/\| M0 \| 27 \| 17 \| 0 \| 9 \| 1 \|/);
     expect(tracker).toContain(
-      "| M0-10 | August 14, 2026 | Implement the two-Organization Cartography AWS/GitHub fixture proof under the delivery waiver; normalization and OSS integration only, with no AWS/GitHub authorization-parity claim. |",
+      "| M0-10 | August 14, 2026 | Two exact-pinned disposable Cartography/Neo4j fixture runs loaded two synthetic Organizations and proved eight normalized nodes, four relationships, collision isolation, customer-label safety, exact cleanup, pinned gates/scans, two consecutive live passes, and zero-finding independent review under the fixture-only waiver; no AWS/GitHub authorization-parity claim. |",
     );
+    expect(tracker.match(/## In progress[\s\S]*?## Complete/)?.[0]).not.toContain("| M0-10 |");
     expect(tracker).toMatch(/## Blocked[\s\S]*?\| M0-09 \| August 13, 2026 \|/);
     expect(tracker).toContain("M0-09 and PROV-01 remain Blocked");
     expect(tracker).toContain("R-03 remains incomplete");
-    expect(readme).toContain("M0-10 is In progress under the Cartography delivery waiver");
+    expect(readme).toContain("M0-10 is Complete under the Cartography delivery waiver");
     expect(waiver).toContain("M0-10 may prove only the Cartography adapter");
     expect(waiver).toContain("It may not claim cross-account IAM");
     expect(sourcePlan).toContain("**M0-10 - Cartography proof**");
