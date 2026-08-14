@@ -1,5 +1,12 @@
 import { createHash } from "node:crypto";
 
+import {
+  canonicalScopedSourceId,
+  validateOrganizationId,
+} from "../prowler-evidence/scoped_id.mjs";
+
+export { validateOrganizationId } from "../prowler-evidence/scoped_id.mjs";
+
 const nodeKinds = new Map([
   ["AWSAccount", ["aws", "cloud_account"]],
   ["AWSRole", ["aws", "identity_role"]],
@@ -26,19 +33,11 @@ const labelByNormalizedKind = new Map([
   ["code_repository", "GitHubRepository"],
 ]);
 
-const organizationIdPattern = /^org_[a-z0-9]{16}$/;
 const accountIdPattern = /^\d{12}$/;
 const roleArnPattern = /^arn:aws:iam::(\d{12}):role\/[A-Za-z0-9+=,.@_/-]{1,512}$/;
 const repositoryIdPattern = /^[1-9]\d*$/;
 const digestPattern = /^[a-f0-9]{64}$/;
 const forbiddenKindPattern = /cartography|neo4j|aws|github/i;
-
-export function validateOrganizationId(value) {
-  if (typeof value !== "string" || !organizationIdPattern.test(value)) {
-    throw new TypeError("organization_id is invalid");
-  }
-  return value;
-}
 
 export function parseRawGraph(value) {
   const rawGraph = copyData(value, new Set());
@@ -443,7 +442,7 @@ function hash(parts) {
 }
 
 function canonicalNodeId(organizationId, provider, kind, sourceId) {
-  return `${organizationId}:${provider}:${kind}:${hash([organizationId, provider, kind, sourceId])}`;
+  return canonicalScopedSourceId(organizationId, provider, kind, sourceId);
 }
 
 function canonicalRelationshipId(organizationId, kind, sourceId, targetId) {

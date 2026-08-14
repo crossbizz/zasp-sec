@@ -10,6 +10,8 @@ import {
   validateOrganizationId,
 } from "./normalizer.mjs";
 
+const scopedIdApi = await import("../prowler-evidence/scoped_id.mjs").catch(() => undefined);
+
 const fixtureA = JSON.parse(
   await readFile(new URL("./fixtures/org-a.json", import.meta.url), "utf8"),
 );
@@ -123,6 +125,31 @@ test("canonical IDs use the fixed Organization-scoped SHA-256 grammar", () => {
   assert.equal(
     normalized.nodes[0].id,
     "org_aaaaaaaaaaaaaaaa:aws:cloud_account:4d769aea32fd04eee6db097041f0f2f5503ec4c61185af5e95f215bf0446c4be",
+  );
+});
+
+test("the shared scoped-source-ID helper preserves the exact M0-10 IAM role ID", () => {
+  assert.equal(
+    typeof scopedIdApi?.canonicalScopedSourceId,
+    "function",
+    "canonicalScopedSourceId production API is absent",
+  );
+  const normalized = validNormalizedGraph();
+  const role = normalized.nodes.find((node) => node.kind === "identity_role");
+  assert.ok(role);
+
+  assert.equal(
+    scopedIdApi.canonicalScopedSourceId(
+      organizationA,
+      "aws",
+      "identity_role",
+      "arn:aws:iam::000000000000:role/shared-fixture-role",
+    ),
+    role.id,
+  );
+  assert.equal(
+    role.id,
+    "org_aaaaaaaaaaaaaaaa:aws:identity_role:81eeba69c5c0887f4083a0e195a431b852d750fd3ee41ad276c1142285d1b77b",
   );
 });
 
