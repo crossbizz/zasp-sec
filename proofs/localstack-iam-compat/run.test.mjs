@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
+import { readFileSync } from "node:fs";
 import http from "node:http";
 import { tmpdir } from "node:os";
 import { PassThrough } from "node:stream";
@@ -272,6 +273,24 @@ test("kills an uncooperative child at its deadline and on combined split-stream 
     );
     assert.deepEqual(child.signals, ["SIGKILL"]);
   }
+});
+
+test("keeps the Node supervisor above the full Go timeline plus cleanup overhead", () => {
+  const goSource = readFileSync(new URL("./main.go", import.meta.url), "utf8");
+  const nodeSource = readFileSync(new URL("./run.mjs", import.meta.url), "utf8");
+  const goSeconds = (name) => {
+    const match = goSource.match(new RegExp(`\\b${name}\\s*=\\s*([0-9_]+)\\s*\\*\\s*time\\.Second`));
+    assert.ok(match, `missing Go ${name} duration`);
+    return Number(match[1].replaceAll("_", ""));
+  };
+  const nodeMatch = nodeSource.match(/const proofSupervisorTimeoutMilliseconds = ([0-9_]+);/);
+  assert.ok(nodeMatch, "missing finite Node proof supervisor budget");
+  assert.match(nodeSource, /timeoutMs: proofSupervisorTimeoutMilliseconds/);
+
+  const goMaximumMilliseconds = (goSeconds("mainTimeout") + 3 * goSeconds("cleanupTimeout")) * 1_000;
+  const cleanupAndOverheadMarginMilliseconds = 60_000;
+  const nodeBudgetMilliseconds = Number(nodeMatch[1].replaceAll("_", ""));
+  assert.ok(nodeBudgetMilliseconds >= goMaximumMilliseconds + cleanupAndOverheadMarginMilliseconds);
 });
 
 test("contains construction and orchestration details at the one-line fixed-output boundary", async () => {

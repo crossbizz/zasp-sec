@@ -442,7 +442,7 @@ Expected: tests fail on missing exports and orchestrator behavior.
 
 - [ ] **Step 6: Implement orchestrator GREEN**
 
-Implement the declared exports with unique `zasp-prov-01-<16 hex>` names, labels `zasp.proof=prov-01` and exact marker, random loopback publishing, 16 KiB/500 ms readiness bounds, exact IAM/STS health checks, offline temporary Go binary build with allowlisted cache variables, proof process environment containing only endpoint and PATH, 180-second outer timeout, fixed 4 KiB output cap, and exact candidate-aware removal/absence.
+Implement the declared exports with unique `zasp-prov-01-<16 hex>` names, labels `zasp.proof=prov-01` and exact marker, random loopback publishing, 16 KiB/500 ms readiness bounds, exact IAM/STS health checks, offline temporary Go binary build with allowlisted cache variables, proof process environment containing only endpoint and PATH, a 300-second outer proof timeout covering the 90-second main window plus three 30-second reconciliation/cleanup windows and at least 60 seconds of cleanup/process overhead, fixed 4 KiB output cap, and exact candidate-aware removal/absence.
 
 Docker arguments must be constructed exactly from owned inputs:
 

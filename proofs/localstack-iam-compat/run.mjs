@@ -15,6 +15,7 @@ const imageIDPattern = /^sha256:[a-f0-9]{64}$/;
 const readinessBodyLimit = 16_384;
 const readinessDeadlineMilliseconds = 500;
 const processOutputLimit = 4096;
+const proofSupervisorTimeoutMilliseconds = 300_000;
 const proofDirectory = fileURLToPath(new URL(".", import.meta.url));
 
 function categorized(category) {
@@ -238,7 +239,7 @@ export class DockerRuntime {
       const executable = join(directory, "iam-proof");
       const build = await runBounded("go", ["build", "-trimpath", "-mod=readonly", "-o", executable, "."], { cwd: proofDirectory, env: buildGoToolEnvironment(this.path, caches.GOCACHE, caches.GOMODCACHE), timeoutMs: 90_000, outputLimit: processOutputLimit }, this.spawnProcess);
       if (build?.status !== 0 || !boundedOutput(build) || String(build?.stdout ?? "") !== "" || String(build?.stderr ?? "") !== "") return resultCode(build);
-      const proof = await runBounded(executable, [], { cwd: proofDirectory, env: buildProofEnvironment(endpoint, this.path), timeoutMs: 180_000, outputLimit: processOutputLimit }, this.spawnProcess);
+      const proof = await runBounded(executable, [], { cwd: proofDirectory, env: buildProofEnvironment(endpoint, this.path), timeoutMs: proofSupervisorTimeoutMilliseconds, outputLimit: processOutputLimit }, this.spawnProcess);
       if (proof?.status === 0 && boundedOutput(proof) && proof.stdout === `${successLine}\n` && proof.stderr === "") code = 0;
       else code = resultCode(proof);
     } catch { code = 1; }
