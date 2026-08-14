@@ -3,8 +3,11 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import logging
 import os
 import subprocess
+import stat
+import sys
 import tempfile
 import time
 import unittest
@@ -108,7 +111,6 @@ def official_document():
                 "desc": "official description",
                 "title": "IAM service role prevents cross-service confused deputy attack",
                 "uid": "prowler-aws-iam_role_cross_service_confused_deputy_prevention-000000000000-us-east-1-shared-fixture-role",
-                "name": "shared-fixture-role",
                 "types": [
                     "Software and Configuration Checks/AWS Security Best Practices",
                     "TTPs/Privilege Escalation",
@@ -330,7 +332,7 @@ class ArtifactBoundaryTests(unittest.TestCase):
 
         self.assertEqual(len(parsed), 1)
         self.assertEqual(parsed[0]["status_code"], "FAIL")
-        self.assertEqual(parsed[0]["finding_info"]["name"], "shared-fixture-role")
+        self.assertNotIn("name", parsed[0]["finding_info"])
 
     def test_rejects_no_multiple_malformed_and_schema_drifted_findings(self):
         invalid = [[], official_document() * 2]
@@ -339,12 +341,15 @@ class ArtifactBoundaryTests(unittest.TestCase):
             ((0, "metadata", "product", "version"), "5.38.0"),
             ((0, "metadata", "event_code"), "other_check"),
             ((0, "status_code"), "PASS"),
+            ((0, "status_id"), True),
+            ((0, "activity_id"), True),
             ((0, "severity"), "Medium"),
             ((0, "class_uid"), 2005),
             ((0, "type_uid"), 200402),
             ((0, "cloud", "account", "uid"), "111111111111"),
             ((0, "cloud", "region"), "us-west-2"),
             ((0, "resources", 0, "uid"), "arn:aws:iam::000000000000:role/other"),
+            ((0, "finding_info", "analytic", "type_id"), True),
         ):
             value = official_document()
             target = value
@@ -448,6 +453,7 @@ class RuntimeTests(unittest.TestCase):
             executable="/home/prowler/.venv/bin/python",
             python_version="3.12.13",
             distribution_version="5.39.0",
+            ocsf_distribution_version="0.10.0",
             config_version="5.39.0",
             check_source="/home/prowler/prowler/providers/aws/services/iam/iam_role_cross_service_confused_deputy_prevention/iam_role_cross_service_confused_deputy_prevention.py",
             ocsf_source="/home/prowler/prowler/lib/outputs/ocsf/ocsf.py",
@@ -458,6 +464,7 @@ class RuntimeTests(unittest.TestCase):
             ("executable", "/usr/bin/python"),
             ("python_version", "3.12.12"),
             ("distribution_version", "5.38.0"),
+            ("ocsf_distribution_version", "0.9.0"),
             ("config_version", "5.38.0"),
             ("check_source", "/tmp/check.py"),
             ("ocsf_source", "/tmp/ocsf.py"),
@@ -468,6 +475,68 @@ class RuntimeTests(unittest.TestCase):
                 fixture_runner.validate_runtime_identity(
                     fixture_runner.RuntimeIdentity(**values)
                 )
+
+    def test_every_critical_symbol_is_bound_to_its_exact_export_and_source(self):
+        for rule in fixture_runner.SYMBOL_RULES:
+            def official_symbol():
+                return None
+
+            official_symbol.__module__ = rule.module
+            module = SimpleNamespace(**{rule.export: official_symbol})
+            modules = {rule.module: module}
+            fixture_runner.validate_symbol_binding(
+                official_symbol,
+                rule,
+                modules=modules,
+                source_file=lambda value, path=rule.source: path,
+                realpath=lambda path: path,
+                lstat=lambda path: SimpleNamespace(st_mode=stat.S_IFREG | 0o444),
+                source_digest=lambda path, digest=rule.sha256: digest,
+            )
+
+            forged = SimpleNamespace()
+            setattr(forged, rule.export, object())
+            with self.subTest(symbol=rule.label), self.assertRaises(ValueError):
+                fixture_runner.validate_symbol_binding(
+                    official_symbol,
+                    rule,
+                    modules={rule.module: forged},
+                    source_file=lambda value, path=rule.source: path,
+                    realpath=lambda path: path,
+                    lstat=lambda path: SimpleNamespace(st_mode=stat.S_IFREG | 0o444),
+                    source_digest=lambda path, digest=rule.sha256: digest,
+                )
+
+    def test_symbol_binding_rejects_module_symlink_out_of_root_nonregular_and_digest_drift(self):
+        rule = fixture_runner.SYMBOL_RULES[0]
+
+        def symbol():
+            return None
+
+        symbol.__module__ = rule.module
+        module = SimpleNamespace(**{rule.export: symbol})
+        base = {
+            "modules": {rule.module: module},
+            "source_file": lambda value: rule.source,
+            "realpath": lambda path: path,
+            "lstat": lambda path: SimpleNamespace(st_mode=stat.S_IFREG | 0o444),
+            "source_digest": lambda path: rule.sha256,
+        }
+        invalid = [
+            {"source_file": lambda value: "/tmp/forged.py"},
+            {"realpath": lambda path: "/tmp/forged.py"},
+            {"lstat": lambda path: SimpleNamespace(st_mode=stat.S_IFLNK | 0o777)},
+            {"lstat": lambda path: SimpleNamespace(st_mode=stat.S_IFDIR | 0o555)},
+            {"source_digest": lambda path: "0" * 64},
+        ]
+        for mutation in invalid:
+            dependencies = {**base, **mutation}
+            with self.subTest(mutation=mutation), self.assertRaises(ValueError):
+                fixture_runner.validate_symbol_binding(symbol, rule, **dependencies)
+
+        symbol.__module__ = "forged.module"
+        with self.assertRaises(ValueError):
+            fixture_runner.validate_symbol_binding(symbol, rule, **base)
 
 
 class FileBoundaryTests(unittest.TestCase):
@@ -561,6 +630,73 @@ class MainBoundaryTests(unittest.TestCase):
         self.assertEqual(json.loads(writes[0])[0]["status_code"], "FAIL")
         self.assertEqual(self.deadline, fixture_runner.OPERATION_TIMEOUT_SECONDS)
 
+    def test_noisy_check_and_logger_output_never_reaches_actual_process_streams(self):
+        runtime = fake_runtime()
+        ordinary_execute = runtime.check_type.execute
+
+        def noisy_execute(check):
+            print("sensitive check stdout")
+            print("sensitive check stderr", file=sys.stderr)
+            noisy_logger.warning("sensitive logger output")
+            return ordinary_execute(check)
+
+        runtime.check_type.execute = noisy_execute
+        fixed = io.StringIO()
+        actual_stdout = io.StringIO()
+        actual_stderr = io.StringIO()
+        noisy_logger = logging.getLogger("fixture-noise")
+        noisy_logger.propagate = False
+        noisy_logger.setLevel(logging.WARNING)
+        bound_handler = logging.StreamHandler(actual_stderr)
+        noisy_logger.addHandler(bound_handler)
+        try:
+            with (
+                contextlib.redirect_stdout(actual_stdout),
+                contextlib.redirect_stderr(actual_stderr),
+                mock.patch.object(fixture_runner, "_read_fixture", return_value=FIXTURE_BYTES),
+                mock.patch.object(fixture_runner, "_load_runtime", return_value=runtime),
+                mock.patch.object(fixture_runner, "_write_artifact"),
+                mock.patch.object(fixture_runner, "_absolute_deadline", self.fake_deadline),
+            ):
+                code = fixture_runner.run_main(ARGV, ENVIRON, fixed)
+        finally:
+            noisy_logger.removeHandler(bound_handler)
+            bound_handler.close()
+
+        self.assertEqual(code, 3)
+        self.assertEqual(fixed.getvalue(), fixture_runner.SUCCESS_LINE)
+        self.assertEqual(actual_stdout.getvalue(), "")
+        self.assertEqual(actual_stderr.getvalue(), "")
+
+    def test_noisy_import_raise_and_capture_overflow_emit_only_fixed_failure(self):
+        def noisy_import():
+            print("sensitive import stdout")
+            print("sensitive import stderr", file=sys.stderr)
+            logging.getLogger("fixture-import-noise").warning("sensitive import log")
+            raise RuntimeError("sensitive import panic")
+
+        for loader in (
+            noisy_import,
+            lambda: print("x" * (fixture_runner.MAX_CAPTURE_BYTES + 1)),
+        ):
+            fixed = io.StringIO()
+            actual_stdout = io.StringIO()
+            actual_stderr = io.StringIO()
+            with (
+                contextlib.redirect_stdout(actual_stdout),
+                contextlib.redirect_stderr(actual_stderr),
+                mock.patch.object(fixture_runner, "_read_fixture", return_value=FIXTURE_BYTES),
+                mock.patch.object(fixture_runner, "_load_runtime", side_effect=loader),
+                mock.patch.object(fixture_runner, "_remove_output"),
+                mock.patch.object(fixture_runner, "_absolute_deadline", self.fake_deadline),
+            ):
+                code = fixture_runner.run_main(ARGV, ENVIRON, fixed)
+            with self.subTest(loader=loader):
+                self.assertEqual(code, 1)
+                self.assertEqual(fixed.getvalue(), fixture_runner.FAILURE_LINE)
+                self.assertEqual(actual_stdout.getvalue(), "")
+                self.assertEqual(actual_stderr.getvalue(), "")
+
     def test_timeout_panic_client_call_and_write_failure_emit_only_fixed_failure(self):
         failures = [
             TimeoutError("secret timeout"),
@@ -591,10 +727,6 @@ class MainBoundaryTests(unittest.TestCase):
         self.assertLess(time.monotonic() - before, 0.5)
 
 
-@unittest.skipUnless(
-    os.environ.get("ZASP_RUN_PROWLER_IMAGE_TEST") == "1",
-    "set ZASP_RUN_PROWLER_IMAGE_TEST=1 for the pinned offline image check",
-)
 class PinnedImageCompatibilityTests(unittest.TestCase):
     def test_exact_image_imports_check_and_emits_official_ocsf_without_network(self):
         repository_directory = Path(__file__).resolve().parent
@@ -607,6 +739,8 @@ class PinnedImageCompatibilityTests(unittest.TestCase):
                     "docker",
                     "run",
                     "--rm",
+                    "--pull",
+                    "never",
                     "--network",
                     "none",
                     "--read-only",

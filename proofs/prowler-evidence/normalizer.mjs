@@ -329,7 +329,7 @@ function validateOcsfDocument(document) {
 
   expectKeys(
     finding.finding_info,
-    ["analytic", "created_time", "created_time_dt", "desc", "title", "uid", "name", "types"],
+    ["analytic", "created_time", "created_time_dt", "desc", "title", "uid", "types"],
     "finding_info",
   );
   expectKeys(
@@ -353,7 +353,6 @@ function validateOcsfDocument(document) {
     finding.finding_info.analytic.type_id !== 1 ||
     finding.finding_info.analytic.type !== "Rule" ||
     finding.finding_info.analytic.category !== "iam" ||
-    finding.finding_info.name !== expectedRoleName ||
     !sameArray(finding.finding_info.types, [
       "Software and Configuration Checks/AWS Security Best Practices",
       "TTPs/Privilege Escalation",

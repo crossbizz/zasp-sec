@@ -72,7 +72,6 @@ function exactOcsfFinding() {
         desc: "upstream check description",
         title: "upstream check title",
         uid: "upstream-finding-uuid",
-        name: roleName,
         types: [
           "Software and Configuration Checks/AWS Security Best Practices",
           "TTPs/Privilege Escalation",
@@ -223,11 +222,11 @@ test("normalizes the exact Prowler 5.39.0 OCSF finding into one product record",
   assert.deepEqual(normalize(), expectedNormalized());
 });
 
-test("requires the exact official OCSF finding_info resource name", () => {
+test("rejects a non-official OCSF finding_info resource name field", () => {
   assert.deepEqual(normalize(), expectedNormalized());
 
   const value = exactOcsfFinding();
-  value[0].finding_info.name = "other-role";
+  value[0].finding_info.name = roleName;
   assertArtifactRejected(artifact(value));
 });
 

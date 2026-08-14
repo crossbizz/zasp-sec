@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import importlib
 import importlib.metadata
+import inspect
+import io
 import json
+import logging
 import os
 import platform
 import re
@@ -18,6 +22,8 @@ from typing import Callable, Mapping, TextIO
 
 MAX_FIXTURE_BYTES = 16 * 1024
 MAX_ARTIFACT_BYTES = 64 * 1024
+MAX_CAPTURE_BYTES = 64 * 1024
+MAX_SOURCE_BYTES = 4 * 1024 * 1024
 MAX_JSON_DEPTH = 16
 MAX_STRING_BYTES = 16 * 1024
 MAX_COLLECTION_SIZE = 32
@@ -27,6 +33,7 @@ OUTPUT_PATH = "/proof/output/prowler.ocsf.json"
 SUCCESS_LINE = "Prowler fixture bridge produced one FAIL finding.\n"
 FAILURE_LINE = "Prowler fixture bridge failed.\n"
 EXPECTED_PROWLER_VERSION = "5.39.0"
+EXPECTED_OCSF_MODELS_VERSION = "0.10.0"
 EXPECTED_PYTHON_VERSION = "3.12.13"
 EXPECTED_INTERPRETER = "/home/prowler/.venv/bin/python"
 FIXED_OBSERVATION = datetime(2026, 8, 14, 0, 0, 0, tzinfo=timezone.utc)
@@ -62,6 +69,8 @@ _CHECK_SOURCE = (
     "iam_role_cross_service_confused_deputy_prevention.py"
 )
 _OCSF_SOURCE = "/home/prowler/prowler/lib/outputs/ocsf/ocsf.py"
+_PROWLER_SOURCE_ROOT = "/home/prowler/prowler"
+_OCSF_MODELS_SOURCE_ROOT = "/home/prowler/.venv/lib/python3.12/site-packages/py_ocsf_models"
 _HOSTNAME_PATTERN = re.compile(r"zasp-m0-11-[0-9a-f]{16}-prowler\Z")
 _UUID7_PATTERN = re.compile(
     r"[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\Z"
@@ -121,9 +130,80 @@ class RuntimeIdentity:
     executable: str
     python_version: str
     distribution_version: str
+    ocsf_distribution_version: str
     config_version: str
     check_source: str
     ocsf_source: str
+
+
+@dataclass(frozen=True)
+class SymbolRule:
+    label: str
+    module: str
+    export: str
+    source: str
+    source_root: str
+    sha256: str
+
+
+SYMBOL_RULES = (
+    SymbolRule(
+        "Role",
+        "prowler.providers.aws.services.iam.iam_service",
+        "Role",
+        "/home/prowler/prowler/providers/aws/services/iam/iam_service.py",
+        _PROWLER_SOURCE_ROOT,
+        "d5e87ac4e0e3f17df5ebb5e610451b2a538fe00b6ca4f19c19ebd87fe2eb849d",
+    ),
+    SymbolRule(
+        "Check_Report_AWS",
+        "prowler.lib.check.models",
+        "Check_Report_AWS",
+        "/home/prowler/prowler/lib/check/models.py",
+        _PROWLER_SOURCE_ROOT,
+        "422db283f9b16025c584593bb74c9bef2cc6c3570385ec15334184f2985c2e9d",
+    ),
+    SymbolRule(
+        "Finding",
+        "prowler.lib.outputs.finding",
+        "Finding",
+        "/home/prowler/prowler/lib/outputs/finding.py",
+        _PROWLER_SOURCE_ROOT,
+        "00ed79bee5e32239d3cce4943c70df33dbfe3f85056deb750ad11f2073613cce",
+    ),
+    SymbolRule(
+        "OCSF",
+        "prowler.lib.outputs.ocsf.ocsf",
+        "OCSF",
+        _OCSF_SOURCE,
+        _PROWLER_SOURCE_ROOT,
+        "e6f1136285057bd2d9635b0e190e86dfec61ba1a4ebbf7cdfd2139032dac5379",
+    ),
+    SymbolRule(
+        "DetectionFinding",
+        "py_ocsf_models.events.findings.detection_finding",
+        "DetectionFinding",
+        _OCSF_MODELS_SOURCE_ROOT + "/events/findings/detection_finding.py",
+        _OCSF_MODELS_SOURCE_ROOT,
+        "72a26d986f71b5e533e7e530531a466f3db8738cfda0db0ae21a84aeb4d25fd4",
+    ),
+    SymbolRule(
+        "is_policy_public",
+        "prowler.providers.aws.services.iam.lib.policy",
+        "is_policy_public",
+        "/home/prowler/prowler/providers/aws/services/iam/lib/policy.py",
+        _PROWLER_SOURCE_ROOT,
+        "30929177646fcf5c08908fe847d6223272edd28d5db69c61e88eb18a66ee028b",
+    ),
+    SymbolRule(
+        _CHECK_ID,
+        _CHECK_MODULE,
+        _CHECK_ID,
+        _CHECK_SOURCE,
+        _PROWLER_SOURCE_ROOT,
+        "d9b106165878e8221d7faee82b908dd13bcbdf317d5180012fa27d63bfce7187",
+    ),
+)
 
 
 class _GuardedIamClient:
@@ -217,7 +297,9 @@ def parse_official_artifact(raw: bytes) -> list[dict[str, object]]:
     ):
         raise ValueError("invalid OCSF metadata")
     if (
-        finding["severity_id"] != 4
+        type(finding["status_id"]) is not int
+        or type(finding["activity_id"]) is not int
+        or finding["severity_id"] != 4
         or finding["severity"] != "High"
         or finding["status"] != "New"
         or finding["status_code"] != "FAIL"
@@ -242,7 +324,6 @@ def parse_official_artifact(raw: bytes) -> list[dict[str, object]]:
             "desc",
             "title",
             "uid",
-            "name",
             "types",
         ),
         "finding info",
@@ -252,10 +333,10 @@ def parse_official_artifact(raw: bytes) -> list[dict[str, object]]:
     )
     if (
         analytic["uid"] != _CHECK_ID
+        or type(analytic["type_id"]) is not int
         or analytic["type_id"] != 1
         or analytic["type"] != "Rule"
         or analytic["category"] != "iam"
-        or info["name"] != _ROLE_NAME
         or info["types"]
         != [
             "Software and Configuration Checks/AWS Security Best Practices",
@@ -369,11 +450,49 @@ def validate_runtime_identity(identity: RuntimeIdentity) -> None:
         identity.executable != EXPECTED_INTERPRETER
         or identity.python_version != EXPECTED_PYTHON_VERSION
         or identity.distribution_version != EXPECTED_PROWLER_VERSION
+        or identity.ocsf_distribution_version != EXPECTED_OCSF_MODELS_VERSION
         or identity.config_version != EXPECTED_PROWLER_VERSION
         or identity.check_source != _CHECK_SOURCE
         or identity.ocsf_source != _OCSF_SOURCE
     ):
         raise ValueError("invalid Prowler runtime")
+
+
+def validate_symbol_binding(
+    value: object,
+    rule: SymbolRule,
+    *,
+    modules: Mapping[str, object] | None = None,
+    source_file: Callable[[object], str | None] | None = None,
+    realpath: Callable[[str], str] | None = None,
+    lstat: Callable[[str], os.stat_result] | None = None,
+    source_digest: Callable[[str], str] | None = None,
+) -> None:
+    modules = sys.modules if modules is None else modules
+    source_file = inspect.getsourcefile if source_file is None else source_file
+    realpath = os.path.realpath if realpath is None else realpath
+    lstat = os.lstat if lstat is None else lstat
+    source_digest = _source_digest if source_digest is None else source_digest
+
+    module = modules.get(rule.module)
+    source = source_file(value)
+    if (
+        type(rule.module) is not str
+        or type(rule.export) is not str
+        or type(source) is not str
+        or getattr(value, "__module__", None) != rule.module
+        or module is None
+        or getattr(module, rule.export, None) is not value
+        or source != rule.source
+        or realpath(source) != rule.source
+        or os.path.commonpath((rule.source_root, rule.source)) != rule.source_root
+    ):
+        raise ValueError(f"invalid {rule.label} runtime binding")
+    metadata = lstat(source)
+    if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
+        raise ValueError(f"invalid {rule.label} runtime source")
+    if source_digest(source) != rule.sha256:
+        raise ValueError(f"invalid {rule.label} runtime source")
 
 
 def execute_fixture(fixture: Fixture, runtime: RuntimeAPI) -> bytes:
@@ -441,13 +560,144 @@ def validate_boundary(argv: list[str], environ: Mapping[str, str]) -> None:
         raise ValueError("invalid environment")
 
 
+class _CaptureBudget:
+    __slots__ = ("maximum", "used", "overflowed")
+
+    def __init__(self, maximum: int) -> None:
+        self.maximum = maximum
+        self.used = 0
+        self.overflowed = False
+
+    def consume(self, size: int) -> None:
+        if type(size) is not int or size < 0:
+            raise TypeError("invalid capture size")
+        if self.used + size > self.maximum:
+            self.overflowed = True
+            raise OverflowError("captured process output exceeded limit")
+        self.used += size
+
+
+class _BoundedBinarySink(io.RawIOBase):
+    __slots__ = ("_budget",)
+
+    def __init__(self, budget: _CaptureBudget) -> None:
+        self._budget = budget
+
+    def writable(self) -> bool:
+        return True
+
+    def write(self, value: bytes | bytearray) -> int:
+        if type(value) not in (bytes, bytearray):
+            raise TypeError("captured binary output must be bytes")
+        self._budget.consume(len(value))
+        return len(value)
+
+
+class _BoundedTextSink(io.TextIOBase):
+    __slots__ = ("_budget", "_binary")
+
+    def __init__(self, budget: _CaptureBudget) -> None:
+        self._budget = budget
+        self._binary = _BoundedBinarySink(budget)
+
+    @property
+    def buffer(self) -> _BoundedBinarySink:
+        return self._binary
+
+    @property
+    def encoding(self) -> str:
+        return "utf-8"
+
+    def writable(self) -> bool:
+        return True
+
+    def isatty(self) -> bool:
+        return False
+
+    def write(self, value: str) -> int:
+        if type(value) is not str:
+            raise TypeError("captured text output must be a string")
+        self._budget.consume(len(value.encode("utf-8", errors="strict")))
+        return len(value)
+
+    def flush(self) -> None:
+        return None
+
+
+def _stream_handlers() -> tuple[logging.StreamHandler, ...]:
+    handlers: list[logging.StreamHandler] = []
+    seen: set[int] = set()
+    loggers: list[logging.Logger] = [logging.getLogger()]
+    loggers.extend(
+        value
+        for value in logging.Logger.manager.loggerDict.values()
+        if isinstance(value, logging.Logger)
+    )
+    for logger in loggers:
+        for handler in logger.handlers:
+            if isinstance(handler, logging.StreamHandler) and id(handler) not in seen:
+                handlers.append(handler)
+                seen.add(id(handler))
+    return tuple(handlers)
+
+
+@contextlib.contextmanager
+def _capture_logger_output(
+    original_stdout: TextIO,
+    original_stderr: TextIO,
+    captured_stdout: _BoundedTextSink,
+    captured_stderr: _BoundedTextSink,
+):
+    starting_handlers = _stream_handlers()
+    for handler in starting_handlers:
+        if handler.stream is original_stdout:
+            handler.stream = captured_stdout
+        elif handler.stream is original_stderr:
+            handler.stream = captured_stderr
+    try:
+        yield
+    finally:
+        handlers = {id(handler): handler for handler in starting_handlers}
+        handlers.update({id(handler): handler for handler in _stream_handlers()})
+        for handler in handlers.values():
+            if handler.stream is captured_stdout:
+                handler.stream = original_stdout
+            elif handler.stream is captured_stderr:
+                handler.stream = original_stderr
+
+
+@contextlib.contextmanager
+def _capture_process_output(maximum: int):
+    if type(maximum) is not int or maximum <= 0:
+        raise ValueError("invalid capture limit")
+    budget = _CaptureBudget(maximum)
+    captured_stdout = _BoundedTextSink(budget)
+    captured_stderr = _BoundedTextSink(budget)
+    original_stdout = sys.stdout
+    original_stderr = sys.stderr
+    try:
+        with contextlib.redirect_stdout(captured_stdout), contextlib.redirect_stderr(
+            captured_stderr
+        ), _capture_logger_output(
+            original_stdout,
+            original_stderr,
+            captured_stdout,
+            captured_stderr,
+        ):
+            yield
+    finally:
+        if budget.overflowed and sys.exc_info()[0] is None:
+            raise OverflowError("captured process output exceeded limit")
+
+
 def run_main(argv: list[str], environ: Mapping[str, str], stdout: TextIO) -> int:
     try:
         validate_boundary(argv, environ)
         with _absolute_deadline(OPERATION_TIMEOUT_SECONDS):
-            fixture = parse_fixture(_read_fixture(FIXTURE_PATH))
-            artifact = execute_fixture(fixture, _load_runtime())
-            _write_artifact(artifact)
+            with _capture_process_output(MAX_CAPTURE_BYTES):
+                fixture = parse_fixture(_read_fixture(FIXTURE_PATH))
+                artifact = execute_fixture(fixture, _load_runtime())
+                _write_artifact(artifact)
     except BaseException:
         _remove_output()
         try:
@@ -469,6 +719,7 @@ def _load_runtime() -> RuntimeAPI:
     from prowler.lib.outputs.finding import Finding
     from prowler.lib.outputs.ocsf import ocsf as ocsf_module
     from prowler.lib.outputs.ocsf.ocsf import OCSF
+    from prowler.providers.aws.services.iam.lib.policy import is_policy_public
     from prowler.providers.aws.services.iam.iam_service import Role
     from py_ocsf_models.events.findings.detection_finding import DetectionFinding
 
@@ -484,12 +735,31 @@ def _load_runtime() -> RuntimeAPI:
         executable=sys.executable,
         python_version=platform.python_version(),
         distribution_version=importlib.metadata.version("prowler"),
+        ocsf_distribution_version=importlib.metadata.version("py-ocsf-models"),
         config_version=config.prowler_version,
         check_source=os.path.realpath(check_module.__file__),
         ocsf_source=os.path.realpath(ocsf_module.__file__),
     )
     validate_runtime_identity(identity)
     check_type = getattr(check_module, _CHECK_ID)
+    critical_symbols = (
+        Role,
+        Check_Report_AWS,
+        Finding,
+        OCSF,
+        DetectionFinding,
+        is_policy_public,
+        check_type,
+    )
+    for value, rule in zip(critical_symbols, SYMBOL_RULES, strict=True):
+        validate_symbol_binding(value, rule)
+    if (
+        getattr(check_module, "Check_Report_AWS", None) is not Check_Report_AWS
+        or getattr(check_module, "is_policy_public", None) is not is_policy_public
+        or getattr(ocsf_module, "DetectionFinding", None) is not DetectionFinding
+        or getattr(ocsf_module, "Finding", None) is not Finding
+    ):
+        raise ValueError("invalid Prowler dependency binding")
     return RuntimeAPI(
         version=config.prowler_version,
         role_type=Role,
@@ -517,6 +787,30 @@ def _fixture_provider() -> SimpleNamespace:
             account_ou_name=None,
         ),
     )
+
+
+def _source_digest(path: str) -> str:
+    if type(path) is not str:
+        raise TypeError("invalid source path")
+    flags = os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW | os.O_NONBLOCK
+    descriptor = os.open(path, flags)
+    try:
+        metadata = os.fstat(descriptor)
+        if not stat.S_ISREG(metadata.st_mode) or not 0 < metadata.st_size <= MAX_SOURCE_BYTES:
+            raise ValueError("invalid runtime source")
+        digest = hashlib.sha256()
+        remaining = metadata.st_size
+        while remaining:
+            chunk = os.read(descriptor, min(64 * 1024, remaining))
+            if not chunk:
+                raise ValueError("truncated runtime source")
+            digest.update(chunk)
+            remaining -= len(chunk)
+        if os.read(descriptor, 1):
+            raise ValueError("runtime source changed while hashing")
+        return digest.hexdigest()
+    finally:
+        os.close(descriptor)
 
 
 def _read_fixture(path: str) -> bytes:
