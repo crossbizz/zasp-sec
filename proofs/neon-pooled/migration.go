@@ -371,8 +371,7 @@ func (client *neonAPIClient) confirmOwnedBranch(ctx context.Context, expected ow
 		annotation, annotated := response.Annotations[branch.ID]
 		if branch.ProjectID == projectID && branch.ParentID == parentID && branch.Name == branchName &&
 			validCreatedBranchState(branch.State) && !branch.Default && !branch.Protected && validBranchID(branch.ID) &&
-			(expected.branchID == "" || branch.ID == expected.branchID) && annotated &&
-			annotation.Object.Type == neonBranchObjectType && annotation.Object.ID == branch.ID &&
+			annotated && annotation.Object.Type == neonBranchObjectType && annotation.Object.ID == branch.ID &&
 			annotation.Value[migrationAnnotationKey] == marker {
 			matches = append(matches, branch)
 		}
@@ -380,13 +379,13 @@ func (client *neonAPIClient) confirmOwnedBranch(ctx context.Context, expected ow
 	if len(matches) != 1 {
 		return ownedBranch{}, errMigrationOwnership
 	}
-	target := ownedBranch{
+	branchTarget := ownedBranch{
 		projectID: projectID, parentID: parentID, branchID: matches[0].ID,
 		branchName: branchName, marker: marker, providerMarkerProven: true,
 	}
 	endpoints, err := client.listEndpoints(ctx, projectID)
 	if err != nil {
-		return ownedBranch{}, err
+		return branchTarget, err
 	}
 	endpointMatches := make([]neonEndpoint, 0, 1)
 	branchEndpointCount := 0
@@ -395,22 +394,26 @@ func (client *neonAPIClient) confirmOwnedBranch(ctx context.Context, expected ow
 			branchEndpointCount++
 		}
 		if endpoint.BranchID == matches[0].ID && endpoint.Type == "read_write" && !endpoint.Disabled &&
-			validCreatedEndpointState(endpoint.State) && validEndpoint(endpoint, projectID, matches[0].ID) &&
-			(expected.endpointID == "" || endpoint.ID == expected.endpointID) &&
-			(expected.endpointHost == "" || endpoint.Host == expected.endpointHost) {
+			validCreatedEndpointState(endpoint.State) && validEndpoint(endpoint, projectID, matches[0].ID) {
 			endpointMatches = append(endpointMatches, endpoint)
 		}
 	}
 	if len(endpointMatches) != 1 {
-		if branchEndpointCount == 0 && target.validForCleanup(projectID, parentID, marker) {
-			return target, errMigrationAPI
+		if branchEndpointCount == 0 {
+			return branchTarget, errMigrationAPI
 		}
-		return ownedBranch{}, errMigrationOwnership
+		return branchTarget, errMigrationOwnership
 	}
+	target := branchTarget
 	target.endpointID = endpointMatches[0].ID
 	target.endpointHost = endpointMatches[0].Host
 	if !target.validFor(projectID, parentID, marker) {
-		return ownedBranch{}, errMigrationOwnership
+		return branchTarget, errMigrationOwnership
+	}
+	if (expected.branchID != "" && target.branchID != expected.branchID) ||
+		(expected.endpointID != "" && target.endpointID != expected.endpointID) ||
+		(expected.endpointHost != "" && target.endpointHost != expected.endpointHost) {
+		return branchTarget, errMigrationOwnership
 	}
 	return target, nil
 }
@@ -427,6 +430,9 @@ func (client *neonAPIClient) confirmOwnedBranchUntil(ctx context.Context, expect
 		}
 		if target.validForCleanup(projectID, parentID, marker) {
 			branchOnlyTarget = target
+			if errors.Is(err, errMigrationOwnership) {
+				return branchOnlyTarget, errMigrationOwnership
+			}
 		}
 		select {
 		case <-ctx.Done():
@@ -489,29 +495,28 @@ func (client *neonAPIClient) createBranch(ctx context.Context, projectID, parent
 	if err := client.doJSON(ctx, http.MethodPost, "/projects/"+projectID+"/branches", body, http.StatusCreated, &response); err != nil {
 		return target, nil, true, err
 	}
-	if validBranchID(response.Branch.ID) {
-		target.branchID = response.Branch.ID
-	}
 	if response.Branch.ProjectID != projectID || response.Branch.ParentID != parentID ||
 		response.Branch.Name != branchName || response.Branch.Default || response.Branch.Protected ||
 		!validCreatedBranchState(response.Branch.State) || !validBranchID(response.Branch.ID) || response.Branch.ID == parentID {
 		return target, nil, true, errMigrationAPI
 	}
+	candidate := target
+	candidate.branchID = response.Branch.ID
 	if len(response.Endpoints) != 1 {
 		return target, nil, true, errMigrationAPI
 	}
 	endpoint := response.Endpoints[0]
-	target.endpointID = endpoint.ID
-	target.endpointHost = strings.ToLower(endpoint.Host)
+	candidate.endpointID = endpoint.ID
+	candidate.endpointHost = strings.ToLower(endpoint.Host)
 	if !validEndpoint(endpoint, projectID, response.Branch.ID) ||
 		endpoint.Type != "read_write" || endpoint.Disabled || !validCreatedEndpointState(endpoint.State) ||
-		!validUnprovenTarget(target, projectID, parentID, marker) {
+		!validUnprovenTarget(candidate, projectID, parentID, marker) {
 		return target, nil, true, errMigrationAPI
 	}
-	if len(response.Operations) == 0 || !validOperations(response.Operations, target) {
+	if len(response.Operations) == 0 || !validOperations(response.Operations, candidate) {
 		return target, nil, true, errMigrationAPI
 	}
-	return target, response.Operations, true, nil
+	return candidate, response.Operations, true, nil
 }
 
 func (client *neonAPIClient) waitOperations(ctx context.Context, target ownedBranch, operations []neonOperation, pollInterval time.Duration) error {

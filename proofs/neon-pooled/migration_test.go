@@ -13,16 +13,19 @@ import (
 )
 
 const (
-	testAPIKey       = "test-api-key-kept-inside-the-test-process"
-	testProjectID    = "silent-dawn-123456"
-	testParentBranch = "br-old-dawn-123456"
-	testBranchID     = "br-proof-dawn-654321"
-	testEndpointID   = "ep-proof-dawn-654321"
-	testOperationID  = "a07f8772-1877-4da9-a939-3a3ae62d1d8d"
-	testMarker       = "0123456789abcdef"
-	testBranchName   = "zasp-m0-05-0123456789abcdef"
-	testParentHost   = "ep-cool-darkness-123456.us-east-2.aws.neon.tech"
-	testChildHost    = "ep-proof-dawn-654321.us-east-2.aws.neon.tech"
+	testAPIKey        = "test-api-key-kept-inside-the-test-process"
+	testProjectID     = "silent-dawn-123456"
+	testParentBranch  = "br-old-dawn-123456"
+	testBranchID      = "br-proof-dawn-654321"
+	testEndpointID    = "ep-proof-dawn-654321"
+	testOperationID   = "a07f8772-1877-4da9-a939-3a3ae62d1d8d"
+	testMarker        = "0123456789abcdef"
+	testBranchName    = "zasp-m0-05-0123456789abcdef"
+	testParentHost    = "ep-cool-darkness-123456.us-east-2.aws.neon.tech"
+	testChildHost     = "ep-proof-dawn-654321.us-east-2.aws.neon.tech"
+	testStaleBranch   = "br-stale-dawn-123456"
+	testStaleEndpoint = "ep-stale-dawn-123456"
+	testStaleHost     = "ep-stale-dawn-123456.us-east-2.aws.neon.tech"
 )
 
 func TestExecuteMigrationProofRunsOwnedBranchAndMigrationInOrder(t *testing.T) {
@@ -125,6 +128,68 @@ func TestExecuteMigrationProofReconcilesMalformedSuccessfulCreateAndDeletes(t *t
 	}
 	if got := events.snapshot(); !equalStrings(got, want) {
 		t.Fatalf("malformed-create cleanup order = %#v, want %#v", got, want)
+	}
+}
+
+func TestExecuteMigrationProofCleansProviderBranchAfterStaleCreateIdentifiers(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		behavior providerBehavior
+	}{
+		{name: "wrong but valid branch id", behavior: providerBehavior{createResponseBranchID: testStaleBranch}},
+		{name: "wrong but valid endpoint id", behavior: providerBehavior{createResponseEndpointID: testStaleEndpoint}},
+		{name: "wrong but valid endpoint host", behavior: providerBehavior{createResponseEndpointHost: testStaleHost}},
+		{name: "combined internally consistent stale response", behavior: providerBehavior{
+			createResponseBranchID: testStaleBranch, createResponseEndpointID: testStaleEndpoint,
+			createResponseEndpointHost: testStaleHost, createOperationBranchID: testStaleBranch,
+			createOperationEndpointID: testStaleEndpoint,
+		}},
+	}
+
+	want := []string{
+		"api:list-endpoints",
+		"api:list-branches-preflight",
+		"api:create-branch",
+		"api:list-branches-recovery",
+		"api:list-endpoints-recovery",
+		"api:delete-branch",
+		"api:wait-delete-operation",
+		"api:list-branches-cleanup",
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			events := &eventLog{}
+			behavior := test.behavior
+			behavior.recoverCreated = true
+			provider := newProviderServer(t, events, behavior)
+			api, err := newNeonAPIClient(provider.URL, testAPIKey, provider.Client())
+			if err != nil {
+				t.Fatalf("newNeonAPIClient() error = %v", err)
+			}
+			opened := false
+
+			_, err = executeMigrationProof(context.Background(), migrationRunConfig{
+				apiKey: testAPIKey, cleanupTimeout: 20 * time.Millisecond, databaseURL: validDirectNeonURL(), marker: testMarker,
+				projectID: testProjectID, pollInterval: time.Millisecond,
+			}, migrationDependencies{api: api, openDatabase: func(context.Context, validatedConnection) (migrationDatabase, error) {
+				opened = true
+				return nil, errors.New("must not open")
+			}})
+
+			if !errors.Is(err, errMigrationAPI) {
+				t.Fatalf("executeMigrationProof() error = %v, want fixed API failure", err)
+			}
+			if opened {
+				t.Fatal("database opened after stale create identifiers")
+			}
+			if got := events.snapshot(); !equalStrings(got, want) {
+				t.Fatalf("stale-create cleanup order = %#v, want %#v", got, want)
+			}
+		})
 	}
 }
 
@@ -635,31 +700,51 @@ func TestMigrationAssetsRenderOnlyAQuotedSafeIdentifier(t *testing.T) {
 }
 
 type providerBehavior struct {
-	annotationMarker      string
-	annotationObjectID    string
-	annotationObjectType  string
-	cleanupBranchPresent  bool
-	createOperationStatus string
-	createdBranchName     string
-	createdBranchState    string
-	createdEndpointState  string
-	createStatus          int
-	deleteStatus          int
-	duplicateParent       bool
-	omitAnnotation        bool
-	omitCreatedEndpoint   bool
-	omitRecoveredEndpoint bool
-	operationFailures     int
-	parentHost            string
-	parentProjectID       string
-	recoverCreated        bool
-	recoveryVisibleAfter  int
+	annotationMarker           string
+	annotationObjectID         string
+	annotationObjectType       string
+	cleanupBranchPresent       bool
+	createOperationStatus      string
+	createOperationBranchID    string
+	createOperationEndpointID  string
+	createResponseBranchID     string
+	createResponseEndpointHost string
+	createResponseEndpointID   string
+	createdBranchName          string
+	createdBranchState         string
+	createdEndpointState       string
+	createStatus               int
+	deleteStatus               int
+	duplicateParent            bool
+	omitAnnotation             bool
+	omitCreatedEndpoint        bool
+	omitRecoveredEndpoint      bool
+	operationFailures          int
+	parentHost                 string
+	parentProjectID            string
+	recoverCreated             bool
+	recoveryVisibleAfter       int
 }
 
 func newProviderServer(t *testing.T, events *eventLog, behavior providerBehavior) *httptest.Server {
 	t.Helper()
 	if behavior.createdBranchName == "" {
 		behavior.createdBranchName = testBranchName
+	}
+	if behavior.createResponseBranchID == "" {
+		behavior.createResponseBranchID = testBranchID
+	}
+	if behavior.createResponseEndpointID == "" {
+		behavior.createResponseEndpointID = testEndpointID
+	}
+	if behavior.createResponseEndpointHost == "" {
+		behavior.createResponseEndpointHost = testChildHost
+	}
+	if behavior.createOperationBranchID == "" {
+		behavior.createOperationBranchID = testBranchID
+	}
+	if behavior.createOperationEndpointID == "" {
+		behavior.createOperationEndpointID = testEndpointID
 	}
 	if behavior.annotationMarker == "" {
 		behavior.annotationMarker = testMarker
@@ -747,13 +832,13 @@ func newProviderServer(t *testing.T, events *eventLog, behavior providerBehavior
 				_, _ = response.Write([]byte(`{"provider-secret":"must-not-escape"}`))
 				return
 			}
-			endpointJSON := fmt.Sprintf(`{"host":%q,"id":%q,"project_id":%q,"branch_id":%q,"region_id":"aws-us-east-2","autoscaling_limit_min_cu":0.25,"autoscaling_limit_max_cu":1,"type":"read_write","current_state":%q,"settings":{"pg_settings":{}},"pooler_enabled":false,"pooler_mode":"transaction","disabled":false,"passwordless_access":false,"creation_source":"api","created_at":"2026-08-13T00:00:00Z","updated_at":"2026-08-13T00:00:00Z","proxy_host":"us-east-2.aws.neon.tech","suspend_timeout_seconds":0,"provisioner":"k8s-neonvm"}`, testChildHost, testEndpointID, testProjectID, testBranchID, behavior.createdEndpointState)
+			endpointJSON := fmt.Sprintf(`{"host":%q,"id":%q,"project_id":%q,"branch_id":%q,"region_id":"aws-us-east-2","autoscaling_limit_min_cu":0.25,"autoscaling_limit_max_cu":1,"type":"read_write","current_state":%q,"settings":{"pg_settings":{}},"pooler_enabled":false,"pooler_mode":"transaction","disabled":false,"passwordless_access":false,"creation_source":"api","created_at":"2026-08-13T00:00:00Z","updated_at":"2026-08-13T00:00:00Z","proxy_host":"us-east-2.aws.neon.tech","suspend_timeout_seconds":0,"provisioner":"k8s-neonvm"}`, behavior.createResponseEndpointHost, behavior.createResponseEndpointID, testProjectID, behavior.createResponseBranchID, behavior.createdEndpointState)
 			if behavior.omitCreatedEndpoint {
 				endpointJSON = ""
 			} else {
 				endpointJSON = "," + endpointJSON
 			}
-			fmt.Fprintf(response, `{"branch":{"id":%q,"project_id":%q,"parent_id":%q,"name":%q,"current_state":%q,"state_changed_at":"2026-08-13T00:00:00Z","creation_source":"api","created_at":"2026-08-13T00:00:00Z","updated_at":"2026-08-13T00:00:00Z","default":false,"protected":false,"cpu_used_sec":0,"active_time_seconds":0,"compute_time_seconds":0,"written_data_bytes":0,"data_transfer_bytes":0},"endpoints":[%s],"operations":[{"id":%q,"project_id":%q,"branch_id":%q,"endpoint_id":%q,"action":"start_compute","status":%q,"failures_count":%d,"created_at":"2026-08-13T00:00:00Z","updated_at":"2026-08-13T00:00:00Z","total_duration_ms":0}],"roles":[],"databases":[]}`, testBranchID, testProjectID, testParentBranch, behavior.createdBranchName, behavior.createdBranchState, strings.TrimPrefix(endpointJSON, ","), testOperationID, testProjectID, testBranchID, testEndpointID, behavior.createOperationStatus, behavior.operationFailures)
+			fmt.Fprintf(response, `{"branch":{"id":%q,"project_id":%q,"parent_id":%q,"name":%q,"current_state":%q,"state_changed_at":"2026-08-13T00:00:00Z","creation_source":"api","created_at":"2026-08-13T00:00:00Z","updated_at":"2026-08-13T00:00:00Z","default":false,"protected":false,"cpu_used_sec":0,"active_time_seconds":0,"compute_time_seconds":0,"written_data_bytes":0,"data_transfer_bytes":0},"endpoints":[%s],"operations":[{"id":%q,"project_id":%q,"branch_id":%q,"endpoint_id":%q,"action":"start_compute","status":%q,"failures_count":%d,"created_at":"2026-08-13T00:00:00Z","updated_at":"2026-08-13T00:00:00Z","total_duration_ms":0}],"roles":[],"databases":[]}`, behavior.createResponseBranchID, testProjectID, testParentBranch, behavior.createdBranchName, behavior.createdBranchState, strings.TrimPrefix(endpointJSON, ","), testOperationID, testProjectID, behavior.createOperationBranchID, behavior.createOperationEndpointID, behavior.createOperationStatus, behavior.operationFailures)
 		case request.Method == http.MethodGet && request.URL.Path == "/projects/"+testProjectID+"/operations/"+testOperationID:
 			if containsString(events.snapshot(), "api:delete-branch") {
 				events.add("api:wait-delete-operation")
