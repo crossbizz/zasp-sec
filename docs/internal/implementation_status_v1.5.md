@@ -14,16 +14,16 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 721 |
+| Pending | 720 |
 | In progress | 1 |
-| Complete | 6 |
+| Complete | 7 |
 | Blocked | 0 |
 
 ## Milestone summary
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 20 | 1 | 6 | 0 |
+| M0 | 27 | 19 | 1 | 7 | 0 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -57,7 +57,7 @@ In progress, Complete, or Blocked is Pending.
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M0-07 | August 13, 2026 | Prove encrypted S3 object and Secrets Manager round trips through the AWS SDK abstraction with a LocalStack KMS key. |
+| M0-08 | August 13, 2026 | Index one Organization-scoped session event in a disposable OpenSearch target and prove exact session/environment filtering plus a cross-Organization zero-hit query. |
 
 ## Complete
 
@@ -69,6 +69,7 @@ In progress, Complete, or Blocked is Pending.
 | M0-04 | August 13, 2026 | An exact-pinned Go/pgxpool proof derived and validated the effective Neon pooler destination, completed ten overlapping reads with zero acquired connections, closed cleanly, passed live hostname-verifying TLS, full gates, secret scan, and independent security re-review. |
 | M0-05 | August 13, 2026 | A disposable Neon branch accepted one versioned up/down migration through a direct hostname-verifying pgx connection, returned exactly to its baseline fingerprint, and was absent from the active branch list after cleanup; 34 Go race tests, all repository gates, a full-history secret scan, and two independent security-review fix rounds passed. |
 | M0-06 | August 13, 2026 | LocalStack created a uniquely owned Standard queue and DLQ, round-tripped exact redrive attributes and one two-event Organization-scoped batch, deleted the message, proved the source empty, and removed both queues; 22 Go behavior groups, live SDK proof, full gates, secret scan, and independent security re-review passed. |
+| M0-07 | August 13, 2026 | An exact-digest disposable LocalStack target proved direct KMS encryption/decryption, an Organization-scoped SSE-KMS S3 object, and a KMS-backed secret; exact cleanup, prefix-wide current-SDK audit, container absence, full gates, secret scan, and final independent security re-review passed. |
 
 `PRE-01` and `PRE-02` are also complete prerequisite work and do not count as
 source-plan microtasks.
@@ -77,8 +78,8 @@ source-plan microtasks.
 
 No source-plan task or prerequisite is blocked.
 
-M0-07 is now in progress after M0-06 passed its live LocalStack SQS/DLQ proof
-and final independent security re-review. M0-08 remains dependency-waiting.
+M0-08 is now in progress after M0-07 passed its live encrypted-storage proof
+and final independent security re-review. M0-09 remains dependency-waiting.
 
 ## Review findings
 
@@ -93,6 +94,8 @@ and final independent security re-review. M0-08 remains dependency-waiting.
 | M0-05 re-review | Valid but stale branch or endpoint identifiers in malformed create responses could override stronger provider-listed ownership and strand the proof branch. | Resolved in `37d638f`: incomplete responses provide no identifier authority, provider branch/annotation proof is established independently, and endpoint/hint mismatches block database access while preserving exact cleanup. |
 | M0-06 task review | The committed README contract was red, and strict redrive-policy parsing accepted duplicate known JSON keys. | Resolved in `4b8ae34`: the documented boundary and focused/full gates pass with corrected evidence, and recursive duplicate-key validation rejects duplicate policy and nested-envelope members. |
 | M0-06 re-review | Go's case-insensitive struct-field matching allowed case-variant JSON aliases to bypass exact-key policy and envelope validation. | Resolved in `ba02323`: recursive exact JSON-tag schema validation rejects 42 alias forms across every policy, envelope, and nested-event member while preserving duplicate, unknown, trailing, malformed, null-container, and type checks. |
+| M0-07 task review | Non-idempotent KMS key creation inherited SDK retries, prefix-wide audits could miss extra proof resources, and several definite post-create results were not retained early enough for cleanup. | Resolved in `8617ca7`: key creation is single-attempt, preflight/final audit reject prefix extras and duplicate proof keys, and staged key/alias/object targets plus exact ambiguous-write reconciliation preserve fail-closed cleanup. |
+| M0-07 task review | Readiness did not enforce hard body/time limits, pre-orchestrator construction could escape the fixed-output boundary, and the endpoint validator accepted a slash path. | Resolved in `8617ca7`: readiness has byte and absolute-time caps, all construction/orchestration failures emit one fixed line, and only an exactly empty endpoint path is accepted; final re-review found no remaining issues. |
 
 ## Execution notes
 
@@ -142,6 +145,15 @@ and final independent security re-review. M0-08 remains dependency-waiting.
   two-event Organization-scoped message, proved the source empty, and found
   zero proof queues after cleanup. LocalStack evidence does not claim IAM
   enforcement or real-AWS parity. Final independent re-review found no issues.
-- `M0-07` is the only source-plan task in progress. It must use the AWS SDK
-  abstraction to prove a LocalStack KMS-backed encrypted S3 object and secret
-  round trip before M0-08 may start.
+- `M0-07` completed after direct KMS encryption/decryption, one default-plus-
+  explicit SSE-KMS Organization-scoped object, and one KMS-backed current
+  secret all round-tripped in an exact-digest disposable LocalStack target.
+  Prefix-wide audit proved zero active proof resources and exactly the tracked
+  pending-deletion key; the container was absent and shared development
+  infrastructure was unchanged. Local evidence does not claim real-AWS
+  encryption, IAM, durability, or release parity. Final re-review found no
+  remaining issues.
+- `M0-08` is the only source-plan task in progress. It must index one
+  Organization-scoped session event in a disposable OpenSearch target and
+  prove the exact session/environment query returns one hit for Organization A
+  and zero hits for the same query under Organization B scope.
