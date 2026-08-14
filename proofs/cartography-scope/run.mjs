@@ -1006,7 +1006,10 @@ export class DockerRuntime {
       } else {
         const candidates = await this.namedContainerCandidates(kind, "cleanup", phase);
         this.assertActive("cleanup", phase);
-        if (candidates.length === 0) return;
+        if (candidates.length === 0) {
+          await this.requireContainerVolumesAbsent(kind, phase);
+          return;
+        }
         if (candidates.length !== 1 || candidates[0] !== known) throw new Failure("cleanup");
         token = known;
         inspected = undefined;
@@ -1014,7 +1017,10 @@ export class DockerRuntime {
     } else {
       const candidates = await this.namedContainerCandidates(kind, "cleanup", phase);
       this.assertActive("cleanup", phase);
-      if (candidates.length === 0) return;
+      if (candidates.length === 0) {
+        await this.requireContainerVolumesAbsent(kind, phase);
+        return;
+      }
       if (candidates.length !== 1) throw new Failure("cleanup");
       token = candidates[0];
       this.containerTokens.set(kind, token);
@@ -1029,14 +1035,14 @@ export class DockerRuntime {
     } catch {
       this.assertActive("cleanup", phase);
       await this.requireContainerAbsent(kind, phase);
-      await this.requireContainerVolumesAbsent(kind, phase);
       return;
     }
     this.assertActive("cleanup", phase);
     if (removed?.status !== 0 || removed?.signal !== null || singleLine(removed?.stdout) !== token) {
       await this.requireContainerAbsent(kind, phase);
+    } else {
+      await this.requireContainerVolumesAbsent(kind, phase);
     }
-    await this.requireContainerVolumesAbsent(kind, phase);
     this.assertActive("cleanup", phase);
   }
 
@@ -1044,6 +1050,7 @@ export class DockerRuntime {
     this.assertActive("cleanup", phase);
     if (!kind.startsWith("neo4j-")) return;
     const volumes = this.containerVolumes.get(kind);
+    if (volumes === undefined) return;
     if (!Array.isArray(volumes) || volumes.length === 0 || volumes.some((name) => !objectIDPattern.test(name))) {
       throw new Failure("cleanup");
     }
@@ -1068,6 +1075,8 @@ export class DockerRuntime {
     const candidates = await this.namedContainerCandidates(kind, "cleanup", phase);
     this.assertActive("cleanup", phase);
     if (candidates.length !== 0) throw new Failure("cleanup");
+    await this.requireContainerVolumesAbsent(kind, phase);
+    this.assertActive("cleanup", phase);
   }
 
   async removeNetwork(phase = this.phase) {

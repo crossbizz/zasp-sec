@@ -737,6 +737,101 @@ test("Neo4j cleanup removes only retained intrinsic volumes and proves their exa
   await assert.rejects(providerFailure.removeContainer("neo4j-a"), (error) => error?.category === "cleanup");
 });
 
+test("an already-absent Neo4j container fails cleanup when one retained volume remains", async () => {
+  const runtime = new ScriptedRuntime([
+    result(1), result(1),
+    result(0),
+    result(0, `${JSON.stringify([{ Name: neo4jDataVolume }])}\n`),
+  ]);
+  runtime.containerTokens.set("neo4j-a", neo4jID);
+  runtime.containerVolumes.set("neo4j-a", [neo4jDataVolume, neo4jLogsVolume]);
+
+  await assert.rejects(runtime.removeContainer("neo4j-a"), (error) => error?.category === "cleanup");
+  assert.equal(runtime.calls.some(({ kind }) => kind === "mutation"), false);
+  assert.deepEqual(
+    runtime.calls.filter(({ args }) => args[0] === "volume").map(({ args }) => args),
+    [["volume", "inspect", neo4jDataVolume]],
+  );
+});
+
+test("an already-absent Neo4j container succeeds only after both retained volumes are absent", async () => {
+  const runtime = new ScriptedRuntime([
+    result(1), result(1),
+    result(0),
+    missingVolumeResult(neo4jDataVolume), missingVolumeResult(neo4jDataVolume),
+    missingVolumeResult(neo4jLogsVolume), missingVolumeResult(neo4jLogsVolume),
+  ]);
+  runtime.containerTokens.set("neo4j-a", neo4jID);
+  runtime.containerVolumes.set("neo4j-a", [neo4jDataVolume, neo4jLogsVolume]);
+
+  await runtime.removeContainer("neo4j-a");
+  assert.equal(runtime.calls.some(({ kind }) => kind === "mutation"), false);
+  assert.deepEqual(
+    runtime.calls.filter(({ args }) => args[0] === "volume").map(({ args }) => args),
+    [
+      ["volume", "inspect", neo4jDataVolume], ["volume", "inspect", neo4jDataVolume],
+      ["volume", "inspect", neo4jLogsVolume], ["volume", "inspect", neo4jLogsVolume],
+    ],
+  );
+});
+
+test("container absence rejects retained-volume inspection failure and ambiguous absence", async () => {
+  for (const volumeResponses of [
+    [new Failure("cleanup"), new Failure("cleanup")],
+    [result(1, "[]\n", "provider unavailable\n"), result(1, "[]\n", "provider unavailable\n")],
+  ]) {
+    const runtime = new ScriptedRuntime([
+      result(1), result(1),
+      result(0),
+      ...volumeResponses,
+    ]);
+    runtime.containerTokens.set("neo4j-a", neo4jID);
+    runtime.containerVolumes.set("neo4j-a", [neo4jDataVolume, neo4jLogsVolume]);
+
+    await assert.rejects(runtime.requireContainerAbsent("neo4j-a"), (error) => error?.category === "cleanup");
+    assert.equal(runtime.calls.some(({ args }) => args[0] === "volume" && args[1] !== "inspect"), false);
+  }
+});
+
+test("retained-volume cleanup failure wins and does not stop later cleanup", async () => {
+  for (const mainFailure of [undefined, new Failure("normalization")]) {
+    const runtime = new FakeRuntime({
+      ...(mainFailure === undefined ? {} : { failAt: "bridge-a", failure: mainFailure }),
+    });
+    const removalCleanup = new ScriptedRuntime([
+      result(1), result(1), result(0),
+      result(0, `${JSON.stringify([{ Name: neo4jDataVolume }])}\n`),
+    ]);
+    const absenceCleanup = new ScriptedRuntime([
+      result(1), result(1), result(0),
+      result(0, `${JSON.stringify([{ Name: neo4jDataVolume }])}\n`),
+    ]);
+    for (const cleanup of [removalCleanup, absenceCleanup]) {
+      cleanup.containerTokens.set("neo4j-a", neo4jID);
+      cleanup.containerVolumes.set("neo4j-a", [neo4jDataVolume, neo4jLogsVolume]);
+    }
+    runtime.removeContainer = async function removeContainer(kind) {
+      this.calls.push(`remove-${kind}`);
+      if (kind === "neo4j-a") await removalCleanup.removeContainer(kind);
+    };
+    runtime.requireContainerAbsent = async function requireContainerAbsent(kind) {
+      this.calls.push(`absent-${kind}`);
+      if (kind === "neo4j-a") await absenceCleanup.requireContainerAbsent(kind);
+    };
+
+    assert.deepEqual(await orchestrate(runtime, fastOptions()), {
+      code: 1,
+      line: "Cartography scope proof failed: cleanup rejected.",
+    });
+    for (const laterCall of ["remove-network", "absent-network", "prefix-absent", "cleanup-config", "temp-prefix-absent"]) {
+      assert.ok(runtime.calls.includes(laterCall), laterCall);
+    }
+    for (const cleanup of [removalCleanup, absenceCleanup]) {
+      assert.equal(cleanup.calls.some(({ args }) => args[0] === "volume" && args[1] !== "inspect"), false);
+    }
+  }
+});
+
 test("rejects credential or proxy settings in a Cartography container even though the bootstrap clears image metadata", async () => {
   const runtime = new ScriptedRuntime([result(0, `${containerInspection({
     token: cartographyID,
