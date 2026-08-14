@@ -42,6 +42,7 @@ var (
 type CallerIdentity struct {
 	AccountID string
 	ARN       string
+	UserID    string
 }
 
 type RoleSummary struct {
@@ -70,8 +71,9 @@ type SessionCredentials struct {
 }
 
 type AssumedSession struct {
-	Credentials                    SessionCredentials
-	AssumedRoleARN, SourceIdentity string
+	Credentials                   SessionCredentials
+	AssumedRoleARN, AssumedRoleID string
+	SourceIdentity                string
 }
 
 type AuthorizationDeniedError struct {
@@ -259,11 +261,13 @@ func RunProof(ctx context.Context, options ProofOptions) (result ProofResult, re
 		SourceIdentity: sourceIdentity, Tags: map[string]string{proofTagKey: proofSessionTag},
 	}
 	session, err := options.Boundary.AssumeRole(ctx, request)
-	if err != nil || !validAssumedSession(session, request, options.TargetAccountID, options.Now()) {
+	if err != nil || !validAssumedSession(session, request, options.TargetAccountID, spec.RoleID, options.Now()) {
 		return result, errAuthentication
 	}
 	assumedIdentity, err := options.Boundary.AssumedIdentity(ctx, session)
-	if err != nil || !validCallerIdentity(assumedIdentity, options.TargetAccountID) || assumedIdentity.ARN != session.AssumedRoleARN {
+	expectedUserID := spec.RoleID + ":" + request.SessionName
+	if err != nil || !validCallerIdentity(assumedIdentity, options.TargetAccountID) || assumedIdentity.ARN != session.AssumedRoleARN ||
+		assumedIdentity.UserID != expectedUserID || assumedIdentity.UserID != session.AssumedRoleID {
 		return result, errAuthentication
 	}
 	result.Assumed = true
@@ -379,7 +383,7 @@ func assumedSessionForRequest(request AssumeRoleRequest) AssumedSession {
 }
 
 func validCallerIdentity(identity CallerIdentity, accountID string) bool {
-	return identity.AccountID == accountID && callerARNPattern.MatchString(identity.ARN) && accountFromARN(identity.ARN) == accountID
+	return identity.AccountID == accountID && identity.UserID != "" && callerARNPattern.MatchString(identity.ARN) && accountFromARN(identity.ARN) == accountID
 }
 
 func callerMatchesPrincipal(callerARN, principalARN string) bool {
@@ -402,11 +406,12 @@ func accountFromARN(arn string) string {
 	return parts[4]
 }
 
-func validAssumedSession(session AssumedSession, request AssumeRoleRequest, accountID string, now time.Time) bool {
+func validAssumedSession(session AssumedSession, request AssumeRoleRequest, accountID, roleID string, now time.Time) bool {
 	credentials := session.Credentials
 	return credentials.AccessKeyID != "" && credentials.SecretAccessKey != "" && credentials.SessionToken != "" &&
 		credentials.Expiration.After(now.Add(time.Minute)) && session.SourceIdentity == request.SourceIdentity &&
-		session.AssumedRoleARN == expectedAssumedARN(accountID, strings.TrimPrefix(request.SessionName, "zasp-m0-09-"))
+		session.AssumedRoleARN == expectedAssumedARN(accountID, strings.TrimPrefix(request.SessionName, "zasp-m0-09-")) &&
+		roleID != "" && session.AssumedRoleID == roleID+":"+request.SessionName
 }
 
 func validRoleState(state RoleState, expected RoleSpec) bool {
@@ -446,6 +451,7 @@ func reconcileCreatedRole(options ProofOptions, spec RoleSpec) (*cleanupTarget, 
 	ctx, cancel := context.WithTimeout(context.Background(), options.CleanupTimeout)
 	defer cancel()
 	lastObservationWasCleanAbsence := false
+	observedCandidate := false
 	for {
 		roles, err := options.Boundary.ListRoles(ctx, spec.Path)
 		if err == nil {
@@ -454,6 +460,7 @@ func reconcileCreatedRole(options ProofOptions, spec RoleSpec) (*cleanupTarget, 
 				lastObservationWasCleanAbsence = true
 			case 1:
 				lastObservationWasCleanAbsence = false
+				observedCandidate = true
 				if !validCandidateRoleSummary(roles[0], spec) {
 					return nil, candidateMismatch
 				}
@@ -468,6 +475,7 @@ func reconcileCreatedRole(options ProofOptions, spec RoleSpec) (*cleanupTarget, 
 				}
 			default:
 				lastObservationWasCleanAbsence = false
+				observedCandidate = true
 				return nil, candidateMismatch
 			}
 		} else {
@@ -479,7 +487,7 @@ func reconcileCreatedRole(options ProofOptions, spec RoleSpec) (*cleanupTarget, 
 			if !timer.Stop() {
 				<-timer.C
 			}
-			if lastObservationWasCleanAbsence {
+			if lastObservationWasCleanAbsence && !observedCandidate {
 				return nil, candidateAbsent
 			}
 			return nil, candidateUnresolved

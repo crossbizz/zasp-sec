@@ -58,13 +58,16 @@ type fakeIAMBoundary struct {
 	roleVisibleAfterListCall                           int
 	createMutation, allowedMutation                    func(RoleState) RoleState
 	listMutation                                       map[int]func([]RoleSummary) []RoleSummary
+	listWindowMutation                                 func(int, int, []RoleSummary) []RoleSummary
 	inspectMutation                                    map[int]func(RoleState) RoleState
 	inspectErrors, policyErrors, policyListErrors      map[int]error
 	sessionMutation                                    func(AssumedSession) AssumedSession
+	lastListContext                                    context.Context
+	listWindow, listWindowCall                         int
 }
 
 func newFakeIAMBoundary(marker string) *fakeIAMBoundary {
-	return &fakeIAMBoundary{
+	boundary := &fakeIAMBoundary{
 		marker:          marker,
 		sourceIdentity:  CallerIdentity{AccountID: "111111111111", ARN: "arn:aws:iam::111111111111:role/zasp-proof-source"},
 		targetIdentity:  CallerIdentity{AccountID: "222222222222", ARN: "arn:aws:iam::222222222222:role/zasp-proof-admin"},
@@ -72,6 +75,10 @@ func newFakeIAMBoundary(marker string) *fakeIAMBoundary {
 		inspectMutation: map[int]func(RoleState) RoleState{}, inspectErrors: map[int]error{},
 		policyErrors: map[int]error{}, policyListErrors: map[int]error{}, listMutation: map[int]func([]RoleSummary) []RoleSummary{},
 	}
+	setOptionalStringField(&boundary.sourceIdentity, "UserID", "source-user-id")
+	setOptionalStringField(&boundary.targetIdentity, "UserID", "target-user-id")
+	setOptionalStringField(&boundary.assumedIdentity, "UserID", "role-id:"+expectedRoleName(marker))
+	return boundary
 }
 
 func (f *fakeIAMBoundary) SourceIdentity(context.Context) (CallerIdentity, error) {
@@ -92,6 +99,12 @@ func (f *fakeIAMBoundary) TargetIdentity(context.Context) (CallerIdentity, error
 
 func (f *fakeIAMBoundary) ListRoles(ctx context.Context, prefix string) ([]RoleSummary, error) {
 	f.maybePanic("list-roles")
+	if f.lastListContext != ctx {
+		f.lastListContext = ctx
+		f.listWindow++
+		f.listWindowCall = 0
+	}
+	f.listWindowCall++
 	f.listCalls++
 	name := map[int]string{1: "preflight-list", 2: "cleanup-prefix-list", 3: "absence-list", 4: "audit-list"}[f.listCalls]
 	f.events = append(f.events, name)
@@ -104,6 +117,9 @@ func (f *fakeIAMBoundary) ListRoles(ctx context.Context, prefix string) ([]RoleS
 	}
 	if mutate := f.listMutation[f.listCalls]; mutate != nil {
 		roles = mutate(roles)
+	}
+	if f.listWindowMutation != nil {
+		roles = f.listWindowMutation(f.listWindow, f.listWindowCall, roles)
 	}
 	if f.honorCanceledContext && ctx.Err() != nil {
 		return nil, ctx.Err()
@@ -179,6 +195,7 @@ func (f *fakeIAMBoundary) AssumeRole(_ context.Context, request AssumeRoleReques
 	f.maybePanic("assume-role")
 	f.events = append(f.events, "assume-role")
 	session := assumedSessionForRequest(request)
+	setOptionalStringField(&session, "AssumedRoleID", f.role.RoleID+":"+request.SessionName)
 	if f.sessionMutation != nil {
 		session = f.sessionMutation(session)
 	}
@@ -246,6 +263,21 @@ func filterEvents(events []string, wanted ...string) []string {
 		}
 	}
 	return result
+}
+
+func setOptionalStringField(target any, name, value string) {
+	field := reflect.ValueOf(target).Elem().FieldByName(name)
+	if field.IsValid() && field.CanSet() && field.Kind() == reflect.String {
+		field.SetString(value)
+	}
+}
+
+func optionalStringField(value any, name string) string {
+	field := reflect.ValueOf(value).FieldByName(name)
+	if !field.IsValid() || field.Kind() != reflect.String {
+		return ""
+	}
+	return field.String()
 }
 
 func validOptions(marker string, boundary IAMProofBoundary) ProofOptions {
@@ -487,6 +519,99 @@ func TestRunProofRejectsInvalidSessionAllowedReadAndDeniedCategoryWithCleanup(t 
 			}
 		})
 	}
+}
+
+func TestRunProofRequiresCapturedImmutableRoleIDAtAssumeAndIdentityBoundaries(t *testing.T) {
+	marker := "0123456789abcdef"
+	sessionName := expectedRoleName(marker)
+	tests := []struct {
+		name string
+		edit func(*fakeIAMBoundary)
+	}{
+		{name: "assume response missing role id", edit: func(f *fakeIAMBoundary) {
+			f.sessionMutation = func(session AssumedSession) AssumedSession {
+				setOptionalStringField(&session, "AssumedRoleID", "")
+				return session
+			}
+		}},
+		{name: "assume response same-name replacement role id", edit: func(f *fakeIAMBoundary) {
+			f.sessionMutation = func(session AssumedSession) AssumedSession {
+				setOptionalStringField(&session, "AssumedRoleID", "replacement-role-id:"+sessionName)
+				return session
+			}
+		}},
+		{name: "assume response wrong session suffix", edit: func(f *fakeIAMBoundary) {
+			f.sessionMutation = func(session AssumedSession) AssumedSession {
+				setOptionalStringField(&session, "AssumedRoleID", "role-id:wrong-session")
+				return session
+			}
+		}},
+		{name: "assume response malformed id", edit: func(f *fakeIAMBoundary) {
+			f.sessionMutation = func(session AssumedSession) AssumedSession {
+				setOptionalStringField(&session, "AssumedRoleID", "malformed")
+				return session
+			}
+		}},
+		{name: "assumed identity missing role id", edit: func(f *fakeIAMBoundary) { setOptionalStringField(&f.assumedIdentity, "UserID", "") }},
+		{name: "assumed identity same-name replacement role id", edit: func(f *fakeIAMBoundary) {
+			setOptionalStringField(&f.assumedIdentity, "UserID", "replacement-role-id:"+sessionName)
+		}},
+		{name: "assumed identity wrong session suffix", edit: func(f *fakeIAMBoundary) {
+			setOptionalStringField(&f.assumedIdentity, "UserID", "role-id:wrong-session")
+		}},
+		{name: "assumed identity malformed id", edit: func(f *fakeIAMBoundary) { setOptionalStringField(&f.assumedIdentity, "UserID", "malformed") }},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			boundary := newFakeIAMBoundary(marker)
+			test.edit(boundary)
+			result, err := RunProof(context.Background(), validOptions(marker, boundary))
+			if !errors.Is(err, errAuthentication) || !result.Cleanup || !result.Audit || boundary.role.Name != "" {
+				t.Fatalf("immutable assumed identity = (%#v, %v)", result, err)
+			}
+		})
+	}
+}
+
+func TestRunProofNeverDowngradesObservedCandidateToAbsence(t *testing.T) {
+	marker := "0123456789abcdef"
+	configure := func(boundary *fakeIAMBoundary) {
+		boundary.createErr, boundary.createApplied = ambiguousMutation(errProvider), true
+		boundary.inspectErrors[1] = errors.New("temporarily unavailable")
+		boundary.listWindowMutation = func(window, call int, roles []RoleSummary) []RoleSummary {
+			if window == 2 && call > 1 {
+				return nil
+			}
+			return roles
+		}
+	}
+	t.Run("later empty reads remain unresolved and deferred cleanup proves ownership", func(t *testing.T) {
+		boundary := newFakeIAMBoundary(marker)
+		configure(boundary)
+		result, err := RunProof(context.Background(), validOptions(marker, boundary))
+		if !errors.Is(err, errProvider) || !result.Cleanup || !result.Audit || boundary.role.Name != "" || !contains(boundary.events, "delete-role") {
+			t.Fatalf("monotonic reconciliation = (%#v, %v, %#v)", result, err, boundary.events)
+		}
+	})
+	t.Run("canceled original context cannot downgrade observed ownership", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		boundary := newFakeIAMBoundary(marker)
+		configure(boundary)
+		boundary.cancelAfterCreate, boundary.honorCanceledContext = cancel, true
+		result, err := RunProof(ctx, validOptions(marker, boundary))
+		if !errors.Is(err, errProvider) || !result.Cleanup || !result.Audit || boundary.role.Name != "" {
+			t.Fatalf("canceled monotonic reconciliation = (%#v, %v)", result, err)
+		}
+	})
+	t.Run("deferred cleanup failure overrides ambiguous operation failure", func(t *testing.T) {
+		boundary := newFakeIAMBoundary(marker)
+		configure(boundary)
+		boundary.deleteRoleErr = errors.New("rejected")
+		_, err := RunProof(context.Background(), validOptions(marker, boundary))
+		if !errors.Is(err, errCleanup) || !contains(boundary.events, "delete-role") || !contains(boundary.events, "audit-list") {
+			t.Fatalf("monotonic cleanup precedence = (%v, %#v)", err, boundary.events)
+		}
+	})
 }
 
 func TestRunProofCleanupReprovesOwnershipAndTakesPrecedence(t *testing.T) {

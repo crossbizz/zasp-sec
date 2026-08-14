@@ -152,7 +152,7 @@ func getCallerIdentity(ctx context.Context, client stsAPI) (CallerIdentity, erro
 		*output.Account == "" || *output.Arn == "" || *output.UserId == "" {
 		return CallerIdentity{}, errProvider
 	}
-	return CallerIdentity{AccountID: *output.Account, ARN: *output.Arn}, nil
+	return CallerIdentity{AccountID: *output.Account, ARN: *output.Arn, UserID: *output.UserId}, nil
 }
 
 func (s *sdkIAMBoundary) ListRoles(ctx context.Context, path string) ([]RoleSummary, error) {
@@ -305,7 +305,8 @@ func (s *sdkIAMBoundary) AssumeRole(ctx context.Context, request AssumeRoleReque
 			AccessKeyID: *output.Credentials.AccessKeyId, SecretAccessKey: *output.Credentials.SecretAccessKey,
 			SessionToken: *output.Credentials.SessionToken, Expiration: *output.Credentials.Expiration,
 		},
-		AssumedRoleARN: *output.AssumedRoleUser.Arn, SourceIdentity: *output.SourceIdentity,
+		AssumedRoleARN: *output.AssumedRoleUser.Arn, AssumedRoleID: *output.AssumedRoleUser.AssumedRoleId,
+		SourceIdentity: *output.SourceIdentity,
 	}, nil
 }
 
@@ -441,16 +442,26 @@ func classifyMutationError(err error) error {
 	if err == nil {
 		return nil
 	}
+	var boundedBodyError *boundedHTTPBodyError
+	if errors.As(err, &boundedBodyError) && boundedBodyError != nil {
+		return classifyReceivedMutationStatus(boundedBodyError.statusCode)
+	}
 	var responseError *smithyhttp.ResponseError
 	if errors.As(err, &responseError) && responseError != nil && responseError.Response != nil && responseError.Response.Response != nil {
-		status := responseError.HTTPStatusCode()
-		if status < 200 || status >= 300 {
-			return errProvider
-		}
-		return ambiguousMutation(errProvider)
+		return classifyReceivedMutationStatus(responseError.HTTPStatusCode())
 	}
 	var apiError smithy.APIError
 	if errors.As(err, &apiError) {
+		return errProvider
+	}
+	return ambiguousMutation(errProvider)
+}
+
+func classifyReceivedMutationStatus(statusCode int) error {
+	if statusCode >= 200 && statusCode < 300 {
+		return ambiguousMutation(errProvider)
+	}
+	if statusCode >= 100 && statusCode <= 599 {
 		return errProvider
 	}
 	return ambiguousMutation(errProvider)
@@ -551,6 +562,11 @@ type boundedResponseTransport struct {
 	maximum int64
 }
 
+type boundedHTTPBodyError struct{ statusCode int }
+
+func (*boundedHTTPBodyError) Error() string { return "bounded HTTP response rejected" }
+func (*boundedHTTPBodyError) Unwrap() error { return errProvider }
+
 func (t *boundedResponseTransport) RoundTrip(request *http.Request) (*http.Response, error) {
 	if request == nil || request.URL == nil || request.URL.Scheme != "https" || request.URL.User != nil ||
 		request.URL.RawQuery != "" && request.Method != http.MethodPost {
@@ -560,30 +576,39 @@ func (t *boundedResponseTransport) RoundTrip(request *http.Request) (*http.Respo
 	if err != nil {
 		return nil, err
 	}
-	if response == nil || response.Body == nil || response.ContentLength > t.maximum {
+	if response == nil || response.Body == nil {
 		if response != nil && response.Body != nil {
 			_ = response.Body.Close()
 		}
 		return nil, errProvider
 	}
-	response.Body = &boundedReadCloser{reader: io.LimitReader(response.Body, t.maximum+1), closer: response.Body, remaining: t.maximum}
+	if response.ContentLength > t.maximum {
+		_ = response.Body.Close()
+		return nil, &boundedHTTPBodyError{statusCode: response.StatusCode}
+	}
+	response.Body = &boundedReadCloser{
+		reader: io.LimitReader(response.Body, t.maximum+1), closer: response.Body,
+		remaining: t.maximum, statusCode: response.StatusCode,
+	}
 	return response, nil
 }
 
 type boundedReadCloser struct {
-	reader    io.Reader
-	closer    io.Closer
-	remaining int64
+	reader     io.Reader
+	closer     io.Closer
+	remaining  int64
+	statusCode int
 }
 
 func (r *boundedReadCloser) Read(buffer []byte) (int, error) {
 	if r.remaining < 0 {
-		return 0, errProvider
+		return 0, &boundedHTTPBodyError{statusCode: r.statusCode}
 	}
 	n, err := r.reader.Read(buffer)
 	r.remaining -= int64(n)
 	if r.remaining < 0 {
-		return n, errProvider
+		_ = r.closer.Close()
+		return n, &boundedHTTPBodyError{statusCode: r.statusCode}
 	}
 	return n, err
 }

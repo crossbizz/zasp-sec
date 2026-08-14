@@ -129,6 +129,7 @@ func TestSDKBoundaryUsesExactExplicitRequestsAndRetryClasses(t *testing.T) {
 		listRolePoliciesOutput: &iam.ListRolePoliciesOutput{PolicyNames: []string{spec.PolicyName}},
 	}
 	assumedSTS := &recordingSTS{identity: identityOutput("222222222222", expectedAssumedARN("222222222222", marker))}
+	assumedSTS.identity.UserId = aws.String("role-id:" + expectedRoleName(marker))
 	assumedIAM := &recordingIAM{role: role, deniedErr: accessDeniedResponseError()}
 	boundary, err := newSDKIAMBoundaryWithClients(sourceSTS, targetSTS, targetIAM, func(SessionCredentials) (stsAPI, iamAPI, error) {
 		return assumedSTS, assumedIAM, nil
@@ -137,10 +138,10 @@ func TestSDKBoundaryUsesExactExplicitRequestsAndRetryClasses(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := boundary.SourceIdentity(context.Background()); err != nil || sourceSTS.identityRetries != 2 {
+	if identity, err := boundary.SourceIdentity(context.Background()); err != nil || sourceSTS.identityRetries != 2 || optionalStringField(identity, "UserID") != "identity-id" {
 		t.Fatalf("source identity = (%v, retries=%d)", err, sourceSTS.identityRetries)
 	}
-	if _, err := boundary.TargetIdentity(context.Background()); err != nil || targetSTS.identityRetries != 2 {
+	if identity, err := boundary.TargetIdentity(context.Background()); err != nil || targetSTS.identityRetries != 2 || optionalStringField(identity, "UserID") != "identity-id" {
 		t.Fatalf("target identity = (%v, retries=%d)", err, targetSTS.identityRetries)
 	}
 	if _, err := boundary.ListRoles(context.Background(), spec.Path); err != nil || targetIAM.listRetries != 2 || aws.ToString(targetIAM.listInput.PathPrefix) != spec.Path || aws.ToInt32(targetIAM.listInput.MaxItems) != 2 {
@@ -170,11 +171,13 @@ func TestSDKBoundaryUsesExactExplicitRequestsAndRetryClasses(t *testing.T) {
 	sourceSTS.assumeOutput = assumedOutput(request, "222222222222")
 	session, err := boundary.AssumeRole(context.Background(), request)
 	if err != nil || sourceSTS.assumeRetries != 1 || aws.ToInt32(sourceSTS.assumeInput.DurationSeconds) != assumeDuration ||
+		optionalStringField(session, "AssumedRoleID") != "role-id:"+request.SessionName ||
 		aws.ToString(sourceSTS.assumeInput.ExternalId) != request.ExternalID || aws.ToString(sourceSTS.assumeInput.SourceIdentity) != request.SourceIdentity ||
 		len(sourceSTS.assumeInput.Tags) != 1 || aws.ToString(sourceSTS.assumeInput.Tags[0].Key) != proofTagKey || aws.ToString(sourceSTS.assumeInput.Tags[0].Value) != proofSessionTag {
 		t.Fatalf("assume request/result mismatch: %v", err)
 	}
-	if identity, err := boundary.AssumedIdentity(context.Background(), session); err != nil || identity.AccountID != options.TargetAccountID || assumedSTS.identityRetries != 2 {
+	if identity, err := boundary.AssumedIdentity(context.Background(), session); err != nil || identity.AccountID != options.TargetAccountID ||
+		optionalStringField(identity, "UserID") != "role-id:"+request.SessionName || assumedSTS.identityRetries != 2 {
 		t.Fatalf("assumed identity = (%#v, %v)", identity, err)
 	}
 	if state, err := boundary.AllowedGetRole(context.Background(), session, spec.Name); err != nil || !validRoleState(state, spec) || assumedIAM.getRetries != 2 {
@@ -310,6 +313,41 @@ func TestMutationHTTPResponsesAreDefinitiveRegardlessOfBodyDecodeFailure(t *test
 	for _, status := range []int{200, 201, 204} {
 		if !isAmbiguousMutation(classifyMutationError(responseHTTPError(status, errors.New("invalid successful response")))) {
 			t.Fatalf("invalid successful status %d was not classified ambiguous", status)
+		}
+	}
+}
+
+func TestActualCreateRolePreservesOversizedReceivedHTTPStatus(t *testing.T) {
+	for _, status := range []int{403, 409, 500} {
+		for _, declared := range []bool{true, false} {
+			mode := "streamed"
+			if declared {
+				mode = "declared"
+			}
+			t.Run(http.StatusText(status)+"/"+mode, func(t *testing.T) {
+				err, closed := oversizedCreateRoleError(t, status, declared)
+				if err == nil || isAmbiguousMutation(err) || !closed {
+					t.Fatalf("received non-2xx body outcome = (ambiguous=%t, closed=%t)", isAmbiguousMutation(err), closed)
+				}
+
+				marker := "0123456789abcdef"
+				boundary := newFakeIAMBoundary(marker)
+				boundary.createErr, boundary.createApplied = err, true
+				_, runErr := RunProof(context.Background(), validOptions(marker, boundary))
+				if !errors.Is(runErr, errProvider) || contains(boundary.events, "delete-role") || boundary.role.Name == "" || boundary.listCalls != 1 {
+					t.Fatalf("definitive oversized collision was adopted: error=%v events=%#v", runErr, boundary.events)
+				}
+			})
+		}
+	}
+	for _, status := range []int{200, 201} {
+		for _, declared := range []bool{true, false} {
+			t.Run(http.StatusText(status), func(t *testing.T) {
+				err, closed := oversizedCreateRoleError(t, status, declared)
+				if err == nil || !isAmbiguousMutation(err) || !closed {
+					t.Fatalf("received invalid 2xx body outcome = (ambiguous=%t, closed=%t)", isAmbiguousMutation(err), closed)
+				}
+			})
 		}
 	}
 }
@@ -505,7 +543,7 @@ func assumedOutput(request AssumeRoleRequest, account string) *sts.AssumeRoleOut
 		},
 		AssumedRoleUser: &ststypes.AssumedRoleUser{
 			Arn:           aws.String("arn:aws:sts::" + account + ":assumed-role/" + expectedRoleName(strings.TrimPrefix(request.SessionName, "zasp-m0-09-")) + "/" + request.SessionName),
-			AssumedRoleId: aws.String("assumed-id:" + request.SessionName),
+			AssumedRoleId: aws.String("role-id:" + request.SessionName),
 		},
 		SourceIdentity: aws.String(request.SourceIdentity),
 	}
@@ -555,6 +593,34 @@ func responseHTTPError(status int, cause error) error {
 		Response: &smithyhttp.Response{Response: &http.Response{StatusCode: status}},
 		Err:      cause,
 	}
+}
+
+func oversizedCreateRoleError(t *testing.T, status int, declared bool) (error, bool) {
+	t.Helper()
+	marker := "0123456789abcdef"
+	spec, err := expectedRoleSpec(validOptions(marker, newFakeIAMBoundary(marker)), "external", expectedRoleName(marker), expectedRoleName(marker))
+	if err != nil {
+		t.Fatal(err)
+	}
+	closed := false
+	content := "oversized"
+	length := int64(-1)
+	if declared {
+		length = int64(len(content))
+	}
+	transport := &boundedResponseTransport{maximum: 4, next: roundTripperFunc(func(*http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: status, Status: http.StatusText(status), ContentLength: length,
+			Header: make(http.Header), Body: closeTracker{Reader: strings.NewReader(content), closed: &closed},
+		}, nil
+	})}
+	client := iam.New(iam.Options{
+		Region: "us-west-2", Credentials: staticCredentials(explicitCredentialSet{accessKeyID: "explicit", secretAccessKey: "explicit"}),
+		HTTPClient: &http.Client{Transport: transport}, RetryMaxAttempts: 1,
+	})
+	boundary := &sdkIAMBoundary{targetIAM: client}
+	_, createErr := boundary.CreateRole(context.Background(), spec)
+	return createErr, closed
 }
 
 type staticResolver struct{ addresses map[string][]string }
