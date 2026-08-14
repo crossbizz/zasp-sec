@@ -52,7 +52,12 @@ type fakeIAMBoundary struct {
 	deniedSet                                          bool
 	deniedErr                                          error
 	panicAt                                            string
+	panicAfterCreateApply                              bool
+	cancelAfterCreate                                  context.CancelFunc
+	honorCanceledContext                               bool
+	roleVisibleAfterListCall                           int
 	createMutation, allowedMutation                    func(RoleState) RoleState
+	listMutation                                       map[int]func([]RoleSummary) []RoleSummary
 	inspectMutation                                    map[int]func(RoleState) RoleState
 	inspectErrors, policyErrors, policyListErrors      map[int]error
 	sessionMutation                                    func(AssumedSession) AssumedSession
@@ -65,7 +70,7 @@ func newFakeIAMBoundary(marker string) *fakeIAMBoundary {
 		targetIdentity:  CallerIdentity{AccountID: "222222222222", ARN: "arn:aws:iam::222222222222:role/zasp-proof-admin"},
 		assumedIdentity: CallerIdentity{AccountID: "222222222222", ARN: expectedAssumedARN("222222222222", marker)},
 		inspectMutation: map[int]func(RoleState) RoleState{}, inspectErrors: map[int]error{},
-		policyErrors: map[int]error{}, policyListErrors: map[int]error{},
+		policyErrors: map[int]error{}, policyListErrors: map[int]error{}, listMutation: map[int]func([]RoleSummary) []RoleSummary{},
 	}
 }
 
@@ -85,7 +90,7 @@ func (f *fakeIAMBoundary) TargetIdentity(context.Context) (CallerIdentity, error
 	return f.targetIdentity, f.targetErr
 }
 
-func (f *fakeIAMBoundary) ListRoles(_ context.Context, prefix string) ([]RoleSummary, error) {
+func (f *fakeIAMBoundary) ListRoles(ctx context.Context, prefix string) ([]RoleSummary, error) {
 	f.maybePanic("list-roles")
 	f.listCalls++
 	name := map[int]string{1: "preflight-list", 2: "cleanup-prefix-list", 3: "absence-list", 4: "audit-list"}[f.listCalls]
@@ -93,10 +98,17 @@ func (f *fakeIAMBoundary) ListRoles(_ context.Context, prefix string) ([]RoleSum
 	if f.listCalls == 1 && f.preflightCollision {
 		return []RoleSummary{{Name: "foreign", ARN: "foreign", Path: prefix, RoleID: "foreign"}}, nil
 	}
-	if f.role.Name == "" {
-		return nil, nil
+	var roles []RoleSummary
+	if f.role.Name != "" && (f.roleVisibleAfterListCall == 0 || f.listCalls >= f.roleVisibleAfterListCall) {
+		roles = []RoleSummary{{Name: f.role.Name, ARN: f.role.ARN, Path: f.role.Path, RoleID: f.role.RoleID}}
 	}
-	return []RoleSummary{{Name: f.role.Name, ARN: f.role.ARN, Path: f.role.Path, RoleID: f.role.RoleID}}, nil
+	if mutate := f.listMutation[f.listCalls]; mutate != nil {
+		roles = mutate(roles)
+	}
+	if f.honorCanceledContext && ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	return roles, nil
 }
 
 func (f *fakeIAMBoundary) CreateRole(_ context.Context, spec RoleSpec) (RoleState, error) {
@@ -108,6 +120,12 @@ func (f *fakeIAMBoundary) CreateRole(_ context.Context, spec RoleSpec) (RoleStat
 	}
 	if f.createErr == nil || f.createApplied {
 		f.role = roleStateFromSpec(spec, "role-id")
+	}
+	if f.cancelAfterCreate != nil {
+		f.cancelAfterCreate()
+	}
+	if f.panicAfterCreateApply {
+		panic("provider panic")
 	}
 	return state, f.createErr
 }
@@ -307,6 +325,125 @@ func TestRunProofReconcilesOnlyExactAmbiguousRoleAndPolicyMutations(t *testing.T
 			}
 		})
 	}
+}
+
+func TestRunProofBindsEveryRoleProofAndCleanupStepToImmutableRoleID(t *testing.T) {
+	marker := "0123456789abcdef"
+	replace := func(state RoleState) RoleState { state.RoleID = "replacement-role-id"; return state }
+	replaceSummary := func(roles []RoleSummary) []RoleSummary {
+		if len(roles) == 1 {
+			roles[0].RoleID = "replacement-role-id"
+		}
+		return roles
+	}
+	tests := []struct {
+		name       string
+		edit       func(*fakeIAMBoundary)
+		want       error
+		wantDelete bool
+	}{
+		{name: "replacement before initial inspection", edit: func(f *fakeIAMBoundary) { f.inspectMutation[1] = replace }, want: errOwnership, wantDelete: true},
+		{name: "replacement returned by allowed read", edit: func(f *fakeIAMBoundary) { f.allowedMutation = replace }, want: errOwnership, wantDelete: true},
+		{name: "same name role deleted and recreated before allowed read", edit: func(f *fakeIAMBoundary) {
+			f.allowedMutation = func(RoleState) RoleState {
+				f.role.RoleID = "replacement-role-id"
+				return f.role
+			}
+		}, want: errCleanup},
+		{name: "replacement in cleanup prefix list", edit: func(f *fakeIAMBoundary) { f.listMutation[2] = replaceSummary }, want: errCleanup},
+		{name: "replacement in cleanup inspection", edit: func(f *fakeIAMBoundary) { f.inspectMutation[2] = replace }, want: errCleanup},
+		{name: "replacement immediately before delete", edit: func(f *fakeIAMBoundary) { f.inspectMutation[3] = replace }, want: errCleanup},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			boundary := newFakeIAMBoundary(marker)
+			test.edit(boundary)
+			_, err := RunProof(context.Background(), validOptions(marker, boundary))
+			if !errors.Is(err, test.want) {
+				t.Fatalf("error = %v, want %v", err, test.want)
+			}
+			if got := contains(boundary.events, "delete-role"); got != test.wantDelete {
+				t.Fatalf("delete-role = %t, want %t; events=%#v", got, test.wantDelete, boundary.events)
+			}
+		})
+	}
+}
+
+func TestRunProofRecoversAmbiguousRoleCreationUnderIndependentCleanupContext(t *testing.T) {
+	marker := "0123456789abcdef"
+	t.Run("delayed provider visibility is polled before authority is armed", func(t *testing.T) {
+		boundary := newFakeIAMBoundary(marker)
+		boundary.createErr, boundary.createApplied = ambiguousMutation(errProvider), true
+		boundary.roleVisibleAfterListCall = 4
+		result, err := RunProof(context.Background(), validOptions(marker, boundary))
+		if err != nil || !result.Cleanup || !result.Audit || boundary.role.Name != "" || boundary.listCalls < 4 {
+			t.Fatalf("delayed reconciliation = (%#v, %v, list-calls=%d)", result, err, boundary.listCalls)
+		}
+	})
+	t.Run("canceled request context cannot cancel ownership reconciliation", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		boundary := newFakeIAMBoundary(marker)
+		boundary.createErr, boundary.createApplied = ambiguousMutation(errProvider), true
+		boundary.cancelAfterCreate, boundary.honorCanceledContext = cancel, true
+		result, err := RunProof(ctx, validOptions(marker, boundary))
+		if err != nil || !result.Cleanup || !result.Audit || boundary.role.Name != "" {
+			t.Fatalf("canceled-context reconciliation = (%#v, %v)", result, err)
+		}
+	})
+	t.Run("panic after applied create is reconciled and cleaned", func(t *testing.T) {
+		boundary := newFakeIAMBoundary(marker)
+		boundary.panicAfterCreateApply = true
+		result, err := RunProof(context.Background(), validOptions(marker, boundary))
+		if !errors.Is(err, errProvider) || !result.Cleanup || !result.Audit || boundary.role.Name != "" || !contains(boundary.events, "delete-role") {
+			t.Fatalf("panic recovery = (%#v, %v, %#v)", result, err, boundary.events)
+		}
+	})
+	t.Run("panic before create is applied confirms absence without deletion", func(t *testing.T) {
+		boundary := newFakeIAMBoundary(marker)
+		boundary.panicAt = "create-role"
+		_, err := RunProof(context.Background(), validOptions(marker, boundary))
+		if !errors.Is(err, errProvider) || boundary.listCalls < 3 || contains(boundary.events, "delete-role") || boundary.role.Name != "" {
+			t.Fatalf("pre-apply panic = (%v, list-calls=%d, %#v)", err, boundary.listCalls, boundary.events)
+		}
+	})
+	t.Run("ambiguous absence is confirmed by repeated reads without deletion", func(t *testing.T) {
+		boundary := newFakeIAMBoundary(marker)
+		boundary.createErr = ambiguousMutation(errProvider)
+		_, err := RunProof(context.Background(), validOptions(marker, boundary))
+		if !errors.Is(err, errProvider) || boundary.listCalls < 3 || contains(boundary.events, "delete-role") || boundary.role.Name != "" {
+			t.Fatalf("absence reconciliation = (%v, list-calls=%d, %#v)", err, boundary.listCalls, boundary.events)
+		}
+	})
+	t.Run("mismatched provider state is never adopted or deleted", func(t *testing.T) {
+		boundary := newFakeIAMBoundary(marker)
+		boundary.createErr, boundary.createApplied = ambiguousMutation(errProvider), true
+		boundary.inspectMutation[1] = func(state RoleState) RoleState { state.Tags[markerTagKey] = "foreign"; return state }
+		_, err := RunProof(context.Background(), validOptions(marker, boundary))
+		if !errors.Is(err, errProvider) || contains(boundary.events, "delete-role") || boundary.role.Name == "" {
+			t.Fatalf("mismatch reconciliation = (%v, %#v)", err, boundary.events)
+		}
+	})
+	t.Run("visible but uninspectable role cannot inherit an earlier absence", func(t *testing.T) {
+		boundary := newFakeIAMBoundary(marker)
+		boundary.createErr, boundary.createApplied = ambiguousMutation(errProvider), true
+		boundary.roleVisibleAfterListCall = 3
+		for call := 1; call <= 100; call++ {
+			boundary.inspectErrors[call] = errors.New("unavailable")
+		}
+		_, err := RunProof(context.Background(), validOptions(marker, boundary))
+		if !errors.Is(err, errCleanup) || contains(boundary.events, "delete-role") || boundary.role.Name == "" {
+			t.Fatalf("unresolved visible role = (%v, %#v)", err, boundary.events)
+		}
+	})
+	t.Run("cleanup failure overrides panic after applied create", func(t *testing.T) {
+		boundary := newFakeIAMBoundary(marker)
+		boundary.panicAfterCreateApply = true
+		boundary.deleteRoleErr = errors.New("rejected")
+		_, err := RunProof(context.Background(), validOptions(marker, boundary))
+		if !errors.Is(err, errCleanup) || !contains(boundary.events, "delete-role") || !contains(boundary.events, "audit-list") {
+			t.Fatalf("cleanup precedence = (%v, %#v)", err, boundary.events)
+		}
+	})
 }
 
 func TestRunProofRejectsInvalidSessionAllowedReadAndDeniedCategoryWithCleanup(t *testing.T) {

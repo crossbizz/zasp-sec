@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -344,10 +345,18 @@ func (s *sdkIAMBoundary) DeniedListRoles(ctx context.Context, session AssumedSes
 	}
 	var apiError smithy.APIError
 	var responseError *smithyhttp.ResponseError
-	if errors.As(err, &apiError) && errors.As(err, &responseError) && apiError.ErrorCode() == "AccessDenied" && responseError.HTTPStatusCode() == 403 {
+	if errors.As(err, &apiError) && errors.As(err, &responseError) && responseError != nil && responseError.Response != nil &&
+		responseError.Response.Response != nil && apiError.ErrorCode() == "AccessDenied" &&
+		responseError.HTTPStatusCode() == 403 && explicitIdentityBasedListRolesDeny(apiError.ErrorMessage()) {
 		return AuthorizationDeniedError{StatusCode: 403, Code: "AccessDenied"}
 	}
 	return errProvider
+}
+
+var explicitIdentityDenyPattern = regexp.MustCompile(`^User: \S+ is not authorized to perform: iam:ListRoles(?: on resource: \*)? with an explicit deny in an identity-based policy(?:: arn:aws:iam::[0-9]{12}:policy/[A-Za-z0-9_+=,.@/-]{1,512})?$`)
+
+func explicitIdentityBasedListRolesDeny(message string) bool {
+	return explicitIdentityDenyPattern.MatchString(message)
 }
 
 func (s *sdkIAMBoundary) DeleteRolePolicy(ctx context.Context, roleName, policyName string) error {
@@ -431,6 +440,14 @@ func decodeIAMPolicyDocument(raw string) (string, error) {
 func classifyMutationError(err error) error {
 	if err == nil {
 		return nil
+	}
+	var responseError *smithyhttp.ResponseError
+	if errors.As(err, &responseError) && responseError != nil && responseError.Response != nil && responseError.Response.Response != nil {
+		status := responseError.HTTPStatusCode()
+		if status < 200 || status >= 300 {
+			return errProvider
+		}
+		return ambiguousMutation(errProvider)
 	}
 	var apiError smithy.APIError
 	if errors.As(err, &apiError) {

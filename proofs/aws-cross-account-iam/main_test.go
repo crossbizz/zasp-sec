@@ -5,6 +5,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestExecuteMainUsesFixedOutputAndRequiresCompleteCapability(t *testing.T) {
@@ -31,6 +32,12 @@ func TestExecuteMainUsesFixedOutputAndRequiresCompleteCapability(t *testing.T) {
 	code, line := executeMain([]string{"proof"}, lookupMap(badAttestation), strings.NewReader(strings.Repeat("\x00", 8)), factory)
 	if code != 1 || line != "Real AWS IAM proof failed: capability rejected." || factoryCalls != 0 {
 		t.Fatalf("attestation gate = (%d, %q, calls=%d)", code, line, factoryCalls)
+	}
+}
+
+func TestProofTimeoutBudgetLeavesSupervisorCleanupMargin(t *testing.T) {
+	if proofMainTimeout != 90*time.Second || proofCleanupTimeout != 30*time.Second {
+		t.Fatal("Go proof lifetime changed without supervisor contract review")
 	}
 }
 

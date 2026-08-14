@@ -107,6 +107,48 @@ test("orchestrator builds with a narrow environment, runs exact proof env, and c
   assert.equal(removed, "/tmp/zasp-m009-test-owned");
 });
 
+test("proof supervisor allows the full main plus cleanup budget and a safety margin", async () => {
+	const calls = [];
+	const runImplementation = async (command, arguments_, options) => {
+		calls.push({ command, arguments_, options });
+		if (calls.length === 1) return { code: 0, signal: null, stdout: "", stderr: "" };
+		return { code: 0, signal: null, stdout: `${successLine}\n`, stderr: "" };
+	};
+	const result = await orchestrate({
+		environment: validEnvironment(), runImplementation,
+		spawnImplementation: () => fakeChild({ code: 0, stdoutChunks: [`${successLine}\n`] }),
+		makeTemp: async () => "/tmp/zasp-m009-test-owned",
+		removeTemp: async () => {},
+	});
+	assert.equal(result, successLine);
+	assert.deepEqual(calls.map((call) => call.options.timeoutMs), [60_000, 180_000]);
+});
+
+test("supervisor failure still cleans and cleanup failure takes precedence", async () => {
+	const calls = [];
+	let spawned = 0;
+	let proofKilled = false;
+	await assert.rejects(
+		orchestrate({
+			environment: validEnvironment(),
+			runImplementation: async (command, arguments_, options) => {
+				calls.push({ command, arguments_, options });
+				const boundedOptions = calls.length === 2 ? { ...options, timeoutMs: 15 } : options;
+				return runBounded(command, arguments_, boundedOptions, () => {
+					spawned += 1;
+					if (spawned === 1) return fakeChild({ code: 0 });
+					return fakeChild({ neverClose: true, onKill: () => { proofKilled = true; } });
+				});
+			},
+			makeTemp: async () => "/tmp/zasp-m009-test-owned",
+			removeTemp: async () => { throw new Error("detail"); },
+		}),
+		(error) => error instanceof SafeFailure && error.category === "cleanup",
+	);
+	assert.deepEqual(calls.map((call) => call.options.timeoutMs), [60_000, 180_000]);
+	assert.equal(proofKilled, true);
+});
+
 test("cleanup failure takes precedence over proof failure", async () => {
   await assert.rejects(
     orchestrate({

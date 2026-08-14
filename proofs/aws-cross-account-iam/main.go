@@ -14,6 +14,8 @@ import (
 const (
 	isolatedTestAttestation = "isolated-disposable-aws-test-accounts-only"
 	proofSuccessLine        = "Real AWS IAM proof passed: cross_account=true assumed=true allowed_read=true denied_call=true cleanup=true audit=true."
+	proofMainTimeout        = 90 * time.Second
+	proofCleanupTimeout     = 30 * time.Second
 )
 
 type environmentLookup func(string) (string, bool)
@@ -83,13 +85,13 @@ func executeMain(arguments []string, lookup environmentLookup, random io.Reader,
 		return failureLine("configuration")
 	}
 	defer boundary.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), proofMainTimeout)
 	defer cancel()
 	result, err := RunProof(ctx, ProofOptions{
 		Marker: marker, Region: values["AWS_M009_REGION"],
 		SourceAccountID: values["AWS_M009_SOURCE_ACCOUNT_ID"], TargetAccountID: values["AWS_M009_TARGET_ACCOUNT_ID"],
 		SourcePrincipalARN: values["AWS_M009_SOURCE_PRINCIPAL_ARN"], Boundary: boundary,
-		CleanupTimeout: 30 * time.Second, PollInterval: 250 * time.Millisecond,
+		CleanupTimeout: proofCleanupTimeout, PollInterval: 250 * time.Millisecond,
 	})
 	if err != nil {
 		return failureLine(fixedCategory(err))

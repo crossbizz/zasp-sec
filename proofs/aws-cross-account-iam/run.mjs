@@ -22,6 +22,10 @@ const optionalProofEnvironment = Object.freeze([
 const attestation = "isolated-disposable-aws-test-accounts-only";
 const successLine = "Real AWS IAM proof passed: cross_account=true assumed=true allowed_read=true denied_call=true cleanup=true audit=true.";
 const outputLimit = 4096;
+const goMainTimeoutMs = 90_000;
+const goCleanupTimeoutMs = 30_000;
+const supervisorMarginMs = 60_000;
+const proofSupervisorTimeoutMs = goMainTimeoutMs + goCleanupTimeoutMs + supervisorMarginMs;
 const proofDirectory = dirname(fileURLToPath(import.meta.url));
 
 export class SafeFailure extends Error {
@@ -132,6 +136,7 @@ export function runBounded(command, arguments_, options, spawnImplementation = s
 export async function orchestrate({
   environment = process.env,
   spawnImplementation = spawn,
+  runImplementation = runBounded,
   makeTemp = () => mkdtemp(join(tmpdir(), "zasp-m009-")),
   removeTemp = removeProofTemp,
 } = {}) {
@@ -145,14 +150,14 @@ export async function orchestrate({
       throw new SafeFailure("operation");
     }
     const executable = join(directory, "proof");
-    const build = await runBounded("go", ["build", "-trimpath", "-mod=readonly", "-o", executable, "."], {
+    const build = await runImplementation("go", ["build", "-trimpath", "-mod=readonly", "-o", executable, "."], {
       cwd: proofDirectory, env: buildEnvironment, outputLimit, timeoutMs: 60_000,
     }, spawnImplementation);
     if (build.code !== 0 || build.signal !== null || build.stdout !== "" || build.stderr !== "") {
       throw new SafeFailure("operation");
     }
-    const proof = await runBounded(executable, [], {
-      cwd: proofDirectory, env: proofEnvironment, outputLimit, timeoutMs: 120_000,
+    const proof = await runImplementation(executable, [], {
+      cwd: proofDirectory, env: proofEnvironment, outputLimit, timeoutMs: proofSupervisorTimeoutMs,
     }, spawnImplementation);
     if (proof.code !== 0 || proof.signal !== null || proof.stdout !== `${successLine}\n` || proof.stderr !== "") {
       const match = proof.stdout === "" && proof.signal === null

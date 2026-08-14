@@ -147,9 +147,10 @@ func TestSDKBoundaryUsesExactExplicitRequestsAndRetryClasses(t *testing.T) {
 		t.Fatalf("list roles request/retry mismatch")
 	}
 	created, err := boundary.CreateRole(context.Background(), spec)
-	if err != nil || !validRoleState(created, spec) || targetIAM.createRetries != 1 {
+	if err != nil || !validCreatedRoleState(created, spec) || targetIAM.createRetries != 1 {
 		t.Fatalf("create = (%#v, %v, retries=%d)", created, err, targetIAM.createRetries)
 	}
+	spec.RoleID = created.RoleID
 	if aws.ToString(targetIAM.createInput.RoleName) != spec.Name || aws.ToString(targetIAM.createInput.Path) != spec.Path ||
 		aws.ToString(targetIAM.createInput.AssumeRolePolicyDocument) != spec.TrustPolicy || aws.ToInt32(targetIAM.createInput.MaxSessionDuration) != 3600 ||
 		!reflect.DeepEqual(sdkTagsToMap(targetIAM.createInput.Tags), spec.Tags) {
@@ -240,12 +241,91 @@ func TestSDKBoundaryRejectsMalformedIdentityRoleTagsAndDenial(t *testing.T) {
 	}
 }
 
+func TestDeniedListRolesRequiresExplicitIdentityBasedPolicyCategory(t *testing.T) {
+	marker := "0123456789abcdef"
+	spec, _ := expectedRoleSpec(validOptions(marker, newFakeIAMBoundary(marker)), "external", expectedRoleName(marker), expectedRoleName(marker))
+	identityExplicit := "User: arn:aws:sts::222222222222:assumed-role/zasp-proof/session is not authorized to perform: iam:ListRoles on resource: * with an explicit deny in an identity-based policy"
+	tests := []struct {
+		name    string
+		message string
+		want    bool
+	}{
+		{name: "identity based explicit deny", message: identityExplicit, want: true},
+		{name: "implicit no allow", message: "User: example is not authorized to perform: iam:ListRoles because no identity-based policy allows the iam:ListRoles action"},
+		{name: "service control policy", message: "User: example is not authorized to perform: iam:ListRoles with an explicit deny in a service control policy"},
+		{name: "permissions boundary", message: "User: example is not authorized to perform: iam:ListRoles with an explicit deny in a permissions boundary"},
+		{name: "session policy", message: "User: example is not authorized to perform: iam:ListRoles with an explicit deny in a session policy"},
+		{name: "resource policy", message: "User: example is not authorized to perform: iam:ListRoles with an explicit deny in a resource-based policy"},
+		{name: "unknown access denied", message: "provider-sensitive-detail"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assumedIAM := &recordingIAM{deniedErr: responseAPIErrorMessage(403, "AccessDenied", test.message)}
+			boundary, _ := newSDKIAMBoundaryWithClients(&recordingSTS{}, &recordingSTS{}, &recordingIAM{}, func(SessionCredentials) (stsAPI, iamAPI, error) {
+				return &recordingSTS{}, assumedIAM, nil
+			})
+			err := boundary.DeniedListRoles(context.Background(), AssumedSession{}, spec.Path)
+			var denied AuthorizationDeniedError
+			if got := errors.As(err, &denied); got != test.want {
+				t.Fatalf("typed explicit denial = %t, want %t", got, test.want)
+			}
+			if strings.Contains(err.Error(), test.message) {
+				t.Fatal("provider denial detail escaped the fixed categorical boundary")
+			}
+		})
+	}
+}
+
+func TestDeniedListRolesRejectsMalformedTypedHTTPEnvelopeWithoutPanic(t *testing.T) {
+	marker := "0123456789abcdef"
+	spec, _ := expectedRoleSpec(validOptions(marker, newFakeIAMBoundary(marker)), "external", expectedRoleName(marker), expectedRoleName(marker))
+	assumedIAM := &recordingIAM{deniedErr: &smithyhttp.ResponseError{
+		Err: &smithy.GenericAPIError{Code: "AccessDenied", Message: "provider-sensitive-detail", Fault: smithy.FaultClient},
+	}}
+	boundary, _ := newSDKIAMBoundaryWithClients(&recordingSTS{}, &recordingSTS{}, &recordingIAM{}, func(SessionCredentials) (stsAPI, iamAPI, error) {
+		return &recordingSTS{}, assumedIAM, nil
+	})
+	if err := boundary.DeniedListRoles(context.Background(), AssumedSession{}, spec.Path); !errors.Is(err, errProvider) {
+		t.Fatal("malformed typed denial was not rejected safely")
+	}
+}
+
 func TestMutationErrorsAreAmbiguousOnlyWithoutTypedAWSRejection(t *testing.T) {
 	if isAmbiguousMutation(classifyMutationError(&smithy.GenericAPIError{Code: "Conflict", Message: "rejected"})) {
 		t.Fatal("typed AWS rejection classified ambiguous")
 	}
 	if !isAmbiguousMutation(classifyMutationError(errors.New("transport"))) {
 		t.Fatal("transport loss was not classified ambiguous")
+	}
+}
+
+func TestMutationHTTPResponsesAreDefinitiveRegardlessOfBodyDecodeFailure(t *testing.T) {
+	for _, status := range []int{403, 409, 500} {
+		for _, cause := range []error{errors.New("malformed response"), errors.New("oversized response"), errors.New("deserialization response")} {
+			if isAmbiguousMutation(classifyMutationError(responseHTTPError(status, cause))) {
+				t.Fatalf("received non-2xx status %d classified ambiguous", status)
+			}
+		}
+	}
+	for _, status := range []int{200, 201, 204} {
+		if !isAmbiguousMutation(classifyMutationError(responseHTTPError(status, errors.New("invalid successful response")))) {
+			t.Fatalf("invalid successful status %d was not classified ambiguous", status)
+		}
+	}
+}
+
+func TestRunProofNeverAdoptsExactLookingRoleAfterDefinitiveHTTPRejection(t *testing.T) {
+	for _, status := range []int{403, 409, 500} {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			marker := "0123456789abcdef"
+			boundary := newFakeIAMBoundary(marker)
+			boundary.createErr = classifyMutationError(responseHTTPError(status, errors.New("unparseable provider body")))
+			boundary.createApplied = true
+			_, err := RunProof(context.Background(), validOptions(marker, boundary))
+			if !errors.Is(err, errProvider) || contains(boundary.events, "delete-role") || boundary.role.Name == "" {
+				t.Fatalf("definitive collision was adopted: error=%v events=%#v", err, boundary.events)
+			}
+		})
 	}
 }
 
@@ -359,6 +439,23 @@ func TestSDKConstructorRequiresExplicitCredentialsAndCommercialRegion(t *testing
 	}
 }
 
+func TestProofOptionsAcceptOnlyCommercialAWSPartitionRegions(t *testing.T) {
+	for _, region := range []string{"us-east-1", "us-west-2", "af-south-1", "ap-east-2", "ap-southeast-7", "ca-west-1", "eu-central-2", "il-central-1", "me-central-1", "mx-central-1", "sa-east-1"} {
+		options := validOptions("0123456789abcdef", newFakeIAMBoundary("0123456789abcdef"))
+		options.Region = region
+		if err := validateProofOptions(context.Background(), &options); err != nil {
+			t.Fatalf("commercial region rejected")
+		}
+	}
+	for _, region := range []string{"cn-north-1", "us-gov-west-1", "us-iso-east-1", "us-isob-east-1", "eu-isoe-west-1", "eusc-de-east-1", "xx-west-1", "US-WEST-2", "us-west", "us-west-0", "us-east-9"} {
+		options := validOptions("0123456789abcdef", newFakeIAMBoundary("0123456789abcdef"))
+		options.Region = region
+		if err := validateProofOptions(context.Background(), &options); !errors.Is(err, errConfiguration) {
+			t.Fatalf("non-commercial or malformed region accepted")
+		}
+	}
+}
+
 func TestPinnedSDKResolvesOnlyExpectedRealAWSHostsWithoutAmbientEndpoint(t *testing.T) {
 	t.Setenv("AWS_ENDPOINT_URL", "http://127.0.0.1:1")
 	credentials := staticCredentials(explicitCredentialSet{accessKeyID: "explicit", secretAccessKey: "explicit"})
@@ -438,12 +535,25 @@ func iamRetryAttempts(options []func(*iam.Options)) int {
 	return value.RetryMaxAttempts
 }
 
-func accessDeniedResponseError() error { return responseAPIError(403, "AccessDenied") }
+func accessDeniedResponseError() error {
+	return responseAPIErrorMessage(403, "AccessDenied", "User: arn:aws:sts::222222222222:assumed-role/zasp-proof/session is not authorized to perform: iam:ListRoles on resource: * with an explicit deny in an identity-based policy")
+}
 
 func responseAPIError(status int, code string) error {
+	return responseAPIErrorMessage(status, code, "redacted")
+}
+
+func responseAPIErrorMessage(status int, code, message string) error {
 	return &smithyhttp.ResponseError{
 		Response: &smithyhttp.Response{Response: &http.Response{StatusCode: status}},
-		Err:      &smithy.GenericAPIError{Code: code, Message: "redacted", Fault: smithy.FaultClient},
+		Err:      &smithy.GenericAPIError{Code: code, Message: message, Fault: smithy.FaultClient},
+	}
+}
+
+func responseHTTPError(status int, cause error) error {
+	return &smithyhttp.ResponseError{
+		Response: &smithyhttp.Response{Response: &http.Response{StatusCode: status}},
+		Err:      cause,
 	}
 }
 

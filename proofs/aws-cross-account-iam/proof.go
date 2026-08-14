@@ -34,7 +34,7 @@ var (
 
 	markerPattern    = regexp.MustCompile(`^[a-f0-9]{16}$`)
 	accountPattern   = regexp.MustCompile(`^[0-9]{12}$`)
-	regionPattern    = regexp.MustCompile(`^[a-z]{2}-[a-z]+-[1-9][0-9]?$`)
+	regionPattern    = regexp.MustCompile(`^(?:us-east-[12]|us-west-[12]|af-south-1|ap-east-[12]|ap-south-[12]|ap-southeast-[1-7]|ap-northeast-[1-3]|ca-central-1|ca-west-1|eu-central-[12]|eu-west-[1-3]|eu-north-1|eu-south-[12]|il-central-1|me-central-1|me-south-1|mx-central-1|sa-east-1)$`)
 	principalPattern = regexp.MustCompile(`^arn:aws:iam::([0-9]{12}):(role|user)/([A-Za-z0-9_+=,.@/-]{1,512})$`)
 	callerARNPattern = regexp.MustCompile(`^arn:aws:(?:iam::[0-9]{12}:(?:root|(?:role|user)/[A-Za-z0-9_+=,.@/-]{1,512})|sts::[0-9]{12}:assumed-role/[A-Za-z0-9_+=,.@/-]{1,512}/[A-Za-z0-9_+=,.@-]{1,64})$`)
 )
@@ -133,6 +133,17 @@ type cleanupTarget struct {
 	policyAttached bool
 }
 
+type cleanupCandidate struct{ spec RoleSpec }
+
+type candidateOutcome uint8
+
+const (
+	candidateUnresolved candidateOutcome = iota
+	candidateAbsent
+	candidateMismatch
+	candidateOwned
+)
+
 func RunProof(ctx context.Context, options ProofOptions) (result ProofResult, resultErr error) {
 	if err := validateProofOptions(ctx, &options); err != nil {
 		return result, err
@@ -145,9 +156,19 @@ func RunProof(ctx context.Context, options ProofOptions) (result ProofResult, re
 		return result, errConfiguration
 	}
 
+	var candidate *cleanupCandidate
 	var target *cleanupTarget
 	defer func() {
 		panicked := recover() != nil
+		if target == nil && candidate != nil {
+			reconciled, outcome := safeReconcileCreatedRole(options, candidate.spec)
+			if outcome == candidateOwned {
+				target = reconciled
+			} else if outcome == candidateUnresolved {
+				resultErr = errCleanup
+				return
+			}
+		}
 		if target != nil {
 			if safeCleanupAndAudit(options, target) != nil {
 				resultErr = errCleanup
@@ -181,20 +202,36 @@ func RunProof(ctx context.Context, options ProofOptions) (result ProofResult, re
 		return result, errOwnership
 	}
 
+	candidate = &cleanupCandidate{spec: copyRoleSpec(spec)}
 	created, createErr := options.Boundary.CreateRole(ctx, spec)
 	if createErr == nil {
-		target = &cleanupTarget{spec: copyRoleSpec(spec)}
-		if !validRoleState(created, spec) {
-			if !reconcileCreatedRole(ctx, options.Boundary, spec) {
+		if validCreatedRoleState(created, spec) {
+			spec.RoleID = created.RoleID
+			target = &cleanupTarget{spec: copyRoleSpec(spec)}
+			candidate = nil
+		} else {
+			reconciled, outcome := safeReconcileCreatedRole(options, spec)
+			if outcome != candidateUnresolved {
+				candidate = nil
+			}
+			if outcome != candidateOwned {
 				return result, errOwnership
 			}
+			candidate = nil
+			target, spec = reconciled, copyRoleSpec(reconciled.spec)
 		}
 	} else if isAmbiguousMutation(createErr) {
-		if !reconcileCreatedRole(ctx, options.Boundary, spec) {
+		reconciled, outcome := safeReconcileCreatedRole(options, spec)
+		if outcome != candidateUnresolved {
+			candidate = nil
+		}
+		if outcome != candidateOwned {
 			return result, errProvider
 		}
-		target = &cleanupTarget{spec: copyRoleSpec(spec)}
+		candidate = nil
+		target, spec = reconciled, copyRoleSpec(reconciled.spec)
 	} else {
+		candidate = nil
 		return result, errProvider
 	}
 	current, err := options.Boundary.InspectRole(ctx, spec.Name)
@@ -373,22 +410,82 @@ func validAssumedSession(session AssumedSession, request AssumeRoleRequest, acco
 }
 
 func validRoleState(state RoleState, expected RoleSpec) bool {
-	return state.Name == expected.Name && state.ARN == expected.ARN && state.Path == expected.Path && state.RoleID != "" &&
+	return expected.RoleID != "" && state.Name == expected.Name && state.ARN == expected.ARN && state.Path == expected.Path && state.RoleID == expected.RoleID &&
 		state.Description == expected.Description && state.MaxSessionDuration == expected.MaxSessionDuration &&
 		equalStringMap(state.Tags, expected.Tags) && equalPolicy(state.TrustPolicy, expected.TrustPolicy)
 }
 
 func validRoleSummary(summary RoleSummary, expected RoleSpec) bool {
+	return expected.RoleID != "" && summary.Name == expected.Name && summary.ARN == expected.ARN && summary.Path == expected.Path && summary.RoleID == expected.RoleID
+}
+
+func validCreatedRoleState(state RoleState, expected RoleSpec) bool {
+	if state.RoleID == "" {
+		return false
+	}
+	bound := copyRoleSpec(expected)
+	bound.RoleID = state.RoleID
+	return validRoleState(state, bound)
+}
+
+func validCandidateRoleSummary(summary RoleSummary, expected RoleSpec) bool {
 	return summary.Name == expected.Name && summary.ARN == expected.ARN && summary.Path == expected.Path && summary.RoleID != ""
 }
 
-func reconcileCreatedRole(ctx context.Context, boundary IAMProofBoundary, spec RoleSpec) bool {
-	roles, err := boundary.ListRoles(ctx, spec.Path)
-	if err != nil || len(roles) != 1 || !validRoleSummary(roles[0], spec) {
-		return false
+func safeReconcileCreatedRole(options ProofOptions, spec RoleSpec) (target *cleanupTarget, outcome candidateOutcome) {
+	outcome = candidateUnresolved
+	defer func() {
+		if recover() != nil {
+			target, outcome = nil, candidateUnresolved
+		}
+	}()
+	return reconcileCreatedRole(options, spec)
+}
+
+func reconcileCreatedRole(options ProofOptions, spec RoleSpec) (*cleanupTarget, candidateOutcome) {
+	ctx, cancel := context.WithTimeout(context.Background(), options.CleanupTimeout)
+	defer cancel()
+	lastObservationWasCleanAbsence := false
+	for {
+		roles, err := options.Boundary.ListRoles(ctx, spec.Path)
+		if err == nil {
+			switch len(roles) {
+			case 0:
+				lastObservationWasCleanAbsence = true
+			case 1:
+				lastObservationWasCleanAbsence = false
+				if !validCandidateRoleSummary(roles[0], spec) {
+					return nil, candidateMismatch
+				}
+				bound := copyRoleSpec(spec)
+				bound.RoleID = roles[0].RoleID
+				state, inspectErr := options.Boundary.InspectRole(ctx, spec.Name)
+				if inspectErr == nil {
+					if !validRoleState(state, bound) {
+						return nil, candidateMismatch
+					}
+					return &cleanupTarget{spec: bound}, candidateOwned
+				}
+			default:
+				lastObservationWasCleanAbsence = false
+				return nil, candidateMismatch
+			}
+		} else {
+			lastObservationWasCleanAbsence = false
+		}
+		timer := time.NewTimer(options.PollInterval)
+		select {
+		case <-ctx.Done():
+			if !timer.Stop() {
+				<-timer.C
+			}
+			if lastObservationWasCleanAbsence {
+				return nil, candidateAbsent
+			}
+			return nil, candidateUnresolved
+		case <-timer.C:
+		}
 	}
-	state, err := boundary.InspectRole(ctx, spec.Name)
-	return err == nil && validRoleState(state, spec)
 }
 
 func safeCleanupAndAudit(options ProofOptions, target *cleanupTarget) (resultErr error) {
