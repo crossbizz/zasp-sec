@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { EventEmitter } from "node:events";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
@@ -182,6 +182,57 @@ test("admits only an empty canonical Docker-config directory and passes only PAT
   assert.equal(calls[0].options.env.HOME, undefined);
   assert.equal(calls[0].options.env.HTTPS_PROXY, undefined);
   assert.equal(calls[0].options.env.DOCKER_AUTH_CONFIG, undefined);
+});
+
+test("canonicalizes the real macOS default temp parent before creating and admitting the Docker config", async () => {
+  const canonicalParent = realpathSync(tmpdir());
+  assert.notEqual(tmpdir(), canonicalParent);
+  const runtime = new DockerRuntime({ path: "/safe/bin", marker });
+  try {
+    await runtime.initialize();
+    assert.equal(runtime.tempParent, canonicalParent);
+    assert.equal(runtime.dockerConfigIdentity.path.startsWith(`${canonicalParent}/${prefix}-docker-config-`), true);
+  } finally {
+    await runtime.cleanupDockerConfig();
+  }
+});
+
+test("retains a canonicalized injected temp parent and rejects lexical, canonical, and symlink escapes", async () => {
+  const lexicalParent = "/safe/tmp-link";
+  const canonicalParent = "/safe/private/tmp";
+  const canonicalCandidate = `${canonicalParent}/${prefix}-docker-config-owned`;
+  let makePrefix;
+  const runtime = new DockerRuntime({
+    path: "/safe/bin", marker, proofDirectory, tempParent: lexicalParent,
+    canonicalPath: async (value) => value === lexicalParent ? canonicalParent : value,
+    statPath: async () => identityStat(1, 2),
+    readDirectory: async () => [],
+    makeTemp: async (value) => { makePrefix = value; return canonicalCandidate; },
+    removeTemp: async () => {},
+  });
+  await runtime.initialize();
+  assert.equal(runtime.tempParent, canonicalParent);
+  assert.equal(makePrefix, `${canonicalParent}/${prefix}-docker-config-`);
+
+  for (const testCase of [
+    { name: "lexical candidate", candidate: `${lexicalParent}/${prefix}-docker-config-owned` },
+    { name: "canonical escape", candidate: canonicalCandidate, canonical: "/safe/elsewhere/owned" },
+    { name: "symlink candidate", candidate: canonicalCandidate, stat: identityStat(1, 2, true) },
+  ]) {
+    const candidateRuntime = new DockerRuntime({
+      path: "/safe/bin", marker, proofDirectory, tempParent: lexicalParent,
+      canonicalPath: async (value) => {
+        if (value === lexicalParent) return canonicalParent;
+        if (value === testCase.candidate) return testCase.canonical ?? value;
+        return value;
+      },
+      statPath: async () => testCase.stat ?? identityStat(1, 2),
+      readDirectory: async () => [],
+      makeTemp: async () => testCase.candidate,
+      removeTemp: async () => { throw new Error("must not remove unowned path"); },
+    });
+    await assert.rejects(candidateRuntime.initialize(), (error) => error?.category === "configuration", testCase.name);
+  }
 });
 
 test("never removes a malformed or nonempty temporary candidate", async () => {
@@ -449,6 +500,62 @@ test("reconciles ambiguous creates and removes only the same freshly re-proven c
   assert.equal(replacement.calls.some((call) => call.args[0] === "rm"), false);
 });
 
+test("reconciles rejected network and container creates through exact full ownership", async () => {
+  const network = new ScriptedRuntime([
+    new Failure("provider"),
+    result(0, `${networkID}|${networkName}\n`),
+    result(0, `${networkID}|${networkName}|m0-10|${marker}\n`),
+  ]);
+  assert.equal(await network.createNetwork(), networkID);
+
+  const inspection = containerInspection({
+    token: neo4jID,
+    name: `${prefix}-neo4j-a`,
+    imageID: neo4jImageID,
+    image: NEO4J_IMAGE,
+    environment: ["NEO4J_AUTH=none"],
+    ports: { "7687/tcp": [{ HostIp: "127.0.0.1", HostPort: "49152" }] },
+  });
+  const container = new ScriptedRuntime([
+    new Failure("provider"),
+    result(0, `${neo4jID}|${prefix}-neo4j-a\n`),
+    result(0, `${inspection}\n`),
+  ]);
+  container.networkToken = networkID;
+  container.imageIDs.set(NEO4J_IMAGE, neo4jImageID);
+  assert.equal(await container.startNeo4j("a"), neo4jID);
+});
+
+test("accepts rejected container and network removes only after exact absence is proven", async () => {
+  const inspection = containerInspection({
+    token: neo4jID,
+    name: `${prefix}-neo4j-a`,
+    imageID: neo4jImageID,
+    image: NEO4J_IMAGE,
+    environment: ["NEO4J_AUTH=none"],
+    ports: { "7687/tcp": [{ HostIp: "127.0.0.1", HostPort: "49152" }] },
+  });
+  const container = new ScriptedRuntime([
+    result(0, `${inspection}\n`),
+    new Failure("cleanup"),
+    result(1), result(1),
+    result(0),
+  ]);
+  container.networkToken = networkID;
+  container.imageIDs.set(NEO4J_IMAGE, neo4jImageID);
+  container.containerTokens.set("neo4j-a", neo4jID);
+  await container.removeContainer("neo4j-a");
+
+  const network = new ScriptedRuntime([
+    result(0, `${networkID}|${networkName}|m0-10|${marker}\n`),
+    new Failure("cleanup"),
+    result(1), result(1),
+    result(0),
+  ]);
+  network.networkToken = networkID;
+  await network.removeNetwork();
+});
+
 test("readiness and bridge calls use exact finite deadlines and reject malformed or overflowing output", async () => {
   const runtime = new ScriptedRuntime([
     result(0, `${containerInspection({ token: neo4jID, name: `${prefix}-neo4j-a`, imageID: neo4jImageID, image: NEO4J_IMAGE, environment: ["NEO4J_AUTH=none"], ports: { "7687/tcp": [{ HostIp: "127.0.0.1", HostPort: "49152" }] } })}\n`),
@@ -553,6 +660,61 @@ test("outer cancellation is fixed-output operation failure and cleanup gets its 
   assert.deepEqual(runtime.calls, ["cleanup-config"]);
 });
 
+test("a timed-out main phase quiesces and fences network, Neo4j, and Cartography mutations before cleanup and return", async () => {
+  const nativeSetTimeout = globalThis.setTimeout;
+  const runtime = new FakeRuntime();
+  runtime.resolveImages = async function resolveImages() {
+    this.record("images");
+    await new Promise((resolvePromise) => nativeSetTimeout(resolvePromise, 20));
+  };
+  globalThis.setTimeout = (callback, milliseconds, ...arguments_) => nativeSetTimeout(
+    callback,
+    milliseconds === 300_000 ? 5 : milliseconds === 60_000 ? 100 : milliseconds,
+    ...arguments_,
+  );
+  try {
+    const result = await orchestrate(runtime, { readinessAttempts: 1, wait: async () => {} });
+    const callsAtReturn = [...runtime.calls];
+    await new Promise((resolvePromise) => nativeSetTimeout(resolvePromise, 40));
+    assert.deepEqual(result, { code: 1, line: "Cartography scope proof failed: operation rejected." });
+    assert.equal(runtime.calls.includes("network"), false);
+    assert.equal(runtime.calls.some((call) => call.startsWith("neo4j-")), false);
+    assert.equal(runtime.calls.some((call) => call.startsWith("cartography-")), false);
+    assert.deepEqual(runtime.calls, callsAtReturn);
+    assert.deepEqual(runtime.calls, ["initialize", "preflight", "images", "prefix-absent", "cleanup-config", "temp-prefix-absent"]);
+  } finally {
+    globalThis.setTimeout = nativeSetTimeout;
+  }
+});
+
+test("a timed-out cleanup phase quiesces before fixed output and fences every later cleanup mutation", async () => {
+  const nativeSetTimeout = globalThis.setTimeout;
+  const runtime = new FakeRuntime();
+  runtime.removeContainer = async function removeContainer(kind) {
+    this.record(`remove-${kind}`);
+    if (kind === "cartography-b") {
+      await new Promise((resolvePromise) => nativeSetTimeout(resolvePromise, 20));
+    }
+  };
+  globalThis.setTimeout = (callback, milliseconds, ...arguments_) => nativeSetTimeout(
+    callback,
+    milliseconds === 300_000 ? 100 : milliseconds === 60_000 ? 5 : milliseconds,
+    ...arguments_,
+  );
+  try {
+    const result = await orchestrate(runtime, { readinessAttempts: 1, wait: async () => {} });
+    const callsAtReturn = [...runtime.calls];
+    await new Promise((resolvePromise) => nativeSetTimeout(resolvePromise, 40));
+    assert.deepEqual(result, { code: 1, line: "Cartography scope proof failed: cleanup rejected." });
+    assert.deepEqual(runtime.calls, callsAtReturn);
+    const cleanupStart = runtime.calls.indexOf("remove-cartography-b");
+    assert.notEqual(cleanupStart, -1);
+    assert.deepEqual(runtime.calls.slice(cleanupStart), ["remove-cartography-b"]);
+  } finally {
+    globalThis.setTimeout = nativeSetTimeout;
+  }
+});
+
 test("runMain emits exactly one fixed success or failure line and contains factory and stream panics", async () => {
   for (const { runtime, expected, code } of [
     { runtime: new FakeRuntime(), expected: `${SUCCESS_LINE}\n`, code: 0 },
@@ -627,12 +789,16 @@ class ScriptedRuntime extends DockerRuntime {
 
   async dockerRead(args, options = {}) {
     this.calls.push({ kind: "read", args, options: this.commandOptions(options) });
-    return this.responses.shift() ?? result(1);
+    const response = this.responses.shift() ?? result(1);
+    if (response instanceof Error) throw response;
+    return response;
   }
 
   async dockerMutation(args, options = {}) {
     this.calls.push({ kind: "mutation", args, options: this.commandOptions(options) });
-    return this.responses.shift() ?? result(1);
+    const response = this.responses.shift() ?? result(1);
+    if (response instanceof Error) throw response;
+    return response;
   }
 
   commandOptions(options) {
@@ -643,6 +809,34 @@ class ScriptedRuntime extends DockerRuntime {
     };
   }
 }
+
+test("read-only Docker calls retry once after a rejected first attempt", async () => {
+  const runtime = new ScriptedRuntime([new Failure("provider"), result(0, "ok\n")]);
+  const waits = [];
+  runtime.wait = async (milliseconds) => { waits.push(milliseconds); };
+
+  assert.deepEqual(await runtime.readDocker(["version"]), result(0, "ok\n"));
+  assert.equal(runtime.calls.filter(({ kind }) => kind === "read").length, 2);
+  assert.deepEqual(waits, [250]);
+});
+
+test("an aborted rejected read-only Docker call is never retried", async () => {
+  const controller = new AbortController();
+  const runtime = new ScriptedRuntime([]);
+  let reads = 0;
+  let waits = 0;
+  runtime.dockerRead = async () => {
+    reads += 1;
+    controller.abort();
+    throw new Failure("provider");
+  };
+  runtime.wait = async () => { waits += 1; };
+  runtime.setAbortSignal(controller.signal);
+
+  await assert.rejects(runtime.readDocker(["version"]), (error) => error?.category === "provider");
+  assert.equal(reads, 1);
+  assert.equal(waits, 0);
+});
 
 function temporaryRuntime({
   candidate = dockerConfig,

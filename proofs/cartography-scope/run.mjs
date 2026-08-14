@@ -232,6 +232,10 @@ export class DockerRuntime {
     this.signal = signal;
   }
 
+  assertActive(category = "operation") {
+    if (this.signal?.aborted === true) throw new Failure(category);
+  }
+
   name(kind) {
     if (!["neo4j-a", "neo4j-b", "cartography-a", "cartography-b"].includes(kind)) {
       throw new Failure("configuration");
@@ -240,6 +244,7 @@ export class DockerRuntime {
   }
 
   async initialize() {
+    this.assertActive("configuration");
     let canonicalParent;
     let canonicalProof;
     try {
@@ -248,13 +253,19 @@ export class DockerRuntime {
     } catch {
       throw new Failure("configuration");
     }
-    if (canonicalParent !== this.tempParent || canonicalProof !== this.proofDirectory) {
+    if (
+      typeof canonicalParent !== "string" || !isAbsolute(canonicalParent) || resolve(canonicalParent) !== canonicalParent ||
+      canonicalProof !== this.proofDirectory
+    ) {
       throw new Failure("configuration");
     }
+    this.assertActive("configuration");
+    this.tempParent = canonicalParent;
     const candidate = await this.makeTemp(join(this.tempParent, `${this.prefix}-docker-config-`));
     const identity = await this.ownedEmptyTemporaryDirectory(candidate);
     if (identity === undefined) throw new Failure("configuration");
     this.dockerConfigIdentity = identity;
+    this.assertActive("operation");
   }
 
   async ownedEmptyTemporaryDirectory(value) {
@@ -277,6 +288,7 @@ export class DockerRuntime {
   }
 
   async cleanupDockerConfig() {
+    this.assertActive("cleanup");
     if (this.dockerConfigIdentity === undefined) return;
     const current = await this.ownedEmptyTemporaryDirectory(this.dockerConfigIdentity.path);
     if (
@@ -285,6 +297,7 @@ export class DockerRuntime {
     ) {
       throw new Failure("cleanup");
     }
+    this.assertActive("cleanup");
     try {
       await this.removeTemp(current.path, { recursive: true, force: false, maxRetries: 0 });
     } catch {
@@ -308,6 +321,7 @@ export class DockerRuntime {
   }
 
   dockerOptions(options = {}) {
+    this.assertActive(options.category ?? "provider");
     if (this.dockerConfigIdentity === undefined) throw new Failure(options.category ?? "provider");
     return {
       env: { PATH: this.path, DOCKER_CONFIG: this.dockerConfigIdentity.path },
@@ -324,10 +338,23 @@ export class DockerRuntime {
 
   async readDocker(args, options = {}) {
     let result;
+    const category = options.category ?? "provider";
     for (let attempt = 0; attempt < 2; attempt += 1) {
-      result = await this.dockerRead(args, options);
+      try {
+        result = await this.dockerRead(args, options);
+      } catch {
+        this.assertActive(category);
+        if (attempt === 1) throw new Failure(category);
+        try { await this.wait(250, this.signal); } catch { throw new Failure(category); }
+        this.assertActive(category);
+        continue;
+      }
       if (result?.status === 0 && result?.signal === null) return result;
-      if (attempt === 0) await this.wait(250);
+      if (attempt === 0) {
+        this.assertActive(category);
+        try { await this.wait(250, this.signal); } catch { throw new Failure(category); }
+        this.assertActive(category);
+      }
     }
     return result;
   }
@@ -387,7 +414,12 @@ export class DockerRuntime {
 
   async createNetwork() {
     this.networkAttempted = true;
-    const created = await this.dockerMutation(buildNetworkCreateArguments(this.networkName), { category: "provider" });
+    let created;
+    try {
+      created = await this.dockerMutation(buildNetworkCreateArguments(this.networkName), { category: "provider" });
+    } catch {
+      this.assertActive("provider");
+    }
     const direct = singleLine(created?.stdout);
     if (objectIDPattern.test(direct)) this.networkToken = direct;
     if (created?.status !== 0 || created?.signal !== null || !objectIDPattern.test(direct)) {
@@ -436,7 +468,12 @@ export class DockerRuntime {
     const kind = `neo4j-${slot}`;
     const name = this.name(kind);
     this.containerAttempts.add(kind);
-    const started = await this.dockerMutation(buildNeo4jRunArguments(name, this.networkName), { category: "provider" });
+    let started;
+    try {
+      started = await this.dockerMutation(buildNeo4jRunArguments(name, this.networkName), { category: "provider" });
+    } catch {
+      this.assertActive("provider");
+    }
     return this.resolveContainerCreate(kind, started);
   }
 
@@ -460,9 +497,14 @@ export class DockerRuntime {
     const kind = `cartography-${slot}`;
     const name = this.name(kind);
     this.containerAttempts.add(kind);
-    const created = await this.dockerMutation(buildCartographyCreateArguments(
-      name, this.name(`neo4j-${slot}`), this.networkName, this.proofDirectory, slot,
-    ), { category: "provider" });
+    let created;
+    try {
+      created = await this.dockerMutation(buildCartographyCreateArguments(
+        name, this.name(`neo4j-${slot}`), this.networkName, this.proofDirectory, slot,
+      ), { category: "provider" });
+    } catch {
+      this.assertActive("provider");
+    }
     return this.resolveContainerCreate(kind, created);
   }
 
@@ -631,7 +673,14 @@ export class DockerRuntime {
       this.containerTokens.set(kind, token);
     }
     await this.verifyContainer(kind, "cleanup", inspected?.status === 0 ? inspected : undefined);
-    const removed = await this.dockerMutation(["rm", "--force", token], { category: "cleanup" });
+    let removed;
+    try {
+      removed = await this.dockerMutation(["rm", "--force", token], { category: "cleanup" });
+    } catch {
+      this.assertActive("cleanup");
+      await this.requireContainerAbsent(kind);
+      return;
+    }
     if (removed?.status !== 0 || removed?.signal !== null || singleLine(removed?.stdout) !== token) {
       await this.requireContainerAbsent(kind);
     }
@@ -669,7 +718,14 @@ export class DockerRuntime {
       this.networkToken = token;
     }
     await this.verifyNetwork("cleanup", inspected);
-    const removed = await this.dockerMutation(["network", "rm", token], { category: "cleanup" });
+    let removed;
+    try {
+      removed = await this.dockerMutation(["network", "rm", token], { category: "cleanup" });
+    } catch {
+      this.assertActive("cleanup");
+      await this.requireNetworkAbsent();
+      return;
+    }
     if (removed?.status !== 0 || removed?.signal !== null || singleLine(removed?.stdout) !== token) {
       await this.requireNetworkAbsent();
     }
@@ -686,7 +742,7 @@ export class DockerRuntime {
 
 export async function orchestrate(runtime, options = {}) {
   const readinessAttempts = options.readinessAttempts ?? 120;
-  const wait = options.wait ?? ((milliseconds) => new Promise((resolvePromise) => setTimeout(resolvePromise, milliseconds)));
+  const wait = options.wait ?? waitWithSignal;
   const withDeadline = options.withDeadline ?? withAbsoluteDeadline;
   const runtimeFactory = options.runtimeFactory ?? (() => new DockerRuntime());
   let selected = runtime;
@@ -696,41 +752,46 @@ export async function orchestrate(runtime, options = {}) {
   const candidates = new Set();
   try {
     await withDeadline(async (signal) => {
+      const step = (operation) => phaseStep(signal, operation, "operation");
+      throwIfAborted(signal, "operation");
       selected ??= runtimeFactory();
       if (!runtimeContract(selected) || !Number.isInteger(readinessAttempts) || readinessAttempts < 1) {
         throw new Failure("configuration");
       }
       selected.setAbortSignal?.(signal);
-      await selected.initialize();
-      await selected.preflight();
+      await step(() => selected.initialize());
+      await step(() => selected.preflight());
       preflightPassed = true;
-      await selected.resolveImages();
+      await step(() => selected.resolveImages());
+      throwIfAborted(signal, "operation");
       candidates.add("network");
-      await selected.createNetwork();
+      await step(() => selected.createNetwork());
       for (const slot of ["a", "b"]) {
+        throwIfAborted(signal, "operation");
         candidates.add(`neo4j-${slot}`);
-        await selected.startNeo4j(slot);
-        await selected.verifyContainer(`neo4j-${slot}`);
-        await selected.neo4jPort(slot);
+        await step(() => selected.startNeo4j(slot));
+        await step(() => selected.verifyContainer(`neo4j-${slot}`));
+        await step(() => selected.neo4jPort(slot));
       }
       for (const slot of ["a", "b"]) {
         let ready = false;
         for (let attempt = 0; attempt < readinessAttempts; attempt += 1) {
-          if (await selected.isNeo4jReady(slot)) { ready = true; break; }
-          if (attempt + 1 < readinessAttempts) await wait(250);
+          if (await step(() => selected.isNeo4jReady(slot))) { ready = true; break; }
+          if (attempt + 1 < readinessAttempts) await step(() => wait(250, signal));
         }
         if (!ready) throw new Failure("provider");
       }
       const rawGraphs = [];
       for (const slot of ["a", "b"]) {
+        throwIfAborted(signal, "operation");
         candidates.add(`cartography-${slot}`);
-        await selected.createCartography(slot);
-        await selected.verifyContainer(`cartography-${slot}`);
+        await step(() => selected.createCartography(slot));
+        await step(() => selected.verifyContainer(`cartography-${slot}`));
       }
       for (const slot of ["a", "b"]) {
-        rawGraphs.push(await selected.attachCartography(slot));
+        rawGraphs.push(await step(() => selected.attachCartography(slot)));
       }
-      await validateAndMerge(rawGraphs);
+      await step(() => validateAndMerge(rawGraphs));
     }, mainTimeoutMs);
   } catch (error) {
     mainFailure = error instanceof Failure ? error : new Failure("operation");
@@ -739,21 +800,26 @@ export async function orchestrate(runtime, options = {}) {
       try {
         await withDeadline(async (signal) => {
           selected.setAbortSignal?.(signal);
+          const cleanupStep = async (operation) => {
+            throwIfAborted(signal, "cleanup");
+            try { await operation(); } catch { cleanupFailed = true; }
+            throwIfAborted(signal, "cleanup");
+          };
           for (const kind of ["cartography-b", "cartography-a", "neo4j-b", "neo4j-a"]) {
             if (!candidates.has(kind)) continue;
-            try { await selected.removeContainer(kind); } catch { cleanupFailed = true; }
-            try { await selected.requireContainerAbsent(kind); } catch { cleanupFailed = true; }
+            await cleanupStep(() => selected.removeContainer(kind));
+            await cleanupStep(() => selected.requireContainerAbsent(kind));
           }
           if (candidates.has("network")) {
-            try { await selected.removeNetwork(); } catch { cleanupFailed = true; }
-            try { await selected.requireNetworkAbsent(); } catch { cleanupFailed = true; }
+            await cleanupStep(() => selected.removeNetwork());
+            await cleanupStep(() => selected.requireNetworkAbsent());
           }
           if (preflightPassed) {
-            try { await selected.requirePrefixAbsent("cleanup"); } catch { cleanupFailed = true; }
+            await cleanupStep(() => selected.requirePrefixAbsent("cleanup"));
           }
-          try { await selected.cleanupDockerConfig(); } catch { cleanupFailed = true; }
+          await cleanupStep(() => selected.cleanupDockerConfig());
           if (preflightPassed) {
-            try { await selected.requireTemporaryPrefixAbsent("cleanup"); } catch { cleanupFailed = true; }
+            await cleanupStep(() => selected.requireTemporaryPrefixAbsent("cleanup"));
           }
         }, cleanupTimeoutMs);
       } catch {
@@ -827,18 +893,57 @@ async function withAbsoluteDeadline(operation, timeoutMs) {
   const controller = new AbortController();
   let timer;
   try {
-    return await Promise.race([
-      Promise.resolve().then(() => operation(controller.signal)),
-      new Promise((_, rejectPromise) => {
+    const operationResult = Promise.resolve()
+      .then(() => operation(controller.signal))
+      .then(
+        (value) => ({ state: "fulfilled", value }),
+        (error) => ({ state: "rejected", error }),
+      );
+    const winner = await Promise.race([
+      operationResult,
+      new Promise((resolvePromise) => {
         timer = setTimeout(() => {
           controller.abort();
-          rejectPromise(new Failure("operation"));
+          resolvePromise({ state: "timeout" });
         }, timeoutMs);
       }),
     ]);
+    if (winner.state === "timeout") {
+      await operationResult;
+      throw new Failure("operation");
+    }
+    if (winner.state === "rejected") throw winner.error;
+    return winner.value;
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function phaseStep(signal, operation, category) {
+  throwIfAborted(signal, category);
+  const value = await operation();
+  throwIfAborted(signal, category);
+  return value;
+}
+
+function throwIfAborted(signal, category) {
+  if (signal?.aborted === true) throw new Failure(category);
+}
+
+function waitWithSignal(milliseconds, signal) {
+  return new Promise((resolvePromise, rejectPromise) => {
+    let timer;
+    const abort = () => {
+      clearTimeout(timer);
+      rejectPromise(new Failure("operation"));
+    };
+    signal?.addEventListener?.("abort", abort, { once: true });
+    timer = setTimeout(() => {
+      signal?.removeEventListener?.("abort", abort);
+      resolvePromise();
+    }, milliseconds);
+    if (signal?.aborted === true) abort();
+  });
 }
 
 function runtimeContract(runtime) {
