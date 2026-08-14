@@ -20,6 +20,7 @@ const markerPattern = /^[a-f0-9]{16}$/;
 const objectIDPattern = /^[a-f0-9]{64}$/;
 const imageIDPattern = /^sha256:[a-f0-9]{64}$/;
 const roleIDPattern = /^AROA[A-Z0-9]{16}$/;
+const utcInstantPartsPattern = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,6}))?(?:Z|\+00:00)$/;
 const processOutputLimit = 16_384;
 const artifactLimit = 64 * 1024;
 const dockerTimeoutMs = 30_000;
@@ -29,6 +30,7 @@ const mainTimeoutMs = 300_000;
 const cleanupTimeoutMs = 60_000;
 const proofDirectory = dirname(fileURLToPath(import.meta.url));
 const artifactName = "prowler.ocsf.json";
+const globalTemporaryPrefix = "zasp-m0-11-";
 const organizationID = "org_aaaaaaaaaaaaaaaa";
 const observationInstant = "2026-08-14T00:00:00.000Z";
 const accountID = "000000000000";
@@ -173,47 +175,77 @@ export function runBounded(command, arguments_, options, spawnImplementation = s
     }
     if (
       child === null || typeof child !== "object" || typeof child.once !== "function" ||
-      typeof child.stdout?.on !== "function" || typeof child.stderr?.on !== "function"
+      typeof child.kill !== "function" || typeof child.stdout?.on !== "function" ||
+      typeof child.stderr?.on !== "function"
     ) {
       rejectPromise(new Failure(options.category));
       return;
     }
     let settled = false;
+    let failureRequested = false;
+    let killed = false;
     let bytes = 0;
     let timer;
     const stdout = [];
     const stderr = [];
     const signal = options.signal;
-    const stop = () => {
+    function stop() {
+      if (killed) return;
+      killed = true;
       child.stdout?.destroy?.();
       child.stderr?.destroy?.();
-      child.kill?.("SIGKILL");
-    };
-    const finish = (callback) => {
+      try { child.kill("SIGKILL"); } catch { /* close/error remains the reap boundary */ }
+    }
+    function requestFailure() {
+      if (settled || failureRequested) return;
+      failureRequested = true;
+      stop();
+    }
+    function abort() { requestFailure(); }
+    function consume(target) {
+      return (chunk) => {
+        if (settled) return;
+        let value;
+        try { value = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk); }
+        catch { requestFailure(); return; }
+        bytes += value.byteLength;
+        if (bytes > options.outputLimit) { requestFailure(); return; }
+        target.push(value);
+      };
+    }
+    const stdoutData = consume(stdout);
+    const stderrData = consume(stderr);
+    function cleanupListeners() {
+      child.stdout?.removeListener?.("data", stdoutData);
+      child.stdout?.removeListener?.("error", requestFailure);
+      child.stderr?.removeListener?.("data", stderrData);
+      child.stderr?.removeListener?.("error", requestFailure);
+      child.removeListener?.("error", requestFailure);
+      child.removeListener?.("close", close);
+      signal?.removeEventListener?.("abort", abort);
+    }
+    function finish(callback) {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      signal?.removeEventListener?.("abort", abort);
+      cleanupListeners();
       callback();
-    };
-    const fail = () => finish(() => rejectPromise(new Failure(options.category)));
-    const abort = () => { stop(); fail(); };
-    const consume = (target) => (chunk) => {
-      if (settled) return;
-      const value = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-      bytes += value.byteLength;
-      if (bytes > options.outputLimit) { stop(); fail(); return; }
-      target.push(value);
-    };
-    child.stdout.on("data", consume(stdout));
-    child.stderr.on("data", consume(stderr));
-    child.once("error", fail);
-    child.once("close", (status, closeSignal) => finish(() => resolvePromise({
-      status,
-      signal: closeSignal,
-      stdout: Buffer.concat(stdout).toString("utf8"),
-      stderr: Buffer.concat(stderr).toString("utf8"),
-    })));
+    }
+    function close(status, closeSignal) { finish(() => {
+      if (failureRequested) { rejectPromise(new Failure(options.category)); return; }
+      resolvePromise({
+        status,
+        signal: closeSignal,
+        stdout: Buffer.concat(stdout).toString("utf8"),
+        stderr: Buffer.concat(stderr).toString("utf8"),
+      });
+    }); }
+    child.stdout.on("data", stdoutData);
+    child.stdout.on("error", requestFailure);
+    child.stderr.on("data", stderrData);
+    child.stderr.on("error", requestFailure);
+    child.once("error", requestFailure);
+    child.once("close", close);
     signal?.addEventListener?.("abort", abort, { once: true });
     timer = setTimeout(abort, options.timeoutMs);
     if (signal?.aborted === true) abort();
@@ -369,6 +401,17 @@ export class DockerRuntime {
     return { path: value, dev: status.dev, ino: status.ino };
   }
 
+  async reproveTemporary(kind, category, phase = this.phase, allowArtifact = false) {
+    this.assertActive(category, phase);
+    const retained = kind === "docker-config" ? this.dockerConfigIdentity : this.outputIdentity;
+    if (retained === undefined) throw new Failure(category);
+    const current = await this.ownedTemporaryDirectory(retained.path, kind, category, phase, allowArtifact);
+    if (current === undefined || current.dev !== retained.dev || current.ino !== retained.ino) {
+      throw new Failure(category);
+    }
+    return current;
+  }
+
   async cleanupTemporary(kind, phase = this.phase) {
     this.assertActive("cleanup", phase);
     const state = this.temporary.get(kind);
@@ -419,7 +462,7 @@ export class DockerRuntime {
     let entries;
     try { entries = await this.readDirectory(this.tempParent); } catch { throw new Failure(category); }
     this.assertActive(category, phase);
-    if (!Array.isArray(entries) || entries.some((entry) => typeof entry !== "string" || entry.startsWith(`${this.prefix}-`))) {
+    if (!Array.isArray(entries) || entries.some((entry) => typeof entry !== "string" || entry.startsWith(globalTemporaryPrefix))) {
       throw new Failure(category);
     }
   }
@@ -440,6 +483,7 @@ export class DockerRuntime {
   async dockerRead(args, options = {}, phase = this.phase) {
     const category = options.category ?? "provider";
     this.assertActive(category, phase);
+    await this.reproveTemporary("docker-config", category, phase, false);
     const value = await this.command("docker", args, this.dockerOptions(options, phase), this.spawnProcess);
     this.assertActive(category, phase);
     return value;
@@ -472,6 +516,10 @@ export class DockerRuntime {
   async dockerMutation(args, options = {}, phase = this.phase) {
     const category = options.category ?? "provider";
     this.assertActive(category, phase);
+    await this.reproveTemporary("docker-config", category, phase, false);
+    if (options.requireEmptyOutput === true) {
+      await this.reproveTemporary("output", category, phase, false);
+    }
     const value = await this.command("docker", args, this.dockerOptions(options, phase), this.spawnProcess);
     this.assertActive(category, phase);
     return value;
@@ -479,18 +527,24 @@ export class DockerRuntime {
 
   async preflight(phase = this.phase) {
     this.assertActive("ownership", phase);
+    await this.reproveTemporary("docker-config", "ownership", phase, false);
+    await this.reproveTemporary("output", "ownership", phase, false);
     await this.requirePrefixAbsent("ownership", phase);
     let entries;
     try { entries = await this.readDirectory(this.tempParent); } catch { throw new Failure("ownership"); }
     this.assertActive("ownership", phase);
-    const admitted = new Set([
+    const admitted = [
       basename(this.dockerConfigIdentity?.path ?? ""), basename(this.outputIdentity?.path ?? ""),
-    ]);
-    if (!Array.isArray(entries) || entries.some((entry) => typeof entry !== "string" || (entry.startsWith(`${this.prefix}-`) && !admitted.has(entry)))) {
+    ].sort();
+    const ownedEntries = Array.isArray(entries)
+      ? entries.filter((entry) => typeof entry === "string" && entry.startsWith(globalTemporaryPrefix)).sort()
+      : undefined;
+    if (
+      !Array.isArray(entries) || entries.some((entry) => typeof entry !== "string") ||
+      !isDeepStrictEqual(ownedEntries, admitted)
+    ) {
       throw new Failure("ownership");
     }
-    const outputEntries = await this.readDirectory(this.outputIdentity.path);
-    if (!Array.isArray(outputEntries) || outputEntries.length !== 0) throw new Failure("ownership");
   }
 
   async requirePrefixAbsent(category = "ownership", phase = this.phase) {
@@ -525,8 +579,18 @@ export class DockerRuntime {
     ];
     let inspected = await this.readDocker(args, { category: "provider" }, phase);
     if (inspected?.status !== 0 || inspected?.signal !== null) {
-      const pulled = await this.dockerMutation(["pull", image], { category: "provider", timeoutMs: imagePullTimeoutMs }, phase);
-      if (pulled?.status !== 0 || pulled?.signal !== null) throw new Failure("provider");
+      if (!exactMissingImage(inspected, image)) throw new Failure("provider");
+      let pulled;
+      try {
+        pulled = await this.dockerMutation(["pull", image], {
+          category: "provider", timeoutMs: imagePullTimeoutMs,
+        }, phase);
+      } catch {
+        this.assertActive("provider", phase);
+      }
+      if (pulled !== undefined && (
+        pulled?.status !== 0 || pulled?.signal !== null || pulled?.stderr !== ""
+      )) throw new Failure("provider");
       inspected = await this.readDocker(args, { category: "provider" }, phase);
     }
     const metadata = parseImageMetadata(inspected?.stdout);
@@ -595,18 +659,26 @@ export class DockerRuntime {
     if (this.roleIdentity?.arn !== roleArn || !roleIDPattern.test(this.roleIdentity?.role_id ?? "")) {
       throw new Failure("ownership");
     }
-    return this.createContainer("prowler", buildProwlerCreateArguments(
+    await this.reproveTemporary("output", "ownership", phase, false);
+    const token = await this.createContainer("prowler", buildProwlerCreateArguments(
       this.name("prowler"), this.name("localstack"), this.networkName,
       this.proofDirectory, this.outputIdentity?.path,
     ), phase);
+    await this.reproveTemporary("output", "ownership", phase, false);
+    return token;
   }
 
   async createContainer(kind, args, phase = this.phase) {
     this.assertActive("provider", phase);
     this.containerAttempts.add(kind);
     let created;
-    try { created = await this.dockerMutation(args, { category: "provider" }, phase); }
+    try {
+      created = await this.dockerMutation(args, {
+        category: "provider", ...(kind === "prowler" ? { requireEmptyOutput: true } : {}),
+      }, phase);
+    }
     catch { this.assertActive("provider", phase); }
+    if (kind === "prowler") await this.reproveTemporary("output", "ownership", phase, false);
     const direct = singleLine(created?.stdout);
     if (objectIDPattern.test(direct)) this.containerTokens.set(kind, direct);
     if (created?.status !== 0 || created?.signal !== null || !objectIDPattern.test(direct)) {
@@ -653,7 +725,7 @@ export class DockerRuntime {
       throw new Failure(category);
     }
     const parsed = fields.slice(8).map((field) => {
-      try { return JSON.parse(field); } catch { throw new Failure(category); }
+      try { return parseUniqueJson(field); } catch { throw new Failure(category); }
     });
     const [networks, environment, portBindings, ports, entrypoint, command, mounts, binds, hostMounts, tmpfs,
       readonlyRootfs, capDrop, securityOpt, pidsLimit, memory, nanoCpus, user, workingDirectory] = parsed;
@@ -782,6 +854,7 @@ export class DockerRuntime {
     const executed = await this.dockerMutation(["start", "--attach", token], {
       category: "operation", timeoutMs: scannerTimeoutMs, outputLimit: processOutputLimit,
     }, phase);
+    await this.reproveTemporary("output", "ownership", phase, true);
     if (executed?.status !== 3 || executed?.signal !== null || executed?.stdout !== bridgeLine || executed?.stderr !== "") {
       throw new Failure("normalization");
     }
@@ -808,6 +881,7 @@ export class DockerRuntime {
   async readArtifact(phase = this.phase) {
     const identity = await this.verifyArtifactFile("normalization", phase);
     let handle;
+    let artifact;
     try {
       const flags = constants.O_RDONLY | constants.O_CLOEXEC | constants.O_NOFOLLOW | constants.O_NONBLOCK;
       handle = await this.openPath(identity.path, flags);
@@ -831,18 +905,23 @@ export class DockerRuntime {
         closedStatus.ino !== identity.ino || closedStatus.size !== identity.size
       ) throw new Failure("normalization");
       this.assertActive("normalization", phase);
-      return buffer.subarray(0, offset);
+      artifact = buffer.subarray(0, offset);
     } catch (error) {
       if (error instanceof Failure) throw error;
       throw new Failure("normalization");
     } finally {
       try { await handle?.close?.(); } catch { /* read already fails closed */ }
     }
+    await this.reproveTemporary("output", "normalization", phase, true);
+    return artifact;
   }
 
   async normalizeArtifact(phase = this.phase) {
     let normalized;
-    try { normalized = this.normalize(organizationID, await this.readArtifact(phase), observationInstant); }
+    try {
+      normalized = this.normalize(organizationID, await this.readArtifact(phase), observationInstant);
+      await this.reproveTemporary("output", "normalization", phase, true);
+    }
     catch (error) { if (error instanceof Failure) throw error; throw new Failure("normalization"); }
     const resource = normalized?.resources?.[0];
     const finding = normalized?.findings?.[0];
@@ -1235,8 +1314,18 @@ function normalizeTags(value, marker) {
 
 function utcInstant(value) {
   if (typeof value !== "string" || value.length > 64 || hasControlCharacter(value)) return false;
-  const date = new Date(value);
-  return !Number.isNaN(date.valueOf()) && /(?:Z|\+00:00)$/.test(value);
+  const match = utcInstantPartsPattern.exec(value);
+  if (match === null) return false;
+  const [year, month, day, hour, minute, second] = match.slice(1, 7).map((part) => Number(part));
+  if (year < 1) return false;
+  const millisecond = Number(`${match[7] ?? ""}000`.slice(0, 3));
+  const candidate = new Date(0);
+  candidate.setUTCFullYear(year, month - 1, day);
+  candidate.setUTCHours(hour, minute, second, millisecond);
+  return candidate.getUTCFullYear() === year && candidate.getUTCMonth() === month - 1 &&
+    candidate.getUTCDate() === day && candidate.getUTCHours() === hour &&
+    candidate.getUTCMinutes() === minute && candidate.getUTCSeconds() === second &&
+    candidate.getUTCMilliseconds() === millisecond;
 }
 
 function parseUniqueJson(source) {
@@ -1371,6 +1460,11 @@ function exactMissingNetwork(value, token) {
 
 function exactMissingVolume(value, token) {
   return value?.status === 1 && value?.signal === null && value?.stdout === "[]\n" && value?.stderr === `Error response from daemon: get ${token}: no such volume\n`;
+}
+
+function exactMissingImage(value, image) {
+  return value?.status === 1 && value?.signal === null && value?.stdout === "[]\n" &&
+    value?.stderr === `Error response from daemon: No such image: ${image}\n`;
 }
 
 function exactAbsolutePath(value) {

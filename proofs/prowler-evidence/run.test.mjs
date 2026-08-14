@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
+import { basename } from "node:path";
 import { PassThrough } from "node:stream";
 import test from "node:test";
 
@@ -278,6 +279,47 @@ test("bounded child execution caps combined output, deadlines, and panics", asyn
   }
 });
 
+test("bounded child pipe failures are killed, reaped, and stripped of listeners", async () => {
+  const runBounded = requireExport("runBounded");
+  for (const streamName of ["stdout", "stderr"]) {
+    const fault = faultingChild(streamName);
+    await assert.rejects(
+      runBounded("docker", [], {
+        env: {}, timeoutMs: 100, outputLimit: 16_384, category: "provider",
+      }, () => fault.child),
+      (error) => error?.category === "provider",
+    );
+    assert.deepEqual(fault.signals, ["SIGKILL"]);
+    assert.equal(fault.reaped(), 1);
+    assert.equal(fault.child.listenerCount("error"), 0);
+    assert.equal(fault.child.listenerCount("close"), 0);
+    assert.equal(fault.child.stdout.listenerCount("data"), 0);
+    assert.equal(fault.child.stdout.listenerCount("error"), 0);
+    assert.equal(fault.child.stderr.listenerCount("data"), 0);
+    assert.equal(fault.child.stderr.listenerCount("error"), 0);
+  }
+});
+
+test("orchestration maps either child pipe failure to one fixed line and still cleans up", async () => {
+  for (const streamName of ["stdout", "stderr"]) {
+    const runtime = new FakeRuntime();
+    runtime.resolveImages = async () => {
+      runtime.record("images");
+      const fault = faultingChild(streamName);
+      await api.runBounded("docker", [], {
+        env: {}, timeoutMs: 100, outputLimit: 16_384, category: "provider",
+      }, () => fault.child);
+    };
+    const proof = await api.orchestrate(runtime, fastOptions());
+    assert.deepEqual(proof, { code: 1, line: "Prowler evidence proof failed: provider rejected." });
+    assert.equal(proof.line.includes("secret"), false);
+    assert.deepEqual(runtime.calls, [
+      "initialize", "preflight", "images", "cleanup-output", "prefix-absent",
+      "cleanup-config", "temp-prefix-absent",
+    ]);
+  }
+});
+
 test("initializes two exact empty canonical temp directories and isolates Docker CLI environment", async () => {
   const calls = [];
   const runtime = temporaryRuntime({
@@ -315,9 +357,130 @@ test("rejects lexical, symlink, replacement, and nonempty temp ownership", async
   }
 });
 
+test("re-proves the exact empty Docker config immediately before every Docker command", async () => {
+  for (const operation of ["dockerRead", "dockerMutation"]) {
+    for (const mutation of ["canonical", "identity", "contents"]) {
+      let calls = 0;
+      const runtime = temporaryRuntime({
+        command: async () => { calls += 1; return result(); },
+      });
+      await runtime.initialize();
+      runtime.canonicalPath = async (value) => value === dockerConfig && mutation === "canonical"
+        ? `${dockerConfig}-replacement`
+        : value;
+      runtime.statPath = async (value) => value === dockerConfig
+        ? identityStat(1, mutation === "identity" ? 99 : 2)
+        : identityStat(1, 3);
+      runtime.readDirectory = async (value) => value === dockerConfig && mutation === "contents"
+        ? ["config.json"]
+        : [];
+      await assert.rejects(runtime[operation](["version"]), (error) => error?.category === "provider");
+      assert.equal(calls, 0, `${operation}:${mutation}`);
+    }
+  }
+});
+
+test("re-proves the output directory before and after scanner creation, start, and artifact use", async () => {
+  const beforeCreate = temporaryRuntime();
+  await beforeCreate.initialize();
+  beforeCreate.roleIdentity = { arn: roleArn, role_id: roleID };
+  beforeCreate.ensureFixture = async () => {};
+  beforeCreate.createContainer = async () => prowlerID;
+  beforeCreate.readDirectory = async (value) => value === outputDirectory ? ["replacement"] : [];
+  await assert.rejects(beforeCreate.createProwler(), (error) => error?.category === "ownership");
+
+  let afterCreateInode = 3;
+  const afterCreate = temporaryRuntime();
+  await afterCreate.initialize();
+  afterCreate.roleIdentity = { arn: roleArn, role_id: roleID };
+  afterCreate.ensureFixture = async () => {};
+  afterCreate.statPath = async (value) => value === outputDirectory
+    ? identityStat(1, afterCreateInode)
+    : identityStat(1, 2);
+  afterCreate.readDirectory = async () => [];
+  afterCreate.createContainer = async () => { afterCreateInode = 99; return prowlerID; };
+  await assert.rejects(afterCreate.createProwler(), (error) => error?.category === "ownership");
+
+  let afterStartInode = 3;
+  const afterStart = temporaryRuntime();
+  await afterStart.initialize();
+  afterStart.verifyContainer = async () => prowlerID;
+  afterStart.statPath = async (value) => value === outputDirectory
+    ? identityStat(1, afterStartInode)
+    : identityStat(1, 2);
+  afterStart.readDirectory = async (value) => value === outputDirectory ? ["prowler.ocsf.json"] : [];
+  afterStart.dockerMutation = async () => {
+    afterStartInode = 99;
+    return result(3, "Prowler fixture bridge produced one FAIL finding.\n");
+  };
+  await assert.rejects(afterStart.runProwler(), (error) => error?.category === "ownership");
+
+  const bytes = Buffer.from("artifact");
+  let afterReadInode = 3;
+  const afterRead = temporaryRuntime({
+    artifactBytes: bytes,
+    openPath: async () => {
+      let offset = 0;
+      return {
+        stat: async () => identityStat(1, 9, { file: true, size: bytes.length }),
+        read: async (buffer, bufferOffset, length) => {
+          const chunk = bytes.subarray(offset, offset + length);
+          chunk.copy(buffer, bufferOffset);
+          offset += chunk.length;
+          return { bytesRead: chunk.length };
+        },
+        close: async () => { afterReadInode = 99; },
+      };
+    },
+  });
+  await afterRead.initialize();
+  const originalStat = afterRead.statPath;
+  afterRead.statPath = async (value) => value === outputDirectory
+    ? identityStat(1, afterReadInode)
+    : originalStat(value);
+  await assert.rejects(afterRead.readArtifact(), (error) => error?.category === "normalization");
+});
+
+test("directory replacement restored before cleanup preserves the main failure while persistent mutation gives cleanup precedence", async () => {
+  for (const restoreBeforeCleanup of [true, false]) {
+    let configInode = 2;
+    let phaseCount = 0;
+    const guard = temporaryRuntime({ command: async () => result() });
+    const runtime = new FakeRuntime();
+    runtime.setAbortSignal = () => {
+      phaseCount += 1;
+      if (phaseCount === 2 && restoreBeforeCleanup) configInode = 2;
+    };
+    runtime.initialize = async () => {
+      runtime.record("initialize");
+      await guard.initialize();
+      const originalStat = guard.statPath;
+      guard.statPath = async (value) => value === dockerConfig
+        ? identityStat(1, configInode)
+        : originalStat(value);
+    };
+    runtime.resolveImages = async () => {
+      runtime.record("images");
+      configInode = 99;
+      await guard.dockerMutation(["version"]);
+    };
+    runtime.requirePrefixAbsent = async () => {
+      runtime.record("prefix-absent");
+      await guard.dockerMutation(["version"], { category: "cleanup" });
+    };
+    const proof = await api.orchestrate(runtime, fastOptions());
+    assert.deepEqual(proof, restoreBeforeCleanup
+      ? { code: 1, line: "Prowler evidence proof failed: provider rejected." }
+      : { code: 1, line: "Prowler evidence proof failed: cleanup rejected." });
+    for (const call of ["cleanup-output", "prefix-absent", "cleanup-config", "temp-prefix-absent"]) {
+      assert.equal(runtime.calls.includes(call), true, `${restoreBeforeCleanup}:${call}`);
+    }
+  }
+});
+
 test("resolves exact full image metadata with one single-attempt pull", async () => {
   const runtime = scriptedRuntime([
-    result(1), result(1), result(0, "pulled\n"),
+    missingImage(api.LOCALSTACK_IMAGE), missingImage(api.LOCALSTACK_IMAGE), result(0, "pulled\n"),
     result(0, imageInspection({
       imageID: localstackImageID,
       environment: localstackImageEnvironment,
@@ -341,6 +504,37 @@ test("resolves exact full image metadata with one single-attempt pull", async ()
   }
 });
 
+test("pulls only after an exact missing-image envelope and reconciles only thrown ambiguity", async () => {
+  const inspection = result(0, imageInspection({
+    imageID: localstackImageID,
+    environment: localstackImageEnvironment,
+    entrypoint: localstackImageEntrypoint,
+    exposedPorts: localstackImageExposedPorts,
+    volumes: localstackImageVolumes,
+    user: "",
+    workingDirectory: "/opt/code/localstack/",
+  }));
+
+  const generic = scriptedRuntime([result(1), result(1)]);
+  await assert.rejects(generic.resolveImage(api.LOCALSTACK_IMAGE), (error) => error?.category === "provider");
+  assert.equal(generic.calls.some((call) => call.kind === "mutation"), false);
+
+  const ambiguous = scriptedRuntime([
+    missingImage(api.LOCALSTACK_IMAGE), missingImage(api.LOCALSTACK_IMAGE),
+    new api.Failure("provider"), inspection,
+  ]);
+  assert.equal(await ambiguous.resolveImage(api.LOCALSTACK_IMAGE), localstackImageID);
+  assert.deepEqual(ambiguous.calls.map((call) => call.kind), ["read", "read", "mutation", "read"]);
+
+  const definitive = scriptedRuntime([
+    missingImage(api.LOCALSTACK_IMAGE), missingImage(api.LOCALSTACK_IMAGE),
+    result(1, "", "pull rejected\n"), inspection,
+  ]);
+  await assert.rejects(definitive.resolveImage(api.LOCALSTACK_IMAGE), (error) => error?.category === "provider");
+  assert.equal(definitive.calls.length, 3);
+  assert.equal(definitive.imageIDs.has(api.LOCALSTACK_IMAGE), false);
+});
+
 test("preflight rejects owned container, internal-network, output, or temp prefix collisions", async () => {
   const clean = scriptedRuntime([result(), result()]);
   await clean.preflight();
@@ -350,6 +544,33 @@ test("preflight rejects owned container, internal-network, output, or temp prefi
   ]) {
     await assert.rejects(scriptedRuntime(responses).preflight(), (error) => error?.category === "ownership");
   }
+});
+
+test("temp prefix audits are global across markers, admit only the two current identities, and finish empty", async () => {
+  const currentEntries = [basename(dockerConfig), basename(outputDirectory)];
+  const staleOtherMarker = "zasp-m0-11-fedcba9876543210-output-stale";
+
+  const clean = temporaryRuntime();
+  await clean.initialize();
+  clean.readDirectory = async (value) => {
+    if (value === tempParent) return [...currentEntries, "unrelated"];
+    return [];
+  };
+  await clean.preflight();
+
+  const stale = temporaryRuntime();
+  await stale.initialize();
+  stale.readDirectory = async (value) => {
+    if (value === tempParent) return [...currentEntries, staleOtherMarker];
+    return [];
+  };
+  await assert.rejects(stale.preflight(), (error) => error?.category === "ownership");
+  await assert.rejects(stale.requireTemporaryPrefixAbsent(), (error) => error?.category === "cleanup");
+
+  const final = temporaryRuntime();
+  await final.initialize();
+  final.readDirectory = async (value) => value === tempParent ? ["unrelated"] : [];
+  await final.requireTemporaryPrefixAbsent();
 });
 
 test("preflight and absence never reinterpret exhausted provider reads as empty listings", async () => {
@@ -466,6 +687,35 @@ test("reconciles one ambiguous IAM create only through exact role identity, trus
   assert.equal(runtime.calls.filter((call) => call.kind === "mutation").length, 1);
 });
 
+test("rejects impossible or non-canonical role timestamps while accepting strict UTC", async () => {
+  for (const createDate of [
+    "2026-02-30T00:00:00+00:00",
+    "Fri, 14 Aug 2026 00:00:00 GMT",
+    "2026-08-14 00:00:00+00:00",
+    "2026-08-14T00:00:00-07:00",
+  ]) {
+    const role = { ...roleDocument(), CreateDate: createDate };
+    const runtime = scriptedRuntime([
+      result(0, `${JSON.stringify({ Role: role })}\n`),
+      result(0, `${JSON.stringify({ Role: role })}\n`),
+      result(0, `${JSON.stringify({ Tags: exactTags() })}\n`),
+    ]);
+    runtime.containerTokens.set("localstack", localstackID);
+    runtime.verifyContainer = async () => localstackID;
+    await assert.rejects(runtime.createAndVerifyRole(), (error) => error?.category === "ownership");
+  }
+
+  const exactRole = { ...roleDocument(), CreateDate: "2026-08-14T00:00:00.123456Z" };
+  const exact = scriptedRuntime([
+    result(0, `${JSON.stringify({ Role: exactRole })}\n`),
+    result(0, `${JSON.stringify({ Role: exactRole })}\n`),
+    result(0, `${JSON.stringify({ Tags: exactTags() })}\n`),
+  ]);
+  exact.containerTokens.set("localstack", localstackID);
+  exact.verifyContainer = async () => localstackID;
+  assert.deepEqual(await exact.createAndVerifyRole(), { arn: roleArn, role_id: roleID });
+});
+
 test("verifies hardened scanner ownership and rejects security, mount, env, or argv drift", async () => {
   const exact = scriptedRuntime([result(0, prowlerInspection())]);
   configureProwler(exact);
@@ -484,6 +734,34 @@ test("verifies hardened scanner ownership and rejects security, mount, env, or a
     prowlerInspection({ command: ["-i", "PATH=/bad", "/bin/sh"] }),
   ]) {
     const runtime = scriptedRuntime([result(0, changed)]);
+    configureProwler(runtime);
+    await assert.rejects(runtime.verifyContainer("prowler"), (error) => error?.category === "ownership");
+  }
+});
+
+test("container inspection rejects duplicate JSON keys without requiring object key order", async () => {
+  const reorderedMounts = [
+    Object.fromEntries(Object.entries({
+      Type: "bind", Source: proofDirectory, Destination: "/proof", Mode: "ro", RW: false, Propagation: "rprivate",
+    }).reverse()),
+    Object.fromEntries(Object.entries({
+      Type: "bind", Source: outputDirectory, Destination: "/proof/output", Mode: "rw", RW: true, Propagation: "rprivate",
+    }).reverse()),
+  ];
+  const reordered = scriptedRuntime([result(0, prowlerInspection({ mounts: reorderedMounts }))]);
+  configureProwler(reordered);
+  assert.equal(await reordered.verifyContainer("prowler"), prowlerID);
+
+  const duplicateNetworks = replaceInspectionField(
+    prowlerInspection(), 8,
+    `{${JSON.stringify(networkName)}:{"NetworkID":${JSON.stringify(networkID)}},${JSON.stringify(networkName)}:{"NetworkID":${JSON.stringify(networkID)}}}`,
+  );
+  const duplicateTmpfs = replaceInspectionField(
+    prowlerInspection(), 17,
+    `{${JSON.stringify("/tmp")}:${JSON.stringify("rw,noexec,nosuid,nodev,size=33554432")},${JSON.stringify("/tmp")}:${JSON.stringify("rw,noexec,nosuid,nodev,size=33554432")}}`,
+  );
+  for (const inspection of [duplicateNetworks, duplicateTmpfs]) {
+    const runtime = scriptedRuntime([result(0, inspection)]);
     configureProwler(runtime);
     await assert.rejects(runtime.verifyContainer("prowler"), (error) => error?.category === "ownership");
   }
@@ -729,7 +1007,9 @@ class ScriptedRuntime extends (api?.DockerRuntime ?? class {}) {
       statPath: async (value) => value.endsWith("fixture.json")
         ? identityStat(1, 8, { file: true, size: 1 })
         : identityStat(1, value === dockerConfig ? 2 : 3),
-      readDirectory: async () => [],
+      readDirectory: async (value) => value === tempParent
+        ? [basename(dockerConfig), basename(outputDirectory)]
+        : [],
       readPath: async () => Buffer.from("{}\n"),
       wait: async () => {},
       normalize: options.normalize,
@@ -777,10 +1057,17 @@ function temporaryRuntime({
 } = {}) {
   const statForArtifact = artifactStat ?? identityStat(1, 9, { file: true, size: artifactBytes.length });
   const removedPaths = new Set();
+  const createdPaths = new Set();
   let outputDirectoryReads = 0;
   return new (requireExport("DockerRuntime"))({
     path: "/safe/bin", marker, proofDirectory, tempParent,
-    makeTemp: makeTemp ?? (async (value) => value.includes("docker-config") ? configCandidate : outputCandidate),
+    makeTemp: async (value) => {
+      const candidate = await (makeTemp ?? (async (prefix_) => prefix_.includes("docker-config")
+        ? configCandidate
+        : outputCandidate))(value);
+      createdPaths.add(candidate);
+      return candidate;
+    },
     chmodPath: async () => {},
     removeTemp: async (...arguments_) => {
       await removeTemp(...arguments_);
@@ -804,6 +1091,11 @@ function temporaryRuntime({
       if (value === outputCandidate) {
         outputDirectoryReads += 1;
         return outputDirectoryReads <= 2 ? [] : outputEntries;
+      }
+      if (value === tempParent) {
+        return [...createdPaths]
+          .filter((candidate) => !removedPaths.has(candidate))
+          .map((candidate) => basename(candidate));
       }
       return [];
     },
@@ -894,20 +1186,52 @@ function missingContainer(token) {
   return result(1, "\n", `error: no such object: ${token}\n`);
 }
 
+function missingImage(image) {
+  return result(1, "[]\n", `Error response from daemon: No such image: ${image}\n`);
+}
+
+function replaceInspectionField(inspection, index, replacement) {
+  const fields = inspection.slice(0, -1).split("|");
+  assert.equal(fields.length, 26);
+  fields[index] = replacement;
+  return `${fields.join("|")}\n`;
+}
+
 function fakeChild({ stdout = [], stderr = [], code = 0, signal = null, neverClose = false } = {}) {
   const child = new EventEmitter();
   const signals = [];
+  let closed = false;
   child.stdout = new PassThrough();
   child.stderr = new PassThrough();
-  child.kill = (value) => { signals.push(value); return true; };
+  child.kill = (value) => {
+    signals.push(value);
+    if (!closed) queueMicrotask(() => { closed = true; child.emit("close", null, value); });
+    return true;
+  };
   queueMicrotask(() => {
     for (const chunk of stdout) child.stdout.write(chunk);
     for (const chunk of stderr) child.stderr.write(chunk);
-    if (!neverClose) {
+    if (!neverClose && !closed) {
+      closed = true;
       child.stdout.end(); child.stderr.end(); child.emit("close", code, signal);
     }
   });
   return { child, signals };
+}
+
+function faultingChild(streamName) {
+  const child = new EventEmitter();
+  const signals = [];
+  let closeCount = 0;
+  child.stdout = new PassThrough();
+  child.stderr = new PassThrough();
+  child.kill = (value) => {
+    signals.push(value);
+    queueMicrotask(() => { closeCount += 1; child.emit("close", null, "SIGKILL"); });
+    return true;
+  };
+  queueMicrotask(() => child[streamName].emit("error", new Error(`secret ${streamName} failure`)));
+  return { child, signals, reaped: () => closeCount };
 }
 
 function deferred() {
