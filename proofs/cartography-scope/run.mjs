@@ -101,11 +101,12 @@ export function buildCartographyCreateArguments(name, neo4jName, network, mount,
     "--label", `zasp.marker=${marker}`,
     "--entrypoint", "python",
     "--volume", `${mount}:/proof:ro`,
+    "--volume", `${join(mount, "fixtures", `org-${slot}.json`)}:/proof/fixture.json:ro`,
     CARTOGRAPHY_IMAGE,
     "-I", "-c", CARTOGRAPHY_BOOTSTRAP,
     name,
     "/proof/fixture_runner.py",
-    "--fixture", `/proof/fixtures/org-${slot}.json`,
+    "--fixture", "/proof/fixture.json",
     "--neo4j-uri", `bolt://${neo4jName}:7687`,
   ];
 }
@@ -547,9 +548,27 @@ export class DockerRuntime {
     }
   }
 
+  async ensureFixtureFile(slot) {
+    validateSlot(slot);
+    const fixture = join(this.proofDirectory, "fixtures", `org-${slot}.json`);
+    try {
+      const [canonical, status] = await Promise.all([
+        this.canonicalPath(fixture), this.statPath(fixture),
+      ]);
+      if (
+        canonical !== fixture || !status?.isFile?.() || status?.isSymbolicLink?.() ||
+        !Number.isSafeInteger(status.dev) || !Number.isSafeInteger(status.ino)
+      ) throw new Error("invalid");
+    } catch {
+      throw new Failure("ownership");
+    }
+    return fixture;
+  }
+
   async createCartography(slot) {
     validateSlot(slot);
     await this.ensureProofDirectory();
+    await this.ensureFixtureFile(slot);
     const kind = `cartography-${slot}`;
     const name = this.name(kind);
     this.containerAttempts.add(kind);
@@ -627,6 +646,8 @@ export class DockerRuntime {
     }
     const attachedNetworkID = networks?.[this.networkName]?.NetworkID;
     const preStartCartographyNetwork = !kind.startsWith("neo4j-") && attachedNetworkID === "";
+    const parentMount = mounts?.find?.((mount) => mount?.Destination === "/proof");
+    const fixtureMount = mounts?.find?.((mount) => mount?.Destination === "/proof/fixture.json");
     if (
       fields[0] !== token || fields[1] !== `/${this.name(kind)}` ||
       fields[2] !== (kind.startsWith("neo4j-") ? token.slice(0, 12) : this.name(kind)) ||
@@ -655,11 +676,13 @@ export class DockerRuntime {
       !isDeepStrictEqual(entrypoint, ["python"]) ||
       !isDeepStrictEqual(command, [
         "-I", "-c", CARTOGRAPHY_BOOTSTRAP, this.name(kind), "/proof/fixture_runner.py",
-        "--fixture", `/proof/fixtures/org-${kind.at(-1)}.json`,
+        "--fixture", "/proof/fixture.json",
         "--neo4j-uri", `bolt://${this.name(`neo4j-${kind.at(-1)}`)}:7687`,
       ]) ||
-      mounts.length !== 1 || mounts[0]?.Source !== this.proofDirectory ||
-      mounts[0]?.Destination !== "/proof" || mounts[0]?.RW !== false || mounts[0]?.Type !== "bind"
+      mounts.length !== 2 || parentMount?.Source !== this.proofDirectory ||
+      parentMount?.RW !== false || parentMount?.Type !== "bind" ||
+      fixtureMount?.Source !== join(this.proofDirectory, "fixtures", `org-${kind.at(-1)}.json`) ||
+      fixtureMount?.RW !== false || fixtureMount?.Type !== "bind"
     ) throw new Failure(category);
     else if (preStartCartographyNetwork) await this.verifyNetwork(category);
     return token;

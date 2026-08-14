@@ -83,7 +83,7 @@ test("pins both exact images and builds exact network and Neo4j mutations", () =
   );
 });
 
-test("builds two exact one-shot Cartography creates with a read-only proof mount and no provider environment", () => {
+test("builds two exact one-shot Cartography creates with a read-only proof mount and fixed fixture overlay", () => {
   for (const slot of ["a", "b"]) {
     const args = buildCartographyCreateArguments(
       `${prefix}-cartography-${slot}`,
@@ -99,11 +99,12 @@ test("builds two exact one-shot Cartography creates with a read-only proof mount
       "--label", "zasp.proof=m0-10", "--label", `zasp.marker=${marker}`,
       "--entrypoint", "python",
       "--volume", `${proofDirectory}:/proof:ro`,
+      "--volume", `${proofDirectory}/fixtures/org-${slot}.json:/proof/fixture.json:ro`,
       CARTOGRAPHY_IMAGE,
       "-I", "-c", expectedBootstrap,
       `${prefix}-cartography-${slot}`,
       "/proof/fixture_runner.py",
-      "--fixture", `/proof/fixtures/org-${slot}.json`,
+      "--fixture", "/proof/fixture.json",
       "--neo4j-uri", `bolt://${prefix}-neo4j-${slot}:7687`,
     ]);
     assert.equal(args.includes("--env"), false);
@@ -484,6 +485,65 @@ test("accepts an exact pre-start Cartography network only after re-proving the o
     ["inspect", "--format"],
     ["network", "inspect"],
   ]);
+});
+
+test("requires the exact slot fixture overlay and rejects missing, swapped, writable, or extra mounts", async () => {
+  const parent = { Type: "bind", Source: proofDirectory, Destination: "/proof", RW: false };
+  const overlay = { Type: "bind", Source: `${proofDirectory}/fixtures/org-a.json`, Destination: "/proof/fixture.json", RW: false };
+  const exact = new ScriptedRuntime([result(0, `${containerInspection({
+    token: cartographyID,
+    name: `${prefix}-cartography-a`,
+    imageID: cartographyImageID,
+    image: CARTOGRAPHY_IMAGE,
+    environment: ["PYTHON_VERSION=3.13"],
+    mounts: [parent, overlay],
+  })}\n`)]);
+  exact.networkToken = networkID;
+  exact.imageIDs.set(CARTOGRAPHY_IMAGE, cartographyImageID);
+  exact.containerTokens.set("cartography-a", cartographyID);
+  assert.equal(await exact.verifyContainer("cartography-a"), cartographyID);
+
+  for (const mounts of [
+    [parent],
+    [parent, { ...overlay, Source: `${proofDirectory}/fixtures/org-b.json` }],
+    [parent, { ...overlay, Destination: "/proof/other.json" }],
+    [parent, { ...overlay, RW: true }],
+    [parent, overlay, { Type: "bind", Source: `${proofDirectory}/fixture_runner.py`, Destination: "/extra", RW: false }],
+  ]) {
+    const runtime = new ScriptedRuntime([result(0, `${containerInspection({
+      token: cartographyID,
+      name: `${prefix}-cartography-a`,
+      imageID: cartographyImageID,
+      image: CARTOGRAPHY_IMAGE,
+      environment: ["PYTHON_VERSION=3.13"],
+      mounts,
+    })}\n`)]);
+    runtime.networkToken = networkID;
+    runtime.imageIDs.set(CARTOGRAPHY_IMAGE, cartographyImageID);
+    runtime.containerTokens.set("cartography-a", cartographyID);
+    await assert.rejects(runtime.verifyContainer("cartography-a"), (error) => error?.category === "ownership");
+  }
+});
+
+test("admits only a canonical regular non-symlink slot fixture overlay", async () => {
+  const fixture = `${proofDirectory}/fixtures/org-a.json`;
+  const exact = temporaryRuntime({
+    canonicalPath: async (value) => value,
+    statPath: async () => fileIdentityStat(1, 2),
+  });
+  assert.equal(await exact.ensureFixtureFile("a"), fixture);
+
+  for (const testCase of [
+    { canonical: "/elsewhere/org-a.json", stat: fileIdentityStat(1, 2) },
+    { canonical: fixture, stat: fileIdentityStat(1, 2, true) },
+    { canonical: fixture, stat: identityStat(1, 2) },
+  ]) {
+    const runtime = temporaryRuntime({
+      canonicalPath: async (value) => value === fixture ? testCase.canonical : value,
+      statPath: async () => testCase.stat,
+    });
+    await assert.rejects(runtime.ensureFixtureFile("a"), (error) => error?.category === "ownership");
+  }
 });
 
 test("reconciles ambiguous creates and removes only the same freshly re-proven container", async () => {
@@ -990,10 +1050,13 @@ function containerInspection({
   entrypoint = name.includes("-cartography-") ? ["python"] : null,
   command = name.includes("-cartography-") ? [
     "-I", "-c", expectedBootstrap, name, "/proof/fixture_runner.py",
-    "--fixture", `/proof/fixtures/org-${name.at(-1)}.json`,
+    "--fixture", "/proof/fixture.json",
     "--neo4j-uri", `bolt://${prefix}-neo4j-${name.at(-1)}:7687`,
   ] : null,
-  mounts = name.includes("-cartography-") ? [{ Type: "bind", Source: proofDirectory, Destination: "/proof", RW: false }] : [],
+  mounts = name.includes("-cartography-") ? [
+    { Type: "bind", Source: proofDirectory, Destination: "/proof", RW: false },
+    { Type: "bind", Source: `${proofDirectory}/fixtures/org-${name.at(-1)}.json`, Destination: "/proof/fixture.json", RW: false },
+  ] : [],
   attachedNetworkID = networkID,
 }) {
   return [
@@ -1026,6 +1089,10 @@ function replaceInspectionField(value, index, replacement) {
 
 function identityStat(dev, ino, link = false) {
   return { dev, ino, isDirectory: () => true, isSymbolicLink: () => link };
+}
+
+function fileIdentityStat(dev, ino, link = false) {
+  return { dev, ino, isFile: () => true, isSymbolicLink: () => link };
 }
 
 function sequence(...values) {
