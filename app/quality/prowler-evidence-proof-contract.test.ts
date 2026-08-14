@@ -29,7 +29,7 @@ const expectedR06Row = [
   "A minimal AWS fixture produces one relevant Prowler finding that maps to a canonical resource ID and normalized evidence.",
   "No relevant finding is produced, or it cannot map to both a canonical resource ID and normalized evidence.",
   "Discovery owner: block Prowler-derived MVP findings; revise the adapter or choose another evidence source.",
-  "Not run — M0-11",
+  "PASS — M0-11",
 ];
 
 function parseMarkdownRows(markdown: string) {
@@ -40,31 +40,35 @@ function parseMarkdownRows(markdown: string) {
     .map((line) => line.slice(1, -1).split("|").map((cell) => cell.trim()));
 }
 
-function assertR06NotRun(riskRegister: string) {
+function assertR06Pass(riskRegister: string) {
   const r06Rows = parseMarkdownRows(riskRegister).filter(([id]) => id === "R-06");
 
   expect(r06Rows).toHaveLength(1);
   expect(r06Rows[0]).toEqual(expectedR06Row);
 }
 
-function assertOnlyM011InProgress(tracker: string) {
+function assertM011Complete(tracker: string) {
   const inProgressSection = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0];
-  const rows = parseMarkdownRows(inProgressSection ?? "");
-  const [header, separator, ...dataRows] = rows;
+  const inProgressRows = parseMarkdownRows(inProgressSection ?? "");
+  const [header, separator, ...dataRows] = inProgressRows;
+  const completeSection = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0];
+  const completeRows = parseMarkdownRows(completeSection ?? "").slice(2);
+  const m011Rows = completeRows.filter(([task]) => task === "M0-11");
 
   expect(inProgressSection).toBeDefined();
   expect(header).toEqual(["Task", "Started", "Current work"]);
   expect(separator).toHaveLength(3);
   expect(separator?.every((cell) => /^:?-{3,}:?$/.test(cell))).toBe(true);
-  expect(dataRows).toHaveLength(1);
-  expect(dataRows[0]).toHaveLength(3);
-  expect(dataRows[0]?.[0]).toBe("M0-11");
-  expect(dataRows[0]?.[1]).toBe("August 14, 2026");
-  expect(dataRows[0]?.[2]).toContain("exact-pinned Prowler fixture-only evidence proof");
-  expect(dataRows[0]?.[2]).toContain("without claiming real-AWS parity");
+  expect(dataRows).toHaveLength(0);
+  expect(completeSection).toBeDefined();
+  expect(m011Rows).toHaveLength(1);
+  expect(m011Rows[0]).toHaveLength(3);
+  expect(m011Rows[0]?.[1]).toBe("August 14, 2026");
+  expect(m011Rows[0]?.[2]).toContain("exact-pinned Prowler fixture-only evidence proof");
+  expect(m011Rows[0]?.[2]).toContain("without claiming real-AWS parity");
 }
 
-describe("Prowler evidence proof start contract", () => {
+describe("Prowler evidence proof contract", () => {
   it("locks the approved fixture-only image, built-in check, and normalization boundary", async () => {
     const [design, sourcePlan, riskRegister] = await Promise.all([
       readFile(
@@ -86,7 +90,7 @@ describe("Prowler evidence proof start contract", () => {
     expect(design).toMatch(/filters to `FAIL`,\s+and writes only JSON-OCSF/);
     expect(design).toContain(fixtureArn);
     expect(design).toContain(canonicalResourceId);
-    assertR06NotRun(riskRegister);
+    assertR06Pass(riskRegister);
   });
 
   it("exposes an exact hermetic root test command and the disposable live runner", async () => {
@@ -126,7 +130,7 @@ describe("Prowler evidence proof start contract", () => {
     expect(section).toContain("fixture-only");
     expect(section).toContain("does not prove real-AWS authorization or parity");
     expect(section).toContain("proof-owned containers, network, output, and temporary directories");
-    expect(section).toContain("M0-11 is In progress");
+    expect(section).toContain("M0-11 is Complete");
     expect(section).toContain("npm run proof:prowler:license");
     expect(section).toContain("LocalStack Community image");
     expect(section).toContain("Apache-2.0 plus its tagged community EULA");
@@ -161,24 +165,20 @@ describe("Prowler evidence proof start contract", () => {
     expect(stderr).not.toContain("sensitive runtime detail");
   });
 
-  it("starts exactly one source-plan task without completing M0-11", async () => {
+  it("completes exactly one source-plan task after reviewed live evidence", async () => {
     const tracker = await readFile(
       resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"),
       "utf8",
     );
-    const completeSection = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0];
-
     expect(tracker).toContain("| Pending | 717 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 9 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 10 |");
     expect(tracker).toContain("| Blocked | 1 |");
-    expect(tracker).toMatch(/\| M0 \| 27 \| 16 \| 1 \| 9 \| 1 \|/);
-    assertOnlyM011InProgress(tracker);
-    expect(completeSection).not.toContain("| M0-11 |");
-    expect(completeSection).toContain("| M0-10 | August 14, 2026 |");
+    expect(tracker).toMatch(/\| M0 \| 27 \| 16 \| 0 \| 10 \| 1 \|/);
+    assertM011Complete(tracker);
   });
 
-  it("rejects a duplicate M0-11 In progress data row even when the aggregate remains one", async () => {
+  it("rejects a duplicate M0-11 Complete data row even when the aggregate remains ten", async () => {
     const tracker = await readFile(
       resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"),
       "utf8",
@@ -187,25 +187,24 @@ describe("Prowler evidence proof start contract", () => {
 
     expect(m011Row).toBeDefined();
     const mutatedTracker = tracker.replace(`${m011Row}\n`, `${m011Row}\n${m011Row}\n`);
-    expect(mutatedTracker).toContain("| In progress | 1 |");
-    expect(() => assertOnlyM011InProgress(mutatedTracker)).toThrow();
+    expect(mutatedTracker).toContain("| Complete | 10 |");
+    expect(() => assertM011Complete(mutatedTracker)).toThrow();
   });
 
-  it("rejects an extra In progress data row even when the aggregate remains one", async () => {
+  it("rejects an extra In progress data row when the aggregate remains zero", async () => {
     const tracker = await readFile(
       resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"),
       "utf8",
     );
-    const m011Row = tracker.split("\n").find((line) => line.startsWith("| M0-11 |"));
     const extraRow = "| M0-12 | August 14, 2026 | Unexpected concurrent work. |";
+    const completeHeading = "## Complete\n";
 
-    expect(m011Row).toBeDefined();
-    const mutatedTracker = tracker.replace(`${m011Row}\n`, `${m011Row}\n${extraRow}\n`);
-    expect(mutatedTracker).toContain("| In progress | 1 |");
-    expect(() => assertOnlyM011InProgress(mutatedTracker)).toThrow();
+    const mutatedTracker = tracker.replace(completeHeading, `${extraRow}\n\n${completeHeading}`);
+    expect(mutatedTracker).toContain("| In progress | 0 |");
+    expect(() => assertM011Complete(mutatedTracker)).toThrow();
   });
 
-  it("binds the exact Not run state to the parsed R-06 row", async () => {
+  it("binds the exact PASS state to the parsed R-06 row", async () => {
     const riskRegister = await readFile(
       resolve(repositoryRoot, "docs/decisions/mvp-risk-register.md"),
       "utf8",
@@ -214,16 +213,16 @@ describe("Prowler evidence proof start contract", () => {
 
     expect(r06Row).toBeDefined();
     const changedR06Row = (r06Row ?? "").replace(
-      "| Not run — M0-11 |",
+      "| PASS — M0-11 |",
       "| PASS — M0-11 — invalid-review-mutation |",
     );
-    const mutatedRiskRegister = `${riskRegister.replace(r06Row ?? "", changedR06Row)}\n| Not run — M0-11 |\n`;
+    const mutatedRiskRegister = `${riskRegister.replace(r06Row ?? "", changedR06Row)}\n| PASS — M0-11 |\n`;
 
     expect(changedR06Row).not.toBe(r06Row);
-    expect(() => assertR06NotRun(mutatedRiskRegister)).toThrow();
+    expect(() => assertR06Pass(mutatedRiskRegister)).toThrow();
   });
 
-  it("documents the exact start boundary without weakening blocked provider work", async () => {
+  it("documents the exact completion boundary without weakening blocked provider work", async () => {
     const [readme, tracker, design] = await Promise.all([
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
@@ -235,7 +234,7 @@ describe("Prowler evidence proof start contract", () => {
     const section = readme.match(/## Prowler evidence proof[\s\S]*?## Real AWS cross-account IAM proof/)?.[0];
 
     expect(section).toBeDefined();
-    expect(section ?? "").toContain("M0-11 is In progress");
+    expect(section ?? "").toContain("M0-11 is Complete");
     expect(section ?? "").toContain(prowlerImage);
     expect(section ?? "").toContain(checkId);
     expect(section ?? "").toContain("one synthetic IAM role");

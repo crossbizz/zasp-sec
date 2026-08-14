@@ -68,10 +68,10 @@ describe("Cartography scope proof delivery-waiver status contract", () => {
     ]);
 
     expect(tracker).toContain("| Pending | 717 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 9 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 10 |");
     expect(tracker).toContain("| Blocked | 1 |");
-    expect(tracker).toMatch(/\| M0 \| 27 \| 16 \| 1 \| 9 \| 1 \|/);
+    expect(tracker).toMatch(/\| M0 \| 27 \| 16 \| 0 \| 10 \| 1 \|/);
     expect(tracker).toContain(
       "| M0-10 | August 14, 2026 | Two exact-pinned disposable Cartography/Neo4j fixture runs loaded two synthetic Organizations and proved eight normalized nodes, four relationships, collision isolation, customer-label safety, exact cleanup, pinned gates/scans, two consecutive live passes, and zero-finding independent review under the fixture-only waiver; no AWS/GitHub authorization-parity claim. |",
     );

@@ -195,7 +195,7 @@ This fixture-only integration proof does not prove AWS/GitHub authorization pari
 
 ## Prowler evidence proof
 
-M0-11 is In progress as a fixture-only evidence proof. Its hermetic test command
+M0-11 is Complete as a fixture-only evidence proof. Its hermetic test command
 requires Node.js `22.23.1` and npm `10.9.8`, plus Python `3.13.11`; it does not
 start Docker or contact a provider. The live command additionally requires
 Docker and uses only these exact-pinned images:
@@ -239,9 +239,9 @@ npm run proof:prowler:run
 ```
 
 This fixture-only evidence does not prove real-AWS authorization or parity,
-broad Prowler coverage, LocalStack IAM parity, or production runner behavior. R-06
-remains Not run until reviewed live evidence passes. M0-09 and PROV-01 remain
-Blocked, and R-03 remains incomplete.
+broad Prowler coverage, LocalStack IAM parity, or production runner behavior.
+R-06 is PASS with the retained reviewed M0-11 live evidence. M0-09 and PROV-01
+remain Blocked, and R-03 remains incomplete.
 
 ## Real AWS cross-account IAM proof
 
