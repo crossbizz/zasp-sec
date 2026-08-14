@@ -133,7 +133,10 @@ function localstackInspection(overrides = {}) {
     hostname: localstackName,
     imageID: localstackImageID,
     image: api?.LOCALSTACK_IMAGE,
-    environment: [...localstackProofEnvironment, ...localstackImageEnvironment],
+    environment: [
+      "ENFORCE_IAM=1", "PERSISTENCE=0", "SERVICES=iam,sts",
+      ...localstackImageEnvironment,
+    ],
     entrypoint: localstackImageEntrypoint,
     command: null,
     mounts,

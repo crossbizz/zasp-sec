@@ -1233,7 +1233,8 @@ function exactEnvironmentWithPrefix(value, prefix, imageEnvironment) {
   const environment = exactEnvironment(value);
   const image = exactEnvironment(imageEnvironment);
   if (environment === undefined || image === undefined || environment.length !== prefix.length + image.length) return false;
-  return isDeepStrictEqual(environment.slice(0, prefix.length), prefix) && isDeepStrictEqual(environment.slice(prefix.length), image);
+  return isDeepStrictEqual([...environment.slice(0, prefix.length)].sort(), [...prefix].sort()) &&
+    isDeepStrictEqual(environment.slice(prefix.length), image);
 }
 
 function exactEnvironment(value) {
