@@ -22,7 +22,7 @@ const tempParent = "/safe/tmp";
 const dockerConfig = `${tempParent}/${prefix}-docker-config-owned`;
 const outputDirectory = `${tempParent}/${prefix}-output-owned`;
 const roleArn = "arn:aws:iam::000000000000:role/shared-fixture-role";
-const roleID = "AROAXXXXXXXXXXXXXXXX";
+const roleID = "AROAQAAAAAAACCGORB4JC";
 
 const localstackImageEnvironment = [
   "PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
@@ -646,7 +646,7 @@ test("uses synthetic in-container AWS calls, exact readiness, and single-attempt
   const runtime = scriptedRuntime([
     result(0, `${JSON.stringify({ Account: "000000000000", Arn: "arn:aws:iam::000000000000:root", UserId: "AKIAIOSFODNN7EXAMPLE" })}\n`),
     result(0, `${JSON.stringify({ Role: roleDocument() })}\n`),
-    result(0, `${JSON.stringify({ Role: roleDocument() })}\n`),
+    result(0, `${JSON.stringify({ Role: { ...roleDocument(), RoleLastUsed: {} } })}\n`),
     result(0, `${JSON.stringify({ Tags: exactTags() })}\n`),
   ]);
   runtime.containerTokens.set("localstack", localstackID);
@@ -664,6 +664,17 @@ test("uses synthetic in-container AWS calls, exact readiness, and single-attempt
   assert.equal(mutation.includes("create-role"), true);
   assert.equal(mutation.includes("--assume-role-policy-document"), true);
   assert.equal(mutation.some((value) => value.includes("AWS_PROFILE")), false);
+
+  for (const roleLastUsed of [{ LastUsedDate: "2026-08-14T00:00:00Z" }, null]) {
+    const rejected = scriptedRuntime([
+      result(0, `${JSON.stringify({ Role: roleDocument() })}\n`),
+      result(0, `${JSON.stringify({ Role: { ...roleDocument(), RoleLastUsed: roleLastUsed } })}\n`),
+      result(0, `${JSON.stringify({ Tags: exactTags() })}\n`),
+    ]);
+    rejected.containerTokens.set("localstack", localstackID);
+    rejected.verifyContainer = async () => localstackID;
+    await assert.rejects(rejected.createAndVerifyRole(), (error) => error?.category === "ownership");
+  }
 });
 
 test("accepts exact IAM proof tags independent of provider response order", async () => {

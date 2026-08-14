@@ -19,7 +19,7 @@ const failureCategories = new Set([
 const markerPattern = /^[a-f0-9]{16}$/;
 const objectIDPattern = /^[a-f0-9]{64}$/;
 const imageIDPattern = /^sha256:[a-f0-9]{64}$/;
-const roleIDPattern = /^AROA[A-Z0-9]{16}$/;
+const roleIDPattern = /^AROA[A-Z0-9]{17}$/;
 const utcInstantPartsPattern = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,6}))?(?:Z|\+00:00)$/;
 const processOutputLimit = 16_384;
 const artifactLimit = 64 * 1024;
@@ -1291,13 +1291,18 @@ function parseRoleEnvelope(source, marker, requireTags) {
   }
   const role = envelope.Role;
   const requiredKeys = ["Path", "RoleName", "RoleId", "Arn", "CreateDate", "AssumeRolePolicyDocument", "MaxSessionDuration", ...(requireTags ? ["Tags"] : [])].sort();
+  const keys = Object.keys(role).sort();
+  const hasExactRoleLastUsed = isDeepStrictEqual(keys, [...requiredKeys, "RoleLastUsed"].sort()) &&
+    plainObject(role.RoleLastUsed) && Object.keys(role.RoleLastUsed).length === 0;
   if (
-    !isDeepStrictEqual(Object.keys(role).sort(), requiredKeys) || role.Path !== "/" || role.RoleName !== roleName ||
+    (!isDeepStrictEqual(keys, requiredKeys) && !hasExactRoleLastUsed) || role.Path !== "/" || role.RoleName !== roleName ||
     !roleIDPattern.test(role.RoleId ?? "") || role.Arn !== roleArn || !utcInstant(role.CreateDate) ||
     !isDeepStrictEqual(role.AssumeRolePolicyDocument, trustPolicy) || role.MaxSessionDuration !== 3600 ||
     (requireTags && normalizeTags(role.Tags, marker) === undefined)
   ) throw new Failure("ownership");
-  return requireTags ? { ...role, Tags: normalizeTags(role.Tags, marker) } : role;
+  const normalized = { ...role };
+  delete normalized.RoleLastUsed;
+  return requireTags ? { ...normalized, Tags: normalizeTags(role.Tags, marker) } : normalized;
 }
 
 function exactTags(marker) {
