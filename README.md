@@ -66,6 +66,26 @@ Run that sequence from the repository root. The command uses Node's dotenv loade
 It emits a fixed summary and never prints connection-string fields or query
 results.
 
+## LocalStack SQS proof
+
+This isolated Go proof reads only `AWS_ENDPOINT_URL` from the ignored `.env`,
+requires the configured loopback LocalStack HTTP endpoint, and supplies fixed
+non-secret local credentials and region directly to the official AWS SDK v2.
+It creates a uniquely tagged Standard queue and DLQ, asserts both redrive
+policies, sends one batched message containing two Organization-scoped
+normalized events, validates and deletes it, proves the queue empty, and
+deletes only its freshly re-proven resources in source-then-DLQ order.
+
+```bash
+npm run proof:localstack:sqs:test
+npm run proof:localstack:sqs:run
+```
+
+The live command performs a second exact-prefix absence audit and emits fixed
+output without queue, account, message, payload, tag, or endpoint identifiers.
+This is supported local behavior evidence, not real-AWS IAM or release-parity
+evidence.
+
 The application uses Vinext and targets the Cloudflare Workers runtime. Optional
 local D1 and R2 bindings can be enabled with `CLOUDFLARE_D1_BINDING` and
 `CLOUDFLARE_R2_BINDING`; no database or object-storage binding is required for
