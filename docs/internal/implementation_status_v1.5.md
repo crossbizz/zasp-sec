@@ -195,3 +195,8 @@ provider capability gate.
   SourceIdentity/trust-condition capability dependency. M0-10 is In progress
   only under the fixture-only Cartography delivery waiver and makes no AWS or
   GitHub authorization-parity claim.
+- M0-10 remains In progress while its root commands expose only the hermetic
+  two-Organization Cartography fixture proof. It accepts no dotenv,
+  credential, or proxy input, makes no AWS or GitHub calls, and cleans up only
+  proof-owned disposable resources. This does not prove AWS/GitHub authorization
+  parity: M0-09 and PROV-01 remain Blocked, and R-03 remains incomplete.

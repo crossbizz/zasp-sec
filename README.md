@@ -167,6 +167,32 @@ authorization-parity claim. Official LocalStack v4.14.0 source retains the
 same unsupported forwarding path; that is source review only, not a claim that
 v4.14.0 was live-tested.
 
+## Cartography Organization-scope proof
+
+This proof requires Docker and Python 3.13.11; the test command invokes the
+repository's pinned `/opt/homebrew/bin/python3.13` interpreter. It is a
+two-Organization fixture-only proof using only the two synthetic `.test`
+fixtures. It accepts no dotenv, credential, or proxy input and makes no AWS or GitHub calls.
+
+The disposable runtime loads each fixture into its proof-owned Cartography and
+Neo4j containers, compares the isolated normalized graphs, and applies
+customer-label normalization so customer-visible node and relationship labels
+do not expose Cartography, Neo4j, AWS, or GitHub implementation names. It
+cleans up only its exact proof-owned containers, network, and temporary
+directories, then verifies their absence. The live command emits only this
+fixed result on success:
+
+```text
+Cartography scope proof passed: fixtures=2 nodes=8 relationships=4 isolated=true labels_safe=true cleanup=true.
+```
+
+```bash
+npm run proof:cartography:test
+npm run proof:cartography:run
+```
+
+This fixture-only integration proof does not prove AWS/GitHub authorization parity. M0-10 remains In progress; M0-09 and PROV-01 remain Blocked, and R-03 remains incomplete.
+
 ## Real AWS cross-account IAM proof
 
 This proof is deliberately real-AWS-only. It requires two explicitly configured,

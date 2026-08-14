@@ -23,6 +23,8 @@
     "proof:opensearch:event:run": "node proofs/opensearch-event/run.mjs",
     "proof:localstack:iam:test": "cd proofs/localstack-iam-compat && go test -race -count=1 ./... && node --test run.test.mjs",
     "proof:localstack:iam:run": "node proofs/localstack-iam-compat/run.mjs",
+    "proof:cartography:test": "cd proofs/cartography-scope && node --test normalizer.test.mjs run.test.mjs && /opt/homebrew/bin/python3.13 -m unittest -v fixture_runner_test.py",
+    "proof:cartography:run": "node proofs/cartography-scope/run.mjs",
     "proof:aws:iam:test": "cd proofs/aws-cross-account-iam && go test -race -count=1 ./... && node --test run.test.mjs",
     "proof:aws:iam:run": "node --env-file=.env proofs/aws-cross-account-iam/run.mjs",
     "test": "vitest run",
