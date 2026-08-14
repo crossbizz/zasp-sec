@@ -40,6 +40,32 @@ function relationshipId(organizationId, kind, sourceId, targetId) {
   return `${organizationId}:relationship:${kind}:${digest}`;
 }
 
+function nodeId(organizationId, provider, kind, sourceId) {
+  const digest = createHash("sha256")
+    .update(JSON.stringify([organizationId, provider, kind, sourceId]))
+    .digest("hex");
+  return `${organizationId}:${provider}:${kind}:${digest}`;
+}
+
+function resignNodeSource(graph, kind, sourceId) {
+  const node = graph.nodes.find((candidate) => candidate.kind === kind);
+  assert.ok(node);
+  const oldId = node.id;
+  node.source_id = sourceId;
+  node.id = nodeId(node.organization_id, node.provider, node.kind, node.source_id);
+
+  for (const relationship of graph.relationships) {
+    if (relationship.source_id === oldId) relationship.source_id = node.id;
+    if (relationship.target_id === oldId) relationship.target_id = node.id;
+    relationship.id = relationshipId(
+      relationship.organization_id,
+      relationship.kind,
+      relationship.source_id,
+      relationship.target_id,
+    );
+  }
+}
+
 test("normalizes each Organization to four nodes and two relationships", () => {
   const normalized = validNormalizedGraph();
 
@@ -226,6 +252,32 @@ test("raw graph rejects duplicate relationships", () => {
   assertRejected(() => parseRawGraph(value));
 });
 
+test("raw graph rejects an empty Organization graph", () => {
+  assertRejected(() => parseRawGraph({ schema_version: 1, nodes: [], relationships: [] }));
+});
+
+test("raw graph rejects a partial Organization graph", () => {
+  const value = clone(fixtureA);
+  value.nodes = value.nodes.slice(0, 2);
+  value.relationships = value.relationships.slice(0, 1);
+
+  assertRejected(() => parseRawGraph(value));
+});
+
+test("raw graph rejects an extra instance of a mapped kind", () => {
+  const value = clone(fixtureA);
+  value.nodes.push({ labels: ["AWSAccount"], properties: { id: "111111111111" } });
+
+  assertRejected(() => parseRawGraph(value));
+});
+
+test("raw graph rejects a missing required edge", () => {
+  const value = clone(fixtureA);
+  value.relationships.pop();
+
+  assertRejected(() => parseRawGraph(value));
+});
+
 test("raw graph rejects dangling endpoints and reversed edges", () => {
   const dangling = clone(fixtureA);
   dangling.relationships[0].target.id =
@@ -346,6 +398,20 @@ test("merge rejects a canonically signed reversed relationship", () => {
 
   assertRejected(() => mergeNormalizedGraphs([normalized]));
 });
+
+for (const [kind, malformedSourceId] of [
+  ["cloud_account", "not-an-account"],
+  ["identity_role", "role-not-an-arn"],
+  ["code_organization", "organization-not-a-url"],
+  ["code_repository", "repo-not-numeric"],
+]) {
+  test(`merge rejects a canonically re-signed malformed ${kind} source ID`, () => {
+    const normalized = validNormalizedGraph();
+    resignNodeSource(normalized, kind, malformedSourceId);
+
+    assertRejected(() => mergeNormalizedGraphs([normalized]));
+  });
+}
 
 test("merge rejects dangling endpoints and customer-visible forbidden kinds", () => {
   const dangling = validNormalizedGraph();

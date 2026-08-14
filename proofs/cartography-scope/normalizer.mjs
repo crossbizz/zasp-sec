@@ -19,6 +19,13 @@ const propertyByLabel = new Map([
   ["GitHubRepository", "id"],
 ]);
 
+const labelByNormalizedKind = new Map([
+  ["cloud_account", "AWSAccount"],
+  ["identity_role", "AWSRole"],
+  ["code_organization", "GitHubOrganization"],
+  ["code_repository", "GitHubRepository"],
+]);
+
 const organizationIdPattern = /^org_[a-z0-9]{16}$/;
 const accountIdPattern = /^\d{12}$/;
 const roleArnPattern = /^arn:aws:iam::(\d{12}):role\/[A-Za-z0-9+=,.@_/-]{1,512}$/;
@@ -49,6 +56,8 @@ export function parseRawGraph(value) {
   for (const [index, relationship] of rawGraph.relationships.entries()) {
     parseRelationship(relationship, index, identities, relationships);
   }
+
+  validateRequiredShape(rawGraph);
 
   return rawGraph;
 }
@@ -271,6 +280,33 @@ function parseEndpoint(endpoint, context) {
   validateSourceId(endpoint.label, endpoint.id);
 }
 
+function validateRequiredShape(rawGraph) {
+  if (rawGraph.nodes.length !== nodeKinds.size) {
+    throw new TypeError("raw graph must contain exactly four nodes");
+  }
+  if (rawGraph.relationships.length !== relationshipKinds.size) {
+    throw new TypeError("raw graph must contain exactly two relationships");
+  }
+
+  const labels = new Set(rawGraph.nodes.map((node) => node.labels[0]));
+  if (labels.size !== nodeKinds.size || [...nodeKinds.keys()].some((label) => !labels.has(label))) {
+    throw new TypeError("raw graph must contain exactly one node of each mapped kind");
+  }
+
+  const edges = new Set(
+    rawGraph.relationships.map(
+      (relationship) =>
+        `${relationship.source.label}|${relationship.type}|${relationship.target.label}`,
+    ),
+  );
+  if (
+    edges.size !== relationshipKinds.size ||
+    [...relationshipKinds.keys()].some((edge) => !edges.has(edge))
+  ) {
+    throw new TypeError("raw graph must contain exactly one of each mapped relationship");
+  }
+}
+
 function validateSourceId(label, value) {
   if (typeof value !== "string") throw new TypeError(`${label} source ID must be a string`);
   if (label === "AWSAccount" && !accountIdPattern.test(value)) {
@@ -329,7 +365,7 @@ function validateNormalizedGraph(graph, graphIndex) {
       throw new TypeError("normalized node kind is invalid");
     }
     assertCustomerKind(node.kind);
-    if (typeof node.source_id !== "string") throw new TypeError("normalized source ID is invalid");
+    validateSourceId(labelByNormalizedKind.get(node.kind), node.source_id);
     const expectedId = canonicalNodeId(scope, node.provider, node.kind, node.source_id);
     if (node.id !== expectedId) throw new TypeError("canonical node ID is invalid");
     if (localNodes.has(node.id)) throw new TypeError("duplicate canonical node ID");
