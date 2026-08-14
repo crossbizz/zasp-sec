@@ -620,9 +620,15 @@ export class DockerRuntime {
   async isNeo4jReady(slot) {
     validateSlot(slot);
     const token = await this.verifyContainer(`neo4j-${slot}`, "ownership");
-    const ready = await this.dockerRead([
-      "exec", token, "cypher-shell", "--format", "plain", "-a", "bolt://localhost:7687", "RETURN 1 AS ready",
-    ], { category: "provider", timeoutMs: readinessTimeoutMs, outputLimit });
+    let ready;
+    try {
+      ready = await this.dockerRead([
+        "exec", token, "cypher-shell", "--format", "plain", "-a", "bolt://localhost:7687", "RETURN 1 AS ready",
+      ], { category: "provider", timeoutMs: readinessTimeoutMs, outputLimit });
+    } catch {
+      this.assertActive("provider");
+      return false;
+    }
     return ready?.status === 0 && ready?.signal === null && ready?.stdout === "ready\n1\n" && ready?.stderr === "";
   }
 

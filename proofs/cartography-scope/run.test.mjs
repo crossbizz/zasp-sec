@@ -577,6 +577,29 @@ test("readiness and bridge calls use exact finite deadlines and reject malformed
   }
 });
 
+test("treats a bounded readiness command timeout as not ready so polling can continue", async () => {
+  const inspection = `${containerInspection({
+    token: neo4jID,
+    name: `${prefix}-neo4j-a`,
+    imageID: neo4jImageID,
+    image: NEO4J_IMAGE,
+    environment: ["NEO4J_AUTH=none"],
+    ports: { "7687/tcp": [{ HostIp: "127.0.0.1", HostPort: "49152" }] },
+  })}\n`;
+  const runtime = new ScriptedRuntime([
+    result(0, inspection),
+    new Failure("provider"),
+    result(0, inspection),
+    result(0, "ready\n1\n"),
+  ]);
+  runtime.networkToken = networkID;
+  runtime.imageIDs.set(NEO4J_IMAGE, neo4jImageID);
+  runtime.containerTokens.set("neo4j-a", neo4jID);
+
+  assert.equal(await runtime.isNeo4jReady("a"), false);
+  assert.equal(await runtime.isNeo4jReady("a"), true);
+});
+
 test("orchestrates two isolated graphs, normalizes exact fixtures, and cleans in reverse dependency order", async () => {
   const runtime = new FakeRuntime();
   assert.deepEqual(await orchestrate(runtime, fastOptions()), { code: 0, line: SUCCESS_LINE });
