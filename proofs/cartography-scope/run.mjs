@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { lstat, mkdtemp, readdir, realpath, rm, readFile } from "node:fs/promises";
 import { connect } from "node:net";
 import { tmpdir } from "node:os";
@@ -33,6 +33,8 @@ const organizationBySlot = Object.freeze({
   a: "org_aaaaaaaaaaaaaaaa",
   b: "org_bbbbbbbbbbbbbbbb",
 });
+const fixtureMountpointBytes = Buffer.from("{}\n");
+const fixtureMountpointDigest = "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356";
 
 export class Failure extends Error {
   constructor(category) {
@@ -250,13 +252,14 @@ export class DockerRuntime {
     readDirectory = readdir,
     wait = (milliseconds) => new Promise((resolvePromise) => setTimeout(resolvePromise, milliseconds)),
     readinessProbe = probeLoopbackPort,
+    readPath = readFile,
   } = {}) {
     if (
       typeof path !== "string" || path.length === 0 ||
       !markerPattern.test(marker) ||
       typeof selectedProofDirectory !== "string" || !isAbsolute(selectedProofDirectory) || resolve(selectedProofDirectory) !== selectedProofDirectory ||
       typeof tempParent !== "string" || !isAbsolute(tempParent) || resolve(tempParent) !== tempParent ||
-      ![command, spawnProcess, makeTemp, removeTemp, canonicalPath, statPath, readDirectory, wait, readinessProbe].every((value) => typeof value === "function")
+      ![command, spawnProcess, makeTemp, removeTemp, canonicalPath, statPath, readDirectory, wait, readinessProbe, readPath].every((value) => typeof value === "function")
     ) {
       throw new Failure("configuration");
     }
@@ -275,6 +278,7 @@ export class DockerRuntime {
     this.readDirectory = readDirectory;
     this.wait = wait;
     this.readinessProbe = readinessProbe;
+    this.readPath = readPath;
     this.dockerConfigIdentity = undefined;
     this.networkToken = undefined;
     this.networkAttempted = false;
@@ -282,6 +286,7 @@ export class DockerRuntime {
     this.containerAttempts = new Set();
     this.imageIDs = new Map();
     this.neo4jPorts = new Map();
+    this.fixtureMountpointIdentity = undefined;
     this.signal = undefined;
   }
 
@@ -565,9 +570,40 @@ export class DockerRuntime {
     return fixture;
   }
 
+  async ensureFixtureMountpoint(category = "ownership") {
+    const mountpoint = join(this.proofDirectory, "fixture.json");
+    let canonical;
+    let status;
+    let bytes;
+    try {
+      [canonical, status, bytes] = await Promise.all([
+        this.canonicalPath(mountpoint), this.statPath(mountpoint), this.readPath(mountpoint),
+      ]);
+    } catch {
+      throw new Failure(category);
+    }
+    const digest = Buffer.isBuffer(bytes)
+      ? createHash("sha256").update(bytes).digest("hex")
+      : "";
+    const current = { path: mountpoint, dev: status?.dev, ino: status?.ino, digest };
+    if (
+      canonical !== mountpoint || !status?.isFile?.() || status?.isSymbolicLink?.() ||
+      !Number.isSafeInteger(current.dev) || !Number.isSafeInteger(current.ino) ||
+      !Buffer.isBuffer(bytes) || !isDeepStrictEqual(bytes, fixtureMountpointBytes) ||
+      digest !== fixtureMountpointDigest
+    ) throw new Failure(category);
+    if (this.fixtureMountpointIdentity === undefined) {
+      this.fixtureMountpointIdentity = current;
+    } else if (!isDeepStrictEqual(current, this.fixtureMountpointIdentity)) {
+      throw new Failure(category);
+    }
+    return mountpoint;
+  }
+
   async createCartography(slot) {
     validateSlot(slot);
     await this.ensureProofDirectory();
+    await this.ensureFixtureMountpoint();
     await this.ensureFixtureFile(slot);
     const kind = `cartography-${slot}`;
     const name = this.name(kind);
@@ -684,7 +720,10 @@ export class DockerRuntime {
       fixtureMount?.Source !== join(this.proofDirectory, "fixtures", `org-${kind.at(-1)}.json`) ||
       fixtureMount?.RW !== false || fixtureMount?.Type !== "bind"
     ) throw new Failure(category);
-    else if (preStartCartographyNetwork) await this.verifyNetwork(category);
+    else {
+      await this.ensureFixtureMountpoint(category);
+      if (preStartCartographyNetwork) await this.verifyNetwork(category);
+    }
     return token;
   }
 

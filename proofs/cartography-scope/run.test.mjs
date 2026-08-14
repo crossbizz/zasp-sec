@@ -546,6 +546,40 @@ test("admits only a canonical regular non-symlink slot fixture overlay", async (
   }
 });
 
+test("pins the inert fixture mountpoint bytes and identity through cleanup-time reproof", async () => {
+  const mountpoint = `${proofDirectory}/fixture.json`;
+  let status = fileIdentityStat(1, 2);
+  let contents = Buffer.from("{}\n");
+  const runtime = temporaryRuntime({
+    canonicalPath: async (value) => value,
+    statPath: async () => status,
+    readPath: async () => contents,
+  });
+  assert.equal(await runtime.ensureFixtureMountpoint(), mountpoint);
+  assert.equal(await runtime.ensureFixtureMountpoint("cleanup"), mountpoint);
+
+  status = fileIdentityStat(1, 3);
+  await assert.rejects(runtime.ensureFixtureMountpoint("cleanup"), (error) => error?.category === "cleanup");
+  status = fileIdentityStat(1, 2);
+  contents = Buffer.from("{\"unexpected\":true}\n");
+  await assert.rejects(runtime.ensureFixtureMountpoint("cleanup"), (error) => error?.category === "cleanup");
+});
+
+test("rejects an absent, symlinked, or mutated inert fixture mountpoint", async () => {
+  for (const testCase of [
+    { statPath: async () => { throw Object.assign(new Error("missing"), { code: "ENOENT" }); }, contents: Buffer.from("{}\n") },
+    { statPath: async () => fileIdentityStat(1, 2, true), contents: Buffer.from("{}\n") },
+    { statPath: async () => fileIdentityStat(1, 2), contents: Buffer.from("{ }\n") },
+  ]) {
+    const runtime = temporaryRuntime({
+      canonicalPath: async (value) => value,
+      statPath: testCase.statPath,
+      readPath: async () => testCase.contents,
+    });
+    await assert.rejects(runtime.ensureFixtureMountpoint(), (error) => error?.category === "ownership");
+  }
+});
+
 test("reconciles ambiguous creates and removes only the same freshly re-proven container", async () => {
   const inspection = containerInspection({
     token: neo4jID,
@@ -959,8 +993,11 @@ class ScriptedRuntime extends DockerRuntime {
       makeTemp: async () => dockerConfig,
       removeTemp: async () => {},
       canonicalPath: async (value) => value,
-      statPath: async () => identityStat(1, 2),
+      statPath: async (value) => value === `${proofDirectory}/fixture.json`
+        ? fileIdentityStat(1, 4)
+        : identityStat(1, 2),
       readDirectory: async () => [],
+      readPath: async () => Buffer.from("{}\n"),
       wait: async () => {},
       readinessProbe: options.readinessProbe,
     });
@@ -1031,10 +1068,11 @@ function temporaryRuntime({
   readDirectory = async () => entries,
   removeTemp = async () => {},
   command = async () => result(0),
+  readPath = async () => Buffer.from("{}\n"),
 } = {}) {
   return new DockerRuntime({
     path: "/safe/bin", marker, proofDirectory, tempParent: "/safe/tmp",
-    makeTemp: async () => candidate, removeTemp, canonicalPath, statPath, readDirectory,
+    makeTemp: async () => candidate, removeTemp, canonicalPath, statPath, readDirectory, readPath,
     command,
   });
 }

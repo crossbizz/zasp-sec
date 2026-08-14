@@ -490,6 +490,31 @@ class MainBoundaryTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(events[:2], ["deadline-entered", "fixture-read"])
 
+    def test_inert_mountpoint_alone_cannot_run_the_bridge(self):
+        placeholder = Path(__file__).with_name("fixture.json").read_bytes()
+        self.assertEqual(placeholder, b"{}\n")
+        with (
+            mock.patch.object(fixture_runner, "_read_fixture", return_value=placeholder),
+            mock.patch.object(
+                fixture_runner,
+                "_load_runtime",
+                side_effect=AssertionError("runtime must not load"),
+            ) as runtime,
+            mock.patch.object(
+                fixture_runner, "_absolute_deadline", self.fake_deadline
+            ),
+        ):
+            stdout = io.StringIO()
+            code = fixture_runner.run_main(
+                ["--fixture", FIXTURE_PATH, "--neo4j-uri", NEO4J_URI],
+                ENVIRON,
+                stdout,
+            )
+
+        self.assertEqual(code, 1)
+        self.assertEqual(stdout.getvalue(), "Cartography fixture bridge failed.\n")
+        runtime.assert_not_called()
+
     def test_run_main_rejects_every_nonbaseline_environment_entry_and_wrong_value(self):
         invalid_environments = [
             dict(ENVIRON, AWS_SECRET_ACCESS_KEY="secret"),
