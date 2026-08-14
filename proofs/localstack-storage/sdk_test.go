@@ -2,12 +2,15 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -34,11 +37,65 @@ func TestValidateEndpointAcceptsOnlyExplicitNonPrivilegedLoopbackHTTP(t *testing
 	for _, invalid := range []string{
 		"", "https://127.0.0.1:49152", "http://127.0.0.1", "http://127.0.0.1:80", "http://0.0.0.0:49152",
 		"http://example.com:49152", "http://user@127.0.0.1:49152", "http://127.0.0.1:49152/path",
-		"http://127.0.0.1:49152?query=1", "http://127.0.0.1:49152/#fragment",
+		"http://127.0.0.1:49152/", "http://127.0.0.1:49152?query=1", "http://127.0.0.1:49152/#fragment",
 	} {
 		if _, err := validateEndpoint(ctx, invalid, staticResolver{addresses: []string{"203.0.113.10"}}); err == nil {
 			t.Errorf("validateEndpoint(%q) accepted", invalid)
 		}
+	}
+}
+
+func TestCreateKeyDoesNotRetryAfterALostResponse(t *testing.T) {
+	t.Parallel()
+	var attempts atomic.Int32
+	var taggedCreates atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		attempts.Add(1)
+		var payload struct {
+			Description string
+			Tags        []struct{ TagKey, TagValue *string }
+		}
+		if err := json.NewDecoder(io.LimitReader(request.Body, 16_385)).Decode(&payload); err != nil {
+			t.Error("test server received an invalid CreateKey request")
+			return
+		}
+		tags := map[string]string{}
+		for _, tag := range payload.Tags {
+			if tag.TagKey == nil || tag.TagValue == nil {
+				t.Error("test server received an incomplete CreateKey tag")
+				return
+			}
+			tags[*tag.TagKey] = *tag.TagValue
+		}
+		if payload.Description != description(testMarker) || !equalStringMaps(tags, proofTags(testMarker, "kms-key")) {
+			t.Error("test server received an unexpected CreateKey ownership marker")
+			return
+		}
+		taggedCreates.Add(1)
+		hijacker, ok := writer.(http.Hijacker)
+		if !ok {
+			t.Error("test server cannot close the response connection")
+			return
+		}
+		connection, _, err := hijacker.Hijack()
+		if err != nil {
+			t.Errorf("hijack: %v", err)
+			return
+		}
+		_ = connection.Close()
+	}))
+	defer server.Close()
+	bundle, err := newSDKClients(context.Background(), server.URL)
+	if err != nil {
+		t.Fatalf("newSDKClients returned %v", err)
+	}
+	defer bundle.Close()
+	_, _ = bundle.KMS.CreateKey(context.Background(), CreateKeyRequest{Description: description(testMarker), Tags: proofTags(testMarker, "kms-key")})
+	if got := attempts.Load(); got != 1 {
+		t.Fatalf("CreateKey attempts = %d, want exactly one", got)
+	}
+	if got := taggedCreates.Load(); got != 1 {
+		t.Fatalf("tagged creates = %d, want exactly one", got)
 	}
 }
 

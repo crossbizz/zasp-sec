@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import http from "node:http";
 import test from "node:test";
 
 import {
@@ -8,6 +9,7 @@ import {
   buildGoToolEnvironment,
   buildProofEnvironment,
   orchestrate,
+  runMain,
   successLine,
 } from "./run.mjs";
 
@@ -117,4 +119,102 @@ test("cleans a retained exact candidate when start ownership verification throws
   const result = await orchestrate(runtime, { readinessAttempts: 1, wait: async () => {} });
   assert.deepEqual(result, { code: 1, line: "LocalStack storage proof failed: operation rejected." });
   assert.deepEqual(runtime.calls, ["ensure-absent", "start", "remove", "require-absent"]);
+});
+
+async function withReadinessServer(handler, assertion) {
+  const server = http.createServer(handler);
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  try {
+    const address = server.address();
+    assert.equal(typeof address, "object");
+    await assertion(`http://127.0.0.1:${address.port}`);
+  } finally {
+    server.closeAllConnections?.();
+    await new Promise((resolve) => server.close(resolve));
+  }
+}
+
+test("rejects an oversized readiness chunk immediately", async () => {
+  await withReadinessServer((_request, response) => {
+    response.writeHead(200, { "content-type": "application/json" });
+    response.write("x".repeat(16_385));
+  }, async (endpoint) => {
+    const runtime = new DockerRuntime({ path: "/safe/path", marker: "0123456789abcdef" });
+    const result = await Promise.race([
+      runtime.isReady(endpoint),
+      new Promise((resolve) => setTimeout(() => resolve("unbounded"), 300)),
+    ]);
+    assert.equal(result, false);
+  });
+});
+
+test("bounds an endlessly streaming readiness response", async () => {
+  await withReadinessServer((_request, response) => {
+    response.writeHead(200, { "content-type": "application/json" });
+    const interval = setInterval(() => response.write("x"), 25);
+    response.once("close", () => clearInterval(interval));
+  }, async (endpoint) => {
+    class StreamingRuntime extends FakeRuntime {
+      async endpoint() { this.calls.push("endpoint"); return endpoint; }
+      async isReady(value) {
+        this.calls.push("ready");
+        return DockerRuntime.prototype.isReady.call(this, value);
+      }
+    }
+    const runtime = new StreamingRuntime();
+    const result = await Promise.race([
+      orchestrate(runtime, { readinessAttempts: 1, wait: async () => {} }),
+      new Promise((resolve) => setTimeout(() => resolve("unbounded"), 800)),
+    ]);
+    assert.deepEqual(result, { code: 1, line: "LocalStack storage proof failed: readiness rejected." });
+    assert.deepEqual(runtime.calls.slice(-2), ["remove", "require-absent"]);
+  });
+});
+
+test("contains every runtime construction failure at the fixed-output boundary", async () => {
+  const factories = [
+    () => new DockerRuntime({ path: "" }),
+    () => new DockerRuntime({ path: "/safe/path", marker: "invalid" }),
+    () => new DockerRuntime({ path: "/safe/path", randomBytesSource: () => { throw new Error("sensitive random source detail"); } }),
+  ];
+  for (const runtimeFactory of factories) {
+    let stdout = "";
+    let stderr = "";
+    let exitCode;
+    const result = await runMain({
+      runtimeFactory,
+      stdout: { write: (value) => { stdout += value; } },
+      stderr: { write: (value) => { stderr += value; } },
+      setExitCode: (value) => { exitCode = value; },
+    });
+    assert.deepEqual(result, { code: 1, line: "LocalStack storage proof failed: configuration rejected." });
+    assert.equal(stdout, "");
+    assert.equal(stderr, "LocalStack storage proof failed: configuration rejected.\n");
+    assert.equal(exitCode, 1);
+    assert.equal(stderr.includes("sensitive"), false);
+    assert.equal(stderr.split("\n").filter(Boolean).length, 1);
+  }
+});
+
+test("contains an escaping orchestration failure at the fixed-output boundary", async () => {
+  let stderr = "";
+  let exitCode;
+  const runtime = {
+    async ensureAbsent() { throw new Error("sensitive orchestration detail"); },
+    hasCandidate() { throw new Error("sensitive finalizer detail"); },
+  };
+  const result = await runMain({
+    runtimeFactory: () => runtime,
+    stdout: { write: () => { throw new Error("unexpected stdout"); } },
+    stderr: { write: (value) => { stderr += value; } },
+    setExitCode: (value) => { exitCode = value; },
+  });
+  assert.deepEqual(result, { code: 1, line: "LocalStack storage proof failed: operation rejected." });
+  assert.equal(stderr, "LocalStack storage proof failed: operation rejected.\n");
+  assert.equal(exitCode, 1);
+  assert.equal(stderr.includes("sensitive"), false);
+  assert.equal(stderr.split("\n").filter(Boolean).length, 1);
 });

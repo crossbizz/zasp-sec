@@ -130,7 +130,10 @@ func (s *sdkKMS) ListKeys(ctx context.Context) ([]KMSKey, error) {
 }
 
 func (s *sdkKMS) CreateKey(ctx context.Context, request CreateKeyRequest) (KMSKey, error) {
-	output, err := s.client.CreateKey(ctx, &kms.CreateKeyInput{Description: aws.String(request.Description), KeySpec: kmstypes.KeySpecSymmetricDefault, KeyUsage: kmstypes.KeyUsageTypeEncryptDecrypt, Origin: kmstypes.OriginTypeAwsKms, Tags: toKMSTags(request.Tags)})
+	output, err := s.client.CreateKey(ctx, &kms.CreateKeyInput{Description: aws.String(request.Description), KeySpec: kmstypes.KeySpecSymmetricDefault, KeyUsage: kmstypes.KeyUsageTypeEncryptDecrypt, Origin: kmstypes.OriginTypeAwsKms, Tags: toKMSTags(request.Tags)}, func(options *kms.Options) {
+		options.Retryer = aws.NopRetryer{}
+		options.RetryMaxAttempts = 1
+	})
 	if err != nil || output == nil || output.KeyMetadata == nil {
 		return KMSKey{}, errProvider
 	}

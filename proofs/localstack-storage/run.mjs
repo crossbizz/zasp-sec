@@ -14,6 +14,8 @@ const fixedFailure = (category) => `LocalStack storage proof failed: ${category}
 const namePattern = /^zasp-m0-07-[a-f0-9]{16}$/;
 const idPattern = /^[a-f0-9]{64}$/;
 const proofDirectory = fileURLToPath(new URL(".", import.meta.url));
+const readinessBodyLimit = 16_384;
+const readinessDeadlineMilliseconds = 500;
 
 export function buildDockerRunArguments(name) {
   if (!namePattern.test(name)) throw categorized("configuration");
@@ -91,7 +93,8 @@ export async function orchestrate(runtime, options = {}) {
 }
 
 export class DockerRuntime {
-  constructor({ path = process.env.PATH, marker = randomBytes(8).toString("hex") } = {}) {
+  constructor({ path = process.env.PATH, marker, randomBytesSource = randomBytes } = {}) {
+    if (marker === undefined) marker = randomBytesSource(8).toString("hex");
     if (typeof path !== "string" || path.length === 0 || !/^[a-f0-9]{16}$/.test(marker)) throw categorized("configuration");
     this.path = path;
     this.name = `zasp-m0-07-${marker}`;
@@ -150,20 +153,47 @@ export class DockerRuntime {
 
   async isReady(endpoint) {
     return new Promise((resolve) => {
-      const request = http.get(`${endpoint}/_localstack/health`, { timeout: 500 }, (response) => {
-        let body = "";
-        response.setEncoding("utf8");
-        response.on("data", (chunk) => { if (body.length <= 16_384) body += chunk; });
-        response.on("end", () => {
-          try {
-            const parsed = JSON.parse(body);
-            const accepted = new Set(["available", "running"]);
-            resolve(response.statusCode === 200 && body.length <= 16_384 && ["s3", "kms", "secretsmanager"].every((service) => accepted.has(parsed.services?.[service])));
-          } catch { resolve(false); }
+      let request;
+      let response;
+      let settled = false;
+      const finish = (accepted) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(deadline);
+        if (!accepted) {
+          response?.destroy();
+          request?.destroy();
+        }
+        resolve(accepted);
+      };
+      const deadline = setTimeout(() => finish(false), readinessDeadlineMilliseconds);
+      try {
+        request = http.get(`${endpoint}/_localstack/health`, (incoming) => {
+          response = incoming;
+          const chunks = [];
+          let bytes = 0;
+          response.on("data", (chunk) => {
+            if (settled) return;
+            bytes += Buffer.byteLength(chunk);
+            if (bytes > readinessBodyLimit) {
+              finish(false);
+              return;
+            }
+            chunks.push(chunk);
+          });
+          response.on("end", () => {
+            try {
+              const parsed = JSON.parse(Buffer.concat(chunks, bytes).toString("utf8"));
+              const accepted = new Set(["available", "running"]);
+              finish(response.statusCode === 200 && ["s3", "kms", "secretsmanager"].every((service) => accepted.has(parsed.services?.[service])));
+            } catch { finish(false); }
+          });
+          response.on("error", () => finish(false));
         });
-      });
-      request.on("timeout", () => request.destroy());
-      request.on("error", () => resolve(false));
+        request.on("error", () => finish(false));
+      } catch {
+        finish(false);
+      }
     });
   }
 
@@ -215,12 +245,29 @@ export class DockerRuntime {
   }
 }
 
-async function main() {
-  const runtime = new DockerRuntime();
-  const result = await orchestrate(runtime);
-  const stream = result.code === 0 ? process.stdout : process.stderr;
-  stream.write(`${result.line}\n`);
-  process.exitCode = result.code;
+export async function runMain({
+  runtimeFactory = () => new DockerRuntime(),
+  stdout = process.stdout,
+  stderr = process.stderr,
+  setExitCode = (code) => { process.exitCode = code; },
+} = {}) {
+  let runtime;
+  let result;
+  try {
+    runtime = runtimeFactory();
+  } catch {
+    result = { code: 1, line: fixedFailure("configuration") };
+  }
+  if (result === undefined) {
+    try {
+      result = await orchestrate(runtime);
+    } catch {
+      result = { code: 1, line: fixedFailure("operation") };
+    }
+  }
+  (result.code === 0 ? stdout : stderr).write(`${result.line}\n`);
+  setExitCode(result.code);
+  return result;
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) await main();
+if (process.argv[1] === fileURLToPath(import.meta.url)) await runMain();

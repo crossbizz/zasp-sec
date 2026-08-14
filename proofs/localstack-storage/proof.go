@@ -201,17 +201,14 @@ func RunProof(ctx context.Context, options ProofOptions) (result ProofResult, re
 		return result, err
 	}
 
-	key, err := createOwnedKey(ctx, options.KMS, options.Marker)
+	key, err := createOwnedKey(ctx, options.KMS, options.Marker, targets)
 	if err != nil {
 		return result, err
 	}
-	targets.key = key
 
-	alias, err := createOwnedAlias(ctx, options.KMS, options.Marker, key)
-	if err != nil {
+	if _, err := createOwnedAlias(ctx, options.KMS, options.Marker, key, targets); err != nil {
 		return result, err
 	}
-	targets.alias = alias
 
 	if err := proveKMSRoundTrip(ctx, options.KMS, options.Marker, key); err != nil {
 		return result, err
@@ -243,7 +240,7 @@ func preflight(ctx context.Context, options ProofOptions) error {
 		return errProvider
 	}
 	for _, key := range keys {
-		if key.Description == description(options.Marker) || key.Tags["zasp-marker"] == options.Marker {
+		if strings.HasPrefix(key.Description, resourcePrefix+options.Marker) || key.Tags["zasp-marker"] == options.Marker {
 			return errOwnership
 		}
 	}
@@ -251,32 +248,35 @@ func preflight(ctx context.Context, options ProofOptions) error {
 	if err != nil {
 		return errProvider
 	}
-	if len(exactAliases(aliases, aliasName(options.Marker))) != 0 {
+	if len(aliases) != 0 {
 		return errOwnership
 	}
 	buckets, err := options.S3.ListBuckets(ctx, bucketName(options.Marker))
 	if err != nil {
 		return errProvider
 	}
-	if countExactStrings(buckets, bucketName(options.Marker)) != 0 {
+	if len(buckets) != 0 {
 		return errOwnership
 	}
 	secrets, err := options.Secrets.ListSecrets(ctx, secretName(options.Marker), true)
 	if err != nil {
 		return errProvider
 	}
-	if countExactSecrets(secrets, secretName(options.Marker)) != 0 {
+	if len(secrets) != 0 {
 		return errOwnership
 	}
 	return nil
 }
 
-func createOwnedKey(ctx context.Context, client kmsAPI, marker string) (*KMSKey, error) {
+func createOwnedKey(ctx context.Context, client kmsAPI, marker string, targets *cleanupTargets) (*KMSKey, error) {
 	request := CreateKeyRequest{Description: description(marker), Tags: proofTags(marker, "kms-key")}
 	created, createErr := client.CreateKey(ctx, request)
-	if createErr == nil && created.ID != "" {
+	if createErr == nil && validCreatedKeyCandidate(created, marker) {
+		created.Tags = cloneStringMap(request.Tags)
+		targets.key = &created
 		owned, err := proveOwnedKey(ctx, client, created.ID, marker, keyStateEnabled)
 		if err == nil && created.ID == owned.ID && created.ARN == owned.ARN {
+			targets.key = owned
 			return owned, nil
 		}
 	}
@@ -300,7 +300,12 @@ func createOwnedKey(ctx context.Context, client kmsAPI, marker string) (*KMSKey,
 		}
 		return nil, errOwnership
 	}
+	targets.key = &exact[0]
 	return &exact[0], nil
+}
+
+func validCreatedKeyCandidate(key KMSKey, marker string) bool {
+	return validKeyIdentity(key) && key.Description == description(marker)
 }
 
 func proveOwnedKey(ctx context.Context, client kmsAPI, keyID, marker, expectedState string) (*KMSKey, error) {
@@ -324,9 +329,12 @@ func proveOwnedKey(ctx context.Context, client kmsAPI, keyID, marker, expectedSt
 	return &key, nil
 }
 
-func createOwnedAlias(ctx context.Context, client kmsAPI, marker string, key *KMSKey) (*KMSAlias, error) {
+func createOwnedAlias(ctx context.Context, client kmsAPI, marker string, key *KMSKey, targets *cleanupTargets) (*KMSAlias, error) {
 	name := aliasName(marker)
 	createErr := client.CreateAlias(ctx, name, key.ID)
+	if createErr == nil {
+		targets.alias = &KMSAlias{Name: name, KeyID: key.ID}
+	}
 	aliases, err := client.ListAliases(ctx, name)
 	if err != nil {
 		return nil, errProvider
@@ -338,6 +346,7 @@ func createOwnedAlias(ctx context.Context, client kmsAPI, marker string, key *KM
 		}
 		return nil, errOwnership
 	}
+	targets.alias = &exact[0]
 	return &exact[0], nil
 }
 
@@ -388,40 +397,56 @@ func createOwnedBucket(ctx context.Context, client s3API, marker string, key *KM
 }
 
 func putAndProveObject(ctx context.Context, client s3API, marker string, key *KMSKey, bucket *BucketState, targets *cleanupTargets) (*ObjectInfo, error) {
-	body := syntheticObject(marker)
-	digest := sha256.Sum256(body)
-	digestHex := hex.EncodeToString(digest[:])
-	request := PutObjectRequest{
-		Bucket: bucket.Name, Key: objectKey(marker), KMSKeyID: key.ARN, Body: body,
-		Metadata: map[string]string{"organization_id": organizationID(marker), "sha256": digestHex, "proof_marker": marker},
-		Tags:     proofTags(marker, "evidence-object"),
+	request := expectedObjectRequest(marker, key, bucket.Name)
+	put, putErr := client.PutObject(ctx, request)
+	if putErr != nil {
+		object, err := fetchAndProveObject(ctx, client, request, key)
+		if err != nil {
+			return nil, errProvider
+		}
+		targets.object = object
+		return object, nil
 	}
-	put, err := client.PutObject(ctx, request)
-	if err != nil {
-		return nil, errProvider
-	}
+	// A definite successful write owns the exact requested location. Arm an
+	// expected-state candidate before trusting any response identity fields.
+	candidate := ObjectInfo{Key: request.Key, ETag: put.ETag, Algorithm: sseAlgorithmKMS, KMSKeyID: key.ARN, Metadata: cloneStringMap(request.Metadata), Tags: cloneStringMap(request.Tags)}
+	targets.object = &candidate
 	if !validPutObjectResult(put, request, key) {
 		return nil, errEncryption
 	}
 	request.ExpectedETag = put.ETag
-	// Retain the exact successful write as a candidate. Cleanup separately
-	// re-fetches encryption, metadata, and tags before deleting it.
-	put.Metadata = cloneStringMap(request.Metadata)
-	put.Tags = cloneStringMap(request.Tags)
-	targets.object = &put
-	value, err := client.GetObject(ctx, bucket.Name, request.Key)
+	object, err := fetchAndProveObject(ctx, client, request, key)
+	if err != nil {
+		return nil, err
+	}
+	*targets.object = *object
+	return object, nil
+}
+
+func expectedObjectRequest(marker string, key *KMSKey, bucket string) PutObjectRequest {
+	body := syntheticObject(marker)
+	digest := sha256.Sum256(body)
+	return PutObjectRequest{
+		Bucket: bucket, Key: objectKey(marker), KMSKeyID: key.ARN, Body: body,
+		Metadata: map[string]string{"organization_id": organizationID(marker), "sha256": hex.EncodeToString(digest[:]), "proof_marker": marker},
+		Tags:     proofTags(marker, "evidence-object"),
+	}
+}
+
+func fetchAndProveObject(ctx context.Context, client s3API, request PutObjectRequest, key *KMSKey) (*ObjectInfo, error) {
+	value, err := client.GetObject(ctx, request.Bucket, request.Key)
 	if err != nil {
 		return nil, errProvider
 	}
-	tags, err := client.GetObjectTags(ctx, bucket.Name, request.Key)
+	tags, err := client.GetObjectTags(ctx, request.Bucket, request.Key)
 	if err != nil {
 		return nil, errProvider
 	}
 	value.Tags = cloneStringMap(tags)
-	if !bytes.Equal(value.Body, body) || !validObjectInfo(value.ObjectInfo, request, key) {
+	if !bytes.Equal(value.Body, request.Body) || !validObjectInfo(value.ObjectInfo, request, key) {
 		return nil, errContent
 	}
-	objects, err := client.ListObjects(ctx, bucket.Name, "")
+	objects, err := client.ListObjects(ctx, request.Bucket, "")
 	if err != nil {
 		return nil, errProvider
 	}
@@ -429,7 +454,6 @@ func putAndProveObject(ctx context.Context, client s3API, marker string, key *KM
 		return nil, errContent
 	}
 	info := value.ObjectInfo
-	*targets.object = info
 	return &info, nil
 }
 
@@ -546,8 +570,9 @@ func cleanupObject(ctx context.Context, client s3API, marker string, key *KMSKey
 		return errCleanup
 	}
 	value.Tags = tags
-	expected := PutObjectRequest{Bucket: bucket.Name, Key: target.Key, KMSKeyID: key.ARN, ExpectedETag: target.ETag, Metadata: target.Metadata, Tags: proofTags(marker, "evidence-object")}
-	if !validObjectInfo(value.ObjectInfo, expected, key) {
+	expected := expectedObjectRequest(marker, key, bucket.Name)
+	expected.ExpectedETag = target.ETag
+	if !bytes.Equal(value.Body, expected.Body) || !validObjectInfo(value.ObjectInfo, expected, key) {
 		return errCleanup
 	}
 	if err := client.DeleteObject(ctx, bucket.Name, target.Key); err != nil {
@@ -671,15 +696,28 @@ func AuditStorage(ctx context.Context, kmsClient kmsAPI, s3Client s3API, secrets
 		return errConfiguration
 	}
 	aliases, err := kmsClient.ListAliases(ctx, aliasName(marker))
-	if err != nil || len(exactAliases(aliases, aliasName(marker))) != 0 {
+	if err != nil || len(aliases) != 0 {
 		return errProvider
 	}
 	buckets, err := s3Client.ListBuckets(ctx, bucketName(marker))
-	if err != nil || countExactStrings(buckets, bucketName(marker)) != 0 {
+	if err != nil || len(buckets) != 0 {
 		return errProvider
 	}
 	secrets, err := secretsClient.ListSecrets(ctx, secretName(marker), false)
-	if err != nil || countExactSecrets(secrets, secretName(marker)) != 0 {
+	if err != nil || len(secrets) != 0 {
+		return errProvider
+	}
+	keys, err := kmsClient.ListKeys(ctx)
+	if err != nil {
+		return errProvider
+	}
+	var exact []KMSKey
+	for _, candidate := range keys {
+		if strings.HasPrefix(candidate.Description, resourcePrefix+marker) || candidate.Tags["zasp-marker"] == marker {
+			exact = append(exact, candidate)
+		}
+	}
+	if len(exact) != 1 || exact[0].ID != keyID {
 		return errProvider
 	}
 	key, err := proveOwnedKey(ctx, kmsClient, keyID, marker, keyStatePendingDeletion)
@@ -694,7 +732,7 @@ func validateEndpoint(ctx context.Context, raw string, resolver interface {
 }) (validatedEndpoint, error) {
 	parsed, err := url.Parse(raw)
 	if err != nil || parsed.Scheme != "http" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.Opaque != "" ||
-		(parsed.Path != "" && parsed.Path != "/") || parsed.Hostname() == "" || parsed.Port() == "" {
+		parsed.Path != "" || parsed.Hostname() == "" || parsed.Port() == "" {
 		return validatedEndpoint{}, errConfiguration
 	}
 	portNumber, err := net.LookupPort("tcp", parsed.Port())
@@ -748,7 +786,10 @@ func validBucketState(state BucketState, marker string, key *KMSKey) bool {
 		state.Algorithm == sseAlgorithmKMS && sameKeyIdentity(state.KMSKeyID, key)
 }
 func validObjectInfo(info ObjectInfo, request PutObjectRequest, key *KMSKey) bool {
-	return info.Key == request.Key && strings.Trim(info.ETag, `"`) == strings.Trim(request.ExpectedETag, `"`) && info.Algorithm == sseAlgorithmKMS &&
+	providerETag := strings.TrimSpace(strings.Trim(info.ETag, `"`))
+	expectedETag := strings.TrimSpace(strings.Trim(request.ExpectedETag, `"`))
+	etagMatches := providerETag != "" && (expectedETag == "" || providerETag == expectedETag)
+	return info.Key == request.Key && etagMatches && info.Algorithm == sseAlgorithmKMS &&
 		sameKeyIdentity(info.KMSKeyID, key) && equalStringMaps(info.Metadata, request.Metadata) && equalStringMaps(info.Tags, request.Tags)
 }
 func validPutObjectResult(info ObjectInfo, request PutObjectRequest, key *KMSKey) bool {

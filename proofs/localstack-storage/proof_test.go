@@ -74,6 +74,34 @@ func TestRunProofRejectsEveryExactPrefixCollisionBeforeCreation(t *testing.T) {
 	}
 }
 
+func TestRunProofRejectsAnyResourceUnderItsGeneratedPrefix(t *testing.T) {
+	t.Parallel()
+	tests := map[string]func(*fakeCloud){
+		"alias suffix":  func(c *fakeCloud) { c.aliases[c.aliasName()+"-extra"] = "foreign-key" },
+		"bucket suffix": func(c *fakeCloud) { c.bucket = &fakeBucket{name: c.bucketName() + "-extra"} },
+		"secret suffix": func(c *fakeCloud) {
+			secret := c.expectedSecret()
+			secret.Name += "-extra"
+			secret.ARN = "arn:aws:secretsmanager:us-east-1:000000000000:secret:" + secret.Name + "-AbCdEf"
+			c.secret = &secret
+		},
+	}
+	for name, seed := range tests {
+		name, seed := name, seed
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			cloud := newFakeCloud(testMarker)
+			seed(cloud)
+			if _, err := RunProof(context.Background(), proofOptions(cloud)); !errors.Is(err, errOwnership) {
+				t.Fatalf("RunProof error = %v, want prefix ownership rejection", err)
+			}
+			if slices.Contains(cloud.operations, "create-key") {
+				t.Fatal("creation followed a prefix-wide collision")
+			}
+		})
+	}
+}
+
 func TestRunProofReconcilesOnlyAtomicallyOwnedAmbiguousCreates(t *testing.T) {
 	t.Parallel()
 
@@ -133,6 +161,58 @@ func TestRunProofRetainsCreatedTargetsAcrossPostCreateFailures(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRunProofRetainsNarrowCandidatesBeforePostCreateProof(t *testing.T) {
+	t.Parallel()
+	tests := map[string]struct {
+		configure func(*fakeCloud)
+		cleanup   []string
+	}{
+		"key describe and reconciliation fail": {
+			configure: func(c *fakeCloud) { c.failAt["describe-key"] = 1; c.failAt["list-keys"] = 2 },
+			cleanup:   []string{"create-key", "describe-key", "list-keys", "describe-key", "list-key-tags", "schedule-key-deletion", "describe-key", "list-key-tags"},
+		},
+		"alias listing fails": {
+			configure: func(c *fakeCloud) { c.failAt["list-aliases"] = 2 },
+			cleanup:   []string{"create-alias", "list-aliases", "list-aliases", "delete-alias", "list-aliases", "describe-key", "list-key-tags", "schedule-key-deletion"},
+		},
+		"put response identity is invalid": {
+			configure: func(c *fakeCloud) { c.invalidPutResponse = true },
+			cleanup:   []string{"put-object", "get-bucket-state", "get-object", "get-object-tags", "delete-object", "list-objects", "get-bucket-state", "list-objects", "delete-bucket", "list-buckets"},
+		},
+	}
+	for name, testCase := range tests {
+		name, testCase := name, testCase
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			cloud := newFakeCloud(testMarker)
+			testCase.configure(cloud)
+			if _, err := RunProof(context.Background(), proofOptions(cloud)); err == nil {
+				t.Fatal("proof unexpectedly succeeded")
+			}
+			if cloud.secret != nil || cloud.bucket != nil || len(cloud.aliases) != 0 || cloud.key.State != keyStatePendingDeletion {
+				t.Fatalf("post-create candidate was not cleaned: secret=%t bucket=%t aliases=%d key_state=%q", cloud.secret != nil, cloud.bucket != nil, len(cloud.aliases), cloud.key.State)
+			}
+			assertSubsequence(t, cloud.operations, testCase.cleanup)
+		})
+	}
+}
+
+func TestRunProofReconcilesAmbiguousPutObjectBeforeContinuing(t *testing.T) {
+	t.Parallel()
+	cloud := newFakeCloud(testMarker)
+	cloud.ambiguous["put-object"] = true
+	if _, err := RunProof(context.Background(), proofOptions(cloud)); err != nil {
+		t.Fatalf("RunProof returned %v", err)
+	}
+	if cloud.bucket != nil || cloud.secret != nil || len(cloud.aliases) != 0 || cloud.key.State != keyStatePendingDeletion {
+		t.Fatal("ambiguous object was not reconciled and cleaned")
+	}
+	assertSubsequence(t, cloud.operations, []string{
+		"put-object", "get-object", "get-object-tags", "list-objects",
+		"create-secret", "delete-secret", "get-bucket-state", "get-object", "get-object-tags", "delete-object", "list-objects",
+	})
 }
 
 func TestRunProofRejectsWrongEncryptionIdentityAndContent(t *testing.T) {
@@ -282,6 +362,36 @@ func TestAuditStorageRequiresZeroActiveResourcesAndExactPendingKey(t *testing.T)
 	}
 }
 
+func TestAuditStorageRejectsEveryPrefixWideExtraAndDuplicateKey(t *testing.T) {
+	t.Parallel()
+	tests := map[string]func(*fakeCloud){
+		"alias suffix":  func(c *fakeCloud) { c.aliases[c.aliasName()+"-extra"] = c.key.ID },
+		"bucket suffix": func(c *fakeCloud) { c.bucket = &fakeBucket{name: c.bucketName() + "-extra"} },
+		"secret suffix": func(c *fakeCloud) {
+			secret := c.expectedSecret()
+			secret.Name += "-extra"
+			secret.ARN = "arn:aws:secretsmanager:us-east-1:000000000000:secret:" + secret.Name + "-AbCdEf"
+			c.secret = &secret
+		},
+		"duplicate tagged key": func(c *fakeCloud) { c.extraKeys = append(c.extraKeys, c.secondExpectedKey()) },
+	}
+	for name, mutate := range tests {
+		name, mutate := name, mutate
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			cloud := newFakeCloud(testMarker)
+			result, err := RunProof(context.Background(), proofOptions(cloud))
+			if err != nil {
+				t.Fatalf("RunProof returned %v", err)
+			}
+			mutate(cloud)
+			if err := AuditStorage(context.Background(), cloud, cloud, cloud, testMarker, result.KMSKeyID); err == nil {
+				t.Fatal("audit accepted prefix-wide extra state")
+			}
+		})
+	}
+}
+
 func proofOptions(cloud *fakeCloud) ProofOptions {
 	return ProofOptions{
 		Endpoint:       "http://127.0.0.1:49152",
@@ -294,29 +404,32 @@ func proofOptions(cloud *fakeCloud) ProofOptions {
 }
 
 type fakeCloud struct {
-	marker            string
-	key               KMSKey
-	aliases           map[string]string
-	bucket            *fakeBucket
-	secret            *SecretInfo
-	operations        []string
-	counts            map[string]int
-	fail              map[string]error
-	failOnce          map[string]error
-	ambiguous         map[string]bool
-	mutateAt          map[string]int
-	mutateResource    string
-	panicAt           string
-	cancel            context.CancelFunc
-	wrongDecrypt      bool
-	wrongObjectKey    bool
-	foreignObject     bool
-	wrongSecretKey    bool
-	wrongSecretStage  bool
-	wrongSecretValue  bool
-	wrongKeySemantics bool
-	opaqueETag        bool
-	eventual          map[string]int
+	marker             string
+	key                KMSKey
+	aliases            map[string]string
+	bucket             *fakeBucket
+	secret             *SecretInfo
+	operations         []string
+	counts             map[string]int
+	fail               map[string]error
+	failOnce           map[string]error
+	failAt             map[string]int
+	ambiguous          map[string]bool
+	mutateAt           map[string]int
+	mutateResource     string
+	panicAt            string
+	cancel             context.CancelFunc
+	wrongDecrypt       bool
+	wrongObjectKey     bool
+	foreignObject      bool
+	wrongSecretKey     bool
+	wrongSecretStage   bool
+	wrongSecretValue   bool
+	wrongKeySemantics  bool
+	opaqueETag         bool
+	eventual           map[string]int
+	invalidPutResponse bool
+	extraKeys          []KMSKey
 }
 
 type fakeBucket struct {
@@ -330,7 +443,7 @@ type fakeBucket struct {
 func newFakeCloud(marker string) *fakeCloud {
 	return &fakeCloud{
 		marker: marker, aliases: map[string]string{}, counts: map[string]int{},
-		fail: map[string]error{}, failOnce: map[string]error{}, ambiguous: map[string]bool{}, mutateAt: map[string]int{}, eventual: map[string]int{},
+		fail: map[string]error{}, failOnce: map[string]error{}, failAt: map[string]int{}, ambiguous: map[string]bool{}, mutateAt: map[string]int{}, eventual: map[string]int{},
 	}
 }
 
@@ -361,6 +474,9 @@ func (c *fakeCloud) step(operation string) error {
 		delete(c.failOnce, operation)
 		return err
 	}
+	if c.failAt[operation] == c.counts[operation] {
+		return errProvider
+	}
 	return c.fail[operation]
 }
 
@@ -381,6 +497,13 @@ func (c *fakeCloud) expectedSecret() SecretInfo {
 	}
 }
 
+func (c *fakeCloud) secondExpectedKey() KMSKey {
+	key := c.expectedKey()
+	key.ID = "66666666-7777-8888-9999-000000000000"
+	key.ARN = "arn:aws:kms:us-east-1:000000000000:key/" + key.ID
+	return key
+}
+
 func (c *fakeCloud) description() string { return resourcePrefix + c.marker + "-storage" }
 func (c *fakeCloud) aliasName() string   { return "alias/" + resourcePrefix + c.marker + "-key" }
 func (c *fakeCloud) bucketName() string  { return resourcePrefix + c.marker + "-evidence" }
@@ -390,10 +513,14 @@ func (c *fakeCloud) ListKeys(context.Context) ([]KMSKey, error) {
 	if err := c.step("list-keys"); err != nil {
 		return nil, err
 	}
-	if c.key.ID == "" {
-		return nil, nil
+	result := make([]KMSKey, 0, 1+len(c.extraKeys))
+	if c.key.ID != "" {
+		result = append(result, cloneKey(c.key))
 	}
-	return []KMSKey{cloneKey(c.key)}, nil
+	for _, key := range c.extraKeys {
+		result = append(result, cloneKey(key))
+	}
+	return result, nil
 }
 func (c *fakeCloud) CreateKey(_ context.Context, request CreateKeyRequest) (KMSKey, error) {
 	if err := c.step("create-key"); err != nil {
@@ -411,23 +538,39 @@ func (c *fakeCloud) CreateKey(_ context.Context, request CreateKeyRequest) (KMSK
 	}
 	return cloneKey(c.key), nil
 }
-func (c *fakeCloud) DescribeKey(context.Context, string) (KMSKey, error) {
+func (c *fakeCloud) DescribeKey(_ context.Context, keyID string) (KMSKey, error) {
 	if err := c.step("describe-key"); err != nil {
 		return KMSKey{}, err
 	}
-	if c.eventual["key"] > 0 && slices.Contains(c.operations, "schedule-key-deletion") {
+	if keyID == c.key.ID && c.eventual["key"] > 0 && slices.Contains(c.operations, "schedule-key-deletion") {
 		c.eventual["key"]--
 		if c.eventual["key"] == 0 {
 			c.key.State, c.key.Enabled = keyStatePendingDeletion, false
 		}
 	}
-	return cloneKey(c.key), nil
+	if keyID == c.key.ID {
+		return cloneKey(c.key), nil
+	}
+	for _, key := range c.extraKeys {
+		if keyID == key.ID {
+			return cloneKey(key), nil
+		}
+	}
+	return KMSKey{}, errProvider
 }
-func (c *fakeCloud) ListKeyTags(context.Context, string) (map[string]string, error) {
+func (c *fakeCloud) ListKeyTags(_ context.Context, keyID string) (map[string]string, error) {
 	if err := c.step("list-key-tags"); err != nil {
 		return nil, err
 	}
-	return cloneStringMap(c.key.Tags), nil
+	if keyID == c.key.ID {
+		return cloneStringMap(c.key.Tags), nil
+	}
+	for _, key := range c.extraKeys {
+		if keyID == key.ID {
+			return cloneStringMap(key.Tags), nil
+		}
+	}
+	return nil, errProvider
 }
 func (c *fakeCloud) CreateAlias(_ context.Context, alias, keyID string) error {
 	if err := c.step("create-alias"); err != nil {
@@ -547,13 +690,22 @@ func (c *fakeCloud) PutObject(_ context.Context, request PutObjectRequest) (Obje
 		etag = "opaque-provider-etag"
 	}
 	c.bucket.object = &ObjectValue{ObjectInfo: ObjectInfo{Key: request.Key, ETag: etag, Algorithm: sseAlgorithmKMS, KMSKeyID: keyID, Metadata: cloneStringMap(request.Metadata), Tags: cloneStringMap(request.Tags)}, Body: append([]byte(nil), request.Body...)}
+	if c.ambiguous["put-object"] {
+		return ObjectInfo{}, errProvider
+	}
 	created := cloneObjectInfo(c.bucket.object.ObjectInfo)
 	created.Metadata, created.Tags = nil, nil // PutObject does not echo these fields.
+	if c.invalidPutResponse {
+		created.KMSKeyID = "foreign-key"
+	}
 	return created, nil
 }
 func (c *fakeCloud) GetObject(context.Context, string, string) (ObjectValue, error) {
 	if err := c.step("get-object"); err != nil {
 		return ObjectValue{}, err
+	}
+	if c.bucket == nil || c.bucket.object == nil {
+		return ObjectValue{}, errProvider
 	}
 	value := cloneObjectValue(*c.bucket.object)
 	return value, nil
@@ -561,6 +713,9 @@ func (c *fakeCloud) GetObject(context.Context, string, string) (ObjectValue, err
 func (c *fakeCloud) GetObjectTags(context.Context, string, string) (map[string]string, error) {
 	if err := c.step("get-object-tags"); err != nil {
 		return nil, err
+	}
+	if c.bucket == nil || c.bucket.object == nil {
+		return nil, errProvider
 	}
 	return cloneStringMap(c.bucket.object.Tags), nil
 }
