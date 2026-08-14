@@ -102,14 +102,16 @@ type explicitDenyError struct{}
 func (explicitDenyError) Error() string { return "explicit denial" }
 
 type principalTarget struct {
-	spec  PrincipalSpec
-	state *PrincipalState
-	keyID string
+	spec      PrincipalSpec
+	state     *PrincipalState
+	keyID     string
+	keySecret string
 }
 
 type roleTarget struct {
-	spec  RoleSpec
-	state *RoleState
+	spec        RoleSpec
+	state       *RoleState
+	policyArmed bool
 }
 
 func RunProof(ctx context.Context, options ProofOptions) (result ProofResult, resultErr error) {
@@ -120,12 +122,13 @@ func RunProof(ctx context.Context, options ProofOptions) (result ProofResult, re
 	principal := &principalTarget{spec: principalSpec}
 	role := &roleTarget{spec: roleSpec}
 	defer func() {
-		if recover() != nil {
-			resultErr = errProvider
-		}
+		panicked := recover() != nil
 		cleanupCtx, cancel := context.WithTimeout(context.Background(), options.CleanupTimeout)
 		defer cancel()
-		cleanup, audit := cleanupAndAudit(cleanupCtx, options, principal, role)
+		if panicked {
+			safeArmUncertainTargets(cleanupCtx, options, principal, role)
+		}
+		cleanup, audit := safeCleanupAndAudit(cleanupCtx, options, principal, role)
 		if cleanup {
 			result.Cleanup = true
 		}
@@ -134,6 +137,8 @@ func RunProof(ctx context.Context, options ProofOptions) (result ProofResult, re
 		}
 		if !cleanup || !audit {
 			resultErr = errCleanup
+		} else if panicked {
+			resultErr = errProvider
 		}
 	}()
 	if err := preflightEmpty(ctx, options, principalSpec, roleSpec); err != nil {
@@ -166,16 +171,17 @@ func expectedSpecs(options ProofOptions) (PrincipalSpec, RoleSpec) {
 	prefix := "zasp-prov-01-" + options.Marker
 	path := "/" + options.Marker + "/"
 	principal := PrincipalSpec{
-		Name: prefix + "-principal", ARN: "arn:aws:iam::" + sourceNamespace + ":user/" + prefix + "-principal",
+		Name: prefix + "-principal", ARN: iamUserARN(sourceNamespace, path, prefix+"-principal"),
 		Path: path, Marker: options.Marker, Tags: map[string]string{"proof": options.Marker},
 	}
 	externalID := prefix + "-external"
 	sessionName := prefix + "-session"
 	sourceIdentity := prefix + "-source"
-	trust := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"` + principal.ARN + `"},"Action":"sts:AssumeRole","Condition":{"StringEquals":{"sts:ExternalId":"` + externalID + `","sts:RoleSessionName":"` + sessionName + `","sts:SourceIdentity":"` + sourceIdentity + `","aws:RequestTag/proof":"` + options.Marker + `"}}}]}`
-	permission := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"iam:GetRole","Resource":"arn:aws:iam::` + targetNamespace + `:role/` + prefix + `-role"},{"Effect":"Deny","Action":"iam:ListRoles","Resource":"*"}]}`
+	trust := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"` + principal.ARN + `"},"Action":["sts:AssumeRole","sts:SetSourceIdentity","sts:TagSession"],"Condition":{"StringEquals":{"sts:ExternalId":"` + externalID + `","sts:RoleSessionName":"` + sessionName + `","sts:SourceIdentity":"` + sourceIdentity + `","aws:RequestTag/proof":"` + options.Marker + `"}}}]}`
+	roleARN := iamRoleARN(targetNamespace, path, prefix+"-role")
+	permission := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"iam:GetRole","Resource":"` + roleARN + `"},{"Effect":"Deny","Action":"iam:ListRoles","Resource":"*"}]}`
 	role := RoleSpec{
-		Name: prefix + "-role", ARN: "arn:aws:iam::" + targetNamespace + ":role/" + prefix + "-role",
+		Name: prefix + "-role", ARN: roleARN,
 		Path: path, Marker: options.Marker, Description: "provisional LocalStack compatibility proof", PolicyName: prefix + "-policy",
 		TrustPolicy: trust, PermissionPolicy: permission, Tags: map[string]string{"proof": options.Marker},
 	}
@@ -187,14 +193,14 @@ func preflightEmpty(ctx context.Context, options ProofOptions, principal Princip
 	if err != nil {
 		return errProvider
 	}
-	if source.AccountID != sourceNamespace || source.ARN == "" || source.UserID == "" {
+	if source.AccountID != sourceNamespace || source.UserID == "" || !validCallerARN(source.ARN, sourceNamespace) {
 		return errOwnership
 	}
 	target, err := options.Boundary.TargetIdentity(ctx)
 	if err != nil {
 		return errProvider
 	}
-	if target.AccountID != targetNamespace || target.ARN == "" || target.UserID == "" {
+	if target.AccountID != targetNamespace || target.UserID == "" || !validCallerARN(target.ARN, targetNamespace) {
 		return errOwnership
 	}
 	prefix := proofPrefix(options.Marker)
@@ -231,18 +237,25 @@ func createAndProvePrincipal(ctx context.Context, options ProofOptions, target *
 		created = *state
 	}
 	if !exactPrincipal(target.spec, created) {
-		return errOwnership
+		reconcileCtx, cancel := context.WithTimeout(ctx, options.CleanupTimeout)
+		defer cancel()
+		state, outcome := reconcilePrincipal(reconcileCtx, options.Boundary, target.spec, options.PollInterval)
+		if outcome != reconciliationOwned {
+			return errOwnership
+		}
+		created = *state
 	}
 	target.state = &created
 	observed, err := options.Boundary.InspectPrincipal(ctx, target.spec.Name)
 	if err != nil || !exactPrincipal(created.PrincipalSpec, observed) || observed.UserID != created.UserID {
 		return errOwnership
 	}
-	keyID, _, err := options.Boundary.CreateAccessKey(ctx, target.spec.Name)
-	if err != nil || keyID == "" {
+	keyID, keySecret, err := options.Boundary.CreateAccessKey(ctx, target.spec.Name)
+	if err != nil || keyID == "" || keySecret == "" {
 		return errProvider
 	}
 	target.keyID = keyID
+	target.keySecret = keySecret
 	return nil
 }
 
@@ -262,13 +275,20 @@ func createAndProveRole(ctx context.Context, options ProofOptions, target *roleT
 		created = *state
 	}
 	if !exactRole(target.spec, created) {
-		return errOwnership
+		reconcileCtx, cancel := context.WithTimeout(ctx, options.CleanupTimeout)
+		defer cancel()
+		state, outcome := reconcileRole(reconcileCtx, options.Boundary, target.spec, options.PollInterval)
+		if outcome != reconciliationOwned {
+			return errOwnership
+		}
+		created = *state
 	}
 	target.state = &created
 	observed, err := options.Boundary.InspectRole(ctx, target.spec.Name)
 	if err != nil || !exactRole(created, observed) {
 		return errOwnership
 	}
+	target.policyArmed = true
 	if err := options.Boundary.PutRolePolicy(ctx, target.spec.Name, target.spec.PolicyName, target.spec.PermissionPolicy); err != nil {
 		return errProvider
 	}
@@ -287,15 +307,17 @@ func proveAssumeAllowDeny(ctx context.Context, options ProofOptions, principal *
 	session, err := options.Boundary.AssumeRole(ctx, AssumeRequest{
 		RoleARN: role.state.ARN, ExternalID: prefix + "-external", SessionName: prefix + "-session", SourceIdentity: prefix + "-source",
 		Tags: map[string]string{"proof": options.Marker},
-	}, principal.keyID, "")
-	if err != nil || session.AccessKeyID == "" || session.SecretAccessKey == "" || session.SessionToken == "" || session.AssumedRoleARN != role.state.ARN || session.SourceIdentity != prefix+"-source" || !session.Expiration.After(options.Now()) {
+	}, principal.keyID, principal.keySecret)
+	expectedSessionARN := assumedRoleARN(*role.state, prefix+"-session")
+	expectedSessionID := role.state.RoleID + ":" + prefix + "-session"
+	if err != nil || session.AccessKeyID == "" || session.SecretAccessKey == "" || session.SessionToken == "" || session.AssumedRoleARN != expectedSessionARN || session.SourceIdentity != prefix+"-source" || !session.Expiration.After(options.Now()) {
 		return result, errAuthorization
 	}
-	if session.AssumedRoleID != role.state.RoleID {
+	if session.AssumedRoleID != expectedSessionID {
 		return result, errOwnership
 	}
 	identity, err := options.Boundary.AssumedIdentity(ctx, session)
-	if err != nil || identity.AccountID != targetNamespace || identity.ARN != role.state.ARN || identity.UserID != role.state.RoleID {
+	if err != nil || identity.AccountID != targetNamespace || identity.ARN != expectedSessionARN || identity.UserID != expectedSessionID {
 		return result, errOwnership
 	}
 	result.Assumed = true
@@ -375,47 +397,113 @@ func waitForPoll(ctx context.Context, interval time.Duration) {
 
 func cleanupAndAudit(ctx context.Context, options ProofOptions, principal *principalTarget, role *roleTarget) (bool, bool) {
 	cleanupOK := true
-	if role.state != nil {
-		policy, err := options.Boundary.GetRolePolicy(ctx, role.state.Name, role.state.PolicyName)
+	if role.state != nil && role.policyArmed {
+		policy, err := safeCleanupValue(func() (string, error) {
+			return options.Boundary.GetRolePolicy(ctx, role.state.Name, role.state.PolicyName)
+		})
 		if err != nil || !sameJSON(policy, role.state.PermissionPolicy) {
 			cleanupOK = false
 		}
-		observed, err := options.Boundary.InspectRole(ctx, role.state.Name)
+		observed, err := safeCleanupValue(func() (RoleState, error) { return options.Boundary.InspectRole(ctx, role.state.Name) })
 		if err != nil || !exactRole(*role.state, observed) {
 			cleanupOK = false
-		} else if err := options.Boundary.DeleteRolePolicy(ctx, role.state.Name, role.state.PolicyName); err != nil {
+		} else if err := safeCleanupCall(func() error { return options.Boundary.DeleteRolePolicy(ctx, role.state.Name, role.state.PolicyName) }); err != nil {
 			cleanupOK = false
 		}
 	}
 	if principal.state != nil {
-		observed, err := options.Boundary.InspectPrincipal(ctx, principal.state.Name)
+		observed, err := safeCleanupValue(func() (PrincipalState, error) { return options.Boundary.InspectPrincipal(ctx, principal.state.Name) })
 		if err != nil || !exactPrincipal(principal.state.PrincipalSpec, observed) || observed.UserID != principal.state.UserID {
 			cleanupOK = false
 		} else {
-			if principal.keyID != "" && options.Boundary.DeleteAccessKey(ctx, principal.state.Name, principal.keyID) != nil {
+			if principal.keyID != "" && safeCleanupCall(func() error { return options.Boundary.DeleteAccessKey(ctx, principal.state.Name, principal.keyID) }) != nil {
 				cleanupOK = false
 			}
-			if options.Boundary.DeletePrincipal(ctx, principal.state.Name) != nil {
+			if safeCleanupCall(func() error { return options.Boundary.DeletePrincipal(ctx, principal.state.Name) }) != nil {
 				cleanupOK = false
 			}
 		}
 	}
 	if role.state != nil {
-		observed, err := options.Boundary.InspectRole(ctx, role.state.Name)
+		observed, err := safeCleanupValue(func() (RoleState, error) { return options.Boundary.InspectRole(ctx, role.state.Name) })
 		if err != nil || !exactRole(*role.state, observed) {
 			cleanupOK = false
-		} else if err := options.Boundary.DeleteRole(ctx, role.state.Name); err != nil {
+		} else if err := safeCleanupCall(func() error { return options.Boundary.DeleteRole(ctx, role.state.Name) }); err != nil {
 			cleanupOK = false
 		}
 	}
 	prefix := proofPrefix(options.Marker)
-	principals, principalErr := options.Boundary.ListPrincipals(ctx, prefix)
-	roles, roleErr := options.Boundary.ListRoles(ctx, prefix)
+	principals, principalErr := safeCleanupValue(func() ([]PrincipalState, error) { return options.Boundary.ListPrincipals(ctx, prefix) })
+	roles, roleErr := safeCleanupValue(func() ([]RoleState, error) { return options.Boundary.ListRoles(ctx, prefix) })
 	auditOK := principalErr == nil && roleErr == nil && len(principals) == 0 && len(roles) == 0
 	return cleanupOK, auditOK
 }
 
+func armUncertainTargets(ctx context.Context, options ProofOptions, principal *principalTarget, role *roleTarget) {
+	if principal.state == nil {
+		if state, outcome := reconcilePrincipal(ctx, options.Boundary, principal.spec, options.PollInterval); outcome == reconciliationOwned {
+			principal.state = state
+		}
+	}
+	if role.state == nil {
+		if state, outcome := reconcileRole(ctx, options.Boundary, role.spec, options.PollInterval); outcome == reconciliationOwned {
+			role.state = state
+		}
+	}
+}
+
+func safeArmUncertainTargets(ctx context.Context, options ProofOptions, principal *principalTarget, role *roleTarget) {
+	defer func() { _ = recover() }()
+	armUncertainTargets(ctx, options, principal, role)
+}
+
+func safeCleanupAndAudit(ctx context.Context, options ProofOptions, principal *principalTarget, role *roleTarget) (cleanup, audit bool) {
+	defer func() {
+		if recover() != nil {
+			cleanup, audit = false, false
+		}
+	}()
+	return cleanupAndAudit(ctx, options, principal, role)
+}
+
+func safeCleanupCall(call func() error) (err error) {
+	defer func() {
+		if recover() != nil {
+			err = errCleanup
+		}
+	}()
+	return call()
+}
+
+func safeCleanupValue[T any](call func() (T, error)) (value T, err error) {
+	defer func() {
+		if recover() != nil {
+			err = errCleanup
+		}
+	}()
+	return call()
+}
+
 func proofPrefix(marker string) string { return "zasp-prov-01-" + marker }
+
+func iamUserARN(account, path, name string) string {
+	return "arn:aws:iam::" + account + ":user/" + strings.TrimPrefix(path, "/") + name
+}
+
+func iamRoleARN(account, path, name string) string {
+	return "arn:aws:iam::" + account + ":role/" + strings.TrimPrefix(path, "/") + name
+}
+
+func assumedRoleARN(role RoleState, sessionName string) string {
+	return "arn:aws:sts::" + targetNamespace + ":assumed-role/" + strings.TrimPrefix(role.Path, "/") + role.Name + "/" + sessionName
+}
+
+var callerARNPattern = regexp.MustCompile(`^arn:aws:(iam|sts)::([0-9]{12}):(user|role|assumed-role)/[A-Za-z0-9+=,.@_/-]+$`)
+
+func validCallerARN(arn, account string) bool {
+	matches := callerARNPattern.FindStringSubmatch(arn)
+	return len(matches) == 4 && matches[2] == account
+}
 
 func exactPrincipal(expected PrincipalSpec, observed PrincipalState) bool {
 	return expected.Name == observed.Name && expected.ARN == observed.ARN && expected.Path == observed.Path && expected.Marker == observed.Marker && exactTags(expected.Tags, observed.Tags) && observed.UserID != ""
