@@ -161,9 +161,11 @@ The runner accepts no dotenv input, never uses shared development LocalStack,
 and emits only a fixed result line. PROV-01 cannot complete M0-09 or R-03.
 PROV-01 is Blocked on LocalStack 4.7.0 because the live provider did not return
 SourceIdentity and accepted a wrong SourceIdentity despite the required trust
-condition. M0-10 remains Pending. Official LocalStack v4.14.0 source retains
-the same unsupported forwarding path; that is source review only, not a claim
-that v4.14.0 was live-tested.
+condition. M0-10 is In progress under the Cartography delivery waiver for a
+fixture-only normalization and OSS integration proof; it makes no AWS/GitHub
+authorization-parity claim. Official LocalStack v4.14.0 source retains the
+same unsupported forwarding path; that is source review only, not a claim that
+v4.14.0 was live-tested.
 
 ## Real AWS cross-account IAM proof
 

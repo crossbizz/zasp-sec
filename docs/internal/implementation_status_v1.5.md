@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 719 |
-| In progress | 0 |
+| Pending | 718 |
+| In progress | 1 |
 | Complete | 8 |
 | Blocked | 1 |
 
@@ -23,7 +23,7 @@ In progress, Complete, or Blocked is Pending.
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 18 | 0 | 8 | 1 |
+| M0 | 27 | 17 | 1 | 8 | 1 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -68,13 +68,14 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts remain `719/0/8/1` because
+session configuration. The 728 source-plan counts remain `718/1/8/1` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M0-10 | August 14, 2026 | Implement the two-Organization Cartography AWS/GitHub fixture proof under the delivery waiver; normalization and OSS integration only, with no AWS/GitHub authorization-parity claim. |
 
 ## Complete
 
@@ -97,10 +98,11 @@ PROV-01 is excluded from those counts.
 | --- | --- | --- | --- |
 | M0-09 | August 13, 2026 | The reviewed real-AWS harness has none of the nine task-specific inputs and no isolated authenticated two-account fixture. Existing generic AWS values target loopback LocalStack. | Provide the documented isolated commercial-AWS source and target-admin credentials, expected distinct accounts/source principal, region, and exact isolation attestation. |
 
-The user approved a temporary dependency waiver: PROV-01 may establish only
-LocalStack IAM/STS compatibility. PROV-01 and M0-09 are Blocked, R-03 remains
-incomplete, and M0-10 remains Pending. A zero-finding implementation review
-does not override the failed provider capability gate.
+The user approved a temporary delivery waiver for a fixture-only Cartography
+normalization proof. M0-10 may start without claiming AWS or GitHub
+authorization parity. M0-09 and PROV-01 remain Blocked, and R-03 remains
+incomplete. A zero-finding implementation review does not override the failed
+provider capability gate.
 
 ## Review findings
 
@@ -119,7 +121,7 @@ does not override the failed provider capability gate.
 | M0-07 task review | Readiness did not enforce hard body/time limits, pre-orchestrator construction could escape the fixed-output boundary, and the endpoint validator accepted a slash path. | Resolved in `8617ca7`: readiness has byte and absolute-time caps, all construction/orchestration failures emit one fixed line, and only an exactly empty endpoint path is accepted; final re-review found no remaining issues. |
 | M0-08 task review | Index ownership did not validate the proof discriminator, and definitive HTTP failures could reconcile overwrite-capable document writes or adopt pre-existing exact-looking resources. | Resolved in `cb54031`: exact proof metadata now gates inspection/reconciliation/cleanup, non-2xx mutations are definitive, document writes are create-only, and only ambiguous applied-success outcomes may reconcile exact provider state. |
 | M0-08 re-review | Unexpected successful 2xx mutation statuses were classified as definitive, so an applied index or document could bypass reconciliation and strand owned state. | Resolved in `959f033`: unexpected 2xx outcomes are ambiguous while non-2xx remains definitive; applied-exact, unapplied, and mismatched index/document regressions pass and final re-review found no remaining issues. |
-| PROV-01 final review | The implementation reached zero remaining Critical, Important, and Minor findings, but exact-pinned LocalStack 4.7.0 returned no SourceIdentity and accepted the deliberately wrong SourceIdentity despite the trust condition. | PROV-01 is Blocked, not Complete. M0-10 remains Pending; M0-09 stays Blocked and R-03 incomplete. Resume only with provider evidence for both required SourceIdentity behaviors. |
+| PROV-01 final review | The implementation reached zero remaining Critical, Important, and Minor findings, but exact-pinned LocalStack 4.7.0 returned no SourceIdentity and accepted the deliberately wrong SourceIdentity despite the trust condition. | PROV-01 is Blocked, not Complete. M0-10 is In progress only under the fixture-only Cartography delivery waiver; M0-09 stays Blocked and R-03 remains incomplete. Resume PROV-01 only with provider evidence for both required SourceIdentity behaviors. |
 
 ## Execution notes
 
@@ -190,5 +192,6 @@ does not override the failed provider capability gate.
 - The user approved PROV-01 as a temporary, non-source-plan compatibility proof.
   It uses a separate disposable LocalStack IAM/STS target and cannot modify or
   complete M0-09/R-03. PROV-01 is Blocked on the exact LocalStack
-  SourceIdentity/trust-condition capability dependency. M0-10 remains Pending
-  and may not start from a zero-finding code review alone.
+  SourceIdentity/trust-condition capability dependency. M0-10 is In progress
+  only under the fixture-only Cartography delivery waiver and makes no AWS or
+  GitHub authorization-parity claim.

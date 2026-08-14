@@ -55,23 +55,20 @@ describe("provisional LocalStack IAM compatibility proof repository contract", (
     expect(readme).toContain("not real-AWS parity");
     expect(readme).toContain("PROV-01 cannot complete M0-09 or R-03");
     expect(readme).toContain("PROV-01 is Blocked on LocalStack 4.7.0");
-    expect(readme).toContain("M0-10 remains Pending");
+    expect(readme).toContain("M0-10 is In progress under the Cartography delivery waiver");
     expect(cli).toContain("LocalStack IAM compatibility proof passed: namespaces=true assumed=true allowed_read=true explicit_deny=true cleanup=true audit=true container_cleanup=true.");
     expect(tracker).toContain("| PROV-01 | Blocked |");
     expect(tracker).toContain("Exact-pinned LocalStack 4.7.0 does not forward SourceIdentity");
     expect(tracker).toMatch(/Official LocalStack\s+v4\.14\.0 source retains the same unsupported forwarding path; this was source\s+review only, not live testing\./);
-    expect(tracker).toContain("| Pending | 719 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 718 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 8 |");
     expect(tracker).toContain("| Blocked | 1 |");
     expect(tracker).toContain("| M0-09 | August 13, 2026 |");
-    expect(tracker).toMatch(
-      /PROV-01 and M0-09 are Blocked, R-03 remains\s+incomplete, and M0-10 remains Pending/,
-    );
-    expect(tracker).toContain("M0-10 remains Pending");
-    expect(tracker).not.toMatch(/\| M0-10 \| (?:In progress|Complete|Blocked) \|/);
+    expect(tracker).toContain("M0-09 and PROV-01 remain Blocked");
+    expect(tracker).toContain("R-03 remains incomplete");
+    expect(tracker).toMatch(/\| M0-10 \| August 14, 2026 \|/);
     expect(plan).toContain("mark PROV-01 Blocked");
-    expect(plan).toContain("leave M0-10 Pending");
     expect(plan).not.toContain("mark PROV-01 Complete");
   });
 });
