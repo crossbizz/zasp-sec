@@ -275,6 +275,40 @@ func TestRunProof_ReviewRound2Fixes(t *testing.T) {
 	})
 }
 
+func TestRunProof_ReviewRound3Fixes(t *testing.T) {
+	t.Run("reconciles ambiguous and empty access-key outcomes", func(t *testing.T) {
+		for _, test := range []struct {
+			name string
+			set  func(*fakeBoundary)
+		}{
+			{"ambiguous error", func(f *fakeBoundary) { f.ambiguousAccessKey = true; f.delayedAccessKey = 2 }},
+			{"empty success", func(f *fakeBoundary) { f.emptyAccessKeySuccess = true; f.delayedAccessKey = 2 }},
+		} {
+			t.Run(test.name, func(t *testing.T) {
+				fake := newFakeBoundary()
+				test.set(fake)
+				if _, err := RunProof(context.Background(), fake.options); !errors.Is(err, errProvider) {
+					t.Fatalf("RunProof() error = %v, want provider error", err)
+				}
+				if fake.accessKeyPresent {
+					t.Fatal("access key remains after an ambiguous outcome")
+				}
+			})
+		}
+	})
+	t.Run("does not claim audit when preflight never audited", func(t *testing.T) {
+		fake := newFakeBoundary()
+		fake.principalCollision = true
+		result, err := RunProof(context.Background(), fake.options)
+		if !errors.Is(err, errOwnership) {
+			t.Fatalf("RunProof() error = %v, want ownership error", err)
+		}
+		if result.Audit {
+			t.Fatal("result claimed audit without running prefix audits")
+		}
+	})
+}
+
 func testOptions(boundary *fakeBoundary) ProofOptions {
 	return ProofOptions{
 		Marker: marker, Endpoint: "http://127.0.0.1:4566",
@@ -306,6 +340,8 @@ type fakeBoundary struct {
 	requireAccessSecret, returnSTSIdentity, invalidPrincipalSuccess, invalidRoleSuccess, panicCleanup bool
 	panicSource, preexistingPrincipal, preexistingRole                                                bool
 	invalidAccessKeySuccess, panicAfterAccessKey, cleanupPolicyMismatch, deletedRolePolicy            bool
+	ambiguousAccessKey, emptyAccessKeySuccess                                                         bool
+	delayedAccessKey                                                                                  int
 	deletedReplacement, continuedCleanup                                                              bool
 	principalLists, roleLists, roleInspects, policyGets                                               int
 }
@@ -403,6 +439,12 @@ func (f *fakeBoundary) CreateAccessKey(context.Context, string) (string, string,
 	if f.panicAfterAccessKey {
 		panic("access-key")
 	}
+	if f.ambiguousAccessKey {
+		return "", "", ambiguousMutationError{cause: errors.New("uncertain")}
+	}
+	if f.emptyAccessKeySuccess {
+		return "", "", nil
+	}
 	if f.invalidAccessKeySuccess {
 		return f.accessKeyID, "", nil
 	}
@@ -411,6 +453,10 @@ func (f *fakeBoundary) CreateAccessKey(context.Context, string) (string, string,
 func (f *fakeBoundary) ListAccessKeys(context.Context, string) ([]string, error) {
 	if !f.accessKeyPresent {
 		return nil, nil
+	}
+	if f.delayedAccessKey > 0 {
+		f.delayedAccessKey--
+		return nil, errors.New("not ready")
 	}
 	return []string{f.accessKeyID}, nil
 }

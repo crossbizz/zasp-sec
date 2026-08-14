@@ -66,6 +66,7 @@ type IAMBoundary interface {
 	CreatePrincipal(context.Context, PrincipalSpec) (PrincipalState, error)
 	InspectPrincipal(context.Context, string) (PrincipalState, error)
 	CreateAccessKey(context.Context, string) (string, string, error)
+	ListAccessKeys(context.Context, string) ([]string, error)
 	DeleteAccessKey(context.Context, string, string) error
 	DeletePrincipal(context.Context, string) error
 	ListRoles(context.Context, string) ([]RoleState, error)
@@ -131,11 +132,12 @@ func RunProof(ctx context.Context, options ProofOptions) (result ProofResult, re
 		if panicked {
 			safeArmUncertainTargets(cleanupCtx, options, principal, role)
 		}
+		attempted := principal.attempted || role.attempted
 		cleanup, audit := safeCleanupAndAudit(cleanupCtx, options, principal, role)
-		if cleanup {
+		if attempted && cleanup {
 			result.Cleanup = true
 		}
-		if audit {
+		if attempted && audit {
 			result.Audit = true
 		}
 		if !cleanup || !audit {
@@ -260,6 +262,13 @@ func createAndProvePrincipal(ctx context.Context, options ProofOptions, target *
 		target.keyID = keyID
 	}
 	if err != nil || keyID == "" || keySecret == "" {
+		if target.keyID == "" {
+			reconcileCtx, cancel := context.WithTimeout(ctx, options.CleanupTimeout)
+			defer cancel()
+			if reconciled, ok := reconcileAccessKey(reconcileCtx, options.Boundary, target.state.Name, options.PollInterval); ok {
+				target.keyID = reconciled
+			}
+		}
 		return errProvider
 	}
 	target.keySecret = keySecret
@@ -458,7 +467,7 @@ func armUncertainTargets(ctx context.Context, options ProofOptions, principal *p
 		}
 	}
 	if principal.state != nil && principal.keyAttempted && principal.keyID == "" {
-		if keyID, ok := reconcileAccessKey(ctx, options.Boundary, principal.state.Name); ok {
+		if keyID, ok := reconcileAccessKey(ctx, options.Boundary, principal.state.Name, options.PollInterval); ok {
 			principal.keyID = keyID
 		}
 	}
@@ -515,20 +524,15 @@ func assumedRoleARN(role RoleState, sessionName string) string {
 	return "arn:aws:sts::" + targetNamespace + ":assumed-role/" + role.Name + "/" + sessionName
 }
 
-type accessKeyReconciler interface {
-	ListAccessKeys(context.Context, string) ([]string, error)
-}
-
-func reconcileAccessKey(ctx context.Context, boundary IAMBoundary, principalName string) (string, bool) {
-	reconciler, ok := boundary.(accessKeyReconciler)
-	if !ok {
-		return "", false
+func reconcileAccessKey(ctx context.Context, boundary IAMBoundary, principalName string, interval time.Duration) (string, bool) {
+	for ctx.Err() == nil {
+		keys, err := boundary.ListAccessKeys(ctx, principalName)
+		if err == nil && len(keys) == 1 && keys[0] != "" {
+			return keys[0], true
+		}
+		waitForPoll(ctx, interval)
 	}
-	keys, err := reconciler.ListAccessKeys(ctx, principalName)
-	if err != nil || len(keys) != 1 || keys[0] == "" {
-		return "", false
-	}
-	return keys[0], true
+	return "", false
 }
 
 var callerARNPattern = regexp.MustCompile(`^arn:aws:(iam|sts)::([0-9]{12}):(root|(?:user|role|assumed-role)/[A-Za-z0-9+=,.@_/-]+)$`)
