@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "nodes": [
+    {
+      "labels": ["AWSAccount"],
+      "properties": {
+        "id": "000000000000"
+      }
+    },
+    {
+      "labels": ["AWSRole"],
+      "properties": {
+        "arn": "arn:aws:iam::000000000000:role/shared-fixture-role"
+      }
+    },
+    {
+      "labels": ["GitHubOrganization"],
+      "properties": {
+        "url": "https://api.github.test/orgs/shared-fixture"
+      }
+    },
+    {
+      "labels": ["GitHubRepository"],
+      "properties": {
+        "id": "424242"
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "type": "RESOURCE",
+      "source": {
+        "label": "AWSAccount",
+        "id": "000000000000"
+      },
+      "target": {
+        "label": "AWSRole",
+        "id": "arn:aws:iam::000000000000:role/shared-fixture-role"
+      }
+    },
+    {
+      "type": "OWNER",
+      "source": {
+        "label": "GitHubRepository",
+        "id": "424242"
+      },
+      "target": {
+        "label": "GitHubOrganization",
+        "id": "https://api.github.test/orgs/shared-fixture"
+      }
+    }
+  ]
+}
