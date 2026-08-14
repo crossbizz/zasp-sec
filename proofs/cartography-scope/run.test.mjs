@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { EventEmitter } from "node:events";
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
@@ -18,6 +19,7 @@ import {
   buildNeo4jRunArguments,
   buildNetworkCreateArguments,
   orchestrate,
+  probeLoopbackPort,
   runBounded,
   runMain,
 } from "./run.mjs";
@@ -556,18 +558,7 @@ test("accepts rejected container and network removes only after exact absence is
   await network.removeNetwork();
 });
 
-test("readiness and bridge calls use exact finite deadlines and reject malformed or overflowing output", async () => {
-  const runtime = new ScriptedRuntime([
-    result(0, `${containerInspection({ token: neo4jID, name: `${prefix}-neo4j-a`, imageID: neo4jImageID, image: NEO4J_IMAGE, environment: ["NEO4J_AUTH=none"], ports: { "7687/tcp": [{ HostIp: "127.0.0.1", HostPort: "49152" }] } })}\n`),
-    result(0, "ready\n1\n"),
-  ]);
-  runtime.networkToken = networkID;
-  runtime.imageIDs.set(NEO4J_IMAGE, neo4jImageID);
-  runtime.containerTokens.set("neo4j-a", neo4jID);
-  assert.equal(await runtime.isNeo4jReady("a"), true);
-  assert.equal(runtime.calls.at(-1).options.timeoutMs, 500);
-  assert.equal(runtime.calls.at(-1).options.outputLimit, 16_384);
-
+test("bridge calls use an exact finite deadline and reject malformed or overflowing output", async () => {
   for (const output of ["not-json\n", `${"x".repeat(16_385)}\n`]) {
     const bridge = new ScriptedRuntime([result(0, output)]);
     bridge.containerTokens.set("cartography-a", cartographyID);
@@ -577,7 +568,23 @@ test("readiness and bridge calls use exact finite deadlines and reject malformed
   }
 });
 
-test("treats a bounded readiness command timeout as not ready so polling can continue", async () => {
+test("probes Neo4j readiness through an exact bounded loopback TCP signal", async () => {
+  const server = createServer((socket) => socket.destroy());
+  await new Promise((resolvePromise, rejectPromise) => {
+    server.once("error", rejectPromise);
+    server.listen(0, "127.0.0.1", resolvePromise);
+  });
+  const address = server.address();
+  assert.notEqual(address, null);
+  assert.equal(typeof address, "object");
+  assert.equal(await probeLoopbackPort(address.port), true);
+  await new Promise((resolvePromise, rejectPromise) => {
+    server.close((error) => error === undefined ? resolvePromise() : rejectPromise(error));
+  });
+  assert.equal(await probeLoopbackPort(address.port), false);
+});
+
+test("uses the stored exact loopback port and 500 ms cap instead of spawning cypher-shell", async () => {
   const inspection = `${containerInspection({
     token: neo4jID,
     name: `${prefix}-neo4j-a`,
@@ -586,18 +593,27 @@ test("treats a bounded readiness command timeout as not ready so polling can con
     environment: ["NEO4J_AUTH=none"],
     ports: { "7687/tcp": [{ HostIp: "127.0.0.1", HostPort: "49152" }] },
   })}\n`;
+  const probes = [];
   const runtime = new ScriptedRuntime([
     result(0, inspection),
-    new Failure("provider"),
-    result(0, inspection),
-    result(0, "ready\n1\n"),
-  ]);
+    result(0, "127.0.0.1:49152\n"),
+  ], {
+    readinessProbe: async (port, options) => {
+      probes.push({ port, options });
+      return true;
+    },
+  });
   runtime.networkToken = networkID;
   runtime.imageIDs.set(NEO4J_IMAGE, neo4jImageID);
   runtime.containerTokens.set("neo4j-a", neo4jID);
 
-  assert.equal(await runtime.isNeo4jReady("a"), false);
+  assert.equal(await runtime.neo4jPort("a"), 49152);
   assert.equal(await runtime.isNeo4jReady("a"), true);
+  assert.deepEqual(probes, [{
+    port: 49152,
+    options: { signal: undefined, timeoutMs: 500 },
+  }]);
+  assert.equal(runtime.calls.some(({ args }) => args[0] === "exec"), false);
 });
 
 test("orchestrates two isolated graphs, normalizes exact fixtures, and cleans in reverse dependency order", async () => {
@@ -854,7 +870,7 @@ class FakeRuntime {
 }
 
 class ScriptedRuntime extends DockerRuntime {
-  constructor(responses) {
+  constructor(responses, options = {}) {
     super({
       path: "/safe/bin", marker, proofDirectory, tempParent: "/safe/tmp",
       makeTemp: async () => dockerConfig,
@@ -863,6 +879,7 @@ class ScriptedRuntime extends DockerRuntime {
       statPath: async () => identityStat(1, 2),
       readDirectory: async () => [],
       wait: async () => {},
+      readinessProbe: options.readinessProbe,
     });
     this.responses = responses;
     this.calls = [];

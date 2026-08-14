@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { lstat, mkdtemp, readdir, realpath, rm, readFile } from "node:fs/promises";
+import { connect } from "node:net";
 import { tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -181,6 +182,58 @@ export function runBounded(command, arguments_, options, spawnImplementation = s
   });
 }
 
+export function probeLoopbackPort(port, {
+  signal,
+  timeoutMs = readinessTimeoutMs,
+  connectSocket = connect,
+} = {}) {
+  if (
+    !Number.isInteger(port) || port < 1024 || port > 65_535 ||
+    !Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > readinessTimeoutMs ||
+    typeof connectSocket !== "function"
+  ) {
+    throw new Failure("configuration");
+  }
+  return new Promise((resolvePromise, rejectPromise) => {
+    let socket;
+    let timer;
+    let settled = false;
+    const finish = (callback) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      signal?.removeEventListener?.("abort", abort);
+      socket?.removeListener?.("connect", connected);
+      socket?.removeListener?.("error", unavailable);
+      socket?.removeListener?.("close", unavailable);
+      socket?.destroy?.();
+      callback();
+    };
+    const connected = () => finish(() => resolvePromise(true));
+    const unavailable = () => finish(() => resolvePromise(false));
+    const abort = () => finish(() => rejectPromise(new Failure("provider")));
+    try {
+      socket = connectSocket({ host: "127.0.0.1", port });
+    } catch {
+      unavailable();
+      return;
+    }
+    if (
+      socket === null || typeof socket !== "object" ||
+      typeof socket.once !== "function" || typeof socket.destroy !== "function"
+    ) {
+      unavailable();
+      return;
+    }
+    socket.once("connect", connected);
+    socket.once("error", unavailable);
+    socket.once("close", unavailable);
+    signal?.addEventListener?.("abort", abort, { once: true });
+    timer = setTimeout(unavailable, timeoutMs);
+    if (signal?.aborted === true) abort();
+  });
+}
+
 export class DockerRuntime {
   constructor({
     path = process.env.PATH,
@@ -195,13 +248,14 @@ export class DockerRuntime {
     statPath = lstat,
     readDirectory = readdir,
     wait = (milliseconds) => new Promise((resolvePromise) => setTimeout(resolvePromise, milliseconds)),
+    readinessProbe = probeLoopbackPort,
   } = {}) {
     if (
       typeof path !== "string" || path.length === 0 ||
       !markerPattern.test(marker) ||
       typeof selectedProofDirectory !== "string" || !isAbsolute(selectedProofDirectory) || resolve(selectedProofDirectory) !== selectedProofDirectory ||
       typeof tempParent !== "string" || !isAbsolute(tempParent) || resolve(tempParent) !== tempParent ||
-      ![command, spawnProcess, makeTemp, removeTemp, canonicalPath, statPath, readDirectory, wait].every((value) => typeof value === "function")
+      ![command, spawnProcess, makeTemp, removeTemp, canonicalPath, statPath, readDirectory, wait, readinessProbe].every((value) => typeof value === "function")
     ) {
       throw new Failure("configuration");
     }
@@ -219,12 +273,14 @@ export class DockerRuntime {
     this.statPath = statPath;
     this.readDirectory = readDirectory;
     this.wait = wait;
+    this.readinessProbe = readinessProbe;
     this.dockerConfigIdentity = undefined;
     this.networkToken = undefined;
     this.networkAttempted = false;
     this.containerTokens = new Map();
     this.containerAttempts = new Set();
     this.imageIDs = new Map();
+    this.neo4jPorts = new Map();
     this.signal = undefined;
   }
 
@@ -614,22 +670,26 @@ export class DockerRuntime {
     if (port?.status !== 0 || port?.stderr !== "" || match === null || !highPort(match[1])) {
       throw new Failure("ownership");
     }
-    return Number(match[1]);
+    const selected = Number(match[1]);
+    this.neo4jPorts.set(slot, selected);
+    return selected;
   }
 
   async isNeo4jReady(slot) {
     validateSlot(slot);
-    const token = await this.verifyContainer(`neo4j-${slot}`, "ownership");
-    let ready;
+    const port = this.neo4jPorts.get(slot);
+    if (!Number.isInteger(port) || port < 1024 || port > 65_535) throw new Failure("ownership");
     try {
-      ready = await this.dockerRead([
-        "exec", token, "cypher-shell", "--format", "plain", "-a", "bolt://localhost:7687", "RETURN 1 AS ready",
-      ], { category: "provider", timeoutMs: readinessTimeoutMs, outputLimit });
+      const ready = await this.readinessProbe(port, {
+        signal: this.signal,
+        timeoutMs: readinessTimeoutMs,
+      });
+      this.assertActive("provider");
+      return ready === true;
     } catch {
       this.assertActive("provider");
       return false;
     }
-    return ready?.status === 0 && ready?.signal === null && ready?.stdout === "ready\n1\n" && ready?.stderr === "";
   }
 
   async attachCartography(slot) {
