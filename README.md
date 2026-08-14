@@ -83,8 +83,7 @@ npm run proof:localstack:sqs:run
 
 The live command performs a second exact-prefix absence audit and emits fixed
 output without queue, account, message, payload, tag, or endpoint identifiers.
-This is supported local behavior evidence, not real-AWS IAM or release-parity
-evidence.
+This is supported local behavior evidence, not real-AWS IAM or release-parity evidence.
 
 The application uses Vinext and targets the Cloudflare Workers runtime. Optional
 local D1 and R2 bindings can be enabled with `CLOUDFLARE_D1_BINDING` and

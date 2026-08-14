@@ -274,6 +274,43 @@ func TestRunProofRejectsPolicyAndMessageMismatchesWithCleanup(t *testing.T) {
 	}
 }
 
+func TestDecodeExactJSONRejectsDuplicatePolicyMembers(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		raw    string
+		target any
+	}{
+		{name: "dead letter expected then foreign", raw: `{"deadLetterTargetArn":"expected","deadLetterTargetArn":"foreign","maxReceiveCount":"3"}`, target: &redrivePolicy{}},
+		{name: "dead letter foreign then expected", raw: `{"deadLetterTargetArn":"foreign","deadLetterTargetArn":"expected","maxReceiveCount":"3"}`, target: &redrivePolicy{}},
+		{name: "receive count expected then foreign", raw: `{"deadLetterTargetArn":"expected","maxReceiveCount":"3","maxReceiveCount":"99"}`, target: &redrivePolicy{}},
+		{name: "receive count foreign then expected", raw: `{"deadLetterTargetArn":"expected","maxReceiveCount":"99","maxReceiveCount":"3"}`, target: &redrivePolicy{}},
+		{name: "permission expected then foreign", raw: `{"redrivePermission":"byQueue","redrivePermission":"allowAll","sourceQueueArns":["expected"]}`, target: &redriveAllowPolicy{}},
+		{name: "permission foreign then expected", raw: `{"redrivePermission":"allowAll","redrivePermission":"byQueue","sourceQueueArns":["expected"]}`, target: &redriveAllowPolicy{}},
+		{name: "source arns expected then foreign", raw: `{"redrivePermission":"byQueue","sourceQueueArns":["expected"],"sourceQueueArns":["foreign"]}`, target: &redriveAllowPolicy{}},
+		{name: "source arns foreign then expected", raw: `{"redrivePermission":"byQueue","sourceQueueArns":["foreign"],"sourceQueueArns":["expected"]}`, target: &redriveAllowPolicy{}},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			if err := decodeExactJSON(test.raw, test.target); err == nil {
+				t.Fatal("decodeExactJSON() accepted a duplicate known policy member")
+			}
+		})
+	}
+}
+
+func TestDecodeExactJSONRejectsNestedDuplicateEnvelopeMembers(t *testing.T) {
+	t.Parallel()
+
+	raw := `{"version":"1","batch_id":"batch","organization_id":"org","workspace_id":"workspace","environment_id":"environment","events":[{"event_id":"first","organization_id":"org","organization_id":"foreign","kind":"event","sequence":1}]}`
+	if err := decodeExactJSON(raw, &eventEnvelope{}); err == nil {
+		t.Fatal("decodeExactJSON() accepted a nested duplicate envelope member")
+	}
+}
+
 func TestRunProofHonorsCancellationAndUsesIndependentCleanupContext(t *testing.T) {
 	t.Parallel()
 
