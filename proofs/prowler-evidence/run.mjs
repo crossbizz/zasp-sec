@@ -1183,8 +1183,8 @@ function exactProwlerRuntime({
       { Type: "bind", Source: outputDirectory, Destination: "/proof/output", Mode: "rw", RW: true, Propagation: "rprivate" },
     ]) &&
     isDeepStrictEqual(sortedBinds, [`${selectedProofDirectory}:/proof:ro`, `${outputDirectory}:/proof/output:rw`].sort()) &&
-    hostMounts === null && isDeepStrictEqual(tmpfs, { "/tmp": "rw,noexec,nosuid,nodev,size=33554432" }) &&
-    readonlyRootfs === true && isDeepStrictEqual(capDrop, ["ALL"]) && isDeepStrictEqual(securityOpt, ["no-new-privileges:true"]) &&
+    hostMounts === null && isDeepStrictEqual(tmpfs, { "/tmp": "rw,noexec,nosuid,nodev,size=32m" }) &&
+    readonlyRootfs === true && isDeepStrictEqual(capDrop, ["ALL"]) && isDeepStrictEqual(securityOpt, ["no-new-privileges"]) &&
     pidsLimit === 64 && memory === 805_306_368 && nanoCpus === 1_000_000_000 &&
     user === "prowler" && workingDirectory === "/home/prowler"
   );

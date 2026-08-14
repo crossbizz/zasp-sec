@@ -175,10 +175,10 @@ function prowlerInspection(overrides = {}) {
       { Type: "bind", Source: outputDirectory, Destination: "/proof/output", Mode: "rw", RW: true, Propagation: "rprivate" },
     ],
     binds: [`${proofDirectory}:/proof:ro`, `${outputDirectory}:/proof/output:rw`],
-    tmpfs: { "/tmp": "rw,noexec,nosuid,nodev,size=33554432" },
+    tmpfs: { "/tmp": "rw,noexec,nosuid,nodev,size=32m" },
     readonlyRootfs: true,
     capDrop: ["ALL"],
-    securityOpt: ["no-new-privileges:true"],
+    securityOpt: ["no-new-privileges"],
     pidsLimit: 64,
     memory: 805306368,
     nanoCpus: 1_000_000_000,
@@ -774,7 +774,7 @@ test("container inspection rejects duplicate JSON keys without requiring object 
   );
   const duplicateTmpfs = replaceInspectionField(
     prowlerInspection(), 17,
-    `{${JSON.stringify("/tmp")}:${JSON.stringify("rw,noexec,nosuid,nodev,size=33554432")},${JSON.stringify("/tmp")}:${JSON.stringify("rw,noexec,nosuid,nodev,size=33554432")}}`,
+    `{${JSON.stringify("/tmp")}:${JSON.stringify("rw,noexec,nosuid,nodev,size=32m")},${JSON.stringify("/tmp")}:${JSON.stringify("rw,noexec,nosuid,nodev,size=32m")}}`,
   );
   for (const inspection of [duplicateNetworks, duplicateTmpfs]) {
     const runtime = scriptedRuntime([result(0, inspection)]);
