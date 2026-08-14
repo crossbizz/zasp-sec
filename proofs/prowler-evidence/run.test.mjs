@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
+import { lstat } from "node:fs/promises";
 import { basename } from "node:path";
 import { PassThrough } from "node:stream";
 import test from "node:test";
@@ -231,6 +232,12 @@ test("pins exact images and builds an internal proof network", () => {
     "network", "create", "--internal",
     "--label", "zasp.proof=m0-11", "--label", `zasp.marker=${marker}`, networkName,
   ]);
+});
+
+test("retains a real output mountpoint beneath the read-only proof bind", async () => {
+  const status = await lstat(new URL("./output", import.meta.url));
+  assert.equal(status.isDirectory(), true);
+  assert.equal(status.isSymbolicLink(), false);
 });
 
 test("builds exact disposable LocalStack and hardened Prowler mutations", () => {
