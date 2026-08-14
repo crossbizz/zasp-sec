@@ -189,7 +189,7 @@ test("never removes malformed temporary factory results before strict canonical 
     const removed = [];
     const runtime = temporaryRuntime({
       parent, value: testCase.value, real: testCase.real ?? testCase.value,
-      stat: { isDirectory: () => testCase.directory !== false, isSymbolicLink: () => testCase.link === true },
+      stat: { ...identityStat(1, 1, testCase.link === true), isDirectory: () => testCase.directory !== false },
       removeTemp: (value) => { removed.push(value); },
     });
     assert.equal(await runtime.runProof("http://127.0.0.1:49152"), 1, testCase.name);
@@ -203,12 +203,47 @@ test("builds and removes only a canonical owned temporary directory", async () =
   const removed = []; let spawned = false;
   const runtime = temporaryRuntime({
     parent, value: directory, real: directory,
-    stat: { isDirectory: () => true, isSymbolicLink: () => false },
+    stat: identityStat(1, 1),
     spawnProcess: () => { spawned = true; return fakeChild({ code: 1 }).child; },
     removeTemp: (value, options) => { removed.push({ value, options }); },
   });
   assert.equal(await runtime.runProof("http://127.0.0.1:49152"), 1);
   assert.equal(spawned, true);
+  assert.deepEqual(removed, [{ value: directory, options: { recursive: true, force: false, maxRetries: 0 } }]);
+});
+
+test("revalidates owned temporary identity immediately before recursive removal", async () => {
+  const parent = "/safe/tmp";
+  const directory = `${parent}/zasp-prov-01-owned`;
+  const initial = identityStat(1, 10);
+  const cases = [
+    { name: "symlink swap", final: identityStat(1, 10, true) },
+    { name: "directory replacement", final: identityStat(1, 11) },
+    { name: "realpath escape", final: initial, real: "/safe/elsewhere/zasp-prov-01-owned" },
+    { name: "missing", final: new Error("ENOENT") },
+    { name: "stat error", final: new Error("EIO") },
+  ];
+  for (const testCase of cases) {
+    const removed = []; const stats = [initial, testCase.final]; const realpaths = [directory, testCase.real ?? directory];
+    const runtime = temporaryRuntime({
+      parent, value: directory, real: directory,
+      statPath: () => { const next = stats.shift(); if (next instanceof Error) throw next; return next; },
+      canonicalPath: (path) => path === parent ? parent : realpaths.shift(),
+      spawnProcess: () => fakeChild({ code: 1 }).child,
+      removeTemp: (value) => { removed.push(value); },
+    });
+    assert.equal(await runtime.runProof("http://127.0.0.1:49152"), 1, testCase.name);
+    assert.deepEqual(removed, [], testCase.name);
+  }
+
+  const removed = []; const stats = [initial, initial]; const realpaths = [directory, directory];
+  const unchanged = temporaryRuntime({
+    parent, value: directory, real: directory,
+    statPath: () => stats.shift(), canonicalPath: (path) => path === parent ? parent : realpaths.shift(),
+    spawnProcess: () => fakeChild({ code: 1 }).child,
+    removeTemp: (value, options) => { removed.push({ value, options }); },
+  });
+  assert.equal(await unchanged.runProof("http://127.0.0.1:49152"), 1);
   assert.deepEqual(removed, [{ value: directory, options: { recursive: true, force: false, maxRetries: 0 } }]);
 });
 
@@ -219,7 +254,7 @@ test("rejects Go build failure and proof output overflow while removing the exac
   ]) {
     const calls = []; let removed;
     const directory = `${tmpdir()}/zasp-prov-01-owned`;
-    const runtime = new DockerRuntime({ path: "/safe/path", marker, tempParent: tmpdir(), canonicalPath: (value) => value, statPath: () => ({ isDirectory: () => true, isSymbolicLink: () => false }), command: (...args) => { calls.push(args); return result(0, JSON.stringify({ GOCACHE: "/safe/cache", GOMODCACHE: "/safe/modcache" })); }, spawnProcess: () => processes.shift()().child, makeTemp: () => directory, removeTemp: (value) => { removed = value; } });
+    const runtime = new DockerRuntime({ path: "/safe/path", marker, tempParent: tmpdir(), canonicalPath: (value) => value, statPath: () => identityStat(1, 1), command: (...args) => { calls.push(args); return result(0, JSON.stringify({ GOCACHE: "/safe/cache", GOMODCACHE: "/safe/modcache" })); }, spawnProcess: () => processes.shift()().child, makeTemp: () => directory, removeTemp: (value) => { removed = value; } });
     assert.equal(await runtime.runProof("http://127.0.0.1:49152"), 1);
     assert.equal(removed, directory);
     assert.equal(calls.length, 1);
@@ -271,11 +306,15 @@ function fakeChild({ stdout = [], stderr = [], code = 0, neverClose = false } = 
   return { child, signals };
 }
 
-function temporaryRuntime({ parent, value, real, stat, spawnProcess = () => { throw new Error("build must not start"); }, removeTemp }) {
+function identityStat(dev, ino, link = false) {
+  return { dev, ino, isDirectory: () => true, isSymbolicLink: () => link };
+}
+
+function temporaryRuntime({ parent, value, real, stat, canonicalPath, statPath, spawnProcess = () => { throw new Error("build must not start"); }, removeTemp }) {
   return new DockerRuntime({
     path: "/safe/path", home: "/safe/home", marker, tempParent: parent,
-    canonicalPath: (path) => path === parent ? parent : real,
-    statPath: () => stat,
+    canonicalPath: canonicalPath ?? ((path) => path === parent ? parent : real),
+    statPath: statPath ?? (() => stat),
     command: () => result(0, JSON.stringify({ GOCACHE: "/safe/cache", GOMODCACHE: "/safe/modcache" })),
     spawnProcess, makeTemp: () => value, removeTemp,
   });

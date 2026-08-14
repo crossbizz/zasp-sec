@@ -123,10 +123,15 @@ export class DockerRuntime {
     if (typeof value !== "string" || !isAbsolute(value) || resolve(value) !== value) return undefined;
     let status; let canonical;
     try { status = this.statPath(value); canonical = this.canonicalPath(value); } catch { return undefined; }
-    if (!status?.isDirectory?.() || status?.isSymbolicLink?.() || typeof canonical !== "string" || value !== canonical || !isAbsolute(canonical) || resolve(canonical) !== canonical) return undefined;
+    if (!status?.isDirectory?.() || status?.isSymbolicLink?.() || !Number.isSafeInteger(status.dev) || !Number.isSafeInteger(status.ino) || typeof canonical !== "string" || value !== canonical || !isAbsolute(canonical) || resolve(canonical) !== canonical) return undefined;
     const prefix = join(this.tempParent, "zasp-prov-01-");
     if (dirname(canonical) !== this.tempParent || !canonical.startsWith(prefix) || canonical.length === prefix.length) return undefined;
-    return canonical;
+    return { path: canonical, dev: status.dev, ino: status.ino };
+  }
+
+  stillOwnsTemporaryDirectory(identity) {
+    const current = this.ownedTemporaryDirectory(identity?.path);
+    return current !== undefined && current.path === identity.path && current.dev === identity.dev && current.ino === identity.ino;
   }
 
   docker(args) {
@@ -223,11 +228,13 @@ export class DockerRuntime {
     try { caches = JSON.parse(goEnvironment.stdout); } catch { return 1; }
     if (!isAbsolute(caches.GOCACHE ?? "") || !isAbsolute(caches.GOMODCACHE ?? "")) return 1;
     let directory;
+    let temporaryIdentity;
     let code = 1;
     try {
       const candidate = this.makeTemp(join(this.tempParent, "zasp-prov-01-"));
-      directory = this.ownedTemporaryDirectory(candidate);
-      if (directory === undefined) return 1;
+      temporaryIdentity = this.ownedTemporaryDirectory(candidate);
+      if (temporaryIdentity === undefined) return 1;
+      directory = temporaryIdentity.path;
       const executable = join(directory, "iam-proof");
       const build = await runBounded("go", ["build", "-trimpath", "-mod=readonly", "-o", executable, "."], { cwd: proofDirectory, env: buildGoToolEnvironment(this.path, caches.GOCACHE, caches.GOMODCACHE), timeoutMs: 90_000, outputLimit: processOutputLimit }, this.spawnProcess);
       if (build?.status !== 0 || !boundedOutput(build) || String(build?.stdout ?? "") !== "" || String(build?.stderr ?? "") !== "") return resultCode(build);
@@ -236,8 +243,11 @@ export class DockerRuntime {
       else code = resultCode(proof);
     } catch { code = 1; }
     finally {
-      if (directory !== undefined) {
-        try { this.removeTemp(directory, { recursive: true, force: false, maxRetries: 0 }); } catch { code = 1; }
+      if (temporaryIdentity !== undefined) {
+        try {
+          if (!this.stillOwnsTemporaryDirectory(temporaryIdentity)) code = 1;
+          else this.removeTemp(directory, { recursive: true, force: false, maxRetries: 0 });
+        } catch { code = 1; }
       }
     }
     return code;
