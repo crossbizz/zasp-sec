@@ -15,15 +15,15 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 719 |
-| In progress | 1 |
+| In progress | 0 |
 | Complete | 8 |
-| Blocked | 0 |
+| Blocked | 1 |
 
 ## Milestone summary
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 18 | 1 | 8 | 0 |
+| M0 | 27 | 18 | 0 | 8 | 1 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -53,11 +53,19 @@ In progress, Complete, or Blocked is Pending.
 | PRE-01 | Complete | Restored a clean, reproducible UI quality baseline before M0 work. | Node 22.23.1/npm 10.9.8 install, tests, type-check, lint, and production build pass without errors. |
 | PRE-02 | Complete | Added a push and pull-request quality gate that enforces the runnable-UI invariant. | CI uses Node 22.23.1/npm 10.9.8, performs the locked install, and runs the root verification command. |
 
+## Temporary waiver work
+
+Temporary items are tracked execution work but are not part of the 728
+source-plan microtasks and cannot satisfy their deferred provider gates.
+
+| ID | Status | Purpose | Completion gate |
+| --- | --- | --- | --- |
+| PROV-01 | In progress | Exercise IAM/STS assume, allowed-read, explicit-deny, and exact cleanup behavior in an isolated disposable LocalStack target without weakening the real-AWS harness. | Disposable live proof, zero-resource/container audit, full repository gates, secret scan, and independent review pass; evidence makes no real-AWS parity claim. |
+
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M0-09 | August 13, 2026 | Prove one allowed and one denied operation after assuming a disposable cross-account read-only role in an isolated real-AWS test account. |
 
 ## Complete
 
@@ -72,15 +80,17 @@ In progress, Complete, or Blocked is Pending.
 | M0-07 | August 13, 2026 | An exact-digest disposable LocalStack target proved direct KMS encryption/decryption, an Organization-scoped SSE-KMS S3 object, and a KMS-backed secret; exact cleanup, prefix-wide current-SDK audit, container absence, full gates, secret scan, and final independent security re-review passed. |
 | M0-08 | August 13, 2026 | A disposable exact-image OpenSearch target indexed one metadata-only Organization A session event; the scoped session/environment query returned exactly that event for A and zero hits for B, followed by exact index/container cleanup, full gates, secret scan, and final independent security re-review. |
 
-`PRE-01` and `PRE-02` are also complete prerequisite work and do not count as
-source-plan microtasks.
+`PRE-01`, `PRE-02`, and `PROV-01` do not count as source-plan microtasks.
 
 ## Blocked
 
-No source-plan task or prerequisite is blocked.
+| Task | Blocked since | Exact dependency | Resume condition |
+| --- | --- | --- | --- |
+| M0-09 | August 13, 2026 | The reviewed real-AWS harness has none of the nine task-specific inputs and no isolated authenticated two-account fixture. Existing generic AWS values target loopback LocalStack. | Provide the documented isolated commercial-AWS source and target-admin credentials, expected distinct accounts/source principal, region, and exact isolation attestation. |
 
-M0-09 is now in progress after M0-08 passed its live scoped OpenSearch proof
-and final independent security re-review. M0-10 remains dependency-waiting.
+The user approved a temporary dependency waiver: PROV-01 may establish only
+LocalStack IAM/STS compatibility. M0-09 and R-03 remain incomplete. M0-10 stays
+Pending until PROV-01 passes live verification and independent review.
 
 ## Review findings
 
@@ -163,7 +173,10 @@ and final independent security re-review. M0-10 remains dependency-waiting.
   container was absent. This local proof does not claim AWS OpenSearch Service,
   IAM, durability, or release parity. Final independent re-review found no
   remaining issues.
-- `M0-09` is the only source-plan task in progress. It must use an isolated
-  real-AWS test account to assume one disposable cross-account read-only role,
-  prove one explicitly allowed call succeeds, and prove one explicitly denied
-  call fails. LocalStack cannot satisfy this release-parity gate.
+- `M0-09` has a fully reviewed real-AWS harness but is Blocked because no
+  isolated two-account fixture or task-specific credentials are available.
+  LocalStack cannot satisfy its release-parity gate.
+- The user approved PROV-01 as a temporary, non-source-plan compatibility proof.
+  It uses a separate disposable LocalStack IAM/STS target and cannot modify or
+  complete M0-09/R-03. After PROV-01 passes independent review, M0-10 may start
+  under the recorded dependency waiver while M0-09 remains Blocked.
