@@ -853,6 +853,7 @@ export class DockerRuntime {
     const token = await this.verifyContainer("prowler", "ownership", undefined, phase);
     const executed = await this.dockerMutation(["start", "--attach", token], {
       category: "operation", timeoutMs: scannerTimeoutMs, outputLimit: processOutputLimit,
+      requireEmptyOutput: true,
     }, phase);
     await this.reproveTemporary("output", "ownership", phase, true);
     if (executed?.status !== 3 || executed?.signal !== null || executed?.stdout !== bridgeLine || executed?.stderr !== "") {

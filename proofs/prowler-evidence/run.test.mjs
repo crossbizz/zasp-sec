@@ -801,6 +801,68 @@ test("requires exact Prowler exit 3, one fixed bridge line, and one normalized a
   }
 });
 
+test("blocks persistent output replacement before scanner start and gives cleanup failure precedence", async () => {
+  let outputInode = 3;
+  let startCalls = 0;
+  const guard = temporaryRuntime({
+    command: async (command, args) => {
+      if (command === "docker" && args[0] === "start") startCalls += 1;
+      return result(3, "Prowler fixture bridge produced one FAIL finding.\n");
+    },
+  });
+  const runtime = new FakeRuntime();
+  runtime.initialize = async () => {
+    runtime.record("initialize");
+    await guard.initialize();
+    const originalStat = guard.statPath;
+    guard.statPath = async (value) => value === outputDirectory
+      ? identityStat(1, outputInode)
+      : originalStat(value);
+    guard.readDirectory = async () => [];
+    guard.verifyContainer = async () => { outputInode = 99; return prowlerID; };
+  };
+  runtime.runProwler = async () => {
+    runtime.record("run-prowler");
+    await guard.runProwler();
+  };
+  runtime.cleanupOutput = async () => {
+    runtime.record("cleanup-output");
+    await guard.cleanupOutput();
+  };
+
+  assert.deepEqual(await api.orchestrate(runtime, fastOptions()), {
+    code: 1, line: "Prowler evidence proof failed: cleanup rejected.",
+  });
+  assert.equal(startCalls, 0);
+  for (const call of ["cleanup-output", "prefix-absent", "cleanup-config", "temp-prefix-absent"]) {
+    assert.equal(runtime.calls.includes(call), true, call);
+  }
+});
+
+test("blocks output replacement restored inside scanner start before post-start reproof", async () => {
+  let outputInode = 3;
+  let startCalls = 0;
+  const runtime = temporaryRuntime({
+    command: async (command, args) => {
+      if (command === "docker" && args[0] === "start") {
+        startCalls += 1;
+        outputInode = 3;
+      }
+      return result(3, "Prowler fixture bridge produced one FAIL finding.\n");
+    },
+  });
+  await runtime.initialize();
+  const originalStat = runtime.statPath;
+  runtime.statPath = async (value) => value === outputDirectory
+    ? identityStat(1, outputInode)
+    : originalStat(value);
+  runtime.readDirectory = async () => [];
+  runtime.verifyContainer = async () => { outputInode = 99; return prowlerID; };
+
+  await assert.rejects(runtime.runProwler(), (error) => error?.category === "operation");
+  assert.equal(startCalls, 0);
+});
+
 test("artifact boundary accepts exactly one bounded regular non-symlink output", async () => {
   const bytes = Buffer.from("artifact");
   const runtime = temporaryRuntime({ artifactBytes: bytes });
