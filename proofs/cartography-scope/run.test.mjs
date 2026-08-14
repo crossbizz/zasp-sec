@@ -660,7 +660,7 @@ test("outer cancellation is fixed-output operation failure and cleanup gets its 
   assert.deepEqual(runtime.calls, ["cleanup-config"]);
 });
 
-test("a timed-out main phase quiesces and fences network, Neo4j, and Cartography mutations before cleanup and return", async () => {
+test("a timed-out main phase returns before a late callback settles and fences every later mutation", async () => {
   const nativeSetTimeout = globalThis.setTimeout;
   const runtime = new FakeRuntime();
   runtime.resolveImages = async function resolveImages() {
@@ -687,7 +687,7 @@ test("a timed-out main phase quiesces and fences network, Neo4j, and Cartography
   }
 });
 
-test("a timed-out cleanup phase quiesces before fixed output and fences every later cleanup mutation", async () => {
+test("a timed-out cleanup phase returns before a late callback settles and fences every later cleanup mutation", async () => {
   const nativeSetTimeout = globalThis.setTimeout;
   const runtime = new FakeRuntime();
   runtime.removeContainer = async function removeContainer(kind) {
@@ -711,6 +711,66 @@ test("a timed-out cleanup phase quiesces before fixed output and fences every la
     assert.notEqual(cleanupStart, -1);
     assert.deepEqual(runtime.calls.slice(cleanupStart), ["remove-cartography-b"]);
   } finally {
+    globalThis.setTimeout = nativeSetTimeout;
+  }
+});
+
+test("a never-resolving main operation cannot exceed the hard main deadline", async () => {
+  const nativeSetTimeout = globalThis.setTimeout;
+  const nativeClearTimeout = globalThis.clearTimeout;
+  const runtime = new FakeRuntime();
+  runtime.resolveImages = async function resolveImages() {
+    this.record("images");
+    return new Promise(() => {});
+  };
+  globalThis.setTimeout = (callback, milliseconds, ...arguments_) => nativeSetTimeout(
+    callback,
+    milliseconds === 300_000 ? 5 : milliseconds === 60_000 ? 20 : milliseconds,
+    ...arguments_,
+  );
+  let guard;
+  const started = Date.now();
+  try {
+    const result = await Promise.race([
+      orchestrate(runtime, { readinessAttempts: 1, wait: async () => {} }),
+      new Promise((resolvePromise) => { guard = nativeSetTimeout(() => resolvePromise("unbounded"), 100); }),
+    ]);
+    assert.deepEqual(result, { code: 1, line: "Cartography scope proof failed: operation rejected." });
+    assert.ok(Date.now() - started < 100);
+    assert.deepEqual(runtime.calls, ["initialize", "preflight", "images", "prefix-absent", "cleanup-config", "temp-prefix-absent"]);
+  } finally {
+    nativeClearTimeout(guard);
+    globalThis.setTimeout = nativeSetTimeout;
+  }
+});
+
+test("a never-resolving cleanup operation cannot exceed the hard cleanup deadline", async () => {
+  const nativeSetTimeout = globalThis.setTimeout;
+  const nativeClearTimeout = globalThis.clearTimeout;
+  const runtime = new FakeRuntime();
+  runtime.removeContainer = async function removeContainer(kind) {
+    this.record(`remove-${kind}`);
+    return new Promise(() => {});
+  };
+  globalThis.setTimeout = (callback, milliseconds, ...arguments_) => nativeSetTimeout(
+    callback,
+    milliseconds === 300_000 ? 100 : milliseconds === 60_000 ? 5 : milliseconds,
+    ...arguments_,
+  );
+  let guard;
+  const started = Date.now();
+  try {
+    const result = await Promise.race([
+      orchestrate(runtime, { readinessAttempts: 1, wait: async () => {} }),
+      new Promise((resolvePromise) => { guard = nativeSetTimeout(() => resolvePromise("unbounded"), 100); }),
+    ]);
+    assert.deepEqual(result, { code: 1, line: "Cartography scope proof failed: cleanup rejected." });
+    assert.ok(Date.now() - started < 100);
+    const cleanupStart = runtime.calls.indexOf("remove-cartography-b");
+    assert.notEqual(cleanupStart, -1);
+    assert.deepEqual(runtime.calls.slice(cleanupStart), ["remove-cartography-b"]);
+  } finally {
+    nativeClearTimeout(guard);
     globalThis.setTimeout = nativeSetTimeout;
   }
 });

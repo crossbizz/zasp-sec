@@ -909,7 +909,6 @@ async function withAbsoluteDeadline(operation, timeoutMs) {
       }),
     ]);
     if (winner.state === "timeout") {
-      await operationResult;
       throw new Failure("operation");
     }
     if (winner.state === "rejected") throw winner.error;
