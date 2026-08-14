@@ -574,7 +574,7 @@ export class DockerRuntime {
     this.assertActive("provider", phase);
     const args = [
       "image", "inspect", "--format",
-      "[{{json .Id}},{{json .Config.Env}},{{json .Config.Entrypoint}},{{json (index .Config \"Cmd\")}},{{json (index .Config \"ExposedPorts\")}},{{json (index .Config \"Volumes\")}},{{json .Config.User}},{{json .Config.WorkingDir}}]",
+      "[{{json .Id}},{{json .Config.Env}},{{json .Config.Entrypoint}},{{json (index .Config \"Cmd\")}},{{json (index .Config \"ExposedPorts\")}},{{json (index .Config \"Volumes\")}},{{json (index .Config \"User\")}},{{json .Config.WorkingDir}}]",
       image,
     ];
     let inspected = await this.readDocker(args, { category: "provider" }, phase);
@@ -1215,15 +1215,16 @@ function parseImageMetadata(value) {
   const command = document[3] === null ? null : exactStringArray(document[3]);
   const exposedPorts = exactImageObjectKeys(document[4], exactPortArray);
   const volumes = exactImageObjectKeys(document[5], exactVolumeArray);
+  const user = document[6] === null ? "" : document[6];
   if (
     environment === undefined || entrypoint === undefined || command === undefined || exposedPorts === undefined || volumes === undefined ||
-    typeof document[6] !== "string" || typeof document[7] !== "string"
+    typeof user !== "string" || typeof document[7] !== "string"
   ) return undefined;
   return {
     identifier: document[0],
     runtime: Object.freeze({
       environment, entrypoint, command, exposedPorts, volumes,
-      user: document[6], workingDirectory: document[7],
+      user, workingDirectory: document[7],
     }),
   };
 }

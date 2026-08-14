@@ -487,13 +487,15 @@ test("resolves exact full image metadata with one single-attempt pull", async ()
       entrypoint: localstackImageEntrypoint,
       exposedPorts: localstackImageExposedPorts,
       volumes: localstackImageVolumes,
-      user: "",
+      user: null,
       workingDirectory: "/opt/code/localstack/",
     })),
   ]);
   assert.equal(await runtime.resolveImage(api.LOCALSTACK_IMAGE), localstackImageID);
   assert.deepEqual(runtime.calls.map((call) => call.kind), ["read", "read", "mutation", "read"]);
   assert.equal(runtime.calls.filter((call) => call.kind === "mutation").length, 1);
+  assert.equal(runtime.calls[0].args[3].includes('{{json (index .Config "User")}}'), true);
+  assert.equal(runtime.imageRuntimeMetadata.get(api.LOCALSTACK_IMAGE).user, "");
 
   for (const malformed of [
     `${localstackImageID}\n`,
