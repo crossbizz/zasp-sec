@@ -172,6 +172,46 @@ test("uses an allowlisted HOME to discover real Go caches before an offline buil
   assert.deepEqual(calls[0][2].env, { PATH: "/safe/path", HOME: "/safe/home" });
 });
 
+test("never removes malformed temporary factory results before strict canonical ownership", async () => {
+  const parent = "/safe/tmp";
+  const prefix = `${parent}/zasp-prov-01-`;
+  const owned = `${prefix}owned`;
+  const cases = [
+    { name: "relative", value: "zasp-prov-01-owned" },
+    { name: "bare prefix", value: prefix },
+    { name: "traversal", value: `${owned}/../escape` },
+    { name: "unowned parent", value: "/safe/elsewhere/zasp-prov-01-owned" },
+    { name: "symlink", value: `${prefix}symlink`, link: true },
+    { name: "realpath escape", value: `${prefix}escape`, real: "/safe/elsewhere/zasp-prov-01-escape" },
+    { name: "not directory", value: `${prefix}file`, directory: false },
+  ];
+  for (const testCase of cases) {
+    const removed = [];
+    const runtime = temporaryRuntime({
+      parent, value: testCase.value, real: testCase.real ?? testCase.value,
+      stat: { isDirectory: () => testCase.directory !== false, isSymbolicLink: () => testCase.link === true },
+      removeTemp: (value) => { removed.push(value); },
+    });
+    assert.equal(await runtime.runProof("http://127.0.0.1:49152"), 1, testCase.name);
+    assert.deepEqual(removed, [], testCase.name);
+  }
+});
+
+test("builds and removes only a canonical owned temporary directory", async () => {
+  const parent = "/safe/tmp";
+  const directory = `${parent}/zasp-prov-01-owned`;
+  const removed = []; let spawned = false;
+  const runtime = temporaryRuntime({
+    parent, value: directory, real: directory,
+    stat: { isDirectory: () => true, isSymbolicLink: () => false },
+    spawnProcess: () => { spawned = true; return fakeChild({ code: 1 }).child; },
+    removeTemp: (value, options) => { removed.push({ value, options }); },
+  });
+  assert.equal(await runtime.runProof("http://127.0.0.1:49152"), 1);
+  assert.equal(spawned, true);
+  assert.deepEqual(removed, [{ value: directory, options: { recursive: true, force: false, maxRetries: 0 } }]);
+});
+
 test("rejects Go build failure and proof output overflow while removing the exact temporary directory", async () => {
   for (const processes of [
     [() => fakeChild({ code: 1, stderr: ["build failure"] })],
@@ -179,7 +219,7 @@ test("rejects Go build failure and proof output overflow while removing the exac
   ]) {
     const calls = []; let removed;
     const directory = `${tmpdir()}/zasp-prov-01-owned`;
-    const runtime = new DockerRuntime({ path: "/safe/path", marker, command: (...args) => { calls.push(args); return result(0, JSON.stringify({ GOCACHE: "/safe/cache", GOMODCACHE: "/safe/modcache" })); }, spawnProcess: () => processes.shift()().child, makeTemp: () => directory, removeTemp: (value) => { removed = value; } });
+    const runtime = new DockerRuntime({ path: "/safe/path", marker, tempParent: tmpdir(), canonicalPath: (value) => value, statPath: () => ({ isDirectory: () => true, isSymbolicLink: () => false }), command: (...args) => { calls.push(args); return result(0, JSON.stringify({ GOCACHE: "/safe/cache", GOMODCACHE: "/safe/modcache" })); }, spawnProcess: () => processes.shift()().child, makeTemp: () => directory, removeTemp: (value) => { removed = value; } });
     assert.equal(await runtime.runProof("http://127.0.0.1:49152"), 1);
     assert.equal(removed, directory);
     assert.equal(calls.length, 1);
@@ -229,4 +269,14 @@ function fakeChild({ stdout = [], stderr = [], code = 0, neverClose = false } = 
     }
   });
   return { child, signals };
+}
+
+function temporaryRuntime({ parent, value, real, stat, spawnProcess = () => { throw new Error("build must not start"); }, removeTemp }) {
+  return new DockerRuntime({
+    path: "/safe/path", home: "/safe/home", marker, tempParent: parent,
+    canonicalPath: (path) => path === parent ? parent : real,
+    statPath: () => stat,
+    command: () => result(0, JSON.stringify({ GOCACHE: "/safe/cache", GOMODCACHE: "/safe/modcache" })),
+    spawnProcess, makeTemp: () => value, removeTemp,
+  });
 }

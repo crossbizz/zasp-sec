@@ -1,9 +1,9 @@
 import { spawn, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { mkdtempSync, rmSync } from "node:fs";
+import { lstatSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
 import http from "node:http";
 import { tmpdir } from "node:os";
-import { isAbsolute, join } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 export const LOCALSTACK_IMAGE = "localstack/localstack:4.7.0@sha256:12253acd9676770e9bd31cbfcf17c5ca6fd7fb5c0c62f3c46dd701f20304260c";
@@ -97,9 +97,12 @@ export function runBounded(command, arguments_, options, spawnImplementation = s
 }
 
 export class DockerRuntime {
-  constructor({ path = process.env.PATH, home = process.env.HOME, marker, randomBytesSource = randomBytes, command = spawnSync, spawnProcess = spawn, makeTemp = mkdtempSync, removeTemp = rmSync } = {}) {
+  constructor({ path = process.env.PATH, home = process.env.HOME, marker, randomBytesSource = randomBytes, command = spawnSync, spawnProcess = spawn, makeTemp = mkdtempSync, removeTemp = rmSync, tempParent = tmpdir(), canonicalPath = realpathSync, statPath = lstatSync } = {}) {
     if (marker === undefined) marker = randomBytesSource(8).toString("hex");
-    if (typeof path !== "string" || path.length === 0 || !isAbsolute(home ?? "") || !/^[a-f0-9]{16}$/.test(marker) || typeof command !== "function" || typeof spawnProcess !== "function" || typeof makeTemp !== "function" || typeof removeTemp !== "function") throw categorized("configuration");
+    if (typeof path !== "string" || path.length === 0 || !isAbsolute(home ?? "") || !isAbsolute(tempParent ?? "") || !/^[a-f0-9]{16}$/.test(marker) || typeof command !== "function" || typeof spawnProcess !== "function" || typeof makeTemp !== "function" || typeof removeTemp !== "function" || typeof canonicalPath !== "function" || typeof statPath !== "function") throw categorized("configuration");
+    let canonicalTempParent;
+    try { canonicalTempParent = canonicalPath(tempParent); } catch { throw categorized("configuration"); }
+    if (typeof canonicalTempParent !== "string" || !isAbsolute(canonicalTempParent) || resolve(canonicalTempParent) !== canonicalTempParent) throw categorized("configuration");
     this.path = path;
     this.home = home;
     this.marker = marker;
@@ -108,9 +111,22 @@ export class DockerRuntime {
     this.spawnProcess = spawnProcess;
     this.makeTemp = makeTemp;
     this.removeTemp = removeTemp;
+    this.tempParent = canonicalTempParent;
+    this.canonicalPath = canonicalPath;
+    this.statPath = statPath;
     this.token = undefined;
     this.startAttempted = false;
     this.resolvedImageID = undefined;
+  }
+
+  ownedTemporaryDirectory(value) {
+    if (typeof value !== "string" || !isAbsolute(value) || resolve(value) !== value) return undefined;
+    let status; let canonical;
+    try { status = this.statPath(value); canonical = this.canonicalPath(value); } catch { return undefined; }
+    if (!status?.isDirectory?.() || status?.isSymbolicLink?.() || typeof canonical !== "string" || value !== canonical || !isAbsolute(canonical) || resolve(canonical) !== canonical) return undefined;
+    const prefix = join(this.tempParent, "zasp-prov-01-");
+    if (dirname(canonical) !== this.tempParent || !canonical.startsWith(prefix) || canonical.length === prefix.length) return undefined;
+    return canonical;
   }
 
   docker(args) {
@@ -209,8 +225,9 @@ export class DockerRuntime {
     let directory;
     let code = 1;
     try {
-      directory = this.makeTemp(join(tmpdir(), "zasp-prov-01-"));
-      if (typeof directory !== "string" || !directory.startsWith(join(tmpdir(), "zasp-prov-01-"))) return 1;
+      const candidate = this.makeTemp(join(this.tempParent, "zasp-prov-01-"));
+      directory = this.ownedTemporaryDirectory(candidate);
+      if (directory === undefined) return 1;
       const executable = join(directory, "iam-proof");
       const build = await runBounded("go", ["build", "-trimpath", "-mod=readonly", "-o", executable, "."], { cwd: proofDirectory, env: buildGoToolEnvironment(this.path, caches.GOCACHE, caches.GOMODCACHE), timeoutMs: 90_000, outputLimit: processOutputLimit }, this.spawnProcess);
       if (build?.status !== 0 || !boundedOutput(build) || String(build?.stdout ?? "") !== "" || String(build?.stderr ?? "") !== "") return resultCode(build);
