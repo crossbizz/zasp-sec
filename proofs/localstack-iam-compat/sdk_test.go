@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -104,7 +106,7 @@ func TestSDKBoundary_UsesExactIAMAndSTSQueryOperations(t *testing.T) {
 			writeXML(w, `<PutRolePolicyResponse><ResponseMetadata><RequestId>x</RequestId></ResponseMetadata></PutRolePolicyResponse>`)
 		case "GetRolePolicy":
 			assertForm(t, r, map[string]string{"RoleName": role.Name, "PolicyName": role.PolicyName})
-			writeXML(w, `<GetRolePolicyResponse><GetRolePolicyResult><RoleName>`+role.Name+`</RoleName><PolicyName>`+role.PolicyName+`</PolicyName><PolicyDocument>`+xmlEscape(url.PathEscape(role.PermissionPolicy))+`</PolicyDocument></GetRolePolicyResult></GetRolePolicyResponse>`)
+			writeXML(w, `<GetRolePolicyResponse><GetRolePolicyResult><RoleName>`+role.Name+`</RoleName><PolicyName>`+role.PolicyName+`</PolicyName><PolicyDocument>`+xmlEscape(canonicalPolicyFixture(role.PermissionPolicy))+`</PolicyDocument></GetRolePolicyResult></GetRolePolicyResponse>`)
 		case "AssumeRole":
 			assertForm(t, r, map[string]string{"RoleArn": role.ARN, "RoleSessionName": "session", "ExternalId": "external", "SourceIdentity": "source", "Tags.member.1.Key": "proof", "Tags.member.1.Value": marker})
 			writeXML(w, `<AssumeRoleResponse><AssumeRoleResult><Credentials><AccessKeyId>ASIA0123456789ABCDEF</AccessKeyId><SecretAccessKey>assumed-secret</SecretAccessKey><SessionToken>assumed-token</SessionToken><Expiration>2030-01-01T00:00:00Z</Expiration></Credentials><AssumedRoleUser><Arn>arn:aws:sts::000000000042:assumed-role/`+role.Name+`/session</Arn><AssumedRoleId>AROA0123456789ABCDEF:session</AssumedRoleId></AssumedRoleUser><SourceIdentity>source</SourceIdentity></AssumeRoleResult></AssumeRoleResponse>`)
@@ -113,8 +115,18 @@ func TestSDKBoundary_UsesExactIAMAndSTSQueryOperations(t *testing.T) {
 				t.Fatal("assumed ListRoles used source credentials")
 			}
 			writeError(w, http.StatusForbidden, "AccessDenied", "explicit deny")
-		case "DeleteRolePolicy", "DeleteRole", "DeleteAccessKey", "DeleteUser":
-			writeXML(w, `<`+action+`Response><ResponseMetadata><RequestId>x</RequestId></ResponseMetadata></`+action+`Response>`)
+		case "DeleteRolePolicy":
+			assertExactForm(t, r, map[string]string{"Action": action, "Version": "2010-05-08", "RoleName": role.Name, "PolicyName": role.PolicyName})
+			writeXML(w, `<DeleteRolePolicyResponse><ResponseMetadata><RequestId>x</RequestId></ResponseMetadata></DeleteRolePolicyResponse>`)
+		case "DeleteRole":
+			assertExactForm(t, r, map[string]string{"Action": action, "Version": "2010-05-08", "RoleName": role.Name})
+			writeXML(w, `<DeleteRoleResponse><ResponseMetadata><RequestId>x</RequestId></ResponseMetadata></DeleteRoleResponse>`)
+		case "DeleteAccessKey":
+			assertExactForm(t, r, map[string]string{"Action": action, "Version": "2010-05-08", "UserName": principal.Name, "AccessKeyId": "AKIA0123456789ABCDEF"})
+			writeXML(w, `<DeleteAccessKeyResponse><ResponseMetadata><RequestId>x</RequestId></ResponseMetadata></DeleteAccessKeyResponse>`)
+		case "DeleteUser":
+			assertExactForm(t, r, map[string]string{"Action": action, "Version": "2010-05-08", "UserName": principal.Name})
+			writeXML(w, `<DeleteUserResponse><ResponseMetadata><RequestId>x</RequestId></ResponseMetadata></DeleteUserResponse>`)
 		default:
 			t.Fatalf("unexpected Action %q", action)
 		}
@@ -238,22 +250,35 @@ func TestSDKBoundary_RejectsRedirectsAndBoundsMutationsAndReads(t *testing.T) {
 }
 
 func TestSDKBoundary_RejectsInvalidProviderPolicyRepresentations(t *testing.T) {
-	if _, ok := decodeProviderPolicy(url.PathEscape(`{"Version":"2012-10-17","Statement":[{}]}`)); !ok {
-		t.Fatal("valid policy representation was rejected")
+	const validRaw = `{"Version":"2012-10-17","Statement":[{"Condition":"space + percent %"}]}`
+	const validCanonical = `%7B%22Version%22%3A%222012-10-17%22%2C%22Statement%22%3A%5B%7B%22Condition%22%3A%22space%20%2B%20percent%20%25%22%7D%5D%7D`
+	if got, ok := decodeProviderPolicy(validCanonical); !ok || got != validRaw {
+		t.Fatalf("decodeProviderPolicy(real canonical representation) = %q, %v", got, ok)
 	}
-	for _, raw := range []string{
-		`{"Version":"2012-10-17","Statement":[{}]}`,
-		`null`,
-		`{"Version":"2012-10-17"}`,
-		`{"Version":"2012-10-17","Statement":[{}],"Unknown":true}`,
-		`{"Version":"2012-10-17","Version":"2012-10-17","Statement":[{}]}`,
-		`{"Version":"2012-10-17","Statement":[{}]} trailing`,
-		url.QueryEscape(url.QueryEscape(`{"Version":"2012-10-17","Statement":[{}]}`)),
-		strings.Repeat("x", maxBodySize+1),
+
+	validWithoutSpaces := `{"Version":"2012-10-17","Statement":[{}]}`
+	for _, tc := range []struct {
+		name string
+		raw  string
+	}{
+		{name: "raw", raw: validRaw},
+		{name: "form", raw: url.QueryEscape(validRaw)},
+		{name: "lowercase escape", raw: strings.Replace(validCanonical, "%7B", "%7b", 1)},
+		{name: "path segment alias", raw: url.PathEscape(validRaw)},
+		{name: "partial", raw: strings.Replace(validCanonical, "%3A", ":", 1)},
+		{name: "double", raw: canonicalPolicyFixture(validCanonical)},
+		{name: "invalid escape", raw: strings.Replace(validCanonical, "%7B", "%GZ", 1)},
+		{name: "duplicate", raw: canonicalPolicyFixture(`{"Version":"2012-10-17","Version":"2012-10-17","Statement":[{}]}`)},
+		{name: "case alias", raw: canonicalPolicyFixture(`{"version":"2012-10-17","Statement":[{}]}`)},
+		{name: "unknown", raw: canonicalPolicyFixture(`{"Version":"2012-10-17","Statement":[{}],"Unknown":true}`)},
+		{name: "missing", raw: canonicalPolicyFixture(`{"Version":"2012-10-17"}`)},
+		{name: "null", raw: canonicalPolicyFixture(`null`)},
+		{name: "trailing", raw: canonicalPolicyFixture(validWithoutSpaces + ` trailing`)},
+		{name: "oversize", raw: strings.Repeat("x", maxBodySize+1)},
 	} {
-		t.Run("invalid", func(t *testing.T) {
-			if _, ok := decodeProviderPolicy(raw); ok {
-				t.Fatalf("decodeProviderPolicy(%q) accepted an invalid policy representation", raw)
+		t.Run(tc.name, func(t *testing.T) {
+			if _, ok := decodeProviderPolicy(tc.raw); ok {
+				t.Fatalf("decodeProviderPolicy(%q) accepted an invalid policy representation", tc.raw)
 			}
 		})
 	}
@@ -261,14 +286,146 @@ func TestSDKBoundary_RejectsInvalidProviderPolicyRepresentations(t *testing.T) {
 
 func TestSDKBoundary_DecodesCanonicalRFC3986PolicyOnce(t *testing.T) {
 	raw := `{"Version":"2012-10-17","Statement":[{"Condition":"space value %"}]}`
-	encoded := url.PathEscape(raw)
+	encoded := canonicalPolicyFixture(raw)
 	if got, ok := decodeProviderPolicy(encoded); !ok || got != raw {
 		t.Fatalf("decodeProviderPolicy(%q) = %q, %v", encoded, got, ok)
 	}
-	for _, alias := range []string{raw, url.QueryEscape(raw), strings.ToLower(encoded), url.PathEscape(encoded), strings.Replace(encoded, "%20", "+", 1)} {
+	for _, alias := range []string{raw, url.QueryEscape(raw), strings.ToLower(encoded), canonicalPolicyFixture(encoded), strings.Replace(encoded, "%20", "+", 1)} {
 		if _, ok := decodeProviderPolicy(alias); ok {
 			t.Fatalf("accepted noncanonical policy alias %q", alias)
 		}
+	}
+}
+
+func TestSDKBoundary_DecodesCanonicalUTF8AndEscapesEveryReservedByte(t *testing.T) {
+	const raw = `{"Version":"2012-10-17","Statement":[{"Condition":"AZaz09-._~ :@&=+$,/?#[]!é"}]}`
+	const canonical = `%7B%22Version%22%3A%222012-10-17%22%2C%22Statement%22%3A%5B%7B%22Condition%22%3A%22AZaz09-._~%20%3A%40%26%3D%2B%24%2C%2F%3F%23%5B%5D%21%C3%A9%22%7D%5D%7D`
+	if got, ok := decodeProviderPolicy(canonical); !ok || got != raw {
+		t.Fatalf("decodeProviderPolicy(canonical UTF-8 representation) = %q, %v", got, ok)
+	}
+}
+
+func TestSDKBoundary_RejectsHostileResolverRebinding(t *testing.T) {
+	targetHits := 0
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		targetHits++
+		writeXML(w, `<GetCallerIdentityResponse/>`)
+	}))
+	defer target.Close()
+	_, port, err := net.SplitHostPort(strings.TrimPrefix(target.URL, "http://"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	originalLookup := lookupIPAddr
+	defer func() { lookupIPAddr = originalLookup }()
+	lookups := 0
+	lookupIPAddr = func(context.Context, string) ([]net.IPAddr, error) {
+		lookups++
+		if lookups == 1 {
+			return []net.IPAddr{{IP: net.ParseIP("127.0.0.1")}}, nil
+		}
+		return []net.IPAddr{{IP: net.ParseIP("203.0.113.10")}}, nil
+	}
+
+	b, err := NewSDKBoundary(context.Background(), "http://proof.invalid:"+port, sourceNamespace, targetNamespace)
+	if err != nil {
+		t.Fatalf("NewSDKBoundary() error = %v", err)
+	}
+	if _, err := b.SourceIdentity(context.Background()); !errors.Is(err, errProvider) {
+		t.Fatalf("SourceIdentity() error = %v, want provider rejection", err)
+	}
+	if lookups < 2 || targetHits != 0 {
+		t.Fatalf("lookups = %d, target hits = %d; want rebinding rejected before dial", lookups, targetHits)
+	}
+}
+
+func TestSDKBoundary_BypassesAmbientProxy(t *testing.T) {
+	targetHits := 0
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		targetHits++
+		writeXML(w, `<GetCallerIdentityResponse><GetCallerIdentityResult><Account>000000000041</Account><Arn>arn:aws:iam::000000000041:root</Arn><UserId>source-root</UserId></GetCallerIdentityResult></GetCallerIdentityResponse>`)
+	}))
+	defer target.Close()
+	_, port, err := net.SplitHostPort(strings.TrimPrefix(target.URL, "http://"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxyHits := 0
+	proxy := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { proxyHits++ }))
+	defer proxy.Close()
+	t.Setenv("HTTP_PROXY", proxy.URL)
+	t.Setenv("HTTPS_PROXY", proxy.URL)
+	t.Setenv("ALL_PROXY", proxy.URL)
+	t.Setenv("NO_PROXY", "")
+
+	originalLookup := lookupIPAddr
+	defer func() { lookupIPAddr = originalLookup }()
+	lookupIPAddr = func(context.Context, string) ([]net.IPAddr, error) {
+		return []net.IPAddr{{IP: net.ParseIP("127.0.0.1")}}, nil
+	}
+	b, err := NewSDKBoundary(context.Background(), "http://proof.invalid:"+port, sourceNamespace, targetNamespace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.SourceIdentity(context.Background()); err != nil {
+		t.Fatalf("SourceIdentity() error = %v", err)
+	}
+	if proxyHits != 0 || targetHits != 1 {
+		t.Fatalf("proxy hits = %d, target hits = %d; want direct target request", proxyHits, targetHits)
+	}
+}
+
+func TestSDKBoundary_RejectsWrongAccessKeyOwnerAndStatus(t *testing.T) {
+	principal, _ := expectedSpecs(ProofOptions{Marker: "0123456789abcdef"})
+	for _, tc := range []struct {
+		name, user, status string
+	}{
+		{name: "wrong username", user: "foreign-user", status: "Active"},
+		{name: "inactive", user: principal.Name, status: "Inactive"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				writeXML(w, `<CreateAccessKeyResponse><CreateAccessKeyResult><AccessKey><AccessKeyId>AKIA0123456789ABCDEF</AccessKeyId><SecretAccessKey>source-secret</SecretAccessKey><Status>`+tc.status+`</Status><UserName>`+tc.user+`</UserName></AccessKey></CreateAccessKeyResult></CreateAccessKeyResponse>`)
+			}))
+			defer server.Close()
+			b, err := NewSDKBoundary(context.Background(), server.URL, sourceNamespace, targetNamespace)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, _, err = b.CreateAccessKey(context.Background(), principal.Name)
+			var ambiguous ambiguousMutationError
+			if !errors.As(err, &ambiguous) {
+				t.Fatalf("CreateAccessKey() error = %v, want ambiguous provider response", err)
+			}
+		})
+	}
+}
+
+func TestSDKBoundary_AssumedClientRetriesWithinBound(t *testing.T) {
+	attempts := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		attempts++
+		if attempts == 1 {
+			writeError(w, http.StatusInternalServerError, "ServiceFailure", "retry")
+			return
+		}
+		writeXML(w, `<GetCallerIdentityResponse><GetCallerIdentityResult><Account>000000000042</Account><Arn>arn:aws:sts::000000000042:assumed-role/role/session</Arn><UserId>role-id:session</UserId></GetCallerIdentityResult></GetCallerIdentityResponse>`)
+	}))
+	defer server.Close()
+	b, err := NewSDKBoundary(context.Background(), server.URL, sourceNamespace, targetNamespace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	delay, err := newReadRetryer().RetryDelay(1, errors.New("retry"))
+	if err != nil || delay > 500*time.Millisecond {
+		t.Fatalf("retry delay = %v, %v; want at most 500ms", delay, err)
+	}
+	if _, err := b.AssumedIdentity(context.Background(), AssumedSession{AccessKeyID: "ASIA0123456789ABCDEF", SecretAccessKey: "secret", SessionToken: "token"}); err != nil {
+		t.Fatalf("AssumedIdentity() error = %v", err)
+	}
+	if attempts != 2 {
+		t.Fatalf("assumed read attempts = %d, want 2", attempts)
 	}
 }
 
@@ -309,9 +466,34 @@ func TestSDKBoundary_OverlargeSuccessIsAmbiguous(t *testing.T) {
 }
 
 func TestSDKBoundary_RunProofOverLoopback(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		enforceDeny bool
+	}{
+		{name: "allow plus enforced deny passes", enforceDeny: true},
+		{name: "allow plus ignored deny fails proof", enforceDeny: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := runSDKProofOverLoopback(t, tc.enforceDeny)
+			if tc.enforceDeny {
+				if err != nil || result != (ProofResult{true, true, true, true, true, true}) {
+					t.Fatalf("RunProof() = %#v, %v", result, err)
+				}
+				return
+			}
+			if !errors.Is(err, errAuthorization) || !result.Namespaces || !result.Assumed || !result.AllowedRead || result.ExplicitDeny || !result.Cleanup || !result.Audit {
+				t.Fatalf("RunProof() with ignored Deny = %#v, %v; want authorization failure after allowed read with cleanup", result, err)
+			}
+		})
+	}
+}
+
+func runSDKProofOverLoopback(t *testing.T, enforceDeny bool) (ProofResult, error) {
+	t.Helper()
 	marker := "0123456789abcdef"
 	principal, role := expectedSpecs(ProofOptions{Marker: marker})
 	var principalExists, roleExists, policyExists bool
+	var storedPolicy string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseForm(); err != nil {
 			t.Fatal(err)
@@ -347,14 +529,18 @@ func TestSDKBoundary_RunProofOverLoopback(t *testing.T) {
 			writeXML(w, `<ListAccessKeysResponse><ListAccessKeysResult><AccessKeyMetadata><member><UserName>`+principal.Name+`</UserName><AccessKeyId>AKIA0123456789ABCDEF</AccessKeyId><Status>Active</Status></member></AccessKeyMetadata></ListAccessKeysResult></ListAccessKeysResponse>`)
 		case "ListRoles":
 			if strings.Contains(r.Header.Get("Authorization"), "Credential=ASIA") {
-				writeError(w, http.StatusForbidden, "AccessDenied", "indistinguishable")
+				if evaluatorAllowsListRoles(t, storedPolicy, enforceDeny) {
+					writeXML(w, `<ListRolesResponse><ListRolesResult><Roles></Roles></ListRolesResult></ListRolesResponse>`)
+				} else {
+					writeError(w, http.StatusForbidden, "AccessDenied", "policy evaluator denial")
+				}
 				return
 			}
 			if r.Form.Get("PathPrefix") != "" {
 				t.Fatalf("ListRoles PathPrefix = %q, want no path filter", r.Form.Get("PathPrefix"))
 			}
 			if roleExists {
-				writeXML(w, `<ListRolesResponse><ListRolesResult><Roles><member><Path>`+role.Path+`</Path><RoleName>`+role.Name+`</RoleName><RoleId>AROA0123456789ABCDEF</RoleId><Arn>`+role.ARN+`</Arn><AssumeRolePolicyDocument>`+xmlEscape(url.PathEscape(role.TrustPolicy))+`</AssumeRolePolicyDocument><Description>`+role.Description+`</Description><Tags><member><Key>proof</Key><Value>`+marker+`</Value></member></Tags></member></Roles></ListRolesResult></ListRolesResponse>`)
+				writeXML(w, `<ListRolesResponse><ListRolesResult><Roles><member><Path>`+role.Path+`</Path><RoleName>`+role.Name+`</RoleName><RoleId>AROA0123456789ABCDEF</RoleId><Arn>`+role.ARN+`</Arn><AssumeRolePolicyDocument>`+xmlEscape(canonicalPolicyFixture(role.TrustPolicy))+`</AssumeRolePolicyDocument><Description>`+role.Description+`</Description><Tags><member><Key>proof</Key><Value>`+marker+`</Value></member></Tags></member></Roles></ListRolesResult></ListRolesResponse>`)
 			} else {
 				writeXML(w, `<ListRolesResponse><ListRolesResult><Roles></Roles></ListRolesResult></ListRolesResponse>`)
 			}
@@ -365,12 +551,13 @@ func TestSDKBoundary_RunProofOverLoopback(t *testing.T) {
 			writeXML(w, roleResponse("GetRole", role, "AROA0123456789ABCDEF"))
 		case "PutRolePolicy":
 			policyExists = true
+			storedPolicy = r.Form.Get("PolicyDocument")
 			writeXML(w, `<PutRolePolicyResponse/>`)
 		case "GetRolePolicy":
 			if !policyExists {
 				writeError(w, http.StatusNotFound, "NoSuchEntity", "absent")
 			} else {
-				writeXML(w, `<GetRolePolicyResponse><GetRolePolicyResult><RoleName>`+role.Name+`</RoleName><PolicyName>`+role.PolicyName+`</PolicyName><PolicyDocument>`+xmlEscape(url.PathEscape(role.PermissionPolicy))+`</PolicyDocument></GetRolePolicyResult></GetRolePolicyResponse>`)
+				writeXML(w, `<GetRolePolicyResponse><GetRolePolicyResult><RoleName>`+role.Name+`</RoleName><PolicyName>`+role.PolicyName+`</PolicyName><PolicyDocument>`+xmlEscape(canonicalPolicyFixture(storedPolicy))+`</PolicyDocument></GetRolePolicyResult></GetRolePolicyResponse>`)
 			}
 		case "AssumeRole":
 			writeXML(w, `<AssumeRoleResponse><AssumeRoleResult><Credentials><AccessKeyId>ASIA0123456789ABCDEF</AccessKeyId><SecretAccessKey>assumed-secret</SecretAccessKey><SessionToken>assumed-token</SessionToken><Expiration>2030-01-01T00:00:00Z</Expiration></Credentials><AssumedRoleUser><Arn>arn:aws:sts::000000000042:assumed-role/`+role.Name+`/`+proofPrefix(marker)+`-session</Arn><AssumedRoleId>AROA0123456789ABCDEF:`+proofPrefix(marker)+`-session</AssumedRoleId></AssumedRoleUser><SourceIdentity>`+proofPrefix(marker)+`-source</SourceIdentity></AssumeRoleResult></AssumeRoleResponse>`)
@@ -392,10 +579,35 @@ func TestSDKBoundary_RunProofOverLoopback(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := RunProof(context.Background(), ProofOptions{Marker: marker, Endpoint: server.URL, SourceAccountID: sourceNamespace, TargetAccountID: targetNamespace, Boundary: b, CleanupTimeout: 100 * time.Millisecond, PollInterval: time.Millisecond, Now: func() time.Time { return time.Date(2029, 1, 1, 0, 0, 0, 0, time.UTC) }})
-	if err != nil || result != (ProofResult{true, true, true, true, true, true}) {
-		t.Fatalf("RunProof() = %#v, %v", result, err)
+	return RunProof(context.Background(), ProofOptions{Marker: marker, Endpoint: server.URL, SourceAccountID: sourceNamespace, TargetAccountID: targetNamespace, Boundary: b, CleanupTimeout: 100 * time.Millisecond, PollInterval: time.Millisecond, Now: func() time.Time { return time.Date(2029, 1, 1, 0, 0, 0, 0, time.UTC) }})
+}
+
+func evaluatorAllowsListRoles(t *testing.T, raw string, enforceDeny bool) bool {
+	t.Helper()
+	var document struct {
+		Statement []struct {
+			Effect, Action, Resource string
+		} `json:"Statement"`
 	}
+	if err := json.Unmarshal([]byte(raw), &document); err != nil {
+		t.Fatalf("stored policy is invalid: %v", err)
+	}
+	allow, deny := false, false
+	for _, statement := range document.Statement {
+		if statement.Action != "iam:ListRoles" || statement.Resource != "*" {
+			continue
+		}
+		switch statement.Effect {
+		case "Allow":
+			allow = true
+		case "Deny":
+			deny = true
+		}
+	}
+	if !allow || !deny {
+		t.Fatalf("stored policy does not contain matching Allow and Deny: %s", raw)
+	}
+	return allow && !(enforceDeny && deny)
 }
 
 func assertForm(t *testing.T, r *http.Request, want map[string]string) {
@@ -405,6 +617,21 @@ func assertForm(t *testing.T, r *http.Request, want map[string]string) {
 			t.Fatalf("%s %s = %q, want %q", r.Form.Get("Action"), key, got, value)
 		}
 	}
+}
+func assertExactForm(t *testing.T, r *http.Request, want map[string]string) {
+	t.Helper()
+	assertForm(t, r, want)
+	if len(r.Form) != len(want) {
+		t.Fatalf("%s fields = %#v, want exactly %#v", r.Form.Get("Action"), r.Form, want)
+	}
+	for key, values := range r.Form {
+		if len(values) != 1 || values[0] != want[key] {
+			t.Fatalf("%s %s values = %#v, want exactly %q", r.Form.Get("Action"), key, values, want[key])
+		}
+	}
+}
+func canonicalPolicyFixture(raw string) string {
+	return strings.ReplaceAll(url.QueryEscape(raw), "+", "%20")
 }
 func writeXML(w http.ResponseWriter, body string) {
 	w.Header().Set("Content-Type", "text/xml")
@@ -422,7 +649,7 @@ func userResponse(action string, spec PrincipalSpec, id string) string {
 	return `<` + action + `Response><` + action + `Result><User><Path>` + spec.Path + `</Path><UserName>` + spec.Name + `</UserName><UserId>` + id + `</UserId><Arn>` + spec.ARN + `</Arn><Tags><member><Key>proof</Key><Value>` + spec.Marker + `</Value></member></Tags></User></` + action + `Result></` + action + `Response>`
 }
 func roleResponse(action string, spec RoleSpec, id string) string {
-	return `<` + action + `Response><` + action + `Result><Role><Path>` + spec.Path + `</Path><RoleName>` + spec.Name + `</RoleName><RoleId>` + id + `</RoleId><Arn>` + spec.ARN + `</Arn><AssumeRolePolicyDocument>` + xmlEscape(url.PathEscape(spec.TrustPolicy)) + `</AssumeRolePolicyDocument><Description>` + spec.Description + `</Description><Tags><member><Key>proof</Key><Value>` + spec.Marker + `</Value></member></Tags></Role></` + action + `Result></` + action + `Response>`
+	return `<` + action + `Response><` + action + `Result><Role><Path>` + spec.Path + `</Path><RoleName>` + spec.Name + `</RoleName><RoleId>` + id + `</RoleId><Arn>` + spec.ARN + `</Arn><AssumeRolePolicyDocument>` + xmlEscape(canonicalPolicyFixture(spec.TrustPolicy)) + `</AssumeRolePolicyDocument><Description>` + spec.Description + `</Description><Tags><member><Key>proof</Key><Value>` + spec.Marker + `</Value></member></Tags></Role></` + action + `Result></` + action + `Response>`
 }
 
 var _ = time.Second

@@ -503,13 +503,30 @@ func decodeProviderPolicy(raw string) (string, bool) {
 		return "", false
 	}
 	decoded, err := url.PathUnescape(raw)
-	if err != nil || decoded == raw || len(decoded) > maxBodySize || url.PathEscape(decoded) != raw {
+	if err != nil || decoded == raw || len(decoded) > maxBodySize || encodeRFC3986Component(decoded) != raw {
 		return "", false
 	}
 	if !validIAMPolicyDocument(decoded) {
 		return "", false
 	}
 	return decoded, true
+}
+
+func encodeRFC3986Component(raw string) string {
+	const upperHex = "0123456789ABCDEF"
+	var encoded strings.Builder
+	encoded.Grow(len(raw) * 3)
+	for index := 0; index < len(raw); index++ {
+		value := raw[index]
+		if (value >= 'A' && value <= 'Z') || (value >= 'a' && value <= 'z') || (value >= '0' && value <= '9') || value == '-' || value == '.' || value == '_' || value == '~' {
+			encoded.WriteByte(value)
+			continue
+		}
+		encoded.WriteByte('%')
+		encoded.WriteByte(upperHex[value>>4])
+		encoded.WriteByte(upperHex[value&0x0f])
+	}
+	return encoded.String()
 }
 
 func validIAMPolicyDocument(raw string) bool {
