@@ -68,9 +68,9 @@ type ProjectionAdmin interface {
 }
 
 type IndexSpec struct {
-	Name, Marker, Role, Dynamic string
-	Shards, Replicas            int
-	Fields                      map[string]string
+	Name, Proof, Marker, Role, Dynamic string
+	Shards, Replicas                   int
+	Fields                             map[string]string
 }
 
 type IndexState = IndexSpec
@@ -132,6 +132,9 @@ func RunProof(ctx context.Context, options ProofOptions) (result ProofResult, re
 
 	spec := expectedIndexSpec(options.Marker)
 	created, createErr := options.Admin.CreateIndex(ctx, spec)
+	if createErr != nil && !isAmbiguousMutation(createErr) {
+		return result, errProvider
+	}
 	if createErr == nil {
 		target = &cleanupTarget{spec: copyIndexSpec(spec)}
 		if !validIndexState(created, spec) {
@@ -166,6 +169,8 @@ func RunProof(ctx context.Context, options ProofOptions) (result ProofResult, re
 	indexErr := options.Events.IndexSessionEvent(ctx, organizationA, event)
 	if indexErr == nil {
 		target.event = copyEvent(event)
+	} else if !isAmbiguousMutation(indexErr) {
+		return result, eventStoreError(indexErr)
 	}
 	documents, documentsErr := options.Admin.ListDocuments(ctx, spec.Name, 2)
 	if documentsErr != nil || len(documents) != 1 || documents[0] != event {
@@ -273,7 +278,7 @@ func pollUntil(ctx context.Context, interval time.Duration, check func() (bool, 
 
 func expectedIndexSpec(marker string) IndexSpec {
 	return IndexSpec{
-		Name: proofPrefix + marker + "-events", Marker: marker, Role: indexRole,
+		Name: proofPrefix + marker + "-events", Proof: "m0-08", Marker: marker, Role: indexRole,
 		Dynamic: "strict", Shards: 1, Replicas: 0,
 		Fields: map[string]string{
 			"event_id": "keyword", "organization_id": "keyword", "workspace_id": "keyword",
@@ -296,7 +301,7 @@ func expectedEvent(marker, organizationID string) NormalizedSessionEvent {
 }
 
 func validIndexState(state IndexState, expected IndexSpec) bool {
-	return state.Name == expected.Name && state.Marker == expected.Marker && state.Role == expected.Role &&
+	return state.Name == expected.Name && state.Proof == expected.Proof && state.Marker == expected.Marker && state.Role == expected.Role &&
 		state.Dynamic == expected.Dynamic && state.Shards == expected.Shards && state.Replicas == expected.Replicas &&
 		equalMaps(state.Fields, expected.Fields)
 }

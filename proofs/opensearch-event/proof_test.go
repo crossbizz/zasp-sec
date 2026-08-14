@@ -42,6 +42,9 @@ func TestRunProofIndexesOneScopedEventAndRejectsTheOtherOrganization(t *testing.
 	if backend.lastSpec.Dynamic != "strict" || backend.lastSpec.Shards != 1 || backend.lastSpec.Replicas != 0 {
 		t.Fatal("proof did not create the strict one-shard zero-replica projection")
 	}
+	if backend.lastSpec.Proof != "m0-08" {
+		t.Fatal("proof index omitted the fixed proof discriminator")
+	}
 	wantFields := map[string]string{
 		"event_id": "keyword", "organization_id": "keyword", "workspace_id": "keyword",
 		"environment_id": "keyword", "session_id": "keyword", "agent_id": "keyword",
@@ -73,6 +76,92 @@ func TestRunProofReconcilesOnlyExactAmbiguousMutations(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRunProofNeverAdoptsDefinitivelyRejectedMutationCollisions(t *testing.T) {
+	t.Parallel()
+	t.Run("pre-existing exact-looking index after rejected create", func(t *testing.T) {
+		backend := newFakeBackend()
+		backend.rejectCreateCollision = true
+		if _, err := RunProof(context.Background(), proofOptions(backend)); !errors.Is(err, errProvider) {
+			t.Fatalf("RunProof error = %v, want provider", err)
+		}
+		if len(backend.indexes) != 1 {
+			t.Fatal("definitively rejected index collision was adopted or deleted")
+		}
+		if slices.Contains(backend.operations, "inspect-index") || slices.Contains(backend.operations, "delete-index") {
+			t.Fatal("definitively rejected create entered reconciliation or cleanup")
+		}
+	})
+	t.Run("pre-existing exact-looking document after rejected create-only write", func(t *testing.T) {
+		backend := newFakeBackend()
+		backend.rejectDocumentCollision = true
+		if _, err := RunProof(context.Background(), proofOptions(backend)); !errors.Is(err, errCleanup) {
+			t.Fatalf("RunProof error = %v, want cleanup precedence", err)
+		}
+		if len(backend.indexes) != 1 || slices.Contains(backend.operations, "delete-index") {
+			t.Fatal("definitively rejected document collision was adopted or deleted")
+		}
+		if backend.counts["list-documents"] != 1 {
+			t.Fatal("definitively rejected document write entered ambiguity reconciliation")
+		}
+	})
+}
+
+func TestRunProofReconcilesInvalidSuccessfulMutationResponsesOnlyByExactState(t *testing.T) {
+	t.Parallel()
+	for _, operation := range []string{"create-index", "index-event"} {
+		operation := operation
+		t.Run(operation, func(t *testing.T) {
+			backend := newFakeBackend()
+			backend.invalidSuccessfulResponse[operation] = true
+			result, err := RunProof(context.Background(), proofOptions(backend))
+			if err != nil {
+				t.Fatalf("RunProof returned %v", err)
+			}
+			if result != (ProofResult{Indexed: true, ScopedQuery: true, CrossOrganizationZero: true, Cleanup: true, Audit: true}) {
+				t.Fatalf("result = %#v", result)
+			}
+			if len(backend.indexes) != 0 {
+				t.Fatal("exactly reconciled successful mutation was not cleaned")
+			}
+		})
+	}
+}
+
+func TestRunProofRequiresTheExactProofDiscriminatorAtEveryOwnershipStage(t *testing.T) {
+	t.Parallel()
+	t.Run("initial inspection", func(t *testing.T) {
+		backend := newFakeBackend()
+		backend.mutateAt["inspect-index"] = 1
+		if _, err := RunProof(context.Background(), proofOptions(backend)); !errors.Is(err, errCleanup) {
+			t.Fatalf("RunProof error = %v, want cleanup precedence", err)
+		}
+		if slices.Contains(backend.operations, "delete-index") {
+			t.Fatal("initial inspection adopted or deleted a foreign proof discriminator")
+		}
+	})
+	t.Run("ambiguous create reconciliation", func(t *testing.T) {
+		backend := newFakeBackend()
+		backend.ambiguous["create-index"] = true
+		backend.mutateAt["inspect-index"] = 1
+		if _, err := RunProof(context.Background(), proofOptions(backend)); !errors.Is(err, errOwnership) {
+			t.Fatalf("RunProof error = %v, want ownership", err)
+		}
+		if len(backend.indexes) != 1 || slices.Contains(backend.operations, "delete-index") {
+			t.Fatal("foreign proof discriminator was adopted or deleted")
+		}
+	})
+	t.Run("cleanup authorization", func(t *testing.T) {
+		backend := newFakeBackend()
+		backend.mutateAt["inspect-index"] = 2
+		if _, err := RunProof(context.Background(), proofOptions(backend)); !errors.Is(err, errCleanup) {
+			t.Fatalf("RunProof error = %v, want cleanup", err)
+		}
+		if slices.Contains(backend.operations, "delete-index") {
+			t.Fatal("cleanup deleted an index with a foreign proof discriminator")
+		}
+	})
 }
 
 func TestRunProofRejectsPrefixCollisionsAndCrossOrganizationLeakage(t *testing.T) {
@@ -210,20 +299,23 @@ func proofOptions(backend *fakeBackend) ProofOptions {
 }
 
 type fakeBackend struct {
-	indexes                map[string]*fakeIndex
-	operations             []string
-	queryOrganizations     []string
-	lastSpec               IndexSpec
-	counts                 map[string]int
-	fail                   map[string]error
-	failOnce               map[string]error
-	ambiguous              map[string]bool
-	mutateAt               map[string]int
-	leakCrossOrganization  bool
-	duplicateOrganizationA bool
-	panicAt                string
-	panicAtCount           map[string]int
-	cancel                 context.CancelFunc
+	indexes                   map[string]*fakeIndex
+	operations                []string
+	queryOrganizations        []string
+	lastSpec                  IndexSpec
+	counts                    map[string]int
+	fail                      map[string]error
+	failOnce                  map[string]error
+	ambiguous                 map[string]bool
+	mutateAt                  map[string]int
+	leakCrossOrganization     bool
+	duplicateOrganizationA    bool
+	panicAt                   string
+	panicAtCount              map[string]int
+	cancel                    context.CancelFunc
+	rejectCreateCollision     bool
+	rejectDocumentCollision   bool
+	invalidSuccessfulResponse map[string]bool
 }
 
 type fakeIndex struct {
@@ -235,6 +327,7 @@ func newFakeBackend() *fakeBackend {
 	return &fakeBackend{
 		indexes: map[string]*fakeIndex{}, counts: map[string]int{}, fail: map[string]error{},
 		failOnce: map[string]error{}, ambiguous: map[string]bool{}, mutateAt: map[string]int{}, panicAtCount: map[string]int{},
+		invalidSuccessfulResponse: map[string]bool{},
 	}
 }
 
@@ -271,14 +364,19 @@ func (f *fakeBackend) CreateIndex(_ context.Context, spec IndexSpec) (IndexState
 	if err := f.step("create-index"); err != nil {
 		return IndexState{}, err
 	}
+	if f.rejectCreateCollision {
+		state := cloneIndexState(spec)
+		f.indexes[spec.Name] = &fakeIndex{state: state}
+		return IndexState{}, rejectedMutationError()
+	}
 	if _, exists := f.indexes[spec.Name]; exists {
 		return IndexState{}, errors.New("provider detail")
 	}
 	f.lastSpec = cloneIndexSpec(spec)
-	state := IndexState{Name: spec.Name, Marker: spec.Marker, Role: spec.Role, Dynamic: spec.Dynamic, Shards: spec.Shards, Replicas: spec.Replicas, Fields: cloneStringMap(spec.Fields)}
+	state := IndexState{Name: spec.Name, Proof: spec.Proof, Marker: spec.Marker, Role: spec.Role, Dynamic: spec.Dynamic, Shards: spec.Shards, Replicas: spec.Replicas, Fields: cloneStringMap(spec.Fields)}
 	f.indexes[spec.Name] = &fakeIndex{state: state}
-	if f.ambiguous["create-index"] {
-		return IndexState{}, errors.New("provider detail")
+	if f.ambiguous["create-index"] || f.invalidSuccessfulResponse["create-index"] {
+		return IndexState{}, ambiguousMutationError()
 	}
 	return cloneIndexState(state), nil
 }
@@ -293,7 +391,7 @@ func (f *fakeBackend) InspectIndex(_ context.Context, name string) (IndexState, 
 	}
 	state := cloneIndexState(index.state)
 	if f.mutateAt["inspect-index"] == f.counts["inspect-index"] {
-		state.Marker = "foreign-marker"
+		state.Proof = "foreign-proof"
 		index.state = state
 	}
 	return state, nil
@@ -329,9 +427,13 @@ func (f *fakeBackend) IndexSessionEvent(_ context.Context, scope OrganizationSco
 	if scope.OrganizationID() == "" || scope.OrganizationID() != event.OrganizationID || index == nil {
 		return errors.New("provider detail")
 	}
+	if f.rejectDocumentCollision {
+		index.documents = append(index.documents, event)
+		return rejectedMutationError()
+	}
 	index.documents = append(index.documents, event)
-	if f.ambiguous["index-event"] {
-		return errors.New("provider detail")
+	if f.ambiguous["index-event"] || f.invalidSuccessfulResponse["index-event"] {
+		return ambiguousMutationError()
 	}
 	return nil
 }

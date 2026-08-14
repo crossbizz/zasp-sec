@@ -41,6 +41,24 @@ type httpBackend struct {
 	spec      IndexSpec
 }
 
+type mutationFailure struct{ ambiguous bool }
+
+func (mutationFailure) Error() string { return errProvider.Error() }
+func (mutationFailure) Unwrap() error { return errProvider }
+
+func rejectedMutationError() error  { return mutationFailure{} }
+func ambiguousMutationError() error { return mutationFailure{ambiguous: true} }
+
+func isRejectedMutation(err error) bool {
+	var failure mutationFailure
+	return errors.As(err, &failure) && !failure.ambiguous
+}
+
+func isAmbiguousMutation(err error) bool {
+	var failure mutationFailure
+	return errors.As(err, &failure) && failure.ambiguous
+}
+
 type createIndexResponse struct {
 	Acknowledged       bool   `json:"acknowledged"`
 	ShardsAcknowledged bool   `json:"shards_acknowledged"`
@@ -280,7 +298,7 @@ func (h *httpBackend) CreateIndex(ctx context.Context, spec IndexSpec) (IndexSta
 			Replicas int `json:"number_of_replicas"`
 		} `json:"settings"`
 		Mappings mappingDefinition `json:"mappings"`
-	}{Mappings: mappingDefinition{Dynamic: spec.Dynamic, Metadata: mappingMetadata{Proof: "m0-08", Marker: spec.Marker, Role: spec.Role}, Properties: properties}}
+	}{Mappings: mappingDefinition{Dynamic: spec.Dynamic, Metadata: mappingMetadata{Proof: spec.Proof, Marker: spec.Marker, Role: spec.Role}, Properties: properties}}
 	body.Settings.Shards, body.Settings.Replicas = spec.Shards, spec.Replicas
 	raw, err := h.do(ctx, http.MethodPut, "/"+url.PathEscape(spec.Name), nil, body, false, http.StatusOK)
 	if err != nil {
@@ -288,7 +306,7 @@ func (h *httpBackend) CreateIndex(ctx context.Context, spec IndexSpec) (IndexSta
 	}
 	var response createIndexResponse
 	if decodeExactJSON(raw, &response) != nil || !response.Acknowledged || !response.ShardsAcknowledged || response.Index != spec.Name {
-		return IndexState{}, errProvider
+		return IndexState{}, ambiguousMutationError()
 	}
 	return copyIndexSpec(spec), nil
 }
@@ -342,7 +360,7 @@ func (h *httpBackend) InspectIndex(ctx context.Context, name string) (IndexState
 		}
 	}
 	return IndexState{
-		Name: name, Marker: mapping.Mappings.Metadata.Marker, Role: mapping.Mappings.Metadata.Role,
+		Name: name, Proof: mapping.Mappings.Metadata.Proof, Marker: mapping.Mappings.Metadata.Marker, Role: mapping.Mappings.Metadata.Role,
 		Dynamic: mapping.Mappings.Dynamic, Shards: shards, Replicas: replicas, Fields: fields,
 	}, nil
 }
@@ -355,8 +373,8 @@ func (h *httpBackend) IndexSessionEvent(ctx context.Context, scope OrganizationS
 		return errContent
 	}
 	query := url.Values{"refresh": {"wait_for"}, "timeout": {"5s"}}
-	path := "/" + url.PathEscape(h.spec.Name) + "/_doc/" + url.PathEscape(event.EventID)
-	raw, err := h.do(ctx, http.MethodPut, path, query, event, false, http.StatusOK, http.StatusCreated)
+	path := "/" + url.PathEscape(h.spec.Name) + "/_create/" + url.PathEscape(event.EventID)
+	raw, err := h.do(ctx, http.MethodPut, path, query, event, false, http.StatusCreated)
 	if err != nil {
 		return err
 	}
@@ -364,7 +382,7 @@ func (h *httpBackend) IndexSessionEvent(ctx context.Context, scope OrganizationS
 	if decodeExactJSON(raw, &response) != nil || response.Index != h.spec.Name || response.ID != event.EventID ||
 		response.Version != 1 || response.Result != "created" || response.Shards.Total != 1 ||
 		response.Shards.Successful != 1 || response.Shards.Failed != 0 || response.PrimaryTerm < 1 || response.Sequence < 0 {
-		return errProvider
+		return ambiguousMutationError()
 	}
 	return nil
 }
@@ -431,7 +449,7 @@ func (h *httpBackend) DeleteIndex(ctx context.Context, name string) error {
 	}
 	var response deleteIndexResponse
 	if decodeExactJSON(raw, &response) != nil || !response.Acknowledged {
-		return errProvider
+		return ambiguousMutationError()
 	}
 	return nil
 }
@@ -509,23 +527,36 @@ func (h *httpBackend) do(ctx context.Context, method, path string, query url.Val
 			if safeRead && attempt+1 < attempts && ctx.Err() == nil {
 				continue
 			}
+			if !safeRead {
+				return nil, ambiguousMutationError()
+			}
 			return nil, errProvider
 		}
+		acceptedStatus := statusExpected(response.StatusCode, expectedStatus)
 		limited := io.LimitReader(response.Body, maximumResponseBytes+1)
 		responseBody, readErr := io.ReadAll(limited)
 		closeErr := response.Body.Close()
 		cancel()
-		if readErr != nil || closeErr != nil || len(responseBody) > maximumResponseBytes {
-			return nil, errProvider
-		}
-		if !statusExpected(response.StatusCode, expectedStatus) {
+		if !acceptedStatus {
 			if safeRead && attempt+1 < attempts && transientStatus(response.StatusCode) && ctx.Err() == nil {
 				continue
+			}
+			if !safeRead {
+				return nil, rejectedMutationError()
+			}
+			return nil, errProvider
+		}
+		if readErr != nil || closeErr != nil || len(responseBody) > maximumResponseBytes {
+			if !safeRead {
+				return nil, ambiguousMutationError()
 			}
 			return nil, errProvider
 		}
 		contentType := strings.ToLower(strings.TrimSpace(strings.Split(response.Header.Get("content-type"), ";")[0]))
 		if contentType != "application/json" {
+			if !safeRead {
+				return nil, ambiguousMutationError()
+			}
 			return nil, errProvider
 		}
 		return responseBody, nil

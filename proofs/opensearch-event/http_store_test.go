@@ -146,6 +146,158 @@ func TestDecodeExactJSONRejectsProviderSchemaMutations(t *testing.T) {
 	}
 }
 
+func TestMappingProofDiscriminatorIsRequiredExactAndCaseSensitive(t *testing.T) {
+	t.Parallel()
+	valid := `{"zasp_proof":"m0-08","zasp_marker":"0123456789abcdef","zasp_role":"session-events"}`
+	var metadata mappingMetadata
+	if err := decodeExactJSON([]byte(valid), &metadata); err != nil || metadata.Proof != "m0-08" {
+		t.Fatalf("valid proof metadata rejected: %v", err)
+	}
+	for _, raw := range []string{
+		`{"zasp_marker":"0123456789abcdef","zasp_role":"session-events"}`,
+		`{"zasp_proof":null,"zasp_marker":"0123456789abcdef","zasp_role":"session-events"}`,
+		`{"Zasp_proof":"m0-08","zasp_marker":"0123456789abcdef","zasp_role":"session-events"}`,
+		`{"zasp-proof":"m0-08","zasp_marker":"0123456789abcdef","zasp_role":"session-events"}`,
+		`{"zasp_proof":"m0-08","zasp_proof":"foreign","zasp_marker":"0123456789abcdef","zasp_role":"session-events"}`,
+	} {
+		metadata = mappingMetadata{}
+		if err := decodeExactJSON([]byte(raw), &metadata); err == nil {
+			t.Fatal("strict parser accepted missing, null, duplicate, case-variant, or alias proof metadata")
+		}
+	}
+	expected := expectedIndexSpec(testMarker)
+	foreign := cloneIndexState(expected)
+	foreign.Proof = "foreign"
+	if validIndexState(foreign, expected) {
+		t.Fatal("ownership accepted a wrong proof discriminator")
+	}
+}
+
+func TestHTTPMutationOutcomeClassificationAndCreateOnlyDocuments(t *testing.T) {
+	t.Parallel()
+	spec := expectedIndexSpec(testMarker)
+	t.Run("definitive create rejections", func(t *testing.T) {
+		for _, status := range []int{http.StatusConflict, http.StatusUnauthorized, http.StatusForbidden, http.StatusUnprocessableEntity} {
+			status := status
+			t.Run(http.StatusText(status), func(t *testing.T) {
+				server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+					writer.Header().Set("content-type", "application/json")
+					writer.WriteHeader(status)
+					_, _ = writer.Write([]byte(`{"schema":"untrusted"}`))
+				}))
+				defer server.Close()
+				backend, err := newHTTPBackend(context.Background(), server.URL, spec)
+				if err != nil {
+					t.Fatalf("newHTTPBackend returned %v", err)
+				}
+				defer backend.Close()
+				_, err = backend.CreateIndex(context.Background(), spec)
+				if !isRejectedMutation(err) || isAmbiguousMutation(err) {
+					t.Fatalf("CreateIndex status was not a definitive rejection")
+				}
+			})
+		}
+	})
+	t.Run("invalid successful create response is ambiguous", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+			writer.Header().Set("content-type", "application/json")
+			_, _ = writer.Write([]byte(`{}`))
+		}))
+		defer server.Close()
+		backend, err := newHTTPBackend(context.Background(), server.URL, spec)
+		if err != nil {
+			t.Fatalf("newHTTPBackend returned %v", err)
+		}
+		defer backend.Close()
+		_, err = backend.CreateIndex(context.Background(), spec)
+		if !isAmbiguousMutation(err) || isRejectedMutation(err) {
+			t.Fatal("invalid successful CreateIndex response was not ambiguous")
+		}
+	})
+	t.Run("document conflict is definitive and uses create-only path", func(t *testing.T) {
+		var path string
+		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			path = request.URL.Path
+			writer.Header().Set("content-type", "application/json")
+			writer.WriteHeader(http.StatusConflict)
+			_, _ = writer.Write([]byte(`{}`))
+		}))
+		defer server.Close()
+		backend, err := newHTTPBackend(context.Background(), server.URL, spec)
+		if err != nil {
+			t.Fatalf("newHTTPBackend returned %v", err)
+		}
+		defer backend.Close()
+		event := expectedEvent(testMarker, "org-a-"+testMarker)
+		scope, _ := newOrganizationScope(event.OrganizationID)
+		err = backend.IndexSessionEvent(context.Background(), scope, event)
+		if !isRejectedMutation(err) || path != "/"+spec.Name+"/_create/"+event.EventID {
+			t.Fatal("document conflict was not a definitive create-only rejection")
+		}
+	})
+	t.Run("invalid successful document response is ambiguous", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+			writer.Header().Set("content-type", "application/json")
+			writer.WriteHeader(http.StatusCreated)
+			_, _ = writer.Write([]byte(`{}`))
+		}))
+		defer server.Close()
+		backend, err := newHTTPBackend(context.Background(), server.URL, spec)
+		if err != nil {
+			t.Fatalf("newHTTPBackend returned %v", err)
+		}
+		defer backend.Close()
+		event := expectedEvent(testMarker, "org-a-"+testMarker)
+		scope, _ := newOrganizationScope(event.OrganizationID)
+		err = backend.IndexSessionEvent(context.Background(), scope, event)
+		if !isAmbiguousMutation(err) || isRejectedMutation(err) {
+			t.Fatal("invalid successful document response was not ambiguous")
+		}
+	})
+}
+
+func TestHTTP409ExactLookingCollisionsAreNeverAdoptedOrDeleted(t *testing.T) {
+	t.Parallel()
+	t.Run("index", func(t *testing.T) {
+		spec := expectedIndexSpec(testMarker)
+		fixture := newOpenSearchHTTPFixture(t, spec)
+		fixture.rejectCreateCollision = true
+		server := httptest.NewServer(fixture)
+		defer server.Close()
+		backend, err := newHTTPBackend(context.Background(), server.URL, spec)
+		if err != nil {
+			t.Fatalf("newHTTPBackend returned %v", err)
+		}
+		defer backend.Close()
+		_, err = RunProof(context.Background(), ProofOptions{
+			Endpoint: server.URL, Marker: testMarker, Events: backend, Admin: backend,
+			CleanupTimeout: time.Second, PollInterval: time.Millisecond,
+		})
+		if !errors.Is(err, errProvider) || !fixture.created || fixture.deletes != 0 {
+			t.Fatal("HTTP 409 exact-looking index collision was reconciled, adopted, or deleted")
+		}
+	})
+	t.Run("document", func(t *testing.T) {
+		spec := expectedIndexSpec(testMarker)
+		fixture := newOpenSearchHTTPFixture(t, spec)
+		fixture.rejectDocumentCollision = true
+		server := httptest.NewServer(fixture)
+		defer server.Close()
+		backend, err := newHTTPBackend(context.Background(), server.URL, spec)
+		if err != nil {
+			t.Fatalf("newHTTPBackend returned %v", err)
+		}
+		defer backend.Close()
+		_, err = RunProof(context.Background(), ProofOptions{
+			Endpoint: server.URL, Marker: testMarker, Events: backend, Admin: backend,
+			CleanupTimeout: time.Second, PollInterval: time.Millisecond,
+		})
+		if !errors.Is(err, errCleanup) || !fixture.created || fixture.event == nil || fixture.deletes != 0 {
+			t.Fatal("HTTP 409 exact-looking document collision was reconciled, adopted, or deleted")
+		}
+	})
+}
+
 func TestHTTPBackendRetriesOnlySafeReadsAndBoundsResponses(t *testing.T) {
 	t.Parallel()
 	t.Run("safe transient read retries once", func(t *testing.T) {
@@ -286,13 +438,16 @@ func (r staticResolver) LookupHost(context.Context, string) ([]string, error) {
 }
 
 type openSearchHTTPFixture struct {
-	t       *testing.T
-	spec    IndexSpec
-	created bool
-	event   *NormalizedSessionEvent
-	queries []map[string]any
-	creates []map[string]any
-	writes  []map[string]any
+	t                       *testing.T
+	spec                    IndexSpec
+	created                 bool
+	event                   *NormalizedSessionEvent
+	queries                 []map[string]any
+	creates                 []map[string]any
+	writes                  []map[string]any
+	rejectCreateCollision   bool
+	rejectDocumentCollision bool
+	deletes                 int
 }
 
 func newOpenSearchHTTPFixture(t *testing.T, spec IndexSpec) *openSearchHTTPFixture {
@@ -314,6 +469,11 @@ func (f *openSearchHTTPFixture) ServeHTTP(writer http.ResponseWriter, request *h
 	case request.Method == http.MethodPut && request.URL.Path == "/"+f.spec.Name && request.URL.RawQuery == "":
 		f.creates = append(f.creates, decodeMap(f.t, request))
 		f.created = true
+		if f.rejectCreateCollision {
+			writer.WriteHeader(http.StatusConflict)
+			_, _ = writer.Write([]byte(`{}`))
+			return
+		}
 		writeJSON(f.t, writer, map[string]any{"acknowledged": true, "shards_acknowledged": true, "index": f.spec.Name})
 	case request.Method == http.MethodGet && request.URL.Path == "/"+f.spec.Name+"/_mapping":
 		writeJSON(f.t, writer, mappingResponse(f.spec))
@@ -322,7 +482,7 @@ func (f *openSearchHTTPFixture) ServeHTTP(writer http.ResponseWriter, request *h
 			f.t.Error("settings query was not exact")
 		}
 		writeJSON(f.t, writer, map[string]any{f.spec.Name: map[string]any{"settings": map[string]string{"index.number_of_shards": "1", "index.number_of_replicas": "0"}}})
-	case request.Method == http.MethodPut && request.URL.Path == "/"+f.spec.Name+"/_doc/event-"+testMarker:
+	case request.Method == http.MethodPut && request.URL.Path == "/"+f.spec.Name+"/_create/event-"+testMarker:
 		if request.URL.Query().Get("refresh") != "wait_for" || request.URL.Query().Get("timeout") != "5s" {
 			f.t.Error("document mutation query was not bounded")
 		}
@@ -334,6 +494,12 @@ func (f *openSearchHTTPFixture) ServeHTTP(writer http.ResponseWriter, request *h
 			f.t.Error("document body did not match the normalized event")
 		}
 		f.event = &event
+		if f.rejectDocumentCollision {
+			writer.WriteHeader(http.StatusConflict)
+			_, _ = writer.Write([]byte(`{}`))
+			return
+		}
+		writer.WriteHeader(http.StatusCreated)
 		writeJSON(f.t, writer, map[string]any{
 			"_index": f.spec.Name, "_id": event.EventID, "_version": 1, "result": "created",
 			"_shards": map[string]any{"total": 1, "successful": 1, "failed": 0}, "_seq_no": 0, "_primary_term": 1,
@@ -350,6 +516,7 @@ func (f *openSearchHTTPFixture) ServeHTTP(writer http.ResponseWriter, request *h
 			"hits": map[string]any{"total": map[string]any{"value": len(hits), "relation": "eq"}, "max_score": nil, "hits": hits},
 		})
 	case request.Method == http.MethodDelete && request.URL.Path == "/"+f.spec.Name:
+		f.deletes++
 		f.created, f.event = false, nil
 		writeJSON(f.t, writer, map[string]bool{"acknowledged": true})
 	default:
@@ -369,6 +536,10 @@ func (f *openSearchHTTPFixture) assertContract(t *testing.T, event NormalizedSes
 		t.Fatal("create body omitted strict mapping")
 	}
 	properties := mappings["properties"].(map[string]any)
+	metadata := mappings["_meta"].(map[string]any)
+	if metadata["zasp_proof"] != "m0-08" {
+		t.Fatal("create body omitted the fixed proof discriminator")
+	}
 	if len(properties) != 12 {
 		t.Fatalf("mapping property count = %d", len(properties))
 	}
@@ -396,7 +567,7 @@ func mappingResponse(spec IndexSpec) map[string]any {
 		}
 	}
 	return map[string]any{spec.Name: map[string]any{"mappings": map[string]any{
-		"dynamic": spec.Dynamic, "_meta": map[string]any{"zasp_proof": "m0-08", "zasp_marker": spec.Marker, "zasp_role": spec.Role}, "properties": properties,
+		"dynamic": spec.Dynamic, "_meta": map[string]any{"zasp_proof": spec.Proof, "zasp_marker": spec.Marker, "zasp_role": spec.Role}, "properties": properties,
 	}}}
 }
 
