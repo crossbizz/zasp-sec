@@ -1464,7 +1464,7 @@ function exactMissingVolume(value, token) {
 }
 
 function exactMissingImage(value, image) {
-  return value?.status === 1 && value?.signal === null && value?.stdout === "[]\n" &&
+  return value?.status === 1 && value?.signal === null && value?.stdout === "\n" &&
     value?.stderr === `Error response from daemon: No such image: ${image}\n`;
 }
 

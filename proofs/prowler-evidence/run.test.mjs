@@ -1249,7 +1249,7 @@ function missingContainer(token) {
 }
 
 function missingImage(image) {
-  return result(1, "[]\n", `Error response from daemon: No such image: ${image}\n`);
+  return result(1, "\n", `Error response from daemon: No such image: ${image}\n`);
 }
 
 function replaceInspectionField(inspection, index, replacement) {
