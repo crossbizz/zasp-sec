@@ -108,6 +108,7 @@ type principalTarget struct {
 	keyID        string
 	keySecret    string
 	attempted    bool
+	uncertain    bool
 	keyAttempted bool
 }
 
@@ -116,6 +117,7 @@ type roleTarget struct {
 	state       *RoleState
 	policyArmed bool
 	attempted   bool
+	uncertain   bool
 }
 
 func RunProof(ctx context.Context, options ProofOptions) (result ProofResult, resultErr error) {
@@ -127,11 +129,13 @@ func RunProof(ctx context.Context, options ProofOptions) (result ProofResult, re
 	role := &roleTarget{spec: roleSpec}
 	defer func() {
 		panicked := recover() != nil
+		if panicked || principal.uncertain || role.uncertain {
+			reconcileCtx, reconcileCancel := context.WithTimeout(context.Background(), options.CleanupTimeout)
+			safeArmUncertainTargets(reconcileCtx, options, principal, role, panicked)
+			reconcileCancel()
+		}
 		cleanupCtx, cancel := context.WithTimeout(context.Background(), options.CleanupTimeout)
 		defer cancel()
-		if panicked {
-			safeArmUncertainTargets(cleanupCtx, options, principal, role)
-		}
 		attempted := principal.attempted || role.attempted
 		cleanup, audit := safeCleanupAndAudit(cleanupCtx, options, principal, role)
 		if attempted && cleanup {
@@ -234,7 +238,8 @@ func createAndProvePrincipal(ctx context.Context, options ProofOptions, target *
 		if !errors.As(err, &ambiguous) {
 			return errProvider
 		}
-		reconcileCtx, cancel := context.WithTimeout(ctx, options.CleanupTimeout)
+		target.uncertain = true
+		reconcileCtx, cancel := context.WithTimeout(context.Background(), options.CleanupTimeout)
 		defer cancel()
 		state, outcome := reconcilePrincipal(reconcileCtx, options.Boundary, target.spec, options.PollInterval)
 		if outcome != reconciliationOwned {
@@ -243,7 +248,8 @@ func createAndProvePrincipal(ctx context.Context, options ProofOptions, target *
 		created = *state
 	}
 	if !exactPrincipal(target.spec, created) {
-		reconcileCtx, cancel := context.WithTimeout(ctx, options.CleanupTimeout)
+		target.uncertain = true
+		reconcileCtx, cancel := context.WithTimeout(context.Background(), options.CleanupTimeout)
 		defer cancel()
 		state, outcome := reconcilePrincipal(reconcileCtx, options.Boundary, target.spec, options.PollInterval)
 		if outcome != reconciliationOwned {
@@ -252,6 +258,7 @@ func createAndProvePrincipal(ctx context.Context, options ProofOptions, target *
 		created = *state
 	}
 	target.state = &created
+	target.uncertain = false
 	observed, err := options.Boundary.InspectPrincipal(ctx, target.spec.Name)
 	if err != nil || !exactPrincipal(created.PrincipalSpec, observed) || observed.UserID != created.UserID {
 		return errOwnership
@@ -288,7 +295,8 @@ func createAndProveRole(ctx context.Context, options ProofOptions, target *roleT
 		if !errors.As(err, &ambiguous) {
 			return errProvider
 		}
-		reconcileCtx, cancel := context.WithTimeout(ctx, options.CleanupTimeout)
+		target.uncertain = true
+		reconcileCtx, cancel := context.WithTimeout(context.Background(), options.CleanupTimeout)
 		defer cancel()
 		state, outcome := reconcileRole(reconcileCtx, options.Boundary, target.spec, options.PollInterval)
 		if outcome != reconciliationOwned {
@@ -297,7 +305,8 @@ func createAndProveRole(ctx context.Context, options ProofOptions, target *roleT
 		created = *state
 	}
 	if !exactRole(target.spec, created) {
-		reconcileCtx, cancel := context.WithTimeout(ctx, options.CleanupTimeout)
+		target.uncertain = true
+		reconcileCtx, cancel := context.WithTimeout(context.Background(), options.CleanupTimeout)
 		defer cancel()
 		state, outcome := reconcileRole(reconcileCtx, options.Boundary, target.spec, options.PollInterval)
 		if outcome != reconciliationOwned {
@@ -306,6 +315,7 @@ func createAndProveRole(ctx context.Context, options ProofOptions, target *roleT
 		created = *state
 	}
 	target.state = &created
+	target.uncertain = false
 	target.policyArmed = true
 	if err := options.Boundary.PutRolePolicy(ctx, target.spec.Name, target.spec.PolicyName, target.spec.PermissionPolicy); err != nil {
 		return errProvider
@@ -372,9 +382,11 @@ const (
 
 func reconcilePrincipal(ctx context.Context, boundary IAMBoundary, expected PrincipalSpec, interval time.Duration) (*PrincipalState, reconciliationOutcome) {
 	observed := false
+	lastObservationWasCleanAbsence := false
 	for ctx.Err() == nil {
 		principals, err := boundary.ListPrincipals(ctx, expected.Name)
 		if err == nil && len(principals) == 1 {
+			lastObservationWasCleanAbsence = false
 			observed = true
 			state, inspectErr := boundary.InspectPrincipal(ctx, expected.Name)
 			if inspectErr == nil && exactPrincipal(expected, state) {
@@ -383,19 +395,27 @@ func reconcilePrincipal(ctx context.Context, boundary IAMBoundary, expected Prin
 			if inspectErr == nil {
 				return nil, reconciliationMismatch
 			}
-		} else if err == nil && len(principals) == 0 && !observed {
-			return nil, reconciliationAbsent
+		} else if err == nil && len(principals) == 0 {
+			lastObservationWasCleanAbsence = true
+		} else {
+			lastObservationWasCleanAbsence = false
+			observed = observed || err == nil && len(principals) > 0
 		}
 		waitForPoll(ctx, interval)
+	}
+	if lastObservationWasCleanAbsence && !observed {
+		return nil, reconciliationAbsent
 	}
 	return nil, reconciliationUnresolved
 }
 
 func reconcileRole(ctx context.Context, boundary IAMBoundary, expected RoleSpec, interval time.Duration) (*RoleState, reconciliationOutcome) {
 	observed := false
+	lastObservationWasCleanAbsence := false
 	for ctx.Err() == nil {
 		roles, err := boundary.ListRoles(ctx, expected.Name)
 		if err == nil && len(roles) == 1 {
+			lastObservationWasCleanAbsence = false
 			observed = true
 			state, inspectErr := boundary.InspectRole(ctx, expected.Name)
 			if inspectErr == nil && sameRoleDefinition(expected, state) {
@@ -405,10 +425,16 @@ func reconcileRole(ctx context.Context, boundary IAMBoundary, expected RoleSpec,
 			if inspectErr == nil {
 				return nil, reconciliationMismatch
 			}
-		} else if err == nil && len(roles) == 0 && !observed {
-			return nil, reconciliationAbsent
+		} else if err == nil && len(roles) == 0 {
+			lastObservationWasCleanAbsence = true
+		} else {
+			lastObservationWasCleanAbsence = false
+			observed = observed || err == nil && len(roles) > 0
 		}
 		waitForPoll(ctx, interval)
+	}
+	if lastObservationWasCleanAbsence && !observed {
+		return nil, reconciliationAbsent
 	}
 	return nil, reconciliationUnresolved
 }
@@ -470,10 +496,11 @@ func cleanupAndAudit(ctx context.Context, options ProofOptions, principal *princ
 	return cleanupOK, auditOK
 }
 
-func armUncertainTargets(ctx context.Context, options ProofOptions, principal *principalTarget, role *roleTarget) {
-	if principal.attempted && principal.state == nil {
+func armUncertainTargets(ctx context.Context, options ProofOptions, principal *principalTarget, role *roleTarget, includeAttempted bool) {
+	if (principal.uncertain || includeAttempted && principal.attempted) && principal.state == nil {
 		if state, outcome := reconcilePrincipal(ctx, options.Boundary, principal.spec, options.PollInterval); outcome == reconciliationOwned {
 			principal.state = state
+			principal.uncertain = false
 		}
 	}
 	if principal.state != nil && principal.keyAttempted && principal.keyID == "" {
@@ -481,16 +508,17 @@ func armUncertainTargets(ctx context.Context, options ProofOptions, principal *p
 			principal.keyID = keyID
 		}
 	}
-	if role.attempted && role.state == nil {
+	if (role.uncertain || includeAttempted && role.attempted) && role.state == nil {
 		if state, outcome := reconcileRole(ctx, options.Boundary, role.spec, options.PollInterval); outcome == reconciliationOwned {
 			role.state = state
+			role.uncertain = false
 		}
 	}
 }
 
-func safeArmUncertainTargets(ctx context.Context, options ProofOptions, principal *principalTarget, role *roleTarget) {
+func safeArmUncertainTargets(ctx context.Context, options ProofOptions, principal *principalTarget, role *roleTarget, includeAttempted bool) {
 	defer func() { _ = recover() }()
-	armUncertainTargets(ctx, options, principal, role)
+	armUncertainTargets(ctx, options, principal, role, includeAttempted)
 }
 
 func safeCleanupAndAudit(ctx context.Context, options ProofOptions, principal *principalTarget, role *roleTarget) (cleanup, audit bool) {

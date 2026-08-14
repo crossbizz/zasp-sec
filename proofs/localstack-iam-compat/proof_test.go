@@ -399,6 +399,172 @@ func TestRunProof_ReviewRound4Fixes(t *testing.T) {
 	})
 }
 
+func TestRunProof_FinalReviewRound1Fixes(t *testing.T) {
+	t.Run("earlier absence cannot mask a later principal list error", func(t *testing.T) {
+		fake := newFakeBoundary()
+		fake.principalListErrorsAfterFirst = true
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)
+		defer cancel()
+		principal, _ := expectedSpecs(fake.options)
+		_, outcome := reconcilePrincipal(ctx, fake, principal, time.Millisecond)
+		if outcome != reconciliationUnresolved {
+			t.Fatalf("reconciliation outcome = %v, want unresolved", outcome)
+		}
+	})
+
+	t.Run("earlier absence cannot mask a later role list error", func(t *testing.T) {
+		fake := newFakeBoundary()
+		fake.roleListErrorsAfterFirst = true
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)
+		defer cancel()
+		_, role := expectedSpecs(fake.options)
+		_, outcome := reconcileRole(ctx, fake, role, time.Millisecond)
+		if outcome != reconciliationUnresolved {
+			t.Fatalf("reconciliation outcome = %v, want unresolved", outcome)
+		}
+	})
+
+	for _, test := range []struct {
+		name string
+		set  func(*fakeBoundary)
+	}{
+		{
+			name: "principal ambiguity tolerates delayed visibility",
+			set: func(fake *fakeBoundary) {
+				fake.ambiguousPrincipal = true
+				fake.emptyPrincipalReconciles = 2
+			},
+		},
+		{
+			name: "role ambiguity tolerates delayed visibility",
+			set: func(fake *fakeBoundary) {
+				fake.ambiguousRole = true
+				fake.emptyRoleReconciles = 2
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			fake := newFakeBoundary()
+			test.set(fake)
+			result, err := RunProof(context.Background(), fake.options)
+			if err != nil {
+				t.Fatalf("RunProof() error = %v, want delayed candidate reconciliation", err)
+			}
+			if fake.principal != nil || fake.role != nil || fake.accessKeyPresent {
+				t.Fatal("delayed candidate remains after cleanup")
+			}
+			if !result.Cleanup || !result.Audit {
+				t.Fatalf("RunProof() result = %#v, want cleanup and audit", result)
+			}
+		})
+	}
+
+	for _, test := range []struct {
+		name string
+		set  func(context.CancelFunc, *fakeBoundary)
+	}{
+		{
+			name: "principal typed ambiguity after cancellation",
+			set:  func(cancel context.CancelFunc, fake *fakeBoundary) { fake.cancelPrincipalContext = cancel },
+		},
+		{
+			name: "principal invalid success after timeout",
+			set: func(_ context.CancelFunc, fake *fakeBoundary) {
+				fake.waitForPrincipalContext = true
+				fake.invalidPrincipalSuccess = true
+			},
+		},
+		{
+			name: "role typed ambiguity after cancellation",
+			set:  func(cancel context.CancelFunc, fake *fakeBoundary) { fake.cancelRoleContext = cancel },
+		},
+		{
+			name: "role invalid success after timeout",
+			set: func(_ context.CancelFunc, fake *fakeBoundary) {
+				fake.waitForRoleContext = true
+				fake.invalidRoleSuccess = true
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			fake := newFakeBoundary()
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+			defer cancel()
+			test.set(cancel, fake)
+			result, err := RunProof(ctx, fake.options)
+			if !errors.Is(err, errOwnership) {
+				t.Fatalf("RunProof() error = %v, want ownership error after canceled main work", err)
+			}
+			if fake.principal != nil || fake.role != nil || fake.accessKeyPresent {
+				t.Fatal("uncertain resource remains after independent reconciliation and cleanup")
+			}
+			if !result.Cleanup || !result.Audit {
+				t.Fatalf("RunProof() result = %#v, want cleanup and audit", result)
+			}
+			if strings.Contains(test.name, "principal") && fake.principalInspects == 0 {
+				t.Fatal("principal ambiguity was not independently reconciled")
+			}
+			if strings.Contains(test.name, "role") && fake.roleInspects == 0 {
+				t.Fatal("role ambiguity was not independently reconciled")
+			}
+			if fake.principalListSawCanceledContext || fake.roleListSawCanceledContext {
+				t.Fatal("resource reconciliation reused the canceled main context")
+			}
+		})
+	}
+
+	t.Run("deferred cleanup re-arms a delayed ambiguous role", func(t *testing.T) {
+		fake := newFakeBoundary()
+		fake.ambiguousRole = true
+		fake.blockFirstRoleReconcile = true
+		fake.options.CleanupTimeout = 50 * time.Millisecond
+		result, err := RunProof(context.Background(), fake.options)
+		if !errors.Is(err, errOwnership) {
+			t.Fatalf("RunProof() error = %v, want ownership error from the first bounded reconcile", err)
+		}
+		if fake.role != nil || fake.principal != nil || fake.accessKeyPresent {
+			t.Fatal("deferred cleanup did not re-arm and remove exact delayed resources")
+		}
+		if !result.Cleanup || !result.Audit || fake.roleDeletes == 0 {
+			t.Fatalf("RunProof() result/deletes = %#v/%d, want cleanup, audit, and role deletion", result, fake.roleDeletes)
+		}
+	})
+
+	t.Run("cleanup failure wins after deferred role re-arm", func(t *testing.T) {
+		fake := newFakeBoundary()
+		fake.ambiguousRole = true
+		fake.blockFirstRoleReconcile = true
+		fake.cleanupFails = true
+		fake.options.CleanupTimeout = 50 * time.Millisecond
+		if _, err := RunProof(context.Background(), fake.options); !errors.Is(err, errCleanup) {
+			t.Fatalf("RunProof() error = %v, want cleanup precedence", err)
+		}
+		if fake.role != nil || fake.roleDeletes == 0 {
+			t.Fatal("cleanup failure prevented independent delayed-role cleanup")
+		}
+	})
+
+	for _, test := range []struct {
+		name string
+		set  func(*fakeBoundary)
+		left func(*fakeBoundary) bool
+	}{
+		{"definitive principal rejection", func(fake *fakeBoundary) { fake.definitivePrincipalError = true }, func(fake *fakeBoundary) bool { return fake.principal != nil && fake.principalDeletes == 0 }},
+		{"definitive role rejection", func(fake *fakeBoundary) { fake.definitiveRoleError = true }, func(fake *fakeBoundary) bool { return fake.role != nil && fake.roleDeletes == 0 }},
+	} {
+		t.Run(test.name+" is never adopted", func(t *testing.T) {
+			fake := newFakeBoundary()
+			test.set(fake)
+			if _, err := RunProof(context.Background(), fake.options); !errors.Is(err, errCleanup) {
+				t.Fatalf("RunProof() error = %v, want cleanup audit failure", err)
+			}
+			if !test.left(fake) {
+				t.Fatal("definitively rejected resource was adopted or deleted")
+			}
+		})
+	}
+}
+
 func runProofError(ctx context.Context, fake *fakeBoundary) error {
 	_, err := RunProof(ctx, fake.options)
 	return err
@@ -430,6 +596,7 @@ type fakeBoundary struct {
 	missingExternalID, wrongSessionName, wrongSourceIdentity, wrongSessionTag                         bool
 	wrongAssumedRoleID, wrongAssumedCaller, foreignRead, implicitDeny, enforcementDisabled            bool
 	ambiguousPrincipal, ambiguousRole                                                                 bool
+	definitivePrincipalError, definitiveRoleError                                                     bool
 	delayedRole                                                                                       int
 	panicAfterRole, cancelMain, cleanupMismatch, cleanupFails, cleanupContinuation, auditRemains      bool
 	requireAccessSecret, returnSTSIdentity, invalidPrincipalSuccess, invalidRoleSuccess, panicCleanup bool
@@ -438,8 +605,16 @@ type fakeBoundary struct {
 	ambiguousAccessKey, emptyAccessKeySuccess, definitiveAccessKeyError                               bool
 	waitForAccessKeyContext, accessKeyListSawCanceledContext                                          bool
 	cancelAccessKeyContext                                                                            context.CancelFunc
+	waitForPrincipalContext, waitForRoleContext                                                       bool
+	principalListSawCanceledContext, roleListSawCanceledContext                                       bool
+	principalListErrorsAfterFirst, roleListErrorsAfterFirst                                           bool
+	cancelPrincipalContext, cancelRoleContext                                                         context.CancelFunc
+	blockFirstRoleReconcile                                                                           bool
+	blockedRoleReconcileContext                                                                       context.Context
+	emptyPrincipalReconciles, emptyRoleReconciles                                                     int
 	delayedAccessKey                                                                                  int
 	accessKeyLists, accessKeyDeletes                                                                  int
+	principalInspects, principalDeletes, roleDeletes                                                  int
 	deletedReplacement, continuedCleanup                                                              bool
 	principalLists, roleLists, roleInspects, policyGets                                               int
 }
@@ -475,8 +650,12 @@ func (f *fakeBoundary) TargetIdentity(context.Context) (CallerIdentity, error) {
 	f.event("target-identity")
 	return f.target, nil
 }
-func (f *fakeBoundary) ListPrincipals(_ context.Context, _ string) ([]PrincipalState, error) {
+func (f *fakeBoundary) ListPrincipals(ctx context.Context, _ string) ([]PrincipalState, error) {
 	f.principalLists++
+	if ctx.Err() != nil {
+		f.principalListSawCanceledContext = true
+		return nil, ctx.Err()
+	}
 	if f.principalLists == 1 {
 		f.event("list-principals")
 		if f.preexistingPrincipal && f.principal != nil {
@@ -488,7 +667,14 @@ func (f *fakeBoundary) ListPrincipals(_ context.Context, _ string) ([]PrincipalS
 		return nil, nil
 	}
 	f.event("audit-principals")
+	if f.principalListErrorsAfterFirst {
+		return nil, errors.New("unavailable")
+	}
 	if f.principal != nil {
+		if f.emptyPrincipalReconciles > 0 {
+			f.emptyPrincipalReconciles--
+			return nil, nil
+		}
 		return []PrincipalState{*f.principal}, nil
 	}
 	if f.auditRemains {
@@ -496,11 +682,28 @@ func (f *fakeBoundary) ListPrincipals(_ context.Context, _ string) ([]PrincipalS
 	}
 	return nil, nil
 }
-func (f *fakeBoundary) CreatePrincipal(_ context.Context, spec PrincipalSpec) (PrincipalState, error) {
+func (f *fakeBoundary) CreatePrincipal(ctx context.Context, spec PrincipalSpec) (PrincipalState, error) {
 	f.event("create-principal")
 	f.createdPrincipal = spec
 	state := PrincipalState{PrincipalSpec: spec, UserID: "principal-id"}
 	f.principal = &state
+	if f.definitivePrincipalError {
+		return PrincipalState{}, errors.New("rejected")
+	}
+	if f.cancelPrincipalContext != nil {
+		f.cancelPrincipalContext()
+		if f.invalidPrincipalSuccess {
+			return PrincipalState{}, nil
+		}
+		return PrincipalState{}, ambiguousMutationError{cause: context.Canceled}
+	}
+	if f.waitForPrincipalContext {
+		<-ctx.Done()
+		if f.invalidPrincipalSuccess {
+			return PrincipalState{}, nil
+		}
+		return PrincipalState{}, ambiguousMutationError{cause: ctx.Err()}
+	}
 	if f.invalidPrincipalSuccess {
 		return PrincipalState{}, nil
 	}
@@ -509,7 +712,11 @@ func (f *fakeBoundary) CreatePrincipal(_ context.Context, spec PrincipalSpec) (P
 	}
 	return state, nil
 }
-func (f *fakeBoundary) InspectPrincipal(_ context.Context, _ string) (PrincipalState, error) {
+func (f *fakeBoundary) InspectPrincipal(ctx context.Context, _ string) (PrincipalState, error) {
+	if ctx.Err() != nil {
+		return PrincipalState{}, ctx.Err()
+	}
+	f.principalInspects++
 	if f.principal == nil {
 		return PrincipalState{}, errors.New("absent")
 	}
@@ -590,12 +797,17 @@ func (f *fakeBoundary) DeleteAccessKey(context.Context, string, string) error {
 }
 func (f *fakeBoundary) DeletePrincipal(context.Context, string) error {
 	f.event("delete-principal")
+	f.principalDeletes++
 	f.continuedCleanup = f.cleanupContinuation
 	f.principal = nil
 	return nil
 }
-func (f *fakeBoundary) ListRoles(_ context.Context, _ string) ([]RoleState, error) {
+func (f *fakeBoundary) ListRoles(ctx context.Context, _ string) ([]RoleState, error) {
 	f.roleLists++
+	if ctx.Err() != nil {
+		f.roleListSawCanceledContext = true
+		return nil, ctx.Err()
+	}
 	if f.roleLists == 1 {
 		f.event("list-roles")
 		if f.preexistingRole && f.role != nil {
@@ -606,6 +818,9 @@ func (f *fakeBoundary) ListRoles(_ context.Context, _ string) ([]RoleState, erro
 		}
 		return nil, nil
 	}
+	if f.roleListErrorsAfterFirst {
+		return nil, errors.New("unavailable")
+	}
 	if f.role == nil {
 		f.event("audit-roles")
 		if f.auditRemains {
@@ -613,18 +828,47 @@ func (f *fakeBoundary) ListRoles(_ context.Context, _ string) ([]RoleState, erro
 		}
 		return nil, nil
 	}
+	if f.emptyRoleReconciles > 0 {
+		f.emptyRoleReconciles--
+		return nil, nil
+	}
+	if f.blockFirstRoleReconcile {
+		if f.blockedRoleReconcileContext == nil {
+			f.blockedRoleReconcileContext = ctx
+		}
+		if f.blockedRoleReconcileContext == ctx {
+			return nil, errors.New("not ready")
+		}
+	}
 	if f.delayedRole > 0 {
 		f.delayedRole--
 		return nil, errors.New("not ready")
 	}
 	return []RoleState{*f.role}, nil
 }
-func (f *fakeBoundary) CreateRole(_ context.Context, spec RoleSpec) (RoleState, error) {
+func (f *fakeBoundary) CreateRole(ctx context.Context, spec RoleSpec) (RoleState, error) {
 	f.event("create-role")
 	f.createdRole = spec
 	state := RoleState(spec)
 	state.RoleID = "role-id"
 	f.role = &state
+	if f.definitiveRoleError {
+		return RoleState{}, errors.New("rejected")
+	}
+	if f.cancelRoleContext != nil {
+		f.cancelRoleContext()
+		if f.invalidRoleSuccess {
+			return RoleState{}, nil
+		}
+		return RoleState{}, ambiguousMutationError{cause: context.Canceled}
+	}
+	if f.waitForRoleContext {
+		<-ctx.Done()
+		if f.invalidRoleSuccess {
+			return RoleState{}, nil
+		}
+		return RoleState{}, ambiguousMutationError{cause: ctx.Err()}
+	}
 	if f.panicAfterRole {
 		panic("after apply")
 	}
@@ -636,7 +880,10 @@ func (f *fakeBoundary) CreateRole(_ context.Context, spec RoleSpec) (RoleState, 
 	}
 	return state, nil
 }
-func (f *fakeBoundary) InspectRole(_ context.Context, _ string) (RoleState, error) {
+func (f *fakeBoundary) InspectRole(ctx context.Context, _ string) (RoleState, error) {
+	if ctx.Err() != nil {
+		return RoleState{}, ctx.Err()
+	}
 	if f.role == nil {
 		return RoleState{}, errors.New("absent")
 	}
@@ -753,6 +1000,7 @@ func (f *fakeBoundary) DeleteRolePolicy(context.Context, string, string) error {
 }
 func (f *fakeBoundary) DeleteRole(context.Context, string) error {
 	f.event("delete-role")
+	f.roleDeletes++
 	if f.replaceRole || f.cleanupMismatch {
 		f.deletedReplacement = true
 		return nil
