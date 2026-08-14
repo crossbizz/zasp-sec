@@ -28,7 +28,6 @@ const proofDirectory = dirname(fileURLToPath(import.meta.url));
 const markerPattern = /^[a-f0-9]{16}$/;
 const objectIDPattern = /^[a-f0-9]{64}$/;
 const imageIDPattern = /^sha256:[a-f0-9]{64}$/;
-const forbiddenCredentialEnvironmentPattern = /^(AWS_|GITHUB_|DOCKER_|HTTP_PROXY=|HTTPS_PROXY=|ALL_PROXY=|NO_PROXY=)/i;
 const organizationBySlot = Object.freeze({
   a: "org_aaaaaaaaaaaaaaaa",
   b: "org_bbbbbbbbbbbbbbbb",
@@ -274,7 +273,7 @@ export function probeNeo4jReadiness(port, {
         response.once("end", () => {
           if (settled) return;
           let document;
-          try { document = JSON.parse(Buffer.concat(chunks).toString("utf8")); } catch { unavailable(); return; }
+          try { document = parseUniqueJson(Buffer.concat(chunks).toString("utf8")); } catch { unavailable(); return; }
           finish(() => resolvePromise(validReadinessDocument(document)));
         });
       });
@@ -312,6 +311,87 @@ function validReadinessDocument(value) {
     typeof bookmark === "string" && bookmark.length > 0 && bookmark.length <= 4_096 &&
     !hasControlCharacter(bookmark)
   );
+}
+
+function parseUniqueJson(source) {
+  if (typeof source !== "string") throw new SyntaxError("invalid JSON");
+  let index = 0;
+  const whitespace = () => {
+    while (index < source.length && /[\t\n\r ]/.test(source[index])) index += 1;
+  };
+  const string = () => {
+    if (source[index] !== '"') throw new SyntaxError("invalid JSON string");
+    const start = index;
+    index += 1;
+    while (index < source.length) {
+      const character = source[index];
+      if (character === '"') {
+        index += 1;
+        return JSON.parse(source.slice(start, index));
+      }
+      if (character.charCodeAt(0) <= 0x1f) throw new SyntaxError("invalid JSON string");
+      if (character !== "\\") {
+        index += 1;
+        continue;
+      }
+      index += 1;
+      const escape = source[index];
+      if ('"\\/bfnrt'.includes(escape ?? "")) {
+        index += 1;
+      } else if (escape === "u" && /^[a-fA-F0-9]{4}$/.test(source.slice(index + 1, index + 5))) {
+        index += 5;
+      } else {
+        throw new SyntaxError("invalid JSON escape");
+      }
+    }
+    throw new SyntaxError("unterminated JSON string");
+  };
+  const value = () => {
+    whitespace();
+    if (source[index] === "{") {
+      index += 1;
+      whitespace();
+      const keys = new Set();
+      if (source[index] === "}") { index += 1; return; }
+      while (true) {
+        const key = string();
+        if (keys.has(key)) throw new SyntaxError("duplicate JSON key");
+        keys.add(key);
+        whitespace();
+        if (source[index] !== ":") throw new SyntaxError("invalid JSON object");
+        index += 1;
+        value();
+        whitespace();
+        if (source[index] === "}") { index += 1; return; }
+        if (source[index] !== ",") throw new SyntaxError("invalid JSON object");
+        index += 1;
+        whitespace();
+      }
+    }
+    if (source[index] === "[") {
+      index += 1;
+      whitespace();
+      if (source[index] === "]") { index += 1; return; }
+      while (true) {
+        value();
+        whitespace();
+        if (source[index] === "]") { index += 1; return; }
+        if (source[index] !== ",") throw new SyntaxError("invalid JSON array");
+        index += 1;
+      }
+    }
+    if (source[index] === '"') { string(); return; }
+    for (const literal of ["true", "false", "null"]) {
+      if (source.startsWith(literal, index)) { index += literal.length; return; }
+    }
+    const number = /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/.exec(source.slice(index));
+    if (number === null) throw new SyntaxError("invalid JSON value");
+    index += number[0].length;
+  };
+  value();
+  whitespace();
+  if (index !== source.length) throw new SyntaxError("invalid trailing JSON");
+  return JSON.parse(source);
 }
 
 function hasControlCharacter(value) {
@@ -365,8 +445,13 @@ export class DockerRuntime {
     this.readinessProbe = readinessProbe;
     this.readPath = readPath;
     this.dockerConfigIdentity = undefined;
+    this.dockerConfigCandidate = undefined;
+    this.dockerConfigCreation = undefined;
+    this.dockerConfigCreationStarted = false;
+    this.dockerConfigRemoved = false;
     this.networkToken = undefined;
     this.networkAttempted = false;
+    this.networkRemovalAttempted = false;
     this.containerTokens = new Map();
     this.containerVolumes = new Map();
     this.containerAttempts = new Set();
@@ -396,6 +481,10 @@ export class DockerRuntime {
     return `${this.prefix}-${kind}`;
   }
 
+  hasDockerConfigCreationStarted() {
+    return this.dockerConfigCreationStarted;
+  }
+
   async initialize(phase = this.phase) {
     this.assertActive("configuration", phase);
     let canonicalParent;
@@ -415,7 +504,15 @@ export class DockerRuntime {
     }
     this.assertActive("configuration", phase);
     this.tempParent = canonicalParent;
-    const candidate = await this.makeTemp(join(this.tempParent, `${this.prefix}-docker-config-`));
+    if (this.dockerConfigCreationStarted) throw new Failure("configuration");
+    this.dockerConfigCreationStarted = true;
+    this.dockerConfigCreation = Promise.resolve()
+      .then(() => this.makeTemp(join(this.tempParent, `${this.prefix}-docker-config-`)))
+      .then((candidate) => {
+        this.dockerConfigCandidate = candidate;
+        return candidate;
+      });
+    const candidate = await this.dockerConfigCreation;
     this.assertActive("configuration", phase);
     const identity = await this.ownedEmptyTemporaryDirectory(candidate, "configuration", phase);
     this.assertActive("configuration", phase);
@@ -447,6 +544,18 @@ export class DockerRuntime {
 
   async cleanupDockerConfig(phase = this.phase) {
     this.assertActive("cleanup", phase);
+    if (this.dockerConfigRemoved) return;
+    if (this.dockerConfigIdentity === undefined && this.dockerConfigCreationStarted) {
+      let candidate;
+      try { candidate = await this.dockerConfigCreation; } catch { candidate = undefined; }
+      this.assertActive("cleanup", phase);
+      if (candidate !== undefined) {
+        const identity = await this.ownedEmptyTemporaryDirectory(candidate, "cleanup", phase);
+        this.assertActive("cleanup", phase);
+        if (identity === undefined) throw new Failure("cleanup");
+        this.dockerConfigIdentity = identity;
+      }
+    }
     if (this.dockerConfigIdentity === undefined) return;
     const current = await this.ownedEmptyTemporaryDirectory(this.dockerConfigIdentity.path, "cleanup", phase);
     this.assertActive("cleanup", phase);
@@ -471,6 +580,8 @@ export class DockerRuntime {
     }
     this.assertActive("cleanup", phase);
     this.dockerConfigIdentity = undefined;
+    this.dockerConfigCandidate = undefined;
+    this.dockerConfigRemoved = true;
   }
 
   async requireTemporaryPrefixAbsent(category = "cleanup", phase = this.phase) {
@@ -846,8 +957,6 @@ export class DockerRuntime {
     }
     const attachedNetworkID = networks?.[this.networkName]?.NetworkID;
     const preStartCartographyNetwork = !kind.startsWith("neo4j-") && attachedNetworkID === "";
-    const parentMount = mounts?.find?.((mount) => mount?.Destination === "/proof");
-    const fixtureMount = mounts?.find?.((mount) => mount?.Destination === "/proof/fixture.json");
     if (
       fields[0] !== token || fields[1] !== `/${this.name(kind)}` ||
       fields[2] !== (kind.startsWith("neo4j-") ? token.slice(0, 12) : this.name(kind)) ||
@@ -900,22 +1009,18 @@ export class DockerRuntime {
         throw new Failure(category);
       }
     } else if (
-      environment.some((value) => forbiddenCredentialEnvironmentPattern.test(value)) ||
-      Object.keys(portBindings).length !== 0 || Object.values(ports).some((value) => value !== null) ||
-      !isDeepStrictEqual(entrypoint, ["python"]) ||
-      !isDeepStrictEqual(command, [
-        "-I", "-c", CARTOGRAPHY_BOOTSTRAP, this.name(kind), "/proof/fixture_runner.py",
-        "--fixture", "/proof/fixture.json",
-        "--neo4j-uri", `bolt://${this.name(`neo4j-${kind.at(-1)}`)}:7687`,
-      ]) ||
-      mounts.length !== 2 || parentMount?.Source !== this.proofDirectory ||
-      parentMount?.RW !== false || parentMount?.Type !== "bind" ||
-      fixtureMount?.Source !== join(this.proofDirectory, "fixtures", `org-${kind.at(-1)}.json`) ||
-      fixtureMount?.RW !== false || fixtureMount?.Type !== "bind"
+      !exactCartographyRuntime({
+        environment, portBindings, ports, entrypoint, command, mounts, binds, hostMounts, tmpfs,
+        imageRuntime: this.imageRuntimeMetadata.get(CARTOGRAPHY_IMAGE),
+        name: this.name(kind),
+        neo4jName: this.name(`neo4j-${kind.at(-1)}`),
+        proofDirectory: this.proofDirectory,
+        slot: kind.at(-1),
+      })
     ) throw new Failure(category);
     else {
       await this.ensureFixtureMountpoint(category, phase);
-      if (preStartCartographyNetwork) await this.verifyNetwork(category, undefined, phase);
+      if (preStartCartographyNetwork) await this.verifyCartographyNetworkBoundary(category, phase);
       this.assertActive(category, phase);
     }
     return token;
@@ -1004,6 +1109,7 @@ export class DockerRuntime {
       if (inspected?.status === 0) {
         token = known;
       } else {
+        if (!exactMissingContainer(inspected, known)) throw new Failure("cleanup");
         const candidates = await this.namedContainerCandidates(kind, "cleanup", phase);
         this.assertActive("cleanup", phase);
         if (candidates.length === 0) {
@@ -1071,6 +1177,7 @@ export class DockerRuntime {
       const inspected = await this.inspectContainer(token, "cleanup", phase);
       this.assertActive("cleanup", phase);
       if (inspected?.status === 0) throw new Failure("cleanup");
+      if (!exactMissingContainer(inspected, token)) throw new Failure("cleanup");
     }
     const candidates = await this.namedContainerCandidates(kind, "cleanup", phase);
     this.assertActive("cleanup", phase);
@@ -1089,6 +1196,7 @@ export class DockerRuntime {
       this.assertActive("cleanup", phase);
       if (inspected?.status === 0) token = known;
       else {
+        if (!exactMissingNetwork(inspected, known)) throw new Failure("cleanup");
         const candidates = await this.namedNetworkCandidates("cleanup", phase);
         this.assertActive("cleanup", phase);
         if (candidates.length === 0) return;
@@ -1106,6 +1214,7 @@ export class DockerRuntime {
     }
     await this.verifyNetwork("cleanup", inspected, phase);
     this.assertActive("cleanup", phase);
+    this.networkRemovalAttempted = true;
     let removed;
     try {
       removed = await this.dockerMutation(["network", "rm", token], { category: "cleanup" }, phase);
@@ -1126,9 +1235,28 @@ export class DockerRuntime {
       const inspected = await this.inspectNetwork(this.networkToken, "cleanup", phase);
       this.assertActive("cleanup", phase);
       if (inspected?.status === 0) throw new Failure("cleanup");
+      if (!exactMissingNetwork(inspected, this.networkToken)) throw new Failure("cleanup");
     }
     if ((await this.namedNetworkCandidates("cleanup", phase)).length !== 0) throw new Failure("cleanup");
     this.assertActive("cleanup", phase);
+  }
+
+  async verifyCartographyNetworkBoundary(category, phase = this.phase) {
+    this.assertActive(category, phase);
+    if (category !== "cleanup" || !this.networkRemovalAttempted) {
+      await this.verifyNetwork(category, undefined, phase);
+      return;
+    }
+    const inspected = await this.inspectNetwork(this.networkToken, category, phase);
+    this.assertActive(category, phase);
+    if (inspected?.status === 0) {
+      await this.verifyNetwork(category, inspected, phase);
+      return;
+    }
+    if (!exactMissingNetwork(inspected, this.networkToken)) throw new Failure(category);
+    const candidates = await this.namedNetworkCandidates(category, phase);
+    this.assertActive(category, phase);
+    if (candidates.length !== 0) throw new Failure(category);
   }
 }
 
@@ -1194,23 +1322,27 @@ export async function orchestrate(runtime, options = {}) {
           selected.setAbortSignal?.(signal);
           const cleanupStep = async (operation) => {
             throwIfAborted(signal, "cleanup");
-            try { await operation(); } catch { cleanupFailed = true; }
+            let succeeded = true;
+            try { await operation(); } catch { cleanupFailed = true; succeeded = false; }
             throwIfAborted(signal, "cleanup");
+            return succeeded;
           };
+          let containersAbsent = true;
           for (const kind of ["cartography-b", "cartography-a", "neo4j-b", "neo4j-a"]) {
             if (!candidates.has(kind)) continue;
             await cleanupStep(() => selected.removeContainer(kind));
-            await cleanupStep(() => selected.requireContainerAbsent(kind));
+            const absent = await cleanupStep(() => selected.requireContainerAbsent(kind));
+            containersAbsent = containersAbsent && absent;
           }
           if (candidates.has("network")) {
-            await cleanupStep(() => selected.removeNetwork());
+            if (containersAbsent) await cleanupStep(() => selected.removeNetwork());
             await cleanupStep(() => selected.requireNetworkAbsent());
           }
           if (preflightPassed) {
             await cleanupStep(() => selected.requirePrefixAbsent("cleanup"));
           }
           await cleanupStep(() => selected.cleanupDockerConfig());
-          if (preflightPassed) {
+          if (preflightPassed || selected.hasDockerConfigCreationStarted()) {
             await cleanupStep(() => selected.requireTemporaryPrefixAbsent("cleanup"));
           }
         }, cleanupTimeoutMs);
@@ -1342,7 +1474,7 @@ function runtimeContract(runtime) {
     "initialize", "preflight", "resolveImages", "createNetwork", "startNeo4j", "verifyContainer",
     "neo4jPort", "isNeo4jReady", "createCartography", "attachCartography", "removeContainer",
     "requireContainerAbsent", "removeNetwork", "requireNetworkAbsent", "requirePrefixAbsent", "cleanupDockerConfig",
-    "requireTemporaryPrefixAbsent",
+    "requireTemporaryPrefixAbsent", "hasDockerConfigCreationStarted",
   ].every((name) => typeof runtime[name] === "function");
 }
 
@@ -1350,6 +1482,16 @@ function singleLine(value) {
   if (typeof value !== "string") return "";
   const trimmed = value.endsWith("\n") ? value.slice(0, -1) : value;
   return trimmed.includes("\n") ? "" : trimmed;
+}
+
+function exactMissingContainer(result, token) {
+  return result?.status === 1 && result?.signal === null && result?.stdout === "\n" &&
+    result?.stderr === `error: no such object: ${token}\n`;
+}
+
+function exactMissingNetwork(result, token) {
+  return result?.status === 1 && result?.signal === null && result?.stdout === "\n" &&
+    result?.stderr === `Error response from daemon: network ${token} not found\n`;
 }
 
 function parseImageRuntimeMetadata(value) {
@@ -1393,16 +1535,16 @@ function exactEnvironment(value) {
   return entries;
 }
 
-function exactStringArray(value) {
+function exactStringArray(value, allowEmpty = false) {
   if (
-    !Array.isArray(value) || value.length === 0 || value.length > 128 ||
+    !Array.isArray(value) || (!allowEmpty && value.length === 0) || value.length > 128 ||
     value.some((entry) => typeof entry !== "string" || entry.length === 0 || Buffer.byteLength(entry) > 4_096 || hasControlCharacter(entry))
   ) return undefined;
   return Object.freeze([...value]);
 }
 
 function exactPortArray(value) {
-  const ports = exactStringArray(value);
+  const ports = exactStringArray(value, true);
   if (ports === undefined || ports.some((port) => {
     const match = /^([0-9]{1,5})\/(tcp|udp)$/.exec(port);
     return match === null || Number(match[1]) < 1 || Number(match[1]) > 65_535;
@@ -1412,7 +1554,7 @@ function exactPortArray(value) {
 }
 
 function exactVolumeArray(value) {
-  const volumes = exactStringArray(value);
+  const volumes = exactStringArray(value, true);
   if (
     volumes === undefined ||
     volumes.some((destination) => !isAbsolute(destination) || resolve(destination) !== destination || destination === "/")
@@ -1430,6 +1572,48 @@ function exactNeo4jEnvironment(environment, imageEnvironment) {
   const proofPrefix = [...runtimeEnvironment.slice(0, neo4jProofEnvironment.length)].sort();
   return isDeepStrictEqual(proofPrefix, [...neo4jProofEnvironment].sort()) &&
     isDeepStrictEqual(runtimeEnvironment.slice(neo4jProofEnvironment.length), imageEnvironment);
+}
+
+function exactCartographyRuntime({
+  environment, portBindings, ports, entrypoint, command, mounts, binds, hostMounts, tmpfs,
+  imageRuntime, name, neo4jName, proofDirectory: selectedProofDirectory, slot,
+}) {
+  const imageEnvironment = exactEnvironment(imageRuntime?.environment);
+  const imageEntrypoint = exactStringArray(imageRuntime?.entrypoint);
+  const imageCommand = exactStringArray(imageRuntime?.command);
+  const imageExposedPorts = exactPortArray(imageRuntime?.exposedPorts);
+  const imageVolumes = exactVolumeArray(imageRuntime?.volumes);
+  const fixture = join(selectedProofDirectory, "fixtures", `org-${slot}.json`);
+  const sortedMounts = Array.isArray(mounts)
+    ? [...mounts].sort((left, right) => String(left?.Destination).localeCompare(String(right?.Destination)))
+    : mounts;
+  const sortedBinds = Array.isArray(binds) ? [...binds].sort() : binds;
+  return (
+    imageEnvironment !== undefined && imageEntrypoint !== undefined && imageCommand !== undefined &&
+    imageExposedPorts !== undefined && imageVolumes !== undefined && imageVolumes.length === 0 &&
+    isDeepStrictEqual(exactEnvironment(environment), imageEnvironment) &&
+    isDeepStrictEqual(Object.keys(portBindings).sort(), []) &&
+    isDeepStrictEqual(Object.keys(ports).sort(), imageExposedPorts) &&
+    imageExposedPorts.every((port) => ports[port] === null) &&
+    isDeepStrictEqual(entrypoint, ["python"]) &&
+    isDeepStrictEqual(command, [
+      "-I", "-c", CARTOGRAPHY_BOOTSTRAP, name, "/proof/fixture_runner.py",
+      "--fixture", "/proof/fixture.json", "--neo4j-uri", `bolt://${neo4jName}:7687`,
+    ]) &&
+    isDeepStrictEqual(sortedMounts, [
+      {
+        Type: "bind", Source: selectedProofDirectory, Destination: "/proof",
+        Mode: "ro", RW: false, Propagation: "rprivate",
+      },
+      {
+        Type: "bind", Source: fixture, Destination: "/proof/fixture.json",
+        Mode: "ro", RW: false, Propagation: "rprivate",
+      },
+    ]) &&
+    isDeepStrictEqual(sortedBinds, [
+      `${selectedProofDirectory}:/proof:ro`, `${fixture}:/proof/fixture.json:ro`,
+    ].sort()) && hostMounts === null && tmpfs === null
+  );
 }
 
 function exactIntrinsicVolumes(mounts, expectedDestinations) {

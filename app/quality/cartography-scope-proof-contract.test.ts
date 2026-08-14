@@ -56,7 +56,7 @@ describe("Cartography scope proof delivery-waiver status contract", () => {
   it("starts M0-10 without changing the blocked provider dependencies", async () => {
     const [waiver, tracker, readme, sourcePlan] = await Promise.all([
       readFile(
-        resolve(repositoryRoot, "docs/internal/2026-08-14-m0-10-cartography-proof-implementation-plan.md"),
+        resolve(repositoryRoot, "docs/internal/2026-08-14-m0-10-cartography-delivery-waiver-design.md"),
         "utf8",
       ),
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
@@ -79,7 +79,8 @@ describe("Cartography scope proof delivery-waiver status contract", () => {
     expect(tracker).toContain("M0-09 and PROV-01 remain Blocked");
     expect(tracker).toContain("R-03 remains incomplete");
     expect(readme).toContain("M0-10 is In progress under the Cartography delivery waiver");
-    expect(waiver).toContain("fixture-only Cartography normalization proof");
+    expect(waiver).toContain("M0-10 may prove only the Cartography adapter");
+    expect(waiver).toContain("It may not claim cross-account IAM");
     expect(sourcePlan).toContain("**M0-10 - Cartography proof**");
   });
 });

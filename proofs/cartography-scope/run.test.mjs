@@ -37,12 +37,6 @@ const boltHostPort = "49152";
 const httpHostPort = "49153";
 const proofDirectory = "/safe/proof";
 const dockerConfig = `/safe/tmp/${prefix}-docker-config-owned`;
-const baseContainerEnvironment = [
-  "PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-  "HOME=/tmp",
-  "LANG=C.UTF-8",
-  "PYTHONUNBUFFERED=1",
-];
 const neo4jImageEnvironment = [
   "PATH=/image/bin",
   "JAVA_HOME=/image/java",
@@ -160,7 +154,7 @@ test("Cartography bootstrap delegates the exact owned runtime argv to the mounte
   const probe = join(directory, "probe.py");
   writeFileSync(probe, "import json\ndef bootstrap_main(argv):\n print(json.dumps({'argv':argv},sort_keys=True,separators=(',',':')))\n return 0\n");
   const hostname = `${prefix}-cartography-a`;
-  const runnerArguments = [probe, "--fixture", "/proof/fixtures/org-a.json", "--neo4j-uri", `bolt://${prefix}-neo4j-a:7687`];
+  const runnerArguments = [probe, "--fixture", "/proof/fixture.json", "--neo4j-uri", `bolt://${prefix}-neo4j-a:7687`];
   try {
     const process = spawnSync("/opt/homebrew/bin/python3.13", ["-I", "-c", CARTOGRAPHY_BOOTSTRAP, hostname, ...runnerArguments], {
       encoding: "utf8",
@@ -176,7 +170,11 @@ test("Cartography bootstrap delegates the exact owned runtime argv to the mounte
     assert.equal(process.status, 0);
     assert.equal(process.stderr, "");
     assert.deepEqual(JSON.parse(process.stdout), {
-      argv: [hostname, ...runnerArguments],
+      argv: [
+        hostname, probe,
+        "--fixture", "/proof/fixture.json",
+        "--neo4j-uri", `bolt://${prefix}-neo4j-a:7687`,
+      ],
     });
   } finally {
     rmSync(directory, { recursive: true, force: false, maxRetries: 0 });
@@ -221,9 +219,8 @@ test("admits only an empty canonical Docker-config directory and passes only PAT
   assert.equal(calls[0].options.env.DOCKER_AUTH_CONFIG, undefined);
 });
 
-test("canonicalizes the real macOS default temp parent before creating and admitting the Docker config", async () => {
+test("canonicalizes the real host temp parent before creating and admitting the Docker config", async () => {
   const canonicalParent = realpathSync(tmpdir());
-  assert.notEqual(tmpdir(), canonicalParent);
   const runtime = new DockerRuntime({ path: "/safe/bin", marker });
   try {
     await runtime.initialize();
@@ -343,6 +340,93 @@ test("requires exact Docker-config and proof-prefix absence after recursive remo
   const runtime = temporaryRuntime({ removeTemp: async () => {} });
   await runtime.initialize();
   await assert.rejects(runtime.cleanupDockerConfig(), (error) => error?.category === "cleanup");
+});
+
+test("joins delayed Docker-config creation into cleanup and leaves no prefix", async () => {
+  const creation = deferred();
+  const creationStarted = deferred();
+  let removed = false;
+  let prefixAudits = 0;
+  const runtime = temporaryRuntime({
+    makeTemp: async () => {
+      creationStarted.resolve();
+      return creation.promise;
+    },
+    readDirectory: async (value) => {
+      if (value === dockerConfig) return [];
+      prefixAudits += 1;
+      return removed ? [] : [dockerConfig.split("/").at(-1)];
+    },
+    statPath: async () => {
+      if (removed) throw Object.assign(new Error("missing"), { code: "ENOENT" });
+      return identityStat(1, 2);
+    },
+    removeTemp: async (value) => {
+      assert.equal(value, dockerConfig);
+      removed = true;
+    },
+  });
+  let phase = 0;
+  const result_ = await orchestrate(runtime, {
+    readinessAttempts: 1,
+    wait: async () => {},
+    withDeadline: async (operation) => {
+      phase += 1;
+      const controller = new AbortController();
+      if (phase === 1) {
+        const pending = operation(controller.signal);
+        pending.catch(() => {});
+        await creationStarted.promise;
+        controller.abort();
+        setImmediate(() => creation.resolve(dockerConfig));
+        throw new Failure("operation");
+      }
+      return operation(controller.signal);
+    },
+  });
+  await creation.promise;
+  await new Promise((resolvePromise) => setImmediate(resolvePromise));
+  assert.deepEqual(result_, { code: 1, line: "Cartography scope proof failed: operation rejected." });
+  assert.equal(removed, true);
+  assert.ok(prefixAudits > 0);
+});
+
+test("delayed Docker-config cleanup failure wins after the final prefix audit", async () => {
+  const creation = deferred();
+  const creationStarted = deferred();
+  let prefixAudits = 0;
+  const runtime = temporaryRuntime({
+    makeTemp: async () => {
+      creationStarted.resolve();
+      return creation.promise;
+    },
+    readDirectory: async (value) => {
+      if (value === dockerConfig) return [];
+      prefixAudits += 1;
+      return [dockerConfig.split("/").at(-1)];
+    },
+    removeTemp: async () => { throw new Error("retained"); },
+  });
+  let phase = 0;
+  const result_ = await orchestrate(runtime, {
+    readinessAttempts: 1,
+    wait: async () => {},
+    withDeadline: async (operation) => {
+      phase += 1;
+      const controller = new AbortController();
+      if (phase === 1) {
+        const pending = operation(controller.signal);
+        pending.catch(() => {});
+        await creationStarted.promise;
+        controller.abort();
+        setImmediate(() => creation.resolve(dockerConfig));
+        throw new Failure("operation");
+      }
+      return operation(controller.signal);
+    },
+  });
+  assert.deepEqual(result_, { code: 1, line: "Cartography scope proof failed: cleanup rejected." });
+  assert.ok(prefixAudits > 0);
 });
 
 test("resolves exact images through inspect, one pull mutation, and a fresh full-ID inspect", async () => {
@@ -739,7 +823,7 @@ test("Neo4j cleanup removes only retained intrinsic volumes and proves their exa
 
 test("an already-absent Neo4j container fails cleanup when one retained volume remains", async () => {
   const runtime = new ScriptedRuntime([
-    result(1), result(1),
+    missingContainerResult(neo4jID), missingContainerResult(neo4jID),
     result(0),
     result(0, `${JSON.stringify([{ Name: neo4jDataVolume }])}\n`),
   ]);
@@ -756,7 +840,7 @@ test("an already-absent Neo4j container fails cleanup when one retained volume r
 
 test("an already-absent Neo4j container succeeds only after both retained volumes are absent", async () => {
   const runtime = new ScriptedRuntime([
-    result(1), result(1),
+    missingContainerResult(neo4jID), missingContainerResult(neo4jID),
     result(0),
     missingVolumeResult(neo4jDataVolume), missingVolumeResult(neo4jDataVolume),
     missingVolumeResult(neo4jLogsVolume), missingVolumeResult(neo4jLogsVolume),
@@ -781,7 +865,7 @@ test("container absence rejects retained-volume inspection failure and ambiguous
     [result(1, "[]\n", "provider unavailable\n"), result(1, "[]\n", "provider unavailable\n")],
   ]) {
     const runtime = new ScriptedRuntime([
-      result(1), result(1),
+      missingContainerResult(neo4jID), missingContainerResult(neo4jID),
       result(0),
       ...volumeResponses,
     ]);
@@ -799,11 +883,11 @@ test("retained-volume cleanup failure wins and does not stop later cleanup", asy
       ...(mainFailure === undefined ? {} : { failAt: "bridge-a", failure: mainFailure }),
     });
     const removalCleanup = new ScriptedRuntime([
-      result(1), result(1), result(0),
+      missingContainerResult(neo4jID), missingContainerResult(neo4jID), result(0),
       result(0, `${JSON.stringify([{ Name: neo4jDataVolume }])}\n`),
     ]);
     const absenceCleanup = new ScriptedRuntime([
-      result(1), result(1), result(0),
+      missingContainerResult(neo4jID), missingContainerResult(neo4jID), result(0),
       result(0, `${JSON.stringify([{ Name: neo4jDataVolume }])}\n`),
     ]);
     for (const cleanup of [removalCleanup, absenceCleanup]) {
@@ -823,7 +907,8 @@ test("retained-volume cleanup failure wins and does not stop later cleanup", asy
       code: 1,
       line: "Cartography scope proof failed: cleanup rejected.",
     });
-    for (const laterCall of ["remove-network", "absent-network", "prefix-absent", "cleanup-config", "temp-prefix-absent"]) {
+    assert.equal(runtime.calls.includes("remove-network"), false);
+    for (const laterCall of ["absent-network", "prefix-absent", "cleanup-config", "temp-prefix-absent"]) {
       assert.ok(runtime.calls.includes(laterCall), laterCall);
     }
     for (const cleanup of [removalCleanup, absenceCleanup]) {
@@ -838,7 +923,7 @@ test("rejects credential or proxy settings in a Cartography container even thoug
     name: `${prefix}-cartography-a`,
     imageID: cartographyImageID,
     image: CARTOGRAPHY_IMAGE,
-    environment: [...baseContainerEnvironment, "PYTHON_VERSION=3.13", "HTTPS_PROXY=http://ambient.invalid"],
+    environment: [...cartographyImageEnvironment, "HTTPS_PROXY=http://ambient.invalid"],
   })}\n`)]);
   runtime.networkToken = networkID;
   runtime.imageIDs.set(CARTOGRAPHY_IMAGE, cartographyImageID);
@@ -852,7 +937,7 @@ test("rejects a replacement Cartography hostname, entrypoint, bootstrap argv, or
     name: `${prefix}-cartography-a`,
     imageID: cartographyImageID,
     image: CARTOGRAPHY_IMAGE,
-    environment: ["PYTHON_VERSION=3.13"],
+    environment: cartographyImageEnvironment,
   });
   const wrongValues = [
     replaceInspectionField(expected, 2, `${prefix}-cartography-b`),
@@ -869,6 +954,72 @@ test("rejects a replacement Cartography hostname, entrypoint, bootstrap argv, or
   }
 });
 
+test("rejects every Cartography deviation from pinned image metadata and exact proof overrides", async () => {
+  const expected = containerInspection({
+    token: cartographyID,
+    name: `${prefix}-cartography-a`,
+    imageID: cartographyImageID,
+    image: CARTOGRAPHY_IMAGE,
+    environment: cartographyImageEnvironment,
+  });
+  const wrongValues = [
+    replaceInspectionField(expected, 9, JSON.stringify([...cartographyImageEnvironment, "LD_PRELOAD=/unexpected.so"])),
+    replaceInspectionField(expected, 11, JSON.stringify({ "8080/tcp": null })),
+    replaceInspectionField(expected, 14, JSON.stringify([
+      { Type: "bind", Source: proofDirectory, Destination: "/proof", Mode: "rw", RW: false, Propagation: "rprivate" },
+      { Type: "bind", Source: `${proofDirectory}/fixtures/org-a.json`, Destination: "/proof/fixture.json", Mode: "ro", RW: false, Propagation: "rprivate" },
+    ])),
+    replaceInspectionField(expected, 15, JSON.stringify([`${proofDirectory}:/proof:rw`, `${proofDirectory}/fixtures/org-a.json:/proof/fixture.json:ro`])),
+    replaceInspectionField(expected, 16, JSON.stringify([{ Type: "bind", Source: "/unexpected", Target: "/proof" }])),
+    replaceInspectionField(expected, 17, JSON.stringify({ "/proof": "rw" })),
+  ];
+  for (const value of wrongValues) {
+    const runtime = new ScriptedRuntime([result(0, `${value}\n`)]);
+    runtime.networkToken = networkID;
+    runtime.imageIDs.set(CARTOGRAPHY_IMAGE, cartographyImageID);
+    runtime.containerTokens.set("cartography-a", cartographyID);
+    await assert.rejects(runtime.verifyContainer("cartography-a"), (error) => error?.category === "ownership");
+  }
+});
+
+test("ambiguous Cartography creation cannot adopt extra runtime metadata", async () => {
+  const candidate = containerInspection({
+    token: cartographyID,
+    name: `${prefix}-cartography-a`,
+    imageID: cartographyImageID,
+    image: CARTOGRAPHY_IMAGE,
+    environment: [...cartographyImageEnvironment, "LD_PRELOAD=/unexpected.so"],
+  });
+  const runtime = new ScriptedRuntime([
+    new Failure("provider"),
+    result(0, `${cartographyID}|${prefix}-cartography-a\n`),
+    result(0, `${candidate}\n`),
+  ]);
+  runtime.networkToken = networkID;
+  runtime.imageIDs.set(CARTOGRAPHY_IMAGE, cartographyImageID);
+  runtime.statPath = async (value) => value.endsWith("/fixtures/org-a.json")
+    ? fileIdentityStat(1, 5)
+    : value.endsWith("/fixture.json") ? fileIdentityStat(1, 4) : identityStat(1, 2);
+  await assert.rejects(runtime.createCartography("a"), (error) => error?.category === "ownership");
+});
+
+test("Cartography cleanup refuses runtime metadata changed after adoption", async () => {
+  const changed = containerInspection({
+    token: cartographyID,
+    name: `${prefix}-cartography-a`,
+    imageID: cartographyImageID,
+    image: CARTOGRAPHY_IMAGE,
+    environment: cartographyImageEnvironment,
+    hostMounts: [{ Type: "bind", Source: "/unexpected", Target: "/proof" }],
+  });
+  const runtime = new ScriptedRuntime([result(0, `${changed}\n`)]);
+  runtime.networkToken = networkID;
+  runtime.imageIDs.set(CARTOGRAPHY_IMAGE, cartographyImageID);
+  runtime.containerTokens.set("cartography-a", cartographyID);
+  await assert.rejects(runtime.removeContainer("cartography-a"), (error) => error?.category === "cleanup");
+  assert.equal(runtime.calls.some(({ kind }) => kind === "mutation"), false);
+});
+
 test("accepts an exact pre-start Cartography network only after re-proving the owned network", async () => {
   const runtime = new ScriptedRuntime([
     result(0, `${containerInspection({
@@ -876,7 +1027,7 @@ test("accepts an exact pre-start Cartography network only after re-proving the o
       name: `${prefix}-cartography-a`,
       imageID: cartographyImageID,
       image: CARTOGRAPHY_IMAGE,
-      environment: ["PYTHON_VERSION=3.13"],
+      environment: cartographyImageEnvironment,
       attachedNetworkID: "",
     })}\n`),
     result(0, `${networkID}|${networkName}|m0-10|${marker}\n`),
@@ -893,14 +1044,20 @@ test("accepts an exact pre-start Cartography network only after re-proving the o
 });
 
 test("requires the exact slot fixture overlay and rejects missing, swapped, writable, or extra mounts", async () => {
-  const parent = { Type: "bind", Source: proofDirectory, Destination: "/proof", RW: false };
-  const overlay = { Type: "bind", Source: `${proofDirectory}/fixtures/org-a.json`, Destination: "/proof/fixture.json", RW: false };
+  const parent = {
+    Type: "bind", Source: proofDirectory, Destination: "/proof",
+    Mode: "ro", RW: false, Propagation: "rprivate",
+  };
+  const overlay = {
+    Type: "bind", Source: `${proofDirectory}/fixtures/org-a.json`, Destination: "/proof/fixture.json",
+    Mode: "ro", RW: false, Propagation: "rprivate",
+  };
   const exact = new ScriptedRuntime([result(0, `${containerInspection({
     token: cartographyID,
     name: `${prefix}-cartography-a`,
     imageID: cartographyImageID,
     image: CARTOGRAPHY_IMAGE,
-    environment: ["PYTHON_VERSION=3.13"],
+    environment: cartographyImageEnvironment,
     mounts: [parent, overlay],
   })}\n`)]);
   exact.networkToken = networkID;
@@ -920,7 +1077,7 @@ test("requires the exact slot fixture overlay and rejects missing, swapped, writ
       name: `${prefix}-cartography-a`,
       imageID: cartographyImageID,
       image: CARTOGRAPHY_IMAGE,
-      environment: ["PYTHON_VERSION=3.13"],
+      environment: cartographyImageEnvironment,
       mounts,
     })}\n`)]);
     runtime.networkToken = networkID;
@@ -928,6 +1085,62 @@ test("requires the exact slot fixture overlay and rejects missing, swapped, writ
     runtime.containerTokens.set("cartography-a", cartographyID);
     await assert.rejects(runtime.verifyContainer("cartography-a"), (error) => error?.category === "ownership");
   }
+});
+
+test("accepts the two exact Cartography bind records in either Docker-observed order", async () => {
+  const expected = containerInspection({
+    token: cartographyID,
+    name: `${prefix}-cartography-a`,
+    imageID: cartographyImageID,
+    image: CARTOGRAPHY_IMAGE,
+    environment: cartographyImageEnvironment,
+  });
+  const fields = expected.split("|");
+  fields[14] = JSON.stringify(JSON.parse(fields[14]).reverse());
+  fields[15] = JSON.stringify(JSON.parse(fields[15]).reverse());
+  const runtime = new ScriptedRuntime([result(0, `${fields.join("|")}\n`)]);
+  runtime.networkToken = networkID;
+  runtime.imageIDs.set(CARTOGRAPHY_IMAGE, cartographyImageID);
+  runtime.containerTokens.set("cartography-a", cartographyID);
+
+  assert.equal(await runtime.verifyContainer("cartography-a"), cartographyID);
+});
+
+test("cleanup recovers one exact detached Cartography container only after the retained network was removed", async () => {
+  const detached = containerInspection({
+    token: cartographyID,
+    name: `${prefix}-cartography-a`,
+    imageID: cartographyImageID,
+    image: CARTOGRAPHY_IMAGE,
+    environment: cartographyImageEnvironment,
+    attachedNetworkID: "",
+  });
+  const runtime = new ScriptedRuntime([
+    result(0, `${detached}\n`),
+    missingNetworkResult(networkID), missingNetworkResult(networkID),
+    result(0),
+    result(0, `${cartographyID}\n`),
+  ]);
+  runtime.networkToken = networkID;
+  runtime.networkRemovalAttempted = true;
+  runtime.imageIDs.set(CARTOGRAPHY_IMAGE, cartographyImageID);
+  runtime.containerTokens.set("cartography-a", cartographyID);
+
+  await runtime.removeContainer("cartography-a");
+  assert.deepEqual(
+    runtime.calls.filter(({ kind }) => kind === "mutation").map(({ args }) => args),
+    [["rm", "--force", cartographyID]],
+  );
+
+  const unretained = new ScriptedRuntime([
+    result(0, `${detached}\n`),
+    missingNetworkResult(networkID), missingNetworkResult(networkID),
+  ]);
+  unretained.networkToken = networkID;
+  unretained.imageIDs.set(CARTOGRAPHY_IMAGE, cartographyImageID);
+  unretained.containerTokens.set("cartography-a", cartographyID);
+  await assert.rejects(unretained.removeContainer("cartography-a"), (error) => error?.category === "cleanup");
+  assert.equal(unretained.calls.some(({ kind }) => kind === "mutation"), false);
 });
 
 test("admits only a canonical regular non-symlink slot fixture overlay", async () => {
@@ -1009,7 +1222,7 @@ test("reconciles ambiguous creates and removes only the same freshly re-proven c
   const removal = new ScriptedRuntime([
     result(0, `${inspection}\n`),
     result(1),
-    result(1), result(1),
+    missingContainerResult(neo4jID), missingContainerResult(neo4jID),
     result(0),
     missingVolumeResult(neo4jDataVolume), missingVolumeResult(neo4jDataVolume),
     missingVolumeResult(neo4jLogsVolume), missingVolumeResult(neo4jLogsVolume),
@@ -1021,7 +1234,7 @@ test("reconciles ambiguous creates and removes only the same freshly re-proven c
   assert.equal(removal.calls.filter((call) => call.args[0] === "rm").length, 1);
 
   const replacement = new ScriptedRuntime([
-    result(1), result(1),
+    missingContainerResult(neo4jID), missingContainerResult(neo4jID),
     result(0, `${"f".repeat(64)}|${prefix}-neo4j-a\n`),
   ]);
   replacement.containerTokens.set("neo4j-a", neo4jID);
@@ -1073,7 +1286,7 @@ test("accepts rejected container and network removes only after exact absence is
   const container = new ScriptedRuntime([
     result(0, `${inspection}\n`),
     new Failure("cleanup"),
-    result(1), result(1),
+    missingContainerResult(neo4jID), missingContainerResult(neo4jID),
     result(0),
     missingVolumeResult(neo4jDataVolume), missingVolumeResult(neo4jDataVolume),
     missingVolumeResult(neo4jLogsVolume), missingVolumeResult(neo4jLogsVolume),
@@ -1086,11 +1299,29 @@ test("accepts rejected container and network removes only after exact absence is
   const network = new ScriptedRuntime([
     result(0, `${networkID}|${networkName}|m0-10|${marker}\n`),
     new Failure("cleanup"),
-    result(1), result(1),
+    missingNetworkResult(networkID), missingNetworkResult(networkID),
     result(0),
   ]);
   network.networkToken = networkID;
   await network.removeNetwork();
+});
+
+test("container and network absence reject generic nonzero inspection", async () => {
+  const containerRemoval = new ScriptedRuntime([result(1), result(1), result(0)]);
+  containerRemoval.containerTokens.set("cartography-a", cartographyID);
+  await assert.rejects(containerRemoval.removeContainer("cartography-a"), (error) => error?.category === "cleanup");
+
+  const containerAudit = new ScriptedRuntime([result(1), result(1), result(0)]);
+  containerAudit.containerTokens.set("cartography-a", cartographyID);
+  await assert.rejects(containerAudit.requireContainerAbsent("cartography-a"), (error) => error?.category === "cleanup");
+
+  const networkRemoval = new ScriptedRuntime([result(1), result(1), result(0)]);
+  networkRemoval.networkToken = networkID;
+  await assert.rejects(networkRemoval.removeNetwork(), (error) => error?.category === "cleanup");
+
+  const networkAudit = new ScriptedRuntime([result(1), result(1), result(0)]);
+  networkAudit.networkToken = networkID;
+  await assert.rejects(networkAudit.requireNetworkAbsent(), (error) => error?.category === "cleanup");
 });
 
 test("bridge calls use an exact finite deadline and reject malformed or overflowing output", async () => {
@@ -1148,6 +1379,14 @@ test("rejects malformed, oversized, error, wrong-row, or extra readiness respons
   for (const response of invalid) {
     assert.equal(await probeReadinessResponse(response), false);
   }
+});
+
+test("rejects a readiness document whose initial nonempty errors are hidden by a duplicate key", async () => {
+  const duplicateErrors = JSON.stringify(readinessDocument).replace(
+    '"errors":[]',
+    '"errors":[{"code":"initial-error"}],"errors":[]',
+  );
+  assert.equal(await probeReadinessResponse({ status: 200, body: duplicateErrors }), false);
 });
 
 test("readiness cancellation rejects immediately through the provider boundary", async () => {
@@ -1269,6 +1508,23 @@ test("cleanup continues across every resource, has an independent budget, and cl
   assert.deepEqual(deadlines, [300_000, 60_000]);
   for (const call of ["remove-cartography-b", "remove-cartography-a", "remove-neo4j-b", "remove-neo4j-a", "remove-network", "prefix-absent", "cleanup-config", "temp-prefix-absent"]) {
     assert.ok(runtime.calls.includes(call), call);
+  }
+});
+
+test("cleanup preserves the owned network when any retained container is not proven absent", async () => {
+  const runtime = new FakeRuntime();
+  runtime.requireContainerAbsent = async function requireContainerAbsent(kind) {
+    this.record(`absent-${kind}`);
+    if (kind === "cartography-b") throw new Failure("cleanup");
+  };
+
+  assert.deepEqual(await orchestrate(runtime, fastOptions()), {
+    code: 1,
+    line: "Cartography scope proof failed: cleanup rejected.",
+  });
+  assert.equal(runtime.calls.includes("remove-network"), false);
+  for (const laterCall of ["absent-network", "prefix-absent", "cleanup-config", "temp-prefix-absent"]) {
+    assert.ok(runtime.calls.includes(laterCall), laterCall);
   }
 });
 
@@ -1540,6 +1796,7 @@ class FakeRuntime {
   async createCartography(slot) { return this.record(`cartography-${slot}`, cartographyID); }
   async attachCartography(slot) { return this.record(`bridge-${slot}`, this.bridge); }
   hasCandidate() { return this.candidate; }
+  hasDockerConfigCreationStarted() { return false; }
   async removeContainer(kind) { this.record(`remove-${kind}`); }
   async requireContainerAbsent(kind) { this.record(`absent-${kind}`); }
   async removeNetwork() { this.record("remove-network"); }
@@ -1558,7 +1815,7 @@ class ScriptedRuntime extends DockerRuntime {
       canonicalPath: async (value) => value,
       statPath: async (value) => value === `${proofDirectory}/fixture.json`
         ? fileIdentityStat(1, 4)
-        : identityStat(1, 2),
+        : value.startsWith(`${proofDirectory}/fixtures/`) ? fileIdentityStat(1, 5) : identityStat(1, 2),
       readDirectory: async () => [],
       readPath: async () => Buffer.from("{}\n"),
       wait: async () => {},
@@ -1578,8 +1835,8 @@ class ScriptedRuntime extends DockerRuntime {
         environment: cartographyImageEnvironment,
         entrypoint: cartographyImageEntrypoint,
         command: cartographyImageCommand,
-        exposedPorts: ["8080/tcp"],
-        volumes: ["/var/cartography"],
+        exposedPorts: [],
+        volumes: [],
       }],
     ]);
     this.dockerConfigIdentity = { path: dockerConfig, dev: 1, ino: 2 };
@@ -1645,13 +1902,14 @@ function temporaryRuntime({
   statPath = async () => stat,
   canonicalPath = async (value) => value === "/safe/tmp" || value === proofDirectory ? value : candidateReal,
   readDirectory = async () => entries,
+  makeTemp = async () => candidate,
   removeTemp = async () => {},
   command = async () => result(0),
   readPath = async () => Buffer.from("{}\n"),
 } = {}) {
   return new DockerRuntime({
     path: "/safe/bin", marker, proofDirectory, tempParent: "/safe/tmp",
-    makeTemp: async () => candidate, removeTemp, canonicalPath, statPath, readDirectory, readPath,
+    makeTemp, removeTemp, canonicalPath, statPath, readDirectory, readPath,
     command,
   });
 }
@@ -1675,10 +1933,19 @@ function containerInspection({
     "--neo4j-uri", `bolt://${prefix}-neo4j-${name.at(-1)}:7687`,
   ] : neo4jImageCommand,
   mounts = name.includes("-cartography-") ? [
-    { Type: "bind", Source: proofDirectory, Destination: "/proof", RW: false },
-    { Type: "bind", Source: `${proofDirectory}/fixtures/org-${name.at(-1)}.json`, Destination: "/proof/fixture.json", RW: false },
+    {
+      Type: "bind", Source: proofDirectory, Destination: "/proof",
+      Mode: "ro", RW: false, Propagation: "rprivate",
+    },
+    {
+      Type: "bind", Source: `${proofDirectory}/fixtures/org-${name.at(-1)}.json`, Destination: "/proof/fixture.json",
+      Mode: "ro", RW: false, Propagation: "rprivate",
+    },
   ] : neo4jIntrinsicMounts,
-  binds = null,
+  binds = name.includes("-cartography-") ? [
+    `${proofDirectory}:/proof:ro`,
+    `${proofDirectory}/fixtures/org-${name.at(-1)}.json:/proof/fixture.json:ro`,
+  ] : null,
   hostMounts = null,
   tmpfs = null,
   attachedNetworkID = networkID,
@@ -1729,6 +1996,14 @@ function result(status = 0, stdout = "", stderr = "", signal = null) {
 
 function missingVolumeResult(name) {
   return result(1, "[]\n", `Error response from daemon: get ${name}: no such volume\n`);
+}
+
+function missingContainerResult(name) {
+  return result(1, "\n", `error: no such object: ${name}\n`);
+}
+
+function missingNetworkResult(name) {
+  return result(1, "\n", `Error response from daemon: network ${name} not found\n`);
 }
 
 function replaceInspectionField(value, index, replacement) {
