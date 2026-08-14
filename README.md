@@ -243,6 +243,27 @@ broad Prowler coverage, LocalStack IAM parity, or production runner behavior.
 R-06 is PASS with the retained reviewed M0-11 live evidence. M0-09 and PROV-01
 remain Blocked, and R-03 remains incomplete.
 
+## Tetragon signal proof
+
+M0-12 is In progress under an approved observation-only design. The proof will
+run one exact-owned disposable Kubernetes workload and require process, file,
+and outbound TCP events to carry the same Kubernetes workload identity. It
+will also require explicit Tetragon capability and drop state with no lost
+events before R-07 can pass.
+
+The selected immutable runtime includes:
+
+- `quay.io/cilium/tetragon:v1.7.0@sha256:deda51c3f88e4d26b4d76c99ea207f2b05f9e40c210e0f04a37ca632ab7bf527`
+- `quay.io/cilium/tetragon-operator:v1.7.0@sha256:074ffbd19208eed79f68e191ed606e05009f910b4bb5148efcf2973e13504b82`
+- `kindest/node:v1.35.5@sha256:ce977ae6d65918d0b58a5f8b5e940429c2ce42fa3a5619ec2bbc60b949c0ac95`
+
+The workload's outbound TCP action targets only an in-cluster fixture sink; it
+does not prove internet egress. The proof does not enable enforcement, treat
+Tetragon as semantic truth, or claim production-kernel coverage. R-07 remains
+Not run while implementation, exact live evidence, cleanup, and independent
+review are incomplete. M0-09 and PROV-01 remain Blocked, and R-03 remains
+incomplete.
+
 ## Real AWS cross-account IAM proof
 
 This proof is deliberately real-AWS-only. It requires two explicitly configured,

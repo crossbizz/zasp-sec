@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 717 |
-| In progress | 0 |
+| Pending | 716 |
+| In progress | 1 |
 | Complete | 10 |
 | Blocked | 1 |
 
@@ -23,7 +23,7 @@ In progress, Complete, or Blocked is Pending.
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 16 | 0 | 10 | 1 |
+| M0 | 27 | 15 | 1 | 10 | 1 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -68,13 +68,14 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts remain `717/0/10/1` because
+session configuration. The 728 source-plan counts are `716/1/10/1` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M0-12 | August 14, 2026 | The exact-pinned disposable Tetragon/Kubernetes proof is implementing process, file, and outbound TCP observations with one shared workload identity and explicit sensor capability/drop state; R-07 remains Not run pending live evidence and independent review. |
 
 ## Complete
 
@@ -207,3 +208,7 @@ provider capability gate.
   live run, cleanup audit, repository gates, license/secret scans, and a
   zero-finding independent re-review passed. R-06 is PASS with that retained
   evidence. M0-09 and PROV-01 remain Blocked, and R-03 remains incomplete.
+- M0-12 is In progress under the approved exact-pinned disposable Tetragon
+  design. R-07 remains Not run until the required three event classes, shared
+  workload identity, explicit capability/drop state, exact cleanup, gates, and
+  independent review all pass.

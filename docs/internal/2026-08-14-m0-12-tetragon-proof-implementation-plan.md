@@ -60,6 +60,8 @@ Kubernetes 1.35.5, Helm 3, kubectl, Tetragon 1.7.0, BusyBox 1.37.0.
 
 - Create: `app/quality/tetragon-signal-proof-contract.test.ts`
 - Modify: `app/quality/prowler-evidence-proof-contract.test.ts`
+- Modify: `app/quality/cartography-scope-proof-contract.test.ts`
+- Modify: `app/quality/localstack-iam-compat-proof-contract.test.ts`
 - Modify: `docs/internal/implementation_status_v1.5.md`
 - Modify: `README.md`
 
