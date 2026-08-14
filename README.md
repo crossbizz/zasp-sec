@@ -12,8 +12,9 @@ protecting, and adversarially testing agentic systems.
 - Cloud, model, framework, developer, data, and security connectors
 - Prompt hardening, attack testing, report generation, and scheduling
 
-All mutations are deterministic browser-local demo actions persisted with local
-storage. No credentials or production resources are changed.
+All application UI mutations are deterministic browser-local demo actions
+persisted with local storage. Separately documented proof commands use only
+their explicit disposable test fixtures; no production resource is changed.
 
 ## Development
 
@@ -140,6 +141,54 @@ is disabled only inside the disposable local test target. This is supported loca
 projection behavior evidence, not AWS OpenSearch Service, IAM, durability, recovery, or release-parity evidence.
 OpenSearch remains a rebuildable query projection rather than the durable SQS/S3
 event source of truth.
+
+## Real AWS cross-account IAM proof
+
+This proof is deliberately real-AWS-only. It requires two explicitly configured,
+isolated commercial AWS test accounts: source credentials authorized to assume the
+proof role and target-administrator credentials authorized to create and remove
+only the unique disposable role. LocalStack cannot satisfy this release-parity authorization gate.
+
+The ignored `.env` must provide these exact task-specific inputs:
+
+- `AWS_M009_ISOLATED_TEST`
+- `AWS_M009_REGION`
+- `AWS_M009_SOURCE_ACCOUNT_ID`
+- `AWS_M009_TARGET_ACCOUNT_ID`
+- `AWS_M009_SOURCE_PRINCIPAL_ARN`
+- `AWS_M009_SOURCE_ACCESS_KEY_ID`
+- `AWS_M009_SOURCE_SECRET_ACCESS_KEY`
+- `AWS_M009_TARGET_ADMIN_ACCESS_KEY_ID`
+- `AWS_M009_TARGET_ADMIN_SECRET_ACCESS_KEY`
+
+`AWS_M009_SOURCE_SESSION_TOKEN` and
+`AWS_M009_TARGET_ADMIN_SESSION_TOKEN` are optional when the corresponding
+explicit credential is not temporary. `AWS_M009_ISOLATED_TEST` must equal
+`isolated-disposable-aws-test-accounts-only`. Account IDs, role ARNs,
+credentials, session values, and provider responses are never printed.
+
+Before mutation, the command authenticates both credential sets, matches the
+separately configured expected accounts, proves the accounts differ, and requires
+the generated proof path to be empty. It then creates one exactly tagged role
+whose trust policy requires a generated external ID, role-session name, source
+identity, and session tag. The assumed role can call `iam:GetRole` only for
+itself, while an explicit policy denies `iam:ListRoles`. Cleanup independently
+re-authenticates the target administrator, re-proves the role, tags, trust and
+inline policy, removes them with no mutation retries, and audits the generated
+path empty.
+
+```bash
+npm run proof:aws:iam:test
+npm run proof:aws:iam:run
+```
+
+The runner passes only task-specific values to the proof binary; AWS profiles,
+shared config, IMDS, ambient proxies, custom endpoints, and provider debug output
+are disabled. The current workspace does not contain the task-specific isolated
+source/target fixture, so only the deterministic local test command is presently
+expected to pass. M0-09 and R-03 remain In progress until the documented live
+command proves the real allowed/denied results and exact cleanup in those isolated
+accounts. No shared, staging, customer, or production AWS account may be used.
 
 The application uses Vinext and targets the Cloudflare Workers runtime. Optional
 local D1 and R2 bindings can be enabled with `CLOUDFLARE_D1_BINDING` and
