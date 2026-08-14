@@ -34,6 +34,7 @@ const globalTemporaryPrefix = "zasp-m0-11-";
 const organizationID = "org_aaaaaaaaaaaaaaaa";
 const observationInstant = "2026-08-14T00:00:00.000Z";
 const accountID = "000000000000";
+const localstackRootUserID = "AKIAIOSFODNN7EXAMPLE";
 const region = "us-east-1";
 const roleName = "shared-fixture-role";
 const roleArn = `arn:aws:iam::${accountID}:role/${roleName}`;
@@ -778,7 +779,8 @@ export class DockerRuntime {
     let document;
     try { document = parseUniqueJson(response.stdout); } catch { return false; }
     return plainObject(document) && isDeepStrictEqual(Object.keys(document).sort(), ["Account", "Arn", "UserId"]) &&
-      document.Account === accountID && document.Arn === `arn:aws:iam::${accountID}:root` && document.UserId === accountID;
+      document.Account === accountID && document.Arn === `arn:aws:iam::${accountID}:root` &&
+      document.UserId === localstackRootUserID;
   }
 
   async createAndVerifyRole(phase = this.phase) {

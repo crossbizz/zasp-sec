@@ -644,7 +644,7 @@ test("verifies internal network and every LocalStack runtime ownership field", a
 
 test("uses synthetic in-container AWS calls, exact readiness, and single-attempt IAM creation", async () => {
   const runtime = scriptedRuntime([
-    result(0, `${JSON.stringify({ Account: "000000000000", Arn: "arn:aws:iam::000000000000:root", UserId: "000000000000" })}\n`),
+    result(0, `${JSON.stringify({ Account: "000000000000", Arn: "arn:aws:iam::000000000000:root", UserId: "AKIAIOSFODNN7EXAMPLE" })}\n`),
     result(0, `${JSON.stringify({ Role: roleDocument() })}\n`),
     result(0, `${JSON.stringify({ Role: roleDocument() })}\n`),
     result(0, `${JSON.stringify({ Tags: exactTags() })}\n`),
