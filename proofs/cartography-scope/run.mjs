@@ -36,6 +36,11 @@ const organizationBySlot = Object.freeze({
 const fixtureMountpointBytes = Buffer.from("{}\n");
 const fixtureMountpointDigest = "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356";
 const readinessBody = Buffer.from('{"statements":[{"statement":"RETURN 1"}]}');
+const neo4jProofEnvironment = Object.freeze([
+  "NEO4J_AUTH=none",
+  "NEO4J_db_tx__log_preallocate=false",
+  "NEO4J_db_tx__log_rotation_size=128K",
+]);
 
 export class Failure extends Error {
   constructor(category) {
@@ -78,9 +83,7 @@ export function buildNeo4jRunArguments(name, network) {
   return [
     "run", "--detach", "--rm", "--name", name,
     "--network", network,
-    "--env", "NEO4J_AUTH=none",
-    "--env", "NEO4J_db_tx__log_preallocate=false",
-    "--env", "NEO4J_db_tx__log_rotation_size=128K",
+    ...neo4jProofEnvironment.flatMap((value) => ["--env", value]),
     "--label", "zasp.proof=m0-10",
     "--label", `zasp.marker=${marker}`,
     "--publish", "127.0.0.1::7474",
@@ -365,20 +368,25 @@ export class DockerRuntime {
     this.networkToken = undefined;
     this.networkAttempted = false;
     this.containerTokens = new Map();
+    this.containerVolumes = new Map();
     this.containerAttempts = new Set();
     this.imageIDs = new Map();
+    this.imageRuntimeMetadata = new Map();
     this.neo4jPorts = new Map();
     this.neo4jHttpPorts = new Map();
     this.fixtureMountpointIdentity = undefined;
-    this.signal = undefined;
+    this.phaseGeneration = 0;
+    this.phase = Object.freeze({ generation: 0, signal: undefined });
   }
 
   setAbortSignal(signal) {
-    this.signal = signal;
+    this.phaseGeneration += 1;
+    this.phase = Object.freeze({ generation: this.phaseGeneration, signal });
+    return this.phase;
   }
 
-  assertActive(category = "operation") {
-    if (this.signal?.aborted === true) throw new Failure(category);
+  assertActive(category = "operation", phase = this.phase) {
+    if (phase !== this.phase || phase?.signal?.aborted === true) throw new Failure(category);
   }
 
   name(kind) {
@@ -388,13 +396,14 @@ export class DockerRuntime {
     return `${this.prefix}-${kind}`;
   }
 
-  async initialize() {
-    this.assertActive("configuration");
+  async initialize(phase = this.phase) {
+    this.assertActive("configuration", phase);
     let canonicalParent;
     let canonicalProof;
     try {
-      canonicalParent = await this.canonicalPath(this.tempParent);
-      canonicalProof = await this.canonicalPath(this.proofDirectory);
+      [canonicalParent, canonicalProof] = await Promise.all([
+        this.canonicalPath(this.tempParent), this.canonicalPath(this.proofDirectory),
+      ]);
     } catch {
       throw new Failure("configuration");
     }
@@ -404,16 +413,19 @@ export class DockerRuntime {
     ) {
       throw new Failure("configuration");
     }
-    this.assertActive("configuration");
+    this.assertActive("configuration", phase);
     this.tempParent = canonicalParent;
     const candidate = await this.makeTemp(join(this.tempParent, `${this.prefix}-docker-config-`));
-    const identity = await this.ownedEmptyTemporaryDirectory(candidate);
+    this.assertActive("configuration", phase);
+    const identity = await this.ownedEmptyTemporaryDirectory(candidate, "configuration", phase);
+    this.assertActive("configuration", phase);
     if (identity === undefined) throw new Failure("configuration");
     this.dockerConfigIdentity = identity;
-    this.assertActive("operation");
+    this.assertActive("operation", phase);
   }
 
-  async ownedEmptyTemporaryDirectory(value) {
+  async ownedEmptyTemporaryDirectory(value, category = "configuration", phase = this.phase) {
+    this.assertActive(category, phase);
     if (typeof value !== "string" || !isAbsolute(value) || resolve(value) !== value) return undefined;
     const requiredPrefix = join(this.tempParent, `${this.prefix}-docker-config-`);
     if (dirname(value) !== this.tempParent || !value.startsWith(requiredPrefix) || value.length === requiredPrefix.length) return undefined;
@@ -421,6 +433,7 @@ export class DockerRuntime {
       const [canonical, status, entries] = await Promise.all([
         this.canonicalPath(value), this.statPath(value), this.readDirectory(value),
       ]);
+      this.assertActive(category, phase);
       if (
         canonical !== value || !status?.isDirectory?.() || status?.isSymbolicLink?.() ||
         !Number.isSafeInteger(status.dev) || !Number.isSafeInteger(status.ino) ||
@@ -432,122 +445,154 @@ export class DockerRuntime {
     }
   }
 
-  async cleanupDockerConfig() {
-    this.assertActive("cleanup");
+  async cleanupDockerConfig(phase = this.phase) {
+    this.assertActive("cleanup", phase);
     if (this.dockerConfigIdentity === undefined) return;
-    const current = await this.ownedEmptyTemporaryDirectory(this.dockerConfigIdentity.path);
+    const current = await this.ownedEmptyTemporaryDirectory(this.dockerConfigIdentity.path, "cleanup", phase);
+    this.assertActive("cleanup", phase);
     if (
       current === undefined || current.dev !== this.dockerConfigIdentity.dev ||
       current.ino !== this.dockerConfigIdentity.ino
     ) {
       throw new Failure("cleanup");
     }
-    this.assertActive("cleanup");
+    this.assertActive("cleanup", phase);
     try {
       await this.removeTemp(current.path, { recursive: true, force: false, maxRetries: 0 });
     } catch {
       throw new Failure("cleanup");
     }
+    this.assertActive("cleanup", phase);
     try {
       await this.statPath(current.path);
       throw new Failure("cleanup");
     } catch (error) {
       if (error instanceof Failure || error?.code !== "ENOENT") throw new Failure("cleanup");
     }
+    this.assertActive("cleanup", phase);
     this.dockerConfigIdentity = undefined;
   }
 
-  async requireTemporaryPrefixAbsent(category = "cleanup") {
+  async requireTemporaryPrefixAbsent(category = "cleanup", phase = this.phase) {
+    this.assertActive(category, phase);
     let entries;
     try { entries = await this.readDirectory(this.tempParent); } catch { throw new Failure(category); }
+    this.assertActive(category, phase);
     if (!Array.isArray(entries) || entries.some((entry) => typeof entry !== "string" || entry.startsWith("zasp-m0-10-"))) {
       throw new Failure(category);
     }
   }
 
-  dockerOptions(options = {}) {
-    this.assertActive(options.category ?? "provider");
+  dockerOptions(options = {}, phase = this.phase) {
+    this.assertActive(options.category ?? "provider", phase);
     if (this.dockerConfigIdentity === undefined) throw new Failure(options.category ?? "provider");
     return {
       env: { PATH: this.path, DOCKER_CONFIG: this.dockerConfigIdentity.path },
       timeoutMs: options.timeoutMs ?? dockerTimeoutMs,
       outputLimit: options.outputLimit ?? outputLimit,
       category: options.category ?? "provider",
-      ...(this.signal === undefined ? {} : { signal: this.signal }),
+      ...(phase.signal === undefined ? {} : { signal: phase.signal }),
     };
   }
 
-  async dockerRead(args, options = {}) {
-    return this.command("docker", args, this.dockerOptions(options), this.spawnProcess);
+  async dockerRead(args, options = {}, phase = this.phase) {
+    this.assertActive(options.category ?? "provider", phase);
+    const result = await this.command("docker", args, this.dockerOptions(options, phase), this.spawnProcess);
+    this.assertActive(options.category ?? "provider", phase);
+    return result;
   }
 
-  async readDocker(args, options = {}) {
+  async readDocker(args, options = {}, phase = this.phase) {
     let result;
     const category = options.category ?? "provider";
+    this.assertActive(category, phase);
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
-        result = await this.dockerRead(args, options);
+        result = await this.dockerRead(args, options, phase);
+        this.assertActive(category, phase);
       } catch {
-        this.assertActive(category);
+        this.assertActive(category, phase);
         if (attempt === 1) throw new Failure(category);
-        try { await this.wait(250, this.signal); } catch { throw new Failure(category); }
-        this.assertActive(category);
+        try { await this.wait(250, phase.signal); } catch { throw new Failure(category); }
+        this.assertActive(category, phase);
         continue;
       }
       if (result?.status === 0 && result?.signal === null) return result;
       if (attempt === 0) {
-        this.assertActive(category);
-        try { await this.wait(250, this.signal); } catch { throw new Failure(category); }
-        this.assertActive(category);
+        this.assertActive(category, phase);
+        try { await this.wait(250, phase.signal); } catch { throw new Failure(category); }
+        this.assertActive(category, phase);
       }
     }
     return result;
   }
 
-  async dockerMutation(args, options = {}) {
-    return this.command("docker", args, this.dockerOptions(options), this.spawnProcess);
+  async dockerMutation(args, options = {}, phase = this.phase) {
+    const category = options.category ?? "provider";
+    this.assertActive(category, phase);
+    const result = await this.command("docker", args, this.dockerOptions(options, phase), this.spawnProcess);
+    this.assertActive(category, phase);
+    return result;
   }
 
-  async preflight() {
-    await this.requirePrefixAbsent();
+  async preflight(phase = this.phase) {
+    this.assertActive("provider", phase);
+    await this.requirePrefixAbsent("ownership", phase);
+    this.assertActive("provider", phase);
     let entries;
     try { entries = await this.readDirectory(this.tempParent); } catch { throw new Failure("provider"); }
+    this.assertActive("provider", phase);
     const admitted = basename(this.dockerConfigIdentity?.path ?? "");
     if (!Array.isArray(entries) || entries.some((entry) => typeof entry !== "string" || (entry.startsWith("zasp-m0-10-") && entry !== admitted))) {
       throw new Failure("ownership");
     }
   }
 
-  async resolveImages() {
-    await this.resolveImage(NEO4J_IMAGE);
-    await this.resolveImage(CARTOGRAPHY_IMAGE);
+  async resolveImages(phase = this.phase) {
+    this.assertActive("provider", phase);
+    await this.resolveImage(NEO4J_IMAGE, phase);
+    this.assertActive("provider", phase);
+    await this.resolveImage(CARTOGRAPHY_IMAGE, phase);
+    this.assertActive("provider", phase);
   }
 
-  async resolveImage(image) {
-    const inspectArguments = ["image", "inspect", "--format", "{{.Id}}", image];
-    let inspected = await this.readDocker(inspectArguments, { category: "provider" });
+  async resolveImage(image, phase = this.phase) {
+    this.assertActive("provider", phase);
+    const inspectArguments = [
+      "image", "inspect", "--format",
+      "[{{json .Id}},{{json .Config.Env}},{{json .Config.Entrypoint}},{{json .Config.Cmd}},{{json (index .Config \"ExposedPorts\")}},{{json (index .Config \"Volumes\")}}]",
+      image,
+    ];
+    let inspected = await this.readDocker(inspectArguments, { category: "provider" }, phase);
+    this.assertActive("provider", phase);
     if (inspected?.status !== 0 || inspected?.signal !== null) {
       const pulled = await this.dockerMutation(["pull", image], {
         category: "provider", timeoutMs: imagePullTimeoutMs,
-      });
+      }, phase);
+      this.assertActive("provider", phase);
       if (pulled?.status !== 0 || pulled?.signal !== null) throw new Failure("provider");
-      inspected = await this.readDocker(inspectArguments, { category: "provider" });
+      inspected = await this.readDocker(inspectArguments, { category: "provider" }, phase);
+      this.assertActive("provider", phase);
     }
-    const identifier = singleLine(inspected?.stdout);
-    if (inspected?.status !== 0 || inspected?.signal !== null || inspected?.stderr !== "" || !imageIDPattern.test(identifier)) {
+    const metadata = parseImageRuntimeMetadata(inspected?.stdout);
+    if (inspected?.status !== 0 || inspected?.signal !== null || inspected?.stderr !== "" || metadata === undefined) {
       throw new Failure("provider");
     }
-    this.imageIDs.set(image, identifier);
-    return identifier;
+    this.assertActive("provider", phase);
+    this.imageIDs.set(image, metadata.identifier);
+    this.imageRuntimeMetadata.set(image, metadata.runtime);
+    return metadata.identifier;
   }
 
-  async requirePrefixAbsent(category = "ownership") {
+  async requirePrefixAbsent(category = "ownership", phase = this.phase) {
+    this.assertActive(category, phase);
     const containers = await this.readDocker([
       "ps", "--all", "--no-trunc", "--filter", "name=^/zasp-m0-10-", "--format", "{{.ID}}|{{.Names}}",
-    ], { category });
+    ], { category }, phase);
     const networks = await this.readDocker([
       "network", "ls", "--no-trunc", "--filter", "name=^zasp-m0-10-", "--format", "{{.ID}}|{{.Name}}",
-    ], { category });
+    ], { category }, phase);
+    this.assertActive(category, phase);
     if (containers?.status !== 0 || networks?.status !== 0 || containers?.stderr !== "" || networks?.stderr !== "") {
       throw new Failure(category);
     }
@@ -557,29 +602,35 @@ export class DockerRuntime {
     }
   }
 
-  async createNetwork() {
+  async createNetwork(phase = this.phase) {
+    this.assertActive("provider", phase);
     this.networkAttempted = true;
     let created;
     try {
-      created = await this.dockerMutation(buildNetworkCreateArguments(this.networkName), { category: "provider" });
+      created = await this.dockerMutation(buildNetworkCreateArguments(this.networkName), { category: "provider" }, phase);
     } catch {
-      this.assertActive("provider");
+      this.assertActive("provider", phase);
     }
+    this.assertActive("provider", phase);
     const direct = singleLine(created?.stdout);
     if (objectIDPattern.test(direct)) this.networkToken = direct;
     if (created?.status !== 0 || created?.signal !== null || !objectIDPattern.test(direct)) {
-      const candidates = await this.namedNetworkCandidates("ownership");
+      const candidates = await this.namedNetworkCandidates("ownership", phase);
+      this.assertActive("ownership", phase);
       if (candidates.length !== 1) throw new Failure("ownership");
       this.networkToken = candidates[0];
     }
-    await this.verifyNetwork("ownership");
+    await this.verifyNetwork("ownership", undefined, phase);
+    this.assertActive("ownership", phase);
     return this.networkToken;
   }
 
-  async namedNetworkCandidates(category) {
+  async namedNetworkCandidates(category, phase = this.phase) {
+    this.assertActive(category, phase);
     const listed = await this.readDocker([
       "network", "ls", "--no-trunc", "--filter", `name=^${this.networkName}$`, "--format", "{{.ID}}|{{.Name}}",
-    ], { category });
+    ], { category }, phase);
+    this.assertActive(category, phase);
     if (listed?.status !== 0 || listed?.stderr !== "") throw new Failure(category);
     const pairs = parsePairs(listed.stdout);
     if (pairs.some(([identifier, name]) => !objectIDPattern.test(identifier) || name !== this.networkName)) {
@@ -588,17 +639,20 @@ export class DockerRuntime {
     return pairs.map(([identifier]) => identifier);
   }
 
-  async inspectNetwork(token, category) {
+  async inspectNetwork(token, category, phase = this.phase) {
+    this.assertActive(category, phase);
     if (!objectIDPattern.test(token ?? "")) throw new Failure(category);
     return this.readDocker([
       "network", "inspect", "--format",
       "{{.Id}}|{{.Name}}|{{index .Labels \"zasp.proof\"}}|{{index .Labels \"zasp.marker\"}}",
       token,
-    ], { category });
+    ], { category }, phase);
   }
 
-  async verifyNetwork(category = "ownership", inspectedResult) {
-    const inspected = inspectedResult ?? await this.inspectNetwork(this.networkToken, category);
+  async verifyNetwork(category = "ownership", inspectedResult, phase = this.phase) {
+    this.assertActive(category, phase);
+    const inspected = inspectedResult ?? await this.inspectNetwork(this.networkToken, category, phase);
+    this.assertActive(category, phase);
     const fields = singleLine(inspected?.stdout).split("|");
     if (
       inspected?.status !== 0 || inspected?.stderr !== "" || fields.length !== 4 ||
@@ -608,25 +662,29 @@ export class DockerRuntime {
     return this.networkToken;
   }
 
-  async startNeo4j(slot) {
+  async startNeo4j(slot, phase = this.phase) {
+    this.assertActive("provider", phase);
     validateSlot(slot);
     const kind = `neo4j-${slot}`;
     const name = this.name(kind);
     this.containerAttempts.add(kind);
     let started;
     try {
-      started = await this.dockerMutation(buildNeo4jRunArguments(name, this.networkName), { category: "provider" });
+      started = await this.dockerMutation(buildNeo4jRunArguments(name, this.networkName), { category: "provider" }, phase);
     } catch {
-      this.assertActive("provider");
+      this.assertActive("provider", phase);
     }
-    return this.resolveContainerCreate(kind, started);
+    this.assertActive("provider", phase);
+    return this.resolveContainerCreate(kind, started, phase);
   }
 
-  async ensureProofDirectory() {
+  async ensureProofDirectory(phase = this.phase) {
+    this.assertActive("ownership", phase);
     try {
       const [canonical, status] = await Promise.all([
         this.canonicalPath(this.proofDirectory), this.statPath(this.proofDirectory),
       ]);
+      this.assertActive("ownership", phase);
       if (
         canonical !== this.proofDirectory || !status?.isDirectory?.() || status?.isSymbolicLink?.() ||
         !Number.isSafeInteger(status.dev) || !Number.isSafeInteger(status.ino)
@@ -636,13 +694,15 @@ export class DockerRuntime {
     }
   }
 
-  async ensureFixtureFile(slot) {
+  async ensureFixtureFile(slot, phase = this.phase) {
+    this.assertActive("ownership", phase);
     validateSlot(slot);
     const fixture = join(this.proofDirectory, "fixtures", `org-${slot}.json`);
     try {
       const [canonical, status] = await Promise.all([
         this.canonicalPath(fixture), this.statPath(fixture),
       ]);
+      this.assertActive("ownership", phase);
       if (
         canonical !== fixture || !status?.isFile?.() || status?.isSymbolicLink?.() ||
         !Number.isSafeInteger(status.dev) || !Number.isSafeInteger(status.ino)
@@ -653,7 +713,8 @@ export class DockerRuntime {
     return fixture;
   }
 
-  async ensureFixtureMountpoint(category = "ownership") {
+  async ensureFixtureMountpoint(category = "ownership", phase = this.phase) {
+    this.assertActive(category, phase);
     const mountpoint = join(this.proofDirectory, "fixture.json");
     let canonical;
     let status;
@@ -662,6 +723,7 @@ export class DockerRuntime {
       [canonical, status, bytes] = await Promise.all([
         this.canonicalPath(mountpoint), this.statPath(mountpoint), this.readPath(mountpoint),
       ]);
+      this.assertActive(category, phase);
     } catch {
       throw new Failure(category);
     }
@@ -683,11 +745,13 @@ export class DockerRuntime {
     return mountpoint;
   }
 
-  async createCartography(slot) {
+  async createCartography(slot, phase = this.phase) {
+    this.assertActive("provider", phase);
     validateSlot(slot);
-    await this.ensureProofDirectory();
-    await this.ensureFixtureMountpoint();
-    await this.ensureFixtureFile(slot);
+    await this.ensureProofDirectory(phase);
+    await this.ensureFixtureMountpoint("ownership", phase);
+    await this.ensureFixtureFile(slot, phase);
+    this.assertActive("provider", phase);
     const kind = `cartography-${slot}`;
     const name = this.name(kind);
     this.containerAttempts.add(kind);
@@ -695,30 +759,36 @@ export class DockerRuntime {
     try {
       created = await this.dockerMutation(buildCartographyCreateArguments(
         name, this.name(`neo4j-${slot}`), this.networkName, this.proofDirectory, slot,
-      ), { category: "provider" });
+      ), { category: "provider" }, phase);
     } catch {
-      this.assertActive("provider");
+      this.assertActive("provider", phase);
     }
-    return this.resolveContainerCreate(kind, created);
+    this.assertActive("provider", phase);
+    return this.resolveContainerCreate(kind, created, phase);
   }
 
-  async resolveContainerCreate(kind, created) {
+  async resolveContainerCreate(kind, created, phase = this.phase) {
+    this.assertActive("ownership", phase);
     const direct = singleLine(created?.stdout);
     if (objectIDPattern.test(direct)) this.containerTokens.set(kind, direct);
     if (created?.status !== 0 || created?.signal !== null || !objectIDPattern.test(direct)) {
-      const candidates = await this.namedContainerCandidates(kind, "ownership");
+      const candidates = await this.namedContainerCandidates(kind, "ownership", phase);
+      this.assertActive("ownership", phase);
       if (candidates.length !== 1) throw new Failure("ownership");
       this.containerTokens.set(kind, candidates[0]);
     }
-    await this.verifyContainer(kind, "ownership");
+    await this.verifyContainer(kind, "ownership", undefined, phase);
+    this.assertActive("ownership", phase);
     return this.containerTokens.get(kind);
   }
 
-  async namedContainerCandidates(kind, category) {
+  async namedContainerCandidates(kind, category, phase = this.phase) {
+    this.assertActive(category, phase);
     const name = this.name(kind);
     const listed = await this.readDocker([
       "ps", "--all", "--no-trunc", "--filter", `name=^/${name}$`, "--format", "{{.ID}}|{{.Names}}",
-    ], { category });
+    ], { category }, phase);
+    this.assertActive(category, phase);
     if (listed?.status !== 0 || listed?.stderr !== "") throw new Failure(category);
     const pairs = parsePairs(listed.stdout);
     if (pairs.some(([identifier, candidateName]) => !objectIDPattern.test(identifier) || candidateName !== name)) {
@@ -727,16 +797,18 @@ export class DockerRuntime {
     return pairs.map(([identifier]) => identifier);
   }
 
-  async inspectContainer(token, category) {
+  async inspectContainer(token, category, phase = this.phase) {
+    this.assertActive(category, phase);
     if (!objectIDPattern.test(token ?? "")) throw new Failure(category);
     return this.readDocker([
       "inspect", "--format",
-      "{{.Id}}|{{.Name}}|{{.Config.Hostname}}|{{.Image}}|{{.Config.Image}}|{{index .Config.Labels \"zasp.proof\"}}|{{index .Config.Labels \"zasp.marker\"}}|{{.HostConfig.NetworkMode}}|{{json .NetworkSettings.Networks}}|{{json .Config.Env}}|{{json .NetworkSettings.Ports}}|{{json .Config.Entrypoint}}|{{json .Config.Cmd}}|{{json .Mounts}}",
+      "{{.Id}}|{{.Name}}|{{.Config.Hostname}}|{{.Image}}|{{.Config.Image}}|{{index .Config.Labels \"zasp.proof\"}}|{{index .Config.Labels \"zasp.marker\"}}|{{.HostConfig.NetworkMode}}|{{json .NetworkSettings.Networks}}|{{json .Config.Env}}|{{json .HostConfig.PortBindings}}|{{json .NetworkSettings.Ports}}|{{json .Config.Entrypoint}}|{{json .Config.Cmd}}|{{json .Mounts}}|{{json (index .HostConfig \"Binds\")}}|{{json (index .HostConfig \"Mounts\")}}|{{json (index .HostConfig \"Tmpfs\")}}",
       token,
-    ], { category });
+    ], { category }, phase);
   }
 
-  async verifyContainer(kind, category = "ownership", inspectedResult) {
+  async verifyContainer(kind, category = "ownership", inspectedResult, phase = this.phase) {
+    this.assertActive(category, phase);
     const token = this.containerTokens.get(kind);
     if (!objectIDPattern.test(token ?? "") || !objectIDPattern.test(this.networkToken ?? "")) {
       throw new Failure(category);
@@ -744,22 +816,31 @@ export class DockerRuntime {
     const expectedImage = kind.startsWith("neo4j-") ? NEO4J_IMAGE : CARTOGRAPHY_IMAGE;
     const imageID = this.imageIDs.get(expectedImage);
     if (!imageIDPattern.test(imageID ?? "")) throw new Failure(category);
-    const inspected = inspectedResult ?? await this.inspectContainer(token, category);
+    const inspected = inspectedResult ?? await this.inspectContainer(token, category, phase);
+    this.assertActive(category, phase);
     const fields = singleLine(inspected?.stdout).split("|");
-    if (inspected?.status !== 0 || inspected?.stderr !== "" || fields.length !== 14) throw new Failure(category);
+    if (inspected?.status !== 0 || inspected?.stderr !== "" || fields.length !== 18) throw new Failure(category);
     let networks;
     let environment;
+    let portBindings;
     let ports;
     let entrypoint;
     let command;
     let mounts;
+    let binds;
+    let hostMounts;
+    let tmpfs;
     try {
       networks = JSON.parse(fields[8]);
       environment = JSON.parse(fields[9]);
-      ports = JSON.parse(fields[10]);
-      entrypoint = JSON.parse(fields[11]);
-      command = JSON.parse(fields[12]);
-      mounts = JSON.parse(fields[13]);
+      portBindings = JSON.parse(fields[10]);
+      ports = JSON.parse(fields[11]);
+      entrypoint = JSON.parse(fields[12]);
+      command = JSON.parse(fields[13]);
+      mounts = JSON.parse(fields[14]);
+      binds = JSON.parse(fields[15]);
+      hostMounts = JSON.parse(fields[16]);
+      tmpfs = JSON.parse(fields[17]);
     } catch {
       throw new Failure(category);
     }
@@ -776,32 +857,51 @@ export class DockerRuntime {
       Object.keys(networks).length !== 1 ||
       (attachedNetworkID !== this.networkToken && !preStartCartographyNetwork) ||
       !Array.isArray(environment) || environment.some((value) => typeof value !== "string") ||
-      !plainObject(ports) || !Array.isArray(mounts)
+      !plainObject(portBindings) || !plainObject(ports) || !Array.isArray(mounts)
     ) throw new Failure(category);
 
     if (kind.startsWith("neo4j-")) {
-      const auth = environment.filter((value) => value.startsWith("NEO4J_AUTH="));
-      const logPreallocate = environment.filter((value) => value.startsWith("NEO4J_db_tx__log_preallocate="));
-      const logRotationSize = environment.filter((value) => value.startsWith("NEO4J_db_tx__log_rotation_size="));
-      const httpOverrides = environment.filter((value) => value.startsWith("NEO4J_server_http_"));
+      const imageRuntime = this.imageRuntimeMetadata.get(NEO4J_IMAGE);
+      const imageEnvironment = exactEnvironment(imageRuntime?.environment);
+      const imageEntrypoint = exactStringArray(imageRuntime?.entrypoint);
+      const imageCommand = exactStringArray(imageRuntime?.command);
+      const imageExposedPorts = exactPortArray(imageRuntime?.exposedPorts);
+      const imageVolumes = exactVolumeArray(imageRuntime?.volumes);
+      const retainedVolumes = exactIntrinsicVolumes(mounts, imageVolumes);
+      const existingVolumes = this.containerVolumes.get(kind);
+      const portKeys = Object.keys(ports).sort();
       const httpBindings = ports["7474/tcp"];
       const boltBindings = ports["7687/tcp"];
       if (
-        auth.length !== 1 || auth[0] !== "NEO4J_AUTH=none" ||
-        logPreallocate.length !== 1 || logPreallocate[0] !== "NEO4J_db_tx__log_preallocate=false" ||
-        logRotationSize.length !== 1 || logRotationSize[0] !== "NEO4J_db_tx__log_rotation_size=128K" ||
-        httpOverrides.length !== 0 ||
-        environment.some((value) => value !== "NEO4J_AUTH=none" && forbiddenCredentialEnvironmentPattern.test(value)) ||
-        Object.entries(ports).some(([port, value]) => !["7474/tcp", "7687/tcp"].includes(port) && value !== null) ||
+        !exactNeo4jEnvironment(environment, imageEnvironment) ||
+        imageEntrypoint === undefined || !isDeepStrictEqual(entrypoint, imageEntrypoint) ||
+        imageCommand === undefined || !isDeepStrictEqual(command, imageCommand) ||
+        imageExposedPorts === undefined || imageVolumes === undefined || retainedVolumes === undefined ||
+        !isDeepStrictEqual(Object.keys(portBindings).sort(), ["7474/tcp", "7687/tcp"]) ||
+        !isDeepStrictEqual(portBindings["7474/tcp"], [{ HostIp: "127.0.0.1", HostPort: "" }]) ||
+        !isDeepStrictEqual(portBindings["7687/tcp"], [{ HostIp: "127.0.0.1", HostPort: "" }]) ||
+        !isDeepStrictEqual(portKeys, imageExposedPorts) ||
+        imageExposedPorts.some((port) => !["7474/tcp", "7687/tcp"].includes(port) && ports[port] !== null) ||
+        binds !== null || hostMounts !== null || tmpfs !== null ||
         !Array.isArray(httpBindings) || httpBindings.length !== 1 ||
-        httpBindings[0]?.HostIp !== "127.0.0.1" || !highPort(httpBindings[0]?.HostPort) ||
+        !plainObject(httpBindings[0]) ||
+        !isDeepStrictEqual(Object.keys(httpBindings[0]).sort(), ["HostIp", "HostPort"]) ||
+        httpBindings[0].HostIp !== "127.0.0.1" || !highPort(httpBindings[0].HostPort) ||
         !Array.isArray(boltBindings) || boltBindings.length !== 1 ||
-        boltBindings[0]?.HostIp !== "127.0.0.1" || !highPort(boltBindings[0]?.HostPort) ||
+        !plainObject(boltBindings[0]) ||
+        !isDeepStrictEqual(Object.keys(boltBindings[0]).sort(), ["HostIp", "HostPort"]) ||
+        boltBindings[0].HostIp !== "127.0.0.1" || !highPort(boltBindings[0].HostPort) ||
         httpBindings[0].HostPort === boltBindings[0].HostPort
       ) throw new Failure(category);
+      if (existingVolumes === undefined) {
+        this.assertActive(category, phase);
+        this.containerVolumes.set(kind, retainedVolumes);
+      } else if (!isDeepStrictEqual(existingVolumes, retainedVolumes)) {
+        throw new Failure(category);
+      }
     } else if (
       environment.some((value) => forbiddenCredentialEnvironmentPattern.test(value)) ||
-      Object.values(ports).some((value) => value !== null) ||
+      Object.keys(portBindings).length !== 0 || Object.values(ports).some((value) => value !== null) ||
       !isDeepStrictEqual(entrypoint, ["python"]) ||
       !isDeepStrictEqual(command, [
         "-I", "-c", CARTOGRAPHY_BOOTSTRAP, this.name(kind), "/proof/fixture_runner.py",
@@ -814,18 +914,21 @@ export class DockerRuntime {
       fixtureMount?.RW !== false || fixtureMount?.Type !== "bind"
     ) throw new Failure(category);
     else {
-      await this.ensureFixtureMountpoint(category);
-      if (preStartCartographyNetwork) await this.verifyNetwork(category);
+      await this.ensureFixtureMountpoint(category, phase);
+      if (preStartCartographyNetwork) await this.verifyNetwork(category, undefined, phase);
+      this.assertActive(category, phase);
     }
     return token;
   }
 
-  async neo4jPort(slot) {
+  async neo4jPort(slot, phase = this.phase) {
+    this.assertActive("ownership", phase);
     validateSlot(slot);
     const kind = `neo4j-${slot}`;
-    const token = await this.verifyContainer(kind, "ownership");
-    const bolt = await this.readDocker(["port", token, "7687/tcp"], { category: "provider" });
-    const http = await this.readDocker(["port", token, "7474/tcp"], { category: "provider" });
+    const token = await this.verifyContainer(kind, "ownership", undefined, phase);
+    const bolt = await this.readDocker(["port", token, "7687/tcp"], { category: "provider" }, phase);
+    const http = await this.readDocker(["port", token, "7474/tcp"], { category: "provider" }, phase);
+    this.assertActive("provider", phase);
     const boltMatch = /^127\.0\.0\.1:([0-9]{4,5})\n?$/.exec(String(bolt?.stdout ?? ""));
     const httpMatch = /^127\.0\.0\.1:([0-9]{4,5})\n?$/.exec(String(http?.stdout ?? ""));
     if (
@@ -841,7 +944,8 @@ export class DockerRuntime {
     return boltPort;
   }
 
-  async isNeo4jReady(slot) {
+  async isNeo4jReady(slot, phase = this.phase) {
+    this.assertActive("provider", phase);
     validateSlot(slot);
     const boltPort = this.neo4jPorts.get(slot);
     const httpPort = this.neo4jHttpPorts.get(slot);
@@ -852,25 +956,27 @@ export class DockerRuntime {
     ) throw new Failure("ownership");
     try {
       const ready = await this.readinessProbe(httpPort, {
-        signal: this.signal,
+        signal: phase.signal,
         timeoutMs: readinessTimeoutMs,
       });
-      this.assertActive("provider");
+      this.assertActive("provider", phase);
       return ready === true;
     } catch {
-      this.assertActive("provider");
+      this.assertActive("provider", phase);
       return false;
     }
   }
 
-  async attachCartography(slot) {
+  async attachCartography(slot, phase = this.phase) {
+    this.assertActive("operation", phase);
     validateSlot(slot);
     const kind = `cartography-${slot}`;
     const token = this.containerTokens.get(kind);
     if (!objectIDPattern.test(token ?? "")) throw new Failure("normalization");
     const attached = await this.dockerMutation(["start", "--attach", token], {
       category: "operation", timeoutMs: bridgeTimeoutMs, outputLimit,
-    });
+    }, phase);
+    this.assertActive("operation", phase);
     const stdout = typeof attached?.stdout === "string" ? attached.stdout : "";
     const stderr = typeof attached?.stderr === "string" ? attached.stderr : "";
     if (
@@ -887,93 +993,133 @@ export class DockerRuntime {
     return this.containerAttempts.has(kind) || objectIDPattern.test(this.containerTokens.get(kind) ?? "");
   }
 
-  async removeContainer(kind) {
+  async removeContainer(kind, phase = this.phase) {
+    this.assertActive("cleanup", phase);
     const known = this.containerTokens.get(kind);
     let token;
     let inspected;
     if (objectIDPattern.test(known ?? "")) {
-      inspected = await this.inspectContainer(known, "cleanup");
+      inspected = await this.inspectContainer(known, "cleanup", phase);
+      this.assertActive("cleanup", phase);
       if (inspected?.status === 0) {
         token = known;
       } else {
-        const candidates = await this.namedContainerCandidates(kind, "cleanup");
+        const candidates = await this.namedContainerCandidates(kind, "cleanup", phase);
+        this.assertActive("cleanup", phase);
         if (candidates.length === 0) return;
         if (candidates.length !== 1 || candidates[0] !== known) throw new Failure("cleanup");
         token = known;
         inspected = undefined;
       }
     } else {
-      const candidates = await this.namedContainerCandidates(kind, "cleanup");
+      const candidates = await this.namedContainerCandidates(kind, "cleanup", phase);
+      this.assertActive("cleanup", phase);
       if (candidates.length === 0) return;
       if (candidates.length !== 1) throw new Failure("cleanup");
       token = candidates[0];
       this.containerTokens.set(kind, token);
     }
-    await this.verifyContainer(kind, "cleanup", inspected?.status === 0 ? inspected : undefined);
+    await this.verifyContainer(kind, "cleanup", inspected?.status === 0 ? inspected : undefined, phase);
+    this.assertActive("cleanup", phase);
     let removed;
     try {
-      removed = await this.dockerMutation(["rm", "--force", token], { category: "cleanup" });
+      removed = await this.dockerMutation([
+        "rm", "--force", ...(kind.startsWith("neo4j-") ? ["--volumes"] : []), token,
+      ], { category: "cleanup" }, phase);
     } catch {
-      this.assertActive("cleanup");
-      await this.requireContainerAbsent(kind);
+      this.assertActive("cleanup", phase);
+      await this.requireContainerAbsent(kind, phase);
+      await this.requireContainerVolumesAbsent(kind, phase);
       return;
     }
+    this.assertActive("cleanup", phase);
     if (removed?.status !== 0 || removed?.signal !== null || singleLine(removed?.stdout) !== token) {
-      await this.requireContainerAbsent(kind);
+      await this.requireContainerAbsent(kind, phase);
+    }
+    await this.requireContainerVolumesAbsent(kind, phase);
+    this.assertActive("cleanup", phase);
+  }
+
+  async requireContainerVolumesAbsent(kind, phase = this.phase) {
+    this.assertActive("cleanup", phase);
+    if (!kind.startsWith("neo4j-")) return;
+    const volumes = this.containerVolumes.get(kind);
+    if (!Array.isArray(volumes) || volumes.length === 0 || volumes.some((name) => !objectIDPattern.test(name))) {
+      throw new Failure("cleanup");
+    }
+    for (const name of volumes) {
+      const inspected = await this.readDocker(["volume", "inspect", name], { category: "cleanup" }, phase);
+      this.assertActive("cleanup", phase);
+      if (
+        inspected?.status !== 1 || inspected?.signal !== null || inspected?.stdout !== "[]\n" ||
+        inspected?.stderr !== `Error response from daemon: get ${name}: no such volume\n`
+      ) throw new Failure("cleanup");
     }
   }
 
-  async requireContainerAbsent(kind) {
+  async requireContainerAbsent(kind, phase = this.phase) {
+    this.assertActive("cleanup", phase);
     const token = this.containerTokens.get(kind);
     if (objectIDPattern.test(token ?? "")) {
-      const inspected = await this.inspectContainer(token, "cleanup");
+      const inspected = await this.inspectContainer(token, "cleanup", phase);
+      this.assertActive("cleanup", phase);
       if (inspected?.status === 0) throw new Failure("cleanup");
     }
-    const candidates = await this.namedContainerCandidates(kind, "cleanup");
+    const candidates = await this.namedContainerCandidates(kind, "cleanup", phase);
+    this.assertActive("cleanup", phase);
     if (candidates.length !== 0) throw new Failure("cleanup");
   }
 
-  async removeNetwork() {
+  async removeNetwork(phase = this.phase) {
+    this.assertActive("cleanup", phase);
     const known = this.networkToken;
     let token;
     let inspected;
     if (objectIDPattern.test(known ?? "")) {
-      inspected = await this.inspectNetwork(known, "cleanup");
+      inspected = await this.inspectNetwork(known, "cleanup", phase);
+      this.assertActive("cleanup", phase);
       if (inspected?.status === 0) token = known;
       else {
-        const candidates = await this.namedNetworkCandidates("cleanup");
+        const candidates = await this.namedNetworkCandidates("cleanup", phase);
+        this.assertActive("cleanup", phase);
         if (candidates.length === 0) return;
         if (candidates.length !== 1 || candidates[0] !== known) throw new Failure("cleanup");
         token = known;
         inspected = undefined;
       }
     } else {
-      const candidates = await this.namedNetworkCandidates("cleanup");
+      const candidates = await this.namedNetworkCandidates("cleanup", phase);
+      this.assertActive("cleanup", phase);
       if (candidates.length === 0) return;
       if (candidates.length !== 1) throw new Failure("cleanup");
       token = candidates[0];
       this.networkToken = token;
     }
-    await this.verifyNetwork("cleanup", inspected);
+    await this.verifyNetwork("cleanup", inspected, phase);
+    this.assertActive("cleanup", phase);
     let removed;
     try {
-      removed = await this.dockerMutation(["network", "rm", token], { category: "cleanup" });
+      removed = await this.dockerMutation(["network", "rm", token], { category: "cleanup" }, phase);
     } catch {
-      this.assertActive("cleanup");
-      await this.requireNetworkAbsent();
+      this.assertActive("cleanup", phase);
+      await this.requireNetworkAbsent(phase);
       return;
     }
+    this.assertActive("cleanup", phase);
     if (removed?.status !== 0 || removed?.signal !== null || singleLine(removed?.stdout) !== token) {
-      await this.requireNetworkAbsent();
+      await this.requireNetworkAbsent(phase);
     }
   }
 
-  async requireNetworkAbsent() {
+  async requireNetworkAbsent(phase = this.phase) {
+    this.assertActive("cleanup", phase);
     if (objectIDPattern.test(this.networkToken ?? "")) {
-      const inspected = await this.inspectNetwork(this.networkToken, "cleanup");
+      const inspected = await this.inspectNetwork(this.networkToken, "cleanup", phase);
+      this.assertActive("cleanup", phase);
       if (inspected?.status === 0) throw new Failure("cleanup");
     }
-    if ((await this.namedNetworkCandidates("cleanup")).length !== 0) throw new Failure("cleanup");
+    if ((await this.namedNetworkCandidates("cleanup", phase)).length !== 0) throw new Failure("cleanup");
+    this.assertActive("cleanup", phase);
   }
 }
 
@@ -1195,6 +1341,108 @@ function singleLine(value) {
   if (typeof value !== "string") return "";
   const trimmed = value.endsWith("\n") ? value.slice(0, -1) : value;
   return trimmed.includes("\n") ? "" : trimmed;
+}
+
+function parseImageRuntimeMetadata(value) {
+  let document;
+  try { document = JSON.parse(singleLine(value)); } catch { return undefined; }
+  if (!Array.isArray(document) || document.length !== 6 || !imageIDPattern.test(document[0] ?? "")) return undefined;
+  const environment = exactEnvironment(document[1]);
+  const entrypoint = exactStringArray(document[2]);
+  const command = exactStringArray(document[3]);
+  const exposedPorts = exactImageObjectKeys(document[4], exactPortArray);
+  const volumes = exactImageObjectKeys(document[5], exactVolumeArray);
+  if (
+    environment === undefined || entrypoint === undefined || command === undefined ||
+    exposedPorts === undefined || volumes === undefined
+  ) return undefined;
+  return {
+    identifier: document[0],
+    runtime: Object.freeze({ environment, entrypoint, command, exposedPorts, volumes }),
+  };
+}
+
+function exactImageObjectKeys(value, validator) {
+  if (value === null) return Object.freeze([]);
+  if (
+    !plainObject(value) ||
+    Object.values(value).some((entry) => !plainObject(entry) || Object.keys(entry).length !== 0)
+  ) return undefined;
+  return validator(Object.keys(value));
+}
+
+function exactEnvironment(value) {
+  const entries = exactStringArray(value);
+  if (entries === undefined) return undefined;
+  const keys = new Set();
+  for (const entry of entries) {
+    const separator = entry.indexOf("=");
+    const key = separator > 0 ? entry.slice(0, separator) : "";
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key) || keys.has(key)) return undefined;
+    keys.add(key);
+  }
+  return entries;
+}
+
+function exactStringArray(value) {
+  if (
+    !Array.isArray(value) || value.length === 0 || value.length > 128 ||
+    value.some((entry) => typeof entry !== "string" || entry.length === 0 || Buffer.byteLength(entry) > 4_096 || hasControlCharacter(entry))
+  ) return undefined;
+  return Object.freeze([...value]);
+}
+
+function exactPortArray(value) {
+  const ports = exactStringArray(value);
+  if (ports === undefined || ports.some((port) => {
+    const match = /^([0-9]{1,5})\/(tcp|udp)$/.exec(port);
+    return match === null || Number(match[1]) < 1 || Number(match[1]) > 65_535;
+  })) return undefined;
+  const sorted = [...ports].sort();
+  return new Set(sorted).size === sorted.length ? Object.freeze(sorted) : undefined;
+}
+
+function exactVolumeArray(value) {
+  const volumes = exactStringArray(value);
+  if (
+    volumes === undefined ||
+    volumes.some((destination) => !isAbsolute(destination) || resolve(destination) !== destination || destination === "/")
+  ) return undefined;
+  const sorted = [...volumes].sort();
+  return new Set(sorted).size === sorted.length ? Object.freeze(sorted) : undefined;
+}
+
+function exactNeo4jEnvironment(environment, imageEnvironment) {
+  const runtimeEnvironment = exactEnvironment(environment);
+  if (
+    runtimeEnvironment === undefined || imageEnvironment === undefined ||
+    runtimeEnvironment.length !== neo4jProofEnvironment.length + imageEnvironment.length
+  ) return false;
+  const proofPrefix = [...runtimeEnvironment.slice(0, neo4jProofEnvironment.length)].sort();
+  return isDeepStrictEqual(proofPrefix, [...neo4jProofEnvironment].sort()) &&
+    isDeepStrictEqual(runtimeEnvironment.slice(neo4jProofEnvironment.length), imageEnvironment);
+}
+
+function exactIntrinsicVolumes(mounts, expectedDestinations) {
+  if (!Array.isArray(mounts) || expectedDestinations === undefined || mounts.length !== expectedDestinations.length) {
+    return undefined;
+  }
+  const ordered = [...mounts].sort((left, right) => String(left?.Destination).localeCompare(String(right?.Destination)));
+  if (!isDeepStrictEqual(ordered.map((mount) => mount?.Destination), expectedDestinations)) return undefined;
+  const names = [];
+  for (const mount of ordered) {
+    if (
+      !plainObject(mount) ||
+      !isDeepStrictEqual(Object.keys(mount).sort(), [
+        "Destination", "Driver", "Mode", "Name", "Propagation", "RW", "Source", "Type",
+      ]) ||
+      mount.Type !== "volume" || mount.Driver !== "local" || mount.Mode !== "" ||
+      mount.RW !== true || mount.Propagation !== "" || !objectIDPattern.test(mount.Name ?? "") ||
+      mount.Source !== `/var/lib/docker/volumes/${mount.Name}/_data`
+    ) return undefined;
+    names.push(mount.Name);
+  }
+  return new Set(names).size === names.length ? Object.freeze(names) : undefined;
 }
 
 function parsePairs(value) {

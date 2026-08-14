@@ -43,11 +43,38 @@ const baseContainerEnvironment = [
   "LANG=C.UTF-8",
   "PYTHONUNBUFFERED=1",
 ];
-const neo4jRuntimeEnvironment = [
+const neo4jImageEnvironment = [
+  "PATH=/image/bin",
+  "JAVA_HOME=/image/java",
+  "NEO4J_EDITION=community",
+];
+const neo4jProofEnvironment = [
   "NEO4J_AUTH=none",
   "NEO4J_db_tx__log_preallocate=false",
   "NEO4J_db_tx__log_rotation_size=128K",
 ];
+const neo4jRuntimeEnvironment = [...neo4jProofEnvironment, ...neo4jImageEnvironment];
+const neo4jImageEntrypoint = ["tini", "-g", "--", "/startup/docker-entrypoint.sh"];
+const neo4jImageCommand = ["neo4j"];
+const neo4jImageExposedPorts = ["7473/tcp", "7474/tcp", "7687/tcp"];
+const neo4jImageVolumes = ["/data", "/logs"];
+const neo4jDataVolume = "1".repeat(64);
+const neo4jLogsVolume = "2".repeat(64);
+const neo4jIntrinsicMounts = [
+  {
+    Type: "volume", Name: neo4jDataVolume,
+    Source: `/var/lib/docker/volumes/${neo4jDataVolume}/_data`, Destination: "/data", Driver: "local",
+    Mode: "", RW: true, Propagation: "",
+  },
+  {
+    Type: "volume", Name: neo4jLogsVolume,
+    Source: `/var/lib/docker/volumes/${neo4jLogsVolume}/_data`, Destination: "/logs", Driver: "local",
+    Mode: "", RW: true, Propagation: "",
+  },
+];
+const cartographyImageEnvironment = ["PATH=/image/bin", "HOME=/var/cartography"];
+const cartographyImageEntrypoint = ["cartography"];
+const cartographyImageCommand = ["-h"];
 const expectedBootstrap = 'import runpy,sys;m=runpy.run_path(sys.argv[2]);raise SystemExit(m["bootstrap_main"](sys.argv[1:]))';
 
 const rawGraph = {
@@ -322,14 +349,46 @@ test("resolves exact images through inspect, one pull mutation, and a fresh full
   const runtime = new ScriptedRuntime([
     result(1), result(1),
     result(0, "pulled\n"),
-    result(0, `${neo4jImageID}\n`),
+    result(0, imageInspection({
+      imageID: neo4jImageID,
+      environment: neo4jImageEnvironment,
+      entrypoint: neo4jImageEntrypoint,
+      command: neo4jImageCommand,
+      exposedPorts: neo4jImageExposedPorts,
+      volumes: neo4jImageVolumes,
+    })),
   ]);
   assert.equal(await runtime.resolveImage(NEO4J_IMAGE), neo4jImageID);
   assert.deepEqual(runtime.calls.map((call) => call.args[0]), ["image", "image", "pull", "image"]);
   assert.equal(runtime.calls.filter((call) => call.kind === "mutation").length, 1);
+  assert.equal(runtime.calls.at(-1).args[3], "[{{json .Id}},{{json .Config.Env}},{{json .Config.Entrypoint}},{{json .Config.Cmd}},{{json (index .Config \"ExposedPorts\")}},{{json (index .Config \"Volumes\")}}]");
+
+  const noIntrinsicRuntime = new ScriptedRuntime([result(0, imageInspection({
+    imageID: cartographyImageID,
+    environment: cartographyImageEnvironment,
+    entrypoint: cartographyImageEntrypoint,
+    command: cartographyImageCommand,
+    exposedPorts: null,
+    volumes: null,
+  }))]);
+  assert.equal(await noIntrinsicRuntime.resolveImage(CARTOGRAPHY_IMAGE), cartographyImageID);
+  assert.deepEqual(noIntrinsicRuntime.imageRuntimeMetadata.get(CARTOGRAPHY_IMAGE)?.exposedPorts, []);
+  assert.deepEqual(noIntrinsicRuntime.imageRuntimeMetadata.get(CARTOGRAPHY_IMAGE)?.volumes, []);
 
   const missing = new ScriptedRuntime([result(1), result(1), result(1)]);
   await assert.rejects(missing.resolveImage(CARTOGRAPHY_IMAGE), (error) => error?.category === "provider");
+
+  for (const output of [
+    `${neo4jImageID}\n`,
+    imageInspection({ imageID: neo4jImageID, environment: [...neo4jImageEnvironment, neo4jImageEnvironment[0]] }),
+    imageInspection({ imageID: neo4jImageID, entrypoint: null }),
+    imageInspection({ imageID: neo4jImageID, command: ["neo4j", 1] }),
+    imageInspection({ imageID: neo4jImageID, exposedPorts: { "7474/tcp": { unexpected: true } } }),
+    imageInspection({ imageID: neo4jImageID, volumes: { data: {} } }),
+  ]) {
+    const malformed = new ScriptedRuntime([result(0, output)]);
+    await assert.rejects(malformed.resolveImage(NEO4J_IMAGE), (error) => error?.category === "provider");
+  }
 });
 
 test("preflight rejects every owned prefix collision while preserving an unrelated shared container", async () => {
@@ -465,15 +524,14 @@ test("rejects truncated IDs and wrong container image, name, labels, marker, net
   }
 });
 
-test("allows pinned-image Neo4j metadata and only the exact loopback HTTP and Bolt bindings", async () => {
+test("allows only exact pinned-image Neo4j metadata and loopback HTTP and Bolt bindings", async () => {
   const runtime = new ScriptedRuntime([result(0, `${containerInspection({
     token: neo4jID,
     name: `${prefix}-neo4j-a`,
     imageID: neo4jImageID,
     image: NEO4J_IMAGE,
-    environment: ["PATH=/opt/java/bin", "NEO4J_EDITION=community", ...neo4jRuntimeEnvironment],
+    environment: [...neo4jRuntimeEnvironment],
     ports: {
-      "7473/tcp": null,
       "7474/tcp": [{ HostIp: "127.0.0.1", HostPort: httpHostPort }],
       "7687/tcp": [{ HostIp: "127.0.0.1", HostPort: boltHostPort }],
     },
@@ -482,6 +540,201 @@ test("allows pinned-image Neo4j metadata and only the exact loopback HTTP and Bo
   runtime.imageIDs.set(NEO4J_IMAGE, neo4jImageID);
   runtime.containerTokens.set("neo4j-a", neo4jID);
   assert.equal(await runtime.verifyContainer("neo4j-a"), neo4jID);
+  for (const field of ["Binds", "Mounts", "Tmpfs"]) {
+    assert.equal(runtime.calls[0].args[2].includes(`{{json (index .HostConfig "${field}")}}`), true);
+  }
+});
+
+test("accepts Docker-observed proof override permutations only as an exact prefix", async () => {
+  const runtime = new ScriptedRuntime([result(0, `${containerInspection({
+    token: neo4jID,
+    name: `${prefix}-neo4j-a`,
+    imageID: neo4jImageID,
+    image: NEO4J_IMAGE,
+    environment: [
+      neo4jProofEnvironment[1], neo4jProofEnvironment[2], neo4jProofEnvironment[0],
+      ...neo4jImageEnvironment,
+    ],
+    ports: {
+      "7474/tcp": [{ HostIp: "127.0.0.1", HostPort: httpHostPort }],
+      "7687/tcp": [{ HostIp: "127.0.0.1", HostPort: boltHostPort }],
+    },
+  })}\n`)]);
+  runtime.networkToken = networkID;
+  runtime.imageIDs.set(NEO4J_IMAGE, neo4jImageID);
+  runtime.containerTokens.set("neo4j-a", neo4jID);
+  assert.equal(await runtime.verifyContainer("neo4j-a"), neo4jID);
+});
+
+test("rejects every Neo4j deviation from pinned image metadata and exact proof overrides", async () => {
+  const expected = containerInspection({
+    token: neo4jID,
+    name: `${prefix}-neo4j-a`,
+    imageID: neo4jImageID,
+    image: NEO4J_IMAGE,
+    environment: [...neo4jRuntimeEnvironment],
+    ports: {
+      "7474/tcp": [{ HostIp: "127.0.0.1", HostPort: httpHostPort }],
+      "7687/tcp": [{ HostIp: "127.0.0.1", HostPort: boltHostPort }],
+    },
+  });
+  const wrongValues = [
+    expected.replace(
+      `"${neo4jProofEnvironment[0]}"`,
+      `"UNRELATED=value","${neo4jProofEnvironment[0]}"`,
+    ),
+    expected.replace(
+      `"${neo4jProofEnvironment[0]}"`,
+      `"NEO4J_server_bolt_enabled=false","${neo4jProofEnvironment[0]}"`,
+    ),
+    expected.replace(
+      `"${neo4jImageEnvironment[0]}","${neo4jImageEnvironment[1]}"`,
+      `"${neo4jImageEnvironment[1]}","${neo4jImageEnvironment[0]}"`,
+    ),
+    replaceInspectionField(expected, 12, JSON.stringify(["sh"])),
+    replaceInspectionField(expected, 13, JSON.stringify(["neo4j", "console"])),
+    expected.replace(
+      `"7474/tcp"`,
+      `"7473/tcp":null,"7474/tcp"`,
+    ),
+    replaceInspectionField(expected, 11, JSON.stringify({
+      "7473/tcp": null,
+      "7474/tcp": [{ HostIp: "127.0.0.1", HostPort: httpHostPort }],
+      "7687/tcp": [{ HostIp: "127.0.0.1", HostPort: boltHostPort }],
+      "9999/tcp": null,
+    })),
+    replaceInspectionField(expected, 11, JSON.stringify({
+      "7473/tcp": null,
+      "7474/tcp": [{ HostIp: "127.0.0.1", HostPort: httpHostPort, Unexpected: "alias" }],
+      "7687/tcp": [{ HostIp: "127.0.0.1", HostPort: boltHostPort }],
+    })),
+    replaceInspectionField(expected, 14, JSON.stringify([
+      { Type: "bind", Source: "/unexpected", Destination: "/data", RW: true },
+    ])),
+    replaceInspectionField(expected, 15, JSON.stringify(["/unexpected:/data"])),
+    replaceInspectionField(expected, 16, JSON.stringify([
+      { Type: "bind", Source: "/unexpected", Target: "/data" },
+    ])),
+    replaceInspectionField(expected, 17, JSON.stringify({ "/data": "rw" })),
+  ];
+  for (const value of wrongValues) {
+    const runtime = new ScriptedRuntime([result(0, `${value}\n`)]);
+    runtime.networkToken = networkID;
+    runtime.imageIDs.set(NEO4J_IMAGE, neo4jImageID);
+    runtime.containerTokens.set("neo4j-a", neo4jID);
+    await assert.rejects(runtime.verifyContainer("neo4j-a"), (error) => error?.category === "ownership");
+  }
+});
+
+test("ambiguous Neo4j creation cannot adopt a candidate with extra runtime metadata", async () => {
+  const candidate = containerInspection({
+    token: neo4jID,
+    name: `${prefix}-neo4j-a`,
+    imageID: neo4jImageID,
+    image: NEO4J_IMAGE,
+    environment: [...neo4jRuntimeEnvironment, "NEO4J_server_bolt_enabled=false"],
+    ports: {
+      "7474/tcp": [{ HostIp: "127.0.0.1", HostPort: httpHostPort }],
+      "7687/tcp": [{ HostIp: "127.0.0.1", HostPort: boltHostPort }],
+    },
+  });
+  const runtime = new ScriptedRuntime([
+    new Failure("provider"),
+    result(0, `${neo4jID}|${prefix}-neo4j-a\n`),
+    result(0, `${candidate}\n`),
+  ]);
+  runtime.networkToken = networkID;
+  runtime.imageIDs.set(NEO4J_IMAGE, neo4jImageID);
+  await assert.rejects(runtime.startNeo4j("a"), (error) => error?.category === "ownership");
+});
+
+test("cleanup refuses a Neo4j candidate whose runtime metadata changed", async () => {
+  const replacementVolume = "3".repeat(64);
+  const changed = containerInspection({
+    token: neo4jID,
+    name: `${prefix}-neo4j-a`,
+    imageID: neo4jImageID,
+    image: NEO4J_IMAGE,
+    environment: [...neo4jRuntimeEnvironment],
+    ports: {
+      "7474/tcp": [{ HostIp: "127.0.0.1", HostPort: httpHostPort }],
+      "7687/tcp": [{ HostIp: "127.0.0.1", HostPort: boltHostPort }],
+    },
+    mounts: [
+      {
+        Type: "volume", Name: replacementVolume,
+        Source: `/var/lib/docker/volumes/${replacementVolume}/_data`, Destination: "/data", Driver: "local",
+        Mode: "", RW: true, Propagation: "",
+      },
+      neo4jIntrinsicMounts[1],
+    ],
+  });
+  const runtime = new ScriptedRuntime([
+    result(0, `${changed}\n`),
+    result(0, `${neo4jID}\n`),
+  ]);
+  runtime.networkToken = networkID;
+  runtime.imageIDs.set(NEO4J_IMAGE, neo4jImageID);
+  runtime.containerTokens.set("neo4j-a", neo4jID);
+  runtime.containerVolumes.set("neo4j-a", [neo4jDataVolume, neo4jLogsVolume]);
+  await assert.rejects(runtime.removeContainer("neo4j-a"), (error) => error?.category === "cleanup");
+  assert.equal(runtime.calls.some(({ kind }) => kind === "mutation"), false);
+});
+
+test("Neo4j cleanup removes only retained intrinsic volumes and proves their exact tokens absent", async () => {
+  const inspection = containerInspection({
+    token: neo4jID,
+    name: `${prefix}-neo4j-a`,
+    imageID: neo4jImageID,
+    image: NEO4J_IMAGE,
+    environment: [...neo4jRuntimeEnvironment],
+    ports: {
+      "7474/tcp": [{ HostIp: "127.0.0.1", HostPort: httpHostPort }],
+      "7687/tcp": [{ HostIp: "127.0.0.1", HostPort: boltHostPort }],
+    },
+  });
+  const runtime = new ScriptedRuntime([
+    result(0, `${inspection}\n`),
+    result(0, `${neo4jID}\n`),
+    missingVolumeResult(neo4jDataVolume), missingVolumeResult(neo4jDataVolume),
+    missingVolumeResult(neo4jLogsVolume), missingVolumeResult(neo4jLogsVolume),
+  ]);
+  runtime.networkToken = networkID;
+  runtime.imageIDs.set(NEO4J_IMAGE, neo4jImageID);
+  runtime.containerTokens.set("neo4j-a", neo4jID);
+  await runtime.removeContainer("neo4j-a");
+  assert.deepEqual(
+    runtime.calls.filter(({ args }) => args[0] === "rm").map(({ args }) => args),
+    [["rm", "--force", "--volumes", neo4jID]],
+  );
+  assert.deepEqual(
+    runtime.calls.filter(({ args }) => args[0] === "volume").map(({ args }) => args),
+    [
+      ["volume", "inspect", neo4jDataVolume], ["volume", "inspect", neo4jDataVolume],
+      ["volume", "inspect", neo4jLogsVolume], ["volume", "inspect", neo4jLogsVolume],
+    ],
+  );
+
+  const retained = new ScriptedRuntime([
+    result(0, `${inspection}\n`),
+    result(0, `${neo4jID}\n`),
+    result(0, "still-present\n"),
+  ]);
+  retained.networkToken = networkID;
+  retained.imageIDs.set(NEO4J_IMAGE, neo4jImageID);
+  retained.containerTokens.set("neo4j-a", neo4jID);
+  await assert.rejects(retained.removeContainer("neo4j-a"), (error) => error?.category === "cleanup");
+  assert.equal(retained.calls.some(({ args }) => args[0] === "volume" && args[1] !== "inspect"), false);
+
+  const providerFailure = new ScriptedRuntime([
+    result(0, `${inspection}\n`),
+    result(0, `${neo4jID}\n`),
+    result(1, "", "provider unavailable\n"), result(1, "", "provider unavailable\n"),
+  ]);
+  providerFailure.networkToken = networkID;
+  providerFailure.imageIDs.set(NEO4J_IMAGE, neo4jImageID);
+  providerFailure.containerTokens.set("neo4j-a", neo4jID);
+  await assert.rejects(providerFailure.removeContainer("neo4j-a"), (error) => error?.category === "cleanup");
 });
 
 test("rejects credential or proxy settings in a Cartography container even though the bootstrap clears image metadata", async () => {
@@ -508,9 +761,9 @@ test("rejects a replacement Cartography hostname, entrypoint, bootstrap argv, or
   });
   const wrongValues = [
     replaceInspectionField(expected, 2, `${prefix}-cartography-b`),
-    replaceInspectionField(expected, 11, JSON.stringify(["sh"])),
-    replaceInspectionField(expected, 12, JSON.stringify(["/proof/fixture_runner.py"])),
-    replaceInspectionField(expected, 13, JSON.stringify([{ Type: "bind", Source: proofDirectory, Destination: "/proof", RW: true }])),
+    replaceInspectionField(expected, 12, JSON.stringify(["sh"])),
+    replaceInspectionField(expected, 13, JSON.stringify(["/proof/fixture_runner.py"])),
+    replaceInspectionField(expected, 14, JSON.stringify([{ Type: "bind", Source: proofDirectory, Destination: "/proof", RW: true }])),
   ];
   for (const value of wrongValues) {
     const runtime = new ScriptedRuntime([result(0, `${value}\n`)]);
@@ -662,7 +915,9 @@ test("reconciles ambiguous creates and removes only the same freshly re-proven c
     result(0, `${inspection}\n`),
     result(1),
     result(1), result(1),
-    result(0), result(0),
+    result(0),
+    missingVolumeResult(neo4jDataVolume), missingVolumeResult(neo4jDataVolume),
+    missingVolumeResult(neo4jLogsVolume), missingVolumeResult(neo4jLogsVolume),
   ]);
   removal.networkToken = networkID;
   removal.imageIDs.set(NEO4J_IMAGE, neo4jImageID);
@@ -725,6 +980,8 @@ test("accepts rejected container and network removes only after exact absence is
     new Failure("cleanup"),
     result(1), result(1),
     result(0),
+    missingVolumeResult(neo4jDataVolume), missingVolumeResult(neo4jDataVolume),
+    missingVolumeResult(neo4jLogsVolume), missingVolumeResult(neo4jLogsVolume),
   ]);
   container.networkToken = networkID;
   container.imageIDs.set(NEO4J_IMAGE, neo4jImageID);
@@ -939,6 +1196,94 @@ test("outer cancellation is fixed-output operation failure and cleanup gets its 
   assert.deepEqual(runtime.calls, ["cleanup-config"]);
 });
 
+test("a delayed DockerRuntime main read cannot inherit cleanup phase authority", async () => {
+  const imageRead = deferred();
+  const imageReadStarted = deferred();
+  const dockerCalls = [];
+  const runtime = temporaryRuntime({
+    statPath: async () => identityStat(1, 2),
+    readDirectory: async (value) => {
+      if (value === dockerConfig) return [];
+      return [dockerConfig.split("/").at(-1)];
+    },
+    removeTemp: async () => { throw new Error("cleanup failed"); },
+    command: async (_command, args) => {
+      dockerCalls.push([...args]);
+      if (args[0] === "image" && args[1] === "inspect" && args.at(-1) === NEO4J_IMAGE) {
+        imageReadStarted.resolve();
+        return imageRead.promise;
+      }
+      if (args[0] === "ps" || (args[0] === "network" && args[1] === "ls")) return result(0);
+      return result(1);
+    },
+  });
+  let deadlinePhase = 0;
+  const proof = await orchestrate(runtime, {
+    readinessAttempts: 1,
+    wait: async () => {},
+    withDeadline: async (operation) => {
+      deadlinePhase += 1;
+      const controller = new AbortController();
+      if (deadlinePhase === 1) {
+        const pending = operation(controller.signal);
+        pending.catch(() => {});
+        await imageReadStarted.promise;
+        controller.abort();
+        throw new Failure("operation");
+      }
+      return operation(controller.signal);
+    },
+  });
+  const callsAtReturn = dockerCalls.length;
+  imageRead.resolve(result(0, `${neo4jImageID}\n`));
+  await new Promise((resolvePromise) => setImmediate(resolvePromise));
+  assert.deepEqual(proof, { code: 1, line: "Cartography scope proof failed: cleanup rejected." });
+  assert.equal(dockerCalls.length, callsAtReturn);
+});
+
+test("an aborted DockerRuntime cleanup read cannot inherit a later phase and delete", async () => {
+  const inspected = deferred();
+  const dockerCalls = [];
+  const runtime = temporaryRuntime({
+    command: async (_command, args) => {
+      dockerCalls.push([...args]);
+      if (args[0] === "inspect") return inspected.promise;
+      if (args[0] === "rm") return result(0, `${neo4jID}\n`);
+      return result(1);
+    },
+  });
+  await runtime.initialize();
+  runtime.networkToken = networkID;
+  runtime.imageIDs.set(NEO4J_IMAGE, neo4jImageID);
+  runtime.imageRuntimeMetadata = new Map([[NEO4J_IMAGE, {
+    environment: neo4jImageEnvironment,
+    entrypoint: neo4jImageEntrypoint,
+    command: neo4jImageCommand,
+    exposedPorts: neo4jImageExposedPorts,
+    volumes: neo4jImageVolumes,
+  }]]);
+  runtime.containerTokens.set("neo4j-a", neo4jID);
+  const cleanupController = new AbortController();
+  runtime.setAbortSignal(cleanupController.signal);
+  const removal = runtime.removeContainer("neo4j-a");
+  await new Promise((resolvePromise) => setImmediate(resolvePromise));
+  cleanupController.abort();
+  runtime.setAbortSignal(new AbortController().signal);
+  inspected.resolve(result(0, `${containerInspection({
+    token: neo4jID,
+    name: `${prefix}-neo4j-a`,
+    imageID: neo4jImageID,
+    image: NEO4J_IMAGE,
+    environment: [...neo4jRuntimeEnvironment],
+    ports: {
+      "7474/tcp": [{ HostIp: "127.0.0.1", HostPort: httpHostPort }],
+      "7687/tcp": [{ HostIp: "127.0.0.1", HostPort: boltHostPort }],
+    },
+  })}\n`));
+  await assert.rejects(removal, (error) => error?.category === "cleanup");
+  assert.equal(dockerCalls.some((args) => args[0] === "rm"), false);
+});
+
 test("a timed-out main phase returns before a late callback settles and fences every later mutation", async () => {
   const nativeSetTimeout = globalThis.setTimeout;
   const runtime = new FakeRuntime();
@@ -1126,6 +1471,22 @@ class ScriptedRuntime extends DockerRuntime {
     });
     this.responses = responses;
     this.calls = [];
+    this.imageRuntimeMetadata = new Map([
+      [NEO4J_IMAGE, {
+        environment: neo4jImageEnvironment,
+        entrypoint: neo4jImageEntrypoint,
+        command: neo4jImageCommand,
+        exposedPorts: neo4jImageExposedPorts,
+        volumes: neo4jImageVolumes,
+      }],
+      [CARTOGRAPHY_IMAGE, {
+        environment: cartographyImageEnvironment,
+        entrypoint: cartographyImageEntrypoint,
+        command: cartographyImageCommand,
+        exposedPorts: ["8080/tcp"],
+        volumes: ["/var/cartography"],
+      }],
+    ]);
     this.dockerConfigIdentity = { path: dockerConfig, dev: 1, ino: 2 };
     this.proofIdentity = { path: proofDirectory, dev: 1, ino: 3 };
   }
@@ -1208,18 +1569,26 @@ function containerInspection({
   image,
   environment,
   ports = {},
-  entrypoint = name.includes("-cartography-") ? ["python"] : null,
+  portBindings = name.includes("-neo4j-") ? {
+    "7474/tcp": [{ HostIp: "127.0.0.1", HostPort: "" }],
+    "7687/tcp": [{ HostIp: "127.0.0.1", HostPort: "" }],
+  } : {},
+  entrypoint = name.includes("-cartography-") ? ["python"] : neo4jImageEntrypoint,
   command = name.includes("-cartography-") ? [
     "-I", "-c", expectedBootstrap, name, "/proof/fixture_runner.py",
     "--fixture", "/proof/fixture.json",
     "--neo4j-uri", `bolt://${prefix}-neo4j-${name.at(-1)}:7687`,
-  ] : null,
+  ] : neo4jImageCommand,
   mounts = name.includes("-cartography-") ? [
     { Type: "bind", Source: proofDirectory, Destination: "/proof", RW: false },
     { Type: "bind", Source: `${proofDirectory}/fixtures/org-${name.at(-1)}.json`, Destination: "/proof/fixture.json", RW: false },
-  ] : [],
+  ] : neo4jIntrinsicMounts,
+  binds = null,
+  hostMounts = null,
+  tmpfs = null,
   attachedNetworkID = networkID,
 }) {
+  const runtimePorts = name.includes("-neo4j-") ? { "7473/tcp": null, ...ports } : ports;
   return [
     token,
     `/${name}`,
@@ -1231,15 +1600,40 @@ function containerInspection({
     networkName,
     JSON.stringify({ [networkName]: { NetworkID: attachedNetworkID } }),
     JSON.stringify(environment),
-    JSON.stringify(ports),
+    JSON.stringify(portBindings),
+    JSON.stringify(runtimePorts),
     JSON.stringify(entrypoint),
     JSON.stringify(command),
     JSON.stringify(mounts),
+    JSON.stringify(binds),
+    JSON.stringify(hostMounts),
+    JSON.stringify(tmpfs),
   ].join("|");
+}
+
+function imageInspection({
+  imageID = neo4jImageID,
+  environment = neo4jImageEnvironment,
+  entrypoint = neo4jImageEntrypoint,
+  command = neo4jImageCommand,
+  exposedPorts = neo4jImageExposedPorts,
+  volumes = neo4jImageVolumes,
+} = {}) {
+  const exposedPortDocument = Array.isArray(exposedPorts)
+    ? Object.fromEntries(exposedPorts.map((port) => [port, {}]))
+    : exposedPorts;
+  const volumeDocument = Array.isArray(volumes)
+    ? Object.fromEntries(volumes.map((destination) => [destination, {}]))
+    : volumes;
+  return `${JSON.stringify([imageID, environment, entrypoint, command, exposedPortDocument, volumeDocument])}\n`;
 }
 
 function result(status = 0, stdout = "", stderr = "", signal = null) {
   return { status, stdout, stderr, signal };
+}
+
+function missingVolumeResult(name) {
+  return result(1, "[]\n", `Error response from daemon: get ${name}: no such volume\n`);
 }
 
 function replaceInspectionField(value, index, replacement) {
@@ -1294,6 +1688,12 @@ function sequence(...values) {
     if (value instanceof Error) throw value;
     return value;
   };
+}
+
+function deferred() {
+  let resolvePromise;
+  const promise = new Promise((resolve) => { resolvePromise = resolve; });
+  return { promise, resolve: resolvePromise };
 }
 
 function pathAwareSequence(finalCandidate) {
