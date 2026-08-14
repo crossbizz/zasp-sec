@@ -298,6 +298,84 @@ func TestHTTP409ExactLookingCollisionsAreNeverAdoptedOrDeleted(t *testing.T) {
 	})
 }
 
+func TestUnexpectedSuccessfulMutationStatusesReconcileOnlyExactAppliedState(t *testing.T) {
+	t.Parallel()
+	t.Run("applied exact index", func(t *testing.T) {
+		fixture, result, err := runHTTPOutcomeProof(t, func(fixture *openSearchHTTPFixture) {
+			fixture.createStatus = http.StatusCreated
+		})
+		if err != nil || result != (ProofResult{Indexed: true, ScopedQuery: true, CrossOrganizationZero: true, Cleanup: true, Audit: true}) || fixture.created || fixture.deletes != 1 {
+			t.Fatalf("unexpected successful CreateIndex status stranded exact applied state: category=%s result=%#v present=%t deletes=%d", fixedCategory(err), result, fixture.created, fixture.deletes)
+		}
+	})
+	t.Run("unapplied index", func(t *testing.T) {
+		fixture, _, err := runHTTPOutcomeProof(t, func(fixture *openSearchHTTPFixture) {
+			fixture.createStatus = http.StatusCreated
+			fixture.skipCreateApplication = true
+		})
+		if !errors.Is(err, errProvider) || fixture.created || fixture.mappingReads == 0 || fixture.catReads < 2 || fixture.deletes != 0 {
+			t.Fatal("unexpected successful unapplied CreateIndex status bypassed bounded absence reconciliation")
+		}
+	})
+	t.Run("mismatched index", func(t *testing.T) {
+		fixture, _, err := runHTTPOutcomeProof(t, func(fixture *openSearchHTTPFixture) {
+			fixture.createStatus = http.StatusCreated
+			foreign := expectedIndexSpec(testMarker)
+			foreign.Proof = "foreign"
+			fixture.createdState = &foreign
+		})
+		if !errors.Is(err, errOwnership) || !fixture.created || fixture.mappingReads == 0 || fixture.deletes != 0 {
+			t.Fatal("unexpected successful mismatched CreateIndex state was adopted or deleted")
+		}
+	})
+	t.Run("applied exact document", func(t *testing.T) {
+		fixture, result, err := runHTTPOutcomeProof(t, func(fixture *openSearchHTTPFixture) {
+			fixture.documentStatus = http.StatusOK
+		})
+		if err != nil || result != (ProofResult{Indexed: true, ScopedQuery: true, CrossOrganizationZero: true, Cleanup: true, Audit: true}) || fixture.created || fixture.deletes != 1 {
+			t.Fatalf("unexpected successful document status stranded exact applied state: category=%s result=%#v present=%t deletes=%d queries=%d", fixedCategory(err), result, fixture.created, fixture.deletes, len(fixture.queries))
+		}
+	})
+	t.Run("unapplied document", func(t *testing.T) {
+		fixture, _, err := runHTTPOutcomeProof(t, func(fixture *openSearchHTTPFixture) {
+			fixture.documentStatus = http.StatusOK
+			fixture.skipDocumentApplication = true
+		})
+		if !errors.Is(err, errProvider) || fixture.created || fixture.event != nil || len(fixture.queries) != 2 || fixture.deletes != 1 {
+			t.Fatalf("unexpected successful unapplied document status bypassed reconciliation or exact index cleanup: category=%s present=%t document=%t queries=%d deletes=%d", fixedCategory(err), fixture.created, fixture.event != nil, len(fixture.queries), fixture.deletes)
+		}
+	})
+	t.Run("mismatched document", func(t *testing.T) {
+		fixture, _, err := runHTTPOutcomeProof(t, func(fixture *openSearchHTTPFixture) {
+			fixture.documentStatus = http.StatusOK
+			foreign := expectedEvent(testMarker, "org-b-"+testMarker)
+			fixture.documentState = &foreign
+		})
+		if !errors.Is(err, errCleanup) || !fixture.created || fixture.event == nil || len(fixture.queries) != 2 || fixture.deletes != 0 {
+			t.Fatal("unexpected successful mismatched document state was adopted or deleted")
+		}
+	})
+}
+
+func runHTTPOutcomeProof(t *testing.T, configure func(*openSearchHTTPFixture)) (*openSearchHTTPFixture, ProofResult, error) {
+	t.Helper()
+	spec := expectedIndexSpec(testMarker)
+	fixture := newOpenSearchHTTPFixture(t, spec)
+	configure(fixture)
+	server := httptest.NewServer(fixture)
+	t.Cleanup(server.Close)
+	backend, err := newHTTPBackend(context.Background(), server.URL, spec)
+	if err != nil {
+		t.Fatalf("newHTTPBackend returned %v", err)
+	}
+	t.Cleanup(backend.Close)
+	result, proofErr := RunProof(context.Background(), ProofOptions{
+		Endpoint: server.URL, Marker: testMarker, Events: backend, Admin: backend,
+		CleanupTimeout: time.Second, PollInterval: time.Millisecond,
+	})
+	return fixture, result, proofErr
+}
+
 func TestHTTPBackendRetriesOnlySafeReadsAndBoundsResponses(t *testing.T) {
 	t.Parallel()
 	t.Run("safe transient read retries once", func(t *testing.T) {
@@ -448,6 +526,14 @@ type openSearchHTTPFixture struct {
 	rejectCreateCollision   bool
 	rejectDocumentCollision bool
 	deletes                 int
+	createStatus            int
+	documentStatus          int
+	skipCreateApplication   bool
+	skipDocumentApplication bool
+	createdState            *IndexSpec
+	documentState           *NormalizedSessionEvent
+	catReads                int
+	mappingReads            int
 }
 
 func newOpenSearchHTTPFixture(t *testing.T, spec IndexSpec) *openSearchHTTPFixture {
@@ -458,6 +544,7 @@ func (f *openSearchHTTPFixture) ServeHTTP(writer http.ResponseWriter, request *h
 	writer.Header().Set("content-type", "application/json")
 	switch {
 	case request.Method == http.MethodGet && strings.HasPrefix(request.URL.Path, "/_cat/indices/"):
+		f.catReads++
 		if request.URL.Query().Get("format") != "json" || request.URL.Query().Get("h") != "index" || request.URL.Query().Get("expand_wildcards") != "all" {
 			f.t.Error("CAT indices query was not exact")
 		}
@@ -468,18 +555,39 @@ func (f *openSearchHTTPFixture) ServeHTTP(writer http.ResponseWriter, request *h
 		}
 	case request.Method == http.MethodPut && request.URL.Path == "/"+f.spec.Name && request.URL.RawQuery == "":
 		f.creates = append(f.creates, decodeMap(f.t, request))
-		f.created = true
+		if !f.skipCreateApplication {
+			f.created = true
+		}
 		if f.rejectCreateCollision {
+			f.created = true
 			writer.WriteHeader(http.StatusConflict)
 			_, _ = writer.Write([]byte(`{}`))
 			return
 		}
+		if f.createStatus != 0 {
+			writer.WriteHeader(f.createStatus)
+		}
 		writeJSON(f.t, writer, map[string]any{"acknowledged": true, "shards_acknowledged": true, "index": f.spec.Name})
 	case request.Method == http.MethodGet && request.URL.Path == "/"+f.spec.Name+"/_mapping":
-		writeJSON(f.t, writer, mappingResponse(f.spec))
+		f.mappingReads++
+		if !f.created {
+			writer.WriteHeader(http.StatusNotFound)
+			_, _ = writer.Write([]byte(`{}`))
+			return
+		}
+		state := f.spec
+		if f.createdState != nil {
+			state = *f.createdState
+		}
+		writeJSON(f.t, writer, mappingResponse(state))
 	case request.Method == http.MethodGet && request.URL.Path == "/"+f.spec.Name+"/_settings/index.number_of_shards,index.number_of_replicas":
 		if request.URL.Query().Get("flat_settings") != "true" || request.URL.Query().Get("include_defaults") != "false" {
 			f.t.Error("settings query was not exact")
+		}
+		if !f.created {
+			writer.WriteHeader(http.StatusNotFound)
+			_, _ = writer.Write([]byte(`{}`))
+			return
 		}
 		writeJSON(f.t, writer, map[string]any{f.spec.Name: map[string]any{"settings": map[string]string{"index.number_of_shards": "1", "index.number_of_replicas": "0"}}})
 	case request.Method == http.MethodPut && request.URL.Path == "/"+f.spec.Name+"/_create/event-"+testMarker:
@@ -493,13 +601,24 @@ func (f *openSearchHTTPFixture) ServeHTTP(writer http.ResponseWriter, request *h
 		if err := json.Unmarshal(encoded, &event); err != nil {
 			f.t.Error("document body did not match the normalized event")
 		}
-		f.event = &event
+		if !f.skipDocumentApplication {
+			f.event = &event
+		}
+		if f.documentState != nil {
+			stored := *f.documentState
+			f.event = &stored
+		}
 		if f.rejectDocumentCollision {
+			f.event = &event
 			writer.WriteHeader(http.StatusConflict)
 			_, _ = writer.Write([]byte(`{}`))
 			return
 		}
-		writer.WriteHeader(http.StatusCreated)
+		status := f.documentStatus
+		if status == 0 {
+			status = http.StatusCreated
+		}
+		writer.WriteHeader(status)
 		writeJSON(f.t, writer, map[string]any{
 			"_index": f.spec.Name, "_id": event.EventID, "_version": 1, "result": "created",
 			"_shards": map[string]any{"total": 1, "successful": 1, "failed": 0}, "_seq_no": 0, "_primary_term": 1,
@@ -507,7 +626,7 @@ func (f *openSearchHTTPFixture) ServeHTTP(writer http.ResponseWriter, request *h
 	case request.Method == http.MethodPost && request.URL.Path == "/"+f.spec.Name+"/_search":
 		query := decodeMap(f.t, request)
 		f.queries = append(f.queries, query)
-		var hits []map[string]any
+		hits := []map[string]any{}
 		if f.event != nil && queryMatchesEvent(query, *f.event) {
 			hits = append(hits, map[string]any{"_index": f.spec.Name, "_id": f.event.EventID, "_score": nil, "_source": f.event})
 		}

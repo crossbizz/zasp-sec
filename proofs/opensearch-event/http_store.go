@@ -542,6 +542,9 @@ func (h *httpBackend) do(ctx context.Context, method, path string, query url.Val
 				continue
 			}
 			if !safeRead {
+				if response.StatusCode >= http.StatusOK && response.StatusCode < http.StatusMultipleChoices {
+					return nil, ambiguousMutationError()
+				}
 				return nil, rejectedMutationError()
 			}
 			return nil, errProvider
