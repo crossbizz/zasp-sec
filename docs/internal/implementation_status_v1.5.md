@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 718 |
-| In progress | 0 |
+| Pending | 717 |
+| In progress | 1 |
 | Complete | 9 |
 | Blocked | 1 |
 
@@ -23,7 +23,7 @@ In progress, Complete, or Blocked is Pending.
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 17 | 0 | 9 | 1 |
+| M0 | 27 | 16 | 1 | 9 | 1 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -68,12 +68,14 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts remain `718/0/9/1` because
+session configuration. The 728 source-plan counts remain `717/1/9/1` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
-No source-plan task is currently In progress.
+| Task | Started | Current work |
+| --- | --- | --- |
+| M0-11 | August 14, 2026 | Execute the exact-pinned Prowler fixture-only evidence proof against one synthetic IAM role, then normalize the built-in check's JSON-OCSF finding to the M0-10 canonical Organization-scoped resource without claiming real-AWS parity. |
 
 ## Complete
 
@@ -200,3 +202,7 @@ provider capability gate.
   credential, or proxy input, makes no AWS or GitHub calls, and cleans up only
   proof-owned disposable resources. This does not prove AWS/GitHub authorization
   parity: M0-09 and PROV-01 remain Blocked, and R-03 remains incomplete.
+- M0-11 is In progress as a fixture-only Prowler evidence proof. It must retain
+  R-06 as Not run until one exact live run, cleanup audit, repository gates,
+  secret scan, and zero-finding independent review all pass. It cannot complete
+  M0-09 or PROV-01, and it cannot close R-03.

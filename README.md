@@ -193,6 +193,20 @@ npm run proof:cartography:run
 
 This fixture-only integration proof does not prove AWS/GitHub authorization parity. M0-10 is Complete; M0-09 and PROV-01 remain Blocked, and R-03 remains incomplete.
 
+## Prowler evidence proof
+
+M0-11 is In progress as a fixture-only evidence proof. The approved design pins
+this exact scanner image:
+`prowlercloud/prowler:5.39.0@sha256:58c8a0eb0c947517bd89b6214cde0cc1d5f59df4eebbb99a87475ab741914959`.
+It runs only the built-in check
+`iam_role_cross_service_confused_deputy_prevention` against one synthetic IAM role.
+It retains only the JSON-OCSF result and maps that result to the canonical Organization-scoped resource
+identity established by M0-10.
+
+This proof does not prove real-AWS authorization or parity, broad Prowler
+coverage, or LocalStack IAM parity. R-06 remains Not run until reviewed live
+evidence passes. M0-09 and PROV-01 remain Blocked, and R-03 remains incomplete.
+
 ## Real AWS cross-account IAM proof
 
 This proof is deliberately real-AWS-only. It requires two explicitly configured,
