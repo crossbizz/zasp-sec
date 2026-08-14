@@ -14,16 +14,16 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 722 |
+| Pending | 721 |
 | In progress | 1 |
-| Complete | 5 |
+| Complete | 6 |
 | Blocked | 0 |
 
 ## Milestone summary
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 21 | 1 | 5 | 0 |
+| M0 | 27 | 20 | 1 | 6 | 0 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -57,7 +57,7 @@ In progress, Complete, or Blocked is Pending.
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M0-06 | August 13, 2026 | Prove a LocalStack SQS queue and DLQ configuration with a batched event message round trip and asserted redrive attributes. |
+| M0-07 | August 13, 2026 | Prove encrypted S3 object and Secrets Manager round trips through the AWS SDK abstraction with a LocalStack KMS key. |
 
 ## Complete
 
@@ -68,6 +68,7 @@ In progress, Complete, or Blocked is Pending.
 | M0-03 | August 13, 2026 | The exact-pinned official Stytch Node SDK validated a fresh B2B JWT locally and the same JWT through forced remote authentication; 49 focused tests, a live disposable proof, full verification, dependency audit, full-history secret scan, and independent review passed. |
 | M0-04 | August 13, 2026 | An exact-pinned Go/pgxpool proof derived and validated the effective Neon pooler destination, completed ten overlapping reads with zero acquired connections, closed cleanly, passed live hostname-verifying TLS, full gates, secret scan, and independent security re-review. |
 | M0-05 | August 13, 2026 | A disposable Neon branch accepted one versioned up/down migration through a direct hostname-verifying pgx connection, returned exactly to its baseline fingerprint, and was absent from the active branch list after cleanup; 34 Go race tests, all repository gates, a full-history secret scan, and two independent security-review fix rounds passed. |
+| M0-06 | August 13, 2026 | LocalStack created a uniquely owned Standard queue and DLQ, round-tripped exact redrive attributes and one two-event Organization-scoped batch, deleted the message, proved the source empty, and removed both queues; 22 Go behavior groups, live SDK proof, full gates, secret scan, and independent security re-review passed. |
 
 `PRE-01` and `PRE-02` are also complete prerequisite work and do not count as
 source-plan microtasks.
@@ -76,8 +77,8 @@ source-plan microtasks.
 
 No source-plan task or prerequisite is blocked.
 
-M0-06 is now in progress after M0-05 passed its live disposable-branch proof
-and final independent security re-review. M0-07 remains dependency-waiting.
+M0-07 is now in progress after M0-06 passed its live LocalStack SQS/DLQ proof
+and final independent security re-review. M0-08 remains dependency-waiting.
 
 ## Review findings
 
@@ -90,6 +91,8 @@ and final independent security re-review. M0-07 remains dependency-waiting.
 | M0-04 task review | Worker panics bypassed fixed errors/cleanup, and the documented live command changed directories before loading the root `.env`. | Resolved in `e8a8f5f`: each worker converts panics to one fixed result and cleanup is proven; the exact runnable root sequence is contract-tested. |
 | M0-05 task review | Successful and partial create responses could authorize cleanup without re-fetching the provider-stored run marker; DELETE 204 responses were not reconciled. | Resolved in `ba0d2b3`: exact provider annotation value/type/ID now gates database access and deletion, branch-only emergency cleanup retains that proof, and both 200/204 delete outcomes require exact active-list absence. |
 | M0-05 re-review | Valid but stale branch or endpoint identifiers in malformed create responses could override stronger provider-listed ownership and strand the proof branch. | Resolved in `37d638f`: incomplete responses provide no identifier authority, provider branch/annotation proof is established independently, and endpoint/hint mismatches block database access while preserving exact cleanup. |
+| M0-06 task review | The committed README contract was red, and strict redrive-policy parsing accepted duplicate known JSON keys. | Resolved in `4b8ae34`: the documented boundary and focused/full gates pass with corrected evidence, and recursive duplicate-key validation rejects duplicate policy and nested-envelope members. |
+| M0-06 re-review | Go's case-insensitive struct-field matching allowed case-variant JSON aliases to bypass exact-key policy and envelope validation. | Resolved in `ba02323`: recursive exact JSON-tag schema validation rejects 42 alias forms across every policy, envelope, and nested-event member while preserving duplicate, unknown, trailing, malformed, null-container, and type checks. |
 
 ## Execution notes
 
@@ -134,6 +137,11 @@ and final independent security re-review. M0-07 remains dependency-waiting.
   independent re-review found no remaining issues after two cleanup-ownership
   fix rounds; Neon soft deletion means the evidence does not claim immediate
   physical erasure.
-- `M0-06` is the only source-plan task in progress. It must exercise LocalStack
-  SQS through the intended SDK boundary, assert queue/DLQ redrive attributes,
-  and prove one batched event message round trip before M0-07 may start.
+- `M0-06` completed after the exact-pinned AWS SDK created and freshly proved
+  a tagged Standard queue/DLQ, round-tripped strict redrive policies and one
+  two-event Organization-scoped message, proved the source empty, and found
+  zero proof queues after cleanup. LocalStack evidence does not claim IAM
+  enforcement or real-AWS parity. Final independent re-review found no issues.
+- `M0-07` is the only source-plan task in progress. It must use the AWS SDK
+  abstraction to prove a LocalStack KMS-backed encrypted S3 object and secret
+  round trip before M0-08 may start.
