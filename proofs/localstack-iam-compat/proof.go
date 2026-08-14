@@ -184,7 +184,7 @@ func expectedSpecs(options ProofOptions) (PrincipalSpec, RoleSpec) {
 	sourceIdentity := prefix + "-source"
 	trust := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"` + principal.ARN + `"},"Action":["sts:AssumeRole","sts:SetSourceIdentity","sts:TagSession"],"Condition":{"StringEquals":{"sts:ExternalId":"` + externalID + `","sts:RoleSessionName":"` + sessionName + `","sts:SourceIdentity":"` + sourceIdentity + `","aws:RequestTag/proof":"` + options.Marker + `"}}}]}`
 	roleARN := iamRoleARN(targetNamespace, path, prefix+"-role")
-	permission := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"iam:GetRole","Resource":"` + roleARN + `"},{"Effect":"Deny","Action":"iam:ListRoles","Resource":"*"}]}`
+	permission := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"iam:GetRole","Resource":"` + roleARN + `"},{"Effect":"Allow","Action":"iam:ListRoles","Resource":"*"},{"Effect":"Deny","Action":"iam:ListRoles","Resource":"*"}]}`
 	role := RoleSpec{
 		Name: prefix + "-role", ARN: roleARN,
 		Path: path, Marker: options.Marker, Description: "provisional LocalStack compatibility proof", PolicyName: prefix + "-policy",

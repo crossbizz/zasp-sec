@@ -36,6 +36,18 @@ func TestRunProof(t *testing.T) {
 	}
 }
 
+func TestExpectedPolicyMakesExplicitDenyNecessary(t *testing.T) {
+	_, role := expectedSpecs(testOptions(newFakeBoundary()))
+	value, ok := decodeStrictJSON(role.PermissionPolicy)
+	if !ok {
+		t.Fatal("permission policy is not strict JSON")
+	}
+	policy := fmt.Sprint(value)
+	if !strings.Contains(policy, "iam:GetRole") || strings.Count(policy, "iam:ListRoles") != 2 || !strings.Contains(policy, "Allow") || !strings.Contains(policy, "Deny") {
+		t.Fatalf("permission policy does not make ListRoles deny precedence necessary: %s", policy)
+	}
+}
+
 func TestRunProof_Rejects(t *testing.T) {
 	tests := []struct {
 		name string

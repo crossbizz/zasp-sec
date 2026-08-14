@@ -104,7 +104,7 @@ func TestSDKBoundary_UsesExactIAMAndSTSQueryOperations(t *testing.T) {
 			writeXML(w, `<PutRolePolicyResponse><ResponseMetadata><RequestId>x</RequestId></ResponseMetadata></PutRolePolicyResponse>`)
 		case "GetRolePolicy":
 			assertForm(t, r, map[string]string{"RoleName": role.Name, "PolicyName": role.PolicyName})
-			writeXML(w, `<GetRolePolicyResponse><GetRolePolicyResult><RoleName>`+role.Name+`</RoleName><PolicyName>`+role.PolicyName+`</PolicyName><PolicyDocument>`+xmlEscape(url.QueryEscape(role.PermissionPolicy))+`</PolicyDocument></GetRolePolicyResult></GetRolePolicyResponse>`)
+			writeXML(w, `<GetRolePolicyResponse><GetRolePolicyResult><RoleName>`+role.Name+`</RoleName><PolicyName>`+role.PolicyName+`</PolicyName><PolicyDocument>`+xmlEscape(url.PathEscape(role.PermissionPolicy))+`</PolicyDocument></GetRolePolicyResult></GetRolePolicyResponse>`)
 		case "AssumeRole":
 			assertForm(t, r, map[string]string{"RoleArn": role.ARN, "RoleSessionName": "session", "ExternalId": "external", "SourceIdentity": "source", "Tags.member.1.Key": "proof", "Tags.member.1.Value": marker})
 			writeXML(w, `<AssumeRoleResponse><AssumeRoleResult><Credentials><AccessKeyId>ASIA0123456789ABCDEF</AccessKeyId><SecretAccessKey>assumed-secret</SecretAccessKey><SessionToken>assumed-token</SessionToken><Expiration>2030-01-01T00:00:00Z</Expiration></Credentials><AssumedRoleUser><Arn>arn:aws:sts::000000000042:assumed-role/`+role.Name+`/session</Arn><AssumedRoleId>AROA0123456789ABCDEF:session</AssumedRoleId></AssumedRoleUser><SourceIdentity>source</SourceIdentity></AssumeRoleResult></AssumeRoleResponse>`)
@@ -238,7 +238,7 @@ func TestSDKBoundary_RejectsRedirectsAndBoundsMutationsAndReads(t *testing.T) {
 }
 
 func TestSDKBoundary_RejectsInvalidProviderPolicyRepresentations(t *testing.T) {
-	if _, ok := decodeProviderPolicy(url.QueryEscape(`{"Version":"2012-10-17","Statement":[{}]}`)); !ok {
+	if _, ok := decodeProviderPolicy(url.PathEscape(`{"Version":"2012-10-17","Statement":[{}]}`)); !ok {
 		t.Fatal("valid policy representation was rejected")
 	}
 	for _, raw := range []string{
@@ -256,6 +256,19 @@ func TestSDKBoundary_RejectsInvalidProviderPolicyRepresentations(t *testing.T) {
 				t.Fatalf("decodeProviderPolicy(%q) accepted an invalid policy representation", raw)
 			}
 		})
+	}
+}
+
+func TestSDKBoundary_DecodesCanonicalRFC3986PolicyOnce(t *testing.T) {
+	raw := `{"Version":"2012-10-17","Statement":[{"Condition":"space value %"}]}`
+	encoded := url.PathEscape(raw)
+	if got, ok := decodeProviderPolicy(encoded); !ok || got != raw {
+		t.Fatalf("decodeProviderPolicy(%q) = %q, %v", encoded, got, ok)
+	}
+	for _, alias := range []string{raw, url.QueryEscape(raw), strings.ToLower(encoded), url.PathEscape(encoded), strings.Replace(encoded, "%20", "+", 1)} {
+		if _, ok := decodeProviderPolicy(alias); ok {
+			t.Fatalf("accepted noncanonical policy alias %q", alias)
+		}
 	}
 }
 
@@ -341,7 +354,7 @@ func TestSDKBoundary_RunProofOverLoopback(t *testing.T) {
 				t.Fatalf("ListRoles PathPrefix = %q, want no path filter", r.Form.Get("PathPrefix"))
 			}
 			if roleExists {
-				writeXML(w, `<ListRolesResponse><ListRolesResult><Roles><member><Path>`+role.Path+`</Path><RoleName>`+role.Name+`</RoleName><RoleId>AROA0123456789ABCDEF</RoleId><Arn>`+role.ARN+`</Arn><AssumeRolePolicyDocument>`+xmlEscape(url.QueryEscape(role.TrustPolicy))+`</AssumeRolePolicyDocument><Description>`+role.Description+`</Description><Tags><member><Key>proof</Key><Value>`+marker+`</Value></member></Tags></member></Roles></ListRolesResult></ListRolesResponse>`)
+				writeXML(w, `<ListRolesResponse><ListRolesResult><Roles><member><Path>`+role.Path+`</Path><RoleName>`+role.Name+`</RoleName><RoleId>AROA0123456789ABCDEF</RoleId><Arn>`+role.ARN+`</Arn><AssumeRolePolicyDocument>`+xmlEscape(url.PathEscape(role.TrustPolicy))+`</AssumeRolePolicyDocument><Description>`+role.Description+`</Description><Tags><member><Key>proof</Key><Value>`+marker+`</Value></member></Tags></member></Roles></ListRolesResult></ListRolesResponse>`)
 			} else {
 				writeXML(w, `<ListRolesResponse><ListRolesResult><Roles></Roles></ListRolesResult></ListRolesResponse>`)
 			}
@@ -357,7 +370,7 @@ func TestSDKBoundary_RunProofOverLoopback(t *testing.T) {
 			if !policyExists {
 				writeError(w, http.StatusNotFound, "NoSuchEntity", "absent")
 			} else {
-				writeXML(w, `<GetRolePolicyResponse><GetRolePolicyResult><RoleName>`+role.Name+`</RoleName><PolicyName>`+role.PolicyName+`</PolicyName><PolicyDocument>`+xmlEscape(url.QueryEscape(role.PermissionPolicy))+`</PolicyDocument></GetRolePolicyResult></GetRolePolicyResponse>`)
+				writeXML(w, `<GetRolePolicyResponse><GetRolePolicyResult><RoleName>`+role.Name+`</RoleName><PolicyName>`+role.PolicyName+`</PolicyName><PolicyDocument>`+xmlEscape(url.PathEscape(role.PermissionPolicy))+`</PolicyDocument></GetRolePolicyResult></GetRolePolicyResponse>`)
 			}
 		case "AssumeRole":
 			writeXML(w, `<AssumeRoleResponse><AssumeRoleResult><Credentials><AccessKeyId>ASIA0123456789ABCDEF</AccessKeyId><SecretAccessKey>assumed-secret</SecretAccessKey><SessionToken>assumed-token</SessionToken><Expiration>2030-01-01T00:00:00Z</Expiration></Credentials><AssumedRoleUser><Arn>arn:aws:sts::000000000042:assumed-role/`+role.Name+`/`+proofPrefix(marker)+`-session</Arn><AssumedRoleId>AROA0123456789ABCDEF:`+proofPrefix(marker)+`-session</AssumedRoleId></AssumedRoleUser><SourceIdentity>`+proofPrefix(marker)+`-source</SourceIdentity></AssumeRoleResult></AssumeRoleResponse>`)
@@ -409,7 +422,7 @@ func userResponse(action string, spec PrincipalSpec, id string) string {
 	return `<` + action + `Response><` + action + `Result><User><Path>` + spec.Path + `</Path><UserName>` + spec.Name + `</UserName><UserId>` + id + `</UserId><Arn>` + spec.ARN + `</Arn><Tags><member><Key>proof</Key><Value>` + spec.Marker + `</Value></member></Tags></User></` + action + `Result></` + action + `Response>`
 }
 func roleResponse(action string, spec RoleSpec, id string) string {
-	return `<` + action + `Response><` + action + `Result><Role><Path>` + spec.Path + `</Path><RoleName>` + spec.Name + `</RoleName><RoleId>` + id + `</RoleId><Arn>` + spec.ARN + `</Arn><AssumeRolePolicyDocument>` + xmlEscape(url.QueryEscape(spec.TrustPolicy)) + `</AssumeRolePolicyDocument><Description>` + spec.Description + `</Description><Tags><member><Key>proof</Key><Value>` + spec.Marker + `</Value></member></Tags></Role></` + action + `Result></` + action + `Response>`
+	return `<` + action + `Response><` + action + `Result><Role><Path>` + spec.Path + `</Path><RoleName>` + spec.Name + `</RoleName><RoleId>` + id + `</RoleId><Arn>` + spec.ARN + `</Arn><AssumeRolePolicyDocument>` + xmlEscape(url.PathEscape(spec.TrustPolicy)) + `</AssumeRolePolicyDocument><Description>` + spec.Description + `</Description><Tags><member><Key>proof</Key><Value>` + spec.Marker + `</Value></member></Tags></Role></` + action + `Result></` + action + `Response>`
 }
 
 var _ = time.Second

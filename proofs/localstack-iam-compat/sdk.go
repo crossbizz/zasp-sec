@@ -503,7 +503,7 @@ func decodeProviderPolicy(raw string) (string, bool) {
 		return "", false
 	}
 	decoded, err := url.PathUnescape(raw)
-	if err != nil || decoded == raw || strings.Contains(decoded, "%") || len(decoded) > maxBodySize || url.QueryEscape(decoded) != raw {
+	if err != nil || decoded == raw || len(decoded) > maxBodySize || url.PathEscape(decoded) != raw {
 		return "", false
 	}
 	if !validIAMPolicyDocument(decoded) {
