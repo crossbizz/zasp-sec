@@ -625,13 +625,16 @@ export class DockerRuntime {
     } catch {
       throw new Failure(category);
     }
+    const attachedNetworkID = networks?.[this.networkName]?.NetworkID;
+    const preStartCartographyNetwork = !kind.startsWith("neo4j-") && attachedNetworkID === "";
     if (
       fields[0] !== token || fields[1] !== `/${this.name(kind)}` ||
       fields[2] !== (kind.startsWith("neo4j-") ? token.slice(0, 12) : this.name(kind)) ||
       fields[3] !== imageID || fields[4] !== expectedImage ||
       fields[5] !== "m0-10" || fields[6] !== this.marker ||
       fields[7] !== this.networkName || !plainObject(networks) ||
-      Object.keys(networks).length !== 1 || networks[this.networkName]?.NetworkID !== this.networkToken ||
+      Object.keys(networks).length !== 1 ||
+      (attachedNetworkID !== this.networkToken && !preStartCartographyNetwork) ||
       !Array.isArray(environment) || environment.some((value) => typeof value !== "string") ||
       !plainObject(ports) || !Array.isArray(mounts)
     ) throw new Failure(category);
@@ -658,6 +661,7 @@ export class DockerRuntime {
       mounts.length !== 1 || mounts[0]?.Source !== this.proofDirectory ||
       mounts[0]?.Destination !== "/proof" || mounts[0]?.RW !== false || mounts[0]?.Type !== "bind"
     ) throw new Failure(category);
+    else if (preStartCartographyNetwork) await this.verifyNetwork(category);
     return token;
   }
 

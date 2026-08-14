@@ -463,6 +463,29 @@ test("rejects a replacement Cartography hostname, entrypoint, bootstrap argv, or
   }
 });
 
+test("accepts an exact pre-start Cartography network only after re-proving the owned network", async () => {
+  const runtime = new ScriptedRuntime([
+    result(0, `${containerInspection({
+      token: cartographyID,
+      name: `${prefix}-cartography-a`,
+      imageID: cartographyImageID,
+      image: CARTOGRAPHY_IMAGE,
+      environment: ["PYTHON_VERSION=3.13"],
+      attachedNetworkID: "",
+    })}\n`),
+    result(0, `${networkID}|${networkName}|m0-10|${marker}\n`),
+  ]);
+  runtime.networkToken = networkID;
+  runtime.imageIDs.set(CARTOGRAPHY_IMAGE, cartographyImageID);
+  runtime.containerTokens.set("cartography-a", cartographyID);
+
+  assert.equal(await runtime.verifyContainer("cartography-a"), cartographyID);
+  assert.deepEqual(runtime.calls.map(({ args }) => args.slice(0, 2)), [
+    ["inspect", "--format"],
+    ["network", "inspect"],
+  ]);
+});
+
 test("reconciles ambiguous creates and removes only the same freshly re-proven container", async () => {
   const inspection = containerInspection({
     token: neo4jID,
@@ -971,6 +994,7 @@ function containerInspection({
     "--neo4j-uri", `bolt://${prefix}-neo4j-${name.at(-1)}:7687`,
   ] : null,
   mounts = name.includes("-cartography-") ? [{ Type: "bind", Source: proofDirectory, Destination: "/proof", RW: false }] : [],
+  attachedNetworkID = networkID,
 }) {
   return [
     token,
@@ -981,7 +1005,7 @@ function containerInspection({
     "m0-10",
     marker,
     networkName,
-    JSON.stringify({ [networkName]: { NetworkID: networkID } }),
+    JSON.stringify({ [networkName]: { NetworkID: attachedNetworkID } }),
     JSON.stringify(environment),
     JSON.stringify(ports),
     JSON.stringify(entrypoint),
