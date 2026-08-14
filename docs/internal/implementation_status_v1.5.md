@@ -2,7 +2,7 @@
 
 **Source plan:** `docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md`  
 **Source PRD:** `docs/internal/agent_security_platform_PRD_v1.5.md`  
-**Last updated:** August 13, 2026  
+**Last updated:** August 14, 2026
 **Execution branch:** `codex/zasp-implementation`
 
 This file is the authoritative execution status for the 728 microtasks in the
@@ -60,10 +60,16 @@ source-plan microtasks and cannot satisfy their deferred provider gates.
 
 | ID | Status | Purpose | Completion gate |
 | --- | --- | --- | --- |
-| PROV-01 | In progress | Exercise IAM/STS assume, allowed-read, explicit-deny, and exact cleanup behavior in an isolated disposable LocalStack target without weakening the real-AWS harness. | Disposable live proof, zero-resource/container audit, full repository gates, secret scan, and independent review pass; evidence makes no real-AWS parity claim. |
+| PROV-01 | Blocked | Exercise IAM/STS assume, allowed-read, explicit-deny, and exact cleanup behavior in an isolated disposable LocalStack target without weakening the real-AWS harness. | Exact-pinned LocalStack 4.7.0 does not forward SourceIdentity into the assumed session and does not enforce the required SourceIdentity trust condition. Resume with an isolated provider version or build that proves both behaviors, then repeat cleanup, audit, gates, scans, and review. |
 
-Repository commands, contract coverage, and operator documentation are in place;
-PROV-01 remains In progress pending live verification and independent review.
+Repository commands, contract coverage, cleanup, audit, and zero-finding review
+are in place. PROV-01 is Blocked on the exact LocalStack 4.7.0
+SourceIdentity/trust-condition capability dependency. Official LocalStack
+v4.14.0 source retains the same unsupported forwarding path; this was source
+review only, not live testing. Its tagged STS provider accepts `source_identity`
+but delegates the response without adding it to the returned session or stored
+session configuration. The 728 source-plan counts remain `719/0/8/1` because
+PROV-01 is excluded from those counts.
 
 ## In progress
 
@@ -92,8 +98,9 @@ PROV-01 remains In progress pending live verification and independent review.
 | M0-09 | August 13, 2026 | The reviewed real-AWS harness has none of the nine task-specific inputs and no isolated authenticated two-account fixture. Existing generic AWS values target loopback LocalStack. | Provide the documented isolated commercial-AWS source and target-admin credentials, expected distinct accounts/source principal, region, and exact isolation attestation. |
 
 The user approved a temporary dependency waiver: PROV-01 may establish only
-LocalStack IAM/STS compatibility. M0-09 and R-03 remain incomplete. M0-10 stays
-Pending until PROV-01 passes live verification and independent review.
+LocalStack IAM/STS compatibility. PROV-01 and M0-09 are Blocked, R-03 remains
+incomplete, and M0-10 remains Pending. A zero-finding implementation review
+does not override the failed provider capability gate.
 
 ## Review findings
 
@@ -112,6 +119,7 @@ Pending until PROV-01 passes live verification and independent review.
 | M0-07 task review | Readiness did not enforce hard body/time limits, pre-orchestrator construction could escape the fixed-output boundary, and the endpoint validator accepted a slash path. | Resolved in `8617ca7`: readiness has byte and absolute-time caps, all construction/orchestration failures emit one fixed line, and only an exactly empty endpoint path is accepted; final re-review found no remaining issues. |
 | M0-08 task review | Index ownership did not validate the proof discriminator, and definitive HTTP failures could reconcile overwrite-capable document writes or adopt pre-existing exact-looking resources. | Resolved in `cb54031`: exact proof metadata now gates inspection/reconciliation/cleanup, non-2xx mutations are definitive, document writes are create-only, and only ambiguous applied-success outcomes may reconcile exact provider state. |
 | M0-08 re-review | Unexpected successful 2xx mutation statuses were classified as definitive, so an applied index or document could bypass reconciliation and strand owned state. | Resolved in `959f033`: unexpected 2xx outcomes are ambiguous while non-2xx remains definitive; applied-exact, unapplied, and mismatched index/document regressions pass and final re-review found no remaining issues. |
+| PROV-01 final review | The implementation reached zero remaining Critical, Important, and Minor findings, but exact-pinned LocalStack 4.7.0 returned no SourceIdentity and accepted the deliberately wrong SourceIdentity despite the trust condition. | PROV-01 is Blocked, not Complete. M0-10 remains Pending; M0-09 stays Blocked and R-03 incomplete. Resume only with provider evidence for both required SourceIdentity behaviors. |
 
 ## Execution notes
 
@@ -181,5 +189,6 @@ Pending until PROV-01 passes live verification and independent review.
   LocalStack cannot satisfy its release-parity gate.
 - The user approved PROV-01 as a temporary, non-source-plan compatibility proof.
   It uses a separate disposable LocalStack IAM/STS target and cannot modify or
-  complete M0-09/R-03. After PROV-01 passes independent review, M0-10 may start
-  under the recorded dependency waiver while M0-09 remains Blocked.
+  complete M0-09/R-03. PROV-01 is Blocked on the exact LocalStack
+  SourceIdentity/trust-condition capability dependency. M0-10 remains Pending
+  and may not start from a zero-finding code review alone.

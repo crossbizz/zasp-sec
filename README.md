@@ -159,7 +159,11 @@ npm run proof:localstack:iam:run
 
 The runner accepts no dotenv input, never uses shared development LocalStack,
 and emits only a fixed result line. PROV-01 cannot complete M0-09 or R-03.
-M0-10 is still Pending until independent review after live verification.
+PROV-01 is Blocked on LocalStack 4.7.0 because the live provider did not return
+SourceIdentity and accepted a wrong SourceIdentity despite the required trust
+condition. M0-10 remains Pending. Official LocalStack v4.14.0 source retains
+the same unsupported forwarding path; that is source review only, not a claim
+that v4.14.0 was live-tested.
 
 ## Real AWS cross-account IAM proof
 

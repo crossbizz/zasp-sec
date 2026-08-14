@@ -11,6 +11,9 @@
 ## Global Constraints
 
 - PROV-01 is temporary waiver work and is not one of the 728 source-plan tasks.
+- After zero-finding review, PROV-01 is Blocked on exact LocalStack 4.7.0
+  SourceIdentity forwarding and trust-condition enforcement. M0-10 remains
+  Pending; the 728 source-plan counts do not change.
 - M0-09 remains Blocked and R-03 remains incomplete; no LocalStack result may be presented as real-AWS IAM or release-parity evidence.
 - Do not add a custom endpoint or LocalStack mode to `proofs/aws-cross-account-iam`.
 - Do not address, restart, reconfigure, or remove the shared development LocalStack container.
@@ -503,7 +506,7 @@ git commit -m "feat: run disposable LocalStack IAM proof"
 
 - [ ] **Step 1: Write repository contract RED**
 
-Add a Vitest contract that asserts exact Go/toolchain/SDK/image pins, both root commands, `SERVICES=iam,sts`, `ENFORCE_IAM=1`, no dotenv input, the exact README command block, fixed success text, and explicit statements that PROV-01 cannot complete M0-09/R-03 and that M0-10 is still Pending until independent review.
+Add a Vitest contract that asserts exact Go/toolchain/SDK/image pins, both root commands, `SERVICES=iam,sts`, `ENFORCE_IAM=1`, no dotenv input, the exact README command block, fixed success text, and explicit statements that PROV-01 cannot complete M0-09/R-03. After the live capability result and zero-finding review, the contract must require PROV-01 Blocked, leave M0-10 Pending, and preserve the 728 source-plan counts.
 
 Update the existing real-AWS contract expectation from `M0-09 and R-03 remain In progress` to `M0-09 is Blocked and R-03 remains incomplete`.
 
@@ -527,7 +530,7 @@ npm run proof:localstack:iam:test
 npm run proof:localstack:iam:run
 ```
 
-State that Docker and Go are required, no credentials are accepted, IAM enforcement is mandatory, account values are emulator namespaces, and the result is not real-AWS parity. Update the real-AWS section to say M0-09 is Blocked and R-03 remains incomplete. Keep PROV-01 In progress in the tracker until review.
+State that Docker and Go are required, no credentials are accepted, IAM enforcement is mandatory, account values are emulator namespaces, and the result is not real-AWS parity. Update the real-AWS section to say M0-09 is Blocked and R-03 remains incomplete. Before independent review, keep PROV-01 In progress in the tracker; after review, apply Step 10's live-result ruling.
 
 - [ ] **Step 4: Run focused and full repository gates GREEN**
 
@@ -603,7 +606,7 @@ Use the already verified Gitleaks v8.30.1 binary/module to scan the new proof, r
 
 - [ ] **Step 7: Finalize evidence without completing PROV-01**
 
-Write `task-PROV-01-report.md` with RED/GREEN, exact versions, live fixed result, cleanup/audit, full gates, secret scans, and limitations. Append the ledger. Leave PROV-01 In progress, M0-09 Blocked, R-03 incomplete, and M0-10 Pending until independent review.
+Write `task-PROV-01-report.md` with RED/GREEN, exact versions, live fixed result, cleanup/audit, full gates, secret scans, and limitations. Append the ledger. Before independent review, leave PROV-01 In progress, M0-09 Blocked, R-03 incomplete, and M0-10 Pending. After review, apply Step 10's live-result ruling.
 
 - [ ] **Step 8: Create the atomic implementation commit and post-commit scan**
 
@@ -619,6 +622,6 @@ Run the pinned post-commit full-history Gitleaks scan and confirm `git status --
 
 Provide the reviewer the exact design, implementation plan, source-plan/R-03 boundaries, ignored evidence, and base-to-head range. Require Critical/Important/Minor counts and `Ready: Yes/No`; no live calls or edits during review. Resolve every accepted finding through a separate RED/GREEN fix commit and repeat gates before changing status.
 
-- [ ] **Step 10: Transition after clean review**
+- [ ] **Step 10: Record the provider-blocked outcome after clean review**
 
-Only after final review reports zero remaining findings: mark PROV-01 Complete; move M0-10 from Pending to In progress under the waiver; keep M0-09 Blocked and R-03 incomplete; update counts to Pending 718, In progress 1, Complete 8, Blocked 1; run pinned `npm run verify`; commit, push, and require the remote Runnable UI workflow to pass at the exact pushed SHA.
+After final review reports zero remaining findings, apply the live capability result. Because exact LocalStack 4.7.0 did not return SourceIdentity and accepted a deliberately wrong SourceIdentity despite the trust condition, mark PROV-01 Blocked and leave M0-10 Pending. Keep M0-09 Blocked and R-03 incomplete. Preserve source-plan counts at Pending 719, In progress 0, Complete 8, Blocked 1 because PROV-01 is excluded from the 728. Official LocalStack v4.14.0 source retains the same unsupported forwarding path; record that as source inspection only, not live evidence. Run pinned `npm run verify`, scans, and local commit checks. Do not push without separate authorization.
