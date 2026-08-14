@@ -112,7 +112,7 @@ func TestSDKBoundary_UsesExactIAMAndSTSQueryOperations(t *testing.T) {
 			if strings.Contains(r.Header.Get("Authorization"), "Credential=000000000041/") {
 				t.Fatal("assumed ListRoles used source credentials")
 			}
-			writeError(w, http.StatusForbidden, "ExplicitDeny", "explicit deny")
+			writeError(w, http.StatusForbidden, "AccessDenied", "explicit deny")
 		case "DeleteRolePolicy", "DeleteRole", "DeleteAccessKey", "DeleteUser":
 			writeXML(w, `<`+action+`Response><ResponseMetadata><RequestId>x</RequestId></ResponseMetadata></`+action+`Response>`)
 		default:
@@ -334,7 +334,7 @@ func TestSDKBoundary_RunProofOverLoopback(t *testing.T) {
 			writeXML(w, `<ListAccessKeysResponse><ListAccessKeysResult><AccessKeyMetadata><member><UserName>`+principal.Name+`</UserName><AccessKeyId>AKIA0123456789ABCDEF</AccessKeyId><Status>Active</Status></member></AccessKeyMetadata></ListAccessKeysResult></ListAccessKeysResponse>`)
 		case "ListRoles":
 			if strings.Contains(r.Header.Get("Authorization"), "Credential=ASIA") {
-				writeError(w, http.StatusForbidden, "ExplicitDeny", "explicit")
+				writeError(w, http.StatusForbidden, "AccessDenied", "indistinguishable")
 				return
 			}
 			if r.Form.Get("PathPrefix") != "" {

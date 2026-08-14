@@ -348,6 +348,10 @@ func proveAssumeAllowDeny(ctx context.Context, options ProofOptions, principal *
 		return result, errOwnership
 	}
 	result.AllowedRead = true
+	policy, err := options.Boundary.GetRolePolicy(ctx, role.state.Name, role.state.PolicyName)
+	if err != nil || !sameJSON(policy, role.state.PermissionPolicy) {
+		return result, errOwnership
+	}
 	err = options.Boundary.DeniedListRoles(ctx, session)
 	var explicit explicitDenyError
 	if !errors.As(err, &explicit) {
@@ -394,7 +398,8 @@ func reconcileRole(ctx context.Context, boundary IAMBoundary, expected RoleSpec,
 		if err == nil && len(roles) == 1 {
 			observed = true
 			state, inspectErr := boundary.InspectRole(ctx, expected.Name)
-			if inspectErr == nil && exactRole(expected, state) {
+			if inspectErr == nil && sameRoleDefinition(expected, state) {
+				state.PolicyName, state.PermissionPolicy = expected.PolicyName, expected.PermissionPolicy
 				return &state, reconciliationOwned
 			}
 			if inspectErr == nil {

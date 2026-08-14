@@ -26,7 +26,7 @@ func TestRunProof(t *testing.T) {
 		"source-identity", "target-identity", "list-principals", "list-roles",
 		"create-principal", "inspect-principal", "create-access-key",
 		"create-role", "put-role-policy", "inspect-role", "get-role-policy",
-		"assume-role", "assumed-identity", "allowed-get-role", "denied-list-roles",
+		"assume-role", "assumed-identity", "allowed-get-role", "cleanup-get-role-policy", "denied-list-roles",
 		"cleanup-get-role-policy", "cleanup-inspect-role", "delete-role-policy",
 		"cleanup-inspect-principal", "delete-access-key", "delete-principal",
 		"cleanup-inspect-role", "delete-role", "audit-principals", "audit-roles",

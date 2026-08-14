@@ -55,11 +55,7 @@ func NewSDKBoundary(ctx context.Context, rawEndpoint, sourceAccount, targetAccou
 	httpClient := &http.Client{Timeout: 25 * time.Second, Transport: bodyBoundTransport{base: transport}, CheckRedirect: rejectRedirect}
 	sourceCredentials := aws.CredentialsProviderFunc(staticNamespaceCredentials(sourceAccount))
 	targetCredentials := aws.CredentialsProviderFunc(staticNamespaceCredentials(targetAccount))
-	readRetryer := retry.NewStandard(func(options *retry.StandardOptions) {
-		options.MaxAttempts = 2
-		options.MaxBackoff = 500 * time.Millisecond
-		options.Backoff = retry.BackoffDelayerFunc(func(int, error) (time.Duration, error) { return 500 * time.Millisecond, nil })
-	})
+	readRetryer := newReadRetryer()
 	return &SDKBoundary{
 		sourceIAM: iam.New(iam.Options{Region: fixedRegion, BaseEndpoint: aws.String(endpoint.raw), HTTPClient: httpClient, Credentials: sourceCredentials, Retryer: readRetryer, RetryMaxAttempts: 2}),
 		targetIAM: iam.New(iam.Options{Region: fixedRegion, BaseEndpoint: aws.String(endpoint.raw), HTTPClient: httpClient, Credentials: targetCredentials, Retryer: readRetryer, RetryMaxAttempts: 2}),
@@ -72,6 +68,13 @@ func staticNamespaceCredentials(account string) func(context.Context) (aws.Crede
 	return func(context.Context) (aws.Credentials, error) {
 		return aws.Credentials{AccessKeyID: account, SecretAccessKey: "test", Source: "localstack-namespace"}, nil
 	}
+}
+func newReadRetryer() aws.Retryer {
+	return retry.NewStandard(func(options *retry.StandardOptions) {
+		options.MaxAttempts = 2
+		options.MaxBackoff = 500 * time.Millisecond
+		options.Backoff = retry.BackoffDelayerFunc(func(int, error) (time.Duration, error) { return 500 * time.Millisecond, nil })
+	})
 }
 
 func validatedLoopbackTransport(ctx context.Context, raw string) (validatedEndpoint, func(context.Context, string, string) (net.Conn, error), error) {
@@ -416,7 +419,7 @@ func (b *SDKBoundary) DeniedListRoles(ctx context.Context, session AssumedSessio
 		return errAuthorization
 	}
 	var apiErr smithy.APIError
-	if errors.As(err, &apiErr) && strings.EqualFold(apiErr.ErrorCode(), "ExplicitDeny") {
+	if errors.As(err, &apiErr) && (strings.EqualFold(apiErr.ErrorCode(), "AccessDenied") || strings.EqualFold(apiErr.ErrorCode(), "AccessDeniedException")) {
 		return explicitDenyError{}
 	}
 	return errAuthorization
@@ -424,12 +427,12 @@ func (b *SDKBoundary) DeniedListRoles(ctx context.Context, session AssumedSessio
 func (b *SDKBoundary) assumedIAM(session AssumedSession) *iam.Client {
 	return iam.New(iam.Options{Region: fixedRegion, BaseEndpoint: aws.String(b.endpoint.raw), HTTPClient: b.httpClient, Credentials: aws.CredentialsProviderFunc(func(context.Context) (aws.Credentials, error) {
 		return aws.Credentials{AccessKeyID: session.AccessKeyID, SecretAccessKey: session.SecretAccessKey, SessionToken: session.SessionToken, Source: "localstack-assumed"}, nil
-	}), RetryMaxAttempts: 2})
+	}), Retryer: newReadRetryer(), RetryMaxAttempts: 2})
 }
 func (b *SDKBoundary) assumedSTS(session AssumedSession) *sts.Client {
 	return sts.New(sts.Options{Region: fixedRegion, BaseEndpoint: aws.String(b.endpoint.raw), HTTPClient: b.httpClient, Credentials: aws.CredentialsProviderFunc(func(context.Context) (aws.Credentials, error) {
 		return aws.Credentials{AccessKeyID: session.AccessKeyID, SecretAccessKey: session.SecretAccessKey, SessionToken: session.SessionToken, Source: "localstack-assumed"}, nil
-	}), RetryMaxAttempts: 2})
+	}), Retryer: newReadRetryer(), RetryMaxAttempts: 2})
 }
 
 func principalFromUser(user iamtypes.User) (PrincipalState, bool) {
@@ -496,11 +499,11 @@ func tagsFromIAM(tags []iamtypes.Tag) map[string]string {
 	return values
 }
 func decodeProviderPolicy(raw string) (string, bool) {
-	if len(raw) == 0 || len(raw) > maxBodySize {
+	if len(raw) == 0 || len(raw) > maxBodySize || strings.Contains(raw, "+") {
 		return "", false
 	}
-	decoded, err := url.QueryUnescape(raw)
-	if err != nil || decoded == raw || len(decoded) > maxBodySize {
+	decoded, err := url.PathUnescape(raw)
+	if err != nil || decoded == raw || strings.Contains(decoded, "%") || len(decoded) > maxBodySize || url.QueryEscape(decoded) != raw {
 		return "", false
 	}
 	if !validIAMPolicyDocument(decoded) {
