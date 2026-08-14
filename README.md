@@ -85,6 +85,33 @@ The live command performs a second exact-prefix absence audit and emits fixed
 output without queue, account, message, payload, tag, or endpoint identifiers.
 This is supported local behavior evidence, not real-AWS IAM or release-parity evidence.
 
+## LocalStack storage proof
+
+This proof starts an exact-pinned, proof-owned disposable LocalStack 4.7.0 container
+with only S3, KMS, and Secrets Manager enabled on a random loopback port. It does
+not stop, restart, reconfigure, or delete the shared development container. The Go
+proof supplies fixed local credentials directly to the official AWS SDK v2, creates
+a tagged symmetric KMS key, and verifies direct encrypt/decrypt before exercising
+S3 and Secrets Manager with that exact key.
+
+The S3 fixture uses path-style requests, default and explicit SSE-KMS settings, an
+Organization-scoped object key, exact metadata/tags, and body/digest integrity. The
+secret fixture uses atomic proof tags and the same KMS key. Cleanup re-proves every
+current resource before deleting the secret, object, bucket, and alias; it schedules
+only the proof key for the minimum deletion window, audits zero active resources and
+the exact pending key, then removes and proves absence of only the disposable
+container.
+
+```bash
+npm run proof:localstack:storage:test
+npm run proof:localstack:storage:run
+```
+
+The commands need Docker and Go but no credential or dotenv input. Output is fixed
+and omits payloads, endpoints, ports, tags, ETags, resource/container identifiers,
+SDK errors, and credentials. This is supported local SDK evidence, not real-AWS encryption, IAM, durability, recovery, or release-parity evidence.
+R-03 remains open until M0-09 supplies the separate real-AWS authorization proof.
+
 The application uses Vinext and targets the Cloudflare Workers runtime. Optional
 local D1 and R2 bindings can be enabled with `CLOUDFLARE_D1_BINDING` and
 `CLOUDFLARE_R2_BINDING`; no database or object-storage binding is required for
