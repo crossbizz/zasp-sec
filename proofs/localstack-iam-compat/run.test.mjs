@@ -278,6 +278,22 @@ test("kills an uncooperative child at its deadline and on combined split-stream 
 test("keeps the Node supervisor above the full Go timeline plus cleanup overhead", () => {
   const goSource = readFileSync(new URL("./main.go", import.meta.url), "utf8");
   const nodeSource = readFileSync(new URL("./run.mjs", import.meta.url), "utf8");
+  assertProofSupervisorBudget(goSource, nodeSource);
+});
+
+test("rejects moving the named supervisor to build while shortening the proof child", () => {
+  const goSource = readFileSync(new URL("./main.go", import.meta.url), "utf8");
+  const nodeSource = readFileSync(new URL("./run.mjs", import.meta.url), "utf8");
+  const mutatedNodeSource = nodeSource
+    .replace(/(runBounded\(executable,[\s\S]*?timeoutMs: )proofSupervisorTimeoutMilliseconds/, (_match, prefix) => `${prefix}180_000`)
+    .replace(/(runBounded\("go",[\s\S]*?timeoutMs: )90_000/, (_match, prefix) => `${prefix}proofSupervisorTimeoutMilliseconds`);
+  assert.notEqual(mutatedNodeSource, nodeSource);
+  assert.match(mutatedNodeSource, /runBounded\("go",[\s\S]*?timeoutMs: proofSupervisorTimeoutMilliseconds/);
+  assert.match(mutatedNodeSource, /runBounded\(executable,[\s\S]*?timeoutMs: 180_000/);
+  assert.throws(() => assertProofSupervisorBudget(goSource, mutatedNodeSource), /proof child/);
+});
+
+function assertProofSupervisorBudget(goSource, nodeSource) {
   const goSeconds = (name) => {
     const match = goSource.match(new RegExp(`\\b${name}\\s*=\\s*([0-9_]+)\\s*\\*\\s*time\\.Second`));
     assert.ok(match, `missing Go ${name} duration`);
@@ -285,13 +301,16 @@ test("keeps the Node supervisor above the full Go timeline plus cleanup overhead
   };
   const nodeMatch = nodeSource.match(/const proofSupervisorTimeoutMilliseconds = ([0-9_]+);/);
   assert.ok(nodeMatch, "missing finite Node proof supervisor budget");
-  assert.match(nodeSource, /timeoutMs: proofSupervisorTimeoutMilliseconds/);
+  const proofCalls = [...nodeSource.matchAll(/runBounded\(\s*executable\s*,\s*\[\]\s*,\s*\{([\s\S]*?)\}\s*,\s*this\.spawnProcess\s*\)/g)];
+  assert.equal(proofCalls.length, 1, "missing or duplicate proof child call");
+  const proofTimeout = proofCalls[0][1].match(/\btimeoutMs:\s*([A-Za-z][A-Za-z0-9_]*)/);
+  assert.equal(proofTimeout?.[1], "proofSupervisorTimeoutMilliseconds", "proof child must use the named supervisor budget");
 
   const goMaximumMilliseconds = (goSeconds("mainTimeout") + 3 * goSeconds("cleanupTimeout")) * 1_000;
   const cleanupAndOverheadMarginMilliseconds = 60_000;
   const nodeBudgetMilliseconds = Number(nodeMatch[1].replaceAll("_", ""));
   assert.ok(nodeBudgetMilliseconds >= goMaximumMilliseconds + cleanupAndOverheadMarginMilliseconds);
-});
+}
 
 test("contains construction and orchestration details at the one-line fixed-output boundary", async () => {
   for (const runtimeFactory of [
