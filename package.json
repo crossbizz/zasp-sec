@@ -21,6 +21,8 @@
     "proof:localstack:storage:run": "node proofs/localstack-storage/run.mjs",
     "proof:opensearch:event:test": "cd proofs/opensearch-event && go test -race -count=1 ./... && node --test run.test.mjs",
     "proof:opensearch:event:run": "node proofs/opensearch-event/run.mjs",
+    "proof:localstack:iam:test": "cd proofs/localstack-iam-compat && go test -race -count=1 ./... && node --test run.test.mjs",
+    "proof:localstack:iam:run": "node proofs/localstack-iam-compat/run.mjs",
     "proof:aws:iam:test": "cd proofs/aws-cross-account-iam && go test -race -count=1 ./... && node --test run.test.mjs",
     "proof:aws:iam:run": "node --env-file=.env proofs/aws-cross-account-iam/run.mjs",
     "test": "vitest run",

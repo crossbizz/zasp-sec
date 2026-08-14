@@ -62,6 +62,9 @@ source-plan microtasks and cannot satisfy their deferred provider gates.
 | --- | --- | --- | --- |
 | PROV-01 | In progress | Exercise IAM/STS assume, allowed-read, explicit-deny, and exact cleanup behavior in an isolated disposable LocalStack target without weakening the real-AWS harness. | Disposable live proof, zero-resource/container audit, full repository gates, secret scan, and independent review pass; evidence makes no real-AWS parity claim. |
 
+Repository commands, contract coverage, and operator documentation are in place;
+PROV-01 remains In progress pending live verification and independent review.
+
 ## In progress
 
 | Task | Started | Current work |

@@ -142,6 +142,25 @@ projection behavior evidence, not AWS OpenSearch Service, IAM, durability, recov
 OpenSearch remains a rebuildable query projection rather than the durable SQS/S3
 event source of truth.
 
+## Provisional LocalStack IAM compatibility proof
+
+This isolated proof starts an exact-pinned, proof-owned disposable LocalStack
+target with IAM and STS only, on a random loopback port. Docker and Go are required.
+No credentials are accepted, and IAM enforcement is mandatory.
+
+The proof uses two fixed account values as emulator namespaces. They do not
+establish AWS account isolation. It demonstrates a LocalStack-only assumed-role
+allowed read, explicit deny, and cleanup result, not real-AWS parity.
+
+```bash
+npm run proof:localstack:iam:test
+npm run proof:localstack:iam:run
+```
+
+The runner accepts no dotenv input, never uses shared development LocalStack,
+and emits only a fixed result line. PROV-01 cannot complete M0-09 or R-03.
+M0-10 is still Pending until independent review after live verification.
+
 ## Real AWS cross-account IAM proof
 
 This proof is deliberately real-AWS-only. It requires two explicitly configured,
@@ -186,9 +205,9 @@ The runner passes only task-specific values to the proof binary; AWS profiles,
 shared config, IMDS, ambient proxies, custom endpoints, and provider debug output
 are disabled. The current workspace does not contain the task-specific isolated
 source/target fixture, so only the deterministic local test command is presently
-expected to pass. M0-09 and R-03 remain In progress until the documented live
-command proves the real allowed/denied results and exact cleanup in those isolated
-accounts. No shared, staging, customer, or production AWS account may be used.
+expected to pass. M0-09 is Blocked and R-03 remains incomplete until the
+documented live command proves the real allowed/denied results and exact cleanup
+in those isolated accounts. No shared, staging, customer, or production AWS account may be used.
 
 The application uses Vinext and targets the Cloudflare Workers runtime. Optional
 local D1 and R2 bindings can be enabled with `CLOUDFLARE_D1_BINDING` and

@@ -45,7 +45,7 @@ describe("real AWS cross-account IAM proof repository contract", () => {
       expect(readme).toContain(name);
     }
     expect(readme).toContain("LocalStack cannot satisfy this release-parity authorization gate");
-    expect(readme).toContain("M0-09 and R-03 remain In progress");
+    expect(readme).toContain("M0-09 is Blocked and R-03 remains incomplete");
     expect(readme).toContain("No shared, staging, customer, or production AWS account may be used");
   });
 
