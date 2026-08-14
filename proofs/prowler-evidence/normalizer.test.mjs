@@ -72,6 +72,7 @@ function exactOcsfFinding() {
         desc: "upstream check description",
         title: "upstream check title",
         uid: "upstream-finding-uuid",
+        name: roleName,
         types: [
           "Software and Configuration Checks/AWS Security Best Practices",
           "TTPs/Privilege Escalation",
@@ -220,6 +221,14 @@ function parentAtPath(value, path) {
 
 test("normalizes the exact Prowler 5.39.0 OCSF finding into one product record", () => {
   assert.deepEqual(normalize(), expectedNormalized());
+});
+
+test("requires the exact official OCSF finding_info resource name", () => {
+  assert.deepEqual(normalize(), expectedNormalized());
+
+  const value = exactOcsfFinding();
+  value[0].finding_info.name = "other-role";
+  assertArtifactRejected(artifact(value));
 });
 
 test("scopes the same provider resource and evidence independently for Organizations A and B", () => {
@@ -464,8 +473,6 @@ test("excludes arbitrary upstream prose, timestamps, UUIDs, tags, remediation, a
   const changed = exactOcsfFinding();
   changed[0].message = "different upstream message";
   changed[0].status_detail = "different upstream status prose";
-  changed[0].finding_info.name = undefined;
-  delete changed[0].finding_info.name;
   changed[0].finding_info.desc = "different upstream description";
   changed[0].finding_info.title = "different upstream title";
   changed[0].finding_info.analytic.name = "different upstream analytic title";
