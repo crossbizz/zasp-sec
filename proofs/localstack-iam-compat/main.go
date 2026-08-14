@@ -92,6 +92,8 @@ func fixedMainCategory(err error) string {
 		return "ownership"
 	case errors.Is(err, errCleanup):
 		return "cleanup"
+	case errors.Is(err, errProvider):
+		return "provider"
 	default:
 		return "operation"
 	}

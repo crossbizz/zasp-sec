@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import http from "node:http";
@@ -65,17 +65,51 @@ function boundedOutput(result) {
   return Buffer.byteLength(stdout) + Buffer.byteLength(stderr) <= processOutputLimit;
 }
 
+export function runBounded(command, arguments_, options, spawnImplementation = spawn) {
+  return new Promise((resolve, reject) => {
+    let child;
+    try {
+      child = spawnImplementation(command, arguments_, { cwd: options.cwd, env: options.env, stdio: ["ignore", "pipe", "pipe"] });
+    } catch { reject(categorized("operation")); return; }
+    if (!child || !child.stdout || !child.stderr || typeof child.stdout.on !== "function" || typeof child.stderr.on !== "function") {
+      reject(categorized("operation")); return;
+    }
+    let settled = false; let total = 0; let timer;
+    const finish = (callback) => {
+      if (settled) return;
+      settled = true; clearTimeout(timer); callback();
+    };
+    const stop = () => {
+      child.stdout.destroy?.(); child.stderr.destroy?.(); child.kill?.("SIGKILL");
+    };
+    const consume = (target) => (chunk) => {
+      const value = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      total += value.byteLength;
+      if (total > options.outputLimit) { stop(); finish(() => reject(categorized("operation"))); return; }
+      target.push(value);
+    };
+    const stdout = []; const stderr = [];
+    child.stdout.on("data", consume(stdout)); child.stderr.on("data", consume(stderr));
+    child.once("error", () => finish(() => reject(categorized("operation"))));
+    child.once("close", (status, signal) => finish(() => resolve({ status, signal, stdout: Buffer.concat(stdout).toString("utf8"), stderr: Buffer.concat(stderr).toString("utf8") })));
+    timer = setTimeout(() => { stop(); finish(() => reject(categorized("operation"))); }, options.timeoutMs);
+  });
+}
+
 export class DockerRuntime {
-  constructor({ path = process.env.PATH, marker, randomBytesSource = randomBytes, command = spawnSync, makeTemp = mkdtempSync, removeTemp = rmSync } = {}) {
+  constructor({ path = process.env.PATH, home = process.env.HOME, marker, randomBytesSource = randomBytes, command = spawnSync, spawnProcess = spawn, makeTemp = mkdtempSync, removeTemp = rmSync } = {}) {
     if (marker === undefined) marker = randomBytesSource(8).toString("hex");
-    if (typeof path !== "string" || path.length === 0 || !/^[a-f0-9]{16}$/.test(marker) || typeof command !== "function" || typeof makeTemp !== "function" || typeof removeTemp !== "function") throw categorized("configuration");
+    if (typeof path !== "string" || path.length === 0 || !isAbsolute(home ?? "") || !/^[a-f0-9]{16}$/.test(marker) || typeof command !== "function" || typeof spawnProcess !== "function" || typeof makeTemp !== "function" || typeof removeTemp !== "function") throw categorized("configuration");
     this.path = path;
+    this.home = home;
     this.marker = marker;
     this.name = `zasp-prov-01-${marker}`;
     this.command = command;
+    this.spawnProcess = spawnProcess;
     this.makeTemp = makeTemp;
     this.removeTemp = removeTemp;
     this.token = undefined;
+    this.startAttempted = false;
     this.resolvedImageID = undefined;
   }
 
@@ -83,11 +117,16 @@ export class DockerRuntime {
     return this.command("docker", args, { env: { PATH: this.path }, encoding: "utf8", timeout: 30_000, maxBuffer: readinessBodyLimit });
   }
 
-  hasCandidate() { return containerIDPattern.test(this.token ?? ""); }
+  hasCandidate() { return this.startAttempted || containerIDPattern.test(this.token ?? ""); }
+
+  namedCandidates() {
+    const listed = this.docker(["ps", "--all", "--no-trunc", "--filter", `name=^/${this.name}$`, "--format", "{{.ID}}"]);
+    return { listed, values: String(listed?.stdout ?? "").trim().split("\n").filter(Boolean) };
+  }
 
   async ensureAbsent() {
-    const existing = this.docker(["ps", "--all", "--filter", `name=^/${this.name}$`, "--format", "{{.ID}}"]);
-    if (existing?.status !== 0 || String(existing.stdout ?? "").trim() !== "") throw categorized("operation");
+    const existing = this.namedCandidates();
+    if (existing.listed?.status !== 0 || existing.values.length !== 0) throw categorized("operation");
     const image = this.docker(["image", "inspect", "--format", "{{.Id}}", LOCALSTACK_IMAGE]);
     const id = String(image?.stdout ?? "").trim();
     if (image?.status !== 0 || !imageIDPattern.test(id)) throw categorized("operation");
@@ -95,16 +134,16 @@ export class DockerRuntime {
   }
 
   async start() {
+    this.startAttempted = true;
     const started = this.docker(buildDockerRunArguments(this.name));
     const direct = String(started?.stdout ?? "").trim();
+    if (containerIDPattern.test(direct)) this.token = direct;
     if (started?.status === 0 && containerIDPattern.test(direct)) {
-      this.token = direct;
       return direct;
     }
-    const listed = this.docker(["ps", "--all", "--filter", `name=^/${this.name}$`, "--format", "{{.ID}}"]);
-    const candidates = String(listed?.stdout ?? "").trim().split("\n").filter(Boolean);
-    if (listed?.status !== 0 || candidates.length !== 1 || !containerIDPattern.test(candidates[0])) throw categorized("operation");
-    this.token = candidates[0];
+    const listed = this.namedCandidates();
+    if (listed.listed?.status !== 0 || listed.values.length !== 1 || !containerIDPattern.test(listed.values[0])) throw categorized("operation");
+    this.token = listed.values[0];
     await this.verifyOwned(this.token);
     return this.token;
   }
@@ -162,7 +201,7 @@ export class DockerRuntime {
   }
 
   async runProof(endpoint) {
-    const goEnvironment = this.command("go", ["env", "-json", "GOCACHE", "GOMODCACHE"], { env: { PATH: this.path, GOENV: "off" }, encoding: "utf8", timeout: 10_000, maxBuffer: processOutputLimit });
+    const goEnvironment = this.command("go", ["env", "-json", "GOCACHE", "GOMODCACHE"], { env: { PATH: this.path, HOME: this.home }, encoding: "utf8", timeout: 10_000, maxBuffer: processOutputLimit });
     if (goEnvironment?.status !== 0 || !boundedOutput(goEnvironment)) return 1;
     let caches;
     try { caches = JSON.parse(goEnvironment.stdout); } catch { return 1; }
@@ -173,9 +212,9 @@ export class DockerRuntime {
       directory = this.makeTemp(join(tmpdir(), "zasp-prov-01-"));
       if (typeof directory !== "string" || !directory.startsWith(join(tmpdir(), "zasp-prov-01-"))) return 1;
       const executable = join(directory, "iam-proof");
-      const build = this.command("go", ["build", "-trimpath", "-mod=readonly", "-o", executable, "."], { cwd: proofDirectory, env: buildGoToolEnvironment(this.path, caches.GOCACHE, caches.GOMODCACHE), encoding: "utf8", timeout: 90_000, maxBuffer: processOutputLimit });
+      const build = await runBounded("go", ["build", "-trimpath", "-mod=readonly", "-o", executable, "."], { cwd: proofDirectory, env: buildGoToolEnvironment(this.path, caches.GOCACHE, caches.GOMODCACHE), timeoutMs: 90_000, outputLimit: processOutputLimit }, this.spawnProcess);
       if (build?.status !== 0 || !boundedOutput(build) || String(build?.stdout ?? "") !== "" || String(build?.stderr ?? "") !== "") return resultCode(build);
-      const proof = this.command(executable, [], { cwd: proofDirectory, env: buildProofEnvironment(endpoint, this.path), encoding: "utf8", timeout: 180_000, maxBuffer: processOutputLimit });
+      const proof = await runBounded(executable, [], { cwd: proofDirectory, env: buildProofEnvironment(endpoint, this.path), timeoutMs: 180_000, outputLimit: processOutputLimit }, this.spawnProcess);
       if (proof?.status === 0 && boundedOutput(proof) && proof.stdout === `${successLine}\n` && proof.stderr === "") code = 0;
       else code = resultCode(proof);
     } catch { code = 1; }
@@ -188,15 +227,21 @@ export class DockerRuntime {
   }
 
   async remove() {
+    if (!containerIDPattern.test(this.token ?? "")) {
+      const candidate = this.namedCandidates();
+      if (candidate.listed?.status !== 0 || candidate.values.length > 1 || (candidate.values.length === 1 && !containerIDPattern.test(candidate.values[0]))) throw categorized("cleanup");
+      if (candidate.values.length === 0) return;
+      this.token = candidate.values[0];
+    }
     await this.verifyOwned(this.token);
     const removed = this.docker(["rm", "--force", this.token]);
     if (removed?.status !== 0 || String(removed.stdout ?? "").trim() !== this.token) throw categorized("cleanup");
   }
 
   async requireAbsent() {
-    const byID = this.docker(["inspect", this.token]);
-    const byName = this.docker(["ps", "--all", "--filter", `name=^/${this.name}$`, "--format", "{{.ID}}"]);
-    if (byID?.status === 0 || byName?.status !== 0 || String(byName.stdout ?? "").trim() !== "") throw categorized("cleanup");
+    if (containerIDPattern.test(this.token ?? "") && this.docker(["inspect", this.token])?.status === 0) throw categorized("cleanup");
+    const byName = this.namedCandidates();
+    if (byName.listed?.status !== 0 || byName.values.length !== 0) throw categorized("cleanup");
   }
 }
 
@@ -243,7 +288,7 @@ export async function runMain({ runtime, runtimeFactory = () => new DockerRuntim
   const stream = result.code === 0 ? stdout : stderr;
   try { stream.write(`${result.line}\n`); } catch { result = { code: 1, line: failureLine("operation") }; }
   setExitCode(result.code);
-  return result;
+  return result.code;
 }
 
 if (process.argv[1] !== undefined && pathToFileURL(process.argv[1]).href === import.meta.url) process.exitCode = await runMain();

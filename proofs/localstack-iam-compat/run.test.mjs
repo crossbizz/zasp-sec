@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
 import http from "node:http";
 import { tmpdir } from "node:os";
+import { PassThrough } from "node:stream";
 import test from "node:test";
 
 import {
@@ -10,6 +12,7 @@ import {
   buildGoToolEnvironment,
   buildProofEnvironment,
   orchestrate,
+  runBounded,
   runMain,
   successLine,
 } from "./run.mjs";
@@ -94,6 +97,17 @@ test("reconciles an ambiguous start only through an exact owned candidate", asyn
   assert.equal(runtime.hasCandidate(), true);
 });
 
+test("keeps failed start attempts as exact-name cleanup candidates and uses untruncated IDs", async () => {
+  const direct = new ScriptedRuntime([result(1, `${token}\n`), result(1)]);
+  await assert.rejects(direct.start(), (error) => error?.category === "operation");
+  assert.equal(direct.hasCandidate(), true);
+  assert.ok(direct.calls[1].includes("--no-trunc"));
+  const unnamed = new ScriptedRuntime([result(1), result(1)]);
+  await assert.rejects(unnamed.start(), (error) => error?.category === "operation");
+  assert.equal(unnamed.hasCandidate(), true);
+  assert.ok(unnamed.calls[1].includes("--no-trunc"));
+});
+
 test("rejects published ports that are not numeric loopback high ports", async () => {
   for (const value of ["0.0.0.0:49152", "127.0.0.1:80", "[::1]:49152", "127.0.0.1:99999", "127.0.0.1:49152\n127.0.0.1:49153"]) {
     const runtime = new ScriptedRuntime([result(0, `${token}|/${name}|${imageID}|${LOCALSTACK_IMAGE}|prov-01|${marker}\n`), result(0, `${value}\n`)]);
@@ -146,17 +160,42 @@ test("bounds oversized and endless readiness bodies and requires both IAM and ST
   });
 });
 
+test("uses an allowlisted HOME to discover real Go caches before an offline build", async () => {
+  const calls = [];
+  const directory = `${tmpdir()}/zasp-prov-01-owned`;
+  const runtime = new DockerRuntime({
+    path: "/safe/path", home: "/safe/home", marker,
+    command: (...args) => { calls.push(args); return result(1); },
+    makeTemp: () => directory, removeTemp: () => {},
+  });
+  assert.equal(await runtime.runProof("http://127.0.0.1:49152"), 1);
+  assert.deepEqual(calls[0][2].env, { PATH: "/safe/path", HOME: "/safe/home" });
+});
+
 test("rejects Go build failure and proof output overflow while removing the exact temporary directory", async () => {
-  for (const commands of [
-    [result(0, JSON.stringify({ GOCACHE: "/safe/cache", GOMODCACHE: "/safe/modcache" })), result(1, "", "build failure")],
-    [result(0, JSON.stringify({ GOCACHE: "/safe/cache", GOMODCACHE: "/safe/modcache" })), result(0), result(0, `${successLine}${"x".repeat(4096)}`)],
+  for (const processes of [
+    [() => fakeChild({ code: 1, stderr: ["build failure"] })],
+    [() => fakeChild(), () => fakeChild({ stdout: [`${successLine}${"x".repeat(4096)}`] })],
   ]) {
     const calls = []; let removed;
     const directory = `${tmpdir()}/zasp-prov-01-owned`;
-    const runtime = new DockerRuntime({ path: "/safe/path", marker, command: (...args) => { calls.push(args); return commands.shift(); }, makeTemp: () => directory, removeTemp: (value) => { removed = value; } });
+    const runtime = new DockerRuntime({ path: "/safe/path", marker, command: (...args) => { calls.push(args); return result(0, JSON.stringify({ GOCACHE: "/safe/cache", GOMODCACHE: "/safe/modcache" })); }, spawnProcess: () => processes.shift()().child, makeTemp: () => directory, removeTemp: (value) => { removed = value; } });
     assert.equal(await runtime.runProof("http://127.0.0.1:49152"), 1);
     assert.equal(removed, directory);
-    assert.ok(calls.length >= 2);
+    assert.equal(calls.length, 1);
+  }
+});
+
+test("kills an uncooperative child at its deadline and on combined split-stream overflow", async () => {
+  for (const child of [
+    fakeChild({ neverClose: true }),
+    fakeChild({ stdout: ["x".repeat(3000)], stderr: ["y".repeat(1100)], neverClose: true }),
+  ]) {
+    await assert.rejects(
+      runBounded("proof", [], { cwd: "/safe", env: {}, timeoutMs: 20, outputLimit: 4096 }, () => child.child),
+      (error) => error?.category === "operation",
+    );
+    assert.deepEqual(child.signals, ["SIGKILL"]);
   }
 });
 
@@ -168,10 +207,26 @@ test("contains construction and orchestration details at the one-line fixed-outp
   ]) {
     let stdout = "", stderr = "", exitCode;
     const result = await runMain({ runtimeFactory, stdout: { write: (line) => { stdout += line; } }, stderr: { write: (line) => { stderr += line; } }, setExitCode: (code) => { exitCode = code; } });
-    assert.equal(result.code, 1);
+    assert.equal(result, 1);
     assert.equal(stdout, "");
     assert.match(stderr, /^LocalStack IAM compatibility proof failed: (configuration|operation) rejected\.\n$/);
     assert.equal(stderr.includes("sensitive"), false);
     assert.equal(exitCode, 1);
   }
 });
+
+function fakeChild({ stdout = [], stderr = [], code = 0, neverClose = false } = {}) {
+  const child = new EventEmitter();
+  const signals = [];
+  child.stdout = new PassThrough();
+  child.stderr = new PassThrough();
+  child.kill = (signal) => { signals.push(signal); return true; };
+  queueMicrotask(() => {
+    for (const chunk of stdout) child.stdout.write(chunk);
+    for (const chunk of stderr) child.stderr.write(chunk);
+    if (!neverClose) {
+      child.stdout.end(); child.stderr.end(); child.emit("close", code, null);
+    }
+  });
+  return { child, signals };
+}

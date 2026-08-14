@@ -33,6 +33,7 @@ func TestMainRedactsProviderDetailsIntoFixedFailureCategories(t *testing.T) {
 	}{
 		{name: "configuration", err: errConfiguration, want: "configuration"},
 		{name: "authorization", err: errAuthorization, want: "authorization"},
+		{name: "provider", err: errProvider, want: "provider"},
 		{name: "unknown provider detail", err: errors.New("provider secret=token"), want: "operation"},
 	}
 	for _, test := range tests {
