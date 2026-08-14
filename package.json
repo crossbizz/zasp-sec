@@ -19,6 +19,8 @@
     "proof:localstack:sqs:run": "node --env-file=.env proofs/localstack-sqs/run.mjs",
     "proof:localstack:storage:test": "cd proofs/localstack-storage && go test -race -count=1 ./... && node --test run.test.mjs",
     "proof:localstack:storage:run": "node proofs/localstack-storage/run.mjs",
+    "proof:opensearch:event:test": "cd proofs/opensearch-event && go test -race -count=1 ./... && node --test run.test.mjs",
+    "proof:opensearch:event:run": "node proofs/opensearch-event/run.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",

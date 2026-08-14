@@ -112,6 +112,35 @@ and omits payloads, endpoints, ports, tags, ETags, resource/container identifier
 SDK errors, and credentials. This is supported local SDK evidence, not real-AWS encryption, IAM, durability, recovery, or release-parity evidence.
 R-03 remains open until M0-09 supplies the separate real-AWS authorization proof.
 
+## OpenSearch event projection proof
+
+This proof starts an exact-pinned, proof-owned disposable OpenSearch 3.8.0
+single-node target on a random loopback port. It creates a strict metadata-only
+event index and writes exactly one normalized session event for Organization A
+through a narrow scoped `EventStore`. An exact Organization, session, and
+Environment query returns that event once for Organization A; the identical
+session and Environment query returns zero hits for Organization B.
+
+The runner preflights its generated prefix, bounds readiness and all HTTP
+operations, reconciles ambiguous mutations through exact current state, and
+re-proves the index mapping, settings, ownership metadata, and document before
+cleanup. It audits zero remaining generated-prefix indexes, then removes and
+proves absence of only its exact disposable container. It never addresses
+shared development services, and its fixed output omits endpoints, ports,
+indexes, documents, markers, image references, container identities, and
+provider errors.
+
+```bash
+npm run proof:opensearch:event:test
+npm run proof:opensearch:event:run
+```
+
+The commands require Docker and Go but no credential or dotenv input. Security
+is disabled only inside the disposable local test target. This is supported local
+projection behavior evidence, not AWS OpenSearch Service, IAM, durability, recovery, or release-parity evidence.
+OpenSearch remains a rebuildable query projection rather than the durable SQS/S3
+event source of truth.
+
 The application uses Vinext and targets the Cloudflare Workers runtime. Optional
 local D1 and R2 bindings can be enabled with `CLOUDFLARE_D1_BINDING` and
 `CLOUDFLARE_R2_BINDING`; no database or object-storage binding is required for
