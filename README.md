@@ -195,17 +195,44 @@ This fixture-only integration proof does not prove AWS/GitHub authorization pari
 
 ## Prowler evidence proof
 
-M0-11 is In progress as a fixture-only evidence proof. The approved design pins
-this exact scanner image:
-`prowlercloud/prowler:5.39.0@sha256:58c8a0eb0c947517bd89b6214cde0cc1d5f59df4eebbb99a87475ab741914959`.
-It runs only the built-in check
-`iam_role_cross_service_confused_deputy_prevention` against one synthetic IAM role.
-It retains only the JSON-OCSF result and maps that result to the canonical Organization-scoped resource
-identity established by M0-10.
+M0-11 is In progress as a fixture-only evidence proof. Its hermetic test command
+requires Node.js `22.23.1` and npm `10.9.8`, plus Python `3.13.11`; it does not
+start Docker or contact a provider. The live command additionally requires
+Docker and uses only these exact-pinned images:
 
-This proof does not prove real-AWS authorization or parity, broad Prowler
-coverage, or LocalStack IAM parity. R-06 remains Not run until reviewed live
-evidence passes. M0-09 and PROV-01 remain Blocked, and R-03 remains incomplete.
+- `prowlercloud/prowler:5.39.0@sha256:58c8a0eb0c947517bd89b6214cde0cc1d5f59df4eebbb99a87475ab741914959`
+- `localstack/localstack:4.7.0@sha256:12253acd9676770e9bd31cbfcf17c5ca6fd7fb5c0c62f3c46dd701f20304260c`
+
+The live proof creates one private disposable Docker network and one synthetic IAM role,
+then runs only the built-in
+`iam_role_cross_service_confused_deputy_prevention` check. It retains one
+JSON-OCSF result and maps it to the canonical Organization-scoped resource
+identity established by M0-10. The commands accept no dotenv, credential,
+profile, proxy, provider endpoint or network-target input, disable IMDS, and do
+not load host Docker authentication. Only fixed synthetic credentials reach
+the disposable LocalStack fixture.
+
+The live command emits exactly one line. Its fixed success line is:
+
+```text
+Prowler evidence proof passed: findings=1 resources=1 evidence=1 linked=true cleanup=true.
+```
+
+Every failure uses the fixed line
+`Prowler evidence proof failed: <category> rejected.`, where the category is one of `configuration`, `provider`,
+`ownership`, `normalization`, `cleanup`, or `operation`. Cleanup re-proves and
+removes only the exact proof-owned containers, network, output, and temporary directories,
+then verifies their absence.
+
+```bash
+npm run proof:prowler:test
+npm run proof:prowler:run
+```
+
+This fixture-only evidence does not prove real-AWS authorization or parity,
+broad Prowler coverage, LocalStack IAM parity, or production runner behavior. R-06
+remains Not run until reviewed live evidence passes. M0-09 and PROV-01 remain
+Blocked, and R-03 remains incomplete.
 
 ## Real AWS cross-account IAM proof
 

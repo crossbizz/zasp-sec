@@ -25,6 +25,8 @@
     "proof:localstack:iam:run": "node proofs/localstack-iam-compat/run.mjs",
     "proof:cartography:test": "cd proofs/cartography-scope && node --test normalizer.test.mjs run.test.mjs && /opt/homebrew/bin/python3.13 -m unittest -v fixture_runner_test.py",
     "proof:cartography:run": "node proofs/cartography-scope/run.mjs",
+    "proof:prowler:test": "cd proofs/prowler-evidence && node --test normalizer.test.mjs run.test.mjs && PYTHONDONTWRITEBYTECODE=1 /opt/homebrew/bin/python3.13 -m unittest -v fixture_runner_test.FixtureParsingTests fixture_runner_test.ArtifactBoundaryTests fixture_runner_test.RuntimeTests fixture_runner_test.FileBoundaryTests fixture_runner_test.MainBoundaryTests",
+    "proof:prowler:run": "node proofs/prowler-evidence/run.mjs",
     "proof:aws:iam:test": "cd proofs/aws-cross-account-iam && go test -race -count=1 ./... && node --test run.test.mjs",
     "proof:aws:iam:run": "node --env-file=.env proofs/aws-cross-account-iam/run.mjs",
     "test": "vitest run",

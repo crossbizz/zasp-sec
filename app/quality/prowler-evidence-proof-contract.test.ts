@@ -2,11 +2,26 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
+type PackageManifest = { scripts?: Record<string, string> };
+
 const repositoryRoot = process.cwd();
+const proofDirectory = "proofs/prowler-evidence";
 const prowlerImage = "prowlercloud/prowler:5.39.0@sha256:58c8a0eb0c947517bd89b6214cde0cc1d5f59df4eebbb99a87475ab741914959";
+const localStackImage = "localstack/localstack:4.7.0@sha256:12253acd9676770e9bd31cbfcf17c5ca6fd7fb5c0c62f3c46dd701f20304260c";
 const checkId = "iam_role_cross_service_confused_deputy_prevention";
 const fixtureArn = "arn:aws:iam::000000000000:role/shared-fixture-role";
 const canonicalResourceId = "org_aaaaaaaaaaaaaaaa:aws:identity_role:81eeba69c5c0887f4083a0e195a431b852d750fd3ee41ad276c1142285d1b77b";
+const successLine = "Prowler evidence proof passed: findings=1 resources=1 evidence=1 linked=true cleanup=true.";
+const failureLine = "Prowler evidence proof failed: operation rejected.";
+const pythonTests = [
+  "fixture_runner_test.FixtureParsingTests",
+  "fixture_runner_test.ArtifactBoundaryTests",
+  "fixture_runner_test.RuntimeTests",
+  "fixture_runner_test.FileBoundaryTests",
+  "fixture_runner_test.MainBoundaryTests",
+].join(" ");
+const testCommand = `cd ${proofDirectory} && node --test normalizer.test.mjs run.test.mjs && PYTHONDONTWRITEBYTECODE=1 /opt/homebrew/bin/python3.13 -m unittest -v ${pythonTests}`;
+const runCommand = `node ${proofDirectory}/run.mjs`;
 const expectedR06Row = [
   "R-06",
   "**Prowler evidence normalization.** A relevant cloud-posture finding must map to product evidence.",
@@ -71,6 +86,73 @@ describe("Prowler evidence proof start contract", () => {
     expect(design).toContain(fixtureArn);
     expect(design).toContain(canonicalResourceId);
     assertR06NotRun(riskRegister);
+  });
+
+  it("exposes an exact hermetic root test command and the disposable live runner", async () => {
+    const manifest = JSON.parse(
+      await readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+    ) as PackageManifest;
+
+    expect(manifest.scripts?.["proof:prowler:test"]).toBe(testCommand);
+    expect(manifest.scripts?.["proof:prowler:run"]).toBe(runCommand);
+    expect(manifest.scripts?.["proof:prowler:test"]).not.toMatch(
+      /docker|PinnedImageCompatibilityTests|env-file|source|credential|proxy/i,
+    );
+    expect(manifest.scripts?.["proof:prowler:run"]).not.toMatch(
+      /env-file|source|credential|proxy/i,
+    );
+  });
+
+  it("binds repository documentation to the executable runtime boundary", async () => {
+    const runtime = await import("../../proofs/prowler-evidence/run.mjs");
+    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const section = readme.match(
+      /## Prowler evidence proof[\s\S]*?## Real AWS cross-account IAM proof/,
+    )?.[0];
+
+    expect(runtime.PROWLER_IMAGE).toBe(prowlerImage);
+    expect(runtime.LOCALSTACK_IMAGE).toBe(localStackImage);
+    expect(runtime.SUCCESS_LINE).toBe(successLine);
+    expect(section).toBeDefined();
+    expect(section).toContain(prowlerImage);
+    expect(section).toContain(localStackImage);
+    expect(section).toContain(successLine);
+    expect(section).toContain("Prowler evidence proof failed: <category> rejected.");
+    expect(section).toContain("Node.js `22.23.1` and npm `10.9.8`");
+    expect(section).toContain("Python `3.13.11`");
+    expect(section).toContain("Docker");
+    expect(section).toContain("fixture-only");
+    expect(section).toContain("does not prove real-AWS authorization or parity");
+    expect(section).toContain("proof-owned containers, network, output, and temporary directories");
+    expect(section).toContain("M0-11 is In progress");
+
+    const commands = section?.match(/```bash\n([\s\S]*?)\n```/)?.[1];
+    expect(commands?.split("\n")).toEqual([
+      "npm run proof:prowler:test",
+      "npm run proof:prowler:run",
+    ]);
+  });
+
+  it("keeps runtime failures fixed and free of thrown details", async () => {
+    const runtime = await import("../../proofs/prowler-evidence/run.mjs");
+    let stdout = "";
+    let stderr = "";
+    let exitCode: number | undefined;
+
+    const code = await runtime.runMain(undefined, {
+      runtimeFactory: () => {
+        throw new Error("sensitive runtime detail");
+      },
+      stdout: { write: (value: string) => { stdout += value; } },
+      stderr: { write: (value: string) => { stderr += value; } },
+      setExitCode: (value: number) => { exitCode = value; },
+    });
+
+    expect(code).toBe(1);
+    expect(exitCode).toBe(1);
+    expect(stdout).toBe("");
+    expect(stderr).toBe(`${failureLine}\n`);
+    expect(stderr).not.toContain("sensitive runtime detail");
   });
 
   it("starts exactly one source-plan task without completing M0-11", async () => {
