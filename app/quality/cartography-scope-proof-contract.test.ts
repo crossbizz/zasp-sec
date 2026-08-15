@@ -68,10 +68,10 @@ describe("Cartography scope proof delivery-waiver status contract", () => {
     ]);
 
     expect(tracker).toContain("| Pending | 710 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 15 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 16 |");
     expect(tracker).toContain("| Blocked | 1 |");
-    expect(tracker).toMatch(/\| M0 \| 27 \| 9 \| 1 \| 15 \| 1 \|/);
+    expect(tracker).toMatch(/\| M0 \| 27 \| 9 \| 0 \| 16 \| 1 \|/);
     expect(tracker.match(/## In progress[\s\S]*?## Complete/)?.[0]).not.toContain("| M0-14a |");
     expect(tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0]).toContain("| M0-14a |");
     expect(tracker).toContain(

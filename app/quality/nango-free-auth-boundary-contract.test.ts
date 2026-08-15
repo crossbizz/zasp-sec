@@ -17,6 +17,60 @@ function taskRows(tracker: string, heading: "In progress" | "Complete") {
   return markdownRows(section).slice(2);
 }
 
+function assertM014Complete(tracker: string, readme: string, riskRegister: string) {
+  const section = readme.match(/## Nango free Auth boundary[\s\S]*?## Nango API-key proof/)?.[0];
+  const activeRows = taskRows(tracker, "In progress");
+  const completeRows = taskRows(tracker, "Complete");
+  const m014Rows = completeRows.filter(([task]) => task === "M0-14");
+  const riskRows = markdownRows(riskRegister).filter(([id]) => id === "R-08");
+
+  expect(section).toBeDefined();
+  expect(section).toContain("M0-14 is Complete");
+  expect(section).toContain("Auth plus Proxy");
+  expect(section).toContain("Functions, Webhooks, and MCP are out of scope");
+  expect(section).toMatch(/not a claim that\s+every excluded route is absent/);
+  expect(section).toContain("M0-15");
+  expect(section).toContain("R-08 remains Not run");
+
+  expect(tracker).toContain("| Pending | 710 |");
+  expect(tracker).toContain("| In progress | 0 |");
+  expect(tracker).toContain("| Complete | 16 |");
+  expect(tracker).toContain("| Blocked | 1 |");
+  expect(tracker).toMatch(/\| M0 \| 27 \| 9 \| 0 \| 16 \| 1 \|/);
+  expect(activeRows).toHaveLength(0);
+  expect(m014Rows).toHaveLength(1);
+  expect(m014Rows[0]?.[1]).toBe("August 15, 2026");
+  expect(m014Rows[0]?.[2]).toContain("Auth plus Proxy");
+  expect(completeRows.filter(([task]) => ["M0-14a", "M0-14b", "M0-14c"].includes(task))).toHaveLength(3);
+  expect([...activeRows, ...completeRows].filter(([task]) => task === "M0-15")).toHaveLength(0);
+  expect(tracker).toContain("M0-09 and PROV-01 remain Blocked");
+  expect(tracker).toContain("R-03 remains incomplete");
+  expect(tracker).toMatch(
+    /\| M0-14 final review \|[^\n]*zero remaining Critical, Important, or Minor[^\n]*\| Complete August 15, 2026[^\n]*R-08 remains Not run[^\n]*\|/,
+  );
+
+  expect(riskRows).toHaveLength(1);
+  expect(riskRows[0]?.[5]).toBe("Not run — M0-14a through M0-15");
+}
+
+function completedFixture(tracker: string, readme: string) {
+  const activeRow = tracker.split("\n").find((line) => line.startsWith("| M0-14 |"));
+  if (!activeRow) {
+    return { tracker, readme };
+  }
+  const completedRow = activeRow.replace("Record the evidence-backed", "Recorded the evidence-backed");
+  return {
+    readme: readme.replace("M0-14 is In progress", "M0-14 is Complete"),
+    tracker: tracker
+      .replace("| In progress | 1 |", "| In progress | 0 |")
+      .replace("| Complete | 15 |", "| Complete | 16 |")
+      .replace("| M0 | 27 | 9 | 1 | 15 | 1 |", "| M0 | 27 | 9 | 0 | 16 | 1 |")
+      .replace("`710/1/15/1`", "`710/0/16/1`")
+      .replace(`${activeRow}\n`, "")
+      .replace("\n`PRE-01`, `PRE-02`, and `PROV-01`", `\n${completedRow}\n\n\`PRE-01\`, \`PRE-02\`, and \`PROV-01\``),
+  };
+}
+
 describe("Nango free Auth boundary contract", () => {
   it("binds the source task and product requirement to Auth plus Proxy only", async () => {
     const sourcePlan = await readFile(
@@ -61,37 +115,59 @@ describe("Nango free Auth boundary contract", () => {
     expect(plan).toContain("successful exact-SHA Runnable UI evidence");
   });
 
-  it("publishes the active boundary while retaining every dependency and risk gate", async () => {
+  it("completes the boundary while retaining every dependency and risk gate", async () => {
     const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
     const tracker = await readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8");
     const riskRegister = await readFile(resolve(repositoryRoot, "docs/decisions/mvp-risk-register.md"), "utf8");
-    const section = readme.match(/## Nango free Auth boundary[\s\S]*?## Nango API-key proof/)?.[0];
-    const activeRows = taskRows(tracker, "In progress");
-    const completeRows = taskRows(tracker, "Complete");
-    const riskRows = markdownRows(riskRegister).filter(([id]) => id === "R-08");
+    assertM014Complete(tracker, readme, riskRegister);
+  });
 
-    expect(section).toBeDefined();
-    expect(section).toContain("M0-14 is In progress");
-    expect(section).toContain("Auth plus Proxy");
-    expect(section).toContain("Functions, Webhooks, and MCP are out of scope");
-    expect(section).toMatch(/not a claim that\s+every excluded route is absent/);
-    expect(section).toContain("M0-15");
-    expect(section).toContain("R-08 remains Not run");
+  it("rejects duplicate, concurrent, risk, scope, and count drift", async () => {
+    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const tracker = await readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8");
+    const riskRegister = await readFile(resolve(repositoryRoot, "docs/decisions/mvp-risk-register.md"), "utf8");
+    const completed = completedFixture(tracker, readme);
+    const row = completed.tracker.split("\n").find((line) => line.startsWith("| M0-14 |"));
 
-    expect(tracker).toContain("| Pending | 710 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 15 |");
-    expect(tracker).toContain("| Blocked | 1 |");
-    expect(tracker).toMatch(/\| M0 \| 27 \| 9 \| 1 \| 15 \| 1 \|/);
-    expect(activeRows).toHaveLength(1);
-    expect(activeRows[0]?.[0]).toBe("M0-14");
-    expect(activeRows[0]?.[2]).toContain("Auth plus Proxy");
-    expect(completeRows.filter(([task]) => ["M0-14a", "M0-14b", "M0-14c"].includes(task))).toHaveLength(3);
-    expect([...activeRows, ...completeRows].filter(([task]) => task === "M0-15")).toHaveLength(0);
-    expect(tracker).toContain("M0-09 and PROV-01 remain Blocked");
-    expect(tracker).toContain("R-03 remains incomplete");
-
-    expect(riskRows).toHaveLength(1);
-    expect(riskRows[0]?.[5]).toBe("Not run — M0-14a through M0-15");
+    expect(row).toBeDefined();
+    expect(() => assertM014Complete(completed.tracker, completed.readme, riskRegister)).not.toThrow();
+    expect(() =>
+      assertM014Complete(
+        completed.tracker.replace(`${row}\n`, `${row}\n${row}\n`),
+        completed.readme,
+        riskRegister,
+      ),
+    ).toThrow();
+    expect(() =>
+      assertM014Complete(
+        completed.tracker.replace(
+          "## Complete\n",
+          "| M0-15 | August 15, 2026 | Concurrent Proxy work. |\n\n## Complete\n",
+        ),
+        completed.readme,
+        riskRegister,
+      ),
+    ).toThrow();
+    expect(() =>
+      assertM014Complete(
+        completed.tracker,
+        completed.readme,
+        riskRegister.replace("Not run — M0-14a through M0-15", "PASS — M0-14"),
+      ),
+    ).toThrow();
+    expect(() =>
+      assertM014Complete(
+        completed.tracker,
+        completed.readme.replace("MCP are out of scope", "MCP are supported"),
+        riskRegister,
+      ),
+    ).toThrow();
+    expect(() =>
+      assertM014Complete(
+        completed.tracker.replace("| Pending | 710 |", "| Pending | 709 |"),
+        completed.readme,
+        riskRegister,
+      ),
+    ).toThrow();
   });
 });

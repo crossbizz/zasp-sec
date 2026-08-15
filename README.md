@@ -281,7 +281,7 @@ incomplete.
 
 ## Nango free Auth boundary
 
-M0-14 is In progress. The accepted free self-hosted Nango MVP boundary is
+M0-14 is Complete. The accepted free self-hosted Nango MVP boundary is
 long-tail Auth plus Proxy, with the authenticated Proxy GET still pending
 M0-15. Functions, Webhooks, and MCP are out of scope, as are Nango RBAC, full
 observability, Connect UI, and Enterprise-only features.

@@ -132,21 +132,21 @@ do not add a new runtime, Docker lifecycle, provider call, or credential path.
   counts 27/9/0/16/1, zero active rows, clean review, pushed exact SHA, and
   successful exact-SHA Runnable UI evidence.
 
-- [ ] **Step 1: Perform a read-only boundary review**
+- [x] **Step 1: Perform a read-only boundary review**
 
   Compare the source M0-14 requirement, PRD section 13.2, design, README,
   tracker, and contract. Reject any claim that the excluded surfaces were
   proved unreachable, any premature Proxy success, any R-08 advancement, or
   any loss of the completed M0-14a/b/c evidence chain.
 
-- [ ] **Step 2: Add hostile completion-contract cases and capture RED**
+- [x] **Step 2: Add hostile completion-contract cases and capture RED**
 
   Require exactly zero active rows and exactly one M0-14 Complete row. Add
   mutations that duplicate M0-14, start M0-15 concurrently, change R-08 from
   `Not run`, claim MCP support, or change aggregate counts. Run the focused
   test and expect only the stale In progress/count/README assertions to fail.
 
-- [ ] **Step 3: Apply the exact completion transition**
+- [x] **Step 3: Apply the exact completion transition**
 
   Change the README to `M0-14 is Complete`. Move only M0-14 from In progress
   to Complete; set overall counts to 710/0/16/1 and M0 counts to
@@ -154,7 +154,7 @@ do not add a new runtime, Docker lifecycle, provider call, or credential path.
   R-03 incomplete. Mark this plan's completed steps checked only after their
   evidence exists.
 
-- [ ] **Step 4: Run all verification**
+- [x] **Step 4: Run all verification**
 
   Run the focused contract six times, the three Nango proof suites, all
   status-sensitive contracts, full pinned `npm run verify`, production audit,
@@ -162,7 +162,7 @@ do not add a new runtime, Docker lifecycle, provider call, or credential path.
   history, and exact evidence scans. Expected: zero failures, vulnerabilities,
   prohibited licenses, whitespace errors, or findings.
 
-- [ ] **Step 5: Record evidence and commit**
+- [x] **Step 5: Record evidence and commit**
 
   Write the ignored scoped and authoritative reports, append both ledgers, and
   commit the exact tracked completion transition:
@@ -171,7 +171,7 @@ do not add a new runtime, Docker lifecycle, provider call, or credential path.
   git commit -m "docs: complete M0-14 Nango auth boundary"
   ```
 
-- [ ] **Step 6: Push and watch exact-SHA CI**
+- [x] **Step 6: Push and watch exact-SHA CI**
 
   Push `codex/zasp-implementation`, prove local/tracking/origin equality, select
   the Runnable UI run whose `headSha` equals the completion SHA, and watch it
