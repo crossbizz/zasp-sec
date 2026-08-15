@@ -279,6 +279,45 @@ R-12 remains Not run until M0-22 proves the separate bounded remote-export and
 exporter-failure boundary. M0-09 and PROV-01 remain Blocked, and R-03 remains
 incomplete.
 
+## Nango free boot proof
+
+M0-14a proves the current free self-hosted Nango server can boot with only its
+required PostgreSQL dependency and become database-ready from a product-side
+test client on a private internal Docker network. The exact Nango v0.70.5,
+PostgreSQL 16.0, and BusyBox probe images are pinned by immutable digest.
+Neither service publishes a host port.
+
+The hermetic command validates pins, the free Auth/Proxy boot configuration,
+strict readiness parsing, synthetic database/encryption material, complete
+Docker ownership, bounded mutation settlement, fixed output, and cleanup
+without starting Docker. The live command creates a fresh marker-scoped
+database/schema and encryption key, polls PostgreSQL, then requires the
+one-shot product probe to receive exactly `{"result":"ok"}` from Nango's
+database-backed `/ready` endpoint.
+
+```bash
+npm run proof:nango:test
+npm run proof:nango:run
+```
+
+Success is exactly:
+
+```text
+Nango free boot proof passed: services=2 ready=true product_network=true cleanup=true.
+```
+
+The proof does not read `.env`, profiles, cloud credentials, product database
+credentials, proxy settings, or ambient Docker authentication. Redis,
+Elasticsearch, Connect UI, Functions, Webhooks, MCP server, RBAC, orchestrator,
+and Enterprise-only runtime features are absent or disabled. It proves minimum
+free boot and private product-network readiness only; OAuth, API-key connection,
+full free-feature, and authenticated proxy proofs remain M0-14b through M0-15.
+
+M0-14a remains In progress until two consecutive final-code live runs, exact
+zero-resource audits, full gates/scans, and independent zero-finding review are
+recorded. R-08 remains Not run through M0-15. M0-09 and PROV-01 remain Blocked,
+and R-03 remains incomplete.
+
 ## Tetragon signal proof
 
 M0-12 is Complete under the approved observation-only design. The two consecutive final-code live runs

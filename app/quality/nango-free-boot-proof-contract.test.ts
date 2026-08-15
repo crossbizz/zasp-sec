@@ -27,6 +27,33 @@ function assertM014aInProgress(tracker: string) {
 }
 
 describe("Nango free boot proof contract", () => {
+  it("exposes exact hermetic and live root commands with the documented fixed boundary", async () => {
+    const [manifestSource, readme] = await Promise.all([
+      readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+    ]);
+    const manifest = JSON.parse(manifestSource) as { scripts?: Record<string, string> };
+    const section = readme.match(/## Nango free boot proof[\s\S]*?## Tetragon signal proof/)?.[0];
+
+    expect(manifest.scripts?.["proof:nango:test"]).toBe(
+      "node --test proofs/nango-free-boot/*.test.mjs",
+    );
+    expect(manifest.scripts?.["proof:nango:run"]).toBe(
+      "node proofs/nango-free-boot/run.mjs",
+    );
+    expect(manifest.scripts?.["proof:nango:test"]).not.toMatch(/docker|env-file|credential|proxy/i);
+    expect(manifest.scripts?.["proof:nango:run"]).not.toMatch(/env-file|credential|proxy/i);
+    expect(section).toBeDefined();
+    expect(section).toContain("npm run proof:nango:test");
+    expect(section).toContain("npm run proof:nango:run");
+    expect(section).toContain(
+      "Nango free boot proof passed: services=2 ready=true product_network=true cleanup=true.",
+    );
+    expect(section).toContain("M0-14a remains In progress");
+    expect(section).toContain("R-08 remains Not run");
+    expect(section).toContain("does not read `.env`");
+  });
+
   it("binds the source-plan dependency, deliverable, and verification boundary", async () => {
     const plan = await readFile(
       resolve(repositoryRoot, "docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md"),

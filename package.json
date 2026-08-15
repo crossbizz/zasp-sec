@@ -30,6 +30,8 @@
     "proof:prowler:license": "node proofs/prowler-evidence/license-audit.mjs",
     "proof:otlp:test": "node --test proofs/otlp-ingest/*.test.mjs",
     "proof:otlp:run": "node proofs/otlp-ingest/run.mjs",
+    "proof:nango:test": "node --test proofs/nango-free-boot/*.test.mjs",
+    "proof:nango:run": "node proofs/nango-free-boot/run.mjs",
     "proof:tetragon:test": "node --test proofs/tetragon-signal/*.test.mjs",
     "proof:tetragon:run": "node proofs/tetragon-signal/run.mjs",
     "proof:aws:iam:test": "cd proofs/aws-cross-account-iam && go test -race -count=1 ./... && node --test run.test.mjs",
