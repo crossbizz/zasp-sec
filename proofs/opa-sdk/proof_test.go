@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 	"time"
 
@@ -25,11 +26,12 @@ func TestRunProofEvaluatesExactAllowAndBlock(t *testing.T) {
 	if result.WarmupPerDecision != 100 || result.MeasuredPerDecision != 1000 {
 		t.Fatalf("RunProof() counts = %#v", result)
 	}
+	t.Logf("safe metrics: allow_p95=%s block_p95=%s", result.AllowP95, result.BlockP95)
 }
 
-type evaluatorFunc func(context.Context, DecisionInput) (rego.ResultSet, error)
+type evaluatorFunc func(context.Context, map[string]any) (rego.ResultSet, error)
 
-func (f evaluatorFunc) Eval(ctx context.Context, input DecisionInput) (rego.ResultSet, error) {
+func (f evaluatorFunc) Eval(ctx context.Context, input map[string]any) (rego.ResultSet, error) {
 	return f(ctx, input)
 }
 
@@ -52,6 +54,7 @@ func focusedOptions(evaluator decisionEvaluator) ProofOptions {
 		measuredPerDecision: 1,
 		maximumP95:          10 * time.Millisecond,
 		now:                 deterministicClock(time.Millisecond),
+		inputDocument:       inputDocument,
 		prepare: func(context.Context) (decisionEvaluator, error) {
 			return evaluator, nil
 		},
@@ -61,18 +64,26 @@ func focusedOptions(evaluator decisionEvaluator) ProofOptions {
 func TestRunProofPreparesOnceAndUsesExactInputs(t *testing.T) {
 	preparations := 0
 	calls := 0
-	evaluator := evaluatorFunc(func(_ context.Context, input DecisionInput) (rego.ResultSet, error) {
+	evaluator := evaluatorFunc(func(_ context.Context, input map[string]any) (rego.ResultSet, error) {
 		calls++
-		if input != fixedInput(input.Action) {
+		action, ok := input["action"].(string)
+		if !ok {
+			t.Fatalf("unexpected action: %#v", input["action"])
+		}
+		want, err := inputDocument(fixedInput(action))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(input, want) {
 			t.Fatalf("unexpected input: %#v", input)
 		}
-		switch input.Action {
+		switch action {
 		case "tool:read":
 			return decisionResult(true), nil
 		case "tool:delete":
 			return decisionResult(false), nil
 		default:
-			t.Fatalf("unexpected action: %q", input.Action)
+			t.Fatalf("unexpected action: %q", action)
 			return nil, nil
 		}
 	})
@@ -105,7 +116,7 @@ func TestRunProofRejectsMalformedOrWrongDecisions(t *testing.T) {
 	}
 	for name, result := range tests {
 		t.Run(name, func(t *testing.T) {
-			evaluator := evaluatorFunc(func(context.Context, DecisionInput) (rego.ResultSet, error) {
+			evaluator := evaluatorFunc(func(context.Context, map[string]any) (rego.ResultSet, error) {
 				return result, nil
 			})
 			_, err := RunProof(context.Background(), focusedOptions(evaluator))
@@ -129,7 +140,7 @@ func TestRunProofFailsClosedOnPreparationEvaluationAndPanic(t *testing.T) {
 	})
 
 	t.Run("evaluation error", func(t *testing.T) {
-		evaluator := evaluatorFunc(func(context.Context, DecisionInput) (rego.ResultSet, error) {
+		evaluator := evaluatorFunc(func(context.Context, map[string]any) (rego.ResultSet, error) {
 			return nil, errors.New("sensitive evaluation detail")
 		})
 		_, err := RunProof(context.Background(), focusedOptions(evaluator))
@@ -150,7 +161,7 @@ func TestRunProofFailsClosedOnPreparationEvaluationAndPanic(t *testing.T) {
 	})
 
 	t.Run("evaluation panic", func(t *testing.T) {
-		evaluator := evaluatorFunc(func(context.Context, DecisionInput) (rego.ResultSet, error) {
+		evaluator := evaluatorFunc(func(context.Context, map[string]any) (rego.ResultSet, error) {
 			panic("sensitive evaluation panic")
 		})
 		_, err := RunProof(context.Background(), focusedOptions(evaluator))
@@ -222,8 +233,8 @@ func TestNearestRankP95RejectsEmptyAndNegativeSamples(t *testing.T) {
 }
 
 func TestRunProofAppliesExactIndependentLatencyThresholds(t *testing.T) {
-	evaluator := evaluatorFunc(func(_ context.Context, input DecisionInput) (rego.ResultSet, error) {
-		return decisionResult(input.Action == "tool:read"), nil
+	evaluator := evaluatorFunc(func(_ context.Context, input map[string]any) (rego.ResultSet, error) {
+		return decisionResult(input["action"] == "tool:read"), nil
 	})
 
 	t.Run("exact threshold passes", func(t *testing.T) {
@@ -261,4 +272,112 @@ func TestRunProofAppliesExactIndependentLatencyThresholds(t *testing.T) {
 			t.Fatalf("RunProof() error = %v, want latency category", err)
 		}
 	})
+}
+
+func TestRunProofRejectsCancellationOnFinalSuccessfulEvaluation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	calls := 0
+	evaluator := evaluatorFunc(func(_ context.Context, input map[string]any) (rego.ResultSet, error) {
+		calls++
+		if calls == 4 {
+			cancel()
+		}
+		return decisionResult(input["action"] == "tool:read"), nil
+	})
+	_, err := RunProof(ctx, focusedOptions(evaluator))
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("RunProof() error = %v, want final-evaluation cancellation", err)
+	}
+}
+
+type documentEvaluatorFunc func(context.Context, map[string]any) (rego.ResultSet, error)
+
+func (f documentEvaluatorFunc) Eval(ctx context.Context, input map[string]any) (rego.ResultSet, error) {
+	return f(ctx, input)
+}
+
+func TestRunProofConvertsBeforeEvaluationAndTimesOnlyPreparedQuery(t *testing.T) {
+	events := []string{}
+	virtual := time.Unix(0, 0)
+	evaluator := documentEvaluatorFunc(func(_ context.Context, input map[string]any) (rego.ResultSet, error) {
+		action, ok := input["action"].(string)
+		if !ok {
+			t.Fatalf("action = %#v", input["action"])
+		}
+		events = append(events, "eval:"+action)
+		if action == "tool:read" {
+			virtual = virtual.Add(time.Millisecond)
+			return decisionResult(true), nil
+		}
+		virtual = virtual.Add(2 * time.Millisecond)
+		return decisionResult(false), nil
+	})
+	options := ProofOptions{
+		warmupPerDecision:   1,
+		measuredPerDecision: 1,
+		maximumP95:          10 * time.Millisecond,
+		now: func() time.Time {
+			events = append(events, "now")
+			return virtual
+		},
+		inputDocument: func(input DecisionInput) (map[string]any, error) {
+			events = append(events, "convert:"+input.Action)
+			return inputDocument(input)
+		},
+		prepare: func(context.Context) (decisionEvaluator, error) {
+			return evaluator, nil
+		},
+	}
+	result, err := RunProof(context.Background(), options)
+	if err != nil {
+		t.Fatalf("RunProof() error = %v", err)
+	}
+	wantEvents := []string{
+		"convert:tool:read", "convert:tool:delete",
+		"eval:tool:read", "eval:tool:delete",
+		"now", "eval:tool:read", "now",
+		"now", "eval:tool:delete", "now",
+	}
+	if !isDeepEqual(events, wantEvents) {
+		t.Fatalf("events = %#v, want %#v", events, wantEvents)
+	}
+	if result.AllowP95 != time.Millisecond || result.BlockP95 != 2*time.Millisecond {
+		t.Fatalf("result = %#v", result)
+	}
+}
+
+func TestRunProofRejectsBindingsAndNilExpressionAsMalformedResults(t *testing.T) {
+	t.Run("bindings", func(t *testing.T) {
+		evaluator := evaluatorFunc(func(_ context.Context, input map[string]any) (rego.ResultSet, error) {
+			result := decisionResult(input["action"] == "tool:read")
+			result[0].Bindings = rego.Vars{"unexpected": true}
+			return result, nil
+		})
+		_, err := RunProof(context.Background(), focusedOptions(evaluator))
+		if !errors.Is(err, errEvaluation) {
+			t.Fatalf("RunProof() error = %v, want malformed-result evaluation category", err)
+		}
+	})
+
+	t.Run("nil expression", func(t *testing.T) {
+		evaluator := evaluatorFunc(func(context.Context, map[string]any) (rego.ResultSet, error) {
+			return rego.ResultSet{{Expressions: []*rego.ExpressionValue{nil}}}, nil
+		})
+		_, err := RunProof(context.Background(), focusedOptions(evaluator))
+		if !errors.Is(err, errEvaluation) {
+			t.Fatalf("RunProof() error = %v, want malformed-result evaluation category", err)
+		}
+	})
+}
+
+func isDeepEqual(got []string, want []string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	for index := range got {
+		if got[index] != want[index] {
+			return false
+		}
+	}
+	return true
 }

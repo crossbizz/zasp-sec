@@ -51,7 +51,7 @@ type ProofResult struct {
 }
 
 type decisionEvaluator interface {
-	Eval(context.Context, DecisionInput) (rego.ResultSet, error)
+	Eval(context.Context, map[string]any) (rego.ResultSet, error)
 }
 
 type prepareEvaluator func(context.Context) (decisionEvaluator, error)
@@ -61,6 +61,7 @@ type ProofOptions struct {
 	measuredPerDecision int
 	maximumP95          time.Duration
 	now                 func() time.Time
+	inputDocument       func(DecisionInput) (map[string]any, error)
 	prepare             prepareEvaluator
 }
 
@@ -70,6 +71,7 @@ func ProductionOptions() ProofOptions {
 		measuredPerDecision: productionMeasuredPerDecision,
 		maximumP95:          productionMaximumP95,
 		now:                 time.Now,
+		inputDocument:       inputDocument,
 		prepare:             prepareProductionEvaluator,
 	}
 }
@@ -78,12 +80,8 @@ type preparedEvaluator struct {
 	query rego.PreparedEvalQuery
 }
 
-func (e preparedEvaluator) Eval(ctx context.Context, input DecisionInput) (rego.ResultSet, error) {
-	document, err := inputDocument(input)
-	if err != nil {
-		return nil, err
-	}
-	return e.query.Eval(ctx, rego.EvalInput(document))
+func (e preparedEvaluator) Eval(ctx context.Context, input map[string]any) (rego.ResultSet, error) {
+	return e.query.Eval(ctx, rego.EvalInput(input))
 }
 
 func inputDocument(input DecisionInput) (map[string]any, error) {
@@ -146,17 +144,25 @@ func RunProof(ctx context.Context, options ProofOptions) (result ProofResult, re
 
 	allowInput := fixedInput("tool:read")
 	blockInput := fixedInput("tool:delete")
-	if err := warmUp(ctx, evaluator, allowInput, true, options.warmupPerDecision); err != nil {
+	allowDocument, err := options.inputDocument(allowInput)
+	if err != nil {
+		return ProofResult{}, fmt.Errorf("%w: allow input", errConfiguration)
+	}
+	blockDocument, err := options.inputDocument(blockInput)
+	if err != nil {
+		return ProofResult{}, fmt.Errorf("%w: block input", errConfiguration)
+	}
+	if err := warmUp(ctx, evaluator, allowDocument, true, options.warmupPerDecision); err != nil {
 		return ProofResult{}, err
 	}
-	if err := warmUp(ctx, evaluator, blockInput, false, options.warmupPerDecision); err != nil {
+	if err := warmUp(ctx, evaluator, blockDocument, false, options.warmupPerDecision); err != nil {
 		return ProofResult{}, err
 	}
-	allowSamples, err := measure(ctx, evaluator, allowInput, true, options.measuredPerDecision, options.now)
+	allowSamples, err := measure(ctx, evaluator, allowDocument, true, options.measuredPerDecision, options.now)
 	if err != nil {
 		return ProofResult{}, err
 	}
-	blockSamples, err := measure(ctx, evaluator, blockInput, false, options.measuredPerDecision, options.now)
+	blockSamples, err := measure(ctx, evaluator, blockDocument, false, options.measuredPerDecision, options.now)
 	if err != nil {
 		return ProofResult{}, err
 	}
@@ -185,7 +191,7 @@ func RunProof(ctx context.Context, options ProofOptions) (result ProofResult, re
 
 func validateOptions(ctx context.Context, options ProofOptions) error {
 	if ctx == nil || options.warmupPerDecision <= 0 || options.measuredPerDecision <= 0 ||
-		options.maximumP95 <= 0 || options.now == nil || options.prepare == nil {
+		options.maximumP95 <= 0 || options.now == nil || options.inputDocument == nil || options.prepare == nil {
 		return errConfiguration
 	}
 	if err := ctx.Err(); err != nil {
@@ -205,7 +211,7 @@ func fixedInput(action string) DecisionInput {
 	}
 }
 
-func warmUp(ctx context.Context, evaluator decisionEvaluator, input DecisionInput, expected bool, count int) error {
+func warmUp(ctx context.Context, evaluator decisionEvaluator, input map[string]any, expected bool, count int) error {
 	for range count {
 		if err := evaluateExpected(ctx, evaluator, input, expected); err != nil {
 			return err
@@ -214,34 +220,46 @@ func warmUp(ctx context.Context, evaluator decisionEvaluator, input DecisionInpu
 	return nil
 }
 
-func measure(ctx context.Context, evaluator decisionEvaluator, input DecisionInput, expected bool, count int, now func() time.Time) ([]time.Duration, error) {
+func measure(ctx context.Context, evaluator decisionEvaluator, input map[string]any, expected bool, count int, now func() time.Time) ([]time.Duration, error) {
 	samples := make([]time.Duration, 0, count)
 	for range count {
-		started := now()
-		if err := evaluateExpected(ctx, evaluator, input, expected); err != nil {
+		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
+		started := now()
+		results, evalErr := evaluator.Eval(ctx, input)
 		elapsed := now().Sub(started)
 		if elapsed < 0 {
 			return nil, errLatency
+		}
+		if err := validateEvaluation(ctx, results, evalErr, expected); err != nil {
+			return nil, err
 		}
 		samples = append(samples, elapsed)
 	}
 	return samples, nil
 }
 
-func evaluateExpected(ctx context.Context, evaluator decisionEvaluator, input DecisionInput, expected bool) error {
+func evaluateExpected(ctx context.Context, evaluator decisionEvaluator, input map[string]any, expected bool) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	results, err := evaluator.Eval(ctx, input)
-	if err != nil {
+	return validateEvaluation(ctx, results, err, expected)
+}
+
+func validateEvaluation(ctx context.Context, results rego.ResultSet, evalErr error, expected bool) error {
+	if evalErr != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return ctxErr
 		}
 		return fmt.Errorf("%w: query", errEvaluation)
 	}
-	if len(results) != 1 || len(results[0].Expressions) != 1 {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if len(results) != 1 || len(results[0].Expressions) != 1 ||
+		results[0].Expressions[0] == nil || len(results[0].Bindings) != 0 {
 		return fmt.Errorf("%w: result shape", errEvaluation)
 	}
 	decision, ok := results[0].Expressions[0].Value.(bool)

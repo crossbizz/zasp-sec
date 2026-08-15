@@ -62,10 +62,14 @@ export async function loadLicenseInventory() {
 
 function validateGoModule(goMod, goSum, component) {
   if (typeof goMod !== "string" || typeof goSum !== "string") reject();
+  const opaRequirements = goMod.split("\n")
+    .map((line) => line.trim().replace(/^require\s+/, "").replace(/\s+\/\/.*$/, ""))
+    .filter((line) => line.startsWith("github.com/open-policy-agent/opa "));
   if (!/^module github\.com\/zasp-ai\/zasp-sec\/proofs\/opa-sdk$/m.test(goMod) ||
       !/^go 1\.25\.0$/m.test(goMod) || !/^toolchain go1\.26\.5$/m.test(goMod) ||
       (goMod.match(/^require github\.com\/open-policy-agent\/opa v1\.17\.0$/gm) ?? []).length !== 1 ||
-      /^(replace|exclude|retract)\b/m.test(goMod)) reject();
+      !isDeepStrictEqual(opaRequirements, ["github.com/open-policy-agent/opa v1.17.0"]) ||
+      /^\s*(replace|exclude|retract)\b/m.test(goMod)) reject();
   const opaLines = goSum.split("\n").filter((line) => line.startsWith("github.com/open-policy-agent/opa "));
   if (!isDeepStrictEqual(opaLines, [
     `github.com/open-policy-agent/opa ${component.version} ${component.module_sum}`,

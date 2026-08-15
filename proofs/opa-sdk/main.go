@@ -47,9 +47,18 @@ func runMain(stdout io.Writer, stderr io.Writer, runner proofRunner) (code int) 
 		wrote = true
 		return 1
 	}
-	_, _ = io.WriteString(stdout, successLine)
+	if !writeExact(stdout, successLine) {
+		_, _ = io.WriteString(stderr, failureLine("configuration"))
+		wrote = true
+		return 1
+	}
 	wrote = true
 	return 0
+}
+
+func writeExact(writer io.Writer, value string) bool {
+	written, err := io.WriteString(writer, value)
+	return err == nil && written == len(value)
 }
 
 func invalidResultCategory(result ProofResult) string {

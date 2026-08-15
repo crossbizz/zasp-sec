@@ -4,10 +4,15 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"strings"
 	"testing"
 	"time"
 )
+
+type errorWriter struct{}
+
+func (errorWriter) Write([]byte) (int, error) { return 0, io.ErrClosedPipe }
 
 const expectedSuccessLine = "OPA SDK proof passed: allow=true block=true deterministic=true evaluations=2000 p95_under_10ms=true.\n"
 
@@ -129,5 +134,15 @@ func TestRunMainRejectsMalformedSuccessfulResults(t *testing.T) {
 				t.Fatalf("runMain() = code %d stdout %q stderr %q", code, stdout.String(), stderr.String())
 			}
 		})
+	}
+}
+
+func TestRunMainFailsWhenFixedSuccessCannotBeWritten(t *testing.T) {
+	var stderr bytes.Buffer
+	code := runMain(errorWriter{}, &stderr, func(context.Context, ProofOptions) (ProofResult, error) {
+		return successfulProofResult(), nil
+	})
+	if code != 1 || stderr.String() != "OPA SDK proof failed: configuration rejected.\n" {
+		t.Fatalf("runMain() = code %d stderr %q", code, stderr.String())
 	}
 }

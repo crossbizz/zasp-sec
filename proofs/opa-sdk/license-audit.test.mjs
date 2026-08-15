@@ -89,6 +89,10 @@ test("rejects fetched authority and local module drift", async (t) => {
     "license bytes": (dependencies) => { dependencies.fingerprintUrl = async () => "0".repeat(64); },
     "go.mod": (dependencies) => { dependencies.readGoMod = async () => "module wrong.example/module\n"; },
     "go.sum": (dependencies) => { dependencies.readGoSum = async () => ""; },
+    "conflicting OPA requirement": (dependencies) => {
+      const baseline = validDependencies();
+      dependencies.readGoMod = async () => `${await baseline.readGoMod()}\nrequire github.com/open-policy-agent/opa v1.16.0\n`;
+    },
   };
   for (const [name, mutate] of Object.entries(cases)) {
     await t.test(name, async () => {

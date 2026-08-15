@@ -303,19 +303,19 @@ git commit -m "docs: expose OPA SDK proof"
 - Proof evidence includes decision counts and safe p95 values but no raw inputs,
   policy, OPA result internals, or host paths.
 
-- [ ] **Step 1: Review source, dependency, and proof boundaries**
+- [x] **Step 1: Review source, dependency, and proof boundaries**
 
 Inspect query preparation cardinality, strict result parsing, input conversion,
 clock/sample arithmetic, deadline/panic handling, fixed output, dependency
 integrity, and whether tests exercise the real OPA SDK rather than only fakes.
 
-- [ ] **Step 2: Fix every finding tests-first**
+- [x] **Step 2: Fix every finding tests-first**
 
 For each Critical, Important, or Minor issue: add one focused regression, run
 it RED, implement the minimum correction, run GREEN, then rerun the real direct
 proof because evaluator/timing/output changes affect R-10 evidence.
 
-- [ ] **Step 3: Capture final-code evidence**
+- [x] **Step 3: Capture final-code evidence**
 
 Run two consecutive direct root proofs and record safe decision-specific p95
 durations from the internal result boundary. Run six fresh full module passes,
