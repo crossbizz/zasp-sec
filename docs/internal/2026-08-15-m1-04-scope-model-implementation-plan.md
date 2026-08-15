@@ -24,21 +24,21 @@ later product security entities and authorization boundaries.
 
 ### Task 2: Implement Scope tests-first
 
-- [ ] Add Go tests before production and capture genuine missing-symbol RED.
-- [ ] Implement opaque strict Scope construction, validation, zero detection,
+- [x] Add Go tests before production and capture genuine missing-symbol RED.
+- [x] Implement opaque strict Scope construction, validation, zero detection,
   and read-only product-ID accessors.
-- [ ] Cover missing and duplicate levels, partial/zero internals, equality, and
+- [x] Cover missing and duplicate levels, partial/zero internals, equality, and
   raw-vendor-ID exclusion.
-- [ ] Run six focused passes, platform/service/worker/root regressions, full
+- [x] Run six focused passes, platform/service/worker/root regressions, full
   repository gates, audit, whitespace, and scans; commit
   `feat: add product scope model`.
 
 ### Task 3: Review the scope boundary
 
-- [ ] Audit hierarchy requirements, zero/partial values, duplicate levels,
+- [x] Audit hierarchy requirements, zero/partial values, duplicate levels,
   accessor types, comparability, error secrecy, API misuse paths, and tests.
-- [ ] Add tests-first fixes for every concrete finding and rerun affected gates.
-- [ ] Record a zero-finding review before completion.
+- [x] Add tests-first fixes for every concrete finding and rerun affected gates.
+- [x] Record a zero-finding review before completion.
 
 ### Task 4: Complete, push, and close M1-04
 

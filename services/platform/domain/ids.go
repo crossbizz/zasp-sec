@@ -108,6 +108,10 @@ func (id ProductID) IsZero() bool {
 	return id == ProductID{}
 }
 
+func (id ProductID) valid() bool {
+	return !id.IsZero() && id.value[6]>>4 == 4 && id.value[8]&0xc0 == 0x80 && !zeroUUIDPayload(id.value)
+}
+
 func (id ProductID) String() string {
 	if id.IsZero() {
 		return ""
