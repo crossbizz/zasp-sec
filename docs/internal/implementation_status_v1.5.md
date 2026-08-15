@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 702 |
-| In progress | 0 |
+| Pending | 701 |
+| In progress | 1 |
 | Complete | 22 |
 | Blocked | 3 |
 
@@ -23,7 +23,7 @@ In progress, Complete, or Blocked is Pending.
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 1 | 0 | 22 | 3 |
+| M0 | 27 | 0 | 1 | 22 | 3 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -68,13 +68,14 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `702/0/22/3` because
+session configuration. The 728 source-plan counts are `701/1/22/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M0-22 | August 15, 2026 | Prove bounded operational telemetry export through exact-pinned disposable Collectors and that exporter failure does not block the application; R-12 remains Not run. |
 
 ## Complete
 
@@ -285,5 +286,7 @@ provider capability gate.
 - M0-21 is Complete with the reviewed local explanation/privacy proof. It does
   not advance R-14, which also requires the separate M0-21a planner proof.
 - M0-21a is Complete with the fixed two-action catalog and in-scope planner
-  validation boundary. M0-22 remains Pending and R-14 is PASS from the combined
+  validation boundary. M0-22 is In progress and R-14 is PASS from the combined
   M0-21 explanation/privacy and M0-21a planning evidence.
+- M0-22 is In progress with the bounded Collector export and nonblocking
+  exporter-failure boundary. M0-23 remains Pending and R-12 remains Not run.

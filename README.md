@@ -279,6 +279,19 @@ R-12 remains Not run until M0-22 proves the separate bounded remote-export and
 exporter-failure boundary. M0-09 and PROV-01 remain Blocked, and R-03 remains
 incomplete.
 
+## OTLP export proof
+
+M0-22 is In progress. It will run an exact-pinned source Collector and fake
+sink Collector on one private internal proof network. The first bounded
+synthetic operation must reach the sink; after the exact sink is stopped, the
+next application operation must still complete within its independent bound.
+
+The proof accepts no hosted telemetry endpoint, credential, dotenv, profile,
+proxy, ambient Collector configuration, arbitrary destination, or customer
+payload. Root commands will be exposed only after the tests-first lifecycle
+exists. R-12 remains Not run pending the combined M0-13/M0-22 evidence; M0-23
+remains Pending.
+
 ## PostHog privacy proof
 
 M0-20 is Complete. It proves one allowlisted product analytics event against

@@ -59,7 +59,7 @@ function assertM011Complete(tracker: string) {
   expect(header).toEqual(["Task", "Started", "Current work"]);
   expect(separator).toHaveLength(3);
   expect(separator?.every((cell) => /^:?-{3,}:?$/.test(cell))).toBe(true);
-  expect(dataRows).toHaveLength(0);
+  expect(dataRows).toHaveLength(1);
   expect([...dataRows, ...completeRows].filter(([task]) => task === "M0-15")).toHaveLength(1);
   expect(completeSection).toBeDefined();
   expect(m011Rows).toHaveLength(1);
@@ -171,11 +171,11 @@ describe("Prowler evidence proof contract", () => {
       resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"),
       "utf8",
     );
-    expect(tracker).toContain("| Pending | 702 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 701 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 22 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toMatch(/\| M0 \| 27 \| 1 \| 0 \| 22 \| 3 \|/);
+    expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 1 \| 22 \| 3 \|/);
     assertM011Complete(tracker);
   });
 
@@ -201,7 +201,7 @@ describe("Prowler evidence proof contract", () => {
     const completeHeading = "## Complete\n";
 
     const mutatedTracker = tracker.replace(completeHeading, `${extraRow}\n\n${completeHeading}`);
-    expect(mutatedTracker).toContain("| In progress | 0 |");
+    expect(mutatedTracker).toContain("| In progress | 1 |");
     expect(() => assertM011Complete(mutatedTracker)).toThrow();
   });
 
