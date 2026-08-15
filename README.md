@@ -336,6 +336,19 @@ proof, seeded-value absence, strict structured validation, cleanup, gates,
 audit, scans, and adversarial review passed. M0-21a remains Pending.
 R-14 remains Not run until the separate fixed-action-catalog planner proof passes.
 
+## Security Agent planner boundary proof
+
+M0-21a is In progress. Its local-only boundary sends one structured planning
+request containing bounded untrusted injection text, an exact two-action
+catalog, and exact in-scope IDs to a fake OpenRouter-compatible endpoint on a
+random numeric-loopback port. Product validation must accept only the exact
+catalog actions and in-scope identifiers.
+
+The proof has no hosted model, real credential, SDK, dotenv, proxy, profile,
+arbitrary network target, general shell, or execution authority. Root commands
+will be exposed after the tests-first lifecycle exists. R-14 remains Not run;
+M0-22 remains Pending.
+
 ## EKS Fargate egress proof
 
 M0-19 is Blocked. Its reviewed fail-closed harness is ready to prove the second

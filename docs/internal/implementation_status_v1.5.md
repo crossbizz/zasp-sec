@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 703 |
-| In progress | 0 |
+| Pending | 702 |
+| In progress | 1 |
 | Complete | 21 |
 | Blocked | 3 |
 
@@ -23,7 +23,7 @@ In progress, Complete, or Blocked is Pending.
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 2 | 0 | 21 | 3 |
+| M0 | 27 | 1 | 1 | 21 | 3 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -68,13 +68,14 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `703/0/21/3` because
+session configuration. The 728 source-plan counts are `702/1/21/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M0-21a | August 15, 2026 | Prove the fixed two-action, in-scope Security Agent planning boundary against a synthetic numeric-loopback OpenRouter-compatible endpoint; R-14 remains Not run. |
 
 ## Complete
 
@@ -283,3 +284,5 @@ provider capability gate.
   before I/O; cleanup, gates, scans, and review passed. R-13 is PASS.
 - M0-21 is Complete with the reviewed local explanation/privacy proof. It does
   not advance R-14, which also requires the separate M0-21a planner proof.
+- M0-21a is In progress with the fixed two-action catalog and in-scope planner
+  validation boundary. M0-22 remains Pending and R-14 remains Not run.
