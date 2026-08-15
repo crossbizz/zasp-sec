@@ -9,7 +9,7 @@ const uuidV4Pattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[
 const organizationPattern = /^org_[a-z0-9]{16}$/;
 const endUserPattern = /^user_[a-z0-9]{16}$/;
 const integrationPattern = /^zasp-m0-14c-[0-9a-f]{16}-1password-events$/;
-const providerKeyPattern = /^pk_[A-Za-z0-9_-]{32}$/;
+const providerKeyPattern = /^eyJ[A-Za-z0-9_-]+\.ey[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
 const connectTokenPattern = /^nango_connect_session_[0-9a-f]{64}$/;
 
 export class Failure extends Error {
@@ -105,7 +105,6 @@ async function createIntegration(input, apiKey, request, signal) {
       provider: "1password-events",
       integrationId: input.integrationKey,
       displayName: input.integrationKey,
-      auth: { authType: "API_KEY" },
       forward_webhooks: false,
       useSharedCredentials: false,
     }),
@@ -138,9 +137,10 @@ async function createConnectSession(input, apiKey, request, signal) {
 }
 
 async function authorizeApiKey(input, connectToken, request, signal) {
+  const query = new URLSearchParams({ connect_session_token: connectToken, "params[domain]": "events.1password.com" });
   const response = await requestJson(request, {
     method: "POST",
-    url: `${input.baseUrl}/api-auth/api-key/${input.integrationKey}?connect_session_token=${connectToken}`,
+    url: `${input.baseUrl}/api-auth/api-key/${input.integrationKey}?${query.toString()}`,
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ apiKey: input.providerKey }),
     redirect: "manual",

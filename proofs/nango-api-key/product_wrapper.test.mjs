@@ -12,7 +12,7 @@ import {
 const apiKey = "11111111-1111-4111-8111-111111111111";
 const connectToken = `nango_connect_session_${"a".repeat(64)}`;
 const connectionId = "22222222-2222-4222-8222-222222222222";
-const providerKey = `pk_${"b".repeat(32)}`;
+const providerKey = `eyJ${"a".repeat(16)}.ey${"b".repeat(16)}.${"c".repeat(32)}`;
 const timestamp = "2026-08-15T00:00:00.000Z";
 const connectionTimestamp = "2026-08-15T00:00:00.000+00:00";
 const input = Object.freeze({
@@ -99,11 +99,13 @@ test("creates one verified API-key connection and returns only the scoped refere
     provider: "1password-events",
     integrationId: input.integrationKey,
     displayName: input.integrationKey,
-    auth: { authType: "API_KEY" },
     forward_webhooks: false,
     useSharedCredentials: false,
   });
-  assert.equal(new URL(transport.calls[3].url).searchParams.get("connect_session_token"), connectToken);
+  const authorizationUrl = new URL(transport.calls[3].url);
+  assert.equal(authorizationUrl.searchParams.size, 2);
+  assert.equal(authorizationUrl.searchParams.get("connect_session_token"), connectToken);
+  assert.equal(authorizationUrl.searchParams.get("params[domain]"), "events.1password.com");
   assert.deepEqual(JSON.parse(transport.calls[3].body), { apiKey: providerKey });
   const output = JSON.stringify(result);
   for (const secret of [providerKey, apiKey, connectToken, ...input.forbiddenValues]) assert.equal(output.includes(secret), false);

@@ -7,7 +7,7 @@ import {
   runMain,
 } from "./fixture_provider.mjs";
 
-const providerKey = `pk_${"a".repeat(32)}`;
+const providerKey = `eyJ${"a".repeat(16)}.ey${"b".repeat(16)}.${"c".repeat(32)}`;
 const configuration = Object.freeze({
   hostname: "events.1password.com",
   providerKey,

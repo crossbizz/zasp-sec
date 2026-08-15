@@ -10,7 +10,7 @@ const markerPattern = /^[0-9a-f]{16}$/;
 const suffixPattern = /^[A-Za-z0-9]{6}$/;
 const passwordPattern = /^[A-Za-z0-9_-]{32}$/;
 const encryptionKeyPattern = /^[A-Za-z0-9+/]{43}=$/;
-const providerKeyPattern = /^pk_[A-Za-z0-9_-]{32}$/;
+const providerKeyPattern = /^eyJ[A-Za-z0-9_-]+\.ey[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
 const tlsEntries = ["ca.crt", "ca.key", "ca.srl", "san.cnf", "server.crt", "server.csr", "server.key"];
 
 const defaultIo = Object.freeze({ chmod, lstat, makeTemp: mkdtemp, mkdir, readFile, readdir, realpath, remove: rm, writeFile });
@@ -36,7 +36,7 @@ export async function createApiKeyWorkspace({
   const prefix = `${globalPrefix}${validatedMarker}-`;
   const password = exactRandom(randomSource, 24).toString("base64url");
   const encryptionKey = exactRandom(randomSource, 32).toString("base64");
-  const providerKey = `pk_${exactRandom(randomSource, 24).toString("base64url")}`;
+  const providerKey = `eyJ${exactRandom(randomSource, 12).toString("base64url")}.ey${exactRandom(randomSource, 12).toString("base64url")}.${exactRandom(randomSource, 24).toString("base64url")}`;
   if (!passwordPattern.test(password) || !validEncryptionKey(encryptionKey) || !providerKeyPattern.test(providerKey)) {
     throw new TypeError("API-key workspace secret is invalid");
   }

@@ -10,7 +10,7 @@ export const API_KEY_PINS = PINS;
 
 const passwordPattern = /^[A-Za-z0-9_-]{32}$/;
 const encryptionKeyPattern = /^[A-Za-z0-9+/]{43}=$/;
-const providerKeyPattern = /^pk_[A-Za-z0-9_-]{32}$/;
+const providerKeyPattern = /^eyJ[A-Za-z0-9_-]+\.ey[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
 const supportedPlatforms = new Set(["linux/amd64", "linux/arm64"]);
 
 export function buildApiKeyRuntimeSpec(input) {

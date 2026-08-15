@@ -4,7 +4,7 @@ import { createServer as createHttpsServer } from "node:https";
 import { pathToFileURL } from "node:url";
 
 const maximumRequestBytes = 16_384;
-const providerKeyPattern = /^pk_[A-Za-z0-9_-]{32}$/;
+const providerKeyPattern = /^eyJ[A-Za-z0-9_-]+\.ey[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
 const fixedFailureBody = Buffer.from('{"error":"invalid_request"}');
 const fixedSuccessBody = Buffer.from('{"features":[],"items":[]}');
 

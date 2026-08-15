@@ -29,7 +29,7 @@ function specification() {
     platform: "linux/arm64",
     password: "p".repeat(32),
     encryptionKey: Buffer.alloc(32, 7).toString("base64"),
-    providerKey: `pk_${"a".repeat(32)}`,
+    providerKey: `eyJ${"a".repeat(16)}.ey${"b".repeat(16)}.${"c".repeat(32)}`,
     workspaceRoot: root,
     dockerConfigPath: `${root}/docker-config`,
     caCertificatePath: `${root}/tls/ca.crt`,

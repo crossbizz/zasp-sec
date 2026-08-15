@@ -9,7 +9,7 @@ import {
 
 const marker = "0123456789abcdef";
 const root = `/private/tmp/zasp-m0-14c-${marker}-ABC123`;
-const providerKey = `pk_${"a".repeat(32)}`;
+const providerKey = `eyJ${"a".repeat(16)}.ey${"b".repeat(16)}.${"c".repeat(32)}`;
 const input = Object.freeze({
   marker,
   platform: "linux/amd64",
