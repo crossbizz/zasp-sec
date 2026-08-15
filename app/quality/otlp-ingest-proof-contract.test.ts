@@ -22,7 +22,8 @@ function assertM013Complete(tracker: string) {
   const allCompleteRows = markdownRows(complete).slice(2);
   const completeRows = allCompleteRows.filter(([task]) => task === "M0-13");
 
-  expect(inProgressRows).toHaveLength(0);
+  expect(inProgressRows).toHaveLength(1);
+  expect(inProgressRows[0]?.[0]).toBe("M0-18");
   expect([...inProgressRows, ...allCompleteRows].filter(([task]) => task === "M0-15")).toHaveLength(1);
   expect(completeRows).toHaveLength(1);
   expect(completeRows[0]?.[1]).toBe("August 14, 2026");
@@ -86,11 +87,11 @@ describe("OTLP ingest proof contract", () => {
       resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"),
       "utf8",
     );
-    expect(tracker).toContain("| Pending | 707 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 706 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 19 |");
     expect(tracker).toContain("| Blocked | 1 |");
-    expect(tracker).toMatch(/\| M0 \| 27 \| 6 \| 0 \| 19 \| 1 \|/);
+    expect(tracker).toMatch(/\| M0 \| 27 \| 5 \| 1 \| 19 \| 1 \|/);
     assertM013Complete(tracker);
     expect(tracker).toContain("M0-09 and PROV-01 remain Blocked");
     expect(tracker).toContain("R-03 remains incomplete");

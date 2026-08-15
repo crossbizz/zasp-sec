@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 707 |
-| In progress | 0 |
+| Pending | 706 |
+| In progress | 1 |
 | Complete | 19 |
 | Blocked | 1 |
 
@@ -23,7 +23,7 @@ In progress, Complete, or Blocked is Pending.
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 6 | 0 | 19 | 1 |
+| M0 | 27 | 5 | 1 | 19 | 1 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -68,13 +68,14 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `707/0/19/1` because
+session configuration. The 728 source-plan counts are `706/1/19/1` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M0-18 | August 15, 2026 | Building the exact real EKS Fargate canary lifecycle, scheduling/canary evidence checks, and fail-closed cleanup harness. Live authority requires an authenticated disposable EKS Fargate profile and product proxy/test credential; LocalStack k3s cannot satisfy the Fargate gate. |
 
 ## Complete
 
@@ -263,4 +264,9 @@ provider capability gate.
 - M0-17 is Complete after two consecutive direct final-code OPA Go SDK proofs
   returned deterministic Allow/Block decisions with decision-specific p95 well
   below 10 ms, plus exact dependency/license audits, full gates, scans, and
-  zero-finding whole-range review. R-10 is PASS. M0-18 remains Pending.
+  zero-finding whole-range review. R-10 is PASS. M0-18 is In progress.
+- M0-18 is In progress with a real-provider-only Fargate proof boundary. The
+  current capability audit has no real AWS credentials, authenticated EKS
+  kubeconfig, disposable Fargate profile, product proxy endpoint, or test
+  canary credential, so no cluster request has been made. LocalStack's embedded
+  k3s/k3d EKS compatibility cannot advance M0-18 or R-11.

@@ -49,19 +49,19 @@ Gitleaks 8.30.1.
 - Sole active task: M0-18.
 - R-11 remains exactly `Not run — M0-18/M0-19`.
 
-- [ ] **Step 1: Write status-contract RED**
+- [x] **Step 1: Write status-contract RED**
 
 Reject missing/duplicate M0-18, concurrent M0-19, aggregate drift, any claim
 that LocalStack/k3s is Fargate, premature R-11 PASS, and changes to M0-09,
 PROV-01, or R-03.
 
-- [ ] **Step 2: Apply minimal start GREEN**
+- [x] **Step 2: Apply minimal start GREEN**
 
 Add the README boundary and move only M0-18 from Pending to In progress. Record
 that the current capability audit has zero real-AWS inputs and no reachable
 Fargate cluster; do not call a provider.
 
-- [ ] **Step 3: Run affected/full gates and commit**
+- [x] **Step 3: Run affected/full gates and commit**
 
 Commit as `docs: start M0-18 Fargate proof` after pinned verify, audit,
 whitespace, and staged redacted secret scan pass.

@@ -279,6 +279,22 @@ R-12 remains Not run until M0-22 proves the separate bounded remote-export and
 exporter-failure boundary. M0-09 and PROV-01 remain Blocked, and R-03 remains
 incomplete.
 
+## EKS Fargate verification proof
+
+M0-18 is In progress. It is building a fail-closed harness for one canary Job
+on an explicitly supplied real EKS Fargate disposable test profile. The live
+gate requires the selected Pod to bind to the named profile, its assigned node
+to report the Fargate compute type, the canary to receive the exact response
+through the product proxy, and every proof-owned Kubernetes resource to be
+absent after cleanup.
+
+The current host has no real-AWS credential, authenticated EKS kubeconfig,
+disposable Fargate profile, product proxy endpoint, or test canary credential,
+so the harness performs no cluster request. LocalStack can exercise generic EKS
+and Kubernetes compatibility with embedded k3s/k3d nodes, but it cannot prove
+Fargate. R-11 remains Not run; M0-19 remains Pending. M0-09 and PROV-01 remain
+Blocked, and R-03 remains incomplete.
+
 ## OPA SDK proof
 
 M0-17 is Complete. It evaluates one Allow and one Block decision with OPA
@@ -295,7 +311,7 @@ Apache-2.0 audit. Direct success is exactly
 `OPA SDK proof passed: allow=true block=true deterministic=true evaluations=2000 p95_under_10ms=true.`
 Two consecutive direct final-code proofs, six race runs, exact dependency and
 license audits, full pinned repository gates, and whole-range review passed.
-R-10 is PASS. M0-18 remains Pending; M0-09 and PROV-01 remain Blocked, and
+R-10 is PASS. M0-18 is In progress; M0-09 and PROV-01 remain Blocked, and
 R-03 remains incomplete.
 
 ## Promptfoo red-team proof

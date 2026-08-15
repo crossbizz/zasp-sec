@@ -32,12 +32,13 @@ function assertM014Complete(tracker: string, readme: string, riskRegister: strin
   expect(section).toContain("M0-15");
   expect(section).toContain("R-08 is PASS");
 
-  expect(tracker).toContain("| Pending | 707 |");
-  expect(tracker).toContain("| In progress | 0 |");
+  expect(tracker).toContain("| Pending | 706 |");
+  expect(tracker).toContain("| In progress | 1 |");
   expect(tracker).toContain("| Complete | 19 |");
   expect(tracker).toContain("| Blocked | 1 |");
-  expect(tracker).toMatch(/\| M0 \| 27 \| 6 \| 0 \| 19 \| 1 \|/);
-  expect(activeRows).toHaveLength(0);
+  expect(tracker).toMatch(/\| M0 \| 27 \| 5 \| 1 \| 19 \| 1 \|/);
+  expect(activeRows).toHaveLength(1);
+  expect(activeRows[0]?.[0]).toBe("M0-18");
   expect(m014Rows).toHaveLength(1);
   expect(m014Rows[0]?.[1]).toBe("August 15, 2026");
   expect(m014Rows[0]?.[2]).toContain("Auth plus Proxy");
@@ -164,7 +165,7 @@ describe("Nango free Auth boundary contract", () => {
     ).toThrow();
     expect(() =>
       assertM014Complete(
-        completed.tracker.replace("| Pending | 707 |", "| Pending | 706 |"),
+        completed.tracker.replace("| Pending | 706 |", "| Pending | 705 |"),
         completed.readme,
         riskRegister,
       ),
