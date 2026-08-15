@@ -34,13 +34,13 @@ function assertM017Complete(tracker: string, readme: string, riskRegister: strin
   expect(section).toContain("R-10 is PASS");
   expect(section).not.toMatch(/uses an OPA server|customer-facing Rego|external policy service/i);
 
-  expect(tracker).toContain("| Pending | 702 |");
-  expect(tracker).toContain("| In progress | 0 |");
+  expect(tracker).toContain("| Pending | 701 |");
+  expect(tracker).toContain("| In progress | 1 |");
   expect(tracker).toContain("| Complete | 23 |");
   expect(tracker).toContain("| Blocked | 3 |");
-  expect(tracker).toMatch(/\| M0 \| 27 \| 1 \| 0 \| 23 \| 3 \|/);
-  expect(tracker).toContain("`702/0/23/3`");
-  expect(activeRows).toHaveLength(0);
+  expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 1 \| 23 \| 3 \|/);
+  expect(tracker).toContain("`701/1/23/3`");
+  expect(activeRows).toHaveLength(1);
   expect(completeRows.filter(([task]) => task === "M0-17")).toHaveLength(1);
   expect(completeRows.find(([task]) => task === "M0-17")?.[1]).toBe("August 15, 2026");
   expect(completeRows.find(([task]) => task === "M0-17")?.[2]).toContain("OPA Go SDK");

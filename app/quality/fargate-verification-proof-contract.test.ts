@@ -32,13 +32,13 @@ function assertM018Blocked(tracker: string, readme: string, riskRegister: string
   expect(section).toContain("R-11 remains Not run");
 
   expect(section).toContain("0/11 required inputs");
-  expect(tracker).toContain("| Pending | 702 |");
-  expect(tracker).toContain("| In progress | 0 |");
+  expect(tracker).toContain("| Pending | 701 |");
+  expect(tracker).toContain("| In progress | 1 |");
   expect(tracker).toContain("| Complete | 23 |");
   expect(tracker).toContain("| Blocked | 3 |");
-  expect(tracker).toMatch(/\| M0 \| 27 \| 1 \| 0 \| 23 \| 3 \|/);
-  expect(tracker).toContain("`702/0/23/3`");
-  expect(activeRows).toHaveLength(0);
+  expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 1 \| 23 \| 3 \|/);
+  expect(tracker).toContain("`701/1/23/3`");
+  expect(activeRows).toHaveLength(1);
   expect(blockedRows.filter(([task]) => task === "M0-18")).toHaveLength(1);
   expect(blockedRows.find(([task]) => task === "M0-18")?.[1]).toBe("August 15, 2026");
   expect(blockedRows.find(([task]) => task === "M0-18")?.[2]).toContain("0/11");
@@ -162,7 +162,7 @@ describe("EKS Fargate verification proof repository contract", () => {
       ),
     ).toThrow();
     expect(() =>
-      assertM018Blocked(tracker.replace("| Pending | 702 |", "| Pending | 701 |"), readme, riskRegister),
+      assertM018Blocked(tracker.replace("| Pending | 701 |", "| Pending | 700 |"), readme, riskRegister),
     ).toThrow();
   });
 });

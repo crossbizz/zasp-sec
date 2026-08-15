@@ -303,7 +303,17 @@ OTLP export proof passed: delivered=true bounded=true exporter_failed=true appli
 
 Two consecutive final-code live passes proved first delivery, exact exporter
 failure, nonblocking application progress, and exact cleanup. Combined with
-the retained M0-13 ingest evidence, R-12 is PASS. M0-23 remains Pending.
+the retained M0-13 ingest evidence, R-12 is PASS.
+
+## M0 technical proof gate
+
+M0-23 is In progress as an evidence-only architecture gate. It records one
+decision for every M0 risk boundary without rerunning provider or container
+proofs. The selected decision is **PROCEED WITH BLOCKED PATHS**: M1 foundation
+work may begin after this gate completes, but R-03 continues to block real-AWS
+IAM parity claims and R-11 continues to block EKS Fargate strong-isolation and
+egress claims. Neither blocker may be replaced by LocalStack, fixture-only,
+source-review, or harness-only evidence.
 
 ## PostHog privacy proof
 

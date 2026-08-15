@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 702 |
-| In progress | 0 |
+| Pending | 701 |
+| In progress | 1 |
 | Complete | 23 |
 | Blocked | 3 |
 
@@ -23,7 +23,7 @@ In progress, Complete, or Blocked is Pending.
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 1 | 0 | 23 | 3 |
+| M0 | 27 | 0 | 1 | 23 | 3 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -68,13 +68,14 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `702/0/23/3` because
+session configuration. The 728 source-plan counts are `701/1/23/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M0-23 | August 15, 2026 | Record one evidence-backed architecture decision for every M0 proof boundary, keep R-03/R-11 explicit, and prevent unresolved proofs from being marked passed. |
 
 ## Complete
 
