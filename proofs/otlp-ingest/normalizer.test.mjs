@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   FIXTURE,
   buildSyntheticOtlpTrace,
+  normalizeCollectorOtlpTrace,
   normalizeOtlpTrace,
   parseStrictOtlpJson,
 } from "./normalizer.mjs";
@@ -20,6 +21,18 @@ function mutate(callback) {
   const value = request();
   callback(value);
   return bytes(value);
+}
+
+function collectorArtifact() {
+  const value = request();
+  const resource = value.resourceSpans[0].resource;
+  const span = value.resourceSpans[0].scopeSpans[0].spans[0];
+  delete resource.droppedAttributesCount;
+  for (const key of [
+    "traceState", "droppedAttributesCount", "events", "droppedEventsCount",
+    "links", "droppedLinksCount",
+  ]) delete span[key];
+  return value;
 }
 
 test("builds and normalizes one exact bounded semantic trace", () => {
@@ -43,6 +56,21 @@ test("builds and normalizes one exact bounded semantic trace", () => {
   assert.equal(Object.isFrozen(normalized), true);
   assert.equal(Object.isFrozen(FIXTURE), true);
   assert.equal(payload.equals(buildSyntheticOtlpTrace(FIXTURE)), true);
+});
+
+test("normalizes only the Collector canonical omission form", () => {
+  const value = collectorArtifact();
+  assert.equal(normalizeCollectorOtlpTrace(bytes(value), FIXTURE).identity, true);
+  for (const mutateArtifact of [
+    (candidate) => { candidate.resourceSpans[0].resource.droppedAttributesCount = 0; },
+    (candidate) => { candidate.resourceSpans[0].scopeSpans[0].spans[0].traceState = ""; },
+    (candidate) => { delete candidate.resourceSpans[0].scopeSpans[0].spans[0].flags; },
+    (candidate) => { candidate.resourceSpans[0].scopeSpans[0].spans[0].extra = true; },
+  ]) {
+    const changed = collectorArtifact();
+    mutateArtifact(changed);
+    assert.throws(() => normalizeCollectorOtlpTrace(bytes(changed), FIXTURE));
+  }
 });
 
 test("strict parser rejects malformed representation boundaries", () => {

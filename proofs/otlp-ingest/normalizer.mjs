@@ -166,6 +166,34 @@ export function normalizeOtlpTrace(bytes, input) {
   });
 }
 
+export function normalizeCollectorOtlpTrace(bytes, input) {
+  if (!(bytes instanceof Uint8Array)) throw new TypeError("Collector artifact must be bytes");
+  const document = parseStrictOtlpJson(bytes);
+  expectKeys(document, ["resourceSpans"], "Collector artifact");
+  const resourceSpan = exactOne(document.resourceSpans, "Collector resource spans");
+  expectKeys(resourceSpan, ["resource", "scopeSpans"], "Collector resource span");
+  const resource = resourceSpan.resource;
+  expectKeys(resource, ["attributes"], "Collector resource");
+  const scopeSpan = exactOne(resourceSpan.scopeSpans, "Collector scope spans");
+  expectKeys(scopeSpan, ["scope", "spans"], "Collector scope span");
+  const span = exactOne(scopeSpan.spans, "Collector spans");
+  expectKeys(span, [
+    "attributes", "endTimeUnixNano", "flags", "kind", "name", "spanId",
+    "startTimeUnixNano", "status", "traceId",
+  ], "Collector span");
+
+  resource.droppedAttributesCount = 0;
+  Object.assign(span, {
+    traceState: "",
+    droppedAttributesCount: 0,
+    events: [],
+    droppedEventsCount: 0,
+    links: [],
+    droppedLinksCount: 0,
+  });
+  return normalizeOtlpTrace(Buffer.from(JSON.stringify(document)), input);
+}
+
 function attribute(key, value) {
   return { key, value: { stringValue: value } };
 }

@@ -1,7 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { chmod, lstat, mkdir, realpath, rm, writeFile } from "node:fs/promises";
 import { request } from "node:http";
-import { connect } from "node:net";
 import { tmpdir } from "node:os";
 import { basename, isAbsolute, join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -15,7 +14,7 @@ import {
 import {
   FIXTURE,
   buildSyntheticOtlpTrace,
-  normalizeOtlpTrace,
+  normalizeCollectorOtlpTrace,
   parseStrictOtlpJson,
 } from "./normalizer.mjs";
 
@@ -117,6 +116,24 @@ export function parseContainerInspectionResult(source) {
     State: { Running: state[0] },
     NetworkSettings: { Ports: network[0] },
   };
+}
+
+export function validateReadinessResponse(response) {
+  if (
+    !isPlainObject(response) || response.status !== 405 || response.contentType !== "text/plain" ||
+    !(response.body instanceof Uint8Array) ||
+    Buffer.from(response.body).toString("utf8") !== "405 method not allowed, supported: [POST]"
+  ) throw new TypeError("OTLP HTTP readiness response is invalid");
+  return true;
+}
+
+export function validateSubmissionResponse(response) {
+  if (
+    !isPlainObject(response) || response.status !== 200 ||
+    response.contentType !== "application/json" || !(response.body instanceof Uint8Array) ||
+    Buffer.from(response.body).toString("utf8") !== '{"partialSuccess":{}}'
+  ) throw new TypeError("OTLP HTTP submission response is invalid");
+  return true;
 }
 
 export function validateContainerDocument(document, expected) {
@@ -358,7 +375,6 @@ export class DockerCollectorRuntime {
     this.spawn = options.spawn ?? spawnSync;
     this.io = options.io ?? { chmod, lstat, mkdir, realpath, rm, writeFile };
     this.httpRequest = options.httpRequest ?? request;
-    this.tcpConnect = options.tcpConnect ?? connect;
     if (
       typeof this.path !== "string" || this.path.length === 0 ||
       typeof this.parent !== "string" || !isAbsolute(this.parent) ||
@@ -472,7 +488,14 @@ export class DockerCollectorRuntime {
   async waitReady(signal) {
     for (let attempt = 0; attempt < 120; attempt += 1) {
       if (signal.aborted) throw operationError();
-      if (await this.#tcpReady(Number(this.expected.hostPort), signal)) return;
+      try {
+        validateReadinessResponse(await this.#http(
+          Number(this.expected.hostPort), "GET", undefined, signal, 1_024,
+        ));
+        return;
+      } catch {
+        if (signal.aborted) throw operationError();
+      }
       await abortableDelay(250, signal);
     }
     throw Object.assign(new Error("readiness failed"), { category: "readiness" });
@@ -480,8 +503,12 @@ export class DockerCollectorRuntime {
 
   async sendTrace(signal) {
     const body = buildSyntheticOtlpTrace(FIXTURE);
-    const response = await this.#post(Number(this.expected.hostPort), body, signal);
-    if (response.status !== 200 || response.body.toString("utf8") !== "{}") throw providerError();
+    const response = await this.#http(Number(this.expected.hostPort), "POST", body, signal, 1_024);
+    try {
+      validateSubmissionResponse(response);
+    } catch {
+      throw providerError();
+    }
   }
 
   async readEvidence(signal) {
@@ -489,7 +516,7 @@ export class DockerCollectorRuntime {
       if (signal.aborted) throw operationError();
       try {
         const bytes = await readStableArtifact(this.identities.output);
-        return normalizeOtlpTrace(bytes, FIXTURE);
+        return normalizeCollectorOtlpTrace(bytes, FIXTURE);
       } catch {
         await abortableDelay(250, signal);
       }
@@ -593,44 +620,32 @@ export class DockerCollectorRuntime {
     }
   }
 
-  #tcpReady(port, signal) {
-    return new Promise((resolve) => {
-      const socket = this.tcpConnect({ host: "127.0.0.1", port });
-      let settled = false;
-      const finish = (value) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        signal.removeEventListener("abort", onAbort);
-        socket.destroy();
-        resolve(value);
-      };
-      const onAbort = () => finish(false);
-      const timer = setTimeout(() => finish(false), 500);
-      socket.once("connect", () => finish(true));
-      socket.once("error", () => finish(false));
-      signal.addEventListener("abort", onAbort, { once: true });
-    });
-  }
-
-  #post(port, body, signal) {
+  #http(port, method, body, signal, maximumBytes) {
     return new Promise((resolve, reject) => {
       const chunks = [];
       let bytes = 0;
+      const headers = body === undefined ? undefined : {
+        "content-type": "application/json",
+        "content-length": body.byteLength,
+      };
       const req = this.httpRequest({
         host: "127.0.0.1",
         port,
         path: "/v1/traces",
-        method: "POST",
-        headers: { "content-type": "application/json", "content-length": body.byteLength },
+        method,
+        headers,
         signal,
       }, (res) => {
         res.on("data", (chunk) => {
           bytes += chunk.byteLength;
-          if (bytes > 1_024) req.destroy(new Error("response exceeds bound"));
+          if (bytes > maximumBytes) req.destroy(new Error("response exceeds bound"));
           else chunks.push(chunk);
         });
-        res.on("end", () => resolve({ status: res.statusCode, body: Buffer.concat(chunks) }));
+        res.on("end", () => resolve({
+          status: res.statusCode,
+          contentType: res.headers["content-type"],
+          body: Buffer.concat(chunks),
+        }));
       });
       req.setTimeout(1_000, () => req.destroy(new Error("request deadline")));
       req.on("error", reject);

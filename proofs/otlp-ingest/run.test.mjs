@@ -16,6 +16,8 @@ import {
   validateCleanupContainerDocument,
   validateCreatedContainerDocument,
   validateContainerDocument,
+  validateReadinessResponse,
+  validateSubmissionResponse,
 } from "./run.mjs";
 
 const marker = "0123456789abcdef";
@@ -254,6 +256,34 @@ test("re-authorizes an exact stopped container for cleanup", () => {
   assert.doesNotThrow(() => validateCleanupContainerDocument(value, expected));
   value.Config.Labels["zasp.dev/proof"] = "foreign";
   assert.throws(() => validateCleanupContainerDocument(value, expected));
+});
+
+test("requires the exact bounded OTLP HTTP read-only readiness response", () => {
+  assert.doesNotThrow(() => validateReadinessResponse({
+    status: 405,
+    contentType: "text/plain",
+    body: Buffer.from("405 method not allowed, supported: [POST]"),
+  }));
+  for (const mutation of [
+    { status: 200, contentType: "text/plain", body: Buffer.from("405 method not allowed, supported: [POST]") },
+    { status: 405, contentType: "application/json", body: Buffer.from("405 method not allowed, supported: [POST]") },
+    { status: 405, contentType: "text/plain", body: Buffer.from("foreign") },
+  ]) assert.throws(() => validateReadinessResponse(mutation));
+});
+
+test("requires the exact OTLP HTTP accepted-without-rejection response", () => {
+  assert.doesNotThrow(() => validateSubmissionResponse({
+    status: 200,
+    contentType: "application/json",
+    body: Buffer.from('{"partialSuccess":{}}'),
+  }));
+  for (const body of ["{}", '{"partialSuccess":{"rejectedSpans":1}}', '{"partialSuccess":{},"extra":true}']) {
+    assert.throws(() => validateSubmissionResponse({
+      status: 200,
+      contentType: "application/json",
+      body: Buffer.from(body),
+    }));
+  }
 });
 
 test("orchestrates the exact main and independent cleanup sequence", async () => {
