@@ -15,16 +15,18 @@ function markdownRows(markdown: string) {
     .map((line) => line.slice(1, -1).split("|").map((cell) => cell.trim()));
 }
 
-function assertOnlyM014cActive(tracker: string) {
+function assertM014cComplete(tracker: string) {
   const inProgress = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
-  const rows = markdownRows(inProgress).slice(2);
-  expect(rows).toHaveLength(1);
-  expect(rows[0]?.[0]).toBe("M0-14c");
-  expect(rows[0]?.[1]).toBe("August 15, 2026");
-  expect(rows[0]?.[2]).toContain("API-key connection");
+  const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] ?? "";
+  const activeRows = markdownRows(inProgress).slice(2);
+  const completeRows = markdownRows(complete).slice(2).filter(([task]) => task === "M0-14c");
+  expect(activeRows).toHaveLength(0);
+  expect(completeRows).toHaveLength(1);
+  expect(completeRows[0]?.[1]).toBe("August 15, 2026");
+  expect(completeRows[0]?.[2]).toContain("API-key connection");
 }
 
-describe("Nango API-key proof start contract", () => {
+describe("Nango API-key proof completion contract", () => {
   it("exposes exact hermetic and live commands with the fixed private boundary", async () => {
     const packageJson = JSON.parse(await readFile(resolve(repositoryRoot, "package.json"), "utf8")) as {
       scripts?: Record<string, string>;
@@ -44,7 +46,7 @@ describe("Nango API-key proof start contract", () => {
     expect(section).toContain("never enters product state");
     expect(section).toContain("no host port");
     expect(section).toMatch(/R-08 remains\s+Not run/);
-    expect(section).toContain("M0-14c is In progress");
+    expect(section).toContain("M0-14c is Complete");
   });
 
   it("binds the exact source-plan dependency, deliverable, and verification boundary", async () => {
@@ -94,39 +96,38 @@ describe("Nango API-key proof start contract", () => {
     expect(plan).toContain("independent read-only review");
   });
 
-  it("starts exactly M0-14c while preserving completed, blocked, and risk boundaries", async () => {
+  it("completes exactly M0-14c while preserving blocked and risk boundaries", async () => {
     const tracker = await readFile(
       resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"),
       "utf8",
     );
 
     expect(tracker).toContain("| Pending | 711 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 14 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 15 |");
     expect(tracker).toContain("| Blocked | 1 |");
-    expect(tracker).toMatch(/\| M0 \| 27 \| 10 \| 1 \| 14 \| 1 \|/);
-    assertOnlyM014cActive(tracker);
+    expect(tracker).toMatch(/\| M0 \| 27 \| 10 \| 0 \| 15 \| 1 \|/);
+    assertM014cComplete(tracker);
     expect(tracker).toMatch(/## Complete[\s\S]*?\| M0-14b \| August 15, 2026 \|/);
     expect(tracker).toContain("M0-09 and PROV-01 remain Blocked");
     expect(tracker).toContain("R-03 remains incomplete");
     expect(tracker).toContain("R-08 remains Not run through M0-15");
   });
 
-  it("rejects duplicate or concurrent M0-14c active rows", async () => {
+  it("rejects duplicate completion or concurrent active rows", async () => {
     const tracker = await readFile(
       resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"),
       "utf8",
     );
-    const duplicate = tracker.replace(
-      "## Complete\n",
-      "| M0-14c | August 15, 2026 | Duplicate API-key work. |\n\n## Complete\n",
-    );
+    const m014cRow = markdownRows(tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] ?? "").find(([task]) => task === "M0-14c")?.join(" | ");
+    expect(m014cRow).toBeDefined();
+    const duplicate = tracker.replace("## Blocked\n", `| ${m014cRow} |\n\n## Blocked\n`);
     const concurrent = tracker.replace(
       "## Complete\n",
       "| M0-14 | August 15, 2026 | Concurrent feature-boundary work. |\n\n## Complete\n",
     );
 
-    expect(() => assertOnlyM014cActive(duplicate)).toThrow();
-    expect(() => assertOnlyM014cActive(concurrent)).toThrow();
+    expect(() => assertM014cComplete(duplicate)).toThrow();
+    expect(() => assertM014cComplete(concurrent)).toThrow();
   });
 });

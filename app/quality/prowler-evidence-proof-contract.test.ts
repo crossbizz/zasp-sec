@@ -59,8 +59,7 @@ function assertM011Complete(tracker: string) {
   expect(header).toEqual(["Task", "Started", "Current work"]);
   expect(separator).toHaveLength(3);
   expect(separator?.every((cell) => /^:?-{3,}:?$/.test(cell))).toBe(true);
-  expect(dataRows).toHaveLength(1);
-  expect(dataRows[0]?.[0]).toBe("M0-14c");
+  expect(dataRows).toHaveLength(0);
   expect(completeSection).toBeDefined();
   expect(m011Rows).toHaveLength(1);
   expect(m011Rows[0]).toHaveLength(3);
@@ -172,10 +171,10 @@ describe("Prowler evidence proof contract", () => {
       "utf8",
     );
     expect(tracker).toContain("| Pending | 711 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 14 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 15 |");
     expect(tracker).toContain("| Blocked | 1 |");
-    expect(tracker).toMatch(/\| M0 \| 27 \| 10 \| 1 \| 14 \| 1 \|/);
+    expect(tracker).toMatch(/\| M0 \| 27 \| 10 \| 0 \| 15 \| 1 \|/);
     assertM011Complete(tracker);
   });
 
@@ -188,7 +187,7 @@ describe("Prowler evidence proof contract", () => {
 
     expect(m011Row).toBeDefined();
     const mutatedTracker = tracker.replace(`${m011Row}\n`, `${m011Row}\n${m011Row}\n`);
-    expect(mutatedTracker).toContain("| Complete | 14 |");
+    expect(mutatedTracker).toContain("| Complete | 15 |");
     expect(() => assertM011Complete(mutatedTracker)).toThrow();
   });
 
@@ -201,7 +200,7 @@ describe("Prowler evidence proof contract", () => {
     const completeHeading = "## Complete\n";
 
     const mutatedTracker = tracker.replace(completeHeading, `${extraRow}\n\n${completeHeading}`);
-    expect(mutatedTracker).toContain("| In progress | 1 |");
+    expect(mutatedTracker).toContain("| In progress | 0 |");
     expect(() => assertM011Complete(mutatedTracker)).toThrow();
   });
 

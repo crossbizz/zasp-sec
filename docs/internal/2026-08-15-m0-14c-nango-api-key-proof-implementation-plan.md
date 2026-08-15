@@ -39,13 +39,13 @@
 
 - [x] Add the repository contract and run focused Vitest to capture the three
   intended missing-design/missing-plan/stale-status failures.
-- [ ] Record the selected fixture architecture, exact pins, resource graph,
+- [x] Record the selected fixture architecture, exact pins, resource graph,
   wrapper flow, privacy boundary, mutation taxonomy, and completion gates.
-- [ ] Move only M0-14c to In progress at 711/1/14/1 overall and
+- [x] Move only M0-14c to In progress at 711/1/14/1 overall and
   27/10/1/14/1 in M0; preserve all complete, blocked, and risk rows.
-- [ ] Run focused related contracts, full pinned verification, audit,
+- [x] Run focused related contracts, full pinned verification, audit,
   whitespace, and redacted secret scans.
-- [ ] Commit exactly the Task 1 files with message
+- [x] Commit exactly the Task 1 files with message
   `docs: start M0-14c Nango API-key proof`.
 
 ### Task 2: Owned workspace and single-use TLS fixture
@@ -63,15 +63,15 @@
   `removeApiKeyWorkspace`, `validateApiKeyTemporaryPrefixEntries`, and a strict
   single-use HTTPS fixture handler/server.
 
-- [ ] Write boundary tests for exact workspace grammar, generated CA/server
+- [x] Write boundary tests for exact workspace grammar, generated CA/server
   files, `events.1password.com` SAN, synthetic provider key, identity reproof,
   replacement safety, cleanup precedence, and global stale-prefix rejection.
-- [ ] Run the boundary tests and require missing-module/symbol RED.
-- [ ] Implement only the owned workspace and TLS boundary needed by the tests.
-- [ ] Write fixture tests for exact TLS host/method/path/query/body/authorization,
+- [x] Run the boundary tests and require missing-module/symbol RED.
+- [x] Implement only the owned workspace and TLS boundary needed by the tests.
+- [x] Write fixture tests for exact TLS host/method/path/query/body/authorization,
   one accepted request, replay rejection, malformed configuration, bounded
   output, and fixed failure behavior; capture RED.
-- [ ] Implement the minimal single-use fixture and run both suites GREEN six
+- [x] Implement the minimal single-use fixture and run both suites GREEN six
   consecutive times before the scoped commit.
 
 ### Task 3: Strict API-key product wrapper
@@ -86,16 +86,16 @@
 - Produces: `runApiKeyConnection`, `configurationFromEnvironment`,
   `boundedRequest`, `runMain`, and exactly one reference-only JSON artifact.
 
-- [ ] Write tests for exact Nango API-key discovery, `1password-events`
+- [x] Write tests for exact Nango API-key discovery, `1password-events`
   integration creation, scoped connect session, one
   `/api-auth/api-key/<integration>` request, exact provider verification result,
   credential-free connection read, and reference-only output; capture RED.
-- [ ] Add hostile response tests for duplicate/unknown/malformed/oversized JSON,
+- [x] Add hostile response tests for duplicate/unknown/malformed/oversized JSON,
   status/header/key/timestamp/Organization drift, redirects, cancellation,
   timeout, retries, and secret leakage; keep them RED.
-- [ ] Implement the strict wrapper with one mutation attempt per mutation and
+- [x] Implement the strict wrapper with one mutation attempt per mutation and
   bounded read-only retries only.
-- [ ] Run focused GREEN six times and commit the exact wrapper slice.
+- [x] Run focused GREEN six times and commit the exact wrapper slice.
 
 ### Task 4: Immutable manifest and runtime ownership
 
@@ -110,11 +110,11 @@
 - Produces: `buildApiKeyRuntimeSpec`, exact image/platform/resource definitions,
   and deep immutable role specifications.
 
-- [ ] Write tests for marker/platform/path/key grammar, exact four-role graph,
+- [x] Write tests for marker/platform/path/key grammar, exact four-role graph,
   private network, no host ports, exact environment/commands/mounts/security,
   fixture alias, product secret denylist, and deep isolation; capture RED.
-- [ ] Implement the minimal immutable manifest using reviewed shared pins.
-- [ ] Run manifest, boundary, fixture, wrapper, M0-14b, and M0-14a regressions
+- [x] Implement the minimal immutable manifest using reviewed shared pins.
+- [x] Run manifest, boundary, fixture, wrapper, M0-14b, and M0-14a regressions
   GREEN before the scoped commit.
 
 ### Task 5: Disposable Docker orchestration
@@ -129,17 +129,17 @@
 - Produces: exact image/network/container lifecycle, schema readiness, wrapper
   artifact validation, reverse cleanup, global absence, fixed CLI output.
 
-- [ ] Write hermetic lifecycle tests for image resolution, exact network and
+- [x] Write hermetic lifecycle tests for image resolution, exact network and
   four-container ownership, database/Nango/fixture readiness, schema creation,
   wrapper completion, artifact parsing, and exact success; capture RED.
-- [ ] Add hostile tests for definitive versus ambiguous pull/create/start/remove,
+- [x] Add hostile tests for definitive versus ambiguous pull/create/start/remove,
   delayed mutation settlement, candidate retention, complete metadata drift,
   coherent network-peer changes, phase revocation, cleanup continuation and
   precedence, filesystem replacement, output cap, and global absence.
-- [ ] Implement one bounded main phase, one independent cleanup phase, a single
+- [x] Implement one bounded main phase, one independent cleanup phase, a single
   mutation settlement journal, exact fresh reproof before mutation, and fixed
   top-level output.
-- [ ] Run the full proof suite six times, both predecessor proof suites, syntax,
+- [x] Run the full proof suite six times, both predecessor proof suites, syntax,
   lint, and repository verification before commit.
 
 ### Task 6: Root commands and operator documentation
@@ -154,14 +154,14 @@
 - Produces: `proof:nango:api-key:test`, `proof:nango:api-key:run`, exact fixed
   output documentation, and retained status/risk boundaries.
 
-- [ ] Add contract assertions for missing scripts and README and capture focused
+- [x] Add contract assertions for missing scripts and README and capture focused
   RED.
-- [ ] Add the exact root scripts and document prerequisites, images, private
+- [x] Add the exact root scripts and document prerequisites, images, private
   fixture, API-key verification, reference-only state, cleanup, fixed output,
   and non-claims.
-- [ ] Require the hermetic root command to make no Docker/provider call and leave
+- [x] Require the hermetic root command to make no Docker/provider call and leave
   no generated artifact.
-- [ ] Run focused/full gates, production audit, license inventory, diff, and
+- [x] Run focused/full gates, production audit, license inventory, diff, and
   secret scans; commit the exact documentation slice.
 
 ### Task 7: Live proof, review, completion, and delivery
@@ -176,32 +176,32 @@
 - Produces: reviewed live evidence, completion state, pushed exact SHA, and
   successful Runnable UI evidence.
 
-- [ ] Prove preflight global absence and run the exact clean-environment live
+- [x] Prove preflight global absence and run the exact clean-environment live
   command. For every mismatch, gather bounded nonsecret evidence, write the
   focused failing test, implement the minimal fix, and rerun local gates.
-- [ ] Obtain two consecutive final-code live passes and zero global
+- [x] Obtain two consecutive final-code live passes and zero global
   prefix/proof-label/run-marker/temp resources after each.
-- [ ] Run six final hermetic passes, M0-14a/M0-14b regressions, full pinned
+- [x] Run six final hermetic passes, M0-14a/M0-14b regressions, full pinned
   repository verification, production audit, exact license inventory,
   whitespace, and redacted staged/history/evidence scans.
-- [ ] Perform independent read-only review and fix every Critical, Important,
+- [x] Perform independent read-only review and fix every Critical, Important,
   and Minor finding through focused RED/GREEN until zero findings remain.
-- [ ] Capture completion-contract RED, move only M0-14c to Complete at
+- [x] Capture completion-contract RED, move only M0-14c to Complete at
   711/0/15/1 overall and 27/10/0/15/1 in M0, retain R-08 Not run, and do not
   start M0-14.
-- [ ] Commit, push `codex/zasp-implementation`, and watch Runnable UI for the
+- [x] Commit, push `codex/zasp-implementation`, and watch Runnable UI for the
   exact final SHA through terminal success.
 
 ## Completion checklist
 
-- [ ] exact Nango v0.70.5 API-key authorization route
-- [ ] single-use generated-key private TLS fixture verification
-- [ ] exact PostgreSQL/Nango dependency boundary and no host port
-- [ ] one Organization/end-user/integration-scoped durable connection reference
-- [ ] zero raw provider key in product state and fixed output
-- [ ] exact mutation reconciliation and reverse cleanup
-- [ ] global zero-resource audit after two final live passes
-- [ ] six final hermetic passes and predecessor regressions
-- [ ] repository verification, audit, license, whitespace, and secret gates
-- [ ] zero-finding independent read-only review
-- [ ] exact completion commit, remote synchronization, and successful exact-SHA CI
+- [x] exact Nango v0.70.5 API-key authorization route
+- [x] single-use generated-key private TLS fixture verification
+- [x] exact PostgreSQL/Nango dependency boundary and no host port
+- [x] one Organization/end-user/integration-scoped durable connection reference
+- [x] zero raw provider key in product state and fixed output
+- [x] exact mutation reconciliation and reverse cleanup
+- [x] global zero-resource audit after two final live passes
+- [x] six final hermetic passes and predecessor regressions
+- [x] repository verification, audit, license, whitespace, and secret gates
+- [x] zero-finding independent read-only review
+- [x] exact completion commit, remote synchronization, and successful exact-SHA CI

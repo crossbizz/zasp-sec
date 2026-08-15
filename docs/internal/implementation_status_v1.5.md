@@ -15,15 +15,15 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 711 |
-| In progress | 1 |
-| Complete | 14 |
+| In progress | 0 |
+| Complete | 15 |
 | Blocked | 1 |
 
 ## Milestone summary
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 10 | 1 | 14 | 1 |
+| M0 | 27 | 10 | 0 | 15 | 1 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -68,14 +68,13 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `711/1/14/1` because
+session configuration. The 728 source-plan counts are `711/0/15/1` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M0-14c | August 15, 2026 | Complete one API-key connection against a single-use private TLS fixture through the exact-pinned free self-hosted Nango runtime; return only the Organization-scoped durable connection reference and prove the raw provider key never enters product state. |
 
 ## Complete
 
@@ -95,6 +94,7 @@ PROV-01 is excluded from those counts.
 | M0-13 | August 14, 2026 | The exact-pinned local OTLP ingest proof delivered one bounded trace and span with all six Organization/agent/session/task/tool/sandbox identity attributes through a real Collector into the product-owned ingest adapter, disabled remote export, proved exact cleanup in two final-code live runs, and passed pinned gates/scans plus zero-finding independent review; R-12 remains Not run until M0-22 proves bounded remote-export failure behavior. |
 | M0-14a | August 14, 2026 | The two consecutive final-code exact-pinned Nango/PostgreSQL runs proved minimum free self-hosted boot and exact database-backed readiness from a one-shot client on a private internal product network, with no host ports, exact cleanup, zero-resource audits, pinned gates/scans, and a zero-finding independent review; R-08 remains Not run through M0-15. |
 | M0-14b | August 15, 2026 | Two consecutive final-code exact-pinned Nango OAuth runs completed one private synthetic provider authorization-code and PKCE flow, retained only the Organization-scoped durable connection reference, proved exact wrapper/fixture/Nango/PostgreSQL/network/workspace ownership and zero cleanup, and passed pinned gates, license/secret scans, and a zero-finding pre-landing review; R-08 remains Not run through M0-15. |
+| M0-14c | August 15, 2026 | Two consecutive final-code exact-pinned Nango runs created one private `1password-events` API-key connection, verified the generated JWT-shaped provider key exactly once against the private TLS fixture, retained only the Organization-scoped durable connection reference, proved product-state secrecy and exact zero-resource cleanup, and passed pinned gates, license/secret scans, and a zero-finding whole-range review; R-08 remains Not run through M0-15. |
 
 `PRE-01`, `PRE-02`, and `PROV-01` do not count as source-plan microtasks.
 
@@ -134,6 +134,7 @@ provider capability gate.
 | M0-13 final review | The final scoped implementation review found zero remaining Critical, Important, or Minor findings after bounded child supervision, mutation settlement, retained pre-verification cleanup authority, concrete runtime coverage, and fixed-output taxonomy alignment. | Complete August 14, 2026 after two consecutive final-code exact Collector passes, exact zero-resource cleanup audits, pinned local gates, license/secret scans, and zero-finding independent review; R-12 remains Not run until M0-22 proves bounded remote-export failure behavior. |
 | M0-14a final review | The final scoped implementation review found zero remaining Critical, Important, or Minor findings after bounded mutation settlement, initialization candidate retention, raw HTTP-byte validation, schema/start/remove reconciliation, coherent cleanup snapshots, and immutable cross-correlated private-network ownership. | Complete August 14, 2026 after two consecutive final-code exact Nango/PostgreSQL passes, exact zero-resource cleanup audits, pinned local gates, license/secret scans, and zero-finding independent review; R-08 remains Not run through M0-15. |
 | M0-14b final review | The final scoped pre-landing review found zero remaining Critical, Important, or Minor findings after live API-shape, exact Docker attachment, complete TLS-workspace identity, ambiguous lifecycle, coherent cleanup, and synthetic-secret scan fixes. | Complete August 15, 2026 after two consecutive final-code exact OAuth passes, exact zero-resource cleanup audits, pinned local gates, license/secret scans, and zero-finding review; R-08 remains Not run through M0-15. |
+| M0-14c final review | The whole-range review found zero remaining Critical, Important, or Minor findings after exact live provider-schema/header corrections and strict bounded synthetic-key validation. | Complete August 15, 2026 after two consecutive final-code exact API-key passes, exact zero-resource cleanup audits, pinned local gates, license/secret scans, and zero-finding review; R-08 remains Not run through M0-15. |
 
 ## Execution notes
 
@@ -236,6 +237,8 @@ provider capability gate.
   durable Nango connection reference, proved exact zero-resource cleanup, and
   passed pinned gates and scans. It introduces no real provider credential or
   host publication and does not advance R-08.
-- M0-14c is In progress for the exact-pinned private fixture-provider API-key
-  connection and reference-only product-state boundary. M0-14 and M0-15 are not
-  started, and R-08 remains Not run through M0-15.
+- M0-14c is Complete after two consecutive final-code exact-pinned private fixture-provider
+  API-key runs retained only the durable Organization-scoped connection reference,
+  proved the raw key absent from product state, cleaned every exact-owned resource,
+  and passed pinned gates and scans. M0-14 and M0-15 are not started, and R-08
+  remains Not run through M0-15.

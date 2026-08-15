@@ -281,7 +281,7 @@ incomplete.
 
 ## Nango API-key proof
 
-M0-14c is In progress. This proof extends the completed private Nango boot and
+M0-14c is Complete. This proof extends the completed private Nango boot and
 OAuth boundaries with one real API-key connection through exact-pinned Nango
 v0.70.5 and PostgreSQL 16.0. A generated raw provider key is checked once by
 the built-in `1password-events` integration against a private TLS fixture at
@@ -344,7 +344,7 @@ Every live run uses fresh marker-scoped resources and reverse exact-owned
 cleanup. M0-14b is Complete after two consecutive final-code live passes,
 complete zero-resource audits, full repository gates and scans, and a
 zero-finding pre-landing review. R-08 remains Not run through M0-15. M0-14c is
-In progress; M0-15 has not started.
+Complete; M0-15 has not started.
 
 ## Nango free boot proof
 
