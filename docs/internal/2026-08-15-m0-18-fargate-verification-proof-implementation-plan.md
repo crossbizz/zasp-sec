@@ -123,24 +123,24 @@ Commit as `feat: implement Fargate canary lifecycle`.
 - Invoke only fixed `kubectl --kubeconfig <path> --context <context> ...` argv.
 - Parse bounded duplicate-key-free JSON with exact known-key schemas.
 
-- [ ] **Step 1: Write loopback/fake-process RED**
+- [x] **Step 1: Write loopback/fake-process RED**
 
 Cover the complete request argv, allowlisted environment, stdout/stderr cap,
 hard deadline, process kill/reap, read retry, mutation single-attempt, missing
 versus generic failure, and strict JSON conversion.
 
-- [ ] **Step 2: Implement boundary GREEN**
+- [x] **Step 2: Implement boundary GREEN**
 
 No shell, inherited kube variables, exec-plugin output, raw error, or manifest
 content may cross the fixed result boundary. Sensitive Secret bytes are written
 through stdin only and are zeroed after the call.
 
-- [ ] **Step 3: Integrate lifecycle through the real boundary contract**
+- [x] **Step 3: Integrate lifecycle through the real boundary contract**
 
 Run the complete lifecycle against a deterministic fake `kubectl` executable
 that models Kubernetes UIDs, owner references, Pod/Node evidence, and deletion.
 
-- [ ] **Step 4: Verify and commit**
+- [x] **Step 4: Verify and commit**
 
 Commit as `feat: add bounded Fargate kubectl boundary`.
 

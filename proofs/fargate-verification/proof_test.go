@@ -97,6 +97,7 @@ func (f *fakeCluster) Create(_ context.Context, resource Resource) (ObjectState,
 			OwnerUID:       state.UID,
 			Phase:          "Succeeded",
 			ImageID:        resource.Image,
+			RuntimeImageID: resource.Image,
 			ProfileName:    resource.ProfileName,
 			NodeName:       "fargate-node",
 			ServiceAccount: "canary",
@@ -354,6 +355,18 @@ func TestRunProofSchedulingAndCanaryEvidence(t *testing.T) {
 			want: ErrScheduling,
 		},
 		{
+			name: "runtime image digest must match",
+			mutate: func(cluster *fakeCluster) {
+				cluster.listHook = func(query ListQuery, states []ObjectState, err error) ([]ObjectState, error) {
+					if err == nil && query.Kind == KindPod && query.Namespace != "" && len(states) == 1 {
+						states[0].RuntimeImageID = "docker-pullable://attacker.invalid/image@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+					}
+					return states, err
+				}
+			},
+			want: ErrScheduling,
+		},
+		{
 			name: "node compute type must be fargate",
 			mutate: func(cluster *fakeCluster) {
 				cluster.getHook = func(reference ResourceRef, state ObjectState, err error) (ObjectState, error) {
@@ -406,6 +419,42 @@ func TestRunProofSchedulingAndCanaryEvidence(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRunProofAcceptsOnlyExactKubernetesControllerLabels(t *testing.T) {
+	t.Run("exact controller and Fargate labels are accepted", func(t *testing.T) {
+		cluster := newHappyCluster()
+		cluster.listHook = func(query ListQuery, states []ObjectState, err error) ([]ObjectState, error) {
+			if err == nil && query.Kind == KindPod && len(states) == 1 {
+				states[0].Labels = cloneLabels(states[0].Labels)
+				states[0].Labels["batch.kubernetes.io/controller-uid"] = cluster.jobUID
+				states[0].Labels["batch.kubernetes.io/job-name"] = "canary"
+				states[0].Labels["controller-uid"] = cluster.jobUID
+				states[0].Labels["job-name"] = "canary"
+				states[0].Labels["eks.amazonaws.com/fargate-profile"] = "zasp-disposable-profile"
+			}
+			return states, err
+		}
+		result, err := RunProof(context.Background(), happyOptions(cluster))
+		if err != nil || !result.Cleanup {
+			t.Fatalf("result=%#v error=%v", result, err)
+		}
+	})
+
+	t.Run("unknown controller label is rejected", func(t *testing.T) {
+		cluster := newHappyCluster()
+		cluster.listHook = func(query ListQuery, states []ObjectState, err error) ([]ObjectState, error) {
+			if err == nil && query.Kind == KindPod && len(states) == 1 {
+				states[0].Labels = cloneLabels(states[0].Labels)
+				states[0].Labels["attacker.example/claim"] = "forged"
+			}
+			return states, err
+		}
+		_, err := RunProof(context.Background(), happyOptions(cluster))
+		if !errors.Is(err, ErrScheduling) {
+			t.Fatalf("error=%v, want scheduling", err)
+		}
+	})
 }
 
 func TestRunProofOwnershipAndFailurePrecedence(t *testing.T) {

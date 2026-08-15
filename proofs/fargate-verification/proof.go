@@ -31,6 +31,7 @@ const (
 	NamespacePrefix           = "zasp-m018-"
 	CanaryResponse            = "agentsec-attack-lab-canary-v1"
 	CanaryImage               = "registry.k8s.io/e2e-test-images/busybox:1.36.1-1@sha256:a9155b13325b2abef48e71de77bb8ac015412a566829f621d06bfae5c699b1b9"
+	CanaryRuntimeImage        = "registry.k8s.io/e2e-test-images/busybox@sha256:a9155b13325b2abef48e71de77bb8ac015412a566829f621d06bfae5c699b1b9"
 	readAttempts              = 2
 	readBackoff               = 5 * time.Millisecond
 )
@@ -113,6 +114,7 @@ type ObjectState struct {
 	OwnerUID       string
 	Phase          string
 	ImageID        string
+	RuntimeImageID string
 	ProfileName    string
 	NodeName       string
 	ServiceAccount string
@@ -341,8 +343,9 @@ func (life *lifecycle) requireEvidence(ctx context.Context) error {
 	}
 	pod := pods[0]
 	if pod.Kind != KindPod || pod.Namespace != life.namespace || pod.UID == "" ||
-		!equalStringMap(pod.Labels, life.labels) || pod.OwnerUID != job.UID ||
+		!exactPodLabels(pod.Labels, life.labels, job.UID, job.Name, life.options.FargateProfile) || pod.OwnerUID != job.UID ||
 		pod.Phase != "Succeeded" || pod.ExitCode != 0 || pod.ImageID != CanaryImage ||
+		!exactCanaryRuntimeImage(pod.RuntimeImageID) ||
 		pod.ProfileName != life.options.FargateProfile || pod.NodeName == "" || pod.ServiceAccount != "canary" {
 		return ErrScheduling
 	}
@@ -358,6 +361,43 @@ func (life *lifecycle) requireEvidence(ctx context.Context) error {
 	}
 	life.pod = &ownedPod
 	return nil
+}
+
+func exactCanaryRuntimeImage(value string) bool {
+	return value == CanaryImage || value == CanaryRuntimeImage || value == "docker-pullable://"+CanaryRuntimeImage
+}
+
+func exactPodLabels(actual, required map[string]string, jobUID, jobName, profileName string) bool {
+	for key, value := range required {
+		if actual[key] != value {
+			return false
+		}
+	}
+	for key, value := range actual {
+		if requiredValue, ok := required[key]; ok {
+			if value != requiredValue {
+				return false
+			}
+			continue
+		}
+		switch key {
+		case "batch.kubernetes.io/controller-uid", "controller-uid":
+			if value != jobUID {
+				return false
+			}
+		case "batch.kubernetes.io/job-name", "job-name":
+			if value != jobName {
+				return false
+			}
+		case "eks.amazonaws.com/fargate-profile":
+			if value != profileName {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func (life *lifecycle) cleanup() error {
