@@ -175,6 +175,13 @@ M1-04 is Complete. Every scoped security entity follows the exact
 zero, malformed, or duplicate hierarchy IDs fail closed; vendor identifiers
 remain outside the product scope boundary.
 
+## Product evidence model
+
+M1-05 is In progress. Evidence references use canonical product identity;
+evidence confidence and capability/path state use separate exact lowercase
+vocabularies. Evidence confidence never substitutes for finding severity, and
+a reference alone never grants scoped access.
+
 ## Neon pooled proof
 
 The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,

@@ -17,12 +17,12 @@ capability/path state values for later product entities.
 
 ### Task 1: Start M1-05
 
-- [ ] Add a repository contract binding the source, canonical vocabularies,
+- [x] Add a repository contract binding the source, canonical vocabularies,
   design, plan, completed M1-04, unique active status, arithmetic, and blockers.
-- [ ] Capture focused RED at the still-Pending README/tracker state.
-- [ ] Move only M1-05 to In progress at `690/1/34/3` overall and M1
+- [x] Capture focused RED at the still-Pending README/tracker state.
+- [x] Move only M1-05 to In progress at `690/1/34/3` overall and M1
   `68/57/1/10/0`; document the evidence boundary.
-- [ ] Run focused/full pinned GREEN, audit, whitespace, and scans; commit
+- [x] Run focused/full pinned GREEN, audit, whitespace, and scans; commit
   `docs: start M1-05 evidence model`.
 
 ### Task 2: Implement evidence values tests-first
