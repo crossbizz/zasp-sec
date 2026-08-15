@@ -144,6 +144,7 @@ test("rejects malformed input before transport", async () => {
     { ...input, organizationId: "other" },
     { ...input, integrationKey: "wrong" },
     { ...input, providerKey: "" },
+    { ...input, providerKey: `eyJ${"a".repeat(17)}.ey${"b".repeat(16)}.${"c".repeat(32)}` },
     { ...input, forbiddenValues: [] },
     { ...input, extra: true },
   ]) {

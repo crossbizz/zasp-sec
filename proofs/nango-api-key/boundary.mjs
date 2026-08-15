@@ -10,7 +10,7 @@ const markerPattern = /^[0-9a-f]{16}$/;
 const suffixPattern = /^[A-Za-z0-9]{6}$/;
 const passwordPattern = /^[A-Za-z0-9_-]{32}$/;
 const encryptionKeyPattern = /^[A-Za-z0-9+/]{43}=$/;
-const providerKeyPattern = /^eyJ[A-Za-z0-9_-]+\.ey[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
+const providerKeyPattern = /^eyJ[A-Za-z0-9_-]{16}\.ey[A-Za-z0-9_-]{16}\.[A-Za-z0-9_-]{32}$/;
 const tlsEntries = ["ca.crt", "ca.key", "ca.srl", "san.cnf", "server.crt", "server.csr", "server.key"];
 
 const defaultIo = Object.freeze({ chmod, lstat, makeTemp: mkdtemp, mkdir, readFile, readdir, realpath, remove: rm, writeFile });

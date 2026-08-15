@@ -9,7 +9,7 @@ const uuidV4Pattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[
 const organizationPattern = /^org_[a-z0-9]{16}$/;
 const endUserPattern = /^user_[a-z0-9]{16}$/;
 const integrationPattern = /^zasp-m0-14c-[0-9a-f]{16}-1password-events$/;
-const providerKeyPattern = /^eyJ[A-Za-z0-9_-]+\.ey[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
+const providerKeyPattern = /^eyJ[A-Za-z0-9_-]{16}\.ey[A-Za-z0-9_-]{16}\.[A-Za-z0-9_-]{32}$/;
 const connectTokenPattern = /^nango_connect_session_[0-9a-f]{64}$/;
 
 export class Failure extends Error {

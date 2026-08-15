@@ -49,7 +49,7 @@ test("creates an exact owned workspace with one synthetic provider key and TLS S
     assert.deepEqual(await readdir(workspace.dockerConfig.path), []);
     assert.equal(await readFile(workspace.tls.san.path, "utf8"), "subjectAltName=DNS:events.1password.com\n");
     assert.equal((await lstat(workspace.tls.fixtureCertificate.path)).isFile(), true);
-    assert.match(workspace.providerKey, /^eyJ[A-Za-z0-9_-]+\.ey[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
+    assert.match(workspace.providerKey, /^eyJ[A-Za-z0-9_-]{16}\.ey[A-Za-z0-9_-]{16}\.[A-Za-z0-9_-]{32}$/);
     assert.equal(workspace.runtimeInput.providerKey, workspace.providerKey);
     assert.deepEqual(await reproveApiKeyWorkspace(workspace), workspace);
     await removeApiKeyWorkspace(workspace);

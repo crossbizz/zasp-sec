@@ -64,6 +64,7 @@ test("rejects malformed configuration and hostile coercion", async () => {
   for (const value of [
     { ...configuration, hostname: "example.com" },
     { ...configuration, providerKey: "" },
+    { ...configuration, providerKey: `eyJ${"a".repeat(17)}.ey${"b".repeat(16)}.${"c".repeat(32)}` },
     { ...configuration, unknown: true },
   ]) assert.throws(() => createFixtureProvider(value));
 

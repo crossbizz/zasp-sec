@@ -85,6 +85,7 @@ test("rejects malformed platform, secret, path, and extra input", () => {
     { ...input, marker: "short" },
     { ...input, platform: "linux/386" },
     { ...input, providerKey: "" },
+    { ...input, providerKey: `eyJ${"a".repeat(17)}.ey${"b".repeat(16)}.${"c".repeat(32)}` },
     { ...input, encryptionKey: "bad" },
     { ...input, workspaceRoot: "/tmp/other" },
     { ...input, dockerConfigPath: `${root}/elsewhere` },
