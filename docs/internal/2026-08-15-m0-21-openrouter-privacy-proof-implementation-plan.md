@@ -54,6 +54,6 @@ Every behavior change follows a witnessed tests-only RED.
 - [x] Fix every adversarial review finding tests-first.
 - [x] Run six focused passes, full pinned repository gates, audit, whitespace,
   and redacted secret scans.
-- [ ] Transition only M0-21 to Complete after retained evidence; leave M0-21a
+- [x] Transition only M0-21 to Complete after retained evidence; leave M0-21a
   Pending and R-14 Not run.
 - [ ] Commit, push, and watch the exact-SHA Runnable UI gate.

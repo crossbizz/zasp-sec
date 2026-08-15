@@ -41,7 +41,7 @@ describe("OpenRouter privacy proof repository contract", () => {
     expect(plan).toContain("Every behavior change follows a witnessed tests-only RED");
   });
 
-  it("starts only M0-21 without advancing R-14", async () => {
+  it("completes only M0-21 without advancing R-14", async () => {
     const [tracker, readme, risk] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -50,14 +50,16 @@ describe("OpenRouter privacy proof repository contract", () => {
     const active = section(tracker, "In progress");
     const blocked = section(tracker, "Blocked");
 
-    expect(readme).toContain("M0-21 is In progress");
+    const complete = section(tracker, "Complete");
+    expect(readme).toContain("M0-21 is Complete");
     expect(tracker).toContain("| Pending | 703 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 20 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 21 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`703/1/20/3`");
-    expect(tracker).toMatch(/\| M0 \| 27 \| 2 \| 1 \| 20 \| 3 \|/);
-    expect(active.filter(([task]) => task === "M0-21")).toHaveLength(1);
+    expect(tracker).toContain("`703/0/21/3`");
+    expect(tracker).toMatch(/\| M0 \| 27 \| 2 \| 0 \| 21 \| 3 \|/);
+    expect(active).toHaveLength(0);
+    expect(complete.filter(([task]) => task === "M0-21")).toHaveLength(1);
     expect(blocked.filter(([task]) => ["M0-09", "M0-18", "M0-19"].includes(task))).toHaveLength(3);
     expect(risk).toContain("Not run — M0-21/M0-21a");
   });

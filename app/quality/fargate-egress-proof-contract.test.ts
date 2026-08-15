@@ -60,12 +60,12 @@ describe("EKS Fargate egress proof repository contract", () => {
     expect(readme).toContain("0/19 required inputs");
     expect(readme).toContain("real EKS Security Groups for Pods");
     expect(tracker).toContain("| Pending | 703 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 20 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 21 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`703/1/20/3`");
-    expect(tracker).toMatch(/\| M0 \| 27 \| 2 \| 1 \| 20 \| 3 \|/);
-    expect(active).toHaveLength(1);
+    expect(tracker).toContain("`703/0/21/3`");
+    expect(tracker).toMatch(/\| M0 \| 27 \| 2 \| 0 \| 21 \| 3 \|/);
+    expect(active).toHaveLength(0);
     expect(blocked.filter(([task]) => task === "M0-19")).toHaveLength(1);
     expect(blocked.find(([task]) => task === "M0-19")?.[2]).toContain("0/19 required inputs");
     expect(blocked.filter(([task]) => task === "M0-18")).toHaveLength(1);

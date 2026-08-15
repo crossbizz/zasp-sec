@@ -307,7 +307,7 @@ M0-09, M0-18, M0-19, and PROV-01 remain Blocked.
 
 ## OpenRouter privacy proof
 
-M0-21 is In progress. Its local-only boundary sends one redacted synthetic
+M0-21 is Complete. Its local-only boundary sends one redacted synthetic
 finding explanation to a fake OpenRouter-compatible endpoint on a random
 numeric-loopback port, then accepts only one closed structured explanation
 schema. It reads no `.env`, real credential, hosted endpoint, SDK, proxy,
@@ -331,9 +331,10 @@ OpenRouter-compatible request/response documents; product state accepts only a
 closed finding-explanation schema. Cleanup closes the retained loopback server
 under an independent deadline, and failures emit only a fixed category line.
 This is local privacy/schema evidence, not hosted OpenRouter availability,
-provider/model quality, production routing, or planner authorization. M0-21a
-remains Pending and R-14 remains Not run until the separate fixed-action-catalog
-planner proof passes.
+provider/model quality, production routing, or planner authorization. The exact
+proof, seeded-value absence, strict structured validation, cleanup, gates,
+audit, scans, and adversarial review passed. M0-21a remains Pending.
+R-14 remains Not run until the separate fixed-action-catalog planner proof passes.
 
 ## EKS Fargate egress proof
 
