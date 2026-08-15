@@ -43,8 +43,8 @@ type DecisionInput struct {
 }
 
 type ProofResult struct {
-    Allow                 bool
-    Block                 bool
+    AllowMatched          bool
+    BlockMatched          bool
     Deterministic         bool
     WarmupPerDecision     int
     MeasuredPerDecision   int
@@ -76,8 +76,10 @@ The Block input differs only in action (`tool:delete`). Preparation happens
 once. The proof performs 100 warm-ups for Allow and 100 for Block, followed by
 1,000 measured Allow evaluations and 1,000 measured Block evaluations. Every
 result must contain exactly one expression whose value is the primitive Go
-boolean expected for that input. Undefined, multiple, non-boolean, mismatched,
-errored, canceled, or panicking evaluation fails closed.
+boolean expected for that input. `AllowMatched` and `BlockMatched` report that
+the respective true and false decisions matched. Undefined, multiple,
+non-boolean, mismatched, errored, canceled, or panicking evaluation fails
+closed.
 
 Measure only each prepared-query evaluation with a monotonic clock. Sort a
 copy of each 1,000-sample duration set and use nearest-rank p95
