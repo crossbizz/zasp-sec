@@ -303,7 +303,21 @@ URL, port, HTTP body, stack trace, or error reaches output. This local proof
 does not claim hosted PostHog availability, account configuration, feature-
 flag behavior, or production analytics delivery. The exact local proof,
 privacy rejections, cleanup, gates, scans, and review passed, so R-13 is PASS.
-M0-09, M0-18, M0-19, and PROV-01 remain Blocked; M0-21 remains Pending.
+M0-09, M0-18, M0-19, and PROV-01 remain Blocked.
+
+## OpenRouter privacy proof
+
+M0-21 is In progress. Its local-only boundary sends one redacted synthetic
+finding explanation to a fake OpenRouter-compatible endpoint on a random
+numeric-loopback port, then accepts only one closed structured explanation
+schema. It reads no `.env`, real credential, hosted endpoint, SDK, proxy,
+profile, or ambient provider/model configuration.
+
+The proof must show that seeded secret and PII material is absent at the
+endpoint, reject residual prohibited data before I/O, and cleanly close its
+retained server under an independent deadline. Root commands will be exposed
+after the tests-first lifecycle exists. M0-21a remains Pending and R-14 remains
+Not run until the separate fixed-action-catalog planner proof passes.
 
 ## EKS Fargate egress proof
 
