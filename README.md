@@ -245,11 +245,10 @@ remain Blocked, and R-03 remains incomplete.
 
 ## Tetragon signal proof
 
-M0-12 is In progress under an approved observation-only design. The proof will
-run one exact-owned disposable Kubernetes workload and require process, file,
-and outbound TCP events to carry the same Kubernetes workload identity. It
-will also require explicit Tetragon capability and drop state with no lost
-events before R-07 can pass.
+M0-12 is Complete under the approved observation-only design. The two consecutive final-code live runs
+proved that one exact-owned disposable Kubernetes workload
+emitted process, file, and outbound TCP events. The proof retained the same Kubernetes workload identity
+and explicit capability and drop state, with zero drop/loss counters.
 
 The selected immutable runtime includes:
 
@@ -284,9 +283,9 @@ Failures emit only a fixed category line.
 
 The workload's outbound TCP action targets only an in-cluster fixture sink; it
 does not prove internet egress. The proof does not enable enforcement, treat
-Tetragon as semantic truth, or claim production-kernel coverage. R-07 remains
-Not run while implementation, exact live evidence, cleanup, and independent
-review are incomplete. M0-09 and PROV-01 remain Blocked, and R-03 remains
+Tetragon as semantic truth, or claim production-kernel coverage. R-07 is PASS
+with retained live, cleanup, gate, license/secret scan, and zero-finding independent review
+evidence. M0-09 and PROV-01 remain Blocked, and R-03 remains
 incomplete.
 
 ## Real AWS cross-account IAM proof

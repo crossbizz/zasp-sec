@@ -12,7 +12,7 @@ const expectedR07Row = [
   "One supported Linux/Kubernetes test workload yields process, file, and outbound-network events sharing workload identity; the sensor reports capability and drop state.",
   "Any required event class or shared workload identity is absent, or capability/drop state is unavailable.",
   "Runtime-sensor owner: do not claim required runtime coverage; narrow supported environments or select an alternate signal before M3.",
-  "Not run — M0-12",
+  "PASS — M0-12",
 ];
 
 function parseMarkdownRows(markdown: string) {
@@ -23,25 +23,23 @@ function parseMarkdownRows(markdown: string) {
     .map((line) => line.slice(1, -1).split("|").map((cell) => cell.trim()));
 }
 
-function assertM012InProgress(tracker: string) {
-  const section = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0];
-  const rows = parseMarkdownRows(section ?? "");
-  const [header, separator, ...dataRows] = rows;
+function assertM012Complete(tracker: string) {
+  const inProgressSection = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0];
+  const inProgressRows = parseMarkdownRows(inProgressSection ?? "");
+  const completeSection = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0];
+  const completeRows = parseMarkdownRows(completeSection ?? "").slice(2);
+  const m012Rows = completeRows.filter(([task]) => task === "M0-12");
 
-  expect(section).toBeDefined();
-  expect(header).toEqual(["Task", "Started", "Current work"]);
-  expect(separator).toHaveLength(3);
-  expect(separator?.every((cell) => /^:?-{3,}:?$/.test(cell))).toBe(true);
-  expect(dataRows).toHaveLength(1);
-  expect(dataRows[0]).toHaveLength(3);
-  expect(dataRows[0]?.[0]).toBe("M0-12");
-  expect(dataRows[0]?.[1]).toBe("August 14, 2026");
-  expect(dataRows[0]?.[2]).toContain("Tetragon");
-  expect(dataRows[0]?.[2]).toContain("process, file, and outbound TCP");
-  expect(dataRows[0]?.[2]).toContain("R-07 remains Not run");
+  expect(inProgressRows.slice(2)).toEqual([]);
+  expect(m012Rows).toHaveLength(1);
+  expect(m012Rows[0]).toHaveLength(3);
+  expect(m012Rows[0]?.[1]).toBe("August 14, 2026");
+  expect(m012Rows[0]?.[2]).toContain("process, file, and outbound TCP");
+  expect(m012Rows[0]?.[2]).toContain("shared Kubernetes workload identity");
+  expect(m012Rows[0]?.[2]).toContain("zero-finding independent review");
 }
 
-function assertR07NotRun(riskRegister: string) {
+function assertR07Pass(riskRegister: string) {
   const rows = parseMarkdownRows(riskRegister).filter(([id]) => id === "R-07");
 
   expect(rows).toHaveLength(1);
@@ -64,28 +62,28 @@ describe("Tetragon signal proof contract", () => {
     expect(design).toContain(nodeImage);
     expect(design).toMatch(/does not make Tetragon a semantic source of\s+truth/);
     expect(design).toContain("enable enforcement");
-    assertR07NotRun(riskRegister);
+    assertR07Pass(riskRegister);
   });
 
-  it("starts exactly M0-12 without weakening completed or blocked boundaries", async () => {
+  it("completes exactly M0-12 without weakening completed or blocked boundaries", async () => {
     const tracker = await readFile(
       resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"),
       "utf8",
     );
 
     expect(tracker).toContain("| Pending | 716 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 10 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 11 |");
     expect(tracker).toContain("| Blocked | 1 |");
-    expect(tracker).toMatch(/\| M0 \| 27 \| 15 \| 1 \| 10 \| 1 \|/);
-    assertM012InProgress(tracker);
+    expect(tracker).toMatch(/\| M0 \| 27 \| 15 \| 0 \| 11 \| 1 \|/);
+    assertM012Complete(tracker);
     expect(tracker).toMatch(/## Complete[\s\S]*?\| M0-11 \| August 14, 2026 \|/);
     expect(tracker).toMatch(/## Blocked[\s\S]*?\| M0-09 \| August 13, 2026 \|/);
     expect(tracker).toContain("M0-09 and PROV-01 remain Blocked");
     expect(tracker).toContain("R-03 remains incomplete");
   });
 
-  it("rejects duplicate or concurrent In progress rows despite valid aggregate text", async () => {
+  it("rejects duplicate Complete or concurrent In progress rows despite valid aggregate text", async () => {
     const tracker = await readFile(
       resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"),
       "utf8",
@@ -94,19 +92,22 @@ describe("Tetragon signal proof contract", () => {
 
     expect(m012Row).toBeDefined();
     const duplicate = tracker.replace(`${m012Row}\n`, `${m012Row}\n${m012Row}\n`);
-    const concurrent = tracker.replace(`${m012Row}\n`, `${m012Row}\n| M0-13 | August 14, 2026 | Decoy concurrent work. |\n`);
-    expect(duplicate).toContain("| In progress | 1 |");
-    expect(concurrent).toContain("| In progress | 1 |");
-    expect(() => assertM012InProgress(duplicate)).toThrow();
-    expect(() => assertM012InProgress(concurrent)).toThrow();
+    const concurrent = tracker.replace(
+      "## Complete\n",
+      "| M0-13 | August 14, 2026 | Decoy concurrent work. |\n\n## Complete\n",
+    );
+    expect(duplicate).toContain("| In progress | 0 |");
+    expect(concurrent).toContain("| In progress | 0 |");
+    expect(() => assertM012Complete(duplicate)).toThrow();
+    expect(() => assertM012Complete(concurrent)).toThrow();
   });
 
-  it("documents the approved start boundary without claiming live evidence", async () => {
+  it("documents the completed proof boundary and retained live evidence", async () => {
     const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
     const section = readme.match(/## Tetragon signal proof[\s\S]*?## Real AWS cross-account IAM proof/)?.[0];
 
     expect(section).toBeDefined();
-    expect(section).toContain("M0-12 is In progress");
+    expect(section).toContain("M0-12 is Complete");
     expect(section).toContain(tetragonImage);
     expect(section).toContain(operatorImage);
     expect(section).toContain(nodeImage);
@@ -115,7 +116,9 @@ describe("Tetragon signal proof contract", () => {
     expect(section).toContain("capability and drop state");
     expect(section).toContain("observation-only");
     expect(section).toContain("does not prove internet egress");
-    expect(section).toMatch(/R-07 remains\s+Not run/);
+    expect(section).toMatch(/R-07 is\s+PASS/);
+    expect(section).toContain("two consecutive final-code live runs");
+    expect(section).toContain("zero-finding independent review");
     expect(section).toContain("M0-09 and PROV-01 remain Blocked");
   });
 
@@ -147,7 +150,7 @@ describe("Tetragon signal proof contract", () => {
     expect(section).toContain("exact-owned cleanup");
   });
 
-  it("binds R-07 to one exact six-cell Not run row", async () => {
+  it("binds R-07 to one exact six-cell PASS row", async () => {
     const riskRegister = await readFile(
       resolve(repositoryRoot, "docs/decisions/mvp-risk-register.md"),
       "utf8",
@@ -155,8 +158,8 @@ describe("Tetragon signal proof contract", () => {
     const row = riskRegister.split("\n").find((line) => line.startsWith("| R-07 |"));
 
     expect(row).toBeDefined();
-    assertR07NotRun(riskRegister);
-    const changed = (row ?? "").replace("| Not run — M0-12 |", "| PASS — decoy |") + "\n| Not run — M0-12 |";
-    expect(() => assertR07NotRun(riskRegister.replace(row ?? "", changed))).toThrow();
+    assertR07Pass(riskRegister);
+    const changed = (row ?? "").replace("| PASS — M0-12 |", "| PASS — decoy |") + "\n| PASS — M0-12 |";
+    expect(() => assertR07Pass(riskRegister.replace(row ?? "", changed))).toThrow();
   });
 });
