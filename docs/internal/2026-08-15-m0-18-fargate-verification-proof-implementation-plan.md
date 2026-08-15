@@ -89,24 +89,24 @@ type ClusterBoundary interface {
 func RunProof(context.Context, ProofOptions) (ProofResult, error)
 ```
 
-- [ ] **Step 1: Capture absent-API compile RED**
+- [x] **Step 1: Capture absent-API compile RED**
 
 Write the happy-path fake-boundary test before module or production files.
 
-- [ ] **Step 2: Implement minimal ordered lifecycle GREEN**
+- [x] **Step 2: Implement minimal ordered lifecycle GREEN**
 
 Create namespace, ServiceAccount, Secret, and Job; wait for exactly one owned
 Pod and completed Job; prove profile/node/canary evidence; clean Pod through Job
 deletion, then Secret, ServiceAccount, and namespace; audit global absence.
 
-- [ ] **Step 3: Add adversarial lifecycle RED/GREEN**
+- [x] **Step 3: Add adversarial lifecycle RED/GREEN**
 
 Cover definitive versus ambiguous create/delete results, delayed visibility,
 cancellation, panic, cleanup precedence, UID replacement, owner-reference
 drift, extra Pods, failed Job, wrong profile/node/image/exit/body, stale global
 prefix resources, duplicate JSON members, and cleanup-time mutations.
 
-- [ ] **Step 4: Run five stability passes, race, tidy, verify, vet, commit**
+- [x] **Step 4: Run five stability passes, race, tidy, verify, vet, commit**
 
 Commit as `feat: implement Fargate canary lifecycle`.
 
