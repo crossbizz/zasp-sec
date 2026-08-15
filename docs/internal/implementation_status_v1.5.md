@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 716 |
-| In progress | 0 |
+| Pending | 715 |
+| In progress | 1 |
 | Complete | 11 |
 | Blocked | 1 |
 
@@ -23,7 +23,7 @@ In progress, Complete, or Blocked is Pending.
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 15 | 0 | 11 | 1 |
+| M0 | 27 | 14 | 1 | 11 | 1 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -68,13 +68,14 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `716/0/11/1` because
+session configuration. The 728 source-plan counts are `715/1/11/1` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M0-13 | August 14, 2026 | The exact-pinned local OTLP ingest proof is implementing one bounded agent/task/tool trace through a real Collector into the product-owned ingest adapter; R-12 remains Not run because M0-22 remote-export failure behavior is separate. |
 
 ## Complete
 
@@ -214,3 +215,6 @@ provider capability gate.
   one shared Kubernetes workload identity, explicit capability/drop state, exact
   cleanup, pinned gates and scans, and a zero-finding independent review. R-07
   is PASS under the approved observation-only boundary.
+- M0-13 is In progress under the exact-pinned ingest-only Collector design.
+  R-12 remains Not run until both M0-13 local ingest and M0-22 bounded remote
+  export/nonblocking failure evidence are complete.
