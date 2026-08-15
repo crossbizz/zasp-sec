@@ -159,6 +159,15 @@ provider, Docker, credential, or network operation. Proof-only, development,
 optional peer, and transitive dependencies remain governed by their existing
 locks or proof-specific license records rather than this product-runtime lock.
 
+## Canonical product identity
+
+M1-03 is In progress. Product-owned primary IDs use the opaque exact text form
+`pid_<canonical-uuid>` and remain a distinct type from bounded external-source
+references. A vendor ARN, numeric ID, or UUID-shaped vendor ID is never copied,
+hashed, normalized, or parsed into a product primary key. This task adds only
+dependency-free platform-domain value types; scope and persistence remain in
+later M1 tasks.
+
 ## Neon pooled proof
 
 The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,

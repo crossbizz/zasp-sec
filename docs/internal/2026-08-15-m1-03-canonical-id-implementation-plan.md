@@ -15,12 +15,12 @@ types without allowing vendor identity to become a product primary key.
 
 ### Task 1: Start M1-03
 
-- [ ] Add a repository contract binding the source, design, plan, completed
+- [x] Add a repository contract binding the source, design, plan, completed
   M1-02, exact ID grammar, unique active status, arithmetic, and blockers.
-- [ ] Capture focused RED at the still-Pending README/tracker state.
-- [ ] Move only M1-03 to In progress at `692/1/32/3` overall and M1
+- [x] Capture focused RED at the still-Pending README/tracker state.
+- [x] Move only M1-03 to In progress at `692/1/32/3` overall and M1
   `68/59/1/8/0`; document the identity boundary.
-- [ ] Run focused/full pinned GREEN, audit, whitespace, and scans; commit
+- [x] Run focused/full pinned GREEN, audit, whitespace, and scans; commit
   `docs: start M1-03 canonical IDs`.
 
 ### Task 2: Implement canonical IDs tests-first
