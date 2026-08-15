@@ -23,14 +23,16 @@ const (
 	KindPod            ResourceKind = "Pod"
 	KindNode           ResourceKind = "Node"
 
-	ProofLabelKey   = "zasp.agentsec.dev/proof"
-	RunLabelKey     = "zasp.agentsec.dev/run"
-	ProofLabelValue = "m0-18"
-	NamespacePrefix = "zasp-m018-"
-	CanaryResponse  = "agentsec-attack-lab-canary-v1"
-	CanaryImage     = "registry.k8s.io/e2e-test-images/busybox:1.36.1-1@sha256:a9155b13325b2abef48e71de77bb8ac015412a566829f621d06bfae5c699b1b9"
-	readAttempts    = 2
-	readBackoff     = 5 * time.Millisecond
+	ProofLabelKey             = "zasp.agentsec.dev/proof"
+	RunLabelKey               = "zasp.agentsec.dev/run"
+	ProofLabelValue           = "m0-18"
+	ProfileSelectorLabelKey   = "zasp.agentsec.dev/fargate"
+	ProfileSelectorLabelValue = "true"
+	NamespacePrefix           = "zasp-m018-"
+	CanaryResponse            = "agentsec-attack-lab-canary-v1"
+	CanaryImage               = "registry.k8s.io/e2e-test-images/busybox:1.36.1-1@sha256:a9155b13325b2abef48e71de77bb8ac015412a566829f621d06bfae5c699b1b9"
+	readAttempts              = 2
+	readBackoff               = 5 * time.Millisecond
 )
 
 var (
@@ -173,8 +175,9 @@ func RunProof(parent context.Context, options ProofOptions) (result ProofResult,
 		options:   options,
 		namespace: NamespacePrefix + options.Marker,
 		labels: map[string]string{
-			ProofLabelKey: ProofLabelValue,
-			RunLabelKey:   options.Marker,
+			ProofLabelKey:           ProofLabelValue,
+			RunLabelKey:             options.Marker,
+			ProfileSelectorLabelKey: ProfileSelectorLabelValue,
 		},
 	}
 

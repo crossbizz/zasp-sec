@@ -12,6 +12,7 @@ type fakeCluster struct {
 	objects          map[string]ObjectState
 	deleted          []ResourceKind
 	created          []ResourceKind
+	createdResources []Resource
 	jobUID           string
 	createErrors     map[ResourceKind]error
 	applyCreateError map[ResourceKind]bool
@@ -65,6 +66,7 @@ func cloneLabels(labels map[string]string) map[string]string {
 
 func (f *fakeCluster) Create(_ context.Context, resource Resource) (ObjectState, error) {
 	f.created = append(f.created, resource.Kind)
+	f.createdResources = append(f.createdResources, resource)
 	createErr := f.createErrors[resource.Kind]
 	if createErr != nil && !f.applyCreateError[resource.Kind] {
 		return ObjectState{}, createErr
@@ -208,6 +210,10 @@ func TestRunProofHappyPath(t *testing.T) {
 		if cluster.deleted[index] != want {
 			t.Fatalf("delete[%d] = %q, want %q", index, cluster.deleted[index], want)
 		}
+	}
+	job := cluster.createdResources[len(cluster.createdResources)-1]
+	if job.Kind != KindJob || job.Labels[ProfileSelectorLabelKey] != ProfileSelectorLabelValue {
+		t.Fatalf("job profile selector = %q, want %q", job.Labels[ProfileSelectorLabelKey], ProfileSelectorLabelValue)
 	}
 }
 
