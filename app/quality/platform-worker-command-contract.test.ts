@@ -68,4 +68,24 @@ describe("M1-01e platform worker command repository contract", () => {
     expect(tracker).toContain("R-03 remains incomplete");
     expect(tracker).toContain("R-11 remains Not run");
   });
+
+  it("keeps the worker in the service-local module with only version output", async () => {
+    const [goModule, command, commandTest] = await Promise.all([
+      readFile(resolve(repositoryRoot, "services/platform/go.mod"), "utf8"),
+      readFile(resolve(repositoryRoot, "services/platform/agentsec-worker/main.go"), "utf8"),
+      readFile(resolve(repositoryRoot, "services/platform/agentsec-worker/main_test.go"), "utf8"),
+    ]);
+
+    expect(goModule).toBe("module github.com/zasp-ai/zasp-sec/services/platform\n\ngo 1.25.0\n");
+    expect(command).toContain('buildVersion           = "dev"');
+    expect(command).toContain('io.WriteString(output, "agentsec-worker build "+version+"\\n")');
+    expect(command).toContain("len(version) > 64");
+    expect(command).not.toContain("os.Getenv");
+    expect(command).not.toContain('"net/http"');
+    expect(command).not.toContain('"flag"');
+    expect(command).not.toContain('"time"');
+    expect(commandTest).toContain("TestRunPrintsExactBuildVersion");
+    expect(commandTest).toContain("TestRunRejectsInvalidBuildVersionWithoutOutput");
+    expect(commandTest).toContain("TestRunReturnsWriterFailure");
+  });
 });

@@ -32,12 +32,12 @@ version and has no worker loop or runtime dependency.
 
 ### Task 2: Implement the worker command tests-first
 
-- [ ] Create `agentsec-worker/main_test.go` before production and cover exact
+- [x] Create `agentsec-worker/main_test.go` before production and cover exact
   output, bounded grammar, invalid values, nil output, and writer failure.
-- [ ] Capture genuine compile RED on only the missing worker symbols.
-- [ ] Implement `agentsec-worker/main.go` and run focused GREEN.
-- [ ] Prove artifact-free build plus exact default and injected execution.
-- [ ] Run five focused passes, race, both platform command builds/tests,
+- [x] Capture genuine compile RED on only the missing worker symbols.
+- [x] Implement `agentsec-worker/main.go` and run focused GREEN.
+- [x] Prove artifact-free build plus exact default and injected execution.
+- [x] Run five focused passes, race, both platform command builds/tests,
   tidy-diff, module verify, vet, full pinned gates, audit, whitespace, and scans;
   commit `feat: add platform worker command`.
 
