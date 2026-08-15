@@ -3,7 +3,7 @@ import { chmod, lstat, mkdir, readdir, realpath, rm, writeFile } from "node:fs/p
 import { request } from "node:http";
 import { tmpdir } from "node:os";
 import { basename, isAbsolute, join } from "node:path";
-import { spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { isDeepStrictEqual } from "node:util";
 
 import {
@@ -45,6 +45,92 @@ export function buildDockerEnvironment(pathValue, dockerConfig) {
     throw new TypeError("DOCKER_CONFIG is invalid");
   }
   return { PATH: pathValue, DOCKER_CONFIG: dockerConfig };
+}
+
+export function runBoundedProcess(command, arguments_, options, spawnImplementation = spawn) {
+  return new Promise((resolve, reject) => {
+    let child;
+    try {
+      child = spawnImplementation(command, arguments_, {
+        env: options.env,
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+    } catch {
+      reject(operationError());
+      return;
+    }
+    if (
+      child === null || typeof child !== "object" || typeof child.once !== "function" ||
+      typeof child.kill !== "function" || typeof child.stdout?.on !== "function" ||
+      typeof child.stderr?.on !== "function" || !positiveInteger(options.timeoutMs) ||
+      !positiveInteger(options.outputLimit)
+    ) {
+      reject(operationError());
+      return;
+    }
+    const stdout = [];
+    const stderr = [];
+    let bytes = 0;
+    let failed = false;
+    let settled = false;
+    let killed = false;
+    let timer;
+    const signal = options.signal;
+    const stop = () => {
+      if (killed) return;
+      killed = true;
+      child.stdout.destroy?.();
+      child.stderr.destroy?.();
+      try { child.kill("SIGKILL"); } catch { /* close/error is still the reap boundary */ }
+    };
+    const requestFailure = () => {
+      if (settled) return;
+      failed = true;
+      stop();
+    };
+    const consume = (target) => (chunk) => {
+      if (settled) return;
+      let value;
+      try { value = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk); }
+      catch { requestFailure(); return; }
+      bytes += value.byteLength;
+      if (bytes > options.outputLimit) requestFailure();
+      else target.push(value);
+    };
+    const stdoutData = consume(stdout);
+    const stderrData = consume(stderr);
+    const finish = (callback) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      child.stdout.removeListener?.("data", stdoutData);
+      child.stdout.removeListener?.("error", requestFailure);
+      child.stderr.removeListener?.("data", stderrData);
+      child.stderr.removeListener?.("error", requestFailure);
+      child.removeListener?.("error", requestFailure);
+      child.removeListener?.("close", close);
+      signal?.removeEventListener?.("abort", requestFailure);
+      callback();
+    };
+    const close = (status, closeSignal) => finish(() => {
+      if (failed) { reject(operationError()); return; }
+      resolve({
+        status,
+        signal: closeSignal,
+        stdout: Buffer.concat(stdout).toString("utf8"),
+        stderr: Buffer.concat(stderr).toString("utf8"),
+      });
+    });
+    child.stdout.on("data", stdoutData);
+    child.stdout.on("error", requestFailure);
+    child.stderr.on("data", stderrData);
+    child.stderr.on("error", requestFailure);
+    child.once("error", requestFailure);
+    child.once("close", close);
+    signal?.addEventListener?.("abort", requestFailure, { once: true });
+    timer = setTimeout(requestFailure, options.timeoutMs);
+    if (signal?.aborted === true) requestFailure();
+  });
 }
 
 export function validateTemporaryPrefixEntries(entries) {
@@ -323,6 +409,11 @@ export async function orchestrate(runtime, options = {}) {
   try {
     await runPhase(async (signal) => {
       let firstError;
+      try {
+        await runtime.settleMutations?.(signal);
+      } catch (error) {
+        firstError = error;
+      }
       if (runtime.hasCandidate()) {
         try {
           await runtime.cleanup(signal);
@@ -382,58 +473,78 @@ export class DockerCollectorRuntime {
     this.uid = options.uid ?? process.getuid?.();
     this.gid = options.gid ?? process.getgid?.();
     this.marker = options.marker ?? randomBytes(8).toString("hex");
-    this.spawn = options.spawn ?? spawnSync;
+    this.command = options.command ?? runBoundedProcess;
+    this.spawnProcess = options.spawnProcess ?? spawn;
     this.io = options.io ?? { chmod, lstat, mkdir, readdir, realpath, rm, writeFile };
     this.httpRequest = options.httpRequest ?? request;
+    this.http = options.http;
     if (
       typeof this.path !== "string" || this.path.length === 0 ||
       typeof this.parent !== "string" || !isAbsolute(this.parent) ||
       !Number.isInteger(this.uid) || this.uid < 0 || !Number.isInteger(this.gid) || this.gid < 0 ||
-      !markerPattern.test(this.marker)
+      !markerPattern.test(this.marker) || typeof this.command !== "function" ||
+      typeof this.spawnProcess !== "function" ||
+      (this.http !== undefined && typeof this.http !== "function")
     ) throw new TypeError("runtime configuration is invalid");
     this.name = `${namePrefix}${this.marker}`;
     this.containerId = undefined;
     this.expected = undefined;
     this.identities = {};
+    this.candidates = {};
+    this.containerMayHaveApplied = false;
+    this.mutationSettlements = [];
   }
 
-  hasCandidate() { return this.containerId !== undefined; }
+  hasCandidate() { return this.containerId !== undefined || this.containerMayHaveApplied; }
 
-  async initialize() {
+  async initialize(signal) {
+    this.#assertActive(signal, "configuration");
     const parentCanonical = await this.io.realpath(this.parent);
+    this.#assertActive(signal, "configuration");
     this.parent = parentCanonical;
     validateTemporaryPrefixEntries(await this.io.readdir(this.parent));
+    this.#assertActive(signal, "configuration");
     for (const [key, prefix] of [
       ["config", `${namePrefix}config-`],
       ["output", `${namePrefix}output-`],
       ["docker", `${namePrefix}docker-`],
     ]) {
       const path = join(this.parent, `${prefix}${this.marker}`);
-      await this.io.mkdir(path, { mode: 0o700 });
-      await this.io.chmod(path, 0o700);
+      this.candidates[key] = { path, prefix };
+      await this.#filesystemMutation(() => this.io.mkdir(path, { mode: 0o700 }));
+      this.#assertActive(signal, "configuration");
+      await this.#filesystemMutation(() => this.io.chmod(path, 0o700));
+      this.#assertActive(signal, "configuration");
       this.identities[key] = await validateOwnedDirectory(path, this.parent, prefix);
+      this.#assertActive(signal, "configuration");
     }
-    await this.io.writeFile(join(this.identities.config.path, "config.yaml"), buildCollectorConfig(), {
+    await this.#filesystemMutation(() => this.io.writeFile(
+      join(this.identities.config.path, "config.yaml"), buildCollectorConfig(), {
       mode: 0o600,
       flag: "wx",
-    });
+    }));
+    this.#assertActive(signal, "configuration");
     this.environment = buildDockerEnvironment(this.path, this.identities.docker.path);
   }
 
-  async requireInitialAbsence() {
-    const ids = this.#listProofContainers();
+  async requireInitialAbsence(signal) {
+    this.#assertActive(signal, "ownership");
+    const ids = await this.#listProofContainers(signal);
     if (ids.length !== 0) throw ownershipError();
   }
 
-  async resolveImage() {
-    let result = this.#docker(["image", "inspect", "--format", "{{json .}}", COLLECTOR_IMAGE]);
+  async resolveImage(signal) {
+    this.#assertActive(signal, "provider");
+    let result = await this.#docker(["image", "inspect", "--format", "{{json .}}", COLLECTOR_IMAGE], 15_000, signal);
     if (result.status !== 0) {
       if (!isExactMissingImageResult(result, COLLECTOR_IMAGE)) throw providerError();
-      result = this.#docker(["pull", COLLECTOR_IMAGE], 180_000);
+      result = await this.#dockerMutation(["pull", COLLECTOR_IMAGE], 180_000, signal);
+      this.#assertActive(signal, "provider");
       if (result.status !== 0) throw providerError();
-      result = this.#docker(["image", "inspect", "--format", "{{json .}}", COLLECTOR_IMAGE]);
+      result = await this.#docker(["image", "inspect", "--format", "{{json .}}", COLLECTOR_IMAGE], 15_000, signal);
       if (result.status !== 0) throw providerError();
     }
+    this.#assertActive(signal, "provider");
     const image = parseCommandJson(result.stdout);
     if (!imageIdPattern.test(image.Id)) throw providerError();
     expectPlainObject(image.Config, "image configuration");
@@ -456,43 +567,57 @@ export class DockerCollectorRuntime {
     };
   }
 
-  async create() {
-    await this.#reproveDirectories();
-    const result = this.#docker(buildDockerCreateArguments(this.expected));
+  async create(signal) {
+    this.#assertActive(signal, "ownership");
+    await this.#reproveDirectories(signal);
+    this.containerMayHaveApplied = true;
+    const result = await this.#dockerMutation(buildDockerCreateArguments(this.expected), 15_000, signal);
     const classification = classifyCreateResult(result);
-    if (classification === "definitive") throw definitiveError();
+    if (classification === "definitive") {
+      this.containerMayHaveApplied = false;
+      throw definitiveError();
+    }
     const directId = exactContainerId(result.stdout);
     if (directId !== undefined) this.containerId = directId;
+    this.#assertActive(signal, "ownership");
     if (classification === "ambiguous") {
-      const ids = this.#listExactName();
+      const ids = await this.#listExactName(signal);
       if (ids.length !== 1) throw ownershipError();
       this.containerId = ids[0];
     }
-    const inspected = this.#docker(["inspect", "--format", containerInspectionFormat, this.containerId]);
+    const inspected = await this.#docker(
+      ["inspect", "--format", containerInspectionFormat, this.containerId], 15_000, signal,
+    );
     if (inspected.status !== 0 || inspected.stderr !== "") throw ownershipError();
     validateCreatedContainerDocument(parseContainerInspectionResult(inspected.stdout), {
       ...this.expected,
       id: this.containerId,
     });
-    const started = this.#docker(["start", this.containerId]);
+    this.#assertActive(signal, "ownership");
+    const started = await this.#dockerMutation(["start", this.containerId], 15_000, signal);
     if (
       started.status !== 0 || started.signal !== null ||
       started.stdout !== `${this.containerId}\n` || started.stderr !== ""
     ) throw providerError();
   }
 
-  async verifyOwned() {
+  async verifyOwned(signal) {
+    this.#assertActive(signal, "ownership");
     if (!containerIdPattern.test(this.containerId ?? "")) throw ownershipError();
-    const result = this.#docker(["inspect", "--format", containerInspectionFormat, this.containerId]);
+    const result = await this.#docker(
+      ["inspect", "--format", containerInspectionFormat, this.containerId], 15_000, signal,
+    );
     if (result.status !== 0) throw ownershipError();
     const document = parseContainerInspectionResult(result.stdout);
     const port = document?.NetworkSettings?.Ports?.["4318/tcp"]?.[0]?.HostPort;
     if (!hostPortPattern.test(port ?? "") || Number(port) > 65_535) throw ownershipError();
     this.expected = { ...this.expected, id: this.containerId, hostPort: port };
     validateContainerDocument(document, this.expected);
+    this.containerMayHaveApplied = true;
   }
 
-  async endpoint() {
+  async endpoint(signal) {
+    this.#assertActive(signal, "operation");
     return `http://127.0.0.1:${this.expected.hostPort}`;
   }
 
@@ -514,7 +639,10 @@ export class DockerCollectorRuntime {
 
   async sendTrace(signal) {
     const body = buildSyntheticOtlpTrace(FIXTURE);
-    const response = await this.#http(Number(this.expected.hostPort), "POST", body, signal, 1_024);
+    const operation = this.#http(Number(this.expected.hostPort), "POST", body, signal, 1_024);
+    this.#recordMutation(operation);
+    const response = await operation;
+    this.#assertActive(signal, "provider");
     try {
       validateSubmissionResponse(response);
     } catch {
@@ -535,44 +663,95 @@ export class DockerCollectorRuntime {
     throw Object.assign(new Error("artifact did not stabilize"), { category: "normalization" });
   }
 
-  async cleanup() {
+  async settleMutations(signal) {
+    this.#assertActive(signal, "cleanup");
+    let joined = 0;
+    while (joined < this.mutationSettlements.length) {
+      const pending = this.mutationSettlements.slice(joined);
+      await Promise.all(pending);
+      joined += pending.length;
+      this.#assertActive(signal, "cleanup");
+    }
+  }
+
+  async cleanup(signal) {
+    this.#assertActive(signal, "cleanup");
     let cleanupError;
+    if (this.containerId === undefined && this.containerMayHaveApplied) {
+      try {
+        const ids = await this.#listExactName(signal);
+        if (ids.length > 1) throw ownershipError();
+        if (ids.length === 1) this.containerId = ids[0];
+        else this.containerMayHaveApplied = false;
+      } catch (error) {
+        cleanupError = error;
+      }
+    }
     if (this.containerId !== undefined) {
       try {
-        const inspected = this.#docker(["inspect", "--format", containerInspectionFormat, this.containerId]);
+        const inspected = await this.#docker(
+          ["inspect", "--format", containerInspectionFormat, this.containerId], 15_000, signal,
+        );
         if (inspected.status !== 0 || inspected.stderr !== "") throw ownershipError();
-        validateCleanupContainerDocument(parseContainerInspectionResult(inspected.stdout), this.expected);
-        const result = this.#docker(["rm", "--force", this.containerId]);
+        const document = parseContainerInspectionResult(inspected.stdout);
+        if (this.expected.hostPort === undefined) {
+          if (document.State.Running) {
+            const port = document?.NetworkSettings?.Ports?.["4318/tcp"]?.[0]?.HostPort;
+            if (!hostPortPattern.test(port ?? "") || Number(port) > 65_535) throw ownershipError();
+            this.expected = { ...this.expected, id: this.containerId, hostPort: port };
+            validateContainerDocument(document, this.expected);
+          } else {
+            validateCreatedContainerDocument(document, { ...this.expected, id: this.containerId });
+          }
+        } else {
+          validateCleanupContainerDocument(document, this.expected);
+        }
+        this.#assertActive(signal, "cleanup");
+        const result = await this.#dockerMutation(["rm", "--force", this.containerId], 15_000, signal);
         if (result.status !== 0 || result.stdout !== `${this.containerId}\n` || result.stderr !== "") {
           throw ownershipError();
         }
         this.containerId = undefined;
+        this.containerMayHaveApplied = false;
       } catch (error) {
-        cleanupError = error;
+        if (cleanupError === undefined) cleanupError = error;
       }
     }
     if (cleanupError !== undefined) throw cleanupError;
   }
 
-  async requireFinalAbsence() {
+  async requireFinalAbsence(signal) {
+    this.#assertActive(signal, "cleanup");
     let firstError;
+    let containerAbsent = false;
     try {
-      if (this.environment !== undefined && this.#listProofContainers().length !== 0) throw ownershipError();
+      if (this.environment !== undefined && (await this.#listProofContainers(signal)).length !== 0) {
+        throw ownershipError();
+      }
+      containerAbsent = true;
     } catch (error) {
       firstError = error;
     }
-    for (const key of ["output", "config", "docker"]) {
-      const identity = this.identities[key];
-      if (identity === undefined) continue;
+    if (containerAbsent) for (const key of ["output", "config", "docker"]) {
       try {
+        let identity = this.identities[key];
+        const candidate = this.candidates[key];
+        if (identity === undefined && candidate !== undefined) {
+          identity = await validateOwnedDirectory(candidate.path, this.parent, candidate.prefix);
+          this.identities[key] = identity;
+        }
+        if (identity === undefined) continue;
         const current = await validateOwnedDirectory(
           identity.path,
           identity.parent,
           basename(identity.path).slice(0, -16),
         );
         if (!sameDirectoryIdentity(identity, current)) throw ownershipError();
-        await this.io.rm(identity.path, { recursive: true, force: false, maxRetries: 0 });
+        await this.#filesystemMutation(() => this.io.rm(
+          identity.path, { recursive: true, force: false, maxRetries: 0 },
+        ));
         delete this.identities[key];
+        delete this.candidates[key];
       } catch (error) {
         if (firstError === undefined) firstError = error;
       }
@@ -585,38 +764,58 @@ export class DockerCollectorRuntime {
     if (firstError !== undefined) throw firstError;
   }
 
-  #docker(args, timeout = 15_000) {
+  async #docker(args, timeout = 15_000, signal) {
     try {
-      const result = this.spawn("docker", args, {
+      return await this.command("docker", args, {
         env: this.environment,
-        encoding: "utf8",
-        timeout,
-        killSignal: "SIGKILL",
-        maxBuffer: maximumCommandBytes,
-      });
-      return {
-        status: result.status,
-        signal: result.signal,
-        stdout: typeof result.stdout === "string" ? result.stdout : "",
-        stderr: typeof result.stderr === "string" ? result.stderr : "",
-      };
+        timeoutMs: timeout,
+        outputLimit: maximumCommandBytes,
+        signal,
+      }, this.spawnProcess);
     } catch {
       return { thrown: true, status: null, signal: null, stdout: "", stderr: "" };
     }
   }
 
-  #listProofContainers() {
-    const byPrefix = this.#list(["ps", "-a", "--no-trunc", "--filter", `name=^/${namePrefix}`, "--format", "{{.ID}}"]).ids;
-    const byLabel = this.#list(["ps", "-a", "--no-trunc", "--filter", `label=${proofLabel}`, "--format", "{{.ID}}"]).ids;
+  #dockerMutation(args, timeout, signal) {
+    const operation = this.#docker(args, timeout, signal);
+    this.#recordMutation(operation);
+    return operation;
+  }
+
+  #filesystemMutation(factory) {
+    const operation = Promise.resolve().then(factory);
+    this.#recordMutation(operation);
+    return operation;
+  }
+
+  #recordMutation(operation) {
+    const settlement = operation.then(
+      (value) => ({ state: "fulfilled", value }),
+      (error) => ({ state: "rejected", error }),
+    );
+    this.mutationSettlements.push(settlement);
+    return settlement;
+  }
+
+  async #listProofContainers(signal) {
+    const byPrefix = (await this.#list(
+      ["ps", "-a", "--no-trunc", "--filter", `name=^/${namePrefix}`, "--format", "{{.ID}}"], signal,
+    )).ids;
+    const byLabel = (await this.#list(
+      ["ps", "-a", "--no-trunc", "--filter", `label=${proofLabel}`, "--format", "{{.ID}}"], signal,
+    )).ids;
     return [...new Set([...byPrefix, ...byLabel])];
   }
 
-  #listExactName() {
-    return this.#list(["ps", "-a", "--no-trunc", "--filter", `name=^/${this.name}$`, "--format", "{{.ID}}"]).ids;
+  async #listExactName(signal) {
+    return (await this.#list(
+      ["ps", "-a", "--no-trunc", "--filter", `name=^/${this.name}$`, "--format", "{{.ID}}"], signal,
+    )).ids;
   }
 
-  #list(args) {
-    const result = this.#docker(args);
+  async #list(args, signal) {
+    const result = await this.#docker(args, 15_000, signal);
     if (result.status !== 0 || result.stderr !== "") throw providerError();
     const lines = result.stdout.trim() === "" ? [] : result.stdout.trim().split("\n");
     if (lines.some((line) => !containerIdPattern.test(line)) || new Set(lines).size !== lines.length) {
@@ -625,8 +824,9 @@ export class DockerCollectorRuntime {
     return { ids: lines };
   }
 
-  async #reproveDirectories() {
+  async #reproveDirectories(signal) {
     for (const identity of Object.values(this.identities)) {
+      this.#assertActive(signal, "ownership");
       const current = await validateOwnedDirectory(
         identity.path,
         identity.parent,
@@ -636,7 +836,16 @@ export class DockerCollectorRuntime {
     }
   }
 
+  #assertActive(signal, category) {
+    if (signal?.aborted === true) {
+      throw Object.assign(new Error(`${category} rejected`), { category });
+    }
+  }
+
   #http(port, method, body, signal, maximumBytes) {
+    if (this.http !== undefined) {
+      return Promise.resolve().then(() => this.http({ port, method, body, signal, maximumBytes }));
+    }
     return new Promise((resolve, reject) => {
       const chunks = [];
       let bytes = 0;

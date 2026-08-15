@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
+import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { PassThrough } from "node:stream";
 import test from "node:test";
 
 import {
   COLLECTOR_IMAGE,
+  DockerCollectorRuntime,
   SUCCESS_LINE,
   buildDockerCreateArguments,
   buildDockerEnvironment,
@@ -12,6 +17,7 @@ import {
   orchestrate,
   parseContainerInspectionResult,
   runMain,
+  runBoundedProcess,
   runPhase,
   validateCleanupContainerDocument,
   validateCreatedContainerDocument,
@@ -20,6 +26,7 @@ import {
   validateSubmissionResponse,
   validateTemporaryPrefixEntries,
 } from "./run.mjs";
+import { FIXTURE, buildSyntheticOtlpTrace } from "./normalizer.mjs";
 
 const marker = "0123456789abcdef";
 const id = "a".repeat(64);
@@ -136,6 +143,43 @@ function inspectionProjection(value) {
     [value.State.Running],
     [value.NetworkSettings.Ports],
   ] });
+}
+
+function runtimeContainerDocument(runtime, running = false) {
+  const value = containerDocument();
+  const specification = runtime.expected;
+  value.Id = id;
+  value.Name = `/${runtime.name}`;
+  value.Image = imageId;
+  value.Config.Image = COLLECTOR_IMAGE;
+  value.Config.Labels = {
+    ...specification.imageLabels,
+    "zasp.dev/proof": "m0-13",
+    "zasp.dev/run": marker,
+  };
+  value.Config.Env = specification.imageEnvironment;
+  value.Config.Entrypoint = specification.imageEntrypoint;
+  value.Config.ExposedPorts = specification.imageExposedPorts;
+  value.Config.User = specification.user;
+  value.HostConfig.Mounts[0].Source = specification.configPath;
+  value.HostConfig.Mounts[1].Source = specification.outputPath;
+  value.Mounts[0].Source = specification.outputPath;
+  value.Mounts[1].Source = specification.configPath;
+  value.State.Running = running;
+  value.NetworkSettings.Ports = running ? value.NetworkSettings.Ports : {};
+  return value;
+}
+
+function collectorArtifact() {
+  const value = JSON.parse(buildSyntheticOtlpTrace(FIXTURE).toString("utf8"));
+  const resource = value.resourceSpans[0].resource;
+  const span = value.resourceSpans[0].scopeSpans[0].spans[0];
+  delete resource.droppedAttributesCount;
+  for (const key of [
+    "traceState", "droppedAttributesCount", "events", "droppedEventsCount",
+    "links", "droppedLinksCount",
+  ]) delete span[key];
+  return value;
 }
 
 test("pins the exact Collector image and exact hardened create arguments", () => {
@@ -348,6 +392,165 @@ test("main deadline revokes authority before independent cleanup", async () => {
 test("runPhase bounds an operation that ignores cancellation", async () => {
   const never = new Promise(() => {});
   await assert.rejects(runPhase(() => never, 5, 5), /deadline/);
+});
+
+test("bounded child supervision uses SIGKILL and waits for close", async () => {
+  const child = new EventEmitter();
+  child.stdout = new PassThrough();
+  child.stderr = new PassThrough();
+  const events = [];
+  child.kill = (signal) => {
+    events.push(`kill:${signal}`);
+    setTimeout(() => { events.push("close"); child.emit("close", null, "SIGKILL"); }, 5);
+  };
+  await assert.rejects(runBoundedProcess("docker", ["version"], {
+    env: { PATH: "/safe", DOCKER_CONFIG: "/safe/docker" },
+    timeoutMs: 5,
+    outputLimit: 64,
+  }, () => child));
+  assert.deepEqual(events, ["kill:SIGKILL", "close"]);
+  assert.equal(child.listenerCount("close"), 0);
+  assert.equal(child.stdout.listenerCount("data"), 0);
+  assert.equal(child.stderr.listenerCount("data"), 0);
+});
+
+test("concrete runtime joins a delayed create and removes the exact stopped candidate", async () => {
+  const parent = await mkdtemp(join(tmpdir(), "otlp-runtime-test-"));
+  const calls = [];
+  let exists = false;
+  let runtime;
+  const image = {
+    Id: imageId,
+    Config: {
+      Labels: expected.imageLabels,
+      Env: expected.imageEnvironment,
+      Entrypoint: expected.imageEntrypoint,
+      ExposedPorts: expected.imageExposedPorts,
+    },
+  };
+  const command = async (_command, arguments_) => {
+    calls.push(arguments_[0] === "ps" ? `ps:${arguments_.join(" ")}` : arguments_[0]);
+    if (arguments_[0] === "image") {
+      return { status: 0, signal: null, stdout: `${JSON.stringify(image)}\n`, stderr: "" };
+    }
+    if (arguments_[0] === "ps") {
+      return { status: 0, signal: null, stdout: exists ? `${id}\n` : "", stderr: "" };
+    }
+    if (arguments_[0] === "create") {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      exists = true;
+      return { status: 0, signal: null, stdout: `${id}\n`, stderr: "" };
+    }
+    if (arguments_[0] === "inspect") {
+      return {
+        status: 0,
+        signal: null,
+        stdout: `${inspectionProjection(runtimeContainerDocument(runtime, false))}\n`,
+        stderr: "",
+      };
+    }
+    if (arguments_[0] === "rm") {
+      exists = false;
+      return { status: 0, signal: null, stdout: `${id}\n`, stderr: "" };
+    }
+    throw new Error("unexpected command");
+  };
+  runtime = new DockerCollectorRuntime({ command, marker, parent, path: "/safe/bin" });
+  try {
+    const result = await orchestrate(runtime, { mainTimeoutMs: 50, cleanupTimeoutMs: 300 });
+    assert.deepEqual(result, { code: 1, line: "OTLP ingest proof failed: operation rejected." });
+    assert.equal(exists, false);
+    assert.equal(calls.includes("create"), true);
+    assert.equal(calls.includes("inspect"), true);
+    assert.equal(calls.includes("rm"), true);
+    assert.deepEqual(await readdir(parent), []);
+  } finally {
+    await rm(parent, { recursive: true, force: false });
+  }
+});
+
+test("concrete runtime proves the full ingest, artifact, and cleanup lifecycle", async () => {
+  const parent = await mkdtemp(join(tmpdir(), "otlp-runtime-success-"));
+  const calls = [];
+  let exists = false;
+  let running = false;
+  let runtime;
+  const image = {
+    Id: imageId,
+    Config: {
+      Labels: expected.imageLabels,
+      Env: expected.imageEnvironment,
+      Entrypoint: expected.imageEntrypoint,
+      ExposedPorts: expected.imageExposedPorts,
+    },
+  };
+  const command = async (_command, arguments_) => {
+    calls.push(arguments_[0]);
+    if (arguments_[0] === "image") {
+      return { status: 0, signal: null, stdout: `${JSON.stringify(image)}\n`, stderr: "" };
+    }
+    if (arguments_[0] === "ps") {
+      return { status: 0, signal: null, stdout: exists ? `${id}\n` : "", stderr: "" };
+    }
+    if (arguments_[0] === "create") {
+      exists = true;
+      return { status: 0, signal: null, stdout: `${id}\n`, stderr: "" };
+    }
+    if (arguments_[0] === "inspect") {
+      return {
+        status: 0,
+        signal: null,
+        stdout: `${inspectionProjection(runtimeContainerDocument(runtime, running))}\n`,
+        stderr: "",
+      };
+    }
+    if (arguments_[0] === "start") {
+      running = true;
+      return { status: 0, signal: null, stdout: `${id}\n`, stderr: "" };
+    }
+    if (arguments_[0] === "rm") {
+      exists = false;
+      running = false;
+      return { status: 0, signal: null, stdout: `${id}\n`, stderr: "" };
+    }
+    throw new Error("unexpected command");
+  };
+  const http = async ({ port, method, body, maximumBytes }) => {
+    assert.equal(port, Number(expected.hostPort));
+    assert.equal(maximumBytes, 1_024);
+    if (method === "GET") {
+      return {
+        status: 405,
+        contentType: "text/plain",
+        body: Buffer.from("405 method not allowed, supported: [POST]"),
+      };
+    }
+    assert.equal(method, "POST");
+    assert.deepEqual(body, buildSyntheticOtlpTrace(FIXTURE));
+    await writeFile(
+      join(runtime.identities.output.path, "traces.json"),
+      `${JSON.stringify(collectorArtifact())}\n`,
+      { mode: 0o600, flag: "wx" },
+    );
+    return {
+      status: 200,
+      contentType: "application/json",
+      body: Buffer.from('{"partialSuccess":{}}'),
+    };
+  };
+  runtime = new DockerCollectorRuntime({ command, http, marker, parent, path: "/safe/bin" });
+  try {
+    const result = await orchestrate(runtime, { mainTimeoutMs: 1_000, cleanupTimeoutMs: 1_000 });
+    assert.deepEqual(result, { code: 0, line: SUCCESS_LINE });
+    assert.equal(exists, false);
+    assert.equal(running, false);
+    for (const expectedCall of ["image", "create", "inspect", "start", "rm"]) {
+      assert.equal(calls.includes(expectedCall), true);
+    }
+    assert.deepEqual(await readdir(parent), []);
+  } finally {
+    await rm(parent, { recursive: true, force: false });
+  }
 });
 
 test("runMain emits exactly one fixed success or failure line", async () => {

@@ -111,8 +111,9 @@ Success is exactly:
 
 `OTLP ingest proof passed: traces=1 spans=1 identity=true cleanup=true.`
 
-Failures use only fixed configuration, provider, normalization, ownership,
-cleanup, deadline, or panic categories.
+Failures use only fixed operation, provider, readiness, normalization,
+ownership, or cleanup categories. Construction, unexpected exceptions, and
+phase-deadline failures are contained within the fixed operation category.
 
 ## Verification boundary
 
