@@ -57,5 +57,5 @@ listener, normalization, batching, or provider dependency.
   `68/65/0/3/0`; preserve M0 and all blockers.
 - [x] Run final gates, commit `docs: complete M1-01f event ingest command`,
   push, and watch exact-SHA Runnable UI to success.
-- [ ] Close the plan, record run/job IDs, commit/push the close SHA, watch CI,
+- [x] Close the plan, record run/job IDs, commit/push the close SHA, watch CI,
   then start M1-01a.
