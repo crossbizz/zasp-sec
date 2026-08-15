@@ -37,12 +37,12 @@ network listener, configuration input, or product API claim.
 - Modify: `docs/internal/implementation_status_v1.5.md`
 - Update ignored task report and both progress ledgers.
 
-- [ ] Write a repository contract requiring the exact source dependency,
+- [x] Write a repository contract requiring the exact source dependency,
   design/plan boundary, unique M1-01d In-progress row, exact global/M0/M1
   arithmetic, M1-01e still Pending, and unchanged M0 blockers.
-- [ ] Run focused RED against the still-Pending status.
-- [ ] Move only M1-01d to In progress and document its no-I/O skeleton scope.
-- [ ] Run focused/full pinned GREEN, audit, whitespace, and secret scans; commit
+- [x] Run focused RED against the still-Pending status.
+- [x] Move only M1-01d to In progress and document its no-I/O skeleton scope.
+- [x] Run focused/full pinned GREEN, audit, whitespace, and secret scans; commit
   `docs: start M1-01d platform API command`.
 
 ### Task 2: Implement the minimal Go command tests-first

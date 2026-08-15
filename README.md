@@ -34,6 +34,20 @@ Sharp build from source; the locked platform binary is used instead. `npm run
 verify` runs tests, type-checking, linting, and the production build in that
 order.
 
+## Platform API command
+
+M1-01d is In progress. It creates the first minimal Go command at
+`services/platform/agentsec-api`. The command's only current behavior is one
+exact build-version line:
+
+```text
+agentsec-api build <version>
+```
+
+This skeleton does not start an HTTP server, load runtime configuration, read
+credentials or provider state, or claim API readiness. The development build
+uses `dev`; release builds may inject a bounded version at link time.
+
 ## Neon pooled proof
 
 The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,
