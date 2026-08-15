@@ -54,12 +54,6 @@ export function createBuildTargets({
     GOWORK: "off",
     CGO_ENABLED: "0",
   };
-  const pythonEnvironment = {
-    ...base,
-    PYTHONDONTWRITEBYTECODE: "1",
-    PYTHONUNBUFFERED: "1",
-    PYTHONPATH: resolve(repositoryRoot, "workers/security-python"),
-  };
   const webEnvironment = {
     ...base,
     NPM_CONFIG_AUDIT: "false",
@@ -84,7 +78,7 @@ export function createBuildTargets({
     target("agentsec-worker", "go", ["-C", "services/platform", "build", "-trimpath", "-o", nullDevice, "./agentsec-worker"], goEnvironment, "", ""),
     target("event-ingest", "go", ["-C", "services/event-ingest", "build", "-trimpath", "-o", nullDevice, "."], goEnvironment, "", ""),
     target("runtime-gateway", "go", ["-C", "services/runtime-gateway", "build", "-trimpath", "-o", nullDevice, "."], goEnvironment, "", ""),
-    target("security-python", "python3", ["-m", "security_worker", "health"], pythonEnvironment, "security-worker health ok\n", ""),
+    target("security-python", "python3", ["-I", "-B", "-u", "workers/security-python/security_worker/__main__.py", "health"], base, "security-worker health ok\n", ""),
     target("redteam-node", nodeExecutable, ["workers/redteam-node/health.mjs", "health"], base, "redteam-worker health ok\n", ""),
     target("web", "npm", ["--prefix", "apps/web", "run", "build"], webEnvironment),
     target("agentsecctl", "go", ["-C", "cmd/agentsecctl", "build", "-trimpath", "-o", nullDevice, "."], goEnvironment, "", ""),

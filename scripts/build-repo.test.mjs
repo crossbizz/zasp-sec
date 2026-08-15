@@ -62,7 +62,7 @@ test("builds the exact eight targets in dependency order", () => {
     ["go", ["-C", "services/platform", "build", "-trimpath", "-o", "/safe/null", "./agentsec-worker"]],
     ["go", ["-C", "services/event-ingest", "build", "-trimpath", "-o", "/safe/null", "."]],
     ["go", ["-C", "services/runtime-gateway", "build", "-trimpath", "-o", "/safe/null", "."]],
-    ["python3", ["-m", "security_worker", "health"]],
+    ["python3", ["-I", "-B", "-u", "workers/security-python/security_worker/__main__.py", "health"]],
     ["/safe/node", ["workers/redteam-node/health.mjs", "health"]],
     ["npm", ["--prefix", "apps/web", "run", "build"]],
     ["go", ["-C", "cmd/agentsecctl", "build", "-trimpath", "-o", "/safe/null", "."]],
@@ -104,9 +104,6 @@ test("passes only allowlisted target environment", () => {
     PATH: environment.PATH,
     HOME: environment.HOME,
     LANG: environment.LANG,
-    PYTHONDONTWRITEBYTECODE: "1",
-    PYTHONUNBUFFERED: "1",
-    PYTHONPATH: "/safe/repository/workers/security-python",
   });
   assert.deepEqual(targets.find(({ name }) => name === "web")?.environment, {
     PATH: environment.PATH,

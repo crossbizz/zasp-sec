@@ -42,10 +42,10 @@ runtime product behavior.
 
 ### Task 3: Review the repository build boundary
 
-- [ ] Audit target completeness, offline/no-install behavior, environment,
+- [x] Audit target completeness, offline/no-install behavior, environment,
   output/deadline bounds, artifact absence, fail-fast behavior, and tests.
-- [ ] Reproduce and fix every concrete finding tests-first.
-- [ ] Run fresh root-build/target/repository/audit/scan gates and record zero
+- [x] Reproduce and fix every concrete finding tests-first.
+- [x] Run fresh root-build/target/repository/audit/scan gates and record zero
   findings.
 
 ### Task 4: Complete, push, and close M1-01
