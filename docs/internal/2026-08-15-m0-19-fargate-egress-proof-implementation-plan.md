@@ -56,17 +56,17 @@ Every behavior change follows a witnessed tests-only RED.
 
 ### Task 5: Review and verify
 
-- [ ] Run an adversarial whole-range review and fix every Critical, Important,
+- [x] Run an adversarial whole-range review and fix every Critical, Important,
   and Minor finding tests-first.
-- [ ] Run five stability passes, race, module, root, full pinned repository,
+- [x] Run five stability passes, race, module, root, full pinned repository,
   audit, license, whitespace, and redacted secret gates.
 
 ### Task 6: Live decision
 
-- [ ] If every explicit authority is present, run the exact live proof and
+- [x] If every explicit authority is present, run the exact live proof and
   require direct=false proxy=true, exact ENI/rules, Fargate evidence, reverse
   cleanup, global absence, and unchanged unrelated resources.
-- [ ] Otherwise transition M0-19 to Blocked with the exact missing real EKS,
+- [x] Otherwise transition M0-19 to Blocked with the exact missing real EKS,
   EC2, security-group, proxy, DNS, undeclared-fixture, and credential authority.
-- [ ] Keep R-11 Not run and M0-20 Pending unless the real proof passes. Commit,
+- [x] Keep R-11 Not run and M0-20 Pending unless the real proof passes. Commit,
   push, and watch exact-SHA Runnable UI before closing this plan.

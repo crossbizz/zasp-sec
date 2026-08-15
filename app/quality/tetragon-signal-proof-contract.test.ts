@@ -31,8 +31,7 @@ function assertM012Complete(tracker: string) {
   const m012Rows = completeRows.filter(([task]) => task === "M0-12");
 
   const activeRows = inProgressRows.slice(2);
-  expect(activeRows).toHaveLength(1);
-  expect(activeRows[0]?.[0]).toBe("M0-19");
+  expect(activeRows).toHaveLength(0);
   expect([...activeRows, ...completeRows].filter(([task]) => task === "M0-15")).toHaveLength(1);
   expect(m012Rows).toHaveLength(1);
   expect(m012Rows[0]).toHaveLength(3);
@@ -75,10 +74,10 @@ describe("Tetragon signal proof contract", () => {
     );
 
     expect(tracker).toContain("| Pending | 705 |");
-    expect(tracker).toContain("| In progress | 1 |");
+    expect(tracker).toContain("| In progress | 0 |");
     expect(tracker).toContain("| Complete | 19 |");
-    expect(tracker).toContain("| Blocked | 2 |");
-    expect(tracker).toMatch(/\| M0 \| 27 \| 4 \| 1 \| 19 \| 2 \|/);
+    expect(tracker).toContain("| Blocked | 3 |");
+    expect(tracker).toMatch(/\| M0 \| 27 \| 4 \| 0 \| 19 \| 3 \|/);
     assertM012Complete(tracker);
     expect(tracker).toMatch(/## Complete[\s\S]*?\| M0-11 \| August 14, 2026 \|/);
     expect(tracker).toMatch(/## Blocked[\s\S]*?\| M0-09 \| August 13, 2026 \|/);
@@ -99,8 +98,8 @@ describe("Tetragon signal proof contract", () => {
       "## Complete\n",
       "| M0-15 | August 15, 2026 | Decoy concurrent work. |\n\n## Complete\n",
     );
-    expect(duplicate).toContain("| In progress | 1 |");
-    expect(concurrent).toContain("| In progress | 1 |");
+    expect(duplicate).toContain("| In progress | 0 |");
+    expect(concurrent).toContain("| In progress | 0 |");
     expect(() => assertM012Complete(duplicate)).toThrow();
     expect(() => assertM012Complete(concurrent)).toThrow();
   });

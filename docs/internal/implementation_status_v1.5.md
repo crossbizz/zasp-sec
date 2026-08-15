@@ -15,15 +15,15 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 705 |
-| In progress | 1 |
+| In progress | 0 |
 | Complete | 19 |
-| Blocked | 2 |
+| Blocked | 3 |
 
 ## Milestone summary
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 4 | 1 | 19 | 2 |
+| M0 | 27 | 4 | 0 | 19 | 3 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -68,14 +68,13 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `705/1/19/2` because
+session configuration. The 728 source-plan counts are `705/0/19/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M0-19 | August 15, 2026 | Building the real EKS Security Groups for Pods egress proof with exact EC2 rule/ENI evidence, direct-deny and proxy-allow canary checks, and fail-closed cleanup. M0-18 remains Blocked and LocalStack cannot authorize success. |
 
 ## Complete
 
@@ -109,11 +108,12 @@ PROV-01 is excluded from those counts.
 | --- | --- | --- | --- |
 | M0-09 | August 13, 2026 | The reviewed real-AWS harness has none of the nine task-specific inputs and no isolated authenticated two-account fixture. Existing generic AWS values target loopback LocalStack. | Provide the documented isolated commercial-AWS source and target-admin credentials, expected distinct accounts/source principal, region, and exact isolation attestation. |
 | M0-18 | August 15, 2026 | The reviewed harness is locally green, but the capability audit found 0/11 required inputs: no authenticated real EKS kubeconfig, disposable Fargate profile, product proxy endpoint, or canary credential. LocalStack k3s cannot prove AWS-managed Fargate scheduling. | Provide all eleven documented inputs for an isolated disposable real EKS Fargate profile, run the exact live proof, prove cleanup, repeat gates/scans/review, and only then decide R-11. |
+| M0-19 | August 15, 2026 | The reviewed harness is locally green, but the capability audit found 0/19 required inputs: no authenticated real EKS/EC2 fixture, disposable Fargate profile, restricted Pod security group, product proxy endpoint, or canary credential. LocalStack cannot prove AWS-managed Fargate, branch-ENI attachment, or real EKS Security Groups for Pods enforcement. | Provide all nineteen documented inputs for an isolated disposable real EKS Security Groups for Pods fixture, run the exact live proof, prove reverse cleanup and global absence, repeat gates/scans/review, and only then decide R-11. |
 
 The user approved a temporary delivery waiver for a fixture-only Cartography
 normalization proof. M0-10 is Complete without claiming AWS or GitHub
 authorization parity. M0-09 and PROV-01 remain Blocked, and R-03 remains
-incomplete. M0-18 is also Blocked on its exact real-provider fixture. A
+incomplete. M0-18 and M0-19 are also Blocked on their exact real-provider fixtures. A
 zero-finding implementation review does not override the failed
 provider capability gate.
 
@@ -272,6 +272,7 @@ provider capability gate.
   kubeconfig, disposable Fargate profile, product proxy endpoint, or test
   canary credential, so no cluster request has been made. LocalStack's embedded
   k3s/k3d EKS compatibility cannot advance M0-18 or R-11.
-- M0-19 is In progress with a real-provider-only Security Groups for Pods and
-  branch-ENI evidence boundary. M0-18 remains Blocked; R-11 remains Not run and
-  M0-20 remains Pending.
+- M0-19 is Blocked with a reviewed real-provider-only Security Groups for Pods
+  and branch-ENI evidence boundary. The capability audit found 0/19 required
+  inputs and the fixed gate rejected before any AWS or cluster request. M0-18
+  remains Blocked; R-11 remains Not run and M0-20 remains Pending.
