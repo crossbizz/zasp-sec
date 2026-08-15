@@ -124,6 +124,9 @@ The standalone CLI boundary exposes only this exact version shape:
 agentsecctl version <version>
 ```
 
+Run its independent Go module from the repository root with
+`go run -C cmd/agentsecctl . version`.
+
 The CLI does not implement preflight, recovery, diagnostics, provider access,
 credential loading, listeners, or network behavior. The web boundary does not
 copy or fork the existing product UI.

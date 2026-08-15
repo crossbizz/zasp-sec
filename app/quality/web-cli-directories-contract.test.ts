@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -70,5 +70,29 @@ describe("M1-01c web and CLI directories repository contract", () => {
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
     expect(tracker).toContain("R-03 remains incomplete");
     expect(tracker).toContain("R-11 remains Not run");
+  });
+
+  it("keeps web dependency ownership at root and the CLI boundary no-I/O", async () => {
+    const [webPackageText, webFiles, goModule, cliSource] = await Promise.all([
+      readFile(resolve(repositoryRoot, "apps/web/package.json"), "utf8"),
+      readdir(resolve(repositoryRoot, "apps/web")),
+      readFile(resolve(repositoryRoot, "cmd/agentsecctl/go.mod"), "utf8"),
+      readFile(resolve(repositoryRoot, "cmd/agentsecctl/main.go"), "utf8"),
+    ]);
+    const webPackage = JSON.parse(webPackageText) as Record<string, unknown>;
+
+    expect(webPackage).toEqual({
+      name: "@zasp/web",
+      version: "0.0.0",
+      private: true,
+      engines: { node: "22.23.1" },
+      scripts: { build: "npm --prefix ../.. run build" },
+    });
+    expect(webFiles.sort()).toEqual(["README.md", "package.json"]);
+    expect(goModule).toBe("module github.com/zasp-ai/zasp-sec/cmd/agentsecctl\n\ngo 1.25.0\n");
+    expect(cliSource).toContain('"agentsecctl version "+version+"\\n"');
+    for (const forbidden of ["os.Getenv", "net/http", "net.Listen", "AWS_", "KUBECONFIG", "STYTCH_"]) {
+      expect(cliSource).not.toContain(forbidden);
+    }
   });
 });

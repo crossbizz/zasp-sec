@@ -34,13 +34,13 @@ deployment, listener, network, or customer-data behavior.
 
 ### Task 2: Implement web and CLI boundaries tests-first
 
-- [ ] Create the web package descriptor and CLI tests/module before CLI
+- [x] Create the web package descriptor and CLI tests/module before CLI
   production.
-- [ ] Capture genuine CLI compile RED on only the missing production symbols.
-- [ ] Implement the minimal CLI version command and run focused GREEN.
-- [ ] Prove the exact delegated web build and artifact-free default/injected CLI
+- [x] Capture genuine CLI compile RED on only the missing production symbols.
+- [x] Implement the minimal CLI version command and run focused GREEN.
+- [x] Prove the exact delegated web build and artifact-free default/injected CLI
   executions.
-- [ ] Run six focused passes, race/tidy/module/vet, retained worker/service
+- [x] Run six focused passes, race/tidy/module/vet, retained worker/service
   regressions, full repository gates, audit, whitespace, and scans; commit
   `feat: add web and agentsecctl boundaries`.
 

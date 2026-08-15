@@ -43,7 +43,7 @@ The tracked command files are `cmd/agentsecctl/go.mod`,
 
 - `npm --prefix apps/web run build` invokes exactly the locked repository-root
   production build and must succeed without installing another dependency tree.
-- `go run ./cmd/agentsecctl version` writes exactly
+- `go run -C cmd/agentsecctl . version` writes exactly
   `agentsecctl version <version>` plus one newline.
 - The CLI development default is `dev`; release builds may inject a version only
   through Go link-time `-ldflags -X`.
