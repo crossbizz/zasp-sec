@@ -173,3 +173,92 @@ func TestRunProofPreservesCancellationDuringPreparation(t *testing.T) {
 		t.Fatalf("RunProof() error = %v, want context cancellation", err)
 	}
 }
+
+func TestNearestRankP95UsesExactNearestRankWithoutMutation(t *testing.T) {
+	tests := []struct {
+		name    string
+		samples []time.Duration
+		want    time.Duration
+	}{
+		{name: "one", samples: []time.Duration{7 * time.Millisecond}, want: 7 * time.Millisecond},
+		{name: "twenty", samples: append([]time.Duration{20 * time.Millisecond}, repeatDuration(19, time.Millisecond)...), want: time.Millisecond},
+		{name: "one thousand", samples: append(repeatDuration(949, time.Millisecond), append([]time.Duration{9 * time.Millisecond}, repeatDuration(50, 20*time.Millisecond)...)...), want: 9 * time.Millisecond},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			before := append([]time.Duration(nil), test.samples...)
+			got, err := nearestRankP95(test.samples)
+			if err != nil || got != test.want {
+				t.Fatalf("nearestRankP95() = %v, %v; want %v", got, err, test.want)
+			}
+			for index := range before {
+				if before[index] != test.samples[index] {
+					t.Fatalf("input mutated at %d", index)
+				}
+			}
+		})
+	}
+}
+
+func repeatDuration(count int, value time.Duration) []time.Duration {
+	result := make([]time.Duration, count)
+	for index := range result {
+		result[index] = value
+	}
+	return result
+}
+
+func TestNearestRankP95RejectsEmptyAndNegativeSamples(t *testing.T) {
+	for name, samples := range map[string][]time.Duration{
+		"empty":    nil,
+		"negative": {time.Millisecond, -time.Nanosecond},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := nearestRankP95(samples); !errors.Is(err, errLatency) {
+				t.Fatalf("nearestRankP95() error = %v, want latency category", err)
+			}
+		})
+	}
+}
+
+func TestRunProofAppliesExactIndependentLatencyThresholds(t *testing.T) {
+	evaluator := evaluatorFunc(func(_ context.Context, input DecisionInput) (rego.ResultSet, error) {
+		return decisionResult(input.Action == "tool:read"), nil
+	})
+
+	t.Run("exact threshold passes", func(t *testing.T) {
+		options := focusedOptions(evaluator)
+		options.now = deterministicClock(10 * time.Millisecond)
+		result, err := RunProof(context.Background(), options)
+		if err != nil {
+			t.Fatalf("RunProof() error = %v", err)
+		}
+		if result.AllowP95 != 10*time.Millisecond || result.BlockP95 != 10*time.Millisecond {
+			t.Fatalf("p95 result = %#v", result)
+		}
+	})
+
+	t.Run("one nanosecond over fails", func(t *testing.T) {
+		options := focusedOptions(evaluator)
+		options.now = deterministicClock(10*time.Millisecond + time.Nanosecond)
+		if _, err := RunProof(context.Background(), options); !errors.Is(err, errLatency) {
+			t.Fatalf("RunProof() error = %v, want latency category", err)
+		}
+	})
+
+	t.Run("block threshold is independent", func(t *testing.T) {
+		clock := []time.Time{
+			time.Unix(0, 0), time.Unix(0, int64(time.Millisecond)),
+			time.Unix(0, int64(time.Millisecond)), time.Unix(0, int64(12*time.Millisecond)),
+		}
+		options := focusedOptions(evaluator)
+		options.now = func() time.Time {
+			value := clock[0]
+			clock = clock[1:]
+			return value
+		}
+		if _, err := RunProof(context.Background(), options); !errors.Is(err, errLatency) {
+			t.Fatalf("RunProof() error = %v, want latency category", err)
+		}
+	})
+}

@@ -200,32 +200,32 @@ git commit -m "feat: evaluate embedded OPA decisions"
 - CLI success is exactly:
   `OPA SDK proof passed: allow=true block=true deterministic=true evaluations=2000 p95_under_10ms=true.`
 
-- [ ] **Step 1: Write timing RED**
+- [x] **Step 1: Write timing RED**
 
 Use an injected monotonic clock to prove sample boundaries, original-slice
 immutability, nearest rank at n=1/20/1000, exactly 10 ms acceptance, 10 ms plus
 1 ns rejection, and independent Allow/Block p95 gates.
 
-- [ ] **Step 2: Implement timing GREEN**
+- [x] **Step 2: Implement timing GREEN**
 
 Measure each `PreparedEvalQuery.Eval` only. Copy and sort samples; reject empty,
 negative, mismatched-count, or over-threshold data. Never round durations before
 comparison.
 
-- [ ] **Step 3: Write fixed-process-boundary RED**
+- [x] **Step 3: Write fixed-process-boundary RED**
 
 Exercise main through injected writer/runner boundaries. Require one success
 line, empty stderr, and one fixed failure line for each configuration, policy,
 evaluation, latency, deadline, and panic category. Reject raw errors, policy,
 input, timings, environment, paths, or stack data in either stream.
 
-- [ ] **Step 4: Implement minimal CLI GREEN**
+- [x] **Step 4: Implement minimal CLI GREEN**
 
 Use a 30-second context and top-level panic containment. Return numeric exit
 codes; write only the fixed selected line. Production options cannot be changed
 by arguments or environment.
 
-- [ ] **Step 5: Run real proof stability and commit**
+- [x] **Step 5: Run real proof stability and commit**
 
 Run six consecutive race-enabled module passes and two consecutive direct CLI
 runs. Both CLI runs must emit the exact success line and exit zero. Commit as:
