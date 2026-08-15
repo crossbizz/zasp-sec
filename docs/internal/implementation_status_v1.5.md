@@ -14,16 +14,16 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 701 |
-| In progress | 1 |
-| Complete | 22 |
+| Pending | 702 |
+| In progress | 0 |
+| Complete | 23 |
 | Blocked | 3 |
 
 ## Milestone summary
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 0 | 1 | 22 | 3 |
+| M0 | 27 | 1 | 0 | 23 | 3 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -68,14 +68,13 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `701/1/22/3` because
+session configuration. The 728 source-plan counts are `702/0/23/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M0-22 | August 15, 2026 | Prove bounded operational telemetry export through exact-pinned disposable Collectors and that exporter failure does not block the application; R-12 remains Not run. |
 
 ## Complete
 
@@ -92,7 +91,7 @@ PROV-01 is excluded from those counts.
 | M0-10 | August 14, 2026 | Two exact-pinned disposable Cartography/Neo4j fixture runs loaded two synthetic Organizations and proved eight normalized nodes, four relationships, collision isolation, customer-label safety, exact cleanup, pinned gates/scans, two consecutive live passes, and zero-finding independent review under the fixture-only waiver; no AWS/GitHub authorization-parity claim. |
 | M0-11 | August 14, 2026 | The exact-pinned Prowler fixture-only evidence proof produced one reviewed open/high finding and one linked normalized evidence record for the canonical M0-10 Organization-scoped role, proved exact cleanup and shared-target non-mutation, passed pinned gates and license/secret audits, and received a zero-finding independent re-review without claiming real-AWS parity. |
 | M0-12 | August 14, 2026 | Two consecutive final-code exact-pinned disposable Tetragon/Kubernetes runs produced process, file, and outbound TCP signals with one shared Kubernetes workload identity, explicit sensor health/capability and zero drop/loss counters, exact full-ID cleanup and zero-resource audits, pinned gates/license/secret scans, and zero-finding independent review. |
-| M0-13 | August 14, 2026 | The exact-pinned local OTLP ingest proof delivered one bounded trace and span with all six Organization/agent/session/task/tool/sandbox identity attributes through a real Collector into the product-owned ingest adapter, disabled remote export, proved exact cleanup in two final-code live runs, and passed pinned gates/scans plus zero-finding independent review; R-12 remains Not run until M0-22 proves bounded remote-export failure behavior. |
+| M0-13 | August 14, 2026 | The exact-pinned local OTLP ingest proof delivered one bounded trace and span with all six Organization/agent/session/task/tool/sandbox identity attributes through a real Collector into the product-owned ingest adapter, disabled remote export, proved exact cleanup in two final-code live runs, and passed pinned gates/scans plus zero-finding independent review; combined with M0-22, R-12 is PASS. |
 | M0-14a | August 14, 2026 | The two consecutive final-code exact-pinned Nango/PostgreSQL runs proved minimum free self-hosted boot and exact database-backed readiness from a one-shot client on a private internal product network, with no host ports, exact cleanup, zero-resource audits, pinned gates/scans, and a zero-finding independent review; R-08 was deferred to M0-15. |
 | M0-14b | August 15, 2026 | Two consecutive final-code exact-pinned Nango OAuth runs completed one private synthetic provider authorization-code and PKCE flow, retained only the Organization-scoped durable connection reference, proved exact wrapper/fixture/Nango/PostgreSQL/network/workspace ownership and zero cleanup, and passed pinned gates, license/secret scans, and a zero-finding pre-landing review; R-08 was deferred to M0-15. |
 | M0-14c | August 15, 2026 | Two consecutive final-code exact-pinned Nango runs created one private `1password-events` API-key connection, verified the generated JWT-shaped provider key exactly once against the private TLS fixture, retained only the Organization-scoped durable connection reference, proved product-state secrecy and exact zero-resource cleanup, and passed pinned gates, license/secret scans, and a zero-finding whole-range review; R-08 was deferred to M0-15. |
@@ -102,7 +101,8 @@ PROV-01 is excluded from those counts.
 | M0-17 | August 15, 2026 | The exact-pinned official OPA Go SDK prepared one embedded policy query in-process, returned deterministic Allow and Block decisions across 100 warm-ups and 1,000 measured evaluations per decision, kept both decision-specific p95 values below 10 ms, and passed strict malformed-result, cancellation, panic, license, full-gate, secret-scan, and whole-range review checks; R-10 is PASS. |
 | M0-20 | August 15, 2026 | One exact allowlisted analytics event reached a synthetic numeric-loopback PostHog endpoint; seeded prompt, secret, IP, and raw-evidence inputs each failed before network I/O, exact cleanup and fixed output passed, six focused runs plus full pinned repository gates/audit/scans were green, and adversarial review findings were fixed tests-first; R-13 is PASS without a hosted-PostHog delivery claim. |
 | M0-21 | August 15, 2026 | One redacted synthetic finding explanation reached a numeric-loopback OpenRouter-compatible endpoint with every seeded secret/PII value absent; the exact structured result, cleanup, fixed output, six focused runs, full pinned repository gates/audit/scans, and adversarial fixes passed. M0-21a is Complete and R-14 is PASS from combined evidence. |
-| M0-21a | August 15, 2026 | One bounded planning request carried untrusted instruction-injection text as data plus exactly two typed catalog actions and exact in-scope identifiers; validation accepted only the exact two-step plan, rejected action/argument/target/order/URL/shell/tool/prose drift, proved fixed output and independent cleanup, and passed six focused runs, full pinned gates/audit/scans, and adversarial review. R-14 is PASS with the retained M0-21 explanation evidence; M0-22 remains Pending. |
+| M0-21a | August 15, 2026 | One bounded planning request carried untrusted instruction-injection text as data plus exactly two typed catalog actions and exact in-scope identifiers; validation accepted only the exact two-step plan, rejected action/argument/target/order/URL/shell/tool/prose drift, proved fixed output and independent cleanup, and passed six focused runs, full pinned gates/audit/scans, and adversarial review. R-14 is PASS with the retained M0-21 explanation evidence; M0-22 is Complete. |
+| M0-22 | August 15, 2026 | Two consecutive exact-pinned source/sink Collector runs delivered the exact first trace, stopped and re-proved the only sink, completed the next application operation within its independent telemetry bound, proved exact zero-resource cleanup, and passed six focused runs, the retained M0-13 regression, full pinned repository gates/audit/scans, and adversarial review; combined M0-13/M0-22 evidence makes R-12 PASS. |
 
 `PRE-01`, `PRE-02`, and `PROV-01` do not count as source-plan microtasks.
 
@@ -142,7 +142,7 @@ provider capability gate.
 | M0-10 final review | The final scoped implementation review found zero remaining Critical, Important, or Minor findings after the lifecycle, ownership, parsing, portability, and waiver-contract fixes. | Complete August 14, 2026 under the fixture-only Cartography delivery waiver after two consecutive live passes, exact zero-resource cleanup audits, pinned local gates, and redacted secret scans; no AWS/GitHub authorization-parity claim. |
 | M0-11 final review | The final scoped implementation re-review found zero remaining Critical, Important, or Minor findings after definitive mutation classification, global absence audit, full runtime ownership, late-mutation settlement, and adapter-license evidence fixes. | Complete August 14, 2026 after the exact fixture-only live proof, linked normalized evidence capture, exact zero-resource cleanup, shared-target non-mutation, pinned local gates, license/secret audits, and zero-finding review; R-06 is PASS without a real-AWS parity claim. |
 | M0-12 final review | The final scoped implementation re-review found zero remaining Critical, Important, or Minor findings after cleanup authorization, deadline, image-digest, concrete lifecycle, workload-identity, mutation-result, ownership, and evidence-boundary fixes. | Complete August 14, 2026 after two consecutive final-code live passes, exact zero-resource cleanup audits, pinned local gates, license/secret scans, and zero-finding independent review; R-07 is PASS under the approved observation-only boundary. |
-| M0-13 final review | The final scoped implementation review found zero remaining Critical, Important, or Minor findings after bounded child supervision, mutation settlement, retained pre-verification cleanup authority, concrete runtime coverage, and fixed-output taxonomy alignment. | Complete August 14, 2026 after two consecutive final-code exact Collector passes, exact zero-resource cleanup audits, pinned local gates, license/secret scans, and zero-finding independent review; R-12 remains Not run until M0-22 proves bounded remote-export failure behavior. |
+| M0-13 final review | The final scoped implementation review found zero remaining Critical, Important, or Minor findings after bounded child supervision, mutation settlement, retained pre-verification cleanup authority, concrete runtime coverage, and fixed-output taxonomy alignment. | Complete August 14, 2026 after two consecutive final-code exact Collector passes, exact zero-resource cleanup audits, pinned local gates, license/secret scans, and zero-finding independent review; combined M0-13/M0-22 evidence now makes R-12 PASS. |
 | M0-14a final review | The final scoped implementation review found zero remaining Critical, Important, or Minor findings after bounded mutation settlement, initialization candidate retention, raw HTTP-byte validation, schema/start/remove reconciliation, coherent cleanup snapshots, and immutable cross-correlated private-network ownership. | Complete August 14, 2026 after two consecutive final-code exact Nango/PostgreSQL passes, exact zero-resource cleanup audits, pinned local gates, license/secret scans, and zero-finding independent review; R-08 was deferred to M0-15. |
 | M0-14b final review | The final scoped pre-landing review found zero remaining Critical, Important, or Minor findings after live API-shape, exact Docker attachment, complete TLS-workspace identity, ambiguous lifecycle, coherent cleanup, and synthetic-secret scan fixes. | Complete August 15, 2026 after two consecutive final-code exact OAuth passes, exact zero-resource cleanup audits, pinned local gates, license/secret scans, and zero-finding review; R-08 was deferred to M0-15. |
 | M0-14c final review | The whole-range review found zero remaining Critical, Important, or Minor findings after exact live provider-schema/header corrections and strict bounded synthetic-key validation. | Complete August 15, 2026 after two consecutive final-code exact API-key passes, exact zero-resource cleanup audits, pinned local gates, license/secret scans, and zero-finding review; R-08 was deferred to M0-15. |
@@ -239,8 +239,8 @@ provider capability gate.
 - M0-13 is Complete after two consecutive final-code exact-pinned Collector
   runs retained one trace/span with all six semantic identity attributes,
   disabled remote export, proved exact cleanup, passed pinned gates/scans, and
-  received zero-finding independent review. R-12 remains Not run until M0-22
-  proves bounded remote export and nonblocking exporter-failure behavior.
+  received zero-finding independent review. Combined with M0-22's bounded
+  export and nonblocking failure proof, R-12 is PASS.
 - M0-14a is Complete after two consecutive final-code runs of the exact free
   self-hosted Nango server with PostgreSQL as its only long-running dependency
   proved database-backed readiness from a one-shot client on a private product
@@ -286,7 +286,8 @@ provider capability gate.
 - M0-21 is Complete with the reviewed local explanation/privacy proof. It does
   not advance R-14, which also requires the separate M0-21a planner proof.
 - M0-21a is Complete with the fixed two-action catalog and in-scope planner
-  validation boundary. M0-22 is In progress and R-14 is PASS from the combined
+  validation boundary. M0-22 is Complete and R-14 is PASS from the combined
   M0-21 explanation/privacy and M0-21a planning evidence.
-- M0-22 is In progress with the bounded Collector export and nonblocking
-  exporter-failure boundary. M0-23 remains Pending and R-12 remains Not run.
+- M0-22 is Complete after two consecutive exact-pinned Collector runs proved
+  bounded delivery, exporter failure, nonblocking application progress, and
+  exact cleanup. Combined M0-13/M0-22 evidence makes R-12 PASS; M0-23 remains Pending.

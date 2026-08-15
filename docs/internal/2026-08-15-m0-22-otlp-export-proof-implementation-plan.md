@@ -27,8 +27,8 @@ Every behavior change follows a witnessed tests-only RED.
 
 - [x] Capture the tests-only repository-contract RED.
 - [x] Add this design and executable plan.
-- [x] Move only M0-22 from Pending to In progress at `701/1/22/3` overall and
-  `27/0/1/22/3` in M0; leave R-12 Not run.
+- [x] Move only M0-22 from Pending to In progress at `702/1/22/3` overall and
+  `27/1/1/22/3` in M0; leave R-12 Not run.
 
 ### Task 2: Implement bounded telemetry and configuration
 
@@ -51,6 +51,6 @@ Every behavior change follows a witnessed tests-only RED.
 - [x] Run two consecutive exact live passes, six focused passes, M0-13
   regression, full pinned gates, audit, license, whitespace, and secret scans.
 - [x] Fix every adversarial review finding tests-first.
-- [ ] Transition only M0-22 to Complete and R-12 to PASS after combined proof;
+- [x] Transition only M0-22 to Complete and R-12 to PASS after combined proof;
   keep M0-23 Pending.
 - [ ] Commit, push, and watch the exact-SHA Runnable UI gate.

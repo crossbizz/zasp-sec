@@ -7,6 +7,8 @@ type PackageManifest = { scripts?: Record<string, string> };
 const repositoryRoot = resolve(import.meta.dirname, "../..");
 const collectorImage =
   "otel/opentelemetry-collector-contrib:0.158.0@sha256:c5918f78992ee73b0d6f0e599423ac5ec52dd5d9726733114d6eca53d5a32ed5";
+const r12Evidence =
+  "PASS — M0-13/M0-22 — .superpowers/sdd/2026-08-14-m0-13-otlp-proof-implementation-plan/task-6-report.md; proof head c91047923bcbf9e567e640ade8c308c03a0100bc; .superpowers/sdd/2026-08-15-m0-22-otlp-export-proof-implementation-plan/task-4-report.md; proof head 425accdf9293e7652c6cedd5e49e772799a431fa";
 
 function markdownRows(markdown: string) {
   return markdown
@@ -22,7 +24,7 @@ function assertM013Complete(tracker: string) {
   const allCompleteRows = markdownRows(complete).slice(2);
   const completeRows = allCompleteRows.filter(([task]) => task === "M0-13");
 
-  expect(inProgressRows).toHaveLength(1);
+  expect(inProgressRows).toHaveLength(0);
   expect([...inProgressRows, ...allCompleteRows].filter(([task]) => task === "M0-15")).toHaveLength(1);
   expect(completeRows).toHaveLength(1);
   expect(completeRows[0]?.[1]).toBe("August 14, 2026");
@@ -86,11 +88,11 @@ describe("OTLP ingest proof contract", () => {
       resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"),
       "utf8",
     );
-    expect(tracker).toContain("| Pending | 701 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 22 |");
+    expect(tracker).toContain("| Pending | 702 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 23 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 1 \| 22 \| 3 \|/);
+    expect(tracker).toMatch(/\| M0 \| 27 \| 1 \| 0 \| 23 \| 3 \|/);
     assertM013Complete(tracker);
     expect(tracker).toContain("M0-09 and PROV-01 remain Blocked");
     expect(tracker).toContain("R-03 remains incomplete");
@@ -112,7 +114,7 @@ describe("OTLP ingest proof contract", () => {
     expect(() => assertM013Complete(concurrent)).toThrow();
   });
 
-  it("keeps R-12 Not run until both ingest and later export proofs complete", async () => {
+  it("advances R-12 only from the combined ingest and export evidence", async () => {
     const riskRegister = await readFile(
       resolve(repositoryRoot, "docs/decisions/mvp-risk-register.md"),
       "utf8",
@@ -121,7 +123,7 @@ describe("OTLP ingest proof contract", () => {
 
     expect(rows).toHaveLength(1);
     expect(rows[0]).toHaveLength(6);
-    expect(rows[0]?.[5]).toBe("Not run — M0-13/M0-22");
+    expect(rows[0]?.[5]).toBe(r12Evidence);
   });
 
   it("exposes exact hermetic and disposable live root commands", async () => {
@@ -152,7 +154,7 @@ describe("OTLP ingest proof contract", () => {
     expect(section).toContain("loopback-only");
     expect(section).toContain("remote OTLP export is disabled");
     expect(section).toContain("raw prompts, tool arguments, credentials, or customer payloads");
-    expect(section).toContain("R-12 remains Not run until M0-22");
+    expect(section).toContain("R-12 PASS");
     expect(section).toContain("M0-13 is Complete");
     expect(section).toContain("npm run proof:otlp:test");
     expect(section).toContain("npm run proof:otlp:run");

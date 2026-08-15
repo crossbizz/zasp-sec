@@ -275,13 +275,13 @@ cleanup audits, pinned local gates and scans, and zero-finding independent
 review.
 
 This proof establishes local Collector-to-adapter identity preservation only.
-R-12 remains Not run until M0-22 proves the separate bounded remote-export and
-exporter-failure boundary. M0-09 and PROV-01 remain Blocked, and R-03 remains
+Together with M0-22's bounded export/failure proof, this retained ingest
+evidence makes R-12 PASS. M0-09 and PROV-01 remain Blocked, and R-03 remains
 incomplete.
 
 ## OTLP export proof
 
-M0-22 is In progress. It will run an exact-pinned source Collector and fake
+M0-22 is Complete. It runs an exact-pinned source Collector and fake
 sink Collector on one private internal proof network. The first bounded
 synthetic operation must reach the sink; after the exact sink is stopped, the
 next application operation must still complete within its independent bound.
@@ -301,8 +301,9 @@ Success is exactly:
 OTLP export proof passed: delivered=true bounded=true exporter_failed=true application_unblocked=true cleanup=true.
 ```
 
-R-12 remains Not run pending the combined M0-13/M0-22 evidence and independent
-review; M0-23 remains Pending.
+Two consecutive final-code live passes proved first delivery, exact exporter
+failure, nonblocking application progress, and exact cleanup. Combined with
+the retained M0-13 ingest evidence, R-12 is PASS. M0-23 remains Pending.
 
 ## PostHog privacy proof
 
@@ -386,7 +387,7 @@ Security Agent planner proof passed: catalog=true scope=true injection=false url
 
 The exact proof, six focused runs, full pinned repository gates, production
 audit, redacted scans, and adversarial review passed. Combined with M0-21's
-redacted explanation proof, R-14 is PASS. M0-22 remains Pending.
+redacted explanation proof, R-14 is PASS. M0-22 is Complete and R-12 is PASS.
 
 ## EKS Fargate egress proof
 

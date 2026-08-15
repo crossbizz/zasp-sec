@@ -44,7 +44,7 @@ describe("Security Agent planner boundary repository contract", () => {
     expect(plan).toContain("Every behavior change follows a witnessed tests-only RED");
   });
 
-  it("completes only M0-21a and advances R-14 from combined evidence", async () => {
+  it("retains M0-21a completion and the combined R-14 evidence", async () => {
     const [tracker, readme, risk] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -54,17 +54,18 @@ describe("Security Agent planner boundary repository contract", () => {
     const blocked = section(tracker, "Blocked");
 
     expect(readme).toContain("M0-21a is Complete");
-    expect(tracker).toContain("| Pending | 701 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 22 |");
+    expect(tracker).toContain("| Pending | 702 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 23 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`701/1/22/3`");
-    expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 1 \| 22 \| 3 \|/);
-    expect(active).toHaveLength(1);
+    expect(tracker).toContain("`702/0/23/3`");
+    expect(tracker).toMatch(/\| M0 \| 27 \| 1 \| 0 \| 23 \| 3 \|/);
+    expect(active).toHaveLength(0);
     expect(section(tracker, "Complete").filter(([task]) => task === "M0-21a")).toHaveLength(1);
+    expect(section(tracker, "Complete").filter(([task]) => task === "M0-22")).toHaveLength(1);
     expect(blocked.filter(([task]) => ["M0-09", "M0-18", "M0-19"].includes(task))).toHaveLength(3);
     expect(risk).toContain("PASS — M0-21/M0-21a");
-    expect(tracker).toContain("M0-22 remains Pending");
+    expect(tracker).toContain("M0-23 remains Pending");
   });
 
   it("exposes hermetic root test and run commands only after the proof exists", async () => {
