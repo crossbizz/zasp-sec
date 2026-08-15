@@ -63,15 +63,14 @@ function assertM015Complete(tracker: string, readme: string, riskRegister: strin
   expect(section).toContain("R-08 is PASS");
 
   expect(tracker).toContain("| Pending | 708 |");
-  expect(tracker).toContain("| In progress | 1 |");
-  expect(tracker).toContain("| Complete | 17 |");
+  expect(tracker).toContain("| In progress | 0 |");
+  expect(tracker).toContain("| Complete | 18 |");
   expect(tracker).toContain("| Blocked | 1 |");
-  expect(tracker).toMatch(/\| M0 \| 27 \| 7 \| 1 \| 17 \| 1 \|/);
-  expect(activeRows).toHaveLength(1);
-  expect(activeRows[0]?.[0]).toBe("M0-16");
+  expect(tracker).toMatch(/\| M0 \| 27 \| 7 \| 0 \| 18 \| 1 \|/);
+  expect(activeRows).toHaveLength(0);
   expect(completeRows.filter(([task]) => task === "M0-15")).toHaveLength(1);
   expect(completeRows.filter(([task]) => task === "M0-14")).toHaveLength(1);
-  expect(completeRows.filter(([task]) => task === "M0-16")).toHaveLength(0);
+  expect(completeRows.filter(([task]) => task === "M0-16")).toHaveLength(1);
   expect(tracker).toContain("M0-09 and PROV-01 remain Blocked");
   expect(tracker).toContain("R-03 remains incomplete");
 
@@ -97,17 +96,11 @@ function activeFixture(tracker: string, readme: string) {
     readme: readme.replace(/## Nango proxy proof[\s\S]*?(?=## Nango free Auth boundary)/, `${section}\n`),
     tracker: tracker
       .replace("| Pending | 708 |", "| Pending | 709 |")
-      .replace("| In progress | 1 |", "| In progress | 0 |")
-      .replace("| M0 | 27 | 7 | 1 | 17 | 1 |", "| M0 | 27 | 8 | 0 | 17 | 1 |")
-      .replace("`708/1/17/1`", "`709/0/17/1`")
-      .replace(/^\| M0-16 \| August 15, 2026 \|.*\|\n/m, "")
-      .replace("| Pending | 710 |", "| Pending | 709 |")
       .replace("| In progress | 0 |", "| In progress | 1 |")
-      .replace("| Complete | 17 |", "| Complete | 16 |")
-      .replace("| M0 | 27 | 9 | 0 | 16 | 1 |", "| M0 | 27 | 8 | 1 | 16 | 1 |")
-      .replace("| M0 | 27 | 8 | 0 | 17 | 1 |", "| M0 | 27 | 8 | 1 | 16 | 1 |")
-      .replace("`710/0/16/1`", "`709/1/16/1`")
-      .replace("`709/0/17/1`", "`709/1/16/1`")
+      .replace("| Complete | 18 |", "| Complete | 16 |")
+      .replace("| M0 | 27 | 7 | 0 | 18 | 1 |", "| M0 | 27 | 8 | 1 | 16 | 1 |")
+      .replace("`708/0/18/1`", "`709/1/16/1`")
+      .replace(/^\| M0-16 \| August 15, 2026 \|.*\|\n/m, "")
       .replace(/^\| M0-15 \| August 15, 2026 \|.*\|\n/m, "")
       .replace("| --- | --- | --- |\n\n## Complete", `| --- | --- | --- |\n${row}\n\n## Complete`),
   };

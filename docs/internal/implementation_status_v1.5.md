@@ -15,15 +15,15 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 708 |
-| In progress | 1 |
-| Complete | 17 |
+| In progress | 0 |
+| Complete | 18 |
 | Blocked | 1 |
 
 ## Milestone summary
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 7 | 1 | 17 | 1 |
+| M0 | 27 | 7 | 0 | 18 | 1 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -68,14 +68,13 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `708/1/17/1` because
+session configuration. The 728 source-plan counts are `708/0/18/1` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M0-16 | August 15, 2026 | Run one exact-pinned Promptfoo direct prompt-injection case against a local fake agent and normalize its objective, verdict, and evidence reference. |
 
 ## Complete
 
@@ -98,6 +97,7 @@ PROV-01 is excluded from those counts.
 | M0-14c | August 15, 2026 | Two consecutive final-code exact-pinned Nango runs created one private `1password-events` API-key connection, verified the generated JWT-shaped provider key exactly once against the private TLS fixture, retained only the Organization-scoped durable connection reference, proved product-state secrecy and exact zero-resource cleanup, and passed pinned gates, license/secret scans, and a zero-finding whole-range review; R-08 was deferred to M0-15. |
 | M0-14 | August 15, 2026 | Recorded the evidence-backed free self-hosted Nango MVP boundary as long-tail Auth plus Proxy, explicitly excluded Functions, Webhooks, MCP, RBAC, full observability, and Enterprise features without claiming their routes absent, and left the authenticated Proxy GET and R-08 decision to M0-15. |
 | M0-15 | August 15, 2026 | Two consecutive final-code exact-pinned Nango Proxy runs returned one deterministic provider event through the authenticated private Proxy route, retained only scoped references plus allowlisted event ID/action, proved raw provider-token exclusion and exact zero-resource cleanup, passed pinned gates/license/secret scans, and received a zero-finding whole-range review; R-08 is PASS. |
+| M0-16 | August 15, 2026 | Two consecutive final-code exact-pinned Promptfoo runs executed one synthetic direct prompt-injection case against a local fake agent, retained only the objective, vulnerable verdict, and SHA-256 evidence reference, proved exact zero-resource cleanup and shared-resource non-mutation, passed pinned gates/license/secret scans, and received a zero-finding whole-range review; R-09 is PASS. |
 
 `PRE-01`, `PRE-02`, and `PROV-01` do not count as source-plan microtasks.
 
@@ -140,6 +140,7 @@ provider capability gate.
 | M0-14c final review | The whole-range review found zero remaining Critical, Important, or Minor findings after exact live provider-schema/header corrections and strict bounded synthetic-key validation. | Complete August 15, 2026 after two consecutive final-code exact API-key passes, exact zero-resource cleanup audits, pinned local gates, license/secret scans, and zero-finding review; R-08 was deferred to M0-15. |
 | M0-14 final review | The evidence and status review found zero remaining Critical, Important, or Minor findings after binding the source task, PRD, accepted proof chain, exact exclusions, aggregate counts, and hostile status/risk mutations. | Complete August 15, 2026 as an evidence-only Auth-plus-Proxy boundary record with pinned local gates, audit, license and secret scans; R-08 was deferred to M0-15. |
 | M0-15 final review | The whole-range review found zero remaining Critical, Important, or Minor findings after exact live Proxy response validation and duplicate wire-header rejection. | Complete August 15, 2026 after two consecutive final-code private Proxy passes, product-only secrecy capture, exact zero-resource cleanup audits, pinned local gates, license/secret scans, and zero-finding review; R-08 is PASS. |
+| M0-16 final review | The whole-range review found zero remaining Critical, Important, or Minor findings after exact workspace, network, container, mutation-settlement, readiness, global-absence, normalization, and retained-resource ownership fixes. | Complete August 15, 2026 after two consecutive final-code exact Promptfoo passes, product-only objective/verdict/evidence capture, exact zero-resource cleanup audits, shared-resource non-mutation, pinned local gates, license/secret scans, and zero-finding review; R-09 is PASS. |
 
 ## Execution notes
 
@@ -252,3 +253,9 @@ provider capability gate.
   M0-15 is Complete after two consecutive authenticated private Proxy GETs,
   exact product-state secrecy and cleanup evidence, pinned gates/scans, and a
   zero-finding whole-range review. R-08 is PASS.
+- M0-16 is Complete after two consecutive final-code exact-pinned Promptfoo
+  runs executed one synthetic direct prompt-injection case against a local fake
+  agent, retained only the objective, vulnerable verdict, and SHA-256 evidence
+  reference, proved exact zero-resource cleanup and shared-resource
+  non-mutation, and passed pinned gates, scans, and zero-finding review. R-09
+  is PASS. M0-17 remains Pending.

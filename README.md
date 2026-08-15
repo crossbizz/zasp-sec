@@ -281,7 +281,7 @@ incomplete.
 
 ## Promptfoo red-team proof
 
-M0-16 is In progress. It runs one direct prompt-injection case through the
+M0-16 is Complete. It runs one direct prompt-injection case through the
 exact-pinned official Promptfoo 0.121.19 engine against a local fake agent on a
 private internal Docker network. The product boundary will retain only the
 objective, verdict, and evidence reference; raw prompts, target responses,
@@ -296,9 +296,9 @@ a running local Docker engine with the exact image available or pullable. Live
 success is exactly
 `Promptfoo red-team proof passed: objective=true verdict=vulnerable evidence=true cleanup=true.`
 Only the objective, verdict, and evidence reference are retained; raw prompts, target responses, canaries, Promptfoo-native identifiers, and Docker state
-are excluded from product output. R-09 remains Not run until the live engine
-result, exact normalization, cleanup, pinned gates, scans, and whole-range
-review pass.
+are excluded from product output. Two consecutive final-code live passes,
+exact zero-resource cleanup, pinned gates, immutable license and secret scans,
+and a zero-finding whole-range review passed. R-09 is PASS.
 
 ## Nango proxy proof
 

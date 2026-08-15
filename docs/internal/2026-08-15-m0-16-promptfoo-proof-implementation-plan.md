@@ -71,19 +71,19 @@ container, Docker CLI, Node test runner, Vitest, Markdown.
 - Active M0: 27 total / 7 Pending / 1 In progress / 17 Complete / 1 Blocked.
 - R-09 stays exactly `Not run — M0-16`.
 
-- [ ] Write deterministic filesystem-only Vitest contracts for the exact source
+- [x] Write deterministic filesystem-only Vitest contracts for the exact source
   task, PRD Red Team boundary, design/plan decisions, future root scripts and
   README section, exact one-row status, aggregate arithmetic, M0-15 Complete,
   M0-17 Pending, R-09 Not run, and blocked/incomplete boundaries.
-- [ ] Add hostile mutations for duplicate M0-16, concurrent M0-17, premature
+- [x] Add hostile mutations for duplicate M0-16, concurrent M0-17, premature
   R-09 PASS, simulated-engine wording, credential/external-target claims, and
   aggregate drift.
-- [ ] Run focused RED before changing README or tracker. Expected failures are
+- [x] Run focused RED before changing README or tracker. Expected failures are
   only the absent M0-16 README section and active row/count transition.
-- [ ] Add the minimal README In-progress statement and move only M0-16 from
+- [x] Add the minimal README In-progress statement and move only M0-16 from
   Pending to In progress.
-- [ ] Run focused and affected status-contract GREEN under pinned Node/npm.
-- [ ] Run diff and redacted staged scans; commit exact scoped files as
+- [x] Run focused and affected status-contract GREEN under pinned Node/npm.
+- [x] Run diff and redacted staged scans; commit exact scoped files as
   `docs: start M0-16 Promptfoo proof`.
 
 ---
@@ -103,20 +103,20 @@ container, Docker CLI, Node test runner, Vitest, Markdown.
 - Normalizer input: one bounded Promptfoo version-3 JSON export.
 - Normalizer output: exact three-key product record.
 
-- [ ] Write fake-agent behavior tests first for readiness, one exact injection,
+- [x] Write fake-agent behavior tests first for readiness, one exact injection,
   method/path/query/Host/header/body bounds, duplicate JSON keys, canonical
   bytes, one-use ordering, timeout, abort, stream error, panic, and fixed output.
-- [ ] Capture absent-module RED, then implement the minimal strict local server.
-- [ ] Write normalizer tests first using an independently hand-derived complete
+- [x] Capture absent-module RED, then implement the minimal strict local server.
+- [x] Write normalizer tests first using an independently hand-derived complete
   Promptfoo 0.121.19 artifact. Bind exact result counts, test metadata, provider,
   assertion, raw canary, dynamic-ID/timestamp grammar, byte digest, and exact
   normalized record.
-- [ ] Add hostile missing/extra/alias/duplicate-key, multiple-result,
+- [x] Add hostile missing/extra/alias/duplicate-key, multiple-result,
   pass/error/score drift, invalid calendar/ID, primitive/coercion, raw-data
   leakage, oversized file, symlink, replacement, and read-race cases.
-- [ ] Capture absent-API RED, implement descriptor-level bounded strict GREEN,
+- [x] Capture absent-API RED, implement descriptor-level bounded strict GREEN,
   and prove normalized serialization excludes every forbidden raw/native value.
-- [ ] Run the complete Task 2 suite six consecutive times.
+- [x] Run the complete Task 2 suite six consecutive times.
 
 ---
 
@@ -134,18 +134,18 @@ container, Docker CLI, Node test runner, Vitest, Markdown.
   output directory, empty Docker config.
 - Roles: agent, runner, network.
 
-- [ ] Write workspace tests first for direct-child creation, retained untrusted
+- [x] Write workspace tests first for direct-child creation, retained untrusted
   post-mkdtemp candidates, canonical-parent portability, regular/non-symlink
   files, modes, dev/inode identity, pre/post-command reproof, output admission,
   cleanup-time replacement, and prefix-wide absence.
-- [ ] Capture absent-boundary RED and implement the minimum owned workspace.
-- [ ] Write manifest tests first for the exact image/source/license pins,
+- [x] Capture absent-boundary RED and implement the minimum owned workspace.
+- [x] Write manifest tests first for the exact image/source/license pins,
   Promptfoo YAML, fake-agent command, runner eval argv, environment allowlists,
   non-root/read-only/cap-drop/no-new-privileges/resource bounds, internal
   network, mounts/tmpfs, and zero host ports.
-- [ ] Add hostile platform/image/config/env/entrypoint/cmd/mount/security/port
+- [x] Add hostile platform/image/config/env/entrypoint/cmd/mount/security/port
   variants and duplicate/set-order cases.
-- [ ] Capture absent-manifest RED, implement minimal GREEN, and run six focused
+- [x] Capture absent-manifest RED, implement minimal GREEN, and run six focused
   passes.
 
 ---
@@ -162,22 +162,22 @@ container, Docker CLI, Node test runner, Vitest, Markdown.
 - One internal network, one long-running agent, one one-shot Promptfoo runner.
 - Finite named main, cleanup, child, readiness, and outer-supervisor budgets.
 
-- [ ] Write tests first for image resolution, exact create/start/readiness/eval,
+- [x] Write tests first for image resolution, exact create/start/readiness/eval,
   artifact normalization, full-ID candidate retention, exact ownership and
   current peer projections, reverse cleanup, global absence, fixed output, and
   failure categories.
-- [ ] Cover definitive versus ambiguous pull/create/start/exec/remove results,
+- [x] Cover definitive versus ambiguous pull/create/start/exec/remove results,
   two-attempt reads, malformed/duplicate Docker JSON, delayed mutation
   settlement, phase fencing, uncooperative children, stdout/stderr pipe errors,
   combined output caps, SIGKILL/reap, late continuation, cleanup continuation
   and precedence.
-- [ ] Cover replacement resources, peer transitions, exited runner, mount/env
+- [x] Cover replacement resources, peer transitions, exited runner, mount/env
   set order, extra labels/security/ports/networks, generic versus exact missing,
   other-marker stale resources, temp identity swaps, and workspace retention
   when Docker absence is unproved.
-- [ ] Capture absent-runtime RED, implement minimal GREEN one slice at a time,
+- [x] Capture absent-runtime RED, implement minimal GREEN one slice at a time,
   and run the full proof suite six consecutive times.
-- [ ] Run every completed M0 proof's hermetic root command whose status/count
+- [x] Run every completed M0 proof's hermetic root command whose status/count
   contract is affected.
 
 ---
@@ -197,19 +197,19 @@ container, Docker CLI, Node test runner, Vitest, Markdown.
 - `proof:promptfoo:run`: exact disposable live lifecycle.
 - `proof:promptfoo:license`: immutable official source/image/license audit.
 
-- [ ] Extend the repository contract first and capture RED for missing scripts,
+- [x] Extend the repository contract first and capture RED for missing scripts,
   docs, and license inventory.
-- [ ] Add root commands and the README boundary: exact pin, local-only target,
+- [x] Add root commands and the README boundary: exact pin, local-only target,
   fixed success line, normalized fields, raw-data exclusion, Docker
   prerequisite, In-progress status, and R-09 Not-run state.
-- [ ] Add a strict tracked license inventory and a read-only audit that verifies
+- [x] Add a strict tracked license inventory and a read-only audit that verifies
   exact official repo/tag commit/tree, npm integrity, image index digest/config,
   and MIT license artifact/hash without trusting mutable tags alone.
-- [ ] Prove the hermetic root command performs no Docker/provider mutation and
+- [x] Prove the hermetic root command performs no Docker/provider mutation and
   leaves no cache, database, log, or temporary artifact.
-- [ ] Run focused GREEN, root proof tests, full pinned repository verification,
+- [x] Run focused GREEN, root proof tests, full pinned repository verification,
   production audit, license audit, syntax/lint, and diff checks.
-- [ ] Commit the implementation in small scoped task commits.
+- [x] Commit the implementation in small scoped task commits.
 
 ---
 
@@ -235,28 +235,28 @@ container, Docker CLI, Node test runner, Vitest, Markdown.
   `PASS — M0-16 — <exact evidence path and reviewed proof SHA>` only after its
   whole criterion passes.
 
-- [ ] Prove preflight zero for all M0-16 name/label/marker/network/temp selectors
+- [x] Prove preflight zero for all M0-16 name/label/marker/network/temp selectors
   and fingerprint any shared Docker resources without mutation.
-- [ ] Run the exact clean-environment root command. Diagnose failures from only
+- [x] Run the exact clean-environment root command. Diagnose failures from only
   sanitized phase/boolean evidence, capture focused RED before every production
   fix, and remove only freshly re-proved exact-owned retained candidates.
-- [ ] Obtain two consecutive final-code live passes. After each, prove zero
+- [x] Obtain two consecutive final-code live passes. After each, prove zero
   containers, networks, anonymous volumes, config/output directories, and temp
   roots plus unchanged shared-resource fingerprints.
-- [ ] Capture a product-fields-only result proving the exact objective slug,
+- [x] Capture a product-fields-only result proving the exact objective slug,
   `vulnerable` verdict, one SHA-256 evidence reference, exact three-key shape,
   and absence of raw prompt/response/canary/native labels/engine/Docker fields.
-- [ ] Run six hermetic passes, exact image compatibility, all affected proof
+- [x] Run six hermetic passes, exact image compatibility, all affected proof
   regressions, full pinned repository verify, production audit, immutable
   license audit, whitespace/syntax, and pinned redacted Gitleaks over the proof
   tree, staged content, evidence, exact commits, and full history.
-- [ ] Perform a whole-range review against source task, PRD, design, plan,
+- [x] Perform a whole-range review against source task, PRD, design, plan,
   official 0.121.19 source, and live evidence. Fix every Critical, Important,
   and Minor finding tests-first; rerun live after ownership, mutation, timing,
   normalization, or cleanup changes.
-- [ ] Add hostile completion/status tests and capture RED for stale M0-16/R-09
+- [x] Add hostile completion/status tests and capture RED for stale M0-16/R-09
   state. Move only M0-16 to Complete and R-09 to PASS; preserve M0-17 Pending
   and every blocked/incomplete boundary. Run focused GREEN and all final gates.
-- [ ] Record exact evidence, commit, push `codex/zasp-implementation`, prove
+- [x] Record exact evidence, commit, push `codex/zasp-implementation`, prove
   local/tracking/origin SHA equality, and watch Runnable UI for that exact SHA
   to terminal success before continuing to M0-17.

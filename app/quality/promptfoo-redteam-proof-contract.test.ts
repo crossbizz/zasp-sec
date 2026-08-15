@@ -17,60 +17,43 @@ function taskRows(tracker: string, heading: "In progress" | "Complete") {
   return markdownRows(section).slice(2);
 }
 
-function assertM016Active(tracker: string, readme: string, riskRegister: string) {
+const completionEvidence =
+  ".superpowers/sdd/agent_security_platform_Technical_Implementation_Plan_v1.5/task-M0-16-report.md; proof head 4abd751918913be813a662ea0f3847676369b012";
+
+function assertM016Complete(tracker: string, readme: string, riskRegister: string) {
   const section = readme.match(/## Promptfoo red-team proof[\s\S]*?## Nango proxy proof/)?.[0];
   const activeRows = taskRows(tracker, "In progress");
   const completeRows = taskRows(tracker, "Complete");
   const riskRows = markdownRows(riskRegister).filter(([id]) => id === "R-09");
 
   expect(section).toBeDefined();
-  expect(section).toContain("M0-16 is In progress");
+  expect(section).toContain("M0-16 is Complete");
   expect(section).toContain("one direct prompt-injection case");
   expect(section).toContain("local fake agent");
   expect(section).toContain("objective, verdict, and evidence reference");
-  expect(section).toContain("R-09 remains Not run");
+  expect(section).toMatch(/Two consecutive final-code\s+live passes/);
+  expect(section).toContain("exact zero-resource cleanup");
+  expect(section).toContain("R-09 is PASS");
   expect(section).not.toMatch(/Promptfoo Cloud|external model|real credential/i);
 
   expect(tracker).toContain("| Pending | 708 |");
-  expect(tracker).toContain("| In progress | 1 |");
-  expect(tracker).toContain("| Complete | 17 |");
+  expect(tracker).toContain("| In progress | 0 |");
+  expect(tracker).toContain("| Complete | 18 |");
   expect(tracker).toContain("| Blocked | 1 |");
-  expect(tracker).toMatch(/\| M0 \| 27 \| 7 \| 1 \| 17 \| 1 \|/);
-  expect(tracker).toContain("`708/1/17/1`");
-  expect(activeRows).toHaveLength(1);
-  expect(activeRows[0]?.[0]).toBe("M0-16");
-  expect(activeRows[0]?.[1]).toBe("August 15, 2026");
-  expect(activeRows[0]?.[2]).toContain("Promptfoo");
-  expect(activeRows[0]?.[2]).toContain("local fake agent");
+  expect(tracker).toMatch(/\| M0 \| 27 \| 7 \| 0 \| 18 \| 1 \|/);
+  expect(tracker).toContain("`708/0/18/1`");
+  expect(activeRows).toHaveLength(0);
+  expect(completeRows.filter(([task]) => task === "M0-16")).toHaveLength(1);
+  expect(completeRows.find(([task]) => task === "M0-16")?.[1]).toBe("August 15, 2026");
+  expect(completeRows.find(([task]) => task === "M0-16")?.[2]).toContain("Promptfoo");
+  expect(completeRows.find(([task]) => task === "M0-16")?.[2]).toContain("local fake agent");
   expect(completeRows.filter(([task]) => task === "M0-15")).toHaveLength(1);
   expect([...activeRows, ...completeRows].filter(([task]) => task === "M0-17")).toHaveLength(0);
   expect(tracker).toContain("M0-09 and PROV-01 remain Blocked");
   expect(tracker).toContain("R-03 remains incomplete");
 
   expect(riskRows).toHaveLength(1);
-  expect(riskRows[0]?.[5]).toBe("Not run — M0-16");
-}
-
-function activeFixture(tracker: string, readme: string) {
-  const section = [
-    "## Promptfoo red-team proof",
-    "",
-    "M0-16 is In progress. It runs one direct prompt-injection case through",
-    "exact-pinned Promptfoo against a local fake agent and normalizes only the",
-    "objective, verdict, and evidence reference. R-09 remains Not run until live evidence and review pass.",
-    "",
-  ].join("\n");
-  const row =
-    "| M0-16 | August 15, 2026 | Run one exact-pinned Promptfoo direct prompt-injection case against a local fake agent and normalize its objective, verdict, and evidence reference. |";
-  return {
-    readme: readme.replace(/## Nango proxy proof/, `${section}\n## Nango proxy proof`),
-    tracker: tracker
-      .replace("| Pending | 709 |", "| Pending | 708 |")
-      .replace("| In progress | 0 |", "| In progress | 1 |")
-      .replace("| M0 | 27 | 8 | 0 | 17 | 1 |", "| M0 | 27 | 7 | 1 | 17 | 1 |")
-      .replace("`709/0/17/1`", "`708/1/17/1`")
-      .replace("| --- | --- | --- |\n\n## Complete", `| --- | --- | --- |\n${row}\n\n## Complete`),
-  };
+  expect(riskRows[0]?.[5]).toBe(`PASS — M0-16 — ${completionEvidence}`);
 }
 
 describe("Promptfoo red-team proof repository contract", () => {
@@ -107,54 +90,53 @@ describe("Promptfoo red-team proof repository contract", () => {
     expect(plan).toMatch(/every Critical, Important,\s+and Minor finding tests-first/);
   });
 
-  it("starts only M0-16 and leaves R-09 unadvanced", async () => {
+  it("completes only M0-16 and advances R-09 with reviewed evidence", async () => {
     const tracker = await readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8");
     const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
     const riskRegister = await readFile(resolve(repositoryRoot, "docs/decisions/mvp-risk-register.md"), "utf8");
-    assertM016Active(tracker, readme, riskRegister);
+    assertM016Complete(tracker, readme, riskRegister);
   });
 
   it("rejects duplicate, concurrent, premature-risk, external-target, and aggregate drift", async () => {
     const tracker = await readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8");
     const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
     const riskRegister = await readFile(resolve(repositoryRoot, "docs/decisions/mvp-risk-register.md"), "utf8");
-    const active = activeFixture(tracker, readme);
-    const row = taskRows(active.tracker, "In progress")[0]?.join(" | ");
+    const row = taskRows(tracker, "Complete").find(([task]) => task === "M0-16")?.join(" | ");
 
     expect(row).toBeDefined();
-    expect(() => assertM016Active(active.tracker, active.readme, riskRegister)).not.toThrow();
+    expect(() => assertM016Complete(tracker, readme, riskRegister)).not.toThrow();
     expect(() =>
-      assertM016Active(
-        active.tracker.replace("## Complete\n", `| ${row} |\n\n## Complete\n`),
-        active.readme,
+      assertM016Complete(
+        tracker.replace(`| ${row} |\n`, `| ${row} |\n| ${row} |\n`),
+        readme,
         riskRegister,
       ),
     ).toThrow();
     expect(() =>
-      assertM016Active(
-        active.tracker.replace("## Complete\n", "| M0-17 | August 15, 2026 | Concurrent work. |\n\n## Complete\n"),
-        active.readme,
+      assertM016Complete(
+        tracker.replace("## Complete\n", "| M0-17 | August 15, 2026 | Concurrent work. |\n\n## Complete\n"),
+        readme,
         riskRegister,
       ),
     ).toThrow();
     expect(() =>
-      assertM016Active(
-        active.tracker,
-        active.readme,
-        riskRegister.replace("Not run — M0-16", "PASS — M0-16 — premature"),
+      assertM016Complete(
+        tracker,
+        readme,
+        riskRegister.replace(`PASS — M0-16 — ${completionEvidence}`, "Not run — M0-16"),
       ),
     ).toThrow();
     expect(() =>
-      assertM016Active(
-        active.tracker,
-        active.readme.replace("local fake agent", "external model with a real credential"),
+      assertM016Complete(
+        tracker,
+        readme.replace("local fake agent", "external model with a real credential"),
         riskRegister,
       ),
     ).toThrow();
     expect(() =>
-      assertM016Active(
-        active.tracker.replace("| Pending | 708 |", "| Pending | 707 |"),
-        active.readme,
+      assertM016Complete(
+        tracker.replace("| Complete | 18 |", "| Complete | 17 |"),
+        readme,
         riskRegister,
       ),
     ).toThrow();
