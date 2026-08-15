@@ -31,28 +31,28 @@ Every behavior change follows a witnessed tests-only RED.
 
 ### Task 2: Implement the privacy gateway
 
-- [ ] RED/GREEN closed typed input, deterministic redaction, residual scanning,
+- [x] RED/GREEN closed typed input, deterministic redaction, residual scanning,
   exact OpenRouter request construction, and zero-I/O rejection.
-- [ ] RED/GREEN hostile objects, invalid identity/metadata, bounds, unsupported
+- [x] RED/GREEN hostile objects, invalid identity/metadata, bounds, unsupported
   purpose/model/provider, destination, and sensitive aliases.
 
 ### Task 3: Implement endpoint and response validation
 
-- [ ] RED/GREEN strict request bytes, raw headers, one-request authority, and
+- [x] RED/GREEN strict request bytes, raw headers, one-request authority, and
   OpenRouter-compatible synthetic response.
-- [ ] RED/GREEN strict outer response plus closed structured result schema,
+- [x] RED/GREEN strict outer response plus closed structured result schema,
   identity binding, URL/shell/tool/prose rejection, and response bounds.
 
 ### Task 4: Complete lifecycle and root commands
 
-- [ ] RED/GREEN absolute main/request/cleanup deadlines, cancellation, socket
+- [x] RED/GREEN absolute main/request/cleanup deadlines, cancellation, socket
   drainage, cleanup precedence, panic containment, and fixed output.
-- [ ] Add root test/run commands and README boundary; run the exact local proof.
+- [x] Add root test/run commands and README boundary; run the exact local proof.
 
 ### Task 5: Review, verify, and ship
 
-- [ ] Fix every adversarial review finding tests-first.
-- [ ] Run six focused passes, full pinned repository gates, audit, whitespace,
+- [x] Fix every adversarial review finding tests-first.
+- [x] Run six focused passes, full pinned repository gates, audit, whitespace,
   and redacted secret scans.
 - [ ] Transition only M0-21 to Complete after retained evidence; leave M0-21a
   Pending and R-14 Not run.

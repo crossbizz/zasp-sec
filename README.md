@@ -313,11 +313,27 @@ numeric-loopback port, then accepts only one closed structured explanation
 schema. It reads no `.env`, real credential, hosted endpoint, SDK, proxy,
 profile, or ambient provider/model configuration.
 
-The proof must show that seeded secret and PII material is absent at the
-endpoint, reject residual prohibited data before I/O, and cleanly close its
-retained server under an independent deadline. Root commands will be exposed
-after the tests-first lifecycle exists. M0-21a remains Pending and R-14 remains
-Not run until the separate fixed-action-catalog planner proof passes.
+```bash
+npm run proof:openrouter:test
+npm run proof:openrouter:run
+```
+
+Success is exactly:
+
+```text
+OpenRouter privacy proof passed: explanation=true secret=false pii=false structured=true cleanup=true.
+```
+
+The product gateway constructs one closed request, removes all seeded secret,
+person-name, email, phone, and raw-evidence values, then rejects residual
+prohibited material before I/O. The endpoint and client require exact bounded
+OpenRouter-compatible request/response documents; product state accepts only a
+closed finding-explanation schema. Cleanup closes the retained loopback server
+under an independent deadline, and failures emit only a fixed category line.
+This is local privacy/schema evidence, not hosted OpenRouter availability,
+provider/model quality, production routing, or planner authorization. M0-21a
+remains Pending and R-14 remains Not run until the separate fixed-action-catalog
+planner proof passes.
 
 ## EKS Fargate egress proof
 

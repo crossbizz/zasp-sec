@@ -61,4 +61,22 @@ describe("OpenRouter privacy proof repository contract", () => {
     expect(blocked.filter(([task]) => ["M0-09", "M0-18", "M0-19"].includes(task))).toHaveLength(3);
     expect(risk).toContain("Not run — M0-21/M0-21a");
   });
+
+  it("exposes exact hermetic and local commands with fixed output", async () => {
+    const [packageText, readme] = await Promise.all([
+      readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+    ]);
+    const manifest = JSON.parse(packageText) as { scripts?: Record<string, string> };
+    const proofSection = readme.match(/## OpenRouter privacy proof[\s\S]*?## EKS Fargate egress proof/)?.[0] ?? "";
+
+    expect(manifest.scripts?.["proof:openrouter:test"]).toBe("node --test proofs/openrouter-privacy/*.test.mjs");
+    expect(manifest.scripts?.["proof:openrouter:run"]).toBe("node proofs/openrouter-privacy/run.mjs");
+    expect(proofSection).toContain("npm run proof:openrouter:test");
+    expect(proofSection).toContain("npm run proof:openrouter:run");
+    expect(proofSection).toContain(
+      "OpenRouter privacy proof passed: explanation=true secret=false pii=false structured=true cleanup=true.",
+    );
+    expect(proofSection).toContain("R-14 remains Not run");
+  });
 });

@@ -52,6 +52,8 @@
     "proof:promptfoo:license": "node proofs/promptfoo-redteam/license-audit.mjs",
     "proof:posthog:test": "node --test proofs/posthog-privacy/*.test.mjs",
     "proof:posthog:run": "node proofs/posthog-privacy/run.mjs",
+    "proof:openrouter:test": "node --test proofs/openrouter-privacy/*.test.mjs",
+    "proof:openrouter:run": "node proofs/openrouter-privacy/run.mjs",
     "proof:tetragon:test": "node --test proofs/tetragon-signal/*.test.mjs",
     "proof:tetragon:run": "node proofs/tetragon-signal/run.mjs",
     "proof:aws:iam:test": "cd proofs/aws-cross-account-iam && go test -race -count=1 ./... && node --test run.test.mjs",
