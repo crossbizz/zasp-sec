@@ -33,22 +33,22 @@ compile-time version and has no proxy, listener, policy, or provider dependency.
 
 ### Task 2: Implement the runtime-gateway command tests-first
 
-- [ ] Create `services/runtime-gateway/main_test.go` and `go.mod` before
+- [x] Create `services/runtime-gateway/main_test.go` and `go.mod` before
   production and cover exact output, bounded grammar, invalid values, nil
   output, and writer failure.
-- [ ] Capture genuine compile RED on only the missing command symbols.
-- [ ] Implement `services/runtime-gateway/main.go` and run focused GREEN.
-- [ ] Prove artifact-free build plus exact default and injected execution.
-- [ ] Run five focused passes, race, retained platform/event-ingest regressions,
+- [x] Capture genuine compile RED on only the missing command symbols.
+- [x] Implement `services/runtime-gateway/main.go` and run focused GREEN.
+- [x] Prove artifact-free build plus exact default and injected execution.
+- [x] Run five focused passes, race, retained platform/event-ingest regressions,
   tidy-diff, module verify, vet, full pinned gates, audit, whitespace, and scans;
   commit `feat: add runtime gateway command`.
 
 ### Task 3: Review the complete command
 
-- [ ] Audit deployable/module ownership, version grammar, output, link-time
+- [x] Audit deployable/module ownership, version grammar, output, link-time
   injection, error behavior, no-I/O scope, tests, and status evidence.
-- [ ] Reproduce and fix every concrete finding tests-first.
-- [ ] Run fresh Go/repository/audit/scan gates and record zero findings.
+- [x] Reproduce and fix every concrete finding tests-first.
+- [x] Run fresh Go/repository/audit/scan gates and record zero findings.
 
 ### Task 4: Complete, push, and close M1-01a
 
