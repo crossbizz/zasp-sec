@@ -19,8 +19,11 @@ function assertM014cComplete(tracker: string) {
   const inProgress = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
   const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] ?? "";
   const activeRows = markdownRows(inProgress).slice(2);
-  const completeRows = markdownRows(complete).slice(2).filter(([task]) => task === "M0-14c");
-  expect(activeRows).toHaveLength(0);
+  const allCompleteRows = markdownRows(complete).slice(2);
+  const completeRows = allCompleteRows.filter(([task]) => task === "M0-14c");
+  expect(activeRows).toHaveLength(1);
+  expect(activeRows[0]?.[0]).toBe("M0-15");
+  expect([...activeRows, ...allCompleteRows].filter(([task]) => task === "M0-15")).toHaveLength(1);
   expect(completeRows).toHaveLength(1);
   expect(completeRows[0]?.[1]).toBe("August 15, 2026");
   expect(completeRows[0]?.[2]).toContain("API-key connection");
@@ -102,11 +105,11 @@ describe("Nango API-key proof completion contract", () => {
       "utf8",
     );
 
-    expect(tracker).toContain("| Pending | 710 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 709 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 16 |");
     expect(tracker).toContain("| Blocked | 1 |");
-    expect(tracker).toMatch(/\| M0 \| 27 \| 9 \| 0 \| 16 \| 1 \|/);
+    expect(tracker).toMatch(/\| M0 \| 27 \| 8 \| 1 \| 16 \| 1 \|/);
     assertM014cComplete(tracker);
     expect(tracker).toMatch(/## Complete[\s\S]*?\| M0-14b \| August 15, 2026 \|/);
     expect(tracker).toContain("M0-09 and PROV-01 remain Blocked");

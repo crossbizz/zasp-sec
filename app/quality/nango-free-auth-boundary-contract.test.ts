@@ -32,17 +32,18 @@ function assertM014Complete(tracker: string, readme: string, riskRegister: strin
   expect(section).toContain("M0-15");
   expect(section).toContain("R-08 remains Not run");
 
-  expect(tracker).toContain("| Pending | 710 |");
-  expect(tracker).toContain("| In progress | 0 |");
+  expect(tracker).toContain("| Pending | 709 |");
+  expect(tracker).toContain("| In progress | 1 |");
   expect(tracker).toContain("| Complete | 16 |");
   expect(tracker).toContain("| Blocked | 1 |");
-  expect(tracker).toMatch(/\| M0 \| 27 \| 9 \| 0 \| 16 \| 1 \|/);
-  expect(activeRows).toHaveLength(0);
+  expect(tracker).toMatch(/\| M0 \| 27 \| 8 \| 1 \| 16 \| 1 \|/);
+  expect(activeRows).toHaveLength(1);
+  expect(activeRows[0]?.[0]).toBe("M0-15");
   expect(m014Rows).toHaveLength(1);
   expect(m014Rows[0]?.[1]).toBe("August 15, 2026");
   expect(m014Rows[0]?.[2]).toContain("Auth plus Proxy");
   expect(completeRows.filter(([task]) => ["M0-14a", "M0-14b", "M0-14c"].includes(task))).toHaveLength(3);
-  expect([...activeRows, ...completeRows].filter(([task]) => task === "M0-15")).toHaveLength(0);
+  expect([...activeRows, ...completeRows].filter(([task]) => task === "M0-15")).toHaveLength(1);
   expect(tracker).toContain("M0-09 and PROV-01 remain Blocked");
   expect(tracker).toContain("R-03 remains incomplete");
   expect(tracker).toMatch(
@@ -54,7 +55,7 @@ function assertM014Complete(tracker: string, readme: string, riskRegister: strin
 }
 
 function completedFixture(tracker: string, readme: string) {
-  const activeRow = tracker.split("\n").find((line) => line.startsWith("| M0-14 |"));
+  const activeRow = taskRows(tracker, "In progress").find(([task]) => task === "M0-14")?.join(" | ");
   if (!activeRow) {
     return { tracker, readme };
   }
@@ -66,8 +67,8 @@ function completedFixture(tracker: string, readme: string) {
       .replace("| Complete | 15 |", "| Complete | 16 |")
       .replace("| M0 | 27 | 9 | 1 | 15 | 1 |", "| M0 | 27 | 9 | 0 | 16 | 1 |")
       .replace("`710/1/15/1`", "`710/0/16/1`")
-      .replace(`${activeRow}\n`, "")
-      .replace("\n`PRE-01`, `PRE-02`, and `PROV-01`", `\n${completedRow}\n\n\`PRE-01\`, \`PRE-02\`, and \`PROV-01\``),
+      .replace(`| ${activeRow} |\n`, "")
+      .replace("\n`PRE-01`, `PRE-02`, and `PROV-01`", `\n| ${completedRow} |\n\n\`PRE-01\`, \`PRE-02\`, and \`PROV-01\``),
   };
 }
 
@@ -164,7 +165,7 @@ describe("Nango free Auth boundary contract", () => {
     ).toThrow();
     expect(() =>
       assertM014Complete(
-        completed.tracker.replace("| Pending | 710 |", "| Pending | 709 |"),
+        completed.tracker.replace("| Pending | 709 |", "| Pending | 708 |"),
         completed.readme,
         riskRegister,
       ),

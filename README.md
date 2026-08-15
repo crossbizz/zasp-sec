@@ -279,6 +279,15 @@ R-12 remains Not run until M0-22 proves the separate bounded remote-export and
 exporter-failure boundary. M0-09 and PROV-01 remain Blocked, and R-03 remains
 incomplete.
 
+## Nango proxy proof
+
+M0-15 is In progress. It proves one authenticated provider GET through the
+exact-pinned free self-hosted Nango Proxy surface against a private TLS fixture.
+The product wrapper must retain only scoped opaque references and allowlisted
+normalized response fields; the raw provider token must never enter product
+state or fixed output. R-08 remains Not run until the live lifecycle, cleanup,
+full gates, and review pass.
+
 ## Nango free Auth boundary
 
 M0-14 is Complete. The accepted free self-hosted Nango MVP boundary is

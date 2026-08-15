@@ -19,9 +19,12 @@ function assertM013Complete(tracker: string) {
   const inProgress = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
   const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] ?? "";
   const inProgressRows = markdownRows(inProgress).slice(2);
-  const completeRows = markdownRows(complete).slice(2).filter(([task]) => task === "M0-13");
+  const allCompleteRows = markdownRows(complete).slice(2);
+  const completeRows = allCompleteRows.filter(([task]) => task === "M0-13");
 
-  expect(inProgressRows).toHaveLength(0);
+  expect(inProgressRows).toHaveLength(1);
+  expect(inProgressRows[0]?.[0]).toBe("M0-15");
+  expect([...inProgressRows, ...allCompleteRows].filter(([task]) => task === "M0-15")).toHaveLength(1);
   expect(completeRows).toHaveLength(1);
   expect(completeRows[0]?.[1]).toBe("August 14, 2026");
   expect(completeRows[0]?.[2]).toContain("exact-pinned local OTLP ingest proof");
@@ -84,11 +87,11 @@ describe("OTLP ingest proof contract", () => {
       resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"),
       "utf8",
     );
-    expect(tracker).toContain("| Pending | 710 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 709 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 16 |");
     expect(tracker).toContain("| Blocked | 1 |");
-    expect(tracker).toMatch(/\| M0 \| 27 \| 9 \| 0 \| 16 \| 1 \|/);
+    expect(tracker).toMatch(/\| M0 \| 27 \| 8 \| 1 \| 16 \| 1 \|/);
     assertM013Complete(tracker);
     expect(tracker).toContain("M0-09 and PROV-01 remain Blocked");
     expect(tracker).toContain("R-03 remains incomplete");

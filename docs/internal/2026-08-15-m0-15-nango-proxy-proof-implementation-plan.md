@@ -63,18 +63,18 @@ PostgreSQL 16.0-alpine, Docker CLI, Node test runner, Vitest, Markdown.
   M0 is 27 / 8 / 1 / 16 / 1.
 - R-08 stays exactly `Not run — M0-14a through M0-15`.
 
-- [ ] Write a deterministic filesystem-only Vitest contract that binds the
+- [x] Write a deterministic filesystem-only Vitest contract that binds the
   source task, PRD Auth-plus-Proxy boundary, design, plan, scripts/README
   placeholders, exact one-row status, aggregate arithmetic, M0-14 Complete,
   M0-16 Pending, R-08 Not run, M0-09/PROV-01 Blocked, and R-03 incomplete.
-- [ ] Add hostile mutations for duplicate M0-15, concurrent M0-16, early
+- [x] Add hostile mutations for duplicate M0-15, concurrent M0-16, early
   R-08 PASS, excluded-surface claims, and count drift.
-- [ ] Run focused RED before changing README/tracker. Expected failures are
+- [x] Run focused RED before changing README/tracker. Expected failures are
   only the absent M0-15 README section and active row/count transition.
-- [ ] Add the minimal README In-progress statement and move only M0-15 from
+- [x] Add the minimal README In-progress statement and move only M0-15 from
   Pending to In progress.
-- [ ] Run focused and affected status-contract GREEN under pinned Node/npm.
-- [ ] Run diff and redacted staged scans; commit exact scoped files as
+- [x] Run focused and affected status-contract GREEN under pinned Node/npm.
+- [x] Run diff and redacted staged scans; commit exact scoped files as
   `docs: start M0-15 Nango proxy proof`.
 
 ---

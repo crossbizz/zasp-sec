@@ -19,9 +19,12 @@ function assertM014aComplete(tracker: string) {
   const inProgress = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
   const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] ?? "";
   const activeRows = markdownRows(inProgress).slice(2);
-  const rows = markdownRows(complete).slice(2).filter(([task]) => task === "M0-14a");
+  const completeRows = markdownRows(complete).slice(2);
+  const rows = completeRows.filter(([task]) => task === "M0-14a");
 
-  expect(activeRows).toHaveLength(0);
+  expect(activeRows).toHaveLength(1);
+  expect(activeRows[0]?.[0]).toBe("M0-15");
+  expect([...activeRows, ...completeRows].filter(([task]) => task === "M0-15")).toHaveLength(1);
   expect(rows).toHaveLength(1);
   expect(rows[0]?.[0]).toBe("M0-14a");
   expect(rows[0]?.[1]).toBe("August 14, 2026");
@@ -139,11 +142,11 @@ describe("Nango free boot proof contract", () => {
       "utf8",
     );
 
-    expect(tracker).toContain("| Pending | 710 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 709 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 16 |");
     expect(tracker).toContain("| Blocked | 1 |");
-    expect(tracker).toMatch(/\| M0 \| 27 \| 9 \| 0 \| 16 \| 1 \|/);
+    expect(tracker).toMatch(/\| M0 \| 27 \| 8 \| 1 \| 16 \| 1 \|/);
     assertM014aComplete(tracker);
     expect(tracker).toContain("M0-13");
     expect(tracker).toContain("M0-09 and PROV-01 remain Blocked");
