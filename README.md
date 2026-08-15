@@ -146,7 +146,7 @@ Runnable UI verification command remains unchanged.
 
 ## Product dependency lock
 
-M1-02 is In progress. Direct dependencies of deployable product manifests are
+M1-02 is Complete. Direct dependencies of deployable product manifests are
 recorded with an exact resolved version, SPDX license, internal owner, runtime
 scope, and explicit review state. Validate that inventory with:
 

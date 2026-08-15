@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 693 |
-| In progress | 1 |
-| Complete | 31 |
+| In progress | 0 |
+| Complete | 32 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -24,7 +24,7 @@ In progress, Complete, or Blocked is Pending.
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 0 | 0 | 24 | 3 |
-| M1 | 68 | 60 | 1 | 7 | 0 |
+| M1 | 68 | 60 | 0 | 8 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
 | M3 | 75 | 75 | 0 | 0 | 0 |
@@ -68,14 +68,13 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `693/1/31/3` because
+session configuration. The 728 source-plan counts are `693/0/32/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M1-02 | August 15, 2026 | Adding the exact reviewed product-runtime dependency lock and fail-closed CI validator; M1-01 is Complete and M1-03 remains Pending. |
 
 ## Complete
 
@@ -112,6 +111,7 @@ PROV-01 is excluded from those counts.
 | M1-01b | August 15, 2026 | Created independent dependency-free Python security-worker and Node redteam-worker packages with exact no-op health commands; success/rejection/writer-error tests, six focused runs, retained Go regressions, full repository verification, audit, scans, generated-artifact hardening, and zero-finding review passed without adding worker loops, adapters, providers, queues, graphs, prompts, findings, configuration, credentials, listeners, or network behavior. |
 | M1-01c | August 15, 2026 | Added the dependency-free `apps/web` build boundary around the existing locked runnable UI and the standalone `agentsecctl version` command; exact arguments/version/output, writer failures including short writes, six focused runs, web/CLI/service/worker regressions, full repository verification, audit, scans, and zero-finding review passed without adding preflight, recovery, diagnostics, provider, credential, listener, or network behavior. |
 | M1-01 | August 15, 2026 | Added one dependency-free root build orchestrator for the exact eight completed service, worker, web, and CLI targets; offline/local Go compilation, isolated Python, exact worker results, bounded/fixed output, six focused runs, real artifact-free builds, all target regressions, full repository verification, audit, scans, and zero-finding review passed without dependency downloads or runtime product behavior. |
+| M1-02 | August 15, 2026 | Added one exact reviewed dependency lock for all eight deployable product manifests and five current direct runtime packages; bounded fail-closed validation rejects syntax, manifest, version, license, owner, review, and copyleft drift at the start of the existing CI path, with tests-first adversarial fixes, six focused passes, all product regressions, full repository verification, audit, scans, and zero-finding review. |
 
 `PRE-01`, `PRE-02`, and `PROV-01` do not count as source-plan microtasks.
 
