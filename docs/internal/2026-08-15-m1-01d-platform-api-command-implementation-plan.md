@@ -54,13 +54,13 @@ network listener, configuration input, or product API claim.
 - Modify: `app/quality/platform-api-command-contract.test.ts`
 - Update ignored task report and progress ledgers.
 
-- [ ] Add tests for default/injected exact output, bounded version grammar,
+- [x] Add tests for default/injected exact output, bounded version grammar,
   multiline/control rejection, and writer failure before production exists.
-- [ ] Run genuine compile RED on the missing command symbols.
-- [ ] Implement the minimum command and run focused GREEN.
-- [ ] Build a temporary binary with an injected version and require exact
-  output `agentsec-api build 0.1.0-test.1`.
-- [ ] Run five fresh Go test passes, race, build, tidy-diff, module verify, vet,
+- [x] Run genuine compile RED on the missing command symbols.
+- [x] Implement the minimum command and run focused GREEN.
+- [x] Compile artifact-free with `go build -o /dev/null`, then run with an
+  injected version and require exact output `agentsec-api build 0.1.0-test.1`.
+- [x] Run five fresh Go test passes, race, build, tidy-diff, module verify, vet,
   full pinned repository verification, audit, whitespace, and redacted scans;
   commit `feat: add platform API command`.
 
