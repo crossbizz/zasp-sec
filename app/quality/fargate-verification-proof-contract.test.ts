@@ -104,6 +104,24 @@ describe("EKS Fargate verification proof repository contract", () => {
     expect(design).toContain("EKS Fargate proof passed: scheduled=true canary=true cleanup=true.");
   });
 
+  it("exposes the hermetic test live runner and immutable license audit", async () => {
+	const packageSource = await readFile(resolve(repositoryRoot, "package.json"), "utf8");
+	const packageJson = JSON.parse(packageSource) as { scripts?: Record<string, string> };
+	const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+	const section = readme.match(/## EKS Fargate verification proof[\s\S]*?## OPA SDK proof/)?.[0];
+
+	expect(packageJson.scripts?.["proof:fargate:test"]).toBe(
+	  "cd proofs/fargate-verification && go test -race -count=1 ./... && node --test run.test.mjs license-audit.test.mjs",
+	);
+	expect(packageJson.scripts?.["proof:fargate:run"]).toBe("node proofs/fargate-verification/run.mjs");
+	expect(packageJson.scripts?.["proof:fargate:license"]).toBe("node proofs/fargate-verification/license-audit.mjs");
+	expect(section).toContain("npm run proof:fargate:test");
+	expect(section).toContain("npm run proof:fargate:run");
+	expect(section).toContain("npm run proof:fargate:license");
+	expect(section).toContain("GPL-2.0-only");
+	expect(section).toContain("EKS Fargate proof passed: scheduled=true canary=true cleanup=true.");
+  });
+
   it("rejects duplicate, concurrent, premature-risk, local-authority, and aggregate drift", async () => {
     const tracker = await readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8");
     const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");

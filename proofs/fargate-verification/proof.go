@@ -28,10 +28,13 @@ const (
 	ProofLabelValue           = "m0-18"
 	ProfileSelectorLabelKey   = "zasp.agentsec.dev/fargate"
 	ProfileSelectorLabelValue = "true"
+	FargateProfileLabelKey    = "eks.amazonaws.com/fargate-profile"
 	NamespacePrefix           = "zasp-m018-"
 	CanaryResponse            = "agentsec-attack-lab-canary-v1"
 	CanaryImage               = "registry.k8s.io/e2e-test-images/busybox:1.36.1-1@sha256:a9155b13325b2abef48e71de77bb8ac015412a566829f621d06bfae5c699b1b9"
 	CanaryRuntimeImage        = "registry.k8s.io/e2e-test-images/busybox@sha256:a9155b13325b2abef48e71de77bb8ac015412a566829f621d06bfae5c699b1b9"
+	CanaryRuntimeImageAMD64   = "registry.k8s.io/e2e-test-images/busybox@sha256:caec39cad3b12c26600baf6e67ba811ac15d28a9288d0ccdfffb4b318992c3bb"
+	CanaryRuntimeImageARM64   = "registry.k8s.io/e2e-test-images/busybox@sha256:55c89c6d9404d6668eb237dda92f28a99eb14e640f1c177a55cc9d738c53c303"
 	readAttempts              = 2
 	readBackoff               = 5 * time.Millisecond
 )
@@ -306,7 +309,7 @@ func (life *lifecycle) create(ctx context.Context, resource Resource) (OwnedObje
 		clear(resource.SecretValue)
 		return OwnedObject{}, ErrProvider
 	}
-	owned, reconcileErr := life.reconcileResource(resource)
+	owned, reconcileErr := life.reconcileResource(ctx, resource)
 	clear(resource.SecretValue)
 	if reconcileErr != nil {
 		return OwnedObject{}, reconcileErr
@@ -315,9 +318,7 @@ func (life *lifecycle) create(ctx context.Context, resource Resource) (OwnedObje
 	return owned, nil
 }
 
-func (life *lifecycle) reconcileResource(resource Resource) (OwnedObject, error) {
-	reconcileContext, cancel := context.WithTimeout(context.Background(), life.options.CleanupTimeout)
-	defer cancel()
+func (life *lifecycle) reconcileResource(reconcileContext context.Context, resource Resource) (OwnedObject, error) {
 	for attempt := 0; attempt < readAttempts; attempt++ {
 		state, err := life.options.Boundary.Get(reconcileContext, resourceRef(resource))
 		if err == nil && exactResourceState(resource, state) {
@@ -380,7 +381,12 @@ func providerInRegion(providerID, region string) bool {
 }
 
 func exactCanaryRuntimeImage(value string) bool {
-	return value == CanaryImage || value == CanaryRuntimeImage || value == "docker-pullable://"+CanaryRuntimeImage
+	for _, candidate := range []string{CanaryImage, CanaryRuntimeImage, CanaryRuntimeImageAMD64, CanaryRuntimeImageARM64} {
+		if value == candidate || value == "docker-pullable://"+candidate {
+			return true
+		}
+	}
+	return false
 }
 
 func exactPodLabels(actual, required map[string]string, jobUID, jobName, profileName string) bool {
@@ -388,6 +394,9 @@ func exactPodLabels(actual, required map[string]string, jobUID, jobName, profile
 		if actual[key] != value {
 			return false
 		}
+	}
+	if actual[FargateProfileLabelKey] != profileName {
+		return false
 	}
 	for key, value := range actual {
 		if requiredValue, ok := required[key]; ok {
@@ -405,7 +414,7 @@ func exactPodLabels(actual, required map[string]string, jobUID, jobName, profile
 			if value != jobName {
 				return false
 			}
-		case "eks.amazonaws.com/fargate-profile":
+		case FargateProfileLabelKey:
 			if value != profileName {
 				return false
 			}

@@ -577,6 +577,7 @@ func resourceManifest(resource Resource) ([]byte, error) {
 		document = map[string]any{"apiVersion": "v1", "kind": "Secret", "metadata": metadata, "type": "Opaque", "stringData": map[string]string{"token": string(resource.SecretValue)}}
 	case KindJob:
 		templateLabels := cloneStringMap(resource.Labels)
+		templateLabels[FargateProfileLabelKey] = resource.ProfileName
 		document = map[string]any{
 			"apiVersion": "batch/v1",
 			"kind":       "Job",
@@ -593,13 +594,24 @@ func resourceManifest(resource Resource) ([]byte, error) {
 					"spec": map[string]any{
 						"serviceAccountName":           resource.ServiceAccount,
 						"automountServiceAccountToken": false,
+						"enableServiceLinks":           false,
+						"hostNetwork":                  false,
+						"hostPID":                      false,
+						"hostIPC":                      false,
 						"restartPolicy":                "Never",
-						"securityContext":              map[string]any{"runAsNonRoot": true, "seccompProfile": map[string]string{"type": "RuntimeDefault"}},
+						"securityContext": map[string]any{
+							"runAsNonRoot":   true,
+							"runAsUser":      65534,
+							"runAsGroup":     65534,
+							"fsGroup":        65534,
+							"seccompProfile": map[string]string{"type": "RuntimeDefault"},
+						},
 						"containers": []any{map[string]any{
-							"name":    "canary",
-							"image":   resource.Image,
-							"command": []string{"sh", "-eu", "-c"},
-							"args":    []string{`body="$(wget -qO- --header="Authorization: Bearer ${CANARY_TOKEN}" "${PROXY_URL}")"; test "${body}" = "` + CanaryResponse + `"; printf %s "${body}"`},
+							"name":            "canary",
+							"image":           resource.Image,
+							"imagePullPolicy": "IfNotPresent",
+							"command":         []string{"sh", "-eu", "-c"},
+							"args":            []string{`body="$(wget -qO- --header="Authorization: Bearer ${CANARY_TOKEN}" "${PROXY_URL}")"; test "${body}" = "` + CanaryResponse + `"; printf %s "${body}"`},
 							"env": []any{
 								map[string]any{"name": "PROXY_URL", "value": resource.ProxyURL},
 								map[string]any{"name": "CANARY_TOKEN", "valueFrom": map[string]any{"secretKeyRef": map[string]string{"name": "canary", "key": "token"}}},
@@ -683,7 +695,7 @@ func parseKubernetesObject(data []byte) (ObjectState, error) {
 		return ObjectState{}, err
 	}
 	object, ok := value.(map[string]any)
-	if !ok || !allowedKeys(object, "apiVersion", "kind", "metadata", "spec", "status", "automountServiceAccountToken", "type", "data") {
+	if !ok || !allowedKeys(object, "apiVersion", "kind", "metadata", "spec", "status", "automountServiceAccountToken", "type", "data", "immutable", "imagePullSecrets", "secrets") {
 		return ObjectState{}, ErrProvider
 	}
 	kindName, ok := object["kind"].(string)
@@ -699,7 +711,7 @@ func parseKubernetesObject(data []byte) (ObjectState, error) {
 		return ObjectState{}, ErrProvider
 	}
 	metadata, ok := object["metadata"].(map[string]any)
-	if !ok || !allowedKeys(metadata, "name", "namespace", "uid", "labels", "annotations", "ownerReferences", "resourceVersion", "generation", "creationTimestamp", "managedFields") {
+	if !ok || !allowedKeys(metadata, "name", "generateName", "namespace", "uid", "labels", "annotations", "ownerReferences", "resourceVersion", "generation", "creationTimestamp", "deletionTimestamp", "deletionGracePeriodSeconds", "finalizers", "managedFields", "selfLink") {
 		return ObjectState{}, ErrProvider
 	}
 	state := ObjectState{Kind: kind}
@@ -713,6 +725,14 @@ func parseKubernetesObject(data []byte) (ObjectState, error) {
 	if state.Labels, err = stringMap(metadata["labels"]); err != nil {
 		return ObjectState{}, err
 	}
+	if state.Kind == KindNamespace {
+		if value, exists := state.Labels["kubernetes.io/metadata.name"]; exists {
+			if value != state.Name {
+				return ObjectState{}, ErrProvider
+			}
+			delete(state.Labels, "kubernetes.io/metadata.name")
+		}
+	}
 	annotations, err := stringMap(metadata["annotations"])
 	if err != nil {
 		return ObjectState{}, err
@@ -721,7 +741,7 @@ func parseKubernetesObject(data []byte) (ObjectState, error) {
 	state.ImageID = annotations[imageAnnotationKey]
 	state.ProfileName = annotations[profileAnnotationKey]
 	if state.ProfileName == "" {
-		state.ProfileName = state.Labels["eks.amazonaws.com/fargate-profile"]
+		state.ProfileName = state.Labels[FargateProfileLabelKey]
 	}
 	if owners, exists := metadata["ownerReferences"]; exists {
 		ownerArray, arrayOK := owners.([]any)
@@ -800,7 +820,7 @@ func parseKubernetesList(data []byte, expectedKind ResourceKind) ([]ObjectState,
 		return nil, ErrProvider
 	}
 	metadata, ok := object["metadata"].(map[string]any)
-	if !ok || !allowedKeys(metadata, "resourceVersion", "continue", "remainingItemCount") {
+	if !ok || !allowedKeys(metadata, "resourceVersion", "continue", "remainingItemCount", "selfLink") {
 		return nil, ErrProvider
 	}
 	items, ok := object["items"].([]any)

@@ -104,6 +104,7 @@ func (f *fakeCluster) Create(_ context.Context, resource Resource) (ObjectState,
 			ServiceAccount: "canary",
 			ExitCode:       0,
 		}
+		pod.Labels[FargateProfileLabelKey] = resource.ProfileName
 		f.objects[objectKey(pod.Kind, pod.Namespace, pod.Name)] = pod
 		f.objects[objectKey(KindNode, "", pod.NodeName)] = ObjectState{
 			Kind:        KindNode,

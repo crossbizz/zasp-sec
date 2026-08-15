@@ -73,6 +73,11 @@ The Job uses the already reviewed immutable Kubernetes BusyBox test image:
 
 `registry.k8s.io/e2e-test-images/busybox:1.36.1-1@sha256:a9155b13325b2abef48e71de77bb8ac015412a566829f621d06bfae5c699b1b9`
 
+The Kubernetes image packaging is Apache-2.0 at source commit
+`22d90ebde235edec3541f728b37a01285bdd8b1b`; the mirrored BusyBox 1.36.1
+runtime remains GPL-2.0-only and is not relicensed by that packaging. The audit
+binds the index plus the Linux amd64 and arm64 platform/config digests.
+
 Its fixed script reads the token through `secretKeyRef`, sends exactly one
 bounded HTTPS request to the configured product proxy, compares the raw body
 to `agentsec-attack-lab-canary-v1`, and exits zero only on equality. The Pod

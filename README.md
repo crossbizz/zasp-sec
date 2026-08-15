@@ -288,6 +288,16 @@ to report the Fargate compute type, the canary to receive the exact response
 through the product proxy, and every proof-owned Kubernetes resource to be
 absent after cleanup.
 
+Run the hermetic lifecycle, kubectl-boundary, supervisor, and audit tests with
+`npm run proof:fargate:test`. The inert live entry point is
+`npm run proof:fargate:run`; it rejects at configuration before building or
+contacting a cluster unless all eleven documented real-provider inputs are
+present. Its only success line is
+`EKS Fargate proof passed: scheduled=true canary=true cleanup=true.` Run
+`npm run proof:fargate:license` to bind the immutable multi-platform image,
+Kubernetes mirror commit and Apache-2.0 packaging, and the underlying BusyBox
+1.36.1 GPL-2.0-only runtime. The packaging license does not relicense BusyBox.
+
 The current host has no real-AWS credential, authenticated EKS kubeconfig,
 disposable Fargate profile, product proxy endpoint, or test canary credential,
 so the harness performs no cluster request. LocalStack can exercise generic EKS

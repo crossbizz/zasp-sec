@@ -108,7 +108,6 @@ func (model *kubectlModelRunner) addPodAndNode(job map[string]any, jobUID string
 	podLabels["batch.kubernetes.io/job-name"] = jobMetadata["name"]
 	podLabels["controller-uid"] = jobUID
 	podLabels["job-name"] = jobMetadata["name"]
-	podLabels["eks.amazonaws.com/fargate-profile"] = templateMetadata["annotations"].(map[string]any)[profileAnnotationKey]
 	pod := map[string]any{
 		"apiVersion": "v1",
 		"kind":       "Pod",
@@ -390,6 +389,22 @@ func TestKubectlBoundaryFiltersGlobalNamePrefixAfterBoundedList(t *testing.T) {
 	}
 }
 
+func TestKubernetesNamespaceProjectionBindsAutomaticNameLabel(t *testing.T) {
+	name := NamespacePrefix + strings.Repeat("a", 32)
+	labels := map[string]string{ProofLabelKey: ProofLabelValue, "kubernetes.io/metadata.name": name}
+	state, err := parseKubernetesObject([]byte(stateJSON("Namespace", "", name, "uid-namespace", digest("namespace"), labels)))
+	if err != nil || state.Labels[ProofLabelKey] != ProofLabelValue {
+		t.Fatalf("state=%#v err=%v", state, err)
+	}
+	if _, exists := state.Labels["kubernetes.io/metadata.name"]; exists {
+		t.Fatal("server-owned namespace label crossed the normalized ownership projection")
+	}
+	labels["kubernetes.io/metadata.name"] = "different"
+	if _, err := parseKubernetesObject([]byte(stateJSON("Namespace", "", name, "uid-namespace", digest("namespace"), labels))); !errors.Is(err, ErrProvider) {
+		t.Fatalf("mismatched automatic label error=%v", err)
+	}
+}
+
 func TestKubectlBoundaryRejectsUnsafeConfiguration(t *testing.T) {
 	executable, kubeconfig := writeBoundaryFixture(t)
 	data, err := os.ReadFile(kubeconfig)
@@ -539,5 +554,46 @@ func TestRunProofThroughKubectlBoundary(t *testing.T) {
 		if strings.Contains(joined, string(options.CanaryToken)) {
 			t.Fatal("canary token crossed argv/environment boundary")
 		}
+	}
+}
+
+func TestJobManifestUsesExactRestrictedFargateWorkload(t *testing.T) {
+	labels := map[string]string{ProofLabelKey: ProofLabelValue, RunLabelKey: strings.Repeat("a", 32), ProfileSelectorLabelKey: ProfileSelectorLabelValue}
+	resource := Resource{
+		Kind: KindJob, Namespace: NamespacePrefix + strings.Repeat("a", 32), Name: "canary", Labels: labels,
+		SpecDigest: digest("job"), Image: CanaryImage, ProfileName: "proof-profile", ServiceAccount: "canary",
+		ProxyURL: "https://proxy.example.test/canary",
+	}
+	manifest, err := resourceManifest(resource)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document map[string]any
+	if err := json.Unmarshal(manifest, &document); err != nil {
+		t.Fatal(err)
+	}
+	spec := document["spec"].(map[string]any)["template"].(map[string]any)["spec"].(map[string]any)
+	templateLabels := document["spec"].(map[string]any)["template"].(map[string]any)["metadata"].(map[string]any)["labels"].(map[string]any)
+	if templateLabels[FargateProfileLabelKey] != "proof-profile" {
+		t.Fatalf("Fargate profile label=%#v", templateLabels)
+	}
+	security := spec["securityContext"].(map[string]any)
+	if security["runAsNonRoot"] != true || security["runAsUser"] != float64(65534) || security["runAsGroup"] != float64(65534) || security["fsGroup"] != float64(65534) {
+		t.Fatalf("pod securityContext=%#v", security)
+	}
+	if spec["automountServiceAccountToken"] != false || spec["hostNetwork"] != false || spec["hostPID"] != false || spec["hostIPC"] != false || spec["enableServiceLinks"] != false {
+		t.Fatalf("pod isolation fields=%#v", spec)
+	}
+	containers := spec["containers"].([]any)
+	if len(containers) != 1 {
+		t.Fatalf("containers=%d", len(containers))
+	}
+	container := containers[0].(map[string]any)
+	containerSecurity := container["securityContext"].(map[string]any)
+	if container["image"] != CanaryImage || container["imagePullPolicy"] != "IfNotPresent" || containerSecurity["readOnlyRootFilesystem"] != true || containerSecurity["allowPrivilegeEscalation"] != false {
+		t.Fatalf("container=%#v", container)
+	}
+	if _, exists := spec["volumes"]; exists {
+		t.Fatal("unexpected volumes")
 	}
 }

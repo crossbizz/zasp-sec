@@ -159,25 +159,25 @@ Commit as `feat: add bounded Fargate kubectl boundary`.
 - Modify: `package.json`
 - Modify: `README.md`
 
-- [ ] **Step 1: Write CLI/supervisor RED**
+- [x] **Step 1: Write CLI/supervisor RED**
 
 Require exact capability intake, 10-minute main plus independent 5-minute
 cleanup, async SIGKILL/reap, 16 KiB combined cap, fixed lines, offline build,
 and temp-binary cleanup with retained identity reproof.
 
-- [ ] **Step 2: Implement fixed boundary GREEN**
+- [x] **Step 2: Implement fixed boundary GREEN**
 
 The live command fails at configuration before build/network unless all eleven
 inputs are present. It never prints identifiers, URLs, credentials, kubeconfig,
 provider output, paths, or raw errors.
 
-- [ ] **Step 3: Add root commands and immutable image/license audit**
+- [x] **Step 3: Add root commands and immutable image/license audit**
 
 Expose `proof:fargate:test`, `proof:fargate:run`, and
 `proof:fargate:license`. Bind the exact BusyBox index/platform digests and
 upstream source/license evidence already used by the reviewed Kubernetes proof.
 
-- [ ] **Step 4: Verify and commit**
+- [x] **Step 4: Verify and commit**
 
 Commit as `docs: expose EKS Fargate proof` after all local gates pass.
 

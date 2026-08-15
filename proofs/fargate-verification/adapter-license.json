@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "allowed_licenses": ["Apache-2.0", "GPL-2.0-only"],
+  "image": {
+    "reference": "registry.k8s.io/e2e-test-images/busybox:1.36.1-1@sha256:a9155b13325b2abef48e71de77bb8ac015412a566829f621d06bfae5c699b1b9",
+    "index_digest": "sha256:a9155b13325b2abef48e71de77bb8ac015412a566829f621d06bfae5c699b1b9",
+    "version": "1.36.1-1",
+    "source_commit": "22d90ebde235edec3541f728b37a01285bdd8b1b",
+    "platforms": {
+      "linux/amd64": {
+        "manifest_digest": "sha256:caec39cad3b12c26600baf6e67ba811ac15d28a9288d0ccdfffb4b318992c3bb",
+        "config_digest": "sha256:3e0d9138669908f438c06993e9a6815bbd8c05411b8e9acfc297b3c8b017c28c"
+      },
+      "linux/arm64": {
+        "manifest_digest": "sha256:55c89c6d9404d6668eb237dda92f28a99eb14e640f1c177a55cc9d738c53c303",
+        "config_digest": "sha256:6d0099de92b2a095017ed32499154f16eec2df38f0d2e9192bcf6ae7d241ac75"
+      }
+    }
+  },
+  "components": [
+    {
+      "name": "Kubernetes e2e BusyBox image packaging",
+      "version": "1.36.1-1",
+      "license": "Apache-2.0",
+      "source_repository": "https://github.com/kubernetes/kubernetes",
+      "source_commit": "22d90ebde235edec3541f728b37a01285bdd8b1b",
+      "source_path": "test/images/busybox/Dockerfile",
+      "source_url": "https://raw.githubusercontent.com/kubernetes/kubernetes/22d90ebde235edec3541f728b37a01285bdd8b1b/test/images/busybox/Dockerfile",
+      "source_sha256": "b1a06c7718262b6de2aebb822093dbc4215f980500024ca65d2206341a7a3838",
+      "license_url": "https://raw.githubusercontent.com/kubernetes/kubernetes/22d90ebde235edec3541f728b37a01285bdd8b1b/LICENSE",
+      "license_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "name": "BusyBox runtime",
+      "version": "1.36.1",
+      "license": "GPL-2.0-only",
+      "source_repository": "https://busybox.net",
+      "source_commit": "release-tarball-busybox-1.36.1",
+      "source_path": "busybox-1.36.1.tar.bz2",
+      "source_url": "https://busybox.net/downloads/busybox-1.36.1.tar.bz2",
+      "source_sha256": "b8cc24c9574d809e7279c3be349795c5d5ceb6fdf19ca709f80cde50e47de314",
+      "license_url": "https://raw.githubusercontent.com/mirror/busybox/1_36_1/LICENSE",
+      "license_sha256": "bbfc9843646d483c334664f651c208b9839626891d8f17604db2146962f43548"
+    }
+  ],
+  "boundary": "The Kubernetes Dockerfile is Apache-2.0 packaging that mirrors an upstream BusyBox runtime. BusyBox remains GPL-2.0-only and is not relicensed by Kubernetes or ZASP."
+}
