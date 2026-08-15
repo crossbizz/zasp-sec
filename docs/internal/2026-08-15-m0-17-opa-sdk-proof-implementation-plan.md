@@ -351,13 +351,13 @@ changes to either blocked/incomplete boundary.
 Move only M0-17 to Complete, bind R-10 to the exact report and reviewed proof
 SHA, retain M0-18 Pending, and update all affected historical aggregate tests.
 
-- [ ] **Step 3: Verify, scan, commit, and push**
+- [x] **Step 3: Verify, scan, commit, and push**
 
 Run all final proof/module/repository/audit/license/whitespace/secret gates.
 Commit as `docs: complete M0-17 OPA SDK proof`, push
 `codex/zasp-implementation`, and prove local/tracking/origin SHA equality.
 
-- [ ] **Step 4: Watch exact-SHA Runnable UI**
+- [x] **Step 4: Watch exact-SHA Runnable UI**
 
 Find the Runnable UI run whose `headSha` equals the completion SHA, watch it to
 terminal success, record run/job URLs, and only then proceed to M0-18.
