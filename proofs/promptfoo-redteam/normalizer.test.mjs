@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp, realpath, rename, stat, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, realpath, rename, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -245,8 +245,9 @@ test("rejects semantic, cardinality, identity, and representation drift", async 
   assert.throws(() => normalizePromptfooArtifact(Buffer.alloc(262_145, 32)), TypeError);
 });
 
-test("reads one retained regular file identity and detects replacement", async () => {
+test("reads one retained regular file identity and detects replacement", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "zasp-m0-16-normalizer-"));
+  context.after(() => rm(root, { recursive: true, force: false, maxRetries: 0 }));
   const file = join(root, "promptfoo.json");
   const replacement = join(root, "replacement.json");
   await writeFile(file, artifactBytes(), { mode: 0o600 });
