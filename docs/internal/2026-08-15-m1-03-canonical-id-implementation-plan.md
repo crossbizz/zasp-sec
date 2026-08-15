@@ -25,21 +25,21 @@ types without allowing vendor identity to become a product primary key.
 
 ### Task 2: Implement canonical IDs tests-first
 
-- [ ] Add Go tests before production and capture genuine missing-symbol RED.
-- [ ] Implement opaque product UUIDv4 IDs, strict text behavior, external IDs,
+- [x] Add Go tests before production and capture genuine missing-symbol RED.
+- [x] Implement opaque product UUIDv4 IDs, strict text behavior, external IDs,
   and validating external-source references without third-party dependencies.
-- [ ] Cover entropy failures, canonical grammar, text round trips, invalid
+- [x] Cover entropy failures, canonical grammar, text round trips, invalid
   references, UUID-shaped vendor IDs, and product/external separation.
-- [ ] Run six focused passes, platform/service/worker/root regressions, full
+- [x] Run six focused passes, platform/service/worker/root regressions, full
   repository gates, audit, whitespace, and scans; commit
   `feat: add canonical product IDs`.
 
 ### Task 3: Review the identity boundary
 
-- [ ] Audit randomness, UUID bits, canonical parsing, zero values, text receiver
+- [x] Audit randomness, UUID bits, canonical parsing, zero values, text receiver
   safety, bounds, type separation, API misuse paths, and tests.
-- [ ] Add tests-first fixes for every concrete finding and rerun affected gates.
-- [ ] Record a zero-finding review before completion.
+- [x] Add tests-first fixes for every concrete finding and rerun affected gates.
+- [x] Record a zero-finding review before completion.
 
 ### Task 4: Complete, push, and close M1-03
 
