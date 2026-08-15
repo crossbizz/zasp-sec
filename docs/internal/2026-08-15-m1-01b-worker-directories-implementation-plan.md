@@ -24,13 +24,13 @@ configuration, credential, listener, or network behavior.
 
 ### Task 1: Start M1-01b
 
-- [ ] Add a repository contract binding the source task, deployable ownership,
+- [x] Add a repository contract binding the source task, deployable ownership,
   approved design/plan, unique active status, exact arithmetic, completed
   M1-01a, Pending M1-01c, and unchanged blockers.
-- [ ] Capture focused RED at the still-Pending README/tracker state.
-- [ ] Move only M1-01b to In progress at `696/1/28/3` overall and M1
+- [x] Capture focused RED at the still-Pending README/tracker state.
+- [x] Move only M1-01b to In progress at `696/1/28/3` overall and M1
   `68/63/1/4/0`; document the no-I/O worker skeleton scope.
-- [ ] Run focused/full pinned GREEN, audit, whitespace, and scans; commit
+- [x] Run focused/full pinned GREEN, audit, whitespace, and scans; commit
   `docs: start M1-01b worker directories`.
 
 ### Task 2: Implement both health commands tests-first

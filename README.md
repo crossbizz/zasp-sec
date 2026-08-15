@@ -93,6 +93,22 @@ or OPA evaluator; it loads no runtime configuration, credentials, provider
 state, or policy bundle and claims no gateway readiness. The development build
 uses `dev`; release builds may inject a bounded version at link time.
 
+## Worker package commands
+
+M1-01b is In progress. It creates separate Python security-worker and Node
+redteam-worker package skeletons. Their only intended behavior in this task is
+one exact no-op health result each:
+
+```text
+security-worker health ok
+redteam-worker health ok
+```
+
+These skeletons do not start worker loops, import Cartography, Prowler, or
+Promptfoo adapters, read queues, graphs, prompts, findings, configuration,
+credentials, or provider state, open listeners, or perform network operations.
+Shared liveness and readiness endpoints remain deferred to M1-28.
+
 ## Neon pooled proof
 
 The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,
