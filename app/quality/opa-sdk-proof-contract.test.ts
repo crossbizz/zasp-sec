@@ -35,18 +35,17 @@ function assertM017Complete(tracker: string, readme: string, riskRegister: strin
   expect(section).not.toMatch(/uses an OPA server|customer-facing Rego|external policy service/i);
 
   expect(tracker).toContain("| Pending | 706 |");
-  expect(tracker).toContain("| In progress | 1 |");
+  expect(tracker).toContain("| In progress | 0 |");
   expect(tracker).toContain("| Complete | 19 |");
-  expect(tracker).toContain("| Blocked | 1 |");
-  expect(tracker).toMatch(/\| M0 \| 27 \| 5 \| 1 \| 19 \| 1 \|/);
-  expect(tracker).toContain("`706/1/19/1`");
-  expect(activeRows).toHaveLength(1);
-  expect(activeRows[0]?.[0]).toBe("M0-18");
+  expect(tracker).toContain("| Blocked | 2 |");
+  expect(tracker).toMatch(/\| M0 \| 27 \| 5 \| 0 \| 19 \| 2 \|/);
+  expect(tracker).toContain("`706/0/19/2`");
+  expect(activeRows).toHaveLength(0);
   expect(completeRows.filter(([task]) => task === "M0-17")).toHaveLength(1);
   expect(completeRows.find(([task]) => task === "M0-17")?.[1]).toBe("August 15, 2026");
   expect(completeRows.find(([task]) => task === "M0-17")?.[2]).toContain("OPA Go SDK");
   expect(completeRows.filter(([task]) => task === "M0-16")).toHaveLength(1);
-  expect([...activeRows, ...completeRows].filter(([task]) => task === "M0-18")).toHaveLength(1);
+  expect(tracker.match(/## Blocked[\s\S]*?## Review findings/)?.[0]).toContain("| M0-18 |");
   expect(tracker).toContain("M0-09 and PROV-01 remain Blocked");
   expect(tracker).toContain("R-03 remains incomplete");
 

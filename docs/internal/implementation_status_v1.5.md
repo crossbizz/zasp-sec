@@ -15,15 +15,15 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 706 |
-| In progress | 1 |
+| In progress | 0 |
 | Complete | 19 |
-| Blocked | 1 |
+| Blocked | 2 |
 
 ## Milestone summary
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 5 | 1 | 19 | 1 |
+| M0 | 27 | 5 | 0 | 19 | 2 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -68,14 +68,13 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `706/1/19/1` because
+session configuration. The 728 source-plan counts are `706/0/19/2` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M0-18 | August 15, 2026 | Building the exact real EKS Fargate canary lifecycle, scheduling/canary evidence checks, and fail-closed cleanup harness. Live authority requires an authenticated disposable EKS Fargate profile and product proxy/test credential; LocalStack k3s cannot satisfy the Fargate gate. |
 
 ## Complete
 
@@ -108,11 +107,13 @@ PROV-01 is excluded from those counts.
 | Task | Blocked since | Exact dependency | Resume condition |
 | --- | --- | --- | --- |
 | M0-09 | August 13, 2026 | The reviewed real-AWS harness has none of the nine task-specific inputs and no isolated authenticated two-account fixture. Existing generic AWS values target loopback LocalStack. | Provide the documented isolated commercial-AWS source and target-admin credentials, expected distinct accounts/source principal, region, and exact isolation attestation. |
+| M0-18 | August 15, 2026 | The reviewed harness is locally green, but the capability audit found 0/11 required inputs: no authenticated real EKS kubeconfig, disposable Fargate profile, product proxy endpoint, or canary credential. LocalStack k3s cannot prove AWS-managed Fargate scheduling. | Provide all eleven documented inputs for an isolated disposable real EKS Fargate profile, run the exact live proof, prove cleanup, repeat gates/scans/review, and only then decide R-11. |
 
 The user approved a temporary delivery waiver for a fixture-only Cartography
 normalization proof. M0-10 is Complete without claiming AWS or GitHub
 authorization parity. M0-09 and PROV-01 remain Blocked, and R-03 remains
-incomplete. A zero-finding implementation review does not override the failed
+incomplete. M0-18 is also Blocked on its exact real-provider fixture. A
+zero-finding implementation review does not override the failed
 provider capability gate.
 
 ## Review findings
@@ -264,8 +265,8 @@ provider capability gate.
 - M0-17 is Complete after two consecutive direct final-code OPA Go SDK proofs
   returned deterministic Allow/Block decisions with decision-specific p95 well
   below 10 ms, plus exact dependency/license audits, full gates, scans, and
-  zero-finding whole-range review. R-10 is PASS. M0-18 is In progress.
-- M0-18 is In progress with a real-provider-only Fargate proof boundary. The
+  zero-finding whole-range review. R-10 is PASS. M0-18 is Blocked.
+- M0-18 is Blocked with a reviewed real-provider-only Fargate proof boundary. The
   current capability audit has no real AWS credentials, authenticated EKS
   kubeconfig, disposable Fargate profile, product proxy endpoint, or test
   canary credential, so no cluster request has been made. LocalStack's embedded

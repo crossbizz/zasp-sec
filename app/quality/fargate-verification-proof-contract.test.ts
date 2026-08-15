@@ -17,7 +17,7 @@ function taskRows(tracker: string, heading: "In progress" | "Complete" | "Blocke
   return markdownRows(section).slice(2);
 }
 
-function assertM018Started(tracker: string, readme: string, riskRegister: string) {
+function assertM018Blocked(tracker: string, readme: string, riskRegister: string) {
   const section = readme.match(/## EKS Fargate verification proof[\s\S]*?## OPA SDK proof/)?.[0];
   const activeRows = taskRows(tracker, "In progress");
   const completeRows = taskRows(tracker, "Complete");
@@ -25,22 +25,23 @@ function assertM018Started(tracker: string, readme: string, riskRegister: string
   const riskRows = markdownRows(riskRegister).filter(([id]) => id === "R-11");
 
   expect(section).toBeDefined();
-  expect(section).toContain("M0-18 is In progress");
+  expect(section).toContain("M0-18 is Blocked");
   expect(section).toContain("real EKS Fargate");
   expect(section).toContain("LocalStack");
   expect(section).toMatch(/cannot\s+(prove|satisfy)\s+(the\s+)?Fargate/i);
   expect(section).toContain("R-11 remains Not run");
 
+  expect(section).toContain("0/11 required inputs");
   expect(tracker).toContain("| Pending | 706 |");
-  expect(tracker).toContain("| In progress | 1 |");
+  expect(tracker).toContain("| In progress | 0 |");
   expect(tracker).toContain("| Complete | 19 |");
-  expect(tracker).toContain("| Blocked | 1 |");
-  expect(tracker).toMatch(/\| M0 \| 27 \| 5 \| 1 \| 19 \| 1 \|/);
-  expect(tracker).toContain("`706/1/19/1`");
-  expect(activeRows).toHaveLength(1);
-  expect(activeRows[0]?.[0]).toBe("M0-18");
-  expect(activeRows[0]?.[1]).toBe("August 15, 2026");
-  expect(activeRows[0]?.[2]).toContain("Fargate");
+  expect(tracker).toContain("| Blocked | 2 |");
+  expect(tracker).toMatch(/\| M0 \| 27 \| 5 \| 0 \| 19 \| 2 \|/);
+  expect(tracker).toContain("`706/0/19/2`");
+  expect(activeRows).toHaveLength(0);
+  expect(blockedRows.filter(([task]) => task === "M0-18")).toHaveLength(1);
+  expect(blockedRows.find(([task]) => task === "M0-18")?.[1]).toBe("August 15, 2026");
+  expect(blockedRows.find(([task]) => task === "M0-18")?.[2]).toContain("0/11");
   expect(completeRows.filter(([task]) => task === "M0-17")).toHaveLength(1);
   expect([...activeRows, ...completeRows, ...blockedRows].filter(([task]) => task === "M0-19")).toHaveLength(0);
   expect(blockedRows.filter(([task]) => task === "M0-09")).toHaveLength(1);
@@ -82,11 +83,11 @@ describe("EKS Fargate verification proof repository contract", () => {
     expect(plan).toContain("Every behavior change follows a witnessed tests-only RED");
   });
 
-  it("starts only M0-18 without advancing R-11", async () => {
+  it("blocks M0-18 without advancing R-11", async () => {
     const tracker = await readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8");
     const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
     const riskRegister = await readFile(resolve(repositoryRoot, "docs/decisions/mvp-risk-register.md"), "utf8");
-    assertM018Started(tracker, readme, riskRegister);
+    assertM018Blocked(tracker, readme, riskRegister);
   });
 
   it("records the exact inert capability boundary", async () => {
@@ -126,40 +127,40 @@ describe("EKS Fargate verification proof repository contract", () => {
     const tracker = await readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8");
     const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
     const riskRegister = await readFile(resolve(repositoryRoot, "docs/decisions/mvp-risk-register.md"), "utf8");
-    const activeRow = taskRows(tracker, "In progress").find(([task]) => task === "M0-18")?.join(" | ");
+    const blockedRow = taskRows(tracker, "Blocked").find(([task]) => task === "M0-18")?.join(" | ");
 
-    expect(activeRow).toBeDefined();
-    expect(() => assertM018Started(tracker, readme, riskRegister)).not.toThrow();
+    expect(blockedRow).toBeDefined();
+    expect(() => assertM018Blocked(tracker, readme, riskRegister)).not.toThrow();
     expect(() =>
-      assertM018Started(
-        tracker.replace(`| ${activeRow} |\n`, `| ${activeRow} |\n| ${activeRow} |\n`),
+      assertM018Blocked(
+        tracker.replace(`| ${blockedRow} |\n`, `| ${blockedRow} |\n| ${blockedRow} |\n`),
         readme,
         riskRegister,
       ),
     ).toThrow();
     expect(() =>
-      assertM018Started(
+      assertM018Blocked(
         tracker.replace("## Complete\n", "| M0-19 | August 15, 2026 | Concurrent work. |\n\n## Complete\n"),
         readme,
         riskRegister,
       ),
     ).toThrow();
     expect(() =>
-      assertM018Started(
+      assertM018Blocked(
         tracker,
         readme,
         riskRegister.replace("Not run — M0-18/M0-19", "PASS — M0-18 — local fixture"),
       ),
     ).toThrow();
     expect(() =>
-      assertM018Started(
+      assertM018Blocked(
         tracker,
         readme.replace(/cannot\s+prove\s+Fargate/, "proves Fargate"),
         riskRegister,
       ),
     ).toThrow();
     expect(() =>
-      assertM018Started(tracker.replace("| Pending | 706 |", "| Pending | 705 |"), readme, riskRegister),
+      assertM018Blocked(tracker.replace("| Pending | 706 |", "| Pending | 705 |"), readme, riskRegister),
     ).toThrow();
   });
 });

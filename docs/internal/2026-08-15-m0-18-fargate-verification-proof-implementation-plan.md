@@ -189,17 +189,17 @@ Commit as `docs: expose EKS Fargate proof` after all local gates pass.
 - Modify proof source/tests only for tests-first fixes
 - Create ignored Task 5 report and append both progress ledgers
 
-- [ ] **Step 1: Run adversarial whole-range review**
+- [x] **Step 1: Run adversarial whole-range review**
 
 Review capability intake, kubeconfig identity, manifest secrecy, Fargate
 evidence, mutation classification, ownership, replacement safety, deadlines,
 fixed output, global absence, and immutable dependency evidence.
 
-- [ ] **Step 2: Fix every finding tests-first**
+- [x] **Step 2: Fix every finding tests-first**
 
 Require zero Critical, Important, or Minor findings before the capability gate.
 
-- [ ] **Step 3: Run the safe capability audit**
+- [x] **Step 3: Run the safe capability audit**
 
 Emit booleans/counts only. If any required input is absent, run the root command
 once to prove it fails at configuration before cluster I/O; do not fabricate a
@@ -213,12 +213,12 @@ LocalStack result.
 - Modify completion/blocking contracts, README, tracker, and this plan
 - Create ignored authoritative M0-18 report and append ledgers
 
-- [ ] **Step 1: Execute the live proof only when fully authorized**
+- [x] **Step 1: Execute the live proof only when fully authorized**
 
 Require a preflight global-zero audit, exact live success, product-only evidence
 capture, post-run global-zero audit, and unchanged unrelated cluster resources.
 
-- [ ] **Step 2: Otherwise write blocking RED/GREEN**
+- [x] **Step 2: Otherwise write blocking RED/GREEN**
 
 With the current environment, transition only M0-18 from In progress to
 Blocked at `706/0/19/2`; M0 becomes `27/5/0/19/2`. State the exact missing
