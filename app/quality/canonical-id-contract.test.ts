@@ -38,7 +38,7 @@ describe("M1-03 canonical ID contract", () => {
     expect(plan).toContain("M1-04 remains Pending");
   });
 
-  it("starts only M1-03 after M1-02 completes", async () => {
+  it("completes only M1-03 after the identity boundary passes", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -52,17 +52,18 @@ describe("M1-03 canonical ID contract", () => {
     const m1 = milestones.find(([milestone]) => milestone === "M1");
 
     expect(readme).toContain("M1-02 is Complete");
-    expect(readme).toContain("M1-03 is In progress");
+    expect(readme).toContain("M1-03 is Complete");
     expect(readme).toContain("pid_<canonical-uuid>");
     expect(tracker).toContain("| Pending | 692 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 32 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 33 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`692/1/32/3`");
+    expect(tracker).toContain("`692/0/33/3`");
     expect(m0).toEqual(["M0", "27", "0", "0", "24", "3"]);
-    expect(m1).toEqual(["M1", "68", "59", "1", "8", "0"]);
+    expect(m1).toEqual(["M1", "68", "59", "0", "9", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.filter(([task]) => task === "M1-03")).toHaveLength(1);
+    expect(active).toHaveLength(0);
+    expect(complete.filter(([task]) => task === "M1-03")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-02")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-04")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);

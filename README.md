@@ -161,7 +161,7 @@ locks or proof-specific license records rather than this product-runtime lock.
 
 ## Canonical product identity
 
-M1-03 is In progress. Product-owned primary IDs use the opaque exact text form
+M1-03 is Complete. Product-owned primary IDs use the opaque exact text form
 `pid_<canonical-uuid>` and remain a distinct type from bounded external-source
 references. A vendor ARN, numeric ID, or UUID-shaped vendor ID is never copied,
 hashed, normalized, or parsed into a product primary key. This task adds only
