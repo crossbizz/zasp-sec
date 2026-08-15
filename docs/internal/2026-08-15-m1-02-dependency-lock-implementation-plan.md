@@ -53,7 +53,7 @@ and enforce it in the existing CI verification path.
 - [x] Change only completion expectations and capture focused RED.
 - [x] Move only M1-02 to Complete at `693/0/32/3` and M1
   `68/60/0/8/0`; preserve M0 and all blockers.
-- [ ] Run final gates, commit `docs: complete M1-02 dependency lock`, push, and
+- [x] Run final gates, commit `docs: complete M1-02 dependency lock`, push, and
   watch exact-SHA Runnable UI to success.
-- [ ] Close the plan, record run/job IDs, commit/push the close SHA, watch CI,
+- [x] Close the plan, record run/job IDs, commit/push the close SHA, watch CI,
   then start M1-03.
