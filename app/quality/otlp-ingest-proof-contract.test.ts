@@ -2,6 +2,8 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
+type PackageManifest = { scripts?: Record<string, string> };
+
 const repositoryRoot = resolve(import.meta.dirname, "../..");
 const collectorImage =
   "otel/opentelemetry-collector-contrib:0.158.0@sha256:c5918f78992ee73b0d6f0e599423ac5ec52dd5d9726733114d6eca53d5a32ed5";
@@ -94,5 +96,38 @@ describe("OTLP ingest proof contract", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toHaveLength(6);
     expect(rows[0]?.[5]).toBe("Not run — M0-13/M0-22");
+  });
+
+  it("exposes exact hermetic and disposable live root commands", async () => {
+    const manifest = JSON.parse(
+      await readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+    ) as PackageManifest;
+
+    expect(manifest.scripts?.["proof:otlp:test"]).toBe(
+      "node --test proofs/otlp-ingest/*.test.mjs",
+    );
+    expect(manifest.scripts?.["proof:otlp:run"]).toBe(
+      "node proofs/otlp-ingest/run.mjs",
+    );
+    expect(manifest.scripts?.["proof:otlp:test"]).not.toMatch(/docker|env-file|credential|proxy/i);
+    expect(manifest.scripts?.["proof:otlp:run"]).not.toMatch(/env-file|credential|proxy/i);
+  });
+
+  it("documents the fixed local-only ingest boundary", async () => {
+    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const section = readme.match(/## OTLP ingest proof[\s\S]*?## Tetragon signal proof/)?.[0];
+
+    expect(section).toBeDefined();
+    expect(section).toContain(collectorImage);
+    expect(section).toContain(
+      "OTLP ingest proof passed: traces=1 spans=1 identity=true cleanup=true.",
+    );
+    expect(section).toContain("Node.js `22.23.1` and npm `10.9.8`");
+    expect(section).toContain("loopback-only");
+    expect(section).toContain("remote OTLP export is disabled");
+    expect(section).toContain("raw prompts, tool arguments, credentials, or customer payloads");
+    expect(section).toContain("R-12 remains Not run until M0-22");
+    expect(section).toContain("npm run proof:otlp:test");
+    expect(section).toContain("npm run proof:otlp:run");
   });
 });

@@ -28,6 +28,8 @@
     "proof:prowler:test": "cd proofs/prowler-evidence && node --test normalizer.test.mjs run.test.mjs license-audit.test.mjs && PYTHONDONTWRITEBYTECODE=1 /opt/homebrew/bin/python3.13 -m unittest -v fixture_runner_test.FixtureParsingTests fixture_runner_test.ArtifactBoundaryTests fixture_runner_test.RuntimeTests fixture_runner_test.FileBoundaryTests fixture_runner_test.MainBoundaryTests",
     "proof:prowler:run": "node proofs/prowler-evidence/run.mjs",
     "proof:prowler:license": "node proofs/prowler-evidence/license-audit.mjs",
+    "proof:otlp:test": "node --test proofs/otlp-ingest/*.test.mjs",
+    "proof:otlp:run": "node proofs/otlp-ingest/run.mjs",
     "proof:tetragon:test": "node --test proofs/tetragon-signal/*.test.mjs",
     "proof:tetragon:run": "node proofs/tetragon-signal/run.mjs",
     "proof:aws:iam:test": "cd proofs/aws-cross-account-iam && go test -race -count=1 ./... && node --test run.test.mjs",

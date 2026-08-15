@@ -243,6 +243,38 @@ broad Prowler coverage, LocalStack IAM parity, or production runner behavior.
 R-06 is PASS with the retained reviewed M0-11 live evidence. M0-09 and PROV-01
 remain Blocked, and R-03 remains incomplete.
 
+## OTLP ingest proof
+
+M0-13 provides a local ingest-only proof using Node.js `22.23.1` and npm `10.9.8`.
+The hermetic command validates the source trace, strict product
+adapter, Collector configuration, stable artifact boundary, exact Docker
+ownership, deadlines, fixed output, and cleanup without starting Docker. The
+disposable live command uses this immutable Collector Contrib image:
+
+`otel/opentelemetry-collector-contrib:0.158.0@sha256:c5918f78992ee73b0d6f0e599423ac5ec52dd5d9726733114d6eca53d5a32ed5`
+
+The live lifecycle publishes only the OTLP/HTTP receiver to a random
+loopback-only host port. Its Collector pipeline writes to an exact-owned local
+artifact for the product adapter; remote OTLP export is disabled. The one
+synthetic span carries only bounded Organization, agent, session, task, tool,
+and sandbox identifiers. It carries no raw prompts, tool arguments, credentials, or customer payloads.
+
+```bash
+npm run proof:otlp:test
+npm run proof:otlp:run
+```
+
+Success is exactly:
+
+```text
+OTLP ingest proof passed: traces=1 spans=1 identity=true cleanup=true.
+```
+
+This proof establishes local Collector-to-adapter identity preservation only.
+R-12 remains Not run until M0-22 proves the separate bounded remote-export and
+exporter-failure boundary. M0-09 and PROV-01 remain Blocked, and R-03 remains
+incomplete.
+
 ## Tetragon signal proof
 
 M0-12 is Complete under the approved observation-only design. The two consecutive final-code live runs
