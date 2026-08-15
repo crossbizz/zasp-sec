@@ -281,7 +281,7 @@ incomplete.
 
 ## PostHog privacy proof
 
-M0-20 is In progress. It proves one allowlisted product analytics event against
+M0-20 is Complete. It proves one allowlisted product analytics event against
 a fake PostHog endpoint on a random loopback port. The serializer constructs a
 closed event document and rejects seeded prompt, secret, IP-address, and raw-
 evidence fields before any network request. It reads no `.env`, credential,
@@ -301,9 +301,9 @@ PostHog privacy proof passed: event=true prompt=false secret=false ip=false evid
 Failures are one fixed category line. No raw event, seeded prohibited value,
 URL, port, HTTP body, stack trace, or error reaches output. This local proof
 does not claim hosted PostHog availability, account configuration, feature-
-flag behavior, or production analytics delivery. M0-09, M0-18, M0-19, and
-PROV-01 remain Blocked; R-13 remains Not run and M0-21 remains Pending until
-the exact local proof and review pass.
+flag behavior, or production analytics delivery. The exact local proof,
+privacy rejections, cleanup, gates, scans, and review passed, so R-13 is PASS.
+M0-09, M0-18, M0-19, and PROV-01 remain Blocked; M0-21 remains Pending.
 
 ## EKS Fargate egress proof
 

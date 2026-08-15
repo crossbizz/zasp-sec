@@ -44,14 +44,14 @@ the evidence-backed R-13 decision. Every behavior change follows a witnessed tes
 ### Task 4: Expose root commands and evidence
 
 - [x] Add hermetic test and run commands plus README boundary.
-- [ ] Run the exact local proof and record R-13 only from retained evidence.
+- [x] Run the exact local proof and record R-13 only from retained evidence.
 
 ### Task 5: Review, verify, and ship
 
 - [x] Fix every adversarial review finding tests-first.
 - [x] Run six focused passes, full pinned repository gates, audit, whitespace,
   and redacted secret scans.
-- [ ] Transition M0-20 from In progress to Complete only after the exact proof,
+- [x] Transition M0-20 from In progress to Complete only after the exact proof,
   zero-resource cleanup, and review pass; otherwise Block it explicitly.
-- [ ] Keep M0-21 Pending until the transition, then commit, push, and watch the
-  exact-SHA Runnable UI gate.
+- [x] Keep M0-21 Pending through the transition.
+- [ ] Commit, push, and watch the exact-SHA Runnable UI gate.

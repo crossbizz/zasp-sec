@@ -15,15 +15,15 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 704 |
-| In progress | 1 |
-| Complete | 19 |
+| In progress | 0 |
+| Complete | 20 |
 | Blocked | 3 |
 
 ## Milestone summary
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 3 | 1 | 19 | 3 |
+| M0 | 27 | 3 | 0 | 20 | 3 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -68,14 +68,13 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `704/1/19/3` because
+session configuration. The 728 source-plan counts are `704/0/20/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M0-20 | August 15, 2026 | Building the local allowlist-only PostHog privacy proof with a strict product serializer, one fake loopback capture endpoint, seeded prohibited-field rejection before I/O, fixed output, and exact cleanup. R-13 remains Not run. |
 
 ## Complete
 
@@ -100,6 +99,7 @@ PROV-01 is excluded from those counts.
 | M0-15 | August 15, 2026 | Two consecutive final-code exact-pinned Nango Proxy runs returned one deterministic provider event through the authenticated private Proxy route, retained only scoped references plus allowlisted event ID/action, proved raw provider-token exclusion and exact zero-resource cleanup, passed pinned gates/license/secret scans, and received a zero-finding whole-range review; R-08 is PASS. |
 | M0-16 | August 15, 2026 | Two consecutive final-code exact-pinned Promptfoo runs executed one synthetic direct prompt-injection case against a local fake agent, retained only the objective, vulnerable verdict, and SHA-256 evidence reference, proved exact zero-resource cleanup and shared-resource non-mutation, passed pinned gates/license/secret scans, and received a zero-finding whole-range review; R-09 is PASS. |
 | M0-17 | August 15, 2026 | The exact-pinned official OPA Go SDK prepared one embedded policy query in-process, returned deterministic Allow and Block decisions across 100 warm-ups and 1,000 measured evaluations per decision, kept both decision-specific p95 values below 10 ms, and passed strict malformed-result, cancellation, panic, license, full-gate, secret-scan, and whole-range review checks; R-10 is PASS. |
+| M0-20 | August 15, 2026 | One exact allowlisted analytics event reached a synthetic numeric-loopback PostHog endpoint; seeded prompt, secret, IP, and raw-evidence inputs each failed before network I/O, exact cleanup and fixed output passed, six focused runs plus full pinned repository gates/audit/scans were green, and adversarial review findings were fixed tests-first; R-13 is PASS without a hosted-PostHog delivery claim. |
 
 `PRE-01`, `PRE-02`, and `PROV-01` do not count as source-plan microtasks.
 
@@ -277,5 +277,7 @@ provider capability gate.
   and branch-ENI evidence boundary. The capability audit found 0/19 required
   inputs and the fixed gate rejected before any AWS or cluster request. M0-18
   remains Blocked; R-11 remains Not run and M0-20 is In progress.
-- M0-20 is In progress with a local fake PostHog endpoint and a closed
-  allowlist-only serializer. R-13 remains Not run and M0-21 remains Pending.
+- M0-20 is Complete after its local fake PostHog endpoint received one exact
+  allowlisted event while prompt, secret, IP, and raw-evidence inputs failed
+  before I/O; cleanup, gates, scans, and review passed. R-13 is PASS and M0-21
+  remains Pending.
