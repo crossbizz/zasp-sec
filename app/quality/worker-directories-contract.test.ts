@@ -74,7 +74,8 @@ describe("M1-01b worker directories repository contract", () => {
   });
 
   it("keeps both health commands dependency-free and free of worker I/O", async () => {
-    const [pythonProject, pythonCommand, pythonTest, nodeProject, nodeCommand, nodeTest] = await Promise.all([
+    const [gitignore, pythonProject, pythonCommand, pythonTest, nodeProject, nodeCommand, nodeTest] = await Promise.all([
+      readFile(resolve(repositoryRoot, ".gitignore"), "utf8"),
       readFile(resolve(repositoryRoot, "workers/security-python/pyproject.toml"), "utf8"),
       readFile(resolve(repositoryRoot, "workers/security-python/security_worker/__main__.py"), "utf8"),
       readFile(resolve(repositoryRoot, "workers/security-python/tests/test_health.py"), "utf8"),
@@ -91,6 +92,8 @@ describe("M1-01b worker directories repository contract", () => {
     };
 
     expect(pythonProject).toContain('name = "zasp-security-worker"');
+    expect(gitignore).toContain("__pycache__/");
+    expect(gitignore).toContain("*.py[cod]");
     expect(pythonProject).toContain('requires-python = ">=3.13,<3.14"');
     expect(pythonProject).toContain("dependencies = []");
     expect(pythonProject).toContain('security-worker = "security_worker.__main__:cli"');
