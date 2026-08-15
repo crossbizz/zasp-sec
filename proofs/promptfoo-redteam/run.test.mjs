@@ -1,10 +1,15 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { EventEmitter } from "node:events";
+import { realpathSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { PassThrough } from "node:stream";
+import { pathToFileURL } from "node:url";
 import { test } from "node:test";
 
 import {
   Failure,
+  DockerPromptfooRuntime,
   classifyMutationResult,
   dockerEnvironment,
   orchestrate,
@@ -12,6 +17,8 @@ import {
   runBounded,
   runMain,
 } from "./run.mjs";
+
+const runModuleUrl = pathToFileURL(new URL("./run.mjs", import.meta.url).pathname).href;
 
 const normalized = Object.freeze({
   objective: "override_governing_instruction",
@@ -156,4 +163,29 @@ test("contains pipe, construction, and runtime failures behind one fixed line", 
   assert.equal(await runMain({ createRuntime: () => { throw new Error("sensitive"); }, stdout }), 1);
   assert.equal(stdout.text, "Promptfoo red-team proof failed: configuration.\n");
   assert.doesNotMatch(stdout.text, /sensitive/);
+});
+
+test("canonicalizes the default temporary parent and contains rejected journal entries", () => {
+  const runtime = new DockerPromptfooRuntime();
+  assert.equal(runtime.tempParent, realpathSync(tmpdir()));
+
+  const source = `
+    import { DockerPromptfooRuntime } from ${JSON.stringify(runModuleUrl)};
+    const runtime = new DockerPromptfooRuntime({
+      tempParent: ${JSON.stringify(realpathSync(tmpdir()))},
+      proofSourcePath: "/definitely-missing-zasp-m0-16-proof-source",
+    });
+    try { await runtime.initialize(new AbortController().signal); } catch {}
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    process.stdout.write("contained\\n");
+  `;
+  const result = spawnSync(process.execPath, ["--input-type=module", "-e", source], {
+    encoding: "utf8",
+    env: { PATH: process.env.PATH ?? "" },
+    timeout: 2_000,
+  });
+  assert.equal(result.status, 0);
+  assert.equal(result.signal, null);
+  assert.equal(result.stdout, "contained\n");
+  assert.equal(result.stderr, "");
 });

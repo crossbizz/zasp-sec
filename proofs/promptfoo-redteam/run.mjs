@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { spawn } from "node:child_process";
+import { realpathSync } from "node:fs";
 import { readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, resolve } from "node:path";
@@ -209,7 +210,7 @@ export class DockerPromptfooRuntime {
   constructor(dependencies = {}) {
     this.spawnProcess = dependencies.spawnProcess ?? spawn;
     this.environment = dependencies.environment ?? process.env;
-    this.tempParent = dependencies.tempParent ?? tmpdir();
+    this.tempParent = dependencies.tempParent ?? realpathSync(tmpdir());
     this.proofSourcePath = dependencies.proofSourcePath ?? dirname(fileURLToPath(import.meta.url));
     this.randomSource = dependencies.randomSource ?? randomBytes;
     this.workspace = undefined;
@@ -491,7 +492,10 @@ export class DockerPromptfooRuntime {
   #journal(promise) {
     const tracked = Promise.resolve(promise);
     this.mutations.add(tracked);
-    tracked.finally(() => this.mutations.delete(tracked));
+    tracked.then(
+      () => this.mutations.delete(tracked),
+      () => this.mutations.delete(tracked),
+    );
     return tracked;
   }
 
