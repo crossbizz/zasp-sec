@@ -31,21 +31,21 @@ Every behavior change follows a witnessed tests-only RED.
 
 ### Task 2: Implement request and catalog boundary
 
-- [ ] RED/GREEN exact separated system/goal/untrusted-evidence/catalog/scope
+- [x] RED/GREEN exact separated system/goal/untrusted-evidence/catalog/scope
   request with closed schemas and zero ambient/provider authority.
-- [ ] RED/GREEN hostile object, alias, duplicate, bound, identity, catalog,
+- [x] RED/GREEN hostile object, alias, duplicate, bound, identity, catalog,
   scope, destination, and injection-field handling.
 
 ### Task 3: Implement plan validation and lifecycle
 
-- [ ] RED/GREEN strict OpenRouter response and exact two-step plan validation.
-- [ ] RED/GREEN new action/argument, arbitrary URL/shell/tool, out-of-scope ID,
+- [x] RED/GREEN strict OpenRouter response and exact two-step plan validation.
+- [x] RED/GREEN new action/argument, arbitrary URL/shell/tool, out-of-scope ID,
   order/count, model, parser, header, deadline, cleanup, and fixed-output cases.
 
 ### Task 4: Expose root commands and evidence
 
-- [ ] Add hermetic test/run scripts and README boundary.
-- [ ] Run exact local proof and record R-14 only from combined M0-21/M0-21a
+- [x] Add hermetic test/run scripts and README boundary.
+- [x] Run exact local proof and record R-14 only from combined M0-21/M0-21a
   retained evidence.
 
 ### Task 5: Review, verify, and ship

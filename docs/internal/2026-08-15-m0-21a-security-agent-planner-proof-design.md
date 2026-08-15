@@ -7,7 +7,7 @@ Date: August 15, 2026
 Prove the planner-only boundary with standard-library Node and a synthetic
 OpenRouter-compatible server on a random numeric loopback port. The proof uses
 no hosted model, OpenRouter credential, SDK, `.env`, proxy, profile, or ambient
-provider setting. It has no executable tool, general network access, or
+provider setting. It has no executable tool, no general network access, and
 no general shell authority.
 
 The planner sees a fixed system policy, one bounded operator goal, one explicitly

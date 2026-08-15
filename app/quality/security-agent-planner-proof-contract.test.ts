@@ -62,4 +62,16 @@ describe("Security Agent planner boundary repository contract", () => {
     expect(blocked.filter(([task]) => ["M0-09", "M0-18", "M0-19"].includes(task))).toHaveLength(3);
     expect(risk).toContain("Not run — M0-21/M0-21a");
   });
+
+  it("exposes hermetic root test and run commands only after the proof exists", async () => {
+    const [packageJson, readme] = await Promise.all([
+      readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+    ]);
+    const scripts = JSON.parse(packageJson).scripts;
+    expect(scripts["proof:planner:test"]).toBe("node --test proofs/security-agent-planner/*.test.mjs");
+    expect(scripts["proof:planner:run"]).toBe("node proofs/security-agent-planner/run.mjs");
+    expect(readme).toContain("npm run proof:planner:test");
+    expect(readme).toContain("npm run proof:planner:run");
+  });
 });

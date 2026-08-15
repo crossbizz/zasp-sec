@@ -333,7 +333,7 @@ under an independent deadline, and failures emit only a fixed category line.
 This is local privacy/schema evidence, not hosted OpenRouter availability,
 provider/model quality, production routing, or planner authorization. The exact
 proof, seeded-value absence, strict structured validation, cleanup, gates,
-audit, scans, and adversarial review passed. M0-21a remains Pending.
+audit, scans, and adversarial review passed. M0-21a is In progress.
 R-14 remains Not run until the separate fixed-action-catalog planner proof passes.
 
 ## Security Agent planner boundary proof
@@ -346,7 +346,20 @@ catalog actions and in-scope identifiers.
 
 The proof has no hosted model, real credential, SDK, dotenv, proxy, profile,
 arbitrary network target, general shell, or execution authority. Root commands
-will be exposed after the tests-first lifecycle exists. R-14 remains Not run;
+are hermetic and contact only the retained numeric-loopback fake endpoint:
+
+```bash
+npm run proof:planner:test
+npm run proof:planner:run
+```
+
+Success is exactly:
+
+```text
+Security Agent planner proof passed: catalog=true scope=true injection=false url=false shell=false cleanup=true.
+```
+
+R-14 remains Not run until the proof, gates, and adversarial review pass;
 M0-22 remains Pending.
 
 ## EKS Fargate egress proof
