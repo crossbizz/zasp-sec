@@ -29,8 +29,15 @@ func run(output io.Writer, arguments []string, version string) error {
 	if output == nil {
 		return errOutputUnavailable
 	}
-	_, err := io.WriteString(output, "agentsecctl version "+version+"\n")
-	return err
+	line := "agentsecctl version " + version + "\n"
+	written, err := io.WriteString(output, line)
+	if err != nil {
+		return err
+	}
+	if written != len(line) {
+		return io.ErrShortWrite
+	}
+	return nil
 }
 
 func validBuildVersion(version string) bool {

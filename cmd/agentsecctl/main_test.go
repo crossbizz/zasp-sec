@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"errors"
+	"io"
 	"strings"
 	"testing"
 )
@@ -96,6 +97,14 @@ func TestRunReturnsWriterFailure(t *testing.T) {
 	}
 }
 
+func TestRunRejectsShortWrite(t *testing.T) {
+	t.Parallel()
+
+	if err := run(shortWriter{}, []string{"version"}, "dev"); !errors.Is(err, io.ErrShortWrite) {
+		t.Fatalf("run() error = %v, want io.ErrShortWrite", err)
+	}
+}
+
 func TestRunRejectsNilWriter(t *testing.T) {
 	t.Parallel()
 
@@ -114,6 +123,12 @@ func TestDefaultBuildVersion(t *testing.T) {
 
 type errorWriter struct {
 	err error
+}
+
+type shortWriter struct{}
+
+func (shortWriter) Write(value []byte) (int, error) {
+	return len(value) - 1, nil
 }
 
 func (w errorWriter) Write([]byte) (int, error) {

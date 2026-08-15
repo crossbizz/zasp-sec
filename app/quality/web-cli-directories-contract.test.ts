@@ -90,7 +90,7 @@ describe("M1-01c web and CLI directories repository contract", () => {
     });
     expect(webFiles.sort()).toEqual(["README.md", "package.json"]);
     expect(goModule).toBe("module github.com/zasp-ai/zasp-sec/cmd/agentsecctl\n\ngo 1.25.0\n");
-    expect(cliSource).toContain('"agentsecctl version "+version+"\\n"');
+    expect(cliSource).toContain('"agentsecctl version " + version + "\\n"');
     for (const forbidden of ["os.Getenv", "net/http", "net.Listen", "AWS_", "KUBECONFIG", "STYTCH_"]) {
       expect(cliSource).not.toContain(forbidden);
     }

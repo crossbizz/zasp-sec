@@ -46,10 +46,10 @@ deployment, listener, network, or customer-data behavior.
 
 ### Task 3: Review both deployable boundaries
 
-- [ ] Audit web delegation, dependency/lock ownership, CLI module ownership,
+- [x] Audit web delegation, dependency/lock ownership, CLI module ownership,
   exact argument/version/output/error behavior, no-I/O scope, and tests.
-- [ ] Reproduce and fix every concrete finding tests-first.
-- [ ] Run fresh web/CLI/repository/audit/scan gates and record zero findings.
+- [x] Reproduce and fix every concrete finding tests-first.
+- [x] Run fresh web/CLI/repository/audit/scan gates and record zero findings.
 
 ### Task 4: Complete, push, and close M1-01c
 
