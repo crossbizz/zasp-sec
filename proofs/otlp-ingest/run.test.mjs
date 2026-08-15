@@ -18,6 +18,7 @@ import {
   validateContainerDocument,
   validateReadinessResponse,
   validateSubmissionResponse,
+  validateTemporaryPrefixEntries,
 } from "./run.mjs";
 
 const marker = "0123456789abcdef";
@@ -171,6 +172,15 @@ test("allows only PATH and exact-owned DOCKER_CONFIG into Docker commands", () =
   for (const values of [["", "/safe/docker"], ["/safe/bin", "relative"], [null, "/safe/docker"]]) {
     assert.throws(() => buildDockerEnvironment(...values));
   }
+});
+
+test("rejects stale M0-13 temporary roots across every prior marker", () => {
+  assert.doesNotThrow(() => validateTemporaryPrefixEntries(["foreign", "zasp-m0-12-old"]));
+  for (const entry of [
+    "zasp-m0-13-config-ffffffffffffffff",
+    "zasp-m0-13-output-0000000000000000",
+    "zasp-m0-13-docker-not-a-marker",
+  ]) assert.throws(() => validateTemporaryPrefixEntries([entry]));
 });
 
 test("classifies only thrown, signaled, or malformed-zero creates as ambiguous", () => {

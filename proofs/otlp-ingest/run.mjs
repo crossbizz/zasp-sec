@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { chmod, lstat, mkdir, realpath, rm, writeFile } from "node:fs/promises";
+import { chmod, lstat, mkdir, readdir, realpath, rm, writeFile } from "node:fs/promises";
 import { request } from "node:http";
 import { tmpdir } from "node:os";
 import { basename, isAbsolute, join } from "node:path";
@@ -45,6 +45,16 @@ export function buildDockerEnvironment(pathValue, dockerConfig) {
     throw new TypeError("DOCKER_CONFIG is invalid");
   }
   return { PATH: pathValue, DOCKER_CONFIG: dockerConfig };
+}
+
+export function validateTemporaryPrefixEntries(entries) {
+  if (!Array.isArray(entries) || entries.some((entry) => typeof entry !== "string")) {
+    throw new TypeError("temporary prefix entries are invalid");
+  }
+  if (entries.some((entry) => entry.startsWith(namePrefix))) {
+    throw new TypeError("stale M0-13 temporary root exists");
+  }
+  return true;
 }
 
 export function buildDockerCreateArguments(expected) {
@@ -373,7 +383,7 @@ export class DockerCollectorRuntime {
     this.gid = options.gid ?? process.getgid?.();
     this.marker = options.marker ?? randomBytes(8).toString("hex");
     this.spawn = options.spawn ?? spawnSync;
-    this.io = options.io ?? { chmod, lstat, mkdir, realpath, rm, writeFile };
+    this.io = options.io ?? { chmod, lstat, mkdir, readdir, realpath, rm, writeFile };
     this.httpRequest = options.httpRequest ?? request;
     if (
       typeof this.path !== "string" || this.path.length === 0 ||
@@ -392,6 +402,7 @@ export class DockerCollectorRuntime {
   async initialize() {
     const parentCanonical = await this.io.realpath(this.parent);
     this.parent = parentCanonical;
+    validateTemporaryPrefixEntries(await this.io.readdir(this.parent));
     for (const [key, prefix] of [
       ["config", `${namePrefix}config-`],
       ["output", `${namePrefix}output-`],
@@ -565,6 +576,11 @@ export class DockerCollectorRuntime {
       } catch (error) {
         if (firstError === undefined) firstError = error;
       }
+    }
+    try {
+      validateTemporaryPrefixEntries(await this.io.readdir(this.parent));
+    } catch (error) {
+      if (firstError === undefined) firstError = error;
     }
     if (firstError !== undefined) throw firstError;
   }
