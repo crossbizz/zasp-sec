@@ -64,20 +64,20 @@ describe("M1-01 repository skeleton contract", () => {
     expect(readme).toContain("M1-01 is Complete");
     expect(readme).toContain("npm run build:repo");
     expect(readme).toContain("does not install or download dependencies");
-    expect(tracker).toContain("| Pending | 694 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 693 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 31 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`694/0/31/3`");
+    expect(tracker).toContain("`693/1/31/3`");
     expect(m0).toEqual(["M0", "27", "0", "0", "24", "3"]);
-    expect(m1).toEqual(["M1", "68", "61", "0", "7", "0"]);
+    expect(m1).toEqual(["M1", "68", "60", "1", "7", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active).toHaveLength(0);
+    expect(active).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-01")).toHaveLength(1);
     for (const child of ["M1-01d", "M1-01e", "M1-01f", "M1-01a", "M1-01b", "M1-01c"]) {
       expect(complete.filter(([task]) => task === child)).toHaveLength(1);
     }
-    expect([...active, ...complete].filter(([task]) => task === "M1-02")).toHaveLength(0);
+    expect([...active, ...complete].filter(([task]) => task === "M1-02")).toHaveLength(1);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
     expect(tracker).toContain("R-03 remains incomplete");
     expect(tracker).toContain("R-11 remains Not run");

@@ -18,13 +18,13 @@ and enforce it in the existing CI verification path.
 
 ### Task 1: Start M1-02
 
-- [ ] Add a repository contract binding the source, design, plan, completed
+- [x] Add a repository contract binding the source, design, plan, completed
   M1-01, initial dependency inventory, unique active status, arithmetic, and
   retained blockers.
-- [ ] Capture focused RED at the still-Pending README/tracker state.
-- [ ] Move only M1-02 to In progress at `693/1/31/3` overall and M1
+- [x] Capture focused RED at the still-Pending README/tracker state.
+- [x] Move only M1-02 to In progress at `693/1/31/3` overall and M1
   `68/60/1/7/0`; document the dependency-check command and scope.
-- [ ] Run focused/full pinned GREEN, audit, whitespace, and scans; commit
+- [x] Run focused/full pinned GREEN, audit, whitespace, and scans; commit
   `docs: start M1-02 dependency lock`.
 
 ### Task 2: Implement the lock and validator tests-first
