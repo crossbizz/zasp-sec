@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 706 |
-| In progress | 0 |
+| Pending | 705 |
+| In progress | 1 |
 | Complete | 19 |
 | Blocked | 2 |
 
@@ -23,7 +23,7 @@ In progress, Complete, or Blocked is Pending.
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 5 | 0 | 19 | 2 |
+| M0 | 27 | 4 | 1 | 19 | 2 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -68,13 +68,14 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `706/0/19/2` because
+session configuration. The 728 source-plan counts are `705/1/19/2` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M0-19 | August 15, 2026 | Building the real EKS Security Groups for Pods egress proof with exact EC2 rule/ENI evidence, direct-deny and proxy-allow canary checks, and fail-closed cleanup. M0-18 remains Blocked and LocalStack cannot authorize success. |
 
 ## Complete
 
@@ -271,3 +272,6 @@ provider capability gate.
   kubeconfig, disposable Fargate profile, product proxy endpoint, or test
   canary credential, so no cluster request has been made. LocalStack's embedded
   k3s/k3d EKS compatibility cannot advance M0-18 or R-11.
+- M0-19 is In progress with a real-provider-only Security Groups for Pods and
+  branch-ENI evidence boundary. M0-18 remains Blocked; R-11 remains Not run and
+  M0-20 remains Pending.

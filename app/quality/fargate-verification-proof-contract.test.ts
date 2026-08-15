@@ -32,18 +32,19 @@ function assertM018Blocked(tracker: string, readme: string, riskRegister: string
   expect(section).toContain("R-11 remains Not run");
 
   expect(section).toContain("0/11 required inputs");
-  expect(tracker).toContain("| Pending | 706 |");
-  expect(tracker).toContain("| In progress | 0 |");
+  expect(tracker).toContain("| Pending | 705 |");
+  expect(tracker).toContain("| In progress | 1 |");
   expect(tracker).toContain("| Complete | 19 |");
   expect(tracker).toContain("| Blocked | 2 |");
-  expect(tracker).toMatch(/\| M0 \| 27 \| 5 \| 0 \| 19 \| 2 \|/);
-  expect(tracker).toContain("`706/0/19/2`");
-  expect(activeRows).toHaveLength(0);
+  expect(tracker).toMatch(/\| M0 \| 27 \| 4 \| 1 \| 19 \| 2 \|/);
+  expect(tracker).toContain("`705/1/19/2`");
+  expect(activeRows).toHaveLength(1);
+  expect(activeRows[0]?.[0]).toBe("M0-19");
   expect(blockedRows.filter(([task]) => task === "M0-18")).toHaveLength(1);
   expect(blockedRows.find(([task]) => task === "M0-18")?.[1]).toBe("August 15, 2026");
   expect(blockedRows.find(([task]) => task === "M0-18")?.[2]).toContain("0/11");
   expect(completeRows.filter(([task]) => task === "M0-17")).toHaveLength(1);
-  expect([...activeRows, ...completeRows, ...blockedRows].filter(([task]) => task === "M0-19")).toHaveLength(0);
+  expect([...activeRows, ...completeRows, ...blockedRows].filter(([task]) => task === "M0-19")).toHaveLength(1);
   expect(blockedRows.filter(([task]) => task === "M0-09")).toHaveLength(1);
   expect(tracker).toContain("M0-09 and PROV-01 remain Blocked");
   expect(tracker).toContain("R-03 remains incomplete");
@@ -160,7 +161,7 @@ describe("EKS Fargate verification proof repository contract", () => {
       ),
     ).toThrow();
     expect(() =>
-      assertM018Blocked(tracker.replace("| Pending | 706 |", "| Pending | 705 |"), readme, riskRegister),
+      assertM018Blocked(tracker.replace("| Pending | 705 |", "| Pending | 704 |"), readme, riskRegister),
     ).toThrow();
   });
 });

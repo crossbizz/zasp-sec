@@ -279,6 +279,22 @@ R-12 remains Not run until M0-22 proves the separate bounded remote-export and
 exporter-failure boundary. M0-09 and PROV-01 remain Blocked, and R-03 remains
 incomplete.
 
+## EKS Fargate egress proof
+
+M0-19 is In progress. It is building the second half of R-11 against real EKS
+Security Groups for Pods: one exact `SecurityGroupPolicy`, a pre-provisioned
+read-only restricted Pod security group, and one fresh Fargate canary Job. The
+required evidence is direct undeclared HTTPS failure, the same named canary
+through the product egress proxy, exact EC2 security-group rules, exact Pod ENI
+attachment, and reverse zero-resource cleanup.
+
+This is a real EKS Security Groups for Pods proof boundary.
+
+The current host has no authenticated disposable real EKS/EC2 fixture or
+product proxy credential. LocalStack cannot provide AWS-managed Fargate,
+branch-ENI, or Security Groups for Pods authority and cannot emit success.
+M0-18 remains Blocked, R-11 remains Not run, and M0-20 remains Pending.
+
 ## EKS Fargate verification proof
 
 M0-18 is Blocked. The reviewed fail-closed harness is ready for one canary Job
@@ -303,7 +319,7 @@ authenticated EKS kubeconfig, disposable Fargate profile, product proxy
 endpoint, or test canary credential, so the harness performs no cluster
 request. LocalStack can exercise generic EKS
 and Kubernetes compatibility with embedded k3s/k3d nodes, but it cannot prove
-Fargate. R-11 remains Not run; M0-19 remains Pending. M0-09 and PROV-01 remain
+Fargate. R-11 remains Not run; M0-19 is In progress. M0-09 and PROV-01 remain
 Blocked, and R-03 remains incomplete.
 
 ## OPA SDK proof
