@@ -11,14 +11,21 @@ import {
   DockerKindSystem,
   Failure,
   buildHelmInstallArguments,
+  buildEventCaptureArguments,
+  buildKprobeEventCaptureArguments,
   buildKindCreateArguments,
+  buildNodeImagePullArguments,
   buildNetworkCreateArguments,
   buildToolEnvironment,
   classifyMutationOutcome,
   fixtureTriggerCommands,
+  exactMissingDockerObject,
+  exactMissingTetragonLog,
+  fixtureSettleMilliseconds,
   orchestrate,
   runBounded,
   runMain,
+  validateTetragonHealthPod,
 } from "./run.mjs";
 
 const marker = "0123456789abcdef";
@@ -145,11 +152,12 @@ test("locks fixed output and failure categories", () => {
     "ownership",
     "provider",
   ]);
+  assert.equal(fixtureSettleMilliseconds, 30_000);
 });
 
 test("builds exact network, kind, Helm, and fixture command arguments", () => {
   assert.deepEqual(buildNetworkCreateArguments(names.cluster, marker), [
-    "network", "create", "--driver", "bridge", "--internal",
+    "network", "create", "--driver", "bridge",
     "--label", "zasp.dev/proof=m0-12", "--label", `zasp.dev/run=${marker}`,
     names.cluster,
   ]);
@@ -176,6 +184,47 @@ test("builds exact network, kind, Helm, and fixture command arguments", () => {
     ["exec", "--namespace", names.namespace, names.workloadPod, "--", "/bin/sh", "-c", "printf zasp-m0-12 > /tmp/zasp-m0-12-proof.txt && cat /tmp/zasp-m0-12-proof.txt >/dev/null"],
     ["exec", "--namespace", names.namespace, names.workloadPod, "--", "/bin/nc", "-w", "2", "10.96.0.23", "18080"],
   ]);
+  assert.deepEqual(buildEventCaptureArguments("tetragon-fixture"), [
+    "exec", "--namespace", "kube-system", "tetragon-fixture", "--container",
+    "tetragon", "--", "/bin/cat", "/var/run/cilium/tetragon/tetragon.log",
+  ]);
+  assert.deepEqual(buildNodeImagePullArguments("a".repeat(64), "linux/arm64", "registry.invalid/image@sha256:fixture"), [
+    "exec", "a".repeat(64), "ctr", "--namespace", "k8s.io", "images", "pull",
+    "--platform", "linux/arm64", "registry.invalid/image@sha256:fixture",
+  ]);
+  assert.deepEqual(buildKprobeEventCaptureArguments("tetragon-fixture", names), [
+    "exec", "--namespace", "kube-system", "tetragon-fixture", "--container", "tetragon",
+    "--", "/bin/sh", "-c",
+    "set -eu\n/usr/bin/tetra getevents --server-address unix:///var/run/tetragon/tetragon.sock --event-types PROCESS_KPROBE --policy-names \"$1\" --policy-names \"$2\" --output json &\ncapture_pid=$!\n/bin/sleep 40\nstatus=0\n/bin/kill -INT \"$capture_pid\" 2>/dev/null || true\nwait \"$capture_pid\" || status=$?\ncase \"$status\" in 0|130) exit 0 ;; *) exit 1 ;; esac\n",
+    "zasp-m0-12-capture", names.filePolicy, names.networkPolicy,
+  ]);
+});
+
+test("validates the exact Tetragon gRPC liveness and ready container evidence", () => {
+  const pod = {
+    metadata: { name: "tetragon-fixture" },
+    spec: {
+      nodeName: names.cluster + "-control-plane",
+      containers: [{
+        name: "tetragon",
+        livenessProbe: {
+          failureThreshold: 3,
+          grpc: { port: 6789, service: "liveness" },
+          periodSeconds: 10,
+          successThreshold: 1,
+          timeoutSeconds: 60,
+        },
+      }],
+    },
+    status: {
+      phase: "Running",
+      containerStatuses: [{ name: "tetragon", ready: true, restartCount: 0 }],
+    },
+  };
+  assert.equal(validateTetragonHealthPod(pod, names.cluster + "-control-plane"), "tetragon-fixture");
+  const wrong = structuredClone(pod);
+  wrong.spec.containers[0].livenessProbe.grpc.port = 2112;
+  assert.throws(() => validateTetragonHealthPod(wrong, names.cluster + "-control-plane"), Failure);
 });
 
 test("builds an allowlisted tool environment without ambient credential or proxy state", () => {
@@ -208,6 +257,36 @@ test("classifies only thrown, signaled, or malformed-zero mutations as ambiguous
   assert.equal(classifyMutationOutcome({ status: 0, signal: "SIGKILL", stdout: "", stderr: "" }, valid), "ambiguous");
   assert.equal(classifyMutationOutcome({ status: 0, signal: null, stdout: "invalid\n", stderr: "" }, valid), "ambiguous");
   assert.equal(classifyMutationOutcome(undefined, valid), "ambiguous");
+});
+
+test("accepts only exact Docker 29 missing container and network envelopes", () => {
+  const token = "a".repeat(64);
+  assert.equal(exactMissingDockerObject({
+    status: 1, signal: null, stdout: "[]\n", stderr: `error: no such object: ${token}\n`,
+  }, token), true);
+  assert.equal(exactMissingDockerObject({
+    status: 1, signal: null, stdout: "[]\n",
+    stderr: `Error response from daemon: network ${token} not found\n`,
+  }, token), true);
+  assert.equal(exactMissingDockerObject({
+    status: 1, signal: null, stdout: "", stderr: "foreign\n",
+  }, token), false);
+});
+
+test("accepts only the exact pinned-image missing event-log envelope", () => {
+  const exact = {
+    status: 1,
+    signal: null,
+    stdout: "",
+    stderr: "cat: can't open '/var/run/cilium/tetragon/tetragon.log': No such file or directory\ncommand terminated with exit code 1\n",
+  };
+  assert.equal(exactMissingTetragonLog(exact), true);
+  for (const changed of [
+    { ...exact, status: 0 },
+    { ...exact, signal: "SIGKILL" },
+    { ...exact, stdout: "unexpected" },
+    { ...exact, stderr: exact.stderr.replace("No such file or directory", "Permission denied") },
+  ]) assert.equal(exactMissingTetragonLog(changed), false);
 });
 
 test("runBounded captures a successful child within one combined byte cap", async () => {

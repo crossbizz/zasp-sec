@@ -30,6 +30,7 @@ const globalTemporaryPrefix = "zasp-m0-12-";
 const processOutputLimit = 1_048_576;
 const smallOutputLimit = 65_536;
 const downloadLimit = 134_217_728;
+export const fixtureSettleMilliseconds = 30_000;
 
 export class Failure extends Error {
   constructor(category = "operation", message = "proof operation failed") {
@@ -43,7 +44,7 @@ export function buildNetworkCreateArguments(name, marker) {
   validateProofName(name);
   validateMarker(marker);
   return [
-    "network", "create", "--driver", "bridge", "--internal",
+    "network", "create", "--driver", "bridge",
     "--label", "zasp.dev/proof=m0-12", "--label", `zasp.dev/run=${marker}`,
     name,
   ];
@@ -87,6 +88,65 @@ export function fixtureTriggerCommands(names, sinkAddress) {
     [...prefix, "/bin/sh", "-c", "printf zasp-m0-12 > /tmp/zasp-m0-12-proof.txt && cat /tmp/zasp-m0-12-proof.txt >/dev/null"],
     [...prefix, "/bin/nc", "-w", "2", sinkAddress, "18080"],
   ];
+}
+
+export function buildEventCaptureArguments(tetragonPod) {
+  validateBoundedString(tetragonPod, "Tetragon pod name");
+  if (!/^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$/.test(tetragonPod)) {
+    throw new TypeError("Tetragon pod name is invalid");
+  }
+  return [
+    "exec", "--namespace", "kube-system", tetragonPod, "--container", "tetragon",
+    "--", "/bin/cat", "/var/run/cilium/tetragon/tetragon.log",
+  ];
+}
+
+export function buildKprobeEventCaptureArguments(tetragonPod, names) {
+  validateBoundedString(tetragonPod, "Tetragon pod name");
+  if (!/^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$/.test(tetragonPod)) {
+    throw new TypeError("Tetragon pod name is invalid");
+  }
+  validateNames(names);
+  const script = "set -eu\n" +
+    "/usr/bin/tetra getevents --server-address unix:///var/run/tetragon/tetragon.sock --event-types PROCESS_KPROBE --policy-names \"$1\" --policy-names \"$2\" --output json &\n" +
+    "capture_pid=$!\n/bin/sleep 40\nstatus=0\n" +
+    "/bin/kill -INT \"$capture_pid\" 2>/dev/null || true\n" +
+    "wait \"$capture_pid\" || status=$?\n" +
+    "case \"$status\" in 0|130) exit 0 ;; *) exit 1 ;; esac\n";
+  return [
+    "exec", "--namespace", "kube-system", tetragonPod, "--container", "tetragon",
+    "--", "/bin/sh", "-c", script, "zasp-m0-12-capture", names.filePolicy, names.networkPolicy,
+  ];
+}
+
+export function buildNodeImagePullArguments(nodeToken, platform, reference) {
+  if (!objectIdPattern.test(nodeToken ?? "")) throw new TypeError("node token is invalid");
+  if (!new Set(["linux/amd64", "linux/arm64"]).has(platform)) throw new TypeError("node platform is invalid");
+  validateBoundedString(reference, "image reference");
+  return [
+    "exec", nodeToken, "ctr", "--namespace", "k8s.io", "images", "pull",
+    "--platform", platform, reference,
+  ];
+}
+
+export function validateTetragonHealthPod(pod, expectedNodeName) {
+  if (!isPlainObject(pod) || typeof expectedNodeName !== "string" || expectedNodeName.length === 0) {
+    throw new Failure("capability");
+  }
+  const podName = pod.metadata?.name;
+  const containers = pod.spec?.containers;
+  const statuses = pod.status?.containerStatuses;
+  const tetragon = Array.isArray(containers) ? containers.filter((entry) => entry?.name === "tetragon") : [];
+  const status = Array.isArray(statuses) ? statuses.filter((entry) => entry?.name === "tetragon") : [];
+  const probe = tetragon[0]?.livenessProbe;
+  if (
+    typeof podName !== "string" || !/^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$/.test(podName) ||
+    pod.spec?.nodeName !== expectedNodeName || pod.status?.phase !== "Running" ||
+    tetragon.length !== 1 || status.length !== 1 || status[0].ready !== true || status[0].restartCount !== 0 ||
+    !isPlainObject(probe) || !isPlainObject(probe.grpc) ||
+    probe.grpc.port !== 6789 || probe.grpc.service !== "liveness" || probe.timeoutSeconds !== 60
+  ) throw new Failure("capability");
+  return podName;
 }
 
 export function buildToolEnvironment(input) {
@@ -416,7 +476,8 @@ export class DockerKindSystem {
     this.resourcesApplied = false;
     this.expected = undefined;
     this.metricsBefore = undefined;
-    this.eventSince = undefined;
+    this.eventBaseline = undefined;
+    this.eventCapture = undefined;
     this.mutationSettlements = [];
   }
 
@@ -562,11 +623,14 @@ export class DockerKindSystem {
     assertPhase(phase, "provider");
     await this.verifyCluster("ownership", phase);
     for (const pin of [this.fixture.pins.tetragon, this.fixture.pins.operator, this.fixture.pins.busybox]) {
-      const loaded = await this.mutation(this.paths.kind, [
-        "load", "docker-image", "--name", this.fixture.names.cluster, "--nodes",
-        `${this.fixture.names.cluster}-control-plane`, pin.reference,
-      ], "provider", phase, processOutputLimit, 180_000);
-      if (classifyMutationOutcome(loaded, () => true) !== "success") throw new Failure("provider");
+      const loaded = await this.mutation("docker", buildNodeImagePullArguments(
+        this.nodeToken, this.input.nodePlatform, pin.reference,
+      ), "provider", phase, processOutputLimit, 180_000);
+      if (!successful(loaded)) throw new Failure("provider");
+      const listed = await this.readCommand("docker", [
+        "exec", this.nodeToken, "ctr", "--namespace", "k8s.io", "images", "list", "--quiet",
+      ], "provider", phase, processOutputLimit, 30_000);
+      if (!successful(listed) || !listed.stdout.split("\n").includes(pin.reference)) throw new Failure("provider");
     }
     const installed = await this.mutation("helm", buildHelmInstallArguments({
       chart: this.paths.chart,
@@ -600,25 +664,35 @@ export class DockerKindSystem {
         "operation", phase, smallOutputLimit, 30_000);
       if (classifyMutationOutcome(result, () => true) !== "success") throw new Failure("operation");
     }
-    await this.wait(2_000, phase.signal);
+    await this.wait(fixtureSettleMilliseconds, phase.signal);
     assertPhase(phase, "operation");
   }
 
   async captureEvidence(phase) {
     assertPhase(phase, "normalization");
     const metricsAfter = await this.captureMetrics(phase);
-    const log = await this.readKubectl([
-      "logs", "--namespace", "kube-system", this.expected.tetragonPod,
-      "--container", "export-stdout", "--since-time", this.eventSince,
-    ], "normalization", phase, processOutputLimit, 30_000);
+    const kprobes = await this.consumeKprobeCapture("normalization", phase);
+    if (!successful(kprobes) || kprobes.stderr !== "" || kprobes.stdout.length === 0) {
+      throw new Failure("normalization");
+    }
+    const log = await this.readKubectl(buildEventCaptureArguments(this.expected.tetragonPod),
+      "normalization", phase, 16_777_216, 30_000);
     if (!successful(log) || log.stderr !== "") throw new Failure("normalization");
+    const completeLog = Buffer.from(log.stdout);
+    if (
+      !Buffer.isBuffer(this.eventBaseline) || completeLog.byteLength <= this.eventBaseline.byteLength ||
+      !completeLog.subarray(0, this.eventBaseline.byteLength).equals(this.eventBaseline)
+    ) throw new Failure("normalization");
+    const execBytes = completeLog.subarray(this.eventBaseline.byteLength);
+    if (execBytes.at(-1) !== 0x0a || !kprobes.stdout.endsWith("\n")) throw new Failure("normalization");
+    const eventBytes = Buffer.concat([execBytes, Buffer.from(kprobes.stdout)]);
     let normalized;
     try {
       const expected = Object.fromEntries(Object.entries(this.expected).filter(([key]) => key !== "tetragonPod"));
       normalized = this.normalize({
         organizationId: this.input.organizationId,
         expected,
-        events: Buffer.from(log.stdout),
+        events: eventBytes,
         metricsBefore: this.metricsBefore,
         metricsAfter,
       });
@@ -788,7 +862,7 @@ export class DockerKindSystem {
     if (!objectIdPattern.test(token) || name !== this.fixture.names.prefix) throw new Failure(category);
     const inspected = await this.readCommand("docker", [
       "network", "inspect", "--format",
-      "[{{json .Id}},{{json .Name}},{{json .Driver}},{{json .Internal}},{{json .Labels}},{{json .Containers}}]",
+      "[{{json .Id}},{{json .Name}},{{json .Driver}},{{json .Internal}},{{json .Labels}},{{json .Containers}},{{json .Options}}]",
       token,
     ], category, phase, smallOutputLimit, 15_000);
     if (!successful(inspected) || inspected.stderr !== "") throw new Failure(category);
@@ -796,12 +870,14 @@ export class DockerKindSystem {
     try { document = parseUniqueJson(singleLine(inspected.stdout)); } catch { throw new Failure(category); }
     const labels = document?.[4];
     const containers = document?.[5];
+    const options = document?.[6];
     if (
-      !Array.isArray(document) || document.length !== 6 || document[0] !== token ||
-      document[1] !== name || document[2] !== "bridge" || document[3] !== true ||
+      !Array.isArray(document) || document.length !== 7 || document[0] !== token ||
+      document[1] !== name || document[2] !== "bridge" || document[3] !== false ||
       !isExactStringMap(labels, {
         "zasp.dev/proof": "m0-12", "zasp.dev/run": this.input.marker,
-      }) || !isPlainObject(containers) || (requireEmpty && Object.keys(containers).length !== 0)
+      }) || !isPlainObject(containers) || (requireEmpty && Object.keys(containers).length !== 0) ||
+      !isExactStringMap(options, {})
     ) throw new Failure(category);
     this.networkToken = token;
     return document;
@@ -884,22 +960,13 @@ export class DockerKindSystem {
       !Array.isArray(status) || status.length !== 1 || status[0]?.name !== "workload" || status[0]?.ready !== true ||
       status[0]?.restartCount !== 0 || !/^containerd:\/\/[0-9a-f]{64}$/.test(status[0]?.containerID ?? "") ||
       !Array.isArray(specification) || specification.length !== 1 ||
-      !Array.isArray(items) || items.length !== 1 || items[0]?.status?.phase !== "Running" ||
-      items[0]?.spec?.nodeName !== workload?.spec?.nodeName ||
+      !Array.isArray(items) || items.length !== 1 ||
       !ipv4Pattern.test(service?.spec?.clusterIP ?? "")
     ) throw new Failure("capability");
-    const tetragonStatus = items[0]?.status?.containerStatuses;
-    if (!Array.isArray(tetragonStatus) || !tetragonStatus.some((entry) =>
-      entry?.name === "tetragon" && entry.ready === true && entry.restartCount === 0)) {
-      throw new Failure("capability");
-    }
+    const tetragonPod = validateTetragonHealthPod(items[0], workload.spec.nodeName);
     const btf = await this.readCommand("docker", ["exec", this.nodeToken, "test", "-r", "/sys/kernel/btf/vmlinux"],
       "capability", phase, smallOutputLimit, 15_000);
     if (!successful(btf)) throw new Failure("capability");
-    const health = await this.readKubectl([
-      "get", "--raw", `/api/v1/namespaces/kube-system/pods/${items[0].metadata.name}:2112/proxy/healthz`,
-    ], "capability", phase, smallOutputLimit, 15_000);
-    if (!successfulNonempty(health)) throw new Failure("capability");
     const imageId = String(status[0].imageID ?? "").replace(/^docker-pullable:\/\//, "").replace(/^docker:\/\//, "");
     this.expected = Object.freeze({
       namespace: this.fixture.names.namespace,
@@ -908,7 +975,7 @@ export class DockerKindSystem {
       containerName: "workload",
       containerId: status[0].containerID,
       imageId,
-      imageName: specification[0].image,
+      imageName: this.imageMetadata.get("busybox")?.id,
       nodeName: workload.spec.nodeName,
       labels: Object.freeze({
         "app.kubernetes.io/name": "zasp-m0-12-workload",
@@ -924,17 +991,62 @@ export class DockerKindSystem {
       networkPolicyName: this.fixture.names.networkPolicy,
       sinkAddress: service.spec.clusterIP,
       sinkPort: 18080,
-      sensorVersion: "1.7.0",
+      sensorVersion: "v1.7.0",
       sensorCommit: "1de2ed8ebea18e56257dc59597aa13bf8f0e471e",
       policyCount: 2,
-      tetragonPod: items[0].metadata.name,
+      tetragonPod,
     });
     this.metricsBefore = await this.captureMetrics(phase);
     try {
       const expected = Object.fromEntries(Object.entries(this.expected).filter(([key]) => key !== "tetragonPod"));
       parseTetragonMetrics(this.metricsBefore, expected);
     } catch { throw new Failure("capability"); }
-    this.eventSince = new Date().toISOString();
+    const baseline = await this.readKubectl(buildEventCaptureArguments(this.expected.tetragonPod),
+      "capability", phase, 16_777_216, 30_000);
+    if (successful(baseline) && baseline.stderr === "") {
+      this.eventBaseline = Buffer.from(baseline.stdout);
+    } else if (exactMissingTetragonLog(baseline)) {
+      this.eventBaseline = Buffer.alloc(0);
+    } else {
+      throw new Failure("capability");
+    }
+    this.startKprobeCapture(phase);
+    await this.wait(2_000, phase.signal);
+    assertPhase(phase, "capability");
+    if (this.eventCapture?.settled !== false) throw new Failure("capability");
+  }
+
+  startKprobeCapture(phase) {
+    if (this.eventCapture !== undefined) throw new Failure("capability");
+    const retained = { error: undefined, promise: undefined, result: undefined, settled: false };
+    retained.promise = this.readKubectl(
+      buildKprobeEventCaptureArguments(this.expected.tetragonPod, this.fixture.names),
+      "capability", phase, processOutputLimit, 50_000,
+    ).then((result) => {
+      retained.result = result;
+      retained.settled = true;
+    }, (error) => {
+      retained.error = error;
+      retained.settled = true;
+    });
+    this.eventCapture = retained;
+  }
+
+  async consumeKprobeCapture(category, phase) {
+    const retained = this.eventCapture;
+    if (retained === undefined) throw new Failure(category);
+    await retained.promise;
+    assertPhase(phase, category);
+    this.eventCapture = undefined;
+    if (retained.error !== undefined || retained.result === undefined) throw new Failure(category);
+    return retained.result;
+  }
+
+  async drainKprobeCapture() {
+    const retained = this.eventCapture;
+    if (retained === undefined) return;
+    await retained.promise;
+    this.eventCapture = undefined;
   }
 
   async captureMetrics(phase) {
@@ -989,6 +1101,8 @@ export class DockerKindSystem {
 
   async joinMutations(phase) {
     assertPhase(phase, "cleanup");
+    await this.drainKprobeCapture();
+    assertPhase(phase, "cleanup");
     let joined = 0;
     while (joined < this.mutationSettlements.length) {
       const pending = this.mutationSettlements.slice(joined);
@@ -1005,6 +1119,7 @@ export class DockerKindSystem {
       try { await operation(); } catch { failed = true; }
       assertPhase(phase, "cleanup");
     };
+    await step(async () => this.drainKprobeCapture());
     if (this.resourcesApplied && this.paths !== undefined) {
       await step(async () => {
         const value = await this.mutation("kubectl", [
@@ -1326,15 +1441,20 @@ function waitWithSignal(milliseconds, signal) {
   });
 }
 
-function exactMissingDockerObject(result, token) {
+export function exactMissingDockerObject(result, token) {
   if (
     result === null || typeof result !== "object" || result.status !== 1 || result.signal !== null ||
-    result.stdout !== "" || typeof result.stderr !== "string" || result.stderr.includes("\r") ||
+    result.stdout !== "[]\n" || typeof result.stderr !== "string" || result.stderr.includes("\r") ||
     !objectIdPattern.test(token)
   ) return false;
-  return result.stderr === `Error: No such object: ${token}\n` ||
-    result.stderr === `Error response from daemon: No such object: ${token}\n` ||
+  return result.stderr === `error: no such object: ${token}\n` ||
     result.stderr === `Error response from daemon: network ${token} not found\n`;
+}
+
+export function exactMissingTetragonLog(result) {
+  return result !== null && typeof result === "object" &&
+    result.status === 1 && result.signal === null && result.stdout === "" &&
+    result.stderr === "cat: can't open '/var/run/cilium/tetragon/tetragon.log': No such file or directory\ncommand terminated with exit code 1\n";
 }
 
 function parseUniqueJson(source) {

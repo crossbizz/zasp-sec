@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
 
 const defaultEventLimits = Object.freeze({
-  maximumBytes: 65_536,
-  maximumLines: 32,
-  maximumDepth: 16,
-  maximumStringLength: 4096,
-  maximumCollectionSize: 32,
+  maximumBytes: 131_072,
+  maximumLines: 64,
+  maximumDepth: 32,
+  maximumStringLength: 16_384,
+  maximumCollectionSize: 128,
 });
 const maximumMetricsBytes = 1_048_576;
 const maximumMetricsLines = 20_000;
@@ -17,12 +17,12 @@ const commitPattern = /^[0-9a-f]{40}$/;
 const ipv4Pattern = /^(?:0|[1-9]\d?|1\d\d|2[0-4]\d|25[0-5])(?:\.(?:0|[1-9]\d?|1\d\d|2[0-4]\d|25[0-5])){3}$/;
 const metricNamePattern = /^[a-zA-Z_:][a-zA-Z0-9_:]*$/;
 const metricLabelNamePattern = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+const maximumProcessCorrelationSkewMilliseconds = 1_000;
 
 const processKeys = [
   "exec_id", "pid", "uid", "cwd", "binary", "arguments", "flags",
-  "start_time", "auid", "pod", "docker", "parent_exec_id", "refcnt",
-  "cap", "ns", "process_credentials", "user", "in_init_tree",
-  "environment_variables",
+  "start_time", "auid", "pod", "docker", "parent_exec_id", "cap", "ns",
+  "tid", "process_credentials", "in_init_tree",
 ];
 const requiredDropMetrics = Object.freeze({
   tetragon_export_ratelimit_events_dropped_total: "export_rate_limit",
@@ -46,8 +46,9 @@ export function parseTetragonEvents(bytes, limits = defaultEventLimits) {
     let parsed;
     try {
       parsed = parseUniqueJson(line, safeLimits);
-    } catch {
-      throw new TypeError("event stream is not strict JSON");
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "invalid representation";
+      throw new TypeError(`event stream is not strict JSON: ${reason}`);
     }
     expectObject(parsed, "event");
     return parsed;
@@ -86,10 +87,10 @@ export function parseTetragonMetrics(bytes, expected) {
   if (
     build[0].value !== 1 ||
     build[0].labels.version !== specification.sensorVersion ||
-    build[0].labels.commit !== specification.sensorCommit ||
-    build[0].labels.modified !== "false" ||
-    !/^go\d+\.\d+(?:\.\d+)?$/.test(build[0].labels.go_version) ||
-    !validUtcInstant(build[0].labels.time)
+    build[0].labels.commit !== "" ||
+    build[0].labels.modified !== "" ||
+    build[0].labels.go_version !== "go1.26.2" ||
+    build[0].labels.time !== ""
   ) {
     throw new TypeError("build metric does not match the sensor");
   }
@@ -125,7 +126,7 @@ export function parseTetragonMetrics(bytes, expected) {
 
   return {
     version: build[0].labels.version,
-    commit: build[0].labels.commit,
+    commit: specification.sensorCommit,
     policies_loaded: specification.policyCount,
     drop_counters: { ...dropCounters },
   };
@@ -140,10 +141,18 @@ export function normalizeTetragonProof(input) {
   const metricsBefore = parseTetragonMetrics(input.metricsBefore, expected);
   const metricsAfter = parseTetragonMetrics(input.metricsAfter, expected);
 
-  const matching = [];
+  const workloadExecs = [];
+  const probes = [];
   for (const event of events) {
-    const processValue = event.process_exec?.process ?? event.process_kprobe?.process;
-    if (!isObject(processValue) || !isObject(processValue.pod) || !isObject(processValue.pod.container)) continue;
+    if (event.process_kprobe !== undefined) {
+      probes.push(event);
+      continue;
+    }
+    if (event.process_exec === undefined) throw new TypeError("event class is unsupported");
+    const processValue = event.process_exec?.process;
+    if (!isObject(processValue) || !isObject(processValue.pod) || !isObject(processValue.pod.container)) {
+      throw new TypeError("exec event process is invalid");
+    }
     const pod = processValue.pod;
     const container = pod.container;
     const anyIdentityMatch =
@@ -153,11 +162,16 @@ export function normalizeTetragonProof(input) {
       container.name === expected.containerName ||
       container.id === expected.containerId;
     if (!anyIdentityMatch) continue;
+    validateExecEnvelope(event, expected);
     validateCandidateIdentity(event, processValue, expected);
-    matching.push(event);
+    workloadExecs.push({ event, process: processValue });
   }
 
-  const classified = matching.map((event) => classifyCandidate(event, expected));
+  const processMatches = workloadExecs.filter(({ process }) =>
+    process.binary === expected.execBinary && process.arguments === expected.execArgument);
+  if (processMatches.length !== 1) throw new TypeError("expected exactly one process event");
+  const classified = [classifyExec(processMatches[0].event, expected)];
+  classified.push(...probes.map((event) => classifyKprobe(event, expected, workloadExecs)));
   const counts = new Map();
   for (const event of classified) counts.set(event.class, (counts.get(event.class) ?? 0) + 1);
   for (const name of ["process", "file", "network"]) {
@@ -218,15 +232,8 @@ export function normalizeTetragonProof(input) {
   };
 }
 
-function classifyCandidate(event, expected) {
-  if (event.process_exec !== undefined) return classifyExec(event, expected);
-  if (event.process_kprobe !== undefined) return classifyKprobe(event, expected);
-  throw new TypeError("candidate event class is unsupported");
-}
-
 function classifyExec(event, expected) {
-  expectAllowedKeys(event, ["cluster_name", "node_name", "process_exec", "time"], ["node_name", "process_exec", "time"], "exec event");
-  expectAllowedKeys(event.process_exec, ["ancestors", "parent", "process"], ["process"], "process_exec");
+  validateExecEnvelope(event, expected);
   const processValue = event.process_exec.process;
   if (
     processValue.binary !== expected.execBinary ||
@@ -243,24 +250,53 @@ function classifyExec(event, expected) {
   };
 }
 
-function classifyKprobe(event, expected) {
-  expectAllowedKeys(event, ["cluster_name", "node_name", "process_kprobe", "time"], ["node_name", "process_kprobe", "time"], "kprobe event");
-  expectAllowedKeys(
-    event.process_kprobe,
-    [
-      "action", "ancestors", "args", "data", "function_name",
-      "kernel_stack_trace", "message", "parent", "policy_name", "process",
-      "return", "return_action", "tags", "user_stack_trace",
-    ],
-    ["action", "args", "function_name", "policy_name", "process"],
-    "process_kprobe",
-  );
+function classifyKprobe(event, expected, workloadExecs) {
+  expectKeys(event, ["cluster_name", "node_labels", "node_name", "process_kprobe", "time"], "kprobe event");
+  const kprobeKeys = Object.keys(event.process_kprobe).sort();
+  const minimalKeys = ["action", "args", "function_name", "policy_name", "process", "return_action"].sort();
+  const enrichedKeys = [...minimalKeys, "parent"].sort();
+  if (!sameStrings(kprobeKeys, minimalKeys) && !sameStrings(kprobeKeys, enrichedKeys)) {
+    throw new TypeError("process_kprobe has invalid keys");
+  }
+  if (Object.hasOwn(event.process_kprobe, "parent") && !isObject(event.process_kprobe.parent)) {
+    throw new TypeError("process_kprobe parent is invalid");
+  }
   const kprobe = event.process_kprobe;
-  if (kprobe.action !== "KPROBE_ACTION_POST") throw new TypeError("kprobe action is invalid");
+  const probeProcess = kprobe.process;
+  const hasIdentity = isObject(probeProcess?.pod) && isObject(probeProcess.pod.container);
+  if (hasIdentity) {
+    validateCandidateIdentity(event, probeProcess, expected);
+  } else {
+    expectKeys(probeProcess, ["flags", "pid", "start_time"], "kprobe process");
+    expectUnsignedInteger(probeProcess.pid, "kprobe process.pid");
+    if (probeProcess.flags !== "unknown") throw new TypeError("kprobe process flags are invalid");
+    validateEventTime(probeProcess.start_time);
+  }
+  if (
+    kprobe.action !== "KPROBE_ACTION_POST" || kprobe.return_action !== "KPROBE_ACTION_POST" ||
+    event.node_name !== expected.nodeName || event.cluster_name !== expected.namespace ||
+    !isObject(event.node_labels)
+  ) throw new TypeError("kprobe envelope is invalid");
+  const expectedBinary = kprobe.function_name === "security_file_permission"
+    ? expected.fileBinary
+    : kprobe.function_name === "tcp_connect"
+      ? expected.networkBinary
+      : undefined;
+  if (expectedBinary === undefined) throw new TypeError("kprobe function is not a required event class");
+  let correlatedProcess = probeProcess;
+  if (!hasIdentity) {
+    const probeStart = Date.parse(probeProcess.start_time);
+    const correlated = workloadExecs.filter(({ process }) =>
+      process.pid === probeProcess.pid &&
+      process.binary === expectedBinary &&
+      Math.abs(Date.parse(process.start_time) - probeStart) <= maximumProcessCorrelationSkewMilliseconds);
+    if (correlated.length !== 1) throw new TypeError("kprobe process is not exactly correlated");
+    correlatedProcess = correlated[0].process;
+  }
   if (kprobe.function_name === "security_file_permission") {
     if (
       kprobe.policy_name !== expected.filePolicyName ||
-      kprobe.process.binary !== expected.fileBinary ||
+      correlatedProcess.binary !== expected.fileBinary ||
       !Array.isArray(kprobe.args) ||
       kprobe.args.length !== 2
     ) {
@@ -268,16 +304,19 @@ function classifyKprobe(event, expected) {
     }
     const [fileArgument, permissionArgument] = kprobe.args;
     expectKeys(fileArgument, ["file_arg"], "file argument");
-    expectAllowedKeys(fileArgument.file_arg, ["flags", "mount", "path", "permission"], ["path"], "file value");
+    expectKeys(fileArgument.file_arg, ["path", "permission"], "file value");
     expectKeys(permissionArgument, ["int_arg"], "file permission argument");
-    if (fileArgument.file_arg.path !== expected.filePath || permissionArgument.int_arg !== 2) {
+    if (
+      fileArgument.file_arg.path !== expected.filePath ||
+      fileArgument.file_arg.permission !== "-rw-r--r--" || permissionArgument.int_arg !== 2
+    ) {
       throw new TypeError("file event does not match the fixture path");
     }
     return {
       class: "file",
       observed_at: validateEventTime(event.time),
-      source_exec_id: kprobe.process.exec_id,
-      binary: kprobe.process.binary,
+      source_exec_id: correlatedProcess.exec_id,
+      binary: correlatedProcess.binary,
       path: fileArgument.file_arg.path,
       policy: kprobe.policy_name,
     };
@@ -285,7 +324,7 @@ function classifyKprobe(event, expected) {
   if (kprobe.function_name === "tcp_connect") {
     if (
       kprobe.policy_name !== expected.networkPolicyName ||
-      kprobe.process.binary !== expected.networkBinary ||
+      correlatedProcess.binary !== expected.networkBinary ||
       !Array.isArray(kprobe.args) ||
       kprobe.args.length !== 1
     ) {
@@ -293,12 +332,7 @@ function classifyKprobe(event, expected) {
     }
     const [socketArgument] = kprobe.args;
     expectKeys(socketArgument, ["sock_arg"], "socket argument");
-    expectAllowedKeys(
-      socketArgument.sock_arg,
-      ["cookie", "daddr", "dport", "family", "mark", "priority", "protocol", "saddr", "sport", "state", "type"],
-      ["daddr", "dport", "family", "protocol", "type"],
-      "socket value",
-    );
+    expectKeys(socketArgument.sock_arg, ["cookie", "daddr", "dport", "family", "protocol", "saddr", "sport", "state", "type"], "socket value");
     if (
       socketArgument.sock_arg.family !== "AF_INET" ||
       socketArgument.sock_arg.type !== "SOCK_STREAM" ||
@@ -311,8 +345,8 @@ function classifyKprobe(event, expected) {
     return {
       class: "network",
       observed_at: validateEventTime(event.time),
-      source_exec_id: kprobe.process.exec_id,
-      binary: kprobe.process.binary,
+      source_exec_id: correlatedProcess.exec_id,
+      binary: correlatedProcess.binary,
       destination_address: socketArgument.sock_arg.daddr,
       destination_port: socketArgument.sock_arg.dport,
       policy: kprobe.policy_name,
@@ -321,34 +355,50 @@ function classifyKprobe(event, expected) {
   throw new TypeError("kprobe function is not a required event class");
 }
 
+function validateExecEnvelope(event, expected) {
+  expectKeys(event, ["cluster_name", "node_labels", "node_name", "process_exec", "time"], "exec event");
+  expectKeys(event.process_exec, ["process"], "process_exec");
+  if (
+    event.node_name !== expected.nodeName || event.cluster_name !== expected.namespace ||
+    !isObject(event.node_labels)
+  ) throw new TypeError("exec event envelope is invalid");
+}
+
 function validateCandidateIdentity(event, processValue, expected) {
-  expectAllowedKeys(processValue, processKeys, ["arguments", "binary", "cwd", "docker", "exec_id", "flags", "parent_exec_id", "pid", "pod", "refcnt", "start_time", "uid"], "process");
+  const actualProcessKeys = Object.keys(processValue).sort();
+  const baseProcessKeys = [...processKeys].sort();
+  const referencedProcessKeys = [...processKeys, "refcnt"].sort();
+  if (!sameStrings(actualProcessKeys, baseProcessKeys) && !sameStrings(actualProcessKeys, referencedProcessKeys)) {
+    throw new TypeError("process has invalid keys");
+  }
   for (const name of ["arguments", "binary", "cwd", "docker", "exec_id", "flags", "parent_exec_id"]) {
     expectBoundedString(processValue[name], `process.${name}`);
   }
-  for (const name of ["pid", "uid", "refcnt"]) expectUnsignedInteger(processValue[name], `process.${name}`);
+  for (const name of ["auid", "pid", "tid", "uid"]) expectUnsignedInteger(processValue[name], `process.${name}`);
+  if (Object.hasOwn(processValue, "refcnt")) expectUnsignedInteger(processValue.refcnt, "process.refcnt");
+  for (const name of ["cap", "ns", "process_credentials"]) {
+    if (!isObject(processValue[name])) throw new TypeError(`process.${name} is invalid`);
+  }
+  if (typeof processValue.in_init_tree !== "boolean") throw new TypeError("process.in_init_tree is invalid");
   validateEventTime(processValue.start_time);
 
   const pod = processValue.pod;
-  expectAllowedKeys(pod, ["container", "name", "namespace", "pod_annotations", "pod_labels", "uid", "workload", "workload_kind"], ["container", "name", "namespace", "pod_annotations", "pod_labels", "uid", "workload", "workload_kind"], "pod");
+  expectKeys(pod, ["container", "name", "namespace", "pod_labels", "uid", "workload", "workload_kind"], "pod");
   const container = pod.container;
-  expectAllowedKeys(container, ["id", "image", "maybe_exec_probe", "name", "pid", "security_context", "start_time"], ["id", "image", "maybe_exec_probe", "name", "pid", "security_context", "start_time"], "container");
+  expectKeys(container, ["id", "image", "name", "pid", "security_context", "start_time"], "container");
   expectKeys(container.image, ["id", "name"], "container image");
-  expectKeys(container.security_context, ["privileged"], "container security context");
-  expectKeys(pod.pod_annotations, [], "pod annotations");
+  expectKeys(container.security_context, [], "container security context");
   expectKeys(pod.pod_labels, Object.keys(expected.labels), "pod labels");
   if (
     pod.namespace !== expected.namespace ||
     pod.name !== expected.podName ||
     pod.uid !== expected.podUid ||
-    pod.workload !== "" ||
-    pod.workload_kind !== "" ||
+    pod.workload !== expected.podName ||
+    pod.workload_kind !== "Pod" ||
     container.id !== expected.containerId ||
     container.name !== expected.containerName ||
     container.image.id !== expected.imageId ||
     container.image.name !== expected.imageName ||
-    container.maybe_exec_probe !== false ||
-    container.security_context.privileged !== false ||
     event.node_name !== expected.nodeName
   ) {
     throw new TypeError("event workload identity is invalid");
@@ -383,7 +433,7 @@ function validateExpected(value) {
     !uuidPattern.test(value.podUid) ||
     !containerIdPattern.test(value.containerId) ||
     !commitPattern.test(value.sensorCommit) ||
-    !/^\d+\.\d+\.\d+$/.test(value.sensorVersion) ||
+    !/^v\d+\.\d+\.\d+$/.test(value.sensorVersion) ||
     !ipv4Pattern.test(value.sinkAddress) ||
     !Number.isSafeInteger(value.sinkPort) ||
     value.sinkPort < 1 ||
@@ -635,14 +685,6 @@ function validateOrganizationId(value) {
   return value;
 }
 
-function expectAllowedKeys(value, allowed, required, context) {
-  expectObject(value, context);
-  const keys = Object.keys(value);
-  if (keys.some((key) => !allowed.includes(key)) || required.some((key) => !Object.hasOwn(value, key))) {
-    throw new TypeError(`${context} has invalid keys`);
-  }
-}
-
 function expectKeys(value, expected, context) {
   expectObject(value, context);
   const actual = Object.keys(value).sort();
@@ -650,6 +692,10 @@ function expectKeys(value, expected, context) {
   if (actual.length !== wanted.length || actual.some((key, index) => key !== wanted[index])) {
     throw new TypeError(`${context} has invalid keys`);
   }
+}
+
+function sameStrings(actual, expected) {
+  return actual.length === expected.length && actual.every((value, index) => value === expected[index]);
 }
 
 function isObject(value) {

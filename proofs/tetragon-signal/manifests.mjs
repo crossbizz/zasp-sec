@@ -51,10 +51,10 @@ export const PINS = deepFreeze({
     },
   },
   busybox: {
-    reference: "docker.io/library/busybox:1.37.0@sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0",
+    reference: "registry.k8s.io/e2e-test-images/busybox:1.36.1-1@sha256:a9155b13325b2abef48e71de77bb8ac015412a566829f621d06bfae5c699b1b9",
     platformDigests: {
-      "linux/amd64": "sha256:7a3ebe5bfd1a4a19797d20b0c0bb39d44393e9a03fd852c0865b0f540d868df0",
-      "linux/arm64": "sha256:f10e809bcf667d8e9f01d2baf82869049a495cd448cdfe1f4dee94078b960ae9",
+      "linux/amd64": "sha256:caec39cad3b12c26600baf6e67ba811ac15d28a9288d0ccdfffb4b318992c3bb",
+      "linux/arm64": "sha256:55c89c6d9404d6668eb237dda92f28a99eb14e640f1c177a55cc9d738c53c303",
     },
   },
 });
@@ -129,8 +129,8 @@ function buildHelmValues(names, labels) {
       enablePolicyFilter: true,
       enableProcessCred: true,
       enableProcessNs: true,
-      exportAllowList: '{"event_set":["PROCESS_EXEC","PROCESS_KPROBE"]}',
-      exportDenyList: '{"health_check":true}\n{"namespace":["","kube-system"]}',
+      exportAllowList: `{"namespace":["${names.namespace}"],"pod_regex":["^${names.workloadPod}$"],"event_set":["PROCESS_EXEC"]}`,
+      exportDenyList: '{"health_check":true}\n{"namespace":["cilium","kube-system"]}',
       exportFileCompress: false,
       exportFileMaxBackups: 1,
       exportFileMaxSizeMB: 16,

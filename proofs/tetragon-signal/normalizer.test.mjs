@@ -15,8 +15,8 @@ const expected = Object.freeze({
   podUid: "11111111-2222-4333-8444-555555555555",
   containerName: "workload",
   containerId: `containerd://${"a".repeat(64)}`,
-  imageId: `docker.io/library/busybox@sha256:${"b".repeat(64)}`,
-  imageName: "busybox:1.37.0",
+  imageId: `registry.k8s.io/e2e-test-images/busybox:1.36.1-1@sha256:${"a".repeat(64)}`,
+  imageName: `sha256:${"b".repeat(64)}`,
   nodeName: "zasp-m0-12-0123456789abcdef-control-plane",
   labels: Object.freeze({
     "app.kubernetes.io/name": "zasp-m0-12-workload",
@@ -32,21 +32,21 @@ const expected = Object.freeze({
   networkPolicyName: "zasp-m0-12-connect",
   sinkAddress: "10.96.0.23",
   sinkPort: 18080,
-  sensorVersion: "1.7.0",
+  sensorVersion: "v1.7.0",
   sensorCommit: "1de2ed8ebea18e56257dc59597aa13bf8f0e471e",
   policyCount: 2,
 });
 
-function process(binary, argumentsValue, execId) {
+function process(binary, argumentsValue, execId, pid, startTime) {
   return {
     exec_id: execId,
-    pid: 41,
+    pid,
     uid: 1000,
     cwd: "/tmp/",
     binary,
     arguments: argumentsValue,
     flags: "execve clone",
-    start_time: "2026-08-14T21:00:00.123Z",
+    start_time: startTime,
     auid: 4294967295,
     pod: {
       namespace: expected.namespace,
@@ -58,52 +58,78 @@ function process(binary, argumentsValue, execId) {
         image: { id: expected.imageId, name: expected.imageName },
         start_time: "2026-08-14T20:59:00Z",
         pid: 12,
-        maybe_exec_probe: false,
-        security_context: { privileged: false },
+        security_context: {},
       },
       pod_labels: expected.labels,
-      workload: "",
-      workload_kind: "",
-      pod_annotations: {},
+      workload: "workload",
+      workload_kind: "Pod",
     },
     docker: "a".repeat(24),
     parent_exec_id: "parent-exec-id",
-    refcnt: 1,
+    cap: {},
+    ns: {},
+    tid: pid,
+    process_credentials: {},
+    in_init_tree: false,
   };
 }
 
 function fixtureEvents() {
+  const execStart = "2026-08-14T21:00:00.123Z";
+  const fileStart = "2026-08-14T21:00:01.123Z";
+  const networkStart = "2026-08-14T21:00:02.123Z";
   const exec = {
     process_exec: {
-      process: process(expected.execBinary, expected.execArgument, "exec-event-id"),
+      process: process(expected.execBinary, expected.execArgument, "exec-event-id", 41, execStart),
     },
     node_name: expected.nodeName,
     time: "2026-08-14T21:00:00.123Z",
+    cluster_name: expected.namespace,
+    node_labels: {},
+  };
+  const fileExec = {
+    process_exec: {
+      process: process(expected.fileBinary, "-c fixture", "file-event-id", 42, fileStart),
+    },
+    node_name: expected.nodeName,
+    time: fileStart,
+    cluster_name: expected.namespace,
+    node_labels: {},
+  };
+  const networkExec = {
+    process_exec: {
+      process: process(expected.networkBinary, `${expected.sinkAddress} ${expected.sinkPort}`, "network-event-id", 43, networkStart),
+    },
+    node_name: expected.nodeName,
+    time: networkStart,
+    cluster_name: expected.namespace,
+    node_labels: {},
   };
   const file = {
     process_kprobe: {
-      process: process(expected.fileBinary, "-c fixture", "file-event-id"),
+      process: { pid: 42, flags: "unknown", start_time: fileStart },
       function_name: "security_file_permission",
       args: [
-        { file_arg: { mount: "/", path: expected.filePath, flags: "O_RDWR", permission: "write" } },
+        { file_arg: { path: expected.filePath, permission: "-rw-r--r--" } },
         { int_arg: 2 },
       ],
       action: "KPROBE_ACTION_POST",
       policy_name: expected.filePolicyName,
+      return_action: "KPROBE_ACTION_POST",
     },
     node_name: expected.nodeName,
     time: "2026-08-14T21:00:01.123Z",
+    cluster_name: expected.namespace,
+    node_labels: {},
   };
   const network = {
     process_kprobe: {
-      process: process(expected.networkBinary, `${expected.sinkAddress} ${expected.sinkPort}`, "network-event-id"),
+      process: { pid: 43, flags: "unknown", start_time: networkStart },
       function_name: "tcp_connect",
       args: [{ sock_arg: {
         family: "AF_INET",
         type: "SOCK_STREAM",
         protocol: "IPPROTO_TCP",
-        mark: 0,
-        priority: 0,
         saddr: "10.244.0.8",
         daddr: expected.sinkAddress,
         sport: 45212,
@@ -113,11 +139,14 @@ function fixtureEvents() {
       } }],
       action: "KPROBE_ACTION_POST",
       policy_name: expected.networkPolicyName,
+      return_action: "KPROBE_ACTION_POST",
     },
     node_name: expected.nodeName,
     time: "2026-08-14T21:00:02.123Z",
+    cluster_name: expected.namespace,
+    node_labels: {},
   };
-  return { exec, file, network };
+  return { exec, fileExec, networkExec, file, network };
 }
 
 function eventBytes(events = Object.values(fixtureEvents())) {
@@ -135,7 +164,7 @@ function metricText(overrides = {}) {
     ...overrides,
   };
   return Buffer.from([
-    `tetragon_build_info{commit="${expected.sensorCommit}",go_version="go1.25.2",modified="false",time="2026-04-29T13:22:56Z",version="${expected.sensorVersion}"} 1`,
+    `tetragon_build_info{commit="",go_version="go1.26.2",modified="",time="",version="${expected.sensorVersion}"} 1`,
     `tetragon_tracingpolicy_loaded{state="enabled"} ${values.policyCount}`,
     "tetragon_tracingpolicy_loaded{state=\"disabled\"} 0",
     "tetragon_tracingpolicy_loaded{state=\"error\"} 0",
@@ -186,7 +215,7 @@ test("normalizes three exact event classes to one Organization-scoped workload",
   assert.equal(result.identity, true);
   assert.equal(result.capability, true);
   assert.equal(result.drops, 0);
-  assert.equal(result.sensor.version, expected.sensorVersion);
+  assert.equal(result.sensor.version, "v1.7.0");
   assert.equal(result.sensor.commit, expected.sensorCommit);
   assert.equal(result.sensor.policies_loaded, 2);
   assert.deepEqual(result.sensor.drop_counters, {
@@ -196,6 +225,86 @@ test("normalizes three exact event classes to one Organization-scoped workload",
     ringbuf_lost: 0,
     ringbuf_queue_lost: 0,
   });
+});
+
+test("accepts exact enriched provider kprobes and rejects unbound variants", () => {
+  const events = fixtureEvents();
+  events.file.process_kprobe.process = {
+    ...structuredClone(events.fileExec.process_exec.process),
+    refcnt: 1,
+  };
+  events.file.process_kprobe.parent = {};
+  events.network.process_kprobe.process = {
+    ...structuredClone(events.networkExec.process_exec.process),
+    refcnt: 1,
+  };
+  events.network.process_kprobe.parent = {};
+
+  const input = {
+    organizationId,
+    expected,
+    metricsBefore: metricText(),
+    metricsAfter: metricText(),
+  };
+  const result = normalizeTetragonProof({
+    ...input,
+    events: eventBytes(Object.values(events)),
+  });
+  assert.deepEqual(result.events.map((event) => event.source_exec_id), [
+    "exec-event-id",
+    "file-event-id",
+    "network-event-id",
+  ]);
+
+  const mismatched = structuredClone(events);
+  mismatched.file.process_kprobe.process.pod.uid = "99999999-2222-4333-8444-555555555555";
+  assert.throws(() => normalizeTetragonProof({
+    ...input,
+    events: eventBytes(Object.values(mismatched)),
+  }), TypeError);
+
+  const extra = structuredClone(events);
+  extra.network.process_kprobe.unexpected = true;
+  assert.throws(() => normalizeTetragonProof({
+    ...input,
+    events: eventBytes(Object.values(extra)),
+  }), TypeError);
+
+  const uncorrelated = fixtureEvents();
+  uncorrelated.file.process_kprobe.process.pid = 900;
+  assert.throws(() => normalizeTetragonProof({
+    ...input,
+    events: eventBytes(Object.values(uncorrelated)),
+  }), TypeError);
+});
+
+test("correlates minimal provider kprobes by exact PID, binary, and bounded start time", () => {
+  const events = fixtureEvents();
+  events.file.process_kprobe.process.start_time = "2026-08-14T21:00:01.124Z";
+  events.network.process_kprobe.process.start_time = "2026-08-14T21:00:02.124Z";
+  const replacement = structuredClone(events.fileExec);
+  replacement.process_exec.process.binary = "/bin/cat";
+  replacement.process_exec.process.start_time = "2026-08-14T21:00:01.125Z";
+  const ordered = [...Object.values(events), replacement];
+  const input = {
+    organizationId,
+    expected,
+    metricsBefore: metricText(),
+    metricsAfter: metricText(),
+  };
+
+  const result = normalizeTetragonProof({ ...input, events: eventBytes(ordered) });
+  assert.deepEqual(result.events.map((event) => event.source_exec_id), [
+    "exec-event-id",
+    "file-event-id",
+    "network-event-id",
+  ]);
+
+  events.file.process_kprobe.process.start_time = "2026-08-14T21:00:03.123Z";
+  assert.throws(() => normalizeTetragonProof({
+    ...input,
+    events: eventBytes([...Object.values(events), replacement]),
+  }), TypeError);
 });
 
 test("Organization scope changes only the deterministic workload identity", () => {
@@ -234,10 +343,11 @@ test("strict event parser rejects malformed representation boundaries", () => {
 
 test("rejects missing, extra, aliased, duplicate, and foreign event candidates", () => {
   const base = fixtureEvents();
-  const missing = [base.exec, base.file];
-  const duplicate = [base.exec, structuredClone(base.exec), base.file, base.network];
-  const foreign = structuredClone(base.file);
-  foreign.process_kprobe.process.pod.uid = "99999999-2222-4333-8444-555555555555";
+  const all = Object.values(base);
+  const missing = all.filter((event) => event !== base.network);
+  const duplicate = [...all, structuredClone(base.exec)];
+  const foreign = structuredClone(base.fileExec);
+  foreign.process_exec.process.pod.uid = "99999999-2222-4333-8444-555555555555";
   const alias = structuredClone(base.exec);
   alias.processExec = alias.process_exec;
   delete alias.process_exec;
@@ -247,9 +357,9 @@ test("rejects missing, extra, aliased, duplicate, and foreign event candidates",
   for (const [name, events] of Object.entries({
     missing,
     duplicate,
-    foreign: [base.exec, foreign, base.network],
-    alias: [alias, base.file, base.network],
-    extra: [base.exec, base.file, extra],
+    foreign: all.map((event) => event === base.fileExec ? foreign : event),
+    alias: all.map((event) => event === base.exec ? alias : event),
+    extra: all.map((event) => event === base.network ? extra : event),
   })) {
     assert.throws(() => normalizeTetragonProof({
       organizationId,
@@ -306,8 +416,8 @@ test("rejects missing, duplicate, malformed, or false capability metrics", () =>
   const cases = {
     missing_build: source.split("\n").slice(1).join("\n"),
     duplicate_build: `${source}${source.split("\n")[0]}\n`,
-    wrong_version: source.replace('version="1.7.0"', 'version="1.6.0"'),
-    wrong_commit: source.replace(expected.sensorCommit, "0".repeat(40)),
+    wrong_version: source.replace('version="v1.7.0"', 'version="v1.6.0"'),
+    wrong_commit: source.replace('commit=""', `commit="${"0".repeat(40)}"`),
     build_not_one: source.replace("} 1\n", "} 0\n"),
     wrong_policy_count: source.replace('state="enabled"} 2', 'state="enabled"} 1'),
     disabled_policy: source.replace('state="disabled"} 0', 'state="disabled"} 1'),

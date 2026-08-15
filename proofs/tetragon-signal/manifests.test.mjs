@@ -36,10 +36,11 @@ test("pins exact official kind, Kubernetes, Tetragon, chart, and fixture artifac
   assert.equal(PINS.chart.sha256, "2d142ecff37a05bc2efab4c3f90cac2a545e8951d845fd15d023e1cbc31685f5");
   assert.equal(PINS.tetragon.reference, "quay.io/cilium/tetragon:v1.7.0@sha256:deda51c3f88e4d26b4d76c99ea207f2b05f9e40c210e0f04a37ca632ab7bf527");
   assert.equal(PINS.operator.reference, "quay.io/cilium/tetragon-operator:v1.7.0@sha256:074ffbd19208eed79f68e191ed606e05009f910b4bb5148efcf2973e13504b82");
-  assert.equal(PINS.busybox.reference, "docker.io/library/busybox:1.37.0@sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0");
+  assert.equal(PINS.busybox.reference, "registry.k8s.io/e2e-test-images/busybox:1.36.1-1@sha256:a9155b13325b2abef48e71de77bb8ac015412a566829f621d06bfae5c699b1b9");
   assert.equal(PINS.tetragon.platformDigests["linux/arm64"], "sha256:1bffeee60f1d47e367d237129e576729d14fe8db748440328aded8a6091c4a40");
   assert.equal(PINS.operator.platformDigests["linux/arm64"], "sha256:0fba45be5e814c72b3d10bf02a842278450a3487722adda18bce97eebe4bab31");
-  assert.equal(PINS.busybox.platformDigests["linux/arm64"], "sha256:f10e809bcf667d8e9f01d2baf82869049a495cd448cdfe1f4dee94078b960ae9");
+  assert.equal(PINS.busybox.platformDigests["linux/amd64"], "sha256:caec39cad3b12c26600baf6e67ba811ac15d28a9288d0ccdfffb4b318992c3bb");
+  assert.equal(PINS.busybox.platformDigests["linux/arm64"], "sha256:55c89c6d9404d6668eb237dda92f28a99eb14e640f1c177a55cc9d738c53c303");
 });
 
 test("validates only the exact lowercase proof marker grammar without coercion", () => {
@@ -91,8 +92,8 @@ test("generates an exact loopback kind cluster and pinned Helm boundary", () => 
       enablePolicyFilter: true,
       enableProcessCred: true,
       enableProcessNs: true,
-      exportAllowList: '{"event_set":["PROCESS_EXEC","PROCESS_KPROBE"]}',
-      exportDenyList: '{"health_check":true}\n{"namespace":["","kube-system"]}',
+      exportAllowList: `{"namespace":["${fixture.names.namespace}"],"pod_regex":["^${fixture.names.workloadPod}$"],"event_set":["PROCESS_EXEC"]}`,
+      exportDenyList: '{"health_check":true}\n{"namespace":["cilium","kube-system"]}',
       exportFileCompress: false,
       exportFileMaxBackups: 1,
       exportFileMaxSizeMB: 16,
