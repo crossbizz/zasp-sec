@@ -10,7 +10,6 @@ import {
   CONTAINER_INSPECTION_FORMAT,
   IMAGE_INSPECTION_FORMAT,
   NETWORK_INSPECTION_FORMAT,
-  buildSchemaCommands,
   classifyMutationResult,
   parseContainerInspectionResult,
   parseImageInspectionResult,
@@ -45,7 +44,7 @@ const idPattern = /^[0-9a-f]{64}$/;
 const imageIdPattern = /^sha256:[0-9a-f]{64}$/;
 const organizationPattern = /^org_[0-9a-f]{16}$/;
 const integrationPattern = /^zasp-m0-14b-[0-9a-f]{16}-github$/;
-const connectionPattern = /^conn_[a-z0-9]{16,64}$/;
+const connectionPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 export function buildNetworkCreateArguments(specification) {
   expectSpecification(specification);
@@ -85,6 +84,18 @@ export function buildContainerCreateArguments(specification, role) {
     expected.image,
     ...(expected.command ?? []),
   ];
+}
+
+export function buildSchemaCommands(specification, databaseId) {
+  expectSpecification(specification);
+  if (!idPattern.test(databaseId)) throw new TypeError("database identity is invalid");
+  const expected = specification.database;
+  const common = ["exec", databaseId, "psql", "--no-psqlrc", "-qAt", "-v", "ON_ERROR_STOP=1", "-U", expected.user, "-d", expected.databaseName, "-c"];
+  return Object.freeze({
+    inspect: [...common, `SELECT nspname FROM pg_catalog.pg_namespace WHERE nspname IN ('${expected.schema}', '${expected.recordsSchema}') ORDER BY nspname;`],
+    create: [...common, `CREATE SCHEMA "${expected.schema}" AUTHORIZATION "${expected.user}"; CREATE SCHEMA "${expected.recordsSchema}" AUTHORIZATION "${expected.user}";`],
+    expected: `${expected.schema}\n${expected.recordsSchema}\n`,
+  });
 }
 
 export function parseWrapperOutput(value) {
@@ -185,8 +196,8 @@ export class DockerNangoOAuthRuntime {
     const marker = validateOAuthMarker(this.markerSource());
     const proofSourcePath = resolve(fileURLToPath(new URL("..", import.meta.url)));
     this.workspace = await createOAuthWorkspace({ marker, tempParent: this.tempParent, proofSourcePath });
-    this.specification = buildOAuthRuntimeSpec({ ...this.workspace.runtimeInput, platform: this.platform });
     this.environment = { PATH: this.pathValue, DOCKER_CONFIG: this.workspace.dockerConfig.path };
+    this.specification = buildOAuthRuntimeSpec({ ...this.workspace.runtimeInput, platform: this.platform });
     assertActive(signal);
   }
 
@@ -624,9 +635,9 @@ export function validateOAuthContainerIdentity(document, { resource, expected, i
     !isDeepStrictEqual(document.HostConfig?.Devices, []) || document.HostConfig?.DeviceRequests !== null || document.HostConfig?.PidMode !== "" ||
     !["", "private"].includes(document.HostConfig?.IpcMode) || !["", "private"].includes(document.HostConfig?.CgroupnsMode) || document.HostConfig?.UsernsMode !== "" ||
     !allowedState || !plainObject(document.NetworkSettings?.Networks) || !isDeepStrictEqual(Object.keys(document.NetworkSettings.Networks), [networkName]) ||
-    !validAttachment(document.NetworkSettings.Networks[networkName], expected.networkAlias, networkId, resource.id, document.State.Status) ||
-    !isDeepStrictEqual(document.NetworkSettings?.Ports, document.State.Status === "created" ? {} : unpublishedPorts(image.ExposedPorts)) ||
-    !exactRuntimeMounts(document.Mounts, expected.mounts, expected.tmpfs)
+    !validAttachment(document.NetworkSettings.Networks[networkName], expected.name, expected.networkAlias, networkId, resource.id, document.State.Status) ||
+    !validUnpublishedPorts(document.NetworkSettings?.Ports, image.ExposedPorts, document.State.Status) ||
+    !exactRuntimeMounts(document.Mounts, expected.mounts, expected.tmpfs, document.State.Status)
   ) throw ownershipError();
   return true;
 }
@@ -682,22 +693,57 @@ function exactRuntimeMounts(actual, expectedBinds, expectedTmpfs) {
   const binds = actual.filter((value) => value?.Type === "bind").map((value) => ({ Source: value.Source, Destination: value.Destination, RW: value.RW })).sort((left, right) => left.Destination.localeCompare(right.Destination));
   const wantedBinds = expectedBinds.map((value) => ({ Source: value.source, Destination: value.target, RW: false })).sort((left, right) => left.Destination.localeCompare(right.Destination));
   const tmpfs = actual.filter((value) => value?.Type === "tmpfs").map((value) => value.Destination).sort();
-  return actual.every((value) => ["bind", "tmpfs"].includes(value?.Type)) && isDeepStrictEqual(binds, wantedBinds) && isDeepStrictEqual(tmpfs, Object.keys(expectedTmpfs).sort());
+  const wantedTmpfs = Object.keys(expectedTmpfs).sort();
+  // Docker Desktop may omit tmpfs entries from `.Mounts` even while the exact
+  // HostConfig.Tmpfs map is active. Bind mounts remain authorization-relevant
+  // here; tmpfs is exact through HostConfig and may be absent or duplicated in
+  // the runtime projection.
+  const tmpfsExact = tmpfs.length === 0 || isDeepStrictEqual(tmpfs, wantedTmpfs);
+  return actual.every((value) => ["bind", "tmpfs"].includes(value?.Type)) && isDeepStrictEqual(binds, wantedBinds) && tmpfsExact;
 }
 
-function validAttachment(value, alias, networkId, resourceId, status) {
-  if (!plainObject(value) || !Array.isArray(value.Aliases) || !value.Aliases.includes(alias)) return false;
-  if (status === "created") return value.NetworkID === "" && value.EndpointID === "" && value.IPAddress === "";
-  if (status === "exited") return value.NetworkID === networkId && value.EndpointID === "" && value.IPAddress === "";
-  return status === "running" && idPattern.test(networkId ?? "") && idPattern.test(resourceId ?? "") && value.NetworkID === networkId && idPattern.test(value.EndpointID ?? "") &&
-    typeof value.IPAddress === "string" && /^\d{1,3}(?:\.\d{1,3}){3}$/.test(value.IPAddress) && Number.isInteger(value.IPPrefixLen) && value.IPPrefixLen >= 16 && value.IPPrefixLen <= 29 &&
-    typeof value.MacAddress === "string" && /^(?:[0-9a-f]{2}:){5}[0-9a-f]{2}$/.test(value.MacAddress) && value.Gateway === "";
+function validAttachment(value, name, alias, networkId, resourceId, status) {
+  if (!plainObject(value) || !exactAttachmentKeys(value) || !isDeepStrictEqual(value.Aliases, [alias]) || value.IPAMConfig !== null || value.Links !== null || value.DriverOpts !== null || value.GwPriority !== 0) return false;
+  if (status === "created") {
+    return value.DNSNames === null && value.NetworkID === "" && value.EndpointID === "" && value.Gateway === "" && value.IPAddress === "" && value.IPPrefixLen === 0 && value.MacAddress === "" && value.IPv6Gateway === "" && value.GlobalIPv6Address === "" && value.GlobalIPv6PrefixLen === 0;
+  }
+  if (!idPattern.test(networkId ?? "") || !idPattern.test(resourceId ?? "")) return false;
+  const dnsNames = alias === name ? [name, resourceId.slice(0, 12)] : [name, alias, resourceId.slice(0, 12)];
+  if (!isDeepStrictEqual(value.DNSNames, dnsNames) || value.NetworkID !== networkId || value.Gateway !== "" || value.IPv6Gateway !== "" || value.GlobalIPv6Address !== "" || value.GlobalIPv6PrefixLen !== 0) return false;
+  if (status === "exited") return value.EndpointID === "" && value.IPAddress === "" && value.IPPrefixLen === 0 && value.MacAddress === "";
+  const address = ipv4Integer(value.IPAddress);
+  return status === "running" && idPattern.test(value.EndpointID ?? "") && address !== undefined && privateIPv4(address) && Number.isInteger(value.IPPrefixLen) && value.IPPrefixLen >= 16 && value.IPPrefixLen <= 29 && /^(?:[0-9a-f]{2}:){5}[0-9a-f]{2}$/.test(value.MacAddress ?? "");
+}
+
+function exactAttachmentKeys(value) {
+  return isDeepStrictEqual(Object.keys(value).sort(), [
+    "Aliases", "DNSNames", "DriverOpts", "EndpointID", "Gateway", "GlobalIPv6Address",
+    "GlobalIPv6PrefixLen", "GwPriority", "IPAMConfig", "IPAddress", "IPPrefixLen",
+    "IPv6Gateway", "Links", "MacAddress", "NetworkID",
+  ]);
+}
+
+function ipv4Integer(value) {
+  if (typeof value !== "string") return undefined;
+  const parts = value.split(".");
+  if (parts.length !== 4 || parts.some((part) => !/^(?:0|[1-9][0-9]{0,2})$/.test(part) || Number(part) > 255)) return undefined;
+  return parts.reduce((output, part) => ((output << 8) | Number(part)) >>> 0, 0);
+}
+
+function privateIPv4(value) {
+  return (value >= 0x0a000000 && value <= 0x0affffff) || (value >= 0xac100000 && value <= 0xac1fffff) || (value >= 0xc0a80000 && value <= 0xc0a8ffff);
 }
 
 function unpublishedPorts(value) {
   if (value === null || value === undefined) return {};
   if (!plainObject(value)) throw ownershipError();
   return Object.fromEntries(Object.keys(value).sort().map((key) => [key, null]));
+}
+
+function validUnpublishedPorts(actual, exposed, status) {
+  if (status === "created") return isDeepStrictEqual(actual, {});
+  const configured = unpublishedPorts(exposed);
+  return isDeepStrictEqual(actual, configured) || (status === "exited" && isDeepStrictEqual(actual, {}));
 }
 
 function exactMissingImage(result, reference) {

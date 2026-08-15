@@ -169,7 +169,7 @@ export async function runMain(configuration, dependencies = {}) {
 }
 
 export function configurationFromEnvironment(environment) {
-  if (!plainObject(environment)) throw new TypeError("environment is invalid");
+  if (!environmentRecord(environment)) throw new TypeError("environment is invalid");
   return {
     clientId: environment.NANGO_OAUTH_CLIENT_ID,
     clientSecret: environment.NANGO_OAUTH_CLIENT_SECRET,
@@ -319,7 +319,11 @@ function plainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype;
 }
 
+function environmentRecord(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const code = await runMain(configurationFromEnvironment(process.env));
-  process.exitCode = code;
+  try { process.exitCode = await runMain(configurationFromEnvironment(process.env)); }
+  catch { process.stderr.write("Nango OAuth fixture failed.\n"); process.exitCode = 1; }
 }

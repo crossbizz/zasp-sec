@@ -64,6 +64,7 @@ export async function createOAuthWorkspace({
       fixtureRequest: join(tlsPath, "server.csr"),
       fixtureCertificate: join(tlsPath, "server.crt"),
       san: join(tlsPath, "san.cnf"),
+      caSerial: join(tlsPath, "ca.srl"),
     };
     await io.writeFile(paths.san, "subjectAltName=DNS:github.com\n", { mode: 0o600, flag: "wx" });
     const commands = tlsCommands(paths, validatedMarker);
@@ -76,14 +77,20 @@ export async function createOAuthWorkspace({
       io.chmod(paths.fixtureKey, 0o400),
       io.chmod(paths.caCertificate, 0o444),
       io.chmod(paths.fixtureCertificate, 0o444),
+      io.chmod(paths.fixtureRequest, 0o444),
+      io.chmod(paths.caSerial, 0o444),
       io.chmod(paths.san, 0o444),
     ]);
-    const [caCertificate, fixtureCertificate, fixtureKey, san] = await Promise.all([
+    const [caKey, caCertificate, caSerial, fixtureCertificate, fixtureKey, fixtureRequest, san] = await Promise.all([
+      inspectFile(paths.caKey, tlsPath, "ca.key", 0o400, io),
       inspectFile(paths.caCertificate, tlsPath, "ca.crt", 0o444, io),
+      inspectFile(paths.caSerial, tlsPath, "ca.srl", 0o444, io),
       inspectFile(paths.fixtureCertificate, tlsPath, "server.crt", 0o444, io),
       inspectFile(paths.fixtureKey, tlsPath, "server.key", 0o400, io),
+      inspectFile(paths.fixtureRequest, tlsPath, "server.csr", 0o444, io),
       inspectFile(paths.san, tlsPath, "san.cnf", 0o444, io),
     ]);
+    await requireExactEntries(tlsPath, ["ca.crt", "ca.key", "ca.srl", "san.cnf", "server.crt", "server.csr", "server.key"], io);
 
     return deepFreeze({
       marker: validatedMarker,
@@ -91,7 +98,7 @@ export async function createOAuthWorkspace({
       root,
       dockerConfig,
       proofSource,
-      tls: { directory: tlsDirectory, caCertificate, fixtureCertificate, fixtureKey, san },
+      tls: { directory: tlsDirectory, caKey, caCertificate, caSerial, fixtureCertificate, fixtureKey, fixtureRequest, san },
       password,
       encryptionKey,
       clientId,
@@ -106,9 +113,6 @@ export async function createOAuthWorkspace({
         clientSecret,
         code,
         accessToken,
-        organizationId: `org_${validatedMarker}`,
-        endUserId: `user_${validatedMarker}`,
-        integrationKey: `zasp-m0-14b-${validatedMarker}-github`,
         workspaceRoot: root.path,
         dockerConfigPath: dockerConfig.path,
         caCertificatePath: caCertificate.path,
@@ -145,11 +149,12 @@ export async function reproveOAuthWorkspace(workspace, overrides = {}) {
   requireSame(tlsDirectory, workspace.tls.directory, 0o700);
   const proofSource = await inspectDirectory(workspace.proofSource.path, workspace.proofSource.parent, basename(workspace.proofSource.path), io);
   requireSame(proofSource, workspace.proofSource, workspace.proofSource.mode & 0o777);
-  for (const [name, mode] of [["caCertificate", 0o444], ["fixtureCertificate", 0o444], ["fixtureKey", 0o400], ["san", 0o444]]) {
+  for (const [name, mode] of [["caKey", 0o400], ["caCertificate", 0o444], ["caSerial", 0o444], ["fixtureCertificate", 0o444], ["fixtureKey", 0o400], ["fixtureRequest", 0o444], ["san", 0o444]]) {
     const expected = workspace.tls[name];
     const current = await inspectFile(expected.path, tlsDirectory.path, basename(expected.path), mode, io);
     if (!sameFileIdentity(current, expected)) throw new TypeError("OAuth TLS identity changed");
   }
+  await requireExactEntries(tlsDirectory.path, ["ca.crt", "ca.key", "ca.srl", "san.cnf", "server.crt", "server.csr", "server.key"], io);
   return workspace;
 }
 
@@ -249,6 +254,19 @@ async function requireEmpty(path, io) {
   if (!Array.isArray(entries) || entries.length !== 0) throw new TypeError("Docker config is not empty");
 }
 
+async function requireExactEntries(path, expected, io) {
+  const entries = await io.readdir(path);
+  if (!Array.isArray(entries) || entries.some((entry) => typeof entry !== "string") || !sameEntries(entries, expected)) {
+    throw new TypeError("OAuth directory entries are invalid");
+  }
+}
+
+function sameEntries(left, right) {
+  const actual = [...left].sort();
+  const expected = [...right].sort();
+  return actual.length === expected.length && actual.every((entry, index) => entry === expected[index]);
+}
+
 async function requireMissing(path, io) {
   try { await io.lstat(path); }
   catch (error) { if (error?.code === "ENOENT") return; throw error; }
@@ -261,7 +279,7 @@ function expectWorkspace(value) {
 }
 
 function exactQuietSuccess(value) {
-  return plainObject(value) && value.status === 0 && value.signal === null && value.stdout === "" && value.stderr === "";
+  return plainObject(value) && value.status === 0 && value.signal === null && typeof value.stdout === "string" && typeof value.stderr === "string";
 }
 
 function exactRandom(randomSource, length) {

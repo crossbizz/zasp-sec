@@ -9,3 +9,9 @@ b89460deb3a2eb95c8a02cd31183b9f075465cf0:app/quality/stytch-b2b-test-session-pro
 # exact introduction-commit finding; moved or changed values remain detectable.
 proofs/localstack-iam-compat/sdk_test.go:generic-api-key:61
 6dd91aecbcb12673c61c7422dc3fd60caae57bab:proofs/localstack-iam-compat/sdk_test.go:generic-api-key:59
+
+# The Nango OAuth runtime uses one fixed synthetic client secret in its
+# hermetic manifest fixture. Ignore only its current file finding and exact
+# introduction-commit finding; moved or changed values remain detectable.
+proofs/nango-oauth/run.test.mjs:generic-api-key:33
+8320a197d070dff0dd7c2a612325184985f0675e:proofs/nango-oauth/run.test.mjs:generic-api-key:28

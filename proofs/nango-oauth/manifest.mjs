@@ -90,6 +90,7 @@ export function buildOAuthRuntimeSpec(input) {
       networkAlias: nangoContainerName,
       environment: {
         CSP_REPORT_ONLY: "true",
+        FLAG_AUTH_ENABLED: "false",
         FLAG_AUTH_ROLES_ENABLED: "false",
         FLAG_SERVE_CONNECT_UI: "false",
         NANGO_CLOUD: "false",

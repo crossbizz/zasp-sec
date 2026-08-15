@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 
 import {
+  configurationFromEnvironment,
   createFixtureProvider,
   runMain,
 } from "./fixture_provider.mjs";
@@ -231,4 +232,18 @@ test("keeps startup failure output fixed and secret-free", async () => {
   assert.equal(stdout, "");
   assert.equal(stderr, "Nango OAuth fixture failed.\n");
   assert.equal(stderr.includes(clientSecret), false);
+});
+
+test("accepts Node's special process.env record without relaxing provider JSON", () => {
+  const environment = Object.assign(Object.create({}), {
+    NANGO_OAUTH_CLIENT_ID: clientId,
+    NANGO_OAUTH_CLIENT_SECRET: clientSecret,
+    NANGO_OAUTH_CODE: code,
+    NANGO_OAUTH_ACCESS_TOKEN: accessToken,
+    NANGO_OAUTH_CALLBACK_URL: callbackUrl,
+    NANGO_OAUTH_HOSTNAME: "github.com",
+    NANGO_OAUTH_TLS_KEY_PATH: "/proof/tls/server.key",
+    NANGO_OAUTH_TLS_CERTIFICATE_PATH: "/proof/tls/server.crt",
+  });
+  assert.deepEqual(configurationFromEnvironment(environment), { ...configuration, tlsKeyPath: "/proof/tls/server.key", tlsCertificatePath: "/proof/tls/server.crt" });
 });

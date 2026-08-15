@@ -10,7 +10,6 @@ const organizationPattern = /^org_[a-z0-9]{16}$/;
 const endUserPattern = /^user_[a-z0-9]{16}$/;
 const integrationPattern = /^zasp-m0-14b-[0-9a-f]{16}-github$/;
 const connectTokenPattern = /^nango_connect_session_[0-9a-f]{64}$/;
-const connectionPattern = /^conn_[a-z0-9]{16,64}$/;
 const statePattern = /^[A-Za-z0-9_-]{16,128}$/;
 const codePattern = /^[A-Za-z0-9._~-]{1,512}$/;
 const pkcePattern = /^[A-Za-z0-9_-]{43,128}$/;
@@ -82,7 +81,7 @@ export async function runMain(input, dependencies = {}) {
 }
 
 export function configurationFromEnvironment(environment) {
-  if (!plainObject(environment)) throw failure("configuration");
+  if (!environmentRecord(environment)) throw failure("configuration");
   const forbidden = environment.NANGO_OAUTH_FORBIDDEN_VALUES;
   if (typeof forbidden !== "string" || forbidden.length === 0) throw failure("configuration");
   const forbiddenValues = forbidden.split(",");
@@ -128,29 +127,33 @@ async function readApiKey(input, request, signal) {
 async function createIntegration(input, apiKey, request, signal) {
   const response = await requestJson(request, {
     method: "POST",
-    url: `${input.baseUrl}/integrations`,
+    url: `${input.baseUrl}/api/v1/integrations?env=${input.environment}`,
     headers: authorizationHeaders(apiKey),
     body: JSON.stringify({
       provider: "github",
-      unique_key: input.integrationKey,
-      display_name: input.integrationKey,
-      credentials: {
-        type: "OAUTH2",
-        client_id: input.clientId,
-        client_secret: input.clientSecret,
-      },
+      integrationId: input.integrationKey,
+      displayName: input.integrationKey,
+      auth: { authType: "OAUTH2", clientId: input.clientId, clientSecret: input.clientSecret, scopes: "" },
       forward_webhooks: false,
+      useSharedCredentials: false,
     }),
     redirect: "manual",
     signal,
   }, 200);
   exactKeys(response, ["data"]);
   const value = response.data;
-  exactKeys(value, ["unique_key", "provider", "display_name", "logo", "forward_webhooks", "created_at", "updated_at"]);
+  exactKeys(value, [
+    "id", "unique_key", "provider", "oauth_client_id", "oauth_client_secret", "oauth_scopes",
+    "environment_id", "app_link", "custom", "missing_fields", "display_name", "forward_webhooks",
+    "shared_credentials_id", "created_at", "updated_at",
+  ]);
   if (
-    value.unique_key !== input.integrationKey || value.provider !== "github" ||
-    value.display_name !== input.integrationKey || value.forward_webhooks !== false ||
-    !boundedHttpUrl(value.logo) || !validTimestamp(value.created_at) || !validTimestamp(value.updated_at)
+    !positiveInteger(value.id) || value.unique_key !== input.integrationKey || value.provider !== "github" ||
+    value.oauth_client_id !== input.clientId || !boundedString(value.oauth_client_secret, 1, 4_096) ||
+    value.oauth_scopes !== "" || !positiveInteger(value.environment_id) || value.app_link !== null ||
+    value.custom !== null || !Array.isArray(value.missing_fields) || value.missing_fields.length !== 0 ||
+    value.display_name !== input.integrationKey || value.forward_webhooks !== false || value.shared_credentials_id !== null ||
+    !validTimestamp(value.created_at) || !validTimestamp(value.updated_at)
   ) {
     throw failure("provider");
   }
@@ -159,7 +162,7 @@ async function createIntegration(input, apiKey, request, signal) {
 async function createConnectSession(input, apiKey, request, signal) {
   const response = await requestJson(request, {
     method: "POST",
-    url: `${input.baseUrl}/connect/sessions`,
+    url: `${input.baseUrl}/api/v1/connect/sessions?env=${input.environment}`,
     headers: authorizationHeaders(apiKey),
     body: JSON.stringify({
       end_user: { id: input.endUserId },
@@ -189,8 +192,8 @@ async function beginOAuth(input, connectToken, request, signal) {
     redirect: "manual",
     signal,
   });
-  requireEmptyRedirect(response, 302);
   const location = header(response.headers, "location");
+  requireNangoRedirect(response, location);
   let authorization;
   try { authorization = new URL(location); } catch { throw failure("oauth"); }
   if (authorization.protocol !== "https:" || authorization.hostname !== "github.com" || authorization.port !== "" || authorization.pathname !== "/login/oauth/authorize" || authorization.hash !== "") {
@@ -249,23 +252,22 @@ async function completeCallback(input, callback, request, signal) {
 
 async function readConnection(input, apiKey, request, sleep, maximumPollAttempts, signal) {
   const query = new URLSearchParams({
-    endUserId: input.endUserId,
-    integrationId: input.integrationKey,
-    endUserOrganizationId: input.organizationId,
-    limit: "2",
+    env: input.environment,
+    integrationIds: input.integrationKey,
+    page: "0",
   });
   for (let attempt = 0; attempt < maximumPollAttempts; attempt += 1) {
     assertActive(signal);
     const response = await requestJson(request, {
       method: "GET",
-      url: `${input.baseUrl}/connections?${query.toString()}`,
+      url: `${input.baseUrl}/api/v1/connections?${query.toString()}`,
       headers: { authorization: `Bearer ${apiKey}` },
       redirect: "manual",
       signal,
     }, 200);
-    exactKeys(response, ["connections"]);
-    if (!Array.isArray(response.connections) || response.connections.length > 1) throw failure("provider");
-    if (response.connections.length === 1) return validateConnection(input, response.connections[0]);
+    exactKeys(response, ["data"]);
+    if (!Array.isArray(response.data) || response.data.length > 1) throw failure("provider");
+    if (response.data.length === 1) return validateConnection(input, response.data[0]);
     if (attempt + 1 < maximumPollAttempts) {
       try { await sleep(100); } catch { throw failure("oauth"); }
     }
@@ -274,18 +276,22 @@ async function readConnection(input, apiKey, request, sleep, maximumPollAttempts
 }
 
 function validateConnection(input, connection) {
-  exactKeys(connection, ["id", "connection_id", "provider_config_key", "provider", "errors", "end_user", "tags", "metadata", "created"]);
-  exactKeys(connection.end_user, ["id", "display_name", "email", "tags", "organization"]);
-  exactKeys(connection.end_user.organization, ["id", "display_name"]);
+  exactKeys(connection, ["id", "connection_id", "provider_config_key", "provider", "errors", "endUser", "tags", "pausedSyncs", "created_at", "updated_at"]);
+  exactKeys(connection.endUser, ["id", "display_name", "email", "tags", "organization"]);
+  exactKeys(connection.endUser.organization, ["id", "display_name"]);
+  exactKeys(connection.endUser.tags, ["origin"]);
+  exactKeys(connection.tags, ["end_user_id", "organization_id", "origin"]);
   if (
-    !positiveInteger(connection.id) || !connectionPattern.test(connection.connection_id) ||
+    !positiveInteger(connection.id) || !uuidV4Pattern.test(connection.connection_id) ||
     connection.provider_config_key !== input.integrationKey || connection.provider !== "github" ||
     !Array.isArray(connection.errors) || connection.errors.length !== 0 ||
-    connection.end_user.id !== input.endUserId || connection.end_user.display_name !== null ||
-    connection.end_user.email !== null || connection.end_user.tags !== null ||
-    connection.end_user.organization.id !== input.organizationId ||
-    connection.end_user.organization.display_name !== null || !plainObject(connection.tags) ||
-    Object.keys(connection.tags).length !== 0 || connection.metadata !== null || !validTimestamp(connection.created)
+    connection.endUser.id !== input.endUserId || connection.endUser.display_name !== null ||
+    connection.endUser.email !== null || connection.endUser.tags.origin !== "nango_dashboard" ||
+    connection.endUser.organization.id !== input.organizationId ||
+    connection.endUser.organization.display_name !== null ||
+    connection.tags.end_user_id !== input.endUserId || connection.tags.organization_id !== input.organizationId ||
+    connection.tags.origin !== "nango_dashboard" || !Array.isArray(connection.pausedSyncs) ||
+    connection.pausedSyncs.length !== 0 || !validConnectionTimestamp(connection.created_at) || !validConnectionTimestamp(connection.updated_at)
   ) {
     throw failure("provider");
   }
@@ -378,6 +384,16 @@ function requireEmptyRedirect(response, status) {
   }
 }
 
+function requireNangoRedirect(response, location) {
+  const expected = Buffer.from(`Found. Redirecting to ${location}`);
+  if (
+    response.status !== 302 || location === "" ||
+    header(response.headers, "content-type") !== "text/plain; charset=utf-8" ||
+    header(response.headers, "content-length") !== String(expected.byteLength) ||
+    !response.body.equals(expected)
+  ) throw failure("oauth");
+}
+
 function uniqueSearch(url) {
   const result = new Map();
   for (const [key, value] of url.searchParams.entries()) {
@@ -414,12 +430,10 @@ function validTimestamp(value) {
   return Number.isFinite(time) && new Date(time).toISOString() === value;
 }
 
-function boundedHttpUrl(value) {
-  if (!boundedString(value, 1, 2048)) return false;
-  try {
-    const url = new URL(value);
-    return (url.protocol === "http:" || url.protocol === "https:") && url.username === "" && url.password === "";
-  } catch { return false; }
+function validConnectionTimestamp(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}\+00:00$/.test(value)) return false;
+  const time = Date.parse(value);
+  return Number.isFinite(time) && new Date(time).toISOString() === `${value.slice(0, -6)}Z`;
 }
 
 function assertActive(signal) {
@@ -438,10 +452,15 @@ function plainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype;
 }
 
+function environmentRecord(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
 function failure(category) {
   return new Failure(category);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  process.exitCode = await runMain(configurationFromEnvironment(process.env));
+  try { process.exitCode = await runMain(configurationFromEnvironment(process.env)); }
+  catch { process.stderr.write("Nango OAuth wrapper failed.\n"); process.exitCode = 1; }
 }

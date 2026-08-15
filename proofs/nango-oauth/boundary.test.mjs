@@ -10,6 +10,7 @@ import {
   reproveOAuthWorkspace,
   validateOAuthTemporaryPrefixEntries,
 } from "./boundary.mjs";
+import { buildOAuthRuntimeSpec } from "./manifest.mjs";
 
 const marker = "0123456789abcdef";
 
@@ -52,10 +53,23 @@ test("creates a canonical workspace with unique synthetic values and generated T
     assert.equal((await readFile(workspace.tls.san.path, "utf8")), "subjectAltName=DNS:github.com\n");
     assert.equal((await lstat(workspace.tls.caCertificate.path)).isSymbolicLink(), false);
     assert.equal((await lstat(workspace.tls.fixtureCertificate.path)).isFile(), true);
-    assert.deepEqual(workspace.runtimeInput.organizationId, `org_${marker}`);
+    const specification = buildOAuthRuntimeSpec({ ...workspace.runtimeInput, platform: "linux/amd64" });
+    assert.equal(specification.wrapper.environment.NANGO_OAUTH_ORGANIZATION_ID, `org_${marker}`);
     assert.deepEqual(await reproveOAuthWorkspace(workspace), workspace);
     await removeOAuthWorkspace(workspace);
     await assert.rejects(() => lstat(workspace.root.path), { code: "ENOENT" });
+  });
+});
+
+test("accepts a real bounded OpenSSL success that writes progress to stderr", async () => {
+  await withParent(async (parent) => {
+    const workspace = await createOAuthWorkspace({
+      marker,
+      tempParent: parent,
+      proofSourcePath: join(process.cwd(), "proofs"),
+    });
+    assert.deepEqual(await reproveOAuthWorkspace(workspace), workspace);
+    await removeOAuthWorkspace(workspace);
   });
 });
 
@@ -69,6 +83,20 @@ test("rejects certificate content, identity, mode, and Docker-config drift", asy
   await withParent(async (parent) => {
     const workspace = await createOAuthWorkspace({ marker, tempParent: parent, proofSourcePath: join(process.cwd(), "proofs"), randomSource: deterministicRandom, runCommand: fakeOpenSSL });
     await chmod(workspace.tls.fixtureKey.path, 0o644);
+    await assert.rejects(() => reproveOAuthWorkspace(workspace));
+  });
+});
+
+test("binds every generated TLS file and rejects injected directory entries", async () => {
+  await withParent(async (parent) => {
+    const workspace = await createOAuthWorkspace({ marker, tempParent: parent, proofSourcePath: join(process.cwd(), "proofs"), randomSource: deterministicRandom, runCommand: fakeOpenSSL });
+    await writeFile(join(workspace.tls.directory.path, "unexpected"), "foreign");
+    await assert.rejects(() => reproveOAuthWorkspace(workspace));
+  });
+  await withParent(async (parent) => {
+    const workspace = await createOAuthWorkspace({ marker, tempParent: parent, proofSourcePath: join(process.cwd(), "proofs"), randomSource: deterministicRandom, runCommand: fakeOpenSSL });
+    await chmod(join(workspace.tls.directory.path, "ca.key"), 0o600);
+    await writeFile(join(workspace.tls.directory.path, "ca.key"), "changed");
     await assert.rejects(() => reproveOAuthWorkspace(workspace));
   });
 });

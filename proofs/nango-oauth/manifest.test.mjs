@@ -54,6 +54,7 @@ test("builds one internal four-role OAuth runtime with zero host ports", () => {
 
 test("binds Nango, fixture, and wrapper to the generated CA and exact source", () => {
   const spec = buildOAuthRuntimeSpec(input);
+  assert.equal(spec.nango.environment.FLAG_AUTH_ENABLED, "false");
   assert.equal(spec.nango.environment.NODE_EXTRA_CA_CERTS, "/proof/tls/ca.crt");
   assert.equal(spec.nango.environment.NANGO_PUBLIC_CONNECT_URL, `http://${spec.nango.name}:3003/connect`);
   assert.equal(spec.nango.environment.NANGO_PUBLIC_SERVER_URL, `http://${spec.nango.name}:3003`);

@@ -11,6 +11,7 @@ import {
 const apiKey = "00000000-0000-4000-8000-000000000014";
 const clientSecret = "fixture-client-secret-value";
 const connectToken = `nango_connect_session_${"a".repeat(64)}`;
+const connectionId = "00000000-0000-4000-8000-0000000000b4";
 const code = "single-use-code-value";
 const accessToken = "fixture-access-token-value";
 const input = Object.freeze({
@@ -30,6 +31,15 @@ function jsonResponse(status, value, headers = {}) {
 
 function redirectResponse(location) {
   return { status: 302, headers: { location }, body: Buffer.alloc(0) };
+}
+
+function nangoRedirectResponse(location, suffix = "") {
+  const body = Buffer.from(`Found. Redirecting to ${location}${suffix}`);
+  return {
+    status: 302,
+    headers: { location, "content-type": "text/plain; charset=utf-8", "content-length": String(body.byteLength) },
+    body,
+  };
 }
 
 function createHappyTransport(options = {}) {
@@ -61,20 +71,28 @@ function createHappyTransport(options = {}) {
         }],
       });
     }
-    if (url.pathname === "/integrations") {
+    if (url.pathname === "/api/v1/integrations") {
       return jsonResponse(200, {
         data: {
+          id: 2,
           unique_key: input.integrationKey,
           provider: "github",
+          oauth_client_id: input.clientId,
+          oauth_client_secret: "encrypted-client-secret-value",
+          oauth_scopes: "",
+          environment_id: 1,
+          app_link: null,
+          custom: null,
+          missing_fields: [],
           display_name: input.integrationKey,
-          logo: "http://nango:3003/images/template-logos/github.svg",
           forward_webhooks: false,
+          shared_credentials_id: null,
           created_at: "2026-08-14T00:00:00.000Z",
           updated_at: "2026-08-14T00:00:00.000Z",
         },
       });
     }
-    if (url.pathname === "/connect/sessions") {
+    if (url.pathname === "/api/v1/connect/sessions") {
       return jsonResponse(201, {
         data: {
           token: connectToken,
@@ -84,7 +102,7 @@ function createHappyTransport(options = {}) {
       });
     }
     if (url.pathname === `/oauth/connect/${input.integrationKey}`) {
-      return redirectResponse(authorization.href);
+      return nangoRedirectResponse(authorization.href);
     }
     if (url.hostname === "github.com" && url.pathname === "/login/oauth/authorize") {
       return redirectResponse(callback);
@@ -92,28 +110,33 @@ function createHappyTransport(options = {}) {
     if (url.pathname === "/oauth/callback") {
       return { status: 200, headers: { "content-type": "text/html; charset=utf-8" }, body: Buffer.from("<!doctype html><title>success</title>") };
     }
-    if (url.pathname === "/connections") {
+    if (url.pathname === "/api/v1/connections") {
       connectionReads += 1;
       if (connectionReads <= (options.emptyConnectionReads ?? 0)) {
-        return jsonResponse(200, { connections: [] });
+        return jsonResponse(200, { data: [] });
       }
       return options.connectionResponse ?? jsonResponse(200, {
-        connections: [{
+        data: [{
           id: 42,
-          connection_id: "conn_0123456789abcdef",
+          connection_id: connectionId,
           provider_config_key: input.integrationKey,
           provider: "github",
           errors: [],
-          end_user: {
+          endUser: {
             id: input.endUserId,
             display_name: null,
             email: null,
-            tags: null,
+            tags: { origin: "nango_dashboard" },
             organization: { id: input.organizationId, display_name: null },
           },
-          tags: {},
-          metadata: null,
-          created: "2026-08-14T00:00:00.000Z",
+          tags: {
+            end_user_id: input.endUserId,
+            organization_id: input.organizationId,
+            origin: "nango_dashboard",
+          },
+          pausedSyncs: [],
+          created_at: "2026-08-14T00:00:00.000+00:00",
+          updated_at: "2026-08-14T00:00:00.000+00:00",
         }],
       });
     }
@@ -133,17 +156,21 @@ test("completes the exact OAuth redirect flow and returns only a durable referen
   assert.deepEqual(result, {
     organizationId: input.organizationId,
     integrationKey: input.integrationKey,
-    connectionId: "conn_0123456789abcdef",
+    connectionId,
   });
   assert.deepEqual(Object.keys(result), ["organizationId", "integrationKey", "connectionId"]);
   assert.equal(transport.getConnectionReads(), 2);
   assert.equal(transport.requests.length, 8);
+  for (const index of [0, 1, 2, 6, 7]) {
+    assert.equal(new URL(transport.requests[index].url).searchParams.get("env"), "dev");
+  }
   assert.deepEqual(JSON.parse(transport.requests[1].body), {
     provider: "github",
-    unique_key: input.integrationKey,
-    display_name: input.integrationKey,
-    credentials: { type: "OAUTH2", client_id: input.clientId, client_secret: input.clientSecret },
+    integrationId: input.integrationKey,
+    displayName: input.integrationKey,
+    auth: { authType: "OAUTH2", clientId: input.clientId, clientSecret: input.clientSecret, scopes: "" },
     forward_webhooks: false,
+    useSharedCredentials: false,
   });
   assert.deepEqual(JSON.parse(transport.requests[2].body), {
     end_user: { id: input.endUserId },
@@ -155,6 +182,12 @@ test("completes the exact OAuth redirect flow and returns only a durable referen
   assert.equal(transport.requests[4].redirect, "manual");
   assert.equal(transport.requests[5].redirect, "manual");
   assert.deepEqual(transport.requests[6].headers, { authorization: `Bearer ${apiKey}` });
+  const connectionQuery = new URL(transport.requests[6].url).searchParams;
+  assert.deepEqual([...connectionQuery.entries()], [
+    ["env", "dev"],
+    ["integrationIds", input.integrationKey],
+    ["page", "0"],
+  ]);
 });
 
 test("rejects malformed input before issuing a request", async () => {
@@ -217,19 +250,39 @@ test("rejects redirect host, path, state, callback, and PKCE drift", async () =>
     };
     await assert.rejects(runOAuthConnection(input, { request }), Failure);
   }
+  for (const suffix of ["\n", " trailing"]) {
+    const request = async (request_) => {
+      const url = new URL(request_.url);
+      if (url.pathname === `/oauth/connect/${input.integrationKey}`) return nangoRedirectResponse(authorizationUrl(input), suffix);
+      return base.request(request_);
+    };
+    await assert.rejects(runOAuthConnection(input, { request }), Failure);
+  }
 });
+
+function authorizationUrl(value) {
+  const authorization = new URL("https://github.com/login/oauth/authorize");
+  authorization.searchParams.set("client_id", value.clientId);
+  authorization.searchParams.set("redirect_uri", `${value.baseUrl}/oauth/callback`);
+  authorization.searchParams.set("response_type", "code");
+  authorization.searchParams.set("state", "b".repeat(64));
+  authorization.searchParams.set("code_challenge", "c".repeat(43));
+  authorization.searchParams.set("code_challenge_method", "S256");
+  return authorization.href;
+}
 
 test("requires exactly one matching Organization-scoped connection", async () => {
   const wrong = createHappyTransport({
     connectionResponse: jsonResponse(200, {
-      connections: [{
+      data: [{
         id: 42,
-        connection_id: "conn_0123456789abcdef",
+        connection_id: connectionId,
         provider_config_key: input.integrationKey,
         provider: "github",
         errors: [],
-        end_user: { id: input.endUserId, display_name: null, email: null, tags: null, organization: { id: "org_bbbbbbbbbbbbbbbb", display_name: null } },
-        tags: {}, metadata: null, created: "2026-08-14T00:00:00.000Z",
+        endUser: { id: input.endUserId, display_name: null, email: null, tags: { origin: "nango_dashboard" }, organization: { id: "org_bbbbbbbbbbbbbbbb", display_name: null } },
+        tags: { end_user_id: input.endUserId, organization_id: "org_bbbbbbbbbbbbbbbb", origin: "nango_dashboard" },
+        pausedSyncs: [], created_at: "2026-08-14T00:00:00.000+00:00", updated_at: "2026-08-14T00:00:00.000+00:00",
       }],
     }),
   });
@@ -269,7 +322,7 @@ test("keeps the CLI boundary fixed and free of every seeded sensitive value", as
   assert.deepEqual(JSON.parse(stdout), {
     organizationId: input.organizationId,
     integrationKey: input.integrationKey,
-    connectionId: "conn_0123456789abcdef",
+    connectionId,
   });
   for (const forbidden of input.forbiddenValues) assert.equal(stdout.includes(forbidden), false);
 
@@ -287,7 +340,7 @@ test("keeps the CLI boundary fixed and free of every seeded sensitive value", as
 });
 
 test("builds the direct CLI input from only the exact synthetic environment", () => {
-  assert.deepEqual(configurationFromEnvironment({
+  const environment = Object.assign(Object.create({}), {
     NANGO_OAUTH_BASE_URL: input.baseUrl,
     NANGO_OAUTH_ENVIRONMENT: input.environment,
     NANGO_OAUTH_ORGANIZATION_ID: input.organizationId,
@@ -296,7 +349,8 @@ test("builds the direct CLI input from only the exact synthetic environment", ()
     NANGO_OAUTH_CLIENT_ID: input.clientId,
     NANGO_OAUTH_CLIENT_SECRET: input.clientSecret,
     NANGO_OAUTH_FORBIDDEN_VALUES: input.forbiddenValues.join(","),
-  }), input);
+  });
+  assert.deepEqual(configurationFromEnvironment(environment), input);
   for (const environment of [
     {},
     { NANGO_OAUTH_FORBIDDEN_VALUES: "" },
