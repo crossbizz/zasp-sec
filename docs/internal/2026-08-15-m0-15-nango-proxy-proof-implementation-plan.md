@@ -93,16 +93,16 @@ PostgreSQL 16.0-alpine, Docker CLI, Node test runner, Vitest, Markdown.
 - Output: fixed readiness line only; response 2 is canonical bounded JSON with
   one deterministic event.
 
-- [ ] Write tests first for the exact two-request happy path, ordered state,
+- [x] Write tests first for the exact two-request happy path, ordered state,
   exact Host/Accept/Authorization/body/query, one-use semantics, canonical
   response, and fixed output.
-- [ ] Add hostile cases for replay, out-of-order calls, wrong/missing/duplicate
+- [x] Add hostile cases for replay, out-of-order calls, wrong/missing/duplicate
   headers, wrong method/path/query, redirect-like paths, extra body, partial
   body, oversized stream, invalid TLS/file boundary, logger/stream leakage,
   panic, timeout, and primitive/hostile coercion.
-- [ ] Capture module-absent RED, then implement the minimal bounded HTTPS
+- [x] Capture module-absent RED, then implement the minimal bounded HTTPS
   fixture without provider/network access in tests.
-- [ ] Run the fixture tests six consecutive times.
+- [x] Run the fixture tests six consecutive times.
 
 ---
 
@@ -121,18 +121,18 @@ PostgreSQL 16.0-alpine, Docker CLI, Node test runner, Vitest, Markdown.
 - Output: exact Organization/integration/connection references plus event ID
   and action; fixed failure line only.
 
-- [ ] Write tests first for all exact request methods, paths, query strings,
+- [x] Write tests first for all exact request methods, paths, query strings,
   authorization headers, connection/provider headers, redirect policy, body
   bounds, response content type, and official v0.70.5 response shapes.
-- [ ] Require strict duplicate-key JSON parsing, exact object keys, valid UTC
+- [x] Require strict duplicate-key JSON parsing, exact object keys, valid UTC
   timestamps, exact Organization/end-user tags, UUIDs, and deterministic event
   schema.
-- [ ] Prove raw provider key, environment key, connect token, database
+- [x] Prove raw provider key, environment key, connect token, database
   password, and encryption key never enter retained/serialized product state.
-- [ ] Add hostile response, arbitrary prose, extra-key, alias, duplicate-key,
+- [x] Add hostile response, arbitrary prose, extra-key, alias, duplicate-key,
   invalid-calendar, primitive, coercion, abort, timeout, oversize, and stream
   failure cases.
-- [ ] Capture absent-module RED, implement minimal GREEN, and run six focused
+- [x] Capture absent-module RED, implement minimal GREEN, and run six focused
   passes.
 
 ---
@@ -153,23 +153,23 @@ PostgreSQL 16.0-alpine, Docker CLI, Node test runner, Vitest, Markdown.
 - Success: `Nango proxy proof passed: get=true response=true product_state_safe=true cleanup=true.`
 - Main/cleanup budgets: finite named budgets with margin over child operations.
 
-- [ ] Write boundary RED for absent workspace APIs, then implement exact
+- [x] Write boundary RED for absent workspace APIs, then implement exact
   direct-child mkdtemp ownership, 0700 Docker config, TLS identities/digests,
   pre/post-command reproof, cleanup-time dev/inode/canonical reproof, and
   global prefix absence.
-- [ ] Write manifest RED for absent runtime spec, then implement exact pins,
+- [x] Write manifest RED for absent runtime spec, then implement exact pins,
   names, environments, user/security/resource bounds, mounts, internal
   network, two-request fixture command, and proxy-wrapper command.
-- [ ] Write orchestrator RED for absent runtime and cover image resolution,
+- [x] Write orchestrator RED for absent runtime and cover image resolution,
   full-ID candidate retention, definitive-vs-ambiguous create/start/schema/
   remove behavior, exact metadata, current network peers, output parsing,
   mutation settlement, phase fencing, cleanup continuation/precedence, and
   global absence.
-- [ ] Include rejected/ambiguous Docker reads, stdout/stderr pipe errors,
+- [x] Include rejected/ambiguous Docker reads, stdout/stderr pipe errors,
   output caps, SIGKILL deadlines, late continuations, replacement resources,
   mount/env order, intrinsic volumes, generic-vs-exact missing responses,
   stale other-marker resources, and workspace replacement cases.
-- [ ] Run the entire new proof suite six consecutive times, then run all
+- [x] Run the entire new proof suite six consecutive times, then run all
   M0-14a/b/c regression suites.
 
 ---
@@ -185,16 +185,16 @@ PostgreSQL 16.0-alpine, Docker CLI, Node test runner, Vitest, Markdown.
 - `proof:nango:proxy:test`: hermetic only, no Docker/provider.
 - `proof:nango:proxy:run`: exact disposable live lifecycle.
 
-- [ ] Extend the repository contract tests first and capture RED for the
+- [x] Extend the repository contract tests first and capture RED for the
   absent scripts/documentation.
-- [ ] Add exact root scripts and README commands, private-boundary statement,
+- [x] Add exact root scripts and README commands, private-boundary statement,
   fixed success line, output/secrecy guarantee, Docker prerequisite, and
   current In-progress/R-08 Not-run status.
-- [ ] Prove the hermetic command leaves no generated bytecode/cache/temp
+- [x] Prove the hermetic command leaves no generated bytecode/cache/temp
   artifact and performs no Docker/provider call.
-- [ ] Run focused GREEN, root proof tests, full pinned repository verification,
+- [x] Run focused GREEN, root proof tests, full pinned repository verification,
   production audit, license inventory, syntax/lint, and diff checks.
-- [ ] Commit the scoped implementation as atomic reviewed task commits.
+- [x] Commit the scoped implementation as atomic reviewed task commits.
 
 ---
 

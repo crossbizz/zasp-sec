@@ -283,10 +283,33 @@ incomplete.
 
 M0-15 is In progress. It proves one authenticated provider GET through the
 exact-pinned free self-hosted Nango Proxy surface against a private TLS fixture.
-The product wrapper must retain only scoped opaque references and allowlisted
-normalized response fields; the raw provider token must never enter product
-state or fixed output. R-08 remains Not run until the live lifecycle, cleanup,
-full gates, and review pass.
+The fixture first accepts Nango's exact API-key introspection request, then one
+distinct bearer-authenticated `GET /api/v2/events?limit=1`. The product wrapper
+calls that provider endpoint only through Nango's authenticated Proxy route and
+retains scoped opaque references plus the allowlisted event ID and action.
+
+The hermetic command tests parsing, the ordered fixture, product secrecy,
+immutable manifests, exact Docker ownership, bounded mutation settlement,
+fixed output, and cleanup without starting Docker. The live command requires
+Node.js 22.23.1, npm 10.9.8, Docker, and OpenSSL. It reads no `.env`, profile,
+cloud/provider credential, proxy variable, or ambient Docker authentication;
+the private internal network publishes no host port.
+
+```bash
+npm run proof:nango:proxy:test
+npm run proof:nango:proxy:run
+```
+
+Success is exactly:
+
+```text
+Nango proxy proof passed: get=true response=true product_state_safe=true cleanup=true.
+```
+
+The raw provider token, Nango environment key, connect token, database
+password, and encryption key never enter product state or fixed output.
+R-08 remains Not run until the live lifecycle, exact cleanup, full gates, and
+zero-finding review pass.
 
 ## Nango free Auth boundary
 

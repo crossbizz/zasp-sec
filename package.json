@@ -36,6 +36,8 @@
     "proof:nango:oauth:run": "node proofs/nango-oauth/run.mjs",
     "proof:nango:api-key:test": "node --test proofs/nango-api-key/*.test.mjs",
     "proof:nango:api-key:run": "node proofs/nango-api-key/run.mjs",
+    "proof:nango:proxy:test": "node --test proofs/nango-proxy/*.test.mjs",
+    "proof:nango:proxy:run": "node proofs/nango-proxy/run.mjs",
     "proof:tetragon:test": "node --test proofs/tetragon-signal/*.test.mjs",
     "proof:tetragon:run": "node proofs/tetragon-signal/run.mjs",
     "proof:aws:iam:test": "cd proofs/aws-cross-account-iam && go test -race -count=1 ./... && node --test run.test.mjs",

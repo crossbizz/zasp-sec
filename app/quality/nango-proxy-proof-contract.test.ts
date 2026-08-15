@@ -74,6 +74,27 @@ function activeFixture(tracker: string, readme: string) {
 }
 
 describe("Nango Proxy proof start contract", () => {
+  it("exposes exact hermetic and live commands with the fixed private output boundary", async () => {
+    const packageJson = JSON.parse(await readFile(resolve(repositoryRoot, "package.json"), "utf8")) as {
+      scripts?: Record<string, string>;
+    };
+    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const section = readme.match(/## Nango proxy proof[\s\S]*?## Nango free Auth boundary/)?.[0];
+
+    expect(packageJson.scripts?.["proof:nango:proxy:test"]).toBe("node --test proofs/nango-proxy/*.test.mjs");
+    expect(packageJson.scripts?.["proof:nango:proxy:run"]).toBe("node proofs/nango-proxy/run.mjs");
+    expect(packageJson.scripts?.["proof:nango:proxy:test"]).not.toMatch(/docker|env-file|credential|source/i);
+    expect(section).toBeDefined();
+    expect(section).toContain("npm run proof:nango:proxy:test");
+    expect(section).toContain("npm run proof:nango:proxy:run");
+    expect(section).toContain("Nango proxy proof passed: get=true response=true product_state_safe=true cleanup=true.");
+    expect(section).toContain("GET /api/v2/events?limit=1");
+    expect(section).toContain("no host port");
+    expect(section).toContain("no `.env`");
+    expect(section).toContain("raw provider token");
+    expect(section).toContain("M0-15 is In progress");
+  });
+
   it("binds the exact source task, accepted product boundary, and implementation decision", async () => {
     const sourcePlan = await readFile(
       resolve(repositoryRoot, "docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md"),
