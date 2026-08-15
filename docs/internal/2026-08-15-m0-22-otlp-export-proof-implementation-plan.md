@@ -53,4 +53,4 @@ Every behavior change follows a witnessed tests-only RED.
 - [x] Fix every adversarial review finding tests-first.
 - [x] Transition only M0-22 to Complete and R-12 to PASS after combined proof;
   keep M0-23 Pending.
-- [ ] Commit, push, and watch the exact-SHA Runnable UI gate.
+- [x] Commit, push, and watch the exact-SHA Runnable UI gate.
