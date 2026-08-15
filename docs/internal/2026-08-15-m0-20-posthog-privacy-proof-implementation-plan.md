@@ -54,4 +54,4 @@ the evidence-backed R-13 decision. Every behavior change follows a witnessed tes
 - [x] Transition M0-20 from In progress to Complete only after the exact proof,
   zero-resource cleanup, and review pass; otherwise Block it explicitly.
 - [x] Keep M0-21 Pending through the transition.
-- [ ] Commit, push, and watch the exact-SHA Runnable UI gate.
+- [x] Commit, push, and watch the exact-SHA Runnable UI gate.
