@@ -44,7 +44,7 @@ describe("M1-05 evidence model contract", () => {
     expect(plan).toContain("M1-06 remains Pending");
   });
 
-  it("starts only M1-05 after M1-04 completes", async () => {
+  it("completes only M1-05 after the evidence boundary passes", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -58,17 +58,18 @@ describe("M1-05 evidence model contract", () => {
     const m1 = milestones.find(([milestone]) => milestone === "M1");
 
     expect(readme).toContain("M1-04 is Complete");
-    expect(readme).toContain("M1-05 is In progress");
+    expect(readme).toContain("M1-05 is Complete");
     expect(readme).toContain("evidence confidence");
     expect(tracker).toContain("| Pending | 690 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 34 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 35 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`690/1/34/3`");
+    expect(tracker).toContain("`690/0/35/3`");
     expect(m0).toEqual(["M0", "27", "0", "0", "24", "3"]);
-    expect(m1).toEqual(["M1", "68", "57", "1", "10", "0"]);
+    expect(m1).toEqual(["M1", "68", "57", "0", "11", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.filter(([task]) => task === "M1-05")).toHaveLength(1);
+    expect(active).toHaveLength(0);
+    expect(complete.filter(([task]) => task === "M1-05")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-04")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-06")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);

@@ -177,7 +177,7 @@ remain outside the product scope boundary.
 
 ## Product evidence model
 
-M1-05 is In progress. Evidence references use canonical product identity;
+M1-05 is Complete. Evidence references use canonical product identity;
 evidence confidence and capability/path state use separate exact lowercase
 vocabularies. Evidence confidence never substitutes for finding severity, and
 a reference alone never grants scoped access.
