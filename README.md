@@ -279,6 +279,17 @@ R-12 remains Not run until M0-22 proves the separate bounded remote-export and
 exporter-failure boundary. M0-09 and PROV-01 remain Blocked, and R-03 remains
 incomplete.
 
+## OPA SDK proof
+
+M0-17 is In progress. It evaluates one Allow and one Block decision with the
+exact-pinned official OPA Go SDK embedded in-process. The proof prepares one
+fixed internal policy query, warms it 100 times per decision, measures 1,000
+evaluations per decision, and requires both decision-specific p95 values to be
+at most 10 ms. It starts no OPA server, accepts no customer Rego or environment
+configuration, and performs no network or provider call. R-10 remains Not run
+until the direct proof, dependency audit, full gates, and whole-range review
+pass.
+
 ## Promptfoo red-team proof
 
 M0-16 is Complete. It runs one direct prompt-injection case through the

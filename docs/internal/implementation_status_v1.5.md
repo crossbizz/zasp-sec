@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 708 |
-| In progress | 0 |
+| Pending | 707 |
+| In progress | 1 |
 | Complete | 18 |
 | Blocked | 1 |
 
@@ -23,7 +23,7 @@ In progress, Complete, or Blocked is Pending.
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 7 | 0 | 18 | 1 |
+| M0 | 27 | 6 | 1 | 18 | 1 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -68,13 +68,14 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `708/0/18/1` because
+session configuration. The 728 source-plan counts are `707/1/18/1` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M0-17 | August 15, 2026 | Evaluate one Allow and one Block decision using the embedded in-process OPA Go SDK and prove deterministic decision-specific p95 latency at or below 10 ms. |
 
 ## Complete
 
@@ -258,4 +259,7 @@ provider capability gate.
   agent, retained only the objective, vulnerable verdict, and SHA-256 evidence
   reference, proved exact zero-resource cleanup and shared-resource
   non-mutation, and passed pinned gates, scans, and zero-finding review. R-09
-  is PASS. M0-17 remains Pending.
+  is PASS. M0-17 is now In progress.
+- M0-17 is In progress as an embedded in-process OPA Go SDK proof. R-10 remains
+  Not run until deterministic Allow/Block and decision-specific local p95
+  evidence pass review. M0-18 remains Pending.

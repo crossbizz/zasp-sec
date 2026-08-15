@@ -51,7 +51,7 @@ repository contracts and license audit, Vitest, Gitleaks 8.30.1.
   `27/6/1/18/1`, and exact R-10 state `Not run — M0-17`.
 - Preserves M0-16 Complete and R-09 PASS.
 
-- [ ] **Step 1: Write the status-contract RED**
+- [x] **Step 1: Write the status-contract RED**
 
 Add assertions equivalent to:
 
@@ -68,7 +68,7 @@ expect(r10Rows[0]?.[5]).toBe("Not run — M0-17");
 Include hostile duplicate M0-17, concurrent M0-18, premature R-10 PASS,
 external OPA service/customer-Rego wording, and aggregate-drift mutations.
 
-- [ ] **Step 2: Run focused RED**
+- [x] **Step 2: Run focused RED**
 
 Run:
 
@@ -78,18 +78,18 @@ PATH="$HOME/.nvm/versions/node/v22.23.1/bin:$PATH" npm exec vitest run app/quali
 
 Expected: only the absent README row and stale 708/0/18/1 tracker boundary fail.
 
-- [ ] **Step 3: Apply the minimal start transition**
+- [x] **Step 3: Apply the minimal start transition**
 
 Add a README section that says M0-17 is In progress and proves an embedded
 in-process OPA Go SDK fast path. Move only M0-17 from Pending to In progress;
 do not advance R-10.
 
-- [ ] **Step 4: Run focused and affected GREEN**
+- [x] **Step 4: Run focused and affected GREEN**
 
 Run the new contract plus every historical contract that binds the current
 aggregate and active-row cardinality. Expected: all pass under pinned Node.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 Run full pinned repository verify, production audit, whitespace, and staged
 redacted Gitleaks. Commit as:

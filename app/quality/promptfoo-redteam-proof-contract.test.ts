@@ -36,19 +36,20 @@ function assertM016Complete(tracker: string, readme: string, riskRegister: strin
   expect(section).toContain("R-09 is PASS");
   expect(section).not.toMatch(/Promptfoo Cloud|external model|real credential/i);
 
-  expect(tracker).toContain("| Pending | 708 |");
-  expect(tracker).toContain("| In progress | 0 |");
+  expect(tracker).toContain("| Pending | 707 |");
+  expect(tracker).toContain("| In progress | 1 |");
   expect(tracker).toContain("| Complete | 18 |");
   expect(tracker).toContain("| Blocked | 1 |");
-  expect(tracker).toMatch(/\| M0 \| 27 \| 7 \| 0 \| 18 \| 1 \|/);
-  expect(tracker).toContain("`708/0/18/1`");
-  expect(activeRows).toHaveLength(0);
+  expect(tracker).toMatch(/\| M0 \| 27 \| 6 \| 1 \| 18 \| 1 \|/);
+  expect(tracker).toContain("`707/1/18/1`");
+  expect(activeRows).toHaveLength(1);
+  expect(activeRows[0]?.[0]).toBe("M0-17");
   expect(completeRows.filter(([task]) => task === "M0-16")).toHaveLength(1);
   expect(completeRows.find(([task]) => task === "M0-16")?.[1]).toBe("August 15, 2026");
   expect(completeRows.find(([task]) => task === "M0-16")?.[2]).toContain("Promptfoo");
   expect(completeRows.find(([task]) => task === "M0-16")?.[2]).toContain("local fake agent");
   expect(completeRows.filter(([task]) => task === "M0-15")).toHaveLength(1);
-  expect([...activeRows, ...completeRows].filter(([task]) => task === "M0-17")).toHaveLength(0);
+  expect([...activeRows, ...completeRows].filter(([task]) => task === "M0-17")).toHaveLength(1);
   expect(tracker).toContain("M0-09 and PROV-01 remain Blocked");
   expect(tracker).toContain("R-03 remains incomplete");
 
