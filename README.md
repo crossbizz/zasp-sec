@@ -270,6 +270,10 @@ Success is exactly:
 OTLP ingest proof passed: traces=1 spans=1 identity=true cleanup=true.
 ```
 
+M0-13 is Complete after two consecutive final-code live runs, exact zero-resource
+cleanup audits, pinned local gates and scans, and zero-finding independent
+review.
+
 This proof establishes local Collector-to-adapter identity preservation only.
 R-12 remains Not run until M0-22 proves the separate bounded remote-export and
 exporter-failure boundary. M0-09 and PROV-01 remain Blocked, and R-03 remains

@@ -15,6 +15,19 @@ function markdownRows(markdown: string) {
     .map((line) => line.slice(1, -1).split("|").map((cell) => cell.trim()));
 }
 
+function assertM013Complete(tracker: string) {
+  const inProgress = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
+  const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] ?? "";
+  const inProgressRows = markdownRows(inProgress).slice(2);
+  const completeRows = markdownRows(complete).slice(2).filter(([task]) => task === "M0-13");
+
+  expect(inProgressRows).toEqual([]);
+  expect(completeRows).toHaveLength(1);
+  expect(completeRows[0]?.[1]).toBe("August 14, 2026");
+  expect(completeRows[0]?.[2]).toContain("exact-pinned local OTLP ingest proof");
+  expect(completeRows[0]?.[2]).toContain("zero-finding independent review");
+}
+
 describe("OTLP ingest proof contract", () => {
   it("binds the source-plan dependency, deliverable, and verification boundary", async () => {
     const plan = await readFile(
@@ -66,24 +79,35 @@ describe("OTLP ingest proof contract", () => {
     expect(plan).toContain("independent review");
   });
 
-  it("starts exactly M0-13 without changing blocked provider boundaries", async () => {
+  it("completes exactly M0-13 without changing blocked provider boundaries", async () => {
     const tracker = await readFile(
       resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"),
       "utf8",
     );
-    const section = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
-    const rows = markdownRows(section).slice(2);
-
-    expect(tracker).toContain("| Pending | 715 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 11 |");
+    expect(tracker).toContain("| Pending | 714 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 12 |");
     expect(tracker).toContain("| Blocked | 1 |");
-    expect(tracker).toMatch(/\| M0 \| 27 \| 14 \| 1 \| 11 \| 1 \|/);
-    expect(rows).toEqual([
-      ["M0-13", "August 14, 2026", expect.stringContaining("OTLP")],
-    ]);
+    expect(tracker).toMatch(/\| M0 \| 27 \| 13 \| 0 \| 12 \| 1 \|/);
+    assertM013Complete(tracker);
     expect(tracker).toContain("M0-09 and PROV-01 remain Blocked");
     expect(tracker).toContain("R-03 remains incomplete");
+  });
+
+  it("rejects duplicate M0-13 completion and concurrent in-progress rows", async () => {
+    const tracker = await readFile(
+      resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"),
+      "utf8",
+    );
+    const row = tracker.split("\n").find((line) => line.startsWith("| M0-13 |"));
+    expect(row).toBeDefined();
+    const duplicate = tracker.replace(`${row}\n`, `${row}\n${row}\n`);
+    const concurrent = tracker.replace(
+      "## Complete\n",
+      "| M0-14a | August 14, 2026 | Decoy concurrent work. |\n\n## Complete\n",
+    );
+    expect(() => assertM013Complete(duplicate)).toThrow();
+    expect(() => assertM013Complete(concurrent)).toThrow();
   });
 
   it("keeps R-12 Not run until both ingest and later export proofs complete", async () => {
@@ -127,6 +151,7 @@ describe("OTLP ingest proof contract", () => {
     expect(section).toContain("remote OTLP export is disabled");
     expect(section).toContain("raw prompts, tool arguments, credentials, or customer payloads");
     expect(section).toContain("R-12 remains Not run until M0-22");
+    expect(section).toContain("M0-13 is Complete");
     expect(section).toContain("npm run proof:otlp:test");
     expect(section).toContain("npm run proof:otlp:run");
   });

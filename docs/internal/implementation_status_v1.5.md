@@ -14,16 +14,16 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 715 |
-| In progress | 1 |
-| Complete | 11 |
+| Pending | 714 |
+| In progress | 0 |
+| Complete | 12 |
 | Blocked | 1 |
 
 ## Milestone summary
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 14 | 1 | 11 | 1 |
+| M0 | 27 | 13 | 0 | 12 | 1 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -68,14 +68,13 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `715/1/11/1` because
+session configuration. The 728 source-plan counts are `714/0/12/1` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M0-13 | August 14, 2026 | The exact-pinned local OTLP ingest proof is implementing one bounded agent/task/tool trace through a real Collector into the product-owned ingest adapter; R-12 remains Not run because M0-22 remote-export failure behavior is separate. |
 
 ## Complete
 
@@ -92,6 +91,7 @@ PROV-01 is excluded from those counts.
 | M0-10 | August 14, 2026 | Two exact-pinned disposable Cartography/Neo4j fixture runs loaded two synthetic Organizations and proved eight normalized nodes, four relationships, collision isolation, customer-label safety, exact cleanup, pinned gates/scans, two consecutive live passes, and zero-finding independent review under the fixture-only waiver; no AWS/GitHub authorization-parity claim. |
 | M0-11 | August 14, 2026 | The exact-pinned Prowler fixture-only evidence proof produced one reviewed open/high finding and one linked normalized evidence record for the canonical M0-10 Organization-scoped role, proved exact cleanup and shared-target non-mutation, passed pinned gates and license/secret audits, and received a zero-finding independent re-review without claiming real-AWS parity. |
 | M0-12 | August 14, 2026 | Two consecutive final-code exact-pinned disposable Tetragon/Kubernetes runs produced process, file, and outbound TCP signals with one shared Kubernetes workload identity, explicit sensor health/capability and zero drop/loss counters, exact full-ID cleanup and zero-resource audits, pinned gates/license/secret scans, and zero-finding independent review. |
+| M0-13 | August 14, 2026 | The exact-pinned local OTLP ingest proof delivered one bounded trace and span with all six Organization/agent/session/task/tool/sandbox identity attributes through a real Collector into the product-owned ingest adapter, disabled remote export, proved exact cleanup in two final-code live runs, and passed pinned gates/scans plus zero-finding independent review; R-12 remains Not run until M0-22 proves bounded remote-export failure behavior. |
 
 `PRE-01`, `PRE-02`, and `PROV-01` do not count as source-plan microtasks.
 
@@ -128,6 +128,7 @@ provider capability gate.
 | M0-10 final review | The final scoped implementation review found zero remaining Critical, Important, or Minor findings after the lifecycle, ownership, parsing, portability, and waiver-contract fixes. | Complete August 14, 2026 under the fixture-only Cartography delivery waiver after two consecutive live passes, exact zero-resource cleanup audits, pinned local gates, and redacted secret scans; no AWS/GitHub authorization-parity claim. |
 | M0-11 final review | The final scoped implementation re-review found zero remaining Critical, Important, or Minor findings after definitive mutation classification, global absence audit, full runtime ownership, late-mutation settlement, and adapter-license evidence fixes. | Complete August 14, 2026 after the exact fixture-only live proof, linked normalized evidence capture, exact zero-resource cleanup, shared-target non-mutation, pinned local gates, license/secret audits, and zero-finding review; R-06 is PASS without a real-AWS parity claim. |
 | M0-12 final review | The final scoped implementation re-review found zero remaining Critical, Important, or Minor findings after cleanup authorization, deadline, image-digest, concrete lifecycle, workload-identity, mutation-result, ownership, and evidence-boundary fixes. | Complete August 14, 2026 after two consecutive final-code live passes, exact zero-resource cleanup audits, pinned local gates, license/secret scans, and zero-finding independent review; R-07 is PASS under the approved observation-only boundary. |
+| M0-13 final review | The final scoped implementation review found zero remaining Critical, Important, or Minor findings after bounded child supervision, mutation settlement, retained pre-verification cleanup authority, concrete runtime coverage, and fixed-output taxonomy alignment. | Complete August 14, 2026 after two consecutive final-code exact Collector passes, exact zero-resource cleanup audits, pinned local gates, license/secret scans, and zero-finding independent review; R-12 remains Not run until M0-22 proves bounded remote-export failure behavior. |
 
 ## Execution notes
 
@@ -215,6 +216,8 @@ provider capability gate.
   one shared Kubernetes workload identity, explicit capability/drop state, exact
   cleanup, pinned gates and scans, and a zero-finding independent review. R-07
   is PASS under the approved observation-only boundary.
-- M0-13 is In progress under the exact-pinned ingest-only Collector design.
-  R-12 remains Not run until both M0-13 local ingest and M0-22 bounded remote
-  export/nonblocking failure evidence are complete.
+- M0-13 is Complete after two consecutive final-code exact-pinned Collector
+  runs retained one trace/span with all six semantic identity attributes,
+  disabled remote export, proved exact cleanup, passed pinned gates/scans, and
+  received zero-finding independent review. R-12 remains Not run until M0-22
+  proves bounded remote export and nonblocking exporter-failure behavior.

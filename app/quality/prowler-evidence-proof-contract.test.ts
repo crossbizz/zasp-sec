@@ -59,9 +59,7 @@ function assertM011Complete(tracker: string) {
   expect(header).toEqual(["Task", "Started", "Current work"]);
   expect(separator).toHaveLength(3);
   expect(separator?.every((cell) => /^:?-{3,}:?$/.test(cell))).toBe(true);
-  expect(dataRows).toEqual([
-    ["M0-13", "August 14, 2026", expect.stringContaining("OTLP")],
-  ]);
+  expect(dataRows).toEqual([]);
   expect(completeSection).toBeDefined();
   expect(m011Rows).toHaveLength(1);
   expect(m011Rows[0]).toHaveLength(3);
@@ -172,15 +170,15 @@ describe("Prowler evidence proof contract", () => {
       resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"),
       "utf8",
     );
-    expect(tracker).toContain("| Pending | 715 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 11 |");
+    expect(tracker).toContain("| Pending | 714 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 12 |");
     expect(tracker).toContain("| Blocked | 1 |");
-    expect(tracker).toMatch(/\| M0 \| 27 \| 14 \| 1 \| 11 \| 1 \|/);
+    expect(tracker).toMatch(/\| M0 \| 27 \| 13 \| 0 \| 12 \| 1 \|/);
     assertM011Complete(tracker);
   });
 
-  it("rejects a duplicate M0-11 Complete data row even when the aggregate remains eleven", async () => {
+  it("rejects a duplicate M0-11 Complete data row even when the aggregate remains twelve", async () => {
     const tracker = await readFile(
       resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"),
       "utf8",
@@ -189,11 +187,11 @@ describe("Prowler evidence proof contract", () => {
 
     expect(m011Row).toBeDefined();
     const mutatedTracker = tracker.replace(`${m011Row}\n`, `${m011Row}\n${m011Row}\n`);
-    expect(mutatedTracker).toContain("| Complete | 11 |");
+    expect(mutatedTracker).toContain("| Complete | 12 |");
     expect(() => assertM011Complete(mutatedTracker)).toThrow();
   });
 
-  it("rejects an extra In progress data row when the aggregate remains one", async () => {
+  it("rejects an extra In progress data row when the aggregate remains zero", async () => {
     const tracker = await readFile(
       resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"),
       "utf8",
@@ -202,7 +200,7 @@ describe("Prowler evidence proof contract", () => {
     const completeHeading = "## Complete\n";
 
     const mutatedTracker = tracker.replace(completeHeading, `${extraRow}\n\n${completeHeading}`);
-    expect(mutatedTracker).toContain("| In progress | 1 |");
+    expect(mutatedTracker).toContain("| In progress | 0 |");
     expect(() => assertM011Complete(mutatedTracker)).toThrow();
   });
 
