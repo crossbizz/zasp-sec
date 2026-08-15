@@ -291,9 +291,10 @@ The hermetic command validates pins, the free Auth/Proxy boot configuration,
 strict readiness parsing, synthetic database/encryption material, complete
 Docker ownership, bounded mutation settlement, fixed output, and cleanup
 without starting Docker. The live command creates a fresh marker-scoped
-database/schema and encryption key, polls PostgreSQL, then requires the
-one-shot product probe to receive exactly `{"result":"ok"}` from Nango's
-database-backed `/ready` endpoint.
+database and encryption key, prepares the exact upstream-required `nango` and
+`nango_records` schemas inside that isolated database, polls PostgreSQL, then
+requires the one-shot product probe to receive exactly `{"result":"ok"}` from
+Nango's database-backed `/ready` endpoint.
 
 ```bash
 npm run proof:nango:test
@@ -308,15 +309,17 @@ Nango free boot proof passed: services=2 ready=true product_network=true cleanup
 
 The proof does not read `.env`, profiles, cloud credentials, product database
 credentials, proxy settings, or ambient Docker authentication. Redis,
-Elasticsearch, Connect UI, Functions, Webhooks, MCP server, RBAC, orchestrator,
-and Enterprise-only runtime features are absent or disabled. It proves minimum
-free boot and private product-network readiness only; OAuth, API-key connection,
-full free-feature, and authenticated proxy proofs remain M0-14b through M0-15.
+Elasticsearch, Connect UI, RBAC, orchestration, and Enterprise mode are absent
+or disabled in the exact boot configuration. The proof does not invoke or
+depend on Functions, Webhooks, or the MCP server, but does not yet prove those
+routes unreachable. It proves minimum free boot and private product-network
+readiness only; OAuth, API-key connection, full free-feature, and authenticated
+proxy proofs remain M0-14b through M0-15.
 
-M0-14a remains In progress until two consecutive final-code live runs, exact
-zero-resource audits, full gates/scans, and independent zero-finding review are
-recorded. R-08 remains Not run through M0-15. M0-09 and PROV-01 remain Blocked,
-and R-03 remains incomplete.
+M0-14a is Complete after two consecutive final-code live runs, exact zero-
+resource audits, full gates/scans, and an independent zero-finding review.
+R-08 remains Not run through M0-15. M0-09 and PROV-01 remain Blocked, and R-03
+remains incomplete.
 
 ## Tetragon signal proof
 

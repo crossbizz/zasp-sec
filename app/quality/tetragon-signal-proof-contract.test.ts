@@ -6,11 +6,6 @@ const repositoryRoot = process.cwd();
 const tetragonImage = "quay.io/cilium/tetragon:v1.7.0@sha256:deda51c3f88e4d26b4d76c99ea207f2b05f9e40c210e0f04a37ca632ab7bf527";
 const operatorImage = "quay.io/cilium/tetragon-operator:v1.7.0@sha256:074ffbd19208eed79f68e191ed606e05009f910b4bb5148efcf2973e13504b82";
 const nodeImage = "kindest/node:v1.35.5@sha256:ce977ae6d65918d0b58a5f8b5e940429c2ce42fa3a5619ec2bbc60b949c0ac95";
-const expectedInProgressRow = [
-  "M0-14a",
-  "August 14, 2026",
-  "Proving the exact-pinned free self-hosted Nango two-service boot boundary and database-backed readiness from a private product test network.",
-];
 const expectedR07Row = [
   "R-07",
   "**Tetragon runtime signal quality.** Tetragon is runtime observation, not semantic truth, and must show usable workload identity and sensor health.",
@@ -35,7 +30,7 @@ function assertM012Complete(tracker: string) {
   const completeRows = parseMarkdownRows(completeSection ?? "").slice(2);
   const m012Rows = completeRows.filter(([task]) => task === "M0-12");
 
-  expect(inProgressRows.slice(2)).toEqual([expectedInProgressRow]);
+  expect(inProgressRows.slice(2)).toEqual([]);
   expect(m012Rows).toHaveLength(1);
   expect(m012Rows[0]).toHaveLength(3);
   expect(m012Rows[0]?.[1]).toBe("August 14, 2026");
@@ -77,10 +72,10 @@ describe("Tetragon signal proof contract", () => {
     );
 
     expect(tracker).toContain("| Pending | 713 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 12 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 13 |");
     expect(tracker).toContain("| Blocked | 1 |");
-    expect(tracker).toMatch(/\| M0 \| 27 \| 12 \| 1 \| 12 \| 1 \|/);
+    expect(tracker).toMatch(/\| M0 \| 27 \| 12 \| 0 \| 13 \| 1 \|/);
     assertM012Complete(tracker);
     expect(tracker).toMatch(/## Complete[\s\S]*?\| M0-11 \| August 14, 2026 \|/);
     expect(tracker).toMatch(/## Blocked[\s\S]*?\| M0-09 \| August 13, 2026 \|/);
@@ -101,8 +96,8 @@ describe("Tetragon signal proof contract", () => {
       "## Complete\n",
       "| M0-14b | August 14, 2026 | Decoy concurrent work. |\n\n## Complete\n",
     );
-    expect(duplicate).toContain("| In progress | 1 |");
-    expect(concurrent).toContain("| In progress | 1 |");
+    expect(duplicate).toContain("| In progress | 0 |");
+    expect(concurrent).toContain("| In progress | 0 |");
     expect(() => assertM012Complete(duplicate)).toThrow();
     expect(() => assertM012Complete(concurrent)).toThrow();
   });

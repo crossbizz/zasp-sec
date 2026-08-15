@@ -15,15 +15,18 @@ function markdownRows(markdown: string) {
     .map((line) => line.slice(1, -1).split("|").map((cell) => cell.trim()));
 }
 
-function assertM014aInProgress(tracker: string) {
+function assertM014aComplete(tracker: string) {
   const inProgress = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
-  const rows = markdownRows(inProgress).slice(2);
+  const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] ?? "";
+  const activeRows = markdownRows(inProgress).slice(2);
+  const rows = markdownRows(complete).slice(2).filter(([task]) => task === "M0-14a");
 
+  expect(activeRows).toHaveLength(0);
   expect(rows).toHaveLength(1);
   expect(rows[0]?.[0]).toBe("M0-14a");
   expect(rows[0]?.[1]).toBe("August 14, 2026");
-  expect(rows[0]?.[2]).toContain("free self-hosted Nango");
-  expect(rows[0]?.[2]).toContain("product test network");
+  expect(rows[0]?.[2]).toContain("two consecutive final-code");
+  expect(rows[0]?.[2]).toContain("zero-finding independent review");
 }
 
 describe("Nango free boot proof contract", () => {
@@ -49,7 +52,7 @@ describe("Nango free boot proof contract", () => {
     expect(section).toContain(
       "Nango free boot proof passed: services=2 ready=true product_network=true cleanup=true.",
     );
-    expect(section).toContain("M0-14a remains In progress");
+    expect(section).toContain("M0-14a is Complete");
     expect(section).toContain("R-08 remains Not run");
     expect(section).toContain("does not read `.env`");
   });
@@ -130,24 +133,24 @@ describe("Nango free boot proof contract", () => {
     expect(plan).toContain("independent review");
   });
 
-  it("starts exactly M0-14a without changing completed or blocked boundaries", async () => {
+  it("completes exactly M0-14a without changing blocked boundaries", async () => {
     const tracker = await readFile(
       resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"),
       "utf8",
     );
 
     expect(tracker).toContain("| Pending | 713 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 12 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 13 |");
     expect(tracker).toContain("| Blocked | 1 |");
-    expect(tracker).toMatch(/\| M0 \| 27 \| 12 \| 1 \| 12 \| 1 \|/);
-    assertM014aInProgress(tracker);
+    expect(tracker).toMatch(/\| M0 \| 27 \| 12 \| 0 \| 13 \| 1 \|/);
+    assertM014aComplete(tracker);
     expect(tracker).toContain("M0-13");
     expect(tracker).toContain("M0-09 and PROV-01 remain Blocked");
     expect(tracker).toContain("R-03 remains incomplete");
   });
 
-  it("rejects duplicate M0-14a and concurrent in-progress rows", async () => {
+  it("rejects duplicate M0-14a and any concurrent in-progress row", async () => {
     const tracker = await readFile(
       resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"),
       "utf8",
@@ -157,8 +160,8 @@ describe("Nango free boot proof contract", () => {
     const duplicate = tracker.replace("## Complete\n", `${duplicateRow}\n\n## Complete\n`);
     const concurrent = tracker.replace("## Complete\n", `${concurrentRow}\n\n## Complete\n`);
 
-    expect(() => assertM014aInProgress(duplicate)).toThrow();
-    expect(() => assertM014aInProgress(concurrent)).toThrow();
+    expect(() => assertM014aComplete(duplicate)).toThrow();
+    expect(() => assertM014aComplete(concurrent)).toThrow();
   });
 
   it("keeps the broader Nango risk gate Not run", async () => {

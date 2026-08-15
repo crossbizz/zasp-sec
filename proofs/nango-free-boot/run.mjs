@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { spawn } from "node:child_process";
-import { readdir } from "node:fs/promises";
+import { readdir, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { isAbsolute } from "node:path";
 import { isDeepStrictEqual } from "node:util";
@@ -31,22 +31,22 @@ const mainTimeoutMilliseconds = 300_000;
 const cleanupTimeoutMilliseconds = 60_000;
 const commandTimeoutMilliseconds = 30_000;
 
-const imageFormat = [
-  "{\"image\":[{{json .Id}},{{json .RepoDigests}},{{json .Config.Env}},",
-  "{{json .Config.Entrypoint}},{{json .Config.Cmd}},{{json .Config.User}},",
-  "{{json .Config.Labels}},{{json .Config.ExposedPorts}},{{json .Config.Volumes}},",
+export const IMAGE_INSPECTION_FORMAT = [
+  "{\"image\":[{{json .Id}},{{json (index . \"RepoDigests\")}},{{json (index .Config \"Env\")}},",
+  "{{json (index .Config \"Entrypoint\")}},{{json (index .Config \"Cmd\")}},{{json (index .Config \"User\")}},",
+  "{{json (index .Config \"Labels\")}},{{json (index .Config \"ExposedPorts\")}},{{json (index .Config \"Volumes\")}},",
   "{{json .Os}},{{json .Architecture}}]}",
 ].join("");
 
-const containerFormat = [
+export const CONTAINER_INSPECTION_FORMAT = [
   "{\"container\":[[{{json .Id}},{{json .Name}},{{json .Image}}],",
-  "[{{json .Config.Image}},{{json .Config.Labels}},{{json .Config.Env}},{{json .Config.Entrypoint}},{{json .Config.Cmd}},{{json .Config.User}},{{json .Config.ExposedPorts}}],",
-  "[{{json .HostConfig.NetworkMode}},{{json .HostConfig.ReadonlyRootfs}},{{json .HostConfig.CapAdd}},{{json .HostConfig.CapDrop}},{{json .HostConfig.SecurityOpt}},{{json .HostConfig.PidsLimit}},{{json .HostConfig.Memory}},{{json .HostConfig.NanoCpus}},{{json .HostConfig.PortBindings}},{{json .HostConfig.Binds}},{{json .HostConfig.Mounts}},{{json .HostConfig.Tmpfs}},{{json .HostConfig.RestartPolicy}},{{json .HostConfig.Privileged}},{{json .HostConfig.Devices}},{{json .HostConfig.DeviceRequests}},{{json .HostConfig.PidMode}},{{json .HostConfig.IpcMode}},{{json .HostConfig.CgroupnsMode}},{{json .HostConfig.UsernsMode}}],",
+  "[{{json .Config.Image}},{{json (index .Config \"Labels\")}},{{json (index .Config \"Env\")}},{{json (index .Config \"Entrypoint\")}},{{json (index .Config \"Cmd\")}},{{json (index .Config \"User\")}},{{json (index .Config \"ExposedPorts\")}}],",
+  "[{{json .HostConfig.NetworkMode}},{{json .HostConfig.ReadonlyRootfs}},{{json (index .HostConfig \"CapAdd\")}},{{json .HostConfig.CapDrop}},{{json .HostConfig.SecurityOpt}},{{json .HostConfig.PidsLimit}},{{json .HostConfig.Memory}},{{json .HostConfig.NanoCpus}},{{json .HostConfig.PortBindings}},{{json (index .HostConfig \"Binds\")}},{{json (index .HostConfig \"Mounts\")}},{{json .HostConfig.Tmpfs}},{{json .HostConfig.RestartPolicy}},{{json .HostConfig.Privileged}},{{json .HostConfig.Devices}},{{json (index .HostConfig \"DeviceRequests\")}},{{json .HostConfig.PidMode}},{{json .HostConfig.IpcMode}},{{json .HostConfig.CgroupnsMode}},{{json .HostConfig.UsernsMode}}],",
   "{{json .Mounts}},[{{json .State.Running}},{{json .State.Status}}],",
   "[{{json .NetworkSettings.Networks}},{{json .NetworkSettings.Ports}}]]}",
 ].join("");
 
-const networkFormat = [
+export const NETWORK_INSPECTION_FORMAT = [
   "{\"network\":[{{json .Id}},{{json .Name}},{{json .Labels}},{{json .Internal}},",
   "{{json (index . \"EnableIPv4\")}},{{json .EnableIPv6}},{{json .Options}},{{json .IPAM}},{{json .Containers}}]}",
 ].join("");
@@ -72,6 +72,31 @@ export function classifyMutationResult(result) {
   if (!isPlainObject(result) || result.thrown === true || result.signal !== null) return "ambiguous";
   if (result.status !== 0) return "definitive";
   return exactId(result.stdout) !== undefined && result.stderr === "" ? "applied" : "ambiguous";
+}
+
+function classifyEmptyMutationResult(result) {
+  if (!isPlainObject(result) || result.thrown === true || result.signal !== null) return "ambiguous";
+  if (result.status !== 0) return "definitive";
+  return result.stdout === "" && result.stderr === "" ? "applied" : "ambiguous";
+}
+
+function classifyExactMutationResult(result, expectedStdout) {
+  if (!isPlainObject(result) || result.thrown === true || result.signal !== null) return "ambiguous";
+  if (result.status !== 0) return "definitive";
+  return result.stdout === expectedStdout && result.stderr === "" ? "applied" : "ambiguous";
+}
+
+export function classifyDatabaseReadinessResult(result) {
+  if (!isPlainObject(result) || result.signal !== null || result.stdout !== "" || result.stderr !== "") return "provider";
+  if (result.status === 0) return "ready";
+  return result.status === 1 || result.status === 2 ? "wait" : "provider";
+}
+
+export function classifyDatabaseQueryReadinessResult(result) {
+  if (!isPlainObject(result) || result.signal !== null || result.stderr !== "") return "provider";
+  if (result.status === 0 && result.stdout === "1\n") return "ready";
+  if (result.status === 2 && result.stdout === "") return "wait";
+  return "provider";
 }
 
 export function runBounded(command, arguments_, options, spawnImplementation = spawn) {
@@ -238,11 +263,26 @@ export function buildProbeCreateArguments(specification) {
   ];
 }
 
+export function buildSchemaCommands(specification, databaseId) {
+  expectSpec(specification);
+  if (!containerIdPattern.test(databaseId ?? "")) throw new TypeError("database identity is invalid");
+  const expected = specification.database;
+  const base = [
+    "exec", databaseId, "psql", "--no-psqlrc", "-qAt", "-v", "ON_ERROR_STOP=1",
+    "-U", expected.user, "-d", expected.databaseName, "-c",
+  ];
+  return deepFreeze({
+    inspect: [...base, `SELECT nspname FROM pg_catalog.pg_namespace WHERE nspname IN ('${expected.schema}', '${expected.recordsSchema}') ORDER BY nspname;`],
+    create: [...base, `CREATE SCHEMA "${expected.schema}" AUTHORIZATION "${expected.user}"; CREATE SCHEMA "${expected.recordsSchema}" AUTHORIZATION "${expected.user}";`],
+    expected: `${expected.schema}\n${expected.recordsSchema}\n`,
+  });
+}
+
 export function parseImageInspectionResult(source) {
   const value = parseProjection(source, "image", 11);
   return {
     Id: value[0], RepoDigests: value[1], Env: value[2], Entrypoint: value[3], Cmd: value[4],
-    User: value[5], Labels: value[6], ExposedPorts: value[7], Volumes: value[8],
+    User: value[5] ?? "", Labels: value[6], ExposedPorts: value[7], Volumes: value[8],
     Os: value[9], Architecture: value[10],
   };
 }
@@ -255,7 +295,7 @@ export function parseContainerInspectionResult(source) {
   ) throw providerError();
   return {
     Id: value[0][0], Name: value[0][1], Image: value[0][2],
-    Config: { Image: value[1][0], Labels: value[1][1], Env: value[1][2], Entrypoint: value[1][3], Cmd: value[1][4], User: value[1][5], ExposedPorts: value[1][6] },
+    Config: { Image: value[1][0], Labels: value[1][1], Env: value[1][2] ?? [], Entrypoint: value[1][3], Cmd: value[1][4], User: value[1][5] ?? "", ExposedPorts: value[1][6] },
     HostConfig: {
       NetworkMode: value[2][0], ReadonlyRootfs: value[2][1], CapAdd: value[2][2], CapDrop: value[2][3], SecurityOpt: value[2][4],
       PidsLimit: value[2][5], Memory: value[2][6], NanoCpus: value[2][7], PortBindings: value[2][8], Binds: value[2][9],
@@ -307,6 +347,7 @@ export async function orchestrate(runtime, options = {}) {
       await runtime.createDatabase(signal);
       await runtime.startDatabase(signal);
       await runtime.waitDatabase(signal);
+      await runtime.prepareDatabase(signal);
       await runtime.createNango(signal);
       await runtime.startNango(signal);
       await runtime.createProbe(signal);
@@ -317,11 +358,14 @@ export async function orchestrate(runtime, options = {}) {
     mainError = error;
   }
   try {
-    await runtime.settleMutations?.();
     await runPhase(cleanupTimeout, async (signal) => {
       let firstError;
-      try { await runtime.cleanup(signal); }
+      try { await runtime.settleMutations?.(signal); }
       catch (error) { firstError = error; }
+      try { await runtime.cleanup(signal); }
+      catch (error) { firstError ??= error; }
+      try { await runtime.settleMutations?.(signal); }
+      catch (error) { firstError ??= error; }
       try { await runtime.requireFinalAbsence(signal); }
       catch (error) { firstError ??= error; }
       if (firstError !== undefined) throw firstError;
@@ -329,7 +373,6 @@ export async function orchestrate(runtime, options = {}) {
   } catch (error) {
     cleanupError = error;
   }
-  await runtime.settleMutations?.();
   if (cleanupError !== undefined) throw cleanupError.category === "cleanup" ? cleanupError : cleanupErrorWithCause(cleanupError);
   if (mainError !== undefined) throw mainError;
   return { services: 2, ready: true, productNetwork: true, cleanup: true };
@@ -370,22 +413,32 @@ export class DockerNangoRuntime {
     this.markerSource = markerSource;
     this.command = command;
     this.spawnProcess = spawnProcess;
-    this.filesystem = { readdir, ...filesystem };
+    this.filesystem = { readdir, realpath, ...filesystem };
     this.images = new Map();
     this.resources = new Map();
     this.mutationSettlements = [];
   }
 
   async initialize(signal) {
+    return this.#journalOperation(() => this.#initialize(signal));
+  }
+
+  async #initialize(signal) {
     assertActive(signal, "operation");
     if (!["linux/amd64", "linux/arm64"].includes(this.platform)) throw configurationError();
     if (typeof this.pathValue !== "string" || this.pathValue.length === 0 || this.pathValue.includes("\0")) throw configurationError();
+    this.tempParent = await this.filesystem.realpath(this.tempParent);
+    assertActive(signal, "operation");
+    if (typeof this.tempParent !== "string" || !isAbsolute(this.tempParent)) throw configurationError();
     const entries = await this.filesystem.readdir(this.tempParent);
+    assertActive(signal, "operation");
     validateTemporaryPrefixEntries(entries);
     const marker = validateMarker(this.markerSource());
-    this.workspace = await createOwnedWorkspace({ marker, tempParent: this.tempParent });
-    this.specification = buildRuntimeSpec({ ...this.workspace.runtimeInput, platform: this.platform });
-    this.environment = buildDockerEnvironment(this.pathValue, this.workspace.dockerConfig.path);
+    const workspace = await createOwnedWorkspace({ marker, tempParent: this.tempParent });
+    this.workspace = workspace;
+    this.specification = buildRuntimeSpec({ ...workspace.runtimeInput, platform: this.platform });
+    this.environment = buildDockerEnvironment(this.pathValue, workspace.dockerConfig.path);
+    assertActive(signal, "operation");
   }
 
   async requireInitialAbsence(signal) {
@@ -408,7 +461,7 @@ export class DockerNangoRuntime {
   async createDatabase(signal) {
     await this.#journalOperation(() => this.#createResource("database", this.specification.database.name, buildDatabaseCreateArguments(this.specification), signal));
     await this.#verifyContainer("database", signal, false);
-    await this.#verifyNetwork(signal, ["database"]);
+    await this.#verifyNetwork(signal, this.#activePeerRoles());
   }
 
   async startDatabase(signal) {
@@ -420,17 +473,51 @@ export class DockerNangoRuntime {
     for (let attempt = 0; attempt < 120; attempt += 1) {
       assertActive(signal, "readiness");
       const result = await this.#docker(["exec", this.resources.get("database").id, "pg_isready", "-q", "-U", expected.user, "-d", expected.databaseName], 5_000, signal);
-      if (result.status === 0 && result.signal === null && result.stdout === "" && result.stderr === "") return;
-      if (result.status !== 1 || result.signal !== null || result.stdout !== "" || result.stderr !== "") throw providerError();
+      const state = classifyDatabaseReadinessResult(result);
+      if (state === "ready") {
+        const query = await this.#docker([
+          "exec", this.resources.get("database").id, "psql", "--no-psqlrc", "-qAt", "-v", "ON_ERROR_STOP=1",
+          "-U", expected.user, "-d", expected.databaseName, "-c", "SELECT 1;",
+        ], 5_000, signal);
+        const queryState = classifyDatabaseQueryReadinessResult(query);
+        if (queryState === "ready") return;
+        if (queryState !== "wait") throw providerError();
+      } else if (state !== "wait") throw providerError();
       await delay(500, signal);
     }
     throw readinessError();
   }
 
+  async prepareDatabase(signal) {
+    return this.#journalOperation(() => this.#prepareDatabase(signal));
+  }
+
+  async #prepareDatabase(signal) {
+    const commands = buildSchemaCommands(this.specification, this.resources.get("database").id);
+    const before = await this.#readSchemaState(commands.inspect, signal);
+    if (before.stdout !== "") throw ownershipError();
+    const result = await this.#dockerMutation(commands.create, 10_000, signal);
+    const classification = classifyEmptyMutationResult(result);
+    if (classification === "definitive") throw providerError();
+    const after = await this.#readSchemaState(commands.inspect, signal);
+    if (after.stdout !== commands.expected) {
+      throw classification === "applied" ? ownershipError() : providerError();
+    }
+  }
+
+  async #readSchemaState(arguments_, signal) {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const result = await this.#docker(arguments_, 5_000, signal);
+      if (result.status === 0 && result.signal === null && result.stderr === "") return result;
+      if (attempt === 0) await delay(100, signal);
+    }
+    throw providerError();
+  }
+
   async createNango(signal) {
     await this.#journalOperation(() => this.#createResource("nango", this.specification.nango.name, buildNangoCreateArguments(this.specification), signal));
     await this.#verifyContainer("nango", signal, false);
-    await this.#verifyNetwork(signal, ["database", "nango"]);
+    await this.#verifyNetwork(signal, this.#activePeerRoles());
   }
 
   async startNango(signal) {
@@ -440,7 +527,7 @@ export class DockerNangoRuntime {
   async createProbe(signal) {
     await this.#journalOperation(() => this.#createResource("probe", this.specification.probe.name, buildProbeCreateArguments(this.specification), signal));
     await this.#verifyContainer("probe", signal, false);
-    await this.#verifyNetwork(signal, ["database", "nango", "probe"]);
+    await this.#verifyNetwork(signal, this.#activePeerRoles());
   }
 
   async startProbe(signal) {
@@ -452,7 +539,13 @@ export class DockerNangoRuntime {
     await this.#verifyContainer("probe", signal, false);
     const result = await this.#dockerMutation(["start", "--attach", resource.id], 270_000, signal);
     if (result.status !== 0 || result.signal !== null || result.stderr !== "") throw readinessError();
+    // Docker releases the endpoint after the one-shot probe exits. Retain the
+    // fact that it ran through the exact stopped attachment projection rather
+    // than claiming it is still an active network peer.
+    resource.attached = false;
     this.probeOutput = result.stdout;
+    await this.#verifyContainer("probe", signal, false, true);
+    await this.#verifyNetwork(signal, this.#activePeerRoles());
   }
 
   async verifyReady(signal) {
@@ -463,9 +556,10 @@ export class DockerNangoRuntime {
     await this.#verifyContainer("probe", signal, false, true);
   }
 
-  async settleMutations() {
+  async settleMutations(signal) {
     const settlements = this.mutationSettlements.splice(0);
-    await Promise.allSettled(settlements);
+    if (settlements.length === 0) return;
+    await abortable(Promise.allSettled(settlements), signal);
   }
 
   async cleanup(signal) {
@@ -481,9 +575,11 @@ export class DockerNangoRuntime {
 
   async requireFinalAbsence(signal) {
     let firstError;
+    let globalAbsenceProved = false;
     try { await this.#requireGlobalAbsence(signal); }
     catch (error) { firstError = error; }
-    if (this.workspace !== undefined) {
+    if (firstError === undefined) globalAbsenceProved = true;
+    if (globalAbsenceProved && this.workspace !== undefined) {
       try {
         await removeOwnedWorkspace(this.workspace);
         this.workspace = undefined;
@@ -495,11 +591,11 @@ export class DockerNangoRuntime {
   }
 
   async #resolveImage(expected, signal) {
-    let result = await this.#docker(["image", "inspect", "--format", imageFormat, expected.image], commandTimeoutMilliseconds, signal);
+    let result = await this.#docker(["image", "inspect", "--format", IMAGE_INSPECTION_FORMAT, expected.image], commandTimeoutMilliseconds, signal);
     if (exactMissingImage(result, expected.image)) {
       const pull = await this.#dockerMutation(["pull", "--platform", expected.platform, expected.image], 180_000, signal);
-      if (pull.status !== 0 || pull.signal !== null || pull.stderr !== "") throw providerError();
-      result = await this.#docker(["image", "inspect", "--format", imageFormat, expected.image], commandTimeoutMilliseconds, signal);
+      if (classifyMutationResult(pull) === "definitive") throw providerError();
+      result = await this.#docker(["image", "inspect", "--format", IMAGE_INSPECTION_FORMAT, expected.image], commandTimeoutMilliseconds, signal);
     }
     if (result.status !== 0 || result.signal !== null || result.stderr !== "") throw providerError();
     const document = parseImageInspectionResult(result.stdout.trimEnd());
@@ -518,7 +614,7 @@ export class DockerNangoRuntime {
   }
 
   async #createResource(role, name, arguments_, signal) {
-    const candidate = { role, name, mayHaveApplied: true };
+    const candidate = { role, name, mayHaveApplied: true, attached: false };
     this.resources.set(role, candidate);
     const result = await this.#dockerMutation(arguments_, commandTimeoutMilliseconds, signal);
     const classification = classifyMutationResult(result);
@@ -554,13 +650,26 @@ export class DockerNangoRuntime {
   async #startContainerOperation(role, signal) {
     await this.#verifyContainer(role, signal, false);
     const result = await this.#dockerMutation(["start", this.resources.get(role).id], commandTimeoutMilliseconds, signal);
-    if (result.status !== 0 || result.signal !== null || result.stdout !== `${this.resources.get(role).id}\n` || result.stderr !== "") throw providerError();
-    await this.#verifyContainer(role, signal, true);
+    const classification = classifyExactMutationResult(result, `${this.resources.get(role).id}\n`);
+    if (classification === "definitive") throw providerError();
+    if (classification === "applied") {
+      await this.#verifyContainer(role, signal, true);
+    } else {
+      let reconciled = false;
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        const document = await this.#verifyContainer(role, signal, undefined, false, true);
+        if (document.State.Status === "running") { reconciled = true; break; }
+        if (document.State.Status !== "created") throw providerError();
+        if (attempt < 19) await delay(100, signal);
+      }
+      if (!reconciled) throw providerError();
+    }
+    await this.#verifyNetwork(signal, this.#activePeerRoles());
   }
 
   async #verifyContainer(role, signal, running, exited = false, cleanup = false) {
     const resource = this.resources.get(role);
-    const result = await this.#docker(["container", "inspect", "--format", containerFormat, resource.id], commandTimeoutMilliseconds, signal);
+    const result = await this.#docker(["container", "inspect", "--format", CONTAINER_INSPECTION_FORMAT, resource.id], commandTimeoutMilliseconds, signal);
     if (result.status !== 0 || result.signal !== null || result.stderr !== "") throw ownershipError();
     const document = parseContainerInspectionResult(result.stdout.trimEnd());
     const expected = this.specification[role];
@@ -571,16 +680,30 @@ export class DockerNangoRuntime {
       image,
       networkName: this.specification.network.name,
       networkId: this.resources.get("network")?.id,
+      attached: resource.attached,
       running,
       exited,
       cleanup,
     });
+    if (document.State.Status === "running") {
+      const attachment = document.NetworkSettings.Networks[expected.network];
+      const networkState = {
+        NetworkID: attachment.NetworkID,
+        EndpointID: attachment.EndpointID,
+        Gateway: attachment.Gateway,
+        MacAddress: attachment.MacAddress,
+        IPv4Address: `${attachment.IPAddress}/${attachment.IPPrefixLen}`,
+      };
+      if (resource.networkState === undefined) resource.networkState = deepFreeze(networkState);
+      else if (!isDeepStrictEqual(resource.networkState, networkState)) throw ownershipError();
+    }
+    resource.attached = document.State.Status === "running";
     return document;
   }
 
   async #verifyNetwork(signal, peerRoles) {
     const resource = this.resources.get("network");
-    const result = await this.#docker(["network", "inspect", "--format", networkFormat, resource.id], commandTimeoutMilliseconds, signal);
+    const result = await this.#docker(["network", "inspect", "--format", NETWORK_INSPECTION_FORMAT, resource.id], commandTimeoutMilliseconds, signal);
     if (result.status !== 0 || result.signal !== null || result.stderr !== "") throw ownershipError();
     const document = parseNetworkInspectionResult(result.stdout.trimEnd());
     validateNetworkIdentity(document, resource, this.specification.network, peerRoles.map((role) => this.resources.get(role)));
@@ -598,17 +721,47 @@ export class DockerNangoRuntime {
     else if (!isDeepStrictEqual(staticState, resource.staticState)) throw ownershipError();
   }
 
+  #activePeerRoles() {
+    return ["database", "nango", "probe"].filter((role) => this.resources.get(role)?.attached === true);
+  }
+
   async #removeContainer(role, signal) {
     const resource = this.resources.get(role);
     if (resource === undefined) return;
     if (resource.id === undefined) {
       if (!await this.#recoverCleanupCandidate(resource, false, signal)) { this.resources.delete(role); return; }
     }
-    const document = await this.#verifyContainer(role, signal, undefined, false, true);
+    const document = await this.#coherentCleanupSnapshot(role, signal);
     const result = await this.#dockerMutation(["rm", "--force", "--volumes", document.Id], commandTimeoutMilliseconds, signal);
-    if (result.status !== 0 || result.signal !== null || result.stdout !== `${document.Id}\n` || result.stderr !== "") throw ownershipError();
+    if (classifyExactMutationResult(result, `${document.Id}\n`) === "definitive") throw ownershipError();
     await this.#requireRemovedResource(resource, false, signal);
     this.resources.delete(role);
+  }
+
+  async #refreshCleanupContainerStates(signal) {
+    const documents = new Map();
+    for (const role of ["probe", "nango", "database"]) {
+      const resource = this.resources.get(role);
+      if (resource?.id === undefined) continue;
+      documents.set(role, await this.#verifyContainer(role, signal, undefined, false, true));
+    }
+    return documents;
+  }
+
+  async #coherentCleanupSnapshot(role, signal) {
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      try {
+        const documents = await this.#refreshCleanupContainerStates(signal);
+        const document = documents.get(role);
+        if (document === undefined) throw ownershipError();
+        await this.#verifyNetwork(signal, this.#activePeerRoles());
+        return document;
+      } catch (error) {
+        if (attempt === 19) throw error;
+        await delay(100, signal);
+      }
+    }
+    throw ownershipError();
   }
 
   async #removeNetwork(signal) {
@@ -619,7 +772,7 @@ export class DockerNangoRuntime {
     }
     await this.#verifyNetwork(signal, []);
     const result = await this.#dockerMutation(["network", "rm", resource.id], commandTimeoutMilliseconds, signal);
-    if (result.status !== 0 || result.signal !== null || result.stdout !== `${resource.id}\n` || result.stderr !== "") throw ownershipError();
+    if (classifyExactMutationResult(result, `${resource.id}\n`) === "definitive") throw ownershipError();
     await this.#requireRemovedResource(resource, true, signal);
     this.resources.delete("network");
   }
@@ -665,12 +818,17 @@ export class DockerNangoRuntime {
   }
 
   async #requireRemovedResource(resource, network, signal) {
-    if ((await this.#listExactName(resource.name, network, signal)).length !== 0) throw ownershipError();
-    const arguments_ = network
-      ? ["network", "ls", "--no-trunc", "--filter", `id=${resource.id}`, "--format", "{{.ID}}"]
-      : ["ps", "-a", "--no-trunc", "--filter", `id=${resource.id}`, "--format", "{{.ID}}"];
-    const result = await this.#docker(arguments_, commandTimeoutMilliseconds, signal);
-    if (result.status !== 0 || result.signal !== null || result.stdout !== "" || result.stderr !== "") throw ownershipError();
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const names = await this.#listExactName(resource.name, network, signal);
+      const arguments_ = network
+        ? ["network", "ls", "--no-trunc", "--filter", `id=${resource.id}`, "--format", "{{.ID}}"]
+        : ["ps", "-a", "--no-trunc", "--filter", `id=${resource.id}`, "--format", "{{.ID}}"];
+      const result = await this.#docker(arguments_, commandTimeoutMilliseconds, signal);
+      if (result.status !== 0 || result.signal !== null || result.stderr !== "") throw ownershipError();
+      if (names.length === 0 && result.stdout === "") return;
+      if (attempt < 19) await delay(100, signal);
+    }
+    throw ownershipError();
   }
 
   async #docker(arguments_, timeoutMs, signal) {
@@ -709,6 +867,11 @@ export function validateContainerIdentity(document, { resource, expected, image,
     ? ((document.State.Running === true && document.State.Status === "running") ||
       (document.State.Running === false && ["created", "exited"].includes(document.State.Status)))
     : document.State.Running === running && document.State.Status === (running ? "running" : exited ? "exited" : "created");
+  const attachmentIsExact = document.State.Status === "running"
+    ? validActiveAttachment(document.NetworkSettings.Networks?.[networkName], expected.networkAlias, networkId, resource.id)
+    : document.State.Status === "exited"
+      ? validStoppedAttachment(document.NetworkSettings.Networks?.[networkName], expected.networkAlias, networkId, resource.id)
+      : validInactiveAttachment(document.NetworkSettings.Networks?.[networkName], expected.networkAlias);
   if (
     document.Id !== resource.id || document.Name !== `/${resource.name}` || document.Image !== image.Id ||
     document.Config.Image !== expected.image || document.Config.User !== image.User ||
@@ -727,15 +890,9 @@ export function validateContainerIdentity(document, { resource, expected, image,
     !isDeepStrictEqual(document.HostConfig.Devices, []) || document.HostConfig.DeviceRequests !== null ||
     document.HostConfig.PidMode !== "" || !["", "private"].includes(document.HostConfig.IpcMode) ||
     !["", "private"].includes(document.HostConfig.CgroupnsMode) || document.HostConfig.UsernsMode !== "" ||
-    !stateIsExact ||
+    !stateIsExact || !attachmentIsExact ||
     !isPlainObject(document.NetworkSettings.Networks) || !isDeepStrictEqual(Object.keys(document.NetworkSettings.Networks), [networkName]) ||
-    !isDeepStrictEqual(document.NetworkSettings.Ports, unpublishedPorts(image.ExposedPorts))
-  ) throw ownershipError();
-  const attachment = document.NetworkSettings.Networks[networkName];
-  if (
-    !containerIdPattern.test(networkId ?? "") || !isPlainObject(attachment) || attachment.NetworkID !== networkId ||
-    !containerIdPattern.test(attachment.EndpointID ?? "") || !Array.isArray(attachment.Aliases) ||
-    !attachment.Aliases.includes(expected.networkAlias) || typeof attachment.IPAddress !== "string" || attachment.IPAddress.length === 0
+    !isDeepStrictEqual(document.NetworkSettings.Ports, document.State.Status === "created" ? {} : unpublishedPorts(image.ExposedPorts))
   ) throw ownershipError();
   const constraints = expected.role === "database"
     ? { pids: 128, memory: 402_653_184, nano: 500_000_000 }
@@ -743,7 +900,7 @@ export function validateContainerIdentity(document, { resource, expected, image,
       ? { pids: 256, memory: 805_306_368, nano: 1_000_000_000 }
       : { pids: 32, memory: 33_554_432, nano: 250_000_000 };
   if (document.HostConfig.PidsLimit !== constraints.pids || document.HostConfig.Memory !== constraints.memory || document.HostConfig.NanoCpus !== constraints.nano) throw ownershipError();
-  const expectedCapabilities = expected.role === "database" ? ["CHOWN", "DAC_OVERRIDE", "FOWNER", "SETGID", "SETUID"] : null;
+  const expectedCapabilities = expected.role === "database" ? ["CAP_CHOWN", "CAP_DAC_OVERRIDE", "CAP_FOWNER", "CAP_SETGID", "CAP_SETUID"] : null;
   if (!isDeepStrictEqual(document.HostConfig.CapAdd, expectedCapabilities)) throw ownershipError();
   const expectedTmpfs = expected.role === "database"
     ? {
@@ -754,6 +911,53 @@ export function validateContainerIdentity(document, { resource, expected, image,
     : expected.tmpfs;
   if (!isDeepStrictEqual(document.HostConfig.Tmpfs, expectedTmpfs)) throw ownershipError();
   if (!Array.isArray(document.Mounts) || document.Mounts.some((mount) => mount?.Type !== "tmpfs")) throw ownershipError();
+}
+
+function validActiveAttachment(value, alias, networkId, resourceId) {
+  if (
+    !isPlainObject(value) || !containerIdPattern.test(networkId ?? "") || !containerIdPattern.test(resourceId ?? "") ||
+    !isDeepStrictEqual(Object.keys(value).sort(), [
+      "Aliases", "DNSNames", "DriverOpts", "EndpointID", "Gateway", "GlobalIPv6Address",
+      "GlobalIPv6PrefixLen", "GwPriority", "IPAMConfig", "IPAddress", "IPPrefixLen",
+      "IPv6Gateway", "Links", "MacAddress", "NetworkID",
+    ]) ||
+    !isDeepStrictEqual(value.Aliases, [alias]) || !isDeepStrictEqual(value.DNSNames, [alias, resourceId.slice(0, 12)]) ||
+    value.IPAMConfig !== null || value.Links !== null || value.DriverOpts !== null || value.GwPriority !== 0 ||
+    value.NetworkID !== networkId || !containerIdPattern.test(value.EndpointID ?? "") || value.Gateway !== "" ||
+    !validMacAddress(value.MacAddress) || value.IPv6Gateway !== "" || value.GlobalIPv6Address !== "" || value.GlobalIPv6PrefixLen !== 0
+  ) return false;
+  const address = ipv4Integer(value.IPAddress);
+  const prefix = value.IPPrefixLen;
+  if (address === undefined || !Number.isInteger(prefix) || prefix < 16 || prefix > 29 || !privateIPv4(address)) return false;
+  return true;
+}
+
+function validInactiveAttachment(value, alias) {
+  return isPlainObject(value) &&
+    isDeepStrictEqual(Object.keys(value).sort(), [
+      "Aliases", "DNSNames", "DriverOpts", "EndpointID", "Gateway", "GlobalIPv6Address",
+      "GlobalIPv6PrefixLen", "GwPriority", "IPAMConfig", "IPAddress", "IPPrefixLen",
+      "IPv6Gateway", "Links", "MacAddress", "NetworkID",
+    ]) &&
+    isDeepStrictEqual(value.Aliases, [alias]) && value.IPAMConfig === null && value.Links === null &&
+    value.DriverOpts === null && value.DNSNames === null && value.GwPriority === 0 &&
+    value.NetworkID === "" && value.EndpointID === "" && value.Gateway === "" &&
+    value.IPAddress === "" && value.IPPrefixLen === 0 && value.MacAddress === "" &&
+    value.IPv6Gateway === "" && value.GlobalIPv6Address === "" && value.GlobalIPv6PrefixLen === 0;
+}
+
+function validStoppedAttachment(value, alias, networkId, resourceId) {
+  return isPlainObject(value) && containerIdPattern.test(networkId ?? "") && containerIdPattern.test(resourceId ?? "") &&
+    isDeepStrictEqual(Object.keys(value).sort(), [
+      "Aliases", "DNSNames", "DriverOpts", "EndpointID", "Gateway", "GlobalIPv6Address",
+      "GlobalIPv6PrefixLen", "GwPriority", "IPAMConfig", "IPAddress", "IPPrefixLen",
+      "IPv6Gateway", "Links", "MacAddress", "NetworkID",
+    ]) &&
+    isDeepStrictEqual(value.Aliases, [alias]) && isDeepStrictEqual(value.DNSNames, [alias, resourceId.slice(0, 12)]) &&
+    value.IPAMConfig === null && value.Links === null && value.DriverOpts === null && value.GwPriority === 0 &&
+    value.NetworkID === networkId && value.EndpointID === "" && value.Gateway === "" && value.IPAddress === "" &&
+    value.IPPrefixLen === 0 && value.MacAddress === "" && value.IPv6Gateway === "" &&
+    value.GlobalIPv6Address === "" && value.GlobalIPv6PrefixLen === 0;
 }
 
 export function validateNetworkIdentity(document, resource, expected, peers) {
@@ -770,11 +974,33 @@ export function validateNetworkIdentity(document, resource, expected, peers) {
       !isPlainObject(value) ||
       !isDeepStrictEqual(Object.keys(value).sort(), ["EndpointID", "IPv4Address", "IPv6Address", "MacAddress", "Name"]) ||
       value.Name !== peer.name || !containerIdPattern.test(value.EndpointID ?? "") ||
-      typeof value.MacAddress !== "string" || !/^(?:[0-9a-f]{2}:){5}[0-9a-f]{2}$/.test(value.MacAddress) ||
-      typeof value.IPv4Address !== "string" || !/^\d{1,3}(?:\.\d{1,3}){3}\/\d{1,2}$/.test(value.IPv4Address) ||
-      value.IPv6Address !== ""
+      !validMacAddress(value.MacAddress) || !validPeerAddress(value.IPv4Address, document.IPAM.Config[0]) ||
+      value.IPv6Address !== "" || !isPlainObject(peer.networkState) ||
+      !isDeepStrictEqual(Object.keys(peer.networkState).sort(), ["EndpointID", "Gateway", "IPv4Address", "MacAddress", "NetworkID"]) ||
+      peer.networkState.Gateway !== "" ||
+      peer.networkState.NetworkID !== document.Id || peer.networkState.EndpointID !== value.EndpointID ||
+      peer.networkState.MacAddress !== value.MacAddress || peer.networkState.IPv4Address !== value.IPv4Address
     ) throw ownershipError();
   }
+}
+
+function validPeerAddress(value, config) {
+  if (typeof value !== "string" || !isPlainObject(config)) return false;
+  const match = /^([^/]+)\/([0-9]{1,2})$/.exec(value);
+  const subnet = /^([^/]+)\/([0-9]{1,2})$/.exec(config.Subnet ?? "");
+  if (match === null || subnet === null || match[2] !== subnet[2]) return false;
+  const address = ipv4Integer(match[1]);
+  const network = ipv4Integer(subnet[1]);
+  const gateway = ipv4Integer(config.Gateway ?? "");
+  const prefix = Number(match[2]);
+  if (address === undefined || network === undefined || gateway === undefined || prefix < 16 || prefix > 29) return false;
+  const mask = (0xffffffff << (32 - prefix)) >>> 0;
+  const broadcast = (network | (~mask >>> 0)) >>> 0;
+  return ((address & mask) >>> 0) === network && address !== network && address !== broadcast && address !== gateway;
+}
+
+function validMacAddress(value) {
+  return typeof value === "string" && /^(?:[0-9a-f]{2}:){5}[0-9a-f]{2}$/.test(value);
 }
 
 function validIPAM(value) {
@@ -797,7 +1023,8 @@ function privateNetworkAndGateway(subnet, gateway) {
   const prefix = Number(match[2]);
   if (network === undefined || gatewayValue === undefined || prefix < 16 || prefix > 29 || !privateIPv4(network)) return false;
   const mask = (0xffffffff << (32 - prefix)) >>> 0;
-  return ((network & mask) >>> 0) === network && ((gatewayValue & mask) >>> 0) === network && gatewayValue !== network;
+  const broadcast = (network | (~mask >>> 0)) >>> 0;
+  return ((network & mask) >>> 0) === network && ((gatewayValue & mask) >>> 0) === network && gatewayValue !== network && gatewayValue !== broadcast;
 }
 
 function ipv4Integer(value) {
@@ -882,6 +1109,15 @@ function delay(milliseconds, signal) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(resolve, milliseconds);
     signal?.addEventListener?.("abort", () => { clearTimeout(timer); reject(operationError()); }, { once: true });
+  });
+}
+function abortable(operation, signal) {
+  if (signal?.aborted === true) return Promise.reject(operationError());
+  if (typeof signal?.addEventListener !== "function") return operation;
+  return new Promise((resolve, reject) => {
+    const aborted = () => reject(operationError());
+    signal.addEventListener("abort", aborted, { once: true });
+    operation.then(resolve, reject).finally(() => signal.removeEventListener("abort", aborted));
   });
 }
 function failureLine(category) {

@@ -24,18 +24,10 @@ export const PINS = deepFreeze({
   postgres: {
     version: "16.0-alpine",
     reference: "postgres:16.0-alpine@sha256:acf5271bbecd4b8733f4e93959a8d2b536a57aeee6cc4b6a71890aaf646425b8",
-    platformDigests: {
-      "linux/amd64": "sha256:d171d14965e28764824b33974d038aea3a6be3bf0ced3c8656c848df9b7218c5",
-      "linux/arm64": "sha256:8cb79524827b34fda68189699f907a1c358ff21e21ccbaa25e0882273fc6dfbc",
-    },
   },
   probe: {
     version: "1.36.1-1",
     reference: "registry.k8s.io/e2e-test-images/busybox:1.36.1-1@sha256:a9155b13325b2abef48e71de77bb8ac015412a566829f621d06bfae5c699b1b9",
-    platformDigests: {
-      "linux/amd64": "sha256:caec39cad3b12c26600baf6e67ba811ac15d28a9288d0ccdfffb4b318992c3bb",
-      "linux/arm64": "sha256:55c89c6d9404d6668eb237dda92f28a99eb14e640f1c177a55cc9d738c53c303",
-    },
   },
 });
 
@@ -64,8 +56,13 @@ export function buildRuntimeSpec(input) {
   const databaseContainerName = `${prefix}-db`;
   const nangoContainerName = `${prefix}-server`;
   const databaseName = `nango_${marker}`;
-  const databaseSchema = `nango_${marker}`;
-  const recordsSchema = `records_${marker}`;
+  // v0.70.5 contains a migration that explicitly targets nango._nango_sync_jobs.
+  // Isolation comes from the per-run database/container, so retain that pinned
+  // schema name instead of pretending the upstream migration is configurable.
+  const databaseSchema = "nango";
+  // The same pinned migration set explicitly targets nango_records.* indexes.
+  // Both fixed upstream schema names remain isolated by the per-run database.
+  const recordsSchema = "nango_records";
   const databaseUser = `proof_${marker}`;
   const connectionUrl = `postgresql://${databaseUser}:${encodeURIComponent(input.password)}@${databaseContainerName}:5432/${databaseName}`;
   const commonLabels = {
@@ -93,7 +90,6 @@ export function buildRuntimeSpec(input) {
       labels: roleLabels("database"),
       image: PINS.postgres.reference,
       platform: input.platform,
-      platformReference: platformReference("postgres", PINS.postgres.platformDigests[input.platform]),
       databaseName,
       schema: databaseSchema,
       recordsSchema,
@@ -118,7 +114,6 @@ export function buildRuntimeSpec(input) {
       labels: roleLabels("nango"),
       image: PINS.nango.reference,
       platform: PINS.nango.platform,
-      platformReference: PINS.nango.reference,
       internalPort: 3003,
       environment: {
         CSP_REPORT_ONLY: "true",
@@ -157,11 +152,6 @@ export function buildRuntimeSpec(input) {
       labels: roleLabels("probe"),
       image: PINS.probe.reference,
       platform: input.platform,
-      platformReference: platformReference(
-        "registry.k8s.io/e2e-test-images/busybox",
-        PINS.probe.platformDigests[input.platform],
-        "1.36.1-1",
-      ),
       endpoint,
       expectedOutput: '{"result":"ok"}',
       environment: {},
@@ -171,7 +161,7 @@ export function buildRuntimeSpec(input) {
       command: [
         "sh",
         "-ec",
-        `for attempt in $(seq 1 240); do body=$(wget -q -T 2 -O - ${endpoint} 2>/dev/null) && [ "$body" = '{"result":"ok"}' ] && printf '%s' "$body" && exit 0; sleep 1; done; exit 1`,
+        `expected=/tmp/zasp-ready.expected; response=/tmp/zasp-ready.response; header=/tmp/zasp-ready.header; body=/tmp/zasp-ready.body; separator=/tmp/zasp-ready.separator; printf '%s' '{"result":"ok"}' > "$expected"; printf '\r\n\r\n' > "$separator"; for attempt in $(seq 1 240); do rm -f "$response" "$header" "$body"; if printf 'GET /ready HTTP/1.1\r\nHost: ${nangoContainerName}:3003\r\nConnection: close\r\n\r\n' | nc -w 2 ${nangoContainerName} 3003 > "$response" 2>/dev/null; then size=$(wc -c < "$response"); header_size=$(awk '{ total += length($0) + 1; if ($0 == "\\r") { print total; exit } }' "$response"); if [ -n "$header_size" ] && [ "$size" -eq $((header_size + 15)) ]; then head -c "$header_size" "$response" > "$header"; tail -c 15 "$response" > "$body"; status=$(head -n 1 "$header"); if [ "$status" = "$(printf 'HTTP/1.1 200 OK\r')" ] && tail -c 4 "$header" | cmp -s "$separator" - && cmp -s "$expected" "$body"; then cat "$body"; exit 0; fi; fi; fi; sleep 1; done; exit 1`,
       ],
     },
   });
@@ -280,11 +270,6 @@ export function parseReadyOutput(input) {
     throw new TypeError("Nango readiness output is invalid");
   }
   return output;
-}
-
-function platformReference(repository, digest, tag) {
-  if (typeof digest !== "string") throw new TypeError("platform digest is missing");
-  return `${repository}${tag === undefined ? "" : `:${tag}`}@${digest}`;
 }
 
 function validEncryptionKey(value) {

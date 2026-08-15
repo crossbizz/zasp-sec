@@ -1,20 +1,25 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readdir, realpath, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
 import test from "node:test";
+import { setTimeout as sleep } from "node:timers/promises";
 
 import {
   DockerNangoRuntime,
   Failure,
+  CONTAINER_INSPECTION_FORMAT,
   SUCCESS_LINE,
   buildDatabaseCreateArguments,
   buildDockerEnvironment,
   buildNangoCreateArguments,
   buildNetworkCreateArguments,
   buildProbeCreateArguments,
+  buildSchemaCommands,
+  classifyDatabaseReadinessResult,
+  classifyDatabaseQueryReadinessResult,
   classifyMutationResult,
   orchestrate,
   parseContainerInspectionResult,
@@ -27,6 +32,7 @@ import {
   validateNetworkIdentity,
 } from "./run.mjs";
 import { PINS, buildRuntimeSpec } from "./manifest.mjs";
+import { removeOwnedWorkspace, reproveOwnedWorkspace } from "./boundary.mjs";
 
 const marker = "0123456789abcdef";
 const id = "a".repeat(64);
@@ -54,6 +60,48 @@ test("classifies only uncertain successful mutation outcomes as ambiguous", () =
   assert.equal(classifyMutationResult({ status: 0, signal: null, stdout: "", stderr: "" }), "ambiguous");
   assert.equal(classifyMutationResult({ status: null, signal: "SIGKILL", stdout: "", stderr: "" }), "ambiguous");
   assert.equal(classifyMutationResult({ thrown: true }), "ambiguous");
+});
+
+test("classifies only documented quiet PostgreSQL readiness states", () => {
+  const result = (status, overrides = {}) => ({ status, signal: null, stdout: "", stderr: "", ...overrides });
+  assert.equal(classifyDatabaseReadinessResult(result(0)), "ready");
+  assert.equal(classifyDatabaseReadinessResult(result(1)), "wait");
+  assert.equal(classifyDatabaseReadinessResult(result(2)), "wait");
+  for (const candidate of [result(3), result(2, { stderr: "unexpected" }), result(null, { signal: "SIGKILL" })]) {
+    assert.equal(classifyDatabaseReadinessResult(candidate), "provider");
+  }
+});
+
+test("requires an exact SQL query before declaring PostgreSQL ready", () => {
+  const result = (status, overrides = {}) => ({ status, signal: null, stdout: "", stderr: "", ...overrides });
+  assert.equal(classifyDatabaseQueryReadinessResult(result(0, { stdout: "1\n" })), "ready");
+  assert.equal(classifyDatabaseQueryReadinessResult(result(2)), "wait");
+  for (const candidate of [
+    result(0),
+    result(0, { stdout: "1\n2\n" }),
+    result(1),
+    result(2, { stderr: "unexpected" }),
+    result(null, { signal: "SIGKILL" }),
+  ]) {
+    assert.equal(classifyDatabaseQueryReadinessResult(candidate), "provider");
+  }
+});
+
+test("builds exact isolated-database schema preflight, create, and proof commands", () => {
+  const commands = buildSchemaCommands(spec, id);
+  assert.deepEqual(commands, {
+    inspect: [
+      "exec", id, "psql", "--no-psqlrc", "-qAt", "-v", "ON_ERROR_STOP=1",
+      "-U", spec.database.user, "-d", spec.database.databaseName,
+      "-c", `SELECT nspname FROM pg_catalog.pg_namespace WHERE nspname IN ('${spec.database.schema}', '${spec.database.recordsSchema}') ORDER BY nspname;`,
+    ],
+    create: [
+      "exec", id, "psql", "--no-psqlrc", "-qAt", "-v", "ON_ERROR_STOP=1",
+      "-U", spec.database.user, "-d", spec.database.databaseName,
+      "-c", `CREATE SCHEMA "${spec.database.schema}" AUTHORIZATION "${spec.database.user}"; CREATE SCHEMA "${spec.database.recordsSchema}" AUTHORIZATION "${spec.database.user}";`,
+    ],
+    expected: `${spec.database.schema}\n${spec.database.recordsSchema}\n`,
+  });
 });
 
 test("builds exact private-network and hardened container create commands", () => {
@@ -86,11 +134,13 @@ test("builds exact private-network and hardened container create commands", () =
 });
 
 test("strictly parses bounded image, container, and network projections", () => {
+  assert.match(CONTAINER_INSPECTION_FORMAT, /\(index \.Config "ExposedPorts"\)/);
   const image = JSON.stringify({ image: [
     `sha256:${"b".repeat(64)}`, ["repo@sha256:digest"], ["PATH=/bin"], ["entry"], ["cmd"],
-    "1000", { label: "value" }, { "3003/tcp": {} }, null, "linux", "amd64",
+    null, { label: "value" }, { "3003/tcp": {} }, null, "linux", "amd64",
   ] });
   assert.equal(parseImageInspectionResult(image).Architecture, "amd64");
+  assert.equal(parseImageInspectionResult(image).User, "");
 
   const container = JSON.stringify({ container: [
     [id, "/name", `sha256:${"b".repeat(64)}`],
@@ -164,14 +214,25 @@ function exactNangoOwnership() {
       UsernsMode: "",
     },
     Mounts: [{ Type: "tmpfs", Destination: "/tmp" }],
-    State: { Running: false, Status: "created" },
+    State: { Running: true, Status: "running" },
     NetworkSettings: {
       Networks: {
         [spec.network.name]: {
+          IPAMConfig: null,
+          Links: null,
+          Aliases: [spec.nango.networkAlias],
+          MacAddress: "02:42:ac:14:00:03",
+          DriverOpts: null,
+          GwPriority: 0,
           NetworkID: networkId,
           EndpointID: "d".repeat(64),
-          Aliases: [spec.nango.name],
+          Gateway: "",
           IPAddress: "172.20.0.3",
+          IPPrefixLen: 16,
+          IPv6Gateway: "",
+          GlobalIPv6Address: "",
+          GlobalIPv6PrefixLen: 0,
+          DNSNames: [spec.nango.networkAlias, id.slice(0, 12)],
         },
       },
       Ports: { "3003/tcp": null },
@@ -186,7 +247,8 @@ test("container ownership binds complete image, environment, security, network, 
     ...values,
     expected: spec.nango,
     networkName: spec.network.name,
-    running: false,
+    attached: true,
+    running: true,
     exited: false,
     cleanup: false,
   }));
@@ -199,6 +261,10 @@ test("container ownership binds complete image, environment, security, network, 
     ["network", (value) => { value.NetworkSettings.Networks.foreign = {}; }],
     ["published port", (value) => { value.NetworkSettings.Ports["3003/tcp"] = [{ HostIp: "0.0.0.0", HostPort: "3003" }]; }],
     ["state", (value) => { value.State.Status = "paused"; }],
+    ["extra active attachment alias", (value) => { value.NetworkSettings.Networks[spec.network.name].Aliases.push("foreign"); }],
+    ["extra active attachment field", (value) => { value.NetworkSettings.Networks[spec.network.name].Foreign = true; }],
+    ["invalid active attachment address", (value) => { value.NetworkSettings.Networks[spec.network.name].IPAddress = "999.999.999.999"; }],
+    ["active attachment gateway drift", (value) => { value.NetworkSettings.Networks[spec.network.name].Gateway = "172.20.0.254"; }],
   ]) {
     const candidate = structuredClone(values.document);
     mutate(candidate);
@@ -207,17 +273,70 @@ test("container ownership binds complete image, environment, security, network, 
       document: undefined,
       expected: spec.nango,
       networkName: spec.network.name,
-      running: false,
+      attached: true,
+      running: true,
       exited: false,
       cleanup: false,
     }), undefined, label);
   }
 });
 
+test("container ownership accepts only Docker's exact stopped-network projection", () => {
+  const values = exactNangoOwnership();
+  values.document.State = { Running: false, Status: "exited" };
+  values.document.NetworkSettings.Networks[spec.network.name] = {
+    Aliases: [spec.nango.name],
+    DNSNames: [spec.nango.name, id.slice(0, 12)],
+    DriverOpts: null,
+    EndpointID: "",
+    Gateway: "",
+    GlobalIPv6Address: "",
+    GlobalIPv6PrefixLen: 0,
+    GwPriority: 0,
+    IPAMConfig: null,
+    IPAddress: "",
+    IPPrefixLen: 0,
+    IPv6Gateway: "",
+    Links: null,
+    MacAddress: "",
+    NetworkID: values.networkId,
+  };
+  const validate = (document) => validateContainerIdentity(document, {
+    ...values,
+    document: undefined,
+    expected: spec.nango,
+    networkName: spec.network.name,
+    attached: false,
+    running: false,
+    exited: true,
+    cleanup: false,
+  });
+  assert.doesNotThrow(() => validate(values.document));
+  for (const mutate of [
+    (value) => { value.NetworkSettings.Networks[spec.network.name].DNSNames.push("foreign"); },
+    (value) => { value.NetworkSettings.Networks[spec.network.name].NetworkID = "e".repeat(64); },
+    (value) => { value.NetworkSettings.Networks[spec.network.name].EndpointID = "f".repeat(64); },
+  ]) {
+    const candidate = structuredClone(values.document);
+    mutate(candidate);
+    assert.throws(() => validate(candidate));
+  }
+});
+
 test("network ownership requires exact private configuration and exact current peers", () => {
   const networkId = "c".repeat(64);
   const resource = { id: networkId, name: spec.network.name };
-  const peer = { id, name: spec.nango.name };
+  const peer = {
+    id,
+    name: spec.nango.name,
+    networkState: {
+      NetworkID: networkId,
+      EndpointID: "d".repeat(64),
+      Gateway: "",
+      MacAddress: "02:42:ac:14:00:03",
+      IPv4Address: "172.20.0.3/16",
+    },
+  };
   const document = {
     Id: networkId,
     Name: spec.network.name,
@@ -242,6 +361,12 @@ test("network ownership requires exact private configuration and exact current p
     (value) => { value.Labels.foreign = "value"; },
     (value) => { value.Containers["e".repeat(64)] = { Name: "foreign", EndpointID: "f".repeat(64) }; },
     (value) => { value.IPAM.Config[0].Subnet = "10.0.0.0/8"; },
+    (value) => { value.Containers[id].EndpointID = "e".repeat(64); },
+    (value) => { value.Containers[id].MacAddress = "02:42:ac:14:00:04"; },
+    (value) => { value.Containers[id].IPv4Address = "172.20.0.4/16"; },
+    (value) => { value.Containers[id].IPv4Address = "10.0.0.3/16"; },
+    (value) => { value.Containers[id].IPv4Address = "172.20.255.255/16"; },
+    (value) => { value.IPAM.Config[0].Gateway = "172.20.255.255"; },
   ]) {
     const candidate = structuredClone(document);
     mutate(candidate);
@@ -287,6 +412,7 @@ function fakeRuntime(overrides = {}) {
     async createDatabase() { calls.push("database"); },
     async startDatabase() { calls.push("database-start"); },
     async waitDatabase() { calls.push("database-ready"); },
+    async prepareDatabase() { calls.push("database-schemas"); },
     async createNango() { calls.push("nango"); },
     async startNango() { calls.push("nango-start"); },
     async createProbe() { calls.push("probe"); },
@@ -306,8 +432,8 @@ test("orchestrates the exact dependency order and reverse cleanup boundary", asy
     services: 2, ready: true, productNetwork: true, cleanup: true,
   });
   assert.deepEqual(runtime.calls, [
-    "initialize", "initial", "images", "network", "database", "database-start", "database-ready",
-    "nango", "nango-start", "probe", "probe-start", "ready", "settle", "cleanup", "absence", "settle",
+    "initialize", "initial", "images", "network", "database", "database-start", "database-ready", "database-schemas",
+    "nango", "nango-start", "probe", "probe-start", "ready", "settle", "cleanup", "settle", "absence",
   ]);
 });
 
@@ -320,7 +446,7 @@ test("cleanup continues after main failure and cleanup failure has precedence", 
     orchestrate(runtime, { mainTimeoutMs: 1_000, cleanupTimeoutMs: 1_000 }),
     (error) => error.category === "cleanup",
   );
-  assert.deepEqual(runtime.calls.slice(-4), ["settle", "cleanup", "absence", "settle"]);
+  assert.deepEqual(runtime.calls.slice(-4), ["settle", "cleanup", "settle", "absence"]);
 });
 
 test("hard phase deadline revokes authority and still reaches cleanup", async () => {
@@ -334,14 +460,130 @@ test("hard phase deadline revokes authority and still reaches cleanup", async ()
   });
   await assert.rejects(orchestrate(runtime, { mainTimeoutMs: 5, cleanupTimeoutMs: 1_000 }));
   assert.equal(aborted, true);
-  assert.deepEqual(runtime.calls.slice(-4), ["settle", "cleanup", "absence", "settle"]);
+  assert.deepEqual(runtime.calls.slice(-4), ["settle", "cleanup", "settle", "absence"]);
 });
 
-test("concrete Docker runtime executes the exact private lifecycle and proves final absence", async () => {
+test("mutation settlement is bounded by independent cleanup authority", async () => {
+  const runtime = fakeRuntime({
+    async initialize() {
+      this.calls.push("initialize");
+      throw new Failure("operation");
+    },
+    async settleMutations() {
+      this.calls.push("settle");
+      return new Promise(() => {});
+    },
+  });
+  const outcome = await Promise.race([
+    orchestrate(runtime, { mainTimeoutMs: 20, cleanupTimeoutMs: 10 }).then(
+      () => "resolved",
+      (error) => error.category,
+    ),
+    sleep(100, "watchdog"),
+  ]);
+  assert.equal(outcome, "cleanup");
+});
+
+test("timed-out initialization is joined before cleanup and cannot create a late workspace", async () => {
+  const parent = await mkdtemp(join(tmpdir(), "zasp-nango-initialize-timeout-"));
+  let runtime;
+  try {
+    runtime = new DockerNangoRuntime({
+      pathValue: "/safe/bin",
+      platform: "linux/arm64",
+      tempParent: parent,
+      markerSource: () => marker,
+      command: async () => ({ status: 0, signal: null, stdout: "", stderr: "" }),
+      filesystem: {
+        async realpath(candidate) {
+          await sleep(30);
+          return realpath(candidate);
+        },
+      },
+    });
+    await assert.rejects(
+      orchestrate(runtime, { mainTimeoutMs: 5, cleanupTimeoutMs: 100 }),
+    );
+    await sleep(50);
+    assert.deepEqual(await readdir(parent), []);
+  } finally {
+    await rm(parent, { recursive: true, force: true });
+  }
+});
+
+test("final absence retains the exact workspace when global Docker absence is unproved", async () => {
+  const parent = await mkdtemp(join(tmpdir(), "zasp-nango-retained-workspace-"));
+  const runtime = new DockerNangoRuntime({
+    pathValue: "/safe/bin",
+    platform: "linux/arm64",
+    tempParent: parent,
+    markerSource: () => marker,
+    command: async () => ({ status: 0, signal: null, stdout: `${id}\n`, stderr: "" }),
+  });
+  try {
+    const signal = new AbortController().signal;
+    await runtime.initialize(signal);
+    const retained = runtime.workspace;
+    await assert.rejects(runtime.requireFinalAbsence(signal), (error) => error.category === "cleanup");
+    await reproveOwnedWorkspace(retained);
+  } finally {
+    if (runtime.workspace !== undefined) await removeOwnedWorkspace(runtime.workspace);
+    await rm(parent, { recursive: true, force: true });
+  }
+});
+
+test("schema creation reconciles every ambiguous result against exact post-state", async (context) => {
+  const ambiguousResults = [
+    ["thrown", { thrown: true, status: null, signal: null, stdout: "", stderr: "" }],
+    ["signaled", { status: null, signal: "SIGKILL", stdout: "", stderr: "" }],
+    ["malformed success", { status: 0, signal: null, stdout: "unexpected", stderr: "" }],
+  ];
+  for (const [name, mutationResult] of ambiguousResults) {
+    await context.test(name, async () => {
+      const parent = await mkdtemp(join(tmpdir(), "zasp-nango-schema-reconcile-"));
+      let inspections = 0;
+      const runtime = new DockerNangoRuntime({
+        pathValue: "/safe/bin",
+        platform: "linux/arm64",
+        tempParent: parent,
+        markerSource: () => marker,
+        command: async (_command, arguments_) => {
+          if (arguments_[0] === "exec" && arguments_.at(-1).startsWith("SELECT nspname")) {
+            inspections += 1;
+            return {
+              status: 0,
+              signal: null,
+              stdout: inspections === 1 ? "" : `${spec.database.schema}\n${spec.database.recordsSchema}\n`,
+              stderr: "",
+            };
+          }
+          if (arguments_[0] === "exec" && arguments_.at(-1).startsWith("CREATE SCHEMA")) return mutationResult;
+          return { status: 0, signal: null, stdout: "", stderr: "" };
+        },
+      });
+      try {
+        await runtime.initialize(new AbortController().signal);
+        runtime.resources.set("database", { id });
+        await runtime.prepareDatabase(new AbortController().signal);
+        assert.equal(inspections, 2);
+      } finally {
+        if (runtime.workspace !== undefined) await removeOwnedWorkspace(runtime.workspace);
+        await rm(parent, { recursive: true, force: true });
+      }
+    });
+  }
+});
+
+test("concrete Docker runtime reconciles ambiguous mutations and exited peers before final absence", async () => {
   const parent = await mkdtemp(join(tmpdir(), "zasp-nango-runtime-test-"));
   const networkId = "c".repeat(64);
   const identifiers = { database: "d".repeat(64), nango: "e".repeat(64), probe: "f".repeat(64) };
   const states = new Map();
+  let schemaInspectionAttempts = 0;
+  let databaseImageInspections = 0;
+  let exitedProbeInspections = 0;
+  let exitDuringCleanupArmed = false;
+  let exitDuringCleanupInjected = false;
   let networkPresent = false;
   let runtime;
   const calls = [];
@@ -372,28 +614,76 @@ test("concrete Docker runtime executes the exact private lifecycle and proves fi
     const state = states.get(role);
     const running = state === "running";
     const status = state === "exited" ? "exited" : running ? "running" : "created";
-    const capabilities = role === "database" ? ["CHOWN", "DAC_OVERRIDE", "FOWNER", "SETGID", "SETUID"] : null;
+    const capabilities = role === "database" ? ["CAP_CHOWN", "CAP_DAC_OVERRIDE", "CAP_FOWNER", "CAP_SETGID", "CAP_SETUID"] : null;
     const tmpfs = role === "database" ? {
       "/var/lib/postgresql/data": "rw,nosuid,nodev,size=256m",
       "/var/run/postgresql": "rw,nosuid,nodev,size=16m",
       "/tmp": "rw,noexec,nosuid,nodev,size=16m",
     } : expected.tmpfs;
     const limits = role === "database" ? [128, 402_653_184, 500_000_000] : role === "nango" ? [256, 805_306_368, 1_000_000_000] : [32, 33_554_432, 250_000_000];
-    const ports = Object.fromEntries(Object.keys(image.ExposedPorts ?? {}).map((key) => [key, null]));
+    const ports = state === "created" ? {} : Object.fromEntries(Object.keys(image.ExposedPorts ?? {}).map((key) => [key, null]));
     return JSON.stringify({ container: [
       [identifiers[role], `/${expected.name}`, image.Id],
       [expected.image, { ...image.Labels, ...expected.labels }, [...image.Env, ...Object.entries(expected.environment).map(([key, value]) => `${key}=${value}`)], image.Entrypoint, role === "probe" ? expected.command : image.Cmd, image.User, image.ExposedPorts],
       [expected.network, true, capabilities, ["ALL"], ["no-new-privileges"], limits[0], limits[1], limits[2], {}, null, null, tmpfs, { Name: "no", MaximumRetryCount: 0 }, false, [], null, "", "private", "private", ""],
       Object.keys(tmpfs).map((destination) => ({ Type: "tmpfs", Destination: destination })),
       [running, status],
-      [{ [expected.network]: { NetworkID: networkId, EndpointID: identifiers[role], Aliases: [expected.networkAlias], IPAddress: `172.20.0.${role === "database" ? 2 : role === "nango" ? 3 : 4}` } }, ports],
+      [{ [expected.network]: state === "created" ? {
+        IPAMConfig: null,
+        Links: null,
+        Aliases: [expected.networkAlias],
+        MacAddress: "",
+        DriverOpts: null,
+        GwPriority: 0,
+        NetworkID: "",
+        EndpointID: "",
+        Gateway: "",
+        IPAddress: "",
+        IPPrefixLen: 0,
+        IPv6Gateway: "",
+        GlobalIPv6Address: "",
+        GlobalIPv6PrefixLen: 0,
+        DNSNames: null,
+      } : state === "exited" ? {
+        IPAMConfig: null,
+        Links: null,
+        Aliases: [expected.networkAlias],
+        MacAddress: "",
+        DriverOpts: null,
+        GwPriority: 0,
+        NetworkID: networkId,
+        EndpointID: "",
+        Gateway: "",
+        IPAddress: "",
+        IPPrefixLen: 0,
+        IPv6Gateway: "",
+        GlobalIPv6Address: "",
+        GlobalIPv6PrefixLen: 0,
+        DNSNames: [expected.networkAlias, identifiers[role].slice(0, 12)],
+      } : {
+        IPAMConfig: null,
+        Links: null,
+        Aliases: [expected.networkAlias],
+        MacAddress: `02:42:ac:14:00:0${role === "database" ? 2 : role === "nango" ? 3 : 4}`,
+        DriverOpts: null,
+        GwPriority: 0,
+        NetworkID: networkId,
+        EndpointID: identifiers[role],
+        Gateway: "",
+        IPAddress: `172.20.0.${role === "database" ? 2 : role === "nango" ? 3 : 4}`,
+        IPPrefixLen: 16,
+        IPv6Gateway: "",
+        GlobalIPv6Address: "",
+        GlobalIPv6PrefixLen: 0,
+        DNSNames: [expected.networkAlias, identifiers[role].slice(0, 12)],
+      } }, ports],
     ] });
   };
   const networkProjection = () => {
     const peers = {};
     let index = 2;
     for (const role of ["database", "nango", "probe"]) {
-      if (!states.has(role)) continue;
+      if (!states.has(role) || ["created", "exited"].includes(states.get(role))) continue;
       const expected = runtime.specification[role];
       peers[identifiers[role]] = {
         Name: expected.name,
@@ -417,10 +707,24 @@ test("concrete Docker runtime executes the exact private lifecycle and proves fi
     if (args[0] === "ps" || (args[0] === "network" && args[1] === "ls")) return result();
     if (args[0] === "image" && args[1] === "inspect") {
       const role = ["database", "nango", "probe"].find((candidate) => runtime.specification[candidate].image === args.at(-1));
+      if (role === "database" && databaseImageInspections++ === 0) {
+        return result({
+          status: 1,
+          stdout: "",
+          stderr: `Error response from daemon: No such image: ${runtime.specification.database.image}\n`,
+        });
+      }
       return result({ stdout: `${imageProjection(imageFor(role))}\n` });
     }
+    if (args[0] === "pull") return { thrown: true, status: null, signal: null, stdout: "", stderr: "" };
     if (args[0] === "network" && args[1] === "create") { networkPresent = true; return result({ stdout: `${networkId}\n` }); }
-    if (args[0] === "network" && args[1] === "inspect") return networkPresent ? result({ stdout: `${networkProjection()}\n` }) : result({ status: 1, stderr: "Error: No such network\n" });
+    if (args[0] === "network" && args[1] === "inspect") {
+      if (exitDuringCleanupArmed && !exitDuringCleanupInjected) {
+        states.set("nango", "exited");
+        exitDuringCleanupInjected = true;
+      }
+      return networkPresent ? result({ stdout: `${networkProjection()}\n` }) : result({ status: 1, stderr: "Error: No such network\n" });
+    }
     if (args[0] === "create") {
       const name = args[args.indexOf("--name") + 1];
       const role = ["database", "nango", "probe"].find((candidate) => runtime.specification[candidate].name === name);
@@ -429,7 +733,12 @@ test("concrete Docker runtime executes the exact private lifecycle and proves fi
     }
     if (args[0] === "container" && args[1] === "inspect") {
       const role = roleForId(args.at(-1));
-      return states.has(role) ? result({ stdout: `${containerProjection(role)}\n` }) : result({ status: 1, stderr: "Error: No such container\n" });
+      if (!states.has(role)) return result({ status: 1, stderr: "Error: No such container\n" });
+      const projection = containerProjection(role);
+      if (role === "probe" && states.get(role) === "exited" && ++exitedProbeInspections === 2) {
+        exitDuringCleanupArmed = true;
+      }
+      return result({ stdout: `${projection}\n` });
     }
     if (args[0] === "start" && args[1] === "--attach") {
       states.set("probe", "exited");
@@ -438,15 +747,28 @@ test("concrete Docker runtime executes the exact private lifecycle and proves fi
     if (args[0] === "start") {
       const role = roleForId(args[1]);
       states.set(role, "running");
+      if (role === "database") return { thrown: true, status: null, signal: null, stdout: "", stderr: "" };
       return result({ stdout: `${args[1]}\n` });
     }
-    if (args[0] === "exec") return result();
+    if (args[0] === "exec" && args.includes("pg_isready")) return result();
+    if (args[0] === "exec" && args.includes("psql")) {
+      const query = args.at(-1);
+      if (query === "SELECT 1;") return result({ stdout: "1\n" });
+      if (query.startsWith("CREATE SCHEMA")) { states.set("schemas", "created"); return result(); }
+      schemaInspectionAttempts += 1;
+      if (schemaInspectionAttempts === 1) return result({ status: 2, stderr: "transient database read\n" });
+      return result({ stdout: states.has("schemas") ? `${runtime.specification.database.schema}\n${runtime.specification.database.recordsSchema}\n` : "" });
+    }
     if (args[0] === "rm") {
       const role = roleForId(args.at(-1));
       states.delete(role);
-      return result({ stdout: `${args.at(-1)}\n` });
+      if (role === "database") states.delete("schemas");
+      return { thrown: true, status: null, signal: null, stdout: "", stderr: "" };
     }
-    if (args[0] === "network" && args[1] === "rm") { networkPresent = false; return result({ stdout: `${networkId}\n` }); }
+    if (args[0] === "network" && args[1] === "rm") {
+      networkPresent = false;
+      return { status: null, signal: "SIGKILL", stdout: "", stderr: "" };
+    }
     throw new Error("unexpected command");
   };
   try {
@@ -462,6 +784,8 @@ test("concrete Docker runtime executes the exact private lifecycle and proves fi
     });
     assert.equal(networkPresent, false);
     assert.equal(states.size, 0);
+    assert.equal(schemaInspectionAttempts, 3);
+    assert.equal(databaseImageInspections, 2);
     assert.equal(calls.some((args) => args.includes("--publish")), false);
   } finally {
     await rm(parent, { recursive: true, force: true });
@@ -483,6 +807,27 @@ test("runMain emits exactly one fixed success or fixed category line", async () 
 
 test("runtime constructor rejects incomplete dependencies before touching Docker", () => {
   assert.throws(() => new DockerNangoRuntime({ pathValue: "/safe", platform: "linux/amd64", markerSource: null }));
+});
+
+test("runtime canonicalizes a platform temp-directory alias before ownership admission", async () => {
+  const realParent = await mkdtemp(join(tmpdir(), "zasp-nango-real-parent-"));
+  const alias = `${realParent}-alias`;
+  await symlink(realParent, alias, "dir");
+  const runtime = new DockerNangoRuntime({
+    pathValue: "/safe/bin",
+    platform: "linux/arm64",
+    tempParent: alias,
+    markerSource: () => marker,
+  });
+  try {
+    await runtime.initialize(new AbortController().signal);
+    assert.equal(runtime.tempParent, await realpath(realParent));
+    await removeOwnedWorkspace(runtime.workspace);
+    runtime.workspace = undefined;
+  } finally {
+    await rm(alias, { force: true });
+    await rm(realParent, { recursive: true, force: true });
+  }
 });
 
 test("runPhase rejects malformed bounds without invoking work", async () => {

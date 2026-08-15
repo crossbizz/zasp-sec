@@ -55,8 +55,10 @@ network.
 2. Create canonical direct-child Docker-config and proof roots with retained
    device/inode identity, no symlinks, exact permissions, and cleanup-time
    reproof.
-3. Generate marker-scoped synthetic database credentials, database/schema
-   names, and a valid per-run encryption key without reading ambient state.
+3. Generate marker-scoped synthetic database credentials and database, plus
+   the pinned Nango `nango` and `nango_records` schema names required by its
+   v0.70.5 migration set, and a valid per-run encryption key without reading
+   ambient state.
 4. Keep raw synthetic values only in bounded process memory/container config;
    public output and diagnostics remain fixed and redacted.
 5. Add replacement, traversal, symlink, FIFO, oversized, cancellation, and
@@ -107,14 +109,14 @@ network.
 
 ## Completion checklist
 
-- [ ] exact free self-hosted Nango v0.70.5 image
-- [ ] exact PostgreSQL dependency and no Redis/Elasticsearch/orchestrator
-- [ ] separate database, schema, and per-run encryption key
-- [ ] private internal network with no host port
-- [ ] database-backed `/ready` from one-shot product probe
-- [ ] complete exact ownership and mutation settlement
-- [ ] independent cleanup and prefix-wide zero-resource audit
-- [ ] two consecutive live runs
-- [ ] full gates, audit, license, and secret scans
-- [ ] independent review with zero findings
+- [x] exact free self-hosted Nango v0.70.5 image
+- [x] exact PostgreSQL dependency and no Redis/Elasticsearch/orchestrator
+- [x] separate database, schema, and per-run encryption key
+- [x] private internal network with no host port
+- [x] database-backed `/ready` from one-shot product probe
+- [x] complete exact ownership and mutation settlement
+- [x] independent cleanup and prefix-wide zero-resource audit
+- [x] two consecutive live runs
+- [x] full gates, audit, license, and secret scans
+- [x] independent review with zero findings
 - [ ] completion transition and exact-SHA CI success

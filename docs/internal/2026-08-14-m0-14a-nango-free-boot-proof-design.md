@@ -41,7 +41,12 @@ uses the already reviewed immutable BusyBox test image:
 ## Storage and secret boundary
 
 Every run creates a separate database container and a marker-scoped database
-and separate schema. Nango also receives a fresh synthetic per-run encryption
+and separate schema inside that database. The pinned v0.70.5 migration set
+contains exact `nango._nango_sync_jobs` and `nango_records.*` references, so
+the disposable database uses Nango's fixed `nango` and `nango_records`
+schemas while the database, container, credentials, and encryption key remain
+per-run.
+Nango also receives a fresh synthetic per-run encryption
 key. The database credentials and per-run encryption key exist only in the
 bounded proof process and disposable container configuration; they are never
 read from dotenv, profiles, host credentials, or product tables and are never

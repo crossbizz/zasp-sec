@@ -158,3 +158,24 @@ test("retains and removes an exact root when setup fails immediately after mkdte
     assert.deepEqual((await readdir(parent)).filter((entry) => entry.startsWith("zasp-m0-14a-")), []);
   });
 });
+
+test("reconciles and removes a raw mkdtemp candidate after transient identity validation failure", async () => {
+  await withParent(async (parent) => {
+    let candidateFailure = true;
+    await assert.rejects(() => createOwnedWorkspace({
+      marker,
+      tempParent: parent,
+      randomSource: deterministicRandom,
+      io: {
+        async lstat(path) {
+          if (basename(path).startsWith(`zasp-m0-14a-${marker}-`) && candidateFailure) {
+            candidateFailure = false;
+            throw new Error("synthetic post-mkdtemp validation failure");
+          }
+          return lstat(path);
+        },
+      },
+    }));
+    assert.deepEqual((await readdir(parent)).filter((entry) => entry.startsWith("zasp-m0-14a-")), []);
+  });
+});

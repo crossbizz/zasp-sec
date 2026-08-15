@@ -43,9 +43,10 @@ export async function createOwnedWorkspace({
 
   await validateParent(tempParent, io);
   const prefix = `${globalPrefix}${validatedMarker}-`;
+  let candidate;
   let root;
   try {
-    const candidate = await io.makeTemp(join(tempParent, prefix));
+    candidate = await io.makeTemp(join(tempParent, prefix));
     root = await validateOwnedDirectory(candidate, tempParent, prefix, io);
     await io.chmod(candidate, 0o700);
     const securedRoot = await validateOwnedDirectory(candidate, tempParent, prefix, io);
@@ -81,9 +82,10 @@ export async function createOwnedWorkspace({
       },
     });
   } catch (error) {
-    if (root !== undefined) {
+    if (candidate !== undefined) {
       try {
-        await removeRetainedRoot(root, prefix, io);
+        const retained = root ?? await validateOwnedDirectory(candidate, tempParent, prefix, io);
+        await removeRetainedRoot(retained, prefix, io);
       } catch (cleanupError) {
         throw new TypeError("workspace creation cleanup failed", { cause: cleanupError });
       }
