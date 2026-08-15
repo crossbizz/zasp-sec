@@ -1,3 +1,5 @@
+import { pathToFileURL } from "node:url";
+
 import { parseBoundedUniqueJson } from "../nango-free-boot/manifest.mjs";
 
 const maximumBodyBytes = 65_536;
@@ -53,7 +55,7 @@ export async function runOAuthConnection(input, dependencies = {}) {
       connectionId,
     };
     const serialized = JSON.stringify(result);
-    for (const value of input.forbiddenValues) {
+    for (const value of [...input.forbiddenValues, apiKey, connectToken]) {
       if (serialized.includes(value)) throw failure("normalization");
     }
     return result;
@@ -77,6 +79,26 @@ export async function runMain(input, dependencies = {}) {
     try { stderr?.write?.("Nango OAuth wrapper failed.\n"); } catch { /* fixed boundary */ }
     return 1;
   }
+}
+
+export function configurationFromEnvironment(environment) {
+  if (!plainObject(environment)) throw failure("configuration");
+  const forbidden = environment.NANGO_OAUTH_FORBIDDEN_VALUES;
+  if (typeof forbidden !== "string" || forbidden.length === 0) throw failure("configuration");
+  const forbiddenValues = forbidden.split(",");
+  if (forbiddenValues.some((value) => value.length === 0)) throw failure("configuration");
+  const input = {
+    baseUrl: environment.NANGO_OAUTH_BASE_URL,
+    environment: environment.NANGO_OAUTH_ENVIRONMENT,
+    organizationId: environment.NANGO_OAUTH_ORGANIZATION_ID,
+    endUserId: environment.NANGO_OAUTH_END_USER_ID,
+    integrationKey: environment.NANGO_OAUTH_INTEGRATION_KEY,
+    clientId: environment.NANGO_OAUTH_CLIENT_ID,
+    clientSecret: environment.NANGO_OAUTH_CLIENT_SECRET,
+    forbiddenValues,
+  };
+  validateInput(input);
+  return Object.freeze(input);
 }
 
 async function readApiKey(input, request, signal) {
@@ -418,4 +440,8 @@ function plainObject(value) {
 
 function failure(category) {
   return new Failure(category);
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  process.exitCode = await runMain(configurationFromEnvironment(process.env));
 }

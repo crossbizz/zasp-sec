@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   Failure,
+  configurationFromEnvironment,
   runMain,
   runOAuthConnection,
 } from "./product_wrapper.mjs";
@@ -283,4 +284,22 @@ test("keeps the CLI boundary fixed and free of every seeded sensitive value", as
   assert.equal(stdout, "");
   assert.equal(stderr, "Nango OAuth wrapper failed.\n");
   assert.equal(stderr.includes(clientSecret), false);
+});
+
+test("builds the direct CLI input from only the exact synthetic environment", () => {
+  assert.deepEqual(configurationFromEnvironment({
+    NANGO_OAUTH_BASE_URL: input.baseUrl,
+    NANGO_OAUTH_ENVIRONMENT: input.environment,
+    NANGO_OAUTH_ORGANIZATION_ID: input.organizationId,
+    NANGO_OAUTH_END_USER_ID: input.endUserId,
+    NANGO_OAUTH_INTEGRATION_KEY: input.integrationKey,
+    NANGO_OAUTH_CLIENT_ID: input.clientId,
+    NANGO_OAUTH_CLIENT_SECRET: input.clientSecret,
+    NANGO_OAUTH_FORBIDDEN_VALUES: input.forbiddenValues.join(","),
+  }), input);
+  for (const environment of [
+    {},
+    { NANGO_OAUTH_FORBIDDEN_VALUES: "" },
+    { NANGO_OAUTH_FORBIDDEN_VALUES: "one,,two" },
+  ]) assert.throws(() => configurationFromEnvironment(environment), Failure);
 });

@@ -254,7 +254,12 @@ function validateConfiguration(value) {
   ) throw new TypeError("fixture configuration is invalid");
   let callback;
   try { callback = new URL(value.callbackUrl); } catch { throw new TypeError("fixture configuration is invalid"); }
-  if (callback.href !== "http://nango:3003/oauth/callback") throw new TypeError("fixture configuration is invalid");
+  if (
+    callback.protocol !== "http:" || callback.port !== "3003" ||
+    !/^zasp-m0-14b-[0-9a-f]{16}-server$/.test(callback.hostname) ||
+    callback.pathname !== "/oauth/callback" || callback.search !== "" || callback.hash !== "" ||
+    callback.username !== "" || callback.password !== ""
+  ) throw new TypeError("fixture configuration is invalid");
   if (keys.length === tlsKeys.length && (!absolutePath(value.tlsKeyPath) || !absolutePath(value.tlsCertificatePath))) {
     throw new TypeError("fixture configuration is invalid");
   }
