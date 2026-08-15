@@ -279,6 +279,18 @@ R-12 remains Not run until M0-22 proves the separate bounded remote-export and
 exporter-failure boundary. M0-09 and PROV-01 remain Blocked, and R-03 remains
 incomplete.
 
+## Promptfoo red-team proof
+
+M0-16 is In progress. It runs one direct prompt-injection case through the
+exact-pinned official Promptfoo 0.121.19 engine against a local fake agent on a
+private internal Docker network. The product boundary will retain only the
+objective, verdict, and evidence reference; raw prompts, target responses,
+Promptfoo-native identifiers, and Docker state must remain outside product
+output. The proof uses only synthetic local inputs, no hosted generation, and
+no host-published port. R-09 remains Not run until the live engine
+result, exact normalization, cleanup, pinned gates, scans, and whole-range
+review pass.
+
 ## Nango proxy proof
 
 M0-15 is Complete. It proves one authenticated provider GET through the
