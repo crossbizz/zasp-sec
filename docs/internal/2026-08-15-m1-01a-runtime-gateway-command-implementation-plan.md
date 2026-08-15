@@ -55,7 +55,15 @@ compile-time version and has no proxy, listener, policy, or provider dependency.
 - [x] Change only completion expectations and capture focused RED.
 - [x] Move only M1-01a to Complete at `697/0/28/3` and M1
   `68/64/0/4/0`; preserve M0 and all blockers.
-- [ ] Run final gates, commit `docs: complete M1-01a runtime gateway command`,
+- [x] Run final gates, commit `docs: complete M1-01a runtime gateway command`,
   push, and watch exact-SHA Runnable UI to success.
-- [ ] Close the plan, record run/job IDs, commit/push the close SHA, watch CI,
+- [x] Close the plan, record run/job IDs, commit/push the close SHA, watch CI,
   then start M1-01b.
+
+## Closure evidence
+
+- Start commit: `755913a40df6e8ffac57c9fd24ac95915571c861`
+- Implementation commit: `b0ab861d9d1988b649c47e807ca5bb3224316c21`
+- Completion commit: `5720ccc1be8922e1ec6168e30633600e64ee625c`
+- Runnable UI run `31910524193`, job `95074766897`: success for the exact
+  completion SHA.
