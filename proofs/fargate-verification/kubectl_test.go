@@ -304,6 +304,7 @@ func newFixtureBoundary(t *testing.T, runner ProcessRunner) *KubectlBoundary {
 		Executable:      executable,
 		KubeconfigPath:  kubeconfig,
 		Context:         "proof",
+		ClusterName:     "cluster",
 		Runner:          runner,
 		ReadTimeout:     time.Second,
 		MutationTimeout: time.Second,
@@ -399,9 +400,20 @@ func TestKubectlBoundaryRejectsUnsafeConfiguration(t *testing.T) {
 	if err := os.WriteFile(kubeconfig, []byte(unsafe), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	_, err = NewKubectlBoundary(KubectlBoundaryOptions{Executable: executable, KubeconfigPath: kubeconfig, Context: "proof", Runner: &fakeProcessRunner{}})
+	_, err = NewKubectlBoundary(KubectlBoundaryOptions{Executable: executable, KubeconfigPath: kubeconfig, Context: "proof", ClusterName: "cluster", Runner: &fakeProcessRunner{}})
 	if !errors.Is(err, ErrConfiguration) {
 		t.Fatalf("unsafe kubeconfig error=%v, want configuration", err)
+	}
+}
+
+func TestKubectlBoundaryBindsExpectedClusterName(t *testing.T) {
+	executable, kubeconfig := writeBoundaryFixture(t)
+	_, err := NewKubectlBoundary(KubectlBoundaryOptions{
+		Executable: executable, KubeconfigPath: kubeconfig, Context: "proof", ClusterName: "different-cluster",
+		Runner: &fakeProcessRunner{}, ReadTimeout: time.Second, MutationTimeout: time.Second, OutputLimit: 1024,
+	})
+	if !errors.Is(err, ErrConfiguration) {
+		t.Fatalf("cluster mismatch error=%v, want configuration", err)
 	}
 }
 

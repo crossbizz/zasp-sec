@@ -31,6 +31,7 @@ func happyOptions(cluster ClusterBoundary) ProofOptions {
 	return ProofOptions{
 		Boundary:       cluster,
 		Marker:         strings.Repeat("a", 32),
+		Region:         "us-west-2",
 		FargateProfile: "zasp-disposable-profile",
 		ProxyURL:       "https://proxy.example.test/canary",
 		CanaryToken:    []byte("synthetic-test-token"),
@@ -384,6 +385,18 @@ func TestRunProofSchedulingAndCanaryEvidence(t *testing.T) {
 				cluster.getHook = func(reference ResourceRef, state ObjectState, err error) (ObjectState, error) {
 					if err == nil && reference.Kind == KindNode {
 						state.ProviderID = "docker:///forged"
+					}
+					return state, err
+				}
+			},
+			want: ErrScheduling,
+		},
+		{
+			name: "node provider region must match",
+			mutate: func(cluster *fakeCluster) {
+				cluster.getHook = func(reference ResourceRef, state ObjectState, err error) (ObjectState, error) {
+					if err == nil && reference.Kind == KindNode {
+						state.ProviderID = "aws:///eu-west-1a/fargate-node"
 					}
 					return state, err
 				}

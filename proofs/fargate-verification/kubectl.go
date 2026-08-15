@@ -61,6 +61,7 @@ type KubectlBoundaryOptions struct {
 	Executable      string
 	KubeconfigPath  string
 	Context         string
+	ClusterName     string
 	Runner          ProcessRunner
 	ReadTimeout     time.Duration
 	MutationTimeout time.Duration
@@ -136,7 +137,7 @@ type kubeIdentity struct {
 }
 
 func NewKubectlBoundary(options KubectlBoundaryOptions) (*KubectlBoundary, error) {
-	if options.Runner == nil || !contextNamePattern.MatchString(options.Context) ||
+	if options.Runner == nil || !contextNamePattern.MatchString(options.Context) || !contextNamePattern.MatchString(options.ClusterName) ||
 		options.ReadTimeout <= 0 || options.MutationTimeout <= 0 || options.OutputLimit <= 0 || options.OutputLimit > 64*1024 {
 		return nil, ErrConfiguration
 	}
@@ -145,7 +146,7 @@ func NewKubectlBoundary(options KubectlBoundaryOptions) (*KubectlBoundary, error
 		return nil, ErrConfiguration
 	}
 	kubeconfig, kubeconfigBytes, err := retainRegularFile(options.KubeconfigPath, maxKubeconfigBytes, false)
-	if err != nil || validateKubeconfig(kubeconfigBytes, options.Context) != nil {
+	if err != nil || validateKubeconfig(kubeconfigBytes, options.Context, options.ClusterName) != nil {
 		return nil, ErrConfiguration
 	}
 	clear(executableBytes)
@@ -195,7 +196,7 @@ func (retained retainedRegularFile) reprove() error {
 	return nil
 }
 
-func validateKubeconfig(data []byte, contextName string) error {
+func validateKubeconfig(data []byte, contextName, clusterName string) error {
 	decoder := yaml.NewDecoder(bytes.NewReader(data))
 	decoder.KnownFields(true)
 	var config kubeConfig
@@ -220,7 +221,7 @@ func validateKubeconfig(data []byte, contextName string) error {
 		contexts[item.Name] = item.Context
 	}
 	selected, ok := contexts[contextName]
-	if !ok {
+	if !ok || selected.Cluster != clusterName {
 		return ErrConfiguration
 	}
 	clusters := make(map[string]kubeCluster, len(config.Clusters))

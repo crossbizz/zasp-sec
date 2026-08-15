@@ -51,7 +51,8 @@ var (
 var (
 	markerPattern     = regexp.MustCompile(`^[a-f0-9]{32}$`)
 	profilePattern    = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$`)
-	providerIDPattern = regexp.MustCompile(`^aws:///[a-z0-9-]+/fargate-[a-z0-9.-]+$`)
+	regionPattern     = regexp.MustCompile(`^[a-z]{2}(?:-[a-z0-9]+)+-[0-9]+$`)
+	providerIDPattern = regexp.MustCompile(`^aws:///([a-z0-9-]+)/fargate-[a-z0-9.-]+$`)
 )
 
 type MutationError struct {
@@ -146,6 +147,7 @@ type ClusterBoundary interface {
 type ProofOptions struct {
 	Boundary       ClusterBoundary
 	Marker         string
+	Region         string
 	FargateProfile string
 	ProxyURL       string
 	CanaryToken    []byte
@@ -233,6 +235,7 @@ func RunProof(parent context.Context, options ProofOptions) (result ProofResult,
 
 func validateOptions(options ProofOptions) error {
 	if options.Boundary == nil || !markerPattern.MatchString(options.Marker) ||
+		!validCommercialRegion(options.Region) ||
 		!profilePattern.MatchString(options.FargateProfile) ||
 		len(options.CanaryToken) == 0 || len(options.CanaryToken) > 4096 ||
 		options.MainTimeout <= 0 || options.CleanupTimeout <= 0 {
@@ -351,7 +354,7 @@ func (life *lifecycle) requireEvidence(ctx context.Context) error {
 	}
 	node, err := life.options.Boundary.Get(ctx, ResourceRef{Kind: KindNode, Name: pod.NodeName})
 	if err != nil || node.Kind != KindNode || node.Name != pod.NodeName || node.UID == "" ||
-		!node.Ready || node.ComputeType != "fargate" || !providerIDPattern.MatchString(node.ProviderID) {
+		!node.Ready || node.ComputeType != "fargate" || !providerInRegion(node.ProviderID, life.options.Region) {
 		return ErrScheduling
 	}
 	ownedPod := OwnedPod{State: pod}
@@ -361,6 +364,19 @@ func (life *lifecycle) requireEvidence(ctx context.Context) error {
 	}
 	life.pod = &ownedPod
 	return nil
+}
+
+func validCommercialRegion(region string) bool {
+	return regionPattern.MatchString(region) && !strings.HasPrefix(region, "cn-") && !strings.HasPrefix(region, "us-gov-") && !strings.HasPrefix(region, "us-iso")
+}
+
+func providerInRegion(providerID, region string) bool {
+	matches := providerIDPattern.FindStringSubmatch(providerID)
+	if len(matches) != 2 {
+		return false
+	}
+	zone := matches[1]
+	return strings.HasPrefix(zone, region) && len(zone) == len(region)+1 && zone[len(region)] >= 'a' && zone[len(region)] <= 'z'
 }
 
 func exactCanaryRuntimeImage(value string) bool {
