@@ -315,6 +315,11 @@ IAM parity claims and R-11 continues to block EKS Fargate strong-isolation and
 egress claims. Neither blocker may be replaced by LocalStack, fixture-only,
 source-review, or harness-only evidence.
 
+The current record is `12 PASS / 2 BLOCKED / 0 FAIL / 0 unclassified` in
+`docs/decisions/m0-technical-proof-gate.md`. The two blocked decisions are
+R-03, awaiting M0-09's isolated real-AWS fixture, and R-11, awaiting M0-18 and
+M0-19's isolated real-EKS fixtures.
+
 ## PostHog privacy proof
 
 M0-20 is Complete. It proves one allowlisted product analytics event against

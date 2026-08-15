@@ -90,7 +90,7 @@ git commit -m "docs: start M0-23 technical proof gate"
 - Consumes: the fourteen risk rows, retained proof reports, exact reviewed heads, and the three authoritative blocked task rows.
 - Produces: `12 PASS / 2 BLOCKED / 0 FAIL / 0 unclassified`, plus the exact architecture decision for every risk.
 
-- [ ] **Step 1: Extend the contract as RED**
+- [x] **Step 1: Extend the contract as RED**
 
 Add an `assertGate` helper that parses the gate table and requires exact keys:
 `Risk`, `Outcome`, `Proofs`, `Evidence`, and `Architecture decision`. Require
@@ -108,12 +108,12 @@ R-04 PASS — M0-06/M0-08 — task-M0-06-report.md @ ba02323b83618e096c67cb2380f
 R-05 PASS — M0-10 — task-6-report.md @ 23b759b793e02aba91c24b846651ed64018a9a03
 ```
 
-- [ ] **Step 2: Run the decision-record RED**
+- [x] **Step 2: Run the decision-record RED**
 
 Run the focused contract. Expected: FAIL because the gate record is absent and
 the four historical risk rows still say Not run.
 
-- [ ] **Step 3: Create the strict gate record and update only proven rows**
+- [x] **Step 3: Create the strict gate record and update only proven rows**
 
 Create the fourteen-row table. Preserve every existing evidence-backed PASS.
 Update only R-01, R-02, R-04, and R-05 from Not run to PASS with the exact
@@ -130,7 +130,7 @@ The architecture decisions must state:
 - block real-AWS IAM parity-dependent M1A/M3 claims on R-03;
 - block Fargate strong-isolation/egress-dependent claims on R-11.
 
-- [ ] **Step 4: Add hostile table mutations**
+- [x] **Step 4: Add hostile table mutations**
 
 Before changing the validator, add cases for duplicate/missing/extra risk rows,
 reordered IDs, PASS on R-03/R-11, BLOCKED on a proven row, missing proof head,
@@ -138,7 +138,7 @@ fake local evidence for a real-provider blocker, weakened downstream consequence
 wrong summary counts, and an extra active M1 task. Run them and capture the
 expected failures, then make the minimum assertion changes needed for GREEN.
 
-- [ ] **Step 5: Run focused GREEN and commit**
+- [x] **Step 5: Run focused GREEN and commit**
 
 Run the focused test six consecutive times, full repository verification,
 production audit, whitespace, and redacted staged/evidence scans. Commit:
