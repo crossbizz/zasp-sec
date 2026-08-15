@@ -5,8 +5,8 @@ Date: August 15, 2026
 ## Goal
 
 Create the approved `apps/web` and `cmd/agentsecctl` ownership boundaries. The
-web boundary must build the existing runnable product UI without copying or
-forking it. The CLI boundary must expose one exact build-version command. This
+web boundary must build the existing runnable product UI without copying or forking it.
+The CLI boundary must expose one exact build-version command. This
 task adds no preflight, recovery, diagnostic, provider, credential, deployment,
 network, or customer-data behavior.
 
@@ -35,6 +35,9 @@ scaffold behavior.
 `github.com/zasp-ai/zasp-sec/cmd/agentsecctl`. Later single-tenant preflight,
 recovery, backup, restore, and diagnostic tasks can extend that command without
 coupling it to a product service module.
+
+The tracked command files are `cmd/agentsecctl/go.mod`,
+`cmd/agentsecctl/main.go`, and `cmd/agentsecctl/main_test.go`.
 
 ## Command and build contracts
 

@@ -23,13 +23,13 @@ deployment, listener, network, or customer-data behavior.
 
 ### Task 1: Start M1-01c
 
-- [ ] Add a repository contract binding source/deployable ownership,
+- [x] Add a repository contract binding source/deployable ownership,
   design/plan, completed M1-01b, unique active status, exact arithmetic,
   Pending M1-01, and unchanged blockers.
-- [ ] Capture focused RED at the still-Pending README/tracker state.
-- [ ] Move only M1-01c to In progress at `695/1/29/3` overall and M1
+- [x] Capture focused RED at the still-Pending README/tracker state.
+- [x] Move only M1-01c to In progress at `695/1/29/3` overall and M1
   `68/62/1/5/0`; document the web delegation and no-I/O CLI scope.
-- [ ] Run focused/full pinned GREEN, audit, whitespace, and scans; commit
+- [x] Run focused/full pinned GREEN, audit, whitespace, and scans; commit
   `docs: start M1-01c web and CLI directories`.
 
 ### Task 2: Implement web and CLI boundaries tests-first

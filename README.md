@@ -109,6 +109,25 @@ Promptfoo adapters, read queues, graphs, prompts, findings, configuration,
 credentials, or provider state, open listeners, or perform network operations.
 Shared liveness and readiness endpoints remain deferred to M1-28.
 
+## Web and CLI directory boundaries
+
+M1-01c is In progress. The `apps/web` package delegates to the existing locked
+runnable UI build through this exact command:
+
+```bash
+npm --prefix apps/web run build
+```
+
+The standalone CLI boundary exposes only this exact version shape:
+
+```text
+agentsecctl version <version>
+```
+
+The CLI does not implement preflight, recovery, diagnostics, provider access,
+credential loading, listeners, or network behavior. The web boundary does not
+copy or fork the existing product UI.
+
 ## Neon pooled proof
 
 The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,
