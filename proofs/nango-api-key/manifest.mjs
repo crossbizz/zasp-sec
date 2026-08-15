@@ -3,6 +3,8 @@ import { basename, isAbsolute, join, resolve } from "node:path";
 import { PINS } from "../nango-free-boot/manifest.mjs";
 import { validateApiKeyMarker } from "./boundary.mjs";
 
+export { validateApiKeyMarker };
+
 export const API_KEY_PROOF_LABEL = "m0-14c";
 export const API_KEY_PINS = PINS;
 
