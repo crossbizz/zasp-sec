@@ -11,6 +11,7 @@ import {
   createPromptfooWorkspace,
   removePromptfooOutput,
   removePromptfooWorkspace,
+  reprovePromptfooCommandBoundary,
   validatePromptfooTemporaryPrefixEntries,
 } from "./boundary.mjs";
 import { buildPromptfooConfiguration, buildPromptfooRuntimeSpec, PROMPTFOO_PINS } from "./manifest.mjs";
@@ -228,6 +229,7 @@ export class DockerPromptfooRuntime {
     this.artifact = undefined;
     this.normalized = undefined;
     this.mutations = new Set();
+    this.dockerAbsenceProved = false;
   }
 
   async initialize(signal) {
@@ -319,6 +321,7 @@ export class DockerPromptfooRuntime {
     const classification = classifyMutationResult(result, new RegExp(`^${escapeRegex(candidate.name)}\\n$`));
     if (classification === "definitive") throw new Failure("provider");
     await this.#verifyContainer("agent", signal, "running");
+    await this.#verifyTopology(signal);
   }
 
   async waitAgent(signal) {
@@ -343,6 +346,7 @@ export class DockerPromptfooRuntime {
     } else {
       await this.#verifyContainer("runner", signal, "exited", 100);
     }
+    await this.#verifyTopology(signal);
   }
 
   async normalize(signal) {
@@ -374,16 +378,16 @@ export class DockerPromptfooRuntime {
     }
     try { await this.#removeNetwork(signal); } catch { failures.push("network"); }
     try { await this.#removeArtifactIfPresent(signal); } catch { failures.push("artifact"); }
-    let dockerAbsent = false;
-    try { await this.#requireGlobalDockerAbsence(signal); dockerAbsent = true; } catch { failures.push("docker-absence"); }
-    if (dockerAbsent && this.workspace) {
-      try { await removePromptfooWorkspace(this.workspace); this.workspace = undefined; } catch { failures.push("workspace"); }
-    }
+    try { await this.#requireGlobalDockerAbsence(signal); this.dockerAbsenceProved = true; } catch { failures.push("docker-absence"); }
     if (failures.length > 0) throw new Failure("cleanup");
   }
 
   async finalAbsence(signal) {
+    validateFinalAbsenceAuthority(this.dockerAbsenceProved);
     await this.#requireGlobalDockerAbsence(signal);
+    if (!this.workspace) throw new Failure("cleanup");
+    await removePromptfooWorkspace(this.workspace);
+    this.workspace = undefined;
     assertActive(signal);
     validatePromptfooTemporaryPrefixEntries(await readdir(this.tempParent));
   }
@@ -392,8 +396,8 @@ export class DockerPromptfooRuntime {
     const ids = await this.#exactNetworkIds(signal);
     if (ids.length !== 1 || (expectedId !== undefined && ids[0] !== expectedId)) throw new Failure("ownership");
     const state = await this.#inspectNetwork(ids[0], signal);
-    validateNetwork(state, this.spec.network, ids[0]);
-    this.network = deepFreeze({ id: ids[0], name: this.spec.network.name });
+    const identity = captureNetworkIdentity(state, this.spec.network, ids[0]);
+    this.network = deepFreeze({ id: ids[0], name: this.spec.network.name, identity });
   }
 
   async #adoptContainer(role, signal, expectedId, expectedStatus) {
@@ -401,14 +405,38 @@ export class DockerPromptfooRuntime {
     if (ids.length !== 1 || (expectedId !== undefined && ids[0] !== expectedId)) throw new Failure("ownership");
     this.containers.set(role, { role, id: ids[0], name: this.spec[role].name });
     await this.#verifyContainer(role, signal, expectedStatus);
+    await this.#verifyTopology(signal);
   }
 
   async #verifyContainer(role, signal, expectedStatus, expectedExitCode) {
     const candidate = this.#candidate(role);
     const result = await this.#read(["inspect", "--format", "{{json .}}", candidate.id], signal, dockerJsonLimit);
     const state = parseUniqueDockerJson(result.stdout, dockerJsonLimit);
-    validateContainer(state, this.spec[role], this.image, candidate, expectedStatus, expectedExitCode);
+    validateContainerOwnership(state, this.spec[role], this.image, candidate, expectedStatus, expectedExitCode);
     return state;
+  }
+
+  async #verifyTopology(signal) {
+    if (!this.network) throw new Failure("ownership");
+    let lastError;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const records = [];
+        for (const [role, candidate] of this.containers) {
+          const result = await this.#read(["inspect", "--format", "{{json .}}", candidate.id], signal, dockerJsonLimit);
+          const state = parseUniqueDockerJson(result.stdout, dockerJsonLimit);
+          validateContainerOwnership(state, this.spec[role], this.image, candidate);
+          records.push({ role, candidate, state });
+        }
+        const networkState = await this.#inspectNetwork(this.network.id, signal);
+        validateTopology(networkState, records, this.network.identity);
+        return;
+      } catch (error) {
+        lastError = error;
+        if (attempt === 0) await delay(250, signal);
+      }
+    }
+    throw lastError instanceof Failure ? lastError : new Failure("ownership");
   }
 
   async #inspectNetwork(id, signal) {
@@ -420,28 +448,45 @@ export class DockerPromptfooRuntime {
     const candidate = this.containers.get(role);
     if (!candidate) return;
     const ids = await this.#exactContainerIds(candidate.name, signal);
-    if (ids.length === 0) { this.containers.delete(role); return; }
+    if (ids.length === 0) {
+      validateRetainedAbsence(ids, await this.#containerIdsById(candidate.id, signal), candidate.id);
+      this.containers.delete(role);
+      return;
+    }
     if (ids.length !== 1 || ids[0] !== candidate.id) throw new Failure("ownership");
+    await this.#verifyTopology(signal);
     await this.#verifyContainer(role, signal, undefined);
     const result = await this.#mutate(["rm", "--force", "--volumes", candidate.id], signal, 30_000, 4_096);
     const classification = classifyMutationResult(result, new RegExp(`^${escapeRegex(candidate.id)}\\n$`));
     if (classification === "definitive") throw new Failure("cleanup");
-    const remaining = await this.#exactContainerIds(candidate.name, signal);
-    if (remaining.length !== 0) throw new Failure("cleanup");
+    validateRetainedAbsence(
+      await this.#exactContainerIds(candidate.name, signal),
+      await this.#containerIdsById(candidate.id, signal),
+      candidate.id,
+    );
     this.containers.delete(role);
   }
 
   async #removeNetwork(signal) {
     if (!this.network) return;
     const ids = await this.#exactNetworkIds(signal);
-    if (ids.length === 0) { this.network = undefined; return; }
+    if (ids.length === 0) {
+      validateRetainedAbsence(ids, await this.#networkIdsById(this.network.id, signal), this.network.id);
+      this.network = undefined;
+      return;
+    }
     if (ids.length !== 1 || ids[0] !== this.network.id) throw new Failure("ownership");
+    await this.#verifyTopology(signal);
     const state = await this.#inspectNetwork(this.network.id, signal);
-    validateNetwork(state, this.spec.network, this.network.id, true);
+    validateNetworkOwnership(state, this.spec.network, this.network.id, this.network.identity, true);
     const result = await this.#mutate(["network", "rm", this.network.id], signal, 30_000, 4_096);
     const classification = classifyMutationResult(result, new RegExp(`^${escapeRegex(this.network.id)}\\n$`));
     if (classification === "definitive") throw new Failure("cleanup");
-    if ((await this.#exactNetworkIds(signal)).length !== 0) throw new Failure("cleanup");
+    validateRetainedAbsence(
+      await this.#exactNetworkIds(signal),
+      await this.#networkIdsById(this.network.id, signal),
+      this.network.id,
+    );
     this.network = undefined;
   }
 
@@ -480,9 +525,21 @@ export class DockerPromptfooRuntime {
     return fullIds(result.stdout);
   }
 
+  async #containerIdsById(id, signal) {
+    const result = await this.#read(["ps", "-aq", "--no-trunc", "--filter", `id=${id}`], signal, 4_096);
+    return fullIds(result.stdout);
+  }
+
+  async #networkIdsById(id, signal) {
+    const result = await this.#read(["network", "ls", "-q", "--no-trunc", "--filter", `id=${id}`], signal, 4_096);
+    return fullIds(result.stdout);
+  }
+
   async #read(arguments_, signal, outputLimit) {
     let last;
     for (let attempt = 0; attempt < 2; attempt += 1) {
+      assertActive(signal);
+      await reprovePromptfooCommandBoundary(this.workspace);
       assertActive(signal);
       last = await runBounded("docker", arguments_, { timeoutMs: 5_000, outputLimit, env: this.dockerEnv, signal }, this.spawnProcess);
       if (last.status === 0 && last.signal === null && !last.overflow && !last.timedOut && !last.thrown) return last;
@@ -493,6 +550,9 @@ export class DockerPromptfooRuntime {
 
   async #mutate(arguments_, signal, timeoutMs = 30_000, outputLimit = childOutputLimit) {
     assertActive(signal);
+    await reprovePromptfooCommandBoundary(this.workspace);
+    assertActive(signal);
+    this.dockerAbsenceProved = false;
     return this.#journal(runBounded("docker", arguments_, { timeoutMs, outputLimit, env: this.dockerEnv, signal }, this.spawnProcess));
   }
 
@@ -528,32 +588,182 @@ function validateImage(image) {
   if (!plainObject(config) || config.User !== "promptfoo" || !sameArray(config.Entrypoint, ["docker-entrypoint.sh"]) || !sameArray(config.Cmd, ["node", "dist/src/server/index.js"]) || !sameSet(config.Env, imageEnvironment) || config.WorkingDir !== "/app" || !sameObject(config.Labels, imageLabels)) throw new Failure("ownership");
 }
 
-function validateNetwork(state, expected, id, requireEmpty = false) {
-  if (!plainObject(state) || state.Id !== id || state.Name !== expected.name || state.Internal !== true || state.Driver !== "bridge" || state.Attachable !== false || state.Ingress !== false || !sameObject(state.Labels, expected.labels)) throw new Failure("ownership");
-  if (!plainObject(state.Containers) || (requireEmpty && Object.keys(state.Containers).length !== 0)) throw new Failure("ownership");
+export function captureNetworkIdentity(state, expected, id) {
+  validateNetworkBase(state, expected, id);
+  if (Object.keys(state.Containers).length !== 0) throw new Failure("ownership");
+  return deepFreeze(JSON.parse(JSON.stringify({
+    id,
+    name: expected.name,
+    labels: expected.labels,
+    Created: state.Created,
+    Scope: state.Scope,
+    EnableIPv4: state.EnableIPv4,
+    EnableIPv6: state.EnableIPv6,
+    IPAM: state.IPAM,
+    ConfigFrom: state.ConfigFrom,
+    ConfigOnly: state.ConfigOnly,
+    Options: state.Options,
+  })));
 }
 
-function validateContainer(state, expected, image, candidate, expectedStatus, expectedExitCode) {
+export function validateNetworkOwnership(state, expected, id, identity, requireEmpty = false) {
+  validateNetworkBase(state, expected, id);
+  if (!plainObject(identity) || identity.id !== id || identity.name !== expected.name || !sameJson(identity.labels, expected.labels)) throw new Failure("ownership");
+  for (const key of ["Created", "Scope", "EnableIPv4", "EnableIPv6", "IPAM", "ConfigFrom", "ConfigOnly", "Options"]) {
+    if (!sameJson(state[key], identity[key])) throw new Failure("ownership");
+  }
+  if (requireEmpty && Object.keys(state.Containers).length !== 0) throw new Failure("ownership");
+  return true;
+}
+
+export function validateTopology(networkState, records, identity) {
+  if (!plainObject(identity) || !Array.isArray(records) || records.some((record) => !plainObject(record) || !plainObject(record.candidate) || !plainObject(record.state))) throw new Failure("ownership");
+  validateNetworkOwnership(networkState, { name: identity.name, labels: identity.labels }, identity.id, identity);
+  const expectedPeers = new Map();
+  const seen = new Set();
+  const subnet = networkSubnet(identity.IPAM);
+  for (const record of records) {
+    const { candidate, state } = record;
+    if (seen.has(candidate.id) || state.Id !== candidate.id || state.Name !== `/${candidate.name}`) throw new Failure("ownership");
+    seen.add(candidate.id);
+    const attachment = state.NetworkSettings?.Networks?.[identity.name];
+    validateAttachment(attachment, candidate, identity.id, state.State.Status, subnet);
+    if (state.State.Status === "running") {
+      expectedPeers.set(candidate.id, {
+        Name: candidate.name,
+        EndpointID: attachment.EndpointID,
+        MacAddress: attachment.MacAddress,
+        IPv4Address: `${attachment.IPAddress}/${attachment.IPPrefixLen}`,
+        IPv6Address: "",
+      });
+    }
+  }
+  if (!plainObject(networkState.Containers) || !sameSet(Object.keys(networkState.Containers), [...expectedPeers.keys()])) throw new Failure("ownership");
+  for (const [id, expectedPeer] of expectedPeers) {
+    const actual = networkState.Containers[id];
+    if (!plainObject(actual) || !exactKeys(actual, ["Name", "EndpointID", "MacAddress", "IPv4Address", "IPv6Address"]) || !sameJson(actual, expectedPeer)) throw new Failure("ownership");
+  }
+  return true;
+}
+
+export function validateContainerOwnership(state, expected, image, candidate, expectedStatus, expectedExitCode) {
   if (!plainObject(state) || state.Id !== candidate.id || state.Name !== `/${candidate.name}` || state.Image !== image.id || !plainObject(state.Config) || !plainObject(state.HostConfig) || !plainObject(state.State) || !plainObject(state.NetworkSettings)) throw new Failure("ownership");
   const labels = { ...imageLabels, ...expected.labels };
-  if (state.Config.Image !== expected.image || state.Config.User !== "promptfoo" || !sameObject(state.Config.Labels, labels) || !sameSet(state.Config.Env, [...imageEnvironment, ...Object.entries(expected.environment).map(([key, value]) => `${key}=${value}`)]) || !sameArray(state.Config.Entrypoint, expected.entrypoint) || !sameArray(state.Config.Cmd, expected.command)) throw new Failure("ownership");
-  if (state.HostConfig.ReadonlyRootfs !== true || state.HostConfig.NetworkMode !== expected.network || !sameSet(state.HostConfig.CapDrop, ["ALL"]) || !sameSet(state.HostConfig.SecurityOpt, ["no-new-privileges"]) || state.HostConfig.PidsLimit !== expected.pidsLimit || state.HostConfig.Memory !== memoryBytes(expected.memory) || state.HostConfig.NanoCpus !== Number(expected.cpus) * 1_000_000_000 || (state.HostConfig.PortBindings !== null && !sameObject(state.HostConfig.PortBindings, {}))) throw new Failure("ownership");
+  if (state.Config.Image !== expected.image || state.Config.User !== "promptfoo" || state.Config.WorkingDir !== image.config.WorkingDir || !sameJson(state.Config.ExposedPorts, image.config.ExposedPorts) || !sameObject(state.Config.Labels, labels) || !sameSet(state.Config.Env, [...imageEnvironment, ...Object.entries(expected.environment).map(([key, value]) => `${key}=${value}`)]) || !sameArray(state.Config.Entrypoint, expected.entrypoint) || !sameArray(state.Config.Cmd, expected.command)) throw new Failure("ownership");
+  if (
+    state.HostConfig.AutoRemove !== false || state.HostConfig.Privileged !== false || state.HostConfig.CapAdd !== null ||
+    !Array.isArray(state.HostConfig.Devices) || state.HostConfig.Devices.length !== 0 || state.HostConfig.DeviceRequests !== null ||
+    state.HostConfig.Binds !== null || state.HostConfig.ReadonlyRootfs !== true || state.HostConfig.NetworkMode !== expected.network ||
+    !sameSet(state.HostConfig.CapDrop, ["ALL"]) || !sameSet(state.HostConfig.SecurityOpt, ["no-new-privileges"]) ||
+    state.HostConfig.PidsLimit !== expected.pidsLimit || state.HostConfig.Memory !== memoryBytes(expected.memory) ||
+    state.HostConfig.NanoCpus !== Number(expected.cpus) * 1_000_000_000 || state.HostConfig.PublishAllPorts !== false ||
+    !sameObject(state.HostConfig.PortBindings, {}) || state.HostConfig.PidMode !== "" || state.HostConfig.IpcMode !== "private" ||
+    state.HostConfig.UsernsMode !== "" || state.HostConfig.CgroupnsMode !== "private" || !sameObject(state.HostConfig.Tmpfs, expected.tmpfs)
+  ) throw new Failure("ownership");
+  validateMountSpecifications(state.HostConfig.Mounts, expected.mounts);
   validateMounts(state.Mounts, expected.mounts);
   const networkNames = Object.keys(state.NetworkSettings.Networks ?? {});
   if (networkNames.length !== 1 || networkNames[0] !== expected.network) throw new Failure("ownership");
-  for (const bindings of Object.values(state.NetworkSettings.Ports ?? {})) if (bindings !== null && (!Array.isArray(bindings) || bindings.length !== 0)) throw new Failure("ownership");
+  const expectedPorts = state.State.Status === "running" ? Object.fromEntries(Object.keys(image.config.ExposedPorts ?? {}).map((key) => [key, null])) : {};
+  if (!sameJson(state.NetworkSettings.Ports, expectedPorts)) throw new Failure("ownership");
+  if (!["created", "running", "exited"].includes(state.State.Status)) throw new Failure("ownership");
   if (expectedStatus !== undefined && state.State.Status !== expectedStatus) throw new Failure("ownership");
   if (expectedExitCode !== undefined && state.State.ExitCode !== expectedExitCode) throw new Failure("ownership");
+  return true;
+}
+
+export function validateRetainedAbsence(nameIds, retainedIds, retainedId) {
+  for (const values of [nameIds, retainedIds]) {
+    if (!Array.isArray(values) || new Set(values).size !== values.length || values.some((value) => !/^[a-f0-9]{64}$/.test(value))) throw new Failure("cleanup");
+  }
+  if (!/^[a-f0-9]{64}$/.test(retainedId) || nameIds.length !== 0 || retainedIds.length !== 0) throw new Failure("cleanup");
+  return true;
+}
+
+export function validateFinalAbsenceAuthority(value) {
+  if (value !== true) throw new Failure("ownership");
+  return true;
 }
 
 function validateMounts(actual, expected) {
   if (!Array.isArray(actual) || actual.length !== expected.length) throw new Failure("ownership");
   const normalized = actual.map((mount) => {
-    if (!plainObject(mount) || mount.Type !== "bind" || typeof mount.Source !== "string" || typeof mount.Destination !== "string" || typeof mount.RW !== "boolean") throw new Failure("ownership");
+    if (!plainObject(mount) || !exactKeys(mount, ["Type", "Source", "Destination", "Mode", "RW", "Propagation"]) || mount.Type !== "bind" || typeof mount.Source !== "string" || typeof mount.Destination !== "string" || typeof mount.RW !== "boolean" || mount.Mode !== "" || mount.Propagation !== "rprivate") throw new Failure("ownership");
     return `${mount.Source}\0${mount.Destination}\0${mount.RW}`;
   });
   const wanted = expected.map((mount) => `${mount.source}\0${mount.target}\0${!mount.readOnly}`);
   if (!sameSet(normalized, wanted)) throw new Failure("ownership");
+}
+
+function validateMountSpecifications(actual, expected) {
+  if (!Array.isArray(actual) || actual.length !== expected.length) throw new Failure("ownership");
+  const normalized = actual.map((mount) => {
+    const keys = mount?.ReadOnly === true ? ["Type", "Source", "Target", "ReadOnly"] : ["Type", "Source", "Target"];
+    if (!plainObject(mount) || !exactKeys(mount, keys) || mount.Type !== "bind" || typeof mount.Source !== "string" || typeof mount.Target !== "string") throw new Failure("ownership");
+    return `${mount.Source}\0${mount.Target}\0${mount.ReadOnly === true}`;
+  });
+  const wanted = expected.map((mount) => `${mount.source}\0${mount.target}\0${mount.readOnly}`);
+  if (!sameSet(normalized, wanted)) throw new Failure("ownership");
+}
+
+function validateNetworkBase(state, expected, id) {
+  const keys = ["Name", "Id", "Created", "Scope", "Driver", "EnableIPv4", "EnableIPv6", "IPAM", "Internal", "Attachable", "Ingress", "ConfigFrom", "ConfigOnly", "Containers", "Options", "Labels", "Status"];
+  if (!plainObject(state) || !exactKeys(state, keys) || state.Id !== id || state.Name !== expected.name || state.Scope !== "local" || state.Internal !== true || state.Driver !== "bridge" || state.Attachable !== false || state.Ingress !== false || state.EnableIPv4 !== true || state.EnableIPv6 !== false || state.ConfigOnly !== false || !sameObject(state.ConfigFrom, { Network: "" }) || !sameObject(state.Options, {}) || !plainObject(state.Status) || !sameObject(state.Labels, expected.labels) || !plainObject(state.Containers)) throw new Failure("ownership");
+  networkSubnet(state.IPAM);
+}
+
+function networkSubnet(ipam) {
+  if (!plainObject(ipam) || !exactKeys(ipam, ["Driver", "Options", "Config"]) || ipam.Driver !== "default" || !sameObject(ipam.Options, {}) || !Array.isArray(ipam.Config) || ipam.Config.length !== 1 || !exactKeys(ipam.Config[0], ["Subnet", "Gateway"])) throw new Failure("ownership");
+  const match = /^(\d{1,3}(?:\.\d{1,3}){3})\/(\d{1,2})$/.exec(ipam.Config[0].Subnet);
+  const gateway = parseIpv4(ipam.Config[0].Gateway);
+  if (!match) throw new Failure("ownership");
+  const address = parseIpv4(match[1]);
+  const prefix = Number(match[2]);
+  if (address === undefined || gateway === undefined || prefix < 8 || prefix > 30 || !privateIpv4(address)) throw new Failure("ownership");
+  const mask = (0xffffffff << (32 - prefix)) >>> 0;
+  const network = (address & mask) >>> 0;
+  const broadcast = (network | (~mask >>> 0)) >>> 0;
+  if (address !== network || gateway <= network || gateway >= broadcast) throw new Failure("ownership");
+  return { network, broadcast, prefix, mask };
+}
+
+function validateAttachment(value, candidate, networkIdValue, status, subnet) {
+  const keys = ["IPAMConfig", "Links", "Aliases", "MacAddress", "DriverOpts", "GwPriority", "NetworkID", "EndpointID", "Gateway", "IPAddress", "IPPrefixLen", "IPv6Gateway", "GlobalIPv6Address", "GlobalIPv6PrefixLen", "DNSNames"];
+  const active = status === "running";
+  const retainedNetworkIdentity = status !== "created";
+  if (!plainObject(value) || !exactKeys(value, keys) || value.IPAMConfig !== null || value.Links !== null || value.DriverOpts !== null || value.GwPriority !== 0 || value.NetworkID !== (retainedNetworkIdentity ? networkIdValue : "") || value.Gateway !== "" || value.IPv6Gateway !== "" || value.GlobalIPv6Address !== "" || value.GlobalIPv6PrefixLen !== 0 || !sameArray(value.Aliases, [candidate.name]) || (retainedNetworkIdentity ? !sameSet(value.DNSNames, [candidate.name, candidate.id.slice(0, 12)]) : value.DNSNames !== null)) throw new Failure("ownership");
+  if (!active) {
+    if (value.EndpointID !== "" || value.MacAddress !== "" || value.IPAddress !== "" || value.IPPrefixLen !== 0) throw new Failure("ownership");
+    return;
+  }
+  const ipv4 = parseIpv4(value.IPAddress);
+  if (!/^[a-f0-9]{64}$/.test(value.EndpointID) || !/^([a-f0-9]{2}:){5}[a-f0-9]{2}$/.test(value.MacAddress) || ipv4 === undefined || value.IPPrefixLen !== subnet.prefix || ipv4 <= subnet.network || ipv4 >= subnet.broadcast || ((ipv4 & subnet.mask) >>> 0) !== subnet.network) throw new Failure("ownership");
+}
+
+function parseIpv4(value) {
+  if (typeof value !== "string") return undefined;
+  const pieces = value.split(".");
+  if (pieces.length !== 4 || pieces.some((piece) => !/^(0|[1-9]\d{0,2})$/.test(piece) || Number(piece) > 255)) return undefined;
+  return pieces.reduce((result, piece) => ((result << 8) | Number(piece)) >>> 0, 0);
+}
+
+function privateIpv4(value) {
+  return (value >>> 24) === 10 || (value >>> 20) === 0xac1 || (value >>> 16) === 0xc0a8;
+}
+
+function exactKeys(value, expected) {
+  return plainObject(value) && sameArray(Object.keys(value).sort(), [...expected].sort());
+}
+
+function sameJson(left, right) {
+  if (Object.is(left, right)) return true;
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return Array.isArray(left) && Array.isArray(right) && left.length === right.length && left.every((value, index) => sameJson(value, right[index]));
+  }
+  if (!plainObject(left) || !plainObject(right)) return false;
+  const leftKeys = Object.keys(left).sort();
+  const rightKeys = Object.keys(right).sort();
+  return sameArray(leftKeys, rightKeys) && leftKeys.every((key) => sameJson(left[key], right[key]));
 }
 
 async function runPhase(operation, timeoutMs) {

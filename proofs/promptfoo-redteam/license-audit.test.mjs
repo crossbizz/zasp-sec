@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { lstat, mkdtemp, realpath, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
 
 const api = await import("./license-audit.mjs").catch(() => undefined);
@@ -109,4 +112,33 @@ test("uses one bounded Docker image tuple and rejects malformed output", () => {
     timedOut: false,
     thrown: false,
   }));
+});
+
+test("retains immediate post-mkdtemp cleanup authority on validation failure", async () => {
+  const parent = await mkdtemp(join(await realpath(tmpdir()), "zasp-m0-16-license-parent-"));
+  let candidate;
+  let candidateStats = 0;
+  const output = { text: "", write(value) { this.text += value; } };
+  const error = { text: "", write(value) { this.text += value; } };
+  try {
+    const code = await requireExport("runMain")(output, error, {
+      tempParent: parent,
+      makeTemp: async (prefix) => { candidate = await mkdtemp(prefix); return candidate; },
+      lstat: async (path) => {
+        if (path === candidate && candidateStats++ === 0) throw new Error("transient-sensitive");
+        return lstat(path);
+      },
+      realpath,
+      remove: rm,
+      loadInventory: async () => ({ exact: true }),
+      audit: async () => ({ images: 1, components: 1, artifacts: 2, prohibited: 0 }),
+    });
+    assert.equal(code, 1);
+    assert.equal(output.text, "");
+    assert.equal(error.text, "Promptfoo adapter license audit failed.\n");
+    assert.equal(typeof candidate, "string");
+    await assert.rejects(lstat(candidate), { code: "ENOENT" });
+  } finally {
+    await rm(parent, { recursive: true, force: true });
+  }
 });

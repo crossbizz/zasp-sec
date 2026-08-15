@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { lstat, mkdtemp, readFile, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 
@@ -139,28 +139,48 @@ async function inspectImage(reference, dockerConfig) {
   return parseImageInspectResult(result);
 }
 
-export async function runMain(output = process.stdout, error = process.stderr) {
+export async function runMain(output = process.stdout, error = process.stderr, dependencies = {}) {
   let root;
   let identity;
+  const io = {
+    lstat: dependencies.lstat ?? lstat,
+    makeTemp: dependencies.makeTemp ?? mkdtemp,
+    realpath: dependencies.realpath ?? realpath,
+    remove: dependencies.remove ?? rm,
+  };
   try {
-    root = await mkdtemp(join(tmpdir(), "zasp-m0-16-license-"));
-    const state = await lstat(root);
-    identity = { dev: state.dev, ino: state.ino, canonical: await realpath(root) };
-    const inventory = await loadLicenseInventory();
-    const result = await auditAdapterLicense(inventory, { inspectImage: (reference) => inspectImage(reference, root), fingerprintUrl });
+    const parent = await io.realpath(dependencies.tempParent ?? tmpdir());
+    root = await io.makeTemp(join(parent, "zasp-m0-16-license-"));
+    const state = await io.lstat(root);
+    identity = { dev: state.dev, ino: state.ino, canonical: await io.realpath(root), parent };
+    const inventory = await (dependencies.loadInventory ?? loadLicenseInventory)();
+    const result = await (dependencies.audit ?? auditAdapterLicense)(inventory, {
+      inspectImage: dependencies.inspectImage ?? ((reference) => inspectImage(reference, root)),
+      fingerprintUrl: dependencies.fingerprintUrl ?? fingerprintUrl,
+    });
+    await cleanupLicenseRoot(root, identity, io);
+    root = undefined;
     output.write(`Promptfoo adapter license audit passed: images=${result.images} components=${result.components} artifacts=${result.artifacts} prohibited=${result.prohibited}.\n`);
     return 0;
   } catch {
+    if (root !== undefined) {
+      try { await cleanupLicenseRoot(root, identity, io); root = undefined; }
+      catch { /* fixed failure boundary */ }
+    }
     error.write("Promptfoo adapter license audit failed.\n");
     return 1;
-  } finally {
-    if (root !== undefined && identity !== undefined) {
-      try {
-        const state = await lstat(root);
-        if (state.dev === identity.dev && state.ino === identity.ino && await realpath(root) === identity.canonical) await rm(root, { recursive: true, force: false, maxRetries: 0 });
-      } catch { /* fixed boundary already selected */ }
-    }
   }
+}
+
+async function cleanupLicenseRoot(root, identity, io) {
+  const state = await io.lstat(root);
+  const canonical = await io.realpath(root);
+  const parent = dirname(root);
+  if (!state.isDirectory() || state.isSymbolicLink() || dirname(canonical) !== parent || canonical !== root || !/^zasp-m0-16-license-[A-Za-z0-9]{6}$/.test(basename(root))) reject();
+  if (identity !== undefined && (identity.dev !== state.dev || identity.ino !== state.ino || identity.canonical !== canonical || identity.parent !== parent)) reject();
+  await io.remove(root, { recursive: true, force: false, maxRetries: 0 });
+  try { await io.lstat(root); } catch (failure) { if (failure?.code === "ENOENT") return; throw failure; }
+  reject();
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) process.exitCode = await runMain();

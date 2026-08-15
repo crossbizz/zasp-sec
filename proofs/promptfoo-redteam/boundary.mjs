@@ -115,6 +115,29 @@ export async function reprovePromptfooWorkspace(workspace, overrides = {}) {
   return workspace;
 }
 
+export async function reprovePromptfooCommandBoundary(workspace, overrides = {}) {
+  expectWorkspace(workspace);
+  const io = buildIo(overrides);
+  const root = await inspectOwnedRoot(workspace.root.path, workspace.root.parent, workspace.prefix, io);
+  requireSame(root, workspace.root, 0o700);
+  const dockerConfig = await inspectDirectory(workspace.dockerConfig.path, root.path, "docker-config", io);
+  const output = await inspectDirectory(workspace.output.path, root.path, "output", io);
+  const configuration = await inspectFile(workspace.configuration.path, root.path, "promptfooconfig.yaml", 0o444, 16_384, io);
+  const fakeAgent = await inspectFile(workspace.fakeAgent.path, workspace.fakeAgent.parent, "fake_agent.mjs", workspace.fakeAgent.mode & 0o777, 65_536, io);
+  requireSame(dockerConfig, workspace.dockerConfig, 0o700);
+  requireSame(output, workspace.output, 0o777);
+  if (!sameFileIdentity(configuration, workspace.configuration) || !sameFileIdentity(fakeAgent, workspace.fakeAgent)) {
+    throw new TypeError("Promptfoo workspace file identity changed");
+  }
+  await requireEmpty(dockerConfig.path, io);
+  const outputEntries = await io.readdir(output.path);
+  if (!Array.isArray(outputEntries) || ![0, 1].includes(outputEntries.length) || (outputEntries.length === 1 && outputEntries[0] !== "promptfoo.json")) {
+    throw new TypeError("Promptfoo output entries are invalid");
+  }
+  await requireExactEntries(root.path, ["docker-config", "output", "promptfooconfig.yaml"], io);
+  return workspace;
+}
+
 export async function removePromptfooWorkspace(workspace, overrides = {}) {
   const io = buildIo(overrides);
   try {
