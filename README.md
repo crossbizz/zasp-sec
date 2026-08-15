@@ -133,7 +133,7 @@ copy or fork the existing product UI.
 
 ## Repository build
 
-M1-01 is In progress. The prepared checkout builds every existing service,
+M1-01 is Complete. The prepared checkout builds every existing service,
 worker, web, and CLI target through one root command:
 
 ```bash

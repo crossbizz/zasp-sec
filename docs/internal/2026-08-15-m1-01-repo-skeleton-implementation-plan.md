@@ -50,8 +50,8 @@ runtime product behavior.
 
 ### Task 4: Complete, push, and close M1-01
 
-- [ ] Change only completion expectations and capture focused RED.
-- [ ] Move only M1-01 to Complete at `694/0/31/3` and M1
+- [x] Change only completion expectations and capture focused RED.
+- [x] Move only M1-01 to Complete at `694/0/31/3` and M1
   `68/61/0/7/0`; preserve M0 and all blockers.
 - [ ] Run final gates, commit `docs: complete M1-01 repo skeleton`, push, and
   watch exact-SHA Runnable UI to success.
