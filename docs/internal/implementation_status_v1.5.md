@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 695 |
-| In progress | 1 |
-| Complete | 29 |
+| In progress | 0 |
+| Complete | 30 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -24,7 +24,7 @@ In progress, Complete, or Blocked is Pending.
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 0 | 0 | 24 | 3 |
-| M1 | 68 | 62 | 1 | 5 | 0 |
+| M1 | 68 | 62 | 0 | 6 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
 | M3 | 75 | 75 | 0 | 0 | 0 |
@@ -68,14 +68,13 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `695/1/29/3` because
+session configuration. The 728 source-plan counts are `695/0/30/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M1-01c | August 15, 2026 | Create the `apps/web` package boundary around the existing locked runnable UI build and the standalone no-I/O `agentsecctl version` command. |
 
 ## Complete
 
@@ -110,6 +109,7 @@ PROV-01 is excluded from those counts.
 | M1-01f | August 15, 2026 | Created the standalone service-local `services/event-ingest` Go module and minimal command; exact default and link-time build versions, bounded validation, writer failures, ingest/platform race/build/module/vet gates, full repository verification, audit, scans, and zero-finding review passed without adding a listener or ingest behavior. |
 | M1-01a | August 15, 2026 | Created the standalone service-local `services/runtime-gateway` Go module and minimal command; exact default and link-time build versions, bounded validation, writer failures, gateway/ingest/platform race/build/module/vet gates, full repository verification, audit, scans, and zero-finding review passed without adding proxy, listener, MCP, tool/API, OPA, configuration, provider, or network behavior. |
 | M1-01b | August 15, 2026 | Created independent dependency-free Python security-worker and Node redteam-worker packages with exact no-op health commands; success/rejection/writer-error tests, six focused runs, retained Go regressions, full repository verification, audit, scans, generated-artifact hardening, and zero-finding review passed without adding worker loops, adapters, providers, queues, graphs, prompts, findings, configuration, credentials, listeners, or network behavior. |
+| M1-01c | August 15, 2026 | Added the dependency-free `apps/web` build boundary around the existing locked runnable UI and the standalone `agentsecctl version` command; exact arguments/version/output, writer failures including short writes, six focused runs, web/CLI/service/worker regressions, full repository verification, audit, scans, and zero-finding review passed without adding preflight, recovery, diagnostics, provider, credential, listener, or network behavior. |
 
 `PRE-01`, `PRE-02`, and `PROV-01` do not count as source-plan microtasks.
 

@@ -111,7 +111,7 @@ Shared liveness and readiness endpoints remain deferred to M1-28.
 
 ## Web and CLI directory boundaries
 
-M1-01c is In progress. The `apps/web` package delegates to the existing locked
+M1-01c is Complete. The `apps/web` package delegates to the existing locked
 runnable UI build through this exact command:
 
 ```bash
