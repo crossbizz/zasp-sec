@@ -168,6 +168,13 @@ hashed, normalized, or parsed into a product primary key. This task adds only
 dependency-free platform-domain value types; scope and persistence remain in
 later M1 tasks.
 
+## Product scope model
+
+M1-04 is In progress. Every scoped security entity follows the exact
+`Organization -> Workspace -> Environment` product-ID hierarchy. Missing,
+zero, malformed, or duplicate hierarchy IDs fail closed; vendor identifiers
+remain outside the product scope boundary.
+
 ## Neon pooled proof
 
 The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,

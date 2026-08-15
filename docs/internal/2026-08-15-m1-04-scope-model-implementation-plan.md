@@ -14,12 +14,12 @@ later product security entities and authorization boundaries.
 
 ### Task 1: Start M1-04
 
-- [ ] Add a repository contract binding the source, PRD hierarchy, design,
+- [x] Add a repository contract binding the source, PRD hierarchy, design,
   plan, completed M1-03, unique active status, arithmetic, and blockers.
-- [ ] Capture focused RED at the still-Pending README/tracker state.
-- [ ] Move only M1-04 to In progress at `691/1/33/3` overall and M1
+- [x] Capture focused RED at the still-Pending README/tracker state.
+- [x] Move only M1-04 to In progress at `691/1/33/3` overall and M1
   `68/58/1/9/0`; document the scope boundary.
-- [ ] Run focused/full pinned GREEN, audit, whitespace, and scans; commit
+- [x] Run focused/full pinned GREEN, audit, whitespace, and scans; commit
   `docs: start M1-04 scope model`.
 
 ### Task 2: Implement Scope tests-first
