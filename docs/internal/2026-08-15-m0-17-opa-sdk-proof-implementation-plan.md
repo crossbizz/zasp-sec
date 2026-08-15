@@ -114,7 +114,7 @@ git commit -m "docs: start M0-17 OPA SDK proof"
   `RunProof(context.Context, ProofOptions) (ProofResult, error)`.
 - The production query factory prepares exactly `data.zasp.runtime.allow` once.
 
-- [ ] **Step 1: Write the absent-API test**
+- [x] **Step 1: Write the absent-API test**
 
 The first happy-path test calls:
 
@@ -132,7 +132,7 @@ if result.WarmupPerDecision != 100 || result.MeasuredPerDecision != 1000 {
 Add a separate fake prepared-query boundary test that records one preparation,
 200 warm-up calls, and 2,000 measured calls.
 
-- [ ] **Step 2: Run genuine compile RED**
+- [x] **Step 2: Run genuine compile RED**
 
 Run:
 
@@ -143,7 +143,7 @@ cd proofs/opa-sdk && go test -run '^TestRunProof' -count=1
 Expected: compilation fails only because the wished-for proof types/functions
 do not exist; no production/module file precedes this RED.
 
-- [ ] **Step 3: Add the exact module and embedded policy**
+- [x] **Step 3: Add the exact module and embedded policy**
 
 Use:
 
@@ -160,7 +160,7 @@ require github.com/open-policy-agent/opa v1.17.0
 The Rego policy is default Block and allows only all six exact synthetic input
 fields defined in the design. Import `rego.v1`; no dynamic source or bundle.
 
-- [ ] **Step 4: Implement minimal prepared-query GREEN**
+- [x] **Step 4: Implement minimal prepared-query GREEN**
 
 Prepare once with `rego.New(rego.Query("data.zasp.runtime.allow"),
 rego.Module("zasp_runtime.rego", embeddedPolicy)).PrepareForEval(ctx)`. Convert
@@ -168,14 +168,14 @@ the typed input through JSON to a string-keyed OPA document, evaluate with
 `rego.EvalInput`, and accept exactly one result/expression containing primitive
 `bool` equal to the expected decision.
 
-- [ ] **Step 5: Add adversarial evaluator RED/GREEN cycles**
+- [x] **Step 5: Add adversarial evaluator RED/GREEN cycles**
 
 Cover undefined, zero/multiple result, zero/multiple expression, non-boolean,
 wrong boolean, preparation error/panic, evaluation error/panic, context
 cancellation, mutated input, and nondeterministic sequences. Each test names the
 production change it would catch before implementation.
 
-- [ ] **Step 6: Verify and commit**
+- [x] **Step 6: Verify and commit**
 
 Run focused tests five times, full module race, tidy-diff, module verify, and
 vet. Commit as:
