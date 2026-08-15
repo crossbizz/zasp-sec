@@ -8,6 +8,7 @@ import {
   buildDockerCreateArguments,
   buildDockerEnvironment,
   classifyCreateResult,
+  isExactMissingImageResult,
   orchestrate,
   runMain,
   runPhase,
@@ -153,6 +154,21 @@ test("classifies only thrown, signaled, or malformed-zero creates as ambiguous",
   assert.equal(classifyCreateResult({ status: 0, signal: null, stdout: "", stderr: "" }), "ambiguous");
   assert.equal(classifyCreateResult({ status: null, signal: "SIGKILL", stdout: "", stderr: "" }), "ambiguous");
   assert.equal(classifyCreateResult({ thrown: true }), "ambiguous");
+});
+
+test("accepts only Docker's exact current missing-image envelope", () => {
+  const reference = COLLECTOR_IMAGE;
+  assert.equal(isExactMissingImageResult({
+    status: 1,
+    signal: null,
+    stdout: "\n",
+    stderr: `Error response from daemon: No such image: ${reference}\n`,
+  }, reference), true);
+  for (const result of [
+    { status: 1, signal: null, stdout: "", stderr: "permission denied\n" },
+    { status: 1, signal: null, stdout: "", stderr: `No such image: ${reference}\n` },
+    { status: 2, signal: null, stdout: "", stderr: `Error response from daemon: No such image: ${reference}\n` },
+  ]) assert.equal(isExactMissingImageResult(result, reference), false);
 });
 
 test("accepts only the complete exact container security and ownership document", () => {

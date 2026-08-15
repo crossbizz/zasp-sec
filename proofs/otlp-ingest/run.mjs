@@ -69,6 +69,13 @@ export function classifyCreateResult(result) {
   return exactContainerId(result.stdout) !== undefined && result.stderr === "" ? "applied" : "ambiguous";
 }
 
+export function isExactMissingImageResult(result, reference) {
+  return isPlainObject(result) && typeof reference === "string" && reference === COLLECTOR_IMAGE &&
+    result.status === 1 && result.signal === null &&
+    (result.stdout === "" || result.stdout === "\n") &&
+    result.stderr === `Error response from daemon: No such image: ${reference}\n`;
+}
+
 export function validateContainerDocument(document, expected) {
   return validateContainerState(document, expected, true);
 }
@@ -354,7 +361,7 @@ export class DockerCollectorRuntime {
   async resolveImage() {
     let result = this.#docker(["image", "inspect", "--format", "{{json .}}", COLLECTOR_IMAGE]);
     if (result.status !== 0) {
-      if (!isExactMissing(result)) throw providerError();
+      if (!isExactMissingImageResult(result, COLLECTOR_IMAGE)) throw providerError();
       result = this.#docker(["pull", COLLECTOR_IMAGE], 180_000);
       if (result.status !== 0) throw providerError();
       result = this.#docker(["image", "inspect", "--format", "{{json .}}", COLLECTOR_IMAGE]);
@@ -619,11 +626,6 @@ function exactContainerId(value) {
   if (typeof value !== "string") return undefined;
   const candidate = value.endsWith("\n") ? value.slice(0, -1) : value;
   return containerIdPattern.test(candidate) ? candidate : undefined;
-}
-
-function isExactMissing(result) {
-  return result.status === 1 && result.signal === null && result.stdout.trim() === "" &&
-    /^Error: No such image: .+\n$/.test(result.stderr);
 }
 
 function failureLine(category) {
