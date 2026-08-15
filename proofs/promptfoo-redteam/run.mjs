@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { spawn } from "node:child_process";
 import { readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, dirname, isAbsolute, resolve } from "node:path";
+import { dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
