@@ -17,34 +17,28 @@ function taskRows(tracker: string, heading: "In progress" | "Complete" | "Blocke
   return markdownRows(section).slice(2);
 }
 
-describe("M1-05 evidence model contract", () => {
-  it("binds the canonical source vocabularies to the approved typed model", async () => {
+describe("M1-06 product error envelope contract", () => {
+  it("binds the public API and UX rules to the exact approved envelope", async () => {
     const [source, design, plan] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "docs/internal/2026-08-15-m1-05-evidence-model-design.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "docs/internal/2026-08-15-m1-05-evidence-model-implementation-plan.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/2026-08-15-m1-06-product-error-envelope-design.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/2026-08-15-m1-06-product-error-envelope-implementation-plan.md"), "utf8"),
     ]);
-    const sourceSection = source.match(/\*\*M1-05 - evidence model\*\*[\s\S]*?\*\*M1-06 - product error envelope/)?.[0];
-    const evidenceSection = source.match(/### Evidence confidence[\s\S]*?### Capability\/path state/)?.[0];
-    const stateSection = source.match(/### Capability\/path state[\s\S]*?Do not conflate/)?.[0];
+    const sourceSection = source.match(/\*\*M1-06 - product error envelope\*\*[\s\S]*?\*\*M1-07 - config loader/)?.[0];
     const compactDesign = design.replace(/\s+/g, " ");
 
-    expect(sourceSection).toContain("Depends on: `M1-04`");
-    expect(sourceSection).toContain("Define EvidenceRef, confidence and capability/path state enums");
-    expect(sourceSection).toContain("confidence is distinct from severity");
-    for (const value of ["exact", "strong", "probable", "unattributed"]) {
-      expect(evidenceSection).toContain(`- ${value}`);
-    }
-    for (const value of ["configured", "reachable", "observed", "verified", "blocked"]) {
-      expect(stateSection).toContain(`- ${value}`);
-    }
-    expect(compactDesign).toContain("A reference alone grants no access");
-    expect(compactDesign).toContain("finding-severity value are invalid");
+    expect(sourceSection).toContain("Depends on: `M1-05`");
+    expect(sourceSection).toContain("stable API error code, message, correlation ID and retryable flag");
+    expect(sourceSection).toContain("JSON contract snapshot passes");
+    expect(source).toContain("All mutations return product IDs, audit correlation ID and stable product error codes");
+    expect(source).toContain("Customer errors use product language and correlation IDs, not vendor exceptions");
+    expect(compactDesign).toContain("exactly a stable product error code, customer-facing message, canonical product correlation ID, and retryable flag");
+    expect(compactDesign).toContain("with no optional or null fields");
     expect(plan).toContain("Every behavior and status change has a witnessed tests-only RED first");
-    expect(plan).toContain("M1-06 remains Pending");
+    expect(plan).toContain("M1-07 remains Pending");
   });
 
-  it("completes only M1-05 after the evidence boundary passes", async () => {
+  it("starts only M1-06 after M1-05 completes", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -57,9 +51,9 @@ describe("M1-05 evidence model contract", () => {
     const m0 = milestones.find(([milestone]) => milestone === "M0");
     const m1 = milestones.find(([milestone]) => milestone === "M1");
 
-    expect(readme).toContain("M1-04 is Complete");
     expect(readme).toContain("M1-05 is Complete");
-    expect(readme).toContain("evidence confidence");
+    expect(readme).toContain("M1-06 is In progress");
+    expect(readme).toContain("stable product error");
     expect(tracker).toContain("| Pending | 689 |");
     expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 35 |");
@@ -68,10 +62,9 @@ describe("M1-05 evidence model contract", () => {
     expect(m0).toEqual(["M0", "27", "0", "0", "24", "3"]);
     expect(m1).toEqual(["M1", "68", "56", "1", "11", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active).toHaveLength(1);
-    expect(complete.filter(([task]) => task === "M1-05")).toHaveLength(1);
-    expect(complete.filter(([task]) => task === "M1-04")).toHaveLength(1);
     expect(active.filter(([task]) => task === "M1-06")).toHaveLength(1);
+    expect(complete.filter(([task]) => task === "M1-05")).toHaveLength(1);
+    expect([...active, ...complete].filter(([task]) => task === "M1-07")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
     expect(tracker).toContain("R-03 remains incomplete");
     expect(tracker).toContain("R-11 remains Not run");

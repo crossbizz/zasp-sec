@@ -118,19 +118,19 @@ describe("M0 technical proof gate repository contract", () => {
 
     expect(readme).toContain("M0-23 is Complete");
     expect(readme).toContain("PROCEED WITH BLOCKED PATHS");
-    expect(tracker).toContain("| Pending | 690 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 689 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 35 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`690/0/35/3`");
+    expect(tracker).toContain("`689/1/35/3`");
     expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 0 \| 24 \| 3 \|/);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
     expect(m0?.slice(2).reduce((sum, count) => sum + Number(count), 0)).toBe(Number(m0?.[1]));
-    expect(active).toHaveLength(0);
+    expect(active).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M0-23")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-01d")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-01e")).toHaveLength(1);
-    expect(tracker).toContain("| M1 | 68 | 57 | 0 | 11 | 0 |");
+    expect(tracker).toContain("| M1 | 68 | 56 | 1 | 11 | 0 |");
     expect(tracker).toContain("M0-09");
     expect(tracker).toContain("M0-18");
     expect(tracker).toContain("M0-19");

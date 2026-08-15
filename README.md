@@ -182,6 +182,13 @@ evidence confidence and capability/path state use separate exact lowercase
 vocabularies. Evidence confidence never substitutes for finding severity, and
 a reference alone never grants scoped access.
 
+## Product error envelope
+
+M1-06 is In progress. Customer API failures use one stable product error code,
+bounded product-language message, canonical correlation ID, and explicit
+retryable flag. The exact four-field response excludes vendor exceptions,
+debug metadata, credentials, and implicit retry guesses.
+
 ## Neon pooled proof
 
 The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,

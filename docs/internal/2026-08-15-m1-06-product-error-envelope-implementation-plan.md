@@ -16,12 +16,12 @@ JSON error envelope.
 
 ### Task 1: Start M1-06
 
-- [ ] Add a repository contract binding source, public API/UX rules, design,
+- [x] Add a repository contract binding source, public API/UX rules, design,
   plan, completed M1-05, unique active status, arithmetic, and blockers.
-- [ ] Capture focused RED at the still-Pending README/tracker state.
-- [ ] Move only M1-06 to In progress at `689/1/35/3` overall and M1
+- [x] Capture focused RED at the still-Pending README/tracker state.
+- [x] Move only M1-06 to In progress at `689/1/35/3` overall and M1
   `68/56/1/11/0`; document the error-envelope boundary.
-- [ ] Run focused/full pinned GREEN, audit, whitespace, and scans; commit
+- [x] Run focused/full pinned GREEN, audit, whitespace, and scans; commit
   `docs: start M1-06 product error envelope`.
 
 ### Task 2: Implement the envelope tests-first
