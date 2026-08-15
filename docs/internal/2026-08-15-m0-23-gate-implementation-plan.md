@@ -216,7 +216,7 @@ Move only M0-23 to Complete, update the two status summaries, preserve all
 three blocked task rows and both gate blockers, and add the final gate evidence
 to README/tracker/report/ledgers.
 
-- [ ] **Step 4: Verify, scan, commit, push, and watch exact SHA**
+- [x] **Step 4: Verify, scan, commit, push, and watch exact SHA**
 
 Run focused and full pinned gates, audit, whitespace, staged/evidence/history
 Gitleaks scans, then commit:
@@ -229,7 +229,7 @@ git push origin codex/zasp-implementation
 Require local, tracking, and remote SHAs to match. Find the Runnable UI run for
 that exact SHA and watch it to `completed/success`.
 
-- [ ] **Step 5: Close the tracked plan**
+- [x] **Step 5: Close the tracked plan**
 
 Mark every plan checkbox complete, record the completion run/job IDs in ignored
 evidence, run the focused contract and secret scan, and commit:
