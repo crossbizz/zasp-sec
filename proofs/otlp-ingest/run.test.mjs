@@ -29,7 +29,7 @@ const expected = Object.freeze({
   imageEnvironment: ["SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt"],
   imageEntrypoint: ["/otelcol-contrib"],
   imageLabels: { "org.opencontainers.image.title": "OpenTelemetry Collector Contrib" },
-  imageExposedPorts: { "4317/tcp": {}, "4318/tcp": {} },
+  imageExposedPorts: { "4317/tcp": {}, "4318/tcp": {}, "55679/tcp": {} },
   user: "501:20",
   configPath: "/safe/config/config.yaml",
   outputPath: "/safe/output",
@@ -66,10 +66,10 @@ function containerDocument(overrides = {}) {
       PortBindings: { "4318/tcp": [{ HostIp: "127.0.0.1", HostPort: expected.hostPort }] },
       Binds: null,
       Mounts: [
-        { Type: "bind", Source: expected.configPath, Target: "/proof/config", ReadOnly: true, BindOptions: { Propagation: "rprivate" } },
-        { Type: "bind", Source: expected.outputPath, Target: "/proof/output", ReadOnly: false, BindOptions: { Propagation: "rprivate" } },
+        { Type: "bind", Source: expected.configPath, Target: "/proof/config", ReadOnly: true },
+        { Type: "bind", Source: expected.outputPath, Target: "/proof/output" },
       ],
-      Tmpfs: { "/tmp": "rw,noexec,nosuid,nodev,size=16777216" },
+      Tmpfs: { "/tmp": "rw,noexec,nosuid,nodev,size=16m" },
       RestartPolicy: { Name: "no", MaximumRetryCount: 0 },
       Privileged: false,
       Devices: [],
@@ -80,12 +80,16 @@ function containerDocument(overrides = {}) {
       UsernsMode: "",
     },
     Mounts: [
-      { Type: "bind", Source: expected.configPath, Destination: "/proof/config", Mode: "ro", RW: false, Propagation: "rprivate" },
-      { Type: "bind", Source: expected.outputPath, Destination: "/proof/output", Mode: "rw", RW: true, Propagation: "rprivate" },
+      { Type: "bind", Source: expected.outputPath, Destination: "/proof/output", Mode: "", RW: true, Propagation: "rprivate" },
+      { Type: "bind", Source: expected.configPath, Destination: "/proof/config", Mode: "", RW: false, Propagation: "rprivate" },
     ],
     State: { Running: true },
     NetworkSettings: {
-      Ports: { "4317/tcp": null, "4318/tcp": [{ HostIp: "127.0.0.1", HostPort: expected.hostPort }] },
+      Ports: {
+        "4317/tcp": null,
+        "4318/tcp": [{ HostIp: "127.0.0.1", HostPort: expected.hostPort }],
+        "55679/tcp": null,
+      },
     },
   };
   return Object.assign(document, overrides);
@@ -184,7 +188,7 @@ test("accepts only the complete exact container security and ownership document"
     (value) => { value.HostConfig.CapAdd = ["SYS_ADMIN"]; },
     (value) => { value.HostConfig.SecurityOpt = []; },
     (value) => { value.HostConfig.PortBindings["4317/tcp"] = null; },
-    (value) => { value.HostConfig.Mounts.reverse(); },
+    (value) => { value.HostConfig.Mounts[0].Target = "/foreign"; },
     (value) => { value.Mounts[0].Source = "/foreign"; },
     (value) => { value.NetworkSettings.Ports["4318/tcp"][0].HostIp = "0.0.0.0"; },
     (value) => { value.State.Running = false; },
@@ -208,7 +212,7 @@ test("accepts engine bookkeeping fields while binding every security-relevant fi
 test("authorizes a created candidate before start without treating it as running", () => {
   const value = containerDocument();
   value.State.Running = false;
-  value.NetworkSettings.Ports["4318/tcp"] = null;
+  value.NetworkSettings.Ports = {};
   value.HostConfig.PortBindings["4318/tcp"][0].HostPort = "";
   assert.doesNotThrow(() => validateCreatedContainerDocument(value, { ...expected, hostPort: undefined }));
   value.Config.Labels["zasp.dev/run"] = "ffffffffffffffff";
@@ -218,7 +222,7 @@ test("authorizes a created candidate before start without treating it as running
 test("re-authorizes an exact stopped container for cleanup", () => {
   const value = containerDocument();
   value.State.Running = false;
-  value.NetworkSettings.Ports["4318/tcp"] = null;
+  value.NetworkSettings.Ports = {};
   assert.doesNotThrow(() => validateCleanupContainerDocument(value, expected));
   value.Config.Labels["zasp.dev/proof"] = "foreign";
   assert.throws(() => validateCleanupContainerDocument(value, expected));

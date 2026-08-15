@@ -87,9 +87,9 @@ export function validateCreatedContainerDocument(document, expected) {
 export function validateCleanupContainerDocument(document, expected) {
   expectPlainObject(document?.State, "container state");
   if (typeof document.State.Running !== "boolean") throw new TypeError("container state is invalid");
-  const actualPort = document?.NetworkSettings?.Ports?.["4318/tcp"];
-  const wantedPort = [{ HostIp: "127.0.0.1", HostPort: expected.hostPort }];
-  if (document.State.Running ? !isDeepStrictEqual(actualPort, wantedPort) : actualPort !== null) {
+  const wantedPorts = expectedRuntimePorts(expected.imageExposedPorts, expected.hostPort);
+  if (document.State.Running ? !isDeepStrictEqual(document?.NetworkSettings?.Ports, wantedPorts) :
+    !isDeepStrictEqual(document?.NetworkSettings?.Ports, {})) {
     throw new TypeError("cleanup network state is invalid");
   }
   return validateContainerState({
@@ -97,7 +97,7 @@ export function validateCleanupContainerDocument(document, expected) {
     State: { ...document.State, Running: true },
     NetworkSettings: {
       ...document.NetworkSettings,
-      Ports: { ...document.NetworkSettings.Ports, "4318/tcp": wantedPort },
+      Ports: wantedPorts,
     },
   }, expected, true);
 }
@@ -148,7 +148,6 @@ function validateContainerState(document, expected, running) {
     NanoCpus: host.NanoCpus,
     PortBindings: host.PortBindings,
     Binds: host.Binds,
-    Mounts: host.Mounts,
     Tmpfs: host.Tmpfs,
     RestartPolicy: host.RestartPolicy,
     Privileged: host.Privileged,
@@ -169,11 +168,7 @@ function validateContainerState(document, expected, running) {
     NanoCpus: 500_000_000,
     PortBindings: { "4318/tcp": [{ HostIp: "127.0.0.1", HostPort: running ? expected.hostPort : "" }] },
     Binds: null,
-    Mounts: [
-      { Type: "bind", Source: expected.configPath, Target: "/proof/config", ReadOnly: true, BindOptions: { Propagation: "rprivate" } },
-      { Type: "bind", Source: expected.outputPath, Target: "/proof/output", ReadOnly: false, BindOptions: { Propagation: "rprivate" } },
-    ],
-    Tmpfs: { "/tmp": "rw,noexec,nosuid,nodev,size=16777216" },
+    Tmpfs: { "/tmp": "rw,noexec,nosuid,nodev,size=16m" },
     RestartPolicy: { Name: "no", MaximumRetryCount: 0 },
     Privileged: false,
     Devices: [],
@@ -184,18 +179,20 @@ function validateContainerState(document, expected, running) {
     UsernsMode: "",
   }, "host configuration");
 
-  expectExact(document.Mounts, [
-    { Type: "bind", Source: expected.configPath, Destination: "/proof/config", Mode: "ro", RW: false, Propagation: "rprivate" },
-    { Type: "bind", Source: expected.outputPath, Destination: "/proof/output", Mode: "rw", RW: true, Propagation: "rprivate" },
+  expectExactSet(host.Mounts, [
+    { Type: "bind", Source: expected.configPath, Target: "/proof/config", ReadOnly: true },
+    { Type: "bind", Source: expected.outputPath, Target: "/proof/output" },
+  ], "host mounts");
+
+  expectExactSet(document.Mounts, [
+    { Type: "bind", Source: expected.configPath, Destination: "/proof/config", Mode: "", RW: false, Propagation: "rprivate" },
+    { Type: "bind", Source: expected.outputPath, Destination: "/proof/output", Mode: "", RW: true, Propagation: "rprivate" },
   ], "runtime mounts");
   expectPlainObject(document.State, "container state");
   expectExact({ Running: document.State.Running }, { Running: running }, "container state");
   expectPlainObject(document.NetworkSettings, "network settings");
   expectExact({ Ports: document.NetworkSettings.Ports }, {
-    Ports: {
-      "4317/tcp": null,
-      "4318/tcp": running ? [{ HostIp: "127.0.0.1", HostPort: expected.hostPort }] : null,
-    },
+    Ports: running ? expectedRuntimePorts(expected.imageExposedPorts, expected.hostPort) : {},
   }, "network settings");
   return true;
 }
@@ -613,6 +610,26 @@ function validateExpected(value, requireRuntime, requireHostPort = requireRuntim
 
 function expectExact(actual, expected, context) {
   if (!isDeepStrictEqual(actual, expected)) throw new TypeError(`${context} is not exact`);
+}
+
+function expectExactSet(actual, expected, context) {
+  if (!Array.isArray(actual) || actual.length !== expected.length) {
+    throw new TypeError(`${context} is not exact`);
+  }
+  const unmatched = [...actual];
+  for (const wanted of expected) {
+    const index = unmatched.findIndex((candidate) => isDeepStrictEqual(candidate, wanted));
+    if (index < 0) throw new TypeError(`${context} is not exact`);
+    unmatched.splice(index, 1);
+  }
+}
+
+function expectedRuntimePorts(exposedPorts, hostPort) {
+  const result = {};
+  for (const key of Object.keys(exposedPorts).sort()) result[key] = null;
+  if (!Object.hasOwn(result, "4318/tcp")) throw new TypeError("OTLP HTTP port is absent");
+  result["4318/tcp"] = [{ HostIp: "127.0.0.1", HostPort: hostPort }];
+  return result;
 }
 
 function parseCommandJson(value) {
