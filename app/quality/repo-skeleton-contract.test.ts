@@ -91,7 +91,9 @@ describe("M1-01 repository skeleton contract", () => {
     const packageJson = JSON.parse(packageText) as { scripts?: Record<string, string> };
 
     expect(packageJson.scripts?.["build:repo"]).toBe("node scripts/build-repo.mjs");
-    expect(packageJson.scripts?.verify).toBe("npm test && npm run typecheck && npm run lint && npm run build");
+    expect(packageJson.scripts?.verify).toBe(
+      "npm run dependencies:check && npm test && npm run typecheck && npm run lint && npm run build",
+    );
     expect(buildSource).toContain('GOTOOLCHAIN: "local"');
     expect(buildSource).toContain('GOPROXY: "off"');
     expect(buildSource).toContain('GOWORK: "off"');

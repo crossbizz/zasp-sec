@@ -1,0 +1,75 @@
+schema_version: 1
+policy:
+  approved_owners:
+    - identity-platform
+    - platform-data
+    - web-platform
+  allowed_licenses:
+    - Apache-2.0
+    - ISC
+    - MIT
+  prohibited_licenses:
+    - AGPL-3.0-only
+    - GPL-2.0-only
+    - GPL-3.0-only
+    - LGPL-2.1-only
+    - LGPL-3.0-only
+    - SSPL-1.0
+manifests:
+  - ecosystem: npm
+    path: apps/web/package.json
+  - ecosystem: go
+    path: cmd/agentsecctl/go.mod
+  - ecosystem: npm
+    path: package.json
+  - ecosystem: go
+    path: services/event-ingest/go.mod
+  - ecosystem: go
+    path: services/platform/go.mod
+  - ecosystem: go
+    path: services/runtime-gateway/go.mod
+  - ecosystem: npm
+    path: workers/redteam-node/package.json
+  - ecosystem: python
+    path: workers/security-python/pyproject.toml
+dependencies:
+  - ecosystem: npm
+    manifest: package.json
+    name: drizzle-orm
+    version: 0.45.2
+    license: Apache-2.0
+    owner: platform-data
+    scope: runtime
+    review: approved
+  - ecosystem: npm
+    manifest: package.json
+    name: lucide-react
+    version: 1.31.0
+    license: ISC
+    owner: web-platform
+    scope: runtime
+    review: approved
+  - ecosystem: npm
+    manifest: package.json
+    name: react
+    version: 19.2.6
+    license: MIT
+    owner: web-platform
+    scope: runtime
+    review: approved
+  - ecosystem: npm
+    manifest: package.json
+    name: react-dom
+    version: 19.2.6
+    license: MIT
+    owner: web-platform
+    scope: runtime
+    review: approved
+  - ecosystem: npm
+    manifest: package.json
+    name: stytch
+    version: 14.2.0
+    license: MIT
+    owner: identity-platform
+    scope: runtime
+    review: approved

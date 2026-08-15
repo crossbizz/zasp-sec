@@ -78,4 +78,19 @@ describe("M1-02 dependency lock contract", () => {
     expect(tracker).toContain("R-03 remains incomplete");
     expect(tracker).toContain("R-11 remains Not run");
   });
+
+  it("wires the dependency validator into the existing CI verification path", async () => {
+    const [packageText, workflow] = await Promise.all([
+      readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+      readFile(resolve(repositoryRoot, ".github/workflows/runnable-ui.yml"), "utf8"),
+    ]);
+    const packageJson = JSON.parse(packageText) as { scripts?: Record<string, string> };
+
+    expect(packageJson.scripts?.["dependencies:check"]).toBe("node scripts/validate-dependencies.mjs");
+    expect(packageJson.scripts?.verify).toBe(
+      "npm run dependencies:check && npm test && npm run typecheck && npm run lint && npm run build",
+    );
+    expect(workflow).toContain("run: npm run verify");
+    expect(workflow).not.toContain("validate-dependencies.mjs");
+  });
 });

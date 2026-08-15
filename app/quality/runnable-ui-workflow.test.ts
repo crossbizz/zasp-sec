@@ -67,6 +67,7 @@ function assertRunnableUiWorkflow(
   expect(isUnrestrictedEvent(workflow.on?.pull_request)).toBe(true);
   expect(workflow.permissions).toEqual({ contents: "read" });
   expect(verificationCommands).toEqual([
+    "npm run dependencies:check",
     "npm test",
     "npm run typecheck",
     "npm run lint",

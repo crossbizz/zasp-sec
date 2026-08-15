@@ -29,24 +29,24 @@ and enforce it in the existing CI verification path.
 
 ### Task 2: Implement the lock and validator tests-first
 
-- [ ] Add hermetic validator tests before production, lock data, or package
+- [x] Add hermetic validator tests before production, lock data, or package
   wiring exists; capture genuine missing-module/file/script RED.
-- [ ] Add `build/dependencies.lock.yaml`, the bounded validator, and the root
+- [x] Add `build/dependencies.lock.yaml`, the bounded validator, and the root
   dependency-check command; prepend it to the existing CI `verify` path.
-- [ ] Cover exact schema, sorted uniqueness, manifest completeness, npm lock
+- [x] Cover exact schema, sorted uniqueness, manifest completeness, npm lock
   version/license agreement, owner/review policy, copyleft rejection, fixed
   output, and hostile mutations.
-- [ ] Run the real dependency check, six focused passes, root build, product
+- [x] Run the real dependency check, six focused passes, root build, product
   regressions, full repository gates, audit, whitespace, and scans; commit
   `feat: enforce reviewed dependency lock`.
 
 ### Task 3: Review the dependency boundary
 
-- [ ] Audit YAML/manifest parsing, fail-closed behavior, exact package-lock
+- [x] Audit YAML/manifest parsing, fail-closed behavior, exact package-lock
   binding, product-manifest completeness, CI ordering, output, and scope.
-- [ ] Add tests-first fixes for every Critical, Important, or Minor finding in
+- [x] Add tests-first fixes for every Critical, Important, or Minor finding in
   separate commits and rerun all affected gates.
-- [ ] Record a zero-finding review before completion.
+- [x] Record a zero-finding review before completion.
 
 ### Task 4: Complete, push, and close M1-02
 
