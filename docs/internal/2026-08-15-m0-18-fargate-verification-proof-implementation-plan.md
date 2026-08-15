@@ -226,7 +226,7 @@ authenticated disposable EKS Fargate profile, matching kubeconfig/context,
 product proxy endpoint, and test credential. Keep R-11 Not run and M0-19
 Pending. Reject any LocalStack-as-Fargate or premature completion claim.
 
-- [ ] **Step 3: Verify, scan, commit, push, and watch exact-SHA CI**
+- [x] **Step 3: Verify, scan, commit, push, and watch exact-SHA CI**
 
 Run proof/module/root/full repository gates, audit/license/whitespace/secret
 checks, commit the truthful result, push, prove SHA equality, and watch Runnable
