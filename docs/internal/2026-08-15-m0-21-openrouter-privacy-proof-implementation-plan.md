@@ -56,4 +56,4 @@ Every behavior change follows a witnessed tests-only RED.
   and redacted secret scans.
 - [x] Transition only M0-21 to Complete after retained evidence; leave M0-21a
   Pending and R-14 Not run.
-- [ ] Commit, push, and watch the exact-SHA Runnable UI gate.
+- [x] Commit, push, and watch the exact-SHA Runnable UI gate.
