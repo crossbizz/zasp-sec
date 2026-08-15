@@ -46,7 +46,7 @@ types without allowing vendor identity to become a product primary key.
 - [x] Change only completion expectations and capture focused RED.
 - [x] Move only M1-03 to Complete at `692/0/33/3` and M1
   `68/59/0/9/0`; preserve M0 and all blockers.
-- [ ] Run final gates, commit `docs: complete M1-03 canonical IDs`, push, and
+- [x] Run final gates, commit `docs: complete M1-03 canonical IDs`, push, and
   watch exact-SHA Runnable UI to success.
-- [ ] Close the plan, record run/job IDs, commit/push the close SHA, watch CI,
+- [x] Close the plan, record run/job IDs, commit/push the close SHA, watch CI,
   then start M1-04.
