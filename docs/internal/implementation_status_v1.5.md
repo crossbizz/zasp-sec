@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 705 |
-| In progress | 0 |
+| Pending | 704 |
+| In progress | 1 |
 | Complete | 19 |
 | Blocked | 3 |
 
@@ -23,7 +23,7 @@ In progress, Complete, or Blocked is Pending.
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 4 | 0 | 19 | 3 |
+| M0 | 27 | 3 | 1 | 19 | 3 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -68,13 +68,14 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `705/0/19/3` because
+session configuration. The 728 source-plan counts are `704/1/19/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M0-20 | August 15, 2026 | Building the local allowlist-only PostHog privacy proof with a strict product serializer, one fake loopback capture endpoint, seeded prohibited-field rejection before I/O, fixed output, and exact cleanup. R-13 remains Not run. |
 
 ## Complete
 
@@ -275,4 +276,6 @@ provider capability gate.
 - M0-19 is Blocked with a reviewed real-provider-only Security Groups for Pods
   and branch-ENI evidence boundary. The capability audit found 0/19 required
   inputs and the fixed gate rejected before any AWS or cluster request. M0-18
-  remains Blocked; R-11 remains Not run and M0-20 remains Pending.
+  remains Blocked; R-11 remains Not run and M0-20 is In progress.
+- M0-20 is In progress with a local fake PostHog endpoint and a closed
+  allowlist-only serializer. R-13 remains Not run and M0-21 remains Pending.

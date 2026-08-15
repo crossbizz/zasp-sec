@@ -279,6 +279,20 @@ R-12 remains Not run until M0-22 proves the separate bounded remote-export and
 exporter-failure boundary. M0-09 and PROV-01 remain Blocked, and R-03 remains
 incomplete.
 
+## PostHog privacy proof
+
+M0-20 is In progress. It proves one allowlisted product analytics event against
+a fake PostHog endpoint on a random loopback port. The serializer constructs a
+closed event document and rejects seeded prompt, secret, IP-address, and raw-
+evidence fields before any network request. It reads no `.env`, credential,
+proxy, hosted endpoint, or ambient PostHog configuration.
+
+The hermetic and live root commands will be added with the implementation. The
+only eventual success line is fixed and contains privacy booleans, not event
+content or endpoint details. M0-09, M0-18, M0-19, and PROV-01 remain Blocked;
+R-13 remains Not run and M0-21 remains Pending until the exact local proof and
+review pass.
+
 ## EKS Fargate egress proof
 
 M0-19 is Blocked. Its reviewed fail-closed harness is ready to prove the second
@@ -307,7 +321,7 @@ before building or making a cluster or AWS request. LocalStack cannot provide
 AWS-managed Fargate, branch-ENI, or real EKS Security Groups for Pods authority
 and cannot emit success. Resume only after all documented task inputs are
 available for an isolated disposable real-EKS test fixture. M0-18 remains
-Blocked, R-11 remains Not run, and M0-20 remains Pending.
+Blocked, R-11 remains Not run, and M0-20 is In progress.
 
 ## EKS Fargate verification proof
 

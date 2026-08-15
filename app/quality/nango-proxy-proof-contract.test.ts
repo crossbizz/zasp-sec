@@ -62,12 +62,13 @@ function assertM015Complete(tracker: string, readme: string, riskRegister: strin
   expect(section).toContain("raw provider token");
   expect(section).toContain("R-08 is PASS");
 
-  expect(tracker).toContain("| Pending | 705 |");
-  expect(tracker).toContain("| In progress | 0 |");
+  expect(tracker).toContain("| Pending | 704 |");
+  expect(tracker).toContain("| In progress | 1 |");
   expect(tracker).toContain("| Complete | 19 |");
   expect(tracker).toContain("| Blocked | 3 |");
-  expect(tracker).toMatch(/\| M0 \| 27 \| 4 \| 0 \| 19 \| 3 \|/);
-  expect(activeRows).toHaveLength(0);
+  expect(tracker).toMatch(/\| M0 \| 27 \| 3 \| 1 \| 19 \| 3 \|/);
+  expect(activeRows).toHaveLength(1);
+  expect(activeRows[0]?.[0]).toBe("M0-20");
   expect(completeRows.filter(([task]) => task === "M0-15")).toHaveLength(1);
   expect(completeRows.filter(([task]) => task === "M0-14")).toHaveLength(1);
   expect(completeRows.filter(([task]) => task === "M0-16")).toHaveLength(1);
@@ -95,12 +96,12 @@ function activeFixture(tracker: string, readme: string) {
   return {
     readme: readme.replace(/## Nango proxy proof[\s\S]*?(?=## Nango free Auth boundary)/, `${section}\n`),
     tracker: tracker
-      .replace("| Pending | 705 |", "| Pending | 709 |")
-      .replace("| In progress | 0 |", "| In progress | 1 |")
+      .replace("| Pending | 704 |", "| Pending | 709 |")
       .replace("| Complete | 19 |", "| Complete | 16 |")
       .replace("| Blocked | 3 |", "| Blocked | 1 |")
-      .replace("| M0 | 27 | 4 | 0 | 19 | 3 |", "| M0 | 27 | 8 | 1 | 16 | 1 |")
-      .replace("`705/0/19/3`", "`709/1/16/1`")
+      .replace("| M0 | 27 | 3 | 1 | 19 | 3 |", "| M0 | 27 | 8 | 1 | 16 | 1 |")
+      .replace("`704/1/19/3`", "`709/1/16/1`")
+      .replace(/^\| M0-20 \| August 15, 2026 \|.*\|\n/m, "")
       .replace(/^\| M0-19 \| August 15, 2026 \|.*\|\n/m, "")
       .replace(/^\| M0-18 \| August 15, 2026 \|.*\|\n/m, "")
       .replace(/^\| M0-17 \| August 15, 2026 \|.*\|\n/m, "")

@@ -49,7 +49,7 @@ describe("EKS Fargate egress proof repository contract", () => {
     expect(plan).toContain("transition M0-19 to Blocked");
   });
 
-  it("blocks only M0-19 without advancing R-11 or M0-20", async () => {
+  it("keeps M0-19 blocked while M0-20 proceeds without advancing R-11", async () => {
     const tracker = await readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8");
     const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
     const risk = await readFile(resolve(repositoryRoot, "docs/decisions/mvp-risk-register.md"), "utf8");
@@ -59,17 +59,18 @@ describe("EKS Fargate egress proof repository contract", () => {
     expect(readme).toContain("M0-19 is Blocked");
     expect(readme).toContain("0/19 required inputs");
     expect(readme).toContain("real EKS Security Groups for Pods");
-    expect(tracker).toContain("| Pending | 705 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 704 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 19 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`705/0/19/3`");
-    expect(tracker).toMatch(/\| M0 \| 27 \| 4 \| 0 \| 19 \| 3 \|/);
-    expect(active).toHaveLength(0);
+    expect(tracker).toContain("`704/1/19/3`");
+    expect(tracker).toMatch(/\| M0 \| 27 \| 3 \| 1 \| 19 \| 3 \|/);
+    expect(active).toHaveLength(1);
+    expect(active[0]?.[0]).toBe("M0-20");
     expect(blocked.filter(([task]) => task === "M0-19")).toHaveLength(1);
     expect(blocked.find(([task]) => task === "M0-19")?.[2]).toContain("0/19 required inputs");
     expect(blocked.filter(([task]) => task === "M0-18")).toHaveLength(1);
-    expect([...active, ...rows(tracker, "Complete"), ...blocked].filter(([task]) => task === "M0-20")).toHaveLength(0);
+    expect([...active, ...rows(tracker, "Complete"), ...blocked].filter(([task]) => task === "M0-20")).toHaveLength(1);
     expect(risk).toContain("Not run — M0-18/M0-19");
   });
 
