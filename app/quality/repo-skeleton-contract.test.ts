@@ -81,4 +81,22 @@ describe("M1-01 repository skeleton contract", () => {
     expect(tracker).toContain("R-03 remains incomplete");
     expect(tracker).toContain("R-11 remains Not run");
   });
+
+  it("wires one dependency-free root command without changing Runnable UI verification", async () => {
+    const [packageText, buildSource] = await Promise.all([
+      readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+      readFile(resolve(repositoryRoot, "scripts/build-repo.mjs"), "utf8"),
+    ]);
+    const packageJson = JSON.parse(packageText) as { scripts?: Record<string, string> };
+
+    expect(packageJson.scripts?.["build:repo"]).toBe("node scripts/build-repo.mjs");
+    expect(packageJson.scripts?.verify).toBe("npm test && npm run typecheck && npm run lint && npm run build");
+    expect(buildSource).toContain('GOTOOLCHAIN: "local"');
+    expect(buildSource).toContain('GOPROXY: "off"');
+    expect(buildSource).toContain('GOWORK: "off"');
+    expect(buildSource).toContain('PYTHONDONTWRITEBYTECODE: "1"');
+    for (const forbidden of ["npm install", "npm ci", "go get", "go install", "pip install", "docker", "kubectl", "aws "]) {
+      expect(buildSource).not.toContain(forbidden);
+    }
+  });
 });

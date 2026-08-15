@@ -33,11 +33,11 @@ runtime product behavior.
 
 ### Task 2: Implement the root build tests-first
 
-- [ ] Add hermetic orchestrator tests before production or package wiring.
-- [ ] Capture genuine RED on the missing production module/root script.
-- [ ] Implement exact bounded target execution and fixed output.
-- [ ] Run the real root build and prove no repository build artifacts.
-- [ ] Run six focused passes, all target regressions, full repository gates,
+- [x] Add hermetic orchestrator tests before production or package wiring.
+- [x] Capture genuine RED on the missing production module/root script.
+- [x] Implement exact bounded target execution and fixed output.
+- [x] Run the real root build and prove no repository build artifacts.
+- [x] Run six focused passes, all target regressions, full repository gates,
   audit, whitespace, and scans; commit `feat: add root repository build`.
 
 ### Task 3: Review the repository build boundary
