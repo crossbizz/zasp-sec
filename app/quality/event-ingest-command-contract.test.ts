@@ -70,4 +70,25 @@ describe("M1-01f event ingest command repository contract", () => {
     expect(tracker).toContain("R-03 remains incomplete");
     expect(tracker).toContain("R-11 remains Not run");
   });
+
+  it("keeps ingest in its standalone module with only version output", async () => {
+    const [goModule, command, commandTest] = await Promise.all([
+      readFile(resolve(repositoryRoot, "services/event-ingest/go.mod"), "utf8"),
+      readFile(resolve(repositoryRoot, "services/event-ingest/main.go"), "utf8"),
+      readFile(resolve(repositoryRoot, "services/event-ingest/main_test.go"), "utf8"),
+    ]);
+
+    expect(goModule).toBe("module github.com/zasp-ai/zasp-sec/services/event-ingest\n\ngo 1.25.0\n");
+    expect(command).toContain('buildVersion           = "dev"');
+    expect(command).toContain('io.WriteString(output, "event-ingest build "+version+"\\n")');
+    expect(command).toContain("len(version) > 64");
+    expect(command).not.toContain("os.Getenv");
+    expect(command).not.toContain('"net/http"');
+    expect(command).not.toContain('"flag"');
+    expect(command).not.toContain('"time"');
+    expect(command).not.toMatch(/sqs|normalize|batch/i);
+    expect(commandTest).toContain("TestRunPrintsExactBuildVersion");
+    expect(commandTest).toContain("TestRunRejectsInvalidBuildVersionWithoutOutput");
+    expect(commandTest).toContain("TestRunReturnsWriterFailure");
+  });
 });

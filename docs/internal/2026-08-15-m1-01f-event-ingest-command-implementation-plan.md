@@ -33,13 +33,13 @@ listener, normalization, batching, or provider dependency.
 
 ### Task 2: Implement the event-ingest command tests-first
 
-- [ ] Create `services/event-ingest/main_test.go` and `go.mod` before production
+- [x] Create `services/event-ingest/main_test.go` and `go.mod` before production
   and cover exact output, bounded grammar, invalid values, nil output, and
   writer failure.
-- [ ] Capture genuine compile RED on only the missing command symbols.
-- [ ] Implement `services/event-ingest/main.go` and run focused GREEN.
-- [ ] Prove artifact-free build plus exact default and injected execution.
-- [ ] Run five focused passes, race, retained platform command regressions,
+- [x] Capture genuine compile RED on only the missing command symbols.
+- [x] Implement `services/event-ingest/main.go` and run focused GREEN.
+- [x] Prove artifact-free build plus exact default and injected execution.
+- [x] Run five focused passes, race, retained platform command regressions,
   tidy-diff, module verify, vet, full pinned gates, audit, whitespace, and scans;
   commit `feat: add event ingest command`.
 
