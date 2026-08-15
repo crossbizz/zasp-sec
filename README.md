@@ -36,7 +36,7 @@ order.
 
 ## Platform API command
 
-M1-01d is In progress. It creates the first minimal Go command at
+M1-01d is Complete. It creates the first minimal Go command at
 `services/platform/agentsec-api`. The command's only current behavior is one
 exact build-version line:
 

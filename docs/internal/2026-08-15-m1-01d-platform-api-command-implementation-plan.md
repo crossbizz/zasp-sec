@@ -66,17 +66,17 @@ network listener, configuration input, or product API claim.
 
 ### Task 3: Review and fix the complete command
 
-- [ ] Audit exact scope, version grammar, output, link-time injection,
+- [x] Audit exact scope, version grammar, output, link-time injection,
   environment independence, write failure, module ownership, tests, and status
   evidence.
-- [ ] Reproduce every finding tests-first and fix only demonstrated defects.
-- [ ] Run fresh focused/stability/race/build/module/vet/full/audit/scan gates and
+- [x] Reproduce every finding tests-first and fix only demonstrated defects.
+- [x] Run fresh focused/stability/race/build/module/vet/full/audit/scan gates and
   record a zero-finding result.
 
 ### Task 4: Complete, push, and close M1-01d
 
-- [ ] Change only completion expectations first and capture focused RED.
-- [ ] Move only M1-01d to Complete at `700/0/25/3` and M1 to
+- [x] Change only completion expectations first and capture focused RED.
+- [x] Move only M1-01d to Complete at `700/0/25/3` and M1 to
   `68/67/0/1/0`; preserve the complete M0 gate and all blockers.
 - [ ] Run all final gates, commit `docs: complete M1-01d platform API command`,
   push, and watch Runnable UI to success for the exact SHA.

@@ -37,7 +37,7 @@ describe("M1-01d platform API command repository contract", () => {
     expect(plan).toContain("M1-01e remains Pending");
   });
 
-  it("starts only M1-01d after the completed M0 gate", async () => {
+  it("completes only M1-01d after the completed M0 gate", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -50,18 +50,19 @@ describe("M1-01d platform API command repository contract", () => {
     const m0 = milestones.find(([milestone]) => milestone === "M0");
     const m1 = milestones.find(([milestone]) => milestone === "M1");
 
-    expect(readme).toContain("M1-01d is In progress");
+    expect(readme).toContain("M1-01d is Complete");
     expect(readme).toContain("agentsec-api build <version>");
     expect(readme).toContain("does not start an HTTP server");
     expect(tracker).toContain("| Pending | 700 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 24 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 25 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`700/1/24/3`");
+    expect(tracker).toContain("`700/0/25/3`");
     expect(m0).toEqual(["M0", "27", "0", "0", "24", "3"]);
-    expect(m1).toEqual(["M1", "68", "67", "1", "0", "0"]);
+    expect(m1).toEqual(["M1", "68", "67", "0", "1", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.filter(([task]) => task === "M1-01d")).toHaveLength(1);
+    expect(active).toHaveLength(0);
+    expect(complete.filter(([task]) => task === "M1-01d")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M0-23")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-01e")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
