@@ -17,7 +17,7 @@ export function createFixtureProvider(configuration, dependencies = {}) {
     try {
       if (!plainObject(request) || typeof request.method !== "string" || typeof request.host !== "string" || typeof request.url !== "string" || !plainObject(request.headers) || !Buffer.isBuffer(request.body) || request.bodyComplete !== true || request.body.byteLength > maximumRequestBytes) return rejected();
       if (verificationUsed || request.host !== validated.hostname || request.method !== "GET" || request.url !== "/api/v2/auth/introspect" || request.body.byteLength !== 0) return rejected();
-      if (!exactHeader(request.headers, "accept", "application/json") || !exactHeader(request.headers, "authorization", `Bearer ${validated.providerKey}`)) return rejected();
+      if (!exactHeader(request.headers, "accept", "application/json, text/plain, */*") || !exactHeader(request.headers, "authorization", `Bearer ${validated.providerKey}`)) return rejected();
       verificationUsed = true;
       return {
         status: 200,

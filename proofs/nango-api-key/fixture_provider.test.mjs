@@ -19,7 +19,7 @@ function request(overrides = {}) {
     host: "events.1password.com",
     url: "/api/v2/auth/introspect",
     headers: {
-      accept: "application/json",
+      accept: "application/json, text/plain, */*",
       authorization: `Bearer ${providerKey}`,
     },
     body: Buffer.alloc(0),
@@ -49,9 +49,9 @@ test("rejects host, method, path, query, body, authorization, and content drift"
     request({ body: Buffer.from("x") }),
     request({ body: Buffer.alloc(16_385, 0x61) }),
     request({ bodyComplete: false }),
-    request({ headers: { accept: "application/json", authorization: "Bearer wrong" } }),
+    request({ headers: { accept: "application/json, text/plain, */*", authorization: "Bearer wrong" } }),
     request({ headers: { accept: "text/plain", authorization: `Bearer ${providerKey}` } }),
-    request({ headers: { accept: "application/json", authorization: [`Bearer ${providerKey}`] } }),
+    request({ headers: { accept: "application/json, text/plain, */*", authorization: [`Bearer ${providerKey}`] } }),
   ];
   for (const value of invalid) {
     const fixture = createFixtureProvider(configuration);
