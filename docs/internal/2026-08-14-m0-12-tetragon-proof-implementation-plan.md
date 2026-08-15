@@ -16,7 +16,8 @@ passes them to a strict product-owned normalizer. Cleanup is independent,
 reverse-order, ownership-gated, and followed by prefix-wide absence proof.
 
 **Tech Stack:** Node.js 22.23.1, Node test runner, Docker/OrbStack, kind 0.32.0,
-Kubernetes 1.35.5, Helm 3, kubectl, Tetragon 1.7.0, BusyBox 1.37.0.
+Kubernetes 1.35.5, Helm 3, kubectl, Tetragon 1.7.0, and the compatibility pin
+`registry.k8s.io/e2e-test-images/busybox:1.36.1-1`.
 
 ## Global Constraints
 

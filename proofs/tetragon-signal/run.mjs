@@ -145,6 +145,7 @@ export function buildNodeImagePullArguments(nodeToken, platform, reference) {
 export function validateTetragonHealthPod(pod, expectedNodeName, expectedImage, expectedDigest, marker) {
   if (!isPlainObject(pod) || typeof expectedNodeName !== "string" || expectedNodeName.length === 0 ||
       typeof expectedImage !== "string" || !/^sha256:[0-9a-f]{64}$/.test(expectedDigest ?? "") ||
+      !expectedImage.endsWith(`@${expectedDigest}`) ||
       !markerPattern.test(marker ?? "")) {
     throw new Failure("capability");
   }
@@ -171,6 +172,7 @@ export function validateTetragonHealthPod(pod, expectedNodeName, expectedImage, 
 export function validateOperatorPod(pod, expectedNodeName, expectedImage, expectedDigest, marker) {
   if (!isPlainObject(pod) || typeof expectedNodeName !== "string" || expectedNodeName.length === 0 ||
       typeof expectedImage !== "string" || !/^sha256:[0-9a-f]{64}$/.test(expectedDigest ?? "") ||
+      !expectedImage.endsWith(`@${expectedDigest}`) ||
       !markerPattern.test(marker ?? "")) throw new Failure("capability");
   const containers = pod.spec?.containers;
   const statuses = pod.status?.containerStatuses;
@@ -753,15 +755,16 @@ export class DockerKindSystem {
   async installTetragon(phase) {
     assertPhase(phase, "provider");
     await this.verifyCluster("ownership", phase);
-    for (const pin of [this.fixture.pins.tetragon, this.fixture.pins.operator, this.fixture.pins.busybox]) {
+    for (const kind of ["tetragon", "operator", "busybox"]) {
+      const reference = this.fixture.runtimeImages[kind];
       const loaded = await this.mutation("docker", buildNodeImagePullArguments(
-        this.nodeToken, this.input.nodePlatform, pin.reference,
+        this.nodeToken, this.input.nodePlatform, reference,
       ), "provider", phase, processOutputLimit, 180_000);
       if (!successful(loaded)) throw new Failure("provider");
       const listed = await this.readCommand("docker", [
         "exec", this.nodeToken, "ctr", "--namespace", "k8s.io", "images", "list", "--quiet",
       ], "provider", phase, processOutputLimit, 30_000);
-      if (!successful(listed) || !listed.stdout.split("\n").includes(pin.reference)) throw new Failure("provider");
+      if (!successful(listed) || !listed.stdout.split("\n").includes(reference)) throw new Failure("provider");
     }
     this.chartInstalled = true;
     const installed = await this.mutation("helm", buildHelmInstallArguments({
@@ -782,6 +785,8 @@ export class DockerKindSystem {
     if (applyOutcome !== "success") throw new Failure("provider");
     for (const arguments_ of [
       ["rollout", "status", "daemonset/tetragon", "--namespace", "kube-system", "--timeout", "180s"],
+      ["wait", "--namespace", "kube-system", "--for=condition=Ready",
+        "--selector=app.kubernetes.io/name=tetragon-operator", "pod", "--timeout", "120s"],
       ["wait", "--namespace", this.fixture.names.namespace, "--for=condition=Ready", "pod/workload", "--timeout", "120s"],
       ["wait", "--namespace", this.fixture.names.namespace, "--for=condition=Ready", "pod/sink", "--timeout", "120s"],
     ]) {
@@ -961,7 +966,9 @@ export class DockerKindSystem {
     }
     if (!successful(inspected) || inspected.stderr !== "") throw new Failure("provider");
     let document;
-    try { document = parseUniqueJson(singleLine(inspected.stdout)); } catch { throw new Failure("provider"); }
+    try {
+      document = parseUniqueJson(singleLine(inspected.stdout));
+    } catch { throw new Failure("provider"); }
     const expectedDigest = pin.reference.slice(pin.reference.indexOf("@") + 1);
     if (
       !Array.isArray(document) || document.length !== 4 ||
@@ -1111,9 +1118,9 @@ export class DockerKindSystem {
     const tetragonMetadata = this.imageMetadata.get("tetragon");
     const operatorMetadata = this.imageMetadata.get("operator");
     const tetragonPod = validateTetragonHealthPod(items[0], workload.spec.nodeName,
-      this.fixture.pins.tetragon.reference, tetragonMetadata?.platformDigest, this.input.marker);
+      this.fixture.runtimeImages.tetragon, tetragonMetadata?.platformDigest, this.input.marker);
     validateOperatorPod(operatorItems[0], workload.spec.nodeName,
-      this.fixture.pins.operator.reference, operatorMetadata?.platformDigest, this.input.marker);
+      this.fixture.runtimeImages.operator, operatorMetadata?.platformDigest, this.input.marker);
     const health = await this.readKubectl(buildTetragonHealthArguments(tetragonPod),
       "capability", phase, smallOutputLimit, 15_000);
     if (!validateTetragonHealthResult(health)) throw new Failure("capability");
@@ -1146,7 +1153,7 @@ export class DockerKindSystem {
       sinkPort: 18080,
       sensorVersion: "v1.7.0",
       sensorCommit: "1de2ed8ebea18e56257dc59597aa13bf8f0e471e",
-      sensorImageDigest: this.fixture.pins.tetragon.reference.split("@")[1],
+      sensorImageDigest: tetragonMetadata.platformDigest,
       policyCount: 2,
       tetragonPod,
     });
@@ -1282,11 +1289,23 @@ export class DockerKindSystem {
     await step(async () => this.drainKprobeCapture());
     if (this.clusterMayHaveApplied && this.paths !== undefined) {
       await step(async () => {
+        const candidates = await this.nodeCandidates("cleanup", phase);
+        if (candidates.length === 0) {
+          await this.requireClusterAbsent(phase);
+          this.clusterMayHaveApplied = false;
+          this.resourcesApplied = false;
+          this.chartInstalled = false;
+          clusterAbsent = true;
+          return;
+        }
         await this.verifyCluster("cleanup", phase);
         const token = this.nodeIdentity?.token;
         if (!objectIdPattern.test(token ?? "")) throw new Failure("cleanup");
-        const value = await this.mutation("docker", ["rm", "--force", "--volumes", token],
-          "cleanup", phase, processOutputLimit, 90_000);
+        let value;
+        try {
+          value = await this.mutation("docker", ["rm", "--force", "--volumes", token],
+            "cleanup", phase, processOutputLimit, 90_000);
+        } catch { value = undefined; }
         if (!successful(value) || singleLine(value.stdout) !== token) await this.requireClusterAbsent(phase);
         await this.requireClusterAbsent(phase);
         this.clusterMayHaveApplied = false;
@@ -1299,11 +1318,21 @@ export class DockerKindSystem {
     }
     if (this.networkMayHaveApplied && clusterAbsent) {
       await step(async () => {
+        const candidates = await this.networkCandidates("cleanup", phase);
+        if (candidates.length === 0) {
+          await this.requireNetworkAbsent(phase);
+          this.networkMayHaveApplied = false;
+          this.networkToken = undefined;
+          return;
+        }
         await this.verifyNetwork("cleanup", phase, true);
         const token = this.networkToken;
         if (!objectIdPattern.test(token ?? "")) throw new Failure("cleanup");
-        const value = await this.mutation("docker", ["network", "rm", token],
-          "cleanup", phase, smallOutputLimit, 30_000);
+        let value;
+        try {
+          value = await this.mutation("docker", ["network", "rm", token],
+            "cleanup", phase, smallOutputLimit, 30_000);
+        } catch { value = undefined; }
         if (!successful(value) || singleLine(value.stdout) !== token) await this.requireNetworkAbsent(phase);
         await this.requireNetworkAbsent(phase);
         this.networkMayHaveApplied = false;

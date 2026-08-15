@@ -88,11 +88,17 @@ export function buildFixture(input) {
     filePolicy: `zasp-m0-12-file-${marker}`,
     networkPolicy: `zasp-m0-12-connect-${marker}`,
   };
+  const runtimeImages = {
+    tetragon: platformReference(PINS.tetragon, input.platform),
+    operator: platformReference(PINS.operator, input.platform),
+    busybox: platformReference(PINS.busybox, input.platform),
+  };
 
   const fixture = {
     pins: PINS,
     names,
     labels,
+    runtimeImages,
     kindBinary: { ...kindBinary },
     platform: {
       host: input.hostPlatform,
@@ -112,13 +118,13 @@ export function buildFixture(input) {
         extraMounts: [{ hostPath: "/proc", containerPath: "/procHost", readOnly: true }],
       }],
     },
-    helmValues: buildHelmValues(names, labels),
-    resources: buildResources(names, labels),
+    helmValues: buildHelmValues(names, labels, runtimeImages),
+    resources: buildResources(names, labels, runtimeImages),
   };
   return deepFreeze(fixture);
 }
 
-function buildHelmValues(names, labels) {
+function buildHelmValues(names, labels, runtimeImages) {
   return {
     export: { mode: "" },
     podLabels: { ...labels },
@@ -137,7 +143,7 @@ function buildHelmValues(names, labels) {
       exportFilename: "tetragon.log",
       exportRateLimit: -1,
       hostProcPath: "/procHost",
-      image: { override: PINS.tetragon.reference },
+      image: { override: runtimeImages.tetragon },
       prometheus: {
         address: "",
         enabled: true,
@@ -151,7 +157,7 @@ function buildHelmValues(names, labels) {
     },
     tetragonOperator: {
       enabled: true,
-      image: { override: PINS.operator.reference, pullPolicy: "IfNotPresent" },
+      image: { override: runtimeImages.operator, pullPolicy: "IfNotPresent" },
       extraPodLabels: { ...labels },
       prometheus: { enabled: false },
       tracingPolicy: { enabled: true },
@@ -159,7 +165,7 @@ function buildHelmValues(names, labels) {
   };
 }
 
-function buildResources(names, labels) {
+function buildResources(names, labels, runtimeImages) {
   const sinkLabels = { ...labels, "app.kubernetes.io/name": "zasp-m0-12-sink" };
   const workloadLabels = { ...labels, "app.kubernetes.io/name": "zasp-m0-12-workload" };
   const workloadSelectors = {
@@ -179,6 +185,7 @@ function buildResources(names, labels) {
       namespace: names.namespace,
       labels: sinkLabels,
       command: ["/bin/sh", "-c", "exec nc -lk -p 18080"],
+      image: runtimeImages.busybox,
     }),
     {
       apiVersion: "v1",
@@ -195,6 +202,7 @@ function buildResources(names, labels) {
       namespace: names.namespace,
       labels: workloadLabels,
       command: ["/bin/sh", "-c", "exec sleep 3600"],
+      image: runtimeImages.busybox,
     }),
     {
       apiVersion: "cilium.io/v1alpha1",
@@ -232,7 +240,7 @@ function buildResources(names, labels) {
   ];
 }
 
-function fixturePod({ name, namespace, labels, command }) {
+function fixturePod({ name, namespace, labels, command, image }) {
   return {
     apiVersion: "v1",
     kind: "Pod",
@@ -253,7 +261,7 @@ function fixturePod({ name, namespace, labels, command }) {
       terminationGracePeriodSeconds: 1,
       containers: [{
         name,
-        image: PINS.busybox.reference,
+        image,
         imagePullPolicy: "IfNotPresent",
         command,
         env: [],
@@ -277,6 +285,14 @@ function fixturePod({ name, namespace, labels, command }) {
       volumes: [{ name: "tmp", emptyDir: { sizeLimit: "16Mi" } }],
     },
   };
+}
+
+function platformReference(pin, platform) {
+  const digest = pin.platformDigests[platform];
+  if (!/^sha256:[0-9a-f]{64}$/.test(digest ?? "") || !pin.reference.includes("@")) {
+    throw new TypeError("platform image pin is invalid");
+  }
+  return `${pin.reference.slice(0, pin.reference.indexOf("@"))}@${digest}`;
 }
 
 function expectInput(value) {

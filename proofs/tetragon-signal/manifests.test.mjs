@@ -82,6 +82,11 @@ test("generates an exact loopback kind cluster and pinned Helm boundary", () => 
   assert.equal(fixture.platform.tetragonDigest, PINS.tetragon.platformDigests["linux/arm64"]);
   assert.equal(fixture.platform.operatorDigest, PINS.operator.platformDigests["linux/arm64"]);
   assert.equal(fixture.platform.busyboxDigest, PINS.busybox.platformDigests["linux/arm64"]);
+  assert.deepEqual(fixture.runtimeImages, {
+    tetragon: `quay.io/cilium/tetragon:v1.7.0@${PINS.tetragon.platformDigests["linux/arm64"]}`,
+    operator: `quay.io/cilium/tetragon-operator:v1.7.0@${PINS.operator.platformDigests["linux/arm64"]}`,
+    busybox: `registry.k8s.io/e2e-test-images/busybox:1.36.1-1@${PINS.busybox.platformDigests["linux/arm64"]}`,
+  });
   assert.deepEqual(fixture.helmValues, {
     export: { mode: "" },
     podLabels: { "zasp.dev/proof": "m0-12", "zasp.dev/run": marker },
@@ -100,7 +105,7 @@ test("generates an exact loopback kind cluster and pinned Helm boundary", () => 
       exportFilename: "tetragon.log",
       exportRateLimit: -1,
       hostProcPath: "/procHost",
-      image: { override: PINS.tetragon.reference },
+      image: { override: fixture.runtimeImages.tetragon },
       prometheus: { address: "", enabled: true, port: 2112, serviceMonitor: { enabled: false } },
       resources: {
         limits: { cpu: "1000m", memory: "1Gi" },
@@ -109,7 +114,7 @@ test("generates an exact loopback kind cluster and pinned Helm boundary", () => 
     },
     tetragonOperator: {
       enabled: true,
-      image: { override: PINS.operator.reference, pullPolicy: "IfNotPresent" },
+      image: { override: fixture.runtimeImages.operator, pullPolicy: "IfNotPresent" },
       extraPodLabels: { "zasp.dev/proof": "m0-12", "zasp.dev/run": marker },
       prometheus: { enabled: false },
       tracingPolicy: { enabled: true },
@@ -141,7 +146,7 @@ test("generates only the exact non-root fixture pods, service, and tracing polic
     assert.equal(pod.spec.hostNetwork, false);
     assert.equal(pod.spec.restartPolicy, "Never");
     assert.equal(pod.spec.containers.length, 1);
-    assert.equal(pod.spec.containers[0].image, PINS.busybox.reference);
+    assert.equal(pod.spec.containers[0].image, fixture.runtimeImages.busybox);
     assert.deepEqual(pod.spec.containers[0].command, command);
     assert.deepEqual(pod.spec.containers[0].env, []);
     assert.deepEqual(pod.spec.containers[0].ports, []);
