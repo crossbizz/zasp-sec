@@ -29,6 +29,14 @@ const containerIdPattern = /^[0-9a-f]{64}$/;
 const imageIdPattern = /^sha256:[0-9a-f]{64}$/;
 const hostPortPattern = /^(?:[1-9][0-9]{0,4})$/;
 const maximumCommandBytes = 65_536;
+const containerInspectionFormat = [
+  "{\"inspection\":[[{{json .Id}},{{json .Name}},{{json .Image}}]",
+  ",[{{json .Config.Image}},{{json .Config.Labels}},{{json .Config.Env}},{{json .Config.Entrypoint}},{{json .Config.Cmd}},{{json .Config.User}},{{json .Config.ExposedPorts}}]",
+  ",[{{json .HostConfig.NetworkMode}},{{json .HostConfig.ReadonlyRootfs}},{{json .HostConfig.CapAdd}},{{json .HostConfig.CapDrop}},{{json .HostConfig.SecurityOpt}},{{json .HostConfig.PidsLimit}},{{json .HostConfig.Memory}},{{json .HostConfig.NanoCpus}},{{json .HostConfig.PortBindings}},{{json .HostConfig.Binds}},{{json .HostConfig.Mounts}},{{json .HostConfig.Tmpfs}},{{json .HostConfig.RestartPolicy}},{{json .HostConfig.Privileged}},{{json .HostConfig.Devices}},{{json .HostConfig.DeviceRequests}},{{json .HostConfig.PidMode}},{{json .HostConfig.IpcMode}},{{json .HostConfig.CgroupnsMode}},{{json .HostConfig.UsernsMode}}]",
+  ",{{json .Mounts}}",
+  ",[{{json .State.Running}}]",
+  ",[{{json .NetworkSettings.Ports}}]]}",
+].join("");
 
 export function buildDockerEnvironment(pathValue, dockerConfig) {
   if (typeof pathValue !== "string" || pathValue.length === 0) {
@@ -74,6 +82,41 @@ export function isExactMissingImageResult(result, reference) {
     result.status === 1 && result.signal === null &&
     (result.stdout === "" || result.stdout === "\n") &&
     result.stderr === `Error response from daemon: No such image: ${reference}\n`;
+}
+
+export function parseContainerInspectionResult(source) {
+  const envelope = parseCommandJson(source);
+  if (!isPlainObject(envelope) || !isDeepStrictEqual(Object.keys(envelope), ["inspection"])) {
+    throw providerError();
+  }
+  const value = toPlainData(envelope.inspection);
+  if (
+    !Array.isArray(value) || value.length !== 6 ||
+    !Array.isArray(value[0]) || value[0].length !== 3 ||
+    !Array.isArray(value[1]) || value[1].length !== 7 ||
+    !Array.isArray(value[2]) || value[2].length !== 20 ||
+    !Array.isArray(value[3]) || !Array.isArray(value[4]) || value[4].length !== 1 ||
+    !Array.isArray(value[5]) || value[5].length !== 1
+  ) throw providerError();
+  const [identity, config, host, mounts, state, network] = value;
+  return {
+    Id: identity[0], Name: identity[1], Image: identity[2],
+    Config: {
+      Image: config[0], Labels: config[1], Env: config[2], Entrypoint: config[3],
+      Cmd: config[4], User: config[5], ExposedPorts: config[6],
+    },
+    HostConfig: {
+      NetworkMode: host[0], ReadonlyRootfs: host[1], CapAdd: host[2], CapDrop: host[3],
+      SecurityOpt: host[4], PidsLimit: host[5], Memory: host[6], NanoCpus: host[7],
+      PortBindings: host[8], Binds: host[9], Mounts: host[10], Tmpfs: host[11],
+      RestartPolicy: host[12], Privileged: host[13], Devices: host[14],
+      DeviceRequests: host[15], PidMode: host[16], IpcMode: host[17],
+      CgroupnsMode: host[18], UsernsMode: host[19],
+    },
+    Mounts: mounts,
+    State: { Running: state[0] },
+    NetworkSettings: { Ports: network[0] },
+  };
 }
 
 export function validateContainerDocument(document, expected) {
@@ -166,7 +209,7 @@ function validateContainerState(document, expected, running) {
     PidsLimit: 128,
     Memory: 134_217_728,
     NanoCpus: 500_000_000,
-    PortBindings: { "4318/tcp": [{ HostIp: "127.0.0.1", HostPort: running ? expected.hostPort : "" }] },
+    PortBindings: { "4318/tcp": [{ HostIp: "127.0.0.1", HostPort: "" }] },
     Binds: null,
     Tmpfs: { "/tmp": "rw,noexec,nosuid,nodev,size=16m" },
     RestartPolicy: { Name: "no", MaximumRetryCount: 0 },
@@ -398,9 +441,9 @@ export class DockerCollectorRuntime {
       if (ids.length !== 1) throw ownershipError();
       this.containerId = ids[0];
     }
-    const inspected = this.#docker(["inspect", "--format", "{{json .}}", this.containerId]);
+    const inspected = this.#docker(["inspect", "--format", containerInspectionFormat, this.containerId]);
     if (inspected.status !== 0 || inspected.stderr !== "") throw ownershipError();
-    validateCreatedContainerDocument(parseCommandJson(inspected.stdout), {
+    validateCreatedContainerDocument(parseContainerInspectionResult(inspected.stdout), {
       ...this.expected,
       id: this.containerId,
     });
@@ -413,9 +456,9 @@ export class DockerCollectorRuntime {
 
   async verifyOwned() {
     if (!containerIdPattern.test(this.containerId ?? "")) throw ownershipError();
-    const result = this.#docker(["inspect", "--format", "{{json .}}", this.containerId]);
+    const result = this.#docker(["inspect", "--format", containerInspectionFormat, this.containerId]);
     if (result.status !== 0) throw ownershipError();
-    const document = parseCommandJson(result.stdout);
+    const document = parseContainerInspectionResult(result.stdout);
     const port = document?.NetworkSettings?.Ports?.["4318/tcp"]?.[0]?.HostPort;
     if (!hostPortPattern.test(port ?? "") || Number(port) > 65_535) throw ownershipError();
     this.expected = { ...this.expected, id: this.containerId, hostPort: port };
@@ -458,9 +501,9 @@ export class DockerCollectorRuntime {
     let cleanupError;
     if (this.containerId !== undefined) {
       try {
-        const inspected = this.#docker(["inspect", "--format", "{{json .}}", this.containerId]);
+        const inspected = this.#docker(["inspect", "--format", containerInspectionFormat, this.containerId]);
         if (inspected.status !== 0 || inspected.stderr !== "") throw ownershipError();
-        validateCleanupContainerDocument(parseCommandJson(inspected.stdout), this.expected);
+        validateCleanupContainerDocument(parseContainerInspectionResult(inspected.stdout), this.expected);
         const result = this.#docker(["rm", "--force", this.containerId]);
         if (result.status !== 0 || result.stdout !== `${this.containerId}\n` || result.stderr !== "") {
           throw ownershipError();
@@ -679,7 +722,15 @@ function plainArray(value) {
 
 function plainClone(value) {
   if (!isPlainObject(value)) throw providerError();
-  return structuredClone(value);
+  return toPlainData(value);
+}
+
+function toPlainData(value) {
+  if (Array.isArray(value)) return value.map(toPlainData);
+  if (isPlainObject(value)) {
+    return Object.fromEntries(Object.entries(value).map(([key, nested]) => [key, toPlainData(nested)]));
+  }
+  return value;
 }
 
 function sameDirectoryIdentity(left, right) {

@@ -10,6 +10,7 @@ import {
   classifyCreateResult,
   isExactMissingImageResult,
   orchestrate,
+  parseContainerInspectionResult,
   runMain,
   runPhase,
   validateCleanupContainerDocument,
@@ -63,7 +64,7 @@ function containerDocument(overrides = {}) {
       PidsLimit: 128,
       Memory: 134_217_728,
       NanoCpus: 500_000_000,
-      PortBindings: { "4318/tcp": [{ HostIp: "127.0.0.1", HostPort: expected.hostPort }] },
+      PortBindings: { "4318/tcp": [{ HostIp: "127.0.0.1", HostPort: "" }] },
       Binds: null,
       Mounts: [
         { Type: "bind", Source: expected.configPath, Target: "/proof/config", ReadOnly: true },
@@ -114,6 +115,24 @@ function fakeRuntime(overrides = {}) {
     ...overrides,
   };
   return runtime;
+}
+
+function inspectionProjection(value) {
+  return JSON.stringify({ inspection: [
+    [value.Id, value.Name, value.Image],
+    [value.Config.Image, value.Config.Labels, value.Config.Env, value.Config.Entrypoint,
+      value.Config.Cmd, value.Config.User, value.Config.ExposedPorts],
+    [value.HostConfig.NetworkMode, value.HostConfig.ReadonlyRootfs, value.HostConfig.CapAdd,
+      value.HostConfig.CapDrop, value.HostConfig.SecurityOpt, value.HostConfig.PidsLimit,
+      value.HostConfig.Memory, value.HostConfig.NanoCpus, value.HostConfig.PortBindings,
+      value.HostConfig.Binds, value.HostConfig.Mounts, value.HostConfig.Tmpfs,
+      value.HostConfig.RestartPolicy, value.HostConfig.Privileged, value.HostConfig.Devices,
+      value.HostConfig.DeviceRequests, value.HostConfig.PidMode, value.HostConfig.IpcMode,
+      value.HostConfig.CgroupnsMode, value.HostConfig.UsernsMode],
+    value.Mounts,
+    [value.State.Running],
+    [value.NetworkSettings.Ports],
+  ] });
 }
 
 test("pins the exact Collector image and exact hardened create arguments", () => {
@@ -198,6 +217,15 @@ test("accepts only the complete exact container security and ownership document"
     mutate(value);
     assert.throws(() => validateContainerDocument(value, expected));
   }
+});
+
+test("decodes only the bounded explicit Docker inspection projection", () => {
+  const value = containerDocument();
+  assert.deepEqual(parseContainerInspectionResult(`${inspectionProjection(value)}\n`), value);
+  assert.throws(() => parseContainerInspectionResult("[[\"duplicate\":1]]"));
+  const changed = JSON.parse(inspectionProjection(value));
+  changed.inspection.push("extra");
+  assert.throws(() => parseContainerInspectionResult(JSON.stringify(changed)));
 });
 
 test("accepts engine bookkeeping fields while binding every security-relevant field", () => {
