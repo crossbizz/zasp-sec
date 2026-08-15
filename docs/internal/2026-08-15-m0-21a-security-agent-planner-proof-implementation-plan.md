@@ -56,4 +56,4 @@ Every behavior change follows a witnessed tests-only RED.
 - [x] Transition only M0-21a to Complete and R-14 to PASS after proof/review;
   otherwise Block it with the exact failing dependency.
 - [x] Keep M0-22 Pending through the transition.
-- [ ] Commit, push, and watch the exact-SHA Runnable UI gate.
+- [x] Commit, push, and watch the exact-SHA Runnable UI gate.
