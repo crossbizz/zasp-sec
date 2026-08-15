@@ -1,0 +1,13 @@
+{
+  "name": "@zasp/redteam-worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "22.23.1"
+  },
+  "scripts": {
+    "health": "node health.mjs health",
+    "test": "node --test health.test.mjs"
+  }
+}

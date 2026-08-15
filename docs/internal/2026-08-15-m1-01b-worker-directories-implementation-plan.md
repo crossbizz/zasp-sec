@@ -35,22 +35,22 @@ configuration, credential, listener, or network behavior.
 
 ### Task 2: Implement both health commands tests-first
 
-- [ ] Create Python and Node package metadata and tests before production
+- [x] Create Python and Node package metadata and tests before production
   command modules.
-- [ ] Capture genuine RED for only the missing health-command APIs/modules.
-- [ ] Implement the minimal Python and Node commands and run focused GREEN.
-- [ ] Prove exact direct success, invalid invocation failure, no output on
+- [x] Capture genuine RED for only the missing health-command APIs/modules.
+- [x] Implement the minimal Python and Node commands and run focused GREEN.
+- [x] Prove exact direct success, invalid invocation failure, no output on
   rejection, and writer-error propagation.
-- [ ] Run six focused passes, Python compile/tests without bytecode, pinned Node
+- [x] Run six focused passes, Python compile/tests without bytecode, pinned Node
   tests, retained Go command regressions, full repository gates, audit,
   whitespace, and scans; commit `feat: add worker health commands`.
 
 ### Task 3: Review the worker boundaries
 
-- [ ] Audit package/deployable ownership, exact output, argument grammar, error
+- [x] Audit package/deployable ownership, exact output, argument grammar, error
   behavior, standard-runtime-only dependencies, no-I/O scope, and tests.
-- [ ] Reproduce and fix every concrete finding tests-first.
-- [ ] Run fresh worker/repository/audit/scan gates and record zero findings.
+- [x] Reproduce and fix every concrete finding tests-first.
+- [x] Run fresh worker/repository/audit/scan gates and record zero findings.
 
 ### Task 4: Complete, push, and close M1-01b
 

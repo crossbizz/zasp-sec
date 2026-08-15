@@ -72,4 +72,41 @@ describe("M1-01b worker directories repository contract", () => {
     expect(tracker).toContain("R-03 remains incomplete");
     expect(tracker).toContain("R-11 remains Not run");
   });
+
+  it("keeps both health commands dependency-free and free of worker I/O", async () => {
+    const [pythonProject, pythonCommand, pythonTest, nodeProject, nodeCommand, nodeTest] = await Promise.all([
+      readFile(resolve(repositoryRoot, "workers/security-python/pyproject.toml"), "utf8"),
+      readFile(resolve(repositoryRoot, "workers/security-python/security_worker/__main__.py"), "utf8"),
+      readFile(resolve(repositoryRoot, "workers/security-python/tests/test_health.py"), "utf8"),
+      readFile(resolve(repositoryRoot, "workers/redteam-node/package.json"), "utf8"),
+      readFile(resolve(repositoryRoot, "workers/redteam-node/health.mjs"), "utf8"),
+      readFile(resolve(repositoryRoot, "workers/redteam-node/health.test.mjs"), "utf8"),
+    ]);
+    const nodeManifest = JSON.parse(nodeProject) as {
+      name?: string;
+      private?: boolean;
+      dependencies?: unknown;
+      devDependencies?: unknown;
+      engines?: { node?: string };
+    };
+
+    expect(pythonProject).toContain('name = "zasp-security-worker"');
+    expect(pythonProject).toContain('requires-python = ">=3.13,<3.14"');
+    expect(pythonProject).toContain("dependencies = []");
+    expect(pythonProject).toContain('security-worker = "security_worker.__main__:cli"');
+    expect(pythonCommand).toContain('output.write("security-worker health ok\\n")');
+    expect(pythonCommand).not.toMatch(/os\.environ|socket|http|queue|cartography|prowler/i);
+    expect(pythonTest).toContain("test_writer_failure_is_contained_by_main");
+
+    expect(nodeManifest).toMatchObject({
+      name: "@zasp/redteam-worker",
+      private: true,
+      engines: { node: "22.23.1" },
+    });
+    expect(nodeManifest.dependencies).toBeUndefined();
+    expect(nodeManifest.devDependencies).toBeUndefined();
+    expect(nodeCommand).toContain('output.write("redteam-worker health ok\\n")');
+    expect(nodeCommand).not.toMatch(/process\.env|fetch|http|queue|promptfoo|provider/i);
+    expect(nodeTest).toContain("contains writer failure at the process boundary");
+  });
 });
