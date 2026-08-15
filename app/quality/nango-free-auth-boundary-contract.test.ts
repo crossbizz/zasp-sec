@@ -1,0 +1,97 @@
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+
+const repositoryRoot = resolve(import.meta.dirname, "../..");
+
+function markdownRows(markdown: string) {
+  return markdown
+    .split("\n")
+    .filter((line) => line.startsWith("|") && line.endsWith("|"))
+    .map((line) => line.slice(1, -1).split("|").map((cell) => cell.trim()));
+}
+
+function taskRows(tracker: string, heading: "In progress" | "Complete") {
+  const end = heading === "In progress" ? "Complete" : "Blocked";
+  const section = tracker.match(new RegExp(`## ${heading}[\\s\\S]*?## ${end}`))?.[0] ?? "";
+  return markdownRows(section).slice(2);
+}
+
+describe("Nango free Auth boundary contract", () => {
+  it("binds the source task and product requirement to Auth plus Proxy only", async () => {
+    const sourcePlan = await readFile(
+      resolve(repositoryRoot, "docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md"),
+      "utf8",
+    );
+    const prd = await readFile(resolve(repositoryRoot, "docs/internal/agent_security_platform_PRD_v1.5.md"), "utf8");
+    const sourceSection = sourcePlan.match(/\*\*M0-14 - Nango free auth proof\*\*[\s\S]*?\*\*M0-15 -/)?.[0];
+
+    expect(sourceSection).toBeDefined();
+    expect(sourceSection).toContain("Depends on: `M0-14c`");
+    expect(sourceSection).toContain("Record the validated Nango free feature boundary for MVP");
+    expect(sourceSection).toContain("Functions, Webhooks and MCP as out of scope");
+    expect(sourceSection).toContain("Timebox: <=15 minutes");
+    expect(prd).toContain("Nango free self-hosted for Auth + Proxy only");
+    expect(prd).toContain(
+      "MVP does not depend on Nango Functions, Webhooks, MCP server, RBAC, full observability or Enterprise-only runtime features",
+    );
+  });
+
+  it("records an evidence-only boundary without claiming excluded routes are absent", async () => {
+    const design = await readFile(
+      resolve(repositoryRoot, "docs/internal/2026-08-15-m0-14-nango-free-auth-boundary-design.md"),
+      "utf8",
+    );
+    const plan = await readFile(
+      resolve(repositoryRoot, "docs/internal/2026-08-15-m0-14-nango-free-auth-boundary-implementation-plan.md"),
+      "utf8",
+    );
+
+    expect(design).toContain("evidence-only boundary consolidation");
+    expect(design).toContain("Auth plus the Proxy surface");
+    expect(design).toContain("Functions or function runners");
+    expect(design).toContain("Nango Webhooks");
+    expect(design).toContain("Nango MCP server");
+    expect(design).toMatch(
+      /not a\s+claim that every corresponding route or source module is absent from the\s+image/,
+    );
+    expect(design).toContain("M0-15 alone may advance R-08");
+    expect(plan).toContain("do not add a new runtime, Docker lifecycle, provider call, or credential path");
+    expect(plan).toContain("Run focused RED");
+    expect(plan).toContain("successful exact-SHA Runnable UI evidence");
+  });
+
+  it("publishes the active boundary while retaining every dependency and risk gate", async () => {
+    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const tracker = await readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8");
+    const riskRegister = await readFile(resolve(repositoryRoot, "docs/decisions/mvp-risk-register.md"), "utf8");
+    const section = readme.match(/## Nango free Auth boundary[\s\S]*?## Nango API-key proof/)?.[0];
+    const activeRows = taskRows(tracker, "In progress");
+    const completeRows = taskRows(tracker, "Complete");
+    const riskRows = markdownRows(riskRegister).filter(([id]) => id === "R-08");
+
+    expect(section).toBeDefined();
+    expect(section).toContain("M0-14 is In progress");
+    expect(section).toContain("Auth plus Proxy");
+    expect(section).toContain("Functions, Webhooks, and MCP are out of scope");
+    expect(section).toMatch(/not a claim that\s+every excluded route is absent/);
+    expect(section).toContain("M0-15");
+    expect(section).toContain("R-08 remains Not run");
+
+    expect(tracker).toContain("| Pending | 710 |");
+    expect(tracker).toContain("| In progress | 1 |");
+    expect(tracker).toContain("| Complete | 15 |");
+    expect(tracker).toContain("| Blocked | 1 |");
+    expect(tracker).toMatch(/\| M0 \| 27 \| 9 \| 1 \| 15 \| 1 \|/);
+    expect(activeRows).toHaveLength(1);
+    expect(activeRows[0]?.[0]).toBe("M0-14");
+    expect(activeRows[0]?.[2]).toContain("Auth plus Proxy");
+    expect(completeRows.filter(([task]) => ["M0-14a", "M0-14b", "M0-14c"].includes(task))).toHaveLength(3);
+    expect([...activeRows, ...completeRows].filter(([task]) => task === "M0-15")).toHaveLength(0);
+    expect(tracker).toContain("M0-09 and PROV-01 remain Blocked");
+    expect(tracker).toContain("R-03 remains incomplete");
+
+    expect(riskRows).toHaveLength(1);
+    expect(riskRows[0]?.[5]).toBe("Not run — M0-14a through M0-15");
+  });
+});

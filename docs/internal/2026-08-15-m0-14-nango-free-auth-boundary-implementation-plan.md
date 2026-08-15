@@ -48,7 +48,7 @@ do not add a new runtime, Docker lifecycle, provider call, or credential path.
   27/9/1/15/1 in M0, plus one README boundary section and a deterministic
   Vitest contract.
 
-- [ ] **Step 1: Write the missing-boundary failing contract**
+- [x] **Step 1: Write the missing-boundary failing contract**
 
   Add a Vitest file that reads only tracked repository files and requires:
 
@@ -68,7 +68,7 @@ do not add a new runtime, Docker lifecycle, provider call, or credential path.
   active/completed rows, R-08 exactly `Not run`, M0-09/PROV-01 Blocked, and
   R-03 incomplete.
 
-- [ ] **Step 2: Run focused RED**
+- [x] **Step 2: Run focused RED**
 
   Run:
 
@@ -80,7 +80,7 @@ do not add a new runtime, Docker lifecycle, provider call, or credential path.
   Expected: failures only for the absent README M0-14 section and missing
   active M0-14 tracker transition; source/PRD/design assertions pass.
 
-- [ ] **Step 3: Add the minimal boundary record**
+- [x] **Step 3: Add the minimal boundary record**
 
   Add a README section that states:
 
@@ -95,13 +95,13 @@ do not add a new runtime, Docker lifecycle, provider call, or credential path.
   status, and describe this as an evidence-only boundary record with no new
   live/provider claim.
 
-- [ ] **Step 4: Run focused and affected GREEN**
+- [x] **Step 4: Run focused and affected GREEN**
 
   Run the new test plus all status-sensitive Nango/Cartography/LocalStack/
   Prowler/Tetragon/OTLP contracts. Expected: every file and test passes under
   pinned Node/npm.
 
-- [ ] **Step 5: Run the pinned repository gate and commit**
+- [x] **Step 5: Run the pinned repository gate and commit**
 
   Run `npm run verify`, `npm audit --omit=dev`, `git diff --check`, and pinned
   redacted Gitleaks over the staged diff. Commit only the scoped tracked files:

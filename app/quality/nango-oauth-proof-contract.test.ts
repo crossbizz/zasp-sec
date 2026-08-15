@@ -23,11 +23,11 @@ function assertM014bComplete(tracker: string) {
     .slice(2)
     .filter(([task]) => task === "M0-14b");
 
-  expect(activeRows).toHaveLength(0);
+  expect(activeRows).toHaveLength(1);
+  expect(activeRows[0]?.[0]).toBe("M0-14");
   expect(completedM014b).toHaveLength(1);
   expect(completedM014b[0]?.[1]).toBe("August 15, 2026");
   expect(completedM014b[0]?.[2]).toContain("OAuth");
-  expect(tracker).not.toMatch(/^\| M0-14 \|/m);
 }
 
 describe("Nango OAuth proof contract", () => {
@@ -109,11 +109,11 @@ describe("Nango OAuth proof contract", () => {
       "utf8",
     );
 
-    expect(tracker).toContain("| Pending | 711 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 710 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 15 |");
     expect(tracker).toContain("| Blocked | 1 |");
-    expect(tracker).toMatch(/\| M0 \| 27 \| 10 \| 0 \| 15 \| 1 \|/);
+    expect(tracker).toMatch(/\| M0 \| 27 \| 9 \| 1 \| 15 \| 1 \|/);
     assertM014bComplete(tracker);
     expect(tracker).toContain("M0-09 and PROV-01 remain Blocked");
     expect(tracker).toContain("R-03 remains incomplete");
@@ -130,7 +130,7 @@ describe("Nango OAuth proof contract", () => {
     );
     const concurrent = tracker.replace(
       "## Complete\n",
-      "| M0-14 | August 15, 2026 | Concurrent future work. |\n\n## Complete\n",
+      "| M0-15 | August 15, 2026 | Concurrent future work. |\n\n## Complete\n",
     );
 
     expect(() => assertM014bComplete(duplicate)).toThrow();

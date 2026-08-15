@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 711 |
-| In progress | 0 |
+| Pending | 710 |
+| In progress | 1 |
 | Complete | 15 |
 | Blocked | 1 |
 
@@ -23,7 +23,7 @@ In progress, Complete, or Blocked is Pending.
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 10 | 0 | 15 | 1 |
+| M0 | 27 | 9 | 1 | 15 | 1 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -68,13 +68,14 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `711/0/15/1` because
+session configuration. The 728 source-plan counts are `710/1/15/1` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M0-14 | August 15, 2026 | Record the evidence-backed free self-hosted Nango boundary as long-tail Auth plus Proxy, explicitly exclude Functions, Webhooks, MCP, RBAC, observability, and Enterprise features, and leave the authenticated Proxy GET and R-08 decision to M0-15. |
 
 ## Complete
 
@@ -240,5 +241,8 @@ provider capability gate.
 - M0-14c is Complete after two consecutive final-code exact-pinned private fixture-provider
   API-key runs retained only the durable Organization-scoped connection reference,
   proved the raw key absent from product state, cleaned every exact-owned resource,
-  and passed pinned gates and scans. M0-14 and M0-15 are not started, and R-08
-  remains Not run through M0-15.
+  and passed pinned gates and scans.
+- M0-14 is In progress as an evidence-only boundary record: free self-hosted
+  Nango is accepted for long-tail Auth plus Proxy, while Functions, Webhooks,
+  MCP, RBAC, full observability, and Enterprise features remain out of scope.
+  M0-15 is not started and R-08 remains Not run through M0-15.

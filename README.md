@@ -279,6 +279,19 @@ R-12 remains Not run until M0-22 proves the separate bounded remote-export and
 exporter-failure boundary. M0-09 and PROV-01 remain Blocked, and R-03 remains
 incomplete.
 
+## Nango free Auth boundary
+
+M0-14 is In progress. The accepted free self-hosted Nango MVP boundary is
+long-tail Auth plus Proxy, with the authenticated Proxy GET still pending
+M0-15. Functions, Webhooks, and MCP are out of scope, as are Nango RBAC, full
+observability, Connect UI, and Enterprise-only features.
+
+This boundary consolidates the completed M0-14a boot, M0-14b OAuth, and M0-14c
+API-key evidence. It adds no runtime or provider call and is not a claim that
+every excluded route is absent from the pinned image. Core launch connectors
+remain product-owned and bypass Nango. R-08 remains Not run through M0-15;
+M0-09 and PROV-01 remain Blocked, and R-03 remains incomplete.
+
 ## Nango API-key proof
 
 M0-14c is Complete. This proof extends the completed private Nango boot and
