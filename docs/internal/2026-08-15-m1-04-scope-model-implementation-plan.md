@@ -45,7 +45,7 @@ later product security entities and authorization boundaries.
 - [x] Change only completion expectations and capture focused RED.
 - [x] Move only M1-04 to Complete at `691/0/34/3` and M1
   `68/58/0/10/0`; preserve M0 and all blockers.
-- [ ] Run final gates, commit `docs: complete M1-04 scope model`, push, and
+- [x] Run final gates, commit `docs: complete M1-04 scope model`, push, and
   watch exact-SHA Runnable UI to success.
-- [ ] Close the plan, record run/job IDs, commit/push the close SHA, watch CI,
+- [x] Close the plan, record run/job IDs, commit/push the close SHA, watch CI,
   then start M1-05.
