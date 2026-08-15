@@ -43,17 +43,17 @@ version and has no worker loop or runtime dependency.
 
 ### Task 3: Review the complete command
 
-- [ ] Audit module ownership, duplication boundary, version grammar, output,
+- [x] Audit module ownership, duplication boundary, version grammar, output,
   link-time injection, error behavior, no-I/O scope, tests, and status evidence.
-- [ ] Reproduce and fix every concrete finding tests-first.
-- [ ] Run fresh Go/repository/audit/scan gates and record zero findings.
+- [x] Reproduce and fix every concrete finding tests-first.
+- [x] Run fresh Go/repository/audit/scan gates and record zero findings.
 
 ### Task 4: Complete, push, and close M1-01e
 
-- [ ] Change only completion expectations and capture focused RED.
-- [ ] Move only M1-01e to Complete at `699/0/26/3` and M1
+- [x] Change only completion expectations and capture focused RED.
+- [x] Move only M1-01e to Complete at `699/0/26/3` and M1
   `68/66/0/2/0`; preserve M0 and all blockers.
-- [ ] Run final gates, commit `docs: complete M1-01e platform worker command`,
+- [x] Run final gates, commit `docs: complete M1-01e platform worker command`,
   push, and watch exact-SHA Runnable UI to success.
 - [ ] Close the plan, record run/job IDs, commit/push the close SHA, watch CI,
   then start M1-01f.

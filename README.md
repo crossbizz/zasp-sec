@@ -50,9 +50,9 @@ uses `dev`; release builds may inject a bounded version at link time.
 
 ## Platform worker command
 
-M1-01e is In progress. It adds the second minimal Go command at
-`services/platform/agentsec-worker`. Its only intended behavior in this task is
-one exact build-version line:
+M1-01e is Complete. It adds the second minimal Go command at
+`services/platform/agentsec-worker`. Its only current behavior is one exact
+build-version line:
 
 ```text
 agentsec-worker build <version>

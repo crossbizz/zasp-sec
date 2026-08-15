@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 699 |
-| In progress | 1 |
-| Complete | 25 |
+| In progress | 0 |
+| Complete | 26 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -24,7 +24,7 @@ In progress, Complete, or Blocked is Pending.
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 0 | 0 | 24 | 3 |
-| M1 | 68 | 66 | 1 | 1 | 0 |
+| M1 | 68 | 66 | 0 | 2 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
 | M3 | 75 | 75 | 0 | 0 | 0 |
@@ -68,14 +68,13 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `699/1/25/3` because
+session configuration. The 728 source-plan counts are `699/0/26/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M1-01e | August 15, 2026 | Adding the minimal service-local `agentsec-worker` command with exact bounded build-version output and no worker loop, queue, configuration, provider, listener, or network behavior. |
 
 ## Complete
 
@@ -106,6 +105,7 @@ PROV-01 is excluded from those counts.
 | M0-22 | August 15, 2026 | Two consecutive exact-pinned source/sink Collector runs delivered the exact first trace, stopped and re-proved the only sink, completed the next application operation within its independent telemetry bound, proved exact zero-resource cleanup, and passed six focused runs, the retained M0-13 regression, full pinned repository gates/audit/scans, and adversarial review; combined M0-13/M0-22 evidence makes R-12 PASS. |
 | M0-23 | August 15, 2026 | Recorded exactly fourteen evidence-backed M0 architecture decisions as 12 PASS / 2 BLOCKED / 0 FAIL / 0 unclassified, preserved R-03 and R-11 without provider substitution, verified every retained report and proof head, and passed hostile contract mutations, six focused runs, full pinned repository gates, audit, scans, and zero-finding evidence review. |
 | M1-01d | August 15, 2026 | Created the service-local `services/platform` Go module and minimal `agentsec-api` command; exact default and link-time build versions, bounded validation, writer failures, race/build/module/vet gates, full repository verification, audit, scans, and zero-finding review passed without adding runtime I/O. |
+| M1-01e | August 15, 2026 | Added the sibling service-local `agentsec-worker` command; exact default and link-time build versions, bounded validation, writer failures, both-command race/build/module/vet gates, full repository verification, audit, scans, and zero-finding review passed without adding a worker loop or runtime I/O. |
 
 `PRE-01`, `PRE-02`, and `PROV-01` do not count as source-plan microtasks.
 
