@@ -50,11 +50,12 @@ export function createFixtureProvider(configuration, dependencies = {}) {
     const finish = async () => {
       if (responded) return;
       responded = true;
+      const headers = normalizeHeaders(request.headersDistinct ?? request.headers);
       const result = await handle({
         method: request.method,
-        host: singleHeader(request.headers?.host),
+        host: singleHeader(headers.host),
         url: request.url,
-        headers: normalizeHeaders(request.headers),
+        headers,
         body: Buffer.concat(chunks),
         bodyComplete: complete,
       });
@@ -160,11 +161,12 @@ function readBoundedTlsFile(path) {
 }
 
 function normalizeHeaders(headers) {
-  if (!plainObject(headers)) return {};
+  if (!headerRecord(headers)) return {};
   const output = {};
   for (const [key, value] of Object.entries(headers)) {
     if (typeof value === "string") output[key.toLowerCase()] = value;
     else if (Array.isArray(value) && value.length === 1 && typeof value[0] === "string") output[key.toLowerCase()] = value[0];
+    else output[key.toLowerCase()] = value;
   }
   return output;
 }
@@ -176,6 +178,7 @@ function safeEqual(left, right) { if (typeof left !== "string" || typeof right !
 function singleHeader(value) { return typeof value === "string" ? value : ""; }
 function sameArray(left, right) { return left.length === right.length && left.every((value, index) => value === right[index]); }
 function absolutePath(value) { return typeof value === "string" && value.startsWith("/") && value.length <= 4_096 && !value.includes("\0"); }
+function headerRecord(value) { if (value === null || typeof value !== "object" || Array.isArray(value)) return false; const prototype = Object.getPrototypeOf(value); return prototype === null || prototype === Object.prototype; }
 function plainObject(value) { return value !== null && typeof value === "object" && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype; }
 function environmentRecord(value) { return value !== null && typeof value === "object" && !Array.isArray(value); }
 

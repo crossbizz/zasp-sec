@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
 import test from "node:test";
 
 import {
@@ -124,6 +125,54 @@ test("wires HTTPS with bounded exact TLS material", async () => {
     ["listen", 443, "0.0.0.0"],
     ["close"],
   ]);
+});
+
+test("accepts one exact null-prototype wire header and rejects duplicate authorization", async () => {
+  const runWire = async (headersDistinct) => {
+    let listener;
+    const fakeServer = {
+      listen(_port, _host, callback) { callback(); return this; },
+      close(callback) { callback(); },
+      once() { return this; },
+      removeListener() { return this; },
+    };
+    const fixture = createFixtureProvider(configuration, {
+      createServer: (_options, value) => { listener = value; return fakeServer; },
+      key: Buffer.from("key"),
+      certificate: Buffer.from("certificate"),
+    });
+    const requestMessage = new EventEmitter();
+    requestMessage.method = "GET";
+    requestMessage.url = "/api/v2/auth/introspect";
+    requestMessage.headers = {
+      host: configuration.hostname,
+      accept: "application/json, text/plain, */*",
+      authorization: `Bearer ${providerKey}`,
+    };
+    requestMessage.headersDistinct = Object.assign(Object.create(null), headersDistinct);
+    requestMessage.destroy = () => {};
+    const response = await new Promise((resolve) => {
+      const captured = { status: undefined, headers: undefined, body: undefined };
+      listener(requestMessage, {
+        writeHead(status, headers) { captured.status = status; captured.headers = headers; },
+        end(body) { captured.body = Buffer.from(body); resolve(captured); },
+      });
+      requestMessage.emit("end");
+    });
+    return { fixture, response };
+  };
+  const exact = {
+    host: [configuration.hostname],
+    accept: ["application/json, text/plain, */*"],
+    authorization: [`Bearer ${providerKey}`],
+  };
+  const accepted = await runWire(exact);
+  assert.equal(accepted.response.status, 200);
+  assert.deepEqual(accepted.fixture.state(), { verificationUsed: true, proxyUsed: false });
+
+  const duplicate = await runWire({ ...exact, authorization: [`Bearer ${providerKey}`, `Bearer ${providerKey}`] });
+  assert.equal(duplicate.response.status, 400);
+  assert.deepEqual(duplicate.fixture.state(), { verificationUsed: false, proxyUsed: false });
 });
 
 test("keeps startup failure output fixed and provider-key free", async () => {
