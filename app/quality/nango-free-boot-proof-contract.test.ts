@@ -21,7 +21,8 @@ function assertM014aComplete(tracker: string) {
   const activeRows = markdownRows(inProgress).slice(2);
   const rows = markdownRows(complete).slice(2).filter(([task]) => task === "M0-14a");
 
-  expect(activeRows).toHaveLength(0);
+  expect(activeRows).toHaveLength(1);
+  expect(activeRows[0]?.[0]).toBe("M0-14c");
   expect(rows).toHaveLength(1);
   expect(rows[0]?.[0]).toBe("M0-14a");
   expect(rows[0]?.[1]).toBe("August 14, 2026");
@@ -139,11 +140,11 @@ describe("Nango free boot proof contract", () => {
       "utf8",
     );
 
-    expect(tracker).toContain("| Pending | 712 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 711 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 14 |");
     expect(tracker).toContain("| Blocked | 1 |");
-    expect(tracker).toMatch(/\| M0 \| 27 \| 11 \| 0 \| 14 \| 1 \|/);
+    expect(tracker).toMatch(/\| M0 \| 27 \| 10 \| 1 \| 14 \| 1 \|/);
     assertM014aComplete(tracker);
     expect(tracker).toContain("M0-13");
     expect(tracker).toContain("M0-09 and PROV-01 remain Blocked");
@@ -156,7 +157,7 @@ describe("Nango free boot proof contract", () => {
       "utf8",
     );
     const duplicateRow = "| M0-14a | August 14, 2026 | Duplicate. |";
-    const concurrentRow = "| M0-14c | August 15, 2026 | Decoy concurrent work. |";
+    const concurrentRow = "| M0-14 | August 15, 2026 | Decoy concurrent work. |";
     const duplicate = tracker.replace("## Complete\n", `${duplicateRow}\n\n## Complete\n`);
     const concurrent = tracker.replace("## Complete\n", `${concurrentRow}\n\n## Complete\n`);
 

@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 712 |
-| In progress | 0 |
+| Pending | 711 |
+| In progress | 1 |
 | Complete | 14 |
 | Blocked | 1 |
 
@@ -23,7 +23,7 @@ In progress, Complete, or Blocked is Pending.
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 11 | 0 | 14 | 1 |
+| M0 | 27 | 10 | 1 | 14 | 1 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -68,13 +68,14 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `712/0/14/1` because
+session configuration. The 728 source-plan counts are `711/1/14/1` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M0-14c | August 15, 2026 | Complete one API-key connection against a single-use private TLS fixture through the exact-pinned free self-hosted Nango runtime; return only the Organization-scoped durable connection reference and prove the raw provider key never enters product state. |
 
 ## Complete
 
@@ -234,4 +235,7 @@ provider capability gate.
   fixture-provider OAuth runs through a product-owned wrapper retained only a
   durable Nango connection reference, proved exact zero-resource cleanup, and
   passed pinned gates and scans. It introduces no real provider credential or
-  host publication, does not advance R-08, and does not start M0-14c.
+  host publication and does not advance R-08.
+- M0-14c is In progress for the exact-pinned private fixture-provider API-key
+  connection and reference-only product-state boundary. M0-14 and M0-15 are not
+  started, and R-08 remains Not run through M0-15.

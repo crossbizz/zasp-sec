@@ -1,0 +1,110 @@
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+
+const repositoryRoot = resolve(import.meta.dirname, "../..");
+const nangoImage =
+  "nangohq/nango-server:hosted-7faf2c303bbb0322333f526e9ca31c0fe95ef58e@sha256:b191d8d5b072fec5984e28da67298e9dabd5dc3a2585f1ebff7e2f5b9dfb66ed";
+const postgresImage =
+  "postgres:16.0-alpine@sha256:acf5271bbecd4b8733f4e93959a8d2b536a57aeee6cc4b6a71890aaf646425b8";
+
+function markdownRows(markdown: string) {
+  return markdown
+    .split("\n")
+    .filter((line) => line.startsWith("|") && line.endsWith("|"))
+    .map((line) => line.slice(1, -1).split("|").map((cell) => cell.trim()));
+}
+
+function assertOnlyM014cActive(tracker: string) {
+  const inProgress = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
+  const rows = markdownRows(inProgress).slice(2);
+  expect(rows).toHaveLength(1);
+  expect(rows[0]?.[0]).toBe("M0-14c");
+  expect(rows[0]?.[1]).toBe("August 15, 2026");
+  expect(rows[0]?.[2]).toContain("API-key connection");
+}
+
+describe("Nango API-key proof start contract", () => {
+  it("binds the exact source-plan dependency, deliverable, and verification boundary", async () => {
+    const sourcePlan = await readFile(
+      resolve(repositoryRoot, "docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md"),
+      "utf8",
+    );
+    const section = sourcePlan.match(/\*\*M0-14c - Nango API key proof\*\*[\s\S]*?\*\*M0-14 -/)?.[0];
+
+    expect(section).toBeDefined();
+    expect(section).toContain("Depends on: `M0-14b`");
+    expect(section).toContain("Complete one API-key connection against a fixture provider through the product wrapper");
+    expect(section).toContain("Product receives a connection reference without storing the raw provider key in product state");
+    expect(section).toContain("Timebox: <=15 minutes");
+  });
+
+  it("records the exact private API-key fixture and reference-only design", async () => {
+    const design = await readFile(
+      resolve(repositoryRoot, "docs/internal/2026-08-15-m0-14c-nango-api-key-proof-design.md"),
+      "utf8",
+    );
+
+    expect(design).toContain("v0.70.5");
+    expect(design).toContain("7faf2c303bbb0322333f526e9ca31c0fe95ef58e");
+    expect(design).toContain(nangoImage);
+    expect(design).toContain(postgresImage);
+    expect(design).toContain("1password-events");
+    expect(design).toContain("events.1password.com");
+    expect(design).toContain("/api/v2/auth/introspect");
+    expect(design).toContain("/api-auth/api-key/:providerConfigKey");
+    expect(design).toContain("raw provider key");
+    expect(design).toContain("R-08 remains Not run through M0-15");
+  });
+
+  it("locks tests-first exact-owned implementation and completion gates", async () => {
+    const plan = await readFile(
+      resolve(repositoryRoot, "docs/internal/2026-08-15-m0-14c-nango-api-key-proof-implementation-plan.md"),
+      "utf8",
+    );
+
+    expect(plan).toContain("Tests-first RED");
+    expect(plan).toMatch(/strict API-key product wrapper/i);
+    expect(plan).toContain("single-use private TLS fixture");
+    expect(plan).toContain("single mutation settlement journal");
+    expect(plan).toMatch(/global\s+prefix\/label\/marker absence/);
+    expect(plan).toContain("two consecutive final-code live passes");
+    expect(plan).toContain("independent read-only review");
+  });
+
+  it("starts exactly M0-14c while preserving completed, blocked, and risk boundaries", async () => {
+    const tracker = await readFile(
+      resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"),
+      "utf8",
+    );
+
+    expect(tracker).toContain("| Pending | 711 |");
+    expect(tracker).toContain("| In progress | 1 |");
+    expect(tracker).toContain("| Complete | 14 |");
+    expect(tracker).toContain("| Blocked | 1 |");
+    expect(tracker).toMatch(/\| M0 \| 27 \| 10 \| 1 \| 14 \| 1 \|/);
+    assertOnlyM014cActive(tracker);
+    expect(tracker).toMatch(/## Complete[\s\S]*?\| M0-14b \| August 15, 2026 \|/);
+    expect(tracker).toContain("M0-09 and PROV-01 remain Blocked");
+    expect(tracker).toContain("R-03 remains incomplete");
+    expect(tracker).toContain("R-08 remains Not run through M0-15");
+  });
+
+  it("rejects duplicate or concurrent M0-14c active rows", async () => {
+    const tracker = await readFile(
+      resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"),
+      "utf8",
+    );
+    const duplicate = tracker.replace(
+      "## Complete\n",
+      "| M0-14c | August 15, 2026 | Duplicate API-key work. |\n\n## Complete\n",
+    );
+    const concurrent = tracker.replace(
+      "## Complete\n",
+      "| M0-14 | August 15, 2026 | Concurrent feature-boundary work. |\n\n## Complete\n",
+    );
+
+    expect(() => assertOnlyM014cActive(duplicate)).toThrow();
+    expect(() => assertOnlyM014cActive(concurrent)).toThrow();
+  });
+});

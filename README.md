@@ -310,8 +310,8 @@ Nango OAuth proof passed: oauth=true reference=true product_state_safe=true clea
 Every live run uses fresh marker-scoped resources and reverse exact-owned
 cleanup. M0-14b is Complete after two consecutive final-code live passes,
 complete zero-resource audits, full repository gates and scans, and a
-zero-finding pre-landing review. R-08 remains Not run through M0-15. M0-14c and
-M0-15 have not started.
+zero-finding pre-landing review. R-08 remains Not run through M0-15. M0-14c is
+In progress; M0-15 has not started.
 
 ## Nango free boot proof
 
