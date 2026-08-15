@@ -22,7 +22,7 @@ function assertM014bComplete(tracker: string) {
   const completeRows = markdownRows(complete).slice(2);
   const completedM014b = completeRows.filter(([task]) => task === "M0-14b");
 
-  expect(activeRows).toHaveLength(1);
+  expect(activeRows).toHaveLength(0);
   expect([...activeRows, ...completeRows].filter(([task]) => task === "M0-15")).toHaveLength(1);
   expect(completedM014b).toHaveLength(1);
   expect(completedM014b[0]?.[1]).toBe("August 15, 2026");
@@ -109,10 +109,10 @@ describe("Nango OAuth proof contract", () => {
     );
 
     expect(tracker).toContain("| Pending | 702 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 21 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 22 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toMatch(/\| M0 \| 27 \| 1 \| 1 \| 21 \| 3 \|/);
+    expect(tracker).toMatch(/\| M0 \| 27 \| 1 \| 0 \| 22 \| 3 \|/);
     assertM014bComplete(tracker);
     expect(tracker).toContain("M0-09 and PROV-01 remain Blocked");
     expect(tracker).toContain("R-03 remains incomplete");

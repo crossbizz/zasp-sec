@@ -35,14 +35,16 @@ describe("Security Agent planner boundary repository contract", () => {
     expect(prd).toContain("The planner cannot invent actions or action parameters outside these schemas");
     expect(prd).toContain("Evidence is treated as untrusted data, not instructions");
     expect(riskRows).toHaveLength(1);
-    expect(riskRows[0]?.[5]).toBe("Not run — M0-21/M0-21a");
+    expect(riskRows[0]?.[5]).toBe(
+      "PASS — M0-21/M0-21a — .superpowers/sdd/2026-08-15-m0-21-openrouter-privacy-proof-implementation-plan/task-5-report.md; .superpowers/sdd/2026-08-15-m0-21a-security-agent-planner-proof-implementation-plan/task-5-report.md; proof head 6f4ed10198495b8f0b6019cb6d82221d7cac91c1",
+    );
     expect(design).toContain("numeric loopback");
     expect(design).toContain("two-action catalog");
     expect(design).toContain("no general shell");
     expect(plan).toContain("Every behavior change follows a witnessed tests-only RED");
   });
 
-  it("starts only M0-21a without advancing R-14", async () => {
+  it("completes only M0-21a and advances R-14 from combined evidence", async () => {
     const [tracker, readme, risk] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -51,16 +53,18 @@ describe("Security Agent planner boundary repository contract", () => {
     const active = section(tracker, "In progress");
     const blocked = section(tracker, "Blocked");
 
-    expect(readme).toContain("M0-21a is In progress");
+    expect(readme).toContain("M0-21a is Complete");
     expect(tracker).toContain("| Pending | 702 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 21 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 22 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`702/1/21/3`");
-    expect(tracker).toMatch(/\| M0 \| 27 \| 1 \| 1 \| 21 \| 3 \|/);
-    expect(active.filter(([task]) => task === "M0-21a")).toHaveLength(1);
+    expect(tracker).toContain("`702/0/22/3`");
+    expect(tracker).toMatch(/\| M0 \| 27 \| 1 \| 0 \| 22 \| 3 \|/);
+    expect(active).toHaveLength(0);
+    expect(section(tracker, "Complete").filter(([task]) => task === "M0-21a")).toHaveLength(1);
     expect(blocked.filter(([task]) => ["M0-09", "M0-18", "M0-19"].includes(task))).toHaveLength(3);
-    expect(risk).toContain("Not run — M0-21/M0-21a");
+    expect(risk).toContain("PASS — M0-21/M0-21a");
+    expect(tracker).toContain("M0-22 remains Pending");
   });
 
   it("exposes hermetic root test and run commands only after the proof exists", async () => {

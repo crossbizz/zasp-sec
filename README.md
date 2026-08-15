@@ -333,12 +333,12 @@ under an independent deadline, and failures emit only a fixed category line.
 This is local privacy/schema evidence, not hosted OpenRouter availability,
 provider/model quality, production routing, or planner authorization. The exact
 proof, seeded-value absence, strict structured validation, cleanup, gates,
-audit, scans, and adversarial review passed. M0-21a is In progress.
-R-14 remains Not run until the separate fixed-action-catalog planner proof passes.
+audit, scans, and adversarial review passed. M0-21a is Complete, and the
+combined explanation/privacy and fixed-action-catalog evidence makes R-14 PASS.
 
 ## Security Agent planner boundary proof
 
-M0-21a is In progress. Its local-only boundary sends one structured planning
+M0-21a is Complete. Its local-only boundary sends one structured planning
 request containing bounded untrusted injection text, an exact two-action
 catalog, and exact in-scope IDs to a fake OpenRouter-compatible endpoint on a
 random numeric-loopback port. Product validation must accept only the exact
@@ -359,8 +359,9 @@ Success is exactly:
 Security Agent planner proof passed: catalog=true scope=true injection=false url=false shell=false cleanup=true.
 ```
 
-R-14 remains Not run until the proof, gates, and adversarial review pass;
-M0-22 remains Pending.
+The exact proof, six focused runs, full pinned repository gates, production
+audit, redacted scans, and adversarial review passed. Combined with M0-21's
+redacted explanation proof, R-14 is PASS. M0-22 remains Pending.
 
 ## EKS Fargate egress proof
 

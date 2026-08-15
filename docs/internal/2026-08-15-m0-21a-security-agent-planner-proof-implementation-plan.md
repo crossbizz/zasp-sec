@@ -50,10 +50,10 @@ Every behavior change follows a witnessed tests-only RED.
 
 ### Task 5: Review, verify, and ship
 
-- [ ] Fix every adversarial review finding tests-first.
-- [ ] Run six focused passes, full pinned repository gates, audit, whitespace,
+- [x] Fix every adversarial review finding tests-first.
+- [x] Run six focused passes, full pinned repository gates, audit, whitespace,
   and redacted secret scans.
-- [ ] Transition only M0-21a to Complete and R-14 to PASS after proof/review;
+- [x] Transition only M0-21a to Complete and R-14 to PASS after proof/review;
   otherwise Block it with the exact failing dependency.
-- [ ] Keep M0-22 Pending through the transition.
+- [x] Keep M0-22 Pending through the transition.
 - [ ] Commit, push, and watch the exact-SHA Runnable UI gate.

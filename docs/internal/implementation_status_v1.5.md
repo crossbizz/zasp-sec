@@ -15,15 +15,15 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 702 |
-| In progress | 1 |
-| Complete | 21 |
+| In progress | 0 |
+| Complete | 22 |
 | Blocked | 3 |
 
 ## Milestone summary
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 1 | 1 | 21 | 3 |
+| M0 | 27 | 1 | 0 | 22 | 3 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -68,14 +68,13 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `702/1/21/3` because
+session configuration. The 728 source-plan counts are `702/0/22/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M0-21a | August 15, 2026 | Prove the fixed two-action, in-scope Security Agent planning boundary against a synthetic numeric-loopback OpenRouter-compatible endpoint; R-14 remains Not run. |
 
 ## Complete
 
@@ -101,7 +100,8 @@ PROV-01 is excluded from those counts.
 | M0-16 | August 15, 2026 | Two consecutive final-code exact-pinned Promptfoo runs executed one synthetic direct prompt-injection case against a local fake agent, retained only the objective, vulnerable verdict, and SHA-256 evidence reference, proved exact zero-resource cleanup and shared-resource non-mutation, passed pinned gates/license/secret scans, and received a zero-finding whole-range review; R-09 is PASS. |
 | M0-17 | August 15, 2026 | The exact-pinned official OPA Go SDK prepared one embedded policy query in-process, returned deterministic Allow and Block decisions across 100 warm-ups and 1,000 measured evaluations per decision, kept both decision-specific p95 values below 10 ms, and passed strict malformed-result, cancellation, panic, license, full-gate, secret-scan, and whole-range review checks; R-10 is PASS. |
 | M0-20 | August 15, 2026 | One exact allowlisted analytics event reached a synthetic numeric-loopback PostHog endpoint; seeded prompt, secret, IP, and raw-evidence inputs each failed before network I/O, exact cleanup and fixed output passed, six focused runs plus full pinned repository gates/audit/scans were green, and adversarial review findings were fixed tests-first; R-13 is PASS without a hosted-PostHog delivery claim. |
-| M0-21 | August 15, 2026 | One redacted synthetic finding explanation reached a numeric-loopback OpenRouter-compatible endpoint with every seeded secret/PII value absent; the exact structured result, cleanup, fixed output, six focused runs, full pinned repository gates/audit/scans, and adversarial fixes passed. M0-21a remains Pending and R-14 remains Not run. |
+| M0-21 | August 15, 2026 | One redacted synthetic finding explanation reached a numeric-loopback OpenRouter-compatible endpoint with every seeded secret/PII value absent; the exact structured result, cleanup, fixed output, six focused runs, full pinned repository gates/audit/scans, and adversarial fixes passed. M0-21a is Complete and R-14 is PASS from combined evidence. |
+| M0-21a | August 15, 2026 | One bounded planning request carried untrusted instruction-injection text as data plus exactly two typed catalog actions and exact in-scope identifiers; validation accepted only the exact two-step plan, rejected action/argument/target/order/URL/shell/tool/prose drift, proved fixed output and independent cleanup, and passed six focused runs, full pinned gates/audit/scans, and adversarial review. R-14 is PASS with the retained M0-21 explanation evidence; M0-22 remains Pending. |
 
 `PRE-01`, `PRE-02`, and `PROV-01` do not count as source-plan microtasks.
 
@@ -284,5 +284,6 @@ provider capability gate.
   before I/O; cleanup, gates, scans, and review passed. R-13 is PASS.
 - M0-21 is Complete with the reviewed local explanation/privacy proof. It does
   not advance R-14, which also requires the separate M0-21a planner proof.
-- M0-21a is In progress with the fixed two-action catalog and in-scope planner
-  validation boundary. M0-22 remains Pending and R-14 remains Not run.
+- M0-21a is Complete with the fixed two-action catalog and in-scope planner
+  validation boundary. M0-22 remains Pending and R-14 is PASS from the combined
+  M0-21 explanation/privacy and M0-21a planning evidence.
