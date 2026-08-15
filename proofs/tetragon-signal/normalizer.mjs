@@ -127,6 +127,7 @@ export function parseTetragonMetrics(bytes, expected) {
   return {
     version: build[0].labels.version,
     commit: specification.sensorCommit,
+    image_digest: specification.sensorImageDigest,
     policies_loaded: specification.policyCount,
     drop_counters: { ...dropCounters },
   };
@@ -205,6 +206,7 @@ export function normalizeTetragonProof(input) {
   const sensor = {
     version: metricsAfter.version,
     commit: metricsAfter.commit,
+    image_digest: metricsAfter.image_digest,
     policies_loaded: metricsAfter.policies_loaded,
     drop_counters: { ...metricsAfter.drop_counters },
   };
@@ -416,14 +418,14 @@ function validateExpected(value) {
     "containerId", "containerName", "execArgument", "execBinary", "fileBinary",
     "filePath", "filePolicyName", "imageId", "imageName", "labels",
     "namespace", "networkBinary", "networkPolicyName", "nodeName", "podName",
-    "podUid", "policyCount", "sensorCommit", "sensorVersion", "sinkAddress",
+    "podUid", "policyCount", "sensorCommit", "sensorImageDigest", "sensorVersion", "sinkAddress",
     "sinkPort",
   ], "expected fixture");
   for (const name of [
     "containerId", "containerName", "execArgument", "execBinary", "fileBinary",
     "filePath", "filePolicyName", "imageId", "imageName", "namespace",
     "networkBinary", "networkPolicyName", "nodeName", "podName", "podUid",
-    "sensorCommit", "sensorVersion", "sinkAddress",
+    "sensorCommit", "sensorImageDigest", "sensorVersion", "sinkAddress",
   ]) {
     expectBoundedString(value[name], `expected.${name}`);
   }
@@ -433,6 +435,7 @@ function validateExpected(value) {
     !uuidPattern.test(value.podUid) ||
     !containerIdPattern.test(value.containerId) ||
     !commitPattern.test(value.sensorCommit) ||
+    !/^sha256:[0-9a-f]{64}$/.test(value.sensorImageDigest) ||
     !/^v\d+\.\d+\.\d+$/.test(value.sensorVersion) ||
     !ipv4Pattern.test(value.sinkAddress) ||
     !Number.isSafeInteger(value.sinkPort) ||

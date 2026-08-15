@@ -34,6 +34,7 @@ const expected = Object.freeze({
   sinkPort: 18080,
   sensorVersion: "v1.7.0",
   sensorCommit: "1de2ed8ebea18e56257dc59597aa13bf8f0e471e",
+  sensorImageDigest: `sha256:${"c".repeat(64)}`,
   policyCount: 2,
 });
 
@@ -217,6 +218,7 @@ test("normalizes three exact event classes to one Organization-scoped workload",
   assert.equal(result.drops, 0);
   assert.equal(result.sensor.version, "v1.7.0");
   assert.equal(result.sensor.commit, expected.sensorCommit);
+  assert.equal(result.sensor.image_digest, expected.sensorImageDigest);
   assert.equal(result.sensor.policies_loaded, 2);
   assert.deepEqual(result.sensor.drop_counters, {
     export_rate_limit: 0,
@@ -401,6 +403,7 @@ test("parses exact build, policy, and drop metrics", () => {
 
   assert.equal(parsed.version, expected.sensorVersion);
   assert.equal(parsed.commit, expected.sensorCommit);
+  assert.equal(parsed.image_digest, expected.sensorImageDigest);
   assert.equal(parsed.policies_loaded, 2);
   assert.deepEqual(parsed.drop_counters, {
     export_rate_limit: 0,

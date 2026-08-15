@@ -110,7 +110,7 @@ test("generates an exact loopback kind cluster and pinned Helm boundary", () => 
     tetragonOperator: {
       enabled: true,
       image: { override: PINS.operator.reference, pullPolicy: "IfNotPresent" },
-      podLabels: { "zasp.dev/proof": "m0-12", "zasp.dev/run": marker },
+      extraPodLabels: { "zasp.dev/proof": "m0-12", "zasp.dev/run": marker },
       prometheus: { enabled: false },
       tracingPolicy: { enabled: true },
     },
@@ -169,6 +169,13 @@ test("generates only the exact non-root fixture pods, service, and tracing polic
   assert.equal(filePolicy.kind, "TracingPolicy");
   assert.equal(filePolicy.metadata.name, fixture.names.filePolicy);
   assert.deepEqual(filePolicy.metadata.labels, fixture.labels);
+  assert.deepEqual(filePolicy.spec.podSelector, { matchLabels: {
+    ...fixture.labels,
+    "app.kubernetes.io/name": "zasp-m0-12-workload",
+  } });
+  assert.deepEqual(filePolicy.spec.containerSelector, {
+    matchExpressions: [{ key: "name", operator: "In", values: [fixture.names.workloadPod] }],
+  });
   assert.deepEqual(filePolicy.spec.kprobes, [{
     call: "security_file_permission",
     syscall: false,
@@ -181,6 +188,8 @@ test("generates only the exact non-root fixture pods, service, and tracing polic
   assert.equal(networkPolicy.kind, "TracingPolicy");
   assert.equal(networkPolicy.metadata.name, fixture.names.networkPolicy);
   assert.deepEqual(networkPolicy.metadata.labels, fixture.labels);
+  assert.deepEqual(networkPolicy.spec.podSelector, filePolicy.spec.podSelector);
+  assert.deepEqual(networkPolicy.spec.containerSelector, filePolicy.spec.containerSelector);
   assert.deepEqual(networkPolicy.spec.kprobes, [{
     call: "tcp_connect",
     syscall: false,

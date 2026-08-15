@@ -152,7 +152,7 @@ function buildHelmValues(names, labels) {
     tetragonOperator: {
       enabled: true,
       image: { override: PINS.operator.reference, pullPolicy: "IfNotPresent" },
-      podLabels: { ...labels },
+      extraPodLabels: { ...labels },
       prometheus: { enabled: false },
       tracingPolicy: { enabled: true },
     },
@@ -162,6 +162,12 @@ function buildHelmValues(names, labels) {
 function buildResources(names, labels) {
   const sinkLabels = { ...labels, "app.kubernetes.io/name": "zasp-m0-12-sink" };
   const workloadLabels = { ...labels, "app.kubernetes.io/name": "zasp-m0-12-workload" };
+  const workloadSelectors = {
+    podSelector: { matchLabels: { ...workloadLabels } },
+    containerSelector: {
+      matchExpressions: [{ key: "name", operator: "In", values: [names.workloadPod] }],
+    },
+  };
   return [
     {
       apiVersion: "v1",
@@ -195,6 +201,7 @@ function buildResources(names, labels) {
       kind: "TracingPolicy",
       metadata: { name: names.filePolicy, labels: { ...labels } },
       spec: {
+        ...workloadSelectors,
         kprobes: [{
           call: "security_file_permission",
           syscall: false,
@@ -211,6 +218,7 @@ function buildResources(names, labels) {
       kind: "TracingPolicy",
       metadata: { name: names.networkPolicy, labels: { ...labels } },
       spec: {
+        ...workloadSelectors,
         kprobes: [{
           call: "tcp_connect",
           syscall: false,

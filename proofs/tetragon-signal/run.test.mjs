@@ -12,6 +12,7 @@ import {
   Failure,
   buildHelmInstallArguments,
   buildEventCaptureArguments,
+  buildTetragonHealthArguments,
   buildKprobeEventCaptureArguments,
   buildKindCreateArguments,
   buildNodeImagePullArguments,
@@ -20,12 +21,16 @@ import {
   classifyMutationOutcome,
   fixtureTriggerCommands,
   exactMissingDockerObject,
+  exactMissingDockerVolume,
   exactMissingTetragonLog,
   fixtureSettleMilliseconds,
   orchestrate,
   runBounded,
   runMain,
+  validateKindNodeInspection,
+  validateOperatorPod,
   validateTetragonHealthPod,
+  validateTetragonHealthResult,
 } from "./run.mjs";
 
 const marker = "0123456789abcdef";
@@ -200,9 +205,15 @@ test("builds exact network, kind, Helm, and fixture command arguments", () => {
   ]);
 });
 
-test("validates the exact Tetragon gRPC liveness and ready container evidence", () => {
+test("validates exact pinned Tetragon/operator images and explicit gRPC health evidence", () => {
+  const tetragonImage = "quay.io/cilium/tetragon:v1.7.0@sha256:" + "a".repeat(64);
+  const operatorImage = "quay.io/cilium/tetragon-operator:v1.7.0@sha256:" + "b".repeat(64);
+  const tetragonDigest = "sha256:" + "c".repeat(64);
+  const operatorDigest = "sha256:" + "d".repeat(64);
   const pod = {
-    metadata: { name: "tetragon-fixture" },
+    metadata: { name: "tetragon-fixture", namespace: "kube-system", labels: {
+      "zasp.dev/proof": "m0-12", "zasp.dev/run": marker,
+    } },
     spec: {
       nodeName: names.cluster + "-control-plane",
       containers: [{
@@ -218,13 +229,139 @@ test("validates the exact Tetragon gRPC liveness and ready container evidence", 
     },
     status: {
       phase: "Running",
-      containerStatuses: [{ name: "tetragon", ready: true, restartCount: 0 }],
+      containerStatuses: [{
+        name: "tetragon", ready: true, restartCount: 0,
+        imageID: tetragonImage,
+      }],
     },
   };
-  assert.equal(validateTetragonHealthPod(pod, names.cluster + "-control-plane"), "tetragon-fixture");
+  pod.spec.containers[0].image = tetragonImage;
+  assert.equal(validateTetragonHealthPod(
+    pod, names.cluster + "-control-plane", tetragonImage, tetragonDigest, marker,
+  ), "tetragon-fixture");
   const wrong = structuredClone(pod);
   wrong.spec.containers[0].livenessProbe.grpc.port = 2112;
-  assert.throws(() => validateTetragonHealthPod(wrong, names.cluster + "-control-plane"), Failure);
+  assert.throws(() => validateTetragonHealthPod(
+    wrong, names.cluster + "-control-plane", tetragonImage, tetragonDigest, marker,
+  ), Failure);
+
+  const operator = {
+    metadata: { name: "tetragon-operator-fixture", namespace: "kube-system", labels: {
+      "zasp.dev/proof": "m0-12", "zasp.dev/run": marker,
+    } },
+    spec: { nodeName: names.cluster + "-control-plane", containers: [{
+      name: "tetragon-operator", image: operatorImage,
+    }] },
+    status: { phase: "Running", containerStatuses: [{
+      name: "tetragon-operator", ready: true, restartCount: 0,
+      imageID: operatorImage,
+    }] },
+  };
+  assert.equal(validateOperatorPod(
+    operator, names.cluster + "-control-plane", operatorImage, operatorDigest, marker,
+  ), "tetragon-operator-fixture");
+  assert.deepEqual(buildTetragonHealthArguments("tetragon-fixture"), [
+    "exec", "--namespace", "kube-system", "tetragon-fixture", "--container", "tetragon",
+    "--", "/usr/bin/tetra", "--server-address", "unix:///var/run/tetragon/tetragon.sock", "--timeout", "5s",
+    "--retries", "1", "status",
+  ]);
+  assert.equal(validateTetragonHealthResult({
+    status: 0, signal: null, stdout: "Health Status: running\n", stderr: "",
+  }), true);
+  assert.equal(validateTetragonHealthResult({
+    status: 0, signal: null, stdout: "", stderr: "",
+  }), false);
+});
+
+test("binds the complete supported kind node fingerprint and rejects replacement metadata", () => {
+  const token = "a".repeat(64);
+  const imageId = `sha256:${"b".repeat(64)}`;
+  const volumeToken = "c".repeat(64);
+  const networkId = "d".repeat(64);
+  const name = `${names.cluster}-control-plane`;
+  const document = [{
+    Id: token,
+    Name: `/${name}`,
+    Image: imageId,
+    Config: {
+      Image: "kindest/node:v1.35.5@sha256:fixture",
+      Labels: {
+        "io.x-k8s.kind.cluster": names.cluster,
+        "io.x-k8s.kind.role": "control-plane",
+      },
+      Env: [
+        "KIND_EXPERIMENTAL_CONTAINERD_SNAPSHOTTER",
+        "KUBECONFIG=/etc/kubernetes/admin.conf",
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "container=docker",
+        "HTTP_PROXY=",
+        "HTTPS_PROXY=",
+        "NO_PROXY=",
+      ],
+      Entrypoint: ["/usr/local/bin/entrypoint", "/sbin/init"],
+      Cmd: null,
+      User: "",
+      Hostname: name,
+    },
+    HostConfig: {
+      Binds: ["/lib/modules:/lib/modules:ro", "/dev/mapper:/dev/mapper", "/proc:/procHost:ro"],
+      Tmpfs: { "/run": "", "/tmp": "" },
+      Privileged: true,
+      CapAdd: null,
+      CapDrop: null,
+      Devices: [],
+      DeviceRequests: null,
+      PidMode: "",
+      IpcMode: "private",
+      UsernsMode: "",
+      CgroupnsMode: "private",
+      ReadonlyRootfs: false,
+      SecurityOpt: ["seccomp=unconfined", "apparmor=unconfined", "label=disable"],
+    },
+    Mounts: [
+      { Type: "bind", Source: "/lib/modules", Destination: "/lib/modules", Mode: "ro", RW: false, Propagation: "rprivate" },
+      { Type: "bind", Source: "/dev/mapper", Destination: "/dev/mapper", Mode: "", RW: true, Propagation: "rprivate" },
+      { Type: "bind", Source: "/proc", Destination: "/procHost", Mode: "ro", RW: false, Propagation: "rprivate" },
+      { Type: "volume", Name: volumeToken, Source: `/var/lib/docker/volumes/${volumeToken}/_data`, Destination: "/var", Driver: "local", Mode: "", RW: true, Propagation: "" },
+    ],
+    NetworkSettings: { Networks: {
+      [names.cluster]: {
+        Aliases: null,
+        DriverOpts: null,
+        Gateway: "172.18.0.1",
+        IPAddress: "172.18.0.2",
+        IPPrefixLen: 24,
+        MacAddress: "02:42:ac:12:00:02",
+        NetworkID: networkId,
+      },
+    } },
+  }];
+  const expectedNode = {
+    cluster: names.cluster,
+    imageId,
+    name,
+    networkId,
+    reference: "kindest/node:v1.35.5@sha256:fixture",
+    token,
+  };
+  const retained = validateKindNodeInspection(document, expectedNode);
+  assert.equal(retained.token, token);
+  assert.equal(retained.volumeToken, volumeToken);
+  assert.deepEqual(validateKindNodeInspection(structuredClone(document), expectedNode, retained), retained);
+
+  for (const mutate of [
+    (value) => { value[0].Id = "e".repeat(64); },
+    (value) => { value[0].Image = `sha256:${"e".repeat(64)}`; },
+    (value) => { value[0].Config.Labels.foreign = "true"; },
+    (value) => { value[0].HostConfig.Privileged = false; },
+    (value) => { value[0].Mounts.push({ Type: "bind", Source: "/foreign", Destination: "/foreign" }); },
+    (value) => { value[0].NetworkSettings.Networks.foreign = {}; },
+    (value) => { value[0].Mounts[3].Name = "e".repeat(64); },
+  ]) {
+    const changed = structuredClone(document);
+    mutate(changed);
+    assert.throws(() => validateKindNodeInspection(changed, expectedNode, retained), Failure);
+  }
 });
 
 test("builds an allowlisted tool environment without ambient credential or proxy state", () => {
@@ -271,6 +408,21 @@ test("accepts only exact Docker 29 missing container and network envelopes", () 
   assert.equal(exactMissingDockerObject({
     status: 1, signal: null, stdout: "", stderr: "foreign\n",
   }, token), false);
+});
+
+test("accepts only the exact Docker 29 missing volume envelope", () => {
+  const token = "a".repeat(64);
+  const exact = {
+    status: 1, signal: null, stdout: "[]\n",
+    stderr: `Error response from daemon: get ${token}: no such volume\n`,
+  };
+  assert.equal(exactMissingDockerVolume(exact, token), true);
+  for (const changed of [
+    { ...exact, status: 0 },
+    { ...exact, signal: "SIGKILL" },
+    { ...exact, stdout: "" },
+    { ...exact, stderr: `Error response from daemon: get ${token}: permission denied\n` },
+  ]) assert.equal(exactMissingDockerVolume(changed, token), false);
 });
 
 test("accepts only the exact pinned-image missing event-log envelope", () => {
@@ -412,6 +564,35 @@ test("main deadline joins the revoked operation before cleanup begins", async ()
     (error) => error instanceof Failure && error.category === "operation",
   );
   assert.deepEqual(events, ["main-start", "main-settled", "cleanup-start"]);
+});
+
+test("phase deadlines bound an uncooperative main and cleanup settlement", async () => {
+  const mainRuntime = new FakeRuntime();
+  mainRuntime.runFixture = async () => new Promise(() => {});
+  const mainStarted = Date.now();
+  await assert.rejects(
+    orchestrate(mainRuntime, {
+      mainTimeoutMs: 5,
+      cleanupTimeoutMs: 100,
+      settlementTimeoutMs: 5,
+    }),
+    (error) => error instanceof Failure && error.category === "operation",
+  );
+  assert.ok(Date.now() - mainStarted < 100);
+  assert.deepEqual(mainRuntime.events.slice(-3), ["joinMutations", "cleanup", "auditAbsence"]);
+
+  const cleanupRuntime = new FakeRuntime();
+  cleanupRuntime.cleanup = async () => new Promise(() => {});
+  const cleanupStarted = Date.now();
+  await assert.rejects(
+    orchestrate(cleanupRuntime, {
+      mainTimeoutMs: 100,
+      cleanupTimeoutMs: 5,
+      settlementTimeoutMs: 5,
+    }),
+    (error) => error instanceof Failure && error.category === "cleanup",
+  );
+  assert.ok(Date.now() - cleanupStarted < 100);
 });
 
 test("mutation journal join failure still runs cleanup and absence audit", async () => {
@@ -600,4 +781,209 @@ test("DockerKindSystem retains and cleans an mkdtemp candidate after invalid ini
   await system.cleanupTemporary(phase);
   assert.deepEqual(removed, [candidate]);
   assert.equal(system.hasCandidate(), false);
+});
+
+test("DockerKindSystem cleans only retained full IDs and preserves the network on unproved cluster absence", async () => {
+  const input = {
+    marker,
+    organizationId: "org_aaaaaaaaaaaaaaaa",
+    path: "/fixed/bin",
+    hostPlatform: "darwin/arm64",
+    nodePlatform: "linux/arm64",
+  };
+  const nodeToken = "a".repeat(64);
+  const volumeToken = "b".repeat(64);
+  const networkToken = "c".repeat(64);
+  const phase = { signal: new AbortController().signal, assertActive() {} };
+  const calls = [];
+  const system = new DockerKindSystem(input);
+  system.paths = Object.freeze({ kubeconfig: "/owned/kubeconfig" });
+  system.clusterMayHaveApplied = true;
+  system.networkMayHaveApplied = true;
+  system.resourcesApplied = true;
+  system.chartInstalled = true;
+  system.nodeToken = nodeToken;
+  system.nodeIdentity = Object.freeze({ token: nodeToken, volumeToken });
+  system.networkToken = networkToken;
+  system.verifyCluster = async () => { calls.push("verify-cluster"); };
+  system.requireClusterAbsent = async () => { calls.push("absent-cluster-volume"); };
+  system.verifyNetwork = async (_category, _phase, empty) => { calls.push(`verify-network-${empty}`); };
+  system.requireNetworkAbsent = async () => { calls.push("absent-network"); };
+  system.mutation = async (command, arguments_) => {
+    calls.push([command, ...arguments_].join(" "));
+    const token = command === "docker" && arguments_[0] === "rm" ? nodeToken : networkToken;
+    return { status: 0, signal: null, stdout: `${token}\n`, stderr: "" };
+  };
+
+  await system.cleanup(phase);
+  assert.deepEqual(calls, [
+    "verify-cluster",
+    `docker rm --force --volumes ${nodeToken}`,
+    "absent-cluster-volume",
+    "verify-network-true",
+    `docker network rm ${networkToken}`,
+    "absent-network",
+  ]);
+  assert.equal(system.resourcesApplied, false);
+  assert.equal(system.chartInstalled, false);
+
+  const rejected = new DockerKindSystem(input);
+  rejected.paths = Object.freeze({ kubeconfig: "/owned/kubeconfig" });
+  rejected.clusterMayHaveApplied = true;
+  rejected.networkMayHaveApplied = true;
+  rejected.nodeToken = nodeToken;
+  rejected.nodeIdentity = Object.freeze({ token: nodeToken, volumeToken });
+  rejected.networkToken = networkToken;
+  let mutations = 0;
+  rejected.verifyCluster = async () => { throw new Failure("cleanup"); };
+  rejected.verifyNetwork = async () => { throw new Error("network must be retained"); };
+  rejected.mutation = async () => { mutations += 1; };
+  await assert.rejects(rejected.cleanup(phase), (error) => error instanceof Failure && error.category === "cleanup");
+  assert.equal(mutations, 0);
+  assert.equal(rejected.networkMayHaveApplied, true);
+});
+
+test("concrete DockerKindSystem completes an injected full lifecycle through exact ID cleanup", async () => {
+  const input = {
+    marker,
+    organizationId: "org_aaaaaaaaaaaaaaaa",
+    path: "/fixed/bin",
+    hostPlatform: "darwin/arm64",
+    nodePlatform: "linux/arm64",
+  };
+  const networkToken = "a".repeat(64);
+  const nodeToken = "b".repeat(64);
+  const volumeToken = "c".repeat(64);
+  const commands = [];
+  const system = new DockerKindSystem(input, {
+    normalize: () => proofResult(),
+    wait: async () => {},
+  });
+  system.initialize = async () => {
+    system.paths = Object.freeze({
+      chart: "/owned/tetragon.tgz", kubeconfig: "/owned/kubeconfig",
+      kind: "/owned/kind", kindConfig: "/owned/kind.json",
+      resources: "/owned/resources.json", values: "/owned/values.json",
+    });
+    system.environment = Object.freeze({ PATH: "/fixed/bin" });
+  };
+  system.preflight = async () => {};
+  system.resolveAssets = async () => {
+    for (const [kind, pin] of Object.entries(system.fixture.pins).filter(([name]) =>
+      ["node", "tetragon", "operator", "busybox"].includes(name))) {
+      system.imageMetadata.set(kind, Object.freeze({
+        id: `sha256:${kind.slice(0, 1).repeat(64)}`,
+        platformDigest: pin.platformDigests[input.nodePlatform],
+        reference: pin.reference,
+      }));
+    }
+  };
+  system.execute = async (command, arguments_) => {
+    commands.push([command, ...arguments_]);
+    if (command === "docker" && arguments_[0] === "network" && arguments_[1] === "create") {
+      return { status: 0, signal: null, stdout: `${networkToken}\n`, stderr: "" };
+    }
+    if (command === "docker" && arguments_[0] === "exec" && arguments_.includes("list")) {
+      return {
+        status: 0, signal: null,
+        stdout: [system.fixture.pins.tetragon.reference, system.fixture.pins.operator.reference,
+          system.fixture.pins.busybox.reference, ""].join("\n"), stderr: "",
+      };
+    }
+    if (command === "docker" && arguments_[0] === "rm") {
+      return { status: 0, signal: null, stdout: `${nodeToken}\n`, stderr: "" };
+    }
+    if (command === "docker" && arguments_[0] === "network" && arguments_[1] === "rm") {
+      return { status: 0, signal: null, stdout: `${networkToken}\n`, stderr: "" };
+    }
+    if (command === "kubectl" && arguments_.includes("/bin/cat")) {
+      return { status: 0, signal: null, stdout: "{}\n", stderr: "" };
+    }
+    return { status: 0, signal: null, stdout: "ok\n", stderr: "" };
+  };
+  system.verifyNetwork = async (_category, _phase, empty) => {
+    assert.equal(empty, system.nodeIdentity === undefined);
+    system.networkToken = networkToken;
+  };
+  system.verifyCluster = async () => {
+    system.nodeToken = nodeToken;
+    system.nodeIdentity ??= Object.freeze({ token: nodeToken, volumeToken });
+  };
+  system.requireClusterAbsent = async () => {};
+  system.requireNetworkAbsent = async () => {};
+  system.requireDockerPrefixAbsent = async () => {};
+  system.readDirectory = async () => [];
+  system.prepareEvidence = async () => {
+    system.expected = Object.freeze({ sinkAddress: "10.96.0.23", tetragonPod: "tetragon-fixture" });
+    system.metricsBefore = Buffer.from("before");
+    system.eventBaseline = Buffer.alloc(0);
+    system.eventCapture = {
+      error: undefined,
+      promise: Promise.resolve(),
+      result: { status: 0, signal: null, stdout: "{}\n", stderr: "" },
+      settled: true,
+    };
+  };
+  system.captureMetrics = async () => Buffer.from("after");
+
+  const lifecycle = new DockerKindLifecycle(input, { system });
+  const result = await orchestrate(lifecycle, {
+    mainTimeoutMs: 1000, cleanupTimeoutMs: 1000, settlementTimeoutMs: 100,
+  });
+  assert.equal(result.cleanup, true);
+  assert.equal(system.hasCandidate(), false);
+  assert.equal(commands.some(([command, ...arguments_]) =>
+    command === "kubectl" && arguments_.includes("delete")), false);
+  assert.equal(commands.some(([command, ...arguments_]) =>
+    command === "helm" && arguments_.includes("uninstall")), false);
+  assert.equal(commands.some(([command, ...arguments_]) =>
+    command === "docker" && arguments_.join(" ") === `rm --force --volumes ${nodeToken}`), true);
+});
+
+test("Helm and resource uncertainty is armed before mutation and remains contained by the owned cluster", async () => {
+  const input = {
+    marker,
+    organizationId: "org_aaaaaaaaaaaaaaaa",
+    path: "/fixed/bin",
+    hostPlatform: "darwin/arm64",
+    nodePlatform: "linux/arm64",
+  };
+  const phase = { signal: new AbortController().signal, assertActive() {} };
+  const configured = () => {
+    const system = new DockerKindSystem(input, { wait: async () => {} });
+    system.paths = Object.freeze({
+      chart: "/owned/tetragon.tgz", kubeconfig: "/owned/kubeconfig",
+      resources: "/owned/resources.json", values: "/owned/values.json",
+    });
+    system.nodeToken = "a".repeat(64);
+    system.nodeIdentity = Object.freeze({ token: system.nodeToken, volumeToken: "b".repeat(64) });
+    system.networkToken = "c".repeat(64);
+    system.clusterMayHaveApplied = true;
+    system.verifyCluster = async () => {};
+    system.readCommand = async () => ({
+      status: 0, signal: null,
+      stdout: [system.fixture.pins.tetragon.reference, system.fixture.pins.operator.reference,
+        system.fixture.pins.busybox.reference, ""].join("\n"), stderr: "",
+    });
+    system.readKubectl = async () => ({ status: 0, signal: null, stdout: "ok\n", stderr: "" });
+    return system;
+  };
+
+  const helm = configured();
+  helm.mutation = async (command) => {
+    if (command === "helm") throw new Failure("operation");
+    return { status: 0, signal: null, stdout: "ok\n", stderr: "" };
+  };
+  await assert.rejects(helm.installTetragon(phase), Failure);
+  assert.equal(helm.chartInstalled, true);
+  assert.equal(helm.resourcesApplied, false);
+
+  const resources = configured();
+  resources.mutation = async (command) => {
+    if (command === "kubectl") throw new Failure("operation");
+    return { status: 0, signal: null, stdout: "ok\n", stderr: "" };
+  };
+  await assert.rejects(resources.installTetragon(phase), Failure);
+  assert.equal(resources.chartInstalled, true);
+  assert.equal(resources.resourcesApplied, true);
 });

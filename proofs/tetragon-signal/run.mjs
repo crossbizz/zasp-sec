@@ -21,6 +21,7 @@ export const FAILURE_CATEGORIES = Object.freeze([
 
 const mainTimeoutMilliseconds = 600_000;
 const cleanupTimeoutMilliseconds = 120_000;
+const phaseSettlementTimeoutMilliseconds = 5_000;
 const namePattern = /^zasp-m0-12-[0-9a-f]{16}$/;
 const markerPattern = /^[0-9a-f]{16}$/;
 const organizationPattern = /^org_[a-z0-9]{16}$/;
@@ -101,6 +102,18 @@ export function buildEventCaptureArguments(tetragonPod) {
   ];
 }
 
+export function buildTetragonHealthArguments(tetragonPod) {
+  validateBoundedString(tetragonPod, "Tetragon pod name");
+  if (!/^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$/.test(tetragonPod)) {
+    throw new TypeError("Tetragon pod name is invalid");
+  }
+  return [
+    "exec", "--namespace", "kube-system", tetragonPod, "--container", "tetragon",
+    "--", "/usr/bin/tetra", "--server-address", "unix:///var/run/tetragon/tetragon.sock", "--timeout", "5s",
+    "--retries", "1", "status",
+  ];
+}
+
 export function buildKprobeEventCaptureArguments(tetragonPod, names) {
   validateBoundedString(tetragonPod, "Tetragon pod name");
   if (!/^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$/.test(tetragonPod)) {
@@ -129,8 +142,10 @@ export function buildNodeImagePullArguments(nodeToken, platform, reference) {
   ];
 }
 
-export function validateTetragonHealthPod(pod, expectedNodeName) {
-  if (!isPlainObject(pod) || typeof expectedNodeName !== "string" || expectedNodeName.length === 0) {
+export function validateTetragonHealthPod(pod, expectedNodeName, expectedImage, expectedDigest, marker) {
+  if (!isPlainObject(pod) || typeof expectedNodeName !== "string" || expectedNodeName.length === 0 ||
+      typeof expectedImage !== "string" || !/^sha256:[0-9a-f]{64}$/.test(expectedDigest ?? "") ||
+      !markerPattern.test(marker ?? "")) {
     throw new Failure("capability");
   }
   const podName = pod.metadata?.name;
@@ -142,11 +157,120 @@ export function validateTetragonHealthPod(pod, expectedNodeName) {
   if (
     typeof podName !== "string" || !/^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$/.test(podName) ||
     pod.spec?.nodeName !== expectedNodeName || pod.status?.phase !== "Running" ||
+    pod.metadata?.labels?.["zasp.dev/proof"] !== "m0-12" ||
+    pod.metadata?.labels?.["zasp.dev/run"] !== marker ||
     tetragon.length !== 1 || status.length !== 1 || status[0].ready !== true || status[0].restartCount !== 0 ||
+    tetragon[0].image !== expectedImage ||
+    status[0].imageID !== expectedImage ||
     !isPlainObject(probe) || !isPlainObject(probe.grpc) ||
     probe.grpc.port !== 6789 || probe.grpc.service !== "liveness" || probe.timeoutSeconds !== 60
   ) throw new Failure("capability");
   return podName;
+}
+
+export function validateOperatorPod(pod, expectedNodeName, expectedImage, expectedDigest, marker) {
+  if (!isPlainObject(pod) || typeof expectedNodeName !== "string" || expectedNodeName.length === 0 ||
+      typeof expectedImage !== "string" || !/^sha256:[0-9a-f]{64}$/.test(expectedDigest ?? "") ||
+      !markerPattern.test(marker ?? "")) throw new Failure("capability");
+  const containers = pod.spec?.containers;
+  const statuses = pod.status?.containerStatuses;
+  const expectedName = "tetragon-operator";
+  const container = Array.isArray(containers) ? containers.filter((entry) => entry?.name === expectedName) : [];
+  const status = Array.isArray(statuses) ? statuses.filter((entry) => entry?.name === expectedName) : [];
+  if (
+    typeof pod.metadata?.name !== "string" || pod.metadata.namespace !== "kube-system" ||
+    pod.metadata?.labels?.["zasp.dev/proof"] !== "m0-12" || pod.metadata?.labels?.["zasp.dev/run"] !== marker ||
+    pod.spec?.nodeName !== expectedNodeName || pod.status?.phase !== "Running" ||
+    container.length !== 1 || status.length !== 1 || status[0].ready !== true || status[0].restartCount !== 0 ||
+    container[0].image !== expectedImage ||
+    status[0].imageID !== expectedImage
+  ) throw new Failure("capability");
+  return pod.metadata.name;
+}
+
+export function validateTetragonHealthResult(result) {
+  return successful(result) && result.stdout === "Health Status: running\n" && result.stderr === "";
+}
+
+export function validateKindNodeInspection(document, expected, retained = undefined) {
+  try {
+    expectExactObject(expected, [
+      "cluster", "imageId", "name", "networkId", "reference", "token",
+    ], "kind node expectation");
+    const node = Array.isArray(document) && document.length === 1 ? document[0] : undefined;
+    const config = node?.Config;
+    const host = node?.HostConfig;
+    const mounts = node?.Mounts;
+    const networks = node?.NetworkSettings?.Networks;
+    if (
+      !isPlainObject(node) || node.Id !== expected.token || node.Name !== `/${expected.name}` ||
+      node.Image !== expected.imageId || !isPlainObject(config) || config.Image !== expected.reference ||
+      config.Hostname !== expected.name || config.User !== "" || config.Cmd !== null ||
+      !exactStringArray(config.Entrypoint, ["/usr/local/bin/entrypoint", "/sbin/init"]) ||
+      !isExactStringMap(config.Labels, {
+        "io.x-k8s.kind.cluster": expected.cluster,
+        "io.x-k8s.kind.role": "control-plane",
+      }) || !exactStringSet(config.Env, [
+        "KIND_EXPERIMENTAL_CONTAINERD_SNAPSHOTTER",
+        "KUBECONFIG=/etc/kubernetes/admin.conf",
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "container=docker", "HTTP_PROXY=", "HTTPS_PROXY=", "NO_PROXY=",
+      ]) || !isPlainObject(host) || !exactStringSet(host.Binds, [
+        "/lib/modules:/lib/modules:ro", "/dev/mapper:/dev/mapper", "/proc:/procHost:ro",
+      ]) || !isExactStringMap(host.Tmpfs, { "/run": "", "/tmp": "" }) ||
+      host.Privileged !== true || host.CapAdd !== null || host.CapDrop !== null ||
+      !Array.isArray(host.Devices) || host.Devices.length !== 0 || host.DeviceRequests !== null ||
+      host.PidMode !== "" || host.IpcMode !== "private" || host.UsernsMode !== "" ||
+      host.CgroupnsMode !== "private" || host.ReadonlyRootfs !== false ||
+      !exactStringSet(host.SecurityOpt, ["seccomp=unconfined", "apparmor=unconfined", "label=disable"]) ||
+      !Array.isArray(mounts) || mounts.length !== 4 || !isPlainObject(networks) ||
+      Object.keys(networks).length !== 1 || !Object.hasOwn(networks, expected.cluster)
+    ) throw new TypeError("kind node metadata is invalid");
+
+    const bindExpectations = [
+      ["/lib/modules", "/lib/modules", "ro", false, "rprivate"],
+      ["/dev/mapper", "/dev/mapper", "", true, "rprivate"],
+      ["/proc", "/procHost", "ro", false, "rprivate"],
+    ];
+    for (const [source, destination, mode, writable, propagation] of bindExpectations) {
+      const matching = mounts.filter((mount) => isPlainObject(mount) &&
+        mount.Type === "bind" && mount.Source === source && mount.Destination === destination &&
+        mount.Mode === mode && mount.RW === writable && mount.Propagation === propagation);
+      if (matching.length !== 1) throw new TypeError("kind node bind is invalid");
+    }
+    const volumes = mounts.filter((mount) => isPlainObject(mount) && mount.Type === "volume");
+    if (volumes.length !== 1) throw new TypeError("kind node volume is invalid");
+    const volume = volumes[0];
+    if (
+      !objectIdPattern.test(volume.Name ?? "") ||
+      typeof volume.Source !== "string" || !volume.Source.endsWith(`/${volume.Name}/_data`) ||
+      volume.Destination !== "/var" || volume.Driver !== "local" || volume.Mode !== "" ||
+      volume.RW !== true || volume.Propagation !== ""
+    ) throw new TypeError("kind node volume is invalid");
+
+    const network = networks[expected.cluster];
+    if (
+      !isPlainObject(network) || network.NetworkID !== expected.networkId ||
+      network.Aliases !== null || network.DriverOpts !== null ||
+      !ipv4Pattern.test(network.Gateway ?? "") || !ipv4Pattern.test(network.IPAddress ?? "") ||
+      network.IPPrefixLen !== 24 || !/^([0-9a-f]{2}:){5}[0-9a-f]{2}$/.test(network.MacAddress ?? "")
+    ) throw new TypeError("kind node network is invalid");
+    const identity = Object.freeze({
+      gateway: network.Gateway,
+      imageId: expected.imageId,
+      ipAddress: network.IPAddress,
+      macAddress: network.MacAddress,
+      networkId: expected.networkId,
+      token: expected.token,
+      volumeToken: volume.Name,
+    });
+    if (retained !== undefined && !sameData(identity, retained)) {
+      throw new TypeError("kind node identity changed");
+    }
+    return identity;
+  } catch {
+    throw new Failure("ownership");
+  }
 }
 
 export function buildToolEnvironment(input) {
@@ -299,7 +423,7 @@ export async function orchestrate(runtime, options = {}) {
   let result;
   let mainError;
   try {
-    result = await runPhase(limits.mainTimeoutMs, async (phase) => {
+    result = await runPhase(limits.mainTimeoutMs, limits.settlementTimeoutMs, async (phase) => {
       await runtime.preflight(phase);
       await runtime.createCluster(phase);
       await runtime.installTetragon(phase);
@@ -316,13 +440,13 @@ export async function orchestrate(runtime, options = {}) {
   let cleanupError;
   let auditError;
   try {
-    await runPhase(limits.cleanupTimeoutMs, async (phase) => {
+    await runPhase(limits.cleanupTimeoutMs, limits.settlementTimeoutMs, async (phase) => {
       try { await runtime.joinMutations(phase); } catch (error) { joinError = normalizeFailure(error); }
       try { await runtime.cleanup(phase); } catch (error) { cleanupError = normalizeFailure(error, "cleanup"); }
       try { await runtime.auditAbsence(phase); } catch (error) { auditError = normalizeFailure(error, "cleanup"); }
     });
-  } catch (error) {
-    cleanupError ??= normalizeFailure(error, "cleanup");
+  } catch {
+    cleanupError ??= new Failure("cleanup");
   }
 
   if (cleanupError) throw cleanupError;
@@ -472,6 +596,7 @@ export class DockerKindSystem {
     this.networkToken = undefined;
     this.clusterMayHaveApplied = false;
     this.nodeToken = undefined;
+    this.nodeIdentity = undefined;
     this.chartInstalled = false;
     this.resourcesApplied = false;
     this.expected = undefined;
@@ -594,7 +719,10 @@ export class DockerKindSystem {
     assertPhase(phase, "provider");
     const outcome = thrown ? "ambiguous" : classifyMutationOutcome(result, (value) =>
       objectIdPattern.test(singleLine(value.stdout)) && value.stderr === "");
-    if (outcome === "definitive") throw new Failure("provider");
+    if (outcome === "definitive") {
+      this.networkMayHaveApplied = false;
+      throw new Failure("provider");
+    }
     if (outcome === "success") this.networkToken = singleLine(result.stdout);
     await this.verifyNetwork("ownership", phase, true);
   }
@@ -615,7 +743,10 @@ export class DockerKindSystem {
     assertPhase(phase, "provider");
     const outcome = thrown ? "ambiguous" : classifyMutationOutcome(result, (value) =>
       value.stderr.length <= processOutputLimit && value.stdout.length <= processOutputLimit);
-    if (outcome === "definitive") throw new Failure("provider");
+    if (outcome === "definitive") {
+      this.clusterMayHaveApplied = false;
+      throw new Failure("provider");
+    }
     await this.verifyCluster("ownership", phase);
   }
 
@@ -632,19 +763,23 @@ export class DockerKindSystem {
       ], "provider", phase, processOutputLimit, 30_000);
       if (!successful(listed) || !listed.stdout.split("\n").includes(pin.reference)) throw new Failure("provider");
     }
+    this.chartInstalled = true;
     const installed = await this.mutation("helm", buildHelmInstallArguments({
       chart: this.paths.chart,
       kubeconfig: this.paths.kubeconfig,
       values: this.paths.values,
     }),
       "provider", phase, processOutputLimit, 240_000);
-    if (classifyMutationOutcome(installed, () => true) !== "success") throw new Failure("provider");
-    this.chartInstalled = true;
+    const installOutcome = classifyMutationOutcome(installed, () => true);
+    if (installOutcome === "definitive") this.chartInstalled = false;
+    if (installOutcome !== "success") throw new Failure("provider");
+    this.resourcesApplied = true;
     const applied = await this.mutation("kubectl", [
       "apply", "--kubeconfig", this.paths.kubeconfig, "--filename", this.paths.resources,
     ], "provider", phase, processOutputLimit, 90_000);
-    if (classifyMutationOutcome(applied, () => true) !== "success") throw new Failure("provider");
-    this.resourcesApplied = true;
+    const applyOutcome = classifyMutationOutcome(applied, () => true);
+    if (applyOutcome === "definitive") this.resourcesApplied = false;
+    if (applyOutcome !== "success") throw new Failure("provider");
     for (const arguments_ of [
       ["rollout", "status", "daemonset/tetragon", "--namespace", "kube-system", "--timeout", "180s"],
       ["wait", "--namespace", this.fixture.names.namespace, "--for=condition=Ready", "pod/workload", "--timeout", "120s"],
@@ -836,7 +971,11 @@ export class DockerKindSystem {
       !document[1].some((entry) => entry.endsWith(`@${expectedDigest}`)) ||
       `${document[2]}/${document[3] === "x86_64" ? "amd64" : document[3]}` !== this.input.nodePlatform
     ) throw new Failure("provider");
-    this.imageMetadata.set(kind, Object.freeze({ id: document[0], reference: pin.reference }));
+    const platformDigest = pin.platformDigests?.[this.input.nodePlatform];
+    if (!/^sha256:[0-9a-f]{64}$/.test(platformDigest ?? "")) throw new Failure("provider");
+    this.imageMetadata.set(kind, Object.freeze({
+      id: document[0], platformDigest, reference: pin.reference,
+    }));
   }
 
   async networkCandidates(category, phase) {
@@ -898,26 +1037,25 @@ export class DockerKindSystem {
     if (candidates.length !== 1) throw new Failure(category);
     const [token, name] = candidates[0];
     if (!objectIdPattern.test(token)) throw new Failure(category);
-    const inspected = await this.readCommand("docker", [
-      "inspect", "--format",
-      "[{{json .Id}},{{json .Name}},{{json .Config.Image}},{{json .Config.Labels}},{{json .Mounts}},{{json .NetworkSettings.Networks}}]",
-      token,
-    ], category, phase, processOutputLimit, 15_000);
+    if (this.nodeIdentity !== undefined && token !== this.nodeIdentity.token) throw new Failure(category);
+    const inspected = await this.readCommand("docker", ["inspect", token],
+      category, phase, processOutputLimit, 15_000);
     if (!successful(inspected) || inspected.stderr !== "") throw new Failure(category);
     let document;
-    try { document = parseUniqueJson(singleLine(inspected.stdout)); } catch { throw new Failure(category); }
-    const labels = document?.[3];
-    const mounts = document?.[4];
-    const networks = document?.[5];
-    if (
-      !Array.isArray(document) || document.length !== 6 || document[0] !== token ||
-      document[1] !== `/${name}` || document[2] !== this.fixture.pins.node.reference ||
-      !isPlainObject(labels) || labels["io.x-k8s.kind.cluster"] !== this.fixture.names.cluster ||
-      labels["io.x-k8s.kind.role"] !== "control-plane" || !Array.isArray(mounts) ||
-      mounts.filter((mount) => isPlainObject(mount) && mount.Source === "/proc" &&
-        mount.Destination === "/procHost" && mount.RW === false).length !== 1 ||
-      !isPlainObject(networks) || !Object.hasOwn(networks, this.fixture.names.prefix)
-    ) throw new Failure(category);
+    try { document = parseUniqueJson(inspected.stdout); } catch { throw new Failure(category); }
+    const imageId = this.imageMetadata.get("node")?.id;
+    const networkId = this.networkToken;
+    if (!/^sha256:[0-9a-f]{64}$/.test(imageId ?? "") || !objectIdPattern.test(networkId ?? "")) {
+      throw new Failure(category);
+    }
+    const identity = validateKindNodeInspection(document, {
+      cluster: this.fixture.names.cluster,
+      imageId,
+      name,
+      networkId,
+      reference: this.fixture.pins.node.reference,
+      token,
+    }, this.nodeIdentity);
     let kubeconfig;
     let status;
     try {
@@ -928,31 +1066,37 @@ export class DockerKindSystem {
       !status?.isFile?.() || status?.isSymbolicLink?.()
     ) throw new Failure(category);
     this.nodeToken = token;
+    this.nodeIdentity = identity;
   }
 
   async prepareEvidence(phase) {
-    const [workloadResult, serviceResult, tetragonResult] = await Promise.all([
+    const [workloadResult, serviceResult, tetragonResult, operatorResult] = await Promise.all([
       this.readKubectl(["get", "pod", this.fixture.names.workloadPod, "--namespace", this.fixture.names.namespace, "--output=json"],
         "capability", phase),
       this.readKubectl(["get", "service", this.fixture.names.sinkService, "--namespace", this.fixture.names.namespace, "--output=json"],
         "capability", phase),
       this.readKubectl(["get", "pods", "--namespace", "kube-system", "--selector", "app.kubernetes.io/name=tetragon", "--output=json"],
         "capability", phase),
+      this.readKubectl(["get", "pods", "--namespace", "kube-system", "--selector", "app.kubernetes.io/name=tetragon-operator", "--output=json"],
+        "capability", phase),
     ]);
-    if (![workloadResult, serviceResult, tetragonResult].every((value) => successful(value) && value.stderr === "")) {
+    if (![workloadResult, serviceResult, tetragonResult, operatorResult].every((value) => successful(value) && value.stderr === "")) {
       throw new Failure("capability");
     }
     let workload;
     let service;
     let tetragonList;
+    let operatorList;
     try {
       workload = parseUniqueJson(workloadResult.stdout);
       service = parseUniqueJson(serviceResult.stdout);
       tetragonList = parseUniqueJson(tetragonResult.stdout);
+      operatorList = parseUniqueJson(operatorResult.stdout);
     } catch { throw new Failure("capability"); }
     const status = workload?.status?.containerStatuses;
     const specification = workload?.spec?.containers;
     const items = tetragonList?.items;
+    const operatorItems = operatorList?.items;
     if (
       workload?.metadata?.name !== this.fixture.names.workloadPod ||
       workload?.metadata?.namespace !== this.fixture.names.namespace ||
@@ -961,9 +1105,18 @@ export class DockerKindSystem {
       status[0]?.restartCount !== 0 || !/^containerd:\/\/[0-9a-f]{64}$/.test(status[0]?.containerID ?? "") ||
       !Array.isArray(specification) || specification.length !== 1 ||
       !Array.isArray(items) || items.length !== 1 ||
+      !Array.isArray(operatorItems) || operatorItems.length !== 1 ||
       !ipv4Pattern.test(service?.spec?.clusterIP ?? "")
     ) throw new Failure("capability");
-    const tetragonPod = validateTetragonHealthPod(items[0], workload.spec.nodeName);
+    const tetragonMetadata = this.imageMetadata.get("tetragon");
+    const operatorMetadata = this.imageMetadata.get("operator");
+    const tetragonPod = validateTetragonHealthPod(items[0], workload.spec.nodeName,
+      this.fixture.pins.tetragon.reference, tetragonMetadata?.platformDigest, this.input.marker);
+    validateOperatorPod(operatorItems[0], workload.spec.nodeName,
+      this.fixture.pins.operator.reference, operatorMetadata?.platformDigest, this.input.marker);
+    const health = await this.readKubectl(buildTetragonHealthArguments(tetragonPod),
+      "capability", phase, smallOutputLimit, 15_000);
+    if (!validateTetragonHealthResult(health)) throw new Failure("capability");
     const btf = await this.readCommand("docker", ["exec", this.nodeToken, "test", "-r", "/sys/kernel/btf/vmlinux"],
       "capability", phase, smallOutputLimit, 15_000);
     if (!successful(btf)) throw new Failure("capability");
@@ -993,6 +1146,7 @@ export class DockerKindSystem {
       sinkPort: 18080,
       sensorVersion: "v1.7.0",
       sensorCommit: "1de2ed8ebea18e56257dc59597aa13bf8f0e471e",
+      sensorImageDigest: this.fixture.pins.tetragon.reference.split("@")[1],
       policyCount: 2,
       tetragonPod,
     });
@@ -1066,6 +1220,11 @@ export class DockerKindSystem {
         "cleanup", phase, smallOutputLimit, 15_000);
       if (!exactMissingDockerObject(result, this.nodeToken)) throw new Failure("cleanup");
     }
+    if (objectIdPattern.test(this.nodeIdentity?.volumeToken ?? "")) {
+      const result = await this.readCommand("docker", ["volume", "inspect", this.nodeIdentity.volumeToken],
+        "cleanup", phase, smallOutputLimit, 15_000);
+      if (!exactMissingDockerVolume(result, this.nodeIdentity.volumeToken)) throw new Failure("cleanup");
+    }
   }
 
   async requireNetworkAbsent(phase) {
@@ -1119,42 +1278,28 @@ export class DockerKindSystem {
       try { await operation(); } catch { failed = true; }
       assertPhase(phase, "cleanup");
     };
+    let clusterAbsent = !this.clusterMayHaveApplied;
     await step(async () => this.drainKprobeCapture());
-    if (this.resourcesApplied && this.paths !== undefined) {
-      await step(async () => {
-        const value = await this.mutation("kubectl", [
-          "delete", "--kubeconfig", this.paths.kubeconfig, "--filename", this.paths.resources,
-          "--ignore-not-found=true", "--wait=true", "--timeout=60s",
-        ], "cleanup", phase, processOutputLimit, 75_000);
-        if (!successful(value)) throw new Failure("cleanup");
-        this.resourcesApplied = false;
-      });
-    }
-    if (this.chartInstalled && this.paths !== undefined) {
-      await step(async () => {
-        const value = await this.mutation("helm", [
-          "uninstall", "tetragon", "--namespace", "kube-system", "--kubeconfig", this.paths.kubeconfig,
-          "--wait", "--timeout", "60s",
-        ], "cleanup", phase, processOutputLimit, 75_000);
-        if (!successful(value)) throw new Failure("cleanup");
-        this.chartInstalled = false;
-      });
-    }
     if (this.clusterMayHaveApplied && this.paths !== undefined) {
       await step(async () => {
-        const value = await this.mutation(this.paths.kind, [
-          "delete", "cluster", "--name", this.fixture.names.cluster,
-          "--kubeconfig", this.paths.kubeconfig,
-        ], "cleanup", phase, processOutputLimit, 90_000);
-        if (!successful(value)) await this.requireClusterAbsent(phase);
+        await this.verifyCluster("cleanup", phase);
+        const token = this.nodeIdentity?.token;
+        if (!objectIdPattern.test(token ?? "")) throw new Failure("cleanup");
+        const value = await this.mutation("docker", ["rm", "--force", "--volumes", token],
+          "cleanup", phase, processOutputLimit, 90_000);
+        if (!successful(value) || singleLine(value.stdout) !== token) await this.requireClusterAbsent(phase);
         await this.requireClusterAbsent(phase);
         this.clusterMayHaveApplied = false;
+        this.resourcesApplied = false;
+        this.chartInstalled = false;
         this.nodeToken = undefined;
+        this.nodeIdentity = undefined;
+        clusterAbsent = true;
       });
     }
-    if (this.networkMayHaveApplied) {
+    if (this.networkMayHaveApplied && clusterAbsent) {
       await step(async () => {
-        await this.verifyNetwork("cleanup", phase, false);
+        await this.verifyNetwork("cleanup", phase, true);
         const token = this.networkToken;
         if (!objectIdPattern.test(token ?? "")) throw new Failure("cleanup");
         const value = await this.mutation("docker", ["network", "rm", token],
@@ -1187,7 +1332,7 @@ export class DockerKindSystem {
   }
 }
 
-async function runPhase(timeoutMs, operation) {
+async function runPhase(timeoutMs, settlementTimeoutMs, operation) {
   const controller = new AbortController();
   let active = true;
   const phase = Object.freeze({
@@ -1210,12 +1355,24 @@ async function runPhase(timeoutMs, operation) {
   try {
     return await Promise.race([pending, deadline]);
   } catch (error) {
-    if (timedOut) await pending.catch(() => {});
+    if (timedOut) await settleWithin(pending, settlementTimeoutMs);
     throw error;
   } finally {
     clearTimeout(timeout);
     active = false;
     controller.abort();
+  }
+}
+
+async function settleWithin(pending, timeoutMs) {
+  let timeout;
+  try {
+    await Promise.race([
+      pending.catch(() => {}),
+      new Promise((resolve) => { timeout = setTimeout(resolve, timeoutMs); }),
+    ]);
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -1256,13 +1413,20 @@ function validateRuntimeInput(input) {
 }
 
 function validateOrchestrationOptions(value) {
-  expectExactObject(value, ["cleanupTimeoutMs", "mainTimeoutMs"], "orchestration options");
-  for (const name of ["mainTimeoutMs", "cleanupTimeoutMs"]) {
-    if (!Number.isSafeInteger(value[name]) || value[name] < 1 || value[name] > 900_000) {
+  expectAllowedDataObject(value, new Set([
+    "cleanupTimeoutMs", "mainTimeoutMs", "settlementTimeoutMs",
+  ]), "orchestration options");
+  const selected = {
+    cleanupTimeoutMs: value.cleanupTimeoutMs,
+    mainTimeoutMs: value.mainTimeoutMs,
+    settlementTimeoutMs: value.settlementTimeoutMs ?? phaseSettlementTimeoutMilliseconds,
+  };
+  for (const name of ["mainTimeoutMs", "cleanupTimeoutMs", "settlementTimeoutMs"]) {
+    if (!Number.isSafeInteger(selected[name]) || selected[name] < 1 || selected[name] > 900_000) {
       throw new TypeError(`${name} is invalid`);
     }
   }
-  return value;
+  return Object.freeze(selected);
 }
 
 function validateProofResult(value) {
@@ -1395,6 +1559,26 @@ function isExactStringMap(value, expected) {
     key === expectedKeys[index] && value[key] === expected[key]);
 }
 
+function exactStringArray(value, expected) {
+  return Array.isArray(value) && value.length === expected.length &&
+    value.every((entry, index) => entry === expected[index]);
+}
+
+function exactStringSet(value, expected) {
+  return Array.isArray(value) && value.every((entry) => typeof entry === "string") &&
+    new Set(value).size === value.length &&
+    value.length === expected.length &&
+    [...value].sort().every((entry, index) => entry === [...expected].sort()[index]);
+}
+
+function sameData(value, expected) {
+  if (!isPlainObject(value) || !isPlainObject(expected)) return false;
+  const keys = Object.keys(value).sort();
+  const expectedKeys = Object.keys(expected).sort();
+  return keys.length === expectedKeys.length && keys.every((key, index) =>
+    key === expectedKeys[index] && value[key] === expected[key]);
+}
+
 function sha256(value) {
   if (!(value instanceof Uint8Array)) throw new TypeError("digest input is invalid");
   return createHash("sha256").update(value).digest("hex");
@@ -1449,6 +1633,12 @@ export function exactMissingDockerObject(result, token) {
   ) return false;
   return result.stderr === `error: no such object: ${token}\n` ||
     result.stderr === `Error response from daemon: network ${token} not found\n`;
+}
+
+export function exactMissingDockerVolume(result, token) {
+  return result !== null && typeof result === "object" && result.status === 1 && result.signal === null &&
+    result.stdout === "[]\n" && objectIdPattern.test(token) &&
+    result.stderr === `Error response from daemon: get ${token}: no such volume\n`;
 }
 
 export function exactMissingTetragonLog(result) {

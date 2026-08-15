@@ -63,12 +63,14 @@ a successful live result.
   `dca67911095a110c2b5c36e26df6cac860c602033e456c0db47be498cdef1ebb`.
 - Kubernetes node image
   `kindest/node:v1.35.5@sha256:ce977ae6d65918d0b58a5f8b5e940429c2ce42fa3a5619ec2bbc60b949c0ac95`.
-- BusyBox fixture image index
-  `busybox:1.37.0@sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0`,
+- Kubernetes test-registry BusyBox fixture image index
+  `registry.k8s.io/e2e-test-images/busybox:1.36.1-1@sha256:a9155b13325b2abef48e71de77bb8ac015412a566829f621d06bfae5c699b1b9`,
   with arm64 descriptor
-  `sha256:f10e809bcf667d8e9f01d2baf82869049a495cd448cdfe1f4dee94078b960ae9`
+  `sha256:55c89c6d9404d6668eb237dda92f28a99eb14e640f1c177a55cc9d738c53c303`
   and amd64 descriptor
-  `sha256:7a3ebe5bfd1a4a19797d20b0c0bb39d44393e9a03fd852c0865b0f540d868df0`.
+  `sha256:caec39cad3b12c26600baf6e67ba811ac15d28a9288d0ccdfffb4b318992c3bb`.
+  This exact compatibility pin is served from the Kubernetes registry so the
+  disposable kind node does not depend on Docker Hub pull-rate availability.
 
 The implementation will retain platform-specific descriptors and complete
 runtime metadata rather than accepting a tag or mutable name as ownership.
@@ -88,7 +90,9 @@ The cluster contains:
 - one fixed-label synthetic workload pod;
 - one in-cluster TCP sink with no published host port;
 - one narrow file tracing policy for the fixture path; and
-- one narrow `tcp_connect` tracing policy filtered to the fixture workload.
+- one narrow `tcp_connect` tracing policy. Both policies carry the exact
+  proof/run pod-label selector and exact workload container-name selector, so
+  omission cannot silently broaden them to unrelated workloads.
 
 The workload performs, in order:
 
@@ -123,10 +127,12 @@ authorization boundary.
 The proof requires explicit sensor evidence rather than treating emitted
 events alone as proof of health:
 
-- exact Tetragon build/version metadata;
-- a ready Tetragon pod on the fixture node;
+- exact Tetragon build/version metadata, with the source commit interpreted
+  only after the deployed immutable image reference has been re-proved;
+- ready Tetragon and operator pods on the fixture node, each reporting the
+  exact pinned image reference and proof/run labels;
 - both tracing policies reported as loaded/enabled;
-- the health endpoint reporting service readiness;
+- an explicit bounded `tetra status` call to the sensor's gRPC health service;
 - the required kernel/BTF/eBPF capability state; and
 - all required loss/drop counters present with numeric values.
 
@@ -164,8 +170,13 @@ events.
    capture bounded events, and capture the final capability/drop state.
 6. Validate the shared workload identity, exact observations, policy state,
    zero loss/drop delta, and fixed result.
-7. Delete namespace resources, policies, chart, and cluster in reverse
-   dependency order, then prove exact full-ID/name/prefix/label/temp absence.
+7. Treat the exact disposable kind node as the containing ownership boundary:
+   re-prove its retained full ID, immutable image/runtime/network fingerprint,
+   and anonymous volume immediately before removing that full ID with volumes.
+   This atomically disposes the namespace resources, policies, chart, and
+   cluster without any name-based Kubernetes or Helm delete that could target
+   a replacement. Then prove exact node-volume/network/name/prefix/label/temp
+   absence in reverse dependency order.
 
 Cleanup uses an independent deadline, continues across all retained targets,
 and wins error precedence. Ambiguous creates retain candidates before result
