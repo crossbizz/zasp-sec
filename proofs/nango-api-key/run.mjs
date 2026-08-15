@@ -224,8 +224,9 @@ export class DockerNangoApiKeyRuntime {
       const ready = await this.#docker(["exec", this.resources.get("database").id, "pg_isready", "-q", "-U", expected.user, "-d", expected.databaseName], 5_000, signal);
       if (quietStatus(ready, 0)) {
         const query = await this.#docker(["exec", this.resources.get("database").id, "psql", "--no-psqlrc", "-qAt", "-v", "ON_ERROR_STOP=1", "-U", expected.user, "-d", expected.databaseName, "-c", "SELECT 1;"], 5_000, signal);
-        if (query.status === 0 && query.signal === null && query.stderr === "" && query.stdout === "1\n") return;
-        if (!(query.status === 2 && query.signal === null && query.stdout === "" && query.stderr === "")) throw providerError();
+        const state = classifyDatabaseQueryResult(query);
+        if (state === "ready") return;
+        if (state === "invalid") throw providerError();
       } else if (!(ready.signal === null && [1, 2].includes(ready.status) && ready.stdout === "" && ready.stderr === "")) throw providerError();
       await delay(500, signal);
     }
@@ -770,6 +771,13 @@ function emptyMutationClassification(result) {
 
 function quietStatus(result, status) {
   return plainObject(result) && result.status === status && result.signal === null && result.stdout === "" && result.stderr === "";
+}
+
+export function classifyDatabaseQueryResult(result) {
+  if (!plainObject(result) || typeof result.stdout !== "string" || typeof result.stderr !== "string" || result.stdout.length + result.stderr.length > maximumCommandBytes) return "invalid";
+  if (result.status === 0 && result.signal === null && result.stdout === "1\n" && result.stderr === "") return "ready";
+  if (result.status === 2 && result.signal === null && result.stdout === "") return "pending";
+  return "invalid";
 }
 
 function requireOperation(runtime, name) {

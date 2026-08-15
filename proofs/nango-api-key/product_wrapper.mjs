@@ -164,7 +164,10 @@ async function readConnection(input, apiKey, request, sleep, maximumPollAttempts
     }, 200);
     exactKeys(response, ["data"]);
     if (!Array.isArray(response.data) || response.data.length > 1) throw failure("provider");
-    if (response.data.length === 1) return validateConnection(input, response.data[0]);
+    if (response.data.length === 1) {
+      try { return validateConnection(input, response.data[0]); }
+      catch (error) { if (!(error instanceof Failure) || error.category !== "provider") throw error; }
+    }
     if (attempt + 1 < maximumPollAttempts) {
       try { await sleep(100); } catch { throw failure("api_key"); }
     }

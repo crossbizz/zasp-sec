@@ -202,6 +202,26 @@ test("rejects API-key authorization and connection identity drift", async () => 
   }
 });
 
+test("retries one transient incomplete connection until exact state", async () => {
+  const base = happyTransport();
+  let connectionReads = 0;
+  let sleeps = 0;
+  const result = await runApiKeyConnection(input, {
+    maximumPollAttempts: 2,
+    request: async (specification) => {
+      const response = await base.request(specification);
+      if (new URL(specification.url).pathname !== "/api/v1/connections" || connectionReads++ > 0) return response;
+      const value = JSON.parse(response.body.toString("utf8"));
+      value.data[0].tags.origin = "pending";
+      return json(response.status, value);
+    },
+    sleep: async () => { sleeps += 1; },
+  });
+  assert.equal(connectionReads, 2);
+  assert.equal(sleeps, 1);
+  assert.equal(result.connectionId, connectionId);
+});
+
 test("honors cancellation before and after transport", async () => {
   const before = new AbortController();
   before.abort();

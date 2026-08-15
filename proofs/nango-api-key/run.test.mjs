@@ -11,6 +11,7 @@ import {
   buildNetworkCreateArguments,
   buildSchemaCommands,
   classifyMutationResult,
+  classifyDatabaseQueryResult,
   orchestrate,
   parseWrapperOutput,
   runMain,
@@ -45,6 +46,13 @@ test("binds the fixed success line and strict mutation taxonomy", () => {
   assert.equal(classifyMutationResult({ status: 1, signal: null, stdout: "", stderr: "rejected" }), "definitive");
   assert.equal(classifyMutationResult({ status: null, signal: "SIGKILL", stdout: "", stderr: "" }), "ambiguous");
   assert.equal(classifyMutationResult({ thrown: true }), "ambiguous");
+});
+
+test("classifies the observed bounded PostgreSQL startup query as not ready", () => {
+  assert.equal(classifyDatabaseQueryResult({ status: 0, signal: null, stdout: "1\n", stderr: "" }), "ready");
+  assert.equal(classifyDatabaseQueryResult({ status: 2, signal: null, stdout: "", stderr: "x".repeat(145) }), "pending");
+  assert.equal(classifyDatabaseQueryResult({ status: 2, signal: null, stdout: "unexpected", stderr: "" }), "invalid");
+  assert.equal(classifyDatabaseQueryResult({ status: 3, signal: null, stdout: "", stderr: "" }), "invalid");
 });
 
 test("builds one exact internal network and four hardened private containers", () => {
