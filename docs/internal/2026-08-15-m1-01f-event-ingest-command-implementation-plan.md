@@ -45,17 +45,17 @@ listener, normalization, batching, or provider dependency.
 
 ### Task 3: Review the complete command
 
-- [ ] Audit deployable/module ownership, version grammar, output, link-time
+- [x] Audit deployable/module ownership, version grammar, output, link-time
   injection, error behavior, no-I/O scope, tests, and status evidence.
-- [ ] Reproduce and fix every concrete finding tests-first.
-- [ ] Run fresh Go/repository/audit/scan gates and record zero findings.
+- [x] Reproduce and fix every concrete finding tests-first.
+- [x] Run fresh Go/repository/audit/scan gates and record zero findings.
 
 ### Task 4: Complete, push, and close M1-01f
 
-- [ ] Change only completion expectations and capture focused RED.
-- [ ] Move only M1-01f to Complete at `698/0/27/3` and M1
+- [x] Change only completion expectations and capture focused RED.
+- [x] Move only M1-01f to Complete at `698/0/27/3` and M1
   `68/65/0/3/0`; preserve M0 and all blockers.
-- [ ] Run final gates, commit `docs: complete M1-01f event ingest command`,
+- [x] Run final gates, commit `docs: complete M1-01f event ingest command`,
   push, and watch exact-SHA Runnable UI to success.
 - [ ] Close the plan, record run/job IDs, commit/push the close SHA, watch CI,
   then start M1-01a.

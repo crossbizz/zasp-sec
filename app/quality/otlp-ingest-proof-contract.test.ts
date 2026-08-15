@@ -24,9 +24,7 @@ function assertM013Complete(tracker: string) {
   const allCompleteRows = markdownRows(complete).slice(2);
   const completeRows = allCompleteRows.filter(([task]) => task === "M0-13");
 
-  expect(inProgressRows).toEqual([
-    ["M1-01f", "August 15, 2026", expect.stringContaining("event-ingest")],
-  ]);
+  expect(inProgressRows).toHaveLength(0);
   expect([...inProgressRows, ...allCompleteRows].filter(([task]) => task === "M0-15")).toHaveLength(1);
   expect(completeRows).toHaveLength(1);
   expect(completeRows[0]?.[1]).toBe("August 14, 2026");
@@ -91,8 +89,8 @@ describe("OTLP ingest proof contract", () => {
       "utf8",
     );
     expect(tracker).toContain("| Pending | 698 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 26 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 27 |");
     expect(tracker).toContain("| Blocked | 3 |");
     expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 0 \| 24 \| 3 \|/);
     assertM013Complete(tracker);

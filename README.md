@@ -65,9 +65,9 @@ at link time.
 
 ## Event ingest command
 
-M1-01f is In progress. It creates the standalone Go service at
-`services/event-ingest`. Its only intended behavior in this task is one exact
-build-version line:
+M1-01f is Complete. It creates the standalone Go service at
+`services/event-ingest`. Its only current behavior is one exact build-version
+line:
 
 ```text
 event-ingest build <version>
