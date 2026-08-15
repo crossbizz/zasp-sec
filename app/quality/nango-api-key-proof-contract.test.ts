@@ -25,6 +25,28 @@ function assertOnlyM014cActive(tracker: string) {
 }
 
 describe("Nango API-key proof start contract", () => {
+  it("exposes exact hermetic and live commands with the fixed private boundary", async () => {
+    const packageJson = JSON.parse(await readFile(resolve(repositoryRoot, "package.json"), "utf8")) as {
+      scripts?: Record<string, string>;
+    };
+    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const section = readme.match(/## Nango API-key proof[\s\S]*?## Nango OAuth proof/)?.[0];
+
+    expect(packageJson.scripts?.["proof:nango:api-key:test"]).toBe("node --test proofs/nango-api-key/*.test.mjs");
+    expect(packageJson.scripts?.["proof:nango:api-key:run"]).toBe("node proofs/nango-api-key/run.mjs");
+    expect(packageJson.scripts?.["proof:nango:api-key:test"]).not.toMatch(/docker|env-file|credential|proxy/i);
+    expect(section).toBeDefined();
+    expect(section).toContain("npm run proof:nango:api-key:test");
+    expect(section).toContain("npm run proof:nango:api-key:run");
+    expect(section).toContain("Nango API key proof passed: api_key=true reference=true product_state_safe=true cleanup=true.");
+    expect(section).toContain("events.1password.com");
+    expect(section).toContain("durable connection reference");
+    expect(section).toContain("never enters product state");
+    expect(section).toContain("no host port");
+    expect(section).toMatch(/R-08 remains\s+Not run/);
+    expect(section).toContain("M0-14c is In progress");
+  });
+
   it("binds the exact source-plan dependency, deliverable, and verification boundary", async () => {
     const sourcePlan = await readFile(
       resolve(repositoryRoot, "docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md"),

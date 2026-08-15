@@ -279,6 +279,39 @@ R-12 remains Not run until M0-22 proves the separate bounded remote-export and
 exporter-failure boundary. M0-09 and PROV-01 remain Blocked, and R-03 remains
 incomplete.
 
+## Nango API-key proof
+
+M0-14c is In progress. This proof extends the completed private Nango boot and
+OAuth boundaries with one real API-key connection through exact-pinned Nango
+v0.70.5 and PostgreSQL 16.0. A generated raw provider key is checked once by
+the built-in `1password-events` integration against a private TLS fixture at
+`events.1password.com`; the fixture accepts only the exact bearer-authenticated
+`GET /api/v2/auth/introspect` request.
+
+The hermetic command validates the workspace, fixture, product wrapper,
+immutable four-role manifest, exact Docker ownership, bounded mutation
+settlement, fixed output, and cleanup without starting Docker. The live command
+requires Node.js 22.23.1, npm 10.9.8, Docker, and OpenSSL. It accepts no `.env`,
+real credential, provider endpoint, proxy, profile, or ambient Docker
+authentication and publishes no host port.
+
+```bash
+npm run proof:nango:api-key:test
+npm run proof:nango:api-key:run
+```
+
+Success is exactly:
+
+```text
+Nango API key proof passed: api_key=true reference=true product_state_safe=true cleanup=true.
+```
+
+The product receives only the Organization-scoped durable connection reference.
+The raw provider key never enters product state or fixed output. Every live run
+uses fresh marker-scoped resources and reverse exact-owned cleanup. R-08 remains
+Not run through M0-15; M0-09 and PROV-01 remain Blocked, and R-03 remains
+incomplete.
+
 ## Nango OAuth proof
 
 M0-14b extends the completed Nango free-boot proof with one real OAuth2
