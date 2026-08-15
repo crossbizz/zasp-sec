@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 700 |
-| In progress | 0 |
+| Pending | 699 |
+| In progress | 1 |
 | Complete | 25 |
 | Blocked | 3 |
 
@@ -24,7 +24,7 @@ In progress, Complete, or Blocked is Pending.
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 0 | 0 | 24 | 3 |
-| M1 | 68 | 67 | 0 | 1 | 0 |
+| M1 | 68 | 66 | 1 | 1 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
 | M3 | 75 | 75 | 0 | 0 | 0 |
@@ -68,13 +68,14 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `700/0/25/3` because
+session configuration. The 728 source-plan counts are `699/1/25/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M1-01e | August 15, 2026 | Adding the minimal service-local `agentsec-worker` command with exact bounded build-version output and no worker loop, queue, configuration, provider, listener, or network behavior. |
 
 ## Complete
 

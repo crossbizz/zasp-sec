@@ -48,6 +48,21 @@ This skeleton does not start an HTTP server, load runtime configuration, read
 credentials or provider state, or claim API readiness. The development build
 uses `dev`; release builds may inject a bounded version at link time.
 
+## Platform worker command
+
+M1-01e is In progress. It adds the second minimal Go command at
+`services/platform/agentsec-worker`. Its only intended behavior in this task is
+one exact build-version line:
+
+```text
+agentsec-worker build <version>
+```
+
+This skeleton does not start a worker loop, poll a queue, load runtime
+configuration, read credentials or provider state, or claim worker readiness.
+The development build uses `dev`; release builds may inject a bounded version
+at link time.
+
 ## Neon pooled proof
 
 The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,

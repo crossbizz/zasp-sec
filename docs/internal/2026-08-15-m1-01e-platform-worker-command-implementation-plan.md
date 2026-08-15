@@ -23,11 +23,11 @@ version and has no worker loop or runtime dependency.
 
 ### Task 1: Start M1-01e
 
-- [ ] Add a repository contract binding source, design, plan, unique active
+- [x] Add a repository contract binding source, design, plan, unique active
   status, exact arithmetic, completed M1-01d, Pending M1-01f, and M0 blockers.
-- [ ] Capture focused RED at the still-Pending README/tracker state.
-- [ ] Move only M1-01e to In progress and document its no-I/O skeleton scope.
-- [ ] Run focused/full pinned GREEN, audit, whitespace, and scans; commit
+- [x] Capture focused RED at the still-Pending README/tracker state.
+- [x] Move only M1-01e to In progress and document its no-I/O skeleton scope.
+- [x] Run focused/full pinned GREEN, audit, whitespace, and scans; commit
   `docs: start M1-01e platform worker command`.
 
 ### Task 2: Implement the worker command tests-first
