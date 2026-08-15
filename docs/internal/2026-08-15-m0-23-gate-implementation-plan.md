@@ -159,26 +159,26 @@ git commit -m "docs: record M0 technical proof decisions"
 - Consumes: the entire M0-23 range plus all linked retained reports.
 - Produces: a zero-finding evidence-consistency review or tests-first fixes followed by a fresh review.
 
-- [ ] **Step 1: Audit source-to-gate completeness**
+- [x] **Step 1: Audit source-to-gate completeness**
 
 Compare every R-01 through R-14 criterion, current risk status, gate outcome,
 linked proof task, retained report/head, architecture consequence, blocker,
 and resume condition. Confirm no PASS depends on an unrun command or on a
 provider substitution outside its approved boundary.
 
-- [ ] **Step 2: Audit gate arithmetic and dependency state**
+- [x] **Step 2: Audit gate arithmetic and dependency state**
 
 Require 728 global tasks, 27 M0 tasks, one active M0-23 row, three blocked M0
 rows, no active M1 row, and unchanged R-03/R-11 blocker state.
 
-- [ ] **Step 3: Fix every finding tests-first**
+- [x] **Step 3: Fix every finding tests-first**
 
 For each finding, add the smallest focused mutation that passes incorrectly,
 run it to capture RED, apply one minimal documentation/contract fix, and rerun
 focused GREEN. Do not rerun live proofs unless retained evidence itself is
 changed or invalidated.
 
-- [ ] **Step 4: Run final local gates**
+- [x] **Step 4: Run final local gates**
 
 Run six focused passes, `npm run verify`, `npm audit --omit=dev`, syntax and
 whitespace checks, and pinned Gitleaks over the task range, exact gate/risk
@@ -199,18 +199,18 @@ files, ignored evidence, and history. Record exact counts and review outcome.
 - Consumes: the reviewed fourteen-row gate record and green local gates.
 - Produces: M0-23 Complete at `701/0/24/3`, exact-SHA successful Runnable UI evidence, and a closed tracked plan. M1-01d remains Pending for the next sequential task.
 
-- [ ] **Step 1: Write completion expectations first**
+- [x] **Step 1: Write completion expectations first**
 
 Change only the completion test to require M0-23 Complete exactly once,
 no active source-plan task, `701/0/24/3` overall, `27/0/0/24/3` in M0,
 the unchanged `12 PASS / 2 BLOCKED` gate result, and M1-01d Pending.
 
-- [ ] **Step 2: Run completion RED**
+- [x] **Step 2: Run completion RED**
 
 Run the focused contract. Expected: FAIL only on the still-In-progress tracker
 and README boundary.
 
-- [ ] **Step 3: Apply the completion transition**
+- [x] **Step 3: Apply the completion transition**
 
 Move only M0-23 to Complete, update the two status summaries, preserve all
 three blocked task rows and both gate blockers, and add the final gate evidence

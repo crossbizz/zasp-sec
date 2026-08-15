@@ -307,13 +307,13 @@ the retained M0-13 ingest evidence, R-12 is PASS.
 
 ## M0 technical proof gate
 
-M0-23 is In progress as an evidence-only architecture gate. It records one
+M0-23 is Complete as an evidence-only architecture gate. It records one
 decision for every M0 risk boundary without rerunning provider or container
-proofs. The selected decision is **PROCEED WITH BLOCKED PATHS**: M1 foundation
-work may begin after this gate completes, but R-03 continues to block real-AWS
-IAM parity claims and R-11 continues to block EKS Fargate strong-isolation and
-egress claims. Neither blocker may be replaced by LocalStack, fixture-only,
-source-review, or harness-only evidence.
+proofs. The selected decision is **PROCEED WITH BLOCKED PATHS**. The completed
+gate authorizes M1 foundation work after this exact completion SHA passes CI,
+but R-03 continues to block real-AWS IAM parity claims and R-11 continues to
+block EKS Fargate strong-isolation and egress claims. Neither blocker may be
+replaced by LocalStack, fixture-only, source-review, or harness-only evidence.
 
 The current record is `12 PASS / 2 BLOCKED / 0 FAIL / 0 unclassified` in
 `docs/decisions/m0-technical-proof-gate.md`. The two blocked decisions are
