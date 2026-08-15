@@ -27,8 +27,10 @@ grammar.
 - `code` is a valid nonzero `ProductErrorCode`.
 - `message` is valid UTF-8, trimmed, contains no control characters, and is one
   to 512 bytes. Callers must supply product language rather than a vendor error.
-- `correlationID` is a valid canonical nonzero `ProductID`; it is an audit/log
-  correlation value, not authorization.
+- `correlationID` is a distinct opaque `CorrelationID` backed by a valid
+  canonical nonzero `ProductID`; it cannot be confused with an Organization,
+  Workspace, Environment, or other generic product ID and is not authorization.
+  Invalid construction returns the fixed `ErrInvalidCorrelationID`.
 - `retryable` is an explicit boolean and is never inferred from message text.
 
 The value is comparable, validates itself, and exposes read-only accessors.
@@ -53,4 +55,3 @@ it; this task establishes the public response snapshot only.
 - JSON escaping is delegated to the Go standard library.
 - No HTTP status mapping, handler, logging, storage, provider, credential,
   configuration, network, retry policy, or authorization behavior is added.
-

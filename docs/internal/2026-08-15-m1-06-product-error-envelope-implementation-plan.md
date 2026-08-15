@@ -26,21 +26,21 @@ JSON error envelope.
 
 ### Task 2: Implement the envelope tests-first
 
-- [ ] Add Go tests before production and capture genuine missing-symbol RED.
-- [ ] Implement opaque strict ProductErrorCode and ProductErrorEnvelope values,
+- [x] Add Go tests before production and capture genuine missing-symbol RED.
+- [x] Implement opaque strict ProductErrorCode and ProductErrorEnvelope values,
   accessors, validation, and exact JSON marshaling.
-- [ ] Cover the snapshot, retryable variants, invalid codes/messages/IDs,
+- [x] Cover the snapshot, retryable variants, invalid codes/messages/IDs,
   direct malformed state, comparability, fixed errors, and escaping.
-- [ ] Run six focused passes, platform/service/worker/root regressions, full
+- [x] Run six focused passes, platform/service/worker/root regressions, full
   repository gates, audit, whitespace, and scans; commit
   `feat: add product error envelope`.
 
 ### Task 3: Review the public error boundary
 
-- [ ] Audit stable shape/code grammar, message bounds, correlation semantics,
+- [x] Audit stable shape/code grammar, message bounds, correlation semantics,
   retryability, JSON escaping, zero/direct state, error secrecy, and misuse.
-- [ ] Add tests-first fixes for every concrete finding and rerun affected gates.
-- [ ] Record a zero-finding review before completion.
+- [x] Add tests-first fixes for every concrete finding and rerun affected gates.
+- [x] Record a zero-finding review before completion.
 
 ### Task 4: Complete, push, and close M1-06
 
