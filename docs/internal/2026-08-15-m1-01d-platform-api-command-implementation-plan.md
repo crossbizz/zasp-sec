@@ -78,7 +78,7 @@ network listener, configuration input, or product API claim.
 - [x] Change only completion expectations first and capture focused RED.
 - [x] Move only M1-01d to Complete at `700/0/25/3` and M1 to
   `68/67/0/1/0`; preserve the complete M0 gate and all blockers.
-- [ ] Run all final gates, commit `docs: complete M1-01d platform API command`,
+- [x] Run all final gates, commit `docs: complete M1-01d platform API command`,
   push, and watch Runnable UI to success for the exact SHA.
-- [ ] Close every plan checkbox, record run/job IDs, commit/push the plan close,
+- [x] Close every plan checkbox, record run/job IDs, commit/push the plan close,
   watch exact-SHA CI, then start M1-01e.
