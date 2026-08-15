@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "allowed_licenses": ["MIT"],
+  "images": [
+    {
+      "component": "promptfoo",
+      "reference": "ghcr.io/promptfoo/promptfoo:0.121.19@sha256:50d3a796710e4db7a5ede90bf27dc28146ef022a7ebb83914c5105608396fd96",
+      "repo_digests": ["ghcr.io/promptfoo/promptfoo@sha256:50d3a796710e4db7a5ede90bf27dc28146ef022a7ebb83914c5105608396fd96"],
+      "environment_sha256": "19fdd905361d9fe8fe431007549a928e0e5bca43b8ce4e74d2972364235673c0",
+      "environment_count": 8,
+      "entrypoint": ["docker-entrypoint.sh"],
+      "command": ["node", "dist/src/server/index.js"],
+      "user": "promptfoo",
+      "working_directory": "/app",
+      "labels": {
+        "org.opencontainers.image.created": "2026-07-14T16:55:18.799Z",
+        "org.opencontainers.image.description": "Test your prompts, agents, and RAGs. Red teaming/pentesting/vulnerability scanning for AI. Compare performance of GPT, Claude, Gemini, DeepSeek, and more. Simple declarative configs with command line and CI/CD integration.  Used by OpenAI and Anthropic.",
+        "org.opencontainers.image.licenses": "MIT",
+        "org.opencontainers.image.revision": "1ede17aaed940e6dff04f71d24e4ecc011809dae",
+        "org.opencontainers.image.source": "https://github.com/promptfoo/promptfoo",
+        "org.opencontainers.image.title": "promptfoo",
+        "org.opencontainers.image.url": "https://github.com/promptfoo/promptfoo",
+        "org.opencontainers.image.version": "main"
+      }
+    }
+  ],
+  "components": [
+    {
+      "name": "promptfoo",
+      "version": "0.121.19",
+      "license": "MIT",
+      "source_repository": "https://github.com/promptfoo/promptfoo",
+      "source_tag": "0.121.19",
+      "source_tag_object": "1ede17aaed940e6dff04f71d24e4ecc011809dae",
+      "source_commit": "1ede17aaed940e6dff04f71d24e4ecc011809dae",
+      "source_tree": "8c8043c046e3ad5d09f456dcf0db9ae4344521be",
+      "npm_integrity": "sha512-5YebsCED/bmR9JktH9YNU62Tr1m3ncFMlM2tKrguI8vFFUfvqxhNzUBa3Z6huG7OvDKbi69UpamU4CLtYLDezQ==",
+      "boundary": "Exact official Promptfoo evaluation image, HTTP provider, assertion engine, JSON export, and MIT source package used by the local proof adapter.",
+      "artifacts": [
+        {
+          "kind": "license",
+          "url": "https://raw.githubusercontent.com/promptfoo/promptfoo/1ede17aaed940e6dff04f71d24e4ecc011809dae/LICENSE",
+          "sha256": "bf813686553f451e1b833fbd827488aee49b60b189626915bf3108d10b754e44"
+        },
+        {
+          "kind": "manifest",
+          "url": "https://raw.githubusercontent.com/promptfoo/promptfoo/1ede17aaed940e6dff04f71d24e4ecc011809dae/package.json",
+          "sha256": "bfb2bfb839147deb9320d7828b0a4cc2a43aadba95d9e3f6f69c7ce40e0cf798"
+        }
+      ]
+    }
+  ]
+}

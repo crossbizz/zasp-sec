@@ -159,4 +159,37 @@ describe("Promptfoo red-team proof repository contract", () => {
       ),
     ).toThrow();
   });
+
+  it("exposes exact hermetic, live, and immutable-license root boundaries", async () => {
+    const packageJson = JSON.parse(await readFile(resolve(repositoryRoot, "package.json"), "utf8"));
+    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const inventory = JSON.parse(await readFile(
+      resolve(repositoryRoot, "proofs/promptfoo-redteam/adapter-license.json"),
+      "utf8",
+    ));
+    const section = readme.match(/## Promptfoo red-team proof[\s\S]*?## Nango proxy proof/)?.[0];
+
+    expect(packageJson.scripts["proof:promptfoo:test"]).toBe(
+      "node --test proofs/promptfoo-redteam/*.test.mjs",
+    );
+    expect(packageJson.scripts["proof:promptfoo:run"]).toBe(
+      "node proofs/promptfoo-redteam/run.mjs",
+    );
+    expect(packageJson.scripts["proof:promptfoo:license"]).toBe(
+      "node proofs/promptfoo-redteam/license-audit.mjs",
+    );
+    expect(section).toContain("npm run proof:promptfoo:test");
+    expect(section).toContain("npm run proof:promptfoo:run");
+    expect(section).toContain("npm run proof:promptfoo:license");
+    expect(section).toContain(
+      "Promptfoo red-team proof passed: objective=true verdict=vulnerable evidence=true cleanup=true.",
+    );
+    expect(section).toContain("Docker prerequisite");
+    expect(section).toContain("no model or provider credential");
+    expect(section).toContain("raw prompts, target responses, canaries, Promptfoo-native identifiers, and Docker state");
+    expect(inventory.schema_version).toBe(1);
+    expect(inventory.allowed_licenses).toEqual(["MIT"]);
+    expect(inventory.components).toHaveLength(1);
+    expect(inventory.images).toHaveLength(1);
+  });
 });

@@ -287,7 +287,16 @@ private internal Docker network. The product boundary will retain only the
 objective, verdict, and evidence reference; raw prompts, target responses,
 Promptfoo-native identifiers, and Docker state must remain outside product
 output. The proof uses only synthetic local inputs, no hosted generation, and
-no host-published port. R-09 remains Not run until the live engine
+no host-published port, and no model or provider credential.
+
+Run `npm run proof:promptfoo:test` for the hermetic suite,
+`npm run proof:promptfoo:license` for the immutable source/image/MIT audit, and
+`npm run proof:promptfoo:run` for the disposable live lifecycle. Docker prerequisite:
+a running local Docker engine with the exact image available or pullable. Live
+success is exactly
+`Promptfoo red-team proof passed: objective=true verdict=vulnerable evidence=true cleanup=true.`
+Only the objective, verdict, and evidence reference are retained; raw prompts, target responses, canaries, Promptfoo-native identifiers, and Docker state
+are excluded from product output. R-09 remains Not run until the live engine
 result, exact normalization, cleanup, pinned gates, scans, and whole-range
 review pass.
 
