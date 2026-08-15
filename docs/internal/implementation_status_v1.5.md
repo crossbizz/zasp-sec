@@ -15,15 +15,15 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 707 |
-| In progress | 1 |
-| Complete | 18 |
+| In progress | 0 |
+| Complete | 19 |
 | Blocked | 1 |
 
 ## Milestone summary
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 6 | 1 | 18 | 1 |
+| M0 | 27 | 6 | 0 | 19 | 1 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -68,14 +68,13 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `707/1/18/1` because
+session configuration. The 728 source-plan counts are `707/0/19/1` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M0-17 | August 15, 2026 | Evaluate one Allow and one Block decision using the embedded in-process OPA Go SDK and prove deterministic decision-specific p95 latency at or below 10 ms. |
 
 ## Complete
 
@@ -99,6 +98,7 @@ PROV-01 is excluded from those counts.
 | M0-14 | August 15, 2026 | Recorded the evidence-backed free self-hosted Nango MVP boundary as long-tail Auth plus Proxy, explicitly excluded Functions, Webhooks, MCP, RBAC, full observability, and Enterprise features without claiming their routes absent, and left the authenticated Proxy GET and R-08 decision to M0-15. |
 | M0-15 | August 15, 2026 | Two consecutive final-code exact-pinned Nango Proxy runs returned one deterministic provider event through the authenticated private Proxy route, retained only scoped references plus allowlisted event ID/action, proved raw provider-token exclusion and exact zero-resource cleanup, passed pinned gates/license/secret scans, and received a zero-finding whole-range review; R-08 is PASS. |
 | M0-16 | August 15, 2026 | Two consecutive final-code exact-pinned Promptfoo runs executed one synthetic direct prompt-injection case against a local fake agent, retained only the objective, vulnerable verdict, and SHA-256 evidence reference, proved exact zero-resource cleanup and shared-resource non-mutation, passed pinned gates/license/secret scans, and received a zero-finding whole-range review; R-09 is PASS. |
+| M0-17 | August 15, 2026 | The exact-pinned official OPA Go SDK prepared one embedded policy query in-process, returned deterministic Allow and Block decisions across 100 warm-ups and 1,000 measured evaluations per decision, kept both decision-specific p95 values below 10 ms, and passed strict malformed-result, cancellation, panic, license, full-gate, secret-scan, and whole-range review checks; R-10 is PASS. |
 
 `PRE-01`, `PRE-02`, and `PROV-01` do not count as source-plan microtasks.
 
@@ -259,7 +259,8 @@ provider capability gate.
   agent, retained only the objective, vulnerable verdict, and SHA-256 evidence
   reference, proved exact zero-resource cleanup and shared-resource
   non-mutation, and passed pinned gates, scans, and zero-finding review. R-09
-  is PASS. M0-17 is now In progress.
-- M0-17 is In progress as an embedded in-process OPA Go SDK proof. R-10 remains
-  Not run until deterministic Allow/Block and decision-specific local p95
-  evidence pass review. M0-18 remains Pending.
+  is PASS.
+- M0-17 is Complete after two consecutive direct final-code OPA Go SDK proofs
+  returned deterministic Allow/Block decisions with decision-specific p95 well
+  below 10 ms, plus exact dependency/license audits, full gates, scans, and
+  zero-finding whole-range review. R-10 is PASS. M0-18 remains Pending.

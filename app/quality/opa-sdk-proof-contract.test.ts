@@ -17,37 +17,40 @@ function taskRows(tracker: string, heading: "In progress" | "Complete") {
   return markdownRows(section).slice(2);
 }
 
-function assertM017Active(tracker: string, readme: string, riskRegister: string) {
+const completionEvidence =
+  ".superpowers/sdd/2026-08-15-m0-17-opa-sdk-proof-implementation-plan/task-5-report.md; proof head bd72e785c543f381d2d8a9bdf9a4150275605e3d";
+
+function assertM017Complete(tracker: string, readme: string, riskRegister: string) {
   const section = readme.match(/## OPA SDK proof[\s\S]*?## Promptfoo red-team proof/)?.[0];
   const activeRows = taskRows(tracker, "In progress");
   const completeRows = taskRows(tracker, "Complete");
   const riskRows = markdownRows(riskRegister).filter(([id]) => id === "R-10");
 
   expect(section).toBeDefined();
-  expect(section).toContain("M0-17 is In progress");
+  expect(section).toContain("M0-17 is Complete");
   expect(section).toContain("OPA Go SDK");
   expect(section).toContain("in-process");
   expect(section).toContain("one Allow and one Block decision");
-  expect(section).toContain("R-10 remains Not run");
+  expect(section).toContain("R-10 is PASS");
   expect(section).not.toMatch(/uses an OPA server|customer-facing Rego|external policy service/i);
 
   expect(tracker).toContain("| Pending | 707 |");
-  expect(tracker).toContain("| In progress | 1 |");
-  expect(tracker).toContain("| Complete | 18 |");
+  expect(tracker).toContain("| In progress | 0 |");
+  expect(tracker).toContain("| Complete | 19 |");
   expect(tracker).toContain("| Blocked | 1 |");
-  expect(tracker).toMatch(/\| M0 \| 27 \| 6 \| 1 \| 18 \| 1 \|/);
-  expect(tracker).toContain("`707/1/18/1`");
-  expect(activeRows).toHaveLength(1);
-  expect(activeRows[0]?.[0]).toBe("M0-17");
-  expect(activeRows[0]?.[1]).toBe("August 15, 2026");
-  expect(activeRows[0]?.[2]).toContain("OPA Go SDK");
+  expect(tracker).toMatch(/\| M0 \| 27 \| 6 \| 0 \| 19 \| 1 \|/);
+  expect(tracker).toContain("`707/0/19/1`");
+  expect(activeRows).toHaveLength(0);
+  expect(completeRows.filter(([task]) => task === "M0-17")).toHaveLength(1);
+  expect(completeRows.find(([task]) => task === "M0-17")?.[1]).toBe("August 15, 2026");
+  expect(completeRows.find(([task]) => task === "M0-17")?.[2]).toContain("OPA Go SDK");
   expect(completeRows.filter(([task]) => task === "M0-16")).toHaveLength(1);
   expect([...activeRows, ...completeRows].filter(([task]) => task === "M0-18")).toHaveLength(0);
   expect(tracker).toContain("M0-09 and PROV-01 remain Blocked");
   expect(tracker).toContain("R-03 remains incomplete");
 
   expect(riskRows).toHaveLength(1);
-  expect(riskRows[0]?.[5]).toBe("Not run — M0-17");
+  expect(riskRows[0]?.[5]).toBe(`PASS — M0-17 — ${completionEvidence}`);
 }
 
 describe("OPA SDK proof repository contract", () => {
@@ -82,11 +85,11 @@ describe("OPA SDK proof repository contract", () => {
     expect(plan).toMatch(/two consecutive direct CLI\s+runs/);
   });
 
-  it("starts only M0-17 and leaves R-10 unadvanced", async () => {
+  it("completes only M0-17 and advances R-10 with reviewed evidence", async () => {
     const tracker = await readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8");
     const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
     const riskRegister = await readFile(resolve(repositoryRoot, "docs/decisions/mvp-risk-register.md"), "utf8");
-    assertM017Active(tracker, readme, riskRegister);
+    assertM017Complete(tracker, readme, riskRegister);
   });
 
   it("exposes exact hermetic, direct, and immutable-license commands", async () => {
@@ -113,41 +116,41 @@ describe("OPA SDK proof repository contract", () => {
     const tracker = await readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8");
     const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
     const riskRegister = await readFile(resolve(repositoryRoot, "docs/decisions/mvp-risk-register.md"), "utf8");
-    const row = taskRows(tracker, "In progress")[0]?.join(" | ");
+    const row = taskRows(tracker, "Complete").find(([task]) => task === "M0-17")?.join(" | ");
 
     expect(row).toBeDefined();
-    expect(() => assertM017Active(tracker, readme, riskRegister)).not.toThrow();
+    expect(() => assertM017Complete(tracker, readme, riskRegister)).not.toThrow();
     expect(() =>
-      assertM017Active(
-        tracker.replace("## Complete\n", `| ${row} |\n\n## Complete\n`),
+      assertM017Complete(
+        tracker.replace(`| ${row} |\n`, `| ${row} |\n| ${row} |\n`),
         readme,
         riskRegister,
       ),
     ).toThrow();
     expect(() =>
-      assertM017Active(
+      assertM017Complete(
         tracker.replace("## Complete\n", "| M0-18 | August 15, 2026 | Concurrent work. |\n\n## Complete\n"),
         readme,
         riskRegister,
       ),
     ).toThrow();
     expect(() =>
-      assertM017Active(
+      assertM017Complete(
         tracker,
         readme,
-        riskRegister.replace("Not run — M0-17", "PASS — M0-17 — premature"),
+        riskRegister.replace(`PASS — M0-17 — ${completionEvidence}`, "Not run — M0-17"),
       ),
     ).toThrow();
     expect(() =>
-      assertM017Active(
+      assertM017Complete(
         tracker,
         readme.replace("in-process", "through an external OPA server with customer-facing Rego"),
         riskRegister,
       ),
     ).toThrow();
     expect(() =>
-      assertM017Active(
-        tracker.replace("| Pending | 707 |", "| Pending | 706 |"),
+      assertM017Complete(
+        tracker.replace("| Complete | 19 |", "| Complete | 18 |"),
         readme,
         riskRegister,
       ),

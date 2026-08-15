@@ -281,7 +281,7 @@ incomplete.
 
 ## OPA SDK proof
 
-M0-17 is In progress. It evaluates one Allow and one Block decision with OPA
+M0-17 is Complete. It evaluates one Allow and one Block decision with OPA
 v1.17.0 through the exact-pinned official OPA Go SDK embedded in-process. The
 proof prepares one fixed internal policy query, performs 100 warm-ups per decision and 1,000
 measured evaluations per decision, and requires each decision-specific p95 at
@@ -293,8 +293,10 @@ Run `npm run proof:opa:test` for race-enabled evaluator tests,
 `npm run proof:opa:license` for the immutable official tag, module-sum, and
 Apache-2.0 audit. Direct success is exactly
 `OPA SDK proof passed: allow=true block=true deterministic=true evaluations=2000 p95_under_10ms=true.`
-R-10 remains Not run until the direct proof, dependency audit, full gates, and
-whole-range review pass.
+Two consecutive direct final-code proofs, six race runs, exact dependency and
+license audits, full pinned repository gates, and whole-range review passed.
+R-10 is PASS. M0-18 remains Pending; M0-09 and PROV-01 remain Blocked, and
+R-03 remains incomplete.
 
 ## Promptfoo red-team proof
 

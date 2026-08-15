@@ -33,12 +33,11 @@ function assertM014Complete(tracker: string, readme: string, riskRegister: strin
   expect(section).toContain("R-08 is PASS");
 
   expect(tracker).toContain("| Pending | 707 |");
-  expect(tracker).toContain("| In progress | 1 |");
-  expect(tracker).toContain("| Complete | 18 |");
+  expect(tracker).toContain("| In progress | 0 |");
+  expect(tracker).toContain("| Complete | 19 |");
   expect(tracker).toContain("| Blocked | 1 |");
-  expect(tracker).toMatch(/\| M0 \| 27 \| 6 \| 1 \| 18 \| 1 \|/);
-  expect(activeRows).toHaveLength(1);
-  expect(activeRows[0]?.[0]).toBe("M0-17");
+  expect(tracker).toMatch(/\| M0 \| 27 \| 6 \| 0 \| 19 \| 1 \|/);
+  expect(activeRows).toHaveLength(0);
   expect(m014Rows).toHaveLength(1);
   expect(m014Rows[0]?.[1]).toBe("August 15, 2026");
   expect(m014Rows[0]?.[2]).toContain("Auth plus Proxy");

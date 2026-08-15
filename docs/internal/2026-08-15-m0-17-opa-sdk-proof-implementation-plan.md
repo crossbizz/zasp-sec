@@ -340,13 +340,13 @@ gates, whitespace, and redacted scans. Require zero review findings.
 - Completion counts: `707/0/19/1`; M0 `27/6/0/19/1`.
 - R-10 becomes `PASS — M0-17 — <exact report path and reviewed proof SHA>`.
 
-- [ ] **Step 1: Write completion RED**
+- [x] **Step 1: Write completion RED**
 
 Reject stale active state, missing/duplicate Complete row, concurrent M0-18,
 premature or unbound R-10 PASS, count drift, customer-Rego/server claims, and
 changes to either blocked/incomplete boundary.
 
-- [ ] **Step 2: Apply minimal completion GREEN**
+- [x] **Step 2: Apply minimal completion GREEN**
 
 Move only M0-17 to Complete, bind R-10 to the exact report and reviewed proof
 SHA, retain M0-18 Pending, and update all affected historical aggregate tests.
