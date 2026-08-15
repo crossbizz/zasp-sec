@@ -24,6 +24,7 @@ const childOutputLimit = 16_384;
 const dockerJsonLimit = 65_536;
 const proofPrefix = "zasp-m0-16-";
 const proofLabel = "m0-16";
+const agentNamePattern = /^zasp-m0-16-[a-f0-9]{16}-agent$/;
 const imageEnvironment = [
   "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
   "NODE_VERSION=24.17.0",
@@ -121,6 +122,12 @@ export function classifyMutationResult(result, acknowledgement) {
   if (typeof result.stdout !== "string" || typeof result.stderr !== "string") return "ambiguous";
   if (acknowledgement instanceof RegExp && !acknowledgement.test(result.stdout)) return "ambiguous";
   return "applied";
+}
+
+export function buildAgentReadinessScript(name) {
+  if (typeof name !== "string" || !agentNamePattern.test(name)) throw new TypeError("Agent name is invalid");
+  const url = JSON.stringify(`http://${name}:3001/health`);
+  return `const r=await fetch(${url},{redirect:"error",signal:AbortSignal.timeout(400)});const b=await r.text();if(r.status!==200||b!=="{\\"ready\\":true}"||r.headers.get("content-type")!=="application/json")process.exit(2);process.stdout.write(b+"\\n");`;
 }
 
 export function dockerEnvironment(path, dockerConfig) {
@@ -316,7 +323,7 @@ export class DockerPromptfooRuntime {
 
   async waitAgent(signal) {
     const candidate = this.#candidate("agent");
-    const script = 'const r=await fetch("http://127.0.0.1:3001/health",{redirect:"error",signal:AbortSignal.timeout(400)});const b=await r.text();if(r.status!==200||b!=="{\\"ready\\":true}"||r.headers.get("content-type")!=="application/json")process.exit(2);process.stdout.write(b+"\\n");';
+    const script = buildAgentReadinessScript(candidate.name);
     for (let attempt = 0; attempt < 80; attempt += 1) {
       assertActive(signal);
       const result = await this.#mutate(["exec", candidate.id, "node", "--input-type=module", "-e", script], signal, 1_000, 4_096);

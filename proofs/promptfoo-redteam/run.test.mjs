@@ -10,6 +10,7 @@ import { test } from "node:test";
 import {
   Failure,
   DockerPromptfooRuntime,
+  buildAgentReadinessScript,
   classifyMutationResult,
   dockerEnvironment,
   orchestrate,
@@ -188,4 +189,15 @@ test("canonicalizes the default temporary parent and contains rejected journal e
   assert.equal(result.signal, null);
   assert.equal(result.stdout, "contained\n");
   assert.equal(result.stderr, "");
+});
+
+test("binds agent readiness to the exact per-run DNS identity", () => {
+  const name = "zasp-m0-16-0123456789abcdef-agent";
+  const script = buildAgentReadinessScript(name);
+  assert.match(script, /http:\/\/zasp-m0-16-0123456789abcdef-agent:3001\/health/);
+  assert.doesNotMatch(script, /127\.0\.0\.1/);
+  assert.match(script, /redirect:"error"/);
+  for (const invalid of ["zasp-m0-16-agent", `${name}.example`, "127.0.0.1", `${name}:3001`]) {
+    assert.throws(() => buildAgentReadinessScript(invalid), TypeError);
+  }
 });
