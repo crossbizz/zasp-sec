@@ -131,6 +131,19 @@ The CLI does not implement preflight, recovery, diagnostics, provider access,
 credential loading, listeners, or network behavior. The web boundary does not
 copy or fork the existing product UI.
 
+## Repository build
+
+M1-01 is In progress. The prepared checkout builds every existing service,
+worker, web, and CLI target through one root command:
+
+```bash
+npm run build:repo
+```
+
+The command does not install or download dependencies. It adds no provider,
+credential, listener, network, or runtime product behavior, and the existing
+Runnable UI verification command remains unchanged.
+
 ## Neon pooled proof
 
 The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,

@@ -23,12 +23,12 @@ runtime product behavior.
 
 ### Task 1: Start M1-01
 
-- [ ] Add a repository contract binding the source, design, plan, exact target
+- [x] Add a repository contract binding the source, design, plan, exact target
   inventory, completed M1-01c, unique active status, arithmetic, and blockers.
-- [ ] Capture focused RED at the still-Pending README/tracker state.
-- [ ] Move only M1-01 to In progress at `694/1/30/3` overall and M1
+- [x] Capture focused RED at the still-Pending README/tracker state.
+- [x] Move only M1-01 to In progress at `694/1/30/3` overall and M1
   `68/61/1/6/0`; document the root build and no-download scope.
-- [ ] Run focused/full pinned GREEN, audit, whitespace, and scans; commit
+- [x] Run focused/full pinned GREEN, audit, whitespace, and scans; commit
   `docs: start M1-01 repo skeleton`.
 
 ### Task 2: Implement the root build tests-first
