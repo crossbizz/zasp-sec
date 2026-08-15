@@ -56,7 +56,7 @@ deployment, listener, network, or customer-data behavior.
 - [x] Change only completion expectations and capture focused RED.
 - [x] Move only M1-01c to Complete at `695/0/30/3` and M1
   `68/62/0/6/0`; preserve M0 and all blockers.
-- [ ] Run final gates, commit `docs: complete M1-01c web and CLI directories`,
+- [x] Run final gates, commit `docs: complete M1-01c web and CLI directories`,
   push, and watch exact-SHA Runnable UI to success.
-- [ ] Close the plan, record run/job IDs, commit/push the close SHA, watch CI,
+- [x] Close the plan, record run/job IDs, commit/push the close SHA, watch CI,
   then start M1-01.
