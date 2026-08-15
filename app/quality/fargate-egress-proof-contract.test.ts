@@ -70,4 +70,20 @@ describe("EKS Fargate egress proof repository contract", () => {
     expect([...active, ...rows(tracker, "Complete"), ...blocked].filter(([task]) => task === "M0-20")).toHaveLength(0);
     expect(risk).toContain("Not run — M0-18/M0-19");
   });
+
+  it("exposes the hermetic, live, and license boundaries from the root", async () => {
+	const packageJson = JSON.parse(await readFile(resolve(repositoryRoot, "package.json"), "utf8")) as { scripts?: Record<string, string> };
+	const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+	const section = readme.match(/## EKS Fargate egress proof[\s\S]*?## EKS Fargate verification proof/)?.[0];
+	expect(packageJson.scripts?.["proof:fargate-egress:test"]).toBe(
+	  "cd proofs/fargate-egress && go test -race -count=1 ./... && node --test run.test.mjs license-audit.test.mjs",
+	);
+	expect(packageJson.scripts?.["proof:fargate-egress:run"]).toBe("node proofs/fargate-egress/run.mjs");
+	expect(packageJson.scripts?.["proof:fargate-egress:license"]).toBe("node proofs/fargate-egress/license-audit.mjs");
+	expect(section).toContain("npm run proof:fargate-egress:test");
+	expect(section).toContain("npm run proof:fargate-egress:run");
+	expect(section).toContain("npm run proof:fargate-egress:license");
+	expect(section).toContain("EKS Fargate egress proof passed: direct_denied=true proxy_allowed=true eni_attached=true cleanup=true.");
+	expect(section).toContain("EKS Fargate egress proof failed: <category> rejected.");
+  });
 });

@@ -290,6 +290,15 @@ attachment, and reverse zero-resource cleanup.
 
 This is a real EKS Security Groups for Pods proof boundary.
 
+Run the hermetic lifecycle, strict kubectl/EC2 boundary, supervisor, and audit
+tests with `npm run proof:fargate-egress:test`. The live entry point is
+`npm run proof:fargate-egress:run`; it requires every documented task-specific
+real-provider input before building or making a request. Its only success line
+is `EKS Fargate egress proof passed: direct_denied=true proxy_allowed=true eni_attached=true cleanup=true.`
+Failures are fixed as `EKS Fargate egress proof failed: <category> rejected.`
+Run `npm run proof:fargate-egress:license` to bind the immutable multi-platform
+BusyBox image, Kubernetes packaging, and underlying GPL runtime.
+
 The current host has no authenticated disposable real EKS/EC2 fixture or
 product proxy credential. LocalStack cannot provide AWS-managed Fargate,
 branch-ENI, or Security Groups for Pods authority and cannot emit success.

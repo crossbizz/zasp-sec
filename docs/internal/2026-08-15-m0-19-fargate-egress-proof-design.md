@@ -20,7 +20,20 @@ proof resources, and removes those resources in reverse dependency order.
 
 ## Exact authority
 
-The live boundary accepts only task-specific `AWS_M019_*` values:
+The live boundary accepts only these task-specific values:
+
+`AWS_M019_ISOLATED_TEST`, `AWS_M019_KUBECONFIG`,
+`AWS_M019_KUBE_CONTEXT`, `AWS_M019_CLUSTER_NAME`, `AWS_M019_REGION`,
+`AWS_M019_FARGATE_PROFILE`, `AWS_M019_PROFILE_NAMESPACE_PREFIX`,
+`AWS_M019_PROFILE_LABEL_KEY`, `AWS_M019_PROFILE_LABEL_VALUE`,
+`AWS_M019_PROXY_URL`, `AWS_M019_DIRECT_URL`, `AWS_M019_CANARY_TOKEN`,
+`AWS_M019_POD_SECURITY_GROUP_ID`, `AWS_M019_CLUSTER_SECURITY_GROUP_ID`,
+`AWS_M019_PROXY_SECURITY_GROUP_ID`, `AWS_M019_VPC_ID`,
+`AWS_M019_DNS_CIDR`, `AWS_M019_ACCESS_KEY_ID`,
+`AWS_M019_SECRET_ACCESS_KEY`, optional `AWS_M019_SESSION_TOKEN`, and the
+supervisor-owned `ZASP_M019_KUBECTL_EXECUTABLE`.
+
+The required values carry:
 
 - exact isolation attestation;
 - private immutable kubeconfig, context, cluster, region, and Fargate profile;

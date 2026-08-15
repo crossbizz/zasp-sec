@@ -32,27 +32,27 @@ Every behavior change follows a witnessed tests-only RED.
 
 ### Task 2: Implement the typed lifecycle core
 
-- [ ] RED/GREEN exact Namespace, ServiceAccount, Secret,
+- [x] RED/GREEN exact Namespace, ServiceAccount, Secret,
   SecurityGroupPolicy, Job, Pod, Node, ENI, and security-group models.
-- [ ] RED/GREEN definitive versus ambiguous creates/deletes, immutable
+- [x] RED/GREEN definitive versus ambiguous creates/deletes, immutable
   ownership, delayed visibility, cancellation, panic, reverse cleanup,
   precedence, and global absence.
 
 ### Task 3: Implement Kubernetes and EC2 boundaries
 
-- [ ] RED/GREEN private immutable commercial-EKS kubeconfig, fixed kubectl
+- [x] RED/GREEN private immutable commercial-EKS kubeconfig, fixed kubectl
   process boundary, bounded duplicate-free Kubernetes parsing, UID deletes,
   and exact SecurityGroupPolicy/Pod annotation state.
-- [ ] RED/GREEN official AWS SDK v2 EC2 read boundary with explicit static
+- [x] RED/GREEN official AWS SDK v2 EC2 read boundary with explicit static
   credentials, no ambient chain/proxy/IMDS/custom endpoint, bounded reads, exact
   security-group rules, and exact ENI attachment.
 
 ### Task 4: Implement fixed CLI and supervisor
 
-- [ ] RED/GREEN exact input gate, offline build, 10-minute main plus 5-minute
+- [x] RED/GREEN exact input gate, offline build, 10-minute main plus 5-minute
   cleanup, hard supervisor margin, bounded output, panic containment, retained
   workspace cleanup, and fixed one-line output.
-- [ ] Add root test/run/license commands and immutable dependency audit.
+- [x] Add root test/run/license commands and immutable dependency audit.
 
 ### Task 5: Review and verify
 
