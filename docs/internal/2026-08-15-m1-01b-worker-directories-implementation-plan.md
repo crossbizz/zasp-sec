@@ -57,7 +57,17 @@ configuration, credential, listener, or network behavior.
 - [x] Change only completion expectations and capture focused RED.
 - [x] Move only M1-01b to Complete at `696/0/29/3` and M1
   `68/63/0/5/0`; preserve M0 and all blockers.
-- [ ] Run final gates, commit `docs: complete M1-01b worker directories`, push,
+- [x] Run final gates, commit `docs: complete M1-01b worker directories`, push,
   and watch exact-SHA Runnable UI to success.
-- [ ] Close the plan, record run/job IDs, commit/push the close SHA, watch CI,
+- [x] Close the plan, record run/job IDs, commit/push the close SHA, watch CI,
   then start M1-01c.
+
+## Closure evidence
+
+- Design commit: `4a8db18ed5e69b36324372b250c3d5e2f27a8d89`
+- Start commit: `97e5d2a64dd94599894131587e60a89af8863451`
+- Implementation commit: `5fcdd07c092eb3773daac616f3b3e3ffd3499a06`
+- Generated-artifact fix: `00f8b6109ff6eaafe65b7fddff01badb5cf75475`
+- Completion commit: `5537b39f66bfd1230d7a681c7af09b1b47eb8d8d`
+- Runnable UI run `31911275467`, job `95076593834`: success for the exact
+  completion SHA.
