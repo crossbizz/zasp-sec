@@ -286,7 +286,7 @@ func writeBoundaryFixture(t *testing.T) (string, string) {
   "kind":"Config",
   "preferences":{},
   "current-context":"proof",
-  "clusters":[{"name":"cluster","cluster":{"server":"https://cluster.example.test","certificate-authority-data":"Y2E="}}],
+  "clusters":[{"name":"cluster","cluster":{"server":"https://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.gr7.us-west-2.eks.amazonaws.com","certificate-authority-data":"Y2E="}}],
   "contexts":[{"name":"proof","context":{"cluster":"cluster","user":"proof-user"}}],
   "users":[{"name":"proof-user","user":{"token":"synthetic-static-token"}}]
 }`
@@ -304,6 +304,7 @@ func newFixtureBoundary(t *testing.T, runner ProcessRunner) *KubectlBoundary {
 		KubeconfigPath:  kubeconfig,
 		Context:         "proof",
 		ClusterName:     "cluster",
+		Region:          "us-west-2",
 		Runner:          runner,
 		ReadTimeout:     time.Second,
 		MutationTimeout: time.Second,
@@ -415,20 +416,78 @@ func TestKubectlBoundaryRejectsUnsafeConfiguration(t *testing.T) {
 	if err := os.WriteFile(kubeconfig, []byte(unsafe), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	_, err = NewKubectlBoundary(KubectlBoundaryOptions{Executable: executable, KubeconfigPath: kubeconfig, Context: "proof", ClusterName: "cluster", Runner: &fakeProcessRunner{}})
+	_, err = NewKubectlBoundary(KubectlBoundaryOptions{Executable: executable, KubeconfigPath: kubeconfig, Context: "proof", ClusterName: "cluster", Region: "us-west-2", Runner: &fakeProcessRunner{}})
 	if !errors.Is(err, ErrConfiguration) {
 		t.Fatalf("unsafe kubeconfig error=%v, want configuration", err)
+	}
+}
+
+func TestKubectlBoundaryRejectsGroupReadableKubeconfig(t *testing.T) {
+	executable, kubeconfig := writeBoundaryFixture(t)
+	if err := os.Chmod(kubeconfig, 0o640); err != nil {
+		t.Fatal(err)
+	}
+	_, err := NewKubectlBoundary(KubectlBoundaryOptions{
+		Executable: executable, KubeconfigPath: kubeconfig, Context: "proof", ClusterName: "cluster", Region: "us-west-2",
+		Runner: &fakeProcessRunner{}, ReadTimeout: time.Second, MutationTimeout: time.Second, OutputLimit: 1024,
+	})
+	if !errors.Is(err, ErrConfiguration) {
+		t.Fatalf("mode error=%v, want configuration", err)
 	}
 }
 
 func TestKubectlBoundaryBindsExpectedClusterName(t *testing.T) {
 	executable, kubeconfig := writeBoundaryFixture(t)
 	_, err := NewKubectlBoundary(KubectlBoundaryOptions{
-		Executable: executable, KubeconfigPath: kubeconfig, Context: "proof", ClusterName: "different-cluster",
+		Executable: executable, KubeconfigPath: kubeconfig, Context: "proof", ClusterName: "different-cluster", Region: "us-west-2",
 		Runner: &fakeProcessRunner{}, ReadTimeout: time.Second, MutationTimeout: time.Second, OutputLimit: 1024,
 	})
 	if !errors.Is(err, ErrConfiguration) {
 		t.Fatalf("cluster mismatch error=%v, want configuration", err)
+	}
+}
+
+func TestKubectlBoundaryRejectsLocalAndWrongRegionClusterEndpoints(t *testing.T) {
+	for _, server := range []string{"https://127.0.0.1:6443", "https://localstack.invalid", "https://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.gr7.eu-west-1.eks.amazonaws.com"} {
+		t.Run(server, func(t *testing.T) {
+			executable, kubeconfig := writeBoundaryFixture(t)
+			data, err := os.ReadFile(kubeconfig)
+			if err != nil {
+				t.Fatal(err)
+			}
+			data = []byte(strings.Replace(string(data), "https://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.gr7.us-west-2.eks.amazonaws.com", server, 1))
+			if err := os.WriteFile(kubeconfig, data, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			_, err = NewKubectlBoundary(KubectlBoundaryOptions{
+				Executable: executable, KubeconfigPath: kubeconfig, Context: "proof", ClusterName: "cluster", Region: "us-west-2",
+				Runner: &fakeProcessRunner{}, ReadTimeout: time.Second, MutationTimeout: time.Second, OutputLimit: 1024,
+			})
+			if !errors.Is(err, ErrConfiguration) {
+				t.Fatalf("endpoint %s error=%v, want configuration", server, err)
+			}
+		})
+	}
+}
+
+func TestKubectlBoundaryAcceptsDocumentedDualStackEKSClusterEndpoint(t *testing.T) {
+	executable, kubeconfig := writeBoundaryFixture(t)
+	data, err := os.ReadFile(kubeconfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data = []byte(strings.Replace(string(data),
+		"https://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.gr7.us-west-2.eks.amazonaws.com",
+		"https://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.eks-cluster.us-west-2.api.aws", 1))
+	if err := os.WriteFile(kubeconfig, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, err = NewKubectlBoundary(KubectlBoundaryOptions{
+		Executable: executable, KubeconfigPath: kubeconfig, Context: "proof", ClusterName: "cluster", Region: "us-west-2",
+		Runner: &fakeProcessRunner{}, ReadTimeout: time.Second, MutationTimeout: time.Second, OutputLimit: 1024,
+	})
+	if err != nil {
+		t.Fatalf("dual-stack endpoint error=%v", err)
 	}
 }
 

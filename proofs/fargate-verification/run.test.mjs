@@ -73,6 +73,14 @@ test("build and proof environments drop ambient cloud kube and proxy state", () 
   assert.equal(proof.KUBECONFIG, undefined);
 });
 
+test("build environment derives a safe temporary directory when TMPDIR is absent", () => {
+  const environment = validEnvironment();
+  delete environment.TMPDIR;
+  const build = buildBuildEnvironment(environment);
+  assert.equal(typeof build.TMPDIR, "string");
+  assert.equal(build.TMPDIR.startsWith("/"), true);
+});
+
 test("bounded child enforces combined output and waits for SIGKILL close", async () => {
   let killed = false;
   let closed = false;

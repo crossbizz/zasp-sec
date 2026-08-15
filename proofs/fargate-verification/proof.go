@@ -431,15 +431,32 @@ func (life *lifecycle) cleanup() error {
 
 	var cleanupErr error
 	for _, resource := range slices.Clone(life.uncertain) {
-		state, err := life.options.Boundary.Get(cleanupContext, resourceRef(resource))
-		if errors.Is(err, ErrNotFound) {
-			continue
+		var resolved *ObjectState
+		absent := true
+		for attempt := 0; attempt < readAttempts; attempt++ {
+			state, err := life.options.Boundary.Get(cleanupContext, resourceRef(resource))
+			if err == nil {
+				absent = false
+				if exactResourceState(resource, state) {
+					resolved = &state
+				} else {
+					cleanupErr = ErrCleanup
+				}
+				break
+			}
+			if !errors.Is(err, ErrNotFound) {
+				absent = false
+			}
+			if attempt+1 < readAttempts && waitForRetry(cleanupContext) {
+				continue
+			}
+			break
 		}
-		if err != nil || !exactResourceState(resource, state) {
+		if resolved != nil {
+			life.owned = append(life.owned, OwnedObject{Expected: resource, State: *resolved})
+		} else if !absent {
 			cleanupErr = ErrCleanup
-			continue
 		}
-		life.owned = append(life.owned, OwnedObject{Expected: resource, State: state})
 	}
 
 	for index := len(life.owned) - 1; index >= 0; index-- {

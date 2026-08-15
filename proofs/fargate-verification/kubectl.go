@@ -62,6 +62,7 @@ type KubectlBoundaryOptions struct {
 	KubeconfigPath  string
 	Context         string
 	ClusterName     string
+	Region          string
 	Runner          ProcessRunner
 	ReadTimeout     time.Duration
 	MutationTimeout time.Duration
@@ -137,7 +138,7 @@ type kubeIdentity struct {
 }
 
 func NewKubectlBoundary(options KubectlBoundaryOptions) (*KubectlBoundary, error) {
-	if options.Runner == nil || !contextNamePattern.MatchString(options.Context) || !contextNamePattern.MatchString(options.ClusterName) ||
+	if options.Runner == nil || !contextNamePattern.MatchString(options.Context) || !contextNamePattern.MatchString(options.ClusterName) || !validCommercialRegion(options.Region) ||
 		options.ReadTimeout <= 0 || options.MutationTimeout <= 0 || options.OutputLimit <= 0 || options.OutputLimit > 64*1024 {
 		return nil, ErrConfiguration
 	}
@@ -146,7 +147,7 @@ func NewKubectlBoundary(options KubectlBoundaryOptions) (*KubectlBoundary, error
 		return nil, ErrConfiguration
 	}
 	kubeconfig, kubeconfigBytes, err := retainRegularFile(options.KubeconfigPath, maxKubeconfigBytes, false)
-	if err != nil || validateKubeconfig(kubeconfigBytes, options.Context, options.ClusterName) != nil {
+	if err != nil || kubeconfig.info.Mode().Perm()&0o077 != 0 || validateKubeconfig(kubeconfigBytes, options.Context, options.ClusterName, options.Region) != nil {
 		return nil, ErrConfiguration
 	}
 	clear(executableBytes)
@@ -196,7 +197,7 @@ func (retained retainedRegularFile) reprove() error {
 	return nil
 }
 
-func validateKubeconfig(data []byte, contextName, clusterName string) error {
+func validateKubeconfig(data []byte, contextName, clusterName, region string) error {
 	decoder := yaml.NewDecoder(bytes.NewReader(data))
 	decoder.KnownFields(true)
 	var config kubeConfig
@@ -226,7 +227,7 @@ func validateKubeconfig(data []byte, contextName, clusterName string) error {
 	}
 	clusters := make(map[string]kubeCluster, len(config.Clusters))
 	for _, item := range config.Clusters {
-		if _, exists := clusters[item.Name]; exists || validateKubeCluster(item.Cluster) != nil {
+		if _, exists := clusters[item.Name]; exists || validateKubeCluster(item.Cluster, region) != nil {
 			return ErrConfiguration
 		}
 		clusters[item.Name] = item.Cluster
@@ -247,9 +248,10 @@ func validateKubeconfig(data []byte, contextName, clusterName string) error {
 	return nil
 }
 
-func validateKubeCluster(cluster kubeCluster) error {
+func validateKubeCluster(cluster kubeCluster, region string) error {
 	parsed, err := url.Parse(cluster.Server)
 	if err != nil || parsed.Scheme != "https" || parsed.Hostname() == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" ||
+		parsed.Path != "" || parsed.Port() != "" || !validEKSClusterHost(parsed.Hostname(), region) ||
 		cluster.InsecureSkipTLSVerify || cluster.ProxyURL != "" || cluster.TLSServerName != "" {
 		return ErrConfiguration
 	}
@@ -259,6 +261,14 @@ func validateKubeCluster(cluster kubeCluster) error {
 	}
 	clear(decoded)
 	return nil
+}
+
+func validEKSClusterHost(host, region string) bool {
+	regionExpression := regexp.QuoteMeta(region)
+	legacy := regexp.MustCompile(`^[a-z0-9-]{10,64}\.[a-z0-9]{2,8}\.` + regionExpression + `\.eks\.amazonaws\.com$`)
+	dualStack := regexp.MustCompile(`^[a-z0-9-]{10,64}\.eks-cluster\.` + regionExpression + `\.api\.aws$`)
+	documentedDualStack := regexp.MustCompile(`^eks-cluster\.` + regionExpression + `\.api\.aws$`)
+	return legacy.MatchString(host) || dualStack.MatchString(host) || documentedDualStack.MatchString(host)
 }
 
 func validateKubeIdentity(identity kubeIdentity) error {

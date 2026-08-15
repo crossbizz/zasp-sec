@@ -55,11 +55,14 @@ export function validateProofEnvironment(environment) {
 export function buildBuildEnvironment(environment) {
   if (environment === null || typeof environment !== "object") reject("configuration");
   const result = Object.create(null);
-  for (const name of ["PATH", "HOME", "TMPDIR", "GOCACHE", "GOMODCACHE"]) {
+  for (const name of ["PATH", "HOME", "GOCACHE", "GOMODCACHE"]) {
     const value = environment[name];
     if (typeof value !== "string" || value.length === 0 || (name !== "PATH" && !isAbsolute(value))) reject("configuration");
     result[name] = value;
   }
+  const temporaryDirectory = environment.TMPDIR ?? tmpdir();
+  if (typeof temporaryDirectory !== "string" || temporaryDirectory.length === 0 || !isAbsolute(temporaryDirectory)) reject("configuration");
+  result.TMPDIR = temporaryDirectory;
   Object.assign(result, {
     CGO_ENABLED: "0",
     GOENV: "off",

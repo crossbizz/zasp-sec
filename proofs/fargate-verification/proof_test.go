@@ -268,6 +268,36 @@ func TestRunProofMutationClassificationAndCleanup(t *testing.T) {
 		}
 	})
 
+	t.Run("deferred cleanup retries a delayed ambiguous create independently", func(t *testing.T) {
+		cluster := newHappyCluster()
+		cluster.createErrors[KindSecret] = AmbiguousMutation(errors.New("lost acknowledgement"))
+		cluster.applyCreateError[KindSecret] = true
+		secretReads := 0
+		cluster.getHook = func(reference ResourceRef, state ObjectState, err error) (ObjectState, error) {
+			if reference.Kind == KindSecret {
+				secretReads++
+				if secretReads <= 3 {
+					return ObjectState{}, ErrNotFound
+				}
+			}
+			return state, err
+		}
+
+		_, err := RunProof(context.Background(), happyOptions(cluster))
+		if !errors.Is(err, ErrOwnership) {
+			t.Fatalf("error = %v, want original ownership failure", err)
+		}
+		secretDeleted := false
+		for _, kind := range cluster.deleted {
+			if kind == KindSecret {
+				secretDeleted = true
+			}
+		}
+		if !secretDeleted {
+			t.Fatalf("delayed ambiguous secret was not independently cleaned: %#v", cluster.deleted)
+		}
+	})
+
 	t.Run("malformed applied success reconciles exact state", func(t *testing.T) {
 		cluster := newHappyCluster()
 		cluster.invalidCreate[KindJob] = true
