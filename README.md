@@ -281,14 +281,20 @@ incomplete.
 
 ## OPA SDK proof
 
-M0-17 is In progress. It evaluates one Allow and one Block decision with the
-exact-pinned official OPA Go SDK embedded in-process. The proof prepares one
-fixed internal policy query, warms it 100 times per decision, measures 1,000
-evaluations per decision, and requires both decision-specific p95 values to be
-at most 10 ms. It starts no OPA server, accepts no customer Rego or environment
-configuration, and performs no network or provider call. R-10 remains Not run
-until the direct proof, dependency audit, full gates, and whole-range review
-pass.
+M0-17 is In progress. It evaluates one Allow and one Block decision with OPA
+v1.17.0 through the exact-pinned official OPA Go SDK embedded in-process. The
+proof prepares one fixed internal policy query, performs 100 warm-ups per decision and 1,000
+measured evaluations per decision, and requires each decision-specific p95 at
+or below 10 ms. It has no server, subprocess, bundle, network call, customer
+Rego, or environment configuration.
+
+Run `npm run proof:opa:test` for race-enabled evaluator tests,
+`npm run proof:opa:run` for the direct in-process proof, and
+`npm run proof:opa:license` for the immutable official tag, module-sum, and
+Apache-2.0 audit. Direct success is exactly
+`OPA SDK proof passed: allow=true block=true deterministic=true evaluations=2000 p95_under_10ms=true.`
+R-10 remains Not run until the direct proof, dependency audit, full gates, and
+whole-range review pass.
 
 ## Promptfoo red-team proof
 

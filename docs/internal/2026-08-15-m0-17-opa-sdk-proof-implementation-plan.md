@@ -251,7 +251,7 @@ git commit -m "feat: prove OPA decision latency"
 - `proof:opa:run`: direct in-process proof CLI.
 - `proof:opa:license`: immutable official tag/module/license audit.
 
-- [ ] **Step 1: Write repository/license RED**
+- [x] **Step 1: Write repository/license RED**
 
 Require the three root scripts, exact success line, embedded-only boundary,
 sample counts/threshold, exact dependency inventory, and R-10 Not-run wording.
@@ -259,13 +259,13 @@ The license test injects bounded command/fetch boundaries and rejects tag,
 commit, module version/sum, repository, artifact, license, hash, unknown-key,
 duplicate-key, malformed, redirect, timeout, and oversized drift.
 
-- [ ] **Step 2: Implement strict license audit GREEN**
+- [x] **Step 2: Implement strict license audit GREEN**
 
 Bind the official repo/tag commit, Go module proxy metadata and sum, and the
 commit-addressed Apache-2.0 LICENSE bytes/hash. Runtime output is fixed counts
 only and contains no fetched content or host paths.
 
-- [ ] **Step 3: Wire root commands and README**
+- [x] **Step 3: Wire root commands and README**
 
 Add:
 
@@ -278,7 +278,7 @@ Add:
 Document exact pin, in-process/no-server boundary, 100/1,000 counts, 10 ms p95
 gate, fixed line, and no customer-facing Rego.
 
-- [ ] **Step 4: Run full local gates and commit**
+- [x] **Step 4: Run full local gates and commit**
 
 Run root proof, license, full pinned repository verify, production audit,
 module tidy-diff/verify/vet, syntax, whitespace, and staged secret scan. Commit

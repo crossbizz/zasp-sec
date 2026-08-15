@@ -89,6 +89,26 @@ describe("OPA SDK proof repository contract", () => {
     assertM017Active(tracker, readme, riskRegister);
   });
 
+  it("exposes exact hermetic, direct, and immutable-license commands", async () => {
+    const packageJson = JSON.parse(await readFile(resolve(repositoryRoot, "package.json"), "utf8"));
+    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const section = readme.match(/## OPA SDK proof[\s\S]*?## Promptfoo red-team proof/)?.[0] ?? "";
+    const normalizedSection = section.replace(/\s+/g, " ");
+
+    expect(packageJson.scripts["proof:opa:test"]).toBe("cd proofs/opa-sdk && go test -race -count=1 ./...");
+    expect(packageJson.scripts["proof:opa:run"]).toBe("cd proofs/opa-sdk && go run .");
+    expect(packageJson.scripts["proof:opa:license"]).toBe("node proofs/opa-sdk/license-audit.mjs");
+    expect(normalizedSection).toContain("OPA v1.17.0");
+    expect(normalizedSection).toContain("100 warm-ups per decision");
+    expect(normalizedSection).toContain("1,000 measured evaluations per decision");
+    expect(normalizedSection).toContain("decision-specific p95 at or below 10 ms");
+    expect(section).toContain("proof:opa:test");
+    expect(section).toContain("proof:opa:run");
+    expect(section).toContain("proof:opa:license");
+    expect(section).toContain("OPA SDK proof passed: allow=true block=true deterministic=true evaluations=2000 p95_under_10ms=true.");
+    expect(normalizedSection).toContain("no server, subprocess, bundle, network call, customer Rego, or environment configuration");
+  });
+
   it("rejects duplicate, concurrent, premature-risk, external-service, and aggregate drift", async () => {
     const tracker = await readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8");
     const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
