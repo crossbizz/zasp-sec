@@ -17,27 +17,28 @@ function taskRows(tracker: string, heading: "In progress" | "Complete" | "Blocke
   return markdownRows(section).slice(2);
 }
 
-describe("M1-01e platform worker command repository contract", () => {
-  it("binds the source task to the minimal no-I/O worker design", async () => {
+describe("M1-01a runtime gateway command repository contract", () => {
+  it("binds the source task to the standalone no-I/O gateway design", async () => {
     const [source, design, plan] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "docs/internal/2026-08-15-m1-01e-platform-worker-command-design.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "docs/internal/2026-08-15-m1-01e-platform-worker-command-implementation-plan.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/2026-08-15-m1-01a-runtime-gateway-command-design.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/2026-08-15-m1-01a-runtime-gateway-command-implementation-plan.md"), "utf8"),
     ]);
-    const sourceSection = source.match(/\*\*M1-01e - platform worker command\*\*[\s\S]*?\*\*M1-01f/)?.[0];
+    const sourceSection = source.match(/\*\*M1-01a - runtime gateway command\*\*[\s\S]*?\*\*M1-01b/)?.[0];
 
-    expect(sourceSection).toContain("Depends on: `M1-01d`");
-    expect(sourceSection).toContain("Create the platform worker directory and minimal Go command");
+    expect(sourceSection).toContain("Depends on: `M1-01f`");
+    expect(sourceSection).toContain("Create the runtime-gateway directory and minimal Go command");
     expect(sourceSection).toContain("Command compiles and prints build version");
-    expect(design).toContain("services/platform/agentsec-worker/main.go");
-    expect(design).toContain("agentsec-worker build <version>");
-    expect(design).toContain("does not start a worker loop");
-    expect(design).toContain("performs no network or queue operation");
+    expect(source).toContain("services/runtime-gateway       Go MCP/tool/API proxy with embedded OPA");
+    expect(design).toContain("services/runtime-gateway/go.mod");
+    expect(design).toContain("runtime-gateway build <version>");
+    expect(design).toContain("separate deployable and ownership boundary");
+    expect(design).toContain("performs no network, MCP, tool, API, or OPA operation");
     expect(plan).toContain("behavior or status change must have a witnessed tests-only RED");
-    expect(plan).toContain("M1-01f remains Pending");
+    expect(plan).toContain("M1-01b remains Pending");
   });
 
-  it("completes only M1-01e after the completed API command", async () => {
+  it("starts only M1-01a after the completed ingest command", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -50,9 +51,9 @@ describe("M1-01e platform worker command repository contract", () => {
     const m0 = milestones.find(([milestone]) => milestone === "M0");
     const m1 = milestones.find(([milestone]) => milestone === "M1");
 
-    expect(readme).toContain("M1-01e is Complete");
-    expect(readme).toContain("agentsec-worker build <version>");
-    expect(readme).toContain("does not start a worker loop");
+    expect(readme).toContain("M1-01a is In progress");
+    expect(readme).toContain("runtime-gateway build <version>");
+    expect(readme).toContain("does not start a proxy or listener");
     expect(tracker).toContain("| Pending | 697 |");
     expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 27 |");
@@ -61,32 +62,11 @@ describe("M1-01e platform worker command repository contract", () => {
     expect(m0).toEqual(["M0", "27", "0", "0", "24", "3"]);
     expect(m1).toEqual(["M1", "68", "64", "1", "3", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active).toHaveLength(1);
-    expect(complete.filter(([task]) => task === "M1-01d")).toHaveLength(1);
-    expect(complete.filter(([task]) => task === "M1-01e")).toHaveLength(1);
+    expect(active.filter(([task]) => task === "M1-01a")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-01f")).toHaveLength(1);
+    expect([...active, ...complete].filter(([task]) => task === "M1-01b")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
     expect(tracker).toContain("R-03 remains incomplete");
     expect(tracker).toContain("R-11 remains Not run");
-  });
-
-  it("keeps the worker in the service-local module with only version output", async () => {
-    const [goModule, command, commandTest] = await Promise.all([
-      readFile(resolve(repositoryRoot, "services/platform/go.mod"), "utf8"),
-      readFile(resolve(repositoryRoot, "services/platform/agentsec-worker/main.go"), "utf8"),
-      readFile(resolve(repositoryRoot, "services/platform/agentsec-worker/main_test.go"), "utf8"),
-    ]);
-
-    expect(goModule).toBe("module github.com/zasp-ai/zasp-sec/services/platform\n\ngo 1.25.0\n");
-    expect(command).toContain('buildVersion           = "dev"');
-    expect(command).toContain('io.WriteString(output, "agentsec-worker build "+version+"\\n")');
-    expect(command).toContain("len(version) > 64");
-    expect(command).not.toContain("os.Getenv");
-    expect(command).not.toContain('"net/http"');
-    expect(command).not.toContain('"flag"');
-    expect(command).not.toContain('"time"');
-    expect(commandTest).toContain("TestRunPrintsExactBuildVersion");
-    expect(commandTest).toContain("TestRunRejectsInvalidBuildVersionWithoutOutput");
-    expect(commandTest).toContain("TestRunReturnsWriterFailure");
   });
 });

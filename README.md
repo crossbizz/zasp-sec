@@ -78,6 +78,21 @@ payloads, contact SQS, load runtime configuration, read credentials or provider
 state, or claim ingest readiness. The development build uses `dev`; release
 builds may inject a bounded version at link time.
 
+## Runtime gateway command
+
+M1-01a is In progress. It creates the standalone Go service at
+`services/runtime-gateway`. Its only intended behavior in this task is one exact
+build-version line:
+
+```text
+runtime-gateway build <version>
+```
+
+This skeleton does not start a proxy or listener, MCP server, tool/API gateway,
+or OPA evaluator; it loads no runtime configuration, credentials, provider
+state, or policy bundle and claims no gateway readiness. The development build
+uses `dev`; release builds may inject a bounded version at link time.
+
 ## Neon pooled proof
 
 The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,
