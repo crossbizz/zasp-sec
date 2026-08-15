@@ -119,4 +119,4 @@ network.
 - [x] two consecutive live runs
 - [x] full gates, audit, license, and secret scans
 - [x] independent review with zero findings
-- [ ] completion transition and exact-SHA CI success
+- [x] completion transition and exact-SHA CI success
