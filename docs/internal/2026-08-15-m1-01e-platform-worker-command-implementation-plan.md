@@ -55,5 +55,5 @@ version and has no worker loop or runtime dependency.
   `68/66/0/2/0`; preserve M0 and all blockers.
 - [x] Run final gates, commit `docs: complete M1-01e platform worker command`,
   push, and watch exact-SHA Runnable UI to success.
-- [ ] Close the plan, record run/job IDs, commit/push the close SHA, watch CI,
+- [x] Close the plan, record run/job IDs, commit/push the close SHA, watch CI,
   then start M1-01f.
