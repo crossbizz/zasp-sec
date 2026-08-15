@@ -80,8 +80,8 @@ builds may inject a bounded version at link time.
 
 ## Runtime gateway command
 
-M1-01a is In progress. It creates the standalone Go service at
-`services/runtime-gateway`. Its only intended behavior in this task is one exact
+M1-01a is Complete. It creates the standalone Go service at
+`services/runtime-gateway`. Its only behavior in this task is one exact
 build-version line:
 
 ```text

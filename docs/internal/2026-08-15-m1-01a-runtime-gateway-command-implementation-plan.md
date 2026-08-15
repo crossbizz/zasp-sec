@@ -52,8 +52,8 @@ compile-time version and has no proxy, listener, policy, or provider dependency.
 
 ### Task 4: Complete, push, and close M1-01a
 
-- [ ] Change only completion expectations and capture focused RED.
-- [ ] Move only M1-01a to Complete at `697/0/28/3` and M1
+- [x] Change only completion expectations and capture focused RED.
+- [x] Move only M1-01a to Complete at `697/0/28/3` and M1
   `68/64/0/4/0`; preserve M0 and all blockers.
 - [ ] Run final gates, commit `docs: complete M1-01a runtime gateway command`,
   push, and watch exact-SHA Runnable UI to success.

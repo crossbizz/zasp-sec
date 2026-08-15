@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 697 |
-| In progress | 1 |
-| Complete | 27 |
+| In progress | 0 |
+| Complete | 28 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -24,7 +24,7 @@ In progress, Complete, or Blocked is Pending.
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 0 | 0 | 24 | 3 |
-| M1 | 68 | 64 | 1 | 3 | 0 |
+| M1 | 68 | 64 | 0 | 4 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
 | M3 | 75 | 75 | 0 | 0 | 0 |
@@ -68,14 +68,13 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `697/1/27/3` because
+session configuration. The 728 source-plan counts are `697/0/28/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M1-01a | August 15, 2026 | Adding the standalone service-local `runtime-gateway` Go command with exact bounded build-version output and no proxy, listener, MCP, tool/API, OPA, configuration, provider, or network behavior. |
 
 ## Complete
 
@@ -108,6 +107,7 @@ PROV-01 is excluded from those counts.
 | M1-01d | August 15, 2026 | Created the service-local `services/platform` Go module and minimal `agentsec-api` command; exact default and link-time build versions, bounded validation, writer failures, race/build/module/vet gates, full repository verification, audit, scans, and zero-finding review passed without adding runtime I/O. |
 | M1-01e | August 15, 2026 | Added the sibling service-local `agentsec-worker` command; exact default and link-time build versions, bounded validation, writer failures, both-command race/build/module/vet gates, full repository verification, audit, scans, and zero-finding review passed without adding a worker loop or runtime I/O. |
 | M1-01f | August 15, 2026 | Created the standalone service-local `services/event-ingest` Go module and minimal command; exact default and link-time build versions, bounded validation, writer failures, ingest/platform race/build/module/vet gates, full repository verification, audit, scans, and zero-finding review passed without adding a listener or ingest behavior. |
+| M1-01a | August 15, 2026 | Created the standalone service-local `services/runtime-gateway` Go module and minimal command; exact default and link-time build versions, bounded validation, writer failures, gateway/ingest/platform race/build/module/vet gates, full repository verification, audit, scans, and zero-finding review passed without adding proxy, listener, MCP, tool/API, OPA, configuration, provider, or network behavior. |
 
 `PRE-01`, `PRE-02`, and `PROV-01` do not count as source-plan microtasks.
 
