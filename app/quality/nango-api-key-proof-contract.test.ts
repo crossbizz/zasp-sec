@@ -21,8 +21,7 @@ function assertM014cComplete(tracker: string) {
   const activeRows = markdownRows(inProgress).slice(2);
   const allCompleteRows = markdownRows(complete).slice(2);
   const completeRows = allCompleteRows.filter(([task]) => task === "M0-14c");
-  expect(activeRows).toHaveLength(1);
-  expect(activeRows[0]?.[0]).toBe("M0-15");
+  expect(activeRows).toHaveLength(0);
   expect([...activeRows, ...allCompleteRows].filter(([task]) => task === "M0-15")).toHaveLength(1);
   expect(completeRows).toHaveLength(1);
   expect(completeRows[0]?.[1]).toBe("August 15, 2026");
@@ -48,7 +47,7 @@ describe("Nango API-key proof completion contract", () => {
     expect(section).toContain("durable connection reference");
     expect(section).toContain("never enters product state");
     expect(section).toContain("no host port");
-    expect(section).toMatch(/R-08 remains\s+Not run/);
+    expect(section).toMatch(/R-08 is\s+PASS/);
     expect(section).toContain("M0-14c is Complete");
   });
 
@@ -106,15 +105,15 @@ describe("Nango API-key proof completion contract", () => {
     );
 
     expect(tracker).toContain("| Pending | 709 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 16 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 17 |");
     expect(tracker).toContain("| Blocked | 1 |");
-    expect(tracker).toMatch(/\| M0 \| 27 \| 8 \| 1 \| 16 \| 1 \|/);
+    expect(tracker).toMatch(/\| M0 \| 27 \| 8 \| 0 \| 17 \| 1 \|/);
     assertM014cComplete(tracker);
     expect(tracker).toMatch(/## Complete[\s\S]*?\| M0-14b \| August 15, 2026 \|/);
     expect(tracker).toContain("M0-09 and PROV-01 remain Blocked");
     expect(tracker).toContain("R-03 remains incomplete");
-    expect(tracker).toContain("R-08 remains Not run through M0-15");
+    expect(tracker).toContain("R-08 is PASS");
   });
 
   it("rejects duplicate completion or concurrent active rows", async () => {

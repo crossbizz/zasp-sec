@@ -219,27 +219,27 @@ PostgreSQL 16.0-alpine, Docker CLI, Node test runner, Vitest, Markdown.
 - R-08 becomes `PASS — M0-15 — <exact evidence path and delivery SHA>` only
   after its whole multi-task criterion is evidenced.
 
-- [ ] Prove preflight zero for every M0-15 prefix/label/network/temp selector
+- [x] Prove preflight zero for every M0-15 prefix/label/network/temp selector
   and fingerprint any shared Nango/PostgreSQL targets without mutation.
-- [ ] Run the exact clean-environment root command. Diagnose every failure
+- [x] Run the exact clean-environment root command. Diagnose every failure
   from sanitized phase/boolean evidence; capture a focused RED before each
   production fix; re-prove and remove only exact-owned retained candidates.
-- [ ] Obtain two consecutive final-code live passes. After each, prove zero
+- [x] Obtain two consecutive final-code live passes. After each, prove zero
   containers/networks/temp roots and unchanged shared fingerprints.
-- [ ] Capture a product-fields-only result proving one exact provider event,
+- [x] Capture a product-fields-only result proving one exact provider event,
   the expected Organization/reference linkage, and absence of all raw keys,
   connect tokens, native labels, Docker values, and provider body aliases.
-- [ ] Run six hermetic passes, all Nango regressions, full pinned repository
+- [x] Run six hermetic passes, all Nango regressions, full pinned repository
   verify, production audit, exact license inventory, whitespace/syntax, and
   pinned redacted Gitleaks over proof tree, staged content, exact evidence,
   exact commits, and full history.
-- [ ] Perform a whole-range read-only review and fix every Critical,
+- [x] Perform a whole-range read-only review and fix every Critical,
   Important, and Minor finding tests-first. Re-run live lifecycle after any
   ownership, mutation, timing, or cleanup change.
-- [ ] Add hostile completion/status tests and capture RED for the stale active
+- [x] Add hostile completion/status tests and capture RED for the stale active
   row/R-08 Not-run state. Move only M0-15 to Complete, advance only R-08 to
   PASS, preserve M0-16 Pending and all blocked/incomplete boundaries, then run
   focused GREEN and all final gates.
-- [ ] Record exact evidence, commit, push `codex/zasp-implementation`, prove
+- [x] Record exact evidence, commit, push `codex/zasp-implementation`, prove
   local/tracking/origin SHA equality, and watch the Runnable UI run for that
   exact SHA to terminal success.

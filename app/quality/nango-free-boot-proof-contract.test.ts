@@ -22,8 +22,7 @@ function assertM014aComplete(tracker: string) {
   const completeRows = markdownRows(complete).slice(2);
   const rows = completeRows.filter(([task]) => task === "M0-14a");
 
-  expect(activeRows).toHaveLength(1);
-  expect(activeRows[0]?.[0]).toBe("M0-15");
+  expect(activeRows).toHaveLength(0);
   expect([...activeRows, ...completeRows].filter(([task]) => task === "M0-15")).toHaveLength(1);
   expect(rows).toHaveLength(1);
   expect(rows[0]?.[0]).toBe("M0-14a");
@@ -56,7 +55,7 @@ describe("Nango free boot proof contract", () => {
       "Nango free boot proof passed: services=2 ready=true product_network=true cleanup=true.",
     );
     expect(section).toContain("M0-14a is Complete");
-    expect(section).toContain("R-08 remains Not run");
+    expect(section).toContain("R-08 is PASS");
     expect(section).toContain("does not read `.env`");
   });
 
@@ -143,10 +142,10 @@ describe("Nango free boot proof contract", () => {
     );
 
     expect(tracker).toContain("| Pending | 709 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 16 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 17 |");
     expect(tracker).toContain("| Blocked | 1 |");
-    expect(tracker).toMatch(/\| M0 \| 27 \| 8 \| 1 \| 16 \| 1 \|/);
+    expect(tracker).toMatch(/\| M0 \| 27 \| 8 \| 0 \| 17 \| 1 \|/);
     assertM014aComplete(tracker);
     expect(tracker).toContain("M0-13");
     expect(tracker).toContain("M0-09 and PROV-01 remain Blocked");
@@ -176,6 +175,6 @@ describe("Nango free boot proof contract", () => {
 
     expect(rows).toHaveLength(1);
     expect(rows[0]).toHaveLength(6);
-    expect(rows[0]?.[5]).toBe("Not run — M0-14a through M0-15");
+    expect(rows[0]?.[5]).toMatch(/^PASS — M0-15 — /);
   });
 });

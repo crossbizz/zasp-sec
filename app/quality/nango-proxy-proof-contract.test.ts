@@ -3,6 +3,8 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const repositoryRoot = resolve(import.meta.dirname, "../..");
+const proofHead = "7f64ca823365af066c273a755e01acd7cf05c0ab";
+const completionEvidence = `.superpowers/sdd/2026-08-15-m0-15-nango-proxy-proof-implementation-plan/task-6-report.md; proof head ${proofHead}`;
 
 function markdownRows(markdown: string) {
   return markdown
@@ -48,6 +50,34 @@ function assertM015Active(tracker: string, readme: string, riskRegister: string)
   expect(riskRows[0]?.[5]).toBe("Not run — M0-14a through M0-15");
 }
 
+function assertM015Complete(tracker: string, readme: string, riskRegister: string) {
+  const section = readme.match(/## Nango proxy proof[\s\S]*?## Nango free Auth boundary/)?.[0];
+  const activeRows = taskRows(tracker, "In progress");
+  const completeRows = taskRows(tracker, "Complete");
+  const riskRows = markdownRows(riskRegister).filter(([id]) => id === "R-08");
+
+  expect(section).toBeDefined();
+  expect(section).toContain("M0-15 is Complete");
+  expect(section).toContain("authenticated provider GET");
+  expect(section).toContain("raw provider token");
+  expect(section).toContain("R-08 is PASS");
+
+  expect(tracker).toContain("| Pending | 709 |");
+  expect(tracker).toContain("| In progress | 0 |");
+  expect(tracker).toContain("| Complete | 17 |");
+  expect(tracker).toContain("| Blocked | 1 |");
+  expect(tracker).toMatch(/\| M0 \| 27 \| 8 \| 0 \| 17 \| 1 \|/);
+  expect(activeRows).toHaveLength(0);
+  expect(completeRows.filter(([task]) => task === "M0-15")).toHaveLength(1);
+  expect(completeRows.filter(([task]) => task === "M0-14")).toHaveLength(1);
+  expect(completeRows.filter(([task]) => task === "M0-16")).toHaveLength(0);
+  expect(tracker).toContain("M0-09 and PROV-01 remain Blocked");
+  expect(tracker).toContain("R-03 remains incomplete");
+
+  expect(riskRows).toHaveLength(1);
+  expect(riskRows[0]?.[5]).toBe(`PASS — M0-15 — ${completionEvidence}`);
+}
+
 function activeFixture(tracker: string, readme: string) {
   if (taskRows(tracker, "In progress").some(([task]) => task === "M0-15") && readme.includes("## Nango proxy proof")) {
     return { tracker, readme };
@@ -63,17 +93,21 @@ function activeFixture(tracker: string, readme: string) {
   const row =
     "| M0-15 | August 15, 2026 | Prove one authenticated provider GET through the private Nango Proxy boundary without retaining the raw provider token. |";
   return {
-    readme: readme.replace("## Nango free Auth boundary", `${section}\n## Nango free Auth boundary`),
+    readme: readme.replace(/## Nango proxy proof[\s\S]*?(?=## Nango free Auth boundary)/, `${section}\n`),
     tracker: tracker
       .replace("| Pending | 710 |", "| Pending | 709 |")
       .replace("| In progress | 0 |", "| In progress | 1 |")
+      .replace("| Complete | 17 |", "| Complete | 16 |")
       .replace("| M0 | 27 | 9 | 0 | 16 | 1 |", "| M0 | 27 | 8 | 1 | 16 | 1 |")
+      .replace("| M0 | 27 | 8 | 0 | 17 | 1 |", "| M0 | 27 | 8 | 1 | 16 | 1 |")
       .replace("`710/0/16/1`", "`709/1/16/1`")
+      .replace("`709/0/17/1`", "`709/1/16/1`")
+      .replace(/^\| M0-15 \| August 15, 2026 \|.*\|\n/m, "")
       .replace("| --- | --- | --- |\n\n## Complete", `| --- | --- | --- |\n${row}\n\n## Complete`),
   };
 }
 
-describe("Nango Proxy proof start contract", () => {
+describe("Nango Proxy proof delivery contract", () => {
   it("exposes exact hermetic and live commands with the fixed private output boundary", async () => {
     const packageJson = JSON.parse(await readFile(resolve(repositoryRoot, "package.json"), "utf8")) as {
       scripts?: Record<string, string>;
@@ -92,7 +126,7 @@ describe("Nango Proxy proof start contract", () => {
     expect(section).toContain("no host port");
     expect(section).toContain("no `.env`");
     expect(section).toContain("raw provider token");
-    expect(section).toContain("M0-15 is In progress");
+    expect(section).toContain("M0-15 is Complete");
   });
 
   it("binds the exact source task, accepted product boundary, and implementation decision", async () => {
@@ -127,11 +161,11 @@ describe("Nango Proxy proof start contract", () => {
     expect(plan).toMatch(/every Critical,\s+Important, and Minor finding tests-first/);
   });
 
-  it("starts only M0-15 while retaining every dependency and risk gate", async () => {
+  it("completes only M0-15 and advances only the full R-08 gate", async () => {
     const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
     const tracker = await readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8");
     const riskRegister = await readFile(resolve(repositoryRoot, "docs/decisions/mvp-risk-register.md"), "utf8");
-    assertM015Active(tracker, readme, riskRegister);
+    assertM015Complete(tracker, readme, riskRegister);
   });
 
   it("rejects duplicate, concurrent, early-risk, exclusion, and aggregate drift", async () => {
@@ -139,43 +173,44 @@ describe("Nango Proxy proof start contract", () => {
     const tracker = await readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8");
     const riskRegister = await readFile(resolve(repositoryRoot, "docs/decisions/mvp-risk-register.md"), "utf8");
     const active = activeFixture(tracker, readme);
+    const activeRisk = riskRegister.replace(`PASS — M0-15 — ${completionEvidence}`, "Not run — M0-14a through M0-15");
     const row = taskRows(active.tracker, "In progress")[0]?.join(" | ");
 
     expect(row).toBeDefined();
-    expect(() => assertM015Active(active.tracker, active.readme, riskRegister)).not.toThrow();
+    expect(() => assertM015Active(active.tracker, active.readme, activeRisk)).not.toThrow();
     expect(() =>
       assertM015Active(
         active.tracker.replace("## Complete\n", `| ${row} |\n\n## Complete\n`),
         active.readme,
-        riskRegister,
+        activeRisk,
       ),
     ).toThrow();
     expect(() =>
       assertM015Active(
         active.tracker.replace("## Complete\n", "| M0-16 | August 15, 2026 | Concurrent work. |\n\n## Complete\n"),
         active.readme,
-        riskRegister,
+        activeRisk,
       ),
     ).toThrow();
     expect(() =>
       assertM015Active(
         active.tracker,
         active.readme,
-        riskRegister.replace("Not run — M0-14a through M0-15", "PASS — M0-15 — premature"),
+        activeRisk.replace("Not run — M0-14a through M0-15", "PASS — M0-15 — premature"),
       ),
     ).toThrow();
     expect(() =>
       assertM015Active(
         active.tracker,
         active.readme.replace("private TLS fixture", "Nango Functions fixture"),
-        riskRegister,
+        activeRisk,
       ),
     ).toThrow();
     expect(() =>
       assertM015Active(
         active.tracker.replace("| Pending | 709 |", "| Pending | 708 |"),
         active.readme,
-        riskRegister,
+        activeRisk,
       ),
     ).toThrow();
   });

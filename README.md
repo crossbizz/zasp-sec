@@ -281,7 +281,7 @@ incomplete.
 
 ## Nango proxy proof
 
-M0-15 is In progress. It proves one authenticated provider GET through the
+M0-15 is Complete. It proves one authenticated provider GET through the
 exact-pinned free self-hosted Nango Proxy surface against a private TLS fixture.
 The fixture first accepts Nango's exact API-key introspection request, then one
 distinct bearer-authenticated `GET /api/v2/events?limit=1`. The product wrapper
@@ -307,21 +307,22 @@ Nango proxy proof passed: get=true response=true product_state_safe=true cleanup
 ```
 
 The raw provider token, Nango environment key, connect token, database
-password, and encryption key never enter product state or fixed output.
-R-08 remains Not run until the live lifecycle, exact cleanup, full gates, and
-zero-finding review pass.
+password, and encryption key never enter product state or fixed output. Two
+consecutive final-code live runs, exact zero-resource audits, pinned gates,
+license/secret scans, and a zero-finding whole-range review passed.
+R-08 is PASS at M0-15.
 
 ## Nango free Auth boundary
 
 M0-14 is Complete. The accepted free self-hosted Nango MVP boundary is
-long-tail Auth plus Proxy, with the authenticated Proxy GET still pending
-M0-15. Functions, Webhooks, and MCP are out of scope, as are Nango RBAC, full
+long-tail Auth plus Proxy; M0-15 now supplies the authenticated Proxy GET.
+Functions, Webhooks, and MCP are out of scope, as are Nango RBAC, full
 observability, Connect UI, and Enterprise-only features.
 
 This boundary consolidates the completed M0-14a boot, M0-14b OAuth, and M0-14c
 API-key evidence. It adds no runtime or provider call and is not a claim that
 every excluded route is absent from the pinned image. Core launch connectors
-remain product-owned and bypass Nango. R-08 remains Not run through M0-15;
+remain product-owned and bypass Nango. R-08 is PASS at M0-15;
 M0-09 and PROV-01 remain Blocked, and R-03 remains incomplete.
 
 ## Nango API-key proof
@@ -353,8 +354,8 @@ Nango API key proof passed: api_key=true reference=true product_state_safe=true 
 
 The product receives only the Organization-scoped durable connection reference.
 The raw provider key never enters product state or fixed output. Every live run
-uses fresh marker-scoped resources and reverse exact-owned cleanup. R-08 remains
-Not run through M0-15; M0-09 and PROV-01 remain Blocked, and R-03 remains
+uses fresh marker-scoped resources and reverse exact-owned cleanup. R-08 is
+PASS at M0-15; M0-09 and PROV-01 remain Blocked, and R-03 remains
 incomplete.
 
 ## Nango OAuth proof
@@ -388,8 +389,8 @@ Nango OAuth proof passed: oauth=true reference=true product_state_safe=true clea
 Every live run uses fresh marker-scoped resources and reverse exact-owned
 cleanup. M0-14b is Complete after two consecutive final-code live passes,
 complete zero-resource audits, full repository gates and scans, and a
-zero-finding pre-landing review. R-08 remains Not run through M0-15. M0-14c is
-Complete; M0-15 has not started.
+zero-finding pre-landing review. R-08 is PASS at M0-15. M0-14c and M0-15 are
+Complete.
 
 ## Nango free boot proof
 
@@ -425,12 +426,12 @@ Elasticsearch, Connect UI, RBAC, orchestration, and Enterprise mode are absent
 or disabled in the exact boot configuration. The proof does not invoke or
 depend on Functions, Webhooks, or the MCP server, but does not yet prove those
 routes unreachable. It proves minimum free boot and private product-network
-readiness only; OAuth, API-key connection, full free-feature, and authenticated
-proxy proofs remain M0-14b through M0-15.
+readiness only; OAuth, API-key connection, and authenticated Proxy proof were
+completed in M0-14b through M0-15.
 
 M0-14a is Complete after two consecutive final-code live runs, exact zero-
 resource audits, full gates/scans, and an independent zero-finding review.
-R-08 remains Not run through M0-15. M0-09 and PROV-01 remain Blocked, and R-03
+R-08 is PASS at M0-15. M0-09 and PROV-01 remain Blocked, and R-03
 remains incomplete.
 
 ## Tetragon signal proof

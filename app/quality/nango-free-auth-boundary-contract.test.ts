@@ -30,15 +30,14 @@ function assertM014Complete(tracker: string, readme: string, riskRegister: strin
   expect(section).toContain("Functions, Webhooks, and MCP are out of scope");
   expect(section).toMatch(/not a claim that\s+every excluded route is absent/);
   expect(section).toContain("M0-15");
-  expect(section).toContain("R-08 remains Not run");
+  expect(section).toContain("R-08 is PASS");
 
   expect(tracker).toContain("| Pending | 709 |");
-  expect(tracker).toContain("| In progress | 1 |");
-  expect(tracker).toContain("| Complete | 16 |");
+  expect(tracker).toContain("| In progress | 0 |");
+  expect(tracker).toContain("| Complete | 17 |");
   expect(tracker).toContain("| Blocked | 1 |");
-  expect(tracker).toMatch(/\| M0 \| 27 \| 8 \| 1 \| 16 \| 1 \|/);
-  expect(activeRows).toHaveLength(1);
-  expect(activeRows[0]?.[0]).toBe("M0-15");
+  expect(tracker).toMatch(/\| M0 \| 27 \| 8 \| 0 \| 17 \| 1 \|/);
+  expect(activeRows).toHaveLength(0);
   expect(m014Rows).toHaveLength(1);
   expect(m014Rows[0]?.[1]).toBe("August 15, 2026");
   expect(m014Rows[0]?.[2]).toContain("Auth plus Proxy");
@@ -47,11 +46,11 @@ function assertM014Complete(tracker: string, readme: string, riskRegister: strin
   expect(tracker).toContain("M0-09 and PROV-01 remain Blocked");
   expect(tracker).toContain("R-03 remains incomplete");
   expect(tracker).toMatch(
-    /\| M0-14 final review \|[^\n]*zero remaining Critical, Important, or Minor[^\n]*\| Complete August 15, 2026[^\n]*R-08 remains Not run[^\n]*\|/,
+    /\| M0-14 final review \|[^\n]*zero remaining Critical, Important, or Minor[^\n]*\| Complete August 15, 2026[^\n]*R-08 was deferred to M0-15[^\n]*\|/,
   );
 
   expect(riskRows).toHaveLength(1);
-  expect(riskRows[0]?.[5]).toBe("Not run — M0-14a through M0-15");
+  expect(riskRows[0]?.[5]).toMatch(/^PASS — M0-15 — /);
 }
 
 function completedFixture(tracker: string, readme: string) {
@@ -153,7 +152,7 @@ describe("Nango free Auth boundary contract", () => {
       assertM014Complete(
         completed.tracker,
         completed.readme,
-        riskRegister.replace("Not run — M0-14a through M0-15", "PASS — M0-14"),
+        riskRegister.replace("PASS — M0-15 —", "PASS — M0-14 —"),
       ),
     ).toThrow();
     expect(() =>
