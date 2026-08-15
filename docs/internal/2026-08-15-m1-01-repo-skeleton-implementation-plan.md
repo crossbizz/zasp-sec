@@ -53,7 +53,7 @@ runtime product behavior.
 - [x] Change only completion expectations and capture focused RED.
 - [x] Move only M1-01 to Complete at `694/0/31/3` and M1
   `68/61/0/7/0`; preserve M0 and all blockers.
-- [ ] Run final gates, commit `docs: complete M1-01 repo skeleton`, push, and
+- [x] Run final gates, commit `docs: complete M1-01 repo skeleton`, push, and
   watch exact-SHA Runnable UI to success.
-- [ ] Close the plan, record run/job IDs, commit/push the close SHA, watch CI,
+- [x] Close the plan, record run/job IDs, commit/push the close SHA, watch CI,
   then start M1-02.
