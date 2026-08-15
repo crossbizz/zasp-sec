@@ -282,6 +282,52 @@ test("validates exact pinned Tetragon/operator images and explicit gRPC health e
   }), false);
 });
 
+test("validates the exact platform-pinned BusyBox workload identity", async () => {
+  const { validateWorkloadPod } = await import("./run.mjs");
+  assert.equal(typeof validateWorkloadPod, "function");
+  const image = `registry.k8s.io/e2e-test-images/busybox:1.36.1-1@sha256:${"a".repeat(64)}`;
+  const expected = {
+    image,
+    namespace: names.namespace,
+    nodeName: `${names.cluster}-control-plane`,
+    podName: names.workloadPod,
+  };
+  const workload = {
+    metadata: {
+      name: names.workloadPod,
+      namespace: names.namespace,
+      uid: "11111111-2222-4333-8444-555555555555",
+    },
+    spec: {
+      nodeName: expected.nodeName,
+      containers: [{ name: "workload", image }],
+    },
+    status: { containerStatuses: [{
+      name: "workload",
+      ready: true,
+      restartCount: 0,
+      containerID: `containerd://${"b".repeat(64)}`,
+      imageID: `docker-pullable://${image}`,
+    }] },
+  };
+  assert.deepEqual(validateWorkloadPod(workload, expected), {
+    containerId: `containerd://${"b".repeat(64)}`,
+    imageId: image,
+    nodeName: expected.nodeName,
+    podUid: "11111111-2222-4333-8444-555555555555",
+  });
+  for (const mutate of [
+    (value) => { delete value.spec.containers[0].image; },
+    (value) => { value.spec.containers[0].image = image.replace(/a$/, "c"); },
+    (value) => { value.status.containerStatuses[0].imageID = image.replace(/a$/, "d"); },
+    (value) => { value.spec.containers[0].name = "foreign"; },
+  ]) {
+    const changed = structuredClone(workload);
+    mutate(changed);
+    assert.throws(() => validateWorkloadPod(changed, expected), Failure);
+  }
+});
+
 test("binds the complete supported kind node fingerprint and rejects replacement metadata", () => {
   const token = "a".repeat(64);
   const imageId = `sha256:${"b".repeat(64)}`;
@@ -877,6 +923,77 @@ test("DockerKindSystem cleans only retained full IDs and preserves the network o
   assert.equal(noOp.hasCandidate(), false);
 });
 
+test("DockerKindSystem reconciles malformed zero-status removal acknowledgements", async (t) => {
+  const input = {
+    marker,
+    organizationId: "org_aaaaaaaaaaaaaaaa",
+    path: "/fixed/bin",
+    hostPlatform: "darwin/arm64",
+    nodePlatform: "linux/arm64",
+  };
+  const nodeToken = "a".repeat(64);
+  const volumeToken = "b".repeat(64);
+  const networkToken = "c".repeat(64);
+  const phase = { signal: new AbortController().signal, assertActive() {} };
+
+  await t.test("node removal", async () => {
+    const calls = [];
+    let nodePresent = true;
+    const system = new DockerKindSystem(input);
+    system.paths = Object.freeze({ kubeconfig: "/owned/kubeconfig" });
+    system.clusterMayHaveApplied = true;
+    system.networkMayHaveApplied = true;
+    system.nodeToken = nodeToken;
+    system.nodeIdentity = Object.freeze({ token: nodeToken, volumeToken });
+    system.networkToken = networkToken;
+    system.nodeCandidates = async () => nodePresent
+      ? [{ token: nodeToken, name: `${names.cluster}-control-plane` }]
+      : [];
+    system.networkCandidates = async () => [];
+    system.verifyCluster = async () => {};
+    system.requireClusterAbsent = async () => {
+      calls.push("absent-cluster");
+      assert.equal(nodePresent, false);
+    };
+    system.requireNetworkAbsent = async () => { calls.push("absent-network"); };
+    system.mutation = async (_command, arguments_) => {
+      if (arguments_[0] === "rm") {
+        nodePresent = false;
+        return { status: 0, signal: null, stdout: "\n", stderr: "" };
+      }
+      throw new Error("network removal must be a proved no-op");
+    };
+    await system.cleanup(phase);
+    assert.deepEqual(calls, ["absent-cluster", "absent-cluster", "absent-network"]);
+  });
+
+  await t.test("network removal", async () => {
+    const calls = [];
+    let networkPresent = true;
+    const system = new DockerKindSystem(input);
+    system.paths = Object.freeze({ kubeconfig: "/owned/kubeconfig" });
+    system.clusterMayHaveApplied = true;
+    system.networkMayHaveApplied = true;
+    system.networkToken = networkToken;
+    system.nodeCandidates = async () => [];
+    system.networkCandidates = async () => networkPresent
+      ? [{ token: networkToken, name: names.cluster }]
+      : [];
+    system.requireClusterAbsent = async () => { calls.push("absent-cluster"); };
+    system.verifyNetwork = async () => {};
+    system.requireNetworkAbsent = async () => {
+      calls.push("absent-network");
+      assert.equal(networkPresent, false);
+    };
+    system.mutation = async () => {
+      networkPresent = false;
+      return { status: 0, signal: null, stdout: `${networkToken}\nextra\n`, stderr: "" };
+    };
+    await system.cleanup(phase);
+    assert.deepEqual(calls, ["absent-cluster", "absent-network", "absent-network"]);
+  });
+});
+
 test("concrete DockerKindSystem completes an injected full lifecycle through exact ID cleanup", async () => {
   const input = {
     marker,
@@ -892,6 +1009,12 @@ test("concrete DockerKindSystem completes an injected full lifecycle through exa
   const networkAddress = "172.19.0.1";
   const nodeAddress = "172.19.0.2";
   const nodeImageId = `sha256:${"d".repeat(64)}`;
+  const imageIds = Object.freeze({
+    node: nodeImageId,
+    tetragon: `sha256:${"f".repeat(64)}`,
+    operator: `sha256:${"1".repeat(64)}`,
+    busybox: `sha256:${"2".repeat(64)}`,
+  });
   const workloadUid = "11111111-2222-4333-8444-555555555555";
   const containerId = `containerd://${"e".repeat(64)}`;
   const commands = [];
@@ -900,6 +1023,8 @@ test("concrete DockerKindSystem completes an injected full lifecycle through exa
   let volumeExists = false;
   let logReads = 0;
   let system;
+  let fakeCommand;
+  let normalizedInput;
   const ok = (stdout = "ok\n") => ({ status: 0, signal: null, stdout, stderr: "" });
   const metrics = () => Buffer.from([
     'tetragon_build_info{commit="",go_version="go1.26.2",modified="",time="",version="v1.7.0"} 1',
@@ -952,24 +1077,35 @@ test("concrete DockerKindSystem completes an injected full lifecycle through exa
 
   try {
     system = new DockerKindSystem(input, {
-      normalize: () => proofResult(),
+      command: (...arguments_) => fakeCommand(...arguments_),
+      normalize: (value) => {
+        normalizedInput = value;
+        return proofResult();
+      },
       tempParent: parent,
       wait: async () => {},
     });
-    system.resolveAssets = async () => {
+    system.downloadAssets = async (phase) => {
+      phase.assertActive();
       await writeFile(system.paths.kind, "kind");
       await writeFile(system.paths.chart, "chart");
-      for (const [kind, id] of [["node", nodeImageId], ["tetragon", `sha256:${"f".repeat(64)}`],
-        ["operator", `sha256:${"1".repeat(64)}`], ["busybox", `sha256:${"2".repeat(64)}`]]) {
-        const pin = system.fixture.pins[kind];
-        system.imageMetadata.set(kind, Object.freeze({
-          id, platformDigest: pin.platformDigests[input.nodePlatform], reference: pin.reference,
-        }));
-      }
     };
-    system.execute = async (command, arguments_) => {
+    fakeCommand = async (command, arguments_, options) => {
       commands.push([command, ...arguments_]);
+      assert.deepEqual(options.env, system.environment);
+      assert.equal(options.signal.aborted, false);
+      assert.equal(Number.isSafeInteger(options.maximumBytes) && options.maximumBytes > 0, true);
+      assert.equal(Number.isSafeInteger(options.timeoutMs) && options.timeoutMs > 0, true);
       const joined = arguments_.join(" ");
+      if (command === "docker" && joined.startsWith("image inspect --format ")) {
+        const entry = Object.entries(system.fixture.pins).find(([, pin]) =>
+          pin.reference === arguments_.at(-1));
+        assert.notEqual(entry, undefined);
+        const [kind, pin] = entry;
+        return ok(`${JSON.stringify([
+          imageIds[kind], [pin.reference], "linux", "arm64",
+        ])}\n`);
+      }
       if (command === "docker" && joined.startsWith("network create ")) {
         networkExists = true;
         return ok(`${networkToken}\n`);
@@ -1025,7 +1161,9 @@ test("concrete DockerKindSystem completes an injected full lifecycle through exa
       if (command !== "kubectl") return ok("v1\n");
       if (joined.includes("get pod workload")) return ok(`${JSON.stringify({
         metadata: { name: "workload", namespace: names.namespace, uid: workloadUid },
-        spec: { nodeName: `${names.cluster}-control-plane`, containers: [{ name: "workload" }] },
+        spec: { nodeName: `${names.cluster}-control-plane`, containers: [{
+          name: "workload", image: system.fixture.runtimeImages.busybox,
+        }] },
         status: { containerStatuses: [{
           name: "workload", ready: true, restartCount: 0, containerID: containerId,
           imageID: system.fixture.runtimeImages.busybox,
@@ -1076,6 +1214,15 @@ test("concrete DockerKindSystem completes an injected full lifecycle through exa
     assert.equal(networkExists, false);
     assert.equal(nodeExists, false);
     assert.equal(volumeExists, false);
+    assert.equal(Object.hasOwn(system, "execute"), false);
+    assert.equal(commands.filter(([command, ...arguments_]) => command === "docker" &&
+      arguments_[0] === "image" && arguments_[1] === "inspect").length, 4);
+    assert.equal(normalizedInput.organizationId, input.organizationId);
+    assert.equal(normalizedInput.expected.imageId, system.fixture.runtimeImages.busybox);
+    assert.equal(normalizedInput.expected.imageName, imageIds.busybox);
+    assert.equal(Buffer.isBuffer(normalizedInput.events), true);
+    assert.equal(Buffer.isBuffer(normalizedInput.metricsBefore), true);
+    assert.equal(Buffer.isBuffer(normalizedInput.metricsAfter), true);
     assert.equal(commands.some(([command, ...arguments_]) =>
       command === "kubectl" && arguments_.includes("delete")), false);
     assert.equal(commands.some(([command, ...arguments_]) =>

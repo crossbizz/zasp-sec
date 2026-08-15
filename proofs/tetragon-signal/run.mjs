@@ -194,6 +194,39 @@ export function validateTetragonHealthResult(result) {
   return successful(result) && result.stdout === "Health Status: running\n" && result.stderr === "";
 }
 
+export function validateWorkloadPod(pod, expected) {
+  try {
+    expectExactObject(expected, ["image", "namespace", "nodeName", "podName"], "workload expectation");
+    if (
+      !isPlainObject(pod) || typeof expected.image !== "string" ||
+      !expected.image.includes("@sha256:") || typeof expected.namespace !== "string" ||
+      typeof expected.nodeName !== "string" || typeof expected.podName !== "string"
+    ) throw new TypeError("workload identity is invalid");
+    const specification = pod.spec?.containers;
+    const statuses = pod.status?.containerStatuses;
+    const imageId = String(statuses?.[0]?.imageID ?? "")
+      .replace(/^docker-pullable:\/\//, "").replace(/^docker:\/\//, "");
+    if (
+      pod.metadata?.name !== expected.podName || pod.metadata?.namespace !== expected.namespace ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(pod.metadata?.uid ?? "") ||
+      pod.spec?.nodeName !== expected.nodeName || !Array.isArray(specification) || specification.length !== 1 ||
+      specification[0]?.name !== "workload" || specification[0]?.image !== expected.image ||
+      !Array.isArray(statuses) || statuses.length !== 1 || statuses[0]?.name !== "workload" ||
+      statuses[0]?.ready !== true || statuses[0]?.restartCount !== 0 ||
+      !/^containerd:\/\/[0-9a-f]{64}$/.test(statuses[0]?.containerID ?? "") ||
+      imageId !== expected.image
+    ) throw new TypeError("workload identity does not match");
+    return Object.freeze({
+      containerId: statuses[0].containerID,
+      imageId,
+      nodeName: pod.spec.nodeName,
+      podUid: pod.metadata.uid,
+    });
+  } catch {
+    throw new Failure("capability");
+  }
+}
+
 export function validateKindNodeInspection(document, expected, retained = undefined) {
   try {
     expectExactObject(expected, [
@@ -683,6 +716,21 @@ export class DockerKindSystem {
 
   async resolveAssets(phase) {
     assertPhase(phase, "provider");
+    await this.downloadAssets(phase);
+    assertPhase(phase, "provider");
+    await this.reproveTemporary("provider", phase, true);
+    for (const [kind, pin] of [
+      ["node", this.fixture.pins.node],
+      ["tetragon", this.fixture.pins.tetragon],
+      ["operator", this.fixture.pins.operator],
+      ["busybox", this.fixture.pins.busybox],
+    ]) {
+      await this.resolveImage(kind, pin, phase);
+    }
+  }
+
+  async downloadAssets(phase) {
+    assertPhase(phase, "provider");
     const [kindBytes, chartBytes] = await Promise.all([
       this.fetchBytes(this.fixture.kindBinary.url, downloadLimit, phase.signal),
       this.fetchBytes(this.fixture.pins.chart.url, downloadLimit, phase.signal),
@@ -697,15 +745,6 @@ export class DockerKindSystem {
       await this.changeMode(this.paths.kind, 0o700);
       await this.writePath(this.paths.chart, chartBytes, { mode: 0o600 });
     } catch { throw new Failure("provider"); }
-    await this.reproveTemporary("provider", phase, true);
-    for (const [kind, pin] of [
-      ["node", this.fixture.pins.node],
-      ["tetragon", this.fixture.pins.tetragon],
-      ["operator", this.fixture.pins.operator],
-      ["busybox", this.fixture.pins.busybox],
-    ]) {
-      await this.resolveImage(kind, pin, phase);
-    }
   }
 
   async createNetwork(phase) {
@@ -1100,26 +1139,24 @@ export class DockerKindSystem {
       tetragonList = parseUniqueJson(tetragonResult.stdout);
       operatorList = parseUniqueJson(operatorResult.stdout);
     } catch { throw new Failure("capability"); }
-    const status = workload?.status?.containerStatuses;
-    const specification = workload?.spec?.containers;
     const items = tetragonList?.items;
     const operatorItems = operatorList?.items;
+    const workloadIdentity = validateWorkloadPod(workload, {
+      image: this.fixture.runtimeImages.busybox,
+      namespace: this.fixture.names.namespace,
+      nodeName: `${this.fixture.names.cluster}-control-plane`,
+      podName: this.fixture.names.workloadPod,
+    });
     if (
-      workload?.metadata?.name !== this.fixture.names.workloadPod ||
-      workload?.metadata?.namespace !== this.fixture.names.namespace ||
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(workload?.metadata?.uid ?? "") ||
-      !Array.isArray(status) || status.length !== 1 || status[0]?.name !== "workload" || status[0]?.ready !== true ||
-      status[0]?.restartCount !== 0 || !/^containerd:\/\/[0-9a-f]{64}$/.test(status[0]?.containerID ?? "") ||
-      !Array.isArray(specification) || specification.length !== 1 ||
       !Array.isArray(items) || items.length !== 1 ||
       !Array.isArray(operatorItems) || operatorItems.length !== 1 ||
       !ipv4Pattern.test(service?.spec?.clusterIP ?? "")
     ) throw new Failure("capability");
     const tetragonMetadata = this.imageMetadata.get("tetragon");
     const operatorMetadata = this.imageMetadata.get("operator");
-    const tetragonPod = validateTetragonHealthPod(items[0], workload.spec.nodeName,
+    const tetragonPod = validateTetragonHealthPod(items[0], workloadIdentity.nodeName,
       this.fixture.runtimeImages.tetragon, tetragonMetadata?.platformDigest, this.input.marker);
-    validateOperatorPod(operatorItems[0], workload.spec.nodeName,
+    validateOperatorPod(operatorItems[0], workloadIdentity.nodeName,
       this.fixture.runtimeImages.operator, operatorMetadata?.platformDigest, this.input.marker);
     const health = await this.readKubectl(buildTetragonHealthArguments(tetragonPod),
       "capability", phase, smallOutputLimit, 15_000);
@@ -1127,16 +1164,15 @@ export class DockerKindSystem {
     const btf = await this.readCommand("docker", ["exec", this.nodeToken, "test", "-r", "/sys/kernel/btf/vmlinux"],
       "capability", phase, smallOutputLimit, 15_000);
     if (!successful(btf)) throw new Failure("capability");
-    const imageId = String(status[0].imageID ?? "").replace(/^docker-pullable:\/\//, "").replace(/^docker:\/\//, "");
     this.expected = Object.freeze({
       namespace: this.fixture.names.namespace,
       podName: this.fixture.names.workloadPod,
-      podUid: workload.metadata.uid,
+      podUid: workloadIdentity.podUid,
       containerName: "workload",
-      containerId: status[0].containerID,
-      imageId,
+      containerId: workloadIdentity.containerId,
+      imageId: workloadIdentity.imageId,
       imageName: this.imageMetadata.get("busybox")?.id,
-      nodeName: workload.spec.nodeName,
+      nodeName: workloadIdentity.nodeName,
       labels: Object.freeze({
         "app.kubernetes.io/name": "zasp-m0-12-workload",
         "zasp.dev/proof": "m0-12",
@@ -1306,7 +1342,7 @@ export class DockerKindSystem {
           value = await this.mutation("docker", ["rm", "--force", "--volumes", token],
             "cleanup", phase, processOutputLimit, 90_000);
         } catch { value = undefined; }
-        if (!successful(value) || singleLine(value.stdout) !== token) await this.requireClusterAbsent(phase);
+        if (!exactMutationAcknowledgement(value, token)) await this.requireClusterAbsent(phase);
         await this.requireClusterAbsent(phase);
         this.clusterMayHaveApplied = false;
         this.resourcesApplied = false;
@@ -1333,7 +1369,7 @@ export class DockerKindSystem {
           value = await this.mutation("docker", ["network", "rm", token],
             "cleanup", phase, smallOutputLimit, 30_000);
         } catch { value = undefined; }
-        if (!successful(value) || singleLine(value.stdout) !== token) await this.requireNetworkAbsent(phase);
+        if (!exactMutationAcknowledgement(value, token)) await this.requireNetworkAbsent(phase);
         await this.requireNetworkAbsent(phase);
         this.networkMayHaveApplied = false;
         this.networkToken = undefined;
@@ -1546,6 +1582,11 @@ function successful(value) {
 
 function successfulNonempty(value) {
   return successful(value) && value.stderr === "" && value.stdout.trim().length > 0;
+}
+
+function exactMutationAcknowledgement(value, token) {
+  if (!successful(value) || typeof token !== "string") return false;
+  try { return singleLine(value.stdout) === token; } catch { return false; }
 }
 
 function singleLine(value) {
