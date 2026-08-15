@@ -63,6 +63,21 @@ configuration, read credentials or provider state, or claim worker readiness.
 The development build uses `dev`; release builds may inject a bounded version
 at link time.
 
+## Event ingest command
+
+M1-01f is In progress. It creates the standalone Go service at
+`services/event-ingest`. Its only intended behavior in this task is one exact
+build-version line:
+
+```text
+event-ingest build <version>
+```
+
+This skeleton does not accept events or start a listener, normalize or batch
+payloads, contact SQS, load runtime configuration, read credentials or provider
+state, or claim ingest readiness. The development build uses `dev`; release
+builds may inject a bounded version at link time.
+
 ## Neon pooled proof
 
 The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,

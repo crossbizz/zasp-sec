@@ -23,12 +23,12 @@ listener, normalization, batching, or provider dependency.
 
 ### Task 1: Start M1-01f
 
-- [ ] Add a repository contract binding source, deployable ownership, design,
+- [x] Add a repository contract binding source, deployable ownership, design,
   plan, unique active status, exact arithmetic, completed M1-01e, Pending
   M1-01a, and M0 blockers.
-- [ ] Capture focused RED at the still-Pending README/tracker state.
-- [ ] Move only M1-01f to In progress and document its no-I/O skeleton scope.
-- [ ] Run focused/full pinned GREEN, audit, whitespace, and scans; commit
+- [x] Capture focused RED at the still-Pending README/tracker state.
+- [x] Move only M1-01f to In progress and document its no-I/O skeleton scope.
+- [x] Run focused/full pinned GREEN, audit, whitespace, and scans; commit
   `docs: start M1-01f event ingest command`.
 
 ### Task 2: Implement the event-ingest command tests-first
