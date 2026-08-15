@@ -42,8 +42,8 @@ later product security entities and authorization boundaries.
 
 ### Task 4: Complete, push, and close M1-04
 
-- [ ] Change only completion expectations and capture focused RED.
-- [ ] Move only M1-04 to Complete at `691/0/34/3` and M1
+- [x] Change only completion expectations and capture focused RED.
+- [x] Move only M1-04 to Complete at `691/0/34/3` and M1
   `68/58/0/10/0`; preserve M0 and all blockers.
 - [ ] Run final gates, commit `docs: complete M1-04 scope model`, push, and
   watch exact-SHA Runnable UI to success.

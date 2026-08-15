@@ -170,7 +170,7 @@ later M1 tasks.
 
 ## Product scope model
 
-M1-04 is In progress. Every scoped security entity follows the exact
+M1-04 is Complete. Every scoped security entity follows the exact
 `Organization -> Workspace -> Environment` product-ID hierarchy. Missing,
 zero, malformed, or duplicate hierarchy IDs fail closed; vendor identifiers
 remain outside the product scope boundary.
