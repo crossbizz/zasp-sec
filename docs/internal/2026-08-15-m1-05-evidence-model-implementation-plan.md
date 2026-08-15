@@ -27,21 +27,21 @@ capability/path state values for later product entities.
 
 ### Task 2: Implement evidence values tests-first
 
-- [ ] Add Go tests before production and capture genuine missing-symbol RED.
-- [ ] Implement opaque EvidenceRef construction/text round trip and strict
+- [x] Add Go tests before production and capture genuine missing-symbol RED.
+- [x] Implement opaque EvidenceRef construction/text round trip and strict
   confidence/capability-path enum parse/text round trips.
-- [ ] Cover zero/malformed references, every canonical enum value, aliases,
+- [x] Cover zero/malformed references, every canonical enum value, aliases,
   case/whitespace/unknown forms, receiver clearing, and severity separation.
-- [ ] Run six focused passes, platform/service/worker/root regressions, full
+- [x] Run six focused passes, platform/service/worker/root regressions, full
   repository gates, audit, whitespace, and scans; commit
   `feat: add evidence model values`.
 
 ### Task 3: Review the evidence boundary
 
-- [ ] Audit typed identity, scope non-authorization, exact vocabularies, zero
+- [x] Audit typed identity, scope non-authorization, exact vocabularies, zero
   values, receiver behavior, error secrecy, comparability, and misuse paths.
-- [ ] Add tests-first fixes for every concrete finding and rerun affected gates.
-- [ ] Record a zero-finding review before completion.
+- [x] Add tests-first fixes for every concrete finding and rerun affected gates.
+- [x] Record a zero-finding review before completion.
 
 ### Task 4: Complete, push, and close M1-05
 
