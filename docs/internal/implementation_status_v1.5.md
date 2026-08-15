@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 713 |
-| In progress | 0 |
+| Pending | 712 |
+| In progress | 1 |
 | Complete | 13 |
 | Blocked | 1 |
 
@@ -23,7 +23,7 @@ In progress, Complete, or Blocked is Pending.
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 12 | 0 | 13 | 1 |
+| M0 | 27 | 11 | 1 | 13 | 1 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -68,13 +68,14 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `713/0/13/1` because
+session configuration. The 728 source-plan counts are `712/1/13/1` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M0-14b | August 14, 2026 | Implementing the exact-pinned private fixture-provider OAuth flow through a product-owned wrapper, retaining only the durable Nango connection reference; M0-14a remains Complete and R-08 remains Not run through M0-15. |
 
 ## Complete
 
@@ -228,3 +229,7 @@ provider capability gate.
   proved database-backed readiness from a one-shot client on a private product
   network, exact cleanup, zero-resource audits, pinned gates/scans, and a zero-
   finding independent review. R-08 remains Not run through M0-15.
+- M0-14b is In progress for one exact-pinned fixture-provider OAuth connection
+  through a product-owned wrapper. It retains only a durable Nango connection
+  reference, introduces no real provider credential or host publication, and
+  does not advance R-08 or start M0-14c.
