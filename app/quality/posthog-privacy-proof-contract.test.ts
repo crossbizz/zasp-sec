@@ -62,4 +62,22 @@ describe("PostHog privacy proof repository contract", () => {
     expect(blocked.filter(([task]) => ["M0-09", "M0-18", "M0-19"].includes(task))).toHaveLength(3);
     expect(risk).toContain("Not run — M0-20");
   });
+
+  it("exposes exact hermetic and local proof commands with fixed output", async () => {
+    const [packageText, readme] = await Promise.all([
+      readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+    ]);
+    const manifest = JSON.parse(packageText) as { scripts?: Record<string, string> };
+    const proofSection = readme.match(/## PostHog privacy proof[\s\S]*?## EKS Fargate egress proof/)?.[0] ?? "";
+
+    expect(manifest.scripts?.["proof:posthog:test"]).toBe("node --test proofs/posthog-privacy/*.test.mjs");
+    expect(manifest.scripts?.["proof:posthog:run"]).toBe("node proofs/posthog-privacy/run.mjs");
+    expect(proofSection).toContain("npm run proof:posthog:test");
+    expect(proofSection).toContain("npm run proof:posthog:run");
+    expect(proofSection).toContain(
+      "PostHog privacy proof passed: event=true prompt=false secret=false ip=false evidence=false cleanup=true.",
+    );
+    expect(proofSection).toContain("does not claim hosted PostHog availability");
+  });
 });

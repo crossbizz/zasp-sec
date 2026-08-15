@@ -285,13 +285,25 @@ M0-20 is In progress. It proves one allowlisted product analytics event against
 a fake PostHog endpoint on a random loopback port. The serializer constructs a
 closed event document and rejects seeded prompt, secret, IP-address, and raw-
 evidence fields before any network request. It reads no `.env`, credential,
-proxy, hosted endpoint, or ambient PostHog configuration.
+proxy, hosted endpoint, SDK, or ambient PostHog configuration.
 
-The hermetic and live root commands will be added with the implementation. The
-only eventual success line is fixed and contains privacy booleans, not event
-content or endpoint details. M0-09, M0-18, M0-19, and PROV-01 remain Blocked;
-R-13 remains Not run and M0-21 remains Pending until the exact local proof and
-review pass.
+```bash
+npm run proof:posthog:test
+npm run proof:posthog:run
+```
+
+Success is exactly:
+
+```text
+PostHog privacy proof passed: event=true prompt=false secret=false ip=false evidence=false cleanup=true.
+```
+
+Failures are one fixed category line. No raw event, seeded prohibited value,
+URL, port, HTTP body, stack trace, or error reaches output. This local proof
+does not claim hosted PostHog availability, account configuration, feature-
+flag behavior, or production analytics delivery. M0-09, M0-18, M0-19, and
+PROV-01 remain Blocked; R-13 remains Not run and M0-21 remains Pending until
+the exact local proof and review pass.
 
 ## EKS Fargate egress proof
 

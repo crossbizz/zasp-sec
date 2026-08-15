@@ -50,6 +50,8 @@
     "proof:promptfoo:test": "node --test proofs/promptfoo-redteam/*.test.mjs",
     "proof:promptfoo:run": "node proofs/promptfoo-redteam/run.mjs",
     "proof:promptfoo:license": "node proofs/promptfoo-redteam/license-audit.mjs",
+    "proof:posthog:test": "node --test proofs/posthog-privacy/*.test.mjs",
+    "proof:posthog:run": "node proofs/posthog-privacy/run.mjs",
     "proof:tetragon:test": "node --test proofs/tetragon-signal/*.test.mjs",
     "proof:tetragon:run": "node proofs/tetragon-signal/run.mjs",
     "proof:aws:iam:test": "cd proofs/aws-cross-account-iam && go test -race -count=1 ./... && node --test run.test.mjs",

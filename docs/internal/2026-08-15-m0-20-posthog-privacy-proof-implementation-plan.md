@@ -30,26 +30,26 @@ the evidence-backed R-13 decision. Every behavior change follows a witnessed tes
 
 ### Task 2: Implement the strict serializer
 
-- [ ] RED/GREEN exact typed allowlist construction and deterministic encoding.
-- [ ] RED/GREEN unknown/accessor/prototype/type/value rejection for prompt,
+- [x] RED/GREEN exact typed allowlist construction and deterministic encoding.
+- [x] RED/GREEN unknown/accessor/prototype/type/value rejection for prompt,
   secret, IP, raw evidence, arbitrary context, and hostile coercion.
 
 ### Task 3: Implement the fake endpoint and proof lifecycle
 
-- [ ] RED/GREEN numeric-loopback server, strict bounded request/response
+- [x] RED/GREEN numeric-loopback server, strict bounded request/response
   parsing, one-request authority, absolute deadlines, and zero-I/O rejection.
-- [ ] RED/GREEN panic containment, independent cleanup, cleanup precedence,
+- [x] RED/GREEN panic containment, independent cleanup, cleanup precedence,
   socket drainage, fixed output, and exact receipt evidence.
 
 ### Task 4: Expose root commands and evidence
 
-- [ ] Add hermetic test and run commands plus README boundary.
+- [x] Add hermetic test and run commands plus README boundary.
 - [ ] Run the exact local proof and record R-13 only from retained evidence.
 
 ### Task 5: Review, verify, and ship
 
-- [ ] Fix every adversarial review finding tests-first.
-- [ ] Run six focused passes, full pinned repository gates, audit, whitespace,
+- [x] Fix every adversarial review finding tests-first.
+- [x] Run six focused passes, full pinned repository gates, audit, whitespace,
   and redacted secret scans.
 - [ ] Transition M0-20 from In progress to Complete only after the exact proof,
   zero-resource cleanup, and review pass; otherwise Block it explicitly.
