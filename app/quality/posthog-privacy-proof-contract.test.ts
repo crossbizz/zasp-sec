@@ -53,12 +53,12 @@ describe("PostHog privacy proof repository contract", () => {
     expect(readme).toContain("M0-20 is Complete");
     expect(readme).toContain("fake PostHog endpoint");
     expect(tracker).toContain("| Pending | 696 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 28 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 29 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`696/1/28/3`");
+    expect(tracker).toContain("`696/0/29/3`");
     expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 0 \| 24 \| 3 \|/);
-    expect(active).toHaveLength(1);
+    expect(active).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M0-20")).toHaveLength(1);
     expect(blocked.filter(([task]) => ["M0-09", "M0-18", "M0-19"].includes(task))).toHaveLength(3);
     expect(risk).toContain("PASS — M0-20 —");

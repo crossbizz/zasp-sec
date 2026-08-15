@@ -40,7 +40,7 @@ describe("M1-01b worker directories repository contract", () => {
     expect(plan).toContain("M1-01c remains Pending");
   });
 
-  it("starts only M1-01b after the completed gateway command", async () => {
+  it("completes only M1-01b after the completed gateway command", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -53,20 +53,21 @@ describe("M1-01b worker directories repository contract", () => {
     const m0 = milestones.find(([milestone]) => milestone === "M0");
     const m1 = milestones.find(([milestone]) => milestone === "M1");
 
-    expect(readme).toContain("M1-01b is In progress");
+    expect(readme).toContain("M1-01b is Complete");
     expect(readme).toContain("security-worker health ok");
     expect(readme).toContain("redteam-worker health ok");
     expect(readme).toContain("do not start worker loops");
     expect(tracker).toContain("| Pending | 696 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 28 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 29 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`696/1/28/3`");
+    expect(tracker).toContain("`696/0/29/3`");
     expect(m0).toEqual(["M0", "27", "0", "0", "24", "3"]);
-    expect(m1).toEqual(["M1", "68", "63", "1", "4", "0"]);
+    expect(m1).toEqual(["M1", "68", "63", "0", "5", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.filter(([task]) => task === "M1-01b")).toHaveLength(1);
+    expect(active).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-01a")).toHaveLength(1);
+    expect(complete.filter(([task]) => task === "M1-01b")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-01c")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
     expect(tracker).toContain("R-03 remains incomplete");

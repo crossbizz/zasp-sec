@@ -95,8 +95,8 @@ uses `dev`; release builds may inject a bounded version at link time.
 
 ## Worker package commands
 
-M1-01b is In progress. It creates separate Python security-worker and Node
-redteam-worker package skeletons. Their only intended behavior in this task is
+M1-01b is Complete. It creates separate Python security-worker and Node
+redteam-worker package skeletons. Their only behavior in this task is
 one exact no-op health result each:
 
 ```text

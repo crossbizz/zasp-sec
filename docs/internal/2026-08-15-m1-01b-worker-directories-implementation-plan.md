@@ -54,8 +54,8 @@ configuration, credential, listener, or network behavior.
 
 ### Task 4: Complete, push, and close M1-01b
 
-- [ ] Change only completion expectations and capture focused RED.
-- [ ] Move only M1-01b to Complete at `696/0/29/3` and M1
+- [x] Change only completion expectations and capture focused RED.
+- [x] Move only M1-01b to Complete at `696/0/29/3` and M1
   `68/63/0/5/0`; preserve M0 and all blockers.
 - [ ] Run final gates, commit `docs: complete M1-01b worker directories`, push,
   and watch exact-SHA Runnable UI to success.
