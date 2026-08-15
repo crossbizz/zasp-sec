@@ -15,19 +15,18 @@ function markdownRows(markdown: string) {
     .map((line) => line.slice(1, -1).split("|").map((cell) => cell.trim()));
 }
 
-function assertM014bInProgress(tracker: string) {
+function assertM014bComplete(tracker: string) {
   const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
   const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] ?? "";
   const activeRows = markdownRows(active).slice(2);
-  const completedM014a = markdownRows(complete)
+  const completedM014b = markdownRows(complete)
     .slice(2)
-    .filter(([task]) => task === "M0-14a");
+    .filter(([task]) => task === "M0-14b");
 
-  expect(activeRows).toHaveLength(1);
-  expect(activeRows[0]?.[0]).toBe("M0-14b");
-  expect(activeRows[0]?.[1]).toBe("August 14, 2026");
-  expect(activeRows[0]?.[2]).toContain("OAuth");
-  expect(completedM014a).toHaveLength(1);
+  expect(activeRows).toHaveLength(0);
+  expect(completedM014b).toHaveLength(1);
+  expect(completedM014b[0]?.[1]).toBe("August 15, 2026");
+  expect(completedM014b[0]?.[2]).toContain("OAuth");
   expect(tracker).not.toMatch(/^\| M0-14c \|/m);
 }
 
@@ -48,7 +47,7 @@ describe("Nango OAuth proof contract", () => {
     expect(section).toContain("no host port");
     expect(section).toContain("durable connection reference");
     expect(section).toContain("R-08 remains Not run");
-    expect(section).toContain("M0-14b remains In progress");
+    expect(section).toContain("M0-14b is Complete");
   });
 
   it("binds the source-plan dependency, deliverable, and verification boundary", async () => {
@@ -104,37 +103,37 @@ describe("Nango OAuth proof contract", () => {
     expect(plan).toContain("independent read-only review");
   });
 
-  it("starts exactly M0-14b without changing completed or blocked boundaries", async () => {
+  it("completes exactly M0-14b without changing blocked or future boundaries", async () => {
     const tracker = await readFile(
       resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"),
       "utf8",
     );
 
     expect(tracker).toContain("| Pending | 712 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 13 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 14 |");
     expect(tracker).toContain("| Blocked | 1 |");
-    expect(tracker).toMatch(/\| M0 \| 27 \| 11 \| 1 \| 13 \| 1 \|/);
-    assertM014bInProgress(tracker);
+    expect(tracker).toMatch(/\| M0 \| 27 \| 11 \| 0 \| 14 \| 1 \|/);
+    assertM014bComplete(tracker);
     expect(tracker).toContain("M0-09 and PROV-01 remain Blocked");
     expect(tracker).toContain("R-03 remains incomplete");
   });
 
-  it("rejects duplicate or concurrent active task rows", async () => {
+  it("rejects duplicate completion or a concurrent active task row", async () => {
     const tracker = await readFile(
       resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"),
       "utf8",
     );
     const duplicate = tracker.replace(
-      "## Complete\n",
-      "| M0-14b | August 14, 2026 | Duplicate OAuth work. |\n\n## Complete\n",
+      "## Blocked\n",
+      "| M0-14b | August 15, 2026 | Duplicate OAuth completion. |\n\n## Blocked\n",
     );
     const concurrent = tracker.replace(
       "## Complete\n",
-      "| M0-14c | August 14, 2026 | Concurrent API-key work. |\n\n## Complete\n",
+      "| M0-14c | August 15, 2026 | Concurrent API-key work. |\n\n## Complete\n",
     );
 
-    expect(() => assertM014bInProgress(duplicate)).toThrow();
-    expect(() => assertM014bInProgress(concurrent)).toThrow();
+    expect(() => assertM014bComplete(duplicate)).toThrow();
+    expect(() => assertM014bComplete(concurrent)).toThrow();
   });
 });
