@@ -41,15 +41,22 @@ describe("OTLP export proof repository contract", () => {
   });
 
   it("starts only M0-22 without advancing R-12", async () => {
-    const [tracker, readme, risk] = await Promise.all([
+    const [tracker, readme, risk, packageSource] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
       readFile(resolve(repositoryRoot, "docs/decisions/mvp-risk-register.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "package.json"), "utf8"),
     ]);
+    const packageJson = JSON.parse(packageSource) as { scripts?: Record<string, string> };
     const active = section(tracker, "In progress");
     const blocked = section(tracker, "Blocked");
 
     expect(readme).toContain("M0-22 is In progress");
+    expect(readme).toContain("npm run proof:otlp-export:test");
+    expect(readme).toContain("npm run proof:otlp-export:run");
+    expect(readme).toContain("OTLP export proof passed: delivered=true bounded=true exporter_failed=true application_unblocked=true cleanup=true.");
+    expect(packageJson.scripts?.["proof:otlp-export:test"]).toBe("node --test proofs/otlp-export/*.test.mjs");
+    expect(packageJson.scripts?.["proof:otlp-export:run"]).toBe("node proofs/otlp-export/run.mjs");
     expect(tracker).toContain("| Pending | 701 |");
     expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 22 |");

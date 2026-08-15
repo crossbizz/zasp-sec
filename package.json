@@ -30,6 +30,8 @@
     "proof:prowler:license": "node proofs/prowler-evidence/license-audit.mjs",
     "proof:otlp:test": "node --test proofs/otlp-ingest/*.test.mjs",
     "proof:otlp:run": "node proofs/otlp-ingest/run.mjs",
+    "proof:otlp-export:test": "node --test proofs/otlp-export/*.test.mjs",
+    "proof:otlp-export:run": "node proofs/otlp-export/run.mjs",
     "proof:opa:test": "cd proofs/opa-sdk && go test -race -count=1 ./...",
     "proof:opa:run": "cd proofs/opa-sdk && go run .",
     "proof:opa:license": "node proofs/opa-sdk/license-audit.mjs",

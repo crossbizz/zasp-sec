@@ -13,7 +13,9 @@ Every behavior change follows a witnessed tests-only RED.
 - Only the exact synthetic operation and fixed OTLP destination are accepted.
 - The source queue, batching, retry, body, cardinality, and deadlines are bounded.
 - Application progress is independent of exporter availability.
-- Only numeric-loopback host publication and the exact private sink peer exist.
+- The source uses Docker's built-in bridge only for numeric-loopback host
+  publication and is then attached to the proof-owned private exporter
+  network; the sink exists only as the exact private peer.
 - No credential, hosted backend, dotenv, profile, proxy, arbitrary endpoint, or
   customer payload enters the lifecycle.
 - Mutation authority is retained before interpretation; cleanup re-proves exact
@@ -30,25 +32,25 @@ Every behavior change follows a witnessed tests-only RED.
 
 ### Task 2: Implement bounded telemetry and configuration
 
-- [ ] RED/GREEN exact operation document, privacy bounds, source/sink configs,
+- [x] RED/GREEN exact operation document, privacy bounds, source/sink configs,
   bounded queue/retry, and strict sink artifact validation.
-- [ ] RED/GREEN malformed, duplicate, oversized, identity, endpoint, queue,
+- [x] RED/GREEN malformed, duplicate, oversized, identity, endpoint, queue,
   retry, and application-state drift.
 
 ### Task 3: Implement exact lifecycle and failure proof
 
-- [ ] RED/GREEN exact image/network/container/temp ownership and reconciliation.
-- [ ] RED/GREEN first delivery, exact sink stop, failed exporter, application
+- [x] RED/GREEN exact image/network/container/temp ownership and reconciliation.
+- [x] RED/GREEN first delivery, exact sink stop, failed exporter, application
   completion bound, mutation settlement, reverse cleanup, and global absence.
-- [ ] RED/GREEN deadlines, replacements, delayed mutations, output caps,
+- [x] RED/GREEN deadlines, replacements, delayed mutations, output caps,
   cleanup continuation/precedence, and fixed output.
 
 ### Task 4: Expose commands, review, and ship
 
-- [ ] Add hermetic/live root commands and README boundary.
-- [ ] Run two consecutive exact live passes, six focused passes, M0-13
+- [x] Add hermetic/live root commands and README boundary.
+- [x] Run two consecutive exact live passes, six focused passes, M0-13
   regression, full pinned gates, audit, license, whitespace, and secret scans.
-- [ ] Fix every adversarial review finding tests-first.
+- [x] Fix every adversarial review finding tests-first.
 - [ ] Transition only M0-22 to Complete and R-12 to PASS after combined proof;
   keep M0-23 Pending.
 - [ ] Commit, push, and watch the exact-SHA Runnable UI gate.

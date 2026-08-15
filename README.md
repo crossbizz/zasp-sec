@@ -288,9 +288,21 @@ next application operation must still complete within its independent bound.
 
 The proof accepts no hosted telemetry endpoint, credential, dotenv, profile,
 proxy, ambient Collector configuration, arbitrary destination, or customer
-payload. Root commands will be exposed only after the tests-first lifecycle
-exists. R-12 remains Not run pending the combined M0-13/M0-22 evidence; M0-23
-remains Pending.
+payload.
+
+```bash
+npm run proof:otlp-export:test
+npm run proof:otlp-export:run
+```
+
+Success is exactly:
+
+```text
+OTLP export proof passed: delivered=true bounded=true exporter_failed=true application_unblocked=true cleanup=true.
+```
+
+R-12 remains Not run pending the combined M0-13/M0-22 evidence and independent
+review; M0-23 remains Pending.
 
 ## PostHog privacy proof
 

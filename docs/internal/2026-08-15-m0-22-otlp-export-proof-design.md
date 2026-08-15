@@ -6,9 +6,10 @@ Date: August 15, 2026
 
 Prove bounded optional telemetry export with two exact-pinned disposable
 OpenTelemetry Collector Contrib containers on one proof-owned
-private internal network. The source Collector receives one fixed OTLP/HTTP operation through a
-random loopback-only host port and exports it to the sink Collector. The sink
-writes one bounded artifact. No hosted backend, credential, `.env`, proxy,
+private internal network. The source Collector starts on Docker's built-in
+bridge solely to publish one random loopback-only OTLP/HTTP host port, then is
+attached to the private exporter network. The sink exists only on that private
+network and writes one bounded artifact. No hosted backend, credential, `.env`, proxy,
 profile, ambient Collector configuration, or arbitrary destination is used.
 
 Both containers use:
@@ -34,8 +35,8 @@ the exporter is unavailable. The second telemetry item need not be delivered.
 ## Ownership and lifecycle
 
 Every run uses a fresh marker, two exact names, complete proof/run/role labels,
-one exact private network, three canonical configuration/output roots, and an
-owned empty Docker configuration. Image identity, container configuration,
+one exact private network, three canonical configuration/output roots, and one
+canonical owned empty Docker-configuration root. Image identity, container configuration,
 security options, mounts, network attachment/peers, loopback publication, state,
 and full IDs are retained and re-proved before every mutation.
 
