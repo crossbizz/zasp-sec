@@ -67,11 +67,14 @@ describe("Cartography scope proof delivery-waiver status contract", () => {
       ),
     ]);
 
-    expect(tracker).toContain("| Pending | 714 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 713 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 12 |");
     expect(tracker).toContain("| Blocked | 1 |");
-    expect(tracker).toMatch(/\| M0 \| 27 \| 13 \| 0 \| 12 \| 1 \|/);
+    expect(tracker).toMatch(/\| M0 \| 27 \| 12 \| 1 \| 12 \| 1 \|/);
+    expect(tracker).toContain(
+      "| M0-14a | August 14, 2026 | Proving the exact-pinned free self-hosted Nango two-service boot boundary and database-backed readiness from a private product test network. |",
+    );
     expect(tracker).toContain(
       "| M0-10 | August 14, 2026 | Two exact-pinned disposable Cartography/Neo4j fixture runs loaded two synthetic Organizations and proved eight normalized nodes, four relationships, collision isolation, customer-label safety, exact cleanup, pinned gates/scans, two consecutive live passes, and zero-finding independent review under the fixture-only waiver; no AWS/GitHub authorization-parity claim. |",
     );

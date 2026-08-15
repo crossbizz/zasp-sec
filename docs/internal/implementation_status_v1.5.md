@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 714 |
-| In progress | 0 |
+| Pending | 713 |
+| In progress | 1 |
 | Complete | 12 |
 | Blocked | 1 |
 
@@ -23,7 +23,7 @@ In progress, Complete, or Blocked is Pending.
 
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 13 | 0 | 12 | 1 |
+| M0 | 27 | 12 | 1 | 12 | 1 |
 | M1 | 68 | 68 | 0 | 0 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
@@ -75,6 +75,7 @@ PROV-01 is excluded from those counts.
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M0-14a | August 14, 2026 | Proving the exact-pinned free self-hosted Nango two-service boot boundary and database-backed readiness from a private product test network. |
 
 ## Complete
 
@@ -221,3 +222,7 @@ provider capability gate.
   disabled remote export, proved exact cleanup, passed pinned gates/scans, and
   received zero-finding independent review. R-12 remains Not run until M0-22
   proves bounded remote export and nonblocking exporter-failure behavior.
+- M0-14a is In progress. The approved proof boundary runs the exact free self-
+  hosted Nango server with PostgreSQL as its only long-running dependency and
+  requires database-backed readiness from a one-shot client on a private
+  product test network. R-08 remains Not run through M0-15.

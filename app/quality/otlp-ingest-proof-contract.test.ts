@@ -7,6 +7,11 @@ type PackageManifest = { scripts?: Record<string, string> };
 const repositoryRoot = resolve(import.meta.dirname, "../..");
 const collectorImage =
   "otel/opentelemetry-collector-contrib:0.158.0@sha256:c5918f78992ee73b0d6f0e599423ac5ec52dd5d9726733114d6eca53d5a32ed5";
+const expectedInProgressRow = [
+  "M0-14a",
+  "August 14, 2026",
+  "Proving the exact-pinned free self-hosted Nango two-service boot boundary and database-backed readiness from a private product test network.",
+];
 
 function markdownRows(markdown: string) {
   return markdown
@@ -21,7 +26,7 @@ function assertM013Complete(tracker: string) {
   const inProgressRows = markdownRows(inProgress).slice(2);
   const completeRows = markdownRows(complete).slice(2).filter(([task]) => task === "M0-13");
 
-  expect(inProgressRows).toEqual([]);
+  expect(inProgressRows).toEqual([expectedInProgressRow]);
   expect(completeRows).toHaveLength(1);
   expect(completeRows[0]?.[1]).toBe("August 14, 2026");
   expect(completeRows[0]?.[2]).toContain("exact-pinned local OTLP ingest proof");
@@ -84,11 +89,11 @@ describe("OTLP ingest proof contract", () => {
       resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"),
       "utf8",
     );
-    expect(tracker).toContain("| Pending | 714 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 713 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 12 |");
     expect(tracker).toContain("| Blocked | 1 |");
-    expect(tracker).toMatch(/\| M0 \| 27 \| 13 \| 0 \| 12 \| 1 \|/);
+    expect(tracker).toMatch(/\| M0 \| 27 \| 12 \| 1 \| 12 \| 1 \|/);
     assertM013Complete(tracker);
     expect(tracker).toContain("M0-09 and PROV-01 remain Blocked");
     expect(tracker).toContain("R-03 remains incomplete");
@@ -104,7 +109,7 @@ describe("OTLP ingest proof contract", () => {
     const duplicate = tracker.replace(`${row}\n`, `${row}\n${row}\n`);
     const concurrent = tracker.replace(
       "## Complete\n",
-      "| M0-14a | August 14, 2026 | Decoy concurrent work. |\n\n## Complete\n",
+      "| M0-14b | August 14, 2026 | Decoy concurrent work. |\n\n## Complete\n",
     );
     expect(() => assertM013Complete(duplicate)).toThrow();
     expect(() => assertM013Complete(concurrent)).toThrow();
