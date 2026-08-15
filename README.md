@@ -279,6 +279,39 @@ R-12 remains Not run until M0-22 proves the separate bounded remote-export and
 exporter-failure boundary. M0-09 and PROV-01 remain Blocked, and R-03 remains
 incomplete.
 
+## Nango OAuth proof
+
+M0-14b extends the completed Nango free-boot proof with one real OAuth2
+authorization-code connection against a private, synthetic TLS fixture provider.
+The disposable runtime contains PostgreSQL, Nango v0.70.5, the fixture, and a
+one-shot product wrapper on one internal Docker network with no host port
+publication. It reads no `.env`, cloud credential, profile, proxy, or ambient
+Docker authentication state.
+
+The hermetic command validates the strict wrapper and fixture parsers, PKCE and
+single-use behavior, exact image/runtime ownership, bounded mutation settlement,
+fixed output, and cleanup without starting Docker. The live command generates a
+fresh CA, server certificate, client credentials, authorization code, access
+token, database password, and encryption key. Product output retains only the
+Organization-scoped durable connection reference; seeded secrets, the Nango API
+key, and the connect-session token never cross that boundary.
+
+```bash
+npm run proof:nango:oauth:test
+npm run proof:nango:oauth:run
+```
+
+Success is exactly:
+
+```text
+Nango OAuth proof passed: oauth=true reference=true product_state_safe=true cleanup=true.
+```
+
+Every live run uses fresh marker-scoped resources and reverse exact-owned
+cleanup. M0-14b remains In progress until two final-code live passes, complete
+zero-resource audits, full repository gates and scans, and independent review
+all pass. R-08 remains Not run through M0-15. M0-14c and M0-15 have not started.
+
 ## Nango free boot proof
 
 M0-14a proves the current free self-hosted Nango server can boot with only its

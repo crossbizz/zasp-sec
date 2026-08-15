@@ -32,6 +32,25 @@ function assertM014bInProgress(tracker: string) {
 }
 
 describe("Nango OAuth proof contract", () => {
+  it("exposes exact hermetic and live commands with the fixed private boundary", async () => {
+    const packageJson = JSON.parse(await readFile(resolve(repositoryRoot, "package.json"), "utf8")) as {
+      scripts?: Record<string, string>;
+    };
+    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const section = readme.match(/## Nango OAuth proof[\s\S]*?## Nango free boot proof/)?.[0];
+
+    expect(packageJson.scripts?.["proof:nango:oauth:test"]).toBe("node --test proofs/nango-oauth/*.test.mjs");
+    expect(packageJson.scripts?.["proof:nango:oauth:run"]).toBe("node proofs/nango-oauth/run.mjs");
+    expect(section).toBeDefined();
+    expect(section).toContain("npm run proof:nango:oauth:test");
+    expect(section).toContain("npm run proof:nango:oauth:run");
+    expect(section).toContain("Nango OAuth proof passed: oauth=true reference=true product_state_safe=true cleanup=true.");
+    expect(section).toContain("no host port");
+    expect(section).toContain("durable connection reference");
+    expect(section).toContain("R-08 remains Not run");
+    expect(section).toContain("M0-14b remains In progress");
+  });
+
   it("binds the source-plan dependency, deliverable, and verification boundary", async () => {
     const sourcePlan = await readFile(
       resolve(

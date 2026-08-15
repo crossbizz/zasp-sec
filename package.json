@@ -32,6 +32,8 @@
     "proof:otlp:run": "node proofs/otlp-ingest/run.mjs",
     "proof:nango:test": "node --test proofs/nango-free-boot/*.test.mjs",
     "proof:nango:run": "node proofs/nango-free-boot/run.mjs",
+    "proof:nango:oauth:test": "node --test proofs/nango-oauth/*.test.mjs",
+    "proof:nango:oauth:run": "node proofs/nango-oauth/run.mjs",
     "proof:tetragon:test": "node --test proofs/tetragon-signal/*.test.mjs",
     "proof:tetragon:run": "node proofs/tetragon-signal/run.mjs",
     "proof:aws:iam:test": "cd proofs/aws-cross-account-iam && go test -race -count=1 ./... && node --test run.test.mjs",
