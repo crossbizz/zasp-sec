@@ -57,4 +57,26 @@ describe("M1-12 S3 artifact interface contract", () => {
     expect([...active, ...complete].filter(([task]) => task === "M1-13")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
+
+  it("exposes exact hermetic and live commands with the fixed result boundary", async () => {
+    const [manifestText, readme] = await Promise.all([
+      readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+    ]);
+    const manifest = JSON.parse(manifestText) as { scripts?: Record<string, string> };
+    const section = readme.match(/## S3 artifact interface[\s\S]*?## Neon pooled proof/)?.[0];
+
+    expect(manifest.scripts?.["artifact:store:test"]).toBe(
+      "cd services/platform && go test -race -count=1 ./artifactstore && cd ../../proofs/localstack-storage && go test -race -count=1 ./... && node --test run.test.mjs artifact-run.test.mjs",
+    );
+    expect(manifest.scripts?.["artifact:store:run"]).toBe(
+      "node proofs/localstack-storage/run-artifact-store.mjs",
+    );
+    expect(manifest.scripts?.["artifact:store:test"]).not.toMatch(/docker|credential|env-file|source/i);
+    expect(section).toContain("npm run artifact:store:test");
+    expect(section).toContain("npm run artifact:store:run");
+    expect(section).toContain(
+      "LocalStack artifact store passed: put=true get=true delete=true scoped=true encrypted=true cleanup=true audit=true container_cleanup=true.",
+    );
+  });
 });

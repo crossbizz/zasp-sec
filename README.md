@@ -279,6 +279,21 @@ object keys, encryption identifiers, and credentials remain inside the S3
 adapter. M1-13 remains Pending while this interface and its exact disposable
 LocalStack lifecycle are implemented and reviewed.
 
+```bash
+npm run artifact:store:test
+npm run artifact:store:run
+```
+
+The hermetic command exercises the product and adapter boundaries without
+Docker or provider access. The live command creates only one uniquely named,
+exactly labeled disposable LocalStack container, publishes only its loopback
+edge endpoint, and uses synthetic credentials confined to that container.
+Success is exactly:
+
+```text
+LocalStack artifact store passed: put=true get=true delete=true scoped=true encrypted=true cleanup=true audit=true container_cleanup=true.
+```
+
 ## Neon pooled proof
 
 The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,

@@ -9,7 +9,11 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/kms v1.55.5
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.107.1
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.44.5
+	github.com/aws/smithy-go v1.27.7
+	github.com/zasp-ai/zasp-sec/services/platform v0.0.0
 )
+
+replace github.com/zasp-ai/zasp-sec/services/platform => ../../services/platform
 
 require (
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.17 // indirect
@@ -20,5 +24,4 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.9.29 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.36 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.37 // indirect
-	github.com/aws/smithy-go v1.27.7 // indirect
 )

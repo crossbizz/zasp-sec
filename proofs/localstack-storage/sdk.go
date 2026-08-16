@@ -21,6 +21,7 @@ import (
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	secretstypes "github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
+	"github.com/aws/smithy-go"
 )
 
 type hostResolver interface {
@@ -172,7 +173,7 @@ func (s *sdkKMS) ListKeyTags(ctx context.Context, keyID string) (map[string]stri
 func (s *sdkKMS) CreateAlias(ctx context.Context, alias, keyID string) error {
 	_, err := s.client.CreateAlias(ctx, &kms.CreateAliasInput{AliasName: aws.String(alias), TargetKeyId: aws.String(keyID)})
 	if err != nil {
-		return errProvider
+		return classifyMutationError(err)
 	}
 	return nil
 }
@@ -218,15 +219,18 @@ func (s *sdkKMS) Decrypt(ctx context.Context, request DecryptRequest) (Plaintext
 func (s *sdkKMS) DeleteAlias(ctx context.Context, alias string) error {
 	_, err := s.client.DeleteAlias(ctx, &kms.DeleteAliasInput{AliasName: aws.String(alias)})
 	if err != nil {
-		return errProvider
+		return classifyMutationError(err)
 	}
 	return nil
 }
 
 func (s *sdkKMS) ScheduleKeyDeletion(ctx context.Context, keyID string, days int32) (KMSKey, error) {
 	output, err := s.client.ScheduleKeyDeletion(ctx, &kms.ScheduleKeyDeletionInput{KeyId: aws.String(keyID), PendingWindowInDays: aws.Int32(days)})
-	if err != nil || output == nil || output.KeyId == nil {
-		return KMSKey{}, errProvider
+	if err != nil {
+		return KMSKey{}, classifyMutationError(err)
+	}
+	if output == nil || output.KeyId == nil {
+		return KMSKey{}, errMutationAmbiguous
 	}
 	key, err := s.DescribeKey(ctx, *output.KeyId)
 	if err != nil {
@@ -272,7 +276,7 @@ func (s *sdkS3) ListBuckets(ctx context.Context, prefix string) ([]string, error
 func (s *sdkS3) CreateBucket(ctx context.Context, name string) error {
 	_, err := s.client.CreateBucket(ctx, &s3.CreateBucketInput{Bucket: aws.String(name)})
 	if err != nil {
-		return errProvider
+		return classifyMutationError(err)
 	}
 	return nil
 }
@@ -334,8 +338,11 @@ func (s *sdkS3) PutObject(ctx context.Context, request PutObjectRequest) (Object
 		encodedTags.Set(key, request.Tags[key])
 	}
 	output, err := s.client.PutObject(ctx, &s3.PutObjectInput{Bucket: aws.String(request.Bucket), Key: aws.String(request.Key), Body: bytes.NewReader(request.Body), ServerSideEncryption: s3types.ServerSideEncryptionAwsKms, SSEKMSKeyId: aws.String(request.KMSKeyID), Metadata: cloneStringMap(request.Metadata), Tagging: aws.String(encodedTags.Encode()), ContentLength: aws.Int64(int64(len(request.Body)))})
-	if err != nil || output == nil {
-		return ObjectInfo{}, errProvider
+	if err != nil {
+		return ObjectInfo{}, classifyMutationError(err)
+	}
+	if output == nil {
+		return ObjectInfo{}, errMutationAmbiguous
 	}
 	return ObjectInfo{Key: request.Key, ETag: aws.ToString(output.ETag), Algorithm: string(output.ServerSideEncryption), KMSKeyID: aws.ToString(output.SSEKMSKeyId), Size: int64(len(request.Body))}, nil
 }
@@ -345,9 +352,9 @@ func (s *sdkS3) GetObject(ctx context.Context, bucket, key string) (ObjectValue,
 	if err != nil || output == nil || output.Body == nil {
 		return ObjectValue{}, errProvider
 	}
-	body, readErr := io.ReadAll(io.LimitReader(output.Body, 1<<20))
+	body, readErr := io.ReadAll(io.LimitReader(output.Body, maximumArtifactBytes+1))
 	closeErr := output.Body.Close()
-	if readErr != nil || closeErr != nil || output.ContentLength == nil || *output.ContentLength != int64(len(body)) {
+	if readErr != nil || closeErr != nil || len(body) > maximumArtifactBytes || output.ContentLength == nil || *output.ContentLength != int64(len(body)) {
 		return ObjectValue{}, errProvider
 	}
 	return ObjectValue{ObjectInfo: ObjectInfo{Key: key, ETag: aws.ToString(output.ETag), Algorithm: string(output.ServerSideEncryption), KMSKeyID: aws.ToString(output.SSEKMSKeyId), Size: *output.ContentLength, Metadata: cloneStringMap(output.Metadata)}, Body: body}, nil
@@ -392,14 +399,22 @@ func (s *sdkS3) ListObjects(ctx context.Context, bucket, prefix string) ([]Objec
 func (s *sdkS3) DeleteObject(ctx context.Context, bucket, key string) error {
 	_, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{Bucket: aws.String(bucket), Key: aws.String(key)})
 	if err != nil {
-		return errProvider
+		return classifyMutationError(err)
 	}
 	return nil
+}
+
+func classifyMutationError(err error) error {
+	var apiError smithy.APIError
+	if errors.As(err, &apiError) {
+		return errMutationRejected
+	}
+	return errMutationAmbiguous
 }
 func (s *sdkS3) DeleteBucket(ctx context.Context, bucket string) error {
 	_, err := s.client.DeleteBucket(ctx, &s3.DeleteBucketInput{Bucket: aws.String(bucket)})
 	if err != nil {
-		return errProvider
+		return classifyMutationError(err)
 	}
 	return nil
 }

@@ -404,32 +404,33 @@ func proofOptions(cloud *fakeCloud) ProofOptions {
 }
 
 type fakeCloud struct {
-	marker             string
-	key                KMSKey
-	aliases            map[string]string
-	bucket             *fakeBucket
-	secret             *SecretInfo
-	operations         []string
-	counts             map[string]int
-	fail               map[string]error
-	failOnce           map[string]error
-	failAt             map[string]int
-	ambiguous          map[string]bool
-	mutateAt           map[string]int
-	mutateResource     string
-	panicAt            string
-	cancel             context.CancelFunc
-	wrongDecrypt       bool
-	wrongObjectKey     bool
-	foreignObject      bool
-	wrongSecretKey     bool
-	wrongSecretStage   bool
-	wrongSecretValue   bool
-	wrongKeySemantics  bool
-	opaqueETag         bool
-	eventual           map[string]int
-	invalidPutResponse bool
-	extraKeys          []KMSKey
+	marker                  string
+	key                     KMSKey
+	aliases                 map[string]string
+	bucket                  *fakeBucket
+	secret                  *SecretInfo
+	operations              []string
+	counts                  map[string]int
+	fail                    map[string]error
+	failOnce                map[string]error
+	failAt                  map[string]int
+	ambiguous               map[string]bool
+	mutateAt                map[string]int
+	mutateResource          string
+	panicAt                 string
+	cancel                  context.CancelFunc
+	wrongDecrypt            bool
+	wrongObjectKey          bool
+	foreignObject           bool
+	wrongSecretKey          bool
+	wrongSecretStage        bool
+	wrongSecretValue        bool
+	wrongKeySemantics       bool
+	opaqueETag              bool
+	eventual                map[string]int
+	invalidPutResponse      bool
+	extraKeys               []KMSKey
+	artifactAmbiguousBucket bool
 }
 
 type fakeBucket struct {
@@ -527,6 +528,8 @@ func (c *fakeCloud) CreateKey(_ context.Context, request CreateKeyRequest) (KMSK
 		return KMSKey{}, err
 	}
 	c.key = c.expectedKey()
+	c.key.Description = request.Description
+	c.key.Tags = cloneStringMap(request.Tags)
 	if c.wrongKeySemantics {
 		c.key.Spec, c.key.Manager = "RSA_2048", "AWS"
 	}
@@ -647,11 +650,14 @@ func (c *fakeCloud) ListBuckets(_ context.Context, prefix string) ([]string, err
 	}
 	return nil, nil
 }
-func (c *fakeCloud) CreateBucket(context.Context, string) error {
+func (c *fakeCloud) CreateBucket(_ context.Context, name string) error {
 	if err := c.step("create-bucket"); err != nil {
 		return err
 	}
-	c.bucket = &fakeBucket{name: c.bucketName()}
+	c.bucket = &fakeBucket{name: name}
+	if c.artifactAmbiguousBucket {
+		return errMutationAmbiguous
+	}
 	if c.ambiguous["create-bucket"] {
 		return errProvider
 	}
@@ -689,9 +695,9 @@ func (c *fakeCloud) PutObject(_ context.Context, request PutObjectRequest) (Obje
 	if c.opaqueETag {
 		etag = "opaque-provider-etag"
 	}
-	c.bucket.object = &ObjectValue{ObjectInfo: ObjectInfo{Key: request.Key, ETag: etag, Algorithm: sseAlgorithmKMS, KMSKeyID: keyID, Metadata: cloneStringMap(request.Metadata), Tags: cloneStringMap(request.Tags)}, Body: append([]byte(nil), request.Body...)}
+	c.bucket.object = &ObjectValue{ObjectInfo: ObjectInfo{Key: request.Key, ETag: etag, Algorithm: sseAlgorithmKMS, KMSKeyID: keyID, Size: int64(len(request.Body)), Metadata: cloneStringMap(request.Metadata), Tags: cloneStringMap(request.Tags)}, Body: append([]byte(nil), request.Body...)}
 	if c.ambiguous["put-object"] {
-		return ObjectInfo{}, errProvider
+		return ObjectInfo{}, errMutationAmbiguous
 	}
 	created := cloneObjectInfo(c.bucket.object.ObjectInfo)
 	created.Metadata, created.Tags = nil, nil // PutObject does not echo these fields.

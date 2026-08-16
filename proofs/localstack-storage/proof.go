@@ -30,12 +30,14 @@ const (
 )
 
 var (
-	errConfiguration = errors.New("configuration rejected")
-	errProvider      = errors.New("storage operation failed")
-	errOwnership     = errors.New("storage ownership rejected")
-	errEncryption    = errors.New("storage encryption rejected")
-	errContent       = errors.New("storage content rejected")
-	errCleanup       = errors.New("storage cleanup failed")
+	errConfiguration     = errors.New("configuration rejected")
+	errProvider          = errors.New("storage operation failed")
+	errOwnership         = errors.New("storage ownership rejected")
+	errEncryption        = errors.New("storage encryption rejected")
+	errContent           = errors.New("storage content rejected")
+	errCleanup           = errors.New("storage cleanup failed")
+	errMutationRejected  = errors.New("storage mutation rejected")
+	errMutationAmbiguous = errors.New("storage mutation outcome ambiguous")
 
 	markerPattern  = regexp.MustCompile(`^[a-f0-9]{16}$`)
 	accountPattern = regexp.MustCompile(`^[0-9]{12}$`)
