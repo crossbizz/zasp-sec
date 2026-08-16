@@ -51,7 +51,7 @@ the new model.
 - Produces: exact M1-29 In-progress status at overall `662/1/62/3` and M1
   `68/29/1/38/0`.
 
-- [ ] **Step 1: Write the failing source/design/status contract**
+- [x] **Step 1: Write the failing source/design/status contract**
 
 Create a Vitest contract that parses tracker tables structurally and asserts:
 
@@ -79,7 +79,7 @@ component invariants, aggregation precedence, no-I/O boundary, and start/final
 arithmetic. Reject duplicate M1-29 rows, concurrent M1-30a activation, an
 M1-29 Complete row, changed blockers, and aggregate-count drift.
 
-- [ ] **Step 2: Run the focused test and witness stale-status RED**
+- [x] **Step 2: Run the focused test and witness stale-status RED**
 
 Run:
 
@@ -91,7 +91,7 @@ PATH="$HOME/.nvm/versions/node/v22.23.1/bin:$PATH" \
 Expected: source/design assertions pass and only stale README/tracker/package
 boundary assertions fail.
 
-- [ ] **Step 3: Move only M1-29 to In progress**
+- [x] **Step 3: Move only M1-29 to In progress**
 
 Update overall arithmetic from `663/0/62/3` to `662/1/62/3` and M1 from
 `68/30/0/38/0` to `68/29/1/38/0`. Add exactly one M1-29 In-progress row.
@@ -99,12 +99,12 @@ Preserve M1-28 in Complete, keep M1-30a outside active/complete, and retain the
 three exact blocker rows. Add the README M1-29 boundary without claiming the
 model is implemented.
 
-- [ ] **Step 4: Run focused and complete quality GREEN**
+- [x] **Step 4: Run focused and complete quality GREEN**
 
 Run the focused contract and all `app/quality` tests under pinned Node. Require
 exact 728-task arithmetic and zero weakened historical fixtures.
 
-- [ ] **Step 5: Scan and commit the start transition**
+- [x] **Step 5: Scan and commit the start transition**
 
 Run `git diff --check` and pinned redacted Gitleaks scans over staged content
 and ignored task evidence. Commit only the status contract, README, tracker,
@@ -128,7 +128,7 @@ docs: start M1-29 health aggregation
 - Consumes: the existing package-private service-name grammar from
   `services/health/health.go` without changing its accepted values.
 
-- [ ] **Step 1: Write construction and direct-state tests before production**
+- [x] **Step 1: Write construction and direct-state tests before production**
 
 Add these tests in package `health`:
 
@@ -147,7 +147,7 @@ millisecond/monotonic/non-four-digit times, and every invalid direct struct
 state. Verify the returned error is exactly `ErrInvalidComponent` and the
 returned component is zero.
 
-- [ ] **Step 2: Run the focused module test and witness compiler RED**
+- [x] **Step 2: Run the focused module test and witness compiler RED**
 
 Run:
 
@@ -158,7 +158,7 @@ go test -C services/health -race -count=1 -run '^TestComponent'
 Expected: compile failures only for absent `Status`, `Requirement`,
 `Component`, constants, constructor, and sentinel.
 
-- [ ] **Step 3: Add the exact public types and constructor**
+- [x] **Step 3: Add the exact public types and constructor**
 
 Create `aggregate.go` with the API from the design:
 
@@ -186,7 +186,7 @@ func NewComponent(
 Construct the value, call `Validate`, and return `Component{}` plus the exact
 sentinel on failure. Do not retain pointers or collections.
 
-- [ ] **Step 4: Implement exact validation**
+- [x] **Step 4: Implement exact validation**
 
 Reuse `validService` for `Name`. Add closed switches for requirement/status,
 a 1-64 lowercase snake-case `validReason`, and a package-local canonical time
@@ -194,7 +194,7 @@ validator using layout `2006-01-02T15:04:05.000Z`. Healthy requires empty
 reason and nonzero canonical time. Degraded/Unavailable require a reason and
 accept zero or canonical time.
 
-- [ ] **Step 5: Run focused GREEN and six race passes**
+- [x] **Step 5: Run focused GREEN and six race passes**
 
 Run the focused tests once, then six consecutive full module race passes:
 
@@ -219,7 +219,7 @@ Require all passes with deterministic values and no race.
 - Produces: `ErrInvalidAggregation` and
   `Aggregate(components []Component) (Status, error)`.
 
-- [ ] **Step 1: Write the aggregation matrix before production**
+- [x] **Step 1: Write the aggregation matrix before production**
 
 Add:
 
@@ -236,7 +236,7 @@ ordering. Invalid cases must cover nil/empty, no required component, duplicate
 names in any order, and each invalid direct component. Seed input-order
 permutations and prove the input slice is byte/value unchanged.
 
-- [ ] **Step 2: Run focused tests and witness compiler RED**
+- [x] **Step 2: Run focused tests and witness compiler RED**
 
 Run:
 
@@ -247,7 +247,7 @@ go test -C services/health -race -count=1 -run '^TestAggregate'
 Expected: compile failures only for absent `Aggregate` and
 `ErrInvalidAggregation`.
 
-- [ ] **Step 3: Implement deterministic aggregation**
+- [x] **Step 3: Implement deterministic aggregation**
 
 Validate nonempty input, every component, at least one required component, and
 unique names using a local map. Track two booleans without sorting or mutating:
@@ -255,7 +255,7 @@ required Unavailable and any nonhealthy. Return Unavailable first, then
 Degraded, then Healthy. On invalid input return `""` and exact
 `ErrInvalidAggregation`.
 
-- [ ] **Step 4: Run focused and full GREEN**
+- [x] **Step 4: Run focused and full GREEN**
 
 Run both focused groups, full module race, five additional stability passes,
 `go mod tidy -diff`, `go mod verify`, and `go vet ./...` in `services/health`.
@@ -274,7 +274,7 @@ Run both focused groups, full module race, five additional stability passes,
 - Produces: a user-visible model boundary and root regression evidence without
   a new command or dependency.
 
-- [ ] **Step 1: Extend the quality contract before README changes**
+- [x] **Step 1: Extend the quality contract before README changes**
 
 Require an exact `## System health aggregation model` section containing
 `services/health`, the three statuses, required/optional precedence,
@@ -283,17 +283,17 @@ that readiness is unchanged, `npm run health:contract:test`, M1-29 In progress,
 and M1-30a Pending. Require the existing root health command string to remain
 unchanged and include `go test -C services/health -race -count=1 ./...`.
 
-- [ ] **Step 2: Witness README RED, then add the exact section**
+- [x] **Step 2: Witness README RED, then add the exact section**
 
 Run the focused Vitest contract before editing README. Add only the documented
 model and command boundary; do not claim dependency polling or HTTP exposure.
 
-- [ ] **Step 3: Run integrated health and repository gates**
+- [x] **Step 3: Run integrated health and repository gates**
 
 Run six `npm run health:contract:test` passes, all four relevant Go module
 tidy/verify/vet gates, focused Vitest, and complete `app/quality`.
 
-- [ ] **Step 4: Run final local gates and commit implementation atomically**
+- [x] **Step 4: Run final local gates and commit implementation atomically**
 
 Under pinned Node run `npm run verify`, eight `npm run build:repo` passes,
 dependency tests plus CLI, `npm audit --omit=dev`, `git diff --check`, and
@@ -316,19 +316,19 @@ feat: add system health aggregation model
 - Consumes: the exact design-to-implementation range.
 - Produces: Critical 0 / Important 0 / Minor 0 / Ready Yes.
 
-- [ ] **Step 1: Request whole-range read-only review**
+- [x] **Step 1: Request whole-range read-only review**
 
 Review source task, PRD degraded rules, design, plan, complete diff, public API,
 validation, aggregation matrix, tests, README/status boundaries, and evidence.
 Run only safe non-live gates.
 
-- [ ] **Step 2: Resolve every finding tests-first**
+- [x] **Step 2: Resolve every finding tests-first**
 
 For each accepted finding, add a focused test and witness RED before production
 changes. Implement the smallest fix, run focused/full gates, and commit each
 review wave separately without rewriting history.
 
-- [ ] **Step 3: Repeat review to zero findings**
+- [x] **Step 3: Repeat review to zero findings**
 
 Do not begin completion until independent review reports Critical 0,
 Important 0, Minor 0, Ready Yes on current HEAD.
@@ -348,25 +348,25 @@ Important 0, Minor 0, Ready Yes on current HEAD.
 - Produces: M1-29 Complete at overall `662/0/63/3` and M1
   `68/29/0/39/0`; leaves M1-30a Pending.
 
-- [ ] **Step 1: Capture stale completion RED**
+- [x] **Step 1: Capture stale completion RED**
 
 Change completion expectations first and require exactly one M1-29 Complete
 row, no M1-29 active row, unchanged blockers, M1-30a absent from
 active/complete, README Complete wording, and exact final arithmetic. Run the
 focused contract and witness only stale-state failures.
 
-- [ ] **Step 2: Move only M1-29 to Complete**
+- [x] **Step 2: Move only M1-29 to Complete**
 
 Update tracker, README, and current aggregate fixtures mechanically while
 preserving every historical-state helper. Run focused and full quality suites.
 
-- [ ] **Step 3: Verify, scan, commit, push, and watch exact SHA**
+- [x] **Step 3: Verify, scan, commit, push, and watch exact SHA**
 
 Run final health/module/repository/dependency/audit/build/whitespace gates and
 redacted staged/evidence/history scans. Commit the completion package, push,
 and require Runnable UI success for that exact SHA.
 
-- [ ] **Step 4: Close the checked plan separately**
+- [x] **Step 4: Close the checked plan separately**
 
 Change only the checklist markers below in a one-file closure commit. Scan,
 push, require exact-SHA Runnable UI success, and prove local/origin/upstream SHA
@@ -375,9 +375,9 @@ scans.
 
 ## Closure checklist
 
-- [ ] Task 1 exact M1-29 start contract and status transition pass.
-- [ ] Task 2 strict component value is tests-first GREEN.
-- [ ] Task 3 required/optional aggregation is tests-first GREEN.
-- [ ] Task 4 integrated docs and all local gates pass.
-- [ ] Task 5 independent review is zero-finding and Ready Yes.
-- [ ] Task 6 completion, exact-SHA CI, synchronization, and closure pass.
+- [x] Task 1 exact M1-29 start contract and status transition pass.
+- [x] Task 2 strict component value is tests-first GREEN.
+- [x] Task 3 required/optional aggregation is tests-first GREEN.
+- [x] Task 4 integrated docs and all local gates pass.
+- [x] Task 5 independent review is zero-finding and Ready Yes.
+- [x] Task 6 completion, exact-SHA CI, synchronization, and closure pass.
