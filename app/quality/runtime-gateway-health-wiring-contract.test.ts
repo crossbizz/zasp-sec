@@ -71,4 +71,23 @@ describe("M1-28d runtime-gateway health wiring", () => {
     expect([...active, ...complete].filter(([task]) => task === "M1-28")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
+
+  it("wires only the exact runtime-gateway health boundary after witnessed runtime RED", async () => {
+    const [command, module, packageJson, readme] = await Promise.all([
+      readFile(resolve(repositoryRoot, "services/runtime-gateway/main.go"), "utf8"),
+      readFile(resolve(repositoryRoot, "services/runtime-gateway/go.mod"), "utf8"),
+      readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+    ]);
+
+    expect(command).toContain("net.Listen");
+    expect(command).toContain('healthListenAddress = ":8081"');
+    expect(module).toContain("require github.com/zasp-ai/zasp-sec/services/health v0.0.0");
+    expect(module).toContain("replace github.com/zasp-ai/zasp-sec/services/health => ../health");
+    expect(JSON.parse(packageJson).scripts?.["runtime-gateway:health:test"]).toBe(
+      "go test -C services/runtime-gateway -race -count=1 ./...",
+    );
+    expect(readme).toContain("M1-28d now wires the shared internal health handler");
+    expect(readme).toContain("M1-28 remains Pending");
+  });
 });

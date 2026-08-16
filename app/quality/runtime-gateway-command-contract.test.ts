@@ -53,7 +53,9 @@ describe("M1-01a runtime gateway command repository contract", () => {
 
     expect(readme).toContain("M1-01a is Complete");
     expect(readme).toContain("runtime-gateway build <version>");
-    expect(readme).toContain("does not start a proxy or listener");
+    expect(readme).toContain("M1-28d now wires the shared internal health handler");
+    expect(readme).toContain("It still does not start a gateway, proxy, MCP server, tool or");
+    expect(readme).toContain("API forwarding, OPA evaluation, authentication, configuration loading");
     expect(tracker).toContain("| Pending | 664 |");
     expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 60 |");
@@ -71,14 +73,19 @@ describe("M1-01a runtime gateway command repository contract", () => {
     expect(tracker).toContain("R-11 remains Not run");
   });
 
-  it("keeps the gateway in its standalone module with only version output", async () => {
+  it("keeps the gateway standalone with only the exact shared-health dependency", async () => {
     const [goModule, command, commandTest] = await Promise.all([
       readFile(resolve(repositoryRoot, "services/runtime-gateway/go.mod"), "utf8"),
       readFile(resolve(repositoryRoot, "services/runtime-gateway/main.go"), "utf8"),
       readFile(resolve(repositoryRoot, "services/runtime-gateway/main_test.go"), "utf8"),
     ]);
 
-    expect(goModule).toBe("module github.com/zasp-ai/zasp-sec/services/runtime-gateway\n\ngo 1.25.0\n");
+    expect(goModule).toBe(
+      "module github.com/zasp-ai/zasp-sec/services/runtime-gateway\n\n" +
+        "go 1.25.0\n\n" +
+        "require github.com/zasp-ai/zasp-sec/services/health v0.0.0\n\n" +
+        "replace github.com/zasp-ai/zasp-sec/services/health => ../health\n",
+    );
     expect(command).toContain('buildVersion           = "dev"');
     expect(command).toContain('io.WriteString(output, "runtime-gateway build "+version+"\\n")');
     expect(command).toContain("len(version) > 64");
@@ -86,7 +93,7 @@ describe("M1-01a runtime gateway command repository contract", () => {
     expect(command).not.toContain('"net/http"');
     expect(command).not.toContain('"flag"');
     expect(command).not.toContain('"time"');
-    expect(command).not.toMatch(/mcp|opa|tool|proxy|listener/i);
+    expect(command).not.toMatch(/mcp|opa|tool|proxy/i);
     expect(commandTest).toContain("TestRunPrintsExactBuildVersion");
     expect(commandTest).toContain("TestRunRejectsInvalidBuildVersionWithoutOutput");
     expect(commandTest).toContain("TestRunReturnsWriterFailure");

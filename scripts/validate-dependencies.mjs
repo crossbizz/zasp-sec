@@ -32,6 +32,7 @@ const internalHealthVersion = "v0.0.0";
 const internalHealthConsumers = new Set([
   "services/event-ingest/go.mod",
   "services/platform/go.mod",
+  "services/runtime-gateway/go.mod",
 ]);
 const internalHealthTarget = "services/health/go.mod";
 const internalHealthReplacement = `replace ${internalHealthModule} => ../health`;

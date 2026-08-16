@@ -255,6 +255,7 @@ test("accepts only the exact repository-owned health module replacement outside 
     for (const [path, module] of [
       ["services/platform/go.mod", "github.com/zasp-ai/zasp-sec/services/platform"],
       ["services/event-ingest/go.mod", "github.com/zasp-ai/zasp-sec/services/event-ingest"],
+      ["services/runtime-gateway/go.mod", "github.com/zasp-ai/zasp-sec/services/runtime-gateway"],
     ]) {
       files[path] = [
         `module ${module}`,
@@ -285,6 +286,12 @@ test("accepts only the exact repository-owned health module replacement outside 
         "\n",
       );
     }],
+    ["missing runtime-gateway replacement", (files) => {
+      files["services/runtime-gateway/go.mod"] = files["services/runtime-gateway/go.mod"].replace(
+        "\nreplace github.com/zasp-ai/zasp-sec/services/health => ../health\n",
+        "\n",
+      );
+    }],
     ["wrong replacement target", (files) => {
       files["services/platform/go.mod"] = files["services/platform/go.mod"].replace("=> ../health", "=> ../../services/health");
     }],
@@ -301,8 +308,14 @@ test("accepts only the exact repository-owned health module replacement outside 
       files["services/platform/go.mod"] += "replace example.com/other => ../other\n";
     }],
     ["alternate consumer indirect requirement", (files) => {
-      files["services/runtime-gateway/go.mod"] +=
+      files["cmd/agentsecctl/go.mod"] +=
         "require github.com/zasp-ai/zasp-sec/services/health v0.0.0 // indirect\n";
+    }],
+    ["runtime-gateway indirect requirement", (files) => {
+      files["services/runtime-gateway/go.mod"] = files["services/runtime-gateway/go.mod"].replace(
+        "github.com/zasp-ai/zasp-sec/services/health v0.0.0",
+        "github.com/zasp-ai/zasp-sec/services/health v0.0.0 // indirect",
+      );
     }],
     ["event-ingest indirect requirement", (files) => {
       files["services/event-ingest/go.mod"] = files["services/event-ingest/go.mod"].replace(

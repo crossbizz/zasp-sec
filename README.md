@@ -93,17 +93,28 @@ release builds may inject a bounded version at link time.
 ## Runtime gateway command
 
 M1-01a is Complete. It creates the standalone Go service at
-`services/runtime-gateway`. Its only behavior in this task is one exact
-build-version line:
+`services/runtime-gateway` and its exact build-version line:
 
 ```text
 runtime-gateway build <version>
 ```
 
-This skeleton does not start a proxy or listener, MCP server, tool/API gateway,
-or OPA evaluator; it loads no runtime configuration, credentials, provider
-state, or policy bundle and claims no gateway readiness. The development build
-uses `dev`; release builds may inject a bounded version at link time.
+M1-28d now wires the shared internal health handler through one dedicated
+bounded `:8081` listener. Liveness is 200 before readiness; readiness is 503
+before serving, 200 only during the serving lifetime, and withdrawn before the
+independently bounded five-second graceful shutdown. The exact routes are
+`/healthz`, `/readyz`, `/version`, and `/metrics`.
+
+```bash
+npm run runtime-gateway:health:test
+```
+
+The command uses a private handler rather than the default mux and retains the
+exact build line. It still does not start a gateway, proxy, MCP server, tool or
+API forwarding, OPA evaluation, authentication, configuration loading,
+credential or provider access, or a public product API. Deployment remains
+outside this task; M1-28 remains Pending. The development build uses `dev`;
+release builds may inject a bounded version at link time.
 
 ## Worker package commands
 
