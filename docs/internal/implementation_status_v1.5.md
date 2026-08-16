@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 680 |
-| In progress | 1 |
-| Complete | 44 |
+| In progress | 0 |
+| Complete | 45 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -24,7 +24,7 @@ In progress, Complete, or Blocked is Pending.
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 0 | 0 | 24 | 3 |
-| M1 | 68 | 47 | 1 | 20 | 0 |
+| M1 | 68 | 47 | 0 | 21 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
 | M3 | 75 | 75 | 0 | 0 | 0 |
@@ -68,19 +68,19 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `680/1/44/3` because
+session configuration. The 728 source-plan counts are `680/0/45/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M1-15 | August 15, 2026 | Implementing the dependency-free scoped product GraphStore boundary and its strict fake-driver contract; M1-16 Neo4j work has not started. |
 
 ## Complete
 
 | Task | Completed | Evidence |
 | --- | --- | --- |
+| M1-15 | August 15, 2026 | Added a dependency-free provider-neutral GraphStore with exact Organization, Workspace, and Environment scope; canonical product-only node and edge identities; bounded structured upsert/read operations; strict defensive driver validation; a hermetic fake-driver contract; six final race passes; full repository gates and scans; and zero-finding review. Neo4j persistence remains with M1-16. |
 | M1-14 | August 15, 2026 | Added a dependency-free scoped EventStore plus strict create-only OpenSearch adapter; the exact disposable lifecycle proved Organization-A index/search and Organization-B zero results, exact index/container/temp cleanup, shared-target non-mutation, six final hermetic passes, full repository gates and scans, and zero-finding independent review. |
 | M1-13 | August 15, 2026 | Added a dependency-free Organization-scoped JobQueue with canonical bounded batches, opaque queue-bound receipts, exact SQS body-plus-attribute quotas, and a strict dynamic-port SDK adapter; the exact disposable LocalStack queue/DLQ lifecycle proved two scoped publish/consume/acknowledge operations, redrive state, Standard-queue partial/order handling, reverse cleanup, prefix-wide absence, shared-container non-mutation, six final hermetic passes, full repository gates/scans, and zero-finding independent review. |
 | M1-12 | August 15, 2026 | Added a dependency-free Organization-scoped ArtifactStore with canonical keys, bounded fixed-error operations, defensive bytes, and SHA-256 integrity plus a strict S3/SSE-KMS adapter; the exact disposable LocalStack Put/Get/Delete lifecycle, reverse cleanup, prefix-wide audit, shared-container non-mutation, six final hermetic passes, full repository gates/scans, and zero-finding pre-landing review passed. |

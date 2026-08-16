@@ -322,12 +322,12 @@ git diff --check
 - Modify: affected aggregate status contracts under `app/quality/`
 - Update ignored reports and append-only ledgers.
 
-- [ ] **Step 1: Write completion assertions and record In-progress RED**
+- [x] **Step 1: Write completion assertions and record In-progress RED**
 
 Require exactly one M1-15 Complete row, M1-14 Complete, M1-16 absent, unchanged
 blockers, overall `680/0/45/3`, and M1 `68/47/0/21/0`.
 
-- [ ] **Step 2: Move only M1-15 to Complete and run final local gates**
+- [x] **Step 2: Move only M1-15 to Complete and run final local gates**
 
 Update status/docs/count fixtures, run focused/root/full pinned gates, audit,
 license inventory, whitespace, and pinned redacted Gitleaks scans. Commit the
