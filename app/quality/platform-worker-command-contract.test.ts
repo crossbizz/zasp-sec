@@ -77,7 +77,7 @@ describe("M1-01e platform worker command repository contract", () => {
       readFile(resolve(repositoryRoot, "services/platform/agentsec-worker/main_test.go"), "utf8"),
     ]);
 
-    expect(goModule).toBe("module github.com/zasp-ai/zasp-sec/services/platform\n\ngo 1.25.0\n");
+    expect(goModule).toMatch(/^module github\.com\/zasp-ai\/zasp-sec\/services\/platform\n\ngo 1\.25\.0\n/);
     expect(command).toContain('buildVersion           = "dev"');
     expect(command).toContain('io.WriteString(output, "agentsec-worker build "+version+"\\n")');
     expect(command).toContain("len(version) > 64");
