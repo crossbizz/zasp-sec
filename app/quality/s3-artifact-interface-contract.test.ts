@@ -34,7 +34,7 @@ describe("M1-12 S3 artifact interface contract", () => {
     expect(plan).toContain("exact LocalStack lifecycle");
   });
 
-  it("starts only M1-12 after completed M1-11", async () => {
+  it("completes only M1-12 after reviewed live verification", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -44,15 +44,16 @@ describe("M1-12 S3 artifact interface contract", () => {
     const blocked = taskRows(tracker, "Blocked");
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
-    expect(readme).toContain("M1-12 is In progress");
+    expect(readme).toContain("M1-12 is Complete");
     expect(readme).toContain("Organization-scoped ArtifactStore");
     expect(tracker).toContain("| Pending | 683 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 41 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 42 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`683/1/41/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "50", "1", "17", "0"]);
-    expect(active.filter(([task]) => task === "M1-12")).toHaveLength(1);
+    expect(tracker).toContain("`683/0/42/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "50", "0", "18", "0"]);
+    expect(active.filter(([task]) => task === "M1-12")).toHaveLength(0);
+    expect(complete.filter(([task]) => task === "M1-12")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-11")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-13")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
