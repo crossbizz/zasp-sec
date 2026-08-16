@@ -510,11 +510,39 @@ export class LocalGraphSystem extends LocalProductSystem {
     if (result.stdout !== "") throw new Failure(category);
   }
 
+  async readGraphImageReference(selected, phase, category) {
+    const format = "[{{json .Id}},{{json .Architecture}},{{json .Os}},{{json .RepoDigests}},{{json .RepoTags}}]";
+    const result = await this.runRaw(
+      "docker", ["image", "inspect", "--format", format, selected.repoDigest],
+      phase, category, 15_000, 262_144,
+    );
+    if (exactMissingGraphImage(result, selected.repoDigest)) return undefined;
+    if (!isPlainObject(result) || result.status !== 0 || result.signal !== null || result.stderr !== "" ||
+        result.stdout === "" || result.thrown !== false || result.timedOut !== false) throw new Failure(category);
+    let document;
+    try { document = parseBoundedJson(result.stdout, 262_144); }
+    catch { throw new Failure(category); }
+    if (!Array.isArray(document) || document.length !== 5 || !digestPattern.test(document[0]) ||
+        !new Set(["amd64", "arm64"]).has(document[1]) || document[2] !== "linux" ||
+        !exactStringArray(document[3], [selected.repoDigest]) ||
+        !(exactStringArray(document[4], []) || exactStringArray(document[4], [selected.tag]))) {
+      throw new Failure(category);
+    }
+    return deepFreeze({
+      architecture: document[1],
+      id: document[0],
+      operatingSystem: document[2],
+      repoDigests: [...document[3]],
+      repoTags: [...document[4]],
+    });
+  }
+
   async requireGraphImageBaselineAbsent(selected, phase, category = "ownership") {
     const inspected = await this.runRaw(
       "docker", ["image", "inspect", selected.configDigest], phase, category, 15_000, 262_144,
     );
     if (!exactMissingGraphImage(inspected, selected.configDigest)) throw new Failure(category);
+    if (await this.readGraphImageReference(selected, phase, category) !== undefined) throw new Failure(category);
     const listed = await this.runRead("docker", [
       "image", "ls", "--quiet", "--no-trunc", "--filter", `reference=${selected.reference}`,
     ], phase, category);

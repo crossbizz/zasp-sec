@@ -27,6 +27,10 @@ const phase = Object.freeze({ assertActive() {}, signal: new AbortController().s
 const success = (stdout = "", stderr = "") => Object.freeze({
   signal: null, status: 0, stderr, stdout, thrown: false, timedOut: false,
 });
+const missingGraphImage = (reference) => Object.freeze({
+  ...success("[]\n", `Error response from daemon: No such image: ${reference}\n`),
+  status: 1,
+});
 
 function plan(name = "neo4j", platform = "linux/arm64") {
   return buildGraphImagePlan(name, platform);
@@ -998,16 +1002,122 @@ test("blocks a preexisting config baseline before the digest-qualified pull", as
   assert.equal(collisionPulls, 0, "a pre-existing config ID is rejected before pull authority exists");
 });
 
+test("blocks an opposite-platform repository digest baseline before pull", async () => {
+  const selected = plan("neo4j", "linux/arm64");
+  const opposite = plan("neo4j", "linux/amd64");
+  const system = graphSystem();
+  system.graphImagePlans = new Map([[selected.name, selected]]);
+  system.requireTemporaryOwnership = async () => {};
+  system.resolveGraphImage = async () => resolvedImage(selected);
+  system.runRaw = async (_command, arguments_) => {
+    const reference = arguments_.at(-1);
+    if (reference === selected.configDigest) return missingGraphImage(reference);
+    if (reference === selected.repoDigest) return success(`${JSON.stringify([
+      opposite.configDigest,
+      "amd64",
+      "linux",
+      [selected.repoDigest],
+      [],
+    ])}\n`);
+    throw new Error("unexpected raw inspection");
+  };
+  system.runRead = async () => success();
+  let pulls = 0;
+  system.runMutation = async () => {
+    pulls += 1;
+    return { outcome: "applied", result: success() };
+  };
+  system.inspectGraphImage = async () => validateGraphImageInspection(
+    projectGraphImageInspection(pinnedGraphImageInspection(selected)), selected, resolvedImage(selected),
+  );
+
+  await assert.rejects(() => system.buildAdditionalImages(phase), { name: "Failure" });
+  assert.equal(pulls, 0, "an ambient opposite-platform alias is rejected before pull authority exists");
+});
+
+test("accepts only exact config, repository-digest, tag-filter, and consumer absence", async () => {
+  const selected = plan();
+  const system = graphSystem();
+  const rawCalls = [];
+  const readCalls = [];
+  system.runRaw = async (command, arguments_) => {
+    rawCalls.push([command, ...arguments_]);
+    return missingGraphImage(arguments_.at(-1));
+  };
+  system.runRead = async (command, arguments_) => {
+    readCalls.push([command, ...arguments_]);
+    return success();
+  };
+
+  await system.requireGraphImageBaselineAbsent(selected, phase);
+  assert.deepEqual(rawCalls, [
+    ["docker", "image", "inspect", selected.configDigest],
+    [
+      "docker", "image", "inspect", "--format",
+      "[{{json .Id}},{{json .Architecture}},{{json .Os}},{{json .RepoDigests}},{{json .RepoTags}}]",
+      selected.repoDigest,
+    ],
+  ]);
+  assert.deepEqual(readCalls, [
+    ["docker", "image", "ls", "--quiet", "--no-trunc", "--filter", `reference=${selected.reference}`],
+    ["docker", "ps", "--all", "--quiet", "--no-trunc", "--filter", `ancestor=${selected.configDigest}`],
+  ]);
+});
+
+test("rejects malformed or signaled repository-digest baseline evidence", async () => {
+  const selected = plan();
+  const evidence = [
+    success('[{"Id":"first","Id":"second"}]\n'),
+    Object.freeze({ signal: "SIGTERM", status: null, stderr: "", stdout: "", thrown: false, timedOut: false }),
+  ];
+  const results = [];
+  for (const repoDigestResult of evidence) {
+    const system = graphSystem();
+    system.runRaw = async (_command, arguments_) => {
+      if (arguments_.at(-1) === selected.configDigest) return missingGraphImage(selected.configDigest);
+      assert.equal(arguments_.at(-1), selected.repoDigest);
+      return repoDigestResult;
+    };
+    system.runRead = async () => success();
+    try {
+      await system.requireGraphImageBaselineAbsent(selected, phase);
+      results.push("accepted");
+    } catch (error) {
+      results.push(error?.name);
+    }
+  }
+  assert.deepEqual(results, ["Failure", "Failure"]);
+});
+
+test("final audit rejects an ambient repository digest when the selected config is absent", async () => {
+  const selected = plan("busybox", "linux/arm64");
+  const opposite = plan("busybox", "linux/amd64");
+  const system = graphSystem();
+  system.graphImagePlans = new Map([[selected.name, selected]]);
+  system.runRaw = async (_command, arguments_) => {
+    const reference = arguments_.at(-1);
+    if (reference === selected.configDigest) return missingGraphImage(reference);
+    if (reference === selected.repoDigest) return success(`${JSON.stringify([
+      opposite.configDigest,
+      "amd64",
+      "linux",
+      [selected.repoDigest],
+      [],
+    ])}\n`);
+    throw new Error("unexpected raw inspection");
+  };
+  system.runRead = async () => success();
+
+  await assert.rejects(() => system.requireAdditionalGlobalAbsence(phase, "cleanup"), { name: "Failure" });
+});
+
 test("owns graph image aliases from exact baseline through ambiguity-safe cleanup", async () => {
   const selected = plan();
   const baselineInUse = graphSystem();
   let baselineInUsePulls = 0;
   baselineInUse.requireTemporaryOwnership = async () => {};
   baselineInUse.resolveGraphImage = async () => resolvedImage(selected);
-  baselineInUse.runRaw = async () => ({
-    ...success("[]\n", `Error: No such image: ${selected.configDigest}\n`),
-    status: 1,
-  });
+  baselineInUse.runRaw = async (_command, arguments_) => missingGraphImage(arguments_.at(-1));
   baselineInUse.runRead = async (_command, arguments_) => arguments_[0] === "image" ? success() :
     success(`${"c".repeat(64)}\n`);
   baselineInUse.runMutation = async () => {
