@@ -462,6 +462,7 @@ export class LocalProductSystem {
     this.mutationSettlements = [];
     this.pathIdentities = new Map();
     this.imageIdentities = new Map();
+    this.loadedImageTargets = new Map();
     this.imageMayHaveApplied = new Set();
     this.networkMayHaveApplied = false;
     this.networkIdentity = undefined;
@@ -895,12 +896,11 @@ export class LocalProductSystem {
         environment: this.environment, outputLimit: 4_194_304, timeoutMilliseconds: 120_000,
       });
       if (loaded.outcome === "definitive") throw new Failure("provider");
-      const listed = await this.runRead("docker", [
-        "exec", this.nodeIdentity.token, "ctr", "--namespace", "k8s.io", "images", "list", "--quiet",
-      ], phase, "provider", 30_000, 4_194_304);
-      const references = listed.stdout.endsWith("\n") ? listed.stdout.slice(0, -1).split("\n") : [];
-      if (!references.includes(`docker.io/${product.image}`)) throw new Failure("provider");
     }
+    const listed = await this.runRead("docker", [
+      "exec", this.nodeIdentity.token, "ctr", "--namespace", "k8s.io", "images", "list",
+    ], phase, "provider", 30_000, 4_194_304);
+    this.loadedImageTargets = parseContainerdImageTargets(listed.stdout);
     await this.verifyCluster(phase, "ownership");
   }
 
@@ -960,12 +960,40 @@ export class LocalProductSystem {
       documents.set(resource, document.items);
     }
     if (documents.get("ingress").length !== 0) throw new Failure("readiness");
+    const importedImages = await this.verifyImportedPodImages(documents.get("pod"), phase);
     return validateKubernetesState({
       deployments: documents.get("deployment").map(projectDeployment),
       nodeName: `${this.cluster}-control-plane`,
-      pods: documents.get("pod").map(projectPod),
+      pods: documents.get("pod").map((item) => projectPod(item, importedImages)),
       services: documents.get("service").map(projectService),
     });
+  }
+
+  async verifyImportedPodImages(pods, phase) {
+    if (!Array.isArray(pods) || this.loadedImageTargets.size !== PRODUCTS.length) {
+      throw new Failure("readiness");
+    }
+    const imported = new Map();
+    for (const product of PRODUCTS) {
+      const matches = pods.filter((item) => item?.metadata?.labels?.["app.kubernetes.io/name"] === product.name);
+      const statuses = matches[0]?.status?.containerStatuses;
+      if (matches.length !== 1 || !Array.isArray(statuses) || statuses.length !== 1 ||
+          statuses[0].image !== `docker.io/${product.image}`) throw new Failure("readiness");
+      const providerImageID = statuses[0].imageID;
+      const match = /^docker\.io\/library\/import-\d{4}-\d{2}-\d{2}@(sha256:[0-9a-f]{64})$/.exec(
+        providerImageID ?? "",
+      );
+      const target = this.loadedImageTargets.get(product.name);
+      if (match === null || target === undefined) throw new Failure("readiness");
+      const result = await this.runRead("docker", [
+        "exec", this.nodeIdentity.token, "ctr", "--namespace", "k8s.io", "content", "get", match[1],
+      ], phase, "readiness", 30_000, 262_144);
+      let document;
+      try { document = parseBoundedJson(result.stdout, 262_144); }
+      catch { throw new Failure("readiness"); }
+      imported.set(product.name, validateImportedImageIndex(document, product, target, providerImageID));
+    }
+    return imported;
   }
 
   async runRaw(command, arguments_, phase, category, timeoutMilliseconds = 15_000, outputLimit = 262_144) {
@@ -1462,6 +1490,73 @@ export function parseBoundedJson(source, maximumBytes) {
   return output;
 }
 
+export function parseContainerdImageTargets(source) {
+  try {
+    if (typeof source !== "string" || Buffer.byteLength(source) < 1 ||
+        Buffer.byteLength(source) > 4_194_304 || !source.endsWith("\n")) {
+      throw new TypeError("containerd inventory is invalid");
+    }
+    const lines = source.slice(0, -1).split("\n");
+    if (!exactArray(lines[0]?.trim().split(/\s+/), ["REF", "TYPE", "DIGEST", "SIZE", "PLATFORMS", "LABELS"])) {
+      throw new TypeError("containerd inventory is invalid");
+    }
+    const targets = new Map();
+    for (const line of lines.slice(1)) {
+      if (line.length === 0) throw new TypeError("containerd inventory is invalid");
+      const fields = line.trim().split(/\s+/);
+      if (fields.length < 5) throw new TypeError("containerd inventory is invalid");
+      const product = PRODUCTS.find(({ image }) => fields[0] === `docker.io/${image}`);
+      if (product === undefined) continue;
+      if (targets.has(product.name) || fields[1] !== "application/vnd.oci.image.manifest.v1+json" ||
+          !digestPattern.test(fields[2])) throw new TypeError("containerd inventory is invalid");
+      targets.set(product.name, fields[2]);
+    }
+    if (targets.size !== PRODUCTS.length) throw new TypeError("containerd inventory is invalid");
+    return targets;
+  } catch {
+    throw new Failure("provider");
+  }
+}
+
+export function validateImportedImageIndex(document, product, targetDigest, providerImageID) {
+  try {
+    const expected = PRODUCTS.find((entry) => entry.name === product?.name);
+    requireExactObject(product, ["image", "module", "name", "package"], "product");
+    if (expected === undefined || !exactObject(product, expected) || !digestPattern.test(targetDigest)) {
+      throw new TypeError("imported image expectation is invalid");
+    }
+    const match = /^docker\.io\/library\/import-(\d{4}-\d{2}-\d{2})@(sha256:[0-9a-f]{64})$/.exec(
+      providerImageID ?? "",
+    );
+    if (match === null || !canonicalDay(match[1])) throw new TypeError("imported image identity is invalid");
+    requireExactKeySet(document, ["manifests", "mediaType", "schemaVersion"], "import index");
+    if (document.schemaVersion !== 2 || document.mediaType !== "application/vnd.oci.image.index.v1+json" ||
+        !Array.isArray(document.manifests) || document.manifests.length !== 1) {
+      throw new TypeError("import index is invalid");
+    }
+    const manifest = document.manifests[0];
+    requireExactKeySet(manifest, ["annotations", "digest", "mediaType", "size"], "import manifest");
+    requireExactKeySet(manifest.annotations, [
+      "io.containerd.image.name", "org.opencontainers.image.ref.name",
+    ], "import annotations");
+    if (manifest.digest !== targetDigest ||
+        manifest.mediaType !== "application/vnd.oci.image.manifest.v1+json" ||
+        !Number.isSafeInteger(manifest.size) || manifest.size < 1 || manifest.size > 262_144 ||
+        manifest.annotations["io.containerd.image.name"] !== `docker.io/${product.image}` ||
+        manifest.annotations["org.opencontainers.image.ref.name"] !== "m1-30a") {
+      throw new TypeError("import manifest is invalid");
+    }
+    return Object.freeze({
+      canonicalImage: product.image,
+      canonicalImageID: `docker-pullable://${product.image}@${match[2]}`,
+      providerImage: `docker.io/${product.image}`,
+      providerImageID,
+    });
+  } catch {
+    throw new Failure("readiness");
+  }
+}
+
 export function projectRawImageInspection(document) {
   if (!Array.isArray(document) || document.length !== 1 || !isPlainObject(document[0])) {
     throw new TypeError("image inspection is invalid");
@@ -1576,13 +1671,17 @@ function projectDeployment(item) {
   };
 }
 
-function projectPod(item) {
+function projectPod(item, importedImages) {
   const container = Array.isArray(item?.spec?.containers) && item.spec.containers.length === 1
     ? item.spec.containers[0]
     : undefined;
   const status = Array.isArray(item?.status?.containerStatuses) && item.status.containerStatuses.length === 1
     ? item.status.containerStatuses[0]
     : undefined;
+  const productName = item?.metadata?.labels?.["app.kubernetes.io/name"];
+  const imported = importedImages?.get?.(productName);
+  if (status !== undefined && (imported === undefined || status.image !== imported.providerImage ||
+      status.imageID !== imported.providerImageID)) throw new TypeError("pod image identity is invalid");
   return {
     apiVersion: item?.apiVersion,
     kind: item?.kind,
@@ -1615,8 +1714,8 @@ function projectPod(item) {
         .filter(({ type }) => type === "Ready").map(({ status: value, type }) => ({ status: value, type })) : undefined,
       containerStatuses: status === undefined ? [] : [{
         containerID: status.containerID,
-        image: status.image,
-        imageID: status.imageID,
+        image: imported.canonicalImage,
+        imageID: imported.canonicalImageID,
         name: status.name,
         ready: status.ready,
         restartCount: status.restartCount,
@@ -1747,6 +1846,11 @@ function exactConditions(value, type) {
 function canonicalSecond(value) {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(value) &&
     new Date(value).toISOString() === value.replace("Z", ".000Z");
+}
+
+function canonicalDay(value) {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+    new Date(`${value}T00:00:00.000Z`).toISOString() === `${value}T00:00:00.000Z`;
 }
 
 function escapeRegExp(value) {

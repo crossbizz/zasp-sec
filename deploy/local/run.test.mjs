@@ -19,9 +19,11 @@ import {
   classifyMutationResult,
   fetchBoundedAsset,
   orchestrate,
+  parseContainerdImageTargets,
   parseBoundedJson,
   runBounded,
   runMain,
+  validateImportedImageIndex,
   validateImageInspection,
   validateKubernetesState,
 } from "./run.mjs";
@@ -413,6 +415,60 @@ test("follows the official release redirect only under the pinned byte and hash 
   assert.equal(calls[0].options.redirect, "follow");
 });
 
+test("binds each containerd import index to one exact loaded product target", () => {
+  const targets = PRODUCTS.map((product, index) =>
+    `docker.io/${product.image} application/vnd.oci.image.manifest.v1+json sha256:${String(index + 1).repeat(64)} 1.0MiB linux/arm64 -`);
+  const parsed = parseContainerdImageTargets([
+    "REF TYPE DIGEST SIZE PLATFORMS LABELS",
+    ...targets,
+    "",
+  ].join("\n"));
+  assert.deepEqual(Object.fromEntries(parsed), Object.fromEntries(PRODUCTS.map((product, index) => [
+    product.name, `sha256:${String(index + 1).repeat(64)}`,
+  ])));
+
+  const product = PRODUCTS[0];
+  const target = parsed.get(product.name);
+  const imported = `sha256:${"9".repeat(64)}`;
+  const document = {
+    manifests: [{
+      annotations: {
+        "io.containerd.image.name": `docker.io/${product.image}`,
+        "org.opencontainers.image.ref.name": "m1-30a",
+      },
+      digest: target,
+      mediaType: "application/vnd.oci.image.manifest.v1+json",
+      size: 1234,
+    }],
+    mediaType: "application/vnd.oci.image.index.v1+json",
+    schemaVersion: 2,
+  };
+  assert.deepEqual(validateImportedImageIndex(document, product, target,
+    `docker.io/library/import-2026-08-16@${imported}`), {
+    canonicalImage: product.image,
+    canonicalImageID: `docker-pullable://${product.image}@${imported}`,
+    providerImage: `docker.io/${product.image}`,
+    providerImageID: `docker.io/library/import-2026-08-16@${imported}`,
+  });
+  for (const value of [
+    { ...document, extra: true },
+    { ...document, manifests: [] },
+    { ...document, manifests: [{ ...document.manifests[0], digest: `sha256:${"8".repeat(64)}` }] },
+    { ...document, manifests: [{ ...document.manifests[0], annotations: {
+      ...document.manifests[0].annotations, "io.containerd.image.name": "docker.io/other/image:tag",
+    } }] },
+  ]) {
+    assert.throws(() => validateImportedImageIndex(value, product, target,
+      `docker.io/library/import-2026-08-16@${imported}`), { name: "Failure" });
+  }
+  assert.throws(() => parseContainerdImageTargets([
+    "REF TYPE DIGEST SIZE PLATFORMS LABELS",
+    targets[0],
+    targets[0],
+    "",
+  ].join("\n")), { name: "Failure" });
+});
+
 function kubernetesState(overrides = {}) {
   const nodeName = "zasp-m1-30a-0123456789abcdef-control-plane";
   const pods = PRODUCTS.map((product, index) => ({
@@ -492,6 +548,56 @@ function kubernetesState(overrides = {}) {
     status: { loadBalancer: {} },
   }));
   return { deployments, nodeName, pods, services, ...overrides };
+}
+
+function containerdTarget(product) {
+  return `sha256:${String(PRODUCTS.indexOf(product) + 1).repeat(64)}`;
+}
+
+function containerdImport(product) {
+  return `sha256:${String(PRODUCTS.indexOf(product) + 5).repeat(64)}`;
+}
+
+function containerdInventory() {
+  return [
+    "REF TYPE DIGEST SIZE PLATFORMS LABELS",
+    ...PRODUCTS.map((product) => [
+      `docker.io/${product.image}`,
+      "application/vnd.oci.image.manifest.v1+json",
+      containerdTarget(product),
+      "1.0MiB",
+      "linux/arm64",
+      "-",
+    ].join(" ")),
+    "",
+  ].join("\n");
+}
+
+function containerdImportIndex(product) {
+  return {
+    manifests: [{
+      annotations: {
+        "io.containerd.image.name": `docker.io/${product.image}`,
+        "org.opencontainers.image.ref.name": "m1-30a",
+      },
+      digest: containerdTarget(product),
+      mediaType: "application/vnd.oci.image.manifest.v1+json",
+      size: 1234,
+    }],
+    mediaType: "application/vnd.oci.image.index.v1+json",
+    schemaVersion: 2,
+  };
+}
+
+function providerKubernetesState() {
+  const state = structuredClone(kubernetesState());
+  for (const product of PRODUCTS) {
+    const pod = state.pods.find((item) => item.metadata.labels["app.kubernetes.io/name"] === product.name);
+    pod.status.containerStatuses[0].image = `docker.io/${product.image}`;
+    pod.status.containerStatuses[0].imageID =
+      `docker.io/library/import-2026-08-16@${containerdImport(product)}`;
+  }
+  return state;
 }
 
 test("pins an exact loopback kind cluster and owned kubeconfig", () => {
@@ -1037,7 +1143,7 @@ test("concrete lifecycle creates and retains only the exact network and kind nod
 test("concrete lifecycle loads all images and proves the exact Ready Kubernetes state", async () => {
   const networkId = "a".repeat(64);
   const nodeId = "b".repeat(64);
-  const state = kubernetesState();
+  const state = providerKubernetesState();
   const calls = [];
   let fixture;
   fixture = createConcreteFixture(async (command, arguments_) => {
@@ -1071,7 +1177,14 @@ test("concrete lifecycle loads all images and proves the exact Ready Kubernetes 
       return { signal: null, status: 0, stderr: "", stdout: "loaded\n", thrown: false, timedOut: false };
     }
     if (command === "docker" && arguments_[0] === "exec") {
-      return { signal: null, status: 0, stderr: "", stdout: `${PRODUCTS.map(({ image }) => `docker.io/${image}`).join("\n")}\n`, thrown: false, timedOut: false };
+      if (arguments_.includes("images") && arguments_.includes("list")) {
+        return { signal: null, status: 0, stderr: "", stdout: containerdInventory(), thrown: false, timedOut: false };
+      }
+      if (arguments_.includes("content") && arguments_.includes("get")) {
+        const digest = arguments_.at(-1);
+        const product = PRODUCTS.find((entry) => containerdImport(entry) === digest);
+        return { signal: null, status: 0, stderr: "", stdout: `${JSON.stringify(containerdImportIndex(product))}\n`, thrown: false, timedOut: false };
+      }
     }
     if (command === "kubectl" && arguments_.includes("apply")) {
       return { signal: null, status: 0, stderr: "", stdout: "applied\n", thrown: false, timedOut: false };
