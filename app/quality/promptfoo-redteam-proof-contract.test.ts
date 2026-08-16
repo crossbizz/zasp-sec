@@ -36,13 +36,13 @@ function assertM016Complete(tracker: string, readme: string, riskRegister: strin
   expect(section).toContain("R-09 is PASS");
   expect(section).not.toMatch(/Promptfoo Cloud|external model|real credential/i);
 
-  expect(tracker).toContain("| Pending | 669 |");
-  expect(tracker).toContain("| In progress | 0 |");
+  expect(tracker).toContain("| Pending | 668 |");
+  expect(tracker).toContain("| In progress | 1 |");
   expect(tracker).toContain("| Complete | 56 |");
   expect(tracker).toContain("| Blocked | 3 |");
   expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 0 \| 24 \| 3 \|/);
-  expect(tracker).toContain("`669/0/56/3`");
-  expect(activeRows.map(([task]) => task)).toEqual([]);
+  expect(tracker).toContain("`668/1/56/3`");
+  expect(activeRows.map(([task]) => task)).toEqual(["M1-27"]);
   expect(completeRows.filter(([task]) => task === "M0-16")).toHaveLength(1);
   expect(completeRows.find(([task]) => task === "M0-16")?.[1]).toBe("August 15, 2026");
   expect(completeRows.find(([task]) => task === "M0-16")?.[2]).toContain("Promptfoo");

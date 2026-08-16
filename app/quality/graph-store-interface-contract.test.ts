@@ -46,13 +46,13 @@ describe("M1-15 GraphStore interface contract", () => {
 
     expect(readme).toContain("M1-15 is Complete");
     expect(readme).toContain("product GraphStore");
-    expect(tracker).toContain("| Pending | 669 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 668 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 56 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`669/0/56/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "36", "0", "32", "0"]);
-    expect(active.map(([task]) => task)).toEqual([]);
+    expect(tracker).toContain("`668/1/56/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "35", "1", "32", "0"]);
+    expect(active.map(([task]) => task)).toEqual(["M1-27"]);
     expect(complete.filter(([task]) => task === "M1-15")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-14")).toHaveLength(1);
     expect(active.filter(([task]) => task === "M1-16")).toHaveLength(0);

@@ -45,7 +45,7 @@ TypeScript ESLint 8.59.3, Node test runner, Vitest 4.1.10.
 - Produces: an exact M1-27 In-progress contract at overall `668/1/56/3` and M1
   `68/35/1/32/0`.
 
-- [ ] **Step 1: Write the failing status contract**
+- [x] **Step 1: Write the failing status contract**
 
 Add a Vitest contract that extracts tracker tables structurally and asserts:
 
@@ -62,7 +62,7 @@ expect(readme).toContain("M1-28a remains Pending");
 Bind the source row's dependency, deliverable, and seeded-violation verify
 sentence, plus the committed design's exact scope and rule name.
 
-- [ ] **Step 2: Run the focused test and witness RED**
+- [x] **Step 2: Run the focused test and witness RED**
 
 Run:
 
@@ -74,19 +74,19 @@ PATH="$HOME/.nvm/versions/node/v22.23.1/bin:$PATH" \
 Expected: only stale README/tracker assertions fail; source and design
 assertions pass.
 
-- [ ] **Step 3: Move only M1-27 to In progress**
+- [x] **Step 3: Move only M1-27 to In progress**
 
 Update tracker arithmetic to overall `668/1/56/3` and M1
 `68/35/1/32/0`. Add exactly one M1-27 In-progress row. Preserve M1-26 in
 Complete, M1-28a outside active/complete, and the three blocker rows. Update
 README with M1-27 In progress and M1-28a Pending.
 
-- [ ] **Step 4: Run focused and complete quality GREEN**
+- [x] **Step 4: Run focused and complete quality GREEN**
 
 Run the focused contract, its neighboring M1-24 through M1-26 contracts, then
 all `app/quality` tests under pinned Node. Require zero failures.
 
-- [ ] **Step 5: Scan and commit the start transition**
+- [x] **Step 5: Scan and commit the start transition**
 
 Run `git diff --check`, a pinned redacted Gitleaks staged scan, then commit
 exactly the contract, README, and tracker as:

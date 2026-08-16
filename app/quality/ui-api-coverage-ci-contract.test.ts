@@ -56,16 +56,17 @@ describe("M1-26 UI API coverage CI", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(readme).toContain("M1-26 is Complete");
-    expect(tracker).toContain("| Pending | 669 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 668 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 56 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`669/0/56/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "36", "0", "32", "0"]);
-    expect(active).toHaveLength(0);
+    expect(tracker).toContain("`668/1/56/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "35", "1", "32", "0"]);
+    expect(active.map(([task]) => task)).toEqual(["M1-27"]);
     expect(complete.filter(([task]) => task === "M1-25")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-26")).toHaveLength(1);
-    expect([...active, ...complete].filter(([task]) => task === "M1-27")).toHaveLength(0);
+    expect(active.filter(([task]) => task === "M1-27")).toHaveLength(1);
+    expect(complete.filter(([task]) => task === "M1-27")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
 
@@ -89,6 +90,7 @@ describe("M1-26 UI API coverage CI", () => {
     expect(prose).toContain("`available` operation must exist exactly once under `/api/v1`");
     expect(prose).toContain("`/internal/v1` operations must remain unmapped");
     expect(prose).toContain("M1-26 is Complete");
-    expect(prose).toContain("M1-27 remains Pending");
+    expect(prose).toContain("M1-27 is In progress");
+    expect(prose).toContain("M1-28a remains Pending");
   });
 });
