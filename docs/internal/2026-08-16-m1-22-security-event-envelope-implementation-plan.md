@@ -257,17 +257,25 @@ task/progress evidence.
 
 ### Task 5: Complete, push, and close M1-22
 
-- [ ] **Step 1: Change only completion assertions and capture RED**
+- [x] **Step 1: Change only completion assertions and capture RED**
 
   Require exactly one M1-22 Complete row, no active source task, M1-21
   Complete, M1-23 absent, unchanged blockers, overall `673/0/52/3`, and M1
   `68/40/0/28/0`. The RED must be only stale status sources.
 
-- [ ] **Step 2: Move only M1-22 to Complete and run final gates**
+  RED was 1 intended failure and 5 passes, solely at stale README/tracker state.
+
+- [x] **Step 2: Move only M1-22 to Complete and run final gates**
 
   Repeat six race cycles, 100 repetitions, full platform race/tidy/verify/vet,
   100% coverage, root and pinned repository verification, all build targets,
   production audit, formatting, and staged/history/evidence secret scans.
+
+  Only M1-22 moved to Complete at `673/0/52/3` overall and
+  `68/40/0/28/0` for M1. Six race runs, 100 repetitions, full platform
+  race/tidy/verify/vet, 100% coverage, root race, 59 files/269 tests,
+  typecheck/lint/build, eight repository targets, audit zero, and whitespace
+  passed before the completion commit.
 
 - [ ] **Step 3: Commit, push, and require exact completion-SHA CI success**
 

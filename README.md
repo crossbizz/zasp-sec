@@ -490,8 +490,8 @@ ID. Reattaching the same value is idempotent; replacement fails closed.
 
 The command is hermetic and performs no OpenTelemetry SDK, exporter,
 Collector, backend, provider, network, credential, database, or Docker I/O.
-M1-22 is In progress and will add the dependency-free canonical SecurityEvent
-value without changing this observability boundary.
+M1-22 is Complete and adds the dependency-free canonical SecurityEvent value
+without changing this observability boundary.
 
 ## SecurityEvent envelope
 
@@ -512,7 +512,7 @@ payloads, prompts, tool arguments, secrets, arbitrary metadata, and vendor
 identifiers are not envelope fields. The command is hermetic and performs no
 parser, OpenAPI, transport, adapter, queue, storage, provider, network,
 credential, database, Docker, filesystem, or environment I/O. M1-23 remains
-Pending and will define the OpenAPI root separately.
+Pending and will define the OpenAPI root separately. M1-22 is Complete.
 
 ## Neon pooled proof
 

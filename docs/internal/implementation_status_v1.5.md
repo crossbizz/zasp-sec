@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 673 |
-| In progress | 1 |
-| Complete | 51 |
+| In progress | 0 |
+| Complete | 52 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -24,7 +24,7 @@ In progress, Complete, or Blocked is Pending.
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 0 | 0 | 24 | 3 |
-| M1 | 68 | 40 | 1 | 27 | 0 |
+| M1 | 68 | 40 | 0 | 28 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
 | M3 | 75 | 75 | 0 | 0 | 0 |
@@ -68,19 +68,19 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `673/1/51/3` because
+session configuration. The 728 source-plan counts are `673/0/52/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M1-22 | August 16, 2026 | Defining the canonical versioned, scoped SecurityEvent value with closed source, UTC-millisecond time, typed evidence, and product/trace/span correlation fields without adding transport, storage, or provider I/O. |
 
 ## Complete
 
 | Task | Completed | Evidence |
 | --- | --- | --- |
+| M1-22 | August 16, 2026 | Added the dependency-free canonical six-field SecurityEvent envelope with exact version/source catalogs, full product scope, canonical UTC-millisecond time, typed evidence and product/trace/span correlation, strict direct-state rejection, six race passes, 100% statement coverage, full repository gates/scans, and zero-finding whole-range re-review. |
 | M1-21 | August 16, 2026 | Added a dependency-free closed observability contract with exactly seven bounded common resource attributes, fixed service/deployment catalogs, typed product scope, strict product/trace/span correlation context fencing, raw-customer-content rejection, fresh-copy output, six race passes, 100% statement coverage, full repository gates/scans, and zero-finding whole-range review. |
 | M1-20 | August 16, 2026 | Added a dependency-free scoped AIGateway with an exact `finding_explanation` purpose catalog, complete safe data-policy metadata, bounded redacted product content, one no-retry driver call, exact version-1 result validation, fixed errors, a hermetic fake-driver contract, six race passes, 100% coverage, full repository gates/scans, and zero-finding whole-range review. |
 | M1-19 | August 16, 2026 | Added a dependency-free scoped ProductTelemetry with an exact `proof_completed` catalog, opaque typed fields, strict unknown/prohibited-field rejection before I/O, typed privacy-safe driver records, one bounded capture, explicit boolean acknowledgement presence, fixed errors, and a hermetic fake-driver contract; compiler RED, six race passes, 100% coverage, full repository gates/scans, and zero-finding re-review passed. |

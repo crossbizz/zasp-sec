@@ -61,15 +61,15 @@ describe("M1-21 observability contract", () => {
 
     expect(readme).toMatch(/M1-21\s+is\s+Complete/);
     expect(tracker).toContain("| Pending | 673 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 51 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 52 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`673/1/51/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "40", "1", "27", "0"]);
-    expect(active).toHaveLength(1);
+    expect(tracker).toContain("`673/0/52/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "40", "0", "28", "0"]);
+    expect(active).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-21")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-20")).toHaveLength(1);
-    expect(active.filter(([task]) => task === "M1-22")).toHaveLength(1);
+    expect(active.filter(([task]) => task === "M1-22")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
 
@@ -100,6 +100,6 @@ describe("M1-21 observability contract", () => {
     expect(section).toMatch(/replacement fails closed/i);
     expect(section).toMatch(/hermetic/i);
     expect(section).toMatch(/no OpenTelemetry SDK, exporter,\s+Collector, backend, provider, network, credential, database, or Docker I\/O/i);
-    expect(section).toMatch(/M1-22\s+is\s+In\s+progress/);
+    expect(section).toMatch(/M1-22\s+is\s+Complete/);
   });
 });

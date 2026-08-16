@@ -17,21 +17,21 @@ function taskRows(tracker: string, heading: "In progress" | "Complete" | "Blocke
   return markdownRows(section).slice(2);
 }
 
-function verifyM122ActiveStatus(tracker: string, readme: string) {
+function verifyM122CompleteStatus(tracker: string, readme: string) {
   const active = taskRows(tracker, "In progress");
   const complete = taskRows(tracker, "Complete");
   const blocked = taskRows(tracker, "Blocked");
   const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
-  expect(readme).toMatch(/M1-22\s+is\s+In\s+progress/);
+  expect(readme).toMatch(/M1-22\s+is\s+Complete/);
   expect(tracker).toContain("| Pending | 673 |");
-  expect(tracker).toContain("| In progress | 1 |");
-  expect(tracker).toContain("| Complete | 51 |");
+  expect(tracker).toContain("| In progress | 0 |");
+  expect(tracker).toContain("| Complete | 52 |");
   expect(tracker).toContain("| Blocked | 3 |");
-  expect(tracker).toContain("`673/1/51/3`");
-  expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "40", "1", "27", "0"]);
-  expect(active.map(([task]) => task)).toEqual(["M1-22"]);
-  expect(complete.filter(([task]) => task === "M1-22")).toHaveLength(0);
+  expect(tracker).toContain("`673/0/52/3`");
+  expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "40", "0", "28", "0"]);
+  expect(active).toEqual([]);
+  expect(complete.filter(([task]) => task === "M1-22")).toHaveLength(1);
   expect(complete.filter(([task]) => task === "M1-21")).toHaveLength(1);
   expect([...active, ...complete].filter(([task]) => task === "M1-23")).toHaveLength(0);
   expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
@@ -84,12 +84,12 @@ describe("M1-22 SecurityEvent envelope", () => {
     expect(plan).toContain("M1-23 remains Pending");
   });
 
-  it("starts only M1-22 and preserves its prerequisite, successor, and blockers", async () => {
+  it("completes only M1-22 and preserves its prerequisite, successor, and blockers", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
     ]);
-    verifyM122ActiveStatus(tracker, readme);
+    verifyM122CompleteStatus(tracker, readme);
   });
 
   it("exposes the exact hermetic command", async () => {
@@ -106,7 +106,7 @@ describe("M1-22 SecurityEvent envelope", () => {
     verifyReadmeBoundary(readme);
   });
 
-  it("rejects a duplicate M1-22 Complete row while active", async () => {
+  it("rejects duplicate M1-22 Complete rows", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -116,7 +116,7 @@ describe("M1-22 SecurityEvent envelope", () => {
       "| M1-22 | August 16, 2026 | forged duplicate |\n| M1-21 |",
     );
 
-    expect(() => verifyM122ActiveStatus(forged, readme)).toThrow();
+    expect(() => verifyM122CompleteStatus(forged, readme)).toThrow();
   });
 
   it("rejects README command drift", async () => {
