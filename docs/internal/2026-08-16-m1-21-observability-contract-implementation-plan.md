@@ -173,7 +173,7 @@ Vitest repository contracts, npm root command wiring.
   func CorrelationFromContext(context.Context) (Correlation, bool)
   ```
 
-- [ ] **Step 1: Write the wished-for API and happy-path tests**
+- [x] **Step 1: Write the wished-for API and happy-path tests**
 
   Construct three distinct canonical product IDs, one scope, one correlation
   ID, service API, version `1.2.3`, and deployment test. Assert exact ordered
@@ -195,7 +195,7 @@ Vitest repository contracts, npm root command wiring.
   `0123456789abcdef0123456789abcdef` and span ID `0123456789abcdef`
   attaches to and reads from context exactly.
 
-- [ ] **Step 2: Run and verify genuine compiler RED**
+- [x] **Step 2: Run and verify genuine compiler RED**
 
   ```bash
   go test -C services/platform ./observability
@@ -204,7 +204,11 @@ Vitest repository contracts, npm root command wiring.
   Expected: compile failure only on absent `observability` public symbols. No
   production file or dependency edit may precede this run.
 
-- [ ] **Step 3: Implement minimal happy-path GREEN**
+  The genuine compiler RED failed only on nine absent public symbols across
+  resource construction, typed attributes, validation, correlation creation,
+  and context propagation. No production file or dependency edit existed.
+
+- [x] **Step 3: Implement minimal happy-path GREEN**
 
   Store the seven attributes in a fixed internal array; return a copied slice.
   Validate service/deployment by exact switch, version byte-by-byte, product
@@ -220,7 +224,10 @@ Vitest repository contracts, npm root command wiring.
 
   Run the focused test and require the exact happy tests to pass.
 
-- [ ] **Step 4: Add resource adversarial RED/GREEN coverage**
+  The two initial exact resource/correlation tests passed against the minimal
+  implementation before adversarial behavior was added.
+
+- [x] **Step 4: Add resource adversarial RED/GREEN coverage**
 
   Reject zero/forged scope, unknown service/deployment, empty/oversized/
   Unicode/control/leading/trailing/adjacent-separator versions, missing keys,
@@ -230,7 +237,7 @@ Vitest repository contracts, npm root command wiring.
   `customer.content`, and `correlation.id`. Prove the returned slice does not
   mutate the retained value.
 
-- [ ] **Step 5: Add correlation adversarial RED/GREEN coverage**
+- [x] **Step 5: Add correlation adversarial RED/GREEN coverage**
 
   Reject zero/forged product correlation, empty/short/long/uppercase/non-hex/
   all-zero trace and span IDs, nil context, invalid stored values, and
@@ -238,7 +245,15 @@ Vitest repository contracts, npm root command wiring.
   idempotent, missing/nil reads return false, context siblings do not share
   values, and concurrent independent context trees are race-safe.
 
-- [ ] **Step 6: Run focused stability, platform, and coverage gates**
+  After two tests-only syntax/import corrections, the behavioral RED had four
+  failing top-level groups: permissive resource construction, permissive
+  exact-cardinality attribute validation, permissive correlation identity,
+  and nil-context panic/replacement semantics. GREEN has eight top-level
+  groups covering both catalogs, version/scope shape, nine explicitly
+  prohibited raw-content keys, strict identity, context fencing, and 64
+  concurrent trees.
+
+- [x] **Step 6: Run focused stability, platform, and coverage gates**
 
   ```bash
   for run in 1 2 3 4 5 6; do go test -C services/platform -race -count=1 ./observability; done
@@ -253,7 +268,11 @@ Vitest repository contracts, npm root command wiring.
 
   Expected: all commands exit zero and production statement coverage is 100%.
 
-- [ ] **Step 7: Record evidence and commit**
+  Six race passes, 100 repetitions, all 18 platform package groups under race,
+  tidy-diff, module verification, vet, and 100% production statement coverage
+  pass.
+
+- [x] **Step 7: Record evidence and commit**
 
   Scan exact new paths, staged diff, and ignored evidence with pinned redacted
   Gitleaks, then commit:
