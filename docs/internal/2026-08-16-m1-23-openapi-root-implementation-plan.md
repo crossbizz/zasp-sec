@@ -200,14 +200,14 @@ Vitest repository contracts.
   targets, production/full dependency audit, formatting, and staged/history/
   evidence secret scans.
 
-- [ ] **Step 3: Commit, push, and require exact completion-SHA CI success**
+- [x] **Step 3: Commit, push, and require exact completion-SHA CI success**
 
   ```bash
   git commit -m "docs: complete M1-23 OpenAPI root"
   git push origin codex/zasp-implementation
   ```
 
-- [ ] **Step 4: Commit/push the plan-only closure and require exact CI success**
+- [x] **Step 4: Commit/push the plan-only closure and require exact CI success**
 
   ```bash
   git commit -m "docs: close M1-23 OpenAPI root"
