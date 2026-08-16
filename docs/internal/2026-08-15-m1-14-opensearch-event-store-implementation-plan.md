@@ -242,7 +242,7 @@ git commit -m "feat: add scoped event store"
 - Produces: `openSearchEventDriver`, `RunEventStoreProof`, and the separate
   `event-store` executable mode.
 
-- [ ] **Step 1: Write adapter/lifecycle tests before code**
+- [x] **Step 1: Write adapter/lifecycle tests before code**
 
 Require create-only indexing at the deterministic product event ID, exact
 canonical document JSON, and one structured query with exact term filters for
@@ -250,7 +250,7 @@ canonical document JSON, and one structured query with exact term filters for
 exact size and ascending event-time/event-ID sorting. Require A-scope one hit,
 B-scope zero hits, exact cleanup, and the unchanged legacy M0-08 flow.
 
-- [ ] **Step 2: Capture missing adapter/mode RED**
+- [x] **Step 2: Capture missing adapter/mode RED**
 
 ```bash
 go test -C proofs/opensearch-event -run 'EventStore|Main' -count=1
@@ -258,7 +258,7 @@ go test -C proofs/opensearch-event -run 'EventStore|Main' -count=1
 
 Expected: compile failures only for absent product driver/proof/mode symbols.
 
-- [ ] **Step 3: Add the local product module dependency**
+- [x] **Step 3: Add the local product module dependency**
 
 Add:
 
@@ -269,7 +269,7 @@ replace github.com/zasp-ai/zasp-sec/services/platform => ../../services/platform
 
 Run `go mod tidy` only after the tests-first RED is recorded.
 
-- [ ] **Step 4: Implement the strict product driver**
+- [x] **Step 4: Implement the strict product driver**
 
 Convert product driver documents to the existing strict mapping without
 accepting provider-controlled fields. Index with `_create`, one attempt, and an
@@ -279,7 +279,7 @@ and no raw query input. Non-2xx mutation rejection is definitive; transport,
 stream, and malformed/unexpected-success outcomes are ambiguous and reconcile
 only exact state.
 
-- [ ] **Step 5: Implement the product-backed proof mode**
+- [x] **Step 5: Implement the product-backed proof mode**
 
 Generate fixed valid product IDs for Organization A/B, workspace, environment,
 event, session, and agent. Create one exact disposable index, construct the
@@ -288,14 +288,14 @@ then use the existing independent exact cleanup and prefix-wide audit. Preserve
 legacy no-argument M0-08 output; accept only one exact `event-store` argument
 for M1-14.
 
-- [ ] **Step 6: Add lifecycle uncertainty and cleanup regressions**
+- [x] **Step 6: Add lifecycle uncertainty and cleanup regressions**
 
 Cover definitive index/document rejection, ambiguous and malformed success,
 delayed visibility, exact-looking collisions, foreign scope, duplicate hits,
 cleanup panic, cancellation, cleanup precedence, and prefix-wide extra-index
 rejection. All cleanup reads use an independent bounded context.
 
-- [ ] **Step 7: Run proof-module race and stability gates**
+- [x] **Step 7: Run proof-module race and stability gates**
 
 ```bash
 go test -C proofs/opensearch-event -race -count=1 ./...
