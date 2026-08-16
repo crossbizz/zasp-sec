@@ -65,14 +65,14 @@ describe("M1-01 repository skeleton contract", () => {
     expect(readme).toContain("npm run build:repo");
     expect(readme).toContain("does not install or download dependencies");
     expect(tracker).toContain("| Pending | 688 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 36 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 37 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`688/1/36/3`");
+    expect(tracker).toContain("`688/0/37/3`");
     expect(m0).toEqual(["M0", "27", "0", "0", "24", "3"]);
-    expect(m1).toEqual(["M1", "68", "55", "1", "12", "0"]);
+    expect(m1).toEqual(["M1", "68", "55", "0", "13", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active).toHaveLength(1);
+    expect(active).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-01")).toHaveLength(1);
     for (const child of ["M1-01d", "M1-01e", "M1-01f", "M1-01a", "M1-01b", "M1-01c"]) {
       expect(complete.filter(([task]) => task === child)).toHaveLength(1);

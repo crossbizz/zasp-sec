@@ -191,7 +191,7 @@ debug metadata, credentials, and implicit retry guesses.
 
 ## Product configuration loader
 
-M1-07 is In progress. The platform configuration boundary is typed and
+M1-07 is Complete. The platform configuration boundary is typed and
 reference-only: missing required dependency configuration fails startup, while
 PostHog, OpenRouter, and remote OTLP remain optional. Secret configuration uses
 strict Secrets Manager references and does not load or expose secret material.

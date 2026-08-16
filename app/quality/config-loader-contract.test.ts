@@ -41,7 +41,7 @@ describe("M1-07 configuration loader contract", () => {
     expect(plan).toContain("M1-08 remains Pending");
   });
 
-  it("starts only M1-07 after M1-06 completes", async () => {
+  it("completes only M1-07 after the loader boundary passes", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -55,18 +55,19 @@ describe("M1-07 configuration loader contract", () => {
     const m1 = milestones.find(([milestone]) => milestone === "M1");
 
     expect(readme).toContain("M1-06 is Complete");
-    expect(readme).toContain("M1-07 is In progress");
+    expect(readme).toContain("M1-07 is Complete");
     expect(readme).toContain("required dependency configuration fails startup");
     expect(readme).toContain("PostHog, OpenRouter, and remote OTLP remain optional");
     expect(tracker).toContain("| Pending | 688 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 36 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 37 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`688/1/36/3`");
+    expect(tracker).toContain("`688/0/37/3`");
     expect(m0).toEqual(["M0", "27", "0", "0", "24", "3"]);
-    expect(m1).toEqual(["M1", "68", "55", "1", "12", "0"]);
+    expect(m1).toEqual(["M1", "68", "55", "0", "13", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.filter(([task]) => task === "M1-07")).toHaveLength(1);
+    expect(active).toHaveLength(0);
+    expect(complete.filter(([task]) => task === "M1-07")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-06")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-08")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
