@@ -45,7 +45,7 @@ describe("M1-28 common service health endpoints", () => {
     expect(planProse).toContain("Do not start M1-29");
   });
 
-  it("starts only M1-28 after M1-28d and preserves exact blockers", async () => {
+  it("completes only M1-28 after M1-28d and preserves exact blockers", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -57,20 +57,20 @@ describe("M1-28 common service health endpoints", () => {
     const summary = markdownRows(tracker.match(/## Status summary[\s\S]*?## Milestone summary/)?.[0] ?? "").slice(2);
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
-    expect(readme).toContain("M1-28 is In progress");
+    expect(readme).toContain("M1-28 is Complete");
     expect(readme).toContain("M1-29 remains Pending");
     expect(readmeProse).toContain("Health listeners for those worker packages remain outside M1-28 and are not yet implemented.");
     expect(readmeProse).not.toContain("Shared liveness and readiness endpoints remain deferred to M1-28.");
     expect(tracker).toContain("| Pending | 663 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 61 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 62 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`663/1/61/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "30", "1", "37", "0"]);
+    expect(tracker).toContain("`663/0/62/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "30", "0", "38", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.map(([task]) => task)).toEqual(["M1-28"]);
+    expect(active.map(([task]) => task)).toEqual([]);
     expect(complete.filter(([task]) => task === "M1-28d")).toHaveLength(1);
-    expect(complete.filter(([task]) => task === "M1-28")).toHaveLength(0);
+    expect(complete.filter(([task]) => task === "M1-28")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-29")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });

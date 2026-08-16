@@ -49,12 +49,12 @@ describe("M1-18 feature flag contract", () => {
 
     expect(readme).toMatch(/M1-18\s+is\s+Complete/);
     expect(tracker).toContain("| Pending | 663 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 61 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 62 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`663/1/61/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "30", "1", "37", "0"]);
-    expect(active.map(([task]) => task)).toEqual(["M1-28"]);
+    expect(tracker).toContain("`663/0/62/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "30", "0", "38", "0"]);
+    expect(active.map(([task]) => task)).toEqual([]);
     expect(complete.filter(([task]) => task === "M1-17")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-18")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-19")).toHaveLength(1);

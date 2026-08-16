@@ -57,18 +57,19 @@ describe("M1-28d runtime-gateway health wiring", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(readme).toContain("M1-28d is Complete");
-    expect(readme).toContain("M1-28 is In progress");
+    expect(readme).toContain("M1-28 is Complete");
     expect(tracker).toContain("| Pending | 663 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 61 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 62 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`663/1/61/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "30", "1", "37", "0"]);
+    expect(tracker).toContain("`663/0/62/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "30", "0", "38", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.map(([task]) => task)).toEqual(["M1-28"]);
+    expect(active.map(([task]) => task)).toEqual([]);
     expect(complete.filter(([task]) => task === "M1-28c")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-28d")).toHaveLength(1);
-    expect(active.filter(([task]) => task === "M1-28")).toHaveLength(1);
+    expect(active.filter(([task]) => task === "M1-28")).toHaveLength(0);
+    expect(complete.filter(([task]) => task === "M1-28")).toHaveLength(1);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
 
@@ -88,6 +89,6 @@ describe("M1-28d runtime-gateway health wiring", () => {
       "go test -C services/runtime-gateway -race -count=1 ./...",
     );
     expect(readme).toContain("M1-28d now wires the shared internal health handler");
-    expect(readme).toContain("M1-28 is In progress");
+    expect(readme).toContain("M1-28 is Complete");
   });
 });

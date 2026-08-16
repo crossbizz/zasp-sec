@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 663 |
-| In progress | 1 |
-| Complete | 61 |
+| In progress | 0 |
+| Complete | 62 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -24,7 +24,7 @@ In progress, Complete, or Blocked is Pending.
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 0 | 0 | 24 | 3 |
-| M1 | 68 | 30 | 1 | 37 | 0 |
+| M1 | 68 | 30 | 0 | 38 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
 | M3 | 75 | 75 | 0 | 0 | 0 |
@@ -68,19 +68,19 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `663/1/61/3` because
+session configuration. The 728 source-plan counts are `663/0/62/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M1-28 | August 16, 2026 | Register the exact common internal health OpenAPI and four-command service contract without changing the public API or reviewed Go runtimes. |
 
 ## Complete
 
 | Task | Completed | Evidence |
 | --- | --- | --- |
+| M1-28 | August 16, 2026 | Registered the exact self-contained internal OpenAPI and four-command health matrix with exact GET/HEAD/status/header/media/schema semantics, a root cross-command race gate, six stability passes, unchanged public generated client and UI/API map, full repository gates/audits/scans, and zero-finding independent re-review. |
 | M1-28d | August 16, 2026 | Wired the reviewed shared health handler into the standalone runtime-gateway command through one bounded internal listener with exact liveness/readiness transitions, panic-contained independent shutdown and listener cleanup, strict repository-owned dependency validation, a linked real-listener smoke, six race passes, 100% lifecycle statement coverage, full repository gates/audits/scans, and zero-finding independent review. |
 | M1-28c | August 16, 2026 | Wired the reviewed shared health handler into the standalone event-ingest command through one bounded internal listener with exact liveness/readiness transitions, panic-contained independent shutdown and listener cleanup, strict repository-owned dependency validation, a linked real-listener smoke, six race passes, 100% lifecycle statement coverage, full repository gates/audits/scans, and zero-finding independent review. |
 | M1-28b | August 16, 2026 | Wired the reviewed shared health handler into the platform API and worker commands through one bounded internal listener runtime with exact readiness and graceful shutdown, strict repository-owned dependency validation, real-listener smoke tests, six final race passes, 100% shared-runtime statement coverage, full repository gates/audits/scans, and zero-finding whole-range review. |
