@@ -60,7 +60,7 @@ Node.js 22.23.1/npm 10.9.8, Vitest, Node test runner, Docker CLI, Gitleaks 8.30.
 - Consumes: authoritative M1-16 source task, approved design and this plan.
 - Produces: exact M1-16 In-progress status boundary and completion contract.
 
-- [ ] **Step 1: Write the status test before changing README or tracker**
+- [x] **Step 1: Write the status test before changing README or tracker**
 
 Create a contract that parses the tracker tables and requires:
 
@@ -82,7 +82,7 @@ Also bind the source text `Implement minimal Neo4j node/edge upsert/read
 contract`, the approved design path, the v6.2.0 driver, the exact image digest,
 the proof-only server-license boundary, and M1-17 Pending.
 
-- [ ] **Step 2: Run focused RED**
+- [x] **Step 2: Run focused RED**
 
 Run:
 
@@ -93,7 +93,7 @@ PATH="$HOME/.nvm/versions/node/v22.23.1/bin:$PATH" \
 
 Expected: only the status/readme test fails because M1-16 is still Pending.
 
-- [ ] **Step 3: Move only M1-16 to In progress**
+- [x] **Step 3: Move only M1-16 to In progress**
 
 Update overall counts to `679/1/45/3`, M1 to `68/46/1/21/0`, add exactly one
 M1-16 In-progress row, keep M1-15 Complete, keep M1-17 absent, and preserve the
@@ -103,12 +103,12 @@ adapter/live claim exists yet.
 Mechanically update every aggregate current-status fixture, preserving any
 historical mutation fixture's original counts and active row.
 
-- [ ] **Step 4: Run focused and full status GREEN**
+- [x] **Step 4: Run focused and full status GREEN**
 
 Run the focused contract, all status contracts, then pinned `npm run verify`.
 Require exact M1-16 one-row uniqueness and no M1-17 active/complete row.
 
-- [ ] **Step 5: Commit the start transition**
+- [x] **Step 5: Commit the start transition**
 
 ```bash
 git add README.md app/quality docs/internal/implementation_status_v1.5.md
