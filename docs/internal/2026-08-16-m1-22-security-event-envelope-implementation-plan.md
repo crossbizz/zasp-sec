@@ -44,19 +44,23 @@ adapter, storage, or external I/O.
 - Create ignored task report and append-only progress ledger under
   `.superpowers/sdd/2026-08-16-m1-22-security-event-envelope-implementation-plan/`
 
-- [ ] **Step 1: Write source/design/status assertions and capture RED**
+- [x] **Step 1: Write source/design/status assertions and capture RED**
 
   Bind the source M1-22 section, prerequisite M1-21, successor M1-23, PRD
   Organization scope, runtime flow, design fields/catalogs, exact blockers, and
   expected active arithmetic. Require overall `673/1/51/3` and M1
   `68/40/1/27/0`. The focused RED must fail only stale README/tracker state.
 
-- [ ] **Step 2: Move only M1-22 to In progress**
+  RED was 1 intended failure and 1 pass, solely at stale M1-22 status.
+
+- [x] **Step 2: Move only M1-22 to In progress**
 
   Update README, tracker, and only the current aggregate fixtures. Keep M1-21
   Complete, M1-23 Pending, and all three blockers unchanged.
 
-- [ ] **Step 3: Verify focused and complete quality GREEN**
+  Only M1-22 is active at overall `673/1/51/3` and M1 `68/40/1/27/0`.
+
+- [x] **Step 3: Verify focused and complete quality GREEN**
 
   ```bash
   npx vitest run app/quality/security-event-envelope-contract.test.ts
@@ -64,7 +68,9 @@ adapter, storage, or external I/O.
   git diff --check
   ```
 
-- [ ] **Step 4: Record, scan, and commit**
+  GREEN is 2/2 focused and 55 quality files/245 tests; whitespace passes.
+
+- [x] **Step 4: Record, scan, and commit**
 
   ```bash
   git commit -m "docs: start M1-22 SecurityEvent envelope"

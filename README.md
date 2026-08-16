@@ -490,7 +490,8 @@ ID. Reattaching the same value is idempotent; replacement fails closed.
 
 The command is hermetic and performs no OpenTelemetry SDK, exporter,
 Collector, backend, provider, network, credential, database, or Docker I/O.
-M1-22 remains Pending.
+M1-22 is In progress and will add the dependency-free canonical SecurityEvent
+value without changing this observability boundary.
 
 ## Neon pooled proof
 
