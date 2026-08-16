@@ -702,9 +702,11 @@ contract requires no Docker daemon or provider access:
 npm run local:product:test
 ```
 
-With a local Docker daemon available, the live command builds the four static
-Go services, starts an exact-owned disposable kind cluster, proves all four
-pods Ready with four internal services, and performs reverse cleanup:
+The live command supports macOS or Linux and requires Docker 29.4.0, Go 1.25.6,
+kubectl 1.35, and outbound HTTPS access to the pinned kind GitHub release
+asset. It builds the four static Go services, starts an exact-owned disposable
+kind cluster, proves all four pods Ready with four internal services, and
+performs reverse cleanup:
 
 ```bash
 npm run local:product:run

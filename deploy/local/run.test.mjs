@@ -25,6 +25,7 @@ import {
   runMain,
   validateImportedImageIndex,
   validateImageInspection,
+  validateKindNodeInspection,
   validateKubernetesState,
 } from "./run.mjs";
 
@@ -108,6 +109,7 @@ function kindNodeDocument(cluster, networkId, token) {
       Devices: [],
       IpcMode: "private",
       PidMode: "",
+      PortBindings: { "6443/tcp": [{ HostIp: "127.0.0.1", HostPort: "51234" }] },
       Privileged: true,
       ReadonlyRootfs: false,
       SecurityOpt: ["seccomp=unconfined", "apparmor=unconfined", "label=disable"],
@@ -122,8 +124,8 @@ function kindNodeDocument(cluster, networkId, token) {
       { Destination: "/var", Driver: "local", Mode: "", Name: volumeToken, Propagation: "", RW: true, Source: `/var/lib/docker/volumes/${volumeToken}/_data`, Type: "volume" },
     ],
     Name: `/${cluster}-control-plane`,
-    NetworkSettings: { Networks: {
-      [cluster]: {
+    NetworkSettings: {
+      Networks: { [cluster]: {
         Aliases: null,
         DriverOpts: null,
         Gateway: "172.20.0.1",
@@ -131,9 +133,35 @@ function kindNodeDocument(cluster, networkId, token) {
         IPPrefixLen: 24,
         MacAddress: "02:42:ac:14:00:02",
         NetworkID: networkId,
-      },
-    } },
+      } },
+      Ports: { "6443/tcp": [{ HostIp: "127.0.0.1", HostPort: "51234" }] },
+    },
   }];
+}
+
+function kubeconfigDocument(cluster, port = "51234") {
+  const name = `kind-${cluster}`;
+  return [
+    "apiVersion: v1",
+    "clusters:",
+    `- cluster:`,
+    "    certificate-authority-data: Y2E=",
+    `    server: https://127.0.0.1:${port}`,
+    `  name: ${name}`,
+    "contexts:",
+    "- context:",
+    `    cluster: ${name}`,
+    `    user: ${name}`,
+    `  name: ${name}`,
+    `current-context: ${name}`,
+    "kind: Config",
+    "users:",
+    `- name: ${name}`,
+    "  user:",
+    "    client-certificate-data: Y2VydA==",
+    "    client-key-data: a2V5",
+    "",
+  ].join("\n");
 }
 
 function fakeChild(action) {
@@ -256,6 +284,7 @@ test("binds the complete immutable image identity and rejects drift", () => {
   assert.deepEqual(identity, {
     architecture: "arm64",
     id: `sha256:${"a".repeat(64)}`,
+    layers: [`sha256:${"b".repeat(64)}`],
     reference: product.image,
   });
 
@@ -417,12 +446,12 @@ test("follows the official release redirect only under the pinned byte and hash 
 
 test("binds each containerd import index to one exact loaded product target", () => {
   const targets = PRODUCTS.map((product, index) =>
-    `docker.io/${product.image} application/vnd.oci.image.manifest.v1+json sha256:${String(index + 1).repeat(64)} 1.0MiB linux/arm64 -`);
+    `docker.io/${product.image} application/vnd.oci.image.manifest.v1+json sha256:${String(index + 1).repeat(64)} 1.0 MiB linux/arm64 -`);
   const parsed = parseContainerdImageTargets([
     "REF TYPE DIGEST SIZE PLATFORMS LABELS",
     ...targets,
     "",
-  ].join("\n"));
+  ].join("\n"), "linux/arm64");
   assert.deepEqual(Object.fromEntries(parsed), Object.fromEntries(PRODUCTS.map((product, index) => [
     product.name, `sha256:${String(index + 1).repeat(64)}`,
   ])));
@@ -430,6 +459,12 @@ test("binds each containerd import index to one exact loaded product target", ()
   const product = PRODUCTS[0];
   const target = parsed.get(product.name);
   const imported = `sha256:${"9".repeat(64)}`;
+  const retained = {
+    architecture: "arm64",
+    id: `sha256:${"a".repeat(64)}`,
+    layers: [`sha256:${"b".repeat(64)}`],
+    reference: product.image,
+  };
   const document = {
     manifests: [{
       annotations: {
@@ -443,8 +478,20 @@ test("binds each containerd import index to one exact loaded product target", ()
     mediaType: "application/vnd.oci.image.index.v1+json",
     schemaVersion: 2,
   };
+  const targetManifest = {
+    config: { digest: retained.id, mediaType: "application/vnd.oci.image.config.v1+json", size: 123 },
+    layers: [{ digest: `sha256:${"c".repeat(64)}`, mediaType: "application/vnd.oci.image.layer.v1.tar", size: 456 }],
+    mediaType: "application/vnd.oci.image.manifest.v1+json",
+    schemaVersion: 2,
+  };
+  const imageConfig = {
+    architecture: "arm64",
+    os: "linux",
+    rootfs: { diff_ids: retained.layers, type: "layers" },
+  };
   assert.deepEqual(validateImportedImageIndex(document, product, target,
-    `docker.io/library/import-2026-08-16@${imported}`), {
+    `docker.io/library/import-2026-08-16@${imported}`, retained, targetManifest, imageConfig,
+    "linux/arm64"), {
     canonicalImage: product.image,
     canonicalImageID: `docker-pullable://${product.image}@${imported}`,
     providerImage: `docker.io/${product.image}`,
@@ -461,16 +508,48 @@ test("binds each containerd import index to one exact loaded product target", ()
     assert.throws(() => validateImportedImageIndex(value, product, target,
       `docker.io/library/import-2026-08-16@${imported}`), { name: "Failure" });
   }
+  for (const [manifestValue, configValue, platform] of [
+    [{ ...targetManifest, config: { ...targetManifest.config, digest: `sha256:${"d".repeat(64)}` } }, imageConfig, "linux/arm64"],
+    [{ ...targetManifest, layers: [] }, imageConfig, "linux/arm64"],
+    [targetManifest, { ...imageConfig, architecture: "amd64" }, "linux/arm64"],
+    [targetManifest, { ...imageConfig, rootfs: { ...imageConfig.rootfs, diff_ids: [`sha256:${"d".repeat(64)}`] } }, "linux/arm64"],
+    [targetManifest, imageConfig, "linux/amd64"],
+  ]) {
+    assert.throws(() => validateImportedImageIndex(document, product, target,
+      `docker.io/library/import-2026-08-16@${imported}`, retained, manifestValue, configValue, platform),
+    { name: "Failure" });
+  }
   assert.throws(() => parseContainerdImageTargets([
     "REF TYPE DIGEST SIZE PLATFORMS LABELS",
     targets[0],
     targets[0],
     "",
-  ].join("\n")), { name: "Failure" });
+  ].join("\n"), "linux/arm64"), { name: "Failure" });
+  assert.throws(() => parseContainerdImageTargets([
+    "REF TYPE DIGEST SIZE PLATFORMS LABELS",
+    ...targets.map((line) => line.replace("linux/arm64", "linux/amd64")),
+    "",
+  ].join("\n"), "linux/arm64"), { name: "Failure" });
 });
 
 function kubernetesState(overrides = {}) {
   const nodeName = "zasp-m1-30a-0123456789abcdef-control-plane";
+  const namespace = {
+    apiVersion: "v1",
+    kind: "Namespace",
+    metadata: {
+      labels: {
+        "app.kubernetes.io/part-of": "zasp",
+        "kubernetes.io/metadata.name": "zasp-local",
+        "zasp.dev/environment": "local",
+      },
+      name: "zasp-local",
+      resourceVersion: "100",
+      uid: "10000000-0000-4000-8000-000000000000",
+    },
+    spec: { finalizers: ["kubernetes"] },
+    status: { phase: "Active" },
+  };
   const pods = PRODUCTS.map((product, index) => ({
     apiVersion: "v1",
     kind: "Pod",
@@ -483,6 +562,15 @@ function kubernetesState(overrides = {}) {
       },
       name: `${product.name}-${String(index + 1).padStart(10, "a")}-abcde`,
       namespace: "zasp-local",
+      ownerReferences: [{
+        apiVersion: "apps/v1",
+        blockOwnerDeletion: true,
+        controller: true,
+        kind: "ReplicaSet",
+        name: `${product.name}-${String(index + 1).padStart(10, "a")}`,
+        uid: `30000000-0000-4000-8000-00000000000${index}`,
+      }],
+      resourceVersion: String(300 + index),
       uid: `00000000-0000-4000-8000-00000000000${index}`,
     },
     spec: {
@@ -491,13 +579,19 @@ function kubernetesState(overrides = {}) {
         resource.kind === "Deployment" && resource.metadata.name === product.name).spec.template.spec.containers[0])],
       dnsPolicy: "ClusterFirst",
       enableServiceLinks: false,
+      ephemeralContainers: [],
+      hostAliases: [],
       hostIPC: false,
       hostNetwork: false,
       hostPID: false,
+      imagePullSecrets: [],
+      initContainers: [],
       nodeName,
       restartPolicy: "Always",
       securityContext: structuredClone(buildProductResources().find((resource) =>
         resource.kind === "Deployment" && resource.metadata.name === product.name).spec.template.spec.securityContext),
+      serviceAccountName: "default",
+      shareProcessNamespace: false,
       volumes: [],
     },
     status: {
@@ -513,13 +607,31 @@ function kubernetesState(overrides = {}) {
         state: { running: { startedAt: "2026-08-16T00:00:00Z" } },
       }],
       phase: "Running",
+      podIP: `10.244.0.${index + 10}`,
     },
   }));
-  const deployments = PRODUCTS.map((product) => ({
+  for (const pod of pods) Object.assign(pod.spec.containers[0], {
+    args: [], command: [], env: [], envFrom: [], volumeMounts: [],
+  });
+  const deployments = PRODUCTS.map((product, index) => ({
     apiVersion: "apps/v1",
     kind: "Deployment",
-    metadata: { generation: 1, name: product.name, namespace: "zasp-local" },
-    spec: { replicas: 1, selector: { matchLabels: { "app.kubernetes.io/name": product.name } } },
+    metadata: {
+      generation: 1,
+      name: product.name,
+      namespace: "zasp-local",
+      resourceVersion: String(200 + index),
+      uid: `20000000-0000-4000-8000-00000000000${index}`,
+    },
+    spec: {
+      replicas: 1,
+      selector: { matchLabels: { "app.kubernetes.io/name": product.name } },
+      template: {
+        metadata: { labels: structuredClone(buildProductResources().find((resource) =>
+          resource.kind === "Deployment" && resource.metadata.name === product.name).spec.template.metadata.labels) },
+        spec: structuredClone(pods[index].spec),
+      },
+    },
     status: {
       availableReplicas: 1,
       conditions: [{ status: "True", type: "Available" }],
@@ -530,10 +642,44 @@ function kubernetesState(overrides = {}) {
       updatedReplicas: 1,
     },
   }));
+  for (const deployment of deployments) delete deployment.spec.template.spec.nodeName;
+  const replicaSets = PRODUCTS.map((product, index) => ({
+    apiVersion: "apps/v1",
+    kind: "ReplicaSet",
+    metadata: {
+      labels: {
+        "app.kubernetes.io/name": product.name,
+        "app.kubernetes.io/part-of": "zasp",
+        "pod-template-hash": String(index + 1).padStart(10, "a"),
+        "zasp.dev/environment": "local",
+      },
+      name: `${product.name}-${String(index + 1).padStart(10, "a")}`,
+      namespace: "zasp-local",
+      ownerReferences: [{
+        apiVersion: "apps/v1", blockOwnerDeletion: true, controller: true, kind: "Deployment",
+        name: product.name, uid: deployments[index].metadata.uid,
+      }],
+      resourceVersion: String(250 + index),
+      uid: `30000000-0000-4000-8000-00000000000${index}`,
+    },
+    spec: {
+      replicas: 1,
+      selector: { matchLabels: {
+        "app.kubernetes.io/name": product.name,
+        "pod-template-hash": String(index + 1).padStart(10, "a"),
+      } },
+    },
+    status: { availableReplicas: 1, fullyLabeledReplicas: 1, observedGeneration: 1, readyReplicas: 1, replicas: 1 },
+  }));
   const services = PRODUCTS.map((product, index) => ({
     apiVersion: "v1",
     kind: "Service",
-    metadata: { name: product.name, namespace: "zasp-local" },
+    metadata: {
+      name: product.name,
+      namespace: "zasp-local",
+      resourceVersion: String(400 + index),
+      uid: `40000000-0000-4000-8000-00000000000${index}`,
+    },
     spec: {
       clusterIP: `10.96.0.${index + 10}`,
       clusterIPs: [`10.96.0.${index + 10}`],
@@ -547,11 +693,39 @@ function kubernetesState(overrides = {}) {
     },
     status: { loadBalancer: {} },
   }));
-  return { deployments, nodeName, pods, services, ...overrides };
+  const endpointSlices = PRODUCTS.map((product, index) => ({
+    addressType: "IPv4",
+    apiVersion: "discovery.k8s.io/v1",
+    endpoints: [{
+      addresses: [pods[index].status.podIP],
+      conditions: { ready: true, serving: true, terminating: false },
+      nodeName,
+      targetRef: {
+        kind: "Pod", name: pods[index].metadata.name, namespace: "zasp-local", uid: pods[index].metadata.uid,
+      },
+    }],
+    kind: "EndpointSlice",
+    metadata: {
+      labels: {
+        "endpointslice.kubernetes.io/managed-by": "endpointslice-controller.k8s.io",
+        "kubernetes.io/service-name": product.name,
+      },
+      name: `${product.name}-abcde`,
+      namespace: "zasp-local",
+      ownerReferences: [{
+        apiVersion: "v1", blockOwnerDeletion: true, controller: true, kind: "Service",
+        name: product.name, uid: services[index].metadata.uid,
+      }],
+      resourceVersion: String(500 + index),
+      uid: `50000000-0000-4000-8000-00000000000${index}`,
+    },
+    ports: [{ name: "health", port: 8081, protocol: "TCP" }],
+  }));
+  return { deployments, endpointSlices, namespace, nodeName, pods, replicaSets, services, ...overrides };
 }
 
 function containerdTarget(product) {
-  return `sha256:${String(PRODUCTS.indexOf(product) + 1).repeat(64)}`;
+  return `sha256:${["a", "b", "c", "d"][PRODUCTS.indexOf(product)].repeat(64)}`;
 }
 
 function containerdImport(product) {
@@ -589,15 +763,76 @@ function containerdImportIndex(product) {
   };
 }
 
+function containerdTargetManifest(product) {
+  const index = PRODUCTS.indexOf(product);
+  return {
+    config: {
+      digest: `sha256:${String(index + 1).repeat(64)}`,
+      mediaType: "application/vnd.oci.image.config.v1+json",
+      size: 123,
+    },
+    layers: [{
+      digest: `sha256:${["e", "f", "a", "b"][index].repeat(64)}`,
+      mediaType: "application/vnd.oci.image.layer.v1.tar",
+      size: 456,
+    }],
+    mediaType: "application/vnd.oci.image.manifest.v1+json",
+    schemaVersion: 2,
+  };
+}
+
+function containerdImageConfig(product) {
+  const index = PRODUCTS.indexOf(product);
+  return {
+    architecture: "arm64",
+    os: "linux",
+    rootfs: { diff_ids: [`sha256:${String(index + 5).repeat(64)}`], type: "layers" },
+  };
+}
+
 function providerKubernetesState() {
   const state = structuredClone(kubernetesState());
   for (const product of PRODUCTS) {
+    const deployment = state.deployments.find((item) => item.metadata.name === product.name);
+    delete deployment.spec.template.spec.serviceAccountName;
     const pod = state.pods.find((item) => item.metadata.labels["app.kubernetes.io/name"] === product.name);
     pod.status.containerStatuses[0].image = `docker.io/${product.image}`;
     pod.status.containerStatuses[0].imageID =
       `docker.io/library/import-2026-08-16@${containerdImport(product)}`;
   }
   return state;
+}
+
+async function verifyProjectedProviderState(state, requests = undefined) {
+  const fixture = createConcreteFixture(async (command, arguments_) => {
+    if (command !== "kubectl") throw new Error("unexpected command");
+    const resource = ["namespace", "deployment", "replicaset", "pod", "service", "endpointslice", "ingress"]
+      .find((value) => arguments_.includes(value));
+    requests?.push(resource);
+    if (resource === "namespace") return {
+      signal: null, status: 0, stderr: "", stdout: `${JSON.stringify(state.namespace)}\n`, thrown: false, timedOut: false,
+    };
+    const items = resource === "deployment" ? state.deployments
+      : resource === "replicaset" ? state.replicaSets
+        : resource === "pod" ? state.pods
+          : resource === "service" ? state.services
+            : resource === "endpointslice" ? state.endpointSlices : [];
+    return {
+      signal: null, status: 0, stderr: "",
+      stdout: `${JSON.stringify({ apiVersion: "v1", items, kind: "List", metadata: { resourceVersion: "" } })}\n`,
+      thrown: false, timedOut: false,
+    };
+  });
+  const phase = { assertActive() {}, signal: new AbortController().signal };
+  await fixture.system.initialize(phase);
+  fixture.system.verifyCluster = async () => {};
+  fixture.system.verifyImportedPodImages = async () => new Map(PRODUCTS.map((product) => [product.name, {
+    canonicalImage: product.image,
+    canonicalImageID: `docker-pullable://${product.image}@sha256:${String(PRODUCTS.indexOf(product) + 5).repeat(64)}`,
+    providerImage: `docker.io/${product.image}`,
+    providerImageID: `docker.io/library/import-2026-08-16@${containerdImport(product)}`,
+  }]));
+  return fixture.system.verifyReadiness(phase);
 }
 
 test("pins an exact loopback kind cluster and owned kubeconfig", () => {
@@ -652,6 +887,51 @@ test("pins an exact loopback kind cluster and owned kubeconfig", () => {
   ]);
 });
 
+test("binds the kind API to one numeric loopback port and the exact kubeconfig", async () => {
+  const cluster = `zasp-m1-30a-${marker}`;
+  const networkId = "a".repeat(64);
+  const token = "b".repeat(64);
+  const expected = {
+    cluster,
+    hostPlatform: "darwin/arm64",
+    imageId: KIND_PINS.node.configDigests["linux/arm64"],
+    name: `${cluster}-control-plane`,
+    networkId,
+    reference: KIND_PINS.node.reference,
+    token,
+  };
+  const identity = validateKindNodeInspection(kindNodeDocument(cluster, networkId, token), expected);
+  assert.equal(identity.apiPort, "51234");
+
+  for (const mutate of [
+    (value) => { value[0].HostConfig.PortBindings["6443/tcp"][0].HostIp = "0.0.0.0"; },
+    (value) => { value[0].NetworkSettings.Ports["6443/tcp"][0].HostPort = "51235"; },
+    (value) => { value[0].NetworkSettings.Ports["6443/tcp"] = null; },
+  ]) {
+    const value = structuredClone(kindNodeDocument(cluster, networkId, token));
+    mutate(value);
+    assert.throws(() => validateKindNodeInspection(value, expected), { name: "Failure" });
+  }
+
+  let fixture;
+  fixture = createConcreteFixture(async (command, arguments_) => {
+    if (command === "docker" && arguments_[0] === "ps") {
+      return { signal: null, status: 0, stderr: "", stdout: `${token}|${cluster}-control-plane\n`, thrown: false, timedOut: false };
+    }
+    if (command === "docker" && arguments_[0] === "inspect") {
+      return { signal: null, status: 0, stderr: "", stdout: `${JSON.stringify(kindNodeDocument(cluster, networkId, token))}\n`, thrown: false, timedOut: false };
+    }
+    throw new Error("unexpected command");
+  });
+  const phase = { assertActive() {}, signal: new AbortController().signal };
+  await fixture.system.initialize(phase);
+  fixture.recordFile(`${fixture.root}/kubeconfig`, Buffer.from(kubeconfigDocument(cluster)));
+  fixture.system.networkIdentity = { id: networkId, name: cluster };
+  await fixture.system.verifyCluster(phase, "ownership");
+  fixture.files.set(`${fixture.root}/kubeconfig`, Buffer.from(kubeconfigDocument(cluster, "51235")));
+  await assert.rejects(() => fixture.system.verifyCluster(phase, "ownership"), { name: "Failure" });
+});
+
 test("validates exactly four Ready product pods and four internal services", () => {
   const state = kubernetesState();
   assert.deepEqual(validateKubernetesState(state), {
@@ -679,12 +959,54 @@ test("validates exactly four Ready product pods and four internal services", () 
     (value) => { value.services[0].spec.externalIPs = ["127.0.0.1"]; },
     (value) => { value.services[0].spec.selector["app.kubernetes.io/name"] = "event-ingest"; },
     (value) => { value.services.push(structuredClone(value.services[0])); },
+    (value) => { value.namespace.metadata.uid = "invalid"; },
+    (value) => { value.replicaSets[0].metadata.ownerReferences[0].uid = value.deployments[1].metadata.uid; },
+    (value) => { value.pods[0].metadata.ownerReferences[0].uid = value.replicaSets[1].metadata.uid; },
+    (value) => { value.endpointSlices[0].endpoints = []; },
+    (value) => { value.endpointSlices[0].endpoints[0].targetRef.uid = value.pods[1].metadata.uid; },
     (value) => { value.nodeName = "shared-node"; },
   ];
   for (const mutate of mutations) {
     const value = structuredClone(state);
     mutate(value);
     assert.throws(() => validateKubernetesState(value), { name: "Failure" });
+  }
+});
+
+test("projects every dangerous pod field and proves exact workload-to-endpoint ownership", async () => {
+  const requests = [];
+  assert.deepEqual(await verifyProjectedProviderState(providerKubernetesState(), requests), {
+    internal: true, pods: 4, ready: 4, services: 4,
+  });
+  assert.deepEqual(requests, [
+    "namespace", "deployment", "replicaset", "pod", "service", "endpointslice", "ingress",
+  ]);
+
+  const mutations = [
+    (value) => { value.pods[0].spec.containers[0].command = ["/bin/sh"]; },
+    (value) => { value.pods[0].spec.containers[0].args = ["--unsafe"]; },
+    (value) => { value.pods[0].spec.containers[0].env = [{ name: "AWS_SECRET_ACCESS_KEY", value: "fixture" }]; },
+    (value) => { value.pods[0].spec.containers[0].envFrom = [{ secretRef: { name: "fixture" } }]; },
+    (value) => { value.pods[0].spec.containers[0].volumeMounts = [{ mountPath: "/secret", name: "secret" }]; },
+    (value) => { value.pods[0].spec.initContainers = [structuredClone(value.pods[0].spec.containers[0])]; },
+    (value) => { value.pods[0].spec.ephemeralContainers = [{}]; },
+    (value) => { value.pods[0].spec.imagePullSecrets = [{ name: "registry-secret" }]; },
+    (value) => { value.pods[0].spec.hostAliases = [{ ip: "127.0.0.1", hostnames: ["provider"] }]; },
+    (value) => { value.pods[0].spec.shareProcessNamespace = true; },
+    (value) => { value.pods[0].spec.serviceAccountName = "privileged"; },
+    (value) => { value.deployments[0].metadata.uid = value.deployments[1].metadata.uid; },
+    (value) => { value.deployments[0].spec.template.spec.containers[0].env = [{ name: "TOKEN", value: "fixture" }]; },
+    (value) => { value.replicaSets[0].metadata.ownerReferences[0].uid = value.deployments[1].metadata.uid; },
+    (value) => { value.pods[0].metadata.ownerReferences[0].uid = value.replicaSets[1].metadata.uid; },
+    (value) => { value.services[0].metadata.uid = value.services[1].metadata.uid; },
+    (value) => { value.endpointSlices[0].endpoints[0].addresses = [value.pods[1].status.podIP]; },
+    (value) => { value.endpointSlices[0].endpoints[0].targetRef.uid = value.pods[1].metadata.uid; },
+    (value) => { value.endpointSlices[0].metadata.labels["kubernetes.io/service-name"] = PRODUCTS[1].name; },
+  ];
+  for (const mutate of mutations) {
+    const value = providerKubernetesState();
+    mutate(value);
+    await assert.rejects(() => verifyProjectedProviderState(value), { name: "Failure" });
   }
 });
 
@@ -727,10 +1049,9 @@ test("orchestrates the exact main and independent reverse cleanup sequence", asy
   ]);
 });
 
-test("cleanup continues and wins over main, join, and audit failures", async () => {
+test("cleanup continues and wins over main and audit failures after settlement", async () => {
   const runtime = new FakeLifecycle({
     applyManifests: new Failure("provider"),
-    joinMutations: new Failure("deadline"),
     cleanup: new Failure("cleanup"),
     auditAbsence: new Failure("ownership"),
   });
@@ -740,6 +1061,21 @@ test("cleanup continues and wins over main, join, and audit failures", async () 
     settlementTimeoutMilliseconds: 20,
   }), (error) => error instanceof Failure && error.category === "cleanup");
   assert.deepEqual(runtime.events.slice(-3), ["joinMutations", "cleanup", "auditAbsence"]);
+});
+
+test("unproved mutation settlement blocks destructive cleanup and absence audit", async () => {
+  const runtime = new FakeLifecycle({
+    applyManifests: new Failure("provider"),
+    joinMutations: new Failure("deadline"),
+  });
+  await assert.rejects(orchestrate(runtime, {
+    cleanupTimeoutMilliseconds: 100,
+    mainTimeoutMilliseconds: 100,
+    settlementTimeoutMilliseconds: 20,
+  }), (error) => error instanceof Failure && error.category === "cleanup");
+  assert.deepEqual(runtime.events.slice(-1), ["joinMutations"]);
+  assert.equal(runtime.events.includes("cleanup"), false);
+  assert.equal(runtime.events.includes("auditAbsence"), false);
 });
 
 test("bounds an uncooperative main phase before independent cleanup", async () => {
@@ -782,9 +1118,21 @@ test("runMain emits exactly one fixed success or categorized failure line", asyn
     stderr: failure,
     stdout: { write() {} },
   }), 1);
-  assert.equal(failure.text, "Local product manifests failed: operation rejected.\n");
+  assert.equal(failure.text, "Local product manifests failed: panic rejected.\n");
   assert.doesNotMatch(failure.text, /secret|provider output/);
   assert.equal(exitCode, 1);
+
+  const cleanupPanic = { text: "", write(value) { this.text += value; } };
+  assert.equal(await runMain(new FakeLifecycle({ cleanup: new Error("cleanup panic detail") }), {
+    cleanupTimeoutMilliseconds: 100,
+    mainTimeoutMilliseconds: 100,
+    settlementTimeoutMilliseconds: 20,
+    setExitCode(value) { exitCode = value; },
+    stderr: cleanupPanic,
+    stdout: { write() {} },
+  }), 1);
+  assert.equal(cleanupPanic.text, "Local product manifests failed: panic rejected.\n");
+  assert.doesNotMatch(cleanupPanic.text, /detail/);
 });
 
 test("constructs a concrete process runtime without ambient kube authority", () => {
@@ -845,6 +1193,7 @@ test("concrete lifecycle admits only an exact-owned empty workspace", async () =
         isDirectory: () => directories.has(path),
         isFile: () => files.has(path),
         isSymbolicLink: () => false,
+        mode: files.has(path) ? 0o100600 : 0o40700,
         size: files.get(path)?.length ?? 0,
       };
     },
@@ -873,6 +1222,8 @@ test("concrete lifecycle admits only an exact-owned empty workspace", async () =
   assert.equal(system.environment.KUBECONFIG, `${root}/kubeconfig`);
   assert.equal(system.environment.KIND_EXPERIMENTAL_DOCKER_NETWORK, "zasp-m1-30a-0123456789abcdef");
   assert.equal(system.environment.DOCKER_CONFIG, `${root}/docker`);
+  assert.equal(system.mutationSettlements.length, 8,
+    "mkdtemp, five directories, and two files are journaled before interpretation");
 });
 
 test("concrete lifecycle retains and safely cleans a post-mkdtemp validation failure", async () => {
@@ -947,6 +1298,7 @@ function createConcreteFixture(command) {
         isDirectory: () => directories.has(path),
         isFile: () => files.has(path),
         isSymbolicLink: () => false,
+        mode: files.has(path) ? 0o100600 : 0o40700,
         size: files.get(path)?.length ?? 0,
       };
     },
@@ -1024,13 +1376,38 @@ test("concrete runtime fences retained workspace files before provider mutation"
   const phase = { assertActive() {}, signal: new AbortController().signal };
   await fixture.system.initialize(phase);
   fixture.recordFile(`${fixture.root}/kind`, Buffer.from("kind"));
-  fixture.recordFile(`${fixture.root}/kubeconfig`, Buffer.from("owned kubeconfig"));
+  fixture.recordFile(`${fixture.root}/kubeconfig`, Buffer.from(kubeconfigDocument(fixture.system.cluster)));
   await fixture.system.rememberOwnedPath(`${fixture.root}/kind`, "file", phase, "ownership");
   fixture.system.networkMayHaveApplied = true;
   fixture.system.networkIdentity = { id: networkId, name: fixture.system.cluster };
   fixture.identities.set(`${fixture.root}/kind.json`, { dev: 9, ino: 9 });
   await assert.rejects(() => fixture.system.createCluster(phase), { name: "Failure" });
   assert.equal(calls, 0, "the changed file is rejected before any provider read or mutation");
+
+  let sameIdentityCalls = 0;
+  const sameIdentity = createConcreteFixture(async () => {
+    sameIdentityCalls += 1;
+    return { signal: null, status: 0, stderr: "", stdout: "", thrown: false, timedOut: false };
+  });
+  await sameIdentity.system.initialize(phase);
+  sameIdentity.recordFile(`${sameIdentity.root}/kind`, Buffer.from("kind"));
+  sameIdentity.recordFile(`${sameIdentity.root}/kubeconfig`, Buffer.from(kubeconfigDocument(sameIdentity.system.cluster)));
+  await sameIdentity.system.rememberOwnedPath(`${sameIdentity.root}/kind`, "file", phase, "ownership");
+  sameIdentity.system.networkMayHaveApplied = true;
+  sameIdentity.system.networkIdentity = { id: networkId, name: sameIdentity.system.cluster };
+  sameIdentity.system.verifyNetwork = async () => {};
+  const kindConfigBytes = Buffer.from(sameIdentity.files.get(`${sameIdentity.root}/kind.json`));
+  kindConfigBytes[0] = kindConfigBytes[0] === 0x7b ? 0x5b : 0x7b;
+  sameIdentity.files.set(`${sameIdentity.root}/kind.json`, kindConfigBytes);
+  await assert.rejects(() => sameIdentity.system.createCluster(phase), { name: "Failure" });
+  assert.equal(sameIdentityCalls, 0);
+
+  sameIdentity.system.verifyCluster = async () => {};
+  const manifestBytes = Buffer.from(sameIdentity.files.get(`${sameIdentity.root}/manifests.yaml`));
+  manifestBytes[0] = manifestBytes[0] === 0x61 ? 0x62 : 0x61;
+  sameIdentity.files.set(`${sameIdentity.root}/manifests.yaml`, manifestBytes);
+  await assert.rejects(() => sameIdentity.system.applyManifests(phase), { name: "Failure" });
+  assert.equal(sameIdentityCalls, 0);
 });
 
 test("concrete build downloads exact kind and retains four exact image identities", async () => {
@@ -1104,7 +1481,7 @@ test("concrete lifecycle creates and retains only the exact network and kind nod
       };
     }
     if (command === `${fixture.root}/kind`) {
-      fixture.recordFile(`${fixture.root}/kubeconfig`, Buffer.from("owned kubeconfig"));
+      fixture.recordFile(`${fixture.root}/kubeconfig`, Buffer.from(kubeconfigDocument(fixture.system.cluster)));
       return { signal: null, status: 0, stderr: "", stdout: "created\n", thrown: false, timedOut: false };
     }
     if (command === "docker" && arguments_[0] === "ps") {
@@ -1182,8 +1559,15 @@ test("concrete lifecycle loads all images and proves the exact Ready Kubernetes 
       }
       if (arguments_.includes("content") && arguments_.includes("get")) {
         const digest = arguments_.at(-1);
-        const product = PRODUCTS.find((entry) => containerdImport(entry) === digest);
-        return { signal: null, status: 0, stderr: "", stdout: `${JSON.stringify(containerdImportIndex(product))}\n`, thrown: false, timedOut: false };
+        const product = PRODUCTS.find((entry) => [
+          containerdImport(entry), containerdTarget(entry), `sha256:${String(PRODUCTS.indexOf(entry) + 1).repeat(64)}`,
+        ].includes(digest));
+        const document = digest === containerdImport(product)
+          ? containerdImportIndex(product)
+          : digest === containerdTarget(product)
+            ? containerdTargetManifest(product)
+            : containerdImageConfig(product);
+        return { signal: null, status: 0, stderr: "", stdout: `${JSON.stringify(document)}\n`, thrown: false, timedOut: false };
       }
     }
     if (command === "kubectl" && arguments_.includes("apply")) {
@@ -1192,14 +1576,23 @@ test("concrete lifecycle loads all images and proves the exact Ready Kubernetes 
     if (command === "kubectl" && arguments_.includes("wait")) {
       return { signal: null, status: 0, stderr: "", stdout: "ready\n", thrown: false, timedOut: false };
     }
+    if (command === "kubectl" && arguments_.includes("namespace")) {
+      return { signal: null, status: 0, stderr: "", stdout: `${JSON.stringify(state.namespace)}\n`, thrown: false, timedOut: false };
+    }
     if (command === "kubectl" && arguments_.includes("deployment")) {
       return { signal: null, status: 0, stderr: "", stdout: `${JSON.stringify({ apiVersion: "v1", items: state.deployments, kind: "List", metadata: { resourceVersion: "" } })}\n`, thrown: false, timedOut: false };
+    }
+    if (command === "kubectl" && arguments_.includes("replicaset")) {
+      return { signal: null, status: 0, stderr: "", stdout: `${JSON.stringify({ apiVersion: "v1", items: state.replicaSets, kind: "List", metadata: { resourceVersion: "" } })}\n`, thrown: false, timedOut: false };
     }
     if (command === "kubectl" && arguments_.includes("pod")) {
       return { signal: null, status: 0, stderr: "", stdout: `${JSON.stringify({ apiVersion: "v1", items: state.pods, kind: "List", metadata: { resourceVersion: "" } })}\n`, thrown: false, timedOut: false };
     }
     if (command === "kubectl" && arguments_.includes("service")) {
       return { signal: null, status: 0, stderr: "", stdout: `${JSON.stringify({ apiVersion: "v1", items: state.services, kind: "List", metadata: { resourceVersion: "" } })}\n`, thrown: false, timedOut: false };
+    }
+    if (command === "kubectl" && arguments_.includes("endpointslice")) {
+      return { signal: null, status: 0, stderr: "", stdout: `${JSON.stringify({ apiVersion: "v1", items: state.endpointSlices, kind: "List", metadata: { resourceVersion: "" } })}\n`, thrown: false, timedOut: false };
     }
     if (command === "kubectl" && arguments_.includes("ingress")) {
       return { signal: null, status: 0, stderr: "", stdout: '{"apiVersion":"v1","items":[],"kind":"List","metadata":{"resourceVersion":""}}\n', thrown: false, timedOut: false };
@@ -1209,7 +1602,7 @@ test("concrete lifecycle loads all images and proves the exact Ready Kubernetes 
   const phase = { assertActive() {}, signal: new AbortController().signal };
   await fixture.system.initialize(phase);
   fixture.recordFile(`${fixture.root}/kind`, Buffer.from("kind"));
-  fixture.recordFile(`${fixture.root}/kubeconfig`, Buffer.from("owned kubeconfig"));
+  fixture.recordFile(`${fixture.root}/kubeconfig`, Buffer.from(kubeconfigDocument(fixture.system.cluster)));
   await fixture.system.rememberOwnedPath(`${fixture.root}/kind`, "file", phase, "ownership");
   await fixture.system.rememberOwnedPath(`${fixture.root}/kubeconfig`, "file", phase, "ownership");
   fixture.system.networkMayHaveApplied = true;
@@ -1220,7 +1613,8 @@ test("concrete lifecycle loads all images and proves the exact Ready Kubernetes 
   );
   for (const [index, product] of PRODUCTS.entries()) {
     fixture.system.imageIdentities.set(product.name, {
-      architecture: "arm64", id: `sha256:${String(index + 1).repeat(64)}`, reference: product.image,
+      architecture: "arm64", id: `sha256:${String(index + 1).repeat(64)}`,
+      layers: [`sha256:${String(index + 5).repeat(64)}`], reference: product.image,
     });
   }
   await fixture.system.loadImages(phase);
@@ -1236,6 +1630,7 @@ function validateKindNodeInspectionForTest(document, cluster, networkId, token) 
   const node = document[0];
   const network = node.NetworkSettings.Networks[cluster];
   return {
+    apiPort: "51234",
     gateway: network.Gateway,
     imageId: node.Image,
     ipAddress: network.IPAddress,
@@ -1303,7 +1698,7 @@ test("concrete cleanup re-proves exact identities, continues in reverse order, a
   const phase = { assertActive() {}, signal: new AbortController().signal };
   await fixture.system.initialize(phase);
   fixture.recordFile(`${fixture.root}/kind`, Buffer.from("kind"));
-  fixture.recordFile(`${fixture.root}/kubeconfig`, Buffer.from("owned kubeconfig"));
+  fixture.recordFile(`${fixture.root}/kubeconfig`, Buffer.from(kubeconfigDocument(fixture.system.cluster)));
   fixture.system.networkMayHaveApplied = true;
   fixture.system.networkIdentity = { id: networkId, name: fixture.system.cluster };
   fixture.system.clusterMayHaveApplied = true;
@@ -1311,7 +1706,8 @@ test("concrete cleanup re-proves exact identities, continues in reverse order, a
     kindNodeDocument(fixture.system.cluster, networkId, nodeId), fixture.system.cluster, networkId, nodeId,
   );
   for (const product of PRODUCTS) fixture.system.imageIdentities.set(product.name, {
-    architecture: "arm64", id: imageIds.get(product.name), reference: product.image,
+    architecture: "arm64", id: imageIds.get(product.name),
+    layers: [`sha256:${String(PRODUCTS.indexOf(product) + 5).repeat(64)}`], reference: product.image,
   });
 
   await fixture.system.joinMutations(phase);

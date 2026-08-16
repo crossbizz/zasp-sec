@@ -89,6 +89,7 @@ describe("M1-30a local product manifests", () => {
     ]);
     const scripts = JSON.parse(packageText).scripts as Record<string, string>;
     const section = readme.match(/## Local product Kubernetes manifests[\s\S]*?(?=\n## )/)?.[0] ?? "";
+    const sectionProse = section.replace(/\s+/g, " ");
 
     expect(scripts["local:product:test"]).toBe(
       "node --test deploy/local/manifests.test.mjs deploy/local/run.test.mjs",
@@ -100,14 +101,18 @@ describe("M1-30a local product manifests", () => {
       "event-ingest",
       "runtime-gateway",
       "cluster-internal",
-      "Docker",
+      "Docker 29.4.0",
+      "Go 1.25.6",
+      "kubectl 1.35",
+      "macOS or Linux",
+      "outbound HTTPS access to the pinned kind GitHub release asset",
       "npm run local:product:test",
       "npm run local:product:run",
       "Local product manifests passed: pods=4 ready=4 services=4 internal=true cleanup=true.",
       "exact-owned disposable kind cluster",
       "reverse cleanup",
       "M1-30b remains Pending",
-    ]) expect(section).toContain(value);
+    ]) expect(sectionProse).toContain(value);
     expect(runner).toContain("await runMain();");
     expect(manifest).toContain("kind: Deployment");
     expect(section).not.toMatch(/NodePort|LoadBalancer|Ingress|ambient kubeconfig/i);

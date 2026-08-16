@@ -4,6 +4,7 @@ import { isAbsolute, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chmod, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import { JSON_SCHEMA, load } from "js-yaml";
 
 import { PRODUCTS, buildProductResources, renderProductManifest } from "./manifests.mjs";
 
@@ -26,6 +27,8 @@ const forbiddenEnvironmentPattern = /^(?:AWS_|AZURE_|GOOGLE_|CLOUDSDK_|KUBE(?:CO
 const proofNamePattern = /^zasp-m1-30a-[0-9a-f]{16}$/;
 const objectIdPattern = /^[0-9a-f]{64}$/;
 const ipv4Pattern = /^(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)$/;
+const kubernetesUidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const resourceVersionPattern = /^[1-9]\d*$/;
 const mainTimeoutMilliseconds = 600_000;
 const cleanupTimeoutMilliseconds = 180_000;
 const settlementTimeoutMilliseconds = 60_000;
@@ -209,9 +212,14 @@ export function validateImageInspection(document, product, marker, platform, ret
     ) throw new TypeError("image inspection is invalid");
     if (retained !== undefined && (
       !isPlainObject(retained) || retained.id !== image.Id || retained.reference !== product.image ||
-      retained.architecture !== architecture
+      retained.architecture !== architecture || !exactArray(retained.layers, image.RootFS.Layers)
     )) throw new TypeError("image identity changed");
-    return Object.freeze({ architecture, id: image.Id, reference: product.image });
+    return Object.freeze({
+      architecture,
+      id: image.Id,
+      layers: Object.freeze([...image.RootFS.Layers]),
+      reference: product.image,
+    });
   } catch {
     throw new Failure("ownership");
   }
@@ -303,18 +311,24 @@ export async function runBounded(command, arguments_, options, spawnProcess = sp
 
 export function validateKubernetesState(value) {
   try {
-    requireExactObject(value, ["deployments", "nodeName", "pods", "services"], "Kubernetes state");
+    requireExactObject(value, [
+      "deployments", "endpointSlices", "namespace", "nodeName", "pods", "replicaSets", "services",
+    ], "Kubernetes state");
     if (!proofNamePattern.test(value.nodeName.replace(/-control-plane$/, ""))) {
       throw new TypeError("node name is invalid");
     }
-    if (!Array.isArray(value.deployments) || !Array.isArray(value.pods) || !Array.isArray(value.services) ||
-        value.deployments.length !== PRODUCTS.length || value.pods.length !== PRODUCTS.length ||
-        value.services.length !== PRODUCTS.length) throw new TypeError("Kubernetes resource count is invalid");
+    validateNamespace(value.namespace);
+    if (!Array.isArray(value.deployments) || !Array.isArray(value.endpointSlices) ||
+        !Array.isArray(value.pods) || !Array.isArray(value.replicaSets) || !Array.isArray(value.services) ||
+        [value.deployments, value.endpointSlices, value.pods, value.replicaSets, value.services]
+          .some((items) => items.length !== PRODUCTS.length)) throw new TypeError("Kubernetes resource count is invalid");
 
     for (const product of PRODUCTS) {
-      validateDeployment(value.deployments, product);
-      validatePod(value.pods, product, value.nodeName);
-      validateService(value.services, product);
+      const deployment = validateDeployment(value.deployments, product);
+      const replicaSet = validateReplicaSet(value.replicaSets, product, deployment);
+      const pod = validatePod(value.pods, product, value.nodeName, replicaSet);
+      const service = validateService(value.services, product);
+      validateEndpointSlice(value.endpointSlices, product, service, pod, value.nodeName);
     }
     return Object.freeze({ internal: true, pods: 4, ready: 4, services: 4 });
   } catch {
@@ -347,7 +361,8 @@ export async function orchestrate(runtime, options = {}) {
   let auditError;
   try {
     await runPhase(limits.cleanupTimeoutMilliseconds, limits.settlementTimeoutMilliseconds, async (phase) => {
-      try { await runtime.joinMutations(phase); } catch (error) { joinError = normalizeFailure(error, "cleanup"); }
+      try { await runtime.joinMutations(phase); } catch { joinError = new Failure("cleanup"); }
+      if (joinError) return;
       try { await runtime.cleanup(phase); } catch (error) { cleanupError = normalizeFailure(error, "cleanup"); }
       try { await runtime.auditAbsence(phase); } catch (error) { auditError = normalizeFailure(error, "cleanup"); }
     });
@@ -490,11 +505,14 @@ export class LocalProductSystem {
     this.temporaryStarted = true;
     let candidate;
     try {
-      candidate = await this.dependencies.makeTemp(join(parent, `${this.cluster}-runtime-`));
+      candidate = await this.journalMutation(async () => {
+        const value = await this.dependencies.makeTemp(join(parent, `${this.cluster}-runtime-`));
+        this.temporaryCandidate = value;
+        return value;
+      });
     } catch {
       throw new Failure("configuration");
     }
-    this.temporaryCandidate = candidate;
     phase.assertActive("configuration");
     const identity = await this.inspectOwnedTemporary(candidate, false, phase, "configuration");
     if (identity === undefined) throw new Failure("configuration");
@@ -513,10 +531,18 @@ export class LocalProductSystem {
     };
     try {
       for (const path of [paths.home, paths.dockerConfig, paths.images, paths.goCache, paths.goModuleCache]) {
-        await this.dependencies.makeDirectory(path, { mode: 0o700 });
+        await this.runFilesystemMutation(
+          () => this.dependencies.makeDirectory(path, { mode: 0o700 }), phase, "configuration",
+        );
       }
-      await this.dependencies.writePath(paths.kindConfig, `${JSON.stringify(buildKindConfig())}\n`, { mode: 0o600 });
-      await this.dependencies.writePath(paths.manifest, renderProductManifest(buildProductResources()), { mode: 0o600 });
+      await this.runFilesystemMutation(
+        () => this.dependencies.writePath(paths.kindConfig, `${JSON.stringify(buildKindConfig())}\n`, { mode: 0o600 }),
+        phase, "configuration",
+      );
+      await this.runFilesystemMutation(
+        () => this.dependencies.writePath(paths.manifest, renderProductManifest(buildProductResources()), { mode: 0o600 }),
+        phase, "configuration",
+      );
     } catch {
       throw new Failure("configuration");
     }
@@ -617,9 +643,11 @@ export class LocalProductSystem {
         !new Set(["directory", "file"]).has(kind)) return undefined;
     let canonical;
     let status;
+    let bytes;
     try {
-      [canonical, status] = await Promise.all([
+      [canonical, status, bytes] = await Promise.all([
         this.dependencies.canonicalPath(path), this.dependencies.statPath(path),
+        kind === "file" ? this.dependencies.readPath(path) : undefined,
       ]);
     } catch {
       return undefined;
@@ -628,10 +656,23 @@ export class LocalProductSystem {
     const matchesKind = kind === "directory" ? status?.isDirectory?.() : status?.isFile?.();
     if (canonical !== path || !matchesKind || status?.isSymbolicLink?.() ||
         !Number.isSafeInteger(status.dev) || !Number.isSafeInteger(status.ino) ||
-        (kind === "file" && (!Number.isSafeInteger(status.size) || status.size < 1 || status.size > 134_217_728))) {
+        !Number.isSafeInteger(status.mode) || status.mode < 0 ||
+        (kind === "file" && (!Number.isSafeInteger(status.size) || status.size < 1 || status.size > 134_217_728 ||
+          !Buffer.isBuffer(bytes) && typeof bytes !== "string"))) {
       return undefined;
     }
-    return Object.freeze({ dev: status.dev, ino: status.ino, kind, path });
+    const content = kind === "file" ? Buffer.from(bytes) : undefined;
+    if (kind === "file" && content.byteLength !== status.size) return undefined;
+    return Object.freeze({
+      bytes: content,
+      dev: status.dev,
+      hash: content === undefined ? undefined : createHash("sha256").update(content).digest("hex"),
+      ino: status.ino,
+      kind,
+      mode: status.mode,
+      path,
+      size: kind === "file" ? status.size : undefined,
+    });
   }
 
   async rememberOwnedPath(path, kind, phase, category) {
@@ -645,7 +686,8 @@ export class LocalProductSystem {
     const retained = this.pathIdentities.get(path);
     if (retained === undefined) throw new Failure(category);
     const current = await this.inspectOwnedPath(path, retained.kind, phase, category);
-    if (current === undefined || current.dev !== retained.dev || current.ino !== retained.ino) {
+    if (current === undefined || current.dev !== retained.dev || current.ino !== retained.ino ||
+        current.mode !== retained.mode || current.size !== retained.size || current.hash !== retained.hash) {
       throw new Failure(category);
     }
     return current;
@@ -673,7 +715,7 @@ export class LocalProductSystem {
 
   async runMutation(command, arguments_, phase, category, options) {
     phase.assertActive(category);
-    const settlement = Promise.resolve().then(async () => {
+    const settlement = this.journalMutation(async () => {
       try {
         return await this.dependencies.command(command, arguments_, {
           cwd: options.cwd,
@@ -688,10 +730,27 @@ export class LocalProductSystem {
         });
       }
     });
-    this.mutationSettlements.push(settlement.then(() => {}, () => {}));
     const result = await settlement;
     phase.assertActive(category);
     return Object.freeze({ outcome: classifyMutationResult(result), result });
+  }
+
+  journalMutation(operation) {
+    const settlement = Promise.resolve().then(operation);
+    this.mutationSettlements.push(settlement.then(() => {}, () => {}));
+    return settlement;
+  }
+
+  async runFilesystemMutation(operation, phase, category) {
+    phase.assertActive(category);
+    try {
+      const result = await this.journalMutation(operation);
+      phase.assertActive(category);
+      return result;
+    } catch (error) {
+      if (error instanceof Failure) throw error;
+      throw new Failure(category);
+    }
   }
 
   async exactRegularFile(path, phase, category) {
@@ -712,8 +771,12 @@ export class LocalProductSystem {
     if (!Buffer.isBuffer(bytes) || bytes.byteLength < 1 || bytes.byteLength > 134_217_728 ||
         this.dependencies.hashBytes(bytes) !== pin.sha256) throw new Failure("provider");
     try {
-      await this.dependencies.writePath(this.paths.kind, bytes, { mode: 0o700 });
-      await this.dependencies.changeMode(this.paths.kind, 0o700);
+      await this.runFilesystemMutation(
+        () => this.dependencies.writePath(this.paths.kind, bytes, { mode: 0o700 }), phase, "provider",
+      );
+      await this.runFilesystemMutation(
+        () => this.dependencies.changeMode(this.paths.kind, 0o700), phase, "provider",
+      );
     } catch {
       throw new Failure("provider");
     }
@@ -729,7 +792,11 @@ export class LocalProductSystem {
     };
     for (const product of PRODUCTS) {
       const plan = buildServicePlan(product, buildPaths, this.input.marker, this.input.nodePlatform);
-      try { await this.dependencies.makeDirectory(plan.buildContext, { mode: 0o700 }); }
+      try {
+        await this.runFilesystemMutation(
+          () => this.dependencies.makeDirectory(plan.buildContext, { mode: 0o700 }), phase, "build",
+        );
+      }
       catch { throw new Failure("build"); }
       await this.rememberOwnedPath(plan.buildContext, "directory", phase, "build");
       const compiled = await this.runMutation(plan.go.command, plan.go.arguments, phase, "build", {
@@ -875,11 +942,10 @@ export class LocalProductSystem {
       reference: KIND_PINS.node.reference,
       token,
     }, this.nodeIdentity);
-    if (this.pathIdentities.has(this.paths.kubeconfig)) {
-      await this.requireOwnedPath(this.paths.kubeconfig, phase, category);
-    } else {
-      await this.rememberOwnedPath(this.paths.kubeconfig, "file", phase, category);
-    }
+    const kubeconfig = this.pathIdentities.has(this.paths.kubeconfig)
+      ? await this.requireOwnedPath(this.paths.kubeconfig, phase, category)
+      : await this.rememberOwnedPath(this.paths.kubeconfig, "file", phase, category);
+    validateKubeconfigBytes(kubeconfig.bytes, this.cluster, identity.apiPort);
     this.nodeIdentity = identity;
     return identity;
   }
@@ -900,7 +966,7 @@ export class LocalProductSystem {
     const listed = await this.runRead("docker", [
       "exec", this.nodeIdentity.token, "ctr", "--namespace", "k8s.io", "images", "list",
     ], phase, "provider", 30_000, 4_194_304);
-    this.loadedImageTargets = parseContainerdImageTargets(listed.stdout);
+    this.loadedImageTargets = parseContainerdImageTargets(listed.stdout, this.input.nodePlatform);
     await this.verifyCluster(phase, "ownership");
   }
 
@@ -938,7 +1004,13 @@ export class LocalProductSystem {
   async verifyReadiness(phase) {
     await this.requireTemporaryOwnership(phase, "ownership");
     await this.verifyCluster(phase, "ownership");
-    const requests = ["deployment", "pod", "service", "ingress"];
+    const namespaceResult = await this.runRead("kubectl", [
+      "--kubeconfig", this.paths.kubeconfig, "get", "namespace", "zasp-local", "--output=json",
+    ], phase, "readiness", 30_000, 262_144);
+    let namespace;
+    try { namespace = projectNamespace(parseBoundedJson(namespaceResult.stdout, 262_144)); }
+    catch { throw new Failure("readiness"); }
+    const requests = ["deployment", "replicaset", "pod", "service", "endpointslice", "ingress"];
     const documents = new Map();
     for (const resource of requests) {
       const result = await this.runRead("kubectl", [
@@ -958,8 +1030,11 @@ export class LocalProductSystem {
     const importedImages = await this.verifyImportedPodImages(documents.get("pod"), phase);
     return validateKubernetesState({
       deployments: documents.get("deployment").map(projectDeployment),
+      endpointSlices: documents.get("endpointslice").map(projectEndpointSlice),
+      namespace,
       nodeName: `${this.cluster}-control-plane`,
       pods: documents.get("pod").map((item) => projectPod(item, importedImages)),
+      replicaSets: documents.get("replicaset").map(projectReplicaSet),
       services: documents.get("service").map(projectService),
     });
   }
@@ -984,9 +1059,26 @@ export class LocalProductSystem {
         "exec", this.nodeIdentity.token, "ctr", "--namespace", "k8s.io", "content", "get", match[1],
       ], phase, "readiness", 30_000, 262_144);
       let document;
+      let targetManifest;
+      let imageConfig;
       try { document = parseBoundedJson(result.stdout, 262_144); }
       catch { throw new Failure("readiness"); }
-      imported.set(product.name, validateImportedImageIndex(document, product, target, providerImageID));
+      const targetResult = await this.runRead("docker", [
+        "exec", this.nodeIdentity.token, "ctr", "--namespace", "k8s.io", "content", "get", target,
+      ], phase, "readiness", 30_000, 262_144);
+      try { targetManifest = parseBoundedJson(targetResult.stdout, 262_144); }
+      catch { throw new Failure("readiness"); }
+      const configDigest = targetManifest?.config?.digest;
+      if (!digestPattern.test(configDigest ?? "")) throw new Failure("readiness");
+      const configResult = await this.runRead("docker", [
+        "exec", this.nodeIdentity.token, "ctr", "--namespace", "k8s.io", "content", "get", configDigest,
+      ], phase, "readiness", 30_000, 16_777_216);
+      try { imageConfig = parseBoundedJson(configResult.stdout, 16_777_216); }
+      catch { throw new Failure("readiness"); }
+      const retained = this.imageIdentities.get(product.name);
+      imported.set(product.name, validateImportedImageIndex(
+        document, product, target, providerImageID, retained, targetManifest, imageConfig, this.input.nodePlatform,
+      ));
     }
     return imported;
   }
@@ -1188,7 +1280,10 @@ export class LocalProductSystem {
       throw new Failure("cleanup");
     }
     try {
-      await this.dependencies.removePath(retained.path, { recursive: true, force: false, maxRetries: 0 });
+      await this.runFilesystemMutation(
+        () => this.dependencies.removePath(retained.path, { recursive: true, force: false, maxRetries: 0 }),
+        phase, "cleanup",
+      );
     } catch {
       throw new Failure("cleanup");
     }
@@ -1279,6 +1374,48 @@ export async function fetchBoundedAsset(url, limit, signal, fetchImplementation 
   return Buffer.concat(chunks);
 }
 
+function validateKubeconfigBytes(bytes, cluster, apiPort) {
+  try {
+    if (!Buffer.isBuffer(bytes) || bytes.byteLength < 1 || bytes.byteLength > 1_048_576 ||
+        !proofNamePattern.test(cluster) || !/^\d{1,5}$/.test(apiPort)) {
+      throw new TypeError("kubeconfig is invalid");
+    }
+    const source = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    if (!source.endsWith("\n") || source.includes("\r") || /(?:^|\s)[&*][^\s]+/.test(source)) {
+      throw new TypeError("kubeconfig is invalid");
+    }
+    const document = load(source, { json: false, schema: JSON_SCHEMA });
+    requireExactKeySet(document, [
+      "apiVersion", "clusters", "contexts", "current-context", "kind", "users",
+    ], "kubeconfig");
+    const name = `kind-${cluster}`;
+    if (document.apiVersion !== "v1" || document.kind !== "Config" || document["current-context"] !== name ||
+        !Array.isArray(document.clusters) || document.clusters.length !== 1 ||
+        !Array.isArray(document.contexts) || document.contexts.length !== 1 ||
+        !Array.isArray(document.users) || document.users.length !== 1) {
+      throw new TypeError("kubeconfig is invalid");
+    }
+    const clusterEntry = document.clusters[0];
+    const contextEntry = document.contexts[0];
+    const userEntry = document.users[0];
+    requireExactKeySet(clusterEntry, ["cluster", "name"], "kubeconfig cluster entry");
+    requireExactKeySet(clusterEntry.cluster, ["certificate-authority-data", "server"], "kubeconfig cluster");
+    requireExactKeySet(contextEntry, ["context", "name"], "kubeconfig context entry");
+    requireExactKeySet(contextEntry.context, ["cluster", "user"], "kubeconfig context");
+    requireExactKeySet(userEntry, ["name", "user"], "kubeconfig user entry");
+    requireExactKeySet(userEntry.user, ["client-certificate-data", "client-key-data"], "kubeconfig user");
+    const encoded = /^[A-Za-z0-9+/]+={0,2}$/;
+    if (clusterEntry.name !== name || contextEntry.name !== name || userEntry.name !== name ||
+        contextEntry.context.cluster !== name || contextEntry.context.user !== name ||
+        clusterEntry.cluster.server !== `https://127.0.0.1:${apiPort}` ||
+        !encoded.test(clusterEntry.cluster["certificate-authority-data"]) ||
+        !encoded.test(userEntry.user["client-certificate-data"]) ||
+        !encoded.test(userEntry.user["client-key-data"])) throw new TypeError("kubeconfig is invalid");
+  } catch {
+    throw new Failure("ownership");
+  }
+}
+
 export function validateKindNodeInspection(document, expected, retained = undefined) {
   try {
     requireExactObject(expected, ["cluster", "hostPlatform", "imageId", "name", "networkId", "reference", "token"],
@@ -1300,6 +1437,9 @@ export function validateKindNodeInspection(document, expected, retained = undefi
     const host = node?.HostConfig;
     const mounts = node?.Mounts;
     const networks = node?.NetworkSettings?.Networks;
+    const publishedPorts = node?.NetworkSettings?.Ports;
+    const apiBinding = host?.PortBindings?.["6443/tcp"];
+    const runtimeBinding = publishedPorts?.["6443/tcp"];
     if (!isPlainObject(node) || node.Id !== expected.token || node.Name !== `/${expected.name}` ||
         node.Image !== expected.imageId || !isPlainObject(config) || config.Image !== expected.reference ||
         config.Hostname !== expected.name || config.User !== "" || config.Cmd !== null ||
@@ -1317,6 +1457,10 @@ export function validateKindNodeInspection(document, expected, retained = undefi
         host.DeviceRequests !== null || host.PidMode !== "" || host.IpcMode !== "private" ||
         host.UsernsMode !== "" || host.CgroupnsMode !== "private" || host.ReadonlyRootfs !== false ||
         !exactStringSet(host.SecurityOpt, ["seccomp=unconfined", "apparmor=unconfined", "label=disable"]) ||
+        !isPlainObject(host.PortBindings) || !exactStringSet(Object.keys(host.PortBindings), ["6443/tcp"]) ||
+        !isPlainObject(publishedPorts) || !exactStringSet(Object.keys(publishedPorts), ["6443/tcp"]) ||
+        !validLoopbackPortBinding(apiBinding) || !validLoopbackPortBinding(runtimeBinding) ||
+        apiBinding[0].HostPort !== runtimeBinding[0].HostPort ||
         !Array.isArray(mounts) || mounts.length !== expectedBindMounts.length + 1 || !isPlainObject(networks) ||
         Object.keys(networks).length !== 1 || !Object.hasOwn(networks, expected.cluster)) {
       throw new TypeError("kind node metadata is invalid");
@@ -1343,6 +1487,7 @@ export function validateKindNodeInspection(document, expected, retained = undefi
       throw new TypeError("kind node network is invalid");
     }
     const identity = Object.freeze({
+      apiPort: apiBinding[0].HostPort,
       gateway: network.Gateway,
       imageId: expected.imageId,
       ipAddress: network.IPAddress,
@@ -1367,6 +1512,12 @@ function validNetworkIPAM(value) {
     exactStringSet(Object.keys(value.Config[0]), ["Gateway", "Subnet"]) &&
     ipv4Pattern.test(value.Config[0].Gateway ?? "") &&
     /^(?:10|172\.(?:1[6-9]|2\d|3[01])|192\.168)\.(?:\d{1,3}\.)?\d{1,3}\/\d{1,2}$/.test(value.Config[0].Subnet ?? "");
+}
+
+function validLoopbackPortBinding(value) {
+  return Array.isArray(value) && value.length === 1 && isPlainObject(value[0]) &&
+    exactStringSet(Object.keys(value[0]), ["HostIp", "HostPort"]) && value[0].HostIp === "127.0.0.1" &&
+    /^(?:[1-9]\d{0,3}|[1-5]\d{4}|6[0-4]\d{3}|65[0-4]\d{2}|655[0-2]\d|6553[0-5])$/.test(value[0].HostPort ?? "");
 }
 
 function exactStringMap(value, expected) {
@@ -1485,10 +1636,11 @@ export function parseBoundedJson(source, maximumBytes) {
   return output;
 }
 
-export function parseContainerdImageTargets(source) {
+export function parseContainerdImageTargets(source, expectedPlatform) {
   try {
     if (typeof source !== "string" || Buffer.byteLength(source) < 1 ||
-        Buffer.byteLength(source) > 4_194_304 || !source.endsWith("\n")) {
+        Buffer.byteLength(source) > 4_194_304 || !source.endsWith("\n") ||
+        !new Set(["linux/amd64", "linux/arm64"]).has(expectedPlatform)) {
       throw new TypeError("containerd inventory is invalid");
     }
     const lines = source.slice(0, -1).split("\n");
@@ -1499,11 +1651,17 @@ export function parseContainerdImageTargets(source) {
     for (const line of lines.slice(1)) {
       if (line.length === 0) throw new TypeError("containerd inventory is invalid");
       const fields = line.trim().split(/\s+/);
-      if (fields.length < 5) throw new TypeError("containerd inventory is invalid");
+      if (fields.length < 6) throw new TypeError("containerd inventory is invalid");
       const product = PRODUCTS.find(({ image }) => fields[0] === `docker.io/${image}`);
       if (product === undefined) continue;
+      const size = fields.slice(3, -2).join(" ");
+      const platform = fields.at(-2);
+      const labels = fields.at(-1);
       if (targets.has(product.name) || fields[1] !== "application/vnd.oci.image.manifest.v1+json" ||
-          !digestPattern.test(fields[2])) throw new TypeError("containerd inventory is invalid");
+          !digestPattern.test(fields[2]) || !/^\d+(?:\.\d+)? ?(?:B|KiB|MiB|GiB)$/.test(size) ||
+          platform !== expectedPlatform || typeof labels !== "string" || labels.length === 0) {
+        throw new TypeError("containerd inventory is invalid");
+      }
       targets.set(product.name, fields[2]);
     }
     if (targets.size !== PRODUCTS.length) throw new TypeError("containerd inventory is invalid");
@@ -1513,11 +1671,17 @@ export function parseContainerdImageTargets(source) {
   }
 }
 
-export function validateImportedImageIndex(document, product, targetDigest, providerImageID) {
+export function validateImportedImageIndex(
+  document, product, targetDigest, providerImageID, retained, targetManifest, imageConfig, platform,
+) {
   try {
     const expected = PRODUCTS.find((entry) => entry.name === product?.name);
     requireExactObject(product, ["image", "module", "name", "package"], "product");
-    if (expected === undefined || !exactObject(product, expected) || !digestPattern.test(targetDigest)) {
+    if (expected === undefined || !exactObject(product, expected) || !digestPattern.test(targetDigest) ||
+        !isPlainObject(retained) || retained.reference !== product.image || !digestPattern.test(retained.id) ||
+        !Array.isArray(retained.layers) || retained.layers.length !== 1 ||
+        !retained.layers.every((value) => digestPattern.test(value)) ||
+        platform !== `linux/${retained.architecture}`) {
       throw new TypeError("imported image expectation is invalid");
     }
     const match = /^docker\.io\/library\/import-(\d{4}-\d{2}-\d{2})@(sha256:[0-9a-f]{64})$/.exec(
@@ -1540,6 +1704,36 @@ export function validateImportedImageIndex(document, product, targetDigest, prov
         manifest.annotations["io.containerd.image.name"] !== `docker.io/${product.image}` ||
         manifest.annotations["org.opencontainers.image.ref.name"] !== "m1-30a") {
       throw new TypeError("import manifest is invalid");
+    }
+    requireExactKeySet(targetManifest, ["config", "layers", "mediaType", "schemaVersion"], "target manifest");
+    requireExactKeySet(targetManifest.config, ["digest", "mediaType", "size"], "target config descriptor");
+    if (targetManifest.schemaVersion !== 2 ||
+        targetManifest.mediaType !== "application/vnd.oci.image.manifest.v1+json" ||
+        targetManifest.config.digest !== retained.id ||
+        targetManifest.config.mediaType !== "application/vnd.oci.image.config.v1+json" ||
+        !Number.isSafeInteger(targetManifest.config.size) || targetManifest.config.size < 1 ||
+        targetManifest.config.size > 16_777_216 || !Array.isArray(targetManifest.layers) ||
+        targetManifest.layers.length !== retained.layers.length) {
+      throw new TypeError("target manifest is invalid");
+    }
+    for (const layer of targetManifest.layers) {
+      requireExactKeySet(layer, ["digest", "mediaType", "size"], "target layer descriptor");
+      if (!digestPattern.test(layer.digest) ||
+          !new Set([
+            "application/vnd.oci.image.layer.v1.tar",
+            "application/vnd.oci.image.layer.v1.tar+gzip",
+            "application/vnd.oci.image.layer.v1.tar+zstd",
+          ]).has(layer.mediaType) || !Number.isSafeInteger(layer.size) || layer.size < 1) {
+        throw new TypeError("target layer is invalid");
+      }
+    }
+    if (!isPlainObject(imageConfig) || imageConfig.architecture !== retained.architecture ||
+        imageConfig.os !== "linux" || !isPlainObject(imageConfig.rootfs)) {
+      throw new TypeError("image config is invalid");
+    }
+    requireExactKeySet(imageConfig.rootfs, ["diff_ids", "type"], "image rootfs");
+    if (imageConfig.rootfs.type !== "layers" || !exactArray(imageConfig.rootfs.diff_ids, retained.layers)) {
+      throw new TypeError("image rootfs is invalid");
     }
     return Object.freeze({
       canonicalImage: product.image,
@@ -1620,8 +1814,8 @@ function validateDeployment(items, product) {
   if (matches.length !== 1) throw new TypeError("deployment identity is invalid");
   const item = matches[0];
   requireExactObject(item, ["apiVersion", "kind", "metadata", "spec", "status"], "deployment");
-  requireExactObject(item.metadata, ["generation", "name", "namespace"], "deployment metadata");
-  requireExactObject(item.spec, ["replicas", "selector"], "deployment spec");
+  requireExactObject(item.metadata, ["generation", "name", "namespace", "resourceVersion", "uid"], "deployment metadata");
+  requireExactObject(item.spec, ["replicas", "selector", "template"], "deployment spec");
   requireExactObject(item.spec.selector, ["matchLabels"], "deployment selector");
   requireExactObject(item.spec.selector.matchLabels, ["app.kubernetes.io/name"], "deployment labels");
   requireExactObject(item.status, [
@@ -1630,12 +1824,41 @@ function validateDeployment(items, product) {
   ], "deployment status");
   if (item.apiVersion !== "apps/v1" || item.kind !== "Deployment" || item.metadata.name !== product.name ||
       item.metadata.namespace !== "zasp-local" || !Number.isSafeInteger(item.metadata.generation) ||
-      item.metadata.generation < 1 || item.spec.replicas !== 1 ||
+      item.metadata.generation < 1 || !resourceVersionPattern.test(item.metadata.resourceVersion ?? "") ||
+      !kubernetesUidPattern.test(item.metadata.uid ?? "") || item.spec.replicas !== 1 ||
       item.spec.selector.matchLabels["app.kubernetes.io/name"] !== product.name ||
+      !exactData(item.spec.template, expectedPodTemplate(product)) ||
       item.status.observedGeneration !== item.metadata.generation || item.status.replicas !== 1 ||
       item.status.updatedReplicas !== 1 || item.status.readyReplicas !== 1 ||
       item.status.availableReplicas !== 1 || item.status.unavailableReplicas !== 0 ||
       !exactConditions(item.status.conditions, "Available")) throw new TypeError("deployment is not ready");
+  return item;
+}
+
+function expectedPodTemplate(product) {
+  const deployment = buildProductResources().find((resource) =>
+    resource.kind === "Deployment" && resource.metadata.name === product.name);
+  return {
+    metadata: { labels: deployment.spec.template.metadata.labels },
+    spec: {
+      automountServiceAccountToken: false,
+      containers: [projectContainer(deployment.spec.template.spec.containers[0])],
+      dnsPolicy: "ClusterFirst",
+      enableServiceLinks: false,
+      ephemeralContainers: [],
+      hostAliases: [],
+      hostIPC: false,
+      hostNetwork: false,
+      hostPID: false,
+      imagePullSecrets: [],
+      initContainers: [],
+      restartPolicy: "Always",
+      securityContext: deployment.spec.template.spec.securityContext,
+      serviceAccountName: "default",
+      shareProcessNamespace: false,
+      volumes: [],
+    },
+  };
 }
 
 function projectDeployment(item) {
@@ -1646,12 +1869,22 @@ function projectDeployment(item) {
       generation: item?.metadata?.generation,
       name: item?.metadata?.name,
       namespace: item?.metadata?.namespace,
+      resourceVersion: item?.metadata?.resourceVersion,
+      uid: item?.metadata?.uid,
     },
     spec: {
       replicas: item?.spec?.replicas,
       selector: { matchLabels: {
         "app.kubernetes.io/name": item?.spec?.selector?.matchLabels?.["app.kubernetes.io/name"],
       } },
+      template: {
+        metadata: { labels: {
+          "app.kubernetes.io/name": item?.spec?.template?.metadata?.labels?.["app.kubernetes.io/name"],
+          "app.kubernetes.io/part-of": item?.spec?.template?.metadata?.labels?.["app.kubernetes.io/part-of"],
+          "zasp.dev/environment": item?.spec?.template?.metadata?.labels?.["zasp.dev/environment"],
+        } },
+        spec: projectTemplateSpec(item?.spec?.template?.spec),
+      },
     },
     status: {
       availableReplicas: item?.status?.availableReplicas ?? 0,
@@ -1664,6 +1897,38 @@ function projectDeployment(item) {
       updatedReplicas: item?.status?.updatedReplicas ?? 0,
     },
   };
+}
+
+function projectTemplateSpec(value) {
+  return {
+    automountServiceAccountToken: value?.automountServiceAccountToken,
+    containers: Array.isArray(value?.containers) ? value.containers.map(projectContainer) : [],
+    dnsPolicy: value?.dnsPolicy,
+    enableServiceLinks: value?.enableServiceLinks,
+    ephemeralContainers: value?.ephemeralContainers ?? [],
+    hostAliases: value?.hostAliases ?? [],
+    hostIPC: value?.hostIPC ?? false,
+    hostNetwork: value?.hostNetwork ?? false,
+    hostPID: value?.hostPID ?? false,
+    imagePullSecrets: value?.imagePullSecrets ?? [],
+    initContainers: Array.isArray(value?.initContainers) ? value.initContainers.map(projectContainer) : [],
+    restartPolicy: value?.restartPolicy,
+    securityContext: value?.securityContext,
+    serviceAccountName: value?.serviceAccountName ?? "default",
+    shareProcessNamespace: value?.shareProcessNamespace ?? false,
+    volumes: value?.volumes ?? [],
+  };
+}
+
+function projectOwnerReferences(value) {
+  return Array.isArray(value) ? value.map((entry) => ({
+    apiVersion: entry?.apiVersion,
+    blockOwnerDeletion: entry?.blockOwnerDeletion,
+    controller: entry?.controller,
+    kind: entry?.kind,
+    name: entry?.name,
+    uid: entry?.uid,
+  })) : [];
 }
 
 function projectPod(item, importedImages) {
@@ -1689,6 +1954,8 @@ function projectPod(item, importedImages) {
       },
       name: item?.metadata?.name,
       namespace: item?.metadata?.namespace,
+      ownerReferences: projectOwnerReferences(item?.metadata?.ownerReferences),
+      resourceVersion: item?.metadata?.resourceVersion,
       uid: item?.metadata?.uid,
     },
     spec: {
@@ -1696,12 +1963,19 @@ function projectPod(item, importedImages) {
       containers: container === undefined ? [] : [projectContainer(container)],
       dnsPolicy: item?.spec?.dnsPolicy,
       enableServiceLinks: item?.spec?.enableServiceLinks,
+      ephemeralContainers: item?.spec?.ephemeralContainers ?? [],
+      hostAliases: item?.spec?.hostAliases ?? [],
       hostIPC: item?.spec?.hostIPC ?? false,
       hostNetwork: item?.spec?.hostNetwork ?? false,
       hostPID: item?.spec?.hostPID ?? false,
+      imagePullSecrets: item?.spec?.imagePullSecrets ?? [],
+      initContainers: Array.isArray(item?.spec?.initContainers)
+        ? item.spec.initContainers.map(projectContainer) : [],
       nodeName: item?.spec?.nodeName,
       restartPolicy: item?.spec?.restartPolicy,
       securityContext: item?.spec?.securityContext,
+      serviceAccountName: item?.spec?.serviceAccountName,
+      shareProcessNamespace: item?.spec?.shareProcessNamespace ?? false,
       volumes: item?.spec?.volumes ?? [],
     },
     status: {
@@ -1720,12 +1994,17 @@ function projectPod(item, importedImages) {
         },
       }],
       phase: item?.status?.phase,
+      podIP: item?.status?.podIP,
     },
   };
 }
 
 function projectContainer(value) {
   return {
+    args: value?.args ?? [],
+    command: value?.command ?? [],
+    env: value?.env ?? [],
+    envFrom: value?.envFrom ?? [],
     image: value?.image,
     imagePullPolicy: value?.imagePullPolicy,
     livenessProbe: value?.livenessProbe,
@@ -1735,6 +2014,7 @@ function projectContainer(value) {
     resources: value?.resources,
     securityContext: value?.securityContext,
     startupProbe: value?.startupProbe,
+    volumeMounts: value?.volumeMounts ?? [],
   };
 }
 
@@ -1742,7 +2022,12 @@ function projectService(item) {
   return {
     apiVersion: item?.apiVersion,
     kind: item?.kind,
-    metadata: { name: item?.metadata?.name, namespace: item?.metadata?.namespace },
+    metadata: {
+      name: item?.metadata?.name,
+      namespace: item?.metadata?.namespace,
+      resourceVersion: item?.metadata?.resourceVersion,
+      uid: item?.metadata?.uid,
+    },
     spec: {
       clusterIP: item?.spec?.clusterIP,
       clusterIPs: item?.spec?.clusterIPs,
@@ -1758,40 +2043,235 @@ function projectService(item) {
   };
 }
 
-function validatePod(items, product, nodeName) {
+function projectNamespace(item) {
+  return {
+    apiVersion: item?.apiVersion,
+    kind: item?.kind,
+    metadata: {
+      labels: {
+        "app.kubernetes.io/part-of": item?.metadata?.labels?.["app.kubernetes.io/part-of"],
+        "kubernetes.io/metadata.name": item?.metadata?.labels?.["kubernetes.io/metadata.name"],
+        "zasp.dev/environment": item?.metadata?.labels?.["zasp.dev/environment"],
+      },
+      name: item?.metadata?.name,
+      resourceVersion: item?.metadata?.resourceVersion,
+      uid: item?.metadata?.uid,
+    },
+    spec: { finalizers: item?.spec?.finalizers },
+    status: { phase: item?.status?.phase },
+  };
+}
+
+function projectReplicaSet(item) {
+  return {
+    apiVersion: item?.apiVersion,
+    kind: item?.kind,
+    metadata: {
+      labels: {
+        "app.kubernetes.io/name": item?.metadata?.labels?.["app.kubernetes.io/name"],
+        "app.kubernetes.io/part-of": item?.metadata?.labels?.["app.kubernetes.io/part-of"],
+        "pod-template-hash": item?.metadata?.labels?.["pod-template-hash"],
+        "zasp.dev/environment": item?.metadata?.labels?.["zasp.dev/environment"],
+      },
+      name: item?.metadata?.name,
+      namespace: item?.metadata?.namespace,
+      ownerReferences: projectOwnerReferences(item?.metadata?.ownerReferences),
+      resourceVersion: item?.metadata?.resourceVersion,
+      uid: item?.metadata?.uid,
+    },
+    spec: {
+      replicas: item?.spec?.replicas,
+      selector: { matchLabels: {
+        "app.kubernetes.io/name": item?.spec?.selector?.matchLabels?.["app.kubernetes.io/name"],
+        "pod-template-hash": item?.spec?.selector?.matchLabels?.["pod-template-hash"],
+      } },
+    },
+    status: {
+      availableReplicas: item?.status?.availableReplicas ?? 0,
+      fullyLabeledReplicas: item?.status?.fullyLabeledReplicas ?? 0,
+      observedGeneration: item?.status?.observedGeneration,
+      readyReplicas: item?.status?.readyReplicas ?? 0,
+      replicas: item?.status?.replicas ?? 0,
+    },
+  };
+}
+
+function projectEndpointSlice(item) {
+  return {
+    addressType: item?.addressType,
+    apiVersion: item?.apiVersion,
+    endpoints: Array.isArray(item?.endpoints) ? item.endpoints.map((endpoint) => ({
+      addresses: endpoint?.addresses,
+      conditions: {
+        ready: endpoint?.conditions?.ready,
+        serving: endpoint?.conditions?.serving,
+        terminating: endpoint?.conditions?.terminating ?? false,
+      },
+      nodeName: endpoint?.nodeName,
+      targetRef: {
+        kind: endpoint?.targetRef?.kind,
+        name: endpoint?.targetRef?.name,
+        namespace: endpoint?.targetRef?.namespace,
+        uid: endpoint?.targetRef?.uid,
+      },
+    })) : [],
+    kind: item?.kind,
+    metadata: {
+      labels: {
+        "endpointslice.kubernetes.io/managed-by":
+          item?.metadata?.labels?.["endpointslice.kubernetes.io/managed-by"],
+        "kubernetes.io/service-name": item?.metadata?.labels?.["kubernetes.io/service-name"],
+      },
+      name: item?.metadata?.name,
+      namespace: item?.metadata?.namespace,
+      ownerReferences: projectOwnerReferences(item?.metadata?.ownerReferences),
+      resourceVersion: item?.metadata?.resourceVersion,
+      uid: item?.metadata?.uid,
+    },
+    ports: Array.isArray(item?.ports) ? item.ports.map(({ name, port, protocol }) => ({ name, port, protocol })) : [],
+  };
+}
+
+function validateNamespace(item) {
+  requireExactObject(item, ["apiVersion", "kind", "metadata", "spec", "status"], "namespace");
+  requireExactObject(item.metadata, ["labels", "name", "resourceVersion", "uid"], "namespace metadata");
+  requireExactObject(item.metadata.labels, [
+    "app.kubernetes.io/part-of", "kubernetes.io/metadata.name", "zasp.dev/environment",
+  ], "namespace labels");
+  requireExactObject(item.spec, ["finalizers"], "namespace spec");
+  requireExactObject(item.status, ["phase"], "namespace status");
+  if (item.apiVersion !== "v1" || item.kind !== "Namespace" || item.metadata.name !== "zasp-local" ||
+      item.metadata.labels["app.kubernetes.io/part-of"] !== "zasp" ||
+      item.metadata.labels["kubernetes.io/metadata.name"] !== "zasp-local" ||
+      item.metadata.labels["zasp.dev/environment"] !== "local" ||
+      !resourceVersionPattern.test(item.metadata.resourceVersion ?? "") ||
+      !kubernetesUidPattern.test(item.metadata.uid ?? "") || !exactArray(item.spec.finalizers, ["kubernetes"]) ||
+      item.status.phase !== "Active") throw new TypeError("namespace is invalid");
+}
+
+function exactControllerReference(value, expected) {
+  return exactData(value, [{
+    apiVersion: expected.apiVersion,
+    blockOwnerDeletion: true,
+    controller: true,
+    kind: expected.kind,
+    name: expected.name,
+    uid: expected.uid,
+  }]);
+}
+
+function validateReplicaSet(items, product, deployment) {
+  const hash = items.find((item) => item?.metadata?.labels?.["app.kubernetes.io/name"] === product.name)
+    ?.metadata?.labels?.["pod-template-hash"];
+  const matches = items.filter((item) => item?.metadata?.name === `${product.name}-${hash}`);
+  if (matches.length !== 1 || !/^[a-z0-9]{10}$/.test(hash ?? "")) {
+    throw new TypeError("replica set identity is invalid");
+  }
+  const item = matches[0];
+  requireExactObject(item, ["apiVersion", "kind", "metadata", "spec", "status"], "replica set");
+  requireExactObject(item.metadata, [
+    "labels", "name", "namespace", "ownerReferences", "resourceVersion", "uid",
+  ], "replica set metadata");
+  requireExactObject(item.metadata.labels, [
+    "app.kubernetes.io/name", "app.kubernetes.io/part-of", "pod-template-hash", "zasp.dev/environment",
+  ], "replica set labels");
+  requireExactObject(item.spec, ["replicas", "selector"], "replica set spec");
+  requireExactObject(item.spec.selector, ["matchLabels"], "replica set selector");
+  requireExactObject(item.spec.selector.matchLabels, [
+    "app.kubernetes.io/name", "pod-template-hash",
+  ], "replica set selector labels");
+  requireExactObject(item.status, [
+    "availableReplicas", "fullyLabeledReplicas", "observedGeneration", "readyReplicas", "replicas",
+  ], "replica set status");
+  if (item.apiVersion !== "apps/v1" || item.kind !== "ReplicaSet" || item.metadata.namespace !== "zasp-local" ||
+      item.metadata.labels["app.kubernetes.io/name"] !== product.name ||
+      item.metadata.labels["app.kubernetes.io/part-of"] !== "zasp" ||
+      item.metadata.labels["pod-template-hash"] !== hash ||
+      item.metadata.labels["zasp.dev/environment"] !== "local" ||
+      !resourceVersionPattern.test(item.metadata.resourceVersion ?? "") ||
+      !kubernetesUidPattern.test(item.metadata.uid ?? "") ||
+      !exactControllerReference(item.metadata.ownerReferences, {
+        apiVersion: "apps/v1", kind: "Deployment", name: product.name, uid: deployment.metadata.uid,
+      }) || item.spec.replicas !== 1 ||
+      item.spec.selector.matchLabels["app.kubernetes.io/name"] !== product.name ||
+      item.spec.selector.matchLabels["pod-template-hash"] !== hash || item.status.observedGeneration !== 1 ||
+      item.status.replicas !== 1 || item.status.readyReplicas !== 1 || item.status.availableReplicas !== 1 ||
+      item.status.fullyLabeledReplicas !== 1) throw new TypeError("replica set is not ready");
+  return item;
+}
+
+function validateEndpointSlice(items, product, service, pod, nodeName) {
+  const matches = items.filter((item) => item?.metadata?.labels?.["kubernetes.io/service-name"] === product.name);
+  if (matches.length !== 1) throw new TypeError("endpoint slice identity is invalid");
+  const item = matches[0];
+  requireExactObject(item, ["addressType", "apiVersion", "endpoints", "kind", "metadata", "ports"], "endpoint slice");
+  requireExactObject(item.metadata, [
+    "labels", "name", "namespace", "ownerReferences", "resourceVersion", "uid",
+  ], "endpoint slice metadata");
+  requireExactObject(item.metadata.labels, [
+    "endpointslice.kubernetes.io/managed-by", "kubernetes.io/service-name",
+  ], "endpoint slice labels");
+  if (item.addressType !== "IPv4" || item.apiVersion !== "discovery.k8s.io/v1" ||
+      item.kind !== "EndpointSlice" || item.metadata.namespace !== "zasp-local" ||
+      !new RegExp(`^${escapeRegExp(product.name)}-[a-z0-9]{5}$`).test(item.metadata.name ?? "") ||
+      item.metadata.labels["endpointslice.kubernetes.io/managed-by"] !== "endpointslice-controller.k8s.io" ||
+      !resourceVersionPattern.test(item.metadata.resourceVersion ?? "") ||
+      !kubernetesUidPattern.test(item.metadata.uid ?? "") ||
+      !exactControllerReference(item.metadata.ownerReferences, {
+        apiVersion: "v1", kind: "Service", name: product.name, uid: service.metadata.uid,
+      }) || !exactData(item.ports, [{ name: "health", port: 8081, protocol: "TCP" }]) ||
+      !exactData(item.endpoints, [{
+        addresses: [pod.status.podIP],
+        conditions: { ready: true, serving: true, terminating: false },
+        nodeName,
+        targetRef: { kind: "Pod", name: pod.metadata.name, namespace: "zasp-local", uid: pod.metadata.uid },
+      }])) throw new TypeError("endpoint slice is invalid");
+}
+
+function validatePod(items, product, nodeName, replicaSet) {
   const matches = items.filter((item) => item?.metadata?.labels?.["app.kubernetes.io/name"] === product.name);
   if (matches.length !== 1) throw new TypeError("pod identity is invalid");
   const item = matches[0];
   requireExactObject(item, ["apiVersion", "kind", "metadata", "spec", "status"], "pod");
-  requireExactObject(item.metadata, ["labels", "name", "namespace", "uid"], "pod metadata");
+  requireExactObject(item.metadata, [
+    "labels", "name", "namespace", "ownerReferences", "resourceVersion", "uid",
+  ], "pod metadata");
   requireExactObject(item.metadata.labels, [
     "app.kubernetes.io/name", "app.kubernetes.io/part-of", "pod-template-hash", "zasp.dev/environment",
   ], "pod labels");
   requireExactObject(item.spec, [
-    "automountServiceAccountToken", "containers", "dnsPolicy", "enableServiceLinks", "hostIPC",
-    "hostNetwork", "hostPID", "nodeName", "restartPolicy", "securityContext", "volumes",
+    "automountServiceAccountToken", "containers", "dnsPolicy", "enableServiceLinks", "ephemeralContainers",
+    "hostAliases", "hostIPC", "hostNetwork", "hostPID", "imagePullSecrets", "initContainers", "nodeName",
+    "restartPolicy", "securityContext", "serviceAccountName", "shareProcessNamespace", "volumes",
   ], "pod spec");
-  requireExactObject(item.status, ["conditions", "containerStatuses", "phase"], "pod status");
+  requireExactObject(item.status, ["conditions", "containerStatuses", "phase", "podIP"], "pod status");
   const podName = new RegExp(`^${product.name}-([a-z0-9]{10})-[a-z0-9]{5}$`).exec(item.metadata.name ?? "");
   const deployment = buildProductResources().find((resource) =>
     resource.kind === "Deployment" && resource.metadata.name === product.name);
   if (item.apiVersion !== "v1" || item.kind !== "Pod" || item.metadata.namespace !== "zasp-local" ||
       podName === null ||
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(item.metadata.uid) ||
+      !kubernetesUidPattern.test(item.metadata.uid) || !resourceVersionPattern.test(item.metadata.resourceVersion ?? "") ||
+      !exactControllerReference(item.metadata.ownerReferences, {
+        apiVersion: "apps/v1", kind: "ReplicaSet", name: replicaSet.metadata.name, uid: replicaSet.metadata.uid,
+      }) ||
       item.metadata.labels["app.kubernetes.io/name"] !== product.name ||
       item.metadata.labels["app.kubernetes.io/part-of"] !== "zasp" ||
       item.metadata.labels["pod-template-hash"] !== podName[1] ||
       item.metadata.labels["zasp.dev/environment"] !== "local" ||
       item.spec.automountServiceAccountToken !== false || item.spec.nodeName !== nodeName ||
       !Array.isArray(item.spec.containers) || item.spec.containers.length !== 1 ||
-      !exactData(item.spec.containers[0], deployment.spec.template.spec.containers[0]) ||
+      !exactData(item.spec.containers[0], projectContainer(deployment.spec.template.spec.containers[0])) ||
       item.spec.dnsPolicy !== "ClusterFirst" || item.spec.enableServiceLinks !== false ||
+      !exactArray(item.spec.ephemeralContainers, []) || !exactArray(item.spec.hostAliases, []) ||
       item.spec.hostIPC !== false || item.spec.hostNetwork !== false || item.spec.hostPID !== false ||
-      item.spec.restartPolicy !== "Always" ||
+      !exactArray(item.spec.imagePullSecrets, []) || !exactArray(item.spec.initContainers, []) ||
+      item.spec.restartPolicy !== "Always" || item.spec.serviceAccountName !== "default" ||
+      item.spec.shareProcessNamespace !== false ||
       !exactData(item.spec.securityContext, deployment.spec.template.spec.securityContext) ||
       !exactArray(item.spec.volumes, []) ||
       item.status.phase !== "Running" || !exactConditions(item.status.conditions, "Ready") ||
-      !Array.isArray(item.status.containerStatuses) || item.status.containerStatuses.length !== 1) {
+      !Array.isArray(item.status.containerStatuses) || item.status.containerStatuses.length !== 1 ||
+      !ipv4Pattern.test(item.status.podIP ?? "") || !item.status.podIP.startsWith("10.")) {
     throw new TypeError("pod is not ready");
   }
   const status = item.status.containerStatuses[0];
@@ -1805,6 +2285,7 @@ function validatePod(items, product, nodeName) {
       !/^containerd:\/\/[0-9a-f]{64}$/.test(status.containerID) ||
       !new RegExp(`^docker-pullable://${escapeRegExp(product.image)}@sha256:[0-9a-f]{64}$`).test(status.imageID) ||
       !canonicalSecond(status.state.running.startedAt)) throw new TypeError("container is not ready");
+  return item;
 }
 
 function validateService(items, product) {
@@ -1812,7 +2293,7 @@ function validateService(items, product) {
   if (matches.length !== 1) throw new TypeError("service identity is invalid");
   const item = matches[0];
   requireExactObject(item, ["apiVersion", "kind", "metadata", "spec", "status"], "service");
-  requireExactObject(item.metadata, ["name", "namespace"], "service metadata");
+  requireExactObject(item.metadata, ["name", "namespace", "resourceVersion", "uid"], "service metadata");
   requireExactObject(item.spec, [
     "clusterIP", "clusterIPs", "externalIPs", "ipFamilies", "ipFamilyPolicy", "ports",
     "selector", "sessionAffinity", "type",
@@ -1823,6 +2304,8 @@ function validateService(items, product) {
   const ip = item.spec.clusterIP;
   if (item.apiVersion !== "v1" || item.kind !== "Service" || item.metadata.name !== product.name ||
       item.metadata.namespace !== "zasp-local" || !ipv4Pattern.test(ip ?? "") || !ip.startsWith("10.") ||
+      !resourceVersionPattern.test(item.metadata.resourceVersion ?? "") ||
+      !kubernetesUidPattern.test(item.metadata.uid ?? "") ||
       !exactArray(item.spec.clusterIPs, [ip]) || !exactArray(item.spec.externalIPs, []) ||
       !exactArray(item.spec.ipFamilies, ["IPv4"]) || item.spec.ipFamilyPolicy !== "SingleStack" ||
       item.spec.type !== "ClusterIP" || item.spec.sessionAffinity !== "None" ||
@@ -1831,6 +2314,7 @@ function validateService(items, product) {
       !exactObject(item.spec.ports[0], { name: "health", port: 8081, protocol: "TCP", targetPort: "health" })) {
     throw new TypeError("service is not internal");
   }
+  return item;
 }
 
 function exactConditions(value, type) {
@@ -1923,8 +2407,8 @@ async function settleWithin(pending, timeoutMilliseconds) {
   }
 }
 
-function normalizeFailure(error, category = "operation") {
-  return error instanceof Failure ? error : new Failure(category);
+function normalizeFailure(error) {
+  return error instanceof Failure ? error : new Failure("panic");
 }
 
 function validateMarker(value) {
