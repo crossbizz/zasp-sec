@@ -53,10 +53,10 @@ ignored evidence.
 
 ### Task 3: Document and review the M1-25 range
 
-- [ ] **Step 1: Capture README-boundary RED and document the artifact**
-- [ ] **Step 2: Review source/design/plan/diff, parser, map, and future coverage boundary**
-- [ ] **Step 3: Fix every valid finding tests-first; finish 0/0/0 Ready Yes**
-- [ ] **Step 4: Repeat full gates/scans and record review commits**
+- [x] **Step 1: Capture README-boundary RED and document the artifact**
+- [x] **Step 2: Review source/design/plan/diff, parser, map, and future coverage boundary**
+- [x] **Step 3: Fix every valid finding tests-first; finish 0/0/0 Ready Yes**
+- [x] **Step 4: Repeat full gates/scans and record review commits**
 
 ---
 
