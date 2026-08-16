@@ -165,7 +165,7 @@ test("runner invokes only the fixed main boundary when executed directly", async
 
 test("builds exact host Go and Docker plans for all four real commands", () => {
   for (const product of PRODUCTS) {
-    assert.deepEqual(buildServicePlan(product, owned, marker), {
+    assert.deepEqual(buildServicePlan(product, owned, marker, "linux/arm64"), {
       binary: `/owned/images/${product.name}/service`,
       buildContext: `/owned/images/${product.name}`,
       docker: {
@@ -190,7 +190,9 @@ test("builds exact host Go and Docker plans for all four real commands", () => {
         environment: {
           CGO_ENABLED: "0",
           GOCACHE: "/owned/go-build",
+          GOARCH: "arm64",
           GOENV: "off",
+          GOOS: "linux",
           GOMODCACHE: "/owned/go-mod",
           GOWORK: "off",
         },
@@ -203,14 +205,15 @@ test("builds exact host Go and Docker plans for all four real commands", () => {
 
 test("rejects forged products, paths, and proof markers before building", () => {
   const cases = [
-    [structuredClone(PRODUCTS[0]), { ...owned }, "short"],
-    [{ ...PRODUCTS[0], image: "busybox:latest" }, { ...owned }, marker],
-    [{ ...PRODUCTS[0], package: "../agentsec-worker" }, { ...owned }, marker],
-    [{ ...PRODUCTS[0], unexpected: true }, { ...owned }, marker],
-    [PRODUCTS[0], { ...owned, repositoryRoot: "relative" }, marker],
-    [PRODUCTS[0], { ...owned, contextRoot: "/owned/../escape" }, marker],
-    [PRODUCTS[0], { ...owned, dockerfile: "/other/Dockerfile" }, marker],
-    [PRODUCTS[0], { ...owned, extra: "/owned/extra" }, marker],
+    [structuredClone(PRODUCTS[0]), { ...owned }, "short", "linux/arm64"],
+    [{ ...PRODUCTS[0], image: "busybox:latest" }, { ...owned }, marker, "linux/arm64"],
+    [{ ...PRODUCTS[0], package: "../agentsec-worker" }, { ...owned }, marker, "linux/arm64"],
+    [{ ...PRODUCTS[0], unexpected: true }, { ...owned }, marker, "linux/arm64"],
+    [PRODUCTS[0], { ...owned, repositoryRoot: "relative" }, marker, "linux/arm64"],
+    [PRODUCTS[0], { ...owned, contextRoot: "/owned/../escape" }, marker, "linux/arm64"],
+    [PRODUCTS[0], { ...owned, dockerfile: "/other/Dockerfile" }, marker, "linux/arm64"],
+    [PRODUCTS[0], { ...owned, extra: "/owned/extra" }, marker, "linux/arm64"],
+    [PRODUCTS[0], { ...owned }, marker, "darwin/arm64"],
   ];
   for (const value of cases) assert.throws(() => buildServicePlan(...value), { name: "TypeError" });
 });

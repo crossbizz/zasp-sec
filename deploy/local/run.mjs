@@ -94,7 +94,7 @@ export function buildKindCreateArguments(input) {
   ]);
 }
 
-export function buildServicePlan(product, paths, marker) {
+export function buildServicePlan(product, paths, marker, nodePlatform) {
   const expected = PRODUCTS.find((entry) => entry.name === product?.name);
   requireExactObject(product, ["image", "module", "name", "package"], "product");
   if (expected === undefined || !exactObject(product, expected)) throw new TypeError("product is invalid");
@@ -106,6 +106,10 @@ export function buildServicePlan(product, paths, marker) {
     throw new TypeError("Dockerfile path is invalid");
   }
   validateMarker(marker);
+  if (nodePlatform !== "linux/amd64" && nodePlatform !== "linux/arm64") {
+    throw new TypeError("node platform is invalid");
+  }
+  const architecture = nodePlatform.slice("linux/".length);
 
   const buildContext = join(paths.contextRoot, product.name);
   const binary = join(buildContext, "service");
@@ -134,7 +138,9 @@ export function buildServicePlan(product, paths, marker) {
       environment: Object.freeze({
         CGO_ENABLED: "0",
         GOCACHE: paths.goCache,
+        GOARCH: architecture,
         GOENV: "off",
+        GOOS: "linux",
         GOMODCACHE: paths.goModuleCache,
         GOWORK: "off",
       }),
@@ -721,7 +727,7 @@ export class LocalProductSystem {
       repositoryRoot: this.input.repositoryRoot,
     };
     for (const product of PRODUCTS) {
-      const plan = buildServicePlan(product, buildPaths, this.input.marker);
+      const plan = buildServicePlan(product, buildPaths, this.input.marker, this.input.nodePlatform);
       try { await this.dependencies.makeDirectory(plan.buildContext, { mode: 0o700 }); }
       catch { throw new Failure("build"); }
       await this.rememberOwnedPath(plan.buildContext, "directory", phase, "build");
