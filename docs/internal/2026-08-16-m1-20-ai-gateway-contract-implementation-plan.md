@@ -190,11 +190,13 @@ adapter, hosted endpoint, provider credential, or planner/action authority.
 
   Commit message: `docs: complete M1-20 AI gateway contract`.
 
-- [ ] Push and watch the exact completion SHA to Runnable UI success.
+- [x] Push and watch the exact completion SHA to Runnable UI success.
 
-  Require local/upstream/remote/run/job SHA identity and terminal success.
+  Local, upstream, remote, Runnable UI run `31937253321`, and job
+  `95141009141` bind exact completion SHA
+  `23ca496a0ee83de86eeb129a516ddaf3a21d5e49`; the run completed successfully.
 
-- [ ] Record plan-only closure without advancing M1-21.
+- [x] Record plan-only closure without advancing M1-21.
 
   Commit message: `docs: close M1-20 AI gateway contract`. Push and watch that
   exact closure SHA to terminal success, then prove synchronized clean state.
