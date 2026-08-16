@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "components": [
+    {
+      "name": "github.com/neo4j/neo4j-go-driver/v6",
+      "version": "v6.2.0",
+      "source_repository": "https://github.com/neo4j/neo4j-go-driver",
+      "source_tag": "v6.2.0",
+      "source_commit": "3a8a87f4507e95fcf70e0148ea455f47a3dfaad3",
+      "license": "Apache-2.0",
+      "license_sha256": "c1b9df1275e769f3dbab000d1e457a2d4b0f28eb5da6c77e48dc37eeba202ed7",
+      "scope": "runtime",
+      "product_approved": true
+    },
+    {
+      "name": "neo4j-community-server",
+      "version": "5.26.28",
+      "source_repository": "https://github.com/neo4j/neo4j",
+      "source_tag": "5.26.28",
+      "source_commit": "09de4c547ee24f69400c75df8428685e27a9cffc",
+      "license": "GPL-3.0-only",
+      "license_sha256": "8e1bb72dd89711d9612ea2749c906e4b17760245f4ffdfcc237219f4df48e440",
+      "scope": "proof-only",
+      "product_approved": false,
+      "image": "neo4j:5.26.28-community@sha256:ff32db30b2baff97971e441b46bfd9c832c1b62c970398ef579244c06b21d357"
+    }
+  ]
+}
