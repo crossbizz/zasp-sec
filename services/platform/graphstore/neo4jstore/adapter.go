@@ -173,15 +173,15 @@ func validConstraintRow(name string, values []any) bool {
 	labelsOrTypes, labelsOK := exactStringList(values[3])
 	properties, propertiesOK := exactStringList(values[4])
 	ownedIndex, indexOK := values[5].(string)
-	if !typeOK || !entityOK || !labelsOK || !propertiesOK || !indexOK || constraintType != "UNIQUENESS" || ownedIndex != name {
+	if !typeOK || !entityOK || !labelsOK || !propertiesOK || !indexOK || ownedIndex != name {
 		return false
 	}
 	switch name {
 	case nodeConstraint:
-		return entityType == "NODE" && slices.Equal(labelsOrTypes, []string{nodeLabel}) &&
+		return constraintType == "UNIQUENESS" && entityType == "NODE" && slices.Equal(labelsOrTypes, []string{nodeLabel}) &&
 			slices.Equal(properties, []string{"organization_id", "workspace_id", "environment_id", "node_id"})
 	case edgeConstraint:
-		return entityType == "RELATIONSHIP" && slices.Equal(labelsOrTypes, []string{edgeType}) &&
+		return constraintType == "RELATIONSHIP_UNIQUENESS" && entityType == "RELATIONSHIP" && slices.Equal(labelsOrTypes, []string{edgeType}) &&
 			slices.Equal(properties, []string{"organization_id", "workspace_id", "environment_id", "edge_id"})
 	default:
 		return false

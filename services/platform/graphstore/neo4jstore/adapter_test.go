@@ -89,6 +89,7 @@ func TestEnsureSchemaRejectsMalformedOwnedState(t *testing.T) {
 		{name: "wrong keys", keys: []string{"name", "type"}, records: validRows},
 		{name: "wrong name", keys: constraintResultKeys, records: []graphRecord{constraintRow("ZASP_GRAPH_NODE_IDENTITY_V1", "UNIQUENESS", "NODE", []any{nodeLabel}, nodeConstraintProperties, nodeConstraint), validRows[1]}},
 		{name: "wrong type", keys: constraintResultKeys, records: []graphRecord{constraintRow(nodeConstraint, "NODE_KEY", "NODE", []any{nodeLabel}, nodeConstraintProperties, nodeConstraint), validRows[1]}},
+		{name: "node type used for relationship", keys: constraintResultKeys, records: []graphRecord{validRows[0], constraintRow(edgeConstraint, "UNIQUENESS", "RELATIONSHIP", []any{edgeType}, edgeConstraintProperties, edgeConstraint)}},
 		{name: "wrong entity", keys: constraintResultKeys, records: []graphRecord{constraintRow(nodeConstraint, "UNIQUENESS", "RELATIONSHIP", []any{nodeLabel}, nodeConstraintProperties, nodeConstraint), validRows[1]}},
 		{name: "extra label", keys: constraintResultKeys, records: []graphRecord{constraintRow(nodeConstraint, "UNIQUENESS", "NODE", []any{nodeLabel, "Foreign"}, nodeConstraintProperties, nodeConstraint), validRows[1]}},
 		{name: "wrong properties", keys: constraintResultKeys, records: []graphRecord{constraintRow(nodeConstraint, "UNIQUENESS", "NODE", []any{nodeLabel}, []any{"node_id"}, nodeConstraint), validRows[1]}},
@@ -180,7 +181,7 @@ func validSchemaSession() *fakeSession {
 func validConstraintRows() []graphRecord {
 	return []graphRecord{
 		constraintRow(nodeConstraint, "UNIQUENESS", "NODE", []any{nodeLabel}, nodeConstraintProperties, nodeConstraint),
-		constraintRow(edgeConstraint, "UNIQUENESS", "RELATIONSHIP", []any{edgeType}, edgeConstraintProperties, edgeConstraint),
+		constraintRow(edgeConstraint, "RELATIONSHIP_UNIQUENESS", "RELATIONSHIP", []any{edgeType}, edgeConstraintProperties, edgeConstraint),
 	}
 }
 
