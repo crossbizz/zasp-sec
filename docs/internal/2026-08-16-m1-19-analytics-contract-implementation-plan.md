@@ -59,18 +59,25 @@ production or status edits. M1-20 remains Pending throughout M1-19.
   compiler RED.
 - Create ignored Task 2 report and append the progress ledger.
 
-- [ ] Capture a genuine compiler RED on the complete wished-for public API.
+- [x] Capture a genuine compiler RED on the complete wished-for public API.
 
-- [ ] Implement the minimum allowlist serializer and one-attempt tracker.
+- [x] Implement the minimum allowlist serializer and one-attempt tracker.
 
   Cover exact canonical records, field-order independence, every invalid and
   prohibited field form, invalid direct state, scope and token grammar,
   typed-nil driver, timeout/cancellation, panic, malformed acknowledgement,
   receiver misuse, and concurrency.
 
-- [ ] Run six consecutive focused race passes, 100 focused repetitions,
+- [x] Run six consecutive focused race passes, 100 focused repetitions,
   coverage, full platform race/tidy-diff/module verification/vet, diff checks,
   and pinned secret scans.
+
+  The compiler RED named only the absent M1-19 API. GREEN covers the exact
+  catalog, prohibited and unknown fields, malformed opaque field state, scope,
+  source grammar, configuration, cancellation, panic, acknowledgement drift,
+  receiver misuse, and 64-way concurrency. Six race passes, 100 repetitions,
+  the full platform race suite, module gates, vet, and 100% production
+  statement coverage pass.
 
   Commit message: `feat: add scoped product telemetry contract`.
 
