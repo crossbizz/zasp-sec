@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 669 |
-| In progress | 1 |
-| Complete | 55 |
+| In progress | 0 |
+| Complete | 56 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -24,7 +24,7 @@ In progress, Complete, or Blocked is Pending.
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 0 | 0 | 24 | 3 |
-| M1 | 68 | 36 | 1 | 31 | 0 |
+| M1 | 68 | 36 | 0 | 32 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
 | M3 | 75 | 75 | 0 | 0 | 0 |
@@ -68,19 +68,19 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `669/1/55/3` because
+session configuration. The 728 source-plan counts are `669/0/56/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M1-26 | August 16, 2026 | Adding reusable CI that cross-checks planned/available UI actions against exact public/internal OpenAPI operation coverage. |
 
 ## Complete
 
 | Task | Completed | Evidence |
 | --- | --- | --- |
+| M1-26 | August 16, 2026 | Added strict bounded UI/API coverage CI with planned/available lifecycle enforcement, complete public/internal OpenAPI operation classification, deliberate missing/unmapped-operation failures, fixed output, six stability passes, full repository gates/audits/scans, and zero-finding whole-range review. |
 | M1-25 | August 16, 2026 | Added the strict checked-in two-screen UI-to-API map seed with five unique planned Home/System Health action mappings, duplicate-safe YAML and exact semantic mutation coverage, synthetic future operation resolution, six stability passes, full repository gates/audits/scans, and zero-finding whole-range review after removing unsupported route metadata. |
 | M1-24 | August 16, 2026 | Generated and committed the exact immutable TypeScript API surface from M1-23 with exact-pinned OpenAPI TypeScript, exposed a zero-construction-I/O typed Fetch factory, approved the exact runtime dependency, enforced byte-reproducible drift checks in root CI, passed six stability cycles, full repository gates/audits/scans, and zero-finding whole-range review. |
 | M1-23 | August 16, 2026 | Added the self-contained OpenAPI 3.1 root with exact alternative bearer authentication, canonical cursor pagination and four-field product error components, exact-pinned Redocly parser/linter CI gates, six stability passes, full repository gates/audits/scans, and zero-finding whole-range review. |
