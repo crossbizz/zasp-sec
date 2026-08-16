@@ -443,7 +443,7 @@ license inventory, exact live proof if production changed after the prior run,
 and Gitleaks 8.30.1 across staged content, exact commits, all history, reports,
 and ledgers.
 
-- [ ] **Step 5: Commit, push, and watch exact-SHA CI**
+- [x] **Step 5: Commit, push, and watch exact-SHA CI**
 
 ```bash
 git commit -m "docs: complete M1-14 OpenSearch EventStore"
