@@ -72,4 +72,28 @@ describe("M1-24 generated TypeScript client", () => {
     expect([...active, ...complete].filter(([task]) => task === "M1-25")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
+
+  it("documents the exact generated-client and zero-operation boundary", async () => {
+    const [readme, clientSource] = await Promise.all([
+      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "apps/web/api/client.ts"), "utf8"),
+    ]);
+    const section = readme.match(/## OpenAPI root[\s\S]*?## Neon pooled proof/)?.[0] ?? "";
+    const prose = section.replace(/\s+/g, " ");
+
+    for (const path of ["apps/web/api/generated.ts", "apps/web/api/client.ts"]) {
+      expect(section).toContain(`\`${path}\``);
+    }
+    expect(section).toMatch(/^npm run openapi:generate$/m);
+    expect(section).toMatch(/^npm run openapi:check$/m);
+    expect(prose).toContain("`openapi-typescript` 7.13.0");
+    expect(prose).toContain("`openapi-fetch` 0.17.0");
+    expect(prose).toContain("no callable endpoint");
+    expect(prose).toContain("no default remote server");
+    expect(prose).toContain("performs no I/O during construction");
+    expect(prose).toContain("does not hand-write `/api/v1/` URLs");
+    expect(prose).toContain("M1-25 remains Pending");
+    expect(clientSource).not.toContain("/api/v1/");
+    expect(clientSource).not.toContain("process.env");
+  });
 });

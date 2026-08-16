@@ -527,18 +527,28 @@ closed two-state `PageInfo`. The public error vocabulary is canonical
 `ProductID`, the exact four-field `ProductError`, and `ProductErrorResponse`.
 The root deliberately retains `paths: {}` and contains no operations, servers,
 callbacks, webhooks, examples, or remote references. M1-24 is In progress and
-is generating the TypeScript client only from this reviewed root. M1-23 is
-Complete.
+generates the TypeScript client only from this reviewed root. Exact-pinned
+`openapi-typescript` 7.13.0 writes the committed immutable surface at
+`apps/web/api/generated.ts`; exact-pinned `openapi-fetch` 0.17.0 backs the
+typed factory at `apps/web/api/client.ts`.
+
+Because the root still has `paths: {}`, the client has no callable endpoint.
+The factory has no default remote server, performs no I/O during construction,
+and does not hand-write `/api/v1/` URLs. Authentication/session retrieval,
+reviewed operations, and UI integration remain later work. M1-23 is Complete;
+M1-25 remains Pending.
 
 ```bash
 npm run openapi:test
 npm run openapi:lint
+npm run openapi:generate
+npm run openapi:check
 ```
 
 The pinned linter extends its recommended rules and disables only the two
 root-only checks `no-empty-servers` and `no-unused-components`. No install,
 download, provider, network, credential, environment-file, database, Docker,
-or shared-resource I/O occurs during either command.
+or shared-resource I/O occurs during these local verification commands.
 
 ## Neon pooled proof
 

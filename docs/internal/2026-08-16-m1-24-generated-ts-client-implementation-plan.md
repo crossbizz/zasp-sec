@@ -108,19 +108,19 @@ Node test runner, Vitest repository contracts, pinned Node 22.23.1/npm 10.9.8.
 
 **Files:** `README.md`, repository contract, this plan, ignored evidence.
 
-- [ ] **Step 1: Add README assertions and capture RED**
+- [x] **Step 1: Add README assertions and capture RED**
 
   Require exact paths, generate/check commands, dependency pins, zero-operation
   boundary, no handwritten URL/I/O statement, and M1-25 Pending.
 
-- [ ] **Step 2: Add only the README boundary**
+- [x] **Step 2: Add only the README boundary**
 
   Do not add an API operation, UI call, authentication/session implementation,
   endpoint base URL, server, or provider integration.
 
-- [ ] **Step 3: Run focused/root/full pinned gates**
+- [x] **Step 3: Run focused/root/full pinned gates**
 
-- [ ] **Step 4: Record, scan, and commit**
+- [x] **Step 4: Record, scan, and commit**
 
   ```bash
   git commit -m "docs: expose generated API client"
