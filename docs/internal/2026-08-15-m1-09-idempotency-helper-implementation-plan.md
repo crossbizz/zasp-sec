@@ -50,7 +50,7 @@ request helper that returns a prior canonical result for completed duplicates.
 - [x] Change only completion expectations and capture focused RED.
 - [x] Move only M1-09 to Complete at `686/0/39/3` and M1
   `68/53/0/15/0`; preserve M0 and all blockers.
-- [ ] Run final gates, commit `docs: complete M1-09 idempotency helper`, push,
+- [x] Run final gates, commit `docs: complete M1-09 idempotency helper`, push,
   and watch exact-SHA Runnable UI to success.
-- [ ] Close the plan, record run/job IDs, commit/push the close SHA, watch CI,
+- [x] Close the plan, record run/job IDs, commit/push the close SHA, watch CI,
   then start M1-10.
