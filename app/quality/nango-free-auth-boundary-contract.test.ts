@@ -33,11 +33,11 @@ function assertM014Complete(tracker: string, readme: string, riskRegister: strin
   expect(section).toContain("R-08 is PASS");
 
   expect(tracker).toContain("| Pending | 665 |");
-  expect(tracker).toContain("| In progress | 1 |");
-  expect(tracker).toContain("| Complete | 59 |");
+  expect(tracker).toContain("| In progress | 0 |");
+  expect(tracker).toContain("| Complete | 60 |");
   expect(tracker).toContain("| Blocked | 3 |");
   expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 0 \| 24 \| 3 \|/);
-  expect(activeRows.map(([task]) => task)).toEqual(["M1-28c"]);
+  expect(activeRows.map(([task]) => task)).toEqual([]);
   expect(m014Rows).toHaveLength(1);
   expect(m014Rows[0]?.[1]).toBe("August 15, 2026");
   expect(m014Rows[0]?.[2]).toContain("Auth plus Proxy");
@@ -62,7 +62,7 @@ function completedFixture(tracker: string, readme: string) {
   return {
     readme: readme.replace("M0-14 is In progress", "M0-14 is Complete"),
     tracker: tracker
-      .replace("| In progress | 1 |", "| In progress | 1 |")
+      .replace("| In progress | 0 |", "| In progress | 0 |")
       .replace("| Complete | 15 |", "| Complete | 16 |")
       .replace("| M0 | 27 | 9 | 1 | 15 | 1 |", "| M0 | 27 | 9 | 0 | 16 | 1 |")
       .replace("`710/1/15/1`", "`710/0/16/1`")

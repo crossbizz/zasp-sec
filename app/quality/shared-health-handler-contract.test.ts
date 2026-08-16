@@ -59,13 +59,13 @@ describe("M1-28a shared health handler", () => {
 
     expect(readme).toContain("M1-28a is Complete");
     expect(readme).toContain("M1-28b is Complete");
-    expect(readme).toContain("M1-28c is In progress");
+    expect(readme).toContain("M1-28c is Complete");
     expect(tracker).toContain("| Pending | 665 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 59 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 60 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`665/1/59/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "32", "1", "35", "0"]);
+    expect(tracker).toContain("`665/0/60/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "32", "0", "36", "0"]);
     expect(active.filter(([task]) => task === "M1-28a")).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-28a")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-27")).toHaveLength(1);
@@ -100,7 +100,7 @@ describe("M1-28a shared health handler", () => {
       "internal endpoints",
       "M1-28a is Complete",
       "M1-28b is Complete",
-      "M1-28c is In progress",
+      "M1-28c is Complete",
       "M1-28d remains Pending",
     ]) {
       expect(prose).toContain(value);

@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 665 |
-| In progress | 1 |
-| Complete | 59 |
+| In progress | 0 |
+| Complete | 60 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -24,7 +24,7 @@ In progress, Complete, or Blocked is Pending.
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 0 | 0 | 24 | 3 |
-| M1 | 68 | 32 | 1 | 35 | 0 |
+| M1 | 68 | 32 | 0 | 36 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
 | M3 | 75 | 75 | 0 | 0 | 0 |
@@ -68,19 +68,19 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `665/1/59/3` because
+session configuration. The 728 source-plan counts are `665/0/60/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M1-28c | August 16, 2026 | Wire the reviewed shared health handler into the event-ingest command with exact liveness/readiness smoke coverage, bounded lifecycle behavior, and a closed repository-owned dependency edge. |
 
 ## Complete
 
 | Task | Completed | Evidence |
 | --- | --- | --- |
+| M1-28c | August 16, 2026 | Wired the reviewed shared health handler into the standalone event-ingest command through one bounded internal listener with exact liveness/readiness transitions, panic-contained independent shutdown and listener cleanup, strict repository-owned dependency validation, a linked real-listener smoke, six race passes, 100% lifecycle statement coverage, full repository gates/audits/scans, and zero-finding independent review. |
 | M1-28b | August 16, 2026 | Wired the reviewed shared health handler into the platform API and worker commands through one bounded internal listener runtime with exact readiness and graceful shutdown, strict repository-owned dependency validation, real-listener smoke tests, six final race passes, 100% shared-runtime statement coverage, full repository gates/audits/scans, and zero-finding whole-range review. |
 | M1-28a | August 16, 2026 | Added the dependency-free shared Go liveness, readiness, version, and bounded metrics handler with strict configuration and HTTP behavior, atomic readiness, exact root and dependency-inventory integration, six final race passes, 100% statement coverage, full repository gates/audits/scans, and zero-finding whole-range review. |
 | M1-27 | August 16, 2026 | Added a scope-aware frontend ESLint rule that forbids ambient raw Fetch access under `app/**` and `apps/web/**` outside the exact generated-client boundary, rejects direct/member/computed/optional/alias/destructuring/sequence/higher-order forms without false local-name matches, and passed seeded hostile RED/GREEN, six stability passes, full repository gates/audits/scans, and zero-finding whole-range review. |

@@ -57,12 +57,12 @@ describe("M1-26 UI API coverage CI", () => {
 
     expect(readme).toContain("M1-26 is Complete");
     expect(tracker).toContain("| Pending | 665 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 59 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 60 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`665/1/59/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "32", "1", "35", "0"]);
-    expect(active.map(([task]) => task)).toEqual(["M1-28c"]);
+    expect(tracker).toContain("`665/0/60/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "32", "0", "36", "0"]);
+    expect(active.map(([task]) => task)).toEqual([]);
     expect(complete.filter(([task]) => task === "M1-25")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-26")).toHaveLength(1);
     expect(active.filter(([task]) => task === "M1-27")).toHaveLength(0);
@@ -93,7 +93,7 @@ describe("M1-26 UI API coverage CI", () => {
     expect(prose).toContain("M1-27 is Complete");
     expect(prose).toContain("M1-28a is Complete");
     expect(prose).toContain("M1-28b is Complete");
-    expect(prose).toContain("M1-28c is In progress");
+    expect(prose).toContain("M1-28c is Complete");
     expect(prose).toContain("M1-28d remains Pending");
   });
 });

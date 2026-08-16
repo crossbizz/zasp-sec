@@ -55,12 +55,12 @@ describe("Security Agent planner boundary repository contract", () => {
 
     expect(readme).toContain("M0-21a is Complete");
     expect(tracker).toContain("| Pending | 665 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 59 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 60 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`665/1/59/3`");
+    expect(tracker).toContain("`665/0/60/3`");
     expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 0 \| 24 \| 3 \|/);
-    expect(active.map(([task]) => task)).toEqual(["M1-28c"]);
+    expect(active.map(([task]) => task)).toEqual([]);
     expect(section(tracker, "Complete").filter(([task]) => task === "M0-21a")).toHaveLength(1);
     expect(section(tracker, "Complete").filter(([task]) => task === "M0-22")).toHaveLength(1);
     expect(blocked.filter(([task]) => ["M0-09", "M0-18", "M0-19"].includes(task))).toHaveLength(3);
