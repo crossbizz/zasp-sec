@@ -38,7 +38,7 @@ describe("M1-06 product error envelope contract", () => {
     expect(plan).toContain("M1-07 remains Pending");
   });
 
-  it("starts only M1-06 after M1-05 completes", async () => {
+  it("completes only M1-06 after the JSON boundary passes", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -52,17 +52,18 @@ describe("M1-06 product error envelope contract", () => {
     const m1 = milestones.find(([milestone]) => milestone === "M1");
 
     expect(readme).toContain("M1-05 is Complete");
-    expect(readme).toContain("M1-06 is In progress");
+    expect(readme).toContain("M1-06 is Complete");
     expect(readme).toContain("stable product error");
     expect(tracker).toContain("| Pending | 689 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 35 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 36 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`689/1/35/3`");
+    expect(tracker).toContain("`689/0/36/3`");
     expect(m0).toEqual(["M0", "27", "0", "0", "24", "3"]);
-    expect(m1).toEqual(["M1", "68", "56", "1", "11", "0"]);
+    expect(m1).toEqual(["M1", "68", "56", "0", "12", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.filter(([task]) => task === "M1-06")).toHaveLength(1);
+    expect(active).toHaveLength(0);
+    expect(complete.filter(([task]) => task === "M1-06")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-05")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-07")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);

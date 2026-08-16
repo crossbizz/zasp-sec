@@ -184,7 +184,7 @@ a reference alone never grants scoped access.
 
 ## Product error envelope
 
-M1-06 is In progress. Customer API failures use one stable product error code,
+M1-06 is Complete. Customer API failures use one stable product error code,
 bounded product-language message, canonical correlation ID, and explicit
 retryable flag. The exact four-field response excludes vendor exceptions,
 debug metadata, credentials, and implicit retry guesses.

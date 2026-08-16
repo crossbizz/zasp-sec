@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 689 |
-| In progress | 1 |
-| Complete | 35 |
+| In progress | 0 |
+| Complete | 36 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -24,7 +24,7 @@ In progress, Complete, or Blocked is Pending.
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 0 | 0 | 24 | 3 |
-| M1 | 68 | 56 | 1 | 11 | 0 |
+| M1 | 68 | 56 | 0 | 12 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
 | M3 | 75 | 75 | 0 | 0 | 0 |
@@ -68,14 +68,13 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `689/1/35/3` because
+session configuration. The 728 source-plan counts are `689/0/36/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M1-06 | August 15, 2026 | Defining one stable bounded product-language API error envelope with canonical correlation identity and explicit retryability. |
 
 ## Complete
 
@@ -116,6 +115,7 @@ PROV-01 is excluded from those counts.
 | M1-03 | August 15, 2026 | Added opaque dependency-free `pid_`-prefixed UUIDv4 product IDs plus distinct bounded exact external-source references; raw and UUID-shaped vendor IDs cannot parse as product primary keys, entropy/grammar/text/reference tests and adversarial all-zero entropy fix pass, and all Go/product/full repository gates, audit, scans, and zero-finding review are green. |
 | M1-04 | August 15, 2026 | Added an opaque dependency-free Organization/Workspace/Environment scope value; all three canonical product IDs are required, pairwise distinct, and revalidated against malformed same-package state, with missing/duplicate/vendor-boundary tests, six focused passes, all Go/product/full repository gates, audit, scans, and zero-finding review green. |
 | M1-05 | August 15, 2026 | Added an opaque canonical product-ID evidence reference plus exact evidence-confidence and capability/path-state values; aliases, severity words, malformed references, receiver misuse, and invalid direct casts fail closed, with six focused passes, all Go/product/full repository gates, audit, scans, and zero-finding review green. |
+| M1-06 | August 15, 2026 | Added an opaque stable product error code, distinct canonical correlation ID, bounded product-language message, explicit retryability, and exact four-field JSON response; malformed/direct-state and escaping snapshots, six focused passes, all Go/product/full repository gates, audit, scans, and zero-finding review are green. |
 
 `PRE-01`, `PRE-02`, and `PROV-01` do not count as source-plan microtasks.
 
