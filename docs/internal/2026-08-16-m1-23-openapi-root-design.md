@@ -93,8 +93,9 @@ credential, environment-file, database, Docker, or shared-resource I/O.
 
 ## Verification and status boundary
 
-Tests parse the tracked YAML with the same locked parser dependency already
-used by the linter, require exact top-level and component key sets, and reject
+Tests parse the tracked YAML with the repository's existing exact-pinned
+`js-yaml` development dependency, require exact top-level and component key
+sets, and reject
 hostile mutations for version, security alternatives, token placement,
 pagination state, product ID/error shape, unknown keys, paths, remote
 references, examples, and provider/customer content. The pinned Redocly
