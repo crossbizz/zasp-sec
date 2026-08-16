@@ -46,13 +46,13 @@ describe("M1-13 SQS queue interface contract", () => {
 
     expect(readme).toContain("M1-13 is Complete");
     expect(readme).toContain("Organization-scoped JobQueue");
-    expect(tracker).toContain("| Pending | 665 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 664 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 60 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`665/0/60/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "32", "0", "36", "0"]);
-    expect(active.map(([task]) => task)).toEqual([]);
+    expect(tracker).toContain("`664/1/60/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "31", "1", "36", "0"]);
+    expect(active.map(([task]) => task)).toEqual(["M1-28d"]);
     expect(complete.filter(([task]) => task === "M1-13")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-14")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-12")).toHaveLength(1);
