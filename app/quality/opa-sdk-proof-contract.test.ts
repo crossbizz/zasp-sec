@@ -35,12 +35,12 @@ function assertM017Complete(tracker: string, readme: string, riskRegister: strin
   expect(section).not.toMatch(/uses an OPA server|customer-facing Rego|external policy service/i);
 
   expect(tracker).toContain("| Pending | 682 |");
-  expect(tracker).toContain("| In progress | 1 |");
-  expect(tracker).toContain("| Complete | 42 |");
+  expect(tracker).toContain("| In progress | 0 |");
+  expect(tracker).toContain("| Complete | 43 |");
   expect(tracker).toContain("| Blocked | 3 |");
   expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 0 \| 24 \| 3 \|/);
-  expect(tracker).toContain("`682/1/42/3`");
-  expect(activeRows.map(([task]) => task)).toEqual(["M1-13"]);
+  expect(tracker).toContain("`682/0/43/3`");
+  expect(activeRows.map(([task]) => task)).toEqual([]);
   expect(completeRows.filter(([task]) => task === "M0-17")).toHaveLength(1);
   expect(completeRows.find(([task]) => task === "M0-17")?.[1]).toBe("August 15, 2026");
   expect(completeRows.find(([task]) => task === "M0-17")?.[2]).toContain("OPA Go SDK");
@@ -150,7 +150,7 @@ describe("OPA SDK proof repository contract", () => {
     ).toThrow();
     expect(() =>
       assertM017Complete(
-        tracker.replace("| Complete | 42 |", "| Complete | 19 |"),
+        tracker.replace("| Complete | 43 |", "| Complete | 19 |"),
         readme,
         riskRegister,
       ),

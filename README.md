@@ -276,7 +276,7 @@ M1-12 is Complete. It adds an Organization-scoped ArtifactStore product
 boundary for typed Put, Get, and Delete operations. Callers provide validated
 product scope, artifact identity, media type, and bytes; provider bucket names,
 object keys, encryption identifiers, and credentials remain inside the S3
-adapter. M1-13 is In progress.
+adapter. M1-13 is Complete.
 
 ```bash
 npm run artifact:store:test
@@ -297,10 +297,11 @@ The dependency-free product package, strict S3/KMS adapter, exact disposable
 live lifecycle, reverse cleanup and prefix-wide audit, six final hermetic runs,
 all repository gates, secret scans, and zero-finding pre-landing review passed.
 The shared development LocalStack container was never selected or changed.
+M1-13 is Complete.
 
 ## SQS job queue interface
 
-M1-13 is In progress. It is adding an Organization-scoped JobQueue as a
+M1-13 is Complete. It adds an Organization-scoped JobQueue as a
 dependency-free boundary for bounded batch publish, consume, and explicit
 acknowledgement plus a strict SQS adapter and disposable LocalStack queue/DLQ
 lifecycle. AWS queue URLs, ARNs, message IDs, receipt handles, credentials, and
@@ -318,6 +319,9 @@ container, publishes only a loopback endpoint, and uses fixed synthetic local
 credentials. It does not read dotenv, cloud profiles, proxies, or real AWS credentials.
 This is disposable LocalStack SQS compatibility only, not
 real-AWS IAM, durability, availability, encryption, or release-parity evidence.
+The final exact live lifecycle, Standard-queue partial/order regressions,
+candidate-aware cleanup, six hermetic passes, full repository gates, secret
+scans, and zero-finding independent review passed. M1-14 remains Pending.
 
 ## Neon pooled proof
 

@@ -34,7 +34,7 @@ describe("M1-13 SQS queue interface contract", () => {
     expect(plan).toContain("exact disposable LocalStack lifecycle");
   });
 
-  it("starts only M1-13 after M1-12 completed", async () => {
+  it("completes only M1-13 and leaves M1-14 pending", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -44,15 +44,16 @@ describe("M1-13 SQS queue interface contract", () => {
     const blocked = taskRows(tracker, "Blocked");
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
-    expect(readme).toContain("M1-13 is In progress");
+    expect(readme).toContain("M1-13 is Complete");
     expect(readme).toContain("Organization-scoped JobQueue");
     expect(tracker).toContain("| Pending | 682 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 42 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 43 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`682/1/42/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "49", "1", "18", "0"]);
-    expect(active.filter(([task]) => task === "M1-13")).toHaveLength(1);
+    expect(tracker).toContain("`682/0/43/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "49", "0", "19", "0"]);
+    expect(active).toHaveLength(0);
+    expect(complete.filter(([task]) => task === "M1-13")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-12")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-14")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
