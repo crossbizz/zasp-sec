@@ -23,18 +23,19 @@ type EventStoreProofResult struct {
 }
 
 type eventStoreCleanupTarget struct {
-	spec      IndexSpec
-	events    eventstore.EventStore
-	scope     domain.Scope
-	filter    eventstore.Filter
-	event     *eventstore.Event
-	attempted bool
-	owned     bool
-	uncertain bool
+	spec           IndexSpec
+	events         eventstore.EventStore
+	scope          domain.Scope
+	filter         eventstore.Filter
+	event          *eventstore.Event
+	attempted      bool
+	eventUncertain bool
+	owned          bool
+	uncertain      bool
 }
 
 func RunEventStoreProof(ctx context.Context, options EventStoreProofOptions) (result EventStoreProofResult, resultErr error) {
-	if ctx == nil || !markerPattern.MatchString(options.Marker) || nilInterfaceValue(options.Events) || options.Admin == nil {
+	if ctx == nil || !markerPattern.MatchString(options.Marker) || nilInterfaceValue(options.Events) || nilInterfaceValue(options.Admin) {
 		return result, errConfiguration
 	}
 	if options.CleanupTimeout <= 0 {
@@ -67,11 +68,12 @@ func RunEventStoreProof(ctx context.Context, options EventStoreProofOptions) (re
 		return result, errOwnership
 	}
 	spec := expectedIndexSpec(options.Marker)
+	target = &eventStoreCleanupTarget{spec: copyIndexSpec(spec), events: options.Events, uncertain: true}
 	created, createErr := options.Admin.CreateIndex(ctx, spec)
 	if createErr != nil && !isAmbiguousMutation(createErr) {
+		target = nil
 		return result, errProvider
 	}
-	target = &eventStoreCleanupTarget{spec: copyIndexSpec(spec), events: options.Events, uncertain: true}
 	if createErr == nil && !validIndexState(created, spec) {
 		createErr = ambiguousMutationError()
 	} else if createErr == nil {
@@ -97,13 +99,12 @@ func RunEventStoreProof(ctx context.Context, options EventStoreProofOptions) (re
 	filter := eventstore.Filter{SessionID: event.SessionID, Limit: 2}
 	target.scope, target.filter = scopeA, filter
 	target.attempted = true
+	target.event = copyProductEvent(event)
+	target.eventUncertain = true
 	if err := options.Events.Index(ctx, scopeA, event); err != nil {
-		if ctx.Err() != nil {
-			target.event = copyProductEvent(event)
-		}
 		return result, productEventStoreError(err)
 	}
-	target.event = copyProductEvent(event)
+	target.eventUncertain = false
 	result.Indexed = true
 	hitsA, err := options.Events.Search(ctx, scopeA, filter)
 	if err != nil {
@@ -162,7 +163,7 @@ func safeEventStoreCleanupAndAudit(options EventStoreProofOptions, target *event
 		if len(hits) == 1 && (target.event == nil || hits[0] != *target.event) {
 			return errCleanup
 		}
-		if len(hits) == 0 && target.event != nil {
+		if len(hits) == 0 && target.event != nil && !target.eventUncertain {
 			return errCleanup
 		}
 	}
@@ -265,13 +266,11 @@ func expectedProductEvent(marker string) (domain.Scope, domain.Scope, eventstore
 	}
 	event := eventstore.Event{
 		Scope: scopeA, EventID: eventID, SessionID: sessionID, AgentID: agentID,
-		Source: "runtime_gateway", SourceEventID: "source-" + optionsSafeMarker(marker),
+		Source: "runtime_gateway", SourceEventID: "source-" + marker,
 		Class: "tool", Action: "invoke", Decision: "allowed", EventTime: eventTime,
 	}
 	return scopeA, scopeB, event, nil
 }
-
-func optionsSafeMarker(marker string) string { return marker }
 
 func productEventStoreError(err error) error {
 	switch {
@@ -292,5 +291,10 @@ func nilInterfaceValue(value any) bool {
 		return true
 	}
 	reflected := reflect.ValueOf(value)
-	return reflected.Kind() == reflect.Pointer && reflected.IsNil()
+	switch reflected.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return reflected.IsNil()
+	default:
+		return false
+	}
 }

@@ -21,10 +21,21 @@ type proofProductStore struct {
 	failIndex     error
 	applyThenFail bool
 	cancel        context.CancelFunc
+	cancelOnFail  bool
 	failSearchAt  map[int]error
 	panicSearchAt int
 	leakB         bool
 	duplicateA    bool
+}
+
+type nilMapProductStore map[string]eventstore.Event
+
+func (nilMapProductStore) Index(context.Context, domain.Scope, eventstore.Event) error {
+	panic("typed nil store reached")
+}
+
+func (nilMapProductStore) Search(context.Context, domain.Scope, eventstore.Filter) ([]eventstore.Event, error) {
+	panic("typed nil store reached")
 }
 
 func (store *proofProductStore) Index(_ context.Context, scope domain.Scope, event eventstore.Event) error {
@@ -36,6 +47,9 @@ func (store *proofProductStore) Index(_ context.Context, scope domain.Scope, eve
 		return store.failIndex
 	}
 	if store.failIndex != nil {
+		if store.cancelOnFail && store.cancel != nil {
+			store.cancel()
+		}
 		return store.failIndex
 	}
 	if scope != event.Scope {
@@ -108,6 +122,13 @@ func (admin *delayedProductIndexAdmin) ListIndexes(ctx context.Context, prefix s
 
 type extraProductIndexAdmin struct{ *fakeBackend }
 
+type panicAfterProductIndexCreateAdmin struct{ *fakeBackend }
+
+func (admin *panicAfterProductIndexCreateAdmin) CreateIndex(ctx context.Context, spec IndexSpec) (IndexState, error) {
+	_, _ = admin.fakeBackend.CreateIndex(ctx, spec)
+	panic("provider detail")
+}
+
 func (admin *extraProductIndexAdmin) DeleteIndex(ctx context.Context, name string) error {
 	err := admin.fakeBackend.DeleteIndex(ctx, name)
 	extra := cloneIndexState(expectedIndexSpec(testMarker))
@@ -136,6 +157,16 @@ func TestRunEventStoreProofIndexesSearchesScopesAndCleans(t *testing.T) {
 	}
 	if !reflect.DeepEqual(admin.operations, []string{"list-indexes", "create-index", "inspect-index", "inspect-index", "delete-index", "list-indexes", "list-indexes"}) {
 		t.Fatalf("admin events = %#v", admin.operations)
+	}
+}
+
+func TestRunEventStoreProofRejectsNonPointerTypedNilStoreBeforeAdminIO(t *testing.T) {
+	t.Parallel()
+	var events nilMapProductStore
+	admin := newFakeBackend()
+	_, err := RunEventStoreProof(context.Background(), productProofOptions(admin, events))
+	if !errors.Is(err, errConfiguration) || len(admin.operations) != 0 {
+		t.Fatalf("typed nil store = %v, operations=%v", err, admin.operations)
 	}
 }
 
@@ -183,6 +214,15 @@ func TestRunEventStoreProofPollsDelayedAmbiguousIndexWithIndependentCleanup(t *t
 	indexes, listErr := admin.ListIndexes(context.Background(), proofPrefix+testMarker)
 	if listErr != nil || len(indexes) != 0 {
 		t.Fatalf("delayed ambiguous index escaped cleanup: indexes=%#v error=%v", indexes, listErr)
+	}
+}
+
+func TestRunEventStoreProofRearmsIndexAppliedBeforeCreatePanic(t *testing.T) {
+	t.Parallel()
+	admin := &panicAfterProductIndexCreateAdmin{fakeBackend: newFakeBackend()}
+	_, err := RunEventStoreProof(context.Background(), productProofOptions(admin, &proofProductStore{}))
+	if !errors.Is(err, errProvider) || len(admin.indexes) != 0 {
+		t.Fatalf("panic-after-create cleanup = %v, indexes=%d", err, len(admin.indexes))
 	}
 }
 
@@ -250,6 +290,27 @@ func TestRunEventStoreProofCleansCanceledAmbiguousProductWriteWithIndependentCon
 	if len(admin.indexes) != 0 {
 		t.Fatal("canceled ambiguous product write bypassed independent cleanup")
 	}
+}
+
+func TestRunEventStoreProofCleansBothAppliedAndUnappliedUncertainProductWrites(t *testing.T) {
+	t.Parallel()
+	t.Run("applied without caller cancellation", func(t *testing.T) {
+		admin := newFakeBackend()
+		store := &proofProductStore{applyThenFail: true, failIndex: eventstore.ErrIndex}
+		_, err := RunEventStoreProof(context.Background(), productProofOptions(admin, store))
+		if !errors.Is(err, errProvider) || len(admin.indexes) != 0 {
+			t.Fatalf("applied uncertain write = %v, indexes=%d", err, len(admin.indexes))
+		}
+	})
+	t.Run("unapplied with caller cancellation", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		admin := newFakeBackend()
+		store := &proofProductStore{failIndex: eventstore.ErrIndex, cancel: cancel, cancelOnFail: true}
+		_, err := RunEventStoreProof(ctx, productProofOptions(admin, store))
+		if !errors.Is(err, errProvider) || len(admin.indexes) != 0 {
+			t.Fatalf("unapplied uncertain write = %v, indexes=%d", err, len(admin.indexes))
+		}
+	})
 }
 
 func TestRunEventStoreProofRejectsPrefixWideExtraIndexDuringFinalAudit(t *testing.T) {

@@ -240,6 +240,25 @@ func TestOpenSearchEventDriverRejectsMalformedForeignDuplicateAndUnorderedHits(t
 	}
 }
 
+func TestOpenSearchEventDriverAcceptsBoundedPageWhenMoreScopedHitsExist(t *testing.T) {
+	t.Parallel()
+	document := productDriverDocument()
+	spec := expectedIndexSpec(testMarker)
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		writer.Header().Set("content-type", "application/json")
+		fmt.Fprintf(writer, `{"took":1,"timed_out":false,"_shards":{"total":1,"successful":1,"skipped":0,"failed":0},"hits":{"total":{"value":2,"relation":"eq"},"max_score":null,"hits":[{"_index":%q,"_id":%q,"_score":null,"_source":{"organization_id":%q,"workspace_id":%q,"environment_id":%q,"event_id":%q,"session_id":%q,"agent_id":%q,"source":"runtime_gateway","source_event_id":"source-event-1","event_class":"tool","action":"invoke","decision":"allowed","event_time":"2026-08-15T20:21:22.123Z"},"sort":[1786825282123,%q]}]}}`,
+			spec.Name, document.EventID, document.OrganizationID, document.WorkspaceID, document.EnvironmentID,
+			document.EventID, document.SessionID, document.AgentID, document.EventID)
+	}))
+	defer server.Close()
+
+	driver := productDriverForServer(t, server, spec)
+	documents, err := driver.Search(context.Background(), productDriverQuery(1))
+	if err != nil || !reflect.DeepEqual(documents, []eventstore.DriverDocument{document}) {
+		t.Fatalf("Search bounded page = %#v, %v", documents, err)
+	}
+}
+
 func productDriverForServer(t *testing.T, server *httptest.Server, spec IndexSpec) *openSearchEventDriver {
 	t.Helper()
 	backend, err := newHTTPBackend(context.Background(), server.URL, spec)

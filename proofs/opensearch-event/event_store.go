@@ -111,7 +111,7 @@ func (driver *openSearchEventDriver) Search(ctx context.Context, query eventstor
 	var response productSearchResponse
 	if decodeExactJSON(raw, &response) != nil || response.TimedOut || response.Took < 0 || response.Shards.Total != 1 ||
 		response.Shards.Successful != 1 || response.Shards.Skipped != 0 || response.Shards.Failed != 0 || response.Hits.MaxScore != nil ||
-		response.Hits.Total.Relation != "eq" || response.Hits.Total.Value != len(response.Hits.Hits) || len(response.Hits.Hits) > query.Limit {
+		response.Hits.Total.Relation != "eq" || response.Hits.Total.Value < len(response.Hits.Hits) || len(response.Hits.Hits) > query.Limit {
 		return nil, errProvider
 	}
 	result := make([]eventstore.DriverDocument, 0, len(response.Hits.Hits))

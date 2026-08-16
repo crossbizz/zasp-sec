@@ -111,7 +111,7 @@ test("reconciles an ambiguous start only through exact ownership", async () => {
       super({ path: "/safe/path", marker: "0123456789abcdef" });
       this.resolvedImageID = `sha256:${"b".repeat(64)}`;
       this.responses = [
-        { status: 1, stdout: "", stderr: "suppressed" },
+        { status: null, signal: "SIGKILL", stdout: "", stderr: "suppressed" },
         { status: 0, stdout: `${token}\n`, stderr: "" },
         { status: 0, stdout: `${token}|/${this.name}|${this.resolvedImageID}|${OPENSEARCH_IMAGE}|m0-08|${this.marker}\n`, stderr: "" },
       ];
@@ -130,17 +130,18 @@ test("preflight fetches only the exact pin when the image is not local", async (
       this.calls = [];
       this.responses = [
         { status: 0, stdout: "", stderr: "" },
-        { status: 1, stdout: "", stderr: "suppressed" },
-        { status: 0, stdout: "suppressed", stderr: "" },
-        { status: 0, stdout: `sha256:${"b".repeat(64)}\n`, stderr: "" },
+        { status: 0, stdout: "", stderr: "" },
+        { status: 1, signal: null, stdout: "", stderr: `Error response from daemon: No such image: ${OPENSEARCH_IMAGE}\n` },
+        { status: 0, signal: null, stdout: "suppressed", stderr: "" },
+        { status: 0, signal: null, stdout: `sha256:${"b".repeat(64)}\n`, stderr: "" },
       ];
     }
     docker(args) { this.calls.push(args); return this.responses.shift(); }
   }
   const runtime = new PullingRuntime();
   await runtime.ensureAbsent();
-  assert.deepEqual(runtime.calls[2], ["pull", OPENSEARCH_IMAGE]);
-  assert.deepEqual(runtime.calls[3], ["image", "inspect", "--format", "{{.Id}}", OPENSEARCH_IMAGE]);
+  assert.deepEqual(runtime.calls.find((call) => call[0] === "pull"), ["pull", OPENSEARCH_IMAGE]);
+  assert.deepEqual(runtime.calls.at(-1), ["image", "inspect", "--format", "{{.Id}}", OPENSEARCH_IMAGE]);
   assert.equal(runtime.responses.length, 0);
 });
 
@@ -154,6 +155,17 @@ test("cleans a retained exact candidate after a post-start failure", async () =>
     code: 1, line: "OpenSearch event projection proof failed: operation rejected.",
   });
   assert.deepEqual(runtime.calls, ["ensure-absent", "start", "remove", "require-absent"]);
+});
+
+test("treats an unknowable cleanup candidate as cleanup failure", async () => {
+  const runtime = {
+    async ensureAbsent() { throw new Error("suppressed operation detail"); },
+    hasCandidate() { throw new Error("suppressed cleanup detail"); },
+  };
+  assert.deepEqual(await orchestrate(runtime, { readinessAttempts: 1 }), {
+    code: 1,
+    line: "OpenSearch event projection proof failed: cleanup rejected.",
+  });
 });
 
 async function withReadinessServer(handler, assertion) {
@@ -204,6 +216,16 @@ test("bounds an endlessly streaming readiness response and cleans", async () => 
   });
 });
 
+test("rejects duplicate required readiness keys", async () => {
+  await withReadinessServer((_request, response) => {
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end('{"status":"red","status":"green","timed_out":false,"number_of_nodes":1}');
+  }, async (endpoint) => {
+    const runtime = new DockerRuntime({ path: "/safe/path", marker: "0123456789abcdef" });
+    assert.equal(await runtime.isReady(endpoint), false);
+  });
+});
+
 test("contains construction and orchestration failures at one fixed-output boundary", async () => {
   const factories = [
     () => new DockerRuntime({ path: "" }),
@@ -223,7 +245,7 @@ test("contains construction and orchestration failures at one fixed-output bound
     });
     assert.equal(result.code, 1);
     assert.equal(stdout, "");
-    assert.match(stderr, /^OpenSearch event projection proof failed: (configuration|operation) rejected\.\n$/);
+    assert.match(stderr, /^OpenSearch event projection proof failed: (configuration|operation|cleanup) rejected\.\n$/);
     assert.equal(exitCode, 1);
     assert.equal(stderr.includes("suppressed"), false);
     assert.equal(stderr.split("\n").filter(Boolean).length, 1);

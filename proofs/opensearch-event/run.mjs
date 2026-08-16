@@ -1,6 +1,6 @@
 import { spawn, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { lstatSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
+import { lstatSync, mkdtempSync, readdirSync, realpathSync, rmSync } from "node:fs";
 import http from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
@@ -21,6 +21,7 @@ const readinessBodyLimit = 16_384;
 const readinessDeadlineMilliseconds = 500;
 const processOutputLimit = 4096;
 const proofSupervisorTimeoutMilliseconds = 300_000;
+const childTerminationGraceMilliseconds = 1000;
 
 function identityFor(mode) {
   const identity = identities[mode];
@@ -99,40 +100,49 @@ export function runBounded(command, arguments_, options, spawnImplementation = s
     const stderr = [];
     let total = 0;
     let settled = false;
+    let stopping = false;
     let timer;
+    let terminationTimer;
     const finish = (callback) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      clearTimeout(terminationTimer);
       callback();
     };
-    const stop = () => {
-      child.stdout.destroy?.();
-      child.stderr.destroy?.();
-      child.kill?.("SIGKILL");
+    const stopAndReject = () => {
+      if (settled || stopping) return;
+      stopping = true;
+      clearTimeout(timer);
+      try { child.stdout.destroy?.(); } catch (error) { void error; }
+      try { child.stderr.destroy?.(); } catch (error) { void error; }
+      try { child.kill?.("SIGKILL"); } catch (error) { void error; }
+      const grace = Number.isFinite(options.terminationGraceMs) && options.terminationGraceMs > 0
+        ? options.terminationGraceMs
+        : childTerminationGraceMilliseconds;
+      terminationTimer = setTimeout(() => finish(() => rejectPromise(categorized("operation"))), grace);
     };
     const consume = (target) => (chunk) => {
       const value = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
       total += value.byteLength;
       if (total > options.outputLimit) {
-        stop();
-        finish(() => rejectPromise(categorized("operation")));
+        stopAndReject();
         return;
       }
       target.push(value);
     };
     child.stdout.on("data", consume(stdout));
     child.stderr.on("data", consume(stderr));
-    child.stdout.on("error", () => { stop(); finish(() => rejectPromise(categorized("operation"))); });
-    child.stderr.on("error", () => { stop(); finish(() => rejectPromise(categorized("operation"))); });
-    child.once("error", () => finish(() => rejectPromise(categorized("operation"))));
-    child.once("close", (status, signal) => finish(() => resolvePromise({
-      status, signal, stdout: Buffer.concat(stdout).toString("utf8"), stderr: Buffer.concat(stderr).toString("utf8"),
-    })));
-    timer = setTimeout(() => {
-      stop();
-      finish(() => rejectPromise(categorized("operation")));
-    }, options.timeoutMs);
+    child.stdout.on("error", stopAndReject);
+    child.stderr.on("error", stopAndReject);
+    child.once("error", stopAndReject);
+    child.once("close", (status, signal) => {
+      if (stopping) finish(() => rejectPromise(categorized("operation")));
+      else finish(() => resolvePromise({
+        status, signal, stdout: Buffer.concat(stdout).toString("utf8"), stderr: Buffer.concat(stderr).toString("utf8"),
+      }));
+    });
+    timer = setTimeout(stopAndReject, options.timeoutMs);
   });
 }
 
@@ -165,7 +175,8 @@ export async function orchestrate(runtime, options = {}) {
   } finally {
     let candidate = started;
     if (!candidate) {
-      try { candidate = runtime.hasCandidate?.() === true; } catch { candidate = false; }
+      try { candidate = runtime.hasCandidate?.() === true; }
+      catch { candidate = false; cleanupFailed = true; }
     }
     if (candidate) {
       try { await runtime.remove(); } catch { cleanupFailed = true; }
@@ -180,13 +191,14 @@ export class DockerRuntime {
   constructor({
     path = process.env.PATH, home = process.env.HOME, marker, mode = "projection", randomBytesSource = randomBytes,
     command = spawnSync, spawnProcess = spawn, makeTemp = mkdtempSync, removeTemp = rmSync,
-    tempParent = tmpdir(), canonicalPath = realpathSync, statPath = lstatSync,
+    tempParent = tmpdir(), canonicalPath = realpathSync, statPath = lstatSync, readTemp = readdirSync,
   } = {}) {
     if (marker === undefined) marker = randomBytesSource(8).toString("hex");
     const identity = identityFor(mode);
     if (typeof path !== "string" || path.length === 0 || !isAbsolute(home ?? "") || !isAbsolute(tempParent ?? "") ||
         !/^[a-f0-9]{16}$/.test(marker) || typeof command !== "function" || typeof spawnProcess !== "function" ||
-        typeof makeTemp !== "function" || typeof removeTemp !== "function" || typeof canonicalPath !== "function" || typeof statPath !== "function") {
+        typeof makeTemp !== "function" || typeof removeTemp !== "function" || typeof canonicalPath !== "function" ||
+        typeof statPath !== "function" || typeof readTemp !== "function") {
       throw categorized("configuration");
     }
     let canonicalTempParent;
@@ -205,8 +217,9 @@ export class DockerRuntime {
     this.tempParent = canonicalTempParent;
     this.canonicalPath = canonicalPath;
     this.statPath = statPath;
+    this.readTemp = readTemp;
     this.token = undefined;
-    this.startAttempted = false;
+    this.startUncertain = false;
     this.resolvedImageID = undefined;
   }
 
@@ -228,21 +241,58 @@ export class DockerRuntime {
   }
 
   docker(args, timeout = 60_000) {
-    return this.command("docker", args, { env: { PATH: this.path }, encoding: "utf8", timeout, maxBuffer: 1024 * 1024 });
+    return this.command("docker", args, {
+      env: { PATH: this.path }, encoding: "utf8", timeout, killSignal: "SIGKILL", maxBuffer: 1024 * 1024,
+    });
   }
 
-  hasCandidate() { return this.startAttempted || idPattern.test(this.token ?? ""); }
+  hasCandidate() { return this.startUncertain || idPattern.test(this.token ?? ""); }
 
   namedCandidates() {
     const listed = this.docker(["ps", "--all", "--no-trunc", "--filter", `name=^/${this.name}$`, "--format", "{{.ID}}"]);
     return { listed, values: String(listed?.stdout ?? "").trim().split("\n").filter(Boolean) };
   }
 
+  prefixCandidates(category = "operation") {
+    const unique = new Set();
+    for (const filter of [`name=^/${this.identity.prefix}`, `label=zasp.proof=${this.identity.proof}`]) {
+      const listed = this.docker(["ps", "--all", "--no-trunc", "--filter", filter, "--format", "{{.ID}}"]);
+      const values = String(listed?.stdout ?? "").trim().split("\n").filter(Boolean);
+      if (listed?.status !== 0 || values.some((value) => !idPattern.test(value))) throw categorized(category);
+      for (const value of values) unique.add(value);
+    }
+    return [...unique];
+  }
+
+  retainedIDCandidates() {
+    if (!idPattern.test(this.token ?? "")) return [];
+    const listed = this.docker(["ps", "--all", "--no-trunc", "--filter", `id=${this.token}`, "--format", "{{.ID}}"]);
+    const values = String(listed?.stdout ?? "").trim().split("\n").filter(Boolean);
+    if (listed?.status !== 0 || values.some((value) => !idPattern.test(value))) throw categorized("cleanup");
+    return values;
+  }
+
+  temporaryCandidates(category) {
+    let entries;
+    try { entries = this.readTemp(this.tempParent); } catch { throw categorized(category); }
+    if (!Array.isArray(entries) || entries.some((entry) => typeof entry !== "string")) throw categorized(category);
+    return entries.filter((entry) => entry.startsWith(this.identity.prefix));
+  }
+
+  temporaryPathAbsent(path) {
+    try {
+      this.statPath(path);
+      return false;
+    } catch (error) {
+      return error?.code === "ENOENT";
+    }
+  }
+
   async ensureAbsent() {
-    const existing = this.namedCandidates();
-    if (existing.listed?.status !== 0 || existing.values.length !== 0) throw categorized("operation");
+    if (this.prefixCandidates().length !== 0 || this.temporaryCandidates("operation").length !== 0) throw categorized("operation");
     let image = this.docker(["image", "inspect", "--format", "{{.Id}}", OPENSEARCH_IMAGE]);
     if (image.status !== 0) {
+      if (!exactMissingImage(image, OPENSEARCH_IMAGE)) throw categorized("operation");
       const pull = this.docker(["pull", OPENSEARCH_IMAGE], 180_000);
       if (pull.status !== 0) throw categorized("operation");
       image = this.docker(["image", "inspect", "--format", "{{.Id}}", OPENSEARCH_IMAGE]);
@@ -253,11 +303,22 @@ export class DockerRuntime {
   }
 
   async start() {
-    this.startAttempted = true;
+    this.startUncertain = true;
     const result = this.docker(buildDockerRunArguments(this.name, this.mode));
     const direct = String(result?.stdout ?? "").trim();
     if (idPattern.test(direct)) this.token = direct;
     if (result?.status === 0 && idPattern.test(direct)) {
+      this.startUncertain = false;
+      return direct;
+    }
+    if (Number.isInteger(result?.status) && result.status !== 0 && result.signal == null && result.error == null && !idPattern.test(direct)) {
+      this.startUncertain = false;
+      this.token = undefined;
+      throw categorized("operation");
+    }
+    if (idPattern.test(direct)) {
+      await this.verifyOwned(direct);
+      this.startUncertain = false;
       return direct;
     }
     const listed = this.namedCandidates().listed;
@@ -265,6 +326,7 @@ export class DockerRuntime {
     if (listed?.status !== 0 || candidates.length !== 1 || !idPattern.test(candidates[0])) throw categorized("operation");
     this.token = candidates[0];
     await this.verifyOwned(this.token);
+    this.startUncertain = false;
     return this.token;
   }
 
@@ -313,7 +375,7 @@ export class DockerRuntime {
           });
           response.on("end", () => {
             try {
-              const parsed = JSON.parse(Buffer.concat(chunks, bytes).toString("utf8"));
+              const parsed = parseUniqueJSON(Buffer.concat(chunks, bytes).toString("utf8"), readinessBodyLimit);
               finish(response.statusCode === 200 && ["yellow", "green"].includes(parsed.status) && parsed.timed_out === false && parsed.number_of_nodes === 1);
             } catch { finish(false); }
           });
@@ -327,11 +389,12 @@ export class DockerRuntime {
   async runProof(endpoint, mode = this.mode) {
     if (mode !== this.mode) return 1;
     const goEnvironment = this.command("go", ["env", "-json", "GOCACHE", "GOMODCACHE"], {
-      env: { PATH: this.path, HOME: this.home, GOENV: "off" }, encoding: "utf8", timeout: 10_000, maxBuffer: processOutputLimit,
+      env: { PATH: this.path, HOME: this.home, GOENV: "off" }, encoding: "utf8", timeout: 10_000,
+      killSignal: "SIGKILL", maxBuffer: processOutputLimit,
     });
     if (goEnvironment?.status !== 0 || !boundedOutput(goEnvironment)) return 1;
     let caches;
-    try { caches = JSON.parse(goEnvironment.stdout); } catch { return 1; }
+    try { caches = parseUniqueJSON(goEnvironment.stdout, processOutputLimit); } catch { return 1; }
     if (!isAbsolute(caches.GOCACHE ?? "") || !isAbsolute(caches.GOMODCACHE ?? "")) return 1;
     let temporaryCandidate;
     let temporaryIdentity;
@@ -370,7 +433,10 @@ export class DockerRuntime {
       if (temporaryIdentity !== undefined) {
         try {
           if (!this.stillOwnsTemporaryDirectory(temporaryIdentity)) code = 1;
-          else this.removeTemp(temporaryDirectory, { recursive: true, force: false, maxRetries: 0 });
+          else {
+            this.removeTemp(temporaryDirectory, { recursive: true, force: false, maxRetries: 0 });
+            if (!this.temporaryPathAbsent(temporaryDirectory)) code = 1;
+          }
         } catch { code = 1; }
       }
     }
@@ -391,10 +457,73 @@ export class DockerRuntime {
   }
 
   async requireAbsent() {
-    if (idPattern.test(this.token ?? "") && this.docker(["inspect", this.token])?.status === 0) throw categorized("cleanup");
-    const byName = this.namedCandidates();
-    if (byName.listed?.status !== 0 || byName.values.length !== 0) throw categorized("cleanup");
+    if (this.retainedIDCandidates().length !== 0 || this.prefixCandidates("cleanup").length !== 0 ||
+        this.temporaryCandidates("cleanup").length !== 0) throw categorized("cleanup");
   }
+}
+
+function exactMissingImage(result, reference) {
+  return result?.status === 1 && result?.signal === null && (result?.stdout === "" || result?.stdout === "\n") &&
+    result?.stderr === `Error response from daemon: No such image: ${reference}\n`;
+}
+
+function parseUniqueJSON(source, limit) {
+  if (typeof source !== "string" || Buffer.byteLength(source) === 0 || Buffer.byteLength(source) > limit) throw new SyntaxError("invalid JSON");
+  let index = 0;
+  const whitespace = () => { while (index < source.length && /[\t\n\r ]/.test(source[index])) index += 1; };
+  const string = () => {
+    if (source[index] !== '"') throw new SyntaxError("invalid JSON string");
+    const start = index++;
+    while (index < source.length) {
+      const character = source[index];
+      if (character === '"') { index += 1; return JSON.parse(source.slice(start, index)); }
+      if (character.charCodeAt(0) <= 0x1f) throw new SyntaxError("invalid JSON string");
+      if (character !== "\\") { index += 1; continue; }
+      index += 1;
+      const escape = source[index];
+      if ('"\\/bfnrt'.includes(escape ?? "")) index += 1;
+      else if (escape === "u" && /^[a-fA-F0-9]{4}$/.test(source.slice(index + 1, index + 5))) index += 5;
+      else throw new SyntaxError("invalid JSON escape");
+    }
+    throw new SyntaxError("unterminated JSON string");
+  };
+  const value = () => {
+    whitespace();
+    if (source[index] === "{") {
+      index += 1; whitespace(); const keys = new Set();
+      if (source[index] === "}") { index += 1; return; }
+      while (true) {
+        const key = string();
+        if (keys.has(key)) throw new SyntaxError("duplicate JSON key");
+        keys.add(key); whitespace();
+        if (source[index] !== ":") throw new SyntaxError("invalid JSON object");
+        index += 1; value(); whitespace();
+        if (source[index] === "}") { index += 1; return; }
+        if (source[index] !== ",") throw new SyntaxError("invalid JSON object");
+        index += 1; whitespace();
+      }
+    }
+    if (source[index] === "[") {
+      index += 1; whitespace();
+      if (source[index] === "]") { index += 1; return; }
+      while (true) {
+        value(); whitespace();
+        if (source[index] === "]") { index += 1; return; }
+        if (source[index] !== ",") throw new SyntaxError("invalid JSON array");
+        index += 1;
+      }
+    }
+    if (source[index] === '"') { string(); return; }
+    for (const literal of ["true", "false", "null"]) {
+      if (source.startsWith(literal, index)) { index += literal.length; return; }
+    }
+    const number = /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/.exec(source.slice(index));
+    if (number === null) throw new SyntaxError("invalid JSON value");
+    index += number[0].length;
+  };
+  value(); whitespace();
+  if (index !== source.length) throw new SyntaxError("invalid trailing JSON");
+  return JSON.parse(source);
 }
 
 export async function runMain({
