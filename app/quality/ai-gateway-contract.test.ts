@@ -61,4 +61,26 @@ describe("M1-20 AI gateway contract", () => {
     expect([...active, ...complete].filter(([task]) => task === "M1-21")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
+
+  it("exposes only the hermetic root contract and documents the AI authority boundary", async () => {
+    const [packageText, readme] = await Promise.all([
+      readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+    ]);
+    const packageJson = JSON.parse(packageText) as { scripts: Record<string, string> };
+    const section = readme.match(/## AI gateway contract[\s\S]*?(?=\n## )/)?.[0] ?? "";
+
+    expect(packageJson.scripts["aigateway:test"]).toBe("go test -C services/platform -race -count=1 ./aigateway");
+    expect(section).toContain("npm run aigateway:test");
+    expect(section).toMatch(/Organization,\s+Workspace,\s+and\s+Environment/);
+    expect(section).toContain("finding_explanation");
+    expect(section).toContain("redacted_summary");
+    expect(section).toContain("no_provider_storage");
+    expect(section).toMatch(/unapproved purpose/i);
+    expect(section).toMatch(/one bounded generation\s+attempt/);
+    expect(section).toContain("hermetic fake driver");
+    expect(section).toMatch(/non-authoritative/);
+    expect(section.replace(/\s+/g, " ")).toContain("does not prove an OpenRouter adapter, hosted delivery, model routing, streaming, caching, or persistence");
+    expect(section).toMatch(/M1-21\s+remains\s+Pending/);
+  });
 });

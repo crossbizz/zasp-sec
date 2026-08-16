@@ -112,19 +112,27 @@ adapter, hosted endpoint, provider credential, or planner/action authority.
 - Modify `package.json`, `README.md`, and the M1-20 repository contract.
 - Update this plan and ignored Task 3 evidence.
 
-- [ ] Capture a focused repository-contract RED for the absent root command
+- [x] Capture a focused repository-contract RED for the absent root command
   and documentation boundary.
 
-- [ ] Add `aigateway:test` and document its exact hermetic scope.
+  RED was 2 pass/1 intended fail at the absent `aigateway:test` script before
+  package or README edits.
+
+- [x] Add `aigateway:test` and document its exact hermetic scope.
 
   The command runs only the Go race suite. Documentation must state that there
   is no OpenRouter/provider/network/Docker/credential I/O and that M1-21 stays
   Pending.
 
-- [ ] Run focused contract, root gateway, full pinned repository, build, audit,
+  GREEN is 3/3 and the root race command passes.
+
+- [x] Run focused contract, root gateway, full pinned repository, build, audit,
   formatting, and secret gates.
 
-- [ ] Commit the exact Task 3 wiring package.
+  Pinned verification passes 57 files/260 tests, typecheck, lint, production
+  build, all 8 repository build targets, and zero production vulnerabilities.
+
+- [x] Commit the exact Task 3 wiring package.
 
   Commit message: `docs: expose AI gateway contract`.
 

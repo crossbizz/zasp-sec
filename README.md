@@ -446,6 +446,27 @@ an exact approved-purpose catalog, complete data-policy metadata, bounded
 redacted product content, and a hermetic fake-driver contract. M1-21 remains
 Pending.
 
+## AI gateway contract
+
+M1-20 is In progress. It defines a dependency-free AIGateway boundary for
+exact Organization, Workspace, and Environment scope. The closed purpose
+catalog currently approves only `finding_explanation`; an unapproved purpose
+fails before driver I/O. Every request requires complete policy metadata with
+`redacted_summary` content, explicit secret/PII/PHI/raw-evidence exclusion, an
+approved egress state, and `no_provider_storage` retention.
+
+```bash
+npm run aigateway:test
+```
+
+This command runs a hermetic fake driver and performs one bounded generation
+attempt with no retry. It performs no provider, database, network, Docker,
+credential, or shared-resource I/O. AI output is non-authoritative: it never
+controls scope, deterministic policy, authorization, action execution, or
+verification. This boundary does not prove an OpenRouter adapter, hosted
+delivery, model routing, streaming, caching, or persistence. M1-21 remains
+Pending.
+
 ## Neon pooled proof
 
 The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,
