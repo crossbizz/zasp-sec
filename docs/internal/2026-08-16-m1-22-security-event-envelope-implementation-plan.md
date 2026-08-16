@@ -113,7 +113,7 @@ func New(Version, domain.Scope, Source, time.Time, domain.EvidenceRef, observabi
 func (SecurityEvent) Validate() error
 ```
 
-- [ ] **Step 1: Write exact happy-path tests and capture compiler RED**
+- [x] **Step 1: Write exact happy-path tests and capture compiler RED**
 
   Construct distinct canonical scope IDs, evidence ID, product correlation ID,
   trace/span IDs, exact source, and `2026-08-16T09:30:00.123Z`. Require the
@@ -125,19 +125,28 @@ func (SecurityEvent) Validate() error
 
   The RED must name only absent public symbols before production exists.
 
-- [ ] **Step 2: Implement minimal happy-path GREEN**
+  RED named only the absent `New`, `Version1`, `SecurityEvent`, `Source`, and
+  four source constants before any production file existed.
+
+- [x] **Step 2: Implement minimal happy-path GREEN**
 
   Add `ErrEvent = errors.New("security event rejected")`. Construct the exact
   value, validate it, and return zero plus the sentinel for rejection.
 
-- [ ] **Step 3: Add adversarial RED/GREEN coverage**
+  Exact construction and all four catalog sources passed.
+
+- [x] **Step 3: Add adversarial RED/GREEN coverage**
 
   Reject zero and unknown versions; zero/forged/duplicate scope; zero/unknown
   source; zero/local/fixed-offset/sub-millisecond time; zero/forged evidence;
   zero/malformed correlation; and every partial direct state. Prove fixed error
   text, exact immutability/comparability, and concurrent race safety.
 
-- [ ] **Step 4: Run stability, platform, and coverage gates**
+  Behavioral RED proved `time.Time.Equal` incorrectly admitted hidden
+  monotonic state. GREEN uses exact comparable representation equality and
+  rejects all malformed construction and direct-state cases.
+
+- [x] **Step 4: Run stability, platform, and coverage gates**
 
   ```bash
   for run in 1 2 3 4 5 6; do go test -C services/platform -race -count=1 ./securityevent; done
@@ -152,7 +161,10 @@ func (SecurityEvent) Validate() error
 
   Require 100% production statement coverage.
 
-- [ ] **Step 5: Record, scan, and commit**
+  Six race runs, 100 repetitions, full platform race, tidy-diff, module
+  verification, vet, and 100% statement coverage all passed.
+
+- [x] **Step 5: Record, scan, and commit**
 
   ```bash
   git commit -m "feat: add canonical SecurityEvent envelope"
