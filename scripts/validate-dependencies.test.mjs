@@ -19,6 +19,7 @@ const manifests = [
   { ecosystem: "go", path: "cmd/agentsecctl/go.mod" },
   { ecosystem: "npm", path: "package.json" },
   { ecosystem: "go", path: "services/event-ingest/go.mod" },
+  { ecosystem: "go", path: "services/health/go.mod" },
   { ecosystem: "go", path: "services/platform/go.mod" },
   { ecosystem: "go", path: "services/runtime-gateway/go.mod" },
   { ecosystem: "npm", path: "workers/redteam-node/package.json" },
@@ -85,6 +86,7 @@ function filesFixture() {
       "",
     ].join("\n"),
     "services/event-ingest/go.mod": "module example/event-ingest\n\ngo 1.25.0\n",
+    "services/health/go.mod": "module example/health\n\ngo 1.25.0\n",
     "services/platform/go.mod": "module example/platform\n\ngo 1.25.0\n",
     "services/runtime-gateway/go.mod": "module example/runtime-gateway\n\ngo 1.25.0\n",
     "cmd/agentsecctl/go.mod": "module example/agentsecctl\n\ngo 1.25.0\n",
@@ -96,7 +98,7 @@ function validate(lock = lockFixture(), files = filesFixture()) {
 }
 
 test("accepts the exact reviewed product runtime inventory", () => {
-  assert.deepEqual(validate(), { manifests: 8, dependencies: 6 });
+  assert.deepEqual(validate(), { manifests: 9, dependencies: 6 });
 });
 
 test("rejects YAML aliases, duplicate keys, and oversized input", async (t) => {
@@ -243,7 +245,7 @@ test("tracks direct Go and Python requirements while ignoring development and in
   );
   lock.dependencies.sort((left, right) => `${left.manifest}:${left.name}`.localeCompare(`${right.manifest}:${right.name}`));
 
-  assert.deepEqual(validate(lock, files), { manifests: 8, dependencies: 7 });
+  assert.deepEqual(validate(lock, files), { manifests: 9, dependencies: 8 });
 });
 
 test("does not silently ignore alternate direct dependency assignment syntax", async (t) => {
@@ -321,7 +323,7 @@ test("prints one exact success line", async () => {
     stdout: { write: (value) => { stdout += value; } },
     stderr: { write: (value) => { stderr += value; } },
     setExitCode: (value) => { exitCode = value; },
-    validateRepository: async () => ({ manifests: 8, dependencies: 6 }),
+    validateRepository: async () => ({ manifests: 9, dependencies: 6 }),
   });
 
   assert.equal(code, 0);

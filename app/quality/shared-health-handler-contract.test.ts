@@ -71,4 +71,12 @@ describe("M1-28a shared health handler", () => {
     expect([...active, ...complete].filter(([task]) => task === "M1-28b")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
+
+  it("exposes the exact standalone race-tested health command", async () => {
+    const packageJson = JSON.parse(await readFile(resolve(repositoryRoot, "package.json"), "utf8")) as {
+      scripts?: Record<string, string>;
+    };
+
+    expect(packageJson.scripts?.["health:test"]).toBe("go test -C services/health -race -count=1 ./...");
+  });
 });

@@ -43,6 +43,7 @@ const requiredManifests = [
   { ecosystem: "go", path: "cmd/agentsecctl/go.mod" },
   { ecosystem: "npm", path: "package.json" },
   { ecosystem: "go", path: "services/event-ingest/go.mod" },
+  { ecosystem: "go", path: "services/health/go.mod" },
   { ecosystem: "go", path: "services/platform/go.mod" },
   { ecosystem: "go", path: "services/runtime-gateway/go.mod" },
   { ecosystem: "npm", path: "workers/redteam-node/package.json" },

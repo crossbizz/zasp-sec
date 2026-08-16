@@ -25,6 +25,8 @@ manifests:
   - ecosystem: go
     path: services/event-ingest/go.mod
   - ecosystem: go
+    path: services/health/go.mod
+  - ecosystem: go
     path: services/platform/go.mod
   - ecosystem: go
     path: services/runtime-gateway/go.mod

@@ -119,7 +119,7 @@ docs: start M1-28a shared health handler
   `ErrInvalidConfig`.
 - Produces: root command `npm run health:test`.
 
-- [ ] **Step 1: Add the module/test boundary before production code**
+- [x] **Step 1: Add the module/test boundary before production code**
 
 Create `go.mod`:
 
@@ -147,7 +147,7 @@ oversized, leading punctuation, whitespace/control/non-ASCII version values.
 The concurrency test must issue requests while multiple goroutines toggle
 readiness and accept only the two exact readiness projections.
 
-- [ ] **Step 2: Run the focused module test and witness compiler RED**
+- [x] **Step 2: Run the focused module test and witness compiler RED**
 
 Run:
 
@@ -158,7 +158,7 @@ go test -C services/health -race -count=1 ./...
 Expected: compile failures only for the absent production API (`New`, `Config`,
 paths, and `ErrInvalidConfig`).
 
-- [ ] **Step 3: Implement strict configuration and atomic state**
+- [x] **Step 3: Implement strict configuration and atomic state**
 
 Create `health.go` with:
 
@@ -182,7 +182,7 @@ Validate the exact design grammars before construction. Start readiness false.
 Do not retain caller-owned collections, callbacks, writers, requests, or
 configuration pointers.
 
-- [ ] **Step 4: Implement exact response routing**
+- [x] **Step 4: Implement exact response routing**
 
 Implement `ServeHTTP` using only local immutable strings and `ready.Load()`.
 Reject nonempty `RawPath` or `RawQuery`; match exact paths before methods;
@@ -190,7 +190,7 @@ accept only GET/HEAD. Set exact content type, cache, nosniff, Allow when needed,
 and content length before writing. HEAD writes no body. Use the exact design
 JSON and Prometheus bytes, with only validated service/version substitutions.
 
-- [ ] **Step 5: Run focused GREEN and six race passes**
+- [x] **Step 5: Run focused GREEN and six race passes**
 
 Run the focused test once, then six consecutive times:
 
@@ -202,7 +202,7 @@ done
 
 Require every run to pass with no race, nondeterministic body, or goroutine.
 
-- [ ] **Step 6: Wire the root hermetic command tests-first**
+- [x] **Step 6: Wire the root hermetic command tests-first**
 
 Extend the quality contract to require:
 
@@ -215,7 +215,7 @@ expect(packageJson.scripts?.["health:test"]).toBe(
 Run it before changing `package.json` and witness the missing-script RED. Add
 the exact command without changing `verify`, dependencies, or any lockfile.
 
-- [ ] **Step 7: Run module and repository gates, then commit**
+- [x] **Step 7: Run module and repository gates, then commit**
 
 Run `npm run health:test`, `go mod tidy -diff`, `go mod verify`, `go vet ./...`
 inside `services/health`, full pinned `npm run verify`, `npm run build:repo`,
