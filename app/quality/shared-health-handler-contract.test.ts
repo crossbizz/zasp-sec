@@ -17,34 +17,37 @@ function taskRows(tracker: string, heading: "In progress" | "Complete" | "Blocke
   return markdownRows(section).slice(2);
 }
 
-describe("M1-27 raw fetch lint", () => {
-  it("binds the source task to the reviewed frontend lint design and plan", async () => {
+describe("M1-28a shared health handler", () => {
+  it("binds the source task to the reviewed standalone handler design and plan", async () => {
     const [source, design, plan] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "docs/internal/2026-08-16-m1-27-raw-fetch-lint-design.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "docs/internal/2026-08-16-m1-27-raw-fetch-lint-implementation-plan.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/2026-08-16-m1-28a-shared-health-handler-design.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/2026-08-16-m1-28a-shared-health-handler-implementation-plan.md"), "utf8"),
     ]);
-    const section = source.match(/\*\*M1-27 - raw fetch lint\*\*[\s\S]*?\*\*M1-28a - shared health handler/)?.[0] ?? "";
+    const section = source.match(/\*\*M1-28a - shared health handler\*\*[\s\S]*?\*\*M1-28b - platform health wiring/)?.[0] ?? "";
     const prose = design.replace(/\s+/g, " ");
 
-    expect(section).toContain("Depends on: `M1-26`");
-    expect(section).toContain("forbidding hand-written `/api/v1/` requests outside generated client");
-    expect(section).toContain("Seeded violation fails lint");
+    expect(section).toContain("Depends on: `M1-27`");
+    expect(section).toContain("shared Go health/readiness/version/metrics handler package");
+    expect(section).toContain("distinguishes liveness, readiness and version responses");
     for (const requirement of [
-      "`app/**`",
-      "`apps/web/**`",
-      "`apps/web/api/client.ts`",
-      "`apps/web/api/generated.ts`",
-      "`zasp/no-raw-fetch`",
-      "M1-28a remains Pending",
+      "`services/health`",
+      "`/healthz`",
+      "`/readyz`",
+      "`/version`",
+      "`/metrics`",
+      "atomic boolean",
+      "without opening a listener",
+      "`667/0/58/3`",
+      "M1-28b remains Pending",
     ]) {
       expect(prose).toContain(requirement);
     }
     expect(plan).toContain("Every behavior or status change requires a witnessed tests-only RED first");
-    expect(plan).toContain("M1-28a remains Pending");
+    expect(plan).toContain("M1-28b remains Pending");
   });
 
-  it("completes only M1-27 after M1-26 and preserves the blockers", async () => {
+  it("starts only M1-28a after M1-27 and preserves the blockers", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -54,7 +57,6 @@ describe("M1-27 raw fetch lint", () => {
     const blocked = taskRows(tracker, "Blocked");
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
-    expect(readme).toContain("M1-27 is Complete");
     expect(readme).toContain("M1-28a is In progress");
     expect(readme).toContain("M1-28b remains Pending");
     expect(tracker).toContain("| Pending | 667 |");
@@ -63,35 +65,10 @@ describe("M1-27 raw fetch lint", () => {
     expect(tracker).toContain("| Blocked | 3 |");
     expect(tracker).toContain("`667/1/57/3`");
     expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "34", "1", "33", "0"]);
-    expect(active.filter(([task]) => task === "M1-27")).toHaveLength(0);
-    expect(complete.filter(([task]) => task === "M1-27")).toHaveLength(1);
-    expect(complete.filter(([task]) => task === "M1-26")).toHaveLength(1);
     expect(active.filter(([task]) => task === "M1-28a")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-28a")).toHaveLength(0);
+    expect(complete.filter(([task]) => task === "M1-27")).toHaveLength(1);
+    expect([...active, ...complete].filter(([task]) => task === "M1-28b")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
-  });
-
-  it("documents the exact frontend lint commands, scope, and client exception", async () => {
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
-    const section = readme.match(/## Raw frontend Fetch lint[\s\S]*?## Neon pooled proof/)?.[0] ?? "";
-    const prose = section.replace(/\s+/g, " ");
-
-    expect(section).toMatch(/^npm run raw-fetch:test$/m);
-    expect(section).toMatch(/^npm run lint$/m);
-    for (const value of [
-      "`app/**`",
-      "`apps/web/**`",
-      "`apps/web/api/client.ts`",
-      "`apps/web/api/generated.ts`",
-      "`zasp/no-raw-fetch`",
-      "Ambient aliases",
-      "Lexically scoped local symbols",
-      "seeded direct `/api/v1/` violation",
-      "M1-27 is Complete",
-      "M1-28a is In progress",
-      "M1-28b remains Pending",
-    ]) {
-      expect(prose).toContain(value);
-    }
   });
 });

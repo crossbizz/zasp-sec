@@ -537,7 +537,7 @@ The factory has no default remote server, performs no I/O during construction,
 and does not hand-write `/api/v1/` URLs. Authentication/session retrieval,
 reviewed operations, and UI integration remain later work. M1-23 is Complete.
 M1-24 is Complete. M1-25 is Complete. M1-26 is Complete. M1-27 is Complete;
-M1-28a remains Pending. No OpenAPI operation was added by the coverage task
+M1-28a is In progress, and M1-28b remains Pending. No OpenAPI operation was added by the coverage task
 itself.
 
 ```bash
@@ -582,7 +582,7 @@ UI/API coverage passed: planned=5 available=0 public=0 internal=0.
 
 Failure is fixed as `UI/API coverage rejected.` without parser or artifact
 details. Both commands are part of root verification. M1-25 is Complete.
-M1-26 is Complete. M1-27 is Complete, and M1-28a remains Pending.
+M1-26 is Complete. M1-27 is Complete. M1-28a is In progress, and M1-28b remains Pending.
 
 ## Raw frontend Fetch lint
 
@@ -604,8 +604,8 @@ npm run raw-fetch:test
 npm run lint
 ```
 
-The hostile suite is part of root verification. M1-27 is Complete, and
-M1-28a remains Pending.
+The hostile suite is part of root verification. M1-27 is Complete. M1-28a is
+In progress, and M1-28b remains Pending.
 
 ## Neon pooled proof
 

@@ -48,7 +48,7 @@ Node.js 22.23.1, npm 10.9.8, Vitest 4.1.10.
 - Produces: exact M1-28a In-progress status at overall `667/1/57/3` and M1
   `68/34/1/33/0`.
 
-- [ ] **Step 1: Write the failing status/source/design contract**
+- [x] **Step 1: Write the failing status/source/design contract**
 
 Create a Vitest contract that parses tracker tables structurally and asserts:
 
@@ -68,7 +68,7 @@ Bind the source row's dependency, deliverable, and verification sentence plus
 the design's standalone module, four exact paths, atomic readiness, no-listener
 boundary, and final arithmetic.
 
-- [ ] **Step 2: Run the focused test and witness RED**
+- [x] **Step 2: Run the focused test and witness RED**
 
 Run:
 
@@ -80,19 +80,19 @@ PATH="$HOME/.nvm/versions/node/v22.23.1/bin:$PATH" \
 Expected: the source/design case passes and only stale README/tracker assertions
 fail.
 
-- [ ] **Step 3: Move only M1-28a to In progress**
+- [x] **Step 3: Move only M1-28a to In progress**
 
 Update tracker arithmetic to `667/1/57/3` overall and `68/34/1/33/0` for M1.
 Add exactly one M1-28a In-progress row. Preserve M1-27 in Complete, M1-28b
 outside active/complete, and the three blocker rows. Update README with M1-28a
 In progress and M1-28b Pending.
 
-- [ ] **Step 4: Run focused and complete quality GREEN**
+- [x] **Step 4: Run focused and complete quality GREEN**
 
 Run the focused contract, the M1-27 contract, and all `app/quality` tests under
 pinned Node. Require zero failures and exact 728-task arithmetic.
 
-- [ ] **Step 5: Scan and commit the start transition**
+- [x] **Step 5: Scan and commit the start transition**
 
 Run `git diff --check` and a pinned redacted Gitleaks staged scan. Commit the
 contract, README, tracker, and mechanical aggregate fixtures as:
