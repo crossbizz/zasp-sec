@@ -188,13 +188,13 @@ Vitest repository contracts.
 
 ### Task 5: Complete, push, and close M1-23
 
-- [ ] **Step 1: Change only completion assertions and capture RED**
+- [x] **Step 1: Change only completion assertions and capture RED**
 
   Require exactly one M1-23 Complete row, no active source task, M1-22
   Complete, M1-24 absent, unchanged blockers, overall `672/0/53/3`, and M1
   `68/39/0/29/0`.
 
-- [ ] **Step 2: Move only M1-23 to Complete and run final gates**
+- [x] **Step 2: Move only M1-23 to Complete and run final gates**
 
   Repeat six strict-parser/lint cycles, full repository verification and build
   targets, production/full dependency audit, formatting, and staged/history/

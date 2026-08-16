@@ -61,12 +61,12 @@ describe("M1-21 observability contract", () => {
 
     expect(readme).toMatch(/M1-21\s+is\s+Complete/);
     expect(tracker).toContain("| Pending | 672 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 52 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 53 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`672/1/52/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "39", "1", "28", "0"]);
-    expect(active.map(([task]) => task)).toEqual(["M1-23"]);
+    expect(tracker).toContain("`672/0/53/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "39", "0", "29", "0"]);
+    expect(active.map(([task]) => task)).toEqual([]);
     expect(complete.filter(([task]) => task === "M1-21")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-20")).toHaveLength(1);
     expect(active.filter(([task]) => task === "M1-22")).toHaveLength(0);

@@ -511,8 +511,8 @@ The envelope deliberately contains no customer content: raw evidence,
 payloads, prompts, tool arguments, secrets, arbitrary metadata, and vendor
 identifiers are not envelope fields. The command is hermetic and performs no
 parser, OpenAPI, transport, adapter, queue, storage, provider, network,
-credential, database, Docker, filesystem, or environment I/O. M1-23 is In
-progress and is defining the OpenAPI root separately. M1-22 is Complete.
+credential, database, Docker, filesystem, or environment I/O. M1-23 is
+Complete and defines the OpenAPI root separately. M1-22 is Complete.
 
 ## OpenAPI root
 
@@ -527,7 +527,8 @@ closed two-state `PageInfo`. The public error vocabulary is canonical
 `ProductID`, the exact four-field `ProductError`, and `ProductErrorResponse`.
 The root deliberately retains `paths: {}` and contains no operations, servers,
 callbacks, webhooks, examples, or remote references. M1-24 remains Pending and
-will generate the TypeScript client only from this reviewed root.
+will generate the TypeScript client only from this reviewed root. M1-23 is
+Complete.
 
 ```bash
 npm run openapi:test

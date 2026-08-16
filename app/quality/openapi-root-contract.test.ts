@@ -53,7 +53,7 @@ describe("M1-23 OpenAPI root", () => {
     expect(plan).toContain("M1-24 remains Pending");
   });
 
-  it("starts only M1-23 and preserves its prerequisite, successor, and blockers", async () => {
+  it("completes only M1-23 and preserves its prerequisite, successor, and blockers", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -63,15 +63,15 @@ describe("M1-23 OpenAPI root", () => {
     const blocked = taskRows(tracker, "Blocked");
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
-    expect(readme).toMatch(/M1-23\s+is\s+In\s+progress/);
+    expect(readme).toMatch(/M1-23\s+is\s+Complete/);
     expect(tracker).toContain("| Pending | 672 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 52 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 53 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`672/1/52/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "39", "1", "28", "0"]);
-    expect(active.map(([task]) => task)).toEqual(["M1-23"]);
-    expect(complete.filter(([task]) => task === "M1-23")).toHaveLength(0);
+    expect(tracker).toContain("`672/0/53/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "39", "0", "29", "0"]);
+    expect(active).toHaveLength(0);
+    expect(complete.filter(([task]) => task === "M1-23")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-22")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-24")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
