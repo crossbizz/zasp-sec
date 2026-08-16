@@ -306,8 +306,13 @@ func TestServeReturnsFixedErrorWhenShutdownDeadlineExpires(t *testing.T) {
 	waitForHandlerReady(t, server)
 	started := time.Now()
 	cancel()
-	if err := <-result; !errors.Is(err, ErrInvalidRuntime) {
-		t.Fatalf("Serve() error = %v, want ErrInvalidRuntime", err)
+	select {
+	case err := <-result:
+		if !errors.Is(err, ErrInvalidRuntime) {
+			t.Fatalf("Serve() error = %v, want ErrInvalidRuntime", err)
+		}
+	case <-time.After(shutdownTimeout + 2*time.Second):
+		t.Fatalf("Serve() did not terminate within %v", shutdownTimeout+2*time.Second)
 	}
 	if elapsed := time.Since(started); elapsed < shutdownTimeout || elapsed > shutdownTimeout+time.Second {
 		t.Fatalf("shutdown elapsed = %v, want [%v, %v]", elapsed, shutdownTimeout, shutdownTimeout+time.Second)
