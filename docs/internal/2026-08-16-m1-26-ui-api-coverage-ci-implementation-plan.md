@@ -35,10 +35,10 @@ runner, Vitest repository contracts.
 **Files:** create the M1-26 quality contract; update README/tracker/current
 aggregate fixtures; create ignored task/progress evidence.
 
-- [ ] **Step 1: Capture source/design/status RED**
-- [ ] **Step 2: Move only M1-26 to In progress**
-- [ ] **Step 3: Run focused and complete quality GREEN**
-- [ ] **Step 4: Scan and commit `docs: start M1-26 UI API coverage CI`**
+- [x] **Step 1: Capture source/design/status RED**
+- [x] **Step 2: Move only M1-26 to In progress**
+- [x] **Step 3: Run focused and complete quality GREEN**
+- [x] **Step 4: Scan and commit `docs: start M1-26 UI API coverage CI`**
 
 ---
 

@@ -536,8 +536,8 @@ Because the root still has `paths: {}`, the client has no callable endpoint.
 The factory has no default remote server, performs no I/O during construction,
 and does not hand-write `/api/v1/` URLs. Authentication/session retrieval,
 reviewed operations, and UI integration remain later work. M1-23 is Complete.
-M1-24 is Complete. M1-25 is Complete. M1-26 remains Pending and will add reusable
-coverage CI without adding an OpenAPI operation itself.
+M1-24 is Complete. M1-25 is Complete. M1-26 is In progress and is adding
+reusable coverage CI without adding an OpenAPI operation itself.
 
 ```bash
 npm run openapi:test
@@ -561,8 +561,8 @@ System Health maps overall status, component inventory, and version actions to
 The artifact contains only stable screen/action identity and operation IDs;
 all five actions are `planned`. It does not add or claim a current OpenAPI
 operation, HTTP path, client method, UI call, or provider integration.
-M1-25 is Complete. M1-26 remains Pending and owns reusable OpenAPI coverage CI when
-those operations are defined.
+M1-25 is Complete. M1-26 is In progress and owns reusable OpenAPI coverage CI
+when those operations are defined.
 
 ## Neon pooled proof
 
