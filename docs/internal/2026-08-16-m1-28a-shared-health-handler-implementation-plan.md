@@ -306,13 +306,13 @@ Commit as:
 docs: complete M1-28a shared health handler
 ```
 
-- [ ] **Step 3: Push completion and require exact-SHA Runnable UI success**
+- [x] **Step 3: Push completion and require exact-SHA Runnable UI success**
 
 Push `codex/zasp-implementation`, locate the Runnable UI run whose `headSha`
 equals the completion commit, and wait for its job to finish successfully.
 Record run ID, job ID, URL, and exact SHA.
 
-- [ ] **Step 4: Push the plan-only closure and require exact-SHA CI success**
+- [x] **Step 4: Push the plan-only closure and require exact-SHA CI success**
 
 Mark every plan checkbox complete, commit only this plan as
 `docs: close M1-28a shared health handler`, push, and require a second
