@@ -652,7 +652,7 @@ handler behavior only; it does not authorize external exposure of these
 internal endpoints. Platform, event-ingest, and runtime-gateway command wiring
 are complete under M1-28b, M1-28c, and M1-28d. M1-28a is Complete.
 M1-28b is Complete. M1-28c is Complete, M1-28d is Complete, M1-28 is Complete,
-and M1-29 remains Pending.
+and M1-29 is In progress. M1-30a remains Pending.
 
 ## Common internal service health contract
 
@@ -669,7 +669,14 @@ npm run health:contract:test
 The root gate runs the strict internal OpenAPI/service-document contract and
 the race suites for the shared handler, platform API and worker, event-ingest,
 and runtime-gateway. It makes no provider or external network call. M1-28 is
-Complete and M1-29 remains Pending.
+Complete and M1-29 is In progress.
+
+## System health aggregation model
+
+M1-29 is In progress. It will define the shared Healthy, Degraded, and
+Unavailable component model plus required-versus-optional aggregation in
+`services/health`. No aggregation runtime or readiness behavior is claimed by
+this start transition. M1-30a remains Pending.
 
 ## Platform health wiring
 
