@@ -56,4 +56,23 @@ describe("M1-17 AuditEmitter contract", () => {
     expect([...active, ...complete].filter(([task]) => task === "M1-18")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
+
+  it("exposes only the hermetic root contract and documents deferred persistence", async () => {
+    const [packageText, readme] = await Promise.all([
+      readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+    ]);
+    const packageJson = JSON.parse(packageText) as { scripts: Record<string, string> };
+    const section = readme.match(/## AuditEmitter contract[\s\S]*?(?=\n## )/)?.[0] ?? "";
+
+    expect(packageJson.scripts["audit:emitter:test"]).toBe("go test -C services/platform -race -count=1 ./audit");
+    expect(section).toContain("npm run audit:emitter:test");
+    expect(section).toContain("actor, action, target, and outcome");
+    expect(section).toMatch(/Organization, Workspace, and\s+Environment/);
+    expect(section).toContain("one-attempt append");
+    expect(section).toContain("fixed product errors");
+    expect(section).toContain("hermetic fake driver");
+    expect(section).toMatch(/does\s+not prove persistence, retention, export, or a generic event envelope/);
+    expect(section).toMatch(/M1-18\s+remains Pending/);
+  });
 });

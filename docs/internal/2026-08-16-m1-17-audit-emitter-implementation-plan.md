@@ -120,7 +120,7 @@ git commit -m "docs: start M1-17 audit emitter"
 - Produces: `AuditEmitter`, `Emitter`, `Driver`, `Config`, `Mutation`,
   `Outcome`, `DriverMutation`, `DriverAppended`, `New`, and fixed errors.
 
-- [ ] **Step 1: Add missing-symbol tests before production**
+- [x] **Step 1: Add missing-symbol tests before production**
 
 Compile tests against these exact public shapes before `emitter.go` exists:
 
@@ -176,7 +176,7 @@ The happy fake records one call, requires a live context, and returns an exact
 acknowledgement copied from the received mutation. Assert the concrete emitter
 satisfies `AuditEmitter`.
 
-- [ ] **Step 2: Run genuine compiler RED**
+- [x] **Step 2: Run genuine compiler RED**
 
 ```bash
 go test -C services/platform ./audit -run '^TestEmitter' -count=1
@@ -186,7 +186,7 @@ Expected: compilation fails only because package production symbols do not yet
 exist. Record the command, missing symbols, and exit code before adding
 `emitter.go`.
 
-- [ ] **Step 3: Implement construction and the exact happy path**
+- [x] **Step 3: Implement construction and the exact happy path**
 
 Add these fixed errors and limits:
 
@@ -209,7 +209,7 @@ seven canonical driver fields; creates one configured child deadline; invokes
 `Driver.Append` once through a panic-containing helper; and requires exact
 field-for-field acknowledgement before returning nil.
 
-- [ ] **Step 4: Run focused happy-path GREEN**
+- [x] **Step 4: Run focused happy-path GREEN**
 
 ```bash
 go test -C services/platform ./audit -run '^TestEmitter' -count=1
@@ -217,7 +217,7 @@ go test -C services/platform ./audit -run '^TestEmitter' -count=1
 
 Expected: exact forwarding and acknowledgement tests pass.
 
-- [ ] **Step 5: Add adversarial validation tests and capture RED if needed**
+- [x] **Step 5: Add adversarial validation tests and capture RED if needed**
 
 Use table-driven cases that zero each required field independently and reject
 all malformed actions:
@@ -235,7 +235,7 @@ typed-nil driver, zero/negative/over-limit timeout, zero-value/nil receiver,
 and actor equal to target as a valid self-mutation. Every input rejection must
 leave the fake call count at zero.
 
-- [ ] **Step 6: Add driver-boundary and failure tests**
+- [x] **Step 6: Add driver-boundary and failure tests**
 
 For each of the seven acknowledgement fields, return a zero or altered value
 and require `ErrEmit`. Cover driver error with provider-bearing text, panic,
@@ -244,7 +244,7 @@ single-attempt behavior, and fixed error strings that never include provider
 data. Add 32 concurrent valid calls under `go test -race` and require one exact
 append per call.
 
-- [ ] **Step 7: Run focused GREEN six times and platform gates**
+- [x] **Step 7: Run focused GREEN six times and platform gates**
 
 ```bash
 for run in 1 2 3 4 5 6; do
@@ -258,7 +258,7 @@ go -C services/platform vet ./...
 
 Expected: every command exits zero with no dependency change.
 
-- [ ] **Step 8: Review the exact task diff, scan, and commit**
+- [x] **Step 8: Review the exact task diff, scan, and commit**
 
 Check action grammar, exact field copying, pre-I/O validation, one-attempt
 semantics, panic containment, deadlines, typed nil, acknowledgement equality,
@@ -284,7 +284,7 @@ git commit -m "feat: add scoped audit emitter contract"
 - Produces: root `audit:emitter:test` command and an explicit product/provider
   boundary for users and CI.
 
-- [ ] **Step 1: Extend the contract and capture RED**
+- [x] **Step 1: Extend the contract and capture RED**
 
 Assert the root script is exactly:
 
@@ -299,7 +299,7 @@ required fields, exact tenant scope, fixed errors, one-attempt append,
 hermetic-only boundary, and M1-18 Pending. Run the focused test before wiring;
 expect only script/docs assertions to fail.
 
-- [ ] **Step 2: Add script and README section, then run GREEN**
+- [x] **Step 2: Add script and README section, then run GREEN**
 
 Add the script without reordering unrelated scripts. Document:
 
@@ -311,7 +311,7 @@ State that it uses a fake driver, performs no provider/database/network I/O,
 and does not yet prove persistence, retention, export, or a generic event
 envelope. Run focused, root, full platform, and full pinned repository gates.
 
-- [ ] **Step 3: Scan and commit root wiring**
+- [x] **Step 3: Scan and commit root wiring**
 
 ```bash
 git add package.json README.md app/quality/audit-emitter-contract.test.ts

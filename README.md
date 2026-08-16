@@ -381,6 +381,23 @@ Neo4j Community remains a GPL-3.0-only proof-only compatibility target. M1-16
 is Complete after whole-range review, final verification, the exact live proof,
 and exact-SHA CI; M1-17 is In progress.
 
+## AuditEmitter contract
+
+M1-17 defines a dependency-free product AuditEmitter for security mutations.
+Every mutation requires canonical product actor, action, target, and outcome
+fields plus exact Organization, Workspace, and Environment scope. The boundary
+validates inputs before I/O, performs one bounded, one-attempt append, requires
+an exact acknowledgement, and exposes only fixed product errors.
+
+```bash
+npm run audit:emitter:test
+```
+
+This command runs a hermetic fake driver. It performs no provider, database,
+network, Docker, credential, or shared-resource I/O. The hermetic boundary does
+not prove persistence, retention, export, or a generic event envelope. M1-18
+remains Pending.
+
 ## Neon pooled proof
 
 The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,
