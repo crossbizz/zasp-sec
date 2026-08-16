@@ -160,14 +160,14 @@ Node test runner, Vitest repository contracts, pinned Node 22.23.1/npm 10.9.8.
 
 - [x] **Step 2: Move only M1-24 to Complete and run final gates/scans**
 
-- [ ] **Step 3: Commit, push, and require exact completion-SHA CI success**
+- [x] **Step 3: Commit, push, and require exact completion-SHA CI success**
 
   ```bash
   git commit -m "docs: complete M1-24 generated client"
   git push origin codex/zasp-implementation
   ```
 
-- [ ] **Step 4: Commit/push plan-only closure and require exact CI success**
+- [x] **Step 4: Commit/push plan-only closure and require exact CI success**
 
   ```bash
   git commit -m "docs: close M1-24 generated client"
