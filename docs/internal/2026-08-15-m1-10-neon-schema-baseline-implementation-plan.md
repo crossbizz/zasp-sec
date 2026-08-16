@@ -29,3 +29,13 @@
 9. Update the README/tracker to Complete (`685/0/40/3`; M1 `68/52/0/16/0`),
    preserve all blocker/risk boundaries, commit, push, and require exact-SHA
    Runnable UI success. Then leave M1-11 Pending and close the ignored evidence.
+
+## Completion
+
+- [x] Execute steps 1-8 tests-first, including three fresh disposable live
+  up/down proofs and a zero-finding final review.
+- [x] Move only M1-10 to Complete at `685/0/40/3` and M1
+  `68/52/0/16/0`; preserve M1-11 and all blocker/risk boundaries.
+- [x] Commit and push the completion plus test stabilization, then require
+  exact-SHA Runnable UI run `31919574384`, job `95097114861`, to succeed.
+- [x] Close this plan and keep M1-11 Pending until the close SHA passes CI.
