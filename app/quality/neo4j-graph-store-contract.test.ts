@@ -34,7 +34,7 @@ describe("M1-16 Neo4j GraphStore contract", () => {
     expect(plan).toContain("M1-17 remains Pending");
   });
 
-  it("starts only M1-16 while preserving prior completion and blockers", async () => {
+  it("completes only M1-16 while preserving prior completion and blockers", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -44,15 +44,16 @@ describe("M1-16 Neo4j GraphStore contract", () => {
     const blocked = taskRows(tracker, "Blocked");
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
-    expect(readme).toContain("M1-16 is In progress");
+    expect(readme).toContain("M1-16 is Complete");
     expect(tracker).toContain("| Pending | 679 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 45 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 46 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`679/1/45/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "46", "1", "21", "0"]);
-    expect(active.map(([task]) => task)).toEqual(["M1-16"]);
+    expect(tracker).toContain("`679/0/46/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "46", "0", "22", "0"]);
+    expect(active).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-15")).toHaveLength(1);
+    expect(complete.filter(([task]) => task === "M1-16")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-17")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });

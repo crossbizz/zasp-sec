@@ -337,7 +337,7 @@ M1-15 is Complete. It adds a dependency-free product GraphStore with
 canonical product node and edge IDs, exact Organization, Workspace, and
 Environment scope, and bounded structured reads. Neo4j types, Cypher, provider
 identifiers, endpoints, credentials, and arbitrary customer graph queries stay
-outside the product interface. M1-16 is In progress.
+outside the product interface. M1-16 is Complete.
 
 ```bash
 npm run graph:store:test
@@ -347,7 +347,7 @@ This is a hermetic fake driver contract. It validates canonical projection
 upsert, bounded structured read, exact scope and identity, fixed errors,
 deadlines, defensive copies, and concurrency without Docker or provider I/O. It
 does not run Neo4j or prove persistence, transactions, availability, packaging,
-or licensing. M1-16 is adding the exact-scoped official-driver adapter and a
+or licensing. M1-16 adds the exact-scoped official-driver adapter and a
 disposable Neo4j Community compatibility proof without widening the product
 interface; M1-17 remains Pending.
 
@@ -377,9 +377,9 @@ The adapter uses fixed parameterized statements; it does not accept raw Cypher o
 The runner does not target a shared Neo4j service and
 re-proves any shared Neo4j container fingerprint unchanged. The Apache-2.0 Go
 driver is an approved product runtime dependency; this proof does not approve Neo4j Community server packaging or redistribution.
-Neo4j Community remains a
-GPL-3.0-only proof-only compatibility target. M1-16 remains In progress until
-whole-range review, final verification, push, and exact-SHA CI complete.
+Neo4j Community remains a GPL-3.0-only proof-only compatibility target. M1-16
+is Complete after whole-range review, final verification, the exact live proof,
+and exact-SHA CI; M1-17 remains Pending.
 
 ## Neon pooled proof
 

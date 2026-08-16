@@ -41,7 +41,7 @@ Node.js 22.23.1/npm 10.9.8, Vitest, Node test runner, Docker CLI, Gitleaks 8.30.
   redistribution, or commercial licensing approved.
 - No dotenv, cloud/provider credential, profile, proxy, ambient Docker auth,
   shared-service mutation, raw customer graph query, or host-wide cleanup.
-- M1-16 remains In progress until live proof, exact cleanup, six final passes,
+- M1-16 is Complete after live proof, exact cleanup, six final passes,
   full gates/scans, zero-finding review, push, and exact-SHA CI succeed.
 - M1-17 remains Pending throughout.
 
@@ -436,7 +436,7 @@ git commit -m "feat: read bounded Neo4j graph projections"
   driver, and exact Neo4j image.
 - Produces: hermetic proof tests and fixed live command boundary.
 
-- [ ] **Step 1: Write Go proof tests before production**
+- [x] **Step 1: Write Go proof tests before production**
 
 The wished-for CLI reads only `NEO4J_GRAPHSTORE_URI=bolt://127.0.0.1:<port>`
 from the exact child environment. It uses `neo4j.NoAuth()`, verifies
@@ -462,13 +462,13 @@ Failures are one fixed line:
 Neo4j GraphStore proof failed: <configuration|provider|ownership|operation|cleanup> rejected.
 ```
 
-- [ ] **Step 2: Run Go compiler RED**
+- [x] **Step 2: Run Go compiler RED**
 
 ```bash
 go test -C proofs/neo4j-graphstore -count=1 ./...
 ```
 
-- [ ] **Step 3: Write Node lifecycle and license tests before production**
+- [x] **Step 3: Write Node lifecycle and license tests before production**
 
 Require the exact image, generated prefix/marker labels, owned empty
 `DOCKER_CONFIG`, no ambient credential/profile/proxy input, numeric-loopback
@@ -490,7 +490,7 @@ The license audit must bind the exact image/source version and the exact
 official Go driver module/version/license while stating that the Community
 server is proof-only and not approved in the product dependency lock.
 
-- [ ] **Step 4: Run Node/Python-free compiler RED**
+- [x] **Step 4: Run Node/Python-free compiler RED**
 
 ```bash
 PATH="$HOME/.nvm/versions/node/v22.23.1/bin:$PATH" \
@@ -499,7 +499,7 @@ PATH="$HOME/.nvm/versions/node/v22.23.1/bin:$PATH" \
 
 Expected: module-not-found failures for the absent runner/audit.
 
-- [ ] **Step 5: Implement the Go proof and Node lifecycle**
+- [x] **Step 5: Implement the Go proof and Node lifecycle**
 
 Use the exact-image and ownership patterns already proved in
 `proofs/cartography-scope`, but keep this module independent and limited to one
@@ -507,7 +507,7 @@ Neo4j target plus one Go child. Do not import Cartography, fixture graphs, or
 M0-10 result types. All cleanup authorization must be based on retained full
 IDs plus fresh exact metadata reproof.
 
-- [ ] **Step 6: Run hermetic GREEN six times**
+- [x] **Step 6: Run hermetic GREEN six times**
 
 ```bash
 for run in 1 2 3 4 5 6; do
@@ -517,7 +517,7 @@ for run in 1 2 3 4 5 6; do
 done
 ```
 
-- [ ] **Step 7: Run the exact live lifecycle and audit zero state**
+- [x] **Step 7: Run the exact live lifecycle and audit zero state**
 
 After local GREEN and a read-only prefix/shared-target preflight, run the exact
 environment-isolated command once. Require the fixed success line, exact Go
@@ -525,7 +525,7 @@ product result, both constraints, three nodes/two edges, Organization B zero,
 fixture deletion, container/intrinsic-volume/temp absence, global proof-prefix
 absence, and unchanged shared target fingerprint.
 
-- [ ] **Step 8: Commit the proof**
+- [x] **Step 8: Commit the proof**
 
 ```bash
 git add proofs/neo4j-graphstore
@@ -546,7 +546,7 @@ git commit -m "feat: prove scoped Neo4j GraphStore"
 - Produces: documented root hermetic/live/license commands and repository
   contract coverage.
 
-- [ ] **Step 1: Extend the contract before wiring commands**
+- [x] **Step 1: Extend the contract before wiring commands**
 
 Require exact scripts:
 
@@ -560,7 +560,7 @@ Require README commands, exact success line, local-only compatibility boundary,
 driver/image pins, no raw Cypher/customer query, no shared target, and explicit
 server-packaging risk. Run focused RED before changing scripts/docs.
 
-- [ ] **Step 2: Add scripts and README section, then run GREEN**
+- [x] **Step 2: Add scripts and README section, then run GREEN**
 
 ```bash
 PATH="$HOME/.nvm/versions/node/v22.23.1/bin:$PATH" npm run graph:neo4j:test
@@ -569,7 +569,7 @@ PATH="$HOME/.nvm/versions/node/v22.23.1/bin:$PATH" \
   npm exec vitest -- run app/quality/neo4j-graph-store-contract.test.ts
 ```
 
-- [ ] **Step 3: Commit root wiring**
+- [x] **Step 3: Commit root wiring**
 
 ```bash
 git add package.json README.md app/quality/neo4j-graph-store-contract.test.ts
@@ -589,24 +589,24 @@ git commit -m "docs: expose Neo4j GraphStore proof"
 - Consumes: all M1-16 commits and evidence.
 - Produces: zero unresolved Critical, Important, or Minor findings.
 
-- [ ] **Step 1: Review exact scope read-only**
+- [x] **Step 1: Review exact scope read-only**
 
 Audit against the authoritative task, PRD, design, plan, M1-15 driver contract,
 official driver semantics, exact Cypher, transaction lifecycle, strict record
 conversion, ownership, cleanup, license boundary, fixed output, and evidence.
 Run only non-live gates during review.
 
-- [ ] **Step 2: Reproduce every finding tests-first**
+- [x] **Step 2: Reproduce every finding tests-first**
 
 For each finding, add the smallest hostile regression and capture genuine RED
 before production edits. Do not accept a suggestion until code and primary
 documentation confirm its premise. Fix findings in separate atomic commits.
 
-- [ ] **Step 3: Repeat review until zero findings remain**
+- [x] **Step 3: Repeat review until zero findings remain**
 
 Require an explicit zero-finding verdict for Critical, Important, and Minor.
 
-- [ ] **Step 4: Run final gates**
+- [x] **Step 4: Run final gates**
 
 ```bash
 for run in 1 2 3 4 5 6; do
@@ -642,13 +642,13 @@ content, new paths, ignored evidence, exact commits, and full history.
 - Consumes: zero-finding reviewed implementation and final evidence.
 - Produces: truthful M1-16 Complete status and exact-SHA shipped branch.
 
-- [ ] **Step 1: Write completion assertions and capture RED**
+- [x] **Step 1: Write completion assertions and capture RED**
 
 Require exactly one M1-16 Complete row, M1-15 Complete, M1-17 absent, unchanged
 blockers, overall `679/0/46/3`, and M1 `68/46/0/22/0`. Run focused RED while
 the tracker still says In progress.
 
-- [ ] **Step 2: Move only M1-16 to Complete and run final local gates**
+- [x] **Step 2: Move only M1-16 to Complete and run final local gates**
 
 Update README/tracker/current aggregate fixtures, preserve historical fixtures,
 and repeat focused/root/full/license/audit/whitespace/secret gates. Commit:

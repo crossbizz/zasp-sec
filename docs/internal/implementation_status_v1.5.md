@@ -2,7 +2,7 @@
 
 **Source plan:** `docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md`  
 **Source PRD:** `docs/internal/agent_security_platform_PRD_v1.5.md`  
-**Last updated:** August 15, 2026
+**Last updated:** August 16, 2026
 **Execution branch:** `codex/zasp-implementation`
 
 This file is the authoritative execution status for the 728 microtasks in the
@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 679 |
-| In progress | 1 |
-| Complete | 45 |
+| In progress | 0 |
+| Complete | 46 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -24,7 +24,7 @@ In progress, Complete, or Blocked is Pending.
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 0 | 0 | 24 | 3 |
-| M1 | 68 | 46 | 1 | 21 | 0 |
+| M1 | 68 | 46 | 0 | 22 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
 | M3 | 75 | 75 | 0 | 0 | 0 |
@@ -68,19 +68,19 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `679/1/45/3` because
+session configuration. The 728 source-plan counts are `679/0/46/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M1-16 | August 15, 2026 | Implementing the exact-scoped Neo4j GraphStore adapter and disposable compatibility proof behind the completed M1-15 product interface. |
 
 ## Complete
 
 | Task | Completed | Evidence |
 | --- | --- | --- |
+| M1-16 | August 16, 2026 | Added the exact-scoped official Neo4j driver adapter and an exact-owned disposable Community proof; the final live lifecycle proved three nodes, two edges, replay, structured scoped reads, Organization-B zero state, exact cleanup, prefix-wide absence, and shared-target non-mutation, followed by six hermetic passes, full repository gates, license and secret scans, and zero-finding whole-range review. |
 | M1-15 | August 15, 2026 | Added a dependency-free provider-neutral GraphStore with exact Organization, Workspace, and Environment scope; canonical product-only node and edge identities; bounded structured upsert/read operations; strict defensive driver validation; a hermetic fake-driver contract; six final race passes; full repository gates and scans; and zero-finding review. Neo4j persistence remains with M1-16. |
 | M1-14 | August 15, 2026 | Added a dependency-free scoped EventStore plus strict create-only OpenSearch adapter; the exact disposable lifecycle proved Organization-A index/search and Organization-B zero results, exact index/container/temp cleanup, shared-target non-mutation, six final hermetic passes, full repository gates and scans, and zero-finding independent review. |
 | M1-13 | August 15, 2026 | Added a dependency-free Organization-scoped JobQueue with canonical bounded batches, opaque queue-bound receipts, exact SQS body-plus-attribute quotas, and a strict dynamic-port SDK adapter; the exact disposable LocalStack queue/DLQ lifecycle proved two scoped publish/consume/acknowledge operations, redrive state, Standard-queue partial/order handling, reverse cleanup, prefix-wide absence, shared-container non-mutation, six final hermetic passes, full repository gates/scans, and zero-finding independent review. |
