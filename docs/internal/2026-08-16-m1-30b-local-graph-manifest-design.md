@@ -95,13 +95,16 @@ Every resource has exact `app.kubernetes.io/part-of=zasp`,
 Names, selectors, images, storage class, capacities, access mode, commands,
 ports, probes, resources, and security settings are fixed.
 
-The PV is one GiB, `ReadWriteOnce`, `Retain`, and uses a fixed local path
-inside the disposable kind node. It has node affinity to the exact retained
-kind node and cannot bind elsewhere. The PVC names that PV directly, uses the
-same capacity/access mode/storage class, and must be `Bound` to the retained
-PV before Neo4j is accepted. The runner creates and owns the node-local
-directory before applying the manifest and removes it only by deleting the
-exact disposable node container with the cluster.
+The PV is one GiB, `ReadWriteOnce`, `Retain`, and uses the fixed local path
+`/var/lib/zasp/m1-30b/neo4j-data` inside the disposable kind node. Its node
+affinity requires the exact proof-only label `zasp.dev/graph-node=m1-30b`.
+The runner applies and re-proves that label only on its retained node before
+applying the graph overlay, so the byte-exact tracked manifest contains no
+random node name and cannot bind elsewhere. The PVC names that PV directly,
+uses the same capacity/access mode/storage class, and must be `Bound` to the
+retained PV before Neo4j is accepted. The runner creates and owns the
+node-local directory before applying the manifest and removes it only by
+deleting the exact disposable node container with the cluster.
 
 Neo4j runs as UID/GID 7474 with service-account token mounting disabled,
 `RuntimeDefault` seccomp, no privilege escalation, no added capabilities, and
@@ -155,7 +158,8 @@ The main lifecycle is:
 2. create the owned runtime root and M1-30a product images;
 3. resolve Neo4j and BusyBox index/config/platform digests and retain their
    complete immutable image projections;
-4. create and re-prove the disposable kind cluster and node-local data path;
+4. create and re-prove the disposable kind cluster, fixed proof-only node
+   label, and node-local data path;
 5. load the four product images plus the exact graph images into containerd
    and re-prove index/config/platform/rootfs identities;
 6. apply the canonical product manifest and canonical graph overlay through

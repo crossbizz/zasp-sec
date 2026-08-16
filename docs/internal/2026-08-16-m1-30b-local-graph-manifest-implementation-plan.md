@@ -111,9 +111,9 @@ docs: start M1-30b local graph manifest
 - Create: `deploy/local/graph-licenses.json`
 
 **Interfaces:**
-- Produces: immutable graph/image constants, `buildGraphResources(nodeName)`,
-  `validateGraphResources(value, nodeName)`, `parseGraphManifest(text,
-  nodeName)`, `renderGraphManifest(value, nodeName)`, and exact license audit.
+- Produces: immutable graph/image constants, `buildGraphResources()`,
+  `validateGraphResources(value)`, `parseGraphManifest(text)`,
+  `renderGraphManifest(value)`, and exact license audit.
 - Consumes: direct `js-yaml` 4.1.1 and pinned public source/license evidence.
 
 - [ ] **Step 1: Write manifest and inventory tests before production**
@@ -141,10 +141,11 @@ Require missing exports/files only.
 
 - [ ] **Step 3: Implement strict models and parsers**
 
-Build exact plain objects from the retained node name only. Parse one bounded
-UTF-8 YAML document under the JSON schema, reject duplicate keys/aliases/tags,
-recursively require exact keys/types/values, deep-freeze the validated copy,
-and require byte-exact deterministic re-rendering.
+Build exact plain objects with the fixed local data path and proof-only node
+label; accept no caller input. Parse one bounded UTF-8 YAML document under the
+JSON schema, reject duplicate keys/aliases/tags, recursively require exact
+keys/types/values, deep-freeze the validated copy, and require byte-exact
+deterministic re-rendering.
 
 - [ ] **Step 4: Add canonical YAML and license records**
 
@@ -205,9 +206,11 @@ the original phase order, fixed output, nine resources, and cleanup behavior.
 
 Resolve and retain Neo4j/BusyBox index, config, selected-platform, rootfs,
 environment, entrypoint, command, exposed-port, and intrinsic-volume metadata.
-Prepare only the fixed path in the retained kind node with UID/GID 7474.
-Journal each mutation and reconcile ambiguity only through exact node/path
-state. Load both images by immutable identity and verify containerd state.
+Apply and re-prove the fixed `zasp.dev/graph-node=m1-30b` label only on the
+retained kind node. Prepare only the fixed path in that node with UID/GID
+7474. Journal each mutation and reconcile ambiguity only through exact
+node/label/path state. Load both images by immutable identity and verify
+containerd state.
 
 - [ ] **Step 5: Implement independent reverse cleanup**
 
