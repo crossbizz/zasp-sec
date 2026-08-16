@@ -265,14 +265,14 @@ docs: record M1-27 raw fetch lint review
 - Modify: this implementation plan
 - Update ignored task and authoritative reports.
 
-- [ ] **Step 1: Capture completion status RED**
+- [x] **Step 1: Capture completion status RED**
 
 Change only the contract expectations to overall `668/0/57/3`, M1
 `68/35/0/33/0`, M1-27 exactly once in Complete and absent from active, and
 M1-28a Pending. Run it before README/tracker changes and require only the stale
 status assertions to fail.
 
-- [ ] **Step 2: Move only M1-27 to Complete and run final gates/scans**
+- [x] **Step 2: Move only M1-27 to Complete and run final gates/scans**
 
 Update README/tracker and all exact aggregate fixtures. Run six focused rule
 and completion passes, full pinned verification, repository builds, audits,

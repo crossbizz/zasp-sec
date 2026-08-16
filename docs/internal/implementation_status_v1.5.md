@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 668 |
-| In progress | 1 |
-| Complete | 56 |
+| In progress | 0 |
+| Complete | 57 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -24,7 +24,7 @@ In progress, Complete, or Blocked is Pending.
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 0 | 0 | 24 | 3 |
-| M1 | 68 | 35 | 1 | 32 | 0 |
+| M1 | 68 | 35 | 0 | 33 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
 | M3 | 75 | 75 | 0 | 0 | 0 |
@@ -68,19 +68,19 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `668/1/56/3` because
+session configuration. The 728 source-plan counts are `668/0/57/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M1-27 | August 16, 2026 | Adding a frontend ESLint rule and seeded hostile tests that forbid raw Fetch calls outside the exact generated-client boundary. |
 
 ## Complete
 
 | Task | Completed | Evidence |
 | --- | --- | --- |
+| M1-27 | August 16, 2026 | Added a scope-aware frontend ESLint rule that forbids ambient raw Fetch access under `app/**` and `apps/web/**` outside the exact generated-client boundary, rejects direct/member/computed/optional/alias/destructuring/sequence/higher-order forms without false local-name matches, and passed seeded hostile RED/GREEN, six stability passes, full repository gates/audits/scans, and zero-finding whole-range review. |
 | M1-26 | August 16, 2026 | Added strict bounded UI/API coverage CI with planned/available lifecycle enforcement, complete public/internal OpenAPI operation classification, deliberate missing/unmapped-operation failures, fixed output, six stability passes, full repository gates/audits/scans, and zero-finding whole-range review. |
 | M1-25 | August 16, 2026 | Added the strict checked-in two-screen UI-to-API map seed with five unique planned Home/System Health action mappings, duplicate-safe YAML and exact semantic mutation coverage, synthetic future operation resolution, six stability passes, full repository gates/audits/scans, and zero-finding whole-range review after removing unsupported route metadata. |
 | M1-24 | August 16, 2026 | Generated and committed the exact immutable TypeScript API surface from M1-23 with exact-pinned OpenAPI TypeScript, exposed a zero-construction-I/O typed Fetch factory, approved the exact runtime dependency, enforced byte-reproducible drift checks in root CI, passed six stability cycles, full repository gates/audits/scans, and zero-finding whole-range review. |
