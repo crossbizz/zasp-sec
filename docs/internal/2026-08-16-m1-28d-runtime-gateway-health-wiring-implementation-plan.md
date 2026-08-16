@@ -95,10 +95,10 @@ Actions Runnable UI.
 
 ## Closure checklist
 
-- [ ] Task 1 design/plan/status transition passes.
-- [ ] Task 2 genuine runtime/dependency RED is recorded.
-- [ ] Task 3 bounded lifecycle is GREEN at 100% statements.
-- [ ] Task 4 linked real-listener command smoke passes.
-- [ ] Task 5 full repository gates, audits, scans, and docs pass.
-- [ ] Task 6 independent review is zero-finding and Ready Yes.
-- [ ] Task 7 completion, exact-SHA CI, synchronization, and closure pass.
+- [x] Task 1 design/plan/status transition passes.
+- [x] Task 2 genuine runtime/dependency RED is recorded.
+- [x] Task 3 bounded lifecycle is GREEN at 100% statements.
+- [x] Task 4 linked real-listener command smoke passes.
+- [x] Task 5 full repository gates, audits, scans, and docs pass.
+- [x] Task 6 independent review is zero-finding and Ready Yes.
+- [x] Task 7 completion, exact-SHA CI, synchronization, and closure pass.
