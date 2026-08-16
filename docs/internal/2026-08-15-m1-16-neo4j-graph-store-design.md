@@ -156,8 +156,9 @@ transaction only after complete result consumption. The M1-15 store then
 performs its independent full result validation and reachability check.
 
 No arbitrary predicate, label, relationship type, property list, query text,
-or customer string affects Cypher structure. Maximum depth is selected from a
-fixed source table of nine query forms rather than interpolated.
+or customer string affects Cypher structure. Maximum depth controls only the
+bounded Go breadth-first loop; each level uses one of three immutable one-hop
+adjacency statements selected by direction.
 
 ## Error, deadline, and concurrency behavior
 
