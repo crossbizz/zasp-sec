@@ -342,7 +342,7 @@ func TestStoreRejectsMalformedReadResults(t *testing.T) {
 		"dangling edge":      mutateDriverProjection(valid, func(value *DriverProjection) { value.Edges[0].TargetID = fixtureID(t, "a").String() }),
 		"self edge":          mutateDriverProjection(valid, func(value *DriverProjection) { value.Edges[0].TargetID = value.Edges[0].SourceID }),
 		"root missing":       mutateDriverProjection(valid, func(value *DriverProjection) { value.Nodes = value.Nodes[1:]; value.Edges = nil }),
-		"unreachable node":   mutateDriverProjection(valid, addUnreachableDriverNode(t, scope)),
+		"oversized nodes":    mutateDriverProjection(valid, addUnreachableDriverNode(t, scope)),
 	}
 	for name, returned := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -370,6 +370,35 @@ func TestStoreRejectsMalformedReadResults(t *testing.T) {
 	}
 	if result, err := store.Read(context.Background(), scope, request); err != nil || result.Nodes == nil || result.Edges == nil || len(result.Nodes) != 0 || len(result.Edges) != 0 {
 		t.Fatalf("empty Read = %#v, %v", result, err)
+	}
+}
+
+func TestReadRejectsOversizedDriverResultBeforeCopyingIt(t *testing.T) {
+	t.Parallel()
+	scope := fixtureScope(t, "1", "2", "3")
+	projection := fixtureProjection(t, scope)
+	oversized := DriverProjection{Nodes: make([]DriverNode, 4_096)}
+	driver := functionDriver{
+		upsert: func(context.Context, DriverProjection) (DriverUpserted, error) { return DriverUpserted{}, nil },
+		read:   func(context.Context, DriverQuery) (DriverProjection, error) { return oversized, nil },
+	}
+	store, err := New(driver, validConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := ReadRequest{
+		RootID: projection.Nodes[0].NodeID, Direction: DirectionOutgoing,
+		MaximumDepth: 1, MaximumNodes: 2, MaximumEdges: 1,
+	}
+	measurement := testing.Benchmark(func(benchmark *testing.B) {
+		for index := 0; index < benchmark.N; index++ {
+			if _, err := store.Read(context.Background(), scope, request); !errors.Is(err, ErrRead) {
+				benchmark.Fatalf("Read error = %v", err)
+			}
+		}
+	})
+	if measurement.AllocedBytesPerOp() > 32*1_024 {
+		t.Fatalf("oversized rejection allocated %d bytes per operation", measurement.AllocedBytesPerOp())
 	}
 }
 
@@ -431,6 +460,9 @@ func TestStoreRejectsUnreachableAndNoncanonicalMultiEdgeResults(t *testing.T) {
 		"unreachable within depth": mutateDriverProjection(valid, func(value *DriverProjection) { value.Edges = value.Edges[:1] }),
 		"unsorted edges": mutateDriverProjection(valid, func(value *DriverProjection) {
 			value.Edges[0], value.Edges[1] = value.Edges[1], value.Edges[0]
+		}),
+		"duplicate edge ID": mutateDriverProjection(valid, func(value *DriverProjection) {
+			value.Edges[1] = value.Edges[0]
 		}),
 		"duplicate semantic edge": mutateDriverProjection(valid, func(value *DriverProjection) {
 			value.Edges[1].Kind = value.Edges[0].Kind

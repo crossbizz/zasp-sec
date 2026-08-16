@@ -188,7 +188,7 @@ func (store *Store) Read(ctx context.Context, scope domain.Scope, request ReadRe
 	if err != nil || operationCtx.Err() != nil {
 		return Projection{}, ErrRead
 	}
-	projection, ok := productProjection(scope, request, cloneDriverProjection(returned))
+	projection, ok := productProjection(scope, request, returned)
 	if !ok {
 		return Projection{}, ErrRead
 	}

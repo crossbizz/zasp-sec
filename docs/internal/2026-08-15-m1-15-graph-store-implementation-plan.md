@@ -284,18 +284,18 @@ git commit -m "docs: expose GraphStore contract"
 - Modify only files required by reproduced findings.
 - Append ignored report and ledger evidence.
 
-- [ ] **Step 1: Review source task, design, plan, diff, and tests read-only**
+- [x] **Step 1: Review source task, design, plan, diff, and tests read-only**
 
 Audit provider independence, scope and ID binding, structured query bounds,
 deterministic ordering, graph reachability, defensive copies, deadlines,
 panic containment, concurrency, docs, and status boundaries.
 
-- [ ] **Step 2: Reproduce every finding with tests-first RED**
+- [x] **Step 2: Reproduce every finding with tests-first RED**
 
 Do not accept or reject a review item by assertion alone. Add the smallest
 hostile regression proving impact and preserve its failing output.
 
-- [ ] **Step 3: Fix one item at a time and rerun focused/full gates**
+- [x] **Step 3: Fix one item at a time and rerun focused/full gates**
 
 Keep fixes in separate atomic commits. Repeat review until Critical, Important,
 and Minor findings are all zero.
