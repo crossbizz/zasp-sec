@@ -53,13 +53,13 @@ digest, Vitest, Go race detector, pinned Gitleaks 8.30.1.
 - Produces: exactly one M1-13 In-progress row and repository assertions that
   keep M1-12 Complete, M1-14 absent, and all blocker/risk rows unchanged.
 
-- [ ] **Step 1: Write the source/status contract before changing docs**
+- [x] **Step 1: Write the source/status contract before changing docs**
 
 Assert the exact dependency, deliverable, LocalStack batch verification,
 design path, current count tables, one active M1-13 row, one completed M1-12
 row, no M1-14 active/complete row, and stable blocker/risk rows.
 
-- [ ] **Step 2: Run the focused contract and record Pending-state RED**
+- [x] **Step 2: Run the focused contract and record Pending-state RED**
 
 ```bash
 PATH="$HOME/.nvm/versions/node/v22.23.1/bin:$PATH" \
@@ -68,12 +68,12 @@ PATH="$HOME/.nvm/versions/node/v22.23.1/bin:$PATH" \
 
 Expected: only the still-Pending M1-13 status assertion fails.
 
-- [ ] **Step 3: Move only M1-13 to In progress**
+- [x] **Step 3: Move only M1-13 to In progress**
 
 Update README/tracker and shared fixtures to `682/1/42/3` overall and M1
 `68/49/1/18/0`. Do not change any other task or risk status.
 
-- [ ] **Step 4: Run focused/full pinned gates, scan, and commit**
+- [x] **Step 4: Run focused/full pinned gates, scan, and commit**
 
 ```bash
 PATH="$HOME/.nvm/versions/node/v22.23.1/bin:$PATH" npm run verify
@@ -97,7 +97,7 @@ git commit -m "docs: start M1-13 SQS queue interface"
   `Receipt`, `PublishResult`, `DriverMessage`, `DriverPublished`,
   `DriverDelivery`, `DriverReceipt`, and fixed errors.
 
-- [ ] **Step 1: Add missing-symbol tests before production**
+- [x] **Step 1: Add missing-symbol tests before production**
 
 Compile tests against these public shapes before `queue.go` exists:
 
@@ -150,7 +150,7 @@ type Driver interface {
 Cover a two-job happy path, exact canonical bodies/metadata, exact publish IDs,
 consume decoding, opaque receipts, exact acknowledge IDs, and defensive copies.
 
-- [ ] **Step 2: Run compiler RED**
+- [x] **Step 2: Run compiler RED**
 
 ```bash
 go test -C services/platform ./jobqueue -count=1
@@ -159,20 +159,20 @@ go test -C services/platform ./jobqueue -count=1
 Expected: compile failure only on missing JobQueue symbols; no production or
 dependency edit may precede it.
 
-- [ ] **Step 3: Implement configuration, jobs, and canonical envelopes**
+- [x] **Step 3: Implement configuration, jobs, and canonical envelopes**
 
 Implement fixed limits, exact kind grammar, full scope/nonzero job ID checks,
 valid nonempty JSON payloads, duplicate-ID rejection, deterministic version-1
 outer JSON, body SHA-256, exact body-size/aggregate limits, and defensive copies.
 
-- [ ] **Step 4: Implement bounded operations and opaque receipts**
+- [x] **Step 4: Implement bounded operations and opaque receipts**
 
 Each public call validates before I/O, creates one total deadline, contains
 driver panics, performs one driver call, and rejects partial/foreign/duplicate
 results. `Receipt` retains provider state only in unexported fields and exposes
 only `JobID() domain.ProductID`.
 
-- [ ] **Step 5: Expand adversarial RED/GREEN coverage**
+- [x] **Step 5: Expand adversarial RED/GREEN coverage**
 
 Cover invalid/typed-nil drivers, zero/overlong configuration, invalid scope,
 zero job ID, invalid kind, invalid/empty/oversized JSON, aggregate overflow,
@@ -180,7 +180,7 @@ zero job ID, invalid kind, invalid/empty/oversized JSON, aggregate overflow,
 partial results, timeout, canceled context, errors, panics, aliasing, hostile
 outer JSON keys/duplicates/trailing data, and 32 concurrent independent calls.
 
-- [ ] **Step 6: Run race and six stability passes**
+- [x] **Step 6: Run race and six stability passes**
 
 ```bash
 go test -C services/platform -race -count=1 ./jobqueue
@@ -192,7 +192,7 @@ test -z "$(cd services/platform && go mod tidy -diff)"
 (cd services/platform && go vet ./...)
 ```
 
-- [ ] **Step 7: Scan and commit the product package**
+- [x] **Step 7: Scan and commit the product package**
 
 ```bash
 git commit -m "feat: add scoped job queue"
@@ -229,7 +229,7 @@ git commit -m "feat: add scoped job queue"
 - Produces: `sqsJobDriver`, M1-13 queue/DLQ lifecycle, `job-queue` CLI mode,
   hermetic/live root commands, and exact fixed product-proof output.
 
-- [ ] **Step 1: Write adapter/lifecycle/orchestrator tests before code**
+- [x] **Step 1: Write adapter/lifecycle/orchestrator tests before code**
 
 Require one `SendMessageBatch` with two exact entries and six exact string
 attributes per entry; strict receive body/attribute/digest matching; one
@@ -237,12 +237,12 @@ two-entry `DeleteMessageBatch`; exact publish/consume/ack product state; exact
 redrive policies; source-then-DLQ cleanup; prefix-wide absence; and retained
 M0-06 behavior.
 
-- [ ] **Step 2: Capture missing adapter/mode RED**
+- [x] **Step 2: Capture missing adapter/mode RED**
 
 Run focused Go tests and `node --test proofs/localstack-sqs/job-run.test.mjs`.
 Expected failures are only missing adapter/lifecycle/mode exports.
 
-- [ ] **Step 3: Add current product module and batch SDK operations**
+- [x] **Step 3: Add current product module and batch SDK operations**
 
 Add local platform module replacement. Keep official SDK pins unchanged.
 Implement multi-entry send/delete methods that preserve exact entry ordering,
@@ -250,7 +250,7 @@ return every success/failure ID, reject malformed output, and classify
 definitive nonzero provider rejection separately from ambiguous transport or
 malformed-success outcomes.
 
-- [ ] **Step 4: Implement the strict SQS product driver**
+- [x] **Step 4: Implement the strict SQS product driver**
 
 Map `DriverMessage` bodies and typed fields into exact SQS entries/attributes.
 Reject any entry or aggregate batch whose body plus attribute names, data types,
@@ -259,7 +259,7 @@ On receive, require exact attributes/body digest/message ID/receipt handle and
 return only validated typed deliveries. Publish and acknowledge accept only
 exact full success sets; definitive rejection is never adopted or reconciled.
 
-- [ ] **Step 5: Implement the M1-13 queue/DLQ lifecycle**
+- [x] **Step 5: Implement the M1-13 queue/DLQ lifecycle**
 
 Use a `zasp-m1-13-<marker>` namespace and atomic `m1-13` tags. Retain cleanup
 authority after every create attempt; reconcile only typed ambiguity/malformed
@@ -269,7 +269,7 @@ across bounded calls without assuming order or a full batch, prove empty, clean
 source then DLQ, and require a global M1-13 prefix audit. Cleanup failure wins
 and later cleanup continues.
 
-- [ ] **Step 6: Add the disposable SQS runner mode**
+- [x] **Step 6: Add the disposable SQS runner mode**
 
 Extend the reviewed runner configuration with SQS-only services, the
 localstack-sqs build directory, separate name/labels/temp/executable, 150-second
@@ -280,20 +280,20 @@ LocalStack job queue passed: publish=2 consume=2 acknowledge=2 scoped=true redri
 LocalStack job queue passed: publish=2 consume=2 acknowledge=2 scoped=true redrive=true empty=true cleanup=true audit=true container_cleanup=true.
 ```
 
-- [ ] **Step 7: Add root commands and documentation**
+- [x] **Step 7: Add root commands and documentation**
 
 ```json
 "job:queue:test": "go test -C services/platform -race -count=1 ./jobqueue && go test -C proofs/localstack-sqs -race -count=1 ./... && node --test proofs/localstack-sqs/job-run.test.mjs proofs/localstack-storage/run.test.mjs",
 "job:queue:run": "node proofs/localstack-sqs/run-job-queue.mjs"
 ```
 
-- [ ] **Step 8: Run hermetic gates, then exact live proof**
+- [x] **Step 8: Run hermetic gates, then exact live proof**
 
 Require the exact outer success line, zero pre/post M1-13 container-name and
 proof-label counts, zero M1-13 temp paths, zero M1-13 queue-prefix results, and
 an unchanged separately identified shared LocalStack fingerprint.
 
-- [ ] **Step 9: Scan and commit adapter/proof**
+- [x] **Step 9: Scan and commit adapter/proof**
 
 Run six root hermetic passes, both affected Go race/tidy/verify/vet gates,
 retained M0-06 and M1-12 regressions, pinned full verification/build/audit,
@@ -317,7 +317,7 @@ git commit -m "feat: prove scoped LocalStack job queue"
 - Produces: zero-finding review, M1-13 Complete transition, pushed exact-SHA CI
   evidence, and a fully checked close commit.
 
-- [ ] **Step 1: Run independent whole-range review**
+- [x] **Step 1: Run independent whole-range review**
 
 Audit scope/envelope identity, batch cardinality/bytes, payload ownership,
 opaque receipts, deadlines, partial results, provider ambiguity, queue/DLQ and
@@ -325,19 +325,19 @@ redrive ownership, cleanup authorization, prefix-wide absence, runner fencing,
 and retained M0-06/M1-12 behavior. Fix every finding tests-first until review is
 zero-finding.
 
-- [ ] **Step 2: Capture completion RED and move only M1-13 to Complete**
+- [x] **Step 2: Capture completion RED and move only M1-13 to Complete**
 
 Set overall counts to `682/0/43/3` and M1 to `68/49/0/19/0`. Keep M1-14
 Pending and all blockers/risk rows unchanged.
 
-- [ ] **Step 3: Run final gates and scans**
+- [x] **Step 3: Run final gates and scans**
 
 Run six completion passes, all affected Go race/tidy/verify/vet gates, retained
 proof regressions, exact live proof if review changed runtime code, the
 eight-target build, pinned `npm run verify`, production audit, diff check, and
 pinned staged/exact/history/evidence secret scans.
 
-- [ ] **Step 4: Commit, push, and watch exact completion SHA**
+- [x] **Step 4: Commit, push, and watch exact completion SHA**
 
 ```bash
 git commit -m "docs: complete M1-13 SQS queue interface"
@@ -346,7 +346,7 @@ git push origin codex/zasp-implementation
 
 Require Runnable UI success for the exact completion SHA.
 
-- [ ] **Step 5: Close the plan and verify the close SHA**
+- [x] **Step 5: Close the plan and verify the close SHA**
 
 Mark every checkbox complete, record exact completion run/job evidence, commit
 `docs: close M1-13 SQS queue interface`, push, and require exact-SHA Runnable UI
