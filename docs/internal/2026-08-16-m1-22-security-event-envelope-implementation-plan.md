@@ -277,7 +277,7 @@ task/progress evidence.
   typecheck/lint/build, eight repository targets, audit zero, and whitespace
   passed before the completion commit.
 
-- [ ] **Step 3: Commit, push, and require exact completion-SHA CI success**
+- [x] **Step 3: Commit, push, and require exact completion-SHA CI success**
 
   ```bash
   git commit -m "docs: complete M1-22 SecurityEvent envelope"
@@ -286,7 +286,11 @@ task/progress evidence.
 
   Prove local/upstream/remote equality and terminal Runnable UI success.
 
-- [ ] **Step 4: Commit/push the plan-only closure and require exact CI success**
+  Completion commit `8b88c345cc8ece019c1193a605f350e32d72446a`
+  was pushed with exact local/upstream/remote equality. Runnable UI run
+  `31939659916`, job `95146887854`, completed successfully for that exact SHA.
+
+- [x] **Step 4: Commit/push the plan-only closure and require exact CI success**
 
   ```bash
   git commit -m "docs: close M1-22 SecurityEvent envelope"
@@ -295,3 +299,8 @@ task/progress evidence.
 
   Record both run/job IDs, scan final history/evidence, prove clean synchronized
   state, and leave M1-23 Pending.
+
+  This plan-only closure records the completed implementation, zero-finding
+  review, completion-SHA CI success, final counts, and unchanged successor and
+  blocker boundaries. Closure-SHA CI and final synchronization evidence are
+  appended to ignored reports after the remote run reaches terminal success.
