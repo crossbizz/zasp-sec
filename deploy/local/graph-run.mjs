@@ -382,45 +382,114 @@ export function validateGraphImageInspection(document, selected, resolution, ret
   }
 }
 
-export function parseGraphContainerdImageTargets(source, platform) {
+export function parseGraphContainerdImageTargets(beforeSource, afterSource, selected) {
   try {
-    if (typeof source !== "string" || Buffer.byteLength(source) < 1 || Buffer.byteLength(source) > 4_194_304 ||
-        !source.endsWith("\n") || !new Set(["linux/amd64", "linux/arm64"]).has(platform)) {
-      throw new TypeError("graph containerd inventory is invalid");
+    validateSelectedPlan(selected);
+    const before = parseGraphContainerdInventory(beforeSource);
+    const after = parseGraphContainerdInventory(afterSource);
+    for (const [reference, row] of before) {
+      if (!exactData(after.get(reference), row)) throw new TypeError("graph containerd baseline changed");
     }
-    const lines = source.slice(0, -1).split("\n");
-    if (!exactStringArray(lines[0]?.trim().split(/\s+/), ["REF", "TYPE", "DIGEST", "SIZE", "PLATFORMS", "LABELS"])) {
-      throw new TypeError("graph containerd inventory is invalid");
-    }
-    const selected = new Map(Object.keys(GRAPH_IMAGE_PLANS).map((name) => [name, buildGraphImagePlan(name, platform)]));
-    const targets = new Map();
-    for (const line of lines.slice(1)) {
-      if (line.length === 0) throw new TypeError("graph containerd inventory is invalid");
-      const fields = line.trim().split(/\s+/);
-      if (fields.length < 6) throw new TypeError("graph containerd inventory is invalid");
-      if (!/(?:^|\/)import-/.test(fields[0])) continue;
-      const reference = /^docker\.io\/library\/import-(\d{4}-\d{2}-\d{2})@(sha256:[0-9a-f]{64})$/.exec(fields[0]);
-      if (reference === null || !canonicalGraphDate(reference[1])) {
-        throw new TypeError("graph containerd target is invalid");
-      }
-      const image = [...selected.values()].find(({ manifestDigest }) => manifestDigest === reference[2]);
-      const size = fields.slice(3, -2).join(" ");
-      if (image === undefined || targets.has(image.name) || !new Set([
-        "application/vnd.docker.distribution.manifest.v2+json",
-        "application/vnd.oci.image.manifest.v1+json",
-      ]).has(fields[1]) || fields[2] !== image.manifestDigest ||
-          !/^\d+(?:\.\d+)? ?(?:B|KiB|MiB|GiB)$/.test(size) || fields.at(-2) !== platform ||
-          typeof fields.at(-1) !== "string" || fields.at(-1).length === 0) {
-        throw new TypeError("graph containerd target is invalid");
-      }
-      targets.set(image.name, deepFreeze({ imageID: fields[0], manifestDigest: fields[2] }));
-    }
-    if (targets.size !== selected.size) throw new TypeError("graph containerd inventory is incomplete");
-    return new Map([...targets].sort(([left], [right]) => left.localeCompare(right)));
+    const delta = [...after].filter(([reference]) => !before.has(reference)).map(([, row]) => row);
+    if (delta.length !== 2) throw new TypeError("graph containerd delta is invalid");
+    const target = graphContainerdTarget(delta, selected);
+    validateGraphContainerdTarget(target, selected);
+    return target;
   } catch (error) {
     if (error instanceof GraphFailure) throw error;
     throw new GraphFailure("provider");
   }
+}
+
+function parseGraphContainerdInventory(source) {
+  if (typeof source !== "string" || Buffer.byteLength(source) < 1 || Buffer.byteLength(source) > 4_194_304 ||
+      !source.endsWith("\n")) throw new TypeError("graph containerd inventory is invalid");
+  const lines = source.slice(0, -1).split("\n");
+  if (lines.length > 4_097 ||
+      !exactStringArray(lines[0]?.trim().split(/\s+/), ["REF", "TYPE", "DIGEST", "SIZE", "PLATFORMS", "LABELS"])) {
+    throw new TypeError("graph containerd inventory is invalid");
+  }
+  const mediaTypes = new Set([
+    "application/vnd.docker.distribution.manifest.list.v2+json",
+    "application/vnd.docker.distribution.manifest.v2+json",
+    "application/vnd.oci.image.index.v1+json",
+    "application/vnd.oci.image.manifest.v1+json",
+  ]);
+  const inventory = new Map();
+  for (const line of lines.slice(1)) {
+    if (line.length < 1 || line.length > 32_768 || line !== line.trim()) {
+      throw new TypeError("graph containerd inventory is invalid");
+    }
+    const fields = line.split(/\s+/);
+    const reference = fields[0];
+    const mediaType = fields[1];
+    const digest = fields[2];
+    const size = fields.slice(3, -2).join(" ");
+    const platform = fields.at(-2);
+    const labels = fields.at(-1);
+    if (fields.length < 6 || typeof reference !== "string" || reference.length > 1_024 ||
+        !/^[A-Za-z0-9][A-Za-z0-9._:/@+-]*$/.test(reference) || inventory.has(reference) ||
+        !mediaTypes.has(mediaType) || !digestPattern.test(digest ?? "") ||
+        !/^\d+(?:\.\d+)? ?(?:B|KiB|MiB|GiB)$/.test(size) ||
+        typeof platform !== "string" || platform.length > 8_192 ||
+        !/^(?:-|[a-z0-9][a-z0-9._/-]*(?:,[a-z0-9][a-z0-9._/-]*)*)$/.test(platform) ||
+        typeof labels !== "string" || labels.length > 16_384 || !/^[^\s]+$/.test(labels)) {
+      throw new TypeError("graph containerd inventory is invalid");
+    }
+    inventory.set(reference, deepFreeze({ digest, labels, mediaType, platform, reference, size }));
+  }
+  return inventory;
+}
+
+function graphContainerdTarget(delta, selected) {
+  const child = delta.filter(({ digest, mediaType }) => digest === selected.manifestDigest && new Set([
+    "application/vnd.docker.distribution.manifest.v2+json",
+    "application/vnd.oci.image.manifest.v1+json",
+  ]).has(mediaType));
+  const wrappers = delta.filter(({ mediaType }) => mediaType === "application/vnd.oci.image.index.v1+json");
+  if (child.length !== 1 || wrappers.length !== 1) throw new TypeError("graph containerd structure is invalid");
+  const references = [...delta].sort((left, right) => lexicalCompare(left.reference, right.reference));
+  return deepFreeze({
+    imageID: references[0].reference,
+    manifestDigest: selected.manifestDigest,
+    references,
+  });
+}
+
+function validateGraphContainerdTarget(target, selected) {
+  requireExactKeySet(target, ["imageID", "manifestDigest", "references"], "graph containerd target");
+  if (target.manifestDigest !== selected.manifestDigest || !Array.isArray(target.references) ||
+      target.references.length !== 2) throw new TypeError("graph containerd target is invalid");
+  const dates = new Set();
+  let child = 0;
+  let wrapper = 0;
+  for (const row of target.references) {
+    requireExactKeySet(row, ["digest", "labels", "mediaType", "platform", "reference", "size"],
+      "graph containerd reference");
+    const match = /^docker\.io\/library\/import-(\d{4}-\d{2}-\d{2})@(sha256:[0-9a-f]{64})$/.exec(
+      row.reference ?? "",
+    );
+    if (match === null || !canonicalGraphDate(match[1]) || match[2] !== row.digest ||
+        row.platform !== selected.platform || typeof row.labels !== "string" || row.labels.length < 1 ||
+        row.labels.length > 16_384 || !/^\d+(?:\.\d+)? ?(?:B|KiB|MiB|GiB)$/.test(row.size ?? "")) {
+      throw new TypeError("graph containerd reference is invalid");
+    }
+    dates.add(match[1]);
+    if (row.digest === selected.manifestDigest && new Set([
+      "application/vnd.docker.distribution.manifest.v2+json",
+      "application/vnd.oci.image.manifest.v1+json",
+    ]).has(row.mediaType)) child += 1;
+    else if (row.mediaType === "application/vnd.oci.image.index.v1+json" &&
+        !new Set([selected.configDigest, selected.indexDigest, selected.manifestDigest]).has(row.digest)) wrapper += 1;
+    else throw new TypeError("graph containerd reference is invalid");
+  }
+  const ordered = [...target.references].sort((left, right) => lexicalCompare(left.reference, right.reference));
+  if (dates.size !== 1 || child !== 1 || wrapper !== 1 || !exactData(target.references, ordered) ||
+      target.imageID !== ordered[0].reference) throw new TypeError("graph containerd target is invalid");
+}
+
+function lexicalCompare(left, right) {
+  return left < right ? -1 : left > right ? 1 : 0;
 }
 
 export function validateGraphNodeLabel(document, expected, retained = undefined, labeled = true) {
@@ -608,12 +677,9 @@ function platformForNode(expected) {
   const targets = expected?.imageTargets;
   for (const platform of ["linux/amd64", "linux/arm64"]) {
     try {
-      requireExactKeySet(targets?.neo4j, ["imageID", "manifestDigest"], "Neo4j image target");
-      requireExactKeySet(targets?.busybox, ["imageID", "manifestDigest"], "BusyBox image target");
-      if (targets.neo4j.manifestDigest === GRAPH_IMAGE_PLANS.neo4j.platforms[platform].manifestDigest &&
-          targets.busybox.manifestDigest === GRAPH_IMAGE_PLANS.busybox.platforms[platform].manifestDigest &&
-          exactGraphImportImageID(targets.neo4j.imageID, targets.neo4j.manifestDigest) &&
-          exactGraphImportImageID(targets.busybox.imageID, targets.busybox.manifestDigest)) return platform;
+      validateGraphContainerdTarget(targets?.neo4j, buildGraphImagePlan("neo4j", platform));
+      validateGraphContainerdTarget(targets?.busybox, buildGraphImagePlan("busybox", platform));
+      return platform;
     } catch {
       // A different platform may still be the exact retained target pair.
     }
@@ -628,11 +694,6 @@ function canonicalGraphDate(value) {
   } catch {
     return false;
   }
-}
-
-function exactGraphImportImageID(value, manifestDigest) {
-  const match = /^docker\.io\/library\/import-(\d{4}-\d{2}-\d{2})@(sha256:[0-9a-f]{64})$/.exec(value ?? "");
-  return match !== null && canonicalGraphDate(match[1]) && match[2] === manifestDigest;
 }
 
 function onlyMatch(items, predicate) {
@@ -1093,6 +1154,13 @@ function canonicalGraphSecond(value) {
     new Date(value).toISOString() === value.replace("Z", ".000Z");
 }
 
+function graphProviderAbsenceIdentity(absent, retained) {
+  if (!new Set(["health", "neo4j"]).has(absent) || !isPlainObject(retained)) {
+    throw new GraphFailure("ownership");
+  }
+  return deepFreeze({ absent, retained });
+}
+
 function validateGraphProviderAbsence(value, expected, retained, absent) {
   try {
     if (!new Set(["health", "neo4j"]).has(absent)) throw new TypeError("graph absence is invalid");
@@ -1268,7 +1336,7 @@ export class LocalGraphSystem extends LocalProductSystem {
     this.graphPodDeleteMayHaveApplied = false;
     this.graphHealthDeleteMayHaveApplied = false;
     this.graphHealthApplyMayHaveApplied = false;
-    this.graphHealthAbsentIdentity = undefined;
+    this.graphProviderAbsenceIdentity = undefined;
     this.productProviderCapture = undefined;
     this.productProviderProjection = false;
     this.productProviderSnapshot = undefined;
@@ -1546,6 +1614,9 @@ export class LocalGraphSystem extends LocalProductSystem {
       const retained = this.graphImageIdentities.get(selected.name);
       if (retained === undefined) throw new GraphFailure("ownership");
       await this.verifyGraphImage(selected, retained, phase, "ownership");
+      const before = await this.runNodeRead([
+        "ctr", "--namespace", "k8s.io", "images", "list",
+      ], phase, "provider", 30_000, 4_194_304);
       const loaded = await this.runMutation(this.paths.kind, [
         "load", "docker-image", selected.reference, "--name", this.cluster,
       ], phase, "provider", {
@@ -1554,11 +1625,13 @@ export class LocalGraphSystem extends LocalProductSystem {
         timeoutMilliseconds: 180_000,
       });
       if (loaded.outcome === "definitive") throw new Failure("provider");
+      const after = await this.runNodeRead([
+        "ctr", "--namespace", "k8s.io", "images", "list",
+      ], phase, "provider", 30_000, 4_194_304);
+      if (this.graphLoadedImageTargets.has(selected.name)) throw new GraphFailure("ownership");
+      this.graphLoadedImageTargets.set(selected.name,
+        parseGraphContainerdImageTargets(before.stdout, after.stdout, selected));
     }
-    const listed = await this.runNodeRead([
-      "ctr", "--namespace", "k8s.io", "images", "list",
-    ], phase, "provider", 30_000, 4_194_304);
-    this.graphLoadedImageTargets = parseGraphContainerdImageTargets(listed.stdout, this.input.nodePlatform);
     await this.verifyCluster(phase, "ownership");
   }
 
@@ -1823,7 +1896,7 @@ export class LocalGraphSystem extends LocalProductSystem {
     }
     await this.pollGraphHealthJobAbsent(phase, replacement);
     this.graphHealthDeleteMayHaveApplied = false;
-    this.graphHealthAbsentIdentity = replacement;
+    this.graphProviderAbsenceIdentity = graphProviderAbsenceIdentity("health", replacement);
     this.graphHealthApplyMayHaveApplied = true;
     const healthApplied = await this.applyGraphHealthJob(phase);
     if (!new Set(["ambiguous", "applied"]).has(healthApplied?.outcome)) {
@@ -1834,7 +1907,7 @@ export class LocalGraphSystem extends LocalProductSystem {
     const fresh = await this.pollGraphProviderState(phase, replacement, false, "readiness", true);
     this.graphProviderIdentity = fresh;
     this.graphHealthApplyMayHaveApplied = false;
-    this.graphHealthAbsentIdentity = undefined;
+    this.graphProviderAbsenceIdentity = undefined;
     const replacementPod = { name: replacement.neo4j.podName, uid: replacement.neo4j.podUid };
     if (await this.readGraphMarker(replacementPod, phase, "readiness") !== true) {
       throw new GraphFailure("readiness");
@@ -1853,7 +1926,7 @@ export class LocalGraphSystem extends LocalProductSystem {
     if (!this.graphNodeMayHaveApplied && !this.graphPathMayHaveApplied &&
         this.graphProviderIdentity === undefined && !this.graphPodDeleteMayHaveApplied &&
         !this.graphHealthDeleteMayHaveApplied && !this.graphHealthApplyMayHaveApplied &&
-        this.graphHealthAbsentIdentity === undefined) return;
+        this.graphProviderAbsenceIdentity === undefined) return;
     if (this.graphNodeMayHaveApplied) {
       if (this.graphNodeIdentity === undefined) {
         try {
@@ -1901,30 +1974,50 @@ export class LocalGraphSystem extends LocalProductSystem {
     }
     let providerProved = false;
     if (this.graphProviderIdentity !== undefined && this.graphPodDeleteMayHaveApplied) {
+      const retained = this.graphProviderIdentity;
       const reconciled = await this.reconcileGraphPodDeleteForCleanup(phase);
-      if (reconciled !== undefined) this.graphProviderIdentity = reconciled;
+      if (reconciled === undefined) {
+        this.graphProviderIdentity = undefined;
+        this.graphProviderAbsenceIdentity = graphProviderAbsenceIdentity("neo4j", retained);
+      } else {
+        this.graphProviderIdentity = reconciled;
+      }
       this.graphPodDeleteMayHaveApplied = false;
       providerProved = true;
     }
     if (this.graphProviderIdentity !== undefined && this.graphHealthDeleteMayHaveApplied) {
+      const retained = this.graphProviderIdentity;
       const reconciled = await this.reconcileGraphHealthForCleanup(phase, false);
-      if (reconciled !== undefined) this.graphProviderIdentity = reconciled;
+      if (reconciled === undefined) {
+        this.graphProviderIdentity = undefined;
+        this.graphProviderAbsenceIdentity = graphProviderAbsenceIdentity("health", retained);
+      } else {
+        this.graphProviderIdentity = reconciled;
+      }
       this.graphHealthDeleteMayHaveApplied = false;
       providerProved = true;
     }
     if (this.graphProviderIdentity !== undefined && this.graphHealthApplyMayHaveApplied) {
+      const retained = this.graphProviderIdentity;
       const reconciled = await this.reconcileGraphHealthForCleanup(phase, true);
-      if (reconciled !== undefined) this.graphProviderIdentity = reconciled;
+      if (reconciled === undefined) {
+        this.graphProviderIdentity = undefined;
+        this.graphProviderAbsenceIdentity = graphProviderAbsenceIdentity("health", retained);
+      } else {
+        this.graphProviderIdentity = reconciled;
+        this.graphProviderAbsenceIdentity = undefined;
+      }
       this.graphHealthApplyMayHaveApplied = false;
-      this.graphHealthAbsentIdentity = undefined;
       providerProved = true;
     }
-    if (this.graphHealthAbsentIdentity !== undefined && !this.graphHealthApplyMayHaveApplied &&
-        !this.graphHealthDeleteMayHaveApplied) {
-      await this.reconcileGraphHealthAbsenceForCleanup(phase);
+    if (this.graphProviderAbsenceIdentity !== undefined && !providerProved &&
+        !this.graphHealthApplyMayHaveApplied && !this.graphHealthDeleteMayHaveApplied &&
+        !this.graphPodDeleteMayHaveApplied) {
+      await this.reconcileGraphProviderAbsenceForCleanup(phase);
       providerProved = true;
     }
-    if (this.graphProviderIdentity !== undefined && !providerProved) {
+    if (this.graphProviderIdentity !== undefined && this.graphProviderAbsenceIdentity === undefined &&
+        !providerProved) {
       try {
         validateGraphKubernetesState(
           await this.readGraphProviderState(phase, "cleanup"), this.graphProviderExpectation(),
@@ -1997,13 +2090,20 @@ export class LocalGraphSystem extends LocalProductSystem {
     throw new Failure("cleanup");
   }
 
-  async reconcileGraphHealthAbsenceForCleanup(phase) {
+  async reconcileGraphProviderAbsenceForCleanup(phase) {
+    const authority = this.graphProviderAbsenceIdentity;
+    try {
+      requireExactKeySet(authority, ["absent", "retained"], "graph provider absence identity");
+      if (!new Set(["health", "neo4j"]).has(authority.absent)) throw new TypeError("invalid absence");
+    } catch {
+      throw new Failure("cleanup");
+    }
     for (let attempt = 0; attempt < 3; attempt += 1) {
       phase.assertActive("cleanup");
       try {
-        const providerState = await this.readGraphProviderState(phase, "cleanup", true);
+        const providerState = await this.readGraphProviderState(phase, "cleanup", authority.absent === "health");
         if (validateGraphProviderAbsence(
-          providerState, this.graphProviderExpectation(), this.graphHealthAbsentIdentity, "health",
+          providerState, this.graphProviderExpectation(), authority.retained, authority.absent,
         )) return true;
       } catch {
         // Retry only within this fixed cleanup reconciliation bound.
@@ -2024,7 +2124,7 @@ export class LocalGraphSystem extends LocalProductSystem {
     this.graphPodDeleteMayHaveApplied = false;
     this.graphHealthDeleteMayHaveApplied = false;
     this.graphHealthApplyMayHaveApplied = false;
-    this.graphHealthAbsentIdentity = undefined;
+    this.graphProviderAbsenceIdentity = undefined;
   }
 
   async reconcileGraphImage(selected, phase) {
@@ -2111,7 +2211,7 @@ export class LocalGraphSystem extends LocalProductSystem {
       this.graphImageAliases.size !== 0 || this.graphNodeMayHaveApplied || this.graphPathMayHaveApplied ||
       this.graphProviderIdentity !== undefined || this.graphMarkerMayHaveApplied || this.graphPodDeleteMayHaveApplied ||
       this.graphHealthDeleteMayHaveApplied || this.graphHealthApplyMayHaveApplied ||
-      this.graphHealthAbsentIdentity !== undefined;
+      this.graphProviderAbsenceIdentity !== undefined;
   }
 }
 

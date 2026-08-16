@@ -50,6 +50,51 @@ function graphImportReference(name, platform = "linux/arm64", date = "2026-08-16
   return `docker.io/library/import-${date}@${plan(name, platform).manifestDigest}`;
 }
 
+function graphImportReferenceForDigest(digest, date = "2026-08-16") {
+  return `docker.io/library/import-${date}@${digest}`;
+}
+
+function graphImportRows(name, platform = "linux/arm64", wrapperDigest = `sha256:${"f".repeat(64)}`) {
+  const selected = plan(name, platform);
+  return [
+    `${graphImportReferenceForDigest(wrapperDigest)} application/vnd.oci.image.index.v1+json ` +
+      `${wrapperDigest} 457 MiB ${platform} managed=true`,
+    `${graphImportReference(name, platform)} application/vnd.oci.image.manifest.v1+json ` +
+      `${selected.manifestDigest} 456 MiB ${platform} managed=true`,
+  ];
+}
+
+function graphImportTarget(name, platform = "linux/arm64", wrapperDigest = `sha256:${"f".repeat(64)}`) {
+  const selected = plan(name, platform);
+  const references = [
+    {
+      digest: wrapperDigest,
+      labels: "managed=true",
+      mediaType: "application/vnd.oci.image.index.v1+json",
+      platform,
+      reference: graphImportReferenceForDigest(wrapperDigest),
+      size: "457 MiB",
+    },
+    {
+      digest: selected.manifestDigest,
+      labels: "managed=true",
+      mediaType: "application/vnd.oci.image.manifest.v1+json",
+      platform,
+      reference: graphImportReference(name, platform),
+      size: "456 MiB",
+    },
+  ].sort((left, right) => left.reference.localeCompare(right.reference));
+  return {
+    imageID: references[0].reference,
+    manifestDigest: selected.manifestDigest,
+    references,
+  };
+}
+
+function containerdInventory(rows) {
+  return ["REF TYPE DIGEST SIZE PLATFORMS LABELS", ...rows, ""].join("\n");
+}
+
 function indexDocument(selected = plan()) {
   const pins = GRAPH_IMAGE_PLANS[selected.name].platforms;
   return {
@@ -594,17 +639,15 @@ function graphProviderState(overrides = {}) {
 function graphProviderExpectation(platform = "linux/arm64") {
   return {
     imageTargets: {
-      busybox: {
-        imageID: graphImportReference("busybox", platform),
-        manifestDigest: GRAPH_IMAGE_PLANS.busybox.platforms[platform].manifestDigest,
-      },
-      neo4j: {
-        imageID: graphImportReference("neo4j", platform),
-        manifestDigest: GRAPH_IMAGE_PLANS.neo4j.platforms[platform].manifestDigest,
-      },
+      busybox: graphImportTarget("busybox", platform),
+      neo4j: graphImportTarget("neo4j", platform),
     },
     nodeName: `zasp-m1-30b-${marker}-control-plane`,
   };
+}
+
+function graphProviderAbsence(absent, retained) {
+  return { absent, retained };
 }
 
 function graphProviderStateWithout(kind, overrides = {}) {
@@ -673,39 +716,45 @@ test("normalizes one exact Bound graph lineage with internal health evidence", (
 
 test("cross-binds config status images and imported repo-digest image IDs on both node platforms", () => {
   for (const platform of ["linux/amd64", "linux/arm64"]) {
-    const value = graphProviderState({ platform });
-    const expected = graphProviderExpectation(platform);
-    assert.equal(value.pods.at(-2).spec.containers[0].image, NEO4J_IMAGE);
-    assert.equal(value.pods.at(-1).spec.containers[0].image, BUSYBOX_IMAGE);
-    assert.equal(value.pods.at(-2).status.containerStatuses[0].image,
-      GRAPH_IMAGE_PLANS.neo4j.platforms[platform].configDigest);
-    assert.equal(value.pods.at(-1).status.containerStatuses[0].image,
-      GRAPH_IMAGE_PLANS.busybox.platforms[platform].configDigest);
-    assert.equal(value.pods.at(-2).status.containerStatuses[0].imageID,
-      graphImportReference("neo4j", platform));
-    assert.equal(value.pods.at(-1).status.containerStatuses[0].imageID,
-      graphImportReference("busybox", platform));
-    assert.equal(graphRunModule.validateGraphKubernetesState(value, expected).ready, true);
+    for (const wrapperDigest of [`sha256:${"0".repeat(64)}`, `sha256:${"f".repeat(64)}`]) {
+      const value = graphProviderState({ platform });
+      const expected = graphProviderExpectation(platform);
+      for (const [podIndex, image] of [[-2, "neo4j"], [-1, "busybox"]]) {
+        expected.imageTargets[image] = graphImportTarget(image, platform, wrapperDigest);
+        value.pods.at(podIndex).status.containerStatuses[0].imageID =
+          expected.imageTargets[image].imageID;
+      }
+      assert.equal(value.pods.at(-2).spec.containers[0].image, NEO4J_IMAGE);
+      assert.equal(value.pods.at(-1).spec.containers[0].image, BUSYBOX_IMAGE);
+      assert.equal(value.pods.at(-2).status.containerStatuses[0].image,
+        GRAPH_IMAGE_PLANS.neo4j.platforms[platform].configDigest);
+      assert.equal(value.pods.at(-1).status.containerStatuses[0].image,
+        GRAPH_IMAGE_PLANS.busybox.platforms[platform].configDigest);
+      assert.equal(graphRunModule.validateGraphKubernetesState(value, expected).ready, true,
+        `${platform} ${wrapperDigest} lexical ImageRef`);
 
-    for (const [podIndex, image] of [[-2, "neo4j"], [-1, "busybox"]]) {
-      const selected = GRAPH_IMAGE_PLANS[image];
-      for (const imageID of [
-        selected.platforms[platform].configDigest,
-        selected.indexDigest,
-        selected.platforms[platform].manifestDigest,
-        `${selected.repository}@${selected.indexDigest}`,
-        `${selected.repository}@${selected.platforms[platform].manifestDigest}`,
-        `${selected.repository}@${selected.platforms[platform].configDigest}`,
-      ]) {
-        const drifted = structuredClone(value);
-        drifted.pods.at(podIndex).status.containerStatuses[0].imageID = imageID;
-        assert.throws(() => graphRunModule.validateGraphKubernetesState(drifted, expected),
-          { name: "Failure" }, `${image} ${platform} ${imageID}`);
-        if (imageID !== selected.platforms[platform].configDigest) {
-          const imageDrifted = structuredClone(value);
-          imageDrifted.pods.at(podIndex).status.containerStatuses[0].image = imageID;
-          assert.throws(() => graphRunModule.validateGraphKubernetesState(imageDrifted, expected),
-            { name: "Failure" }, `${image} ${platform} status image ${imageID}`);
+      for (const [podIndex, image] of [[-2, "neo4j"], [-1, "busybox"]]) {
+        const selected = GRAPH_IMAGE_PLANS[image];
+        for (const imageID of [
+          selected.platforms[platform].configDigest,
+          selected.indexDigest,
+          selected.platforms[platform].manifestDigest,
+          `${selected.repository}@${selected.indexDigest}`,
+          `${selected.repository}@${selected.platforms[platform].manifestDigest}`,
+          `${selected.repository}@${selected.platforms[platform].configDigest}`,
+          expected.imageTargets[image].references[1].reference,
+        ]) {
+          if (imageID === expected.imageTargets[image].imageID) continue;
+          const drifted = structuredClone(value);
+          drifted.pods.at(podIndex).status.containerStatuses[0].imageID = imageID;
+          assert.throws(() => graphRunModule.validateGraphKubernetesState(drifted, expected),
+            { name: "Failure" }, `${image} ${platform} ${imageID}`);
+          if (imageID !== selected.platforms[platform].configDigest) {
+            const imageDrifted = structuredClone(value);
+            imageDrifted.pods.at(podIndex).status.containerStatuses[0].image = imageID;
+            assert.throws(() => graphRunModule.validateGraphKubernetesState(imageDrifted, expected),
+              { name: "Failure" }, `${image} ${platform} status image ${imageID}`);
+          }
         }
       }
     }
@@ -1321,8 +1370,10 @@ test("retains proved health absence after definitive recreation rejection for bo
   await assert.rejects(() => system.verifyAdditionalReadiness(
     { internal: true, pods: 4, ready: 4, services: 4 }, phase,
   ), { category: "provider", name: "Failure" });
-  assert.deepEqual(system.graphHealthAbsentIdentity, replacement,
+  assert.deepEqual(system.graphProviderAbsenceIdentity, graphProviderAbsence("health", replacement),
     "the settled old health absence remains recovery authority without adopting a rejected apply");
+  assert.ok(Object.isFrozen(system.graphProviderAbsenceIdentity));
+  assert.ok(Object.isFrozen(system.graphProviderAbsenceIdentity.retained));
   assert.equal(system.graphHealthApplyMayHaveApplied, false);
 
   system.paths = { graphManifest: "/owned/graph.yaml" };
@@ -1340,10 +1391,10 @@ test("retains proved health absence after definitive recreation rejection for bo
   system.pauseGraphPoll = async () => {};
   await system.verifyAdditionalNodeForCleanup(phase);
   assert.equal(reads, 1, "exact absence proof permits the base cleanup to continue");
-  assert.deepEqual(system.graphHealthAbsentIdentity, replacement,
+  assert.deepEqual(system.graphProviderAbsenceIdentity, graphProviderAbsence("health", replacement),
     "recovery authority is retained until cluster deletion settles");
   await system.afterClusterAbsent();
-  assert.equal(system.graphHealthAbsentIdentity, undefined);
+  assert.equal(system.graphProviderAbsenceIdentity, undefined);
 });
 
 test("continues reverse cluster cleanup after proved health absence without masking provider failure", async () => {
@@ -1365,7 +1416,7 @@ test("continues reverse cluster cleanup after proved health absence without mask
   system.paths = { graphManifest: "/owned/graph.yaml" };
   system.clusterMayHaveApplied = true;
   system.nodeIdentity = { token: "a".repeat(64), volumeToken: "b".repeat(64) };
-  system.graphHealthAbsentIdentity = replacement;
+  system.graphProviderAbsenceIdentity = Object.freeze(graphProviderAbsence("health", replacement));
   system.graphLoadedImageTargets = new Map(Object.entries(graphProviderExpectation().imageTargets));
   system.requireTemporaryOwnership = async () => {};
   system.requireOwnedPath = async () => {};
@@ -1439,7 +1490,7 @@ test("rejects late or foreign health state after a definitive recreation rejecti
     system.paths = { graphManifest: "/owned/graph.yaml" };
     system.nodeIdentity = { token: "a".repeat(64) };
     system.graphProviderIdentity = replacement;
-    system.graphHealthAbsentIdentity = replacement;
+    system.graphProviderAbsenceIdentity = Object.freeze(graphProviderAbsence("health", replacement));
     system.graphLoadedImageTargets = new Map(Object.entries(graphProviderExpectation().imageTargets));
     system.requireTemporaryOwnership = async () => {};
     system.requireOwnedPath = async () => {};
@@ -1455,7 +1506,7 @@ test("rejects late or foreign health state after a definitive recreation rejecti
     await assert.rejects(() => system.verifyAdditionalNodeForCleanup(phase),
       { category: "cleanup", name: "Failure" }, name);
     assert.equal(reads, 3, `${name} is rejected within the fixed reconciliation bound`);
-    assert.deepEqual(system.graphHealthAbsentIdentity, replacement, name);
+    assert.deepEqual(system.graphProviderAbsenceIdentity, graphProviderAbsence("health", replacement), name);
   }
 });
 
@@ -1868,37 +1919,83 @@ test("rejects duplicate registry JSON before any image can be retained", async (
   assert.equal(system.graphImageIdentities.size, 0);
 });
 
-test("parses only the two immutable graph imports from the exact containerd inventory", () => {
-  for (const platform of ["linux/amd64", "linux/arm64"]) {
-    const neo4j = plan("neo4j", platform);
-    const busybox = plan("busybox", platform);
-    const neo4jImport = graphImportReference("neo4j", platform);
-    const busyboxImport = graphImportReference("busybox", platform);
-    const source = [
-      "REF TYPE DIGEST SIZE PLATFORMS LABELS",
-      `docker.io/library/zasp-audit-api:m1-30a application/vnd.oci.image.manifest.v1+json sha256:${"7".repeat(64)} 12.3 MiB ${platform} managed=true`,
-      `${neo4jImport} application/vnd.oci.image.manifest.v1+json ${neo4j.manifestDigest} 456.7 MiB ${platform} managed=true`,
-      `${busyboxImport} application/vnd.oci.image.manifest.v1+json ${busybox.manifestDigest} 1.2 MiB ${platform} managed=true`,
-      "",
-    ].join("\n");
-    assert.deepEqual(Object.fromEntries(parseGraphContainerdImageTargets(source, platform)), {
-      busybox: { imageID: busyboxImport, manifestDigest: busybox.manifestDigest },
-      neo4j: { imageID: neo4jImport, manifestDigest: neo4j.manifestDigest },
-    });
-    const extra = `docker.io/library/import-2026-08-16@sha256:${"8".repeat(64)} ` +
-      `application/vnd.oci.image.manifest.v1+json sha256:${"8".repeat(64)} 2 MiB ${platform} managed=true\n`;
-    for (const drift of [
-      source.replace(neo4jImport, `registry.example/library/import-2026-08-16@${neo4j.manifestDigest}`),
-      source.replace("import-2026-08-16", "import-2026-8-16"),
-      source.replace("import-2026-08-16", "import-2026-02-30"),
-      source.replace(neo4jImport, `docker.io/library/import-2026-08-16@sha256:${"8".repeat(64)}`),
-      source.replace(`${neo4j.manifestDigest} 456.7 MiB ${platform}`,
-        `${neo4j.manifestDigest} 456.7 MiB ${platform === "linux/arm64" ? "linux/amd64" : "linux/arm64"}`),
-      source.replace(`${busyboxImport} `, `${neo4jImport} `),
-      source.replace(/\n$/, `\n${extra}`),
-      source.replace(/\n$/, ""),
-    ]) assert.throws(() => parseGraphContainerdImageTargets(drift, platform), { name: "Failure" });
+test("derives each graph target only from its exact bounded containerd inventory delta", () => {
+  for (const name of ["neo4j", "busybox"]) {
+    for (const platform of ["linux/amd64", "linux/arm64"]) {
+      const productDigest = `sha256:${"7".repeat(64)}`;
+      const kubernetesDigest = `sha256:${"8".repeat(64)}`;
+      const priorImportDigest = `sha256:${"9".repeat(64)}`;
+      const baselineRows = [
+        `docker.io/library/zasp-audit-api:m1-30a application/vnd.oci.image.manifest.v1+json ` +
+          `${productDigest} 12.3 MiB ${platform} managed=true`,
+        `registry.k8s.io/pause:3.10 application/vnd.oci.image.manifest.v1+json ` +
+          `${kubernetesDigest} 320 KiB ${platform} io.cri-containerd.image=managed`,
+        `${graphImportReferenceForDigest(priorImportDigest, "2026-08-15")} ` +
+          `application/vnd.oci.image.index.v1+json ${priorImportDigest} 13 MiB ${platform} managed=true`,
+      ];
+      for (const wrapperDigest of [`sha256:${"0".repeat(64)}`, `sha256:${"f".repeat(64)}`]) {
+        const before = containerdInventory(baselineRows);
+        const after = containerdInventory([...baselineRows, ...graphImportRows(name, platform, wrapperDigest)]);
+        const target = parseGraphContainerdImageTargets(before, after, plan(name, platform));
+        assert.deepEqual(target, graphImportTarget(name, platform, wrapperDigest), `${name} ${platform}`);
+        assert.equal(target.imageID, [...target.references]
+          .sort((left, right) => left.reference.localeCompare(right.reference))[0].reference,
+        `${name} ${platform} uses containerd's merged RepoDigest lexical order`);
+        assert.ok(Object.isFrozen(target));
+        assert.ok(Object.isFrozen(target.references));
+      }
+    }
   }
+});
+
+test("rejects changed baselines and every missing, alternate, duplicate, or extra graph-load delta row", () => {
+  const selected = plan("neo4j");
+  const wrapperDigest = `sha256:${"f".repeat(64)}`;
+  const baselineRows = [
+    `docker.io/library/zasp-audit-api:m1-30a application/vnd.oci.image.manifest.v1+json ` +
+      `sha256:${"7".repeat(64)} 12.3 MiB linux/arm64 managed=true`,
+    `registry.k8s.io/pause:3.10 application/vnd.oci.image.manifest.v1+json ` +
+      `sha256:${"8".repeat(64)} 320 KiB linux/arm64 io.cri-containerd.image=managed`,
+  ];
+  const deltaRows = graphImportRows("neo4j", "linux/arm64", wrapperDigest);
+  const before = containerdInventory(baselineRows);
+  const extraDigest = `sha256:${"e".repeat(64)}`;
+  const cases = [
+    ["changed baseline", containerdInventory([
+      baselineRows[0].replace("12.3 MiB", "12.4 MiB"), baselineRows[1], ...deltaRows,
+    ])],
+    ["dropped baseline", containerdInventory([baselineRows[0], ...deltaRows])],
+    ["missing child", containerdInventory([...baselineRows, deltaRows[0]])],
+    ["missing wrapper", containerdInventory([...baselineRows, deltaRows[1]])],
+    ["alternate repository", containerdInventory([
+      ...baselineRows, deltaRows[0].replace("docker.io/library/import-", "registry.example/import-"), deltaRows[1],
+    ])],
+    ["invalid date", containerdInventory([
+      ...baselineRows, deltaRows[0].replace("2026-08-16", "2026-02-30"), deltaRows[1],
+    ])],
+    ["wrong child digest", containerdInventory([
+      ...baselineRows, deltaRows[0], deltaRows[1].replaceAll(selected.manifestDigest, extraDigest),
+    ])],
+    ["wrong wrapper type", containerdInventory([
+      ...baselineRows, deltaRows[0].replace("image.index", "image.manifest"), deltaRows[1],
+    ])],
+    ["wrong platform", containerdInventory([
+      ...baselineRows, deltaRows[0], deltaRows[1].replace("linux/arm64", "linux/amd64"),
+    ])],
+    ["duplicate row", containerdInventory([...baselineRows, ...deltaRows, deltaRows[1]])],
+    ["extra new target", containerdInventory([
+      ...baselineRows, ...deltaRows,
+      `${graphImportReferenceForDigest(extraDigest)} application/vnd.oci.image.manifest.v1+json ` +
+        `${extraDigest} 2 MiB linux/arm64 managed=true`,
+    ])],
+    ["malformed new target", containerdInventory([...baselineRows, ...deltaRows, "malformed"] )],
+  ];
+  for (const [label, after] of cases) {
+    assert.throws(() => parseGraphContainerdImageTargets(before, after, selected),
+      { name: "Failure" }, label);
+  }
+  assert.throws(() => parseGraphContainerdImageTargets(before.slice(0, -1),
+    containerdInventory([...baselineRows, ...deltaRows]), selected), { name: "Failure" });
 });
 
 test("validates only the retained Kubernetes node label and node-local data path", () => {
@@ -2192,7 +2289,7 @@ test("polls a real unlabeled node until the exact retained label appears", async
   assert.equal(replacementReads, 2, "the first valid unlabeled node UID is retained across polling");
 });
 
-test("loads graph images by immutable reference and verifies exact containerd targets", async () => {
+test("snapshots a strict containerd inventory immediately around each immutable graph load", async () => {
   const system = graphSystem();
   const calls = [];
   system.nodeIdentity = { token: "a".repeat(64) };
@@ -2208,31 +2305,39 @@ test("loads graph images by immutable reference and verifies exact containerd ta
     calls.push([command, ...arguments_]);
     return { outcome: "ambiguous", result: success("loaded\n") };
   };
+  const baselineRows = [
+    `docker.io/library/zasp-audit-api:m1-30a application/vnd.oci.image.manifest.v1+json ` +
+      `sha256:${"7".repeat(64)} 12.3 MiB linux/arm64 managed=true`,
+    `registry.k8s.io/pause:3.10 application/vnd.oci.image.manifest.v1+json ` +
+      `sha256:${"8".repeat(64)} 320 KiB linux/arm64 io.cri-containerd.image=managed`,
+  ];
+  const neo4jRows = graphImportRows("neo4j");
+  const busyboxRows = graphImportRows("busybox", "linux/arm64", `sha256:${"e".repeat(64)}`);
+  const inventories = [
+    containerdInventory(baselineRows),
+    containerdInventory([...baselineRows, ...neo4jRows]),
+    containerdInventory([...baselineRows, ...neo4jRows]),
+    containerdInventory([...baselineRows, ...neo4jRows, ...busyboxRows]),
+  ];
+  let inventory = 0;
   system.runNodeRead = async (arguments_) => {
     calls.push(["node", ...arguments_]);
-    const neo4j = plan("neo4j");
-    const busybox = plan("busybox");
-    return success([
-      "REF TYPE DIGEST SIZE PLATFORMS LABELS",
-      `${graphImportReference("neo4j")} application/vnd.oci.image.manifest.v1+json ${neo4j.manifestDigest} 456 MiB linux/arm64 managed=true`,
-      `${graphImportReference("busybox")} application/vnd.oci.image.manifest.v1+json ${busybox.manifestDigest} 1 MiB linux/arm64 managed=true`,
-      "",
-    ].join("\n"));
+    return success(inventories[inventory++]);
   };
   await system.loadAdditionalImages(phase);
-  assert.deepEqual(calls.slice(0, 2), [
+  const list = ["node", "ctr", "--namespace", "k8s.io", "images", "list"];
+  assert.deepEqual(calls, [
+    list,
     ["/owned/kind", "load", "docker-image", NEO4J_IMAGE, "--name", system.cluster],
+    list,
+    list,
     ["/owned/kind", "load", "docker-image", BUSYBOX_IMAGE, "--name", system.cluster],
+    list,
   ]);
+  assert.equal(inventory, 4);
   assert.deepEqual(Object.fromEntries(system.graphLoadedImageTargets), {
-    busybox: {
-      imageID: graphImportReference("busybox"),
-      manifestDigest: plan("busybox").manifestDigest,
-    },
-    neo4j: {
-      imageID: graphImportReference("neo4j"),
-      manifestDigest: plan("neo4j").manifestDigest,
-    },
+    busybox: graphImportTarget("busybox", "linux/arm64", `sha256:${"e".repeat(64)}`),
+    neo4j: graphImportTarget("neo4j"),
   });
 
   const definitive = graphSystem();
@@ -2245,6 +2350,7 @@ test("loads graph images by immutable reference and verifies exact containerd ta
     definitive.graphImageIdentities.set(name, { ...selected, id: selected.configDigest });
   }
   definitive.verifyGraphImage = async () => {};
+  definitive.runNodeRead = async () => success(containerdInventory(baselineRows));
   definitive.runMutation = async () => ({ outcome: "definitive", result: { ...success(), status: 1 } });
   await assert.rejects(() => definitive.loadAdditionalImages(phase), { name: "Failure" });
   assert.equal(definitive.graphLoadedImageTargets.size, 0);
@@ -2392,6 +2498,12 @@ test("boundedly reconciles uncertain exact pod deletion before base node removal
     assert.equal(subject.reads(), 1, name);
     assert.equal(subject.system.graphPodDeleteMayHaveApplied, false, name);
     if (replacement) assert.equal(subject.system.graphProviderIdentity.neo4j.podUid, providerUid(10));
+    if (name === "absent") {
+      assert.equal(subject.system.graphProviderIdentity, undefined);
+      assert.deepEqual(subject.system.graphProviderAbsenceIdentity,
+        graphProviderAbsence("neo4j", initial));
+      assert.ok(Object.isFrozen(subject.system.graphProviderAbsenceIdentity));
+    }
   }
 
   for (const [name, state] of [
@@ -2407,6 +2519,80 @@ test("boundedly reconciles uncertain exact pod deletion before base node removal
       { name: "Failure" }, name);
     assert.equal(subject.reads(), 3, `${name} reconciliation is bounded`);
     assert.equal(subject.system.graphPodDeleteMayHaveApplied, true, name);
+  }
+});
+
+test("retains exact provider absence across a failed base node removal and re-proves it on cleanup retry", async () => {
+  const initial = graphRunModule.validateGraphKubernetesState(
+    graphProviderState(), graphProviderExpectation(),
+  );
+  const setup = (laterState, absent = "neo4j") => {
+    const system = graphSystem();
+    system.paths = { graphManifest: "/owned/graph.yaml" };
+    system.clusterMayHaveApplied = true;
+    system.nodeIdentity = { token: "a".repeat(64), volumeToken: "b".repeat(64) };
+    system.graphProviderIdentity = initial;
+    system.graphPodDeleteMayHaveApplied = absent === "neo4j";
+    system.graphHealthDeleteMayHaveApplied = absent === "health";
+    system.graphLoadedImageTargets = new Map(Object.entries(graphProviderExpectation().imageTargets));
+    system.requireTemporaryOwnership = async () => {};
+    system.requireOwnedPath = async () => {};
+    system.verifyCluster = async () => system.nodeIdentity;
+    let reads = 0;
+    system.readGraphProviderState = async () => {
+      reads += 1;
+      return structuredClone(reads === 1 ? graphProviderStateWithout(absent) : laterState);
+    };
+    system.pauseGraphPoll = async () => {};
+    let removals = 0;
+    system.runMutation = async (command, arguments_) => {
+      assert.equal(command, "docker");
+      assert.deepEqual(arguments_, ["rm", "--force", "--volumes", "a".repeat(64)]);
+      removals += 1;
+      return removals === 1
+        ? { outcome: "definitive", result: { ...success(), status: 1 } }
+        : { outcome: "applied", result: success() };
+    };
+    system.requireClusterAbsent = async () => { system.nodeIdentity = undefined; };
+    system.cleanupAdditionalImages = async () => {};
+    return { reads: () => reads, removals: () => removals, system };
+  };
+
+  for (const absent of ["neo4j", "health"]) {
+    const exact = setup(graphProviderStateWithout(absent), absent);
+    await assert.rejects(() => exact.system.cleanup(phase), { category: "cleanup", name: "Failure" });
+    assert.equal(exact.reads(), 1, absent);
+    assert.equal(exact.removals(), 1, absent);
+    assert.deepEqual(exact.system.graphProviderAbsenceIdentity,
+      graphProviderAbsence(absent, initial), absent);
+    await exact.system.cleanup(phase);
+    assert.equal(exact.reads(), 2, `${absent} retry independently re-proves the retained absence`);
+    assert.equal(exact.removals(), 2, absent);
+    assert.equal(exact.system.graphProviderAbsenceIdentity, undefined,
+      `${absent} absence authority clears only after exact cluster absence`);
+  }
+
+  const replacementState = graphProviderState({
+    podContainerID: `containerd://${"c".repeat(64)}`,
+    podIP: "10.244.0.22",
+    podName: "neo4j-abc123def4-uvwxy",
+    podStartedAt: "2026-08-16T10:00:10Z",
+    podUid: providerUid(10),
+  });
+  const foreign = graphProviderStateWithout("neo4j");
+  foreign.services.at(-1).metadata.uid = providerUid(99);
+  for (const [name, laterState] of [
+    ["late replacement", replacementState],
+    ["foreign lineage", foreign],
+  ]) {
+    const subject = setup(laterState);
+    await assert.rejects(() => subject.system.cleanup(phase), { category: "cleanup", name: "Failure" });
+    await assert.rejects(() => subject.system.cleanup(phase),
+      { category: "cleanup", name: "Failure" }, name);
+    assert.equal(subject.reads(), 4, `${name} exhausts only the fixed second-proof bound`);
+    assert.equal(subject.removals(), 1, `${name} blocks a second destructive node mutation`);
+    assert.deepEqual(subject.system.graphProviderAbsenceIdentity,
+      graphProviderAbsence("neo4j", initial), name);
   }
 });
 
@@ -2445,6 +2631,9 @@ test("reconciles uncertain health deletion and recreation before base node remov
     system.graphProviderIdentity = replacement;
     system.graphHealthDeleteMayHaveApplied = operation === "delete";
     system.graphHealthApplyMayHaveApplied = operation === "apply";
+    if (operation === "apply") {
+      system.graphProviderAbsenceIdentity = Object.freeze(graphProviderAbsence("health", replacement));
+    }
     system.graphLoadedImageTargets = new Map(Object.entries(graphProviderExpectation().imageTargets));
     system.requireTemporaryOwnership = async () => {};
     system.requireOwnedPath = async () => {};
@@ -2472,7 +2661,16 @@ test("reconciles uncertain health deletion and recreation before base node remov
     assert.equal(subject.reads(), 1, name);
     assert.equal(subject.system.graphHealthDeleteMayHaveApplied, false, name);
     assert.equal(subject.system.graphHealthApplyMayHaveApplied, false, name);
-    if (freshUid !== undefined) assert.equal(subject.system.graphProviderIdentity.health.jobUid, freshUid);
+    if (freshUid !== undefined) {
+      assert.equal(subject.system.graphProviderIdentity.health.jobUid, freshUid);
+      assert.equal(subject.system.graphProviderAbsenceIdentity, undefined, name);
+    }
+    if (name === "delete-applied" || name === "apply-not-applied") {
+      assert.equal(subject.system.graphProviderIdentity, undefined, name);
+      assert.deepEqual(subject.system.graphProviderAbsenceIdentity,
+        graphProviderAbsence("health", replacement), name);
+      assert.ok(Object.isFrozen(subject.system.graphProviderAbsenceIdentity), name);
+    }
   }
 
   for (const [name, state, operation] of [
