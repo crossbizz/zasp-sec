@@ -325,7 +325,7 @@ test -z "$(cd proofs/opensearch-event && go mod tidy -diff)"
 - Produces: `event:store:test`, `event:store:run`, exact M1-14 output, and
   retained byte-for-byte M0-08 commands/output.
 
-- [ ] **Step 1: Add mode/orchestrator contracts before production**
+- [x] **Step 1: Add mode/orchestrator contracts before production**
 
 Require only zero arguments for M0-08 or `--event-store` for M1-14; exact
 proof-child argv; distinct exact success/failure lines; combined bounded child
@@ -333,7 +333,7 @@ output; hard deadline; exact temp identity reproof before removal; full-ID
 container ownership and absence; and cleanup precedence. Reject any extra mode,
 environment, provider target, or shared-target name.
 
-- [ ] **Step 2: Capture focused Node RED**
+- [x] **Step 2: Capture focused Node RED**
 
 ```bash
 PATH="$HOME/.nvm/versions/node/v22.23.1/bin:$PATH" \
@@ -342,13 +342,13 @@ PATH="$HOME/.nvm/versions/node/v22.23.1/bin:$PATH" \
 
 Expected: failures only for absent M1-14 mode/output/script behavior.
 
-- [ ] **Step 3: Implement minimal mode-aware orchestration**
+- [x] **Step 3: Implement minimal mode-aware orchestration**
 
 Pass `event-store` only to the product proof child, validate its exact fixed
 line, and return the M1-14 container-cleanup line only after exact removal and
 absence. Keep the existing no-argument M0-08 code path and output unchanged.
 
-- [ ] **Step 4: Add root commands and supported-boundary documentation**
+- [x] **Step 4: Add root commands and supported-boundary documentation**
 
 Add:
 
@@ -360,7 +360,7 @@ Add:
 Document exact commands, mandatory scope, disposable-only support, prohibited
 ambient configuration, and the non-parity boundary.
 
-- [ ] **Step 5: Run six hermetic passes and all local gates**
+- [x] **Step 5: Run six hermetic passes and all local gates**
 
 ```bash
 for run in 1 2 3 4 5 6; do
@@ -373,7 +373,7 @@ PATH="$HOME/.nvm/versions/node/v22.23.1/bin:$PATH" npm audit --omit=dev
 git diff --check
 ```
 
-- [ ] **Step 6: Run the exact live proof and audit cleanup**
+- [x] **Step 6: Run the exact live proof and audit cleanup**
 
 Record the shared-target fingerprint read-only, require zero M1-14 proof
 containers/temp directories before the run, execute exactly:
@@ -392,7 +392,7 @@ OpenSearch event store passed: index=true search=true scoped=true cross_organiza
 
 Then prove zero name/label/temp candidates and the shared fingerprint unchanged.
 
-- [ ] **Step 7: Scan and commit the adapter/lifecycle package**
+- [x] **Step 7: Scan and commit the adapter/lifecycle package**
 
 ```bash
 git commit -m "feat: prove scoped OpenSearch event store"

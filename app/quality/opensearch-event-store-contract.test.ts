@@ -57,4 +57,21 @@ describe("M1-14 OpenSearch EventStore contract", () => {
     expect([...active, ...complete].filter(([task]) => task === "M1-15")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
+
+  it("exposes only the exact hermetic and disposable EventStore commands", async () => {
+    const [manifestRaw, readme] = await Promise.all([
+      readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+    ]);
+    const manifest = JSON.parse(manifestRaw) as { scripts?: Record<string, string> };
+    expect(manifest.scripts?.["event:store:test"]).toBe(
+      "go test -C services/platform -race -count=1 ./eventstore && go test -C proofs/opensearch-event -race -count=1 ./... && node --test proofs/opensearch-event/run.test.mjs proofs/opensearch-event/event-store-run.test.mjs",
+    );
+    expect(manifest.scripts?.["event:store:run"]).toBe("node proofs/opensearch-event/run.mjs --event-store");
+    const section = readme.match(/## OpenSearch EventStore proof[\s\S]*?(?=\n## )/)?.[0] ?? "";
+    expect(section).toContain("npm run event:store:test\nnpm run event:store:run");
+    expect(section).toMatch(/Organization, Workspace, Environment,\s+and session/);
+    expect(section).toMatch(/no dotenv, cloud profile, proxy, credential, or shared service\s+input/);
+    expect(section).toContain("does not prove AWS OpenSearch Service");
+  });
 });

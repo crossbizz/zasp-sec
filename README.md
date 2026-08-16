@@ -439,6 +439,26 @@ projection behavior evidence, not AWS OpenSearch Service, IAM, durability, recov
 OpenSearch remains a rebuildable query projection rather than the durable SQS/S3
 event source of truth.
 
+## OpenSearch EventStore proof
+
+This product-boundary mode reuses the same exact-pinned, proof-owned disposable
+OpenSearch target while exercising `services/platform/eventstore`. Every index
+and search operation requires an exact Organization, Workspace, Environment,
+and session scope. The proof indexes one canonical runtime-gateway tool event,
+requires one exact Organization A result, and proves that the same session under
+Organization B returns zero results before exact cleanup and prefix-wide audit.
+
+```bash
+npm run event:store:test
+npm run event:store:run
+```
+
+The hermetic test command performs no Docker or provider operation. The live
+command accepts no dotenv, cloud profile, proxy, credential, or shared service
+input; it creates only its generated M1-14 container on a random loopback port.
+This local compatibility evidence does not prove AWS OpenSearch Service, IAM,
+durability, encryption, availability, retention, rebuild, or release parity.
+
 ## Provisional LocalStack IAM compatibility proof
 
 This isolated proof starts an exact-pinned, proof-owned disposable LocalStack

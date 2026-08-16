@@ -8,6 +8,7 @@ import {
   buildDockerRunArguments,
   buildGoToolEnvironment,
   buildProofEnvironment,
+  eventStoreSuccessLine,
   orchestrate,
   runMain,
   successLine,
@@ -25,7 +26,7 @@ class FakeRuntime {
   async verifyOwned(token) { assert.equal(token, "opaque-owned-token"); this.calls.push("verify-owned"); }
   async endpoint() { this.calls.push("endpoint"); return "http://127.0.0.1:49152"; }
   async isReady() { this.calls.push("ready"); return this.ready; }
-  async runProof(endpoint) { assert.equal(endpoint, "http://127.0.0.1:49152"); this.calls.push("proof"); return this.proofCode; }
+  async runProof(endpoint, mode) { assert.equal(endpoint, "http://127.0.0.1:49152"); this.calls.push(`proof:${mode}`); return this.proofCode; }
   async remove() { this.calls.push("remove"); if (this.cleanupFails) throw new Error("suppressed cleanup detail"); }
   async requireAbsent() { this.calls.push("require-absent"); if (this.cleanupFails) throw new Error("suppressed absence detail"); }
 }
@@ -60,7 +61,24 @@ test("runs readiness and proof before exact cleanup and absence proof", async ()
   const runtime = new FakeRuntime();
   const result = await orchestrate(runtime, { readinessAttempts: 1, wait: async () => {} });
   assert.deepEqual(result, { code: 0, line: successLine });
-  assert.deepEqual(runtime.calls, ["ensure-absent", "start", "verify-owned", "endpoint", "ready", "proof", "remove", "require-absent"]);
+  assert.deepEqual(runtime.calls, ["ensure-absent", "start", "verify-owned", "endpoint", "ready", "proof:projection", "remove", "require-absent"]);
+});
+
+test("runs the product EventStore mode at a distinct exact boundary", async () => {
+  const runtime = new FakeRuntime();
+  const result = await orchestrate(runtime, { mode: "event-store", readinessAttempts: 1, wait: async () => {} });
+  assert.deepEqual(result, { code: 0, line: eventStoreSuccessLine });
+  assert.deepEqual(runtime.calls, ["ensure-absent", "start", "verify-owned", "endpoint", "ready", "proof:event-store", "remove", "require-absent"]);
+});
+
+test("uses an exact M1-14 disposable identity without changing the legacy identity", () => {
+  const product = buildDockerRunArguments("zasp-m1-14-0123456789abcdef", "event-store");
+  assert.ok(product.includes("zasp.proof=m1-14"));
+  assert.ok(product.includes("zasp.marker=0123456789abcdef"));
+  assert.equal(product.at(-1), OPENSEARCH_IMAGE);
+  const legacy = buildDockerRunArguments("zasp-m0-08-0123456789abcdef");
+  assert.ok(legacy.includes("zasp.proof=m0-08"));
+  assert.equal(legacy.includes("zasp.proof=m1-14"), false);
 });
 
 test("cleanup failure takes precedence over success or proof failure", async () => {
@@ -70,6 +88,13 @@ test("cleanup failure takes precedence over success or proof failure", async () 
       code: 1, line: "OpenSearch event projection proof failed: cleanup rejected.",
     });
   }
+});
+
+test("EventStore cleanup failure keeps the EventStore fixed line", async () => {
+  const runtime = new FakeRuntime({ cleanupFails: true });
+  assert.deepEqual(await orchestrate(runtime, { mode: "event-store", readinessAttempts: 1, wait: async () => {} }), {
+    code: 1, line: "OpenSearch event store failed: cleanup rejected.",
+  });
 });
 
 test("bounded readiness failure still removes the exact owned target", async () => {
@@ -202,5 +227,38 @@ test("contains construction and orchestration failures at one fixed-output bound
     assert.equal(exitCode, 1);
     assert.equal(stderr.includes("suppressed"), false);
     assert.equal(stderr.split("\n").filter(Boolean).length, 1);
+  }
+});
+
+test("runMain accepts only the exact EventStore mode argument", async () => {
+  for (const [argumentsValue, expectedFailure] of [
+    [["--event-store"], ""],
+    [["--event-store", "extra"], "OpenSearch event store failed: configuration rejected."],
+    [["--Event-store"], "OpenSearch event projection proof failed: configuration rejected."],
+  ]) {
+    let stdout = "";
+    let stderr = "";
+    let exitCode;
+    const result = await runMain({
+      arguments: argumentsValue,
+      runtimeFactory: (mode) => {
+        assert.equal(mode, "event-store");
+        return new FakeRuntime();
+      },
+      stdout: { write: (value) => { stdout += value; } },
+      stderr: { write: (value) => { stderr += value; } },
+      setExitCode: (value) => { exitCode = value; },
+    });
+    if (expectedFailure === "") {
+      assert.deepEqual(result, { code: 0, line: eventStoreSuccessLine });
+      assert.equal(stdout, `${eventStoreSuccessLine}\n`);
+      assert.equal(stderr, "");
+      assert.equal(exitCode, 0);
+    } else {
+      assert.deepEqual(result, { code: 1, line: expectedFailure });
+      assert.equal(stdout, "");
+      assert.equal(stderr, `${expectedFailure}\n`);
+      assert.equal(exitCode, 1);
+    }
   }
 });
