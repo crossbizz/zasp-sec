@@ -71,4 +71,34 @@ describe("M1-21 observability contract", () => {
     expect([...active, ...complete].filter(([task]) => task === "M1-22")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
+
+  it("exposes only the hermetic root command and documents the closed boundary", async () => {
+    const [packageText, readme] = await Promise.all([
+      readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+    ]);
+    const packageJson = JSON.parse(packageText) as { scripts: Record<string, string> };
+    const section = readme.match(/## Observability contract[\s\S]*?(?=\n## )/)?.[0] ?? "";
+
+    expect(packageJson.scripts["observability:test"]).toBe("go test -C services/platform -race -count=1 ./observability");
+    expect(section).toContain("npm run observability:test");
+    for (const key of [
+      "service.namespace", "service.name", "service.version",
+      "deployment.environment.name", "organization.id", "workspace.id", "environment.id",
+    ]) expect(section).toContain(key);
+    expect(section).toContain("agentsec-api");
+    expect(section).toContain("agentsec-worker");
+    for (const deployment of ["development", "test", "staging", "production"]) {
+      expect(section).toContain(deployment);
+    }
+    expect(section).toMatch(/raw prompt\/response text/i);
+    expect(section).toMatch(/tool arguments/i);
+    expect(section).toMatch(/arbitrary customer content/i);
+    expect(section).toMatch(/32-character trace/i);
+    expect(section).toMatch(/16-character span/i);
+    expect(section).toMatch(/replacement fails closed/i);
+    expect(section).toMatch(/hermetic/i);
+    expect(section).toMatch(/no OpenTelemetry SDK, exporter,\s+Collector, backend, provider, network, credential, database, or Docker I\/O/i);
+    expect(section).toMatch(/M1-22\s+remains\s+Pending/);
+  });
 });

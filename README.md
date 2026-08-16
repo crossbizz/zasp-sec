@@ -468,6 +468,30 @@ delivery, model routing, streaming, caching, or persistence. M1-21 remains
 In progress and will add the dependency-free common resource/correlation
 contract without changing this AI boundary.
 
+## Observability contract
+
+M1-21 is In progress. It defines a dependency-free, hermetic observability
+contract with exactly seven common resource attributes: `service.namespace`,
+`service.name`, `service.version`, `deployment.environment.name`,
+`organization.id`, `workspace.id`, and `environment.id`. The namespace is
+fixed to `agentsec`; service names are limited to `agentsec-api` and
+`agentsec-worker`; deployment names are limited to `development`, `test`,
+`staging`, and `production`.
+
+```bash
+npm run observability:test
+```
+
+The closed boundary rejects raw prompt/response text, tool arguments, secrets,
+raw evidence, URLs, arbitrary customer content, and every unknown or surplus
+resource attribute. Request correlation combines the canonical product
+correlation ID with a lowercase 32-character trace ID and 16-character span
+ID. Reattaching the same value is idempotent; replacement fails closed.
+
+The command is hermetic and performs no OpenTelemetry SDK, exporter,
+Collector, backend, provider, network, credential, database, or Docker I/O.
+M1-22 remains Pending.
+
 ## Neon pooled proof
 
 The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,

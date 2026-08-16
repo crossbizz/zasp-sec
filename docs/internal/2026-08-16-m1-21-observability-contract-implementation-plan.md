@@ -298,7 +298,7 @@ Vitest repository contracts, npm root command wiring.
 - Consumes: the Task 2 Go package and race suite.
 - Produces: root command `observability:test` and exact documentation boundary.
 
-- [ ] **Step 1: Add the missing-wiring assertions and capture RED**
+- [x] **Step 1: Add the missing-wiring assertions and capture RED**
 
   Require:
 
@@ -312,13 +312,22 @@ Vitest repository contracts, npm root command wiring.
   correlation/context behavior, hermetic scope, and M1-22 Pending. Run the
   focused contract; expected failure is only absent script/docs.
 
-- [ ] **Step 2: Add the root command and README section**
+  The focused RED was 1 intended failure and 2 passes. The only failure was
+  the absent `observability:test` script; the existing source and status
+  contracts remained green.
+
+- [x] **Step 2: Add the root command and README section**
 
   Make the smallest package/README edits satisfying the exact contract. Do not
   add an OTLP SDK, exporter, adapter, backend, credential, or environment
   wiring.
 
-- [ ] **Step 3: Run root, focused, full pinned, audit, and formatting gates**
+  The exact race command and closed README boundary are present. One first
+  GREEN attempt exposed only a tests-only Markdown line-wrapping assumption;
+  after making whitespace explicit, the focused contract passed 3/3 and the
+  root Go race command passed.
+
+- [x] **Step 3: Run root, focused, full pinned, audit, and formatting gates**
 
   ```bash
   npm run observability:test
@@ -331,7 +340,12 @@ Vitest repository contracts, npm root command wiring.
   Also run `npm run build:repo` and require its exact eight repository build
   targets to pass. Require zero production vulnerabilities.
 
-- [ ] **Step 4: Record evidence and commit**
+  Pinned Node 22.23.1/npm 10.9.8 passed the 3/3 focused contract, root Go
+  race command, 58-file/263-test repository suite, typecheck, lint, production
+  build, all eight repository build targets, zero-vulnerability production
+  audit, and whitespace check.
+
+- [x] **Step 4: Record evidence and commit**
 
   Scan the staged diff and evidence, then commit:
 
