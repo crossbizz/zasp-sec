@@ -27,10 +27,9 @@ npm run typecheck
 npm run build
 ```
 
-The application uses Vinext and targets the Cloudflare Workers runtime. Optional
-local D1 and R2 bindings can be enabled with `CLOUDFLARE_D1_BINDING` and
-`CLOUDFLARE_R2_BINDING`; no database or object-storage binding is required for
-the browser-local prototype.
+The application uses Vite with React and TypeScript. No database or
+object-storage service is required for the browser-local prototype.
 
-Application authentication will use Stytch B2B. The current prototype runs
-without an authentication gate until that integration is configured.
+Application authentication will use Stytch B2B through its React SDK. The
+current prototype runs without an authentication gate until that integration is
+configured.
