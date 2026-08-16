@@ -17,6 +17,44 @@ function taskRows(tracker: string, heading: "In progress" | "Complete" | "Blocke
   return markdownRows(section).slice(2);
 }
 
+function verifyM122ActiveStatus(tracker: string, readme: string) {
+  const active = taskRows(tracker, "In progress");
+  const complete = taskRows(tracker, "Complete");
+  const blocked = taskRows(tracker, "Blocked");
+  const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
+
+  expect(readme).toMatch(/M1-22\s+is\s+In\s+progress/);
+  expect(tracker).toContain("| Pending | 673 |");
+  expect(tracker).toContain("| In progress | 1 |");
+  expect(tracker).toContain("| Complete | 51 |");
+  expect(tracker).toContain("| Blocked | 3 |");
+  expect(tracker).toContain("`673/1/51/3`");
+  expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "40", "1", "27", "0"]);
+  expect(active.map(([task]) => task)).toEqual(["M1-22"]);
+  expect(complete.filter(([task]) => task === "M1-22")).toHaveLength(0);
+  expect(complete.filter(([task]) => task === "M1-21")).toHaveLength(1);
+  expect([...active, ...complete].filter(([task]) => task === "M1-23")).toHaveLength(0);
+  expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
+}
+
+function verifyReadmeBoundary(readme: string) {
+  const section = readme.match(/## SecurityEvent envelope[\s\S]*?## Neon pooled proof/)?.[0] ?? "";
+  const prose = section.replace(/\s+/g, " ");
+
+  expect(section).toMatch(/^npm run securityevent:test$/m);
+  expect(prose).toContain("`Version`, `Scope`, `Source`, `Time`, `Evidence`, and `Correlation`");
+  expect(prose).toContain("exactly version 1");
+  for (const sourceName of ["runtime_gateway", "otlp", "tetragon", "attack_lab"]) {
+    expect(section).toContain(`\`${sourceName}\``);
+  }
+  expect(prose).toContain("canonical UTC millisecond precision");
+  expect(prose).toContain("typed product evidence reference");
+  expect(prose).toContain("M1-21 product, trace, and span correlation");
+  expect(prose).toContain("raw evidence, payloads, prompts, tool arguments, secrets, arbitrary metadata, and vendor identifiers are not envelope fields");
+  expect(prose).toContain("no parser, OpenAPI, transport, adapter, queue, storage, provider, network, credential, database, Docker, filesystem, or environment I/O");
+  expect(prose).toContain("M1-23 remains Pending");
+}
+
 describe("M1-22 SecurityEvent envelope", () => {
   it("binds the source, scope rule, runtime flow, and closed design", async () => {
     const [source, prd, design, plan] = await Promise.all([
@@ -51,22 +89,7 @@ describe("M1-22 SecurityEvent envelope", () => {
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
     ]);
-    const active = taskRows(tracker, "In progress");
-    const complete = taskRows(tracker, "Complete");
-    const blocked = taskRows(tracker, "Blocked");
-    const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
-
-    expect(readme).toMatch(/M1-22\s+is\s+In\s+progress/);
-    expect(tracker).toContain("| Pending | 673 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 51 |");
-    expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`673/1/51/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "40", "1", "27", "0"]);
-    expect(active.map(([task]) => task)).toEqual(["M1-22"]);
-    expect(complete.filter(([task]) => task === "M1-21")).toHaveLength(1);
-    expect([...active, ...complete].filter(([task]) => task === "M1-23")).toHaveLength(0);
-    expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
+    verifyM122ActiveStatus(tracker, readme);
   });
 
   it("exposes the exact hermetic command", async () => {
@@ -80,19 +103,26 @@ describe("M1-22 SecurityEvent envelope", () => {
 
   it("documents the exact public envelope boundary", async () => {
     const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
-    const section = readme.match(/## SecurityEvent envelope[\s\S]*?## Neon pooled proof/)?.[0] ?? "";
-    const prose = section.replace(/\s+/g, " ");
+    verifyReadmeBoundary(readme);
+  });
 
-    expect(prose).toContain("`Version`, `Scope`, `Source`, `Time`, `Evidence`, and `Correlation`");
-    expect(prose).toContain("exactly version 1");
-    for (const sourceName of ["runtime_gateway", "otlp", "tetragon", "attack_lab"]) {
-      expect(section).toContain(`\`${sourceName}\``);
-    }
-    expect(prose).toContain("canonical UTC millisecond precision");
-    expect(prose).toContain("typed product evidence reference");
-    expect(prose).toContain("M1-21 product, trace, and span correlation");
-    expect(prose).toContain("raw evidence, payloads, prompts, tool arguments, secrets, arbitrary metadata, and vendor identifiers are not envelope fields");
-    expect(prose).toContain("no parser, OpenAPI, transport, adapter, queue, storage, provider, network, credential, database, Docker, filesystem, or environment I/O");
-    expect(prose).toContain("M1-23 remains Pending");
+  it("rejects a duplicate M1-22 Complete row while active", async () => {
+    const [tracker, readme] = await Promise.all([
+      readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+    ]);
+    const forged = tracker.replace(
+      "| M1-21 |",
+      "| M1-22 | August 16, 2026 | forged duplicate |\n| M1-21 |",
+    );
+
+    expect(() => verifyM122ActiveStatus(forged, readme)).toThrow();
+  });
+
+  it("rejects README command drift", async () => {
+    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const drifted = readme.replace("npm run securityevent:test", "npm run securityevent:test-wrong");
+
+    expect(() => verifyReadmeBoundary(drifted)).toThrow();
   });
 });
