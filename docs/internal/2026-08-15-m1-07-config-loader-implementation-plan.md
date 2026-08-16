@@ -18,12 +18,12 @@ absent.
 
 ### Task 1: Start M1-07
 
-- [ ] Add a repository contract binding source, architecture/PRD rules,
+- [x] Add a repository contract binding source, architecture/PRD rules,
   design, plan, completed M1-06, unique active status, arithmetic, and blockers.
-- [ ] Capture focused RED at the still-Pending README/tracker state.
-- [ ] Move only M1-07 to In progress at `688/1/36/3` overall and M1
+- [x] Capture focused RED at the still-Pending README/tracker state.
+- [x] Move only M1-07 to In progress at `688/1/36/3` overall and M1
   `68/55/1/12/0`; document the configuration boundary.
-- [ ] Run focused/full pinned GREEN, audit, whitespace, and scans; commit
+- [x] Run focused/full pinned GREEN, audit, whitespace, and scans; commit
   `docs: start M1-07 config loader`.
 
 ### Task 2: Implement the loader tests-first

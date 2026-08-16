@@ -17,29 +17,31 @@ function taskRows(tracker: string, heading: "In progress" | "Complete" | "Blocke
   return markdownRows(section).slice(2);
 }
 
-describe("M1-04 scope model contract", () => {
-  it("binds the source and PRD hierarchy to the strict approved scope model", async () => {
+describe("M1-07 configuration loader contract", () => {
+  it("binds required and optional dependencies to the approved typed boundary", async () => {
     const [source, prd, design, plan] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "docs/internal/agent_security_platform_PRD_v1.5.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "docs/internal/2026-08-15-m1-04-scope-model-design.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "docs/internal/2026-08-15-m1-04-scope-model-implementation-plan.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/2026-08-15-m1-07-config-loader-design.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/2026-08-15-m1-07-config-loader-implementation-plan.md"), "utf8"),
     ]);
-    const sourceSection = source.match(/\*\*M1-04 - scope model\*\*[\s\S]*?\*\*M1-05 - evidence model/)?.[0];
+    const sourceSection = source.match(/\*\*M1-07 - config loader\*\*[\s\S]*?\*\*M1-08 - external client policy/)?.[0];
     const compactDesign = design.replace(/\s+/g, " ");
 
-    expect(sourceSection).toContain("Depends on: `M1-03`");
-    expect(sourceSection).toContain("Define Organization/Workspace/Environment `Scope`");
-    expect(sourceSection).toContain("rejects missing Organization or Environment");
-    expect(prd).toContain("`Organization -> Workspace -> Environment`");
-    expect(prd).toContain("validates Organization, Workspace, Environment, target");
-    expect(compactDesign).toContain("Organization, Workspace, and Environment IDs must each be valid nonzero `ProductID` values");
-    expect(compactDesign).toContain("three IDs must be pairwise distinct");
+    expect(sourceSection).toContain("Depends on: `M1-06`");
+    expect(sourceSection).toContain("typed config with required/optional dependency groups and secret references");
+    expect(sourceSection).toContain("Missing required config fails start; optional config does not");
+    expect(source).toContain("Stytch B2B is the required v1 human identity provider");
+    expect(source).toContain("Neon is the required relational Postgres provider");
+    expect(source).toContain("PostHog and remote OTLP are optional/non-critical");
+    expect(prd).toContain("OpenRouter is unavailable, disabled or disallowed by Organization data policy");
+    expect(compactDesign).toContain("stores secret references rather than secret material");
+    expect(compactDesign).toContain("An entirely absent optional group produces an absent typed value and does not fail startup");
     expect(plan).toContain("Every behavior and status change has a witnessed tests-only RED first");
-    expect(plan).toContain("M1-05 remains Pending");
+    expect(plan).toContain("M1-08 remains Pending");
   });
 
-  it("completes only M1-04 after the scope boundary passes", async () => {
+  it("starts only M1-07 after M1-06 completes", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -52,9 +54,10 @@ describe("M1-04 scope model contract", () => {
     const m0 = milestones.find(([milestone]) => milestone === "M0");
     const m1 = milestones.find(([milestone]) => milestone === "M1");
 
-    expect(readme).toContain("M1-03 is Complete");
-    expect(readme).toContain("M1-04 is Complete");
-    expect(readme).toContain("Organization -> Workspace -> Environment");
+    expect(readme).toContain("M1-06 is Complete");
+    expect(readme).toContain("M1-07 is In progress");
+    expect(readme).toContain("required dependency configuration fails startup");
+    expect(readme).toContain("PostHog, OpenRouter, and remote OTLP remain optional");
     expect(tracker).toContain("| Pending | 688 |");
     expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 36 |");
@@ -63,10 +66,9 @@ describe("M1-04 scope model contract", () => {
     expect(m0).toEqual(["M0", "27", "0", "0", "24", "3"]);
     expect(m1).toEqual(["M1", "68", "55", "1", "12", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active).toHaveLength(1);
-    expect(complete.filter(([task]) => task === "M1-04")).toHaveLength(1);
-    expect(complete.filter(([task]) => task === "M1-03")).toHaveLength(1);
-    expect(complete.filter(([task]) => task === "M1-05")).toHaveLength(1);
+    expect(active.filter(([task]) => task === "M1-07")).toHaveLength(1);
+    expect(complete.filter(([task]) => task === "M1-06")).toHaveLength(1);
+    expect([...active, ...complete].filter(([task]) => task === "M1-08")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
     expect(tracker).toContain("R-03 remains incomplete");
     expect(tracker).toContain("R-11 remains Not run");

@@ -189,6 +189,13 @@ bounded product-language message, canonical correlation ID, and explicit
 retryable flag. The exact four-field response excludes vendor exceptions,
 debug metadata, credentials, and implicit retry guesses.
 
+## Product configuration loader
+
+M1-07 is In progress. The platform configuration boundary is typed and
+reference-only: missing required dependency configuration fails startup, while
+PostHog, OpenRouter, and remote OTLP remain optional. Secret configuration uses
+strict Secrets Manager references and does not load or expose secret material.
+
 ## Neon pooled proof
 
 The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,
