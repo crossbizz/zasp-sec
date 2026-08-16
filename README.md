@@ -673,10 +673,23 @@ Complete and M1-29 is In progress.
 
 ## System health aggregation model
 
-M1-29 is In progress. It will define the shared Healthy, Degraded, and
-Unavailable component model plus required-versus-optional aggregation in
-`services/health`. No aggregation runtime or readiness behavior is claimed by
-this start transition. M1-30a remains Pending.
+M1-29 is In progress. `services/health` now defines the shared Healthy,
+Degraded, and Unavailable component value with exact required/optional
+classification, a bounded product-owned reason code, and canonical UTC
+millisecond last-success state. Any required Unavailable component makes the
+aggregate Unavailable. Any Degraded component or optional Unavailable component
+makes it Degraded, so an optional failure never permits a false Healthy result.
+
+The pure model validates local values and does not poll dependencies, perform
+I/O, or retain caller-owned state. It records system health but does not change
+process readiness; later command or deployment work must make that decision
+explicitly. Run the model and existing endpoint/command race suites with:
+
+```bash
+npm run health:contract:test
+```
+
+M1-30a remains Pending.
 
 ## Platform health wiring
 

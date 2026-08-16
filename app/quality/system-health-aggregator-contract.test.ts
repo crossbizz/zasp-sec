@@ -73,4 +73,47 @@ describe("M1-29 system health aggregator", () => {
     expect([...active, ...complete].filter(([task]) => task === "M1-30a")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
+
+  it("documents the exact implemented value and aggregation boundary", async () => {
+    const [source, packageJsonText, readme] = await Promise.all([
+      readFile(resolve(repositoryRoot, "services/health/aggregate.go"), "utf8"),
+      readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+    ]);
+    const packageJson = JSON.parse(packageJsonText) as { scripts?: Record<string, string> };
+    const section = readme.match(/## System health aggregation model[\s\S]*?## Platform health wiring/)?.[0] ?? "";
+    const prose = section.replace(/\s+/g, " ");
+    const sourceProse = source.replace(/\s+/g, " ");
+
+    for (const value of [
+      'StatusHealthy Status = "healthy"',
+      'StatusDegraded Status = "degraded"',
+      'StatusUnavailable Status = "unavailable"',
+      'RequirementRequired Requirement = "required"',
+      'RequirementOptional Requirement = "optional"',
+      "func NewComponent(",
+      "func (component Component) Validate() error",
+      "func Aggregate(components []Component) (Status, error)",
+    ]) {
+      expect(sourceProse).toContain(value);
+    }
+    expect(packageJson.scripts?.["health:contract:test"]).toBe(
+      "node --test openapi/internal-health.test.mjs && go test -C services/health -race -count=1 ./... && go test -C services/platform -race -count=1 ./healthserver ./agentsec-api ./agentsec-worker && go test -C services/event-ingest -race -count=1 ./... && go test -C services/runtime-gateway -race -count=1 ./...",
+    );
+    for (const value of [
+      "M1-29 is In progress",
+      "Healthy, Degraded, and Unavailable",
+      "required Unavailable component makes the aggregate Unavailable",
+      "optional Unavailable component makes it Degraded",
+      "product-owned reason code",
+      "canonical UTC millisecond last-success",
+      "does not change process readiness",
+      "npm run health:contract:test",
+      "M1-30a remains Pending",
+    ]) {
+      expect(prose).toContain(value);
+    }
+    expect(prose).toContain("does not poll dependencies");
+    expect(prose).not.toMatch(/provider response|raw error|credential|customer data/i);
+  });
 });
