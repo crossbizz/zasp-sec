@@ -2,8 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { PRODUCTS } from "./manifests.mjs";
-import { BUSYBOX_IMAGE, GRAPH_CONSTANTS, NEO4J_IMAGE } from "./graph-manifest.mjs";
+import {
+  BUSYBOX_IMAGE,
+  GRAPH_CONSTANTS,
+  NEO4J_IMAGE,
+  buildGraphResources,
+} from "./graph-manifest.mjs";
 import { KIND_PINS, buildKindCreateArguments } from "./run.mjs";
+import * as graphRunModule from "./graph-run.mjs";
 import {
   GRAPH_FAILURE_CATEGORIES,
   GRAPH_IMAGE_PLANS,
@@ -203,6 +209,932 @@ function graphSystem(command) {
     repositoryRoot: "/repository",
   }, graphDependencies(command));
 }
+
+function graphResource(kind, name) {
+  return buildGraphResources().find((value) => value.kind === kind && value.metadata.name === name);
+}
+
+function providerUid(index) {
+  return `${index.toString(16).padStart(8, "0")}-0000-4000-8000-${index.toString(16).padStart(12, "0")}`;
+}
+
+function providerContainer(value) {
+  const projected = {
+    ...structuredClone(value),
+    terminationMessagePath: "/dev/termination-log",
+    terminationMessagePolicy: "File",
+  };
+  if (Array.isArray(projected.volumeMounts)) {
+    projected.volumeMounts = projected.volumeMounts.map((mount) => {
+      const item = { ...mount };
+      if (item.readOnly === false) delete item.readOnly;
+      return item;
+    });
+  }
+  return projected;
+}
+
+function providerGraphTemplate(template, labels = template.metadata.labels) {
+  return {
+    metadata: { creationTimestamp: null, labels: structuredClone(labels) },
+    spec: {
+      ...structuredClone(template.spec),
+      containers: template.spec.containers.map(providerContainer),
+      schedulerName: "default-scheduler",
+    },
+  };
+}
+
+function providerGraphPodSpec(template, nodeName) {
+  return {
+    automountServiceAccountToken: template.spec.automountServiceAccountToken,
+    containers: template.spec.containers.map(providerContainer),
+    dnsPolicy: template.spec.dnsPolicy,
+    enableServiceLinks: template.spec.enableServiceLinks,
+    nodeName,
+    preemptionPolicy: "PreemptLowerPriority",
+    priority: 0,
+    restartPolicy: template.spec.restartPolicy,
+    schedulerName: "default-scheduler",
+    securityContext: structuredClone(template.spec.securityContext),
+    serviceAccount: "default",
+    serviceAccountName: "default",
+    terminationGracePeriodSeconds: template.spec.terminationGracePeriodSeconds,
+    tolerations: [
+      { effect: "NoExecute", key: "node.kubernetes.io/not-ready", operator: "Exists", tolerationSeconds: 300 },
+      { effect: "NoExecute", key: "node.kubernetes.io/unreachable", operator: "Exists", tolerationSeconds: 300 },
+    ],
+    ...(template.spec.volumes === undefined ? {} : { volumes: structuredClone(template.spec.volumes).map((volume) => {
+      if (volume.persistentVolumeClaim?.readOnly !== false) return volume;
+      const item = structuredClone(volume);
+      delete item.persistentVolumeClaim.readOnly;
+      return item;
+    }) }),
+  };
+}
+
+function graphProviderState(overrides = {}) {
+  const nodeName = `zasp-m1-30b-${marker}-control-plane`;
+  const deploymentResource = graphResource("Deployment", "neo4j");
+  const serviceResource = graphResource("Service", "neo4j");
+  const persistentVolumeResource = graphResource("PersistentVolume", GRAPH_CONSTANTS.persistentVolumeName);
+  const persistentVolumeClaimResource = graphResource(
+    "PersistentVolumeClaim", GRAPH_CONSTANTS.persistentVolumeClaimName,
+  );
+  const jobResource = graphResource("Job", "neo4j-health");
+  const deploymentUid = providerUid(1);
+  const replicaSetUid = providerUid(2);
+  const podUid = overrides.podUid ?? providerUid(3);
+  const serviceUid = providerUid(4);
+  const endpointSliceUid = providerUid(5);
+  const persistentVolumeUid = providerUid(6);
+  const persistentVolumeClaimUid = providerUid(7);
+  const jobUid = providerUid(8);
+  const healthPodUid = providerUid(9);
+  const hash = "abc123def4";
+  const podName = overrides.podName ?? `neo4j-${hash}-pqrst`;
+  const podIP = overrides.podIP ?? "10.244.0.20";
+  const podStartedAt = overrides.podStartedAt ?? "2026-08-16T10:00:00Z";
+  const podContainerID = overrides.podContainerID ?? `containerd://${"a".repeat(64)}`;
+  const healthLabels = {
+    ...jobResource.spec.template.metadata.labels,
+    "batch.kubernetes.io/controller-uid": jobUid,
+    "batch.kubernetes.io/job-name": "neo4j-health",
+    "controller-uid": jobUid,
+    "job-name": "neo4j-health",
+  };
+  const replicaSetLabels = {
+    ...deploymentResource.metadata.labels,
+    "pod-template-hash": hash,
+  };
+  const deployment = {
+    apiVersion: "apps/v1",
+    kind: "Deployment",
+    metadata: {
+      generation: 1,
+      labels: structuredClone(deploymentResource.metadata.labels),
+      name: "neo4j",
+      namespace: "zasp-local",
+      resourceVersion: "101",
+      uid: deploymentUid,
+    },
+    spec: {
+      ...structuredClone(deploymentResource.spec),
+      template: providerGraphTemplate(deploymentResource.spec.template),
+    },
+    status: {
+      availableReplicas: 1,
+      conditions: [{ status: "True", type: "Available" }],
+      observedGeneration: 1,
+      readyReplicas: 1,
+      replicas: 1,
+      unavailableReplicas: 0,
+      updatedReplicas: 1,
+    },
+  };
+  const replicaSet = {
+    apiVersion: "apps/v1",
+    kind: "ReplicaSet",
+    metadata: {
+      labels: replicaSetLabels,
+      name: `neo4j-${hash}`,
+      namespace: "zasp-local",
+      ownerReferences: [{
+        apiVersion: "apps/v1",
+        blockOwnerDeletion: true,
+        controller: true,
+        kind: "Deployment",
+        name: "neo4j",
+        uid: deploymentUid,
+      }],
+      resourceVersion: "102",
+      uid: replicaSetUid,
+    },
+    spec: {
+      replicas: 1,
+      selector: { matchLabels: { "app.kubernetes.io/name": "neo4j", "pod-template-hash": hash } },
+      template: providerGraphTemplate(deploymentResource.spec.template, replicaSetLabels),
+    },
+    status: {
+      availableReplicas: 1,
+      fullyLabeledReplicas: 1,
+      observedGeneration: 1,
+      readyReplicas: 1,
+      replicas: 1,
+    },
+  };
+  const pod = {
+    apiVersion: "v1",
+    kind: "Pod",
+    metadata: {
+      labels: replicaSetLabels,
+      name: podName,
+      namespace: "zasp-local",
+      ownerReferences: [{
+        apiVersion: "apps/v1",
+        blockOwnerDeletion: true,
+        controller: true,
+        kind: "ReplicaSet",
+        name: replicaSet.metadata.name,
+        uid: replicaSetUid,
+      }],
+      resourceVersion: "103",
+      uid: podUid,
+    },
+    spec: providerGraphPodSpec(deploymentResource.spec.template, nodeName),
+    status: {
+      conditions: [{ status: "True", type: "Ready" }],
+      containerStatuses: [{
+        containerID: podContainerID,
+        image: `docker.io/library/${NEO4J_IMAGE}`,
+        imageID: `docker.io/library/neo4j@${GRAPH_IMAGE_PLANS.neo4j.indexDigest}`,
+        lastState: {},
+        name: "neo4j",
+        ready: true,
+        restartCount: 0,
+        started: true,
+        state: { running: { startedAt: podStartedAt } },
+      }],
+      phase: "Running",
+      podIP,
+    },
+  };
+  const service = {
+    apiVersion: "v1",
+    kind: "Service",
+    metadata: {
+      labels: structuredClone(serviceResource.metadata.labels),
+      name: "neo4j",
+      namespace: "zasp-local",
+      resourceVersion: "104",
+      uid: serviceUid,
+    },
+    spec: {
+      clusterIP: "10.96.0.20",
+      clusterIPs: ["10.96.0.20"],
+      internalTrafficPolicy: "Cluster",
+      ...structuredClone(serviceResource.spec),
+    },
+    status: { loadBalancer: {} },
+  };
+  const endpointSlice = {
+    addressType: "IPv4",
+    apiVersion: "discovery.k8s.io/v1",
+    endpoints: [{
+      addresses: [podIP],
+      conditions: { ready: true, serving: true, terminating: false },
+      nodeName,
+      targetRef: { kind: "Pod", name: podName, namespace: "zasp-local", uid: podUid },
+    }],
+    kind: "EndpointSlice",
+    metadata: {
+      labels: {
+        "endpointslice.kubernetes.io/managed-by": "endpointslice-controller.k8s.io",
+        "kubernetes.io/service-name": "neo4j",
+      },
+      name: "neo4j-abcde",
+      namespace: "zasp-local",
+      ownerReferences: [{
+        apiVersion: "v1",
+        blockOwnerDeletion: true,
+        controller: true,
+        kind: "Service",
+        name: "neo4j",
+        uid: serviceUid,
+      }],
+      resourceVersion: "105",
+      uid: endpointSliceUid,
+    },
+    ports: [
+      { name: "http", port: 7474, protocol: "TCP" },
+      { name: "bolt", port: 7687, protocol: "TCP" },
+    ],
+  };
+  const persistentVolumeClaim = {
+    apiVersion: "v1",
+    kind: "PersistentVolumeClaim",
+    metadata: {
+      labels: structuredClone(persistentVolumeClaimResource.metadata.labels),
+      name: GRAPH_CONSTANTS.persistentVolumeClaimName,
+      namespace: "zasp-local",
+      resourceVersion: "107",
+      uid: persistentVolumeClaimUid,
+    },
+    spec: structuredClone(persistentVolumeClaimResource.spec),
+    status: { accessModes: ["ReadWriteOnce"], capacity: { storage: "1Gi" }, phase: "Bound" },
+  };
+  const persistentVolume = {
+    apiVersion: "v1",
+    kind: "PersistentVolume",
+    metadata: {
+      labels: structuredClone(persistentVolumeResource.metadata.labels),
+      name: GRAPH_CONSTANTS.persistentVolumeName,
+      resourceVersion: "106",
+      uid: persistentVolumeUid,
+    },
+    spec: {
+      ...structuredClone(persistentVolumeResource.spec),
+      claimRef: {
+        ...structuredClone(persistentVolumeResource.spec.claimRef),
+        resourceVersion: "105",
+        uid: persistentVolumeClaimUid,
+      },
+    },
+    status: { lastPhaseTransitionTime: "2026-08-16T09:59:59Z", phase: "Bound" },
+  };
+  const jobTemplate = providerGraphTemplate(jobResource.spec.template, healthLabels);
+  const job = {
+    apiVersion: "batch/v1",
+    kind: "Job",
+    metadata: {
+      labels: structuredClone(jobResource.metadata.labels),
+      name: "neo4j-health",
+      namespace: "zasp-local",
+      resourceVersion: "108",
+      uid: jobUid,
+    },
+    spec: {
+      activeDeadlineSeconds: 120,
+      backoffLimit: 0,
+      completionMode: "NonIndexed",
+      completions: 1,
+      manualSelector: false,
+      parallelism: 1,
+      selector: { matchLabels: { "batch.kubernetes.io/controller-uid": jobUid } },
+      suspend: false,
+      template: jobTemplate,
+    },
+    status: {
+      completionTime: "2026-08-16T10:00:06Z",
+      conditions: [{
+        lastProbeTime: "2026-08-16T10:00:06Z",
+        lastTransitionTime: "2026-08-16T10:00:06Z",
+        status: "True",
+        type: "Complete",
+      }],
+      failed: 0,
+      ready: 0,
+      startTime: "2026-08-16T10:00:02Z",
+      succeeded: 1,
+    },
+  };
+  const healthPodName = "neo4j-health-fghij";
+  const healthPod = {
+    apiVersion: "v1",
+    kind: "Pod",
+    metadata: {
+      labels: healthLabels,
+      name: healthPodName,
+      namespace: "zasp-local",
+      ownerReferences: [{
+        apiVersion: "batch/v1",
+        blockOwnerDeletion: true,
+        controller: true,
+        kind: "Job",
+        name: "neo4j-health",
+        uid: jobUid,
+      }],
+      resourceVersion: "109",
+      uid: healthPodUid,
+    },
+    spec: providerGraphPodSpec(jobResource.spec.template, nodeName),
+    status: {
+      conditions: [{ status: "False", type: "Ready" }],
+      containerStatuses: [{
+        containerID: `containerd://${"b".repeat(64)}`,
+        image: BUSYBOX_IMAGE,
+        imageID: `registry.k8s.io/e2e-test-images/busybox@${GRAPH_IMAGE_PLANS.busybox.indexDigest}`,
+        lastState: {},
+        name: "health",
+        ready: false,
+        restartCount: 0,
+        started: false,
+        state: { terminated: {
+          containerID: `containerd://${"b".repeat(64)}`,
+          exitCode: 0,
+          finishedAt: "2026-08-16T10:00:05Z",
+          reason: "Completed",
+          startedAt: "2026-08-16T10:00:03Z",
+        } },
+      }],
+      phase: "Succeeded",
+      podIP: "10.244.0.21",
+    },
+  };
+  const productItems = (kind) => PRODUCTS.map((product, index) => ({
+    apiVersion: kind === "Deployment" || kind === "ReplicaSet" ? "apps/v1" : "v1",
+    kind,
+    metadata: {
+      labels: kind === "EndpointSlice"
+        ? { "kubernetes.io/service-name": product.name }
+        : { "app.kubernetes.io/name": product.name },
+      name: kind === "EndpointSlice" ? `${product.name}-abcde` : product.name,
+      uid: providerUid(20 + index),
+    },
+  }));
+  return {
+    deployments: [...productItems("Deployment"), deployment],
+    endpointSlices: [...productItems("EndpointSlice"), endpointSlice],
+    healthLog: "neo4j-health-ready\n",
+    ingresses: [],
+    jobs: [job],
+    persistentVolumeClaims: [persistentVolumeClaim],
+    persistentVolumes: [persistentVolume],
+    pods: [...productItems("Pod"), pod, healthPod],
+    replicaSets: [...productItems("ReplicaSet"), replicaSet],
+    services: [...productItems("Service"), service],
+  };
+}
+
+function graphProviderExpectation() {
+  return {
+    imageTargets: {
+      busybox: GRAPH_IMAGE_PLANS.busybox.platforms["linux/arm64"].manifestDigest,
+      neo4j: GRAPH_IMAGE_PLANS.neo4j.platforms["linux/arm64"].manifestDigest,
+    },
+    nodeName: `zasp-m1-30b-${marker}-control-plane`,
+  };
+}
+
+function productProviderSnapshot(value) {
+  const names = new Set(PRODUCTS.map(({ name }) => name));
+  return {
+    deployments: value.deployments.filter((item) => names.has(item?.metadata?.name)),
+    endpointSlices: value.endpointSlices.filter((item) =>
+      names.has(item?.metadata?.labels?.["kubernetes.io/service-name"])),
+    pods: value.pods.filter((item) => names.has(item?.metadata?.labels?.["app.kubernetes.io/name"])),
+    replicaSets: value.replicaSets.filter((item) =>
+      names.has(item?.metadata?.labels?.["app.kubernetes.io/name"])),
+    services: value.services.filter((item) => names.has(item?.metadata?.name)),
+  };
+}
+
+test("normalizes one exact Bound graph lineage with internal health evidence", () => {
+  const snapshot = graphRunModule.validateGraphKubernetesState(
+    graphProviderState(), graphProviderExpectation(),
+  );
+  assert.deepEqual(snapshot, {
+    health: {
+      jobUid: providerUid(8),
+      podName: "neo4j-health-fghij",
+      podUid: providerUid(9),
+    },
+    internal: true,
+    neo4j: {
+      containerID: `containerd://${"a".repeat(64)}`,
+      deploymentUid: providerUid(1),
+      endpointSliceUid: providerUid(5),
+      persistentVolumeClaimUid: providerUid(7),
+      persistentVolumeUid: providerUid(6),
+      podIP: "10.244.0.20",
+      podName: "neo4j-abc123def4-pqrst",
+      podUid: providerUid(3),
+      replicaSetUid: providerUid(2),
+      serviceUid: providerUid(4),
+      startedAt: "2026-08-16T10:00:00Z",
+    },
+    ready: true,
+  });
+  assert.ok(Object.isFrozen(snapshot));
+  assert.ok(Object.isFrozen(snapshot.neo4j));
+});
+
+test("rejects every graph provider identity, lineage, storage, health, and exposure drift", () => {
+  const cases = [
+    ["unknown snapshot key", (value) => { value.unexpected = true; }],
+    ["missing deployment", (value) => { value.deployments.pop(); }],
+    ["extra service", (value) => { value.services.push(structuredClone(value.services.at(-1))); }],
+    ["duplicate pod", (value) => { value.pods.push(structuredClone(value.pods.at(-2))); }],
+    ["PV phase", (value) => { value.persistentVolumes[0].status.phase = "Available"; }],
+    ["missing PV transition", (value) => {
+      delete value.persistentVolumes[0].status.lastPhaseTransitionTime;
+    }],
+    ["malformed PV transition", (value) => {
+      value.persistentVolumes[0].status.lastPhaseTransitionTime = "2026-02-30T00:00:00Z";
+    }],
+    ["unknown PV status", (value) => { value.persistentVolumes[0].status.foreign = true; }],
+    ["PVC phase", (value) => { value.persistentVolumeClaims[0].status.phase = "Pending"; }],
+    ["missing claim reference version", (value) => {
+      delete value.persistentVolumes[0].spec.claimRef.resourceVersion;
+    }],
+    ["malformed claim reference version", (value) => {
+      value.persistentVolumes[0].spec.claimRef.resourceVersion = "0";
+    }],
+    ["claim UID", (value) => { value.persistentVolumes[0].spec.claimRef.uid = providerUid(99); }],
+    ["claim reference name", (value) => { value.persistentVolumes[0].spec.claimRef.name = "foreign"; }],
+    ["claim name", (value) => { value.persistentVolumeClaims[0].spec.volumeName = "foreign"; }],
+    ["resource version", (value) => { value.deployments.at(-1).metadata.resourceVersion = "0"; }],
+    ["deployment UID", (value) => { value.deployments.at(-1).metadata.uid = providerUid(99); }],
+    ["missing template timestamp", (value) => {
+      delete value.deployments.at(-1).spec.template.metadata.creationTimestamp;
+    }],
+    ["non-null template timestamp", (value) => {
+      value.deployments.at(-1).spec.template.metadata.creationTimestamp = "2026-08-16T10:00:00Z";
+    }],
+    ["unknown template metadata", (value) => {
+      value.deployments.at(-1).spec.template.metadata.foreign = true;
+    }],
+    ["replica set owner", (value) => { value.replicaSets.at(-1).metadata.ownerReferences[0].uid = providerUid(99); }],
+    ["replica set selector", (value) => {
+      value.replicaSets.at(-1).spec.selector.matchLabels["pod-template-hash"] = "ffffffffff";
+    }],
+    ["pod owner", (value) => { value.pods.at(-2).metadata.ownerReferences[0].uid = providerUid(99); }],
+    ["pod node", (value) => { value.pods.at(-2).spec.nodeName = "foreign"; }],
+    ["pod image", (value) => { value.pods.at(-2).spec.containers[0].image = "neo4j:latest"; }],
+    ["pod image ID", (value) => { value.pods.at(-2).status.containerStatuses[0].imageID = "foreign"; }],
+    ["pod volume", (value) => {
+      value.pods.at(-2).spec.volumes[0].persistentVolumeClaim.claimName = "foreign";
+    }],
+    ["pod host network", (value) => { value.pods.at(-2).spec.hostNetwork = true; }],
+    ["pod host port", (value) => { value.pods.at(-2).spec.containers[0].ports[0].hostPort = 7474; }],
+    ["pod restart", (value) => { value.pods.at(-2).status.containerStatuses[0].restartCount = 1; }],
+    ["pod last state", (value) => {
+      value.pods.at(-2).status.containerStatuses[0].lastState = {
+        terminated: { exitCode: 1, reason: "Error" },
+      };
+    }],
+    ["pod condition", (value) => { value.pods.at(-2).status.conditions[0].status = "False"; }],
+    ["pod timestamp", (value) => {
+      value.pods.at(-2).status.containerStatuses[0].state.running.startedAt = "2026-02-30T00:00:00Z";
+    }],
+    ["service exposure", (value) => { value.services.at(-1).spec.type = "NodePort"; }],
+    ["external IP", (value) => { value.services.at(-1).spec.externalIPs = ["127.0.0.1"]; }],
+    ["endpoint owner", (value) => {
+      value.endpointSlices.at(-1).metadata.ownerReferences[0].uid = providerUid(99);
+    }],
+    ["alternate peer", (value) => { value.endpointSlices.at(-1).endpoints[0].addresses = ["10.244.0.99"]; }],
+    ["endpoint target", (value) => { value.endpointSlices.at(-1).endpoints[0].targetRef.uid = providerUid(99); }],
+    ["endpoint condition", (value) => { value.endpointSlices.at(-1).endpoints[0].conditions.ready = false; }],
+    ["job owner", (value) => { value.pods.at(-1).metadata.ownerReferences[0].uid = providerUid(99); }],
+    ["job status", (value) => { value.jobs[0].status.succeeded = 0; }],
+    ["job timestamp", (value) => { value.jobs[0].status.completionTime = "2026-13-01T00:00:00Z"; }],
+    ["health image", (value) => { value.pods.at(-1).spec.containers[0].image = "busybox:latest"; }],
+    ["health restart", (value) => { value.pods.at(-1).status.containerStatuses[0].restartCount = 1; }],
+    ["health log", (value) => { value.healthLog = "neo4j-health-ready\nforeign\n"; }],
+    ["ingress", (value) => { value.ingresses.push({ kind: "Ingress" }); }],
+  ];
+  const results = [];
+  for (const [name, mutate] of cases) {
+    const value = structuredClone(graphProviderState());
+    mutate(value);
+    try {
+      graphRunModule.validateGraphKubernetesState(value, graphProviderExpectation());
+      results.push(`${name}:accepted`);
+    } catch (error) {
+      results.push(`${name}:${error?.name}`);
+    }
+  }
+  assert.deepEqual(results, cases.map(([name]) => `${name}:Failure`));
+});
+
+test("accepts only an exact replacement pod UID on the retained graph lineage", () => {
+  const initial = graphRunModule.validateGraphKubernetesState(
+    graphProviderState(), graphProviderExpectation(),
+  );
+  const replacementState = graphProviderState({
+    podContainerID: `containerd://${"c".repeat(64)}`,
+    podIP: "10.244.0.22",
+    podName: "neo4j-abc123def4-uvwxy",
+    podStartedAt: "2026-08-16T10:00:10Z",
+    podUid: providerUid(10),
+  });
+  const replacement = graphRunModule.validateGraphKubernetesState(
+    replacementState, graphProviderExpectation(), initial, true,
+  );
+  assert.equal(replacement.neo4j.podUid, providerUid(10));
+  assert.equal(replacement.neo4j.persistentVolumeUid, initial.neo4j.persistentVolumeUid);
+  assert.equal(replacement.neo4j.persistentVolumeClaimUid, initial.neo4j.persistentVolumeClaimUid);
+  for (const mutate of [
+    (value) => { value.pods.at(-2).metadata.uid = initial.neo4j.podUid; },
+    (value) => { value.persistentVolumes[0].metadata.uid = providerUid(11); },
+    (value) => { value.persistentVolumeClaims[0].metadata.uid = providerUid(12); },
+    (value) => { value.deployments.at(-1).metadata.uid = providerUid(13); },
+    (value) => { value.replicaSets.at(-1).metadata.uid = providerUid(14); },
+    (value) => { value.services.at(-1).metadata.uid = providerUid(15); },
+    (value) => { value.endpointSlices.at(-1).metadata.uid = providerUid(16); },
+  ]) {
+    const drifted = structuredClone(replacementState);
+    mutate(drifted);
+    assert.throws(() => graphRunModule.validateGraphKubernetesState(
+      drifted, graphProviderExpectation(), initial, true,
+    ), { name: "Failure" });
+  }
+});
+
+test("parses only one bounded unique-key Kubernetes List envelope", () => {
+  const exact = '{"apiVersion":"v1","items":[],"kind":"List","metadata":{"resourceVersion":""}}\n';
+  assert.deepEqual(graphRunModule.parseGraphProviderList(exact, "pods"), []);
+  for (const source of [
+    '',
+    '{"apiVersion":"v1","items":[],"items":[],"kind":"List","metadata":{"resourceVersion":""}}\n',
+    '{"apiVersion":"v1","items":[],"kind":"List","metadata":{"resourceVersion":"1"}}\n',
+    '{"apiVersion":"v1","items":[],"kind":"List","metadata":{"resourceVersion":""},"extra":true}\n',
+    `${" ".repeat(4_194_305)}\n`,
+  ]) assert.throws(() => graphRunModule.parseGraphProviderList(source, "pods"), { name: "Failure" });
+});
+
+test("projects only the pinned null pod-template timestamp before inherited product validation", async () => {
+  const raw = {
+    apiVersion: "v1",
+    items: [{
+      spec: { template: { metadata: {
+        creationTimestamp: null,
+        labels: { "app.kubernetes.io/name": "audit-api" },
+      }, spec: {} } },
+    }],
+    kind: "List",
+    metadata: { resourceVersion: "" },
+  };
+  const read = async (document) => {
+    let invocation;
+    const system = graphSystem(async (command, arguments_) => {
+      invocation = [command, ...arguments_];
+      return success(`${JSON.stringify(document)}\n`);
+    });
+    system.paths = { kubeconfig: "/owned/kubeconfig" };
+    system.productProviderProjection = true;
+    system.productProviderCapture = new Map();
+    system.withOwnedFiles = async (_paths, _phase, _category, operation) =>
+      await operation([{ handle: { fd: 31 } }]);
+    system.requireOwnedPath = async () => {};
+    const result = await system.runKubectlRead([
+      "get", "deployment", "--namespace", "zasp-local", "--output=json",
+    ], phase, "readiness", 30_000, 4_194_304);
+    return { invocation, result, system };
+  };
+  const { invocation, result, system } = await read(raw);
+  assert.deepEqual(invocation, [
+    "kubectl", "--kubeconfig", "/dev/fd/3", "get", "deployment", "--namespace", "zasp-local",
+    "--selector=app.kubernetes.io/component!=graph", "--output=json",
+  ]);
+  assert.deepEqual(JSON.parse(result.stdout).items[0].spec.template.metadata,
+    { labels: { "app.kubernetes.io/name": "audit-api" } });
+  assert.deepEqual(system.productProviderCapture.get("deployments"), raw.items);
+
+  for (const mutate of [
+    (value) => { delete value.items[0].spec.template.metadata.creationTimestamp; },
+    (value) => { value.items[0].spec.template.metadata.creationTimestamp = "2026-08-16T10:00:00Z"; },
+    (value) => { value.items[0].spec.template.metadata.foreign = true; },
+  ]) {
+    const drifted = structuredClone(raw);
+    mutate(drifted);
+    await assert.rejects(() => read(drifted), { category: "readiness", name: "Failure" });
+  }
+});
+
+test("uses fixed service-addressed cypher-shell argv and a UID-preconditioned pod delete", async () => {
+  const system = graphSystem();
+  const pod = { name: "neo4j-abc123def4-pqrst", uid: providerUid(3) };
+  const calls = [];
+  system.paths = { kubeconfig: "/owned/kubeconfig" };
+  system.environment = Object.freeze({ PATH: "/usr/bin:/bin" });
+  system.requireOwnedPath = async () => {};
+  system.withOwnedFiles = async (paths, _phase, _category, operation) => {
+    assert.deepEqual(paths, [system.paths.kubeconfig]);
+    return await operation([{ handle: { fd: 31 }, identity: { bytes: Buffer.from("kubeconfig") } }]);
+  };
+  system.runMutation = async (command, arguments_, _phase, category, options) => {
+    calls.push({ arguments: arguments_, category, command, options });
+    return { outcome: "ambiguous", result: success("provider acknowledgement\n") };
+  };
+  system.runKubectlRead = async (arguments_, _phase, category, timeoutMilliseconds, outputLimit) => {
+    calls.push({ arguments: arguments_, category, command: "kubectl-read", outputLimit, timeoutMilliseconds });
+    return success("marker_count\n1\n");
+  };
+
+  await system.writeGraphMarker(pod, phase);
+  assert.equal(await system.readGraphMarker(pod, phase, "readiness"), true);
+  await system.deleteGraphPod(pod, phase);
+
+  assert.deepEqual(calls[0].arguments, [
+    "--kubeconfig", "/dev/fd/3",
+    "--namespace", "zasp-local", "exec", pod.name, "--container", "neo4j", "--",
+    "cypher-shell", "--address", "neo4j://neo4j.zasp-local.svc.cluster.local:7687",
+    "--database", "neo4j", "--format", "plain", "--non-interactive",
+    "--param", `proof_id => '${marker}'`,
+    "MERGE (marker:ZaspLocalGraphProof {id: $proof_id}) RETURN count(marker) AS marker_count",
+  ]);
+  assert.deepEqual(calls[1].arguments, [
+    "--namespace", "zasp-local", "exec", pod.name, "--container", "neo4j", "--",
+    "cypher-shell", "--address", "neo4j://neo4j.zasp-local.svc.cluster.local:7687",
+    "--database", "neo4j", "--format", "plain", "--non-interactive",
+    "--param", `proof_id => '${marker}'`,
+    "MATCH (marker:ZaspLocalGraphProof {id: $proof_id}) RETURN count(marker) AS marker_count",
+  ]);
+  assert.deepEqual(calls[2].arguments, [
+    "--kubeconfig", "/dev/fd/3", "delete",
+    `--raw=/api/v1/namespaces/zasp-local/pods/${pod.name}`, "--filename=-",
+  ]);
+  assert.equal(calls[2].options.input, `${JSON.stringify({
+    apiVersion: "v1",
+    kind: "DeleteOptions",
+    preconditions: { uid: pod.uid },
+  })}\n`);
+  assert.deepEqual(calls.map(({ category }) => category), ["provider", "readiness", "provider"]);
+});
+
+test("polls delayed provider state and performs the persistence sequence once", async () => {
+  let initial;
+  for (const mutate of [
+    (value) => { value.persistentVolumeClaims[0].status.phase = "Pending"; },
+    (value) => { value.pods.at(-2).status.phase = "Pending"; },
+    (value) => { value.jobs[0].status.succeeded = 0; },
+  ]) {
+    const delayed = graphSystem();
+    delayed.graphLoadedImageTargets = new Map(Object.entries(graphProviderExpectation().imageTargets));
+    let reads = 0;
+    let pauses = 0;
+    let productReads = 0;
+    let next;
+    delayed.verifyProductReadiness = async () => {
+      productReads += 1;
+      next = graphProviderState();
+      if (reads + 1 < 3) mutate(next);
+      delayed.productProviderSnapshot = productProviderSnapshot(next);
+    };
+    delayed.readGraphProviderState = async () => {
+      reads += 1;
+      return next;
+    };
+    delayed.pauseGraphPoll = async () => { pauses += 1; };
+    initial = await delayed.pollGraphProviderState(phase);
+    assert.equal(reads, 3);
+    assert.equal(pauses, 2);
+    assert.equal(productReads, 3);
+  }
+
+  const regressed = graphSystem();
+  regressed.graphLoadedImageTargets = new Map(Object.entries(graphProviderExpectation().imageTargets));
+  let regressionReads = 0;
+  let regressionPauses = 0;
+  regressed.verifyProductReadiness = async () => {
+    regressed.productProviderSnapshot = productProviderSnapshot(graphProviderState());
+  };
+  regressed.readGraphProviderState = async () => {
+    regressionReads += 1;
+    const value = graphProviderState();
+    if (regressionReads === 1) value.pods[0].metadata.uid = providerUid(99);
+    return value;
+  };
+  regressed.pauseGraphPoll = async () => { regressionPauses += 1; };
+  await regressed.pollGraphProviderState(phase);
+  assert.equal(regressionReads, 2, "a product regression in the graph poll cannot reuse an earlier proof");
+  assert.equal(regressionPauses, 1);
+
+  const events = [];
+  const replacement = graphRunModule.validateGraphKubernetesState(graphProviderState({
+    podContainerID: `containerd://${"c".repeat(64)}`,
+    podIP: "10.244.0.22",
+    podName: "neo4j-abc123def4-uvwxy",
+    podStartedAt: "2026-08-16T10:00:10Z",
+    podUid: providerUid(10),
+  }), graphProviderExpectation(), initial, true);
+  const system = graphSystem();
+  system.pollGraphProviderState = async (_phase, retained, requireReplacement) => {
+    events.push(["snapshot", retained?.neo4j?.podUid, requireReplacement]);
+    return retained === undefined ? initial : replacement;
+  };
+  system.writeGraphMarker = async (pod) => {
+    events.push(["write", pod.uid]);
+    return { outcome: "ambiguous", result: success("marker_count\n1\n") };
+  };
+  system.readGraphMarker = async (pod) => { events.push(["read", pod.uid]); return true; };
+  system.deleteGraphPod = async (pod) => {
+    events.push(["delete", pod.uid]);
+    return { outcome: "ambiguous", result: success(`pod/${pod.name}\n`) };
+  };
+  const product = { internal: true, pods: 4, ready: 4, services: 4 };
+  assert.deepEqual(await system.verifyAdditionalReadiness(product, phase), {
+    ...product,
+    graph: { internal: true, persistent: true, ready: true },
+  });
+  assert.deepEqual(events, [
+    ["snapshot", undefined, undefined],
+    ["write", providerUid(3)],
+    ["read", providerUid(3)],
+    ["delete", providerUid(3)],
+    ["snapshot", providerUid(3), true],
+    ["read", providerUid(10)],
+    ["snapshot", providerUid(10), false],
+  ]);
+});
+
+test("reconciles only ambiguous marker and pod mutations through exact observed state", async () => {
+  const initial = graphRunModule.validateGraphKubernetesState(graphProviderState(), graphProviderExpectation());
+  const replacement = graphRunModule.validateGraphKubernetesState(graphProviderState({
+    podContainerID: `containerd://${"c".repeat(64)}`,
+    podIP: "10.244.0.22",
+    podName: "neo4j-abc123def4-uvwxy",
+    podStartedAt: "2026-08-16T10:00:10Z",
+    podUid: providerUid(10),
+  }), graphProviderExpectation(), initial, true);
+  for (const result of [
+    { outcome: "ambiguous", result: { ...success(), thrown: true } },
+    { outcome: "ambiguous", result: { ...success(), signal: "SIGTERM", status: null } },
+    { outcome: "ambiguous", result: success("malformed provider output\n") },
+  ]) {
+    const system = graphSystem();
+    let snapshots = 0;
+    let reads = 0;
+    system.pollGraphProviderState = async (_phase, retained) => {
+      snapshots += 1;
+      return retained === undefined ? initial : replacement;
+    };
+    system.writeGraphMarker = async () => result;
+    system.readGraphMarker = async () => { reads += 1; return true; };
+    system.deleteGraphPod = async () => result;
+    await system.verifyAdditionalReadiness({ internal: true, pods: 4, ready: 4, services: 4 }, phase);
+    assert.equal(snapshots, 3);
+    assert.equal(reads, 2);
+  }
+
+  for (const operation of ["write", "delete"]) {
+    const system = graphSystem();
+    let reads = 0;
+    system.pollGraphProviderState = async () => initial;
+    system.writeGraphMarker = async () => operation === "write"
+      ? { outcome: "definitive", result: { ...success(), status: 1 } }
+      : { outcome: "applied", result: success() };
+    system.readGraphMarker = async () => { reads += 1; return true; };
+    system.deleteGraphPod = async () => operation === "delete"
+      ? { outcome: "definitive", result: { ...success(), status: 1 } }
+      : { outcome: "applied", result: success() };
+    await assert.rejects(() => system.verifyAdditionalReadiness(
+      { internal: true, pods: 4, ready: 4, services: 4 }, phase,
+    ), { name: "Failure" });
+    assert.equal(reads, operation === "write" ? 0 : 1);
+  }
+});
+
+test("journals cancelled marker/delete children and forbids cleanup audit before settlement", async () => {
+  for (const operation of ["marker", "delete"]) {
+    let release;
+    let settled = false;
+    const controller = new AbortController();
+    const system = graphSystem(async () => await new Promise((resolve) => {
+      release = () => { settled = true; resolve(success()); };
+    }));
+    system.paths = { kubeconfig: "/owned/kubeconfig" };
+    system.environment = Object.freeze({ PATH: "/usr/bin:/bin" });
+    system.requireOwnedPath = async () => {};
+    system.withOwnedFiles = async (_paths, _phase, _category, callback) => await callback([{
+      handle: { fd: 31 }, identity: { bytes: Buffer.from("kubeconfig") },
+    }]);
+    const cancellingPhase = Object.freeze({
+      assertActive(category) {
+        if (controller.signal.aborted) throw new GraphFailure(category);
+      },
+      signal: controller.signal,
+    });
+    const pod = { name: "neo4j-abc123def4-pqrst", uid: providerUid(3) };
+    const pending = operation === "marker"
+      ? system.writeGraphMarker(pod, cancellingPhase)
+      : system.deleteGraphPod(pod, cancellingPhase);
+    await new Promise((resolve) => setImmediate(resolve));
+    controller.abort();
+    release();
+    await assert.rejects(() => pending, { name: "Failure" });
+    assert.equal(system.mutationSettlements.length, 1);
+    await system.joinMutations(phase);
+    assert.equal(settled, true);
+  }
+
+  for (const operation of ["marker", "delete"]) {
+    const order = [];
+    const late = graphSystem(async () => await new Promise((resolve) => {
+      setTimeout(() => {
+        order.push("late mutation");
+        resolve(success());
+      }, 20);
+    }));
+    late.paths = { kubeconfig: "/owned/kubeconfig" };
+    late.environment = Object.freeze({ PATH: "/usr/bin:/bin" });
+    late.requireOwnedPath = async () => {};
+    late.withOwnedFiles = async (_paths, _phase, _category, callback) => await callback([{
+      handle: { fd: 31 }, identity: { bytes: Buffer.from("kubeconfig") },
+    }]);
+    const pod = { name: "neo4j-abc123def4-pqrst", uid: providerUid(3) };
+    const runtime = {};
+    for (const name of [
+      "initialize", "preflight", "buildImages", "createNetwork", "createCluster", "loadImages", "applyManifests",
+    ]) runtime[name] = async () => {};
+    runtime.verifyReadiness = async (mainPhase) => {
+      order.push("mutation start");
+      if (operation === "marker") await late.writeGraphMarker(pod, mainPhase);
+      else await late.deleteGraphPod(pod, mainPhase);
+      assert.fail("cancelled mutation returned");
+    };
+    runtime.joinMutations = async (cleanupPhase) => {
+      order.push("join start");
+      await late.joinMutations(cleanupPhase);
+      order.push("join complete");
+    };
+    runtime.cleanup = async () => { order.push("cleanup"); };
+    runtime.auditAbsence = async () => { order.push("audit"); };
+    const output = [];
+    assert.equal(await runGraphMain(runtime, {
+      cleanupTimeoutMilliseconds: 100,
+      mainTimeoutMilliseconds: 5,
+      settlementTimeoutMilliseconds: 5,
+      stderr: { write: (value) => output.push(value) },
+      stdout: { write: () => assert.fail("unexpected success") },
+      setExitCode() {},
+    }), 1);
+    assert.deepEqual(output, ["Local graph manifest failed: deadline rejected.\n"]);
+    assert.deepEqual(order, [
+      "mutation start", "join start", "late mutation", "join complete", "cleanup", "audit",
+    ]);
+  }
+});
+
+test("cleanup failure wins over provider panic and uncooperative mutation settlement", async () => {
+  const output = [];
+  const providerPanic = lifecycle({
+    verifyReadiness: async () => { throw new Error("raw provider panic"); },
+    cleanup: async () => { throw new Error("raw cleanup panic"); },
+  });
+  assert.equal(await runGraphMain(providerPanic.runtime, {
+    cleanupTimeoutMilliseconds: 100,
+    mainTimeoutMilliseconds: 100,
+    settlementTimeoutMilliseconds: 20,
+    stderr: { write: (value) => output.push(value) },
+    stdout: { write: () => assert.fail("unexpected success") },
+    setExitCode() {},
+  }), 1);
+  assert.deepEqual(output, ["Local graph manifest failed: cleanup rejected.\n"]);
+  assert.ok(providerPanic.events.includes("auditAbsence"), "audit continues after cleanup panic");
+
+  const absent = lifecycle({
+    auditAbsence: async () => { throw new Error("raw absence panic"); },
+  });
+  const absentOutput = [];
+  assert.equal(await runGraphMain(absent.runtime, {
+    cleanupTimeoutMilliseconds: 100,
+    mainTimeoutMilliseconds: 100,
+    settlementTimeoutMilliseconds: 20,
+    stderr: { write: (value) => absentOutput.push(value) },
+    stdout: { write: () => assert.fail("unexpected success") },
+    setExitCode() {},
+  }), 1);
+  assert.deepEqual(absentOutput, ["Local graph manifest failed: cleanup rejected.\n"]);
+
+  const blocked = lifecycle({
+    joinMutations: async () => await new Promise(() => {}),
+    verifyReadiness: async () => { throw new GraphFailure("provider"); },
+  });
+  const blockedOutput = [];
+  assert.equal(await runGraphMain(blocked.runtime, {
+    cleanupTimeoutMilliseconds: 5,
+    mainTimeoutMilliseconds: 100,
+    settlementTimeoutMilliseconds: 5,
+    stderr: { write: (value) => blockedOutput.push(value) },
+    stdout: { write: () => assert.fail("unexpected success") },
+    setExitCode() {},
+  }), 1);
+  assert.deepEqual(blockedOutput, ["Local graph manifest failed: cleanup rejected.\n"]);
+  assert.equal(blocked.events.includes("cleanup"), false);
+  assert.equal(blocked.events.includes("auditAbsence"), false);
+});
 
 function lifecycle(overrides = {}) {
   const events = [];

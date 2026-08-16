@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url";
 
 import { GRAPH_CONSTANTS, GRAPH_IMAGES, buildGraphResources, renderGraphManifest } from "./graph-manifest.mjs";
+import { PRODUCTS } from "./manifests.mjs";
 import {
   DockerKindRuntime,
   Failure,
@@ -17,6 +18,13 @@ const forbiddenImageEnvironment = /^(?:AWS_|AZURE_|GOOGLE_|CLOUDSDK_|KUBE|DOCKER
 const graphMainTimeoutMilliseconds = 720_000;
 const graphCleanupTimeoutMilliseconds = 240_000;
 const graphSettlementTimeoutMilliseconds = 60_000;
+const graphProviderByteLimit = 4_194_304;
+const graphProviderPollLimit = 240;
+const graphProviderPollMilliseconds = 500;
+const graphHealthLog = "neo4j-health-ready\n";
+const graphMarkerOutput = "marker_count\n1\n";
+const graphMarkerAddress = "neo4j://neo4j.zasp-local.svc.cluster.local:7687";
+const graphMarkerLabel = "ZaspLocalGraphProof";
 
 export const GRAPH_SUCCESS_LINE = "Local graph manifest passed: ready=true internal=true persistent=true cleanup=true.";
 export const GRAPH_FAILURE_CATEGORIES = Object.freeze([
@@ -473,6 +481,590 @@ export function validateGraphNodePath(source, node, retained = undefined) {
   }
 }
 
+export function parseGraphProviderList(source, label) {
+  try {
+    if (!new Set([
+      "deployments", "endpointSlices", "ingresses", "jobs", "persistentVolumeClaims",
+      "persistentVolumes", "pods", "replicaSets", "services",
+    ]).has(label)) throw new TypeError("graph provider list label is invalid");
+    const document = parseBoundedJson(source, graphProviderByteLimit);
+    requireExactKeySet(document, ["apiVersion", "items", "kind", "metadata"], "graph provider list");
+    requireExactKeySet(document.metadata, ["resourceVersion"], "graph provider list metadata");
+    if (document.apiVersion !== "v1" || document.kind !== "List" ||
+        document.metadata.resourceVersion !== "" || !Array.isArray(document.items) ||
+        document.items.length > 128) throw new TypeError("graph provider list is invalid");
+    return deepFreeze(structuredClone(document.items));
+  } catch (error) {
+    if (error instanceof GraphFailure) throw error;
+    throw new GraphFailure("normalization");
+  }
+}
+
+export function validateGraphKubernetesState(value, expected, retained = undefined, requireReplacement = false) {
+  try {
+    requireExactKeySet(value, [
+      "deployments", "endpointSlices", "healthLog", "ingresses", "jobs", "persistentVolumeClaims",
+      "persistentVolumes", "pods", "replicaSets", "services",
+    ], "graph Kubernetes state");
+    requireExactKeySet(expected, ["imageTargets", "nodeName"], "graph Kubernetes expectation");
+    requireExactKeySet(expected.imageTargets, ["busybox", "neo4j"], "graph image targets");
+    if (!/^zasp-m1-30b-[0-9a-f]{16}-control-plane$/.test(expected.nodeName ?? "") ||
+        expected.imageTargets.busybox !== GRAPH_IMAGE_PLANS.busybox.platforms[platformForNode(expected)].manifestDigest ||
+        expected.imageTargets.neo4j !== GRAPH_IMAGE_PLANS.neo4j.platforms[platformForNode(expected)].manifestDigest ||
+        value.healthLog !== graphHealthLog || requireReplacement !== false && requireReplacement !== true) {
+      throw new TypeError("graph Kubernetes expectation is invalid");
+    }
+    for (const name of [
+      "deployments", "endpointSlices", "ingresses", "jobs", "persistentVolumeClaims",
+      "persistentVolumes", "pods", "replicaSets", "services",
+    ]) if (!Array.isArray(value[name])) throw new TypeError("graph Kubernetes resource list is invalid");
+    if (value.deployments.length !== PRODUCTS.length + 1 ||
+        value.endpointSlices.length !== PRODUCTS.length + 1 || value.ingresses.length !== 0 ||
+        value.jobs.length !== 1 || value.persistentVolumeClaims.length !== 1 ||
+        value.persistentVolumes.length !== 1 || value.pods.length !== PRODUCTS.length + 2 ||
+        value.replicaSets.length !== PRODUCTS.length + 1 || value.services.length !== PRODUCTS.length + 1) {
+      throw new TypeError("graph Kubernetes resource count is invalid");
+    }
+    requireExactIdentities(value.deployments, [...PRODUCTS.map(({ name }) => name), "neo4j"],
+      (item) => item?.metadata?.name);
+    requireExactIdentities(value.replicaSets, [...PRODUCTS.map(({ name }) => name), "neo4j"],
+      (item) => item?.metadata?.labels?.["app.kubernetes.io/name"]);
+    requireExactIdentities(value.pods, [...PRODUCTS.map(({ name }) => name), "neo4j", "neo4j-health"],
+      (item) => item?.metadata?.labels?.["app.kubernetes.io/name"]);
+    requireExactIdentities(value.services, [...PRODUCTS.map(({ name }) => name), "neo4j"],
+      (item) => item?.metadata?.name);
+    requireExactIdentities(value.endpointSlices, [...PRODUCTS.map(({ name }) => name), "neo4j"],
+      (item) => item?.metadata?.labels?.["kubernetes.io/service-name"]);
+
+    const deployment = onlyMatch(value.deployments, (item) => item?.metadata?.name === "neo4j");
+    const replicaSet = onlyMatch(value.replicaSets,
+      (item) => item?.metadata?.labels?.["app.kubernetes.io/name"] === "neo4j");
+    const pod = onlyMatch(value.pods,
+      (item) => item?.metadata?.labels?.["app.kubernetes.io/name"] === "neo4j");
+    const service = onlyMatch(value.services, (item) => item?.metadata?.name === "neo4j");
+    const endpointSlice = onlyMatch(value.endpointSlices,
+      (item) => item?.metadata?.labels?.["kubernetes.io/service-name"] === "neo4j");
+    const persistentVolume = onlyMatch(value.persistentVolumes,
+      (item) => item?.metadata?.name === GRAPH_CONSTANTS.persistentVolumeName);
+    const persistentVolumeClaim = onlyMatch(value.persistentVolumeClaims,
+      (item) => item?.metadata?.name === GRAPH_CONSTANTS.persistentVolumeClaimName);
+    const job = onlyMatch(value.jobs, (item) => item?.metadata?.name === "neo4j-health");
+    const healthPod = onlyMatch(value.pods,
+      (item) => item?.metadata?.labels?.["app.kubernetes.io/name"] === "neo4j-health");
+
+    validateGraphPersistentStorage(persistentVolume, persistentVolumeClaim);
+    validateGraphDeployment(deployment);
+    validateGraphReplicaSet(replicaSet, deployment);
+    const neo4jPod = validateGraphPod(pod, replicaSet, persistentVolumeClaim, expected, "neo4j");
+    validateGraphService(service);
+    validateGraphEndpointSlice(endpointSlice, service, neo4jPod, expected.nodeName);
+    validateGraphJob(job);
+    validateGraphHealthPod(healthPod, job, expected);
+
+    const snapshot = deepFreeze({
+      health: {
+        jobUid: job.metadata.uid,
+        podName: healthPod.metadata.name,
+        podUid: healthPod.metadata.uid,
+      },
+      internal: true,
+      neo4j: {
+        containerID: pod.status.containerStatuses[0].containerID,
+        deploymentUid: deployment.metadata.uid,
+        endpointSliceUid: endpointSlice.metadata.uid,
+        persistentVolumeClaimUid: persistentVolumeClaim.metadata.uid,
+        persistentVolumeUid: persistentVolume.metadata.uid,
+        podIP: pod.status.podIP,
+        podName: pod.metadata.name,
+        podUid: pod.metadata.uid,
+        replicaSetUid: replicaSet.metadata.uid,
+        serviceUid: service.metadata.uid,
+        startedAt: pod.status.containerStatuses[0].state.running.startedAt,
+      },
+      ready: true,
+    });
+    if (retained !== undefined) validateRetainedGraphSnapshot(snapshot, retained, requireReplacement);
+    return snapshot;
+  } catch (error) {
+    if (error instanceof GraphFailure) throw error;
+    throw new GraphFailure("readiness");
+  }
+}
+
+function platformForNode(expected) {
+  const targets = expected?.imageTargets;
+  for (const platform of ["linux/amd64", "linux/arm64"]) {
+    if (targets?.neo4j === GRAPH_IMAGE_PLANS.neo4j.platforms[platform].manifestDigest &&
+        targets?.busybox === GRAPH_IMAGE_PLANS.busybox.platforms[platform].manifestDigest) return platform;
+  }
+  throw new TypeError("graph image targets are invalid");
+}
+
+function onlyMatch(items, predicate) {
+  const matches = items.filter(predicate);
+  if (matches.length !== 1) throw new TypeError("graph resource identity is invalid");
+  return matches[0];
+}
+
+function requireExactIdentities(items, expected, project) {
+  const actual = items.map(project).sort();
+  const selected = [...expected].sort();
+  if (!exactData(actual, selected)) throw new TypeError("graph resource identities are invalid");
+}
+
+function graphManifestResource(kind, name) {
+  const matches = buildGraphResources().filter((item) => item.kind === kind && item.metadata.name === name);
+  if (matches.length !== 1) throw new TypeError("graph manifest resource is invalid");
+  return matches[0];
+}
+
+function validateProviderMetadata(metadata, name, namespace = undefined) {
+  if (!isPlainObject(metadata) || metadata.name !== name ||
+      namespace !== undefined && metadata.namespace !== namespace ||
+      !resourceVersionPattern.test(metadata.resourceVersion ?? "") ||
+      !kubernetesUidPattern.test(metadata.uid ?? "")) throw new TypeError("graph metadata is invalid");
+}
+
+function exactControllerOwner(value, expected) {
+  return exactData(value, [{
+    apiVersion: expected.apiVersion,
+    blockOwnerDeletion: true,
+    controller: true,
+    kind: expected.kind,
+    name: expected.name,
+    uid: expected.uid,
+  }]);
+}
+
+function providerGraphContainer(container) {
+  return {
+    ...structuredClone(container),
+    terminationMessagePath: "/dev/termination-log",
+    terminationMessagePolicy: "File",
+  };
+}
+
+function providerGraphTemplate(template, labels = template.metadata.labels) {
+  return {
+    metadata: { labels: structuredClone(labels) },
+    spec: {
+      ...structuredClone(template.spec),
+      containers: template.spec.containers.map(providerGraphContainer),
+      schedulerName: "default-scheduler",
+    },
+  };
+}
+
+function providerGraphPodSpec(template, nodeName) {
+  return {
+    automountServiceAccountToken: template.spec.automountServiceAccountToken,
+    containers: template.spec.containers.map(providerGraphContainer),
+    dnsPolicy: template.spec.dnsPolicy,
+    enableServiceLinks: template.spec.enableServiceLinks,
+    nodeName,
+    preemptionPolicy: "PreemptLowerPriority",
+    priority: 0,
+    restartPolicy: template.spec.restartPolicy,
+    schedulerName: "default-scheduler",
+    securityContext: structuredClone(template.spec.securityContext),
+    serviceAccount: "default",
+    serviceAccountName: "default",
+    terminationGracePeriodSeconds: template.spec.terminationGracePeriodSeconds,
+    tolerations: [
+      { effect: "NoExecute", key: "node.kubernetes.io/not-ready", operator: "Exists", tolerationSeconds: 300 },
+      { effect: "NoExecute", key: "node.kubernetes.io/unreachable", operator: "Exists", tolerationSeconds: 300 },
+    ],
+    ...(template.spec.volumes === undefined ? {} : { volumes: structuredClone(template.spec.volumes) }),
+  };
+}
+
+function normalizeProviderContainer(container) {
+  const normalized = structuredClone(container);
+  if (!isPlainObject(normalized) || !Array.isArray(normalized.volumeMounts)) return normalized;
+  normalized.volumeMounts = normalized.volumeMounts.map((mount) => {
+    if (!isPlainObject(mount) || Object.hasOwn(mount, "readOnly")) return mount;
+    return { ...mount, readOnly: false };
+  });
+  return normalized;
+}
+
+function normalizeProviderPodSpec(spec) {
+  const normalized = structuredClone(spec);
+  if (!isPlainObject(normalized)) return normalized;
+  if (Array.isArray(normalized.containers)) {
+    normalized.containers = normalized.containers.map(normalizeProviderContainer);
+  }
+  if (Array.isArray(normalized.volumes)) {
+    normalized.volumes = normalized.volumes.map((volume) => {
+      if (!isPlainObject(volume) || !isPlainObject(volume.persistentVolumeClaim) ||
+          Object.hasOwn(volume.persistentVolumeClaim, "readOnly")) return volume;
+      return {
+        ...volume,
+        persistentVolumeClaim: { ...volume.persistentVolumeClaim, readOnly: false },
+      };
+    });
+  }
+  return normalized;
+}
+
+function normalizeProviderTemplate(template) {
+  const normalized = structuredClone(template);
+  requireExactKeySet(normalized, ["metadata", "spec"], "graph provider template");
+  requireExactKeySet(normalized.metadata, ["creationTimestamp", "labels"], "graph provider template metadata");
+  if (normalized.metadata.creationTimestamp !== null) {
+    throw new TypeError("graph provider template timestamp is invalid");
+  }
+  return {
+    metadata: { labels: normalized.metadata.labels },
+    spec: normalizeProviderPodSpec(normalized.spec),
+  };
+}
+
+function normalizeProviderServiceSpec(spec) {
+  const normalized = structuredClone(spec);
+  if (isPlainObject(normalized) && !Object.hasOwn(normalized, "externalIPs")) normalized.externalIPs = [];
+  return normalized;
+}
+
+function normalizeProductProviderResult(result, resource, category, capture) {
+  try {
+    const label = new Map([
+      ["deployment", "deployments"],
+      ["endpointslice", "endpointSlices"],
+      ["pod", "pods"],
+      ["replicaset", "replicaSets"],
+      ["service", "services"],
+    ]).get(resource);
+    if (label === undefined || !(capture instanceof Map)) {
+      throw new TypeError("product provider capture is invalid");
+    }
+    const document = parseBoundedJson(result.stdout, graphProviderByteLimit);
+    requireExactKeySet(document, ["apiVersion", "items", "kind", "metadata"], "product provider list");
+    requireExactKeySet(document.metadata, ["resourceVersion"], "product provider list metadata");
+    if (document.apiVersion !== "v1" || document.kind !== "List" ||
+        document.metadata.resourceVersion !== "" || !Array.isArray(document.items) ||
+        document.items.length > 128) throw new TypeError("product provider list is invalid");
+    const retained = deepFreeze(structuredClone(document.items));
+    if (resource === "deployment" || resource === "replicaset") {
+      for (const item of document.items) {
+        requireExactKeySet(item?.spec?.template, ["metadata", "spec"], "product provider template");
+        requireExactKeySet(item.spec.template.metadata,
+          ["creationTimestamp", "labels"], "product provider template metadata");
+        if (item.spec.template.metadata.creationTimestamp !== null) {
+          throw new TypeError("product provider template timestamp is invalid");
+        }
+        item.spec.template.metadata = { labels: item.spec.template.metadata.labels };
+      }
+    }
+    capture.set(label, retained);
+    return Object.freeze({ ...result, stdout: `${JSON.stringify(document)}\n` });
+  } catch (error) {
+    if (error instanceof GraphFailure) throw error;
+    throw new GraphFailure(category);
+  }
+}
+
+function validateCorrelatedProductProviderState(value, retained) {
+  try {
+    const keys = ["deployments", "endpointSlices", "pods", "replicaSets", "services"];
+    requireExactKeySet(retained, keys, "retained product provider state");
+    const names = PRODUCTS.map(({ name }) => name).sort();
+    const identity = (label, item) => new Set(["deployments", "services"]).has(label)
+      ? item?.metadata?.name
+      : label === "endpointSlices"
+        ? item?.metadata?.labels?.["kubernetes.io/service-name"]
+        : item?.metadata?.labels?.["app.kubernetes.io/name"];
+    for (const key of keys) {
+      if (!Array.isArray(value[key]) || !Array.isArray(retained[key])) {
+        throw new TypeError("product provider state is invalid");
+      }
+      const current = value[key].filter((item) => names.includes(identity(key, item)));
+      requireExactIdentities(current, names, (item) => identity(key, item));
+      requireExactIdentities(retained[key], names, (item) => identity(key, item));
+      const ordered = (items) => [...items].sort((left, right) =>
+        identity(key, left).localeCompare(identity(key, right)));
+      if (!exactData(ordered(current), ordered(retained[key]))) {
+        throw new TypeError("product provider state changed during graph polling");
+      }
+    }
+    return true;
+  } catch (error) {
+    if (error instanceof GraphFailure) throw error;
+    throw new GraphFailure("readiness");
+  }
+}
+
+function projectGraphContainerStatus(status) {
+  if (!isPlainObject(status) || !exactData(status.lastState, {})) {
+    throw new TypeError("graph container status is invalid");
+  }
+  return {
+    containerID: status.containerID,
+    image: status.image,
+    imageID: status.imageID,
+    name: status.name,
+    ready: status.ready,
+    restartCount: status.restartCount,
+    started: status.started,
+    state: status.state,
+  };
+}
+
+function validateGraphPersistentStorage(persistentVolume, persistentVolumeClaim) {
+  const expectedVolume = graphManifestResource("PersistentVolume", GRAPH_CONSTANTS.persistentVolumeName);
+  const expectedClaim = graphManifestResource("PersistentVolumeClaim", GRAPH_CONSTANTS.persistentVolumeClaimName);
+  requireExactKeySet(persistentVolume, ["apiVersion", "kind", "metadata", "spec", "status"], "graph PV");
+  requireExactKeySet(persistentVolumeClaim, ["apiVersion", "kind", "metadata", "spec", "status"], "graph PVC");
+  validateProviderMetadata(persistentVolume.metadata, GRAPH_CONSTANTS.persistentVolumeName);
+  validateProviderMetadata(persistentVolumeClaim.metadata, GRAPH_CONSTANTS.persistentVolumeClaimName,
+    GRAPH_CONSTANTS.namespace);
+  requireExactKeySet(persistentVolume.spec?.claimRef,
+    ["apiVersion", "kind", "name", "namespace", "resourceVersion", "uid"], "graph PV claim reference");
+  requireExactKeySet(persistentVolume.status, ["lastPhaseTransitionTime", "phase"], "graph PV status");
+  requireExactKeySet(persistentVolumeClaim.status, ["accessModes", "capacity", "phase"], "graph PVC status");
+  if (persistentVolume.apiVersion !== "v1" || persistentVolume.kind !== "PersistentVolume" ||
+      persistentVolumeClaim.apiVersion !== "v1" || persistentVolumeClaim.kind !== "PersistentVolumeClaim" ||
+      !exactData(persistentVolume.metadata.labels, expectedVolume.metadata.labels) ||
+      !exactData(persistentVolumeClaim.metadata.labels, expectedClaim.metadata.labels) ||
+      !exactData(persistentVolumeClaim.spec, expectedClaim.spec) ||
+      !resourceVersionPattern.test(persistentVolume.spec.claimRef.resourceVersion ?? "") ||
+      !exactData(persistentVolume.spec, {
+        ...expectedVolume.spec,
+        claimRef: {
+          ...expectedVolume.spec.claimRef,
+          resourceVersion: persistentVolume.spec.claimRef.resourceVersion,
+          uid: persistentVolumeClaim.metadata.uid,
+        },
+      }) || persistentVolume.status.phase !== "Bound" ||
+      !canonicalGraphSecond(persistentVolume.status.lastPhaseTransitionTime) ||
+      persistentVolumeClaim.status.phase !== "Bound" ||
+      !exactData(persistentVolumeClaim.status.accessModes, ["ReadWriteOnce"]) ||
+      !exactData(persistentVolumeClaim.status.capacity, { storage: "1Gi" })) {
+    throw new TypeError("graph persistent storage is invalid");
+  }
+}
+
+function validateGraphDeployment(deployment) {
+  const expected = graphManifestResource("Deployment", "neo4j");
+  requireExactKeySet(deployment, ["apiVersion", "kind", "metadata", "spec", "status"], "graph deployment");
+  validateProviderMetadata(deployment.metadata, "neo4j", GRAPH_CONSTANTS.namespace);
+  if (deployment.apiVersion !== "apps/v1" || deployment.kind !== "Deployment" ||
+      !Number.isSafeInteger(deployment.metadata.generation) || deployment.metadata.generation < 1 ||
+      !exactData(deployment.metadata.labels, expected.metadata.labels) || !exactData({
+        ...structuredClone(deployment.spec),
+        template: normalizeProviderTemplate(deployment.spec?.template),
+      }, {
+        ...expected.spec,
+        template: providerGraphTemplate(expected.spec.template),
+      }) || deployment.status?.observedGeneration !== deployment.metadata.generation ||
+      deployment.status?.replicas !== 1 || deployment.status?.updatedReplicas !== 1 ||
+      deployment.status?.readyReplicas !== 1 || deployment.status?.availableReplicas !== 1 ||
+      (deployment.status?.unavailableReplicas ?? 0) !== 0 ||
+      !exactCondition(deployment.status?.conditions, "Available", "True")) {
+    throw new TypeError("graph deployment is not ready");
+  }
+}
+
+function validateGraphReplicaSet(replicaSet, deployment) {
+  const expected = graphManifestResource("Deployment", "neo4j");
+  requireExactKeySet(replicaSet, ["apiVersion", "kind", "metadata", "spec", "status"], "graph replica set");
+  const hash = replicaSet?.metadata?.labels?.["pod-template-hash"];
+  validateProviderMetadata(replicaSet.metadata, `neo4j-${hash}`, GRAPH_CONSTANTS.namespace);
+  const labels = { ...expected.metadata.labels, "pod-template-hash": hash };
+  if (replicaSet.apiVersion !== "apps/v1" || replicaSet.kind !== "ReplicaSet" ||
+      !/^[a-z0-9]{10}$/.test(hash ?? "") || !exactData(replicaSet.metadata.labels, labels) ||
+      !exactControllerOwner(replicaSet.metadata.ownerReferences, {
+        apiVersion: "apps/v1", kind: "Deployment", name: "neo4j", uid: deployment.metadata.uid,
+      }) || !exactData({
+        ...structuredClone(replicaSet.spec),
+        template: normalizeProviderTemplate(replicaSet.spec?.template),
+      }, {
+        replicas: 1,
+        selector: { matchLabels: { "app.kubernetes.io/name": "neo4j", "pod-template-hash": hash } },
+        template: providerGraphTemplate(expected.spec.template, labels),
+      }) || replicaSet.status?.observedGeneration !== 1 || replicaSet.status?.replicas !== 1 ||
+      replicaSet.status?.readyReplicas !== 1 || replicaSet.status?.availableReplicas !== 1 ||
+      replicaSet.status?.fullyLabeledReplicas !== 1) throw new TypeError("graph replica set is not ready");
+}
+
+function validateGraphPod(pod, replicaSet, persistentVolumeClaim, expected, name) {
+  const deployment = graphManifestResource("Deployment", "neo4j");
+  requireExactKeySet(pod, ["apiVersion", "kind", "metadata", "spec", "status"], "graph pod");
+  const hash = replicaSet.metadata.labels["pod-template-hash"];
+  const podName = new RegExp(`^neo4j-${hash}-[a-z0-9]{5}$`).exec(pod?.metadata?.name ?? "");
+  validateProviderMetadata(pod.metadata, pod.metadata?.name, GRAPH_CONSTANTS.namespace);
+  const labels = { ...deployment.metadata.labels, "pod-template-hash": hash };
+  if (name !== "neo4j" || podName === null || pod.apiVersion !== "v1" || pod.kind !== "Pod" ||
+      !exactData(pod.metadata.labels, labels) || !exactControllerOwner(pod.metadata.ownerReferences, {
+        apiVersion: "apps/v1", kind: "ReplicaSet", name: replicaSet.metadata.name, uid: replicaSet.metadata.uid,
+      }) || !exactData(normalizeProviderPodSpec(pod.spec),
+        providerGraphPodSpec(deployment.spec.template, expected.nodeName)) ||
+      pod.spec.volumes?.[0]?.persistentVolumeClaim?.claimName !== persistentVolumeClaim.metadata.name ||
+      pod.status?.phase !== "Running" || !exactCondition(pod.status?.conditions, "Ready", "True") ||
+      !Array.isArray(pod.status?.containerStatuses) || pod.status.containerStatuses.length !== 1 ||
+      !validClusterIP(pod.status.podIP)) throw new TypeError("graph pod is not ready");
+  const status = projectGraphContainerStatus(pod.status.containerStatuses[0]);
+  const selected = GRAPH_IMAGE_PLANS.neo4j;
+  if (!exactData(Object.keys(status).sort(), [
+    "containerID", "image", "imageID", "name", "ready", "restartCount", "started", "state",
+  ].sort()) || status.name !== "neo4j" || status.image !== `docker.io/library/${GRAPH_IMAGES.neo4j}` ||
+      status.imageID !== `docker.io/library/neo4j@${selected.indexDigest}` || status.ready !== true ||
+      status.started !== true || status.restartCount !== 0 || !/^containerd:\/\/[0-9a-f]{64}$/.test(status.containerID) ||
+      !isPlainObject(status.state) || !exactKeySet(status.state, ["running"]) ||
+      !isPlainObject(status.state.running) || !exactKeySet(status.state.running, ["startedAt"]) ||
+      !canonicalGraphSecond(status.state.running.startedAt)) throw new TypeError("graph container is not ready");
+  return pod;
+}
+
+function validateGraphService(service) {
+  const expected = graphManifestResource("Service", "neo4j");
+  requireExactKeySet(service, ["apiVersion", "kind", "metadata", "spec", "status"], "graph service");
+  validateProviderMetadata(service.metadata, "neo4j", GRAPH_CONSTANTS.namespace);
+  const spec = normalizeProviderServiceSpec(service.spec);
+  requireExactKeySet(spec, [
+    "clusterIP", "clusterIPs", "externalIPs", "internalTrafficPolicy", "ipFamilies", "ipFamilyPolicy",
+    "ports", "selector", "sessionAffinity", "type",
+  ], "graph service spec");
+  const ip = spec.clusterIP;
+  if (service.apiVersion !== "v1" || service.kind !== "Service" ||
+      !exactData(service.metadata.labels, expected.metadata.labels) || !validClusterIP(ip) ||
+      !exactData(spec.clusterIPs, [ip]) || !exactData(spec.externalIPs, []) ||
+      spec.internalTrafficPolicy !== "Cluster" || !exactData(spec.ipFamilies, ["IPv4"]) ||
+      spec.ipFamilyPolicy !== "SingleStack" || !exactData(spec.ports, expected.spec.ports) ||
+      !exactData(spec.selector, expected.spec.selector) || spec.sessionAffinity !== "None" ||
+      spec.type !== "ClusterIP" || !exactData(service.status, { loadBalancer: {} })) {
+    throw new TypeError("graph service is not internal");
+  }
+}
+
+function validateGraphEndpointSlice(endpointSlice, service, pod, nodeName) {
+  requireExactKeySet(endpointSlice, ["addressType", "apiVersion", "endpoints", "kind", "metadata", "ports"],
+    "graph endpoint slice");
+  validateProviderMetadata(endpointSlice.metadata, endpointSlice.metadata?.name, GRAPH_CONSTANTS.namespace);
+  if (endpointSlice.addressType !== "IPv4" || endpointSlice.apiVersion !== "discovery.k8s.io/v1" ||
+      endpointSlice.kind !== "EndpointSlice" || !/^neo4j-[a-z0-9]{5}$/.test(endpointSlice.metadata.name ?? "") ||
+      endpointSlice.metadata.labels?.["endpointslice.kubernetes.io/managed-by"] !==
+        "endpointslice-controller.k8s.io" ||
+      endpointSlice.metadata.labels?.["kubernetes.io/service-name"] !== "neo4j" ||
+      !exactControllerOwner(endpointSlice.metadata.ownerReferences, {
+        apiVersion: "v1", kind: "Service", name: "neo4j", uid: service.metadata.uid,
+      }) || !exactData(endpointSlice.ports, [
+        { name: "http", port: 7474, protocol: "TCP" },
+        { name: "bolt", port: 7687, protocol: "TCP" },
+      ]) || !exactData(endpointSlice.endpoints, [{
+        addresses: [pod.status.podIP],
+        conditions: { ready: true, serving: true, terminating: false },
+        nodeName,
+        targetRef: {
+          kind: "Pod", name: pod.metadata.name, namespace: GRAPH_CONSTANTS.namespace, uid: pod.metadata.uid,
+        },
+      }])) throw new TypeError("graph endpoint slice is invalid");
+}
+
+function validateGraphJob(job) {
+  const expected = graphManifestResource("Job", "neo4j-health");
+  requireExactKeySet(job, ["apiVersion", "kind", "metadata", "spec", "status"], "graph health job");
+  validateProviderMetadata(job.metadata, "neo4j-health", GRAPH_CONSTANTS.namespace);
+  const labels = {
+    ...expected.spec.template.metadata.labels,
+    "batch.kubernetes.io/controller-uid": job.metadata.uid,
+    "batch.kubernetes.io/job-name": "neo4j-health",
+    "controller-uid": job.metadata.uid,
+    "job-name": "neo4j-health",
+  };
+  if (job.apiVersion !== "batch/v1" || job.kind !== "Job" ||
+      !exactData(job.metadata.labels, expected.metadata.labels) || job.spec?.activeDeadlineSeconds !== 120 ||
+      job.spec?.backoffLimit !== 0 || job.spec?.completionMode !== "NonIndexed" || job.spec?.completions !== 1 ||
+      job.spec?.manualSelector !== false || job.spec?.parallelism !== 1 || job.spec?.suspend !== false ||
+      !exactData(job.spec?.selector, {
+        matchLabels: { "batch.kubernetes.io/controller-uid": job.metadata.uid },
+      }) || !exactData(normalizeProviderTemplate(job.spec?.template),
+        providerGraphTemplate(expected.spec.template, labels)) ||
+      job.status?.succeeded !== 1 || (job.status?.failed ?? 0) !== 0 || (job.status?.ready ?? 0) !== 0 ||
+      !canonicalGraphSecond(job.status?.startTime) || !canonicalGraphSecond(job.status?.completionTime) ||
+      job.status.completionTime < job.status.startTime || !exactTimedCondition(job.status?.conditions, "Complete")) {
+    throw new TypeError("graph health job is not complete");
+  }
+}
+
+function validateGraphHealthPod(pod, job, expected) {
+  const resource = graphManifestResource("Job", "neo4j-health");
+  requireExactKeySet(pod, ["apiVersion", "kind", "metadata", "spec", "status"], "graph health pod");
+  validateProviderMetadata(pod.metadata, pod.metadata?.name, GRAPH_CONSTANTS.namespace);
+  const labels = {
+    ...resource.spec.template.metadata.labels,
+    "batch.kubernetes.io/controller-uid": job.metadata.uid,
+    "batch.kubernetes.io/job-name": "neo4j-health",
+    "controller-uid": job.metadata.uid,
+    "job-name": "neo4j-health",
+  };
+  if (!/^neo4j-health-[a-z0-9]{5}$/.test(pod.metadata.name ?? "") || pod.apiVersion !== "v1" ||
+      pod.kind !== "Pod" || !exactData(pod.metadata.labels, labels) ||
+      !exactControllerOwner(pod.metadata.ownerReferences, {
+        apiVersion: "batch/v1", kind: "Job", name: "neo4j-health", uid: job.metadata.uid,
+      }) || !exactData(normalizeProviderPodSpec(pod.spec),
+        providerGraphPodSpec(resource.spec.template, expected.nodeName)) ||
+      pod.status?.phase !== "Succeeded" || !exactCondition(pod.status?.conditions, "Ready", "False") ||
+      !validClusterIP(pod.status?.podIP) || !Array.isArray(pod.status?.containerStatuses) ||
+      pod.status.containerStatuses.length !== 1) throw new TypeError("graph health pod is invalid");
+  const status = projectGraphContainerStatus(pod.status.containerStatuses[0]);
+  const terminated = status?.state?.terminated;
+  if (!exactData(Object.keys(status ?? {}).sort(), [
+    "containerID", "image", "imageID", "name", "ready", "restartCount", "started", "state",
+  ].sort()) || status.name !== "health" || status.image !== GRAPH_IMAGES.health ||
+      status.imageID !== `registry.k8s.io/e2e-test-images/busybox@${GRAPH_IMAGE_PLANS.busybox.indexDigest}` ||
+      status.ready !== false || status.started !== false || status.restartCount !== 0 ||
+      !/^containerd:\/\/[0-9a-f]{64}$/.test(status.containerID ?? "") || !isPlainObject(terminated) ||
+      !exactKeySet(terminated, ["containerID", "exitCode", "finishedAt", "reason", "startedAt"]) ||
+      terminated.containerID !== status.containerID || terminated.exitCode !== 0 || terminated.reason !== "Completed" ||
+      !canonicalGraphSecond(terminated.startedAt) || !canonicalGraphSecond(terminated.finishedAt) ||
+      terminated.finishedAt < terminated.startedAt) throw new TypeError("graph health container is invalid");
+}
+
+function exactCondition(value, type, status) {
+  const selected = Array.isArray(value) ? value.filter((item) => item?.type === type) : [];
+  return selected.length === 1 && selected[0]?.status === status;
+}
+
+function exactTimedCondition(value, type) {
+  const selected = Array.isArray(value) ? value.filter((item) => item?.type === type) : [];
+  return selected.length === 1 && selected[0]?.status === "True" &&
+    canonicalGraphSecond(selected[0]?.lastProbeTime) && canonicalGraphSecond(selected[0]?.lastTransitionTime);
+}
+
+function canonicalGraphSecond(value) {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(value) &&
+    new Date(value).toISOString() === value.replace("Z", ".000Z");
+}
+
+function validClusterIP(value) {
+  const match = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(value ?? "");
+  return match !== null && match.slice(1).every((part) => Number(part) <= 255) && value.startsWith("10.");
+}
+
+function validateRetainedGraphSnapshot(snapshot, retained, requireReplacement) {
+  requireExactKeySet(retained, ["health", "internal", "neo4j", "ready"], "retained graph snapshot");
+  requireExactKeySet(retained.health, ["jobUid", "podName", "podUid"], "retained graph health");
+  requireExactKeySet(retained.neo4j, [
+    "containerID", "deploymentUid", "endpointSliceUid", "persistentVolumeClaimUid", "persistentVolumeUid",
+    "podIP", "podName", "podUid", "replicaSetUid", "serviceUid", "startedAt",
+  ], "retained graph pod");
+  const stable = [
+    "deploymentUid", "endpointSliceUid", "persistentVolumeClaimUid", "persistentVolumeUid",
+    "replicaSetUid", "serviceUid",
+  ];
+  if (!exactData(snapshot.health, retained.health) || snapshot.internal !== true || retained.internal !== true ||
+      snapshot.ready !== true || retained.ready !== true ||
+      stable.some((key) => snapshot.neo4j[key] !== retained.neo4j[key])) throw new GraphFailure("ownership");
+  if (requireReplacement) {
+    if (snapshot.neo4j.podUid === retained.neo4j.podUid || snapshot.neo4j.podName === retained.neo4j.podName ||
+        snapshot.neo4j.containerID === retained.neo4j.containerID ||
+        snapshot.neo4j.startedAt <= retained.neo4j.startedAt) throw new GraphFailure("readiness");
+  } else if (!exactData(snapshot.neo4j, retained.neo4j)) {
+    throw new GraphFailure("ownership");
+  }
+}
+
 export class LocalGraphSystem extends LocalProductSystem {
   constructor(input, dependencies = undefined) {
     super(input, dependencies, {
@@ -495,6 +1087,69 @@ export class LocalGraphSystem extends LocalProductSystem {
     this.graphPathIdentity = undefined;
     this.graphNodeMayHaveApplied = false;
     this.graphPathMayHaveApplied = false;
+    this.graphProviderIdentity = undefined;
+    this.graphMarkerMayHaveApplied = false;
+    this.graphPodDeleteMayHaveApplied = false;
+    this.productProviderCapture = undefined;
+    this.productProviderProjection = false;
+    this.productProviderSnapshot = undefined;
+    this.productReadinessOnly = false;
+  }
+
+  async verifyReadiness(phase) {
+    const previous = this.productProviderProjection;
+    const previousCapture = this.productProviderCapture;
+    const capture = new Map();
+    this.productProviderCapture = capture;
+    this.productProviderProjection = true;
+    try {
+      const result = await super.verifyReadiness(phase);
+      const keys = ["deployments", "endpointSlices", "pods", "replicaSets", "services"];
+      if (capture.size !== keys.length || keys.some((key) =>
+        !Array.isArray(capture.get(key)) || capture.get(key).length !== PRODUCTS.length)) {
+        throw new GraphFailure("readiness");
+      }
+      this.productProviderSnapshot = deepFreeze(Object.fromEntries(
+        keys.map((key) => [key, capture.get(key)]),
+      ));
+      return result;
+    } finally {
+      this.productProviderProjection = previous;
+      this.productProviderCapture = previousCapture;
+    }
+  }
+
+  async verifyProductReadiness(phase) {
+    const previous = this.productReadinessOnly;
+    this.productReadinessOnly = true;
+    try {
+      return await this.verifyReadiness(phase);
+    } finally {
+      this.productReadinessOnly = previous;
+    }
+  }
+
+  async runKubectlRead(arguments_, phase, category, timeoutMilliseconds, outputLimit) {
+    let selected = arguments_;
+    let productResource;
+    if (this.productProviderProjection && Array.isArray(arguments_) && arguments_[0] === "get" &&
+        arguments_.at(-1) === "--output=json") {
+      const selector = new Map([
+        ["deployment", "app.kubernetes.io/component!=graph"],
+        ["replicaset", "app.kubernetes.io/component!=graph"],
+        ["pod", "app.kubernetes.io/component!=graph"],
+        ["service", "app.kubernetes.io/component!=graph"],
+        ["endpointslice", "kubernetes.io/service-name!=neo4j"],
+      ]).get(arguments_[1]);
+      if (selector !== undefined) {
+        productResource = arguments_[1];
+        selected = [...arguments_.slice(0, -1), `--selector=${selector}`, "--output=json"];
+      }
+    }
+    const result = await super.runKubectlRead(selected, phase, category, timeoutMilliseconds, outputLimit);
+    return productResource === undefined ? result : normalizeProductProviderResult(
+      result, productResource, category, this.productProviderCapture,
+    );
   }
 
   async runAdditionalPreflightChecks(phase) {
@@ -741,9 +1396,174 @@ export class LocalGraphSystem extends LocalProductSystem {
     await this.requireOwnedPath(path, phase, "ownership");
   }
 
-  async verifyAdditionalReadiness() {
-    // Task 4 owns graph provider normalization, health, pod replacement, and persistence.
-    throw new Failure("readiness");
+  graphProviderExpectation() {
+    if (this.graphLoadedImageTargets.size !== 2 || !this.graphLoadedImageTargets.has("busybox") ||
+        !this.graphLoadedImageTargets.has("neo4j")) throw new GraphFailure("ownership");
+    return {
+      imageTargets: Object.fromEntries([...this.graphLoadedImageTargets].sort(([left], [right]) =>
+        left.localeCompare(right))),
+      nodeName: `${this.cluster}-control-plane`,
+    };
+  }
+
+  async readGraphProviderState(phase, category = "readiness") {
+    await this.requireTemporaryOwnership(phase, "ownership");
+    await this.requireOwnedPath(this.paths.graphManifest, phase, "ownership");
+    await this.verifyCluster(phase, "ownership");
+    const node = await this.readGraphNodeLabel(phase, "ownership", this.graphNodeIdentity, true);
+    const storage = await this.readGraphNodePath(phase, "ownership", this.graphPathIdentity);
+    if (!exactData(node, this.graphNodeIdentity) || !exactData(storage, this.graphPathIdentity)) {
+      throw new GraphFailure("ownership");
+    }
+    for (const selected of this.graphImagePlans.values()) {
+      const retained = this.graphImageIdentities.get(selected.name);
+      if (retained === undefined) throw new GraphFailure("ownership");
+      await this.verifyGraphImage(selected, retained, phase, "ownership");
+    }
+    this.graphProviderExpectation();
+    const requests = [
+      ["persistentVolumes", ["get", "persistentvolume", "--output=json"]],
+      ["persistentVolumeClaims", [
+        "get", "persistentvolumeclaim", "--namespace", GRAPH_CONSTANTS.namespace, "--output=json",
+      ]],
+      ["deployments", ["get", "deployment", "--namespace", GRAPH_CONSTANTS.namespace, "--output=json"]],
+      ["replicaSets", ["get", "replicaset", "--namespace", GRAPH_CONSTANTS.namespace, "--output=json"]],
+      ["pods", ["get", "pod", "--namespace", GRAPH_CONSTANTS.namespace, "--output=json"]],
+      ["services", ["get", "service", "--namespace", GRAPH_CONSTANTS.namespace, "--output=json"]],
+      ["endpointSlices", ["get", "endpointslice", "--namespace", GRAPH_CONSTANTS.namespace, "--output=json"]],
+      ["jobs", ["get", "job", "--namespace", GRAPH_CONSTANTS.namespace, "--output=json"]],
+      ["ingresses", ["get", "ingress", "--namespace", GRAPH_CONSTANTS.namespace, "--output=json"]],
+    ];
+    const documents = {};
+    for (const [name, arguments_] of requests) {
+      const result = await super.runKubectlRead(
+        arguments_, phase, category, 30_000, graphProviderByteLimit,
+      );
+      documents[name] = parseGraphProviderList(result.stdout, name);
+    }
+    const matches = documents.pods.filter((item) =>
+      item?.metadata?.labels?.["app.kubernetes.io/name"] === "neo4j-health");
+    const healthPodName = matches[0]?.metadata?.name;
+    if (matches.length !== 1 || !/^neo4j-health-[a-z0-9]{5}$/.test(healthPodName ?? "")) {
+      throw new GraphFailure("readiness");
+    }
+    const health = await super.runKubectlRead([
+      "logs", "--namespace", GRAPH_CONSTANTS.namespace, healthPodName, "--container", "health",
+    ], phase, category, 30_000, 16_384);
+    return { ...documents, healthLog: health.stdout };
+  }
+
+  async pauseGraphPoll(phase, category) {
+    await new Promise((resolve) => setTimeout(resolve, graphProviderPollMilliseconds));
+    phase.assertActive(category);
+  }
+
+  async pollGraphProviderState(phase, retained = undefined, requireReplacement = false,
+    category = "readiness") {
+    let failure;
+    for (let attempt = 0; attempt < graphProviderPollLimit; attempt += 1) {
+      phase.assertActive(category);
+      try {
+        await this.verifyProductReadiness(phase);
+        const providerState = await this.readGraphProviderState(phase, category);
+        validateCorrelatedProductProviderState(providerState, this.productProviderSnapshot);
+        return validateGraphKubernetesState(
+          providerState, this.graphProviderExpectation(),
+          retained, requireReplacement,
+        );
+      } catch (error) {
+        if (!(error instanceof Failure) || error.category !== "readiness") throw error;
+        failure = error;
+      }
+      if (attempt + 1 < graphProviderPollLimit) await this.pauseGraphPoll(phase, category);
+    }
+    throw failure ?? new GraphFailure(category);
+  }
+
+  graphMarkerArguments(pod, mutation) {
+    if (!isPlainObject(pod) || !/^neo4j-[a-z0-9]{10}-[a-z0-9]{5}$/.test(pod.name ?? "") ||
+        !kubernetesUidPattern.test(pod.uid ?? "") || typeof mutation !== "boolean") {
+      throw new GraphFailure("ownership");
+    }
+    const statement = mutation
+      ? `MERGE (marker:${graphMarkerLabel} {id: $proof_id}) RETURN count(marker) AS marker_count`
+      : `MATCH (marker:${graphMarkerLabel} {id: $proof_id}) RETURN count(marker) AS marker_count`;
+    return [
+      "--namespace", GRAPH_CONSTANTS.namespace, "exec", pod.name, "--container", "neo4j", "--",
+      "cypher-shell", "--address", graphMarkerAddress, "--database", "neo4j", "--format", "plain",
+      "--non-interactive", "--param", `proof_id => '${this.input.marker}'`, statement,
+    ];
+  }
+
+  async writeGraphMarker(pod, phase) {
+    return await this.runKubectlMutation(this.graphMarkerArguments(pod, true), phase, "provider", 30_000, 16_384);
+  }
+
+  async readGraphMarker(pod, phase, category = "readiness") {
+    const result = await this.runKubectlRead(
+      this.graphMarkerArguments(pod, false), phase, category, 30_000, 16_384,
+    );
+    if (result.stdout !== graphMarkerOutput) throw new GraphFailure(category);
+    return true;
+  }
+
+  async deleteGraphPod(pod, phase) {
+    if (!isPlainObject(pod) || !/^neo4j-[a-z0-9]{10}-[a-z0-9]{5}$/.test(pod.name ?? "") ||
+        !kubernetesUidPattern.test(pod.uid ?? "")) throw new GraphFailure("ownership");
+    const input = `${JSON.stringify({
+      apiVersion: "v1",
+      kind: "DeleteOptions",
+      preconditions: { uid: pod.uid },
+    })}\n`;
+    const result = await this.withOwnedFiles(
+      [this.paths.kubeconfig], phase, "ownership", async ([kubeconfig]) =>
+        await this.runMutation("kubectl", [
+          "--kubeconfig", "/dev/fd/3", "delete",
+          `--raw=/api/v1/namespaces/${GRAPH_CONSTANTS.namespace}/pods/${pod.name}`, "--filename=-",
+        ], phase, "provider", {
+          environment: this.environment,
+          fileDescriptors: [kubeconfig.handle.fd],
+          input,
+          outputLimit: 262_144,
+          timeoutMilliseconds: 30_000,
+        }),
+    );
+    await this.requireOwnedPath(this.paths.kubeconfig, phase, "ownership");
+    return result;
+  }
+
+  async verifyAdditionalReadiness(productResult, phase) {
+    if (this.productReadinessOnly) return productResult;
+    const initial = await this.pollGraphProviderState(phase);
+    this.graphProviderIdentity = initial;
+    const initialPod = { name: initial.neo4j.podName, uid: initial.neo4j.podUid };
+    this.graphMarkerMayHaveApplied = true;
+    const written = await this.writeGraphMarker(initialPod, phase);
+    if (!new Set(["ambiguous", "applied"]).has(written?.outcome)) {
+      this.graphMarkerMayHaveApplied = false;
+      throw new GraphFailure("provider");
+    }
+    if (await this.readGraphMarker(initialPod, phase, "readiness") !== true) {
+      throw new GraphFailure("readiness");
+    }
+    this.graphPodDeleteMayHaveApplied = true;
+    const deleted = await this.deleteGraphPod(initialPod, phase);
+    if (!new Set(["ambiguous", "applied"]).has(deleted?.outcome)) {
+      this.graphPodDeleteMayHaveApplied = false;
+      throw new GraphFailure("provider");
+    }
+    const replacement = await this.pollGraphProviderState(phase, initial, true);
+    this.graphProviderIdentity = replacement;
+    this.graphPodDeleteMayHaveApplied = false;
+    const replacementPod = { name: replacement.neo4j.podName, uid: replacement.neo4j.podUid };
+    if (await this.readGraphMarker(replacementPod, phase, "readiness") !== true) {
+      throw new GraphFailure("readiness");
+    }
+    this.graphProviderIdentity = await this.pollGraphProviderState(phase, replacement, false);
+    return Object.freeze({
+      ...productResult,
+      graph: Object.freeze({ internal: true, persistent: true, ready: true }),
+    });
   }
 
   async verifyAdditionalNodeForCleanup(phase) {
@@ -796,6 +1616,16 @@ export class LocalGraphSystem extends LocalProductSystem {
         if (!exactData(current, this.graphPathIdentity)) throw new Failure("cleanup");
       }
     }
+    if (this.graphProviderIdentity !== undefined && !this.graphPodDeleteMayHaveApplied) {
+      try {
+        validateGraphKubernetesState(
+          await this.readGraphProviderState(phase, "cleanup"), this.graphProviderExpectation(),
+          this.graphProviderIdentity, false,
+        );
+      } catch {
+        throw new Failure("cleanup");
+      }
+    }
   }
 
   async afterClusterAbsent() {
@@ -804,6 +1634,9 @@ export class LocalGraphSystem extends LocalProductSystem {
     this.graphNodeIdentity = undefined;
     this.graphPathIdentity = undefined;
     this.graphLoadedImageTargets.clear();
+    this.graphProviderIdentity = undefined;
+    this.graphMarkerMayHaveApplied = false;
+    this.graphPodDeleteMayHaveApplied = false;
   }
 
   async reconcileGraphImage(selected, phase) {
@@ -887,7 +1720,8 @@ export class LocalGraphSystem extends LocalProductSystem {
 
   hasAdditionalRecoveryState() {
     return this.graphImageIdentities.size !== 0 || this.graphImageMayHaveApplied.size !== 0 ||
-      this.graphImageAliases.size !== 0 || this.graphNodeMayHaveApplied || this.graphPathMayHaveApplied;
+      this.graphImageAliases.size !== 0 || this.graphNodeMayHaveApplied || this.graphPathMayHaveApplied ||
+      this.graphProviderIdentity !== undefined || this.graphMarkerMayHaveApplied || this.graphPodDeleteMayHaveApplied;
   }
 }
 
@@ -910,7 +1744,7 @@ export async function runGraphMain(runtime = undefined, options = {}) {
   const setExitCode = options.setExitCode ?? ((value) => { process.exitCode = value; });
   try {
     const selected = runtime ?? DockerKindGraphRuntime.fromProcess();
-    const result = await orchestrate(selected, {
+    const result = await orchestrate(guardGraphLifecycle(selected), {
       cleanupTimeoutMilliseconds: options.cleanupTimeoutMilliseconds ?? graphCleanupTimeoutMilliseconds,
       mainTimeoutMilliseconds: options.mainTimeoutMilliseconds ?? graphMainTimeoutMilliseconds,
       settlementTimeoutMilliseconds: options.settlementTimeoutMilliseconds ?? graphSettlementTimeoutMilliseconds,
@@ -925,6 +1759,30 @@ export async function runGraphMain(runtime = undefined, options = {}) {
     setExitCode(1);
     return 1;
   }
+}
+
+function guardGraphLifecycle(runtime) {
+  if (runtime === null || typeof runtime !== "object") throw new TypeError("graph runtime is invalid");
+  const guarded = {};
+  for (const name of [
+    "initialize", "preflight", "buildImages", "createNetwork", "createCluster", "loadImages",
+    "applyManifests", "verifyReadiness",
+  ]) {
+    if (typeof runtime[name] !== "function") throw new TypeError(`graph runtime ${name} is invalid`);
+    guarded[name] = (phase) => runtime[name](phase);
+  }
+  for (const name of ["joinMutations", "cleanup", "auditAbsence"]) {
+    if (typeof runtime[name] !== "function") throw new TypeError(`graph runtime ${name} is invalid`);
+    guarded[name] = async (phase) => {
+      try {
+        return await runtime[name](phase);
+      } catch (error) {
+        if (error instanceof Failure) throw error;
+        throw new GraphFailure("cleanup");
+      }
+    };
+  }
+  return Object.freeze(guarded);
 }
 
 function validateGraphResult(value) {
