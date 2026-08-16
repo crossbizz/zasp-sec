@@ -329,7 +329,15 @@ M1-14 is Complete. It adds a dependency-free scoped EventStore whose index
 and search operations require validated Organization, Workspace, and
 Environment scope before provider I/O. OpenSearch index names, query DSL,
 provider identifiers, endpoints, credentials, and errors stay outside the
-product interface. M1-15 remains Pending.
+product interface. M1-15 is In progress.
+
+## Product GraphStore interface
+
+M1-15 is In progress. It is adding a dependency-free product GraphStore with
+canonical product node and edge IDs, exact Organization, Workspace, and
+Environment scope, and bounded structured reads. Neo4j types, Cypher, provider
+identifiers, endpoints, credentials, and arbitrary customer graph queries stay
+outside the product interface. M1-16 remains Pending.
 
 ## Neon pooled proof
 
