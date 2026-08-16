@@ -657,15 +657,25 @@ and repeat focused/root/full/license/audit/whitespace/secret gates. Commit:
 git commit -m "docs: complete M1-16 Neo4j GraphStore"
 ```
 
-- [ ] **Step 3: Push and watch exact-SHA Runnable UI to success**
+- [x] **Step 3: Push and watch exact-SHA Runnable UI to success**
 
 Require local HEAD, upstream, remote branch, workflow run, and workflow job to
 reference the same completion SHA. Watch the Runnable UI workflow to terminal
 success; do not infer success from an older run.
 
-- [ ] **Step 4: Record closure without advancing M1-17**
+- [x] **Step 4: Record closure without advancing M1-17**
 
 Append exact commits, RED/GREEN counts, live result, cleanup/shared-target
 audit, gates, license/secret scans, workflow URL/job, and synchronized clean
 tree. Commit/push plan-only closure wording if tracked checkboxes change, and
 watch that exact closure SHA too. M1-17 remains Pending.
+
+Completion commit `24776f78a9a065828f67756392e8a767d7903290` was pushed
+with local, upstream, and remote identity aligned. Runnable UI run
+`31933386317`, job `95131508709`, completed successfully for that exact SHA.
+The completion RED was 1 failed/3 passed; focused GREEN was 7/7. The final
+live proof passed with 3 nodes, 2 edges, replay/scoping/cross-Organization-zero,
+cleanup, and audit all true; proof resources were absent and the shared Neo4j
+fingerprint was unchanged. Final root, Go, repository, build, audit, license,
+whitespace, and pinned redacted secret gates passed. This plan-only closure is
+pushed and verified at its own exact SHA before handoff. M1-17 remains Pending.
