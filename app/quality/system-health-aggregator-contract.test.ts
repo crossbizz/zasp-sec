@@ -47,7 +47,7 @@ describe("M1-29 system health aggregator", () => {
     expect(planProse).toContain("Perform no file, environment, clock, provider, credential, subprocess, database, Docker, or network I/O");
   });
 
-  it("starts only M1-29 after M1-28 and preserves exact blockers", async () => {
+  it("completes M1-29 after M1-28 and preserves exact blockers", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -58,17 +58,17 @@ describe("M1-29 system health aggregator", () => {
     const summary = markdownRows(tracker.match(/## Status summary[\s\S]*?## Milestone summary/)?.[0] ?? "").slice(2);
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
-    expect(readme).toContain("M1-29 is In progress");
+    expect(readme).toContain("M1-29 is Complete");
     expect(readme).toContain("M1-30a remains Pending");
     expect(tracker).toContain("| Pending | 662 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 62 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 63 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`662/1/62/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "29", "1", "38", "0"]);
+    expect(tracker).toContain("`662/0/63/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "29", "0", "39", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.filter(([task]) => task === "M1-29")).toHaveLength(1);
-    expect(complete.filter(([task]) => task === "M1-29")).toHaveLength(0);
+    expect(active.filter(([task]) => task === "M1-29")).toHaveLength(0);
+    expect(complete.filter(([task]) => task === "M1-29")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-28")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-30a")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
@@ -101,7 +101,7 @@ describe("M1-29 system health aggregator", () => {
       "node --test openapi/internal-health.test.mjs && go test -C services/health -race -count=1 ./... && go test -C services/platform -race -count=1 ./healthserver ./agentsec-api ./agentsec-worker && go test -C services/event-ingest -race -count=1 ./... && go test -C services/runtime-gateway -race -count=1 ./...",
     );
     for (const value of [
-      "M1-29 is In progress",
+      "M1-29 is Complete",
       "Healthy, Degraded, and Unavailable",
       "required Unavailable component makes the aggregate Unavailable",
       "optional Unavailable component makes it Degraded",
