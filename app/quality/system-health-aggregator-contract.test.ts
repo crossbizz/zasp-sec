@@ -60,13 +60,13 @@ describe("M1-29 system health aggregator", () => {
 
     expect(readme).toContain("M1-29 is Complete");
     expect(readme).toContain("M1-30a is Complete");
-    expect(readme).toContain("M1-30b remains Pending");
-    expect(tracker).toContain("| Pending | 661 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(readme).toContain("M1-30b is In progress");
+    expect(tracker).toContain("| Pending | 660 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 64 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`661/0/64/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "28", "0", "40", "0"]);
+    expect(tracker).toContain("`660/1/64/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "27", "1", "40", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
     expect(active.filter(([task]) => task === "M1-29")).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-29")).toHaveLength(1);
@@ -112,7 +112,7 @@ describe("M1-29 system health aggregator", () => {
       "does not change process readiness",
       "npm run health:contract:test",
       "M1-30a is Complete",
-      "M1-30b remains Pending",
+      "M1-30b is In progress",
     ]) {
       expect(prose).toContain(value);
     }
