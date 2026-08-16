@@ -11,8 +11,8 @@ const packagePath = resolve(repositoryRoot, "package.json");
 
 const productIDPattern = "^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$";
 const productCodePattern = "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$";
-const cursorPattern = "^(?:[A-Za-z0-9_-]{4})*(?:[A-Za-z0-9_-]{2,3})?$";
-const messagePattern = "^(?!\\s)(?!.*\\s$)[^\\x00-\\x1F\\x7F]+$";
+const cursorPattern = "^(?:[A-Za-z0-9_-]{4})*(?:[A-Za-z0-9_-][AQgw]|[A-Za-z0-9_-]{2}[AEIMQUYcgkosw048])?$";
+const messagePattern = "^(?!\\s)(?!.*\\s$)[^\\x00-\\x1F\\x7F-\\x9F]+$";
 
 let documentText;
 let document;
@@ -206,6 +206,26 @@ describe("M1-23 strict OpenAPI root", () => {
 
   it("rejects duplicate YAML keys before semantic validation", () => {
     assert.throws(() => parseStrict(`${documentText}\npaths: {}\n`), /duplicated mapping key/i);
+  });
+
+  it("accepts only canonical unpadded base64url cursor encodings", () => {
+    const pattern = new RegExp(document.components.schemas.Cursor.pattern, "u");
+    for (const bytes of [Buffer.from([0]), Buffer.from([255]), Buffer.from([0, 0]), Buffer.from([255, 255]), Buffer.from("opaque cursor")]) {
+      assert.equal(pattern.test(bytes.toString("base64url")), true);
+    }
+    for (const alias of ["AB", "AAB", "__", "___", "A", "AAAAA", "AA==", "AA+"]) {
+      assert.equal(pattern.test(alias), false, `accepted noncanonical cursor ${alias}`);
+    }
+  });
+
+  it("rejects every product-error control-character class", () => {
+    const pattern = new RegExp(document.components.schemas.ProductError.properties.message.pattern, "u");
+    for (const valid of ["Product failure.", "Échec du produit.", "安全な製品エラー。"]) {
+      assert.equal(pattern.test(valid), true);
+    }
+    for (const invalid of ["\u0000", "\u001f", "\u007f", "\u0085", "\u009f", " leading", "trailing "]) {
+      assert.equal(pattern.test(invalid), false, `accepted invalid message ${JSON.stringify(invalid)}`);
+    }
   });
 
   it("rejects hostile root, authentication, pagination, and error mutations", () => {

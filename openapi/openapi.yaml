@@ -46,7 +46,7 @@ components:
       type: string
       minLength: 2
       maxLength: 512
-      pattern: '^(?:[A-Za-z0-9_-]{4})*(?:[A-Za-z0-9_-]{2,3})?$'
+      pattern: '^(?:[A-Za-z0-9_-]{4})*(?:[A-Za-z0-9_-][AQgw]|[A-Za-z0-9_-]{2}[AEIMQUYcgkosw048])?$'
       description: Opaque canonical base64url cursor without padding.
     PageInfo:
       oneOf:
@@ -94,7 +94,7 @@ components:
           type: string
           minLength: 1
           maxLength: 512
-          pattern: '^(?!\s)(?!.*\s$)[^\x00-\x1F\x7F]+$'
+          pattern: '^(?!\s)(?!.*\s$)[^\x00-\x1F\x7F-\x9F]+$'
         correlation_id:
           $ref: '#/components/schemas/ProductID'
         retryable:
