@@ -62,31 +62,46 @@ adapter, hosted endpoint, provider credential, or planner/action authority.
 - Add `services/platform/aigateway/aigateway.go` only after compiler RED.
 - Update this plan and ignored Task 2 evidence.
 
-- [ ] Capture a genuine compiler RED on the absent public API.
+- [x] Capture a genuine compiler RED on the absent public API.
 
   The test must name the wished-for gateway, request/result, purpose,
   data-policy, driver, constructor, and fixed error symbols before production
   or dependency edits.
 
-- [ ] Implement minimal GREEN for the exact happy contract.
+  After correcting a tests-only module-import typo, the compiler RED failed
+  only on the absent request/result, driver, gateway, purpose, policy, config,
+  constructor, and fixed-error symbols. No production file existed.
+
+- [x] Implement minimal GREEN for the exact happy contract.
 
   Copy one valid scoped request to one typed driver call and validate one exact
   structured result.
 
-- [ ] Expand RED/GREEN adversarial coverage.
+  The focused package passes with one exact typed request and exact version-1
+  result through the fake driver.
+
+- [x] Expand RED/GREEN adversarial coverage.
 
   Cover unapproved/zero/forged/mismatched purposes; every missing, false,
   unknown, or mismatched policy field; malformed scope/subject/summary/result;
   schema and identity drift; nil receiver/context/driver; timeout,
   cancellation, panic, extra calls, and concurrency.
 
-- [ ] Run six race passes, repetitions, full platform gates, and coverage.
+  Coverage includes six unapproved-purpose cases, every policy safety field,
+  malformed request/result/configuration states, one-attempt timeout/error/
+  panic containment, typed-nil drivers, and 32 concurrent calls.
+
+- [x] Run six race passes, repetitions, full platform gates, and coverage.
 
   Require `go test -race -count=1 ./aigateway` six times, a 100-repetition
   focused run, full platform race, tidy-diff, module verification, vet, and
   100% production statement coverage.
 
-- [ ] Commit the exact Task 2 implementation package.
+  All six race passes, 100 focused repetitions, full platform race,
+  tidy-diff/module verification/vet, and 100% production statement coverage
+  pass.
+
+- [x] Commit the exact Task 2 implementation package.
 
   Commit message: `feat: add scoped AI gateway contract`.
 
