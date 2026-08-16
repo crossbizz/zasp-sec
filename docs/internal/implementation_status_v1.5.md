@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 661 |
-| In progress | 1 |
-| Complete | 63 |
+| In progress | 0 |
+| Complete | 64 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -24,7 +24,7 @@ In progress, Complete, or Blocked is Pending.
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 0 | 0 | 24 | 3 |
-| M1 | 68 | 28 | 1 | 39 | 0 |
+| M1 | 68 | 28 | 0 | 40 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
 | M3 | 75 | 75 | 0 | 0 | 0 |
@@ -68,19 +68,19 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `661/1/63/3` because
+session configuration. The 728 source-plan counts are `661/0/64/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M1-30a | August 16, 2026 | Adding exact local Kubernetes manifests and a disposable kind lifecycle that builds the four real Go service stubs, proves all four pods Ready behind internal-only services, and performs exact-owned cleanup without targeting the ambient cluster. |
 
 ## Complete
 
 | Task | Completed | Evidence |
 | --- | --- | --- |
+| M1-30a | August 16, 2026 | Added exact local Kubernetes manifests and a disposable kind lifecycle that builds the four real Go service stubs, proves all four pods Ready behind internal-only services, binds complete Docker/containerd/Kubernetes and retained filesystem identity, performs exact-owned cleanup without targeting the ambient cluster, and passed live verification, six hermetic stability runs, full repository gates/scans, and zero-finding independent review. |
 | M1-29 | August 16, 2026 | Added the dependency-free strict Healthy, Degraded, and Unavailable component value with exact required/optional classification, bounded product reason codes, canonical UTC-millisecond last-success state, deterministic required-versus-optional aggregation, exact-zero regression coverage, six race and cross-command passes, 100% health-module statement coverage, full repository gates/scans, and zero-finding independent re-review. |
 | M1-28 | August 16, 2026 | Registered the exact self-contained internal OpenAPI and four-command health matrix with exact GET/HEAD/status/header/media/schema semantics, a root cross-command race gate, six stability passes, unchanged public generated client and UI/API map, full repository gates/audits/scans, and zero-finding independent re-review. |
 | M1-28d | August 16, 2026 | Wired the reviewed shared health handler into the standalone runtime-gateway command through one bounded internal listener with exact liveness/readiness transitions, panic-contained independent shutdown and listener cleanup, strict repository-owned dependency validation, a linked real-listener smoke, six race passes, 100% lifecycle statement coverage, full repository gates/audits/scans, and zero-finding independent review. |

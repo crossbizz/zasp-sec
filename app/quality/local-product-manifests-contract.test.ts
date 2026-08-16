@@ -53,7 +53,7 @@ describe("M1-30a local product manifests", () => {
     expect(planProse).toContain("M1-30b remains Pending");
   });
 
-  it("starts only M1-30a after M1-29 and preserves exact blockers", async () => {
+  it("completes only M1-30a after review and preserves exact blockers", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -64,17 +64,17 @@ describe("M1-30a local product manifests", () => {
     const summary = markdownRows(tracker.match(/## Status summary[\s\S]*?## Milestone summary/)?.[0] ?? "").slice(2);
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
-    expect(readme).toContain("M1-30a is In progress");
+    expect(readme).toContain("M1-30a is Complete");
     expect(readme).toContain("M1-30b remains Pending");
     expect(tracker).toContain("| Pending | 661 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 63 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 64 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`661/1/63/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "28", "1", "39", "0"]);
+    expect(tracker).toContain("`661/0/64/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "28", "0", "40", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.filter(([task]) => task === "M1-30a")).toHaveLength(1);
-    expect(complete.filter(([task]) => task === "M1-30a")).toHaveLength(0);
+    expect(active.filter(([task]) => task === "M1-30a")).toHaveLength(0);
+    expect(complete.filter(([task]) => task === "M1-30a")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-29")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-30b")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);

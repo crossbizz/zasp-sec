@@ -47,12 +47,12 @@ describe("M1-10 Neon schema baseline contract", () => {
     expect(readme).toContain("M1-10 is Complete");
     expect(readme).toContain("versioned Neon schema baseline");
     expect(tracker).toContain("| Pending | 661 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 63 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 64 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`661/1/63/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "28", "1", "39", "0"]);
-    expect(active.map(([task]) => task)).toEqual(["M1-30a"]);
+    expect(tracker).toContain("`661/0/64/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "28", "0", "40", "0"]);
+    expect(active.map(([task]) => task)).toEqual([]);
     expect(complete.filter(([task]) => task === "M1-10")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-09")).toHaveLength(1);
     expect(active.filter(([task]) => task === "M1-11")).toHaveLength(0);

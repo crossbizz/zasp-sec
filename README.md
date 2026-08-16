@@ -652,7 +652,7 @@ handler behavior only; it does not authorize external exposure of these
 internal endpoints. Platform, event-ingest, and runtime-gateway command wiring
 are complete under M1-28b, M1-28c, and M1-28d. M1-28a is Complete.
 M1-28b is Complete. M1-28c is Complete, M1-28d is Complete, M1-28 is Complete,
-and M1-29 is Complete. M1-30a is In progress, and M1-30b remains Pending.
+and M1-29 is Complete. M1-30a is Complete, and M1-30b remains Pending.
 
 ## Common internal service health contract
 
@@ -689,14 +689,14 @@ explicitly. Run the model and existing endpoint/command race suites with:
 npm run health:contract:test
 ```
 
-M1-30a is In progress. It is adding the local Kubernetes deployment boundary
-for the four existing Go product commands; M1-30b remains Pending.
+M1-30a is Complete. It adds the local Kubernetes deployment boundary for the
+four existing Go product commands; M1-30b remains Pending.
 
 ## Local product Kubernetes manifests
 
-M1-30a packages the real `agentsec-api`, `agentsec-worker`, `event-ingest`, and
-`runtime-gateway` commands as hardened, cluster-internal pods. The hermetic
-contract requires no Docker daemon or provider access:
+M1-30a is Complete. It packages the real `agentsec-api`, `agentsec-worker`,
+`event-ingest`, and `runtime-gateway` commands as hardened, cluster-internal
+pods. The hermetic contract requires no Docker daemon or provider access:
 
 ```bash
 npm run local:product:test
