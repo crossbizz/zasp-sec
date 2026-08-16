@@ -300,7 +300,7 @@ hostile regression proving impact and preserve its failing output.
 Keep fixes in separate atomic commits. Repeat review until Critical, Important,
 and Minor findings are all zero.
 
-- [ ] **Step 4: Run final six-pass and repository verification**
+- [x] **Step 4: Run final six-pass and repository verification**
 
 ```bash
 for run in 1 2 3 4 5 6; do
