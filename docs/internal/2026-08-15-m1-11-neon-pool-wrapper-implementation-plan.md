@@ -44,7 +44,7 @@ Vitest repository contracts, pinned Node 22.23.1/npm 10.9.8.
   M1-10 tracker row.
 - Produces: unique M1-11 In-progress row and exact `684/1/40/3` contract.
 
-- [ ] **Step 1: Write the status and source contract before changing docs**
+- [x] **Step 1: Write the status and source contract before changing docs**
 
 ```ts
 expect(sourceSection).toContain("pooled application DB wrapper");
@@ -53,25 +53,25 @@ expect(readme).toContain("M1-11 is In progress");
 expect(m1Row).toEqual(["M1", "68", "51", "1", "16", "0"]);
 ```
 
-- [ ] **Step 2: Run the focused test and record the Pending-state RED**
+- [x] **Step 2: Run the focused test and record the Pending-state RED**
 
 Run: `PATH="$HOME/.nvm/versions/node/v22.23.1/bin:$PATH" npx vitest run app/quality/neon-pool-wrapper-contract.test.ts`
 
 Expected: FAIL only because M1-11 is not yet In progress and the README section
 does not exist.
 
-- [ ] **Step 3: Move only M1-11 to In progress**
+- [x] **Step 3: Move only M1-11 to In progress**
 
 Update the tracker to `684/1/40/3`, M1 to `68/51/1/16/0`, add exactly one
 M1-11 row, document the driver-neutral boundary, and mechanically update every
 aggregate-count contract while preserving historical fixtures.
 
-- [ ] **Step 4: Run focused and full pinned repository verification**
+- [x] **Step 4: Run focused and full pinned repository verification**
 
 Run the focused contract, `npm run verify`, `npm audit --omit=dev`, and
 `git diff --check` under pinned Node.
 
-- [ ] **Step 5: Scan and commit the start transition**
+- [x] **Step 5: Scan and commit the start transition**
 
 ```bash
 git commit -m "docs: start M1-11 Neon pool wrapper"
@@ -94,7 +94,7 @@ git commit -m "docs: start M1-11 Neon pool wrapper"
   `(*Pool).Stats() (Stats, error)`, and
   `(*Pool).Close() error`.
 
-- [ ] **Step 1: Add missing-symbol tests for the public contract**
+- [x] **Step 1: Add missing-symbol tests for the public contract**
 
 ```go
 type Row interface { Scan(...any) error }
@@ -111,13 +111,13 @@ drivers, invalid timeouts, invalid statement/destinations, caller cancellation,
 timeout, driver/scan errors and panics, malformed stats, close ordering,
 concurrent close, idempotency, and post-close calls.
 
-- [ ] **Step 2: Run the focused Go test and record compiler RED**
+- [x] **Step 2: Run the focused Go test and record compiler RED**
 
 Run: `go test -C services/platform ./database -count=1`
 
 Expected: compile failure only on absent package symbols.
 
-- [ ] **Step 3: Implement fixed types and validation**
+- [x] **Step 3: Implement fixed types and validation**
 
 Use fixed exported errors `ErrConfiguration`, `ErrQuery`, `ErrHealth`,
 `ErrStats`, `ErrClosed`, and `ErrClose`. Validate statements as trimmed,
@@ -130,7 +130,7 @@ stats.Total <= stats.Maximum && stats.WaitCount >= 0 &&
 stats.CanceledWaitCount >= 0 && stats.WaitDuration >= 0
 ```
 
-- [ ] **Step 4: Implement timeout and lifecycle behavior**
+- [x] **Step 4: Implement timeout and lifecycle behavior**
 
 Hold an `RWMutex` read lock through query+scan and health+snapshot. Use
 `context.WithTimeout` inside each call. `Close` takes the write lock, calls the
@@ -138,14 +138,14 @@ driver once, validates an exact zero-connection final snapshot, stores its
 stable result, and rejects later work. Recover driver panics only as fixed
 errors.
 
-- [ ] **Step 5: Run focused race and six stability passes**
+- [x] **Step 5: Run focused race and six stability passes**
 
 Run: `go test -C services/platform -race -count=1 ./database`
 
 Then repeat `go test -C services/platform ./database -count=1` six times and
 run the complete platform race/tidy/verify/vet gates.
 
-- [ ] **Step 6: Commit the product package**
+- [x] **Step 6: Commit the product package**
 
 ```bash
 git commit -m "feat: add bounded application pool wrapper"
@@ -171,32 +171,32 @@ git commit -m "feat: add bounded application pool wrapper"
 - Produces: proof mode `pool-wrapper`, root commands `db:pool:test` and
   `db:pool:run`, and the exact fixed success summary.
 
-- [ ] **Step 1: Write adapter and runner tests before implementation**
+- [x] **Step 1: Write adapter and runner tests before implementation**
 
 Require exact pgx stats mapping, fixed pool configuration with two maximum
 connections, ten successful reads, a snapshot observing both wait and in-use,
 zero in-use after readers finish, zero total after close, fixed failure output,
 and unchanged legacy M0-04/M1-10 modes.
 
-- [ ] **Step 2: Run focused tests and capture the missing adapter/mode RED**
+- [x] **Step 2: Run focused tests and capture the missing adapter/mode RED**
 
 Run: `go test -C proofs/neon-pooled -run 'ProductPool|Main' -count=1`
 
-- [ ] **Step 3: Implement the narrow adapter and proof mode**
+- [x] **Step 3: Implement the narrow adapter and proof mode**
 
 Map pgxpool `AcquiredConns`, `IdleConns`, `ConstructingConns`, `TotalConns`,
 `MaxConns`, `EmptyAcquireCount`, `CanceledAcquireCount`, and
 `EmptyAcquireWaitTime` into `database.DriverStats`. Poll only product stats
 under the proof deadline until contention is observed.
 
-- [ ] **Step 4: Add stable root commands and documentation**
+- [x] **Step 4: Add stable root commands and documentation**
 
 ```json
 "db:pool:test": "go test -C services/platform -race -count=1 ./database && go test -C proofs/neon-pooled -race -count=1 ./...",
 "db:pool:run": "node --env-file=.env proofs/neon-pooled/run-pool-wrapper.mjs"
 ```
 
-- [ ] **Step 5: Run hermetic gates, then the exact live command**
+- [x] **Step 5: Run hermetic gates, then the exact live command**
 
 Run `npm run db:pool:test`, all dependent Go gates, and pinned repository
 verification. Then run `npm run db:pool:run` through the ignored dotenv
@@ -204,7 +204,7 @@ boundary and require exactly:
 
 `Neon pool wrapper passed: reads=10 waited=true in_use=true acquired=0 closed=true.`
 
-- [ ] **Step 6: Scan and commit the adapter/proof**
+- [x] **Step 6: Scan and commit the adapter/proof**
 
 ```bash
 git commit -m "feat: prove bounded Neon application pool"
@@ -225,25 +225,25 @@ git commit -m "feat: prove bounded Neon application pool"
 - Consumes: exact design-to-head diff, live evidence, all gate results.
 - Produces: zero-finding review, M1-11 Complete, exact-SHA CI, closed plan.
 
-- [ ] **Step 1: Request independent read-only review**
+- [x] **Step 1: Request independent read-only review**
 
 Audit timeout scope, context lifetime through scan, stat arithmetic, panic and
 error secrecy, close/query races, adapter mapping, live contention evidence,
 and regression preservation. Fix every confirmed issue tests-first and rerun
 affected live/local gates until review reports zero findings.
 
-- [ ] **Step 2: Capture completion RED and move only M1-11 to Complete**
+- [x] **Step 2: Capture completion RED and move only M1-11 to Complete**
 
 Change counts to `684/0/41/3` and M1 `68/51/0/17/0`; keep M1-12 Pending and
 all blockers unchanged.
 
-- [ ] **Step 3: Run final gates and scans**
+- [x] **Step 3: Run final gates and scans**
 
 Run six focused passes, every affected Go race/tidy/verify/vet gate, the
 eight-target build, pinned `npm run verify`, production audit, diff check, and
 pinned redacted Gitleaks staged/exact/history/evidence scans.
 
-- [ ] **Step 4: Commit, push, and watch exact-SHA CI**
+- [x] **Step 4: Commit, push, and watch exact-SHA CI**
 
 ```bash
 git commit -m "docs: complete M1-11 Neon pool wrapper"
@@ -252,8 +252,16 @@ git push origin codex/zasp-implementation
 
 Require Runnable UI success for the exact completion SHA.
 
-- [ ] **Step 5: Close the plan and verify the close SHA**
+- [x] **Step 5: Close the plan and verify the close SHA**
 
 Mark this checklist complete, record run/job IDs in ignored evidence, commit
 `docs: close M1-11 Neon pool wrapper`, push, and require exact-SHA Runnable UI
 success before starting M1-12.
+
+## Closure evidence
+
+- Completion commit: `73c25e5dd96a39fdccb2c3fffd84a4d77e07ccac`.
+- Exact-SHA Runnable UI run `31920682633`, job `95099975804`: success.
+- Final state: M1-11 Complete; M1-12 Pending; overall `684/0/41/3`; M1
+  `68/51/0/17/0`; M0-09, M0-18, and M0-19 Blocked; R-03 incomplete; R-11
+  Not run.
