@@ -1068,7 +1068,7 @@ test("concrete lifecycle loads all images and proves the exact Ready Kubernetes 
       return { signal: null, status: 0, stderr: "", stdout: "loaded\n", thrown: false, timedOut: false };
     }
     if (command === "docker" && arguments_[0] === "exec") {
-      return { signal: null, status: 0, stderr: "", stdout: `${PRODUCTS.map(({ image }) => image).join("\n")}\n`, thrown: false, timedOut: false };
+      return { signal: null, status: 0, stderr: "", stdout: `${PRODUCTS.map(({ image }) => `docker.io/${image}`).join("\n")}\n`, thrown: false, timedOut: false };
     }
     if (command === "kubectl" && arguments_.includes("apply")) {
       return { signal: null, status: 0, stderr: "", stdout: "applied\n", thrown: false, timedOut: false };

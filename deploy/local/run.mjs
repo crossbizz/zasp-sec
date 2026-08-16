@@ -893,7 +893,7 @@ export class LocalProductSystem {
         "exec", this.nodeIdentity.token, "ctr", "--namespace", "k8s.io", "images", "list", "--quiet",
       ], phase, "provider", 30_000, 4_194_304);
       const references = listed.stdout.endsWith("\n") ? listed.stdout.slice(0, -1).split("\n") : [];
-      if (!references.includes(product.image)) throw new Failure("provider");
+      if (!references.includes(`docker.io/${product.image}`)) throw new Failure("provider");
     }
     await this.verifyCluster(phase, "ownership");
   }
