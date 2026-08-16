@@ -177,11 +177,14 @@ remains Pending throughout.
 
   Commit message: `docs: complete M1-18 feature flags`.
 
-- [ ] Push and watch exact completion SHA to Runnable UI success.
+- [x] Push and watch exact completion SHA to Runnable UI success.
 
   Require local/upstream/remote/run/job SHA identity and terminal success.
 
-- [ ] Record plan-only closure without advancing M1-19.
+  Completion SHA `4c891c36c07b3925e35fed326b0195947ce1d1e9` passed
+  Runnable UI run `31935335956`, job `95136211124`.
+
+- [x] Record plan-only closure without advancing M1-19.
 
   Commit message: `docs: close M1-18 feature flags`. Push and watch that exact
   closure SHA to terminal success, then prove synchronized clean state.
