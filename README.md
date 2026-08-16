@@ -249,7 +249,7 @@ M1-11 is Complete. It adds a driver-neutral application pool wrapper with a
 bounded query context, bounded health check, validated wait/in-use statistics,
 and one clean idempotent close boundary. Product code remains independent of
 pgx; the existing reviewed Neon proof module owns the pgxpool adapter and live
-provider verification. M1-12 remains Pending.
+provider verification. M1-12 is In progress.
 
 ```bash
 npm run db:pool:test
@@ -268,7 +268,16 @@ Neon pool wrapper passed: reads=10 waited=true in_use=true acquired=0 closed=tru
 
 The dependency-free product package, strict pgx adapter, exact live contention
 proof, focused stability and race suites, repository gates, secret scans, and
-zero-finding pre-landing review all passed. M1-12 remains Pending.
+zero-finding pre-landing review all passed. M1-12 is In progress.
+
+## S3 artifact interface
+
+M1-12 is In progress. It adds an Organization-scoped ArtifactStore product
+boundary for typed Put, Get, and Delete operations. Callers provide validated
+product scope, artifact identity, media type, and bytes; provider bucket names,
+object keys, encryption identifiers, and credentials remain inside the S3
+adapter. M1-13 remains Pending while this interface and its exact disposable
+LocalStack lifecycle are implemented and reviewed.
 
 ## Neon pooled proof
 
