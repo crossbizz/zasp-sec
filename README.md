@@ -87,7 +87,7 @@ The command uses a private handler rather than the default mux and retains the
 exact build line. It still does not accept or normalize events, batch payloads,
 contact SQS, load runtime configuration, read credentials or provider state,
 or expose a public product API. Deployment remains outside this task; M1-28d is
-In progress and M1-28 remains Pending. The development build uses `dev`;
+Complete and M1-28 is In progress. The development build uses `dev`;
 release builds may inject a bounded version at link time.
 
 ## Runtime gateway command
@@ -113,7 +113,7 @@ The command uses a private handler rather than the default mux and retains the
 exact build line. It still does not start a gateway, proxy, MCP server, tool or
 API forwarding, OPA evaluation, authentication, configuration loading,
 credential or provider access, or a public product API. Deployment remains
-outside this task; M1-28 remains Pending. The development build uses `dev`;
+outside this task; M1-28 is In progress. The development build uses `dev`;
 release builds may inject a bounded version at link time.
 
 ## Worker package commands
@@ -560,7 +560,7 @@ The factory has no default remote server, performs no I/O during construction,
 and does not hand-write `/api/v1/` URLs. Authentication/session retrieval,
 reviewed operations, and UI integration remain later work. M1-23 is Complete.
 M1-24 is Complete. M1-25 is Complete. M1-26 is Complete. M1-27 is Complete;
-M1-28a is Complete. M1-28b is Complete, M1-28c is Complete, M1-28d is Complete, and M1-28 remains Pending. No OpenAPI operation was added by the coverage task
+M1-28a is Complete. M1-28b is Complete, M1-28c is Complete, M1-28d is Complete, and M1-28 is In progress. No OpenAPI operation was added by the coverage task
 itself.
 
 ```bash
@@ -606,7 +606,7 @@ UI/API coverage passed: planned=5 available=0 public=0 internal=0.
 Failure is fixed as `UI/API coverage rejected.` without parser or artifact
 details. Both commands are part of root verification. M1-25 is Complete.
 M1-26 is Complete. M1-27 is Complete. M1-28a is Complete. M1-28b is Complete,
-M1-28c is Complete, M1-28d is Complete, and M1-28 remains Pending.
+M1-28c is Complete, M1-28d is Complete, and M1-28 is In progress.
 
 ## Raw frontend Fetch lint
 
@@ -630,7 +630,7 @@ npm run lint
 
 The hostile suite is part of root verification. M1-27 is Complete. M1-28a is
 Complete. M1-28b is Complete, M1-28c is Complete, M1-28d is Complete, and
-M1-28 remains Pending.
+M1-28 is In progress.
 
 ## Shared service health handler
 
@@ -650,8 +650,8 @@ provider calls, environment reads, or global mux registration. It defines
 handler behavior only; it does not authorize external exposure of these
 internal endpoints. Platform, event-ingest, and runtime-gateway command wiring
 are complete under M1-28b, M1-28c, and M1-28d. M1-28a is Complete.
-M1-28b is Complete. M1-28c is Complete, M1-28d is Complete, and M1-28
-remains Pending.
+M1-28b is Complete. M1-28c is Complete, M1-28d is Complete, M1-28 is In
+progress, and M1-29 remains Pending.
 
 ## Platform health wiring
 
@@ -670,7 +670,7 @@ does not register on the default mux, reads no environment or provider state,
 and adds no product API route or worker queue loop. The `:8081` port is an
 internal process/container boundary; later deployment tasks own Services,
 network policy, and probe declarations. M1-28b is Complete after full local
-verification and zero-finding review. M1-28c is Complete, M1-28d is Complete, and M1-28 remains Pending.
+verification and zero-finding review. M1-28c is Complete, M1-28d is Complete, and M1-28 is In progress.
 
 ## Neon pooled proof
 

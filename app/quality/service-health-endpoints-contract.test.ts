@@ -17,35 +17,35 @@ function taskRows(tracker: string, heading: "In progress" | "Complete" | "Blocke
   return markdownRows(section).slice(2);
 }
 
-describe("M1-28d runtime-gateway health wiring", () => {
-  it("binds the exact source task to the standalone design and plan", async () => {
+describe("M1-28 common service health endpoints", () => {
+  it("binds the exact source task to the separate internal OpenAPI design and plan", async () => {
     const [source, design, plan] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "docs/internal/2026-08-16-m1-28d-runtime-gateway-health-wiring-design.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "docs/internal/2026-08-16-m1-28d-runtime-gateway-health-wiring-implementation-plan.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/2026-08-16-m1-28-service-health-endpoints-design.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/2026-08-16-m1-28-service-health-endpoints-implementation-plan.md"), "utf8"),
     ]);
-    const section = source.match(/\*\*M1-28d - gateway health wiring\*\*[\s\S]*?\*\*M1-28 - service health endpoints/)?.[0] ?? "";
+    const section = source.match(/\*\*M1-28 - service health endpoints\*\*[\s\S]*?\*\*M1-29/)?.[0] ?? "";
     const prose = design.replace(/\s+/g, " ");
     const planProse = plan.replace(/^>\s?/gm, "").replace(/\s+/g, " ");
 
-    expect(section).toContain("Depends on: `M1-28c`");
-    expect(section).toContain("Wire shared health handlers into runtime-gateway");
-    expect(section).toContain("smoke test distinguishes liveness and readiness");
+    expect(section).toContain("Depends on: `M1-28d`");
+    expect(section).toContain("Register common health endpoint contract in OpenAPI/internal service docs");
+    expect(section).toContain("All Go commands expose the same endpoint semantics");
     for (const value of [
-      "`services/runtime-gateway`",
-      "`services/health`",
-      "`runtime-gateway build <version>`",
-      "M1-28 remains Pending",
-      "`664/1/60/3`",
-      "`68/31/1/36/0`",
+      "`openapi/internal-health.yaml`",
+      "`docs/internal/service-health-endpoints.md`",
+      "`health:contract:test`",
+      "M1-29 remains Pending",
+      "`663/1/61/3`",
+      "`68/30/1/37/0`",
     ]) {
       expect(prose).toContain(value);
     }
-    expect(planProse).toContain("Every behavior, dependency-policy, documentation, and status transition requires a witnessed");
-    expect(planProse).toContain("Do not start M1-28");
+    expect(planProse).toContain("Every contract, documentation, command, and status transition requires a witnessed tests-only RED");
+    expect(planProse).toContain("Do not start M1-29");
   });
 
-  it("completes only M1-28d after review and preserves exact blockers", async () => {
+  it("starts only M1-28 after M1-28d and preserves exact blockers", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -56,8 +56,8 @@ describe("M1-28d runtime-gateway health wiring", () => {
     const summary = markdownRows(tracker.match(/## Status summary[\s\S]*?## Milestone summary/)?.[0] ?? "").slice(2);
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
-    expect(readme).toContain("M1-28d is Complete");
     expect(readme).toContain("M1-28 is In progress");
+    expect(readme).toContain("M1-29 remains Pending");
     expect(tracker).toContain("| Pending | 663 |");
     expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 61 |");
@@ -66,28 +66,9 @@ describe("M1-28d runtime-gateway health wiring", () => {
     expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "30", "1", "37", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
     expect(active.map(([task]) => task)).toEqual(["M1-28"]);
-    expect(complete.filter(([task]) => task === "M1-28c")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-28d")).toHaveLength(1);
-    expect(active.filter(([task]) => task === "M1-28")).toHaveLength(1);
+    expect(complete.filter(([task]) => task === "M1-28")).toHaveLength(0);
+    expect([...active, ...complete].filter(([task]) => task === "M1-29")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
-  });
-
-  it("wires only the exact runtime-gateway health boundary after witnessed runtime RED", async () => {
-    const [command, module, packageJson, readme] = await Promise.all([
-      readFile(resolve(repositoryRoot, "services/runtime-gateway/main.go"), "utf8"),
-      readFile(resolve(repositoryRoot, "services/runtime-gateway/go.mod"), "utf8"),
-      readFile(resolve(repositoryRoot, "package.json"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
-    ]);
-
-    expect(command).toContain("net.Listen");
-    expect(command).toContain('healthListenAddress = ":8081"');
-    expect(module).toContain("require github.com/zasp-ai/zasp-sec/services/health v0.0.0");
-    expect(module).toContain("replace github.com/zasp-ai/zasp-sec/services/health => ../health");
-    expect(JSON.parse(packageJson).scripts?.["runtime-gateway:health:test"]).toBe(
-      "go test -C services/runtime-gateway -race -count=1 ./...",
-    );
-    expect(readme).toContain("M1-28d now wires the shared internal health handler");
-    expect(readme).toContain("M1-28 is In progress");
   });
 });
