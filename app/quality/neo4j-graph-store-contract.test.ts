@@ -69,4 +69,25 @@ describe("M1-16 Neo4j GraphStore contract", () => {
     expect(design).toContain("No caller value is interpolated into Cypher");
     expect(design).toContain("disposable Neo4j Community image is proof-only");
   });
+
+  it("exposes exact hermetic, live, and license commands with the local-only boundary", async () => {
+    const [packageText, readme] = await Promise.all([
+      readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+    ]);
+    const packageJson = JSON.parse(packageText) as { scripts: Record<string, string> };
+
+    expect(packageJson.scripts["graph:neo4j:test"]).toBe("go test -C services/platform -race -count=1 ./graphstore/... && go test -C proofs/neo4j-graphstore -race -count=1 ./... && node --test proofs/neo4j-graphstore/run.test.mjs proofs/neo4j-graphstore/license-audit.test.mjs");
+    expect(packageJson.scripts["graph:neo4j:run"]).toBe("node proofs/neo4j-graphstore/run.mjs");
+    expect(packageJson.scripts["graph:neo4j:license"]).toBe("node proofs/neo4j-graphstore/license-audit.mjs");
+    expect(readme).toContain("## Neo4j GraphStore proof");
+    expect(readme).toContain("npm run graph:neo4j:test");
+    expect(readme).toContain("npm run graph:neo4j:run");
+    expect(readme).toContain("npm run graph:neo4j:license");
+    expect(readme).toContain("Neo4j GraphStore proof passed: nodes=3 edges=2 replay=true scoped=true cross_organization_zero=true cleanup=true audit=true.");
+    expect(readme).toContain("local-only compatibility proof");
+    expect(readme).toContain("does not accept raw Cypher or customer query text");
+    expect(readme).toContain("does not target a shared Neo4j service");
+    expect(readme).toContain("does not approve Neo4j Community server packaging or redistribution");
+  });
 });

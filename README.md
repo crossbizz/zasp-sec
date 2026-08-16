@@ -351,6 +351,36 @@ or licensing. M1-16 is adding the exact-scoped official-driver adapter and a
 disposable Neo4j Community compatibility proof without widening the product
 interface; M1-17 remains Pending.
 
+## Neo4j GraphStore proof
+
+M1-16 provides a local-only compatibility proof for the product GraphStore
+against the official Neo4j Go driver v6.2.0 and the exact disposable image
+`neo4j:5.26.28-community@sha256:ff32db30b2baff97971e441b46bfd9c832c1b62c970398ef579244c06b21d357`.
+
+```bash
+npm run graph:neo4j:test
+npm run graph:neo4j:license
+npm run graph:neo4j:run
+```
+
+The live command creates one exact-owned loopback-only target, proves three
+scoped nodes and two edges through the product interface, replays the upsert,
+checks outgoing/incoming/both/depth-zero reads and Organization B zero state,
+deletes the fixture, and removes its container, anonymous volumes, and owned
+temporary directory. Success is exactly:
+
+```text
+Neo4j GraphStore proof passed: nodes=3 edges=2 replay=true scoped=true cross_organization_zero=true cleanup=true audit=true.
+```
+
+The adapter uses fixed parameterized statements; it does not accept raw Cypher or customer query text.
+The runner does not target a shared Neo4j service and
+re-proves any shared Neo4j container fingerprint unchanged. The Apache-2.0 Go
+driver is an approved product runtime dependency; this proof does not approve Neo4j Community server packaging or redistribution.
+Neo4j Community remains a
+GPL-3.0-only proof-only compatibility target. M1-16 remains In progress until
+whole-range review, final verification, push, and exact-SHA CI complete.
+
 ## Neon pooled proof
 
 The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,
