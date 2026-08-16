@@ -199,20 +199,24 @@ func (runner *Runner) withTransaction(ctx context.Context, operation func(contex
 		return err
 	}
 	transaction, err := runner.database.Begin(ctx)
-	if err != nil {
-		return fixedDatabaseError(ctx, err)
-	}
 	if nilInterface(transaction) {
+		if err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
 		return ErrInvalidDatabase
+	}
+	if err != nil {
+		if rollbackTransaction(ctx, transaction) != nil {
+			return ErrDatabase
+		}
+		return fixedDatabaseError(ctx, err)
 	}
 	committed := false
 	defer func() {
 		if committed {
 			return
 		}
-		rollbackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rollbackTimeout)
-		defer cancel()
-		if err := transaction.Rollback(rollbackCtx); err != nil {
+		if err := rollbackTransaction(ctx, transaction); err != nil {
 			resultErr = ErrDatabase
 		}
 	}()
@@ -227,6 +231,12 @@ func (runner *Runner) withTransaction(ctx context.Context, operation func(contex
 	}
 	committed = true
 	return nil
+}
+
+func rollbackTransaction(ctx context.Context, transaction Transaction) error {
+	rollbackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rollbackTimeout)
+	defer cancel()
+	return transaction.Rollback(rollbackCtx)
 }
 
 func readState(ctx context.Context, queryer Queryer) (State, error) {

@@ -49,14 +49,15 @@ func (row fakeRow) Scan(destinations ...any) error {
 }
 
 type fakeTransaction struct {
-	events        *[]string
-	rows          []Row
-	execErrorAt   int
-	queryErrorAt  int
-	commitError   error
-	rollbackError error
-	execs         int
-	queries       int
+	events               *[]string
+	rows                 []Row
+	execErrorAt          int
+	queryErrorAt         int
+	commitError          error
+	rollbackError        error
+	rollbackContextError error
+	execs                int
+	queries              int
 }
 
 func (transaction *fakeTransaction) Exec(ctx context.Context, statement string, arguments ...any) error {
@@ -96,8 +97,9 @@ func (transaction *fakeTransaction) Commit(ctx context.Context) error {
 	return transaction.commitError
 }
 
-func (transaction *fakeTransaction) Rollback(context.Context) error {
+func (transaction *fakeTransaction) Rollback(ctx context.Context) error {
 	*transaction.events = append(*transaction.events, "rollback")
+	transaction.rollbackContextError = ctx.Err()
 	return transaction.rollbackError
 }
 
@@ -107,6 +109,21 @@ type fakeDatabase struct {
 	rows        []Row
 	beginError  error
 	queries     int
+}
+
+type ambiguousBeginDatabase struct {
+	events      []string
+	transaction *fakeTransaction
+}
+
+func (database *ambiguousBeginDatabase) Begin(context.Context) (Transaction, error) {
+	database.events = append(database.events, "begin")
+	database.transaction.events = &database.events
+	return database.transaction, errors.New("ambiguous begin detail")
+}
+
+func (database *ambiguousBeginDatabase) QueryRow(context.Context, string, ...any) Row {
+	return fakeRow{err: errors.New("must not query")}
 }
 
 func (database *fakeDatabase) Begin(ctx context.Context) (Transaction, error) {
@@ -159,6 +176,14 @@ func exactRows() []Row {
 
 func TestBaselineMetadataIsStableAndOpaque(t *testing.T) {
 	metadata := Baseline()
+	const expectedUp = `CREATE TABLE "public"."zasp_schema_versions" (
+    "version" bigint PRIMARY KEY,
+    "name" text NOT NULL UNIQUE CHECK (char_length("name") BETWEEN 1 AND 63),
+    "checksum" text NOT NULL CHECK ("checksum" ~ '^[a-f0-9]{64}$'),
+    "applied_at" timestamp with time zone NOT NULL DEFAULT transaction_timestamp()
+);`
+	const expectedDown = `DROP TABLE "public"."zasp_schema_versions";`
+	const expectedChecksum = "feeec4a9f6da520b46d09ac4c9c6ea6d99b052e8f5e5d4408d0dfffd8e554670"
 	if metadata.Version() != 1 || metadata.Name() != "schema_versions" {
 		t.Fatalf("baseline identity = %d/%q", metadata.Version(), metadata.Name())
 	}
@@ -174,6 +199,9 @@ func TestBaselineMetadataIsStableAndOpaque(t *testing.T) {
 	}
 	if Baseline() != metadata {
 		t.Fatal("baseline metadata changed between reads")
+	}
+	if metadata.UpSQL() != expectedUp || metadata.DownSQL() != expectedDown || metadata.Checksum() != expectedChecksum {
+		t.Fatalf("version-1 assets drifted: checksum=%q", metadata.Checksum())
 	}
 }
 
@@ -222,19 +250,20 @@ func TestRunnerDownRequiresExactStateAndRestoresAbsence(t *testing.T) {
 		t.Fatalf("Down: %v", err)
 	}
 
-	joined := strings.Join(database.events, "\n")
-	for _, required := range []string{
-		`exec:LOCK TABLE "public"."zasp_schema_versions" IN ACCESS EXCLUSIVE MODE`,
+	want := []string{
+		"begin",
+		"query:SELECT to_regclass('public.zasp_schema_versions') IS NOT NULL", "args:none",
+		`exec:LOCK TABLE "public"."zasp_schema_versions" IN ACCESS EXCLUSIVE MODE`, "args:none",
+		`query:SELECT count(*) FROM "public"."zasp_schema_versions"`, "args:none",
+		`query:SELECT "version", "name", "checksum" FROM "public"."zasp_schema_versions" ORDER BY "version"`, "args:none",
 		`exec:DELETE FROM "public"."zasp_schema_versions" WHERE "version" = $1 AND "name" = $2 AND "checksum" = $3`,
-		"exec:" + compactSQL(metadata.DownSQL()),
+		"args:1,schema_versions," + metadata.Checksum(),
+		"exec:" + compactSQL(metadata.DownSQL()), "args:none",
+		"query:SELECT to_regclass('public.zasp_schema_versions') IS NOT NULL", "args:none",
 		"commit",
-	} {
-		if !strings.Contains(joined, required) {
-			t.Fatalf("events missing %q: %#v", required, database.events)
-		}
 	}
-	if contains(database.events, "rollback") {
-		t.Fatalf("successful down rolled back: %#v", database.events)
+	if !reflect.DeepEqual(database.events, want) {
+		t.Fatalf("events = %#v, want %#v", database.events, want)
 	}
 }
 
@@ -321,6 +350,25 @@ func TestRunnerRollsBackWithFixedErrorsAndCleanupPrecedence(t *testing.T) {
 				t.Fatalf("rollback missing: %#v", database.events)
 			}
 		})
+	}
+}
+
+func TestRunnerRollsBackTransactionReturnedWithBeginError(t *testing.T) {
+	transaction := &fakeTransaction{}
+	database := &ambiguousBeginDatabase{transaction: transaction}
+	runner, err := NewRunner(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := runner.Up(context.Background()); !errors.Is(err, ErrDatabase) {
+		t.Fatalf("Up error = %v", err)
+	}
+	if !reflect.DeepEqual(database.events, []string{"begin", "rollback"}) {
+		t.Fatalf("events = %#v", database.events)
+	}
+	if transaction.rollbackContextError != nil {
+		t.Fatalf("rollback inherited failed context: %v", transaction.rollbackContextError)
 	}
 }
 
