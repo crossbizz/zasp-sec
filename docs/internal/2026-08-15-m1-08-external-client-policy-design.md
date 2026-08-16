@@ -57,8 +57,10 @@ Retry-safe request kinds retry only:
 - HTTP 408, 425, 429, 500, 502, 503, or 504.
 
 All other errors and statuses return immediately. Intermediate retry responses
-are closed after a small bounded drain; the final response remains caller-owned.
-A nil response with nil error is invalid and never retried.
+are closed without body inspection; the final response remains caller-owned.
+A nil/malformed response with nil error is invalid and never retried. Failure
+to close an executor-owned response stops the sequence with a fixed cleanup
+error rather than compounding the resource failure.
 
 Backoff doubles from the base to the configured cap and applies bounded full
 jitter. Waiting is context-aware. The package exposes no global mutable policy,

@@ -27,23 +27,23 @@ platform HTTP clients.
 
 ### Task 2: Implement the executor tests-first
 
-- [ ] Add Go tests before production and capture genuine missing-symbol RED.
-- [ ] Implement opaque policy/request-kind values, total deadline, bounded
+- [x] Add Go tests before production and capture genuine missing-symbol RED.
+- [x] Implement opaque policy/request-kind values, total deadline, bounded
   semaphore, transient classifier, retry loop, response close, and backoff.
-- [ ] Cover transient/permanent statuses and errors, request kinds, attempts,
+- [x] Cover transient/permanent statuses and errors, request kinds, attempts,
   deadlines, cancellation, slot wait/release, response ownership, malformed
   results, direct invalid state, panic release, and comparability.
-- [ ] Run six focused passes, platform/service/worker/root regressions, full
+- [x] Run six focused passes, platform/service/worker/root regressions, full
   repository gates, audit, whitespace, and scans; commit
   `feat: add external client policy`.
 
 ### Task 3: Review the reliability boundary
 
-- [ ] Audit deadline scope, cancellation races, retry/idempotency taxonomy,
+- [x] Audit deadline scope, cancellation races, retry/idempotency taxonomy,
   status/error classification, body lifecycle, concurrency, backoff overflow,
   zero/direct state, panic unwinding, and error secrecy.
-- [ ] Add tests-first fixes for every concrete finding and rerun affected gates.
-- [ ] Record a zero-finding review before completion.
+- [x] Add tests-first fixes for every concrete finding and rerun affected gates.
+- [x] Record a zero-finding review before completion.
 
 ### Task 4: Complete, push, and close M1-08
 
