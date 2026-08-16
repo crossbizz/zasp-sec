@@ -10,6 +10,8 @@
   "scripts": {
     "artifact:store:test": "cd services/platform && go test -race -count=1 ./artifactstore && cd ../../proofs/localstack-storage && go test -race -count=1 ./... && node --test run.test.mjs artifact-run.test.mjs",
     "artifact:store:run": "node proofs/localstack-storage/run-artifact-store.mjs",
+    "job:queue:test": "go test -C services/platform -race -count=1 ./jobqueue && go test -C proofs/localstack-sqs -race -count=1 ./... && node --test proofs/localstack-sqs/job-run.test.mjs proofs/localstack-storage/run.test.mjs",
+    "job:queue:run": "node proofs/localstack-sqs/run-job-queue.mjs",
     "build:repo": "node scripts/build-repo.mjs",
     "db:pool:test": "go test -C services/platform -race -count=1 ./database && go test -C proofs/neon-pooled -race -count=1 ./...",
     "db:pool:run": "node --env-file=.env proofs/neon-pooled/run-pool-wrapper.mjs",

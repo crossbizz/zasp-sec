@@ -306,6 +306,19 @@ acknowledgement plus a strict SQS adapter and disposable LocalStack queue/DLQ
 lifecycle. AWS queue URLs, ARNs, message IDs, receipt handles, credentials, and
 provider errors stay outside the product interface. M1-14 remains Pending.
 
+```bash
+npm run job:queue:test
+npm run job:queue:run
+```
+
+The hermetic command exercises the product, SQS adapter, lifecycle, and
+disposable-runner contracts without Docker or provider access. The live command
+creates one exact queue/DLQ pair inside one exact disposable LocalStack
+container, publishes only a loopback endpoint, and uses fixed synthetic local
+credentials. It does not read dotenv, cloud profiles, proxies, or real AWS credentials.
+This is disposable LocalStack SQS compatibility only, not
+real-AWS IAM, durability, availability, encryption, or release-parity evidence.
+
 ## Neon pooled proof
 
 The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,

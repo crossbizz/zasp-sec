@@ -26,6 +26,10 @@ func newSDKQueueClient(ctx context.Context, rawEndpoint string) (*sdkQueueClient
 	if err != nil {
 		return nil, errConfiguration
 	}
+	return newSDKQueueClientFromEndpoint(endpoint), nil
+}
+
+func newSDKQueueClientFromEndpoint(endpoint validatedEndpoint) *sdkQueueClient {
 	transport := &http.Transport{
 		Proxy: nil, DialContext: loopbackDialerWithResolver(endpoint, net.DefaultResolver),
 		DisableKeepAlives: true, ForceAttemptHTTP2: false,
@@ -43,7 +47,7 @@ func newSDKQueueClient(ctx context.Context, rawEndpoint string) (*sdkQueueClient
 		Region: fixedRegion, BaseEndpoint: aws.String(endpoint.baseURL), HTTPClient: httpClient,
 		Credentials: aws.CredentialsProviderFunc(staticLocalCredentials), Retryer: retryer, RetryMaxAttempts: 2,
 	})
-	return &sdkQueueClient{client: client, endpoint: endpoint, transport: transport}, nil
+	return &sdkQueueClient{client: client, endpoint: endpoint, transport: transport}
 }
 
 func staticLocalCredentials(context.Context) (aws.Credentials, error) {
@@ -96,7 +100,7 @@ func (s *sdkQueueClient) ListQueues(ctx context.Context, prefix string) ([]strin
 		}
 		for _, queueURL := range output.QueueUrls {
 			name := queueNameFromURL(queueURL)
-			if _, err := validateQueueURL(ctx, s.endpoint.baseURL, queueURL, name, nil); err != nil {
+			if _, err := s.validateListedQueueURL(ctx, queueURL, name); err != nil {
 				return nil, errOwnership
 			}
 			urls = append(urls, queueURL)
@@ -106,6 +110,13 @@ func (s *sdkQueueClient) ListQueues(ctx context.Context, prefix string) ([]strin
 		}
 		token = output.NextToken
 	}
+}
+
+func (s *sdkQueueClient) validateListedQueueURL(ctx context.Context, queueURL, name string) (string, error) {
+	if s.endpoint.port == "4566" {
+		return validateQueueURL(ctx, s.endpoint.baseURL, queueURL, name, nil)
+	}
+	return validateDisposableJobQueueURL(ctx, s.endpoint.baseURL, queueURL, name, nil)
 }
 
 func queueNameFromURL(raw string) string {
@@ -122,8 +133,11 @@ func queueNameFromURL(raw string) string {
 
 func (s *sdkQueueClient) CreateQueue(ctx context.Context, name string, attributes, tags map[string]string) (string, error) {
 	output, err := s.client.CreateQueue(ctx, &sqs.CreateQueueInput{QueueName: aws.String(name), Attributes: attributes, Tags: tags})
-	if err != nil || output == nil || output.QueueUrl == nil {
-		return "", errProvider
+	if err != nil {
+		return "", classifyQueueMutationError(err)
+	}
+	if output == nil || output.QueueUrl == nil || *output.QueueUrl == "" {
+		return "", ambiguousMutationError()
 	}
 	return *output.QueueUrl, nil
 }
@@ -177,6 +191,46 @@ func (s *sdkQueueClient) SendMessageBatch(ctx context.Context, queueURL string, 
 	return result, nil
 }
 
+func (s *sdkQueueClient) SendJobBatch(ctx context.Context, queueURL string, entries []outgoingMessage) (jobBatchSendResult, error) {
+	if s == nil || s.client == nil || ctx == nil || len(entries) == 0 || len(entries) > jobBatchLimit {
+		return jobBatchSendResult{}, errProvider
+	}
+	sdkEntries := make([]types.SendMessageBatchRequestEntry, len(entries))
+	for index, entry := range entries {
+		if entry.ID == "" || entry.Body == "" {
+			return jobBatchSendResult{}, errProvider
+		}
+		sdkEntries[index] = types.SendMessageBatchRequestEntry{
+			Id:                aws.String(entry.ID),
+			MessageBody:       aws.String(entry.Body),
+			MessageAttributes: toSDKMessageAttributes(entry.Attributes),
+		}
+	}
+	output, err := s.client.SendMessageBatch(ctx, &sqs.SendMessageBatchInput{
+		QueueUrl: aws.String(queueURL),
+		Entries:  sdkEntries,
+	})
+	if err != nil || output == nil {
+		return jobBatchSendResult{}, errProvider
+	}
+	result := jobBatchSendResult{}
+	for _, success := range output.Successful {
+		if success.Id == nil || success.MessageId == nil || success.MD5OfMessageBody == nil {
+			return jobBatchSendResult{}, errProvider
+		}
+		result.Successful = append(result.Successful, jobBatchSendSuccess{
+			ID: *success.Id, MessageID: *success.MessageId, BodyDigest: *success.MD5OfMessageBody,
+		})
+	}
+	for _, failure := range output.Failed {
+		if failure.Id == nil {
+			return jobBatchSendResult{}, errProvider
+		}
+		result.FailedIDs = append(result.FailedIDs, *failure.Id)
+	}
+	return result, nil
+}
+
 func toSDKMessageAttributes(attributes map[string]messageAttribute) map[string]types.MessageAttributeValue {
 	result := make(map[string]types.MessageAttributeValue, len(attributes))
 	for key, value := range attributes {
@@ -202,6 +256,41 @@ func (s *sdkQueueClient) ReceiveMessages(ctx context.Context, queueURL string) (
 			return nil, errProvider
 		}
 		received := receivedMessage{Body: *message.Body, MessageID: *message.MessageId, ReceiptHandle: *message.ReceiptHandle, Attributes: attributes}
+		if message.MD5OfBody != nil {
+			received.BodyDigest = *message.MD5OfBody
+		}
+		result = append(result, received)
+	}
+	return result, nil
+}
+
+func (s *sdkQueueClient) ReceiveJobMessages(ctx context.Context, queueURL string, maximum int) ([]receivedMessage, error) {
+	if s == nil || s.client == nil || ctx == nil || maximum <= 0 || maximum > jobBatchLimit {
+		return nil, errProvider
+	}
+	output, err := s.client.ReceiveMessage(ctx, &sqs.ReceiveMessageInput{
+		QueueUrl:              aws.String(queueURL),
+		MaxNumberOfMessages:   int32(maximum),
+		MessageAttributeNames: []string{"All"},
+		VisibilityTimeout:     5,
+		WaitTimeSeconds:       1,
+	})
+	if err != nil || output == nil {
+		return nil, errProvider
+	}
+	result := make([]receivedMessage, 0, len(output.Messages))
+	for _, message := range output.Messages {
+		if message.Body == nil || message.MessageId == nil || message.ReceiptHandle == nil {
+			return nil, errProvider
+		}
+		attributes, err := fromSDKMessageAttributes(message.MessageAttributes)
+		if err != nil {
+			return nil, errProvider
+		}
+		received := receivedMessage{
+			Body: *message.Body, MessageID: *message.MessageId,
+			ReceiptHandle: *message.ReceiptHandle, Attributes: attributes,
+		}
 		if message.MD5OfBody != nil {
 			received.BodyDigest = *message.MD5OfBody
 		}
@@ -238,6 +327,42 @@ func (s *sdkQueueClient) DeleteMessageBatch(ctx context.Context, queueURL, recei
 	for _, failure := range output.Failed {
 		if failure.Id == nil {
 			return batchDeleteResult{}, errProvider
+		}
+		result.FailedIDs = append(result.FailedIDs, *failure.Id)
+	}
+	return result, nil
+}
+
+func (s *sdkQueueClient) DeleteJobBatch(ctx context.Context, queueURL string, entries []jobDeleteEntry) (jobBatchDeleteResult, error) {
+	if s == nil || s.client == nil || ctx == nil || len(entries) == 0 || len(entries) > jobBatchLimit {
+		return jobBatchDeleteResult{}, errProvider
+	}
+	sdkEntries := make([]types.DeleteMessageBatchRequestEntry, len(entries))
+	for index, entry := range entries {
+		if entry.ID == "" || entry.ReceiptHandle == "" {
+			return jobBatchDeleteResult{}, errProvider
+		}
+		sdkEntries[index] = types.DeleteMessageBatchRequestEntry{
+			Id: aws.String(entry.ID), ReceiptHandle: aws.String(entry.ReceiptHandle),
+		}
+	}
+	output, err := s.client.DeleteMessageBatch(ctx, &sqs.DeleteMessageBatchInput{
+		QueueUrl: aws.String(queueURL),
+		Entries:  sdkEntries,
+	})
+	if err != nil || output == nil {
+		return jobBatchDeleteResult{}, errProvider
+	}
+	result := jobBatchDeleteResult{}
+	for _, success := range output.Successful {
+		if success.Id == nil {
+			return jobBatchDeleteResult{}, errProvider
+		}
+		result.SuccessfulIDs = append(result.SuccessfulIDs, *success.Id)
+	}
+	for _, failure := range output.Failed {
+		if failure.Id == nil {
+			return jobBatchDeleteResult{}, errProvider
 		}
 		result.FailedIDs = append(result.FailedIDs, *failure.Id)
 	}

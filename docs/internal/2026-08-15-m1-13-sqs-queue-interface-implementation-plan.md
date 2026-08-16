@@ -253,6 +253,8 @@ malformed-success outcomes.
 - [ ] **Step 4: Implement the strict SQS product driver**
 
 Map `DriverMessage` bodies and typed fields into exact SQS entries/attributes.
+Reject any entry or aggregate batch whose body plus attribute names, data types,
+and values exceeds the SQS 1 MiB quota.
 On receive, require exact attributes/body digest/message ID/receipt handle and
 return only validated typed deliveries. Publish and acknowledge accept only
 exact full success sets; definitive rejection is never adopted or reconciled.
@@ -262,8 +264,10 @@ exact full success sets; definitive rejection is never adopted or reconciled.
 Use a `zasp-m1-13-<marker>` namespace and atomic `m1-13` tags. Retain cleanup
 authority after every create attempt; reconcile only typed ambiguity/malformed
 success under an independent bounded context; prove redrive state, perform the
-two-job product round trip, prove empty, clean source then DLQ, and require a
-global M1-13 prefix audit. Cleanup failure wins and later cleanup continues.
+two-job product round trip by collecting distinct Standard-queue deliveries
+across bounded calls without assuming order or a full batch, prove empty, clean
+source then DLQ, and require a global M1-13 prefix audit. Cleanup failure wins
+and later cleanup continues.
 
 - [ ] **Step 6: Add the disposable SQS runner mode**
 

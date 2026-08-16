@@ -57,4 +57,23 @@ describe("M1-13 SQS queue interface contract", () => {
     expect([...active, ...complete].filter(([task]) => task === "M1-14")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
+
+  it("exposes hermetic and disposable root commands without ambient cloud configuration", async () => {
+    const [manifest, readme, module] = await Promise.all([
+      readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "proofs/localstack-sqs/go.mod"), "utf8"),
+    ]);
+    const scripts = (JSON.parse(manifest) as { scripts?: Record<string, string> }).scripts;
+    expect(scripts?.["job:queue:test"]).toBe(
+      "go test -C services/platform -race -count=1 ./jobqueue && go test -C proofs/localstack-sqs -race -count=1 ./... && node --test proofs/localstack-sqs/job-run.test.mjs proofs/localstack-storage/run.test.mjs",
+    );
+    expect(scripts?.["job:queue:run"]).toBe("node proofs/localstack-sqs/run-job-queue.mjs");
+    const section = readme.match(/## SQS job queue interface[\s\S]*?```bash\n([\s\S]*?)\n```/)?.[1];
+    expect(section?.split("\n")).toEqual(["npm run job:queue:test", "npm run job:queue:run"]);
+    expect(readme).toContain("disposable LocalStack SQS compatibility only");
+    expect(readme).toContain("does not read dotenv, cloud profiles, proxies, or real AWS credentials");
+    expect(module).toContain("github.com/zasp-ai/zasp-sec/services/platform v0.0.0");
+    expect(module).toContain("replace github.com/zasp-ai/zasp-sec/services/platform => ../../services/platform");
+  });
 });

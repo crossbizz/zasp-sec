@@ -85,6 +85,9 @@ It maps a product batch to one `SendMessageBatch` request, using the canonical
 product job ID as the entry ID and exact string message attributes for
 organization, workspace, environment, job ID, kind, and body SHA-256. It
 requires all requested entries to succeed even when SQS returns HTTP success.
+Before provider I/O it requires both each entry and the full batch to remain
+within the SQS 1 MiB quota after counting the body plus every attribute name,
+data type, and value.
 
 Receive uses bounded long polling with at most ten messages. The adapter
 requires a nonempty message ID and receipt handle, exact attributes, an exact
@@ -103,6 +106,9 @@ consumes, and acknowledges exactly two scoped jobs through the product
 candidate authority immediately after each create attempt, uses an independent
 bounded context, freshly re-proves ownership before source-then-DLQ deletion,
 and requires prefix-wide absence. Cleanup failure wins.
+Because the source is a Standard queue, the lifecycle collects the two distinct
+expected jobs across bounded receive calls and matches by job ID rather than
+assuming a full or ordered response.
 
 The existing M0-06 default proof remains byte-for-byte compatible. The hardened
 disposable LocalStack runner adds an M1-13 mode with only SQS enabled, an exact

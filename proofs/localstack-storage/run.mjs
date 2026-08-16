@@ -11,13 +11,17 @@ import { fileURLToPath } from "node:url";
 export const LOCALSTACK_IMAGE = "localstack/localstack:4.7.0@sha256:12253acd9676770e9bd31cbfcf17c5ca6fd7fb5c0c62f3c46dd701f20304260c";
 export const successLine = "LocalStack storage proof passed: kms=true s3=true secret=true round_trip=true cleanup=true audit=true container_cleanup=true.";
 export const artifactSuccessLine = "LocalStack artifact store passed: put=true get=true delete=true scoped=true encrypted=true cleanup=true audit=true container_cleanup=true.";
+export const jobQueueSuccessLine = "LocalStack job queue passed: publish=2 consume=2 acknowledge=2 scoped=true redrive=true empty=true cleanup=true audit=true container_cleanup=true.";
 export const artifactProofTimeoutMilliseconds = 150_000;
 export const STORAGE_MODE = "storage";
 export const ARTIFACT_MODE = "artifact";
+export const JOB_QUEUE_MODE = "job-queue";
 const fixedFailure = (category) => `LocalStack storage proof failed: ${category} rejected.`;
 const artifactFailure = (category) => `LocalStack artifact store failed: ${category} rejected.`;
+const jobQueueFailure = (category) => `LocalStack job queue failed: ${category} rejected.`;
 const idPattern = /^[a-f0-9]{64}$/;
-const proofDirectory = fileURLToPath(new URL(".", import.meta.url));
+const storageProofDirectory = fileURLToPath(new URL(".", import.meta.url));
+const sqsProofDirectory = fileURLToPath(new URL("../localstack-sqs/", import.meta.url));
 const readinessBodyLimit = 16_384;
 const readinessDeadlineMilliseconds = 500;
 
@@ -33,6 +37,8 @@ const modeConfigurations = Object.freeze({
     temporaryPrefix: "zasp-m0-07-",
     executable: "storage-proof",
     proofTimeoutMilliseconds: 90_000,
+    proofDirectory: storageProofDirectory,
+    extraEnvironment: [],
   }),
   [ARTIFACT_MODE]: Object.freeze({
     namePrefix: "zasp-m1-12-",
@@ -45,6 +51,22 @@ const modeConfigurations = Object.freeze({
     temporaryPrefix: "zasp-m1-12-",
     executable: "artifact-store-proof",
     proofTimeoutMilliseconds: artifactProofTimeoutMilliseconds,
+    proofDirectory: storageProofDirectory,
+    extraEnvironment: [],
+  }),
+  [JOB_QUEUE_MODE]: Object.freeze({
+    namePrefix: "zasp-m1-13-",
+    proofLabel: "m1-13",
+    services: ["sqs"],
+    successLine: jobQueueSuccessLine,
+    failureLine: jobQueueFailure,
+    proofArguments: ["job-queue"],
+    childSuccess: "LocalStack job queue passed: publish=2 consume=2 acknowledge=2 scoped=true redrive=true empty=true cleanup=true audit=true.",
+    temporaryPrefix: "zasp-m1-13-",
+    executable: "job-queue-proof",
+    proofTimeoutMilliseconds: 150_000,
+    proofDirectory: sqsProofDirectory,
+    extraEnvironment: ["SQS_ENDPOINT_STRATEGY=dynamic"],
   }),
 });
 
@@ -59,15 +81,19 @@ export function buildDockerRunArguments(name, mode = STORAGE_MODE) {
   const namePattern = new RegExp(`^${configuration.namePrefix}[a-f0-9]{16}$`);
   if (!namePattern.test(name)) throw categorized("configuration");
   const marker = name.slice(configuration.namePrefix.length);
-  return [
+  const arguments_ = [
     "run", "--detach", "--rm", "--name", name,
     "--publish", "127.0.0.1::4566",
     "--env", `SERVICES=${configuration.services.join(",")}`,
     "--env", "PERSISTENCE=0",
+  ];
+  for (const value of configuration.extraEnvironment) arguments_.push("--env", value);
+  arguments_.push(
     "--label", `zasp.proof=${configuration.proofLabel}`,
     "--label", `zasp.marker=${marker}`,
     LOCALSTACK_IMAGE,
-  ];
+  );
+  return arguments_;
 }
 
 export function buildProofEnvironment(endpoint, path) {
@@ -254,6 +280,23 @@ export class DockerRuntime {
     if (result.status !== 0) throw categorized("operation");
     const fields = result.stdout.trim().split("|");
     if (fields.length !== 6 || fields[0] !== token || fields[1] !== `/${this.name}` || fields[2] !== this.resolvedImageID || fields[3] !== LOCALSTACK_IMAGE || fields[4] !== this.configuration.proofLabel || fields[5] !== this.marker) throw categorized("operation");
+    if (this.mode === JOB_QUEUE_MODE) {
+      const environmentResult = this.docker(["inspect", "--format", "{{json .Config.Env}}", token]);
+      let environment;
+      try { environment = JSON.parse(String(environmentResult?.stdout ?? "")); } catch { throw categorized("operation"); }
+      if (environmentResult?.status !== 0 || !Array.isArray(environment) ||
+        environment.some((value) => typeof value !== "string")) throw categorized("operation");
+      const expected = [
+        `SERVICES=${this.configuration.services.join(",")}`,
+        "PERSISTENCE=0",
+        ...this.configuration.extraEnvironment,
+      ];
+      const reserved = ["SERVICES=", "PERSISTENCE=", "SQS_ENDPOINT_STRATEGY="];
+      if (expected.some((value) => environment.filter((entry) => entry === value).length !== 1) ||
+        environment.some((entry) => reserved.some((prefix) => entry.startsWith(prefix)) && !expected.includes(entry))) {
+        throw categorized("operation");
+      }
+    }
   }
 
   async endpoint(token = this.token) {
@@ -329,7 +372,7 @@ export class DockerRuntime {
       temporaryDirectory = temporaryIdentity.path;
       const executable = join(temporaryDirectory, this.configuration.executable);
       const build = this.command("go", ["build", "-trimpath", "-mod=readonly", "-o", executable, "."], {
-        cwd: proofDirectory,
+        cwd: this.configuration.proofDirectory,
         env: buildGoToolEnvironment(this.path, caches.GOCACHE, caches.GOMODCACHE),
         encoding: "utf8",
         timeout: 90_000,
@@ -338,7 +381,7 @@ export class DockerRuntime {
       });
       if (build?.status !== 0 || build.stdout !== "" || build.stderr !== "") return resultCode(build);
       const result = this.command(executable, this.configuration.proofArguments, {
-        cwd: proofDirectory,
+        cwd: this.configuration.proofDirectory,
         env: buildProofEnvironment(endpoint, this.path),
         encoding: "utf8",
         timeout: this.configuration.proofTimeoutMilliseconds,
