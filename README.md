@@ -36,32 +36,33 @@ order.
 
 ## Platform API command
 
-M1-01d is Complete. It creates the first minimal Go command at
-`services/platform/agentsec-api`. The command's only current behavior is one
-exact build-version line:
+M1-01d is Complete. It established the first minimal Go command at
+`services/platform/agentsec-api` and its exact build-version line:
 
 ```text
 agentsec-api build <version>
 ```
 
-This skeleton does not start an HTTP server, load runtime configuration, read
-credentials or provider state, or claim API readiness. The development build
-uses `dev`; release builds may inject a bounded version at link time.
+M1-28b now wires the shared internal health server while preserving that exact
+line. It does not add product API routes, load dependency configuration, or
+contact credentials or provider state. The development build uses `dev`;
+release builds may inject a bounded version at link time.
+The completed M1-01d skeleton itself does not start an HTTP server; this later
+health-only wiring is the explicit M1-28b extension of that boundary.
 
 ## Platform worker command
 
-M1-01e is Complete. It adds the second minimal Go command at
-`services/platform/agentsec-worker`. Its only current behavior is one exact
-build-version line:
+M1-01e is Complete. It established the second minimal Go command at
+`services/platform/agentsec-worker` and its exact build-version line:
 
 ```text
 agentsec-worker build <version>
 ```
 
-This skeleton does not start a worker loop, poll a queue, load runtime
-configuration, read credentials or provider state, or claim worker readiness.
-The development build uses `dev`; release builds may inject a bounded version
-at link time.
+M1-28b now wires the shared internal health server while preserving that exact
+line. It does not start a worker loop, poll a queue, load dependency
+configuration, or contact credentials or provider state. The development build
+uses `dev`; release builds may inject a bounded version at link time.
 
 ## Event ingest command
 
@@ -621,12 +622,31 @@ build labels.
 npm run health:test
 ```
 
-The package does not open a listener and does not perform dependency I/O,
+The package itself does not open a listener and does not perform dependency I/O,
 provider calls, environment reads, or global mux registration. It defines
 handler behavior only; it does not authorize external exposure of these
-internal endpoints. Service command wiring, listeners, dependency-specific
-readiness, and shutdown remain M1-28b through M1-28d work. M1-28a is
-Complete. M1-28b is In progress, and M1-28c remains Pending.
+internal endpoints. Platform command wiring is now under M1-28b; event-ingest
+and runtime-gateway wiring remain M1-28c and M1-28d work. M1-28a is Complete.
+M1-28b is In progress, and M1-28c remains Pending.
+
+## Platform health wiring
+
+The platform API and worker each bind one dedicated internal `:8081` listener
+and expose the shared `/healthz`, `/readyz`, `/version`, and `/metrics`
+semantics. Readiness becomes true only for the serving lifetime and becomes
+false before a bounded five-second graceful shutdown. Both commands keep their
+exact existing build-version output line.
+
+```bash
+npm run platform:health:test
+```
+
+The shared platform runtime uses finite HTTP header/read/write/idle bounds,
+does not register on the default mux, reads no environment or provider state,
+and adds no product API route or worker queue loop. The `:8081` port is an
+internal process/container boundary; later deployment tasks own Services,
+network policy, and probe declarations. M1-28b is In progress while the wiring
+is reviewed, and M1-28c remains Pending.
 
 ## Neon pooled proof
 

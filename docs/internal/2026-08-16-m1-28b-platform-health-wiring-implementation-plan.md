@@ -156,3 +156,13 @@ Actions Runnable UI.
 5. Require local, upstream, and origin SHA equality; zero behind/ahead; clean
    tracked/index state; all-history/evidence scans; M1-28c Pending; and no
    blocker/status drift before declaring completion.
+
+## Closure checklist
+
+- [ ] Task 1 status transition is complete.
+- [ ] Task 2 genuine runtime/dependency RED is recorded.
+- [ ] Task 3 shared runtime is implemented and 100% statement-covered.
+- [ ] Task 4 both platform commands pass real-listener smoke tests.
+- [ ] Task 5 full repository gates, audits, scans, and docs pass.
+- [ ] Task 6 independent whole-range review is zero-finding and Ready Yes.
+- [ ] Task 7 completion, exact-SHA CI, synchronization, and plan closure pass.

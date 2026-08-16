@@ -21,6 +21,7 @@
     "ui-api:check": "node scripts/check-ui-api-coverage.mjs",
     "raw-fetch:test": "node --test eslint-rules/no-raw-fetch.test.mjs",
     "health:test": "go test -C services/health -race -count=1 ./...",
+    "platform:health:test": "go test -C services/platform -race -count=1 ./healthserver ./agentsec-api ./agentsec-worker",
     "securityevent:test": "go test -C services/platform -race -count=1 ./securityevent",
     "graph:store:test": "go test -C services/platform -race -count=1 ./graphstore",
     "graph:neo4j:test": "go test -C services/platform -race -count=1 ./graphstore/... && go test -C proofs/neo4j-graphstore -race -count=1 ./... && node --test proofs/neo4j-graphstore/run.test.mjs proofs/neo4j-graphstore/license-audit.test.mjs",

@@ -248,6 +248,56 @@ test("tracks direct Go and Python requirements while ignoring development and in
   assert.deepEqual(validate(lock, files), { manifests: 9, dependencies: 8 });
 });
 
+test("accepts only the exact repository-owned health module replacement outside the third-party lock", async (t) => {
+  function internalFiles() {
+    const files = filesFixture();
+    files["services/health/go.mod"] = "module github.com/zasp-ai/zasp-sec/services/health\n\ngo 1.25.0\n";
+    files["services/platform/go.mod"] = [
+      "module github.com/zasp-ai/zasp-sec/services/platform",
+      "",
+      "go 1.25.0",
+      "",
+      "require github.com/zasp-ai/zasp-sec/services/health v0.0.0",
+      "",
+      "replace github.com/zasp-ai/zasp-sec/services/health => ../health",
+      "",
+    ].join("\n");
+    return files;
+  }
+
+  assert.deepEqual(validate(lockFixture(), internalFiles()), { manifests: 9, dependencies: 6 });
+
+  for (const [name, mutate] of [
+    ["missing replacement", (files) => {
+      files["services/platform/go.mod"] = files["services/platform/go.mod"].replace(
+        "\nreplace github.com/zasp-ai/zasp-sec/services/health => ../health\n",
+        "\n",
+      );
+    }],
+    ["wrong replacement target", (files) => {
+      files["services/platform/go.mod"] = files["services/platform/go.mod"].replace("=> ../health", "=> ../../services/health");
+    }],
+    ["wrong internal version", (files) => {
+      files["services/platform/go.mod"] = files["services/platform/go.mod"].replace("v0.0.0", "v0.0.1");
+    }],
+    ["wrong target module", (files) => {
+      files["services/health/go.mod"] = files["services/health/go.mod"].replace("services/health", "services/health-copy");
+    }],
+    ["remote replacement", (files) => {
+      files["services/platform/go.mod"] = files["services/platform/go.mod"].replace("../health", "github.com/example/health v1.0.0");
+    }],
+    ["extra replacement", (files) => {
+      files["services/platform/go.mod"] += "replace example.com/other => ../other\n";
+    }],
+  ]) {
+    await t.test(name, () => {
+      const files = internalFiles();
+      mutate(files);
+      assert.throws(() => validate(lockFixture(), files));
+    });
+  }
+});
+
 test("does not silently ignore alternate direct dependency assignment syntax", async (t) => {
   await t.test("Go tab separator", () => {
     const files = filesFixture();

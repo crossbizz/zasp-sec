@@ -27,6 +27,11 @@ const ignoredProductDirectories = new Set([
   "vendor",
 ]);
 const discoveryEntryLimit = 4096;
+const internalHealthModule = "github.com/zasp-ai/zasp-sec/services/health";
+const internalHealthVersion = "v0.0.0";
+const internalHealthConsumer = "services/platform/go.mod";
+const internalHealthTarget = "services/health/go.mod";
+const internalHealthReplacement = `replace ${internalHealthModule} => ../health`;
 
 const approvedOwners = ["identity-platform", "platform-data", "web-platform"];
 const allowedLicenses = ["Apache-2.0", "ISC", "MIT"];
@@ -198,13 +203,26 @@ function parseGoRequirement(line) {
   return indirect ? undefined : { name: match[1], version: match[2] };
 }
 
-function collectGoDependencies(path, text) {
+function goModulePath(text) {
+  const matches = [...text.matchAll(/^module ([^\s]+)$/gm)];
+  assert(matches.length === 1);
+  return matches[0][1];
+}
+
+function collectGoDependencies(path, text, files) {
   assert(typeof text === "string" && Buffer.byteLength(text, "utf8") <= manifestByteLimit);
   const dependencies = [];
   let inRequireBlock = false;
+  let internalReplacementSeen = false;
   for (const rawLine of text.split(/\r?\n/)) {
     const line = rawLine.trim();
     if (line === "" || line.startsWith("//")) {
+      continue;
+    }
+    if (/^replace\b/.test(line)) {
+      assert(path === internalHealthConsumer);
+      assert(line === internalHealthReplacement && !internalReplacementSeen);
+      internalReplacementSeen = true;
       continue;
     }
     if (/^require\s*\($/.test(line)) {
@@ -230,7 +248,19 @@ function collectGoDependencies(path, text) {
     }
   }
   assert(!inRequireBlock);
-  return dependencies.map(({ name, version }) => ({ ecosystem: "go", manifest: path, name, version }));
+  let internalRequirementSeen = false;
+  const external = dependencies.filter(({ name, version }) => {
+    if (name !== internalHealthModule) return true;
+    assert(path === internalHealthConsumer && version === internalHealthVersion && !internalRequirementSeen);
+    internalRequirementSeen = true;
+    return false;
+  });
+  assert(internalReplacementSeen === internalRequirementSeen);
+  if (internalRequirementSeen) {
+    assert(typeof files[internalHealthTarget] === "string");
+    assert(goModulePath(files[internalHealthTarget]) === internalHealthModule);
+  }
+  return external.map(({ name, version }) => ({ ecosystem: "go", manifest: path, name, version }));
 }
 
 function collectPythonDependencies(path, text) {
@@ -282,7 +312,7 @@ export function validateDependencyState({ lockText, files }) {
     if (manifest.ecosystem === "npm") {
       actual.push(...collectNpmDependencies(manifest.path, text, packageLock));
     } else if (manifest.ecosystem === "go") {
-      actual.push(...collectGoDependencies(manifest.path, text));
+      actual.push(...collectGoDependencies(manifest.path, text, files));
     } else {
       actual.push(...collectPythonDependencies(manifest.path, text));
     }

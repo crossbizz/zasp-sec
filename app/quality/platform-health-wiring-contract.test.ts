@@ -76,7 +76,7 @@ describe("M1-28b platform health wiring", () => {
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
 
-  it("keeps the implementation boundary hermetic before command wiring begins", async () => {
+  it("wires both commands to the exact shared runtime without a third-party dependency", async () => {
     const [api, worker, platformModule, packageJson] = await Promise.all([
       readFile(resolve(repositoryRoot, "services/platform/agentsec-api/main.go"), "utf8"),
       readFile(resolve(repositoryRoot, "services/platform/agentsec-worker/main.go"), "utf8"),
@@ -84,9 +84,38 @@ describe("M1-28b platform health wiring", () => {
       readFile(resolve(repositoryRoot, "package.json"), "utf8"),
     ]);
 
-    expect(api).not.toContain("services/health");
-    expect(worker).not.toContain("services/health");
-    expect(platformModule).not.toContain("github.com/zasp-ai/zasp-sec/services/health");
-    expect(JSON.parse(packageJson).scripts?.["platform:health:test"]).toBeUndefined();
+    for (const command of [api, worker]) {
+      expect(command).toContain('"github.com/zasp-ai/zasp-sec/services/platform/healthserver"');
+      expect(command).toContain('healthListenAddress = ":8081"');
+      expect(command).toContain("signal.NotifyContext");
+      expect(command).not.toContain('"net/http"');
+    }
+    expect(platformModule).toContain("github.com/zasp-ai/zasp-sec/services/health v0.0.0");
+    expect(platformModule).toContain("replace github.com/zasp-ai/zasp-sec/services/health => ../health");
+    expect(JSON.parse(packageJson).scripts?.["platform:health:test"]).toBe(
+      "go test -C services/platform -race -count=1 ./healthserver ./agentsec-api ./agentsec-worker",
+    );
+  });
+
+  it("documents the exact internal listener and deferred-service boundary", async () => {
+    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const section = readme.match(/## Platform health wiring[\s\S]*?(?=\n## |$)/)?.[0] ?? "";
+    const prose = section.replace(/\s+/g, " ");
+
+    expect(section).toMatch(/^npm run platform:health:test$/m);
+    for (const value of [
+      "platform API and worker",
+      "internal `:8081` listener",
+      "`/healthz`",
+      "`/readyz`",
+      "`/version`",
+      "`/metrics`",
+      "five-second graceful shutdown",
+      "default mux",
+      "M1-28b is In progress",
+      "M1-28c remains Pending",
+    ]) {
+      expect(prose).toContain(value);
+    }
   });
 });
