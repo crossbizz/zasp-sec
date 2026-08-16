@@ -243,6 +243,14 @@ migration. Three fresh disposable live runs, exact cleanup, all pinned gates,
 secret scans, and zero-finding independent review passed; the pool boundary
 remains with M1-11.
 
+## Neon application pool wrapper
+
+M1-11 is In progress. It adds a driver-neutral application pool wrapper with a
+bounded query context, bounded health check, validated wait/in-use statistics,
+and one clean idempotent close boundary. Product code remains independent of
+pgx; the existing reviewed Neon proof module owns the pgxpool adapter and live
+provider verification. M1-12 remains Pending.
+
 ## Neon pooled proof
 
 The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,
