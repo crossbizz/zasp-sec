@@ -55,19 +55,19 @@ describe("M1-27 raw fetch lint", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(readme).toContain("M1-27 is Complete");
-    expect(readme).toContain("M1-28a is In progress");
+    expect(readme).toContain("M1-28a is Complete");
     expect(readme).toContain("M1-28b remains Pending");
     expect(tracker).toContain("| Pending | 667 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 57 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 58 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`667/1/57/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "34", "1", "33", "0"]);
+    expect(tracker).toContain("`667/0/58/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "34", "0", "34", "0"]);
     expect(active.filter(([task]) => task === "M1-27")).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-27")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-26")).toHaveLength(1);
-    expect(active.filter(([task]) => task === "M1-28a")).toHaveLength(1);
-    expect(complete.filter(([task]) => task === "M1-28a")).toHaveLength(0);
+    expect(active.filter(([task]) => task === "M1-28a")).toHaveLength(0);
+    expect(complete.filter(([task]) => task === "M1-28a")).toHaveLength(1);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
 
@@ -88,7 +88,7 @@ describe("M1-27 raw fetch lint", () => {
       "Lexically scoped local symbols",
       "seeded direct `/api/v1/` violation",
       "M1-27 is Complete",
-      "M1-28a is In progress",
+      "M1-28a is Complete",
       "M1-28b remains Pending",
     ]) {
       expect(prose).toContain(value);

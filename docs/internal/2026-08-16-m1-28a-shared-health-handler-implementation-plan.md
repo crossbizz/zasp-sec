@@ -288,14 +288,14 @@ docs: record M1-28a shared health review
 - Modify: this implementation plan
 - Update ignored task and authoritative reports.
 
-- [ ] **Step 1: Capture completion status RED**
+- [x] **Step 1: Capture completion status RED**
 
 Change only contract expectations to `667/0/58/3` overall and
 `68/34/0/34/0` for M1, M1-28a exactly once in Complete and absent from active,
 and M1-28b Pending. Run before README/tracker changes and require only stale
 status assertions to fail.
 
-- [ ] **Step 2: Move only M1-28a to Complete and run final gates/scans**
+- [x] **Step 2: Move only M1-28a to Complete and run final gates/scans**
 
 Update README/tracker and exact aggregate fixtures. Run six focused race and
 completion passes, module/service/full pinned verification, repository builds,

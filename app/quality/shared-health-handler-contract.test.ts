@@ -47,7 +47,7 @@ describe("M1-28a shared health handler", () => {
     expect(plan).toContain("M1-28b remains Pending");
   });
 
-  it("starts only M1-28a after M1-27 and preserves the blockers", async () => {
+  it("completes only M1-28a after reviewed handler evidence and preserves the blockers", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -57,16 +57,16 @@ describe("M1-28a shared health handler", () => {
     const blocked = taskRows(tracker, "Blocked");
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
-    expect(readme).toContain("M1-28a is In progress");
+    expect(readme).toContain("M1-28a is Complete");
     expect(readme).toContain("M1-28b remains Pending");
     expect(tracker).toContain("| Pending | 667 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 57 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 58 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`667/1/57/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "34", "1", "33", "0"]);
-    expect(active.filter(([task]) => task === "M1-28a")).toHaveLength(1);
-    expect(complete.filter(([task]) => task === "M1-28a")).toHaveLength(0);
+    expect(tracker).toContain("`667/0/58/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "34", "0", "34", "0"]);
+    expect(active.filter(([task]) => task === "M1-28a")).toHaveLength(0);
+    expect(complete.filter(([task]) => task === "M1-28a")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-27")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-28b")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
@@ -96,7 +96,7 @@ describe("M1-28a shared health handler", () => {
       "does not open a listener",
       "does not perform dependency I/O",
       "internal endpoints",
-      "M1-28a is In progress",
+      "M1-28a is Complete",
       "M1-28b remains Pending",
     ]) {
       expect(prose).toContain(value);
