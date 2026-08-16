@@ -34,7 +34,7 @@ describe("M1-09 idempotency helper contract", () => {
     expect(source).toContain("idempotency keys");
     expect(prd).toContain("idempotency keys for mutating/background workflows");
     expect(prd).toContain("no destructive action retry unless idempotent or prior outcome is verified");
-    expect(compactDesign).toContain("The same key with a different operation, scope, or fingerprint is a conflict, never a duplicate");
+    expect(compactDesign).toContain("Within one scope, the same key with a different operation or fingerprint is a conflict, never a duplicate");
     expect(compactDesign).toContain("the claim remains in progress for later explicit reconciliation");
     expect(plan).toContain("Completed duplicates return the prior canonical product result reference");
     expect(plan).toContain("M1-10 remains Pending");

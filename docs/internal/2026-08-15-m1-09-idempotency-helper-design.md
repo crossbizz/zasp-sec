@@ -22,10 +22,11 @@ the store without changing this behavior contract.
 - a bounded caller-generated idempotency key; and
 - the exact canonical request bytes, retained only as a SHA-256 fingerprint.
 
-The complete scope, operation, key, and fingerprint form the store identity.
-The same key with a different operation, scope, or fingerprint is a conflict,
-never a duplicate. The helper does not accept vendor identifiers as result
-references and does not retain request payload bytes.
+Scope and key form the atomic store slot; operation and fingerprint are its
+immutable request identity. Within one scope, the same key with a different
+operation or fingerprint is a conflict, never a duplicate. The same key in a
+different scope is independent. The helper does not accept vendor identifiers
+as result references and does not retain request payload bytes.
 
 ## Store protocol
 

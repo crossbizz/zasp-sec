@@ -27,23 +27,23 @@ request helper that returns a prior canonical result for completed duplicates.
 
 ### Task 2: Implement the helper tests-first
 
-- [ ] Add Go tests before production and capture genuine missing-symbol RED.
-- [ ] Implement opaque request/claim/result values, atomic store interface, and
+- [x] Add Go tests before production and capture genuine missing-symbol RED.
+- [x] Implement opaque request/claim/result values, atomic store interface, and
   conservative execute-on-acquired helper.
-- [ ] Cover duplicate prior results, in-progress/conflict outcomes, exact request
+- [x] Cover duplicate prior results, in-progress/conflict outcomes, exact request
   identity, invalid state, cancellation, operation/store failures, invalid
   results, concurrency, completion ownership, and panic retention.
-- [ ] Run six focused passes, platform/service/worker/root regressions, full
+- [x] Run six focused passes, platform/service/worker/root regressions, full
   repository gates, audit, whitespace, and scans; commit
   `feat: add idempotency helper`.
 
 ### Task 3: Review the duplicate-execution boundary
 
-- [ ] Audit tenant/key/fingerprint collisions, store atomicity, claim-shape
+- [x] Audit tenant/key/fingerprint collisions, store atomicity, claim-shape
   validation, stale completion, context races, unknown outcomes, panic behavior,
   result identity, typed-nil interfaces, and error secrecy.
-- [ ] Add tests-first fixes for every concrete finding and rerun affected gates.
-- [ ] Record a zero-finding review before completion.
+- [x] Add tests-first fixes for every concrete finding and rerun affected gates.
+- [x] Record a zero-finding review before completion.
 
 ### Task 4: Complete, push, and close M1-09
 
