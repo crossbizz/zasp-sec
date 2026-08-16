@@ -1,42 +1,58 @@
 const generatedClientMessage =
   "Use the generated API client from apps/web/api/client.ts instead of raw Fetch.";
+const ambientFetchNames = new Set(["fetch"]);
+const ambientGlobalNames = new Set(["globalThis", "window", "self"]);
 
 function unwrapChain(node) {
   return node?.type === "ChainExpression" ? node.expression : node;
 }
 
 function staticPropertyName(node) {
-  if (!node.computed && node.property.type === "Identifier") {
-    return node.property.name;
+  const property = node.type === "Property" ? node.key : node.property;
+  if (!node.computed && property.type === "Identifier") {
+    return property.name;
   }
-  if (node.computed && node.property.type === "Literal" && typeof node.property.value === "string") {
-    return node.property.value;
+  if (node.computed && property.type === "Literal" && typeof property.value === "string") {
+    return property.value;
   }
   return undefined;
 }
 
-function isFetchReference(value) {
+function referenceFor(sourceCode, node) {
+  for (let scope = sourceCode.getScope(node); scope; scope = scope.upper) {
+    for (const reference of [...scope.references, ...scope.through]) {
+      if (reference.identifier === node) {
+        return reference;
+      }
+    }
+  }
+  return undefined;
+}
+
+function isAmbientIdentifier(sourceCode, value, names) {
   const node = unwrapChain(value);
-  if (!node) {
+  if (node?.type !== "Identifier" || !names.has(node.name)) {
     return false;
   }
-  if (node.type === "Identifier") {
-    return node.name === "fetch";
-  }
-  if (node.type !== "MemberExpression") {
-    return false;
-  }
+  const reference = referenceFor(sourceCode, node);
+  return Boolean(reference && (!reference.resolved || reference.resolved.defs.length === 0));
+}
 
-  const property = staticPropertyName(node);
-  if (property === "call" || property === "apply" || property === "bind") {
-    return isFetchReference(node.object);
-  }
-
-  const object = unwrapChain(node.object);
+function isAmbientFetchMember(sourceCode, node) {
   return (
-    property === "fetch" &&
-    object?.type === "Identifier" &&
-    (object.name === "globalThis" || object.name === "window" || object.name === "self")
+    staticPropertyName(node) === "fetch" &&
+    isAmbientIdentifier(sourceCode, node.object, ambientGlobalNames)
+  );
+}
+
+function destructuresAmbientFetch(sourceCode, pattern, value) {
+  const node = unwrapChain(value);
+  return (
+    pattern?.type === "ObjectPattern" &&
+    isAmbientIdentifier(sourceCode, node, ambientGlobalNames) &&
+    pattern.properties.some(
+      (property) => property.type === "Property" && staticPropertyName(property) === "fetch",
+    )
   );
 }
 
@@ -52,9 +68,25 @@ const noRawFetchRule = {
     },
   },
   create(context) {
+    const { sourceCode } = context;
     return {
-      CallExpression(node) {
-        if (isFetchReference(node.callee)) {
+      Identifier(node) {
+        if (isAmbientIdentifier(sourceCode, node, ambientFetchNames)) {
+          context.report({ node, messageId: "useGeneratedClient" });
+        }
+      },
+      MemberExpression(node) {
+        if (isAmbientFetchMember(sourceCode, node)) {
+          context.report({ node, messageId: "useGeneratedClient" });
+        }
+      },
+      VariableDeclarator(node) {
+        if (destructuresAmbientFetch(sourceCode, node.id, node.init)) {
+          context.report({ node, messageId: "useGeneratedClient" });
+        }
+      },
+      AssignmentExpression(node) {
+        if (destructuresAmbientFetch(sourceCode, node.left, node.right)) {
           context.report({ node, messageId: "useGeneratedClient" });
         }
       },

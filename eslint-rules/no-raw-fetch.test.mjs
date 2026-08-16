@@ -40,6 +40,11 @@ test("seeded raw API Fetch calls fail with the generated-client diagnostic", () 
     "self.fetch.call(null, path);",
     "fetch.apply(null, [path]);",
     "fetch.bind(null, path);",
+    'const rawFetch = fetch; rawFetch("/api/v1/home/summary");',
+    'const memberAlias = globalThis.fetch; memberAlias("/api/v1/home/summary");',
+    'const { fetch: destructuredFetch } = window; destructuredFetch("/api/v1/home/summary");',
+    '(0, fetch)("/api/v1/home/summary");',
+    'Reflect.apply(fetch, null, ["/api/v1/home/summary"]);',
   ];
 
   for (const source of violations) {
@@ -60,6 +65,9 @@ test("generated-client calls and inert public API strings remain valid", () => {
     'client.GET("/api/v1/home/summary");',
     'const documentation = "/api/v1/home/summary";',
     'const fetcher = { fetch() {} }; fetcher.fetch("/api/v1/home/summary");',
+    'function fetch() {} fetch("local-only");',
+    'const fetch = () => {}; fetch("local-only");',
+    'const window = { fetch() {} }; window.fetch("local-only");',
   ]) {
     assert.deepEqual(lintRule(source), [], source);
   }

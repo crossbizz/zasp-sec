@@ -27,7 +27,8 @@ needed.
 
 ## Detection contract
 
-The rule reports a call when its callee is any of these raw Fetch forms:
+The rule reports access to the ambient Fetch boundary through any of these
+forms:
 
 - `fetch(...)`;
 - `globalThis.fetch(...)`, `window.fetch(...)`, or `self.fetch(...)`;
@@ -35,13 +36,19 @@ The rule reports a call when its callee is any of these raw Fetch forms:
   `globalThis["fetch"](...)`;
 - optional-call variants; or
 - `.call(...)`, `.apply(...)`, or `.bind(...)` invoked from one of the raw
-  Fetch references.
+  Fetch references; or
+- an alias, destructuring capture, sequence expression, or higher-order call
+  such as `Reflect.apply(fetch, ...)` that first reads an ambient Fetch
+  reference.
 
 The entire normal frontend Fetch boundary is forbidden, rather than only calls
 whose first argument is a statically visible `/api/v1/` literal. This closes
 the trivial evasion of moving the public path into a variable or `Request`
 object. Typed calls such as `client.GET("/api/v1/home/summary")` are allowed
 because their callee is the reviewed generated client, not raw Fetch.
+Lexically scoped local functions or objects that merely use the name `fetch`
+are also allowed; the rule resolves references so it does not confuse those
+local symbols with the browser global.
 
 The rule emits one stable message ID, `useGeneratedClient`, directing the
 caller to `apps/web/api/client.ts`. It has no options and performs no file or
@@ -53,8 +60,10 @@ network I/O.
 real syntax. It proves:
 
 - a seeded direct `/api/v1/` Fetch violation fails;
-- member, computed, optional, and call/apply forms fail;
+- member, computed, optional, call/apply, alias, destructuring, sequence, and
+  higher-order forms fail;
 - variable and `Request` arguments cannot evade the rule;
+- locally scoped symbols named `fetch` remain valid;
 - generated-client method calls and inert `/api/v1/` strings pass; and
 - the flat config applies to normal frontend paths while exempting exactly the
   two generated-client boundary files.
