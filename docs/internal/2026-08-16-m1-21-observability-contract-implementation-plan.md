@@ -459,7 +459,7 @@ Vitest repository contracts, npm root command wiring.
   top-level `go -C services/platform ...` form after the invalid argument order
   was observed during verification; no source behavior changed.
 
-- [ ] **Step 3: Commit, push, and verify completion CI**
+- [x] **Step 3: Commit, push, and verify completion CI**
 
   ```bash
   git commit -m "docs: complete M1-21 observability contract"
@@ -470,7 +470,12 @@ Vitest repository contracts, npm root command wiring.
   exact completion SHA, and wait to terminal success. Record run and job IDs
   in all ignored evidence files.
 
-- [ ] **Step 4: Commit and push the plan-only closure**
+  Completion commit `1bf098de1714cf616ad534b24f8ead0968a5c9da` has exact
+  subject `docs: complete M1-21 observability contract`. Local, upstream, and
+  remote match. Runnable UI run `31938460859` and job `95143988855` completed
+  successfully for that exact SHA.
+
+- [x] **Step 4: Commit and push the plan-only closure**
 
   Check the remaining plan boxes without advancing M1-22, scan, then commit:
 
@@ -482,3 +487,5 @@ Vitest repository contracts, npm root command wiring.
   Wait for exact closure-SHA Runnable UI success. Record its run/job IDs, scan
   all history and evidence, and prove local/upstream/remote equality plus a
   clean tracked tree and index.
+
+  This checked plan is the only tracked closure change. M1-22 remains Pending.
