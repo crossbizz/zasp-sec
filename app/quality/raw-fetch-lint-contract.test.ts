@@ -56,14 +56,14 @@ describe("M1-27 raw fetch lint", () => {
 
     expect(readme).toContain("M1-27 is Complete");
     expect(readme).toContain("M1-28a is Complete");
-    expect(readme).toContain("M1-28b is In progress");
+    expect(readme).toContain("M1-28b is Complete");
     expect(readme).toContain("M1-28c remains Pending");
     expect(tracker).toContain("| Pending | 666 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 58 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 59 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`666/1/58/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "33", "1", "34", "0"]);
+    expect(tracker).toContain("`666/0/59/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "33", "0", "35", "0"]);
     expect(active.filter(([task]) => task === "M1-27")).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-27")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-26")).toHaveLength(1);
@@ -90,7 +90,7 @@ describe("M1-27 raw fetch lint", () => {
       "seeded direct `/api/v1/` violation",
       "M1-27 is Complete",
       "M1-28a is Complete",
-      "M1-28b is In progress",
+      "M1-28b is Complete",
       "M1-28c remains Pending",
     ]) {
       expect(prose).toContain(value);

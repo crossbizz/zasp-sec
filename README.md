@@ -538,7 +538,7 @@ The factory has no default remote server, performs no I/O during construction,
 and does not hand-write `/api/v1/` URLs. Authentication/session retrieval,
 reviewed operations, and UI integration remain later work. M1-23 is Complete.
 M1-24 is Complete. M1-25 is Complete. M1-26 is Complete. M1-27 is Complete;
-M1-28a is Complete. M1-28b is In progress, and M1-28c remains Pending. No OpenAPI operation was added by the coverage task
+M1-28a is Complete. M1-28b is Complete, and M1-28c remains Pending. No OpenAPI operation was added by the coverage task
 itself.
 
 ```bash
@@ -583,7 +583,7 @@ UI/API coverage passed: planned=5 available=0 public=0 internal=0.
 
 Failure is fixed as `UI/API coverage rejected.` without parser or artifact
 details. Both commands are part of root verification. M1-25 is Complete.
-M1-26 is Complete. M1-27 is Complete. M1-28a is Complete. M1-28b is In progress,
+M1-26 is Complete. M1-27 is Complete. M1-28a is Complete. M1-28b is Complete,
 and M1-28c remains Pending.
 
 ## Raw frontend Fetch lint
@@ -607,7 +607,7 @@ npm run lint
 ```
 
 The hostile suite is part of root verification. M1-27 is Complete. M1-28a is
-Complete. M1-28b is In progress, and M1-28c remains Pending.
+Complete. M1-28b is Complete, and M1-28c remains Pending.
 
 ## Shared service health handler
 
@@ -627,7 +627,7 @@ provider calls, environment reads, or global mux registration. It defines
 handler behavior only; it does not authorize external exposure of these
 internal endpoints. Platform command wiring is now under M1-28b; event-ingest
 and runtime-gateway wiring remain M1-28c and M1-28d work. M1-28a is Complete.
-M1-28b is In progress, and M1-28c remains Pending.
+M1-28b is Complete, and M1-28c remains Pending.
 
 ## Platform health wiring
 
@@ -645,8 +645,8 @@ The shared platform runtime uses finite HTTP header/read/write/idle bounds,
 does not register on the default mux, reads no environment or provider state,
 and adds no product API route or worker queue loop. The `:8081` port is an
 internal process/container boundary; later deployment tasks own Services,
-network policy, and probe declarations. M1-28b is In progress while the wiring
-is reviewed, and M1-28c remains Pending.
+network policy, and probe declarations. M1-28b is Complete after full local
+verification and zero-finding review, and M1-28c remains Pending.
 
 ## Neon pooled proof
 
