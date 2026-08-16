@@ -47,7 +47,7 @@ type StringAttribute struct {
 }
 
 type ResourceAttributes struct {
-    // closed internal representation
+    values [7]StringAttribute
 }
 
 func NewResourceAttributes(
@@ -98,7 +98,9 @@ Correlation is a request/span value, never a resource attribute:
 
 ```go
 type Correlation struct {
-    // closed internal representation
+    correlationID domain.CorrelationID
+    traceID       string
+    spanID        string
 }
 
 func NewCorrelation(
