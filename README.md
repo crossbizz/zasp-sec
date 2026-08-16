@@ -439,7 +439,12 @@ credential, or shared-resource I/O. Analytics is optional and
 non-authoritative: it never controls scope, authentication, policy,
 enforcement, data access, feature flags, or audit behavior. This boundary does
 not prove a PostHog adapter, hosted delivery, batching, persistence, or consent
-policy. M1-20 remains Pending.
+policy.
+
+M1-20 is In progress. It is defining a provider-neutral scoped AIGateway with
+an exact approved-purpose catalog, complete data-policy metadata, bounded
+redacted product content, and a hermetic fake-driver contract. M1-21 remains
+Pending.
 
 ## Neon pooled proof
 

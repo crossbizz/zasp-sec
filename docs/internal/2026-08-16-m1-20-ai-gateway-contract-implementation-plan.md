@@ -33,17 +33,24 @@ adapter, hosted endpoint, provider credential, or planner/action authority.
   fixtures.
 - Add ignored Task 1 report and append-only progress evidence.
 
-- [ ] Capture the focused status-contract RED before status edits.
+- [x] Capture the focused status-contract RED before status edits.
 
   Bind the exact source task, PRD privacy/data-policy rules, design, and this
   plan. Require exactly one M1-20 In progress row; require M1-19 Complete and
   M1-21 absent; require unchanged blockers and exact aggregate arithmetic.
 
-- [ ] Move only M1-20 to In progress and obtain focused/full GREEN.
+  RED was 1 pass/1 intended fail at the stale README/tracker state; the
+  source, PRD, design, and plan boundary passed before status edits.
+
+- [x] Move only M1-20 to In progress and obtain focused/full GREEN.
 
   Expected counts are `675/1/49/3` overall and `68/42/1/25/0` for M1.
 
-- [ ] Commit the exact Task 1 status/contract package.
+  GREEN is 2/2 focused, 5/5 with the predecessor contract, and 53 quality
+  files/239 tests. M1-19 remains Complete, M1-21 remains Pending, and blockers
+  are unchanged.
+
+- [x] Commit the exact Task 1 status/contract package.
 
   Commit message: `docs: start M1-20 AI gateway contract`.
 
