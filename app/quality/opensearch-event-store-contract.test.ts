@@ -34,7 +34,7 @@ describe("M1-14 OpenSearch EventStore contract", () => {
     expect(plan).toContain("mandatory Organization/Workspace/Environment search scope");
   });
 
-  it("starts only M1-14 and preserves prior completion and blockers", async () => {
+  it("completes only M1-14 and preserves prior completion and blockers", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -44,16 +44,17 @@ describe("M1-14 OpenSearch EventStore contract", () => {
     const blocked = taskRows(tracker, "Blocked");
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
-    expect(readme).toContain("M1-14 is In progress");
+    expect(readme).toContain("M1-14 is Complete");
     expect(readme).toContain("scoped EventStore");
     expect(tracker).toContain("| Pending | 681 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 43 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 44 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`681/1/43/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "48", "1", "19", "0"]);
-    expect(active.filter(([task]) => task === "M1-14")).toHaveLength(1);
+    expect(tracker).toContain("`681/0/44/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "48", "0", "20", "0"]);
+    expect(active).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-13")).toHaveLength(1);
+    expect(complete.filter(([task]) => task === "M1-14")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-15")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });

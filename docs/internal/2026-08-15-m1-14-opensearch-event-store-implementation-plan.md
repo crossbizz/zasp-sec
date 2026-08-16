@@ -416,7 +416,7 @@ git commit -m "feat: prove scoped OpenSearch event store"
 - Produces: zero-finding reviewed code, one M1-14 Complete row, no active task,
   M1-15 Pending, exact count transition, synchronized branch, and exact-SHA CI.
 
-- [ ] **Step 1: Obtain independent review before status completion**
+- [x] **Step 1: Obtain independent review before status completion**
 
 Review the exact design base through implementation head for product/provider
 separation, mandatory scope, strict parsing, mutation reconciliation, deadline
@@ -424,18 +424,18 @@ and panic containment, candidate cleanup, fixed output, and evidence accuracy.
 Every Critical, Important, and Minor finding receives a genuine tests-only RED,
 minimal GREEN, full gates, a separate fix commit, and re-review.
 
-- [ ] **Step 2: Capture completion-contract RED**
+- [x] **Step 2: Capture completion-contract RED**
 
 Change only the focused contract to require M1-14 Complete, overall
 `681/0/44/3`, M1 `68/48/0/20/0`, no active task, and M1-15 Pending. Run it and
 record failure against the still-In-progress docs.
 
-- [ ] **Step 3: Transition only M1-14 to Complete**
+- [x] **Step 3: Transition only M1-14 to Complete**
 
 Update README/tracker/evidence without changing blockers or later tasks. Mark
 the 30 plan steps checked only after their evidence exists.
 
-- [ ] **Step 4: Run final fresh verification and redacted scans**
+- [x] **Step 4: Run final fresh verification and redacted scans**
 
 Run six hermetic passes, all affected Go race/tidy/verify/vet gates, legacy
 M0-08, full pinned repository verify/build, production audit, diff checks,
