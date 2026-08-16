@@ -378,13 +378,13 @@ paths, ignored evidence, and full history. M1-17 has no live provider gate.
 - Consumes: zero-finding reviewed implementation and final evidence.
 - Produces: truthful M1-17 Complete status and exact-SHA shipped branch.
 
-- [ ] **Step 1: Write completion assertions and capture RED**
+- [x] **Step 1: Write completion assertions and capture RED**
 
 Require exactly one M1-17 Complete row, M1-16 Complete, M1-18 absent,
 unchanged blockers, overall `678/0/47/3`, and M1 `68/45/0/23/0`. Run focused
 RED while the tracker still says In progress.
 
-- [ ] **Step 2: Move only M1-17 to Complete and repeat final local gates**
+- [x] **Step 2: Move only M1-17 to Complete and repeat final local gates**
 
 Update README/tracker/current aggregate fixtures, preserve historical fixtures,
 and repeat focused/root/full/audit/whitespace/secret gates. Commit:
