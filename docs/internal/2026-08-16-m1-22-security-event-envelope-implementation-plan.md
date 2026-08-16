@@ -218,23 +218,36 @@ task/progress evidence.
 
 ### Task 4: Review the complete M1-22 range
 
-- [ ] **Step 1: Perform an exact whole-range read-only review**
+- [x] **Step 1: Perform an exact whole-range read-only review**
 
   Review source, PRD, M1-21 dependency, design, plan, implementation, tests,
   docs, root wiring, status arithmetic, typed identity integrity, time
   canonicalization, direct states, concurrency, privacy, and no-I/O authority.
 
-- [ ] **Step 2: Reproduce every valid finding tests-first**
+  The exact `e3165be..8c88f86` range received independent read-only review.
+
+- [x] **Step 2: Reproduce every valid finding tests-first**
 
   Add the smallest tests-only RED before each production fix. If no finding
   survives, record Critical 0, Important 0, Minor 0 without manufacturing work.
 
-- [ ] **Step 3: Repeat affected and full gates after separate fixes**
+  Review found two Minor repository-contract gaps. Mutation RED was 2/6 for a
+  duplicate active/Complete row and README command drift; re-review found the
+  initial substring assertion admitted a suffix alias, reproduced at 1/6.
+  Exact status-section and complete command-line assertions closed all three
+  cases in separate commit `6e879a5`.
+
+- [x] **Step 3: Repeat affected and full gates after separate fixes**
 
   Finish at zero findings and all focused/platform/root/repository/audit/scan
   gates green.
 
-- [ ] **Step 4: Record the plan-only final review commit**
+  Final re-review is Critical 0, Important 0, Minor 0, Ready Yes. Focused is
+  6/6; pinned verification is 59 files/269 tests plus typecheck/lint/build;
+  full platform race/tidy/verify/vet, 100% package coverage, production audit,
+  whitespace, and staged secret scans passed.
+
+- [x] **Step 4: Record the plan-only final review commit**
 
   ```bash
   git commit -m "docs: record M1-22 review"
