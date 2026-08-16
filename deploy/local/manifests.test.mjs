@@ -108,6 +108,7 @@ test("builds one namespace and exact hardened deployment for each product", () =
                 failureThreshold: 3,
                 httpGet: { path: "/healthz", port: "health", scheme: "HTTP" },
                 periodSeconds: 10,
+                successThreshold: 1,
                 timeoutSeconds: 1,
               },
               name: product.name,
@@ -116,6 +117,7 @@ test("builds one namespace and exact hardened deployment for each product", () =
                 failureThreshold: 3,
                 httpGet: { path: "/readyz", port: "health", scheme: "HTTP" },
                 periodSeconds: 2,
+                successThreshold: 1,
                 timeoutSeconds: 1,
               },
               resources: {
@@ -135,6 +137,7 @@ test("builds one namespace and exact hardened deployment for each product", () =
                 failureThreshold: 30,
                 httpGet: { path: "/healthz", port: "health", scheme: "HTTP" },
                 periodSeconds: 1,
+                successThreshold: 1,
                 timeoutSeconds: 1,
               },
             }],

@@ -194,6 +194,7 @@ function probe(path, failureThreshold, periodSeconds) {
     failureThreshold,
     httpGet: { path, port: "health", scheme: "HTTP" },
     periodSeconds,
+    successThreshold: 1,
     timeoutSeconds: 1,
   };
 }
