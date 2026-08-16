@@ -260,10 +260,10 @@ Vitest repository contracts, npm root command wiring.
   go test -C services/platform -count=100 ./observability
   go test -C services/platform -race -count=1 ./...
   go test -C services/platform -coverprofile=/tmp/m1-21-cover.out ./observability
-  go tool cover -func=/tmp/m1-21-cover.out
-  go mod tidy -diff -C services/platform
-  go mod verify -C services/platform
-  go vet -C services/platform ./...
+  go -C services/platform tool cover -func=/tmp/m1-21-cover.out
+  go -C services/platform mod tidy -diff
+  go -C services/platform mod verify
+  go -C services/platform vet ./...
   ```
 
   Expected: all commands exit zero and production statement coverage is 100%.
@@ -432,20 +432,32 @@ Vitest repository contracts, npm root command wiring.
 - Consumes: zero-finding Task 4 verdict and every required green gate.
 - Produces: exact completion commit, exact-SHA CI success, and plan-only closure.
 
-- [ ] **Step 1: Change only the completion assertions and capture RED**
+- [x] **Step 1: Change only the completion assertions and capture RED**
 
   Require exactly one M1-21 Complete row, no active source task, M1-20
   Complete, M1-22 absent, unchanged blockers, overall `674/0/51/3`, and M1
   `68/41/0/27/0`. Run the focused contract. Expected: only stale In-progress
   README/tracker/count assertions fail.
 
-- [ ] **Step 2: Move only M1-21 to Complete and obtain GREEN**
+  RED was 1 intended failure and 2 passes. Only the stale M1-21 README/tracker
+  completion boundary failed; source and root wiring remained green.
+
+- [x] **Step 2: Move only M1-21 to Complete and obtain GREEN**
 
   Update README, tracker, and aggregate fixtures. Run focused/quality tests,
   six root race cycles, 100 repetitions, full platform race/tidy/module/vet,
   100% coverage, pinned full repository verification, all build targets,
   production audit, diff checks, and pinned staged/history/evidence secret
   scans.
+
+  GREEN is 3/3 focused and 54 quality files/243 tests. Final gates passed six
+  race cycles, 100 repetitions, all 18 platform groups under race, 100%
+  statement coverage, tidy-diff/module verification/vet, the root command,
+  pinned 58-file/263-test repository verification plus typecheck/lint/build,
+  all eight build targets, production audit 0, and whitespace checks. The
+  plan's three Go module command examples were corrected to the reproducible
+  top-level `go -C services/platform ...` form after the invalid argument order
+  was observed during verification; no source behavior changed.
 
 - [ ] **Step 3: Commit, push, and verify completion CI**
 

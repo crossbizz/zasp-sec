@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 674 |
-| In progress | 1 |
-| Complete | 50 |
+| In progress | 0 |
+| Complete | 51 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -24,7 +24,7 @@ In progress, Complete, or Blocked is Pending.
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 0 | 0 | 24 | 3 |
-| M1 | 68 | 41 | 1 | 26 | 0 |
+| M1 | 68 | 41 | 0 | 27 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
 | M3 | 75 | 75 | 0 | 0 | 0 |
@@ -68,19 +68,19 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `674/1/50/3` because
+session configuration. The 728 source-plan counts are `674/0/51/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M1-21 | August 16, 2026 | Defining exact bounded-cardinality common OTLP resource attributes and a typed product/trace/span correlation context helper without adding an SDK, exporter, backend, or provider I/O. |
 
 ## Complete
 
 | Task | Completed | Evidence |
 | --- | --- | --- |
+| M1-21 | August 16, 2026 | Added a dependency-free closed observability contract with exactly seven bounded common resource attributes, fixed service/deployment catalogs, typed product scope, strict product/trace/span correlation context fencing, raw-customer-content rejection, fresh-copy output, six race passes, 100% statement coverage, full repository gates/scans, and zero-finding whole-range review. |
 | M1-20 | August 16, 2026 | Added a dependency-free scoped AIGateway with an exact `finding_explanation` purpose catalog, complete safe data-policy metadata, bounded redacted product content, one no-retry driver call, exact version-1 result validation, fixed errors, a hermetic fake-driver contract, six race passes, 100% coverage, full repository gates/scans, and zero-finding whole-range review. |
 | M1-19 | August 16, 2026 | Added a dependency-free scoped ProductTelemetry with an exact `proof_completed` catalog, opaque typed fields, strict unknown/prohibited-field rejection before I/O, typed privacy-safe driver records, one bounded capture, explicit boolean acknowledgement presence, fixed errors, and a hermetic fake-driver contract; compiler RED, six race passes, 100% coverage, full repository gates/scans, and zero-finding re-review passed. |
 | M1-18 | August 16, 2026 | Added a dependency-free scoped FeatureFlags boundary with required explicit enabled/disabled code defaults, exact cache hit/age metadata, one bounded driver attempt, safe outage/malformed-state fallback, fixed errors, and a hermetic fake-driver contract; compiler RED, six race passes, 100% coverage, full repository gates/scans, and zero-finding re-review passed. |
