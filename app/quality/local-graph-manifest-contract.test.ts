@@ -75,4 +75,37 @@ describe("M1-30b local graph manifest", () => {
     expect([...active, ...complete].filter(([task]) => task === "M1-30c")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
+
+  it("exposes the hermetic, live, and license graph commands with their local-only operator boundary", async () => {
+    const [packageText, readme] = await Promise.all([
+      readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+    ]);
+    const packageJson = JSON.parse(packageText) as { scripts?: Record<string, unknown> };
+    const localGraph = (readme.match(/## Local graph Kubernetes manifest proof[\s\S]*?(?=\n## |$)/)?.[0] ?? "").replace(/\s+/g, " ");
+
+    expect(packageJson.scripts).toMatchObject({
+      "local:graph:test": "node --test deploy/local/manifests.test.mjs deploy/local/run.test.mjs deploy/local/graph-manifest.test.mjs deploy/local/graph-run.test.mjs deploy/local/graph-license-audit.test.mjs",
+      "local:graph:run": "node deploy/local/graph-run.mjs",
+      "local:graph:license": "node deploy/local/graph-license-audit.mjs",
+    });
+    for (const text of [
+      "Node.js 22.23.1 and npm 10.9.8",
+      "Local graph manifest passed: ready=true internal=true persistent=true cleanup=true.",
+      "Local graph manifest failed: <category> rejected.",
+      "only inside the disposable local cluster",
+      "does not read `.env`, ambient kubeconfig, cloud credentials, profiles, proxy variables, provider data",
+      "PVC preserves the synthetic marker across an owned Neo4j pod replacement",
+      "data is disposable with the owned kind cluster",
+      "GPL-3.0-only",
+      "GPL-2.0-only",
+      "opt-in local development",
+      "does not approve redistribution or production packaging",
+      "M1-30b is In progress",
+      "M1-30c remains Pending",
+    ]) {
+      expect(localGraph).toContain(text);
+    }
+    expect(localGraph).not.toMatch(/host port|Ingress|NodePort|LoadBalancer/i);
+  });
 });

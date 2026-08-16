@@ -740,6 +740,47 @@ internal process/container boundary; later deployment tasks own Services,
 network policy, and probe declarations. M1-28b is Complete after full local
 verification and zero-finding review. M1-28c is Complete, M1-28d is Complete, and M1-28 is Complete.
 
+## Local graph Kubernetes manifest proof
+
+M1-30b is In progress. Its local Neo4j overlay is an opt-in proof attached to
+the disposable local Kubernetes environment; M1-30c remains Pending. The
+hermetic manifest, runner, and license contracts require Node.js 22.23.1 and
+npm 10.9.8, and require neither Docker nor a provider:
+
+```bash
+npm run local:graph:test
+```
+
+Run the immutable source and license audit separately:
+
+```bash
+npm run local:graph:license
+```
+
+The disposable live proof supports macOS or Linux and requires Docker 29.4.0,
+Go 1.25.6, kubectl 1.35, and outbound HTTPS access to the pinned kind GitHub
+release asset:
+
+```bash
+npm run local:graph:run
+```
+
+Success is exactly
+`Local graph manifest passed: ready=true internal=true persistent=true cleanup=true.`
+Failures are exactly `Local graph manifest failed: <category> rejected.` The
+runner creates and uses its own kubeconfig; it does not read `.env`, ambient
+kubeconfig, cloud credentials, profiles, proxy variables, provider data, or
+shared cluster state. Graph health is reachable only inside the disposable
+local cluster through its ClusterIP Service.
+
+The PVC preserves the synthetic marker across an owned Neo4j pod replacement,
+but its data is disposable with the owned kind cluster. Cleanup removes only
+the runner's exact-owned resources and leaves shared resources untouched.
+
+Neo4j Community is GPL-3.0-only and BusyBox is GPL-2.0-only. They are opt-in
+local development targets: this proof does not approve redistribution or
+production packaging, and bundled components retain their own terms.
+
 ## Neon pooled proof
 
 The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,
