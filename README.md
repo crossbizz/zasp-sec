@@ -537,7 +537,7 @@ The factory has no default remote server, performs no I/O during construction,
 and does not hand-write `/api/v1/` URLs. Authentication/session retrieval,
 reviewed operations, and UI integration remain later work. M1-23 is Complete.
 M1-24 is Complete. M1-25 is Complete. M1-26 is Complete. M1-27 is Complete;
-M1-28a is Complete, and M1-28b remains Pending. No OpenAPI operation was added by the coverage task
+M1-28a is Complete. M1-28b is In progress, and M1-28c remains Pending. No OpenAPI operation was added by the coverage task
 itself.
 
 ```bash
@@ -582,7 +582,8 @@ UI/API coverage passed: planned=5 available=0 public=0 internal=0.
 
 Failure is fixed as `UI/API coverage rejected.` without parser or artifact
 details. Both commands are part of root verification. M1-25 is Complete.
-M1-26 is Complete. M1-27 is Complete. M1-28a is Complete, and M1-28b remains Pending.
+M1-26 is Complete. M1-27 is Complete. M1-28a is Complete. M1-28b is In progress,
+and M1-28c remains Pending.
 
 ## Raw frontend Fetch lint
 
@@ -605,7 +606,7 @@ npm run lint
 ```
 
 The hostile suite is part of root verification. M1-27 is Complete. M1-28a is
-Complete, and M1-28b remains Pending.
+Complete. M1-28b is In progress, and M1-28c remains Pending.
 
 ## Shared service health handler
 
@@ -625,7 +626,7 @@ provider calls, environment reads, or global mux registration. It defines
 handler behavior only; it does not authorize external exposure of these
 internal endpoints. Service command wiring, listeners, dependency-specific
 readiness, and shutdown remain M1-28b through M1-28d work. M1-28a is
-Complete, and M1-28b remains Pending.
+Complete. M1-28b is In progress, and M1-28c remains Pending.
 
 ## Neon pooled proof
 
