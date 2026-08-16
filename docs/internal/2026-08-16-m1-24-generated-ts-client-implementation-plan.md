@@ -68,24 +68,24 @@ Node test runner, Vitest repository contracts, pinned Node 22.23.1/npm 10.9.8.
 - Modify after RED: package/lock, dependency lock/tests, verification fixtures
 - Append ignored task/progress evidence
 
-- [ ] **Step 1: Write missing-module/script/dependency tests and capture RED**
+- [x] **Step 1: Write missing-module/script/dependency tests and capture RED**
 
   Require exact component types, readonly state, empty current paths, client
   factory construction with zero Fetch calls, exact pins, scripts, runtime
   inventory, and CI drift wiring.
 
-- [ ] **Step 2: Add exact dependencies and generate minimal GREEN**
+- [x] **Step 2: Add exact dependencies and generate minimal GREEN**
 
   Pin `openapi-typescript@7.13.0` as development-only and
   `openapi-fetch@0.17.0` as reviewed runtime. Generate only from the local root.
 
-- [ ] **Step 3: Add byte-exact hostile drift RED/GREEN**
+- [x] **Step 3: Add byte-exact hostile drift RED/GREEN**
 
   Prove clean check success, changed/missing output rejection, no working-tree
   rewrite, deterministic repeated generation, and exact generated/client type
   compilation.
 
-- [ ] **Step 4: Run six stability and full gates**
+- [x] **Step 4: Run six stability and full gates**
 
   ```bash
   for run in 1 2 3 4 5 6; do npm run openapi:generate; npm run openapi:check; done
@@ -96,7 +96,7 @@ Node test runner, Vitest repository contracts, pinned Node 22.23.1/npm 10.9.8.
   git diff --check
   ```
 
-- [ ] **Step 5: Record, scan, and commit**
+- [x] **Step 5: Record, scan, and commit**
 
   ```bash
   git commit -m "feat: generate typed OpenAPI client"

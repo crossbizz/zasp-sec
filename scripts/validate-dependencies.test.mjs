@@ -28,6 +28,7 @@ const manifests = [
 const dependencies = [
   ["drizzle-orm", "0.45.2", "Apache-2.0", "platform-data"],
   ["lucide-react", "1.31.0", "ISC", "web-platform"],
+  ["openapi-fetch", "0.17.0", "MIT", "web-platform"],
   ["react", "19.2.6", "MIT", "web-platform"],
   ["react-dom", "19.2.6", "MIT", "web-platform"],
   ["stytch", "14.2.0", "MIT", "identity-platform"],
@@ -95,7 +96,7 @@ function validate(lock = lockFixture(), files = filesFixture()) {
 }
 
 test("accepts the exact reviewed product runtime inventory", () => {
-  assert.deepEqual(validate(), { manifests: 8, dependencies: 5 });
+  assert.deepEqual(validate(), { manifests: 8, dependencies: 6 });
 });
 
 test("rejects YAML aliases, duplicate keys, and oversized input", async (t) => {
@@ -320,7 +321,7 @@ test("prints one exact success line", async () => {
     stdout: { write: (value) => { stdout += value; } },
     stderr: { write: (value) => { stderr += value; } },
     setExitCode: (value) => { exitCode = value; },
-    validateRepository: async () => ({ manifests: 8, dependencies: 5 }),
+    validateRepository: async () => ({ manifests: 8, dependencies: 6 }),
   });
 
   assert.equal(code, 0);

@@ -70,6 +70,7 @@ function assertRunnableUiWorkflow(
     "npm run dependencies:check",
     "npm run openapi:test",
     "npm run openapi:lint",
+    "npm run openapi:check",
     "npm test",
     "npm run typecheck",
     "npm run lint",

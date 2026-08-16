@@ -51,6 +51,14 @@ dependencies:
     review: approved
   - ecosystem: npm
     manifest: package.json
+    name: openapi-fetch
+    version: 0.17.0
+    license: MIT
+    owner: web-platform
+    scope: runtime
+    review: approved
+  - ecosystem: npm
+    manifest: package.json
     name: react
     version: 19.2.6
     license: MIT
