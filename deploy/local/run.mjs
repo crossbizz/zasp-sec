@@ -53,6 +53,10 @@ export const KIND_PINS = deepFreeze({
     },
   },
   node: {
+    configDigests: {
+      "linux/amd64": "sha256:caf23176b804ea639d96b2266829fdff42ca8f064bd9d32c00ad913b23ced7d9",
+      "linux/arm64": "sha256:8b8d852fef3a95a2b04fd9e6890044bf6092c7810df66da4f9b503fb4341da60",
+    },
     platformDigests: {
       "linux/amd64": "sha256:397bcc4ab091b9632fb3639d5cf020943ca40e90fe7bcc38409738a4a0d056ee",
       "linux/arm64": "sha256:625f4633a546aba1e159ab56e52f9111b1b5044a165cc64ffe46d15d3dd0b0bf",
@@ -385,6 +389,7 @@ export class DockerKindRuntime {
       throw new TypeError("runtime PATH is invalid");
     }
     if (KIND_PINS.kind.assets[input.hostPlatform] === undefined ||
+        KIND_PINS.node.configDigests[input.nodePlatform] === undefined ||
         KIND_PINS.node.platformDigests[input.nodePlatform] === undefined) {
       throw new TypeError("runtime platform is invalid");
     }
@@ -856,7 +861,8 @@ export class LocalProductSystem {
     catch { throw new Failure(category); }
     const identity = validateKindNodeInspection(document, {
       cluster: this.cluster,
-      imageId: KIND_PINS.node.platformDigests[this.input.nodePlatform],
+      hostPlatform: this.input.hostPlatform,
+      imageId: KIND_PINS.node.configDigests[this.input.nodePlatform],
       name,
       networkId: this.networkIdentity?.id,
       reference: KIND_PINS.node.reference,
@@ -1244,10 +1250,22 @@ export async function fetchBoundedAsset(url, limit, signal, fetchImplementation 
   return Buffer.concat(chunks);
 }
 
-function validateKindNodeInspection(document, expected, retained = undefined) {
+export function validateKindNodeInspection(document, expected, retained = undefined) {
   try {
-    requireExactObject(expected, ["cluster", "imageId", "name", "networkId", "reference", "token"],
+    requireExactObject(expected, ["cluster", "hostPlatform", "imageId", "name", "networkId", "reference", "token"],
       "kind node expectation");
+    const darwin = expected.hostPlatform === "darwin/amd64" || expected.hostPlatform === "darwin/arm64";
+    const linux = expected.hostPlatform === "linux/amd64" || expected.hostPlatform === "linux/arm64";
+    if (!darwin && !linux) throw new TypeError("kind host platform is invalid");
+    const expectedBinds = darwin
+      ? ["/lib/modules:/lib/modules:ro", "/dev/mapper:/dev/mapper"]
+      : ["/lib/modules:/lib/modules:ro", "/dev/mapper:/dev/mapper", "/proc:/procHost:ro"];
+    const expectedBindMounts = darwin
+      ? [["/lib/modules", "/lib/modules", "ro", false, "rprivate"],
+        ["/dev/mapper", "/dev/mapper", "", true, "rprivate"]]
+      : [["/lib/modules", "/lib/modules", "ro", false, "rprivate"],
+        ["/dev/mapper", "/dev/mapper", "", true, "rprivate"],
+        ["/proc", "/procHost", "ro", false, "rprivate"]];
     const node = Array.isArray(document) && document.length === 1 ? document[0] : undefined;
     const config = node?.Config;
     const host = node?.HostConfig;
@@ -1264,22 +1282,17 @@ function validateKindNodeInspection(document, expected, retained = undefined) {
           "KUBECONFIG=/etc/kubernetes/admin.conf",
           "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
           "container=docker", "HTTP_PROXY=", "HTTPS_PROXY=", "NO_PROXY=",
-        ]) || !isPlainObject(host) || !exactStringSet(host.Binds, [
-          "/lib/modules:/lib/modules:ro", "/dev/mapper:/dev/mapper", "/proc:/procHost:ro",
-        ]) || !exactStringMap(host.Tmpfs, { "/run": "", "/tmp": "" }) || host.Privileged !== true ||
+        ]) || !isPlainObject(host) || !exactStringSet(host.Binds, expectedBinds) ||
+        !exactStringMap(host.Tmpfs, { "/run": "", "/tmp": "" }) || host.Privileged !== true ||
         host.CapAdd !== null || host.CapDrop !== null || !exactArray(host.Devices, []) ||
         host.DeviceRequests !== null || host.PidMode !== "" || host.IpcMode !== "private" ||
         host.UsernsMode !== "" || host.CgroupnsMode !== "private" || host.ReadonlyRootfs !== false ||
         !exactStringSet(host.SecurityOpt, ["seccomp=unconfined", "apparmor=unconfined", "label=disable"]) ||
-        !Array.isArray(mounts) || mounts.length !== 4 || !isPlainObject(networks) ||
+        !Array.isArray(mounts) || mounts.length !== expectedBindMounts.length + 1 || !isPlainObject(networks) ||
         Object.keys(networks).length !== 1 || !Object.hasOwn(networks, expected.cluster)) {
       throw new TypeError("kind node metadata is invalid");
     }
-    for (const [source, destination, mode, writable, propagation] of [
-      ["/lib/modules", "/lib/modules", "ro", false, "rprivate"],
-      ["/dev/mapper", "/dev/mapper", "", true, "rprivate"],
-      ["/proc", "/procHost", "ro", false, "rprivate"],
-    ]) {
+    for (const [source, destination, mode, writable, propagation] of expectedBindMounts) {
       const matching = mounts.filter((mount) => isPlainObject(mount) && mount.Type === "bind" &&
         mount.Source === source && mount.Destination === destination && mount.Mode === mode &&
         mount.RW === writable && mount.Propagation === propagation);

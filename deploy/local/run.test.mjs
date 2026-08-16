@@ -80,7 +80,7 @@ function rawImageDocument(product, overrides = {}) {
 }
 
 function kindNodeDocument(cluster, networkId, token) {
-  const imageId = KIND_PINS.node.platformDigests["linux/arm64"];
+  const imageId = "sha256:8b8d852fef3a95a2b04fd9e6890044bf6092c7810df66da4f9b503fb4341da60";
   const volumeToken = "c".repeat(64);
   return [{
     Config: {
@@ -98,7 +98,7 @@ function kindNodeDocument(cluster, networkId, token) {
       User: "",
     },
     HostConfig: {
-      Binds: ["/lib/modules:/lib/modules:ro", "/dev/mapper:/dev/mapper", "/proc:/procHost:ro"],
+      Binds: ["/lib/modules:/lib/modules:ro", "/dev/mapper:/dev/mapper"],
       CapAdd: null,
       CapDrop: null,
       CgroupnsMode: "private",
@@ -117,7 +117,6 @@ function kindNodeDocument(cluster, networkId, token) {
     Mounts: [
       { Destination: "/lib/modules", Mode: "ro", Propagation: "rprivate", RW: false, Source: "/lib/modules", Type: "bind" },
       { Destination: "/dev/mapper", Mode: "", Propagation: "rprivate", RW: true, Source: "/dev/mapper", Type: "bind" },
-      { Destination: "/procHost", Mode: "ro", Propagation: "rprivate", RW: false, Source: "/proc", Type: "bind" },
       { Destination: "/var", Driver: "local", Mode: "", Name: volumeToken, Propagation: "", RW: true, Source: `/var/lib/docker/volumes/${volumeToken}/_data`, Type: "volume" },
     ],
     Name: `/${cluster}-control-plane`,
@@ -516,6 +515,10 @@ test("pins an exact loopback kind cluster and owned kubeconfig", () => {
       },
     },
     node: {
+      configDigests: {
+        "linux/amd64": "sha256:caf23176b804ea639d96b2266829fdff42ca8f064bd9d32c00ad913b23ced7d9",
+        "linux/arm64": "sha256:8b8d852fef3a95a2b04fd9e6890044bf6092c7810df66da4f9b503fb4341da60",
+      },
       platformDigests: {
         "linux/amd64": "sha256:397bcc4ab091b9632fb3639d5cf020943ca40e90fe7bcc38409738a4a0d056ee",
         "linux/arm64": "sha256:625f4633a546aba1e159ab56e52f9111b1b5044a165cc64ffe46d15d3dd0b0bf",
