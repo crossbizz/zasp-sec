@@ -91,7 +91,7 @@ export function parseReadiness(status, body) {
     && isDeepStrictEqual(data.row, [1]) && isDeepStrictEqual(data.meta, [null])
     && Array.isArray(value.lastBookmarks) && value.lastBookmarks.length === 1
     && typeof bookmark === "string" && bookmark.length > 0 && bookmark.length <= 4_096
-    && !/[\u0000-\u001f\u007f]/.test(bookmark);
+    && !hasControlCharacter(bookmark);
 }
 
 export function runBounded(command, arguments_, options, spawnImplementation = spawn) {
@@ -603,6 +603,13 @@ function parseOneJsonLine(stdout) {
 }
 
 function plainObject(value) { return value !== null && typeof value === "object" && !Array.isArray(value); }
+function hasControlCharacter(value) {
+  for (const character of value) {
+    const code = character.charCodeAt(0);
+    if (code <= 0x1f || code === 0x7f) return true;
+  }
+  return false;
+}
 function arrayOfStrings(value) { if (!Array.isArray(value) || !value.every((item) => typeof item === "string")) throw new Failure("ownership"); return [...value]; }
 function nullableStrings(value) { return value === null ? null : arrayOfStrings(value); }
 function sortedKeys(value) { if (value === null || value === undefined) return []; if (!plainObject(value)) throw new Failure("ownership"); return Object.keys(value).sort(); }
