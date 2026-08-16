@@ -416,12 +416,12 @@ database, network, Docker, credential, or shared-resource I/O. Feature flags
 are non-security-critical and never authorize scope, policy, enforcement,
 credentials, data access, or audit behavior. This boundary does not prove a
 provider adapter, remote evaluation, or cache implementation.
-M1-19 is In progress.
+M1-19 is Complete.
 
 ## Product telemetry contract
 
-M1-19 defines a dependency-free ProductTelemetry boundary for exact
-Organization, Workspace, and Environment scope. Its closed catalog currently
+M1-19 is Complete. It defines a dependency-free ProductTelemetry boundary for
+exact Organization, Workspace, and Environment scope. Its closed catalog currently
 contains only `proof_completed`, with exactly one bounded `source` text field
 and one `success` boolean field. The product serializer constructs a typed
 driver record and rejects every missing, duplicate, wrong-kind, malformed,

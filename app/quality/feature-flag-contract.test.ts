@@ -49,12 +49,12 @@ describe("M1-18 feature flag contract", () => {
 
     expect(readme).toMatch(/M1-18\s+is\s+Complete/);
     expect(tracker).toContain("| Pending | 676 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 48 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 49 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`676/1/48/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "43", "1", "24", "0"]);
-    expect(active.map(([task]) => task)).toEqual(["M1-19"]);
+    expect(tracker).toContain("`676/0/49/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "43", "0", "25", "0"]);
+    expect(active.map(([task]) => task)).toEqual([]);
     expect(complete.filter(([task]) => task === "M1-17")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-18")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-19")).toHaveLength(1);
@@ -79,6 +79,6 @@ describe("M1-18 feature flag contract", () => {
     expect(section).toContain("hermetic fake driver");
     expect(section).toContain("non-security-critical");
     expect(section).toMatch(/does not prove a\s+provider adapter, remote evaluation, or cache implementation/);
-    expect(section).toMatch(/M1-19\s+is\s+In progress/);
+    expect(section).toMatch(/M1-19\s+is\s+Complete/);
   });
 });

@@ -142,13 +142,17 @@ production or status edits. M1-20 remains Pending throughout M1-19.
   fixtures, and this plan's checkboxes.
 - Update ignored Task 5 and authoritative M1-19 reports/ledgers.
 
-- [ ] Capture the completion transition RED.
+- [x] Capture the completion transition RED.
 
   Require exactly one M1-19 Complete row, M1-18 Complete, M1-20 absent,
   unchanged blockers, overall `676/0/49/3`, and M1 `68/43/0/25/0` before
   changing status sources.
 
-- [ ] Move only M1-19 to Complete and repeat all final local gates.
+- [x] Move only M1-19 to Complete and repeat all final local gates.
+
+  Completion RED was 2 pass/1 stale-status fail. GREEN moves only M1-19 to
+  Complete at `676/0/49/3` overall and `68/43/0/25/0` for M1. Six root race
+  cycles, full platform/repository/build/audit gates, and diff checks pass.
 
   Commit message: `docs: complete M1-19 analytics contract`.
 
