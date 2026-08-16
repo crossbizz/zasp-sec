@@ -42,19 +42,19 @@ Vitest repository contracts.
 - Create ignored task/progress evidence under
   `.superpowers/sdd/2026-08-16-m1-23-openapi-root-implementation-plan/`
 
-- [ ] **Step 1: Write source/design/status assertions and capture RED**
+- [x] **Step 1: Write source/design/status assertions and capture RED**
 
   Bind M1-23, prerequisite M1-22, successor M1-24, public API constraints,
   design file/path/auth/pagination/error decisions, exact blockers, and active
   arithmetic. Require overall `672/1/52/3` and M1 `68/39/1/28/0`. Focused RED
   must fail only stale README/tracker state.
 
-- [ ] **Step 2: Move only M1-23 to In progress**
+- [x] **Step 2: Move only M1-23 to In progress**
 
   Update README, tracker, and only current aggregate fixtures. Keep M1-22
   Complete, M1-24 Pending, and all three blockers unchanged.
 
-- [ ] **Step 3: Verify focused and complete quality GREEN**
+- [x] **Step 3: Verify focused and complete quality GREEN**
 
   ```bash
   npx vitest run app/quality/openapi-root-contract.test.ts
@@ -62,7 +62,7 @@ Vitest repository contracts.
   git diff --check
   ```
 
-- [ ] **Step 4: Record, scan, and commit**
+- [x] **Step 4: Record, scan, and commit**
 
   ```bash
   git commit -m "docs: start M1-23 OpenAPI root"

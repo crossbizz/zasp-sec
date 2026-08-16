@@ -24,16 +24,17 @@ function verifyM122CompleteStatus(tracker: string, readme: string) {
   const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
   expect(readme).toMatch(/M1-22\s+is\s+Complete/);
-  expect(tracker).toContain("| Pending | 673 |");
-  expect(tracker).toContain("| In progress | 0 |");
+  expect(tracker).toContain("| Pending | 672 |");
+  expect(tracker).toContain("| In progress | 1 |");
   expect(tracker).toContain("| Complete | 52 |");
   expect(tracker).toContain("| Blocked | 3 |");
-  expect(tracker).toContain("`673/0/52/3`");
-  expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "40", "0", "28", "0"]);
-  expect(active).toEqual([]);
+  expect(tracker).toContain("`672/1/52/3`");
+  expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "39", "1", "28", "0"]);
+  expect(active).toEqual([["M1-23", "August 16, 2026", "Creating the self-contained OpenAPI 3.1 root with alternative bearer authentication schemes, strict cursor pagination components, a canonical product error schema, and an exact-pinned hermetic linter gate."]]);
   expect(complete.filter(([task]) => task === "M1-22")).toHaveLength(1);
   expect(complete.filter(([task]) => task === "M1-21")).toHaveLength(1);
-  expect([...active, ...complete].filter(([task]) => task === "M1-23")).toHaveLength(0);
+  expect(active.filter(([task]) => task === "M1-23")).toHaveLength(1);
+  expect(complete.filter(([task]) => task === "M1-23")).toHaveLength(0);
   expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
 }
 
@@ -52,7 +53,7 @@ function verifyReadmeBoundary(readme: string) {
   expect(prose).toContain("M1-21 product, trace, and span correlation");
   expect(prose).toContain("raw evidence, payloads, prompts, tool arguments, secrets, arbitrary metadata, and vendor identifiers are not envelope fields");
   expect(prose).toContain("no parser, OpenAPI, transport, adapter, queue, storage, provider, network, credential, database, Docker, filesystem, or environment I/O");
-  expect(prose).toContain("M1-23 remains Pending");
+  expect(prose).toContain("M1-23 is In progress");
 }
 
 describe("M1-22 SecurityEvent envelope", () => {

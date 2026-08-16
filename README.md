@@ -511,8 +511,8 @@ The envelope deliberately contains no customer content: raw evidence,
 payloads, prompts, tool arguments, secrets, arbitrary metadata, and vendor
 identifiers are not envelope fields. The command is hermetic and performs no
 parser, OpenAPI, transport, adapter, queue, storage, provider, network,
-credential, database, Docker, filesystem, or environment I/O. M1-23 remains
-Pending and will define the OpenAPI root separately. M1-22 is Complete.
+credential, database, Docker, filesystem, or environment I/O. M1-23 is In
+progress and is defining the OpenAPI root separately. M1-22 is Complete.
 
 ## Neon pooled proof
 
