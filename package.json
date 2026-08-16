@@ -25,6 +25,8 @@
     "platform:health:test": "go test -C services/platform -race -count=1 ./healthserver ./agentsec-api ./agentsec-worker",
     "event-ingest:health:test": "go test -C services/event-ingest -race -count=1 ./...",
     "runtime-gateway:health:test": "go test -C services/runtime-gateway -race -count=1 ./...",
+    "local:product:test": "node --test deploy/local/manifests.test.mjs deploy/local/run.test.mjs",
+    "local:product:run": "node deploy/local/run.mjs",
     "securityevent:test": "go test -C services/platform -race -count=1 ./securityevent",
     "graph:store:test": "go test -C services/platform -race -count=1 ./graphstore",
     "graph:neo4j:test": "go test -C services/platform -race -count=1 ./graphstore/... && go test -C proofs/neo4j-graphstore -race -count=1 ./... && node --test proofs/neo4j-graphstore/run.test.mjs proofs/neo4j-graphstore/license-audit.test.mjs",

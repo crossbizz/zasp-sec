@@ -692,6 +692,30 @@ npm run health:contract:test
 M1-30a is In progress. It is adding the local Kubernetes deployment boundary
 for the four existing Go product commands; M1-30b remains Pending.
 
+## Local product Kubernetes manifests
+
+M1-30a packages the real `agentsec-api`, `agentsec-worker`, `event-ingest`, and
+`runtime-gateway` commands as hardened, cluster-internal pods. The hermetic
+contract requires no Docker daemon or provider access:
+
+```bash
+npm run local:product:test
+```
+
+With a local Docker daemon available, the live command builds the four static
+Go services, starts an exact-owned disposable kind cluster, proves all four
+pods Ready with four internal services, and performs reverse cleanup:
+
+```bash
+npm run local:product:run
+```
+
+Successful live verification emits exactly
+`Local product manifests passed: pods=4 ready=4 services=4 internal=true cleanup=true.`
+The runner uses its own kubeconfig and proof labels, removes only retained
+resources after exact ownership checks, and leaves shared local services
+untouched. M1-30b remains Pending and owns the later local graph assembly.
+
 ## Platform health wiring
 
 The platform API and worker each bind one dedicated internal `:8081` listener

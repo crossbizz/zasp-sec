@@ -80,10 +80,36 @@ describe("M1-30a local product manifests", () => {
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
 
-  it("does not claim product manifest implementation before its tracked artifacts exist", async () => {
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
-    expect(readme).toContain("M1-30a is In progress");
-    expect(readme).toContain("M1-30b remains Pending");
-    expect(readme).not.toContain("Local product manifests passed:");
+  it("exposes the exact hermetic and disposable live commands without advancing M1-30b", async () => {
+    const [readme, packageText, runner, manifest] = await Promise.all([
+      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+      readFile(resolve(repositoryRoot, "deploy/local/run.mjs"), "utf8"),
+      readFile(resolve(repositoryRoot, "deploy/local/product-stubs.yaml"), "utf8"),
+    ]);
+    const scripts = JSON.parse(packageText).scripts as Record<string, string>;
+    const section = readme.match(/## Local product Kubernetes manifests[\s\S]*?(?=\n## )/)?.[0] ?? "";
+
+    expect(scripts["local:product:test"]).toBe(
+      "node --test deploy/local/manifests.test.mjs deploy/local/run.test.mjs",
+    );
+    expect(scripts["local:product:run"]).toBe("node deploy/local/run.mjs");
+    for (const value of [
+      "agentsec-api",
+      "agentsec-worker",
+      "event-ingest",
+      "runtime-gateway",
+      "cluster-internal",
+      "Docker",
+      "npm run local:product:test",
+      "npm run local:product:run",
+      "Local product manifests passed: pods=4 ready=4 services=4 internal=true cleanup=true.",
+      "exact-owned disposable kind cluster",
+      "reverse cleanup",
+      "M1-30b remains Pending",
+    ]) expect(section).toContain(value);
+    expect(runner).toContain("await runMain();");
+    expect(manifest).toContain("kind: Deployment");
+    expect(section).not.toMatch(/NodePort|LoadBalancer|Ingress|ambient kubeconfig/i);
   });
 });
