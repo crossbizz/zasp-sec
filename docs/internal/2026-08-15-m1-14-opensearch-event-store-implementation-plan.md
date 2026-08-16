@@ -57,13 +57,13 @@ detector, pinned Gitleaks 8.30.1.
 - Produces: exactly one M1-14 In-progress row and assertions that keep M1-13
   Complete, M1-15 absent, and all blocker/risk rows unchanged.
 
-- [ ] **Step 1: Write the source/status contract before changing docs**
+- [x] **Step 1: Write the source/status contract before changing docs**
 
 Assert the exact dependency, deliverable, scoped fixture verification, design
 path, current count tables, one active M1-14 row, one completed M1-13 row, no
 M1-15 active/complete row, and stable blocker rows.
 
-- [ ] **Step 2: Run the focused contract and record Pending-state RED**
+- [x] **Step 2: Run the focused contract and record Pending-state RED**
 
 ```bash
 PATH="$HOME/.nvm/versions/node/v22.23.1/bin:$PATH" \
@@ -72,12 +72,12 @@ PATH="$HOME/.nvm/versions/node/v22.23.1/bin:$PATH" \
 
 Expected: only the still-Pending M1-14 status assertions fail.
 
-- [ ] **Step 3: Move only M1-14 to In progress**
+- [x] **Step 3: Move only M1-14 to In progress**
 
 Update README/tracker and shared count fixtures to `681/1/43/3` overall and M1
 `68/48/1/19/0`. Do not change any other task or risk status.
 
-- [ ] **Step 4: Run focused/full pinned gates, scan, and commit**
+- [x] **Step 4: Run focused/full pinned gates, scan, and commit**
 
 ```bash
 PATH="$HOME/.nvm/versions/node/v22.23.1/bin:$PATH" npm run verify

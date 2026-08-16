@@ -305,7 +305,7 @@ M1-13 is Complete. It adds an Organization-scoped JobQueue as a
 dependency-free boundary for bounded batch publish, consume, and explicit
 acknowledgement plus a strict SQS adapter and disposable LocalStack queue/DLQ
 lifecycle. AWS queue URLs, ARNs, message IDs, receipt handles, credentials, and
-provider errors stay outside the product interface. M1-14 remains Pending.
+provider errors stay outside the product interface. M1-14 is In progress.
 
 ```bash
 npm run job:queue:test
@@ -321,7 +321,15 @@ This is disposable LocalStack SQS compatibility only, not
 real-AWS IAM, durability, availability, encryption, or release-parity evidence.
 The final exact live lifecycle, Standard-queue partial/order regressions,
 candidate-aware cleanup, six hermetic passes, full repository gates, secret
-scans, and zero-finding independent review passed. M1-14 remains Pending.
+scans, and zero-finding independent review passed. M1-14 is In progress.
+
+## OpenSearch EventStore
+
+M1-14 is In progress. It adds a dependency-free scoped EventStore whose index
+and search operations require validated Organization, Workspace, and
+Environment scope before provider I/O. OpenSearch index names, query DSL,
+provider identifiers, endpoints, credentials, and errors stay outside the
+product interface. M1-15 remains Pending.
 
 ## Neon pooled proof
 
