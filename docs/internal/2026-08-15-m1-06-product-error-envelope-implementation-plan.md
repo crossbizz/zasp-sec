@@ -47,7 +47,7 @@ JSON error envelope.
 - [x] Change only completion expectations and capture focused RED.
 - [x] Move only M1-06 to Complete at `689/0/36/3` and M1
   `68/56/0/12/0`; preserve M0 and all blockers.
-- [ ] Run final gates, commit `docs: complete M1-06 product error envelope`,
+- [x] Run final gates, commit `docs: complete M1-06 product error envelope`,
   push, and watch exact-SHA Runnable UI to success.
-- [ ] Close the plan, record run/job IDs, commit/push the close SHA, watch CI,
+- [x] Close the plan, record run/job IDs, commit/push the close SHA, watch CI,
   then start M1-07.
