@@ -22,7 +22,7 @@ function assertM014aComplete(tracker: string) {
   const completeRows = markdownRows(complete).slice(2);
   const rows = completeRows.filter(([task]) => task === "M0-14a");
 
-  expect(activeRows.map(([task]) => task)).toEqual(["M1-20"]);
+  expect(activeRows.map(([task]) => task)).toEqual([]);
   expect([...activeRows, ...completeRows].filter(([task]) => task === "M0-15")).toHaveLength(1);
   expect(rows).toHaveLength(1);
   expect(rows[0]?.[0]).toBe("M0-14a");
@@ -142,8 +142,8 @@ describe("Nango free boot proof contract", () => {
     );
 
     expect(tracker).toContain("| Pending | 675 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 49 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 50 |");
     expect(tracker).toContain("| Blocked | 3 |");
     expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 0 \| 24 \| 3 \|/);
     assertM014aComplete(tracker);

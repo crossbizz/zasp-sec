@@ -441,14 +441,14 @@ enforcement, data access, feature flags, or audit behavior. This boundary does
 not prove a PostHog adapter, hosted delivery, batching, persistence, or consent
 policy.
 
-M1-20 is In progress. It is defining a provider-neutral scoped AIGateway with
+M1-20 is Complete. It defines a provider-neutral scoped AIGateway with
 an exact approved-purpose catalog, complete data-policy metadata, bounded
 redacted product content, and a hermetic fake-driver contract. M1-21 remains
 Pending.
 
 ## AI gateway contract
 
-M1-20 is In progress. It defines a dependency-free AIGateway boundary for
+M1-20 is Complete. It defines a dependency-free AIGateway boundary for
 exact Organization, Workspace, and Environment scope. The closed purpose
 catalog currently approves only `finding_explanation`; an unapproved purpose
 fails before driver I/O. Every request requires complete policy metadata with

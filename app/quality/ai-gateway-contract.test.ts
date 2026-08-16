@@ -39,7 +39,7 @@ describe("M1-20 AI gateway contract", () => {
     expect(plan).toContain("M1-21 remains Pending");
   });
 
-  it("starts only M1-20 and preserves its prerequisite and blockers", async () => {
+  it("completes only M1-20 and preserves its prerequisite and blockers", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -49,15 +49,16 @@ describe("M1-20 AI gateway contract", () => {
     const blocked = taskRows(tracker, "Blocked");
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
-    expect(readme).toMatch(/M1-20\s+is\s+In progress/);
+    expect(readme).toMatch(/M1-20\s+is\s+Complete/);
     expect(tracker).toContain("| Pending | 675 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 49 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 50 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`675/1/49/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "42", "1", "25", "0"]);
-    expect(active.filter(([task]) => task === "M1-20")).toHaveLength(1);
+    expect(tracker).toContain("`675/0/50/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "42", "0", "26", "0"]);
+    expect(active).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-19")).toHaveLength(1);
+    expect(complete.filter(([task]) => task === "M1-20")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-21")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });

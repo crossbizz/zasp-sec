@@ -173,13 +173,20 @@ adapter, hosted endpoint, provider credential, or planner/action authority.
   fixtures, and this plan's checkboxes.
 - Update ignored Task 5 and authoritative M1-20 reports/ledgers.
 
-- [ ] Capture the completion transition RED.
+- [x] Capture the completion transition RED.
 
   Require exactly one M1-20 Complete row, M1-19 Complete, M1-21 absent,
   unchanged blockers, overall `675/0/50/3`, and M1 `68/42/0/26/0` before
   changing status sources.
 
-- [ ] Move only M1-20 to Complete and repeat all final local gates.
+  RED was 2 pass/1 intended fail at the stale In-progress README/tracker state.
+
+- [x] Move only M1-20 to Complete and repeat all final local gates.
+
+  GREEN is 3/3 focused and 53 quality files/240 tests. Six root race cycles,
+  full platform race/tidy-diff/module verification/vet, 100% production
+  statement coverage, pinned repository 57 files/260 tests plus typecheck/lint/
+  build, all 8 build targets, and zero production vulnerabilities pass.
 
   Commit message: `docs: complete M1-20 AI gateway contract`.
 
