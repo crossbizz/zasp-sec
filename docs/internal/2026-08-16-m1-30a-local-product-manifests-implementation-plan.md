@@ -62,7 +62,7 @@ runner, Vitest 4.1.10, Gitleaks 8.30.1, GitHub Actions Runnable UI.
 - Produces: exact M1-30a In-progress status at overall `661/1/63/3` and M1
   `68/28/1/39/0`.
 
-- [ ] **Step 1: Write the failing source/design/status contract**
+- [x] **Step 1: Write the failing source/design/status contract**
 
 Create a Vitest contract that parses tracker tables structurally and requires:
 
@@ -89,25 +89,25 @@ fixed output, live gate, and start/final arithmetic. Reject duplicate M1-30a
 rows, concurrent M1-30b activation, an M1-30a Complete row, changed blockers,
 or aggregate-count drift.
 
-- [ ] **Step 2: Witness stale-status RED**
+- [x] **Step 2: Witness stale-status RED**
 
 Run the focused contract under pinned Node. Require the source/design/M1-29
 assertions to pass and only the expected M1-30a status/README/count assertions
 to fail.
 
-- [ ] **Step 3: Move only M1-30a to In progress**
+- [x] **Step 3: Move only M1-30a to In progress**
 
 Update overall arithmetic from `662/0/63/3` to `661/1/63/3` and M1 from
 `68/29/0/39/0` to `68/28/1/39/0`. Add exactly one active M1-30a row and the
 matching README boundary. Preserve M1-29 Complete, M1-30b Pending, and the
 three exact blockers. Update only current-state fixture literals mechanically.
 
-- [ ] **Step 4: Run focused and all-quality GREEN**
+- [x] **Step 4: Run focused and all-quality GREEN**
 
 Run the new contract and all `app/quality` tests under pinned Node. Require
 exact 728-task arithmetic and no weakened historical contract.
 
-- [ ] **Step 5: Scan and commit the start transition**
+- [x] **Step 5: Scan and commit the start transition**
 
 Run whitespace and pinned redacted secret scans. Commit only the contract,
 README, tracker, and mechanical count fixtures as:
@@ -131,7 +131,7 @@ docs: start M1-30a local product manifests
   `renderProductManifest(value)`.
 - Consumes: direct `js-yaml` 4.1.1 only for YAML parsing/rendering.
 
-- [ ] **Step 1: Write exact manifest tests before production**
+- [x] **Step 1: Write exact manifest tests before production**
 
 Cover one namespace, four Deployments, and four Services with exact names,
 labels, selectors, images, single replicas/containers, internal ports, three
@@ -146,12 +146,12 @@ services; extra containers/init/ephemeral containers; writable root; root UID;
 capability/privilege/seccomp drift; resource/probe drift; and arbitrary YAML
 tags or anchors.
 
-- [ ] **Step 2: Witness absent-module RED**
+- [x] **Step 2: Witness absent-module RED**
 
 Run `node --test deploy/local/manifests.test.mjs`. Require failure only because
 the production module and canonical YAML are absent.
 
-- [ ] **Step 3: Implement the structured model and strict parser**
+- [x] **Step 3: Implement the structured model and strict parser**
 
 Build exact plain objects with no caller input. Parse one bounded UTF-8 YAML
 document under the JSON schema, reject duplicate keys/aliases/tags before
@@ -159,13 +159,13 @@ conversion, recursively require exact keys and primitive types, then deep
 freeze the validated copy. Do not permit JavaScript coercion or prototype
 members.
 
-- [ ] **Step 4: Add the canonical tracked YAML**
+- [x] **Step 4: Add the canonical tracked YAML**
 
 Render `product-stubs.yaml` from the model with stable key order, indentation,
 line endings, and final newline. Require byte-exact round-trip equality in the
 tests so hand edits cannot silently diverge from the executable model.
 
-- [ ] **Step 5: Run six focused passes and commit**
+- [x] **Step 5: Run six focused passes and commit**
 
 Run six consecutive manifest test passes, syntax/lint, diff-check, and pinned
 secret scans. Commit only the three manifest files as:
@@ -189,7 +189,7 @@ feat: add local product Kubernetes manifests
   cleanup.
 - Consumes: the four reviewed Go command modules and the Task 2 product model.
 
-- [ ] **Step 1: Write build-boundary tests first**
+- [x] **Step 1: Write build-boundary tests first**
 
 Require exact Go package/cwd/output mapping, `CGO_ENABLED=0`, `GOENV=off`,
 `GOWORK=off`, `-trimpath`, stripped symbols, exact build version, owned caches,
@@ -201,12 +201,12 @@ malformed success, partial context, filesystem replacement, compiler failure,
 Docker build rejection/ambiguity, exact image reinspection, reference
 collision, image-label mismatch, delayed application, and cleanup precedence.
 
-- [ ] **Step 2: Witness absent-runtime RED**
+- [x] **Step 2: Witness absent-runtime RED**
 
 Run the focused build tests before adding `Dockerfile` or `run.mjs`. Require
 missing production exports/files only.
 
-- [ ] **Step 3: Implement bounded build and image ownership**
+- [x] **Step 3: Implement bounded build and image ownership**
 
 Create a runtime with injected process/filesystem boundaries. Journal every
 directory/file/image mutation. Retain canonical path/device/inode for every
@@ -214,14 +214,14 @@ owned root and immutable image ID/reference/labels/config/rootfs projection
 for each image. Use async spawned children, one combined output cap, abort
 fencing, SIGKILL, and reap/join.
 
-- [ ] **Step 4: Implement fail-closed image cleanup**
+- [x] **Step 4: Implement fail-closed image cleanup**
 
 Before `docker image rm`, re-inspect the exact retained ID and require its
 single expected reference, proof/run labels, scratch config, non-root user,
 entrypoint, port, and zero unexpected layers/config. A changed or unproved
 image is retained and cleanup fails; no name-only deletion is allowed.
 
-- [ ] **Step 5: Run focused GREEN and commit**
+- [x] **Step 5: Run focused GREEN and commit**
 
 Run the build-focused tests six times plus syntax/lint/diff/secret gates.
 Commit the exact Dockerfile/runtime/test slice as:
@@ -244,7 +244,7 @@ feat: build local product runtime images
   and independent cleanup.
 - Consumes: exact kind/node pins, Task 2 manifest, and Task 3 images.
 
-- [ ] **Step 1: Write lifecycle/adversarial tests before orchestration**
+- [x] **Step 1: Write lifecycle/adversarial tests before orchestration**
 
 Test the full phase order with injected fakes: environment/preflight, owned
 temp admission, kind download/checksum, four builds, cluster create, image
@@ -259,12 +259,12 @@ pods, image-ID drift, Deployment status drift, service/selector/endpoint drift,
 external exposure, cancellation at every boundary, uncooperative child, late
 mutation, cleanup panic, cleanup continuation/precedence, and output cap.
 
-- [ ] **Step 2: Witness missing lifecycle RED**
+- [x] **Step 2: Witness missing lifecycle RED**
 
 Run the focused lifecycle group and require failures only for the wished-for
 cluster/Kubernetes APIs.
 
-- [ ] **Step 3: Implement exact kind and Kubernetes boundaries**
+- [x] **Step 3: Implement exact kind and Kubernetes boundaries**
 
 Reuse the repository-reviewed kind 0.32.0 official asset URLs/checksums and
 kindest/node 1.35.5 index/platform digests. Create a unique marker cluster with
@@ -272,7 +272,7 @@ numeric-loopback API binding and owned kubeconfig. Route every kind/kubectl
 call through explicit paths and environment allowlists. Validate bounded JSON
 with duplicate-key rejection and exact resource projections.
 
-- [ ] **Step 4: Implement phase fencing and reverse cleanup**
+- [x] **Step 4: Implement phase fencing and reverse cleanup**
 
 Bound main at 600 seconds and cleanup at 180 seconds with a 60-second
 settlement margin. Journal mutations before interpretation and join all
@@ -280,7 +280,7 @@ settlements before cleanup/audit. Delete namespace/cluster dependencies in
 reverse order through exact retained identities; then remove exact images and
 temp roots. Require final global prefix/label/reference absence.
 
-- [ ] **Step 5: Run focused GREEN and six stability passes**
+- [x] **Step 5: Run focused GREEN and six stability passes**
 
 Run all `deploy/local` Node tests six consecutive times. Then run all four Go
 health command race suites, module tidy-diff/verify/vet, syntax, lint, and
@@ -304,26 +304,26 @@ feat: verify local product pods in disposable kind
 - Produces: `npm run local:product:test` and `npm run local:product:run`.
 - Consumes: Task 2-4 exact artifacts and the existing pinned runtime tools.
 
-- [ ] **Step 1: Write command/documentation tests first**
+- [x] **Step 1: Write command/documentation tests first**
 
 Require exact package scripts and one bounded README section naming all four
 services, cluster-internal exposure, required Docker/network prerequisites,
 hermetic versus live commands, fixed success line, cleanup behavior, and
 explicit M1-30b deferral. Reject stale or substitute commands.
 
-- [ ] **Step 2: Witness wiring RED and add only the documented boundary**
+- [x] **Step 2: Witness wiring RED and add only the documented boundary**
 
 Run the focused contract, then add the scripts and README text. The test
 command must remain hermetic and make no Docker/Kubernetes/network call.
 
-- [ ] **Step 3: Run all local GREEN gates before live**
+- [x] **Step 3: Run all local GREEN gates before live**
 
 Require six `local:product:test` passes, all four Go race suites,
 tidy-diff/verify/vet for all involved modules, full pinned `npm run verify`,
 production audit zero, syntax/lint, whitespace, and pinned redacted secret
 scans.
 
-- [ ] **Step 4: Run the exact live proof once from zero state**
+- [x] **Step 4: Run the exact live proof once from zero state**
 
 Fingerprint the ambient OrbStack context read-only, require zero proof-prefixed
 resources/images/temp roots, then run exactly:
@@ -345,7 +345,7 @@ fingerprint. On failure, stop new mutation, re-prove exact retained ownership,
 clean only proven resources, write tests-first regression coverage, and repeat
 all affected gates before another live attempt.
 
-- [ ] **Step 5: Record evidence and commit wiring**
+- [x] **Step 5: Record evidence and commit wiring**
 
 Record RED/GREEN/live/cleanup/audit evidence without identifiers or secrets.
 Commit only root scripts, README, and quality contract as:
@@ -365,7 +365,7 @@ docs: expose local product manifests
 - Modify: current count/status fixtures under `app/quality/`
 - Modify: this plan only after shipped completion evidence exists.
 
-- [ ] **Step 1: Run independent whole-range review**
+- [x] **Step 1: Run independent whole-range review**
 
 Review from the pre-M1-30a base through the preparation head. Require source,
 design, manifest, build, lifecycle, security, ownership, cleanup, fixed-output,
@@ -373,20 +373,20 @@ live evidence, dependency/license, docs, status, and package consistency. Fix
 every Critical, Important, and Minor finding tests-first in separate commits
 until review reports zero findings and Ready Yes.
 
-- [ ] **Step 2: Witness completion-contract RED**
+- [x] **Step 2: Witness completion-contract RED**
 
 Change only the status contract to require M1-30a Complete, no active M1-30a,
 M1-30b Pending, overall `661/0/64/3`, M1 `68/28/0/40/0`, unchanged blockers,
 and README live-ready wording. Require failures only for stale status/docs.
 
-- [ ] **Step 3: Complete only M1-30a and run final gates**
+- [x] **Step 3: Complete only M1-30a and run final gates**
 
 Update tracker/README/current fixtures, then rerun six hermetic passes, four Go
 race suites, live readiness/cleanup if behavior changed, full pinned repository
 verification, production audit, dependency/license checks, whitespace, and
 all-history/evidence secret scans.
 
-- [ ] **Step 4: Commit, push, and verify exact-SHA CI**
+- [x] **Step 4: Commit, push, and verify exact-SHA CI**
 
 Commit the exact completion transition as:
 
@@ -397,7 +397,7 @@ docs: complete M1-30a local product manifests
 Push only after a clean synchronized tree. Require the Runnable UI workflow to
 finish successfully for the exact completion SHA.
 
-- [ ] **Step 5: Close the plan atomically**
+- [x] **Step 5: Close the plan atomically**
 
 Check every plan box only after its evidence exists, commit only this plan as:
 
