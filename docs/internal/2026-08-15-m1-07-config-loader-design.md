@@ -22,7 +22,7 @@ The required keys are:
 - `AGENTSEC_AWS_REGION`
 - `AGENTSEC_OTEL_COLLECTOR_ENDPOINT`
 
-Missing, empty, malformed, or duplicated-source required values fail loading
+Missing, empty, or malformed required values fail loading
 with a fixed configuration error. This matches the v1 requirement that
 Stytch, Neon, AWS, and in-cluster OpenTelemetry are product dependencies.
 
@@ -43,8 +43,10 @@ with unexported fields and read-only accessors. `DependencyEndpoint`,
 `SecretReference`, `AWSRegion`, and `StytchProjectID` are opaque comparable
 values created only by strict parsers.
 
-- endpoints are absolute `http` or `https` URLs without user information,
-  query strings, fragments, control characters, or non-canonical whitespace;
+- the in-cluster Collector endpoint is an absolute `http` or `https` URL;
+  optional external egress endpoints require `https`; all endpoints exclude
+  user information, query strings, fragments, control characters, and
+  non-canonical whitespace;
 - secret references are AWS Secrets Manager ARNs for the `aws`, `aws-us-gov`,
   or `aws-cn` partition and never resolve or expose the referenced value;
 - AWS regions use bounded lowercase region grammar;

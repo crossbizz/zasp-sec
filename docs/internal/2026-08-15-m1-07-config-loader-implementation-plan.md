@@ -28,22 +28,22 @@ absent.
 
 ### Task 2: Implement the loader tests-first
 
-- [ ] Add Go tests before production and capture genuine missing-symbol RED.
-- [ ] Implement strict source loading, required and optional groups, opaque
+- [x] Add Go tests before production and capture genuine missing-symbol RED.
+- [x] Implement strict source loading, required and optional groups, opaque
   endpoint/region/project/secret-reference values, accessors, and validation.
-- [ ] Cover required omissions, optional absence/partial groups, malformed
+- [x] Cover required omissions, optional absence/partial groups, malformed
   values, direct invalid state, source failures, comparability, and secrecy.
-- [ ] Run six focused passes, platform/service/worker/root regressions, full
+- [x] Run six focused passes, platform/service/worker/root regressions, full
   repository gates, audit, whitespace, and scans; commit
   `feat: add typed platform config loader`.
 
 ### Task 3: Review the configuration boundary
 
-- [ ] Audit required/optional classification, secret-reference grammar,
+- [x] Audit required/optional classification, secret-reference grammar,
   endpoint parsing, source ambiguity, zero/direct state, error secrecy, and
   command-boundary assumptions.
-- [ ] Add tests-first fixes for every concrete finding and rerun affected gates.
-- [ ] Record a zero-finding review before completion.
+- [x] Add tests-first fixes for every concrete finding and rerun affected gates.
+- [x] Record a zero-finding review before completion.
 
 ### Task 4: Complete, push, and close M1-07
 
