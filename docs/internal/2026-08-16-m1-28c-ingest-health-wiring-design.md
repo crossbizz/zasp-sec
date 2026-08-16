@@ -16,7 +16,8 @@ M0-09, M0-18, and M0-19 remain Blocked.
 
 Add an event-ingest-local bounded server lifecycle in the existing standalone
 module. It consumes the exact shared handler from
-`github.com/zasp-ai/zasp-sec/services/health` through the canonical local edge:
+`github.com/zasp-ai/zasp-sec/services/health` (`services/health`) through the
+canonical local edge:
 
 ```go
 require github.com/zasp-ai/zasp-sec/services/health v0.0.0
