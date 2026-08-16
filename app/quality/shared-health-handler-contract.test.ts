@@ -79,4 +79,27 @@ describe("M1-28a shared health handler", () => {
 
     expect(packageJson.scripts?.["health:test"]).toBe("go test -C services/health -race -count=1 ./...");
   });
+
+  it("documents the exact shared handler boundary without claiming service wiring", async () => {
+    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const section = readme.match(/## Shared service health handler[\s\S]*?(?=\n## |$)/)?.[0] ?? "";
+    const prose = section.replace(/\s+/g, " ");
+
+    expect(section).toMatch(/^npm run health:test$/m);
+    for (const value of [
+      "`/healthz`",
+      "`/readyz`",
+      "`/version`",
+      "`/metrics`",
+      "starts not ready",
+      "atomic `SetReady`",
+      "does not open a listener",
+      "does not perform dependency I/O",
+      "internal endpoints",
+      "M1-28a is In progress",
+      "M1-28b remains Pending",
+    ]) {
+      expect(prose).toContain(value);
+    }
+  });
 });

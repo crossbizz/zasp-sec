@@ -607,6 +607,26 @@ npm run lint
 The hostile suite is part of root verification. M1-27 is Complete. M1-28a is
 In progress, and M1-28b remains Pending.
 
+## Shared service health handler
+
+The standalone Go package under `services/health` defines the shared internal
+endpoints `/healthz`, `/readyz`, `/version`, and `/metrics`. Every handler
+starts not ready; startup and shutdown code may change only that local state
+through atomic `SetReady`. Liveness stays independent of readiness, while the
+version and bounded Prometheus responses contain only validated service and
+build labels.
+
+```bash
+npm run health:test
+```
+
+The package does not open a listener and does not perform dependency I/O,
+provider calls, environment reads, or global mux registration. It defines
+handler behavior only; it does not authorize external exposure of these
+internal endpoints. Service command wiring, listeners, dependency-specific
+readiness, and shutdown remain M1-28b through M1-28d work. M1-28a is In
+progress, and M1-28b remains Pending.
+
 ## Neon pooled proof
 
 The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,

@@ -242,18 +242,18 @@ feat: add shared Go health handler
 - Produces: documented handler semantics, exact root command, deferred wiring,
   and explicit internal-endpoint boundary.
 
-- [ ] **Step 1: Write the README contract before prose**
+- [x] **Step 1: Write the README contract before prose**
 
 Require one extracted README section to contain the four exact paths, initial
 not-ready state, atomic `SetReady`, exact standalone command, no-listener/no-
 dependency-I/O boundary, M1-28a In progress, and M1-28b Pending.
 
-- [ ] **Step 2: Witness documentation RED, write prose, and reach GREEN**
+- [x] **Step 2: Witness documentation RED, write prose, and reach GREEN**
 
 Run the focused contract before editing README and require only the absent
 section to fail. Add bounded prose and rerun the M1-27/M1-28a contracts.
 
-- [ ] **Step 3: Review the whole design-to-head range**
+- [x] **Step 3: Review the whole design-to-head range**
 
 Audit every changed file against the source row and design. Re-run invalid
 config, exact route/method/query/raw-path, HEAD/body/length, readiness
@@ -261,13 +261,13 @@ transition, concurrent race, metrics-label, module-isolation, root command,
 lockfile non-change, and status cases. Record Critical/Important/Minor counts
 and Ready Yes/No.
 
-- [ ] **Step 4: Fix every valid finding tests-first**
+- [x] **Step 4: Fix every valid finding tests-first**
 
 For each finding, add a focused failing case, witness RED, make the minimal
 production change, and rerun focused/adjacent/full gates. Repeat until review is
 Critical 0, Important 0, Minor 0, Ready Yes.
 
-- [ ] **Step 5: Record and commit review evidence**
+- [x] **Step 5: Record and commit review evidence**
 
 Run six final focused race passes, all module/service/repository gates, audits,
 syntax/diff/lockfile checks, and redacted staged/history/evidence scans. Update
