@@ -167,13 +167,13 @@ remains Pending throughout.
   plan's checkboxes.
 - Update ignored Task 5 and authoritative M1-18 reports/ledgers.
 
-- [ ] Capture the completion transition RED.
+- [x] Capture the completion transition RED.
 
   Require exactly one M1-18 Complete row, M1-17 Complete, M1-19 absent,
   unchanged blockers, overall `677/0/48/3`, and M1 `68/44/0/24/0` before
   changing status sources.
 
-- [ ] Move only M1-18 to Complete and repeat all final local gates.
+- [x] Move only M1-18 to Complete and repeat all final local gates.
 
   Commit message: `docs: complete M1-18 feature flags`.
 

@@ -396,7 +396,7 @@ npm run audit:emitter:test
 This command runs a hermetic fake driver. It performs no provider, database,
 network, Docker, credential, or shared-resource I/O. The hermetic boundary does
 not prove persistence, retention, export, or a generic event envelope. M1-18 is
-In progress.
+Complete.
 
 ## Feature flag contract
 
