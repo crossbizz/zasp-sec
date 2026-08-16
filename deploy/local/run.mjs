@@ -25,7 +25,10 @@ export const FAILURE_CATEGORIES = Object.freeze([
 const markerPattern = /^[0-9a-f]{16}$/;
 const digestPattern = /^sha256:[0-9a-f]{64}$/;
 const forbiddenEnvironmentPattern = /^(?:AWS_|AZURE_|GOOGLE_|CLOUDSDK_|KUBE(?:CONFIG|TOKEN)|DOCKER_HOST$|DOCKER_CONTEXT$|HTTP_PROXY$|HTTPS_PROXY$|ALL_PROXY$|NO_PROXY$)/i;
-const proofNamePattern = /^zasp-m1-30a-[0-9a-f]{16}$/;
+const proofNamePatterns = Object.freeze({
+  "m1-30a": /^zasp-m1-30a-[0-9a-f]{16}$/,
+  "m1-30b": /^zasp-m1-30b-[0-9a-f]{16}$/,
+});
 const objectIdPattern = /^[0-9a-f]{64}$/;
 const ipv4Pattern = /^(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)$/;
 const kubernetesUidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -86,9 +89,9 @@ export function buildKindConfig() {
   });
 }
 
-export function buildKindCreateArguments(input) {
+export function buildKindCreateArguments(input, proof = "m1-30a") {
   requireExactObject(input, ["cluster", "config", "kubeconfig"], "kind create input");
-  if (!proofNamePattern.test(input.cluster)) throw new TypeError("cluster name is invalid");
+  if (!validProofName(input.cluster, proof)) throw new TypeError("cluster name is invalid");
   validateAbsolutePath(input.config, "kind config");
   validateAbsolutePath(input.kubeconfig, "kubeconfig");
   return Object.freeze([
@@ -319,12 +322,12 @@ export async function runBounded(command, arguments_, options, spawnProcess = sp
   });
 }
 
-export function validateKubernetesState(value) {
+export function validateKubernetesState(value, proof = "m1-30a") {
   try {
     requireExactObject(value, [
       "deployments", "endpointSlices", "namespace", "nodeName", "pods", "replicaSets", "services",
     ], "Kubernetes state");
-    if (!proofNamePattern.test(value.nodeName.replace(/-control-plane$/, ""))) {
+    if (!validProofName(value.nodeName.replace(/-control-plane$/, ""), proof)) {
       throw new TypeError("node name is invalid");
     }
     validateNamespace(value.namespace);
@@ -464,11 +467,12 @@ export class DockerKindRuntime {
 }
 
 export class LocalProductSystem {
-  constructor(input, dependencies = undefined) {
+  constructor(input, dependencies = undefined, profile = undefined) {
     requireExactObject(input, ["home", "hostPlatform", "marker", "nodePlatform", "path", "repositoryRoot"], "runtime input");
     validateMarker(input.marker);
     this.input = Object.freeze({ ...input });
-    this.cluster = `zasp-m1-30a-${input.marker}`;
+    this.profile = validateSystemProfile(profile);
+    this.cluster = `zasp-${this.profile.proof}-${input.marker}`;
     this.dependencies = dependencies ?? defaultSystemDependencies();
     requireExactObject(this.dependencies, [
       "canonicalPath", "changeMode", "command", "fetchBytes", "hashBytes", "makeDirectory", "makeTemp",
@@ -494,6 +498,7 @@ export class LocalProductSystem {
     this.clusterMayHaveApplied = false;
     this.nodeIdentity = undefined;
     this.resourcesMayHaveApplied = false;
+    this.additionalManifestPaths = new Map();
   }
 
   async initialize(phase) {
@@ -508,7 +513,7 @@ export class LocalProductSystem {
     }
     phase.assertActive("configuration");
     if (!safeAbsolutePath(parent) || !Array.isArray(entries) || entries.some((entry) =>
-      typeof entry !== "string" || entry.startsWith("zasp-m1-30a-"))) {
+      typeof entry !== "string" || entry.startsWith(`zasp-${this.profile.proof}-`))) {
       throw new Failure("configuration");
     }
     this.dependencies.tempParent = parent;
@@ -539,6 +544,10 @@ export class LocalProductSystem {
       kindConfig: join(identity.path, "kind.json"),
       manifest: join(identity.path, "manifests.yaml"),
     };
+    for (const manifest of this.profile.manifests) {
+      paths[manifest.pathKey] = join(identity.path, manifest.name);
+      this.additionalManifestPaths.set(manifest.pathKey, paths[manifest.pathKey]);
+    }
     try {
       for (const path of [paths.home, paths.dockerConfig, paths.images, paths.goCache, paths.goModuleCache]) {
         await this.runFilesystemMutation(
@@ -553,6 +562,12 @@ export class LocalProductSystem {
         () => this.dependencies.writePath(paths.manifest, renderProductManifest(buildProductResources()), { mode: 0o600 }),
         phase, "configuration",
       );
+      for (const manifest of this.profile.manifests) {
+        await this.runFilesystemMutation(
+          () => this.dependencies.writePath(paths[manifest.pathKey], manifest.bytes, { mode: 0o600 }),
+          phase, "configuration",
+        );
+      }
     } catch {
       throw new Failure("configuration");
     }
@@ -562,6 +577,7 @@ export class LocalProductSystem {
       [paths.home, "directory"], [paths.dockerConfig, "directory"], [paths.images, "directory"],
       [paths.goCache, "directory"], [paths.goModuleCache, "directory"],
       [paths.kindConfig, "file"], [paths.manifest, "file"],
+      ...this.profile.manifests.map((manifest) => [paths[manifest.pathKey], "file"]),
     ]) await this.rememberOwnedPath(path, kind, phase, "configuration");
     const buildPaths = {
       contextRoot: paths.images,
@@ -598,6 +614,7 @@ export class LocalProductSystem {
     phase.assertActive(category);
     const allowed = allowFiles ? new Set([
       "docker", "go-build", "go-mod", "home", "images", "kind", "kind.json", "kubeconfig", "manifests.yaml",
+      ...this.profile.manifests.map(({ name }) => name),
     ]) : new Set();
     if (canonical !== value || !status?.isDirectory?.() || status?.isSymbolicLink?.() ||
         !Number.isSafeInteger(status.dev) || !Number.isSafeInteger(status.ino) ||
@@ -609,14 +626,14 @@ export class LocalProductSystem {
   async preflight(phase) {
     await this.requireTemporaryOwnership(phase, "ownership");
     const absenceChecks = [
-      ["docker", ["ps", "--all", "--quiet", "--no-trunc", "--filter", "name=^/zasp-m1-30a-"]],
-      ["docker", ["ps", "--all", "--quiet", "--no-trunc", "--filter", "label=zasp.dev/proof=m1-30a"]],
-      ["docker", ["network", "ls", "--quiet", "--no-trunc", "--filter", "name=^zasp-m1-30a-"]],
-      ["docker", ["network", "ls", "--quiet", "--no-trunc", "--filter", "label=zasp.dev/proof=m1-30a"]],
+      ["docker", ["ps", "--all", "--quiet", "--no-trunc", "--filter", `name=^/zasp-${this.profile.proof}-`]],
+      ["docker", ["ps", "--all", "--quiet", "--no-trunc", "--filter", `label=zasp.dev/proof=${this.profile.proof}`]],
+      ["docker", ["network", "ls", "--quiet", "--no-trunc", "--filter", `name=^zasp-${this.profile.proof}-`]],
+      ["docker", ["network", "ls", "--quiet", "--no-trunc", "--filter", `label=zasp.dev/proof=${this.profile.proof}`]],
       ...PRODUCTS.map((product) => [
         "docker", ["image", "ls", "--quiet", "--no-trunc", "--filter", `reference=${product.image}`],
       ]),
-      ["docker", ["image", "ls", "--quiet", "--no-trunc", "--filter", "label=zasp.dev/proof=m1-30a"]],
+      ["docker", ["image", "ls", "--quiet", "--no-trunc", "--filter", `label=zasp.dev/proof=${this.profile.proof}`]],
     ];
     for (const [command, arguments_] of absenceChecks) {
       const result = await this.runRead(command, arguments_, phase, "configuration");
@@ -636,6 +653,7 @@ export class LocalProductSystem {
         !/^v\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(document.clientVersion.gitVersion)) {
       throw new Failure("configuration");
     }
+    await this.runAdditionalPreflightChecks(phase);
     await this.requireTemporaryOwnership(phase, "ownership");
   }
 
@@ -777,6 +795,62 @@ export class LocalProductSystem {
     return result;
   }
 
+  async runKubectlMutation(arguments_, phase, category, timeoutMilliseconds = 90_000,
+    outputLimit = 4_194_304) {
+    const result = await this.withOwnedFiles([this.paths.kubeconfig], phase, "ownership", async ([kubeconfig]) =>
+      await this.runMutation("kubectl", ["--kubeconfig", "/dev/fd/3", ...arguments_], phase, category, {
+        environment: this.environment,
+        fileDescriptors: [kubeconfig.handle.fd],
+        outputLimit,
+        timeoutMilliseconds,
+      }),
+    );
+    await this.requireOwnedPath(this.paths.kubeconfig, phase, "ownership");
+    return result;
+  }
+
+  async runNodeRead(arguments_, phase, category, timeoutMilliseconds = 30_000, outputLimit = 4_194_304) {
+    if (!Array.isArray(arguments_) || arguments_.length === 0 ||
+        arguments_.some((value) => typeof value !== "string" || value.length === 0)) {
+      throw new Failure(category);
+    }
+    const retained = await this.verifyCluster(phase, "ownership");
+    const result = await this.runRead(
+      "docker", ["exec", retained.token, ...arguments_], phase, category, timeoutMilliseconds, outputLimit,
+    );
+    await this.verifyCluster(phase, "ownership");
+    return result;
+  }
+
+  async runNodeRaw(arguments_, phase, category, timeoutMilliseconds = 30_000, outputLimit = 4_194_304) {
+    if (!Array.isArray(arguments_) || arguments_.length === 0 ||
+        arguments_.some((value) => typeof value !== "string" || value.length === 0)) {
+      throw new Failure(category);
+    }
+    const retained = await this.verifyCluster(phase, "ownership");
+    const result = await this.runRaw(
+      "docker", ["exec", retained.token, ...arguments_], phase, category, timeoutMilliseconds, outputLimit,
+    );
+    await this.verifyCluster(phase, "ownership");
+    return result;
+  }
+
+  async runNodeMutation(arguments_, phase, category, timeoutMilliseconds = 90_000,
+    outputLimit = 4_194_304) {
+    if (!Array.isArray(arguments_) || arguments_.length === 0 ||
+        arguments_.some((value) => typeof value !== "string" || value.length === 0)) {
+      throw new Failure(category);
+    }
+    const retained = await this.verifyCluster(phase, "ownership");
+    const result = await this.runMutation("docker", ["exec", retained.token, ...arguments_], phase, category, {
+      environment: this.environment,
+      outputLimit,
+      timeoutMilliseconds,
+    });
+    await this.verifyCluster(phase, "ownership");
+    return result;
+  }
+
   async runMutation(command, arguments_, phase, category, options) {
     phase.assertActive(category);
     const settlement = this.journalMutation(async () => {
@@ -900,6 +974,7 @@ export class LocalProductSystem {
       }
       this.imageIdentities.set(product.name, identity);
     }
+    await this.buildAdditionalImages(phase);
     await this.requireTemporaryOwnership(phase, "ownership");
   }
   async createNetwork(phase) {
@@ -907,7 +982,7 @@ export class LocalProductSystem {
     this.networkMayHaveApplied = true;
     const created = await this.runMutation("docker", [
       "network", "create", "--driver", "bridge",
-      "--label", "zasp.dev/proof=m1-30a", "--label", `zasp.dev/run=${this.input.marker}`,
+      "--label", `zasp.dev/proof=${this.profile.proof}`, "--label", `zasp.dev/run=${this.input.marker}`,
       this.cluster,
     ], phase, "provider", {
       environment: this.environment, outputLimit: 16_384, timeoutMilliseconds: 30_000,
@@ -927,7 +1002,7 @@ export class LocalProductSystem {
   async networkCandidates(phase, category) {
     const found = new Map();
     for (const filter of [
-      `name=^${this.cluster}$`, "label=zasp.dev/proof=m1-30a", `label=zasp.dev/run=${this.input.marker}`,
+      `name=^${this.cluster}$`, `label=zasp.dev/proof=${this.profile.proof}`, `label=zasp.dev/run=${this.input.marker}`,
     ]) {
       const result = await this.runRead("docker", [
         "network", "ls", "--no-trunc", "--filter", filter, "--format", "{{.ID}}|{{.Name}}",
@@ -954,7 +1029,7 @@ export class LocalProductSystem {
     try { document = parseBoundedJson(singleLine(result.stdout), 16_384); } catch { throw new Failure(category); }
     if (!Array.isArray(document) || document.length !== 8 || document[0] !== retained.id ||
         document[1] !== this.cluster || document[2] !== "bridge" || document[3] !== false ||
-        !exactStringMap(document[4], { "zasp.dev/proof": "m1-30a", "zasp.dev/run": this.input.marker }) ||
+        !exactStringMap(document[4], { "zasp.dev/proof": this.profile.proof, "zasp.dev/run": this.input.marker }) ||
         !exactStringMap(document[5], {}) || !isPlainObject(document[6]) ||
         (requireEmpty && Object.keys(document[6]).length !== 0) || !validNetworkIPAM(document[7])) {
       throw new Failure(category);
@@ -972,7 +1047,7 @@ export class LocalProductSystem {
     this.clusterMayHaveApplied = true;
     const created = await this.runMutation(this.paths.kind, buildKindCreateArguments({
       cluster: this.cluster, config: this.paths.kindConfig, kubeconfig: this.paths.kubeconfig,
-    }), phase, "provider", {
+    }, this.profile.proof), phase, "provider", {
       environment: this.environment, outputLimit: 4_194_304, timeoutMilliseconds: 240_000,
     });
     if (created.outcome === "definitive") {
@@ -980,6 +1055,7 @@ export class LocalProductSystem {
       throw new Failure("provider");
     }
     await this.verifyCluster(phase, "ownership");
+    await this.prepareAdditionalNode(phase);
   }
 
   async nodeCandidates(phase, category) {
@@ -1011,7 +1087,7 @@ export class LocalProductSystem {
     const kubeconfig = this.pathIdentities.has(this.paths.kubeconfig)
       ? await this.requireOwnedPath(this.paths.kubeconfig, phase, category)
       : await this.rememberOwnedPath(this.paths.kubeconfig, "file", phase, category);
-    validateKubeconfigBytes(kubeconfig.bytes, this.cluster, identity.apiPort);
+    validateKubeconfigBytes(kubeconfig.bytes, this.cluster, identity.apiPort, this.profile.proof);
     this.nodeIdentity = identity;
     return identity;
   }
@@ -1033,6 +1109,7 @@ export class LocalProductSystem {
       "exec", this.nodeIdentity.token, "ctr", "--namespace", "k8s.io", "images", "list",
     ], phase, "provider", 30_000, 4_194_304);
     this.loadedImageTargets = parseContainerdImageTargets(listed.stdout, this.input.nodePlatform);
+    await this.loadAdditionalImages(phase);
     await this.verifyCluster(phase, "ownership");
   }
 
@@ -1075,6 +1152,25 @@ export class LocalProductSystem {
       ], phase, "readiness", 200_000, 4_194_304, { fileDescriptors: [kubeconfig.handle.fd] }),
     );
     await this.requireOwnedPath(this.paths.kubeconfig, phase, "ownership");
+    for (const path of this.additionalManifestPaths.values()) {
+      await this.verifyAdditionalManifestState(phase, path);
+      this.resourcesMayHaveApplied = true;
+      const additional = await this.withOwnedFiles(
+        [this.paths.kubeconfig, path], phase, "ownership", async ([kubeconfig, manifest]) =>
+          await this.runMutation("kubectl", [
+            "--kubeconfig", "/dev/fd/3", "apply", "--filename", "-",
+          ], phase, "provider", {
+            environment: this.environment,
+            fileDescriptors: [kubeconfig.handle.fd],
+            input: manifest.identity.bytes,
+            outputLimit: 4_194_304,
+            timeoutMilliseconds: 90_000,
+          }),
+      );
+      if (additional.outcome === "definitive") throw new Failure("provider");
+      await this.requireOwnedPath(path, phase, "ownership");
+      await this.requireOwnedPath(this.paths.kubeconfig, phase, "ownership");
+    }
   }
 
   async verifyReadiness(phase) {
@@ -1104,7 +1200,7 @@ export class LocalProductSystem {
     }
     if (documents.get("ingress").length !== 0) throw new Failure("readiness");
     const importedImages = await this.verifyImportedPodImages(documents.get("pod"), phase);
-    return validateKubernetesState({
+    const productResult = validateKubernetesState({
       deployments: documents.get("deployment").map(projectDeployment),
       endpointSlices: documents.get("endpointslice").map(projectEndpointSlice),
       namespace,
@@ -1112,7 +1208,8 @@ export class LocalProductSystem {
       pods: documents.get("pod").map((item) => projectPod(item, importedImages)),
       replicaSets: documents.get("replicaset").map(projectReplicaSet),
       services: documents.get("service").map(projectService),
-    });
+    }, this.profile.proof);
+    return await this.verifyAdditionalReadiness(productResult, phase);
   }
 
   async verifyImportedPodImages(pods, phase) {
@@ -1172,7 +1269,7 @@ export class LocalProductSystem {
     phase.assertActive(category);
     if (!isPlainObject(result) || typeof result.stdout !== "string" || typeof result.stderr !== "string" ||
         Buffer.byteLength(result.stdout) + Buffer.byteLength(result.stderr) > outputLimit ||
-        result.thrown === true || result.timedOut === true) throw new Failure(category);
+        result.signal !== null || result.thrown === true || result.timedOut === true) throw new Failure(category);
     return result;
   }
 
@@ -1206,11 +1303,13 @@ export class LocalProductSystem {
             this.clusterMayHaveApplied = false;
             this.resourcesMayHaveApplied = false;
             clusterAbsent = true;
+            await this.afterClusterAbsent(phase);
             return;
           }
           if (candidates.length !== 1) throw new Failure("cleanup");
         }
         await this.verifyCluster(phase, "cleanup");
+        await this.verifyAdditionalNodeForCleanup(phase);
         const token = this.nodeIdentity.token;
         const removed = await this.runMutation("docker", ["rm", "--force", "--volumes", token], phase,
           "cleanup", { environment: this.environment, outputLimit: 262_144, timeoutMilliseconds: 90_000 });
@@ -1219,6 +1318,7 @@ export class LocalProductSystem {
         clusterAbsent = true;
         this.clusterMayHaveApplied = false;
         this.resourcesMayHaveApplied = false;
+        await this.afterClusterAbsent(phase);
       });
     }
     if (this.networkMayHaveApplied && clusterAbsent) {
@@ -1245,6 +1345,7 @@ export class LocalProductSystem {
       });
     }
     if (clusterAbsent && networkAbsent) {
+      await this.cleanupAdditionalImages(step, phase);
       for (const product of [...PRODUCTS].reverse()) {
         let retained = this.imageIdentities.get(product.name);
         if (retained === undefined && this.imageMayHaveApplied.has(product.name)) {
@@ -1327,19 +1428,20 @@ export class LocalProductSystem {
 
   async requireGlobalAbsence(phase, category) {
     const checks = [
-      ["ps", "--all", "--quiet", "--no-trunc", "--filter", "name=^/zasp-m1-30a-"],
-      ["ps", "--all", "--quiet", "--no-trunc", "--filter", "label=zasp.dev/proof=m1-30a"],
-      ["network", "ls", "--quiet", "--no-trunc", "--filter", "name=^zasp-m1-30a-"],
-      ["network", "ls", "--quiet", "--no-trunc", "--filter", "label=zasp.dev/proof=m1-30a"],
+      ["ps", "--all", "--quiet", "--no-trunc", "--filter", `name=^/zasp-${this.profile.proof}-`],
+      ["ps", "--all", "--quiet", "--no-trunc", "--filter", `label=zasp.dev/proof=${this.profile.proof}`],
+      ["network", "ls", "--quiet", "--no-trunc", "--filter", `name=^zasp-${this.profile.proof}-`],
+      ["network", "ls", "--quiet", "--no-trunc", "--filter", `label=zasp.dev/proof=${this.profile.proof}`],
       ...PRODUCTS.map((product) => [
         "image", "ls", "--quiet", "--no-trunc", "--filter", `reference=${product.image}`,
       ]),
-      ["image", "ls", "--quiet", "--no-trunc", "--filter", "label=zasp.dev/proof=m1-30a"],
+      ["image", "ls", "--quiet", "--no-trunc", "--filter", `label=zasp.dev/proof=${this.profile.proof}`],
     ];
     for (const arguments_ of checks) {
       const result = await this.runRead("docker", arguments_, phase, category);
       if (result.stdout !== "") throw new Failure(category);
     }
+    await this.requireAdditionalGlobalAbsence(phase, category);
   }
 
   async cleanupTemporary(phase) {
@@ -1398,6 +1500,7 @@ export class LocalProductSystem {
     this.paths = undefined;
     this.environment = undefined;
     this.pathIdentities.clear();
+    this.additionalManifestPaths.clear();
   }
 
   async auditAbsence(phase) {
@@ -1407,7 +1510,7 @@ export class LocalProductSystem {
       try { await this.requireGlobalAbsence(phase, "cleanup"); } catch { failed = true; }
     }
     if (!this.clusterMayHaveApplied && !this.networkMayHaveApplied && this.imageIdentities.size === 0 &&
-        this.imageMayHaveApplied.size === 0) {
+        this.imageMayHaveApplied.size === 0 && !this.hasAdditionalRecoveryState()) {
       try { await this.cleanupTemporary(phase); } catch { failed = true; }
     } else {
       failed = true;
@@ -1415,9 +1518,21 @@ export class LocalProductSystem {
     let entries;
     try { entries = await this.dependencies.readDirectory(this.dependencies.tempParent); } catch { failed = true; }
     if (!Array.isArray(entries) || entries.some((entry) =>
-      typeof entry !== "string" || entry.startsWith("zasp-m1-30a-"))) failed = true;
+      typeof entry !== "string" || entry.startsWith(`zasp-${this.profile.proof}-`))) failed = true;
     if (failed) throw new Failure("cleanup");
   }
+
+  async runAdditionalPreflightChecks() {}
+  async buildAdditionalImages() {}
+  async prepareAdditionalNode() {}
+  async loadAdditionalImages() {}
+  async verifyAdditionalManifestState() {}
+  async verifyAdditionalReadiness(productResult) { return productResult; }
+  async verifyAdditionalNodeForCleanup() {}
+  async afterClusterAbsent() {}
+  async cleanupAdditionalImages() {}
+  async requireAdditionalGlobalAbsence() {}
+  hasAdditionalRecoveryState() { return false; }
 }
 
 function defaultSystemDependencies() {
@@ -1475,10 +1590,10 @@ export async function fetchBoundedAsset(url, limit, signal, fetchImplementation 
   return Buffer.concat(chunks);
 }
 
-function validateKubeconfigBytes(bytes, cluster, apiPort) {
+function validateKubeconfigBytes(bytes, cluster, apiPort, proof = "m1-30a") {
   try {
     if (!Buffer.isBuffer(bytes) || bytes.byteLength < 1 || bytes.byteLength > 1_048_576 ||
-        !proofNamePattern.test(cluster) || !/^\d{1,5}$/.test(apiPort)) {
+        !validProofName(cluster, proof) || !/^\d{1,5}$/.test(apiPort)) {
       throw new TypeError("kubeconfig is invalid");
     }
     const source = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
@@ -2592,6 +2707,32 @@ function normalizeFailure(error) {
 
 function validateMarker(value) {
   if (typeof value !== "string" || !markerPattern.test(value)) throw new TypeError("marker is invalid");
+}
+
+function validProofName(value, proof) {
+  return typeof value === "string" && proofNamePatterns[proof]?.test(value) === true;
+}
+
+function validateSystemProfile(value) {
+  if (value === undefined) return deepFreeze({ manifests: [], proof: "m1-30a" });
+  requireExactObject(value, ["manifests", "proof"], "system profile");
+  if (value.proof !== "m1-30b" || !Array.isArray(value.manifests) || value.manifests.length !== 1) {
+    throw new TypeError("system profile is invalid");
+  }
+  const names = new Set();
+  const pathKeys = new Set();
+  const manifests = value.manifests.map((manifest) => {
+    requireExactObject(manifest, ["bytes", "name", "pathKey"], "system manifest");
+    if (typeof manifest.bytes !== "string" || Buffer.byteLength(manifest.bytes) < 1 ||
+        Buffer.byteLength(manifest.bytes) > 262_144 || manifest.name !== "graph.yaml" ||
+        manifest.pathKey !== "graphManifest" || names.has(manifest.name) || pathKeys.has(manifest.pathKey)) {
+      throw new TypeError("system manifest is invalid");
+    }
+    names.add(manifest.name);
+    pathKeys.add(manifest.pathKey);
+    return { ...manifest };
+  });
+  return deepFreeze({ manifests, proof: value.proof });
 }
 
 function validateAbsolutePath(value, label) {

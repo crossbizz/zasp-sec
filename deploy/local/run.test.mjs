@@ -1210,6 +1210,9 @@ test("constructs a concrete process runtime without ambient kube authority", () 
   assert.equal(runtime.input.hostPlatform, process.platform === "darwin" ? `darwin/${process.arch === "arm64" ? "arm64" : "amd64"}` : `linux/${process.arch === "arm64" ? "arm64" : "amd64"}`);
   assert.equal(runtime.input.nodePlatform, process.arch === "arm64" ? "linux/arm64" : "linux/amd64");
   assert.match(runtime.input.marker, /^[0-9a-f]{16}$/);
+  assert.deepEqual(runtime.system.profile, { manifests: [], proof: "m1-30a" });
+  assert.equal(runtime.system.cluster, `zasp-m1-30a-${runtime.input.marker}`);
+  assert.deepEqual([...runtime.system.additionalManifestPaths], []);
 
   const nativeEnvironment = Object.create(Object.getPrototypeOf(process.env));
   nativeEnvironment.HOME = "/Users/test";
