@@ -560,8 +560,7 @@ The factory has no default remote server, performs no I/O during construction,
 and does not hand-write `/api/v1/` URLs. Authentication/session retrieval,
 reviewed operations, and UI integration remain later work. M1-23 is Complete.
 M1-24 is Complete. M1-25 is Complete. M1-26 is Complete. M1-27 is Complete;
-M1-28a is Complete. M1-28b is Complete, M1-28c is Complete, M1-28d is In
-progress, and M1-28 remains Pending. No OpenAPI operation was added by the coverage task
+M1-28a is Complete. M1-28b is Complete, M1-28c is Complete, M1-28d is Complete, and M1-28 remains Pending. No OpenAPI operation was added by the coverage task
 itself.
 
 ```bash
@@ -607,7 +606,7 @@ UI/API coverage passed: planned=5 available=0 public=0 internal=0.
 Failure is fixed as `UI/API coverage rejected.` without parser or artifact
 details. Both commands are part of root verification. M1-25 is Complete.
 M1-26 is Complete. M1-27 is Complete. M1-28a is Complete. M1-28b is Complete,
-M1-28c is Complete, M1-28d is In progress, and M1-28 remains Pending.
+M1-28c is Complete, M1-28d is Complete, and M1-28 remains Pending.
 
 ## Raw frontend Fetch lint
 
@@ -630,7 +629,7 @@ npm run lint
 ```
 
 The hostile suite is part of root verification. M1-27 is Complete. M1-28a is
-Complete. M1-28b is Complete, M1-28c is Complete, M1-28d is In progress, and
+Complete. M1-28b is Complete, M1-28c is Complete, M1-28d is Complete, and
 M1-28 remains Pending.
 
 ## Shared service health handler
@@ -649,9 +648,9 @@ npm run health:test
 The package itself does not open a listener and does not perform dependency I/O,
 provider calls, environment reads, or global mux registration. It defines
 handler behavior only; it does not authorize external exposure of these
-internal endpoints. Platform and event-ingest command wiring are complete under
-M1-28b and M1-28c; runtime-gateway wiring is M1-28d work. M1-28a is Complete.
-M1-28b is Complete. M1-28c is Complete, M1-28d is In progress, and M1-28
+internal endpoints. Platform, event-ingest, and runtime-gateway command wiring
+are complete under M1-28b, M1-28c, and M1-28d. M1-28a is Complete.
+M1-28b is Complete. M1-28c is Complete, M1-28d is Complete, and M1-28
 remains Pending.
 
 ## Platform health wiring
@@ -671,8 +670,7 @@ does not register on the default mux, reads no environment or provider state,
 and adds no product API route or worker queue loop. The `:8081` port is an
 internal process/container boundary; later deployment tasks own Services,
 network policy, and probe declarations. M1-28b is Complete after full local
-verification and zero-finding review. M1-28c is Complete, M1-28d is In
-progress, and M1-28 remains Pending.
+verification and zero-finding review. M1-28c is Complete, M1-28d is Complete, and M1-28 remains Pending.
 
 ## Neon pooled proof
 

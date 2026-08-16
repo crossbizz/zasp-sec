@@ -61,12 +61,12 @@ describe("M1-24 generated TypeScript client", () => {
 
     expect(readme).toContain("M1-24 is Complete");
     expect(tracker).toContain("| Pending | 664 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 60 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 61 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`664/1/60/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "31", "1", "36", "0"]);
-    expect(active.map(([task]) => task)).toEqual(["M1-28d"]);
+    expect(tracker).toContain("`664/0/61/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "31", "0", "37", "0"]);
+    expect(active.map(([task]) => task)).toEqual([]);
     expect(complete.filter(([task]) => task === "M1-24")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-23")).toHaveLength(1);
     expect(active.filter(([task]) => task === "M1-25")).toHaveLength(0);
