@@ -404,33 +404,35 @@ func proofOptions(cloud *fakeCloud) ProofOptions {
 }
 
 type fakeCloud struct {
-	marker                  string
-	key                     KMSKey
-	aliases                 map[string]string
-	bucket                  *fakeBucket
-	secret                  *SecretInfo
-	operations              []string
-	counts                  map[string]int
-	fail                    map[string]error
-	failOnce                map[string]error
-	failAt                  map[string]int
-	ambiguous               map[string]bool
-	mutateAt                map[string]int
-	mutateResource          string
-	panicAt                 string
-	cancel                  context.CancelFunc
-	wrongDecrypt            bool
-	wrongObjectKey          bool
-	foreignObject           bool
-	wrongSecretKey          bool
-	wrongSecretStage        bool
-	wrongSecretValue        bool
-	wrongKeySemantics       bool
-	opaqueETag              bool
-	eventual                map[string]int
-	invalidPutResponse      bool
-	extraKeys               []KMSKey
-	artifactAmbiguousBucket bool
+	marker                         string
+	key                            KMSKey
+	aliases                        map[string]string
+	bucket                         *fakeBucket
+	secret                         *SecretInfo
+	operations                     []string
+	counts                         map[string]int
+	fail                           map[string]error
+	failOnce                       map[string]error
+	failAt                         map[string]int
+	ambiguous                      map[string]bool
+	mutateAt                       map[string]int
+	mutateResource                 string
+	panicAt                        string
+	cancel                         context.CancelFunc
+	wrongDecrypt                   bool
+	wrongObjectKey                 bool
+	foreignObject                  bool
+	wrongSecretKey                 bool
+	wrongSecretStage               bool
+	wrongSecretValue               bool
+	wrongKeySemantics              bool
+	opaqueETag                     bool
+	eventual                       map[string]int
+	invalidPutResponse             bool
+	extraKeys                      []KMSKey
+	artifactAmbiguousBucket        bool
+	artifactRejectedKeyCollision   bool
+	artifactRejectedAliasCollision bool
 }
 
 type fakeBucket struct {
@@ -530,6 +532,9 @@ func (c *fakeCloud) CreateKey(_ context.Context, request CreateKeyRequest) (KMSK
 	c.key = c.expectedKey()
 	c.key.Description = request.Description
 	c.key.Tags = cloneStringMap(request.Tags)
+	if c.artifactRejectedKeyCollision {
+		return KMSKey{}, errMutationRejected
+	}
 	if c.wrongKeySemantics {
 		c.key.Spec, c.key.Manager = "RSA_2048", "AWS"
 	}
@@ -537,7 +542,7 @@ func (c *fakeCloud) CreateKey(_ context.Context, request CreateKeyRequest) (KMSK
 		return KMSKey{}, errProvider
 	}
 	if c.ambiguous["create-key"] {
-		return KMSKey{}, errProvider
+		return KMSKey{}, errMutationAmbiguous
 	}
 	return cloneKey(c.key), nil
 }
@@ -580,6 +585,9 @@ func (c *fakeCloud) CreateAlias(_ context.Context, alias, keyID string) error {
 		return err
 	}
 	c.aliases[alias] = keyID
+	if c.artifactRejectedAliasCollision {
+		return errMutationRejected
+	}
 	return nil
 }
 func (c *fakeCloud) ListAliases(_ context.Context, prefix string) ([]KMSAlias, error) {

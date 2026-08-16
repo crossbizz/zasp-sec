@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   LOCALSTACK_IMAGE,
   DockerRuntime,
+  artifactProofTimeoutMilliseconds,
   buildDockerRunArguments,
   buildGoToolEnvironment,
   buildProofEnvironment,
@@ -98,7 +99,7 @@ test("reconciles an ambiguous docker start only through exact current ownership"
       super({ path: "/safe/path", marker: "0123456789abcdef" });
       this.resolvedImageID = `sha256:${"b".repeat(64)}`;
       this.responses = [
-        { status: 1, stdout: "", stderr: "suppressed" },
+        { status: null, signal: "SIGKILL", stdout: "", stderr: "suppressed" },
         { status: 0, stdout: `${token}\n`, stderr: "" },
         { status: 0, stdout: `${token}|/${this.name}|${this.resolvedImageID}|${LOCALSTACK_IMAGE}|m0-07|${this.marker}\n`, stderr: "" },
       ];
@@ -108,6 +109,126 @@ test("reconciles an ambiguous docker start only through exact current ownership"
   const runtime = new ReconciledRuntime();
   assert.equal(await runtime.start(), token);
   assert.equal(runtime.responses.length, 0);
+});
+
+test("does not reconcile a definitive docker rejection and always lists full IDs", async () => {
+  const token = "a".repeat(64);
+  class RejectedRuntime extends DockerRuntime {
+    constructor() {
+      super({ path: "/safe/path", marker: "0123456789abcdef" });
+      this.resolvedImageID = `sha256:${"b".repeat(64)}`;
+      this.calls = [];
+      this.responses = [
+        { status: 125, signal: null, stdout: "", stderr: "suppressed" },
+        { status: 0, signal: null, stdout: `${token}\n`, stderr: "" },
+      ];
+    }
+    docker(args) { this.calls.push(args); return this.responses.shift(); }
+  }
+  const runtime = new RejectedRuntime();
+  await assert.rejects(runtime.start());
+  assert.equal(runtime.calls.length, 1);
+  assert.equal(runtime.hasCandidate(), false);
+
+  class ListingRuntime extends DockerRuntime {
+    constructor() {
+      super({ path: "/safe/path", marker: "0123456789abcdef" });
+      this.calls = [];
+    }
+    docker(args) {
+      this.calls.push(args);
+      const stdout = args[0] === "image" ? `sha256:${"b".repeat(64)}\n` : "";
+      return { status: 0, signal: null, stdout, stderr: "" };
+    }
+  }
+  const listing = new ListingRuntime();
+  listing.resolvedImageID = `sha256:${"b".repeat(64)}`;
+  await listing.ensureAbsent();
+  assert.ok(listing.calls[0].includes("--no-trunc"));
+});
+
+test("retains a direct candidate when docker start becomes ambiguous", async () => {
+  const token = "c".repeat(64);
+  class CandidateRuntime extends DockerRuntime {
+    constructor() {
+      super({ path: "/safe/path", marker: "0123456789abcdef" });
+      this.resolvedImageID = `sha256:${"b".repeat(64)}`;
+      this.responses = [
+        { status: null, signal: "SIGKILL", stdout: `${token}\n`, stderr: "" },
+        { status: 1, signal: null, stdout: "", stderr: "suppressed" },
+      ];
+    }
+    docker() { return this.responses.shift(); }
+  }
+  const runtime = new CandidateRuntime();
+  await assert.rejects(runtime.start());
+  assert.equal(runtime.hasCandidate(), true);
+  assert.equal(runtime.token, token);
+});
+
+test("requires retained full-ID absence even when the exact name is absent", async () => {
+  const token = "d".repeat(64);
+  class RenamedRuntime extends DockerRuntime {
+    constructor() {
+      super({ path: "/safe/path", marker: "0123456789abcdef" });
+      this.token = token;
+    }
+    docker(args) {
+      if (args[0] === "inspect") return { status: 1, signal: null, stdout: "", stderr: "not found" };
+      if (args.includes(`id=${token}`)) return { status: 0, signal: null, stdout: `${token}\n`, stderr: "" };
+      return { status: 0, signal: null, stdout: "", stderr: "" };
+    }
+  }
+  await assert.rejects(new RenamedRuntime().requireAbsent());
+});
+
+function directoryStat(dev, ino) {
+  return { dev, ino, isDirectory: () => true, isSymbolicLink: () => false };
+}
+
+test("revalidates exact temporary-directory identity before recursive removal", async () => {
+  const directory = "/safe/tmp/zasp-m1-12-owned";
+  const removals = [];
+  let statCalls = 0;
+  const commands = [];
+  const command = (executable, args, options) => {
+    commands.push({ executable, args, options });
+    if (executable === "go" && args[0] === "env") {
+      return { status: 0, signal: null, stdout: JSON.stringify({ GOCACHE: "/safe/cache", GOMODCACHE: "/safe/mod" }), stderr: "" };
+    }
+    if (executable === "go") return { status: 0, signal: null, stdout: "", stderr: "" };
+    return { status: 0, signal: null, stdout: "LocalStack artifact store passed: put=true get=true delete=true scoped=true encrypted=true cleanup=true audit=true.\n", stderr: "" };
+  };
+  const runtime = new DockerRuntime({
+    path: "/safe/path", home: "/safe/home", marker: "0123456789abcdef", mode: "artifact",
+    command, makeTemp: () => directory, removeTemp: (...args) => removals.push(args), tempParent: "/safe/tmp",
+    canonicalPath: (value) => value,
+    statPath: () => (++statCalls === 1 ? directoryStat(1, 2) : directoryStat(1, 3)),
+  });
+  assert.equal(await runtime.runProof("http://127.0.0.1:49152"), 1);
+  assert.equal(removals.length, 0);
+  const proof = commands.find(({ executable }) => executable.includes("artifact-store-proof"));
+  assert.equal(proof.options.timeout, artifactProofTimeoutMilliseconds);
+  assert.equal(proof.options.killSignal, "SIGKILL");
+});
+
+test("removes only an unchanged exact owned temporary directory", async () => {
+  const directory = "/safe/tmp/zasp-m1-12-owned";
+  const removals = [];
+  const command = (executable, args) => {
+    if (executable === "go" && args[0] === "env") {
+      return { status: 0, signal: null, stdout: JSON.stringify({ GOCACHE: "/safe/cache", GOMODCACHE: "/safe/mod" }), stderr: "" };
+    }
+    if (executable === "go") return { status: 0, signal: null, stdout: "", stderr: "" };
+    return { status: 0, signal: null, stdout: "LocalStack artifact store passed: put=true get=true delete=true scoped=true encrypted=true cleanup=true audit=true.\n", stderr: "" };
+  };
+  const runtime = new DockerRuntime({
+    path: "/safe/path", home: "/safe/home", marker: "0123456789abcdef", mode: "artifact",
+    command, makeTemp: () => directory, removeTemp: (...args) => removals.push(args), tempParent: "/safe/tmp",
+    canonicalPath: (value) => value, statPath: () => directoryStat(1, 2),
+  });
+  assert.equal(await runtime.runProof("http://127.0.0.1:49152"), 0);
+  assert.deepEqual(removals, [[directory, { recursive: true, force: false, maxRetries: 0 }]]);
 });
 
 test("cleans a retained exact candidate when start ownership verification throws", async () => {

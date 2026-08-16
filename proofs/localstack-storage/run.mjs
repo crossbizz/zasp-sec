@@ -1,9 +1,9 @@
 import { spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { mkdtempSync, rmSync } from "node:fs";
+import { lstatSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
 import http from "node:http";
 import { tmpdir } from "node:os";
-import { isAbsolute, join } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // Replaced with the locally verified official 4.7.0 repository digest before
@@ -136,48 +136,114 @@ export async function orchestrate(runtime, options = {}) {
 export class DockerRuntime {
   static image = LOCALSTACK_IMAGE;
 
-  constructor({ path = process.env.PATH, marker, randomBytesSource = randomBytes, mode = STORAGE_MODE } = {}) {
+  constructor({
+    path = process.env.PATH,
+    home = process.env.HOME,
+    marker,
+    randomBytesSource = randomBytes,
+    mode = STORAGE_MODE,
+    command = spawnSync,
+    makeTemp = mkdtempSync,
+    removeTemp = rmSync,
+    tempParent = tmpdir(),
+    canonicalPath = realpathSync,
+    statPath = lstatSync,
+  } = {}) {
     const configuration = modeConfiguration(mode);
     if (marker === undefined) marker = randomBytesSource(8).toString("hex");
-    if (typeof path !== "string" || path.length === 0 || !/^[a-f0-9]{16}$/.test(marker)) throw categorized("configuration");
+    if (typeof path !== "string" || path.length === 0 || !isAbsolute(home ?? "") || !isAbsolute(tempParent ?? "") ||
+      !/^[a-f0-9]{16}$/.test(marker) || typeof command !== "function" || typeof makeTemp !== "function" ||
+      typeof removeTemp !== "function" || typeof canonicalPath !== "function" || typeof statPath !== "function") {
+      throw categorized("configuration");
+    }
+    let canonicalTempParent;
+    try { canonicalTempParent = canonicalPath(tempParent); } catch { throw categorized("configuration"); }
+    if (typeof canonicalTempParent !== "string" || !isAbsolute(canonicalTempParent) || resolve(canonicalTempParent) !== canonicalTempParent) {
+      throw categorized("configuration");
+    }
     this.path = path;
+    this.home = home;
     this.mode = mode;
     this.configuration = configuration;
     this.name = `${configuration.namePrefix}${marker}`;
     this.marker = marker;
     this.successLine = configuration.successLine;
     this.failureLine = configuration.failureLine;
+    this.command = command;
+    this.makeTemp = makeTemp;
+    this.removeTemp = removeTemp;
+    this.tempParent = canonicalTempParent;
+    this.canonicalPath = canonicalPath;
+    this.statPath = statPath;
     this.token = undefined;
+    this.startUncertain = false;
     this.resolvedImageID = undefined;
   }
 
-  docker(args) {
-    return spawnSync("docker", args, { env: { PATH: this.path }, encoding: "utf8", timeout: 30_000, maxBuffer: 1024 * 1024 });
+  ownedTemporaryDirectory(value) {
+    if (typeof value !== "string" || !isAbsolute(value) || resolve(value) !== value) return undefined;
+    let status;
+    let canonical;
+    try { status = this.statPath(value); canonical = this.canonicalPath(value); } catch { return undefined; }
+    if (!status?.isDirectory?.() || status?.isSymbolicLink?.() || !Number.isSafeInteger(status.dev) ||
+      !Number.isSafeInteger(status.ino) || canonical !== value || !isAbsolute(canonical) || resolve(canonical) !== canonical) {
+      return undefined;
+    }
+    const prefix = join(this.tempParent, this.configuration.temporaryPrefix);
+    if (dirname(canonical) !== this.tempParent || !canonical.startsWith(prefix) || canonical.length === prefix.length) return undefined;
+    return { path: canonical, dev: status.dev, ino: status.ino };
   }
 
-  hasCandidate() { return idPattern.test(this.token ?? ""); }
+  stillOwnsTemporaryDirectory(identity) {
+    const current = this.ownedTemporaryDirectory(identity?.path);
+    return current !== undefined && current.path === identity.path && current.dev === identity.dev && current.ino === identity.ino;
+  }
+
+  docker(args) {
+    return this.command("docker", args, { env: { PATH: this.path }, encoding: "utf8", timeout: 30_000, killSignal: "SIGKILL", maxBuffer: 1024 * 1024 });
+  }
+
+  hasCandidate() { return this.startUncertain || idPattern.test(this.token ?? ""); }
+
+  namedCandidates() {
+    const result = this.docker(["ps", "--all", "--no-trunc", "--filter", `name=^/${this.name}$`, "--format", "{{.ID}}"]) ?? {};
+    return { result, candidates: String(result.stdout ?? "").trim().split("\n").filter(Boolean) };
+  }
+
+  retainedIDCandidates() {
+    if (!idPattern.test(this.token ?? "")) return { result: { status: 0 }, candidates: [] };
+    const result = this.docker(["ps", "--all", "--no-trunc", "--filter", `id=${this.token}`, "--format", "{{.ID}}"]) ?? {};
+    return { result, candidates: String(result.stdout ?? "").trim().split("\n").filter(Boolean) };
+  }
 
   async ensureAbsent() {
-    const result = this.docker(["ps", "--all", "--filter", `name=^/${this.name}$`, "--format", "{{.ID}}"]);
-    if (result.status !== 0 || result.stdout.trim() !== "") throw categorized("operation");
+    const existing = this.namedCandidates();
+    if (existing.result.status !== 0 || existing.candidates.length !== 0) throw categorized("operation");
     const image = this.docker(["image", "inspect", "--format", "{{.Id}}", LOCALSTACK_IMAGE]);
-    const imageID = image.stdout.trim();
+    const imageID = String(image?.stdout ?? "").trim();
     if (image.status !== 0 || !/^sha256:[a-f0-9]{64}$/.test(imageID)) throw categorized("operation");
     this.resolvedImageID = imageID;
   }
 
   async start() {
-    const result = this.docker(buildDockerRunArguments(this.name, this.mode));
-    const token = result.stdout.trim();
+    this.startUncertain = true;
+    const result = this.docker(buildDockerRunArguments(this.name, this.mode)) ?? {};
+    const token = String(result.stdout ?? "").trim();
+    if (idPattern.test(token)) this.token = token;
     if (result.status === 0 && idPattern.test(token)) {
-      this.token = token;
+      this.startUncertain = false;
       return token;
     }
-    const listed = this.docker(["ps", "--all", "--filter", `name=^/${this.name}$`, "--format", "{{.ID}}"]);
-    const candidates = listed.stdout.trim().split("\n").filter(Boolean);
-    if (listed.status !== 0 || candidates.length !== 1 || !idPattern.test(candidates[0])) throw categorized("operation");
-    this.token = candidates[0];
+    if (Number.isInteger(result.status) && result.status !== 0 && result.signal == null && result.error == null) {
+      this.startUncertain = false;
+      this.token = undefined;
+      throw categorized("operation");
+    }
+    const listed = this.namedCandidates();
+    if (listed.result.status !== 0 || listed.candidates.length !== 1 || !idPattern.test(listed.candidates[0])) throw categorized("operation");
+    this.token = listed.candidates[0];
     await this.verifyOwned(this.token);
+    this.startUncertain = false;
     return this.token;
   }
 
@@ -246,50 +312,73 @@ export class DockerRuntime {
   }
 
   async runProof(endpoint) {
-    const goEnvironment = spawnSync("go", ["env", "-json", "GOCACHE", "GOMODCACHE"], {
-      env: { PATH: this.path, HOME: process.env.HOME, GOENV: "off" }, encoding: "utf8", timeout: 10_000, maxBuffer: 16_384,
+    const goEnvironment = this.command("go", ["env", "-json", "GOCACHE", "GOMODCACHE"], {
+      env: { PATH: this.path, HOME: this.home, GOENV: "off" }, encoding: "utf8", timeout: 10_000, killSignal: "SIGKILL", maxBuffer: 16_384,
     });
-    if (goEnvironment.status !== 0) return 1;
+    if (goEnvironment?.status !== 0) return 1;
     let caches;
     try { caches = JSON.parse(goEnvironment.stdout); } catch { return 1; }
     if (!isAbsolute(caches.GOCACHE ?? "") || !isAbsolute(caches.GOMODCACHE ?? "")) return 1;
-    const temporaryDirectory = mkdtempSync(join(tmpdir(), this.configuration.temporaryPrefix));
-    const executable = join(temporaryDirectory, this.configuration.executable);
+    let temporaryDirectory;
+    let temporaryIdentity;
     let code = 1;
     try {
-      const build = spawnSync("go", ["build", "-mod=readonly", "-o", executable, "."], {
+      const candidate = this.makeTemp(join(this.tempParent, this.configuration.temporaryPrefix));
+      temporaryIdentity = this.ownedTemporaryDirectory(candidate);
+      if (temporaryIdentity === undefined) return 1;
+      temporaryDirectory = temporaryIdentity.path;
+      const executable = join(temporaryDirectory, this.configuration.executable);
+      const build = this.command("go", ["build", "-trimpath", "-mod=readonly", "-o", executable, "."], {
         cwd: proofDirectory,
         env: buildGoToolEnvironment(this.path, caches.GOCACHE, caches.GOMODCACHE),
         encoding: "utf8",
-        timeout: this.configuration.proofTimeoutMilliseconds,
+        timeout: 90_000,
+        killSignal: "SIGKILL",
         maxBuffer: 1024 * 1024,
       });
-      if (build.status !== 0 || build.stdout.trim() !== "" || build.stderr.trim() !== "") return resultCode(build);
-      const result = spawnSync(executable, this.configuration.proofArguments, {
+      if (build?.status !== 0 || build.stdout !== "" || build.stderr !== "") return resultCode(build);
+      const result = this.command(executable, this.configuration.proofArguments, {
         cwd: proofDirectory,
         env: buildProofEnvironment(endpoint, this.path),
         encoding: "utf8",
-        timeout: 90_000,
+        timeout: this.configuration.proofTimeoutMilliseconds,
+        killSignal: "SIGKILL",
         maxBuffer: 1024 * 1024,
       });
-      if (result.status === 0 && result.stdout.trim() === this.configuration.childSuccess && result.stderr.trim() === "") code = 0;
+      if (result?.status === 0 && result.stdout === `${this.configuration.childSuccess}\n` && result.stderr === "") code = 0;
       else code = resultCode(result);
+    } catch {
+      code = 1;
     } finally {
-      try { rmSync(temporaryDirectory, { recursive: true, force: false }); } catch { code = 1; }
+      if (temporaryIdentity !== undefined) {
+        try {
+          if (!this.stillOwnsTemporaryDirectory(temporaryIdentity)) code = 1;
+          else this.removeTemp(temporaryDirectory, { recursive: true, force: false, maxRetries: 0 });
+        } catch { code = 1; }
+      }
     }
     return code;
   }
 
   async remove() {
+    if (!idPattern.test(this.token ?? "")) {
+      const listed = this.namedCandidates();
+      if (listed.result.status !== 0 || listed.candidates.length > 1 ||
+        (listed.candidates.length === 1 && !idPattern.test(listed.candidates[0]))) throw categorized("cleanup");
+      if (listed.candidates.length === 0) return;
+      this.token = listed.candidates[0];
+    }
     await this.verifyOwned(this.token);
     const result = this.docker(["rm", "--force", this.token]);
     if (result.status !== 0 || result.stdout.trim() !== this.token) throw categorized("cleanup");
   }
 
   async requireAbsent() {
-    const byID = this.docker(["inspect", this.token]);
-    const byName = this.docker(["ps", "--all", "--filter", `name=^/${this.name}$`, "--format", "{{.ID}}"]);
-    if (byID.status === 0 || byName.status !== 0 || byName.stdout.trim() !== "") throw categorized("cleanup");
+    if (idPattern.test(this.token ?? "") && this.docker(["inspect", this.token]).status === 0) throw categorized("cleanup");
+    const byID = this.retainedIDCandidates();
+    if (byID.result.status !== 0 || byID.candidates.length !== 0) throw categorized("cleanup");
+    const byName = this.namedCandidates();
+    if (byName.result.status !== 0 || byName.candidates.length !== 0) throw categorized("cleanup");
   }
 }
 

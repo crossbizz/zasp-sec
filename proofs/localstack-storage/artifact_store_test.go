@@ -189,6 +189,37 @@ func TestRunArtifactStoreProofReconcilesAnExactAmbiguousBucket(t *testing.T) {
 	}
 }
 
+func TestRunArtifactStoreProofNeverAdoptsDefinitivelyRejectedKMSCollisions(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		name      string
+		configure func(*fakeCloud)
+	}{
+		{name: "key", configure: func(cloud *fakeCloud) { cloud.artifactRejectedKeyCollision = true }},
+		{name: "alias", configure: func(cloud *fakeCloud) { cloud.artifactRejectedAliasCollision = true }},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			marker := "0123456789abcdef"
+			cloud := newFakeCloud(marker)
+			test.configure(cloud)
+			_, err := RunArtifactStoreProof(context.Background(), ArtifactProofOptions{
+				Endpoint: "http://127.0.0.1:4566", Marker: marker, KMS: cloud, S3: cloud,
+				CleanupTimeout: time.Second, PollInterval: time.Millisecond,
+			})
+			if !errors.Is(err, errProvider) {
+				t.Fatalf("RunArtifactStoreProof() error = %v", err)
+			}
+			if test.name == "key" && slicesContains(cloud.operations, "schedule-key-deletion") {
+				t.Fatalf("definitively rejected key was adopted: %#v", cloud.operations)
+			}
+			if test.name == "alias" && slicesContains(cloud.operations, "delete-alias") {
+				t.Fatalf("definitively rejected alias was adopted: %#v", cloud.operations)
+			}
+		})
+	}
+}
+
 func TestRunArtifactStoreProofCleanupFailureWinsAndContinues(t *testing.T) {
 	t.Parallel()
 
@@ -204,6 +235,24 @@ func TestRunArtifactStoreProofCleanupFailureWinsAndContinues(t *testing.T) {
 	}
 	if len(cloud.aliases) != 0 || cloud.key.State != keyStatePendingDeletion || !slicesContains(cloud.operations, "list-buckets") {
 		t.Fatalf("cleanup did not continue = operations %#v aliases %#v key %#v", cloud.operations, cloud.aliases, cloud.key)
+	}
+}
+
+func TestRunArtifactStoreProofContainsCleanupPanicsAndContinues(t *testing.T) {
+	t.Parallel()
+
+	marker := "0123456789abcdef"
+	cloud := newFakeCloud(marker)
+	cloud.panicAt = "delete-bucket"
+	_, err := RunArtifactStoreProof(context.Background(), ArtifactProofOptions{
+		Endpoint: "http://127.0.0.1:4566", Marker: marker, KMS: cloud, S3: cloud,
+		CleanupTimeout: time.Second, PollInterval: time.Millisecond,
+	})
+	if !errors.Is(err, errCleanup) {
+		t.Fatalf("RunArtifactStoreProof() error = %v", err)
+	}
+	if len(cloud.aliases) != 0 || cloud.key.State != keyStatePendingDeletion {
+		t.Fatalf("cleanup panic stopped later cleanup: operations %#v", cloud.operations)
 	}
 }
 

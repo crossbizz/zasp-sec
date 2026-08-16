@@ -273,6 +273,9 @@ func preflight(ctx context.Context, options ProofOptions) error {
 func createOwnedKey(ctx context.Context, client kmsAPI, marker string, targets *cleanupTargets) (*KMSKey, error) {
 	request := CreateKeyRequest{Description: description(marker), Tags: proofTags(marker, "kms-key")}
 	created, createErr := client.CreateKey(ctx, request)
+	if createErr != nil && !errors.Is(createErr, errMutationAmbiguous) {
+		return nil, errProvider
+	}
 	if createErr == nil && validCreatedKeyCandidate(created, marker) {
 		created.Tags = cloneStringMap(request.Tags)
 		targets.key = &created
@@ -334,6 +337,9 @@ func proveOwnedKey(ctx context.Context, client kmsAPI, keyID, marker, expectedSt
 func createOwnedAlias(ctx context.Context, client kmsAPI, marker string, key *KMSKey, targets *cleanupTargets) (*KMSAlias, error) {
 	name := aliasName(marker)
 	createErr := client.CreateAlias(ctx, name, key.ID)
+	if createErr != nil && !errors.Is(createErr, errMutationAmbiguous) {
+		return nil, errProvider
+	}
 	if createErr == nil {
 		targets.alias = &KMSAlias{Name: name, KeyID: key.ID}
 	}

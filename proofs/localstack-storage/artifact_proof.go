@@ -175,6 +175,9 @@ func preflightArtifactStorage(ctx context.Context, options ArtifactProofOptions)
 func createArtifactKey(ctx context.Context, client kmsAPI, marker string, targets *artifactCleanupTargets) (*KMSKey, error) {
 	request := CreateKeyRequest{Description: artifactDescription(marker), Tags: artifactLifecycleTags(marker, "artifact-key")}
 	created, createErr := client.CreateKey(ctx, request)
+	if createErr != nil && !errors.Is(createErr, errMutationAmbiguous) {
+		return nil, errProvider
+	}
 	if createErr == nil && validKeyIdentity(created) && created.Description == request.Description {
 		created.Tags = cloneStringMap(request.Tags)
 		targets.key = &created
@@ -226,6 +229,9 @@ func proveArtifactKey(ctx context.Context, client kmsAPI, keyID, marker, state s
 func createArtifactAlias(ctx context.Context, client kmsAPI, marker string, key *KMSKey, targets *artifactCleanupTargets) (*KMSAlias, error) {
 	name := artifactAliasName(marker)
 	createErr := client.CreateAlias(ctx, name, key.ID)
+	if createErr != nil && !errors.Is(createErr, errMutationAmbiguous) {
+		return nil, errProvider
+	}
 	if createErr == nil {
 		targets.alias = &KMSAlias{Name: name, KeyID: key.ID}
 	}
@@ -276,22 +282,39 @@ func cleanupArtifactStorage(options ArtifactProofOptions, targets *artifactClean
 	ctx, cancel := context.WithTimeout(context.Background(), options.CleanupTimeout)
 	defer cancel()
 	failed := false
-	if targets.object != nil && cleanupArtifactObject(ctx, options.S3, options.Marker, targets.key, targets.bucket, targets.object, options.PollInterval) != nil {
+	if targets.object != nil && artifactCleanupStep(func() error {
+		return cleanupArtifactObject(ctx, options.S3, options.Marker, targets.key, targets.bucket, targets.object, options.PollInterval)
+	}) != nil {
 		failed = true
 	}
-	if targets.bucket != nil && cleanupArtifactBucket(ctx, options.S3, options.Marker, targets.key, targets.bucket, options.PollInterval) != nil {
+	if targets.bucket != nil && artifactCleanupStep(func() error {
+		return cleanupArtifactBucket(ctx, options.S3, options.Marker, targets.key, targets.bucket, options.PollInterval)
+	}) != nil {
 		failed = true
 	}
-	if targets.alias != nil && cleanupArtifactAlias(ctx, options.KMS, options.Marker, targets.key, targets.alias, options.PollInterval) != nil {
+	if targets.alias != nil && artifactCleanupStep(func() error {
+		return cleanupArtifactAlias(ctx, options.KMS, options.Marker, targets.key, targets.alias, options.PollInterval)
+	}) != nil {
 		failed = true
 	}
-	if targets.key != nil && cleanupArtifactKey(ctx, options.KMS, options.Marker, targets.key, options.PollInterval) != nil {
+	if targets.key != nil && artifactCleanupStep(func() error {
+		return cleanupArtifactKey(ctx, options.KMS, options.Marker, targets.key, options.PollInterval)
+	}) != nil {
 		failed = true
 	}
 	if failed {
 		return errCleanup
 	}
 	return nil
+}
+
+func artifactCleanupStep(run func() error) (resultErr error) {
+	defer func() {
+		if recover() != nil {
+			resultErr = errCleanup
+		}
+	}()
+	return run()
 }
 
 func cleanupArtifactObject(ctx context.Context, client s3API, marker string, key *KMSKey, bucket *BucketState, target *PutObjectRequest, interval time.Duration) error {

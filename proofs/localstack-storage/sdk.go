@@ -135,8 +135,11 @@ func (s *sdkKMS) CreateKey(ctx context.Context, request CreateKeyRequest) (KMSKe
 		options.Retryer = aws.NopRetryer{}
 		options.RetryMaxAttempts = 1
 	})
-	if err != nil || output == nil || output.KeyMetadata == nil {
-		return KMSKey{}, errProvider
+	if err != nil {
+		return KMSKey{}, classifyMutationError(err)
+	}
+	if output == nil || output.KeyMetadata == nil {
+		return KMSKey{}, errMutationAmbiguous
 	}
 	return fromKMSMetadata(*output.KeyMetadata), nil
 }
