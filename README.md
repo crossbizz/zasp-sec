@@ -203,6 +203,15 @@ bounded concurrency, transient-only retry classification, and capped
 exponential backoff with jitter. Read-only and explicitly idempotent operations
 may retry; non-idempotent mutations are never retried.
 
+## Idempotency helper
+
+M1-09 is In progress. An Organization-scoped idempotency request binds its
+operation, caller key, and exact request fingerprint before any side effect.
+Only the unique acquired claim executes; completed duplicates return the prior
+canonical product result. In-progress, conflicting, failed, canceled, panicked,
+or unknown outcomes remain in progress for explicit reconciliation and are not
+executed automatically.
+
 ## Neon pooled proof
 
 The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,

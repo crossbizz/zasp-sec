@@ -17,12 +17,12 @@ request helper that returns a prior canonical result for completed duplicates.
 
 ### Task 1: Start M1-09
 
-- [ ] Add a repository contract binding source, PRD reliability rules, design,
+- [x] Add a repository contract binding source, PRD reliability rules, design,
   plan, completed M1-08, unique active status, arithmetic, and blockers.
-- [ ] Capture focused RED at the still-Pending README/tracker state.
-- [ ] Move only M1-09 to In progress at `686/1/38/3` overall and M1
+- [x] Capture focused RED at the still-Pending README/tracker state.
+- [x] Move only M1-09 to In progress at `686/1/38/3` overall and M1
   `68/53/1/14/0`; document the idempotency boundary.
-- [ ] Run focused/full pinned GREEN, audit, whitespace, and scans; commit
+- [x] Run focused/full pinned GREEN, audit, whitespace, and scans; commit
   `docs: start M1-09 idempotency helper`.
 
 ### Task 2: Implement the helper tests-first
