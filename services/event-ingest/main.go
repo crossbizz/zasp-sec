@@ -1,21 +1,81 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"io"
+	"net"
 	"os"
+	"os/signal"
+	"syscall"
 )
+
+const healthListenAddress = ":8081"
 
 var (
 	buildVersion           = "dev"
 	errInvalidBuildVersion = errors.New("invalid build version")
 	errOutputUnavailable   = errors.New("output unavailable")
+	errRuntimeUnavailable  = errors.New("runtime unavailable")
 )
 
 func main() {
-	if err := run(os.Stdout, buildVersion); err != nil {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	if err := serveProcess(ctx, os.Stdout, buildVersion, net.Listen); err != nil {
 		os.Exit(1)
 	}
+}
+
+func serveProcess(ctx context.Context, output io.Writer, version string, listen func(string, string) (net.Listener, error)) (result error) {
+	var candidate net.Listener
+	defer func() {
+		if recover() == nil {
+			return
+		}
+		if !invalidRuntimeValue(candidate) {
+			_ = candidate.Close()
+		}
+		result = errRuntimeUnavailable
+	}()
+
+	if !validBuildVersion(version) {
+		return errInvalidBuildVersion
+	}
+	if invalidRuntimeValue(ctx) || invalidRuntimeValue(output) || listen == nil {
+		return errRuntimeUnavailable
+	}
+	server, err := newHealthServer(healthServerConfig{service: "event-ingest", version: version})
+	if err != nil {
+		return errRuntimeUnavailable
+	}
+	if ctx.Err() != nil {
+		return nil
+	}
+	listener, err := listen("tcp", healthListenAddress)
+	if err != nil {
+		if !invalidRuntimeValue(listener) {
+			if closeErr := listener.Close(); closeErr != nil {
+				return errRuntimeUnavailable
+			}
+		}
+		return err
+	}
+	if invalidRuntimeValue(listener) {
+		return errRuntimeUnavailable
+	}
+	candidate = listener
+	if err := run(output, version); err != nil {
+		closeErr := listener.Close()
+		candidate = nil
+		if closeErr != nil {
+			return errRuntimeUnavailable
+		}
+		return err
+	}
+	result = server.Serve(ctx, listener)
+	candidate = nil
+	return result
 }
 
 func run(output io.Writer, version string) error {

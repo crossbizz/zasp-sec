@@ -54,7 +54,8 @@ describe("M1-01f event ingest command repository contract", () => {
 
     expect(readme).toContain("M1-01f is Complete");
     expect(readme).toContain("event-ingest build <version>");
-    expect(readme).toContain("does not accept events or start a listener");
+    expect(readme).toContain("still does not accept or normalize events");
+    expect(readme).toContain("M1-28c now wires the shared internal health handler");
     expect(tracker).toContain("| Pending | 665 |");
     expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 59 |");
@@ -72,18 +73,21 @@ describe("M1-01f event ingest command repository contract", () => {
     expect(tracker).toContain("R-11 remains Not run");
   });
 
-  it("keeps ingest in its standalone module with only version output", async () => {
+  it("keeps ingest standalone and preserves its version boundary through later health wiring", async () => {
     const [goModule, command, commandTest] = await Promise.all([
       readFile(resolve(repositoryRoot, "services/event-ingest/go.mod"), "utf8"),
       readFile(resolve(repositoryRoot, "services/event-ingest/main.go"), "utf8"),
       readFile(resolve(repositoryRoot, "services/event-ingest/main_test.go"), "utf8"),
     ]);
 
-    expect(goModule).toBe("module github.com/zasp-ai/zasp-sec/services/event-ingest\n\ngo 1.25.0\n");
+    expect(goModule).toContain("module github.com/zasp-ai/zasp-sec/services/event-ingest");
+    expect(goModule).toContain("require github.com/zasp-ai/zasp-sec/services/health v0.0.0");
+    expect(goModule).toContain("replace github.com/zasp-ai/zasp-sec/services/health => ../health");
     expect(command).toContain('buildVersion           = "dev"');
     expect(command).toContain('io.WriteString(output, "event-ingest build "+version+"\\n")');
     expect(command).toContain("len(version) > 64");
     expect(command).not.toContain("os.Getenv");
+    expect(command).toContain("net.Listen");
     expect(command).not.toContain('"net/http"');
     expect(command).not.toContain('"flag"');
     expect(command).not.toContain('"time"');

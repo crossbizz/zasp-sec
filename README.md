@@ -67,17 +67,28 @@ uses `dev`; release builds may inject a bounded version at link time.
 ## Event ingest command
 
 M1-01f is Complete. It creates the standalone Go service at
-`services/event-ingest`. Its only current behavior is one exact build-version
-line:
+`services/event-ingest` and its exact build-version line:
 
 ```text
 event-ingest build <version>
 ```
 
-This skeleton does not accept events or start a listener, normalize or batch
-payloads, contact SQS, load runtime configuration, read credentials or provider
-state, or claim ingest readiness. The development build uses `dev`; release
-builds may inject a bounded version at link time.
+M1-28c now wires the shared internal health handler through one dedicated
+bounded `:8081` listener. Liveness is 200 before readiness; readiness is 503
+before serving, 200 only during the serving lifetime, and withdrawn before the
+independently bounded five-second graceful shutdown. The exact routes are
+`/healthz`, `/readyz`, `/version`, and `/metrics`.
+
+```bash
+npm run event-ingest:health:test
+```
+
+The command uses a private handler rather than the default mux and retains the
+exact build line. It still does not accept or normalize events, batch payloads,
+contact SQS, load runtime configuration, read credentials or provider state,
+or expose a public product API. Deployment and runtime-gateway wiring remain
+outside this task; M1-28d remains Pending. The development build uses `dev`;
+release builds may inject a bounded version at link time.
 
 ## Runtime gateway command
 
@@ -584,7 +595,7 @@ UI/API coverage passed: planned=5 available=0 public=0 internal=0.
 Failure is fixed as `UI/API coverage rejected.` without parser or artifact
 details. Both commands are part of root verification. M1-25 is Complete.
 M1-26 is Complete. M1-27 is Complete. M1-28a is Complete. M1-28b is Complete,
-M1-28b is Complete, M1-28c is In progress, and M1-28d remains Pending.
+M1-28c is In progress, and M1-28d remains Pending.
 
 ## Raw frontend Fetch lint
 

@@ -29,7 +29,10 @@ const ignoredProductDirectories = new Set([
 const discoveryEntryLimit = 4096;
 const internalHealthModule = "github.com/zasp-ai/zasp-sec/services/health";
 const internalHealthVersion = "v0.0.0";
-const internalHealthConsumer = "services/platform/go.mod";
+const internalHealthConsumers = new Set([
+  "services/event-ingest/go.mod",
+  "services/platform/go.mod",
+]);
 const internalHealthTarget = "services/health/go.mod";
 const internalHealthReplacement = `replace ${internalHealthModule} => ../health`;
 
@@ -220,7 +223,7 @@ function collectGoDependencies(path, text, files) {
       continue;
     }
     if (/^replace\b/.test(line)) {
-      assert(path === internalHealthConsumer);
+      assert(internalHealthConsumers.has(path));
       assert(line === internalHealthReplacement && !internalReplacementSeen);
       internalReplacementSeen = true;
       continue;
@@ -251,7 +254,7 @@ function collectGoDependencies(path, text, files) {
   let internalRequirementSeen = false;
   const external = dependencies.filter(({ name, version, indirect }) => {
     if (name !== internalHealthModule) return !indirect;
-    assert(path === internalHealthConsumer && version === internalHealthVersion && !indirect && !internalRequirementSeen);
+    assert(internalHealthConsumers.has(path) && version === internalHealthVersion && !indirect && !internalRequirementSeen);
     internalRequirementSeen = true;
     return false;
   });

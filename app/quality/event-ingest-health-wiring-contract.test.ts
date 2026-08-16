@@ -74,16 +74,19 @@ describe("M1-28c event-ingest health wiring", () => {
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
 
-  it("keeps event-ingest production untouched before runtime RED", async () => {
+  it("wires only the exact event-ingest health boundary after witnessed runtime RED", async () => {
     const [command, module, packageJson] = await Promise.all([
       readFile(resolve(repositoryRoot, "services/event-ingest/main.go"), "utf8"),
       readFile(resolve(repositoryRoot, "services/event-ingest/go.mod"), "utf8"),
       readFile(resolve(repositoryRoot, "package.json"), "utf8"),
     ]);
 
-    expect(command).not.toContain("services/health");
-    expect(command).not.toContain("net.Listen");
-    expect(module).not.toContain("github.com/zasp-ai/zasp-sec/services/health");
-    expect(JSON.parse(packageJson).scripts?.["event-ingest:health:test"]).toBeUndefined();
+    expect(command).toContain("net.Listen");
+    expect(command).toContain('healthListenAddress = ":8081"');
+    expect(module).toContain("require github.com/zasp-ai/zasp-sec/services/health v0.0.0");
+    expect(module).toContain("replace github.com/zasp-ai/zasp-sec/services/health => ../health");
+    expect(JSON.parse(packageJson).scripts?.["event-ingest:health:test"]).toBe(
+      "go test -C services/event-ingest -race -count=1 ./...",
+    );
   });
 });

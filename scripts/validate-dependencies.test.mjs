@@ -252,16 +252,21 @@ test("accepts only the exact repository-owned health module replacement outside 
   function internalFiles() {
     const files = filesFixture();
     files["services/health/go.mod"] = "module github.com/zasp-ai/zasp-sec/services/health\n\ngo 1.25.0\n";
-    files["services/platform/go.mod"] = [
-      "module github.com/zasp-ai/zasp-sec/services/platform",
-      "",
-      "go 1.25.0",
-      "",
-      "require github.com/zasp-ai/zasp-sec/services/health v0.0.0",
-      "",
-      "replace github.com/zasp-ai/zasp-sec/services/health => ../health",
-      "",
-    ].join("\n");
+    for (const [path, module] of [
+      ["services/platform/go.mod", "github.com/zasp-ai/zasp-sec/services/platform"],
+      ["services/event-ingest/go.mod", "github.com/zasp-ai/zasp-sec/services/event-ingest"],
+    ]) {
+      files[path] = [
+        `module ${module}`,
+        "",
+        "go 1.25.0",
+        "",
+        "require github.com/zasp-ai/zasp-sec/services/health v0.0.0",
+        "",
+        "replace github.com/zasp-ai/zasp-sec/services/health => ../health",
+        "",
+      ].join("\n");
+    }
     return files;
   }
 
@@ -270,6 +275,12 @@ test("accepts only the exact repository-owned health module replacement outside 
   for (const [name, mutate] of [
     ["missing replacement", (files) => {
       files["services/platform/go.mod"] = files["services/platform/go.mod"].replace(
+        "\nreplace github.com/zasp-ai/zasp-sec/services/health => ../health\n",
+        "\n",
+      );
+    }],
+    ["missing event-ingest replacement", (files) => {
+      files["services/event-ingest/go.mod"] = files["services/event-ingest/go.mod"].replace(
         "\nreplace github.com/zasp-ai/zasp-sec/services/health => ../health\n",
         "\n",
       );
@@ -290,8 +301,14 @@ test("accepts only the exact repository-owned health module replacement outside 
       files["services/platform/go.mod"] += "replace example.com/other => ../other\n";
     }],
     ["alternate consumer indirect requirement", (files) => {
-      files["services/event-ingest/go.mod"] +=
+      files["services/runtime-gateway/go.mod"] +=
         "require github.com/zasp-ai/zasp-sec/services/health v0.0.0 // indirect\n";
+    }],
+    ["event-ingest indirect requirement", (files) => {
+      files["services/event-ingest/go.mod"] = files["services/event-ingest/go.mod"].replace(
+        "github.com/zasp-ai/zasp-sec/services/health v0.0.0",
+        "github.com/zasp-ai/zasp-sec/services/health v0.0.0 // indirect",
+      );
     }],
     ["platform indirect requirement", (files) => {
       files["services/platform/go.mod"] = files["services/platform/go.mod"].replace(
