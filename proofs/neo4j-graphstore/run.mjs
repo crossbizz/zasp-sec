@@ -29,6 +29,15 @@ const proofEnvironment = Object.freeze([
   "NEO4J_db_tx__log_rotation_size=128K",
 ]);
 const forbiddenEnvironment = /^(?:AWS_|AZURE_|GOOGLE_|HTTP_PROXY$|HTTPS_PROXY$|ALL_PROXY$|NO_PROXY$|DOCKER_AUTH_CONFIG$|NEO4J_(?:URI|USERNAME|PASSWORD)$)/i;
+const nativeFileSystem = Object.freeze({
+  tmpdir,
+  realpath: realpathSync,
+  readdir: readdirSync,
+  mkdtemp: mkdtempSync,
+  mkdir: mkdirSync,
+  lstat: lstatSync,
+  remove: rmSync,
+});
 
 class Failure extends Error {
   constructor(category) {
@@ -50,6 +59,18 @@ export function buildCreateArguments(name, marker) {
     "--cpus", "2",
     IMAGE,
   ];
+}
+
+export function buildEnvironment(path, home) {
+  return {
+    PATH: path,
+    HOME: home,
+    GOENV: "off",
+    GOPROXY: "off",
+    GOSUMDB: "off",
+    GOTOOLCHAIN: "local",
+    CGO_ENABLED: "0",
+  };
 }
 
 export function classifyMutation(result) {
@@ -206,45 +227,59 @@ export class DockerRuntime {
     marker = randomBytes(8).toString("hex"),
     environment = process.env,
     command = runBounded,
+    fileSystem = nativeFileSystem,
   } = {}) {
     if (typeof path !== "string" || path === "" || typeof home !== "string" || home === "" || !markerPattern.test(marker)
         || !plainObject(environment) || typeof command !== "function"
+        || !validFileSystem(fileSystem)
         || Object.keys(environment).some((key) => forbiddenEnvironment.test(key))) throw new Failure("configuration");
     this.path = path;
     this.home = home;
     this.marker = marker;
     this.name = `${namePrefix}${marker}-neo4j`;
     this.dockerConfig = null;
+    this.dockerConfigIdentity = null;
+    this.buildIdentity = null;
     this.tempRoot = null;
+    this.tempParent = null;
     this.tempIdentity = null;
+    this.tempReady = false;
     this.image = null;
     this.token = null;
     this.volumeTokens = [];
     this.httpPort = null;
     this.boltPort = null;
     this.shared = null;
+    this.createUncertain = false;
     this.pending = new Set();
     this.command = command;
+    this.fileSystem = fileSystem;
   }
 
   async docker(arguments_, timeoutMs = 30_000, signal) {
     if (this.dockerConfig === null) throw new Failure("configuration");
+    if (this.dockerConfigIdentity !== null) this.requireDockerConfig();
     return this.command("docker", arguments_, { timeoutMs, outputLimit: dockerOutputLimit, signal, env: { PATH: this.path, DOCKER_CONFIG: this.dockerConfig } });
   }
 
   async preflight() {
-    if (readdirSync(tmpdir()).some((entry) => entry.startsWith(namePrefix))) throw new Failure("ownership");
+    if (this.fileSystem.readdir(this.fileSystem.tmpdir()).some((entry) => entry.startsWith(namePrefix))) throw new Failure("ownership");
   }
 
   async initialize(signal) {
     assertActive(signal);
-    const parent = realpathSync(tmpdir());
-    const candidate = mkdtempSync(join(parent, namePrefix));
+    const parent = this.fileSystem.realpath(this.fileSystem.tmpdir());
+    const candidate = this.fileSystem.mkdtemp(join(parent, namePrefix));
     this.tempRoot = candidate;
-    this.tempIdentity = ownedDirectory(candidate, parent);
+    this.tempParent = parent;
+    this.tempIdentity = ownedDirectory(candidate, parent, this.fileSystem);
     this.dockerConfig = join(candidate, "docker");
-    mkdirSync(this.dockerConfig, { mode: 0o700 });
-    mkdirSync(join(candidate, "build"), { mode: 0o700 });
+    this.fileSystem.mkdir(this.dockerConfig, { mode: 0o700 });
+    this.dockerConfigIdentity = ownedChildDirectory(this.dockerConfig, this.tempIdentity, "docker", this.fileSystem);
+    const build = join(candidate, "build");
+    this.fileSystem.mkdir(build, { mode: 0o700 });
+    this.buildIdentity = ownedChildDirectory(build, this.tempIdentity, "build", this.fileSystem);
+    this.tempReady = true;
     assertActive(signal);
   }
 
@@ -257,7 +292,12 @@ export class DockerRuntime {
     let inspected = await this.docker(["image", "inspect", IMAGE, "--format", "{{json .}}"], 30_000, signal);
     if (inspected.status !== 0) {
       if (inspected.signal !== null || inspected.thrown || !/No such image/i.test(inspected.stderr)) throw new Failure("provider");
-      const pulled = await this.mutate(() => this.docker(["pull", IMAGE], 180_000, signal));
+      let pulled;
+      try {
+        pulled = await this.mutate(() => this.docker(["pull", IMAGE], 180_000, signal));
+      } catch {
+        pulled = { status: null, signal: null, thrown: true, stdout: "", stderr: "" };
+      }
       if (classifyCommandMutation(pulled, "any") === "definitive") throw new Failure("provider");
       inspected = await this.docker(["image", "inspect", IMAGE, "--format", "{{json .}}"], 30_000, signal);
     }
@@ -280,11 +320,20 @@ export class DockerRuntime {
 
   async create(signal) {
     assertActive(signal);
-    const result = await this.mutate(() => this.docker(buildCreateArguments(this.name, this.marker), 30_000, signal));
+    this.createUncertain = true;
+    let result;
+    try {
+      result = await this.mutate(() => this.docker(buildCreateArguments(this.name, this.marker), 30_000, signal));
+    } catch {
+      result = { status: null, signal: null, thrown: true, stdout: "", stderr: "" };
+    }
     const classification = classifyMutation(result);
-    if (classification === "definitive") throw new Failure("provider");
+    if (classification === "definitive") {
+      this.createUncertain = false;
+      throw new Failure("provider");
+    }
     if (classification === "applied") this.token = result.stdout.trim();
-    else this.token = await this.reconcileName(signal);
+    else this.token = await this.findName(signal);
     if (!fullIDPattern.test(this.token ?? "")) throw new Failure("ownership");
     assertActive(signal);
   }
@@ -318,8 +367,9 @@ export class DockerRuntime {
   async ports(signal) {
     await this.verify("running", signal);
     const inspected = await this.docker(["container", "inspect", this.token, "--format", "{{json .NetworkSettings.Ports}}"], 30_000, signal);
+    if (!exactReadSuccess(inspected)) throw new Failure("ownership");
     const value = parseOneJsonLine(inspected.stdout);
-    if (inspected.status !== 0 || inspected.stderr !== "" || !plainObject(value)) throw new Failure("ownership");
+    if (!plainObject(value)) throw new Failure("ownership");
     const exposed = Object.keys(value).sort();
     if (!isDeepStrictEqual(exposed, this.image.exposed)) throw new Failure("ownership");
     this.httpPort = exactLoopbackPort(value["7474/tcp"]);
@@ -344,7 +394,7 @@ export class DockerRuntime {
     assertActive(signal);
     const binary = join(this.tempRoot, "build", "proof");
     const result = await runBounded("go", ["build", "-C", proofDirectory, "-o", binary, "."], {
-      timeoutMs: 120_000, outputLimit, env: { PATH: this.path, HOME: this.home, GOENV: "off" },
+      timeoutMs: 120_000, outputLimit, env: buildEnvironment(this.path, this.home),
       signal,
     });
     if (classifyEmptyMutation(result) !== "applied") throw new Failure("operation");
@@ -369,13 +419,26 @@ export class DockerRuntime {
   }
 
   async remove(signal) {
+    if (this.token === null && this.createUncertain) {
+      this.token = await this.findName(signal);
+      if (this.token === null) {
+        this.createUncertain = false;
+        return;
+      }
+    }
     if (this.token === null) return;
     await this.verifyAnyOwned(signal);
     assertActive(signal);
-    const result = await this.mutate(() => this.docker(["rm", "--force", "--volumes", this.token], 30_000, signal));
+    let result;
+    try {
+      result = await this.mutate(() => this.docker(["rm", "--force", "--volumes", this.token], 30_000, signal));
+    } catch {
+      result = { status: null, signal: null, thrown: true, stdout: "", stderr: "" };
+    }
     const classification = classifyCommandMutation(result, this.token);
     if (classification === "definitive") throw new Failure("cleanup");
     await this.absent(signal);
+    this.createUncertain = false;
   }
 
   async absent(signal) {
@@ -406,15 +469,15 @@ export class DockerRuntime {
       throw new Failure("cleanup");
     }
     const listed = await this.docker(["ps", "-a", "--no-trunc", "--format", "{{json .}}"], 30_000, signal);
-    if (listed.status !== 0 || listed.stderr !== "") throw new Failure(when === "before" ? "provider" : "cleanup");
+    if (!exactReadSuccess(listed)) throw new Failure(when === "before" ? "provider" : "cleanup");
     const fingerprints = [];
     for (const line of listed.stdout.trim().split("\n").filter(Boolean)) {
       const entry = parseUniqueJson(line);
-      if (!plainObject(entry) || typeof entry.Image !== "string" || typeof entry.Names !== "string" || typeof entry.ID !== "string") throw new Failure("ownership");
+      if (!plainObject(entry) || typeof entry.Image !== "string" || typeof entry.Names !== "string" || !fullIDPattern.test(entry.ID ?? "")) throw new Failure("ownership");
       if (!entry.Image.startsWith("neo4j:") || entry.Names.startsWith(namePrefix)) continue;
       const inspected = await this.docker(["container", "inspect", entry.ID, "--format", "{{json .State.StartedAt}}|{{json .RestartCount}}|{{json .Image}}|{{json .State.Status}}"], 30_000, signal);
-      if (inspected.status !== 0 || inspected.stderr !== "") throw new Failure("ownership");
-      fingerprints.push(inspected.stdout.trim());
+      if (!exactReadSuccess(inspected)) throw new Failure("ownership");
+      fingerprints.push(JSON.stringify({ id: entry.ID, name: entry.Names, state: inspected.stdout.trim() }));
     }
     fingerprints.sort();
     if (when === "before") this.shared = fingerprints;
@@ -424,13 +487,18 @@ export class DockerRuntime {
   async removeTemp(allowed) {
     if (this.tempRoot === null) return;
     if (!allowed) return;
-    this.requireTemp();
-    rmSync(this.tempRoot, { recursive: true, force: false, maxRetries: 0 });
+    if (this.tempIdentity === null) {
+      if (this.tempParent === null) throw new Failure("cleanup");
+      this.tempIdentity = ownedDirectory(this.tempRoot, this.tempParent, this.fileSystem);
+    }
+    if (this.tempReady) this.requireTemp();
+    else if (!sameOwnedDirectory(this.tempRoot, this.tempIdentity, this.fileSystem)) throw new Failure("cleanup");
+    this.fileSystem.remove(this.tempRoot, { recursive: true, force: false, maxRetries: 0 });
     this.tempRoot = null;
   }
 
   async tempPrefixAbsent() {
-    if (readdirSync(tmpdir()).some((entry) => entry.startsWith(namePrefix))) throw new Failure("cleanup");
+    if (this.fileSystem.readdir(this.fileSystem.tmpdir()).some((entry) => entry.startsWith(namePrefix))) throw new Failure("cleanup");
   }
 
   async verifyAnyOwned(signal) {
@@ -440,10 +508,12 @@ export class DockerRuntime {
     throw new Failure("cleanup");
   }
 
-  async reconcileName(signal) {
+  async findName(signal) {
     const result = await this.docker(["ps", "-aq", "--no-trunc", "--filter", `name=^/${this.name}$`], 30_000, signal);
     const tokens = result.stdout.trim().split("\n").filter(Boolean);
-    if (result.status !== 0 || result.stderr !== "" || tokens.length !== 1 || !fullIDPattern.test(tokens[0])) throw new Failure("ownership");
+    if (result.status !== 0 || result.signal !== null || result.thrown || result.stderr !== "" || tokens.length > 1
+        || (tokens.length === 1 && !fullIDPattern.test(tokens[0]))) throw new Failure("ownership");
+    if (tokens.length === 0) return null;
     return tokens[0];
   }
 
@@ -454,7 +524,17 @@ export class DockerRuntime {
   }
 
   requireTemp() {
-    if (this.tempRoot === null || this.tempIdentity === null || !sameOwnedDirectory(this.tempRoot, this.tempIdentity)) throw new Failure("ownership");
+    if (!this.tempReady || this.tempRoot === null || this.tempIdentity === null || this.dockerConfigIdentity === null || this.buildIdentity === null
+        || !sameOwnedDirectory(this.tempRoot, this.tempIdentity, this.fileSystem)
+        || !sameOwnedDirectory(this.dockerConfig, this.dockerConfigIdentity, this.fileSystem)
+        || !sameOwnedDirectory(join(this.tempRoot, "build"), this.buildIdentity, this.fileSystem)) throw new Failure("ownership");
+  }
+
+  requireDockerConfig() {
+    if (this.tempRoot === null || this.tempIdentity === null || this.dockerConfig === null || this.dockerConfigIdentity === null
+        || !sameOwnedDirectory(this.tempRoot, this.tempIdentity, this.fileSystem)
+        || !sameOwnedDirectory(this.dockerConfig, this.dockerConfigIdentity, this.fileSystem)
+        || !emptyDirectory(this.dockerConfig, this.fileSystem)) throw new Failure("ownership");
   }
 }
 
@@ -494,18 +574,36 @@ function assertActive(signal) {
   if (signal?.aborted) throw new Failure("operation");
 }
 
-function ownedDirectory(path, parent) {
-  if (!isAbsolute(path) || realpathSync(dirname(path)) !== parent || !basename(path).startsWith(namePrefix)) throw new Failure("ownership");
-  const stat = lstatSync(path);
-  if (!stat.isDirectory() || stat.isSymbolicLink() || realpathSync(path) !== path) throw new Failure("ownership");
+function ownedDirectory(path, parent, fileSystem) {
+  if (!isAbsolute(path) || fileSystem.realpath(dirname(path)) !== parent || !basename(path).startsWith(namePrefix)) throw new Failure("ownership");
+  const stat = fileSystem.lstat(path);
+  if (!stat.isDirectory() || stat.isSymbolicLink() || fileSystem.realpath(path) !== path) throw new Failure("ownership");
   return { dev: stat.dev, ino: stat.ino, path };
 }
 
-function sameOwnedDirectory(path, identity) {
+function ownedChildDirectory(path, parent, name, fileSystem) {
+  if (dirname(path) !== parent.path || basename(path) !== name) throw new Failure("ownership");
+  const stat = fileSystem.lstat(path);
+  if (!stat.isDirectory() || stat.isSymbolicLink() || fileSystem.realpath(path) !== path || !emptyDirectory(path, fileSystem)) throw new Failure("ownership");
+  return { dev: stat.dev, ino: stat.ino, path };
+}
+
+function sameOwnedDirectory(path, identity, fileSystem) {
   try {
-    const stat = lstatSync(path);
-    return stat.isDirectory() && !stat.isSymbolicLink() && realpathSync(path) === identity.path && stat.dev === identity.dev && stat.ino === identity.ino;
+    const stat = fileSystem.lstat(path);
+    return stat.isDirectory() && !stat.isSymbolicLink() && fileSystem.realpath(path) === identity.path && stat.dev === identity.dev && stat.ino === identity.ino;
   } catch { return false; }
+}
+
+function emptyDirectory(path, fileSystem) {
+  try {
+    const entries = fileSystem.readdir(path);
+    return Array.isArray(entries) && entries.length === 0;
+  } catch { return false; }
+}
+
+function validFileSystem(value) {
+  return plainObject(value) && ["tmpdir", "realpath", "readdir", "mkdtemp", "mkdir", "lstat", "remove"].every((key) => typeof value[key] === "function");
 }
 
 export function validateContainerMetadata(value, expected) {
@@ -558,6 +656,10 @@ function exactLoopbackPort(value) {
 function exactMissing(result, kind) {
   if (result.status === 0 || result.signal !== null || result.thrown || result.stdout.trim() !== "") return false;
   return kind === "container" ? /No such (?:object|container)/i.test(result.stderr) : /no such volume/i.test(result.stderr);
+}
+
+function exactReadSuccess(result) {
+  return result?.status === 0 && result.signal === null && !result.thrown && result.stderr === "";
 }
 
 async function readinessProbe(port, parentSignal) {

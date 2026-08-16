@@ -1,5 +1,19 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  realpathSync,
+  renameSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { PassThrough } from "node:stream";
 import test from "node:test";
 
@@ -7,6 +21,7 @@ import {
   IMAGE,
   SUCCESS_LINE,
   DockerRuntime,
+  buildEnvironment,
   buildCreateArguments,
   classifyCommandMutation,
   classifyMutation,
@@ -33,6 +48,18 @@ test("create arguments bind one exact-owned loopback-only Neo4j target", () => {
     IMAGE,
   ]);
   assert.match(IMAGE, /^neo4j:5\.26\.28-community@sha256:[0-9a-f]{64}$/);
+});
+
+test("proof build is offline and ignores ambient Go configuration", () => {
+  assert.deepEqual(buildEnvironment("/bin", "/safe/home"), {
+    PATH: "/bin",
+    HOME: "/safe/home",
+    GOENV: "off",
+    GOPROXY: "off",
+    GOSUMDB: "off",
+    GOTOOLCHAIN: "local",
+    CGO_ENABLED: "0",
+  });
 });
 
 test("Docker mutation acknowledgements preserve real CLI output semantics", () => {
@@ -149,6 +176,182 @@ test("ambiguous image pull is accepted only after immutable reinspection", async
   await runtime.resolveImage(new AbortController().signal);
   assert.equal(calls.length, 3);
   assert.equal(runtime.image.id, image.Id);
+});
+
+test("thrown image pull is accepted only after immutable reinspection", async () => {
+  const calls = [];
+  const digest = IMAGE.split("@")[1];
+  const image = {
+    Id: `sha256:${"d".repeat(64)}`,
+    RepoDigests: [`neo4j@${digest}`],
+    Config: { Env: [], Entrypoint: ["entry"], Cmd: ["neo4j"], Labels: null, ExposedPorts: null, Volumes: null },
+  };
+  const runtime = new DockerRuntime({
+    marker: "0123456789abcdef", path: "/bin", home: "/safe/home", environment: {},
+    command: async (_command, args) => {
+      calls.push(args);
+      if (calls.length === 1) return { status: 1, signal: null, thrown: false, stdout: "", stderr: "Error: No such image\n" };
+      if (calls.length === 2) throw new Error("ambiguous pull boundary");
+      return { status: 0, signal: null, thrown: false, stdout: `${JSON.stringify(image)}\n`, stderr: "" };
+    },
+  });
+  runtime.dockerConfig = "/safe/docker";
+  await runtime.resolveImage(new AbortController().signal);
+  assert.equal(calls.length, 3);
+  assert.equal(runtime.image.id, image.Id);
+});
+
+test("initialization retains and removes an exact candidate after transient admission failure", async () => {
+  const parent = realpathSync(tmpdir());
+  let candidate;
+  let rejectFirstCandidateStat = true;
+  const fileSystem = {
+    tmpdir: () => parent,
+    realpath: realpathSync,
+    readdir: readdirSync,
+    mkdtemp: (prefix) => { candidate = mkdtempSync(prefix); return candidate; },
+    mkdir: mkdirSync,
+    lstat: (path) => {
+      if (path === candidate && rejectFirstCandidateStat) {
+        rejectFirstCandidateStat = false;
+        throw new Error("transient admission failure");
+      }
+      return lstatSync(path);
+    },
+    remove: rmSync,
+  };
+  const runtime = new DockerRuntime({ marker: "0123456789abcdef", path: "/bin", home: "/safe/home", environment: {}, fileSystem });
+  try {
+    await assert.rejects(runtime.initialize(new AbortController().signal));
+    assert.equal(existsSync(candidate), true);
+    await runtime.removeTemp(true);
+    assert.equal(existsSync(candidate), false);
+  } finally {
+    if (runtime.tempRoot && existsSync(runtime.tempRoot)) rmSync(runtime.tempRoot, { recursive: true, force: true });
+    if (candidate && existsSync(candidate)) rmSync(candidate, { recursive: true, force: true });
+  }
+});
+
+test("Docker and build boundaries reject replaced owned child directories", async () => {
+  const runtime = new DockerRuntime({
+    marker: "0123456789abcdef", path: "/bin", home: "/safe/home", environment: {},
+    command: async () => ({ status: 0, signal: null, thrown: false, stdout: "", stderr: "" }),
+  });
+  const outside = mkdtempSync(join(realpathSync(tmpdir()), "zasp-review-m1-16-"));
+  await runtime.initialize(new AbortController().signal);
+  const dockerPath = runtime.dockerConfig;
+  const dockerOriginal = `${dockerPath}-original`;
+  const buildPath = join(runtime.tempRoot, "build");
+  const buildOriginal = `${buildPath}-original`;
+  let dockerRejected = false;
+  let buildRejected = false;
+  try {
+    renameSync(dockerPath, dockerOriginal);
+    symlinkSync(outside, dockerPath, "dir");
+    try { await runtime.docker(["ps"]); } catch { dockerRejected = true; }
+    rmSync(dockerPath);
+    renameSync(dockerOriginal, dockerPath);
+
+    renameSync(buildPath, buildOriginal);
+    symlinkSync(outside, buildPath, "dir");
+    try { runtime.requireTemp(); } catch { buildRejected = true; }
+    rmSync(buildPath);
+    renameSync(buildOriginal, buildPath);
+    assert.equal(dockerRejected, true);
+    assert.equal(buildRejected, true);
+  } finally {
+    if (existsSync(dockerPath) && lstatSync(dockerPath).isSymbolicLink()) rmSync(dockerPath);
+    if (!existsSync(dockerPath) && existsSync(dockerOriginal)) renameSync(dockerOriginal, dockerPath);
+    if (existsSync(buildPath) && lstatSync(buildPath).isSymbolicLink()) rmSync(buildPath);
+    if (!existsSync(buildPath) && existsSync(buildOriginal)) renameSync(buildOriginal, buildPath);
+    if (runtime.tempRoot && existsSync(runtime.tempRoot)) rmSync(runtime.tempRoot, { recursive: true, force: true });
+    rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+test("Docker boundary rejects injected config contents without invoking Docker", async () => {
+  let commandCalls = 0;
+  const runtime = new DockerRuntime({
+    marker: "0123456789abcdef", path: "/bin", home: "/safe/home", environment: {},
+    command: async () => { commandCalls += 1; return { status: 0, signal: null, thrown: false, stdout: "", stderr: "" }; },
+  });
+  await runtime.initialize(new AbortController().signal);
+  try {
+    writeFileSync(join(runtime.dockerConfig, "config.json"), '{"auths":{"forged.example":{"auth":"forged"}}}');
+    await assert.rejects(runtime.docker(["ps"]));
+    assert.equal(commandCalls, 0);
+  } finally {
+    if (runtime.tempRoot && existsSync(runtime.tempRoot)) rmSync(runtime.tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("cleanup rearms delayed ambiguous create and reconciles thrown removal", async () => {
+  const token = "a".repeat(64);
+  let listCalls = 0;
+  let removeCalls = 0;
+  const runtime = new DockerRuntime({
+    marker: "0123456789abcdef", path: "/bin", home: "/safe/home", environment: {},
+    command: async (_command, args) => {
+      if (args[0] === "create") return { status: null, signal: "SIGKILL", thrown: false, stdout: "", stderr: "" };
+      if (args[0] === "ps") {
+        listCalls += 1;
+        return { status: 0, signal: null, thrown: false, stdout: listCalls === 1 ? "" : `${token}\n`, stderr: "" };
+      }
+      if (args[0] === "rm") { removeCalls += 1; throw new Error("ambiguous remove boundary"); }
+      throw new Error(`unexpected command ${args.join(" ")}`);
+    },
+  });
+  runtime.dockerConfig = "/safe/docker";
+  runtime.image = { id: `sha256:${"d".repeat(64)}`, env: [], entrypoint: null, cmd: null, labels: {}, exposed: [], volumes: [] };
+  runtime.verifyAnyOwned = async () => {};
+  let absenceCalls = 0;
+  runtime.absent = async () => { absenceCalls += 1; };
+  await assert.rejects(runtime.create(new AbortController().signal));
+  await runtime.settle();
+  await runtime.remove(new AbortController().signal);
+  assert.equal(runtime.token, token);
+  assert.equal(removeCalls, 1);
+  assert.equal(absenceCalls, 1);
+});
+
+test("shared fingerprint binds full container identity and name", async () => {
+  let listCalls = 0;
+  const runtime = new DockerRuntime({
+    marker: "0123456789abcdef", path: "/bin", home: "/safe/home", environment: {},
+    command: async (_command, args) => {
+      if (args[0] === "ps") {
+        listCalls += 1;
+        const id = (listCalls === 1 ? "a" : "b").repeat(64);
+        return { status: 0, signal: null, thrown: false, stdout: `${JSON.stringify({ ID: id, Image: "neo4j:shared", Names: "shared-neo4j" })}\n`, stderr: "" };
+      }
+      return { status: 0, signal: null, thrown: false, stdout: '"2026-08-15T00:00:00Z"|0|"sha256:shared"|"exited"\n', stderr: "" };
+    },
+  });
+  runtime.dockerConfig = "/safe/docker";
+  await runtime.fingerprintShared("before", new AbortController().signal);
+  await assert.rejects(runtime.fingerprintShared("after", new AbortController().signal));
+});
+
+test("Docker read boundaries reject signaled successful output", async () => {
+  const portsRuntime = new DockerRuntime({
+    marker: "0123456789abcdef", path: "/bin", home: "/safe/home", environment: {},
+    command: async () => ({
+      status: 0, signal: "SIGKILL", thrown: false, stderr: "",
+      stdout: `${JSON.stringify({ "7474/tcp": [{ HostIp: "127.0.0.1", HostPort: "47474" }], "7687/tcp": [{ HostIp: "127.0.0.1", HostPort: "47687" }] })}\n`,
+    }),
+  });
+  portsRuntime.token = "a".repeat(64);
+  portsRuntime.image = { exposed: ["7474/tcp", "7687/tcp"] };
+  portsRuntime.verify = async () => {};
+  portsRuntime.dockerConfig = "/safe/docker";
+  await assert.rejects(portsRuntime.ports(new AbortController().signal));
+
+  const sharedRuntime = new DockerRuntime({
+    marker: "0123456789abcdef", path: "/bin", home: "/safe/home", environment: {},
+    command: async () => ({ status: 0, signal: "SIGKILL", thrown: false, stdout: "", stderr: "" }),
+  });
+  sharedRuntime.dockerConfig = "/safe/docker";
+  await assert.rejects(sharedRuntime.fingerprintShared("before", new AbortController().signal));
 });
 
 test("global absence includes current marker label", async () => {

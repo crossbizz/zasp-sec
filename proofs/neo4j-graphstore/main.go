@@ -327,32 +327,47 @@ func (auditor *neo4jAuditor) single(ctx context.Context, mode neo4j.AccessMode, 
 		}
 	}()
 	tx, beginErr := session.BeginTransaction(ctx)
-	if beginErr != nil || tx == nil {
-		return nil, errProvider
-	}
+	return auditSingleWithTransaction(ctx, tx, beginErr, func(transaction neo4j.ExplicitTransaction) (*neo4j.Record, error) {
+		result, runErr := transaction.Run(ctx, query, parameters)
+		if runErr != nil || result == nil {
+			return nil, errProvider
+		}
+		record, singleErr := result.Single(ctx)
+		if singleErr != nil || record == nil {
+			return nil, errProvider
+		}
+		if _, consumeErr := result.Consume(ctx); consumeErr != nil {
+			return nil, errProvider
+		}
+		return record, nil
+	})
+}
+
+func auditSingleWithTransaction(
+	ctx context.Context,
+	transaction neo4j.ExplicitTransaction,
+	beginErr error,
+	work func(neo4j.ExplicitTransaction) (*neo4j.Record, error),
+) (record *neo4j.Record, err error) {
 	committed := false
 	defer func() {
-		if !committed {
+		if transaction != nil && !committed {
 			rollbackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cleanupTimeout)
 			defer cancel()
-			if tx.Rollback(rollbackCtx) != nil {
+			if transaction.Rollback(rollbackCtx) != nil {
 				err = errProvider
 				record = nil
 			}
 		}
 	}()
-	result, runErr := tx.Run(ctx, query, parameters)
-	if runErr != nil || result == nil {
+	if beginErr != nil || transaction == nil || work == nil {
 		return nil, errProvider
 	}
-	record, err = result.Single(ctx)
+	record, err = work(transaction)
 	if err != nil || record == nil {
 		return nil, errProvider
 	}
-	if _, consumeErr := result.Consume(ctx); consumeErr != nil {
-		return nil, errProvider
-	}
-	if tx.Commit(ctx) != nil {
+	if transaction.Commit(ctx) != nil {
 		return nil, errProvider
 	}
 	committed = true

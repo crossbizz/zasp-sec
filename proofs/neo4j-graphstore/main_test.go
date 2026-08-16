@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neo4j/neo4j-go-driver/v6/neo4j"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/graphstore"
 )
@@ -94,6 +95,25 @@ func TestRunMainUsesExactConfigurationAndFixedOutput(t *testing.T) {
 	}
 }
 
+func TestAuditorRetainsMalformedBeginTransactionCandidate(t *testing.T) {
+	transaction := &fakeAuditTransaction{}
+	record, err := auditSingleWithTransaction(
+		context.Background(),
+		transaction,
+		errors.New("seeded provider detail"),
+		func(neo4j.ExplicitTransaction) (*neo4j.Record, error) {
+			t.Fatal("work called after malformed begin")
+			return nil, nil
+		},
+	)
+	if record != nil || !errors.Is(err, errProvider) {
+		t.Fatalf("auditSingleWithTransaction = (%v, %v), want fixed provider failure", record, err)
+	}
+	if transaction.rollbackCalls != 1 || transaction.rollbackContextErr != nil {
+		t.Fatalf("rollback calls/context = %d/%v, want one independent rollback", transaction.rollbackCalls, transaction.rollbackContextErr)
+	}
+}
+
 func noExecute(context.Context, string) error { panic("execute called") }
 
 type fakeGraphStore struct {
@@ -148,6 +168,25 @@ type fakeAuditor struct {
 	deleteErr   error
 	absentErr   error
 }
+
+type fakeAuditTransaction struct {
+	rollbackCalls      int
+	rollbackContextErr error
+}
+
+func (*fakeAuditTransaction) Run(context.Context, string, map[string]any) (neo4j.Result, error) {
+	panic("work must not run")
+}
+
+func (*fakeAuditTransaction) Commit(context.Context) error { panic("commit must not run") }
+
+func (transaction *fakeAuditTransaction) Rollback(ctx context.Context) error {
+	transaction.rollbackCalls++
+	transaction.rollbackContextErr = ctx.Err()
+	return nil
+}
+
+func (*fakeAuditTransaction) Close(context.Context) error { return nil }
 
 func (auditor *fakeAuditor) Verify(context.Context, fixtureState) error {
 	auditor.verifyCalls++
