@@ -398,10 +398,14 @@ export function parseGraphContainerdImageTargets(source, platform) {
       if (line.length === 0) throw new TypeError("graph containerd inventory is invalid");
       const fields = line.trim().split(/\s+/);
       if (fields.length < 6) throw new TypeError("graph containerd inventory is invalid");
-      const image = [...selected.values()].find(({ providerReference }) => providerReference === fields[0]);
-      if (image === undefined) continue;
+      if (!/(?:^|\/)import-/.test(fields[0])) continue;
+      const reference = /^docker\.io\/library\/import-(\d{4}-\d{2}-\d{2})@(sha256:[0-9a-f]{64})$/.exec(fields[0]);
+      if (reference === null || !canonicalGraphDate(reference[1])) {
+        throw new TypeError("graph containerd target is invalid");
+      }
+      const image = [...selected.values()].find(({ manifestDigest }) => manifestDigest === reference[2]);
       const size = fields.slice(3, -2).join(" ");
-      if (targets.has(image.name) || !new Set([
+      if (image === undefined || targets.has(image.name) || !new Set([
         "application/vnd.docker.distribution.manifest.v2+json",
         "application/vnd.oci.image.manifest.v1+json",
       ]).has(fields[1]) || fields[2] !== image.manifestDigest ||
@@ -409,7 +413,7 @@ export function parseGraphContainerdImageTargets(source, platform) {
           typeof fields.at(-1) !== "string" || fields.at(-1).length === 0) {
         throw new TypeError("graph containerd target is invalid");
       }
-      targets.set(image.name, fields[2]);
+      targets.set(image.name, deepFreeze({ imageID: fields[0], manifestDigest: fields[2] }));
     }
     if (targets.size !== selected.size) throw new TypeError("graph containerd inventory is incomplete");
     return new Map([...targets].sort(([left], [right]) => left.localeCompare(right)));
@@ -509,9 +513,10 @@ export function validateGraphKubernetesState(value, expected, retained = undefin
     ], "graph Kubernetes state");
     requireExactKeySet(expected, ["imageTargets", "nodeName"], "graph Kubernetes expectation");
     requireExactKeySet(expected.imageTargets, ["busybox", "neo4j"], "graph image targets");
+    const platform = platformForNode(expected);
     if (!/^zasp-m1-30b-[0-9a-f]{16}-control-plane$/.test(expected.nodeName ?? "") ||
-        expected.imageTargets.busybox !== GRAPH_IMAGE_PLANS.busybox.platforms[platformForNode(expected)].manifestDigest ||
-        expected.imageTargets.neo4j !== GRAPH_IMAGE_PLANS.neo4j.platforms[platformForNode(expected)].manifestDigest ||
+        expected.imageTargets.busybox.manifestDigest !== GRAPH_IMAGE_PLANS.busybox.platforms[platform].manifestDigest ||
+        expected.imageTargets.neo4j.manifestDigest !== GRAPH_IMAGE_PLANS.neo4j.platforms[platform].manifestDigest ||
         value.healthLog !== graphHealthLog || requireReplacement !== false && requireReplacement !== true ||
         requireHealthReplacement !== false && requireHealthReplacement !== true) {
       throw new TypeError("graph Kubernetes expectation is invalid");
@@ -602,10 +607,32 @@ export function validateGraphKubernetesState(value, expected, retained = undefin
 function platformForNode(expected) {
   const targets = expected?.imageTargets;
   for (const platform of ["linux/amd64", "linux/arm64"]) {
-    if (targets?.neo4j === GRAPH_IMAGE_PLANS.neo4j.platforms[platform].manifestDigest &&
-        targets?.busybox === GRAPH_IMAGE_PLANS.busybox.platforms[platform].manifestDigest) return platform;
+    try {
+      requireExactKeySet(targets?.neo4j, ["imageID", "manifestDigest"], "Neo4j image target");
+      requireExactKeySet(targets?.busybox, ["imageID", "manifestDigest"], "BusyBox image target");
+      if (targets.neo4j.manifestDigest === GRAPH_IMAGE_PLANS.neo4j.platforms[platform].manifestDigest &&
+          targets.busybox.manifestDigest === GRAPH_IMAGE_PLANS.busybox.platforms[platform].manifestDigest &&
+          exactGraphImportImageID(targets.neo4j.imageID, targets.neo4j.manifestDigest) &&
+          exactGraphImportImageID(targets.busybox.imageID, targets.busybox.manifestDigest)) return platform;
+    } catch {
+      // A different platform may still be the exact retained target pair.
+    }
   }
   throw new TypeError("graph image targets are invalid");
+}
+
+function canonicalGraphDate(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  try {
+    return new Date(`${value}T00:00:00.000Z`).toISOString().slice(0, 10) === value;
+  } catch {
+    return false;
+  }
+}
+
+function exactGraphImportImageID(value, manifestDigest) {
+  const match = /^docker\.io\/library\/import-(\d{4}-\d{2}-\d{2})@(sha256:[0-9a-f]{64})$/.exec(value ?? "");
+  return match !== null && canonicalGraphDate(match[1]) && match[2] === manifestDigest;
 }
 
 function onlyMatch(items, predicate) {
@@ -917,7 +944,7 @@ function validateGraphPod(pod, replicaSet, persistentVolumeClaim, expected, name
   if (!exactData(Object.keys(status).sort(), [
     "containerID", "image", "imageID", "name", "ready", "restartCount", "started", "state",
   ].sort()) || status.name !== "neo4j" || status.image !== selected.configDigest ||
-      status.imageID !== selected.configDigest || status.ready !== true ||
+      status.imageID !== expected.imageTargets.neo4j.imageID || status.ready !== true ||
       status.started !== true || status.restartCount !== 0 || !/^containerd:\/\/[0-9a-f]{64}$/.test(status.containerID) ||
       !isPlainObject(status.state) || !exactKeySet(status.state, ["running"]) ||
       !isPlainObject(status.state.running) || !exactKeySet(status.state.running, ["startedAt"]) ||
@@ -1041,7 +1068,7 @@ function validateGraphHealthPod(pod, job, expected) {
     "containerID", "image", "imageID", "name", "ready", "restartCount", "started", "state",
   ].sort()) || status.name !== "health" ||
       status.image !== GRAPH_IMAGE_PLANS.busybox.platforms[platformForNode(expected)].configDigest ||
-      status.imageID !== GRAPH_IMAGE_PLANS.busybox.platforms[platformForNode(expected)].configDigest ||
+      status.imageID !== expected.imageTargets.busybox.imageID ||
       status.ready !== false || status.started !== false || status.restartCount !== 0 ||
       !/^containerd:\/\/[0-9a-f]{64}$/.test(status.containerID ?? "") || !isPlainObject(terminated) ||
       !exactKeySet(terminated, ["containerID", "exitCode", "finishedAt", "reason", "startedAt"]) ||
@@ -1241,6 +1268,7 @@ export class LocalGraphSystem extends LocalProductSystem {
     this.graphPodDeleteMayHaveApplied = false;
     this.graphHealthDeleteMayHaveApplied = false;
     this.graphHealthApplyMayHaveApplied = false;
+    this.graphHealthAbsentIdentity = undefined;
     this.productProviderCapture = undefined;
     this.productProviderProjection = false;
     this.productProviderSnapshot = undefined;
@@ -1550,11 +1578,17 @@ export class LocalGraphSystem extends LocalProductSystem {
   graphProviderExpectation() {
     if (this.graphLoadedImageTargets.size !== 2 || !this.graphLoadedImageTargets.has("busybox") ||
         !this.graphLoadedImageTargets.has("neo4j")) throw new GraphFailure("ownership");
-    return {
+    const expected = {
       imageTargets: Object.fromEntries([...this.graphLoadedImageTargets].sort(([left], [right]) =>
         left.localeCompare(right))),
       nodeName: `${this.cluster}-control-plane`,
     };
+    try {
+      platformForNode(expected);
+    } catch {
+      throw new GraphFailure("ownership");
+    }
+    return expected;
   }
 
   async readGraphProviderState(phase, category = "readiness", allowMissingHealth = false) {
@@ -1789,15 +1823,18 @@ export class LocalGraphSystem extends LocalProductSystem {
     }
     await this.pollGraphHealthJobAbsent(phase, replacement);
     this.graphHealthDeleteMayHaveApplied = false;
+    this.graphHealthAbsentIdentity = replacement;
     this.graphHealthApplyMayHaveApplied = true;
     const healthApplied = await this.applyGraphHealthJob(phase);
     if (!new Set(["ambiguous", "applied"]).has(healthApplied?.outcome)) {
       this.graphHealthApplyMayHaveApplied = false;
+      this.graphProviderIdentity = undefined;
       throw new GraphFailure("provider");
     }
     const fresh = await this.pollGraphProviderState(phase, replacement, false, "readiness", true);
     this.graphProviderIdentity = fresh;
     this.graphHealthApplyMayHaveApplied = false;
+    this.graphHealthAbsentIdentity = undefined;
     const replacementPod = { name: replacement.neo4j.podName, uid: replacement.neo4j.podUid };
     if (await this.readGraphMarker(replacementPod, phase, "readiness") !== true) {
       throw new GraphFailure("readiness");
@@ -1815,7 +1852,8 @@ export class LocalGraphSystem extends LocalProductSystem {
     await this.verifyCluster(phase, "cleanup");
     if (!this.graphNodeMayHaveApplied && !this.graphPathMayHaveApplied &&
         this.graphProviderIdentity === undefined && !this.graphPodDeleteMayHaveApplied &&
-        !this.graphHealthDeleteMayHaveApplied && !this.graphHealthApplyMayHaveApplied) return;
+        !this.graphHealthDeleteMayHaveApplied && !this.graphHealthApplyMayHaveApplied &&
+        this.graphHealthAbsentIdentity === undefined) return;
     if (this.graphNodeMayHaveApplied) {
       if (this.graphNodeIdentity === undefined) {
         try {
@@ -1878,6 +1916,12 @@ export class LocalGraphSystem extends LocalProductSystem {
       const reconciled = await this.reconcileGraphHealthForCleanup(phase, true);
       if (reconciled !== undefined) this.graphProviderIdentity = reconciled;
       this.graphHealthApplyMayHaveApplied = false;
+      this.graphHealthAbsentIdentity = undefined;
+      providerProved = true;
+    }
+    if (this.graphHealthAbsentIdentity !== undefined && !this.graphHealthApplyMayHaveApplied &&
+        !this.graphHealthDeleteMayHaveApplied) {
+      await this.reconcileGraphHealthAbsenceForCleanup(phase);
       providerProved = true;
     }
     if (this.graphProviderIdentity !== undefined && !providerProved) {
@@ -1953,6 +1997,22 @@ export class LocalGraphSystem extends LocalProductSystem {
     throw new Failure("cleanup");
   }
 
+  async reconcileGraphHealthAbsenceForCleanup(phase) {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      phase.assertActive("cleanup");
+      try {
+        const providerState = await this.readGraphProviderState(phase, "cleanup", true);
+        if (validateGraphProviderAbsence(
+          providerState, this.graphProviderExpectation(), this.graphHealthAbsentIdentity, "health",
+        )) return true;
+      } catch {
+        // Retry only within this fixed cleanup reconciliation bound.
+      }
+      if (attempt + 1 < 3) await this.pauseGraphPoll(phase, "cleanup");
+    }
+    throw new Failure("cleanup");
+  }
+
   async afterClusterAbsent() {
     this.graphNodeMayHaveApplied = false;
     this.graphPathMayHaveApplied = false;
@@ -1964,6 +2024,7 @@ export class LocalGraphSystem extends LocalProductSystem {
     this.graphPodDeleteMayHaveApplied = false;
     this.graphHealthDeleteMayHaveApplied = false;
     this.graphHealthApplyMayHaveApplied = false;
+    this.graphHealthAbsentIdentity = undefined;
   }
 
   async reconcileGraphImage(selected, phase) {
@@ -2049,7 +2110,8 @@ export class LocalGraphSystem extends LocalProductSystem {
     return this.graphImageIdentities.size !== 0 || this.graphImageMayHaveApplied.size !== 0 ||
       this.graphImageAliases.size !== 0 || this.graphNodeMayHaveApplied || this.graphPathMayHaveApplied ||
       this.graphProviderIdentity !== undefined || this.graphMarkerMayHaveApplied || this.graphPodDeleteMayHaveApplied ||
-      this.graphHealthDeleteMayHaveApplied || this.graphHealthApplyMayHaveApplied;
+      this.graphHealthDeleteMayHaveApplied || this.graphHealthApplyMayHaveApplied ||
+      this.graphHealthAbsentIdentity !== undefined;
   }
 }
 
