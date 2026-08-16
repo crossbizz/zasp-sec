@@ -100,7 +100,7 @@ git commit -m "docs: start M1-14 OpenSearch EventStore"
 - Produces: `EventStore`, `Store`, `Driver`, `Config`, `Event`, `Filter`,
   `DriverDocument`, `DriverQuery`, `DriverIndexed`, and fixed errors.
 
-- [ ] **Step 1: Add missing-symbol tests before production**
+- [x] **Step 1: Add missing-symbol tests before production**
 
 Compile tests against these public shapes before `store.go` exists:
 
@@ -168,7 +168,7 @@ type EventStore interface {
 Cover one exact index and scoped search happy path, the exact driver query,
 event-time/event-ID sorting, and defensive result copies.
 
-- [ ] **Step 2: Run compiler RED**
+- [x] **Step 2: Run compiler RED**
 
 ```bash
 go test -C services/platform ./eventstore -count=1
@@ -177,7 +177,7 @@ go test -C services/platform ./eventstore -count=1
 Expected: compilation fails only on missing EventStore symbols; no production
 or dependency edit may precede it.
 
-- [ ] **Step 3: Implement strict configuration and event validation**
+- [x] **Step 3: Implement strict configuration and event validation**
 
 Require a non-nil driver, one positive timeout through 30 seconds, maximum
 results 1 through 100, exact scope equality, nonzero IDs, source
@@ -186,7 +186,7 @@ results 1 through 100, exact scope equality, nonzero IDs, source
 no control characters, and a UTC millisecond timestamp whose canonical form is
 `2006-01-02T15:04:05.000Z`.
 
-- [ ] **Step 4: Implement bounded index and search operations**
+- [x] **Step 4: Implement bounded index and search operations**
 
 Each operation validates before I/O, creates one total timeout, contains driver
 panics, invokes the driver once, and maps only to fixed errors. Index requires
@@ -195,7 +195,7 @@ requested scope/session, validates strict ascending `(event_time,event_id)`
 order and unique event IDs, enforces the requested limit, and returns newly
 allocated product events.
 
-- [ ] **Step 5: Expand adversarial RED/GREEN coverage**
+- [x] **Step 5: Expand adversarial RED/GREEN coverage**
 
 Cover nil/typed-nil driver, invalid configuration, zero/mismatched scope, zero
 IDs, wrong allowlists, empty/control/invalid-UTF8/oversized source event IDs,
@@ -203,7 +203,7 @@ non-UTC/impossible/non-millisecond timestamps, invalid filters, malformed or
 foreign driver documents, duplicate/unsorted/oversized results, errors,
 cancellation, deadline, panic, aliasing, and 32 concurrent independent calls.
 
-- [ ] **Step 6: Run race and six stability passes**
+- [x] **Step 6: Run race and six stability passes**
 
 ```bash
 go test -C services/platform -race -count=1 ./eventstore
@@ -215,7 +215,7 @@ test -z "$(cd services/platform && go mod tidy -diff)"
 (cd services/platform && go vet ./...)
 ```
 
-- [ ] **Step 7: Scan and commit the product package**
+- [x] **Step 7: Scan and commit the product package**
 
 ```bash
 git commit -m "feat: add scoped event store"
