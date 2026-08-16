@@ -333,13 +333,13 @@ Update status/docs/count fixtures, run focused/root/full pinned gates, audit,
 license inventory, whitespace, and pinned redacted Gitleaks scans. Commit the
 completion transition separately.
 
-- [ ] **Step 3: Push and watch exact-SHA Runnable UI to success**
+- [x] **Step 3: Push and watch exact-SHA Runnable UI to success**
 
 Push only after clean review and local verification. Require local HEAD,
 upstream, remote branch, workflow run, and workflow job to reference the same
 completion SHA. Watch the Runnable UI run to terminal success.
 
-- [ ] **Step 4: Record closure without advancing M1-16**
+- [x] **Step 4: Record closure without advancing M1-16**
 
 Append exact commits, RED/GREEN counts, gates, scan results, workflow URL/job,
 clean/synchronized tree, and remaining status to authoritative and ignored
