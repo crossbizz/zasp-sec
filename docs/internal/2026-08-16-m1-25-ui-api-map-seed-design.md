@@ -9,20 +9,19 @@ planned product screens to their canonical future public OpenAPI operations:
 - System Health: `getSystemStatus`, `listSystemComponents`, and
   `getSystemVersion`.
 
-The map records a stable screen identifier, product label, planned route, and
-one stable action identifier per operation. Every action is explicitly
+The map records a stable screen identifier, product label, and one stable
+action identifier per operation. Every action is explicitly
 `planned` because M1-23 intentionally has `paths: {}`. This preserves an honest
 forward reference: no API is claimed implemented or callable.
 
 ## Exact artifact schema
 
 The top level has exactly `schema_version` and `screens`. Version is exactly 1.
-`screens` is an ordered nonempty list with unique `id`, `label`, and `route`.
+`screens` is an ordered nonempty list with unique `id` and `label`.
 Each screen has exactly:
 
 - `id`: lower snake case product identifier;
 - `label`: fixed product navigation label;
-- `route`: canonical future product route;
 - `actions`: ordered nonempty list.
 
 Each action has exactly:
@@ -31,11 +30,10 @@ Each action has exactly:
 - `operation_id`: canonical case-sensitive planned OpenAPI operation ID;
 - `availability`: exactly `planned` for this seed.
 
-Home reserves route `/`; System Health reserves
-`/administration/system-health`. The map contains no method, API path, schema,
-server, credential, provider, or runtime URL, so OpenAPI remains the sole API
-contract and later operation tasks cannot silently diverge through duplicated
-transport metadata.
+The source plan has not yet fixed product route strings, so the seed does not
+invent them. The map contains no route, method, API path, schema, server,
+credential, provider, or runtime URL; OpenAPI remains the sole API contract and
+later UI/operation tasks cannot silently diverge through duplicated metadata.
 
 ## Resolution boundary
 
@@ -49,7 +47,7 @@ and fails missing or unmapped active public operations.
 This distinction avoids weakening the current empty OpenAPI root while making
 the future coverage behavior deterministic. Duplicate YAML keys, aliases,
 merge keys, unknown fields, duplicate screens/actions/operations, reordered or
-invented seed data, unsafe routes, and invalid identifiers fail closed.
+invented seed data, and invalid identifiers fail closed.
 
 ## Verification and status boundary
 

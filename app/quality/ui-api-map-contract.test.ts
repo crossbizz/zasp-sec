@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 const repositoryRoot = resolve(import.meta.dirname, "../..");
 type MapAction = { id: string; operation_id: string; availability: string };
-type MapScreen = { id: string; label: string; route: string; actions: MapAction[] };
+type MapScreen = { id: string; label: string; actions: MapAction[] };
 type MapDocument = { schema_version: number; screens: MapScreen[] };
 
 const expectedMap: MapDocument = {
@@ -14,7 +14,6 @@ const expectedMap: MapDocument = {
     {
       id: "home",
       label: "Home",
-      route: "/",
       actions: [
         { id: "view_home_summary", operation_id: "getHomeSummary", availability: "planned" },
         { id: "search_all_entities", operation_id: "globalSearch", availability: "planned" },
@@ -23,7 +22,6 @@ const expectedMap: MapDocument = {
     {
       id: "system_health",
       label: "System Health",
-      route: "/administration/system-health",
       actions: [
         { id: "view_system_status", operation_id: "getSystemStatus", availability: "planned" },
         { id: "view_system_components", operation_id: "listSystemComponents", availability: "planned" },
@@ -48,20 +46,16 @@ function validateMap(value: unknown) {
 
   const screenIDs = new Set<string>();
   const labels = new Set<string>();
-  const routes = new Set<string>();
   const actionIDs = new Set<string>();
   const operationIDs = new Set<string>();
   for (const screen of document.screens as Array<Record<string, unknown>>) {
-    exactKeys(screen, ["id", "label", "route", "actions"]);
+    exactKeys(screen, ["id", "label", "actions"]);
     expect(screen.id).toMatch(/^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/);
     expect(screen.label).toMatch(/^[A-Za-z][A-Za-z ]+$/);
-    expect(screen.route).toMatch(/^\/(?:[a-z0-9]+(?:-[a-z0-9]+)*\/)*[a-z0-9]*(?:-[a-z0-9]+)*$/);
     expect(screenIDs.has(screen.id as string)).toBe(false);
     expect(labels.has(screen.label as string)).toBe(false);
-    expect(routes.has(screen.route as string)).toBe(false);
     screenIDs.add(screen.id as string);
     labels.add(screen.label as string);
-    routes.add(screen.route as string);
 
     expect(Array.isArray(screen.actions)).toBe(true);
     for (const action of screen.actions as Array<Record<string, unknown>>) {
@@ -175,7 +169,7 @@ describe("M1-25 UI API map seed", () => {
       (value: typeof expectedMap) => Object.assign(value, { extra: true }),
       (value: typeof expectedMap) => value.screens.reverse(),
       (value: typeof expectedMap) => value.screens[0].actions.pop(),
-      (value: typeof expectedMap) => Object.assign(value.screens[0], { route: "https://example.invalid" }),
+      (value: typeof expectedMap) => Object.assign(value.screens[0], { route: "/invented" }),
       (value: typeof expectedMap) => Object.assign(value.screens[0].actions[0], { availability: "active" }),
       (value: typeof expectedMap) => Object.assign(value.screens[1].actions[0], { operation_id: "getHomeSummary" }),
     ]) {
@@ -199,5 +193,23 @@ describe("M1-25 UI API map seed", () => {
     ]);
     available.delete("globalSearch");
     expect(() => resolveAgainst(operationIDs, available)).toThrow();
+  });
+
+  it("documents the planned seed without claiming current API coverage", async () => {
+    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const section = readme.match(/## UI-to-API map seed[\s\S]*?## Neon pooled proof/)?.[0] ?? "";
+    const prose = section.replace(/\s+/g, " ");
+
+    expect(section).toContain("`docs/product/ui-api-map.yaml`");
+    expect(prose).toContain("Home");
+    expect(prose).toContain("`getHomeSummary`");
+    expect(prose).toContain("`globalSearch`");
+    expect(prose).toContain("System Health");
+    expect(prose).toContain("`getSystemStatus`");
+    expect(prose).toContain("`listSystemComponents`");
+    expect(prose).toContain("`getSystemVersion`");
+    expect(prose).toContain("all five actions are `planned`");
+    expect(prose).toContain("does not add or claim a current OpenAPI operation");
+    expect(prose).toContain("M1-26 remains Pending");
   });
 });

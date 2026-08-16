@@ -2,7 +2,6 @@ schema_version: 1
 screens:
   - id: home
     label: Home
-    route: /
     actions:
       - id: view_home_summary
         operation_id: getHomeSummary
@@ -12,7 +11,6 @@ screens:
         availability: planned
   - id: system_health
     label: System Health
-    route: /administration/system-health
     actions:
       - id: view_system_status
         operation_id: getSystemStatus

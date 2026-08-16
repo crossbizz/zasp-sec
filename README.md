@@ -551,6 +551,19 @@ root-only checks `no-empty-servers` and `no-unused-components`. No install,
 download, provider, network, credential, environment-file, database, Docker,
 or shared-resource I/O occurs during these local verification commands.
 
+## UI-to-API map seed
+
+M1-25 seeds the strict checked-in `docs/product/ui-api-map.yaml`. Home maps its
+planned daily-queue and search actions to `getHomeSummary` and `globalSearch`.
+System Health maps overall status, component inventory, and version actions to
+`getSystemStatus`, `listSystemComponents`, and `getSystemVersion`.
+
+The artifact contains only stable screen/action identity and operation IDs;
+all five actions are `planned`. It does not add or claim a current OpenAPI
+operation, HTTP path, client method, UI call, or provider integration. M1-26
+remains Pending and owns reusable OpenAPI coverage CI when those operations are
+defined.
+
 ## Neon pooled proof
 
 The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,
