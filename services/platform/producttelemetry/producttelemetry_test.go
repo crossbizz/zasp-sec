@@ -233,9 +233,11 @@ func TestTelemetryReturnsFixedCaptureErrorForUnavailableOrMalformedDriver(t *tes
 		"environment drift":  mutateCaptured(base, func(value *DriverCaptured) { value.EnvironmentID = telemetryTestID(t, 9).String() }),
 		"distinct ID drift":  mutateCaptured(base, func(value *DriverCaptured) { value.DistinctID += "-other" }),
 		"event drift":        mutateCaptured(base, func(value *DriverCaptured) { value.Event = "other" }),
-		"profile drift":      mutateCaptured(base, func(value *DriverCaptured) { value.ProcessPersonProfile = true }),
+		"profile missing":    mutateCaptured(base, func(value *DriverCaptured) { value.ProcessPersonProfile = nil }),
+		"profile drift":      mutateCaptured(base, func(value *DriverCaptured) { value.ProcessPersonProfile = boolPointer(true) }),
 		"source drift":       mutateCaptured(base, func(value *DriverCaptured) { value.Source = "other" }),
-		"success drift":      mutateCaptured(base, func(value *DriverCaptured) { value.Success = false }),
+		"success missing":    mutateCaptured(base, func(value *DriverCaptured) { value.Success = nil }),
+		"success drift":      mutateCaptured(base, func(value *DriverCaptured) { value.Success = boolPointer(false) }),
 	}
 	for name, captureFn := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -363,10 +365,14 @@ func capturedFromRecord(record DriverRecord) DriverCaptured {
 		EnvironmentID:        record.EnvironmentID,
 		DistinctID:           record.DistinctID,
 		Event:                record.Event,
-		ProcessPersonProfile: record.ProcessPersonProfile,
+		ProcessPersonProfile: boolPointer(record.ProcessPersonProfile),
 		Source:               record.Source,
-		Success:              record.Success,
+		Success:              boolPointer(record.Success),
 	}
+}
+
+func boolPointer(value bool) *bool {
+	return &value
 }
 
 func mutateCaptured(base DriverCaptured, mutate func(*DriverCaptured)) func(context.Context, DriverRecord) (DriverCaptured, error) {

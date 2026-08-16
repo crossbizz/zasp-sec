@@ -80,9 +80,11 @@ type Driver interface {
 }
 ```
 
-The acknowledgement must echo every record field exactly. The driver receives
-no raw input fields, unknown values, credentials, endpoint, code default,
-prompt, secret, IP address, or evidence payload.
+The acknowledgement must echo every record field exactly. Its two boolean
+fields use required pointer presence so an omitted `false` cannot collapse into
+a valid zero value. The driver receives no raw input fields, unknown values,
+credentials, endpoint, code default, prompt, secret, IP address, or evidence
+payload.
 
 ## Failure, deadline, and concurrency behavior
 

@@ -72,9 +72,9 @@ type DriverCaptured struct {
 	EnvironmentID        string
 	DistinctID           string
 	Event                string
-	ProcessPersonProfile bool
+	ProcessPersonProfile *bool
 	Source               string
-	Success              bool
+	Success              *bool
 }
 
 type EventSerializer interface {
@@ -213,9 +213,11 @@ func exactCapture(record DriverRecord, captured DriverCaptured) bool {
 		captured.EnvironmentID == record.EnvironmentID &&
 		captured.DistinctID == record.DistinctID &&
 		captured.Event == record.Event &&
-		captured.ProcessPersonProfile == record.ProcessPersonProfile &&
+		captured.ProcessPersonProfile != nil &&
+		*captured.ProcessPersonProfile == record.ProcessPersonProfile &&
 		captured.Source == record.Source &&
-		captured.Success == record.Success
+		captured.Success != nil &&
+		*captured.Success == record.Success
 }
 
 func nilInterface(value any) bool {
