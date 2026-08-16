@@ -45,13 +45,13 @@ module, Vitest repository contracts, pinned Node 22.23.1/npm 10.9.8.
 - Consumes: authoritative M1-12 source, committed design/plan, completed M1-11.
 - Produces: unique M1-12 In-progress row and exact `683/1/41/3` contract.
 
-- [ ] **Step 1: Write the source/status contract before changing docs**
+- [x] **Step 1: Write the source/status contract before changing docs**
 
 Require the exact M1-11 dependency, ArtifactStore/S3 deliverable, LocalStack
 Put/Get/Delete verification, design boundary, M1-12 active row, M1-13 absence,
 and unchanged blocker/risk rows.
 
-- [ ] **Step 2: Run the focused contract and record Pending-state RED**
+- [x] **Step 2: Run the focused contract and record Pending-state RED**
 
 ```bash
 PATH="$HOME/.nvm/versions/node/v22.23.1/bin:$PATH" \
@@ -61,13 +61,13 @@ PATH="$HOME/.nvm/versions/node/v22.23.1/bin:$PATH" \
 Expected: source/design/plan assertions pass; README/status fail only because
 M1-12 remains Pending.
 
-- [ ] **Step 3: Move only M1-12 to In progress**
+- [x] **Step 3: Move only M1-12 to In progress**
 
 Set overall counts to `683/1/41/3` and M1 to `68/50/1/17/0`. Add exactly one
 M1-12 row and document the product/provider boundary. Mechanically update
 aggregate fixtures while retaining duplicate/concurrent-row rejection.
 
-- [ ] **Step 4: Run focused/full pinned gates, scan, and commit**
+- [x] **Step 4: Run focused/full pinned gates, scan, and commit**
 
 Run focused quality tests, `npm run verify`, `npm audit --omit=dev`, the
 eight-target build, diff check, and pinned redacted secret scans.
@@ -89,14 +89,14 @@ git commit -m "docs: start M1-12 S3 artifact interface"
 - Produces: `ArtifactStore`, `Store`, `Driver`, `Config`, `Locator`,
   `PutRequest`, `Artifact`, `DriverObject`, and fixed errors.
 
-- [ ] **Step 1: Add missing-symbol tests before production**
+- [x] **Step 1: Add missing-symbol tests before production**
 
 Cover valid construction and Put/Get/Delete first. Then add nil/typed-nil
 drivers; timeout and size bounds; zero/malformed scope/reference; media/content
 validation; exact key derivation; defensive copies; checksum and metadata
 mismatch; driver errors/panics; timeout/cancellation; and concurrent calls.
 
-- [ ] **Step 2: Run compiler RED**
+- [x] **Step 2: Run compiler RED**
 
 ```bash
 go test -C services/platform ./artifactstore -count=1
@@ -104,7 +104,7 @@ go test -C services/platform ./artifactstore -count=1
 
 Expected: compilation fails only on the absent package API.
 
-- [ ] **Step 3: Implement the strict product contract**
+- [x] **Step 3: Implement the strict product contract**
 
 Use a positive operation timeout no greater than 30 seconds and a positive
 maximum size no greater than 64 MiB. Derive the canonical key exclusively from
@@ -112,18 +112,18 @@ validated product scope/reference. Allow exactly JSON, octet-stream, gzip, and
 plain text media types. Compute SHA-256 in product code and validate every
 driver-returned field/body before returning a defensive copy.
 
-- [ ] **Step 4: Implement fixed deadline/error/panic behavior**
+- [x] **Step 4: Implement fixed deadline/error/panic behavior**
 
 Apply one `context.WithTimeout` to each operation, reject already-canceled
 contexts before driver I/O, contain driver panics, and map failures only to
 `ErrConfiguration`, `ErrPut`, `ErrGet`, `ErrDelete`, or `ErrArtifact`.
 
-- [ ] **Step 5: Run race and six stability passes**
+- [x] **Step 5: Run race and six stability passes**
 
 Run the focused race test, repeat the complete artifactstore package six times,
 then run the platform module race/tidy/verify/vet gates.
 
-- [ ] **Step 6: Scan and commit the product package**
+- [x] **Step 6: Scan and commit the product package**
 
 ```bash
 git commit -m "feat: add scoped artifact store"
@@ -152,38 +152,38 @@ git commit -m "feat: add scoped artifact store"
 - Produces: product-backed S3 adapter, `artifact-store` proof mode, root test/run
   commands, fixed success line, exact reverse cleanup and audit.
 
-- [ ] **Step 1: Write adapter/lifecycle/orchestrator tests before code**
+- [x] **Step 1: Write adapter/lifecycle/orchestrator tests before code**
 
 Require exact key/body/media/scope/checksum metadata, SSE-KMS identity,
 proof-marker tags, success/ambiguous reconciliation, collision rejection,
 pre-delete ownership, exact absence, cleanup precedence, fixed CLI output, and
 unchanged default M0-07 behavior.
 
-- [ ] **Step 2: Capture missing adapter/mode RED**
+- [x] **Step 2: Capture missing adapter/mode RED**
 
 Run focused Go and Node tests before production symbols/mode exist.
 
-- [ ] **Step 3: Implement the S3 driver and product proof**
+- [x] **Step 3: Implement the S3 driver and product proof**
 
 Map only typed product fields to S3. Re-fetch and validate exact content,
 metadata, tags, encryption, size, and checksum after Put. Retain an expected
 object cleanup candidate before mutation. Get must reject any provider drift;
 Delete must re-prove exact scoped state and then prove absence.
 
-- [ ] **Step 4: Extend the exact disposable runner**
+- [x] **Step 4: Extend the exact disposable runner**
 
 Keep default M0-07 mode byte-for-byte compatible. Add an M1-12 configuration
 with its own name prefix/labels, S3+KMS service set, Go mode, child success line,
 outer success line, bounded temp prefix, loopback endpoint, and exact cleanup.
 
-- [ ] **Step 5: Add root commands and documentation**
+- [x] **Step 5: Add root commands and documentation**
 
 ```json
 "artifact:store:test": "go test -C services/platform -race -count=1 ./artifactstore && go test -C proofs/localstack-storage -race -count=1 ./... && node --test proofs/localstack-storage/run.test.mjs",
 "artifact:store:run": "node proofs/localstack-storage/run-artifact-store.mjs"
 ```
 
-- [ ] **Step 6: Run hermetic gates, then exact live proof**
+- [x] **Step 6: Run hermetic gates, then exact live proof**
 
 Require:
 
@@ -192,7 +192,7 @@ Require:
 Then prove zero exact M1-12 containers/temp paths and do not address any shared
 development target.
 
-- [ ] **Step 7: Scan and commit adapter/proof**
+- [x] **Step 7: Scan and commit adapter/proof**
 
 ```bash
 git commit -m "feat: prove scoped LocalStack artifact store"
@@ -207,25 +207,25 @@ git commit -m "feat: prove scoped LocalStack artifact store"
 - Modify README/tracker/aggregate contracts for completion.
 - Modify this checklist only after exact completion CI succeeds.
 
-- [ ] **Step 1: Run independent whole-range review**
+- [x] **Step 1: Run independent whole-range review**
 
 Audit scope/key derivation, byte ownership, deadline lifetime, checksum/media
 validation, fixed errors, provider ambiguity, encryption identity, cleanup
 authorization, exact absence, runner fencing, and retained M0-07 behavior. Fix
 every finding tests-first until review is zero-finding.
 
-- [ ] **Step 2: Capture completion RED and move only M1-12 to Complete**
+- [x] **Step 2: Capture completion RED and move only M1-12 to Complete**
 
 Set overall counts to `683/0/42/3` and M1 to `68/50/0/18/0`. Keep M1-13
 Pending and all blockers/risk rows unchanged.
 
-- [ ] **Step 3: Run final gates and scans**
+- [x] **Step 3: Run final gates and scans**
 
 Run six focused passes, all affected Go race/tidy/verify/vet gates, retained
 M0-07 regressions, the eight-target build, pinned `npm run verify`, production
 audit, diff check, and pinned staged/exact/history/evidence secret scans.
 
-- [ ] **Step 4: Commit, push, and watch exact completion SHA**
+- [x] **Step 4: Commit, push, and watch exact completion SHA**
 
 ```bash
 git commit -m "docs: complete M1-12 S3 artifact interface"
@@ -234,8 +234,13 @@ git push origin codex/zasp-implementation
 
 Require Runnable UI success for the exact completion SHA.
 
-- [ ] **Step 5: Close the plan and verify the close SHA**
+- [x] **Step 5: Close the plan and verify the close SHA**
 
 Mark every checkbox complete, record exact completion run/job evidence, commit
 `docs: close M1-12 S3 artifact interface`, push, and require exact-SHA Runnable
 UI success before starting M1-13.
+
+Completion evidence: commit
+`f545e46c145db6d3e5f3e2f05a229bfe29bf33bb` passed Runnable UI run
+`31922507115`, job `95104578480`. All preceding steps and gates are complete;
+this checked plan is the only tracked close change.
