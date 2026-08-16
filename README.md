@@ -214,7 +214,7 @@ executed automatically.
 
 ## Neon schema baseline
 
-M1-10 is In progress. It adds the first versioned Neon schema baseline as a
+M1-10 is Complete. It adds the first versioned Neon schema baseline as a
 dependency-free platform migration package. The product boundary owns the
 embedded SQL and strict transaction protocol; the reviewed disposable Neon
 branch proof owns credentials, provider lifecycle, live up/down verification,
@@ -239,7 +239,9 @@ Neon schema baseline passed: up=true version=1 down=true baseline_restored=true 
 
 Output excludes connection fields, SQL rows, provider identifiers, and
 credentials. This task does not add a production pool or automatic startup
-migration; those boundaries remain with later M1 work.
+migration. Three fresh disposable live runs, exact cleanup, all pinned gates,
+secret scans, and zero-finding independent review passed; the pool boundary
+remains with M1-11.
 
 ## Neon pooled proof
 
