@@ -43,11 +43,11 @@ create ignored task/progress evidence.
 **Files:** create `docs/product/ui-api-map.yaml`; extend quality contract and
 ignored evidence.
 
-- [ ] **Step 1: Require absent exact map and capture RED**
-- [ ] **Step 2: Add exact schema and five planned action mappings**
-- [ ] **Step 3: Add hostile representation/inventory and resolution cases**
-- [ ] **Step 4: Run six focused passes and full pinned gates/audits**
-- [ ] **Step 5: Scan and commit `feat: seed UI API map`**
+- [x] **Step 1: Require absent exact map and capture RED**
+- [x] **Step 2: Add exact schema and five planned action mappings**
+- [x] **Step 3: Add hostile representation/inventory and resolution cases**
+- [x] **Step 4: Run six focused passes and full pinned gates/audits**
+- [x] **Step 5: Scan and commit `feat: seed UI API map`**
 
 ---
 

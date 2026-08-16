@@ -1,8 +1,98 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { JSON_SCHEMA, load } from "js-yaml";
 import { describe, expect, it } from "vitest";
 
 const repositoryRoot = resolve(import.meta.dirname, "../..");
+type MapAction = { id: string; operation_id: string; availability: string };
+type MapScreen = { id: string; label: string; route: string; actions: MapAction[] };
+type MapDocument = { schema_version: number; screens: MapScreen[] };
+
+const expectedMap: MapDocument = {
+  schema_version: 1,
+  screens: [
+    {
+      id: "home",
+      label: "Home",
+      route: "/",
+      actions: [
+        { id: "view_home_summary", operation_id: "getHomeSummary", availability: "planned" },
+        { id: "search_all_entities", operation_id: "globalSearch", availability: "planned" },
+      ],
+    },
+    {
+      id: "system_health",
+      label: "System Health",
+      route: "/administration/system-health",
+      actions: [
+        { id: "view_system_status", operation_id: "getSystemStatus", availability: "planned" },
+        { id: "view_system_components", operation_id: "listSystemComponents", availability: "planned" },
+        { id: "view_system_version", operation_id: "getSystemVersion", availability: "planned" },
+      ],
+    },
+  ],
+};
+
+function exactKeys(value: unknown, expected: string[]) {
+  expect(value).not.toBeNull();
+  expect(Array.isArray(value)).toBe(false);
+  expect(typeof value).toBe("object");
+  expect(Object.keys(value as object).sort()).toEqual([...expected].sort());
+}
+
+function validateMap(value: unknown) {
+  exactKeys(value, ["schema_version", "screens"]);
+  const document = value as { schema_version: unknown; screens: unknown };
+  expect(document.schema_version).toBe(1);
+  expect(document.screens).toEqual(expectedMap.screens);
+
+  const screenIDs = new Set<string>();
+  const labels = new Set<string>();
+  const routes = new Set<string>();
+  const actionIDs = new Set<string>();
+  const operationIDs = new Set<string>();
+  for (const screen of document.screens as Array<Record<string, unknown>>) {
+    exactKeys(screen, ["id", "label", "route", "actions"]);
+    expect(screen.id).toMatch(/^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/);
+    expect(screen.label).toMatch(/^[A-Za-z][A-Za-z ]+$/);
+    expect(screen.route).toMatch(/^\/(?:[a-z0-9]+(?:-[a-z0-9]+)*\/)*[a-z0-9]*(?:-[a-z0-9]+)*$/);
+    expect(screenIDs.has(screen.id as string)).toBe(false);
+    expect(labels.has(screen.label as string)).toBe(false);
+    expect(routes.has(screen.route as string)).toBe(false);
+    screenIDs.add(screen.id as string);
+    labels.add(screen.label as string);
+    routes.add(screen.route as string);
+
+    expect(Array.isArray(screen.actions)).toBe(true);
+    for (const action of screen.actions as Array<Record<string, unknown>>) {
+      exactKeys(action, ["id", "operation_id", "availability"]);
+      expect(action.id).toMatch(/^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/);
+      expect(action.operation_id).toMatch(/^[a-z][A-Za-z0-9]*$/);
+      expect(action.availability).toBe("planned");
+      expect(actionIDs.has(action.id as string)).toBe(false);
+      expect(operationIDs.has(action.operation_id as string)).toBe(false);
+      actionIDs.add(action.id as string);
+      operationIDs.add(action.operation_id as string);
+    }
+  }
+  return [...operationIDs];
+}
+
+function parseStrictMap(source: string) {
+  expect(Buffer.byteLength(source, "utf8")).toBeLessThanOrEqual(16 * 1024);
+  expect(source).not.toMatch(/[&*][A-Za-z0-9_-]+/);
+  expect(source).not.toMatch(/^\s*<<\s*:/m);
+  const parsed = load(source, { schema: JSON_SCHEMA, json: false });
+  validateMap(parsed);
+  return parsed;
+}
+
+function resolveAgainst(operationIDs: string[], available: Set<string>) {
+  for (const operationID of operationIDs) {
+    expect(available.has(operationID)).toBe(true);
+  }
+  return operationIDs;
+}
 
 function markdownRows(markdown: string) {
   return markdown
@@ -67,5 +157,47 @@ describe("M1-25 UI API map seed", () => {
     expect(complete.filter(([task]) => task === "M1-24")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-26")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
+  });
+
+  it("accepts only the exact two-screen, five-action planned map", async () => {
+    const source = await readFile(resolve(repositoryRoot, "docs/product/ui-api-map.yaml"), "utf8").catch(() => "");
+
+    expect(parseStrictMap(source)).toEqual(expectedMap);
+  });
+
+  it("rejects hostile YAML and semantic seed mutations", async () => {
+    const source = await readFile(resolve(repositoryRoot, "docs/product/ui-api-map.yaml"), "utf8").catch(() => "");
+    expect(() => parseStrictMap(`${source}\nschema_version: 1\n`)).toThrow();
+    expect(() => parseStrictMap("schema_version: &version 1\ncopy: *version\n")).toThrow();
+    expect(() => parseStrictMap("schema_version: 1\nscreens:\n  - <<: {id: home}\n")).toThrow();
+
+    for (const mutate of [
+      (value: typeof expectedMap) => Object.assign(value, { extra: true }),
+      (value: typeof expectedMap) => value.screens.reverse(),
+      (value: typeof expectedMap) => value.screens[0].actions.pop(),
+      (value: typeof expectedMap) => Object.assign(value.screens[0], { route: "https://example.invalid" }),
+      (value: typeof expectedMap) => Object.assign(value.screens[0].actions[0], { availability: "active" }),
+      (value: typeof expectedMap) => Object.assign(value.screens[1].actions[0], { operation_id: "getHomeSummary" }),
+    ]) {
+      const value = structuredClone(expectedMap);
+      mutate(value);
+      expect(() => validateMap(value)).toThrow();
+    }
+  });
+
+  it("resolves every forward reference when all five operations are defined", async () => {
+    const source = await readFile(resolve(repositoryRoot, "docs/product/ui-api-map.yaml"), "utf8").catch(() => "");
+    const operationIDs = validateMap(parseStrictMap(source));
+    const available = new Set(operationIDs);
+
+    expect(resolveAgainst(operationIDs, available)).toEqual([
+      "getHomeSummary",
+      "globalSearch",
+      "getSystemStatus",
+      "listSystemComponents",
+      "getSystemVersion",
+    ]);
+    available.delete("globalSearch");
+    expect(() => resolveAgainst(operationIDs, available)).toThrow();
   });
 });

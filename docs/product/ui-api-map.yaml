@@ -1,0 +1,25 @@
+schema_version: 1
+screens:
+  - id: home
+    label: Home
+    route: /
+    actions:
+      - id: view_home_summary
+        operation_id: getHomeSummary
+        availability: planned
+      - id: search_all_entities
+        operation_id: globalSearch
+        availability: planned
+  - id: system_health
+    label: System Health
+    route: /administration/system-health
+    actions:
+      - id: view_system_status
+        operation_id: getSystemStatus
+        availability: planned
+      - id: view_system_components
+        operation_id: listSystemComponents
+        availability: planned
+      - id: view_system_version
+        operation_id: getSystemVersion
+        availability: planned
