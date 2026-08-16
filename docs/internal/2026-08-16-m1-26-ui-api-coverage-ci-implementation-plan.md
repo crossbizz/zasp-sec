@@ -47,13 +47,13 @@ aggregate fixtures; create ignored task/progress evidence.
 **Files:** create `scripts/check-ui-api-coverage.mjs` and its Node tests; update
 `package.json`; extend ignored evidence.
 
-- [ ] **Step 1: Require the absent module/command and capture RED**
-- [ ] **Step 2: Implement strict bounded map and OpenAPI input parsing**
-- [ ] **Step 3: Enforce planned/available and public/internal coverage rules**
-- [ ] **Step 4: Add fixed-output CLI and root verification wiring**
-- [ ] **Step 5: Cover deliberate removal, unmapped public, malformed, and file-boundary failures**
-- [ ] **Step 6: Run six focused passes and full pinned gates/audits/scans**
-- [ ] **Step 7: Commit `feat: enforce UI API coverage`**
+- [x] **Step 1: Require the absent module/command and capture RED**
+- [x] **Step 2: Implement strict bounded map and OpenAPI input parsing**
+- [x] **Step 3: Enforce planned/available and public/internal coverage rules**
+- [x] **Step 4: Add fixed-output CLI and root verification wiring**
+- [x] **Step 5: Cover deliberate removal, unmapped public, malformed, and file-boundary failures**
+- [x] **Step 6: Run six focused passes and full pinned gates/audits/scans**
+- [x] **Step 7: Commit `feat: enforce UI API coverage`**
 
 ---
 
