@@ -17,28 +17,32 @@ function taskRows(tracker: string, heading: "In progress" | "Complete" | "Blocke
   return markdownRows(section).slice(2);
 }
 
-describe("M1-03 canonical ID contract", () => {
-  it("binds the source task to the approved product and external identity boundary", async () => {
-    const [source, design, plan] = await Promise.all([
+describe("M1-08 external client policy contract", () => {
+  it("binds the shared helper to the approved reliability boundary", async () => {
+    const [source, prd, design, plan] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "docs/internal/2026-08-15-m1-03-canonical-id-design.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "docs/internal/2026-08-15-m1-03-canonical-id-implementation-plan.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/agent_security_platform_PRD_v1.5.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/2026-08-15-m1-08-external-client-policy-design.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/2026-08-15-m1-08-external-client-policy-implementation-plan.md"), "utf8"),
     ]);
-    const sourceSection = source.match(/\*\*M1-03 - canonical IDs\*\*[\s\S]*?\*\*M1-04 - scope model/)?.[0];
+    const sourceSection = source.match(/\*\*M1-08 - external client policy\*\*[\s\S]*?\*\*M1-09 - idempotency helper/)?.[0];
     const compactDesign = design.replace(/\s+/g, " ");
 
-    expect(sourceSection).toContain("Depends on: `M1-02`");
-    expect(sourceSection).toContain("Define product UUID/ID wrappers and external-source reference type");
-    expect(sourceSection).toContain("prevents external vendor ID from becoming product primary key");
-    expect(design).toContain("`ProductID` is an opaque product-owned UUIDv4 wrapper");
-    expect(design).toContain("`pid_<canonical-uuid>`");
-    expect(design).toContain("`ProductID` and `ExternalID` have different concrete types and storage");
-    expect(compactDesign).toContain("Product IDs are never derived, hashed, normalized, or copied from an `ExternalSourceRef`");
+    expect(sourceSection).toContain("Depends on: `M1-07`");
+    expect(sourceSection).toContain("shared timeout/retry/concurrency helper for HTTP clients");
+    expect(sourceSection).toContain("retry transient errors only and enforce deadline");
+    expect(source).toContain("retry classification with exponential backoff + jitter");
+    expect(prd).toContain("every external call has a deadline");
+    expect(prd).toContain("retry only transient failures");
+    expect(prd).toContain("bounded concurrency and queues");
+    expect(prd).toContain("no destructive action retry unless idempotent or prior outcome is verified");
+    expect(compactDesign).toContain("`NonIdempotentMutation` receives exactly one attempt regardless of outcome");
+    expect(compactDesign).toContain("Slot wait, every attempt, and all backoff consume the same budget");
     expect(plan).toContain("Every behavior and status change has a witnessed tests-only RED first");
-    expect(plan).toContain("M1-04 remains Pending");
+    expect(plan).toContain("M1-09 remains Pending");
   });
 
-  it("completes only M1-03 after the identity boundary passes", async () => {
+  it("starts only M1-08 after M1-07 completes", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -51,9 +55,10 @@ describe("M1-03 canonical ID contract", () => {
     const m0 = milestones.find(([milestone]) => milestone === "M0");
     const m1 = milestones.find(([milestone]) => milestone === "M1");
 
-    expect(readme).toContain("M1-02 is Complete");
-    expect(readme).toContain("M1-03 is Complete");
-    expect(readme).toContain("pid_<canonical-uuid>");
+    expect(readme).toContain("M1-07 is Complete");
+    expect(readme).toContain("M1-08 is In progress");
+    expect(readme).toContain("one total deadline");
+    expect(readme).toContain("non-idempotent mutations are never retried");
     expect(tracker).toContain("| Pending | 687 |");
     expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 37 |");
@@ -62,10 +67,9 @@ describe("M1-03 canonical ID contract", () => {
     expect(m0).toEqual(["M0", "27", "0", "0", "24", "3"]);
     expect(m1).toEqual(["M1", "68", "54", "1", "13", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active).toHaveLength(1);
-    expect(complete.filter(([task]) => task === "M1-03")).toHaveLength(1);
-    expect(complete.filter(([task]) => task === "M1-02")).toHaveLength(1);
-    expect(complete.filter(([task]) => task === "M1-04")).toHaveLength(1);
+    expect(active.filter(([task]) => task === "M1-08")).toHaveLength(1);
+    expect(complete.filter(([task]) => task === "M1-07")).toHaveLength(1);
+    expect([...active, ...complete].filter(([task]) => task === "M1-09")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
     expect(tracker).toContain("R-03 remains incomplete");
     expect(tracker).toContain("R-11 remains Not run");

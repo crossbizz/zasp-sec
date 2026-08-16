@@ -17,12 +17,12 @@ platform HTTP clients.
 
 ### Task 1: Start M1-08
 
-- [ ] Add a repository contract binding source, PRD reliability rules, design,
+- [x] Add a repository contract binding source, PRD reliability rules, design,
   plan, completed M1-07, unique active status, arithmetic, and blockers.
-- [ ] Capture focused RED at the still-Pending README/tracker state.
-- [ ] Move only M1-08 to In progress at `687/1/37/3` overall and M1
+- [x] Capture focused RED at the still-Pending README/tracker state.
+- [x] Move only M1-08 to In progress at `687/1/37/3` overall and M1
   `68/54/1/13/0`; document the external-client boundary.
-- [ ] Run focused/full pinned GREEN, audit, whitespace, and scans; commit
+- [x] Run focused/full pinned GREEN, audit, whitespace, and scans; commit
   `docs: start M1-08 external client policy`.
 
 ### Task 2: Implement the executor tests-first
