@@ -516,7 +516,7 @@ export class LocalGraphSystem extends LocalProductSystem {
       "docker", ["image", "inspect", "--format", format, selected.repoDigest],
       phase, category, 15_000, 262_144,
     );
-    if (exactMissingGraphImage(result, selected.repoDigest)) return undefined;
+    if (exactMissingFormattedGraphImage(result, selected.repoDigest)) return undefined;
     if (!isPlainObject(result) || result.status !== 0 || result.signal !== null || result.stderr !== "" ||
         result.stdout === "" || result.thrown !== false || result.timedOut !== false) throw new Failure(category);
     let document;
@@ -1029,8 +1029,16 @@ function exactData(value, expected) {
   return value === expected && typeof value === typeof expected;
 }
 
+function exactMissingFormattedGraphImage(result, id) {
+  return exactMissingGraphImageResult(result, id, "\n");
+}
+
 function exactMissingGraphImage(result, id) {
-  return isPlainObject(result) && result.status === 1 && result.signal === null && result.stdout === "[]\n" &&
+  return exactMissingGraphImageResult(result, id, "[]\n");
+}
+
+function exactMissingGraphImageResult(result, id, stdout) {
+  return isPlainObject(result) && result.status === 1 && result.signal === null && result.stdout === stdout &&
     result.thrown === false && result.timedOut === false && new Set([
       `Error response from daemon: No such image: ${id}\n`,
       `Error: No such image: ${id}\n`,

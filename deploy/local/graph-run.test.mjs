@@ -27,8 +27,12 @@ const phase = Object.freeze({ assertActive() {}, signal: new AbortController().s
 const success = (stdout = "", stderr = "") => Object.freeze({
   signal: null, status: 0, stderr, stdout, thrown: false, timedOut: false,
 });
-const missingGraphImage = (reference) => Object.freeze({
+const missingUnformattedGraphImage = (reference) => Object.freeze({
   ...success("[]\n", `Error response from daemon: No such image: ${reference}\n`),
+  status: 1,
+});
+const missingFormattedGraphImage = (reference) => Object.freeze({
+  ...success("\n", `Error response from daemon: No such image: ${reference}\n`),
   status: 1,
 });
 
@@ -1011,7 +1015,7 @@ test("blocks an opposite-platform repository digest baseline before pull", async
   system.resolveGraphImage = async () => resolvedImage(selected);
   system.runRaw = async (_command, arguments_) => {
     const reference = arguments_.at(-1);
-    if (reference === selected.configDigest) return missingGraphImage(reference);
+    if (reference === selected.configDigest) return missingUnformattedGraphImage(reference);
     if (reference === selected.repoDigest) return success(`${JSON.stringify([
       opposite.configDigest,
       "amd64",
@@ -1035,14 +1039,15 @@ test("blocks an opposite-platform repository digest baseline before pull", async
   assert.equal(pulls, 0, "an ambient opposite-platform alias is rejected before pull authority exists");
 });
 
-test("accepts only exact config, repository-digest, tag-filter, and consumer absence", async () => {
+test("accepts only exact unformatted config and formatted repository-digest absence", async () => {
   const selected = plan();
   const system = graphSystem();
   const rawCalls = [];
   const readCalls = [];
   system.runRaw = async (command, arguments_) => {
     rawCalls.push([command, ...arguments_]);
-    return missingGraphImage(arguments_.at(-1));
+    return arguments_.includes("--format") ?
+      missingFormattedGraphImage(arguments_.at(-1)) : missingUnformattedGraphImage(arguments_.at(-1));
   };
   system.runRead = async (command, arguments_) => {
     readCalls.push([command, ...arguments_]);
@@ -1064,6 +1069,59 @@ test("accepts only exact config, repository-digest, tag-filter, and consumer abs
   ]);
 });
 
+test("rejects swapped and malformed formatted or unformatted missing-image envelopes", async () => {
+  const selected = plan();
+  const cases = [
+    {
+      config: missingFormattedGraphImage(selected.configDigest),
+      reference: missingFormattedGraphImage(selected.repoDigest),
+    },
+    {
+      config: missingUnformattedGraphImage(selected.configDigest),
+      reference: missingUnformattedGraphImage(selected.repoDigest),
+    },
+    {
+      config: Object.freeze({
+        ...missingUnformattedGraphImage(selected.configDigest),
+        stdout: "[ ]\n",
+      }),
+      reference: missingFormattedGraphImage(selected.repoDigest),
+    },
+    {
+      config: missingUnformattedGraphImage(selected.configDigest),
+      reference: Object.freeze({
+        ...missingFormattedGraphImage(selected.repoDigest),
+        stdout: "\n\n",
+      }),
+    },
+  ];
+  const outcomes = [];
+  for (const evidence of cases) {
+    const system = graphSystem();
+    system.runRaw = async (_command, arguments_) => arguments_.includes("--format") ?
+      evidence.reference : evidence.config;
+    system.runRead = async () => success();
+    try {
+      await system.requireGraphImageBaselineAbsent(selected, phase);
+      outcomes.push("accepted");
+    } catch (error) {
+      outcomes.push(error?.name);
+    }
+  }
+  assert.deepEqual(outcomes, ["Failure", "Failure", "Failure", "Failure"]);
+});
+
+test("final audit accepts exact provider-shaped graph image absence", async () => {
+  const selected = plan("busybox", "linux/arm64");
+  const system = graphSystem();
+  system.graphImagePlans = new Map([[selected.name, selected]]);
+  system.runRaw = async (_command, arguments_) => arguments_.includes("--format") ?
+    missingFormattedGraphImage(arguments_.at(-1)) : missingUnformattedGraphImage(arguments_.at(-1));
+  system.runRead = async () => success();
+
+  await system.requireAdditionalGlobalAbsence(phase, "cleanup");
+});
+
 test("rejects malformed or signaled repository-digest baseline evidence", async () => {
   const selected = plan();
   const evidence = [
@@ -1074,7 +1132,9 @@ test("rejects malformed or signaled repository-digest baseline evidence", async 
   for (const repoDigestResult of evidence) {
     const system = graphSystem();
     system.runRaw = async (_command, arguments_) => {
-      if (arguments_.at(-1) === selected.configDigest) return missingGraphImage(selected.configDigest);
+      if (arguments_.at(-1) === selected.configDigest) {
+        return missingUnformattedGraphImage(selected.configDigest);
+      }
       assert.equal(arguments_.at(-1), selected.repoDigest);
       return repoDigestResult;
     };
@@ -1096,7 +1156,7 @@ test("final audit rejects an ambient repository digest when the selected config 
   system.graphImagePlans = new Map([[selected.name, selected]]);
   system.runRaw = async (_command, arguments_) => {
     const reference = arguments_.at(-1);
-    if (reference === selected.configDigest) return missingGraphImage(reference);
+    if (reference === selected.configDigest) return missingUnformattedGraphImage(reference);
     if (reference === selected.repoDigest) return success(`${JSON.stringify([
       opposite.configDigest,
       "amd64",
@@ -1117,7 +1177,8 @@ test("owns graph image aliases from exact baseline through ambiguity-safe cleanu
   let baselineInUsePulls = 0;
   baselineInUse.requireTemporaryOwnership = async () => {};
   baselineInUse.resolveGraphImage = async () => resolvedImage(selected);
-  baselineInUse.runRaw = async (_command, arguments_) => missingGraphImage(arguments_.at(-1));
+  baselineInUse.runRaw = async (_command, arguments_) => arguments_.includes("--format") ?
+    missingFormattedGraphImage(arguments_.at(-1)) : missingUnformattedGraphImage(arguments_.at(-1));
   baselineInUse.runRead = async (_command, arguments_) => arguments_[0] === "image" ? success() :
     success(`${"c".repeat(64)}\n`);
   baselineInUse.runMutation = async () => {
