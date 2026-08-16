@@ -112,19 +112,27 @@ production or status edits. M1-20 remains Pending throughout M1-19.
 - Add a tracked review record to this plan after zero findings.
 - Create ignored Task 4 report and append the progress ledger.
 
-- [ ] Review the exact M1-19 range against the source task, PRD, design, plan,
+- [x] Review the exact M1-19 range against the source task, PRD, design, plan,
   privacy proof, implementation, tests, docs, status, dependency, and secret
   boundaries.
 
-- [ ] Reproduce every finding with focused RED evidence and fix it one item at
+- [x] Reproduce every finding with focused RED evidence and fix it one item at
   a time.
 
-- [ ] Require Critical 0, Important 0, Minor 0, six final race passes, 100%
+- [x] Require Critical 0, Important 0, Minor 0, six final race passes, 100%
   production statement coverage, full platform/repository/build/audit gates,
   exact-range/full-history secret scans, and clean tracked state.
 
   Review-fix commits must be separate and narrowly scoped. Record the final
   zero-finding review in `docs: record M1-19 review`.
+
+  Review found one Important zero-value ambiguity: plain boolean
+  acknowledgement fields could not distinguish omitted `false` from an exact
+  echo. Tests-only compiler RED required explicit presence; fix commit
+  `515d4af` uses required pointers and rejects missing or drifted booleans.
+  Final re-review is Critical 0, Important 0, Minor 0. Six race passes, 100
+  repetitions, 100% statement coverage, full platform/repository/build/audit
+  gates, diff checks, and secret scans pass.
 
 ## Task 5: Complete, push, and close M1-19
 
