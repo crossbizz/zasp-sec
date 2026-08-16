@@ -70,8 +70,8 @@ aggregate fixtures; create ignored task/progress evidence.
 
 - [x] **Step 1: Capture completion status RED**
 - [x] **Step 2: Move only M1-26 to Complete and run final gates/scans**
-- [ ] **Step 3: Push completion commit and require exact-SHA Runnable UI success**
-- [ ] **Step 4: Push plan-only closure and require exact-SHA Runnable UI success**
+- [x] **Step 3: Push completion commit and require exact-SHA Runnable UI success**
+- [x] **Step 4: Push plan-only closure and require exact-SHA Runnable UI success**
 
 Final completion requires overall `669/0/56/3`, M1 `68/36/0/32/0`, clean
 local/upstream/origin equality, final all-history/evidence scans, and M1-27
