@@ -938,14 +938,9 @@ export class LocalProductSystem {
   async verifyReadiness(phase) {
     await this.requireTemporaryOwnership(phase, "ownership");
     await this.verifyCluster(phase, "ownership");
-    const requests = [
-      ["deployment", "apps/v1", "DeploymentList"],
-      ["pod", "v1", "PodList"],
-      ["service", "v1", "ServiceList"],
-      ["ingress", "networking.k8s.io/v1", "IngressList"],
-    ];
+    const requests = ["deployment", "pod", "service", "ingress"];
     const documents = new Map();
-    for (const [resource, apiVersion, kind] of requests) {
+    for (const resource of requests) {
       const result = await this.runRead("kubectl", [
         "--kubeconfig", this.paths.kubeconfig, "get", resource, "--namespace", "zasp-local", "--output=json",
       ], phase, "readiness", 30_000, 4_194_304);
@@ -953,7 +948,7 @@ export class LocalProductSystem {
       try { document = parseBoundedJson(result.stdout, 4_194_304); } catch { throw new Failure("readiness"); }
       requireExactObject(document, ["apiVersion", "items", "kind", "metadata"], `${resource} list`);
       requireExactObject(document.metadata, ["resourceVersion"], `${resource} metadata`);
-      if (document.apiVersion !== apiVersion || document.kind !== kind ||
+      if (document.apiVersion !== "v1" || document.kind !== "List" ||
           document.metadata.resourceVersion !== "" || !Array.isArray(document.items)) {
         throw new Failure("readiness");
       }

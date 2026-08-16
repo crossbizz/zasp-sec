@@ -1193,16 +1193,16 @@ test("concrete lifecycle loads all images and proves the exact Ready Kubernetes 
       return { signal: null, status: 0, stderr: "", stdout: "ready\n", thrown: false, timedOut: false };
     }
     if (command === "kubectl" && arguments_.includes("deployment")) {
-      return { signal: null, status: 0, stderr: "", stdout: `${JSON.stringify({ apiVersion: "apps/v1", items: state.deployments, kind: "DeploymentList", metadata: { resourceVersion: "" } })}\n`, thrown: false, timedOut: false };
+      return { signal: null, status: 0, stderr: "", stdout: `${JSON.stringify({ apiVersion: "v1", items: state.deployments, kind: "List", metadata: { resourceVersion: "" } })}\n`, thrown: false, timedOut: false };
     }
     if (command === "kubectl" && arguments_.includes("pod")) {
-      return { signal: null, status: 0, stderr: "", stdout: `${JSON.stringify({ apiVersion: "v1", items: state.pods, kind: "PodList", metadata: { resourceVersion: "" } })}\n`, thrown: false, timedOut: false };
+      return { signal: null, status: 0, stderr: "", stdout: `${JSON.stringify({ apiVersion: "v1", items: state.pods, kind: "List", metadata: { resourceVersion: "" } })}\n`, thrown: false, timedOut: false };
     }
     if (command === "kubectl" && arguments_.includes("service")) {
-      return { signal: null, status: 0, stderr: "", stdout: `${JSON.stringify({ apiVersion: "v1", items: state.services, kind: "ServiceList", metadata: { resourceVersion: "" } })}\n`, thrown: false, timedOut: false };
+      return { signal: null, status: 0, stderr: "", stdout: `${JSON.stringify({ apiVersion: "v1", items: state.services, kind: "List", metadata: { resourceVersion: "" } })}\n`, thrown: false, timedOut: false };
     }
     if (command === "kubectl" && arguments_.includes("ingress")) {
-      return { signal: null, status: 0, stderr: "", stdout: '{"apiVersion":"networking.k8s.io/v1","items":[],"kind":"IngressList","metadata":{"resourceVersion":""}}\n', thrown: false, timedOut: false };
+      return { signal: null, status: 0, stderr: "", stdout: '{"apiVersion":"v1","items":[],"kind":"List","metadata":{"resourceVersion":""}}\n', thrown: false, timedOut: false };
     }
     throw new Error("unexpected command");
   });
