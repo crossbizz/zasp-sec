@@ -31,7 +31,7 @@ function assertM012Complete(tracker: string) {
   const m012Rows = completeRows.filter(([task]) => task === "M0-12");
 
   const activeRows = inProgressRows.slice(2);
-  expect(activeRows.map(([task]) => task)).toEqual([]);
+  expect(activeRows.map(([task]) => task)).toEqual(["M1-24"]);
   expect([...activeRows, ...completeRows].filter(([task]) => task === "M0-15")).toHaveLength(1);
   expect(m012Rows).toHaveLength(1);
   expect(m012Rows[0]).toHaveLength(3);
@@ -73,8 +73,8 @@ describe("Tetragon signal proof contract", () => {
       "utf8",
     );
 
-    expect(tracker).toContain("| Pending | 672 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 671 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 53 |");
     expect(tracker).toContain("| Blocked | 3 |");
     expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 0 \| 24 \| 3 \|/);
@@ -98,8 +98,8 @@ describe("Tetragon signal proof contract", () => {
       "## Complete\n",
       "| M0-15 | August 15, 2026 | Decoy concurrent work. |\n\n## Complete\n",
     );
-    expect(duplicate).toContain("| In progress | 0 |");
-    expect(concurrent).toContain("| In progress | 0 |");
+    expect(duplicate).toContain("| In progress | 1 |");
+    expect(concurrent).toContain("| In progress | 1 |");
     expect(() => assertM012Complete(duplicate)).toThrow();
     expect(() => assertM012Complete(concurrent)).toThrow();
   });

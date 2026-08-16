@@ -64,16 +64,17 @@ describe("M1-23 OpenAPI root", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(readme).toMatch(/M1-23\s+is\s+Complete/);
-    expect(tracker).toContain("| Pending | 672 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 671 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 53 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`672/0/53/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "39", "0", "29", "0"]);
-    expect(active).toHaveLength(0);
+    expect(tracker).toContain("`671/1/53/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "38", "1", "29", "0"]);
+    expect(active.map(([task]) => task)).toEqual(["M1-24"]);
     expect(complete.filter(([task]) => task === "M1-23")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-22")).toHaveLength(1);
-    expect([...active, ...complete].filter(([task]) => task === "M1-24")).toHaveLength(0);
+    expect(active.filter(([task]) => task === "M1-24")).toHaveLength(1);
+    expect(complete.filter(([task]) => task === "M1-24")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
 
@@ -95,6 +96,6 @@ describe("M1-23 OpenAPI root", () => {
     expect(prose).toContain("no operations, servers, callbacks, webhooks, examples, or remote references");
     expect(prose).toContain("`no-empty-servers` and `no-unused-components`");
     expect(prose).toContain("No install, download, provider, network, credential, environment-file, database, Docker, or shared-resource I/O");
-    expect(prose).toContain("M1-24 remains Pending");
+    expect(prose).toContain("M1-24 is In progress");
   });
 });

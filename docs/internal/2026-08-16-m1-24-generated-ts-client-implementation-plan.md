@@ -35,15 +35,15 @@ Node test runner, Vitest repository contracts, pinned Node 22.23.1/npm 10.9.8.
 - Modify: `README.md`, tracker, current aggregate quality fixtures
 - Create ignored task/progress evidence
 
-- [ ] **Step 1: Write source/design/status assertions and capture RED**
+- [x] **Step 1: Write source/design/status assertions and capture RED**
 
   Require source task/dependency/deliverable, reviewed generator/client paths
   and pins, M1-23 Complete, M1-24 active, M1-25 Pending, exact blockers, overall
   `671/1/53/3`, and M1 `68/38/1/29/0`.
 
-- [ ] **Step 2: Move only M1-24 to In progress**
+- [x] **Step 2: Move only M1-24 to In progress**
 
-- [ ] **Step 3: Verify focused and complete quality GREEN**
+- [x] **Step 3: Verify focused and complete quality GREEN**
 
   ```bash
   npx vitest run app/quality/generated-api-client-contract.test.ts
@@ -51,7 +51,7 @@ Node test runner, Vitest repository contracts, pinned Node 22.23.1/npm 10.9.8.
   git diff --check
   ```
 
-- [ ] **Step 4: Record, scan, and commit**
+- [x] **Step 4: Record, scan, and commit**
 
   ```bash
   git commit -m "docs: start M1-24 generated client"

@@ -526,8 +526,8 @@ Reusable pagination vocabulary is `Cursor`, `PageCursor`, `PageLimit`, and the
 closed two-state `PageInfo`. The public error vocabulary is canonical
 `ProductID`, the exact four-field `ProductError`, and `ProductErrorResponse`.
 The root deliberately retains `paths: {}` and contains no operations, servers,
-callbacks, webhooks, examples, or remote references. M1-24 remains Pending and
-will generate the TypeScript client only from this reviewed root. M1-23 is
+callbacks, webhooks, examples, or remote references. M1-24 is In progress and
+is generating the TypeScript client only from this reviewed root. M1-23 is
 Complete.
 
 ```bash
