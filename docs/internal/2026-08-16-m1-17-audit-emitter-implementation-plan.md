@@ -331,20 +331,20 @@ git commit -m "docs: expose audit emitter contract"
 - Consumes: all M1-17 commits and evidence.
 - Produces: zero unresolved Critical, Important, or Minor findings.
 
-- [ ] **Step 1: Review exact scope read-only**
+- [x] **Step 1: Review exact scope read-only**
 
 Audit against the authoritative task, PRD, approved design, this plan, domain
 identity/scope contracts, public API, action/outcome grammar, pre-I/O rejection,
 one-attempt append, exact acknowledgement, deadlines, panic containment,
 concurrency, fixed errors, docs, status boundaries, and evidence.
 
-- [ ] **Step 2: Reproduce and fix every finding tests-first**
+- [x] **Step 2: Reproduce and fix every finding tests-first**
 
 For each real finding, add the smallest hostile regression and capture genuine
 RED before production edits. Apply the minimal fix in a separate atomic commit,
 then repeat review until Critical, Important, and Minor counts are all zero.
 
-- [ ] **Step 3: Run final local gates**
+- [x] **Step 3: Run final local gates**
 
 ```bash
 for run in 1 2 3 4 5 6; do
