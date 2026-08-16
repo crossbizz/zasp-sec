@@ -87,7 +87,9 @@ func (server *healthServer) Serve(ctx context.Context, listener net.Listener) er
 			server.handler.SetReady(false)
 			shutdownContext, cancel := context.WithTimeout(context.Background(), server.shutdownTimeout)
 			defer cancel()
-			shutdownDone <- callHealthShutdown(server.shutdown, shutdownContext)
+			shutdownErr := callHealthShutdown(server.shutdown, shutdownContext)
+			_ = callHealthClose(listener)
+			shutdownDone <- shutdownErr
 		case <-serveDone:
 			shutdownDone <- nil
 		}
@@ -122,6 +124,15 @@ func callHealthShutdown(shutdown func(context.Context) error, ctx context.Contex
 		}
 	}()
 	return shutdown(ctx)
+}
+
+func callHealthClose(listener net.Listener) (result error) {
+	defer func() {
+		if recover() != nil {
+			result = errInvalidHealthRuntime
+		}
+	}()
+	return listener.Close()
 }
 
 func invalidRuntimeValue(value any) bool {

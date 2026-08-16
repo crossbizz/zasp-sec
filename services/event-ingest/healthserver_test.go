@@ -165,13 +165,58 @@ func TestHealthServerUsesIndependentShutdownAndCleanupFailureWins(t *testing.T) 
 	ctx, cancel := context.WithCancel(context.Background())
 	result := make(chan error, 1)
 	go func() { result <- server.Serve(ctx, &healthStubListener{}) }()
-	<-started
+	select {
+	case <-started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("Serve() did not start")
+	}
 	if err := server.Serve(context.Background(), &healthStubListener{}); !errors.Is(err, errInvalidHealthRuntime) {
 		t.Fatalf("concurrent Serve() error = %v, want errInvalidHealthRuntime", err)
 	}
 	cancel()
-	if err := <-result; !errors.Is(err, errInvalidHealthRuntime) {
-		t.Fatalf("Serve() error = %v, want errInvalidHealthRuntime", err)
+	select {
+	case err := <-result:
+		if !errors.Is(err, errInvalidHealthRuntime) {
+			t.Fatalf("Serve() error = %v, want errInvalidHealthRuntime", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Serve() did not terminate after shutdown failure")
+	}
+}
+
+func TestHealthServerShutdownPanicUnblocksAndJoinsServe(t *testing.T) {
+	t.Parallel()
+
+	server, err := newHealthServer(healthServerConfig{service: "event-ingest", version: "dev"})
+	if err != nil {
+		t.Fatalf("newHealthServer() error = %v", err)
+	}
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("net.Listen() error = %v", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	result := make(chan error, 1)
+	server.shutdown = func(context.Context) error { panic("sensitive shutdown panic") }
+	go func() { result <- server.Serve(ctx, listener) }()
+	waitForHealthStatus(t, "http://"+listener.Addr().String()+"/readyz", http.StatusOK)
+	cancel()
+
+	select {
+	case err := <-result:
+		if !errors.Is(err, errInvalidHealthRuntime) {
+			t.Fatalf("Serve() error = %v, want errInvalidHealthRuntime", err)
+		}
+	case <-time.After(500 * time.Millisecond):
+		_ = listener.Close()
+		select {
+		case <-result:
+		case <-time.After(2 * time.Second):
+		}
+		t.Fatal("Serve() remained blocked after recovered shutdown panic")
+	}
+	if err := listener.Close(); err == nil {
+		t.Fatal("listener remained open after shutdown panic")
 	}
 }
 
@@ -228,6 +273,9 @@ func TestHealthRuntimeCallbackPanicsAreContained(t *testing.T) {
 	}
 	if err := callHealthShutdown(func(context.Context) error { panic("sensitive shutdown panic") }, context.Background()); !errors.Is(err, errInvalidHealthRuntime) {
 		t.Fatalf("callHealthShutdown() error = %v, want errInvalidHealthRuntime", err)
+	}
+	if err := callHealthClose(&healthPanicCloseListener{}); !errors.Is(err, errInvalidHealthRuntime) {
+		t.Fatalf("callHealthClose() error = %v, want errInvalidHealthRuntime", err)
 	}
 }
 
@@ -419,6 +467,7 @@ type healthStubListener struct {
 
 type healthStubContext struct{}
 type healthPanicWriter struct{}
+type healthPanicCloseListener struct{ healthStubListener }
 type healthListenResult struct {
 	listener net.Listener
 	network  string
@@ -435,5 +484,6 @@ func (*healthStubContext) Done() <-chan struct{}       { return nil }
 func (*healthStubContext) Err() error                  { return nil }
 func (*healthStubContext) Value(any) any               { return nil }
 func (healthPanicWriter) Write([]byte) (int, error)    { panic("sensitive writer panic") }
+func (*healthPanicCloseListener) Close() error         { panic("sensitive close panic") }
 func (healthAddress) Network() string                  { return "tcp" }
 func (address healthAddress) String() string           { return string(address) }
