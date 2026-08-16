@@ -1,0 +1,442 @@
+apiVersion: v1
+kind: List
+items:
+  - apiVersion: v1
+    kind: Namespace
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: zasp
+        zasp.dev/environment: local
+      name: zasp-local
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      labels:
+        app.kubernetes.io/name: agentsec-api
+        app.kubernetes.io/part-of: zasp
+        zasp.dev/environment: local
+      name: agentsec-api
+      namespace: zasp-local
+    spec:
+      progressDeadlineSeconds: 120
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: agentsec-api
+      strategy:
+        type: Recreate
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: agentsec-api
+            app.kubernetes.io/part-of: zasp
+            zasp.dev/environment: local
+        spec:
+          automountServiceAccountToken: false
+          containers:
+            - image: zasp-local/agentsec-api:m1-30a
+              imagePullPolicy: Never
+              livenessProbe:
+                failureThreshold: 3
+                httpGet:
+                  path: /healthz
+                  port: health
+                  scheme: HTTP
+                periodSeconds: 10
+                timeoutSeconds: 1
+              name: agentsec-api
+              ports:
+                - containerPort: 8081
+                  name: health
+                  protocol: TCP
+              readinessProbe:
+                failureThreshold: 3
+                httpGet:
+                  path: /readyz
+                  port: health
+                  scheme: HTTP
+                periodSeconds: 2
+                timeoutSeconds: 1
+              resources:
+                limits:
+                  cpu: 100m
+                  memory: 64Mi
+                requests:
+                  cpu: 10m
+                  memory: 16Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                privileged: false
+                readOnlyRootFilesystem: true
+                runAsGroup: 65532
+                runAsNonRoot: true
+                runAsUser: 65532
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /healthz
+                  port: health
+                  scheme: HTTP
+                periodSeconds: 1
+                timeoutSeconds: 1
+          dnsPolicy: ClusterFirst
+          enableServiceLinks: false
+          restartPolicy: Always
+          securityContext:
+            fsGroup: 65532
+            runAsGroup: 65532
+            runAsNonRoot: true
+            runAsUser: 65532
+            seccompProfile:
+              type: RuntimeDefault
+          terminationGracePeriodSeconds: 10
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      labels:
+        app.kubernetes.io/name: agentsec-worker
+        app.kubernetes.io/part-of: zasp
+        zasp.dev/environment: local
+      name: agentsec-worker
+      namespace: zasp-local
+    spec:
+      progressDeadlineSeconds: 120
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: agentsec-worker
+      strategy:
+        type: Recreate
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: agentsec-worker
+            app.kubernetes.io/part-of: zasp
+            zasp.dev/environment: local
+        spec:
+          automountServiceAccountToken: false
+          containers:
+            - image: zasp-local/agentsec-worker:m1-30a
+              imagePullPolicy: Never
+              livenessProbe:
+                failureThreshold: 3
+                httpGet:
+                  path: /healthz
+                  port: health
+                  scheme: HTTP
+                periodSeconds: 10
+                timeoutSeconds: 1
+              name: agentsec-worker
+              ports:
+                - containerPort: 8081
+                  name: health
+                  protocol: TCP
+              readinessProbe:
+                failureThreshold: 3
+                httpGet:
+                  path: /readyz
+                  port: health
+                  scheme: HTTP
+                periodSeconds: 2
+                timeoutSeconds: 1
+              resources:
+                limits:
+                  cpu: 100m
+                  memory: 64Mi
+                requests:
+                  cpu: 10m
+                  memory: 16Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                privileged: false
+                readOnlyRootFilesystem: true
+                runAsGroup: 65532
+                runAsNonRoot: true
+                runAsUser: 65532
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /healthz
+                  port: health
+                  scheme: HTTP
+                periodSeconds: 1
+                timeoutSeconds: 1
+          dnsPolicy: ClusterFirst
+          enableServiceLinks: false
+          restartPolicy: Always
+          securityContext:
+            fsGroup: 65532
+            runAsGroup: 65532
+            runAsNonRoot: true
+            runAsUser: 65532
+            seccompProfile:
+              type: RuntimeDefault
+          terminationGracePeriodSeconds: 10
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      labels:
+        app.kubernetes.io/name: event-ingest
+        app.kubernetes.io/part-of: zasp
+        zasp.dev/environment: local
+      name: event-ingest
+      namespace: zasp-local
+    spec:
+      progressDeadlineSeconds: 120
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: event-ingest
+      strategy:
+        type: Recreate
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: event-ingest
+            app.kubernetes.io/part-of: zasp
+            zasp.dev/environment: local
+        spec:
+          automountServiceAccountToken: false
+          containers:
+            - image: zasp-local/event-ingest:m1-30a
+              imagePullPolicy: Never
+              livenessProbe:
+                failureThreshold: 3
+                httpGet:
+                  path: /healthz
+                  port: health
+                  scheme: HTTP
+                periodSeconds: 10
+                timeoutSeconds: 1
+              name: event-ingest
+              ports:
+                - containerPort: 8081
+                  name: health
+                  protocol: TCP
+              readinessProbe:
+                failureThreshold: 3
+                httpGet:
+                  path: /readyz
+                  port: health
+                  scheme: HTTP
+                periodSeconds: 2
+                timeoutSeconds: 1
+              resources:
+                limits:
+                  cpu: 100m
+                  memory: 64Mi
+                requests:
+                  cpu: 10m
+                  memory: 16Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                privileged: false
+                readOnlyRootFilesystem: true
+                runAsGroup: 65532
+                runAsNonRoot: true
+                runAsUser: 65532
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /healthz
+                  port: health
+                  scheme: HTTP
+                periodSeconds: 1
+                timeoutSeconds: 1
+          dnsPolicy: ClusterFirst
+          enableServiceLinks: false
+          restartPolicy: Always
+          securityContext:
+            fsGroup: 65532
+            runAsGroup: 65532
+            runAsNonRoot: true
+            runAsUser: 65532
+            seccompProfile:
+              type: RuntimeDefault
+          terminationGracePeriodSeconds: 10
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      labels:
+        app.kubernetes.io/name: runtime-gateway
+        app.kubernetes.io/part-of: zasp
+        zasp.dev/environment: local
+      name: runtime-gateway
+      namespace: zasp-local
+    spec:
+      progressDeadlineSeconds: 120
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: runtime-gateway
+      strategy:
+        type: Recreate
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: runtime-gateway
+            app.kubernetes.io/part-of: zasp
+            zasp.dev/environment: local
+        spec:
+          automountServiceAccountToken: false
+          containers:
+            - image: zasp-local/runtime-gateway:m1-30a
+              imagePullPolicy: Never
+              livenessProbe:
+                failureThreshold: 3
+                httpGet:
+                  path: /healthz
+                  port: health
+                  scheme: HTTP
+                periodSeconds: 10
+                timeoutSeconds: 1
+              name: runtime-gateway
+              ports:
+                - containerPort: 8081
+                  name: health
+                  protocol: TCP
+              readinessProbe:
+                failureThreshold: 3
+                httpGet:
+                  path: /readyz
+                  port: health
+                  scheme: HTTP
+                periodSeconds: 2
+                timeoutSeconds: 1
+              resources:
+                limits:
+                  cpu: 100m
+                  memory: 64Mi
+                requests:
+                  cpu: 10m
+                  memory: 16Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                privileged: false
+                readOnlyRootFilesystem: true
+                runAsGroup: 65532
+                runAsNonRoot: true
+                runAsUser: 65532
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /healthz
+                  port: health
+                  scheme: HTTP
+                periodSeconds: 1
+                timeoutSeconds: 1
+          dnsPolicy: ClusterFirst
+          enableServiceLinks: false
+          restartPolicy: Always
+          securityContext:
+            fsGroup: 65532
+            runAsGroup: 65532
+            runAsNonRoot: true
+            runAsUser: 65532
+            seccompProfile:
+              type: RuntimeDefault
+          terminationGracePeriodSeconds: 10
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app.kubernetes.io/name: agentsec-api
+        app.kubernetes.io/part-of: zasp
+        zasp.dev/environment: local
+      name: agentsec-api
+      namespace: zasp-local
+    spec:
+      ipFamilies:
+        - IPv4
+      ipFamilyPolicy: SingleStack
+      ports:
+        - name: health
+          port: 8081
+          protocol: TCP
+          targetPort: health
+      selector:
+        app.kubernetes.io/name: agentsec-api
+      sessionAffinity: None
+      type: ClusterIP
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app.kubernetes.io/name: agentsec-worker
+        app.kubernetes.io/part-of: zasp
+        zasp.dev/environment: local
+      name: agentsec-worker
+      namespace: zasp-local
+    spec:
+      ipFamilies:
+        - IPv4
+      ipFamilyPolicy: SingleStack
+      ports:
+        - name: health
+          port: 8081
+          protocol: TCP
+          targetPort: health
+      selector:
+        app.kubernetes.io/name: agentsec-worker
+      sessionAffinity: None
+      type: ClusterIP
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app.kubernetes.io/name: event-ingest
+        app.kubernetes.io/part-of: zasp
+        zasp.dev/environment: local
+      name: event-ingest
+      namespace: zasp-local
+    spec:
+      ipFamilies:
+        - IPv4
+      ipFamilyPolicy: SingleStack
+      ports:
+        - name: health
+          port: 8081
+          protocol: TCP
+          targetPort: health
+      selector:
+        app.kubernetes.io/name: event-ingest
+      sessionAffinity: None
+      type: ClusterIP
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app.kubernetes.io/name: runtime-gateway
+        app.kubernetes.io/part-of: zasp
+        zasp.dev/environment: local
+      name: runtime-gateway
+      namespace: zasp-local
+    spec:
+      ipFamilies:
+        - IPv4
+      ipFamilyPolicy: SingleStack
+      ports:
+        - name: health
+          port: 8081
+          protocol: TCP
+          targetPort: health
+      selector:
+        app.kubernetes.io/name: runtime-gateway
+      sessionAffinity: None
+      type: ClusterIP
