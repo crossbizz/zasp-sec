@@ -1319,8 +1319,10 @@ function validateKindNodeInspection(document, expected, retained = undefined) {
 }
 
 function validNetworkIPAM(value) {
-  return isPlainObject(value) && value.Driver === "default" && value.Options === null &&
+  return isPlainObject(value) && exactStringSet(Object.keys(value), ["Config", "Driver", "Options"]) &&
+    value.Driver === "default" && exactStringMap(value.Options, {}) &&
     Array.isArray(value.Config) && value.Config.length === 1 && isPlainObject(value.Config[0]) &&
+    exactStringSet(Object.keys(value.Config[0]), ["Gateway", "Subnet"]) &&
     ipv4Pattern.test(value.Config[0].Gateway ?? "") &&
     /^(?:10|172\.(?:1[6-9]|2\d|3[01])|192\.168)\.(?:\d{1,3}\.)?\d{1,3}\/\d{1,2}$/.test(value.Config[0].Subnet ?? "");
 }

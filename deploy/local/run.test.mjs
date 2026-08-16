@@ -905,7 +905,7 @@ test("concrete runtime fences retained workspace files before provider mutation"
       signal: null, status: 0, stderr: "", thrown: false, timedOut: false,
       stdout: `${JSON.stringify([networkId, fixture.system.cluster, "bridge", false, {
         "zasp.dev/proof": "m1-30a", "zasp.dev/run": marker,
-      }, {}, {}, { Config: [{ Gateway: "172.20.0.1", Subnet: "172.20.0.0/16" }], Driver: "default", Options: null }])}\n`,
+      }, {}, {}, { Config: [{ Gateway: "172.20.0.1", Subnet: "172.20.0.0/16" }], Driver: "default", Options: {} }])}\n`,
     };
     return { signal: null, status: 0, stderr: "", stdout: "", thrown: false, timedOut: false };
   });
@@ -988,7 +988,7 @@ test("concrete lifecycle creates and retains only the exact network and kind nod
         signal: null, status: 0, stderr: "", thrown: false, timedOut: false,
         stdout: `${JSON.stringify([networkId, fixture.system.cluster, "bridge", false, {
           "zasp.dev/proof": "m1-30a", "zasp.dev/run": marker,
-        }, {}, {}, { Config: [{ Gateway: "172.20.0.1", Subnet: "172.20.0.0/16" }], Driver: "default", Options: null }])}\n`,
+        }, {}, {}, { Config: [{ Gateway: "172.20.0.1", Subnet: "172.20.0.0/16" }], Driver: "default", Options: {} }])}\n`,
       };
     }
     if (command === `${fixture.root}/kind`) {
@@ -1041,7 +1041,7 @@ test("concrete lifecycle loads all images and proves the exact Ready Kubernetes 
         signal: null, status: 0, stderr: "", thrown: false, timedOut: false,
         stdout: `${JSON.stringify([networkId, fixture.system.cluster, "bridge", false, {
           "zasp.dev/proof": "m1-30a", "zasp.dev/run": marker,
-        }, {}, { [nodeId]: {} }, { Config: [{ Gateway: "172.20.0.1", Subnet: "172.20.0.0/16" }], Driver: "default", Options: null }])}\n`,
+        }, {}, { [nodeId]: {} }, { Config: [{ Gateway: "172.20.0.1", Subnet: "172.20.0.0/16" }], Driver: "default", Options: {} }])}\n`,
       };
     }
     if (command === "docker" && arguments_[0] === "ps") {
@@ -1158,7 +1158,7 @@ test("concrete cleanup re-proves exact identities, continues in reverse order, a
       if (!networkPresent) return { signal: null, status: 1, stderr: `Error response from daemon: network ${networkId} not found\n`, stdout: "[]\n", thrown: false, timedOut: false };
       return ok(`${JSON.stringify([networkId, fixture.system.cluster, "bridge", false, {
         "zasp.dev/proof": "m1-30a", "zasp.dev/run": marker,
-      }, {}, {}, { Config: [{ Gateway: "172.20.0.1", Subnet: "172.20.0.0/16" }], Driver: "default", Options: null }])}\n`);
+      }, {}, {}, { Config: [{ Gateway: "172.20.0.1", Subnet: "172.20.0.0/16" }], Driver: "default", Options: {} }])}\n`);
     }
     if (command === "docker" && arguments_[0] === "network" && arguments_[1] === "rm") {
       networkPresent = false;
@@ -1217,7 +1217,7 @@ test("concrete cleanup re-arms an ambiguous delayed network before exact removal
       if (!present) return { signal: null, status: 1, stderr: `Error response from daemon: network ${networkId} not found\n`, stdout: "[]\n", thrown: false, timedOut: false };
       return ok(`${JSON.stringify([networkId, fixture.system.cluster, "bridge", false, {
         "zasp.dev/proof": "m1-30a", "zasp.dev/run": marker,
-      }, {}, {}, { Config: [{ Gateway: "172.20.0.1", Subnet: "172.20.0.0/16" }], Driver: "default", Options: null }])}\n`);
+      }, {}, {}, { Config: [{ Gateway: "172.20.0.1", Subnet: "172.20.0.0/16" }], Driver: "default", Options: {} }])}\n`);
     }
     if (command === "docker" && arguments_[0] === "network" && arguments_[1] === "rm") {
       present = false;
