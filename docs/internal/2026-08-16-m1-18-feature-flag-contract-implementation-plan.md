@@ -67,19 +67,19 @@ remains Pending throughout.
   RED.
 - Update ignored Task 2 report and progress ledger.
 
-- [ ] Capture genuine compiler RED.
+- [x] Capture genuine compiler RED.
 
   Tests name the wished-for `FeatureFlags`, `Request`, `Decision`,
   `CacheMetadata`, `DriverRequest`, `DriverDecision`, `Driver`, `Config`, and
   fixed errors before any production/package/dependency edit.
 
-- [ ] Implement construction and exact request validation.
+- [x] Implement construction and exact request validation.
 
   Reject nil/typed-nil driver, timeout outside `(0,30s]`, maximum cache age
   outside `(0,24h]`, nil context, unusable receiver, invalid scope, and keys
   outside the exact 1..127-byte ASCII grammar before driver I/O.
 
-- [ ] Implement one bounded evaluation and safe fallback.
+- [x] Implement one bounded evaluation and safe fallback.
 
   Forward exact Organization/Workspace/Environment/key once, excluding the
   code default. Accept only exact echoed ownership plus coherent cache
@@ -88,14 +88,14 @@ remains Pending throughout.
   age, or over-age hit, return the exact request default with
   `UsedDefault=true` and zero cache metadata. No retry.
 
-- [ ] Add adversarial and concurrency coverage.
+- [x] Add adversarial and concurrency coverage.
 
   Prove provider true/false values, provider value equal to default, both
   outage defaults, every missing/malformed key class, acknowledgement drift,
   cache boundaries, typed nil, panic, deadline, cancellation, receiver misuse,
   defensive value behavior, and parallel per-call default isolation.
 
-- [ ] Run focused verification and commit.
+- [x] Run focused verification and commit.
 
   Require six consecutive focused race passes, 100 focused repetitions,
   statement coverage with every production function exercised, full platform
@@ -113,7 +113,7 @@ remains Pending throughout.
 - Modify `app/quality/feature-flag-contract.test.ts`.
 - Update plan checkboxes and ignored Task 3 evidence.
 
-- [ ] Capture root-wiring RED.
+- [x] Capture root-wiring RED.
 
   Require script `featureflags:test` to equal
   `go test -C services/platform -race -count=1 ./featureflags`. Require a
@@ -122,13 +122,13 @@ remains Pending throughout.
   product errors, hermetic fake driver, non-security-critical boundary, and
   deferred provider/cache behavior.
 
-- [ ] Add minimal script/docs and run GREEN.
+- [x] Add minimal script/docs and run GREEN.
 
   Run the root command, focused repository contract, full platform gates,
   pinned repository verification, 8-target build, production audit,
   whitespace, and secret scans.
 
-- [ ] Commit exact root-wiring scope.
+- [x] Commit exact root-wiring scope.
 
   Commit message: `docs: expose feature flag contract`.
 

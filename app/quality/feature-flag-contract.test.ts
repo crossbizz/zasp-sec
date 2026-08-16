@@ -59,4 +59,25 @@ describe("M1-18 feature flag contract", () => {
     expect([...active, ...complete].filter(([task]) => task === "M1-19")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
+
+  it("exposes only the hermetic root contract and documents deferred adapters", async () => {
+    const [packageText, readme] = await Promise.all([
+      readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+    ]);
+    const packageJson = JSON.parse(packageText) as { scripts: Record<string, string> };
+    const section = readme.match(/## Feature flag contract[\s\S]*?(?=\n## )/)?.[0] ?? "";
+
+    expect(packageJson.scripts["featureflags:test"]).toBe("go test -C services/platform -race -count=1 ./featureflags");
+    expect(section).toContain("npm run featureflags:test");
+    expect(section).toMatch(/Organization,\s+Workspace,\s+and\s+Environment/);
+    expect(section).toMatch(/per-call code\s+default/);
+    expect(section).toContain("cache hit and age metadata");
+    expect(section).toContain("one bounded driver attempt");
+    expect(section).toMatch(/fixed product\s+errors/);
+    expect(section).toContain("hermetic fake driver");
+    expect(section).toContain("non-security-critical");
+    expect(section).toMatch(/does not prove a\s+provider adapter, remote evaluation, or cache implementation/);
+    expect(section).toMatch(/M1-19\s+remains\s+Pending/);
+  });
 });

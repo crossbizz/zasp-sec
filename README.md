@@ -398,6 +398,26 @@ network, Docker, credential, or shared-resource I/O. The hermetic boundary does
 not prove persistence, retention, export, or a generic event envelope. M1-18 is
 In progress.
 
+## Feature flag contract
+
+M1-18 defines a dependency-free FeatureFlags boundary for exact Organization,
+Workspace, and Environment scope. Each boolean request carries a per-call code
+default. A valid provider decision returns exact cache hit and age metadata;
+outage, panic, timeout, cancellation, or malformed provider state safely returns
+that request's default through one bounded driver attempt and fixed product
+errors.
+
+```bash
+npm run featureflags:test
+```
+
+This command runs a hermetic fake driver and performs no provider, cache,
+database, network, Docker, credential, or shared-resource I/O. Feature flags
+are non-security-critical and never authorize scope, policy, enforcement,
+credentials, data access, or audit behavior. This boundary does not prove a
+provider adapter, remote evaluation, or cache implementation. M1-19 remains
+Pending.
+
 ## Neon pooled proof
 
 The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,
