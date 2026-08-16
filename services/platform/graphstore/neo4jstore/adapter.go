@@ -125,10 +125,6 @@ func ensureSchemaWithProvider(ctx context.Context, provider sessionProvider, dat
 	})
 }
 
-func (adapter *Adapter) Upsert(context.Context, graphstore.DriverProjection) (graphstore.DriverUpserted, error) {
-	return graphstore.DriverUpserted{}, ErrUpsert
-}
-
 func (adapter *Adapter) Read(context.Context, graphstore.DriverQuery) (graphstore.DriverProjection, error) {
 	return graphstore.DriverProjection{}, ErrRead
 }

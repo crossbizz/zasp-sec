@@ -192,10 +192,11 @@ func constraintRow(name, constraintType, entityType string, labelsOrTypes, prope
 }
 
 type fakeProvider struct {
-	session graphSession
-	panic   bool
-	calls   int
-	configs []sessionConfig
+	session  graphSession
+	sessions []graphSession
+	panic    bool
+	calls    int
+	configs  []sessionConfig
 }
 
 func (provider *fakeProvider) NewSession(_ context.Context, config sessionConfig) graphSession {
@@ -203,6 +204,9 @@ func (provider *fakeProvider) NewSession(_ context.Context, config sessionConfig
 	provider.configs = append(provider.configs, config)
 	if provider.panic {
 		panic(seededProviderDetail)
+	}
+	if len(provider.sessions) >= provider.calls {
+		return provider.sessions[provider.calls-1]
 	}
 	return provider.session
 }

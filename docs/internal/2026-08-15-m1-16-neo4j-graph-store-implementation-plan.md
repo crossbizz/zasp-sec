@@ -292,7 +292,7 @@ git commit -m "feat: add Neo4j GraphStore schema boundary"
 - Produces: `Adapter.Upsert` returning an exact canonical
   `graphstore.DriverUpserted` acknowledgement.
 
-- [ ] **Step 1: Write exact upsert RED tests**
+- [x] **Step 1: Write exact upsert RED tests**
 
 Require sorted nodes/edges and exact parameter maps with only these keys:
 
@@ -318,7 +318,7 @@ zero/multiple/extra result rows, partial/extra acknowledgement, begin returning
 transaction plus error, run/consume/commit failures, cancellation, timeout,
 panic, rollback failure, close failure, and caller/result slice mutation.
 
-- [ ] **Step 2: Run focused RED**
+- [x] **Step 2: Run focused RED**
 
 ```bash
 go test -C services/platform ./graphstore/neo4jstore -run '^TestUpsert' -count=1
@@ -326,7 +326,7 @@ go test -C services/platform ./graphstore/neo4jstore -run '^TestUpsert' -count=1
 
 Expected: tests fail on the absent upsert implementation, not fixture setup.
 
-- [ ] **Step 3: Implement one-attempt transactional upsert**
+- [x] **Step 3: Implement one-attempt transactional upsert**
 
 Use fixed statement constants only. `MERGE` nodes by exact scope plus node ID,
 then relationships by exact scope plus edge ID between exact endpoints. Set
@@ -337,14 +337,14 @@ same transaction, sort IDs, require exact acknowledgement, then commit once.
 Do not use `ExecuteWrite`, `ExecuteQuery`, string formatting, dynamic labels,
 or driver-managed transaction retries.
 
-- [ ] **Step 4: Run upsert GREEN and regression gates**
+- [x] **Step 4: Run upsert GREEN and regression gates**
 
 ```bash
 go test -C services/platform -race -run '^TestUpsert' -count=1 ./graphstore/neo4jstore
 go test -C services/platform -race -run '^TestStoreUpsert|^TestStoreConcurrent' -count=10 -shuffle=on ./graphstore
 ```
 
-- [ ] **Step 5: Commit upsert**
+- [x] **Step 5: Commit upsert**
 
 ```bash
 git add services/platform/graphstore/neo4jstore
