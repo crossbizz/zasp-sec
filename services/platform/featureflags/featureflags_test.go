@@ -18,6 +18,12 @@ type fakeDriver struct {
 	evaluateFn func(context.Context, DriverRequest) (DriverDecision, error)
 }
 
+type valueDriver struct{}
+
+func (valueDriver) Evaluate(_ context.Context, request DriverRequest) (DriverDecision, error) {
+	return decisionFromRequest(request, false, false, 0), nil
+}
+
 func (driver *fakeDriver) Evaluate(ctx context.Context, request DriverRequest) (DriverDecision, error) {
 	driver.mu.Lock()
 	driver.calls = append(driver.calls, request)
@@ -43,7 +49,7 @@ func (driver *fakeDriver) call(index int) DriverRequest {
 
 func TestEvaluatorReturnsExactScopedProviderDecision(t *testing.T) {
 	scope := featureFlagTestScope(t)
-	request := Request{Key: "ui.attack-paths", Default: false}
+	request := Request{Key: "ui.attack-paths", Default: DefaultDisabled}
 	driver := &fakeDriver{evaluateFn: func(_ context.Context, got DriverRequest) (DriverDecision, error) {
 		return decisionFromRequest(got, true, true, 5*time.Second), nil
 	}}
@@ -71,16 +77,34 @@ func TestEvaluatorReturnsExactScopedProviderDecision(t *testing.T) {
 
 func TestEvaluatorDoesNotMislabelProviderValueEqualToDefault(t *testing.T) {
 	scope := featureFlagTestScope(t)
-	driver := &fakeDriver{evaluateFn: func(_ context.Context, got DriverRequest) (DriverDecision, error) {
-		return decisionFromRequest(got, true, false, 0), nil
-	}}
-	evaluator := mustEvaluator(t, driver, Config{OperationTimeout: time.Second, MaximumCacheAge: time.Minute})
-	decision, err := evaluator.Evaluate(context.Background(), scope, Request{Key: "ui.inventory", Default: true})
-	if err != nil {
-		t.Fatal(err)
+	for _, test := range []struct {
+		name        string
+		value       bool
+		codeDefault CodeDefault
+	}{
+		{name: "disabled", value: false, codeDefault: DefaultDisabled},
+		{name: "enabled", value: true, codeDefault: DefaultEnabled},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			driver := &fakeDriver{evaluateFn: func(_ context.Context, got DriverRequest) (DriverDecision, error) {
+				return decisionFromRequest(got, test.value, false, 0), nil
+			}}
+			evaluator := mustEvaluator(t, driver, Config{OperationTimeout: time.Second, MaximumCacheAge: time.Minute})
+			decision, err := evaluator.Evaluate(context.Background(), scope, Request{Key: "ui.inventory", Default: test.codeDefault})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if decision != (Decision{Value: test.value, UsedDefault: false, Cache: CacheMetadata{Hit: false, Age: 0}}) {
+				t.Fatalf("decision = %#v, want provider decision equal to default", decision)
+			}
+		})
 	}
-	if decision != (Decision{Value: true, UsedDefault: false, Cache: CacheMetadata{Hit: false, Age: 0}}) {
-		t.Fatalf("decision = %#v, want provider decision equal to default", decision)
+}
+
+func TestEvaluatorAcceptsExactConfigurationLimits(t *testing.T) {
+	evaluator, err := New(valueDriver{}, Config{OperationTimeout: 30 * time.Second, MaximumCacheAge: 24 * time.Hour})
+	if err != nil || evaluator == nil {
+		t.Fatalf("New = %#v, %v; want configured evaluator", evaluator, err)
 	}
 }
 
@@ -133,7 +157,7 @@ func TestEvaluatorRejectsInvalidRequestBeforeIO(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			driver := &fakeDriver{}
 			evaluator := mustEvaluator(t, driver, Config{OperationTimeout: time.Second, MaximumCacheAge: time.Hour})
-			decision, err := evaluator.Evaluate(context.Background(), test.scope, Request{Key: test.key, Default: true})
+			decision, err := evaluator.Evaluate(context.Background(), test.scope, Request{Key: test.key, Default: DefaultEnabled})
 			if !errors.Is(err, ErrRequest) || decision != (Decision{}) {
 				t.Fatalf("Evaluate = %#v, %v; want zero, ErrRequest", decision, err)
 			}
@@ -144,11 +168,30 @@ func TestEvaluatorRejectsInvalidRequestBeforeIO(t *testing.T) {
 	}
 }
 
+func TestEvaluatorRequiresExplicitCodeDefaultBeforeIO(t *testing.T) {
+	driver := &fakeDriver{}
+	evaluator := mustEvaluator(t, driver, Config{OperationTimeout: time.Second, MaximumCacheAge: time.Hour})
+	for name, request := range map[string]Request{
+		"missing": {Key: "ui.flag"},
+		"unknown": {Key: "ui.flag", Default: CodeDefault("unknown")},
+	} {
+		t.Run(name, func(t *testing.T) {
+			decision, err := evaluator.Evaluate(context.Background(), featureFlagTestScope(t), request)
+			if !errors.Is(err, ErrRequest) || decision != (Decision{}) {
+				t.Fatalf("Evaluate = %#v, %v; want zero, ErrRequest", decision, err)
+			}
+		})
+	}
+	if driver.callCount() != 0 {
+		t.Fatalf("driver calls = %d, want 0", driver.callCount())
+	}
+}
+
 func TestEvaluatorAcceptsExactKeyGrammar(t *testing.T) {
 	for _, key := range []string{"a", "ui.flag", "experiment_2", "launch-darkly", strings.Repeat("a", 127)} {
 		t.Run(key[:min(len(key), 24)], func(t *testing.T) {
 			evaluator := mustEvaluator(t, &fakeDriver{}, Config{OperationTimeout: time.Second, MaximumCacheAge: time.Hour})
-			if _, err := evaluator.Evaluate(context.Background(), featureFlagTestScope(t), Request{Key: key}); err != nil {
+			if _, err := evaluator.Evaluate(context.Background(), featureFlagTestScope(t), Request{Key: key, Default: DefaultDisabled}); err != nil {
 				t.Fatalf("Evaluate returned error: %v", err)
 			}
 		})
@@ -180,9 +223,13 @@ func TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState(t *testing.T) {
 	for name, evaluateFn := range tests {
 		for _, defaultValue := range []bool{false, true} {
 			t.Run(fmt.Sprintf("%s default=%t", name, defaultValue), func(t *testing.T) {
+				codeDefault := DefaultDisabled
+				if defaultValue {
+					codeDefault = DefaultEnabled
+				}
 				driver := &fakeDriver{evaluateFn: evaluateFn}
 				evaluator := mustEvaluator(t, driver, Config{OperationTimeout: time.Second, MaximumCacheAge: time.Minute})
-				decision, err := evaluator.Evaluate(context.Background(), scope, Request{Key: "ui.flag", Default: defaultValue})
+				decision, err := evaluator.Evaluate(context.Background(), scope, Request{Key: "ui.flag", Default: codeDefault})
 				if err != nil {
 					t.Fatalf("Evaluate returned error: %v", err)
 				}
@@ -204,7 +251,7 @@ func TestEvaluatorFallsBackOnCancellationAndDeadline(t *testing.T) {
 	evaluator := mustEvaluator(t, driver, Config{OperationTimeout: time.Second, MaximumCacheAge: time.Minute})
 	cancelled, cancel := context.WithCancel(context.Background())
 	cancel()
-	decision, err := evaluator.Evaluate(cancelled, scope, Request{Key: "ui.flag", Default: true})
+	decision, err := evaluator.Evaluate(cancelled, scope, Request{Key: "ui.flag", Default: DefaultEnabled})
 	if err != nil || decision != (Decision{Value: true, UsedDefault: true}) {
 		t.Fatalf("cancelled Evaluate = %#v, %v; want true fallback", decision, err)
 	}
@@ -217,7 +264,7 @@ func TestEvaluatorFallsBackOnCancellationAndDeadline(t *testing.T) {
 		return DriverDecision{}, ctx.Err()
 	}}
 	deadlineEvaluator := mustEvaluator(t, deadlineDriver, Config{OperationTimeout: time.Millisecond, MaximumCacheAge: time.Minute})
-	decision, err = deadlineEvaluator.Evaluate(context.Background(), scope, Request{Key: "ui.flag", Default: false})
+	decision, err = deadlineEvaluator.Evaluate(context.Background(), scope, Request{Key: "ui.flag", Default: DefaultDisabled})
 	if err != nil || decision != (Decision{Value: false, UsedDefault: true}) {
 		t.Fatalf("deadline Evaluate = %#v, %v; want false fallback", decision, err)
 	}
@@ -246,10 +293,14 @@ func TestEvaluatorKeepsConcurrentDefaultsIsolated(t *testing.T) {
 	var wait sync.WaitGroup
 	for index := 0; index < count; index++ {
 		defaultValue := index%2 == 0
+		codeDefault := DefaultDisabled
+		if defaultValue {
+			codeDefault = DefaultEnabled
+		}
 		wait.Add(1)
 		go func() {
 			defer wait.Done()
-			decision, err := evaluator.Evaluate(context.Background(), scope, Request{Key: "ui.concurrent", Default: defaultValue})
+			decision, err := evaluator.Evaluate(context.Background(), scope, Request{Key: "ui.concurrent", Default: codeDefault})
 			if err == nil && decision != (Decision{Value: defaultValue, UsedDefault: true}) {
 				err = fmt.Errorf("decision = %#v, want default %t", decision, defaultValue)
 			}

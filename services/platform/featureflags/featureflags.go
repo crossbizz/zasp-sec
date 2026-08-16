@@ -25,9 +25,16 @@ type Config struct {
 	MaximumCacheAge  time.Duration
 }
 
+type CodeDefault string
+
+const (
+	DefaultDisabled CodeDefault = "disabled"
+	DefaultEnabled  CodeDefault = "enabled"
+)
+
 type Request struct {
 	Key     string
-	Default bool
+	Default CodeDefault
 }
 
 type CacheMetadata struct {
@@ -82,10 +89,11 @@ func (evaluator *Evaluator) Evaluate(ctx context.Context, scope domain.Scope, re
 	if evaluator == nil || nilInterface(evaluator.driver) || !validConfig(evaluator.config) {
 		return Decision{}, ErrConfiguration
 	}
-	if ctx == nil || scope.Validate() != nil || !validKey(request.Key) {
+	defaultValue, validDefault := codeDefaultValue(request.Default)
+	if ctx == nil || scope.Validate() != nil || !validKey(request.Key) || !validDefault {
 		return Decision{}, ErrRequest
 	}
-	fallback := Decision{Value: request.Default, UsedDefault: true}
+	fallback := Decision{Value: defaultValue, UsedDefault: true}
 	operationCtx, cancel := context.WithTimeout(ctx, evaluator.config.OperationTimeout)
 	defer cancel()
 	if operationCtx.Err() != nil {
@@ -105,6 +113,17 @@ func (evaluator *Evaluator) Evaluate(ctx context.Context, scope domain.Scope, re
 		Value: driverDecision.Value,
 		Cache: CacheMetadata{Hit: driverDecision.CacheHit, Age: driverDecision.CacheAge},
 	}, nil
+}
+
+func codeDefaultValue(codeDefault CodeDefault) (bool, bool) {
+	switch codeDefault {
+	case DefaultDisabled:
+		return false, true
+	case DefaultEnabled:
+		return true, true
+	default:
+		return false, false
+	}
 }
 
 func validConfig(config Config) bool {

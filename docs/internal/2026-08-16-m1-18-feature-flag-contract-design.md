@@ -31,8 +31,15 @@ type FeatureFlags interface {
 
 type Request struct {
     Key     string
-    Default bool
+    Default CodeDefault
 }
+
+type CodeDefault string
+
+const (
+    DefaultDisabled CodeDefault = "disabled"
+    DefaultEnabled  CodeDefault = "enabled"
+)
 
 type Decision struct {
     Value       bool
@@ -51,8 +58,9 @@ product token between 1 and 127 ASCII bytes. It begins with a lowercase letter
 and contains lowercase letters or digits separated by a single `.`, `_`, or
 `-`. Empty segments, uppercase text, whitespace, controls, Unicode aliases,
 leading or trailing separators, and repeated separators fail before driver
-I/O. The boolean `Default` is always supplied by code; there is no implicit
-zero-value policy or provider-owned default.
+I/O. `Default` is a required closed enum with exactly `disabled` and `enabled`;
+zero and unknown values fail before driver I/O. There is no implicit zero-value
+policy or provider-owned default.
 
 A valid provider decision returns `UsedDefault=false` and exact validated cache
 metadata. Every unavailable or invalid provider path returns the request's
