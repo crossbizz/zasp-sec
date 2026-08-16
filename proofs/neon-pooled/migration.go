@@ -18,16 +18,18 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	platformmigrations "github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
 
 const (
-	migrationSuccessSummary = "Neon migration proof passed: up=true down=true baseline_restored=true branch_deleted=true."
-	neonAPIResponseLimit    = 64 * 1024
-	neonOfficialAPIBaseURL  = "https://console.neon.tech/api/v2"
-	migrationSchemaPrefix   = "zasp_m005_"
-	migrationBranchPrefix   = "zasp-m0-05-"
-	migrationAnnotationKey  = "zasp-proof-marker"
-	neonBranchObjectType    = "console/branch"
+	migrationSuccessSummary      = "Neon migration proof passed: up=true down=true baseline_restored=true branch_deleted=true."
+	schemaBaselineSuccessSummary = "Neon schema baseline passed: up=true version=1 down=true baseline_restored=true branch_deleted=true."
+	neonAPIResponseLimit         = 64 * 1024
+	neonOfficialAPIBaseURL       = "https://console.neon.tech/api/v2"
+	migrationSchemaPrefix        = "zasp_m005_"
+	migrationBranchPrefix        = "zasp-m0-05-"
+	migrationAnnotationKey       = "zasp-proof-marker"
+	neonBranchObjectType         = "console/branch"
 )
 
 var (
@@ -52,12 +54,13 @@ var (
 )
 
 type migrationRunConfig struct {
-	apiKey         string
-	cleanupTimeout time.Duration
-	databaseURL    string
-	marker         string
-	projectID      string
-	pollInterval   time.Duration
+	apiKey          string
+	cleanupTimeout  time.Duration
+	databaseURL     string
+	marker          string
+	projectID       string
+	pollInterval    time.Duration
+	productBaseline bool
 }
 
 type migrationDependencies struct {
@@ -243,10 +246,13 @@ func executeMigrationProof(ctx context.Context, config migrationRunConfig, depen
 	if err != nil {
 		return "", errMigrationDatabase
 	}
-	assets, err := renderMigrationAssets(migrationSchemaPrefix + config.marker)
-	if err != nil {
-		_ = database.Close(ctx)
-		return "", errMigrationConfiguration
+	assets := migrationAssets{schema: "public"}
+	if !config.productBaseline {
+		assets, err = renderMigrationAssets(migrationSchemaPrefix + config.marker)
+		if err != nil {
+			_ = database.Close(ctx)
+			return "", errMigrationConfiguration
+		}
 	}
 	runErr := runMigrationRoundTrip(ctx, database, assets)
 	closeErr := database.Close(ctx)
@@ -255,6 +261,9 @@ func executeMigrationProof(ctx context.Context, config migrationRunConfig, depen
 	}
 	if closeErr != nil {
 		return "", errMigrationDatabase
+	}
+	if config.productBaseline {
+		return schemaBaselineSuccessSummary, nil
 	}
 	return migrationSuccessSummary, nil
 }
@@ -837,6 +846,19 @@ type pgxMigrationDatabase struct {
 	connection *pgx.Conn
 }
 
+type pgxProductMigrationDatabase struct {
+	base   *pgxMigrationDatabase
+	runner *platformmigrations.Runner
+}
+
+type pgxProductDatabase struct {
+	connection *pgx.Conn
+}
+
+type pgxProductTransaction struct {
+	transaction pgx.Tx
+}
+
 func openPGXMigrationDatabase(ctx context.Context, target validatedConnection) (migrationDatabase, error) {
 	if pgEnvironmentConfigured() || validateEffectivePGXConfig(target.config, target.expected) != nil || strings.Contains(target.expected.host, "-pooler.") {
 		return nil, errMigrationConfiguration
@@ -848,6 +870,54 @@ func openPGXMigrationDatabase(ctx context.Context, target validatedConnection) (
 		return nil, errMigrationDatabase
 	}
 	return &pgxMigrationDatabase{connection: connection}, nil
+}
+
+func openPGXProductMigrationDatabase(ctx context.Context, target validatedConnection) (migrationDatabase, error) {
+	if pgEnvironmentConfigured() || validateEffectivePGXConfig(target.config, target.expected) != nil || strings.Contains(target.expected.host, "-pooler.") {
+		return nil, errMigrationConfiguration
+	}
+	connectCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	connection, err := pgx.ConnectConfig(connectCtx, target.config.Copy())
+	if err != nil {
+		return nil, errMigrationDatabase
+	}
+	base := &pgxMigrationDatabase{connection: connection}
+	runner, err := platformmigrations.NewRunner(&pgxProductDatabase{connection: connection})
+	if err != nil {
+		_ = connection.Close(context.WithoutCancel(ctx))
+		return nil, errMigrationConfiguration
+	}
+	return &pgxProductMigrationDatabase{base: base, runner: runner}, nil
+}
+
+func (database *pgxProductDatabase) Begin(ctx context.Context) (platformmigrations.Transaction, error) {
+	transaction, err := database.connection.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &pgxProductTransaction{transaction: transaction}, nil
+}
+
+func (database *pgxProductDatabase) QueryRow(ctx context.Context, statement string, arguments ...any) platformmigrations.Row {
+	return database.connection.QueryRow(ctx, statement, arguments...)
+}
+
+func (transaction *pgxProductTransaction) Exec(ctx context.Context, statement string, arguments ...any) error {
+	_, err := transaction.transaction.Exec(ctx, statement, arguments...)
+	return err
+}
+
+func (transaction *pgxProductTransaction) QueryRow(ctx context.Context, statement string, arguments ...any) platformmigrations.Row {
+	return transaction.transaction.QueryRow(ctx, statement, arguments...)
+}
+
+func (transaction *pgxProductTransaction) Commit(ctx context.Context) error {
+	return transaction.transaction.Commit(ctx)
+}
+
+func (transaction *pgxProductTransaction) Rollback(ctx context.Context) error {
+	return transaction.transaction.Rollback(ctx)
 }
 
 const fingerprintQuery = `
@@ -937,6 +1007,37 @@ func (database *pgxMigrationDatabase) Close(ctx context.Context) error {
 		return errMigrationDatabase
 	}
 	return nil
+}
+
+func (database *pgxProductMigrationDatabase) Fingerprint(ctx context.Context, schema string) (string, error) {
+	return database.base.Fingerprint(ctx, schema)
+}
+
+func (database *pgxProductMigrationDatabase) Up(ctx context.Context, _ migrationAssets) error {
+	if err := database.runner.Up(ctx); err != nil {
+		return errMigrationDatabase
+	}
+	return nil
+}
+
+func (database *pgxProductMigrationDatabase) VerifyShape(ctx context.Context, _ string) error {
+	state, err := database.runner.State(ctx)
+	if err != nil || !state.Applied() || state.Version() != platformmigrations.Baseline().Version() ||
+		state.Name() != platformmigrations.Baseline().Name() || state.Checksum() != platformmigrations.Baseline().Checksum() {
+		return errMigrationDatabase
+	}
+	return nil
+}
+
+func (database *pgxProductMigrationDatabase) Down(ctx context.Context, _ migrationAssets) error {
+	if err := database.runner.Down(ctx); err != nil {
+		return errMigrationDatabase
+	}
+	return nil
+}
+
+func (database *pgxProductMigrationDatabase) Close(ctx context.Context) error {
+	return database.base.Close(ctx)
 }
 
 func fixedDatabaseError(err error) error {

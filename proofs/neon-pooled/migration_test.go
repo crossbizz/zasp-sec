@@ -89,6 +89,39 @@ func TestExecuteMigrationProofRunsOwnedBranchAndMigrationInOrder(t *testing.T) {
 	}
 }
 
+func TestExecuteMigrationProofRunsProductSchemaBaseline(t *testing.T) {
+	t.Parallel()
+
+	events := &eventLog{}
+	provider := newProviderServer(t, events, providerBehavior{createdBranchState: "init", createdEndpointState: "init"})
+	database := &recordingMigrationDB{events: events, fingerprints: []string{"baseline", "baseline"}}
+	api, err := newNeonAPIClient(provider.URL, testAPIKey, provider.Client())
+	if err != nil {
+		t.Fatalf("newNeonAPIClient() error = %v", err)
+	}
+
+	summary, err := executeMigrationProof(context.Background(), migrationRunConfig{
+		apiKey: testAPIKey, databaseURL: validDirectNeonURL(), marker: testMarker,
+		productBaseline: true, projectID: testProjectID,
+	}, migrationDependencies{api: api, openDatabase: func(_ context.Context, target validatedConnection) (migrationDatabase, error) {
+		if target.expected.host != testChildHost {
+			t.Fatal("database opener received wrong child")
+		}
+		return database, nil
+	}})
+	if err != nil {
+		t.Fatalf("executeMigrationProof() error = %v", err)
+	}
+	if summary != schemaBaselineSuccessSummary {
+		t.Fatalf("summary = %q", summary)
+	}
+	for _, required := range []string{"db:fingerprint", "db:up", "db:shape", "db:down", "db:close", "api:delete-branch", "api:list-branches-cleanup"} {
+		if !containsString(events.snapshot(), required) {
+			t.Fatalf("missing event %q: %#v", required, events.snapshot())
+		}
+	}
+}
+
 func TestExecuteMigrationProofReconcilesMalformedSuccessfulCreateAndDeletes(t *testing.T) {
 	t.Parallel()
 

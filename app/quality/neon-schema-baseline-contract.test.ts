@@ -57,4 +57,26 @@ describe("M1-10 Neon schema baseline contract", () => {
     expect([...active, ...complete].filter(([task]) => task === "M1-11")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
+
+  it("exposes stable hermetic and disposable live root commands", async () => {
+    const [manifestText, readme] = await Promise.all([
+      readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+    ]);
+    const manifest = JSON.parse(manifestText) as { scripts?: Record<string, string> };
+    const section = readme.match(/## Neon schema baseline[\s\S]*?## Neon pooled proof/)?.[0];
+
+    expect(manifest.scripts?.["db:schema:test"]).toBe(
+      "go test -C services/platform -race -count=1 ./migrations && go test -C proofs/neon-pooled -race -count=1 ./...",
+    );
+    expect(manifest.scripts?.["db:schema:run"]).toBe(
+      "node --env-file=.env proofs/neon-pooled/run-schema-baseline.mjs",
+    );
+    expect(section).toContain("npm run db:schema:test");
+    expect(section).toContain("npm run db:schema:run");
+    expect(section).toContain("NEON_API_KEY");
+    expect(section).toContain("NEON_PROJECT_ID");
+    expect(section).toContain("DATABASE_URL");
+    expect(section).toContain("Neon schema baseline passed: up=true version=1 down=true baseline_restored=true branch_deleted=true.");
+  });
 });

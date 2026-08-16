@@ -6,6 +6,10 @@ toolchain go1.26.5
 
 require github.com/jackc/pgx/v5 v5.10.0
 
+require github.com/zasp-ai/zasp-sec/services/platform v0.0.0
+
+replace github.com/zasp-ai/zasp-sec/services/platform => ../../services/platform
+
 require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect

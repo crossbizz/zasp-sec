@@ -220,6 +220,27 @@ embedded SQL and strict transaction protocol; the reviewed disposable Neon
 branch proof owns credentials, provider lifecycle, live up/down verification,
 and exact branch cleanup. M1-11 remains Pending.
 
+The hermetic command exercises the package and retained proof regressions. The
+live command reads only `NEON_API_KEY`, `NEON_PROJECT_ID`, and `DATABASE_URL`
+through Node's ignored dotenv boundary, creates one exactly owned disposable
+branch, applies version 1, re-reads the exact ledger row, rolls it back, proves
+the database baseline restored, and deletes the branch.
+
+```bash
+npm run db:schema:test
+npm run db:schema:run
+```
+
+Live success is exactly:
+
+```text
+Neon schema baseline passed: up=true version=1 down=true baseline_restored=true branch_deleted=true.
+```
+
+Output excludes connection fields, SQL rows, provider identifiers, and
+credentials. This task does not add a production pool or automatic startup
+migration; those boundaries remain with later M1 work.
+
 ## Neon pooled proof
 
 The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,
