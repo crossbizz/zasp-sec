@@ -793,9 +793,50 @@ function containerdImageConfig(product) {
 function providerKubernetesState() {
   const state = structuredClone(kubernetesState());
   for (const product of PRODUCTS) {
+    const resource = buildProductResources().find((item) =>
+      item.kind === "Deployment" && item.metadata.name === product.name);
+    const providerTemplate = structuredClone(resource.spec.template);
+    providerTemplate.spec.schedulerName = "default-scheduler";
+    providerTemplate.spec.containers[0].terminationMessagePath = "/dev/termination-log";
+    providerTemplate.spec.containers[0].terminationMessagePolicy = "File";
     const deployment = state.deployments.find((item) => item.metadata.name === product.name);
-    delete deployment.spec.template.spec.serviceAccountName;
+    deployment.spec = {
+      progressDeadlineSeconds: 120,
+      replicas: 1,
+      revisionHistoryLimit: 1,
+      selector: structuredClone(resource.spec.selector),
+      strategy: { type: "Recreate" },
+      template: structuredClone(providerTemplate),
+    };
+    const replicaSet = state.replicaSets.find((item) =>
+      item.metadata.labels["app.kubernetes.io/name"] === product.name);
+    replicaSet.spec.template = structuredClone(providerTemplate);
+    replicaSet.spec.template.metadata.labels["pod-template-hash"] =
+      replicaSet.metadata.labels["pod-template-hash"];
     const pod = state.pods.find((item) => item.metadata.labels["app.kubernetes.io/name"] === product.name);
+    pod.spec = {
+      automountServiceAccountToken: false,
+      containers: [{
+        ...structuredClone(resource.spec.template.spec.containers[0]),
+        terminationMessagePath: "/dev/termination-log",
+        terminationMessagePolicy: "File",
+      }],
+      dnsPolicy: "ClusterFirst",
+      enableServiceLinks: false,
+      nodeName: state.nodeName,
+      preemptionPolicy: "PreemptLowerPriority",
+      priority: 0,
+      restartPolicy: "Always",
+      schedulerName: "default-scheduler",
+      securityContext: structuredClone(resource.spec.template.spec.securityContext),
+      serviceAccount: "default",
+      serviceAccountName: "default",
+      terminationGracePeriodSeconds: 10,
+      tolerations: [
+        { effect: "NoExecute", key: "node.kubernetes.io/not-ready", operator: "Exists", tolerationSeconds: 300 },
+        { effect: "NoExecute", key: "node.kubernetes.io/unreachable", operator: "Exists", tolerationSeconds: 300 },
+      ],
+    };
     pod.status.containerStatuses[0].image = `docker.io/${product.image}`;
     pod.status.containerStatuses[0].imageID =
       `docker.io/library/import-2026-08-16@${containerdImport(product)}`;
@@ -803,9 +844,16 @@ function providerKubernetesState() {
   return state;
 }
 
-async function verifyProjectedProviderState(state, requests = undefined) {
-  const fixture = createConcreteFixture(async (command, arguments_) => {
+async function verifyProjectedProviderState(state, requests = undefined, descriptors = undefined) {
+  let fixture;
+  fixture = createConcreteFixture(async (command, arguments_, options) => {
     if (command !== "kubectl") throw new Error("unexpected command");
+    const descriptor = options.fileDescriptors?.[0];
+    if (descriptor !== undefined) {
+      descriptors?.push(descriptor);
+      assert.equal(fixture.descriptorOffsets.get(descriptor), 0);
+      fixture.descriptorOffsets.set(descriptor, 1_000_000);
+    }
     const resource = ["namespace", "deployment", "replicaset", "pod", "service", "endpointslice", "ingress"]
       .find((value) => arguments_.includes(value));
     requests?.push(resource);
@@ -825,6 +873,8 @@ async function verifyProjectedProviderState(state, requests = undefined) {
   });
   const phase = { assertActive() {}, signal: new AbortController().signal };
   await fixture.system.initialize(phase);
+  fixture.recordFile(`${fixture.root}/kubeconfig`, Buffer.from(kubeconfigDocument(fixture.system.cluster)));
+  await fixture.system.rememberOwnedPath(`${fixture.root}/kubeconfig`, "file", phase, "ownership");
   fixture.system.verifyCluster = async () => {};
   fixture.system.verifyImportedPodImages = async () => new Map(PRODUCTS.map((product) => [product.name, {
     canonicalImage: product.image,
@@ -975,12 +1025,14 @@ test("validates exactly four Ready product pods and four internal services", () 
 
 test("projects every dangerous pod field and proves exact workload-to-endpoint ownership", async () => {
   const requests = [];
-  assert.deepEqual(await verifyProjectedProviderState(providerKubernetesState(), requests), {
+  const descriptors = [];
+  assert.deepEqual(await verifyProjectedProviderState(providerKubernetesState(), requests, descriptors), {
     internal: true, pods: 4, ready: 4, services: 4,
   });
   assert.deepEqual(requests, [
     "namespace", "deployment", "replicaset", "pod", "service", "endpointslice", "ingress",
   ]);
+  assert.equal(new Set(descriptors).size, 7, "each kubectl process receives a fresh descriptor at offset zero");
 
   const mutations = [
     (value) => { value.pods[0].spec.containers[0].command = ["/bin/sh"]; },
@@ -994,8 +1046,21 @@ test("projects every dangerous pod field and proves exact workload-to-endpoint o
     (value) => { value.pods[0].spec.hostAliases = [{ ip: "127.0.0.1", hostnames: ["provider"] }]; },
     (value) => { value.pods[0].spec.shareProcessNamespace = true; },
     (value) => { value.pods[0].spec.serviceAccountName = "privileged"; },
+    (value) => { value.pods[0].spec.affinity = { nodeAffinity: {} }; },
+    (value) => { value.pods[0].spec.tolerations[0].tolerationSeconds = 301; },
+    (value) => { value.pods[0].spec.schedulerName = "alternate"; },
+    (value) => { value.pods[0].spec.terminationGracePeriodSeconds = 30; },
+    (value) => { value.pods[0].spec.containers[0].lifecycle = { preStop: { exec: { command: ["false"] } } }; },
+    (value) => { value.pods[0].spec.containers[0].workingDir = "/tmp"; },
     (value) => { value.deployments[0].metadata.uid = value.deployments[1].metadata.uid; },
+    (value) => { value.deployments[0].spec.progressDeadlineSeconds = 600; },
+    (value) => { value.deployments[0].spec.revisionHistoryLimit = 10; },
+    (value) => { value.deployments[0].spec.strategy = { rollingUpdate: { maxSurge: "25%" }, type: "RollingUpdate" }; },
+    (value) => { value.deployments[0].spec.template.spec.terminationGracePeriodSeconds = 30; },
+    (value) => { value.deployments[0].spec.template.spec.affinity = {}; },
+    (value) => { value.deployments[0].spec.template.spec.containers[0].workingDir = "/tmp"; },
     (value) => { value.deployments[0].spec.template.spec.containers[0].env = [{ name: "TOKEN", value: "fixture" }]; },
+    (value) => { value.replicaSets[0].spec.template.spec.containers[0].lifecycle = { postStart: { exec: { command: ["true"] } } }; },
     (value) => { value.replicaSets[0].metadata.ownerReferences[0].uid = value.deployments[1].metadata.uid; },
     (value) => { value.pods[0].metadata.ownerReferences[0].uid = value.replicaSets[1].metadata.uid; },
     (value) => { value.services[0].metadata.uid = value.services[1].metadata.uid; },
@@ -1178,6 +1243,31 @@ test("concrete lifecycle admits only an exact-owned empty workspace", async () =
       identities.set(root, { dev: 2, ino: 2 });
       return root;
     },
+    movePath: async () => {},
+    openPath: async (path) => {
+      const identity = identities.get(path);
+      const directory = directories.has(path);
+      const content = files.has(path) ? Buffer.from(files.get(path)) : undefined;
+      if (!identity) throw Object.assign(new Error("missing"), { code: "ENOENT" });
+      const status = {
+        ...identity,
+        isDirectory: () => directory,
+        isFile: () => content !== undefined,
+        isSymbolicLink: () => false,
+        mode: content === undefined ? 0o40700 : 0o100600,
+        size: content?.length ?? 0,
+      };
+      return {
+        close: async () => {},
+        fd: 20,
+        read: async (buffer, offset, length, position) => {
+          const bytesRead = Math.max(0, Math.min(length, (content?.length ?? 0) - position));
+          content?.copy(buffer, offset, position, position + bytesRead);
+          return { buffer, bytesRead };
+        },
+        stat: async () => status,
+      };
+    },
     readDirectory: async (path) => directories.get(path) ?? [],
     readPath: async (path) => files.get(path),
     removePath: async () => {},
@@ -1249,7 +1339,9 @@ function createConcreteFixture(command) {
   const directories = new Map([["/safe/tmp", new Set()]]);
   const files = new Map();
   const identities = new Map([["/safe/tmp", { dev: 1, ino: 1 }]]);
+  const descriptorOffsets = new Map();
   let nextInode = 2;
+  let nextDescriptor = 20;
   const addToParent = (path) => {
     const index = path.lastIndexOf("/");
     const parent = index === 0 ? "/" : path.slice(0, index);
@@ -1271,6 +1363,53 @@ function createConcreteFixture(command) {
       identities.set(root, { dev: 2, ino: nextInode++ });
       addToParent(root);
       return root;
+    },
+    movePath: async (source, destination) => {
+      for (const map of [directories, files, identities]) {
+        const entries = [...map.entries()].filter(([path]) => path === source || path.startsWith(`${source}/`));
+        for (const [path] of entries) map.delete(path);
+        for (const [path, value] of entries) map.set(`${destination}${path.slice(source.length)}`, value);
+      }
+      const index = source.lastIndexOf("/");
+      const parent = index === 0 ? "/" : source.slice(0, index);
+      directories.get(parent)?.delete(source.slice(index + 1));
+      directories.get(parent)?.add(destination.slice(destination.lastIndexOf("/") + 1));
+    },
+    openPath: async (path) => {
+      const identity = identities.get(path);
+      if (!identity) {
+        const error = new Error("missing");
+        error.code = "ENOENT";
+        throw error;
+      }
+      const directory = directories.has(path);
+      const content = files.has(path) ? Buffer.from(files.get(path)) : undefined;
+      const status = {
+        ...identity,
+        isDirectory: () => directory,
+        isFile: () => content !== undefined,
+        isSymbolicLink: () => false,
+        mode: content === undefined ? 0o40700 : 0o100600,
+        size: content?.length ?? 0,
+      };
+      const fd = nextDescriptor++;
+      descriptorOffsets.set(fd, 0);
+      return {
+        close: async () => {},
+        fd,
+        read: async (buffer, offset, length, position) => {
+          const start = position ?? descriptorOffsets.get(fd);
+          const bytesRead = Math.max(0, Math.min(length, (content?.length ?? 0) - start));
+          content?.copy(buffer, offset, start, start + bytesRead);
+          if (position === null || position === undefined) descriptorOffsets.set(fd, start + bytesRead);
+          return { buffer, bytesRead };
+        },
+        readFile: async () => {
+          descriptorOffsets.set(fd, content?.length ?? 0);
+          return Buffer.from(content);
+        },
+        stat: async () => status,
+      };
     },
     readDirectory: async (path) => [...(directories.get(path) ?? [])],
     readPath: async (path) => files.get(path),
@@ -1323,7 +1462,7 @@ function createConcreteFixture(command) {
     addToParent(path);
   };
   return {
-    dependencies, directories, files, identities, input, recordFile, root,
+    dependencies, descriptorOffsets, directories, files, identities, input, recordFile, root,
     system: new LocalProductSystem(input, dependencies),
   };
 }
@@ -1408,6 +1547,85 @@ test("concrete runtime fences retained workspace files before provider mutation"
   sameIdentity.files.set(`${sameIdentity.root}/manifests.yaml`, manifestBytes);
   await assert.rejects(() => sameIdentity.system.applyManifests(phase), { name: "Failure" });
   assert.equal(sameIdentityCalls, 0);
+});
+
+test("provider commands consume retained file bytes and reject a post-check rewrite", async () => {
+  let applyOptions;
+  let applyArguments;
+  let fixture;
+  fixture = createConcreteFixture(async (command, arguments_, options) => {
+    if (command !== "kubectl") throw new Error("unexpected command");
+    if (arguments_.includes("apply")) {
+      applyArguments = arguments_;
+      applyOptions = options;
+      const bytes = Buffer.from(fixture.files.get(`${fixture.root}/manifests.yaml`));
+      bytes[0] = bytes[0] === 0x61 ? 0x62 : 0x61;
+      fixture.files.set(`${fixture.root}/manifests.yaml`, bytes);
+    }
+    return { signal: null, status: 0, stderr: "", stdout: "", thrown: false, timedOut: false };
+  });
+  const phase = { assertActive() {}, signal: new AbortController().signal };
+  await fixture.system.initialize(phase);
+  fixture.recordFile(`${fixture.root}/kubeconfig`, Buffer.from(kubeconfigDocument(fixture.system.cluster)));
+  await fixture.system.rememberOwnedPath(`${fixture.root}/kubeconfig`, "file", phase, "ownership");
+  fixture.system.verifyCluster = async () => {};
+  const retainedManifest = Buffer.from(fixture.files.get(`${fixture.root}/manifests.yaml`));
+
+  await assert.rejects(() => fixture.system.applyManifests(phase), { name: "Failure" });
+  assert.deepEqual(applyOptions.input, retainedManifest);
+  assert.ok(Array.isArray(applyOptions.fileDescriptors) && applyOptions.fileDescriptors.length === 1);
+  assert.equal(fixture.descriptorOffsets.get(applyOptions.fileDescriptors[0]), 0);
+  assert.ok(applyArguments.includes("/dev/fd/3"));
+  assert.ok(applyArguments.includes("-"));
+});
+
+test("owned file admission closes its descriptor when phase authority expires", async () => {
+  const fixture = createConcreteFixture(async () => ({
+    signal: null, status: 0, stderr: "", stdout: "", thrown: false, timedOut: false,
+  }));
+  const setupPhase = { assertActive() {}, signal: new AbortController().signal };
+  await fixture.system.initialize(setupPhase);
+  const path = `${fixture.root}/owned.txt`;
+  fixture.recordFile(path, Buffer.from("owned"));
+  const originalOpen = fixture.dependencies.openPath;
+  let closeCalls = 0;
+  fixture.dependencies.openPath = async (...arguments_) => {
+    const handle = await originalOpen(...arguments_);
+    const originalClose = handle.close;
+    handle.close = async () => { closeCalls += 1; await originalClose(); };
+    return handle;
+  };
+  let checks = 0;
+  const phase = {
+    assertActive() {
+      checks += 1;
+      if (checks === 2) throw new Failure("deadline");
+    },
+    signal: new AbortController().signal,
+  };
+
+  await assert.rejects(() => fixture.system.openOwnedPath(path, "file", phase, "ownership"), {
+    name: "Failure",
+  });
+  assert.equal(closeCalls, 1);
+});
+
+test("cleanup quarantines and re-proves the retained root before recursive removal", async () => {
+  const fixture = createConcreteFixture(async () => ({
+    signal: null, status: 0, stderr: "", stdout: "", thrown: false, timedOut: false,
+  }));
+  const phase = { assertActive() {}, signal: new AbortController().signal };
+  await fixture.system.initialize(phase);
+  const originalMove = fixture.dependencies.movePath;
+  fixture.dependencies.movePath = async (source, destination) => {
+    fixture.identities.set(source, { dev: 9, ino: 9 });
+    await originalMove(source, destination);
+  };
+  fixture.system.requireGlobalAbsence = async () => {};
+
+  await assert.rejects(() => fixture.system.auditAbsence(phase), { name: "Failure" });
+  assert.equal(fixture.directories.has(fixture.root), true);
+  assert.equal(fixture.identities.get(fixture.root).dev, 9);
 });
 
 test("concrete build downloads exact kind and retains four exact image identities", async () => {
@@ -1623,7 +1841,7 @@ test("concrete lifecycle loads all images and proves the exact Ready Kubernetes 
     internal: true, pods: 4, ready: 4, services: 4,
   });
   assert.equal(calls.filter((value) => value[1] === "load").length, 4);
-  assert.ok(calls.some((value) => value.includes("apply") && value.includes(`${fixture.root}/manifests.yaml`)));
+  assert.ok(calls.some((value) => value.includes("apply") && value.includes("/dev/fd/3") && value.includes("-")));
 });
 
 function validateKindNodeInspectionForTest(document, cluster, networkId, token) {

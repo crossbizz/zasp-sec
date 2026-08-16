@@ -1,8 +1,9 @@
 import { spawn } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
+import { constants as filesystemConstants } from "node:fs";
 import { isAbsolute, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
-import { chmod, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
+import { chmod, lstat, mkdir, mkdtemp, open, readFile, readdir, realpath, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { JSON_SCHEMA, load } from "js-yaml";
 
@@ -234,10 +235,15 @@ export function classifyMutationResult(result) {
 }
 
 export async function runBounded(command, arguments_, options, spawnProcess = spawn) {
+  const fileDescriptors = options?.fileDescriptors ?? [];
+  const input = options?.input;
   if (typeof command !== "string" || command.length === 0 || !Array.isArray(arguments_) ||
       !isPlainObject(options) || !isPlainObject(options.environment) ||
       !Number.isSafeInteger(options.outputLimit) || options.outputLimit < 1 ||
       !Number.isSafeInteger(options.timeoutMilliseconds) || options.timeoutMilliseconds < 1 ||
+      !Array.isArray(fileDescriptors) || fileDescriptors.some((value) => !Number.isSafeInteger(value) || value < 0) ||
+      (input !== undefined && !Buffer.isBuffer(input) && typeof input !== "string") ||
+      (input !== undefined && Buffer.byteLength(input) > 134_217_728) ||
       (options.signal !== undefined && (typeof options.signal?.addEventListener !== "function" ||
         typeof options.signal?.removeEventListener !== "function" || typeof options.signal?.aborted !== "boolean")) ||
       typeof spawnProcess !== "function") throw new TypeError("process request is invalid");
@@ -288,12 +294,16 @@ export async function runBounded(command, arguments_, options, spawnProcess = sp
         cwd: options.cwd,
         env: options.environment,
         shell: false,
-        stdio: ["ignore", "pipe", "pipe"],
+        stdio: [input === undefined ? "ignore" : "pipe", "pipe", "pipe", ...fileDescriptors],
       });
       child.stdout.on("data", (chunk) => append("stdout", chunk));
       child.stderr.on("data", (chunk) => append("stderr", chunk));
       child.stdout.on("error", () => { thrown = true; kill(); });
       child.stderr.on("error", () => { thrown = true; kill(); });
+      if (input !== undefined) {
+        child.stdin.on("error", () => { thrown = true; kill(); });
+        child.stdin.end(input);
+      }
       child.on("error", () => { thrown = true; kill(); });
       child.once("close", finish);
       options.signal?.addEventListener("abort", abort, { once: true });
@@ -462,11 +472,11 @@ export class LocalProductSystem {
     this.dependencies = dependencies ?? defaultSystemDependencies();
     requireExactObject(this.dependencies, [
       "canonicalPath", "changeMode", "command", "fetchBytes", "hashBytes", "makeDirectory", "makeTemp",
-      "readDirectory", "readPath", "removePath", "statPath", "tempParent", "writePath",
+      "movePath", "openPath", "readDirectory", "readPath", "removePath", "statPath", "tempParent", "writePath",
     ], "system dependencies");
     for (const name of [
       "canonicalPath", "changeMode", "command", "fetchBytes", "makeDirectory", "makeTemp",
-      "hashBytes", "readDirectory", "readPath", "removePath", "statPath", "writePath",
+      "hashBytes", "movePath", "openPath", "readDirectory", "readPath", "removePath", "statPath", "writePath",
     ]) if (typeof this.dependencies[name] !== "function") throw new TypeError(`system ${name} is invalid`);
     validateAbsolutePath(this.dependencies.tempParent, "temporary parent");
     this.paths = undefined;
@@ -638,41 +648,65 @@ export class LocalProductSystem {
   }
 
   async inspectOwnedPath(path, kind, phase, category) {
+    const opened = await this.openOwnedPath(path, kind, phase, category);
+    if (opened === undefined) return undefined;
+    try { return opened.identity; }
+    finally { await opened.handle.close().catch(() => {}); }
+  }
+
+  async openOwnedPath(path, kind, phase, category) {
     phase.assertActive(category);
     if (this.paths === undefined || !safeAbsolutePath(path) || !path.startsWith(`${this.paths.root}/`) ||
         !new Set(["directory", "file"]).has(kind)) return undefined;
+    let handle;
     let canonical;
-    let status;
+    let before;
+    let after;
     let bytes;
     try {
-      [canonical, status, bytes] = await Promise.all([
-        this.dependencies.canonicalPath(path), this.dependencies.statPath(path),
-        kind === "file" ? this.dependencies.readPath(path) : undefined,
-      ]);
+      const flags = filesystemConstants.O_RDONLY | filesystemConstants.O_NOFOLLOW |
+        filesystemConstants.O_NONBLOCK | (kind === "directory" ? filesystemConstants.O_DIRECTORY : 0);
+      handle = await this.dependencies.openPath(path, flags);
+      before = await handle.stat();
+      bytes = kind === "file" ? await readDescriptorBytes(handle, before.size) : undefined;
+      after = await handle.stat();
+      canonical = await this.dependencies.canonicalPath(path);
     } catch {
+      await handle?.close?.().catch(() => {});
       return undefined;
     }
-    phase.assertActive(category);
-    const matchesKind = kind === "directory" ? status?.isDirectory?.() : status?.isFile?.();
-    if (canonical !== path || !matchesKind || status?.isSymbolicLink?.() ||
-        !Number.isSafeInteger(status.dev) || !Number.isSafeInteger(status.ino) ||
-        !Number.isSafeInteger(status.mode) || status.mode < 0 ||
-        (kind === "file" && (!Number.isSafeInteger(status.size) || status.size < 1 || status.size > 134_217_728 ||
+    try { phase.assertActive(category); }
+    catch (error) {
+      await handle.close().catch(() => {});
+      throw error;
+    }
+    const matchesKind = kind === "directory" ? before?.isDirectory?.() : before?.isFile?.();
+    const stable = before?.dev === after?.dev && before?.ino === after?.ino && before?.mode === after?.mode &&
+      before?.size === after?.size;
+    if (canonical !== path || !matchesKind || before?.isSymbolicLink?.() || !stable ||
+        !Number.isSafeInteger(before.dev) || !Number.isSafeInteger(before.ino) ||
+        !Number.isSafeInteger(before.mode) || before.mode < 0 ||
+        (kind === "file" && (!Number.isSafeInteger(before.size) || before.size < 1 || before.size > 134_217_728 ||
           !Buffer.isBuffer(bytes) && typeof bytes !== "string"))) {
+      await handle.close().catch(() => {});
       return undefined;
     }
     const content = kind === "file" ? Buffer.from(bytes) : undefined;
-    if (kind === "file" && content.byteLength !== status.size) return undefined;
-    return Object.freeze({
+    if (kind === "file" && content.byteLength !== before.size) {
+      await handle.close().catch(() => {});
+      return undefined;
+    }
+    const identity = Object.freeze({
       bytes: content,
-      dev: status.dev,
+      dev: before.dev,
       hash: content === undefined ? undefined : createHash("sha256").update(content).digest("hex"),
-      ino: status.ino,
+      ino: before.ino,
       kind,
-      mode: status.mode,
+      mode: before.mode,
       path,
-      size: kind === "file" ? status.size : undefined,
+      size: kind === "file" ? before.size : undefined,
     });
+    return Object.freeze({ handle, identity });
   }
 
   async rememberOwnedPath(path, kind, phase, category) {
@@ -693,12 +727,33 @@ export class LocalProductSystem {
     return current;
   }
 
-  async runRead(command, arguments_, phase, category, timeoutMilliseconds = 10_000, outputLimit = 16_384) {
+  async withOwnedFiles(paths, phase, category, operation) {
+    const opened = [];
+    try {
+      for (const path of paths) {
+        const retained = this.pathIdentities.get(path);
+        if (retained?.kind !== "file") throw new Failure(category);
+        const current = await this.openOwnedPath(path, "file", phase, category);
+        if (current === undefined || current.identity.dev !== retained.dev || current.identity.ino !== retained.ino ||
+            current.identity.mode !== retained.mode || current.identity.size !== retained.size ||
+            current.identity.hash !== retained.hash) throw new Failure(category);
+        opened.push(current);
+      }
+      return await operation(opened);
+    } finally {
+      await Promise.all(opened.map(({ handle }) => handle.close().catch(() => {})));
+    }
+  }
+
+  async runRead(command, arguments_, phase, category, timeoutMilliseconds = 10_000, outputLimit = 16_384,
+    commandOptions = {}) {
     phase.assertActive(category);
     let result;
     try {
       result = await this.dependencies.command(command, arguments_, {
         environment: this.environment,
+        fileDescriptors: commandOptions.fileDescriptors,
+        input: commandOptions.input,
         outputLimit,
         signal: phase.signal,
         timeoutMilliseconds,
@@ -713,6 +768,15 @@ export class LocalProductSystem {
     return result;
   }
 
+  async runKubectlRead(arguments_, phase, category, timeoutMilliseconds, outputLimit) {
+    const result = await this.withOwnedFiles([this.paths.kubeconfig], phase, "ownership", async ([kubeconfig]) =>
+      await this.runRead("kubectl", ["--kubeconfig", "/dev/fd/3", ...arguments_], phase, category,
+        timeoutMilliseconds, outputLimit, { fileDescriptors: [kubeconfig.handle.fd] }),
+    );
+    await this.requireOwnedPath(this.paths.kubeconfig, phase, "ownership");
+    return result;
+  }
+
   async runMutation(command, arguments_, phase, category, options) {
     phase.assertActive(category);
     const settlement = this.journalMutation(async () => {
@@ -720,6 +784,8 @@ export class LocalProductSystem {
         return await this.dependencies.command(command, arguments_, {
           cwd: options.cwd,
           environment: options.environment,
+          fileDescriptors: options.fileDescriptors,
+          input: options.input,
           outputLimit: options.outputLimit,
           signal: phase.signal,
           timeoutMilliseconds: options.timeoutMilliseconds,
@@ -982,30 +1048,40 @@ export class LocalProductSystem {
 
   async applyManifests(phase) {
     await this.requireTemporaryOwnership(phase, "ownership");
-    await this.requireOwnedPath(this.paths.manifest, phase, "ownership");
-    await this.requireOwnedPath(this.paths.kubeconfig, phase, "ownership");
     await this.verifyCluster(phase, "ownership");
     this.resourcesMayHaveApplied = true;
-    const applied = await this.runMutation("kubectl", [
-      "--kubeconfig", this.paths.kubeconfig, "apply", "--filename", this.paths.manifest,
-    ], phase, "provider", {
-      environment: this.environment, outputLimit: 4_194_304, timeoutMilliseconds: 90_000,
-    });
+    const applied = await this.withOwnedFiles(
+      [this.paths.kubeconfig, this.paths.manifest], phase, "ownership", async ([kubeconfig, manifest]) =>
+        await this.runMutation("kubectl", [
+          "--kubeconfig", "/dev/fd/3", "apply", "--filename", "-",
+        ], phase, "provider", {
+          environment: this.environment,
+          fileDescriptors: [kubeconfig.handle.fd],
+          input: manifest.identity.bytes,
+          outputLimit: 4_194_304,
+          timeoutMilliseconds: 90_000,
+        }),
+    );
     if (applied.outcome === "definitive") {
       this.resourcesMayHaveApplied = false;
       throw new Failure("provider");
     }
-    await this.runRead("kubectl", [
-      "--kubeconfig", this.paths.kubeconfig, "wait", "--namespace", "zasp-local",
-      "--for=condition=Available", "deployment", "--all", "--timeout=180s",
-    ], phase, "readiness", 200_000, 4_194_304);
+    await this.requireOwnedPath(this.paths.manifest, phase, "ownership");
+    await this.requireOwnedPath(this.paths.kubeconfig, phase, "ownership");
+    await this.withOwnedFiles([this.paths.kubeconfig], phase, "ownership", async ([kubeconfig]) =>
+      await this.runRead("kubectl", [
+        "--kubeconfig", "/dev/fd/3", "wait", "--namespace", "zasp-local",
+        "--for=condition=Available", "deployment", "--all", "--timeout=180s",
+      ], phase, "readiness", 200_000, 4_194_304, { fileDescriptors: [kubeconfig.handle.fd] }),
+    );
+    await this.requireOwnedPath(this.paths.kubeconfig, phase, "ownership");
   }
 
   async verifyReadiness(phase) {
     await this.requireTemporaryOwnership(phase, "ownership");
     await this.verifyCluster(phase, "ownership");
-    const namespaceResult = await this.runRead("kubectl", [
-      "--kubeconfig", this.paths.kubeconfig, "get", "namespace", "zasp-local", "--output=json",
+    const namespaceResult = await this.runKubectlRead([
+      "get", "namespace", "zasp-local", "--output=json",
     ], phase, "readiness", 30_000, 262_144);
     let namespace;
     try { namespace = projectNamespace(parseBoundedJson(namespaceResult.stdout, 262_144)); }
@@ -1013,8 +1089,8 @@ export class LocalProductSystem {
     const requests = ["deployment", "replicaset", "pod", "service", "endpointslice", "ingress"];
     const documents = new Map();
     for (const resource of requests) {
-      const result = await this.runRead("kubectl", [
-        "--kubeconfig", this.paths.kubeconfig, "get", resource, "--namespace", "zasp-local", "--output=json",
+      const result = await this.runKubectlRead([
+        "get", resource, "--namespace", "zasp-local", "--output=json",
       ], phase, "readiness", 30_000, 4_194_304);
       let document;
       try { document = parseBoundedJson(result.stdout, 4_194_304); } catch { throw new Failure("readiness"); }
@@ -1279,19 +1355,42 @@ export class LocalProductSystem {
     if (current === undefined || current.dev !== retained.dev || current.ino !== retained.ino) {
       throw new Failure("cleanup");
     }
+    const quarantine = `${retained.path}-cleanup-${randomBytes(8).toString("hex")}`;
     try {
+      try {
+        await this.dependencies.statPath(quarantine);
+        throw new Failure("cleanup");
+      } catch (error) {
+        if (error instanceof Failure || error?.code !== "ENOENT") throw new Failure("cleanup");
+      }
       await this.runFilesystemMutation(
-        () => this.dependencies.removePath(retained.path, { recursive: true, force: false, maxRetries: 0 }),
+        () => this.dependencies.movePath(retained.path, quarantine), phase, "cleanup",
+      );
+      const moved = await this.inspectOwnedTemporary(quarantine, true, phase, "cleanup");
+      if (moved === undefined || moved.dev !== retained.dev || moved.ino !== retained.ino) {
+        try {
+          await this.runFilesystemMutation(
+            () => this.dependencies.movePath(quarantine, retained.path), phase, "cleanup",
+          );
+        } catch {
+          // Preserve cleanup failure; never proceed to recursive deletion without restored ownership.
+        }
+        throw new Failure("cleanup");
+      }
+      await this.runFilesystemMutation(
+        () => this.dependencies.removePath(quarantine, { recursive: true, force: false, maxRetries: 0 }),
         phase, "cleanup",
       );
     } catch {
       throw new Failure("cleanup");
     }
-    try {
-      await this.dependencies.statPath(retained.path);
-      throw new Failure("cleanup");
-    } catch (error) {
-      if (error instanceof Failure || error?.code !== "ENOENT") throw new Failure("cleanup");
+    for (const path of [retained.path, quarantine]) {
+      try {
+        await this.dependencies.statPath(path);
+        throw new Failure("cleanup");
+      } catch (error) {
+        if (error instanceof Failure || error?.code !== "ENOENT") throw new Failure("cleanup");
+      }
     }
     this.temporaryStarted = false;
     this.temporaryCandidate = undefined;
@@ -1330,6 +1429,8 @@ function defaultSystemDependencies() {
     hashBytes: (value) => createHash("sha256").update(value).digest("hex"),
     makeDirectory: mkdir,
     makeTemp: mkdtemp,
+    movePath: rename,
+    openPath: open,
     readDirectory: readdir,
     readPath: readFile,
     removePath: rm,
@@ -1862,6 +1963,7 @@ function expectedPodTemplate(product) {
 }
 
 function projectDeployment(item) {
+  requireExactProviderDeployment(item);
   return {
     apiVersion: item?.apiVersion,
     kind: item?.kind,
@@ -1932,6 +2034,7 @@ function projectOwnerReferences(value) {
 }
 
 function projectPod(item, importedImages) {
+  requireExactProviderPod(item);
   const container = Array.isArray(item?.spec?.containers) && item.spec.containers.length === 1
     ? item.spec.containers[0]
     : undefined;
@@ -2063,6 +2166,7 @@ function projectNamespace(item) {
 }
 
 function projectReplicaSet(item) {
+  requireExactProviderReplicaSet(item);
   return {
     apiVersion: item?.apiVersion,
     kind: item?.kind,
@@ -2094,6 +2198,81 @@ function projectReplicaSet(item) {
       replicas: item?.status?.replicas ?? 0,
     },
   };
+}
+
+function productDeployment(name) {
+  return buildProductResources().find((resource) =>
+    resource.kind === "Deployment" && resource.metadata.name === name);
+}
+
+function providerPodTemplate(deployment, hash = undefined) {
+  const labels = hash === undefined
+    ? deployment.spec.template.metadata.labels
+    : { ...deployment.spec.template.metadata.labels, "pod-template-hash": hash };
+  return {
+    metadata: { labels },
+    spec: {
+      ...deployment.spec.template.spec,
+      containers: [{
+        ...deployment.spec.template.spec.containers[0],
+        terminationMessagePath: "/dev/termination-log",
+        terminationMessagePolicy: "File",
+      }],
+      schedulerName: "default-scheduler",
+    },
+  };
+}
+
+function requireExactProviderDeployment(item) {
+  const expected = productDeployment(item?.metadata?.name);
+  if (expected === undefined || !exactData(item?.spec, {
+    ...expected.spec,
+    template: providerPodTemplate(expected),
+  })) {
+    throw new Failure("readiness");
+  }
+}
+
+function requireExactProviderReplicaSet(item) {
+  const productName = item?.metadata?.labels?.["app.kubernetes.io/name"];
+  const expected = productDeployment(productName);
+  const hash = item?.metadata?.labels?.["pod-template-hash"];
+  if (expected === undefined || !/^[a-z0-9]{10}$/.test(hash ?? "") || !exactData(item?.spec, {
+    replicas: 1,
+    selector: { matchLabels: {
+      "app.kubernetes.io/name": productName,
+      "pod-template-hash": hash,
+    } },
+    template: providerPodTemplate(expected, hash),
+  })) throw new Failure("readiness");
+}
+
+function requireExactProviderPod(item) {
+  const productName = item?.metadata?.labels?.["app.kubernetes.io/name"];
+  const expected = productDeployment(productName);
+  if (expected === undefined || !exactData(item?.spec, {
+    automountServiceAccountToken: false,
+    containers: [{
+      ...expected.spec.template.spec.containers[0],
+      terminationMessagePath: "/dev/termination-log",
+      terminationMessagePolicy: "File",
+    }],
+    dnsPolicy: "ClusterFirst",
+    enableServiceLinks: false,
+    nodeName: item?.spec?.nodeName,
+    preemptionPolicy: "PreemptLowerPriority",
+    priority: 0,
+    restartPolicy: "Always",
+    schedulerName: "default-scheduler",
+    securityContext: expected.spec.template.spec.securityContext,
+    serviceAccount: "default",
+    serviceAccountName: "default",
+    terminationGracePeriodSeconds: 10,
+    tolerations: [
+      { effect: "NoExecute", key: "node.kubernetes.io/not-ready", operator: "Exists", tolerationSeconds: 300 },
+      { effect: "NoExecute", key: "node.kubernetes.io/unreachable", operator: "Exists", tolerationSeconds: 300 },
+    ],
+  })) throw new Failure("readiness");
 }
 
 function projectEndpointSlice(item) {
@@ -2467,6 +2646,25 @@ function exactData(value, expected) {
 function exactArray(value, expected) {
   return Array.isArray(value) && value.length === expected.length &&
     value.every((item, index) => item === expected[index]);
+}
+
+async function readDescriptorBytes(handle, size) {
+  if (!Number.isSafeInteger(size) || size < 1 || size > 134_217_728 || typeof handle?.read !== "function") {
+    throw new TypeError("file descriptor is invalid");
+  }
+  const bytes = Buffer.alloc(size);
+  let offset = 0;
+  while (offset < size) {
+    const result = await handle.read(bytes, offset, size - offset, offset);
+    if (!Number.isSafeInteger(result?.bytesRead) || result.bytesRead < 1 || result.bytesRead > size - offset) {
+      throw new TypeError("file descriptor read is invalid");
+    }
+    offset += result.bytesRead;
+  }
+  const extra = Buffer.alloc(1);
+  const trailing = await handle.read(extra, 0, 1, size);
+  if (trailing?.bytesRead !== 0) throw new TypeError("file descriptor grew during read");
+  return bytes;
 }
 
 function isPlainObject(value) {
