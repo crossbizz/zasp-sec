@@ -132,7 +132,7 @@ git commit -m "docs: start M1-16 Neo4j GraphStore"
 - Produces: `New`, `EnsureSchema`, fixed adapter errors, immutable adapter, and
   unexported narrow session/transaction/result interfaces used by Tasks 3-4.
 
-- [ ] **Step 1: Write compiler-RED adapter tests**
+- [x] **Step 1: Write compiler-RED adapter tests**
 
 Tests must require these exact declarations before production exists:
 
@@ -150,7 +150,7 @@ Require the two exact constraint statements from the design and strict
 properties, and owned index names with no missing, duplicate, or extra owned
 constraint.
 
-- [ ] **Step 2: Run genuine compiler RED**
+- [x] **Step 2: Run genuine compiler RED**
 
 ```bash
 go test -C services/platform ./graphstore/neo4jstore -run '^TestAdapter|^TestEnsureSchema' -count=1
@@ -158,7 +158,7 @@ go test -C services/platform ./graphstore/neo4jstore -run '^TestAdapter|^TestEns
 
 Expected: compile fails only on the absent package API.
 
-- [ ] **Step 3: Pin the official driver and lock record**
+- [x] **Step 3: Pin the official driver and lock record**
 
 From `services/platform` run:
 
@@ -173,14 +173,14 @@ Add this exact lock entry:
   - ecosystem: go
     manifest: services/platform/go.mod
     name: github.com/neo4j/neo4j-go-driver/v6
-    version: 6.2.0
+    version: v6.2.0
     license: Apache-2.0
     owner: platform-data
     scope: runtime
     review: approved
 ```
 
-- [ ] **Step 4: Implement the narrow wrapper and schema verification**
+- [x] **Step 4: Implement the narrow wrapper and schema verification**
 
 Use fixed errors:
 
@@ -259,7 +259,7 @@ type graphRecord struct {
 results fully, runs one strict `SHOW CONSTRAINTS`, and accepts only the two exact
 owned rows. No ordinary adapter operation creates schema.
 
-- [ ] **Step 5: Run focused schema GREEN and module gates**
+- [x] **Step 5: Run focused schema GREEN and module gates**
 
 ```bash
 go test -C services/platform -race -run '^TestAdapter|^TestEnsureSchema' -count=1 ./graphstore/neo4jstore
@@ -269,7 +269,7 @@ go -C services/platform vet ./graphstore/neo4jstore
 PATH="$HOME/.nvm/versions/node/v22.23.1/bin:$PATH" npm run dependencies:check
 ```
 
-- [ ] **Step 6: Commit the schema boundary**
+- [x] **Step 6: Commit the schema boundary**
 
 ```bash
 git add services/platform/graphstore/neo4jstore services/platform/go.mod services/platform/go.sum build/dependencies.lock.yaml
