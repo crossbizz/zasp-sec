@@ -64,8 +64,8 @@ ignored evidence.
 
 - [x] **Step 1: Capture completion status RED**
 - [x] **Step 2: Move only M1-25 to Complete and run final gates/scans**
-- [ ] **Step 3: Push completion commit and require exact-SHA Runnable UI success**
-- [ ] **Step 4: Push plan-only closure and require exact-SHA Runnable UI success**
+- [x] **Step 3: Push completion commit and require exact-SHA Runnable UI success**
+- [x] **Step 4: Push plan-only closure and require exact-SHA Runnable UI success**
 
 Final completion requires overall `670/0/55/3`, M1 `68/37/0/31/0`, clean
 local/upstream/origin equality, final all-history/evidence scans, and M1-26
