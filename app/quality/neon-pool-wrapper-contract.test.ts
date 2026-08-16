@@ -34,7 +34,7 @@ describe("M1-11 Neon pool wrapper contract", () => {
     expect(plan).toContain("exact live command");
   });
 
-  it("starts only M1-11 after completed M1-10", async () => {
+  it("completes only M1-11 after reviewed live evidence", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -44,15 +44,16 @@ describe("M1-11 Neon pool wrapper contract", () => {
     const blocked = taskRows(tracker, "Blocked");
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
-    expect(readme).toContain("M1-11 is In progress");
+    expect(readme).toContain("M1-11 is Complete");
     expect(readme).toContain("driver-neutral application pool wrapper");
     expect(tracker).toContain("| Pending | 684 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 40 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 41 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`684/1/40/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "51", "1", "16", "0"]);
-    expect(active.filter(([task]) => task === "M1-11")).toHaveLength(1);
+    expect(tracker).toContain("`684/0/41/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "51", "0", "17", "0"]);
+    expect(active.filter(([task]) => task === "M1-11")).toHaveLength(0);
+    expect(complete.filter(([task]) => task === "M1-11")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-10")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-12")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);

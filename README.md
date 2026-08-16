@@ -218,7 +218,7 @@ M1-10 is Complete. It adds the first versioned Neon schema baseline as a
 dependency-free platform migration package. The product boundary owns the
 embedded SQL and strict transaction protocol; the reviewed disposable Neon
 branch proof owns credentials, provider lifecycle, live up/down verification,
-and exact branch cleanup. M1-11 remains Pending.
+and exact branch cleanup. M1-11 is Complete.
 
 The hermetic command exercises the package and retained proof regressions. The
 live command reads only `NEON_API_KEY`, `NEON_PROJECT_ID`, and `DATABASE_URL`
@@ -245,7 +245,7 @@ remains with M1-11.
 
 ## Neon application pool wrapper
 
-M1-11 is In progress. It adds a driver-neutral application pool wrapper with a
+M1-11 is Complete. It adds a driver-neutral application pool wrapper with a
 bounded query context, bounded health check, validated wait/in-use statistics,
 and one clean idempotent close boundary. Product code remains independent of
 pgx; the existing reviewed Neon proof module owns the pgxpool adapter and live
@@ -265,6 +265,10 @@ exactly:
 ```text
 Neon pool wrapper passed: reads=10 waited=true in_use=true acquired=0 closed=true.
 ```
+
+The dependency-free product package, strict pgx adapter, exact live contention
+proof, focused stability and race suites, repository gates, secret scans, and
+zero-finding pre-landing review all passed. M1-12 remains Pending.
 
 ## Neon pooled proof
 

@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 684 |
-| In progress | 1 |
-| Complete | 40 |
+| In progress | 0 |
+| Complete | 41 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -24,7 +24,7 @@ In progress, Complete, or Blocked is Pending.
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 0 | 0 | 24 | 3 |
-| M1 | 68 | 51 | 1 | 16 | 0 |
+| M1 | 68 | 51 | 0 | 17 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
 | M3 | 75 | 75 | 0 | 0 | 0 |
@@ -68,19 +68,19 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `684/1/40/3` because
+session configuration. The 728 source-plan counts are `684/0/41/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M1-11 | August 15, 2026 | Add the driver-neutral application pool wrapper with bounded queries, health statistics, clean close semantics, and the retained strict pgx/Neon live proof. |
 
 ## Complete
 
 | Task | Completed | Evidence |
 | --- | --- | --- |
+| M1-11 | August 15, 2026 | Added a dependency-free driver-neutral application pool wrapper with bounded query and health contexts, validated wait/in-use statistics, exact close semantics, and a narrow pgx adapter; the exact live Neon proof observed proof-owned contention, released every acquired connection, closed cleanly, and passed all gates, scans, and zero-finding pre-landing review. |
 | M1-10 | August 15, 2026 | Added an embedded dependency-free version-1 schema ledger and strict transaction runner; three fresh disposable Neon branches passed exact up/version/down/baseline restoration/deletion, all Go/product/root gates and scans passed, and independent review closed two Important and one Minor finding with zero remaining issues. |
 | M1-09 | August 15, 2026 | Added one dependency-free scoped atomic idempotency claim/completion interface and request helper that executes only the unique acquired claim, returns completed duplicates' prior canonical product result, retains unknown outcomes for reconciliation, and passed ten focused groups, adversarial review, all Go/service/worker/root gates, audit, and scans. |
 | M1-08 | August 15, 2026 | Added one dependency-free platform HTTP executor with an opaque validated policy, a single total deadline, complete-sequence concurrency bounds, transient-only safe retries, capped jittered backoff, one-attempt non-idempotent mutations, strict response ownership, fixed errors, twelve focused groups, adversarial review, all Go/service/worker/root gates, audit, and scans. |
