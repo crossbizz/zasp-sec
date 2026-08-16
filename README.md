@@ -415,8 +415,8 @@ This command runs a hermetic fake driver and performs no provider, cache,
 database, network, Docker, credential, or shared-resource I/O. Feature flags
 are non-security-critical and never authorize scope, policy, enforcement,
 credentials, data access, or audit behavior. This boundary does not prove a
-provider adapter, remote evaluation, or cache implementation. M1-19 remains
-Pending.
+provider adapter, remote evaluation, or cache implementation.
+M1-19 is In progress.
 
 ## Neon pooled proof
 

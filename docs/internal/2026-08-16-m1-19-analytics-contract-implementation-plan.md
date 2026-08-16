@@ -35,14 +35,18 @@ production or status edits. M1-20 remains Pending throughout M1-19.
   current aggregate status fixture changed by the arithmetic transition.
 - Create ignored Task 1 report and append-only progress ledger.
 
-- [ ] Capture the focused Pending-state RED.
+- [x] Capture the focused Pending-state RED.
 
   The new contract must bind the authoritative source, PRD, design, and this
   plan; require exactly one M1-19 In progress row; require M1-18 Complete and
   M1-20 absent; preserve the three blockers; and require overall
   `676/1/48/3` plus M1 `68/43/1/24/0`.
 
-- [ ] Move only M1-19 to In progress and obtain focused/full GREEN.
+- [x] Move only M1-19 to In progress and obtain focused/full GREEN.
+
+  Pinned Node produced one intended stale-status failure and one source/design
+  pass before status edits. GREEN is 52 quality files and 236 tests with only
+  M1-19 active at `676/1/48/3` overall and `68/43/1/24/0` for M1.
 
   Commit message: `docs: start M1-19 analytics contract`.
 
