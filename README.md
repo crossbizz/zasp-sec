@@ -443,8 +443,8 @@ policy.
 
 M1-20 is Complete. It defines a provider-neutral scoped AIGateway with
 an exact approved-purpose catalog, complete data-policy metadata, bounded
-redacted product content, and a hermetic fake-driver contract. M1-21 remains
-Pending.
+redacted product content, and a hermetic fake-driver contract. M1-21 is In
+progress.
 
 ## AI gateway contract
 
@@ -465,7 +465,8 @@ credential, or shared-resource I/O. AI output is non-authoritative: it never
 controls scope, deterministic policy, authorization, action execution, or
 verification. This boundary does not prove an OpenRouter adapter, hosted
 delivery, model routing, streaming, caching, or persistence. M1-21 remains
-Pending.
+In progress and will add the dependency-free common resource/correlation
+contract without changing this AI boundary.
 
 ## Neon pooled proof
 

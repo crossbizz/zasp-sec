@@ -58,7 +58,7 @@ Vitest repository contracts, npm root command wiring.
 - Produces: exact repository status and documentation contract used by every
   later M1-21 task.
 
-- [ ] **Step 1: Write the failing status/source contract**
+- [x] **Step 1: Write the failing status/source contract**
 
   Add three Vitest cases. Bind the source section from M1-21 through M1-22;
   require the exact deliverable and raw-content verification. Bind the PRD
@@ -76,7 +76,12 @@ Vitest repository contracts, npm root command wiring.
   expect([...active, ...complete].some(([task]) => task === "M1-22")).toBe(false);
   ```
 
-- [ ] **Step 2: Run the focused test and verify the intended RED**
+  The first tests-only run exposed one incorrect expectation about which
+  M0-13 file carries the service keys. After correcting the test to bind the
+  executable normalizer, the genuine RED was 1 pass/1 intended fail solely at
+  stale M1-21 README/tracker status.
+
+- [x] **Step 2: Run the focused test and verify the intended RED**
 
   Run from repository root with pinned Node 22.23.1/npm 10.9.8:
 
@@ -87,14 +92,18 @@ Vitest repository contracts, npm root command wiring.
   Expected: source/design checks pass and only stale README/tracker status
   assertions fail. A syntax, path, or fixture failure is not the required RED.
 
-- [ ] **Step 3: Move only M1-21 to In progress**
+- [x] **Step 3: Move only M1-21 to In progress**
 
   Add one M1-21 In-progress row and README boundary. Change aggregate counts to
   overall `674/1/50/3` and M1 `68/41/1/26/0`. Update only aggregate fixtures
   whose exact current-count assertions become stale. Keep M1-20 Complete,
   M1-22 Pending, and all three blockers unchanged.
 
-- [ ] **Step 4: Verify focused and complete quality GREEN**
+  Only M1-21 is active at overall `674/1/50/3` and M1
+  `68/41/1/26/0`. All current aggregate fixtures require exactly that active
+  row, not merely a one-row count.
+
+- [x] **Step 4: Verify focused and complete quality GREEN**
 
   ```bash
   npx vitest run app/quality/observability-contract.test.ts
@@ -104,7 +113,10 @@ Vitest repository contracts, npm root command wiring.
 
   Expected: zero failures and arithmetic equal to 728 source tasks.
 
-- [ ] **Step 5: Record evidence and commit**
+  GREEN is 2/2 focused, 5/5 with the M1-20 predecessor contract, and 54
+  quality files/242 tests.
+
+- [x] **Step 5: Record evidence and commit**
 
   Record exact RED/GREEN counts and touched paths in ignored evidence. Scan the
   staged diff and evidence with pinned redacted Gitleaks v8.30.1, then commit:

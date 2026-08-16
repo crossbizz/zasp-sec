@@ -50,16 +50,16 @@ describe("M1-20 AI gateway contract", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(readme).toMatch(/M1-20\s+is\s+Complete/);
-    expect(tracker).toContain("| Pending | 675 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 674 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 50 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`675/0/50/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "42", "0", "26", "0"]);
-    expect(active).toHaveLength(0);
+    expect(tracker).toContain("`674/1/50/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "41", "1", "26", "0"]);
+    expect(active).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-19")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-20")).toHaveLength(1);
-    expect([...active, ...complete].filter(([task]) => task === "M1-21")).toHaveLength(0);
+    expect(active.filter(([task]) => task === "M1-21")).toHaveLength(1);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
 
@@ -82,6 +82,6 @@ describe("M1-20 AI gateway contract", () => {
     expect(section).toContain("hermetic fake driver");
     expect(section).toMatch(/non-authoritative/);
     expect(section.replace(/\s+/g, " ")).toContain("does not prove an OpenRouter adapter, hosted delivery, model routing, streaming, caching, or persistence");
-    expect(section).toMatch(/M1-21\s+remains\s+Pending/);
+    expect(section).toMatch(/M1-21\s+(?:remains\s+)?In progress/);
   });
 });
