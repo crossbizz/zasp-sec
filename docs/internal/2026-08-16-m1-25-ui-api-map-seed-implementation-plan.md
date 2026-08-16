@@ -31,10 +31,10 @@ Vitest, pinned Node 22.23.1/npm 10.9.8.
 **Files:** create quality contract; update README/tracker/current fixtures;
 create ignored task/progress evidence.
 
-- [ ] **Step 1: Capture source/design/status RED**
-- [ ] **Step 2: Move only M1-25 to In progress**
-- [ ] **Step 3: Run focused and complete quality GREEN**
-- [ ] **Step 4: Scan and commit `docs: start M1-25 UI API map seed`**
+- [x] **Step 1: Capture source/design/status RED**
+- [x] **Step 2: Move only M1-25 to In progress**
+- [x] **Step 3: Run focused and complete quality GREEN**
+- [x] **Step 4: Scan and commit `docs: start M1-25 UI API map seed`**
 
 ---
 

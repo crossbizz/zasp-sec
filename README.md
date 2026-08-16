@@ -536,7 +536,8 @@ Because the root still has `paths: {}`, the client has no callable endpoint.
 The factory has no default remote server, performs no I/O during construction,
 and does not hand-write `/api/v1/` URLs. Authentication/session retrieval,
 reviewed operations, and UI integration remain later work. M1-23 is Complete.
-M1-24 is Complete; M1-25 remains Pending.
+M1-24 is Complete. M1-25 is In progress and is seeding the planned Home and
+System Health UI-to-API map without adding an OpenAPI operation.
 
 ```bash
 npm run openapi:test
