@@ -1,0 +1,108 @@
+openapi: 3.1.0
+jsonSchemaDialect: https://spec.openapis.org/oas/3.1/dialect/base
+info:
+  title: Agent Security Platform API
+  version: 1.0.0
+  description: Stable product API contract.
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+paths: {}
+security:
+  - SessionJWT: []
+  - ProductAPIToken: []
+components:
+  securitySchemes:
+    SessionJWT:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Human product session token.
+    ProductAPIToken:
+      type: http
+      scheme: bearer
+      bearerFormat: ProductAPIToken
+      description: Product automation token.
+  parameters:
+    PageCursor:
+      name: cursor
+      in: query
+      required: false
+      description: Opaque cursor returned by the preceding page.
+      schema:
+        $ref: '#/components/schemas/Cursor'
+    PageLimit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of records to return.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+  schemas:
+    Cursor:
+      type: string
+      minLength: 2
+      maxLength: 512
+      pattern: '^(?:[A-Za-z0-9_-]{4})*(?:[A-Za-z0-9_-]{2,3})?$'
+      description: Opaque canonical base64url cursor without padding.
+    PageInfo:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required:
+            - next_cursor
+            - has_more
+          properties:
+            next_cursor:
+              $ref: '#/components/schemas/Cursor'
+            has_more:
+              const: true
+        - type: object
+          additionalProperties: false
+          required:
+            - next_cursor
+            - has_more
+          properties:
+            next_cursor:
+              type: 'null'
+            has_more:
+              const: false
+    ProductID:
+      type: string
+      minLength: 40
+      maxLength: 40
+      pattern: '^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      description: Canonical product identifier.
+    ProductError:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - message
+        - correlation_id
+        - retryable
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: '^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$'
+        message:
+          type: string
+          minLength: 1
+          maxLength: 512
+          pattern: '^(?!\s)(?!.*\s$)[^\x00-\x1F\x7F]+$'
+        correlation_id:
+          $ref: '#/components/schemas/ProductID'
+        retryable:
+          type: boolean
+  responses:
+    ProductErrorResponse:
+      description: Request rejected with a product error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProductError'

@@ -79,7 +79,7 @@ Vitest repository contracts.
 - Modify after RED: `package.json`, `package-lock.json`, this plan
 - Append ignored task/progress evidence
 
-- [ ] **Step 1: Write exact root tests and capture missing-file RED**
+- [x] **Step 1: Write exact root tests and capture missing-file RED**
 
   Parse with locked `js-yaml` in strict mode. Require exact root, security,
   schema, parameter, and response shapes. Before source/dependency edits, run:
@@ -90,7 +90,7 @@ Vitest repository contracts.
 
   RED must be only the absent OpenAPI root/config/lint command.
 
-- [ ] **Step 2: Add minimal OpenAPI/linter GREEN**
+- [x] **Step 2: Add minimal OpenAPI/linter GREEN**
 
   Create the self-contained root and recommended Redocly config, install
   `@redocly/cli@2.43.1` exactly as a development dependency, and add:
@@ -99,14 +99,14 @@ Vitest repository contracts.
   "openapi:lint": "REDOCLY_TELEMETRY=off REDOCLY_SUPPRESS_UPDATE_NOTICE=true redocly lint openapi/openapi.yaml --config redocly.yaml"
   ```
 
-- [ ] **Step 3: Add hostile schema and linter RED/GREEN coverage**
+- [x] **Step 3: Add hostile schema and linter RED/GREEN coverage**
 
   Reject duplicate/unknown keys, wrong OpenAPI/dialect/info version, paths,
   remote references, anonymous or AND auth, query/cookie tokens, pagination
   contradictions/bounds, ProductID/code/error drift, examples, and prohibited
   customer/provider strings. Require lint output with zero warnings.
 
-- [ ] **Step 4: Run stability and repository gates**
+- [x] **Step 4: Run stability and repository gates**
 
   ```bash
   for run in 1 2 3 4 5 6; do node --test openapi/openapi.test.mjs; npm run openapi:lint; done
@@ -117,7 +117,7 @@ Vitest repository contracts.
   git diff --check
   ```
 
-- [ ] **Step 5: Record, scan, and commit**
+- [x] **Step 5: Record, scan, and commit**
 
   ```bash
   git commit -m "feat: add strict OpenAPI 3.1 root"
@@ -133,7 +133,7 @@ Vitest repository contracts.
 
   Require the exact lint command, document path, OpenAPI version, auth OR,
   pagination/error vocabulary, empty-operation boundary, self-contained/no-I/O
-  statement, and M1-24 Pending.
+  statement, the two justified root-only linter exceptions, and M1-24 Pending.
 
 - [ ] **Step 2: Add only the README boundary**
 

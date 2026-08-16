@@ -77,9 +77,11 @@ implicit retry inference.
 
 Pin `@redocly/cli` exactly at `2.43.1`, which supports OpenAPI 3.1 and the
 repository's pinned Node 22/npm 10 runtime. `redocly.yaml` extends the
-recommended ruleset. Only `no-unused-components` is disabled because M1-23 is
+recommended ruleset. `no-unused-components` is disabled because M1-23 is
 deliberately the component root before any operation exists; M1-24 and later
-operation tasks consume the components.
+operation tasks consume the components. `no-empty-servers` is also disabled
+because this root intentionally declares no deployment endpoint before an
+operation exists. No other recommended rule is disabled.
 
 The root command is:
 
@@ -90,6 +92,8 @@ npm run openapi:lint
 It disables Redocly telemetry and update notices, uses only the locked local
 binary and local files, and performs no install, download, provider, network,
 credential, environment-file, database, Docker, or shared-resource I/O.
+The root `npm run verify` gate invokes both the strict parser suite and this
+standard linter, so exact-SHA CI cannot bypass either contract.
 
 ## Verification and status boundary
 

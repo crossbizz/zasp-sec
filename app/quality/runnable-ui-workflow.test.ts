@@ -68,6 +68,8 @@ function assertRunnableUiWorkflow(
   expect(workflow.permissions).toEqual({ contents: "read" });
   expect(verificationCommands).toEqual([
     "npm run dependencies:check",
+    "npm run openapi:test",
+    "npm run openapi:lint",
     "npm test",
     "npm run typecheck",
     "npm run lint",

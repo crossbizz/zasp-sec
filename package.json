@@ -13,6 +13,8 @@
     "producttelemetry:test": "go test -C services/platform -race -count=1 ./producttelemetry",
     "aigateway:test": "go test -C services/platform -race -count=1 ./aigateway",
     "observability:test": "go test -C services/platform -race -count=1 ./observability",
+    "openapi:lint": "REDOCLY_TELEMETRY=off REDOCLY_SUPPRESS_UPDATE_NOTICE=true redocly lint openapi/openapi.yaml --config redocly.yaml",
+    "openapi:test": "node --test openapi/openapi.test.mjs",
     "securityevent:test": "go test -C services/platform -race -count=1 ./securityevent",
     "graph:store:test": "go test -C services/platform -race -count=1 ./graphstore",
     "graph:neo4j:test": "go test -C services/platform -race -count=1 ./graphstore/... && go test -C proofs/neo4j-graphstore -race -count=1 ./... && node --test proofs/neo4j-graphstore/run.test.mjs proofs/neo4j-graphstore/license-audit.test.mjs",
@@ -88,7 +90,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
-    "verify": "npm run dependencies:check && npm test && npm run typecheck && npm run lint && npm run build",
+    "verify": "npm run dependencies:check && npm run openapi:test && npm run openapi:lint && npm test && npm run typecheck && npm run lint && npm run build",
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
@@ -103,6 +105,7 @@
     "@cloudflare/workers-types": "^4.20260702.1",
     "@eslint/js": "9.39.4",
     "@next/eslint-plugin-next": "16.2.6",
+    "@redocly/cli": "2.43.1",
     "@tailwindcss/postcss": "4.2.1",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.2",
