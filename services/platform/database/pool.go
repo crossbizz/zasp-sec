@@ -81,9 +81,6 @@ func New(driver Driver, config Config) (*Pool, error) {
 }
 
 func (pool *Pool) QueryRow(ctx context.Context, statement string, arguments []any, destinations ...any) (resultErr error) {
-	if ctx == nil || !validStatement(statement) || len(destinations) == 0 {
-		return ErrQuery
-	}
 	if pool == nil {
 		return ErrClosed
 	}
@@ -92,6 +89,9 @@ func (pool *Pool) QueryRow(ctx context.Context, statement string, arguments []an
 	defer pool.mu.RUnlock()
 	if pool.closed || nilInterface(pool.driver) {
 		return ErrClosed
+	}
+	if ctx == nil || !validStatement(statement) || len(destinations) == 0 {
+		return ErrQuery
 	}
 	defer func() {
 		if recover() != nil {
@@ -115,9 +115,6 @@ func (pool *Pool) QueryRow(ctx context.Context, statement string, arguments []an
 }
 
 func (pool *Pool) Health(ctx context.Context) (Stats, error) {
-	if ctx == nil {
-		return Stats{}, ErrHealth
-	}
 	if pool == nil {
 		return Stats{}, ErrClosed
 	}
@@ -126,6 +123,9 @@ func (pool *Pool) Health(ctx context.Context) (Stats, error) {
 	defer pool.mu.RUnlock()
 	if pool.closed || nilInterface(pool.driver) {
 		return Stats{}, ErrClosed
+	}
+	if ctx == nil {
+		return Stats{}, ErrHealth
 	}
 	healthCtx, cancel := context.WithTimeout(ctx, pool.config.HealthTimeout)
 	defer cancel()

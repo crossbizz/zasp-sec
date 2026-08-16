@@ -416,6 +416,21 @@ func TestZeroPoolFailsClosedWithoutPanic(t *testing.T) {
 	}
 }
 
+func TestClosedStatePrecedesRequestValidation(t *testing.T) {
+	t.Parallel()
+
+	pool := mustPool(t, &recordingDriver{})
+	if err := pool.Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+	if err := pool.QueryRow(nil, "", nil); !errors.Is(err, ErrClosed) {
+		t.Fatalf("invalid post-close QueryRow() error = %v, want closed", err)
+	}
+	if _, err := pool.Health(nil); !errors.Is(err, ErrClosed) {
+		t.Fatalf("invalid post-close Health() error = %v, want closed", err)
+	}
+}
+
 func validConfig() Config {
 	return Config{QueryTimeout: time.Second, HealthTimeout: time.Second}
 }

@@ -109,6 +109,60 @@ func TestExecuteProductPoolProofClosesOnEveryFailureWithCleanupPrecedence(t *tes
 	}
 }
 
+func TestExecuteProductPoolProofRequiresWaitsCausedByItsReads(t *testing.T) {
+	t.Parallel()
+
+	driver := newContendedDriver(concurrentReadCount, 20*time.Millisecond)
+	driver.waitCount.Store(1)
+	opener := func(context.Context, validatedConnection) (*platformdatabase.Pool, error) {
+		return platformdatabase.New(driver, platformdatabase.Config{
+			QueryTimeout: time.Second, HealthTimeout: time.Second,
+		})
+	}
+
+	if _, err := executeProductPoolProof(context.Background(), validDirectNeonURL(), opener, time.Millisecond); !errors.Is(err, errPoolStats) {
+		t.Fatalf("executeProductPoolProof() error = %v, want pool statistics", err)
+	}
+}
+
+func TestExecuteProductPoolProofClosesMalformedOpenResult(t *testing.T) {
+	t.Parallel()
+
+	driver := newContendedDriver(2, time.Millisecond)
+	opener := func(context.Context, validatedConnection) (*platformdatabase.Pool, error) {
+		pool, err := platformdatabase.New(driver, platformdatabase.Config{
+			QueryTimeout: time.Second, HealthTimeout: time.Second,
+		})
+		if err != nil {
+			t.Fatalf("database.New() error = %v", err)
+		}
+		return pool, errors.New(productDriverSecret)
+	}
+
+	if _, err := executeProductPoolProof(context.Background(), validDirectNeonURL(), opener, time.Millisecond); !errors.Is(err, errPoolSetup) {
+		t.Fatalf("executeProductPoolProof() error = %v, want pool setup", err)
+	}
+	if !driver.closed.Load() || driver.closeCalls.Load() != 1 {
+		t.Fatalf("malformed open cleanup = closed %t calls %d, want true/1", driver.closed.Load(), driver.closeCalls.Load())
+	}
+
+	failingDriver := newContendedDriver(2, time.Millisecond)
+	failingDriver.retainAfterClose = true
+	failingDriver.created.Store(1)
+	failingOpener := func(context.Context, validatedConnection) (*platformdatabase.Pool, error) {
+		pool, err := platformdatabase.New(failingDriver, platformdatabase.Config{
+			QueryTimeout: time.Second, HealthTimeout: time.Second,
+		})
+		if err != nil {
+			t.Fatalf("database.New() error = %v", err)
+		}
+		return pool, errors.New(productDriverSecret)
+	}
+	if _, err := executeProductPoolProof(context.Background(), validDirectNeonURL(), failingOpener, time.Millisecond); !errors.Is(err, errPoolClose) {
+		t.Fatalf("malformed open cleanup-precedence error = %v, want pool close", err)
+	}
+}
+
 func TestExecuteProductPoolProofRejectsInvalidInputWithoutOpening(t *testing.T) {
 	t.Parallel()
 

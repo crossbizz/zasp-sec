@@ -89,7 +89,15 @@ func executeProductPoolProof(ctx context.Context, rawURL string, open productPoo
 		return "", errConfiguration
 	}
 	pool, err := open(ctx, target)
-	if err != nil || pool == nil {
+	if err != nil {
+		if pool != nil {
+			if closeErr := pool.Close(); closeErr != nil {
+				return "", errPoolClose
+			}
+		}
+		return "", errPoolSetup
+	}
+	if pool == nil {
 		return "", errPoolSetup
 	}
 	closed := false
@@ -103,7 +111,8 @@ func executeProductPoolProof(ctx context.Context, rawURL string, open productPoo
 		}
 	}()
 
-	if _, err := pool.Health(ctx); err != nil {
+	baseline, err := pool.Health(ctx)
+	if err != nil {
 		return "", errPoolStats
 	}
 	results := make(chan readRunResult, 1)
@@ -131,7 +140,7 @@ waitForResult:
 			if err != nil {
 				return "", errPoolStats
 			}
-			if stats.WaitCount > 0 && stats.InUse > 0 {
+			if stats.WaitCount > baseline.WaitCount && stats.InUse > 0 {
 				observedContention = true
 			}
 		case <-ctx.Done():
@@ -146,7 +155,7 @@ waitForResult:
 		return "", errReadCount
 	}
 	stats, err := pool.Stats()
-	if err != nil || !observedContention || stats.WaitCount == 0 || stats.InUse != 0 {
+	if err != nil || !observedContention || stats.WaitCount <= baseline.WaitCount || stats.InUse != 0 {
 		return "", errPoolStats
 	}
 	if err := pool.Close(); err != nil {
