@@ -218,32 +218,32 @@ feat: forbid raw frontend fetch requests
 - Produces: documented commands, scope, generated-client exception, and
   deliberate seeded-violation result.
 
-- [ ] **Step 1: Write the README contract before prose**
+- [x] **Step 1: Write the README contract before prose**
 
 Require an extracted README section to contain exact standalone commands
 `npm run raw-fetch:test` and `npm run lint`, both frontend roots, both exact
 exempt files, the rule ID, and M1-27 In progress / M1-28a Pending.
 
-- [ ] **Step 2: Witness documentation RED, write prose, and reach GREEN**
+- [x] **Step 2: Witness documentation RED, write prose, and reach GREEN**
 
 Run the focused contract before editing README and require the missing-section
 failure. Add the bounded documentation, then rerun the focused test and all
 related M1-24 through M1-27 contracts.
 
-- [ ] **Step 3: Review the whole design-to-head range**
+- [x] **Step 3: Review the whole design-to-head range**
 
 Audit every changed file against the source row and design. Re-run seeded
 direct/member/optional/call/apply violations, exact exceptions, config scope,
 lockfile non-change, and root verify wiring. Record Critical, Important, and
 Minor counts plus Ready Yes/No.
 
-- [ ] **Step 4: Fix every valid review finding tests-first**
+- [x] **Step 4: Fix every valid review finding tests-first**
 
 For each finding, add a focused failing case, witness RED, make the minimal
 production change, rerun focused and adjacent tests, and commit separately.
 Repeat review until the result is Critical 0, Important 0, Minor 0, Ready Yes.
 
-- [ ] **Step 5: Record review evidence**
+- [x] **Step 5: Record review evidence**
 
 Run six final focused passes, full pinned verification, repository builds,
 audits, diff/syntax checks, and redacted source/evidence/history scans. Update

@@ -584,6 +584,29 @@ Failure is fixed as `UI/API coverage rejected.` without parser or artifact
 details. Both commands are part of root verification. M1-25 is Complete.
 M1-26 is Complete. M1-27 is In progress, and M1-28a remains Pending.
 
+## Raw frontend Fetch lint
+
+M1-27 enforces the generated-client boundary in normal frontend JavaScript and
+TypeScript under `app/**` and `apps/web/**`. The local ESLint rule
+`zasp/no-raw-fetch` rejects direct, browser-member, computed, optional, and
+call/apply/bind raw Fetch forms. Ambient aliases, destructuring, sequence
+expressions, and higher-order calls are rejected too, including requests whose
+URL was moved into a variable or `Request` object. Lexically scoped local
+symbols that merely use the name `fetch` remain valid.
+
+Exactly `apps/web/api/client.ts` and `apps/web/api/generated.ts` are exempt.
+Typed generated-client calls and inert API-path strings remain valid; proof
+harnesses and backend services are outside this frontend-only rule. The hostile
+suite proves that a seeded direct `/api/v1/` violation fails lint.
+
+```bash
+npm run raw-fetch:test
+npm run lint
+```
+
+The hostile suite is part of root verification. M1-27 is In progress, and
+M1-28a remains Pending.
+
 ## Neon pooled proof
 
 The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,

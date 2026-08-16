@@ -68,4 +68,27 @@ describe("M1-27 raw fetch lint", () => {
     expect([...active, ...complete].filter(([task]) => task === "M1-28a")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
+
+  it("documents the exact frontend lint commands, scope, and client exception", async () => {
+    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const section = readme.match(/## Raw frontend Fetch lint[\s\S]*?## Neon pooled proof/)?.[0] ?? "";
+    const prose = section.replace(/\s+/g, " ");
+
+    expect(section).toMatch(/^npm run raw-fetch:test$/m);
+    expect(section).toMatch(/^npm run lint$/m);
+    for (const value of [
+      "`app/**`",
+      "`apps/web/**`",
+      "`apps/web/api/client.ts`",
+      "`apps/web/api/generated.ts`",
+      "`zasp/no-raw-fetch`",
+      "Ambient aliases",
+      "Lexically scoped local symbols",
+      "seeded direct `/api/v1/` violation",
+      "M1-27 is In progress",
+      "M1-28a remains Pending",
+    ]) {
+      expect(prose).toContain(value);
+    }
+  });
 });
