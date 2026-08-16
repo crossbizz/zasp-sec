@@ -53,12 +53,12 @@ describe("OpenRouter privacy proof repository contract", () => {
     const complete = section(tracker, "Complete");
     expect(readme).toContain("M0-21 is Complete");
     expect(tracker).toContain("| Pending | 670 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 54 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 55 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`670/1/54/3`");
+    expect(tracker).toContain("`670/0/55/3`");
     expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 0 \| 24 \| 3 \|/);
-    expect(active.map(([task]) => task)).toEqual(["M1-25"]);
+    expect(active.map(([task]) => task)).toEqual([]);
     expect(complete.filter(([task]) => task === "M0-21")).toHaveLength(1);
     expect(blocked.filter(([task]) => ["M0-09", "M0-18", "M0-19"].includes(task))).toHaveLength(3);
     expect(risk).toContain("PASS — M0-21/M0-21a —");

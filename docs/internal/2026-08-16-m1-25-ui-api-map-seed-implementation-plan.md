@@ -62,8 +62,8 @@ ignored evidence.
 
 ### Task 4: Complete, push, and close M1-25
 
-- [ ] **Step 1: Capture completion status RED**
-- [ ] **Step 2: Move only M1-25 to Complete and run final gates/scans**
+- [x] **Step 1: Capture completion status RED**
+- [x] **Step 2: Move only M1-25 to Complete and run final gates/scans**
 - [ ] **Step 3: Push completion commit and require exact-SHA Runnable UI success**
 - [ ] **Step 4: Push plan-only closure and require exact-SHA Runnable UI success**
 
