@@ -141,18 +141,18 @@ remains Pending throughout.
 - Modify only finding-related files through separate tests-first commits.
 - Update ignored Task 4 report and progress ledger.
 
-- [ ] Run a strict pre-landing review.
+- [x] Run a strict pre-landing review.
 
   Prioritize implicit/default ambiguity, driver authority, cache-state
   contradictions, scope drift, timeout/cancellation semantics, raw provider
   leakage, retry, concurrency, and use in security-critical decisions.
 
-- [ ] Fix every finding tests-first.
+- [x] Fix every finding tests-first.
 
   Record genuine focused RED, minimal GREEN, affected/full gates, separate
   atomic fix commit, and re-review until Critical/Important/Minor are all zero.
 
-- [ ] Run final implementation gates.
+- [x] Run final implementation gates.
 
   Require six root race cycles, 100 focused repetitions, coverage, full
   platform gates, full pinned repository verification, 8-target build,
