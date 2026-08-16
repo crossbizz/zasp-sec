@@ -45,16 +45,16 @@ describe("M1-17 AuditEmitter contract", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(readme).toContain("M1-17 is Complete");
-    expect(tracker).toContain("| Pending | 678 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 677 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 47 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`678/0/47/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "45", "0", "23", "0"]);
-    expect(active).toHaveLength(0);
+    expect(tracker).toContain("`677/1/47/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "44", "1", "23", "0"]);
+    expect(active.map(([task]) => task)).toEqual(["M1-18"]);
     expect(complete.filter(([task]) => task === "M1-16")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-17")).toHaveLength(1);
-    expect([...active, ...complete].filter(([task]) => task === "M1-18")).toHaveLength(0);
+    expect(complete.filter(([task]) => task === "M1-18")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
 
@@ -74,6 +74,6 @@ describe("M1-17 AuditEmitter contract", () => {
     expect(section).toContain("fixed product errors");
     expect(section).toContain("hermetic fake driver");
     expect(section).toMatch(/does\s+not prove persistence, retention, export, or a generic event envelope/);
-    expect(section).toMatch(/M1-18\s+remains Pending/);
+    expect(section).toMatch(/M1-18\s+is\s+In progress/);
   });
 });

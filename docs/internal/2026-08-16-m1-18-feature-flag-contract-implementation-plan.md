@@ -33,7 +33,7 @@ remains Pending throughout.
 - Modify affected current aggregate contracts under `app/quality/`.
 - Create ignored Task 1 report and append-only progress ledger.
 
-- [ ] Write source/design/status assertions before status edits.
+- [x] Write source/design/status assertions before status edits.
 
   Bind the authoritative source section to dependency M1-17, the exact
   `FeatureFlags` deliverable, explicit code default, cache metadata, and fake
@@ -42,19 +42,19 @@ remains Pending throughout.
   blockers are unchanged, and counts equal `677/1/47/3` plus
   `68/44/1/23/0`.
 
-- [ ] Capture the focused Pending-state RED.
+- [x] Capture the focused Pending-state RED.
 
   Run the new contract under pinned Node before changing README/tracker.
   Only stale M1-18 status/count assertions may fail.
 
-- [ ] Move only M1-18 to In progress and run GREEN.
+- [x] Move only M1-18 to In progress and run GREEN.
 
   Update current aggregate fixtures mechanically while preserving historical
   mutation fixtures. Run the focused contract, all quality contracts, full
   pinned repository verification, 8-target build, production audit,
   whitespace, and staged/evidence secret scans.
 
-- [ ] Commit exact Task 1 scope.
+- [x] Commit exact Task 1 scope.
 
   Commit message: `docs: start M1-18 feature flags`.
 
