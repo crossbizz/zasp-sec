@@ -15,19 +15,19 @@ const metricsPattern = String.raw`^# HELP agentsec_up Process liveness\.\n# TYPE
 const operationContract = {
   "/healthz": {
     get: ["getServiceLiveness", "Get process liveness.", { "200": "LivenessResponse", "404": "NotFoundResponse" }],
-    head: ["headServiceLiveness", "Get process liveness headers.", { "200": "LivenessResponse", "404": "NotFoundResponse" }],
+    head: ["headServiceLiveness", "Get process liveness headers.", { "200": "LivenessHeadResponse", "404": "NotFoundResponse" }],
   },
   "/readyz": {
     get: ["getServiceReadiness", "Get process readiness.", { "200": "ReadyResponse", "404": "NotFoundResponse", "503": "NotReadyResponse" }],
-    head: ["headServiceReadiness", "Get process readiness headers.", { "200": "ReadyResponse", "404": "NotFoundResponse", "503": "NotReadyResponse" }],
+    head: ["headServiceReadiness", "Get process readiness headers.", { "200": "ReadyHeadResponse", "404": "NotFoundResponse", "503": "NotReadyHeadResponse" }],
   },
   "/version": {
     get: ["getServiceVersion", "Get process build identity.", { "200": "VersionResponse", "404": "NotFoundResponse" }],
-    head: ["headServiceVersion", "Get process build identity headers.", { "200": "VersionResponse", "404": "NotFoundResponse" }],
+    head: ["headServiceVersion", "Get process build identity headers.", { "200": "VersionHeadResponse", "404": "NotFoundResponse" }],
   },
   "/metrics": {
     get: ["getServiceMetrics", "Get bounded process health metrics.", { "200": "MetricsResponse", "404": "NotFoundResponse" }],
-    head: ["headServiceMetrics", "Get bounded process health metric headers.", { "200": "MetricsResponse", "404": "NotFoundResponse" }],
+    head: ["headServiceMetrics", "Get bounded process health metric headers.", { "200": "MetricsHeadResponse", "404": "NotFoundResponse" }],
   },
 };
 
@@ -57,11 +57,14 @@ function assertLocalReference(value, label) {
   assert.deepEqual(value, { $ref: `#/components/${label}` });
 }
 
-function verifyResponseHeaders(headers) {
-  assertKeys(headers, ["Cache-Control", "Content-Length", "X-Content-Type-Options"], "response headers");
+function verifyResponseHeaders(headers, contentTypeHeader) {
+  const keys = ["Cache-Control", "Content-Length", "X-Content-Type-Options"];
+  if (contentTypeHeader) keys.push("Content-Type");
+  assertKeys(headers, keys, "response headers");
   assertLocalReference(headers["Cache-Control"], "headers/CacheControl");
   assertLocalReference(headers["Content-Length"], "headers/ContentLength");
   assertLocalReference(headers["X-Content-Type-Options"], "headers/ContentTypeOptions");
+  if (contentTypeHeader) assertLocalReference(headers["Content-Type"], `headers/${contentTypeHeader}`);
 }
 
 function verifyOperation(operation, expected, label) {
@@ -110,6 +113,16 @@ function verifyDocument(value, rawText) {
       description: "Disable media-type sniffing.",
       required: true,
       schema: { type: "string", const: "nosniff" },
+    },
+    JSONContentType: {
+      description: "Exact JSON response media type.",
+      required: true,
+      schema: { type: "string", const: "application/json; charset=utf-8" },
+    },
+    MetricsContentType: {
+      description: "Exact Prometheus response media type.",
+      required: true,
+      schema: { type: "string", const: "text/plain; version=0.0.4; charset=utf-8" },
     },
   });
 
@@ -161,21 +174,33 @@ function verifyDocument(value, rawText) {
   const validMetrics = `# HELP agentsec_up Process liveness.\n# TYPE agentsec_up gauge\nagentsec_up{service="agentsec-api"} 1\n# HELP agentsec_ready Service readiness.\n# TYPE agentsec_ready gauge\nagentsec_ready{service="agentsec-api"} 1\n# HELP agentsec_build_info Build information.\n# TYPE agentsec_build_info gauge\nagentsec_build_info{service="agentsec-api",version="1.0.0"} 1\n`;
   assert.equal(metricsRegex.test(`${validMetrics}\n`), false);
 
-  assertKeys(value.components.responses, ["LivenessResponse", "MetricsResponse", "NotFoundResponse", "NotReadyResponse", "ReadyResponse", "VersionResponse"], "responses");
-  for (const [name, mediaType, schema] of [
-    ["LivenessResponse", "application/json", "LiveStatus"],
-    ["ReadyResponse", "application/json", "ReadyStatus"],
-    ["NotReadyResponse", "application/json", "NotReadyStatus"],
-    ["VersionResponse", "application/json", "VersionStatus"],
-    ["MetricsResponse", "text/plain; version=0.0.4; charset=utf-8", "MetricsText"],
+  assertKeys(value.components.responses, ["LivenessHeadResponse", "LivenessResponse", "MetricsHeadResponse", "MetricsResponse", "NotFoundResponse", "NotReadyHeadResponse", "NotReadyResponse", "ReadyHeadResponse", "ReadyResponse", "VersionHeadResponse", "VersionResponse"], "responses");
+  for (const [name, description, mediaType, schema] of [
+    ["LivenessResponse", "The process is live.", "application/json; charset=utf-8", "LiveStatus"],
+    ["ReadyResponse", "The process is ready to serve.", "application/json; charset=utf-8", "ReadyStatus"],
+    ["NotReadyResponse", "The process is live but not ready to serve.", "application/json; charset=utf-8", "NotReadyStatus"],
+    ["VersionResponse", "The validated process service and build version.", "application/json; charset=utf-8", "VersionStatus"],
+    ["MetricsResponse", "The bounded process health metrics.", "text/plain; version=0.0.4; charset=utf-8", "MetricsText"],
   ]) {
     const response = value.components.responses[name];
     assertKeys(response, ["content", "description", "headers"], `${name} response`);
-    assert.equal(typeof response.description, "string");
-    assert.equal(response.description.length > 0, true);
+    assert.equal(response.description, description);
     verifyResponseHeaders(response.headers);
     assertKeys(response.content, [mediaType], `${name} content`);
+    assertKeys(response.content[mediaType], ["schema"], `${name} media type`);
     assertLocalReference(response.content[mediaType].schema, `schemas/${schema}`);
+  }
+  for (const [name, description, contentTypeHeader] of [
+    ["LivenessHeadResponse", "The process is live; no response content is returned.", "JSONContentType"],
+    ["ReadyHeadResponse", "The process is ready to serve; no response content is returned.", "JSONContentType"],
+    ["NotReadyHeadResponse", "The process is live but not ready to serve; no response content is returned.", "JSONContentType"],
+    ["VersionHeadResponse", "The validated process service and build version headers; no response content is returned.", "JSONContentType"],
+    ["MetricsHeadResponse", "The bounded process health metric headers; no response content is returned.", "MetricsContentType"],
+  ]) {
+    const response = value.components.responses[name];
+    assertKeys(response, ["description", "headers"], `${name} response`);
+    assert.equal(response.description, description);
+    verifyResponseHeaders(response.headers, contentTypeHeader);
   }
   const notFound = value.components.responses.NotFoundResponse;
   assertKeys(notFound, ["description", "headers"], "NotFoundResponse response");
@@ -271,6 +296,11 @@ describe("M1-28 internal service health contract", () => {
       ["collapsed readiness", (value) => { delete value.paths["/readyz"].get.responses["503"]; }],
       ["service catalog drift", (value) => { value.components.schemas.VersionStatus.properties.service.enum.push("other"); }],
       ["missing header", (value) => { delete value.components.responses.LivenessResponse.headers["Cache-Control"]; }],
+      ["media example", (value) => {
+        const mediaType = Object.keys(value.components.responses.LivenessResponse.content)[0];
+        value.components.responses.LivenessResponse.content[mediaType].example = { status: "live" };
+      }],
+      ["response description drift", (value) => { value.components.responses.LivenessResponse.description = "Alive."; }],
       ["open status schema", (value) => { value.components.schemas.LiveStatus.additionalProperties = true; }],
       ["unconstrained metrics", (value) => { delete value.components.schemas.MetricsText.pattern; }],
       ["extra operation response", (value) => { value.paths["/healthz"].get.responses["500"] = { $ref: "#/components/responses/NotReadyResponse" }; }],

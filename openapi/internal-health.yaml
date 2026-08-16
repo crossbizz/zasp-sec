@@ -24,7 +24,7 @@ paths:
       security: []
       responses:
         '200':
-          $ref: '#/components/responses/LivenessResponse'
+          $ref: '#/components/responses/LivenessHeadResponse'
         '404':
           $ref: '#/components/responses/NotFoundResponse'
   /metrics:
@@ -43,7 +43,7 @@ paths:
       security: []
       responses:
         '200':
-          $ref: '#/components/responses/MetricsResponse'
+          $ref: '#/components/responses/MetricsHeadResponse'
         '404':
           $ref: '#/components/responses/NotFoundResponse'
   /readyz:
@@ -64,11 +64,11 @@ paths:
       security: []
       responses:
         '200':
-          $ref: '#/components/responses/ReadyResponse'
+          $ref: '#/components/responses/ReadyHeadResponse'
         '404':
           $ref: '#/components/responses/NotFoundResponse'
         '503':
-          $ref: '#/components/responses/NotReadyResponse'
+          $ref: '#/components/responses/NotReadyHeadResponse'
   /version:
     get:
       operationId: getServiceVersion
@@ -85,7 +85,7 @@ paths:
       security: []
       responses:
         '200':
-          $ref: '#/components/responses/VersionResponse'
+          $ref: '#/components/responses/VersionHeadResponse'
         '404':
           $ref: '#/components/responses/NotFoundResponse'
 security: []
@@ -111,6 +111,18 @@ components:
       schema:
         type: string
         const: nosniff
+    JSONContentType:
+      description: Exact JSON response media type.
+      required: true
+      schema:
+        type: string
+        const: application/json; charset=utf-8
+    MetricsContentType:
+      description: Exact Prometheus response media type.
+      required: true
+      schema:
+        type: string
+        const: text/plain; version=0.0.4; charset=utf-8
   schemas:
     LiveStatus:
       type: object
@@ -175,9 +187,20 @@ components:
         X-Content-Type-Options:
           $ref: '#/components/headers/ContentTypeOptions'
       content:
-        application/json:
+        'application/json; charset=utf-8':
           schema:
             $ref: '#/components/schemas/LiveStatus'
+    LivenessHeadResponse:
+      description: The process is live; no response content is returned.
+      headers:
+        Cache-Control:
+          $ref: '#/components/headers/CacheControl'
+        Content-Length:
+          $ref: '#/components/headers/ContentLength'
+        Content-Type:
+          $ref: '#/components/headers/JSONContentType'
+        X-Content-Type-Options:
+          $ref: '#/components/headers/ContentTypeOptions'
     ReadyResponse:
       description: The process is ready to serve.
       headers:
@@ -188,9 +211,20 @@ components:
         X-Content-Type-Options:
           $ref: '#/components/headers/ContentTypeOptions'
       content:
-        application/json:
+        'application/json; charset=utf-8':
           schema:
             $ref: '#/components/schemas/ReadyStatus'
+    ReadyHeadResponse:
+      description: The process is ready to serve; no response content is returned.
+      headers:
+        Cache-Control:
+          $ref: '#/components/headers/CacheControl'
+        Content-Length:
+          $ref: '#/components/headers/ContentLength'
+        Content-Type:
+          $ref: '#/components/headers/JSONContentType'
+        X-Content-Type-Options:
+          $ref: '#/components/headers/ContentTypeOptions'
     NotReadyResponse:
       description: The process is live but not ready to serve.
       headers:
@@ -201,9 +235,20 @@ components:
         X-Content-Type-Options:
           $ref: '#/components/headers/ContentTypeOptions'
       content:
-        application/json:
+        'application/json; charset=utf-8':
           schema:
             $ref: '#/components/schemas/NotReadyStatus'
+    NotReadyHeadResponse:
+      description: The process is live but not ready to serve; no response content is returned.
+      headers:
+        Cache-Control:
+          $ref: '#/components/headers/CacheControl'
+        Content-Length:
+          $ref: '#/components/headers/ContentLength'
+        Content-Type:
+          $ref: '#/components/headers/JSONContentType'
+        X-Content-Type-Options:
+          $ref: '#/components/headers/ContentTypeOptions'
     VersionResponse:
       description: The validated process service and build version.
       headers:
@@ -214,9 +259,20 @@ components:
         X-Content-Type-Options:
           $ref: '#/components/headers/ContentTypeOptions'
       content:
-        application/json:
+        'application/json; charset=utf-8':
           schema:
             $ref: '#/components/schemas/VersionStatus'
+    VersionHeadResponse:
+      description: The validated process service and build version headers; no response content is returned.
+      headers:
+        Cache-Control:
+          $ref: '#/components/headers/CacheControl'
+        Content-Length:
+          $ref: '#/components/headers/ContentLength'
+        Content-Type:
+          $ref: '#/components/headers/JSONContentType'
+        X-Content-Type-Options:
+          $ref: '#/components/headers/ContentTypeOptions'
     MetricsResponse:
       description: The bounded process health metrics.
       headers:
@@ -230,6 +286,17 @@ components:
         'text/plain; version=0.0.4; charset=utf-8':
           schema:
             $ref: '#/components/schemas/MetricsText'
+    MetricsHeadResponse:
+      description: The bounded process health metric headers; no response content is returned.
+      headers:
+        Cache-Control:
+          $ref: '#/components/headers/CacheControl'
+        Content-Length:
+          $ref: '#/components/headers/ContentLength'
+        Content-Type:
+          $ref: '#/components/headers/MetricsContentType'
+        X-Content-Type-Options:
+          $ref: '#/components/headers/ContentTypeOptions'
     NotFoundResponse:
       description: A query-bearing or otherwise noncanonical target is not found.
       headers:

@@ -130,7 +130,8 @@ redteam-worker health ok
 These skeletons do not start worker loops, import Cartography, Prowler, or
 Promptfoo adapters, read queues, graphs, prompts, findings, configuration,
 credentials, or provider state, open listeners, or perform network operations.
-Shared liveness and readiness endpoints remain deferred to M1-28.
+Health listeners for those worker packages remain outside M1-28 and are not yet
+implemented.
 
 ## Web and CLI directory boundaries
 

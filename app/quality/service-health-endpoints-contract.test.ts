@@ -53,11 +53,14 @@ describe("M1-28 common service health endpoints", () => {
     const active = taskRows(tracker, "In progress");
     const complete = taskRows(tracker, "Complete");
     const blocked = taskRows(tracker, "Blocked");
+    const readmeProse = readme.replace(/\s+/g, " ");
     const summary = markdownRows(tracker.match(/## Status summary[\s\S]*?## Milestone summary/)?.[0] ?? "").slice(2);
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(readme).toContain("M1-28 is In progress");
     expect(readme).toContain("M1-29 remains Pending");
+    expect(readmeProse).toContain("Health listeners for those worker packages remain outside M1-28 and are not yet implemented.");
+    expect(readmeProse).not.toContain("Shared liveness and readiness endpoints remain deferred to M1-28.");
     expect(tracker).toContain("| Pending | 663 |");
     expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 61 |");
