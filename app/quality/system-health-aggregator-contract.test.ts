@@ -59,18 +59,20 @@ describe("M1-29 system health aggregator", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(readme).toContain("M1-29 is Complete");
-    expect(readme).toContain("M1-30a remains Pending");
-    expect(tracker).toContain("| Pending | 662 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(readme).toContain("M1-30a is In progress");
+    expect(readme).toContain("M1-30b remains Pending");
+    expect(tracker).toContain("| Pending | 661 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 63 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`662/0/63/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "29", "0", "39", "0"]);
+    expect(tracker).toContain("`661/1/63/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "28", "1", "39", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
     expect(active.filter(([task]) => task === "M1-29")).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-29")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-28")).toHaveLength(1);
-    expect([...active, ...complete].filter(([task]) => task === "M1-30a")).toHaveLength(0);
+    expect(active.filter(([task]) => task === "M1-30a")).toHaveLength(1);
+    expect(complete.filter(([task]) => task === "M1-30a")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
 
@@ -109,7 +111,8 @@ describe("M1-29 system health aggregator", () => {
       "canonical UTC millisecond last-success",
       "does not change process readiness",
       "npm run health:contract:test",
-      "M1-30a remains Pending",
+      "M1-30a is In progress",
+      "M1-30b remains Pending",
     ]) {
       expect(prose).toContain(value);
     }
