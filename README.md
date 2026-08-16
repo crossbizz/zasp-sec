@@ -514,6 +514,31 @@ parser, OpenAPI, transport, adapter, queue, storage, provider, network,
 credential, database, Docker, filesystem, or environment I/O. M1-23 is In
 progress and is defining the OpenAPI root separately. M1-22 is Complete.
 
+## OpenAPI root
+
+The self-contained `openapi/openapi.yaml` document establishes the OpenAPI
+3.1.0 product root. Global HTTP bearer authentication accepts `SessionJWT` or
+`ProductAPIToken` as separate global security alternatives, so a request uses
+one reviewed token boundary rather than requiring both or permitting anonymous
+access.
+
+Reusable pagination vocabulary is `Cursor`, `PageCursor`, `PageLimit`, and the
+closed two-state `PageInfo`. The public error vocabulary is canonical
+`ProductID`, the exact four-field `ProductError`, and `ProductErrorResponse`.
+The root deliberately retains `paths: {}` and contains no operations, servers,
+callbacks, webhooks, examples, or remote references. M1-24 remains Pending and
+will generate the TypeScript client only from this reviewed root.
+
+```bash
+npm run openapi:test
+npm run openapi:lint
+```
+
+The pinned linter extends its recommended rules and disables only the two
+root-only checks `no-empty-servers` and `no-unused-components`. No install,
+download, provider, network, credential, environment-file, database, Docker,
+or shared-resource I/O occurs during either command.
+
 ## Neon pooled proof
 
 The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,

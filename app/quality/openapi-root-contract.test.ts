@@ -76,4 +76,25 @@ describe("M1-23 OpenAPI root", () => {
     expect([...active, ...complete].filter(([task]) => task === "M1-24")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
+
+  it("documents the exact public OpenAPI root and local verification boundary", async () => {
+    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const section = readme.match(/## OpenAPI root[\s\S]*?## Neon pooled proof/)?.[0] ?? "";
+    const prose = section.replace(/\s+/g, " ");
+
+    expect(section).toMatch(/^npm run openapi:test$/m);
+    expect(section).toMatch(/^npm run openapi:lint$/m);
+    expect(section).toContain("`openapi/openapi.yaml`");
+    expect(prose).toContain("OpenAPI 3.1.0");
+    expect(prose).toContain("`SessionJWT` or `ProductAPIToken`");
+    expect(prose).toContain("separate global security alternatives");
+    for (const component of ["Cursor", "PageCursor", "PageLimit", "PageInfo", "ProductID", "ProductError", "ProductErrorResponse"]) {
+      expect(section).toContain(`\`${component}\``);
+    }
+    expect(prose).toContain("`paths: {}`");
+    expect(prose).toContain("no operations, servers, callbacks, webhooks, examples, or remote references");
+    expect(prose).toContain("`no-empty-servers` and `no-unused-components`");
+    expect(prose).toContain("No install, download, provider, network, credential, environment-file, database, Docker, or shared-resource I/O");
+    expect(prose).toContain("M1-24 remains Pending");
+  });
 });

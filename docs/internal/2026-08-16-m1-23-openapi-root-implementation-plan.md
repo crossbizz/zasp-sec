@@ -129,18 +129,18 @@ Vitest repository contracts.
 
 **Files:** `README.md`, repository contract, this plan, ignored evidence.
 
-- [ ] **Step 1: Add missing README assertions and capture RED**
+- [x] **Step 1: Add missing README assertions and capture RED**
 
   Require the exact lint command, document path, OpenAPI version, auth OR,
   pagination/error vocabulary, empty-operation boundary, self-contained/no-I/O
   statement, the two justified root-only linter exceptions, and M1-24 Pending.
 
-- [ ] **Step 2: Add only the README boundary**
+- [x] **Step 2: Add only the README boundary**
 
   Do not add operations, handlers, generated code, auth implementation, or UI
   mapping.
 
-- [ ] **Step 3: Run focused/root/full pinned gates**
+- [x] **Step 3: Run focused/root/full pinned gates**
 
   ```bash
   npm run openapi:lint
@@ -152,7 +152,7 @@ Vitest repository contracts.
   git diff --check
   ```
 
-- [ ] **Step 4: Record, scan, and commit**
+- [x] **Step 4: Record, scan, and commit**
 
   ```bash
   git commit -m "docs: expose OpenAPI root"
