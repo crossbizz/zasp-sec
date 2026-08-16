@@ -130,19 +130,19 @@ Node test runner, Vitest repository contracts, pinned Node 22.23.1/npm 10.9.8.
 
 ### Task 4: Review the complete M1-24 range
 
-- [ ] **Step 1: Review exact source/design/plan/diff and dependencies**
+- [x] **Step 1: Review exact source/design/plan/diff and dependencies**
 
   Cover generator reproducibility, generated semantics, runtime factory,
   construction I/O, drift mutation safety, dependency/license inventory, CI,
   docs, and tracker arithmetic.
 
-- [ ] **Step 2: Reproduce and fix every valid finding tests-first**
+- [x] **Step 2: Reproduce and fix every valid finding tests-first**
 
   Finish Critical 0, Important 0, Minor 0, Ready Yes.
 
-- [ ] **Step 3: Repeat affected/full gates, audits, and scans**
+- [x] **Step 3: Repeat affected/full gates, audits, and scans**
 
-- [ ] **Step 4: Record the plan-only final review commit**
+- [x] **Step 4: Record the plan-only final review commit**
 
   ```bash
   git commit -m "docs: record M1-24 review"
