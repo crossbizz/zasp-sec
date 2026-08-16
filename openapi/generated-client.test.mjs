@@ -52,11 +52,11 @@ test("pins the official generator/runtime and wires exact local-only scripts int
   assert.equal(packageJson.scripts?.["openapi:check"], `${generateScript} --check`);
   assert.equal(
     packageJson.scripts?.["openapi:test"],
-    "node --test openapi/openapi.test.mjs openapi/generated-client.test.mjs",
+    "node --test openapi/openapi.test.mjs openapi/internal-health.test.mjs openapi/generated-client.test.mjs",
   );
   assert.equal(
     packageJson.scripts?.verify,
-    "npm run dependencies:check && npm run openapi:test && npm run openapi:lint && npm run openapi:check && npm run ui-api:test && npm run ui-api:check && npm run raw-fetch:test && npm test && npm run typecheck && npm run lint && npm run build",
+    "npm run dependencies:check && npm run health:contract:test && npm run openapi:test && npm run openapi:lint && npm run openapi:check && npm run ui-api:test && npm run ui-api:check && npm run raw-fetch:test && npm test && npm run typecheck && npm run lint && npm run build",
   );
 });
 

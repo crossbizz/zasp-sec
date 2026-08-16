@@ -653,6 +653,23 @@ are complete under M1-28b, M1-28c, and M1-28d. M1-28a is Complete.
 M1-28b is Complete. M1-28c is Complete, M1-28d is Complete, M1-28 is In
 progress, and M1-29 remains Pending.
 
+## Common internal service health contract
+
+M1-28 registers the four root-level process probe paths in the separate
+`openapi/internal-health.yaml` contract and the exact four-command matrix in
+`docs/internal/service-health-endpoints.md`. The public product OpenAPI,
+generated client, UI/API map, and `/internal/v1` data-plane inventory remain
+unchanged.
+
+```bash
+npm run health:contract:test
+```
+
+The root gate runs the strict internal OpenAPI/service-document contract and
+the race suites for the shared handler, platform API and worker, event-ingest,
+and runtime-gateway. It makes no provider or external network call. M1-28 is In
+progress and M1-29 remains Pending.
+
 ## Platform health wiring
 
 The platform API and worker each bind one dedicated internal `:8081` listener

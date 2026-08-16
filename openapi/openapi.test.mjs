@@ -193,15 +193,15 @@ describe("M1-23 strict OpenAPI root", () => {
     });
     assert.equal(
       packageJSON.scripts["openapi:lint"],
-      "REDOCLY_TELEMETRY=off REDOCLY_SUPPRESS_UPDATE_NOTICE=true redocly lint openapi/openapi.yaml --config redocly.yaml",
+      "REDOCLY_TELEMETRY=off REDOCLY_SUPPRESS_UPDATE_NOTICE=true redocly lint openapi/openapi.yaml openapi/internal-health.yaml --config redocly.yaml",
     );
     assert.equal(
       packageJSON.scripts["openapi:test"],
-      "node --test openapi/openapi.test.mjs openapi/generated-client.test.mjs",
+      "node --test openapi/openapi.test.mjs openapi/internal-health.test.mjs openapi/generated-client.test.mjs",
     );
     assert.equal(
       packageJSON.scripts.verify,
-      "npm run dependencies:check && npm run openapi:test && npm run openapi:lint && npm run openapi:check && npm run ui-api:test && npm run ui-api:check && npm run raw-fetch:test && npm test && npm run typecheck && npm run lint && npm run build",
+      "npm run dependencies:check && npm run health:contract:test && npm run openapi:test && npm run openapi:lint && npm run openapi:check && npm run ui-api:test && npm run ui-api:check && npm run raw-fetch:test && npm test && npm run typecheck && npm run lint && npm run build",
     );
     assert.equal(packageJSON.devDependencies["@redocly/cli"], "2.43.1");
     assert.equal(packageJSON.devDependencies["js-yaml"], "4.1.1");

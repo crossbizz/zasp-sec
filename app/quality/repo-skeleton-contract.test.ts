@@ -92,7 +92,7 @@ describe("M1-01 repository skeleton contract", () => {
 
     expect(packageJson.scripts?.["build:repo"]).toBe("node scripts/build-repo.mjs");
     expect(packageJson.scripts?.verify).toBe(
-      "npm run dependencies:check && npm run openapi:test && npm run openapi:lint && npm run openapi:check && npm run ui-api:test && npm run ui-api:check && npm run raw-fetch:test && npm test && npm run typecheck && npm run lint && npm run build",
+      "npm run dependencies:check && npm run health:contract:test && npm run openapi:test && npm run openapi:lint && npm run openapi:check && npm run ui-api:test && npm run ui-api:check && npm run raw-fetch:test && npm test && npm run typecheck && npm run lint && npm run build",
     );
     expect(buildSource).toContain('GOTOOLCHAIN: "local"');
     expect(buildSource).toContain('GOPROXY: "off"');

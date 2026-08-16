@@ -1,0 +1,241 @@
+openapi: 3.1.0
+jsonSchemaDialect: https://spec.openapis.org/oas/3.1/dialect/base
+info:
+  title: Agent Security Internal Health API
+  version: 1.0.0
+  description: Common process-local health contract for Agent Security Go commands.
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+paths:
+  /healthz:
+    get:
+      operationId: getServiceLiveness
+      summary: Get process liveness.
+      security: []
+      responses:
+        '200':
+          $ref: '#/components/responses/LivenessResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundResponse'
+    head:
+      operationId: headServiceLiveness
+      summary: Get process liveness headers.
+      security: []
+      responses:
+        '200':
+          $ref: '#/components/responses/LivenessResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundResponse'
+  /metrics:
+    get:
+      operationId: getServiceMetrics
+      summary: Get bounded process health metrics.
+      security: []
+      responses:
+        '200':
+          $ref: '#/components/responses/MetricsResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundResponse'
+    head:
+      operationId: headServiceMetrics
+      summary: Get bounded process health metric headers.
+      security: []
+      responses:
+        '200':
+          $ref: '#/components/responses/MetricsResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundResponse'
+  /readyz:
+    get:
+      operationId: getServiceReadiness
+      summary: Get process readiness.
+      security: []
+      responses:
+        '200':
+          $ref: '#/components/responses/ReadyResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundResponse'
+        '503':
+          $ref: '#/components/responses/NotReadyResponse'
+    head:
+      operationId: headServiceReadiness
+      summary: Get process readiness headers.
+      security: []
+      responses:
+        '200':
+          $ref: '#/components/responses/ReadyResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundResponse'
+        '503':
+          $ref: '#/components/responses/NotReadyResponse'
+  /version:
+    get:
+      operationId: getServiceVersion
+      summary: Get process build identity.
+      security: []
+      responses:
+        '200':
+          $ref: '#/components/responses/VersionResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundResponse'
+    head:
+      operationId: headServiceVersion
+      summary: Get process build identity headers.
+      security: []
+      responses:
+        '200':
+          $ref: '#/components/responses/VersionResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundResponse'
+security: []
+components:
+  headers:
+    CacheControl:
+      description: Disable response caching.
+      required: true
+      schema:
+        type: string
+        const: no-store
+    ContentLength:
+      description: Exact decimal byte length of the GET representation.
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 5
+        pattern: '^(?:0|[1-9][0-9]{0,4})$'
+    ContentTypeOptions:
+      description: Disable media-type sniffing.
+      required: true
+      schema:
+        type: string
+        const: nosniff
+  schemas:
+    LiveStatus:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          const: live
+    ReadyStatus:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          const: ready
+    NotReadyStatus:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          const: not_ready
+    VersionStatus:
+      type: object
+      additionalProperties: false
+      required:
+        - service
+        - version
+      properties:
+        service:
+          type: string
+          enum:
+            - agentsec-api
+            - agentsec-worker
+            - event-ingest
+            - runtime-gateway
+        version:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: '^[A-Za-z0-9][A-Za-z0-9._+\-]{0,63}$'
+    MetricsText:
+      type: string
+      minLength: 1
+      maxLength: 1024
+      pattern: '^# HELP agentsec_up Process liveness\.\n# TYPE agentsec_up gauge\nagentsec_up\{service="(agentsec-api|agentsec-worker|event-ingest|runtime-gateway)"\} 1\n# HELP agentsec_ready Service readiness\.\n# TYPE agentsec_ready gauge\nagentsec_ready\{service="\1"\} [01]\n# HELP agentsec_build_info Build information\.\n# TYPE agentsec_build_info gauge\nagentsec_build_info\{service="\1",version="[A-Za-z0-9][A-Za-z0-9._+\-]{0,63}"\} 1\n(?![\s\S])'
+      description: Prometheus 0.0.4 text containing only agentsec_up, agentsec_ready, and agentsec_build_info gauges.
+  responses:
+    LivenessResponse:
+      description: The process is live.
+      headers:
+        Cache-Control:
+          $ref: '#/components/headers/CacheControl'
+        Content-Length:
+          $ref: '#/components/headers/ContentLength'
+        X-Content-Type-Options:
+          $ref: '#/components/headers/ContentTypeOptions'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/LiveStatus'
+    ReadyResponse:
+      description: The process is ready to serve.
+      headers:
+        Cache-Control:
+          $ref: '#/components/headers/CacheControl'
+        Content-Length:
+          $ref: '#/components/headers/ContentLength'
+        X-Content-Type-Options:
+          $ref: '#/components/headers/ContentTypeOptions'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ReadyStatus'
+    NotReadyResponse:
+      description: The process is live but not ready to serve.
+      headers:
+        Cache-Control:
+          $ref: '#/components/headers/CacheControl'
+        Content-Length:
+          $ref: '#/components/headers/ContentLength'
+        X-Content-Type-Options:
+          $ref: '#/components/headers/ContentTypeOptions'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/NotReadyStatus'
+    VersionResponse:
+      description: The validated process service and build version.
+      headers:
+        Cache-Control:
+          $ref: '#/components/headers/CacheControl'
+        Content-Length:
+          $ref: '#/components/headers/ContentLength'
+        X-Content-Type-Options:
+          $ref: '#/components/headers/ContentTypeOptions'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/VersionStatus'
+    MetricsResponse:
+      description: The bounded process health metrics.
+      headers:
+        Cache-Control:
+          $ref: '#/components/headers/CacheControl'
+        Content-Length:
+          $ref: '#/components/headers/ContentLength'
+        X-Content-Type-Options:
+          $ref: '#/components/headers/ContentTypeOptions'
+      content:
+        'text/plain; version=0.0.4; charset=utf-8':
+          schema:
+            $ref: '#/components/schemas/MetricsText'
+    NotFoundResponse:
+      description: A query-bearing or otherwise noncanonical target is not found.
+      headers:
+        Cache-Control:
+          $ref: '#/components/headers/CacheControl'
+        Content-Length:
+          $ref: '#/components/headers/ContentLength'
+        X-Content-Type-Options:
+          $ref: '#/components/headers/ContentTypeOptions'
