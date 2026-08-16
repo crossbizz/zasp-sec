@@ -10,6 +10,7 @@
   "scripts": {
     "audit:emitter:test": "go test -C services/platform -race -count=1 ./audit",
     "featureflags:test": "go test -C services/platform -race -count=1 ./featureflags",
+    "producttelemetry:test": "go test -C services/platform -race -count=1 ./producttelemetry",
     "graph:store:test": "go test -C services/platform -race -count=1 ./graphstore",
     "graph:neo4j:test": "go test -C services/platform -race -count=1 ./graphstore/... && go test -C proofs/neo4j-graphstore -race -count=1 ./... && node --test proofs/neo4j-graphstore/run.test.mjs proofs/neo4j-graphstore/license-audit.test.mjs",
     "graph:neo4j:run": "node proofs/neo4j-graphstore/run.mjs",

@@ -88,14 +88,19 @@ production or status edits. M1-20 remains Pending throughout M1-19.
 - Modify `package.json`, `README.md`, and the M1-19 repository contract.
 - Create ignored Task 3 report and append the progress ledger.
 
-- [ ] Capture a focused RED for the absent root command and documentation.
+- [x] Capture a focused RED for the absent root command and documentation.
 
-- [ ] Add `producttelemetry:test` and document exact privacy, optionality,
+- [x] Add `producttelemetry:test` and document exact privacy, optionality,
   non-authority, deferred-adapter, and zero-I/O boundaries.
 
-- [ ] Run the root race command, full platform gates, pinned repository
+- [x] Run the root race command, full platform gates, pinned repository
   verification, all repository build targets, production dependency audit,
   diff checks, and secret scans.
+
+  Focused RED was 2 pass/1 fail at the missing script. GREEN is 3/3 plus the
+  root race command. Full pinned verification passes 56 files/257 tests,
+  typecheck, lint, build, all 8 repository build targets, and zero production
+  vulnerabilities.
 
   Commit message: `docs: expose product telemetry contract`.
 

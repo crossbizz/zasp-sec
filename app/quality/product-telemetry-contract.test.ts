@@ -59,4 +59,27 @@ describe("M1-19 product telemetry contract", () => {
     expect([...active, ...complete].filter(([task]) => task === "M1-20")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
+
+  it("exposes only the hermetic root contract and documents the privacy boundary", async () => {
+    const [packageText, readme] = await Promise.all([
+      readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+    ]);
+    const packageJson = JSON.parse(packageText) as { scripts: Record<string, string> };
+    const section = readme.match(/## Product telemetry contract[\s\S]*?(?=\n## )/)?.[0] ?? "";
+
+    expect(packageJson.scripts["producttelemetry:test"]).toBe("go test -C services/platform -race -count=1 ./producttelemetry");
+    expect(section).toContain("npm run producttelemetry:test");
+    expect(section).toMatch(/Organization,\s+Workspace,\s+and\s+Environment/);
+    expect(section).toContain("proof_completed");
+    expect(section).toContain("source");
+    expect(section).toContain("success");
+    expect(section).toContain("unknown field");
+    expect(section).toMatch(/prompt, secret, IP address, raw evidence/i);
+    expect(section).toMatch(/one bounded capture\s+attempt/);
+    expect(section).toContain("hermetic fake driver");
+    expect(section).toMatch(/optional and\s+non-authoritative/);
+    expect(section.replace(/\s+/g, " ")).toContain("does not prove a PostHog adapter, hosted delivery, batching, persistence, or consent policy");
+    expect(section).toMatch(/M1-20\s+remains\s+Pending/);
+  });
 });

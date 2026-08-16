@@ -418,6 +418,29 @@ credentials, data access, or audit behavior. This boundary does not prove a
 provider adapter, remote evaluation, or cache implementation.
 M1-19 is In progress.
 
+## Product telemetry contract
+
+M1-19 defines a dependency-free ProductTelemetry boundary for exact
+Organization, Workspace, and Environment scope. Its closed catalog currently
+contains only `proof_completed`, with exactly one bounded `source` text field
+and one `success` boolean field. The product serializer constructs a typed
+driver record and rejects every missing, duplicate, wrong-kind, malformed,
+surplus, or unknown field before I/O. Prompt, secret, IP address, raw evidence,
+arbitrary context, person-profile, feature-flag, and vendor-native fields are
+outside the catalog.
+
+```bash
+npm run producttelemetry:test
+```
+
+This command runs a hermetic fake driver and performs one bounded capture
+attempt with no retry. It performs no provider, database, network, Docker,
+credential, or shared-resource I/O. Analytics is optional and
+non-authoritative: it never controls scope, authentication, policy,
+enforcement, data access, feature flags, or audit behavior. This boundary does
+not prove a PostHog adapter, hosted delivery, batching, persistence, or consent
+policy. M1-20 remains Pending.
+
 ## Neon pooled proof
 
 The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,
