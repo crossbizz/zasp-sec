@@ -8,6 +8,7 @@
   },
   "packageManager": "npm@10.9.8",
   "scripts": {
+    "graph:store:test": "go test -C services/platform -race -count=1 ./graphstore",
     "event:store:test": "go test -C services/platform -race -count=1 ./eventstore && go test -C proofs/opensearch-event -race -count=1 ./... && node --test proofs/opensearch-event/run.test.mjs proofs/opensearch-event/event-store-run.test.mjs",
     "event:store:run": "node proofs/opensearch-event/run.mjs --event-store",
     "artifact:store:test": "cd services/platform && go test -race -count=1 ./artifactstore && cd ../../proofs/localstack-storage && go test -race -count=1 ./... && node --test run.test.mjs artifact-run.test.mjs",

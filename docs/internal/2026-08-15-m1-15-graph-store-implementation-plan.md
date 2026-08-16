@@ -255,17 +255,17 @@ git commit -m "feat: add scoped GraphStore interface"
 - Produces: root `graph:store:test` command that runs the package race gate and
   documentation that clearly separates M1-15 fake evidence from M1-16 Neo4j.
 
-- [ ] **Step 1: Write root-command and documentation assertions first**
+- [x] **Step 1: Write root-command and documentation assertions first**
 
 Require an exact non-live root command, the exported product method/type names,
 full-scope/no-Cypher boundaries, explicit fake-only evidence, and M1-16 Pending.
 
-- [ ] **Step 2: Run focused RED, add minimal wiring, and reach GREEN**
+- [x] **Step 2: Run focused RED, add minimal wiring, and reach GREEN**
 
 Add only the script and documentation required by the contract. Run the root
 command and focused Vitest file under pinned Node.
 
-- [ ] **Step 3: Run affected repository gates, scan, and commit**
+- [x] **Step 3: Run affected repository gates, scan, and commit**
 
 ```bash
 PATH="$HOME/.nvm/versions/node/v22.23.1/bin:$PATH" npm run graph:store:test

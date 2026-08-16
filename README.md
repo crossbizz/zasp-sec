@@ -339,6 +339,16 @@ Environment scope, and bounded structured reads. Neo4j types, Cypher, provider
 identifiers, endpoints, credentials, and arbitrary customer graph queries stay
 outside the product interface. M1-16 remains Pending.
 
+```bash
+npm run graph:store:test
+```
+
+This is a hermetic fake driver contract. It validates canonical projection
+upsert, bounded structured read, exact scope and identity, fixed errors,
+deadlines, defensive copies, and concurrency without Docker or provider I/O. It
+does not run Neo4j or prove persistence, transactions, availability, packaging,
+or licensing; those adapter and live gates remain with M1-16.
+
 ## Neon pooled proof
 
 The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,

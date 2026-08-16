@@ -57,4 +57,26 @@ describe("M1-15 GraphStore interface contract", () => {
     expect([...active, ...complete].filter(([task]) => task === "M1-16")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
+
+  it("exposes only the hermetic product contract without Neo4j or raw queries", async () => {
+    const [manifestRaw, readme, store] = await Promise.all([
+      readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "services/platform/graphstore/store.go"), "utf8"),
+    ]);
+    const manifest = JSON.parse(manifestRaw) as { scripts?: Record<string, string> };
+    const section = readme.match(/## Product GraphStore interface[\s\S]*?(?=\n## )/)?.[0] ?? "";
+
+    expect(manifest.scripts?.["graph:store:test"]).toBe("go test -C services/platform -race -count=1 ./graphstore");
+    expect(section).toContain("npm run graph:store:test");
+    expect(section).toMatch(/Organization, Workspace, and\s+Environment/);
+    expect(section).toContain("hermetic fake driver");
+    expect(section).toContain("does not run Neo4j");
+    expect(section).toContain("M1-16 remains Pending");
+    expect(store).toContain("type GraphStore interface");
+    expect(store).toContain("Upsert(context.Context, domain.Scope, Projection) error");
+    expect(store).toContain("Read(context.Context, domain.Scope, ReadRequest) (Projection, error)");
+    expect(store).not.toContain("neo4j-driver");
+    expect(store).not.toContain("cypher.");
+  });
 });
