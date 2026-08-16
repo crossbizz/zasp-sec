@@ -282,13 +282,13 @@ syntax/diff checks, and redacted staged/history/evidence scans. Commit as:
 docs: complete M1-27 raw fetch lint
 ```
 
-- [ ] **Step 3: Push completion commit and require exact-SHA Runnable UI success**
+- [x] **Step 3: Push completion commit and require exact-SHA Runnable UI success**
 
 Push `codex/zasp-implementation`, locate the Runnable UI run whose `headSha`
 equals the completion commit, and wait for its job to finish successfully.
 Record run ID, job ID, URL, and exact SHA.
 
-- [ ] **Step 4: Push plan-only closure and require exact-SHA Runnable UI success**
+- [x] **Step 4: Push plan-only closure and require exact-SHA Runnable UI success**
 
 Mark this plan closed, commit only the plan as
 `docs: close M1-27 raw fetch lint`, push, and require a second successful
