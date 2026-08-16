@@ -204,14 +204,18 @@ test("builds only a ClusterIP graph service and one fixed internal health job", 
     kind: "Job",
     metadata: { labels: { "app.kubernetes.io/name": "neo4j-health", ...commonLabels }, name: "neo4j-health", namespace: "zasp-local" },
     spec: {
-      activeDeadlineSeconds: 120,
+      activeDeadlineSeconds: 300,
       backoffLimit: 0,
       template: {
         metadata: { labels: { "app.kubernetes.io/name": "neo4j-health", ...commonLabels } },
         spec: {
           automountServiceAccountToken: false,
           containers: [{
-            command: ["sh", "-ec", "wget -q -T 2 -O /dev/null http://neo4j.zasp-local.svc.cluster.local:7474/ && printf 'neo4j-health-ready\\n'"],
+            command: [
+              "sh",
+              "-ec",
+              "attempt=0; until wget -q -T 1 -O /dev/null http://neo4j.zasp-local.svc.cluster.local:7474/; do attempt=$((attempt + 1)); [ \"$attempt\" -ge 90 ] && exit 1; sleep 2; done; printf 'neo4j-health-ready\\n'",
+            ],
             image: BUSYBOX_IMAGE,
             imagePullPolicy: "IfNotPresent",
             name: "health",

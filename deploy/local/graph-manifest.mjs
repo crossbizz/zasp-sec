@@ -159,7 +159,7 @@ export function buildGraphResources(...input) {
       kind: "Job",
       metadata: { labels: healthLabels, name: "neo4j-health", namespace: GRAPH_CONSTANTS.namespace },
       spec: {
-        activeDeadlineSeconds: 120,
+        activeDeadlineSeconds: 300,
         backoffLimit: 0,
         template: {
           metadata: { labels: healthLabels },
@@ -169,7 +169,7 @@ export function buildGraphResources(...input) {
               command: [
                 "sh",
                 "-ec",
-                "wget -q -T 2 -O /dev/null http://neo4j.zasp-local.svc.cluster.local:7474/ && printf 'neo4j-health-ready\\n'",
+                "attempt=0; until wget -q -T 1 -O /dev/null http://neo4j.zasp-local.svc.cluster.local:7474/; do attempt=$((attempt + 1)); [ \"$attempt\" -ge 90 ] && exit 1; sleep 2; done; printf 'neo4j-health-ready\\n'",
               ],
               image: BUSYBOX_IMAGE,
               imagePullPolicy: "IfNotPresent",
