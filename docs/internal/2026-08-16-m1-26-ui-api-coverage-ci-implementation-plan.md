@@ -59,10 +59,10 @@ aggregate fixtures; create ignored task/progress evidence.
 
 ### Task 3: Document and review the M1-26 range
 
-- [ ] **Step 1: Capture README command/boundary RED and document the validator**
-- [ ] **Step 2: Review source/design/plan/diff/parser/coverage/CLI/CI boundaries**
-- [ ] **Step 3: Fix every valid finding tests-first; finish 0/0/0 Ready Yes**
-- [ ] **Step 4: Repeat full gates/scans and record review commits**
+- [x] **Step 1: Capture README command/boundary RED and document the validator**
+- [x] **Step 2: Review source/design/plan/diff/parser/coverage/CLI/CI boundaries**
+- [x] **Step 3: Fix every valid finding tests-first; finish 0/0/0 Ready Yes**
+- [x] **Step 4: Repeat full gates/scans and record review commits**
 
 ---
 

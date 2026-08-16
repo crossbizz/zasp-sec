@@ -561,8 +561,27 @@ System Health maps overall status, component inventory, and version actions to
 The artifact contains only stable screen/action identity and operation IDs;
 all five actions are `planned`. It does not add or claim a current OpenAPI
 operation, HTTP path, client method, UI call, or provider integration.
-M1-25 is Complete. M1-26 is In progress and owns reusable OpenAPI coverage CI
-when those operations are defined.
+
+M1-26 adds the reusable bidirectional coverage gate. A `planned` operation must
+remain absent from the current OpenAPI document. An `available` operation must
+exist exactly once under `/api/v1` and have exactly one mapped screen action;
+every other `/api/v1` operation is rejected as unmapped. `/internal/v1`
+operations must remain unmapped.
+
+```bash
+npm run ui-api:test
+npm run ui-api:check
+```
+
+The current fixed success line is:
+
+```text
+UI/API coverage passed: planned=5 available=0 public=0 internal=0.
+```
+
+Failure is fixed as `UI/API coverage rejected.` without parser or artifact
+details. Both commands are part of root verification. M1-25 is Complete,
+M1-26 is In progress, and M1-27 remains Pending.
 
 ## Neon pooled proof
 

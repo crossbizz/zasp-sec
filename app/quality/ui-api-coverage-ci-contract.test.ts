@@ -74,4 +74,20 @@ describe("M1-26 UI API coverage CI", () => {
     expect(map).not.toContain("availability: available");
     expect(map).not.toMatch(/^\s*(?:route|path|method|server):/m);
   });
+
+  it("documents the exact local coverage commands and honest current result", async () => {
+    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const section = readme.match(/## UI-to-API map seed[\s\S]*?## Neon pooled proof/)?.[0] ?? "";
+    const prose = section.replace(/\s+/g, " ");
+
+    expect(section).toContain("npm run ui-api:test");
+    expect(section).toContain("npm run ui-api:check");
+    expect(section).toContain("UI/API coverage passed: planned=5 available=0 public=0 internal=0.");
+    expect(section).toContain("UI/API coverage rejected.");
+    expect(prose).toContain("`planned` operation must remain absent");
+    expect(prose).toContain("`available` operation must exist exactly once under `/api/v1`");
+    expect(prose).toContain("`/internal/v1` operations must remain unmapped");
+    expect(prose).toContain("M1-26 is In progress");
+    expect(prose).toContain("M1-27 remains Pending");
+  });
 });
