@@ -526,8 +526,8 @@ Reusable pagination vocabulary is `Cursor`, `PageCursor`, `PageLimit`, and the
 closed two-state `PageInfo`. The public error vocabulary is canonical
 `ProductID`, the exact four-field `ProductError`, and `ProductErrorResponse`.
 The root deliberately retains `paths: {}` and contains no operations, servers,
-callbacks, webhooks, examples, or remote references. M1-24 is In progress and
-generates the TypeScript client only from this reviewed root. Exact-pinned
+callbacks, webhooks, examples, or remote references. M1-24 generates the
+TypeScript client only from this reviewed root. Exact-pinned
 `openapi-typescript` 7.13.0 writes the committed immutable surface at
 `apps/web/api/generated.ts`; exact-pinned `openapi-fetch` 0.17.0 backs the
 typed factory at `apps/web/api/client.ts`.
@@ -535,8 +535,8 @@ typed factory at `apps/web/api/client.ts`.
 Because the root still has `paths: {}`, the client has no callable endpoint.
 The factory has no default remote server, performs no I/O during construction,
 and does not hand-write `/api/v1/` URLs. Authentication/session retrieval,
-reviewed operations, and UI integration remain later work. M1-23 is Complete;
-M1-25 remains Pending.
+reviewed operations, and UI integration remain later work. M1-23 is Complete.
+M1-24 is Complete; M1-25 remains Pending.
 
 ```bash
 npm run openapi:test

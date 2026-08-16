@@ -152,13 +152,13 @@ Node test runner, Vitest repository contracts, pinned Node 22.23.1/npm 10.9.8.
 
 ### Task 5: Complete, push, and close M1-24
 
-- [ ] **Step 1: Change only completion assertions and capture RED**
+- [x] **Step 1: Change only completion assertions and capture RED**
 
   Require exactly one M1-24 Complete row, no active source task, M1-23
   Complete, M1-25 absent, blockers unchanged, overall `671/0/54/3`, and M1
   `68/38/0/30/0`.
 
-- [ ] **Step 2: Move only M1-24 to Complete and run final gates/scans**
+- [x] **Step 2: Move only M1-24 to Complete and run final gates/scans**
 
 - [ ] **Step 3: Commit, push, and require exact completion-SHA CI success**
 

@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 671 |
-| In progress | 1 |
-| Complete | 53 |
+| In progress | 0 |
+| Complete | 54 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -24,7 +24,7 @@ In progress, Complete, or Blocked is Pending.
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 0 | 0 | 24 | 3 |
-| M1 | 68 | 38 | 1 | 29 | 0 |
+| M1 | 68 | 38 | 0 | 30 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
 | M3 | 75 | 75 | 0 | 0 | 0 |
@@ -68,19 +68,19 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `671/1/53/3` because
+session configuration. The 728 source-plan counts are `671/0/54/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M1-24 | August 16, 2026 | Generating the committed immutable TypeScript API surface from M1-23, exposing the typed Fetch client factory, and enforcing exact reproducibility in root CI. |
 
 ## Complete
 
 | Task | Completed | Evidence |
 | --- | --- | --- |
+| M1-24 | August 16, 2026 | Generated and committed the exact immutable TypeScript API surface from M1-23 with exact-pinned OpenAPI TypeScript, exposed a zero-construction-I/O typed Fetch factory, approved the exact runtime dependency, enforced byte-reproducible drift checks in root CI, passed six stability cycles, full repository gates/audits/scans, and zero-finding whole-range review. |
 | M1-23 | August 16, 2026 | Added the self-contained OpenAPI 3.1 root with exact alternative bearer authentication, canonical cursor pagination and four-field product error components, exact-pinned Redocly parser/linter CI gates, six stability passes, full repository gates/audits/scans, and zero-finding whole-range review. |
 | M1-22 | August 16, 2026 | Added the dependency-free canonical six-field SecurityEvent envelope with exact version/source catalogs, full product scope, canonical UTC-millisecond time, typed evidence and product/trace/span correlation, strict direct-state rejection, six race passes, 100% statement coverage, full repository gates/scans, and zero-finding whole-range re-review. |
 | M1-21 | August 16, 2026 | Added a dependency-free closed observability contract with exactly seven bounded common resource attributes, fixed service/deployment catalogs, typed product scope, strict product/trace/span correlation context fencing, raw-customer-content rejection, fresh-copy output, six race passes, 100% statement coverage, full repository gates/scans, and zero-finding whole-range review. |
