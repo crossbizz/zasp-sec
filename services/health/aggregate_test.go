@@ -52,6 +52,10 @@ func TestComponentRejectsInvalidState(t *testing.T) {
 		LastSuccess: healthTestTime(),
 	}
 	monotonicUTC := healthTestMonotonicUTC(t)
+	zeroInstantWithLocation := time.Time{}.In(time.FixedZone("offset", 3600))
+	if !zeroInstantWithLocation.IsZero() || zeroInstantWithLocation == (time.Time{}) {
+		t.Fatalf("zero-instant fixture does not exercise structural-zero boundary: %#v", zeroInstantWithLocation)
+	}
 	invalid := map[string]Component{
 		"zero":                     {},
 		"empty name":               mutateComponent(valid, func(value *Component) { value.Name = "" }),
@@ -103,6 +107,11 @@ func TestComponentRejectsInvalidState(t *testing.T) {
 		}),
 		"monotonic UTC time": mutateComponent(valid, func(value *Component) {
 			value.LastSuccess = monotonicUTC
+		}),
+		"zero instant with alternate location": mutateComponent(valid, func(value *Component) {
+			value.Status = StatusDegraded
+			value.Reason = "never_succeeded"
+			value.LastSuccess = zeroInstantWithLocation
 		}),
 		"non-four-digit year": mutateComponent(valid, func(value *Component) {
 			value.LastSuccess = time.Date(10000, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -213,19 +222,25 @@ func TestAggregateRequiredOptionalPrecedence(t *testing.T) {
 func TestAggregateRejectsInvalidSets(t *testing.T) {
 	healthyRequired := mustHealthComponent(t, "neon", RequirementRequired, StatusHealthy, "", healthTestTime())
 	healthyOptional := mustHealthComponent(t, "posthog", RequirementOptional, StatusHealthy, "", healthTestTime())
+	zeroInstantWithLocation := time.Time{}.In(time.FixedZone("offset", 3600))
 	invalidStatus := healthyRequired
 	invalidStatus.Status = "unknown"
 	invalidReason := healthyRequired
 	invalidReason.Status = StatusDegraded
+	invalidStructuralZero := healthyRequired
+	invalidStructuralZero.Status = StatusUnavailable
+	invalidStructuralZero.Reason = "never_succeeded"
+	invalidStructuralZero.LastSuccess = zeroInstantWithLocation
 
 	tests := map[string][]Component{
-		"nil":                   nil,
-		"empty":                 {},
-		"only optional":         {healthyOptional},
-		"duplicate adjacent":    {healthyRequired, healthyRequired},
-		"duplicate separated":   {healthyRequired, healthyOptional, healthyRequired},
-		"invalid direct status": {invalidStatus},
-		"invalid direct reason": {invalidReason},
+		"nil":                          nil,
+		"empty":                        {},
+		"only optional":                {healthyOptional},
+		"duplicate adjacent":           {healthyRequired, healthyRequired},
+		"duplicate separated":          {healthyRequired, healthyOptional, healthyRequired},
+		"invalid direct status":        {invalidStatus},
+		"invalid direct reason":        {invalidReason},
+		"noncanonical structural zero": {invalidStructuralZero},
 	}
 	for name, components := range tests {
 		t.Run(name, func(t *testing.T) {

@@ -63,7 +63,7 @@ func (component Component) Validate() error {
 		}
 		return nil
 	}
-	if !validReason(component.Reason) || !component.LastSuccess.IsZero() && !validComponentTime(component.LastSuccess) {
+	if !validReason(component.Reason) || component.LastSuccess != (time.Time{}) && !validComponentTime(component.LastSuccess) {
 		return ErrInvalidComponent
 	}
 	return nil
