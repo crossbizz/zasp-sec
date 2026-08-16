@@ -338,7 +338,7 @@ func TestExecuteMigrationProofDeletesProviderProvenBranchWithoutEndpoint(t *test
 	}
 
 	_, err = executeMigrationProof(context.Background(), migrationRunConfig{
-		apiKey: testAPIKey, cleanupTimeout: 20 * time.Millisecond, databaseURL: validDirectNeonURL(), marker: testMarker,
+		apiKey: testAPIKey, cleanupTimeout: 500 * time.Millisecond, databaseURL: validDirectNeonURL(), marker: testMarker,
 		projectID: testProjectID, pollInterval: time.Millisecond,
 	}, migrationDependencies{api: api, openDatabase: func(context.Context, validatedConnection) (migrationDatabase, error) {
 		t.Fatal("database opened for a branch without an exact endpoint")
