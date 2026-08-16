@@ -365,7 +365,7 @@ git commit -m "feat: upsert scoped Neo4j graph projections"
 - Produces: `Adapter.Read` returning canonical strictly sorted
   `graphstore.DriverProjection` state.
 
-- [ ] **Step 1: Write traversal RED tests**
+- [x] **Step 1: Write traversal RED tests**
 
 Cover outgoing, incoming, both, depth zero, missing root, a cycle, converging
 paths, repeated provider rows, deterministic node/edge truncation, and exact
@@ -381,13 +381,13 @@ unordered rows, depth drift, edge-limit drift, result error after iteration,
 begin/run/consume/commit/rollback/close failures, cancellation, timeout, panic,
 and concurrent calls.
 
-- [ ] **Step 2: Run focused RED**
+- [x] **Step 2: Run focused RED**
 
 ```bash
 go test -C services/platform ./graphstore/neo4jstore -run '^TestRead' -count=1
 ```
 
-- [ ] **Step 3: Implement strict breadth-first read**
+- [x] **Step 3: Implement strict breadth-first read**
 
 Read the exact root first. Missing root returns non-nil empty node/edge slices.
 Depth zero returns only the root. For each remaining level, select one immutable
@@ -400,7 +400,7 @@ failure. Stop at requested limits, sort final records by product ID, validate
 same-result endpoints, then commit the read transaction. Do not use managed
 retry or retain bookmarks.
 
-- [ ] **Step 4: Run read and full product GREEN**
+- [x] **Step 4: Run read and full product GREEN**
 
 ```bash
 go test -C services/platform -race -run '^TestRead' -count=1 ./graphstore/neo4jstore
@@ -409,7 +409,7 @@ go test -C services/platform -race -count=1 ./...
 go -C services/platform vet ./...
 ```
 
-- [ ] **Step 5: Commit read support**
+- [x] **Step 5: Commit read support**
 
 ```bash
 git add services/platform/graphstore/neo4jstore

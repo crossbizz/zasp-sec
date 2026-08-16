@@ -212,12 +212,13 @@ func (provider *fakeProvider) NewSession(_ context.Context, config sessionConfig
 }
 
 type fakeSession struct {
-	tx         *fakeTransaction
-	beginErr   error
-	beginPanic bool
-	closeErr   error
-	closePanic bool
-	closeCalls int
+	tx              *fakeTransaction
+	beginErr        error
+	beginPanic      bool
+	closeErr        error
+	closePanic      bool
+	closeCalls      int
+	closeContextErr error
 }
 
 func (session *fakeSession) Begin(context.Context) (graphTransaction, error) {
@@ -227,8 +228,9 @@ func (session *fakeSession) Begin(context.Context) (graphTransaction, error) {
 	return session.tx, session.beginErr
 }
 
-func (session *fakeSession) Close(context.Context) error {
+func (session *fakeSession) Close(ctx context.Context) error {
 	session.closeCalls++
+	session.closeContextErr = ctx.Err()
 	if session.closePanic {
 		panic(seededProviderDetail)
 	}
@@ -236,15 +238,16 @@ func (session *fakeSession) Close(context.Context) error {
 }
 
 type fakeTransaction struct {
-	results       []*fakeResult
-	queries       []string
-	parameters    []map[string]any
-	runErrorAt    int
-	runCalls      int
-	commitErr     error
-	rollbackErr   error
-	commitCalls   int
-	rollbackCalls int
+	results            []*fakeResult
+	queries            []string
+	parameters         []map[string]any
+	runErrorAt         int
+	runCalls           int
+	commitErr          error
+	rollbackErr        error
+	commitCalls        int
+	rollbackCalls      int
+	rollbackContextErr error
 }
 
 func (transaction *fakeTransaction) Run(_ context.Context, query string, parameters map[string]any) (graphResult, error) {
@@ -265,8 +268,9 @@ func (transaction *fakeTransaction) Commit(context.Context) error {
 	return transaction.commitErr
 }
 
-func (transaction *fakeTransaction) Rollback(context.Context) error {
+func (transaction *fakeTransaction) Rollback(ctx context.Context) error {
 	transaction.rollbackCalls++
+	transaction.rollbackContextErr = ctx.Err()
 	return transaction.rollbackErr
 }
 
@@ -279,6 +283,7 @@ type fakeResult struct {
 	cursorErr    error
 	consumeErr   error
 	consumeCalls int
+	onNext       func()
 }
 
 func (result *fakeResult) Keys() ([]string, error) {
@@ -286,6 +291,9 @@ func (result *fakeResult) Keys() ([]string, error) {
 }
 
 func (result *fakeResult) Next(context.Context) bool {
+	if result.onNext != nil {
+		result.onNext()
+	}
 	if result.nextPanic {
 		panic(seededProviderDetail)
 	}

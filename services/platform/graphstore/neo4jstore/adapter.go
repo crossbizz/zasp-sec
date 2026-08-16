@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/neo4j/neo4j-go-driver/v6/neo4j"
-	"github.com/zasp-ai/zasp-sec/services/platform/graphstore"
 )
 
 const (
@@ -123,10 +122,6 @@ func ensureSchemaWithProvider(ctx context.Context, provider sessionProvider, dat
 		}
 		return nil
 	})
-}
-
-func (adapter *Adapter) Read(context.Context, graphstore.DriverQuery) (graphstore.DriverProjection, error) {
-	return graphstore.DriverProjection{}, ErrRead
 }
 
 func runEmpty(ctx context.Context, transaction graphTransaction, query string, parameters map[string]any) error {
