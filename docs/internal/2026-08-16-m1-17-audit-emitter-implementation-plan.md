@@ -393,13 +393,16 @@ and repeat focused/root/full/audit/whitespace/secret gates. Commit:
 git commit -m "docs: complete M1-17 audit emitter"
 ```
 
-- [ ] **Step 3: Push and watch exact-SHA Runnable UI to success**
+- [x] **Step 3: Push and watch exact-SHA Runnable UI to success**
 
 Require local HEAD, upstream, remote branch, workflow run, and workflow job to
 reference the same completion SHA. Watch the Runnable UI workflow to terminal
 success; do not infer success from an older run.
 
-- [ ] **Step 4: Record closure without advancing M1-18**
+Completion SHA `0606e30b7af2342bf0e5f858dece179a57ce8859` passed
+Runnable UI run `31934428733`, job `95134050532`.
+
+- [x] **Step 4: Record closure without advancing M1-18**
 
 Append exact commits, RED/GREEN counts, gates, scans, workflow URL/job, and
 synchronized clean tree. Commit/push plan-only closure wording if tracked
