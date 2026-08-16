@@ -1,0 +1,6 @@
+FROM scratch
+ARG BINARY=service
+COPY --chown=65532:65532 ${BINARY} /service
+USER 65532:65532
+EXPOSE 8081
+ENTRYPOINT ["/service"]
