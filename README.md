@@ -493,6 +493,27 @@ Collector, backend, provider, network, credential, database, or Docker I/O.
 M1-22 is In progress and will add the dependency-free canonical SecurityEvent
 value without changing this observability boundary.
 
+## SecurityEvent envelope
+
+M1-22 defines the dependency-free canonical SecurityEvent value with exactly
+six fields: `Version`, `Scope`, `Source`, `Time`, `Evidence`, and `Correlation`.
+It accepts exactly version 1, complete Organization/Workspace/Environment
+scope, one of `runtime_gateway`, `otlp`, `tetragon`, or `attack_lab`, and a
+nonzero time in canonical UTC millisecond precision. Evidence is one valid
+typed product evidence reference, and correlation is the reviewed M1-21
+product, trace, and span correlation value.
+
+```bash
+npm run securityevent:test
+```
+
+The envelope deliberately contains no customer content: raw evidence,
+payloads, prompts, tool arguments, secrets, arbitrary metadata, and vendor
+identifiers are not envelope fields. The command is hermetic and performs no
+parser, OpenAPI, transport, adapter, queue, storage, provider, network,
+credential, database, Docker, filesystem, or environment I/O. M1-23 remains
+Pending and will define the OpenAPI root separately.
+
 ## Neon pooled proof
 
 The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,

@@ -177,18 +177,23 @@ func (SecurityEvent) Validate() error
 **Files:** `package.json`, `README.md`, repository contract, this plan, ignored
 task/progress evidence.
 
-- [ ] **Step 1: Add missing root/docs assertions and capture RED**
+- [x] **Step 1: Add missing root/docs assertions and capture RED**
 
   Require exact script
   `go test -C services/platform -race -count=1 ./securityevent`, the six
   envelope fields, exact source catalog, version/time/evidence/correlation
   boundaries, no-I/O statement, and M1-23 Pending.
 
-- [ ] **Step 2: Add only the root script and README boundary**
+  RED was 2 intended failures and 2 passes, solely at the absent root command
+  and README section.
+
+- [x] **Step 2: Add only the root script and README boundary**
 
   Do not add OpenAPI, JSON, transport, adapter, storage, or provider behavior.
 
-- [ ] **Step 3: Run root, focused, full pinned, build, audit, and diff gates**
+  The root race command and exact six-field documentation boundary are present.
+
+- [x] **Step 3: Run root, focused, full pinned, build, audit, and diff gates**
 
   ```bash
   npm run securityevent:test
@@ -199,7 +204,11 @@ task/progress evidence.
   git diff --check
   ```
 
-- [ ] **Step 4: Record, scan, and commit**
+  Root race and 4/4 focused passed. Pinned verification passed 59 files/267
+  tests plus typecheck, lint, and production build; all eight repository build
+  targets, zero-vulnerability production audit, and whitespace passed.
+
+- [x] **Step 4: Record, scan, and commit**
 
   ```bash
   git commit -m "docs: expose SecurityEvent envelope"
