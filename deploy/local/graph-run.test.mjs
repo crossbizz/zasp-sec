@@ -47,19 +47,23 @@ function plan(name = "neo4j", platform = "linux/arm64") {
 }
 
 function graphImportReference(name, platform = "linux/arm64", date = "2026-08-16") {
-  return `docker.io/library/import-${date}@${plan(name, platform).manifestDigest}`;
+  return `docker.io/library/${graphRawImportReference(name, platform, date)}`;
 }
 
-function graphImportReferenceForDigest(digest, date = "2026-08-16") {
-  return `docker.io/library/import-${date}@${digest}`;
+function graphRawImportReference(name, platform = "linux/arm64", date = "2026-08-16") {
+  return graphRawImportReferenceForDigest(plan(name, platform).manifestDigest, date);
+}
+
+function graphRawImportReferenceForDigest(digest, date = "2026-08-16") {
+  return `import-${date}@${digest}`;
 }
 
 function graphImportRows(name, platform = "linux/arm64", wrapperDigest = `sha256:${"f".repeat(64)}`) {
   const selected = plan(name, platform);
   return [
-    `${graphImportReferenceForDigest(wrapperDigest)} application/vnd.oci.image.index.v1+json ` +
+    `${graphRawImportReferenceForDigest(wrapperDigest)} application/vnd.oci.image.index.v1+json ` +
       `${wrapperDigest} 457 MiB ${platform} managed=true`,
-    `${graphImportReference(name, platform)} application/vnd.oci.image.manifest.v1+json ` +
+    `${graphRawImportReference(name, platform)} application/vnd.oci.image.manifest.v1+json ` +
       `${selected.manifestDigest} 456 MiB ${platform} managed=true`,
   ];
 }
@@ -72,7 +76,7 @@ function graphImportTarget(name, platform = "linux/arm64", wrapperDigest = `sha2
       labels: "managed=true",
       mediaType: "application/vnd.oci.image.index.v1+json",
       platform,
-      reference: graphImportReferenceForDigest(wrapperDigest),
+      reference: graphRawImportReferenceForDigest(wrapperDigest),
       size: "457 MiB",
     },
     {
@@ -80,12 +84,12 @@ function graphImportTarget(name, platform = "linux/arm64", wrapperDigest = `sha2
       labels: "managed=true",
       mediaType: "application/vnd.oci.image.manifest.v1+json",
       platform,
-      reference: graphImportReference(name, platform),
+      reference: graphRawImportReference(name, platform),
       size: "456 MiB",
     },
   ].sort((left, right) => left.reference.localeCompare(right.reference));
   return {
-    imageID: references[0].reference,
+    imageID: `docker.io/library/${references[0].reference}`,
     manifestDigest: selected.manifestDigest,
     references,
   };
@@ -1919,7 +1923,7 @@ test("rejects duplicate registry JSON before any image can be retained", async (
   assert.equal(system.graphImageIdentities.size, 0);
 });
 
-test("derives each graph target only from its exact bounded containerd inventory delta", () => {
+test("derives raw ctr targets and normalized public image IDs from each exact bounded inventory delta", () => {
   for (const name of ["neo4j", "busybox"]) {
     for (const platform of ["linux/amd64", "linux/arm64"]) {
       const productDigest = `sha256:${"7".repeat(64)}`;
@@ -1930,17 +1934,26 @@ test("derives each graph target only from its exact bounded containerd inventory
           `${productDigest} 12.3 MiB ${platform} managed=true`,
         `registry.k8s.io/pause:3.10 application/vnd.oci.image.manifest.v1+json ` +
           `${kubernetesDigest} 320 KiB ${platform} io.cri-containerd.image=managed`,
-        `${graphImportReferenceForDigest(priorImportDigest, "2026-08-15")} ` +
+        `${graphRawImportReferenceForDigest(priorImportDigest, "2026-08-15")} ` +
           `application/vnd.oci.image.index.v1+json ${priorImportDigest} 13 MiB ${platform} managed=true`,
       ];
-      for (const wrapperDigest of [`sha256:${"0".repeat(64)}`, `sha256:${"f".repeat(64)}`]) {
+      for (const [order, wrapperDigest] of [
+        ["wrapper-first", `sha256:${"0".repeat(64)}`],
+        ["child-first", `sha256:${"f".repeat(64)}`],
+      ]) {
         const before = containerdInventory(baselineRows);
         const after = containerdInventory([...baselineRows, ...graphImportRows(name, platform, wrapperDigest)]);
         const target = parseGraphContainerdImageTargets(before, after, plan(name, platform));
-        assert.deepEqual(target, graphImportTarget(name, platform, wrapperDigest), `${name} ${platform}`);
-        assert.equal(target.imageID, [...target.references]
-          .sort((left, right) => left.reference.localeCompare(right.reference))[0].reference,
-        `${name} ${platform} uses containerd's merged RepoDigest lexical order`);
+        assert.deepEqual(target, graphImportTarget(name, platform, wrapperDigest), `${name} ${platform} ${order}`);
+        const firstRawReference = order === "wrapper-first"
+          ? graphRawImportReferenceForDigest(wrapperDigest)
+          : graphRawImportReference(name, platform);
+        assert.equal(target.references[0].reference, firstRawReference,
+          `${name} ${platform} retains ${order} raw ctr projection`);
+        assert.equal(target.imageID, `docker.io/library/${firstRawReference}`,
+          `${name} ${platform} derives ${order} normalized public RepoDigest`);
+        assert.ok(target.references.every(({ reference }) => /^import-/.test(reference)),
+          `${name} ${platform} retains only raw ctr references`);
         assert.ok(Object.isFrozen(target));
         assert.ok(Object.isFrozen(target.references));
       }
@@ -1967,11 +1980,43 @@ test("rejects changed baselines and every missing, alternate, duplicate, or extr
     ["dropped baseline", containerdInventory([baselineRows[0], ...deltaRows])],
     ["missing child", containerdInventory([...baselineRows, deltaRows[0]])],
     ["missing wrapper", containerdInventory([...baselineRows, deltaRows[1]])],
-    ["alternate repository", containerdInventory([
-      ...baselineRows, deltaRows[0].replace("docker.io/library/import-", "registry.example/import-"), deltaRows[1],
+    ["already-normalized delta", containerdInventory([
+      ...baselineRows, ...deltaRows.map((row) => row.replace("import-", "docker.io/library/import-")),
     ])],
-    ["invalid date", containerdInventory([
-      ...baselineRows, deltaRows[0].replace("2026-08-16", "2026-02-30"), deltaRows[1],
+    ["mixed normalized wrapper", containerdInventory([
+      ...baselineRows, deltaRows[0].replace("import-", "docker.io/library/import-"), deltaRows[1],
+    ])],
+    ["mixed normalized child", containerdInventory([
+      ...baselineRows, deltaRows[0], deltaRows[1].replace("import-", "docker.io/library/import-"),
+    ])],
+    ["alternate repository", containerdInventory([
+      ...baselineRows, deltaRows[0].replace("import-", "registry.example/import-"), deltaRows[1],
+    ])],
+    ["alternate prefix", containerdInventory([
+      ...baselineRows, deltaRows[0], deltaRows[1].replace("import-", "library/import-"),
+    ])],
+    ["mixed duplicate spelling", containerdInventory([
+      ...baselineRows, ...deltaRows, deltaRows[1].replace("import-", "docker.io/library/import-"),
+    ])],
+    ["mismatched dates", containerdInventory([
+      ...baselineRows, deltaRows[0].replace("2026-08-16", "2026-08-15"), deltaRows[1],
+    ])],
+    ["invalid shared date", containerdInventory([
+      ...baselineRows, ...deltaRows.map((row) => row.replace("2026-08-16", "2026-02-30")),
+    ])],
+    ["malformed reference digest", containerdInventory([
+      ...baselineRows, deltaRows[0],
+      deltaRows[1].replace(`@${selected.manifestDigest}`, `@sha256:${"A".repeat(64)}`),
+    ])],
+    ["malformed column digest", containerdInventory([
+      ...baselineRows, deltaRows[0],
+      deltaRows[1].replace(` ${selected.manifestDigest} `, ` sha256:${"A".repeat(64)} `),
+    ])],
+    ["mismatched child reference digest", containerdInventory([
+      ...baselineRows, deltaRows[0], deltaRows[1].replace(`@${selected.manifestDigest}`, `@${extraDigest}`),
+    ])],
+    ["malformed reference and column digest", containerdInventory([
+      ...baselineRows, deltaRows[0], deltaRows[1].replaceAll(selected.manifestDigest, `sha256:${"A".repeat(64)}`),
     ])],
     ["wrong child digest", containerdInventory([
       ...baselineRows, deltaRows[0], deltaRows[1].replaceAll(selected.manifestDigest, extraDigest),
@@ -1985,7 +2030,7 @@ test("rejects changed baselines and every missing, alternate, duplicate, or extr
     ["duplicate row", containerdInventory([...baselineRows, ...deltaRows, deltaRows[1]])],
     ["extra new target", containerdInventory([
       ...baselineRows, ...deltaRows,
-      `${graphImportReferenceForDigest(extraDigest)} application/vnd.oci.image.manifest.v1+json ` +
+      `${graphRawImportReferenceForDigest(extraDigest)} application/vnd.oci.image.manifest.v1+json ` +
         `${extraDigest} 2 MiB linux/arm64 managed=true`,
     ])],
     ["malformed new target", containerdInventory([...baselineRows, ...deltaRows, "malformed"] )],

@@ -448,9 +448,11 @@ function graphContainerdTarget(delta, selected) {
   ]).has(mediaType));
   const wrappers = delta.filter(({ mediaType }) => mediaType === "application/vnd.oci.image.index.v1+json");
   if (child.length !== 1 || wrappers.length !== 1) throw new TypeError("graph containerd structure is invalid");
-  const references = [...delta].sort((left, right) => lexicalCompare(left.reference, right.reference));
+  const references = [...delta].sort((left, right) => lexicalCompare(
+    graphPublicImageReference(left.reference), graphPublicImageReference(right.reference),
+  ));
   return deepFreeze({
-    imageID: references[0].reference,
+    imageID: graphPublicImageReference(references[0].reference),
     manifestDigest: selected.manifestDigest,
     references,
   });
@@ -466,9 +468,7 @@ function validateGraphContainerdTarget(target, selected) {
   for (const row of target.references) {
     requireExactKeySet(row, ["digest", "labels", "mediaType", "platform", "reference", "size"],
       "graph containerd reference");
-    const match = /^docker\.io\/library\/import-(\d{4}-\d{2}-\d{2})@(sha256:[0-9a-f]{64})$/.exec(
-      row.reference ?? "",
-    );
+    const match = /^import-(\d{4}-\d{2}-\d{2})@(sha256:[0-9a-f]{64})$/.exec(row.reference ?? "");
     if (match === null || !canonicalGraphDate(match[1]) || match[2] !== row.digest ||
         row.platform !== selected.platform || typeof row.labels !== "string" || row.labels.length < 1 ||
         row.labels.length > 16_384 || !/^\d+(?:\.\d+)? ?(?:B|KiB|MiB|GiB)$/.test(row.size ?? "")) {
@@ -483,9 +483,20 @@ function validateGraphContainerdTarget(target, selected) {
         !new Set([selected.configDigest, selected.indexDigest, selected.manifestDigest]).has(row.digest)) wrapper += 1;
     else throw new TypeError("graph containerd reference is invalid");
   }
-  const ordered = [...target.references].sort((left, right) => lexicalCompare(left.reference, right.reference));
+  const ordered = [...target.references].sort((left, right) => lexicalCompare(
+    graphPublicImageReference(left.reference), graphPublicImageReference(right.reference),
+  ));
   if (dates.size !== 1 || child !== 1 || wrapper !== 1 || !exactData(target.references, ordered) ||
-      target.imageID !== ordered[0].reference) throw new TypeError("graph containerd target is invalid");
+      target.imageID !== graphPublicImageReference(ordered[0].reference)) {
+    throw new TypeError("graph containerd target is invalid");
+  }
+}
+
+function graphPublicImageReference(reference) {
+  if (!/^import-\d{4}-\d{2}-\d{2}@sha256:[0-9a-f]{64}$/.test(reference ?? "")) {
+    throw new TypeError("graph containerd reference is invalid");
+  }
+  return `docker.io/library/${reference}`;
 }
 
 function lexicalCompare(left, right) {
