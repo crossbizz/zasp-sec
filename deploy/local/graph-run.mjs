@@ -314,11 +314,10 @@ export function validateGraphImageInspection(document, selected, resolution, ret
     const [architecture, operatingSystem, configDigest, repoDigests, repoTags, rootfs, environment,
       entrypoint, command, exposedPorts, intrinsicVolumes, labels, user, workingDirectory] = document;
     const runtime = graphImageRuntimeFacts[selected.name]?.[selected.platform];
-    const expectedAliases = aliases ?? { repoDigests: [selected.repoDigest], repoTags: [selected.tag] };
+    const expectedAliases = aliases ?? { repoDigests: [selected.repoDigest], repoTags: [] };
     requireExactKeySet(expectedAliases, ["repoDigests", "repoTags"], "graph image aliases");
-    if (!(exactStringArray(expectedAliases.repoDigests, []) ||
-        exactStringArray(expectedAliases.repoDigests, [selected.repoDigest])) ||
-        !(exactStringArray(expectedAliases.repoTags, []) || exactStringArray(expectedAliases.repoTags, [selected.tag]))) {
+    if (!exactStringArray(expectedAliases.repoDigests, [selected.repoDigest]) ||
+        !exactStringArray(expectedAliases.repoTags, [])) {
       throw new TypeError("graph image aliases are invalid");
     }
     if (architecture !== selected.architecture || operatingSystem !== "linux" || configDigest !== selected.configDigest ||
@@ -580,7 +579,7 @@ export class LocalGraphSystem extends LocalProductSystem {
       this.graphImageIdentities.set(selected.name, identity);
       this.graphImageAliases.set(selected.name, {
         repoDigests: [selected.repoDigest],
-        repoTags: [selected.tag],
+        repoTags: [],
       });
     }
     await this.requireTemporaryOwnership(phase, "ownership");
@@ -780,59 +779,31 @@ export class LocalGraphSystem extends LocalProductSystem {
   }
 
   async reconcileGraphImage(selected, phase) {
-    const list = async () => {
-      const result = await this.runRead("docker", [
-        "image", "ls", "--quiet", "--no-trunc", "--filter", `reference=${selected.reference}`,
-      ], phase, "cleanup");
-      if (result.stdout === "") return [];
-      if (!result.stdout.endsWith("\n")) throw new Failure("cleanup");
-      const values = result.stdout.slice(0, -1).split("\n");
-      if (new Set(values).size !== values.length || values.some((value) => !digestPattern.test(value))) {
-        throw new Failure("cleanup");
-      }
-      return values;
+    const inspectAlias = async () => {
+      const result = await this.runRaw(
+        "docker", ["image", "inspect", selected.repoDigest], phase, "cleanup", 15_000, 262_144,
+      );
+      if (exactMissingGraphImage(result, selected.repoDigest)) return false;
+      if (!isPlainObject(result) || result.status !== 0 || result.signal !== null || result.stderr !== "" ||
+          result.stdout === "" || result.thrown !== false || result.timedOut !== false) throw new Failure("cleanup");
+      return true;
     };
-    let candidates = await list();
-    if (candidates.length === 0) candidates = await list();
-    if (candidates.length === 0) return undefined;
-    if (candidates.length !== 1) throw new Failure("cleanup");
+    let present = await inspectAlias();
+    if (!present) present = await inspectAlias();
+    if (!present) return undefined;
     const resolution = this.graphImageResolutions.get(selected.name);
     if (resolution === undefined) throw new Failure("cleanup");
-    const retained = await this.inspectGraphImage(selected, resolution, phase, undefined, candidates[0], "cleanup");
-    if (retained.id !== candidates[0] || [...this.imageIdentities.values(), ...this.graphImageIdentities.values()]
+    const retained = await this.inspectGraphImage(
+      selected, resolution, phase, undefined, selected.repoDigest, "cleanup",
+    );
+    if ([...this.imageIdentities.values(), ...this.graphImageIdentities.values()]
       .some((value) => value.id === retained.id)) throw new Failure("cleanup");
     this.graphImageIdentities.set(selected.name, retained);
     this.graphImageAliases.set(selected.name, {
       repoDigests: [selected.repoDigest],
-      repoTags: [selected.tag],
+      repoTags: [],
     });
     return retained;
-  }
-
-  async readGraphImageAliases(selected, retained, phase) {
-    const format = "[{{json .Id}},{{json .RepoDigests}},{{json .RepoTags}}]";
-    const result = await this.runRead(
-      "docker", ["image", "inspect", "--format", format, retained.id], phase, "cleanup", 15_000, 262_144,
-    );
-    let document;
-    try { document = parseBoundedJson(result.stdout, 262_144); }
-    catch { throw new Failure("cleanup"); }
-    if (!Array.isArray(document) || document.length !== 3 || document[0] !== retained.id ||
-        !(exactStringArray(document[1], []) || exactStringArray(document[1], [selected.repoDigest])) ||
-        !(exactStringArray(document[2], []) || exactStringArray(document[2], [selected.tag])) ||
-        document[1].length === 0 && document[2].length === 0) throw new Failure("cleanup");
-    return Object.freeze({ repoDigests: Object.freeze([...document[1]]), repoTags: Object.freeze([...document[2]]) });
-  }
-
-  async reconcileGraphImageAliases(selected, retained, expected, phase) {
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      const aliases = await this.readGraphImageAliases(selected, retained, phase);
-      if (exactData(aliases, expected)) {
-        this.graphImageAliases.set(selected.name, aliases);
-        return;
-      }
-    }
-    throw new Failure("cleanup");
   }
 
   async requireGraphImageAbsent(selected, retained, phase) {
@@ -859,26 +830,6 @@ export class LocalGraphSystem extends LocalProductSystem {
       }
       if (retained === undefined) continue;
       await step(async () => {
-        let aliases = this.graphImageAliases.get(selected.name) ?? {
-          repoDigests: [selected.repoDigest],
-          repoTags: [selected.tag],
-        };
-        if (aliases.repoTags.length !== 0) {
-          await this.requireTemporaryOwnership(phase, "cleanup");
-          await this.requireOwnedPath(this.paths.graphManifest, phase, "cleanup");
-          await this.verifyGraphImage(selected, retained, phase, "cleanup");
-          await this.requireGraphImageConsumersAbsent(selected, phase, "cleanup");
-          const removedTag = await this.runMutation("docker", [
-            "image", "rm", selected.tag,
-          ], phase, "cleanup", {
-            environment: this.environment,
-            outputLimit: 262_144,
-            timeoutMilliseconds: 60_000,
-          });
-          if (removedTag.outcome === "definitive") throw new Failure("cleanup");
-          aliases = { repoDigests: [selected.repoDigest], repoTags: [] };
-          await this.reconcileGraphImageAliases(selected, retained, aliases, phase);
-        }
         await this.requireTemporaryOwnership(phase, "cleanup");
         await this.requireOwnedPath(this.paths.graphManifest, phase, "cleanup");
         await this.verifyGraphImage(selected, retained, phase, "cleanup");

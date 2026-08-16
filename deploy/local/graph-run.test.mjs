@@ -117,7 +117,7 @@ function pinnedGraphImageInspection(selected = plan()) {
     "linux",
     selected.configDigest,
     [selected.repoDigest],
-    [selected.tag],
+    [],
     { Layers: layers, Type: "layers" },
     ["PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"],
     null,
@@ -137,7 +137,7 @@ function pinnedGraphImageInspection(selected = plan()) {
     "linux",
     selected.configDigest,
     [selected.repoDigest],
-    [selected.tag],
+    [],
     { Layers: layers, Type: "layers" },
     [
       "PATH=/var/lib/neo4j/bin:/opt/java/openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
@@ -399,14 +399,23 @@ test("retains complete intrinsic image configuration and rejects all identity dr
   }
 });
 
-test("binds first image adoption to every pinned runtime and rootfs fact", () => {
+test("binds digest-only first adoption to every pinned runtime and rootfs fact", () => {
   for (const name of ["neo4j", "busybox"]) {
     for (const platform of ["linux/amd64", "linux/arm64"]) {
       const platformPlan = plan(name, platform);
       const exactPlatform = pinnedGraphImageInspection(platformPlan);
-      assert.deepEqual(validateGraphImageInspection(
+      const identity = validateGraphImageInspection(
         projectGraphImageInspection(exactPlatform), platformPlan, resolvedImage(platformPlan),
-      ).rootfs.Layers, exactPlatform[5].Layers);
+      );
+      assert.deepEqual(identity.rootfs.Layers, exactPlatform[5].Layers);
+      assert.deepEqual(identity.repoDigests, [platformPlan.repoDigest]);
+      assert.deepEqual(identity.repoTags, []);
+
+      const unexpectedTag = structuredClone(exactPlatform);
+      unexpectedTag[4] = [platformPlan.tag];
+      assert.throws(() => validateGraphImageInspection(
+        projectGraphImageInspection(unexpectedTag), platformPlan, resolvedImage(platformPlan),
+      ), { name: "Failure" }, `${name} ${platform} must not invent a tag alias`);
     }
   }
   const selected = plan();
@@ -564,6 +573,48 @@ test("pulls both indexes once and accepts ambiguity only through complete reinsp
   rejected.runMutation = async () => ({ outcome: "definitive", result: { ...success(), status: 1 } });
   await assert.rejects(() => rejected.buildAdditionalImages(phase), { name: "Failure" });
   assert.equal(rejected.graphImageMayHaveApplied.size, 0);
+});
+
+test("reconciles thrown, signaled, and malformed pulls through exact digest-only inspection", async () => {
+  const selected = plan();
+  const cases = [
+    ["thrown", async () => { throw new Error("transport ended"); }],
+    ["signaled", async () => Object.freeze({
+      signal: "SIGTERM", status: null, stderr: "", stdout: "", thrown: false, timedOut: false,
+    })],
+    ["malformed output", async () => success("provider output without a stable grammar\n")],
+  ];
+  const results = [];
+  for (const [label, command] of cases) {
+    const system = graphSystem(command);
+    system.graphImagePlans = new Map([[selected.name, selected]]);
+    system.requireTemporaryOwnership = async () => {};
+    system.requireGraphImageBaselineAbsent = async () => {};
+    system.requireGraphImageConsumersAbsent = async () => {};
+    system.resolveGraphImage = async () => resolvedImage(selected);
+    system.runRead = async (_command, arguments_) => {
+      assert.equal(arguments_[0], "image");
+      assert.equal(arguments_[1], "inspect");
+      assert.equal(arguments_.at(-1), selected.reference);
+      return success(`${JSON.stringify(pinnedGraphImageInspection(selected))}\n`);
+    };
+    try {
+      await system.buildAdditionalImages(phase);
+      results.push({
+        aliases: system.graphImageAliases.get(selected.name),
+        identityTags: system.graphImageIdentities.get(selected.name)?.repoTags,
+        label,
+      });
+    } catch (error) {
+      results.push({ error: error?.name, label });
+    }
+  }
+  const aliases = { repoDigests: [selected.repoDigest], repoTags: [] };
+  assert.deepEqual(results, [
+    { aliases, identityTags: [], label: "thrown" },
+    { aliases, identityTags: [], label: "signaled" },
+    { aliases, identityTags: [], label: "malformed output" },
+  ]);
 });
 
 test("rejects a graph/product image collision before retaining the graph alias", async () => {
@@ -926,7 +977,7 @@ test("cleanup reconciles ambiguous node mutations only through exact present or 
   assert.equal(absent.graphPathMayHaveApplied, false);
 });
 
-test("owns graph image aliases from exact baseline through ambiguity-safe cleanup", async () => {
+test("blocks a preexisting config baseline before the digest-qualified pull", async () => {
   const selected = plan();
   const collision = graphSystem();
   let collisionPulls = 0;
@@ -945,7 +996,10 @@ test("owns graph image aliases from exact baseline through ambiguity-safe cleanu
   );
   await assert.rejects(() => collision.buildAdditionalImages(phase), { name: "Failure" });
   assert.equal(collisionPulls, 0, "a pre-existing config ID is rejected before pull authority exists");
+});
 
+test("owns graph image aliases from exact baseline through ambiguity-safe cleanup", async () => {
+  const selected = plan();
   const baselineInUse = graphSystem();
   let baselineInUsePulls = 0;
   baselineInUse.requireTemporaryOwnership = async () => {};
@@ -998,6 +1052,7 @@ test("owns graph image aliases from exact baseline through ambiguity-safe cleanu
   appeared.graphImageIdentities.set("neo4j", { id: selected.configDigest, name: "neo4j" });
   appeared.graphImageResolutions.set("neo4j", resolvedImage(selected));
   appeared.graphImageMayHaveApplied.add("neo4j");
+  appeared.graphImageAliases.set("neo4j", { repoDigests: [selected.repoDigest], repoTags: [] });
   appeared.verifyGraphImage = async () => {};
   let appearedConsumerReads = 0;
   appeared.runRead = async (_command, arguments_) => {
@@ -1005,11 +1060,9 @@ test("owns graph image aliases from exact baseline through ambiguity-safe cleanu
       appearedConsumerReads += 1;
       return appearedConsumerReads === 1 ? success() : success(`${"d".repeat(64)}\n`);
     }
-    if (arguments_[0] === "image" && arguments_[1] === "inspect") {
-      return success(`${JSON.stringify([selected.configDigest, [selected.repoDigest], []])}\n`);
-    }
     throw new Error("unexpected read");
   };
+  await appeared.requireGraphImageConsumersAbsent(selected, phase, "ownership");
   const appearedRemovals = [];
   appeared.runMutation = async (_command, arguments_) => {
     appearedRemovals.push(arguments_);
@@ -1019,8 +1072,8 @@ test("owns graph image aliases from exact baseline through ambiguity-safe cleanu
   await appeared.cleanupAdditionalImages(async (operation) => {
     try { await operation(); } catch (error) { appearedFailures.push(error); }
   }, phase);
-  assert.deepEqual(appearedRemovals, [["image", "rm", selected.tag]]);
-  assert.equal(appearedConsumerReads, 2, "consumer absence is re-proved before each alias deletion");
+  assert.deepEqual(appearedRemovals, []);
+  assert.equal(appearedConsumerReads, 2, "consumer absence is re-proved immediately before digest deletion");
   assert.equal(appearedFailures.length, 1);
   assert.deepEqual(appeared.graphImageAliases.get("neo4j"), {
     repoDigests: [selected.repoDigest], repoTags: [],
@@ -1033,6 +1086,7 @@ test("owns graph image aliases from exact baseline through ambiguity-safe cleanu
   ambiguous.graphImageIdentities.set("neo4j", { id: selected.configDigest, name: "neo4j" });
   ambiguous.graphImageResolutions.set("neo4j", resolvedImage(selected));
   ambiguous.graphImageMayHaveApplied.add("neo4j");
+  ambiguous.graphImageAliases.set("neo4j", { repoDigests: [selected.repoDigest], repoTags: [] });
   ambiguous.verifyGraphImage = async () => {};
   ambiguous.runRead = async (_command, arguments_) => {
     if (arguments_[0] === "ps") return success();
@@ -1061,9 +1115,8 @@ test("owns graph image aliases from exact baseline through ambiguity-safe cleanu
     try { await operation(); } catch (error) { ambiguousFailures.push(error); }
   }, phase);
   assert.deepEqual(removals, [
-    ["image", "rm", selected.tag],
     ["image", "rm", selected.repoDigest],
-  ], "cleanup deletes only the two aliases created by this run without force-ID removal");
+  ], "cleanup deletes only the digest alias created by this run without force-ID removal");
   assert.equal(imageReads, 2, "ambiguous alias removal reconciles bounded delayed config absence");
   assert.deepEqual(ambiguousFailures, []);
   assert.equal(ambiguous.graphImageIdentities.has("neo4j"), false);
@@ -1075,6 +1128,7 @@ test("owns graph image aliases from exact baseline through ambiguity-safe cleanu
   definitive.graphImageIdentities.set("neo4j", { id: selected.configDigest, name: "neo4j" });
   definitive.graphImageResolutions.set("neo4j", resolvedImage(selected));
   definitive.graphImageMayHaveApplied.add("neo4j");
+  definitive.graphImageAliases.set("neo4j", { repoDigests: [selected.repoDigest], repoTags: [] });
   definitive.verifyGraphImage = async () => {};
   definitive.runRead = async () => success();
   definitive.runMutation = async () => ({ outcome: "definitive", result: { ...success(), status: 1 } });
@@ -1092,7 +1146,48 @@ test("owns graph image aliases from exact baseline through ambiguity-safe cleanu
   assert.equal(definitive.graphImageIdentities.has("neo4j"), true);
 });
 
-test("removes retained graph aliases in reverse order only after exact reinspection", async () => {
+test("recovers an exact digest-only pull for cleanup without adopting a tag alias", async () => {
+  const selected = plan();
+  const system = graphSystem();
+  system.graphImagePlans = new Map([[selected.name, selected]]);
+  system.paths = { graphManifest: "/owned/graph.yaml" };
+  system.graphImageResolutions.set(selected.name, resolvedImage(selected));
+  system.graphImageMayHaveApplied.add(selected.name);
+  system.requireTemporaryOwnership = async () => {};
+  system.requireOwnedPath = async () => {};
+  system.runRaw = async (_command, arguments_) => {
+    assert.deepEqual(arguments_, ["image", "inspect", selected.repoDigest]);
+    return success(`[${JSON.stringify({ Id: selected.configDigest })}]\n`);
+  };
+  const exactInspections = [];
+  system.runRead = async (_command, arguments_) => {
+    if (arguments_[0] === "image" && arguments_[1] === "inspect") {
+      exactInspections.push(arguments_.at(-1));
+      return success(`${JSON.stringify(pinnedGraphImageInspection(selected))}\n`);
+    }
+    if (arguments_[0] === "ps") return success();
+    throw new Error("unexpected read");
+  };
+  const removals = [];
+  system.runMutation = async (_command, arguments_) => {
+    removals.push(arguments_);
+    return { outcome: "ambiguous", result: success("untagged\n") };
+  };
+  system.requireGraphImageAbsent = async () => {};
+  const failures = [];
+  await system.cleanupAdditionalImages(async (operation) => {
+    try { await operation(); } catch (error) { failures.push(error); }
+  }, phase);
+
+  assert.deepEqual(failures, []);
+  assert.deepEqual(exactInspections, [selected.repoDigest, selected.configDigest],
+    "recovery and immediate pre-delete proof both bind the digest alias");
+  assert.deepEqual(removals, [["image", "rm", selected.repoDigest]]);
+  assert.equal(system.graphImageIdentities.size, 0);
+  assert.equal(system.graphImageMayHaveApplied.size, 0);
+});
+
+test("removes retained digest-only graph aliases in reverse order after exact reinspection", async () => {
   const system = graphSystem();
   const events = [];
   system.paths = { graphManifest: "/owned/graph.yaml" };
@@ -1103,11 +1198,9 @@ test("removes retained graph aliases in reverse order only after exact reinspect
     system.graphImageIdentities.set(name, { id: `sha256:${String(index + 7).repeat(64)}`, name });
     system.graphImageResolutions.set(name, resolvedImage(selected));
     system.graphImageMayHaveApplied.add(name);
+    system.graphImageAliases.set(name, { repoDigests: [selected.repoDigest], repoTags: [] });
   }
   system.verifyGraphImage = async (selected, retained) => { events.push(`verify:${selected.name}:${retained.id}`); };
-  system.reconcileGraphImageAliases = async (selected, _retained, aliases) => {
-    system.graphImageAliases.set(selected.name, aliases);
-  };
   system.runMutation = async (_command, arguments_) => {
     events.push(`remove:${arguments_.at(-1)}`);
     return { outcome: "ambiguous", result: success("removed\n") };
@@ -1120,12 +1213,8 @@ test("removes retained graph aliases in reverse order only after exact reinspect
   await system.cleanupAdditionalImages(step, phase);
   assert.deepEqual(events, [
     `verify:busybox:sha256:${"8".repeat(64)}`,
-    `remove:${BUSYBOX_IMAGE.split("@")[0]}`,
-    `verify:busybox:sha256:${"8".repeat(64)}`,
     `remove:registry.k8s.io/e2e-test-images/busybox@${GRAPH_IMAGE_PLANS.busybox.indexDigest}`,
     "absent:busybox",
-    `verify:neo4j:sha256:${"7".repeat(64)}`,
-    `remove:${NEO4J_IMAGE.split("@")[0]}`,
     `verify:neo4j:sha256:${"7".repeat(64)}`,
     `remove:neo4j@${GRAPH_IMAGE_PLANS.neo4j.indexDigest}`,
     "absent:neo4j",
