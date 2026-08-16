@@ -179,9 +179,7 @@ export function validateImageInspection(document, product, marker, platform, ret
     const image = document[0];
     requireExactObject(image, ["Architecture", "Config", "Id", "Os", "RepoDigests", "RepoTags", "RootFS"], "image");
     requireExactObject(image.Config, [
-      "AttachStderr", "AttachStdin", "AttachStdout", "Cmd", "Domainname", "Entrypoint", "Env",
-      "ExposedPorts", "Healthcheck", "Hostname", "Image", "Labels", "OnBuild", "OpenStdin",
-      "StdinOnce", "Tty", "User", "Volumes", "WorkingDir",
+      "Entrypoint", "Env", "ExposedPorts", "Labels", "User",
     ], "image config");
     requireExactObject(image.Config.Labels, ["zasp.dev/component", "zasp.dev/proof", "zasp.dev/run"], "image labels");
     requireExactObject(image.Config.ExposedPorts, ["8081/tcp"], "image ports");
@@ -191,13 +189,9 @@ export function validateImageInspection(document, product, marker, platform, ret
     if (
       image.Architecture !== architecture || image.Os !== "linux" || !digestPattern.test(image.Id) ||
       !Array.isArray(image.RepoDigests) || image.RepoDigests.length !== 0 ||
-      !exactArray(image.RepoTags, [product.image]) || image.Config.AttachStderr !== false ||
-      image.Config.AttachStdin !== false || image.Config.AttachStdout !== false || image.Config.Cmd !== null ||
-      image.Config.Domainname !== "" || !exactArray(image.Config.Entrypoint, ["/service"]) ||
-      image.Config.Env !== null || image.Config.Healthcheck !== null || image.Config.Hostname !== "" ||
-      image.Config.Image !== "" || image.Config.OnBuild !== null || image.Config.OpenStdin !== false ||
-      image.Config.StdinOnce !== false || image.Config.Tty !== false || image.Config.User !== "65532:65532" ||
-      image.Config.Volumes !== null || image.Config.WorkingDir !== "" ||
+      !exactArray(image.RepoTags, [product.image]) || !exactArray(image.Config.Entrypoint, ["/service"]) ||
+      !exactArray(image.Config.Env, ["PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"]) ||
+      image.Config.User !== "65532:65532" ||
       image.Config.Labels["zasp.dev/component"] !== product.name ||
       image.Config.Labels["zasp.dev/proof"] !== "m1-30a" || image.Config.Labels["zasp.dev/run"] !== marker ||
       image.RootFS.Type !== "layers" || !Array.isArray(image.RootFS.Layers) || image.RootFS.Layers.length !== 1 ||
@@ -400,7 +394,7 @@ export class DockerKindRuntime {
   }
 
   static fromProcess(environment = process.env, systemFactory = (input) => new LocalProductSystem(input)) {
-    if (!isPlainObject(environment)) throw new Failure("configuration");
+    if (!isEnvironmentObject(environment)) throw new Failure("configuration");
     for (const [name, value] of Object.entries(environment)) {
       if (forbiddenEnvironmentPattern.test(name) && value !== undefined && value !== "") {
         throw new Failure("configuration");
@@ -753,7 +747,8 @@ export class LocalProductSystem {
         "docker", ["image", "inspect", product.image], phase, "ownership", 15_000, 262_144,
       );
       let document;
-      try { document = parseBoundedJson(inspected.stdout, 262_144); } catch { throw new Failure("ownership"); }
+      try { document = projectRawImageInspection(parseBoundedJson(inspected.stdout, 262_144)); }
+      catch { throw new Failure("ownership"); }
       const identity = validateImageInspection(document, product, this.input.marker, this.input.nodePlatform);
       if ([...this.imageIdentities.values()].some((value) => value.id === identity.id)) {
         throw new Failure("ownership");
@@ -857,7 +852,8 @@ export class LocalProductSystem {
     if (this.nodeIdentity !== undefined && this.nodeIdentity.token !== token) throw new Failure(category);
     const result = await this.runRead("docker", ["inspect", token], phase, category, 15_000, 262_144);
     let document;
-    try { document = parseBoundedJson(result.stdout, 262_144); } catch { throw new Failure(category); }
+    try { document = parseBoundedJson(result.stdout, 262_144); }
+    catch { throw new Failure(category); }
     const identity = validateKindNodeInspection(document, {
       cluster: this.cluster,
       imageId: KIND_PINS.node.platformDigests[this.input.nodePlatform],
@@ -901,7 +897,8 @@ export class LocalProductSystem {
       "docker", ["image", "inspect", retained.id], phase, category, 15_000, 262_144,
     );
     let document;
-    try { document = parseBoundedJson(result.stdout, 262_144); } catch { throw new Failure(category); }
+    try { document = projectRawImageInspection(parseBoundedJson(result.stdout, 262_144)); }
+    catch { throw new Failure(category); }
     return validateImageInspection(document, product, this.input.marker, this.input.nodePlatform, retained);
   }
 
@@ -1117,7 +1114,8 @@ export class LocalProductSystem {
       "docker", ["image", "inspect", candidates[0]], phase, "cleanup", 15_000, 262_144,
     );
     let document;
-    try { document = parseBoundedJson(result.stdout, 262_144); } catch { throw new Failure("cleanup"); }
+    try { document = projectRawImageInspection(parseBoundedJson(result.stdout, 262_144)); }
+    catch { throw new Failure("cleanup"); }
     const identity = validateImageInspection(document, product, this.input.marker, this.input.nodePlatform);
     if (identity.id !== candidates[0]) throw new Failure("cleanup");
     this.imageIdentities.set(product.name, identity);
@@ -1198,7 +1196,7 @@ function defaultSystemDependencies() {
     canonicalPath: realpath,
     changeMode: chmod,
     command: (command, arguments_, options) => runBounded(command, arguments_, options),
-    fetchBytes: defaultFetchBytes,
+    fetchBytes: fetchBoundedAsset,
     hashBytes: (value) => createHash("sha256").update(value).digest("hex"),
     makeDirectory: mkdir,
     makeTemp: mkdtemp,
@@ -1211,16 +1209,23 @@ function defaultSystemDependencies() {
   };
 }
 
-async function defaultFetchBytes(url, limit, signal) {
+export async function fetchBoundedAsset(url, limit, signal, fetchImplementation = fetch) {
+  if (typeof url !== "string" || !url.startsWith("https://") ||
+      !Number.isSafeInteger(limit) || limit < 1 || limit > 134_217_728 ||
+      typeof fetchImplementation !== "function") throw new Failure("provider");
   let response;
   try {
-    response = await fetch(url, { redirect: "error", signal });
+    response = await fetchImplementation(url, { redirect: "follow", signal });
   } catch {
     throw new Failure("provider");
   }
-  if (!response.ok || response.status !== 200 || response.url !== url) throw new Failure("provider");
-  const length = Number(response.headers.get("content-length"));
-  if (Number.isFinite(length) && (length < 1 || length > limit)) throw new Failure("provider");
+  if (!response.ok || response.status !== 200 || typeof response.url !== "string" ||
+      !response.url.startsWith("https://")) throw new Failure("provider");
+  const header = response.headers.get("content-length");
+  const length = header === null ? undefined : Number(header);
+  if (length !== undefined && (!Number.isSafeInteger(length) || length < 1 || length > limit)) {
+    throw new Failure("provider");
+  }
   const reader = response.body?.getReader();
   if (reader === undefined) throw new Failure("provider");
   const chunks = [];
@@ -1434,6 +1439,34 @@ export function parseBoundedJson(source, maximumBytes) {
   whitespace();
   if (index !== source.length) throw new SyntaxError("trailing JSON");
   return output;
+}
+
+export function projectRawImageInspection(document) {
+  if (!Array.isArray(document) || document.length !== 1 || !isPlainObject(document[0])) {
+    throw new TypeError("image inspection is invalid");
+  }
+  const image = document[0];
+  requireExactKeySet(image, [
+    "Architecture", "Config", "Created", "GraphDriver", "Id", "Metadata", "Os", "Parent",
+    "RepoDigests", "RepoTags", "RootFS", "Size",
+  ], "raw image");
+  requireExactKeySet(image.Config, ["Entrypoint", "Env", "ExposedPorts", "Labels", "User"], "raw image config");
+  requireExactKeySet(image.GraphDriver, ["Data", "Name"], "raw image graph driver");
+  requireExactKeySet(image.Metadata, ["LastTagTime"], "raw image metadata");
+  if (typeof image.Created !== "string" || image.Created.length < 20 || image.Created.length > 64 ||
+      typeof image.GraphDriver.Name !== "string" || image.GraphDriver.Name.length === 0 ||
+      !isPlainObject(image.GraphDriver.Data) && image.GraphDriver.Data !== null ||
+      typeof image.Metadata.LastTagTime !== "string" || typeof image.Parent !== "string" ||
+      !Number.isSafeInteger(image.Size) || image.Size < 1) throw new TypeError("raw image is invalid");
+  return [{
+    Architecture: image.Architecture,
+    Config: image.Config,
+    Id: image.Id,
+    Os: image.Os,
+    RepoDigests: image.RepoDigests,
+    RepoTags: image.RepoTags,
+    RootFS: image.RootFS,
+  }];
 }
 
 function hasUnpairedSurrogate(value) {
@@ -1803,6 +1836,14 @@ function requireExactObject(value, keys, label) {
   }
 }
 
+function requireExactKeySet(value, keys, label) {
+  if (!isPlainObject(value)) throw new TypeError(`${label} is invalid`);
+  const actual = Object.keys(value);
+  if (actual.length !== keys.length || keys.some((key) => !Object.hasOwn(value, key))) {
+    throw new TypeError(`${label} is invalid`);
+  }
+}
+
 function exactObject(left, right) {
   return Object.keys(left).every((key) => left[key] === right[key]);
 }
@@ -1827,6 +1868,17 @@ function exactArray(value, expected) {
 function isPlainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value) &&
     Object.getPrototypeOf(value) === Object.prototype;
+}
+
+function isEnvironmentObject(value) {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+  const keys = Reflect.ownKeys(value);
+  if (keys.some((key) => typeof key !== "string")) return false;
+  return keys.every((key) => {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    return descriptor?.enumerable === true && "value" in descriptor &&
+      (descriptor.value === undefined || typeof descriptor.value === "string");
+  });
 }
 
 function deepFreeze(value) {

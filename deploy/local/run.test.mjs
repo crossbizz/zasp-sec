@@ -17,6 +17,7 @@ import {
   buildKindCreateArguments,
   buildServicePlan,
   classifyMutationResult,
+  fetchBoundedAsset,
   orchestrate,
   parseBoundedJson,
   runBounded,
@@ -41,29 +42,15 @@ function imageDocument(product, overrides = {}) {
   return [{
     Architecture: "arm64",
     Config: {
-      AttachStderr: false,
-      AttachStdin: false,
-      AttachStdout: false,
-      Cmd: null,
-      Domainname: "",
       Entrypoint: ["/service"],
-      Env: null,
+      Env: ["PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"],
       ExposedPorts: { "8081/tcp": {} },
-      Healthcheck: null,
-      Hostname: "",
-      Image: "",
       Labels: {
         "zasp.dev/component": product.name,
         "zasp.dev/proof": "m1-30a",
         "zasp.dev/run": marker,
       },
-      OnBuild: null,
-      OpenStdin: false,
-      StdinOnce: false,
-      Tty: false,
       User: "65532:65532",
-      Volumes: null,
-      WorkingDir: "",
     },
     Id: id,
     Os: "linux",
@@ -71,6 +58,24 @@ function imageDocument(product, overrides = {}) {
     RepoTags: [product.image],
     RootFS: { Layers: [`sha256:${"b".repeat(64)}`], Type: "layers" },
     ...overrides,
+  }];
+}
+
+function rawImageDocument(product, overrides = {}) {
+  const projected = imageDocument(product, overrides)[0];
+  return [{
+    Architecture: projected.Architecture,
+    Config: projected.Config,
+    Created: "2026-08-16T00:00:00Z",
+    GraphDriver: { Data: null, Name: "overlay2" },
+    Id: projected.Id,
+    Metadata: { LastTagTime: "2026-08-16T00:00:00Z" },
+    Os: projected.Os,
+    Parent: "",
+    RepoDigests: projected.RepoDigests,
+    RepoTags: projected.RepoTags,
+    RootFS: projected.RootFS,
+    Size: 1,
   }];
 }
 
@@ -383,6 +388,29 @@ test("parses only bounded UTF-8 JSON with unique keys and finite structure", () 
   ]) assert.throws(() => parseBoundedJson(value, 1024), { name: "SyntaxError" });
 });
 
+test("follows the official release redirect only under the pinned byte and hash boundary", async () => {
+  const calls = [];
+  const bytes = Buffer.from("official asset");
+  const result = await fetchBoundedAsset("https://github.com/example/releases/asset", 1024,
+    new AbortController().signal, async (url, options) => {
+      calls.push({ options, url });
+      let sent = false;
+      return {
+        body: { getReader() { return { async read() {
+          if (sent) return { done: true };
+          sent = true;
+          return { done: false, value: bytes };
+        } }; } },
+        headers: { get(name) { return name === "content-length" ? String(bytes.length) : null; } },
+        ok: true,
+        status: 200,
+        url: "https://release-assets.githubusercontent.com/owned",
+      };
+    });
+  assert.deepEqual(result, bytes);
+  assert.equal(calls[0].options.redirect, "follow");
+});
+
 function kubernetesState(overrides = {}) {
   const nodeName = "zasp-m1-30a-0123456789abcdef-control-plane";
   const pods = PRODUCTS.map((product, index) => ({
@@ -657,6 +685,12 @@ test("constructs a concrete process runtime without ambient kube authority", () 
   assert.equal(runtime.input.hostPlatform, process.platform === "darwin" ? `darwin/${process.arch === "arm64" ? "arm64" : "amd64"}` : `linux/${process.arch === "arm64" ? "arm64" : "amd64"}`);
   assert.equal(runtime.input.nodePlatform, process.arch === "arm64" ? "linux/arm64" : "linux/amd64");
   assert.match(runtime.input.marker, /^[0-9a-f]{16}$/);
+
+  const nativeEnvironment = Object.create(Object.getPrototypeOf(process.env));
+  nativeEnvironment.HOME = "/Users/test";
+  nativeEnvironment.LANG = "C.UTF-8";
+  nativeEnvironment.PATH = "/usr/local/bin:/usr/bin:/bin";
+  assert.ok(DockerKindRuntime.fromProcess(nativeEnvironment) instanceof DockerKindRuntime);
 });
 
 test("concrete lifecycle admits only an exact-owned empty workspace", async () => {
@@ -907,7 +941,7 @@ test("concrete build downloads exact kind and retains four exact image identitie
         signal: null,
         status: 0,
         stderr: "",
-        stdout: `${JSON.stringify(imageDocument(product, {
+        stdout: `${JSON.stringify(rawImageDocument(product, {
           Id: `sha256:${String(index + 1).repeat(64)}`,
           RootFS: { Layers: [`sha256:${String(index + 5).repeat(64)}`], Type: "layers" },
         }))}\n`,
@@ -972,7 +1006,7 @@ test("concrete lifecycle creates and retains only the exact network and kind nod
       const index = PRODUCTS.indexOf(product);
       return {
         signal: null, status: 0, stderr: "", thrown: false, timedOut: false,
-        stdout: `${JSON.stringify(imageDocument(product, {
+        stdout: `${JSON.stringify(rawImageDocument(product, {
           Id: `sha256:${String(index + 1).repeat(64)}`,
           RootFS: { Layers: [`sha256:${String(index + 5).repeat(64)}`], Type: "layers" },
         }))}\n`,
@@ -1021,7 +1055,7 @@ test("concrete lifecycle loads all images and proves the exact Ready Kubernetes 
       const index = PRODUCTS.indexOf(product);
       return {
         signal: null, status: 0, stderr: "", thrown: false, timedOut: false,
-        stdout: `${JSON.stringify(imageDocument(product, {
+        stdout: `${JSON.stringify(rawImageDocument(product, {
           Id: `sha256:${String(index + 1).repeat(64)}`,
           RootFS: { Layers: [`sha256:${String(index + 5).repeat(64)}`], Type: "layers" },
         }))}\n`,
@@ -1136,7 +1170,7 @@ test("concrete cleanup re-proves exact identities, continues in reverse order, a
       if (!imagesPresent.has(id)) return { signal: null, status: 1, stderr: `Error response from daemon: No such image: ${id}\n`, stdout: "[]\n", thrown: false, timedOut: false };
       const product = PRODUCTS.find((entry) => imageIds.get(entry.name) === id);
       const index = PRODUCTS.indexOf(product);
-      return ok(`${JSON.stringify(imageDocument(product, {
+      return ok(`${JSON.stringify(rawImageDocument(product, {
         Id: id, RootFS: { Layers: [`sha256:${String(index + 5).repeat(64)}`], Type: "layers" },
       }))}\n`);
     }
@@ -1213,7 +1247,7 @@ test("concrete cleanup re-arms an ambiguous delayed image before exact removal",
     }
     if (command === "docker" && arguments_[0] === "image" && arguments_[1] === "inspect") {
       if (!present) return { signal: null, status: 1, stderr: `Error response from daemon: No such image: ${imageId}\n`, stdout: "[]\n", thrown: false, timedOut: false };
-      return ok(`${JSON.stringify(imageDocument(product))}\n`);
+      return ok(`${JSON.stringify(rawImageDocument(product))}\n`);
     }
     if (command === "docker" && arguments_[0] === "image" && arguments_[1] === "rm") {
       present = false;
