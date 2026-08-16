@@ -23,7 +23,7 @@
    gates, every service/worker/root regression, pinned Node verification,
    production dependency audit, whitespace/source audit, and redacted pinned
    Gitleaks scans.
-8. Request independent whole-task review. Fix every confirmed finding tests-first
+8. Request independent whole-task review of the exact live up/down proof. Fix every confirmed finding tests-first
    and repeat affected live/local gates. Only a zero-finding review may move
    M1-10 to Complete.
 9. Update the README/tracker to Complete (`685/0/40/3`; M1 `68/52/0/16/0`),
