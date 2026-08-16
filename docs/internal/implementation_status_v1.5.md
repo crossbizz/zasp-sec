@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 686 |
-| In progress | 1 |
-| Complete | 38 |
+| In progress | 0 |
+| Complete | 39 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -24,7 +24,7 @@ In progress, Complete, or Blocked is Pending.
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 0 | 0 | 24 | 3 |
-| M1 | 68 | 53 | 1 | 14 | 0 |
+| M1 | 68 | 53 | 0 | 15 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
 | M3 | 75 | 75 | 0 | 0 | 0 |
@@ -68,19 +68,19 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `686/1/38/3` because
+session configuration. The 728 source-plan counts are `686/0/39/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M1-09 | August 15, 2026 | Implement the scoped atomic idempotency claim/completion interface and prior-result request helper. |
 
 ## Complete
 
 | Task | Completed | Evidence |
 | --- | --- | --- |
+| M1-09 | August 15, 2026 | Added one dependency-free scoped atomic idempotency claim/completion interface and request helper that executes only the unique acquired claim, returns completed duplicates' prior canonical product result, retains unknown outcomes for reconciliation, and passed ten focused groups, adversarial review, all Go/service/worker/root gates, audit, and scans. |
 | M1-08 | August 15, 2026 | Added one dependency-free platform HTTP executor with an opaque validated policy, a single total deadline, complete-sequence concurrency bounds, transient-only safe retries, capped jittered backoff, one-attempt non-idempotent mutations, strict response ownership, fixed errors, twelve focused groups, adversarial review, all Go/service/worker/root gates, audit, and scans. |
 | M1-07 | August 15, 2026 | A dependency-free typed loader now fails closed for missing required Stytch, Neon, AWS, or in-cluster OTLP configuration; keeps PostHog, OpenRouter, and remote OTLP explicitly optional; retains strict Secrets Manager references only; and passed ten focused groups, adversarial review, all Go/service/worker/root gates, audit, and scans. |
 | M0-01 | August 13, 2026 | Fourteen external/OSS proof gates have objective PASS/FAIL criteria and initial `Not run` status; task review approved after two fix rounds. |

@@ -40,7 +40,7 @@ describe("M1-09 idempotency helper contract", () => {
     expect(plan).toContain("M1-10 remains Pending");
   });
 
-  it("starts only M1-09 after M1-08 completes", async () => {
+  it("completes only M1-09 after M1-08", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -54,18 +54,19 @@ describe("M1-09 idempotency helper contract", () => {
     const m1 = milestones.find(([milestone]) => milestone === "M1");
 
     expect(readme).toContain("M1-08 is Complete");
-    expect(readme).toContain("M1-09 is In progress");
+    expect(readme).toContain("M1-09 is Complete");
     expect(readme).toContain("completed duplicates return the prior");
     expect(readme).toContain("unknown outcomes remain in progress for explicit reconciliation");
     expect(tracker).toContain("| Pending | 686 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 38 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 39 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`686/1/38/3`");
+    expect(tracker).toContain("`686/0/39/3`");
     expect(m0).toEqual(["M0", "27", "0", "0", "24", "3"]);
-    expect(m1).toEqual(["M1", "68", "53", "1", "14", "0"]);
+    expect(m1).toEqual(["M1", "68", "53", "0", "15", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.filter(([task]) => task === "M1-09")).toHaveLength(1);
+    expect(active).toHaveLength(0);
+    expect(complete.filter(([task]) => task === "M1-09")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-08")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-10")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);

@@ -205,7 +205,7 @@ may retry; non-idempotent mutations are never retried.
 
 ## Idempotency helper
 
-M1-09 is In progress. An Organization-scoped idempotency request binds its
+M1-09 is Complete. An Organization-scoped idempotency request binds its
 operation, caller key, and exact request fingerprint before any side effect.
 Only the unique acquired claim executes; completed duplicates return the prior
 canonical product result. In-progress, conflicting, failed, canceled, panicked,
