@@ -66,6 +66,105 @@ export const GRAPH_IMAGE_PLANS = deepFreeze({
   },
 });
 
+const graphImageRuntimeFacts = deepFreeze({
+  busybox: {
+    "linux/amd64": {
+      command: ["sh"],
+      entrypoint: null,
+      environment: ["PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"],
+      exposedPorts: null,
+      intrinsicVolumes: null,
+      labels: {
+        commit_id: "22d90ebde235edec3541f728b37a01285bdd8b1b",
+        git_url: "https://github.com/kubernetes/kubernetes/tree/22d90ebde235edec3541f728b37a01285bdd8b1b/test/images/busybox",
+        image_version: "1.36.1-1",
+      },
+      rootfs: {
+        Layers: ["sha256:3d24ee258efc3bfe4066a1a9fb83febf6dc0b1548dfe896161533668281c9f4f"],
+        Type: "layers",
+      },
+      user: "",
+      workingDirectory: "",
+    },
+    "linux/arm64": {
+      command: ["sh"],
+      entrypoint: null,
+      environment: ["PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"],
+      exposedPorts: null,
+      intrinsicVolumes: null,
+      labels: {
+        commit_id: "22d90ebde235edec3541f728b37a01285bdd8b1b",
+        git_url: "https://github.com/kubernetes/kubernetes/tree/22d90ebde235edec3541f728b37a01285bdd8b1b/test/images/busybox",
+        image_version: "1.36.1-1",
+      },
+      rootfs: {
+        Layers: ["sha256:3694737149b11ec4d2c9f15ad24788e81955cd1c7f2c6f555baf1e4a3615bd26"],
+        Type: "layers",
+      },
+      user: "",
+      workingDirectory: "",
+    },
+  },
+  neo4j: {
+    "linux/amd64": {
+      command: ["neo4j"],
+      entrypoint: ["tini", "-g", "--", "/startup/docker-entrypoint.sh"],
+      environment: [
+        "PATH=/var/lib/neo4j/bin:/opt/java/openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "JAVA_HOME=/opt/java/openjdk",
+        "NEO4J_SHA256=9d4064cdd87627cae376a741c893848c4faa3c4fb980362b6dae541c203e8072",
+        "NEO4J_TARBALL=neo4j-community-5.26.28-unix.tar.gz",
+        "NEO4J_EDITION=community",
+        "NEO4J_HOME=/var/lib/neo4j",
+        "LANG=C.UTF-8",
+      ],
+      exposedPorts: { "7473/tcp": {}, "7474/tcp": {}, "7687/tcp": {} },
+      intrinsicVolumes: { "/data": {}, "/logs": {} },
+      labels: null,
+      rootfs: {
+        Layers: [
+          "sha256:6f94328331290cbd81edab450664d42da7b64c191416c9346cd5d28c84f76035",
+          "sha256:8b21e26c8d3c159e0cbe66c916817f3c6248d896e17696a688cd1fc628084fc6",
+          "sha256:25b91126e4557fee9cbf75da6100a71079d92e71c476b2736c69a4118c374856",
+          "sha256:7b06c003260874d1194c2a789ad0bb53fa08aef8fb621ad85a60ba093464cd5c",
+          "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
+        ],
+        Type: "layers",
+      },
+      user: "",
+      workingDirectory: "/var/lib/neo4j",
+    },
+    "linux/arm64": {
+      command: ["neo4j"],
+      entrypoint: ["tini", "-g", "--", "/startup/docker-entrypoint.sh"],
+      environment: [
+        "PATH=/var/lib/neo4j/bin:/opt/java/openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "JAVA_HOME=/opt/java/openjdk",
+        "NEO4J_SHA256=9d4064cdd87627cae376a741c893848c4faa3c4fb980362b6dae541c203e8072",
+        "NEO4J_TARBALL=neo4j-community-5.26.28-unix.tar.gz",
+        "NEO4J_EDITION=community",
+        "NEO4J_HOME=/var/lib/neo4j",
+        "LANG=C.UTF-8",
+      ],
+      exposedPorts: { "7473/tcp": {}, "7474/tcp": {}, "7687/tcp": {} },
+      intrinsicVolumes: { "/data": {}, "/logs": {} },
+      labels: null,
+      rootfs: {
+        Layers: [
+          "sha256:c01c35a040a25a51cd473910e3212a46d85fb700a6467c687f231d7edd47cbc1",
+          "sha256:9740541a641149918376635dca8d31a457abbe8201ffa5b1c4bcf62b3c235342",
+          "sha256:24be1ee0a923e6aa95b88769e7567db289e37a0a6c11bd2a23a433b392fdc341",
+          "sha256:4f2bc04bffc88e927b6c7b6eba1d35b13e2567fee53d48970ddc89d1e690ef1c",
+          "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
+        ],
+        Type: "layers",
+      },
+      user: "",
+      workingDirectory: "/var/lib/neo4j",
+    },
+  },
+});
+
 export class GraphFailure extends Failure {
   constructor(category = "panic") {
     super("operation");
@@ -201,7 +300,8 @@ export function projectGraphImageInspection(document) {
   }
 }
 
-export function validateGraphImageInspection(document, selected, resolution, retained = undefined) {
+export function validateGraphImageInspection(document, selected, resolution, retained = undefined,
+  aliases = undefined) {
   try {
     validateSelectedPlan(selected);
     if (!Array.isArray(document) || document.length !== 14 || !isPlainObject(resolution) ||
@@ -213,8 +313,17 @@ export function validateGraphImageInspection(document, selected, resolution, ret
     }
     const [architecture, operatingSystem, configDigest, repoDigests, repoTags, rootfs, environment,
       entrypoint, command, exposedPorts, intrinsicVolumes, labels, user, workingDirectory] = document;
+    const runtime = graphImageRuntimeFacts[selected.name]?.[selected.platform];
+    const expectedAliases = aliases ?? { repoDigests: [selected.repoDigest], repoTags: [selected.tag] };
+    requireExactKeySet(expectedAliases, ["repoDigests", "repoTags"], "graph image aliases");
+    if (!(exactStringArray(expectedAliases.repoDigests, []) ||
+        exactStringArray(expectedAliases.repoDigests, [selected.repoDigest])) ||
+        !(exactStringArray(expectedAliases.repoTags, []) || exactStringArray(expectedAliases.repoTags, [selected.tag]))) {
+      throw new TypeError("graph image aliases are invalid");
+    }
     if (architecture !== selected.architecture || operatingSystem !== "linux" || configDigest !== selected.configDigest ||
-        !exactStringArray(repoDigests, [selected.repoDigest]) || !exactStringArray(repoTags, [selected.tag]) ||
+        !exactStringArray(repoDigests, expectedAliases.repoDigests) ||
+        !exactStringArray(repoTags, expectedAliases.repoTags) ||
         !isPlainObject(rootfs) || !exactKeySet(rootfs, ["Layers", "Type"]) || rootfs.Type !== "layers" ||
         !Array.isArray(rootfs.Layers) || rootfs.Layers.length < 1 || rootfs.Layers.length > 256 ||
         new Set(rootfs.Layers).size !== rootfs.Layers.length || rootfs.Layers.some((value) => !digestPattern.test(value)) ||
@@ -224,7 +333,11 @@ export function validateGraphImageInspection(document, selected, resolution, ret
         !validEmptyObjectMap(exposedPorts, /^\d{1,5}\/tcp$/, 64) ||
         !validEmptyObjectMap(intrinsicVolumes, /^\/[\x20-\x7e]+$/, 64) ||
         !validNullableStringMap(labels, 256, 16_384) || typeof user !== "string" || user.length > 1_024 ||
-        typeof workingDirectory !== "string" || workingDirectory.length > 4_096) {
+        typeof workingDirectory !== "string" || workingDirectory.length > 4_096 || runtime === undefined ||
+        !exactData(rootfs, runtime.rootfs) || !exactData(environment, runtime.environment) ||
+        !exactData(entrypoint, runtime.entrypoint) || !exactData(command, runtime.command) ||
+        !exactData(exposedPorts, runtime.exposedPorts) || !exactData(intrinsicVolumes, runtime.intrinsicVolumes) ||
+        !exactData(labels, runtime.labels) || user !== runtime.user || workingDirectory !== runtime.workingDirectory) {
       throw new TypeError("graph image inspection is invalid");
     }
     const identity = deepFreeze({
@@ -250,7 +363,11 @@ export function validateGraphImageInspection(document, selected, resolution, ret
       user,
       workingDirectory,
     });
-    if (retained !== undefined && !exactData(identity, retained)) throw new TypeError("graph image identity changed");
+    if (retained !== undefined && !exactData({
+      ...identity,
+      repoDigests: retained.repoDigests,
+      repoTags: retained.repoTags,
+    }, retained)) throw new TypeError("graph image identity changed");
     return identity;
   } catch (error) {
     if (error instanceof GraphFailure) throw error;
@@ -299,7 +416,8 @@ export function validateGraphNodeLabel(document, expected, retained = undefined,
   try {
     requireExactKeySet(expected, ["name", "token"], "graph node expectation");
     if (typeof expected.name !== "string" || !/^zasp-m1-30b-[0-9a-f]{16}-control-plane$/.test(expected.name) ||
-        !objectIdPattern.test(expected.token) || typeof labeled !== "boolean" || !isPlainObject(document) ||
+        !objectIdPattern.test(expected.token) || labeled !== null && typeof labeled !== "boolean" ||
+        !isPlainObject(document) ||
         document.apiVersion !== "v1" || document.kind !== "Node" || !isPlainObject(document.metadata) ||
         document.metadata.name !== expected.name || !resourceVersionPattern.test(document.metadata.resourceVersion ?? "") ||
         !kubernetesUidPattern.test(document.metadata.uid ?? "") || !isPlainObject(document.metadata.labels) ||
@@ -308,10 +426,16 @@ export function validateGraphNodeLabel(document, expected, retained = undefined,
     }
     validateStringMap(document.metadata.labels, 128, 4_096);
     const actual = document.metadata.labels[GRAPH_CONSTANTS.nodeLabelKey];
-    if (labeled ? actual !== GRAPH_CONSTANTS.nodeLabelValue : actual !== undefined) {
+    if (actual !== undefined && actual !== GRAPH_CONSTANTS.nodeLabelValue ||
+        labeled === true && actual !== GRAPH_CONSTANTS.nodeLabelValue || labeled === false && actual !== undefined) {
       throw new TypeError("graph node label is invalid");
     }
-    const identity = Object.freeze({ labeled, name: expected.name, token: expected.token, uid: document.metadata.uid });
+    const identity = Object.freeze({
+      labeled: actual === GRAPH_CONSTANTS.nodeLabelValue,
+      name: expected.name,
+      token: expected.token,
+      uid: document.metadata.uid,
+    });
     if (retained !== undefined && (retained.name !== identity.name || retained.token !== identity.token ||
         retained.uid !== identity.uid)) throw new TypeError("graph node changed");
     return identity;
@@ -365,6 +489,7 @@ export class LocalGraphSystem extends LocalProductSystem {
     ]));
     this.graphImageResolutions = new Map();
     this.graphImageIdentities = new Map();
+    this.graphImageAliases = new Map();
     this.graphLoadedImageTargets = new Map();
     this.graphImageMayHaveApplied = new Set();
     this.graphNodeIdentity = undefined;
@@ -375,11 +500,27 @@ export class LocalGraphSystem extends LocalProductSystem {
 
   async runAdditionalPreflightChecks(phase) {
     for (const selected of this.graphImagePlans.values()) {
-      const result = await this.runRead("docker", [
-        "image", "ls", "--quiet", "--no-trunc", "--filter", `reference=${selected.reference}`,
-      ], phase, "configuration");
-      if (result.stdout !== "") throw new Failure("configuration");
+      await this.requireGraphImageBaselineAbsent(selected, phase, "configuration");
     }
+  }
+
+  async requireGraphImageConsumersAbsent(selected, phase, category) {
+    const result = await this.runRead("docker", [
+      "ps", "--all", "--quiet", "--no-trunc", "--filter", `ancestor=${selected.configDigest}`,
+    ], phase, category);
+    if (result.stdout !== "") throw new Failure(category);
+  }
+
+  async requireGraphImageBaselineAbsent(selected, phase, category = "ownership") {
+    const inspected = await this.runRaw(
+      "docker", ["image", "inspect", selected.configDigest], phase, category, 15_000, 262_144,
+    );
+    if (!exactMissingGraphImage(inspected, selected.configDigest)) throw new Failure(category);
+    const listed = await this.runRead("docker", [
+      "image", "ls", "--quiet", "--no-trunc", "--filter", `reference=${selected.reference}`,
+    ], phase, category);
+    if (listed.stdout !== "") throw new Failure(category);
+    await this.requireGraphImageConsumersAbsent(selected, phase, category);
   }
 
   async resolveGraphImage(selected, phase) {
@@ -401,7 +542,7 @@ export class LocalGraphSystem extends LocalProductSystem {
   }
 
   async inspectGraphImage(selected, resolution, phase, retained = undefined, reference = selected.reference,
-    category = "ownership") {
+    category = "ownership", aliases = undefined) {
     const format = "[{{json .Architecture}},{{json .Os}},{{json .Id}},{{json .RepoDigests}},{{json .RepoTags}},{{json .RootFS}},{{json .Config.Env}},{{json .Config.Entrypoint}},{{json .Config.Cmd}},{{json .Config.ExposedPorts}},{{json .Config.Volumes}},{{json .Config.Labels}},{{json .Config.User}},{{json .Config.WorkingDir}}]";
     const result = await this.runRead(
       "docker", ["image", "inspect", "--format", format, reference], phase, category, 15_000, 4_194_304,
@@ -409,7 +550,9 @@ export class LocalGraphSystem extends LocalProductSystem {
     let document;
     try { document = parseBoundedJson(result.stdout, 4_194_304); }
     catch { throw new GraphFailure("normalization"); }
-    return validateGraphImageInspection(projectGraphImageInspection(document), selected, resolution, retained);
+    return validateGraphImageInspection(
+      projectGraphImageInspection(document), selected, resolution, retained, aliases,
+    );
   }
 
   async buildAdditionalImages(phase) {
@@ -417,6 +560,7 @@ export class LocalGraphSystem extends LocalProductSystem {
     for (const selected of this.graphImagePlans.values()) {
       const resolution = await this.resolveGraphImage(selected, phase);
       this.graphImageResolutions.set(selected.name, resolution);
+      await this.requireGraphImageBaselineAbsent(selected, phase);
       this.graphImageMayHaveApplied.add(selected.name);
       const pulled = await this.runMutation("docker", [
         "pull", "--platform", selected.platform, selected.reference,
@@ -432,7 +576,12 @@ export class LocalGraphSystem extends LocalProductSystem {
       const identity = await this.inspectGraphImage(selected, resolution, phase);
       if ([...this.imageIdentities.values(), ...this.graphImageIdentities.values()]
         .some((value) => value.id === identity.id)) throw new GraphFailure("ownership");
+      await this.requireGraphImageConsumersAbsent(selected, phase, "ownership");
       this.graphImageIdentities.set(selected.name, identity);
+      this.graphImageAliases.set(selected.name, {
+        repoDigests: [selected.repoDigest],
+        repoTags: [selected.tag],
+      });
     }
     await this.requireTemporaryOwnership(phase, "ownership");
   }
@@ -490,8 +639,13 @@ export class LocalGraphSystem extends LocalProductSystem {
       this.graphNodeMayHaveApplied = false;
       throw new Failure("provider");
     }
+    let pendingNodeIdentity = this.graphNodeIdentity;
     this.graphNodeIdentity = await this.reconcileGraphState(
-      () => this.readGraphNodeLabel(phase, "ownership", this.graphNodeIdentity, true),
+      async () => {
+        const current = await this.readGraphNodeLabel(phase, "ownership", pendingNodeIdentity, null);
+        pendingNodeIdentity ??= current;
+        return current;
+      },
       (value) => value?.labeled === true && value.token === node.token,
       phase,
       "ownership",
@@ -517,7 +671,11 @@ export class LocalGraphSystem extends LocalProductSystem {
   async verifyGraphImage(selected, retained, phase, category) {
     const resolution = this.graphImageResolutions.get(selected.name);
     if (resolution === undefined) throw new Failure(category);
-    return await this.inspectGraphImage(selected, resolution, phase, retained, retained.id, category);
+    const aliases = this.graphImageAliases.get(selected.name) ?? {
+      repoDigests: retained.repoDigests,
+      repoTags: retained.repoTags,
+    };
+    return await this.inspectGraphImage(selected, resolution, phase, retained, retained.id, category, aliases);
   }
 
   async loadAdditionalImages(phase) {
@@ -644,21 +802,50 @@ export class LocalGraphSystem extends LocalProductSystem {
     if (retained.id !== candidates[0] || [...this.imageIdentities.values(), ...this.graphImageIdentities.values()]
       .some((value) => value.id === retained.id)) throw new Failure("cleanup");
     this.graphImageIdentities.set(selected.name, retained);
+    this.graphImageAliases.set(selected.name, {
+      repoDigests: [selected.repoDigest],
+      repoTags: [selected.tag],
+    });
     return retained;
   }
 
+  async readGraphImageAliases(selected, retained, phase) {
+    const format = "[{{json .Id}},{{json .RepoDigests}},{{json .RepoTags}}]";
+    const result = await this.runRead(
+      "docker", ["image", "inspect", "--format", format, retained.id], phase, "cleanup", 15_000, 262_144,
+    );
+    let document;
+    try { document = parseBoundedJson(result.stdout, 262_144); }
+    catch { throw new Failure("cleanup"); }
+    if (!Array.isArray(document) || document.length !== 3 || document[0] !== retained.id ||
+        !(exactStringArray(document[1], []) || exactStringArray(document[1], [selected.repoDigest])) ||
+        !(exactStringArray(document[2], []) || exactStringArray(document[2], [selected.tag])) ||
+        document[1].length === 0 && document[2].length === 0) throw new Failure("cleanup");
+    return Object.freeze({ repoDigests: Object.freeze([...document[1]]), repoTags: Object.freeze([...document[2]]) });
+  }
+
+  async reconcileGraphImageAliases(selected, retained, expected, phase) {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const aliases = await this.readGraphImageAliases(selected, retained, phase);
+      if (exactData(aliases, expected)) {
+        this.graphImageAliases.set(selected.name, aliases);
+        return;
+      }
+    }
+    throw new Failure("cleanup");
+  }
+
   async requireGraphImageAbsent(selected, retained, phase) {
-    const inspected = await this.runRaw("docker", ["image", "inspect", retained.id], phase, "cleanup");
-    const missing = inspected.status === 1 && inspected.signal === null && inspected.stdout === "[]\n" &&
-      new Set([
-        `Error response from daemon: No such image: ${retained.id}\n`,
-        `Error: No such image: ${retained.id}\n`,
-      ]).has(inspected.stderr);
-    if (!missing) throw new Failure("cleanup");
-    const listed = await this.runRead("docker", [
-      "image", "ls", "--quiet", "--no-trunc", "--filter", `reference=${selected.reference}`,
-    ], phase, "cleanup");
-    if (listed.stdout !== "") throw new Failure("cleanup");
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const inspected = await this.runRaw("docker", ["image", "inspect", retained.id], phase, "cleanup");
+      if (inspected.status === 0 && inspected.stderr === "" && inspected.stdout !== "") continue;
+      if (!exactMissingGraphImage(inspected, retained.id)) throw new Failure("cleanup");
+      const listed = await this.runRead("docker", [
+        "image", "ls", "--quiet", "--no-trunc", "--filter", `reference=${selected.reference}`,
+      ], phase, "cleanup");
+      if (listed.stdout === "") return;
+    }
+    throw new Failure("cleanup");
   }
 
   async cleanupAdditionalImages(step, phase) {
@@ -672,19 +859,41 @@ export class LocalGraphSystem extends LocalProductSystem {
       }
       if (retained === undefined) continue;
       await step(async () => {
+        let aliases = this.graphImageAliases.get(selected.name) ?? {
+          repoDigests: [selected.repoDigest],
+          repoTags: [selected.tag],
+        };
+        if (aliases.repoTags.length !== 0) {
+          await this.requireTemporaryOwnership(phase, "cleanup");
+          await this.requireOwnedPath(this.paths.graphManifest, phase, "cleanup");
+          await this.verifyGraphImage(selected, retained, phase, "cleanup");
+          await this.requireGraphImageConsumersAbsent(selected, phase, "cleanup");
+          const removedTag = await this.runMutation("docker", [
+            "image", "rm", selected.tag,
+          ], phase, "cleanup", {
+            environment: this.environment,
+            outputLimit: 262_144,
+            timeoutMilliseconds: 60_000,
+          });
+          if (removedTag.outcome === "definitive") throw new Failure("cleanup");
+          aliases = { repoDigests: [selected.repoDigest], repoTags: [] };
+          await this.reconcileGraphImageAliases(selected, retained, aliases, phase);
+        }
         await this.requireTemporaryOwnership(phase, "cleanup");
         await this.requireOwnedPath(this.paths.graphManifest, phase, "cleanup");
         await this.verifyGraphImage(selected, retained, phase, "cleanup");
-        const removed = await this.runMutation("docker", [
-          "image", "rm", "--force", retained.id,
+        await this.requireGraphImageConsumersAbsent(selected, phase, "cleanup");
+        const removedDigest = await this.runMutation("docker", [
+          "image", "rm", selected.repoDigest,
         ], phase, "cleanup", {
           environment: this.environment,
           outputLimit: 262_144,
           timeoutMilliseconds: 60_000,
         });
-        if (removed.outcome === "definitive") throw new Failure("cleanup");
+        if (removedDigest.outcome === "definitive") throw new Failure("cleanup");
         await this.requireGraphImageAbsent(selected, retained, phase);
         this.graphImageIdentities.delete(selected.name);
+        this.graphImageAliases.delete(selected.name);
         this.graphImageMayHaveApplied.delete(selected.name);
         this.graphImageResolutions.delete(selected.name);
       });
@@ -693,16 +902,13 @@ export class LocalGraphSystem extends LocalProductSystem {
 
   async requireAdditionalGlobalAbsence(phase, category) {
     for (const selected of this.graphImagePlans.values()) {
-      const result = await this.runRead("docker", [
-        "image", "ls", "--quiet", "--no-trunc", "--filter", `reference=${selected.reference}`,
-      ], phase, category);
-      if (result.stdout !== "") throw new Failure(category);
+      await this.requireGraphImageBaselineAbsent(selected, phase, category);
     }
   }
 
   hasAdditionalRecoveryState() {
     return this.graphImageIdentities.size !== 0 || this.graphImageMayHaveApplied.size !== 0 ||
-      this.graphNodeMayHaveApplied || this.graphPathMayHaveApplied;
+      this.graphImageAliases.size !== 0 || this.graphNodeMayHaveApplied || this.graphPathMayHaveApplied;
   }
 }
 
@@ -842,6 +1048,14 @@ function exactData(value, expected) {
       Object.keys(expected).every((key) => Object.hasOwn(value, key) && exactData(value[key], expected[key]));
   }
   return value === expected && typeof value === typeof expected;
+}
+
+function exactMissingGraphImage(result, id) {
+  return isPlainObject(result) && result.status === 1 && result.signal === null && result.stdout === "[]\n" &&
+    result.thrown === false && result.timedOut === false && new Set([
+      `Error response from daemon: No such image: ${id}\n`,
+      `Error: No such image: ${id}\n`,
+    ]).has(result.stderr);
 }
 
 function hasControlCharacter(value) {

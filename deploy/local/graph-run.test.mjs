@@ -86,25 +86,75 @@ function manifestDocument(selected = plan()) {
 }
 
 function projectedInspection(selected = plan(), overrides = {}) {
+  return [...pinnedGraphImageInspection(selected), ...overrides.extra ?? []];
+}
+
+function pinnedGraphImageInspection(selected = plan()) {
+  const layers = {
+    busybox: {
+      "linux/amd64": ["sha256:3d24ee258efc3bfe4066a1a9fb83febf6dc0b1548dfe896161533668281c9f4f"],
+      "linux/arm64": ["sha256:3694737149b11ec4d2c9f15ad24788e81955cd1c7f2c6f555baf1e4a3615bd26"],
+    },
+    neo4j: {
+      "linux/amd64": [
+        "sha256:6f94328331290cbd81edab450664d42da7b64c191416c9346cd5d28c84f76035",
+        "sha256:8b21e26c8d3c159e0cbe66c916817f3c6248d896e17696a688cd1fc628084fc6",
+        "sha256:25b91126e4557fee9cbf75da6100a71079d92e71c476b2736c69a4118c374856",
+        "sha256:7b06c003260874d1194c2a789ad0bb53fa08aef8fb621ad85a60ba093464cd5c",
+        "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
+      ],
+      "linux/arm64": [
+        "sha256:c01c35a040a25a51cd473910e3212a46d85fb700a6467c687f231d7edd47cbc1",
+        "sha256:9740541a641149918376635dca8d31a457abbe8201ffa5b1c4bcf62b3c235342",
+        "sha256:24be1ee0a923e6aa95b88769e7567db289e37a0a6c11bd2a23a433b392fdc341",
+        "sha256:4f2bc04bffc88e927b6c7b6eba1d35b13e2567fee53d48970ddc89d1e690ef1c",
+        "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
+      ],
+    },
+  }[selected.name]?.[selected.platform];
+  if (selected.name === "busybox") return [
+    selected.architecture,
+    "linux",
+    selected.configDigest,
+    [selected.repoDigest],
+    [selected.tag],
+    { Layers: layers, Type: "layers" },
+    ["PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"],
+    null,
+    ["sh"],
+    null,
+    null,
+    {
+      commit_id: "22d90ebde235edec3541f728b37a01285bdd8b1b",
+      git_url: "https://github.com/kubernetes/kubernetes/tree/22d90ebde235edec3541f728b37a01285bdd8b1b/test/images/busybox",
+      image_version: "1.36.1-1",
+    },
+    "",
+    "",
+  ];
   return [
     selected.architecture,
     "linux",
     selected.configDigest,
     [selected.repoDigest],
     [selected.tag],
-    { Layers: [`sha256:${"4".repeat(64)}`, `sha256:${"5".repeat(64)}`], Type: "layers" },
+    { Layers: layers, Type: "layers" },
     [
       "PATH=/var/lib/neo4j/bin:/opt/java/openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+      "JAVA_HOME=/opt/java/openjdk",
+      "NEO4J_SHA256=9d4064cdd87627cae376a741c893848c4faa3c4fb980362b6dae541c203e8072",
+      "NEO4J_TARBALL=neo4j-community-5.26.28-unix.tar.gz",
       "NEO4J_EDITION=community",
+      "NEO4J_HOME=/var/lib/neo4j",
+      "LANG=C.UTF-8",
     ],
     ["tini", "-g", "--", "/startup/docker-entrypoint.sh"],
     ["neo4j"],
     { "7473/tcp": {}, "7474/tcp": {}, "7687/tcp": {} },
     { "/data": {}, "/logs": {} },
-    { "org.opencontainers.image.title": "Neo4j" },
-    "7474:7474",
+    null,
+    "",
     "/var/lib/neo4j",
-    ...overrides.extra ?? [],
   ];
 }
 
@@ -325,7 +375,7 @@ test("retains complete intrinsic image configuration and rejects all identity dr
   assert.deepEqual(value.command, ["neo4j"]);
   assert.deepEqual(value.exposedPorts, ["7473/tcp", "7474/tcp", "7687/tcp"]);
   assert.deepEqual(value.intrinsicVolumes, ["/data", "/logs"]);
-  assert.equal(value.user, "7474:7474");
+  assert.equal(value.user, "");
 
   const mutations = [
     (document) => { document[0] = "amd64"; },
@@ -346,6 +396,43 @@ test("retains complete intrinsic image configuration and rejects all identity dr
     assert.throws(() => validateGraphImageInspection(
       projectGraphImageInspection(document), selected, resolution, value,
     ), { name: "Failure" });
+  }
+});
+
+test("binds first image adoption to every pinned runtime and rootfs fact", () => {
+  for (const name of ["neo4j", "busybox"]) {
+    for (const platform of ["linux/amd64", "linux/arm64"]) {
+      const platformPlan = plan(name, platform);
+      const exactPlatform = pinnedGraphImageInspection(platformPlan);
+      assert.deepEqual(validateGraphImageInspection(
+        projectGraphImageInspection(exactPlatform), platformPlan, resolvedImage(platformPlan),
+      ).rootfs.Layers, exactPlatform[5].Layers);
+    }
+  }
+  const selected = plan();
+  const resolution = resolvedImage(selected);
+  const exact = pinnedGraphImageInspection();
+  assert.deepEqual(validateGraphImageInspection(
+    projectGraphImageInspection(exact), selected, resolution,
+  ).rootfs.Layers, exact[5].Layers);
+
+  const hostile = [
+    ["rootfs", (value) => { value[5].Layers[0] = `sha256:${"9".repeat(64)}`; }],
+    ["environment", (value) => { value[6][1] = "JAVA_HOME=/foreign"; }],
+    ["entrypoint", (value) => { value[7] = ["/foreign"]; }],
+    ["command", (value) => { value[8] = ["sh"]; }],
+    ["ports", (value) => { value[9] = { "7474/tcp": {} }; }],
+    ["volumes", (value) => { value[10] = { "/data": {} }; }],
+    ["labels", (value) => { value[11] = { ambient: "true" }; }],
+    ["user", (value) => { value[12] = "7474:7474"; }],
+    ["working directory", (value) => { value[13] = "/foreign"; }],
+  ];
+  for (const [label, mutate] of hostile) {
+    const value = structuredClone(exact);
+    mutate(value);
+    assert.throws(() => validateGraphImageInspection(
+      projectGraphImageInspection(value), selected, resolution,
+    ), { name: "Failure" }, label);
   }
 });
 
@@ -447,6 +534,8 @@ test("pulls both indexes once and accepts ambiguity only through complete reinsp
   const system = graphSystem();
   const events = [];
   system.requireTemporaryOwnership = async () => {};
+  system.requireGraphImageBaselineAbsent = async () => {};
+  system.requireGraphImageConsumersAbsent = async () => {};
   system.resolveGraphImage = async (selected) => {
     events.push(`resolve:${selected.name}`);
     return resolvedImage(selected);
@@ -457,11 +546,7 @@ test("pulls both indexes once and accepts ambiguity only through complete reinsp
   };
   system.inspectGraphImage = async (selected, resolution) => {
     events.push(`inspect:${selected.name}`);
-    const document = selected.name === "neo4j" ? projectedInspection(selected) : [
-      selected.architecture, "linux", selected.configDigest, [selected.repoDigest], [selected.tag],
-      { Layers: [`sha256:${"6".repeat(64)}`], Type: "layers" }, ["PATH=/usr/bin:/bin"],
-      null, null, null, null, {}, "65534", "/",
-    ];
+    const document = projectedInspection(selected);
     return validateGraphImageInspection(projectGraphImageInspection(document), selected, resolution);
   };
   await system.buildAdditionalImages(phase);
@@ -474,6 +559,7 @@ test("pulls both indexes once and accepts ambiguity only through complete reinsp
 
   const rejected = graphSystem();
   rejected.requireTemporaryOwnership = async () => {};
+  rejected.requireGraphImageBaselineAbsent = async () => {};
   rejected.resolveGraphImage = async (selected) => resolvedImage(selected);
   rejected.runMutation = async () => ({ outcome: "definitive", result: { ...success(), status: 1 } });
   await assert.rejects(() => rejected.buildAdditionalImages(phase), { name: "Failure" });
@@ -484,6 +570,8 @@ test("rejects a graph/product image collision before retaining the graph alias",
   const system = graphSystem();
   const collision = plan().configDigest;
   system.requireTemporaryOwnership = async () => {};
+  system.requireGraphImageBaselineAbsent = async () => {};
+  system.requireGraphImageConsumersAbsent = async () => {};
   system.imageIdentities.set(PRODUCTS[0].name, { id: collision });
   system.resolveGraphImage = async (selected) => resolvedImage(selected);
   system.runMutation = async () => ({ outcome: "applied", result: success() });
@@ -555,6 +643,94 @@ test("labels and prepares only the retained kind node with exact fixed argv", as
   assert.equal(definitive.graphNodeMayHaveApplied, true);
   assert.equal(definitive.graphPathMayHaveApplied, false,
     "a definitive exec rejection is never adopted or reconciled");
+});
+
+test("polls a real unlabeled node until the exact retained label appears", async () => {
+  const system = graphSystem();
+  const name = `${system.cluster}-control-plane`;
+  const token = "a".repeat(64);
+  const uid = "11111111-1111-4111-8111-111111111111";
+  let reads = 0;
+  system.paths = { graphManifest: "/owned/graph.yaml" };
+  system.nodeIdentity = { token };
+  system.requireTemporaryOwnership = async () => {};
+  system.requireOwnedPath = async () => {};
+  system.verifyCluster = async () => system.nodeIdentity;
+  system.runKubectlMutation = async () => ({ outcome: "ambiguous", result: success() });
+  system.runKubectlRead = async () => {
+    reads += 1;
+    return success(`${JSON.stringify({
+      apiVersion: "v1",
+      kind: "Node",
+      metadata: {
+        labels: {
+          "kubernetes.io/hostname": name,
+          ...(reads === 1 ? {} : { [GRAPH_CONSTANTS.nodeLabelKey]: GRAPH_CONSTANTS.nodeLabelValue }),
+        },
+        name,
+        resourceVersion: String(reads + 7),
+        uid,
+      },
+    })}\n`);
+  };
+  system.runNodeMutation = async () => ({ outcome: "applied", result: success() });
+  system.readGraphNodePath = async () => ({
+    dev: 43, gid: 7474, ino: 99, mode: 700, nodeToken: token,
+    path: GRAPH_CONSTANTS.nodeDataPath, uid: 7474,
+  });
+
+  await system.prepareAdditionalNode(phase);
+  assert.equal(reads, 2);
+  assert.deepEqual(system.graphNodeIdentity, { labeled: true, name, token, uid });
+
+  reads = 0;
+  system.runKubectlRead = async () => {
+    reads += 1;
+    return success(`${JSON.stringify({
+      apiVersion: "v1", kind: "Node", metadata: {
+        labels: { "kubernetes.io/hostname": name }, name, resourceVersion: String(reads + 20), uid,
+      },
+    })}\n`);
+  };
+  await assert.rejects(() => system.reconcileGraphState(
+    () => system.readGraphNodeLabel(phase, "ownership", system.graphNodeIdentity, null),
+    (value) => value.labeled === true,
+    phase,
+    "ownership",
+  ), { name: "Failure" });
+  assert.equal(reads, 3, "an unapplied label is polled only through the fixed bound");
+
+  const replaced = graphSystem();
+  let replacementReads = 0;
+  replaced.paths = { graphManifest: "/owned/graph.yaml" };
+  replaced.nodeIdentity = { token };
+  replaced.requireTemporaryOwnership = async () => {};
+  replaced.requireOwnedPath = async () => {};
+  replaced.verifyCluster = async () => replaced.nodeIdentity;
+  replaced.runKubectlMutation = async () => ({ outcome: "ambiguous", result: success() });
+  replaced.runKubectlRead = async () => {
+    replacementReads += 1;
+    return success(`${JSON.stringify({
+      apiVersion: "v1", kind: "Node", metadata: {
+        labels: {
+          "kubernetes.io/hostname": name,
+          ...(replacementReads === 1 ? {} : {
+            [GRAPH_CONSTANTS.nodeLabelKey]: GRAPH_CONSTANTS.nodeLabelValue,
+          }),
+        },
+        name,
+        resourceVersion: String(replacementReads + 30),
+        uid: replacementReads === 1 ? uid : "22222222-2222-4222-8222-222222222222",
+      },
+    })}\n`);
+  };
+  replaced.runNodeMutation = async () => ({ outcome: "applied", result: success() });
+  replaced.readGraphNodePath = async () => ({
+    dev: 43, gid: 7474, ino: 99, mode: 700, nodeToken: token,
+    path: GRAPH_CONSTANTS.nodeDataPath, uid: 7474,
+  });
+  await assert.rejects(() => replaced.prepareAdditionalNode(phase), { name: "Failure" });
+  assert.equal(replacementReads, 2, "the first valid unlabeled node UID is retained across polling");
 });
 
 test("loads graph images by immutable reference and verifies exact containerd targets", async () => {
@@ -750,6 +926,172 @@ test("cleanup reconciles ambiguous node mutations only through exact present or 
   assert.equal(absent.graphPathMayHaveApplied, false);
 });
 
+test("owns graph image aliases from exact baseline through ambiguity-safe cleanup", async () => {
+  const selected = plan();
+  const collision = graphSystem();
+  let collisionPulls = 0;
+  collision.requireTemporaryOwnership = async () => {};
+  collision.resolveGraphImage = async () => resolvedImage(selected);
+  collision.runRaw = async (_command, arguments_) => {
+    assert.deepEqual(arguments_, ["image", "inspect", selected.configDigest]);
+    return success("[{\"Id\":\"ambient\"}]\n");
+  };
+  collision.runMutation = async () => {
+    collisionPulls += 1;
+    return { outcome: "applied", result: success() };
+  };
+  collision.inspectGraphImage = async () => validateGraphImageInspection(
+    projectGraphImageInspection(pinnedGraphImageInspection()), selected, resolvedImage(selected),
+  );
+  await assert.rejects(() => collision.buildAdditionalImages(phase), { name: "Failure" });
+  assert.equal(collisionPulls, 0, "a pre-existing config ID is rejected before pull authority exists");
+
+  const baselineInUse = graphSystem();
+  let baselineInUsePulls = 0;
+  baselineInUse.requireTemporaryOwnership = async () => {};
+  baselineInUse.resolveGraphImage = async () => resolvedImage(selected);
+  baselineInUse.runRaw = async () => ({
+    ...success("[]\n", `Error: No such image: ${selected.configDigest}\n`),
+    status: 1,
+  });
+  baselineInUse.runRead = async (_command, arguments_) => arguments_[0] === "image" ? success() :
+    success(`${"c".repeat(64)}\n`);
+  baselineInUse.runMutation = async () => {
+    baselineInUsePulls += 1;
+    return { outcome: "applied", result: success() };
+  };
+  await assert.rejects(() => baselineInUse.buildAdditionalImages(phase), { name: "Failure" });
+  assert.equal(baselineInUsePulls, 0, "consumer absence is also required before pull authority exists");
+
+  const inUse = graphSystem();
+  inUse.paths = { graphManifest: "/owned/graph.yaml" };
+  inUse.requireTemporaryOwnership = async () => {};
+  inUse.requireOwnedPath = async () => {};
+  inUse.graphImageIdentities.set("neo4j", { id: selected.configDigest, name: "neo4j" });
+  inUse.graphImageResolutions.set("neo4j", resolvedImage(selected));
+  inUse.graphImageMayHaveApplied.add("neo4j");
+  inUse.verifyGraphImage = async () => {};
+  inUse.runRead = async (command, arguments_) => {
+    assert.equal(command, "docker");
+    assert.deepEqual(arguments_, [
+      "ps", "--all", "--quiet", "--no-trunc", "--filter", `ancestor=${selected.configDigest}`,
+    ]);
+    return success(`${"b".repeat(64)}\n`);
+  };
+  let inUseMutations = 0;
+  inUse.runMutation = async () => {
+    inUseMutations += 1;
+    return { outcome: "applied", result: success() };
+  };
+  const inUseFailures = [];
+  await inUse.cleanupAdditionalImages(async (operation) => {
+    try { await operation(); } catch (error) { inUseFailures.push(error); }
+  }, phase);
+  assert.equal(inUseMutations, 0, "an in-use retained config is never targeted");
+  assert.equal(inUseFailures.length, 1);
+  assert.equal(inUse.graphImageIdentities.has("neo4j"), true);
+
+  const appeared = graphSystem();
+  appeared.paths = { graphManifest: "/owned/graph.yaml" };
+  appeared.requireTemporaryOwnership = async () => {};
+  appeared.requireOwnedPath = async () => {};
+  appeared.graphImageIdentities.set("neo4j", { id: selected.configDigest, name: "neo4j" });
+  appeared.graphImageResolutions.set("neo4j", resolvedImage(selected));
+  appeared.graphImageMayHaveApplied.add("neo4j");
+  appeared.verifyGraphImage = async () => {};
+  let appearedConsumerReads = 0;
+  appeared.runRead = async (_command, arguments_) => {
+    if (arguments_[0] === "ps") {
+      appearedConsumerReads += 1;
+      return appearedConsumerReads === 1 ? success() : success(`${"d".repeat(64)}\n`);
+    }
+    if (arguments_[0] === "image" && arguments_[1] === "inspect") {
+      return success(`${JSON.stringify([selected.configDigest, [selected.repoDigest], []])}\n`);
+    }
+    throw new Error("unexpected read");
+  };
+  const appearedRemovals = [];
+  appeared.runMutation = async (_command, arguments_) => {
+    appearedRemovals.push(arguments_);
+    return { outcome: "ambiguous", result: success() };
+  };
+  const appearedFailures = [];
+  await appeared.cleanupAdditionalImages(async (operation) => {
+    try { await operation(); } catch (error) { appearedFailures.push(error); }
+  }, phase);
+  assert.deepEqual(appearedRemovals, [["image", "rm", selected.tag]]);
+  assert.equal(appearedConsumerReads, 2, "consumer absence is re-proved before each alias deletion");
+  assert.equal(appearedFailures.length, 1);
+  assert.deepEqual(appeared.graphImageAliases.get("neo4j"), {
+    repoDigests: [selected.repoDigest], repoTags: [],
+  });
+
+  const ambiguous = graphSystem();
+  ambiguous.paths = { graphManifest: "/owned/graph.yaml" };
+  ambiguous.requireTemporaryOwnership = async () => {};
+  ambiguous.requireOwnedPath = async () => {};
+  ambiguous.graphImageIdentities.set("neo4j", { id: selected.configDigest, name: "neo4j" });
+  ambiguous.graphImageResolutions.set("neo4j", resolvedImage(selected));
+  ambiguous.graphImageMayHaveApplied.add("neo4j");
+  ambiguous.verifyGraphImage = async () => {};
+  ambiguous.runRead = async (_command, arguments_) => {
+    if (arguments_[0] === "ps") return success();
+    if (arguments_[0] === "image" && arguments_[1] === "inspect") {
+      return success(`${JSON.stringify([selected.configDigest, [selected.repoDigest], []])}\n`);
+    }
+    if (arguments_[0] === "image" && arguments_[1] === "ls") return success();
+    throw new Error("unexpected read");
+  };
+  const removals = [];
+  ambiguous.runMutation = async (_command, arguments_) => {
+    removals.push(arguments_);
+    return { outcome: "ambiguous", result: success("untagged\n") };
+  };
+  let imageReads = 0;
+  ambiguous.runRaw = async (_command, arguments_) => {
+    assert.deepEqual(arguments_, ["image", "inspect", selected.configDigest]);
+    imageReads += 1;
+    return imageReads === 1 ? success("[{\"Id\":\"delayed\"}]\n") : {
+      ...success("[]\n", `Error response from daemon: No such image: ${selected.configDigest}\n`),
+      status: 1,
+    };
+  };
+  const ambiguousFailures = [];
+  await ambiguous.cleanupAdditionalImages(async (operation) => {
+    try { await operation(); } catch (error) { ambiguousFailures.push(error); }
+  }, phase);
+  assert.deepEqual(removals, [
+    ["image", "rm", selected.tag],
+    ["image", "rm", selected.repoDigest],
+  ], "cleanup deletes only the two aliases created by this run without force-ID removal");
+  assert.equal(imageReads, 2, "ambiguous alias removal reconciles bounded delayed config absence");
+  assert.deepEqual(ambiguousFailures, []);
+  assert.equal(ambiguous.graphImageIdentities.has("neo4j"), false);
+
+  const definitive = graphSystem();
+  definitive.paths = { graphManifest: "/owned/graph.yaml" };
+  definitive.requireTemporaryOwnership = async () => {};
+  definitive.requireOwnedPath = async () => {};
+  definitive.graphImageIdentities.set("neo4j", { id: selected.configDigest, name: "neo4j" });
+  definitive.graphImageResolutions.set("neo4j", resolvedImage(selected));
+  definitive.graphImageMayHaveApplied.add("neo4j");
+  definitive.verifyGraphImage = async () => {};
+  definitive.runRead = async () => success();
+  definitive.runMutation = async () => ({ outcome: "definitive", result: { ...success(), status: 1 } });
+  let definitiveAbsenceReads = 0;
+  definitive.runRaw = async () => {
+    definitiveAbsenceReads += 1;
+    return { ...success("[]\n", `Error: No such image: ${selected.configDigest}\n`), status: 1 };
+  };
+  const definitiveFailures = [];
+  await definitive.cleanupAdditionalImages(async (operation) => {
+    try { await operation(); } catch (error) { definitiveFailures.push(error); }
+  }, phase);
+  assert.equal(definitiveFailures.length, 1, "definitive failure wins over apparent later absence");
+  assert.equal(definitiveAbsenceReads, 0);
+  assert.equal(definitive.graphImageIdentities.has("neo4j"), true);
+});
+
 test("removes retained graph aliases in reverse order only after exact reinspection", async () => {
   const system = graphSystem();
   const events = [];
@@ -763,6 +1105,9 @@ test("removes retained graph aliases in reverse order only after exact reinspect
     system.graphImageMayHaveApplied.add(name);
   }
   system.verifyGraphImage = async (selected, retained) => { events.push(`verify:${selected.name}:${retained.id}`); };
+  system.reconcileGraphImageAliases = async (selected, _retained, aliases) => {
+    system.graphImageAliases.set(selected.name, aliases);
+  };
   system.runMutation = async (_command, arguments_) => {
     events.push(`remove:${arguments_.at(-1)}`);
     return { outcome: "ambiguous", result: success("removed\n") };
@@ -775,10 +1120,14 @@ test("removes retained graph aliases in reverse order only after exact reinspect
   await system.cleanupAdditionalImages(step, phase);
   assert.deepEqual(events, [
     `verify:busybox:sha256:${"8".repeat(64)}`,
-    `remove:sha256:${"8".repeat(64)}`,
+    `remove:${BUSYBOX_IMAGE.split("@")[0]}`,
+    `verify:busybox:sha256:${"8".repeat(64)}`,
+    `remove:registry.k8s.io/e2e-test-images/busybox@${GRAPH_IMAGE_PLANS.busybox.indexDigest}`,
     "absent:busybox",
     `verify:neo4j:sha256:${"7".repeat(64)}`,
-    `remove:sha256:${"7".repeat(64)}`,
+    `remove:${NEO4J_IMAGE.split("@")[0]}`,
+    `verify:neo4j:sha256:${"7".repeat(64)}`,
+    `remove:neo4j@${GRAPH_IMAGE_PLANS.neo4j.indexDigest}`,
     "absent:neo4j",
   ]);
   assert.deepEqual(failures, []);
