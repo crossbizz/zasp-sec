@@ -57,4 +57,24 @@ describe("M1-11 Neon pool wrapper contract", () => {
     expect([...active, ...complete].filter(([task]) => task === "M1-12")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
+
+  it("exposes exact hermetic and live root commands with fixed output", async () => {
+    const [manifestText, readme] = await Promise.all([
+      readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+    ]);
+    const manifest = JSON.parse(manifestText) as { scripts?: Record<string, string> };
+    const section = readme.match(/## Neon application pool wrapper[\s\S]*?## Neon pooled proof/)?.[0];
+
+    expect(manifest.scripts?.["db:pool:test"]).toBe(
+      "go test -C services/platform -race -count=1 ./database && go test -C proofs/neon-pooled -race -count=1 ./...",
+    );
+    expect(manifest.scripts?.["db:pool:run"]).toBe(
+      "node --env-file=.env proofs/neon-pooled/run-pool-wrapper.mjs",
+    );
+    expect(section).toContain("npm run db:pool:test");
+    expect(section).toContain("npm run db:pool:run");
+    expect(section).toContain("DATABASE_URL");
+    expect(section).toContain("Neon pool wrapper passed: reads=10 waited=true in_use=true acquired=0 closed=true.");
+  });
 });

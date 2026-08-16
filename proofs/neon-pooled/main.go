@@ -17,6 +17,10 @@ const (
 )
 
 func main() {
+	if len(os.Args) == 2 && os.Args[1] == "pool-wrapper" {
+		runProductPoolMain()
+		return
+	}
 	if len(os.Args) == 2 && (os.Args[1] == "migration" || os.Args[1] == "schema-baseline") {
 		runMigrationMain(os.Args[1] == "schema-baseline")
 		return
@@ -31,6 +35,17 @@ func main() {
 	summary, err := executeProof(ctx, os.Getenv("DATABASE_URL"), openPGXPool)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Neon pooled proof failed: %s.\n", err)
+		os.Exit(1)
+	}
+	fmt.Println(summary)
+}
+
+func runProductPoolMain() {
+	ctx, cancel := context.WithTimeout(context.Background(), proofTimeout)
+	defer cancel()
+	summary, err := executeProductPoolProof(ctx, os.Getenv("DATABASE_URL"), openProductPool, 5*time.Millisecond)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Neon pool wrapper failed: %s.\n", err)
 		os.Exit(1)
 	}
 	fmt.Println(summary)

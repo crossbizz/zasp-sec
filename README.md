@@ -251,6 +251,21 @@ and one clean idempotent close boundary. Product code remains independent of
 pgx; the existing reviewed Neon proof module owns the pgxpool adapter and live
 provider verification. M1-12 remains Pending.
 
+```bash
+npm run db:pool:test
+npm run db:pool:run
+```
+
+The live command reads only the ignored `DATABASE_URL`, derives the strict
+pooled endpoint, limits pgxpool to two connections, and requires ten reads to
+produce observed wait and in-use statistics before every connection is released
+and the wrapper closes. It performs no branch or schema mutation. Success is
+exactly:
+
+```text
+Neon pool wrapper passed: reads=10 waited=true in_use=true acquired=0 closed=true.
+```
+
 ## Neon pooled proof
 
 The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,

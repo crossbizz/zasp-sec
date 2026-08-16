@@ -9,6 +9,8 @@
   "packageManager": "npm@10.9.8",
   "scripts": {
     "build:repo": "node scripts/build-repo.mjs",
+    "db:pool:test": "go test -C services/platform -race -count=1 ./database && go test -C proofs/neon-pooled -race -count=1 ./...",
+    "db:pool:run": "node --env-file=.env proofs/neon-pooled/run-pool-wrapper.mjs",
     "db:schema:test": "go test -C services/platform -race -count=1 ./migrations && go test -C proofs/neon-pooled -race -count=1 ./...",
     "db:schema:run": "node --env-file=.env proofs/neon-pooled/run-schema-baseline.mjs",
     "dependencies:check": "node scripts/validate-dependencies.mjs",
