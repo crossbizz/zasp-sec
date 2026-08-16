@@ -42,7 +42,7 @@ describe("M1-08 external client policy contract", () => {
     expect(plan).toContain("M1-09 remains Pending");
   });
 
-  it("starts only M1-08 after M1-07 completes", async () => {
+  it("completes only M1-08 after M1-07", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -56,18 +56,19 @@ describe("M1-08 external client policy contract", () => {
     const m1 = milestones.find(([milestone]) => milestone === "M1");
 
     expect(readme).toContain("M1-07 is Complete");
-    expect(readme).toContain("M1-08 is In progress");
+    expect(readme).toContain("M1-08 is Complete");
     expect(readme).toContain("one total deadline");
     expect(readme).toContain("non-idempotent mutations are never retried");
     expect(tracker).toContain("| Pending | 687 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 37 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 38 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`687/1/37/3`");
+    expect(tracker).toContain("`687/0/38/3`");
     expect(m0).toEqual(["M0", "27", "0", "0", "24", "3"]);
-    expect(m1).toEqual(["M1", "68", "54", "1", "13", "0"]);
+    expect(m1).toEqual(["M1", "68", "54", "0", "14", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.filter(([task]) => task === "M1-08")).toHaveLength(1);
+    expect(active).toHaveLength(0);
+    expect(complete.filter(([task]) => task === "M1-08")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-07")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-09")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);

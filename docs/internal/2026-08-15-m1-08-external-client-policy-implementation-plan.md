@@ -47,8 +47,8 @@ platform HTTP clients.
 
 ### Task 4: Complete, push, and close M1-08
 
-- [ ] Change only completion expectations and capture focused RED.
-- [ ] Move only M1-08 to Complete at `687/0/38/3` and M1
+- [x] Change only completion expectations and capture focused RED.
+- [x] Move only M1-08 to Complete at `687/0/38/3` and M1
   `68/54/0/14/0`; preserve M0 and all blockers.
 - [ ] Run final gates, commit `docs: complete M1-08 external client policy`,
   push, and watch exact-SHA Runnable UI to success.

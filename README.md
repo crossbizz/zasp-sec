@@ -198,7 +198,7 @@ strict Secrets Manager references and does not load or expose secret material.
 
 ## External client policy
 
-M1-08 is In progress. Shared HTTP client execution uses one total deadline,
+M1-08 is Complete. Shared HTTP client execution uses one total deadline,
 bounded concurrency, transient-only retry classification, and capped
 exponential backoff with jitter. Read-only and explicitly idempotent operations
 may retry; non-idempotent mutations are never retried.
