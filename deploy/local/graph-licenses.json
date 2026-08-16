@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "scope": {
+    "use": "opt-in-local-development",
+    "redistribution_approved": false,
+    "production_packaging_approved": false
+  },
+  "allowed_licenses": [
+    "Apache-2.0",
+    "GPL-2.0-only",
+    "GPL-3.0-only"
+  ],
+  "images": {
+    "neo4j": {
+      "name": "neo4j-community-server",
+      "version": "5.26.28-community",
+      "reference": "neo4j:5.26.28-community@sha256:ff32db30b2baff97971e441b46bfd9c832c1b62c970398ef579244c06b21d357",
+      "index_digest": "sha256:ff32db30b2baff97971e441b46bfd9c832c1b62c970398ef579244c06b21d357",
+      "platforms": {
+        "linux/amd64": {
+          "manifest_digest": "sha256:77a7a788aa3348c66a4c12a07930bc12232f22535b0e1a2a043df80bbfa823bd",
+          "config_digest": "sha256:534fe13ef23432459f04f65e1fa4c25876bb981f147d96b1b3896278d23e7552"
+        },
+        "linux/arm64": {
+          "manifest_digest": "sha256:5bed6b3adb938c45722e3639b853ecbc948b2e51cd5599d45fcd23f6d49b2d89",
+          "config_digest": "sha256:db03e618d0cd04bbabeb4bf5296c91108f4be5185456565bb4046a33b226fcd2"
+        }
+      }
+    },
+    "busybox": {
+      "name": "kubernetes-e2e-busybox",
+      "version": "1.36.1-1",
+      "reference": "registry.k8s.io/e2e-test-images/busybox:1.36.1-1@sha256:a9155b13325b2abef48e71de77bb8ac015412a566829f621d06bfae5c699b1b9",
+      "index_digest": "sha256:a9155b13325b2abef48e71de77bb8ac015412a566829f621d06bfae5c699b1b9",
+      "platforms": {
+        "linux/amd64": {
+          "manifest_digest": "sha256:caec39cad3b12c26600baf6e67ba811ac15d28a9288d0ccdfffb4b318992c3bb",
+          "config_digest": "sha256:3e0d9138669908f438c06993e9a6815bbd8c05411b8e9acfc297b3c8b017c28c"
+        },
+        "linux/arm64": {
+          "manifest_digest": "sha256:55c89c6d9404d6668eb237dda92f28a99eb14e640f1c177a55cc9d738c53c303",
+          "config_digest": "sha256:6d0099de92b2a095017ed32499154f16eec2df38f0d2e9192bcf6ae7d241ac75"
+        }
+      }
+    }
+  },
+  "components": [
+    {
+      "name": "Neo4j Community server",
+      "version": "5.26.28",
+      "license": "GPL-3.0-only",
+      "source_repository": "https://github.com/neo4j/neo4j",
+      "source_tag": "5.26.28",
+      "source_commit": "09de4c547ee24f69400c75df8428685e27a9cffc",
+      "source_path": "pom.xml",
+      "source_url": "https://raw.githubusercontent.com/neo4j/neo4j/09de4c547ee24f69400c75df8428685e27a9cffc/pom.xml",
+      "source_sha256": "288ac5913d95557ab36b1139ed7854aadcdd4cbf5ca2d3cf1c86a4afcd743067",
+      "license_url": "https://raw.githubusercontent.com/neo4j/neo4j/09de4c547ee24f69400c75df8428685e27a9cffc/LICENSE.txt",
+      "license_sha256": "8e1bb72dd89711d9612ea2749c906e4b17760245f4ffdfcc237219f4df48e440",
+      "scope": "opt-in-local-development",
+      "redistribution_approved": false,
+      "production_packaging_approved": false
+    },
+    {
+      "name": "Kubernetes e2e BusyBox image packaging",
+      "version": "1.36.1-1",
+      "license": "Apache-2.0",
+      "source_repository": "https://github.com/kubernetes/kubernetes",
+      "source_commit": "22d90ebde235edec3541f728b37a01285bdd8b1b",
+      "source_path": "test/images/busybox/Dockerfile",
+      "source_url": "https://raw.githubusercontent.com/kubernetes/kubernetes/22d90ebde235edec3541f728b37a01285bdd8b1b/test/images/busybox/Dockerfile",
+      "source_sha256": "b1a06c7718262b6de2aebb822093dbc4215f980500024ca65d2206341a7a3838",
+      "license_url": "https://raw.githubusercontent.com/kubernetes/kubernetes/22d90ebde235edec3541f728b37a01285bdd8b1b/LICENSE",
+      "license_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "scope": "opt-in-local-development",
+      "redistribution_approved": false,
+      "production_packaging_approved": false
+    },
+    {
+      "name": "BusyBox runtime",
+      "version": "1.36.1",
+      "license": "GPL-2.0-only",
+      "source_repository": "https://busybox.net",
+      "source_commit": "release-tarball-busybox-1.36.1",
+      "source_path": "busybox-1.36.1.tar.bz2",
+      "source_url": "https://busybox.net/downloads/busybox-1.36.1.tar.bz2",
+      "source_sha256": "b8cc24c9574d809e7279c3be349795c5d5ceb6fdf19ca709f80cde50e47de314",
+      "license_url": "https://raw.githubusercontent.com/mirror/busybox/1_36_1/LICENSE",
+      "license_sha256": "bbfc9843646d483c334664f651c208b9839626891d8f17604db2146962f43548",
+      "scope": "opt-in-local-development",
+      "redistribution_approved": false,
+      "production_packaging_approved": false
+    }
+  ],
+  "boundary": "Neo4j Community and BusyBox are opt-in local-development server images only. ZASP does not embed, redistribute, sublicense, or approve either image for production packaging; bundled dependencies retain their own terms."
+}
