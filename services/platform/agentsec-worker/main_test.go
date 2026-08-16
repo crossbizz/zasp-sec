@@ -100,21 +100,31 @@ func TestServeProcessExposesExactHealthEndpoints(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	listeners := make(chan net.Listener, 1)
+	defer cancel()
+	listeners := make(chan commandListenResult, 1)
 	listen := func(network, address string) (net.Listener, error) {
-		if network != "tcp" || address != healthListenAddress {
-			t.Fatalf("listen = (%q, %q), want (tcp, %s)", network, address, healthListenAddress)
-		}
 		listener, err := net.Listen("tcp", "127.0.0.1:0")
-		if err == nil {
-			listeners <- listener
-		}
+		listeners <- commandListenResult{listener: listener, network: network, address: address, err: err}
 		return listener, err
 	}
 	var output bytes.Buffer
 	result := make(chan error, 1)
 	go func() { result <- serveProcess(ctx, &output, "1.2.3-test", listen) }()
-	listener := <-listeners
+	var listener net.Listener
+	select {
+	case opened := <-listeners:
+		if opened.err != nil {
+			t.Fatalf("listen error = %v", opened.err)
+		}
+		if opened.network != "tcp" || opened.address != healthListenAddress {
+			t.Fatalf("listen = (%q, %q), want (tcp, %s)", opened.network, opened.address, healthListenAddress)
+		}
+		listener = opened.listener
+	case err := <-result:
+		t.Fatalf("serveProcess() returned before listen: %v", err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("serveProcess() did not attempt listen")
+	}
 	baseURL := "http://" + listener.Addr().String()
 	waitForReady(t, baseURL)
 	assertEndpoint(t, baseURL+"/healthz", http.StatusOK, "{\"status\":\"live\"}\n")
@@ -283,6 +293,13 @@ type panicWriter struct{}
 type commandListener struct {
 	closes   int
 	closeErr error
+}
+
+type commandListenResult struct {
+	listener net.Listener
+	network  string
+	address  string
+	err      error
 }
 
 func (*commandListener) Accept() (net.Conn, error) { return nil, errors.New("closed") }

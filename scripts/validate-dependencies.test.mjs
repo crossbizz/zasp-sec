@@ -289,6 +289,16 @@ test("accepts only the exact repository-owned health module replacement outside 
     ["extra replacement", (files) => {
       files["services/platform/go.mod"] += "replace example.com/other => ../other\n";
     }],
+    ["alternate consumer indirect requirement", (files) => {
+      files["services/event-ingest/go.mod"] +=
+        "require github.com/zasp-ai/zasp-sec/services/health v0.0.0 // indirect\n";
+    }],
+    ["platform indirect requirement", (files) => {
+      files["services/platform/go.mod"] = files["services/platform/go.mod"].replace(
+        "github.com/zasp-ai/zasp-sec/services/health v0.0.0",
+        "github.com/zasp-ai/zasp-sec/services/health v0.0.0 // indirect",
+      );
+    }],
   ]) {
     await t.test(name, () => {
       const files = internalFiles();

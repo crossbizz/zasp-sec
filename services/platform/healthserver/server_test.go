@@ -58,6 +58,22 @@ func TestNewRejectsInvalidSharedConfiguration(t *testing.T) {
 	}
 }
 
+func TestNewDoesNotRegisterSharedRoutesOnDefaultMux(t *testing.T) {
+	t.Parallel()
+
+	if _, err := New(Config{Service: "agentsec-api", Version: "dev"}); err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	for _, path := range []string{"/healthz", "/readyz", "/version", "/metrics"} {
+		request := httptest.NewRequest(http.MethodGet, path, nil)
+		response := httptest.NewRecorder()
+		http.DefaultServeMux.ServeHTTP(response, request)
+		if response.Code != http.StatusNotFound {
+			t.Fatalf("default mux %s status = %d, want %d", path, response.Code, http.StatusNotFound)
+		}
+	}
+}
+
 func TestServeExposesExactRoutesOverRealListener(t *testing.T) {
 	t.Parallel()
 
@@ -108,9 +124,44 @@ func TestServeRejectsInvalidRuntimeBeforeUse(t *testing.T) {
 	if err := server.Serve(context.Background(), nil); !errors.Is(err, ErrInvalidRuntime) {
 		t.Fatalf("Serve(nil listener) error = %v, want ErrInvalidRuntime", err)
 	}
+	var typedNilContext *stubContext
+	if err := server.Serve(typedNilContext, listener); !errors.Is(err, ErrInvalidRuntime) {
+		t.Fatalf("Serve(typed-nil context) error = %v, want ErrInvalidRuntime", err)
+	}
+	var typedNilListener *stubListener
+	if err := server.Serve(context.Background(), typedNilListener); !errors.Is(err, ErrInvalidRuntime) {
+		t.Fatalf("Serve(typed-nil listener) error = %v, want ErrInvalidRuntime", err)
+	}
 	var nilServer *Server
 	if err := nilServer.Serve(context.Background(), listener); !errors.Is(err, ErrInvalidRuntime) {
 		t.Fatalf("nil Server.Serve() error = %v, want ErrInvalidRuntime", err)
+	}
+}
+
+func TestServeRejectsCorruptedRetainedState(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		name   string
+		mutate func(*Server)
+	}{
+		{name: "handler", mutate: func(server *Server) { server.handler = nil }},
+		{name: "http server", mutate: func(server *Server) { server.httpServer = nil }},
+		{name: "serve function", mutate: func(server *Server) { server.serve = nil }},
+		{name: "shutdown function", mutate: func(server *Server) { server.shutdown = nil }},
+		{name: "shutdown timeout", mutate: func(server *Server) { server.shutdownTimeout = time.Second }},
+	} {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			server, err := New(Config{Service: "agentsec-api", Version: "dev"})
+			if err != nil {
+				t.Fatalf("New() error = %v", err)
+			}
+			test.mutate(server)
+			if err := server.Serve(context.Background(), &stubListener{}); !errors.Is(err, ErrInvalidRuntime) {
+				t.Fatalf("Serve() error = %v, want ErrInvalidRuntime", err)
+			}
+		})
 	}
 }
 
@@ -232,6 +283,37 @@ func TestServeReturnsFixedErrorsForServeAndShutdownFailures(t *testing.T) {
 	})
 }
 
+func TestServeReturnsFixedErrorWhenShutdownDeadlineExpires(t *testing.T) {
+	t.Parallel()
+
+	server, err := New(Config{Service: "agentsec-api", Version: "dev"})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	release := make(chan struct{})
+	server.serve = func(net.Listener) error {
+		<-release
+		return http.ErrServerClosed
+	}
+	server.shutdown = func(shutdownContext context.Context) error {
+		<-shutdownContext.Done()
+		close(release)
+		return shutdownContext.Err()
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	result := make(chan error, 1)
+	go func() { result <- server.Serve(ctx, &stubListener{}) }()
+	waitForHandlerReady(t, server)
+	started := time.Now()
+	cancel()
+	if err := <-result; !errors.Is(err, ErrInvalidRuntime) {
+		t.Fatalf("Serve() error = %v, want ErrInvalidRuntime", err)
+	}
+	if elapsed := time.Since(started); elapsed < shutdownTimeout || elapsed > shutdownTimeout+time.Second {
+		t.Fatalf("shutdown elapsed = %v, want [%v, %v]", elapsed, shutdownTimeout, shutdownTimeout+time.Second)
+	}
+}
+
 func waitForHandlerReady(t *testing.T, server *Server) {
 	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)
@@ -299,6 +381,13 @@ type stubListener struct {
 	accepts  int
 	closeErr error
 }
+
+type stubContext struct{}
+
+func (*stubContext) Deadline() (time.Time, bool) { return time.Time{}, false }
+func (*stubContext) Done() <-chan struct{}       { return nil }
+func (*stubContext) Err() error                  { return nil }
+func (*stubContext) Value(any) any               { return nil }
 
 func (listener *stubListener) Accept() (net.Conn, error) {
 	listener.accepts++

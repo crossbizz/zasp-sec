@@ -200,7 +200,7 @@ function parseGoRequirement(line) {
   const match = withoutComment.match(/^([^\s]+)\s+(v[^\s]+)$/);
   assert(match !== null);
   assert(exactVersion("go", match[2]));
-  return indirect ? undefined : { name: match[1], version: match[2] };
+  return { name: match[1], version: match[2], indirect };
 }
 
 function goModulePath(text) {
@@ -237,21 +237,21 @@ function collectGoDependencies(path, text, files) {
     }
     if (inRequireBlock) {
       const requirement = parseGoRequirement(line);
-      if (requirement) dependencies.push(requirement);
+      dependencies.push(requirement);
       continue;
     }
     if (/^require\b/.test(line)) {
       const requirementText = line.replace(/^require\s+/, "");
       assert(requirementText !== line);
       const requirement = parseGoRequirement(requirementText);
-      if (requirement) dependencies.push(requirement);
+      dependencies.push(requirement);
     }
   }
   assert(!inRequireBlock);
   let internalRequirementSeen = false;
-  const external = dependencies.filter(({ name, version }) => {
-    if (name !== internalHealthModule) return true;
-    assert(path === internalHealthConsumer && version === internalHealthVersion && !internalRequirementSeen);
+  const external = dependencies.filter(({ name, version, indirect }) => {
+    if (name !== internalHealthModule) return !indirect;
+    assert(path === internalHealthConsumer && version === internalHealthVersion && !indirect && !internalRequirementSeen);
     internalRequirementSeen = true;
     return false;
   });
