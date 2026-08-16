@@ -111,7 +111,7 @@ docs: start M1-27 raw fetch lint
 - Produces: `npm run raw-fetch:test`.
 - Consumes: ESLint flat config and the existing `npm run lint`/`verify` gates.
 
-- [ ] **Step 1: Write the absent-rule tests first**
+- [x] **Step 1: Write the absent-rule tests first**
 
 Create a Node test that imports `./no-raw-fetch.mjs`, constructs an ESLint
 `Linter`, and verifies exact error counts/messages. Include:
@@ -135,7 +135,7 @@ Use ESLint's real config API to lint seeded files named
 `apps/web/api/client.ts`, and `apps/web/api/generated.ts`. The first two must
 fail and the exact two boundary files must pass.
 
-- [ ] **Step 2: Run the focused test and witness RED**
+- [x] **Step 2: Run the focused test and witness RED**
 
 Run:
 
@@ -146,7 +146,7 @@ PATH="$HOME/.nvm/versions/node/v22.23.1/bin:$PATH" \
 
 Expected: `ERR_MODULE_NOT_FOUND` for the absent production rule.
 
-- [ ] **Step 3: Implement the minimal AST rule**
+- [x] **Step 3: Implement the minimal AST rule**
 
 Implement static-property helpers and callee recognition:
 
@@ -170,7 +170,7 @@ function isFetchReference(node) {
 On each `CallExpression`, unwrap a `ChainExpression` callee if present, report
 once when `isFetchReference` is true, and emit only `useGeneratedClient`.
 
-- [ ] **Step 4: Wire exact frontend scope and commands**
+- [x] **Step 4: Wire exact frontend scope and commands**
 
 Import the rule into `eslint.config.mjs` and add one flat-config object:
 
@@ -186,14 +186,14 @@ Import the rule into `eslint.config.mjs` and add one flat-config object:
 Add `raw-fetch:test` to `package.json` and insert it into `verify` immediately
 before `npm test`. Do not alter dependency pins or the lockfile.
 
-- [ ] **Step 5: Run focused RED-to-GREEN and six stability passes**
+- [x] **Step 5: Run focused RED-to-GREEN and six stability passes**
 
 Run `npm run raw-fetch:test` and `npm run lint`, then run the focused rule test
 six consecutive times. Require the seeded violation to report
 `zasp/no-raw-fetch`, valid generated-client calls to pass, and all existing
 frontend code to lint cleanly.
 
-- [ ] **Step 6: Run full pinned verification and commit**
+- [x] **Step 6: Run full pinned verification and commit**
 
 Run `npm run verify`, `npm run build:repo`, `npm audit --omit=dev`, the
 unchanged development audit, syntax checks, `git diff --check`, and redacted

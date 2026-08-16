@@ -73,6 +73,7 @@ function assertRunnableUiWorkflow(
     "npm run openapi:check",
     "npm run ui-api:test",
     "npm run ui-api:check",
+    "npm run raw-fetch:test",
     "npm test",
     "npm run typecheck",
     "npm run lint",

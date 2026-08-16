@@ -7,6 +7,8 @@ import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
+import noRawFetchRule from "./eslint-rules/no-raw-fetch.mjs";
+
 const eslintConfig = defineConfig([
   globalIgnores([
     ".next/**",
@@ -34,6 +36,23 @@ const eslintConfig = defineConfig([
       react: {
         version: "detect",
       },
+    },
+  },
+  {
+    files: [
+      "app/**/*.{js,jsx,ts,tsx,mjs,cjs}",
+      "apps/web/**/*.{js,jsx,ts,tsx,mjs,cjs}",
+    ],
+    ignores: ["apps/web/api/client.ts", "apps/web/api/generated.ts"],
+    plugins: {
+      zasp: {
+        rules: {
+          "no-raw-fetch": noRawFetchRule,
+        },
+      },
+    },
+    rules: {
+      "zasp/no-raw-fetch": "error",
     },
   },
 ]);

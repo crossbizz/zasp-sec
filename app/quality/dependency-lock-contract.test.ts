@@ -89,7 +89,7 @@ describe("M1-02 dependency lock contract", () => {
 
     expect(packageJson.scripts?.["dependencies:check"]).toBe("node scripts/validate-dependencies.mjs");
     expect(packageJson.scripts?.verify).toBe(
-      "npm run dependencies:check && npm run openapi:test && npm run openapi:lint && npm run openapi:check && npm run ui-api:test && npm run ui-api:check && npm test && npm run typecheck && npm run lint && npm run build",
+      "npm run dependencies:check && npm run openapi:test && npm run openapi:lint && npm run openapi:check && npm run ui-api:test && npm run ui-api:check && npm run raw-fetch:test && npm test && npm run typecheck && npm run lint && npm run build",
     );
     expect(workflow).toContain("run: npm run verify");
     expect(workflow).not.toContain("validate-dependencies.mjs");
