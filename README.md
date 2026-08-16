@@ -349,7 +349,7 @@ deadlines, defensive copies, and concurrency without Docker or provider I/O. It
 does not run Neo4j or prove persistence, transactions, availability, packaging,
 or licensing. M1-16 adds the exact-scoped official-driver adapter and a
 disposable Neo4j Community compatibility proof without widening the product
-interface; M1-17 remains Pending.
+interface; M1-17 is In progress.
 
 ## Neo4j GraphStore proof
 
@@ -379,7 +379,7 @@ re-proves any shared Neo4j container fingerprint unchanged. The Apache-2.0 Go
 driver is an approved product runtime dependency; this proof does not approve Neo4j Community server packaging or redistribution.
 Neo4j Community remains a GPL-3.0-only proof-only compatibility target. M1-16
 is Complete after whole-range review, final verification, the exact live proof,
-and exact-SHA CI; M1-17 remains Pending.
+and exact-SHA CI; M1-17 is In progress.
 
 ## Neon pooled proof
 

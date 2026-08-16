@@ -33,7 +33,7 @@ function assertM015Active(tracker: string, readme: string, riskRegister: string)
   expect(section).toContain("R-08 remains Not run");
 
   expect(tracker).toContain("| Pending | 710 |");
-  expect(tracker).toContain("| In progress | 0 |");
+  expect(tracker).toContain("| In progress | 1 |");
   expect(tracker).toContain("| Complete | 16 |");
   expect(tracker).toContain("| Blocked | 1 |");
   expect(tracker).toMatch(/\| M0 \| 27 \| 9 \| 1 \| 16 \| 1 \|/);
@@ -62,12 +62,12 @@ function assertM015Complete(tracker: string, readme: string, riskRegister: strin
   expect(section).toContain("raw provider token");
   expect(section).toContain("R-08 is PASS");
 
-  expect(tracker).toContain("| Pending | 679 |");
-  expect(tracker).toContain("| In progress | 0 |");
+  expect(tracker).toContain("| Pending | 678 |");
+  expect(tracker).toContain("| In progress | 1 |");
   expect(tracker).toContain("| Complete | 46 |");
   expect(tracker).toContain("| Blocked | 3 |");
   expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 0 \| 24 \| 3 \|/);
-  expect(activeRows.map(([task]) => task)).toEqual([]);
+  expect(activeRows.map(([task]) => task)).toEqual(["M1-17"]);
   expect(completeRows.filter(([task]) => task === "M0-15")).toHaveLength(1);
   expect(completeRows.filter(([task]) => task === "M0-14")).toHaveLength(1);
   expect(completeRows.filter(([task]) => task === "M0-16")).toHaveLength(1);
@@ -95,11 +95,11 @@ function activeFixture(tracker: string, readme: string) {
   return {
     readme: readme.replace(/## Nango proxy proof[\s\S]*?(?=## Nango free Auth boundary)/, `${section}\n`),
     tracker: tracker
-      .replace("| Pending | 679 |", "| Pending | 710 |")
+      .replace("| Pending | 678 |", "| Pending | 710 |")
       .replace("| Complete | 46 |", "| Complete | 16 |")
       .replace("| Blocked | 3 |", "| Blocked | 1 |")
       .replace("| M0 | 27 | 0 | 0 | 24 | 3 |", "| M0 | 27 | 9 | 1 | 16 | 1 |")
-      .replace("`679/0/46/3`", "`710/1/16/1`")
+      .replace("`678/1/46/3`", "`710/1/16/1`")
       .replace(/^\| M0-22 \| August 15, 2026 \|.*\|\n/m, "")
       .replace(/^\| M0-21a \| August 15, 2026 \|.*\|\n/m, "")
       .replace(/^\| M0-21 \| August 15, 2026 \|.*\|\n/m, "")

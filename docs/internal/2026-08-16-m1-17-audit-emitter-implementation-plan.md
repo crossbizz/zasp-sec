@@ -58,7 +58,7 @@ and pinned Gitleaks 8.30.1.
 - Produces: exactly one M1-17 In-progress row and assertions that keep M1-16
   Complete, M1-18 absent, and all blocker rows unchanged.
 
-- [ ] **Step 1: Write the source/status contract before changing docs**
+- [x] **Step 1: Write the source/status contract before changing docs**
 
 Create helpers that parse markdown rows by section, then assert:
 
@@ -80,7 +80,7 @@ expect([...active, ...complete].filter(([task]) => task === "M1-18")).toHaveLeng
 expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
 ```
 
-- [ ] **Step 2: Run the focused contract and record Pending-state RED**
+- [x] **Step 2: Run the focused contract and record Pending-state RED**
 
 ```bash
 PATH="$HOME/.nvm/versions/node/v22.23.1/bin:$PATH" \
@@ -89,14 +89,14 @@ PATH="$HOME/.nvm/versions/node/v22.23.1/bin:$PATH" \
 
 Expected: only the still-Pending M1-17 status assertions fail.
 
-- [ ] **Step 3: Move only M1-17 to In progress**
+- [x] **Step 3: Move only M1-17 to In progress**
 
 Update README/tracker and every current aggregate fixture to `678/1/46/3`
 overall and M1 `68/45/1/22/0`. Add exactly one M1-17 In-progress row dated
 August 16, 2026. Preserve all historical fixtures, M1-16 Complete, M1-18
 Pending, and the three blocked rows.
 
-- [ ] **Step 4: Run focused/full pinned gates, scan, and commit**
+- [x] **Step 4: Run focused/full pinned gates, scan, and commit**
 
 ```bash
 PATH="$HOME/.nvm/versions/node/v22.23.1/bin:$PATH" npm run verify
