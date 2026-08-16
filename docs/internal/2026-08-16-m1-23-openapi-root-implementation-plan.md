@@ -162,23 +162,23 @@ Vitest repository contracts.
 
 ### Task 4: Review the complete M1-23 range
 
-- [ ] **Step 1: Perform an exact whole-range read-only review**
+- [x] **Step 1: Perform an exact whole-range read-only review**
 
   Review source/PRD, M1-22 dependency, design/plan, YAML/config/lock, strict
   parser tests, linter output, auth semantics, pagination/error parity,
   self-containment, dependency/license boundary, docs, and tracker arithmetic.
 
-- [ ] **Step 2: Reproduce every valid finding tests-first**
+- [x] **Step 2: Reproduce every valid finding tests-first**
 
   Add the smallest hostile RED before each fix. Finish at Critical 0,
   Important 0, Minor 0, Ready Yes.
 
-- [ ] **Step 3: Repeat affected and full gates after separate fixes**
+- [x] **Step 3: Repeat affected and full gates after separate fixes**
 
   Re-run strict parser stability, lint stability, full repository gates,
   audits, diff, and secret scans.
 
-- [ ] **Step 4: Record the plan-only final review commit**
+- [x] **Step 4: Record the plan-only final review commit**
 
   ```bash
   git commit -m "docs: record M1-23 review"
