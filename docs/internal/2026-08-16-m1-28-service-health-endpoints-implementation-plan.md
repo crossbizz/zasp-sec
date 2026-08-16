@@ -91,10 +91,10 @@ js-yaml/Redocly, Vitest, Gitleaks 8.30.1, GitHub Actions Runnable UI.
 
 ## Closure checklist
 
-- [ ] Task 1 design/plan/status transition passes.
-- [ ] Task 2 genuine OpenAPI/service-matrix RED is recorded.
-- [ ] Task 3 strict internal OpenAPI contract is GREEN.
-- [ ] Task 4 exact service matrix and root cross-command gate pass.
-- [ ] Task 5 full repository gates, audits, scans, and docs pass.
-- [ ] Task 6 independent review is zero-finding and Ready Yes.
-- [ ] Task 7 completion, exact-SHA CI, synchronization, and closure pass.
+- [x] Task 1 design/plan/status transition passes.
+- [x] Task 2 genuine OpenAPI/service-matrix RED is recorded.
+- [x] Task 3 strict internal OpenAPI contract is GREEN.
+- [x] Task 4 exact service matrix and root cross-command gate pass.
+- [x] Task 5 full repository gates, audits, scans, and docs pass.
+- [x] Task 6 independent review is zero-finding and Ready Yes.
+- [x] Task 7 completion, exact-SHA CI, synchronization, and closure pass.
