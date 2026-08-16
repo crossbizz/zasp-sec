@@ -59,13 +59,13 @@ and pinned Gitleaks 8.30.1.
 - Produces: exactly one M1-15 In-progress row and assertions that keep M1-14
   Complete, M1-16 absent, and all blocker/risk rows unchanged.
 
-- [ ] **Step 1: Write the source/status contract before changing docs**
+- [x] **Step 1: Write the source/status contract before changing docs**
 
 Assert the exact dependency, deliverable, fake verification, design path,
 current count tables, one active M1-15 row, one completed M1-14 row, no M1-16
 active/complete row, and stable blocker/risk rows.
 
-- [ ] **Step 2: Run the focused contract and record Pending-state RED**
+- [x] **Step 2: Run the focused contract and record Pending-state RED**
 
 ```bash
 PATH="$HOME/.nvm/versions/node/v22.23.1/bin:$PATH" \
@@ -74,12 +74,12 @@ PATH="$HOME/.nvm/versions/node/v22.23.1/bin:$PATH" \
 
 Expected: only the still-Pending M1-15 status assertions fail.
 
-- [ ] **Step 3: Move only M1-15 to In progress**
+- [x] **Step 3: Move only M1-15 to In progress**
 
 Update README/tracker and affected count fixtures to `680/1/44/3` overall and
 M1 `68/47/1/20/0`. Do not change any other task or risk status.
 
-- [ ] **Step 4: Run focused/full pinned gates, scan, and commit**
+- [x] **Step 4: Run focused/full pinned gates, scan, and commit**
 
 ```bash
 PATH="$HOME/.nvm/versions/node/v22.23.1/bin:$PATH" npm run verify
@@ -103,7 +103,7 @@ git commit -m "docs: start M1-15 GraphStore interface"
   `Projection`, `Direction`, `ReadRequest`, `DriverNode`, `DriverEdge`,
   `DriverProjection`, `DriverQuery`, `DriverUpserted`, and fixed errors.
 
-- [ ] **Step 1: Add missing-symbol tests before production**
+- [x] **Step 1: Add missing-symbol tests before production**
 
 Compile tests against these public shapes before `store.go` exists:
 
@@ -190,7 +190,7 @@ Cover one canonical two-node/one-edge upsert and outgoing read, exact fake
 driver state, deterministic ordering, idempotent replay acknowledgement, and
 defensive result copies.
 
-- [ ] **Step 2: Run compiler RED**
+- [x] **Step 2: Run compiler RED**
 
 ```bash
 go test -C services/platform ./graphstore -count=1
@@ -199,14 +199,14 @@ go test -C services/platform ./graphstore -count=1
 Expected: compilation fails only on missing GraphStore symbols; no production
 or dependency edit may precede it.
 
-- [ ] **Step 3: Implement strict configuration and projections**
+- [x] **Step 3: Implement strict configuration and projections**
 
 Validate nil/typed-nil driver, positive timeout through 30 seconds, limits,
 exact repeated scope, nonzero IDs, product-neutral kind grammar, unique IDs and
 semantic edges, no self/dangling edge, deterministic sorting, defensive copies,
 and exact all-or-nothing driver acknowledgement.
 
-- [ ] **Step 4: Implement bounded structured reads**
+- [x] **Step 4: Implement bounded structured reads**
 
 Validate one canonical root, direction, depth, and result limits before I/O.
 Send exact scope and fixed ID ordering to the fake driver. Reject foreign,
@@ -214,7 +214,7 @@ malformed, duplicate, unordered, dangling, oversized, or unreachable results.
 Allow an empty missing-root result and require every nonempty node to be
 reachable within the requested directed depth.
 
-- [ ] **Step 5: Expand adversarial RED/GREEN coverage**
+- [x] **Step 5: Expand adversarial RED/GREEN coverage**
 
 Cover invalid configuration and requests; zero/mismatched scope and IDs;
 invalid/provider-native kinds; duplicate IDs/semantic edges; self/dangling
@@ -223,7 +223,7 @@ depth zero; limit overflow; foreign, duplicate, unordered, dangling, or
 unreachable driver results; cancellation; deadline; errors; panics; aliasing;
 typed-nil interfaces; and 32 concurrent independent calls.
 
-- [ ] **Step 6: Run race and six stability passes**
+- [x] **Step 6: Run race and six stability passes**
 
 ```bash
 go test -C services/platform -race -count=1 ./graphstore
@@ -235,7 +235,7 @@ test -z "$(cd services/platform && go mod tidy -diff)"
 (cd services/platform && go vet ./...)
 ```
 
-- [ ] **Step 7: Scan and commit the product package**
+- [x] **Step 7: Scan and commit the product package**
 
 ```bash
 git diff --check
