@@ -1291,6 +1291,12 @@ function validateGraphService(service) {
   }
 }
 
+function exactGraphEndpointPorts(value) {
+  const http = { name: "http", port: 7474, protocol: "TCP" };
+  const bolt = { name: "bolt", port: 7687, protocol: "TCP" };
+  return exactData(value, [http, bolt]) || exactData(value, [bolt, http]);
+}
+
 function validateGraphEndpointSlice(endpointSlice, service, pod, nodeName) {
   requireExactKeySet(endpointSlice, ["addressType", "apiVersion", "endpoints", "kind", "metadata", "ports"],
     "graph endpoint slice");
@@ -1302,10 +1308,7 @@ function validateGraphEndpointSlice(endpointSlice, service, pod, nodeName) {
       endpointSlice.metadata.labels?.["kubernetes.io/service-name"] !== "neo4j" ||
       !exactControllerOwner(endpointSlice.metadata.ownerReferences, {
         apiVersion: "v1", kind: "Service", name: "neo4j", uid: service.metadata.uid,
-      }) || !exactData(endpointSlice.ports, [
-        { name: "http", port: 7474, protocol: "TCP" },
-        { name: "bolt", port: 7687, protocol: "TCP" },
-      ]) || !exactData(endpointSlice.endpoints, [{
+      }) || !exactGraphEndpointPorts(endpointSlice.ports) || !exactData(endpointSlice.endpoints, [{
         addresses: [pod.status.podIP],
         conditions: { ready: true, serving: true, terminating: false },
         nodeName,
@@ -1326,10 +1329,8 @@ function validateGraphEndpointSliceWithoutPod(endpointSlice, service) {
         "kubernetes.io/service-name": "neo4j",
       }) || !exactControllerOwner(endpointSlice.metadata.ownerReferences, {
         apiVersion: "v1", kind: "Service", name: "neo4j", uid: service.metadata.uid,
-      }) || !exactData(endpointSlice.ports, [
-        { name: "http", port: 7474, protocol: "TCP" },
-        { name: "bolt", port: 7687, protocol: "TCP" },
-      ]) || !exactData(endpointSlice.endpoints, [])) throw new TypeError("graph endpoint slice is invalid");
+      }) || !exactGraphEndpointPorts(endpointSlice.ports) ||
+      !exactData(endpointSlice.endpoints, [])) throw new TypeError("graph endpoint slice is invalid");
 }
 
 function validateGraphJob(job) {

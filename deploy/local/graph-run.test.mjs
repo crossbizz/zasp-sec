@@ -671,8 +671,8 @@ function graphProviderState(overrides = {}) {
       uid: endpointSliceUid,
     },
     ports: [
-      { name: "http", port: 7474, protocol: "TCP" },
       { name: "bolt", port: 7687, protocol: "TCP" },
+      { name: "http", port: 7474, protocol: "TCP" },
     ],
   };
   const persistentVolumeClaim = {
@@ -1041,6 +1041,14 @@ test("rejects every graph provider identity, lineage, storage, health, and expos
     ["alternate peer", (value) => { value.endpointSlices.at(-1).endpoints[0].addresses = ["10.244.0.99"]; }],
     ["endpoint target", (value) => { value.endpointSlices.at(-1).endpoints[0].targetRef.uid = providerUid(99); }],
     ["endpoint condition", (value) => { value.endpointSlices.at(-1).endpoints[0].conditions.ready = false; }],
+    ["endpoint port duplicate", (value) => {
+      value.endpointSlices.at(-1).ports[1] = structuredClone(value.endpointSlices.at(-1).ports[0]);
+    }],
+    ["endpoint port extra", (value) => {
+      value.endpointSlices.at(-1).ports.push({ name: "foreign", port: 9999, protocol: "TCP" });
+    }],
+    ["endpoint port value", (value) => { value.endpointSlices.at(-1).ports[0].port = 9999; }],
+    ["endpoint port key", (value) => { value.endpointSlices.at(-1).ports[0].appProtocol = "foreign"; }],
     ["job owner", (value) => { value.pods.at(-1).metadata.ownerReferences[0].uid = providerUid(99); }],
     ["job status", (value) => { value.jobs[0].status.succeeded = 0; }],
     ["job timestamp", (value) => { value.jobs[0].status.completionTime = "2026-13-01T00:00:00Z"; }],
