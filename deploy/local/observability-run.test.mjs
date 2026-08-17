@@ -1110,11 +1110,29 @@ test("reconciles an uncertain Job before destructive graph cleanup and rejects r
   await failed.verifyAdditionalNodeForCleanup(phase);
   assert.equal(failed.observabilityProviderIdentity.job.failed, true);
 
-  const changedRetryState = failedObservabilityProviderState();
-  changedRetryState.pods.at(-1).metadata.uid = providerUid(98);
-  failed.values = [changedRetryState];
-  await assert.rejects(() => failed.verifyAdditionalNodeForCleanup(phase), { category: "cleanup" });
-  assert.equal(failed.observabilityProviderIdentity.job.podUid, providerUid(46));
+  for (const mutate of [
+    (value) => { value.pods.at(-1).metadata.uid = providerUid(98); },
+    (value) => { value.pods.at(-1).status.containerStatuses[0].state.terminated.exitCode = 2; },
+    (value) => {
+      const container = value.pods.at(-1).status.containerStatuses[0];
+      container.containerID = `containerd://${"9".repeat(64)}`;
+      container.state.terminated.containerID = container.containerID;
+    },
+    (value) => { value.jobs[0].metadata.resourceVersion = "999"; },
+    (value) => { value.pods.at(-1).metadata.resourceVersion = "999"; },
+    (value) => { value.jobs[0].status.startTime = "2026-08-16T10:00:01Z"; },
+    (value) => {
+      value.jobs[0].status.conditions[0].lastProbeTime = "2026-08-16T10:00:07Z";
+      value.jobs[0].status.conditions[0].lastTransitionTime = "2026-08-16T10:00:07Z";
+    },
+    (value) => { value.pods.at(-1).status.podIP = "10.244.0.99"; },
+  ]) {
+    const changedRetryState = failedObservabilityProviderState();
+    mutate(changedRetryState);
+    failed.values = [changedRetryState];
+    await assert.rejects(() => failed.verifyAdditionalNodeForCleanup(phase), { category: "cleanup" });
+    assert.equal(failed.observabilityProviderIdentity.job.podUid, providerUid(46));
+  }
 
   for (const mutate of [
     (value) => { value.jobs[0].metadata.uid = providerUid(99); },

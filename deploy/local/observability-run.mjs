@@ -1534,7 +1534,16 @@ function validateFailedObservabilityJob(job, pod, expected) {
   if (!isDeepStrictEqual(job, expectedJob) || !isDeepStrictEqual(pod, expectedPod)) {
     throw new TypeError("failed observability Job provider state is invalid");
   }
-  return deepFreeze({ failed: true, finishedAt, jobUid, podName, podUid });
+  return deepFreeze({
+    failed: true,
+    finishedAt,
+    jobUid,
+    log: "",
+    podName,
+    podUid,
+    providerJob: structuredClone(job),
+    providerPod: structuredClone(pod),
+  });
 }
 
 function providerObservabilityContainer(value) {
