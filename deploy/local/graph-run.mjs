@@ -969,8 +969,10 @@ function normalizeProviderPodSpec(spec) {
 function normalizeProviderTemplate(template) {
   const normalized = structuredClone(template);
   requireExactKeySet(normalized, ["metadata", "spec"], "graph provider template");
-  requireExactKeySet(normalized.metadata, ["creationTimestamp", "labels"], "graph provider template metadata");
-  if (normalized.metadata.creationTimestamp !== null) {
+  const metadataKeys = Object.hasOwn(normalized.metadata ?? {}, "creationTimestamp")
+    ? ["creationTimestamp", "labels"] : ["labels"];
+  requireExactKeySet(normalized.metadata, metadataKeys, "graph provider template metadata");
+  if (normalized.metadata.creationTimestamp !== undefined && normalized.metadata.creationTimestamp !== null) {
     throw new TypeError("graph provider template timestamp is invalid");
   }
   return {
@@ -1007,9 +1009,11 @@ function normalizeProductProviderResult(result, resource, category, capture) {
     if (resource === "deployment" || resource === "replicaset") {
       for (const item of document.items) {
         requireExactKeySet(item?.spec?.template, ["metadata", "spec"], "product provider template");
-        requireExactKeySet(item.spec.template.metadata,
-          ["creationTimestamp", "labels"], "product provider template metadata");
-        if (item.spec.template.metadata.creationTimestamp !== null) {
+        const metadataKeys = Object.hasOwn(item.spec.template.metadata ?? {}, "creationTimestamp")
+          ? ["creationTimestamp", "labels"] : ["labels"];
+        requireExactKeySet(item.spec.template.metadata, metadataKeys, "product provider template metadata");
+        if (item.spec.template.metadata.creationTimestamp !== undefined &&
+            item.spec.template.metadata.creationTimestamp !== null) {
           throw new TypeError("product provider template timestamp is invalid");
         }
         item.spec.template.metadata = { labels: item.spec.template.metadata.labels };

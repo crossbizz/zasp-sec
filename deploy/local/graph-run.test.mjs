@@ -937,9 +937,6 @@ test("rejects every graph provider identity, lineage, storage, health, and expos
     ["claim name", (value) => { value.persistentVolumeClaims[0].spec.volumeName = "foreign"; }],
     ["resource version", (value) => { value.deployments.at(-1).metadata.resourceVersion = "0"; }],
     ["deployment UID", (value) => { value.deployments.at(-1).metadata.uid = providerUid(99); }],
-    ["missing template timestamp", (value) => {
-      delete value.deployments.at(-1).spec.template.metadata.creationTimestamp;
-    }],
     ["non-null template timestamp", (value) => {
       value.deployments.at(-1).spec.template.metadata.creationTimestamp = "2026-08-16T10:00:00Z";
     }],
@@ -1109,7 +1106,7 @@ test("parses only one bounded unique-key Kubernetes List envelope", () => {
   ]) assert.throws(() => graphRunModule.parseGraphProviderList(source, "pods"), { name: "Failure" });
 });
 
-test("projects only the pinned null pod-template timestamp before inherited product validation", async () => {
+test("projects only an omitted or null pod-template timestamp before inherited product validation", async () => {
   const raw = {
     apiVersion: "v1",
     items: [{
@@ -1147,8 +1144,14 @@ test("projects only the pinned null pod-template timestamp before inherited prod
     { labels: { "app.kubernetes.io/name": "audit-api" } });
   assert.deepEqual(system.productProviderCapture.get("deployments"), raw.items);
 
+  const omitted = structuredClone(raw);
+  delete omitted.items[0].spec.template.metadata.creationTimestamp;
+  const omittedRead = await read(omitted);
+  assert.deepEqual(JSON.parse(omittedRead.result.stdout).items[0].spec.template.metadata,
+    { labels: { "app.kubernetes.io/name": "audit-api" } });
+  assert.deepEqual(omittedRead.system.productProviderCapture.get("deployments"), omitted.items);
+
   for (const mutate of [
-    (value) => { delete value.items[0].spec.template.metadata.creationTimestamp; },
     (value) => { value.items[0].spec.template.metadata.creationTimestamp = "2026-08-16T10:00:00Z"; },
     (value) => { value.items[0].spec.template.metadata.foreign = true; },
   ]) {
@@ -1156,6 +1159,16 @@ test("projects only the pinned null pod-template timestamp before inherited prod
     mutate(drifted);
     await assert.rejects(() => read(drifted), { category: "readiness", name: "Failure" });
   }
+});
+
+test("accepts only omitted or null graph workload template timestamps", () => {
+  const omitted = graphProviderState();
+  delete omitted.deployments.at(-1).spec.template.metadata.creationTimestamp;
+  delete omitted.replicaSets.at(-1).spec.template.metadata.creationTimestamp;
+  delete omitted.jobs[0].spec.template.metadata.creationTimestamp;
+  assert.equal(graphRunModule.validateGraphKubernetesState(
+    omitted, graphProviderExpectation(),
+  ).ready, true);
 });
 
 test("uses fixed marker argv, UID-preconditioned deletes, and exact fresh health Job bytes", async () => {
