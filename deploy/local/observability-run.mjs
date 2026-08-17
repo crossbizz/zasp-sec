@@ -1337,7 +1337,7 @@ function validateObservabilityJob(value, expected, jobResource) {
   const podIP = validPodAddress(pod?.status?.podIP) ? pod.status.podIP : undefined;
   if ([jobUid, podUid, jobVersion, podVersion, podName, containerId, startTime, completionTime, podStartedAt,
     finishedAt, transitionTime, probeTime, podIP].some((item) => item === undefined) ||
-      !(Date.parse(startTime) <= Date.parse(podStartedAt) && Date.parse(podStartedAt) < Date.parse(finishedAt) &&
+      !(Date.parse(startTime) <= Date.parse(podStartedAt) && Date.parse(podStartedAt) <= Date.parse(finishedAt) &&
         Date.parse(finishedAt) <= Date.parse(completionTime)) || transitionTime !== completionTime ||
       probeTime !== completionTime) throw new TypeError("observability Job identity is invalid");
   const labels = {

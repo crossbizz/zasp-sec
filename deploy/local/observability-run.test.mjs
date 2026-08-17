@@ -775,6 +775,11 @@ test("normalizes one exact Collector core and one exact completed span Job", () 
   assert.equal(complete.job.podUid, providerUid(46));
   assert.equal(complete.job.log, "otel-test-span-sent\n");
   assert.deepEqual(complete.collector, core.collector);
+
+  const sameTick = observabilityProviderState();
+  sameTick.pods.at(-1).status.containerStatuses[0].state.terminated.finishedAt =
+    sameTick.pods.at(-1).status.containerStatuses[0].state.terminated.startedAt;
+  assert.equal(validateObservabilityKubernetesState(sameTick, expected, core, true).ready, true);
 });
 
 test("rejects every observability provider ownership, exposure, lineage, status, and retry drift", () => {
@@ -803,6 +808,9 @@ test("rejects every observability provider ownership, exposure, lineage, status,
     ["replaced Job pod", (value) => { value.pods.push(clone(value.pods.at(-1))); }],
     ["retry", (value) => { value.pods.at(-1).status.containerStatuses[0].restartCount = 1; }],
     ["timestamp", (value) => { value.jobs[0].status.completionTime = "2026-02-30T00:00:00Z"; }],
+    ["reverse runtime", (value) => {
+      value.pods.at(-1).status.containerStatuses[0].state.terminated.finishedAt = "2026-08-16T10:00:02Z";
+    }],
     ["log", (value) => { value.jobLog = "provider output\n"; }],
   ];
   for (const [name, mutate] of mutations) {
