@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -406,7 +407,7 @@ export function parseGraphContainerdImageTargets(beforeSource, afterSource, sele
       if (!exactData(after.get(reference), row)) throw new TypeError("graph containerd baseline changed");
     }
     const delta = [...after].filter(([reference]) => !before.has(reference)).map(([, row]) => row);
-    if (delta.length !== 2) throw new TypeError("graph containerd delta is invalid");
+    if (!new Set([2, 3]).has(delta.length)) throw new TypeError("graph containerd delta is invalid");
     const target = graphContainerdTarget(delta, selected);
     validateGraphContainerdTarget(target, selected);
     return target;
@@ -439,13 +440,15 @@ function parseGraphContainerdInventory(source) {
     const reference = fields[0];
     const mediaType = fields[1];
     const digest = fields[2];
-    const size = fields.slice(3, -2).join(" ");
-    const platform = fields.at(-2);
-    const labels = fields.at(-1);
-    if (fields.length < 6 || typeof reference !== "string" || reference.length > 1_024 ||
+    const size = `${fields[3]} ${fields[4]}`;
+    const platform = fields[5];
+    const labelFields = fields.slice(6);
+    const labels = labelFields.join("");
+    if (fields.length < 7 || labelFields.slice(0, -1).some((value) => !value.endsWith(",")) ||
+        typeof reference !== "string" || reference.length > 1_024 ||
         !/^[A-Za-z0-9][A-Za-z0-9._:/@+-]*$/.test(reference) || inventory.has(reference) ||
         !mediaTypes.has(mediaType) || !digestPattern.test(digest ?? "") ||
-        !/^\d+(?:\.\d+)? ?(?:B|KiB|MiB|GiB)$/.test(size) ||
+        !/^\d+(?:\.\d+)? (?:B|KiB|MiB|GiB)$/.test(size) ||
         typeof platform !== "string" || platform.length > 8_192 ||
         !/^(?:-|[a-z0-9][a-z0-9._/-]*(?:,[a-z0-9][a-z0-9._/-]*)*)$/.test(platform) ||
         typeof labels !== "string" || labels.length > 16_384 || !/^[^\s]+$/.test(labels)) {
@@ -457,6 +460,7 @@ function parseGraphContainerdInventory(source) {
 }
 
 function graphContainerdTarget(delta, selected) {
+  if (delta.length === 3) return graphArchiveContainerdTarget(delta, selected);
   const child = delta.filter(({ digest, mediaType }) => digest === selected.manifestDigest && new Set([
     "application/vnd.docker.distribution.manifest.v2+json",
     "application/vnd.oci.image.manifest.v1+json",
@@ -473,10 +477,33 @@ function graphContainerdTarget(delta, selected) {
   });
 }
 
+function graphArchiveContainerdTarget(delta, selected) {
+  const rawPattern = /^import-\d{4}-\d{2}-\d{2}@sha256:[0-9a-f]{64}$/;
+  const raw = delta.filter(({ reference }) => rawPattern.test(reference));
+  const aliases = delta.filter(({ reference }) => reference === selected.configDigest);
+  const children = raw.filter(({ mediaType }) => mediaType === "application/vnd.oci.image.manifest.v1+json");
+  const wrappers = raw.filter(({ mediaType }) => mediaType === "application/vnd.oci.image.index.v1+json");
+  if (raw.length !== 2 || aliases.length !== 1 || children.length !== 1 || wrappers.length !== 1) {
+    throw new TypeError("graph containerd archive structure is invalid");
+  }
+  const references = [...raw].sort((left, right) => lexicalCompare(
+    graphPublicImageReference(left.reference), graphPublicImageReference(right.reference),
+  ));
+  return deepFreeze({
+    imageID: graphPublicImageReference(references[0].reference),
+    manifestDigest: selected.manifestDigest,
+    references: [...references, aliases[0]],
+  });
+}
+
 function validateGraphContainerdTarget(target, selected) {
   requireExactKeySet(target, ["imageID", "manifestDigest", "references"], "graph containerd target");
   if (target.manifestDigest !== selected.manifestDigest || !Array.isArray(target.references) ||
-      target.references.length !== 2) throw new TypeError("graph containerd target is invalid");
+      !new Set([2, 3]).has(target.references.length)) throw new TypeError("graph containerd target is invalid");
+  if (target.references.length === 3) {
+    validateGraphArchiveContainerdTarget(target, selected);
+    return;
+  }
   const dates = new Set();
   let child = 0;
   let wrapper = 0;
@@ -504,6 +531,114 @@ function validateGraphContainerdTarget(target, selected) {
   if (dates.size !== 1 || child !== 1 || wrapper !== 1 || !exactData(target.references, ordered) ||
       target.imageID !== graphPublicImageReference(ordered[0].reference)) {
     throw new TypeError("graph containerd target is invalid");
+  }
+}
+
+function validateGraphArchiveContainerdTarget(target, selected) {
+  const references = target.references.slice(0, 2);
+  const alias = target.references[2];
+  const dates = new Set();
+  for (const row of references) {
+    requireExactKeySet(row, ["digest", "labels", "mediaType", "platform", "reference", "size"],
+      "graph containerd reference");
+    const match = /^import-(\d{4}-\d{2}-\d{2})@(sha256:[0-9a-f]{64})$/.exec(row.reference ?? "");
+    if (match === null || !canonicalGraphDate(match[1]) || match[2] !== row.digest ||
+        row.platform !== selected.platform || typeof row.labels !== "string" || row.labels.length < 1 ||
+        row.labels.length > 16_384 || !/^\d+(?:\.\d+)? (?:B|KiB|MiB|GiB)$/.test(row.size ?? "")) {
+      throw new TypeError("graph containerd archive reference is invalid");
+    }
+    dates.add(match[1]);
+  }
+  const children = references.filter(({ mediaType }) =>
+    mediaType === "application/vnd.oci.image.manifest.v1+json");
+  const wrappers = references.filter(({ mediaType }) =>
+    mediaType === "application/vnd.oci.image.index.v1+json");
+  const ordered = [...references].sort((left, right) => lexicalCompare(
+    graphPublicImageReference(left.reference), graphPublicImageReference(right.reference),
+  ));
+  if (dates.size !== 1 || children.length !== 1 || wrappers.length !== 1 ||
+      new Set([selected.configDigest, selected.indexDigest, selected.manifestDigest]).has(children[0].digest) ||
+      new Set([selected.configDigest, selected.indexDigest, selected.manifestDigest, children[0].digest])
+        .has(wrappers[0].digest) ||
+      !exactData(references, ordered) || target.imageID !== graphPublicImageReference(ordered[0].reference)) {
+    throw new TypeError("graph containerd archive target is invalid");
+  }
+  requireExactKeySet(alias, ["digest", "labels", "mediaType", "platform", "reference", "size"],
+    "graph containerd archive alias");
+  if (alias.reference !== selected.configDigest || alias.digest !== children[0].digest ||
+      alias.mediaType !== children[0].mediaType || alias.platform !== children[0].platform ||
+      alias.labels !== children[0].labels || alias.size !== children[0].size) {
+    throw new TypeError("graph containerd archive alias is invalid");
+  }
+}
+
+export function validateGraphContainerdImageContents(
+  target, manifestSource, wrapperSource, selected, retained, resolution,
+) {
+  try {
+    validateSelectedPlan(selected);
+    validateGraphContainerdTarget(target, selected);
+    if (target.references.length !== 3 || !isPlainObject(retained) || !isPlainObject(resolution) ||
+        retained.id !== selected.configDigest || retained.configDigest !== selected.configDigest ||
+        retained.indexDigest !== selected.indexDigest || retained.manifestDigest !== selected.manifestDigest ||
+        retained.name !== selected.name || retained.platform !== selected.platform ||
+        retained.reference !== selected.reference || !isPlainObject(retained.rootfs) ||
+        retained.rootfs.Type !== "layers" || !Array.isArray(retained.rootfs.Layers) ||
+        !exactData(retained.index, resolution.index) || !exactData(retained.manifest, resolution.manifest) ||
+        resolution.index?.indexDigest !== selected.indexDigest ||
+        resolution.index?.selected?.digest !== selected.manifestDigest ||
+        resolution.manifest?.config?.digest !== selected.configDigest) {
+      throw new TypeError("graph containerd content authority is invalid");
+    }
+    const child = target.references.find(({ mediaType, reference }) =>
+      mediaType === "application/vnd.oci.image.manifest.v1+json" && reference.startsWith("import-"));
+    const wrapper = target.references.find(({ mediaType }) =>
+      mediaType === "application/vnd.oci.image.index.v1+json");
+    if (child === undefined || wrapper === undefined ||
+        `sha256:${createHash("sha256").update(manifestSource).digest("hex")}` !== child.digest ||
+        `sha256:${createHash("sha256").update(wrapperSource).digest("hex")}` !== wrapper.digest) {
+      throw new TypeError("graph containerd content digest is invalid");
+    }
+    const manifest = parseBoundedJson(manifestSource, graphProviderByteLimit);
+    requireExactKeySet(manifest, ["config", "layers", "mediaType", "schemaVersion"],
+      "graph containerd manifest");
+    if (manifest.schemaVersion !== 2 || manifest.mediaType !== "application/vnd.oci.image.manifest.v1+json" ||
+        !Array.isArray(manifest.layers) || manifest.layers.length !== retained.rootfs.Layers.length) {
+      throw new TypeError("graph containerd manifest is invalid");
+    }
+    validateContentDescriptor(manifest.config,
+      new Set(["application/vnd.oci.image.config.v1+json"]), 16_777_216);
+    if (manifest.config.digest !== selected.configDigest ||
+        manifest.config.size !== resolution.manifest.config.size) {
+      throw new TypeError("graph containerd config is invalid");
+    }
+    let totalSize = 0;
+    for (const [index, layer] of manifest.layers.entries()) {
+      validateContentDescriptor(layer, new Set(["application/vnd.oci.image.layer.v1.tar"]), 8_589_934_592);
+      if (layer.digest !== retained.rootfs.Layers[index]) {
+        throw new TypeError("graph containerd layer is invalid");
+      }
+      totalSize += layer.size;
+      if (!Number.isSafeInteger(totalSize) || totalSize > 1_099_511_627_776) {
+        throw new TypeError("graph containerd layer size is invalid");
+      }
+    }
+    const index = parseBoundedJson(wrapperSource, graphProviderByteLimit);
+    requireExactKeySet(index, ["manifests", "mediaType", "schemaVersion"], "graph containerd index");
+    if (index.schemaVersion !== 2 || index.mediaType !== "application/vnd.oci.image.index.v1+json" ||
+        !Array.isArray(index.manifests) || index.manifests.length !== 1) {
+      throw new TypeError("graph containerd index is invalid");
+    }
+    validateContentDescriptor(index.manifests[0],
+      new Set(["application/vnd.oci.image.manifest.v1+json"]), graphProviderByteLimit);
+    if (index.manifests[0].digest !== child.digest ||
+        index.manifests[0].size !== Buffer.byteLength(manifestSource)) {
+      throw new TypeError("graph containerd index edge is invalid");
+    }
+    return target;
+  } catch (error) {
+    if (error instanceof GraphFailure) throw error;
+    throw new GraphFailure("provider");
   }
 }
 
@@ -1824,9 +1959,25 @@ export class LocalGraphSystem extends LocalProductSystem {
       const after = await this.runNodeRead([
         "ctr", "--namespace", "k8s.io", "images", "list",
       ], phase, "provider", 30_000, 4_194_304);
+      let target = parseGraphContainerdImageTargets(before.stdout, after.stdout, selected);
+      if (target.references.length === 3) {
+        const child = target.references.find(({ mediaType, reference }) =>
+          mediaType === "application/vnd.oci.image.manifest.v1+json" && reference.startsWith("import-"));
+        const wrapper = target.references.find(({ mediaType }) =>
+          mediaType === "application/vnd.oci.image.index.v1+json");
+        if (child === undefined || wrapper === undefined) throw new GraphFailure("provider");
+        const manifest = await this.runNodeRead([
+          "ctr", "--namespace", "k8s.io", "content", "get", child.digest,
+        ], phase, "provider", 30_000, 4_194_304);
+        const index = await this.runNodeRead([
+          "ctr", "--namespace", "k8s.io", "content", "get", wrapper.digest,
+        ], phase, "provider", 30_000, 4_194_304);
+        target = validateGraphContainerdImageContents(
+          target, manifest.stdout, index.stdout, selected, retained, this.graphImageResolutions.get(selected.name),
+        );
+      }
       if (this.graphLoadedImageTargets.has(selected.name)) throw new GraphFailure("ownership");
-      this.graphLoadedImageTargets.set(selected.name,
-        parseGraphContainerdImageTargets(before.stdout, after.stdout, selected));
+      this.graphLoadedImageTargets.set(selected.name, target);
     }
     await this.verifyCluster(phase, "ownership");
   }
