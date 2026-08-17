@@ -361,6 +361,11 @@ function realisticObservabilityProviderState(options = {}) {
   }
   value.services[0].metadata.finalizers = ["service.kubernetes.io/load-balancer-cleanup"];
   if (value.jobs.length === 1) value.jobs[0].status.uncountedTerminatedPods = {};
+  for (const item of [...value.deployments, ...value.replicaSets, ...value.jobs]) {
+    delete item.spec.template.spec.hostIPC;
+    delete item.spec.template.spec.hostNetwork;
+    delete item.spec.template.spec.hostPID;
+  }
   return value;
 }
 
@@ -369,6 +374,12 @@ function emptyObservabilityProviderState() {
     configMaps: [], deployments: [], endpointSlices: [], ingresses: [], jobLog: null,
     jobs: [], pods: [], replicaSets: [], services: [],
   };
+}
+
+function capturedProductProviderState() {
+  return new Map([
+    "deployments", "endpointSlices", "pods", "replicaSets", "services",
+  ].map((key) => [key, Array.from({ length: 4 }, (_value, index) => ({ key, index }))]));
 }
 
 function providerList(items) {
@@ -692,7 +703,7 @@ test("stages one span Job only after exact core readiness and reads one stable s
       super(input);
       this.events = [];
       this.outcome = outcome;
-      this.productProviderSnapshot = Object.freeze({ token: "stable-product-provider-state" });
+      this.productProviderCapture = capturedProductProviderState();
     }
 
     async verifyGraphReadiness(value) {
@@ -1030,6 +1041,7 @@ test("reconciles an uncertain Job before destructive graph cleanup and rejects r
       this.events.push("observability-cleanup-proof");
       return this.values.shift();
     }
+    async pauseObservabilityPoll() { this.events.push("pause"); }
   }
   const system = new CleanupSystem();
   await system.verifyAdditionalNodeForCleanup(phase);
@@ -1043,6 +1055,138 @@ test("reconciles an uncertain Job before destructive graph cleanup and rejects r
   replaced.values = [foreign, foreign, foreign];
   await assert.rejects(() => replaced.verifyAdditionalNodeForCleanup(phase), { category: "cleanup" });
   assert.equal(replaced.observabilityJobMayHaveApplied, true);
+
+  const activeState = observabilityProviderState();
+  delete activeState.jobs[0].status.completionTime;
+  activeState.jobs[0].status.conditions = [];
+  activeState.jobs[0].status.ready = 1;
+  activeState.jobs[0].status.succeeded = 0;
+  activeState.pods.pop();
+  activeState.jobLog = null;
+  const active = new CleanupSystem();
+  active.values = [activeState, activeState, activeState, completeState];
+  await active.verifyAdditionalNodeForCleanup(phase);
+  assert.equal(active.observabilityJobMayHaveApplied, false);
+  assert.equal(active.observabilityProviderIdentity.job.jobUid, providerUid(45));
+  assert.equal(active.events.filter((event) => event === "observability-cleanup-proof").length, 4);
+  assert.equal(active.events.filter((event) => event === "pause").length, 3);
+});
+
+test("drives production cancellation state through settled active-Job cleanup", async () => {
+  const expected = observabilityExpectation();
+  const coreState = observabilityProviderState({ includeJob: false });
+  const core = validateObservabilityKubernetesState(coreState, expected, undefined, false);
+  const completeState = observabilityProviderState();
+  const activeState = observabilityProviderState();
+  delete activeState.jobs[0].status.completionTime;
+  activeState.jobs[0].status.conditions = [];
+  activeState.jobs[0].status.ready = 1;
+  activeState.jobs[0].status.succeeded = 0;
+  activeState.pods.pop();
+  activeState.jobLog = null;
+  const graphResult = Object.freeze({
+    graph: Object.freeze({ internal: true, persistent: true, ready: true }),
+    internal: true,
+    pods: 4,
+    ready: 4,
+    services: 4,
+  });
+
+  class LifecycleSystem extends LocalObservabilitySystem {
+    constructor() {
+      super(input);
+      this.paths = Object.freeze({
+        graphManifest: "/safe/runtime/graph.yaml",
+        kubeconfig: "/safe/runtime/kubeconfig",
+        observabilityCoreManifest: "/safe/runtime/observability.yaml",
+        observabilitySpanManifest: "/safe/runtime/observability-span.yaml",
+      });
+      this.environment = Object.freeze({ PATH: input.path });
+      this.productProviderCapture = capturedProductProviderState();
+      this.events = [];
+      this.cleanupValues = [];
+    }
+    observabilityProviderExpectation() { return expected; }
+    async verifyGraphReadiness(value) { this.events.push("graph"); return value; }
+    async pollObservabilityProviderState(_phase, _retained, requireJob) {
+      if (!requireJob) { this.events.push("core"); return core; }
+      this.events.push("completion-poll");
+      throw new ObservabilityFailure("deadline");
+    }
+    async requireObservabilitySinkAbsent() { this.events.push("sink-absent"); }
+    async requireTemporaryOwnership() {}
+    async requireOwnedPath() {}
+    async verifyAdditionalManifestState() {}
+    async withOwnedFiles(paths, _phase, _category, callback) {
+      return await callback(paths.map((path, index) => ({
+        handle: { fd: index + 3 },
+        identity: {
+          bytes: Buffer.from(path === this.paths.observabilitySpanManifest
+            ? renderObservabilitySpanManifest(buildObservabilityResources().slice(3)) : "owned", "utf8"),
+        },
+      })));
+    }
+    async verifyGraphNodeForCleanup() { this.events.push("graph-cleanup-proof"); }
+    async readObservabilityProviderState() {
+      this.events.push("observability-cleanup-proof");
+      return this.cleanupValues.shift();
+    }
+    async pauseObservabilityPoll() { this.events.push("pause"); }
+  }
+
+  const beforeApply = new LifecycleSystem();
+  beforeApply.requireObservabilitySinkAbsent = async () => {
+    beforeApply.events.push("sink-cancelled");
+    throw new ObservabilityFailure("deadline");
+  };
+  await assert.rejects(
+    () => beforeApply.verifyAdditionalReadiness(graphResult, { assertActive() {} }),
+    { category: "deadline" },
+  );
+  assert.equal(beforeApply.observabilityJobMayHaveApplied, false);
+  assert.deepEqual(beforeApply.observabilityProviderIdentity, core);
+  beforeApply.cleanupValues = [coreState];
+  await beforeApply.verifyAdditionalNodeForCleanup({ assertActive() {} });
+  assert.equal(beforeApply.observabilityJobMayHaveApplied, false);
+
+  let commandStarted;
+  let settleCommand;
+  const started = new Promise((resolve) => { commandStarted = resolve; });
+  const command = new Promise((resolve) => { settleCommand = resolve; });
+  const afterApply = new LifecycleSystem();
+  afterApply.dependencies = {
+    ...afterApply.dependencies,
+    command: async () => {
+      afterApply.events.push("mutation-start");
+      commandStarted();
+      const result = await command;
+      afterApply.events.push("mutation-settled");
+      return result;
+    },
+  };
+  let mainActive = true;
+  const controller = new AbortController();
+  const mainPhase = {
+    signal: controller.signal,
+    assertActive(category) {
+      if (!mainActive) throw new ObservabilityFailure(category);
+    },
+  };
+  const readiness = afterApply.verifyAdditionalReadiness(graphResult, mainPhase);
+  await started;
+  mainActive = false;
+  controller.abort();
+  settleCommand({ signal: null, status: 0, stderr: "", stdout: "", thrown: false, timedOut: false });
+  await assert.rejects(() => readiness, { category: "provider" });
+  assert.equal(afterApply.observabilityJobMayHaveApplied, true);
+  const cleanupPhase = { assertActive() {}, signal: new AbortController().signal };
+  await afterApply.joinMutations(cleanupPhase);
+  afterApply.cleanupValues = [activeState, activeState, completeState];
+  await afterApply.verifyAdditionalNodeForCleanup(cleanupPhase);
+  assert.equal(afterApply.observabilityJobMayHaveApplied, false);
+  assert.equal(afterApply.observabilityProviderIdentity.job.jobUid, providerUid(45));
+  assert.ok(afterApply.events.indexOf("mutation-settled") < afterApply.events.indexOf("graph-cleanup-proof"));
+  assert.equal(afterApply.events.filter((event) => event === "pause").length, 2);
 });
 
 test("polls bounded delayed state but rejects failed or duplicate Job state without retry", async () => {

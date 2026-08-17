@@ -559,6 +559,19 @@ export class LocalObservabilitySystem extends LocalGraphSystem {
     }
   }
 
+  retainInitialProductSnapshot() {
+    if (this.productProviderSnapshot !== undefined) return;
+    const capture = this.productProviderCapture;
+    const keys = ["deployments", "endpointSlices", "pods", "replicaSets", "services"];
+    if (!(capture instanceof Map) || capture.size !== keys.length || keys.some((key) =>
+      !plainArray(capture.get(key)) || capture.get(key).length !== 4)) {
+      throw new ObservabilityFailure("ownership");
+    }
+    this.productProviderSnapshot = deepFreeze(Object.fromEntries(
+      keys.map((key) => [key, structuredClone(capture.get(key))]),
+    ));
+  }
+
   async pauseObservabilityPoll(phase, category) {
     await new Promise((resolve) => setTimeout(resolve, observabilityProviderPollMilliseconds));
     phase.assertActive(category);
@@ -667,6 +680,7 @@ export class LocalObservabilitySystem extends LocalGraphSystem {
 
   async verifyAdditionalReadiness(productResult, phase) {
     if (this.productReadinessOnly) return productResult;
+    this.retainInitialProductSnapshot();
     const graphResult = await this.withRetainedProductSnapshot(
       async () => await this.verifyGraphReadiness(productResult, phase), "ownership",
     );
@@ -747,7 +761,7 @@ export class LocalObservabilitySystem extends LocalGraphSystem {
     if (retained === undefined && !this.observabilityJobMayHaveApplied) return;
     if (retained === undefined) throw new ObservabilityFailure("cleanup");
     let failure;
-    for (let attempt = 0; attempt < 3; attempt += 1) {
+    for (let attempt = 0; attempt < observabilityProviderPollLimit; attempt += 1) {
       phase.assertActive("cleanup");
       try {
         const providerState = await this.readObservabilityProviderState(phase, "cleanup");
@@ -776,6 +790,9 @@ export class LocalObservabilitySystem extends LocalGraphSystem {
       } catch (error) {
         if (!(error instanceof Failure) || error.category !== "cleanup") throw error;
         failure = error;
+      }
+      if (attempt + 1 < observabilityProviderPollLimit) {
+        await this.pauseObservabilityPoll(phase, "cleanup");
       }
     }
     throw failure ?? new ObservabilityFailure("cleanup");
@@ -1027,7 +1044,7 @@ function projectObservabilityDeployment(item) {
       resourceVersion: item?.metadata?.resourceVersion,
       uid: item?.metadata?.uid,
     }),
-    spec: structuredClone(item?.spec),
+    spec: projectObservabilityWorkloadSpec(item?.spec),
     status: {
       availableReplicas: item?.status?.availableReplicas ?? 0,
       conditions: Array.isArray(item?.status?.conditions) ? item.status.conditions
@@ -1053,7 +1070,7 @@ function projectObservabilityReplicaSet(item) {
       resourceVersion: item?.metadata?.resourceVersion,
       uid: item?.metadata?.uid,
     }),
-    spec: structuredClone(item?.spec),
+    spec: projectObservabilityWorkloadSpec(item?.spec),
     status: {
       availableReplicas: item?.status?.availableReplicas ?? 0,
       fullyLabeledReplicas: item?.status?.fullyLabeledReplicas ?? 0,
@@ -1176,7 +1193,7 @@ function projectObservabilityJob(item) {
       resourceVersion: item?.metadata?.resourceVersion,
       uid: item?.metadata?.uid,
     }),
-    spec: structuredClone(item?.spec),
+    spec: projectObservabilityWorkloadSpec(item?.spec),
     status: {
       completionTime: item?.status?.completionTime,
       conditions: Array.isArray(item?.status?.conditions) ? item.status.conditions
@@ -1213,6 +1230,16 @@ function retainObservabilityDeletionState(item, metadata) {
     metadata.deletionGracePeriodSeconds = item.metadata.deletionGracePeriodSeconds;
   }
   return metadata;
+}
+
+function projectObservabilityWorkloadSpec(value) {
+  const spec = structuredClone(value);
+  const podSpec = spec?.template?.spec;
+  if (!isPlainObject(podSpec)) return spec;
+  for (const key of ["hostIPC", "hostNetwork", "hostPID"]) {
+    if (podSpec[key] === undefined) podSpec[key] = false;
+  }
+  return spec;
 }
 
 function requireObservabilityProviderAbsent(value) {
