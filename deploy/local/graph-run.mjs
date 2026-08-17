@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { GRAPH_CONSTANTS, GRAPH_IMAGES, buildGraphResources, renderGraphManifest } from "./graph-manifest.mjs";
 import { PRODUCTS } from "./manifests.mjs";
+import { buildCollectorImagePlan } from "./observability-image.mjs";
 import {
   DockerKindRuntime,
   Failure,
@@ -2827,7 +2828,9 @@ function validateSelectedPlan(value) {
     "architecture", "configDigest", "indexDigest", "manifestDigest", "name", "platform", "providerReference",
     "reference", "repoDigest", "repository", "selectedReference", "tag",
   ])) throw new TypeError("graph image plan is invalid");
-  const expected = buildGraphImagePlan(value.name, value.platform);
+  const expected = value.name === "collector"
+    ? buildCollectorImagePlan(value.platform)
+    : buildGraphImagePlan(value.name, value.platform);
   if (!exactData(value, expected)) throw new TypeError("graph image plan is invalid");
 }
 

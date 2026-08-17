@@ -1,8 +1,16 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { test } from "node:test";
 
 import { buildKindConfig, buildKindCreateArguments } from "./run.mjs";
-import { buildGraphImagePlan, LocalGraphSystem } from "./graph-run.mjs";
+import {
+  LocalGraphSystem,
+  bindGraphContainerdRuntimeAlias,
+  bindGraphContainerdWorkloadAlias,
+  buildGraphImagePlan,
+  parseGraphContainerdImageTargets,
+  validateGraphContainerdImageContents,
+} from "./graph-run.mjs";
 import {
   OBSERVABILITY_CONSTANTS,
   buildObservabilityResources,
@@ -140,6 +148,48 @@ function collectorManifestDocument(selected) {
     mediaType: "application/vnd.docker.distribution.manifest.v2+json",
     schemaVersion: 2,
   };
+}
+
+function containerdInventory(rows) {
+  return ["REF TYPE DIGEST SIZE PLATFORMS LABELS", ...rows].join("\n") + "\n";
+}
+
+function collectorArchiveImport(platform = "linux/arm64") {
+  const selected = buildCollectorImagePlan(platform);
+  const retained = validateCollectorImageInspection(
+    collectorInspection(selected), selected, resolution(selected),
+  );
+  const manifestSource = JSON.stringify({
+    config: {
+      digest: selected.configDigest,
+      mediaType: "application/vnd.oci.image.config.v1+json",
+      size: resolution(selected).manifest.config.size,
+    },
+    layers: retained.rootfs.Layers.map((digest, index) => ({
+      digest,
+      mediaType: "application/vnd.oci.image.layer.v1.tar",
+      size: [182_784, 358_221_824, 4_608][index],
+    })),
+    mediaType: "application/vnd.oci.image.manifest.v1+json",
+    schemaVersion: 2,
+  });
+  const childDigest = `sha256:${createHash("sha256").update(manifestSource).digest("hex")}`;
+  const wrapperSource = JSON.stringify({
+    manifests: [{
+      digest: childDigest,
+      mediaType: "application/vnd.oci.image.manifest.v1+json",
+      size: Buffer.byteLength(manifestSource),
+    }],
+    mediaType: "application/vnd.oci.image.index.v1+json",
+    schemaVersion: 2,
+  });
+  const wrapperDigest = `sha256:${createHash("sha256").update(wrapperSource).digest("hex")}`;
+  const date = "2026-08-17";
+  const labels = "io.cri-containerd.image=managed";
+  const child = `import-${date}@${childDigest} application/vnd.oci.image.manifest.v1+json ${childDigest} 341.8 MiB ${platform} ${labels}`;
+  const wrapper = `import-${date}@${wrapperDigest} application/vnd.oci.image.index.v1+json ${wrapperDigest} 4.9 MiB ${platform} ${labels}`;
+  const alias = `${selected.configDigest} application/vnd.oci.image.manifest.v1+json ${childDigest} 341.8 MiB ${platform} ${labels}`;
+  return { alias, child, childDigest, manifestSource, retained, selected, wrapper, wrapperDigest, wrapperSource };
 }
 
 function fakeLifecycle(result, overrides = {}) {
@@ -612,6 +662,48 @@ test("binds complete Collector index, platform, and runtime metadata", () => {
   for (const value of ["linux/386", "darwin/arm64", undefined]) {
     assert.throws(() => buildCollectorImagePlan(value), TypeError);
   }
+});
+
+test("binds the exact pinned Collector through the inherited containerd archive pipeline", () => {
+  const fixture = collectorArchiveImport();
+  const baselineRows = [
+    `docker.io/library/zasp-audit-api:m1-30a application/vnd.oci.image.manifest.v1+json ` +
+      `sha256:${"7".repeat(64)} 12.3 MiB linux/arm64 managed=true`,
+  ];
+  const before = containerdInventory(baselineRows);
+  const importedRows = [...baselineRows, fixture.child, fixture.wrapper, fixture.alias];
+  const imported = containerdInventory(importedRows);
+  const target = parseGraphContainerdImageTargets(before, imported, fixture.selected);
+  assert.equal(validateGraphContainerdImageContents(
+    target,
+    fixture.manifestSource,
+    fixture.wrapperSource,
+    fixture.selected,
+    fixture.retained,
+    resolution(fixture.selected),
+  ), target);
+
+  const workloadReference = `docker.io/${fixture.selected.repoDigest}`;
+  const workloadRow = fixture.wrapper.replace(/^\S+/, workloadReference);
+  const workload = bindGraphContainerdWorkloadAlias(
+    imported,
+    containerdInventory([...importedRows, workloadRow]),
+    target,
+    fixture.selected,
+  );
+  const runtimeReference = `docker.io/library/${fixture.child.slice(0, fixture.child.indexOf(" "))}`;
+  const runtimeRow = fixture.child.replace(/^\S+/, runtimeReference);
+  const runtime = bindGraphContainerdRuntimeAlias(
+    containerdInventory([...importedRows, workloadRow]),
+    containerdInventory([...importedRows, workloadRow, runtimeRow]),
+    workload,
+    fixture.selected,
+  );
+  assert.equal(runtime.references.length, 5);
+  assert.equal(runtime.imageID, runtimeReference);
+
+  const drift = { ...fixture.selected, configDigest: `sha256:${"f".repeat(64)}` };
+  assert.throws(() => parseGraphContainerdImageTargets(before, imported, drift), { name: "Failure" });
 });
 
 test("resolves the Collector through profile-local OCI validation without widening the graph image map", async () => {
