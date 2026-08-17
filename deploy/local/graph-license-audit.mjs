@@ -9,6 +9,8 @@ const maximumArtifactBytes = 8 * 1024 * 1024;
 const maximumJsonDepth = 16;
 const maximumCollectionSize = 64;
 const maximumStringLength = 4_096;
+const defaultFetchTimeoutMilliseconds = 30_000;
+const defaultCleanupTimeoutMilliseconds = 1_000;
 
 export const GRAPH_LICENSE_SUCCESS_LINE = "Local graph license audit passed: components=3 artifacts=6 prohibited=0 redistribution_approved=false.";
 
@@ -160,13 +162,27 @@ export async function runMain(options = {}) {
   }
 }
 
-async function fingerprintUrl(url, options = {}) {
-  if (typeof url !== "string" || !url.startsWith("https://")) reject();
+export async function fingerprintUrl(url, options = {}) {
+  if (typeof url !== "string" || !url.startsWith("https://") || !isPlainObject(options)) reject();
+  const allowedOptions = new Set(["cleanupTimeoutMilliseconds", "fetchImpl", "timeoutMilliseconds"]);
+  if (Object.keys(options).some((key) => !allowedOptions.has(key))) reject();
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const timeoutMilliseconds = options.timeoutMilliseconds ?? defaultFetchTimeoutMilliseconds;
+  const cleanupTimeoutMilliseconds = options.cleanupTimeoutMilliseconds ?? defaultCleanupTimeoutMilliseconds;
+  if (typeof fetchImpl !== "function" || !validTimeout(timeoutMilliseconds, defaultFetchTimeoutMilliseconds) ||
+      !validTimeout(cleanupTimeoutMilliseconds, defaultCleanupTimeoutMilliseconds)) reject();
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 30_000);
+  let timer;
+  const deadline = new Promise((_resolve, rejectDeadline) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      rejectDeadline(new Error("bounded artifact deadline"));
+    }, timeoutMilliseconds);
+  });
   let reader;
+  let succeeded = false;
   try {
-    const response = await (options.fetchImpl ?? fetch)(url, {
+    const response = await Promise.race([Promise.resolve().then(() => fetchImpl(url, {
       signal: controller.signal,
       redirect: "error",
       headers: {
@@ -174,28 +190,54 @@ async function fingerprintUrl(url, options = {}) {
         "Accept-Encoding": "identity",
         "User-Agent": "zasp-local-graph-license-audit/1",
       },
-    });
-    if (!response?.ok || response.status !== 200 || response.redirected) reject();
+    })), deadline]);
     reader = response.body?.getReader?.();
     if (reader === undefined) reject();
+    if (response.ok !== true || response.status !== 200 || response.redirected !== false ||
+        typeof response.headers?.get !== "function") reject();
+    const contentLengthHeader = response.headers.get("content-length");
+    let contentLength;
+    if (contentLengthHeader !== null) {
+      if (typeof contentLengthHeader !== "string" || !/^(?:0|[1-9]\d*)$/u.test(contentLengthHeader)) reject();
+      contentLength = Number(contentLengthHeader);
+      if (!Number.isSafeInteger(contentLength) || contentLength > maximumArtifactBytes) reject();
+    }
     const hash = createHash("sha256");
     let bytes = 0;
     while (true) {
-      const chunk = await reader.read();
+      const chunk = await Promise.race([Promise.resolve().then(() => reader.read()), deadline]);
       if (chunk?.done === true) break;
       if (chunk?.done !== false || !(chunk.value instanceof Uint8Array) || chunk.value.byteLength === 0) reject();
       bytes += chunk.value.byteLength;
-      if (bytes > maximumArtifactBytes) reject();
+      if (bytes > maximumArtifactBytes || contentLength !== undefined && bytes > contentLength) reject();
       hash.update(chunk.value);
     }
-    if (bytes === 0) reject();
+    if (bytes === 0 || contentLength !== undefined && bytes !== contentLength) reject();
+    succeeded = true;
     return hash.digest("hex");
   } catch {
     reject();
   } finally {
-    clearTimeout(timer);
+    if (!succeeded) {
+      controller.abort();
+      await cancelReader(reader, cleanupTimeoutMilliseconds);
+    }
     try { reader?.releaseLock?.(); } catch { /* fixed rejection boundary */ }
+    clearTimeout(timer);
   }
+}
+
+async function cancelReader(reader, timeoutMilliseconds) {
+  if (typeof reader?.cancel !== "function") return;
+  let timer;
+  const cancelled = Promise.resolve().then(() => reader.cancel()).catch(() => {});
+  const bounded = new Promise((resolve) => { timer = setTimeout(resolve, timeoutMilliseconds); });
+  await Promise.race([cancelled, bounded]);
+  clearTimeout(timer);
+}
+
+function validTimeout(value, maximum) {
+  return Number.isSafeInteger(value) && value > 0 && value <= maximum;
 }
 
 function parseUniqueJson(source) {
