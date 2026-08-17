@@ -830,6 +830,19 @@ test("uses fixed bounded provider, Job-apply, log, and sink command boundaries",
   const phase = { assertActive() {} };
   const system = new ProviderSystem();
   assert.deepEqual(await system.readObservabilityProviderState(phase), state);
+  for (const collection of [
+    "configMaps", "deployments", "replicaSets", "pods", "services", "endpointSlices", "jobs",
+  ]) {
+    rawState[collection][0].metadata.deletionTimestamp = "2026-08-16T10:00:06Z";
+    const terminating = new ProviderSystem();
+    const projected = await terminating.readObservabilityProviderState(phase);
+    assert.throws(
+      () => validateObservabilityKubernetesState(projected, expected, undefined, true),
+      { category: "readiness" },
+      `${collection} deletion state must survive provider projection`,
+    );
+    delete rawState[collection][0].metadata.deletionTimestamp;
+  }
   assert.deepEqual(system.calls.filter(([, , arguments_]) => arguments_.includes("get")).map(([, , arguments_]) =>
     arguments_.slice(2)), [
     ["get", "configmap", "--namespace", "zasp-local", "--selector=app.kubernetes.io/component=observability", "--output=json"],

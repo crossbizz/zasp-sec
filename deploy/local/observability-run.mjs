@@ -1005,13 +1005,13 @@ function projectObservabilityConfigMap(item) {
     apiVersion: item?.apiVersion,
     data: structuredClone(item?.data),
     kind: item?.kind,
-    metadata: {
+    metadata: retainObservabilityDeletionState(item, {
       labels: structuredClone(item?.metadata?.labels),
       name: item?.metadata?.name,
       namespace: item?.metadata?.namespace,
       resourceVersion: item?.metadata?.resourceVersion,
       uid: item?.metadata?.uid,
-    },
+    }),
   };
 }
 
@@ -1019,14 +1019,14 @@ function projectObservabilityDeployment(item) {
   return {
     apiVersion: item?.apiVersion,
     kind: item?.kind,
-    metadata: {
+    metadata: retainObservabilityDeletionState(item, {
       generation: item?.metadata?.generation,
       labels: structuredClone(item?.metadata?.labels),
       name: item?.metadata?.name,
       namespace: item?.metadata?.namespace,
       resourceVersion: item?.metadata?.resourceVersion,
       uid: item?.metadata?.uid,
-    },
+    }),
     spec: structuredClone(item?.spec),
     status: {
       availableReplicas: item?.status?.availableReplicas ?? 0,
@@ -1045,14 +1045,14 @@ function projectObservabilityReplicaSet(item) {
   return {
     apiVersion: item?.apiVersion,
     kind: item?.kind,
-    metadata: {
+    metadata: retainObservabilityDeletionState(item, {
       labels: structuredClone(item?.metadata?.labels),
       name: item?.metadata?.name,
       namespace: item?.metadata?.namespace,
       ownerReferences: projectObservabilityOwnerReferences(item?.metadata?.ownerReferences),
       resourceVersion: item?.metadata?.resourceVersion,
       uid: item?.metadata?.uid,
-    },
+    }),
     spec: structuredClone(item?.spec),
     status: {
       availableReplicas: item?.status?.availableReplicas ?? 0,
@@ -1068,14 +1068,14 @@ function projectObservabilityPod(item) {
   return {
     apiVersion: item?.apiVersion,
     kind: item?.kind,
-    metadata: {
+    metadata: retainObservabilityDeletionState(item, {
       labels: structuredClone(item?.metadata?.labels),
       name: item?.metadata?.name,
       namespace: item?.metadata?.namespace,
       ownerReferences: projectObservabilityOwnerReferences(item?.metadata?.ownerReferences),
       resourceVersion: item?.metadata?.resourceVersion,
       uid: item?.metadata?.uid,
-    },
+    }),
     spec: structuredClone(item?.spec),
     status: {
       conditions: Array.isArray(item?.status?.conditions) ? item.status.conditions
@@ -1120,13 +1120,13 @@ function projectObservabilityService(item) {
   return {
     apiVersion: item?.apiVersion,
     kind: item?.kind,
-    metadata: {
+    metadata: retainObservabilityDeletionState(item, {
       labels: structuredClone(item?.metadata?.labels),
       name: item?.metadata?.name,
       namespace: item?.metadata?.namespace,
       resourceVersion: item?.metadata?.resourceVersion,
       uid: item?.metadata?.uid,
-    },
+    }),
     spec: structuredClone(item?.spec),
     status: { loadBalancer: structuredClone(item?.status?.loadBalancer ?? {}) },
   };
@@ -1152,14 +1152,14 @@ function projectObservabilityEndpointSlice(item) {
       },
     })) : [],
     kind: item?.kind,
-    metadata: {
+    metadata: retainObservabilityDeletionState(item, {
       labels: structuredClone(item?.metadata?.labels),
       name: item?.metadata?.name,
       namespace: item?.metadata?.namespace,
       ownerReferences: projectObservabilityOwnerReferences(item?.metadata?.ownerReferences),
       resourceVersion: item?.metadata?.resourceVersion,
       uid: item?.metadata?.uid,
-    },
+    }),
     ports: Array.isArray(item?.ports)
       ? item.ports.map(({ name, port, protocol }) => ({ name, port, protocol })) : [],
   };
@@ -1169,13 +1169,13 @@ function projectObservabilityJob(item) {
   return {
     apiVersion: item?.apiVersion,
     kind: item?.kind,
-    metadata: {
+    metadata: retainObservabilityDeletionState(item, {
       labels: structuredClone(item?.metadata?.labels),
       name: item?.metadata?.name,
       namespace: item?.metadata?.namespace,
       resourceVersion: item?.metadata?.resourceVersion,
       uid: item?.metadata?.uid,
-    },
+    }),
     spec: structuredClone(item?.spec),
     status: {
       completionTime: item?.status?.completionTime,
@@ -1203,6 +1203,16 @@ function projectObservabilityOwnerReferences(value) {
     name: entry?.name,
     uid: entry?.uid,
   })) : [];
+}
+
+function retainObservabilityDeletionState(item, metadata) {
+  if (item?.metadata?.deletionTimestamp !== undefined) {
+    metadata.deletionTimestamp = item.metadata.deletionTimestamp;
+  }
+  if (item?.metadata?.deletionGracePeriodSeconds !== undefined) {
+    metadata.deletionGracePeriodSeconds = item.metadata.deletionGracePeriodSeconds;
+  }
+  return metadata;
 }
 
 function requireObservabilityProviderAbsent(value) {
