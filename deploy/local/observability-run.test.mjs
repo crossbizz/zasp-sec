@@ -1021,8 +1021,10 @@ test("uses fixed bounded provider, Job-apply, log, and sink command boundaries",
   ]);
   assert.match(sinkCall[2].at(-1), /test ! -L.*stat -Lc.*dd if=.*bs=65537.*stat -Lc/u);
 
-  system.sink = "ZASP-SINK-ABSENT\n";
+  system.sink = "ZASP-SINK-PRISTINE\n";
   await system.requireObservabilitySinkAbsent(complete, phase);
+  const pristineCall = system.calls.filter(([, , arguments_]) => arguments_.includes("exec")).at(-1);
+  assert.match(pristineCall[2].at(-1), /test ! -L.*if test -e.*test -f.*test ! -s/u);
   system.sink = sinkFrame();
   await assert.rejects(
     () => system.requireObservabilitySinkAbsent(complete, phase), { category: "readiness" },

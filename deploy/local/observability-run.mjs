@@ -666,15 +666,15 @@ export class LocalObservabilitySystem extends LocalGraphSystem {
     const source = [
       "set -eu",
       `path=${path}`,
-      "test ! -e \"$path\"",
       "test ! -L \"$path\"",
-      "printf 'ZASP-SINK-ABSENT\\n'",
+      "if test -e \"$path\"; then test -f \"$path\"; test ! -s \"$path\"; fi",
+      "printf 'ZASP-SINK-PRISTINE\\n'",
     ].join("; ");
     const result = await super.runKubectlRead([
       "exec", "--namespace", OBSERVABILITY_CONSTANTS.namespace, podName,
       "--container", "sink-reader", "--", "sh", "-ec", source,
     ], phase, category, 30_000, 128);
-    if (result.stdout !== "ZASP-SINK-ABSENT\n") throw new ObservabilityFailure(category);
+    if (result.stdout !== "ZASP-SINK-PRISTINE\n") throw new ObservabilityFailure(category);
   }
 
   async verifyGraphReadiness(productResult, phase) {
