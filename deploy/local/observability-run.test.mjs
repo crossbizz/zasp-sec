@@ -1078,6 +1078,26 @@ test("reconciles an uncertain Job before destructive graph cleanup and rejects r
   assert.equal(system.observabilityJobMayHaveApplied, false);
   assert.equal(system.observabilityProviderIdentity.job.jobUid, providerUid(45));
 
+  for (const mutate of [
+    (value) => { value.jobs[0].metadata.resourceVersion = "999"; },
+    (value) => { value.pods.at(-1).metadata.resourceVersion = "999"; },
+    (value) => { value.jobs[0].status.startTime = "2026-08-16T10:00:01Z"; },
+    (value) => {
+      value.jobs[0].status.completionTime = "2026-08-16T10:00:07Z";
+      value.jobs[0].status.conditions[0].lastProbeTime = "2026-08-16T10:00:07Z";
+      value.jobs[0].status.conditions[0].lastTransitionTime = "2026-08-16T10:00:07Z";
+    },
+    (value) => { value.pods.at(-1).status.containerStatuses[0].state.terminated.startedAt = "2026-08-16T10:00:02Z"; },
+    (value) => { value.pods.at(-1).status.containerStatuses[0].state.terminated.finishedAt = "2026-08-16T10:00:04Z"; },
+    (value) => { value.pods.at(-1).status.podIP = "10.244.0.99"; },
+  ]) {
+    const changedRetryState = observabilityProviderState();
+    mutate(changedRetryState);
+    system.values = [changedRetryState];
+    await assert.rejects(() => system.verifyAdditionalNodeForCleanup(phase), { category: "cleanup" });
+    assert.equal(system.observabilityProviderIdentity.job.jobUid, providerUid(45));
+  }
+
   const replaced = new CleanupSystem();
   const foreign = observabilityProviderState();
   foreign.jobs[0].metadata.uid = providerUid(99);

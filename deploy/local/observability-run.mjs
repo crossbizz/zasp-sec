@@ -1379,7 +1379,17 @@ function validateObservabilityJob(value, expected, jobResource) {
   if (!isDeepStrictEqual(job, expectedJob) || !isDeepStrictEqual(pod, expectedPod)) {
     throw new TypeError("observability Job provider state is invalid");
   }
-  return deepFreeze({ completionTime, containerId, finishedAt, jobUid, log: observabilityJobLog, podName, podUid });
+  return deepFreeze({
+    completionTime,
+    containerId,
+    finishedAt,
+    jobUid,
+    log: observabilityJobLog,
+    podName,
+    podUid,
+    providerJob: structuredClone(job),
+    providerPod: structuredClone(pod),
+  });
 }
 
 function validateFailedObservabilityKubernetesState(value, expected, retained, category) {
