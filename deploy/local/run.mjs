@@ -36,6 +36,13 @@ const resourceVersionPattern = /^[1-9]\d*$/;
 const mainTimeoutMilliseconds = 600_000;
 const cleanupTimeoutMilliseconds = 180_000;
 const settlementTimeoutMilliseconds = 60_000;
+const kubeletPidLimit = 512;
+const kubeletPidPatch = [
+  "apiVersion: kubelet.config.k8s.io/v1beta1",
+  "kind: KubeletConfiguration",
+  `podPidsLimit: ${kubeletPidLimit}`,
+].join("\n");
+const kubeletPidProjection = `${kubeletPidPatch}\n`;
 
 export const KIND_PINS = deepFreeze({
   kind: {
@@ -85,7 +92,7 @@ export function buildKindConfig() {
     apiVersion: "kind.x-k8s.io/v1alpha4",
     kind: "Cluster",
     networking: { apiServerAddress: "127.0.0.1" },
-    nodes: [{ role: "control-plane" }],
+    nodes: [{ kubeadmConfigPatches: [kubeletPidPatch], role: "control-plane" }],
   });
 }
 
@@ -1089,6 +1096,10 @@ export class LocalProductSystem {
       : await this.rememberOwnedPath(this.paths.kubeconfig, "file", phase, category);
     validateKubeconfigBytes(kubeconfig.bytes, this.cluster, identity.apiPort, this.profile.proof);
     this.nodeIdentity = identity;
+    const pidLimit = await this.runRead("docker", [
+      "exec", identity.token, "grep", "-E", "^(apiVersion|kind|podPidsLimit):", "/var/lib/kubelet/config.yaml",
+    ], phase, category, 15_000, 16_384);
+    if (pidLimit.stdout !== kubeletPidProjection) throw new Failure(category);
     return identity;
   }
   async loadImages(phase) {
@@ -1457,6 +1468,7 @@ export class LocalProductSystem {
     if (current === undefined || current.dev !== retained.dev || current.ino !== retained.ino) {
       throw new Failure("cleanup");
     }
+    for (const path of this.pathIdentities.keys()) await this.requireOwnedPath(path, phase, "cleanup");
     const quarantine = `${retained.path}-cleanup-${randomBytes(8).toString("hex")}`;
     try {
       try {
@@ -1506,10 +1518,16 @@ export class LocalProductSystem {
   async auditAbsence(phase) {
     phase.assertActive("cleanup");
     let failed = false;
+    let globalAbsent = this.environment === undefined;
     if (this.environment !== undefined) {
-      try { await this.requireGlobalAbsence(phase, "cleanup"); } catch { failed = true; }
+      try {
+        await this.requireGlobalAbsence(phase, "cleanup");
+        globalAbsent = true;
+      } catch {
+        failed = true;
+      }
     }
-    if (!this.clusterMayHaveApplied && !this.networkMayHaveApplied && this.imageIdentities.size === 0 &&
+    if (globalAbsent && !this.clusterMayHaveApplied && !this.networkMayHaveApplied && this.imageIdentities.size === 0 &&
         this.imageMayHaveApplied.size === 0 && !this.hasAdditionalRecoveryState()) {
       try { await this.cleanupTemporary(phase); } catch { failed = true; }
     } else {

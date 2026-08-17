@@ -39,6 +39,18 @@ const owned = Object.freeze({
 });
 const marker = "0123456789abcdef";
 const productManifestPath = join(import.meta.dirname, "product-stubs.yaml");
+const kubeletPidPatch = [
+  "apiVersion: kubelet.config.k8s.io/v1beta1",
+  "kind: KubeletConfiguration",
+  "podPidsLimit: 512",
+].join("\n");
+const exactKindConfig = Object.freeze({
+  apiVersion: "kind.x-k8s.io/v1alpha4",
+  kind: "Cluster",
+  networking: { apiServerAddress: "127.0.0.1" },
+  nodes: [{ kubeadmConfigPatches: [kubeletPidPatch], role: "control-plane" }],
+});
+const kubeletPidProjection = `${kubeletPidPatch}\n`;
 
 function imageDocument(product, overrides = {}) {
   const id = `sha256:${"a".repeat(64)}`;
@@ -924,7 +936,7 @@ test("pins an exact loopback kind cluster and owned kubeconfig", () => {
     apiVersion: "kind.x-k8s.io/v1alpha4",
     kind: "Cluster",
     networking: { apiServerAddress: "127.0.0.1" },
-    nodes: [{ role: "control-plane" }],
+    nodes: [{ kubeadmConfigPatches: [kubeletPidPatch], role: "control-plane" }],
   });
   assert.deepEqual(buildKindCreateArguments({
     cluster: "zasp-m1-30a-0123456789abcdef",
@@ -970,6 +982,9 @@ test("binds the kind API to one numeric loopback port and the exact kubeconfig",
     }
     if (command === "docker" && arguments_[0] === "inspect") {
       return { signal: null, status: 0, stderr: "", stdout: `${JSON.stringify(kindNodeDocument(cluster, networkId, token))}\n`, thrown: false, timedOut: false };
+    }
+    if (command === "docker" && arguments_[0] === "exec") {
+      return { signal: null, status: 0, stderr: "", stdout: kubeletPidProjection, thrown: false, timedOut: false };
     }
     throw new Error("unexpected command");
   });
@@ -1310,7 +1325,7 @@ test("concrete lifecycle admits only an exact-owned empty workspace", async () =
   await system.initialize(phase);
   assert.equal(system.paths.root, root);
   assert.deepEqual(system.temporaryIdentity, { dev: 2, ino: 2, path: root });
-  assert.equal(files.get(`${root}/kind.json`), `${JSON.stringify(buildKindConfig())}\n`);
+  assert.equal(files.get(`${root}/kind.json`), `${JSON.stringify(exactKindConfig)}\n`);
   assert.equal(files.get(`${root}/manifests.yaml`), await readFile(productManifestPath, "utf8"));
   assert.equal(system.environment.KUBECONFIG, `${root}/kubeconfig`);
   assert.equal(system.environment.KIND_EXPERIMENTAL_DOCKER_NETWORK, "zasp-m1-30a-0123456789abcdef");
@@ -1631,6 +1646,60 @@ test("cleanup quarantines and re-proves the retained root before recursive remov
   assert.equal(fixture.identities.get(fixture.root).dev, 9);
 });
 
+test("retains the complete recovery root until global absence succeeds on an exact retry", async () => {
+  for (const failure of ["extra resource", "unreadable resource"]) {
+    let blocked = true;
+    const fixture = createConcreteFixture(async () => blocked
+      ? failure === "extra resource"
+        ? { signal: null, status: 0, stderr: "", stdout: `${"a".repeat(64)}\n`, thrown: false, timedOut: false }
+        : { signal: null, status: 1, stderr: "bounded failure\n", stdout: "", thrown: false, timedOut: false }
+      : { signal: null, status: 0, stderr: "", stdout: "", thrown: false, timedOut: false });
+    const phase = { assertActive() {}, signal: new AbortController().signal };
+    await fixture.system.initialize(phase);
+    fixture.recordFile(`${fixture.root}/kubeconfig`, Buffer.from(kubeconfigDocument(fixture.system.cluster)));
+    await fixture.system.rememberOwnedPath(`${fixture.root}/kubeconfig`, "file", phase, "ownership");
+
+    await assert.rejects(() => fixture.system.auditAbsence(phase),
+      { category: "cleanup", name: "Failure" }, failure);
+    for (const path of [fixture.root, `${fixture.root}/kind.json`, `${fixture.root}/manifests.yaml`,
+      `${fixture.root}/kubeconfig`]) {
+      assert.equal(fixture.identities.has(path), true, `${failure}: ${path}`);
+    }
+
+    blocked = false;
+    await fixture.system.cleanup(phase);
+    await fixture.system.auditAbsence(phase);
+    assert.equal(fixture.directories.has(fixture.root), false, failure);
+  }
+});
+
+test("refuses a replaced recovery root, manifest, or kubeconfig on the cleanup retry", async () => {
+  for (const relativePath of ["", "manifests.yaml", "kubeconfig"]) {
+    let blocked = true;
+    const fixture = createConcreteFixture(async () => ({
+      signal: null,
+      status: 0,
+      stderr: "",
+      stdout: blocked ? `${"a".repeat(64)}\n` : "",
+      thrown: false,
+      timedOut: false,
+    }));
+    const phase = { assertActive() {}, signal: new AbortController().signal };
+    await fixture.system.initialize(phase);
+    fixture.recordFile(`${fixture.root}/kubeconfig`, Buffer.from(kubeconfigDocument(fixture.system.cluster)));
+    await fixture.system.rememberOwnedPath(`${fixture.root}/kubeconfig`, "file", phase, "ownership");
+    await assert.rejects(() => fixture.system.auditAbsence(phase), { category: "cleanup", name: "Failure" });
+
+    blocked = false;
+    const replaced = relativePath === "" ? fixture.root : `${fixture.root}/${relativePath}`;
+    fixture.identities.set(replaced, { dev: 9, ino: 9 });
+    await fixture.system.cleanup(phase);
+    await assert.rejects(() => fixture.system.auditAbsence(phase),
+      { category: "cleanup", name: "Failure" }, relativePath || "root");
+    assert.equal(fixture.directories.has(fixture.root), true, relativePath || "root");
+  }
+});
+
 test("concrete build downloads exact kind and retains four exact image identities", async () => {
   const calls = [];
   let fixture;
@@ -1711,6 +1780,9 @@ test("concrete lifecycle creates and retains only the exact network and kind nod
     if (command === "docker" && arguments_[0] === "inspect") {
       return { signal: null, status: 0, stderr: "", stdout: `${JSON.stringify(kindNodeDocument(fixture.system.cluster, networkId, nodeId))}\n`, thrown: false, timedOut: false };
     }
+    if (command === "docker" && arguments_[0] === "exec") {
+      return { signal: null, status: 0, stderr: "", stdout: kubeletPidProjection, thrown: false, timedOut: false };
+    }
     if (command === "docker" && arguments_[0] === "image") {
       const product = PRODUCTS.find((entry) => fixture.system.imageIdentities.get(entry.name)?.id === arguments_[2]);
       const index = PRODUCTS.indexOf(product);
@@ -1736,6 +1808,54 @@ test("concrete lifecycle creates and retains only the exact network and kind nod
   assert.equal(fixture.system.nodeIdentity.volumeToken, "c".repeat(64));
   assert.ok(calls.some((value) => value[0] === `${fixture.root}/kind` &&
     value.includes("--image") && value.includes(KIND_PINS.node.reference)));
+  assert.ok(calls.some((value) => value[0] === "docker" && value[1] === "exec" &&
+    value[2] === nodeId && value.includes("/var/lib/kubelet/config.yaml")));
+});
+
+test("rejects missing, extra, or drifted kubelet PID authority after kind creation", async () => {
+  const invalid = [
+    ["missing", kubeletPidProjection.replace("podPidsLimit: 512\n", "")],
+    ["drifted", kubeletPidProjection.replace("512", "511")],
+    ["duplicate", `${kubeletPidProjection}podPidsLimit: 512\n`],
+    ["extra", `${kubeletPidProjection}foreign: true\n`],
+  ];
+  for (const [name, kubeletOutput] of invalid) {
+    const networkId = "a".repeat(64);
+    const nodeId = "b".repeat(64);
+    let fixture;
+    fixture = createConcreteFixture(async (command, arguments_) => {
+      const success = (stdout = "") => ({
+        signal: null, status: 0, stderr: "", stdout, thrown: false, timedOut: false,
+      });
+      if (command === "docker" && arguments_[0] === "network" && arguments_[1] === "create") {
+        return success(`${networkId}\n`);
+      }
+      if (command === "docker" && arguments_[0] === "network" && arguments_[1] === "inspect") {
+        return success(`${JSON.stringify([networkId, fixture.system.cluster, "bridge", false, {
+          "zasp.dev/proof": "m1-30a", "zasp.dev/run": marker,
+        }, {}, {}, { Config: [{ Gateway: "172.20.0.1", Subnet: "172.20.0.0/16" }], Driver: "default", Options: {} }])}\n`);
+      }
+      if (command === `${fixture.root}/kind`) {
+        fixture.recordFile(`${fixture.root}/kubeconfig`, Buffer.from(kubeconfigDocument(fixture.system.cluster)));
+        return success("created\n");
+      }
+      if (command === "docker" && arguments_[0] === "ps") {
+        return success(`${nodeId}|${fixture.system.cluster}-control-plane\n`);
+      }
+      if (command === "docker" && arguments_[0] === "inspect") {
+        return success(`${JSON.stringify(kindNodeDocument(fixture.system.cluster, networkId, nodeId))}\n`);
+      }
+      if (command === "docker" && arguments_[0] === "exec") return success(kubeletOutput);
+      throw new Error("unexpected command");
+    });
+    const phase = { assertActive() {}, signal: new AbortController().signal };
+    await fixture.system.initialize(phase);
+    fixture.recordFile(`${fixture.root}/kind`, Buffer.from("kind"));
+    await fixture.system.rememberOwnedPath(`${fixture.root}/kind`, "file", phase, "ownership");
+    await fixture.system.createNetwork(phase);
+    await assert.rejects(() => fixture.system.createCluster(phase),
+      { category: "ownership", name: "Failure" }, name);
+  }
 });
 
 test("concrete lifecycle loads all images and proves the exact Ready Kubernetes state", async () => {
@@ -1775,6 +1895,9 @@ test("concrete lifecycle loads all images and proves the exact Ready Kubernetes 
       return { signal: null, status: 0, stderr: "", stdout: "loaded\n", thrown: false, timedOut: false };
     }
     if (command === "docker" && arguments_[0] === "exec") {
+      if (arguments_.includes("/var/lib/kubelet/config.yaml")) {
+        return { signal: null, status: 0, stderr: "", stdout: kubeletPidProjection, thrown: false, timedOut: false };
+      }
       if (arguments_.includes("images") && arguments_.includes("list")) {
         return { signal: null, status: 0, stderr: "", stdout: containerdInventory(), thrown: false, timedOut: false };
       }
@@ -1882,6 +2005,7 @@ test("concrete cleanup re-proves exact identities, continues in reverse order, a
         ? ok(`${JSON.stringify(kindNodeDocument(fixture.system.cluster, networkId, nodeId))}\n`)
         : { signal: null, status: 1, stderr: `Error: No such object: ${nodeId}\n`, stdout: "[]\n", thrown: false, timedOut: false };
     }
+    if (command === "docker" && arguments_[0] === "exec") return ok(kubeletPidProjection);
     if (command === "docker" && arguments_[0] === "rm") {
       nodePresent = false;
       return ok(`${nodeId}\n`);

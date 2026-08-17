@@ -108,7 +108,11 @@ deleting the exact disposable node container with the cluster.
 
 Neo4j runs as UID/GID 7474 with service-account token mounting disabled,
 `RuntimeDefault` seccomp, no privilege escalation, no added capabilities, and
-bounded CPU, memory, and PID use. The exact upstream entrypoint requires its
+bounded CPU and memory. The disposable kind node uses an exact
+`KubeletConfiguration` patch with `podPidsLimit: 512`; the runner re-proves
+that exact active kubelet projection whenever it verifies the retained node,
+so Neo4j and every other proof pod run inside the same per-pod PID bound. The
+exact upstream entrypoint requires its
 normal writable runtime projection; only `/data` is persistent and `/logs` is
 an `emptyDir`. The container receives only these fixed synthetic settings:
 
@@ -158,8 +162,8 @@ The main lifecycle is:
 2. create the owned runtime root and M1-30a product images;
 3. resolve Neo4j and BusyBox index/config/platform digests and retain their
    complete immutable image projections;
-4. create and re-prove the disposable kind cluster, fixed proof-only node
-   label, and node-local data path;
+4. create and re-prove the disposable kind cluster, exact active
+   `podPidsLimit: 512`, fixed proof-only node label, and node-local data path;
 5. load the four product images plus the exact graph images into containerd
    and re-prove index/config/platform/rootfs identities;
 6. apply the canonical product manifest and canonical graph overlay through

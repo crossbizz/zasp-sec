@@ -206,6 +206,9 @@ the original phase order, fixed output, nine resources, and cleanup behavior.
 
 Resolve and retain Neo4j/BusyBox index, config, selected-platform, rootfs,
 environment, entrypoint, command, exposed-port, and intrinsic-volume metadata.
+Configure the disposable kind node with one exact `KubeletConfiguration`
+patch containing `podPidsLimit: 512`, and require the active kubelet config to
+retain that exact projection at every node-identity proof.
 Apply and re-prove the fixed `zasp.dev/graph-node=m1-30b` label only on the
 retained kind node. Prepare only the fixed path in that node with UID/GID
 7474. Journal each mutation and reconcile ambiguity only through exact
