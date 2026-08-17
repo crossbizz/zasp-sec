@@ -141,7 +141,7 @@ export function buildObservabilityResources(...input) {
                 ],
                 readinessProbe: healthProbe(3, 2),
                 resources: {
-                  limits: { cpu: "250m", memory: "64Mi" },
+                  limits: { cpu: "250m", memory: "256Mi" },
                   requests: { cpu: "25m", memory: "32Mi" },
                 },
                 securityContext: containerSecurity(10_001),

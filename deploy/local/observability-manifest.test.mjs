@@ -119,7 +119,7 @@ test("pins every Kubernetes field independently from the manifest builder", () =
   const resources = buildObservabilityResources();
   assert.equal(
     createHash("sha256").update(JSON.stringify(resources)).digest("hex"),
-    "7f7c6f894fbc794775bde047faf1b1d13f9193320d10c0fb08839df687dd61bc",
+    "daf7fe56216201c3f3d8c9326196be5a609d4bdb73586a60b22eb05c7460c527",
   );
   const [config, deployment, service, job] = resources;
   const commonLabels = {
@@ -170,7 +170,7 @@ test("pins every Kubernetes field independently from the manifest builder", () =
   })), [
     {
       name: "otel-collector",
-      resources: { limits: { cpu: "250m", memory: "64Mi" }, requests: { cpu: "25m", memory: "32Mi" } },
+      resources: { limits: { cpu: "250m", memory: "256Mi" }, requests: { cpu: "25m", memory: "32Mi" } },
       securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: ["ALL"] }, privileged: false, readOnlyRootFilesystem: true, runAsGroup: 10001, runAsNonRoot: true, runAsUser: 10001 },
       volumeMounts: [
         { mountPath: "/conf", name: "config", readOnly: true },
