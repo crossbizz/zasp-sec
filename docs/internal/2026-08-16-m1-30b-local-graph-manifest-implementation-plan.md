@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use
 > `superpowers:executing-plans` to implement this plan task-by-task. Steps use
-> checkbox (`- [ ]`) syntax for tracking.
+> checked-box (`- [x]`) syntax for completed work.
 
 **Goal:** Add an exact-pinned Neo4j service with a bound persistent test volume
 to the disposable local cluster, and prove graph health is reachable only
@@ -63,7 +63,7 @@ BusyBox 1.36.1-1 exact OCI index, Node test runner, Vitest 4.1.10, Gitleaks
 - Produces: exact M1-30b In-progress status at overall `660/1/64/3` and M1
   `68/27/1/40/0`.
 
-- [ ] **Step 1: Write the failing source/design/status contract**
+- [x] **Step 1: Write the failing source/design/status contract**
 
 Require exact source dependency/deliverable/verification text, one active
 M1-30b row, no complete M1-30b row, one complete M1-30a row, absent M1-30c
@@ -72,24 +72,24 @@ M1-30b is In progress and M1-30c remains Pending. Bind the selected overlay,
 five resources, exact images, internal-only health, persistent marker,
 licensing, cleanup, and fixed-output boundaries.
 
-- [ ] **Step 2: Witness stale-status RED**
+- [x] **Step 2: Witness stale-status RED**
 
 Run the focused contract under pinned Node. Require failures only for stale
 M1-30b status/count/README state.
 
-- [ ] **Step 3: Move only M1-30b to In progress**
+- [x] **Step 3: Move only M1-30b to In progress**
 
 Change overall `661/0/64/3` to `660/1/64/3` and M1 `68/28/0/40/0` to
 `68/27/1/40/0`. Add one active M1-30b row. Preserve M1-30a Complete, M1-30c
 Pending, and the exact blockers. Update only current-state fixtures
 mechanically.
 
-- [ ] **Step 4: Run focused and all-quality GREEN**
+- [x] **Step 4: Run focused and all-quality GREEN**
 
 Run the new contract and all `app/quality` tests. Require 728-task arithmetic
 and no weakened historical contract.
 
-- [ ] **Step 5: Scan and commit the start transition**
+- [x] **Step 5: Scan and commit the start transition**
 
 Run whitespace and pinned redacted secret scans. Commit the exact scoped
 transition as:
@@ -116,7 +116,7 @@ docs: start M1-30b local graph manifest
   `renderGraphManifest(value)`, and exact license audit.
 - Consumes: direct `js-yaml` 4.1.1 and pinned public source/license evidence.
 
-- [ ] **Step 1: Write manifest and inventory tests before production**
+- [x] **Step 1: Write manifest and inventory tests before production**
 
 Require exactly one PV, PVC, Deployment, ClusterIP Service, and health Job.
 Assert exact labels, namespace, storage class, node affinity, capacity/access,
@@ -134,12 +134,12 @@ Require exact Neo4j/BusyBox version, index/config/platform/source/license
 fingerprints and the explicit opt-in local-development/no-redistribution
 scope. Reject missing, prohibited, mutable, or drifted evidence.
 
-- [ ] **Step 2: Witness absent-module RED**
+- [x] **Step 2: Witness absent-module RED**
 
 Run both focused Node test files before adding production modules or YAML.
 Require missing exports/files only.
 
-- [ ] **Step 3: Implement strict models and parsers**
+- [x] **Step 3: Implement strict models and parsers**
 
 Build exact plain objects with the fixed local data path and proof-only node
 label; accept no caller input. Parse one bounded UTF-8 YAML document under the
@@ -147,13 +147,13 @@ JSON schema, reject duplicate keys/aliases/tags, recursively require exact
 keys/types/values, deep-freeze the validated copy, and require byte-exact
 deterministic re-rendering.
 
-- [ ] **Step 4: Add canonical YAML and license records**
+- [x] **Step 4: Add canonical YAML and license records**
 
 Commit the exact rendered `graph.yaml` and immutable upstream/image/license
 records. The audit must fetch or inject exact bounded artifacts, verify hashes,
 and emit one fixed summary without raw source or provider output.
 
-- [ ] **Step 5: Run six focused passes and commit**
+- [x] **Step 5: Run six focused passes and commit**
 
 Run six graph-manifest/license passes, syntax/lint, diff-check, and pinned
 secret scans. Commit only this exact slice as:
@@ -178,7 +178,7 @@ feat: add local graph Kubernetes manifest
   graph output.
 - Consumes: the reviewed M1-30a lifecycle and Task 2 graph model.
 
-- [ ] **Step 1: Write graph runtime tests before production**
+- [x] **Step 1: Write graph runtime tests before production**
 
 Test exact host/platform image resolution, owned Docker configuration, pulls,
 complete image inspection, kind load, containerd import, node-local directory
@@ -190,19 +190,19 @@ platform/rootfs drift, duplicate JSON keys, image collision, definitive and
 ambiguous pull/load/exec/apply results, delayed application, node replacement,
 filesystem replacement, signal/output cap, cancellation, and panic.
 
-- [ ] **Step 2: Witness missing graph-runtime RED**
+- [x] **Step 2: Witness missing graph-runtime RED**
 
 Run focused graph tests before production exports exist. Keep all original
 M1-30a tests green.
 
-- [ ] **Step 3: Add narrow reusable lifecycle hooks**
+- [x] **Step 3: Add narrow reusable lifecycle hooks**
 
 Refactor only what graph composition requires from `LocalProductSystem`:
 retained extra-image plans, extra owned manifest descriptor, exact node exec,
 and graph verification hooks. The default product profile must still execute
 the original phase order, fixed output, nine resources, and cleanup behavior.
 
-- [ ] **Step 4: Implement exact graph image and storage preparation**
+- [x] **Step 4: Implement exact graph image and storage preparation**
 
 Resolve and retain Neo4j/BusyBox index, config, selected-platform, rootfs,
 environment, entrypoint, command, exposed-port, and intrinsic-volume metadata.
@@ -215,14 +215,14 @@ retained kind node. Prepare only the fixed path in that node with UID/GID
 node/label/path state. Load both images by immutable identity and verify
 containerd state.
 
-- [ ] **Step 5: Implement independent reverse cleanup**
+- [x] **Step 5: Implement independent reverse cleanup**
 
 Join settlements before cleanup. Re-prove the retained cluster/node/network,
 images, node path, descriptors, and temporary root immediately before each
 destructive action. Retain recovery material when absence is unproved, and
 require prefix-wide final absence.
 
-- [ ] **Step 6: Run focused GREEN and commit**
+- [x] **Step 6: Run focused GREEN and commit**
 
 Run both local runners' tests six times plus syntax/lint/diff/secret gates.
 Commit only the graph runtime and necessary narrow product-runner refactor as:
@@ -244,7 +244,7 @@ feat: prepare disposable local graph runtime
   marker write, pod replacement, marker read, and reverse cleanup.
 - Consumes: exact graph resources and retained image/node/storage identities.
 
-- [ ] **Step 1: Write provider/lifecycle tests before implementation**
+- [x] **Step 1: Write provider/lifecycle tests before implementation**
 
 Require exact PV/PVC Bound state, Deployment/ReplicaSet/pod lineage, pod
 security/images/volumes, Service/EndpointSlice identity, Job ownership/status,
@@ -256,19 +256,19 @@ resource-version, UID, owner, selector, node, image, volume, claim, endpoint,
 condition, restart, Job, and log drift; malformed timestamps; alternate peer;
 and host/public exposure.
 
-- [ ] **Step 2: Witness lifecycle RED**
+- [x] **Step 2: Witness lifecycle RED**
 
 Run the new provider and orchestration tests. Require failures at missing graph
 apply/readiness/persistence behavior only.
 
-- [ ] **Step 3: Implement bounded exact readiness**
+- [x] **Step 3: Implement bounded exact readiness**
 
 Apply product and graph manifests through separate fresh descriptors. Read raw
 bounded JSON with duplicate-key rejection. Poll within the main phase until
 the four product pods and exact graph resources form one cross-correlated
 provider snapshot and the health Job completes with its fixed log marker.
 
-- [ ] **Step 4: Implement the persistence sequence**
+- [x] **Step 4: Implement the persistence sequence**
 
 Use fixed `kubectl exec`/`cypher-shell` argv to merge one synthetic marker.
 Delete only the exact retained Neo4j pod, reconcile ambiguous deletion,
@@ -276,7 +276,7 @@ require a different replacement pod UID with the same PVC/PV lineage, then
 query exactly one marker and re-prove internal health. Journal and join every
 mutation.
 
-- [ ] **Step 5: Harden timeout, ambiguity, and cleanup cases**
+- [x] **Step 5: Harden timeout, ambiguity, and cleanup cases**
 
 Test delayed pod/PVC/Job state, thrown/signaled/malformed mutations, main
 cancellation during marker write or pod delete, late-applied mutation,
@@ -284,7 +284,7 @@ uncooperative child, provider panic, cleanup panic, resource replacement,
 cleanup continuation/precedence, and absence failure. Require no late mutation
 after audit.
 
-- [ ] **Step 6: Run six focused passes and commit**
+- [x] **Step 6: Run six focused passes and commit**
 
 Run six combined local suites plus original M1-30a regressions, syntax/lint,
 diff-check, and pinned secret scans. Commit as:
@@ -306,7 +306,7 @@ feat: prove local graph health and persistence
 - Produces: `local:graph:test`, `local:graph:run`, and
   `local:graph:license` root commands plus exact operator documentation.
 
-- [ ] **Step 1: Write root-command/docs RED**
+- [x] **Step 1: Write root-command/docs RED**
 
 Require exact scripts, pinned Node usage, fixed success/failure lines,
 cluster-only Service boundary, persistence semantics, no credentials/provider
@@ -314,7 +314,7 @@ data, disposable ownership/cleanup, licensing scope, M1-30b In progress, and
 M1-30c Pending. Reject documentation that suggests ambient kubeconfig, host
 port access, production packaging approval, or shared-resource cleanup.
 
-- [ ] **Step 2: Add scripts and concise README guidance**
+- [x] **Step 2: Add scripts and concise README guidance**
 
 Add:
 
@@ -327,7 +327,7 @@ Add:
 Document prerequisites, expected fixed line, cluster-only health, ephemeral
 cluster versus pod-persistent data, and the opt-in GPL boundary.
 
-- [ ] **Step 3: Run focused/root/full GREEN and commit**
+- [x] **Step 3: Run focused/root/full GREEN and commit**
 
 Run the contract, root hermetic graph suite, graph license audit, original
 product suite, and full pinned repository verification. Run production npm
@@ -352,14 +352,14 @@ docs: expose local graph manifest proof
   independent review, M1-30b Complete transition, push, exact-SHA CI success,
   and checked plan closure.
 
-- [ ] **Step 1: Establish clean live preconditions**
+- [x] **Step 1: Establish clean live preconditions**
 
 Require zero M1-30b prefix/label resources and temporary roots. Fingerprint
 shared Docker/Kubernetes state read-only. Confirm exact images/platforms and
 owned capacity without deleting a shared image, volume, container, network,
 or cache.
 
-- [ ] **Step 2: Run the exact live command**
+- [x] **Step 2: Run the exact live command**
 
 Run only:
 
@@ -377,28 +377,28 @@ Local graph manifest passed: ready=true internal=true persistent=true cleanup=tr
 Require final zero exact-owned containers, networks, graph aliases, node data
 paths, and temporary roots, with shared state unchanged.
 
-- [ ] **Step 3: Fix live findings only through TDD**
+- [x] **Step 3: Fix live findings only through TDD**
 
 For each real mismatch, isolate the exact provider representation, write a
 focused failing hermetic regression, implement the narrow fix, rerun all
 affected gates, and rerun the full exact lifecycle. Never weaken identity,
 internal-only exposure, persistence, license, output, or cleanup requirements.
 
-- [ ] **Step 4: Run the final local gate matrix**
+- [x] **Step 4: Run the final local gate matrix**
 
 Require six graph-suite passes, original product suite, all four product Go
 race/tidy/verify/vet gates, exact graph license audit, full pinned repository
 verify/typecheck/lint/build, production audit zero, dependency/license checks,
 diff-check, and pinned redacted Gitleaks scans.
 
-- [ ] **Step 5: Obtain a zero-finding independent review**
+- [x] **Step 5: Obtain a zero-finding independent review**
 
 Review the complete range against the source row, design, plan, M1-30a
 boundary, graph/license contracts, production runtime, tests, live evidence,
 cleanup, status arithmetic, and secrets. Address every Critical, Important,
 and Minor finding through a separate tests-first commit and repeat review.
 
-- [ ] **Step 6: Transition M1-30b to Complete**
+- [x] **Step 6: Transition M1-30b to Complete**
 
 Write completion-contract RED, then change overall `660/1/64/3` to
 `660/0/65/3` and M1 `68/27/1/40/0` to `68/27/0/41/0`. Move exactly one M1-30b
@@ -409,15 +409,17 @@ and the exact blockers. Run focused/full gates and commit:
 docs: complete M1-30b local graph manifest
 ```
 
-- [ ] **Step 7: Push and close the plan**
+- [x] **Step 7: Push and close the plan**
 
-Push only after the tracked tree/index are clean and local/upstream SHAs are
-known. Watch the Runnable UI run for the exact completion SHA to terminal
-success. Mark all plan boxes checked, commit only the plan as:
+Completion commit `3a1ba867ff8839d2bc4cc48602878aa6fe77b2a6` was pushed
+from a clean tracked tree/index with equal local, origin, and tracking SHAs.
+Runnable UI run `31995062272` completed successfully for that exact SHA. This
+checked plan-only commit records closure as:
 
 ```text
 docs: close M1-30b local graph manifest plan
 ```
 
-Push again, require exact-SHA Runnable UI success, and perform final SHA sync,
-status arithmetic, secret scan, zero-residue, and clean-tree audits.
+Its required post-commit transport gate is a second push followed by exact-SHA
+Runnable UI success and final SHA-sync, status-arithmetic, secret-scan,
+zero-residue, and clean-tree audits recorded in the ignored Task 6 evidence.
