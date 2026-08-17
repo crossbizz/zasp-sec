@@ -206,7 +206,7 @@ function graphBoundArchiveImport(name, platform = "linux/arm64", mutate = () => 
     runtimeAlias,
     runtimeTarget: {
       ...boundTarget,
-      imageID: runtimeAlias.reference,
+      imageID: `docker.io/library/${fixture.target.references[0].reference}`,
       references: [...boundTarget.references, runtimeAlias],
     },
   };
@@ -945,7 +945,7 @@ test("cross-binds the exact normalized CRI manifest identities for Docker archiv
     for (const [podIndex, image] of [[-2, "neo4j"], [-1, "busybox"]]) {
       const fixture = graphBoundArchiveImport(image, platform);
       expected.imageTargets[image] = fixture.runtimeTarget;
-      value.pods.at(podIndex).status.containerStatuses[0].imageID = fixture.runtimeAlias.reference;
+      value.pods.at(podIndex).status.containerStatuses[0].imageID = fixture.runtimeTarget.imageID;
     }
     assert.equal(graphRunModule.validateGraphKubernetesState(value, expected).ready, true, platform);
 
@@ -953,11 +953,12 @@ test("cross-binds the exact normalized CRI manifest identities for Docker archiv
       const fixture = graphBoundArchiveImport(image, platform);
       for (const alternate of [
         fixture.alias.reference,
+        fixture.runtimeAlias.reference,
         fixture.runtimeAlias.reference.slice("docker.io/library/".length),
         fixture.selected.configDigest,
         fixture.selected.manifestDigest,
         fixture.selected.repoDigest,
-      ]) {
+      ].filter((reference) => reference !== fixture.runtimeTarget.imageID)) {
         const drifted = structuredClone(value);
         drifted.pods.at(podIndex).status.containerStatuses[0].imageID = alternate;
         assert.throws(() => graphRunModule.validateGraphKubernetesState(drifted, expected),
@@ -2375,9 +2376,11 @@ test("rejects missing, colliding, replaced, ambiguous, or substituted node-local
 
 test("binds only the normalized provider-manifest identity selected by containerd CRI", () => {
   assert.equal(typeof graphRunModule.bindGraphContainerdRuntimeAlias, "function");
+  const firstTypes = new Set();
   for (const name of ["neo4j", "busybox"]) {
     for (const platform of ["linux/amd64", "linux/arm64"]) {
       const fixture = graphBoundArchiveImport(name, platform);
+      firstTypes.add(fixture.target.references[0].mediaType);
       const workloadRow = [
         fixture.alias.reference, fixture.alias.mediaType, fixture.alias.digest, fixture.alias.size,
         fixture.alias.platform, fixture.alias.labels,
@@ -2396,6 +2399,10 @@ test("binds only the normalized provider-manifest identity selected by container
       assert.ok(Object.isFrozen(target.references));
     }
   }
+  assert.deepEqual(firstTypes, new Set([
+    "application/vnd.oci.image.index.v1+json",
+    "application/vnd.oci.image.manifest.v1+json",
+  ]), "the regression covers both wrapper-first and child-first CRI public ordering");
 });
 
 test("rejects every absent, colliding, replaced, or substituted normalized provider alias", () => {

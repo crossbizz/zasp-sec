@@ -474,7 +474,7 @@ export function bindGraphContainerdRuntimeAlias(beforeSource, afterSource, targe
     }
     const bound = deepFreeze({
       ...target,
-      imageID: reference,
+      imageID: graphPublicImageReference(target.references[0].reference),
       references: [...target.references, delta[0]],
     });
     validateGraphContainerdTarget(bound, selected);
@@ -644,7 +644,7 @@ function validateGraphArchiveContainerdTarget(target, selected) {
     "graph containerd runtime alias");
   if (runtimeAlias.reference !== graphPublicImageReference(children[0].reference) ||
       !exactData({ ...runtimeAlias, reference: children[0].reference }, children[0]) ||
-      target.imageID !== runtimeAlias.reference) {
+      target.imageID !== graphPublicImageReference(ordered[0].reference)) {
     throw new TypeError("graph containerd runtime alias is invalid");
   }
 }
