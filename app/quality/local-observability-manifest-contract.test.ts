@@ -2,6 +2,8 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { OBSERVABILITY_FAILURE_CATEGORIES } from "../../deploy/local/observability-run.mjs";
+
 const repositoryRoot = resolve(import.meta.dirname, "../..");
 
 function markdownRows(markdown: string) {
@@ -79,5 +81,56 @@ describe("M1-30c local observability manifest", () => {
     expect(complete.filter(([task]) => task === "M1-30a")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-30d")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
+  });
+
+  it("exposes exact hermetic, live, and license commands with the local-only observability boundary", async () => {
+    const [packageText, readme] = await Promise.all([
+      readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+    ]);
+    const packageJson = JSON.parse(packageText) as { scripts?: Record<string, unknown> };
+    const section = (readme.match(/## Local observability Kubernetes manifest proof[\s\S]*?(?=\n## |$)/)?.[0] ?? "").replace(/\s+/g, " ");
+
+    expect(packageJson.scripts).toMatchObject({
+      "local:observability:test": "node --test deploy/local/manifests.test.mjs deploy/local/run.test.mjs deploy/local/graph-manifest.test.mjs deploy/local/graph-run.test.mjs deploy/local/graph-license-audit.test.mjs deploy/local/observability-manifest.test.mjs deploy/local/observability-run.test.mjs deploy/local/observability-license-audit.test.mjs",
+      "local:observability:run": "node deploy/local/observability-run.mjs",
+      "local:observability:license": "node deploy/local/observability-license-audit.mjs",
+    });
+    for (const text of [
+      "M1-30c is In progress",
+      "M1-30d remains Pending",
+      "Node.js 22.23.1 and npm 10.9.8",
+      "Local observability manifest passed: ready=true internal=true no_egress=true spans=1 sink=true cleanup=true.",
+      "Local observability manifest failed: <category> rejected.",
+      "only after the Collector pod and EndpointSlice are exact and Ready",
+      "exactly one fixed synthetic M1-21 span",
+      "cluster-internal ClusterIP OTLP Service",
+      "no host-published OTLP port",
+      "file-backed `emptyDir` sink",
+      "configuration-level claim",
+      "not NetworkPolicy or firewall enforcement",
+      "does not read `.env`, ambient kubeconfig, cloud credentials, profiles, proxy variables, or provider data",
+      "shared images are read-only baselines and are never cleaned",
+      "otel/opentelemetry-collector-contrib:0.158.0@sha256:c5918f78992ee73b0d6f0e599423ac5ec52dd5d9726733114d6eca53d5a32ed5",
+      "registry.k8s.io/e2e-test-images/busybox:1.36.1-1@sha256:a9155b13325b2abef48e71de77bb8ac015412a566829f621d06bfae5c699b1b9",
+      "Apache-2.0",
+      "GPL-2.0-only",
+      "opt-in local development",
+      "does not approve redistribution or production packaging",
+    ]) {
+      expect(section).toContain(text);
+    }
+    const failureCategories = section.match(/The only failure categories, in order, are `([^`]+)`\./)?.[1]?.split(", ");
+    expect(failureCategories).toEqual(OBSERVABILITY_FAILURE_CATEGORIES);
+    for (const forbidden of [
+      "ambient kubeconfig is reused",
+      "host-published OTLP port is required",
+      "NetworkPolicy enforcement is proved",
+      "remote telemetry backend",
+      "production packaging is approved",
+      "shared images are removed",
+    ]) {
+      expect(section).not.toContain(forbidden);
+    }
   });
 });

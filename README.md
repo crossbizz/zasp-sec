@@ -783,6 +783,59 @@ Neo4j Community is GPL-3.0-only and BusyBox is GPL-2.0-only. They are opt-in
 local development targets: this proof does not approve redistribution or
 production packaging, and bundled components retain their own terms.
 
+## Local observability Kubernetes manifest proof
+
+M1-30c is In progress, and M1-30d remains Pending. The hermetic manifest,
+runner, and license contracts require Node.js 22.23.1 and npm 10.9.8, and
+require neither Docker nor a provider:
+
+```bash
+npm run local:observability:test
+```
+
+Run the immutable source and license audit separately:
+
+```bash
+npm run local:observability:license
+```
+
+The disposable live proof supports macOS or Linux and requires Docker 29.4.0,
+Go 1.25.6, kubectl 1.35, and outbound HTTPS access to the pinned kind GitHub
+release asset:
+
+```bash
+npm run local:observability:run
+```
+
+Success is exactly
+`Local observability manifest passed: ready=true internal=true no_egress=true spans=1 sink=true cleanup=true.`
+Failures are exactly `Local observability manifest failed: <category> rejected.`
+The only failure categories, in order, are `build, cleanup, configuration, deadline, normalization, ownership, panic, provider, readiness`.
+
+The runner creates and uses its own kubeconfig and exact-owned disposable kind
+cluster. It does not read `.env`, ambient kubeconfig, cloud credentials,
+profiles, proxy variables, or provider data. Provider caches are not owned:
+shared images are read-only baselines and are never cleaned.
+
+The runner applies the staged Job only after the Collector pod and EndpointSlice
+are exact and Ready. The Job sends exactly one fixed synthetic M1-21 span to a
+cluster-internal ClusterIP OTLP Service. There is no host-published OTLP port.
+The Collector writes to a file-backed `emptyDir` sink, which is ephemeral and
+read exactly through its sidecar.
+
+`no_egress=true` is a configuration-level claim: the Collector configuration
+contains no remote exporter, destination, credential, proxy, or backend. It is
+not NetworkPolicy or firewall enforcement.
+
+OpenTelemetry Collector Contrib is Apache-2.0 and BusyBox is GPL-2.0-only.
+The exact targets are
+`otel/opentelemetry-collector-contrib:0.158.0@sha256:c5918f78992ee73b0d6f0e599423ac5ec52dd5d9726733114d6eca53d5a32ed5`
+and
+`registry.k8s.io/e2e-test-images/busybox:1.36.1-1@sha256:a9155b13325b2abef48e71de77bb8ac015412a566829f621d06bfae5c699b1b9`.
+They are opt-in local development targets: this proof does not approve
+redistribution or production packaging, and bundled components retain their
+own terms. Aggregate M1-30 verification remains deferred to M1-30d.
+
 ## Neon pooled proof
 
 The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,
