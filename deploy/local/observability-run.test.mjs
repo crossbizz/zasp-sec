@@ -836,11 +836,12 @@ test("stages one span Job only after exact core readiness and reads one stable s
   });
 
   class StagedSystem extends LocalObservabilitySystem {
-    constructor(outcome = "applied") {
+    constructor(outcome = "applied", sinkValues = [buildSyntheticObservabilitySpan()]) {
       super(input);
       this.events = [];
       this.outcome = outcome;
       this.productProviderCapture = capturedProductProviderState();
+      this.sinkValues = [...sinkValues];
     }
 
     async verifyGraphReadiness(value) {
@@ -866,7 +867,13 @@ test("stages one span Job only after exact core readiness and reads one stable s
     async readObservabilitySink(retained) {
       assert.deepEqual(retained, complete);
       this.events.push("read-sink");
-      return buildSyntheticObservabilitySpan();
+      const value = this.sinkValues.shift();
+      if (value instanceof Error) throw value;
+      return value;
+    }
+
+    async pauseObservabilityPoll(_phase, category) {
+      this.events.push(`pause:${category}`);
     }
   }
 
@@ -889,6 +896,20 @@ test("stages one span Job only after exact core readiness and reads one stable s
     assert.deepEqual(rejected.events, ["graph", "core", "sink-absent", "apply-job"]);
     assert.equal(rejected.observabilityJobMayHaveApplied, false);
   }
+
+  const delayed = new StagedSystem("applied", [
+    new ObservabilityFailure("normalization"),
+    new ObservabilityFailure("readiness"),
+    buildSyntheticObservabilitySpan(),
+  ]);
+  assert.deepEqual(await delayed.verifyAdditionalReadiness(graphResult, phase), {
+    ...graphResult,
+    observability: { internal: true, noEgress: true, ready: true, sink: true, spans: 1 },
+  });
+  assert.deepEqual(delayed.events, [
+    "graph", "core", "sink-absent", "apply-job", "complete",
+    "read-sink", "pause:readiness", "read-sink", "pause:readiness", "read-sink", "stable",
+  ]);
 });
 
 test("retains the original product snapshot across graph and observability reproof", async () => {

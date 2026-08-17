@@ -656,6 +656,25 @@ export class LocalObservabilitySystem extends LocalGraphSystem {
     return parseObservabilitySinkFrame(result.stdout);
   }
 
+  async pollObservabilitySink(retained, phase) {
+    let failure;
+    for (let attempt = 0; attempt < observabilityProviderPollLimit; attempt += 1) {
+      phase.assertActive("readiness");
+      try {
+        return await this.readObservabilitySink(retained, phase);
+      } catch (error) {
+        if (!(error instanceof Failure) || !new Set(["normalization", "readiness"]).has(error.category)) {
+          throw error;
+        }
+        failure = error;
+      }
+      if (attempt + 1 < observabilityProviderPollLimit) {
+        await this.pauseObservabilityPoll(phase, "readiness");
+      }
+    }
+    throw failure ?? new ObservabilityFailure("normalization");
+  }
+
   async requireObservabilitySinkAbsent(retained, phase, category = "readiness") {
     const podName = retained?.collector?.podName;
     if (!/^otel-collector-[a-z0-9]{10}-[a-z0-9]{5}$/.test(podName ?? "") ||
@@ -700,7 +719,7 @@ export class LocalObservabilitySystem extends LocalGraphSystem {
     const complete = await this.pollObservabilityProviderState(phase, core, true);
     this.observabilityProviderIdentity = complete;
     this.observabilityJobMayHaveApplied = false;
-    const span = await this.readObservabilitySink(complete, phase);
+    const span = await this.pollObservabilitySink(complete, phase);
     this.observabilityProviderIdentity = await this.pollObservabilityProviderState(phase, complete, true);
     if (!isDeepStrictEqual(span, buildSyntheticObservabilitySpan())) {
       throw new ObservabilityFailure("normalization");
