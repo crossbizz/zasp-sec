@@ -28,6 +28,7 @@ import {
   validateImportedImageIndex,
   validateImageInspection,
   validateKindNodeInspection,
+  validateStoppedKindNodeInspection,
   validateKubernetesState,
 } from "./run.mjs";
 
@@ -163,6 +164,43 @@ function kindNodeDocument(cluster, networkId, token) {
       Ports: { "6443/tcp": [{ HostIp: "127.0.0.1", HostPort: "51234" }] },
     },
   }];
+}
+
+function stoppedKindNodeDocument(cluster, networkId, token) {
+  const document = structuredClone(kindNodeDocument(cluster, networkId, token));
+  const node = document[0];
+  node.State = {
+    Status: "exited",
+    Running: false,
+    Paused: false,
+    Restarting: false,
+    OOMKilled: false,
+    Dead: false,
+    Pid: 0,
+    ExitCode: 137,
+    Error: "",
+    StartedAt: "2026-08-17T21:59:14.361188381Z",
+    FinishedAt: "2026-08-17T22:00:06.309793034Z",
+  };
+  node.NetworkSettings.Ports = {};
+  node.NetworkSettings.Networks[cluster] = {
+    IPAMConfig: null,
+    Links: null,
+    Aliases: null,
+    DriverOpts: null,
+    GwPriority: 0,
+    NetworkID: networkId,
+    EndpointID: "",
+    Gateway: "",
+    IPAddress: "",
+    MacAddress: "",
+    IPPrefixLen: 0,
+    IPv6Gateway: "",
+    GlobalIPv6Address: "",
+    GlobalIPv6PrefixLen: 0,
+    DNSNames: [`${cluster}-control-plane`, token.slice(0, 12)],
+  };
+  return document;
 }
 
 function kubeconfigDocument(cluster, port = "51234") {
@@ -1009,6 +1047,39 @@ test("binds the kind API to one numeric loopback port and the exact kubeconfig",
   assert.equal(calls.some((value) => value[0] === "docker" && value[1] === "exec"), false);
   fixture.files.set(`${fixture.root}/kubeconfig`, Buffer.from(kubeconfigDocument(cluster, "51235")));
   await assert.rejects(() => fixture.system.verifyCluster(phase, "ownership"), { name: "Failure" });
+});
+
+test("accepts only the exact retained stopped kind node recovery projection", () => {
+  const cluster = `zasp-m1-30a-${marker}`;
+  const networkId = "a".repeat(64);
+  const token = "b".repeat(64);
+  const expected = {
+    cluster,
+    hostPlatform: "darwin/arm64",
+    imageId: KIND_PINS.node.configDigests["linux/arm64"],
+    name: `${cluster}-control-plane`,
+    networkId,
+    reference: KIND_PINS.node.reference,
+    token,
+  };
+  const retained = validateKindNodeInspection(kindNodeDocument(cluster, networkId, token), expected);
+  assert.deepEqual(validateStoppedKindNodeInspection(
+    stoppedKindNodeDocument(cluster, networkId, token), expected, retained,
+  ), retained);
+
+  for (const mutate of [
+    (value) => { value[0].State.Running = true; },
+    (value) => { value[0].State.OOMKilled = true; },
+    (value) => { value[0].NetworkSettings.Ports["6443/tcp"] = null; },
+    (value) => { value[0].NetworkSettings.Networks[cluster].NetworkID = "d".repeat(64); },
+    (value) => { value[0].NetworkSettings.Networks[cluster].DNSNames.push("foreign"); },
+    (value) => { value[0].Config.Labels["io.x-k8s.kind.cluster"] = "foreign"; },
+    (value) => { value[0].Mounts[2].Name = "d".repeat(64); },
+  ]) {
+    const value = stoppedKindNodeDocument(cluster, networkId, token);
+    mutate(value);
+    assert.throws(() => validateStoppedKindNodeInspection(value, expected, retained), { name: "Failure" });
+  }
 });
 
 test("validates exactly four Ready product pods and four internal services", () => {
@@ -2077,6 +2148,63 @@ test("concrete cleanup re-proves exact identities, continues in reverse order, a
   assert.equal(networkPresent, false);
   assert.equal(imagesPresent.size, 0);
   assert.equal(fixture.directories.has(fixture.root), false);
+});
+
+test("concrete cleanup re-authorizes an exact stopped node after partial removal and retries once", async () => {
+  const networkId = "a".repeat(64);
+  const nodeId = "b".repeat(64);
+  const volumeId = "c".repeat(64);
+  let nodeState = "running";
+  let removals = 0;
+  let fixture;
+  fixture = createConcreteFixture(async (command, arguments_) => {
+    const ok = (stdout = "") => ({ signal: null, status: 0, stderr: "", stdout, thrown: false, timedOut: false });
+    if (command === "docker" && arguments_[0] === "ps") {
+      return ok(nodeState === "absent" ? "" : `${nodeId}|${fixture.system.cluster}-control-plane\n`);
+    }
+    if (command === "docker" && arguments_[0] === "inspect") {
+      if (nodeState === "absent") {
+        return { signal: null, status: 1, stderr: `Error: No such object: ${nodeId}\n`, stdout: "[]\n", thrown: false, timedOut: false };
+      }
+      const document = nodeState === "running"
+        ? kindNodeDocument(fixture.system.cluster, networkId, nodeId)
+        : stoppedKindNodeDocument(fixture.system.cluster, networkId, nodeId);
+      return ok(`${JSON.stringify(document)}\n`);
+    }
+    if (command === "docker" && arguments_[0] === "rm") {
+      removals += 1;
+      if (removals === 1) {
+        nodeState = "stopped";
+        return { signal: null, status: 1, stderr: "removal incomplete\n", stdout: "", thrown: false, timedOut: false };
+      }
+      nodeState = "absent";
+      return ok(`${nodeId}\n`);
+    }
+    if (command === "docker" && arguments_[0] === "volume") {
+      return { signal: null, status: 1, stderr: `Error response from daemon: get ${volumeId}: no such volume\n`, stdout: "[]\n", thrown: false, timedOut: false };
+    }
+    if (command === "docker" && arguments_[0] === "network" && arguments_[1] === "inspect") {
+      return ok(`${JSON.stringify([networkId, fixture.system.cluster, "bridge", false, {
+        "zasp.dev/proof": "m1-30a", "zasp.dev/run": marker,
+      }, {}, {}, { Config: [{ Gateway: "172.20.0.1", Subnet: "172.20.0.0/16" }], Driver: "default", Options: {} }])}\n`);
+    }
+    throw new Error(`unexpected command ${command} ${arguments_.join(" ")}`);
+  });
+  const phase = { assertActive() {}, signal: new AbortController().signal };
+  await fixture.system.initialize(phase);
+  fixture.recordFile(`${fixture.root}/kubeconfig`, Buffer.from(kubeconfigDocument(fixture.system.cluster)));
+  await fixture.system.rememberOwnedPath(`${fixture.root}/kubeconfig`, "file", phase, "ownership");
+  fixture.system.clusterMayHaveApplied = true;
+  fixture.system.networkIdentity = { id: networkId, name: fixture.system.cluster };
+  fixture.system.nodeIdentity = validateKindNodeInspectionForTest(
+    kindNodeDocument(fixture.system.cluster, networkId, nodeId), fixture.system.cluster, networkId, nodeId,
+  );
+
+  await fixture.system.cleanup(phase);
+  assert.equal(removals, 2);
+  assert.equal(nodeState, "absent");
+  assert.equal(fixture.system.clusterMayHaveApplied, false);
+  assert.equal(fixture.system.nodeIdentity, undefined);
 });
 
 test("concrete cleanup re-arms an ambiguous delayed network before exact removal", async () => {

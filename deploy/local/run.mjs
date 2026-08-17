@@ -1124,6 +1124,32 @@ export class LocalProductSystem {
     }
     return identity;
   }
+
+  async verifyStoppedClusterForCleanup(phase) {
+    const retained = this.nodeIdentity;
+    if (retained === undefined) throw new Failure("cleanup");
+    const candidates = await this.nodeCandidates(phase, "cleanup");
+    if (candidates.length !== 1 || candidates[0][0] !== retained.token ||
+        candidates[0][1] !== `${this.cluster}-control-plane`) throw new Failure("cleanup");
+    await this.requireTemporaryOwnership(phase, "cleanup");
+    await this.requireOwnedPath(this.paths.kubeconfig, phase, "cleanup");
+    await this.verifyNetwork(phase, "cleanup", true);
+    const result = await this.runRead("docker", ["inspect", retained.token], phase, "cleanup", 15_000, 262_144);
+    let document;
+    try { document = parseBoundedJson(result.stdout, 262_144); }
+    catch { throw new Failure("cleanup"); }
+    this.nodeIdentity = validateStoppedKindNodeInspection(document, {
+      cluster: this.cluster,
+      hostPlatform: this.input.hostPlatform,
+      imageId: KIND_PINS.node.configDigests[this.input.nodePlatform],
+      name: `${this.cluster}-control-plane`,
+      networkId: this.networkIdentity?.id,
+      reference: KIND_PINS.node.reference,
+      token: retained.token,
+    }, retained);
+    return this.nodeIdentity;
+  }
+
   async loadImages(phase) {
     await this.requireTemporaryOwnership(phase, "ownership");
     await this.verifyCluster(phase, "ownership");
@@ -1344,10 +1370,16 @@ export class LocalProductSystem {
         await this.verifyCluster(phase, "cleanup");
         await this.verifyAdditionalNodeForCleanup(phase);
         const token = this.nodeIdentity.token;
-        const removed = await this.runMutation("docker", ["rm", "--force", "--volumes", token], phase,
+        await this.runMutation("docker", ["rm", "--force", "--volumes", token], phase,
           "cleanup", { environment: this.environment, outputLimit: 262_144, timeoutMilliseconds: 90_000 });
-        if (removed.outcome === "definitive") throw new Failure("cleanup");
-        await this.requireClusterAbsent(phase);
+        try {
+          await this.requireClusterAbsent(phase);
+        } catch {
+          await this.verifyStoppedClusterForCleanup(phase);
+          await this.runMutation("docker", ["rm", "--force", "--volumes", token], phase,
+            "cleanup", { environment: this.environment, outputLimit: 262_144, timeoutMilliseconds: 90_000 });
+          await this.requireClusterAbsent(phase);
+        }
         clusterAbsent = true;
         this.clusterMayHaveApplied = false;
         this.resourcesMayHaveApplied = false;
@@ -1756,6 +1788,50 @@ export function validateKindNodeInspection(document, expected, retained = undefi
       throw new TypeError("kind node identity changed");
     }
     return identity;
+  } catch {
+    throw new Failure("ownership");
+  }
+}
+
+export function validateStoppedKindNodeInspection(document, expected, retained) {
+  try {
+    requireExactObject(retained, [
+      "apiPort", "gateway", "imageId", "ipAddress", "macAddress", "networkId", "token", "volumeToken",
+    ], "retained kind node identity");
+    const node = Array.isArray(document) && document.length === 1 ? document[0] : undefined;
+    const state = node?.State;
+    const network = node?.NetworkSettings?.Networks?.[expected?.cluster];
+    requireExactKeySet(state, [
+      "Dead", "Error", "ExitCode", "FinishedAt", "OOMKilled", "Paused", "Pid", "Restarting", "Running",
+      "StartedAt", "Status",
+    ], "stopped kind node state");
+    requireExactKeySet(network, [
+      "Aliases", "DNSNames", "DriverOpts", "EndpointID", "Gateway", "GlobalIPv6Address",
+      "GlobalIPv6PrefixLen", "GwPriority", "IPAMConfig", "IPAddress", "IPPrefixLen", "IPv6Gateway", "Links",
+      "MacAddress", "NetworkID",
+    ], "stopped kind node network");
+    if (state.Dead !== false || state.Error !== "" || !Number.isInteger(state.ExitCode) || state.OOMKilled !== false ||
+        state.Paused !== false || state.Pid !== 0 || state.Restarting !== false || state.Running !== false ||
+        state.Status !== "exited" || typeof state.StartedAt !== "string" || state.StartedAt.length < 20 ||
+        typeof state.FinishedAt !== "string" || state.FinishedAt.length < 20 ||
+        !isPlainObject(node.NetworkSettings.Ports) || Object.keys(node.NetworkSettings.Ports).length !== 0 ||
+        network.Aliases !== null || network.DriverOpts !== null || network.EndpointID !== "" ||
+        network.Gateway !== "" || network.GlobalIPv6Address !== "" || network.GlobalIPv6PrefixLen !== 0 ||
+        network.GwPriority !== 0 || network.IPAMConfig !== null || network.IPAddress !== "" ||
+        network.IPPrefixLen !== 0 || network.IPv6Gateway !== "" || network.Links !== null ||
+        network.MacAddress !== "" || network.NetworkID !== retained.networkId ||
+        !exactStringSet(network.DNSNames, [expected.name, retained.token.slice(0, 12)])) {
+      throw new TypeError("stopped kind node metadata is invalid");
+    }
+    const projected = structuredClone(document);
+    projected[0].NetworkSettings.Ports = structuredClone(projected[0].HostConfig.PortBindings);
+    Object.assign(projected[0].NetworkSettings.Networks[expected.cluster], {
+      Gateway: retained.gateway,
+      IPAddress: retained.ipAddress,
+      IPPrefixLen: 24,
+      MacAddress: retained.macAddress,
+    });
+    return validateKindNodeInspection(projected, expected, retained);
   } catch {
     throw new Failure("ownership");
   }

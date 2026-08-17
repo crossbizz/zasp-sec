@@ -3492,7 +3492,11 @@ test("retains exact provider absence across a failed base node removal and re-pr
         ? { outcome: "definitive", result: { ...success(), status: 1 } }
         : { outcome: "applied", result: success() };
     };
-    system.requireClusterAbsent = async () => { system.nodeIdentity = undefined; };
+    system.requireClusterAbsent = async () => {
+      if (removals === 1) throw new GraphFailure("cleanup");
+      system.nodeIdentity = undefined;
+    };
+    system.verifyStoppedClusterForCleanup = async () => { throw new GraphFailure("cleanup"); };
     system.cleanupAdditionalImages = async () => {};
     return { reads: () => reads, removals: () => removals, system };
   };
