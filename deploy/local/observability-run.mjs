@@ -773,10 +773,16 @@ export class LocalObservabilitySystem extends LocalGraphSystem {
               "cleanup",
             );
           } catch {
-            current = validateObservabilityKubernetesState(
-              providerState, this.observabilityProviderExpectation(), retained, false,
-              "cleanup",
-            );
+            try {
+              current = validateObservabilityKubernetesState(
+                providerState, this.observabilityProviderExpectation(), retained, false,
+                "cleanup",
+              );
+            } catch {
+              current = validateFailedObservabilityKubernetesState(
+                providerState, this.observabilityProviderExpectation(), retained, "cleanup",
+              );
+            }
           }
         } else {
           current = validateObservabilityKubernetesState(
@@ -1197,7 +1203,7 @@ function projectObservabilityJob(item) {
     status: {
       completionTime: item?.status?.completionTime,
       conditions: Array.isArray(item?.status?.conditions) ? item.status.conditions
-        .filter(({ type }) => type === "Complete").map((condition) => ({
+        .filter(({ type }) => type === "Complete" || type === "Failed").map((condition) => ({
           lastProbeTime: condition.lastProbeTime,
           lastTransitionTime: condition.lastTransitionTime,
           status: condition.status,
@@ -1370,6 +1376,157 @@ function validateObservabilityJob(value, expected, jobResource) {
     throw new TypeError("observability Job provider state is invalid");
   }
   return deepFreeze({ completionTime, containerId, finishedAt, jobUid, log: observabilityJobLog, podName, podUid });
+}
+
+function validateFailedObservabilityKubernetesState(value, expected, retained, category) {
+  try {
+    requireKeySet(value, [
+      "configMaps", "deployments", "endpointSlices", "ingresses", "jobLog", "jobs", "pods", "replicaSets",
+      "services",
+    ]);
+    if (!plainArray(value.jobs) || value.jobs.length !== 1 || !plainArray(value.pods) ||
+        value.pods.length !== 2 || value.jobLog !== "") {
+      throw new TypeError("failed observability collection is invalid");
+    }
+    const collectorPods = value.pods.filter((pod) =>
+      pod?.metadata?.labels?.["app.kubernetes.io/name"] === OBSERVABILITY_CONSTANTS.collectorName);
+    const failedPods = value.pods.filter((pod) =>
+      pod?.metadata?.labels?.["app.kubernetes.io/name"] === OBSERVABILITY_CONSTANTS.spanJobName);
+    if (collectorPods.length !== 1 || failedPods.length !== 1) {
+      throw new TypeError("failed observability pods are invalid");
+    }
+    const core = validateObservabilityKubernetesState({
+      configMaps: value.configMaps,
+      deployments: value.deployments,
+      endpointSlices: value.endpointSlices,
+      ingresses: value.ingresses,
+      jobLog: null,
+      jobs: [],
+      pods: collectorPods,
+      replicaSets: value.replicaSets,
+      services: value.services,
+    }, expected, retained, false, category);
+    const job = validateFailedObservabilityJob(value.jobs[0], failedPods[0], expected);
+    return deepFreeze({ ...core, job });
+  } catch (error) {
+    if (error instanceof Failure) throw error;
+    throw new ObservabilityFailure(category);
+  }
+}
+
+function validateFailedObservabilityJob(job, pod, expected) {
+  const jobResource = buildObservabilityResources()[3];
+  const jobUid = providerUid(job?.metadata?.uid);
+  const podUid = providerUid(pod?.metadata?.uid);
+  const jobVersion = providerVersion(job?.metadata?.resourceVersion);
+  const podVersion = providerVersion(pod?.metadata?.resourceVersion);
+  const podName = /^otel-test-span-[a-z0-9]{5}$/.test(pod?.metadata?.name ?? "")
+    ? pod.metadata.name : undefined;
+  const container = pod?.status?.containerStatuses?.[0];
+  const containerId = providerContainerId(container?.containerID);
+  const startTime = providerTimestamp(job?.status?.startTime);
+  const podStartedAt = providerTimestamp(container?.state?.terminated?.startedAt);
+  const finishedAt = providerTimestamp(container?.state?.terminated?.finishedAt);
+  const transitionTime = providerTimestamp(job?.status?.conditions?.[0]?.lastTransitionTime);
+  const probeTime = providerTimestamp(job?.status?.conditions?.[0]?.lastProbeTime);
+  const podIP = validPodAddress(pod?.status?.podIP) ? pod.status.podIP : undefined;
+  const exitCode = container?.state?.terminated?.exitCode;
+  if ([jobUid, podUid, jobVersion, podVersion, podName, containerId, startTime, podStartedAt, finishedAt,
+    transitionTime, probeTime, podIP].some((item) => item === undefined) ||
+      !Number.isSafeInteger(exitCode) || exitCode < 1 || exitCode > 255 ||
+      !(Date.parse(startTime) <= Date.parse(podStartedAt) && Date.parse(podStartedAt) < Date.parse(finishedAt) &&
+        Date.parse(finishedAt) <= Date.parse(transitionTime)) || probeTime !== transitionTime) {
+    throw new TypeError("failed observability Job identity is invalid");
+  }
+  const labels = {
+    ...jobResource.spec.template.metadata.labels,
+    "batch.kubernetes.io/controller-uid": jobUid,
+    "batch.kubernetes.io/job-name": OBSERVABILITY_CONSTANTS.spanJobName,
+    "controller-uid": jobUid,
+    "job-name": OBSERVABILITY_CONSTANTS.spanJobName,
+  };
+  const expectedJob = {
+    apiVersion: "batch/v1",
+    kind: "Job",
+    metadata: {
+      labels: structuredClone(jobResource.metadata.labels),
+      name: OBSERVABILITY_CONSTANTS.spanJobName,
+      namespace: OBSERVABILITY_CONSTANTS.namespace,
+      resourceVersion: jobVersion,
+      uid: jobUid,
+    },
+    spec: {
+      activeDeadlineSeconds: 30,
+      backoffLimit: 0,
+      completionMode: "NonIndexed",
+      completions: 1,
+      manualSelector: false,
+      parallelism: 1,
+      podReplacementPolicy: "Failed",
+      selector: { matchLabels: { "batch.kubernetes.io/controller-uid": jobUid } },
+      suspend: false,
+      template: providerObservabilityTemplate(jobResource.spec.template, labels),
+    },
+    status: {
+      completionTime: undefined,
+      conditions: [{
+        lastProbeTime: probeTime,
+        lastTransitionTime: transitionTime,
+        status: "True",
+        type: "Failed",
+      }],
+      failed: 1,
+      ready: 0,
+      startTime,
+      succeeded: 0,
+    },
+  };
+  const expectedPod = {
+    apiVersion: "v1",
+    kind: "Pod",
+    metadata: {
+      labels,
+      name: podName,
+      namespace: OBSERVABILITY_CONSTANTS.namespace,
+      ownerReferences: [{
+        apiVersion: "batch/v1",
+        blockOwnerDeletion: true,
+        controller: true,
+        kind: "Job",
+        name: OBSERVABILITY_CONSTANTS.spanJobName,
+        uid: jobUid,
+      }],
+      resourceVersion: podVersion,
+      uid: podUid,
+    },
+    spec: providerObservabilityPodSpec(jobResource.spec.template, expected.nodeName),
+    status: {
+      conditions: [{ status: "False", type: "Ready" }],
+      containerStatuses: [{
+        containerID: containerId,
+        image: expected.imageTargets.busybox.configDigest,
+        imageID: expected.imageTargets.busybox.imageID,
+        lastState: {},
+        name: "span-generator",
+        ready: false,
+        restartCount: 0,
+        started: false,
+        state: { terminated: {
+          containerID: containerId,
+          exitCode,
+          finishedAt,
+          reason: "Error",
+          startedAt: podStartedAt,
+        } },
+      }],
+      phase: "Failed",
+      podIP,
+    },
+  };
+  if (!isDeepStrictEqual(job, expectedJob) || !isDeepStrictEqual(pod, expectedPod)) {
+    throw new TypeError("failed observability Job provider state is invalid");
+  }
+  return deepFreeze({ failed: true, finishedAt, jobUid, podName, podUid });
 }
 
 function providerObservabilityContainer(value) {

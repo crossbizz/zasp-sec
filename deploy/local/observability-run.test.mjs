@@ -376,6 +376,26 @@ function emptyObservabilityProviderState() {
   };
 }
 
+function failedObservabilityProviderState() {
+  const value = observabilityProviderState();
+  value.jobs[0].status.completionTime = undefined;
+  value.jobs[0].status.conditions = [{
+    lastProbeTime: "2026-08-16T10:00:06Z",
+    lastTransitionTime: "2026-08-16T10:00:06Z",
+    status: "True",
+    type: "Failed",
+  }];
+  value.jobs[0].status.failed = 1;
+  value.jobs[0].status.ready = 0;
+  value.jobs[0].status.succeeded = 0;
+  value.jobLog = "";
+  const status = value.pods.at(-1).status;
+  status.phase = "Failed";
+  status.containerStatuses[0].state.terminated.exitCode = 1;
+  status.containerStatuses[0].state.terminated.reason = "Error";
+  return value;
+}
+
 function capturedProductProviderState() {
   return new Map([
     "deployments", "endpointSlices", "pods", "replicaSets", "services",
@@ -854,6 +874,15 @@ test("uses fixed bounded provider, Job-apply, log, and sink command boundaries",
     );
     delete rawState[collection][0].metadata.deletionTimestamp;
   }
+  const failedProvider = failedObservabilityProviderState();
+  resourceMap.set("job", failedProvider.jobs);
+  resourceMap.set("pod", failedProvider.pods);
+  const projectedFailure = await new ProviderSystem().readObservabilityProviderState(phase);
+  assert.equal(projectedFailure.jobs[0].status.conditions[0].type, "Failed");
+  assert.equal(projectedFailure.jobs[0].status.failed, 1);
+  assert.equal(projectedFailure.pods.at(-1).status.containerStatuses[0].state.terminated.exitCode, 1);
+  resourceMap.set("job", rawState.jobs);
+  resourceMap.set("pod", rawState.pods);
   assert.deepEqual(system.calls.filter(([, , arguments_]) => arguments_.includes("get")).map(([, , arguments_]) =>
     arguments_.slice(2)), [
     ["get", "configmap", "--namespace", "zasp-local", "--selector=app.kubernetes.io/component=observability", "--output=json"],
@@ -1070,13 +1099,36 @@ test("reconciles an uncertain Job before destructive graph cleanup and rejects r
   assert.equal(active.observabilityProviderIdentity.job.jobUid, providerUid(45));
   assert.equal(active.events.filter((event) => event === "observability-cleanup-proof").length, 4);
   assert.equal(active.events.filter((event) => event === "pause").length, 3);
+
+  const failed = new CleanupSystem();
+  failed.values = [failedObservabilityProviderState()];
+  await failed.verifyAdditionalNodeForCleanup(phase);
+  assert.equal(failed.observabilityJobMayHaveApplied, false);
+  assert.equal(failed.observabilityProviderIdentity.job.failed, true);
+  assert.equal(failed.observabilityProviderIdentity.job.jobUid, providerUid(45));
+
+  for (const mutate of [
+    (value) => { value.jobs[0].metadata.uid = providerUid(99); },
+    (value) => { value.jobs[0].status.failed = 2; },
+    (value) => { value.pods.at(-1).status.containerStatuses[0].state.terminated.exitCode = 0; },
+    (value) => { value.pods.at(-1).status.containerStatuses[0].state.terminated.reason = "Completed"; },
+    (value) => { value.jobLog = "provider output\n"; },
+  ]) {
+    const invalid = failedObservabilityProviderState();
+    mutate(invalid);
+    const rejectedFailed = new CleanupSystem();
+    rejectedFailed.values = [invalid];
+    await assert.rejects(
+      () => rejectedFailed.verifyAdditionalNodeForCleanup(phase), { category: "cleanup" },
+    );
+    assert.equal(rejectedFailed.observabilityJobMayHaveApplied, true);
+  }
 });
 
 test("drives production cancellation state through settled active-Job cleanup", async () => {
   const expected = observabilityExpectation();
   const coreState = observabilityProviderState({ includeJob: false });
   const core = validateObservabilityKubernetesState(coreState, expected, undefined, false);
-  const completeState = observabilityProviderState();
   const activeState = observabilityProviderState();
   delete activeState.jobs[0].status.completionTime;
   activeState.jobs[0].status.conditions = [];
@@ -1181,10 +1233,11 @@ test("drives production cancellation state through settled active-Job cleanup", 
   assert.equal(afterApply.observabilityJobMayHaveApplied, true);
   const cleanupPhase = { assertActive() {}, signal: new AbortController().signal };
   await afterApply.joinMutations(cleanupPhase);
-  afterApply.cleanupValues = [activeState, activeState, completeState];
+  afterApply.cleanupValues = [activeState, activeState, failedObservabilityProviderState()];
   await afterApply.verifyAdditionalNodeForCleanup(cleanupPhase);
   assert.equal(afterApply.observabilityJobMayHaveApplied, false);
   assert.equal(afterApply.observabilityProviderIdentity.job.jobUid, providerUid(45));
+  assert.equal(afterApply.observabilityProviderIdentity.job.failed, true);
   assert.ok(afterApply.events.indexOf("mutation-settled") < afterApply.events.indexOf("graph-cleanup-proof"));
   assert.equal(afterApply.events.filter((event) => event === "pause").length, 2);
 });
