@@ -252,7 +252,7 @@ function graphDependencies(command = async () => success()) {
   };
 }
 
-function graphSystem(command) {
+function graphSystem(command, dependencyOverrides = {}) {
   return new LocalGraphSystem({
     home: "/Users/test",
     hostPlatform: "darwin/arm64",
@@ -260,7 +260,7 @@ function graphSystem(command) {
     nodePlatform: "linux/arm64",
     path: "/usr/local/bin:/usr/bin:/bin",
     repositoryRoot: "/repository",
-  }, graphDependencies(command));
+  }, { ...graphDependencies(command), ...dependencyOverrides });
 }
 
 function providerLines(values) {
@@ -1832,6 +1832,112 @@ test("constructs only the fixed M1-30b process profile without ambient authority
     path: "/usr/bin:/bin",
     repositoryRoot: "/repository",
   }), { name: "TypeError" });
+});
+
+test("uses the pinned absolute Go tool without widening the isolated live PATH", async () => {
+  const goCandidate = "/opt/homebrew/bin/go";
+  const goCommand = "/opt/homebrew/Cellar/go/1.25.6/libexec/bin/go";
+  const livePath = "/Users/test/.nvm/versions/node/v22.23.1/bin:/usr/local/bin:/usr/bin:/bin";
+  const metadata = {
+    dev: 43,
+    gid: 80,
+    ino: 99,
+    isFile: () => true,
+    isSymbolicLink: () => false,
+    mode: 0o100755,
+    mtimeMs: 1_770_000_000_000,
+    size: 14_098_546,
+    uid: 501,
+  };
+  const canonicalReads = [];
+  const calls = [];
+  const system = graphSystem(async (command, arguments_, options) => {
+    calls.push({ arguments_, command, path: options.environment.PATH });
+    return arguments_[0] === "version" ? success("go version go1.25.6 darwin/arm64\n") : success();
+  }, {
+    canonicalPath: async (value) => {
+      canonicalReads.push(value);
+      return value === goCandidate ? goCommand : value;
+    },
+    statPath: async () => metadata,
+  });
+  system.environment = Object.freeze({ HOME: "/owned/home", LANG: "C.UTF-8", PATH: livePath });
+  system.resolveGraphImage = async (selected) => resolvedImage(selected);
+  system.readGraphImageBaseline = async () => undefined;
+  await system.runAdditionalPreflightChecks(phase);
+  await system.runMutation("go", ["build"], phase, "build", {
+    environment: system.environment,
+    outputLimit: 16_384,
+    timeoutMilliseconds: 30_000,
+  });
+  assert.deepEqual(calls, [
+    { arguments_: ["version"], command: goCommand, path: livePath },
+    { arguments_: ["version"], command: goCommand, path: livePath },
+    { arguments_: ["build"], command: goCommand, path: livePath },
+  ]);
+  assert.ok(canonicalReads.includes(goCandidate));
+  assert.equal(system.graphGoToolIdentity.command, goCommand);
+  assert.ok(Object.isFrozen(system.graphGoToolIdentity));
+
+  const wrongVersion = graphSystem(async () => success("go version go1.25.5 darwin/arm64\n"), {
+    canonicalPath: async (value) => value === goCandidate ? goCommand : value,
+    statPath: async () => metadata,
+  });
+  wrongVersion.environment = system.environment;
+  wrongVersion.resolveGraphImage = system.resolveGraphImage;
+  wrongVersion.readGraphImageBaseline = system.readGraphImageBaseline;
+  await assert.rejects(() => wrongVersion.runAdditionalPreflightChecks(phase), {
+    category: "configuration", name: "Failure",
+  });
+
+  const missing = graphSystem(async () => success(), {
+    canonicalPath: async () => { throw Object.assign(new Error("missing"), { code: "ENOENT" }); },
+    statPath: async () => metadata,
+  });
+  missing.environment = system.environment;
+  missing.resolveGraphImage = system.resolveGraphImage;
+  missing.readGraphImageBaseline = system.readGraphImageBaseline;
+  await assert.rejects(() => missing.runAdditionalPreflightChecks(phase), {
+    category: "configuration", name: "Failure",
+  });
+
+  const symlinked = graphSystem(async () => success("go version go1.25.6 darwin/arm64\n"), {
+    canonicalPath: async (value) => value === goCandidate ? goCommand : value,
+    statPath: async () => ({ ...metadata, isSymbolicLink: () => true }),
+  });
+  symlinked.environment = system.environment;
+  symlinked.resolveGraphImage = system.resolveGraphImage;
+  symlinked.readGraphImageBaseline = system.readGraphImageBaseline;
+  await assert.rejects(() => symlinked.runAdditionalPreflightChecks(phase), {
+    category: "configuration", name: "Failure",
+  });
+
+  let replaced = false;
+  const replacementCalls = [];
+  const replacement = graphSystem(async (command, arguments_) => {
+    replacementCalls.push([command, ...arguments_]);
+    return success("go version go1.25.6 darwin/arm64\n");
+  }, {
+    canonicalPath: async (value) => value === goCandidate ? goCommand : value,
+    statPath: async () => ({ ...metadata, ino: replaced ? 100 : 99 }),
+  });
+  replacement.environment = system.environment;
+  replacement.resolveGraphImage = system.resolveGraphImage;
+  replacement.readGraphImageBaseline = system.readGraphImageBaseline;
+  await replacement.runAdditionalPreflightChecks(phase);
+  replaced = true;
+  await assert.rejects(() => replacement.runMutation("go", ["build"], phase, "build", {
+    environment: replacement.environment,
+    outputLimit: 16_384,
+    timeoutMilliseconds: 30_000,
+  }), { category: "build", name: "Failure" });
+  assert.deepEqual(replacementCalls, [[goCommand, "version"]], "replacement is rejected before build execution");
+
+  assert.throws(() => DockerKindGraphRuntime.fromProcess({
+    GOROOT: "/alternate/go",
+    HOME: "/Users/test",
+    PATH: livePath,
+  }), { category: "configuration", name: "Failure" });
 });
 
 test("retains the complete index and exact selected manifest descriptor", () => {

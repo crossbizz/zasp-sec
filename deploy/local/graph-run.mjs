@@ -1,3 +1,4 @@
+import { normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { GRAPH_CONSTANTS, GRAPH_IMAGES, buildGraphResources, renderGraphManifest } from "./graph-manifest.mjs";
@@ -25,6 +26,19 @@ const graphHealthLog = "neo4j-health-ready\n";
 const graphMarkerOutput = "marker_count\n1\n";
 const graphMarkerAddress = "neo4j://neo4j.zasp-local.svc.cluster.local:7687";
 const graphMarkerLabel = "ZaspLocalGraphProof";
+const graphForbiddenGoEnvironment = /^(?:CGO_|GO)[A-Z0-9_]*$/;
+const graphGoToolCandidates = deepFreeze({
+  "darwin/amd64": "/usr/local/bin/go",
+  "darwin/arm64": "/opt/homebrew/bin/go",
+  "linux/amd64": "/usr/local/go/bin/go",
+  "linux/arm64": "/usr/local/go/bin/go",
+});
+const graphGoToolCanonicalPatterns = deepFreeze({
+  "darwin/amd64": /^(?:\/usr\/local\/bin\/go|\/usr\/local\/Cellar\/go\/1\.25\.6(?:_\d+)?\/libexec\/bin\/go)$/,
+  "darwin/arm64": /^(?:\/opt\/homebrew\/bin\/go|\/opt\/homebrew\/Cellar\/go\/1\.25\.6(?:_\d+)?\/libexec\/bin\/go)$/,
+  "linux/amd64": /^\/usr\/local\/go\/bin\/go$/,
+  "linux/arm64": /^\/usr\/local\/go\/bin\/go$/,
+});
 
 export const GRAPH_SUCCESS_LINE = "Local graph manifest passed: ready=true internal=true persistent=true cleanup=true.";
 export const GRAPH_FAILURE_CATEGORIES = Object.freeze([
@@ -1341,6 +1355,7 @@ export class LocalGraphSystem extends LocalProductSystem {
     this.graphImageBaselineAbsences = new Set();
     this.graphLoadedImageTargets = new Map();
     this.graphImageMayHaveApplied = new Set();
+    this.graphGoToolIdentity = undefined;
     this.graphNodeIdentity = undefined;
     this.graphPathIdentity = undefined;
     this.graphNodeMayHaveApplied = false;
@@ -1414,6 +1429,7 @@ export class LocalGraphSystem extends LocalProductSystem {
   }
 
   async runAdditionalPreflightChecks(phase) {
+    await this.admitGraphGoTool(phase);
     for (const selected of this.graphImagePlans.values()) {
       const resolution = await this.resolveGraphImage(selected, phase);
       const baseline = await this.readGraphImageBaseline(selected, resolution, phase, "configuration");
@@ -1422,6 +1438,65 @@ export class LocalGraphSystem extends LocalProductSystem {
       if (baseline === undefined) this.graphImageBaselineAbsences.add(selected.name);
       else this.graphSharedImageBaselines.set(selected.name, baseline);
     }
+  }
+
+  async inspectGraphGoTool(phase, category, retained = undefined) {
+    phase.assertActive(category);
+    const candidate = graphGoToolCandidates[this.input.hostPlatform];
+    const pattern = graphGoToolCanonicalPatterns[this.input.hostPlatform];
+    if (candidate === undefined || pattern === undefined) throw new Failure(category);
+    let command;
+    let status;
+    try {
+      command = await this.dependencies.canonicalPath(candidate);
+      status = await this.dependencies.statPath(command);
+    } catch {
+      throw new Failure(category);
+    }
+    phase.assertActive(category);
+    if (typeof command !== "string" || command !== normalize(command) || !pattern.test(command) ||
+        !status?.isFile?.() || status?.isSymbolicLink?.() || !Number.isSafeInteger(status.dev) ||
+        !Number.isSafeInteger(status.ino) || !Number.isSafeInteger(status.mode) ||
+        !Number.isSafeInteger(status.uid) || !Number.isSafeInteger(status.gid) ||
+        !Number.isSafeInteger(status.size) || status.size < 1 || status.size > 134_217_728 ||
+        !Number.isFinite(status.mtimeMs) || (status.mode & 0o111) === 0) throw new Failure(category);
+    const identity = deepFreeze({
+      candidate,
+      command,
+      dev: status.dev,
+      gid: status.gid,
+      ino: status.ino,
+      mode: status.mode,
+      mtimeMs: status.mtimeMs,
+      size: status.size,
+      uid: status.uid,
+    });
+    if (retained !== undefined && !exactData(identity, retained)) throw new Failure(category);
+    return identity;
+  }
+
+  async requireGraphGoVersion(identity, phase, category) {
+    const result = await this.runRead(identity.command, ["version"], phase, category, 15_000, 16_384);
+    if (result.stdout !== `go version go1.25.6 ${this.input.hostPlatform}\n`) throw new Failure(category);
+  }
+
+  async admitGraphGoTool(phase) {
+    const identity = await this.inspectGraphGoTool(phase, "configuration");
+    await this.requireGraphGoVersion(identity, phase, "configuration");
+    this.graphGoToolIdentity = await this.inspectGraphGoTool(phase, "configuration", identity);
+  }
+
+  async requireGraphGoTool(phase, category) {
+    const retained = this.graphGoToolIdentity;
+    if (retained === undefined) throw new Failure(category);
+    await this.inspectGraphGoTool(phase, category, retained);
+    await this.requireGraphGoVersion(retained, phase, category);
+    return await this.inspectGraphGoTool(phase, category, retained);
+  }
+
+  async runMutation(command, arguments_, phase, category, options) {
+    const executable = command === "go" ? (await this.requireGraphGoTool(phase, category)).command : command;
+    return await super.runMutation(executable, arguments_, phase, category, options);
   }
 
   async readGraphImageConsumers(selected, phase, category) {
@@ -2374,6 +2449,14 @@ export class DockerKindGraphRuntime extends DockerKindRuntime {
   }
 
   static fromProcess(environment = process.env, systemFactory = (input) => new LocalGraphSystem(input)) {
+    if (environment === null || typeof environment !== "object" || Array.isArray(environment)) {
+      throw new Failure("configuration");
+    }
+    for (const [name, value] of Object.entries(environment)) {
+      if (graphForbiddenGoEnvironment.test(name) && value !== undefined && value !== "") {
+        throw new Failure("configuration");
+      }
+    }
     const selected = DockerKindRuntime.fromProcess(environment, systemFactory);
     return new DockerKindGraphRuntime(selected.input, selected.system);
   }
