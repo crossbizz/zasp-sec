@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 660 |
-| In progress | 0 |
+| Pending | 659 |
+| In progress | 1 |
 | Complete | 65 |
 | Blocked | 3 |
 
@@ -24,7 +24,7 @@ In progress, Complete, or Blocked is Pending.
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 0 | 0 | 24 | 3 |
-| M1 | 68 | 27 | 0 | 41 | 0 |
+| M1 | 68 | 26 | 1 | 41 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
 | M3 | 75 | 75 | 0 | 0 | 0 |
@@ -68,13 +68,14 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `660/0/65/3` because
+session configuration. The 728 source-plan counts are `659/1/65/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M1-30c | August 16, 2026 | Adding the exact local OpenTelemetry Collector overlay, staged one-span Job, local file-backed sink, immutable image/license proof, prior-profile preservation, and disposable cleanup. |
 
 ## Complete
 
