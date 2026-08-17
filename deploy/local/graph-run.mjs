@@ -417,6 +417,40 @@ export function parseGraphContainerdImageTargets(beforeSource, afterSource, sele
   }
 }
 
+export function bindGraphContainerdWorkloadAlias(beforeSource, afterSource, target, selected) {
+  try {
+    validateSelectedPlan(selected);
+    validateGraphContainerdTarget(target, selected);
+    if (target.references.length !== 3) throw new TypeError("graph workload alias target is invalid");
+    const before = parseGraphContainerdInventory(beforeSource);
+    const after = parseGraphContainerdInventory(afterSource);
+    for (const [reference, row] of before) {
+      if (!exactData(after.get(reference), row)) throw new TypeError("graph workload alias baseline changed");
+    }
+    for (const row of target.references) {
+      if (!exactData(before.get(row.reference), row)) throw new TypeError("graph workload alias authority changed");
+    }
+    const delta = [...after].filter(([reference]) => !before.has(reference)).map(([, row]) => row);
+    const wrapper = target.references.find(({ mediaType }) =>
+      mediaType === "application/vnd.oci.image.index.v1+json");
+    const reference = graphWorkloadImageReference(selected);
+    if (delta.length !== 1 || wrapper === undefined || delta[0].reference !== reference ||
+        !exactData({ ...delta[0], reference: wrapper.reference }, wrapper)) {
+      throw new TypeError("graph workload alias is invalid");
+    }
+    const bound = deepFreeze({
+      ...target,
+      imageID: reference,
+      references: [...target.references, delta[0]],
+    });
+    validateGraphContainerdTarget(bound, selected);
+    return bound;
+  } catch (error) {
+    if (error instanceof GraphFailure) throw error;
+    throw new GraphFailure("provider");
+  }
+}
+
 function parseGraphContainerdInventory(source) {
   if (typeof source !== "string" || Buffer.byteLength(source) < 1 || Buffer.byteLength(source) > 4_194_304 ||
       !source.endsWith("\n")) throw new TypeError("graph containerd inventory is invalid");
@@ -501,8 +535,8 @@ function graphArchiveContainerdTarget(delta, selected) {
 function validateGraphContainerdTarget(target, selected) {
   requireExactKeySet(target, ["imageID", "manifestDigest", "references"], "graph containerd target");
   if (target.manifestDigest !== selected.manifestDigest || !Array.isArray(target.references) ||
-      !new Set([2, 3]).has(target.references.length)) throw new TypeError("graph containerd target is invalid");
-  if (target.references.length === 3) {
+      !new Set([2, 3, 4]).has(target.references.length)) throw new TypeError("graph containerd target is invalid");
+  if (new Set([3, 4]).has(target.references.length)) {
     validateGraphArchiveContainerdTarget(target, selected);
     return;
   }
@@ -562,7 +596,7 @@ function validateGraphArchiveContainerdTarget(target, selected) {
       new Set([selected.configDigest, selected.indexDigest, selected.manifestDigest]).has(children[0].digest) ||
       new Set([selected.configDigest, selected.indexDigest, selected.manifestDigest, children[0].digest])
         .has(wrappers[0].digest) ||
-      !exactData(references, ordered) || target.imageID !== graphPublicImageReference(ordered[0].reference)) {
+      !exactData(references, ordered)) {
     throw new TypeError("graph containerd archive target is invalid");
   }
   requireExactKeySet(alias, ["digest", "labels", "mediaType", "platform", "reference", "size"],
@@ -571,6 +605,20 @@ function validateGraphArchiveContainerdTarget(target, selected) {
       alias.mediaType !== children[0].mediaType || alias.platform !== children[0].platform ||
       alias.labels !== children[0].labels || alias.size !== children[0].size) {
     throw new TypeError("graph containerd archive alias is invalid");
+  }
+  const workloadAlias = target.references[3];
+  if (workloadAlias === undefined) {
+    if (target.imageID !== graphPublicImageReference(ordered[0].reference)) {
+      throw new TypeError("graph containerd archive target is invalid");
+    }
+    return;
+  }
+  requireExactKeySet(workloadAlias, ["digest", "labels", "mediaType", "platform", "reference", "size"],
+    "graph containerd workload alias");
+  if (workloadAlias.reference !== graphWorkloadImageReference(selected) ||
+      !exactData({ ...workloadAlias, reference: wrappers[0].reference }, wrappers[0]) ||
+      target.imageID !== workloadAlias.reference) {
+    throw new TypeError("graph containerd workload alias is invalid");
   }
 }
 
@@ -649,6 +697,18 @@ function graphPublicImageReference(reference) {
     throw new TypeError("graph containerd reference is invalid");
   }
   return `docker.io/library/${reference}`;
+}
+
+function graphWorkloadImageReference(selected) {
+  const separator = selected.providerReference.indexOf("@");
+  const tagged = selected.providerReference.slice(0, separator);
+  const tagSeparator = tagged.lastIndexOf(":");
+  const slash = tagged.lastIndexOf("/");
+  if (separator < 1 || tagSeparator <= slash ||
+      selected.providerReference.slice(separator + 1) !== selected.indexDigest) {
+    throw new TypeError("graph workload reference is invalid");
+  }
+  return `${tagged.slice(0, tagSeparator)}@${selected.indexDigest}`;
 }
 
 function lexicalCompare(left, right) {
@@ -1495,6 +1555,7 @@ export class LocalGraphSystem extends LocalProductSystem {
     this.graphSharedImageBaselines = new Map();
     this.graphImageBaselineAbsences = new Set();
     this.graphLoadedImageTargets = new Map();
+    this.graphNodeImageInventory = undefined;
     this.graphImageMayHaveApplied = new Set();
     this.graphGoToolIdentity = undefined;
     this.graphNodeIdentity = undefined;
@@ -1981,6 +2042,18 @@ export class LocalGraphSystem extends LocalProductSystem {
         target = validateGraphContainerdImageContents(
           target, manifest.stdout, index.stdout, selected, retained, this.graphImageResolutions.get(selected.name),
         );
+        const tagged = await this.runNodeMutation([
+          "ctr", "--namespace", "k8s.io", "images", "tag", "--local",
+          wrapper.reference, graphWorkloadImageReference(selected),
+        ], phase, "provider", 30_000, 4_194_304);
+        if (tagged.outcome === "definitive") throw new GraphFailure("provider");
+        const aliased = await this.runNodeRead([
+          "ctr", "--namespace", "k8s.io", "images", "list",
+        ], phase, "provider", 30_000, 4_194_304);
+        target = bindGraphContainerdWorkloadAlias(after.stdout, aliased.stdout, target, selected);
+        this.graphNodeImageInventory = aliased.stdout;
+      } else {
+        this.graphNodeImageInventory = after.stdout;
       }
       if (this.graphLoadedImageTargets.has(selected.name)) throw new GraphFailure("ownership");
       this.graphLoadedImageTargets.set(selected.name, target);
@@ -1998,6 +2071,11 @@ export class LocalGraphSystem extends LocalProductSystem {
     if (!exactData(node, this.graphNodeIdentity) || !exactData(storage, this.graphPathIdentity)) {
       throw new GraphFailure("ownership");
     }
+    if (typeof this.graphNodeImageInventory !== "string") throw new GraphFailure("ownership");
+    const images = await this.runNodeRead([
+      "ctr", "--namespace", "k8s.io", "images", "list",
+    ], phase, "ownership", 30_000, 4_194_304);
+    if (images.stdout !== this.graphNodeImageInventory) throw new GraphFailure("ownership");
     await this.requireOwnedPath(path, phase, "ownership");
   }
 
@@ -2472,6 +2550,7 @@ export class LocalGraphSystem extends LocalProductSystem {
     this.graphNodeIdentity = undefined;
     this.graphPathIdentity = undefined;
     this.graphLoadedImageTargets.clear();
+    this.graphNodeImageInventory = undefined;
     this.graphProviderIdentity = undefined;
     this.graphMarkerMayHaveApplied = false;
     this.graphPodDeleteMayHaveApplied = false;
