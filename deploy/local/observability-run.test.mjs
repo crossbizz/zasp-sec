@@ -1106,6 +1106,15 @@ test("reconciles an uncertain Job before destructive graph cleanup and rejects r
   assert.equal(failed.observabilityJobMayHaveApplied, false);
   assert.equal(failed.observabilityProviderIdentity.job.failed, true);
   assert.equal(failed.observabilityProviderIdentity.job.jobUid, providerUid(45));
+  failed.values = [failedObservabilityProviderState()];
+  await failed.verifyAdditionalNodeForCleanup(phase);
+  assert.equal(failed.observabilityProviderIdentity.job.failed, true);
+
+  const changedRetryState = failedObservabilityProviderState();
+  changedRetryState.pods.at(-1).metadata.uid = providerUid(98);
+  failed.values = [changedRetryState];
+  await assert.rejects(() => failed.verifyAdditionalNodeForCleanup(phase), { category: "cleanup" });
+  assert.equal(failed.observabilityProviderIdentity.job.podUid, providerUid(46));
 
   for (const mutate of [
     (value) => { value.jobs[0].metadata.uid = providerUid(99); },

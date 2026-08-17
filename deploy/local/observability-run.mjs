@@ -785,10 +785,14 @@ export class LocalObservabilitySystem extends LocalGraphSystem {
             }
           }
         } else {
-          current = validateObservabilityKubernetesState(
-            providerState, this.observabilityProviderExpectation(), retained, retained.job !== null,
-            "cleanup",
-          );
+          current = retained.job?.failed === true
+            ? validateFailedObservabilityKubernetesState(
+              providerState, this.observabilityProviderExpectation(), retained, "cleanup",
+            )
+            : validateObservabilityKubernetesState(
+              providerState, this.observabilityProviderExpectation(), retained, retained.job !== null,
+              "cleanup",
+            );
         }
         this.observabilityProviderIdentity = current;
         this.observabilityJobMayHaveApplied = false;
@@ -1407,6 +1411,10 @@ function validateFailedObservabilityKubernetesState(value, expected, retained, c
       services: value.services,
     }, expected, retained, false, category);
     const job = validateFailedObservabilityJob(value.jobs[0], failedPods[0], expected);
+    if (retained?.job !== null && retained?.job !== undefined &&
+        !isDeepStrictEqual(retained.job, job)) {
+      throw new TypeError("failed observability Job changed");
+    }
     return deepFreeze({ ...core, job });
   } catch (error) {
     if (error instanceof Failure) throw error;
