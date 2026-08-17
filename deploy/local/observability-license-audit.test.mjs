@@ -170,6 +170,104 @@ test("bounds a cancellation promise that never settles and emits fixed CLI outpu
   assert.equal(stderr, "");
 });
 
+test("uses one shared audit deadline across all artifact fingerprints", async () => {
+  const inventory = parseObservabilityLicenseInventory(inventoryText);
+  const calls = [];
+  const started = Date.now();
+  await assert.rejects(() => auditObservabilityLicenses({
+    inventoryText,
+    timeoutMilliseconds: 25,
+    fingerprintArtifact: async (url, { signal }) => {
+      calls.push(url);
+      await new Promise((resolve, rejectPromise) => {
+        const timer = setTimeout(resolve, 15);
+        signal.addEventListener("abort", () => {
+          clearTimeout(timer);
+          rejectPromise(new Error("audit deadline"));
+        }, { once: true });
+      });
+      return inventory.artifacts.find((artifact) => artifact.url === url).sha256;
+    },
+  }), TypeError);
+  assert.deepEqual(calls, inventory.artifacts.slice(0, 2).map(({ url }) => url));
+  assert.ok(Date.now() - started < 150);
+});
+
+test("rejects every malformed production fetch and always terminates acquired readers", async () => {
+  const artifact = new TextEncoder().encode("artifact");
+  const cases = [
+    ["missing body", { ok: true, redirected: false, status: 200, headers: { get: () => null } }],
+    ["malformed body", { ...response(), body: { getReader: 1 } }],
+    ["declared length larger than actual", response({ body: [artifact], contentLength: "9" })],
+    ["invalid chunk", response({ body: ["artifact"] })],
+    ["empty chunk", response({ body: [new Uint8Array()] })],
+  ];
+  for (const [name, supplied] of cases) {
+    const events = [];
+    const acquired = typeof supplied.body?.getReader === "function";
+    const wrapped = !acquired ? supplied : { ...supplied, body: { getReader() {
+      const reader = supplied.body.getReader();
+      return {
+        cancel() { events.push("cancel"); return Promise.resolve(); },
+        read: reader.read.bind(reader),
+        releaseLock() { events.push("release"); },
+      };
+    } } };
+    await assert.rejects(() => fingerprintObservabilityArtifact("https://example.invalid/artifact", {
+      fetchImpl: async (_url, { signal }) => {
+        signal.addEventListener("abort", () => events.push("abort"), { once: true });
+        return wrapped;
+      },
+      timeoutMilliseconds: 50,
+      cleanupTimeoutMilliseconds: 5,
+    }), TypeError, name);
+    assert.deepEqual(events, acquired ? ["abort", "cancel", "release"] : ["abort"], name);
+  }
+
+  const rejected = [];
+  await assert.rejects(() => fingerprintObservabilityArtifact("https://example.invalid/artifact", {
+    fetchImpl: async (_url, { signal }) => {
+      signal.addEventListener("abort", () => rejected.push("abort"), { once: true });
+      throw new Error("fetch rejected");
+    },
+    timeoutMilliseconds: 50,
+    cleanupTimeoutMilliseconds: 5,
+  }), TypeError);
+  assert.deepEqual(rejected, ["abort"]);
+
+  const stalled = [];
+  await assert.rejects(() => fingerprintObservabilityArtifact("https://example.invalid/artifact", {
+    fetchImpl: async (_url, { signal }) => {
+      signal.addEventListener("abort", () => stalled.push("abort"), { once: true });
+      return {
+        ...response(),
+        body: { getReader() { return {
+          cancel() { stalled.push("cancel"); return Promise.resolve(); },
+          read() { return new Promise(() => {}); },
+          releaseLock() { stalled.push("release"); },
+        }; } },
+      };
+    },
+    timeoutMilliseconds: 5,
+    cleanupTimeoutMilliseconds: 5,
+  }), TypeError);
+  assert.deepEqual(stalled, ["abort", "cancel", "release"]);
+});
+
+test("clears the artifact deadline after successful completion", async () => {
+  const events = [];
+  await fingerprintObservabilityArtifact("https://example.invalid/artifact", {
+    fetchImpl: async (_url, { signal }) => {
+      signal.addEventListener("abort", () => events.push("abort"), { once: true });
+      return response({ contentLength: "8" }, events);
+    },
+    timeoutMilliseconds: 10,
+    cleanupTimeoutMilliseconds: 5,
+  });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.deepEqual(events, ["release"]);
+});
+
 test("rejects forged options before fetch and aborts reader and deadline failures", async () => {
   let called = false;
   await assert.rejects(() => fingerprintObservabilityArtifact("https://example.invalid/artifact", {

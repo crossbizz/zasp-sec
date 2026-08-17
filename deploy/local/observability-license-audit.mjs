@@ -113,25 +113,45 @@ export function parseObservabilityLicenseInventory(source) {
 }
 
 export async function auditObservabilityLicenses(options = {}) {
-  const allowedOptions = new Set(["fingerprintArtifact", "graphInventoryText", "inventoryText"]);
+  const allowedOptions = new Set(["fingerprintArtifact", "graphInventoryText", "inventoryText", "timeoutMilliseconds"]);
   requireOptionsObject(options, allowedOptions);
   const inventorySource = options.inventoryText ?? await readFile(inventoryUrl, "utf8");
   const graphSource = options.graphInventoryText ?? await readFile(graphInventoryUrl, "utf8");
   const fingerprintArtifact = options.fingerprintArtifact ?? fingerprintObservabilityArtifact;
-  if (typeof fingerprintArtifact !== "function") reject();
+  const timeoutMilliseconds = options.timeoutMilliseconds ?? defaultFetchTimeoutMilliseconds;
+  if (typeof fingerprintArtifact !== "function" ||
+      !validTimeout(timeoutMilliseconds, defaultFetchTimeoutMilliseconds)) reject();
   const inventory = parseObservabilityLicenseInventory(inventorySource);
   parseGraphLicenseInventory(graphSource);
   if (createHash("sha256").update(graphSource).digest("hex") !== inventory.busybox_reuse.graph_inventory_sha256) reject();
-  for (const artifact of inventory.artifacts) {
-    let actual;
-    try {
-      actual = await fingerprintArtifact(artifact.url);
-    } catch {
-      reject();
+  const controller = new AbortController();
+  let timer;
+  const deadline = new Promise((_resolve, rejectDeadline) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      rejectDeadline(new Error("bounded audit deadline"));
+    }, timeoutMilliseconds);
+  });
+  let succeeded = false;
+  try {
+    for (const artifact of inventory.artifacts) {
+      let actual;
+      try {
+        actual = await Promise.race([
+          Promise.resolve().then(() => fingerprintArtifact(artifact.url, { signal: controller.signal })),
+          deadline,
+        ]);
+      } catch {
+        reject();
+      }
+      if (actual !== artifact.sha256) reject();
     }
-    if (actual !== artifact.sha256) reject();
+    succeeded = true;
+    return deepFreeze({ components: 2, artifacts: 3, prohibited: 0, redistributionApproved: false });
+  } finally {
+    if (!succeeded) controller.abort();
+    clearTimeout(timer);
   }
-  return deepFreeze({ components: 2, artifacts: 3, prohibited: 0, redistributionApproved: false });
 }
 
 export async function runMain(options = {}) {
@@ -153,14 +173,19 @@ export async function runMain(options = {}) {
 
 export async function fingerprintObservabilityArtifact(url, options = {}) {
   if (typeof url !== "string" || !url.startsWith("https://")) reject();
-  const allowedOptions = new Set(["cleanupTimeoutMilliseconds", "fetchImpl", "timeoutMilliseconds"]);
+  const allowedOptions = new Set(["cleanupTimeoutMilliseconds", "fetchImpl", "signal", "timeoutMilliseconds"]);
   requireOptionsObject(options, allowedOptions);
   const fetchImpl = options.fetchImpl ?? fetch;
+  const externalSignal = options.signal;
   const timeoutMilliseconds = options.timeoutMilliseconds ?? defaultFetchTimeoutMilliseconds;
   const cleanupTimeoutMilliseconds = options.cleanupTimeoutMilliseconds ?? defaultCleanupTimeoutMilliseconds;
   if (typeof fetchImpl !== "function" || !validTimeout(timeoutMilliseconds, defaultFetchTimeoutMilliseconds) ||
-      !validTimeout(cleanupTimeoutMilliseconds, defaultCleanupTimeoutMilliseconds)) reject();
+      !validTimeout(cleanupTimeoutMilliseconds, defaultCleanupTimeoutMilliseconds) ||
+      externalSignal !== undefined && Object.getPrototypeOf(externalSignal) !== AbortSignal.prototype) reject();
   const controller = new AbortController();
+  const abortFromExternal = () => controller.abort();
+  externalSignal?.addEventListener("abort", abortFromExternal, { once: true });
+  if (externalSignal?.aborted === true) controller.abort();
   let timer;
   const deadline = new Promise((_resolve, rejectDeadline) => {
     timer = setTimeout(() => {
@@ -211,6 +236,7 @@ export async function fingerprintObservabilityArtifact(url, options = {}) {
       await cancelReader(reader, cleanupTimeoutMilliseconds);
     }
     try { reader?.releaseLock?.(); } catch { /* fixed rejection boundary */ }
+    externalSignal?.removeEventListener("abort", abortFromExternal);
     clearTimeout(timer);
   }
 }

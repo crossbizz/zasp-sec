@@ -421,10 +421,20 @@ function requireExactKeys(value, keys, label) {
 }
 
 function exactArrayShape(value) {
+  if (Object.getPrototypeOf(value) !== Array.prototype) return false;
   const keys = Reflect.ownKeys(value);
-  return keys.length === value.length + 1 && keys.every((key, index) => (
-    index < value.length ? key === String(index) : key === "length"
-  ));
+  const lengthDescriptor = Object.getOwnPropertyDescriptor(value, "length");
+  if (lengthDescriptor === undefined || !("value" in lengthDescriptor) ||
+      !Number.isSafeInteger(lengthDescriptor.value) || lengthDescriptor.value < 0 ||
+      lengthDescriptor.enumerable) return false;
+  const length = lengthDescriptor.value;
+  if (keys.length !== length + 1 || keys[length] !== "length") return false;
+  for (let index = 0; index < length; index += 1) {
+    if (keys[index] !== String(index)) return false;
+    const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+    if (descriptor === undefined || !("value" in descriptor) || !descriptor.enumerable) return false;
+  }
+  return true;
 }
 
 function isPlainObject(value) {

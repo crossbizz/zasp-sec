@@ -151,8 +151,16 @@ test("rejects resource, controller, exposure, security, and parser drift", () =>
     (value) => { value.reverse(); },
     (value) => { value[0].metadata.labels.extra = "value"; },
     (value) => { value[1].spec.template.spec.hostNetwork = true; },
+    (value) => { value[1].spec.template.spec.containers[0].env = [{ name: "HTTPS_PROXY", value: "https://example.invalid" }]; },
+    (value) => { value[1].spec.template.spec.containers[0].ports[0].hostPort = 43_18; },
+    (value) => { value[1].spec.template.spec.volumes.push({ hostPath: { path: "/tmp" }, name: "host" }); },
+    (value) => { value[1].spec.template.spec.containers.push(clone(value[1].spec.template.spec.containers[0])); },
     (value) => { value[1].spec.template.spec.containers[0].image = "otel/opentelemetry-collector-contrib:latest"; },
     (value) => { value[1].spec.template.spec.containers[0].securityContext.privileged = true; },
+    (value) => { value[1].spec.template.spec.containers[1].securityContext.readOnlyRootFilesystem = false; },
+    (value) => { value[1].spec.template.spec.containers[0].securityContext.capabilities.add = ["NET_ADMIN"]; },
+    (value) => { value[1].spec.template.spec.securityContext.seccompProfile.type = "Unconfined"; },
+    (value) => { value[0].data["config.yaml"] = value[0].data["config.yaml"].replace("exporters: [file]", "exporters: [otlphttp]"); },
     (value) => { value[2].spec.type = "NodePort"; },
     (value) => { value[2].spec.ports[0].nodePort = 31_318; },
     (value) => { value[3].spec.backoffLimit = 1; },
@@ -160,6 +168,9 @@ test("rejects resource, controller, exposure, security, and parser drift", () =>
     (value) => { value[3].spec.completions = 2; },
     (value) => { value[3].spec.podReplacementPolicy = "TerminatingOrFailed"; },
     (value) => { value[3].spec.template.spec.restartPolicy = "OnFailure"; },
+    (value) => { value[0].data["span.json"] = value[0].data["span.json"].replace('"spans":[{', '"spans":[{}, {'); },
+    (value) => { value[0].data["span.json"] = value[0].data["span.json"].replace("10000000000040008000000000000001", "invalid-trace"); },
+    (value) => { value[0].data["span.json"] = value[0].data["span.json"].replace("1786932000000000000", "not-a-time"); },
   ];
   for (const mutate of mutations) {
     const value = clone(buildObservabilityResources());
@@ -179,6 +190,27 @@ test("rejects resource, controller, exposure, security, and parser drift", () =>
   assert.throws(() => parseObservabilityManifest({ toString() { throw new Error("coercion"); } }, "core"), TypeError);
 });
 
+test("rejects non-plain arrays and accessor-backed resource entries without invoking accessors", () => {
+  class ForgedResources extends Array {}
+  const root = new ForgedResources(...clone(buildObservabilityResources()));
+  assert.throws(() => validateObservabilityResources(root), TypeError);
+
+  const nested = clone(buildObservabilityResources());
+  Object.setPrototypeOf(nested[1].spec.template.spec.containers, ForgedResources.prototype);
+  assert.throws(() => validateObservabilityResources(nested), TypeError);
+
+  let reads = 0;
+  const accessor = clone(buildObservabilityResources());
+  const first = accessor[0];
+  Object.defineProperty(accessor, "0", {
+    configurable: true,
+    enumerable: true,
+    get() { reads += 1; return first; },
+  });
+  assert.throws(() => validateObservabilityResources(accessor), TypeError);
+  assert.equal(reads, 0);
+});
+
 test("parses only one bounded duplicate-safe exact sink record", () => {
   const bytes = Buffer.from(`${JSON.stringify(buildSyntheticObservabilitySpan())}\n`, "utf8");
   assert.deepEqual(parseObservabilitySink(bytes), buildSyntheticObservabilitySpan());
@@ -192,6 +224,18 @@ test("parses only one bounded duplicate-safe exact sink record", () => {
     Buffer.alloc(65_537, 0x20),
     new Uint8Array([0xff]),
   ]) assert.throws(() => parseObservabilitySink(invalid), TypeError);
+  const multiple = clone(buildSyntheticObservabilitySpan());
+  multiple.resourceSpans[0].scopeSpans[0].spans.push(clone(multiple.resourceSpans[0].scopeSpans[0].spans[0]));
+  assert.throws(() => parseObservabilitySink(Buffer.from(`${JSON.stringify(multiple)}\n`, "utf8")), TypeError);
+  for (const mutate of [
+    (value) => { value.resourceSpans[0].scopeSpans[0].spans[0].traceId = "invalid"; },
+    (value) => { value.resourceSpans[0].scopeSpans[0].spans[0].startTimeUnixNano = "not-a-time"; },
+    (value) => { value.resourceSpans[0].resource.attributes.push({ key: "customer.data", value: { stringValue: "forged" } }); },
+  ]) {
+    const value = clone(buildSyntheticObservabilitySpan());
+    mutate(value);
+    assert.throws(() => parseObservabilitySink(Buffer.from(`${JSON.stringify(value)}\n`, "utf8")), TypeError);
+  }
   class ForgedBytes extends Uint8Array {}
   assert.throws(() => parseObservabilitySink(new ForgedBytes(bytes)), TypeError);
   assert.throws(() => parseObservabilitySink({ toString() { throw new Error("coercion"); } }), TypeError);
