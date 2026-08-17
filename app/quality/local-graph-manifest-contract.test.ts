@@ -106,6 +106,18 @@ describe("M1-30b local graph manifest", () => {
     ]) {
       expect(localGraph).toContain(text);
     }
+    const failureCategories = localGraph.match(/The only failure categories, in order, are `([^`]+)`\./)?.[1]?.split(", ");
+    expect(failureCategories).toEqual([
+      "build",
+      "cleanup",
+      "configuration",
+      "deadline",
+      "normalization",
+      "ownership",
+      "panic",
+      "provider",
+      "readiness",
+    ]);
     expect(localGraph).not.toMatch(/host port|Ingress|NodePort|LoadBalancer/i);
   });
 });

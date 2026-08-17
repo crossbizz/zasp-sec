@@ -768,6 +768,7 @@ npm run local:graph:run
 Success is exactly
 `Local graph manifest passed: ready=true internal=true persistent=true cleanup=true.`
 Failures are exactly `Local graph manifest failed: <category> rejected.` The
+only failure categories, in order, are `build, cleanup, configuration, deadline, normalization, ownership, panic, provider, readiness`.
 runner creates and uses its own kubeconfig; it does not read `.env`, ambient
 kubeconfig, cloud credentials, profiles, proxy variables, provider data, or
 shared cluster state. Graph health is reachable only inside the disposable
