@@ -7,7 +7,14 @@ import { chmod, lstat, mkdir, mkdtemp, open, readFile, readdir, realpath, rename
 import { tmpdir } from "node:os";
 import { JSON_SCHEMA, load } from "js-yaml";
 
+import { buildGraphResources, renderGraphManifest } from "./graph-manifest.mjs";
 import { PRODUCTS, buildProductResources, renderProductManifest } from "./manifests.mjs";
+import {
+  buildObservabilityCoreResources,
+  buildObservabilitySpanResources,
+  renderObservabilityCoreManifest,
+  renderObservabilitySpanManifest,
+} from "./observability-manifest.mjs";
 
 export const SUCCESS_LINE = "Local product manifests passed: pods=4 ready=4 services=4 internal=true cleanup=true.";
 export const FAILURE_CATEGORIES = Object.freeze([
@@ -2750,11 +2757,19 @@ function validateSystemProfile(value) {
   if (value === undefined) return deepFreeze({ manifests: [], proof: "m1-30a" });
   requireExactObject(value, ["manifests", "proof"], "system profile");
   const expected = value.proof === "m1-30b" ? [
-    ["graph.yaml", "graphManifest"],
+    ["graph.yaml", "graphManifest", renderGraphManifest(buildGraphResources())],
   ] : value.proof === "m1-30c" ? [
-    ["graph.yaml", "graphManifest"],
-    ["observability.yaml", "observabilityCoreManifest"],
-    ["observability-span.yaml", "observabilitySpanManifest"],
+    ["graph.yaml", "graphManifest", renderGraphManifest(buildGraphResources())],
+    [
+      "observability.yaml",
+      "observabilityCoreManifest",
+      renderObservabilityCoreManifest(buildObservabilityCoreResources()),
+    ],
+    [
+      "observability-span.yaml",
+      "observabilitySpanManifest",
+      renderObservabilitySpanManifest(buildObservabilitySpanResources()),
+    ],
   ] : undefined;
   if (expected === undefined || !plainDataArray(value.manifests) || value.manifests.length !== expected.length) {
     throw new TypeError("system profile is invalid");
@@ -2765,7 +2780,8 @@ function validateSystemProfile(value) {
     requireExactObject(manifest, ["bytes", "name", "pathKey"], "system manifest");
     if (typeof manifest.bytes !== "string" || Buffer.byteLength(manifest.bytes) < 1 ||
         Buffer.byteLength(manifest.bytes) > 262_144 || manifest.name !== expected[index][0] ||
-        manifest.pathKey !== expected[index][1] || names.has(manifest.name) || pathKeys.has(manifest.pathKey)) {
+        manifest.pathKey !== expected[index][1] || manifest.bytes !== expected[index][2] ||
+        names.has(manifest.name) || pathKeys.has(manifest.pathKey)) {
       throw new TypeError("system manifest is invalid");
     }
     names.add(manifest.name);

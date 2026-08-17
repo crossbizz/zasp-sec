@@ -184,6 +184,9 @@ test("defines the exact observability profile without changing prior profiles", 
     (value) => { value.manifests.push(clone(value.manifests[0])); },
     (value) => { value.manifests[1].name = "alternate.yaml"; },
     (value) => { value.manifests[1].pathKey = "graphManifest"; },
+    (value) => { value.manifests[0].bytes += " "; },
+    (value) => { value.manifests[1].bytes = value.manifests[2].bytes; },
+    (value) => { value.manifests[2].bytes = `${value.manifests[2].bytes.slice(0, -1)} \n`; },
     (value) => { value.manifests[2].bytes = ""; },
   ];
   for (const mutate of invalidProfiles) {
@@ -205,6 +208,44 @@ test("defines the exact observability profile without changing prior profiles", 
   });
   assert.throws(() => new LocalGraphSystem(input, undefined, accessor), TypeError);
   assert.equal(reads, 0);
+
+  const fake = fakeLifecycle({});
+  fake.runtime.profile = clone(profile);
+  fake.runtime.profile.manifests[1].bytes = "forged collector manifest\n";
+  assert.throws(() => new DockerKindObservabilityRuntime(input, fake.runtime), TypeError);
+});
+
+test("re-proves only the exact Collector core descriptor through inherited graph authority", async () => {
+  class GuardedSystem extends LocalObservabilitySystem {
+    constructor() {
+      super(input);
+      this.paths = Object.freeze({
+        graphManifest: "/safe/runtime/graph.yaml",
+        observabilityCoreManifest: "/safe/runtime/observability.yaml",
+        observabilitySpanManifest: "/safe/runtime/observability-span.yaml",
+      });
+      this.graphNodeIdentity = Object.freeze({ token: "a".repeat(64) });
+      this.graphPathIdentity = Object.freeze({ nodeToken: "a".repeat(64) });
+      this.graphNodeImageInventory = "inventory\n";
+      this.checked = [];
+    }
+
+    async requireTemporaryOwnership() {}
+    async verifyCluster() { return { token: "a".repeat(64) }; }
+    async readGraphNodeLabel() { return this.graphNodeIdentity; }
+    async readGraphNodePath() { return this.graphPathIdentity; }
+    async runNodeRead() { return { stderr: "", stdout: this.graphNodeImageInventory }; }
+    async requireOwnedPath(path) { this.checked.push(path); }
+  }
+
+  const system = new GuardedSystem();
+  const phase = { assertActive() {} };
+  await system.verifyAdditionalManifestState(phase, system.paths.observabilityCoreManifest);
+  assert.deepEqual(system.checked, [system.paths.graphManifest, system.paths.observabilityCoreManifest]);
+  await assert.rejects(
+    () => system.verifyAdditionalManifestState(phase, "/safe/runtime/foreign.yaml"),
+    { category: "ownership" },
+  );
 });
 
 test("applies only product, graph, and Collector core descriptors before the staged Job", async () => {

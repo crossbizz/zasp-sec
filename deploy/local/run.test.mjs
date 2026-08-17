@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { PassThrough } from "node:stream";
 import test from "node:test";
 
+import { buildGraphResources, renderGraphManifest } from "./graph-manifest.mjs";
 import { PRODUCTS, buildProductResources } from "./manifests.mjs";
 import { buildObservabilityProfile } from "./observability-run.mjs";
 import {
@@ -59,7 +60,9 @@ const exactGraphKindConfig = Object.freeze({
 });
 const kubeletPidProjection = `${kubeletPidPatch}\n`;
 const graphProfile = Object.freeze({
-  manifests: [Object.freeze({ bytes: "graph manifest\n", name: "graph.yaml", pathKey: "graphManifest" })],
+  manifests: [Object.freeze({
+    bytes: renderGraphManifest(buildGraphResources()), name: "graph.yaml", pathKey: "graphManifest",
+  })],
   proof: "m1-30b",
 });
 

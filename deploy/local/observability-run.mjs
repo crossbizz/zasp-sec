@@ -313,6 +313,15 @@ export class LocalObservabilitySystem extends LocalGraphSystem {
     }
   }
 
+  async verifyAdditionalManifestState(phase, path) {
+    if (path === this.paths?.graphManifest) return await super.verifyAdditionalManifestState(phase, path);
+    if (path !== this.paths?.observabilityCoreManifest && path !== this.paths?.observabilitySpanManifest) {
+      throw new ObservabilityFailure("ownership");
+    }
+    await super.verifyAdditionalManifestState(phase, this.paths.graphManifest);
+    await this.requireOwnedPath(path, phase, "ownership");
+  }
+
   async resolveGraphImage(selected, phase) {
     if (selected.name !== "collector") return await super.resolveGraphImage(selected, phase);
     const indexResult = await this.runRead(
@@ -355,7 +364,9 @@ export class LocalObservabilitySystem extends LocalGraphSystem {
 export class DockerKindObservabilityRuntime extends DockerKindGraphRuntime {
   constructor(input, system = undefined) {
     super(input, system ?? new LocalObservabilitySystem(input));
-    if (this.system?.profile?.proof !== "m1-30c") throw new TypeError("observability runtime profile is invalid");
+    if (!isDeepStrictEqual(this.system?.profile, buildObservabilityProfile())) {
+      throw new TypeError("observability runtime profile is invalid");
+    }
   }
 
   static fromProcess(environment = process.env, systemFactory = (input) => new LocalObservabilitySystem(input)) {
