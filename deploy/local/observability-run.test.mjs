@@ -82,18 +82,29 @@ function collectorInspection(selected) {
   ];
 }
 
+function collectorManifestLayers(selected) {
+  return {
+    "linux/amd64": [
+      ["sha256:8c8a67a16bae14d484a4480fd94097228acb83f2746c2293f1eeeea1c12f442e", 104777],
+      ["sha256:5d91b1b2ea92893a66dbe36f05fa085279852d73183468ed3416f785b8435ca7", 107881884],
+      ["sha256:8233e4e5eb575ff94048bfd4ecf0fbb0b3a1abed5e6231b2fd608386f5ca4c11", 830],
+    ],
+    "linux/arm64": [
+      ["sha256:34b792c60cdbd7e37aacef47fb59842810f6a2a7ac0bf34e1616700f6cc7e37f", 104777],
+      ["sha256:a259f54463eaa1c0fcef7a5cb382eef6c368cbfca16848ae360a7ca82710fe20", 97957362],
+      ["sha256:da800e1629f8181d26e0a5b6fc8f39986b681a42a57280824d91237fe0ef5327", 829],
+    ],
+  }[selected.platform].map(([digest, size]) => ({
+    digest,
+    mediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+    size,
+  }));
+}
+
 function resolution(selected) {
-  const layers = collectorInspection(selected)[5].Layers;
   return {
     index: { indexDigest: selected.indexDigest, selected: { digest: selected.manifestDigest } },
-    manifest: {
-      config: { digest: selected.configDigest },
-      layers: layers.map((digest, index) => ({
-        digest,
-        mediaType: "application/vnd.oci.image.layer.v1.tar+gzip",
-        size: index + 1,
-      })),
-    },
+    manifest: collectorManifestDocument(selected),
   };
 }
 
@@ -122,15 +133,11 @@ function collectorManifestDocument(selected) {
   return {
     config: {
       digest: selected.configDigest,
-      mediaType: "application/vnd.oci.image.config.v1+json",
-      size: 1,
+      mediaType: "application/vnd.docker.container.image.v1+json",
+      size: selected.platform === "linux/amd64" ? 2409 : 2417,
     },
-    layers: collectorInspection(selected)[5].Layers.map((digest, index) => ({
-      digest,
-      mediaType: "application/vnd.oci.image.layer.v1.tar+gzip",
-      size: index + 1,
-    })),
-    mediaType: "application/vnd.oci.image.manifest.v1+json",
+    layers: collectorManifestLayers(selected),
+    mediaType: "application/vnd.docker.distribution.manifest.v2+json",
     schemaVersion: 2,
   };
 }
@@ -614,7 +621,11 @@ test("resolves the Collector through profile-local OCI validation without wideni
   const validatedIndex = validateCollectorImageIndex(index, selected);
   const validatedManifest = validateCollectorImageManifest(manifest, selected);
   assert.equal(validatedIndex.selected.digest, selected.manifestDigest);
-  assert.deepEqual(validatedManifest.layers.map(({ digest }) => digest), collectorInspection(selected)[5].Layers);
+  assert.deepEqual(validatedManifest.layers, collectorManifestLayers(selected));
+  assert.notDeepEqual(
+    validatedManifest.layers.map(({ digest }) => digest),
+    collectorInspection(selected)[5].Layers,
+  );
 
   class ResolvingSystem extends LocalObservabilitySystem {
     async runRead(_executable, arguments_) {

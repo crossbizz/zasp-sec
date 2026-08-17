@@ -62,6 +62,36 @@ const collectorRuntimeFacts = deepFreeze({
     ],
   ),
 });
+const collectorManifestFacts = deepFreeze({
+  "linux/amd64": {
+    config: {
+      digest: "sha256:837606a793453fd0c2eef9a6d4ee47ecc970d228ede7bc0c15d32ea9324c9e80",
+      mediaType: "application/vnd.docker.container.image.v1+json",
+      size: 2409,
+    },
+    layers: [
+      manifestLayer("sha256:8c8a67a16bae14d484a4480fd94097228acb83f2746c2293f1eeeea1c12f442e", 104777),
+      manifestLayer("sha256:5d91b1b2ea92893a66dbe36f05fa085279852d73183468ed3416f785b8435ca7", 107881884),
+      manifestLayer("sha256:8233e4e5eb575ff94048bfd4ecf0fbb0b3a1abed5e6231b2fd608386f5ca4c11", 830),
+    ],
+    mediaType: "application/vnd.docker.distribution.manifest.v2+json",
+    schemaVersion: 2,
+  },
+  "linux/arm64": {
+    config: {
+      digest: "sha256:e4ed3985c0db662ed2f0be81ac3b10110aefd379b0be24c780e2803571997c93",
+      mediaType: "application/vnd.docker.container.image.v1+json",
+      size: 2417,
+    },
+    layers: [
+      manifestLayer("sha256:34b792c60cdbd7e37aacef47fb59842810f6a2a7ac0bf34e1616700f6cc7e37f", 104777),
+      manifestLayer("sha256:a259f54463eaa1c0fcef7a5cb382eef6c368cbfca16848ae360a7ca82710fe20", 97957362),
+      manifestLayer("sha256:da800e1629f8181d26e0a5b6fc8f39986b681a42a57280824d91237fe0ef5327", 829),
+    ],
+    mediaType: "application/vnd.docker.distribution.manifest.v2+json",
+    schemaVersion: 2,
+  },
+});
 
 export const OBSERVABILITY_SUCCESS_LINE = "Local observability manifest passed: ready=true internal=true no_egress=true spans=1 sink=true cleanup=true.";
 export const OBSERVABILITY_FAILURE_CATEGORIES = Object.freeze([
@@ -225,8 +255,14 @@ export function validateCollectorImageManifest(document, selected) {
       ]), 8_589_934_592);
       return structuredClone(layer);
     });
-    if (new Set(layers.map(({ digest }) => digest)).size !== layers.length ||
-        !isDeepStrictEqual(layers.map(({ digest }) => digest), collectorRuntimeFacts[selected.platform].rootfs.Layers)) {
+    const expected = collectorManifestFacts[selected.platform];
+    if (new Set(layers.map(({ digest }) => digest)).size !== layers.length || expected === undefined ||
+        !isDeepStrictEqual({
+          config: document.config,
+          layers,
+          mediaType: document.mediaType,
+          schemaVersion: document.schemaVersion,
+        }, expected)) {
       throw new TypeError("Collector layers are invalid");
     }
     return deepFreeze({
@@ -246,14 +282,14 @@ export function validateCollectorImageInspection(document, selected, resolution,
   try {
     const expectedPlan = buildCollectorImagePlan(selected?.platform);
     const facts = collectorRuntimeFacts[selected?.platform];
+    const manifestFacts = collectorManifestFacts[selected?.platform];
     const expectedAliases = aliases ?? { repoDigests: [expectedPlan.repoDigest], repoTags: [] };
     if (!isDeepStrictEqual(selected, expectedPlan) || !Array.isArray(document) || document.length !== 14 ||
         facts === undefined || !isPlainObject(resolution) ||
         resolution.index?.indexDigest !== selected.indexDigest ||
         resolution.index?.selected?.digest !== selected.manifestDigest ||
         resolution.manifest?.config?.digest !== selected.configDigest ||
-        !Array.isArray(resolution.manifest?.layers) || resolution.manifest.layers.length < 1 ||
-        !isDeepStrictEqual(resolution.manifest.layers.map((layer) => layer?.digest), facts?.rootfs?.Layers) ||
+        !isDeepStrictEqual(resolution.manifest, manifestFacts) ||
         !isPlainObject(expectedAliases) || !Array.isArray(expectedAliases.repoDigests) ||
         !Array.isArray(expectedAliases.repoTags) ||
         !isDeepStrictEqual(expectedAliases.repoDigests, [selected.repoDigest]) ||
@@ -1660,6 +1696,14 @@ function collectorFacts(created, layers) {
     rootfs: { Layers: layers, Type: "layers" },
     user: "10001:10001",
     workingDirectory: "/",
+  };
+}
+
+function manifestLayer(digest, size) {
+  return {
+    digest,
+    mediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+    size,
   };
 }
 
