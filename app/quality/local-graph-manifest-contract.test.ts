@@ -110,6 +110,7 @@ describe("M1-30b local graph manifest", () => {
     }
     const failureCategories = localGraph.match(/The only failure categories, in order, are `([^`]+)`\./)?.[1]?.split(", ");
     expect(failureCategories).toEqual(GRAPH_FAILURE_CATEGORIES);
+    expect(localGraph).toContain("The runner creates and uses its own kubeconfig;");
     expect(localGraph).not.toMatch(/host port|Ingress|NodePort|LoadBalancer/i);
   });
 });
