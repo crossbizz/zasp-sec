@@ -433,10 +433,11 @@ function parseGraphContainerdInventory(source) {
   ]);
   const inventory = new Map();
   for (const line of lines.slice(1)) {
-    if (line.length < 1 || line.length > 32_768 || line !== line.trim()) {
+    const row = line.endsWith(" ") && !line.endsWith("  ") ? line.slice(0, -1) : line;
+    if (line.length < 1 || line.length > 32_768 || row !== row.trim()) {
       throw new TypeError("graph containerd inventory is invalid");
     }
-    const fields = line.split(/\s+/);
+    const fields = row.split(/\s+/);
     const reference = fields[0];
     const mediaType = fields[1];
     const digest = fields[2];
