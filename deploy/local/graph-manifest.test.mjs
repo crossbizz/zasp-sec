@@ -214,7 +214,7 @@ test("builds only a ClusterIP graph service and one fixed internal health job", 
             command: [
               "sh",
               "-ec",
-              "attempt=0; until wget -q -T 1 -O /dev/null http://neo4j.zasp-local.svc.cluster.local:7474/; do attempt=$((attempt + 1)); [ \"$attempt\" -ge 90 ] && exit 1; sleep 2; done; printf 'neo4j-health-ready\\n'",
+              "attempt=0; until wget -q -T 1 -O /dev/null http://neo4j.zasp-local.svc.cluster.local:7474/ 2>/dev/null; do attempt=$((attempt + 1)); [ \"$attempt\" -ge 90 ] && exit 1; sleep 2; done; printf 'neo4j-health-ready\\n'",
             ],
             image: BUSYBOX_IMAGE,
             imagePullPolicy: "IfNotPresent",
