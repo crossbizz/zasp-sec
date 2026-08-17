@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 
@@ -112,6 +113,140 @@ test("pins the local-only collector pipeline and one-shot span job", () => {
   assert.match(command, /wget -q -t 1 -T 5/u);
   assert.equal((command.match(/\/v1\/traces/gu) ?? []).length, 1);
   assert.doesNotMatch(command, /until|while|retry/u);
+});
+
+test("pins every Kubernetes field independently from the manifest builder", () => {
+  const resources = buildObservabilityResources();
+  assert.equal(
+    createHash("sha256").update(JSON.stringify(resources)).digest("hex"),
+    "7f7c6f894fbc794775bde047faf1b1d13f9193320d10c0fb08839df687dd61bc",
+  );
+  const [config, deployment, service, job] = resources;
+  const commonLabels = {
+    "app.kubernetes.io/part-of": "zasp",
+    "app.kubernetes.io/component": "observability",
+    "zasp.dev/environment": "local",
+  };
+  assert.deepEqual(resources.map(({ apiVersion, kind, metadata }) => ({
+    apiVersion, kind, labels: metadata.labels, name: metadata.name, namespace: metadata.namespace,
+  })), [
+    { apiVersion: "v1", kind: "ConfigMap", labels: commonLabels, name: "otel-collector-config", namespace: "zasp-local" },
+    { apiVersion: "apps/v1", kind: "Deployment", labels: { "app.kubernetes.io/name": "otel-collector", ...commonLabels }, name: "otel-collector", namespace: "zasp-local" },
+    { apiVersion: "v1", kind: "Service", labels: { "app.kubernetes.io/name": "otel-collector", ...commonLabels }, name: "otel-collector", namespace: "zasp-local" },
+    { apiVersion: "batch/v1", kind: "Job", labels: { "app.kubernetes.io/name": "otel-test-span", ...commonLabels }, name: "otel-test-span", namespace: "zasp-local" },
+  ]);
+  assert.equal(config.data["config.yaml"], "extensions:\n  health_check:\n    endpoint: 0.0.0.0:13133\nreceivers:\n  otlp:\n    protocols:\n      http:\n        endpoint: 0.0.0.0:4318\nprocessors:\n  memory_limiter:\n    check_interval: 1s\n    limit_mib: 48\n    spike_limit_mib: 8\n  batch:\n    send_batch_size: 1\n    send_batch_max_size: 1\n    timeout: 1s\nexporters:\n  file:\n    path: /sink/traces.json\n    format: json\n    append: false\n    flush_interval: 100ms\nservice:\n  telemetry:\n    logs:\n      level: error\n    metrics:\n      level: none\n  extensions: [health_check]\n  pipelines:\n    traces:\n      receivers: [otlp]\n      processors: [memory_limiter, batch]\n      exporters: [file]\n");
+  assert.equal(config.data["response.json"], "{\"partialSuccess\":{}}");
+  assert.deepEqual({
+    progressDeadlineSeconds: deployment.spec.progressDeadlineSeconds,
+    replicas: deployment.spec.replicas,
+    revisionHistoryLimit: deployment.spec.revisionHistoryLimit,
+    strategy: deployment.spec.strategy,
+  }, { progressDeadlineSeconds: 180, replicas: 1, revisionHistoryLimit: 1, strategy: { type: "Recreate" } });
+  const pod = deployment.spec.template.spec;
+  assert.deepEqual({
+    automountServiceAccountToken: pod.automountServiceAccountToken,
+    dnsPolicy: pod.dnsPolicy,
+    enableServiceLinks: pod.enableServiceLinks,
+    hostIPC: pod.hostIPC,
+    hostNetwork: pod.hostNetwork,
+    hostPID: pod.hostPID,
+    restartPolicy: pod.restartPolicy,
+    securityContext: pod.securityContext,
+    terminationGracePeriodSeconds: pod.terminationGracePeriodSeconds,
+  }, {
+    automountServiceAccountToken: false,
+    dnsPolicy: "ClusterFirst",
+    enableServiceLinks: false,
+    hostIPC: false,
+    hostNetwork: false,
+    hostPID: false,
+    restartPolicy: "Always",
+    securityContext: { fsGroup: 10001, runAsNonRoot: true, seccompProfile: { type: "RuntimeDefault" } },
+    terminationGracePeriodSeconds: 10,
+  });
+  assert.deepEqual(pod.containers.map(({ name, resources, securityContext, volumeMounts }) => ({
+    name, resources, securityContext, volumeMounts,
+  })), [
+    {
+      name: "otel-collector",
+      resources: { limits: { cpu: "250m", memory: "64Mi" }, requests: { cpu: "25m", memory: "32Mi" } },
+      securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: ["ALL"] }, privileged: false, readOnlyRootFilesystem: true, runAsGroup: 10001, runAsNonRoot: true, runAsUser: 10001 },
+      volumeMounts: [
+        { mountPath: "/conf", name: "config", readOnly: true },
+        { mountPath: "/sink", name: "sink", readOnly: false },
+        { mountPath: "/tmp", name: "collector-tmp", readOnly: false },
+      ],
+    },
+    {
+      name: "sink-reader",
+      resources: { limits: { cpu: "25m", memory: "16Mi" }, requests: { cpu: "5m", memory: "8Mi" } },
+      securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: ["ALL"] }, privileged: false, readOnlyRootFilesystem: true, runAsGroup: 65532, runAsNonRoot: true, runAsUser: 65532 },
+      volumeMounts: [{ mountPath: "/sink", name: "sink", readOnly: true }],
+    },
+  ]);
+  assert.deepEqual(pod.containers[0].ports, [
+    { containerPort: 4318, name: "otlp-http", protocol: "TCP" },
+    { containerPort: 13133, name: "health", protocol: "TCP" },
+  ]);
+  assert.deepEqual([
+    pod.containers[0].startupProbe,
+    pod.containers[0].readinessProbe,
+    pod.containers[0].livenessProbe,
+  ], [
+    { failureThreshold: 60, httpGet: { path: "/", port: "health", scheme: "HTTP" }, periodSeconds: 2, successThreshold: 1, timeoutSeconds: 1 },
+    { failureThreshold: 3, httpGet: { path: "/", port: "health", scheme: "HTTP" }, periodSeconds: 2, successThreshold: 1, timeoutSeconds: 1 },
+    { failureThreshold: 3, httpGet: { path: "/", port: "health", scheme: "HTTP" }, periodSeconds: 10, successThreshold: 1, timeoutSeconds: 1 },
+  ]);
+  assert.deepEqual(pod.volumes, [
+    { configMap: { defaultMode: 292, name: "otel-collector-config" }, name: "config" },
+    { emptyDir: { sizeLimit: "64Ki" }, name: "sink" },
+    { emptyDir: { sizeLimit: "32Mi" }, name: "collector-tmp" },
+  ]);
+  assert.deepEqual(service.spec, {
+    ipFamilies: ["IPv4"], ipFamilyPolicy: "SingleStack",
+    ports: [{ name: "otlp-http", port: 4318, protocol: "TCP", targetPort: "otlp-http" }],
+    selector: { "app.kubernetes.io/name": "otel-collector" }, sessionAffinity: "None", type: "ClusterIP",
+  });
+  const jobPod = job.spec.template.spec;
+  assert.deepEqual({
+    activeDeadlineSeconds: job.spec.activeDeadlineSeconds,
+    backoffLimit: job.spec.backoffLimit,
+    completions: job.spec.completions,
+    parallelism: job.spec.parallelism,
+    podReplacementPolicy: job.spec.podReplacementPolicy,
+  }, { activeDeadlineSeconds: 30, backoffLimit: 0, completions: 1, parallelism: 1, podReplacementPolicy: "Failed" });
+  assert.deepEqual(jobPod.containers[0].resources, {
+    limits: { cpu: "50m", memory: "32Mi" }, requests: { cpu: "5m", memory: "8Mi" },
+  });
+  assert.deepEqual(jobPod.containers[0].securityContext, {
+    allowPrivilegeEscalation: false, capabilities: { drop: ["ALL"] }, privileged: false,
+    readOnlyRootFilesystem: true, runAsGroup: 65532, runAsNonRoot: true, runAsUser: 65532,
+  });
+  assert.deepEqual(jobPod.containers[0].volumeMounts, [
+    { mountPath: "/fixture", name: "fixture", readOnly: true },
+    { mountPath: "/tmp", name: "job-tmp", readOnly: false },
+  ]);
+  assert.deepEqual(jobPod.volumes, [
+    { configMap: { defaultMode: 292, items: [{ key: "span.json", path: "span.json" }, { key: "response.json", path: "response.json" }], name: "otel-collector-config" }, name: "fixture" },
+    { emptyDir: { sizeLimit: "8Mi" }, name: "job-tmp" },
+  ]);
+  assert.deepEqual({
+    automountServiceAccountToken: jobPod.automountServiceAccountToken,
+    dnsPolicy: jobPod.dnsPolicy,
+    enableServiceLinks: jobPod.enableServiceLinks,
+    hostIPC: jobPod.hostIPC,
+    hostNetwork: jobPod.hostNetwork,
+    hostPID: jobPod.hostPID,
+    restartPolicy: jobPod.restartPolicy,
+    securityContext: jobPod.securityContext,
+    terminationGracePeriodSeconds: jobPod.terminationGracePeriodSeconds,
+  }, {
+    automountServiceAccountToken: false, dnsPolicy: "ClusterFirst", enableServiceLinks: false,
+    hostIPC: false, hostNetwork: false, hostPID: false, restartPolicy: "Never",
+    securityContext: { runAsGroup: 65532, runAsNonRoot: true, runAsUser: 65532, seccompProfile: { type: "RuntimeDefault" } },
+    terminationGracePeriodSeconds: 5,
+  });
 });
 
 test("binds one exact M1-21 resource and one exact synthetic span", () => {
