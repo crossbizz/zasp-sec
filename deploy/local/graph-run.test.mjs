@@ -10,6 +10,7 @@ import {
   buildGraphResources,
 } from "./graph-manifest.mjs";
 import { KIND_PINS, buildKindCreateArguments } from "./run.mjs";
+import { buildObservabilityProfile } from "./observability-run.mjs";
 import * as graphRunModule from "./graph-run.mjs";
 import {
   GRAPH_FAILURE_CATEGORIES,
@@ -365,7 +366,7 @@ function graphDependencies(command = async () => success()) {
   };
 }
 
-function graphSystem(command, dependencyOverrides = {}) {
+function graphSystem(command, dependencyOverrides = {}, profile = undefined) {
   return new LocalGraphSystem({
     home: "/Users/test",
     hostPlatform: "darwin/arm64",
@@ -373,7 +374,7 @@ function graphSystem(command, dependencyOverrides = {}) {
     nodePlatform: "linux/arm64",
     path: "/usr/local/bin:/usr/bin:/bin",
     repositoryRoot: "/repository",
-  }, { ...graphDependencies(command), ...dependencyOverrides });
+  }, { ...graphDependencies(command), ...dependencyOverrides }, profile);
 }
 
 function providerLines(values) {
@@ -1248,6 +1249,36 @@ test("projects only an omitted or null pod-template timestamp before inherited p
     mutate(drifted);
     await assert.rejects(() => read(drifted), { category: "readiness", name: "Failure" });
   }
+});
+
+test("the observability profile excludes graph and observability resources from product projection", async () => {
+  const document = {
+    apiVersion: "v1",
+    items: [{
+      spec: { template: { metadata: { labels: { "app.kubernetes.io/name": "audit-api" } }, spec: {} } },
+    }],
+    kind: "List",
+    metadata: { resourceVersion: "" },
+  };
+  let invocation;
+  const system = graphSystem(async (command, arguments_) => {
+    invocation = [command, ...arguments_];
+    return success(`${JSON.stringify(document)}\n`);
+  }, {}, buildObservabilityProfile());
+  system.paths = { kubeconfig: "/owned/kubeconfig" };
+  system.productProviderProjection = true;
+  system.productProviderCapture = new Map();
+  system.withOwnedFiles = async (_paths, _phase, _category, operation) =>
+    await operation([{ handle: { fd: 31 } }]);
+  system.requireOwnedPath = async () => {};
+  await system.runKubectlRead([
+    "get", "deployment", "--namespace", "zasp-local", "--output=json",
+  ], phase, "readiness", 30_000, 4_194_304);
+  assert.deepEqual(invocation, [
+    "kubectl", "--kubeconfig", "/dev/fd/3", "get", "deployment", "--namespace", "zasp-local",
+    "--selector=app.kubernetes.io/component notin (graph,observability)", "--output=json",
+  ]);
+  assert.deepEqual(system.productProviderCapture.get("deployments"), document.items);
 });
 
 test("accepts only omitted or null graph workload template timestamps", () => {

@@ -6,6 +6,7 @@ import { PassThrough } from "node:stream";
 import test from "node:test";
 
 import { PRODUCTS, buildProductResources } from "./manifests.mjs";
+import { buildObservabilityProfile } from "./observability-run.mjs";
 import {
   KIND_PINS,
   SUCCESS_LINE,
@@ -1819,7 +1820,7 @@ test("concrete lifecycle creates and retains only the exact network and kind nod
   assert.equal(calls.some((value) => value[0] === "docker" && value[1] === "exec"), false);
 });
 
-test("the graph profile alone requires exact kubelet PID authority after kind creation", async () => {
+test("only graph-bearing profiles require exact kubelet PID authority after kind creation", async () => {
   const cases = [
     ["exact", kubeletPidProjection, false],
     ["missing", kubeletPidProjection.replace("podPidsLimit: 512\n", ""), true],
@@ -1827,7 +1828,8 @@ test("the graph profile alone requires exact kubelet PID authority after kind cr
     ["duplicate", `${kubeletPidProjection}podPidsLimit: 512\n`, true],
     ["extra", `${kubeletPidProjection}foreign: true\n`, true],
   ];
-  for (const [name, kubeletOutput, rejected] of cases) {
+  for (const profile of [graphProfile, buildObservabilityProfile()]) {
+    for (const [name, kubeletOutput, rejected] of cases) {
     const networkId = "a".repeat(64);
     const nodeId = "b".repeat(64);
     let fixture;
@@ -1840,7 +1842,7 @@ test("the graph profile alone requires exact kubelet PID authority after kind cr
       }
       if (command === "docker" && arguments_[0] === "network" && arguments_[1] === "inspect") {
         return success(`${JSON.stringify([networkId, fixture.system.cluster, "bridge", false, {
-          "zasp.dev/proof": "m1-30b", "zasp.dev/run": marker,
+          "zasp.dev/proof": profile.proof, "zasp.dev/run": marker,
         }, {}, {}, { Config: [{ Gateway: "172.20.0.1", Subnet: "172.20.0.0/16" }], Driver: "default", Options: {} }])}\n`);
       }
       if (command === `${fixture.root}/kind`) {
@@ -1855,7 +1857,7 @@ test("the graph profile alone requires exact kubelet PID authority after kind cr
       }
       if (command === "docker" && arguments_[0] === "exec") return success(kubeletOutput);
       throw new Error("unexpected command");
-    }, graphProfile);
+    }, profile);
     const phase = { assertActive() {}, signal: new AbortController().signal };
     await fixture.system.initialize(phase);
     assert.equal(fixture.files.get(`${fixture.root}/kind.json`), `${JSON.stringify(exactGraphKindConfig)}\n`);
@@ -1867,6 +1869,7 @@ test("the graph profile alone requires exact kubelet PID authority after kind cr
         { category: "ownership", name: "Failure" }, name);
     } else {
       await fixture.system.createCluster(phase);
+    }
     }
   }
 });

@@ -28,6 +28,7 @@ const forbiddenEnvironmentPattern = /^(?:AWS_|AZURE_|GOOGLE_|CLOUDSDK_|KUBE(?:CO
 const proofNamePatterns = Object.freeze({
   "m1-30a": /^zasp-m1-30a-[0-9a-f]{16}$/,
   "m1-30b": /^zasp-m1-30b-[0-9a-f]{16}$/,
+  "m1-30c": /^zasp-m1-30c-[0-9a-f]{16}$/,
 });
 const objectIdPattern = /^[0-9a-f]{64}$/;
 const ipv4Pattern = /^(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)$/;
@@ -1108,7 +1109,7 @@ export class LocalProductSystem {
       : await this.rememberOwnedPath(this.paths.kubeconfig, "file", phase, category);
     validateKubeconfigBytes(kubeconfig.bytes, this.cluster, identity.apiPort, this.profile.proof);
     this.nodeIdentity = identity;
-    if (this.profile.proof === "m1-30b") {
+    if (this.profile.proof === "m1-30b" || this.profile.proof === "m1-30c") {
       const pidLimit = await this.runRead("docker", [
         "exec", identity.token, "grep", "-E", "^(apiVersion|kind|podPidsLimit):", "/var/lib/kubelet/config.yaml",
       ], phase, category, 15_000, 16_384);
@@ -2748,16 +2749,23 @@ function validProofName(value, proof) {
 function validateSystemProfile(value) {
   if (value === undefined) return deepFreeze({ manifests: [], proof: "m1-30a" });
   requireExactObject(value, ["manifests", "proof"], "system profile");
-  if (value.proof !== "m1-30b" || !Array.isArray(value.manifests) || value.manifests.length !== 1) {
+  const expected = value.proof === "m1-30b" ? [
+    ["graph.yaml", "graphManifest"],
+  ] : value.proof === "m1-30c" ? [
+    ["graph.yaml", "graphManifest"],
+    ["observability.yaml", "observabilityCoreManifest"],
+    ["observability-span.yaml", "observabilitySpanManifest"],
+  ] : undefined;
+  if (expected === undefined || !plainDataArray(value.manifests) || value.manifests.length !== expected.length) {
     throw new TypeError("system profile is invalid");
   }
   const names = new Set();
   const pathKeys = new Set();
-  const manifests = value.manifests.map((manifest) => {
+  const manifests = value.manifests.map((manifest, index) => {
     requireExactObject(manifest, ["bytes", "name", "pathKey"], "system manifest");
     if (typeof manifest.bytes !== "string" || Buffer.byteLength(manifest.bytes) < 1 ||
-        Buffer.byteLength(manifest.bytes) > 262_144 || manifest.name !== "graph.yaml" ||
-        manifest.pathKey !== "graphManifest" || names.has(manifest.name) || pathKeys.has(manifest.pathKey)) {
+        Buffer.byteLength(manifest.bytes) > 262_144 || manifest.name !== expected[index][0] ||
+        manifest.pathKey !== expected[index][1] || names.has(manifest.name) || pathKeys.has(manifest.pathKey)) {
       throw new TypeError("system manifest is invalid");
     }
     names.add(manifest.name);
@@ -2765,6 +2773,20 @@ function validateSystemProfile(value) {
     return { ...manifest };
   });
   return deepFreeze({ manifests, proof: value.proof });
+}
+
+function plainDataArray(value) {
+  if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype) return false;
+  const keys = Reflect.ownKeys(value);
+  const length = Object.getOwnPropertyDescriptor(value, "length");
+  if (length === undefined || !("value" in length) || !Number.isSafeInteger(length.value) || length.value < 0 ||
+      length.enumerable || keys.length !== length.value + 1 || keys[length.value] !== "length") return false;
+  for (let index = 0; index < length.value; index += 1) {
+    if (keys[index] !== String(index)) return false;
+    const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+    if (descriptor === undefined || !("value" in descriptor) || !descriptor.enumerable) return false;
+  }
+  return true;
 }
 
 function validateAbsolutePath(value, label) {

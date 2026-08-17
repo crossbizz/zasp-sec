@@ -745,7 +745,7 @@ function lexicalCompare(left, right) {
 export function validateGraphNodeLabel(document, expected, retained = undefined, labeled = true) {
   try {
     requireExactKeySet(expected, ["name", "token"], "graph node expectation");
-    if (typeof expected.name !== "string" || !/^zasp-m1-30b-[0-9a-f]{16}-control-plane$/.test(expected.name) ||
+    if (typeof expected.name !== "string" || !/^zasp-m1-30[bc]-[0-9a-f]{16}-control-plane$/.test(expected.name) ||
         !objectIdPattern.test(expected.token) || labeled !== null && typeof labeled !== "boolean" ||
         !isPlainObject(document) ||
         document.apiVersion !== "v1" || document.kind !== "Node" || !isPlainObject(document.metadata) ||
@@ -823,6 +823,18 @@ export function parseGraphProviderList(source, label) {
   }
 }
 
+function projectGraphProviderResources(items, label, proof) {
+  if (proof === "m1-30b") return items;
+  if (proof !== "m1-30c" || !Array.isArray(items)) throw new GraphFailure("readiness");
+  if (["deployments", "jobs", "pods", "replicaSets", "services"].includes(label)) {
+    return items.filter((item) => item?.metadata?.labels?.["app.kubernetes.io/component"] !== "observability");
+  }
+  if (label === "endpointSlices") {
+    return items.filter((item) => item?.metadata?.labels?.["kubernetes.io/service-name"] !== "otel-collector");
+  }
+  return items;
+}
+
 export function validateGraphKubernetesState(value, expected, retained = undefined, requireReplacement = false,
   requireHealthReplacement = false) {
   try {
@@ -833,7 +845,7 @@ export function validateGraphKubernetesState(value, expected, retained = undefin
     requireExactKeySet(expected, ["imageTargets", "nodeName"], "graph Kubernetes expectation");
     requireExactKeySet(expected.imageTargets, ["busybox", "neo4j"], "graph image targets");
     const platform = platformForNode(expected);
-    if (!/^zasp-m1-30b-[0-9a-f]{16}-control-plane$/.test(expected.nodeName ?? "") ||
+    if (!/^zasp-m1-30[bc]-[0-9a-f]{16}-control-plane$/.test(expected.nodeName ?? "") ||
         expected.imageTargets.busybox.manifestDigest !== GRAPH_IMAGE_PLANS.busybox.platforms[platform].manifestDigest ||
         expected.imageTargets.neo4j.manifestDigest !== GRAPH_IMAGE_PLANS.neo4j.platforms[platform].manifestDigest ||
         value.healthLog !== graphHealthLog || requireReplacement !== false && requireReplacement !== true ||
@@ -1568,8 +1580,8 @@ function validateRetainedGraphSnapshot(snapshot, retained, requireReplacement, r
 }
 
 export class LocalGraphSystem extends LocalProductSystem {
-  constructor(input, dependencies = undefined) {
-    super(input, dependencies, {
+  constructor(input, dependencies = undefined, profile = undefined) {
+    super(input, dependencies, profile ?? {
       manifests: [{
         bytes: renderGraphManifest(buildGraphResources()),
         name: "graph.yaml",
@@ -1643,12 +1655,13 @@ export class LocalGraphSystem extends LocalProductSystem {
     let productResource;
     if (this.productProviderProjection && Array.isArray(arguments_) && arguments_[0] === "get" &&
         arguments_.at(-1) === "--output=json") {
+      const observability = this.profile.proof === "m1-30c";
       const selector = new Map([
-        ["deployment", "app.kubernetes.io/component!=graph"],
-        ["replicaset", "app.kubernetes.io/component!=graph"],
-        ["pod", "app.kubernetes.io/component!=graph"],
-        ["service", "app.kubernetes.io/component!=graph"],
-        ["endpointslice", "kubernetes.io/service-name!=neo4j"],
+        ["deployment", observability ? "app.kubernetes.io/component notin (graph,observability)" : "app.kubernetes.io/component!=graph"],
+        ["replicaset", observability ? "app.kubernetes.io/component notin (graph,observability)" : "app.kubernetes.io/component!=graph"],
+        ["pod", observability ? "app.kubernetes.io/component notin (graph,observability)" : "app.kubernetes.io/component!=graph"],
+        ["service", observability ? "app.kubernetes.io/component notin (graph,observability)" : "app.kubernetes.io/component!=graph"],
+        ["endpointslice", observability ? "kubernetes.io/service-name notin (neo4j,otel-collector)" : "kubernetes.io/service-name!=neo4j"],
       ]).get(arguments_[1]);
       if (selector !== undefined) {
         productResource = arguments_[1];
@@ -2129,11 +2142,10 @@ export class LocalGraphSystem extends LocalProductSystem {
   }
 
   graphProviderExpectation() {
-    if (this.graphLoadedImageTargets.size !== 2 || !this.graphLoadedImageTargets.has("busybox") ||
+    if (this.graphLoadedImageTargets.size !== this.graphImagePlans.size || !this.graphLoadedImageTargets.has("busybox") ||
         !this.graphLoadedImageTargets.has("neo4j")) throw new GraphFailure("ownership");
     const expected = {
-      imageTargets: Object.fromEntries([...this.graphLoadedImageTargets].sort(([left], [right]) =>
-        left.localeCompare(right))),
+      imageTargets: Object.fromEntries(["busybox", "neo4j"].map((name) => [name, this.graphLoadedImageTargets.get(name)])),
       nodeName: `${this.cluster}-control-plane`,
     };
     try {
@@ -2177,7 +2189,9 @@ export class LocalGraphSystem extends LocalProductSystem {
       const result = await super.runKubectlRead(
         arguments_, phase, category, 30_000, graphProviderByteLimit,
       );
-      documents[name] = parseGraphProviderList(result.stdout, name);
+      documents[name] = projectGraphProviderResources(
+        parseGraphProviderList(result.stdout, name), name, this.profile.proof,
+      );
     }
     const matches = documents.pods.filter((item) =>
       item?.metadata?.labels?.["app.kubernetes.io/name"] === "neo4j-health");
