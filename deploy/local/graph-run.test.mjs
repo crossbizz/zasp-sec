@@ -974,6 +974,20 @@ test("cross-binds the exact normalized CRI manifest identities for Docker archiv
   }
 });
 
+test("accepts both exact graph EndpointSlice port orderings", () => {
+  const http = { name: "http", port: 7474, protocol: "TCP" };
+  const bolt = { name: "bolt", port: 7687, protocol: "TCP" };
+  for (const ports of [[http, bolt], [bolt, http]]) {
+    const value = graphProviderState();
+    value.endpointSlices.at(-1).ports = structuredClone(ports);
+    assert.equal(
+      graphRunModule.validateGraphKubernetesState(value, graphProviderExpectation()).ready,
+      true,
+      ports.map(({ name }) => name).join(","),
+    );
+  }
+});
+
 test("rejects every graph provider identity, lineage, storage, health, and exposure drift", () => {
   const cases = [
     ["unknown snapshot key", (value) => { value.unexpected = true; }],
