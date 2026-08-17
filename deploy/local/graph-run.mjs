@@ -433,7 +433,8 @@ function parseGraphContainerdInventory(source) {
   ]);
   const inventory = new Map();
   for (const line of lines.slice(1)) {
-    const row = line.endsWith(" ") && !line.endsWith("  ") ? line.slice(0, -1) : line;
+    const padding = / +$/.exec(line)?.[0] ?? "";
+    const row = padding.length > 0 && padding.length <= 33 ? line.slice(0, -padding.length) : line;
     if (line.length < 1 || line.length > 32_768 || row !== row.trim()) {
       throw new TypeError("graph containerd inventory is invalid");
     }

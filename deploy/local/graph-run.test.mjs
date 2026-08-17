@@ -2261,16 +2261,20 @@ test("binds Docker archive imports through the selected config and retained Root
   }
 });
 
-test("accepts only the pinned ctr tabwriter's single trailing row pad", () => {
+test("accepts only the pinned ctr tabwriter's bounded trailing row pad", () => {
   const fixture = graphArchiveImport("neo4j");
   const baselineRows = [
     `registry.k8s.io/pause:3.10 application/vnd.oci.image.manifest.v1+json ` +
       `sha256:${"8".repeat(64)} 320 KiB linux/arm64 io.cri-containerd.image=managed`,
   ];
+  for (const length of [1, 33]) {
+    const padding = " ".repeat(length);
+    const before = containerdInventory(baselineRows.map((row) => `${row}${padding}`));
+    const after = containerdInventory([...baselineRows, ...fixture.rows].map((row) => `${row}${padding}`));
+    assert.deepEqual(parseGraphContainerdImageTargets(before, after, fixture.selected), fixture.target);
+  }
   const before = containerdInventory(baselineRows.map((row) => `${row} `));
-  const after = containerdInventory([...baselineRows, ...fixture.rows].map((row) => `${row} `));
-  assert.deepEqual(parseGraphContainerdImageTargets(before, after, fixture.selected), fixture.target);
-  for (const suffix of ["  ", "\t", " \t"]) {
+  for (const suffix of [" ".repeat(34), "\t", " \t"]) {
     assert.throws(() => parseGraphContainerdImageTargets(
       before,
       containerdInventory([...baselineRows, ...fixture.rows].map((row) => `${row}${suffix}`)),
