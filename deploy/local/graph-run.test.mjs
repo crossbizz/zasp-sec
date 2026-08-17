@@ -1954,6 +1954,30 @@ test("binds digest-only first adoption to every pinned runtime and rootfs fact",
   }
 });
 
+test("projects optional Docker config keys without assuming provider map membership", async () => {
+  const selected = plan();
+  const system = graphSystem();
+  system.runRead = async (command, arguments_) => {
+    assert.equal(command, "docker");
+    assert.deepEqual(arguments_.slice(0, 3), ["image", "inspect", "--format"]);
+    for (const key of ["Env", "Entrypoint", "Cmd", "ExposedPorts", "Volumes", "Labels"]) {
+      assert.match(arguments_[3], new RegExp(`\\{\\{json \\(index \\.Config "${key}"\\)\\}\\}`));
+    }
+    for (const key of ["User", "WorkingDir"]) {
+      assert.match(arguments_[3], new RegExp(
+        `\\{\\{json \\(or \\(index \\.Config "${key}"\\) ""\\)\\}\\}`,
+      ));
+    }
+    assert.equal(arguments_.at(-1), selected.repoDigest);
+    return success(`${JSON.stringify(pinnedGraphImageInspection(selected))}\n`);
+  };
+  const identity = await system.inspectGraphImage(
+    selected, resolvedImage(selected), phase, undefined, selected.repoDigest,
+  );
+  assert.equal(identity.id, selected.configDigest);
+  assert.equal(identity.user, "");
+});
+
 test("rejects absent, malformed, duplicate-key, and selected-platform metadata", () => {
   assert.throws(() => projectGraphImageInspection(undefined), { name: "Failure" });
   assert.throws(() => projectGraphImageInspection(projectedInspection(plan(), { extra: [true] })), { name: "Failure" });

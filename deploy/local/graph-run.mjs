@@ -1575,7 +1575,11 @@ export class LocalGraphSystem extends LocalProductSystem {
 
   async inspectGraphImage(selected, resolution, phase, retained = undefined, reference = selected.reference,
     category = "ownership", aliases = undefined) {
-    const format = "[{{json .Architecture}},{{json .Os}},{{json .Id}},{{json .RepoDigests}},{{json .RepoTags}},{{json .RootFS}},{{json .Config.Env}},{{json .Config.Entrypoint}},{{json .Config.Cmd}},{{json .Config.ExposedPorts}},{{json .Config.Volumes}},{{json .Config.Labels}},{{json .Config.User}},{{json .Config.WorkingDir}}]";
+    const format = "[{{json .Architecture}},{{json .Os}},{{json .Id}},{{json .RepoDigests}},{{json .RepoTags}}," +
+      "{{json .RootFS}},{{json (index .Config \"Env\")}},{{json (index .Config \"Entrypoint\")}}," +
+      "{{json (index .Config \"Cmd\")}},{{json (index .Config \"ExposedPorts\")}}," +
+      "{{json (index .Config \"Volumes\")}},{{json (index .Config \"Labels\")}}," +
+      "{{json (or (index .Config \"User\") \"\")}},{{json (or (index .Config \"WorkingDir\") \"\")}}]";
     const result = await this.runRead(
       "docker", ["image", "inspect", "--format", format, reference], phase, category, 15_000, 4_194_304,
     );
