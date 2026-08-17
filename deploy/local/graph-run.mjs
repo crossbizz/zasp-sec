@@ -407,8 +407,8 @@ export function parseGraphContainerdImageTargets(beforeSource, afterSource, sele
       if (!exactData(after.get(reference), row)) throw new TypeError("graph containerd baseline changed");
     }
     const delta = [...after].filter(([reference]) => !before.has(reference)).map(([, row]) => row);
-    if (!new Set([2, 3]).has(delta.length)) throw new TypeError("graph containerd delta is invalid");
-    const target = graphContainerdTarget(delta, selected);
+    if (delta.length !== 3) throw new TypeError("graph containerd delta is invalid");
+    const target = graphArchiveContainerdTarget(delta, selected);
     validateGraphContainerdTarget(target, selected);
     return target;
   } catch (error) {
@@ -527,24 +527,6 @@ function parseGraphContainerdInventory(source) {
     inventory.set(reference, deepFreeze({ digest, labels, mediaType, platform, reference, size }));
   }
   return inventory;
-}
-
-function graphContainerdTarget(delta, selected) {
-  if (delta.length === 3) return graphArchiveContainerdTarget(delta, selected);
-  const child = delta.filter(({ digest, mediaType }) => digest === selected.manifestDigest && new Set([
-    "application/vnd.docker.distribution.manifest.v2+json",
-    "application/vnd.oci.image.manifest.v1+json",
-  ]).has(mediaType));
-  const wrappers = delta.filter(({ mediaType }) => mediaType === "application/vnd.oci.image.index.v1+json");
-  if (child.length !== 1 || wrappers.length !== 1) throw new TypeError("graph containerd structure is invalid");
-  const references = [...delta].sort((left, right) => lexicalCompare(
-    graphPublicImageReference(left.reference), graphPublicImageReference(right.reference),
-  ));
-  return deepFreeze({
-    imageID: graphPublicImageReference(references[0].reference),
-    manifestDigest: selected.manifestDigest,
-    references,
-  });
 }
 
 function graphArchiveContainerdTarget(delta, selected) {
@@ -2075,7 +2057,7 @@ export class LocalGraphSystem extends LocalProductSystem {
         "ctr", "--namespace", "k8s.io", "images", "list",
       ], phase, "provider", 30_000, 4_194_304);
       let target = parseGraphContainerdImageTargets(before.stdout, after.stdout, selected);
-      if (target.references.length === 3) {
+      if (target.references.length !== 3) throw new GraphFailure("provider");
         const child = target.references.find(({ mediaType, reference }) =>
           mediaType === "application/vnd.oci.image.manifest.v1+json" && reference.startsWith("import-"));
         const wrapper = target.references.find(({ mediaType }) =>
@@ -2112,9 +2094,6 @@ export class LocalGraphSystem extends LocalProductSystem {
         ], phase, "provider", 30_000, 4_194_304);
         target = bindGraphContainerdRuntimeAlias(aliased.stdout, runtimeAliased.stdout, target, selected);
         this.graphNodeImageInventory = runtimeAliased.stdout;
-      } else {
-        this.graphNodeImageInventory = after.stdout;
-      }
       if (this.graphLoadedImageTargets.has(selected.name)) throw new GraphFailure("ownership");
       this.graphLoadedImageTargets.set(selected.name, target);
     }

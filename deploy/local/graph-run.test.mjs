@@ -2268,7 +2268,7 @@ test("rejects duplicate registry JSON before any image can be retained", async (
   assert.equal(system.graphImageIdentities.size, 0);
 });
 
-test("derives raw ctr targets and normalized public image IDs from each exact bounded inventory delta", () => {
+test("rejects unproved two-row imports before retaining any synthetic image identity", () => {
   for (const name of ["neo4j", "busybox"]) {
     for (const platform of ["linux/amd64", "linux/arm64"]) {
       const productDigest = `sha256:${"7".repeat(64)}`;
@@ -2288,19 +2288,8 @@ test("derives raw ctr targets and normalized public image IDs from each exact bo
       ]) {
         const before = containerdInventory(baselineRows);
         const after = containerdInventory([...baselineRows, ...graphImportRows(name, platform, wrapperDigest)]);
-        const target = parseGraphContainerdImageTargets(before, after, plan(name, platform));
-        assert.deepEqual(target, graphImportTarget(name, platform, wrapperDigest), `${name} ${platform} ${order}`);
-        const firstRawReference = order === "wrapper-first"
-          ? graphRawImportReferenceForDigest(wrapperDigest)
-          : graphRawImportReference(name, platform);
-        assert.equal(target.references[0].reference, firstRawReference,
-          `${name} ${platform} retains ${order} raw ctr projection`);
-        assert.equal(target.imageID, `docker.io/library/${firstRawReference}`,
-          `${name} ${platform} derives ${order} normalized public RepoDigest`);
-        assert.ok(target.references.every(({ reference }) => /^import-/.test(reference)),
-          `${name} ${platform} retains only raw ctr references`);
-        assert.ok(Object.isFrozen(target));
-        assert.ok(Object.isFrozen(target.references));
+        assert.throws(() => parseGraphContainerdImageTargets(before, after, plan(name, platform)),
+          { name: "Failure" }, `${name} ${platform} ${order}`);
       }
     }
   }
@@ -2921,7 +2910,7 @@ test("polls a real unlabeled node until the exact retained label appears", async
   assert.equal(replacementReads, 2, "the first valid unlabeled node UID is retained across polling");
 });
 
-test("snapshots a strict containerd inventory immediately around each immutable graph load", async () => {
+test("rejects an unproved two-row load immediately after its strict inventory delta", async () => {
   const system = graphSystem();
   const calls = [];
   system.nodeIdentity = { token: "a".repeat(64) };
@@ -2944,33 +2933,24 @@ test("snapshots a strict containerd inventory immediately around each immutable 
       `sha256:${"8".repeat(64)} 320 KiB linux/arm64 io.cri-containerd.image=managed`,
   ];
   const neo4jRows = graphImportRows("neo4j");
-  const busyboxRows = graphImportRows("busybox", "linux/arm64", `sha256:${"e".repeat(64)}`);
   const inventories = [
     containerdInventory(baselineRows),
     containerdInventory([...baselineRows, ...neo4jRows]),
-    containerdInventory([...baselineRows, ...neo4jRows]),
-    containerdInventory([...baselineRows, ...neo4jRows, ...busyboxRows]),
   ];
   let inventory = 0;
   system.runNodeRead = async (arguments_) => {
     calls.push(["node", ...arguments_]);
     return success(inventories[inventory++]);
   };
-  await system.loadAdditionalImages(phase);
+  await assert.rejects(() => system.loadAdditionalImages(phase), { category: "provider", name: "Failure" });
   const list = ["node", "ctr", "--namespace", "k8s.io", "images", "list"];
   assert.deepEqual(calls, [
     list,
     ["/owned/kind", "load", "docker-image", NEO4J_IMAGE, "--name", system.cluster],
     list,
-    list,
-    ["/owned/kind", "load", "docker-image", BUSYBOX_IMAGE, "--name", system.cluster],
-    list,
   ]);
-  assert.equal(inventory, 4);
-  assert.deepEqual(Object.fromEntries(system.graphLoadedImageTargets), {
-    busybox: graphImportTarget("busybox", "linux/arm64", `sha256:${"e".repeat(64)}`),
-    neo4j: graphImportTarget("neo4j"),
-  });
+  assert.equal(inventory, 2);
+  assert.equal(system.graphLoadedImageTargets.size, 0);
 
   const definitive = graphSystem();
   definitive.nodeIdentity = { token: "b".repeat(64) };
