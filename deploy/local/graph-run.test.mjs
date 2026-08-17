@@ -190,14 +190,24 @@ function graphWorkloadReference(name, platform = "linux/arm64") {
 function graphBoundArchiveImport(name, platform = "linux/arm64", mutate = () => {}) {
   const fixture = graphArchiveImport(name, platform, mutate);
   const wrapper = fixture.target.references.find(({ mediaType }) => mediaType.endsWith("index.v1+json"));
+  const child = fixture.target.references.find(({ mediaType, reference }) =>
+    mediaType.endsWith("manifest.v1+json") && reference.startsWith("import-"));
   const alias = { ...wrapper, reference: graphWorkloadReference(name, platform) };
+  const runtimeAlias = { ...child, reference: `docker.io/library/${child.reference}` };
+  const boundTarget = {
+    ...fixture.target,
+    imageID: alias.reference,
+    references: [...fixture.target.references, alias],
+  };
   return {
     ...fixture,
     alias,
-    boundTarget: {
-      ...fixture.target,
-      imageID: alias.reference,
-      references: [...fixture.target.references, alias],
+    boundTarget,
+    runtimeAlias,
+    runtimeTarget: {
+      ...boundTarget,
+      imageID: runtimeAlias.reference,
+      references: [...boundTarget.references, runtimeAlias],
     },
   };
 }
@@ -923,6 +933,35 @@ test("cross-binds config status images and imported repo-digest image IDs on bot
               { name: "Failure" }, `${image} ${platform} status image ${imageID}`);
           }
         }
+      }
+    }
+  }
+});
+
+test("cross-binds the exact normalized CRI manifest identities for Docker archive imports", () => {
+  for (const platform of ["linux/amd64", "linux/arm64"]) {
+    const value = graphProviderState({ platform });
+    const expected = graphProviderExpectation(platform);
+    for (const [podIndex, image] of [[-2, "neo4j"], [-1, "busybox"]]) {
+      const fixture = graphBoundArchiveImport(image, platform);
+      expected.imageTargets[image] = fixture.runtimeTarget;
+      value.pods.at(podIndex).status.containerStatuses[0].imageID = fixture.runtimeAlias.reference;
+    }
+    assert.equal(graphRunModule.validateGraphKubernetesState(value, expected).ready, true, platform);
+
+    for (const [podIndex, image] of [[-2, "neo4j"], [-1, "busybox"]]) {
+      const fixture = graphBoundArchiveImport(image, platform);
+      for (const alternate of [
+        fixture.alias.reference,
+        fixture.runtimeAlias.reference.slice("docker.io/library/".length),
+        fixture.selected.configDigest,
+        fixture.selected.manifestDigest,
+        fixture.selected.repoDigest,
+      ]) {
+        const drifted = structuredClone(value);
+        drifted.pods.at(podIndex).status.containerStatuses[0].imageID = alternate;
+        assert.throws(() => graphRunModule.validateGraphKubernetesState(drifted, expected),
+          { name: "Failure" }, `${image} ${platform} ${alternate}`);
       }
     }
   }
@@ -2345,6 +2384,66 @@ test("rejects missing, colliding, replaced, ambiguous, or substituted node-local
   }
 });
 
+test("binds only the normalized provider-manifest identity selected by containerd CRI", () => {
+  assert.equal(typeof graphRunModule.bindGraphContainerdRuntimeAlias, "function");
+  for (const name of ["neo4j", "busybox"]) {
+    for (const platform of ["linux/amd64", "linux/arm64"]) {
+      const fixture = graphBoundArchiveImport(name, platform);
+      const workloadRow = [
+        fixture.alias.reference, fixture.alias.mediaType, fixture.alias.digest, fixture.alias.size,
+        fixture.alias.platform, fixture.alias.labels,
+      ].join(" ");
+      const runtimeRow = [
+        fixture.runtimeAlias.reference, fixture.runtimeAlias.mediaType, fixture.runtimeAlias.digest,
+        fixture.runtimeAlias.size, fixture.runtimeAlias.platform, fixture.runtimeAlias.labels,
+      ].join(" ");
+      const before = containerdInventory([...fixture.rows, workloadRow]);
+      const target = graphRunModule.bindGraphContainerdRuntimeAlias(
+        before, containerdInventory([...fixture.rows, workloadRow, runtimeRow]),
+        fixture.boundTarget, fixture.selected,
+      );
+      assert.deepEqual(target, fixture.runtimeTarget, `${name} ${platform}`);
+      assert.ok(Object.isFrozen(target));
+      assert.ok(Object.isFrozen(target.references));
+    }
+  }
+});
+
+test("rejects every absent, colliding, replaced, or substituted normalized provider alias", () => {
+  const fixture = graphBoundArchiveImport("neo4j");
+  const workloadRow = [
+    fixture.alias.reference, fixture.alias.mediaType, fixture.alias.digest, fixture.alias.size,
+    fixture.alias.platform, fixture.alias.labels,
+  ].join(" ");
+  const runtimeRow = [
+    fixture.runtimeAlias.reference, fixture.runtimeAlias.mediaType, fixture.runtimeAlias.digest,
+    fixture.runtimeAlias.size, fixture.runtimeAlias.platform, fixture.runtimeAlias.labels,
+  ].join(" ");
+  const rows = [...fixture.rows, workloadRow];
+  const before = containerdInventory(rows);
+  const wrapper = fixture.boundTarget.references.find(({ mediaType }) => mediaType.endsWith("index.v1+json"));
+  const cases = [
+    ["missing", rows],
+    ["collision", [...rows, runtimeRow]],
+    ["baseline replacement", [rows[0].replace("456 MiB", "455 MiB"), ...rows.slice(1), runtimeRow]],
+    ["wrapper identity", [...rows, runtimeRow.replace(fixture.runtimeAlias.digest, wrapper.digest)]],
+    ["wrong media type", [...rows, runtimeRow.replace("image.manifest", "image.index")]],
+    ["wrong size", [...rows, runtimeRow.replace(fixture.runtimeAlias.size, "455 MiB")]],
+    ["wrong platform", [...rows, runtimeRow.replace(fixture.runtimeAlias.platform, "linux/amd64")]],
+    ["wrong labels", [...rows, runtimeRow.replace(fixture.runtimeAlias.labels, "managed=false")]],
+    ["raw identity", [...rows, runtimeRow.replace("docker.io/library/", "")]],
+    ["alternate repository", [...rows, runtimeRow.replace("docker.io/library/", "registry.example/")]],
+    ["extra", [...rows, runtimeRow,
+      runtimeRow.replace("docker.io/library/", "registry.example/")]],
+  ];
+  for (const [label, afterRows] of cases) {
+    const baseline = label === "collision" ? containerdInventory(afterRows) : before;
+    assert.throws(() => graphRunModule.bindGraphContainerdRuntimeAlias(
+      baseline, containerdInventory(afterRows), fixture.boundTarget, fixture.selected,
+    ), { name: "Failure" }, label);
+  }
+});
+
 test("accepts only the pinned ctr tabwriter's bounded trailing row pad", () => {
   const fixture = graphArchiveImport("neo4j");
   const baselineRows = [
@@ -2919,10 +3018,18 @@ test("reads and proves Docker archive content before retaining graph image targe
     fixtures[0].alias.reference, fixtures[0].alias.mediaType, fixtures[0].alias.digest,
     fixtures[0].alias.size, fixtures[0].alias.platform, fixtures[0].alias.labels,
   ].join(" ")];
-  const allRows = [...boundNeo4jRows, ...fixtures[1].rows];
+  const runtimeNeo4jRows = [...boundNeo4jRows, [
+    fixtures[0].runtimeAlias.reference, fixtures[0].runtimeAlias.mediaType, fixtures[0].runtimeAlias.digest,
+    fixtures[0].runtimeAlias.size, fixtures[0].runtimeAlias.platform, fixtures[0].runtimeAlias.labels,
+  ].join(" ")];
+  const allRows = [...runtimeNeo4jRows, ...fixtures[1].rows];
   const boundRows = [...allRows, [
     fixtures[1].alias.reference, fixtures[1].alias.mediaType, fixtures[1].alias.digest,
     fixtures[1].alias.size, fixtures[1].alias.platform, fixtures[1].alias.labels,
+  ].join(" ")];
+  const runtimeRows = [...boundRows, [
+    fixtures[1].runtimeAlias.reference, fixtures[1].runtimeAlias.mediaType, fixtures[1].runtimeAlias.digest,
+    fixtures[1].runtimeAlias.size, fixtures[1].runtimeAlias.platform, fixtures[1].runtimeAlias.labels,
   ].join(" ")];
   const outputs = [
     containerdInventory(productRows),
@@ -2930,11 +3037,13 @@ test("reads and proves Docker archive content before retaining graph image targe
     fixtures[0].manifestSource,
     fixtures[0].wrapperSource,
     containerdInventory(boundNeo4jRows),
-    containerdInventory(boundNeo4jRows),
+    containerdInventory(runtimeNeo4jRows),
+    containerdInventory(runtimeNeo4jRows),
     containerdInventory(allRows),
     fixtures[1].manifestSource,
     fixtures[1].wrapperSource,
     containerdInventory(boundRows),
+    containerdInventory(runtimeRows),
   ];
   system.runNodeRead = async (arguments_) => {
     calls.push(["node", ...arguments_]);
@@ -2943,8 +3052,8 @@ test("reads and proves Docker archive content before retaining graph image targe
   await system.loadAdditionalImages(phase);
   assert.equal(outputs.length, 0);
   assert.deepEqual(Object.fromEntries(system.graphLoadedImageTargets), {
-    busybox: fixtures[1].boundTarget,
-    neo4j: fixtures[0].boundTarget,
+    busybox: fixtures[1].runtimeTarget,
+    neo4j: fixtures[0].runtimeTarget,
   });
   const inventory = ["node", "ctr", "--namespace", "k8s.io", "images", "list"];
   const content = (digest) => ["node", "ctr", "--namespace", "k8s.io", "content", "get", digest];
@@ -2959,6 +3068,11 @@ test("reads and proves Docker archive content before retaining graph image targe
       fixtures[0].target.references.find(({ mediaType }) => mediaType.endsWith("index.v1+json"))?.reference,
       fixtures[0].alias.reference],
     inventory,
+    ["node-mutation", "ctr", "--namespace", "k8s.io", "images", "tag", "--local",
+      fixtures[0].target.references.find(({ mediaType, reference }) =>
+        mediaType.endsWith("manifest.v1+json") && reference.startsWith("import-"))?.reference,
+      fixtures[0].runtimeAlias.reference],
+    inventory,
     inventory,
     ["/owned/kind", "load", "docker-image", BUSYBOX_IMAGE, "--name", system.cluster],
     inventory,
@@ -2969,7 +3083,50 @@ test("reads and proves Docker archive content before retaining graph image targe
       fixtures[1].target.references.find(({ mediaType }) => mediaType.endsWith("index.v1+json"))?.reference,
       fixtures[1].alias.reference],
     inventory,
+    ["node-mutation", "ctr", "--namespace", "k8s.io", "images", "tag", "--local",
+      fixtures[1].target.references.find(({ mediaType, reference }) =>
+        mediaType.endsWith("manifest.v1+json") && reference.startsWith("import-"))?.reference,
+      fixtures[1].runtimeAlias.reference],
+    inventory,
   ]);
+});
+
+test("rejects node image inventory drift between the two proved graph loads", async () => {
+  const system = graphSystem();
+  system.nodeIdentity = { token: "a".repeat(64) };
+  system.paths = { kind: "/owned/kind" };
+  system.requireTemporaryOwnership = async () => {};
+  system.verifyCluster = async () => system.nodeIdentity;
+  system.verifyGraphImage = async () => {};
+  const fixtures = [graphBoundArchiveImport("neo4j"), graphBoundArchiveImport("busybox")];
+  for (const fixture of fixtures) {
+    system.graphImageIdentities.set(fixture.selected.name, fixture.retained);
+    system.graphImageResolutions.set(fixture.selected.name, resolvedImage(fixture.selected));
+  }
+  system.runMutation = async () => ({ outcome: "ambiguous", result: success("loaded\n") });
+  system.runNodeMutation = async () => ({ outcome: "ambiguous", result: success("alias\n") });
+  const productRows = [
+    `docker.io/library/zasp-audit-api:m1-30a application/vnd.oci.image.manifest.v1+json ` +
+      `sha256:${"7".repeat(64)} 12.3 MiB linux/arm64 managed=true`,
+  ];
+  const importedRows = [...productRows, ...fixtures[0].rows];
+  const workloadRows = [...importedRows, [
+    fixtures[0].alias.reference, fixtures[0].alias.mediaType, fixtures[0].alias.digest,
+    fixtures[0].alias.size, fixtures[0].alias.platform, fixtures[0].alias.labels,
+  ].join(" ")];
+  const runtimeRows = [...workloadRows, [
+    fixtures[0].runtimeAlias.reference, fixtures[0].runtimeAlias.mediaType, fixtures[0].runtimeAlias.digest,
+    fixtures[0].runtimeAlias.size, fixtures[0].runtimeAlias.platform, fixtures[0].runtimeAlias.labels,
+  ].join(" ")];
+  const outputs = [
+    containerdInventory(productRows), containerdInventory(importedRows), fixtures[0].manifestSource,
+    fixtures[0].wrapperSource, containerdInventory(workloadRows), containerdInventory(runtimeRows),
+    containerdInventory(runtimeRows).replace("12.3 MiB", "12.4 MiB"),
+  ];
+  system.runNodeRead = async () => success(outputs.shift());
+  await assert.rejects(() => system.loadAdditionalImages(phase), { category: "ownership", name: "Failure" });
+  assert.equal(outputs.length, 0);
+  assert.deepEqual([...system.graphLoadedImageTargets.keys()], ["neo4j"]);
 });
 
 test("re-proves the complete node image inventory before graph manifest application", async () => {
