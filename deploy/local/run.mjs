@@ -92,6 +92,16 @@ export function buildKindConfig() {
     apiVersion: "kind.x-k8s.io/v1alpha4",
     kind: "Cluster",
     networking: { apiServerAddress: "127.0.0.1" },
+    nodes: [{ role: "control-plane" }],
+  });
+}
+
+function buildProfileKindConfig(profile) {
+  if (profile.proof === "m1-30a") return buildKindConfig();
+  return deepFreeze({
+    apiVersion: "kind.x-k8s.io/v1alpha4",
+    kind: "Cluster",
+    networking: { apiServerAddress: "127.0.0.1" },
     nodes: [{ kubeadmConfigPatches: [kubeletPidPatch], role: "control-plane" }],
   });
 }
@@ -562,7 +572,9 @@ export class LocalProductSystem {
         );
       }
       await this.runFilesystemMutation(
-        () => this.dependencies.writePath(paths.kindConfig, `${JSON.stringify(buildKindConfig())}\n`, { mode: 0o600 }),
+        () => this.dependencies.writePath(
+          paths.kindConfig, `${JSON.stringify(buildProfileKindConfig(this.profile))}\n`, { mode: 0o600 },
+        ),
         phase, "configuration",
       );
       await this.runFilesystemMutation(
@@ -1096,10 +1108,12 @@ export class LocalProductSystem {
       : await this.rememberOwnedPath(this.paths.kubeconfig, "file", phase, category);
     validateKubeconfigBytes(kubeconfig.bytes, this.cluster, identity.apiPort, this.profile.proof);
     this.nodeIdentity = identity;
-    const pidLimit = await this.runRead("docker", [
-      "exec", identity.token, "grep", "-E", "^(apiVersion|kind|podPidsLimit):", "/var/lib/kubelet/config.yaml",
-    ], phase, category, 15_000, 16_384);
-    if (pidLimit.stdout !== kubeletPidProjection) throw new Failure(category);
+    if (this.profile.proof === "m1-30b") {
+      const pidLimit = await this.runRead("docker", [
+        "exec", identity.token, "grep", "-E", "^(apiVersion|kind|podPidsLimit):", "/var/lib/kubelet/config.yaml",
+      ], phase, category, 15_000, 16_384);
+      if (pidLimit.stdout !== kubeletPidProjection) throw new Failure(category);
+    }
     return identity;
   }
   async loadImages(phase) {
