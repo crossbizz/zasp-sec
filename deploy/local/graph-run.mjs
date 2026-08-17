@@ -836,6 +836,21 @@ function projectGraphProviderResources(items, label, proof) {
   return items;
 }
 
+function isObservabilityProviderRead(arguments_, proof) {
+  if (proof !== "m1-30c" || !Array.isArray(arguments_)) return false;
+  const selector = new Map([
+    ["deployment", "app.kubernetes.io/component=observability"],
+    ["replicaset", "app.kubernetes.io/component=observability"],
+    ["pod", "app.kubernetes.io/component=observability"],
+    ["service", "app.kubernetes.io/component=observability"],
+    ["endpointslice", "kubernetes.io/service-name=otel-collector"],
+  ]).get(arguments_[1]);
+  return selector !== undefined && exactStringArray(arguments_, [
+    "get", arguments_[1], "--namespace", GRAPH_CONSTANTS.namespace,
+    `--selector=${selector}`, "--output=json",
+  ]);
+}
+
 export function validateGraphKubernetesState(value, expected, retained = undefined, requireReplacement = false,
   requireHealthReplacement = false) {
   try {
@@ -1654,7 +1669,8 @@ export class LocalGraphSystem extends LocalProductSystem {
   async runKubectlRead(arguments_, phase, category, timeoutMilliseconds, outputLimit) {
     let selected = arguments_;
     let productResource;
-    if (this.productProviderProjection && Array.isArray(arguments_) && arguments_[0] === "get" &&
+    if (this.productProviderProjection && !isObservabilityProviderRead(arguments_, this.profile.proof) &&
+        Array.isArray(arguments_) && arguments_[0] === "get" &&
         arguments_.at(-1) === "--output=json") {
       const observability = this.profile.proof === "m1-30c";
       const selector = new Map([

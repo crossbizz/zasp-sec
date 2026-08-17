@@ -1281,6 +1281,35 @@ test("the observability profile excludes graph and observability resources from 
   assert.deepEqual(system.productProviderCapture.get("deployments"), document.items);
 });
 
+test("the observability profile preserves exact Collector reads during product projection", async () => {
+  const cases = [
+    ["deployment", "app.kubernetes.io/component=observability"],
+    ["replicaset", "app.kubernetes.io/component=observability"],
+    ["pod", "app.kubernetes.io/component=observability"],
+    ["service", "app.kubernetes.io/component=observability"],
+    ["endpointslice", "kubernetes.io/service-name=otel-collector"],
+  ];
+  for (const [resource, selector] of cases) {
+    let invocation;
+    const system = graphSystem(async (command, arguments_) => {
+      invocation = [command, ...arguments_];
+      return success('{"apiVersion":"v1","items":[],"kind":"List","metadata":{"resourceVersion":""}}\n');
+    }, {}, buildObservabilityProfile());
+    system.paths = { kubeconfig: "/owned/kubeconfig" };
+    system.productProviderProjection = true;
+    system.productProviderCapture = new Map();
+    system.withOwnedFiles = async (_paths, _phase, _category, operation) =>
+      await operation([{ handle: { fd: 31 } }]);
+    system.requireOwnedPath = async () => {};
+    const arguments_ = [
+      "get", resource, "--namespace", "zasp-local", `--selector=${selector}`, "--output=json",
+    ];
+    await system.runKubectlRead(arguments_, phase, "readiness", 30_000, 4_194_304);
+    assert.deepEqual(invocation, ["kubectl", "--kubeconfig", "/dev/fd/3", ...arguments_], resource);
+    assert.equal(system.productProviderCapture.size, 0, resource);
+  }
+});
+
 test("accepts only omitted or null graph workload template timestamps", () => {
   const omitted = graphProviderState();
   delete omitted.deployments.at(-1).spec.template.metadata.creationTimestamp;
