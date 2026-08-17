@@ -457,6 +457,7 @@ export class LocalObservabilitySystem extends LocalGraphSystem {
   constructor(input, dependencies = undefined) {
     super(input, dependencies, buildObservabilityProfile());
     this.graphImagePlans.set("collector", buildCollectorImagePlan(input.nodePlatform));
+    this.observabilityCoreMayHaveApplied = false;
     this.observabilityJobMayHaveApplied = false;
     this.observabilityProviderIdentity = undefined;
   }
@@ -467,6 +468,7 @@ export class LocalObservabilitySystem extends LocalGraphSystem {
     if (spanPath === undefined || !this.additionalManifestPaths.delete(stagedKey)) {
       throw new ObservabilityFailure("ownership");
     }
+    this.observabilityCoreMayHaveApplied = true;
     try {
       await super.applyManifests(phase);
     } finally {
@@ -514,7 +516,9 @@ export class LocalObservabilitySystem extends LocalGraphSystem {
         "get", resource, "--namespace", OBSERVABILITY_CONSTANTS.namespace,
         `--selector=${selector}`, "--output=json",
       ], phase, category, 30_000, observabilityProviderByteLimit);
-      documents[name] = parseObservabilityProviderList(result.stdout);
+      documents[name] = projectObservabilityProviderResources(
+        parseObservabilityProviderList(result.stdout), name,
+      );
     }
     const spanPods = documents.pods.filter((pod) =>
       pod?.metadata?.labels?.["app.kubernetes.io/name"] === OBSERVABILITY_CONSTANTS.spanJobName);
@@ -531,10 +535,28 @@ export class LocalObservabilitySystem extends LocalGraphSystem {
 
   async verifyObservabilityBaseState(phase, category) {
     if (this.graphProviderIdentity === undefined) throw new ObservabilityFailure("ownership");
-    await this.verifyProductReadiness(phase);
-    this.graphProviderIdentity = await this.pollGraphProviderState(
-      phase, this.graphProviderIdentity, false, category,
-    );
+    this.graphProviderIdentity = await this.withRetainedProductSnapshot(async () => {
+      await this.verifyProductReadiness(phase);
+      return await this.pollGraphProviderState(
+        phase, this.graphProviderIdentity, false, category,
+      );
+    }, category);
+  }
+
+  async withRetainedProductSnapshot(operation, category) {
+    const retained = this.productProviderSnapshot;
+    if (retained === undefined || typeof operation !== "function") {
+      throw new ObservabilityFailure(category === "cleanup" ? "cleanup" : "ownership");
+    }
+    try {
+      const result = await operation();
+      if (!isDeepStrictEqual(this.productProviderSnapshot, retained)) {
+        throw new ObservabilityFailure(category === "cleanup" ? "cleanup" : "ownership");
+      }
+      return result;
+    } finally {
+      this.productProviderSnapshot = retained;
+    }
   }
 
   async pauseObservabilityPoll(phase, category) {
@@ -618,15 +640,40 @@ export class LocalObservabilitySystem extends LocalGraphSystem {
     return parseObservabilitySinkFrame(result.stdout);
   }
 
+  async requireObservabilitySinkAbsent(retained, phase, category = "readiness") {
+    const podName = retained?.collector?.podName;
+    if (!/^otel-collector-[a-z0-9]{10}-[a-z0-9]{5}$/.test(podName ?? "") ||
+        !OBSERVABILITY_FAILURE_CATEGORIES.includes(category)) {
+      throw new ObservabilityFailure(category === "cleanup" ? "cleanup" : "ownership");
+    }
+    const path = OBSERVABILITY_CONSTANTS.sinkPath;
+    const source = [
+      "set -eu",
+      `path=${path}`,
+      "test ! -e \"$path\"",
+      "test ! -L \"$path\"",
+      "printf 'ZASP-SINK-ABSENT\\n'",
+    ].join("; ");
+    const result = await super.runKubectlRead([
+      "exec", "--namespace", OBSERVABILITY_CONSTANTS.namespace, podName,
+      "--container", "sink-reader", "--", "sh", "-ec", source,
+    ], phase, category, 30_000, 128);
+    if (result.stdout !== "ZASP-SINK-ABSENT\n") throw new ObservabilityFailure(category);
+  }
+
   async verifyGraphReadiness(productResult, phase) {
     return await super.verifyAdditionalReadiness(productResult, phase);
   }
 
   async verifyAdditionalReadiness(productResult, phase) {
     if (this.productReadinessOnly) return productResult;
-    const graphResult = await this.verifyGraphReadiness(productResult, phase);
+    const graphResult = await this.withRetainedProductSnapshot(
+      async () => await this.verifyGraphReadiness(productResult, phase), "ownership",
+    );
     const core = await this.pollObservabilityProviderState(phase);
     this.observabilityProviderIdentity = core;
+    this.observabilityCoreMayHaveApplied = false;
+    await this.requireObservabilitySinkAbsent(core, phase);
     this.observabilityJobMayHaveApplied = true;
     const applied = await this.applyObservabilityJob(phase);
     if (!new Set(["ambiguous", "applied"]).has(applied?.outcome)) {
@@ -651,8 +698,51 @@ export class LocalObservabilitySystem extends LocalGraphSystem {
     return await super.verifyAdditionalNodeForCleanup(phase);
   }
 
+  async verifyObservabilityDescriptorsForCleanup(phase) {
+    await this.requireTemporaryOwnership(phase, "cleanup");
+    for (const path of [
+      this.paths?.graphManifest,
+      this.paths?.observabilityCoreManifest,
+      this.paths?.observabilitySpanManifest,
+    ]) {
+      if (typeof path !== "string") throw new ObservabilityFailure("cleanup");
+      await this.requireOwnedPath(path, phase, "cleanup");
+    }
+  }
+
+  async reconcileObservabilityCoreForCleanup(phase) {
+    let failure;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      phase.assertActive("cleanup");
+      try {
+        const providerState = await this.readObservabilityProviderState(phase, "cleanup");
+        try {
+          requireObservabilityProviderAbsent(providerState);
+          this.observabilityCoreMayHaveApplied = false;
+          this.observabilityProviderIdentity = undefined;
+          return;
+        } catch {
+          const current = validateObservabilityKubernetesState(
+            providerState, this.observabilityProviderExpectation(), undefined, false, "cleanup",
+          );
+          this.observabilityProviderIdentity = current;
+          this.observabilityCoreMayHaveApplied = false;
+          return;
+        }
+      } catch (error) {
+        if (!(error instanceof Failure) || error.category !== "cleanup") throw error;
+        failure = error;
+      }
+    }
+    throw failure ?? new ObservabilityFailure("cleanup");
+  }
+
   async verifyAdditionalNodeForCleanup(phase) {
+    await this.verifyObservabilityDescriptorsForCleanup(phase);
     await this.verifyGraphNodeForCleanup(phase);
+    if (this.observabilityCoreMayHaveApplied && this.observabilityProviderIdentity === undefined) {
+      await this.reconcileObservabilityCoreForCleanup(phase);
+    }
     const retained = this.observabilityProviderIdentity;
     if (retained === undefined && !this.observabilityJobMayHaveApplied) return;
     if (retained === undefined) throw new ObservabilityFailure("cleanup");
@@ -689,6 +779,18 @@ export class LocalObservabilitySystem extends LocalGraphSystem {
       }
     }
     throw failure ?? new ObservabilityFailure("cleanup");
+  }
+
+  async afterClusterAbsent() {
+    await super.afterClusterAbsent();
+    this.observabilityCoreMayHaveApplied = false;
+    this.observabilityJobMayHaveApplied = false;
+    this.observabilityProviderIdentity = undefined;
+  }
+
+  hasAdditionalRecoveryState() {
+    return super.hasAdditionalRecoveryState() || this.observabilityCoreMayHaveApplied ||
+      this.observabilityJobMayHaveApplied || this.observabilityProviderIdentity !== undefined;
   }
 
   async resolveGraphImage(selected, phase) {
@@ -874,6 +976,250 @@ function parseObservabilityProviderList(source) {
   } catch (error) {
     if (error instanceof Failure) throw error;
     throw new ObservabilityFailure("normalization");
+  }
+}
+
+function projectObservabilityProviderResources(items, label) {
+  try {
+    if (!plainArray(items)) throw new TypeError("observability provider items are invalid");
+    const projector = {
+      configMaps: projectObservabilityConfigMap,
+      deployments: projectObservabilityDeployment,
+      endpointSlices: projectObservabilityEndpointSlice,
+      ingresses: (item) => structuredClone(item),
+      jobs: projectObservabilityJob,
+      pods: projectObservabilityPod,
+      replicaSets: projectObservabilityReplicaSet,
+      services: projectObservabilityService,
+    }[label];
+    if (projector === undefined) throw new TypeError("observability provider label is invalid");
+    return items.map(projector);
+  } catch (error) {
+    if (error instanceof Failure) throw error;
+    throw new ObservabilityFailure("normalization");
+  }
+}
+
+function projectObservabilityConfigMap(item) {
+  return {
+    apiVersion: item?.apiVersion,
+    data: structuredClone(item?.data),
+    kind: item?.kind,
+    metadata: {
+      labels: structuredClone(item?.metadata?.labels),
+      name: item?.metadata?.name,
+      namespace: item?.metadata?.namespace,
+      resourceVersion: item?.metadata?.resourceVersion,
+      uid: item?.metadata?.uid,
+    },
+  };
+}
+
+function projectObservabilityDeployment(item) {
+  return {
+    apiVersion: item?.apiVersion,
+    kind: item?.kind,
+    metadata: {
+      generation: item?.metadata?.generation,
+      labels: structuredClone(item?.metadata?.labels),
+      name: item?.metadata?.name,
+      namespace: item?.metadata?.namespace,
+      resourceVersion: item?.metadata?.resourceVersion,
+      uid: item?.metadata?.uid,
+    },
+    spec: structuredClone(item?.spec),
+    status: {
+      availableReplicas: item?.status?.availableReplicas ?? 0,
+      conditions: Array.isArray(item?.status?.conditions) ? item.status.conditions
+        .filter(({ type }) => type === "Available").map(({ status, type }) => ({ status, type })) : undefined,
+      observedGeneration: item?.status?.observedGeneration,
+      readyReplicas: item?.status?.readyReplicas ?? 0,
+      replicas: item?.status?.replicas ?? 0,
+      unavailableReplicas: item?.status?.unavailableReplicas ?? 0,
+      updatedReplicas: item?.status?.updatedReplicas ?? 0,
+    },
+  };
+}
+
+function projectObservabilityReplicaSet(item) {
+  return {
+    apiVersion: item?.apiVersion,
+    kind: item?.kind,
+    metadata: {
+      labels: structuredClone(item?.metadata?.labels),
+      name: item?.metadata?.name,
+      namespace: item?.metadata?.namespace,
+      ownerReferences: projectObservabilityOwnerReferences(item?.metadata?.ownerReferences),
+      resourceVersion: item?.metadata?.resourceVersion,
+      uid: item?.metadata?.uid,
+    },
+    spec: structuredClone(item?.spec),
+    status: {
+      availableReplicas: item?.status?.availableReplicas ?? 0,
+      fullyLabeledReplicas: item?.status?.fullyLabeledReplicas ?? 0,
+      observedGeneration: item?.status?.observedGeneration,
+      readyReplicas: item?.status?.readyReplicas ?? 0,
+      replicas: item?.status?.replicas ?? 0,
+    },
+  };
+}
+
+function projectObservabilityPod(item) {
+  return {
+    apiVersion: item?.apiVersion,
+    kind: item?.kind,
+    metadata: {
+      labels: structuredClone(item?.metadata?.labels),
+      name: item?.metadata?.name,
+      namespace: item?.metadata?.namespace,
+      ownerReferences: projectObservabilityOwnerReferences(item?.metadata?.ownerReferences),
+      resourceVersion: item?.metadata?.resourceVersion,
+      uid: item?.metadata?.uid,
+    },
+    spec: structuredClone(item?.spec),
+    status: {
+      conditions: Array.isArray(item?.status?.conditions) ? item.status.conditions
+        .filter(({ type }) => type === "Ready").map(({ status, type }) => ({ status, type })) : undefined,
+      containerStatuses: Array.isArray(item?.status?.containerStatuses)
+        ? item.status.containerStatuses.map(projectObservabilityContainerStatus) : undefined,
+      phase: item?.status?.phase,
+      podIP: item?.status?.podIP,
+    },
+  };
+}
+
+function projectObservabilityContainerStatus(value) {
+  let state;
+  if (value?.state?.running !== undefined) {
+    state = { running: { startedAt: value.state.running.startedAt } };
+  } else if (value?.state?.terminated !== undefined) {
+    state = { terminated: {
+      containerID: value.state.terminated.containerID,
+      exitCode: value.state.terminated.exitCode,
+      finishedAt: value.state.terminated.finishedAt,
+      reason: value.state.terminated.reason,
+      startedAt: value.state.terminated.startedAt,
+    } };
+  } else {
+    state = structuredClone(value?.state);
+  }
+  return {
+    containerID: value?.containerID,
+    image: value?.image,
+    imageID: value?.imageID,
+    lastState: structuredClone(value?.lastState),
+    name: value?.name,
+    ready: value?.ready,
+    restartCount: value?.restartCount,
+    started: value?.started,
+    state,
+  };
+}
+
+function projectObservabilityService(item) {
+  return {
+    apiVersion: item?.apiVersion,
+    kind: item?.kind,
+    metadata: {
+      labels: structuredClone(item?.metadata?.labels),
+      name: item?.metadata?.name,
+      namespace: item?.metadata?.namespace,
+      resourceVersion: item?.metadata?.resourceVersion,
+      uid: item?.metadata?.uid,
+    },
+    spec: structuredClone(item?.spec),
+    status: { loadBalancer: structuredClone(item?.status?.loadBalancer ?? {}) },
+  };
+}
+
+function projectObservabilityEndpointSlice(item) {
+  return {
+    addressType: item?.addressType,
+    apiVersion: item?.apiVersion,
+    endpoints: Array.isArray(item?.endpoints) ? item.endpoints.map((endpoint) => ({
+      addresses: structuredClone(endpoint?.addresses),
+      conditions: {
+        ready: endpoint?.conditions?.ready,
+        serving: endpoint?.conditions?.serving,
+        terminating: endpoint?.conditions?.terminating ?? false,
+      },
+      nodeName: endpoint?.nodeName,
+      targetRef: {
+        kind: endpoint?.targetRef?.kind,
+        name: endpoint?.targetRef?.name,
+        namespace: endpoint?.targetRef?.namespace,
+        uid: endpoint?.targetRef?.uid,
+      },
+    })) : [],
+    kind: item?.kind,
+    metadata: {
+      labels: structuredClone(item?.metadata?.labels),
+      name: item?.metadata?.name,
+      namespace: item?.metadata?.namespace,
+      ownerReferences: projectObservabilityOwnerReferences(item?.metadata?.ownerReferences),
+      resourceVersion: item?.metadata?.resourceVersion,
+      uid: item?.metadata?.uid,
+    },
+    ports: Array.isArray(item?.ports)
+      ? item.ports.map(({ name, port, protocol }) => ({ name, port, protocol })) : [],
+  };
+}
+
+function projectObservabilityJob(item) {
+  return {
+    apiVersion: item?.apiVersion,
+    kind: item?.kind,
+    metadata: {
+      labels: structuredClone(item?.metadata?.labels),
+      name: item?.metadata?.name,
+      namespace: item?.metadata?.namespace,
+      resourceVersion: item?.metadata?.resourceVersion,
+      uid: item?.metadata?.uid,
+    },
+    spec: structuredClone(item?.spec),
+    status: {
+      completionTime: item?.status?.completionTime,
+      conditions: Array.isArray(item?.status?.conditions) ? item.status.conditions
+        .filter(({ type }) => type === "Complete").map((condition) => ({
+          lastProbeTime: condition.lastProbeTime,
+          lastTransitionTime: condition.lastTransitionTime,
+          status: condition.status,
+          type: condition.type,
+        })) : undefined,
+      failed: item?.status?.failed ?? 0,
+      ready: item?.status?.ready ?? 0,
+      startTime: item?.status?.startTime,
+      succeeded: item?.status?.succeeded ?? 0,
+    },
+  };
+}
+
+function projectObservabilityOwnerReferences(value) {
+  return Array.isArray(value) ? value.map((entry) => ({
+    apiVersion: entry?.apiVersion,
+    blockOwnerDeletion: entry?.blockOwnerDeletion,
+    controller: entry?.controller,
+    kind: entry?.kind,
+    name: entry?.name,
+    uid: entry?.uid,
+  })) : [];
+}
+
+function requireObservabilityProviderAbsent(value) {
+  try {
+    requireKeySet(value, [
+      "configMaps", "deployments", "endpointSlices", "ingresses", "jobLog", "jobs", "pods", "replicaSets",
+      "services",
+    ]);
+    if (value.jobLog !== null || [
+      value.configMaps, value.deployments, value.endpointSlices, value.ingresses, value.jobs, value.pods,
+      value.replicaSets, value.services,
+    ].some((items) => !plainArray(items) || items.length !== 0)) {
+      throw new TypeError("observability provider resources remain");
+    }
+    return true;
+  } catch {
+    throw new ObservabilityFailure("cleanup");
   }
 }
 

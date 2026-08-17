@@ -331,6 +331,46 @@ function observabilityProviderState({ includeJob = true, platform = "linux/amd64
   return value;
 }
 
+function realisticObservabilityProviderState(options = {}) {
+  const value = observabilityProviderState(options);
+  const timestamp = "2026-08-16T09:59:00Z";
+  for (const items of [
+    value.configMaps, value.deployments, value.endpointSlices, value.jobs, value.pods, value.replicaSets,
+    value.services,
+  ]) {
+    for (const item of items) {
+      item.metadata.annotations = { "kubectl.kubernetes.io/last-applied-configuration": "{}" };
+      item.metadata.creationTimestamp = timestamp;
+      item.metadata.managedFields = [{ apiVersion: item.apiVersion, manager: "kubectl-client-side-apply" }];
+    }
+  }
+  value.deployments[0].status.conditions.unshift({
+    lastTransitionTime: timestamp,
+    lastUpdateTime: timestamp,
+    message: "ReplicaSet progressed.",
+    reason: "NewReplicaSetAvailable",
+    status: "True",
+    type: "Progressing",
+  });
+  for (const pod of value.pods) {
+    pod.status.hostIP = "172.18.0.2";
+    pod.status.podIPs = [{ ip: pod.status.podIP }];
+    pod.status.qosClass = "Burstable";
+    pod.status.startTime = timestamp;
+    pod.status.conditions.unshift({ status: "True", type: "PodScheduled" });
+  }
+  value.services[0].metadata.finalizers = ["service.kubernetes.io/load-balancer-cleanup"];
+  if (value.jobs.length === 1) value.jobs[0].status.uncountedTerminatedPods = {};
+  return value;
+}
+
+function emptyObservabilityProviderState() {
+  return {
+    configMaps: [], deployments: [], endpointSlices: [], ingresses: [], jobLog: null,
+    jobs: [], pods: [], replicaSets: [], services: [],
+  };
+}
+
 function providerList(items) {
   return `${JSON.stringify({ apiVersion: "v1", items, kind: "List", metadata: { resourceVersion: "" } })}\n`;
 }
@@ -507,6 +547,7 @@ test("applies only product, graph, and Collector core descriptors before the sta
     ["observabilityCoreManifest", "/safe/runtime/observability.yaml"],
     ["observabilitySpanManifest", "/safe/runtime/observability-span.yaml"],
   ]);
+  assert.equal(system.observabilityCoreMayHaveApplied, true);
 });
 
 test("binds complete Collector index, platform, and runtime metadata", () => {
@@ -651,6 +692,7 @@ test("stages one span Job only after exact core readiness and reads one stable s
       super(input);
       this.events = [];
       this.outcome = outcome;
+      this.productProviderSnapshot = Object.freeze({ token: "stable-product-provider-state" });
     }
 
     async verifyGraphReadiness(value) {
@@ -668,6 +710,11 @@ test("stages one span Job only after exact core readiness and reads one stable s
       return { outcome: this.outcome };
     }
 
+    async requireObservabilitySinkAbsent(retained) {
+      assert.deepEqual(retained, core);
+      this.events.push("sink-absent");
+    }
+
     async readObservabilitySink(retained) {
       assert.deepEqual(retained, complete);
       this.events.push("read-sink");
@@ -681,26 +728,57 @@ test("stages one span Job only after exact core readiness and reads one stable s
     ...graphResult,
     observability: { internal: true, noEgress: true, ready: true, sink: true, spans: 1 },
   });
-  assert.deepEqual(system.events, ["graph", "core", "apply-job", "complete", "read-sink", "stable"]);
+  assert.deepEqual(system.events, [
+    "graph", "core", "sink-absent", "apply-job", "complete", "read-sink", "stable",
+  ]);
+  assert.equal(system.observabilityCoreMayHaveApplied, false);
   assert.equal(system.observabilityJobMayHaveApplied, false);
   assert.deepEqual(system.observabilityProviderIdentity, complete);
 
   for (const outcome of ["definitive", "rejected"]) {
     const rejected = new StagedSystem(outcome);
     await assert.rejects(() => rejected.verifyAdditionalReadiness(graphResult, phase), { category: "provider" });
-    assert.deepEqual(rejected.events, ["graph", "core", "apply-job"]);
+    assert.deepEqual(rejected.events, ["graph", "core", "sink-absent", "apply-job"]);
     assert.equal(rejected.observabilityJobMayHaveApplied, false);
   }
 });
 
+test("retains the original product snapshot across graph and observability reproof", async () => {
+  const baseline = Object.freeze({ token: "original-product-provider-state" });
+  const graphResult = Object.freeze({
+    graph: Object.freeze({ internal: true, persistent: true, ready: true }),
+    internal: true,
+    pods: 4,
+    ready: 4,
+    services: 4,
+  });
+  class DriftSystem extends LocalObservabilitySystem {
+    constructor() {
+      super(input);
+      this.productProviderSnapshot = baseline;
+    }
+    async verifyGraphReadiness() {
+      this.productProviderSnapshot = Object.freeze({ token: "drifted-product-provider-state" });
+      return graphResult;
+    }
+  }
+  const system = new DriftSystem();
+  await assert.rejects(
+    () => system.verifyAdditionalReadiness(graphResult, { assertActive() {} }),
+    { category: "ownership" },
+  );
+  assert.equal(system.productProviderSnapshot, baseline);
+});
+
 test("uses fixed bounded provider, Job-apply, log, and sink command boundaries", async () => {
   const state = observabilityProviderState();
+  const rawState = realisticObservabilityProviderState();
   const expected = observabilityExpectation();
   const complete = validateObservabilityKubernetesState(state, expected, undefined, true);
   const resourceMap = new Map([
-    ["configmap", state.configMaps], ["deployment", state.deployments], ["replicaset", state.replicaSets],
-    ["pod", state.pods], ["service", state.services], ["endpointslice", state.endpointSlices],
-    ["job", state.jobs], ["ingress", state.ingresses],
+    ["configmap", rawState.configMaps], ["deployment", rawState.deployments],
+    ["replicaset", rawState.replicaSets], ["pod", rawState.pods], ["service", rawState.services],
+    ["endpointslice", rawState.endpointSlices], ["job", rawState.jobs], ["ingress", rawState.ingresses],
   ]);
 
   class ProviderSystem extends LocalObservabilitySystem {
@@ -779,6 +857,13 @@ test("uses fixed bounded provider, Job-apply, log, and sink command boundaries",
   ]);
   assert.match(sinkCall[2].at(-1), /test ! -L.*stat -Lc.*dd if=.*bs=65537.*stat -Lc/u);
 
+  system.sink = "ZASP-SINK-ABSENT\n";
+  await system.requireObservabilitySinkAbsent(complete, phase);
+  system.sink = sinkFrame();
+  await assert.rejects(
+    () => system.requireObservabilitySinkAbsent(complete, phase), { category: "readiness" },
+  );
+
   for (const source of [
     "", "provider output\n", sinkFrame(undefined, "9|10|0|regular file|10001|10001|600"),
     sinkFrame().replace("ZASP-SINK:9|10|", "ZASP-SINK:9|11|"),
@@ -798,6 +883,111 @@ test("uses fixed bounded provider, Job-apply, log, and sink command boundaries",
   }
 });
 
+test("classifies thrown and signaled Job apply and sink exec boundaries without raw output", async () => {
+  const expected = observabilityExpectation();
+  const complete = validateObservabilityKubernetesState(
+    observabilityProviderState(), expected, undefined, true,
+  );
+  class BoundarySystem extends LocalObservabilitySystem {
+    constructor(result) {
+      super(input);
+      this.paths = Object.freeze({
+        graphManifest: "/safe/runtime/graph.yaml",
+        kubeconfig: "/safe/runtime/kubeconfig",
+        observabilityCoreManifest: "/safe/runtime/observability.yaml",
+        observabilitySpanManifest: "/safe/runtime/observability-span.yaml",
+      });
+      this.environment = Object.freeze({ PATH: input.path });
+      this.result = result;
+      this.dependencies = {
+        ...this.dependencies,
+        command: async () => {
+          if (this.result instanceof Error) throw this.result;
+          return this.result;
+        },
+      };
+    }
+    async requireOwnedPath() {}
+    async verifyAdditionalManifestState() {}
+    async withOwnedFiles(paths, _phase, _category, callback) {
+      return await callback(paths.map((path, index) => ({
+        handle: { fd: index + 3 },
+        identity: {
+          bytes: Buffer.from(path === this.paths.observabilitySpanManifest
+            ? renderObservabilitySpanManifest(buildObservabilityResources().slice(3)) : "owned", "utf8"),
+        },
+      })));
+    }
+  }
+  const phase = { assertActive() {}, signal: new AbortController().signal };
+  const childResults = [
+    new Error("raw provider error"),
+    { signal: "SIGKILL", status: null, stderr: "", stdout: "", thrown: false, timedOut: false },
+    { signal: null, status: 0, stderr: "", stdout: "", thrown: true, timedOut: false },
+  ];
+  for (const childResult of childResults) {
+    const system = new BoundarySystem(childResult);
+    assert.equal((await system.applyObservabilityJob(phase)).outcome, "ambiguous");
+    await assert.rejects(() => system.readObservabilitySink(complete, phase), { category: "readiness" });
+    await system.joinMutations({ assertActive() {} });
+  }
+  const definitive = new BoundarySystem({
+    signal: null, status: 1, stderr: "", stdout: "", thrown: false, timedOut: false,
+  });
+  assert.equal((await definitive.applyObservabilityJob(phase)).outcome, "definitive");
+});
+
+test("reconciles uncertain Collector core application before inherited destructive cleanup", async () => {
+  const expected = observabilityExpectation();
+  const coreState = observabilityProviderState({ includeJob: false });
+  const phase = { assertActive() {} };
+  class CoreCleanupSystem extends LocalObservabilitySystem {
+    constructor(values) {
+      super(input);
+      this.paths = Object.freeze({
+        graphManifest: "/safe/runtime/graph.yaml",
+        observabilityCoreManifest: "/safe/runtime/observability.yaml",
+        observabilitySpanManifest: "/safe/runtime/observability-span.yaml",
+      });
+      this.observabilityCoreMayHaveApplied = true;
+      this.values = [...values];
+      this.events = [];
+    }
+    observabilityProviderExpectation() { return expected; }
+    async requireTemporaryOwnership() { this.events.push("temporary"); }
+    async requireOwnedPath(path) { this.events.push(`descriptor:${path}`); }
+    async verifyGraphNodeForCleanup() { this.events.push("graph-cleanup-proof"); }
+    async readObservabilityProviderState() {
+      this.events.push("observability-cleanup-proof");
+      return this.values.length > 1 ? this.values.shift() : this.values[0];
+    }
+  }
+
+  const absent = new CoreCleanupSystem([emptyObservabilityProviderState()]);
+  await absent.verifyAdditionalNodeForCleanup(phase);
+  assert.equal(absent.observabilityCoreMayHaveApplied, false);
+  assert.equal(absent.observabilityProviderIdentity, undefined);
+  assert.deepEqual(absent.events.slice(0, 5), [
+    "temporary",
+    "descriptor:/safe/runtime/graph.yaml",
+    "descriptor:/safe/runtime/observability.yaml",
+    "descriptor:/safe/runtime/observability-span.yaml",
+    "graph-cleanup-proof",
+  ]);
+  assert.ok(absent.events.includes("observability-cleanup-proof"));
+
+  const present = new CoreCleanupSystem([coreState]);
+  await present.verifyAdditionalNodeForCleanup(phase);
+  assert.equal(present.observabilityCoreMayHaveApplied, false);
+  assert.equal(present.observabilityProviderIdentity.collector.podUid, providerUid(42));
+
+  const partialState = emptyObservabilityProviderState();
+  partialState.configMaps = clone(coreState.configMaps);
+  const partial = new CoreCleanupSystem([partialState, partialState, partialState]);
+  await assert.rejects(() => partial.verifyAdditionalNodeForCleanup(phase), { category: "cleanup" });
+  assert.equal(partial.observabilityCoreMayHaveApplied, true);
+});
+
 test("reconciles an uncertain Job before destructive graph cleanup and rejects replacement", async () => {
   const expected = observabilityExpectation();
   const core = validateObservabilityKubernetesState(
@@ -808,6 +998,11 @@ test("reconciles an uncertain Job before destructive graph cleanup and rejects r
   class CleanupSystem extends LocalObservabilitySystem {
     constructor() {
       super(input);
+      this.paths = Object.freeze({
+        graphManifest: "/safe/runtime/graph.yaml",
+        observabilityCoreManifest: "/safe/runtime/observability.yaml",
+        observabilitySpanManifest: "/safe/runtime/observability-span.yaml",
+      });
       this.graphLoadedImageTargets.set("busybox", expected.imageTargets.busybox);
       this.graphLoadedImageTargets.set("collector", expected.imageTargets.collector);
       this.observabilityProviderIdentity = core;
@@ -815,6 +1010,8 @@ test("reconciles an uncertain Job before destructive graph cleanup and rejects r
       this.values = [completeState];
       this.events = [];
     }
+    async requireTemporaryOwnership() {}
+    async requireOwnedPath() {}
     async verifyGraphNodeForCleanup() { this.events.push("graph-cleanup-proof"); }
     async readObservabilityProviderState() {
       this.events.push("observability-cleanup-proof");
@@ -922,6 +1119,105 @@ test("emits fixed success and panic-normalized failure output", async () => {
   assert.equal(stdout, "");
   assert.equal(stderr, "Local observability manifest failed: panic rejected.\n");
   assert.equal(new ObservabilityFailure("forged").category, "panic");
+});
+
+test("bounds cancellation, joins late mutations, and preserves cleanup precedence", async () => {
+  const result = {
+    graph: { internal: true, persistent: true, ready: true },
+    internal: true,
+    observability: { internal: true, noEgress: true, ready: true, sink: true, spans: 1 },
+    pods: 4,
+    ready: 4,
+    services: 4,
+  };
+  let stderr = "";
+  const timedOut = fakeLifecycle(result, {
+    async verifyReadiness() { return await new Promise(() => {}); },
+  });
+  assert.equal(await runObservabilityMain(timedOut.runtime, {
+    stdout: { write() {} },
+    stderr: { write(value) { stderr += value; } },
+    setExitCode() {},
+    mainTimeoutMilliseconds: 5,
+    cleanupTimeoutMilliseconds: 50,
+    settlementTimeoutMilliseconds: 5,
+  }), 1);
+  assert.equal(stderr, "Local observability manifest failed: deadline rejected.\n");
+  assert.deepEqual(timedOut.calls.slice(-3), ["joinMutations", "cleanup", "auditAbsence"]);
+
+  const events = [];
+  let settle;
+  const late = new Promise((resolve) => { settle = resolve; });
+  const joined = fakeLifecycle(result, {
+    async verifyReadiness() {
+      events.push("mutation-start");
+      setTimeout(() => { events.push("late-mutation"); settle(); }, 5);
+      throw new ObservabilityFailure("provider");
+    },
+    async joinMutations() { events.push("join-start"); await late; events.push("join-complete"); },
+    async cleanup() { events.push("cleanup"); },
+    async auditAbsence() { events.push("audit"); },
+  });
+  stderr = "";
+  assert.equal(await runObservabilityMain(joined.runtime, {
+    stdout: { write() {} },
+    stderr: { write(value) { stderr += value; } },
+    setExitCode() {},
+    mainTimeoutMilliseconds: 50,
+    cleanupTimeoutMilliseconds: 50,
+    settlementTimeoutMilliseconds: 10,
+  }), 1);
+  assert.equal(stderr, "Local observability manifest failed: provider rejected.\n");
+  assert.deepEqual(events, ["mutation-start", "join-start", "late-mutation", "join-complete", "cleanup", "audit"]);
+
+  const precedence = fakeLifecycle(result, {
+    async verifyReadiness() { throw new ObservabilityFailure("provider"); },
+    async cleanup() { precedence.calls.push("cleanup"); throw new Error("raw cleanup panic"); },
+    async auditAbsence() { precedence.calls.push("auditAbsence"); },
+  });
+  stderr = "";
+  assert.equal(await runObservabilityMain(precedence.runtime, {
+    stdout: { write() {} },
+    stderr: { write(value) { stderr += value; } },
+    setExitCode() {},
+    mainTimeoutMilliseconds: 50,
+    cleanupTimeoutMilliseconds: 50,
+    settlementTimeoutMilliseconds: 10,
+  }), 1);
+  assert.equal(stderr, "Local observability manifest failed: cleanup rejected.\n");
+  assert.deepEqual(precedence.calls.slice(-3), ["joinMutations", "cleanup", "auditAbsence"]);
+
+  const absence = fakeLifecycle(result, {
+    async auditAbsence() { absence.calls.push("auditAbsence"); throw new Error("raw absence panic"); },
+  });
+  stderr = "";
+  assert.equal(await runObservabilityMain(absence.runtime, {
+    stdout: { write() {} },
+    stderr: { write(value) { stderr += value; } },
+    setExitCode() {},
+    mainTimeoutMilliseconds: 50,
+    cleanupTimeoutMilliseconds: 50,
+    settlementTimeoutMilliseconds: 10,
+  }), 1);
+  assert.equal(stderr, "Local observability manifest failed: cleanup rejected.\n");
+  assert.deepEqual(absence.calls.slice(-3), ["joinMutations", "cleanup", "auditAbsence"]);
+
+  const blocked = fakeLifecycle(result, {
+    async joinMutations() { blocked.calls.push("joinMutations"); return await new Promise(() => {}); },
+  });
+  stderr = "";
+  assert.equal(await runObservabilityMain(blocked.runtime, {
+    stdout: { write() {} },
+    stderr: { write(value) { stderr += value; } },
+    setExitCode() {},
+    mainTimeoutMilliseconds: 50,
+    cleanupTimeoutMilliseconds: 5,
+    settlementTimeoutMilliseconds: 5,
+  }), 1);
+  assert.equal(stderr, "Local observability manifest failed: cleanup rejected.\n");
+  assert.deepEqual(blocked.calls.slice(-1), ["joinMutations"]);
+  assert.equal(blocked.calls.includes("cleanup"), false);
+  assert.equal(blocked.calls.includes("auditAbsence"), false);
 });
 
 test("retains the validated observability system through the Docker runtime", () => {
