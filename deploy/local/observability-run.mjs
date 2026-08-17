@@ -3,8 +3,12 @@ import { isDeepStrictEqual } from "node:util";
 
 import {
   buildObservabilityCoreResources,
+  buildObservabilityResources,
   buildObservabilitySpanResources,
+  buildSyntheticObservabilitySpan,
   COLLECTOR_IMAGE,
+  OBSERVABILITY_CONSTANTS,
+  parseObservabilitySink,
   renderObservabilityCoreManifest,
   renderObservabilitySpanManifest,
 } from "./observability-manifest.mjs";
@@ -19,6 +23,10 @@ import { Failure, orchestrate, parseBoundedJson } from "./run.mjs";
 const observabilityMainTimeoutMilliseconds = 900_000;
 const observabilityCleanupTimeoutMilliseconds = 300_000;
 const observabilitySettlementTimeoutMilliseconds = 60_000;
+const observabilityProviderByteLimit = 4_194_304;
+const observabilityProviderPollLimit = 180;
+const observabilityProviderPollMilliseconds = 500;
+const observabilityJobLog = "otel-test-span-sent\n";
 const digestPattern = /^sha256:[0-9a-f]{64}$/;
 const collectorImagePlan = deepFreeze({
   indexDigest: "sha256:c5918f78992ee73b0d6f0e599423ac5ec52dd5d9726733114d6eca53d5a32ed5",
@@ -294,10 +302,163 @@ export function validateCollectorImageInspection(document, selected, resolution,
   }
 }
 
+export function validateObservabilityKubernetesState(value, expected, retained = undefined, requireJob = false,
+  category = "readiness") {
+  try {
+    requireKeySet(value, [
+      "configMaps", "deployments", "endpointSlices", "ingresses", "jobLog", "jobs", "pods", "replicaSets",
+      "services",
+    ]);
+    requireKeySet(expected, ["imageTargets", "nodeName"]);
+    requireKeySet(expected.imageTargets, ["busybox", "collector"]);
+    for (const name of ["busybox", "collector"]) {
+      requireKeySet(expected.imageTargets[name], ["configDigest", "imageID"]);
+      if (!digestPattern.test(expected.imageTargets[name].configDigest) ||
+          !/^docker\.io\/library\/import-\d{4}-\d{2}-\d{2}@sha256:[0-9a-f]{64}$/.test(
+            expected.imageTargets[name].imageID,
+          )) throw new TypeError("observability image target is invalid");
+    }
+    if (!/^zasp-m1-30c-[0-9a-f]{16}-control-plane$/.test(expected.nodeName) ||
+        typeof requireJob !== "boolean" || !OBSERVABILITY_FAILURE_CATEGORIES.includes(category) ||
+        !plainArray(value.configMaps) || value.configMaps.length !== 1 ||
+        !plainArray(value.deployments) || value.deployments.length !== 1 ||
+        !plainArray(value.replicaSets) || value.replicaSets.length !== 1 ||
+        !plainArray(value.services) || value.services.length !== 1 ||
+        !plainArray(value.endpointSlices) || value.endpointSlices.length !== 1 ||
+        !plainArray(value.ingresses) || value.ingresses.length !== 0 || !plainArray(value.jobs) ||
+        value.jobs.length !== (requireJob ? 1 : 0) || !plainArray(value.pods) ||
+        value.pods.length !== (requireJob ? 2 : 1) || value.jobLog !== (requireJob ? observabilityJobLog : null)) {
+      throw new TypeError("observability provider collection is invalid");
+    }
+
+    const [configResource, deploymentResource, serviceResource, jobResource] = buildObservabilityResources();
+    const configMap = value.configMaps[0];
+    const deployment = value.deployments[0];
+    const replicaSet = value.replicaSets[0];
+    const collectorPod = value.pods.find((pod) => pod?.metadata?.labels?.["app.kubernetes.io/name"] === "otel-collector");
+    const service = value.services[0];
+    const endpointSlice = value.endpointSlices[0];
+    const deploymentUid = providerUid(deployment?.metadata?.uid);
+    const replicaSetUid = providerUid(replicaSet?.metadata?.uid);
+    const podUid = providerUid(collectorPod?.metadata?.uid);
+    const serviceUid = providerUid(service?.metadata?.uid);
+    const configUid = providerUid(configMap?.metadata?.uid);
+    const endpointUid = providerUid(endpointSlice?.metadata?.uid);
+    const deploymentVersion = providerVersion(deployment?.metadata?.resourceVersion);
+    const replicaSetVersion = providerVersion(replicaSet?.metadata?.resourceVersion);
+    const podVersion = providerVersion(collectorPod?.metadata?.resourceVersion);
+    const serviceVersion = providerVersion(service?.metadata?.resourceVersion);
+    const configVersion = providerVersion(configMap?.metadata?.resourceVersion);
+    const endpointVersion = providerVersion(endpointSlice?.metadata?.resourceVersion);
+    const hash = /^otel-collector-([a-z0-9]{10})$/.exec(replicaSet?.metadata?.name ?? "")?.[1];
+    const podName = hash === undefined ? undefined : /^otel-collector-[a-z0-9]{10}-[a-z0-9]{5}$/.test(
+      collectorPod?.metadata?.name ?? "",
+    ) ? collectorPod.metadata.name : undefined;
+    const podIP = validPodAddress(collectorPod?.status?.podIP) ? collectorPod.status.podIP : undefined;
+    const clusterIP = validServiceAddress(service?.spec?.clusterIP) ? service.spec.clusterIP : undefined;
+    const endpointName = /^otel-collector-[a-z0-9]{5}$/.test(endpointSlice?.metadata?.name ?? "")
+      ? endpointSlice.metadata.name : undefined;
+    const collectorStatus = collectorPod?.status?.containerStatuses?.find(({ name }) => name === "otel-collector");
+    const readerStatus = collectorPod?.status?.containerStatuses?.find(({ name }) => name === "sink-reader");
+    const collectorContainerId = providerContainerId(collectorStatus?.containerID);
+    const readerContainerId = providerContainerId(readerStatus?.containerID);
+    const collectorStartedAt = providerTimestamp(collectorStatus?.state?.running?.startedAt);
+    const readerStartedAt = providerTimestamp(readerStatus?.state?.running?.startedAt);
+    if ([deploymentUid, replicaSetUid, podUid, serviceUid, configUid, endpointUid, deploymentVersion,
+      replicaSetVersion, podVersion, serviceVersion, configVersion, endpointVersion, hash, podName, podIP,
+      clusterIP, endpointName, collectorContainerId, readerContainerId, collectorStartedAt, readerStartedAt]
+      .some((item) => item === undefined)) throw new TypeError("observability provider identity is invalid");
+
+    const replicaLabels = { ...deploymentResource.metadata.labels, "pod-template-hash": hash };
+    const expectedConfig = {
+      apiVersion: "v1", data: structuredClone(configResource.data), kind: "ConfigMap",
+      metadata: { labels: structuredClone(configResource.metadata.labels), name: "otel-collector", namespace: "zasp-local" },
+    };
+    expectedConfig.metadata.name = "otel-collector-config";
+    Object.assign(expectedConfig.metadata, { resourceVersion: configVersion, uid: configUid });
+    const expectedDeployment = {
+      apiVersion: "apps/v1", kind: "Deployment",
+      metadata: { generation: 1, labels: structuredClone(deploymentResource.metadata.labels), name: "otel-collector", namespace: "zasp-local", resourceVersion: deploymentVersion, uid: deploymentUid },
+      spec: { ...structuredClone(deploymentResource.spec), template: providerObservabilityTemplate(deploymentResource.spec.template) },
+      status: { availableReplicas: 1, conditions: [{ status: "True", type: "Available" }], observedGeneration: 1, readyReplicas: 1, replicas: 1, unavailableReplicas: 0, updatedReplicas: 1 },
+    };
+    const expectedReplicaSet = {
+      apiVersion: "apps/v1", kind: "ReplicaSet",
+      metadata: {
+        labels: replicaLabels, name: `otel-collector-${hash}`, namespace: "zasp-local",
+        ownerReferences: [{ apiVersion: "apps/v1", blockOwnerDeletion: true, controller: true, kind: "Deployment", name: "otel-collector", uid: deploymentUid }],
+        resourceVersion: replicaSetVersion, uid: replicaSetUid,
+      },
+      spec: { replicas: 1, selector: { matchLabels: { "app.kubernetes.io/name": "otel-collector", "pod-template-hash": hash } }, template: providerObservabilityTemplate(deploymentResource.spec.template, replicaLabels) },
+      status: { availableReplicas: 1, fullyLabeledReplicas: 1, observedGeneration: 1, readyReplicas: 1, replicas: 1 },
+    };
+    const expectedPod = {
+      apiVersion: "v1", kind: "Pod",
+      metadata: {
+        labels: replicaLabels, name: podName, namespace: "zasp-local",
+        ownerReferences: [{ apiVersion: "apps/v1", blockOwnerDeletion: true, controller: true, kind: "ReplicaSet", name: `otel-collector-${hash}`, uid: replicaSetUid }],
+        resourceVersion: podVersion, uid: podUid,
+      },
+      spec: providerObservabilityPodSpec(deploymentResource.spec.template, expected.nodeName),
+      status: {
+        conditions: [{ status: "True", type: "Ready" }],
+        containerStatuses: [
+          { containerID: collectorContainerId, image: expected.imageTargets.collector.configDigest, imageID: expected.imageTargets.collector.imageID, lastState: {}, name: "otel-collector", ready: true, restartCount: 0, started: true, state: { running: { startedAt: collectorStartedAt } } },
+          { containerID: readerContainerId, image: expected.imageTargets.busybox.configDigest, imageID: expected.imageTargets.busybox.imageID, lastState: {}, name: "sink-reader", ready: true, restartCount: 0, started: true, state: { running: { startedAt: readerStartedAt } } },
+        ],
+        phase: "Running", podIP,
+      },
+    };
+    const expectedService = {
+      apiVersion: "v1", kind: "Service",
+      metadata: { labels: structuredClone(serviceResource.metadata.labels), name: "otel-collector", namespace: "zasp-local", resourceVersion: serviceVersion, uid: serviceUid },
+      spec: { clusterIP, clusterIPs: [clusterIP], internalTrafficPolicy: "Cluster", ...structuredClone(serviceResource.spec) },
+      status: { loadBalancer: {} },
+    };
+    const expectedEndpoint = {
+      addressType: "IPv4", apiVersion: "discovery.k8s.io/v1",
+      endpoints: [{ addresses: [podIP], conditions: { ready: true, serving: true, terminating: false }, nodeName: expected.nodeName, targetRef: { kind: "Pod", name: podName, namespace: "zasp-local", uid: podUid } }],
+      kind: "EndpointSlice",
+      metadata: {
+        labels: { "endpointslice.kubernetes.io/managed-by": "endpointslice-controller.k8s.io", "kubernetes.io/service-name": "otel-collector" },
+        name: endpointName, namespace: "zasp-local",
+        ownerReferences: [{ apiVersion: "v1", blockOwnerDeletion: true, controller: true, kind: "Service", name: "otel-collector", uid: serviceUid }],
+        resourceVersion: endpointVersion, uid: endpointUid,
+      },
+      ports: [{ name: "otlp-http", port: 4318, protocol: "TCP" }],
+    };
+    if (![isDeepStrictEqual(configMap, expectedConfig), isDeepStrictEqual(deployment, expectedDeployment),
+      isDeepStrictEqual(replicaSet, expectedReplicaSet), isDeepStrictEqual(collectorPod, expectedPod),
+      isDeepStrictEqual(service, expectedService), isDeepStrictEqual(endpointSlice, expectedEndpoint)]
+      .every(Boolean)) throw new TypeError("observability core provider state is invalid");
+
+    const snapshot = deepFreeze({
+      configMaps: structuredClone(value.configMaps), deployments: structuredClone(value.deployments),
+      endpointSlices: structuredClone(value.endpointSlices), ingresses: [], pods: [structuredClone(collectorPod)],
+      replicaSets: structuredClone(value.replicaSets), services: structuredClone(value.services),
+    });
+    const collector = deepFreeze({
+      collectorContainerId, podIP, podName, podUid, readerContainerId, resourceVersion: configVersion,
+    });
+    if (retained !== undefined && (!isPlainObject(retained) || !isDeepStrictEqual(retained.collector, collector) ||
+      !isDeepStrictEqual(retained.snapshot, snapshot))) throw new TypeError("observability core state changed");
+    let job = null;
+    if (requireJob) job = validateObservabilityJob(value, expected, jobResource);
+    if (requireJob && retained?.job !== null && retained?.job !== undefined &&
+        !isDeepStrictEqual(retained.job, job)) throw new TypeError("observability Job state changed");
+    return deepFreeze({ collector, job, ready: true, snapshot });
+  } catch (error) {
+    if (error instanceof Failure) throw error;
+    throw new ObservabilityFailure(category);
+  }
+}
+
 export class LocalObservabilitySystem extends LocalGraphSystem {
   constructor(input, dependencies = undefined) {
     super(input, dependencies, buildObservabilityProfile());
     this.graphImagePlans.set("collector", buildCollectorImagePlan(input.nodePlatform));
+    this.observabilityJobMayHaveApplied = false;
+    this.observabilityProviderIdentity = undefined;
   }
 
   async applyManifests(phase) {
@@ -320,6 +481,214 @@ export class LocalObservabilitySystem extends LocalGraphSystem {
     }
     await super.verifyAdditionalManifestState(phase, this.paths.graphManifest);
     await this.requireOwnedPath(path, phase, "ownership");
+  }
+
+  observabilityProviderExpectation() {
+    const targets = {};
+    for (const name of ["busybox", "collector"]) {
+      const selected = this.graphImagePlans.get(name);
+      const loaded = this.graphLoadedImageTargets.get(name);
+      if (selected === undefined || loaded === undefined || !digestPattern.test(selected.configDigest) ||
+          typeof loaded.imageID !== "string") throw new ObservabilityFailure("ownership");
+      targets[name] = { configDigest: selected.configDigest, imageID: loaded.imageID };
+    }
+    return deepFreeze({ imageTargets: targets, nodeName: `${this.cluster}-control-plane` });
+  }
+
+  async readObservabilityProviderState(phase, category = "readiness") {
+    await this.requireTemporaryOwnership(phase, "ownership");
+    await this.verifyCluster(phase, "ownership");
+    const requests = [
+      ["configMaps", "configmap", "app.kubernetes.io/component=observability"],
+      ["deployments", "deployment", "app.kubernetes.io/component=observability"],
+      ["replicaSets", "replicaset", "app.kubernetes.io/component=observability"],
+      ["pods", "pod", "app.kubernetes.io/component=observability"],
+      ["services", "service", "app.kubernetes.io/component=observability"],
+      ["endpointSlices", "endpointslice", "kubernetes.io/service-name=otel-collector"],
+      ["jobs", "job", "app.kubernetes.io/component=observability"],
+      ["ingresses", "ingress", "app.kubernetes.io/component=observability"],
+    ];
+    const documents = {};
+    for (const [name, resource, selector] of requests) {
+      const result = await super.runKubectlRead([
+        "get", resource, "--namespace", OBSERVABILITY_CONSTANTS.namespace,
+        `--selector=${selector}`, "--output=json",
+      ], phase, category, 30_000, observabilityProviderByteLimit);
+      documents[name] = parseObservabilityProviderList(result.stdout);
+    }
+    const spanPods = documents.pods.filter((pod) =>
+      pod?.metadata?.labels?.["app.kubernetes.io/name"] === OBSERVABILITY_CONSTANTS.spanJobName);
+    let jobLog = null;
+    if (spanPods.length === 1 && /^otel-test-span-[a-z0-9]{5}$/.test(spanPods[0]?.metadata?.name ?? "")) {
+      const result = await super.runKubectlRead([
+        "logs", "--namespace", OBSERVABILITY_CONSTANTS.namespace, spanPods[0].metadata.name,
+        "--container", "span-generator",
+      ], phase, category, 30_000, 16_384);
+      jobLog = result.stdout;
+    }
+    return { ...documents, jobLog };
+  }
+
+  async verifyObservabilityBaseState(phase, category) {
+    if (this.graphProviderIdentity === undefined) throw new ObservabilityFailure("ownership");
+    await this.verifyProductReadiness(phase);
+    this.graphProviderIdentity = await this.pollGraphProviderState(
+      phase, this.graphProviderIdentity, false, category,
+    );
+  }
+
+  async pauseObservabilityPoll(phase, category) {
+    await new Promise((resolve) => setTimeout(resolve, observabilityProviderPollMilliseconds));
+    phase.assertActive(category);
+  }
+
+  async pollObservabilityProviderState(phase, retained = undefined, requireJob = false,
+    category = "readiness") {
+    let failure;
+    for (let attempt = 0; attempt < observabilityProviderPollLimit; attempt += 1) {
+      phase.assertActive(category);
+      try {
+        const providerState = await this.readObservabilityProviderState(phase, category);
+        if (terminalObservabilityProviderState(providerState, requireJob)) {
+          throw new ObservabilityFailure(category === "readiness" ? "provider" : category);
+        }
+        const candidate = validateObservabilityKubernetesState(
+          providerState, this.observabilityProviderExpectation(), retained, requireJob, category,
+        );
+        await this.verifyObservabilityBaseState(phase, category);
+        await this.verifyAdditionalManifestState(phase, this.paths.observabilityCoreManifest);
+        if (requireJob) {
+          await this.verifyAdditionalManifestState(phase, this.paths.observabilitySpanManifest);
+        }
+        const stable = validateObservabilityKubernetesState(
+          await this.readObservabilityProviderState(phase, category),
+          this.observabilityProviderExpectation(), candidate, requireJob, category,
+        );
+        return stable;
+      } catch (error) {
+        if (!(error instanceof Failure) || error.category !== category) throw error;
+        failure = error;
+      }
+      if (attempt + 1 < observabilityProviderPollLimit) await this.pauseObservabilityPoll(phase, category);
+    }
+    throw failure ?? new ObservabilityFailure(category);
+  }
+
+  async applyObservabilityJob(phase) {
+    const path = this.paths?.observabilitySpanManifest;
+    if (path === undefined) throw new ObservabilityFailure("ownership");
+    await this.verifyAdditionalManifestState(phase, path);
+    const result = await this.withOwnedFiles(
+      [this.paths.kubeconfig, path], phase, "ownership", async ([kubeconfig, manifest]) =>
+        await this.runMutation("kubectl", [
+          "--kubeconfig", "/dev/fd/3", "apply", "--filename", "-",
+        ], phase, "provider", {
+          environment: this.environment,
+          fileDescriptors: [kubeconfig.handle.fd],
+          input: manifest.identity.bytes,
+          outputLimit: 4_194_304,
+          timeoutMilliseconds: 90_000,
+        }),
+    );
+    await this.requireOwnedPath(this.paths.kubeconfig, phase, "ownership");
+    await this.requireOwnedPath(path, phase, "ownership");
+    return result;
+  }
+
+  async readObservabilitySink(retained, phase) {
+    const podName = retained?.collector?.podName;
+    if (!/^otel-collector-[a-z0-9]{10}-[a-z0-9]{5}$/.test(podName ?? "")) {
+      throw new ObservabilityFailure("ownership");
+    }
+    const path = OBSERVABILITY_CONSTANTS.sinkPath;
+    const source = [
+      "set -eu",
+      `path=${path}`,
+      "test ! -L \"$path\"",
+      "before=$(stat -Lc '%d|%i|%s|%F|%u|%g|%a' -- \"$path\")",
+      "printf 'ZASP-SINK:%s\\n' \"$before\"",
+      `dd if="$path" bs=${OBSERVABILITY_CONSTANTS.sinkByteLimit + 1} count=1 status=none`,
+      "after=$(stat -Lc '%d|%i|%s|%F|%u|%g|%a' -- \"$path\")",
+      "printf 'ZASP-SINK:%s\\n' \"$after\"",
+    ].join("; ");
+    const result = await super.runKubectlRead([
+      "exec", "--namespace", OBSERVABILITY_CONSTANTS.namespace, podName,
+      "--container", "sink-reader", "--", "sh", "-ec", source,
+    ], phase, "readiness", 30_000, OBSERVABILITY_CONSTANTS.sinkByteLimit + 1_024);
+    return parseObservabilitySinkFrame(result.stdout);
+  }
+
+  async verifyGraphReadiness(productResult, phase) {
+    return await super.verifyAdditionalReadiness(productResult, phase);
+  }
+
+  async verifyAdditionalReadiness(productResult, phase) {
+    if (this.productReadinessOnly) return productResult;
+    const graphResult = await this.verifyGraphReadiness(productResult, phase);
+    const core = await this.pollObservabilityProviderState(phase);
+    this.observabilityProviderIdentity = core;
+    this.observabilityJobMayHaveApplied = true;
+    const applied = await this.applyObservabilityJob(phase);
+    if (!new Set(["ambiguous", "applied"]).has(applied?.outcome)) {
+      this.observabilityJobMayHaveApplied = false;
+      throw new ObservabilityFailure("provider");
+    }
+    const complete = await this.pollObservabilityProviderState(phase, core, true);
+    this.observabilityProviderIdentity = complete;
+    this.observabilityJobMayHaveApplied = false;
+    const span = await this.readObservabilitySink(complete, phase);
+    this.observabilityProviderIdentity = await this.pollObservabilityProviderState(phase, complete, true);
+    if (!isDeepStrictEqual(span, buildSyntheticObservabilitySpan())) {
+      throw new ObservabilityFailure("normalization");
+    }
+    return deepFreeze({
+      ...graphResult,
+      observability: { internal: true, noEgress: true, ready: true, sink: true, spans: 1 },
+    });
+  }
+
+  async verifyGraphNodeForCleanup(phase) {
+    return await super.verifyAdditionalNodeForCleanup(phase);
+  }
+
+  async verifyAdditionalNodeForCleanup(phase) {
+    await this.verifyGraphNodeForCleanup(phase);
+    const retained = this.observabilityProviderIdentity;
+    if (retained === undefined && !this.observabilityJobMayHaveApplied) return;
+    if (retained === undefined) throw new ObservabilityFailure("cleanup");
+    let failure;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      phase.assertActive("cleanup");
+      try {
+        const providerState = await this.readObservabilityProviderState(phase, "cleanup");
+        let current;
+        if (this.observabilityJobMayHaveApplied) {
+          try {
+            current = validateObservabilityKubernetesState(
+              providerState, this.observabilityProviderExpectation(), retained, true,
+              "cleanup",
+            );
+          } catch {
+            current = validateObservabilityKubernetesState(
+              providerState, this.observabilityProviderExpectation(), retained, false,
+              "cleanup",
+            );
+          }
+        } else {
+          current = validateObservabilityKubernetesState(
+            providerState, this.observabilityProviderExpectation(), retained, retained.job !== null,
+            "cleanup",
+          );
+        }
+        this.observabilityProviderIdentity = current;
+        this.observabilityJobMayHaveApplied = false;
+        return;
+      } catch (error) {
+        if (!(error instanceof Failure) || error.category !== "cleanup") throw error;
+        failure = error;
+      }
+    }
+    throw failure ?? new ObservabilityFailure("cleanup");
   }
 
   async resolveGraphImage(selected, phase) {
@@ -491,6 +860,211 @@ function validateStringMap(value) {
     key.length < 1 || key.length > 4_096 || typeof item !== "string" || item.length > 4_096)) {
     throw new TypeError("Collector annotations are invalid");
   }
+}
+
+function parseObservabilityProviderList(source) {
+  try {
+    const document = parseBoundedJson(source, observabilityProviderByteLimit);
+    requireKeySet(document, ["apiVersion", "items", "kind", "metadata"]);
+    requireKeySet(document.metadata, ["resourceVersion"]);
+    if (document.apiVersion !== "v1" || document.kind !== "List" ||
+        document.metadata.resourceVersion !== "" || !plainArray(document.items) ||
+        document.items.length > 128) throw new TypeError("observability provider list is invalid");
+    return structuredClone(document.items);
+  } catch (error) {
+    if (error instanceof Failure) throw error;
+    throw new ObservabilityFailure("normalization");
+  }
+}
+
+function terminalObservabilityProviderState(value, requireJob) {
+  if (!isPlainObject(value) || !plainArray(value.jobs) || !plainArray(value.pods)) return true;
+  const spanPods = value.pods.filter((pod) =>
+    pod?.metadata?.labels?.["app.kubernetes.io/name"] === OBSERVABILITY_CONSTANTS.spanJobName);
+  const collectorPods = value.pods.filter((pod) =>
+    pod?.metadata?.labels?.["app.kubernetes.io/name"] === OBSERVABILITY_CONSTANTS.collectorName);
+  if (collectorPods.length > 1 || value.jobs.length > 1 || spanPods.length > 1 ||
+      value.pods.some((pod) => pod?.metadata?.deletionTimestamp !== undefined) ||
+      value.pods.flatMap((pod) => pod?.status?.containerStatuses ?? []).some((status) =>
+        status?.restartCount > 0 || status?.state?.terminated?.exitCode !== undefined &&
+          status.state.terminated.exitCode !== 0)) return true;
+  if (!requireJob) return value.jobs.length !== 0 || spanPods.length !== 0;
+  return value.jobs.some((job) => job?.status?.failed > 0 || job?.status?.conditions?.some((condition) =>
+    condition?.type === "Failed" && condition?.status === "True"));
+}
+
+function parseObservabilitySinkFrame(source) {
+  try {
+    if (typeof source !== "string" || !source.endsWith("\n") ||
+        Buffer.byteLength(source, "utf8") > OBSERVABILITY_CONSTANTS.sinkByteLimit + 1_024) {
+      throw new TypeError("observability sink frame is invalid");
+    }
+    const lines = source.split("\n");
+    if (lines.length !== 4 || lines[3] !== "") throw new TypeError("observability sink frame is invalid");
+    const pattern = /^ZASP-SINK:(\d+)\|(\d+)\|(\d+)\|regular file\|(\d+)\|(\d+)\|([0-7]{3,4})$/;
+    const before = pattern.exec(lines[0]);
+    const after = pattern.exec(lines[2]);
+    if (before === null || after === null || lines[0] !== lines[2]) {
+      throw new TypeError("observability sink changed");
+    }
+    const numbers = before.slice(1, 6).map(Number);
+    const size = numbers[2];
+    if (numbers.some((value) => !Number.isSafeInteger(value) || value < 0) || numbers[0] < 1 || numbers[1] < 1 ||
+        size < 1 || size > OBSERVABILITY_CONSTANTS.sinkByteLimit ||
+        size !== Buffer.byteLength(`${lines[1]}\n`, "utf8")) throw new TypeError("observability sink identity is invalid");
+    return parseObservabilitySink(Buffer.from(`${lines[1]}\n`, "utf8"));
+  } catch (error) {
+    if (error instanceof Failure) throw error;
+    throw new ObservabilityFailure("normalization");
+  }
+}
+
+function validateObservabilityJob(value, expected, jobResource) {
+  const job = value.jobs[0];
+  const pod = value.pods.find((item) => item?.metadata?.labels?.["app.kubernetes.io/name"] === "otel-test-span");
+  const jobUid = providerUid(job?.metadata?.uid);
+  const podUid = providerUid(pod?.metadata?.uid);
+  const jobVersion = providerVersion(job?.metadata?.resourceVersion);
+  const podVersion = providerVersion(pod?.metadata?.resourceVersion);
+  const podName = /^otel-test-span-[a-z0-9]{5}$/.test(pod?.metadata?.name ?? "") ? pod.metadata.name : undefined;
+  const container = pod?.status?.containerStatuses?.[0];
+  const containerId = providerContainerId(container?.containerID);
+  const startTime = providerTimestamp(job?.status?.startTime);
+  const completionTime = providerTimestamp(job?.status?.completionTime);
+  const podStartedAt = providerTimestamp(container?.state?.terminated?.startedAt);
+  const finishedAt = providerTimestamp(container?.state?.terminated?.finishedAt);
+  const transitionTime = providerTimestamp(job?.status?.conditions?.[0]?.lastTransitionTime);
+  const probeTime = providerTimestamp(job?.status?.conditions?.[0]?.lastProbeTime);
+  const podIP = validPodAddress(pod?.status?.podIP) ? pod.status.podIP : undefined;
+  if ([jobUid, podUid, jobVersion, podVersion, podName, containerId, startTime, completionTime, podStartedAt,
+    finishedAt, transitionTime, probeTime, podIP].some((item) => item === undefined) ||
+      !(Date.parse(startTime) <= Date.parse(podStartedAt) && Date.parse(podStartedAt) < Date.parse(finishedAt) &&
+        Date.parse(finishedAt) <= Date.parse(completionTime)) || transitionTime !== completionTime ||
+      probeTime !== completionTime) throw new TypeError("observability Job identity is invalid");
+  const labels = {
+    ...jobResource.spec.template.metadata.labels,
+    "batch.kubernetes.io/controller-uid": jobUid,
+    "batch.kubernetes.io/job-name": "otel-test-span",
+    "controller-uid": jobUid,
+    "job-name": "otel-test-span",
+  };
+  const expectedJob = {
+    apiVersion: "batch/v1", kind: "Job",
+    metadata: { labels: structuredClone(jobResource.metadata.labels), name: "otel-test-span", namespace: "zasp-local", resourceVersion: jobVersion, uid: jobUid },
+    spec: {
+      activeDeadlineSeconds: 30, backoffLimit: 0, completionMode: "NonIndexed", completions: 1,
+      manualSelector: false, parallelism: 1, podReplacementPolicy: "Failed",
+      selector: { matchLabels: { "batch.kubernetes.io/controller-uid": jobUid } }, suspend: false,
+      template: providerObservabilityTemplate(jobResource.spec.template, labels),
+    },
+    status: {
+      completionTime,
+      conditions: [{ lastProbeTime: probeTime, lastTransitionTime: transitionTime, status: "True", type: "Complete" }],
+      failed: 0, ready: 0, startTime, succeeded: 1,
+    },
+  };
+  const expectedPod = {
+    apiVersion: "v1", kind: "Pod",
+    metadata: {
+      labels, name: podName, namespace: "zasp-local",
+      ownerReferences: [{ apiVersion: "batch/v1", blockOwnerDeletion: true, controller: true, kind: "Job", name: "otel-test-span", uid: jobUid }],
+      resourceVersion: podVersion, uid: podUid,
+    },
+    spec: providerObservabilityPodSpec(jobResource.spec.template, expected.nodeName),
+    status: {
+      conditions: [{ status: "False", type: "Ready" }],
+      containerStatuses: [{
+        containerID: containerId, image: expected.imageTargets.busybox.configDigest,
+        imageID: expected.imageTargets.busybox.imageID, lastState: {}, name: "span-generator", ready: false,
+        restartCount: 0, started: false, state: { terminated: {
+          containerID: containerId, exitCode: 0, finishedAt, reason: "Completed", startedAt: podStartedAt,
+        } },
+      }],
+      phase: "Succeeded", podIP,
+    },
+  };
+  if (!isDeepStrictEqual(job, expectedJob) || !isDeepStrictEqual(pod, expectedPod)) {
+    throw new TypeError("observability Job provider state is invalid");
+  }
+  return deepFreeze({ completionTime, containerId, finishedAt, jobUid, log: observabilityJobLog, podName, podUid });
+}
+
+function providerObservabilityContainer(value) {
+  const projected = {
+    ...structuredClone(value),
+    terminationMessagePath: "/dev/termination-log",
+    terminationMessagePolicy: "File",
+  };
+  if (Array.isArray(projected.volumeMounts)) projected.volumeMounts = projected.volumeMounts.map((mount) => {
+    const item = { ...mount };
+    if (item.readOnly === false) delete item.readOnly;
+    return item;
+  });
+  return projected;
+}
+
+function providerObservabilityTemplate(template, labels = template.metadata.labels) {
+  return {
+    metadata: { creationTimestamp: null, labels: structuredClone(labels) },
+    spec: {
+      ...structuredClone(template.spec),
+      containers: template.spec.containers.map(providerObservabilityContainer),
+      schedulerName: "default-scheduler",
+    },
+  };
+}
+
+function providerObservabilityPodSpec(template, nodeName) {
+  return {
+    automountServiceAccountToken: template.spec.automountServiceAccountToken,
+    containers: template.spec.containers.map(providerObservabilityContainer),
+    dnsPolicy: template.spec.dnsPolicy,
+    enableServiceLinks: template.spec.enableServiceLinks,
+    nodeName,
+    preemptionPolicy: "PreemptLowerPriority",
+    priority: 0,
+    restartPolicy: template.spec.restartPolicy,
+    schedulerName: "default-scheduler",
+    securityContext: structuredClone(template.spec.securityContext),
+    serviceAccount: "default",
+    serviceAccountName: "default",
+    terminationGracePeriodSeconds: template.spec.terminationGracePeriodSeconds,
+    tolerations: [
+      { effect: "NoExecute", key: "node.kubernetes.io/not-ready", operator: "Exists", tolerationSeconds: 300 },
+      { effect: "NoExecute", key: "node.kubernetes.io/unreachable", operator: "Exists", tolerationSeconds: 300 },
+    ],
+    volumes: structuredClone(template.spec.volumes),
+  };
+}
+
+function providerUid(value) {
+  return typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value)
+    ? value : undefined;
+}
+
+function providerVersion(value) {
+  return typeof value === "string" && /^[1-9]\d{0,19}$/.test(value) ? value : undefined;
+}
+
+function providerContainerId(value) {
+  return typeof value === "string" && /^containerd:\/\/[0-9a-f]{64}$/.test(value) ? value : undefined;
+}
+
+function providerTimestamp(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(value) ||
+      !Number.isFinite(Date.parse(value))) return undefined;
+  return new Date(value).toISOString().replace(".000Z", "Z") === value ? value : undefined;
+}
+
+function validPodAddress(value) {
+  if (typeof value !== "string") return false;
+  const match = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(value);
+  if (match === null || match.slice(1).some((item) => Number(item) > 255)) return false;
+  return value.startsWith("10.");
+}
+
+function validServiceAddress(value) {
+  return validPodAddress(value) && value.startsWith("10.96.");
 }
 
 function deepFreeze(value) {
