@@ -3116,6 +3116,80 @@ test("rejects node image inventory drift between the two proved graph loads", as
   assert.deepEqual([...system.graphLoadedImageTargets.keys()], ["neo4j"]);
 });
 
+test("retains the last proved inventory across every first-image mutation failure", async () => {
+  const fixture = graphBoundArchiveImport("neo4j");
+  const row = (value) => [
+    value.reference, value.mediaType, value.digest, value.size, value.platform, value.labels,
+  ].join(" ");
+  const baselineRows = [
+    `docker.io/library/zasp-audit-api:m1-30a application/vnd.oci.image.manifest.v1+json ` +
+      `sha256:${"7".repeat(64)} 12.3 MiB linux/arm64 managed=true`,
+  ];
+  const importedRows = [...baselineRows, ...fixture.rows];
+  const workloadRows = [...importedRows, row(fixture.alias)];
+  const baseline = containerdInventory(baselineRows);
+  const imported = containerdInventory(importedRows);
+  const workload = containerdInventory(workloadRows);
+  const malformedImport = containerdInventory([...baselineRows, "malformed"]);
+  const badWorkload = containerdInventory([...importedRows,
+    row(fixture.alias).replace("docker.io/library/neo4j", "registry.example/neo4j")]);
+  const badRuntime = containerdInventory([...workloadRows,
+    row(fixture.runtimeAlias).replace("docker.io/library/", "registry.example/")]);
+  const cases = [
+    { label: "definitive load", load: "definitive", reads: [baseline], retained: baseline, observed: baseline },
+    { label: "partial load", load: "ambiguous", reads: [baseline, malformedImport], retained: baseline,
+      observed: malformedImport, cleanupRejects: true },
+    { label: "definitive workload alias", load: "ambiguous", node: ["definitive"],
+      reads: [baseline, imported, fixture.manifestSource, fixture.wrapperSource],
+      retained: imported, observed: imported },
+    { label: "partial workload alias", load: "ambiguous", node: ["ambiguous"],
+      reads: [baseline, imported, fixture.manifestSource, fixture.wrapperSource, badWorkload],
+      retained: imported, observed: badWorkload, cleanupRejects: true },
+    { label: "definitive runtime alias", load: "ambiguous", node: ["ambiguous", "definitive"],
+      reads: [baseline, imported, fixture.manifestSource, fixture.wrapperSource, workload],
+      retained: workload, observed: workload },
+    { label: "partial runtime alias", load: "ambiguous", node: ["ambiguous", "ambiguous"],
+      reads: [baseline, imported, fixture.manifestSource, fixture.wrapperSource, workload, badRuntime],
+      retained: workload, observed: badRuntime, cleanupRejects: true },
+  ];
+  for (const scenario of cases) {
+    const system = graphSystem();
+    system.graphImagePlans = new Map([[fixture.selected.name, fixture.selected]]);
+    system.nodeIdentity = { token: "a".repeat(64) };
+    system.paths = { graphManifest: "/owned/graph.yaml", kind: "/owned/kind" };
+    system.graphImageIdentities.set(fixture.selected.name, fixture.retained);
+    system.graphImageResolutions.set(fixture.selected.name, resolvedImage(fixture.selected));
+    system.requireTemporaryOwnership = async () => {};
+    system.requireOwnedPath = async () => {};
+    system.verifyCluster = async () => system.nodeIdentity;
+    system.verifyGraphImage = async () => {};
+    system.runMutation = async () => ({ outcome: scenario.load, result: success("load\n") });
+    const nodeOutcomes = [...(scenario.node ?? [])];
+    system.runNodeMutation = async () => ({ outcome: nodeOutcomes.shift(), result: success("alias\n") });
+    const reads = [...scenario.reads];
+    system.runNodeRead = async () => success(reads.shift());
+    await assert.rejects(() => system.loadAdditionalImages(phase), { name: "Failure" }, scenario.label);
+    assert.equal(reads.length, 0, `${scenario.label} consumes only its bounded evidence`);
+    assert.equal(system.graphNodeImageInventory, scenario.retained, `${scenario.label} retained inventory`);
+
+    system.graphNodeMayHaveApplied = true;
+    system.graphPathMayHaveApplied = true;
+    system.graphNodeIdentity = { labeled: true, name: `${system.cluster}-control-plane`,
+      token: system.nodeIdentity.token, uid: "11111111-1111-4111-8111-111111111111" };
+    system.graphPathIdentity = { dev: 43, gid: 7474, ino: 99, mode: 700,
+      nodeToken: system.nodeIdentity.token, path: GRAPH_CONSTANTS.nodeDataPath, uid: 7474 };
+    system.readGraphNodeLabel = async () => system.graphNodeIdentity;
+    system.readGraphNodePath = async () => system.graphPathIdentity;
+    system.runNodeRead = async () => success(scenario.observed);
+    if (scenario.cleanupRejects) {
+      await assert.rejects(() => system.verifyAdditionalNodeForCleanup(phase),
+        { category: "cleanup", name: "Failure" }, scenario.label);
+    } else {
+      await system.verifyAdditionalNodeForCleanup(phase);
+    }
+  }
+});
+
 test("re-proves the complete node image inventory before graph manifest application", async () => {
   const system = graphSystem();
   const inventory = containerdInventory(graphArchiveImport("neo4j").rows);

@@ -2042,7 +2042,11 @@ export class LocalGraphSystem extends LocalProductSystem {
       const before = await this.runNodeRead([
         "ctr", "--namespace", "k8s.io", "images", "list",
       ], phase, "provider", 30_000, 4_194_304);
-      if (this.graphNodeImageInventory !== undefined && before.stdout !== this.graphNodeImageInventory) {
+      if (this.graphNodeImageInventory === undefined) {
+        try { parseGraphContainerdInventory(before.stdout); }
+        catch { throw new GraphFailure("provider"); }
+        this.graphNodeImageInventory = before.stdout;
+      } else if (before.stdout !== this.graphNodeImageInventory) {
         throw new GraphFailure("ownership");
       }
       const loaded = await this.runMutation(this.paths.kind, [
@@ -2072,6 +2076,7 @@ export class LocalGraphSystem extends LocalProductSystem {
         target = validateGraphContainerdImageContents(
           target, manifest.stdout, index.stdout, selected, retained, this.graphImageResolutions.get(selected.name),
         );
+        this.graphNodeImageInventory = after.stdout;
         const tagged = await this.runNodeMutation([
           "ctr", "--namespace", "k8s.io", "images", "tag", "--local",
           wrapper.reference, graphWorkloadImageReference(selected),
@@ -2081,6 +2086,7 @@ export class LocalGraphSystem extends LocalProductSystem {
           "ctr", "--namespace", "k8s.io", "images", "list",
         ], phase, "provider", 30_000, 4_194_304);
         target = bindGraphContainerdWorkloadAlias(after.stdout, aliased.stdout, target, selected);
+        this.graphNodeImageInventory = aliased.stdout;
         const runtimeChild = target.references.find(({ mediaType, reference }) =>
           mediaType === "application/vnd.oci.image.manifest.v1+json" && reference.startsWith("import-"));
         if (runtimeChild === undefined) throw new GraphFailure("provider");
