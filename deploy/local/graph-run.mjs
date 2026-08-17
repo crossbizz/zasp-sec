@@ -325,7 +325,8 @@ export function validateGraphImageInspection(document, selected, resolution, ret
     const expectedAliases = aliases ?? { repoDigests: [selected.repoDigest], repoTags: [] };
     requireExactKeySet(expectedAliases, ["repoDigests", "repoTags"], "graph image aliases");
     if (!exactStringArray(expectedAliases.repoDigests, [selected.repoDigest]) ||
-        !exactStringArray(expectedAliases.repoTags, [])) {
+        !(exactStringArray(expectedAliases.repoTags, []) ||
+          exactStringArray(expectedAliases.repoTags, [selected.tag]))) {
       throw new TypeError("graph image aliases are invalid");
     }
     if (architecture !== selected.architecture || operatingSystem !== "linux" || configDigest !== selected.configDigest ||
@@ -1336,6 +1337,8 @@ export class LocalGraphSystem extends LocalProductSystem {
     this.graphImageResolutions = new Map();
     this.graphImageIdentities = new Map();
     this.graphImageAliases = new Map();
+    this.graphSharedImageBaselines = new Map();
+    this.graphImageBaselineAbsences = new Set();
     this.graphLoadedImageTargets = new Map();
     this.graphImageMayHaveApplied = new Set();
     this.graphNodeIdentity = undefined;
@@ -1412,15 +1415,29 @@ export class LocalGraphSystem extends LocalProductSystem {
 
   async runAdditionalPreflightChecks(phase) {
     for (const selected of this.graphImagePlans.values()) {
-      await this.requireGraphImageBaselineAbsent(selected, phase, "configuration");
+      const resolution = await this.resolveGraphImage(selected, phase);
+      const baseline = await this.readGraphImageBaseline(selected, resolution, phase, "configuration");
+      this.requireDistinctGraphImageIdentity(selected.name, baseline?.identity, "configuration");
+      this.graphImageResolutions.set(selected.name, resolution);
+      if (baseline === undefined) this.graphImageBaselineAbsences.add(selected.name);
+      else this.graphSharedImageBaselines.set(selected.name, baseline);
     }
   }
 
-  async requireGraphImageConsumersAbsent(selected, phase, category) {
+  async readGraphImageConsumers(selected, phase, category) {
     const result = await this.runRead("docker", [
       "ps", "--all", "--quiet", "--no-trunc", "--filter", `ancestor=${selected.configDigest}`,
     ], phase, category);
-    if (result.stdout !== "") throw new Failure(category);
+    if (result.stdout === "") return deepFreeze([]);
+    if (!result.stdout.endsWith("\n")) throw new Failure(category);
+    const consumers = result.stdout.slice(0, -1).split("\n");
+    if (consumers.length > 4_096 || consumers.some((value) => !/^[0-9a-f]{64}$/.test(value)) ||
+        new Set(consumers).size !== consumers.length) throw new Failure(category);
+    return deepFreeze(consumers.sort());
+  }
+
+  async requireGraphImageConsumersAbsent(selected, phase, category) {
+    if ((await this.readGraphImageConsumers(selected, phase, category)).length !== 0) throw new Failure(category);
   }
 
   async readGraphImageReference(selected, phase, category) {
@@ -1448,6 +1465,81 @@ export class LocalGraphSystem extends LocalProductSystem {
       repoDigests: [...document[3]],
       repoTags: [...document[4]],
     });
+  }
+
+  async readGraphImageConfigPresence(selected, phase, category) {
+    const result = await this.runRaw(
+      "docker", ["image", "inspect", selected.configDigest], phase, category, 15_000, 262_144,
+    );
+    if (exactMissingGraphImage(result, selected.configDigest)) return false;
+    if (!isPlainObject(result) || result.status !== 0 || result.signal !== null || result.stderr !== "" ||
+        result.stdout === "" || result.thrown !== false || result.timedOut !== false) throw new Failure(category);
+    let document;
+    try { document = parseBoundedJson(result.stdout, 262_144); }
+    catch { throw new Failure(category); }
+    if (!Array.isArray(document) || document.length !== 1 || !isPlainObject(document[0]) ||
+        document[0].Id !== selected.configDigest) throw new Failure(category);
+    return true;
+  }
+
+  async readGraphImageListing(selected, phase, category) {
+    const result = await this.runRead("docker", [
+      "image", "ls", "--quiet", "--no-trunc", "--filter", `reference=${selected.reference}`,
+    ], phase, category);
+    if (result.stdout === "") return deepFreeze([]);
+    if (!result.stdout.endsWith("\n")) throw new Failure(category);
+    const ids = result.stdout.slice(0, -1).split("\n");
+    if (ids.length > 16 || ids.some((value) => !digestPattern.test(value)) ||
+        new Set(ids).size !== ids.length) throw new Failure(category);
+    return deepFreeze(ids.sort());
+  }
+
+  async readGraphImageBaseline(selected, resolution, phase, category, retained = undefined) {
+    const configPresent = await this.readGraphImageConfigPresence(selected, phase, category);
+    const reference = await this.readGraphImageReference(selected, phase, category);
+    const listedIds = await this.readGraphImageListing(selected, phase, category);
+    const consumers = await this.readGraphImageConsumers(selected, phase, category);
+    if (!configPresent && reference === undefined) {
+      if (listedIds.length !== 0 || consumers.length !== 0 || retained !== undefined) throw new Failure(category);
+      return undefined;
+    }
+    if (!configPresent || reference === undefined || reference.id !== selected.configDigest ||
+        reference.architecture !== selected.architecture || reference.operatingSystem !== "linux" ||
+        !(listedIds.length === 0 || exactStringArray(listedIds, [selected.configDigest]))) {
+      throw new Failure(category);
+    }
+    const aliases = deepFreeze({
+      repoDigests: [...reference.repoDigests],
+      repoTags: [...reference.repoTags],
+    });
+    let identity;
+    try {
+      identity = await this.inspectGraphImage(
+        selected, resolution, phase, undefined, selected.repoDigest, category, aliases,
+      );
+    } catch {
+      throw new Failure(category);
+    }
+    const baseline = deepFreeze({
+      aliases,
+      consumers: [...consumers],
+      identity,
+      listedIds: [...listedIds],
+    });
+    if (retained !== undefined && !exactData(baseline, retained)) throw new Failure(category);
+    return baseline;
+  }
+
+  requireDistinctGraphImageIdentity(name, identity, category) {
+    if (identity === undefined) return;
+    const identities = [
+      ...this.imageIdentities.entries(),
+      ...this.graphImageIdentities.entries(),
+      ...[...this.graphSharedImageBaselines.entries()].map(([key, value]) => [key, value.identity]),
+    ];
+    if (identities.some(([key, value]) => key !== name && value.id === identity.id)) {
+      throw new Failure(category);
+    }
   }
 
   async requireGraphImageBaselineAbsent(selected, phase, category = "ownership") {
@@ -1498,9 +1590,24 @@ export class LocalGraphSystem extends LocalProductSystem {
   async buildAdditionalImages(phase) {
     await this.requireTemporaryOwnership(phase, "ownership");
     for (const selected of this.graphImagePlans.values()) {
-      const resolution = await this.resolveGraphImage(selected, phase);
+      const resolution = this.graphImageResolutions.get(selected.name) ??
+        await this.resolveGraphImage(selected, phase);
       this.graphImageResolutions.set(selected.name, resolution);
-      await this.requireGraphImageBaselineAbsent(selected, phase);
+      const retainedBaseline = this.graphSharedImageBaselines.get(selected.name);
+      const baseline = await this.readGraphImageBaseline(
+        selected, resolution, phase, "ownership", retainedBaseline,
+      );
+      if (this.graphImageBaselineAbsences.has(selected.name) && baseline !== undefined) {
+        throw new GraphFailure("ownership");
+      }
+      if (baseline !== undefined) {
+        this.requireDistinctGraphImageIdentity(selected.name, baseline.identity, "ownership");
+        this.graphSharedImageBaselines.set(selected.name, baseline);
+        this.graphImageIdentities.set(selected.name, baseline.identity);
+        this.graphImageAliases.set(selected.name, baseline.aliases);
+        continue;
+      }
+      this.graphImageBaselineAbsences.add(selected.name);
       this.graphImageMayHaveApplied.add(selected.name);
       const pulled = await this.runMutation("docker", [
         "pull", "--platform", selected.platform, selected.reference,
@@ -1514,8 +1621,7 @@ export class LocalGraphSystem extends LocalProductSystem {
         throw new Failure("provider");
       }
       const identity = await this.inspectGraphImage(selected, resolution, phase);
-      if ([...this.imageIdentities.values(), ...this.graphImageIdentities.values()]
-        .some((value) => value.id === identity.id)) throw new GraphFailure("ownership");
+      this.requireDistinctGraphImageIdentity(selected.name, identity, "ownership");
       await this.requireGraphImageConsumersAbsent(selected, phase, "ownership");
       this.graphImageIdentities.set(selected.name, identity);
       this.graphImageAliases.set(selected.name, {
@@ -2189,6 +2295,21 @@ export class LocalGraphSystem extends LocalProductSystem {
         });
       }
       if (retained === undefined) continue;
+      const sharedBaseline = this.graphSharedImageBaselines.get(selected.name);
+      if (sharedBaseline !== undefined) {
+        await step(async () => {
+          const resolution = this.graphImageResolutions.get(selected.name);
+          if (resolution === undefined || this.graphImageMayHaveApplied.has(selected.name)) {
+            throw new Failure("cleanup");
+          }
+          await this.requireTemporaryOwnership(phase, "cleanup");
+          await this.requireOwnedPath(this.paths.graphManifest, phase, "cleanup");
+          await this.readGraphImageBaseline(selected, resolution, phase, "cleanup", sharedBaseline);
+          this.graphImageIdentities.delete(selected.name);
+          this.graphImageAliases.delete(selected.name);
+        });
+        continue;
+      }
       await step(async () => {
         await this.requireTemporaryOwnership(phase, "cleanup");
         await this.requireOwnedPath(this.paths.graphManifest, phase, "cleanup");
@@ -2213,7 +2334,22 @@ export class LocalGraphSystem extends LocalProductSystem {
 
   async requireAdditionalGlobalAbsence(phase, category) {
     for (const selected of this.graphImagePlans.values()) {
-      await this.requireGraphImageBaselineAbsent(selected, phase, category);
+      const sharedBaseline = this.graphSharedImageBaselines.get(selected.name);
+      if (sharedBaseline === undefined) {
+        await this.requireGraphImageBaselineAbsent(selected, phase, category);
+      } else {
+        const resolution = this.graphImageResolutions.get(selected.name);
+        if (resolution === undefined || this.graphImageIdentities.has(selected.name) ||
+            this.graphImageAliases.has(selected.name) || this.graphImageMayHaveApplied.has(selected.name)) {
+          throw new Failure(category);
+        }
+        await this.readGraphImageBaseline(selected, resolution, phase, category, sharedBaseline);
+      }
+    }
+    for (const selected of this.graphImagePlans.values()) {
+      this.graphSharedImageBaselines.delete(selected.name);
+      this.graphImageBaselineAbsences.delete(selected.name);
+      this.graphImageResolutions.delete(selected.name);
     }
   }
 

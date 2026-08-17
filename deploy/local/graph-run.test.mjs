@@ -263,6 +263,62 @@ function graphSystem(command) {
   }, graphDependencies(command));
 }
 
+function providerLines(values) {
+  return values.length === 0 ? "" : `${values.join("\n")}\n`;
+}
+
+function sharedGraphImageHarness(selected = plan(), overrides = {}) {
+  const system = graphSystem();
+  const state = {
+    configPresent: overrides.configPresent ?? true,
+    consumers: [...overrides.consumers ?? []],
+    inspectionMutation: overrides.inspectionMutation,
+    listedIds: [...overrides.listedIds ?? []],
+    referenceId: overrides.referenceId ?? selected.configDigest,
+    referencePresent: overrides.referencePresent ?? true,
+    repoTags: [...overrides.repoTags ?? []],
+  };
+  const mutations = [];
+  system.graphImagePlans = new Map([[selected.name, selected]]);
+  system.paths = { graphManifest: "/owned/graph.yaml" };
+  system.requireTemporaryOwnership = async () => {};
+  system.requireOwnedPath = async () => {};
+  system.resolveGraphImage = async () => resolvedImage(selected);
+  system.runRaw = async (_command, arguments_) => {
+    const reference = arguments_.at(-1);
+    if (reference === selected.configDigest && !arguments_.includes("--format")) {
+      return state.configPresent ? success(`[${JSON.stringify({ Id: selected.configDigest })}]\n`) :
+        missingUnformattedGraphImage(reference);
+    }
+    if (reference === selected.repoDigest && arguments_.includes("--format")) {
+      return state.referencePresent ? success(`${JSON.stringify([
+        state.referenceId,
+        selected.architecture,
+        "linux",
+        [selected.repoDigest],
+        state.repoTags,
+      ])}\n`) : missingFormattedGraphImage(reference);
+    }
+    throw new Error("unexpected raw graph image probe");
+  };
+  system.runRead = async (_command, arguments_) => {
+    if (arguments_[0] === "image" && arguments_[1] === "inspect") {
+      const inspection = structuredClone(pinnedGraphImageInspection(selected));
+      inspection[4] = [...state.repoTags];
+      state.inspectionMutation?.(inspection);
+      return success(`${JSON.stringify(inspection)}\n`);
+    }
+    if (arguments_[0] === "image" && arguments_[1] === "ls") return success(providerLines(state.listedIds));
+    if (arguments_[0] === "ps") return success(providerLines(state.consumers));
+    throw new Error("unexpected shared graph image read");
+  };
+  system.runMutation = async (command, arguments_) => {
+    mutations.push([command, ...arguments_]);
+    return { outcome: "applied", result: success() };
+  };
+  return { mutations, state, system };
+}
+
 function graphResource(kind, name) {
   return buildGraphResources().find((value) => value.kind === kind && value.metadata.name === name);
 }
@@ -2093,7 +2149,7 @@ test("pulls both indexes once and accepts ambiguity only through complete reinsp
   const system = graphSystem();
   const events = [];
   system.requireTemporaryOwnership = async () => {};
-  system.requireGraphImageBaselineAbsent = async () => {};
+  system.readGraphImageBaseline = async () => undefined;
   system.requireGraphImageConsumersAbsent = async () => {};
   system.resolveGraphImage = async (selected) => {
     events.push(`resolve:${selected.name}`);
@@ -2118,7 +2174,7 @@ test("pulls both indexes once and accepts ambiguity only through complete reinsp
 
   const rejected = graphSystem();
   rejected.requireTemporaryOwnership = async () => {};
-  rejected.requireGraphImageBaselineAbsent = async () => {};
+  rejected.readGraphImageBaseline = async () => undefined;
   rejected.resolveGraphImage = async (selected) => resolvedImage(selected);
   rejected.runMutation = async () => ({ outcome: "definitive", result: { ...success(), status: 1 } });
   await assert.rejects(() => rejected.buildAdditionalImages(phase), { name: "Failure" });
@@ -2139,7 +2195,7 @@ test("reconciles thrown, signaled, and malformed pulls through exact digest-only
     const system = graphSystem(command);
     system.graphImagePlans = new Map([[selected.name, selected]]);
     system.requireTemporaryOwnership = async () => {};
-    system.requireGraphImageBaselineAbsent = async () => {};
+    system.readGraphImageBaseline = async () => undefined;
     system.requireGraphImageConsumersAbsent = async () => {};
     system.resolveGraphImage = async () => resolvedImage(selected);
     system.runRead = async (_command, arguments_) => {
@@ -2171,7 +2227,7 @@ test("rejects a graph/product image collision before retaining the graph alias",
   const system = graphSystem();
   const collision = plan().configDigest;
   system.requireTemporaryOwnership = async () => {};
-  system.requireGraphImageBaselineAbsent = async () => {};
+  system.readGraphImageBaseline = async () => undefined;
   system.requireGraphImageConsumersAbsent = async () => {};
   system.imageIdentities.set(PRODUCTS[0].name, { id: collision });
   system.resolveGraphImage = async (selected) => resolvedImage(selected);
@@ -2859,6 +2915,134 @@ test("accepts only exact unformatted config and formatted repository-digest abse
     ["docker", "image", "ls", "--quiet", "--no-trunc", "--filter", `reference=${selected.reference}`],
     ["docker", "ps", "--all", "--quiet", "--no-trunc", "--filter", `ancestor=${selected.configDigest}`],
   ]);
+});
+
+test("reuses exact shared graph images with zero or stable consumers without mutation", async () => {
+  const selected = plan();
+  const cases = [
+    { consumers: [], listedIds: [], repoTags: [] },
+    {
+      consumers: [`${"c".repeat(64)}`, `${"d".repeat(64)}`],
+      listedIds: [selected.configDigest],
+      repoTags: [selected.tag],
+    },
+  ];
+  for (const evidence of cases) {
+    const { mutations, system } = sharedGraphImageHarness(selected, evidence);
+    await system.buildAdditionalImages(phase);
+    assert.equal(system.graphImageMayHaveApplied.size, 0);
+    assert.deepEqual(system.graphImageIdentities.get(selected.name)?.repoTags, evidence.repoTags);
+    assert.deepEqual(system.graphSharedImageBaselines.get(selected.name)?.consumers, evidence.consumers);
+
+    await system.cleanupAdditionalImages(async (operation) => await operation(), phase);
+    assert.equal(system.graphImageIdentities.size, 0);
+    assert.deepEqual(mutations, [], "shared image admission and cleanup are read-only");
+
+    await system.requireAdditionalGlobalAbsence(phase, "cleanup");
+    assert.equal(system.graphSharedImageBaselines.size, 0);
+    assert.deepEqual(mutations, [], "the final shared-state audit is read-only");
+  }
+});
+
+test("rejects partial, mismatched, colliding, and ambiguous shared graph image baselines", async () => {
+  const selected = plan();
+  const cases = [
+    sharedGraphImageHarness(selected, { referencePresent: false }),
+    sharedGraphImageHarness(selected, { configPresent: false }),
+    sharedGraphImageHarness(selected, { referenceId: `sha256:${"8".repeat(64)}` }),
+    sharedGraphImageHarness(selected, {
+      inspectionMutation: (inspection) => { inspection[5].Layers[0] = `sha256:${"9".repeat(64)}`; },
+    }),
+    sharedGraphImageHarness(selected, { listedIds: [`sha256:${"a".repeat(64)}`] }),
+  ];
+  cases.push(sharedGraphImageHarness(selected));
+  cases.at(-1).system.imageIdentities.set(PRODUCTS[0].name, { id: selected.configDigest });
+
+  for (const { mutations, system } of cases) {
+    await assert.rejects(() => system.buildAdditionalImages(phase), { name: "Failure" });
+    assert.deepEqual(mutations, [], "unproved shared state never grants pull or removal authority");
+  }
+});
+
+test("rejects shared graph image consumer, alias, and immutable-identity drift without deletion", async () => {
+  const selected = plan();
+  const mutations = [
+    (state) => { state.consumers = [`${"b".repeat(64)}`]; },
+    (state) => {
+      state.repoTags = [selected.tag];
+      state.listedIds = [selected.configDigest];
+    },
+    (state) => {
+      state.inspectionMutation = (inspection) => {
+        inspection[5].Layers[0] = `sha256:${"7".repeat(64)}`;
+      };
+    },
+    (state) => { state.referenceId = `sha256:${"6".repeat(64)}`; },
+  ];
+  for (const mutate of mutations) {
+    const harness = sharedGraphImageHarness(selected);
+    await harness.system.buildAdditionalImages(phase);
+    mutate(harness.state);
+    await assert.rejects(
+      () => harness.system.cleanupAdditionalImages(async (operation) => await operation(), phase),
+      { name: "Failure" },
+    );
+    assert.deepEqual(harness.mutations, [], "drifted shared state is never deleted");
+    assert.equal(harness.system.graphImageIdentities.has(selected.name), true);
+    assert.equal(harness.system.graphSharedImageBaselines.has(selected.name), true);
+  }
+});
+
+test("final shared-image audit is exact and transactional across the whole graph range", async () => {
+  const selected = plan();
+  const drifted = sharedGraphImageHarness(selected);
+  await drifted.system.buildAdditionalImages(phase);
+  await drifted.system.cleanupAdditionalImages(async (operation) => await operation(), phase);
+  drifted.state.consumers = [`${"a".repeat(64)}`];
+  await assert.rejects(
+    () => drifted.system.requireAdditionalGlobalAbsence(phase, "cleanup"),
+    { name: "Failure" },
+  );
+  assert.equal(drifted.system.graphSharedImageBaselines.has(selected.name), true);
+  assert.deepEqual(drifted.mutations, []);
+
+  const range = graphSystem();
+  const retained = { aliases: {}, consumers: [], identity: { id: selected.configDigest }, listedIds: [] };
+  for (const [name] of range.graphImagePlans) {
+    range.graphSharedImageBaselines.set(name, retained);
+    range.graphImageResolutions.set(name, {});
+  }
+  range.readGraphImageBaseline = async (image, _resolution, _phase, _category, baseline) => {
+    if (image.name === "busybox") throw new GraphFailure("cleanup");
+    return baseline;
+  };
+  await assert.rejects(() => range.requireAdditionalGlobalAbsence(phase, "cleanup"), { name: "Failure" });
+  assert.deepEqual([...range.graphSharedImageBaselines.keys()], ["neo4j", "busybox"],
+    "a later audit rejection retains every baseline for an exact retry");
+});
+
+test("shared graph image cleanup rejection wins over an earlier provider rejection", async () => {
+  const selected = plan();
+  const harness = sharedGraphImageHarness(selected);
+  await harness.system.buildAdditionalImages(phase);
+  harness.state.consumers = [`${"e".repeat(64)}`];
+  const output = [];
+  const runtime = lifecycle({
+    cleanup: async () => await harness.system.cleanupAdditionalImages(
+      async (operation) => await operation(), phase,
+    ),
+    verifyReadiness: async () => { throw new GraphFailure("provider"); },
+  }).runtime;
+  assert.equal(await runGraphMain(runtime, {
+    cleanupTimeoutMilliseconds: 100,
+    mainTimeoutMilliseconds: 100,
+    settlementTimeoutMilliseconds: 100,
+    stderr: { write: (value) => output.push(value) },
+    stdout: { write: () => assert.fail("unexpected success") },
+    setExitCode() {},
+  }), 1);
+  assert.deepEqual(output, ["Local graph manifest failed: cleanup rejected.\n"]);
+  assert.deepEqual(harness.mutations, [], "cleanup precedence never weakens shared-image preservation");
 });
 
 test("rejects swapped and malformed formatted or unformatted missing-image envelopes", async () => {
