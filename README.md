@@ -652,7 +652,7 @@ handler behavior only; it does not authorize external exposure of these
 internal endpoints. Platform, event-ingest, and runtime-gateway command wiring
 are complete under M1-28b, M1-28c, and M1-28d. M1-28a is Complete.
 M1-28b is Complete. M1-28c is Complete, M1-28d is Complete, M1-28 is Complete,
-and M1-29 is Complete. M1-30a is Complete, M1-30b is In progress, and
+and M1-29 is Complete. M1-30a is Complete, M1-30b is Complete, and
 M1-30c remains Pending.
 
 ## Common internal service health contract
@@ -691,7 +691,7 @@ npm run health:contract:test
 ```
 
 M1-30a is Complete. It adds the local Kubernetes deployment boundary for the
-four existing Go product commands; M1-30b is In progress and M1-30c remains
+four existing Go product commands; M1-30b is Complete and M1-30c remains
 Pending.
 
 ## Local product Kubernetes manifests
@@ -718,7 +718,7 @@ Successful live verification emits exactly
 `Local product manifests passed: pods=4 ready=4 services=4 internal=true cleanup=true.`
 The runner uses its own kubeconfig and proof labels, removes only retained
 resources after exact ownership checks, and leaves shared local services
-untouched. M1-30b is In progress and owns the later local graph assembly;
+untouched. M1-30b is Complete and owns the local graph assembly;
 M1-30c remains Pending.
 
 ## Platform health wiring
@@ -742,7 +742,7 @@ verification and zero-finding review. M1-28c is Complete, M1-28d is Complete, an
 
 ## Local graph Kubernetes manifest proof
 
-M1-30b is In progress. Its local Neo4j overlay is an opt-in proof attached to
+M1-30b is Complete. Its local Neo4j overlay is an opt-in proof attached to
 the disposable local Kubernetes environment; M1-30c remains Pending. The
 hermetic manifest, runner, and license contracts require Node.js 22.23.1 and
 npm 10.9.8, and require neither Docker nor a provider:

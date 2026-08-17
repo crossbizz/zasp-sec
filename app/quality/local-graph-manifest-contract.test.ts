@@ -51,7 +51,7 @@ describe("M1-30b local graph manifest", () => {
     }
   });
 
-  it("starts only M1-30b and preserves its dependent work and blockers", async () => {
+  it("completes only M1-30b and preserves its dependent work and blockers", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -62,17 +62,19 @@ describe("M1-30b local graph manifest", () => {
     const summary = markdownRows(tracker.match(/## Status summary[\s\S]*?## Milestone summary/)?.[0] ?? "").slice(2);
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
-    expect(readme).toContain("M1-30b is In progress");
+    expect(readme).toContain("M1-30b is Complete");
     expect(readme).toContain("M1-30c remains Pending");
     expect(tracker).toContain("| Pending | 660 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 64 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 65 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`660/1/64/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "27", "1", "40", "0"]);
+    expect(tracker).toContain("`660/0/65/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "27", "0", "41", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.filter(([task]) => task === "M1-30b")).toHaveLength(1);
-    expect(complete.filter(([task]) => task === "M1-30b")).toHaveLength(0);
+    expect(active).toEqual([]);
+    expect(complete).toHaveLength(65);
+    expect(active.filter(([task]) => task === "M1-30b")).toHaveLength(0);
+    expect(complete.filter(([task]) => task === "M1-30b")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-30a")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-30c")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
@@ -103,7 +105,7 @@ describe("M1-30b local graph manifest", () => {
       "GPL-2.0-only",
       "opt-in local development",
       "does not approve redistribution or production packaging",
-      "M1-30b is In progress",
+      "M1-30b is Complete",
       "M1-30c remains Pending",
     ]) {
       expect(localGraph).toContain(text);
