@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "scope": {
+    "use": "opt-in-local-development",
+    "redistribution_approved": false,
+    "production_packaging_approved": false,
+    "remote_backend_approved": false
+  },
+  "allowed_licenses": [
+    "Apache-2.0",
+    "GPL-2.0-only"
+  ],
+  "images": {
+    "collector": {
+      "name": "opentelemetry-collector-contrib",
+      "version": "0.158.0",
+      "reference": "otel/opentelemetry-collector-contrib:0.158.0@sha256:c5918f78992ee73b0d6f0e599423ac5ec52dd5d9726733114d6eca53d5a32ed5",
+      "index_digest": "sha256:c5918f78992ee73b0d6f0e599423ac5ec52dd5d9726733114d6eca53d5a32ed5",
+      "image_revision": "1400269f8ace841f8d0492f4f9c6c7f305f95268",
+      "image_source": "https://github.com/open-telemetry/opentelemetry-collector-releases",
+      "image_license": "Apache-2.0",
+      "platforms": {
+        "linux/amd64": {
+          "manifest_digest": "sha256:e290476fa9a75f7a84a28798832bde7068d27825745de67bc38957e22949a64c",
+          "config_digest": "sha256:837606a793453fd0c2eef9a6d4ee47ecc970d228ede7bc0c15d32ea9324c9e80"
+        },
+        "linux/arm64": {
+          "manifest_digest": "sha256:51e1afc9d762a359387723170be5cecccad2c09e73a5a2061361c62c60855ccf",
+          "config_digest": "sha256:e4ed3985c0db662ed2f0be81ac3b10110aefd379b0be24c780e2803571997c93"
+        }
+      }
+    },
+    "busybox": {
+      "reference": "registry.k8s.io/e2e-test-images/busybox:1.36.1-1@sha256:a9155b13325b2abef48e71de77bb8ac015412a566829f621d06bfae5c699b1b9",
+      "index_digest": "sha256:a9155b13325b2abef48e71de77bb8ac015412a566829f621d06bfae5c699b1b9"
+    }
+  },
+  "components": [
+    {
+      "name": "OpenTelemetry Collector Contrib",
+      "version": "0.158.0",
+      "license": "Apache-2.0",
+      "source_repository": "https://github.com/open-telemetry/opentelemetry-collector-contrib",
+      "source_tag": "v0.158.0",
+      "source_commit": "821a9d9c2c1623c4a0ceba5d47b57c48879c3f84",
+      "scope": "opt-in-local-development",
+      "redistribution_approved": false,
+      "production_packaging_approved": false
+    },
+    {
+      "name": "BusyBox runtime (reused M1-30b evidence)",
+      "version": "1.36.1",
+      "license": "GPL-2.0-only",
+      "evidence_inventory": "deploy/local/graph-licenses.json",
+      "scope": "opt-in-local-development",
+      "redistribution_approved": false,
+      "production_packaging_approved": false
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "Collector Contrib source boundary",
+      "url": "https://raw.githubusercontent.com/open-telemetry/opentelemetry-collector-contrib/821a9d9c2c1623c4a0ceba5d47b57c48879c3f84/README.md",
+      "sha256": "52ad80dffa63b52255af59d8c4f9c0c9979e607faa9d7dbd23e3a9fecbbf98e8"
+    },
+    {
+      "name": "Collector Contrib Apache license",
+      "url": "https://raw.githubusercontent.com/open-telemetry/opentelemetry-collector-contrib/821a9d9c2c1623c4a0ceba5d47b57c48879c3f84/LICENSE",
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+    },
+    {
+      "name": "Collector Contrib image recipe",
+      "url": "https://raw.githubusercontent.com/open-telemetry/opentelemetry-collector-releases/1400269f8ace841f8d0492f4f9c6c7f305f95268/distributions/otelcol-contrib/Dockerfile",
+      "sha256": "757b955a2258b9289d7bda2510dfd160d681c2e8bdfc45a75e3ee78b31c7d633"
+    }
+  ],
+  "busybox_reuse": {
+    "graph_inventory": "deploy/local/graph-licenses.json",
+    "graph_inventory_sha256": "b4bfd72f704a86d812a056c3fd153a8d8e384b6e81e53f5ac327c5d3844a8323",
+    "required_license": "GPL-2.0-only"
+  },
+  "boundary": "The Collector Contrib and reused BusyBox images are opt-in local-development dependencies. The pipeline writes only to a proof-owned local file sink, approves no remote telemetry backend, and does not approve redistribution or production packaging."
+}
