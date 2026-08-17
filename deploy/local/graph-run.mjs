@@ -925,6 +925,9 @@ export function validateGraphKubernetesState(value, expected, retained = undefin
 
 function platformForNode(expected) {
   const targets = expected?.imageTargets;
+  if (targets?.neo4j?.references?.length !== 5 || targets?.busybox?.references?.length !== 5) {
+    throw new TypeError("graph image targets are incomplete");
+  }
   for (const platform of ["linux/amd64", "linux/arm64"]) {
     try {
       validateGraphContainerdTarget(targets?.neo4j, buildGraphImagePlan("neo4j", platform));

@@ -47,10 +47,6 @@ function plan(name = "neo4j", platform = "linux/arm64") {
   return buildGraphImagePlan(name, platform);
 }
 
-function graphImportReference(name, platform = "linux/arm64", date = "2026-08-16") {
-  return `docker.io/library/${graphRawImportReference(name, platform, date)}`;
-}
-
 function graphRawImportReference(name, platform = "linux/arm64", date = "2026-08-16") {
   return graphRawImportReferenceForDigest(plan(name, platform).manifestDigest, date);
 }
@@ -501,6 +497,8 @@ function providerGraphPodSpec(template, nodeName) {
 
 function graphProviderState(overrides = {}) {
   const platform = overrides.platform ?? "linux/arm64";
+  const busyboxImageTarget = graphBoundArchiveImport("busybox", platform).runtimeTarget;
+  const neo4jImageTarget = graphBoundArchiveImport("neo4j", platform).runtimeTarget;
   const nodeName = `zasp-m1-30b-${marker}-control-plane`;
   const deploymentResource = graphResource("Deployment", "neo4j");
   const serviceResource = graphResource("Service", "neo4j");
@@ -614,7 +612,7 @@ function graphProviderState(overrides = {}) {
       containerStatuses: [{
         containerID: podContainerID,
         image: GRAPH_IMAGE_PLANS.neo4j.platforms[platform].configDigest,
-        imageID: graphImportReference("neo4j", platform),
+        imageID: neo4jImageTarget.imageID,
         lastState: {},
         name: "neo4j",
         ready: true,
@@ -770,7 +768,7 @@ function graphProviderState(overrides = {}) {
       containerStatuses: [{
         containerID: overrides.healthContainerID ?? `containerd://${"b".repeat(64)}`,
         image: GRAPH_IMAGE_PLANS.busybox.platforms[platform].configDigest,
-        imageID: graphImportReference("busybox", platform),
+        imageID: busyboxImageTarget.imageID,
         lastState: {},
         name: "health",
         ready: false,
@@ -816,8 +814,8 @@ function graphProviderState(overrides = {}) {
 function graphProviderExpectation(platform = "linux/arm64") {
   return {
     imageTargets: {
-      busybox: graphImportTarget("busybox", platform),
-      neo4j: graphImportTarget("neo4j", platform),
+      busybox: graphBoundArchiveImport("busybox", platform).runtimeTarget,
+      neo4j: graphBoundArchiveImport("neo4j", platform).runtimeTarget,
     },
     nodeName: `zasp-m1-30b-${marker}-control-plane`,
   };
@@ -891,48 +889,56 @@ test("normalizes one exact Bound graph lineage with internal health evidence", (
   assert.ok(Object.isFrozen(snapshot.neo4j));
 });
 
-test("cross-binds config status images and imported repo-digest image IDs on both node platforms", () => {
+test("cross-binds config status images and final imported image IDs on both node platforms", () => {
   for (const platform of ["linux/amd64", "linux/arm64"]) {
-    for (const wrapperDigest of [`sha256:${"0".repeat(64)}`, `sha256:${"f".repeat(64)}`]) {
-      const value = graphProviderState({ platform });
-      const expected = graphProviderExpectation(platform);
-      for (const [podIndex, image] of [[-2, "neo4j"], [-1, "busybox"]]) {
-        expected.imageTargets[image] = graphImportTarget(image, platform, wrapperDigest);
-        value.pods.at(podIndex).status.containerStatuses[0].imageID =
-          expected.imageTargets[image].imageID;
-      }
-      assert.equal(value.pods.at(-2).spec.containers[0].image, NEO4J_IMAGE);
-      assert.equal(value.pods.at(-1).spec.containers[0].image, BUSYBOX_IMAGE);
-      assert.equal(value.pods.at(-2).status.containerStatuses[0].image,
-        GRAPH_IMAGE_PLANS.neo4j.platforms[platform].configDigest);
-      assert.equal(value.pods.at(-1).status.containerStatuses[0].image,
-        GRAPH_IMAGE_PLANS.busybox.platforms[platform].configDigest);
-      assert.equal(graphRunModule.validateGraphKubernetesState(value, expected).ready, true,
-        `${platform} ${wrapperDigest} lexical ImageRef`);
+    const value = graphProviderState({ platform });
+    const expected = graphProviderExpectation(platform);
+    assert.equal(value.pods.at(-2).spec.containers[0].image, NEO4J_IMAGE);
+    assert.equal(value.pods.at(-1).spec.containers[0].image, BUSYBOX_IMAGE);
+    assert.equal(value.pods.at(-2).status.containerStatuses[0].image,
+      GRAPH_IMAGE_PLANS.neo4j.platforms[platform].configDigest);
+    assert.equal(value.pods.at(-1).status.containerStatuses[0].image,
+      GRAPH_IMAGE_PLANS.busybox.platforms[platform].configDigest);
+    assert.equal(graphRunModule.validateGraphKubernetesState(value, expected).ready, true, platform);
 
-      for (const [podIndex, image] of [[-2, "neo4j"], [-1, "busybox"]]) {
-        const selected = GRAPH_IMAGE_PLANS[image];
-        for (const imageID of [
-          selected.platforms[platform].configDigest,
-          selected.indexDigest,
-          selected.platforms[platform].manifestDigest,
-          `${selected.repository}@${selected.indexDigest}`,
-          `${selected.repository}@${selected.platforms[platform].manifestDigest}`,
-          `${selected.repository}@${selected.platforms[platform].configDigest}`,
-          expected.imageTargets[image].references[1].reference,
-        ]) {
-          if (imageID === expected.imageTargets[image].imageID) continue;
-          const drifted = structuredClone(value);
-          drifted.pods.at(podIndex).status.containerStatuses[0].imageID = imageID;
-          assert.throws(() => graphRunModule.validateGraphKubernetesState(drifted, expected),
-            { name: "Failure" }, `${image} ${platform} ${imageID}`);
-          if (imageID !== selected.platforms[platform].configDigest) {
-            const imageDrifted = structuredClone(value);
-            imageDrifted.pods.at(podIndex).status.containerStatuses[0].image = imageID;
-            assert.throws(() => graphRunModule.validateGraphKubernetesState(imageDrifted, expected),
-              { name: "Failure" }, `${image} ${platform} status image ${imageID}`);
-          }
+    for (const [podIndex, image] of [[-2, "neo4j"], [-1, "busybox"]]) {
+      const selected = GRAPH_IMAGE_PLANS[image];
+      for (const imageID of [
+        selected.platforms[platform].configDigest,
+        selected.indexDigest,
+        selected.platforms[platform].manifestDigest,
+        `${selected.repository}@${selected.indexDigest}`,
+        `${selected.repository}@${selected.platforms[platform].manifestDigest}`,
+        `${selected.repository}@${selected.platforms[platform].configDigest}`,
+        expected.imageTargets[image].references[1].reference,
+      ]) {
+        if (imageID === expected.imageTargets[image].imageID) continue;
+        const drifted = structuredClone(value);
+        drifted.pods.at(podIndex).status.containerStatuses[0].imageID = imageID;
+        assert.throws(() => graphRunModule.validateGraphKubernetesState(drifted, expected),
+          { name: "Failure" }, `${image} ${platform} ${imageID}`);
+        if (imageID !== selected.platforms[platform].configDigest) {
+          const imageDrifted = structuredClone(value);
+          imageDrifted.pods.at(podIndex).status.containerStatuses[0].image = imageID;
+          assert.throws(() => graphRunModule.validateGraphKubernetesState(imageDrifted, expected),
+            { name: "Failure" }, `${image} ${platform} status image ${imageID}`);
         }
+      }
+    }
+  }
+});
+
+test("rejects every intermediate graph image target at the Kubernetes boundary", () => {
+  for (const platform of ["linux/amd64", "linux/arm64"]) {
+    for (const [podIndex, image] of [[-2, "neo4j"], [-1, "busybox"]]) {
+      const fixture = graphBoundArchiveImport(image, platform);
+      for (const target of [graphImportTarget(image, platform), fixture.target, fixture.boundTarget]) {
+        const value = graphProviderState({ platform });
+        const expected = graphProviderExpectation(platform);
+        expected.imageTargets[image] = target;
+        value.pods.at(podIndex).status.containerStatuses[0].imageID = target.imageID;
+        assert.throws(() => graphRunModule.validateGraphKubernetesState(value, expected),
+          { name: "Failure" }, `${image} ${platform} ${target.references.length} rows`);
       }
     }
   }
@@ -3118,6 +3124,9 @@ test("rejects node image inventory drift between the two proved graph loads", as
 
 test("retains the last proved inventory across every first-image mutation failure", async () => {
   const fixture = graphBoundArchiveImport("neo4j");
+  const invalidContentFixture = graphBoundArchiveImport("neo4j", "linux/arm64", ({ manifest, phase }) => {
+    if (phase === "manifest") manifest.config.digest = `sha256:${"e".repeat(64)}`;
+  });
   const row = (value) => [
     value.reference, value.mediaType, value.digest, value.size, value.platform, value.labels,
   ].join(" ");
@@ -3126,9 +3135,11 @@ test("retains the last proved inventory across every first-image mutation failur
       `sha256:${"7".repeat(64)} 12.3 MiB linux/arm64 managed=true`,
   ];
   const importedRows = [...baselineRows, ...fixture.rows];
+  const invalidContentRows = [...baselineRows, ...invalidContentFixture.rows];
   const workloadRows = [...importedRows, row(fixture.alias)];
   const baseline = containerdInventory(baselineRows);
   const imported = containerdInventory(importedRows);
+  const invalidContent = containerdInventory(invalidContentRows);
   const workload = containerdInventory(workloadRows);
   const malformedImport = containerdInventory([...baselineRows, "malformed"]);
   const badWorkload = containerdInventory([...importedRows,
@@ -3139,6 +3150,10 @@ test("retains the last proved inventory across every first-image mutation failur
     { label: "definitive load", load: "definitive", reads: [baseline], retained: baseline, observed: baseline },
     { label: "partial load", load: "ambiguous", reads: [baseline, malformedImport], retained: baseline,
       observed: malformedImport, cleanupRejects: true },
+    { label: "invalid imported content", load: "ambiguous",
+      reads: [baseline, invalidContent, invalidContentFixture.manifestSource,
+        invalidContentFixture.wrapperSource],
+      retained: baseline, observed: invalidContent, cleanupRejects: true },
     { label: "definitive workload alias", load: "ambiguous", node: ["definitive"],
       reads: [baseline, imported, fixture.manifestSource, fixture.wrapperSource],
       retained: imported, observed: imported },
