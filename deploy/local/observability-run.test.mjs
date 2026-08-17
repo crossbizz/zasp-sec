@@ -209,6 +209,18 @@ test("defines the exact observability profile without changing prior profiles", 
   assert.throws(() => new LocalGraphSystem(input, undefined, accessor), TypeError);
   assert.equal(reads, 0);
 
+  for (const field of ["bytes", "name", "pathKey"]) {
+    let entryReads = 0;
+    const entryAccessor = clone(profile);
+    Object.defineProperty(entryAccessor.manifests[0], field, {
+      configurable: true,
+      enumerable: true,
+      get() { entryReads += 1; return profile.manifests[0][field]; },
+    });
+    assert.throws(() => new LocalGraphSystem(input, undefined, entryAccessor), TypeError);
+    assert.equal(entryReads, 0);
+  }
+
   const fake = fakeLifecycle({});
   fake.runtime.profile = clone(profile);
   fake.runtime.profile.manifests[1].bytes = "forged collector manifest\n";

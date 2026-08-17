@@ -2778,15 +2778,21 @@ function validateSystemProfile(value) {
   const pathKeys = new Set();
   const manifests = value.manifests.map((manifest, index) => {
     requireExactObject(manifest, ["bytes", "name", "pathKey"], "system manifest");
-    if (typeof manifest.bytes !== "string" || Buffer.byteLength(manifest.bytes) < 1 ||
-        Buffer.byteLength(manifest.bytes) > 262_144 || manifest.name !== expected[index][0] ||
-        manifest.pathKey !== expected[index][1] || manifest.bytes !== expected[index][2] ||
-        names.has(manifest.name) || pathKeys.has(manifest.pathKey)) {
+    const descriptors = Object.getOwnPropertyDescriptors(manifest);
+    if (["bytes", "name", "pathKey"].some((key) => descriptors[key] === undefined ||
+      !("value" in descriptors[key]) || !descriptors[key].enumerable)) throw new TypeError("system manifest is invalid");
+    const bytes = descriptors.bytes.value;
+    const name = descriptors.name.value;
+    const pathKey = descriptors.pathKey.value;
+    if (typeof bytes !== "string" || Buffer.byteLength(bytes) < 1 ||
+        Buffer.byteLength(bytes) > 262_144 || name !== expected[index][0] ||
+        pathKey !== expected[index][1] || bytes !== expected[index][2] ||
+        names.has(name) || pathKeys.has(pathKey)) {
       throw new TypeError("system manifest is invalid");
     }
-    names.add(manifest.name);
-    pathKeys.add(manifest.pathKey);
-    return { ...manifest };
+    names.add(name);
+    pathKeys.add(pathKey);
+    return { bytes, name, pathKey };
   });
   return deepFreeze({ manifests, proof: value.proof });
 }
