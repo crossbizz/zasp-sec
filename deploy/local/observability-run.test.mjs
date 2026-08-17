@@ -335,7 +335,11 @@ function observabilityProviderState({ includeJob = true, platform = "linux/amd64
     endpoints: [{ addresses: [podIP], conditions: { ready: true, serving: true, terminating: false }, nodeName: expectation.nodeName, targetRef: { kind: "Pod", name: podName, namespace: "zasp-local", uid: podUid } }],
     kind: "EndpointSlice",
     metadata: {
-      labels: { "endpointslice.kubernetes.io/managed-by": "endpointslice-controller.k8s.io", "kubernetes.io/service-name": "otel-collector" },
+      labels: {
+        ...clone(serviceResource.metadata.labels),
+        "endpointslice.kubernetes.io/managed-by": "endpointslice-controller.k8s.io",
+        "kubernetes.io/service-name": "otel-collector",
+      },
       name: "otel-collector-abcde", namespace: "zasp-local",
       ownerReferences: [{ apiVersion: "v1", blockOwnerDeletion: true, controller: true, kind: "Service", name: "otel-collector", uid: serviceUid }],
       resourceVersion: "205", uid: providerUid(44),
@@ -790,6 +794,8 @@ test("rejects every observability provider ownership, exposure, lineage, status,
     ["selector", (value) => { value.services[0].spec.selector["app.kubernetes.io/name"] = "foreign"; }],
     ["endpoint target", (value) => { value.endpointSlices[0].endpoints[0].targetRef.uid = providerUid(99); }],
     ["endpoint condition", (value) => { value.endpointSlices[0].endpoints[0].conditions.ready = false; }],
+    ["endpoint copied label", (value) => { value.endpointSlices[0].metadata.labels["zasp.dev/environment"] = "foreign"; }],
+    ["endpoint extra label", (value) => { value.endpointSlices[0].metadata.labels.foreign = "true"; }],
     ["external service", (value) => { value.services[0].spec.type = "LoadBalancer"; }],
     ["ingress", (value) => { value.ingresses.push({ kind: "Ingress" }); }],
     ["premature Job", (value) => { value.jobs = []; value.pods.pop(); value.jobLog = null; }],
@@ -907,6 +913,8 @@ test("retains the original product snapshot across graph and observability repro
 test("uses fixed bounded provider, Job-apply, log, and sink command boundaries", async () => {
   const state = observabilityProviderState();
   const rawState = realisticObservabilityProviderState();
+  delete rawState.deployments[0].spec.template.metadata.creationTimestamp;
+  delete rawState.replicaSets[0].spec.template.metadata.creationTimestamp;
   const expected = observabilityExpectation();
   const complete = validateObservabilityKubernetesState(state, expected, undefined, true);
   const resourceMap = new Map([

@@ -419,7 +419,11 @@ export function validateObservabilityKubernetesState(value, expected, retained =
       endpoints: [{ addresses: [podIP], conditions: { ready: true, serving: true, terminating: false }, nodeName: expected.nodeName, targetRef: { kind: "Pod", name: podName, namespace: "zasp-local", uid: podUid } }],
       kind: "EndpointSlice",
       metadata: {
-        labels: { "endpointslice.kubernetes.io/managed-by": "endpointslice-controller.k8s.io", "kubernetes.io/service-name": "otel-collector" },
+        labels: {
+          ...structuredClone(serviceResource.metadata.labels),
+          "endpointslice.kubernetes.io/managed-by": "endpointslice-controller.k8s.io",
+          "kubernetes.io/service-name": "otel-collector",
+        },
         name: endpointName, namespace: "zasp-local",
         ownerReferences: [{ apiVersion: "v1", blockOwnerDeletion: true, controller: true, kind: "Service", name: "otel-collector", uid: serviceUid }],
         resourceVersion: endpointVersion, uid: endpointUid,
@@ -1245,6 +1249,9 @@ function projectObservabilityWorkloadSpec(value) {
   const spec = structuredClone(value);
   const podSpec = spec?.template?.spec;
   if (!isPlainObject(podSpec)) return spec;
+  if (isPlainObject(spec.template.metadata) && spec.template.metadata.creationTimestamp === undefined) {
+    spec.template.metadata.creationTimestamp = null;
+  }
   for (const key of ["hostIPC", "hostNetwork", "hostPID"]) {
     if (podSpec[key] === undefined) podSpec[key] = false;
   }
