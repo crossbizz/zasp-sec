@@ -3233,6 +3233,7 @@ test("reverse cleanup re-proves node storage and images and retains recovery on 
     token: system.nodeIdentity.token, uid: "11111111-1111-4111-8111-111111111111" };
   system.graphPathIdentity = { dev: 43, gid: 7474, ino: 99, mode: 700,
     nodeToken: system.nodeIdentity.token, path: GRAPH_CONSTANTS.nodeDataPath, uid: 7474 };
+  system.graphNodeImageInventory = containerdInventory(graphArchiveImport("neo4j").rows);
   system.graphNodeMayHaveApplied = true;
   system.graphPathMayHaveApplied = true;
   system.requireTemporaryOwnership = async () => { events.push("root"); };
@@ -3240,12 +3241,26 @@ test("reverse cleanup re-proves node storage and images and retains recovery on 
   system.verifyCluster = async () => { events.push("cluster"); return system.nodeIdentity; };
   system.readGraphNodeLabel = async () => { events.push("label"); return system.graphNodeIdentity; };
   system.readGraphNodePath = async () => { events.push("path"); return system.graphPathIdentity; };
+  system.runNodeRead = async (arguments_) => {
+    assert.deepEqual(arguments_, ["ctr", "--namespace", "k8s.io", "images", "list"]);
+    events.push("images");
+    return success(system.graphNodeImageInventory);
+  };
   await system.verifyAdditionalNodeForCleanup(phase);
-  assert.deepEqual(events, ["root", "manifest", "cluster", "label", "path"]);
+  assert.deepEqual(events, ["root", "manifest", "cluster", "images", "label", "path"]);
 
   system.readGraphNodePath = async () => ({ ...system.graphPathIdentity, ino: 100 });
   await assert.rejects(() => system.verifyAdditionalNodeForCleanup(phase), { name: "Failure" });
   assert.equal(system.graphPathMayHaveApplied, true, "replacement retains recovery material and blocks deletion");
+
+  system.readGraphNodePath = async () => system.graphPathIdentity;
+  system.runNodeRead = async () => success(
+    system.graphNodeImageInventory.replace("456 MiB", "455 MiB"),
+  );
+  await assert.rejects(
+    () => system.verifyAdditionalNodeForCleanup(phase),
+    { category: "cleanup", name: "Failure" },
+  );
 });
 
 test("boundedly reconciles uncertain exact pod deletion before base node removal", async () => {

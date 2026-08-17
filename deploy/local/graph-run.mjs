@@ -2414,6 +2414,13 @@ export class LocalGraphSystem extends LocalProductSystem {
     await this.requireTemporaryOwnership(phase, "cleanup");
     await this.requireOwnedPath(this.paths.graphManifest, phase, "cleanup");
     await this.verifyCluster(phase, "cleanup");
+    if (this.graphNodeImageInventory !== undefined) {
+      if (typeof this.graphNodeImageInventory !== "string") throw new Failure("cleanup");
+      const images = await this.runNodeRead([
+        "ctr", "--namespace", "k8s.io", "images", "list",
+      ], phase, "cleanup", 30_000, 4_194_304);
+      if (images.stdout !== this.graphNodeImageInventory) throw new Failure("cleanup");
+    }
     if (!this.graphNodeMayHaveApplied && !this.graphPathMayHaveApplied &&
         this.graphProviderIdentity === undefined && !this.graphPodDeleteMayHaveApplied &&
         !this.graphHealthDeleteMayHaveApplied && !this.graphHealthApplyMayHaveApplied &&
