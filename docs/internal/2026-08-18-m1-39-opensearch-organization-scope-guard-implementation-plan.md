@@ -31,43 +31,43 @@ Gitleaks 8.30.1.
 
 ## Task 1: Start M1-39 with an exact repository contract
 
-- [ ] Add a focused quality contract binding the source task, this design and
+- [x] Add a focused quality contract binding the source task, this design and
   plan, exact status arithmetic, M1-38 Complete, and M1-40 absent.
-- [ ] Run it before status edits and retain the intended Pending-state RED.
-- [ ] Move only M1-39 to In progress at `644/1/80/3` overall and
+- [x] Run it before status edits and retain the intended Pending-state RED.
+- [x] Move only M1-39 to In progress at `644/1/80/3` overall and
   `11/1/56/0` for M1; update README and affected exact-count contracts.
-- [ ] Run the focused and full pinned gates, scan the exact change, update the
+- [x] Run the focused and full pinned gates, scan the exact change, update the
   ignored report/ledger, and commit the start transition atomically.
 
 ## Task 2: Add scope-mandatory EventStore builders
 
-- [ ] Add direct tests for exact scoped document/query output, fresh sort
+- [x] Add direct tests for exact scoped document/query output, fresh sort
   allocation, zero scope, mismatched event scope, and invalid filters.
-- [ ] Add the same-session A-query/B-document hostile fixture and require one
+- [x] Add the same-session A-query/B-document hostile fixture and require one
   A-scoped driver call, zero returned events, and fixed `ErrSearch`.
-- [ ] Mutate the inherited builder path to omit Organization scope and retain
+- [x] Mutate the inherited builder path to omit Organization scope and retain
   the focused tests-only RED before production edits.
-- [ ] Implement `buildDriverDocument` and `buildDriverQuery`; route `Index` and
+- [x] Implement `buildDriverDocument` and `buildDriverQuery`; route `Index` and
   `Search` through them before deadline construction or driver I/O.
 
 ## Task 3: Verify and review the product boundary
 
-- [ ] Run the focused package with the race detector six consecutive times.
-- [ ] Run full platform race, tidy-diff, module verification, vet, and package
+- [x] Run the focused package with the race detector six consecutive times.
+- [x] Run full platform race, tidy-diff, module verification, vet, and package
   statement coverage; preserve all M1-14 adapter and proof tests.
-- [ ] Run pinned repository tests, typecheck, lint, build, production audit,
+- [x] Run pinned repository tests, typecheck, lint, build, production audit,
   whitespace checks, and scoped redacted secret scans.
-- [ ] Review the exact start-to-implementation range for scope bypass,
+- [x] Review the exact start-to-implementation range for scope bypass,
   aliasing, panic/error leakage, concurrency, and unsupported provider claims;
   resolve every Critical, Important, and Minor finding tests-first.
 
 ## Task 4: Complete, ship, and close M1-39
 
-- [ ] Change the focused contract first and retain the intended completion RED.
-- [ ] Move only M1-39 to Complete at `644/0/81/3` overall and `11/0/57/0`
+- [x] Change the focused contract first and retain the intended completion RED.
+- [x] Move only M1-39 to Complete at `644/0/81/3` overall and `11/0/57/0`
   for M1; keep M1-40 Pending and all three blockers unchanged.
-- [ ] Re-run all final gates and scans, commit, push, and require exact-SHA
+- [x] Re-run all final gates and scans, commit, push, and require exact-SHA
   Runnable UI success before claiming completion.
-- [ ] Check these 16 execution steps, commit plan closure, push, require a
+- [x] Check these 16 execution steps, commit plan closure, push, require a
   second exact-SHA Runnable UI success, reconcile refs/evidence, and proceed
   directly to M1-40.
