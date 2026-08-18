@@ -140,7 +140,7 @@ func (store *Store) Upsert(ctx context.Context, scope domain.Scope, projection P
 	if !store.usable() || ctx == nil {
 		return ErrUpsert
 	}
-	driverProjection, nodeIDs, edgeIDs, ok := canonicalProjection(scope, projection, store.config)
+	driverProjection, nodeIDs, edgeIDs, ok := buildDriverProjection(scope, projection, store.config)
 	if !ok {
 		return ErrProjection
 	}
@@ -160,24 +160,9 @@ func (store *Store) Read(ctx context.Context, scope domain.Scope, request ReadRe
 	if !store.usable() || ctx == nil {
 		return Projection{}, ErrRead
 	}
-	direction, ok := directionName(request.Direction)
-	if scope.Validate() != nil || request.RootID.String() == "" || !ok || request.MaximumDepth < 0 ||
-		request.MaximumDepth > store.config.MaximumDepth || request.MaximumNodes <= 0 ||
-		request.MaximumNodes > store.config.MaximumNodes || request.MaximumEdges <= 0 ||
-		request.MaximumEdges > store.config.MaximumEdges {
+	query, ok := buildDriverQuery(scope, request, store.config)
+	if !ok {
 		return Projection{}, ErrReadRequest
-	}
-	query := DriverQuery{
-		OrganizationID: scope.OrganizationID().String(),
-		WorkspaceID:    scope.WorkspaceID().String(),
-		EnvironmentID:  scope.EnvironmentID().String(),
-		RootID:         request.RootID.String(),
-		Direction:      direction,
-		MaximumDepth:   request.MaximumDepth,
-		MaximumNodes:   request.MaximumNodes,
-		MaximumEdges:   request.MaximumEdges,
-		NodeSort:       "node_id",
-		EdgeSort:       "edge_id",
 	}
 	operationCtx, cancel := context.WithTimeout(ctx, store.config.OperationTimeout)
 	defer cancel()
@@ -199,7 +184,7 @@ func (store *Store) usable() bool {
 	return store != nil && !nilInterface(store.driver)
 }
 
-func canonicalProjection(scope domain.Scope, projection Projection, config Config) (DriverProjection, []string, []string, bool) {
+func buildDriverProjection(scope domain.Scope, projection Projection, config Config) (DriverProjection, []string, []string, bool) {
 	if scope.Validate() != nil || len(projection.Nodes) == 0 || len(projection.Nodes) > config.MaximumNodes ||
 		len(projection.Edges) > config.MaximumEdges {
 		return DriverProjection{}, nil, nil, false
@@ -259,6 +244,28 @@ func canonicalProjection(scope domain.Scope, projection Projection, config Confi
 		}
 	}
 	return DriverProjection{Nodes: driverNodes, Edges: driverEdges}, nodeIDs, edgeIDs, true
+}
+
+func buildDriverQuery(scope domain.Scope, request ReadRequest, config Config) (DriverQuery, bool) {
+	direction, ok := directionName(request.Direction)
+	if scope.Validate() != nil || request.RootID.String() == "" || !ok || request.MaximumDepth < 0 ||
+		request.MaximumDepth > config.MaximumDepth || request.MaximumNodes <= 0 ||
+		request.MaximumNodes > config.MaximumNodes || request.MaximumEdges <= 0 ||
+		request.MaximumEdges > config.MaximumEdges {
+		return DriverQuery{}, false
+	}
+	return DriverQuery{
+		OrganizationID: scope.OrganizationID().String(),
+		WorkspaceID:    scope.WorkspaceID().String(),
+		EnvironmentID:  scope.EnvironmentID().String(),
+		RootID:         request.RootID.String(),
+		Direction:      direction,
+		MaximumDepth:   request.MaximumDepth,
+		MaximumNodes:   request.MaximumNodes,
+		MaximumEdges:   request.MaximumEdges,
+		NodeSort:       "node_id",
+		EdgeSort:       "edge_id",
+	}, true
 }
 
 func productProjection(scope domain.Scope, request ReadRequest, returned DriverProjection) (Projection, bool) {

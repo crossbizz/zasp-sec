@@ -17,6 +17,42 @@ type functionDriver struct {
 	read   func(context.Context, DriverQuery) (DriverProjection, error)
 }
 
+type scopedMemoryDriver struct {
+	mu          sync.Mutex
+	projections map[string]DriverProjection
+}
+
+func newScopedMemoryDriver() *scopedMemoryDriver {
+	return &scopedMemoryDriver{projections: make(map[string]DriverProjection)}
+}
+
+func (driver *scopedMemoryDriver) Upsert(_ context.Context, projection DriverProjection) (DriverUpserted, error) {
+	driver.mu.Lock()
+	defer driver.mu.Unlock()
+	organizationID := projection.Nodes[0].OrganizationID
+	driver.projections[organizationID] = cloneDriverProjection(projection)
+	nodeIDs := make([]string, len(projection.Nodes))
+	for index, node := range projection.Nodes {
+		nodeIDs[index] = node.NodeID
+	}
+	edgeIDs := make([]string, len(projection.Edges))
+	for index, edge := range projection.Edges {
+		edgeIDs[index] = edge.EdgeID
+	}
+	return DriverUpserted{NodeIDs: nodeIDs, EdgeIDs: edgeIDs}, nil
+}
+
+func (driver *scopedMemoryDriver) Read(_ context.Context, query DriverQuery) (DriverProjection, error) {
+	driver.mu.Lock()
+	defer driver.mu.Unlock()
+	projection := driver.projections[query.OrganizationID]
+	if len(projection.Nodes) == 0 || projection.Nodes[0].WorkspaceID != query.WorkspaceID ||
+		projection.Nodes[0].EnvironmentID != query.EnvironmentID {
+		return DriverProjection{Nodes: []DriverNode{}, Edges: []DriverEdge{}}, nil
+	}
+	return cloneDriverProjection(projection), nil
+}
+
 func (driver functionDriver) Upsert(ctx context.Context, projection DriverProjection) (DriverUpserted, error) {
 	return driver.upsert(ctx, projection)
 }
@@ -112,6 +148,146 @@ func TestStoreUpsertsAndReadsExactScopedProjection(t *testing.T) {
 	}
 	if upserts.Load() != 2 || reads.Load() != 1 {
 		t.Fatalf("calls = upsert %d read %d", upserts.Load(), reads.Load())
+	}
+}
+
+func TestScopedBuildersRequireExactOrganizationBeforeDriverIO(t *testing.T) {
+	t.Parallel()
+	organizationA := fixtureScope(t, "1", "2", "3")
+	organizationB := fixtureScope(t, "7", "2", "3")
+	projection := fixtureProjection(t, organizationA)
+	config := validConfig()
+
+	driverProjection, nodeIDs, edgeIDs, ok := buildDriverProjection(organizationA, projection, config)
+	if !ok || !reflect.DeepEqual(driverProjection, projectionToDriver(projection)) ||
+		!reflect.DeepEqual(nodeIDs, []string{projection.Nodes[0].NodeID.String(), projection.Nodes[1].NodeID.String()}) ||
+		!reflect.DeepEqual(edgeIDs, []string{projection.Edges[0].EdgeID.String()}) {
+		t.Fatalf("buildDriverProjection = %#v, %#v, %#v, %v", driverProjection, nodeIDs, edgeIDs, ok)
+	}
+
+	request := ReadRequest{
+		RootID: projection.Nodes[0].NodeID, Direction: DirectionOutgoing,
+		MaximumDepth: 1, MaximumNodes: 2, MaximumEdges: 1,
+	}
+	query, ok := buildDriverQuery(organizationA, request, config)
+	if !ok || query.OrganizationID != organizationA.OrganizationID().String() ||
+		query.WorkspaceID != organizationA.WorkspaceID().String() ||
+		query.EnvironmentID != organizationA.EnvironmentID().String() || query.RootID != request.RootID.String() ||
+		query.Direction != "outgoing" || query.MaximumDepth != 1 || query.MaximumNodes != 2 ||
+		query.MaximumEdges != 1 || query.NodeSort != "node_id" || query.EdgeSort != "edge_id" {
+		t.Fatalf("buildDriverQuery = %#v, %v", query, ok)
+	}
+
+	foreignNode := mutateProjection(projection, func(value *Projection) { value.Nodes[0].Scope = organizationB })
+	foreignEdge := mutateProjection(projection, func(value *Projection) { value.Edges[0].Scope = organizationB })
+	for name, candidate := range map[string]Projection{"foreign node": foreignNode, "foreign edge": foreignEdge} {
+		t.Run(name, func(t *testing.T) {
+			if _, _, _, accepted := buildDriverProjection(organizationA, candidate, config); accepted {
+				t.Fatalf("buildDriverProjection accepted %s", name)
+			}
+		})
+	}
+	if _, _, _, accepted := buildDriverProjection(domain.Scope{}, projection, config); accepted {
+		t.Fatal("buildDriverProjection accepted zero scope")
+	}
+	if _, accepted := buildDriverQuery(domain.Scope{}, request, config); accepted {
+		t.Fatal("buildDriverQuery accepted zero scope")
+	}
+}
+
+func TestOrganizationAPathCannotTraverseOrganizationBFixture(t *testing.T) {
+	t.Parallel()
+	organizationA := fixtureScope(t, "1", "2", "3")
+	organizationB := fixtureScope(t, "7", "2", "3")
+	projectionA := fixtureProjection(t, organizationA)
+	projectionB := fixtureProjection(t, organizationB)
+	driver := newScopedMemoryDriver()
+	store, err := New(driver, validConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := store.Upsert(context.Background(), organizationA, projectionA); err != nil {
+		t.Fatalf("Organization A Upsert error = %v", err)
+	}
+	if err := store.Upsert(context.Background(), organizationB, projectionB); err != nil {
+		t.Fatalf("Organization B Upsert error = %v", err)
+	}
+	request := ReadRequest{
+		RootID: projectionA.Nodes[0].NodeID, Direction: DirectionOutgoing,
+		MaximumDepth: 1, MaximumNodes: 2, MaximumEdges: 1,
+	}
+	got, err := store.Read(context.Background(), organizationA, request)
+	if err != nil || !reflect.DeepEqual(got, projectionA) {
+		t.Fatalf("Organization A Read = %#v, %v", got, err)
+	}
+	for _, node := range got.Nodes {
+		if node.Scope != organizationA || node.Scope == organizationB {
+			t.Fatalf("Organization A path contained foreign node %#v", node)
+		}
+	}
+	for _, edge := range got.Edges {
+		if edge.Scope != organizationA || edge.Scope == organizationB {
+			t.Fatalf("Organization A path contained foreign edge %#v", edge)
+		}
+	}
+
+	hostile := functionDriver{
+		upsert: func(context.Context, DriverProjection) (DriverUpserted, error) { return DriverUpserted{}, nil },
+		read: func(context.Context, DriverQuery) (DriverProjection, error) {
+			return projectionToDriver(projectionB), nil
+		},
+	}
+	hostileStore, err := New(hostile, validConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if returned, readErr := hostileStore.Read(context.Background(), organizationA, request); !errors.Is(readErr, ErrRead) || returned.Nodes != nil || returned.Edges != nil {
+		t.Fatalf("foreign provider projection = %#v, %v", returned, readErr)
+	}
+}
+
+func TestStoreSeparatesConcurrentOrganizations(t *testing.T) {
+	t.Parallel()
+	organizationA := fixtureScope(t, "1", "2", "3")
+	organizationB := fixtureScope(t, "7", "2", "3")
+	projections := []Projection{fixtureProjection(t, organizationA), fixtureProjection(t, organizationB)}
+	scopes := []domain.Scope{organizationA, organizationB}
+	driver := newScopedMemoryDriver()
+	store, err := New(driver, validConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for index := range scopes {
+		if err := store.Upsert(context.Background(), scopes[index], projections[index]); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	var wait sync.WaitGroup
+	var failed atomic.Bool
+	for index := 0; index < 64; index++ {
+		selected := index % len(scopes)
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			if upsertErr := store.Upsert(context.Background(), scopes[selected], projections[selected]); upsertErr != nil {
+				failed.Store(true)
+				return
+			}
+			request := ReadRequest{
+				RootID: projections[selected].Nodes[0].NodeID, Direction: DirectionOutgoing,
+				MaximumDepth: 1, MaximumNodes: 2, MaximumEdges: 1,
+			}
+			got, readErr := store.Read(context.Background(), scopes[selected], request)
+			if readErr != nil || !reflect.DeepEqual(got, projections[selected]) {
+				failed.Store(true)
+			}
+		}()
+	}
+	wait.Wait()
+	if failed.Load() {
+		t.Fatal("concurrent Organization reads crossed scope")
 	}
 }
 
