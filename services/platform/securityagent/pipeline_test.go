@@ -216,7 +216,7 @@ func TestRunQueuePlanningApprovalClassificationVerificationAndCancellation(t *te
 	if err != nil || planned.State != RunPlanning {
 		t.Fatalf("planned=%+v err=%v", planned, err)
 	}
-	approval, err := CreateStepApproval(ctx, repo, planned, "step-1", now.Add(time.Minute))
+	approval, err := CreateStepApproval(ctx, repo, planned, "step-1", now, now.Add(time.Minute))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -283,7 +283,7 @@ func TestRunQueuePlanningApprovalClassificationVerificationAndCancellation(t *te
 		t.Fatal(err)
 	}
 	planning, _ := repo.TransitionRun(ctx, "org-a", run3.ID, RunQueued, RunPlanning, 1)
-	approval3, err := CreateStepApproval(ctx, repo, planning, "step-1", now.Add(time.Minute))
+	approval3, err := CreateStepApproval(ctx, repo, planning, "step-1", now, now.Add(time.Minute))
 	if err != nil {
 		t.Fatal(err)
 	}

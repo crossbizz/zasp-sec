@@ -9,7 +9,7 @@ import (
 
 func TestApprovalNotificationIsSignedRedactedAndIdempotent(t *testing.T) {
 	now := time.Date(2026, 8, 18, 20, 0, 0, 0, time.UTC)
-	approval := Approval{ID: "approval-1", OrganizationID: "org-a", RunID: "run-1", StepID: "step-1", State: ApprovalPending, ExpiresAt: now.Add(time.Hour), Version: 1}
+	approval := Approval{ID: "approval-1", OrganizationID: "org-a", RunID: "run-1", StepID: "step-1", State: ApprovalPending, CreatedAt: now, ExpiresAt: now.Add(time.Hour), Version: 1}
 	run := SecurityAgentRun{ID: "run-1", OrganizationID: "org-a", AgentID: "agent-1", State: RunWaitingApproval, TriggerEvidenceIDs: []string{"evidence-1"}, DefinitionVersion: 1, Version: 2}
 	event, signature, err := BuildApprovalRequiredWebhook([]byte("fixture-signing-key"), approval, run)
 	if err != nil || !strings.Contains(string(event), `"type":"security_agent.approval_required"`) || strings.Contains(string(event), "evidence-1") || len(signature) != 64 {
@@ -30,8 +30,8 @@ func TestApprovalNotificationIsSignedRedactedAndIdempotent(t *testing.T) {
 func TestSecurityAgentAttentionAndMVPGate(t *testing.T) {
 	now := time.Date(2026, 8, 18, 20, 0, 0, 0, time.UTC)
 	summary, err := BuildSecurityAgentAttention("org-a", now, []Approval{
-		{ID: "approval-a", OrganizationID: "org-a", State: ApprovalPending, ExpiresAt: now.Add(-20 * time.Minute)},
-		{ID: "approval-b", OrganizationID: "org-b", State: ApprovalPending, ExpiresAt: now.Add(-time.Hour)},
+		{ID: "approval-a", OrganizationID: "org-a", State: ApprovalPending, CreatedAt: now.Add(-20 * time.Minute), ExpiresAt: now.Add(40 * time.Minute)},
+		{ID: "approval-b", OrganizationID: "org-b", State: ApprovalPending, CreatedAt: now.Add(-time.Hour), ExpiresAt: now.Add(time.Hour)},
 	}, []SecurityAgentRun{
 		{ID: "run-a", OrganizationID: "org-a", State: RunNeedsHuman},
 		{ID: "run-b", OrganizationID: "org-a", State: RunContained},

@@ -142,7 +142,7 @@ func TestScopedRepositoriesCASOrderingApprovalAndIdempotency(t *testing.T) {
 		t.Fatal("duplicate step index accepted")
 	}
 
-	approval := Approval{ID: "approval-1", OrganizationID: "org-a", RunID: run.ID, StepID: "step-1", State: ApprovalPending, ExpiresAt: now.Add(time.Minute), Version: 1}
+	approval := Approval{ID: "approval-1", OrganizationID: "org-a", RunID: run.ID, StepID: "step-1", State: ApprovalPending, CreatedAt: now.Add(-time.Minute), ExpiresAt: now.Add(time.Minute), Version: 1}
 	if err := repo.CreateApproval(ctx, approval); err != nil {
 		t.Fatal(err)
 	}
@@ -154,6 +154,7 @@ func TestScopedRepositoriesCASOrderingApprovalAndIdempotency(t *testing.T) {
 	}
 	expired := approval
 	expired.ID = "approval-2"
+	expired.CreatedAt = now.Add(-time.Minute)
 	expired.ExpiresAt = now.Add(-time.Second)
 	if err := repo.CreateApproval(ctx, expired); err != nil {
 		t.Fatal(err)

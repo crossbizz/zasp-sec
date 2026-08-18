@@ -37,4 +37,18 @@ describe("Security Agent builder", () => {
     await waitFor(() => expect(simulateSecurityAgent).toHaveBeenCalledWith("agent-created", expect.objectContaining({ evidence_ids: ["evidence-selected"] })));
     expect(screen.getByText("authorization: allow")).toBeInTheDocument();
   });
+
+  it("opens the dedicated approvals surface and renders all definition limits", async () => {
+    const user = userEvent.setup();
+    const approval = { id: "approval-1", run_id: "run-1", step_id: "run_test", state: "pending" as const, expires_at: "2026-08-18T22:00:00Z", version: 1, expected_effect: "Run the bounded test", reversible: true, ttl_seconds: 900, evidence_summary: ["evidence-1"] };
+    const run = { id: "run-1", agent_id: created.id, state: "waiting_approval" as const, evidence_ids: ["evidence-1"], definition_version: 1, version: 1 };
+    render(<SecurityAgentsView initialTab="approvals" api={fixtureAPI({ listSecurityAgents: async () => ({ items: [created] }), listSecurityAgentRuns: async () => ({ items: [run] }), listSecurityAgentApprovals: async () => ({ items: [approval] }), getSecurityAgentApproval: async () => approval })} />);
+    expect(await screen.findByText("Pending approvals", { selector: ".card__title" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "run_test" }));
+    expect(await screen.findByText("Run the bounded test")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    await user.click(screen.getByRole("tab", { name: /Security Agents/ }));
+    await user.click(screen.getByRole("button", { name: "Bounded response" }));
+    expect(await screen.findByText(/3600s temporary policy · 4000 AI tokens · concurrency 2/)).toBeInTheDocument();
+  });
 });

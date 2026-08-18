@@ -29,8 +29,11 @@ func BuildSecurityAgentAttention(organizationID string, now time.Time, approvals
 		if value.OrganizationID != organizationID || value.State != ApprovalPending {
 			continue
 		}
+		if value.CreatedAt.Location() != time.UTC || value.CreatedAt.IsZero() || value.CreatedAt.After(now) || !value.ExpiresAt.After(value.CreatedAt) {
+			return SecurityAgentAttention{}, ErrRejected
+		}
 		result.PendingApprovals++
-		age := int(now.Sub(value.ExpiresAt).Seconds())
+		age := int(now.Sub(value.CreatedAt).Seconds())
 		if age > result.OldestApprovalAgeSeconds {
 			result.OldestApprovalAgeSeconds = age
 		}

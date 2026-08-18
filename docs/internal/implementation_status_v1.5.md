@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 0 |
-| In progress | 168 |
-| Complete | 557 |
+| In progress | 147 |
+| Complete | 578 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -32,7 +32,7 @@ In progress, Complete, or Blocked is Pending.
 | M5 | 42 | 0 | 0 | 42 | 0 |
 | M6 | 36 | 0 | 0 | 36 | 0 |
 | M7 | 62 | 0 | 0 | 62 | 0 |
-| M7A | 113 | 0 | 21 | 92 | 0 |
+| M7A | 113 | 0 | 0 | 113 | 0 |
 | M8 | 141 | 0 | 141 | 0 | 0 |
 
 ## Execution invariants
@@ -70,7 +70,7 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `0/168/557/3` because
+session configuration. The 728 source-plan counts are `0/147/578/3` because
 PROV-01 is excluded from those counts.
 For the active M8 resilience batch, live parity, outage injection, and reference load execution remain unresolved.
 
@@ -223,6 +223,13 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 | M8-01c | August 18, 2026 | One production tfvars file drives the existing staging/release Terraform root without a second module. |
 | M8-01b | August 18, 2026 | Existing EKS resources accept production node and private-endpoint settings while preserving resource addresses. |
 | M8-01a | August 18, 2026 | Existing VPC/subnet resources accept production CIDRs/AZs and add private AWS service endpoints without a second VPC module. |
+| M3-52 | August 18, 2026 | A strict five-check local M3 gate is implemented; real staging remains unavailable and the task is not Complete. |
+| M3-14 | August 18, 2026 | Strict AWS assume-role identity adapter and local denial fixture are implemented; required real-AWS denial remains unavailable behind M1A-10. |
+
+## Complete
+
+| Task | Completed | Evidence |
+| --- | --- | --- |
 | M7A-101 | August 18, 2026 | The fail-closed MVP gate aggregates trigger, simulation, planning, authorization, execution, approval, cleanup, verification, Home attention, audit, degraded safety, and topology-isolation checks. |
 | M7A-100 | August 18, 2026 | The same bounded action, approval, verification, and audit contracts run without topology-specific behavior in the single-tenant fixture. |
 | M7A-99 | August 18, 2026 | Organization-scoped repositories, planner references, approvals, action idempotency, and results reject concurrent same-looking cross-tenant records. |
@@ -244,13 +251,6 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 | M7A-87 | August 18, 2026 | Run action detail renders state, redacted arguments, result, rollback/TTL, and verification without protected values. |
 | M7A-86 | August 18, 2026 | Run detail separates trigger/evidence and AI rationale from deterministic authorization and ordered registered plan steps. |
 | M7A-85 | August 18, 2026 | Definition detail shows bounded configuration, allowed actions, limits, verification, and recent runs without provider/model internals. |
-| M3-52 | August 18, 2026 | A strict five-check local M3 gate is implemented; real staging remains unavailable and the task is not Complete. |
-| M3-14 | August 18, 2026 | Strict AWS assume-role identity adapter and local denial fixture are implemented; required real-AWS denial remains unavailable behind M1A-10. |
-
-## Complete
-
-| Task | Completed | Evidence |
-| --- | --- | --- |
 | M7A-84 | August 18, 2026 | The generated-client builder shows matched evidence, proposed steps, approval points, and per-step authorization with zero side effects. |
 | M7A-83 | August 18, 2026 | Definitions require one terminal verification choice compatible with the selected registered actions. |
 | M7A-82 | August 18, 2026 | Client and service contracts bound steps, runtime, temporary-policy TTL, AI budget, and concurrency to product maxima. |

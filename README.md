@@ -350,13 +350,15 @@ seven-stage builder; saved definitions carry all five bounded product limits,
 and simulation cannot execute an action adapter. Production
 transport mounting and durable planner/audit storage remain unresolved.
 
-M7A-85 through M7A-101 are batched as In progress. Protect now exposes
+M7A-85 through M7A-101 are Complete, completing M7A. Protect now exposes
 definition, run, action, approval, and scoped activity detail; Home includes
 ordered responder-attention signals without masking degraded coverage. The
 local MVP gate also binds signed idempotent approval notification, outage,
 expiry, unknown-outcome, budget, verification, audit, tenant-isolation, and
-single-tenant parity contracts. Production queue/HTTP mounting, durable audit
-storage, and live external action-provider E2E remain unresolved.
+single-tenant parity contracts. The dedicated Approvals route now opens its
+generated-client surface, and approval age is measured from retained creation
+time. Production queue/HTTP mounting, durable audit storage, and live external
+action-provider E2E remain release concerns rather than M7A contract gaps.
 
 M8-01a through M8-16 are batched as In progress in the existing AWS and
 staging/release deployment roots. Production tfvars harden private EKS, data,

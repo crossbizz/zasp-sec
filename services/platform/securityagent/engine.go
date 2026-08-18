@@ -115,11 +115,11 @@ func ExecuteAutoStep(ctx context.Context, registry *Registry, agent SecurityAgen
 	return registry.Execute(ctx, request)
 }
 
-func CreateStepApproval(ctx context.Context, repository *MemoryRepository, run SecurityAgentRun, stepID string, expiresAt time.Time) (Approval, error) {
-	if invalidContext(ctx) || repository == nil || run.State != RunPlanning || !bounded(stepID, 128) || expiresAt.Location() != time.UTC || expiresAt.IsZero() {
+func CreateStepApproval(ctx context.Context, repository *MemoryRepository, run SecurityAgentRun, stepID string, createdAt, expiresAt time.Time) (Approval, error) {
+	if invalidContext(ctx) || repository == nil || run.State != RunPlanning || !bounded(stepID, 128) || createdAt.Location() != time.UTC || createdAt.IsZero() || expiresAt.Location() != time.UTC || !expiresAt.After(createdAt) {
 		return Approval{}, ErrRejected
 	}
-	approval := Approval{ID: "approval-" + run.ID + "-" + stepID, OrganizationID: run.OrganizationID, RunID: run.ID, StepID: stepID, State: ApprovalPending, ExpiresAt: expiresAt, Version: 1}
+	approval := Approval{ID: "approval-" + run.ID + "-" + stepID, OrganizationID: run.OrganizationID, RunID: run.ID, StepID: stepID, State: ApprovalPending, CreatedAt: createdAt, ExpiresAt: expiresAt, Version: 1}
 	runKey, _ := idempotencyKey(run.OrganizationID, run.ID)
 	approvalKey, _ := idempotencyKey(run.OrganizationID, approval.ID)
 	repository.mu.Lock()

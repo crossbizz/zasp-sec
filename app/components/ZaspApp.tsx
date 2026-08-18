@@ -32,7 +32,12 @@ function RouteSurface({ route, onNavigate, onToast }: { route: AppRoute; onNavig
   if (["/inventory/tools", "/inventory/runtimes", "/exposure/attack-paths"].includes(route.path)) return <AgentSecurityView path={route.path} onNavigate={onNavigate} />;
   if (route.path.startsWith("/discovery/")) return <DiscoveryView route={route} />;
   if (route.path === "/policies") return <><GovernanceView route={route} onToast={onToast} /><PoliciesView embedded /></>;
-  if (route.path === "/protect/security-agents") return <SecurityAgentsView />;
+  if (route.path === "/protect/security-agents") {
+    const queryTab = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("tab");
+    const initialTab = queryTab === "runs" || queryTab === "approvals" ? queryTab : "agents";
+    return <SecurityAgentsView key={initialTab} initialTab={initialTab} />;
+  }
+  if (route.path === "/protect/approvals") return <SecurityAgentsView key="approvals" initialTab="approvals" />;
   if (route.path === "/investigate/sessions") return <SessionsComplianceView surface="sessions" />;
   if (route.path === "/compliance/evidence") return <SessionsComplianceView surface="compliance" />;
   if (route.path === "/administration/data-retention") return <SessionsComplianceView surface="data-controls" />;
@@ -58,7 +63,7 @@ function AppContent() {
   const [toast, setToast] = useState<string | null>(null);
   const navigate = useCallback((path: string) => {
     window.history.pushState({}, "", path);
-    setRoute(resolveRoute(path));
+    setRoute(resolveRoute(new URL(path, window.location.origin).pathname));
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
   useEffect(() => { const handler = () => setRoute(resolveRoute(window.location.pathname)); window.addEventListener("popstate", handler); return () => window.removeEventListener("popstate", handler); }, []);

@@ -25,6 +25,7 @@ const (
 type Approval struct {
 	ID, OrganizationID, RunID, StepID string
 	State                             ApprovalState
+	CreatedAt                         time.Time
 	ExpiresAt                         time.Time
 	ApproverID                        string
 	FreshAuthAt                       time.Time
@@ -367,7 +368,7 @@ func validStep(value RunStep) bool {
 	return bounded(value.ID, 128) && bounded(value.OrganizationID, 128) && bounded(value.RunID, 128) && value.Index >= 0 && value.Index < 100 && bounded(value.ActionKey, 128) && contains([]string{"queued", "authorized", "executing", "verifying", "succeeded", "failed"}, value.State) && value.Version == 1
 }
 func validApproval(value Approval) bool {
-	return bounded(value.ID, 128) && bounded(value.OrganizationID, 128) && bounded(value.RunID, 128) && bounded(value.StepID, 128) && value.ExpiresAt.Location() == time.UTC && !value.ExpiresAt.IsZero() && value.Version == 1
+	return bounded(value.ID, 128) && bounded(value.OrganizationID, 128) && bounded(value.RunID, 128) && bounded(value.StepID, 128) && value.CreatedAt.Location() == time.UTC && !value.CreatedAt.IsZero() && value.ExpiresAt.Location() == time.UTC && value.ExpiresAt.After(value.CreatedAt) && value.Version == 1
 }
 func validClaim(value IdempotencyRecord) bool {
 	return bounded(value.OrganizationID, 128) && bounded(value.RunID, 128) && bounded(value.StepID, 128) && bounded(value.ActionKey, 128) && contains([]string{"pending", "succeeded", "failed"}, value.State) && bounded(value.OutcomeID, 128)

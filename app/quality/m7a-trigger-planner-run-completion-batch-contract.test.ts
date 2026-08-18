@@ -8,7 +8,7 @@ const selected = ["M7A-38a", "M7A-38b", "M7A-38c", "M7A-38d", "M7A-39", "M7A-40"
 describe("M7A trigger planner and run completion batch", () => {
   it("moves the exact twenty-five task runtime slice to Complete", () => {
     const tracker = read("docs/internal/implementation_status_v1.5.md");
-    for (const value of ["| Pending | 0 |", "| In progress | 168 |", "| Complete | 557 |", "| Blocked | 3 |", "`0/168/557/3`", "| M7A | 113 | 0 | 21 | 92 | 0 |"]) expect(tracker).toContain(value);
+    for (const value of ["| Pending | 0 |", "| In progress | 147 |", "| Complete | 578 |", "| Blocked | 3 |", "`0/147/578/3`", "| M7A | 113 | 0 | 0 | 113 | 0 |"]) expect(tracker).toContain(value);
     const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
     const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] ?? "";
     expect(selected).toHaveLength(25);

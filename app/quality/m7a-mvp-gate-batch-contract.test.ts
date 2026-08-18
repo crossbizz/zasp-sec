@@ -9,6 +9,8 @@ describe("M7A-85 through M7A-101 Security Agent MVP gate", () => {
     const securityAgents = read("app/features/securityagents/SecurityAgentsView.tsx");
     for (const value of ["Definition", "Allowed actions", "Recent runs", "AI rationale", "Deterministic authorization", "[REDACTED]", "Rollback / TTL", "Pending approvals", "Expected side effect", "Fresh authentication", "Scoped activity link"]) expect(securityAgents).toContain(value);
     const home = read("app/features/agents/AgentSecurityView.tsx");
+    const app = read("app/components/ZaspApp.tsx");
+    expect(app).toContain('route.path === "/protect/approvals"');
     for (const value of ["Pending approvals", "Needs human", "Failed or inconclusive", "Recent containment", "Stale launch coverage"]) expect(home).toContain(value);
   });
 
@@ -21,11 +23,16 @@ describe("M7A-85 through M7A-101 Security Agent MVP gate", () => {
     for (const value of ["planner", "Approval", "UnknownOutcome", "cross-scope", "Budget", "TenantIsolation", "SingleTenant"]) expect(tests).toContain(value);
   });
 
-  it("moves exactly M7A-85 through M7A-101 into one truthful active batch", () => {
+  it("completes exactly M7A-85 through M7A-101", () => {
     const tracker = read("docs/internal/implementation_status_v1.5.md");
     const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] || "";
-    for (const id of ["M7A-85", "M7A-86", "M7A-87", "M7A-88", "M7A-89", "M7A-90", "M7A-90a", "M7A-90b", "M7A-90c", "M7A-90d", "M7A-91", "M7A-92", "M7A-93", "M7A-94", "M7A-95", "M7A-96", "M7A-97", "M7A-98", "M7A-99", "M7A-100", "M7A-101"]) expect(active.match(new RegExp(`^\\| ${id} \\|`, "gm"))).toHaveLength(1);
+    const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] || "";
+    for (const id of ["M7A-85", "M7A-86", "M7A-87", "M7A-88", "M7A-89", "M7A-90", "M7A-90a", "M7A-90b", "M7A-90c", "M7A-90d", "M7A-91", "M7A-92", "M7A-93", "M7A-94", "M7A-95", "M7A-96", "M7A-97", "M7A-98", "M7A-99", "M7A-100", "M7A-101"]) {
+      expect(active.match(new RegExp(`^\\| ${id} \\|`, "gm")) ?? []).toHaveLength(0);
+      expect(complete.match(new RegExp(`^\\| ${id} \\|`, "gm"))).toHaveLength(1);
+    }
     expect(tracker).toContain("Pending | 0");
-    expect(tracker).toContain("In progress | 168");
+    expect(tracker).toContain("In progress | 147");
+    expect(tracker).toContain("| M7A | 113 | 0 | 0 | 113 | 0 |");
   });
 });
