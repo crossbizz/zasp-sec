@@ -17,8 +17,9 @@ required implementation:
 
 - `deploy/local/start.mjs` is the strict assembled entrypoint;
 - `npm run local:start` is the single supported live command;
-- the product, graph, observability, and AWS-emulator manifests are the six
-  canonical tracked inputs;
+- `product-stubs.yaml`, `graph.yaml`, `observability.yaml`,
+  `observability-span.yaml`, `aws-emulator.yaml`, and `aws-emulator-s3.yaml`
+  are the six canonical tracked manifest inputs;
 - the M1-30d runtime creates one exact disposable kind cluster and one
   cluster-internal LocalStack Community S3 service; and
 - the reviewed lifecycle joins mutations, cleans in reverse dependency order,
