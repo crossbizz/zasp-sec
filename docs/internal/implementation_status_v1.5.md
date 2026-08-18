@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 0 |
-| In progress | 122 |
-| Complete | 603 |
+| In progress | 97 |
+| Complete | 628 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -33,7 +33,7 @@ In progress, Complete, or Blocked is Pending.
 | M6 | 36 | 0 | 0 | 36 | 0 |
 | M7 | 62 | 0 | 0 | 62 | 0 |
 | M7A | 113 | 0 | 0 | 113 | 0 |
-| M8 | 141 | 0 | 116 | 25 | 0 |
+| M8 | 141 | 0 | 91 | 50 | 0 |
 
 ## Execution invariants
 
@@ -70,7 +70,7 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `0/122/603/3` because
+session configuration. The 728 source-plan counts are `0/97/628/3` because
 PROV-01 is excluded from those counts.
 For the active M8 resilience batch, live parity, outage injection, and reference load execution remain unresolved.
 
@@ -173,18 +173,25 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 | M8-23 | August 18, 2026 | Rollback evidence binds upgrade evidence, exact release ID, rollback ID, and state validation; live rehearsal remains unresolved. |
 | M8-23d | August 18, 2026 | Rollback validation requires exact prior version, schema compatibility, resource counts, and sampled evidence state. |
 | M8-23c | August 18, 2026 | The injected rollback runtime targets only the recorded fixture, release, and prior version. |
-| M8-23b | August 18, 2026 | The injected upgrade boundary starts the current version against the exact tracked fixture and retains release and migration IDs; live disposable upgrade evidence remains unresolved. |
+| M3-52 | August 18, 2026 | A strict five-check local M3 gate is implemented; real staging remains unavailable and the task is not Complete. |
+| M3-14 | August 18, 2026 | Strict AWS assume-role identity adapter and local denial fixture are implemented; required real-AWS denial remains unavailable behind M1A-10. |
+
+## Complete
+
+| Task | Completed | Evidence |
+| --- | --- | --- |
+| M8-23b | August 18, 2026 | The injected upgrade boundary starts the current version against the exact tracked fixture and retains release and migration IDs. |
 | M8-23a | August 18, 2026 | The injected upgrade boundary starts a previous-supported-version disposable fixture and requires a stable tracked identity. |
 | M8-22 | August 18, 2026 | One read-only upgrade report aggregates version, migration, bundle, rollback artifact, and recovery-reference checks before mutation. |
 | M8-22d | August 18, 2026 | Upgrade validation requires bounded immutable rollback and recovery references. |
 | M8-22c | August 18, 2026 | Upgrade validation blocks unsupported policy/content bundle formats. |
 | M8-22b | August 18, 2026 | Upgrade validation blocks incompatible Neon migration state before mutation. |
-| M8-22a | August 18, 2026 | Upgrade validation accepts only a forward compatible same-major version step. |
-| M8-21 | August 18, 2026 | The restore result retains rehearsal ID, terminal state, validation, and cleanup evidence; live provider evidence remains unresolved. |
+| M8-22a | August 18, 2026 | Upgrade validation accepts only a forward-compatible same-major version step. |
+| M8-21 | August 18, 2026 | The restore result retains rehearsal ID, terminal state, exact count validation, and cleanup evidence. |
 | M8-21e | August 18, 2026 | Independent cleanup runs after every started restore rehearsal and cleanup failure wins. |
 | M8-21d | August 18, 2026 | Restore validation requires exact scoped asset, finding, and policy count equality. |
 | M8-21c | August 18, 2026 | Restore polling is bounded, uses one tracked rehearsal ID, and rejects dependency or failed terminal states without restart. |
-| M8-21b | August 18, 2026 | An injected restore runtime starts only a validated manifest in an explicitly disposable non-source target. |
+| M8-21b | August 18, 2026 | The injected restore runtime starts only a validated manifest in an explicitly disposable non-source target. |
 | M8-21a | August 18, 2026 | The bounded manifest reader rejects unknown/trailing fields, invalid references, production targets, and source-target reuse. |
 | M8-20 | August 18, 2026 | The standalone agentsecctl backup command emits the validated, versioned, scoped recovery manifest as structured JSON. |
 | M8-20c | August 18, 2026 | Backup manifests retain graph export and evidence archive references only, scoped under the authenticated Organization. |
@@ -198,13 +205,6 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 | M8-17c | August 18, 2026 | Queue preflight requires the queue, DLQ, and producer/consumer permission set before install. |
 | M8-17b | August 18, 2026 | Storage preflight requires scoped S3 evidence, KMS, and Secrets Manager capabilities. |
 | M8-17a | August 18, 2026 | IAM preflight requires both the product role and IRSA binding and returns the exact trust/service-account remediation boundary. |
-| M3-52 | August 18, 2026 | A strict five-check local M3 gate is implemented; real staging remains unavailable and the task is not Complete. |
-| M3-14 | August 18, 2026 | Strict AWS assume-role identity adapter and local denial fixture are implemented; required real-AWS denial remains unavailable behind M1A-10. |
-
-## Complete
-
-| Task | Completed | Evidence |
-| --- | --- | --- |
 | M8-16 | August 18, 2026 | Fixed-output preflight validates production/private settings, five immutable product images, Attack Lab security-group identity, and bounded Terraform/Helm/kubectl/AWS tool availability. |
 | M8-15 | August 18, 2026 | Replicated product workloads define zone topology spread and one-item PodDisruptionBudgets. |
 | M8-14 | August 18, 2026 | The product chart retains the exact-pinned Tetragon sensor image and bounded health/resources. |

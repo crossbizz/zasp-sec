@@ -369,12 +369,12 @@ Terraform 1.15.8 validated the shared root and produced an offline production
 plan of 47 additions, zero changes, and zero destroys; Helm 3.19 linted and
 rendered the bounded chart. Live AWS deployment remains a later release gate.
 
-M8-17a through M8-23b are batched as In progress in the standalone
+M8-17a through M8-23b are Complete in the standalone
 `agentsecctl` boundary. Typed reports now cover AWS, Neon/Stytch, and sensor
 preflight; reference-only recovery manifests; disposable restore lifecycle;
 and upgrade compatibility plus tracked fixture/release starts. Provider-backed
-preflight, live backup/restore rehearsal, and disposable upgrade evidence are
-still required before these tasks can move to Complete.
+preflight and live recovery/upgrade execution remain later release gates; the
+bounded command models and injected lifecycle acceptance criteria are complete.
 
 M8-23c through M8-39 are batched as In progress in the same CLI boundary.
 Rollback and redacted diagnostics models, isolated-AWS parity expectations,

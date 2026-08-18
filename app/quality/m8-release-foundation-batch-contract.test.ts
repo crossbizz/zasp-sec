@@ -39,6 +39,6 @@ describe("M8-01a through M8-16 release foundation batch", () => {
       expect(active.match(new RegExp(`^\\| ${id} \\|`, "gm")) ?? []).toHaveLength(0);
       expect(complete.match(new RegExp(`^\\| ${id} \\|`, "gm"))).toHaveLength(1);
     }
-    for (const value of ["| Pending | 0 |", "| In progress | 122 |", "| Complete | 603 |", "`0/122/603/3`", "| M8 | 141 | 0 | 116 | 25 | 0 |"]) expect(tracker).toContain(value);
+    for (const value of ["| Pending | 0 |", "| In progress | 97 |", "| Complete | 628 |", "`0/97/628/3`", "| M8 | 141 | 0 | 91 | 50 | 0 |"]) expect(tracker).toContain(value);
   });
 });

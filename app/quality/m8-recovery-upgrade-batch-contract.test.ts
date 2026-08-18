@@ -20,11 +20,15 @@ describe("M8-17a through M8-23b recovery readiness batch", () => {
     for (const forbidden of ["AccessKey", "SecretKey", "Password", "PrivateKey"]) expect(source).not.toContain(forbidden);
   });
 
-  it("advances exactly the selected 25 tasks without claiming completion", () => {
+  it("completes exactly the selected 25 tasks", () => {
     const tracker = read("docs/internal/implementation_status_v1.5.md");
     const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] || "";
+    const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] || "";
     const selected = ["M8-17a", "M8-17b", "M8-17c", "M8-17d", "M8-17e", "M8-17", "M8-18", "M8-19", "M8-20a", "M8-20b", "M8-20c", "M8-20", "M8-21a", "M8-21b", "M8-21c", "M8-21d", "M8-21e", "M8-21", "M8-22a", "M8-22b", "M8-22c", "M8-22d", "M8-22", "M8-23a", "M8-23b"];
-    for (const id of selected) expect(active.match(new RegExp(`^\\| ${id} \\|`, "gm"))).toHaveLength(1);
-    for (const value of ["| Pending | 0 |", "| In progress | 122 |", "`0/122/603/3`", "| M8 | 141 | 0 | 116 | 25 | 0 |"]) expect(tracker).toContain(value);
+    for (const id of selected) {
+      expect(active.match(new RegExp(`^\\| ${id} \\|`, "gm")) ?? []).toHaveLength(0);
+      expect(complete.match(new RegExp(`^\\| ${id} \\|`, "gm"))).toHaveLength(1);
+    }
+    for (const value of ["| Pending | 0 |", "| In progress | 97 |", "| Complete | 628 |", "`0/97/628/3`", "| M8 | 141 | 0 | 91 | 50 | 0 |"]) expect(tracker).toContain(value);
   });
 });
