@@ -33,12 +33,12 @@ function assertM018Blocked(tracker: string, readme: string, riskRegister: string
 
   expect(section).toContain("0/11 required inputs");
   expect(tracker).toContain("| Pending | 658 |");
-  expect(tracker).toContain("| In progress | 1 |");
-  expect(tracker).toContain("| Complete | 66 |");
+  expect(tracker).toContain("| In progress | 0 |");
+  expect(tracker).toContain("| Complete | 67 |");
   expect(tracker).toContain("| Blocked | 3 |");
   expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 0 \| 24 \| 3 \|/);
-  expect(tracker).toContain("`658/1/66/3`");
-  expect(activeRows.map(([task]) => task)).toEqual(["M1-30d"]);
+  expect(tracker).toContain("`658/0/67/3`");
+  expect(activeRows.map(([task]) => task)).toEqual([]);
   expect(blockedRows.filter(([task]) => task === "M0-18")).toHaveLength(1);
   expect(blockedRows.find(([task]) => task === "M0-18")?.[1]).toBe("August 15, 2026");
   expect(blockedRows.find(([task]) => task === "M0-18")?.[2]).toContain("0/11");

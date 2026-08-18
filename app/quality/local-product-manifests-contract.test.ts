@@ -67,23 +67,24 @@ describe("M1-30a local product manifests", () => {
     expect(readme).toContain("M1-30a is Complete");
     expect(readme).toContain("M1-30b is Complete");
     expect(tracker).toContain("| Pending | 658 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 66 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 67 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`658/1/66/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "25", "1", "42", "0"]);
+    expect(tracker).toContain("`658/0/67/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "25", "0", "43", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.map(([task]) => task)).toEqual(["M1-30d"]);
+    expect(active.map(([task]) => task)).toEqual([]);
     expect(active.filter(([task]) => task === "M1-30a")).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-30a")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-29")).toHaveLength(1);
     expect(active.filter(([task]) => task === "M1-30b")).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-30b")).toHaveLength(1);
-    expect(active.filter(([task]) => task === "M1-30d")).toHaveLength(1);
+    expect(active.filter(([task]) => task === "M1-30d")).toHaveLength(0);
+    expect(complete.filter(([task]) => task === "M1-30d")).toHaveLength(1);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
 
-  it("exposes the exact hermetic and disposable live commands without advancing M1-30b", async () => {
+  it("preserves the exact hermetic and disposable live commands after later profiles complete", async () => {
     const [readme, packageText, runner, manifest] = await Promise.all([
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
       readFile(resolve(repositoryRoot, "package.json"), "utf8"),

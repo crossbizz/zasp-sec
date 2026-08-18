@@ -652,8 +652,7 @@ handler behavior only; it does not authorize external exposure of these
 internal endpoints. Platform, event-ingest, and runtime-gateway command wiring
 are complete under M1-28b, M1-28c, and M1-28d. M1-28a is Complete.
 M1-28b is Complete. M1-28c is Complete, M1-28d is Complete, M1-28 is Complete,
-and M1-29 is Complete. M1-30a, M1-30b, and M1-30c are Complete, and M1-30d
-is In progress.
+and M1-29 is Complete. M1-30a, M1-30b, M1-30c, and M1-30d are Complete.
 
 ## Common internal service health contract
 
@@ -691,8 +690,7 @@ npm run health:contract:test
 ```
 
 M1-30a is Complete. It adds the local Kubernetes deployment boundary for the
-four existing Go product commands; M1-30b and M1-30c are Complete, and M1-30d
-is In progress.
+four existing Go product commands; M1-30b, M1-30c, and M1-30d are Complete.
 
 ## Local product Kubernetes manifests
 
@@ -718,8 +716,8 @@ Successful live verification emits exactly
 `Local product manifests passed: pods=4 ready=4 services=4 internal=true cleanup=true.`
 The runner uses its own kubeconfig and proof labels, removes only retained
 resources after exact ownership checks, and leaves shared local services
-untouched. M1-30b is Complete and owns the local graph assembly, M1-30c is
-Complete, and M1-30d is In progress.
+untouched. M1-30b is Complete, M1-30c is Complete, and M1-30d is Complete.
+M1-30 remains Pending.
 
 ## Platform health wiring
 
@@ -744,7 +742,7 @@ verification and zero-finding review. M1-28c is Complete, M1-28d is Complete, an
 
 M1-30b is Complete. Its local Neo4j overlay is an opt-in proof attached to
 the disposable local Kubernetes environment; M1-30c is Complete, and M1-30d
-is In progress. The
+is Complete. The
 hermetic manifest, runner, and license contracts require Node.js 22.23.1 and
 npm 10.9.8, and require neither Docker nor a provider:
 
@@ -785,7 +783,7 @@ production packaging, and bundled components retain their own terms.
 
 ## Local observability Kubernetes manifest proof
 
-M1-30c is Complete, and M1-30d is In progress. The hermetic manifest,
+M1-30c is Complete, and M1-30d is Complete. The hermetic manifest,
 runner, and license contracts require Node.js 22.23.1 and npm 10.9.8, and
 require neither Docker nor a provider:
 
@@ -834,11 +832,11 @@ and
 `registry.k8s.io/e2e-test-images/busybox:1.36.1-1@sha256:a9155b13325b2abef48e71de77bb8ac015412a566829f621d06bfae5c699b1b9`.
 They are opt-in local development targets: this proof does not approve
 redistribution or production packaging, and bundled components retain their
-own terms. Aggregate M1-30 verification remains deferred to M1-30d.
+own terms. Aggregate M1-30 verification remains deferred to M1-30.
 
 ## Local AWS emulator Kubernetes manifest proof
 
-M1-30d is In progress. The selected boundary adds an exact-pinned LocalStack
+M1-30d is Complete. The selected boundary adds an exact-pinned LocalStack
 S3 Deployment and internal ClusterIP Service to the disposable local cluster.
 An exact ConfigMap supplies `AWS_ENDPOINT_URL` and `AWS_ENDPOINT_URL_S3` to a
 staged one-shot synthetic client Job only after LocalStack is Ready. The Job

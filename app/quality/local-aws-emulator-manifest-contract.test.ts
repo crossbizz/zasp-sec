@@ -48,7 +48,7 @@ describe("M1-30d local AWS emulator manifest", () => {
     }
   });
 
-  it("starts only M1-30d and preserves completed dependencies and blockers", async () => {
+  it("completes only M1-30d and preserves completed dependencies and blockers", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -59,19 +59,19 @@ describe("M1-30d local AWS emulator manifest", () => {
     const summary = markdownRows(tracker.match(/## Status summary[\s\S]*?## Milestone summary/)?.[0] ?? "").slice(2);
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
-    expect(readme).toContain("M1-30d is In progress");
+    expect(readme).toContain("M1-30d is Complete");
     expect(readme).toContain("M1-30 remains Pending");
     expect(tracker).toContain("| Pending | 658 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 66 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 67 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`658/1/66/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "25", "1", "42", "0"]);
+    expect(tracker).toContain("`658/0/67/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "25", "0", "43", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active).toHaveLength(1);
-    expect(complete).toHaveLength(66);
-    expect(active.filter(([task]) => task === "M1-30d")).toHaveLength(1);
-    expect(complete.filter(([task]) => task === "M1-30d")).toHaveLength(0);
+    expect(active).toHaveLength(0);
+    expect(complete).toHaveLength(67);
+    expect(active.filter(([task]) => task === "M1-30d")).toHaveLength(0);
+    expect(complete.filter(([task]) => task === "M1-30d")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-30c")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-30b")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-30a")).toHaveLength(1);

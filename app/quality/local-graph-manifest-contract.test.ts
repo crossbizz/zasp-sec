@@ -64,23 +64,23 @@ describe("M1-30b local graph manifest", () => {
 
     expect(readme).toContain("M1-30b is Complete");
     expect(readme).toContain("M1-30c is Complete");
-    expect(readme).toContain("M1-30d is In progress");
+    expect(readme).toContain("M1-30d is Complete");
     expect(tracker).toContain("| Pending | 658 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 66 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 67 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`658/1/66/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "25", "1", "42", "0"]);
+    expect(tracker).toContain("`658/0/67/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "25", "0", "43", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.map(([task]) => task)).toEqual(["M1-30d"]);
-    expect(complete).toHaveLength(66);
+    expect(active.map(([task]) => task)).toEqual([]);
+    expect(complete).toHaveLength(67);
     expect(active.filter(([task]) => task === "M1-30b")).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-30b")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-30a")).toHaveLength(1);
     expect(active.filter(([task]) => task === "M1-30c")).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-30c")).toHaveLength(1);
-    expect(active.filter(([task]) => task === "M1-30d")).toHaveLength(1);
-    expect(complete.filter(([task]) => task === "M1-30d")).toHaveLength(0);
+    expect(active.filter(([task]) => task === "M1-30d")).toHaveLength(0);
+    expect(complete.filter(([task]) => task === "M1-30d")).toHaveLength(1);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
 
@@ -111,7 +111,7 @@ describe("M1-30b local graph manifest", () => {
       "does not approve redistribution or production packaging",
       "M1-30b is Complete",
       "M1-30c is Complete",
-      "M1-30d is In progress",
+      "M1-30d is Complete",
     ]) {
       expect(localGraph).toContain(text);
     }
