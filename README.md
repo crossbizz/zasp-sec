@@ -357,6 +357,13 @@ Tetragon with probes, resources, shutdown, disruption, and topology controls.
 Product image digests and live AWS/Helm plan evidence remain required before
 these tasks can move to Complete.
 
+M8-17a through M8-23b are batched as In progress in the standalone
+`agentsecctl` boundary. Typed reports now cover AWS, Neon/Stytch, and sensor
+preflight; reference-only recovery manifests; disposable restore lifecycle;
+and upgrade compatibility plus tracked fixture/release starts. Provider-backed
+preflight, live backup/restore rehearsal, and disposable upgrade evidence are
+still required before these tasks can move to Complete.
+
 ```bash
 go test -C services/platform -race -count=1 ./integration
 go test -C services/platform -race -count=1 ./connectors ./sensor

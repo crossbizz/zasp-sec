@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"strings"
 )
 
 var (
@@ -14,12 +15,19 @@ var (
 )
 
 func main() {
-	if err := run(os.Stdout, os.Args[1:], buildVersion); err != nil {
+	if err := runCommand(os.Stdout, os.Stdin, os.Args[1:], buildVersion); err != nil {
 		os.Exit(1)
 	}
 }
 
 func run(output io.Writer, arguments []string, version string) error {
+	return runCommand(output, strings.NewReader(""), arguments, version)
+}
+
+func runCommand(output io.Writer, input io.Reader, arguments []string, version string) error {
+	if len(arguments) > 0 && arguments[0] != "version" {
+		return runReleaseCommand(output, input, arguments)
+	}
 	if len(arguments) != 1 || arguments[0] != "version" {
 		return errInvalidArguments
 	}
