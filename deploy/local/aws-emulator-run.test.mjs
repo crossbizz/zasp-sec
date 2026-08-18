@@ -629,6 +629,11 @@ test("stages exactly one S3 Job after retained LocalStack readiness", async () =
   assert.equal(system.awsEmulatorJobMayHaveApplied, false);
   assert.deepEqual(system.awsEmulatorProviderIdentity, complete);
 
+  const productOnly = new StagedAwsSystem();
+  productOnly.productReadinessOnly = true;
+  assert.deepEqual(await productOnly.verifyAdditionalReadiness(inherited, phase), inherited);
+  assert.deepEqual(productOnly.events, []);
+
   for (const outcome of ["definitive", "rejected"]) {
     const rejected = new StagedAwsSystem(outcome);
     await assert.rejects(() => rejected.verifyAdditionalReadiness(inherited, phase), { category: "provider" });

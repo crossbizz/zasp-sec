@@ -514,6 +514,7 @@ export class LocalAwsEmulatorSystem extends LocalObservabilitySystem {
   }
 
   async verifyAdditionalReadiness(productResult, phase) {
+    if (this.productReadinessOnly) return productResult;
     const observabilityResult = await this.verifyObservabilityReadiness(productResult, phase);
     const core = await this.pollAwsEmulatorProviderState(phase);
     this.awsEmulatorProviderIdentity = core;
