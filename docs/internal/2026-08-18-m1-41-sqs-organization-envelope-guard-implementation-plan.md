@@ -29,49 +29,49 @@ SQS adapter, queue definitions, receipts, and live lifecycle remain unchanged.
 
 ## Task 1: Start M1-41 with an exact repository contract
 
-- [ ] Add a focused contract binding the source task, design, plan, exact
+- [x] Add a focused contract binding the source task, design, plan, exact
   status arithmetic, M1-40 Complete, and M1-42 absent.
-- [ ] Run it before status edits and retain the intended Pending-state RED.
-- [ ] Move only M1-41 to In progress at `642/1/82/3` overall and
+- [x] Run it before status edits and retain the intended Pending-state RED.
+- [x] Move only M1-41 to In progress at `642/1/82/3` overall and
   `9/1/58/0` for M1; update README and affected exact-count contracts.
-- [ ] Run focused/full pinned gates, scan the exact change, update ignored
+- [x] Run focused/full pinned gates, scan the exact change, update ignored
   evidence, and commit the start transition atomically.
 
 ## Task 2: Specify the Organization-bound consumer tests first
 
-- [ ] Add exact positive background, runtime-event, and test envelopes.
-- [ ] Add the binding Organization-B-to-Organization-A fixture and prove the
+- [x] Add exact positive background, runtime-event, and test envelopes.
+- [x] Add the binding Organization-B-to-Organization-A fixture and prove the
   handler side-effect counter remains zero.
-- [ ] Cover missing/mismatched Organization, exact schema drift, duplicate
+- [x] Cover missing/mismatched Organization, exact schema drift, duplicate
   keys, invalid identities, version/types, UTF-8, size, and trailing data.
-- [ ] Cover canceled context, handler error/panic, defensive copies, zero
+- [x] Cover canceled context, handler error/panic, defensive copies, zero
   projections, and concurrent alternating A/B calls.
-- [ ] Run the focused package and retain compile RED only at the absent
+- [x] Run the focused package and retain compile RED only at the absent
   consumer symbols before production implementation.
 
 ## Task 3: Implement and review the product guard
 
-- [ ] Add fixed kinds, errors, immutable projection, consumer constructor, and
+- [x] Add fixed kinds, errors, immutable projection, consumer constructor, and
   the strict duplicate-safe bounded decoder.
-- [ ] Gate the handler on complete validation and exact retained Organization
+- [x] Gate the handler on complete validation and exact retained Organization
   equality, with panic containment and call-local defensive state.
-- [ ] Run focused race tests six consecutive times, package coverage, and full
+- [x] Run focused race tests six consecutive times, package coverage, and full
   platform race/tidy-diff/module verification/vet.
-- [ ] Run inherited M1-13 JobQueue/LocalStack hermetic and M1-33 definition
+- [x] Run inherited M1-13 JobQueue/LocalStack hermetic and M1-33 definition
   regressions; do not invoke either live command.
-- [ ] Run pinned repository tests/typecheck/lint/build, production audit,
+- [x] Run pinned repository tests/typecheck/lint/build, production audit,
   whitespace checks, and scoped redacted secret scans.
-- [ ] Review the exact implementation range for scope bypass, handler-before-
+- [x] Review the exact implementation range for scope bypass, handler-before-
   validation, JSON ambiguity, state retention, panic leakage, and concurrency;
   resolve every Critical, Important, and Minor finding tests-first.
 
 ## Task 4: Complete, ship, and close M1-41
 
-- [ ] Change the focused contract first and retain the intended completion RED.
-- [ ] Move only M1-41 to Complete at `642/0/83/3` overall and `9/0/59/0`
+- [x] Change the focused contract first and retain the intended completion RED.
+- [x] Move only M1-41 to Complete at `642/0/83/3` overall and `9/0/59/0`
   for M1; keep M1-42 Pending and all three blockers unchanged.
-- [ ] Re-run every final gate/scan, commit, push, and require exact-SHA
+- [x] Re-run every final gate/scan, commit, push, and require exact-SHA
   Runnable UI success before claiming completion.
-- [ ] Check these 19 execution steps, commit plan closure, push, require a
+- [x] Check these 19 execution steps, commit plan closure, push, require a
   second exact-SHA Runnable UI success, reconcile refs/evidence, and proceed
   directly to M1-42.
