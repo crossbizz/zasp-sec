@@ -45,13 +45,13 @@ describe("M1-16 Neo4j GraphStore contract", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(readme).toContain("M1-16 is Complete");
-    expect(tracker).toContain("| Pending | 643 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 642 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 82 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`643/0/82/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "10", "0", "58", "0"]);
-    expect(active.map(([task]) => task)).toEqual([]);
+    expect(tracker).toContain("`642/1/82/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "9", "1", "58", "0"]);
+    expect(active.map(([task]) => task)).toEqual(["M1-41"]);
     expect(complete.filter(([task]) => task === "M1-15")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-16")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-17")).toHaveLength(1);

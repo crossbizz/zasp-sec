@@ -62,14 +62,14 @@ describe("M1-28b platform health wiring", () => {
 
     expect(readme).toContain("M1-28b is Complete");
     expect(readme).toContain("M1-28c is Complete");
-    expect(tracker).toContain("| Pending | 643 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 642 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 82 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`643/0/82/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "10", "0", "58", "0"]);
+    expect(tracker).toContain("`642/1/82/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "9", "1", "58", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.map(([task]) => task)).toEqual([]);
+    expect(active.map(([task]) => task)).toEqual(["M1-41"]);
     expect(complete.filter(([task]) => task === "M1-28a")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-28b")).toHaveLength(1);
     expect(active.filter(([task]) => task === "M1-28c")).toHaveLength(0);

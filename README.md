@@ -153,7 +153,20 @@ Organization A request cannot read an otherwise identical Organization B
 artifact. M1-12 remains the provider-compatibility authority, M1-34 remains the
 separate bucket-layout authority, and the existing provider lifecycle stays
 unchanged. This product-only guard makes no AWS authorization claim. M1-41
-remains Pending.
+is In progress.
+
+## SQS Organization envelope guard
+
+M1-41 is In progress. One product-only consumer will validate exact
+background, runtime-event, and test envelopes and require their canonical
+Organization to equal the worker's retained Organization before the handler
+can perform any side effect. The binding fixture supplies an Organization B
+envelope to an Organization A consumer and requires zero handler calls.
+
+M1-13 remains the SQS adapter and disposable compatibility authority; M1-33
+remains the queue-definition and provisioning authority. This task adds no
+worker loop, acknowledgement, provider lifecycle, or real-AWS authorization
+claim. M1-42 remains Pending.
 
 ## Development
 

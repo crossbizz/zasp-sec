@@ -56,14 +56,14 @@ describe("M1-39 OpenSearch Organization scope guard contract", () => {
 
     expect(readme).toContain("M1-38 is Complete");
     expect(readme).toContain("M1-39 is Complete");
-    expect(tracker).toContain("| Pending | 643 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 642 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 82 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`643/0/82/3`");
-    expect(m1).toEqual(["M1", "68", "10", "0", "58", "0"]);
+    expect(tracker).toContain("`642/1/82/3`");
+    expect(m1).toEqual(["M1", "68", "9", "1", "58", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active).toHaveLength(0);
+    expect(active.map(([task]) => task)).toEqual(["M1-41"]);
     expect(complete.filter(([task]) => task === "M1-39")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-38")).toHaveLength(1);
     expect(active.filter(([task]) => task === "M1-40")).toHaveLength(0);
