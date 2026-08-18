@@ -95,6 +95,7 @@ treating one as sufficient:
 
 - https://docs.opensearch.org/latest/mappings/supported-field-types/keyword/
 - https://docs.opensearch.org/latest/field-types/mapping-parameters/ignore-above/
+- https://docs.opensearch.org/latest/mappings/mapping-parameters/dynamic/
 - https://docs.opensearch.org/latest/mappings/mapping-explosion/
 
 ## Mapping-explosion rejection
