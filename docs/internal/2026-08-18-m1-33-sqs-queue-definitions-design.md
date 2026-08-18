@@ -38,8 +38,10 @@ type Settings struct {
     MessageRetentionSeconds    int
     DeadLetterRetentionSeconds int
     VisibilityTimeoutSeconds   int
+    DeadLetterVisibilityTimeoutSeconds int
     ReceiveWaitSeconds         int
     MaximumMessageBytes        int
+    DelaySeconds               int
     MaxReceiveCount            int
 }
 
@@ -102,8 +104,9 @@ Every source queue has these explicit baseline settings:
 
 Every DLQ has `MessageRetentionPeriod=1209600` seconds (14 days),
 `ReceiveMessageWaitTimeSeconds=20`, `MaximumMessageSize=262144`,
-`VisibilityTimeout=30`, and a `byQueue` redrive-allow policy naming only its
-paired source ARN. Source visibility timeouts match the baseline workload:
+`DelaySeconds=0`, `VisibilityTimeout=30`, and a `byQueue` redrive-allow policy
+naming only its paired source ARN. Source visibility timeouts match the baseline
+workload:
 
 | Queue | Visibility timeout |
 | --- | ---: |

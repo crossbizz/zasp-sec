@@ -110,8 +110,9 @@ background/runtime-events/tests order. Assert exact kinds, source/DLQ names,
 schema IDs, seven required fields, source/DLQ retention, visibility, wait,
 message bytes, and max receive count.
 
-Also require `Definition{}` accessors to return zero values and `Validate` to
-return exact `ErrDefinitions`.
+Also require the exact zero source/DLQ delay and distinct 30-second DLQ
+visibility. Require `Definition{}` accessors to return zero values and
+`Validate` to return exact `ErrDefinitions`.
 
 - [ ] **Step 2: Witness absent-package RED**
 
