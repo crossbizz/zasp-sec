@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 651 |
-| In progress | 0 |
+| Pending | 650 |
+| In progress | 1 |
 | Complete | 74 |
 | Blocked | 3 |
 
@@ -24,7 +24,7 @@ In progress, Complete, or Blocked is Pending.
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 0 | 0 | 24 | 3 |
-| M1 | 68 | 18 | 0 | 50 | 0 |
+| M1 | 68 | 17 | 1 | 50 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
 | M3 | 75 | 75 | 0 | 0 | 0 |
@@ -68,13 +68,14 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `651/0/74/3` because
+session configuration. The 728 source-plan counts are `650/1/74/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M1-36b | August 18, 2026 | Running one hermetic fixed-output gate across the five reviewed database, domain, SecurityEvent, event-index, and queue-message schema authorities. |
 
 ## Complete
 

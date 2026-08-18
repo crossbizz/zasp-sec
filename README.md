@@ -58,7 +58,21 @@ npm run build:repo
 
 The completed gate compiled or executed all eight targets from locked source
 and dependency state without adding a duplicate build runner or product
-behavior. M1-36b remains Pending and owns the separate schema-validation gate.
+behavior. M1-36b is In progress and owns the separate schema-validation gate.
+
+## M1 schema check
+
+M1-36b is In progress. It composes the five schema authorities already owned by
+the platform database migration, canonical domain, SecurityEvent, event-index,
+and queue-definition packages:
+
+```bash
+npm run schema:check
+```
+
+The gate is hermetic and makes no database, provider, network, Docker, or
+customer-state call. M1-36c remains Pending and separately owns OpenAPI
+generation and generated-client drift.
 
 ## Development
 
