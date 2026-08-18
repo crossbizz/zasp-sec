@@ -17,35 +17,34 @@ function taskRows(tracker: string, heading: "In progress" | "Complete" | "Blocke
   return markdownRows(section).slice(2);
 }
 
-describe("M1-37 deployment mode configuration contract", () => {
-  it("binds the source task to the strict deployment mode and Organization-pin design", async () => {
+describe("M1-38 Neon Organization scope guard contract", () => {
+  it("binds the source task to the stateless pre-SQL Organization guard", async () => {
     const [source, design, plan] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "docs/internal/2026-08-18-m1-37-deployment-mode-config-design.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "docs/internal/2026-08-18-m1-37-deployment-mode-config-implementation-plan.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/2026-08-18-m1-38-neon-organization-scope-guard-design.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/2026-08-18-m1-38-neon-organization-scope-guard-implementation-plan.md"), "utf8"),
     ]);
-    const sourceSection = source.match(/\*\*M1-37 - deployment mode config\*\*[\s\S]*?\*\*M1-38 - Neon Organization scope guard/)?.[0] ?? "";
+    const sourceSection = source.match(/\*\*M1-38 - Neon Organization scope guard\*\*[\s\S]*?\*\*M1-39 - OpenSearch Organization scope guard/)?.[0] ?? "";
     const prose = design.replace(/\s+/g, " ");
 
-    expect(sourceSection).toContain("Depends on: `M1-07`");
-    expect(sourceSection).toContain("Add `saas` and `single_tenant` deployment-mode configuration plus optional pinned Organization ID");
-    expect(sourceSection).toContain("SaaS starts without a pinned Organization; single-tenant mode rejects startup without one");
+    expect(sourceSection).toContain("Depends on: `M1-04, M1-10`");
+    expect(sourceSection).toContain("Add a scoped repository helper that requires Organization ID for customer-data queries");
+    expect(sourceSection).toContain("A fixture query without Organization scope fails before SQL execution");
     for (const value of [
-      "AGENTSEC_DEPLOYMENT_MODE",
-      "AGENTSEC_SINGLE_TENANT_ORGANIZATION_ID",
-      "There is no ambient/default mode",
-      "`saas` | absent | valid",
-      "`saas` | present, including empty | reject",
-      "`single_tenant` | canonical product ID | valid",
+      "services/platform/repository",
+      "QueryRow(context.Context, string, []any, ...any) error",
       "domain.ProductID",
-      "M2-49",
-      "M1-38 remains Pending",
+      "Organization argument at `$1`",
+      "never mutated or retained",
+      "does not parse SQL",
+      "M1-45a",
+      "M1-39 remains Pending",
     ]) expect(prose).toContain(value);
     expect(plan).toContain("Every behavior and status change has a witnessed tests-only RED first");
-    expect(plan.match(/^- \[[ x]\]/gm) ?? []).toHaveLength(16);
+    expect(plan.match(/^- \[ \]/gm) ?? []).toHaveLength(16);
   });
 
-  it("moves only M1-37 to Complete with exact arithmetic", async () => {
+  it("moves only M1-38 to the unique active row with exact arithmetic", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -57,8 +56,8 @@ describe("M1-37 deployment mode configuration contract", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
     const m1 = milestones.find(([milestone]) => milestone === "M1");
 
-    expect(readme).toContain("M1-36e is Complete");
     expect(readme).toContain("M1-37 is Complete");
+    expect(readme).toContain("M1-38 is In progress");
     expect(tracker).toContain("| Pending | 645 |");
     expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 79 |");
@@ -67,7 +66,6 @@ describe("M1-37 deployment mode configuration contract", () => {
     expect(m1).toEqual(["M1", "68", "12", "1", "55", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
     expect(active.map(([task]) => task)).toEqual(["M1-38"]);
-    expect(complete.filter(([task]) => task === "M1-36e")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-37")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-38")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-39")).toHaveLength(0);
@@ -76,20 +74,19 @@ describe("M1-37 deployment mode configuration contract", () => {
     expect(tracker).toContain("R-11 remains Not run");
   });
 
-  it("documents only the typed startup boundary and deferred authorization guard", async () => {
+  it("documents the pre-SQL guard without claiming SQL parsing or RLS", async () => {
     const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
-    const section = readme.match(/## Deployment mode configuration[\s\S]*?## Development/)?.[0] ?? "";
+    const section = readme.match(/## Neon Organization scope guard[\s\S]*?## Development/)?.[0] ?? "";
+    const prose = section.replace(/\s+/g, " ");
 
     for (const value of [
-      "M1-37 is Complete",
-      "AGENTSEC_DEPLOYMENT_MODE",
-      "AGENTSEC_SINGLE_TENANT_ORGANIZATION_ID",
-      "saas",
-      "single_tenant",
-      "canonical product Organization ID",
-      "M2-49",
       "M1-38 is In progress",
-    ]) expect(section).toContain(value);
-    expect(section).not.toMatch(/reads secret material|separate product fork|enforces authenticated Organization/i);
+      "canonical product Organization ID",
+      "before SQL execution",
+      "argument `$1`",
+      "M1-45a",
+      "M1-39 remains Pending",
+    ]) expect(prose).toContain(value);
+    expect(section).not.toMatch(/parses SQL|row-level security is complete|reads credentials|provider call/i);
   });
 });

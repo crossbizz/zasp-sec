@@ -46,12 +46,12 @@ describe("M1-11 Neon pool wrapper contract", () => {
 
     expect(readme).toContain("M1-11 is Complete");
     expect(readme).toContain("driver-neutral application pool wrapper");
-    expect(tracker).toContain("| Pending | 646 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 645 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 79 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`646/0/79/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "13", "0", "55", "0"]);
+    expect(tracker).toContain("`645/1/79/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "12", "1", "55", "0"]);
     expect(active.filter(([task]) => task === "M1-11")).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-11")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-10")).toHaveLength(1);

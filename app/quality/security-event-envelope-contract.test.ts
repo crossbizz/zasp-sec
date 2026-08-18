@@ -24,13 +24,13 @@ function verifyM122CompleteStatus(tracker: string, readme: string) {
   const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
   expect(readme).toMatch(/M1-22\s+is\s+Complete/);
-  expect(tracker).toContain("| Pending | 646 |");
-  expect(tracker).toContain("| In progress | 0 |");
+  expect(tracker).toContain("| Pending | 645 |");
+  expect(tracker).toContain("| In progress | 1 |");
   expect(tracker).toContain("| Complete | 79 |");
   expect(tracker).toContain("| Blocked | 3 |");
-  expect(tracker).toContain("`646/0/79/3`");
-  expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "13", "0", "55", "0"]);
-  expect(active.map(([task]) => task)).toEqual([]);
+  expect(tracker).toContain("`645/1/79/3`");
+  expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "12", "1", "55", "0"]);
+  expect(active.map(([task]) => task)).toEqual(["M1-38"]);
   expect(complete.filter(([task]) => task === "M1-22")).toHaveLength(1);
   expect(complete.filter(([task]) => task === "M1-21")).toHaveLength(1);
   expect(active.filter(([task]) => task === "M1-23")).toHaveLength(0);
