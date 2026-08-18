@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 648 |
-| In progress | 1 |
-| Complete | 76 |
+| In progress | 0 |
+| Complete | 77 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -24,7 +24,7 @@ In progress, Complete, or Blocked is Pending.
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 0 | 0 | 24 | 3 |
-| M1 | 68 | 15 | 1 | 52 | 0 |
+| M1 | 68 | 15 | 0 | 53 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
 | M3 | 75 | 75 | 0 | 0 | 0 |
@@ -68,19 +68,19 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `648/1/76/3` because
+session configuration. The 728 source-plan counts are `648/0/77/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M1-36d | August 18, 2026 | Running the reviewed strict UI/API traceability validator without changing the action map, API operation inventory, or pre-claiming M1-36e. |
 
 ## Complete
 
 | Task | Completed | Evidence |
 | --- | --- | --- |
+| M1-36d | August 18, 2026 | Ran the reviewed strict UI/API traceability suite and fixed-output validator six times without changing the action map or API inventory; passed predecessor schema/OpenAPI, four Go, full repository, audit, scan, and zero-finding whole-range review gates. |
 | M1-36c | August 18, 2026 | Re-ran the exact-pinned OpenAPI writer with byte-for-byte stable generated client output; passed strict tests, offline lint, six non-writing drift checks, all Go and repository matrices, audit, scans, and zero-finding whole-range review. |
 | M1-36b | August 18, 2026 | Added one fixed-output offline gate across the exact database migration, canonical domain, SecurityEvent, event-index, and queue-message schema authorities; passed six focused runs, the real five-target gate, all four Go and full repository matrices, audit, scans, and zero-finding whole-range review. |
 | M1-36a | August 18, 2026 | Re-proved the exact eight-target service, worker, web, and CLI build from an isolated clean checkout; disabled ambient npm user configuration in the offline web child; preserved clean tracked source; passed six orchestrator runs, the full four-module Go and repository matrices, audit, scans, and zero-finding whole-range review. |

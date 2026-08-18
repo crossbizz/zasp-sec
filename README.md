@@ -85,12 +85,12 @@ npm run openapi:check
 ```
 
 The gate reuses the committed M1-23/M1-24 source, output, and flags and adds no
-API operation, schema copy, dependency, or live provider call. M1-36d is In
-progress and separately owns UI/API traceability validation.
+API operation, schema copy, dependency, or live provider call. M1-36d is
+Complete and separately owns UI/API traceability validation.
 
 ## M1 UI API coverage check
 
-M1-36d is In progress. It runs the reviewed strict traceability suite and
+M1-36d is Complete. It runs the reviewed strict traceability suite and
 validator:
 
 ```bash

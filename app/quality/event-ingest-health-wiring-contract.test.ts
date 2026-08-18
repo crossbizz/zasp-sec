@@ -61,13 +61,13 @@ describe("M1-28c event-ingest health wiring", () => {
     expect(readme).toContain("M1-28c is Complete");
     expect(readme).toContain("M1-28d is Complete");
     expect(tracker).toContain("| Pending | 648 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 76 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 77 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`648/1/76/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "15", "1", "52", "0"]);
+    expect(tracker).toContain("`648/0/77/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "15", "0", "53", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.map(([task]) => task)).toEqual(["M1-36d"]);
+    expect(active.map(([task]) => task)).toEqual([]);
     expect(complete.filter(([task]) => task === "M1-28b")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-28c")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-28d")).toHaveLength(1);

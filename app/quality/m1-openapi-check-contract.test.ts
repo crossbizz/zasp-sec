@@ -58,17 +58,17 @@ describe("M1-36c OpenAPI generation and client drift check", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(tracker).toContain("| Pending | 648 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 76 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 77 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`648/1/76/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "15", "1", "52", "0"]);
+    expect(tracker).toContain("`648/0/77/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "15", "0", "53", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active).toHaveLength(1);
+    expect(active).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-36b")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-36c")).toHaveLength(1);
-    expect(active.filter(([task]) => task === "M1-36d")).toHaveLength(1);
-    expect(complete.filter(([task]) => task === "M1-36d")).toHaveLength(0);
+    expect(active.filter(([task]) => task === "M1-36d")).toHaveLength(0);
+    expect(complete.filter(([task]) => task === "M1-36d")).toHaveLength(1);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
 
@@ -81,7 +81,7 @@ describe("M1-36c OpenAPI generation and client drift check", () => {
     expect(section).toContain("npm run openapi:generate");
     expect(section).toContain("npm run openapi:check");
     expect(prose).toContain("no uncommitted generated-client diff");
-    expect(prose).toContain("M1-36d is In progress");
+    expect(prose).toContain("M1-36d is Complete");
     expect(prose).not.toMatch(/UI\/API coverage passed|local infrastructure healthy|new API operation/i);
   });
 });
