@@ -16,9 +16,10 @@ type RunStep struct {
 type ApprovalState string
 
 const (
-	ApprovalPending  ApprovalState = "pending"
-	ApprovalApproved ApprovalState = "approved"
-	ApprovalRejected ApprovalState = "rejected"
+	ApprovalPending   ApprovalState = "pending"
+	ApprovalApproved  ApprovalState = "approved"
+	ApprovalRejected  ApprovalState = "rejected"
+	ApprovalCancelled ApprovalState = "cancelled"
 )
 
 type Approval struct {
@@ -304,8 +305,23 @@ func (repo *MemoryRepository) ListApprovals(ctx context.Context, organizationID,
 	sort.Slice(result, func(i, j int) bool { return result[i].ID < result[j].ID })
 	return result, nil
 }
+func (repo *MemoryRepository) ListOrganizationApprovals(ctx context.Context, organizationID string) ([]Approval, error) {
+	if invalidContext(ctx) || repo == nil || !bounded(organizationID, 128) {
+		return nil, ErrRejected
+	}
+	repo.mu.RLock()
+	defer repo.mu.RUnlock()
+	result := []Approval{}
+	for _, value := range repo.approvals {
+		if value.OrganizationID == organizationID {
+			result = append(result, value)
+		}
+	}
+	sort.Slice(result, func(i, j int) bool { return result[i].ID < result[j].ID })
+	return result, nil
+}
 func (repo *MemoryRepository) DecideApproval(ctx context.Context, organizationID, id, approverID string, at time.Time, decision ApprovalState, expectedVersion int64) (Approval, error) {
-	if invalidContext(ctx) || repo == nil || !bounded(approverID, 128) || at.Location() != time.UTC || at.IsZero() || (decision != ApprovalApproved && decision != ApprovalRejected) || expectedVersion <= 0 {
+	if invalidContext(ctx) || repo == nil || !bounded(approverID, 128) || at.Location() != time.UTC || at.IsZero() || !contains([]ApprovalState{ApprovalApproved, ApprovalRejected, ApprovalCancelled}, decision) || expectedVersion <= 0 {
 		return Approval{}, ErrRejected
 	}
 	key, err := idempotencyKey(organizationID, id)

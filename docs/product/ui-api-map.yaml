@@ -318,6 +318,54 @@ screens:
       - id: view_session_events
         operation_id: listSessionEvents
         availability: api_available
+  - id: security_agents
+    label: Security Agents
+    actions:
+      - id: view_security_agent_templates
+        operation_id: listSecurityAgentTemplates
+        availability: available
+      - id: view_security_actions
+        operation_id: listSecurityActions
+        availability: available
+      - id: view_security_agents
+        operation_id: listSecurityAgents
+        availability: available
+      - id: create_security_agent
+        operation_id: createSecurityAgent
+        availability: available
+      - id: view_security_agent
+        operation_id: getSecurityAgent
+        availability: available
+      - id: update_security_agent
+        operation_id: updateSecurityAgent
+        availability: available
+      - id: delete_security_agent
+        operation_id: deleteSecurityAgent
+        availability: available
+      - id: simulate_security_agent
+        operation_id: simulateSecurityAgent
+        availability: available
+      - id: run_security_agent
+        operation_id: runSecurityAgent
+        availability: available
+      - id: view_security_agent_runs
+        operation_id: listSecurityAgentRuns
+        availability: available
+      - id: view_security_agent_run
+        operation_id: getSecurityAgentRun
+        availability: available
+      - id: cancel_security_agent_run
+        operation_id: cancelSecurityAgentRun
+        availability: available
+      - id: view_security_agent_approvals
+        operation_id: listSecurityAgentApprovals
+        availability: available
+      - id: view_security_agent_approval
+        operation_id: getSecurityAgentApproval
+        availability: available
+      - id: decide_security_agent_approval
+        operation_id: decideSecurityAgentApproval
+        availability: available
   - id: compliance
     label: Compliance
     actions:

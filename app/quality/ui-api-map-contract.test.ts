@@ -168,6 +168,27 @@ const expectedMap: MapDocument = {
       ],
     },
     {
+      id: "security_agents",
+      label: "Security Agents",
+      actions: [
+        { id: "view_security_agent_templates", operation_id: "listSecurityAgentTemplates", availability: "available" },
+        { id: "view_security_actions", operation_id: "listSecurityActions", availability: "available" },
+        { id: "view_security_agents", operation_id: "listSecurityAgents", availability: "available" },
+        { id: "create_security_agent", operation_id: "createSecurityAgent", availability: "available" },
+        { id: "view_security_agent", operation_id: "getSecurityAgent", availability: "available" },
+        { id: "update_security_agent", operation_id: "updateSecurityAgent", availability: "available" },
+        { id: "delete_security_agent", operation_id: "deleteSecurityAgent", availability: "available" },
+        { id: "simulate_security_agent", operation_id: "simulateSecurityAgent", availability: "available" },
+        { id: "run_security_agent", operation_id: "runSecurityAgent", availability: "available" },
+        { id: "view_security_agent_runs", operation_id: "listSecurityAgentRuns", availability: "available" },
+        { id: "view_security_agent_run", operation_id: "getSecurityAgentRun", availability: "available" },
+        { id: "cancel_security_agent_run", operation_id: "cancelSecurityAgentRun", availability: "available" },
+        { id: "view_security_agent_approvals", operation_id: "listSecurityAgentApprovals", availability: "available" },
+        { id: "view_security_agent_approval", operation_id: "getSecurityAgentApproval", availability: "available" },
+        { id: "decide_security_agent_approval", operation_id: "decideSecurityAgentApproval", availability: "available" },
+      ],
+    },
+    {
       id: "compliance",
       label: "Compliance",
       actions: [
@@ -306,13 +327,14 @@ describe("M1-25 UI API map seed", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(readme).toContain("M1-25 is Complete");
-    expect(tracker).toContain("| Pending | 191 |");
-    expect(tracker).toContain("| In progress | 350 |");
+    expect(tracker).toContain("| Pending | 166 |");
+    expect(tracker).toContain("| In progress | 375 |");
     expect(tracker).toContain("| Complete | 184 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`191/350/184/3`");
+    expect(tracker).toContain("`166/375/184/3`");
     expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "0", "0", "68", "0"]);
     expect(active.map(([task]) => task)).toEqual([
+      "M7A-84", "M7A-83", "M7A-82", "M7A-81", "M7A-80", "M7A-79", "M7A-78", "M7A-77", "M7A-76", "M7A-75", "M7A-74", "M7A-73", "M7A-72", "M7A-71", "M7A-70", "M7A-69", "M7A-68", "M7A-67", "M7A-66", "M7A-65", "M7A-64", "M7A-63", "M7A-62", "M7A-61", "M7A-60",
       "M7A-59", "M7A-58", "M7A-57", "M7A-56", "M7A-55", "M7A-54", "M7A-53", "M7A-52", "M7A-51", "M7A-50", "M7A-49", "M7A-48", "M7A-47", "M7A-46", "M7A-45", "M7A-44", "M7A-43", "M7A-42", "M7A-41", "M7A-40", "M7A-39", "M7A-38d", "M7A-38c", "M7A-38b", "M7A-38a",
       "M7A-38", "M7A-37", "M7A-36", "M7A-35", "M7A-34", "M7A-33", "M7A-32", "M7A-31", "M7A-30", "M7A-29", "M7A-28", "M7A-27", "M7A-26", "M7A-25", "M7A-24", "M7A-23", "M7A-22", "M7A-21", "M7A-20", "M7A-19", "M7A-18d", "M7A-18c", "M7A-18b", "M7A-18a", "M7A-18",
       "M7A-17", "M7A-16", "M7A-15", "M7A-14", "M7A-13", "M7A-12", "M7A-11", "M7A-10", "M7A-09", "M7A-08", "M7A-07", "M7A-06", "M7A-05", "M7A-04", "M7A-03", "M7A-02", "M7A-01",
@@ -353,7 +375,7 @@ describe("M1-25 UI API map seed", () => {
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
 
-  it("accepts only the exact twelve-screen, 104-action mixed-lifecycle map", async () => {
+  it("accepts only the exact thirteen-screen, 119-action mixed-lifecycle map", async () => {
     const source = await readFile(resolve(repositoryRoot, "docs/product/ui-api-map.yaml"), "utf8").catch(() => "");
 
     expect(parseStrictMap(source)).toEqual(expectedMap);
@@ -481,6 +503,21 @@ describe("M1-25 UI API map seed", () => {
       "listSessions",
       "getSession",
       "listSessionEvents",
+      "listSecurityAgentTemplates",
+      "listSecurityActions",
+      "listSecurityAgents",
+      "createSecurityAgent",
+      "getSecurityAgent",
+      "updateSecurityAgent",
+      "deleteSecurityAgent",
+      "simulateSecurityAgent",
+      "runSecurityAgent",
+      "listSecurityAgentRuns",
+      "getSecurityAgentRun",
+      "cancelSecurityAgentRun",
+      "listSecurityAgentApprovals",
+      "getSecurityAgentApproval",
+      "decideSecurityAgentApproval",
       "listComplianceControls",
       "listComplianceEvidence",
       "createComplianceExport",

@@ -56,7 +56,7 @@ test("publishes the identity administration operations at their honest UI lifecy
     assert.equal(document.paths?.[path]?.[method]?.operationId, operationID);
     assert.equal(mapped.get(operationID), identityUIOperations.has(operationID) ? "available" : "api_available");
   }
-  assert.equal([...mapped.values()].filter((value) => value === "available").length, identityUIOperations.size);
+  assert.equal([...mapped].filter(([operationID, value]) => identityUIOperations.has(operationID) && value === "available").length, identityUIOperations.size);
 });
 
 test("uses strict product schemas and the shared stable error response", async () => {

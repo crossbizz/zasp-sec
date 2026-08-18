@@ -17,7 +17,7 @@ describe("M7A trigger, planner, and run-engine batch", () => {
 
   it("records exactly 25 related M7A tasks without queue/provider completion claims", () => {
     const tracker = read("docs/internal/implementation_status_v1.5.md");
-    for (const value of ["| Pending | 191 |", "| In progress | 350 |", "| Complete | 184 |", "| Blocked | 3 |", "`191/350/184/3`", "| M7A | 113 | 46 | 67 | 0 | 0 |"]) expect(tracker).toContain(value);
+    for (const value of ["| Pending | 166 |", "| In progress | 375 |", "| Complete | 184 |", "| Blocked | 3 |", "`166/375/184/3`", "| M7A | 113 | 21 | 92 | 0 | 0 |"]) expect(tracker).toContain(value);
     const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
     const tasks = ["M7A-38a", "M7A-38b", "M7A-38c", "M7A-38d", "M7A-39", "M7A-40", "M7A-41", "M7A-42", "M7A-43", "M7A-44", "M7A-45", "M7A-46", "M7A-47", "M7A-48", "M7A-49", "M7A-50", "M7A-51", "M7A-52", "M7A-53", "M7A-54", "M7A-55", "M7A-56", "M7A-57", "M7A-58", "M7A-59"];
     expect(tasks).toHaveLength(25);

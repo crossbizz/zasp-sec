@@ -76,6 +76,25 @@ func (registry *Registry) Metadata(key string) (ActionMetadata, error) {
 	metadata.TargetTypes = cloneStrings(metadata.TargetTypes)
 	return metadata, nil
 }
+func (registry *Registry) AllMetadata() []ActionMetadata {
+	if registry == nil {
+		return []ActionMetadata{}
+	}
+	registry.mu.RLock()
+	keys := make([]string, 0, len(registry.actions))
+	for key := range registry.actions {
+		keys = append(keys, key)
+	}
+	registry.mu.RUnlock()
+	sort.Strings(keys)
+	result := make([]ActionMetadata, 0, len(keys))
+	for _, key := range keys {
+		if metadata, err := registry.Metadata(key); err == nil {
+			result = append(result, metadata)
+		}
+	}
+	return result
+}
 func (registry *Registry) Execute(ctx context.Context, request ActionRequest) (ActionResult, error) {
 	action, err := registry.lookup(request.ActionKey)
 	if err != nil {

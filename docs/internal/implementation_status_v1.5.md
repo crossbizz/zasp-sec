@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 191 |
-| In progress | 350 |
+| Pending | 166 |
+| In progress | 375 |
 | Complete | 184 |
 | Blocked | 3 |
 
@@ -32,7 +32,7 @@ In progress, Complete, or Blocked is Pending.
 | M5 | 42 | 0 | 42 | 0 | 0 |
 | M6 | 36 | 0 | 36 | 0 | 0 |
 | M7 | 62 | 0 | 62 | 0 | 0 |
-| M7A | 113 | 46 | 67 | 0 | 0 |
+| M7A | 113 | 21 | 92 | 0 | 0 |
 | M8 | 141 | 141 | 0 | 0 | 0 |
 
 ## Execution invariants
@@ -70,13 +70,38 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `191/350/184/3` because
+session configuration. The 728 source-plan counts are `166/375/184/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M7A-84 | August 18, 2026 | The generated-client builder shows matched evidence, proposed steps, approval points, and per-step authorization with zero side effects. |
+| M7A-83 | August 18, 2026 | Definitions require one terminal verification choice compatible with the selected registered actions. |
+| M7A-82 | August 18, 2026 | Client and service contracts bound steps, runtime, temporary-policy TTL, AI budget, and concurrency to product maxima. |
+| M7A-81 | August 18, 2026 | The autonomy step exposes automatic or supervised execution while product approval floors remain immutable. |
+| M7A-80 | August 18, 2026 | The builder action catalog displays risk, target support, and reversibility and offers no arbitrary URL, code, or shell input. |
+| M7A-79 | August 18, 2026 | Goal and Workspace/environment/agent/tag scope controls are separate from the explicitly selected action list. |
+| M7A-78 | August 18, 2026 | The builder starts from one of five bounded templates or blank and exposes only canonical trigger choices. |
+| M7A-77 | August 18, 2026 | Protect -> Security Agents renders the generated-client list with status, trigger, scope, autonomy, outcome, approvals, and owner columns. |
+| M7A-76 | August 18, 2026 | Approval decisions accept approve, reject, or cancel only after fresh authorization and reject run identity self-approval. |
+| M7A-75 | August 18, 2026 | Approval detail returns the expected registered effect, reversibility, remaining TTL, and evidence references. |
+| M7A-74 | August 18, 2026 | Approval listing rebinds every item through its run and agent to the caller's Organization and environment. |
+| M7A-73 | August 18, 2026 | The cancel endpoint uses the run CAS transition and returns a stable conflict for terminal state. |
+| M7A-72 | August 18, 2026 | Run detail combines scoped evidence, redacted plan parameters, authorization, approvals, execution, and verification state. |
+| M7A-71 | August 18, 2026 | Run listing supports bounded agent/status/environment filters and cursor pagination within one Organization. |
+| M7A-70 | August 18, 2026 | Manual run creation accepts only authorized finding, attack-path, or session references in an allowed environment. |
+| M7A-69 | August 18, 2026 | The simulation endpoint invokes scoped planning and authorization while never dispatching an action adapter. |
+| M7A-68 | August 18, 2026 | Dry-run simulation returns matched evidence, proposed registered steps, approval points, authorization, and zero side effects. |
+| M7A-67 | August 18, 2026 | Deletion disables and soft-deletes the definition while historical runs remain in the scoped repository. |
+| M7A-66 | August 18, 2026 | Definition updates use versioned CAS and enabling requires current creator permission for every allowed registered action. |
+| M7A-65 | August 18, 2026 | Definition reads require the request Organization and return the same bounded not-found envelope for foreign IDs. |
+| M7A-64 | August 18, 2026 | Creation validates actions, approval floors, scope, verification, and limits and returns one stable invalid-definition error. |
+| M7A-63 | August 18, 2026 | Definition listing applies Organization scope plus bounded cursor, status, trigger, and environment filtering. |
+| M7A-62 | August 18, 2026 | The action API returns only registered target-compatible actions whose injected capability is supported. |
+| M7A-61 | August 18, 2026 | The template API returns only the five bounded product templates and no prompt or provider internals. |
+| M7A-60 | August 18, 2026 | Audit events cover trigger through terminal outcome, hash plans, and reject raw arguments, tokens, credentials, and secrets. |
 | M7A-59 | August 18, 2026 | Run cancellation atomically stops future transitions and approval resume while preserving completed steps and temporary-control cleanup state. |
 | M7A-58 | August 18, 2026 | Final Contained/Remediated outcomes require every configured verification to pass; execution acknowledgement alone remains Inconclusive. |
 | M7A-57 | August 18, 2026 | The verification dispatcher routes exact metadata kinds, contains verifier panics, and returns Inconclusive for missing or failed verification. |

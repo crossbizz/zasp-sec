@@ -1265,6 +1265,141 @@ paths:
         '200': { description: Authorized runtime decisions., content: { application/json: { schema: { $ref: '#/components/schemas/RuntimeDecisionPage' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-agent-templates:
+    get:
+      operationId: listSecurityAgentTemplates
+      summary: List bounded product Security Agent templates
+      responses:
+        '200': { description: Product template page., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentTemplatePage' } } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-actions:
+    get:
+      operationId: listSecurityActions
+      summary: List supported scoped Security Agent actions
+      parameters:
+        - { name: target, in: query, required: false, schema: { type: string, minLength: 1, maxLength: 64 } }
+      responses:
+        '200': { description: Supported action page., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityActionPage' } } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-agents:
+    get:
+      operationId: listSecurityAgents
+      summary: List Organization-scoped Security Agents
+      parameters:
+        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/PageLimit'
+        - { name: status, in: query, required: false, schema: { type: string, enum: [enabled, disabled] } }
+        - { name: trigger, in: query, required: false, schema: { type: string, enum: [finding, attack_path, runtime_decision] } }
+        - { name: environment_id, in: query, required: false, schema: { $ref: '#/components/schemas/ProductID' } }
+      responses:
+        '200': { description: Security Agent page., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentPage' } } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    post:
+      operationId: createSecurityAgent
+      summary: Create a bounded Security Agent definition
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentDefinition' } } } }
+      responses:
+        '201': { description: Created Security Agent., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentDefinition' } } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-agents/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getSecurityAgent
+      summary: Get one authorized Security Agent
+      responses:
+        '200': { description: Authorized Security Agent., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentDefinition' } } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    patch:
+      operationId: updateSecurityAgent
+      summary: Update or enable a bounded Security Agent definition
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentDefinition' } } } }
+      responses:
+        '200': { description: Updated Security Agent., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentDefinition' } } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    delete:
+      operationId: deleteSecurityAgent
+      summary: Disable and soft-delete one Security Agent
+      responses:
+        '204': { description: Security Agent safely disabled and soft-deleted. }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-agents/{id}/simulate:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    post:
+      operationId: simulateSecurityAgent
+      summary: Simulate scoped planning and authorization without side effects
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentSimulationInput' } } } }
+      responses:
+        '200': { description: Side-effect-free simulation., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentSimulation' } } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-agents/{id}/runs:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    post:
+      operationId: runSecurityAgent
+      summary: Start one scoped manual Security Agent run
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentManualRunInput' } } } }
+      responses:
+        '201': { description: Queued Security Agent run., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentRun' } } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-agent-runs:
+    get:
+      operationId: listSecurityAgentRuns
+      summary: List authorized Security Agent runs
+      parameters:
+        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/PageLimit'
+        - { name: agent_id, in: query, required: false, schema: { $ref: '#/components/schemas/ProductID' } }
+        - { name: status, in: query, required: false, schema: { $ref: '#/components/schemas/SecurityAgentRunState' } }
+        - { name: environment_id, in: query, required: false, schema: { $ref: '#/components/schemas/ProductID' } }
+      responses:
+        '200': { description: Security Agent run page., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentRunPage' } } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-agent-runs/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getSecurityAgentRun
+      summary: Get redacted Security Agent run detail
+      responses:
+        '200': { description: Redacted run detail., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentRunDetail' } } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-agent-runs/{id}/cancel:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    post:
+      operationId: cancelSecurityAgentRun
+      summary: Cancel future work for one nonterminal run
+      responses:
+        '200': { description: Cancelled run., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentRun' } } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-agent-approvals:
+    get:
+      operationId: listSecurityAgentApprovals
+      summary: List Workspace and Environment authorized approvals
+      responses:
+        '200': { description: Authorized approval page., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentApprovalPage' } } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-agent-approvals/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getSecurityAgentApproval
+      summary: Get expected effect, reversibility, TTL, and evidence for one approval
+      responses:
+        '200': { description: Authorized approval detail., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentApproval' } } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-agent-approvals/{id}/decision:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    post:
+      operationId: decideSecurityAgentApproval
+      summary: Record a fresh-auth guarded approval decision
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentApprovalDecision' } } } }
+      responses:
+        '200': { description: Updated approval., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentApproval' } } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/home/summary:
     get:
       operationId: getHomeSummary
@@ -1466,6 +1601,141 @@ components:
         maximum: 100
         default: 50
   schemas:
+    SecurityAgentRunState: { type: string, enum: [queued, planning, waiting_approval, running, verifying, contained, remediated, needs_human, failed, inconclusive, cancelled] }
+    SecurityAgentTemplate:
+      type: object
+      additionalProperties: false
+      required: [id, name, version, trigger_kind, default_actions, verification_condition]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        name: { type: string, minLength: 1, maxLength: 256 }
+        version: { type: integer, minimum: 1 }
+        trigger_kind: { type: string, enum: [finding, attack_path, runtime_decision] }
+        default_actions: { type: array, minItems: 1, maxItems: 32, uniqueItems: true, items: { type: string, minLength: 1, maxLength: 128 } }
+        verification_condition: { type: string, minLength: 1, maxLength: 256 }
+    SecurityAgentTemplatePage: { type: object, additionalProperties: false, required: [items], properties: { items: { type: array, maxItems: 20, items: { $ref: '#/components/schemas/SecurityAgentTemplate' } } } }
+    SecurityAction:
+      type: object
+      additionalProperties: false
+      required: [key, risk_class, target_types, approval_floor, reversible, verification_kind]
+      properties:
+        key: { type: string, minLength: 1, maxLength: 128 }
+        risk_class: { type: string, enum: [low, moderate, containment, destructive] }
+        target_types: { type: array, minItems: 1, maxItems: 32, uniqueItems: true, items: { type: string, minLength: 1, maxLength: 64 } }
+        approval_floor: { type: string, enum: [none, operator, admin] }
+        reversible: { type: boolean }
+        verification_kind: { type: string, minLength: 1, maxLength: 64 }
+    SecurityActionPage: { type: object, additionalProperties: false, required: [items], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/SecurityAction' } } } }
+    SecurityAgentDefinition:
+      type: object
+      additionalProperties: false
+      required: [id, name, trigger_kind, trigger_source, environment_ids, autonomy, max_steps, max_duration_seconds, allowed_actions, verification_kind, definition_version, enabled]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        name: { type: string, minLength: 1, maxLength: 256 }
+        trigger_kind: { type: string, enum: [finding, attack_path, runtime_decision] }
+        trigger_source: { type: string, minLength: 1, maxLength: 64 }
+        environment_ids: { type: array, minItems: 1, maxItems: 100, uniqueItems: true, items: { $ref: '#/components/schemas/ProductID' } }
+        autonomy: { type: string, enum: [supervised, autonomous] }
+        max_steps: { type: integer, minimum: 1, maximum: 100 }
+        max_duration_seconds: { type: integer, minimum: 1, maximum: 86400 }
+        allowed_actions: { type: array, minItems: 1, maxItems: 32, uniqueItems: true, items: { type: string, minLength: 1, maxLength: 128 } }
+        verification_kind: { type: string, minLength: 1, maxLength: 64 }
+        definition_version: { type: integer, minimum: 1 }
+        enabled: { type: boolean }
+    SecurityAgentPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/SecurityAgentDefinition' } }
+        next_cursor: { type: string, maxLength: 128 }
+    SecurityAgentSimulationInput:
+      type: object
+      additionalProperties: false
+      required: [goal, environment_id, evidence_ids]
+      properties:
+        goal: { type: string, minLength: 1, maxLength: 1024 }
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        evidence_ids: { type: array, minItems: 1, maxItems: 100, uniqueItems: true, items: { $ref: '#/components/schemas/ProductID' } }
+    SecurityAgentSimulationStep:
+      type: object
+      additionalProperties: false
+      required: [index, action, authorization, approval_required]
+      properties:
+        index: { type: integer, minimum: 0, maximum: 99 }
+        action: { type: string, minLength: 1, maxLength: 128 }
+        authorization: { type: string, enum: [allow, approval_required, deny] }
+        approval_required: { type: boolean }
+    SecurityAgentSimulation:
+      type: object
+      additionalProperties: false
+      required: [matched_evidence_ids, summary, steps, side_effects]
+      properties:
+        matched_evidence_ids: { type: array, minItems: 1, maxItems: 100, items: { $ref: '#/components/schemas/ProductID' } }
+        summary: { type: string, minLength: 1, maxLength: 500 }
+        steps: { type: array, minItems: 1, maxItems: 100, items: { $ref: '#/components/schemas/SecurityAgentSimulationStep' } }
+        side_effects: { type: integer, const: 0 }
+    SecurityAgentManualRunInput:
+      type: object
+      additionalProperties: false
+      required: [environment_id, trigger_kind, trigger_id]
+      properties:
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        trigger_kind: { type: string, enum: [finding, attack_path, session] }
+        trigger_id: { $ref: '#/components/schemas/ProductID' }
+    SecurityAgentRun:
+      type: object
+      additionalProperties: false
+      required: [id, agent_id, state, evidence_ids, definition_version, version]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        agent_id: { $ref: '#/components/schemas/ProductID' }
+        state: { $ref: '#/components/schemas/SecurityAgentRunState' }
+        evidence_ids: { type: array, minItems: 1, maxItems: 100, items: { $ref: '#/components/schemas/ProductID' } }
+        definition_version: { type: integer, minimum: 1 }
+        version: { type: integer, minimum: 1 }
+    SecurityAgentRunPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/SecurityAgentRun' } }
+        next_cursor: { type: string, maxLength: 128 }
+    SecurityAgentRunDetail:
+      type: object
+      additionalProperties: false
+      required: [run, evidence_ids, plan, authorization, approvals, execution, verification]
+      properties:
+        run: { $ref: '#/components/schemas/SecurityAgentRun' }
+        evidence_ids: { type: array, minItems: 1, maxItems: 100, items: { $ref: '#/components/schemas/ProductID' } }
+        plan: { type: object }
+        authorization: { type: string, minLength: 1, maxLength: 64 }
+        approvals: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/SecurityAgentApproval' } }
+        execution: { type: array, maxItems: 100, items: { type: object } }
+        verification: { type: string, minLength: 1, maxLength: 64 }
+    SecurityAgentApproval:
+      type: object
+      additionalProperties: false
+      required: [id, run_id, step_id, state, expires_at, version]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        run_id: { $ref: '#/components/schemas/ProductID' }
+        step_id: { $ref: '#/components/schemas/ProductID' }
+        state: { type: string, enum: [pending, approved, rejected, cancelled] }
+        expires_at: { type: string, format: date-time }
+        version: { type: integer, minimum: 1 }
+        expected_effect: { type: string, maxLength: 128 }
+        reversible: { type: boolean }
+        ttl_seconds: { type: integer, minimum: 0, maximum: 86400 }
+        evidence_summary: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/ProductID' } }
+    SecurityAgentApprovalPage: { type: object, additionalProperties: false, required: [items], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/SecurityAgentApproval' } } } }
+    SecurityAgentApprovalDecision:
+      type: object
+      additionalProperties: false
+      required: [decision]
+      properties:
+        decision: { type: string, enum: [approved, rejected, cancelled] }
     SessionID: { type: string, minLength: 9, maxLength: 128, pattern: '^session-[a-z0-9][a-z0-9-]*$' }
     ComplianceExportID: { type: string, minLength: 8, maxLength: 128, pattern: '^export-[a-z0-9][a-z0-9-]*$' }
     SessionEvent:

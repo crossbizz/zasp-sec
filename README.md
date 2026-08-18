@@ -100,7 +100,7 @@ npm run ui-api:check
 ```
 
 The current honest result is `UI/API coverage passed: planned=0
-api_available=84 available=20 public=104 internal=0.` The gate distinguishes
+api_available=84 available=35 public=119 internal=0.` The gate distinguishes
 implemented API contracts from fully wired UI actions.
 M1-36e is Complete and separately owns local infrastructure smoke checks.
 
@@ -333,6 +333,13 @@ untrusted evidence, and deterministic authorization, budgets, queue handling,
 approval resume, execution classification, verification, outcome, and
 cancellation boundaries run locally. Production SQS, provider, and durable
 planner persistence remain unresolved.
+
+M7A-60 through M7A-84 are batched as In progress. A redacted audit helper and
+15 generated product operations now expose scoped Security Agent templates,
+actions, definitions, simulations, runs, cancellation, and approvals. Protect
+-> Security Agents uses that generated API surface for its list and bounded
+seven-stage builder; simulation cannot execute an action adapter. Production
+transport mounting and durable planner/audit storage remain unresolved.
 
 ```bash
 go test -C services/platform -race -count=1 ./integration
@@ -929,7 +936,7 @@ npm run ui-api:check
 The current fixed success line is:
 
 ```text
-UI/API coverage passed: planned=0 api_available=84 available=20 public=104 internal=0.
+UI/API coverage passed: planned=0 api_available=84 available=35 public=119 internal=0.
 ```
 
 M5 now has a local MVP slice for normalized Promptfoo attempts, curated packs,

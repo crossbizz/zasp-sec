@@ -1076,6 +1076,227 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/security-actions": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List supported scoped Security Agent actions */
+        readonly get: operations["listSecurityActions"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/security-agent-approvals": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List Workspace and Environment authorized approvals */
+        readonly get: operations["listSecurityAgentApprovals"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/security-agent-approvals/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get expected effect, reversibility, TTL, and evidence for one approval */
+        readonly get: operations["getSecurityAgentApproval"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/security-agent-approvals/{id}/decision": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Record a fresh-auth guarded approval decision */
+        readonly post: operations["decideSecurityAgentApproval"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/security-agent-runs": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List authorized Security Agent runs */
+        readonly get: operations["listSecurityAgentRuns"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/security-agent-runs/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get redacted Security Agent run detail */
+        readonly get: operations["getSecurityAgentRun"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/security-agent-runs/{id}/cancel": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Cancel future work for one nonterminal run */
+        readonly post: operations["cancelSecurityAgentRun"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/security-agent-templates": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List bounded product Security Agent templates */
+        readonly get: operations["listSecurityAgentTemplates"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/security-agents": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List Organization-scoped Security Agents */
+        readonly get: operations["listSecurityAgents"];
+        readonly put?: never;
+        /** Create a bounded Security Agent definition */
+        readonly post: operations["createSecurityAgent"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/security-agents/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get one authorized Security Agent */
+        readonly get: operations["getSecurityAgent"];
+        readonly put?: never;
+        readonly post?: never;
+        /** Disable and soft-delete one Security Agent */
+        readonly delete: operations["deleteSecurityAgent"];
+        readonly options?: never;
+        readonly head?: never;
+        /** Update or enable a bounded Security Agent definition */
+        readonly patch: operations["updateSecurityAgent"];
+        readonly trace?: never;
+    };
+    readonly "/api/v1/security-agents/{id}/runs": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Start one scoped manual Security Agent run */
+        readonly post: operations["runSecurityAgent"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/security-agents/{id}/simulate": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Simulate scoped planning and authorization without side effects */
+        readonly post: operations["simulateSecurityAgent"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/sensors": {
         readonly parameters: {
             readonly query?: never;
@@ -2071,6 +2292,120 @@ export type components = {
         readonly SearchResultPage: {
             readonly items: readonly components["schemas"]["SearchResult"][];
         };
+        readonly SecurityAction: {
+            /** @enum {string} */
+            readonly approval_floor: "none" | "operator" | "admin";
+            readonly key: string;
+            readonly reversible: boolean;
+            /** @enum {string} */
+            readonly risk_class: "low" | "moderate" | "containment" | "destructive";
+            readonly target_types: readonly string[];
+            readonly verification_kind: string;
+        };
+        readonly SecurityActionPage: {
+            readonly items: readonly components["schemas"]["SecurityAction"][];
+        };
+        readonly SecurityAgentApproval: {
+            readonly evidence_summary?: readonly components["schemas"]["ProductID"][];
+            readonly expected_effect?: string;
+            /** Format: date-time */
+            readonly expires_at: string;
+            readonly id: components["schemas"]["ProductID"];
+            readonly reversible?: boolean;
+            readonly run_id: components["schemas"]["ProductID"];
+            /** @enum {string} */
+            readonly state: "pending" | "approved" | "rejected" | "cancelled";
+            readonly step_id: components["schemas"]["ProductID"];
+            readonly ttl_seconds?: number;
+            readonly version: number;
+        };
+        readonly SecurityAgentApprovalDecision: {
+            /** @enum {string} */
+            readonly decision: "approved" | "rejected" | "cancelled";
+        };
+        readonly SecurityAgentApprovalPage: {
+            readonly items: readonly components["schemas"]["SecurityAgentApproval"][];
+        };
+        readonly SecurityAgentDefinition: {
+            readonly allowed_actions: readonly string[];
+            /** @enum {string} */
+            readonly autonomy: "supervised" | "autonomous";
+            readonly definition_version: number;
+            readonly enabled: boolean;
+            readonly environment_ids: readonly components["schemas"]["ProductID"][];
+            readonly id: components["schemas"]["ProductID"];
+            readonly max_duration_seconds: number;
+            readonly max_steps: number;
+            readonly name: string;
+            /** @enum {string} */
+            readonly trigger_kind: "finding" | "attack_path" | "runtime_decision";
+            readonly trigger_source: string;
+            readonly verification_kind: string;
+        };
+        readonly SecurityAgentManualRunInput: {
+            readonly environment_id: components["schemas"]["ProductID"];
+            readonly trigger_id: components["schemas"]["ProductID"];
+            /** @enum {string} */
+            readonly trigger_kind: "finding" | "attack_path" | "session";
+        };
+        readonly SecurityAgentPage: {
+            readonly items: readonly components["schemas"]["SecurityAgentDefinition"][];
+            readonly next_cursor?: string;
+        };
+        readonly SecurityAgentRun: {
+            readonly agent_id: components["schemas"]["ProductID"];
+            readonly definition_version: number;
+            readonly evidence_ids: readonly components["schemas"]["ProductID"][];
+            readonly id: components["schemas"]["ProductID"];
+            readonly state: components["schemas"]["SecurityAgentRunState"];
+            readonly version: number;
+        };
+        readonly SecurityAgentRunDetail: {
+            readonly approvals: readonly components["schemas"]["SecurityAgentApproval"][];
+            readonly authorization: string;
+            readonly evidence_ids: readonly components["schemas"]["ProductID"][];
+            readonly execution: readonly Record<string, never>[];
+            readonly plan: Record<string, never>;
+            readonly run: components["schemas"]["SecurityAgentRun"];
+            readonly verification: string;
+        };
+        readonly SecurityAgentRunPage: {
+            readonly items: readonly components["schemas"]["SecurityAgentRun"][];
+            readonly next_cursor?: string;
+        };
+        /** @enum {string} */
+        readonly SecurityAgentRunState: "queued" | "planning" | "waiting_approval" | "running" | "verifying" | "contained" | "remediated" | "needs_human" | "failed" | "inconclusive" | "cancelled";
+        readonly SecurityAgentSimulation: {
+            readonly matched_evidence_ids: readonly components["schemas"]["ProductID"][];
+            /** @constant */
+            readonly side_effects: 0;
+            readonly steps: readonly components["schemas"]["SecurityAgentSimulationStep"][];
+            readonly summary: string;
+        };
+        readonly SecurityAgentSimulationInput: {
+            readonly environment_id: components["schemas"]["ProductID"];
+            readonly evidence_ids: readonly components["schemas"]["ProductID"][];
+            readonly goal: string;
+        };
+        readonly SecurityAgentSimulationStep: {
+            readonly action: string;
+            readonly approval_required: boolean;
+            /** @enum {string} */
+            readonly authorization: "allow" | "approval_required" | "deny";
+            readonly index: number;
+        };
+        readonly SecurityAgentTemplate: {
+            readonly default_actions: readonly string[];
+            readonly id: components["schemas"]["ProductID"];
+            readonly name: string;
+            /** @enum {string} */
+            readonly trigger_kind: "finding" | "attack_path" | "runtime_decision";
+            readonly verification_condition: string;
+            readonly version: number;
+        };
+        readonly SecurityAgentTemplatePage: {
+            readonly items: readonly components["schemas"]["SecurityAgentTemplate"][];
+        };
         readonly Sensor: {
             readonly capabilities: readonly string[];
             /** Format: date-time */
@@ -2358,6 +2693,23 @@ export type ScimConnectionPage = components['schemas']['SCIMConnectionPage'];
 export type ScimIdentityProvider = components['schemas']['SCIMIdentityProvider'];
 export type SearchResult = components['schemas']['SearchResult'];
 export type SearchResultPage = components['schemas']['SearchResultPage'];
+export type SecurityAction = components['schemas']['SecurityAction'];
+export type SecurityActionPage = components['schemas']['SecurityActionPage'];
+export type SecurityAgentApproval = components['schemas']['SecurityAgentApproval'];
+export type SecurityAgentApprovalDecision = components['schemas']['SecurityAgentApprovalDecision'];
+export type SecurityAgentApprovalPage = components['schemas']['SecurityAgentApprovalPage'];
+export type SecurityAgentDefinition = components['schemas']['SecurityAgentDefinition'];
+export type SecurityAgentManualRunInput = components['schemas']['SecurityAgentManualRunInput'];
+export type SecurityAgentPage = components['schemas']['SecurityAgentPage'];
+export type SecurityAgentRun = components['schemas']['SecurityAgentRun'];
+export type SecurityAgentRunDetail = components['schemas']['SecurityAgentRunDetail'];
+export type SecurityAgentRunPage = components['schemas']['SecurityAgentRunPage'];
+export type SecurityAgentRunState = components['schemas']['SecurityAgentRunState'];
+export type SecurityAgentSimulation = components['schemas']['SecurityAgentSimulation'];
+export type SecurityAgentSimulationInput = components['schemas']['SecurityAgentSimulationInput'];
+export type SecurityAgentSimulationStep = components['schemas']['SecurityAgentSimulationStep'];
+export type SecurityAgentTemplate = components['schemas']['SecurityAgentTemplate'];
+export type SecurityAgentTemplatePage = components['schemas']['SecurityAgentTemplatePage'];
 export type Sensor = components['schemas']['Sensor'];
 export type SensorCoverage = components['schemas']['SensorCoverage'];
 export type SensorEnrollment = components['schemas']['SensorEnrollment'];
@@ -4229,6 +4581,375 @@ export interface operations {
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listSecurityActions: {
+        readonly parameters: {
+            readonly query?: {
+                readonly target?: string;
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Supported action page. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SecurityActionPage"];
+                };
+            };
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listSecurityAgentApprovals: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized approval page. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SecurityAgentApprovalPage"];
+                };
+            };
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getSecurityAgentApproval: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized approval detail. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SecurityAgentApproval"];
+                };
+            };
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly decideSecurityAgentApproval: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["SecurityAgentApprovalDecision"];
+            };
+        };
+        readonly responses: {
+            /** @description Updated approval. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SecurityAgentApproval"];
+                };
+            };
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listSecurityAgentRuns: {
+        readonly parameters: {
+            readonly query?: {
+                readonly agent_id?: components["schemas"]["ProductID"];
+                /** @description Opaque cursor returned by the preceding page. */
+                readonly cursor?: components["parameters"]["PageCursor"];
+                readonly environment_id?: components["schemas"]["ProductID"];
+                /** @description Maximum number of records to return. */
+                readonly limit?: components["parameters"]["PageLimit"];
+                readonly status?: components["schemas"]["SecurityAgentRunState"];
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Security Agent run page. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SecurityAgentRunPage"];
+                };
+            };
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getSecurityAgentRun: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Redacted run detail. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SecurityAgentRunDetail"];
+                };
+            };
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly cancelSecurityAgentRun: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Cancelled run. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SecurityAgentRun"];
+                };
+            };
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listSecurityAgentTemplates: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Product template page. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SecurityAgentTemplatePage"];
+                };
+            };
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listSecurityAgents: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description Opaque cursor returned by the preceding page. */
+                readonly cursor?: components["parameters"]["PageCursor"];
+                readonly environment_id?: components["schemas"]["ProductID"];
+                /** @description Maximum number of records to return. */
+                readonly limit?: components["parameters"]["PageLimit"];
+                readonly status?: "enabled" | "disabled";
+                readonly trigger?: "finding" | "attack_path" | "runtime_decision";
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Security Agent page. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SecurityAgentPage"];
+                };
+            };
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly createSecurityAgent: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["SecurityAgentDefinition"];
+            };
+        };
+        readonly responses: {
+            /** @description Created Security Agent. */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SecurityAgentDefinition"];
+                };
+            };
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getSecurityAgent: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized Security Agent. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SecurityAgentDefinition"];
+                };
+            };
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly deleteSecurityAgent: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Security Agent safely disabled and soft-deleted. */
+            readonly 204: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly updateSecurityAgent: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["SecurityAgentDefinition"];
+            };
+        };
+        readonly responses: {
+            /** @description Updated Security Agent. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SecurityAgentDefinition"];
+                };
+            };
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly runSecurityAgent: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["SecurityAgentManualRunInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Queued Security Agent run. */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SecurityAgentRun"];
+                };
+            };
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly simulateSecurityAgent: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["SecurityAgentSimulationInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Side-effect-free simulation. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SecurityAgentSimulation"];
+                };
+            };
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };

@@ -175,7 +175,7 @@ func (coordinator *ApprovalCoordinator) Decide(ctx context.Context, organization
 	} else if approval.State != decision {
 		return Approval{}, ErrRejected
 	}
-	if approval.State == ApprovalRejected {
+	if approval.State == ApprovalRejected || approval.State == ApprovalCancelled {
 		if run.State == RunWaitingApproval {
 			_, _ = coordinator.repository.TransitionRun(ctx, organizationID, run.ID, RunWaitingApproval, RunNeedsHuman, run.Version)
 		}

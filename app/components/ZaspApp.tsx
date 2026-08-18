@@ -23,6 +23,7 @@ import { AttackLabView } from "../features/redteam/AttackLabView";
 import { PoliciesView } from "../features/policies/PoliciesView";
 import { SessionsComplianceView } from "../features/sessions/SessionsComplianceView";
 import { AdminOperationsView } from "../features/administration/AdminOperationsView";
+import { SecurityAgentsView } from "../features/securityagents/SecurityAgentsView";
 
 function RouteSurface({ route, onNavigate, onToast }: { route: AppRoute; onNavigate: (path: string) => void; onToast: (message: string) => void }) {
   if (route.path === "/") return <OverviewView onNavigate={onNavigate} />;
@@ -31,6 +32,7 @@ function RouteSurface({ route, onNavigate, onToast }: { route: AppRoute; onNavig
   if (["/inventory/tools", "/inventory/runtimes", "/exposure/attack-paths"].includes(route.path)) return <AgentSecurityView path={route.path} onNavigate={onNavigate} />;
   if (route.path.startsWith("/discovery/")) return <DiscoveryView route={route} />;
   if (route.path === "/policies") return <><GovernanceView route={route} onToast={onToast} /><PoliciesView embedded /></>;
+  if (route.path === "/protect/security-agents") return <SecurityAgentsView />;
   if (route.path === "/investigate/sessions") return <SessionsComplianceView surface="sessions" />;
   if (route.path === "/compliance/evidence") return <SessionsComplianceView surface="compliance" />;
   if (route.path === "/administration/data-retention") return <SessionsComplianceView surface="data-controls" />;
