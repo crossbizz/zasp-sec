@@ -59,18 +59,18 @@ describe("M1-37 deployment mode configuration contract", () => {
 
     expect(readme).toContain("M1-36e is Complete");
     expect(readme).toContain("M1-37 is Complete");
-    expect(tracker).toContain("| Pending | 645 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 644 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 80 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`645/0/80/3`");
-    expect(m1).toEqual(["M1", "68", "12", "0", "56", "0"]);
+    expect(tracker).toContain("`644/1/80/3`");
+    expect(m1).toEqual(["M1", "68", "11", "1", "56", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active).toHaveLength(0);
+    expect(active).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-36e")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-37")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-38")).toHaveLength(1);
-    expect([...active, ...complete].filter(([task]) => task === "M1-39")).toHaveLength(0);
+    expect(active.filter(([task]) => task === "M1-39")).toHaveLength(1);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
     expect(tracker).toContain("R-03 remains incomplete");
     expect(tracker).toContain("R-11 remains Not run");
