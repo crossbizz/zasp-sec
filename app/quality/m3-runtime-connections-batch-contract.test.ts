@@ -57,9 +57,11 @@ describe("M3 runtime ingestion and connection surfaces batch", () => {
     expect(tracker).toMatch(/^\| Blocked \| \d+ \|/m);
     expect(tracker).toMatch(/^\| M3 \| 75 \| \d+ \| \d+ \| \d+ \| 0 \|/m);
     const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
-    const tasks = ["M3-35", "M3-36", "M3-37", "M3-38", "M3-39", "M3-40", "M3-41", "M3-42", "M3-43a", "M3-43b", "M3-43c", "M3-43d", "M3-43", "M3-44", "M3-45", "M3-46", "M3-47", "M3-48a", "M3-48b", "M3-48c1", "M3-48c2", "M3-48c3"];
+    const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] ?? "";
+    for (const task of ["M3-35", "M3-36"]) expect(complete.match(new RegExp(`^\\| ${task} \\|`, "gm"))).toHaveLength(1);
+    const tasks = ["M3-37", "M3-38", "M3-39", "M3-40", "M3-41", "M3-42", "M3-43a", "M3-43b", "M3-43c", "M3-43d", "M3-43", "M3-44", "M3-45", "M3-46", "M3-47", "M3-48a", "M3-48b", "M3-48c1", "M3-48c2", "M3-48c3"];
     for (const task of tasks) expect(active.match(new RegExp(`^\\| ${task.replace("-", "\\-")} \\|`, "gm"))).toHaveLength(1);
-    expect(readme).toContain("M3-35 through M3-48c3 are also batched as In progress");
+    expect(readme).toContain("M3-37 through M3-48c3 remain batched as In progress");
     expect(readme.replace(/\s+/g, " ")).toContain("the local worker tests do not substitute for that provider gate");
   });
 });

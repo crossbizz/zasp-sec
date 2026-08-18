@@ -64,6 +64,6 @@ describe("M1A and M3 foundation batch", () => {
     for (const task of ["M1A-07", "M1A-08", "M1A-09", "M1A-10"]) expect(tracker.match(new RegExp(`^\\| ${task} \\|`, "gm"))).toHaveLength(1);
     expect(tracker.match(/^\| M3-14 \|/gm)).toHaveLength(1);
     expect(readme).toContain("M1A-07 through M1A-10 are now In progress");
-    expect(readme).toContain("M3-14 through M3-34 are implementation-ready but remain In progress");
+    expect(readme).toContain("M3-15 through M3-36 are Complete");
   });
 });

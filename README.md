@@ -270,17 +270,14 @@ All ten integration operations are present in the OpenAPI document and generated
 client as `api_available`; internal adapter and upstream implementation names are
 excluded from the public catalog.
 
-M3-14 through M3-34 are implementation-ready but remain In progress. The batch
-adds a strict AWS assume-role identity boundary, scoped Cartography/Prowler and
-AWS/Kubernetes/GitHub/IdP normalization, freshness retention, an exact-pinned
-private Nango Auth/Proxy deployment, secret-safe connection/OAuth/proxy
-boundaries, and sensor enrollment, management, coverage, and heartbeat APIs.
-The required real AWS staging authority is unavailable, so M1A-07 through
-M1A-10 and the real-AWS denial/staging smoke gates have not been claimed or
-bypassed.
+M3-15 through M3-36 are Complete. The reviewed Cartography, Prowler, Nango,
+sensor, and Tetragon suites prove scoped normalization, freshness, private
+Auth/Proxy, credential-safe connection handling, seven sensor operations, and
+process/file/network normalization. M3-14 remains In progress because its
+required real-AWS denial fixture is unavailable with M1A-10's live staging gate.
 
-M3-35 through M3-48c3 are also batched as In progress. The local MVP slice
-adds the exact-pinned Tetragon wrapper, process/file/network and OTLP semantic
+M3-37 through M3-48c3 remain batched as In progress. The local MVP slice adds
+sensor health, OTLP semantic
 adapters, scoped pre-parse authentication, metadata filtering, bounded event
 batches, deterministic archive/index/correlation worker stages, and the
 connection catalog/list/detail product surfaces. Durable AWS queue, object,

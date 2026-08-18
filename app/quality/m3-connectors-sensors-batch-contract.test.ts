@@ -39,10 +39,12 @@ describe("M3 connector and sensor implementation batch", () => {
     expect(tracker).toMatch(/^\| Complete \| \d+ \|/m);
     expect(tracker).toMatch(/^\| M3 \| 75 \| \d+ \| \d+ \| \d+ \| 0 \|/m);
     const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
-    for (const task of ["M3-14", "M3-15", "M3-16", "M3-17", "M3-18", "M3-19", "M3-20", "M3-21", "M3-22a", "M3-22b", "M3-22c", "M3-22", "M3-23", "M3-24", "M3-25", "M3-26", "M3-27", "M3-28", "M3-29", "M3-30", "M3-31", "M3-32", "M3-33", "M3-34"]) {
-      expect(active.match(new RegExp(`^\\| ${task.replace("-", "\\-")} \\|`, "gm"))).toHaveLength(1);
+    const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] ?? "";
+    expect(active.match(/^\| M3-14 \|/gm)).toHaveLength(1);
+    for (const task of ["M3-15", "M3-16", "M3-17", "M3-18", "M3-19", "M3-20", "M3-21", "M3-22a", "M3-22b", "M3-22c", "M3-22", "M3-23", "M3-24", "M3-25", "M3-26", "M3-27", "M3-28", "M3-29", "M3-30", "M3-31", "M3-32", "M3-33", "M3-34"]) {
+      expect(complete.match(new RegExp(`^\\| ${task.replace("-", "\\-")} \\|`, "gm"))).toHaveLength(1);
     }
-    expect(readme).toContain("M3-14 through M3-34 are implementation-ready but remain In progress");
-    expect(readme).toContain("real AWS staging authority is unavailable");
+    expect(readme).toContain("M3-15 through M3-36 are Complete");
+    expect(readme).toContain("required real-AWS denial fixture is unavailable");
   });
 });

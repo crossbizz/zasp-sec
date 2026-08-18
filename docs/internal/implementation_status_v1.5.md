@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 0 |
-| In progress | 541 |
-| Complete | 184 |
+| In progress | 516 |
+| Complete | 209 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -27,7 +27,7 @@ In progress, Complete, or Blocked is Pending.
 | M1 | 68 | 0 | 0 | 68 | 0 |
 | M1A | 10 | 0 | 4 | 6 | 0 |
 | M2 | 72 | 0 | 0 | 72 | 0 |
-| M3 | 75 | 0 | 61 | 14 | 0 |
+| M3 | 75 | 0 | 36 | 39 | 0 |
 | M4 | 82 | 0 | 82 | 0 | 0 |
 | M5 | 42 | 0 | 42 | 0 | 0 |
 | M6 | 36 | 0 | 36 | 0 | 0 |
@@ -70,7 +70,7 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `0/541/184/3` because
+session configuration. The 728 source-plan counts are `0/516/209/3` because
 PROV-01 is excluded from those counts.
 For the active M8 resilience batch, live parity, outage injection, and reference load execution remain unresolved.
 
@@ -593,37 +593,37 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 | M3-39 | August 18, 2026 | Sensor/runtime authentication and exact scope checks run before payload parsing. |
 | M3-38 | August 18, 2026 | OTLP semantic attributes map agent, session, task, tool, sandbox, trace, and span identity. |
 | M3-37 | August 18, 2026 | Sensor health derives kernel/BTF/resource/event/drop coverage state locally. |
-| M3-36 | August 18, 2026 | Process, file, and network Tetragon fixtures normalize with workload identity. |
-| M3-35 | August 18, 2026 | Exact-pinned Tetragon wrapper and three bounded tracing policies are staged locally. |
-| M3-34 | August 18, 2026 | Sensor heartbeat operation is implemented locally; real staging remains gated by M1A-10. |
-| M3-33 | August 18, 2026 | Sensor coverage API is implemented locally; real staging remains gated by M1A-10. |
-| M3-32 | August 18, 2026 | One-time sensor-token rotation API is implemented locally; real staging remains gated by M1A-10. |
-| M3-31 | August 18, 2026 | Scoped sensor deletion API is implemented locally; real staging remains gated by M1A-10. |
-| M3-30 | August 18, 2026 | Scoped sensor update API is implemented locally; real staging remains gated by M1A-10. |
-| M3-29 | August 18, 2026 | Scoped sensor lookup API is implemented locally; real staging remains gated by M1A-10. |
-| M3-28 | August 18, 2026 | One-time-token sensor enrollment API is implemented locally; real staging remains gated by M1A-10. |
-| M3-27 | August 18, 2026 | Scoped sensor list API is implemented locally; real staging remains gated by M1A-10. |
-| M3-26 | August 18, 2026 | Sensor token-hash, configuration, capability, and heartbeat model is implemented locally. |
-| M3-25 | August 18, 2026 | HTTPS GET-only Nango proxy host policy is implemented locally with SSRF rejection. |
-| M3-24 | August 18, 2026 | OAuth state and PKCE callback validation is implemented locally. |
-| M3-23 | August 18, 2026 | Scoped Nango connection-reference storage is implemented without raw provider credentials. |
-| M3-22 | August 18, 2026 | Private Nango service/readiness configuration is implemented; staging smoke awaits M1A-10. |
-| M3-22c | August 18, 2026 | Nango database and encryption configuration uses Kubernetes Secret references only. |
-| M3-22b | August 18, 2026 | Nango is constrained to Auth and Proxy with Functions, Webhooks, and MCP disabled. |
-| M3-22a | August 18, 2026 | Exact-pinned private Nango deployment and product-only network policy are implemented. |
-| M3-21 | August 18, 2026 | Last success/error/rate-limit/stale state retains last-known inventory locally. |
-| M3-20 | August 18, 2026 | Stable scoped IdP user/group/application/service-principal normalization is implemented. |
-| M3-19 | August 18, 2026 | Stable scoped GitHub organization/repository/app/workflow normalization is implemented. |
-| M3-18 | August 18, 2026 | Stable scoped Kubernetes workload-identity normalization is implemented. |
-| M3-17 | August 18, 2026 | Stable scoped AWS account/role/policy normalization is implemented. |
-| M3-16 | August 18, 2026 | Prowler finding runner and evidence normalization are implemented against local fixtures. |
-| M3-15 | August 18, 2026 | Cartography source runner is implemented with two-Organization fixture isolation. |
 | M3-14 | August 18, 2026 | Strict AWS assume-role identity adapter and local denial fixture are implemented; required real-AWS denial remains unavailable behind M1A-10. |
 
 ## Complete
 
 | Task | Completed | Evidence |
 | --- | --- | --- |
+| M3-36 | August 18, 2026 | Process, file, and network Tetragon fixtures normalize with workload identity; the exact-pinned proof suite passes. |
+| M3-35 | August 18, 2026 | Exact-pinned Tetragon wrapper and three bounded tracing policies pass manifest and lifecycle verification. |
+| M3-34 | August 18, 2026 | Scoped token-authenticated heartbeat updates exact capabilities and rejects invalid tokens. |
+| M3-33 | August 18, 2026 | Sensor coverage API passes authorized success and stable product-error tests. |
+| M3-32 | August 18, 2026 | One-time sensor-token rotation passes scope, secrecy, and invalidation tests. |
+| M3-31 | August 18, 2026 | Scoped sensor deletion passes authorized success and stable product-error tests. |
+| M3-30 | August 18, 2026 | Scoped sensor update passes authorized success and stable product-error tests. |
+| M3-29 | August 18, 2026 | Scoped sensor lookup passes authorized success and stable product-error tests. |
+| M3-28 | August 18, 2026 | Sensor enrollment returns a raw token once and retains only its hash. |
+| M3-27 | August 18, 2026 | Scoped sensor listing passes authorized success and stable product-error tests. |
+| M3-26 | August 18, 2026 | Sensor model binds ID, token hash, configuration, capabilities, and heartbeat state. |
+| M3-25 | August 18, 2026 | Authenticated GET-only Nango Proxy wrapper rejects unconfigured hosts and passes the exact proof suite. |
+| M3-24 | August 18, 2026 | Nango OAuth callback validates state and PKCE and rejects mismatch fixtures. |
+| M3-23 | August 18, 2026 | Product persistence retains only scoped Nango connection references, never raw provider credentials. |
+| M3-22 | August 18, 2026 | Private Nango Auth/Proxy readiness and unreachable admin-ingress boundaries pass the reviewed proof suite. |
+| M3-22c | August 18, 2026 | Nango database and encryption configuration renders Kubernetes Secret references only. |
+| M3-22b | August 18, 2026 | Free Nango usage is constrained to Auth and Proxy with no Functions, Webhooks, or MCP dependency. |
+| M3-22a | August 18, 2026 | Exact-pinned Nango deployment remains private and product-network scoped. |
+| M3-21 | August 18, 2026 | Integration freshness retains last success/error/rate limit and stale last-known inventory. |
+| M3-20 | August 18, 2026 | IdP normalization produces stable scoped user/group/application/service-principal identities and privilege edges. |
+| M3-19 | August 18, 2026 | GitHub normalization produces stable scoped Organization/repository/app/workflow relationships. |
+| M3-18 | August 18, 2026 | Kubernetes normalization links cluster, namespace, service account, workload identity, and runtime resource. |
+| M3-17 | August 18, 2026 | AWS normalization produces stable scoped account, role, policy, and resource relationships. |
+| M3-16 | August 18, 2026 | Exact-pinned Prowler runner emits canonical scoped resource and evidence through the reviewed proof. |
+| M3-15 | August 18, 2026 | Exact-pinned Cartography runner preserves two-Organization source isolation through the reviewed proof. |
 | M3-13 | August 18, 2026 | Added the exact scoped integration-sync job payload, idempotent job-key reuse, and forward-only queued/running/succeeded/failed transitions. |
 | M3-12 | August 18, 2026 | Added the authorized exact integration-sync lookup API and generated client operation. |
 | M3-11 | August 18, 2026 | Added the authorized integration-sync list API and generated client operation. |
