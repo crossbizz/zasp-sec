@@ -68,7 +68,7 @@ describe("M1-31 LocalStack client factory", () => {
       "does not create a LocalStack lifecycle or provider resource",
       "does not claim LocalStack parity",
       "M1-30 is Complete",
-      "M1-32 remains Pending",
+      "M1-32 is In progress",
     ]) {
       expect(sectionProse).toContain(value);
     }
@@ -101,19 +101,19 @@ describe("M1-31 LocalStack client factory", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(readme).toContain("M1-31 is Complete");
-    expect(tracker).toContain("| Pending | 656 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 655 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 69 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`656/0/69/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "23", "0", "45", "0"]);
+    expect(tracker).toContain("`655/1/69/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "22", "1", "45", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.map(([task]) => task)).toEqual([]);
+    expect(active.map(([task]) => task)).toEqual(["M1-32"]);
     expect(complete).toHaveLength(69);
     expect(active.filter(([task]) => task === "M1-31")).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-31")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-30")).toHaveLength(1);
-    expect([...active, ...complete].filter(([task]) => task === "M1-32")).toHaveLength(0);
+    expect([...active, ...complete].filter(([task]) => task === "M1-32")).toHaveLength(1);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
 });
