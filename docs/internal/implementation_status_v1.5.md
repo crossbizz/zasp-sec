@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 95 |
-| In progress | 446 |
+| Pending | 70 |
+| In progress | 471 |
 | Complete | 184 |
 | Blocked | 3 |
 
@@ -33,7 +33,7 @@ In progress, Complete, or Blocked is Pending.
 | M6 | 36 | 0 | 36 | 0 | 0 |
 | M7 | 62 | 0 | 62 | 0 | 0 |
 | M7A | 113 | 0 | 113 | 0 | 0 |
-| M8 | 141 | 91 | 50 | 0 | 0 |
+| M8 | 141 | 66 | 75 | 0 | 0 |
 
 ## Execution invariants
 
@@ -70,13 +70,39 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `95/446/184/3` because
+session configuration. The 728 source-plan counts are `70/471/184/3` because
 PROV-01 is excluded from those counts.
+For the active M8 resilience batch, live parity, outage injection, and reference load execution remain unresolved.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M8-39 | August 18, 2026 | Sensor evidence records reference profile, workload, duration, CPU core-seconds, and peak memory without asserting a universal overhead percentage. |
+| M8-38 | August 18, 2026 | The deterministic event-floor result records rate, recovery, indexing, drops, and retries; reference deployment execution remains unresolved. |
+| M8-38c | August 18, 2026 | Event-load evaluation requires at least 5k events/sec, exact indexing, recovered backlog, zero drops, and bounded retries. |
+| M8-38b | August 18, 2026 | A bounded event-load plan caps the requested rate, duration, batch size, batch count, and total generated event count. |
+| M8-38a | August 18, 2026 | The generator model produces Organization-scoped batch metadata without allocating every event in memory. |
+| M8-37 | August 18, 2026 | Graph-load evaluation caps depth at 3, results at 1000, artifact samples, and p95 at 3 seconds. |
+| M8-36 | August 18, 2026 | The API reference result retains exact profile, p50/p95/p99, error rate, and deterministic pass/fail. |
+| M8-36c | August 18, 2026 | API-load evaluation computes deterministic percentiles and rejects p95 over 750 ms or errors over one percent. |
+| M8-36b | August 18, 2026 | API artifacts are bounded to five minutes, 100k samples, 16 endpoints, and exact request/error counts. |
+| M8-36a | August 18, 2026 | API scenario validation accepts only fixed `/api/v1/` paths without queries, wildcards, or unbounded endpoint sets. |
+| M8-35 | August 18, 2026 | Runtime policy latency evaluation deterministically rejects p95 over the 25 ms release threshold. |
+| M8-34 | August 18, 2026 | SQS saturation evidence requires visible queue age/backlog, bounded memory, and active cached runtime policy. |
+| M8-33 | August 18, 2026 | Neo4j outage evidence requires explicit degradation while basic inventory and runtime policy remain active. |
+| M8-32 | August 18, 2026 | OpenSearch outage evidence requires visible backlog and retained runtime enforcement. |
+| M8-31 | August 18, 2026 | Concurrent optional-vendor outage evidence requires core deterministic features and runtime enforcement to remain active. |
+| M8-30 | August 18, 2026 | Nango outage evidence requires core launch connectors, inventory, graph, and policy behavior to continue. |
+| M8-29 | August 18, 2026 | Neon outage evidence requires control-plane mutation to fail fast while cached runtime policy remains active. |
+| M8-28 | August 18, 2026 | Stytch outage evidence requires degraded new authentication, unchanged token validity, and retained runtime enforcement. |
+| M8-27 | August 18, 2026 | Real Fargate parity model requires scheduling, direct-egress denial, approved proxy success, and exact cleanup; isolated-AWS execution remains unresolved. |
+| M8-26 | August 18, 2026 | Real storage parity model requires S3/KMS, Secrets, SQS, and OpenSearch success; isolated-AWS execution remains unresolved. |
+| M8-25 | August 18, 2026 | Real IAM parity model requires allow, explicit deny, SourceIdentity, and IRSA behavior; the same isolated-account blocker as M0-09 remains. |
+| M8-24 | August 18, 2026 | `agentsecctl diagnostics` emits only bounded health, version, configuration, and log fields and rejects seeded authorization/token/secret/session markers. |
+| M8-23 | August 18, 2026 | Rollback evidence binds upgrade evidence, exact release ID, rollback ID, and state validation; live rehearsal remains unresolved. |
+| M8-23d | August 18, 2026 | Rollback validation requires exact prior version, schema compatibility, resource counts, and sampled evidence state. |
+| M8-23c | August 18, 2026 | The injected rollback runtime targets only the recorded fixture, release, and prior version. |
 | M8-23b | August 18, 2026 | The injected upgrade boundary starts the current version against the exact tracked fixture and retains release and migration IDs; live disposable upgrade evidence remains unresolved. |
 | M8-23a | August 18, 2026 | The injected upgrade boundary starts a previous-supported-version disposable fixture and requires a stable tracked identity. |
 | M8-22 | August 18, 2026 | One read-only upgrade report aggregates version, migration, bundle, rollback artifact, and recovery-reference checks before mutation. |

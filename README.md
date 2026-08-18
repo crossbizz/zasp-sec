@@ -364,6 +364,13 @@ and upgrade compatibility plus tracked fixture/release starts. Provider-backed
 preflight, live backup/restore rehearsal, and disposable upgrade evidence are
 still required before these tasks can move to Complete.
 
+M8-23c through M8-39 are batched as In progress in the same CLI boundary.
+Rollback and redacted diagnostics models, isolated-AWS parity expectations,
+seven dependency-outage contracts, deterministic latency/load evaluators, a
+bounded event-load plan, and reference-scoped sensor measurements are now
+implemented. Live parity, outage injection, and reference load execution remain
+unresolved, so this batch does not claim release-gate completion.
+
 ```bash
 go test -C services/platform -race -count=1 ./integration
 go test -C services/platform -race -count=1 ./connectors ./sensor

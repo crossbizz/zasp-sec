@@ -327,13 +327,14 @@ describe("M1-25 UI API map seed", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(readme).toContain("M1-25 is Complete");
-    expect(tracker).toContain("| Pending | 95 |");
-    expect(tracker).toContain("| In progress | 446 |");
+    expect(tracker).toContain("| Pending | 70 |");
+    expect(tracker).toContain("| In progress | 471 |");
     expect(tracker).toContain("| Complete | 184 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`95/446/184/3`");
+    expect(tracker).toContain("`70/471/184/3`");
     expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "0", "0", "68", "0"]);
     expect(active.map(([task]) => task)).toEqual([
+      "M8-39", "M8-38", "M8-38c", "M8-38b", "M8-38a", "M8-37", "M8-36", "M8-36c", "M8-36b", "M8-36a", "M8-35", "M8-34", "M8-33", "M8-32", "M8-31", "M8-30", "M8-29", "M8-28", "M8-27", "M8-26", "M8-25", "M8-24", "M8-23", "M8-23d", "M8-23c",
       "M8-23b", "M8-23a", "M8-22", "M8-22d", "M8-22c", "M8-22b", "M8-22a", "M8-21", "M8-21e", "M8-21d", "M8-21c", "M8-21b", "M8-21a", "M8-20", "M8-20c", "M8-20b", "M8-20a", "M8-19", "M8-18", "M8-17", "M8-17e", "M8-17d", "M8-17c", "M8-17b", "M8-17a",
       "M8-16", "M8-15", "M8-14", "M8-13", "M8-12", "M8-11", "M8-10", "M8-09", "M8-09c", "M8-09b", "M8-09a", "M8-08", "M8-08c", "M8-08b", "M8-08a", "M8-07", "M8-06", "M8-05", "M8-04", "M8-03", "M8-02", "M8-01", "M8-01c", "M8-01b", "M8-01a",
       "M7A-101", "M7A-100", "M7A-99", "M7A-98", "M7A-97", "M7A-96", "M7A-95", "M7A-94", "M7A-93", "M7A-92", "M7A-91", "M7A-90d", "M7A-90c", "M7A-90b", "M7A-90a", "M7A-90", "M7A-89", "M7A-88", "M7A-87", "M7A-86", "M7A-85",

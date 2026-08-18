@@ -354,6 +354,9 @@ func compatibleVersion(current, target string) bool {
 	if _, err := fmt.Sscanf(target, "%d.%d.%d", &targetMajor, &targetMinor, &targetPatch); err != nil {
 		return false
 	}
+	if currentMajor < 0 || currentMinor < 0 || currentPatch < 0 || targetMajor < 0 || targetMinor < 0 || targetPatch < 0 {
+		return false
+	}
 	if current != fmt.Sprintf("%d.%d.%d", currentMajor, currentMinor, currentPatch) || target != fmt.Sprintf("%d.%d.%d", targetMajor, targetMinor, targetPatch) {
 		return false
 	}
@@ -422,6 +425,19 @@ func runReleaseCommand(output io.Writer, input io.Reader, arguments []string) er
 			return err
 		}
 		return encodeJSON(output, report)
+	case "diagnostics":
+		if len(arguments) != 1 {
+			return errInvalidArguments
+		}
+		var value DiagnosticsInput
+		if err := decodeCommandInput(input, &value); err != nil {
+			return errResilienceRejected
+		}
+		bundle, err := BuildDiagnosticsBundle(value)
+		if err != nil {
+			return err
+		}
+		return encodeJSON(output, bundle)
 	default:
 		return errInvalidArguments
 	}
