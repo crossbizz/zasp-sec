@@ -868,16 +868,16 @@ freshly re-prove as proof-owned.
 
 This task does not expose LocalStack on the host, reuse a shared LocalStack
 target, persist emulator state, read ambient AWS or Kubernetes authority, or
-wire product AWS clients. M1-31 is In progress and owns product client-factory
+wire product AWS clients. M1-31 is Complete and owns product client-factory
 consumption of the endpoint contract. M1-30 is Complete after its separate
 assembled local start target passed live verification, cleanup audit,
 repository gates, scans, and review.
 
 ## LocalStack-aware AWS client factory
 
-M1-31 provides one strict factory for production, local, and CI construction
-of SQS, S3, KMS, Secrets Manager, and OpenSearch Service clients. Run its
-hermetic tests with:
+M1-31 is Complete. It provides one strict factory for production, local, and CI
+construction of SQS, S3, KMS, Secrets Manager, and OpenSearch Service clients.
+Run its hermetic tests with:
 
 ```bash
 npm run aws:client:test
@@ -923,7 +923,7 @@ Success is exactly
 Failures are exactly
 `Local AWS emulator manifest failed: <category> rejected.` The target does not
 leave the cluster running, modify shared resources, or wire product AWS
-clients. M1-31 is In progress and owns product client-factory consumption of
+clients. M1-31 is Complete and owns product client-factory consumption of
 the endpoint contract.
 
 ## Neon pooled proof
