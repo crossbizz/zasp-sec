@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 0 |
-| In progress | 341 |
-| Complete | 384 |
+| In progress | 316 |
+| Complete | 409 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -30,8 +30,8 @@ In progress, Complete, or Blocked is Pending.
 | M3 | 75 | 0 | 2 | 73 | 0 |
 | M4 | 82 | 0 | 0 | 82 | 0 |
 | M5 | 42 | 0 | 0 | 42 | 0 |
-| M6 | 36 | 0 | 19 | 17 | 0 |
-| M7 | 62 | 0 | 62 | 0 | 0 |
+| M6 | 36 | 0 | 0 | 36 | 0 |
+| M7 | 62 | 0 | 56 | 6 | 0 |
 | M7A | 113 | 0 | 113 | 0 | 0 |
 | M8 | 141 | 0 | 141 | 0 | 0 |
 
@@ -70,7 +70,7 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `0/341/384/3` because
+session configuration. The 728 source-plan counts are `0/316/409/3` because
 PROV-01 is excluded from those counts.
 For the active M8 resilience batch, live parity, outage injection, and reference load execution remain unresolved.
 
@@ -392,31 +392,6 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 | M7-07c | August 18, 2026 | Session events display source and Exact, Strong, Probable, or Unattributed confidence. |
 | M7-07b | August 18, 2026 | Session rows support tool, runtime, network, file, credential, and policy event classes. |
 | M7-07a | August 18, 2026 | The local session timeline sorts replayed events by canonical UTC event time. |
-| M7-06 | August 18, 2026 | The Sessions surface renders structured filters and evidence confidence. |
-| M7-05 | August 18, 2026 | A structured local session-filter builder rejects arbitrary query strings and DSL; OpenSearch integration remains unresolved. |
-| M7-04 | August 18, 2026 | `listSessionEvents` is published and handled by the bounded local service. |
-| M7-03 | August 18, 2026 | `getSession` is published and handled by the bounded local service. |
-| M7-02 | August 18, 2026 | `listSessions` is published and handled by the bounded local service. |
-| M7-01 | August 18, 2026 | An idempotent local session projector correlates ordered semantic/runtime events without changing confidence. |
-| M6-31 | August 18, 2026 | A six-stage local M6 composition gate requires create, simulate, monitor, enforce, retest, and cached-outage enforcement; staging remains unresolved. |
-| M6-31e | August 18, 2026 | A local signed-bundle fallback keeps known Block decisions until expiry and applies explicit fail-open/fail-closed behavior afterward. |
-| M6-31d | August 18, 2026 | Re-test state becomes Blocked only with an observed policy Block decision and retained correlation evidence. |
-| M6-31c | August 18, 2026 | The local gate fixture enforces a matching action with a stable product block response and correlation ID. |
-| M6-31b | August 18, 2026 | The local gate fixture records one idempotent Monitor decision without blocking the action. |
-| M6-31a | August 18, 2026 | The local gate fixture creates and simulates one Monitor policy against bounded action-context fixtures. |
-| M6-30 | August 18, 2026 | Decision evidence can update a verified local path to Blocked without deleting reachability state. |
-| M6-29 | August 18, 2026 | The local policy detail surface renders simulation, decisions, rollout, enforcement, and disable actions. |
-| M6-28 | August 18, 2026 | The local Policy wizard renders Scope, Trigger, Conditions, Action, Coverage, Simulate, and Rollout while omitting unsupported controls. |
-| M6-27 | August 18, 2026 | The local Policies surface renders Monitor, Enforce, Disabled, coverage, and stale-bundle states. |
-| M6-26 | August 18, 2026 | A focused local metadata-only evaluator p95 measurement boundary is implemented; cluster benchmark evidence remains unresolved. |
-| M6-25 | August 18, 2026 | A local cached-bundle fallback preserves known policy decisions across simulated control-plane outage and explicit expiry behavior. |
-| M6-24 | August 18, 2026 | An idempotent local runtime-decision store accepts a scoped decision exactly once without sensitive payload fields. |
-| M6-23 | August 18, 2026 | Monitor decisions allow the upstream request and emit a metadata-only decision through an injected boundary. |
-| M6-22 | August 18, 2026 | Block decisions return a stable product error and correlation ID without calling the upstream boundary. |
-| M6-21 | August 18, 2026 | Runtime ActionContext normalization requires principal, agent, session, action, resource, and environment scope. |
-| M6-20 | August 18, 2026 | A strict bounded MCP JSON-RPC parser retains method, tool, and resource metadata in canonical ActionContext. |
-| M6-19 | August 18, 2026 | The local runtime HTTP proxy preserves allowed requests through an injected upstream boundary. |
-| M6-18 | August 18, 2026 | The local rollout state machine rejects invalid transitions across draft, monitor, enforce, and disabled states. |
 | M3-52 | August 18, 2026 | A strict five-check local M3 gate is implemented; real staging remains unavailable and the task is not Complete. |
 | M3-14 | August 18, 2026 | Strict AWS assume-role identity adapter and local denial fixture are implemented; required real-AWS denial remains unavailable behind M1A-10. |
 
@@ -424,6 +399,31 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 
 | Task | Completed | Evidence |
 | --- | --- | --- |
+| M7-06 | August 18, 2026 | The Sessions surface renders structured filters, freshness, and exact mixed-confidence fixture state. |
+| M7-05 | August 18, 2026 | A bounded structured session-filter builder covers agent, principal, tool, process, file, domain, credential, resource, decision, and time while rejecting raw DSL. |
+| M7-04 | August 18, 2026 | `listSessionEvents` is published in OpenAPI/generated types and handled by the bounded local service. |
+| M7-03 | August 18, 2026 | `getSession` is published in OpenAPI/generated types and handled by the bounded local service. |
+| M7-02 | August 18, 2026 | `listSessions` is published in OpenAPI/generated types and handled by the bounded local service. |
+| M7-01 | August 18, 2026 | An idempotent session projector correlates ordered semantic/runtime events without changing evidence confidence. |
+| M6-31 | August 18, 2026 | The six-stage local M6 gate passes create, simulate, monitor, enforce, retest, and cached-outage enforcement. |
+| M6-31e | August 18, 2026 | Signed-bundle fallback keeps known Block decisions until expiry and applies explicit fail-open/fail-closed behavior afterward. |
+| M6-31d | August 18, 2026 | Re-test state becomes Blocked only with an observed policy Block decision and retained correlation evidence. |
+| M6-31c | August 18, 2026 | The gate fixture enforces a matching action with a stable product block response and correlation ID. |
+| M6-31b | August 18, 2026 | The gate fixture records one idempotent Monitor decision without blocking the action. |
+| M6-31a | August 18, 2026 | The gate fixture creates and simulates one Monitor policy against bounded action-context fixtures. |
+| M6-30 | August 18, 2026 | Decision evidence updates a verified path to Blocked without deleting reachability state. |
+| M6-29 | August 18, 2026 | Policy detail renders simulation, decisions, rollout, enforcement, and disable actions. |
+| M6-28 | August 18, 2026 | The Policy wizard renders Scope, Trigger, Conditions, Action, Coverage, Simulate, and Rollout while omitting unsupported controls. |
+| M6-27 | August 18, 2026 | The Policies surface renders Monitor, Enforce, Disabled, coverage, and stale-bundle states. |
+| M6-26 | August 18, 2026 | The focused prepared-OPA metadata-only decision benchmark passes its local p95 threshold. |
+| M6-25 | August 18, 2026 | Cached signed-bundle fallback preserves known decisions across simulated control-plane outage and explicit expiry behavior. |
+| M6-24 | August 18, 2026 | An idempotent runtime-decision store accepts a scoped metadata-only decision exactly once. |
+| M6-23 | August 18, 2026 | Monitor decisions allow the upstream request and emit a metadata-only decision through an injected boundary. |
+| M6-22 | August 18, 2026 | Block decisions return a stable product error and correlation ID without calling the upstream boundary. |
+| M6-21 | August 18, 2026 | Runtime ActionContext normalization requires principal, agent, session, action, resource, and environment scope. |
+| M6-20 | August 18, 2026 | A strict bounded MCP JSON-RPC parser retains method, tool, and resource metadata in canonical ActionContext. |
+| M6-19 | August 18, 2026 | The runtime HTTP proxy preserves allowed request/response semantics through an injected upstream boundary. |
+| M6-18 | August 18, 2026 | The audited rollout state machine rejects invalid transitions across draft, monitor, enforce, and disabled states. |
 | M6-17 | August 18, 2026 | Policy simulation reads at most 100 environment-bound action contexts through a bounded OpenSearch adapter and returns bounded counts/examples. |
 | M6-16 | August 18, 2026 | `listPolicyDecisions` is published in OpenAPI/generated types and handled by the bounded local service. |
 | M6-15 | August 18, 2026 | `disablePolicy` is published in OpenAPI/generated types and handled by the bounded local service. |

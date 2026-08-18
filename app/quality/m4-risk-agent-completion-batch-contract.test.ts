@@ -28,7 +28,7 @@ describe("M4 risk and Agent UI completion batch", () => {
       readFile(resolve(root, "README.md"), "utf8"),
     ]);
     expect(selected).toHaveLength(25);
-    for (const value of ["| Pending | 0 |", "| In progress | 341 |", "| Complete | 384 |", "| Blocked | 3 |", "`0/341/384/3`", "| M4 | 82 | 0 | 0 | 82 | 0 |"]) expect(tracker).toContain(value);
+    for (const value of ["| Pending | 0 |", "| In progress | 316 |", "| Complete | 409 |", "| Blocked | 3 |", "`0/316/409/3`", "| M4 | 82 | 0 | 0 | 82 | 0 |"]) expect(tracker).toContain(value);
     const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
     const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] ?? "";
     for (const task of selected) {
