@@ -1374,6 +1374,57 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/session/bootstrap": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Bootstrap the authenticated browser session and authorized scope */
+        readonly get: operations["bootstrapSession"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/session/callback": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Exchange an identity-provider callback for a host-only browser session */
+        readonly post: operations["completeSessionCallback"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/session/sign-out": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Revoke the browser session and expire its host-only cookie */
+        readonly post: operations["signOutSession"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/sessions": {
         readonly parameters: {
             readonly query?: never;
@@ -2470,6 +2521,20 @@ export type components = {
             readonly id: components["schemas"]["SessionID"];
             readonly principal_id: string;
         };
+        readonly SessionBootstrap: {
+            readonly capabilities: readonly string[];
+            readonly correlation_id: components["schemas"]["ProductID"];
+            readonly csrf_token: string;
+            readonly environment_id: components["schemas"]["ProductID"];
+            readonly organization_id: components["schemas"]["ProductID"];
+            readonly permissions: readonly components["schemas"]["Permission"][];
+            readonly principal: components["schemas"]["Principal"];
+            readonly workspace_id: components["schemas"]["ProductID"];
+        };
+        readonly SessionCallbackInput: {
+            readonly authorization_code: string;
+            readonly state: string;
+        };
         readonly SessionEvent: {
             /** Format: date-time */
             readonly at: string;
@@ -2589,6 +2654,8 @@ export type components = {
         };
     };
     parameters: {
+        /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+        readonly CSRFToken: string;
         /** @description Opaque cursor returned by the preceding page. */
         readonly PageCursor: components["schemas"]["Cursor"];
         /** @description Maximum number of records to return. */
@@ -2727,6 +2794,8 @@ export type SensorInput = components['schemas']['SensorInput'];
 export type SensorMode = components['schemas']['SensorMode'];
 export type SensorPage = components['schemas']['SensorPage'];
 export type Session = components['schemas']['Session'];
+export type SessionBootstrap = components['schemas']['SessionBootstrap'];
+export type SessionCallbackInput = components['schemas']['SessionCallbackInput'];
 export type SessionEvent = components['schemas']['SessionEvent'];
 export type SessionEventPage = components['schemas']['SessionEventPage'];
 export type SessionId = components['schemas']['SessionID'];
@@ -2751,6 +2820,7 @@ export type Workspace = components['schemas']['Workspace'];
 export type WorkspaceMutation = components['schemas']['WorkspaceMutation'];
 export type WorkspacePage = components['schemas']['WorkspacePage'];
 export type ResponseProductErrorResponse = components['responses']['ProductErrorResponse'];
+export type ParameterCsrfToken = components['parameters']['CSRFToken'];
 export type ParameterPageCursor = components['parameters']['PageCursor'];
 export type ParameterPageLimit = components['parameters']['PageLimit'];
 export type $defs = Record<string, never>;
@@ -5134,6 +5204,78 @@ export interface operations {
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly bootstrapSession: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authenticated principal, exact scope, capabilities, and CSRF value. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SessionBootstrap"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly completeSessionCallback: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["SessionCallbackInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Session established with a Secure, HttpOnly, SameSite=Lax __Host-zasp_session cookie. */
+            readonly 204: {
+                headers: {
+                    /** @description Host-only __Host-zasp_session cookie; Secure, HttpOnly, Path=/, SameSite=Lax. */
+                    readonly "Set-Cookie"?: string;
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly signOutSession: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Session revoked and cookie expired. */
+            readonly 204: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };

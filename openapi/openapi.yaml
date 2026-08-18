@@ -8,6 +8,52 @@ info:
     name: Proprietary
     identifier: LicenseRef-Proprietary
 paths:
+  /api/v1/session/bootstrap:
+    get:
+      operationId: bootstrapSession
+      summary: Bootstrap the authenticated browser session and authorized scope
+      security:
+        - BrowserSession: []
+      responses:
+        '200':
+          description: Authenticated principal, exact scope, capabilities, and CSRF value.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionBootstrap' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/session/callback:
+    post:
+      operationId: completeSessionCallback
+      summary: Exchange an identity-provider callback for a host-only browser session
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SessionCallbackInput' }
+      responses:
+        '204':
+          description: Session established with a Secure, HttpOnly, SameSite=Lax __Host-zasp_session cookie.
+          headers:
+            Set-Cookie:
+              schema: { type: string }
+              description: Host-only __Host-zasp_session cookie; Secure, HttpOnly, Path=/, SameSite=Lax.
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/session/sign-out:
+    post:
+      operationId: signOutSession
+      summary: Revoke the browser session and expire its host-only cookie
+      security:
+        - BrowserSession: []
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+      responses:
+        '204': { description: Session revoked and cookie expired. }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/organization:
     get:
       operationId: getOrganization
@@ -1568,21 +1614,30 @@ paths:
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
 security:
-  - SessionJWT: []
+  - BrowserSession: []
   - ProductAPIToken: []
 components:
   securitySchemes:
-    SessionJWT:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-      description: Human product session token.
+    BrowserSession:
+      type: apiKey
+      in: cookie
+      name: __Host-zasp_session
+      description: Secure, HttpOnly, SameSite=Lax host-only human browser session.
     ProductAPIToken:
       type: http
       scheme: bearer
       bearerFormat: ProductAPIToken
       description: Product automation token.
   parameters:
+    CSRFToken:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      description: Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header.
+      schema:
+        type: string
+        minLength: 32
+        maxLength: 256
     PageCursor:
       name: cursor
       in: query
@@ -1601,6 +1656,26 @@ components:
         maximum: 100
         default: 50
   schemas:
+    SessionCallbackInput:
+      type: object
+      additionalProperties: false
+      required: [authorization_code, state]
+      properties:
+        authorization_code: { type: string, minLength: 1, maxLength: 4096 }
+        state: { type: string, minLength: 32, maxLength: 512 }
+    SessionBootstrap:
+      type: object
+      additionalProperties: false
+      required: [principal, organization_id, workspace_id, environment_id, permissions, capabilities, csrf_token, correlation_id]
+      properties:
+        principal: { $ref: '#/components/schemas/Principal' }
+        organization_id: { $ref: '#/components/schemas/ProductID' }
+        workspace_id: { $ref: '#/components/schemas/ProductID' }
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        permissions: { type: array, uniqueItems: true, items: { $ref: '#/components/schemas/Permission' } }
+        capabilities: { type: array, uniqueItems: true, items: { type: string, minLength: 1, maxLength: 128 } }
+        csrf_token: { type: string, minLength: 32, maxLength: 256 }
+        correlation_id: { $ref: '#/components/schemas/ProductID' }
     SecurityAgentRunState: { type: string, enum: [queued, planning, waiting_approval, running, verifying, contained, remediated, needs_human, failed, inconclusive, cancelled] }
     SecurityAgentTemplate:
       type: object
