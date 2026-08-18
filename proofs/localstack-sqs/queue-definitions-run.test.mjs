@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { runQueueDefinitionsMain } from "./run-queue-definitions.mjs";
@@ -156,6 +157,16 @@ test("runs the exact child mode under the hard bounded proof supervisor", async 
   assert.equal(child.options.maxBuffer, 1024 * 1024);
   assert.deepEqual(child.options.env, { AWS_ENDPOINT_URL: "http://127.0.0.1:49152", PATH: "/safe/path" });
   assert.deepEqual(removals, [[directory, { recursive: true, force: false, maxRetries: 0 }]]);
+});
+
+test("leaves a hard supervisor margin beyond every Go cleanup phase", () => {
+  const source = readFileSync(new URL("./main.go", import.meta.url), "utf8");
+  const entrypoint = source.match(/func runQueueDefinitionsProofMain\(\) \{[\s\S]*?\n\}/)?.[0] ?? "";
+  const mainSeconds = Number(entrypoint.match(/WithTimeout\(context\.Background\(\), ([0-9]+)\*time\.Second\)/)?.[1]);
+  const cleanupSeconds = Number(entrypoint.match(/CleanupTimeout: ([0-9]+) \* time\.Second/)?.[1]);
+  assert.ok(Number.isSafeInteger(mainSeconds) && Number.isSafeInteger(cleanupSeconds));
+  const worstCaseSeconds = mainSeconds + (3 * cleanupSeconds);
+  assert.ok(queueDefinitionsProofTimeoutMilliseconds >= (worstCaseSeconds + 60) * 1000);
 });
 
 test("emits only the fixed outer success line", async () => {

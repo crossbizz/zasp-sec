@@ -14,7 +14,7 @@ export const artifactSuccessLine = "LocalStack artifact store passed: put=true g
 export const jobQueueSuccessLine = "LocalStack job queue passed: publish=2 consume=2 acknowledge=2 scoped=true redrive=true empty=true cleanup=true audit=true container_cleanup=true.";
 export const queueDefinitionsSuccessLine = "LocalStack queue definitions passed: queues=3 dlqs=3 schemas=3 retention=true redrive=true cleanup=true audit=true container_cleanup=true.";
 export const artifactProofTimeoutMilliseconds = 150_000;
-export const queueDefinitionsProofTimeoutMilliseconds = 180_000;
+export const queueDefinitionsProofTimeoutMilliseconds = 300_000;
 export const STORAGE_MODE = "storage";
 export const ARTIFACT_MODE = "artifact";
 export const JOB_QUEUE_MODE = "job-queue";
