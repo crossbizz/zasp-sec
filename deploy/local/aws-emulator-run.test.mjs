@@ -751,6 +751,48 @@ test("fails fast on one exact terminal S3 Job and reconciles uncertain AWS core 
   assert.equal(absent.awsEmulatorCoreMayHaveApplied, false);
 });
 
+test("accepts only exact S3 TTL collection during cleanup", async () => {
+  const expected = awsProviderExpectation();
+  const coreState = awsProviderState({ includeJob: false });
+  const core = validateAwsEmulatorKubernetesState(coreState, expected, undefined, false);
+  const complete = validateAwsEmulatorKubernetesState(awsProviderState(), expected, core, true);
+  class CleanupSystem extends LocalAwsEmulatorSystem {
+    constructor(values) {
+      super(input());
+      this.values = [...values];
+      this.paths = Object.freeze({
+        awsEmulatorCoreManifest: "/safe/runtime/aws-emulator.yaml",
+        awsEmulatorS3Manifest: "/safe/runtime/aws-emulator-s3.yaml",
+      });
+    }
+    awsEmulatorProviderExpectation() { return expected; }
+    async pauseAwsEmulatorPoll() {}
+    async readAwsEmulatorProviderState() { return this.values.shift(); }
+    async requireOwnedPath() {}
+    async verifyGraphNodeForCleanup() {}
+    async verifyObservabilityDescriptorsForCleanup() {}
+  }
+  const phase = { assertActive() {} };
+  const collected = new CleanupSystem([coreState]);
+  collected.awsEmulatorProviderIdentity = complete;
+  await collected.verifyAdditionalNodeForCleanup(phase);
+  assert.deepEqual(collected.awsEmulatorProviderIdentity, core);
+
+  const failed = new CleanupSystem([failedAwsProviderState(), coreState]);
+  failed.awsEmulatorProviderIdentity = core;
+  failed.awsEmulatorJobMayHaveApplied = true;
+  await failed.verifyAdditionalNodeForCleanup(phase);
+  assert.equal(failed.awsEmulatorProviderIdentity.job.failed, true);
+  await failed.verifyAdditionalNodeForCleanup(phase);
+  assert.deepEqual(failed.awsEmulatorProviderIdentity, core);
+
+  const orphaned = awsProviderState({ includeJob: false });
+  orphaned.pods.push(clone(awsProviderState().pods.at(-1)));
+  const rejected = new CleanupSystem([orphaned]);
+  rejected.awsEmulatorProviderIdentity = complete;
+  await assert.rejects(() => rejected.verifyAdditionalNodeForCleanup(phase), { category: "cleanup" });
+});
+
 function awsProviderExpectation(platform = "linux/arm64") {
   const selected = buildLocalStackImagePlan(platform);
   return {

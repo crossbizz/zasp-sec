@@ -570,13 +570,20 @@ export class LocalAwsEmulatorSystem extends LocalObservabilitySystem {
             }
           }
         } else {
-          current = retained.job?.failed === true
-            ? validateFailedAwsEmulatorKubernetesState(
-              providerState, this.awsEmulatorProviderExpectation(), retained, "cleanup",
-            )
-            : validateAwsEmulatorKubernetesState(
-              providerState, this.awsEmulatorProviderExpectation(), retained, retained.job !== null, "cleanup",
+          try {
+            current = retained.job?.failed === true
+              ? validateFailedAwsEmulatorKubernetesState(
+                providerState, this.awsEmulatorProviderExpectation(), retained, "cleanup",
+              )
+              : validateAwsEmulatorKubernetesState(
+                providerState, this.awsEmulatorProviderExpectation(), retained, retained.job !== null, "cleanup",
+              );
+          } catch {
+            if (retained.job === null) throw new AwsEmulatorFailure("cleanup");
+            current = validateAwsEmulatorKubernetesState(
+              providerState, this.awsEmulatorProviderExpectation(), retained, false, "cleanup",
             );
+          }
         }
         this.awsEmulatorProviderIdentity = current;
         this.awsEmulatorJobMayHaveApplied = false;
