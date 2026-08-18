@@ -119,7 +119,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
-    "verify": "npm run dependencies:check && npm run health:contract:test && npm run openapi:test && npm run openapi:lint && npm run openapi:check && npm run ui-api:test && npm run ui-api:check && npm run raw-fetch:test && npm test && npm run typecheck && npm run lint && npm run build",
+    "saas:tenancy:test": "go test -C services/platform -race -count=1 -timeout=90s ./config ./repository ./eventstore ./artifactstore ./jobqueue ./graphstore ./tenantquota",
+    "verify": "npm run dependencies:check && npm run health:contract:test && npm run openapi:test && npm run openapi:lint && npm run openapi:check && npm run ui-api:test && npm run ui-api:check && npm run raw-fetch:test && npm run saas:tenancy:test && npm test && npm run typecheck && npm run lint && npm run build",
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {

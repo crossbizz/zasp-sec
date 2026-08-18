@@ -192,6 +192,18 @@ authorization decision. It reads no ambient configuration or provider state;
 deployment wiring and distributed enforcement remain later consumer work.
 M1-44 remains Pending.
 
+## SaaS tenancy foundation check
+
+Run `npm run saas:tenancy:test` to execute the bounded product contract suite
+for Neon query guards, OpenSearch documents, S3 artifacts, SQS envelopes,
+graph paths, and tenant quota counters. Every fixture exercises two distinct
+Organizations, while single-tenant mode passes the same explicitly scoped
+contracts.
+
+The check is hermetic: it does not contact a provider or claim database RLS
+enforcement. Provider authorization and live Neon policy verification remain
+separate lifecycle work.
+
 ## Development
 
 Requires Node.js `22.23.1` and npm `10.9.8`. `.nvmrc` pins the Node runtime;
