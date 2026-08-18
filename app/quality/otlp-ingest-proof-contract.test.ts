@@ -88,9 +88,9 @@ describe("OTLP ingest proof contract", () => {
       resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"),
       "utf8",
     );
-    expect(tracker).toContain("| Pending | 576 |");
+    expect(tracker).toContain("| Pending | 561 |");
     expect(tracker).toContain("| In progress | 0 |");
-    expect(tracker).toContain("| Complete | 149 |");
+    expect(tracker).toContain("| Complete | 164 |");
     expect(tracker).toContain("| Blocked | 3 |");
     expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 0 \| 24 \| 3 \|/);
     assertM013Complete(tracker);

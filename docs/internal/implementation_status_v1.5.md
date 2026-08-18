@@ -14,9 +14,9 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 576 |
+| Pending | 561 |
 | In progress | 0 |
-| Complete | 149 |
+| Complete | 164 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -26,7 +26,7 @@ In progress, Complete, or Blocked is Pending.
 | M0 | 27 | 0 | 0 | 24 | 3 |
 | M1 | 68 | 0 | 0 | 68 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
-| M2 | 72 | 15 | 0 | 57 | 0 |
+| M2 | 72 | 0 | 0 | 72 | 0 |
 | M3 | 75 | 75 | 0 | 0 | 0 |
 | M4 | 82 | 82 | 0 | 0 | 0 |
 | M5 | 42 | 42 | 0 | 0 | 0 |
@@ -70,7 +70,7 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `576/0/149/3` because
+session configuration. The 728 source-plan counts are `561/0/164/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
@@ -82,6 +82,21 @@ PROV-01 is excluded from those counts.
 
 | Task | Completed | Evidence |
 | --- | --- | --- |
+| M2-47 | August 18, 2026 | Recorded the M2 gate PASS after the complete identity, administration, onboarding, session, deprovision, token, audit, cross-Organization, and single-tenant fixture suite passed without direct Stytch dashboard access. |
+| M2-50 | August 18, 2026 | Proved two SaaS Organizations can use the same product routes independently while cross-Organization reads and mutations remain forbidden. |
+| M2-49 | August 18, 2026 | Added the single-tenant configured-Organization guard before route dispatch and repository mutation. |
+| M2-48 | August 18, 2026 | Added the two-Organization API authorization fixture with identical Workspace names and stable cross-Organization denial. |
+| M2-47e | August 18, 2026 | Proved representative SSO, SCIM, group-mapping, and API-token mutations appear in the product audit history. |
+| M2-47d | August 18, 2026 | Proved one scoped API token can be created, used, audited, revoked, and then rejected. |
+| M2-47c | August 18, 2026 | Proved unauthorized Workspace reads and mutations are denied server-side. |
+| M2-47b | August 18, 2026 | Retained the replay-safe SCIM deprovision fixture proving member disablement and complete Workspace-grant removal. |
+| M2-47a | August 18, 2026 | Retained the fake-Stytch sign-in, session validation, revalidation, and revoked-session product-error fixture. |
+| M2-46 | August 18, 2026 | Composed generated-client-backed Workspace and Environment onboarding with authorized scope selection. |
+| M2-46c | August 18, 2026 | Added the authorized Workspace/Environment selector and omitted inaccessible scopes. |
+| M2-46b | August 18, 2026 | Added generated-client-backed Environment create and update onboarding actions. |
+| M2-46a | August 18, 2026 | Added generated-client-backed Workspace create and update onboarding actions. |
+| M2-45 | August 18, 2026 | Added the API Access list/create/revoke UI with a one-time raw-token display and confirmation. |
+| M2-44 | August 18, 2026 | Completed the fake-Stytch SSO, SCIM, and group-mapping administration action flow with confirmations and stable errors. |
 | M2-43 | August 18, 2026 | Shipped the generated-client-backed Identity & Access administration route with five real product panels and stable loading, error, confirmation, and validation states. |
 | M2-43e | August 18, 2026 | Added the group-mapping panel with exact role and Workspace/Environment scope editing. |
 | M2-43d | August 18, 2026 | Added SCIM connection list, create, one-time bearer confirmation, and confirmed delete interactions. |

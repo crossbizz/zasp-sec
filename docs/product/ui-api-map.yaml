@@ -8,28 +8,28 @@ screens:
         availability: api_available
       - id: view_workspaces
         operation_id: listWorkspaces
-        availability: api_available
+        availability: available
       - id: create_workspace
         operation_id: createWorkspace
-        availability: api_available
+        availability: available
       - id: view_workspace
         operation_id: getWorkspace
         availability: api_available
       - id: update_workspace
         operation_id: updateWorkspace
-        availability: api_available
+        availability: available
       - id: view_environments
         operation_id: listEnvironments
-        availability: api_available
+        availability: available
       - id: create_environment
         operation_id: createEnvironment
-        availability: api_available
+        availability: available
       - id: view_environment
         operation_id: getEnvironment
         availability: api_available
       - id: update_environment
         operation_id: updateEnvironment
-        availability: api_available
+        availability: available
       - id: view_current_principal
         operation_id: getCurrentPrincipal
         availability: api_available
@@ -68,13 +68,13 @@ screens:
         availability: available
       - id: view_api_tokens
         operation_id: listAPITokens
-        availability: api_available
+        availability: available
       - id: create_api_token
         operation_id: createAPIToken
-        availability: api_available
+        availability: available
       - id: revoke_api_token
         operation_id: revokeAPIToken
-        availability: api_available
+        availability: available
       - id: view_audit_events
         operation_id: listAuditEvents
         availability: api_available

@@ -100,7 +100,7 @@ npm run ui-api:check
 ```
 
 The current honest result is `UI/API coverage passed: planned=5
-api_available=16 available=11 public=27 internal=0.` The gate distinguishes
+api_available=7 available=20 public=27 internal=0.` The gate distinguishes
 implemented API contracts from fully wired UI actions.
 M1-36e is Complete and separately owns local infrastructure smoke checks.
 
@@ -236,16 +236,20 @@ The bootstrap persists only product references and creates one default
 Workspace with production, staging, and development Environments. It creates
 no local password or customer-facing bypass login.
 
-M2-08 through M2-43 are Complete. The product exposes 27 strict identity,
+M2-01 through M2-50 and the M2-47 gate are Complete. The product exposes 27 strict identity,
 governance, token, and audit operations for Organization, Workspace,
 Environment, principal, role, SSO, SCIM, group-mapping, API-token, and audit
-workflows. The Identity & Access route uses the generated product client for
-five working panels. Sensitive mutations require fresh authorization; SCIM and
-API-token credentials appear only in their create responses.
+workflows. The Identity & Access and API Access routes use the generated product
+client for identity administration, scoped credential lifecycle, and authorized
+Workspace/Environment onboarding. Sensitive mutations require fresh authorization;
+SCIM and API-token credentials appear only in their create responses.
 The internal Stytch webhook boundary verifies the Svix-compatible signature,
 timestamp, project, event identity, and replay state before deprovisioning a
 member, removing product grants, and recording the audit summary.
-M2-44 remains Pending.
+M2 gate: PASS. The bounded fake-Stytch and product-store suite covers session
+revocation, SCIM deprovisioning, scoped API tokens, audit history, two-Organization
+SaaS isolation, and the single-tenant Organization pin without direct Stytch
+dashboard access. M3-01 remains Pending.
 
 ## Development
 
@@ -832,7 +836,7 @@ npm run ui-api:check
 The current fixed success line is:
 
 ```text
-UI/API coverage passed: planned=5 api_available=16 available=11 public=27 internal=0.
+UI/API coverage passed: planned=5 api_available=7 available=20 public=27 internal=0.
 ```
 
 Failure is fixed as `UI/API coverage rejected.` without parser or artifact

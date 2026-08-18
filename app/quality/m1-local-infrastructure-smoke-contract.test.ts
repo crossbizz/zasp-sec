@@ -63,11 +63,11 @@ describe("M1-36e local Kubernetes and LocalStack smoke", () => {
     const summary = markdownRows(tracker.match(/## Status summary[\s\S]*?## Milestone summary/)?.[0] ?? "").slice(2);
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
-    expect(tracker).toContain("| Pending | 576 |");
+    expect(tracker).toContain("| Pending | 561 |");
     expect(tracker).toContain("| In progress | 0 |");
-    expect(tracker).toContain("| Complete | 149 |");
+    expect(tracker).toContain("| Complete | 164 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`576/0/149/3`");
+    expect(tracker).toContain("`561/0/164/3`");
     expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "0", "0", "68", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
     expect(active.map(([task]) => task)).toEqual([]);

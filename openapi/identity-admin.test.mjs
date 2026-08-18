@@ -37,9 +37,10 @@ const expectedOperations = new Map([
 ]);
 
 const identityUIOperations = new Set([
+  "listWorkspaces", "createWorkspace", "updateWorkspace", "listEnvironments", "createEnvironment", "updateEnvironment",
   "listMembers", "listBuiltInRoles", "listSSOConnections", "createSSOConnection", "deleteSSOConnection",
   "testSSOConnection", "listSCIMConnections", "createSCIMConnection", "deleteSCIMConnection",
-  "listGroupMappings", "updateGroupMappings",
+  "listGroupMappings", "updateGroupMappings", "listAPITokens", "createAPIToken", "revokeAPIToken",
 ]);
 
 test("publishes the identity administration operations at their honest UI lifecycle", async () => {

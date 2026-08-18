@@ -16,14 +16,14 @@ const expectedMap: MapDocument = {
       label: "Identity Foundation",
       actions: [
         { id: "view_current_organization", operation_id: "getOrganization", availability: "api_available" },
-        { id: "view_workspaces", operation_id: "listWorkspaces", availability: "api_available" },
-        { id: "create_workspace", operation_id: "createWorkspace", availability: "api_available" },
+        { id: "view_workspaces", operation_id: "listWorkspaces", availability: "available" },
+        { id: "create_workspace", operation_id: "createWorkspace", availability: "available" },
         { id: "view_workspace", operation_id: "getWorkspace", availability: "api_available" },
-        { id: "update_workspace", operation_id: "updateWorkspace", availability: "api_available" },
-        { id: "view_environments", operation_id: "listEnvironments", availability: "api_available" },
-        { id: "create_environment", operation_id: "createEnvironment", availability: "api_available" },
+        { id: "update_workspace", operation_id: "updateWorkspace", availability: "available" },
+        { id: "view_environments", operation_id: "listEnvironments", availability: "available" },
+        { id: "create_environment", operation_id: "createEnvironment", availability: "available" },
         { id: "view_environment", operation_id: "getEnvironment", availability: "api_available" },
-        { id: "update_environment", operation_id: "updateEnvironment", availability: "api_available" },
+        { id: "update_environment", operation_id: "updateEnvironment", availability: "available" },
         { id: "view_current_principal", operation_id: "getCurrentPrincipal", availability: "api_available" },
         { id: "view_members", operation_id: "listMembers", availability: "available" },
         { id: "view_builtin_roles", operation_id: "listBuiltInRoles", availability: "available" },
@@ -36,9 +36,9 @@ const expectedMap: MapDocument = {
         { id: "delete_scim_connection", operation_id: "deleteSCIMConnection", availability: "available" },
         { id: "view_group_mappings", operation_id: "listGroupMappings", availability: "available" },
         { id: "update_group_mapping", operation_id: "updateGroupMappings", availability: "available" },
-        { id: "view_api_tokens", operation_id: "listAPITokens", availability: "api_available" },
-        { id: "create_api_token", operation_id: "createAPIToken", availability: "api_available" },
-        { id: "revoke_api_token", operation_id: "revokeAPIToken", availability: "api_available" },
+        { id: "view_api_tokens", operation_id: "listAPITokens", availability: "available" },
+        { id: "create_api_token", operation_id: "createAPIToken", availability: "available" },
+        { id: "revoke_api_token", operation_id: "revokeAPIToken", availability: "available" },
         { id: "view_audit_events", operation_id: "listAuditEvents", availability: "api_available" },
         { id: "create_audit_export", operation_id: "createAuditExport", availability: "api_available" },
         { id: "view_audit_export", operation_id: "getAuditExport", availability: "api_available" },
@@ -174,11 +174,11 @@ describe("M1-25 UI API map seed", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(readme).toContain("M1-25 is Complete");
-    expect(tracker).toContain("| Pending | 576 |");
+    expect(tracker).toContain("| Pending | 561 |");
     expect(tracker).toContain("| In progress | 0 |");
-    expect(tracker).toContain("| Complete | 149 |");
+    expect(tracker).toContain("| Complete | 164 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`576/0/149/3`");
+    expect(tracker).toContain("`561/0/164/3`");
     expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "0", "0", "68", "0"]);
     expect(active.map(([task]) => task)).toEqual([]);
     expect(complete.filter(([task]) => task === "M1-24")).toHaveLength(1);

@@ -20,14 +20,14 @@ describe("M2 identity governance and UI batch", () => {
   it("moves exactly twenty related source tasks to Complete", async () => {
     const tracker = await readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8");
     const complete = taskRows(tracker, "Complete").map(([task]) => task);
-    expect(tracker).toContain("| Pending | 576 |");
+    expect(tracker).toContain("| Pending | 561 |");
     expect(tracker).toContain("| In progress | 0 |");
-    expect(tracker).toContain("| Complete | 149 |");
+    expect(tracker).toContain("| Complete | 164 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("| M2 | 72 | 15 | 0 | 57 | 0 |");
-    expect(tracker).toContain("`576/0/149/3`");
-    expect(complete).toHaveLength(149);
-    expect(new Set(complete).size).toBe(149);
+    expect(tracker).toContain("| M2 | 72 | 0 | 0 | 72 | 0 |");
+    expect(tracker).toContain("`561/0/164/3`");
+    expect(complete).toHaveLength(164);
+    expect(new Set(complete).size).toBe(164);
     for (const task of batch) expect(complete.filter((value) => value === task)).toHaveLength(1);
     expect(taskRows(tracker, "In progress")).toEqual([]);
     expect(taskRows(tracker, "Blocked").map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
@@ -43,10 +43,10 @@ describe("M2 identity governance and UI batch", () => {
       "listGroupMappings", "updateGroupMappings", "listAPITokens", "createAPIToken",
       "revokeAPIToken", "listAuditEvents", "createAuditExport", "getAuditExport",
     ]) expect(openapi).toContain(`operationId: ${operation}`);
-    expect(map.match(/availability: available/g)).toHaveLength(11);
-    expect(map.match(/availability: api_available/g)).toHaveLength(16);
-    expect(readme).toContain("M2-08 through M2-43 are Complete");
-    expect(readme).toContain("M2-44 remains Pending");
+    expect(map.match(/availability: available/g)).toHaveLength(20);
+    expect(map.match(/availability: api_available/g)).toHaveLength(7);
+    expect(readme).toContain("M2-01 through M2-50 and the M2-47 gate are Complete");
+    expect(readme).toContain("M3-01 remains Pending");
   });
 
   it("ships one actual five-panel Identity route over the generated API client", async () => {

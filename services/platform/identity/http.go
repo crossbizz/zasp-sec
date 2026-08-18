@@ -13,6 +13,7 @@ import (
 	"time"
 
 	platformaudit "github.com/zasp-ai/zasp-sec/services/platform/audit"
+	platformconfig "github.com/zasp-ai/zasp-sec/services/platform/config"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
 
@@ -33,6 +34,7 @@ type HTTPHandler struct {
 	audits              *platformaudit.ProductService
 	connectionFresh     FreshAuthorizer
 	administrationFresh FreshAuthorizer
+	deployment          *platformconfig.Deployment
 }
 
 func NewHTTPHandler(store *MemoryStore, authenticate RequestAuthenticator, generate IDGenerator, options ...HTTPOption) (*HTTPHandler, error) {
@@ -66,10 +68,34 @@ func WithConnectionService(service *ConnectionService, fresh FreshAuthorizer) HT
 func WithAdministrationServices(groups *GroupMappingStore, tokens *APITokenStore, audits *platformaudit.ProductService, fresh FreshAuthorizer) HTTPOption {
 	return func(handler *HTTPHandler) error {
 		if handler == nil || groups == nil || tokens == nil || audits == nil || fresh == nil ||
-			handler.groups != nil || handler.tokens != nil || handler.audits != nil || handler.administrationFresh != nil {
+			handler.groups != nil || handler.tokens != nil || handler.audits != nil || handler.administrationFresh != nil ||
+			(tokens.audits != nil && tokens.audits != audits) {
 			return ErrConfiguration
 		}
+		tokens.audits = audits
 		handler.groups, handler.tokens, handler.audits, handler.administrationFresh = groups, tokens, audits, fresh
+		return nil
+	}
+}
+
+func WithDeployment(deployment platformconfig.Deployment) HTTPOption {
+	return func(handler *HTTPHandler) error {
+		if handler == nil || handler.deployment != nil {
+			return ErrConfiguration
+		}
+		switch deployment.Mode() {
+		case platformconfig.DeploymentModeSaaS:
+			if _, present := deployment.PinnedOrganizationID(); present {
+				return ErrConfiguration
+			}
+		case platformconfig.DeploymentModeSingleTenant:
+			if _, present := deployment.PinnedOrganizationID(); !present {
+				return ErrConfiguration
+			}
+		default:
+			return ErrConfiguration
+		}
+		handler.deployment = &deployment
 		return nil
 	}
 }
@@ -83,6 +109,12 @@ func (handler *HTTPHandler) ServeHTTP(writer http.ResponseWriter, request *http.
 	if err != nil || !principal.valid() {
 		handler.writeError(writer, http.StatusUnauthorized, "authentication_required", "Authentication required", false)
 		return
+	}
+	if handler.deployment != nil {
+		if pinned, present := handler.deployment.PinnedOrganizationID(); present && principal.organizationID != pinned {
+			handler.writeMappedError(writer, ErrForbidden)
+			return
+		}
 	}
 	status, payload, resultErr := handler.dispatch(request, principal)
 	if resultErr != nil {
@@ -177,6 +209,10 @@ func (handler *HTTPHandler) groupMappingCollection(request *http.Request, princi
 			GroupReference: input.GroupReference, Role: input.Role, WorkspaceID: workspaceID,
 			EnvironmentID: environmentID, ExpectedVersion: input.ExpectedVersion,
 		})
+		if err == nil {
+			scope, scopeErr := domain.NewScope(principal.organizationID, workspaceID, environmentID)
+			err = errors.Join(scopeErr, handler.recordAudit(request.Context(), principal, scope, "group_mapping.update", workspaceID, nil))
+		}
 		response := groupMappingJSON(value)
 		response.AuditCorrelationID, err = handler.auditCorrelationID(err)
 		return http.StatusOK, response, err
@@ -235,6 +271,9 @@ func (handler *HTTPHandler) apiTokenCollection(request *http.Request, principal 
 		}
 		credential, err := handler.tokens.Create(request.Context(), APITokenSpec{OrganizationID: principal.organizationID,
 			PrincipalID: principal.id, Scope: scope, Name: input.Name, Permissions: input.Permissions, ExpiresAt: expiresAt})
+		if err == nil {
+			err = handler.recordAudit(request.Context(), principal, scope, "api_token.create", credential.Token().ID(), map[string]string{"token_name": input.Name})
+		}
 		response := apiTokenJSON(credential.Token())
 		response.RawToken = credential.RawToken()
 		response.AuditCorrelationID, err = handler.auditCorrelationID(err)
@@ -259,6 +298,9 @@ func (handler *HTTPHandler) apiTokenByID(request *http.Request, principal Princi
 		return 0, nil, ErrInvalidRecord
 	}
 	value, err := handler.tokens.Revoke(request.Context(), principal.organizationID, id)
+	if err == nil {
+		err = handler.recordAudit(request.Context(), principal, value.Scope(), "api_token.revoke", value.ID(), map[string]string{"token_name": value.Name()})
+	}
 	response := apiTokenJSON(value)
 	response.AuditCorrelationID, err = handler.auditCorrelationID(err)
 	return http.StatusOK, response, err
@@ -336,6 +378,9 @@ func (handler *HTTPHandler) ssoCollection(request *http.Request, principal Princ
 			return 0, nil, err
 		}
 		value, err := handler.connections.CreateSSO(request.Context(), principal.organizationReference, SSOConfig(input))
+		if err == nil {
+			err = handler.recordConnectionAudit(request.Context(), principal, "sso_connection.create")
+		}
 		response := ssoConnectionJSON(value)
 		response.AuditCorrelationID, err = handler.auditCorrelationID(err)
 		return http.StatusCreated, response, err
@@ -358,10 +403,16 @@ func (handler *HTTPHandler) ssoByID(request *http.Request, principal Principal, 
 	}
 	if isTest {
 		err := handler.connections.TestSSO(request.Context(), principal.organizationReference, reference)
+		if err == nil {
+			err = handler.recordConnectionAudit(request.Context(), principal, "sso_connection.test")
+		}
 		correlation, err := handler.auditCorrelationID(err)
 		return http.StatusOK, connectionTestResponse{Healthy: true, AuditCorrelationID: correlation}, err
 	}
 	err := handler.connections.DeleteSSO(request.Context(), principal.organizationReference, reference)
+	if err == nil {
+		err = handler.recordConnectionAudit(request.Context(), principal, "sso_connection.delete")
+	}
 	correlation, err := handler.auditCorrelationID(err)
 	return http.StatusOK, deletionResponse{ID: reference, AuditCorrelationID: correlation}, err
 }
@@ -392,6 +443,9 @@ func (handler *HTTPHandler) scimCollection(request *http.Request, principal Prin
 			return 0, nil, err
 		}
 		value, err := handler.connections.CreateSCIM(request.Context(), principal.organizationReference, SCIMConfig(input))
+		if err == nil {
+			err = handler.recordConnectionAudit(request.Context(), principal, "scim_connection.create")
+		}
 		response := scimCredentialJSON(value)
 		response.AuditCorrelationID, err = handler.auditCorrelationID(err)
 		return http.StatusCreated, response, err
@@ -411,6 +465,9 @@ func (handler *HTTPHandler) scimByID(request *http.Request, principal Principal,
 		return 0, nil, err
 	}
 	err := handler.connections.DeleteSCIM(request.Context(), principal.organizationReference, reference)
+	if err == nil {
+		err = handler.recordConnectionAudit(request.Context(), principal, "scim_connection.delete")
+	}
 	correlation, err := handler.auditCorrelationID(err)
 	return http.StatusOK, deletionResponse{ID: reference, AuditCorrelationID: correlation}, err
 }
@@ -677,6 +734,41 @@ func (handler *HTTPHandler) auditCorrelationID(prior error) (string, error) {
 		return "", ErrInvalidRecord
 	}
 	return id.String(), nil
+}
+
+func (handler *HTTPHandler) recordConnectionAudit(ctx context.Context, principal Principal, action string) error {
+	if handler.audits == nil {
+		return nil
+	}
+	workspaces, err := handler.store.ListWorkspaces(ctx, principal.organizationID)
+	if err != nil || len(workspaces) == 0 {
+		return ErrInvalidRecord
+	}
+	environments, err := handler.store.ListEnvironments(ctx, principal.organizationID, workspaces[0].ID())
+	if err != nil || len(environments) == 0 {
+		return ErrInvalidRecord
+	}
+	scope, err := domain.NewScope(principal.organizationID, workspaces[0].ID(), environments[0].ID())
+	if err != nil {
+		return ErrInvalidRecord
+	}
+	return handler.recordAudit(ctx, principal, scope, action, principal.organizationID, nil)
+}
+
+func (handler *HTTPHandler) recordAudit(ctx context.Context, principal Principal, scope domain.Scope, action string, target domain.ProductID, metadata map[string]string) error {
+	if handler.audits == nil {
+		return nil
+	}
+	if metadata == nil {
+		metadata = map[string]string{"source": "identity_admin"}
+	}
+	_, err := handler.audits.Record(ctx, scope, platformaudit.ProductEventInput{
+		Actor: principal.id, Action: action, Target: target, Outcome: platformaudit.OutcomeSucceeded, Metadata: metadata,
+	})
+	if err != nil {
+		return ErrInvalidRecord
+	}
+	return nil
 }
 
 func decodeIdentityRequest(request *http.Request, target any) error {

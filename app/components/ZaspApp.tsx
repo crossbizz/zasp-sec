@@ -15,6 +15,8 @@ import { ConnectorView } from "../features/connectors/ConnectorViews";
 import { ToolView } from "../features/tools/ToolViews";
 import { IdentityAccessView } from "../features/identity/IdentityAccessView";
 import { IdentityAPIProvider } from "../features/identity/IdentityAPIProvider";
+import { APIAccessView } from "../features/identity/APIAccessView";
+import { ScopeOnboardingView } from "../features/identity/ScopeOnboardingView";
 
 function RouteSurface({ route, onNavigate, onToast }: { route: AppRoute; onNavigate: (path: string) => void; onToast: (message: string) => void }) {
   if (route.path === "/") return <OverviewView onNavigate={onNavigate} />;
@@ -24,7 +26,8 @@ function RouteSurface({ route, onNavigate, onToast }: { route: AppRoute; onNavig
   if (route.path.startsWith("/red-team/")) return <RedTeamView route={route} onNavigate={onNavigate} onToast={onToast} />;
   if (route.path === "/connectors") return <ConnectorView onToast={onToast} />;
   if (["/prompt-hardening", "/reports"].includes(route.path)) return <ToolView route={route} onToast={onToast} />;
-  if (route.path === "/administration/identity-access") return <IdentityAPIProvider><IdentityAccessView /></IdentityAPIProvider>;
+  if (route.path === "/administration/identity-access") return <IdentityAPIProvider><IdentityAccessView /><ScopeOnboardingView /></IdentityAPIProvider>;
+  if (route.path === "/administration/api-access") return <APIAccessView />;
   return <div className="page"><h1>{route.title}</h1></div>;
 }
 

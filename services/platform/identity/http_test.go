@@ -239,7 +239,7 @@ func TestIdentityHTTPHandlerServesGroupTokenAndAuditAdministration(t *testing.T)
 	createdExport := requestObject(t, handler, http.MethodPost, "/api/v1/audit-exports", `{}`, http.StatusCreated)
 	exportID := requireString(t, createdExport, "id")
 	assertHTTPContains(t, handler, http.MethodGet, "/api/v1/audit-exports/"+exportID, "", http.StatusOK,
-		`"status":"ready"`, `"event_count":1`)
+		`"status":"ready"`, `"event_count":4`)
 }
 
 func TestIdentityHTTPHandlerComposesConnectionAndGovernanceServices(t *testing.T) {

@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	platformaudit "github.com/zasp-ai/zasp-sec/services/platform/audit"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
 
@@ -70,6 +71,7 @@ type APITokenStore struct {
 	random   io.Reader
 	now      func() time.Time
 	values   map[domain.ProductID]storedAPIToken
+	audits   *platformaudit.ProductService
 }
 
 func NewAPITokenStore(generate IDGenerator, random io.Reader, now func() time.Time) (*APITokenStore, error) {
@@ -151,13 +153,13 @@ func (store *APITokenStore) Authenticate(ctx context.Context, raw string, scope 
 	}
 	digest := sha256.Sum256([]byte(raw))
 	store.mu.Lock()
-	defer store.mu.Unlock()
 	for id, value := range store.values {
 		if subtle.ConstantTimeCompare(digest[:], value.digest[:]) != 1 {
 			continue
 		}
 		token := value.token
 		if token.revokedAt != nil || !now.Before(token.expiresAt) || token.scope != scope {
+			store.mu.Unlock()
 			return AuthorizationContext{}, ErrAuthentication
 		}
 		allowed := false
@@ -165,13 +167,24 @@ func (store *APITokenStore) Authenticate(ctx context.Context, raw string, scope 
 			allowed = allowed || candidate == permission
 		}
 		if !allowed {
+			store.mu.Unlock()
 			return AuthorizationContext{}, ErrForbidden
 		}
 		token.lastUsedAt = &now
 		value.token = token
 		store.values[id] = value
+		store.mu.Unlock()
+		if store.audits != nil {
+			if _, err := store.audits.Record(ctx, scope, platformaudit.ProductEventInput{
+				Actor: token.principalID, Action: "api_token.use", Target: token.id, Outcome: platformaudit.OutcomeSucceeded,
+				Metadata: map[string]string{"permission": string(permission)},
+			}); err != nil {
+				return AuthorizationContext{}, ErrAuthentication
+			}
+		}
 		return AuthorizationContext{principalID: token.principalID, scope: scope, permission: permission}, nil
 	}
+	store.mu.Unlock()
 	return AuthorizationContext{}, ErrAuthentication
 }
 
