@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 0 |
-| In progress | 466 |
-| Complete | 259 |
+| In progress | 441 |
+| Complete | 284 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -28,7 +28,7 @@ In progress, Complete, or Blocked is Pending.
 | M1A | 10 | 0 | 4 | 6 | 0 |
 | M2 | 72 | 0 | 0 | 72 | 0 |
 | M3 | 75 | 0 | 2 | 73 | 0 |
-| M4 | 82 | 0 | 66 | 16 | 0 |
+| M4 | 82 | 0 | 41 | 41 | 0 |
 | M5 | 42 | 0 | 42 | 0 | 0 |
 | M6 | 36 | 0 | 36 | 0 | 0 |
 | M7 | 62 | 0 | 62 | 0 | 0 |
@@ -70,7 +70,7 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `0/466/259/3` because
+session configuration. The 728 source-plan counts are `0/441/284/3` because
 PROV-01 is excluded from those counts.
 For the active M8 resilience batch, live parity, outage injection, and reference load execution remain unresolved.
 
@@ -517,31 +517,6 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 | M4-38 | August 18, 2026 | The authorized signed finding-ticket API and generated client contract are implemented locally. |
 | M4-37 | August 18, 2026 | The authorized finding risk-acceptance API records a bounded reason locally. |
 | M4-36 | August 18, 2026 | The authorized finding-status mutation API and generated client contract are implemented locally. |
-| M4-35 | August 18, 2026 | The authorized scoped finding lookup API and generated client contract are implemented locally. |
-| M4-34 | August 18, 2026 | The authorized relevance-filtered finding list API and generated client contract are implemented locally. |
-| M4-33 | August 18, 2026 | Findings retain explainable evidence-linked risk factors without an opaque score. |
-| M4-32 | August 18, 2026 | Unrelated Prowler cloud findings stay out of the default list unless bound to Agent, path, or compliance context. |
-| M4-31 | August 18, 2026 | The inactive-Agent plus active-credential posture rule emits exact evidence locally. |
-| M4-30 | August 18, 2026 | The CI/CD-write plus production-secret posture rule emits exact evidence locally. |
-| M4-29 | August 18, 2026 | Host-filesystem or privileged runtime isolation emits exact posture evidence locally. |
-| M4-28 | August 18, 2026 | Missing supported production runtime-policy coverage emits exact posture evidence locally. |
-| M4-27 | August 18, 2026 | Destructive-tool reach without runtime control emits exact posture evidence locally. |
-| M4-26 | August 18, 2026 | Unapproved remote tool or MCP reach emits exact posture evidence locally. |
-| M4-25 | August 18, 2026 | Unrestricted egress plus sensitive-data reach emits exact posture evidence locally. |
-| M4-24 | August 18, 2026 | Shell/code execution plus a production credential emits exact posture evidence locally. |
-| M4-23 | August 18, 2026 | The untrusted/public-input plus production-write posture rule emits exact supporting evidence locally. |
-| M4-22 | August 18, 2026 | The shared-credential posture rule emits exact supporting evidence locally. |
-| M4-21 | August 18, 2026 | The human-credential posture rule emits exact supporting evidence locally. |
-| M4-20 | August 18, 2026 | The ownerless-agent posture rule emits exact supporting evidence locally. |
-| M4-19 | August 18, 2026 | Attack Lab verification and runtime-policy blocking preserve underlying reachability locally. |
-| M4-18 | August 18, 2026 | Matching runtime/provider evidence upgrades reachable capabilities to observed locally. |
-| M4-17 | August 18, 2026 | Bounded scoped graph queries derive Agent-to-target outcomes locally. |
-| M4-16 | August 18, 2026 | Six MVP capability categories and fail-closed evidence-state transitions are implemented locally. |
-| M4-15 | August 18, 2026 | The authorized scoped generic-asset lookup API and generated client contract are implemented locally. |
-| M4-14 | August 18, 2026 | The authorized scoped runtime lookup API and generated client contract are implemented locally. |
-| M4-13 | August 18, 2026 | The authorized scoped runtime list API and generated client contract are implemented locally. |
-| M4-12 | August 18, 2026 | The authorized scoped identity lookup API exposes references and fingerprints but no raw credentials. |
-| M4-11 | August 18, 2026 | The authorized scoped identity list API exposes references and fingerprints but no raw credentials. |
 | M3-52 | August 18, 2026 | A strict five-check local M3 gate is implemented; real staging remains unavailable and the task is not Complete. |
 | M3-14 | August 18, 2026 | Strict AWS assume-role identity adapter and local denial fixture are implemented; required real-AWS denial remains unavailable behind M1A-10. |
 
@@ -549,6 +524,31 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 
 | Task | Completed | Evidence |
 | --- | --- | --- |
+| M4-35 | August 18, 2026 | Authorized scoped finding lookup and generated-client success/error contracts pass. |
+| M4-34 | August 18, 2026 | Authorized relevance-filtered finding listing and generated-client success/error contracts pass. |
+| M4-33 | August 18, 2026 | Findings retain exact explainable evidence-linked risk factors without an opaque score. |
+| M4-32 | August 18, 2026 | Unrelated Prowler cloud findings stay out of the default list unless product context binds them. |
+| M4-31 | August 18, 2026 | Inactive-Agent plus active-credential fixtures emit exact evidence. |
+| M4-30 | August 18, 2026 | CI/CD-write plus production-secret fixtures emit exact evidence. |
+| M4-29 | August 18, 2026 | Host-filesystem or privileged-runtime fixtures emit exact isolation evidence. |
+| M4-28 | August 18, 2026 | Missing supported production runtime-policy coverage fixtures emit exact evidence. |
+| M4-27 | August 18, 2026 | Destructive-tool reach without runtime control emits exact evidence. |
+| M4-26 | August 18, 2026 | Unapproved remote tool or MCP reach emits exact evidence. |
+| M4-25 | August 18, 2026 | Unrestricted egress plus sensitive-data reach emits exact evidence. |
+| M4-24 | August 18, 2026 | Shell/code execution plus a production credential emits exact evidence. |
+| M4-23 | August 18, 2026 | Untrusted/public input plus production-write pass/fail fixtures retain exact evidence. |
+| M4-22 | August 18, 2026 | Shared-credential pass/fail fixtures retain exact supporting evidence. |
+| M4-21 | August 18, 2026 | Human-credential pass/fail fixtures retain exact supporting evidence. |
+| M4-20 | August 18, 2026 | Ownerless-Agent pass/fail fixtures retain exact supporting evidence. |
+| M4-19 | August 18, 2026 | Attack Lab verification and runtime-policy blocking preserve underlying reachability. |
+| M4-18 | August 18, 2026 | Matching runtime/provider evidence upgrades Reachable to Observed without deleting the edge. |
+| M4-17 | August 18, 2026 | Bounded scoped graph queries distinguish read and write Agent outcomes. |
+| M4-16 | August 18, 2026 | Six MVP capability categories enforce fail-closed evidence-state transitions. |
+| M4-15 | August 18, 2026 | Authorized scoped generic-asset lookup and generated-client success/error contracts pass. |
+| M4-14 | August 18, 2026 | Authorized scoped runtime lookup and generated-client success/error contracts pass. |
+| M4-13 | August 18, 2026 | Authorized scoped runtime listing and generated-client success/error contracts pass. |
+| M4-12 | August 18, 2026 | Authorized scoped identity lookup exposes references and fingerprints without raw credentials. |
+| M4-11 | August 18, 2026 | Authorized scoped identity listing exposes references and fingerprints without raw credentials. |
 | M4-10 | August 18, 2026 | Authorized scoped tool lookup and generated-client contract pass success and stable-error tests. |
 | M4-09 | August 18, 2026 | Authorized scoped tool listing and generated-client contract pass success and stable-error tests. |
 | M4-08 | August 18, 2026 | Authorized bounded Agent-session listing passes success and stable-error tests. |

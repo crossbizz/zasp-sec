@@ -26,24 +26,26 @@ describe("M4 inventory, capability, and posture batch", () => {
     expect(source).toContain("EvidenceRuntimePolicy");
   });
 
-  it("moves exactly the twenty-two local tasks to In progress without claiming Neon", async () => {
+  it("records the inventory and first posture slice as Complete without claiming Neon", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(root, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(root, "README.md"), "utf8"),
     ]);
     expect(tracker).toMatch(/^\| Pending \| \d+ \|/m);
     expect(tracker).toMatch(/^\| In progress \| \d+ \|/m);
-    expect(tracker).toContain("| Complete | 259 |");
+    expect(tracker).toContain("| Complete | 284 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("| M4 | 82 | 0 | 66 | 16 | 0 |");
+    expect(tracker).toContain("| M4 | 82 | 0 | 41 | 41 | 0 |");
     const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
     const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] ?? "";
-    for (let index = 2; index <= 10; index += 1) expect(complete.match(new RegExp(`^\\| M4-${String(index).padStart(2, "0")} \\|`, "gm"))).toHaveLength(1);
-    const tasks = Array.from({ length: 13 }, (_, index) => `M4-${String(index + 11).padStart(2, "0")}`);
-    expect(tasks).toHaveLength(13);
-    for (const task of tasks) expect(active.match(new RegExp(`^\\| ${task} \\|`, "gm"))).toHaveLength(1);
+    const tasks = Array.from({ length: 22 }, (_, index) => `M4-${String(index + 2).padStart(2, "0")}`);
+    expect(tasks).toHaveLength(22);
+    for (const task of tasks) {
+      expect(active.match(new RegExp(`^\\| ${task} \\|`, "gm")) ?? []).toHaveLength(0);
+      expect(complete.match(new RegExp(`^\\| ${task} \\|`, "gm")) ?? []).toHaveLength(1);
+    }
     const prose = readme.replace(/\s+/g, " ");
-    expect(prose).toContain("M4-11 through M4-23 remain batched as In progress");
+    expect(prose).toContain("M4-11 through M4-35 are Complete");
     expect(prose).toContain("make no Neon, live-provider, staging, or release-gate claim");
   });
 });

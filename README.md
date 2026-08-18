@@ -287,20 +287,17 @@ composed fixture, reconciliation, audit, and inventory API suites prove their
 component contracts. M3-52 remains active because its aggregate staging PASS
 still depends on M1A-10; component completion does not waive that gate.
 
-M4-11 through M4-23 remain batched as In progress. The local platform boundary
-supports the remaining generated inventory APIs,
-six evidence-state capability categories, and four evidence-backed posture
-rules. These are locally tested API and store contracts; they make no Neon,
-live-provider, staging, or release-gate claim while M1A-10 and the preceding M3
-provider work remain unresolved.
+M4-11 through M4-35 are Complete. Reviewed inventory, capability, posture, and
+relevance-filtered finding suites cover five generated inventory APIs, six
+evidence-state categories, twelve evidence-backed posture rules, explainable
+risk factors, and two finding-read APIs. These are local API and store
+contracts; they make no Neon, live-provider, staging, or release-gate claim.
 
-M4-24 through M4-49 are batched as In progress. The same local product
-boundary now adds the remaining eight high-signal posture rules,
-relevance-filtered findings and signed ticket actions, bounded attack paths and
-break options, a stale-aware Home summary, and safe indexed search. Ten more
-generated API contracts are `api_available`; no webhook delivery, Neon,
-provider, staging, or release-gate success is claimed by the injected local
-fixtures.
+M4-36 through M4-49 remain batched as In progress. The local product boundary
+adds signed finding actions, bounded attack paths and break options, a
+stale-aware Home summary, and safe indexed search. The remaining generated API
+contracts are `api_available`; no webhook delivery, Neon, provider, staging,
+or release-gate success is claimed by the injected local fixtures.
 
 M4-50a through M4-59 are batched as In progress. One generated-schema Agent
 Security surface now covers Agent filters/detail, Tools and MCP, Identities,
