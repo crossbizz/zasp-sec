@@ -917,7 +917,9 @@ field names are rejected. The timestamp is the only date field.
 This task does not apply the template or perform provider I/O, and it does not
 claim OpenSearch or LocalStack parity. It also makes no tenant-isolation claim:
 M1-39 owns cross-Organization query and indexing enforcement. M1-31 is Complete,
-and M1-33 is Pending.
+and M1-32 is Complete. M1-33 is In progress, defining the three exact product
+SQS queues and paired DLQs with closed schema metadata and bounded baseline
+settings.
 
 ## Assembled local development target
 
