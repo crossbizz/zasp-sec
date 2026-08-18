@@ -50,15 +50,15 @@ real authentication and session enforcement.
 
 ## M1 build check
 
-M1-36a is In progress. It reuses the reviewed clean checkout repository build:
+M1-36a is Complete. It reuses the reviewed clean checkout repository build:
 
 ```bash
 npm run build:repo
 ```
 
-The gate must compile or execute all eight targets from locked source and
-dependency state without adding a duplicate build runner or product behavior.
-M1-36b remains Pending and owns the separate schema-validation gate.
+The completed gate compiled or executed all eight targets from locked source
+and dependency state without adding a duplicate build runner or product
+behavior. M1-36b remains Pending and owns the separate schema-validation gate.
 
 ## Development
 
