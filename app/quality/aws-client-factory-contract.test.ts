@@ -44,6 +44,48 @@ describe("M1-31 LocalStack client factory", () => {
     }
   });
 
+  it("exposes the exact command, dependency inventory, and operator boundary", async () => {
+    const [packageText, readme, dependencyLock] = await Promise.all([
+      readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "build/dependencies.lock.yaml"), "utf8"),
+    ]);
+    const scripts = (JSON.parse(packageText) as { scripts?: Record<string, string> }).scripts ?? {};
+    const section = readme.match(/## LocalStack-aware AWS client factory[\s\S]*?(?=\n## )/)?.[0] ?? "";
+    const sectionProse = section.replace(/\s+/g, " ");
+
+    expect(scripts["aws:client:test"]).toBe("go test -C services/platform -race -count=1 ./awsclient");
+    for (const value of [
+      "production, local, and CI",
+      "AWS_ENDPOINT_URL",
+      "AWS_ENDPOINT_URL_S3",
+      "SQS, S3, KMS, Secrets Manager, and OpenSearch Service",
+      "synthetic",
+      "ambient",
+      "does not create a LocalStack lifecycle or provider resource",
+      "does not claim LocalStack parity",
+      "M1-30 is Complete",
+      "M1-32 remains Pending",
+    ]) {
+      expect(sectionProse).toContain(value);
+    }
+
+    for (const [name, version] of [
+      ["github.com/aws/aws-sdk-go-v2", "v1.43.6"],
+      ["github.com/aws/aws-sdk-go-v2/service/kms", "v1.55.6"],
+      ["github.com/aws/aws-sdk-go-v2/service/opensearch", "v1.75.6"],
+      ["github.com/aws/aws-sdk-go-v2/service/s3", "v1.107.2"],
+      ["github.com/aws/aws-sdk-go-v2/service/secretsmanager", "v1.44.6"],
+      ["github.com/aws/aws-sdk-go-v2/service/sqs", "v1.46.6"],
+    ]) {
+      const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const entries = dependencyLock.match(
+        new RegExp(`  - ecosystem: go\\n    manifest: services/platform/go\\.mod\\n    name: ${escapedName}\\n    version: ${version.replaceAll(".", "\\.")}\\n    license: Apache-2\\.0\\n    owner: platform-data\\n    scope: runtime\\n    review: approved`, "g"),
+      );
+      expect(entries).toHaveLength(1);
+    }
+  });
+
   it("starts only M1-31 while preserving M1-30, M1-32, and exact blockers", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),

@@ -9,6 +9,7 @@
   "packageManager": "npm@10.9.8",
   "scripts": {
     "audit:emitter:test": "go test -C services/platform -race -count=1 ./audit",
+    "aws:client:test": "go test -C services/platform -race -count=1 ./awsclient",
     "featureflags:test": "go test -C services/platform -race -count=1 ./featureflags",
     "producttelemetry:test": "go test -C services/platform -race -count=1 ./producttelemetry",
     "aigateway:test": "go test -C services/platform -race -count=1 ./aigateway",

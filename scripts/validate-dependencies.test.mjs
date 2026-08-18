@@ -26,7 +26,7 @@ const manifests = [
   { ecosystem: "python", path: "workers/security-python/pyproject.toml" },
 ];
 
-const dependencies = [
+const npmDependencies = [
   ["drizzle-orm", "0.45.2", "Apache-2.0", "platform-data"],
   ["lucide-react", "1.31.0", "ISC", "web-platform"],
   ["openapi-fetch", "0.17.0", "MIT", "web-platform"],
@@ -43,6 +43,28 @@ const dependencies = [
   scope: "runtime",
   review: "approved",
 }));
+
+const awsDependencies = [
+  ["github.com/aws/aws-sdk-go-v2", "v1.43.6"],
+  ["github.com/aws/aws-sdk-go-v2/service/kms", "v1.55.6"],
+  ["github.com/aws/aws-sdk-go-v2/service/opensearch", "v1.75.6"],
+  ["github.com/aws/aws-sdk-go-v2/service/s3", "v1.107.2"],
+  ["github.com/aws/aws-sdk-go-v2/service/secretsmanager", "v1.44.6"],
+  ["github.com/aws/aws-sdk-go-v2/service/sqs", "v1.46.6"],
+].map(([name, version]) => ({
+  ecosystem: "go",
+  manifest: "services/platform/go.mod",
+  name,
+  version,
+  license: "Apache-2.0",
+  owner: "platform-data",
+  scope: "runtime",
+  review: "approved",
+}));
+
+const dependencies = [...npmDependencies, ...awsDependencies].sort((left, right) =>
+  `${left.manifest}:${left.name}`.localeCompare(`${right.manifest}:${right.name}`),
+);
 
 function lockFixture() {
   return {
@@ -65,7 +87,7 @@ function lockFixture() {
 }
 
 function filesFixture() {
-  const rootDependencies = Object.fromEntries(dependencies.map(({ name, version }) => [name, version]));
+  const rootDependencies = Object.fromEntries(npmDependencies.map(({ name, version }) => [name, version]));
   return {
     "package.json": JSON.stringify({ dependencies: rootDependencies }),
     "package-lock.json": JSON.stringify({
@@ -73,7 +95,7 @@ function filesFixture() {
       packages: {
         "": { dependencies: rootDependencies },
         ...Object.fromEntries(
-          dependencies.map(({ name, version, license }) => [`node_modules/${name}`, { version, license }]),
+          npmDependencies.map(({ name, version, license }) => [`node_modules/${name}`, { version, license }]),
         ),
       },
     }),
@@ -87,7 +109,16 @@ function filesFixture() {
     ].join("\n"),
     "services/event-ingest/go.mod": "module example/event-ingest\n\ngo 1.25.0\n",
     "services/health/go.mod": "module example/health\n\ngo 1.25.0\n",
-    "services/platform/go.mod": "module example/platform\n\ngo 1.25.0\n",
+    "services/platform/go.mod": [
+      "module example/platform",
+      "",
+      "go 1.25.0",
+      "",
+      "require (",
+      ...awsDependencies.map(({ name, version }) => `\t${name} ${version}`),
+      ")",
+      "",
+    ].join("\n"),
     "services/runtime-gateway/go.mod": "module example/runtime-gateway\n\ngo 1.25.0\n",
     "cmd/agentsecctl/go.mod": "module example/agentsecctl\n\ngo 1.25.0\n",
   };
@@ -98,7 +129,37 @@ function validate(lock = lockFixture(), files = filesFixture()) {
 }
 
 test("accepts the exact reviewed product runtime inventory", () => {
-  assert.deepEqual(validate(), { manifests: 9, dependencies: 6 });
+  assert.deepEqual(validate(), { manifests: 9, dependencies: 12 });
+});
+
+test("binds the exact six AWS SDK product dependencies", async (t) => {
+  assert.deepEqual(
+    lockFixture().dependencies.filter(({ manifest }) => manifest === "services/platform/go.mod"),
+    awsDependencies,
+  );
+
+  for (const [name, mutate] of [
+    ["missing", (lock) => lock.dependencies.splice(lock.dependencies.findIndex((entry) => entry.name === awsDependencies[0].name), 1)],
+    ["version drift", (lock) => { lock.dependencies.find((entry) => entry.name === awsDependencies[0].name).version = "v1.43.5"; }],
+    ["prohibited license", (lock) => { lock.dependencies.find((entry) => entry.name === awsDependencies[0].name).license = "GPL-3.0-only"; }],
+    ["wrong owner", (lock) => { lock.dependencies.find((entry) => entry.name === awsDependencies[0].name).owner = "web-platform"; }],
+    ["wrong scope", (lock) => { lock.dependencies.find((entry) => entry.name === awsDependencies[0].name).scope = "development"; }],
+  ]) {
+    await t.test(name, () => {
+      const lock = lockFixture();
+      mutate(lock);
+      assert.throws(() => validate(lock));
+    });
+  }
+
+  await t.test("extra direct SDK module", () => {
+    const files = filesFixture();
+    files["services/platform/go.mod"] = files["services/platform/go.mod"].replace(
+      "\n)",
+      "\n\tgithub.com/aws/aws-sdk-go-v2/service/sts v1.41.3\n)",
+    );
+    assert.throws(() => validate(lockFixture(), files));
+  });
 });
 
 test("rejects YAML aliases, duplicate keys, and oversized input", async (t) => {
@@ -245,7 +306,7 @@ test("tracks direct Go and Python requirements while ignoring development and in
   );
   lock.dependencies.sort((left, right) => `${left.manifest}:${left.name}`.localeCompare(`${right.manifest}:${right.name}`));
 
-  assert.deepEqual(validate(lock, files), { manifests: 9, dependencies: 8 });
+  assert.deepEqual(validate(lock, files), { manifests: 9, dependencies: 14 });
 });
 
 test("accepts only the exact repository-owned health module replacement outside the third-party lock", async (t) => {
@@ -268,10 +329,19 @@ test("accepts only the exact repository-owned health module replacement outside 
         "",
       ].join("\n");
     }
+    files["services/platform/go.mod"] = files["services/platform/go.mod"].replace(
+      "require github.com/zasp-ai/zasp-sec/services/health v0.0.0",
+      [
+        "require (",
+        ...awsDependencies.map(({ name, version }) => `\t${name} ${version}`),
+        "\tgithub.com/zasp-ai/zasp-sec/services/health v0.0.0",
+        ")",
+      ].join("\n"),
+    );
     return files;
   }
 
-  assert.deepEqual(validate(lockFixture(), internalFiles()), { manifests: 9, dependencies: 6 });
+  assert.deepEqual(validate(lockFixture(), internalFiles()), { manifests: 9, dependencies: 12 });
 
   for (const [name, mutate] of [
     ["missing replacement", (files) => {
@@ -413,7 +483,7 @@ test("prints one exact success line", async () => {
     stdout: { write: (value) => { stdout += value; } },
     stderr: { write: (value) => { stderr += value; } },
     setExitCode: (value) => { exitCode = value; },
-    validateRepository: async () => ({ manifests: 9, dependencies: 6 }),
+    validateRepository: async () => ({ manifests: 9, dependencies: 12 }),
   });
 
   assert.equal(code, 0);

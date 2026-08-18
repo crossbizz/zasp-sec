@@ -869,8 +869,33 @@ freshly re-prove as proof-owned.
 This task does not expose LocalStack on the host, reuse a shared LocalStack
 target, persist emulator state, read ambient AWS or Kubernetes authority, or
 wire product AWS clients. M1-31 is In progress and owns product client-factory
-consumption of the endpoint contract. M1-30 is Complete after its separate assembled local start
-target passed live verification, cleanup audit, repository gates, scans, and review.
+consumption of the endpoint contract. M1-30 is Complete after its separate
+assembled local start target passed live verification, cleanup audit,
+repository gates, scans, and review.
+
+## LocalStack-aware AWS client factory
+
+M1-31 provides one strict factory for production, local, and CI construction
+of SQS, S3, KMS, Secrets Manager, and OpenSearch Service clients. Run its
+hermetic tests with:
+
+```bash
+npm run aws:client:test
+```
+
+Production requires explicit region, credential-provider, and HTTP-client
+authority and accepts no endpoint override. Local and CI require the exact
+`AWS_ENDPOINT_URL` and `AWS_ENDPOINT_URL_S3` keys through an injected lookup;
+the values must be equal and match the reviewed local or numeric-loopback
+form. Those modes replace credential authority with fixed synthetic values,
+disable SDK retries, and use a bounded proxy-free HTTP client. The factory
+does not read ambient environment, profile, IMDS, web-identity, proxy, dotenv,
+or Kubernetes authority.
+
+The tests route five real SDK read operations to one bounded loopback capture
+server and assert exact signing and S3 path-style behavior. This boundary does
+not create a LocalStack lifecycle or provider resource and does not claim
+LocalStack parity. M1-30 is Complete; M1-32 remains Pending.
 
 ## Assembled local development target
 

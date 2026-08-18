@@ -58,6 +58,26 @@ const requiredManifests = [
   { ecosystem: "npm", path: "workers/redteam-node/package.json" },
   { ecosystem: "python", path: "workers/security-python/pyproject.toml" },
 ];
+const exactDependencyMetadata = new Map([
+  ["github.com/aws/aws-sdk-go-v2", "v1.43.6"],
+  ["github.com/aws/aws-sdk-go-v2/service/kms", "v1.55.6"],
+  ["github.com/aws/aws-sdk-go-v2/service/opensearch", "v1.75.6"],
+  ["github.com/aws/aws-sdk-go-v2/service/s3", "v1.107.2"],
+  ["github.com/aws/aws-sdk-go-v2/service/secretsmanager", "v1.44.6"],
+  ["github.com/aws/aws-sdk-go-v2/service/sqs", "v1.46.6"],
+].map(([name, version]) => [
+  `services/platform/go.mod:${name}`,
+  {
+    ecosystem: "go",
+    manifest: "services/platform/go.mod",
+    name,
+    version,
+    license: "Apache-2.0",
+    owner: "platform-data",
+    scope: "runtime",
+    review: "approved",
+  },
+]));
 
 function invalid() {
   return new Error("dependency lock invalid");
@@ -145,6 +165,10 @@ export function parseDependencyLock(text) {
     assert(lock.manifests.some((manifest) => manifest.path === dependency.manifest && manifest.ecosystem === dependency.ecosystem));
 
     const key = `${dependency.manifest}:${dependency.name}`;
+    const exactMetadata = exactDependencyMetadata.get(key);
+    if (exactMetadata !== undefined) {
+      assert(Object.entries(exactMetadata).every(([field, value]) => dependency[field] === value));
+    }
     assert(key > previousKey && !seen.has(key));
     previousKey = key;
     seen.add(key);
