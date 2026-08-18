@@ -25,7 +25,7 @@ describe("M7A-85 through M7A-101 Security Agent MVP gate", () => {
     const tracker = read("docs/internal/implementation_status_v1.5.md");
     const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] || "";
     for (const id of ["M7A-85", "M7A-86", "M7A-87", "M7A-88", "M7A-89", "M7A-90", "M7A-90a", "M7A-90b", "M7A-90c", "M7A-90d", "M7A-91", "M7A-92", "M7A-93", "M7A-94", "M7A-95", "M7A-96", "M7A-97", "M7A-98", "M7A-99", "M7A-100", "M7A-101"]) expect(active.match(new RegExp(`^\\| ${id} \\|`, "gm"))).toHaveLength(1);
-    expect(tracker).toContain("Pending | 45");
-    expect(tracker).toContain("In progress | 496");
+    expect(tracker).toContain("Pending | 20");
+    expect(tracker).toContain("In progress | 521");
   });
 });

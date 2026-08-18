@@ -1,5 +1,7 @@
 global:
   environment: production
+  deploymentMode: staging
+  organizationID: ""
   privateEndpointOnly: true
   terminationGracePeriodSeconds: 30
   productImages:
@@ -21,3 +23,4 @@ replicas:
   runtimeGateway: 3
 attackLab:
   securityGroupID: ""
+profile: control_plane

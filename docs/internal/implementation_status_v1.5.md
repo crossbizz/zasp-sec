@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 45 |
-| In progress | 496 |
+| Pending | 20 |
+| In progress | 521 |
 | Complete | 184 |
 | Blocked | 3 |
 
@@ -33,7 +33,7 @@ In progress, Complete, or Blocked is Pending.
 | M6 | 36 | 0 | 36 | 0 | 0 |
 | M7 | 62 | 0 | 62 | 0 | 0 |
 | M7A | 113 | 0 | 113 | 0 | 0 |
-| M8 | 141 | 41 | 100 | 0 | 0 |
+| M8 | 141 | 16 | 125 | 0 | 0 |
 
 ## Execution invariants
 
@@ -70,7 +70,7 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `45/496/184/3` because
+session configuration. The 728 source-plan counts are `20/521/184/3` because
 PROV-01 is excluded from those counts.
 For the active M8 resilience batch, live parity, outage injection, and reference load execution remain unresolved.
 
@@ -78,6 +78,31 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M8-60b | August 18, 2026 | The injected SaaS golden runtime starts one owned Organization/environment fixture and must reach the first connection stage; live execution remains unresolved. |
+| M8-60a | August 18, 2026 | SaaS golden fixtures reject production-write identity and require exact Organization/environment scope plus cleanup ownership. |
+| M8-59 | August 18, 2026 | Isolation result requires the recorded run completed with all reads/writes denied and no fixture data leaks. |
+| M8-59b | August 18, 2026 | The injected isolation runtime starts the validated suite once and retains its run ID before inspection. |
+| M8-59a | August 18, 2026 | One bounded suite validates all six two-Organization boundaries and exact denial/no-data outcomes. |
+| M8-59a3 | August 18, 2026 | Isolation suite includes S3 evidence/export and scoped queue-envelope boundaries. |
+| M8-59a2 | August 18, 2026 | Isolation suite includes graph and OpenSearch boundaries. |
+| M8-59a1 | August 18, 2026 | Isolation suite includes API and direct Neon boundaries. |
+| M8-58 | August 18, 2026 | Quota result requires the noisy Organization bounded and the normal neighbor at p95 <=750 ms. |
+| M8-58b | August 18, 2026 | The injected quota runtime starts the bounded job, retains its run ID, and inspects only that run. |
+| M8-58a | August 18, 2026 | Quota fixture requires two distinct Organizations, bounded rates/duration, and one intentional noisy neighbor. |
+| M8-57 | August 18, 2026 | Customer-edge values now render only the Tetragon sensor and runtime gateway with local cache and scoped enrollment; no control-plane workload. |
+| M8-57c | August 18, 2026 | Edge enrollment uses a Kubernetes secret reference and required Organization, Workspace, and Environment values without plaintext token material. |
+| M8-57b | August 18, 2026 | Edge runtime-gateway values bind SaaS API destination and a bounded local policy cache with no Neon/graph dependency. |
+| M8-57a | August 18, 2026 | Edge sensor values bind the exact-pinned Tetragon image and product event-ingest destination. |
+| M8-56 | August 18, 2026 | Single-tenant values preserve the same chart/images/API and add only topology flags plus one required Organization value. |
+| M8-55 | August 18, 2026 | SaaS values enable multi-tenant mode, disable customer recovery assumptions, and contain no pinned customer Organization. |
+| M8-53 | August 18, 2026 | Design-partner value gate requires two distinct partners to change prioritization or remediation from linked verified evidence. |
+| M8-52 | August 18, 2026 | Usability gate records bounded install blockers and requires every blocker product-owned or explicitly release-blocking. |
+| M8-52d | August 18, 2026 | Usability evidence requires a redacted diagnostics bundle and an understandable next action. |
+| M8-52c | August 18, 2026 | Usability evidence requires dependency failure diagnosis without opening a vendor dashboard. |
+| M8-52b | August 18, 2026 | Usability evidence caps documented install observation at 15 minutes and retains exact product messages/blockers. |
+| M8-52a | August 18, 2026 | Usability evidence requires a clean documented target with zero undocumented bootstrap steps. |
+| M8-51 | August 18, 2026 | Golden E2E aggregate links all completed stage and investigate/audit artifacts without rerunning a stage; live E2E remains unresolved. |
+| M8-51e | August 18, 2026 | Golden evidence adds exact session timeline, audit, and compliance references. |
 | M8-51d | August 18, 2026 | Golden-stage evidence requires one simulated/enforced Block policy and an observed blocked retest; live stage execution remains unresolved. |
 | M8-51c | August 18, 2026 | Golden-stage evidence requires a Verified canary-only Attack Lab result. |
 | M8-51b | August 18, 2026 | Golden-stage evidence binds one credible exposure to one high-impact curated Red Team attempt. |

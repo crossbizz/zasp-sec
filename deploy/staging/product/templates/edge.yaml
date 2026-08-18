@@ -1,0 +1,30 @@
+{{- if eq .Values.profile "customer_edge" }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata: { name: agentsec-edge, labels: { app.kubernetes.io/name: agentsec-edge, app.kubernetes.io/part-of: zasp } }
+spec:
+  selector: { matchLabels: { app.kubernetes.io/name: agentsec-edge } }
+  template:
+    metadata: { labels: { app.kubernetes.io/name: agentsec-edge, app.kubernetes.io/part-of: zasp } }
+    spec:
+      serviceAccountName: agentsec-edge
+      containers:
+        - name: tetragon
+          image: {{ .Values.global.images.tetragon | quote }}
+          securityContext: { privileged: true }
+          resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { cpu: "1", memory: 1Gi } }
+        - name: runtime-gateway
+          image: {{ required "global.productImages.runtimeGateway must be an immutable digest" .Values.global.productImages.runtimeGateway | quote }}
+          env:
+            - { name: ZASP_API_ENDPOINT, value: {{ .Values.runtimeGateway.saasAPIEndpoint | quote }} }
+            - { name: ZASP_EVENT_INGEST_DESTINATION, value: {{ .Values.sensor.eventIngestDestination | quote }} }
+            - { name: ZASP_ORGANIZATION_ID, value: {{ .Values.enrollment.organizationID | quote }} }
+            - { name: ZASP_WORKSPACE_ID, value: {{ .Values.enrollment.workspaceID | quote }} }
+            - { name: ZASP_ENVIRONMENT_ID, value: {{ .Values.enrollment.environmentID | quote }} }
+            - name: ZASP_ENROLLMENT_TOKEN
+              valueFrom: { secretKeyRef: { name: {{ .Values.enrollment.enrollmentSecretRef | quote }}, key: token } }
+          volumeMounts: [{ name: policy-cache, mountPath: /var/lib/agentsec/policy }]
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, runAsNonRoot: true, capabilities: { drop: [ALL] } }
+          resources: { requests: { cpu: 100m, memory: 128Mi }, limits: { cpu: "1", memory: 1Gi } }
+      volumes: [{ name: policy-cache, emptyDir: { sizeLimit: 64Mi } }]
+{{- end }}

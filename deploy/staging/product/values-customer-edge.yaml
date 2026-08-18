@@ -1,0 +1,16 @@
+profile: customer_edge
+controlPlaneWorkloads: false
+sensor:
+  enabled: true
+  eventIngestDestination: https://api.agentsec.example/v1/runtime-events
+runtimeGateway:
+  enabled: true
+  policyCache:
+    storage: emptyDir
+    maximumBytes: 67108864
+  saasAPIEndpoint: https://api.agentsec.example
+enrollment:
+  enrollmentSecretRef: agentsec-edge-enrollment
+  organizationID: org_required
+  workspaceID: workspace_required
+  environmentID: environment_required

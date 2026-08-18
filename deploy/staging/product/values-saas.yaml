@@ -1,0 +1,5 @@
+global:
+  deploymentMode: saas
+  multiTenant: true
+  customerRecovery: false
+  privateEndpointOnly: true

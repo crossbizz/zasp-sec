@@ -1,3 +1,4 @@
+{{- if ne .Values.profile "customer_edge" }}
 {{- range $name := list "web" "agentsec-api" "agentsec-worker" "event-ingest" "runtime-gateway" "nango" "otel-collector" }}
 ---
 apiVersion: policy/v1
@@ -16,3 +17,4 @@ spec:
   securityGroups:
     groupIds: [{{ required "attackLab.securityGroupID is required" .Values.attackLab.securityGroupID | quote }}]
 # topologySpreadConstraints are defined on every replicated workload template.
+{{- end }}

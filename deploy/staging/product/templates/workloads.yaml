@@ -1,3 +1,4 @@
+{{- if ne .Values.profile "customer_edge" }}
 {{- $root := . -}}
 {{- $workloads := list
   (dict "name" "web" "image" .Values.global.productImages.web "port" 3000 "replicas" .Values.replicas.web)
@@ -33,6 +34,11 @@ spec:
           lifecycle: { preStop: { exec: { command: ["/bin/sh", "-c", "sleep 5"] } } }
           resources: { requests: { cpu: 100m, memory: 128Mi }, limits: { cpu: "1", memory: 1Gi } }
           securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, runAsNonRoot: true, capabilities: { drop: [ALL] } }
+          env:
+            - { name: ZASP_DEPLOYMENT_MODE, value: {{ $root.Values.global.deploymentMode | quote }} }
+            {{- if $root.Values.global.organizationID }}
+            - { name: ZASP_ORGANIZATION_ID, value: {{ $root.Values.global.organizationID | quote }} }
+            {{- end }}
 {{- end }}
 ---
 apiVersion: apps/v1
@@ -107,3 +113,4 @@ spec:
           readinessProbe: { exec: { command: ["/usr/bin/tetra", "status"] }, periodSeconds: 10 }
           livenessProbe: { exec: { command: ["/usr/bin/tetra", "status"] }, periodSeconds: 30 }
           resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { cpu: "1", memory: 1Gi } }
+{{- end }}

@@ -378,6 +378,13 @@ dependency ownership, HIPAA defaults, SOC 2 evidence ownership, and the first
 four golden-stage checkpoints. Real scans/signatures and live golden-stage
 execution remain required before these tasks can move to Complete.
 
+M8-51e through M8-60b are batched as In progress. The release chart now has
+SaaS, single-tenant, and lightweight customer-edge profiles; the CLI boundary
+adds golden evidence aggregation, bounded install usability and partner-value
+gates, two-Organization quota/isolation runners, and a scoped SaaS golden-start
+fixture. Human usability observations and live SaaS/reference runs remain
+required before these tasks can move to Complete.
+
 ```bash
 go test -C services/platform -race -count=1 ./integration
 go test -C services/platform -race -count=1 ./connectors ./sensor

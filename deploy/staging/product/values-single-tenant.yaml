@@ -1,0 +1,6 @@
+global:
+  deploymentMode: single_tenant
+  multiTenant: false
+  customerRecovery: true
+  privateEndpointOnly: true
+  organizationID: org_customer_required

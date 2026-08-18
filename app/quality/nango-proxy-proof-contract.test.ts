@@ -216,7 +216,7 @@ describe("Nango Proxy proof delivery contract", () => {
     ).toThrow();
     expect(() =>
       assertM015Active(
-        active.tracker.replace("| Pending | 710 |", "| Pending | 459 |"),
+        active.tracker.replace("| Pending | 710 |", "| Pending | 209 |"),
         active.readme,
         activeRisk,
       ),
