@@ -411,6 +411,62 @@ func TestFiveSDKClientsRouteOneSignedRequestToCIEndpoint(t *testing.T) {
 	}
 }
 
+func TestCIAuthorityIgnoresAmbientAWSAndProxyState(t *testing.T) {
+	for key, value := range map[string]string{
+		"AWS_ACCESS_KEY_ID":                  "ambient-access",
+		"AWS_ENDPOINT_URL":                   "http://198.51.100.1:4566",
+		"AWS_ENDPOINT_URL_S3":                "http://198.51.100.1:4566",
+		"AWS_SECRET_ACCESS_KEY":              "ambient-secret",
+		"AWS_PROFILE":                        "ambient-profile",
+		"AWS_SHARED_CREDENTIALS_FILE":        "/untrusted/credentials",
+		"AWS_CONFIG_FILE":                    "/untrusted/config",
+		"AWS_WEB_IDENTITY_TOKEN_FILE":        "/untrusted/token",
+		"AWS_CONTAINER_CREDENTIALS_FULL_URI": "http://198.51.100.1/credentials",
+		"HTTP_PROXY":                         "http://198.51.100.1:8080",
+		"HTTPS_PROXY":                        "http://198.51.100.1:8080",
+	} {
+		t.Setenv(key, value)
+	}
+	capture := &requestCapture{}
+	server := httptest.NewServer(capture)
+	defer server.Close()
+	clients := newCIClients(t, server.URL)
+	defer clients.Close()
+
+	invokeReads(t, clients)
+	for _, request := range capture.snapshot() {
+		if !strings.Contains(request.authorization, "Credential=test/") {
+			t.Fatalf("authorization used ambient authority: %q", request.authorization)
+		}
+	}
+}
+
+func TestCIHTTPClientDoesNotFollowRedirects(t *testing.T) {
+	redirected := 0
+	target := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		redirected++
+	}))
+	defer target.Close()
+	originCalls := 0
+	origin := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		originCalls++
+		writer.Header().Set("Location", target.URL)
+		writer.WriteHeader(http.StatusFound)
+	}))
+	defer origin.Close()
+	clients := newCIClients(t, origin.URL)
+	defer clients.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if _, err := clients.SQS().ListQueues(ctx, &sqs.ListQueuesInput{}); err == nil {
+		t.Fatal("redirect response unexpectedly succeeded")
+	}
+	if originCalls != 1 || redirected != 0 {
+		t.Fatalf("origin calls = %d, redirected calls = %d", originCalls, redirected)
+	}
+}
+
 func TestSDKClientsDoNotRetryProviderFailures(t *testing.T) {
 	capture := &requestCapture{status: http.StatusInternalServerError}
 	server := httptest.NewServer(capture)
