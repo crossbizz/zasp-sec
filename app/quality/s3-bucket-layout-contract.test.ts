@@ -82,4 +82,38 @@ describe("M1-34 S3 bucket layout", () => {
     expect([...active, ...complete].filter(([task]) => task === "M1-35")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
+
+  it("exposes one hermetic package command and the bounded layout contract", async () => {
+    const [packageSource, readme] = await Promise.all([
+      readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+    ]);
+    const packageManifest = JSON.parse(packageSource) as { scripts?: Record<string, string> };
+    const scripts = packageManifest.scripts ?? {};
+    const section = readme.match(/## S3 bucket layout[\s\S]*?## Assembled local development target/)?.[0] ?? "";
+    const sectionProse = section.replace(/\s+/g, " ");
+
+    expect(scripts["s3:bucket-layout:test"]).toBe(
+      "go test -C services/platform -race -count=1 ./bucketlayout",
+    );
+    expect(scripts["s3:bucket-layout:run"]).toBeUndefined();
+    for (const value of [
+      "npm run s3:bucket-layout:test",
+      "organizations/<organization-product-id>/workspaces/<workspace-product-id>/environments/<environment-product-id>/<class>/",
+      "evidence",
+      "exports",
+      "policies",
+      "zasp-product-data-<32-lowercase-hex>",
+      "aws:kms",
+      "S3 Bucket Key",
+      "M1-33 is Complete",
+      "M1-35 remains Pending",
+      "M1A-03",
+      "M8-02",
+    ]) {
+      expect(sectionProse).toContain(value);
+    }
+    expect(sectionProse).toContain("does not perform provider I/O");
+    expect(sectionProse).toContain("does not define IAM, versioning, retention, or lifecycle policy");
+  });
 });

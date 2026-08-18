@@ -960,6 +960,32 @@ operations. M1-32 is Complete, and M1-33 is Complete after reviewed live
 evidence. M1-34 is In progress, defining the exact evidence, export, and policy
 key layout plus customer-managed SSE-KMS configuration contract.
 
+## S3 bucket layout
+
+M1-34 defines one provider-neutral layout beneath the exact prefix
+`organizations/<organization-product-id>/workspaces/<workspace-product-id>/environments/<environment-product-id>/<class>/`.
+The only class segments are `evidence`, `exports`, and `policies`; callers add
+one validated opaque product ID as the final object-key segment. The builder
+accepts no raw key, suffix, filename, path, or provider-native identifier, so
+constructed keys cannot escape the validated Organization, Workspace, and
+Environment scope.
+
+Run the hermetic race-enabled contract from the repository root:
+
+```bash
+npm run s3:bucket-layout:test
+```
+
+Configuration requires the exact bucket form
+`zasp-product-data-<32-lowercase-hex>` and one customer-managed KMS key ARN in
+the same partition, Region, and account. Encryption is fixed to `aws:kms` with
+the validated ARN and S3 Bucket Key enabled.
+
+This contract does not perform provider I/O and does not define IAM,
+versioning, retention, or lifecycle policy. M1A-03 owns the staging S3 and KMS
+resources, while M8-02 owns production hardening. M1-33 is Complete, and M1-35
+remains Pending.
+
 ## Assembled local development target
 
 M1-30 is Complete. M1-30a, M1-30b, M1-30c, and M1-30d are Complete. The

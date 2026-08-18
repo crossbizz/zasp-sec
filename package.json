@@ -52,6 +52,7 @@
     "job:queue:run": "node proofs/localstack-sqs/run-job-queue.mjs",
     "sqs:definitions:test": "go test -C services/platform -race -count=1 ./queuedefinition && go test -C proofs/localstack-sqs -race -count=1 ./... && node --test proofs/localstack-sqs/queue-definitions-run.test.mjs proofs/localstack-storage/run.test.mjs",
     "sqs:definitions:run": "node proofs/localstack-sqs/run-queue-definitions.mjs",
+    "s3:bucket-layout:test": "go test -C services/platform -race -count=1 ./bucketlayout",
     "build:repo": "node scripts/build-repo.mjs",
     "db:pool:test": "go test -C services/platform -race -count=1 ./database && go test -C proofs/neon-pooled -race -count=1 ./...",
     "db:pool:run": "node --env-file=.env proofs/neon-pooled/run-pool-wrapper.mjs",
