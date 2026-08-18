@@ -18,9 +18,13 @@ import { IdentityAccessView } from "../features/identity/IdentityAccessView";
 import { IdentityAPIProvider } from "../features/identity/IdentityAPIProvider";
 import { APIAccessView } from "../features/identity/APIAccessView";
 import { ScopeOnboardingView } from "../features/identity/ScopeOnboardingView";
+import { AgentSecurityView } from "../features/agents/AgentSecurityView";
 
 function RouteSurface({ route, onNavigate, onToast }: { route: AppRoute; onNavigate: (path: string) => void; onToast: (message: string) => void }) {
   if (route.path === "/") return <OverviewView onNavigate={onNavigate} />;
+  if (route.path === "/discovery/assets") return <><DiscoveryView route={route} /><AgentSecurityView path={route.path} onNavigate={onNavigate} /></>;
+  if (["/identities", "/violations"].includes(route.path)) return <><GovernanceView route={route} onToast={onToast} /><AgentSecurityView path={route.path} onNavigate={onNavigate} /></>;
+  if (["/inventory/tools", "/inventory/runtimes", "/exposure/attack-paths"].includes(route.path)) return <AgentSecurityView path={route.path} onNavigate={onNavigate} />;
   if (route.path.startsWith("/discovery/")) return <DiscoveryView route={route} />;
   if (["/identities", "/violations", "/policies"].includes(route.path)) return <GovernanceView route={route} onToast={onToast} />;
   if (route.path.startsWith("/guardrails/")) return <GuardrailView route={route} onNavigate={onNavigate} onToast={onToast} />;

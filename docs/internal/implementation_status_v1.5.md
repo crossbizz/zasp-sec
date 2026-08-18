@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 425 |
-| In progress | 116 |
+| Pending | 398 |
+| In progress | 143 |
 | Complete | 184 |
 | Blocked | 3 |
 
@@ -28,7 +28,7 @@ In progress, Complete, or Blocked is Pending.
 | M1A | 10 | 4 | 0 | 6 | 0 |
 | M2 | 72 | 0 | 0 | 72 | 0 |
 | M3 | 75 | 0 | 61 | 14 | 0 |
-| M4 | 82 | 27 | 55 | 0 | 0 |
+| M4 | 82 | 0 | 82 | 0 | 0 |
 | M5 | 42 | 42 | 0 | 0 | 0 |
 | M6 | 36 | 36 | 0 | 0 | 0 |
 | M7 | 62 | 62 | 0 | 0 | 0 |
@@ -70,13 +70,40 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `425/116/184/3` because
+session configuration. The 728 source-plan counts are `398/143/184/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M4-59 | August 18, 2026 | A five-check local M4 gate passes only when inventory, capability, posture, attack path, and exposure UX agree; provider release evidence remains unresolved. |
+| M4-59e | August 18, 2026 | The golden exposure fixture renders product-only Why, Evidence, Path, Fix, and Verify concepts locally. |
+| M4-59d | August 18, 2026 | The golden fixture retains a bounded evidence-state attack path and ranked break option locally. |
+| M4-59c | August 18, 2026 | The golden fixture raises one Agent-specific posture finding with exact evidence locally. |
+| M4-59b | August 18, 2026 | The golden fixture renders production-write and shell capabilities with evidence state locally. |
+| M4-59a | August 18, 2026 | The golden canonical Agent renders owner, identity, runtime, tools, and coverage locally. |
+| M4-58 | August 18, 2026 | Home retains an explicit stale-source warning and cannot render a zero-risk healthy state locally. |
+| M4-57 | August 18, 2026 | The Attack Paths surface renders a bounded path, evidence, and ranked Break Path option locally. |
+| M4-56 | August 18, 2026 | Finding detail renders Why, Evidence, Path, Fix, Verify, assignment, acceptance, and ticket actions locally. |
+| M4-55 | August 18, 2026 | The Findings list hides an unrelated Prowler record by default and retains Agent relevance locally. |
+| M4-54 | August 18, 2026 | Runtimes list/detail fields expose isolation, sandbox, sensor, and policy coverage locally. |
+| M4-53 | August 18, 2026 | Identities list/detail fields expose Agent linkage, privilege, reference, and evidence locally. |
+| M4-52 | August 18, 2026 | Tools and MCP list/detail fields expose using Agents and control state locally. |
+| M4-51 | August 18, 2026 | The Agent detail reading order composes identity through sessions and policy coverage locally. |
+| M4-51e | August 18, 2026 | Agent Sessions and runtime-policy coverage sections link to canonical routes locally. |
+| M4-51d | August 18, 2026 | Agent Findings and Attack Paths sections link to canonical exposure routes locally. |
+| M4-51c | August 18, 2026 | Effective Capability cards render Observed and Blocked evidence states locally. |
+| M4-51b3 | August 18, 2026 | Agent runtime and sandbox references link to canonical runtime detail locally. |
+| M4-51b2 | August 18, 2026 | Agent Tool and MCP relationships link to canonical tool detail locally. |
+| M4-51b1 | August 18, 2026 | Agent principal and credential references link to canonical identity detail locally. |
+| M4-51a | August 18, 2026 | Agent header renders owner, status, environment, risk, and last-seen state; owner edit uses the generated client. |
+| M4-50 | August 18, 2026 | Agent table, filters, and stale coverage indicators compose into one local route. |
+| M4-50c | August 18, 2026 | Agent last-seen, stale-source, policy, and sensor coverage indicators fail visibly degraded locally. |
+| M4-50b3 | August 18, 2026 | Runtime-sensor and policy-coverage filter state generates a bounded product query locally. |
+| M4-50b2 | August 18, 2026 | Shell/code-execution and high-impact-reach filter state generates a bounded product query locally. |
+| M4-50b1 | August 18, 2026 | Owner, environment, and risk filter state generates a bounded product query locally. |
+| M4-50a | August 18, 2026 | The Agent table renders core columns plus deterministic local empty/loading/error test boundaries. |
 | M4-49 | August 18, 2026 | The authorized safe global-search API and generated client contract are implemented locally. |
 | M4-48 | August 18, 2026 | Bounded scoped product-name/type/ID search rejects raw graph-query syntax locally. |
 | M4-47 | August 18, 2026 | The authorized stale-aware Home summary API and generated client contract are implemented locally. |

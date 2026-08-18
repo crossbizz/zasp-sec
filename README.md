@@ -306,6 +306,13 @@ generated API contracts are `api_available`; no webhook delivery, Neon,
 provider, staging, or release-gate success is claimed by the injected local
 fixtures.
 
+M4-50a through M4-59 are batched as In progress. One generated-schema Agent
+Security surface now covers Agent filters/detail, Tools and MCP, Identities,
+Runtimes, Findings, Attack Paths, and stale-aware Home state. Its canonical
+fixture drives a five-check local M4 gate across Inventory, Capability,
+Posture, Attack Path, and Exposure UX. This is coherent local MVP evidence,
+not Neon, provider, staging, external webhook, or release-gate evidence.
+
 ```bash
 go test -C services/platform -race -count=1 ./integration
 go test -C services/platform -race -count=1 ./connectors ./sensor
