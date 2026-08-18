@@ -385,6 +385,11 @@ gates, two-Organization quota/isolation runners, and a scoped SaaS golden-start
 fixture. Human usability observations and live SaaS/reference runs remain
 required before these tasks can move to Complete.
 
+M8-60 through M8-54 are batched as In progress. The CLI now validates the
+completed SaaS golden workflow, matching single-tenant behavior, all five
+onboarding observations, isolated recovery and derived-store rebuild stages,
+measured recovery objectives, and a blocker-explicit release decision. M8 release evidence remains open until live provider, human usability, and disaster-recovery runs produce their required artifacts.
+
 ```bash
 go test -C services/platform -race -count=1 ./integration
 go test -C services/platform -race -count=1 ./connectors ./sensor

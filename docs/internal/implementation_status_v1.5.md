@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 20 |
-| In progress | 521 |
+| Pending | 4 |
+| In progress | 537 |
 | Complete | 184 |
 | Blocked | 3 |
 
@@ -33,7 +33,7 @@ In progress, Complete, or Blocked is Pending.
 | M6 | 36 | 0 | 36 | 0 | 0 |
 | M7 | 62 | 0 | 62 | 0 | 0 |
 | M7A | 113 | 0 | 113 | 0 | 0 |
-| M8 | 141 | 16 | 125 | 0 | 0 |
+| M8 | 141 | 0 | 141 | 0 | 0 |
 
 ## Execution invariants
 
@@ -70,7 +70,7 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `20/521/184/3` because
+session configuration. The 728 source-plan counts are `4/537/184/3` because
 PROV-01 is excluded from those counts.
 For the active M8 resilience batch, live parity, outage injection, and reference load execution remain unresolved.
 
@@ -78,6 +78,22 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M8-54 | August 18, 2026 | Release decision requires all seven aggregate gates and exposes every exception or unresolved blocker; live evidence remains unresolved. |
+| M8-63 | August 18, 2026 | SaaS DR gate requires objective, isolation, product-surface, and cleanup evidence; live recovery remains unresolved. |
+| M8-63e | August 18, 2026 | Recovery objectives require measured RPO <=1 hour and RTO <=4 hours plus usable representative queries. |
+| M8-63d | August 18, 2026 | Derived rebuild requires exactly tracked OpenSearch replay and graph rebuild jobs. |
+| M8-63c | August 18, 2026 | Core recovery inspection requires exact Organization sets, scoped records, archives, and no cross-Organization mixing. |
+| M8-63b | August 18, 2026 | Recovery start retains one run ID and the exact selected source timestamp without waiting for completion. |
+| M8-63a | August 18, 2026 | Recovery fixture requires at least two Organizations, test-only credentials, retained archives, and a versioned release reference. |
+| M8-62 | August 18, 2026 | Onboarding gate requires five bounded product-guided stages with product-owned remediation or an explicit release blocker. |
+| M8-62e | August 18, 2026 | Launch-IdP observation must distinguish directory integration from AgentSec SSO without vendor-dashboard knowledge. |
+| M8-62d | August 18, 2026 | GitHub observation requires visible selected scope and actionable permission remediation. |
+| M8-62c | August 18, 2026 | Kubernetes observation requires enrollment through healthy coverage with inventory/sensor/gateway distinctions clear. |
+| M8-62b | August 18, 2026 | AWS observation requires product-guided configuration and actionable missing-permission remediation. |
+| M8-62a | August 18, 2026 | First-Admin observation rejects bypass login or manual database edits and is capped at 15 minutes. |
+| M8-61 | August 18, 2026 | Single-tenant result requires the same exact golden stages and API contract with only deployment metadata differing. |
+| M8-61a | August 18, 2026 | Single-tenant golden start requires the pinned Organization and the same validated client/API contract. |
+| M8-60 | August 18, 2026 | SaaS golden result requires all fourteen ordered product workflow stages plus linked session and audit evidence; live execution remains unresolved. |
 | M8-60b | August 18, 2026 | The injected SaaS golden runtime starts one owned Organization/environment fixture and must reach the first connection stage; live execution remains unresolved. |
 | M8-60a | August 18, 2026 | SaaS golden fixtures reject production-write identity and require exact Organization/environment scope plus cleanup ownership. |
 | M8-59 | August 18, 2026 | Isolation result requires the recorded run completed with all reads/writes denied and no fixture data leaks. |

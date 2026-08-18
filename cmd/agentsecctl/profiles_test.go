@@ -83,6 +83,74 @@ func TestSaaSGoldenFixtureUsesScopedTestIdentityAndOwnedResources(t *testing.T) 
 	}
 }
 
+func TestGoldenResultsRequireExactWorkflowAndProfileParity(t *testing.T) {
+	stages := []string{"bootstrap", "sso", "connectors", "edge", "discover", "path", "test", "verify", "plan", "authorize", "contain", "cleanup", "retest", "audit"}
+	saas := GoldenProfileResult{RunID: "golden-run-1", Completed: true, Stages: stages, APIShape: "golden-v1", DeploymentMetadata: "saas", SessionLinked: true, AuditLinked: true}
+	inspector := fakeGoldenInspector{result: saas}
+	if _, err := InspectSaaSGoldenResult(context.Background(), "golden-run-1", inspector); err != nil {
+		t.Fatal(err)
+	}
+	singleRuntime := &fakeSingleTenantGoldenRuntime{result: GoldenProfileResult{RunID: "single-run-1", Completed: true, Stages: stages, APIShape: "golden-v1", DeploymentMetadata: "single_tenant", SessionLinked: true, AuditLinked: true}}
+	id, err := StartSingleTenantGolden(context.Background(), SingleTenantGoldenFixture{OrganizationID: "org-a", Contract: "golden-v1"}, singleRuntime)
+	if err != nil || id != "single-run-1" {
+		t.Fatalf("StartSingleTenantGolden() = %q, %v", id, err)
+	}
+	if _, err := InspectSingleTenantGolden(context.Background(), id, "golden-v1", singleRuntime); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSaaSOnboardingRequiresAllProductOwnedStages(t *testing.T) {
+	stages := []OnboardingObservation{
+		{Stage: "first_admin", Completed: true, Duration: 10 * time.Minute, ProductInstructionsOnly: true, ActionableRemediation: true, NoBypassOrManualEdit: true},
+		{Stage: "aws", Completed: true, Duration: 11 * time.Minute, ProductInstructionsOnly: true, ActionableRemediation: true, MissingPermissionActionable: true},
+		{Stage: "kubernetes", Completed: true, Duration: 12 * time.Minute, ProductInstructionsOnly: true, ActionableRemediation: true, CoverageClear: true},
+		{Stage: "github", Completed: true, Duration: 9 * time.Minute, ProductInstructionsOnly: true, ActionableRemediation: true, ScopeClear: true},
+		{Stage: "launch_idp", Completed: true, Duration: 8 * time.Minute, ProductInstructionsOnly: true, ActionableRemediation: true, IdentityDistinctionClear: true},
+	}
+	if _, err := EvaluateSaaSOnboarding(stages); err != nil {
+		t.Fatal(err)
+	}
+	stages[2].VendorDashboardUsed = true
+	if _, err := EvaluateSaaSOnboarding(stages); !errors.Is(err, errProfileRejected) {
+		t.Fatalf("vendor dashboard error = %v", err)
+	}
+}
+
+func TestSaaSRecoveryStagesAndReleaseGate(t *testing.T) {
+	fixture := SaaSRecoveryFixture{FixtureID: "dr-fixture-1", OrganizationIDs: []string{"org-a", "org-b"}, SourceTimestamp: "2026-08-18T00:00:00Z", NeonRecoveryPoint: "s3://recovery/neon", EvidenceArchive: "s3://recovery/evidence", EventArchive: "s3://recovery/events", VersionedRelease: "release-v1", CredentialClass: "test_recovery"}
+	if err := ValidateSaaSRecoveryFixture(fixture); err != nil {
+		t.Fatal(err)
+	}
+	runtime := &fakeRecoveryRuntime{}
+	runID, err := StartSaaSRecovery(context.Background(), fixture, runtime)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := InspectSaaSCoreRecovery(context.Background(), runID, fixture.OrganizationIDs, runtime); err != nil {
+		t.Fatal(err)
+	}
+	runtime.core = RecoveryCoreResult{RunID: runID, OrganizationIDs: []string{"org-a", "org-a"}, ScopedRecordsPresent: true, ArchivesPresent: true, NoCrossOrganizationMix: true}
+	if _, err := InspectSaaSCoreRecovery(context.Background(), runID, fixture.OrganizationIDs, runtime); !errors.Is(err, errProfileRejected) {
+		t.Fatalf("duplicate recovered scope error = %v", err)
+	}
+	runtime.core = RecoveryCoreResult{}
+	jobs, err := StartSaaSDerivedRebuild(context.Background(), runID, runtime)
+	if err != nil || len(jobs) != 2 {
+		t.Fatalf("StartSaaSDerivedRebuild() = %v, %v", jobs, err)
+	}
+	objectives, err := EvaluateSaaSRecoveryObjectives(RecoveryObjectiveEvidence{RunID: runID, RPO: 30 * time.Minute, RTO: 3 * time.Hour, CoreUsable: true, RepresentativeQueriesUsable: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := EvaluateSaaSDRGate(SaaSDRGateEvidence{Objectives: objectives, TenantIsolated: true, ProductUIAPIUsable: true, HiddenVendorSteps: false, Cleaned: true}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := EvaluateM8ReleaseGate(M8ReleaseEvidence{RequiredGateCount: 7, PassedGateCount: 7, ExceptionCount: 0, UnresolvedBlockers: []string{"human_onboarding_not_run"}}); !errors.Is(err, errProfileRejected) {
+		t.Fatalf("hidden blocker error = %v", err)
+	}
+}
+
 type fakeQuotaRuntime struct{ result QuotaResult }
 
 func (*fakeQuotaRuntime) StartQuota(context.Context, QuotaFixture) (string, error) {
@@ -105,4 +173,35 @@ type fakeSaaSGoldenRuntime struct{}
 
 func (fakeSaaSGoldenRuntime) StartSaaSGolden(context.Context, SaaSGoldenFixture) (string, string, error) {
 	return "golden-run-1", "connection", nil
+}
+
+type fakeGoldenInspector struct{ result GoldenProfileResult }
+
+func (runtime fakeGoldenInspector) InspectGolden(context.Context, string) (GoldenProfileResult, error) {
+	return runtime.result, nil
+}
+
+type fakeSingleTenantGoldenRuntime struct{ result GoldenProfileResult }
+
+func (*fakeSingleTenantGoldenRuntime) StartSingleTenant(context.Context, SingleTenantGoldenFixture) (string, error) {
+	return "single-run-1", nil
+}
+func (runtime *fakeSingleTenantGoldenRuntime) InspectGolden(context.Context, string) (GoldenProfileResult, error) {
+	return runtime.result, nil
+}
+
+type fakeRecoveryRuntime struct{ core RecoveryCoreResult }
+
+func (*fakeRecoveryRuntime) StartRecovery(context.Context, SaaSRecoveryFixture) (string, string, error) {
+	return "recovery-run-1", "2026-08-18T00:00:00Z", nil
+}
+
+func (runtime *fakeRecoveryRuntime) InspectCore(context.Context, string) (RecoveryCoreResult, error) {
+	if runtime.core.RunID != "" {
+		return runtime.core, nil
+	}
+	return RecoveryCoreResult{RunID: "recovery-run-1", OrganizationIDs: []string{"org-a", "org-b"}, ScopedRecordsPresent: true, ArchivesPresent: true, NoCrossOrganizationMix: true}, nil
+}
+func (*fakeRecoveryRuntime) StartDerivedRebuild(context.Context, string) ([]RebuildJob, error) {
+	return []RebuildJob{{Kind: "opensearch", RunID: "search-rebuild-1"}, {Kind: "graph", RunID: "graph-rebuild-1"}}, nil
 }
