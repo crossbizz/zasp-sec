@@ -21,7 +21,7 @@ import {
 } from "./aws-emulator-run.mjs";
 import { AWS_EMULATOR_CONSTANTS, buildAwsEmulatorCoreResources, buildAwsEmulatorResources, buildAwsEmulatorS3Resources, renderAwsEmulatorCoreManifest, renderAwsEmulatorS3Manifest } from "./aws-emulator-manifest.mjs";
 import { buildGraphResources, renderGraphManifest } from "./graph-manifest.mjs";
-import { isObservabilityProviderRead, projectGraphProviderResources } from "./graph-run.mjs";
+import { isObservabilityProviderRead, projectGraphProviderResources, validateGraphNodeLabel } from "./graph-run.mjs";
 import { buildObservabilityCoreResources, buildObservabilitySpanResources, renderObservabilityCoreManifest, renderObservabilitySpanManifest } from "./observability-manifest.mjs";
 import { buildObservabilityProfile, observabilityApplyPlan } from "./observability-run.mjs";
 import { LocalProductSystem } from "./run.mjs";
@@ -168,6 +168,26 @@ test("keeps AWS objects out of inherited product, graph, and observability proje
     "--selector=app.kubernetes.io/component=aws-emulator", "--output=json",
   ], "m1-30d"), false);
   assert.throws(() => projectGraphProviderResources(resources, "deployments", "m1-30e"), { category: "readiness" });
+});
+
+test("accepts the exact M1-30d kind node through inherited graph ownership", () => {
+  const name = `zasp-m1-30d-${input().marker}-control-plane`;
+  const token = "f".repeat(64);
+  const node = {
+    apiVersion: "v1",
+    kind: "Node",
+    metadata: {
+      labels: { "kubernetes.io/hostname": name, "zasp.dev/graph-node": "m1-30b" },
+      name,
+      resourceVersion: "100",
+      uid: providerUid(48),
+    },
+  };
+  assert.deepEqual(validateGraphNodeLabel(node, { name, token }), {
+    labeled: true, name, token, uid: providerUid(48),
+  });
+  assert.throws(() => validateGraphNodeLabel(node, { name: name.replace("m1-30d", "m1-30e"), token }),
+    { category: "ownership" });
 });
 
 test("applies only product, graph, observability core, and AWS core before both staged Jobs", async () => {

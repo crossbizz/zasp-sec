@@ -746,7 +746,7 @@ function lexicalCompare(left, right) {
 export function validateGraphNodeLabel(document, expected, retained = undefined, labeled = true) {
   try {
     requireExactKeySet(expected, ["name", "token"], "graph node expectation");
-    if (typeof expected.name !== "string" || !/^zasp-m1-30[bc]-[0-9a-f]{16}-control-plane$/.test(expected.name) ||
+    if (typeof expected.name !== "string" || !/^zasp-m1-30[bcd]-[0-9a-f]{16}-control-plane$/.test(expected.name) ||
         !objectIdPattern.test(expected.token) || labeled !== null && typeof labeled !== "boolean" ||
         !isPlainObject(document) ||
         document.apiVersion !== "v1" || document.kind !== "Node" || !isPlainObject(document.metadata) ||
