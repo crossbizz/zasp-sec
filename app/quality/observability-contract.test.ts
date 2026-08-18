@@ -60,13 +60,13 @@ describe("M1-21 observability contract", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(readme).toMatch(/M1-21\s+is\s+Complete/);
-    expect(tracker).toContain("| Pending | 541 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 517 |");
+    expect(tracker).toContain("| In progress | 24 |");
     expect(tracker).toContain("| Complete | 184 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`541/0/184/3`");
+    expect(tracker).toContain("`517/24/184/3`");
     expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "0", "0", "68", "0"]);
-    expect(active.map(([task]) => task)).toEqual([]);
+    expect(active).toHaveLength(24);
     expect(complete.filter(([task]) => task === "M1-21")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-20")).toHaveLength(1);
     expect(active.filter(([task]) => task === "M1-22")).toHaveLength(0);

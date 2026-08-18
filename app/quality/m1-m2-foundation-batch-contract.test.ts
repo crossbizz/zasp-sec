@@ -46,11 +46,11 @@ describe("M1 tenancy and M2 identity foundation batch", () => {
     const summary = markdownRows(tracker.match(/## Status summary[\s\S]*?## Milestone summary/)?.[0] ?? "").slice(2);
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
-    expect(tracker).toContain("`541/0/184/3`");
+    expect(tracker).toContain("`517/24/184/3`");
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
     expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "0", "0", "68", "0"]);
     expect(milestones.find(([milestone]) => milestone === "M2")).toEqual(["M2", "72", "0", "0", "72", "0"]);
-    expect(active).toEqual([]);
+    expect(active).toHaveLength(24);
     for (const task of completedBatch) {
       expect(complete.filter(([candidate]) => candidate === task)).toHaveLength(1);
     }

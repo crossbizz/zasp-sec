@@ -66,6 +66,13 @@ const expectedMap: MapDocument = {
         { id: "sync_integration", operation_id: "syncIntegration", availability: "api_available" },
         { id: "view_integration_syncs", operation_id: "listIntegrationSyncs", availability: "api_available" },
         { id: "view_integration_sync", operation_id: "getIntegrationSync", availability: "api_available" },
+        { id: "view_sensors", operation_id: "listSensors", availability: "api_available" },
+        { id: "create_sensor_enrollment", operation_id: "createSensorEnrollment", availability: "api_available" },
+        { id: "view_sensor", operation_id: "getSensor", availability: "api_available" },
+        { id: "update_sensor", operation_id: "updateSensor", availability: "api_available" },
+        { id: "delete_sensor", operation_id: "deleteSensor", availability: "api_available" },
+        { id: "rotate_sensor_token", operation_id: "rotateSensorToken", availability: "api_available" },
+        { id: "view_sensor_coverage", operation_id: "getSensorCoverage", availability: "api_available" },
       ],
     },
     {
@@ -190,13 +197,17 @@ describe("M1-25 UI API map seed", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(readme).toContain("M1-25 is Complete");
-    expect(tracker).toContain("| Pending | 541 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 517 |");
+    expect(tracker).toContain("| In progress | 24 |");
     expect(tracker).toContain("| Complete | 184 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`541/0/184/3`");
+    expect(tracker).toContain("`517/24/184/3`");
     expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "0", "0", "68", "0"]);
-    expect(active.map(([task]) => task)).toEqual([]);
+    expect(active.map(([task]) => task)).toEqual([
+      "M3-34", "M3-33", "M3-32", "M3-31", "M3-30", "M3-29", "M3-28", "M3-27",
+      "M3-26", "M3-25", "M3-24", "M3-23", "M3-22", "M3-22c", "M3-22b", "M3-22a",
+      "M3-21", "M3-20", "M3-19", "M3-18", "M3-17", "M3-16", "M3-15", "M3-14",
+    ]);
     expect(complete.filter(([task]) => task === "M1-24")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-25")).toHaveLength(1);
     expect(active.filter(([task]) => task === "M1-26")).toHaveLength(0);
@@ -204,7 +215,7 @@ describe("M1-25 UI API map seed", () => {
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
 
-  it("accepts only the exact four-screen, 42-action mixed-lifecycle map", async () => {
+  it("accepts only the exact four-screen, 49-action mixed-lifecycle map", async () => {
     const source = await readFile(resolve(repositoryRoot, "docs/product/ui-api-map.yaml"), "utf8").catch(() => "");
 
     expect(parseStrictMap(source)).toEqual(expectedMap);
@@ -275,6 +286,13 @@ describe("M1-25 UI API map seed", () => {
       "syncIntegration",
       "listIntegrationSyncs",
       "getIntegrationSync",
+      "listSensors",
+      "createSensorEnrollment",
+      "getSensor",
+      "updateSensor",
+      "deleteSensor",
+      "rotateSensorToken",
+      "getSensorCoverage",
       "getSystemStatus",
       "listSystemComponents",
       "getSystemVersion",

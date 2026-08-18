@@ -58,14 +58,14 @@ describe("M1-36d UI/API traceability validation", () => {
     const summary = markdownRows(tracker.match(/## Status summary[\s\S]*?## Milestone summary/)?.[0] ?? "").slice(2);
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
-    expect(tracker).toContain("| Pending | 541 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 517 |");
+    expect(tracker).toContain("| In progress | 24 |");
     expect(tracker).toContain("| Complete | 184 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`541/0/184/3`");
+    expect(tracker).toContain("`517/24/184/3`");
     expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "0", "0", "68", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.map(([task]) => task)).toEqual([]);
+    expect(active).toHaveLength(24);
     expect(active.filter(([task]) => task === "M1-36e")).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-36c")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-36d")).toHaveLength(1);
@@ -81,7 +81,7 @@ describe("M1-36d UI/API traceability validation", () => {
     expect(prose).toContain("M1-36d is Complete");
     expect(section).toContain("npm run ui-api:test");
     expect(section).toContain("npm run ui-api:check");
-    expect(prose).toContain("UI/API coverage passed: planned=5 api_available=17 available=20 public=37 internal=0.");
+    expect(prose).toContain("UI/API coverage passed: planned=5 api_available=24 available=20 public=44 internal=0.");
     expect(prose).toContain("M1-36e is Complete");
     expect(prose).not.toMatch(/local infrastructure healthy|new API operation|availability: available/i);
   });

@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 541 |
-| In progress | 0 |
+| Pending | 517 |
+| In progress | 24 |
 | Complete | 184 |
 | Blocked | 3 |
 
@@ -27,7 +27,7 @@ In progress, Complete, or Blocked is Pending.
 | M1 | 68 | 0 | 0 | 68 | 0 |
 | M1A | 10 | 4 | 0 | 6 | 0 |
 | M2 | 72 | 0 | 0 | 72 | 0 |
-| M3 | 75 | 61 | 0 | 14 | 0 |
+| M3 | 75 | 37 | 24 | 14 | 0 |
 | M4 | 82 | 82 | 0 | 0 | 0 |
 | M5 | 42 | 42 | 0 | 0 | 0 |
 | M6 | 36 | 36 | 0 | 0 | 0 |
@@ -70,13 +70,37 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `541/0/184/3` because
+session configuration. The 728 source-plan counts are `517/24/184/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M3-34 | August 18, 2026 | Sensor heartbeat operation is implemented locally; real staging remains gated by M1A-10. |
+| M3-33 | August 18, 2026 | Sensor coverage API is implemented locally; real staging remains gated by M1A-10. |
+| M3-32 | August 18, 2026 | One-time sensor-token rotation API is implemented locally; real staging remains gated by M1A-10. |
+| M3-31 | August 18, 2026 | Scoped sensor deletion API is implemented locally; real staging remains gated by M1A-10. |
+| M3-30 | August 18, 2026 | Scoped sensor update API is implemented locally; real staging remains gated by M1A-10. |
+| M3-29 | August 18, 2026 | Scoped sensor lookup API is implemented locally; real staging remains gated by M1A-10. |
+| M3-28 | August 18, 2026 | One-time-token sensor enrollment API is implemented locally; real staging remains gated by M1A-10. |
+| M3-27 | August 18, 2026 | Scoped sensor list API is implemented locally; real staging remains gated by M1A-10. |
+| M3-26 | August 18, 2026 | Sensor token-hash, configuration, capability, and heartbeat model is implemented locally. |
+| M3-25 | August 18, 2026 | HTTPS GET-only Nango proxy host policy is implemented locally with SSRF rejection. |
+| M3-24 | August 18, 2026 | OAuth state and PKCE callback validation is implemented locally. |
+| M3-23 | August 18, 2026 | Scoped Nango connection-reference storage is implemented without raw provider credentials. |
+| M3-22 | August 18, 2026 | Private Nango service/readiness configuration is implemented; staging smoke awaits M1A-10. |
+| M3-22c | August 18, 2026 | Nango database and encryption configuration uses Kubernetes Secret references only. |
+| M3-22b | August 18, 2026 | Nango is constrained to Auth and Proxy with Functions, Webhooks, and MCP disabled. |
+| M3-22a | August 18, 2026 | Exact-pinned private Nango deployment and product-only network policy are implemented. |
+| M3-21 | August 18, 2026 | Last success/error/rate-limit/stale state retains last-known inventory locally. |
+| M3-20 | August 18, 2026 | Stable scoped IdP user/group/application/service-principal normalization is implemented. |
+| M3-19 | August 18, 2026 | Stable scoped GitHub organization/repository/app/workflow normalization is implemented. |
+| M3-18 | August 18, 2026 | Stable scoped Kubernetes workload-identity normalization is implemented. |
+| M3-17 | August 18, 2026 | Stable scoped AWS account/role/policy normalization is implemented. |
+| M3-16 | August 18, 2026 | Prowler finding runner and evidence normalization are implemented against local fixtures. |
+| M3-15 | August 18, 2026 | Cartography source runner is implemented with two-Organization fixture isolation. |
+| M3-14 | August 18, 2026 | Strict AWS assume-role identity adapter and local denial fixture are implemented; required real-AWS denial remains unavailable behind M1A-10. |
 
 ## Complete
 

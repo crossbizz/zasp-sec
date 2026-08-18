@@ -48,10 +48,11 @@ describe("M1A and M3 foundation batch", () => {
       readFile(resolve(root, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(root, "README.md"), "utf8"),
     ]);
-    expect(tracker).toContain("| Pending | 541 |");
+    expect(tracker).toContain("| Pending | 517 |");
+    expect(tracker).toContain("| In progress | 24 |");
     expect(tracker).toContain("| Complete | 184 |");
     expect(tracker).toContain("| M1A | 10 | 4 | 0 | 6 | 0 |");
-    expect(tracker).toContain("| M3 | 75 | 61 | 0 | 14 | 0 |");
+    expect(tracker).toContain("| M3 | 75 | 37 | 24 | 14 | 0 |");
     const tasks = [
       "M1A-01", "M1A-02", "M1A-03", "M1A-04", "M1A-05", "M1A-06",
       "M3-01", "M3-02", "M3-02a", "M3-03", "M3-04", "M3-05", "M3-06",
@@ -61,8 +62,8 @@ describe("M1A and M3 foundation batch", () => {
       expect(tracker.match(new RegExp(`^\\| ${task.replace("-", "\\-")} \\|`, "gm"))).toHaveLength(1);
     }
     expect(tracker).not.toMatch(/^\| M1A-07 \|/m);
-    expect(tracker).not.toMatch(/^\| M3-14 \|/m);
+    expect(tracker.match(/^\| M3-14 \|/gm)).toHaveLength(1);
     expect(readme).toContain("M1A-07 remains Pending; no real cloud resource was created");
-    expect(readme).toContain("M3-14 remains Pending on M1A-10's real-staging");
+    expect(readme).toContain("M3-14 through M3-34 are implementation-ready but remain In progress");
   });
 });

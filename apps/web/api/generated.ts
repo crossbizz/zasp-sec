@@ -450,6 +450,83 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/sensors": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List sensors in the authorized scope */
+        readonly get: operations["listSensors"];
+        readonly put?: never;
+        /** Create a sensor enrollment and return its token once */
+        readonly post: operations["createSensorEnrollment"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/sensors/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get an authorized sensor */
+        readonly get: operations["getSensor"];
+        readonly put?: never;
+        readonly post?: never;
+        /** Delete an authorized sensor */
+        readonly delete: operations["deleteSensor"];
+        readonly options?: never;
+        readonly head?: never;
+        /** Update an authorized sensor */
+        readonly patch: operations["updateSensor"];
+        readonly trace?: never;
+    };
+    readonly "/api/v1/sensors/{id}/coverage": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get bounded sensor coverage and drop health */
+        readonly get: operations["getSensorCoverage"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/sensors/{id}/rotate-token": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Rotate a sensor token and return it once */
+        readonly post: operations["rotateSensorToken"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/workspaces": {
         readonly parameters: {
             readonly query?: never;
@@ -765,6 +842,54 @@ export type components = {
         };
         /** @enum {string} */
         readonly SCIMIdentityProvider: "generic" | "okta" | "microsoft-entra" | "cyberark" | "jumpcloud" | "onelogin" | "pingfederate" | "rippling";
+        readonly Sensor: {
+            readonly capabilities: readonly string[];
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly last_heartbeat?: string;
+            readonly mode: components["schemas"]["SensorMode"];
+            readonly name: string;
+            /** Format: date-time */
+            readonly updated_at: string;
+        };
+        readonly SensorCoverage: {
+            readonly btf: boolean;
+            readonly capabilities: readonly string[];
+            readonly drops: number;
+            readonly event_rate: number;
+            readonly kernel: string;
+            /** Format: date-time */
+            readonly last_heartbeat?: string;
+            readonly sensor_id: components["schemas"]["ProductID"];
+            /** @enum {string} */
+            readonly status: "awaiting_heartbeat" | "supported" | "degraded";
+            readonly supported: boolean;
+        };
+        readonly SensorEnrollment: {
+            readonly capabilities: readonly string[];
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly last_heartbeat?: string;
+            readonly mode: components["schemas"]["SensorMode"];
+            readonly name: string;
+            /** @description One-time enrollment credential returned only by create or rotate. */
+            readonly token: string;
+            /** Format: date-time */
+            readonly updated_at: string;
+        };
+        readonly SensorInput: {
+            readonly mode: components["schemas"]["SensorMode"];
+            readonly name: string;
+        };
+        /** @enum {string} */
+        readonly SensorMode: "metadata_only" | "full";
+        readonly SensorPage: {
+            readonly items: readonly components["schemas"]["Sensor"][];
+        };
         readonly SSOConnection: {
             readonly display_name: string;
             readonly id: components["schemas"]["SSOConnectionID"];
@@ -881,6 +1006,12 @@ export type ScimConnectionId = components['schemas']['SCIMConnectionID'];
 export type ScimConnectionInput = components['schemas']['SCIMConnectionInput'];
 export type ScimConnectionPage = components['schemas']['SCIMConnectionPage'];
 export type ScimIdentityProvider = components['schemas']['SCIMIdentityProvider'];
+export type Sensor = components['schemas']['Sensor'];
+export type SensorCoverage = components['schemas']['SensorCoverage'];
+export type SensorEnrollment = components['schemas']['SensorEnrollment'];
+export type SensorInput = components['schemas']['SensorInput'];
+export type SensorMode = components['schemas']['SensorMode'];
+export type SensorPage = components['schemas']['SensorPage'];
 export type SsoConnection = components['schemas']['SSOConnection'];
 export type SsoConnectionId = components['schemas']['SSOConnectionID'];
 export type SsoConnectionInput = components['schemas']['SSOConnectionInput'];
@@ -1742,6 +1873,180 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["Organization"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listSensors: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized sensor records. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SensorPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly createSensorEnrollment: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["SensorInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Created sensor enrollment. */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SensorEnrollment"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getSensor: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized sensor record. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["Sensor"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly deleteSensor: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Sensor deleted. */
+            readonly 204: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly updateSensor: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["SensorInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Updated sensor record. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["Sensor"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getSensorCoverage: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Sensor coverage state. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SensorCoverage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly rotateSensorToken: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["EmptyInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Rotated sensor enrollment. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SensorEnrollment"];
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];

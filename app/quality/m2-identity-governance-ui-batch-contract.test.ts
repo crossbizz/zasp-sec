@@ -20,16 +20,16 @@ describe("M2 identity governance and UI batch", () => {
   it("moves exactly twenty related source tasks to Complete", async () => {
     const tracker = await readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8");
     const complete = taskRows(tracker, "Complete").map(([task]) => task);
-    expect(tracker).toContain("| Pending | 541 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 517 |");
+    expect(tracker).toContain("| In progress | 24 |");
     expect(tracker).toContain("| Complete | 184 |");
     expect(tracker).toContain("| Blocked | 3 |");
     expect(tracker).toContain("| M2 | 72 | 0 | 0 | 72 | 0 |");
-    expect(tracker).toContain("`541/0/184/3`");
+    expect(tracker).toContain("`517/24/184/3`");
     expect(complete).toHaveLength(184);
     expect(new Set(complete).size).toBe(184);
     for (const task of batch) expect(complete.filter((value) => value === task)).toHaveLength(1);
-    expect(taskRows(tracker, "In progress")).toEqual([]);
+    expect(taskRows(tracker, "In progress")).toHaveLength(24);
     expect(taskRows(tracker, "Blocked").map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
 
@@ -44,7 +44,7 @@ describe("M2 identity governance and UI batch", () => {
       "revokeAPIToken", "listAuditEvents", "createAuditExport", "getAuditExport",
     ]) expect(openapi).toContain(`operationId: ${operation}`);
     expect(map.match(/availability: available/g)).toHaveLength(20);
-    expect(map.match(/availability: api_available/g)).toHaveLength(17);
+    expect(map.match(/availability: api_available/g)).toHaveLength(24);
     expect(readme).toContain("M2-01 through M2-50 and the M2-47 gate are Complete");
     expect(readme).toContain("M3-01 through M3-13 are Complete");
   });

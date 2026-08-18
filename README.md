@@ -100,7 +100,7 @@ npm run ui-api:check
 ```
 
 The current honest result is `UI/API coverage passed: planned=5
-api_available=17 available=20 public=37 internal=0.` The gate distinguishes
+api_available=24 available=20 public=44 internal=0.` The gate distinguishes
 implemented API contracts from fully wired UI actions.
 M1-36e is Complete and separately owns local infrastructure smoke checks.
 
@@ -265,11 +265,20 @@ connector catalog, a signed Generic Webhook entry, scoped integration CRUD and
 authorization, sync history, and an idempotent forward-only sync job contract.
 All ten integration operations are present in the OpenAPI document and generated
 client as `api_available`; internal adapter and upstream implementation names are
-excluded from the public catalog. M3-14 remains Pending on M1A-10's real-staging
-gate, so this batch adds no customer credential adapter or provider call.
+excluded from the public catalog.
+
+M3-14 through M3-34 are implementation-ready but remain In progress. The batch
+adds a strict AWS assume-role identity boundary, scoped Cartography/Prowler and
+AWS/Kubernetes/GitHub/IdP normalization, freshness retention, an exact-pinned
+private Nango Auth/Proxy deployment, secret-safe connection/OAuth/proxy
+boundaries, and sensor enrollment, management, coverage, and heartbeat APIs.
+The required real AWS staging authority is unavailable, so M1A-07 through
+M1A-10 and the real-AWS denial/staging smoke gates have not been claimed or
+bypassed.
 
 ```bash
 go test -C services/platform -race -count=1 ./integration
+go test -C services/platform -race -count=1 ./connectors ./sensor
 terraform -chdir=deploy/staging init -backend=false
 terraform -chdir=deploy/staging validate
 ```
@@ -859,7 +868,7 @@ npm run ui-api:check
 The current fixed success line is:
 
 ```text
-UI/API coverage passed: planned=5 api_available=17 available=20 public=37 internal=0.
+UI/API coverage passed: planned=5 api_available=24 available=20 public=44 internal=0.
 ```
 
 Failure is fixed as `UI/API coverage rejected.` without parser or artifact

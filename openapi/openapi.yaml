@@ -724,6 +724,113 @@ paths:
               schema: { $ref: '#/components/schemas/IntegrationSync' }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/sensors:
+    get:
+      operationId: listSensors
+      summary: List sensors in the authorized scope
+      responses:
+        '200':
+          description: Authorized sensor records.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SensorPage' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    post:
+      operationId: createSensorEnrollment
+      summary: Create a sensor enrollment and return its token once
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SensorInput' }
+      responses:
+        '201':
+          description: Created sensor enrollment.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SensorEnrollment' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/sensors/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/ProductID' }
+    get:
+      operationId: getSensor
+      summary: Get an authorized sensor
+      responses:
+        '200':
+          description: Authorized sensor record.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Sensor' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    patch:
+      operationId: updateSensor
+      summary: Update an authorized sensor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SensorInput' }
+      responses:
+        '200':
+          description: Updated sensor record.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Sensor' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    delete:
+      operationId: deleteSensor
+      summary: Delete an authorized sensor
+      responses:
+        '204': { description: Sensor deleted. }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/sensors/{id}/rotate-token:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/ProductID' }
+    post:
+      operationId: rotateSensorToken
+      summary: Rotate a sensor token and return it once
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmptyInput' }
+      responses:
+        '200':
+          description: Rotated sensor enrollment.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SensorEnrollment' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/sensors/{id}/coverage:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/ProductID' }
+    get:
+      operationId: getSensorCoverage
+      summary: Get bounded sensor coverage and drop health
+      responses:
+        '200':
+          description: Sensor coverage state.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SensorCoverage' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
 security:
   - SessionJWT: []
   - ProductAPIToken: []
@@ -1547,6 +1654,76 @@ components:
         items:
           type: array
           items: { $ref: '#/components/schemas/IntegrationSync' }
+    SensorMode:
+      type: string
+      enum: [metadata_only, full]
+    SensorInput:
+      type: object
+      additionalProperties: false
+      required: [name, mode]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 128 }
+        mode: { $ref: '#/components/schemas/SensorMode' }
+    Sensor:
+      type: object
+      additionalProperties: false
+      required: [id, name, mode, capabilities, created_at, updated_at]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        name: { type: string, minLength: 1, maxLength: 128 }
+        mode: { $ref: '#/components/schemas/SensorMode' }
+        capabilities:
+          type: array
+          uniqueItems: true
+          items: { type: string, minLength: 1, maxLength: 96 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        last_heartbeat: { type: string, format: date-time }
+    SensorEnrollment:
+      type: object
+      additionalProperties: false
+      required: [id, name, mode, capabilities, created_at, updated_at, token]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        name: { type: string, minLength: 1, maxLength: 128 }
+        mode: { $ref: '#/components/schemas/SensorMode' }
+        capabilities:
+          type: array
+          uniqueItems: true
+          items: { type: string, minLength: 1, maxLength: 96 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        last_heartbeat: { type: string, format: date-time }
+        token:
+          type: string
+          minLength: 44
+          maxLength: 128
+          description: One-time enrollment credential returned only by create or rotate.
+    SensorPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Sensor' }
+    SensorCoverage:
+      type: object
+      additionalProperties: false
+      required: [sensor_id, supported, status, kernel, btf, capabilities, event_rate, drops]
+      properties:
+        sensor_id: { $ref: '#/components/schemas/ProductID' }
+        supported: { type: boolean }
+        status: { type: string, enum: [awaiting_heartbeat, supported, degraded] }
+        kernel: { type: string, maxLength: 128 }
+        btf: { type: boolean }
+        capabilities:
+          type: array
+          uniqueItems: true
+          items: { type: string, minLength: 1, maxLength: 96 }
+        event_rate: { type: integer, minimum: 0, maximum: 1000000000 }
+        drops: { type: integer, minimum: 0, maximum: 1000000000 }
+        last_heartbeat: { type: string, format: date-time }
     ProductError:
       type: object
       additionalProperties: false

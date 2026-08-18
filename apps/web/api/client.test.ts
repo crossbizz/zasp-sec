@@ -60,6 +60,10 @@ describe("generated API client", () => {
       | "/api/v1/integrations/{id}/syncs/{syncId}"
       | "/api/v1/me"
       | "/api/v1/organization"
+      | "/api/v1/sensors"
+      | "/api/v1/sensors/{id}"
+      | "/api/v1/sensors/{id}/coverage"
+      | "/api/v1/sensors/{id}/rotate-token"
       | "/api/v1/workspaces"
       | "/api/v1/workspaces/{id}"
     >();

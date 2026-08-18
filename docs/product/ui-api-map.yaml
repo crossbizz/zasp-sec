@@ -126,6 +126,27 @@ screens:
       - id: view_integration_sync
         operation_id: getIntegrationSync
         availability: api_available
+      - id: view_sensors
+        operation_id: listSensors
+        availability: api_available
+      - id: create_sensor_enrollment
+        operation_id: createSensorEnrollment
+        availability: api_available
+      - id: view_sensor
+        operation_id: getSensor
+        availability: api_available
+      - id: update_sensor
+        operation_id: updateSensor
+        availability: api_available
+      - id: delete_sensor
+        operation_id: deleteSensor
+        availability: api_available
+      - id: rotate_sensor_token
+        operation_id: rotateSensorToken
+        availability: api_available
+      - id: view_sensor_coverage
+        operation_id: getSensorCoverage
+        availability: api_available
   - id: system_health
     label: System Health
     actions:

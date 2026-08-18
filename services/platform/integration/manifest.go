@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"net/url"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -63,19 +64,36 @@ type Catalog struct {
 }
 
 func BuiltinManifests() []ConnectorManifest {
-	return []ConnectorManifest{{
-		Key: "generic-webhook", Provider: "Generic Webhook", Category: "notification",
-		Description: "Send signed response and approval notifications to one configured HTTPS destination.",
-		DataTypes:   []string{"response", "approval"}, Actions: []string{"response_notification", "approval_response"},
-		AuthMode: "signed_webhook",
-		SetupSchema: []SetupField{
-			{Key: "destination_url", Label: "HTTPS destination", Type: "uri", Required: true, Description: "One allowlisted HTTPS endpoint for all actions."},
-			{Key: "signing_secret_reference", Label: "Signing secret", Type: "secret_reference", Required: true, Description: "Product secret reference used to sign each delivery."},
+	return []ConnectorManifest{
+		{
+			Key: "aws", Provider: "Amazon Web Services", Category: "cloud",
+			Description: "Inventory AWS accounts, identities, policies, and selected resources through a customer-owned read role.",
+			DataTypes:   []string{"identity", "policy", "resource"}, Actions: []string{"inventory_read", "posture_read"}, AuthMode: "aws_assume_role",
+			SetupSchema: []SetupField{
+				{Key: "role_arn", Label: "Read role ARN", Type: "string", Required: true, Description: "Customer role trusted for the product's external-ID-bound session."},
+				{Key: "external_id", Label: "External ID", Type: "secret_reference", Required: true, Description: "Product secret reference for the customer trust condition."},
+				{Key: "region", Label: "Home region", Type: "string", Required: true, Description: "AWS region used for the identity check and regional inventory."},
+			}, AccessGuidance: "Grant the documented read-only policy to one external-ID-bound role.", TestSemantics: "Assume the role, verify the returned account identity, and prove an unauthorized action is denied.", adapterKey: "aws_inventory_v1", ossName: "cartography-prowler",
 		},
-		AccessGuidance: "Allow outbound HTTPS from the product worker and verify every signature before processing a notification.",
-		TestSemantics:  "Send one signed synthetic notification and require a successful bounded response.",
-		adapterKey:     "generic_webhook_v1", ossName: "internal-http-delivery",
-	}}
+		{
+			Key: "github", Provider: "GitHub", Category: "developer", Description: "Inventory organizations, repositories, applications, workflows, and permissions through a durable connection reference.", DataTypes: []string{"identity", "repository", "workflow"}, Actions: []string{"inventory_read"}, AuthMode: "nango_oauth", SetupSchema: []SetupField{{Key: "connection_reference", Label: "Connection reference", Type: "connection_reference", Required: true, Description: "Organization-scoped durable connection reference returned by the product auth flow."}}, AccessGuidance: "Authorize only the organizations and repositories intended for inventory.", TestSemantics: "Resolve the connection reference and read one bounded repository fixture.", adapterKey: "github_nango_v1", ossName: "nango",
+		},
+		{
+			Key: "okta", Provider: "Okta", Category: "identity", Description: "Inventory users, groups, applications, and service principals through a durable connection reference.", DataTypes: []string{"application", "group", "identity"}, Actions: []string{"inventory_read"}, AuthMode: "nango_oauth", SetupSchema: []SetupField{{Key: "connection_reference", Label: "Connection reference", Type: "connection_reference", Required: true, Description: "Organization-scoped durable connection reference returned by the product auth flow."}}, AccessGuidance: "Grant read-only directory scopes and restrict the integration account.", TestSemantics: "Resolve the connection reference and read one bounded directory fixture.", adapterKey: "okta_nango_v1", ossName: "nango",
+		},
+		{
+			Key: "generic-webhook", Provider: "Generic Webhook", Category: "notification",
+			Description: "Send signed response and approval notifications to one configured HTTPS destination.",
+			DataTypes:   []string{"response", "approval"}, Actions: []string{"response_notification", "approval_response"},
+			AuthMode: "signed_webhook",
+			SetupSchema: []SetupField{
+				{Key: "destination_url", Label: "HTTPS destination", Type: "uri", Required: true, Description: "One allowlisted HTTPS endpoint for all actions."},
+				{Key: "signing_secret_reference", Label: "Signing secret", Type: "secret_reference", Required: true, Description: "Product secret reference used to sign each delivery."},
+			},
+			AccessGuidance: "Allow outbound HTTPS from the product worker and verify every signature before processing a notification.",
+			TestSemantics:  "Send one signed synthetic notification and require a successful bounded response.",
+			adapterKey:     "generic_webhook_v1", ossName: "internal-http-delivery",
+		}}
 }
 
 func NewCatalog(values []ConnectorManifest) (*Catalog, error) {
@@ -126,7 +144,7 @@ func (catalog *Catalog) ValidateSetup(key string, configuration map[string]strin
 		return ErrConfiguration
 	}
 	manifest, exists := catalog.values[key]
-	if !exists || key != "generic-webhook" || len(configuration) != len(manifest.SetupSchema) {
+	if !exists || len(configuration) != len(manifest.SetupSchema) {
 		return ErrInvalid
 	}
 	for _, field := range manifest.SetupSchema {
@@ -134,6 +152,18 @@ func (catalog *Catalog) ValidateSetup(key string, configuration map[string]strin
 		if !exists || !validText(value, 2048) {
 			return ErrInvalid
 		}
+	}
+	switch key {
+	case "aws":
+		return validateAWSSetup(configuration)
+	case "github", "okta":
+		if !strings.HasPrefix(configuration["connection_reference"], "connection_ref_") || len(configuration["connection_reference"]) > 256 {
+			return ErrInvalid
+		}
+		return nil
+	case "generic-webhook":
+	default:
+		return ErrInvalid
 	}
 	parsed, err := url.Parse(configuration["destination_url"])
 	if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.RawPath != "" && strings.Contains(parsed.RawPath, "..") {
@@ -144,6 +174,16 @@ func (catalog *Catalog) ValidateSetup(key string, configuration map[string]strin
 		return ErrInvalid
 	}
 	if !strings.HasPrefix(configuration["signing_secret_reference"], "secret_ref_") || len(configuration["signing_secret_reference"]) > 128 {
+		return ErrInvalid
+	}
+	return nil
+}
+
+var awsRolePattern = regexp.MustCompile(`^arn:aws:iam::[0-9]{12}:role/[A-Za-z0-9+=,.@_/-]{1,512}$`)
+var awsRegionPattern = regexp.MustCompile(`^[a-z]{2}(?:-gov)?-[a-z]+-[0-9]$`)
+
+func validateAWSSetup(configuration map[string]string) error {
+	if !awsRolePattern.MatchString(configuration["role_arn"]) || !strings.HasPrefix(configuration["external_id"], "secret_ref_") || len(configuration["external_id"]) > 128 || !awsRegionPattern.MatchString(configuration["region"]) {
 		return ErrInvalid
 	}
 	return nil

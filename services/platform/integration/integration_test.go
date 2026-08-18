@@ -52,6 +52,12 @@ func TestConnectorManifestPublicBoundaryAndCatalog(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	if err := catalog.ValidateSetup("aws", map[string]string{"role_arn": "arn:aws:iam::000000000000:role/zasp-read", "external_id": "secret_ref_aws_external", "region": "us-east-1"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := catalog.ValidateSetup("github", map[string]string{"connection_reference": "connection_ref_fixture"}); err != nil {
+		t.Fatal(err)
+	}
 	for name, config := range map[string]map[string]string{
 		"http":       {"destination_url": "http://customer.invalid/hook", "signing_secret_reference": "secret_ref_1234"},
 		"query":      {"destination_url": "https://customer.invalid/hook?next=https://evil.invalid", "signing_secret_reference": "secret_ref_1234"},
