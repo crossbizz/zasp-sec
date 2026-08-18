@@ -8,6 +8,7 @@ import test from "node:test";
 import { buildGraphResources, renderGraphManifest } from "./graph-manifest.mjs";
 import { PRODUCTS, buildProductResources } from "./manifests.mjs";
 import { buildObservabilityProfile } from "./observability-run.mjs";
+import { buildAwsEmulatorProfile } from "./aws-emulator-run.mjs";
 import {
   KIND_PINS,
   SUCCESS_LINE,
@@ -1902,7 +1903,7 @@ test("only graph-bearing profiles require exact kubelet PID authority after kind
     ["duplicate", `${kubeletPidProjection}podPidsLimit: 512\n`, true],
     ["extra", `${kubeletPidProjection}foreign: true\n`, true],
   ];
-  for (const profile of [graphProfile, buildObservabilityProfile()]) {
+  for (const profile of [graphProfile, buildObservabilityProfile(), buildAwsEmulatorProfile()]) {
     for (const [name, kubeletOutput, rejected] of cases) {
     const networkId = "a".repeat(64);
     const nodeId = "b".repeat(64);

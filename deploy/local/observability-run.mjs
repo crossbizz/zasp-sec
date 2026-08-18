@@ -317,7 +317,7 @@ export function validateObservabilityKubernetesState(value, expected, retained =
             expected.imageTargets[name].imageID,
           )) throw new TypeError("observability image target is invalid");
     }
-    if (!/^zasp-m1-30c-[0-9a-f]{16}-control-plane$/.test(expected.nodeName) ||
+    if (!/^zasp-m1-30[cd]-[0-9a-f]{16}-control-plane$/.test(expected.nodeName) ||
         typeof requireJob !== "boolean" || !OBSERVABILITY_FAILURE_CATEGORIES.includes(category) ||
         !plainArray(value.configMaps) || value.configMaps.length !== 1 ||
         !plainArray(value.deployments) || value.deployments.length !== 1 ||
@@ -457,8 +457,8 @@ export function validateObservabilityKubernetesState(value, expected, retained =
 }
 
 export class LocalObservabilitySystem extends LocalGraphSystem {
-  constructor(input, dependencies = undefined) {
-    super(input, dependencies, buildObservabilityProfile());
+  constructor(input, dependencies = undefined, profile = undefined) {
+    super(input, dependencies, profile ?? buildObservabilityProfile());
     this.graphImagePlans.set("collector", buildCollectorImagePlan(input.nodePlatform));
     this.observabilityCoreMayHaveApplied = false;
     this.observabilityJobMayHaveApplied = false;

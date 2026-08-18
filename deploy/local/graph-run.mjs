@@ -824,20 +824,24 @@ export function parseGraphProviderList(source, label) {
   }
 }
 
-function projectGraphProviderResources(items, label, proof) {
+export function projectGraphProviderResources(items, label, proof) {
   if (proof === "m1-30b") return items;
-  if (proof !== "m1-30c" || !Array.isArray(items)) throw new GraphFailure("readiness");
+  if (!new Set(["m1-30c", "m1-30d"]).has(proof) || !Array.isArray(items)) {
+    throw new GraphFailure("readiness");
+  }
   if (["deployments", "jobs", "pods", "replicaSets", "services"].includes(label)) {
-    return items.filter((item) => item?.metadata?.labels?.["app.kubernetes.io/component"] !== "observability");
+    const excluded = proof === "m1-30d" ? new Set(["aws-emulator", "observability"]) : new Set(["observability"]);
+    return items.filter((item) => !excluded.has(item?.metadata?.labels?.["app.kubernetes.io/component"]));
   }
   if (label === "endpointSlices") {
-    return items.filter((item) => item?.metadata?.labels?.["kubernetes.io/service-name"] !== "otel-collector");
+    const excluded = proof === "m1-30d" ? new Set(["localstack", "otel-collector"]) : new Set(["otel-collector"]);
+    return items.filter((item) => !excluded.has(item?.metadata?.labels?.["kubernetes.io/service-name"]));
   }
   return items;
 }
 
-function isObservabilityProviderRead(arguments_, proof) {
-  if (proof !== "m1-30c" || !Array.isArray(arguments_)) return false;
+export function isObservabilityProviderRead(arguments_, proof) {
+  if (!new Set(["m1-30c", "m1-30d"]).has(proof) || !Array.isArray(arguments_)) return false;
   const selector = new Map([
     ["deployment", "app.kubernetes.io/component=observability"],
     ["replicaset", "app.kubernetes.io/component=observability"],
@@ -1672,13 +1676,19 @@ export class LocalGraphSystem extends LocalProductSystem {
     if (this.productProviderProjection && !isObservabilityProviderRead(arguments_, this.profile.proof) &&
         Array.isArray(arguments_) && arguments_[0] === "get" &&
         arguments_.at(-1) === "--output=json") {
-      const observability = this.profile.proof === "m1-30c";
+      const observability = new Set(["m1-30c", "m1-30d"]).has(this.profile.proof);
+      const awsEmulator = this.profile.proof === "m1-30d";
       const selector = new Map([
-        ["deployment", observability ? "app.kubernetes.io/component notin (graph,observability)" : "app.kubernetes.io/component!=graph"],
-        ["replicaset", observability ? "app.kubernetes.io/component notin (graph,observability)" : "app.kubernetes.io/component!=graph"],
-        ["pod", observability ? "app.kubernetes.io/component notin (graph,observability)" : "app.kubernetes.io/component!=graph"],
-        ["service", observability ? "app.kubernetes.io/component notin (graph,observability)" : "app.kubernetes.io/component!=graph"],
-        ["endpointslice", observability ? "kubernetes.io/service-name notin (neo4j,otel-collector)" : "kubernetes.io/service-name!=neo4j"],
+        ["deployment", awsEmulator ? "app.kubernetes.io/component notin (aws-emulator,graph,observability)" :
+          observability ? "app.kubernetes.io/component notin (graph,observability)" : "app.kubernetes.io/component!=graph"],
+        ["replicaset", awsEmulator ? "app.kubernetes.io/component notin (aws-emulator,graph,observability)" :
+          observability ? "app.kubernetes.io/component notin (graph,observability)" : "app.kubernetes.io/component!=graph"],
+        ["pod", awsEmulator ? "app.kubernetes.io/component notin (aws-emulator,graph,observability)" :
+          observability ? "app.kubernetes.io/component notin (graph,observability)" : "app.kubernetes.io/component!=graph"],
+        ["service", awsEmulator ? "app.kubernetes.io/component notin (aws-emulator,graph,observability)" :
+          observability ? "app.kubernetes.io/component notin (graph,observability)" : "app.kubernetes.io/component!=graph"],
+        ["endpointslice", awsEmulator ? "kubernetes.io/service-name notin (localstack,neo4j,otel-collector)" :
+          observability ? "kubernetes.io/service-name notin (neo4j,otel-collector)" : "kubernetes.io/service-name!=neo4j"],
       ]).get(arguments_[1]);
       if (selector !== undefined) {
         productResource = arguments_[1];

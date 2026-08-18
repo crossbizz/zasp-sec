@@ -15,6 +15,12 @@ import {
   renderObservabilityCoreManifest,
   renderObservabilitySpanManifest,
 } from "./observability-manifest.mjs";
+import {
+  buildAwsEmulatorCoreResources,
+  buildAwsEmulatorS3Resources,
+  renderAwsEmulatorCoreManifest,
+  renderAwsEmulatorS3Manifest,
+} from "./aws-emulator-manifest.mjs";
 
 export const SUCCESS_LINE = "Local product manifests passed: pods=4 ready=4 services=4 internal=true cleanup=true.";
 export const FAILURE_CATEGORIES = Object.freeze([
@@ -36,6 +42,7 @@ const proofNamePatterns = Object.freeze({
   "m1-30a": /^zasp-m1-30a-[0-9a-f]{16}$/,
   "m1-30b": /^zasp-m1-30b-[0-9a-f]{16}$/,
   "m1-30c": /^zasp-m1-30c-[0-9a-f]{16}$/,
+  "m1-30d": /^zasp-m1-30d-[0-9a-f]{16}$/,
 });
 const objectIdPattern = /^[0-9a-f]{64}$/;
 const ipv4Pattern = /^(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)$/;
@@ -1116,7 +1123,8 @@ export class LocalProductSystem {
       : await this.rememberOwnedPath(this.paths.kubeconfig, "file", phase, category);
     validateKubeconfigBytes(kubeconfig.bytes, this.cluster, identity.apiPort, this.profile.proof);
     this.nodeIdentity = identity;
-    if (this.profile.proof === "m1-30b" || this.profile.proof === "m1-30c") {
+    if (this.profile.proof === "m1-30b" || this.profile.proof === "m1-30c" ||
+        this.profile.proof === "m1-30d") {
       const pidLimit = await this.runRead("docker", [
         "exec", identity.token, "grep", "-E", "^(apiVersion|kind|podPidsLimit):", "/var/lib/kubelet/config.yaml",
       ], phase, category, 15_000, 16_384);
@@ -2767,7 +2775,7 @@ function validateOrchestrationOptions(value) {
     "cleanupTimeoutMilliseconds", "mainTimeoutMilliseconds", "settlementTimeoutMilliseconds",
   ], "orchestration options");
   for (const name of Object.keys(value)) {
-    if (!Number.isSafeInteger(value[name]) || value[name] < 1 || value[name] > 900_000) {
+    if (!Number.isSafeInteger(value[name]) || value[name] < 1 || value[name] > 1_200_000) {
       throw new TypeError(`${name} is invalid`);
     }
   }
@@ -2845,6 +2853,28 @@ function validateSystemProfile(value) {
       "observability-span.yaml",
       "observabilitySpanManifest",
       renderObservabilitySpanManifest(buildObservabilitySpanResources()),
+    ],
+  ] : value.proof === "m1-30d" ? [
+    ["graph.yaml", "graphManifest", renderGraphManifest(buildGraphResources())],
+    [
+      "observability.yaml",
+      "observabilityCoreManifest",
+      renderObservabilityCoreManifest(buildObservabilityCoreResources()),
+    ],
+    [
+      "observability-span.yaml",
+      "observabilitySpanManifest",
+      renderObservabilitySpanManifest(buildObservabilitySpanResources()),
+    ],
+    [
+      "aws-emulator.yaml",
+      "awsEmulatorCoreManifest",
+      renderAwsEmulatorCoreManifest(buildAwsEmulatorCoreResources()),
+    ],
+    [
+      "aws-emulator-s3.yaml",
+      "awsEmulatorS3Manifest",
+      renderAwsEmulatorS3Manifest(buildAwsEmulatorS3Resources()),
     ],
   ] : undefined;
   if (expected === undefined || !plainDataArray(value.manifests) || value.manifests.length !== expected.length) {
