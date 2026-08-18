@@ -179,6 +179,38 @@ type fakePolicyService struct {
 	policyID string
 }
 
+type recordingMigrationExecutor struct {
+	calls int
+	sql   []string
+}
+
+func (executor *recordingMigrationExecutor) Exec(_ context.Context, statement string, arguments ...any) error {
+	if len(arguments) != 0 {
+		return ErrRejected
+	}
+	executor.calls++
+	executor.sql = append(executor.sql, statement)
+	return nil
+}
+
+func TestMigrationExecutesRepeatablyThroughDatabaseBoundary(t *testing.T) {
+	executor := &recordingMigrationExecutor{}
+	if err := ApplyMigration(context.Background(), executor); err != nil {
+		t.Fatal(err)
+	}
+	if err := ApplyMigration(context.Background(), executor); err != nil {
+		t.Fatal(err)
+	}
+	if executor.calls != 2 || len(executor.sql) != 2 || executor.sql[0] != MigrationSQL() || executor.sql[1] != MigrationSQL() {
+		t.Fatalf("calls=%d sql=%q", executor.calls, executor.sql)
+	}
+	for _, table := range []string{"security_agents", "security_agent_runs", "security_agent_steps", "security_agent_approvals", "security_action_idempotency"} {
+		if !strings.Contains(executor.sql[0], "EXCEPTION WHEN duplicate_object THEN NULL") || !strings.Contains(executor.sql[0], "CREATE POLICY "+table+"_tenant") {
+			t.Fatalf("migration is not repeatably safe for %s", table)
+		}
+	}
+}
+
 func (s *fakePolicyService) CreateTemporaryPolicy(_ context.Context, spec TemporaryPolicySpec, key string) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

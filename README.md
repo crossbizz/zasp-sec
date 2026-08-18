@@ -325,18 +325,17 @@ controls, retention, guarded external flows, allowlist-only telemetry, governed
 AI, system health, degraded-state UX, complete UI/API coverage, and a local gate.
 Provider-backed staging and live outage injection are not claimed.
 
-M7A-01 through M7A-17 are batched as In progress. The Security Agent foundation
-adds tenant-scoped definitions, runs,
-steps, approvals, idempotency, structured plans, an action registry, and a
-bounded temporary runtime-policy action. These local contracts do not claim a
-live Neon migration, production policy-service adapter, or provider-backed M7
-gate.
+M7A-01 through M7A-18d are Complete. The Security Agent core adds tenant-scoped
+definitions, runs, steps, approvals, idempotency, structured plans, a
+repeatably executable migration boundary, a bounded temporary runtime-policy
+action, and expiry cleanup. These local contracts do not claim a live Neon
+deployment or provider-backed M7 gate.
 
-M7A-18 through M7A-38 are batched as In progress. The Security Agent runtime
-now has bounded temporary-control verification and expiry, eight guarded
-response actions, five versioned templates, scoped finding/attack-path/runtime
-matchers, and cooldown deduplication. External policy, gateway, connector,
-webhook, and persistence adapters remain explicit unresolved boundaries.
+M7A-19 through M7A-38 are batched as In progress. The Security Agent runtime
+now has eight guarded response actions, five versioned templates, scoped
+finding/attack-path/runtime matchers, and cooldown deduplication. External
+gateway, connector, webhook, and persistence adapters remain explicit
+unresolved boundaries.
 
 M7A-38a through M7A-59 are batched as In progress. Canonical trigger sources
 now feed a replay-safe dispatcher, the structured planner separates policy and

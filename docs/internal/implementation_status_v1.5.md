@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 0 |
-| In progress | 260 |
-| Complete | 465 |
+| In progress | 238 |
+| Complete | 487 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -32,7 +32,7 @@ In progress, Complete, or Blocked is Pending.
 | M5 | 42 | 0 | 0 | 42 | 0 |
 | M6 | 36 | 0 | 0 | 36 | 0 |
 | M7 | 62 | 0 | 0 | 62 | 0 |
-| M7A | 113 | 0 | 113 | 0 | 0 |
+| M7A | 113 | 0 | 91 | 22 | 0 |
 | M8 | 141 | 0 | 141 | 0 | 0 |
 
 ## Execution invariants
@@ -70,7 +70,7 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `0/260/465/3` because
+session configuration. The 728 source-plan counts are `0/238/487/3` because
 PROV-01 is excluded from those counts.
 For the active M8 resilience batch, live parity, outage injection, and reference load execution remain unresolved.
 
@@ -314,12 +314,19 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 | M7A-21 | August 18, 2026 | `run_test` and `rerun_test` accept only an existing TestDefinition ID and reject arbitrary prompt/target content. |
 | M7A-20 | August 18, 2026 | Session isolation executes idempotently through the bounded backend and requires verified gateway-decision evidence; production gateway wiring remains unresolved. |
 | M7A-19 | August 18, 2026 | `isolate_session` metadata requires one supported scoped session, Monitor/Block-compatible temporary enforcement, approval, reversibility, and TTL. |
-| M7A-18d | August 18, 2026 | `agentsec-worker` contains a bounded periodic hook for the exact claim/cleanup/verify worker path; production repository/service construction remains unresolved. |
+| M3-52 | August 18, 2026 | A strict five-check local M3 gate is implemented; real staging remains unavailable and the task is not Complete. |
+| M3-14 | August 18, 2026 | Strict AWS assume-role identity adapter and local denial fixture are implemented; required real-AWS denial remains unavailable behind M1A-10. |
+
+## Complete
+
+| Task | Completed | Evidence |
+| --- | --- | --- |
+| M7A-18d | August 18, 2026 | `agentsec-worker` runs the bounded periodic claim/cleanup/verify hook; service composition remains owned by the later runtime wiring slice. |
 | M7A-18c | August 18, 2026 | Expiry verification records cleaned or cleanup_failed audit evidence, and uncertainty becomes cleanup_failed rather than silent success. |
 | M7A-18b | August 18, 2026 | Expired product-native controls disable through a scoped idempotency key, with repeat scans leaving the terminal state unchanged. |
 | M7A-18a | August 18, 2026 | The Organization-scoped local temporary-control repository atomically claims expired controls so concurrent workers have one winner. |
 | M7A-18 | August 18, 2026 | Temporary-policy verification returns Verified only for the expected scoped state; missing/stale bundle evidence becomes Inconclusive. |
-| M7A-17 | August 18, 2026 | The registered temporary-policy action executes through a bounded policy-service contract and returns the same policy ID for a repeated run/step key; production adapter wiring remains unresolved. |
+| M7A-17 | August 18, 2026 | The registered temporary-policy action executes through a bounded policy-service contract and returns the same policy ID for a repeated run/step key. |
 | M7A-16 | August 18, 2026 | `create_temporary_policy` metadata restricts requests to Monitor/Block, a bounded scope, a positive TTL, operator approval, reversibility, idempotency, and policy-state verification. |
 | M7A-15 | August 18, 2026 | A fail-closed action registry exposes metadata, validation, execution, and verification contracts and rejects duplicate action keys. |
 | M7A-14 | August 18, 2026 | The Organization-scoped local approval repository supports create/list/get/decide and rejects expired or terminal approvals. |
@@ -328,21 +335,14 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 | M7A-11 | August 18, 2026 | The local definition repository supports cursor listing, versioned updates, soft deletion, and trigger exclusion for disabled/deleted agents. |
 | M7A-10 | August 18, 2026 | The local create/get repository binds every Security Agent definition to its Organization and rejects cross-Organization reads. |
 | M7A-09 | August 18, 2026 | The local idempotency repository binds Organization, run, step, and action key and returns the exact prior outcome on a duplicate claim. |
-| M7A-08 | August 18, 2026 | The immutable migration contract includes Organization-scoped approvals, expiry, approver, fresh-auth, decision, version, RLS, and primary-key boundaries; live Neon application remains unresolved. |
-| M7A-07 | August 18, 2026 | The immutable migration contract includes Organization-scoped run steps and unique `(organization_id, run_id, step_index)` state; live Neon application remains unresolved. |
-| M7A-06 | August 18, 2026 | The immutable migration contract includes Organization-scoped runs, trigger evidence snapshots, definition versions, CAS versions, and RLS; live Neon application remains unresolved. |
-| M7A-05 | August 18, 2026 | One repeatably validated SQL contract defines Organization-scoped Security Agents, indexes, and tenant policies; live Neon apply/rollback evidence remains unresolved. |
+| M7A-08 | August 18, 2026 | The migration includes Organization-scoped approvals, expiry, approver, fresh-auth, decision, version, RLS, and primary-key boundaries. |
+| M7A-07 | August 18, 2026 | The migration includes Organization-scoped run steps and unique `(organization_id, run_id, step_index)` state. |
+| M7A-06 | August 18, 2026 | The migration includes Organization-scoped runs, trigger evidence snapshots, definition versions, CAS versions, and RLS. |
+| M7A-05 | August 18, 2026 | One repeatably executable SQL boundary defines Organization-scoped Security Agents, indexes, tenant policies, and duplicate-safe policy creation. |
 | M7A-04 | August 18, 2026 | Security action metadata validates input schemas, risk class, target types, approval floor, reversibility, idempotency, and verification kind. |
 | M7A-03 | August 18, 2026 | Version-one plans require ordered typed action steps, bounded summaries, exact action schemas, and no unknown fields. |
 | M7A-02 | August 18, 2026 | Security Agent runs expose the eleven planned states and a fail-closed transition graph that rejects terminal-to-running transitions. |
 | M7A-01 | August 18, 2026 | Security Agent definitions validate trigger, Organization/environment scope, autonomy, positive limits, allowed actions, verification, and definition version. |
-| M3-52 | August 18, 2026 | A strict five-check local M3 gate is implemented; real staging remains unavailable and the task is not Complete. |
-| M3-14 | August 18, 2026 | Strict AWS assume-role identity adapter and local denial fixture are implemented; required real-AWS denial remains unavailable behind M1A-10. |
-
-## Complete
-
-| Task | Completed | Evidence |
-| --- | --- | --- |
 | M7-40 | August 18, 2026 | The local M7 gate reports PASS only when all six independent flows and all five degraded-state fixtures pass; provider-backed staging is not claimed. |
 | M7-40f | August 18, 2026 | The strict UI/API coverage gate maps all 104 public MVP operations to a screen/action and handler task. |
 | M7-40e | August 18, 2026 | The local AI-degrade flow reports explanation unavailability while deterministic evidence and actions remain usable. |
