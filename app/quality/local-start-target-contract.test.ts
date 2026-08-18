@@ -74,4 +74,41 @@ describe("M1-30 assembled local start target", () => {
     }
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
+
+  it("exposes one bounded assembled root command without claiming persistent or product AWS behavior", async () => {
+    const [packageSource, readme] = await Promise.all([
+      readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+    ]);
+    const scripts = JSON.parse(packageSource).scripts as Record<string, string>;
+    const section = readme.match(/## Assembled local development target[\s\S]*?(?=\n## )/)?.[0] ?? "";
+
+    expect(scripts["local:start"]).toBe("node deploy/local/start.mjs");
+    for (const value of [
+      "M1-30 is In progress",
+      "M1-30a, M1-30b, M1-30c, and M1-30d",
+      "Node.js `22.23.1` and npm `10.9.8`",
+      "npm run local:start",
+      "start-and-verify",
+      "one disposable kind cluster",
+      "ClusterIP-only",
+      "no Ingress, NodePort, LoadBalancer, or host workload port",
+      "never reads the ambient kubeconfig",
+      "reverse cleanup",
+      "Local AWS emulator manifest passed: ready=true internal=true endpoint=true s3=true cleanup=true.",
+      "Local AWS emulator manifest failed: <category> rejected.",
+      "M1-31",
+    ]) {
+      expect(section).toContain(value);
+    }
+    for (const forbidden of [
+      "persistent local cluster",
+      "vendor dashboard is exposed",
+      "production parity",
+      "product AWS clients are wired",
+      "shared resource is modified",
+    ]) {
+      expect(section).not.toContain(forbidden);
+    }
+  });
 });

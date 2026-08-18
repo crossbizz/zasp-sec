@@ -36,6 +36,7 @@
     "local:aws-emulator:test": "node --test deploy/local/manifests.test.mjs deploy/local/run.test.mjs deploy/local/graph-manifest.test.mjs deploy/local/graph-run.test.mjs deploy/local/graph-license-audit.test.mjs deploy/local/observability-manifest.test.mjs deploy/local/observability-run.test.mjs deploy/local/observability-license-audit.test.mjs deploy/local/aws-emulator-manifest.test.mjs deploy/local/aws-emulator-run.test.mjs deploy/local/aws-emulator-license-audit.test.mjs",
     "local:aws-emulator:run": "node deploy/local/aws-emulator-run.mjs",
     "local:aws-emulator:license": "node deploy/local/aws-emulator-license-audit.mjs",
+    "local:start": "node deploy/local/start.mjs",
     "securityevent:test": "go test -C services/platform -race -count=1 ./securityevent",
     "graph:store:test": "go test -C services/platform -race -count=1 ./graphstore",
     "graph:neo4j:test": "go test -C services/platform -race -count=1 ./graphstore/... && go test -C proofs/neo4j-graphstore -race -count=1 ./... && node --test proofs/neo4j-graphstore/run.test.mjs proofs/neo4j-graphstore/license-audit.test.mjs",

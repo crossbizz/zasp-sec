@@ -872,6 +872,33 @@ wire product AWS clients. M1-31 owns product client-factory consumption of the
 endpoint contract. M1-30 is In progress while its separate assembled local
 start target is implemented and verified.
 
+## Assembled local development target
+
+M1-30 is In progress. M1-30a, M1-30b, M1-30c, and M1-30d are Complete. The
+canonical start-and-verify target requires Node.js `22.23.1` and npm `10.9.8`,
+plus the Docker, Go, kubectl, kind asset, and network prerequisites of the
+reviewed profiles:
+
+```bash
+npm run local:start
+```
+
+The command delegates once to the reviewed M1-30d assembly. It creates one disposable kind cluster,
+proves the product, graph, observability, and LocalStack S3 profiles together,
+then performs reverse cleanup. All workload services remain ClusterIP-only,
+with no Ingress, NodePort, LoadBalancer, or host workload port, so vendor
+dashboards are not published outside the cluster. The command uses its own
+Docker configuration and kubeconfig and never reads the ambient kubeconfig,
+dotenv, cloud credentials, profiles, proxies, or customer state.
+
+Success is exactly
+`Local AWS emulator manifest passed: ready=true internal=true endpoint=true s3=true cleanup=true.`
+Failures are exactly
+`Local AWS emulator manifest failed: <category> rejected.` The target does not
+leave the cluster running, modify shared resources, or wire product AWS
+clients. M1-31 owns product client-factory consumption of the endpoint
+contract.
+
 ## Neon pooled proof
 
 The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,
