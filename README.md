@@ -388,12 +388,11 @@ and SOC 2 gates are Complete. SPDX generation, image-signature verification,
 and four golden stages are Blocked until final immutable release images,
 signing authority, and an authorized golden deployment exist.
 
-M8-51e through M8-60b are batched as In progress. The release chart now has
-SaaS, single-tenant, and lightweight customer-edge profiles; the CLI boundary
-adds golden evidence aggregation, bounded install usability and partner-value
-gates, two-Organization quota/isolation runners, and a scoped SaaS golden-start
-fixture. Human usability observations and live SaaS/reference runs remain
-required before these tasks can move to Complete.
+M8-51e through M8-60b are classified. The SaaS, single-tenant, and customer-edge
+profiles plus bounded quota, isolation, and golden fixtures are Complete and
+render through the shared chart. Human usability and design-partner observations
+and live quota, isolation, and golden executions are Blocked until their
+authorized people and environments exist.
 
 M8-60 through M8-54 are batched as In progress. The CLI now validates the
 completed SaaS golden workflow, matching single-tenant behavior, all five

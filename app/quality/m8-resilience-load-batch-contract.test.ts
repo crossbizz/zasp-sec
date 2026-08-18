@@ -30,7 +30,7 @@ describe("M8-23c through M8-39 resilience and load batch", () => {
     for (const id of [...completed, ...externallyBlocked]) expect(active.match(new RegExp(`^\\| ${id} \\|`, "gm")) ?? []).toHaveLength(0);
     for (const id of completed) expect(complete.match(new RegExp(`^\\| ${id} \\|`, "gm"))).toHaveLength(1);
     for (const id of externallyBlocked) expect(blocked.match(new RegExp(`^\\| ${id} \\|`, "gm"))).toHaveLength(1);
-    for (const value of ["| Pending | 0 |", "| In progress | 47 |", "| Complete | 655 |", "| Blocked | 26 |", "`0/47/655/26`", "| M8 | 141 | 0 | 41 | 77 | 23 |"]) expect(tracker).toContain(value);
+    for (const value of ["| Pending | 0 |", "| In progress | 22 |", "| Complete | 667 |", "| Blocked | 39 |", "`0/22/667/39`", "| M8 | 141 | 0 | 16 | 89 | 36 |"]) expect(tracker).toContain(value);
     expect(tracker).toContain("resilience executions require an authorized isolated AWS/reference deployment");
   });
 });

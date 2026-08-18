@@ -15,7 +15,7 @@ describe("M7 gate and Security Agent foundation batch", () => {
 
   it("records the M7 gate and Security Agent foundation complete", () => {
     const tracker = read("docs/internal/implementation_status_v1.5.md");
-    for (const value of ["| Pending | 0 |", "| In progress | 47 |", "| Complete | 655 |", "| Blocked | 26 |", "`0/47/655/26`", "| M7 | 62 | 0 | 0 | 62 | 0 |", "| M7A | 113 | 0 | 0 | 113 | 0 |"]) expect(tracker).toContain(value);
+    for (const value of ["| Pending | 0 |", "| In progress | 22 |", "| Complete | 667 |", "| Blocked | 39 |", "`0/22/667/39`", "| M7 | 62 | 0 | 0 | 62 | 0 |", "| M7A | 113 | 0 | 0 | 113 | 0 |"]) expect(tracker).toContain(value);
     const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
     const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] ?? "";
     for (const task of ["M7-39", "M7-40a", "M7-40b", "M7-40c", "M7-40d", "M7-40e", "M7-40f", "M7-40"]) expect(complete.match(new RegExp(`^\\| ${task} \\|`, "gm"))).toHaveLength(1);
