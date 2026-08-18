@@ -4,6 +4,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
 
 const (
@@ -12,15 +14,134 @@ const (
 	testPostHog      = "arn:aws:secretsmanager:us-east-1:000000000000:secret:platform/posthog"
 	testOpenRouter   = "arn:aws:secretsmanager:us-east-1:000000000000:secret:platform/openrouter"
 	testRemoteOTLP   = "arn:aws:secretsmanager:us-east-1:000000000000:secret:platform/remote-otlp"
+	testOrganization = "pid_00000000-0000-4000-8000-000000000001"
 )
 
 func validSource() map[string]string {
 	return map[string]string{
+		KeyDeploymentMode:        "saas",
 		KeyStytchProjectID:       "project-live-platform",
 		KeyStytchSecretRef:       testStytchSecret,
 		KeyNeonDSNSecretRef:      testNeonSecret,
 		KeyAWSRegion:             "us-east-1",
 		KeyOTelCollectorEndpoint: "http://otel-collector.platform.svc:4317",
+	}
+}
+
+func TestParseDeploymentMode(t *testing.T) {
+	tests := []struct {
+		text string
+		want DeploymentMode
+	}{
+		{text: "saas", want: DeploymentModeSaaS},
+		{text: "single_tenant", want: DeploymentModeSingleTenant},
+	}
+	for _, test := range tests {
+		t.Run(test.text, func(t *testing.T) {
+			parsed, err := ParseDeploymentMode(test.text)
+			if err != nil {
+				t.Fatalf("ParseDeploymentMode() error = %v", err)
+			}
+			if parsed != test.want || parsed.String() != test.text {
+				t.Fatalf("ParseDeploymentMode() = (%v, %q), want (%v, %q)", parsed, parsed.String(), test.want, test.text)
+			}
+		})
+	}
+
+	for _, text := range []string{"", "SaaS", "single-tenant", " single_tenant", "single_tenant ", "unknown", "true", "0"} {
+		t.Run("reject "+text, func(t *testing.T) {
+			parsed, err := ParseDeploymentMode(text)
+			if !errors.Is(err, ErrInvalidConfiguration) || parsed != DeploymentMode("") {
+				t.Fatalf("ParseDeploymentMode(%q) = (%v, %v)", text, parsed, err)
+			}
+			if strings.Contains(err.Error(), text) && text != "" {
+				t.Fatalf("error exposed rejected mode %q: %v", text, err)
+			}
+		})
+	}
+
+	for _, invalid := range []DeploymentMode{"", "invalid", "SAAS"} {
+		if invalid.String() != "" {
+			t.Fatalf("invalid DeploymentMode.String() = %q", invalid.String())
+		}
+	}
+}
+
+func TestLoadDeploymentModes(t *testing.T) {
+	saas, err := Load(lookup(validSource()))
+	if err != nil {
+		t.Fatalf("Load(saas) error = %v", err)
+	}
+	if saas.Deployment().Mode() != DeploymentModeSaaS {
+		t.Fatalf("Deployment().Mode() = %v", saas.Deployment().Mode())
+	}
+	if _, present := saas.Deployment().PinnedOrganizationID(); present {
+		t.Fatal("SaaS exposed a pinned Organization")
+	}
+
+	source := validSource()
+	source[KeyDeploymentMode] = "single_tenant"
+	source[KeySingleTenantOrganizationID] = testOrganization
+	singleTenant, err := Load(lookup(source))
+	if err != nil {
+		t.Fatalf("Load(single_tenant) error = %v", err)
+	}
+	if singleTenant.Deployment().Mode() != DeploymentModeSingleTenant {
+		t.Fatalf("Deployment().Mode() = %v", singleTenant.Deployment().Mode())
+	}
+	organizationID, present := singleTenant.Deployment().PinnedOrganizationID()
+	if !present || organizationID.String() != testOrganization {
+		t.Fatalf("PinnedOrganizationID() = (%q, %v)", organizationID.String(), present)
+	}
+	parsedOrganization, err := domain.ParseProductID(testOrganization)
+	if err != nil || organizationID != parsedOrganization {
+		t.Fatalf("pinned Organization is not the canonical domain value: (%v, %v)", organizationID, err)
+	}
+	if err := singleTenant.Validate(); err != nil {
+		t.Fatalf("Validate(single_tenant) error = %v", err)
+	}
+}
+
+func TestLoadRejectsInvalidDeploymentCombinations(t *testing.T) {
+	tests := []struct {
+		name     string
+		mode     string
+		modeSet  bool
+		pin      string
+		pinSet   bool
+		want     error
+		rejected string
+	}{
+		{name: "missing mode", want: ErrMissingRequiredConfiguration},
+		{name: "empty mode", modeSet: true, want: ErrMissingRequiredConfiguration},
+		{name: "unknown mode", mode: "dedicated", modeSet: true, want: ErrInvalidConfiguration, rejected: "dedicated"},
+		{name: "case drift", mode: "SaaS", modeSet: true, want: ErrInvalidConfiguration, rejected: "SaaS"},
+		{name: "saas empty pin", mode: "saas", modeSet: true, pinSet: true, want: ErrInvalidConfiguration},
+		{name: "saas canonical pin", mode: "saas", modeSet: true, pin: testOrganization, pinSet: true, want: ErrInvalidConfiguration, rejected: testOrganization},
+		{name: "single tenant missing pin", mode: "single_tenant", modeSet: true, want: ErrMissingRequiredConfiguration},
+		{name: "single tenant empty pin", mode: "single_tenant", modeSet: true, pinSet: true, want: ErrMissingRequiredConfiguration},
+		{name: "single tenant raw uuid", mode: "single_tenant", modeSet: true, pin: "00000000-0000-4000-8000-000000000001", pinSet: true, want: ErrInvalidConfiguration, rejected: "00000000-0000-4000-8000-000000000001"},
+		{name: "single tenant uppercase uuid", mode: "single_tenant", modeSet: true, pin: "pid_00000000-0000-4000-8000-00000000000A", pinSet: true, want: ErrInvalidConfiguration, rejected: "pid_00000000-0000-4000-8000-00000000000A"},
+		{name: "single tenant zero payload", mode: "single_tenant", modeSet: true, pin: "pid_00000000-0000-4000-8000-000000000000", pinSet: true, want: ErrInvalidConfiguration, rejected: "pid_00000000-0000-4000-8000-000000000000"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			source := validSource()
+			delete(source, KeyDeploymentMode)
+			if test.modeSet {
+				source[KeyDeploymentMode] = test.mode
+			}
+			if test.pinSet {
+				source[KeySingleTenantOrganizationID] = test.pin
+			}
+			_, err := Load(lookup(source))
+			if !errors.Is(err, test.want) {
+				t.Fatalf("Load() error = %v, want %v", err, test.want)
+			}
+			if test.rejected != "" && strings.Contains(err.Error(), test.rejected) {
+				t.Fatalf("error exposed rejected value: %v", err)
+			}
+		})
 	}
 }
 
@@ -71,6 +192,7 @@ func TestLoadRequiredDependencies(t *testing.T) {
 
 func TestLoadMissingRequiredConfiguration(t *testing.T) {
 	for _, key := range []string{
+		KeyDeploymentMode,
 		KeyStytchProjectID,
 		KeyStytchSecretRef,
 		KeyNeonDSNSecretRef,
@@ -295,11 +417,33 @@ func TestConfigRejectsInvalidDirectState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
+	organizationID, err := domain.ParseProductID(testOrganization)
+	if err != nil {
+		t.Fatalf("ParseProductID() error = %v", err)
+	}
 	tests := []struct {
 		name   string
 		mutate func(Config) Config
 	}{
 		{name: "zero", mutate: func(Config) Config { return Config{} }},
+		{name: "invalid deployment mode", mutate: func(value Config) Config {
+			value.deployment.mode = DeploymentMode("forged")
+			return value
+		}},
+		{name: "saas with Organization", mutate: func(value Config) Config {
+			value.deployment.organizationID = organizationID
+			value.deployment.hasOrganizationID = true
+			return value
+		}},
+		{name: "single tenant without Organization", mutate: func(value Config) Config {
+			value.deployment.mode = DeploymentModeSingleTenant
+			return value
+		}},
+		{name: "single tenant Organization without presence", mutate: func(value Config) Config {
+			value.deployment.mode = DeploymentModeSingleTenant
+			value.deployment.organizationID = organizationID
+			return value
+		}},
 		{name: "bad project", mutate: func(value Config) Config {
 			value.required.stytchProjectID.value = " bad"
 			return value
@@ -323,10 +467,38 @@ func TestConfigRejectsInvalidDirectState(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if err := test.mutate(valid).Validate(); !errors.Is(err, ErrInvalidConfiguration) {
+			invalid := test.mutate(valid)
+			if err := invalid.Validate(); !errors.Is(err, ErrInvalidConfiguration) {
 				t.Fatalf("Validate() error = %v", err)
 			}
 		})
+	}
+}
+
+func TestDeploymentRejectsInvalidDirectState(t *testing.T) {
+	organizationID, err := domain.ParseProductID(testOrganization)
+	if err != nil {
+		t.Fatalf("ParseProductID() error = %v", err)
+	}
+	invalid := []Deployment{
+		{},
+		{mode: DeploymentMode("forged")},
+		{mode: DeploymentModeSaaS, organizationID: organizationID},
+		{mode: DeploymentModeSaaS, organizationID: organizationID, hasOrganizationID: true},
+		{mode: DeploymentModeSingleTenant},
+		{mode: DeploymentModeSingleTenant, organizationID: organizationID},
+		{mode: DeploymentModeSingleTenant, hasOrganizationID: true},
+	}
+	for index, deployment := range invalid {
+		if deployment.valid() {
+			t.Fatalf("invalid[%d] validates", index)
+		}
+		if deployment.Mode() != DeploymentMode("") {
+			t.Fatalf("invalid[%d].Mode() = %q", index, deployment.Mode())
+		}
+		if organization, present := deployment.PinnedOrganizationID(); present || !organization.IsZero() {
+			t.Fatalf("invalid[%d].PinnedOrganizationID() = (%q, %v)", index, organization.String(), present)
+		}
 	}
 }
 
@@ -345,5 +517,24 @@ func TestConfigValuesAreComparable(t *testing.T) {
 	set := map[Config]struct{}{first: {}}
 	if _, found := set[second]; !found {
 		t.Fatal("configuration value is not usable as a comparable key")
+	}
+
+	singleTenantSource := validSource()
+	singleTenantSource[KeyDeploymentMode] = "single_tenant"
+	singleTenantSource[KeySingleTenantOrganizationID] = testOrganization
+	singleTenantFirst, err := Load(lookup(singleTenantSource))
+	if err != nil {
+		t.Fatalf("Load(singleTenantFirst) error = %v", err)
+	}
+	singleTenantSecond, err := Load(lookup(singleTenantSource))
+	if err != nil {
+		t.Fatalf("Load(singleTenantSecond) error = %v", err)
+	}
+	if singleTenantFirst != singleTenantSecond || singleTenantFirst == first {
+		t.Fatalf("deployment comparison mismatch: %#v %#v %#v", first, singleTenantFirst, singleTenantSecond)
+	}
+	deploymentSet := map[Deployment]struct{}{singleTenantFirst.Deployment(): {}}
+	if _, found := deploymentSet[singleTenantSecond.Deployment()]; !found {
+		t.Fatal("Deployment is not usable as a comparable key")
 	}
 }

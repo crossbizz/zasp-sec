@@ -7,20 +7,24 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
 
 const (
-	KeyStytchProjectID       = "AGENTSEC_STYTCH_PROJECT_ID"
-	KeyStytchSecretRef       = "AGENTSEC_STYTCH_SECRET_REF"
-	KeyNeonDSNSecretRef      = "AGENTSEC_NEON_DSN_SECRET_REF"
-	KeyAWSRegion             = "AGENTSEC_AWS_REGION"
-	KeyOTelCollectorEndpoint = "AGENTSEC_OTEL_COLLECTOR_ENDPOINT"
-	KeyPostHogEndpoint       = "AGENTSEC_POSTHOG_ENDPOINT"
-	KeyPostHogSecretRef      = "AGENTSEC_POSTHOG_SECRET_REF"
-	KeyOpenRouterEndpoint    = "AGENTSEC_OPENROUTER_ENDPOINT"
-	KeyOpenRouterSecretRef   = "AGENTSEC_OPENROUTER_SECRET_REF"
-	KeyRemoteOTLPEndpoint    = "AGENTSEC_REMOTE_OTLP_ENDPOINT"
-	KeyRemoteOTLPSecretRef   = "AGENTSEC_REMOTE_OTLP_SECRET_REF"
+	KeyDeploymentMode             = "AGENTSEC_DEPLOYMENT_MODE"
+	KeySingleTenantOrganizationID = "AGENTSEC_SINGLE_TENANT_ORGANIZATION_ID"
+	KeyStytchProjectID            = "AGENTSEC_STYTCH_PROJECT_ID"
+	KeyStytchSecretRef            = "AGENTSEC_STYTCH_SECRET_REF"
+	KeyNeonDSNSecretRef           = "AGENTSEC_NEON_DSN_SECRET_REF"
+	KeyAWSRegion                  = "AGENTSEC_AWS_REGION"
+	KeyOTelCollectorEndpoint      = "AGENTSEC_OTEL_COLLECTOR_ENDPOINT"
+	KeyPostHogEndpoint            = "AGENTSEC_POSTHOG_ENDPOINT"
+	KeyPostHogSecretRef           = "AGENTSEC_POSTHOG_SECRET_REF"
+	KeyOpenRouterEndpoint         = "AGENTSEC_OPENROUTER_ENDPOINT"
+	KeyOpenRouterSecretRef        = "AGENTSEC_OPENROUTER_SECRET_REF"
+	KeyRemoteOTLPEndpoint         = "AGENTSEC_REMOTE_OTLP_ENDPOINT"
+	KeyRemoteOTLPSecretRef        = "AGENTSEC_REMOTE_OTLP_SECRET_REF"
 )
 
 var (
@@ -31,6 +35,8 @@ var (
 )
 
 var allKeys = [...]string{
+	KeyDeploymentMode,
+	KeySingleTenantOrganizationID,
 	KeyStytchProjectID,
 	KeyStytchSecretRef,
 	KeyNeonDSNSecretRef,
@@ -42,6 +48,77 @@ var allKeys = [...]string{
 	KeyOpenRouterSecretRef,
 	KeyRemoteOTLPEndpoint,
 	KeyRemoteOTLPSecretRef,
+}
+
+var requiredKeys = [...]string{
+	KeyDeploymentMode,
+	KeyStytchProjectID,
+	KeyStytchSecretRef,
+	KeyNeonDSNSecretRef,
+	KeyAWSRegion,
+	KeyOTelCollectorEndpoint,
+}
+
+type DeploymentMode string
+
+const (
+	DeploymentModeSaaS         DeploymentMode = "saas"
+	DeploymentModeSingleTenant DeploymentMode = "single_tenant"
+)
+
+func ParseDeploymentMode(value string) (DeploymentMode, error) {
+	mode := DeploymentMode(value)
+	if !mode.valid() {
+		return "", ErrInvalidConfiguration
+	}
+	return mode, nil
+}
+
+func (mode DeploymentMode) String() string {
+	if !mode.valid() {
+		return ""
+	}
+	return string(mode)
+}
+
+func (mode DeploymentMode) valid() bool {
+	return mode == DeploymentModeSaaS || mode == DeploymentModeSingleTenant
+}
+
+type Deployment struct {
+	mode              DeploymentMode
+	organizationID    domain.ProductID
+	hasOrganizationID bool
+}
+
+func (deployment Deployment) Mode() DeploymentMode {
+	if !deployment.valid() {
+		return ""
+	}
+	return deployment.mode
+}
+
+func (deployment Deployment) PinnedOrganizationID() (domain.ProductID, bool) {
+	if !deployment.valid() || deployment.mode != DeploymentModeSingleTenant {
+		return domain.ProductID{}, false
+	}
+	return deployment.organizationID, true
+}
+
+func (deployment Deployment) valid() bool {
+	switch deployment.mode {
+	case DeploymentModeSaaS:
+		return !deployment.hasOrganizationID && deployment.organizationID.IsZero()
+	case DeploymentModeSingleTenant:
+		if !deployment.hasOrganizationID {
+			return false
+		}
+		text := deployment.organizationID.String()
+		parsed, err := domain.ParseProductID(text)
+		return err == nil && parsed == deployment.organizationID
+	default:
+		return false
+	}
 }
 
 type StytchProjectID struct {
@@ -343,8 +420,9 @@ func (dependencies OptionalDependencies) valid() bool {
 }
 
 type Config struct {
-	required RequiredDependencies
-	optional OptionalDependencies
+	deployment Deployment
+	required   RequiredDependencies
+	optional   OptionalDependencies
 }
 
 func Load(lookup func(string) (string, bool)) (Config, error) {
@@ -356,10 +434,15 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 	for _, key := range allKeys {
 		values[key], present[key] = lookup(key)
 	}
-	for _, key := range allKeys[:5] {
+	for _, key := range requiredKeys {
 		if !present[key] || values[key] == "" {
 			return Config{}, ErrMissingRequiredConfiguration
 		}
+	}
+
+	deployment, err := loadDeployment(values, present)
+	if err != nil {
+		return Config{}, err
 	}
 
 	stytchProjectID, err := ParseStytchProjectID(values[KeyStytchProjectID])
@@ -388,6 +471,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		return Config{}, err
 	}
 	loaded := Config{
+		deployment: deployment,
 		required: RequiredDependencies{
 			stytchProjectID:       stytchProjectID,
 			stytchSecretReference: stytchSecretReference,
@@ -403,6 +487,10 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 	return loaded, nil
 }
 
+func (configuration Config) Deployment() Deployment {
+	return configuration.deployment
+}
+
 func (configuration Config) Required() RequiredDependencies {
 	return configuration.required
 }
@@ -412,10 +500,37 @@ func (configuration Config) Optional() OptionalDependencies {
 }
 
 func (configuration Config) Validate() error {
-	if !configuration.required.valid() || !configuration.optional.valid() {
+	if !configuration.deployment.valid() || !configuration.required.valid() || !configuration.optional.valid() {
 		return ErrInvalidConfiguration
 	}
 	return nil
+}
+
+func loadDeployment(values map[string]string, present map[string]bool) (Deployment, error) {
+	mode, err := ParseDeploymentMode(values[KeyDeploymentMode])
+	if err != nil {
+		return Deployment{}, err
+	}
+	pinValue := values[KeySingleTenantOrganizationID]
+	pinPresent := present[KeySingleTenantOrganizationID]
+	switch mode {
+	case DeploymentModeSaaS:
+		if pinPresent {
+			return Deployment{}, ErrInvalidConfiguration
+		}
+		return Deployment{mode: mode}, nil
+	case DeploymentModeSingleTenant:
+		if !pinPresent || pinValue == "" {
+			return Deployment{}, ErrMissingRequiredConfiguration
+		}
+		organizationID, parseErr := domain.ParseProductID(pinValue)
+		if parseErr != nil {
+			return Deployment{}, ErrInvalidConfiguration
+		}
+		return Deployment{mode: mode, organizationID: organizationID, hasOrganizationID: true}, nil
+	default:
+		return Deployment{}, ErrInvalidConfiguration
+	}
 }
 
 func loadOptional(values map[string]string, present map[string]bool) (OptionalDependencies, error) {
