@@ -66,14 +66,14 @@ describe("M1-35 base web shell", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(readme.replace(/\s+/g, " ")).toContain("M1-35 is Complete");
-    expect(tracker).toContain("| Pending | 642 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 641 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 83 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`642/0/83/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "9", "0", "59", "0"]);
+    expect(tracker).toContain("`641/1/83/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "8", "1", "59", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.map(([task]) => task)).toEqual([]);
+    expect(active.map(([task]) => task)).toEqual(["M1-42"]);
     expect(complete).toHaveLength(83);
     expect(active.filter(([task]) => task === "M1-35")).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-35")).toHaveLength(1);
@@ -89,7 +89,7 @@ describe("M1-35 base web shell", () => {
     ]);
     const packageJson = JSON.parse(packageText) as { scripts: Record<string, string> };
     const command = "vitest run app/domain/routes.test.ts app/domain/route-guard.test.ts app/components/LeftNav.test.tsx app/components/UnauthenticatedRouteGuard.test.tsx app/components/ZaspApp.test.tsx";
-    const section = readme.match(/## Base web shell[\s\S]*?## Development/)?.[0] ?? "";
+    const section = readme.match(/## Base web shell[\s\S]*?## M1 build check/)?.[0] ?? "";
     const prose = section.replace(/\s+/g, " ");
 
     expect(packageJson.scripts["web:shell:test"]).toBe(command);
