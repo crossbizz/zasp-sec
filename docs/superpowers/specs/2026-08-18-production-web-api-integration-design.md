@@ -166,11 +166,17 @@ than simulated.
 
 ## Deployment
 
-The production deployment contains separate immutable `web` and
-`agentsec-api` workloads behind one ingress or edge route. The API is private
+The first production deployment contains separate immutable Next.js standalone
+`web` and `agentsec-api` workloads in the same Kubernetes cluster behind one
+TLS ingress. The API is private
 except for `/api/v1/*`; its internal health port is reachable only by the
 cluster. All images are digest-pinned, non-root, read-only where possible, and
 run with bounded CPU, memory, and PID resources.
+
+The existing Cloudflare/Vinext runtime is not part of the first production
+path. Proxying from Cloudflare into a private Kubernetes API would require an
+additional tunnel and duplicate edge-security policy without improving the MVP
+workflow. It can remain a development or future deployment option.
 
 Secrets are provided by the platform secret manager. Configuration is parsed
 once at startup through the existing strict loader. Logs are structured and
@@ -224,4 +230,3 @@ complete vertical boundary and lands only when its backend, client, UI,
 integration tests, deployment wiring, and operational checks are coherent.
 Independent backend, frontend, and delivery work runs in parallel, but no batch
 is called complete until a real browser-to-durable-store path passes.
-

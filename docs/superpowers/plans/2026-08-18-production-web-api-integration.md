@@ -17,7 +17,7 @@ OpenAPI operations to durable domain services, and exposes health separately.
 The frontend uses one generated-client transport and feature query modules;
 production never falls back to `DEMO_STATE` or local product persistence.
 
-**Tech stack:** React, strict TypeScript, Vinext/Cloudflare Workers,
+**Tech stack:** React, strict TypeScript, Next.js standalone containers,
 `openapi-fetch`, Go 1.25, PostgreSQL/Neon, OpenSearch, Neo4j, S3, SQS, Stytch
 B2B, Kubernetes/Helm, Vitest, Testing Library, Go race tests, and browser E2E.
 
@@ -41,7 +41,7 @@ B2B, Kubernetes/Helm, Vitest, Testing Library, Go race tests, and browser E2E.
 
 ---
 
-## Batch 1: Production transport, composed API, and core risk workflow
+### Task 1: Batch 1 — Production transport, composed API, and core risk workflow
 
 **Outcome:** A signed-in browser can load durable overview, agent inventory,
 findings, and attack paths, perform a finding mutation, reload, and observe the
@@ -145,7 +145,7 @@ git diff --check
 
 ---
 
-## Batch 2: Policy, integrations, sensors, and security-agent workflow
+### Task 2: Batch 2 — Policy, integrations, sensors, and security-agent workflow
 
 **Outcome:** Operators can configure a real integration, observe sensor state,
 create/simulate/roll out a policy, and plan/approve/run a security agent with
@@ -192,7 +192,7 @@ durable audit history.
 
 ---
 
-## Batch 3: Identity administration, sessions, compliance, and operations
+### Task 3: Batch 3 — Identity administration, sessions, compliance, and operations
 
 **Outcome:** Administrators can manage scoped access and audit state, and users
 can investigate sessions and produce durable compliance evidence/exports.
@@ -233,7 +233,7 @@ can investigate sessions and produce durable compliance evidence/exports.
 
 ---
 
-## Batch 4: Red team, Attack Lab, reports, and remaining product surfaces
+### Task 4: Batch 4 — Red team, Attack Lab, reports, and remaining product surfaces
 
 **Outcome:** Every remaining visible production route is API-backed; prototype
 stores and duplicate/static route surfaces are removed from production code.
@@ -274,7 +274,7 @@ stores and duplicate/static route surfaces are removed from production code.
 
 ---
 
-## Batch 5: Same-origin deployment, observability, resilience, and release
+### Task 5: Batch 5 — Same-origin deployment, observability, resilience, and release
 
 **Outcome:** Immutable web/API artifacts deploy behind one origin, pass real
 browser-to-durable-store smoke tests, and can be operated safely.
@@ -323,4 +323,3 @@ The work is complete only when:
 - deployed E2E proves sign-in, core workflows, reload/restart persistence,
   degraded behavior, and cross-tenant denial;
 - local and remote verification pass for the exact shipped commit.
-
