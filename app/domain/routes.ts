@@ -1,47 +1,58 @@
 import type { AppRoute, NavGroup } from "./types";
 
-export const NAV_GROUPS: NavGroup[] = [
-  {
-    items: [
-      { path: "/", label: "Overview", title: "Security overview", icon: "LayoutDashboard" },
-      { path: "/discovery/assets", label: "Agentic assets", title: "Agentic assets", icon: "Boxes", parent: "Discovery" },
-      { path: "/discovery/endpoints", label: "Endpoints", title: "Agent endpoints", icon: "Waypoints", parent: "Discovery" },
-      { path: "/discovery/sensitive-data", label: "Sensitive data", title: "Sensitive data", icon: "Fingerprint", parent: "Discovery" },
-      { path: "/discovery/recent-changes", label: "Recent changes", title: "Recent changes", icon: "History", parent: "Discovery" },
-    ],
-  },
-  {
-    label: "Identity governance",
-    items: [
-      { path: "/identities", label: "Identities", title: "Non-human identities", icon: "KeyRound" },
-      { path: "/violations", label: "Violations", title: "Identity violations", icon: "TriangleAlert" },
-      { path: "/policies", label: "Policies", title: "Identity policies", icon: "FileSliders" },
-    ],
-  },
-  {
-    label: "Runtime protection",
-    items: [
-      { path: "/guardrails/dashboard", label: "Guardrails", title: "Guardrail dashboard", icon: "ShieldCheck", parent: "Guardrails" },
-      { path: "/guardrails/activity", label: "Guardrail activity", title: "Guardrail activity", icon: "Activity", parent: "Guardrails" },
-      { path: "/guardrails/actors", label: "Actors", title: "Guardrail actors", icon: "Users", parent: "Guardrails" },
-      { path: "/guardrails/components", label: "Protected components", title: "Protected components", icon: "Blocks", parent: "Guardrails" },
-      { path: "/guardrails/policies", label: "Guardrail policies", title: "Guardrail policies", icon: "ShieldEllipsis", parent: "Guardrails" },
-    ],
-  },
-  {
-    label: "Assurance",
-    items: [
-      { path: "/red-team/results", label: "Red team results", title: "Red team results", icon: "ScanSearch", parent: "Red teaming" },
-      { path: "/red-team/scans", label: "Scan runs", title: "Red team scans", icon: "Radar", parent: "Red teaming" },
-      { path: "/connectors", label: "Connectors", title: "Connectors", icon: "PlugZap" },
-      { path: "/prompt-hardening", label: "Prompt hardening", title: "Prompt hardening", icon: "WandSparkles" },
-      { path: "/reports", label: "Reports", title: "Reports", icon: "ChartNoAxesCombined" },
-    ],
-  },
-];
+function route(value: AppRoute): AppRoute {
+  return Object.freeze(value);
+}
 
-export const allRoutes: AppRoute[] = NAV_GROUPS.flatMap((group) => group.items);
+function group(label: string, items: AppRoute[]): NavGroup {
+  return Object.freeze({ label, items: Object.freeze(items) });
+}
+
+export const NAV_GROUPS: readonly NavGroup[] = Object.freeze([
+  group("Home", [
+    route({ path: "/", label: "Overview", title: "Security overview", icon: "LayoutDashboard" }),
+  ]),
+  group("Inventory", [
+    route({ path: "/discovery/assets", label: "Agents", title: "Agents", icon: "Boxes" }),
+    route({ path: "/inventory/tools", label: "Tools & MCP", title: "Tools and MCP", icon: "Wrench" }),
+    route({ path: "/identities", label: "Identities", title: "Non-human identities", icon: "KeyRound" }),
+    route({ path: "/inventory/runtimes", label: "Runtimes", title: "Runtimes", icon: "Container" }),
+  ]),
+  group("Exposure", [
+    route({ path: "/violations", label: "Findings", title: "Exposure findings", icon: "TriangleAlert" }),
+    route({ path: "/exposure/attack-paths", label: "Attack Paths", title: "Attack paths", icon: "Route" }),
+  ]),
+  group("Test", [
+    route({ path: "/red-team/results", label: "Red Team", title: "Red team", icon: "ScanSearch" }),
+    route({ path: "/test/attack-lab", label: "Attack Lab", title: "Attack lab", icon: "FlaskConical" }),
+  ]),
+  group("Protect", [
+    route({ path: "/policies", label: "Policies", title: "Policies", icon: "FileSliders" }),
+    route({ path: "/protect/security-agents", label: "Security Agents", title: "Security agents", icon: "ShieldCheck" }),
+    route({ path: "/protect/approvals", label: "Approvals", title: "Approvals", icon: "BadgeCheck" }),
+  ]),
+  group("Investigate", [
+    route({ path: "/investigate/sessions", label: "Sessions", title: "Sessions", icon: "Search" }),
+  ]),
+  group("Compliance", [
+    route({ path: "/compliance/evidence", label: "Evidence", title: "Compliance evidence", icon: "FileCheck2" }),
+  ]),
+  group("Integrations", [
+    route({ path: "/connectors", label: "Connections", title: "Connections", icon: "PlugZap" }),
+    route({ path: "/integrations/sensors", label: "Sensors", title: "Sensors", icon: "RadioTower" }),
+  ]),
+  group("Administration", [
+    route({ path: "/administration/identity-access", label: "Identity & Access", title: "Identity and access", icon: "UsersRound" }),
+    route({ path: "/administration/audit-log", label: "Audit Log", title: "Audit log", icon: "ScrollText" }),
+    route({ path: "/administration/data-retention", label: "Data & Retention", title: "Data and retention", icon: "Database" }),
+    route({ path: "/administration/external-data-flows", label: "External Data Flows", title: "External data flows", icon: "Network" }),
+    route({ path: "/administration/system-health", label: "System Health", title: "System health", icon: "HeartPulse" }),
+    route({ path: "/administration/api-access", label: "API Access", title: "API access", icon: "Braces" }),
+  ]),
+]);
+
+export const allRoutes: readonly AppRoute[] = Object.freeze(NAV_GROUPS.flatMap((entry) => entry.items));
 
 export function resolveRoute(pathname: string): AppRoute {
-  return allRoutes.find((route) => route.path === pathname) ?? allRoutes[0];
+  return allRoutes.find((entry) => entry.path === pathname) ?? NAV_GROUPS[0].items[0];
 }

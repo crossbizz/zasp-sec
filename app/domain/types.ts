@@ -10,16 +10,16 @@ export type ScanStatus = "queued" | "running" | "complete" | "failed";
 export type GuardrailDecision = "allow" | "redact" | "review" | "block";
 
 export interface AppRoute {
-  path: string;
-  label: string;
-  title: string;
-  icon: string;
-  parent?: string;
+  readonly path: string;
+  readonly label: string;
+  readonly title: string;
+  readonly icon: string;
+  readonly parent?: string;
 }
 
 export interface NavGroup {
-  label?: string;
-  items: AppRoute[];
+  readonly label: string;
+  readonly items: readonly AppRoute[];
 }
 
 export interface Asset {
