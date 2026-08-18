@@ -55,6 +55,7 @@
     "s3:bucket-layout:test": "go test -C services/platform -race -count=1 ./bucketlayout",
     "web:shell:test": "vitest run app/domain/routes.test.ts app/domain/route-guard.test.ts app/components/LeftNav.test.tsx app/components/UnauthenticatedRouteGuard.test.tsx app/components/ZaspApp.test.tsx",
     "build:repo": "node scripts/build-repo.mjs",
+    "schema:check": "node scripts/check-m1-schemas.mjs",
     "db:pool:test": "go test -C services/platform -race -count=1 ./database && go test -C proofs/neon-pooled -race -count=1 ./...",
     "db:pool:run": "node --env-file=.env proofs/neon-pooled/run-pool-wrapper.mjs",
     "db:schema:test": "go test -C services/platform -race -count=1 ./migrations && go test -C proofs/neon-pooled -race -count=1 ./...",
