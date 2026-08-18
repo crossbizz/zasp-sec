@@ -174,8 +174,13 @@ feat: define product SQS queues and DLQs
 - Create: `proofs/localstack-sqs/queue_definitions_proof_test.go`
 - Create: `proofs/localstack-sqs/queue_definitions_proof.go`
 - Modify: `proofs/localstack-sqs/main.go`
-- Modify: `proofs/localstack-sqs/main_test.go`
-- Modify only as required: `proofs/localstack-sqs/sdk.go`
+- Create: `proofs/localstack-sqs/main_test.go`
+- Modify: `proofs/localstack-sqs/sdk.go`
+- Modify: `proofs/localstack-sqs/sdk_test.go`
+- Modify: `proofs/localstack-sqs/job_queue_proof.go`
+- Modify: `proofs/localstack-sqs/job_queue_proof_test.go`
+- Modify: `proofs/localstack-sqs/go.mod`
+- Modify: `proofs/localstack-sqs/go.sum`
 
 **Interfaces:**
 - Consumes: `queuedefinition.Definitions`, existing strict dynamic-port SDK boundary, exact JSON policy parser, and mutation classification.
@@ -239,13 +244,16 @@ LocalStack queue definitions failed: <category> rejected.
 
 Run the new focused tests six times, then the full proof module with race,
 tidy-diff, module verification, and vet. Confirm existing M0-06/M1-13 behavior
-and dependency files remain unchanged.
+remains green. Align the proof module's existing AWS SDK requirements with the
+already-pinned platform module patch versions; require tidy-diff and module
+verification after that deterministic dependency-file update.
 
 - [ ] **Step 6: Review and commit the child slice**
 
 Review every authoritative field, mutation result, retained candidate, cleanup
 branch, fixed line, and cross-definition relationship. Add tests-first fixes,
-scan, and commit only the child production/tests as:
+scan, and commit only the child implementation, tests, and aligned module files
+as:
 
 ```text
 feat: provision exact LocalStack queue definitions
