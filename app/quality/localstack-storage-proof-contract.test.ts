@@ -11,10 +11,10 @@ describe("LocalStack storage proof repository contract", () => {
     const goModule = await readFile(resolve(repositoryRoot, proofDirectory, "go.mod"), "utf8");
     expect(goModule).toMatch(/^go 1\.25\.0$/m);
     expect(goModule).toMatch(/^toolchain go1\.26\.5$/m);
-    expect(goModule).toMatch(/^\s*github\.com\/aws\/aws-sdk-go-v2 v1\.43\.5$/m);
-    expect(goModule).toMatch(/^\s*github\.com\/aws\/aws-sdk-go-v2\/service\/s3 v1\.107\.1$/m);
-    expect(goModule).toMatch(/^\s*github\.com\/aws\/aws-sdk-go-v2\/service\/kms v1\.55\.5$/m);
-    expect(goModule).toMatch(/^\s*github\.com\/aws\/aws-sdk-go-v2\/service\/secretsmanager v1\.44\.5$/m);
+    expect(goModule).toMatch(/^\s*github\.com\/aws\/aws-sdk-go-v2 v1\.43\.6$/m);
+    expect(goModule).toMatch(/^\s*github\.com\/aws\/aws-sdk-go-v2\/service\/s3 v1\.107\.2$/m);
+    expect(goModule).toMatch(/^\s*github\.com\/aws\/aws-sdk-go-v2\/service\/kms v1\.55\.6$/m);
+    expect(goModule).toMatch(/^\s*github\.com\/aws\/aws-sdk-go-v2\/service\/secretsmanager v1\.44\.6$/m);
   });
 
   it("keeps stable root test and disposable live commands without dotenv evaluation", async () => {
