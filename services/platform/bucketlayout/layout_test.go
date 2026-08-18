@@ -150,6 +150,22 @@ func TestNewRejectsInvalidAccountRegionAndKMSIdentity(t *testing.T) {
 			value.Region = "us-gov-west-1"
 			value.KMSKeyARN = "arn:aws:kms:us-gov-west-1:123456789012:key/01234567-89ab-cdef-0123-456789abcdef"
 		}},
+		{name: "commercial partition with iso region", mutate: func(value *Configuration) {
+			value.Region = "us-iso-east-1"
+			value.KMSKeyARN = strings.Replace(wantKMSARN, "us-west-2", value.Region, 1)
+		}},
+		{name: "commercial partition with iso b region", mutate: func(value *Configuration) {
+			value.Region = "us-isob-east-1"
+			value.KMSKeyARN = strings.Replace(wantKMSARN, "us-west-2", value.Region, 1)
+		}},
+		{name: "commercial partition with iso e region", mutate: func(value *Configuration) {
+			value.Region = "eu-isoe-west-1"
+			value.KMSKeyARN = strings.Replace(wantKMSARN, "us-west-2", value.Region, 1)
+		}},
+		{name: "commercial partition with iso f region", mutate: func(value *Configuration) {
+			value.Region = "us-isof-south-1"
+			value.KMSKeyARN = strings.Replace(wantKMSARN, "us-west-2", value.Region, 1)
+		}},
 		{name: "gov partition with commercial region", mutate: func(value *Configuration) {
 			value.KMSKeyARN = strings.Replace(wantKMSARN, "arn:aws:", "arn:aws-us-gov:", 1)
 		}},

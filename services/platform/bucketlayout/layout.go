@@ -142,15 +142,20 @@ func configurationValid(configuration Configuration) bool {
 	if len(matches) != 5 || matches[2] != configuration.Region || matches[3] != configuration.AccountID {
 		return false
 	}
-	switch matches[1] {
-	case "aws-cn":
-		return strings.HasPrefix(configuration.Region, "cn-")
-	case "aws-us-gov":
-		return strings.HasPrefix(configuration.Region, "us-gov-")
-	case "aws":
-		return !strings.HasPrefix(configuration.Region, "cn-") && !strings.HasPrefix(configuration.Region, "us-gov-")
-	default:
+	return regionMatchesPartition(matches[1], configuration.Region)
+}
+
+func regionMatchesPartition(partition, region string) bool {
+	switch {
+	case strings.HasPrefix(region, "cn-"):
+		return partition == "aws-cn"
+	case strings.HasPrefix(region, "us-gov-"):
+		return partition == "aws-us-gov"
+	case strings.HasPrefix(region, "us-iso-"), strings.HasPrefix(region, "us-isob-"),
+		strings.HasPrefix(region, "eu-isoe-"), strings.HasPrefix(region, "us-isof-"):
 		return false
+	default:
+		return partition == "aws"
 	}
 }
 
