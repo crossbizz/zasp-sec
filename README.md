@@ -48,6 +48,18 @@ path and closed redirect targets. It is not wired to a fabricated session and
 does not claim that the current prototype is authenticated. M2-01 and M2-02 own
 real authentication and session enforcement.
 
+## M1 build check
+
+M1-36a is In progress. It reuses the reviewed clean checkout repository build:
+
+```bash
+npm run build:repo
+```
+
+The gate must compile or execute all eight targets from locked source and
+dependency state without adding a duplicate build runner or product behavior.
+M1-36b remains Pending and owns the separate schema-validation gate.
+
 ## Development
 
 Requires Node.js `22.23.1` and npm `10.9.8`. `.nvmrc` pins the Node runtime;

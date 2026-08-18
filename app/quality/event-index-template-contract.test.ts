@@ -58,14 +58,14 @@ describe("M1-32 OpenSearch index template", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(readme).toContain("M1-32 is Complete");
-    expect(tracker).toContain("| Pending | 652 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 651 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 73 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`652/0/73/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "19", "0", "49", "0"]);
+    expect(tracker).toContain("`651/1/73/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "18", "1", "49", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.map(([task]) => task)).toEqual([]);
+    expect(active.map(([task]) => task)).toEqual(["M1-36a"]);
     expect(complete).toHaveLength(73);
     expect(active.filter(([task]) => task === "M1-32")).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-32")).toHaveLength(1);

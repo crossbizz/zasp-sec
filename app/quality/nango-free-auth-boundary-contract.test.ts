@@ -32,12 +32,12 @@ function assertM014Complete(tracker: string, readme: string, riskRegister: strin
   expect(section).toContain("M0-15");
   expect(section).toContain("R-08 is PASS");
 
-  expect(tracker).toContain("| Pending | 652 |");
-  expect(tracker).toContain("| In progress | 0 |");
+  expect(tracker).toContain("| Pending | 651 |");
+  expect(tracker).toContain("| In progress | 1 |");
   expect(tracker).toContain("| Complete | 73 |");
   expect(tracker).toContain("| Blocked | 3 |");
   expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 0 \| 24 \| 3 \|/);
-  expect(activeRows.map(([task]) => task)).toEqual([]);
+  expect(activeRows.map(([task]) => task)).toEqual(["M1-36a"]);
   expect(m014Rows).toHaveLength(1);
   expect(m014Rows[0]?.[1]).toBe("August 15, 2026");
   expect(m014Rows[0]?.[2]).toContain("Auth plus Proxy");
@@ -62,7 +62,7 @@ function completedFixture(tracker: string, readme: string) {
   return {
     readme: readme.replace("M0-14 is In progress", "M0-14 is Complete"),
     tracker: tracker
-      .replace("| In progress | 0 |", "| In progress | 2 |")
+      .replace("| In progress | 1 |", "| In progress | 2 |")
       .replace("| Complete | 15 |", "| Complete | 16 |")
       .replace("| M0 | 27 | 9 | 1 | 15 | 1 |", "| M0 | 27 | 9 | 0 | 16 | 1 |")
       .replace("`710/1/15/1`", "`710/0/16/1`")
@@ -164,7 +164,7 @@ describe("Nango free Auth boundary contract", () => {
     ).toThrow();
     expect(() =>
       assertM014Complete(
-        completed.tracker.replace("| Pending | 652 |", "| Pending | 686 |"),
+        completed.tracker.replace("| Pending | 651 |", "| Pending | 686 |"),
         completed.readme,
         riskRegister,
       ),
