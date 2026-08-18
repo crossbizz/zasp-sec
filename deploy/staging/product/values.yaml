@@ -1,0 +1,23 @@
+global:
+  environment: production
+  privateEndpointOnly: true
+  terminationGracePeriodSeconds: 30
+  productImages:
+    web: ""
+    agentsecApi: ""
+    agentsecWorker: ""
+    eventIngest: ""
+    runtimeGateway: ""
+  images:
+    neo4j: neo4j:5.26.28-community@sha256:ff32db30b2baff97971e441b46bfd9c832c1b62c970398ef579244c06b21d357
+    nango: nangohq/nango-server:hosted-7faf2c303bbb0322333f526e9ca31c0fe95ef58e@sha256:b191d8d5b072fec5984e28da67298e9dabd5dc3a2585f1ebff7e2f5b9dfb66ed
+    otelCollector: otel/opentelemetry-collector-contrib:0.158.0@sha256:c5918f78992ee73b0d6f0e599423ac5ec52dd5d9726733114d6eca53d5a32ed5
+    tetragon: quay.io/cilium/tetragon:v1.7.0@sha256:deda51c3f88e4d26b4d76c99ea207f2b05f9e40c210e0f04a37ca632ab7bf527
+replicas:
+  web: 3
+  agentsecApi: 3
+  agentsecWorker: 3
+  eventIngest: 3
+  runtimeGateway: 3
+attackLab:
+  securityGroupID: ""

@@ -1,0 +1,18 @@
+{{- range $name := list "web" "agentsec-api" "agentsec-worker" "event-ingest" "runtime-gateway" "nango" "otel-collector" }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: {{ $name }} }
+spec:
+  maxUnavailable: 1
+  selector: { matchLabels: { app.kubernetes.io/name: {{ $name }} } }
+{{- end }}
+---
+apiVersion: vpcresources.k8s.aws/v1beta1
+kind: SecurityGroupPolicy
+metadata: { name: attack-lab, namespace: zasp-attack-lab }
+spec:
+  podSelector: { matchLabels: { zasp.io/execution: attack-lab } }
+  securityGroups:
+    groupIds: [{{ required "attackLab.securityGroupID is required" .Values.attackLab.securityGroupID | quote }}]
+# topologySpreadConstraints are defined on every replicated workload template.

@@ -1,0 +1,109 @@
+{{- $root := . -}}
+{{- $workloads := list
+  (dict "name" "web" "image" .Values.global.productImages.web "port" 3000 "replicas" .Values.replicas.web)
+  (dict "name" "agentsec-api" "image" .Values.global.productImages.agentsecApi "port" 8080 "replicas" .Values.replicas.agentsecApi)
+  (dict "name" "agentsec-worker" "image" .Values.global.productImages.agentsecWorker "port" 8081 "replicas" .Values.replicas.agentsecWorker)
+  (dict "name" "event-ingest" "image" .Values.global.productImages.eventIngest "port" 8082 "replicas" .Values.replicas.eventIngest)
+  (dict "name" "runtime-gateway" "image" .Values.global.productImages.runtimeGateway "port" 8083 "replicas" .Values.replicas.runtimeGateway)
+-}}
+{{- range $workloads }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .name }}
+  labels: { app.kubernetes.io/name: {{ .name }}, app.kubernetes.io/part-of: zasp }
+spec:
+  replicas: {{ .replicas }}
+  selector: { matchLabels: { app.kubernetes.io/name: {{ .name }} } }
+  template:
+    metadata: { labels: { app.kubernetes.io/name: {{ .name }}, app.kubernetes.io/part-of: zasp } }
+    spec:
+      serviceAccountName: product
+      terminationGracePeriodSeconds: {{ $root.Values.global.terminationGracePeriodSeconds }}
+      topologySpreadConstraints:
+        - { maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: ScheduleAnyway, labelSelector: { matchLabels: { app.kubernetes.io/name: {{ .name }} } } }
+      containers:
+        - name: {{ .name }}
+          image: {{ required (printf "global.productImages.%s must be an immutable digest" .name) .image | quote }}
+          imagePullPolicy: IfNotPresent
+          ports: [{ name: http, containerPort: {{ .port }} }]
+          readinessProbe: { httpGet: { path: /internal/health/ready, port: http }, periodSeconds: 5, timeoutSeconds: 2 }
+          livenessProbe: { httpGet: { path: /internal/health/live, port: http }, periodSeconds: 10, timeoutSeconds: 2 }
+          lifecycle: { preStop: { exec: { command: ["/bin/sh", "-c", "sleep 5"] } } }
+          resources: { requests: { cpu: 100m, memory: 128Mi }, limits: { cpu: "1", memory: 1Gi } }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, runAsNonRoot: true, capabilities: { drop: [ALL] } }
+{{- end }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: { name: neo4j, labels: { app.kubernetes.io/name: neo4j, app.kubernetes.io/part-of: zasp } }
+spec:
+  serviceName: neo4j
+  replicas: 1
+  selector: { matchLabels: { app.kubernetes.io/name: neo4j } }
+  template:
+    metadata: { labels: { app.kubernetes.io/name: neo4j, app.kubernetes.io/part-of: zasp } }
+    spec:
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: neo4j
+          image: {{ .Values.global.images.neo4j | quote }}
+          ports: [{ name: http, containerPort: 7474 }, { name: bolt, containerPort: 7687 }]
+          readinessProbe: { tcpSocket: { port: bolt }, periodSeconds: 5 }
+          livenessProbe: { tcpSocket: { port: bolt }, periodSeconds: 10 }
+          resources: { requests: { cpu: 500m, memory: 1Gi }, limits: { cpu: "2", memory: 4Gi } }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: nango, labels: { app.kubernetes.io/name: nango, app.kubernetes.io/part-of: zasp } }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app.kubernetes.io/name: nango } }
+  template:
+    metadata: { labels: { app.kubernetes.io/name: nango, app.kubernetes.io/part-of: zasp } }
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: nango
+          image: {{ .Values.global.images.nango | quote }}
+          ports: [{ name: http, containerPort: 3003 }]
+          readinessProbe: { httpGet: { path: /health, port: http }, periodSeconds: 5 }
+          livenessProbe: { httpGet: { path: /health, port: http }, periodSeconds: 10 }
+          lifecycle: { preStop: { exec: { command: ["/bin/sh", "-c", "sleep 5"] } } }
+          resources: { requests: { cpu: 250m, memory: 512Mi }, limits: { cpu: "1", memory: 2Gi } }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: otel-collector, labels: { app.kubernetes.io/name: otel-collector, app.kubernetes.io/part-of: zasp } }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app.kubernetes.io/name: otel-collector } }
+  template:
+    metadata: { labels: { app.kubernetes.io/name: otel-collector, app.kubernetes.io/part-of: zasp } }
+    spec:
+      containers:
+        - name: otel-collector
+          image: {{ .Values.global.images.otelCollector | quote }}
+          args: ["--config=/conf/collector.yaml"]
+          ports: [{ name: otlp-grpc, containerPort: 4317 }, { name: health, containerPort: 13133 }]
+          readinessProbe: { httpGet: { path: /, port: health }, periodSeconds: 5 }
+          livenessProbe: { httpGet: { path: /, port: health }, periodSeconds: 10 }
+          resources: { requests: { cpu: 100m, memory: 128Mi }, limits: { cpu: "1", memory: 1Gi } }
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata: { name: tetragon, labels: { app.kubernetes.io/name: tetragon, app.kubernetes.io/part-of: zasp } }
+spec:
+  selector: { matchLabels: { app.kubernetes.io/name: tetragon } }
+  template:
+    metadata: { labels: { app.kubernetes.io/name: tetragon, app.kubernetes.io/part-of: zasp } }
+    spec:
+      hostPID: true
+      containers:
+        - name: tetragon
+          image: {{ .Values.global.images.tetragon | quote }}
+          securityContext: { privileged: true }
+          readinessProbe: { exec: { command: ["/usr/bin/tetra", "status"] }, periodSeconds: 10 }
+          livenessProbe: { exec: { command: ["/usr/bin/tetra", "status"] }, periodSeconds: 30 }
+          resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { cpu: "1", memory: 1Gi } }

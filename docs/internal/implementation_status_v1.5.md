@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 145 |
-| In progress | 396 |
+| Pending | 120 |
+| In progress | 421 |
 | Complete | 184 |
 | Blocked | 3 |
 
@@ -33,7 +33,7 @@ In progress, Complete, or Blocked is Pending.
 | M6 | 36 | 0 | 36 | 0 | 0 |
 | M7 | 62 | 0 | 62 | 0 | 0 |
 | M7A | 113 | 0 | 113 | 0 | 0 |
-| M8 | 141 | 141 | 0 | 0 | 0 |
+| M8 | 141 | 116 | 25 | 0 | 0 |
 
 ## Execution invariants
 
@@ -70,13 +70,38 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `145/396/184/3` because
+session configuration. The 728 source-plan counts are `120/421/184/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M8-16 | August 18, 2026 | A fixed-output preflight validates production/private settings, five immutable product images, Attack Lab security group identity, and bounded Terraform/Helm/kubectl/AWS tool availability. |
+| M8-15 | August 18, 2026 | Replicated product workloads define zone topology spread and one-item PodDisruptionBudgets. |
+| M8-14 | August 18, 2026 | The product chart retains the exact-pinned Tetragon sensor image and bounded health/resources. |
+| M8-13 | August 18, 2026 | The product chart deploys the exact-pinned OTel Collector with internal OTLP and health ports. |
+| M8-12 | August 18, 2026 | The product chart deploys two exact-pinned free Nango server replicas behind an internal service. |
+| M8-11 | August 18, 2026 | The product chart deploys exact-pinned Neo4j with internal Bolt service, readiness, and resource bounds. |
+| M8-10 | August 18, 2026 | Runtime gateway uses the same required immutable product-image, private-service, probe, shutdown, security, and resource contract. |
+| M8-09 | August 18, 2026 | Worker and event-ingest workloads share the bounded release chart and no duplicate deployment root. |
+| M8-09c | August 18, 2026 | Worker and ingest pods receive termination grace, preStop drain, probes, and explicit resources. |
+| M8-09b | August 18, 2026 | Event ingest has a replicated private Deployment with immutable-image input and health probes. |
+| M8-09a | August 18, 2026 | Worker has a replicated private Deployment with immutable-image input and health probes. |
+| M8-08 | August 18, 2026 | Web/API workloads and services are grouped in one reusable product chart. |
+| M8-08c | August 18, 2026 | Web and API are exposed only by chart-local ClusterIP services. |
+| M8-08b | August 18, 2026 | API has production replicas, health probes, shutdown grace, security context, and resources. |
+| M8-08a | August 18, 2026 | Web has production replicas, health probes, shutdown grace, security context, and resources. |
+| M8-07 | August 18, 2026 | The reusable AWS root creates bounded Attack Lab egress security-group authority and the chart emits its label-scoped SecurityGroupPolicy. |
+| M8-06 | August 18, 2026 | The reusable AWS root adds an exact namespace/label Attack Lab Fargate profile and dedicated pod execution role. |
+| M8-05 | August 18, 2026 | Existing product IRSA remains resource-scoped to product bucket prefixes, exact queues, OpenSearch, and the shared KMS key. |
+| M8-04 | August 18, 2026 | OpenSearch production capacity is configurable while VPC-only access, encryption, HTTPS, and bounded access policy remain mandatory. |
+| M8-03 | August 18, 2026 | Existing queues retain stable identities, KMS encryption, long polling, bounded visibility, retention, and redrive settings. |
+| M8-02 | August 18, 2026 | Existing S3/KMS/Secrets resources add version retention, incomplete-upload cleanup, key rotation, encryption, public-access block, and recovery windows. |
+| M8-01 | August 18, 2026 | Release values use the same Terraform addresses and private foundation; live AWS plan/drift evidence remains unresolved. |
+| M8-01c | August 18, 2026 | One production tfvars file drives the existing staging/release Terraform root without a second module. |
+| M8-01b | August 18, 2026 | Existing EKS resources accept production node and private-endpoint settings while preserving resource addresses. |
+| M8-01a | August 18, 2026 | Existing VPC/subnet resources accept production CIDRs/AZs and add private AWS service endpoints without a second VPC module. |
 | M7A-101 | August 18, 2026 | The fail-closed MVP gate aggregates trigger, simulation, planning, authorization, execution, approval, cleanup, verification, Home attention, audit, degraded safety, and topology-isolation checks. |
 | M7A-100 | August 18, 2026 | The same bounded action, approval, verification, and audit contracts run without topology-specific behavior in the single-tenant fixture. |
 | M7A-99 | August 18, 2026 | Organization-scoped repositories, planner references, approvals, action idempotency, and results reject concurrent same-looking cross-tenant records. |

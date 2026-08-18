@@ -33,3 +33,9 @@ output "opensearch_endpoint" {
 output "product_role_arn" {
   value = aws_iam_role.product.arn
 }
+output "attack_lab_security_group_id" {
+  value = aws_security_group.attack_lab.id
+}
+output "attack_lab_fargate_profile_arn" {
+  value = aws_eks_fargate_profile.attack_lab.arn
+}

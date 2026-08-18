@@ -27,7 +27,7 @@ describe("M4 UI and golden-gate batch", () => {
       readFile(resolve(root, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(root, "README.md"), "utf8"),
     ]);
-    for (const value of ["| Pending | 145 |", "| In progress | 396 |", "| Complete | 184 |", "| Blocked | 3 |", "`145/396/184/3`", "| M4 | 82 | 0 | 82 | 0 | 0 |"]) expect(tracker).toContain(value);
+    for (const value of ["| Pending | 120 |", "| In progress | 421 |", "| Complete | 184 |", "| Blocked | 3 |", "`120/421/184/3`", "| M4 | 82 | 0 | 82 | 0 | 0 |"]) expect(tracker).toContain(value);
     const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
     const tasks = ["M4-50a", "M4-50b1", "M4-50b2", "M4-50b3", "M4-50c", "M4-50", "M4-51a", "M4-51b1", "M4-51b2", "M4-51b3", "M4-51c", "M4-51d", "M4-51e", "M4-51", "M4-52", "M4-53", "M4-54", "M4-55", "M4-56", "M4-57", "M4-58", "M4-59a", "M4-59b", "M4-59c", "M4-59d", "M4-59e", "M4-59"];
     expect(tasks).toHaveLength(27);

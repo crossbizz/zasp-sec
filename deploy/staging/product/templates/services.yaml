@@ -1,0 +1,10 @@
+{{- range $service := list (dict "name" "web" "port" 3000) (dict "name" "agentsec-api" "port" 8080) (dict "name" "runtime-gateway" "port" 8083) (dict "name" "neo4j" "port" 7687) (dict "name" "nango" "port" 3003) (dict "name" "otel-collector" "port" 4317) }}
+---
+apiVersion: v1
+kind: Service
+metadata: { name: {{ $service.name }}, labels: { app.kubernetes.io/name: {{ $service.name }}, app.kubernetes.io/part-of: zasp } }
+spec:
+  type: ClusterIP
+  selector: { app.kubernetes.io/name: {{ $service.name }} }
+  ports: [{ name: service, port: {{ $service.port }}, targetPort: {{ $service.port }} }]
+{{- end }}

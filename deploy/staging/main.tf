@@ -1,5 +1,7 @@
 provider "aws" {
   region                      = var.region
+  access_key                  = var.offline_validation ? "offline" : null
+  secret_key                  = var.offline_validation ? "offline" : null
   skip_credentials_validation = var.offline_validation
   skip_metadata_api_check     = var.offline_validation
   skip_region_validation      = var.offline_validation
@@ -8,7 +10,7 @@ provider "aws" {
   default_tags {
     tags = merge({
       Product     = "zasp"
-      Environment = "staging"
+      Environment = var.environment
       ManagedBy   = "terraform"
     }, var.tags)
   }
@@ -71,7 +73,7 @@ resource "aws_eks_cluster" "staging" {
   vpc_config {
     subnet_ids              = aws_subnet.private[*].id
     endpoint_private_access = true
-    endpoint_public_access  = false
+    endpoint_public_access  = var.endpoint_public_access
   }
 
   encryption_config {
@@ -110,12 +112,12 @@ resource "aws_eks_node_group" "staging" {
   node_role_arn   = aws_iam_role.eks_nodes.arn
   subnet_ids      = aws_subnet.private[*].id
   capacity_type   = "ON_DEMAND"
-  instance_types  = ["m7i.large"]
+  instance_types  = var.node_instance_types
 
   scaling_config {
-    desired_size = 1
-    min_size     = 1
-    max_size     = 2
+    desired_size = var.node_desired_size
+    min_size     = var.node_min_size
+    max_size     = var.node_max_size
   }
 
   update_config { max_unavailable = 1 }
@@ -161,11 +163,23 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "evidence" {
   }
 }
 
+resource "aws_s3_bucket_lifecycle_configuration" "evidence" {
+  bucket = aws_s3_bucket.evidence.id
+  rule {
+    id     = "organization-evidence-retention"
+    status = "Enabled"
+    filter { prefix = "organizations/" }
+    noncurrent_version_expiration { noncurrent_days = var.evidence_retention_days }
+    abort_incomplete_multipart_upload { days_after_initiation = 7 }
+  }
+}
+
 resource "aws_secretsmanager_secret" "product" {
   for_each = toset(["database", "identity-provider", "webhook-signing"])
 
-  name       = "${var.cluster_name}/${each.key}"
-  kms_key_id = aws_kms_key.staging.arn
+  name                    = "${var.cluster_name}/${each.key}"
+  kms_key_id              = aws_kms_key.staging.arn
+  recovery_window_in_days = 30
 }
 
 resource "aws_sqs_queue" "dead_letter" {
@@ -224,15 +238,15 @@ resource "aws_opensearch_domain" "events" {
   engine_version = "OpenSearch_2.19"
 
   cluster_config {
-    instance_type          = "t3.small.search"
-    instance_count         = 2
+    instance_type          = var.opensearch_instance_type
+    instance_count         = var.opensearch_instance_count
     zone_awareness_enabled = true
     zone_awareness_config { availability_zone_count = 2 }
   }
   ebs_options {
     ebs_enabled = true
     volume_type = "gp3"
-    volume_size = 20
+    volume_size = var.opensearch_volume_size
   }
   encrypt_at_rest {
     enabled    = true
@@ -300,4 +314,71 @@ resource "aws_iam_role_policy" "product" {
       Condition = { StringEquals = { "kms:ViaService" = ["s3.${var.region}.amazonaws.com", "sqs.${var.region}.amazonaws.com", "es.${var.region}.amazonaws.com"] } } }
     ]
   })
+}
+
+resource "aws_security_group" "vpc_endpoints" {
+  name_prefix = "${var.cluster_name}-endpoints-"
+  description = "Private AWS service endpoints from the product VPC"
+  vpc_id      = aws_vpc.staging.id
+  ingress {
+    description = "TLS from the private product VPC"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [aws_vpc.staging.cidr_block]
+  }
+}
+
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id            = aws_vpc.staging.id
+  service_name      = "com.amazonaws.${var.region}.s3"
+  vpc_endpoint_type = "Gateway"
+}
+
+resource "aws_vpc_endpoint" "private_services" {
+  for_each            = toset(["ecr.api", "ecr.dkr", "logs", "secretsmanager", "sqs", "sts"])
+  vpc_id              = aws_vpc.staging.id
+  service_name        = "com.amazonaws.${var.region}.${each.value}"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = aws_subnet.private[*].id
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true
+}
+
+resource "aws_iam_role" "attack_lab_pod" {
+  name = "${var.cluster_name}-attack-lab-pod"
+  assume_role_policy = jsonencode({
+    Version   = "2012-10-17"
+    Statement = [{ Effect = "Allow", Principal = { Service = "eks-fargate-pods.amazonaws.com" }, Action = "sts:AssumeRole" }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "attack_lab_pod" {
+  role       = aws_iam_role.attack_lab_pod.name
+  policy_arn = "arn:${local.partition}:iam::aws:policy/AmazonEKSFargatePodExecutionRolePolicy"
+}
+
+resource "aws_eks_fargate_profile" "attack_lab" {
+  cluster_name           = aws_eks_cluster.staging.name
+  fargate_profile_name   = "attack-lab"
+  pod_execution_role_arn = aws_iam_role.attack_lab_pod.arn
+  subnet_ids             = aws_subnet.private[*].id
+  selector {
+    namespace = var.attack_lab_namespace
+    labels    = { "zasp.io/execution" = "attack-lab" }
+  }
+  depends_on = [aws_iam_role_policy_attachment.attack_lab_pod]
+}
+
+resource "aws_security_group" "attack_lab" {
+  name_prefix = "${var.cluster_name}-attack-lab-"
+  description = "Bounded egress for Attack Lab Fargate pods"
+  vpc_id      = aws_vpc.staging.id
+  egress {
+    description = "TLS to approved private endpoints and product proxy"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [aws_vpc.staging.cidr_block]
+  }
 }

@@ -349,6 +349,14 @@ expiry, unknown-outcome, budget, verification, audit, tenant-isolation, and
 single-tenant parity contracts. Production queue/HTTP mounting, durable audit
 storage, and live external action-provider E2E remain unresolved.
 
+M8-01a through M8-16 are batched as In progress in the existing AWS and
+staging/release deployment roots. Production tfvars harden private EKS, data,
+queue, search, IRSA, Fargate, and Attack Lab network settings; one product Helm
+chart covers web, API, worker, ingest, gateway, Neo4j, Nango, Collector, and
+Tetragon with probes, resources, shutdown, disruption, and topology controls.
+Product image digests and live AWS/Helm plan evidence remain required before
+these tasks can move to Complete.
+
 ```bash
 go test -C services/platform -race -count=1 ./integration
 go test -C services/platform -race -count=1 ./connectors ./sensor

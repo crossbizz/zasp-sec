@@ -69,3 +69,60 @@ variable "offline_validation" {
   type        = bool
   default     = false
 }
+
+variable "environment" {
+  description = "Deployment environment for the shared staging/release root."
+  type        = string
+  default     = "staging"
+  validation {
+    condition     = contains(["staging", "production"], var.environment)
+    error_message = "environment must be staging or production."
+  }
+}
+
+variable "endpoint_public_access" {
+  description = "Whether the EKS API has a public endpoint; production must remain false."
+  type        = bool
+  default     = false
+  validation {
+    condition     = var.environment != "production" || !var.endpoint_public_access
+    error_message = "production EKS API access must remain private."
+  }
+}
+
+variable "node_desired_size" {
+  type    = number
+  default = 1
+}
+variable "node_min_size" {
+  type    = number
+  default = 1
+}
+variable "node_max_size" {
+  type    = number
+  default = 2
+}
+variable "node_instance_types" {
+  type    = list(string)
+  default = ["m7i.large"]
+}
+variable "opensearch_instance_type" {
+  type    = string
+  default = "t3.small.search"
+}
+variable "opensearch_instance_count" {
+  type    = number
+  default = 2
+}
+variable "opensearch_volume_size" {
+  type    = number
+  default = 20
+}
+variable "evidence_retention_days" {
+  type    = number
+  default = 90
+}
+variable "attack_lab_namespace" {
+  type    = string
+  default = "zasp-attack-lab"
+}
