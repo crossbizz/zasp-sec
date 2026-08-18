@@ -653,7 +653,7 @@ internal endpoints. Platform, event-ingest, and runtime-gateway command wiring
 are complete under M1-28b, M1-28c, and M1-28d. M1-28a is Complete.
 M1-28b is Complete. M1-28c is Complete, M1-28d is Complete, M1-28 is Complete,
 and M1-29 is Complete. M1-30a, M1-30b, and M1-30c are Complete, and M1-30d
-remains Pending.
+is In progress.
 
 ## Common internal service health contract
 
@@ -692,7 +692,7 @@ npm run health:contract:test
 
 M1-30a is Complete. It adds the local Kubernetes deployment boundary for the
 four existing Go product commands; M1-30b and M1-30c are Complete, and M1-30d
-remains Pending.
+is In progress.
 
 ## Local product Kubernetes manifests
 
@@ -719,7 +719,7 @@ Successful live verification emits exactly
 The runner uses its own kubeconfig and proof labels, removes only retained
 resources after exact ownership checks, and leaves shared local services
 untouched. M1-30b is Complete and owns the local graph assembly, M1-30c is
-Complete, and M1-30d remains Pending.
+Complete, and M1-30d is In progress.
 
 ## Platform health wiring
 
@@ -744,7 +744,7 @@ verification and zero-finding review. M1-28c is Complete, M1-28d is Complete, an
 
 M1-30b is Complete. Its local Neo4j overlay is an opt-in proof attached to
 the disposable local Kubernetes environment; M1-30c is Complete, and M1-30d
-remains Pending. The
+is In progress. The
 hermetic manifest, runner, and license contracts require Node.js 22.23.1 and
 npm 10.9.8, and require neither Docker nor a provider:
 
@@ -785,7 +785,7 @@ production packaging, and bundled components retain their own terms.
 
 ## Local observability Kubernetes manifest proof
 
-M1-30c is Complete, and M1-30d remains Pending. The hermetic manifest,
+M1-30c is Complete, and M1-30d is In progress. The hermetic manifest,
 runner, and license contracts require Node.js 22.23.1 and npm 10.9.8, and
 require neither Docker nor a provider:
 
@@ -835,6 +835,20 @@ and
 They are opt-in local development targets: this proof does not approve
 redistribution or production packaging, and bundled components retain their
 own terms. Aggregate M1-30 verification remains deferred to M1-30d.
+
+## Local AWS emulator Kubernetes manifest proof
+
+M1-30d is In progress. The selected boundary adds an exact-pinned LocalStack
+S3 Deployment and internal ClusterIP Service to the disposable local cluster.
+An exact ConfigMap supplies `AWS_ENDPOINT_URL` and `AWS_ENDPOINT_URL_S3` to a
+staged one-shot synthetic client Job only after LocalStack is Ready. The Job
+will make one explicit endpoint-bound S3 list request and emit fixed output.
+
+This task does not expose LocalStack on the host, reuse a shared LocalStack
+target, persist emulator state, read ambient AWS or Kubernetes authority, or
+wire product AWS clients. M1-31 owns product client-factory consumption of the
+endpoint contract. M1-30 remains Pending until its separate assembled local
+start target is implemented and verified.
 
 ## Neon pooled proof
 
