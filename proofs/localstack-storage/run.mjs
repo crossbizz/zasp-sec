@@ -12,13 +12,17 @@ export const LOCALSTACK_IMAGE = "localstack/localstack:4.7.0@sha256:12253acd9676
 export const successLine = "LocalStack storage proof passed: kms=true s3=true secret=true round_trip=true cleanup=true audit=true container_cleanup=true.";
 export const artifactSuccessLine = "LocalStack artifact store passed: put=true get=true delete=true scoped=true encrypted=true cleanup=true audit=true container_cleanup=true.";
 export const jobQueueSuccessLine = "LocalStack job queue passed: publish=2 consume=2 acknowledge=2 scoped=true redrive=true empty=true cleanup=true audit=true container_cleanup=true.";
+export const queueDefinitionsSuccessLine = "LocalStack queue definitions passed: queues=3 dlqs=3 schemas=3 retention=true redrive=true cleanup=true audit=true container_cleanup=true.";
 export const artifactProofTimeoutMilliseconds = 150_000;
+export const queueDefinitionsProofTimeoutMilliseconds = 180_000;
 export const STORAGE_MODE = "storage";
 export const ARTIFACT_MODE = "artifact";
 export const JOB_QUEUE_MODE = "job-queue";
+export const QUEUE_DEFINITIONS_MODE = "queue-definitions";
 const fixedFailure = (category) => `LocalStack storage proof failed: ${category} rejected.`;
 const artifactFailure = (category) => `LocalStack artifact store failed: ${category} rejected.`;
 const jobQueueFailure = (category) => `LocalStack job queue failed: ${category} rejected.`;
+const queueDefinitionsFailure = (category) => `LocalStack queue definitions failed: ${category} rejected.`;
 const idPattern = /^[a-f0-9]{64}$/;
 const storageProofDirectory = fileURLToPath(new URL(".", import.meta.url));
 const sqsProofDirectory = fileURLToPath(new URL("../localstack-sqs/", import.meta.url));
@@ -65,6 +69,20 @@ const modeConfigurations = Object.freeze({
     temporaryPrefix: "zasp-m1-13-",
     executable: "job-queue-proof",
     proofTimeoutMilliseconds: 150_000,
+    proofDirectory: sqsProofDirectory,
+    extraEnvironment: ["SQS_ENDPOINT_STRATEGY=dynamic"],
+  }),
+  [QUEUE_DEFINITIONS_MODE]: Object.freeze({
+    namePrefix: "zasp-m1-33-",
+    proofLabel: "m1-33",
+    services: ["sqs"],
+    successLine: queueDefinitionsSuccessLine,
+    failureLine: queueDefinitionsFailure,
+    proofArguments: ["queue-definitions"],
+    childSuccess: "LocalStack queue definitions passed: queues=3 dlqs=3 schemas=3 retention=true redrive=true cleanup=true audit=true.",
+    temporaryPrefix: "zasp-m1-33-",
+    executable: "queue-definitions-proof",
+    proofTimeoutMilliseconds: queueDefinitionsProofTimeoutMilliseconds,
     proofDirectory: sqsProofDirectory,
     extraEnvironment: ["SQS_ENDPOINT_STRATEGY=dynamic"],
   }),
@@ -280,7 +298,7 @@ export class DockerRuntime {
     if (result.status !== 0) throw categorized("operation");
     const fields = result.stdout.trim().split("|");
     if (fields.length !== 6 || fields[0] !== token || fields[1] !== `/${this.name}` || fields[2] !== this.resolvedImageID || fields[3] !== LOCALSTACK_IMAGE || fields[4] !== this.configuration.proofLabel || fields[5] !== this.marker) throw categorized("operation");
-    if (this.mode === JOB_QUEUE_MODE) {
+    if (this.mode === JOB_QUEUE_MODE || this.mode === QUEUE_DEFINITIONS_MODE) {
       const environmentResult = this.docker(["inspect", "--format", "{{json .Config.Env}}", token]);
       let environment;
       try { environment = JSON.parse(String(environmentResult?.stdout ?? "")); } catch { throw categorized("operation"); }
@@ -292,8 +310,18 @@ export class DockerRuntime {
         ...this.configuration.extraEnvironment,
       ];
       const reserved = ["SERVICES=", "PERSISTENCE=", "SQS_ENDPOINT_STRATEGY="];
+      const forbiddenAuthority = new Set([
+        "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
+        "AWS_PROFILE", "AWS_DEFAULT_PROFILE", "AWS_CONFIG_FILE",
+        "AWS_SHARED_CREDENTIALS_FILE", "AWS_WEB_IDENTITY_TOKEN_FILE", "AWS_ROLE_ARN",
+        "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY",
+      ]);
       if (expected.some((value) => environment.filter((entry) => entry === value).length !== 1) ||
-        environment.some((entry) => reserved.some((prefix) => entry.startsWith(prefix)) && !expected.includes(entry))) {
+        environment.some((entry) => reserved.some((prefix) => entry.startsWith(prefix)) && !expected.includes(entry)) ||
+        environment.some((entry) => {
+          const key = entry.slice(0, Math.max(0, entry.indexOf("="))).toUpperCase();
+          return forbiddenAuthority.has(key) || key.startsWith("AWS_CONTAINER_CREDENTIALS_");
+        })) {
         throw categorized("operation");
       }
     }
