@@ -282,15 +282,13 @@ archive/index/correlation, confidence classification, and the catalog/detail
 plus five setup flows. The separate M3 gate and real staging evidence remain
 active; these completed component contracts do not substitute for them.
 
-M3-48d through M3-52 and M4-01a through M4-01 are batched as In progress.
-Provider-specific connection setup, sensor lifecycle surfaces, the composed
-connector/sensor/runtime fixture, and full-scope canonical reconciliation now
-run locally. The M3 gate remains intentionally non-PASS for release purposes:
-real SQS, S3, OpenSearch, connector, sensor, and staging evidence still depends
-on M1A-10. The M4 reconciliation batch likewise makes no Neon or staging claim.
+M3-48 through M3-52e and M4-01a through M4-10 are Complete. Reviewed UI,
+composed fixture, reconciliation, audit, and inventory API suites prove their
+component contracts. M3-52 remains active because its aggregate staging PASS
+still depends on M1A-10; component completion does not waive that gate.
 
-M4-02 through M4-23 are batched as In progress. The local platform boundary
-now supports scoped Agent ownership audits, thirteen generated inventory APIs,
+M4-11 through M4-23 remain batched as In progress. The local platform boundary
+supports the remaining generated inventory APIs,
 six evidence-state capability categories, and four evidence-backed posture
 rules. These are locally tested API and store contracts; they make no Neon,
 live-provider, staging, or release-gate claim while M1A-10 and the preceding M3

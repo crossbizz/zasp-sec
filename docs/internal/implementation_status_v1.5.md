@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 0 |
-| In progress | 491 |
-| Complete | 234 |
+| In progress | 466 |
+| Complete | 259 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -27,8 +27,8 @@ In progress, Complete, or Blocked is Pending.
 | M1 | 68 | 0 | 0 | 68 | 0 |
 | M1A | 10 | 0 | 4 | 6 | 0 |
 | M2 | 72 | 0 | 0 | 72 | 0 |
-| M3 | 75 | 0 | 11 | 64 | 0 |
-| M4 | 82 | 0 | 82 | 0 | 0 |
+| M3 | 75 | 0 | 2 | 73 | 0 |
+| M4 | 82 | 0 | 66 | 16 | 0 |
 | M5 | 42 | 0 | 42 | 0 | 0 |
 | M6 | 36 | 0 | 36 | 0 | 0 |
 | M7 | 62 | 0 | 62 | 0 | 0 |
@@ -70,7 +70,7 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `0/491/234/3` because
+session configuration. The 728 source-plan counts are `0/466/259/3` because
 PROV-01 is excluded from those counts.
 For the active M8 resilience batch, live parity, outage injection, and reference load execution remain unresolved.
 
@@ -542,38 +542,38 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 | M4-13 | August 18, 2026 | The authorized scoped runtime list API and generated client contract are implemented locally. |
 | M4-12 | August 18, 2026 | The authorized scoped identity lookup API exposes references and fingerprints but no raw credentials. |
 | M4-11 | August 18, 2026 | The authorized scoped identity list API exposes references and fingerprints but no raw credentials. |
-| M4-10 | August 18, 2026 | The authorized scoped tool lookup API and generated client contract are implemented locally. |
-| M4-09 | August 18, 2026 | The authorized scoped tool list API and generated client contract are implemented locally. |
-| M4-08 | August 18, 2026 | The authorized bounded Agent-session list API and generated client contract are implemented locally. |
-| M4-07 | August 18, 2026 | The authorized bounded Agent-relationship API and generated client contract are implemented locally. |
-| M4-06 | August 18, 2026 | The authorized bounded Agent-capability API and generated client contract are implemented locally. |
-| M4-05 | August 18, 2026 | The authorized Agent ownership/tag mutation emits a scoped audit record locally. |
-| M4-04 | August 18, 2026 | The authorized scoped Agent lookup API and generated client contract are implemented locally. |
-| M4-03 | August 18, 2026 | The authorized scoped Agent list API and generated client contract are implemented locally. |
-| M4-02 | August 18, 2026 | Scoped owner, team, and canonical tag mutation changes only the selected Agent and emits an audit locally. |
-| M4-01 | August 18, 2026 | The bounded local asset/agent/tool/identity/runtime/relationship reconciliation gate is implemented; Neon/provider verification remains gated by M1A-10 and M3-52. |
-| M4-01f | August 18, 2026 | Scoped canonical relationship projection is deterministic and replay-safe in the local product boundary. |
-| M4-01e | August 18, 2026 | Runtime/workload/sandbox/isolation reconciliation preserves stable scoped identity locally. |
-| M4-01d | August 18, 2026 | Identity reconciliation retains only credential references and fingerprints locally. |
-| M4-01c | August 18, 2026 | Tool reconciliation prevents duplicate scoped source tools locally. |
-| M4-01b | August 18, 2026 | Agent reconciliation preserves product identity while updating source metadata locally. |
-| M4-01a | August 18, 2026 | Canonical asset reconciliation preserves stable full-scope IDs and evidence locally. |
 | M3-52 | August 18, 2026 | A strict five-check local M3 gate is implemented; real staging remains unavailable and the task is not Complete. |
-| M3-52e | August 18, 2026 | The composed failure fixture retains last-known inventory with an exact stale state. |
-| M3-52d | August 18, 2026 | The local queue/archive/index replay fixture proves linked deterministic references and an empty synthetic DLQ. |
-| M3-52c | August 18, 2026 | One semantic OTLP event and three runtime events traverse the bounded local ingest fixture. |
-| M3-52b | August 18, 2026 | The scoped enrollment/heartbeat fixture produces supported sensor coverage locally. |
-| M3-52a | August 18, 2026 | AWS, Kubernetes, GitHub, and directory fixtures compose into canonical scoped assets locally. |
-| M3-51 | August 18, 2026 | Sensor enrollment, one-time rotation, and confirmed deletion controls are exposed locally. |
-| M3-50 | August 18, 2026 | The Sensors route renders list, detail, enrollment, coverage, and freshness surfaces from generated schema types. |
-| M3-49 | August 18, 2026 | Connection authorize, sync, and delete controls remain capability-gated and product-branded locally. |
-| M3-48 | August 18, 2026 | Catalog, connected list, detail, and provider setup navigation are composed in the Connections route. |
 | M3-14 | August 18, 2026 | Strict AWS assume-role identity adapter and local denial fixture are implemented; required real-AWS denial remains unavailable behind M1A-10. |
 
 ## Complete
 
 | Task | Completed | Evidence |
 | --- | --- | --- |
+| M4-10 | August 18, 2026 | Authorized scoped tool lookup and generated-client contract pass success and stable-error tests. |
+| M4-09 | August 18, 2026 | Authorized scoped tool listing and generated-client contract pass success and stable-error tests. |
+| M4-08 | August 18, 2026 | Authorized bounded Agent-session listing passes success and stable-error tests. |
+| M4-07 | August 18, 2026 | Authorized bounded Agent relationships pass success and stable-error tests. |
+| M4-06 | August 18, 2026 | Authorized bounded Agent capabilities pass success and stable-error tests. |
+| M4-05 | August 18, 2026 | Authorized Agent ownership/tag mutation emits an exact scoped audit record. |
+| M4-04 | August 18, 2026 | Authorized scoped Agent lookup and generated-client contract pass success and stable-error tests. |
+| M4-03 | August 18, 2026 | Authorized scoped Agent listing and generated-client contract pass success and stable-error tests. |
+| M4-02 | August 18, 2026 | Scoped owner, team, and canonical tag mutation changes only the selected Agent and emits audit. |
+| M4-01 | August 18, 2026 | Repeated reconciliation preserves Asset, Agent, Tool, Identity, Runtime, and relationship identities without cross-Organization collision. |
+| M4-01f | August 18, 2026 | Scoped canonical relationship projection is deterministic, bounded, and replay-safe. |
+| M4-01e | August 18, 2026 | Runtime/workload/sandbox/isolation reconciliation preserves stable scoped identity and evidence. |
+| M4-01d | August 18, 2026 | Identity reconciliation retains only scoped credential references and fingerprints. |
+| M4-01c | August 18, 2026 | Tool reconciliation prevents duplicate provider/tool identities inside one Organization. |
+| M4-01b | August 18, 2026 | Agent reconciliation preserves product identity while updating last-seen and source metadata. |
+| M4-01a | August 18, 2026 | Canonical asset reconciliation preserves stable full-scope IDs and evidence references. |
+| M3-52e | August 18, 2026 | Failed-sync fixture retains last-known inventory with an exact stale state. |
+| M3-52d | August 18, 2026 | Queue/archive/index replay fixture retains matching deterministic references and an empty synthetic DLQ. |
+| M3-52c | August 18, 2026 | One semantic OTLP event and three runtime events traverse bounded scoped ingest. |
+| M3-52b | August 18, 2026 | Scoped enrollment and heartbeat fixture produces supported sensor coverage. |
+| M3-52a | August 18, 2026 | AWS, Kubernetes, GitHub, and directory fixtures compose into canonical scoped assets and freshness. |
+| M3-51 | August 18, 2026 | Sensor enrollment, one-time rotation, and confirmed deletion controls pass lifecycle UI tests. |
+| M3-50 | August 18, 2026 | Sensors routes render list, detail, enrollment, coverage, and freshness from generated types. |
+| M3-49 | August 18, 2026 | Connection authorize, sync, delete, and history actions remain capability-gated and product-branded. |
+| M3-48 | August 18, 2026 | Connections route smoke covers catalog, connected list, detail, and provider setup navigation. |
 | M3-48h | August 18, 2026 | Generic Webhook setup fixes one signed destination and exposes delivery signature status without per-action URLs. |
 | M3-48g | August 18, 2026 | Launch-IdP setup remains visibly separate from product sign-in and Stytch SSO configuration. |
 | M3-48f | August 18, 2026 | GitHub setup displays authorized Repository and Organization scope with actionable missing-scope state. |
