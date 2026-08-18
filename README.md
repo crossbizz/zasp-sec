@@ -293,13 +293,13 @@ evidence-state categories, twelve evidence-backed posture rules, explainable
 risk factors, and two finding-read APIs. These are local API and store
 contracts; they make no Neon, live-provider, staging, or release-gate claim.
 
-M4-36 through M4-49 remain batched as In progress. The local product boundary
-adds signed finding actions, bounded attack paths and break options, a
-stale-aware Home summary, and safe indexed search. The remaining generated API
-contracts are `api_available`; no webhook delivery, Neon, provider, staging,
-or release-gate success is claimed by the injected local fixtures.
+M4-36 through M4-50 and M4-51a through M4-51c are Complete. Reviewed finding
+actions, attack paths, Home/search, Agent table/filter, coverage, identity,
+tool, runtime, and capability suites pass through generated product contracts.
+No external webhook delivery, Neon, provider, staging, or release-gate success
+is claimed by these injected local fixtures.
 
-M4-50a through M4-59 are batched as In progress. One generated-schema Agent
+M4-51d through M4-59 remain batched as In progress. One generated-schema Agent
 Security surface now covers Agent filters/detail, Tools and MCP, Identities,
 Runtimes, Findings, Attack Paths, and stale-aware Home state. Its canonical
 fixture drives a five-check local M4 gate across Inventory, Capability,

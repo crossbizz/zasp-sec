@@ -22,18 +22,21 @@ describe("M4 UI and golden-gate batch", () => {
     for (const value of ["Inventory", "Capability", "Posture", "AttackPath", "ExposureUX", 'Status: "PASS"', "Checks: 5"]) expect(source).toContain(value);
   });
 
-  it("moves exactly twenty-seven related UI and golden-gate tasks to In progress", async () => {
+  it("records the Agent foundation complete and keeps the remaining UI slice active", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(root, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(root, "README.md"), "utf8"),
     ]);
-    for (const value of ["| Pending | 0 |", "| In progress | 441 |", "| Complete | 284 |", "| Blocked | 3 |", "`0/441/284/3`", "| M4 | 82 | 0 | 41 | 41 | 0 |"]) expect(tracker).toContain(value);
+    for (const value of ["| Pending | 0 |", "| In progress | 416 |", "| Complete | 309 |", "| Blocked | 3 |", "`0/416/309/3`", "| M4 | 82 | 0 | 16 | 66 | 0 |"]) expect(tracker).toContain(value);
     const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
-    const tasks = ["M4-50a", "M4-50b1", "M4-50b2", "M4-50b3", "M4-50c", "M4-50", "M4-51a", "M4-51b1", "M4-51b2", "M4-51b3", "M4-51c", "M4-51d", "M4-51e", "M4-51", "M4-52", "M4-53", "M4-54", "M4-55", "M4-56", "M4-57", "M4-58", "M4-59a", "M4-59b", "M4-59c", "M4-59d", "M4-59e", "M4-59"];
-    expect(tasks).toHaveLength(27);
-    for (const task of tasks) expect(active.match(new RegExp(`^\\| ${task} \\|`, "gm"))).toHaveLength(1);
+    const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] ?? "";
+    const completed = ["M4-50a", "M4-50b1", "M4-50b2", "M4-50b3", "M4-50c", "M4-50", "M4-51a", "M4-51b1", "M4-51b2", "M4-51b3", "M4-51c"];
+    for (const task of completed) expect(complete.match(new RegExp(`^\\| ${task} \\|`, "gm"))).toHaveLength(1);
+    const remaining = ["M4-51d", "M4-51e", "M4-51", "M4-52", "M4-53", "M4-54", "M4-55", "M4-56", "M4-57", "M4-58", "M4-59a", "M4-59b", "M4-59c", "M4-59d", "M4-59e", "M4-59"];
+    expect(remaining).toHaveLength(16);
+    for (const task of remaining) expect(active.match(new RegExp(`^\\| ${task} \\|`, "gm"))).toHaveLength(1);
     const prose = readme.replace(/\s+/g, " ");
-    expect(prose).toContain("M4-50a through M4-59 are batched as In progress");
+    expect(prose).toContain("M4-51d through M4-59 remain batched as In progress");
     expect(prose).toContain("not Neon, provider, staging, external webhook, or release-gate evidence");
   });
 });

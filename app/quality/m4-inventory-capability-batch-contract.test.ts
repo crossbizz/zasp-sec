@@ -33,9 +33,9 @@ describe("M4 inventory, capability, and posture batch", () => {
     ]);
     expect(tracker).toMatch(/^\| Pending \| \d+ \|/m);
     expect(tracker).toMatch(/^\| In progress \| \d+ \|/m);
-    expect(tracker).toContain("| Complete | 284 |");
+    expect(tracker).toContain("| Complete | 309 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("| M4 | 82 | 0 | 41 | 41 | 0 |");
+    expect(tracker).toContain("| M4 | 82 | 0 | 16 | 66 | 0 |");
     const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
     const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] ?? "";
     const tasks = Array.from({ length: 22 }, (_, index) => `M4-${String(index + 2).padStart(2, "0")}`);

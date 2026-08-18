@@ -35,24 +35,23 @@ describe("M4 risk, path, home, and search batch", () => {
     expect(source).not.toContain("MATCH (n)");
   });
 
-  it("completes the first risk slice and keeps the remaining API work active", async () => {
+  it("records the full risk, path, Home, and search slice as Complete", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(root, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(root, "README.md"), "utf8"),
     ]);
     expect(tracker).toMatch(/^\| Pending \| \d+ \|/m);
     expect(tracker).toMatch(/^\| In progress \| \d+ \|/m);
-    expect(tracker).toContain("| Complete | 284 |");
+    expect(tracker).toContain("| Complete | 309 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("| M4 | 82 | 0 | 41 | 41 | 0 |");
+    expect(tracker).toContain("| M4 | 82 | 0 | 16 | 66 | 0 |");
     const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
     const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] ?? "";
-    const completed = Array.from({ length: 12 }, (_, index) => `M4-${String(index + 24).padStart(2, "0")}`);
+    const completed = Array.from({ length: 26 }, (_, index) => `M4-${String(index + 24).padStart(2, "0")}`);
     for (const task of completed) expect(complete.match(new RegExp(`^\\| ${task} \\|`, "gm"))).toHaveLength(1);
-    const remaining = Array.from({ length: 14 }, (_, index) => `M4-${String(index + 36).padStart(2, "0")}`);
-    for (const task of remaining) expect(active.match(new RegExp(`^\\| ${task} \\|`, "gm"))).toHaveLength(1);
+    for (const task of completed) expect(active.match(new RegExp(`^\\| ${task} \\|`, "gm")) ?? []).toHaveLength(0);
     const prose = readme.replace(/\s+/g, " ");
-    expect(prose).toContain("M4-36 through M4-49 remain batched as In progress");
-    expect(prose).toContain("no webhook delivery, Neon, provider, staging, or release-gate success is claimed");
+    expect(prose).toContain("M4-36 through M4-50 and M4-51a through M4-51c are Complete");
+    expect(prose).toContain("No external webhook delivery, Neon, provider, staging, or release-gate success is claimed");
   });
 });

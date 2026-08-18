@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 0 |
-| In progress | 441 |
-| Complete | 284 |
+| In progress | 416 |
+| Complete | 309 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -28,7 +28,7 @@ In progress, Complete, or Blocked is Pending.
 | M1A | 10 | 0 | 4 | 6 | 0 |
 | M2 | 72 | 0 | 0 | 72 | 0 |
 | M3 | 75 | 0 | 2 | 73 | 0 |
-| M4 | 82 | 0 | 41 | 41 | 0 |
+| M4 | 82 | 0 | 16 | 66 | 0 |
 | M5 | 42 | 0 | 42 | 0 | 0 |
 | M6 | 36 | 0 | 36 | 0 | 0 |
 | M7 | 62 | 0 | 62 | 0 | 0 |
@@ -70,7 +70,7 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `0/441/284/3` because
+session configuration. The 728 source-plan counts are `0/416/309/3` because
 PROV-01 is excluded from those counts.
 For the active M8 resilience batch, live parity, outage injection, and reference load execution remain unresolved.
 
@@ -492,31 +492,6 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 | M4-51 | August 18, 2026 | The Agent detail reading order composes identity through sessions and policy coverage locally. |
 | M4-51e | August 18, 2026 | Agent Sessions and runtime-policy coverage sections link to canonical routes locally. |
 | M4-51d | August 18, 2026 | Agent Findings and Attack Paths sections link to canonical exposure routes locally. |
-| M4-51c | August 18, 2026 | Effective Capability cards render Observed and Blocked evidence states locally. |
-| M4-51b3 | August 18, 2026 | Agent runtime and sandbox references link to canonical runtime detail locally. |
-| M4-51b2 | August 18, 2026 | Agent Tool and MCP relationships link to canonical tool detail locally. |
-| M4-51b1 | August 18, 2026 | Agent principal and credential references link to canonical identity detail locally. |
-| M4-51a | August 18, 2026 | Agent header renders owner, status, environment, risk, and last-seen state; owner edit uses the generated client. |
-| M4-50 | August 18, 2026 | Agent table, filters, and stale coverage indicators compose into one local route. |
-| M4-50c | August 18, 2026 | Agent last-seen, stale-source, policy, and sensor coverage indicators fail visibly degraded locally. |
-| M4-50b3 | August 18, 2026 | Runtime-sensor and policy-coverage filter state generates a bounded product query locally. |
-| M4-50b2 | August 18, 2026 | Shell/code-execution and high-impact-reach filter state generates a bounded product query locally. |
-| M4-50b1 | August 18, 2026 | Owner, environment, and risk filter state generates a bounded product query locally. |
-| M4-50a | August 18, 2026 | The Agent table renders core columns plus deterministic local empty/loading/error test boundaries. |
-| M4-49 | August 18, 2026 | The authorized safe global-search API and generated client contract are implemented locally. |
-| M4-48 | August 18, 2026 | Bounded scoped product-name/type/ID search rejects raw graph-query syntax locally. |
-| M4-47 | August 18, 2026 | The authorized stale-aware Home summary API and generated client contract are implemented locally. |
-| M4-46 | August 18, 2026 | Home summary counts, risk-path changes, and coverage freshness fail unhealthy locally. |
-| M4-45 | August 18, 2026 | The authorized deterministic attack-path break-options API is implemented locally. |
-| M4-44 | August 18, 2026 | The authorized bounded attack-path lookup API is implemented locally. |
-| M4-43 | August 18, 2026 | The authorized bounded attack-path list API is implemented locally. |
-| M4-42 | August 18, 2026 | Deterministic evidence-linked node and policy break options are ranked locally. |
-| M4-41 | August 18, 2026 | Potential, Observed, Verified, and Blocked attack-path state is retained locally. |
-| M4-40 | August 18, 2026 | Attack paths are bounded to exact entry, sink, node, edge, and evidence sets locally. |
-| M4-39 | August 18, 2026 | Ticket creation sends an HMAC-signed redacted payload through an injected webhook boundary. |
-| M4-38 | August 18, 2026 | The authorized signed finding-ticket API and generated client contract are implemented locally. |
-| M4-37 | August 18, 2026 | The authorized finding risk-acceptance API records a bounded reason locally. |
-| M4-36 | August 18, 2026 | The authorized finding-status mutation API and generated client contract are implemented locally. |
 | M3-52 | August 18, 2026 | A strict five-check local M3 gate is implemented; real staging remains unavailable and the task is not Complete. |
 | M3-14 | August 18, 2026 | Strict AWS assume-role identity adapter and local denial fixture are implemented; required real-AWS denial remains unavailable behind M1A-10. |
 
@@ -524,6 +499,31 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 
 | Task | Completed | Evidence |
 | --- | --- | --- |
+| M4-51c | August 18, 2026 | Effective Capability cards render configured, Observed, Verified, and Blocked evidence states. |
+| M4-51b3 | August 18, 2026 | Agent runtime and sandbox references link to canonical runtime detail. |
+| M4-51b2 | August 18, 2026 | Agent Tool and MCP relationships link to canonical tool detail. |
+| M4-51b1 | August 18, 2026 | Agent principal and credential references link to canonical identity detail. |
+| M4-51a | August 18, 2026 | Agent header renders owner, status, environment, risk, and last-seen state; owner edit uses the generated client. |
+| M4-50 | August 18, 2026 | Agent table, filters, and stale coverage indicators compose into one tested local route. |
+| M4-50c | August 18, 2026 | Agent last-seen, stale-source, policy, and sensor coverage indicators fail visibly degraded. |
+| M4-50b3 | August 18, 2026 | Runtime-sensor and policy-coverage filter state generates the exact bounded product query. |
+| M4-50b2 | August 18, 2026 | Shell/code-execution and high-impact-reach filter state generates the exact product query. |
+| M4-50b1 | August 18, 2026 | Owner, environment, and risk filter state generates the exact product query. |
+| M4-50a | August 18, 2026 | Agent table tests cover core columns plus deterministic loading, empty, and error states. |
+| M4-49 | August 18, 2026 | Authorized safe global-search API and generated-client success/error contracts pass. |
+| M4-48 | August 18, 2026 | Bounded scoped product-name/type/ID search rejects raw graph-query syntax. |
+| M4-47 | August 18, 2026 | Authorized stale-aware Home summary API and generated-client success/error contracts pass. |
+| M4-46 | August 18, 2026 | Home counts, risk-path changes, and coverage freshness cannot report healthy while stale. |
+| M4-45 | August 18, 2026 | Authorized deterministic attack-path break-options API success/error contracts pass. |
+| M4-44 | August 18, 2026 | Authorized bounded attack-path lookup API success/error contracts pass. |
+| M4-43 | August 18, 2026 | Authorized bounded attack-path list API success/error contracts pass. |
+| M4-42 | August 18, 2026 | Exact evidence-linked node and policy break options are ranked deterministically. |
+| M4-41 | August 18, 2026 | Potential, Observed, Verified, and Blocked attack-path fixtures classify exactly. |
+| M4-40 | August 18, 2026 | Attack paths remain bounded to exact entry, sink, node, edge, and evidence sets. |
+| M4-39 | August 18, 2026 | Ticket creation sends an HMAC-signed redacted payload through an injected webhook boundary. |
+| M4-38 | August 18, 2026 | Authorized signed finding-ticket API and generated-client success/error contracts pass. |
+| M4-37 | August 18, 2026 | Authorized finding risk acceptance records a bounded reason. |
+| M4-36 | August 18, 2026 | Authorized finding-status mutation and generated-client success/error contracts pass. |
 | M4-35 | August 18, 2026 | Authorized scoped finding lookup and generated-client success/error contracts pass. |
 | M4-34 | August 18, 2026 | Authorized relevance-filtered finding listing and generated-client success/error contracts pass. |
 | M4-33 | August 18, 2026 | Findings retain exact explainable evidence-linked risk factors without an opaque score. |
