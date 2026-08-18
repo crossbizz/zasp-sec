@@ -55,7 +55,7 @@ describe("M1-36e local Kubernetes and LocalStack smoke", () => {
     expect(plan.match(/^- \[[ x]\]/gm) ?? []).toHaveLength(15);
   });
 
-  it("starts only M1-36e after completed M1-36d and preserves exact blockers", async () => {
+  it("completes only M1-36e after completed M1-36d and preserves exact blockers", async () => {
     const tracker = await readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8");
     const active = taskRows(tracker, "In progress");
     const complete = taskRows(tracker, "Complete");
@@ -64,16 +64,15 @@ describe("M1-36e local Kubernetes and LocalStack smoke", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(tracker).toContain("| Pending | 647 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 77 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 78 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`647/1/77/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "14", "1", "53", "0"]);
+    expect(tracker).toContain("`647/0/78/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "14", "0", "54", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active).toHaveLength(1);
-    expect(active[0]?.[0]).toBe("M1-36e");
+    expect(active).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-36d")).toHaveLength(1);
-    expect(complete.filter(([task]) => task === "M1-36e")).toHaveLength(0);
+    expect(complete.filter(([task]) => task === "M1-36e")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-37")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
@@ -83,7 +82,7 @@ describe("M1-36e local Kubernetes and LocalStack smoke", () => {
     const section = readme.match(/## M1 local infrastructure smoke[\s\S]*?(?=\n## )/)?.[0] ?? "";
     const prose = section.replace(/\s+/g, " ");
 
-    expect(prose).toContain("M1-36e is In progress");
+    expect(prose).toContain("M1-36e is Complete");
     expect(section).toContain("node --test deploy/local/start.test.mjs");
     expect(section).toContain("npm run local:aws-emulator:test");
     expect(section).toContain("npm run local:start");

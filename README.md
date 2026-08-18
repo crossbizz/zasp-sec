@@ -101,11 +101,11 @@ npm run ui-api:check
 The current honest result is `UI/API coverage passed: planned=5 available=0
 public=0 internal=0.` The gate leaves the operation inventory and map
 availability unchanged.
-M1-36e is In progress and separately owns local infrastructure smoke checks.
+M1-36e is Complete and separately owns local infrastructure smoke checks.
 
 ## M1 local infrastructure smoke
 
-M1-36e is In progress. It reuses the reviewed disposable assembled target and
+M1-36e is Complete. It reuses the reviewed disposable assembled target and
 its hostile local-infrastructure suites:
 
 ```bash
