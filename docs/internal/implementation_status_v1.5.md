@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 657 |
-| In progress | 1 |
-| Complete | 67 |
+| In progress | 0 |
+| Complete | 68 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -24,7 +24,7 @@ In progress, Complete, or Blocked is Pending.
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 0 | 0 | 24 | 3 |
-| M1 | 68 | 24 | 1 | 43 | 0 |
+| M1 | 68 | 24 | 0 | 44 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
 | M3 | 75 | 75 | 0 | 0 | 0 |
@@ -68,19 +68,19 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `657/1/67/3` because
+session configuration. The 728 source-plan counts are `657/0/68/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M1-30 | August 17, 2026 | Adding one canonical assembled local start target over the reviewed M1-30d lifecycle, with exact prior-profile preservation, zero external vendor-dashboard exposure, disposable ownership, and fixed output. |
 
 ## Complete
 
 | Task | Completed | Evidence |
 | --- | --- | --- |
+| M1-30 | August 17, 2026 | Added one strict canonical local start target over the reviewed M1-30d lifecycle, preserved all four completed profile contracts, retained disposable ownership and fixed output, passed exact live verification with zero owned residue and unchanged shared fingerprints, six focused stability runs, full repository gates and scans, and zero-finding whole-range review. |
 | M1-30d | August 17, 2026 | Added the exact opt-in internal LocalStack S3 overlay with immutable Community image and license evidence, fixed synthetic endpoint variables, staged one-shot S3 Job, exact product/graph/observability preservation, complete Docker/containerd/Kubernetes ownership, reverse cleanup including provider TTL collection, fixed output, repeated exact live success, six hermetic stability runs, full repository gates/scans, and zero-finding whole-range review. |
 | M1-30c | August 17, 2026 | Added the exact opt-in local OpenTelemetry Collector overlay with immutable Apache/GPL-scoped images, configuration-only no-egress proof, staged one-span Job, exact M1-21 span and file-backed sink evidence, complete Docker/containerd/Kubernetes ownership, prior-profile preservation, exact shared-image non-mutation, reverse cleanup, fixed output, final exact live passes, six hermetic stability runs, full repository gates/scans, and zero-finding whole-range review. |
 | M1-30b | August 16, 2026 | Added the exact opt-in local Neo4j graph overlay with immutable GPL-scoped images, internal-only health, bounded kubelet PID authority, persistent marker proof across pod replacement, complete Docker/containerd/Kubernetes ownership, exact shared-image non-mutation, reverse cleanup, fixed output, two final exact live passes, six hermetic stability runs, full repository gates/scans, and zero-finding whole-range review. |

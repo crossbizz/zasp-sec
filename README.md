@@ -717,7 +717,7 @@ Successful live verification emits exactly
 The runner uses its own kubeconfig and proof labels, removes only retained
 resources after exact ownership checks, and leaves shared local services
 untouched. M1-30b is Complete, M1-30c is Complete, and M1-30d is Complete.
-M1-30 is In progress.
+M1-30 is Complete.
 
 ## Platform health wiring
 
@@ -869,12 +869,12 @@ freshly re-prove as proof-owned.
 This task does not expose LocalStack on the host, reuse a shared LocalStack
 target, persist emulator state, read ambient AWS or Kubernetes authority, or
 wire product AWS clients. M1-31 owns product client-factory consumption of the
-endpoint contract. M1-30 is In progress while its separate assembled local
-start target is implemented and verified.
+endpoint contract. M1-30 is Complete after its separate assembled local start
+target passed live verification, cleanup audit, repository gates, scans, and review.
 
 ## Assembled local development target
 
-M1-30 is In progress. M1-30a, M1-30b, M1-30c, and M1-30d are Complete. The
+M1-30 is Complete. M1-30a, M1-30b, M1-30c, and M1-30d are Complete. The
 canonical start-and-verify target requires Node.js `22.23.1` and npm `10.9.8`,
 plus the Docker, Go, kubectl, kind asset, and network prerequisites of the
 reviewed profiles:

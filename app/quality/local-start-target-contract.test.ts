@@ -45,7 +45,7 @@ describe("M1-30 assembled local start target", () => {
     }
   });
 
-  it("starts only M1-30 while preserving completed profiles and blockers", async () => {
+  it("completes only M1-30 while preserving completed profiles, pending work, and blockers", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -56,19 +56,20 @@ describe("M1-30 assembled local start target", () => {
     const summary = markdownRows(tracker.match(/## Status summary[\s\S]*?## Milestone summary/)?.[0] ?? "").slice(2);
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
-    expect(readme).toContain("M1-30 is In progress");
+    expect(readme).toContain("M1-30 is Complete");
     expect(readme).toContain("M1-31");
     expect(tracker).toContain("| Pending | 657 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 67 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 68 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`657/1/67/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "24", "1", "43", "0"]);
+    expect(tracker).toContain("`657/0/68/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "24", "0", "44", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.map(([task]) => task)).toEqual(["M1-30"]);
-    expect(complete).toHaveLength(67);
-    expect(active.filter(([task]) => task === "M1-30")).toHaveLength(1);
-    expect(complete.filter(([task]) => task === "M1-30")).toHaveLength(0);
+    expect(active.map(([task]) => task)).toEqual([]);
+    expect(complete).toHaveLength(68);
+    expect(active.filter(([task]) => task === "M1-30")).toHaveLength(0);
+    expect(complete.filter(([task]) => task === "M1-30")).toHaveLength(1);
+    expect([...active, ...complete].filter(([task]) => task === "M1-31")).toHaveLength(0);
     for (const dependency of ["M1-30a", "M1-30b", "M1-30c", "M1-30d"]) {
       expect(complete.filter(([task]) => task === dependency)).toHaveLength(1);
     }
@@ -86,7 +87,7 @@ describe("M1-30 assembled local start target", () => {
 
     expect(scripts["local:start"]).toBe("node deploy/local/start.mjs");
     for (const value of [
-      "M1-30 is In progress",
+      "M1-30 is Complete",
       "M1-30a, M1-30b, M1-30c, and M1-30d",
       "Node.js `22.23.1` and npm `10.9.8`",
       "npm run local:start",
