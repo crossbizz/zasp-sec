@@ -95,4 +95,42 @@ describe("M1-30d local AWS emulator manifest", () => {
       expect(design).toContain(value);
     }
   });
+
+  it("exposes only the exact hermetic, live, and license commands with bounded operator guidance", async () => {
+    const [packageSource, readme] = await Promise.all([
+      readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+    ]);
+    const scripts = JSON.parse(packageSource).scripts as Record<string, string>;
+    const section = readme.match(/## Local AWS emulator Kubernetes manifest proof[\s\S]*?(?=\n## )/)?.[0] ?? "";
+
+    expect(scripts["local:aws-emulator:test"]).toBe(
+      "node --test deploy/local/manifests.test.mjs deploy/local/run.test.mjs deploy/local/graph-manifest.test.mjs deploy/local/graph-run.test.mjs deploy/local/graph-license-audit.test.mjs deploy/local/observability-manifest.test.mjs deploy/local/observability-run.test.mjs deploy/local/observability-license-audit.test.mjs deploy/local/aws-emulator-manifest.test.mjs deploy/local/aws-emulator-run.test.mjs deploy/local/aws-emulator-license-audit.test.mjs",
+    );
+    expect(scripts["local:aws-emulator:run"]).toBe("node deploy/local/aws-emulator-run.mjs");
+    expect(scripts["local:aws-emulator:license"]).toBe("node deploy/local/aws-emulator-license-audit.mjs");
+    for (const value of [
+      "npm run local:aws-emulator:test",
+      "npm run local:aws-emulator:license",
+      "npm run local:aws-emulator:run",
+      "Local AWS emulator manifest passed: ready=true internal=true endpoint=true s3=true cleanup=true.",
+      "Local AWS emulator manifest failed: <category> rejected.",
+      "AWS_ENDPOINT_URL",
+      "AWS_ENDPOINT_URL_S3",
+      "localstack-s3-probe",
+      "synthetic credentials",
+      "LocalStack Community",
+      "M1-31",
+    ]) {
+      expect(section).toContain(value);
+    }
+    for (const forbidden of [
+      "production AWS parity",
+      "shared LocalStack is modified",
+      "reads the ambient kubeconfig",
+      "product AWS clients are wired",
+    ]) {
+      expect(section).not.toContain(forbidden);
+    }
+  });
 });

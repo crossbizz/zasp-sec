@@ -842,7 +842,31 @@ M1-30d is In progress. The selected boundary adds an exact-pinned LocalStack
 S3 Deployment and internal ClusterIP Service to the disposable local cluster.
 An exact ConfigMap supplies `AWS_ENDPOINT_URL` and `AWS_ENDPOINT_URL_S3` to a
 staged one-shot synthetic client Job only after LocalStack is Ready. The Job
-will make one explicit endpoint-bound S3 list request and emit fixed output.
+makes one explicit endpoint-bound S3 list request with synthetic credentials
+fixed to non-secret local values and emits one fixed evidence line.
+
+Run the hermetic contracts and immutable LocalStack Community license audit
+from the repository root with pinned Node 22.23.1 and npm 10.9.8:
+
+```bash
+npm run local:aws-emulator:test
+npm run local:aws-emulator:license
+```
+
+The opt-in live proof additionally requires Docker, network access for exact
+immutable artifact resolution, and an otherwise disposable local runtime. Run:
+
+```bash
+npm run local:aws-emulator:run
+```
+
+Success is exactly
+`Local AWS emulator manifest passed: ready=true internal=true endpoint=true s3=true cleanup=true.`
+Failures are exactly
+`Local AWS emulator manifest failed: <category> rejected.` The runtime stages
+`localstack-s3-probe` only after exact LocalStack readiness, keeps both
+endpoint variables internal to the cluster, and removes only resources it can
+freshly re-prove as proof-owned.
 
 This task does not expose LocalStack on the host, reuse a shared LocalStack
 target, persist emulator state, read ambient AWS or Kubernetes authority, or
