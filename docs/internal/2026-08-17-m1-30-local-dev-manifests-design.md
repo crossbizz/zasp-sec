@@ -62,7 +62,7 @@ is an immutable, caller-independent descriptor that binds:
 - the exact delegated profile `m1-30d`;
 - the completed dependency sequence `m1-30a`, `m1-30b`, `m1-30c`, and
   `m1-30d`;
-- the six canonical manifest files in their reviewed apply order; and
+- the six canonical manifest files in their reviewed profile order; and
 - the exact existing M1-30d success line and failure categories.
 
 The descriptor accepts no caller input. It is deeply frozen and validated
