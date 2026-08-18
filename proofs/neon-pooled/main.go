@@ -17,6 +17,10 @@ const (
 )
 
 func main() {
+	if len(os.Args) == 2 && os.Args[1] == "tenant-rls" {
+		runTenantRLSMain()
+		return
+	}
 	if len(os.Args) == 2 && os.Args[1] == "pool-wrapper" {
 		runProductPoolMain()
 		return

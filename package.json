@@ -60,6 +60,8 @@
     "db:pool:run": "node --env-file=.env proofs/neon-pooled/run-pool-wrapper.mjs",
     "db:schema:test": "go test -C services/platform -race -count=1 ./migrations && go test -C proofs/neon-pooled -race -count=1 ./...",
     "db:schema:run": "node --env-file=.env proofs/neon-pooled/run-schema-baseline.mjs",
+    "db:tenant-rls:test": "go test -C services/platform -race -count=1 ./tenantcontext ./tenantrls ./repository && go test -C proofs/neon-pooled -race -count=1 -run '^TestTenantRLS|^TestRenderTenantRLS' .",
+    "db:tenant-rls:run": "node --env-file=.env proofs/neon-pooled/run-tenant-rls.mjs",
     "dependencies:check": "node scripts/validate-dependencies.mjs",
     "dev": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext dev",
     "build": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext build",
@@ -120,7 +122,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "saas:tenancy:test": "go test -C services/platform -race -count=1 -timeout=90s ./config ./repository ./eventstore ./artifactstore ./jobqueue ./graphstore ./tenantquota",
-    "verify": "npm run dependencies:check && npm run health:contract:test && npm run openapi:test && npm run openapi:lint && npm run openapi:check && npm run ui-api:test && npm run ui-api:check && npm run raw-fetch:test && npm run saas:tenancy:test && npm test && npm run typecheck && npm run lint && npm run build",
+    "verify": "npm run dependencies:check && npm run health:contract:test && npm run openapi:test && npm run openapi:lint && npm run openapi:check && npm run ui-api:test && npm run ui-api:check && npm run raw-fetch:test && npm run saas:tenancy:test && npm run db:tenant-rls:test && npm test && npm run typecheck && npm run lint && npm run build",
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {

@@ -204,6 +204,18 @@ The check is hermetic: it does not contact a provider or claim database RLS
 enforcement. Provider authorization and live Neon policy verification remain
 separate lifecycle work.
 
+## Neon tenant isolation gate
+
+Run `npm run db:tenant-rls:test` for the bounded product and proof contracts.
+Run `npm run db:tenant-rls:run` to apply the same policies to eight
+tenant-protected tables in a uniquely named schema using the ignored
+`DATABASE_URL`. The live fixture enters a temporary non-bypass role and proves
+same-Organization access while cross-Organization reads and writes are denied.
+
+The live gate reverses every policy and requires exact schema and role absence.
+For MVP validation it uses a unique schema and does not require or mutate a
+Neon management branch.
+
 ## Development
 
 Requires Node.js `22.23.1` and npm `10.9.8`. `.nvmrc` pins the Node runtime;

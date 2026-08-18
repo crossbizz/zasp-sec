@@ -54,19 +54,19 @@ func TestMigrationProtectsExactCoreAndWorkflowTables(t *testing.T) {
 	}
 }
 
-func TestMigrationIsRestrictiveTransactionLocalAndReversible(t *testing.T) {
+func TestMigrationIsTransactionLocalAndReversible(t *testing.T) {
 	migration := Migration()
 	up := migration.UpSQL()
 	down := migration.DownSQL()
 	for required, count := range map[string]int{
-		" AS RESTRICTIVE FOR ALL":                              8,
+		" AS PERMISSIVE FOR ALL":                               8,
 		"current_setting('app.current_organization_id', true)": 16,
 	} {
 		if strings.Count(up, required) != count {
 			t.Fatalf("%q count = %d, want %d", required, strings.Count(up, required), count)
 		}
 	}
-	for _, forbidden := range []string{"current_setting('app.current_organization_id')", " AS PERMISSIVE ", " OR ", " TO PUBLIC", "IF EXISTS"} {
+	for _, forbidden := range []string{"current_setting('app.current_organization_id')", " AS RESTRICTIVE ", " OR ", " TO PUBLIC", "IF EXISTS"} {
 		if strings.Contains(up, forbidden) {
 			t.Fatalf("up migration contains forbidden %q", forbidden)
 		}
