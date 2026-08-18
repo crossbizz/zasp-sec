@@ -467,11 +467,10 @@ export function bindGraphContainerdRuntimeAlias(beforeSource, afterSource, targe
       if (!exactData(before.get(row.reference), row)) throw new TypeError("graph runtime alias authority changed");
     }
     const delta = [...after].filter(([reference]) => !before.has(reference)).map(([, row]) => row);
-    const child = target.references.find(({ mediaType, reference }) =>
-      mediaType === "application/vnd.oci.image.manifest.v1+json" && reference.startsWith("import-"));
-    const reference = child === undefined ? undefined : graphPublicImageReference(child.reference);
-    if (delta.length !== 1 || child === undefined || delta[0].reference !== reference ||
-        !exactData({ ...delta[0], reference: child.reference }, child)) {
+    const runtime = target.references[0];
+    const reference = runtime === undefined ? undefined : graphPublicImageReference(runtime.reference);
+    if (delta.length !== 1 || runtime === undefined || delta[0].reference !== reference ||
+        !exactData({ ...delta[0], reference: runtime.reference }, runtime)) {
       throw new TypeError("graph runtime alias is invalid");
     }
     const bound = deepFreeze({
@@ -644,8 +643,8 @@ function validateGraphArchiveContainerdTarget(target, selected) {
   }
   requireExactKeySet(runtimeAlias, ["digest", "labels", "mediaType", "platform", "reference", "size"],
     "graph containerd runtime alias");
-  if (runtimeAlias.reference !== graphPublicImageReference(children[0].reference) ||
-      !exactData({ ...runtimeAlias, reference: children[0].reference }, children[0]) ||
+  if (runtimeAlias.reference !== graphPublicImageReference(ordered[0].reference) ||
+      !exactData({ ...runtimeAlias, reference: ordered[0].reference }, ordered[0]) ||
       target.imageID !== graphPublicImageReference(ordered[0].reference)) {
     throw new TypeError("graph containerd runtime alias is invalid");
   }
@@ -2132,12 +2131,13 @@ export class LocalGraphSystem extends LocalProductSystem {
         ], phase, "provider", 30_000, 4_194_304);
         target = bindGraphContainerdWorkloadAlias(after.stdout, aliased.stdout, target, selected);
         this.graphNodeImageInventory = aliased.stdout;
-        const runtimeChild = target.references.find(({ mediaType, reference }) =>
-          mediaType === "application/vnd.oci.image.manifest.v1+json" && reference.startsWith("import-"));
-        if (runtimeChild === undefined) throw new GraphFailure("provider");
+        const runtimeTarget = target.references[0];
+        if (runtimeTarget === undefined || !runtimeTarget.reference.startsWith("import-")) {
+          throw new GraphFailure("provider");
+        }
         const runtimeTagged = await this.runNodeMutation([
           "ctr", "--namespace", "k8s.io", "images", "tag", "--local",
-          runtimeChild.reference, graphPublicImageReference(runtimeChild.reference),
+          runtimeTarget.reference, graphPublicImageReference(runtimeTarget.reference),
         ], phase, "provider", 30_000, 4_194_304);
         if (runtimeTagged.outcome === "definitive") throw new GraphFailure("provider");
         const runtimeAliased = await this.runNodeRead([

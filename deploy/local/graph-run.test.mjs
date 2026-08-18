@@ -187,10 +187,9 @@ function graphWorkloadReference(name, platform = "linux/arm64") {
 function graphBoundArchiveImport(name, platform = "linux/arm64", mutate = () => {}) {
   const fixture = graphArchiveImport(name, platform, mutate);
   const wrapper = fixture.target.references.find(({ mediaType }) => mediaType.endsWith("index.v1+json"));
-  const child = fixture.target.references.find(({ mediaType, reference }) =>
-    mediaType.endsWith("manifest.v1+json") && reference.startsWith("import-"));
   const alias = { ...wrapper, reference: graphWorkloadReference(name, platform) };
-  const runtimeAlias = { ...child, reference: `docker.io/library/${child.reference}` };
+  const runtime = fixture.target.references[0];
+  const runtimeAlias = { ...runtime, reference: `docker.io/library/${runtime.reference}` };
   const boundTarget = {
     ...fixture.target,
     imageID: alias.reference,

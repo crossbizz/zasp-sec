@@ -22,6 +22,8 @@ import {
 import { AWS_EMULATOR_CONSTANTS, buildAwsEmulatorCoreResources, buildAwsEmulatorResources, buildAwsEmulatorS3Resources, renderAwsEmulatorCoreManifest, renderAwsEmulatorS3Manifest } from "./aws-emulator-manifest.mjs";
 import { buildGraphResources, renderGraphManifest } from "./graph-manifest.mjs";
 import {
+  bindGraphContainerdRuntimeAlias,
+  bindGraphContainerdWorkloadAlias,
   isObservabilityProviderRead,
   parseGraphContainerdImageTargets,
   projectGraphProviderResources,
@@ -136,6 +138,22 @@ test("admits the exact LocalStack plan at the inherited containerd archive bound
     `import-2026-08-18@${childDigest}`,
     selected.configDigest,
   ]);
+  const workloadReference = `docker.io/localstack/localstack@${selected.indexDigest}`;
+  const workloadRow = `${workloadReference} application/vnd.oci.image.index.v1+json ${wrapperDigest} ` +
+    "1.2 GiB linux/arm64 io.cri-containerd.image=managed";
+  const workloadInventory = [after.trimEnd(), workloadRow, ""].join("\n");
+  const workloadTarget = bindGraphContainerdWorkloadAlias(after, workloadInventory, target, selected);
+  const runtimeReference = `docker.io/library/import-2026-08-18@${wrapperDigest}`;
+  const runtimeRow = `${runtimeReference} application/vnd.oci.image.index.v1+json ${wrapperDigest} ` +
+    "1.2 GiB linux/arm64 io.cri-containerd.image=managed";
+  const runtimeTarget = bindGraphContainerdRuntimeAlias(
+    workloadInventory,
+    [workloadInventory.trimEnd(), runtimeRow, ""].join("\n"),
+    workloadTarget,
+    selected,
+  );
+  assert.equal(runtimeTarget.imageID, runtimeReference);
+  assert.equal(runtimeTarget.references.at(-1).reference, runtimeReference);
 });
 
 test("composes only the exact reviewed M1-30d profile and staged apply plan", () => {
