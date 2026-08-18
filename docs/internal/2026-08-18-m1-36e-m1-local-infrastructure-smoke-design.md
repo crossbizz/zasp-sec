@@ -47,9 +47,13 @@ one explicitly endpoint-bound zero-bucket request, and exact cleanup.
 
 ## Live safety and evidence boundary
 
-Execution uses repository-pinned Node.js 22.23.1 and npm 10.9.8 with an
-allowlisted absolute `PATH` and `HOME`, and no ambient AWS, proxy, Docker-host,
-Docker-context, kubeconfig, token, or cloud-provider variable. The runtime
+Execution uses repository-pinned Node.js 22.23.1 and npm 10.9.8 under `env -i`
+with a task-owned `HOME`, the exact absolute tool `PATH`, `LANG=C.UTF-8`,
+`LC_ALL=C.UTF-8`, `TMPDIR=/private/tmp`, and root-only
+`npm_config_loglevel=silent` so npm does not wrap the fixed child output. No
+ambient AWS, proxy, Docker-host, Docker-context, kubeconfig, token, or cloud-
+provider variable is present. Only the reviewed `HOME` and `PATH` values feed
+runtime selection; the runtime replaces them with its owned child boundary and
 creates an owned Docker configuration, kubeconfig, manifest descriptors,
 image-build caches, kind cluster, Docker network, and proof labels beneath one
 random M1-30d marker. It never reads the ambient kubeconfig or targets a shared

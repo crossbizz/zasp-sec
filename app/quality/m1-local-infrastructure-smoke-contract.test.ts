@@ -39,6 +39,7 @@ describe("M1-36e local Kubernetes and LocalStack smoke", () => {
       "node --test deploy/local/start.test.mjs",
       "npm run local:aws-emulator:test",
       "npm run local:start",
+      "`npm_config_loglevel=silent`",
       "product-stubs.yaml",
       "graph.yaml",
       "observability.yaml",
