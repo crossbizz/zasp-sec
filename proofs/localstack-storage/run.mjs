@@ -28,6 +28,9 @@ const storageProofDirectory = fileURLToPath(new URL(".", import.meta.url));
 const sqsProofDirectory = fileURLToPath(new URL("../localstack-sqs/", import.meta.url));
 const readinessBodyLimit = 16_384;
 const readinessDeadlineMilliseconds = 500;
+const commandCombinedOutputLimit = 1024 * 1024;
+const commandPerStreamOutputLimit = commandCombinedOutputLimit / 2;
+const environmentCombinedOutputLimit = 16_384;
 
 const modeConfigurations = Object.freeze({
   [STORAGE_MODE]: Object.freeze({
@@ -244,7 +247,7 @@ export class DockerRuntime {
   }
 
   docker(args) {
-    return this.command("docker", args, { env: { PATH: this.path }, encoding: "utf8", timeout: 30_000, killSignal: "SIGKILL", maxBuffer: 1024 * 1024 });
+    return this.command("docker", args, { env: { PATH: this.path }, encoding: "utf8", timeout: 30_000, killSignal: "SIGKILL", maxBuffer: commandPerStreamOutputLimit });
   }
 
   hasCandidate() { return this.startUncertain || idPattern.test(this.token ?? ""); }
@@ -384,7 +387,7 @@ export class DockerRuntime {
 
   async runProof(endpoint) {
     const goEnvironment = this.command("go", ["env", "-json", "GOCACHE", "GOMODCACHE"], {
-      env: { PATH: this.path, HOME: this.home, GOENV: "off" }, encoding: "utf8", timeout: 10_000, killSignal: "SIGKILL", maxBuffer: 16_384,
+      env: { PATH: this.path, HOME: this.home, GOENV: "off" }, encoding: "utf8", timeout: 10_000, killSignal: "SIGKILL", maxBuffer: environmentCombinedOutputLimit / 2,
     });
     if (goEnvironment?.status !== 0) return 1;
     let caches;
@@ -405,7 +408,7 @@ export class DockerRuntime {
         encoding: "utf8",
         timeout: 90_000,
         killSignal: "SIGKILL",
-        maxBuffer: 1024 * 1024,
+        maxBuffer: commandPerStreamOutputLimit,
       });
       if (build?.status !== 0 || build.stdout !== "" || build.stderr !== "") return resultCode(build);
       const result = this.command(executable, this.configuration.proofArguments, {
@@ -414,7 +417,7 @@ export class DockerRuntime {
         encoding: "utf8",
         timeout: this.configuration.proofTimeoutMilliseconds,
         killSignal: "SIGKILL",
-        maxBuffer: 1024 * 1024,
+        maxBuffer: commandPerStreamOutputLimit,
       });
       if (result?.status === 0 && result.stdout === `${this.configuration.childSuccess}\n` && result.stderr === "") code = 0;
       else code = resultCode(result);

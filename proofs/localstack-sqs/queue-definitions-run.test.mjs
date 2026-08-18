@@ -154,7 +154,11 @@ test("runs the exact child mode under the hard bounded proof supervisor", async 
   assert.deepEqual(child.args, ["queue-definitions"]);
   assert.equal(child.options.timeout, queueDefinitionsProofTimeoutMilliseconds);
   assert.equal(child.options.killSignal, "SIGKILL");
-  assert.equal(child.options.maxBuffer, 1024 * 1024);
+  const build = commands.find(({ executable, args }) => executable === "go" && args[0] === "build");
+  for (const bounded of [build, child]) {
+    assert.equal(bounded.options.maxBuffer * 2, 1024 * 1024);
+    assert.equal(bounded.options.killSignal, "SIGKILL");
+  }
   assert.deepEqual(child.options.env, { AWS_ENDPOINT_URL: "http://127.0.0.1:49152", PATH: "/safe/path" });
   assert.deepEqual(removals, [[directory, { recursive: true, force: false, maxRetries: 0 }]]);
 });
