@@ -15,7 +15,7 @@ describe("M7 investigation and administration foundation completion batch", () =
 
   it("moves exactly twenty-five tasks to Complete", () => {
     const tracker = read("docs/internal/implementation_status_v1.5.md");
-    for (const value of ["| Pending | 0 |", "| In progress | 218 |", "| Complete | 507 |", "| Blocked | 3 |", "`0/218/507/3`", "| M7 | 62 | 0 | 0 | 62 | 0 |"]) expect(tracker).toContain(value);
+    for (const value of ["| Pending | 0 |", "| In progress | 193 |", "| Complete | 532 |", "| Blocked | 3 |", "`0/193/532/3`", "| M7 | 62 | 0 | 0 | 62 | 0 |"]) expect(tracker).toContain(value);
     const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
     const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] ?? "";
     for (const task of selected) {

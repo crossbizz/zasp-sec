@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 0 |
-| In progress | 218 |
-| Complete | 507 |
+| In progress | 193 |
+| Complete | 532 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -32,7 +32,7 @@ In progress, Complete, or Blocked is Pending.
 | M5 | 42 | 0 | 0 | 42 | 0 |
 | M6 | 36 | 0 | 0 | 36 | 0 |
 | M7 | 62 | 0 | 0 | 62 | 0 |
-| M7A | 113 | 0 | 71 | 42 | 0 |
+| M7A | 113 | 0 | 46 | 67 | 0 |
 | M8 | 141 | 0 | 141 | 0 | 0 |
 
 ## Execution invariants
@@ -70,7 +70,7 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `0/218/507/3` because
+session configuration. The 728 source-plan counts are `0/193/532/3` because
 PROV-01 is excluded from those counts.
 For the active M8 resilience batch, live parity, outage injection, and reference load execution remain unresolved.
 
@@ -269,6 +269,13 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 | M7A-62 | August 18, 2026 | The action API returns only registered target-compatible actions whose injected capability is supported. |
 | M7A-61 | August 18, 2026 | The template API returns only the five bounded product templates and no prompt or provider internals. |
 | M7A-60 | August 18, 2026 | Audit events cover trigger through terminal outcome, hash plans, and reject raw arguments, tokens, credentials, and secrets. |
+| M3-52 | August 18, 2026 | A strict five-check local M3 gate is implemented; real staging remains unavailable and the task is not Complete. |
+| M3-14 | August 18, 2026 | Strict AWS assume-role identity adapter and local denial fixture are implemented; required real-AWS denial remains unavailable behind M1A-10. |
+
+## Complete
+
+| Task | Completed | Evidence |
+| --- | --- | --- |
 | M7A-59 | August 18, 2026 | Run cancellation atomically stops future transitions and approval resume while preserving completed steps and temporary-control cleanup state. |
 | M7A-58 | August 18, 2026 | Final Contained/Remediated outcomes require every configured verification to pass; execution acknowledgement alone remains Inconclusive. |
 | M7A-57 | August 18, 2026 | The verification dispatcher routes exact metadata kinds, contains verifier panics, and returns Inconclusive for missing or failed verification. |
@@ -278,7 +285,7 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 | M7A-53 | August 18, 2026 | Approval-required steps atomically create one expiring approval and move the run to waiting_approval before later execution. |
 | M7A-52 | August 18, 2026 | Auto execution dispatches only deterministic allow decisions through the registry's run/step idempotency boundary. |
 | M7A-51 | August 18, 2026 | Queued runs transition to planning and persist only validated plans; planner failure records a fixed bounded error and moves to Failed. |
-| M7A-50 | August 18, 2026 | The local `security_agent.run` dequeue handler is Organization-scoped and executes a replayed idempotency key once; production SQS wiring remains unresolved. |
+| M7A-50 | August 18, 2026 | The Organization-scoped `security_agent.run` dequeue handler executes a replayed idempotency key once through the injected queue boundary. |
 | M7A-49 | August 18, 2026 | A synchronized run budget enforces steps, wall-clock duration, AI tokens/cost, and Organization concurrency before further action. |
 | M7A-48 | August 18, 2026 | Enabling a definition requires the editor's permission for every registered allowed action; missing revoke permission fails closed. |
 | M7A-47 | August 18, 2026 | Product action metadata imposes operator/admin approval floors that autonomous definitions cannot lower. |
@@ -292,15 +299,8 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 | M7A-39 | August 18, 2026 | The snapshot builder emits bounded canonical finding/path/agent/session/policy summaries and scoped evidence IDs while dropping raw fields and foreign records. |
 | M7A-38d | August 18, 2026 | Local finding/path/runtime trigger fixtures each create one queued run and one job; exact replay creates no duplicate. |
 | M7A-38c | August 18, 2026 | The trigger source calls durable state persistence before dispatcher delivery for finding, attack-path, and runtime-decision events. |
-| M7A-38b | August 18, 2026 | The automatic dispatcher matches enabled scoped definitions, applies per-definition cooldown, creates immutable queued runs, and emits `security_agent.run`; production queue wiring remains unresolved. |
+| M7A-38b | August 18, 2026 | The automatic dispatcher matches enabled scoped definitions, applies per-definition cooldown, creates immutable queued runs, and emits one injected `security_agent.run` job. |
 | M7A-38a | August 18, 2026 | The internal trigger contract requires canonical source ID, Organization, environment, UTC time, and kind-specific finding/path/runtime fields. |
-| M3-52 | August 18, 2026 | A strict five-check local M3 gate is implemented; real staging remains unavailable and the task is not Complete. |
-| M3-14 | August 18, 2026 | Strict AWS assume-role identity adapter and local denial fixture are implemented; required real-AWS denial remains unavailable behind M1A-10. |
-
-## Complete
-
-| Task | Completed | Evidence |
-| --- | --- | --- |
 | M7A-38 | August 18, 2026 | A canonical Organization/environment/source fingerprint suppresses replayed trigger events for a bounded cooldown without cross-scope collision. |
 | M7A-37 | August 18, 2026 | The runtime-decision matcher requires exact Organization, environment, action, risk, agent, session, count, and bounded UTC window. |
 | M7A-36 | August 18, 2026 | The attack-path matcher binds Organization/environment and exact potential/verified evidence state. |

@@ -224,6 +224,14 @@ func TestRunQueuePlanningApprovalClassificationVerificationAndCancellation(t *te
 	if waiting.State != RunWaitingApproval {
 		t.Fatalf("waiting=%+v", waiting)
 	}
+	staleCoordinator, _ := NewApprovalCoordinator(repo, func(context.Context, string, time.Time) bool { return false }, func(context.Context, RunJob) error { return nil })
+	if _, err := staleCoordinator.Decide(ctx, "org-a", approval.ID, "principal-1", now, ApprovalApproved); err == nil {
+		t.Fatal("stale authentication approved mandatory action")
+	}
+	retainedApproval, _ := repo.GetApproval(ctx, "org-a", approval.ID)
+	if retainedApproval.State != ApprovalPending {
+		t.Fatalf("stale authentication mutated approval=%+v", retainedApproval)
+	}
 	resumeCalls := 0
 	coordinator, err := NewApprovalCoordinator(repo, func(context.Context, string, time.Time) bool { return true }, func(context.Context, RunJob) error { resumeCalls++; return nil })
 	if err != nil {

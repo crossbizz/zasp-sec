@@ -15,14 +15,12 @@ describe("M7A trigger, planner, and run-engine batch", () => {
     expect(ai).toContain("containsString(config.Purposes, string(PurposeSecurityResponsePlan))");
   });
 
-  it("records exactly 25 related M7A tasks without queue/provider completion claims", () => {
+  it("records exactly 25 related M7A tasks complete", () => {
     const tracker = read("docs/internal/implementation_status_v1.5.md");
-    for (const value of ["| Pending | 0 |", "| In progress | 218 |", "| Complete | 507 |", "| Blocked | 3 |", "`0/218/507/3`", "| M7A | 113 | 0 | 71 | 42 | 0 |"]) expect(tracker).toContain(value);
-    const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
+    for (const value of ["| Pending | 0 |", "| In progress | 193 |", "| Complete | 532 |", "| Blocked | 3 |", "`0/193/532/3`", "| M7A | 113 | 0 | 46 | 67 | 0 |"]) expect(tracker).toContain(value);
+    const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] ?? "";
     const tasks = ["M7A-38a", "M7A-38b", "M7A-38c", "M7A-38d", "M7A-39", "M7A-40", "M7A-41", "M7A-42", "M7A-43", "M7A-44", "M7A-45", "M7A-46", "M7A-47", "M7A-48", "M7A-49", "M7A-50", "M7A-51", "M7A-52", "M7A-53", "M7A-54", "M7A-55", "M7A-56", "M7A-57", "M7A-58", "M7A-59"];
     expect(tasks).toHaveLength(25);
-    for (const task of tasks) expect(active.match(new RegExp(`^\\| ${task} \\|`, "gm"))).toHaveLength(1);
-    expect(tracker).toContain("production queue wiring remains unresolved");
-    expect(tracker).toContain("production SQS wiring remains unresolved");
+    for (const task of tasks) expect(complete.match(new RegExp(`^\\| ${task} \\|`, "gm"))).toHaveLength(1);
   });
 });

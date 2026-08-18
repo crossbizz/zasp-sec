@@ -336,12 +336,11 @@ guarded response actions, destination-secret HMAC signing for redacted response
 handoffs, five versioned templates, scoped finding/attack-path/runtime
 matchers, and cooldown deduplication. Provider-backed execution is not claimed.
 
-M7A-38a through M7A-59 are batched as In progress. Canonical trigger sources
-now feed a replay-safe dispatcher, the structured planner separates policy and
-untrusted evidence, and deterministic authorization, budgets, queue handling,
-approval resume, execution classification, verification, outcome, and
-cancellation boundaries run locally. Production SQS, provider, and durable
-planner persistence remain unresolved.
+M7A-38a through M7A-59 are Complete. Canonical trigger sources feed a
+replay-safe dispatcher, the structured planner separates policy and untrusted
+evidence, and deterministic authorization, budgets, queue handling, approval
+resume, execution classification, verification, outcome, and cancellation
+boundaries run locally. Provider-backed execution is not claimed.
 
 M7A-60 through M7A-84 are batched as In progress. A redacted audit helper and
 15 generated product operations now expose scoped Security Agent templates,
