@@ -215,8 +215,8 @@ round-trip comparison, `net.ParseIP`, and numeric port validation. It accepts
 only the fixed cluster URL in local mode or IPv4 `127.0.0.1` in CI mode.
 
 Create an owned `http.Transport` with `Proxy: nil`, finite three-second dial
-and TLS bounds, disabled keep-alives and forced HTTP/2 attempts, a ten-second response
-header timeout, and a one-megabyte header cap. Create an owned
+and TLS bounds, keep-alives and forced HTTP/2 attempts disabled, a ten-second
+response-header timeout, and a one-megabyte header cap. Create an owned
 `http.Client` with a twenty-second total timeout and
 `CheckRedirect: http.ErrUseLastResponse`. Use exact synthetic credentials and
 `aws.NopRetryer`.

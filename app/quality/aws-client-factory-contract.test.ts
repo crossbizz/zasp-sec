@@ -19,9 +19,10 @@ function taskRows(tracker: string, heading: "In progress" | "Complete" | "Blocke
 
 describe("M1-31 LocalStack client factory", () => {
   it("binds the exact source task to the strict selected design", async () => {
-    const [source, design] = await Promise.all([
+    const [source, design, implementationPlan] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "docs/internal/2026-08-17-m1-31-localstack-client-factory-design.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/2026-08-17-m1-31-localstack-client-factory-implementation-plan.md"), "utf8"),
     ]);
     const section = source.match(/\*\*M1-31 - LocalStack client factory\*\*[\s\S]*?\*\*M1-32 - OpenSearch index template/)?.[0] ?? "";
     const designProse = design.replace(/\s+/g, " ");
@@ -42,6 +43,8 @@ describe("M1-31 LocalStack client factory", () => {
     ]) {
       expect(designProse).toContain(value);
     }
+    expect(designProse).toContain("disables keep-alives and HTTP/2");
+    expect(implementationPlan.replace(/\s+/g, " ")).toContain("keep-alives and forced HTTP/2 attempts disabled");
   });
 
   it("exposes the exact command, dependency inventory, and operator boundary", async () => {
