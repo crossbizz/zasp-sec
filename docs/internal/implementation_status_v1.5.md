@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 166 |
-| In progress | 375 |
+| Pending | 145 |
+| In progress | 396 |
 | Complete | 184 |
 | Blocked | 3 |
 
@@ -32,7 +32,7 @@ In progress, Complete, or Blocked is Pending.
 | M5 | 42 | 0 | 42 | 0 | 0 |
 | M6 | 36 | 0 | 36 | 0 | 0 |
 | M7 | 62 | 0 | 62 | 0 | 0 |
-| M7A | 113 | 21 | 92 | 0 | 0 |
+| M7A | 113 | 0 | 113 | 0 | 0 |
 | M8 | 141 | 141 | 0 | 0 | 0 |
 
 ## Execution invariants
@@ -70,13 +70,34 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `166/375/184/3` because
+session configuration. The 728 source-plan counts are `145/396/184/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M7A-101 | August 18, 2026 | The fail-closed MVP gate aggregates trigger, simulation, planning, authorization, execution, approval, cleanup, verification, Home attention, audit, degraded safety, and topology-isolation checks. |
+| M7A-100 | August 18, 2026 | The same bounded action, approval, verification, and audit contracts run without topology-specific behavior in the single-tenant fixture. |
+| M7A-99 | August 18, 2026 | Organization-scoped repositories, planner references, approvals, action idempotency, and results reject concurrent same-looking cross-tenant records. |
+| M7A-98 | August 18, 2026 | Completed-run detail and audit events retain trigger, plan hash, evidence IDs, authorization, approvals, execution, verification, and terminal state without protected arguments. |
+| M7A-97 | August 18, 2026 | Mandatory approval prevents connection-revoke execution until one fresh-auth decision and idempotent resume. |
+| M7A-96 | August 18, 2026 | Automatic containment requires a registered reversible action plus verified policy and re-test evidence before a Contained or Remediated state. |
+| M7A-95 | August 18, 2026 | The run budget stops later steps after step, time, token, cost, or concurrency limits are exceeded. |
+| M7A-94 | August 18, 2026 | Planner validation rejects valid-looking references outside the run's Organization/environment evidence snapshot before authorization. |
+| M7A-93 | August 18, 2026 | Unknown external outcomes become Inconclusive and are never blindly retried. |
+| M7A-92 | August 18, 2026 | Expired mandatory approvals move waiting work to Needs human and never enqueue automatic resume. |
+| M7A-91 | August 18, 2026 | Planner failure records one bounded unavailable error, executes no action, and does not change existing runtime enforcement. |
+| M7A-90d | August 18, 2026 | The Home fixture exposes critical paths, approvals, Needs-human runs, stale coverage, and recent containment through explicit canonical actions. |
+| M7A-90c | August 18, 2026 | Approval-required notification emits one signed idempotent event with approval/run context only and no evidence body or secret. |
+| M7A-90b | August 18, 2026 | Home renders ordered Needs-attention cards for exposure, approvals, responder failures, stale coverage, and containment without masking degraded state. |
+| M7A-90a | August 18, 2026 | Home summary adds Organization-scoped approval age, responder state counts, and recent contained/remediated outcomes while preserving stale/degraded attention. |
+| M7A-90 | August 18, 2026 | Evidence, finding, path, session, run, and approval surfaces use scoped canonical links with retained entity IDs. |
+| M7A-89 | August 18, 2026 | Approval detail shows evidence, expected side effect, reversibility, TTL, run context, and fresh-auth guarded Approve/Deny/Cancel controls. |
+| M7A-88 | August 18, 2026 | Protect -> Approvals lists only scoped action, agent, target, expiry, requester, and run context from the generated client. |
+| M7A-87 | August 18, 2026 | Run action detail renders state, redacted arguments, result, rollback/TTL, and verification without protected values. |
+| M7A-86 | August 18, 2026 | Run detail separates trigger/evidence and AI rationale from deterministic authorization and ordered registered plan steps. |
+| M7A-85 | August 18, 2026 | Definition detail shows bounded configuration, allowed actions, limits, verification, and recent runs without provider/model internals. |
 | M7A-84 | August 18, 2026 | The generated-client builder shows matched evidence, proposed steps, approval points, and per-step authorization with zero side effects. |
 | M7A-83 | August 18, 2026 | Definitions require one terminal verification choice compatible with the selected registered actions. |
 | M7A-82 | August 18, 2026 | Client and service contracts bound steps, runtime, temporary-policy TTL, AI budget, and concurrency to product maxima. |

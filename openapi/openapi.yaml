@@ -3076,12 +3076,19 @@ components:
     HomeSummary:
       type: object
       additionalProperties: false
-      required: [agent_count, high_risk_paths, verified_changes, blocked_changes, healthy, attention_required]
+      required: [agent_count, high_risk_paths, verified_changes, blocked_changes, pending_approvals, oldest_approval_age_seconds, needs_human_runs, failed_runs, inconclusive_runs, recent_contained, recent_remediated, healthy, attention_required]
       properties:
         agent_count: { type: integer, minimum: 0 }
         high_risk_paths: { type: integer, minimum: 0 }
         verified_changes: { type: integer, minimum: 0 }
         blocked_changes: { type: integer, minimum: 0 }
+        pending_approvals: { type: integer, minimum: 0 }
+        oldest_approval_age_seconds: { type: integer, minimum: 0 }
+        needs_human_runs: { type: integer, minimum: 0 }
+        failed_runs: { type: integer, minimum: 0 }
+        inconclusive_runs: { type: integer, minimum: 0 }
+        recent_contained: { type: integer, minimum: 0 }
+        recent_remediated: { type: integer, minimum: 0 }
         healthy: { type: boolean }
         attention_required: { type: boolean }
     SearchResult:

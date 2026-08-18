@@ -247,7 +247,7 @@ func breakOptionJSONs(values []BreakOption) []map[string]any {
 	return result
 }
 func homeSummaryJSON(value HomeSummary) map[string]any {
-	return map[string]any{"agent_count": value.AgentCount, "high_risk_paths": value.HighRiskPaths, "verified_changes": value.VerifiedChanges, "blocked_changes": value.BlockedChanges, "healthy": value.Healthy, "attention_required": value.AttentionRequired}
+	return map[string]any{"agent_count": value.AgentCount, "high_risk_paths": value.HighRiskPaths, "verified_changes": value.VerifiedChanges, "blocked_changes": value.BlockedChanges, "pending_approvals": value.PendingApprovals, "oldest_approval_age_seconds": value.OldestApprovalAgeSeconds, "needs_human_runs": value.NeedsHumanRuns, "failed_runs": value.FailedRuns, "inconclusive_runs": value.InconclusiveRuns, "recent_contained": value.RecentContained, "recent_remediated": value.RecentRemediated, "healthy": value.Healthy, "attention_required": value.AttentionRequired}
 }
 func searchJSONs(values []SearchRecord) []map[string]any {
 	result := make([]map[string]any, len(values))

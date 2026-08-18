@@ -327,22 +327,30 @@ func cloneAttackPath(value AttackPath) AttackPath {
 }
 
 type HomeSummaryInput struct {
-	Scope                           domain.Scope
-	AgentCount, HighRiskPaths       int
-	SourceStale, CoverageDegraded   bool
-	VerifiedChanges, BlockedChanges int
+	Scope                             domain.Scope
+	AgentCount, HighRiskPaths         int
+	SourceStale, CoverageDegraded     bool
+	VerifiedChanges, BlockedChanges   int
+	PendingApprovals                  int
+	OldestApprovalAgeSeconds          int
+	NeedsHumanRuns                    int
+	FailedRuns, InconclusiveRuns      int
+	RecentContained, RecentRemediated int
 }
 type HomeSummary struct {
 	AgentCount, HighRiskPaths, VerifiedChanges, BlockedChanges int
+	PendingApprovals, OldestApprovalAgeSeconds                 int
+	NeedsHumanRuns, FailedRuns, InconclusiveRuns               int
+	RecentContained, RecentRemediated                          int
 	Healthy, AttentionRequired                                 bool
 }
 
 func BuildHomeSummary(ctx context.Context, input HomeSummaryInput) (HomeSummary, error) {
-	if !active(ctx) || input.Scope.Validate() != nil || input.AgentCount < 0 || input.HighRiskPaths < 0 || input.VerifiedChanges < 0 || input.BlockedChanges < 0 {
+	if !active(ctx) || input.Scope.Validate() != nil || input.AgentCount < 0 || input.HighRiskPaths < 0 || input.VerifiedChanges < 0 || input.BlockedChanges < 0 || input.PendingApprovals < 0 || input.OldestApprovalAgeSeconds < 0 || input.NeedsHumanRuns < 0 || input.FailedRuns < 0 || input.InconclusiveRuns < 0 || input.RecentContained < 0 || input.RecentRemediated < 0 {
 		return HomeSummary{}, ErrReconciliation
 	}
-	attention := input.SourceStale || input.CoverageDegraded || input.HighRiskPaths > 0
-	return HomeSummary{AgentCount: input.AgentCount, HighRiskPaths: input.HighRiskPaths, VerifiedChanges: input.VerifiedChanges, BlockedChanges: input.BlockedChanges, Healthy: !attention, AttentionRequired: attention}, nil
+	attention := input.SourceStale || input.CoverageDegraded || input.HighRiskPaths > 0 || input.PendingApprovals > 0 || input.NeedsHumanRuns > 0 || input.FailedRuns > 0 || input.InconclusiveRuns > 0
+	return HomeSummary{AgentCount: input.AgentCount, HighRiskPaths: input.HighRiskPaths, VerifiedChanges: input.VerifiedChanges, BlockedChanges: input.BlockedChanges, PendingApprovals: input.PendingApprovals, OldestApprovalAgeSeconds: input.OldestApprovalAgeSeconds, NeedsHumanRuns: input.NeedsHumanRuns, FailedRuns: input.FailedRuns, InconclusiveRuns: input.InconclusiveRuns, RecentContained: input.RecentContained, RecentRemediated: input.RecentRemediated, Healthy: !attention, AttentionRequired: attention}, nil
 }
 
 type SearchRecord struct {

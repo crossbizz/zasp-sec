@@ -341,6 +341,14 @@ actions, definitions, simulations, runs, cancellation, and approvals. Protect
 seven-stage builder; simulation cannot execute an action adapter. Production
 transport mounting and durable planner/audit storage remain unresolved.
 
+M7A-85 through M7A-101 are batched as In progress. Protect now exposes
+definition, run, action, approval, and scoped activity detail; Home includes
+ordered responder-attention signals without masking degraded coverage. The
+local MVP gate also binds signed idempotent approval notification, outage,
+expiry, unknown-outcome, budget, verification, audit, tenant-isolation, and
+single-tenant parity contracts. Production queue/HTTP mounting, durable audit
+storage, and live external action-provider E2E remain unresolved.
+
 ```bash
 go test -C services/platform -race -count=1 ./integration
 go test -C services/platform -race -count=1 ./connectors ./sensor

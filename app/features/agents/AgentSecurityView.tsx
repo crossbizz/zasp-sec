@@ -74,7 +74,7 @@ const findings: Finding[] = [
 ];
 const paths: AttackPath[] = [{ id: ids.path, entry_id: ids.agent, sink_id: ids.tool, node_ids: [ids.agent, ids.identity, ids.tool], state: "observed", evidence_ids: [ids.evidence], blocked_edge: 1 }];
 const options: BreakOption[] = [{ path_id: ids.path, target_id: ids.identity, evidence_id: ids.evidence, kind: "enforce_policy", rank: 1 }];
-const home: HomeSummary = { agent_count: 1, high_risk_paths: 1, verified_changes: 1, blocked_changes: 1, healthy: false, attention_required: true };
+const home: HomeSummary = { agent_count: 1, high_risk_paths: 1, verified_changes: 1, blocked_changes: 1, pending_approvals: 1, oldest_approval_age_seconds: 900, needs_human_runs: 1, failed_runs: 0, inconclusive_runs: 1, recent_contained: 2, recent_remediated: 1, healthy: false, attention_required: true };
 
 export function fixtureAgentSecurityAPI(overrides: Partial<AgentSecurityAPI> = {}): AgentSecurityAPI {
   return {
@@ -128,10 +128,10 @@ function AttackPathsView() {
   return <div className="page"><PageHeader title="Attack Paths" description="Bounded evidence paths from entry condition to high-impact sink." /><Card title="Untrusted input to production queue"><div className="path-view"><span>Public input</span><button onClick={() => setEvidenceOpen(true)}>Inspect observed edge</button><span>Support agent</span><span>Production queue</span></div><h3>Evidence</h3><p>Observed · {ids.evidence}</p><h3>Break Path</h3><ol>{options.map((item) => <li key={item.kind}>{item.rank}. Enforce runtime policy at {item.target_id}</li>)}</ol></Card><Drawer open={evidenceOpen} title="Evidence side panel" onClose={() => setEvidenceOpen(false)}><div className="detail-content"><h3>Source and confidence</h3><p>Runtime observation · high confidence</p><h3>Observed at</h3><p>2026-08-18T10:00:00.000Z</p><h3>Break recommendation</h3><p>Enforce the blocking runtime policy at the service identity.</p></div></Drawer></div>;
 }
 
-function HomeView() { return <div className="page"><PageHeader title="Security overview" description="Agent inventory, high-risk paths, and coverage freshness." /><div className="form-error">Coverage is stale</div><MetricGrid metrics={[{ label: "Agents", value: home.agent_count }, { label: "High-risk paths", value: home.high_risk_paths, tone: "danger" }, { label: "Verified changes", value: home.verified_changes }, { label: "Blocked changes", value: home.blocked_changes, tone: "success" }]} /></div>; }
+function HomeView({ onNavigate }: { onNavigate: (path: string) => void }) { return <div className="page"><PageHeader title="Security overview" description="Agent inventory, high-risk paths, and coverage freshness." /><div className="form-error">Coverage is stale</div><MetricGrid metrics={[{ label: "Agents", value: home.agent_count }, { label: "High-risk paths", value: home.high_risk_paths, tone: "danger" }, { label: "Verified changes", value: home.verified_changes }, { label: "Blocked changes", value: home.blocked_changes, tone: "success" }]} /><Card title="Needs attention"><div className="review-summary"><button onClick={() => onNavigate("/exposure/attack-paths")}><span>Critical exposures</span><strong>{home.high_risk_paths}</strong></button><button onClick={() => onNavigate("/protect/security-agents?tab=approvals")}><span>Pending approvals</span><strong>{home.pending_approvals} · oldest {home.oldest_approval_age_seconds}s</strong></button><button onClick={() => onNavigate("/protect/security-agents?tab=runs")}><span>Needs human</span><strong>{home.needs_human_runs}</strong></button><button onClick={() => onNavigate("/protect/security-agents?tab=runs")}><span>Failed or inconclusive</span><strong>{home.failed_runs + home.inconclusive_runs}</strong></button><button onClick={() => onNavigate("/sensors")}><span>Stale launch coverage</span><strong>Degraded</strong></button><button onClick={() => onNavigate("/protect/security-agents?tab=runs")}><span>Recent containment</span><strong>{home.recent_contained + home.recent_remediated}</strong></button></div></Card></div>; }
 
 export function AgentSecurityView({ path, onNavigate, api = createAgentSecurityAPI(), state = "ready" }: { path: string; onNavigate: (path: string) => void; api?: AgentSecurityAPI; state?: "ready" | "loading" | "empty" | "error" }) {
-  if (path === "/") return <HomeView />;
+  if (path === "/") return <HomeView onNavigate={onNavigate} />;
   if (path === "/discovery/assets" && state === "loading") return <div className="page"><PageHeader title="Agents" description="Loading canonical agents." /><Card><p role="status">Loading agents…</p></Card></div>;
   if (path === "/discovery/assets" && state === "empty") return <div className="page"><PageHeader title="Agents" description="Canonical agents with ownership and evidence." /><Card><p>No agents discovered in this scope.</p></Card></div>;
   if (path === "/discovery/assets" && state === "error") return <div className="page"><PageHeader title="Agents" description="Canonical agents with ownership and evidence." /><div role="alert" className="form-error">Agent inventory unavailable</div></div>;
@@ -141,5 +141,5 @@ export function AgentSecurityView({ path, onNavigate, api = createAgentSecurityA
   if (path === "/inventory/runtimes") return <InventoryTable title="Runtimes" values={runtimes} />;
   if (path === "/violations") return <FindingsView api={api} onNavigate={onNavigate} />;
   if (path === "/exposure/attack-paths") return <AttackPathsView />;
-  return <HomeView />;
+  return <HomeView onNavigate={onNavigate} />;
 }

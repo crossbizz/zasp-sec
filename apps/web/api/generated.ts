@@ -2051,8 +2051,15 @@ export type components = {
             readonly agent_count: number;
             readonly attention_required: boolean;
             readonly blocked_changes: number;
+            readonly failed_runs: number;
             readonly healthy: boolean;
             readonly high_risk_paths: number;
+            readonly inconclusive_runs: number;
+            readonly needs_human_runs: number;
+            readonly oldest_approval_age_seconds: number;
+            readonly pending_approvals: number;
+            readonly recent_contained: number;
+            readonly recent_remediated: number;
             readonly verified_changes: number;
         };
         readonly Integration: {
