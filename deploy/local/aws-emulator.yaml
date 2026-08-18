@@ -1,0 +1,154 @@
+apiVersion: v1
+kind: List
+items:
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: zasp
+        app.kubernetes.io/component: aws-emulator
+        zasp.dev/environment: local
+      name: local-aws-endpoints
+      namespace: zasp-local
+    data:
+      AWS_ENDPOINT_URL: http://localstack.zasp-local.svc.cluster.local:4566
+      AWS_ENDPOINT_URL_S3: http://localstack.zasp-local.svc.cluster.local:4566
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      labels:
+        app.kubernetes.io/name: localstack
+        app.kubernetes.io/part-of: zasp
+        app.kubernetes.io/component: aws-emulator
+        zasp.dev/environment: local
+      name: localstack
+      namespace: zasp-local
+    spec:
+      progressDeadlineSeconds: 240
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: localstack
+      strategy:
+        type: Recreate
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: localstack
+            app.kubernetes.io/part-of: zasp
+            app.kubernetes.io/component: aws-emulator
+            zasp.dev/environment: local
+        spec:
+          automountServiceAccountToken: false
+          containers:
+            - env:
+                - name: AWS_DEFAULT_REGION
+                  value: us-east-1
+                - name: DEBUG
+                  value: '0'
+                - name: PERSISTENCE
+                  value: '0'
+                - name: SERVICES
+                  value: s3
+              image: localstack/localstack:4.7.0@sha256:12253acd9676770e9bd31cbfcf17c5ca6fd7fb5c0c62f3c46dd701f20304260c
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                exec:
+                  command:
+                    - sh
+                    - '-ec'
+                    - awslocal --endpoint-url http://127.0.0.1:4566 s3api list-buckets --query 'length(Buckets)' --output text >/dev/null 2>&1
+                failureThreshold: 3
+                periodSeconds: 10
+                successThreshold: 1
+                timeoutSeconds: 1
+              name: localstack
+              ports:
+                - containerPort: 4566
+                  name: edge
+                  protocol: TCP
+              readinessProbe:
+                exec:
+                  command:
+                    - sh
+                    - '-ec'
+                    - awslocal --endpoint-url http://127.0.0.1:4566 s3api list-buckets --query 'length(Buckets)' --output text >/dev/null 2>&1
+                failureThreshold: 3
+                periodSeconds: 2
+                successThreshold: 1
+                timeoutSeconds: 1
+              resources:
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+                requests:
+                  cpu: 25m
+                  memory: 64Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                privileged: false
+                readOnlyRootFilesystem: false
+                runAsNonRoot: false
+                runAsUser: 0
+              startupProbe:
+                exec:
+                  command:
+                    - sh
+                    - '-ec'
+                    - awslocal --endpoint-url http://127.0.0.1:4566 s3api list-buckets --query 'length(Buckets)' --output text >/dev/null 2>&1
+                failureThreshold: 90
+                periodSeconds: 2
+                successThreshold: 1
+                timeoutSeconds: 1
+              volumeMounts:
+                - mountPath: /tmp
+                  name: localstack-tmp
+                  readOnly: false
+                - mountPath: /var/lib/localstack
+                  name: localstack-state
+                  readOnly: false
+          dnsPolicy: ClusterFirst
+          enableServiceLinks: false
+          hostIPC: false
+          hostNetwork: false
+          hostPID: false
+          restartPolicy: Always
+          securityContext:
+            runAsNonRoot: false
+            seccompProfile:
+              type: RuntimeDefault
+          terminationGracePeriodSeconds: 10
+          volumes:
+            - emptyDir:
+                sizeLimit: 256Mi
+              name: localstack-state
+            - emptyDir:
+                sizeLimit: 128Mi
+              name: localstack-tmp
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app.kubernetes.io/name: localstack
+        app.kubernetes.io/part-of: zasp
+        app.kubernetes.io/component: aws-emulator
+        zasp.dev/environment: local
+      name: localstack
+      namespace: zasp-local
+    spec:
+      ipFamilies:
+        - IPv4
+      ipFamilyPolicy: SingleStack
+      ports:
+        - name: edge
+          port: 4566
+          protocol: TCP
+          targetPort: edge
+      selector:
+        app.kubernetes.io/name: localstack
+      sessionAffinity: None
+      type: ClusterIP

@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "scope": {
+    "use": "opt-in-local-development",
+    "redistribution_approved": false,
+    "production_packaging_approved": false,
+    "remote_aws_approved": false
+  },
+  "allowed_licenses": ["Apache-2.0"],
+  "image": {
+    "component": "localstack-community",
+    "reference": "localstack/localstack:4.7.0@sha256:12253acd9676770e9bd31cbfcf17c5ca6fd7fb5c0c62f3c46dd701f20304260c",
+    "repo_digest": "localstack/localstack@sha256:12253acd9676770e9bd31cbfcf17c5ca6fd7fb5c0c62f3c46dd701f20304260c",
+    "environment_sha256": "1e4fe2995cc9b2339761b690070d16ababb619a51bf41a49d5148ddac7517092",
+    "environment_count": 10,
+    "entrypoint": ["docker-entrypoint.sh"],
+    "command": null,
+    "user": "",
+    "working_directory": "/opt/code/localstack/",
+    "labels": {
+      "authors": "LocalStack Contributors",
+      "description": "LocalStack Docker image",
+      "maintainer": "LocalStack Team (info@localstack.cloud)"
+    }
+  },
+  "component": {
+    "name": "localstack-community",
+    "version": "4.7.0",
+    "license": "Apache-2.0",
+    "source_repository": "https://github.com/localstack/localstack",
+    "source_tag": "v4.7.0",
+    "source_tag_object": "dff59755581d7c1832e4e9e985362b6062b88a08",
+    "source_commit": "82de91e30b0185a6792dd5047168b29d69bbb1f9",
+    "boundary": "Exact free/community LocalStack image and tagged source used only for the local Kubernetes S3 endpoint fixture. Bundled third-party components retain their own terms and are not relicensed by this inventory.",
+    "artifacts": [
+      {
+        "kind": "license",
+        "url": "https://raw.githubusercontent.com/localstack/localstack/82de91e30b0185a6792dd5047168b29d69bbb1f9/LICENSE.txt",
+        "sha256": "dcf0bef59ebd52c34046e43df3480d47f26c2f1f2ebcc8dd1ba0bb71ce0b058b"
+      },
+      {
+        "kind": "supplemental-terms",
+        "url": "https://raw.githubusercontent.com/localstack/localstack/82de91e30b0185a6792dd5047168b29d69bbb1f9/docs/end_user_license_agreement/README.md",
+        "sha256": "5df76f56494d8cdbfb56a1d8e4c4c53cbe25281a4a09f4e8e9c63041dbe55a61"
+      },
+      {
+        "kind": "manifest",
+        "url": "https://raw.githubusercontent.com/localstack/localstack/82de91e30b0185a6792dd5047168b29d69bbb1f9/pyproject.toml",
+        "sha256": "48995e124a42ce9a20d2856eaab5123b257f3cbe3218705d6f17cff1e7c86f50"
+      }
+    ]
+  },
+  "boundary": "The exact LocalStack Community image is an opt-in local-development dependency for an internal S3 endpoint proof. It exposes no host port, uses no ambient AWS authority, and approves neither redistribution nor production packaging."
+}

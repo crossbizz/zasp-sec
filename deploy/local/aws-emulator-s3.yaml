@@ -1,0 +1,99 @@
+apiVersion: v1
+kind: List
+items:
+  - apiVersion: batch/v1
+    kind: Job
+    metadata:
+      labels:
+        app.kubernetes.io/name: localstack-s3-probe
+        app.kubernetes.io/part-of: zasp
+        app.kubernetes.io/component: aws-emulator
+        zasp.dev/environment: local
+      name: localstack-s3-probe
+      namespace: zasp-local
+    spec:
+      activeDeadlineSeconds: 30
+      backoffLimit: 0
+      completions: 1
+      parallelism: 1
+      podReplacementPolicy: Failed
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: localstack-s3-probe
+            app.kubernetes.io/part-of: zasp
+            app.kubernetes.io/component: aws-emulator
+            zasp.dev/environment: local
+        spec:
+          automountServiceAccountToken: false
+          containers:
+            - command:
+                - sh
+                - '-ec'
+                - |-
+                  value="$(awslocal --endpoint-url "$AWS_ENDPOINT_URL_S3" s3api list-buckets --query 'length(Buckets)' --output text 2>/dev/null)"
+                  [ "$AWS_ENDPOINT_URL" = "$AWS_ENDPOINT_URL_S3" ]
+                  [ "$value" = "0" ]
+                  printf 'localstack-s3-endpoint-ready\n'
+              env:
+                - name: AWS_ACCESS_KEY_ID
+                  value: test
+                - name: AWS_DEFAULT_REGION
+                  value: us-east-1
+                - name: AWS_EC2_METADATA_DISABLED
+                  value: 'true'
+                - name: AWS_ENDPOINT_URL
+                  valueFrom:
+                    configMapKeyRef:
+                      key: AWS_ENDPOINT_URL
+                      name: local-aws-endpoints
+                - name: AWS_ENDPOINT_URL_S3
+                  valueFrom:
+                    configMapKeyRef:
+                      key: AWS_ENDPOINT_URL_S3
+                      name: local-aws-endpoints
+                - name: AWS_REGION
+                  value: us-east-1
+                - name: AWS_SECRET_ACCESS_KEY
+                  value: test
+                - name: HOME
+                  value: /tmp
+              image: localstack/localstack:4.7.0@sha256:12253acd9676770e9bd31cbfcf17c5ca6fd7fb5c0c62f3c46dd701f20304260c
+              imagePullPolicy: IfNotPresent
+              name: s3-probe
+              resources:
+                limits:
+                  cpu: 100m
+                  memory: 128Mi
+                requests:
+                  cpu: 5m
+                  memory: 32Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                privileged: false
+                readOnlyRootFilesystem: true
+                runAsNonRoot: false
+                runAsUser: 0
+              volumeMounts:
+                - mountPath: /tmp
+                  name: job-tmp
+                  readOnly: false
+          dnsPolicy: ClusterFirst
+          enableServiceLinks: false
+          hostIPC: false
+          hostNetwork: false
+          hostPID: false
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: false
+            seccompProfile:
+              type: RuntimeDefault
+          terminationGracePeriodSeconds: 5
+          volumes:
+            - emptyDir:
+                sizeLimit: 8Mi
+              name: job-tmp
+      ttlSecondsAfterFinished: 60
