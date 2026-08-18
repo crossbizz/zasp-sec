@@ -299,12 +299,17 @@ tool, runtime, and capability suites pass through generated product contracts.
 No external webhook delivery, Neon, provider, staging, or release-gate success
 is claimed by these injected local fixtures.
 
-M4-51d through M4-59 remain batched as In progress. One generated-schema Agent
-Security surface now covers Agent filters/detail, Tools and MCP, Identities,
-Runtimes, Findings, Attack Paths, and stale-aware Home state. Its canonical
-fixture drives a five-check local M4 gate across Inventory, Capability,
-Posture, Attack Path, and Exposure UX. This is coherent local MVP evidence,
-not Neon, provider, staging, external webhook, or release-gate evidence.
+M4-51d through M4-59 are Complete. The reviewed generated-schema Agent Security
+surface covers Agent detail, Tools and MCP, Identities, Runtimes, Findings,
+Attack Paths, and stale-aware Home state. Its canonical fixture passes the
+five-check local M4 gate across Inventory, Capability, Posture, Attack Path,
+and Exposure UX. This is coherent local MVP evidence, not Neon, provider,
+staging, external webhook, or release-gate evidence.
+
+M5-01 through M5-09 are Complete. The reviewed Red Team foundation validates
+test/run/attempt state, strict Promptfoo normalization, capability-driven packs,
+production-safe preflight, and five generated test APIs. M5-10 through M5-35
+remain batched as In progress; live Attack Lab/Fargate evidence is not claimed.
 
 M7-39 through M7-40 and M7A-01 through M7A-17 are batched as In progress. The
 local M7 gate now binds five degraded-state fixtures and six independent MVP

@@ -26,11 +26,17 @@ describe("M5 red-team and safe Attack Lab batch", () => {
     for (const text of ["Red team scans", "Run new scan", "Test suites", "Execution limits", "Red team results", "/test/attack-lab"]) expect(source).toContain(text);
   });
 
-  it("records exactly the 29-task M5 batch without claiming provider completion", () => {
+  it("records the nine-task foundation complete without claiming provider completion", () => {
     const tracker = read("docs/internal/implementation_status_v1.5.md");
     expect(tracker).toContain("| Pending | 0 |");
-    expect(tracker).toContain("| In progress | 416 |");
-    expect(tracker).toContain("| M5 | 42 | 0 | 42 | 0 | 0 |");
-    for (const task of ["M5-01", "M5-12", "M5-17", "M5-23a", "M5-23d", "M5-23", "M5-25", "M5-26", "M5-35"]) expect(tracker).toMatch(new RegExp(`\\| ${task.replace("-", "\\-")} \\| August 18, 2026 \\|`));
+    expect(tracker).toContain("| In progress | 391 |");
+    expect(tracker).toContain("| M5 | 42 | 0 | 33 | 9 | 0 |");
+    const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
+    const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] ?? "";
+    for (let index = 1; index <= 9; index += 1) {
+      const task = `M5-${String(index).padStart(2, "0")}`;
+      expect(active.match(new RegExp(`^\\| ${task} \\|`, "gm")) ?? []).toHaveLength(0);
+      expect(complete.match(new RegExp(`^\\| ${task} \\|`, "gm")) ?? []).toHaveLength(1);
+    }
   });
 });

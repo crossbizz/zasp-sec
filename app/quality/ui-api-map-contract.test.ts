@@ -328,10 +328,10 @@ describe("M1-25 UI API map seed", () => {
 
     expect(readme).toContain("M1-25 is Complete");
     expect(tracker).toContain("| Pending | 0 |");
-    expect(tracker).toContain("| In progress | 416 |");
-    expect(tracker).toContain("| Complete | 309 |");
+    expect(tracker).toContain("| In progress | 391 |");
+    expect(tracker).toContain("| Complete | 334 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`0/416/309/3`");
+    expect(tracker).toContain("`0/391/334/3`");
     expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "0", "0", "68", "0"]);
     expect(active.map(([task]) => task)).toEqual([
       "M1A-10", "M1A-09", "M1A-08", "M1A-07",
@@ -353,10 +353,7 @@ describe("M1-25 UI API map seed", () => {
       "M5-35", "M5-34", "M5-33", "M5-33c", "M5-33b", "M5-33a", "M5-32", "M5-31", "M5-30", "M5-29", "M5-28", "M5-27", "M5-26",
       "M5-25", "M5-24", "M5-23", "M5-23d", "M5-23c", "M5-23b", "M5-23a",
       "M5-22", "M5-21", "M5-20", "M5-19", "M5-18", "M5-17", "M5-16", "M5-15",
-      "M5-14", "M5-13", "M5-12", "M5-11", "M5-10", "M5-09", "M5-08", "M5-07",
-      "M5-06", "M5-05", "M5-04", "M5-03", "M5-02", "M5-01",
-      "M4-59", "M4-59e", "M4-59d", "M4-59c", "M4-59b", "M4-59a", "M4-58", "M4-57",
-      "M4-56", "M4-55", "M4-54", "M4-53", "M4-52", "M4-51", "M4-51e", "M4-51d",
+      "M5-14", "M5-13", "M5-12", "M5-11", "M5-10",
       "M3-52",
       "M3-14",
     ]);

@@ -5,18 +5,18 @@ import { describe, expect, it } from "vitest";
 
 const root = resolve(import.meta.dirname, "../..");
 const selected = [
-  ...Array.from({ length: 14 }, (_, index) => `M4-${String(index + 36).padStart(2, "0")}`),
-  "M4-50a", "M4-50b1", "M4-50b2", "M4-50b3", "M4-50c", "M4-50",
-  "M4-51a", "M4-51b1", "M4-51b2", "M4-51b3", "M4-51c",
+  "M4-51d", "M4-51e", "M4-51", "M4-52", "M4-53", "M4-54", "M4-55", "M4-56",
+  "M4-57", "M4-58", "M4-59a", "M4-59b", "M4-59c", "M4-59d", "M4-59e", "M4-59",
+  ...Array.from({ length: 9 }, (_, index) => `M5-${String(index + 1).padStart(2, "0")}`),
 ];
 
-describe("M4 risk and Agent UI completion batch", () => {
-  it("keeps the generated mutation, path, Home, and search operations available", async () => {
+describe("M4 gate and M5 foundation completion batch", () => {
+  it("keeps the M5 foundation operations in the generated product contract", async () => {
     const [openapi, generated] = await Promise.all([
       readFile(resolve(root, "openapi/openapi.yaml"), "utf8"),
       readFile(resolve(root, "apps/web/api/generated.ts"), "utf8"),
     ]);
-    for (const operation of ["updateFinding", "acceptFindingRisk", "createFindingTicket", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "getHomeSummary", "globalSearch"]) {
+    for (const operation of ["listTests", "createTest", "getTest", "updateTest", "runTest"]) {
       expect(openapi).toContain(`operationId: ${operation}`);
       expect(generated).toContain(operation);
     }
@@ -28,7 +28,7 @@ describe("M4 risk and Agent UI completion batch", () => {
       readFile(resolve(root, "README.md"), "utf8"),
     ]);
     expect(selected).toHaveLength(25);
-    for (const value of ["| Pending | 0 |", "| In progress | 391 |", "| Complete | 334 |", "| Blocked | 3 |", "`0/391/334/3`", "| M4 | 82 | 0 | 0 | 82 | 0 |"]) expect(tracker).toContain(value);
+    for (const value of ["| Pending | 0 |", "| In progress | 391 |", "| Complete | 334 |", "| Blocked | 3 |", "`0/391/334/3`", "| M4 | 82 | 0 | 0 | 82 | 0 |", "| M5 | 42 | 0 | 33 | 9 | 0 |"]) expect(tracker).toContain(value);
     const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
     const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] ?? "";
     for (const task of selected) {
@@ -36,7 +36,8 @@ describe("M4 risk and Agent UI completion batch", () => {
       expect(complete.match(new RegExp(`^\\| ${task} \\|`, "gm")) ?? []).toHaveLength(1);
     }
     const prose = readme.replace(/\s+/g, " ");
-    expect(prose).toContain("M4-36 through M4-50 and M4-51a through M4-51c are Complete");
     expect(prose).toContain("M4-51d through M4-59 are Complete");
+    expect(prose).toContain("M5-01 through M5-09 are Complete");
+    expect(prose).toContain("M5-10 through M5-35 remain batched as In progress");
   });
 });

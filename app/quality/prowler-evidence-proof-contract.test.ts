@@ -188,7 +188,7 @@ describe("Prowler evidence proof contract", () => {
 
     expect(m011Row).toBeDefined();
     const mutatedTracker = tracker.replace(`${m011Row}\n`, `${m011Row}\n${m011Row}\n`);
-    expect(mutatedTracker).toContain("| Complete | 309 |");
+    expect(mutatedTracker).toContain("| Complete | 334 |");
     expect(() => assertM011Complete(mutatedTracker)).toThrow();
   });
 

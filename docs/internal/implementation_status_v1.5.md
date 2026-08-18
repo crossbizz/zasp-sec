@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 0 |
-| In progress | 416 |
-| Complete | 309 |
+| In progress | 391 |
+| Complete | 334 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -28,8 +28,8 @@ In progress, Complete, or Blocked is Pending.
 | M1A | 10 | 0 | 4 | 6 | 0 |
 | M2 | 72 | 0 | 0 | 72 | 0 |
 | M3 | 75 | 0 | 2 | 73 | 0 |
-| M4 | 82 | 0 | 16 | 66 | 0 |
-| M5 | 42 | 0 | 42 | 0 | 0 |
+| M4 | 82 | 0 | 0 | 82 | 0 |
+| M5 | 42 | 0 | 33 | 9 | 0 |
 | M6 | 36 | 0 | 36 | 0 | 0 |
 | M7 | 62 | 0 | 62 | 0 | 0 |
 | M7A | 113 | 0 | 113 | 0 | 0 |
@@ -70,7 +70,7 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `0/416/309/3` because
+session configuration. The 728 source-plan counts are `0/391/334/3` because
 PROV-01 is excluded from those counts.
 For the active M8 resilience batch, live parity, outage injection, and reference load execution remain unresolved.
 
@@ -467,31 +467,6 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 | M5-12 | August 18, 2026 | `cancelTestRun` is published in OpenAPI/generated types and handled by the bounded local service. |
 | M5-11 | August 18, 2026 | `getTestRun` is published in OpenAPI/generated types and handled by the bounded local service. |
 | M5-10 | August 18, 2026 | `listTestRuns` is published in OpenAPI/generated types and handled by the bounded local service. |
-| M5-09 | August 18, 2026 | `runTest` is published in OpenAPI/generated types and queues a bounded local run. |
-| M5-08 | August 18, 2026 | `updateTest` is published in OpenAPI/generated types and handled by the bounded local service. |
-| M5-07 | August 18, 2026 | `getTest` is published in OpenAPI/generated types and handled by the bounded local service. |
-| M5-06 | August 18, 2026 | `createTest` is published in OpenAPI/generated types and handled by the bounded local service. |
-| M5-05 | August 18, 2026 | `listTests` is published in OpenAPI/generated types and handled by the bounded local service. |
-| M5-04 | August 18, 2026 | Test safety preflight rejects production targets, production-write credentials, and undeclared side effects locally. |
-| M5-03 | August 18, 2026 | Curated pack selection recommends only capability-relevant tool, data-leakage, and prompt-injection categories with explanations. |
-| M5-02 | August 18, 2026 | Promptfoo output normalizes objective, input artifact, behavior, verdict, evidence, and engine_error separately. |
-| M5-01 | August 18, 2026 | Local TestDefinition, TestRun, TestAttempt, verdict, and safety metadata boundaries are implemented. |
-| M4-59 | August 18, 2026 | A five-check local M4 gate passes only when inventory, capability, posture, attack path, and exposure UX agree; provider release evidence remains unresolved. |
-| M4-59e | August 18, 2026 | The golden exposure fixture renders product-only Why, Evidence, Path, Fix, and Verify concepts locally. |
-| M4-59d | August 18, 2026 | The golden fixture retains a bounded evidence-state attack path and ranked break option locally. |
-| M4-59c | August 18, 2026 | The golden fixture raises one Agent-specific posture finding with exact evidence locally. |
-| M4-59b | August 18, 2026 | The golden fixture renders production-write and shell capabilities with evidence state locally. |
-| M4-59a | August 18, 2026 | The golden canonical Agent renders owner, identity, runtime, tools, and coverage locally. |
-| M4-58 | August 18, 2026 | Home retains an explicit stale-source warning and cannot render a zero-risk healthy state locally. |
-| M4-57 | August 18, 2026 | The Attack Paths surface renders a bounded path, evidence, and ranked Break Path option locally. |
-| M4-56 | August 18, 2026 | Finding detail renders Why, Evidence, Path, Fix, Verify, assignment, acceptance, and ticket actions locally. |
-| M4-55 | August 18, 2026 | The Findings list hides an unrelated Prowler record by default and retains Agent relevance locally. |
-| M4-54 | August 18, 2026 | Runtimes list/detail fields expose isolation, sandbox, sensor, and policy coverage locally. |
-| M4-53 | August 18, 2026 | Identities list/detail fields expose Agent linkage, privilege, reference, and evidence locally. |
-| M4-52 | August 18, 2026 | Tools and MCP list/detail fields expose using Agents and control state locally. |
-| M4-51 | August 18, 2026 | The Agent detail reading order composes identity through sessions and policy coverage locally. |
-| M4-51e | August 18, 2026 | Agent Sessions and runtime-policy coverage sections link to canonical routes locally. |
-| M4-51d | August 18, 2026 | Agent Findings and Attack Paths sections link to canonical exposure routes locally. |
 | M3-52 | August 18, 2026 | A strict five-check local M3 gate is implemented; real staging remains unavailable and the task is not Complete. |
 | M3-14 | August 18, 2026 | Strict AWS assume-role identity adapter and local denial fixture are implemented; required real-AWS denial remains unavailable behind M1A-10. |
 
@@ -499,6 +474,31 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 
 | Task | Completed | Evidence |
 | --- | --- | --- |
+| M5-09 | August 18, 2026 | `runTest` queues one bounded local run through the published generated contract. |
+| M5-08 | August 18, 2026 | `updateTest` generated-contract success and stable-error cases pass. |
+| M5-07 | August 18, 2026 | `getTest` generated-contract success and stable-error cases pass. |
+| M5-06 | August 18, 2026 | `createTest` generated-contract success and stable-error cases pass. |
+| M5-05 | August 18, 2026 | `listTests` generated-contract success and stable-error cases pass. |
+| M5-04 | August 18, 2026 | Safety preflight rejects production targets, production-write credentials, and undeclared side effects. |
+| M5-03 | August 18, 2026 | Curated pack selection returns only capability-relevant explained categories. |
+| M5-02 | August 18, 2026 | Promptfoo output normalization retains bounded verdict evidence and separates engine errors. |
+| M5-01 | August 18, 2026 | TestDefinition, TestRun, TestAttempt, verdict, and safety metadata validation pass. |
+| M4-59 | August 18, 2026 | The five-check local M4 gate passes Inventory, Capability, Posture, Attack Path, and Exposure UX. |
+| M4-59e | August 18, 2026 | Golden exposure fixture renders product-only Why, Evidence, Path, Fix, and Verify concepts. |
+| M4-59d | August 18, 2026 | Golden fixture retains a bounded evidence-state attack path and ranked break option. |
+| M4-59c | August 18, 2026 | Golden fixture raises one Agent-specific posture finding with exact evidence. |
+| M4-59b | August 18, 2026 | Golden fixture renders production-write and shell capabilities with evidence state. |
+| M4-59a | August 18, 2026 | Golden canonical Agent renders owner, identity, runtime, tools, and coverage. |
+| M4-58 | August 18, 2026 | Home retains explicit stale-source warning and cannot render a zero-risk healthy state. |
+| M4-57 | August 18, 2026 | Attack Paths renders bounded path, evidence, and ranked Break Path options. |
+| M4-56 | August 18, 2026 | Finding detail renders Why, Evidence, Path, Fix, Verify, assignment, acceptance, and ticket actions. |
+| M4-55 | August 18, 2026 | Findings list hides unrelated Prowler records by default and retains Agent relevance. |
+| M4-54 | August 18, 2026 | Runtimes list/detail exposes isolation, sandbox, sensor, and policy coverage. |
+| M4-53 | August 18, 2026 | Identities list/detail exposes Agent linkage, privilege, reference, and evidence. |
+| M4-52 | August 18, 2026 | Tools and MCP list/detail exposes using Agents and control state. |
+| M4-51 | August 18, 2026 | Agent detail composes identity through sessions and policy coverage in tested reading order. |
+| M4-51e | August 18, 2026 | Agent Sessions and runtime-policy coverage sections link to canonical routes. |
+| M4-51d | August 18, 2026 | Agent Findings and Attack Paths sections link to canonical exposure routes. |
 | M4-51c | August 18, 2026 | Effective Capability cards render configured, Observed, Verified, and Blocked evidence states. |
 | M4-51b3 | August 18, 2026 | Agent runtime and sandbox references link to canonical runtime detail. |
 | M4-51b2 | August 18, 2026 | Agent Tool and MCP relationships link to canonical tool detail. |
