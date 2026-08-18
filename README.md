@@ -957,7 +957,8 @@ ambient credentials, profiles, proxies, IMDS, or customer state.
 This proof does not implement producer or consumer wiring; M1-41 owns that
 work. M1A-04 owns replay and DLQ-recovery behavior, and M8-03 owns production
 operations. M1-32 is Complete, and M1-33 is Complete after reviewed live
-evidence; M1-34 remains Pending.
+evidence. M1-34 is In progress, defining the exact evidence, export, and policy
+key layout plus customer-managed SSE-KMS configuration contract.
 
 ## Assembled local development target
 

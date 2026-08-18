@@ -101,14 +101,14 @@ describe("M1-31 LocalStack client factory", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(readme).toContain("M1-31 is Complete");
-    expect(tracker).toContain("| Pending | 654 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 653 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 71 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`654/0/71/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "21", "0", "47", "0"]);
+    expect(tracker).toContain("`653/1/71/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "20", "1", "47", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.map(([task]) => task)).toEqual([]);
+    expect(active.map(([task]) => task)).toEqual(["M1-34"]);
     expect(complete).toHaveLength(71);
     expect(active.filter(([task]) => task === "M1-31")).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-31")).toHaveLength(1);
