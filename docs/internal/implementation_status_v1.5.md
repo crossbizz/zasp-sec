@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 0 |
-| In progress | 193 |
-| Complete | 532 |
+| In progress | 168 |
+| Complete | 557 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -32,7 +32,7 @@ In progress, Complete, or Blocked is Pending.
 | M5 | 42 | 0 | 0 | 42 | 0 |
 | M6 | 36 | 0 | 0 | 36 | 0 |
 | M7 | 62 | 0 | 0 | 62 | 0 |
-| M7A | 113 | 0 | 46 | 67 | 0 |
+| M7A | 113 | 0 | 21 | 92 | 0 |
 | M8 | 141 | 0 | 141 | 0 | 0 |
 
 ## Execution invariants
@@ -70,7 +70,7 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `0/193/532/3` because
+session configuration. The 728 source-plan counts are `0/168/557/3` because
 PROV-01 is excluded from those counts.
 For the active M8 resilience batch, live parity, outage injection, and reference load execution remain unresolved.
 
@@ -244,6 +244,13 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 | M7A-87 | August 18, 2026 | Run action detail renders state, redacted arguments, result, rollback/TTL, and verification without protected values. |
 | M7A-86 | August 18, 2026 | Run detail separates trigger/evidence and AI rationale from deterministic authorization and ordered registered plan steps. |
 | M7A-85 | August 18, 2026 | Definition detail shows bounded configuration, allowed actions, limits, verification, and recent runs without provider/model internals. |
+| M3-52 | August 18, 2026 | A strict five-check local M3 gate is implemented; real staging remains unavailable and the task is not Complete. |
+| M3-14 | August 18, 2026 | Strict AWS assume-role identity adapter and local denial fixture are implemented; required real-AWS denial remains unavailable behind M1A-10. |
+
+## Complete
+
+| Task | Completed | Evidence |
+| --- | --- | --- |
 | M7A-84 | August 18, 2026 | The generated-client builder shows matched evidence, proposed steps, approval points, and per-step authorization with zero side effects. |
 | M7A-83 | August 18, 2026 | Definitions require one terminal verification choice compatible with the selected registered actions. |
 | M7A-82 | August 18, 2026 | Client and service contracts bound steps, runtime, temporary-policy TTL, AI budget, and concurrency to product maxima. |
@@ -269,13 +276,6 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 | M7A-62 | August 18, 2026 | The action API returns only registered target-compatible actions whose injected capability is supported. |
 | M7A-61 | August 18, 2026 | The template API returns only the five bounded product templates and no prompt or provider internals. |
 | M7A-60 | August 18, 2026 | Audit events cover trigger through terminal outcome, hash plans, and reject raw arguments, tokens, credentials, and secrets. |
-| M3-52 | August 18, 2026 | A strict five-check local M3 gate is implemented; real staging remains unavailable and the task is not Complete. |
-| M3-14 | August 18, 2026 | Strict AWS assume-role identity adapter and local denial fixture are implemented; required real-AWS denial remains unavailable behind M1A-10. |
-
-## Complete
-
-| Task | Completed | Evidence |
-| --- | --- | --- |
 | M7A-59 | August 18, 2026 | Run cancellation atomically stops future transitions and approval resume while preserving completed steps and temporary-control cleanup state. |
 | M7A-58 | August 18, 2026 | Final Contained/Remediated outcomes require every configured verification to pass; execution acknowledgement alone remains Inconclusive. |
 | M7A-57 | August 18, 2026 | The verification dispatcher routes exact metadata kinds, contains verifier panics, and returns Inconclusive for missing or failed verification. |

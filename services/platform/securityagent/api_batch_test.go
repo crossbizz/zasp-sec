@@ -95,6 +95,21 @@ func TestSecurityAgentAPIBatchIsScopedStableAndSideEffectFree(t *testing.T) {
 			t.Fatalf("%s: %d %s", target, response.Code, response.Body.String())
 		}
 	}
+	validDefinition := `{"id":"","name":"Bounded response","trigger_kind":"finding","trigger_source":"credential","environment_ids":["env-a"],"autonomy":"supervised","max_steps":10,"max_duration_seconds":900,"temporary_policy_seconds":3600,"ai_token_budget":4000,"concurrency_limit":2,"allowed_actions":["run_test"],"verification_kind":"test_run","definition_version":1,"enabled":true}`
+	if response := call(http.MethodPost, "/api/v1/security-agents", validDefinition); response.Code != http.StatusCreated || !strings.Contains(response.Body.String(), `"temporary_policy_seconds":3600`) || !strings.Contains(response.Body.String(), `"ai_token_budget":4000`) || !strings.Contains(response.Body.String(), `"concurrency_limit":2`) {
+		t.Fatalf("create=%d %s", response.Code, response.Body.String())
+	}
+	for _, testCase := range [][2]string{{`"temporary_policy_seconds":3600`, `"temporary_policy_seconds":86401`}, {`"ai_token_budget":4000`, `"ai_token_budget":12001`}, {`"concurrency_limit":2`, `"concurrency_limit":11`}} {
+		invalidLimits := strings.Replace(validDefinition, testCase[0], testCase[1], 1)
+		if response := call(http.MethodPost, "/api/v1/security-agents", invalidLimits); response.Code != http.StatusBadRequest {
+			t.Fatalf("invalid limits accepted: %s => %d %s", testCase[1], response.Code, response.Body.String())
+		}
+	}
+	incompatibleVerification := strings.Replace(validDefinition, `"id":""`, `"id":"agent-incompatible"`, 1)
+	incompatibleVerification = strings.Replace(incompatibleVerification, `"verification_kind":"test_run"`, `"verification_kind":"export"`, 1)
+	if response := call(http.MethodPost, "/api/v1/security-agents", incompatibleVerification); response.Code != http.StatusBadRequest {
+		t.Fatalf("incompatible verification accepted: %d %s", response.Code, response.Body.String())
+	}
 	if response := call(http.MethodPost, "/api/v1/security-agents/agent-1/simulate", `{"goal":"contain","environment_id":"env-a","evidence_ids":["finding-1"]}`); response.Code != http.StatusOK || action.executions != 0 || !strings.Contains(response.Body.String(), `"authorization":"allow"`) {
 		t.Fatalf("simulate=%d %s executions=%d", response.Code, response.Body.String(), action.executions)
 	}

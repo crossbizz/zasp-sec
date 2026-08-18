@@ -35,6 +35,6 @@ describe("M8-01a through M8-16 release foundation batch", () => {
     const tracker = read("docs/internal/implementation_status_v1.5.md");
     const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] || "";
     for (const id of ["M8-01a", "M8-01b", "M8-01c", "M8-01", "M8-02", "M8-03", "M8-04", "M8-05", "M8-06", "M8-07", "M8-08a", "M8-08b", "M8-08c", "M8-08", "M8-09a", "M8-09b", "M8-09c", "M8-09", "M8-10", "M8-11", "M8-12", "M8-13", "M8-14", "M8-15", "M8-16"]) expect(active.match(new RegExp(`^\\| ${id} \\|`, "gm"))).toHaveLength(1);
-    for (const value of ["| Pending | 0 |", "| In progress | 193 |", "`0/193/532/3`", "| M8 | 141 | 0 | 141 | 0 | 0 |"]) expect(tracker).toContain(value);
+    for (const value of ["| Pending | 0 |", "| In progress | 168 |", "`0/168/557/3`", "| M8 | 141 | 0 | 141 | 0 | 0 |"]) expect(tracker).toContain(value);
   });
 });

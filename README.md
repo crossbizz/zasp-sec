@@ -342,11 +342,12 @@ evidence, and deterministic authorization, budgets, queue handling, approval
 resume, execution classification, verification, outcome, and cancellation
 boundaries run locally. Provider-backed execution is not claimed.
 
-M7A-60 through M7A-84 are batched as In progress. A redacted audit helper and
+M7A-60 through M7A-84 are Complete. A redacted audit helper and
 15 generated product operations now expose scoped Security Agent templates,
 actions, definitions, simulations, runs, cancellation, and approvals. Protect
 -> Security Agents uses that generated API surface for its list and bounded
-seven-stage builder; simulation cannot execute an action adapter. Production
+seven-stage builder; saved definitions carry all five bounded product limits,
+and simulation cannot execute an action adapter. Production
 transport mounting and durable planner/audit storage remain unresolved.
 
 M7A-85 through M7A-101 are batched as In progress. Protect now exposes

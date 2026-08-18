@@ -14,7 +14,7 @@ func fixtureAgent() SecurityAgent {
 		Trigger:        Trigger{Kind: "finding", Source: "runtime"},
 		Scope:          Scope{OrganizationID: "org-a", EnvironmentIDs: []string{"env-a"}},
 		Autonomy:       AutonomySupervised,
-		Limits:         RunLimits{MaxSteps: 4, MaxDuration: 10 * time.Minute},
+		Limits:         RunLimits{MaxSteps: 4, MaxDuration: 10 * time.Minute, TemporaryPolicyTTL: time.Hour, MaxAITokens: 4000, MaxConcurrent: 2},
 		AllowedActions: []string{"create_temporary_policy"},
 		Verification:   Verification{Kind: "policy_state"}, DefinitionVersion: 1, Enabled: true,
 	}

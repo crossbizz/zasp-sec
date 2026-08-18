@@ -2334,9 +2334,11 @@ export type components = {
             readonly items: readonly components["schemas"]["SecurityAgentApproval"][];
         };
         readonly SecurityAgentDefinition: {
+            readonly ai_token_budget: number;
             readonly allowed_actions: readonly string[];
             /** @enum {string} */
             readonly autonomy: "supervised" | "autonomous";
+            readonly concurrency_limit: number;
             readonly definition_version: number;
             readonly enabled: boolean;
             readonly environment_ids: readonly components["schemas"]["ProductID"][];
@@ -2344,6 +2346,7 @@ export type components = {
             readonly max_duration_seconds: number;
             readonly max_steps: number;
             readonly name: string;
+            readonly temporary_policy_seconds: number;
             /** @enum {string} */
             readonly trigger_kind: "finding" | "attack_path" | "runtime_decision";
             readonly trigger_source: string;

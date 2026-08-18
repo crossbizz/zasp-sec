@@ -1629,7 +1629,7 @@ components:
     SecurityAgentDefinition:
       type: object
       additionalProperties: false
-      required: [id, name, trigger_kind, trigger_source, environment_ids, autonomy, max_steps, max_duration_seconds, allowed_actions, verification_kind, definition_version, enabled]
+      required: [id, name, trigger_kind, trigger_source, environment_ids, autonomy, max_steps, max_duration_seconds, temporary_policy_seconds, ai_token_budget, concurrency_limit, allowed_actions, verification_kind, definition_version, enabled]
       properties:
         id: { $ref: '#/components/schemas/ProductID' }
         name: { type: string, minLength: 1, maxLength: 256 }
@@ -1639,6 +1639,9 @@ components:
         autonomy: { type: string, enum: [supervised, autonomous] }
         max_steps: { type: integer, minimum: 1, maximum: 100 }
         max_duration_seconds: { type: integer, minimum: 1, maximum: 86400 }
+        temporary_policy_seconds: { type: integer, minimum: 1, maximum: 86400 }
+        ai_token_budget: { type: integer, minimum: 1, maximum: 12000 }
+        concurrency_limit: { type: integer, minimum: 1, maximum: 10 }
         allowed_actions: { type: array, minItems: 1, maxItems: 32, uniqueItems: true, items: { type: string, minLength: 1, maxLength: 128 } }
         verification_kind: { type: string, minLength: 1, maxLength: 64 }
         definition_version: { type: integer, minimum: 1 }

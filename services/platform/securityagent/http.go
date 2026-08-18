@@ -35,18 +35,21 @@ type HTTPHandler struct {
 type requestScope struct{ organizationID, workspaceID, environmentID, principalID string }
 
 type agentInput struct {
-	ID                 string   `json:"id"`
-	Name               string   `json:"name"`
-	TriggerKind        string   `json:"trigger_kind"`
-	TriggerSource      string   `json:"trigger_source"`
-	EnvironmentIDs     []string `json:"environment_ids"`
-	Autonomy           Autonomy `json:"autonomy"`
-	MaxSteps           int      `json:"max_steps"`
-	MaxDurationSeconds int      `json:"max_duration_seconds"`
-	AllowedActions     []string `json:"allowed_actions"`
-	VerificationKind   string   `json:"verification_kind"`
-	DefinitionVersion  int      `json:"definition_version"`
-	Enabled            bool     `json:"enabled"`
+	ID                     string   `json:"id"`
+	Name                   string   `json:"name"`
+	TriggerKind            string   `json:"trigger_kind"`
+	TriggerSource          string   `json:"trigger_source"`
+	EnvironmentIDs         []string `json:"environment_ids"`
+	Autonomy               Autonomy `json:"autonomy"`
+	MaxSteps               int      `json:"max_steps"`
+	MaxDurationSeconds     int      `json:"max_duration_seconds"`
+	TemporaryPolicySeconds int      `json:"temporary_policy_seconds"`
+	AITokenBudget          int      `json:"ai_token_budget"`
+	ConcurrencyLimit       int      `json:"concurrency_limit"`
+	AllowedActions         []string `json:"allowed_actions"`
+	VerificationKind       string   `json:"verification_kind"`
+	DefinitionVersion      int      `json:"definition_version"`
+	Enabled                bool     `json:"enabled"`
 }
 
 type simulationInput struct {
@@ -288,16 +291,42 @@ func (handler *HTTPHandler) validateAgentAccess(ctx context.Context, principalID
 		return ErrRejected
 	}
 	permissions := map[string]bool{}
+	directVerification := true
 	for _, action := range agent.AllowedActions {
-		if _, err := handler.options.Registry.Metadata(action); err != nil {
+		metadata, err := handler.options.Registry.Metadata(action)
+		if err != nil {
 			return ErrRejected
 		}
+		directVerification = directVerification && metadata.VerificationKind == agent.Verification.Kind
 		permissions[action] = handler.options.Permissions(ctx, principalID, action)
+	}
+	if !directVerification && !handler.matchesTemplateVerification(agent) {
+		return ErrRejected
 	}
 	if agent.Enabled {
 		return ValidateEnablePermissions(agent, handler.options.Registry, permissions)
 	}
 	return nil
+}
+
+func (handler *HTTPHandler) matchesTemplateVerification(agent SecurityAgent) bool {
+	selected := map[string]bool{}
+	for _, action := range agent.AllowedActions {
+		selected[action] = true
+	}
+	for _, template := range handler.options.Templates {
+		if template.TriggerKind != agent.Trigger.Kind || template.VerificationCondition != agent.Verification.Kind || len(template.DefaultActions) != len(selected) {
+			continue
+		}
+		matches := true
+		for _, action := range template.DefaultActions {
+			matches = matches && selected[action]
+		}
+		if matches {
+			return true
+		}
+	}
+	return false
 }
 
 func (handler *HTTPHandler) simulate(writer http.ResponseWriter, request *http.Request, scope requestScope, id string) {
@@ -568,7 +597,7 @@ func (handler *HTTPHandler) scopedApproval(request *http.Request, scope requestS
 }
 
 func (input agentInput) agent(organizationID string) SecurityAgent {
-	return SecurityAgent{ID: input.ID, OrganizationID: organizationID, Name: input.Name, Trigger: Trigger{Kind: input.TriggerKind, Source: input.TriggerSource}, Scope: Scope{OrganizationID: organizationID, EnvironmentIDs: cloneStrings(input.EnvironmentIDs)}, Autonomy: input.Autonomy, Limits: RunLimits{MaxSteps: input.MaxSteps, MaxDuration: time.Duration(input.MaxDurationSeconds) * time.Second}, AllowedActions: cloneStrings(input.AllowedActions), Verification: Verification{Kind: input.VerificationKind}, DefinitionVersion: input.DefinitionVersion, Enabled: input.Enabled}
+	return SecurityAgent{ID: input.ID, OrganizationID: organizationID, Name: input.Name, Trigger: Trigger{Kind: input.TriggerKind, Source: input.TriggerSource}, Scope: Scope{OrganizationID: organizationID, EnvironmentIDs: cloneStrings(input.EnvironmentIDs)}, Autonomy: input.Autonomy, Limits: RunLimits{MaxSteps: input.MaxSteps, MaxDuration: time.Duration(input.MaxDurationSeconds) * time.Second, TemporaryPolicyTTL: time.Duration(input.TemporaryPolicySeconds) * time.Second, MaxAITokens: input.AITokenBudget, MaxConcurrent: input.ConcurrencyLimit}, AllowedActions: cloneStrings(input.AllowedActions), Verification: Verification{Kind: input.VerificationKind}, DefinitionVersion: input.DefinitionVersion, Enabled: input.Enabled}
 }
 func agentStatus(value SecurityAgent) string {
 	if !value.DeletedAt.IsZero() {
@@ -625,18 +654,21 @@ type actionOutput struct {
 	Reversible       bool     `json:"reversible"`
 }
 type agentOutput struct {
-	ID                 string   `json:"id"`
-	Name               string   `json:"name"`
-	TriggerKind        string   `json:"trigger_kind"`
-	TriggerSource      string   `json:"trigger_source"`
-	VerificationKind   string   `json:"verification_kind"`
-	EnvironmentIDs     []string `json:"environment_ids"`
-	AllowedActions     []string `json:"allowed_actions"`
-	Autonomy           Autonomy `json:"autonomy"`
-	MaxSteps           int      `json:"max_steps"`
-	MaxDurationSeconds int      `json:"max_duration_seconds"`
-	DefinitionVersion  int      `json:"definition_version"`
-	Enabled            bool     `json:"enabled"`
+	ID                     string   `json:"id"`
+	Name                   string   `json:"name"`
+	TriggerKind            string   `json:"trigger_kind"`
+	TriggerSource          string   `json:"trigger_source"`
+	VerificationKind       string   `json:"verification_kind"`
+	EnvironmentIDs         []string `json:"environment_ids"`
+	AllowedActions         []string `json:"allowed_actions"`
+	Autonomy               Autonomy `json:"autonomy"`
+	MaxSteps               int      `json:"max_steps"`
+	MaxDurationSeconds     int      `json:"max_duration_seconds"`
+	TemporaryPolicySeconds int      `json:"temporary_policy_seconds"`
+	AITokenBudget          int      `json:"ai_token_budget"`
+	ConcurrencyLimit       int      `json:"concurrency_limit"`
+	DefinitionVersion      int      `json:"definition_version"`
+	Enabled                bool     `json:"enabled"`
 }
 type runOutput struct {
 	ID                string   `json:"id"`
@@ -666,7 +698,7 @@ func actionJSON(value ActionMetadata) actionOutput {
 	return actionOutput{Key: value.Key, RiskClass: value.RiskClass, TargetTypes: cloneStrings(value.TargetTypes), ApprovalFloor: value.ApprovalFloor, Reversible: value.Reversible, VerificationKind: value.VerificationKind}
 }
 func agentJSON(value SecurityAgent) agentOutput {
-	return agentOutput{ID: value.ID, Name: value.Name, TriggerKind: value.Trigger.Kind, TriggerSource: value.Trigger.Source, EnvironmentIDs: cloneStrings(value.Scope.EnvironmentIDs), Autonomy: value.Autonomy, MaxSteps: value.Limits.MaxSteps, MaxDurationSeconds: int(value.Limits.MaxDuration.Seconds()), AllowedActions: cloneStrings(value.AllowedActions), VerificationKind: value.Verification.Kind, DefinitionVersion: value.DefinitionVersion, Enabled: value.Enabled}
+	return agentOutput{ID: value.ID, Name: value.Name, TriggerKind: value.Trigger.Kind, TriggerSource: value.Trigger.Source, EnvironmentIDs: cloneStrings(value.Scope.EnvironmentIDs), Autonomy: value.Autonomy, MaxSteps: value.Limits.MaxSteps, MaxDurationSeconds: int(value.Limits.MaxDuration.Seconds()), TemporaryPolicySeconds: int(value.Limits.TemporaryPolicyTTL.Seconds()), AITokenBudget: value.Limits.MaxAITokens, ConcurrencyLimit: value.Limits.MaxConcurrent, AllowedActions: cloneStrings(value.AllowedActions), VerificationKind: value.Verification.Kind, DefinitionVersion: value.DefinitionVersion, Enabled: value.Enabled}
 }
 func runJSON(value SecurityAgentRun) runOutput {
 	return runOutput{ID: value.ID, AgentID: value.AgentID, State: value.State, EvidenceIDs: cloneStrings(value.TriggerEvidenceIDs), DefinitionVersion: value.DefinitionVersion, Version: value.Version}
