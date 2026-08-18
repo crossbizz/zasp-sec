@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 4 |
-| In progress | 537 |
+| Pending | 0 |
+| In progress | 541 |
 | Complete | 184 |
 | Blocked | 3 |
 
@@ -25,7 +25,7 @@ In progress, Complete, or Blocked is Pending.
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 0 | 0 | 24 | 3 |
 | M1 | 68 | 0 | 0 | 68 | 0 |
-| M1A | 10 | 4 | 0 | 6 | 0 |
+| M1A | 10 | 0 | 4 | 6 | 0 |
 | M2 | 72 | 0 | 0 | 72 | 0 |
 | M3 | 75 | 0 | 61 | 14 | 0 |
 | M4 | 82 | 0 | 82 | 0 | 0 |
@@ -70,7 +70,7 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `4/537/184/3` because
+session configuration. The 728 source-plan counts are `0/541/184/3` because
 PROV-01 is excluded from those counts.
 For the active M8 resilience batch, live parity, outage injection, and reference load execution remain unresolved.
 
@@ -78,6 +78,10 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M1A-10 | August 18, 2026 | Typed gate requires private Ready product stubs, exact IRSA dependency smoke, OTLP health, and credential-free evidence; real AWS staging execution remains unresolved. |
+| M1A-09 | August 18, 2026 | Deterministic evidence binds Terraform revision, cluster/version, immutable image hashes, and deploy/smoke runs without credential fields. |
+| M1A-08 | August 18, 2026 | Injected smoke boundary requires exact scoped S3, SQS, and OpenSearch operations through IRSA plus OTLP health evidence. |
+| M1A-07 | August 18, 2026 | Injected staging deployment boundary requires four immutable product workloads Ready on private endpoints with no vendor dashboards. |
 | M8-54 | August 18, 2026 | Release decision requires all seven aggregate gates and exposes every exception or unresolved blocker; live evidence remains unresolved. |
 | M8-63 | August 18, 2026 | SaaS DR gate requires objective, isolation, product-surface, and cleanup evidence; live recovery remains unresolved. |
 | M8-63e | August 18, 2026 | Recovery objectives require measured RPO <=1 hour and RTO <=4 hours plus usable representative queries. |

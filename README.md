@@ -258,7 +258,10 @@ the shared non-production VPC, two private subnets, encrypted EKS cluster and
 node group, evidence bucket, KMS key, secret slots, the six queue/DLQ resources,
 private OpenSearch, and the product IRSA role. Terraform 1.15.8 validation and
 an offline 34-create plan pass without applying or contacting a staging account.
-M1A-07 remains Pending; no real cloud resource was created by this batch.
+M1A-07 through M1A-10 are now In progress. One typed staging boundary validates
+the private four-workload deploy, exact IRSA S3/SQS/OpenSearch smoke, redacted
+deterministic deployment evidence, and the aggregate gate decision. No real
+cloud resource was created; live staging execution remains required.
 
 M3-01 through M3-13 are Complete. The product now exposes a provider-neutral
 connector catalog, a signed Generic Webhook entry, scoped integration CRUD and
