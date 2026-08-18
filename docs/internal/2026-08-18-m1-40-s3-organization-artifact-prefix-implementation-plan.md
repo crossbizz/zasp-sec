@@ -33,46 +33,46 @@ Gitleaks 8.30.1.
 
 ## Task 1: Start M1-40 with an exact repository contract
 
-- [ ] Add a focused quality contract binding the source task, design, plan,
+- [x] Add a focused quality contract binding the source task, design, plan,
   exact status arithmetic, M1-39 Complete, and M1-41 absent.
-- [ ] Run it before status edits and retain the intended Pending-state RED.
-- [ ] Move only M1-40 to In progress at `643/1/81/3` overall and
+- [x] Run it before status edits and retain the intended Pending-state RED.
+- [x] Move only M1-40 to In progress at `643/1/81/3` overall and
   `10/1/57/0` for M1; update README and affected exact-count contracts.
-- [ ] Run the focused and full pinned gates, scan the exact change, update the
+- [x] Run the focused and full pinned gates, scan the exact change, update the
   ignored report/ledger, and commit the start transition atomically.
 
 ## Task 2: Add the scope-mandatory artifact locator
 
-- [ ] Add direct tests for exact locator/key output, zero and invalid inputs,
+- [x] Add direct tests for exact locator/key output, zero and invalid inputs,
   typed field equality, and unchanged canonical bytes.
-- [ ] Add one same-session fixture that writes Organization B and proves an
+- [x] Add one same-session fixture that writes Organization B and proves an
   otherwise identical Organization A read issues only A's key and returns
   fixed `ErrGet` without the B object.
-- [ ] Mutate the inherited builder path to omit Organization scope and retain
+- [x] Mutate the inherited builder path to omit Organization scope and retain
   the focused tests-only RED before production edits.
-- [ ] Implement `buildDriverLocator(scope, reference)` and route Put, Get, and
+- [x] Implement `buildDriverLocator(scope, reference)` and route Put, Get, and
   Delete through it before deadline construction or driver I/O.
 
 ## Task 3: Verify and review the product boundary
 
-- [ ] Add concurrent alternating A/B coverage that rejects retained tenant
+- [x] Add concurrent alternating A/B coverage that rejects retained tenant
   state, key aliasing, caller mutation, and cross-call contamination.
-- [ ] Run the focused package with the race detector six consecutive times.
-- [ ] Run full platform race, tidy-diff, module verification, vet, EventStore
+- [x] Run the focused package with the race detector six consecutive times.
+- [x] Run full platform race, tidy-diff, module verification, vet, EventStore
   and ArtifactStore root regressions, and package statement coverage.
-- [ ] Run pinned repository tests, typecheck, lint, build, production audit,
+- [x] Run pinned repository tests, typecheck, lint, build, production audit,
   whitespace checks, and scoped redacted secret scans.
-- [ ] Review the exact start-to-implementation range for scope bypass,
+- [x] Review the exact start-to-implementation range for scope bypass,
   aliasing, panic/error leakage, concurrency, and unsupported provider claims;
   resolve every Critical, Important, and Minor finding tests-first.
 
 ## Task 4: Complete, ship, and close M1-40
 
-- [ ] Change the focused contract first and retain the intended completion RED.
-- [ ] Move only M1-40 to Complete at `643/0/82/3` overall and `10/0/58/0`
+- [x] Change the focused contract first and retain the intended completion RED.
+- [x] Move only M1-40 to Complete at `643/0/82/3` overall and `10/0/58/0`
   for M1; keep M1-41 Pending and all three blockers unchanged.
-- [ ] Re-run all final gates and scans, commit, push, and require exact-SHA
+- [x] Re-run all final gates and scans, commit, push, and require exact-SHA
   Runnable UI success before claiming completion.
-- [ ] Check these 17 execution steps, commit plan closure, push, require a
+- [x] Check these 17 execution steps, commit plan closure, push, require a
   second exact-SHA Runnable UI success, reconcile refs/evidence, and proceed
   directly to M1-41.
