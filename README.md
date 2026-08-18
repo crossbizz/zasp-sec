@@ -125,11 +125,11 @@ M1-37 is Complete. The typed loader accepts exact
 `AGENTSEC_DEPLOYMENT_MODE` values `saas` and `single_tenant`, plus conditional
 `AGENTSEC_SINGLE_TENANT_ORGANIZATION_ID`. SaaS starts without an Organization
 pin; single-tenant startup requires one canonical product Organization ID.
-Authenticated Organization enforcement remains M2-49. M1-38 is In progress.
+Authenticated Organization enforcement remains M2-49. M1-38 is Complete.
 
 ## Neon Organization scope guard
 
-M1-38 is In progress. The repository query boundary requires one canonical
+M1-38 is Complete. The repository query boundary requires one canonical
 product Organization ID before SQL execution and prepends its trusted string as
 argument `$1`; missing or invalid scope cannot reach the executor. It does not
 parse SQL or store tenant state. M1-45a still owns transaction-local tenant

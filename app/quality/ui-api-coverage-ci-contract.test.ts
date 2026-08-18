@@ -57,12 +57,12 @@ describe("M1-26 UI API coverage CI", () => {
 
     expect(readme).toContain("M1-26 is Complete");
     expect(tracker).toContain("| Pending | 645 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 79 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 80 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`645/1/79/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "12", "1", "55", "0"]);
-    expect(active.map(([task]) => task)).toEqual(["M1-38"]);
+    expect(tracker).toContain("`645/0/80/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "12", "0", "56", "0"]);
+    expect(active.map(([task]) => task)).toEqual([]);
     expect(complete.filter(([task]) => task === "M1-25")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-26")).toHaveLength(1);
     expect(active.filter(([task]) => task === "M1-27")).toHaveLength(0);
