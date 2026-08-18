@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 266 |
-| In progress | 275 |
+| Pending | 241 |
+| In progress | 300 |
 | Complete | 184 |
 | Blocked | 3 |
 
@@ -31,8 +31,8 @@ In progress, Complete, or Blocked is Pending.
 | M4 | 82 | 0 | 82 | 0 | 0 |
 | M5 | 42 | 0 | 42 | 0 | 0 |
 | M6 | 36 | 0 | 36 | 0 | 0 |
-| M7 | 62 | 8 | 54 | 0 | 0 |
-| M7A | 113 | 113 | 0 | 0 | 0 |
+| M7 | 62 | 0 | 62 | 0 | 0 |
+| M7A | 113 | 96 | 17 | 0 | 0 |
 | M8 | 141 | 141 | 0 | 0 | 0 |
 
 ## Execution invariants
@@ -70,13 +70,38 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `266/275/184/3` because
+session configuration. The 728 source-plan counts are `241/300/184/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M7A-17 | August 18, 2026 | The registered temporary-policy action executes through a bounded policy-service contract and returns the same policy ID for a repeated run/step key; production adapter wiring remains unresolved. |
+| M7A-16 | August 18, 2026 | `create_temporary_policy` metadata restricts requests to Monitor/Block, a bounded scope, a positive TTL, operator approval, reversibility, idempotency, and policy-state verification. |
+| M7A-15 | August 18, 2026 | A fail-closed action registry exposes metadata, validation, execution, and verification contracts and rejects duplicate action keys. |
+| M7A-14 | August 18, 2026 | The Organization-scoped local approval repository supports create/list/get/decide and rejects expired or terminal approvals. |
+| M7A-13 | August 18, 2026 | The Organization-scoped local step repository enforces stable ordering and unique `(run_id, step_index)` values. |
+| M7A-12 | August 18, 2026 | The Organization-scoped local run repository supports create/get/list and versioned compare-and-set transitions with one winner. |
+| M7A-11 | August 18, 2026 | The local definition repository supports cursor listing, versioned updates, soft deletion, and trigger exclusion for disabled/deleted agents. |
+| M7A-10 | August 18, 2026 | The local create/get repository binds every Security Agent definition to its Organization and rejects cross-Organization reads. |
+| M7A-09 | August 18, 2026 | The local idempotency repository binds Organization, run, step, and action key and returns the exact prior outcome on a duplicate claim. |
+| M7A-08 | August 18, 2026 | The immutable migration contract includes Organization-scoped approvals, expiry, approver, fresh-auth, decision, version, RLS, and primary-key boundaries; live Neon application remains unresolved. |
+| M7A-07 | August 18, 2026 | The immutable migration contract includes Organization-scoped run steps and unique `(organization_id, run_id, step_index)` state; live Neon application remains unresolved. |
+| M7A-06 | August 18, 2026 | The immutable migration contract includes Organization-scoped runs, trigger evidence snapshots, definition versions, CAS versions, and RLS; live Neon application remains unresolved. |
+| M7A-05 | August 18, 2026 | One repeatably validated SQL contract defines Organization-scoped Security Agents, indexes, and tenant policies; live Neon apply/rollback evidence remains unresolved. |
+| M7A-04 | August 18, 2026 | Security action metadata validates input schemas, risk class, target types, approval floor, reversibility, idempotency, and verification kind. |
+| M7A-03 | August 18, 2026 | Version-one plans require ordered typed action steps, bounded summaries, exact action schemas, and no unknown fields. |
+| M7A-02 | August 18, 2026 | Security Agent runs expose the eleven planned states and a fail-closed transition graph that rejects terminal-to-running transitions. |
+| M7A-01 | August 18, 2026 | Security Agent definitions validate trigger, Organization/environment scope, autonomy, positive limits, allowed actions, verification, and definition version. |
+| M7-40 | August 18, 2026 | The local M7 gate reports PASS only when all six independent flows and all five degraded-state fixtures pass; provider-backed milestone E2E remains unresolved. |
+| M7-40f | August 18, 2026 | The strict UI/API coverage gate maps all 104 public MVP operations to a screen/action and handler task. |
+| M7-40e | August 18, 2026 | The local AI-degrade flow reports explanation unavailability while deterministic evidence and actions remain usable. |
+| M7-40d | August 18, 2026 | The local system-health flow distinguishes required security-plane failure from optional dependency degradation. |
+| M7-40c | August 18, 2026 | The local data-control flow applies and audits environment retention/collection changes before subsequent reads. |
+| M7-40b | August 18, 2026 | The local compliance flow binds filtered control evidence, source references, freshness, and deterministic export artifacts. |
+| M7-40a | August 18, 2026 | The local session flow retains semantic/runtime evidence in stable timestamp/ID order with explicit confidence. |
+| M7-39 | August 18, 2026 | The M7 gate registers exactly connector, graph, event-index, AI, and optional-OTLP degraded-state fixtures as independent evidence. |
 | M7-39e | August 18, 2026 | The local System Health fixture reports optional remote-telemetry degradation without marking the security plane unhealthy. |
 | M7-39d | August 18, 2026 | The local AI surface keeps deterministic evidence usable when explanation generation is unavailable. |
 | M7-39c | August 18, 2026 | The local Sessions fixture retains known metadata while event-index activity is degraded. |

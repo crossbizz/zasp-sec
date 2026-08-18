@@ -313,6 +313,14 @@ fixture drives a five-check local M4 gate across Inventory, Capability,
 Posture, Attack Path, and Exposure UX. This is coherent local MVP evidence,
 not Neon, provider, staging, external webhook, or release-gate evidence.
 
+M7-39 through M7-40 and M7A-01 through M7A-17 are batched as In progress. The
+local M7 gate now binds five degraded-state fixtures and six independent MVP
+flows. The Security Agent foundation adds tenant-scoped definitions, runs,
+steps, approvals, idempotency, structured plans, an action registry, and a
+bounded temporary runtime-policy action. These local contracts do not claim a
+live Neon migration, production policy-service adapter, or provider-backed M7
+gate.
+
 ```bash
 go test -C services/platform -race -count=1 ./integration
 go test -C services/platform -race -count=1 ./connectors ./sensor
