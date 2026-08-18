@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	platformaudit "github.com/zasp-ai/zasp-sec/services/platform/audit"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
 
@@ -104,6 +105,14 @@ func TestIdentityHTTPHandlerReturnsOneStableAuthenticationErrorForEveryOperation
 		{http.MethodGet, "/api/v1/admin/scim-connections", ""},
 		{http.MethodPost, "/api/v1/admin/scim-connections", `{"display_name":"Corporate","identity_provider":"generic"}`},
 		{http.MethodDelete, "/api/v1/admin/scim-connections/scim-connection-live-a", ""},
+		{http.MethodGet, "/api/v1/admin/group-mappings", ""},
+		{http.MethodPatch, "/api/v1/admin/group-mappings", `{"group_reference":"idp-group-engineering","role":"security_engineer","workspace_id":"` + workspace.ID().String() + `","environment_id":"` + environments[0].ID().String() + `","expected_version":0}`},
+		{http.MethodGet, "/api/v1/admin/api-tokens", ""},
+		{http.MethodPost, "/api/v1/admin/api-tokens", `{"name":"CI","workspace_id":"` + workspace.ID().String() + `","environment_id":"` + environments[0].ID().String() + `","permissions":["view"],"expires_at":"2030-01-01T00:00:00Z"}`},
+		{http.MethodDelete, "/api/v1/admin/api-tokens/" + fixtureID(t, 999).String(), ""},
+		{http.MethodGet, "/api/v1/audit-events", ""},
+		{http.MethodPost, "/api/v1/audit-exports", `{}`},
+		{http.MethodGet, "/api/v1/audit-exports/" + fixtureID(t, 998).String(), ""},
 	}
 	want := `{"code":"authentication_required","message":"Authentication required","correlation_id":"` + errorID.String() + `","retryable":false}`
 	for _, route := range routes {
@@ -175,6 +184,80 @@ func TestIdentityHTTPHandlerFailsClosedBeforeSensitiveConnectionMutation(t *test
 		`{"display_name":"Corporate SAML","protocol":"saml","identity_provider":"generic"}`)
 	if recorder.Code != http.StatusForbidden || len(driver.ssoConnections) != 1 {
 		t.Fatalf("fresh rejection = %d %q provider_count=%d", recorder.Code, recorder.Body.String(), len(driver.ssoConnections))
+	}
+}
+
+func TestIdentityHTTPHandlerServesGroupTokenAndAuditAdministration(t *testing.T) {
+	store := newFixtureStore(t)
+	organization, principal, workspace, environments := seedHTTPIdentity(t, store)
+	groups, _ := NewGroupMappingStore(store)
+	sequence := 1000
+	generate := func() (domain.ProductID, error) {
+		sequence++
+		return fixtureID(t, sequence), nil
+	}
+	tokens, _ := NewAPITokenStore(generate, bytes.NewReader(bytes.Repeat([]byte{0x44}, 64)), func() time.Time { return fixtureNow })
+	audits, _ := platformaudit.NewProductService(platformaudit.NewEventStore(), generate, func() time.Time { return fixtureNow })
+	handler, err := NewHTTPHandler(store, func(*http.Request) (Principal, error) { return principal, nil }, generate,
+		WithAdministrationServices(groups, tokens, audits, func(context.Context, Principal) error { return nil }))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	groupBody := `{"group_reference":"idp-group-engineering","role":"security_engineer","workspace_id":"` + workspace.ID().String() +
+		`","environment_id":"` + environments[0].ID().String() + `","expected_version":0}`
+	assertHTTPContains(t, handler, http.MethodPatch, "/api/v1/admin/group-mappings", groupBody, http.StatusOK,
+		`"group_reference":"idp-group-engineering"`, `"version":1`, `"audit_correlation_id"`)
+	assertHTTPContains(t, handler, http.MethodGet, "/api/v1/admin/group-mappings", "", http.StatusOK,
+		`"role":"security_engineer"`, `"has_more":false`)
+
+	expires := fixtureNow.Add(time.Hour).Format(time.RFC3339)
+	tokenBody := `{"name":"CI scanner","workspace_id":"` + workspace.ID().String() + `","environment_id":"` +
+		environments[0].ID().String() + `","permissions":["view","run_tests"],"expires_at":"` + expires + `"}`
+	createdToken := requestObject(t, handler, http.MethodPost, "/api/v1/admin/api-tokens", tokenBody, http.StatusCreated)
+	tokenID := requireString(t, createdToken, "id")
+	if !strings.HasPrefix(requireString(t, createdToken, "raw_token"), "zasp_pat_") {
+		t.Fatal("token create omitted the one-time raw token")
+	}
+	listRecorder := performHTTPRequest(handler, http.MethodGet, "/api/v1/admin/api-tokens", "")
+	if listRecorder.Code != http.StatusOK || strings.Contains(listRecorder.Body.String(), "raw_token") {
+		t.Fatalf("token list = %d %q", listRecorder.Code, listRecorder.Body.String())
+	}
+	assertHTTPContains(t, handler, http.MethodDelete, "/api/v1/admin/api-tokens/"+tokenID, "", http.StatusOK,
+		`"id":"`+tokenID+`"`, `"revoked_at"`)
+
+	scope, _ := domain.NewScope(organization.ID(), workspace.ID(), environments[0].ID())
+	event, err := audits.Record(context.Background(), scope, platformaudit.ProductEventInput{
+		Actor: principal.ID(), Action: "group_mapping.update", Target: workspace.ID(), Outcome: platformaudit.OutcomeSucceeded,
+		Metadata: map[string]string{"access_token": "secret", "source": "identity_admin"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertHTTPContains(t, handler, http.MethodGet, "/api/v1/audit-events", "", http.StatusOK,
+		`"id":"`+event.ID().String()+`"`, `"access_token":"[REDACTED]"`)
+	createdExport := requestObject(t, handler, http.MethodPost, "/api/v1/audit-exports", `{}`, http.StatusCreated)
+	exportID := requireString(t, createdExport, "id")
+	assertHTTPContains(t, handler, http.MethodGet, "/api/v1/audit-exports/"+exportID, "", http.StatusOK,
+		`"status":"ready"`, `"event_count":1`)
+}
+
+func TestIdentityHTTPHandlerComposesConnectionAndGovernanceServices(t *testing.T) {
+	store := newFixtureStore(t)
+	_, principal, _, _ := seedHTTPIdentity(t, store)
+	driver := newFakeStytchDriver()
+	adapter, _ := NewAdapter(driver, func() time.Time { return fixtureNow })
+	connections, _ := NewConnectionService(adapter)
+	groups, _ := NewGroupMappingStore(store)
+	generate := func() (domain.ProductID, error) { return fixtureID(t, 1090), nil }
+	tokens, _ := NewAPITokenStore(generate, bytes.NewReader(bytes.Repeat([]byte{0x55}, 64)), func() time.Time { return fixtureNow })
+	audits, _ := platformaudit.NewProductService(platformaudit.NewEventStore(), generate, func() time.Time { return fixtureNow })
+	fresh := func(context.Context, Principal) error { return nil }
+
+	handler, err := NewHTTPHandler(store, func(*http.Request) (Principal, error) { return principal, nil }, generate,
+		WithConnectionService(connections, fresh), WithAdministrationServices(groups, tokens, audits, fresh))
+	if err != nil || handler.connections == nil || handler.groups == nil || handler.tokens == nil || handler.audits == nil {
+		t.Fatalf("composed handler = %#v, %v", handler, err)
 	}
 }
 

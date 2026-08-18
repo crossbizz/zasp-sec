@@ -35,30 +35,54 @@ screens:
         availability: api_available
       - id: view_members
         operation_id: listMembers
-        availability: api_available
+        availability: available
       - id: view_builtin_roles
         operation_id: listBuiltInRoles
-        availability: api_available
+        availability: available
       - id: view_sso_connections
         operation_id: listSSOConnections
-        availability: api_available
+        availability: available
       - id: create_sso_connection
         operation_id: createSSOConnection
-        availability: api_available
+        availability: available
       - id: delete_sso_connection
         operation_id: deleteSSOConnection
-        availability: api_available
+        availability: available
       - id: test_sso_connection
         operation_id: testSSOConnection
-        availability: api_available
+        availability: available
       - id: view_scim_connections
         operation_id: listSCIMConnections
-        availability: api_available
+        availability: available
       - id: create_scim_connection
         operation_id: createSCIMConnection
-        availability: api_available
+        availability: available
       - id: delete_scim_connection
         operation_id: deleteSCIMConnection
+        availability: available
+      - id: view_group_mappings
+        operation_id: listGroupMappings
+        availability: available
+      - id: update_group_mapping
+        operation_id: updateGroupMappings
+        availability: available
+      - id: view_api_tokens
+        operation_id: listAPITokens
+        availability: api_available
+      - id: create_api_token
+        operation_id: createAPIToken
+        availability: api_available
+      - id: revoke_api_token
+        operation_id: revokeAPIToken
+        availability: api_available
+      - id: view_audit_events
+        operation_id: listAuditEvents
+        availability: api_available
+      - id: create_audit_export
+        operation_id: createAuditExport
+        availability: api_available
+      - id: view_audit_export
+        operation_id: getAuditExport
         availability: api_available
   - id: home
     label: Home

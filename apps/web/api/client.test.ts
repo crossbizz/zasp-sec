@@ -36,6 +36,9 @@ describe("generated API client", () => {
     expect(continuingPage.has_more).toBe(true);
     expect(finalPage.has_more).toBe(false);
     expectTypeOf<keyof paths>().toEqualTypeOf<
+      | "/api/v1/admin/api-tokens"
+      | "/api/v1/admin/api-tokens/{id}"
+      | "/api/v1/admin/group-mappings"
       | "/api/v1/admin/members"
       | "/api/v1/admin/roles"
       | "/api/v1/admin/scim-connections"
@@ -43,6 +46,9 @@ describe("generated API client", () => {
       | "/api/v1/admin/sso-connections"
       | "/api/v1/admin/sso-connections/{id}"
       | "/api/v1/admin/sso-connections/{id}/test"
+      | "/api/v1/audit-events"
+      | "/api/v1/audit-exports"
+      | "/api/v1/audit-exports/{id}"
       | "/api/v1/environments"
       | "/api/v1/environments/{id}"
       | "/api/v1/me"

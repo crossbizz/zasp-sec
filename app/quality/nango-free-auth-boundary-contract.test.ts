@@ -32,9 +32,9 @@ function assertM014Complete(tracker: string, readme: string, riskRegister: strin
   expect(section).toContain("M0-15");
   expect(section).toContain("R-08 is PASS");
 
-  expect(tracker).toContain("| Pending | 596 |");
+  expect(tracker).toContain("| Pending | 576 |");
   expect(tracker).toContain("| In progress | 0 |");
-  expect(tracker).toContain("| Complete | 129 |");
+  expect(tracker).toContain("| Complete | 149 |");
   expect(tracker).toContain("| Blocked | 3 |");
   expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 0 \| 24 \| 3 \|/);
   expect(activeRows.map(([task]) => task)).toEqual([]);
@@ -164,7 +164,7 @@ describe("Nango free Auth boundary contract", () => {
     ).toThrow();
     expect(() =>
       assertM014Complete(
-        completed.tracker.replace("| Pending | 596 |", "| Pending | 686 |"),
+        completed.tracker.replace("| Pending | 576 |", "| Pending | 686 |"),
         completed.readme,
         riskRegister,
       ),

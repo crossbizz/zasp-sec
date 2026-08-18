@@ -50,11 +50,11 @@ describe("M1-20 AI gateway contract", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(readme).toMatch(/M1-20\s+is\s+Complete/);
-    expect(tracker).toContain("| Pending | 596 |");
+    expect(tracker).toContain("| Pending | 576 |");
     expect(tracker).toContain("| In progress | 0 |");
-    expect(tracker).toContain("| Complete | 129 |");
+    expect(tracker).toContain("| Complete | 149 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`596/0/129/3`");
+    expect(tracker).toContain("`576/0/149/3`");
     expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "0", "0", "68", "0"]);
     expect(active.map(([task]) => task)).toEqual([]);
     expect(complete.filter(([task]) => task === "M1-19")).toHaveLength(1);

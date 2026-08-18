@@ -10,7 +10,9 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
+	platformaudit "github.com/zasp-ai/zasp-sec/services/platform/audit"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
 
@@ -21,12 +23,16 @@ type FreshAuthorizer func(context.Context, Principal) error
 type HTTPOption func(*HTTPHandler) error
 
 type HTTPHandler struct {
-	store        *MemoryStore
-	authenticate RequestAuthenticator
-	generate     IDGenerator
-	fallbackID   domain.ProductID
-	connections  *ConnectionService
-	fresh        FreshAuthorizer
+	store               *MemoryStore
+	authenticate        RequestAuthenticator
+	generate            IDGenerator
+	fallbackID          domain.ProductID
+	connections         *ConnectionService
+	groups              *GroupMappingStore
+	tokens              *APITokenStore
+	audits              *platformaudit.ProductService
+	connectionFresh     FreshAuthorizer
+	administrationFresh FreshAuthorizer
 }
 
 func NewHTTPHandler(store *MemoryStore, authenticate RequestAuthenticator, generate IDGenerator, options ...HTTPOption) (*HTTPHandler, error) {
@@ -48,11 +54,22 @@ func NewHTTPHandler(store *MemoryStore, authenticate RequestAuthenticator, gener
 
 func WithConnectionService(service *ConnectionService, fresh FreshAuthorizer) HTTPOption {
 	return func(handler *HTTPHandler) error {
-		if handler == nil || service == nil || service.adapter == nil || fresh == nil || handler.connections != nil || handler.fresh != nil {
+		if handler == nil || service == nil || service.adapter == nil || fresh == nil || handler.connections != nil || handler.connectionFresh != nil {
 			return ErrConfiguration
 		}
 		handler.connections = service
-		handler.fresh = fresh
+		handler.connectionFresh = fresh
+		return nil
+	}
+}
+
+func WithAdministrationServices(groups *GroupMappingStore, tokens *APITokenStore, audits *platformaudit.ProductService, fresh FreshAuthorizer) HTTPOption {
+	return func(handler *HTTPHandler) error {
+		if handler == nil || groups == nil || tokens == nil || audits == nil || fresh == nil ||
+			handler.groups != nil || handler.tokens != nil || handler.audits != nil || handler.administrationFresh != nil {
+			return ErrConfiguration
+		}
+		handler.groups, handler.tokens, handler.audits, handler.administrationFresh = groups, tokens, audits, fresh
 		return nil
 	}
 }
@@ -101,6 +118,18 @@ func (handler *HTTPHandler) dispatch(request *http.Request, principal Principal)
 		return handler.listMembers(request, principal)
 	case path == "/api/v1/admin/roles" && request.Method == http.MethodGet:
 		return handler.listBuiltInRoles(request, principal)
+	case path == "/api/v1/admin/group-mappings":
+		return handler.groupMappingCollection(request, principal)
+	case path == "/api/v1/admin/api-tokens":
+		return handler.apiTokenCollection(request, principal)
+	case strings.HasPrefix(path, "/api/v1/admin/api-tokens/"):
+		return handler.apiTokenByID(request, principal, strings.TrimPrefix(path, "/api/v1/admin/api-tokens/"))
+	case path == "/api/v1/audit-events" && request.Method == http.MethodGet:
+		return handler.listAuditEvents(request, principal)
+	case path == "/api/v1/audit-exports" && request.Method == http.MethodPost:
+		return handler.createAuditExport(request, principal)
+	case strings.HasPrefix(path, "/api/v1/audit-exports/"):
+		return handler.getAuditExport(request, principal, strings.TrimPrefix(path, "/api/v1/audit-exports/"))
 	case path == "/api/v1/admin/sso-connections":
 		return handler.ssoCollection(request, principal)
 	case strings.HasPrefix(path, "/api/v1/admin/sso-connections/"):
@@ -112,6 +141,173 @@ func (handler *HTTPHandler) dispatch(request *http.Request, principal Principal)
 	default:
 		return 0, nil, ErrNotFound
 	}
+}
+
+func (handler *HTTPHandler) groupMappingCollection(request *http.Request, principal Principal) (int, any, error) {
+	if handler.groups == nil || !roleAllows(principal.role, PermissionManageIdentity) {
+		return 0, nil, ErrForbidden
+	}
+	switch request.Method {
+	case http.MethodGet:
+		limit, offset, err := parsePageQuery(request, nil)
+		if err != nil {
+			return 0, nil, err
+		}
+		values, err := handler.groups.List(request.Context(), principal.organizationID)
+		items := make([]groupMappingResponse, len(values))
+		for index, value := range values {
+			items[index] = groupMappingJSON(value)
+		}
+		items, pageInfo, pageErr := paginate(items, limit, offset)
+		return http.StatusOK, pageResponse[groupMappingResponse]{Items: items, PageInfo: pageInfo}, errors.Join(err, pageErr)
+	case http.MethodPatch:
+		if err := handler.requireFresh(request.Context(), principal, handler.administrationFresh); err != nil {
+			return 0, nil, err
+		}
+		var input groupMappingRequest
+		if err := decodeIdentityRequest(request, &input); err != nil {
+			return 0, nil, err
+		}
+		workspaceID, workspaceErr := domain.ParseProductID(input.WorkspaceID)
+		environmentID, environmentErr := domain.ParseProductID(input.EnvironmentID)
+		if workspaceErr != nil || environmentErr != nil {
+			return 0, nil, ErrInvalidRecord
+		}
+		value, err := handler.groups.Upsert(request.Context(), principal.organizationID, GroupMappingInput{
+			GroupReference: input.GroupReference, Role: input.Role, WorkspaceID: workspaceID,
+			EnvironmentID: environmentID, ExpectedVersion: input.ExpectedVersion,
+		})
+		response := groupMappingJSON(value)
+		response.AuditCorrelationID, err = handler.auditCorrelationID(err)
+		return http.StatusOK, response, err
+	default:
+		return 0, nil, ErrNotFound
+	}
+}
+
+func (handler *HTTPHandler) apiTokenCollection(request *http.Request, principal Principal) (int, any, error) {
+	if handler.tokens == nil || !roleAllows(principal.role, PermissionManageIdentity) {
+		return 0, nil, ErrForbidden
+	}
+	switch request.Method {
+	case http.MethodGet:
+		limit, offset, err := parsePageQuery(request, nil)
+		if err != nil {
+			return 0, nil, err
+		}
+		values, err := handler.tokens.List(request.Context(), principal.organizationID)
+		items := make([]apiTokenResponse, len(values))
+		for index, value := range values {
+			items[index] = apiTokenJSON(value)
+		}
+		items, pageInfo, pageErr := paginate(items, limit, offset)
+		return http.StatusOK, pageResponse[apiTokenResponse]{Items: items, PageInfo: pageInfo}, errors.Join(err, pageErr)
+	case http.MethodPost:
+		if err := handler.requireFresh(request.Context(), principal, handler.administrationFresh); err != nil {
+			return 0, nil, err
+		}
+		var input apiTokenRequest
+		if err := decodeIdentityRequest(request, &input); err != nil {
+			return 0, nil, err
+		}
+		workspaceID, workspaceErr := domain.ParseProductID(input.WorkspaceID)
+		environmentID, environmentErr := domain.ParseProductID(input.EnvironmentID)
+		expiresAt, expiresErr := time.Parse(time.RFC3339Nano, input.ExpiresAt)
+		if workspaceErr != nil || environmentErr != nil || expiresErr != nil || expiresAt.Location() != time.UTC ||
+			expiresAt.Format(time.RFC3339Nano) != input.ExpiresAt {
+			return 0, nil, ErrInvalidRecord
+		}
+		if _, err := handler.store.GetWorkspace(request.Context(), principal.organizationID, workspaceID); err != nil {
+			return 0, nil, err
+		}
+		environment, err := handler.store.GetEnvironment(request.Context(), principal.organizationID, environmentID)
+		if err != nil || environment.workspaceID != workspaceID {
+			return 0, nil, ErrForbidden
+		}
+		for _, permission := range input.Permissions {
+			if !roleAllows(principal.role, permission) {
+				return 0, nil, ErrForbidden
+			}
+		}
+		scope, err := domain.NewScope(principal.organizationID, workspaceID, environmentID)
+		if err != nil {
+			return 0, nil, ErrInvalidRecord
+		}
+		credential, err := handler.tokens.Create(request.Context(), APITokenSpec{OrganizationID: principal.organizationID,
+			PrincipalID: principal.id, Scope: scope, Name: input.Name, Permissions: input.Permissions, ExpiresAt: expiresAt})
+		response := apiTokenJSON(credential.Token())
+		response.RawToken = credential.RawToken()
+		response.AuditCorrelationID, err = handler.auditCorrelationID(err)
+		return http.StatusCreated, response, err
+	default:
+		return 0, nil, ErrNotFound
+	}
+}
+
+func (handler *HTTPHandler) apiTokenByID(request *http.Request, principal Principal, textID string) (int, any, error) {
+	if handler.tokens == nil || !roleAllows(principal.role, PermissionManageIdentity) {
+		return 0, nil, ErrForbidden
+	}
+	if request.Method != http.MethodDelete || strings.Contains(textID, "/") {
+		return 0, nil, ErrNotFound
+	}
+	if err := handler.requireFresh(request.Context(), principal, handler.administrationFresh); err != nil {
+		return 0, nil, err
+	}
+	id, err := domain.ParseProductID(textID)
+	if err != nil {
+		return 0, nil, ErrInvalidRecord
+	}
+	value, err := handler.tokens.Revoke(request.Context(), principal.organizationID, id)
+	response := apiTokenJSON(value)
+	response.AuditCorrelationID, err = handler.auditCorrelationID(err)
+	return http.StatusOK, response, err
+}
+
+func (handler *HTTPHandler) listAuditEvents(request *http.Request, principal Principal) (int, any, error) {
+	if handler.audits == nil || !roleAllows(principal.role, PermissionViewAudit) {
+		return 0, nil, ErrForbidden
+	}
+	limit, offset, err := parsePageQuery(request, nil)
+	if err != nil {
+		return 0, nil, err
+	}
+	values, err := handler.audits.Query(request.Context(), principal.organizationID, 100, 0)
+	items := make([]auditEventResponse, len(values))
+	for index, value := range values {
+		items[index] = auditEventJSON(value)
+	}
+	items, pageInfo, pageErr := paginate(items, limit, offset)
+	return http.StatusOK, pageResponse[auditEventResponse]{Items: items, PageInfo: pageInfo}, errors.Join(err, pageErr)
+}
+
+func (handler *HTTPHandler) createAuditExport(request *http.Request, principal Principal) (int, any, error) {
+	if handler.audits == nil || !roleAllows(principal.role, PermissionExportEvidence) {
+		return 0, nil, ErrForbidden
+	}
+	if err := handler.requireFresh(request.Context(), principal, handler.administrationFresh); err != nil {
+		return 0, nil, err
+	}
+	var input struct{}
+	if err := decodeIdentityRequest(request, &input); err != nil {
+		return 0, nil, err
+	}
+	value, err := handler.audits.CreateExport(request.Context(), principal.organizationID, principal.id)
+	response := auditExportJSON(value)
+	response.AuditCorrelationID, err = handler.auditCorrelationID(err)
+	return http.StatusCreated, response, err
+}
+
+func (handler *HTTPHandler) getAuditExport(request *http.Request, principal Principal, textID string) (int, any, error) {
+	if handler.audits == nil || !roleAllows(principal.role, PermissionViewAudit) || request.Method != http.MethodGet || strings.Contains(textID, "/") {
+		return 0, nil, ErrForbidden
+	}
+	id, err := domain.ParseProductID(textID)
+	if err != nil {
+		return 0, nil, ErrInvalidRecord
+	}
+	value, err := handler.audits.GetExport(request.Context(), principal.organizationID, id)
+	return http.StatusOK, auditExportJSON(value), err
 }
 
 func (handler *HTTPHandler) ssoCollection(request *http.Request, principal Principal) (int, any, error) {
@@ -132,7 +328,7 @@ func (handler *HTTPHandler) ssoCollection(request *http.Request, principal Princ
 		items, pageInfo, pageErr := paginate(items, limit, offset)
 		return http.StatusOK, pageResponse[ssoConnectionResponse]{Items: items, PageInfo: pageInfo}, errors.Join(err, pageErr)
 	case http.MethodPost:
-		if err := handler.requireFresh(request.Context(), principal); err != nil {
+		if err := handler.requireFresh(request.Context(), principal, handler.connectionFresh); err != nil {
 			return 0, nil, err
 		}
 		var input ssoConnectionRequest
@@ -157,7 +353,7 @@ func (handler *HTTPHandler) ssoByID(request *http.Request, principal Principal, 
 	if strings.Contains(reference, "/") || !validSSOReference(reference) || (isTest && request.Method != http.MethodPost) || (!isTest && request.Method != http.MethodDelete) {
 		return 0, nil, ErrNotFound
 	}
-	if err := handler.requireFresh(request.Context(), principal); err != nil {
+	if err := handler.requireFresh(request.Context(), principal, handler.connectionFresh); err != nil {
 		return 0, nil, err
 	}
 	if isTest {
@@ -188,7 +384,7 @@ func (handler *HTTPHandler) scimCollection(request *http.Request, principal Prin
 		items, pageInfo, pageErr := paginate(items, limit, offset)
 		return http.StatusOK, pageResponse[scimConnectionResponse]{Items: items, PageInfo: pageInfo}, errors.Join(err, pageErr)
 	case http.MethodPost:
-		if err := handler.requireFresh(request.Context(), principal); err != nil {
+		if err := handler.requireFresh(request.Context(), principal, handler.connectionFresh); err != nil {
 			return 0, nil, err
 		}
 		var input scimConnectionRequest
@@ -211,7 +407,7 @@ func (handler *HTTPHandler) scimByID(request *http.Request, principal Principal,
 	if request.Method != http.MethodDelete || strings.Contains(reference, "/") || !validSCIMReference(reference) {
 		return 0, nil, ErrNotFound
 	}
-	if err := handler.requireFresh(request.Context(), principal); err != nil {
+	if err := handler.requireFresh(request.Context(), principal, handler.connectionFresh); err != nil {
 		return 0, nil, err
 	}
 	err := handler.connections.DeleteSCIM(request.Context(), principal.organizationReference, reference)
@@ -219,8 +415,8 @@ func (handler *HTTPHandler) scimByID(request *http.Request, principal Principal,
 	return http.StatusOK, deletionResponse{ID: reference, AuditCorrelationID: correlation}, err
 }
 
-func (handler *HTTPHandler) requireFresh(ctx context.Context, principal Principal) (resultErr error) {
-	if handler.fresh == nil {
+func (handler *HTTPHandler) requireFresh(ctx context.Context, principal Principal, fresh FreshAuthorizer) (resultErr error) {
+	if fresh == nil {
 		return ErrFreshAuthentication
 	}
 	defer func() {
@@ -228,7 +424,7 @@ func (handler *HTTPHandler) requireFresh(ctx context.Context, principal Principa
 			resultErr = ErrFreshAuthentication
 		}
 	}()
-	if err := handler.fresh(ctx, principal); err != nil || ctx.Err() != nil {
+	if err := fresh(ctx, principal); err != nil || ctx.Err() != nil {
 		return ErrFreshAuthentication
 	}
 	return nil
@@ -611,6 +807,50 @@ type roleResponse struct {
 	Permissions []Permission `json:"permissions"`
 }
 
+type groupMappingResponse struct {
+	GroupReference     string `json:"group_reference"`
+	Role               Role   `json:"role"`
+	WorkspaceID        string `json:"workspace_id"`
+	EnvironmentID      string `json:"environment_id"`
+	Version            uint64 `json:"version"`
+	AuditCorrelationID string `json:"audit_correlation_id,omitempty"`
+}
+
+type apiTokenResponse struct {
+	ID                 string       `json:"id"`
+	Name               string       `json:"name"`
+	PrincipalID        string       `json:"principal_id"`
+	WorkspaceID        string       `json:"workspace_id"`
+	EnvironmentID      string       `json:"environment_id"`
+	Permissions        []Permission `json:"permissions"`
+	CreatedAt          string       `json:"created_at"`
+	ExpiresAt          string       `json:"expires_at"`
+	LastUsedAt         *string      `json:"last_used_at"`
+	RevokedAt          *string      `json:"revoked_at"`
+	RawToken           string       `json:"raw_token,omitempty"`
+	AuditCorrelationID string       `json:"audit_correlation_id,omitempty"`
+}
+
+type auditEventResponse struct {
+	ID            string            `json:"id"`
+	WorkspaceID   string            `json:"workspace_id"`
+	EnvironmentID string            `json:"environment_id"`
+	ActorID       string            `json:"actor_id"`
+	Action        string            `json:"action"`
+	TargetID      string            `json:"target_id"`
+	Outcome       string            `json:"outcome"`
+	Metadata      map[string]string `json:"metadata"`
+	OccurredAt    string            `json:"occurred_at"`
+}
+
+type auditExportResponse struct {
+	ID                 string `json:"id"`
+	Status             string `json:"status"`
+	EventCount         int    `json:"event_count"`
+	CreatedAt          string `json:"created_at"`
+	AuditCorrelationID string `json:"audit_correlation_id,omitempty"`
+}
+
 type pageInfoResponse struct {
 	NextCursor *string `json:"next_cursor"`
 	HasMore    bool    `json:"has_more"`
@@ -639,6 +879,22 @@ type ssoConnectionRequest struct {
 type scimConnectionRequest struct {
 	DisplayName      string `json:"display_name"`
 	IdentityProvider string `json:"identity_provider"`
+}
+
+type groupMappingRequest struct {
+	GroupReference  string `json:"group_reference"`
+	Role            Role   `json:"role"`
+	WorkspaceID     string `json:"workspace_id"`
+	EnvironmentID   string `json:"environment_id"`
+	ExpectedVersion uint64 `json:"expected_version"`
+}
+
+type apiTokenRequest struct {
+	Name          string       `json:"name"`
+	WorkspaceID   string       `json:"workspace_id"`
+	EnvironmentID string       `json:"environment_id"`
+	Permissions   []Permission `json:"permissions"`
+	ExpiresAt     string       `json:"expires_at"`
 }
 
 func organizationJSON(value Organization) organizationResponse {
@@ -676,6 +932,36 @@ func scimCredentialJSON(value SCIMCredential) scimConnectionResponse {
 	response := scimConnectionJSON(value.Connection)
 	response.BearerToken = value.bearerToken
 	return response
+}
+
+func groupMappingJSON(value GroupMapping) groupMappingResponse {
+	return groupMappingResponse{GroupReference: value.GroupReference(), Role: value.Role(), WorkspaceID: value.WorkspaceID().String(),
+		EnvironmentID: value.EnvironmentID().String(), Version: value.Version()}
+}
+
+func apiTokenJSON(value APIToken) apiTokenResponse {
+	return apiTokenResponse{ID: value.ID().String(), Name: value.Name(), PrincipalID: value.PrincipalID().String(),
+		WorkspaceID: value.Scope().WorkspaceID().String(), EnvironmentID: value.Scope().EnvironmentID().String(),
+		Permissions: value.Permissions(), CreatedAt: value.CreatedAt().Format(time.RFC3339Nano), ExpiresAt: value.ExpiresAt().Format(time.RFC3339Nano),
+		LastUsedAt: formattedTime(value.LastUsedAt()), RevokedAt: formattedTime(value.RevokedAt())}
+}
+
+func auditEventJSON(value platformaudit.AuditEvent) auditEventResponse {
+	return auditEventResponse{ID: value.ID().String(), WorkspaceID: value.Scope().WorkspaceID().String(),
+		EnvironmentID: value.Scope().EnvironmentID().String(), ActorID: value.Actor().String(), Action: value.Action(),
+		TargetID: value.Target().String(), Outcome: string(value.Outcome()), Metadata: value.Metadata(), OccurredAt: value.OccurredAt().Format(time.RFC3339Nano)}
+}
+
+func auditExportJSON(value platformaudit.AuditExport) auditExportResponse {
+	return auditExportResponse{ID: value.ID().String(), Status: value.Status(), EventCount: value.EventCount(), CreatedAt: value.CreatedAt().Format(time.RFC3339Nano)}
+}
+
+func formattedTime(value *time.Time) *string {
+	if value == nil {
+		return nil
+	}
+	formatted := value.Format(time.RFC3339Nano)
+	return &formatted
 }
 
 func terminalPage() pageInfoResponse { return pageInfoResponse{NextCursor: nil, HasMore: false} }

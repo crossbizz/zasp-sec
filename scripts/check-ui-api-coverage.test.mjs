@@ -52,9 +52,9 @@ test("current API and planned map passes honestly", async () => {
   const { map, openapi } = await currentSources();
   assert.deepEqual(validateCoverage(parseMapSource(map), parseOpenAPISource(openapi)), {
     planned: 5,
-    apiAvailable: 19,
-    available: 0,
-    public: 19,
+    apiAvailable: 16,
+    available: 11,
+    public: 27,
     internal: 0,
   });
 });
@@ -66,9 +66,9 @@ test("all five future public operations resolve and deliberate removal fails", a
   const complete = parseOpenAPISource(futureOpenAPI(operationIDs));
   assert.deepEqual(validateCoverage(document, complete), {
     planned: 0,
-    apiAvailable: 19,
-    available: 5,
-    public: 24,
+    apiAvailable: 16,
+    available: 16,
+    public: 32,
     internal: 0,
   });
 
@@ -79,14 +79,14 @@ test("unmapped public operations fail while unmapped internal operations pass", 
   const { map } = await currentSources();
   const planned = parseMapSource(map);
   const apiOperations = planned.screens.flatMap((screen) => screen.actions)
-    .filter((action) => action.availability === "api_available")
+    .filter((action) => action.availability !== "planned")
     .map((action) => action.operation_id);
   assert.throws(() => validateCoverage(planned, parseOpenAPISource(futureOpenAPI([...apiOperations, "unmappedPublic"]))));
   assert.deepEqual(validateCoverage(planned, parseOpenAPISource(futureOpenAPI(apiOperations, { internal: ["ingestEvents"] }))), {
     planned: 5,
-    apiAvailable: 19,
-    available: 0,
-    public: 19,
+    apiAvailable: 16,
+    available: 11,
+    public: 27,
     internal: 1,
   });
 });
@@ -95,7 +95,7 @@ test("planned, available, and internal lifecycle mismatches fail", async () => {
   const { map } = await currentSources();
   const planned = parseMapSource(map);
   const apiOperations = planned.screens.flatMap((screen) => screen.actions)
-    .filter((action) => action.availability === "api_available")
+    .filter((action) => action.availability !== "planned")
     .map((action) => action.operation_id);
   const firstOperation = planned.screens.flatMap((screen) => screen.actions)
     .find((action) => action.availability === "planned").operation_id;
@@ -110,10 +110,10 @@ test("API-available operations require OpenAPI but do not claim a wired UI", asy
   const { map } = await currentSources();
   const apiMap = parseMapSource(map.replace("availability: planned", "availability: api_available"));
   const apiOperations = apiMap.screens.flatMap((screen) => screen.actions)
-    .filter((action) => action.availability === "api_available")
+    .filter((action) => action.availability !== "planned")
     .map((action) => action.operation_id);
   const result = validateCoverage(apiMap, parseOpenAPISource(futureOpenAPI(apiOperations)));
-  assert.deepEqual(result, { planned: 4, apiAvailable: 20, available: 0, public: 20, internal: 0 });
+  assert.deepEqual(result, { planned: 4, apiAvailable: 17, available: 11, public: 28, internal: 0 });
   assert.throws(() => validateCoverage(apiMap, parseOpenAPISource(futureOpenAPI(apiOperations.slice(1)))));
 });
 
@@ -173,7 +173,7 @@ test("CLI emits only fixed success or rejection lines", async () => {
   const successOut = captureStream();
   const successErr = captureStream();
   assert.equal(await runMain({ stdout: successOut.stream, stderr: successErr.stream }), 0);
-  assert.equal(successOut.value(), "UI/API coverage passed: planned=5 api_available=19 available=0 public=19 internal=0.\n");
+  assert.equal(successOut.value(), "UI/API coverage passed: planned=5 api_available=16 available=11 public=27 internal=0.\n");
   assert.equal(successErr.value(), "");
 
   const failureOut = captureStream();

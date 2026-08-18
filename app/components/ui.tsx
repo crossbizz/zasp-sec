@@ -9,8 +9,8 @@ export function Button({ variant = "secondary", icon, children, className = "", 
   return <button className={`button button--${variant} ${className}`} {...props}>{icon}{children}</button>;
 }
 
-export function Card({ children, className = "", title, action }: { children: ReactNode; className?: string; title?: ReactNode; action?: ReactNode }) {
-  return <section className={`card ${className}`}>{title && <div className="card__header"><div className="card__title">{title}</div>{action}</div>}{children}</section>;
+export function Card({ children, className = "", id, title, action }: { children: ReactNode; className?: string; id?: string; title?: ReactNode; action?: ReactNode }) {
+  return <section id={id} className={`card ${className}`}>{title && <div className="card__header"><div className="card__title">{title}</div>{action}</div>}{children}</section>;
 }
 
 export function PageHeader({ title, description, eyebrow, actions }: { title: string; description?: string; eyebrow?: string; actions?: ReactNode }) {

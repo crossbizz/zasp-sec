@@ -25,15 +25,23 @@ const expectedMap: MapDocument = {
         { id: "view_environment", operation_id: "getEnvironment", availability: "api_available" },
         { id: "update_environment", operation_id: "updateEnvironment", availability: "api_available" },
         { id: "view_current_principal", operation_id: "getCurrentPrincipal", availability: "api_available" },
-        { id: "view_members", operation_id: "listMembers", availability: "api_available" },
-        { id: "view_builtin_roles", operation_id: "listBuiltInRoles", availability: "api_available" },
-        { id: "view_sso_connections", operation_id: "listSSOConnections", availability: "api_available" },
-        { id: "create_sso_connection", operation_id: "createSSOConnection", availability: "api_available" },
-        { id: "delete_sso_connection", operation_id: "deleteSSOConnection", availability: "api_available" },
-        { id: "test_sso_connection", operation_id: "testSSOConnection", availability: "api_available" },
-        { id: "view_scim_connections", operation_id: "listSCIMConnections", availability: "api_available" },
-        { id: "create_scim_connection", operation_id: "createSCIMConnection", availability: "api_available" },
-        { id: "delete_scim_connection", operation_id: "deleteSCIMConnection", availability: "api_available" },
+        { id: "view_members", operation_id: "listMembers", availability: "available" },
+        { id: "view_builtin_roles", operation_id: "listBuiltInRoles", availability: "available" },
+        { id: "view_sso_connections", operation_id: "listSSOConnections", availability: "available" },
+        { id: "create_sso_connection", operation_id: "createSSOConnection", availability: "available" },
+        { id: "delete_sso_connection", operation_id: "deleteSSOConnection", availability: "available" },
+        { id: "test_sso_connection", operation_id: "testSSOConnection", availability: "available" },
+        { id: "view_scim_connections", operation_id: "listSCIMConnections", availability: "available" },
+        { id: "create_scim_connection", operation_id: "createSCIMConnection", availability: "available" },
+        { id: "delete_scim_connection", operation_id: "deleteSCIMConnection", availability: "available" },
+        { id: "view_group_mappings", operation_id: "listGroupMappings", availability: "available" },
+        { id: "update_group_mapping", operation_id: "updateGroupMappings", availability: "available" },
+        { id: "view_api_tokens", operation_id: "listAPITokens", availability: "api_available" },
+        { id: "create_api_token", operation_id: "createAPIToken", availability: "api_available" },
+        { id: "revoke_api_token", operation_id: "revokeAPIToken", availability: "api_available" },
+        { id: "view_audit_events", operation_id: "listAuditEvents", availability: "api_available" },
+        { id: "create_audit_export", operation_id: "createAuditExport", availability: "api_available" },
+        { id: "view_audit_export", operation_id: "getAuditExport", availability: "api_available" },
       ],
     },
     {
@@ -87,7 +95,7 @@ function validateMap(value: unknown) {
       exactKeys(action, ["id", "operation_id", "availability"]);
       expect(action.id).toMatch(/^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/);
       expect(action.operation_id).toMatch(/^[a-z][A-Za-z0-9]*$/);
-      expect(["planned", "api_available"]).toContain(action.availability);
+      expect(["planned", "api_available", "available"]).toContain(action.availability);
       expect(actionIDs.has(action.id as string)).toBe(false);
       expect(operationIDs.has(action.operation_id as string)).toBe(false);
       actionIDs.add(action.id as string);
@@ -166,11 +174,11 @@ describe("M1-25 UI API map seed", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(readme).toContain("M1-25 is Complete");
-    expect(tracker).toContain("| Pending | 596 |");
+    expect(tracker).toContain("| Pending | 576 |");
     expect(tracker).toContain("| In progress | 0 |");
-    expect(tracker).toContain("| Complete | 129 |");
+    expect(tracker).toContain("| Complete | 149 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`596/0/129/3`");
+    expect(tracker).toContain("`576/0/149/3`");
     expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "0", "0", "68", "0"]);
     expect(active.map(([task]) => task)).toEqual([]);
     expect(complete.filter(([task]) => task === "M1-24")).toHaveLength(1);
@@ -180,7 +188,7 @@ describe("M1-25 UI API map seed", () => {
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
 
-  it("accepts only the exact three-screen, 24-action mixed-lifecycle map", async () => {
+  it("accepts only the exact three-screen, 32-action mixed-lifecycle map", async () => {
     const source = await readFile(resolve(repositoryRoot, "docs/product/ui-api-map.yaml"), "utf8").catch(() => "");
 
     expect(parseStrictMap(source)).toEqual(expectedMap);
@@ -231,6 +239,14 @@ describe("M1-25 UI API map seed", () => {
       "listSCIMConnections",
       "createSCIMConnection",
       "deleteSCIMConnection",
+      "listGroupMappings",
+      "updateGroupMappings",
+      "listAPITokens",
+      "createAPIToken",
+      "revokeAPIToken",
+      "listAuditEvents",
+      "createAuditExport",
+      "getAuditExport",
       "getHomeSummary",
       "globalSearch",
       "getSystemStatus",

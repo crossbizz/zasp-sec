@@ -14,9 +14,9 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 596 |
+| Pending | 576 |
 | In progress | 0 |
-| Complete | 129 |
+| Complete | 149 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -26,7 +26,7 @@ In progress, Complete, or Blocked is Pending.
 | M0 | 27 | 0 | 0 | 24 | 3 |
 | M1 | 68 | 0 | 0 | 68 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
-| M2 | 72 | 35 | 0 | 37 | 0 |
+| M2 | 72 | 15 | 0 | 57 | 0 |
 | M3 | 75 | 75 | 0 | 0 | 0 |
 | M4 | 82 | 82 | 0 | 0 | 0 |
 | M5 | 42 | 42 | 0 | 0 | 0 |
@@ -70,7 +70,7 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `596/0/129/3` because
+session configuration. The 728 source-plan counts are `576/0/149/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
@@ -82,6 +82,26 @@ PROV-01 is excluded from those counts.
 
 | Task | Completed | Evidence |
 | --- | --- | --- |
+| M2-43 | August 18, 2026 | Shipped the generated-client-backed Identity & Access administration route with five real product panels and stable loading, error, confirmation, and validation states. |
+| M2-43e | August 18, 2026 | Added the group-mapping panel with exact role and Workspace/Environment scope editing. |
+| M2-43d | August 18, 2026 | Added SCIM connection list, create, one-time bearer confirmation, and confirmed delete interactions. |
+| M2-43c | August 18, 2026 | Added SSO connection list, create, test, and confirmed delete interactions. |
+| M2-43b | August 18, 2026 | Added API-backed Organization member and immutable built-in-role panels. |
+| M2-43a | August 18, 2026 | Wired the Administration Identity & Access route to the generated product API client. |
+| M2-42 | August 18, 2026 | Added the scoped audit-export status lookup operation. |
+| M2-41 | August 18, 2026 | Added ready bounded audit-export creation with exact event counts and correlation. |
+| M2-40 | August 18, 2026 | Added the scoped paginated audit-event query operation. |
+| M2-39 | August 18, 2026 | Added the product audit service for append, query, and export orchestration. |
+| M2-39b | August 18, 2026 | Added structured metadata redaction before audit persistence and serialization. |
+| M2-39a | August 18, 2026 | Added immutable append-only audit event persistence with no update or delete surface. |
+| M2-38 | August 18, 2026 | Added hashed scoped API-token authentication that returns the shared authorization context and records last use. |
+| M2-37 | August 18, 2026 | Added fresh-authorized API-token revocation without exposing stored credential material. |
+| M2-36 | August 18, 2026 | Added one-time API-token creation with bounded entropy, SHA-256 digest storage, scope, permissions, and expiry. |
+| M2-35 | August 18, 2026 | Added the paginated Organization-scoped API-token metadata list operation. |
+| M2-34 | August 18, 2026 | Added the strict product API-token model with immutable credential and lifecycle boundaries. |
+| M2-33 | August 18, 2026 | Added optimistic-versioned group-mapping create and update with exact parent-scope validation. |
+| M2-32 | August 18, 2026 | Added the authorized paginated group-mapping list operation. |
+| M2-31 | August 18, 2026 | Added the Organization IdP-group to built-in-role mapping store with optional exact Workspace and Environment scope. |
 | M2-30 | August 18, 2026 | Added replay-safe SCIM member deprovision reconciliation that disables the product principal, removes every scoped Workspace grant, records one bounded audit summary, and retries safely after failure. |
 | M2-29 | August 18, 2026 | Added a bounded Svix-compatible Stytch webhook signature, timestamp, project, event-identity, duplicate-key, and replay verifier plus the exact internal HTTP endpoint. |
 | M2-28 | August 18, 2026 | Added the fresh-authenticated SCIM connection delete operation with exact provider acknowledgement and audit correlation. |

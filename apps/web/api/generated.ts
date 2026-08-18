@@ -4,6 +4,62 @@
  */
 
 export type paths = {
+    readonly "/api/v1/admin/api-tokens": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List scoped product API tokens */
+        readonly get: operations["listAPITokens"];
+        readonly put?: never;
+        /** Create a scoped product API token */
+        readonly post: operations["createAPIToken"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/admin/api-tokens/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                /** @description Canonical product API token identifier. */
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        readonly post?: never;
+        /** Revoke a product API token */
+        readonly delete: operations["revokeAPIToken"];
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/admin/group-mappings": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List Organization IdP group mappings */
+        readonly get: operations["listGroupMappings"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        /** Create or version-update an IdP group mapping */
+        readonly patch: operations["updateGroupMappings"];
+        readonly trace?: never;
+    };
     readonly "/api/v1/admin/members": {
         readonly parameters: {
             readonly query?: never;
@@ -134,6 +190,60 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/audit-events": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List redacted Organization audit events */
+        readonly get: operations["listAuditEvents"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/audit-exports": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Create a bounded Organization audit export */
+        readonly post: operations["createAuditExport"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/audit-exports/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                /** @description Canonical audit export identifier. */
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get an Organization audit export */
+        readonly get: operations["getAuditExport"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/environments": {
         readonly parameters: {
             readonly query?: never;
@@ -250,6 +360,78 @@ export type paths = {
 export type webhooks = Record<string, never>;
 export type components = {
     schemas: {
+        readonly APIToken: {
+            readonly audit_correlation_id?: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly environment_id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly expires_at: string;
+            readonly id: components["schemas"]["ProductID"];
+            readonly last_used_at: string | null;
+            readonly name: string;
+            readonly permissions: readonly components["schemas"]["Permission"][];
+            readonly principal_id: components["schemas"]["ProductID"];
+            readonly revoked_at: string | null;
+            readonly workspace_id: components["schemas"]["ProductID"];
+        };
+        readonly APITokenCredential: {
+            readonly audit_correlation_id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly environment_id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly expires_at: string;
+            readonly id: components["schemas"]["ProductID"];
+            readonly last_used_at: string | null;
+            readonly name: string;
+            readonly permissions: readonly components["schemas"]["Permission"][];
+            readonly principal_id: components["schemas"]["ProductID"];
+            readonly raw_token: string;
+            readonly revoked_at: string | null;
+            readonly workspace_id: components["schemas"]["ProductID"];
+        };
+        readonly APITokenInput: {
+            readonly environment_id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly expires_at: string;
+            readonly name: string;
+            readonly permissions: readonly components["schemas"]["Permission"][];
+            readonly workspace_id: components["schemas"]["ProductID"];
+        };
+        readonly APITokenPage: {
+            readonly items: readonly components["schemas"]["APIToken"][];
+            readonly page_info: components["schemas"]["PageInfo"];
+        };
+        readonly AuditEvent: {
+            readonly action: string;
+            readonly actor_id: components["schemas"]["ProductID"];
+            readonly environment_id: components["schemas"]["ProductID"];
+            readonly id: components["schemas"]["ProductID"];
+            readonly metadata: {
+                readonly [key: string]: string;
+            };
+            /** Format: date-time */
+            readonly occurred_at: string;
+            /** @enum {string} */
+            readonly outcome: "succeeded" | "failed" | "denied";
+            readonly target_id: components["schemas"]["ProductID"];
+            readonly workspace_id: components["schemas"]["ProductID"];
+        };
+        readonly AuditEventPage: {
+            readonly items: readonly components["schemas"]["AuditEvent"][];
+            readonly page_info: components["schemas"]["PageInfo"];
+        };
+        readonly AuditExport: {
+            readonly audit_correlation_id?: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly event_count: number;
+            readonly id: components["schemas"]["ProductID"];
+            /** @enum {string} */
+            readonly status: "ready";
+        };
+        readonly AuditExportInput: Record<string, never>;
         readonly BuiltInRole: {
             readonly permissions: readonly components["schemas"]["Permission"][];
             readonly role: components["schemas"]["BuiltInRoleName"];
@@ -292,6 +474,25 @@ export type components = {
         };
         readonly EnvironmentPage: {
             readonly items: readonly components["schemas"]["Environment"][];
+            readonly page_info: components["schemas"]["PageInfo"];
+        };
+        readonly GroupMapping: {
+            readonly audit_correlation_id?: components["schemas"]["ProductID"];
+            readonly environment_id: components["schemas"]["ProductID"];
+            readonly group_reference: string;
+            readonly role: components["schemas"]["BuiltInRoleName"];
+            readonly version: number;
+            readonly workspace_id: components["schemas"]["ProductID"];
+        };
+        readonly GroupMappingInput: {
+            readonly environment_id: components["schemas"]["ProductID"];
+            readonly expected_version: number;
+            readonly group_reference: string;
+            readonly role: components["schemas"]["BuiltInRoleName"];
+            readonly workspace_id: components["schemas"]["ProductID"];
+        };
+        readonly GroupMappingPage: {
+            readonly items: readonly components["schemas"]["GroupMapping"][];
             readonly page_info: components["schemas"]["PageInfo"];
         };
         readonly NameInput: {
@@ -428,6 +629,14 @@ export type components = {
     headers: never;
     pathItems: never;
 };
+export type ApiToken = components['schemas']['APIToken'];
+export type ApiTokenCredential = components['schemas']['APITokenCredential'];
+export type ApiTokenInput = components['schemas']['APITokenInput'];
+export type ApiTokenPage = components['schemas']['APITokenPage'];
+export type AuditEvent = components['schemas']['AuditEvent'];
+export type AuditEventPage = components['schemas']['AuditEventPage'];
+export type AuditExport = components['schemas']['AuditExport'];
+export type AuditExportInput = components['schemas']['AuditExportInput'];
 export type BuiltInRole = components['schemas']['BuiltInRole'];
 export type BuiltInRoleName = components['schemas']['BuiltInRoleName'];
 export type BuiltInRolePage = components['schemas']['BuiltInRolePage'];
@@ -439,6 +648,9 @@ export type Environment = components['schemas']['Environment'];
 export type EnvironmentCreateInput = components['schemas']['EnvironmentCreateInput'];
 export type EnvironmentMutation = components['schemas']['EnvironmentMutation'];
 export type EnvironmentPage = components['schemas']['EnvironmentPage'];
+export type GroupMapping = components['schemas']['GroupMapping'];
+export type GroupMappingInput = components['schemas']['GroupMappingInput'];
+export type GroupMappingPage = components['schemas']['GroupMappingPage'];
 export type NameInput = components['schemas']['NameInput'];
 export type Organization = components['schemas']['Organization'];
 export type PageInfo = components['schemas']['PageInfo'];
@@ -468,6 +680,137 @@ export type ParameterPageCursor = components['parameters']['PageCursor'];
 export type ParameterPageLimit = components['parameters']['PageLimit'];
 export type $defs = Record<string, never>;
 export interface operations {
+    readonly listAPITokens: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description Opaque cursor returned by the preceding page. */
+                readonly cursor?: components["parameters"]["PageCursor"];
+                /** @description Maximum number of records to return. */
+                readonly limit?: components["parameters"]["PageLimit"];
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description API token page without raw credentials. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["APITokenPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly createAPIToken: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["APITokenInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Created API token with its one-time raw credential. */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["APITokenCredential"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly revokeAPIToken: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                /** @description Canonical product API token identifier. */
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Revoked API token. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["APIToken"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listGroupMappings: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description Opaque cursor returned by the preceding page. */
+                readonly cursor?: components["parameters"]["PageCursor"];
+                /** @description Maximum number of records to return. */
+                readonly limit?: components["parameters"]["PageLimit"];
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Group mapping page. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GroupMappingPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly updateGroupMappings: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["GroupMappingInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Updated group mapping. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GroupMapping"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
     readonly listMembers: {
         readonly parameters: {
             readonly query?: {
@@ -697,6 +1040,84 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["ConnectionTest"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listAuditEvents: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description Opaque cursor returned by the preceding page. */
+                readonly cursor?: components["parameters"]["PageCursor"];
+                /** @description Maximum number of records to return. */
+                readonly limit?: components["parameters"]["PageLimit"];
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Append-only audit event page. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AuditEventPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly createAuditExport: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["AuditExportInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Created audit export. */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AuditExport"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getAuditExport: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                /** @description Canonical audit export identifier. */
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Audit export state. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AuditExport"];
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];

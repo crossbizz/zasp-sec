@@ -34,12 +34,12 @@ function assertM017Complete(tracker: string, readme: string, riskRegister: strin
   expect(section).toContain("R-10 is PASS");
   expect(section).not.toMatch(/uses an OPA server|customer-facing Rego|external policy service/i);
 
-  expect(tracker).toContain("| Pending | 596 |");
+  expect(tracker).toContain("| Pending | 576 |");
   expect(tracker).toContain("| In progress | 0 |");
-  expect(tracker).toContain("| Complete | 129 |");
+  expect(tracker).toContain("| Complete | 149 |");
   expect(tracker).toContain("| Blocked | 3 |");
   expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 0 \| 24 \| 3 \|/);
-  expect(tracker).toContain("`596/0/129/3`");
+  expect(tracker).toContain("`576/0/149/3`");
   expect(activeRows.map(([task]) => task)).toEqual([]);
   expect(completeRows.filter(([task]) => task === "M0-17")).toHaveLength(1);
   expect(completeRows.find(([task]) => task === "M0-17")?.[1]).toBe("August 15, 2026");
@@ -150,7 +150,7 @@ describe("OPA SDK proof repository contract", () => {
     ).toThrow();
     expect(() =>
       assertM017Complete(
-        tracker.replace("| Complete | 129 |", "| Complete | 19 |"),
+        tracker.replace("| Complete | 149 |", "| Complete | 19 |"),
         readme,
         riskRegister,
       ),

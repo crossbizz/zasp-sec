@@ -63,4 +63,10 @@ describe("Zasp application", () => {
     await userEvent.click(screen.getByRole("button", { name: "Run scan" }));
     expect(screen.getByRole("heading", { name: "Attack lab" })).toBeVisible();
   });
+
+  it("routes Identity & Access through the generated-client product surface", () => {
+    window.history.replaceState({}, "", "/administration/identity-access");
+    render(<ZaspApp />);
+    expect(screen.getByText("Loading identity and access…")).toBeVisible();
+  });
 });

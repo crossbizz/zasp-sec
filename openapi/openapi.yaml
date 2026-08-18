@@ -382,6 +382,165 @@ paths:
           $ref: '#/components/responses/ProductErrorResponse'
         default:
           $ref: '#/components/responses/ProductErrorResponse'
+  /api/v1/admin/group-mappings:
+    get:
+      operationId: listGroupMappings
+      summary: List Organization IdP group mappings
+      parameters:
+        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/PageLimit'
+      responses:
+        '200':
+          description: Group mapping page.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupMappingPage'
+        '401':
+          $ref: '#/components/responses/ProductErrorResponse'
+        default:
+          $ref: '#/components/responses/ProductErrorResponse'
+    patch:
+      operationId: updateGroupMappings
+      summary: Create or version-update an IdP group mapping
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupMappingInput'
+      responses:
+        '200':
+          description: Updated group mapping.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupMapping'
+        '401':
+          $ref: '#/components/responses/ProductErrorResponse'
+        default:
+          $ref: '#/components/responses/ProductErrorResponse'
+  /api/v1/admin/api-tokens:
+    get:
+      operationId: listAPITokens
+      summary: List scoped product API tokens
+      parameters:
+        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/PageLimit'
+      responses:
+        '200':
+          description: API token page without raw credentials.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APITokenPage'
+        '401':
+          $ref: '#/components/responses/ProductErrorResponse'
+        default:
+          $ref: '#/components/responses/ProductErrorResponse'
+    post:
+      operationId: createAPIToken
+      summary: Create a scoped product API token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/APITokenInput'
+      responses:
+        '201':
+          description: Created API token with its one-time raw credential.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APITokenCredential'
+        '401':
+          $ref: '#/components/responses/ProductErrorResponse'
+        default:
+          $ref: '#/components/responses/ProductErrorResponse'
+  /api/v1/admin/api-tokens/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Canonical product API token identifier.
+        schema:
+          $ref: '#/components/schemas/ProductID'
+    delete:
+      operationId: revokeAPIToken
+      summary: Revoke a product API token
+      responses:
+        '200':
+          description: Revoked API token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIToken'
+        '401':
+          $ref: '#/components/responses/ProductErrorResponse'
+        default:
+          $ref: '#/components/responses/ProductErrorResponse'
+  /api/v1/audit-events:
+    get:
+      operationId: listAuditEvents
+      summary: List redacted Organization audit events
+      parameters:
+        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/PageLimit'
+      responses:
+        '200':
+          description: Append-only audit event page.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditEventPage'
+        '401':
+          $ref: '#/components/responses/ProductErrorResponse'
+        default:
+          $ref: '#/components/responses/ProductErrorResponse'
+  /api/v1/audit-exports:
+    post:
+      operationId: createAuditExport
+      summary: Create a bounded Organization audit export
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuditExportInput'
+      responses:
+        '201':
+          description: Created audit export.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditExport'
+        '401':
+          $ref: '#/components/responses/ProductErrorResponse'
+        default:
+          $ref: '#/components/responses/ProductErrorResponse'
+  /api/v1/audit-exports/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Canonical audit export identifier.
+        schema:
+          $ref: '#/components/schemas/ProductID'
+    get:
+      operationId: getAuditExport
+      summary: Get an Organization audit export
+      responses:
+        '200':
+          description: Audit export state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditExport'
+        '401':
+          $ref: '#/components/responses/ProductErrorResponse'
+        default:
+          $ref: '#/components/responses/ProductErrorResponse'
 security:
   - SessionJWT: []
   - ProductAPIToken: []
@@ -844,6 +1003,247 @@ components:
       properties:
         healthy:
           const: true
+        audit_correlation_id:
+          $ref: '#/components/schemas/ProductID'
+    GroupMappingInput:
+      type: object
+      additionalProperties: false
+      required: [group_reference, role, workspace_id, environment_id, expected_version]
+      properties:
+        group_reference:
+          type: string
+          minLength: 11
+          maxLength: 128
+          pattern: '^idp-group-[A-Za-z0-9_-]+$'
+        role:
+          $ref: '#/components/schemas/BuiltInRoleName'
+        workspace_id:
+          $ref: '#/components/schemas/ProductID'
+        environment_id:
+          $ref: '#/components/schemas/ProductID'
+        expected_version:
+          type: integer
+          minimum: 0
+    GroupMapping:
+      type: object
+      additionalProperties: false
+      required: [group_reference, role, workspace_id, environment_id, version]
+      properties:
+        group_reference:
+          type: string
+          minLength: 11
+          maxLength: 128
+          pattern: '^idp-group-[A-Za-z0-9_-]+$'
+        role:
+          $ref: '#/components/schemas/BuiltInRoleName'
+        workspace_id:
+          $ref: '#/components/schemas/ProductID'
+        environment_id:
+          $ref: '#/components/schemas/ProductID'
+        version:
+          type: integer
+          minimum: 1
+        audit_correlation_id:
+          $ref: '#/components/schemas/ProductID'
+    GroupMappingPage:
+      type: object
+      additionalProperties: false
+      required: [items, page_info]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/GroupMapping'
+        page_info:
+          $ref: '#/components/schemas/PageInfo'
+    APITokenInput:
+      type: object
+      additionalProperties: false
+      required: [name, workspace_id, environment_id, permissions, expires_at]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: '^(?!\s)(?!.*\s$)[^\x00-\x1F\x7F-\x9F]+$'
+        workspace_id:
+          $ref: '#/components/schemas/ProductID'
+        environment_id:
+          $ref: '#/components/schemas/ProductID'
+        permissions:
+          type: array
+          minItems: 1
+          maxItems: 10
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/Permission'
+        expires_at:
+          type: string
+          format: date-time
+    APIToken:
+      type: object
+      additionalProperties: false
+      required: [id, name, principal_id, workspace_id, environment_id, permissions, created_at, expires_at, last_used_at, revoked_at]
+      properties:
+        id:
+          $ref: '#/components/schemas/ProductID'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        principal_id:
+          $ref: '#/components/schemas/ProductID'
+        workspace_id:
+          $ref: '#/components/schemas/ProductID'
+        environment_id:
+          $ref: '#/components/schemas/ProductID'
+        permissions:
+          type: array
+          minItems: 1
+          maxItems: 10
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/Permission'
+        created_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+        last_used_at:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        revoked_at:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        audit_correlation_id:
+          $ref: '#/components/schemas/ProductID'
+    APITokenCredential:
+      type: object
+      additionalProperties: false
+      required: [id, name, principal_id, workspace_id, environment_id, permissions, created_at, expires_at, last_used_at, revoked_at, raw_token, audit_correlation_id]
+      properties:
+        id:
+          $ref: '#/components/schemas/ProductID'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        principal_id:
+          $ref: '#/components/schemas/ProductID'
+        workspace_id:
+          $ref: '#/components/schemas/ProductID'
+        environment_id:
+          $ref: '#/components/schemas/ProductID'
+        permissions:
+          type: array
+          minItems: 1
+          maxItems: 10
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/Permission'
+        created_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+        last_used_at:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        revoked_at:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        raw_token:
+          type: string
+          minLength: 52
+          maxLength: 52
+          pattern: '^zasp_pat_[A-Za-z0-9_-]{43}$'
+          readOnly: true
+        audit_correlation_id:
+          $ref: '#/components/schemas/ProductID'
+    APITokenPage:
+      type: object
+      additionalProperties: false
+      required: [items, page_info]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/APIToken'
+        page_info:
+          $ref: '#/components/schemas/PageInfo'
+    AuditEvent:
+      type: object
+      additionalProperties: false
+      required: [id, workspace_id, environment_id, actor_id, action, target_id, outcome, metadata, occurred_at]
+      properties:
+        id:
+          $ref: '#/components/schemas/ProductID'
+        workspace_id:
+          $ref: '#/components/schemas/ProductID'
+        environment_id:
+          $ref: '#/components/schemas/ProductID'
+        actor_id:
+          $ref: '#/components/schemas/ProductID'
+        action:
+          type: string
+          minLength: 1
+          maxLength: 127
+          pattern: '^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$'
+        target_id:
+          $ref: '#/components/schemas/ProductID'
+        outcome:
+          type: string
+          enum: [succeeded, failed, denied]
+        metadata:
+          type: object
+          maxProperties: 32
+          additionalProperties:
+            type: string
+            minLength: 1
+            maxLength: 512
+        occurred_at:
+          type: string
+          format: date-time
+    AuditEventPage:
+      type: object
+      additionalProperties: false
+      required: [items, page_info]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEvent'
+        page_info:
+          $ref: '#/components/schemas/PageInfo'
+    AuditExportInput:
+      type: object
+      additionalProperties: false
+    AuditExport:
+      type: object
+      additionalProperties: false
+      required: [id, status, event_count, created_at]
+      properties:
+        id:
+          $ref: '#/components/schemas/ProductID'
+        status:
+          type: string
+          enum: [ready]
+        event_count:
+          type: integer
+          minimum: 0
+        created_at:
+          type: string
+          format: date-time
         audit_correlation_id:
           $ref: '#/components/schemas/ProductID'
     ProductError:

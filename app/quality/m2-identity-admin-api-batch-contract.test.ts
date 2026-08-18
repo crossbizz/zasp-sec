@@ -17,14 +17,14 @@ describe("M2 identity and administration API batch", () => {
       .filter((line) => /^\| M[^ |]+ \|/.test(line))
       .map((line) => line.split("|")[1].trim());
 
-    expect(tracker).toContain("| Pending | 596 |");
+    expect(tracker).toContain("| Pending | 576 |");
     expect(tracker).toContain("| In progress | 0 |");
-    expect(tracker).toContain("| Complete | 129 |");
+    expect(tracker).toContain("| Complete | 149 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("| M2 | 72 | 35 | 0 | 37 | 0 |");
-    expect(tracker).toContain("`596/0/129/3`");
-    expect(complete).toHaveLength(129);
-    expect(new Set(complete).size).toBe(129);
+    expect(tracker).toContain("| M2 | 72 | 15 | 0 | 57 | 0 |");
+    expect(tracker).toContain("`576/0/149/3`");
+    expect(complete).toHaveLength(149);
+    expect(new Set(complete).size).toBe(149);
     for (const task of completedTasks) expect(complete).toContain(task);
   });
 
@@ -44,9 +44,9 @@ describe("M2 identity and administration API batch", () => {
     expect(webhook).toContain("deprovisionMember");
   });
 
-  it("documents the batch boundary without claiming the next task", () => {
+  it("preserves this batch inside the current M2 completion boundary", () => {
     const readme = read("README.md");
-    expect(readme).toContain("M2-08 through M2-30 are Complete");
-    expect(readme).toContain("M2-31 remains Pending");
+    expect(readme).toContain("M2-08 through M2-43 are Complete");
+    expect(readme).toContain("M2-44 remains Pending");
   });
 });
