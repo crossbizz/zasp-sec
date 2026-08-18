@@ -2,7 +2,6 @@ package eventindex
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"reflect"
 	"slices"
@@ -77,7 +76,9 @@ func TestSessionRuntimeTemplateJSONIsExactDeterministicAndFresh(t *testing.T) {
 	}
 
 	fields := template.Fields()
-	fields[0].Name = "attacker"
+	for index := range fields {
+		fields[index] = Field{Name: "attacker", Type: "object", IgnoreAbove: index + 1, Format: "epoch_millis"}
+	}
 	if got := template.Fields(); !reflect.DeepEqual(got, expectedSessionRuntimeFields) {
 		t.Fatalf("mutated retained fields: %#v", got)
 	}
@@ -98,14 +99,17 @@ func TestSessionRuntimeTemplateRejectsForgedState(t *testing.T) {
 	}
 	for name, candidate := range tests {
 		t.Run(name, func(t *testing.T) {
-			if err := candidate.Validate(); !errors.Is(err, ErrTemplate) {
+			if err := candidate.Validate(); err != ErrTemplate {
 				t.Fatalf("Validate error = %v, want ErrTemplate", err)
 			}
 			if candidate.Pattern() != "" || candidate.Priority() != 0 || candidate.Version() != 0 || candidate.Fields() != nil {
 				t.Fatalf("invalid accessors returned state")
 			}
-			if output, err := candidate.JSON(); !errors.Is(err, ErrTemplate) || output != nil {
+			if output, err := candidate.JSON(); err != ErrTemplate || output != nil {
 				t.Fatalf("JSON = %q, %v; want nil, ErrTemplate", output, err)
+			}
+			if err := candidate.ValidateDocumentFields(fieldNames(expectedSessionRuntimeFields)); err != ErrDocument {
+				t.Fatalf("ValidateDocumentFields error = %v, want ErrDocument", err)
 			}
 		})
 	}
@@ -143,7 +147,7 @@ func TestSessionRuntimeTemplateValidatesExactDocumentFieldSet(t *testing.T) {
 	}
 	for name, fields := range tests {
 		t.Run(name, func(t *testing.T) {
-			if err := template.ValidateDocumentFields(fields); !errors.Is(err, ErrDocument) {
+			if err := template.ValidateDocumentFields(fields); err != ErrDocument {
 				t.Fatalf("ValidateDocumentFields error = %v, want ErrDocument", err)
 			}
 		})
@@ -158,7 +162,7 @@ func TestSessionRuntimeTemplateRejectsMappingExplosion(t *testing.T) {
 	for index := range 1024 {
 		fields = append(fields, fmt.Sprintf("attacker_%04d", index))
 	}
-	if err := SessionRuntimeTemplate().ValidateDocumentFields(fields); !errors.Is(err, ErrDocument) {
+	if err := SessionRuntimeTemplate().ValidateDocumentFields(fields); err != ErrDocument {
 		t.Fatalf("ValidateDocumentFields error = %v, want ErrDocument", err)
 	}
 }
