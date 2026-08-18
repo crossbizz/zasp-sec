@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 652 |
-| In progress | 1 |
-| Complete | 72 |
+| In progress | 0 |
+| Complete | 73 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -24,7 +24,7 @@ In progress, Complete, or Blocked is Pending.
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 0 | 0 | 24 | 3 |
-| M1 | 68 | 19 | 1 | 48 | 0 |
+| M1 | 68 | 19 | 0 | 49 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
 | M3 | 75 | 75 | 0 | 0 | 0 |
@@ -68,19 +68,19 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `652/1/72/3` because
+session configuration. The 728 source-plan counts are `652/0/73/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M1-35 | August 18, 2026 | Aligning the browser-local product shell and dedicated left navigation with the exact PRD MVP information architecture while defining a fail-closed unauthenticated-route guard scaffold for later Stytch session wiring. |
 
 ## Complete
 
 | Task | Completed | Evidence |
 | --- | --- | --- |
+| M1-35 | August 18, 2026 | Added the exact nine-group, 22-label PRD MVP product navigation; immutable typed route registry and unknown-route fallback; one fail-closed inert unauthenticated-route guard scaffold; corrected every reachable legacy navigation target; six focused stability passes; full repository gates, audits, scans, and zero-finding whole-range review. |
 | M1-34 | August 18, 2026 | Added one immutable provider-neutral S3 bucket layout with exact Organization/Workspace/Environment evidence, export, and policy prefixes; strict non-escapable product-ID keys; exact bucket and same-account/same-Region customer-managed SSE-KMS configuration; fixed S3 Bucket Key behavior; six race passes; full platform and repository gates; pinned secret scans; and zero-finding whole-range review. |
 | M1-33 | August 18, 2026 | Added three immutable product-owned Standard SQS queue definitions with paired DLQs, closed schema metadata, exact retention, visibility, polling, message-size, delay, redrive, redrive-allow, and proof-tag contracts; the final disposable LocalStack lifecycle proved all six queues and three schemas, exact cleanup and prefix-wide audit, unchanged shared infrastructure, six stability passes, full repository gates and scans, and zero-finding whole-range review. |
 | M1-32 | August 18, 2026 | Added one immutable product-owned OpenSearch session/runtime event index-template contract with the exact 12-field M1-14 projection, deterministic JSON, strict dynamic-field rejection, bounded keyword mappings, a 1,024-field mapping-explosion fixture, six race passes, full repository gates and scans, and zero-finding whole-range review. |

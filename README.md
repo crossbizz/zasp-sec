@@ -1015,8 +1015,8 @@ the validated ARN and S3 Bucket Key enabled.
 
 This contract does not perform provider I/O and does not define IAM,
 versioning, retention, or lifecycle policy. M1A-03 owns the staging S3 and KMS
-resources, while M8-02 owns production hardening. M1-33 is Complete, and M1-35
-is In progress, aligning the product shell, left navigation, and future
+resources, while M8-02 owns production hardening. M1-33 is Complete. M1-35 is
+Complete, aligning the product shell, left navigation, and future
 unauthenticated-route guard with the exact PRD information architecture.
 
 ## Assembled local development target

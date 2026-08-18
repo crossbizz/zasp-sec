@@ -54,7 +54,7 @@ describe("M1-34 S3 bucket layout", () => {
     expect(implementationPlan).toContain("Use genuine tests-first RED/GREEN");
   });
 
-  it("preserves completed M1-34 while M1-35 starts", async () => {
+  it("preserves completed M1-34 while M1-35 completes", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -67,15 +67,14 @@ describe("M1-34 S3 bucket layout", () => {
 
     expect(readme).toContain("M1-34 is Complete");
     expect(tracker).toContain("| Pending | 652 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 72 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 73 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`652/1/72/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "19", "1", "48", "0"]);
+    expect(tracker).toContain("`652/0/73/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "19", "0", "49", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active).toHaveLength(1);
-    expect(active[0]?.[0]).toBe("M1-35");
-    expect(complete).toHaveLength(72);
+    expect(active).toHaveLength(0);
+    expect(complete).toHaveLength(73);
     expect(active.filter(([task]) => task === "M1-34")).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-34")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-33")).toHaveLength(1);
@@ -107,7 +106,7 @@ describe("M1-34 S3 bucket layout", () => {
       "aws:kms",
       "S3 Bucket Key",
       "M1-33 is Complete",
-      "M1-35 is In progress",
+      "M1-35 is Complete",
       "M1A-03",
       "M8-02",
     ]) {

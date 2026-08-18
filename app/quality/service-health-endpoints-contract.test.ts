@@ -62,13 +62,13 @@ describe("M1-28 common service health endpoints", () => {
     expect(readmeProse).toContain("Health listeners for those worker packages remain outside M1-28 and are not yet implemented.");
     expect(readmeProse).not.toContain("Shared liveness and readiness endpoints remain deferred to M1-28.");
     expect(tracker).toContain("| Pending | 652 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 72 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 73 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`652/1/72/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "19", "1", "48", "0"]);
+    expect(tracker).toContain("`652/0/73/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "19", "0", "49", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.map(([task]) => task)).toEqual(["M1-35"]);
+    expect(active.map(([task]) => task)).toEqual([]);
     expect(complete.filter(([task]) => task === "M1-28d")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-28")).toHaveLength(1);
     expect(active.filter(([task]) => task === "M1-29")).toHaveLength(0);
