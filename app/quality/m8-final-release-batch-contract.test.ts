@@ -28,11 +28,15 @@ describe("M8-60 through M8-54 final release batch", () => {
     expect(readme).toContain("live provider, human usability, and disaster-recovery runs");
   });
 
-  it("advances the final 16 M8 tasks without claiming completion", () => {
+  it("blocks the final 16 M8 tasks on their missing live evidence", () => {
     const tracker = read("docs/internal/implementation_status_v1.5.md");
     const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] || "";
+    const blocked = tracker.match(/## Blocked[\s\S]*/)?.[0] || "";
     const selected = ["M8-60", "M8-61a", "M8-61", "M8-62a", "M8-62b", "M8-62c", "M8-62d", "M8-62e", "M8-62", "M8-63a", "M8-63b", "M8-63c", "M8-63d", "M8-63e", "M8-63", "M8-54"];
-    for (const id of selected) expect(active.match(new RegExp(`^\\| ${id} \\|`, "gm"))).toHaveLength(1);
-    for (const value of ["| Pending | 0 |", "| In progress | 22 |", "`0/22/667/39`", "| M8 | 141 | 0 | 16 | 89 | 36 |"]) expect(tracker).toContain(value);
+    for (const id of selected) {
+      expect(active).not.toMatch(new RegExp(`^\\| ${id} \\|`, "m"));
+      expect(blocked.match(new RegExp(`^\\| ${id} \\|`, "gm"))).toHaveLength(1);
+    }
+    for (const value of ["| Pending | 0 |", "| In progress | 6 |", "| Complete | 667 |", "| Blocked | 55 |", "`0/6/667/55`", "| M8 | 141 | 0 | 0 | 89 | 52 |"]) expect(tracker).toContain(value);
   });
 });

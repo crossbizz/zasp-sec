@@ -394,10 +394,10 @@ render through the shared chart. Human usability and design-partner observations
 and live quota, isolation, and golden executions are Blocked until their
 authorized people and environments exist.
 
-M8-60 through M8-54 are batched as In progress. The CLI now validates the
-completed SaaS golden workflow, matching single-tenant behavior, all five
-onboarding observations, isolated recovery and derived-store rebuild stages,
-measured recovery objectives, and a blocker-explicit release decision. M8 release evidence remains open until live provider, human usability, and disaster-recovery runs produce their required artifacts.
+M8-60 through M8-54 are Blocked on external execution evidence. The CLI
+validates the SaaS and single-tenant golden workflows, five onboarding
+observations, isolated recovery and derived-store rebuild stages, measured
+recovery objectives, and a blocker-explicit release decision. M8 release evidence remains open until live provider, human usability, and disaster-recovery runs produce their required artifacts.
 
 ```bash
 go test -C services/platform -race -count=1 ./integration

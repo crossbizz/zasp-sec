@@ -37,7 +37,7 @@ describe("M7A audit, API, and builder batch", () => {
 
   it("completes exactly M7A-60 through M7A-84", async () => {
     const tracker = await readFile(resolve(root, "docs/internal/implementation_status_v1.5.md"), "utf8");
-    for (const value of ["| Pending | 0 |", "| In progress | 22 |", "| Complete | 667 |", "| Blocked | 39 |", "`0/22/667/39`", "| M7A | 113 | 0 | 0 | 113 | 0 |"]) expect(tracker).toContain(value);
+    for (const value of ["| Pending | 0 |", "| In progress | 6 |", "| Complete | 667 |", "| Blocked | 55 |", "`0/6/667/55`", "| M7A | 113 | 0 | 0 | 113 | 0 |"]) expect(tracker).toContain(value);
     const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
     const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] ?? "";
     const tasks = Array.from({ length: 25 }, (_, index) => `M7A-${60 + index}`);

@@ -15,9 +15,9 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 0 |
-| In progress | 22 |
+| In progress | 6 |
 | Complete | 667 |
-| Blocked | 39 |
+| Blocked | 55 |
 
 ## Milestone summary
 
@@ -33,7 +33,7 @@ In progress, Complete, or Blocked is Pending.
 | M6 | 36 | 0 | 0 | 36 | 0 |
 | M7 | 62 | 0 | 0 | 62 | 0 |
 | M7A | 113 | 0 | 0 | 113 | 0 |
-| M8 | 141 | 0 | 16 | 89 | 36 |
+| M8 | 141 | 0 | 0 | 89 | 52 |
 
 ## Execution invariants
 
@@ -70,7 +70,7 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `0/22/667/39` because
+session configuration. The 728 source-plan counts are `0/6/667/55` because
 PROV-01 is excluded from those counts.
 The blocked M8 resilience executions require an authorized isolated AWS/reference deployment; deterministic validators remain locally testable.
 
@@ -82,22 +82,6 @@ The blocked M8 resilience executions require an authorized isolated AWS/referenc
 | M1A-09 | August 18, 2026 | Deterministic evidence binds Terraform revision, cluster/version, immutable image hashes, and deploy/smoke runs without credential fields. |
 | M1A-08 | August 18, 2026 | Injected smoke boundary requires exact scoped S3, SQS, and OpenSearch operations through IRSA plus OTLP health evidence. |
 | M1A-07 | August 18, 2026 | Injected staging deployment boundary requires four immutable product workloads Ready on private endpoints with no vendor dashboards. |
-| M8-54 | August 18, 2026 | Release decision requires all seven aggregate gates and exposes every exception or unresolved blocker; live evidence remains unresolved. |
-| M8-63 | August 18, 2026 | SaaS DR gate requires objective, isolation, product-surface, and cleanup evidence; live recovery remains unresolved. |
-| M8-63e | August 18, 2026 | Recovery objectives require measured RPO <=1 hour and RTO <=4 hours plus usable representative queries. |
-| M8-63d | August 18, 2026 | Derived rebuild requires exactly tracked OpenSearch replay and graph rebuild jobs. |
-| M8-63c | August 18, 2026 | Core recovery inspection requires exact Organization sets, scoped records, archives, and no cross-Organization mixing. |
-| M8-63b | August 18, 2026 | Recovery start retains one run ID and the exact selected source timestamp without waiting for completion. |
-| M8-63a | August 18, 2026 | Recovery fixture requires at least two Organizations, test-only credentials, retained archives, and a versioned release reference. |
-| M8-62 | August 18, 2026 | Onboarding gate requires five bounded product-guided stages with product-owned remediation or an explicit release blocker. |
-| M8-62e | August 18, 2026 | Launch-IdP observation must distinguish directory integration from AgentSec SSO without vendor-dashboard knowledge. |
-| M8-62d | August 18, 2026 | GitHub observation requires visible selected scope and actionable permission remediation. |
-| M8-62c | August 18, 2026 | Kubernetes observation requires enrollment through healthy coverage with inventory/sensor/gateway distinctions clear. |
-| M8-62b | August 18, 2026 | AWS observation requires product-guided configuration and actionable missing-permission remediation. |
-| M8-62a | August 18, 2026 | First-Admin observation rejects bypass login or manual database edits and is capped at 15 minutes. |
-| M8-61 | August 18, 2026 | Single-tenant result requires the same exact golden stages and API contract with only deployment metadata differing. |
-| M8-61a | August 18, 2026 | Single-tenant golden start requires the pinned Organization and the same validated client/API contract. |
-| M8-60 | August 18, 2026 | SaaS golden result requires all fourteen ordered product workflow stages plus linked session and audit evidence; live execution remains unresolved. |
 | M3-52 | August 18, 2026 | A strict five-check local M3 gate is implemented; real staging remains unavailable and the task is not Complete. |
 | M3-14 | August 18, 2026 | Strict AWS assume-role identity adapter and local denial fixture are implemented; required real-AWS denial remains unavailable behind M1A-10. |
 
@@ -779,6 +763,22 @@ The blocked M8 resilience executions require an authorized isolated AWS/referenc
 
 | Task | Blocked since | Exact dependency | Resume condition |
 | --- | --- | --- | --- |
+| M8-54 | August 18, 2026 | The release-decision contract exists, but its seven aggregate gates include unresolved live and human evidence. | Complete or explicitly waive every upstream release blocker, then evaluate the gate. |
+| M8-63 | August 18, 2026 | The DR gate exists, but no authorized recovery execution has produced objective and cleanup evidence. | Run the authorized isolated SaaS recovery lifecycle and retain its evidence. |
+| M8-63e | August 18, 2026 | The RPO/RTO evaluator exists, but there are no measured recovery timestamps or representative queries. | Supply a completed authorized recovery run with measured objectives. |
+| M8-63d | August 18, 2026 | The derived-store rebuild boundary exists, but no authorized recovery run has started the exact rebuild jobs. | Supply the isolated recovery environment and authorize both rebuild jobs. |
+| M8-63c | August 18, 2026 | The core-recovery inspector exists, but no authorized recovered fixture is available. | Supply the completed isolated recovery fixture for inspection. |
+| M8-63b | August 18, 2026 | The recovery-start boundary exists, but no authorized recovery runtime or source snapshot is available. | Supply the isolated SaaS recovery environment and retained source snapshot. |
+| M8-63a | August 18, 2026 | The recovery-fixture validator exists, but no authorized multi-Organization fixture and release reference are available. | Provide the isolated test data, credentials, archives, and versioned release reference. |
+| M8-62 | August 18, 2026 | The onboarding evaluator exists, but the five required human observations have not occurred. | Conduct and retain all five authorized onboarding observations. |
+| M8-62e | August 18, 2026 | The Launch-IdP observation schema exists, but no human observation has been supplied. | Conduct the authorized IdP onboarding observation. |
+| M8-62d | August 18, 2026 | The GitHub observation schema exists, but no human observation has been supplied. | Conduct the authorized GitHub onboarding observation. |
+| M8-62c | August 18, 2026 | The Kubernetes observation schema exists, but no human observation has been supplied. | Conduct the authorized Kubernetes onboarding observation. |
+| M8-62b | August 18, 2026 | The AWS observation schema exists, but no human observation has been supplied. | Conduct the authorized AWS onboarding observation. |
+| M8-62a | August 18, 2026 | The First-Admin observation schema exists, but no human observation has been supplied. | Conduct the authorized First-Admin onboarding observation. |
+| M8-61 | August 18, 2026 | The single-tenant parity inspector exists, but no authorized live golden run has produced evidence. | Run the exact single-tenant golden lifecycle and retain the result. |
+| M8-61a | August 18, 2026 | The single-tenant start boundary exists, but no authorized deployment fixture is available. | Provide the exact single-tenant environment and authorize its golden run. |
+| M8-60 | August 18, 2026 | The fourteen-stage SaaS result inspector exists, but no authorized live golden run has produced all stages. | Run the exact SaaS golden lifecycle and retain linked session/audit evidence. |
 | M8-60b | August 18, 2026 | The injected SaaS golden runtime is implemented, but no authorized live SaaS fixture has produced a run. | Provide the isolated SaaS Organization/environment and run the exact golden-start boundary. |
 | M8-59 | August 18, 2026 | The exact isolation result validator exists, but there is no live two-Organization run to inspect. | Provide the authorized SaaS environment and completed isolation run. |
 | M8-59b | August 18, 2026 | The injected isolation runtime boundary exists, but no authorized live runtime is available. | Provide the authorized SaaS runtime and exact two-Organization fixture. |
