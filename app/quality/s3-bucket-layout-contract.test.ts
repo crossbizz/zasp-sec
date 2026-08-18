@@ -54,7 +54,7 @@ describe("M1-34 S3 bucket layout", () => {
     expect(implementationPlan).toContain("Use genuine tests-first RED/GREEN");
   });
 
-  it("completes only M1-34 while preserving M1-33, M1-35, and exact blockers", async () => {
+  it("preserves completed M1-34 while M1-35 starts", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -66,19 +66,20 @@ describe("M1-34 S3 bucket layout", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(readme).toContain("M1-34 is Complete");
-    expect(tracker).toContain("| Pending | 653 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 652 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 72 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`653/0/72/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "20", "0", "48", "0"]);
+    expect(tracker).toContain("`652/1/72/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "19", "1", "48", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active).toHaveLength(0);
+    expect(active).toHaveLength(1);
+    expect(active[0]?.[0]).toBe("M1-35");
     expect(complete).toHaveLength(72);
     expect(active.filter(([task]) => task === "M1-34")).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-34")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-33")).toHaveLength(1);
-    expect([...active, ...complete].filter(([task]) => task === "M1-35")).toHaveLength(0);
+    expect([...active, ...complete].filter(([task]) => task === "M1-35")).toHaveLength(1);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
 
@@ -106,7 +107,7 @@ describe("M1-34 S3 bucket layout", () => {
       "aws:kms",
       "S3 Bucket Key",
       "M1-33 is Complete",
-      "M1-35 remains Pending",
+      "M1-35 is In progress",
       "M1A-03",
       "M8-02",
     ]) {

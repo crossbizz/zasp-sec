@@ -66,14 +66,14 @@ describe("M1-30a local product manifests", () => {
 
     expect(readme).toContain("M1-30a is Complete");
     expect(readme).toContain("M1-30b is Complete");
-    expect(tracker).toContain("| Pending | 653 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 652 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 72 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`653/0/72/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "20", "0", "48", "0"]);
+    expect(tracker).toContain("`652/1/72/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "19", "1", "48", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.map(([task]) => task)).toEqual([]);
+    expect(active.map(([task]) => task)).toEqual(["M1-35"]);
     expect(active.filter(([task]) => task === "M1-30a")).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-30a")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-29")).toHaveLength(1);
