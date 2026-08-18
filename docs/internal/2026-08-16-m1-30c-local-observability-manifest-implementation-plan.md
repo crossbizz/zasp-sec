@@ -66,7 +66,7 @@ exact OCI index, BusyBox 1.36.1-1 exact OCI index, Node test runner, Vitest
 - Produces: exact M1-30c In-progress status at overall `659/1/65/3` and M1
   `68/26/1/41/0`.
 
-- [ ] **Step 1: Write the failing source/design/status contract**
+- [x] **Step 1: Write the failing source/design/status contract**
 
 Require the exact source dependency, deliverable, verification, and timebox;
 one active M1-30c row; no complete M1-30c row; one complete M1-30b row; no
@@ -76,26 +76,26 @@ Bind the selected four-resource overlay, split core/Job application, exact
 images, internal Service, local file sink, M1-21 resource attributes,
 configuration-level no-egress boundary, licensing, cleanup, and fixed output.
 
-- [ ] **Step 2: Witness stale-status RED**
+- [x] **Step 2: Witness stale-status RED**
 
 Run the focused contract under pinned Node 22.23.1. Require failures only for
 the stale M1-30c status, counts, and README state. Existing local-product and
 local-graph contracts must remain green.
 
-- [ ] **Step 3: Move only M1-30c to In progress**
+- [x] **Step 3: Move only M1-30c to In progress**
 
 Change overall `660/0/65/3` to `659/1/65/3` and M1 `68/27/0/41/0` to
 `68/26/1/41/0`. Add one active M1-30c row. Preserve M1-30a and M1-30b
 Complete, M1-30d Pending, and the exact blockers. Update only current-state
 fixtures mechanically.
 
-- [ ] **Step 4: Run focused and all-quality GREEN**
+- [x] **Step 4: Run focused and all-quality GREEN**
 
 Run the new contract, the two prior local-manifest contracts, and all
 `app/quality` tests. Require exact 728-task arithmetic, one active row, no
 duplicate task row, and no weakened historical contract.
 
-- [ ] **Step 5: Scan and commit the start transition**
+- [x] **Step 5: Scan and commit the start transition**
 
 Run whitespace and pinned redacted Gitleaks scans over the exact staged patch.
 Commit only the status, README, and quality-contract slice as:
@@ -128,7 +128,7 @@ docs: start M1-30c local observability manifest
 - Consumes: direct `js-yaml` 4.1.1, the M1-21 seven-attribute contract, exact
   Collector/BusyBox pins, and pinned public source/license evidence.
 
-- [ ] **Step 1: Write manifest, span, sink, and inventory tests first**
+- [x] **Step 1: Write manifest, span, sink, and inventory tests first**
 
 Require exactly one ConfigMap, Deployment, ClusterIP Service, and Job. The core
 renderer must contain only the first three; the span renderer must contain only
@@ -167,13 +167,13 @@ shared timeout. On every early rejection, require abort, bounded cancel, reader
 release, and timer cleanup, including a cancellation promise that never
 settles.
 
-- [ ] **Step 2: Witness absent-module RED**
+- [x] **Step 2: Witness absent-module RED**
 
 Run the manifest/license tests before production modules, YAML, or inventory
 exist. Require missing modules/files/exports only; the M1-30a/M1-30b manifest
 and license suites remain green.
 
-- [ ] **Step 3: Implement strict models, renderers, and parsers**
+- [x] **Step 3: Implement strict models, renderers, and parsers**
 
 Build exact plain objects with no caller input. Parse one bounded UTF-8 YAML
 document under the JSON schema, reject duplicate keys/aliases/tags, recursively
@@ -186,7 +186,7 @@ recursive duplicate-key rejection, 64-KiB cap, complete OTLP-shape validation,
 and exact normalized output. No parser may call string coercion on hostile
 input.
 
-- [ ] **Step 4: Add canonical YAML and license records**
+- [x] **Step 4: Add canonical YAML and license records**
 
 Write `observability.yaml` from the core renderer and
 `observability-span.yaml` from the Job renderer. Record immutable upstream
@@ -195,7 +195,7 @@ The license audit must use one shared deadline, exact URLs/order/hashes, bounded
 stream reads, abort/cancel/release on rejection, and one fixed summary without
 raw source/provider output.
 
-- [ ] **Step 5: Run six focused passes and commit**
+- [x] **Step 5: Run six focused passes and commit**
 
 Run six manifest/span/sink/license passes plus M1-30a/M1-30b manifest and
 license regressions, syntax, ESLint, diff-check, and pinned secret scans.
@@ -232,7 +232,7 @@ feat: add local observability Kubernetes manifest
 and `readiness`. Any unknown or forged category must normalize to `panic` in
 the fixed public failure line.
 
-- [ ] **Step 1: Write profile and Collector-runtime tests before production**
+- [x] **Step 1: Write profile and Collector-runtime tests before production**
 
 Require exact host/node platform resolution, owned Docker configuration,
 Collector index/config/manifest/rootfs/runtime inspection, shared-image
@@ -248,13 +248,13 @@ alias mutation; node replacement; descriptor/path replacement; signal/output
 cap; cancellation; panic; forged/unknown failure categories; and cleanup
 retry/precedence.
 
-- [ ] **Step 2: Witness missing observability-runtime RED**
+- [x] **Step 2: Witness missing observability-runtime RED**
 
 Run focused observability tests before production exports exist. Require only
 the new tests to fail. Require the complete product suite and graph suite to
 remain green at their exact existing counts.
 
-- [ ] **Step 3: Add narrow profile-composition hooks**
+- [x] **Step 3: Add narrow profile-composition hooks**
 
 Generalize only the reviewed profile hooks needed by M1-30c: allow exactly the
 three canonical additional manifest descriptors, treat M1-30b and M1-30c as
@@ -263,7 +263,7 @@ and permit graph image loading to retain one additional Collector plan without
 changing the M1-30b two-image expectation. Reject every other proof name,
 manifest name/order/path key, duplicate, extra, or byte drift.
 
-- [ ] **Step 4: Implement exact Collector image preparation**
+- [x] **Step 4: Implement exact Collector image preparation**
 
 Resolve and retain Collector index, config, selected-platform, rootfs,
 environment, entrypoint, command, exposed-port, volume, label, user, and
@@ -272,7 +272,7 @@ its complete alias and zero-consumer baseline. Otherwise pull once by immutable
 identity. Load and content-prove it in the retained kind node, create only the
 required node-local aliases, and retain the complete inventory before apply.
 
-- [ ] **Step 5: Implement staged descriptors and reverse cleanup**
+- [x] **Step 5: Implement staged descriptors and reverse cleanup**
 
 Write and retain separate core and Job paths. Apply only product, graph, and
 observability core during the base apply phase. The Job descriptor must remain
@@ -281,7 +281,7 @@ settlements before cleanup; re-prove cluster/node/network, image inventories,
 shared baselines, descriptors, and temporary-root identities immediately
 before deletion. Keep the recovery root when global absence is unproved.
 
-- [ ] **Step 6: Run six focused passes and commit**
+- [x] **Step 6: Run six focused passes and commit**
 
 Run six observability/product/graph runtime passes, syntax, ESLint, diff-check,
 and pinned secret scans. Commit the new runtime and only the necessary narrow
@@ -306,7 +306,7 @@ feat: prepare disposable local observability runtime
 - Consumes: Task 2 exact resources/span parser and Task 3 retained image,
   cluster, descriptor, product, and graph identities.
 
-- [ ] **Step 1: Write provider and lifecycle tests before implementation**
+- [x] **Step 1: Write provider and lifecycle tests before implementation**
 
 Require exact ConfigMap data/resource version; Deployment/ReplicaSet/pod
 lineage; both container images/security/resources/commands/mounts/status;
@@ -329,13 +329,13 @@ malformed timestamps; container restart; alternate Service peer; external
 exposure; premature/failed/replaced Job; empty/oversized/malformed/duplicate
 sink JSON; extra trace/span/attribute; and response/log drift.
 
-- [ ] **Step 2: Witness lifecycle RED**
+- [x] **Step 2: Witness lifecycle RED**
 
 Run the new readiness/Job/sink/orchestration tests before implementing the
 provider path. Require failures only at the absent observability behavior;
 product and graph provider tests remain green.
 
-- [ ] **Step 3: Implement bounded exact Collector readiness**
+- [x] **Step 3: Implement bounded exact Collector readiness**
 
 Apply the core through its fresh descriptor. Read bounded raw JSON with
 recursive duplicate-key rejection and poll within the main phase until the
@@ -344,14 +344,14 @@ form one complete exact provider snapshot. Re-prove product readiness, graph
 health/persistence state, active PID authority, image inventory, and the core
 descriptor before advancing.
 
-- [ ] **Step 4: Apply and prove the one-shot span Job**
+- [x] **Step 4: Apply and prove the one-shot span Job**
 
 Only after Step 3, journal one exact Job apply. Definitive rejection fails;
 ambiguous results reconcile through exact Job absence or exact-owned state.
 Poll for one exact successful Job/Job pod and fixed response marker. Do not
 recreate or retry the Job and do not submit from the host.
 
-- [ ] **Step 5: Read and normalize the sink evidence**
+- [x] **Step 5: Read and normalize the sink evidence**
 
 Use fixed `kubectl exec` argv against the retained Collector pod and exact
 `sink-reader` container. Re-prove the pod/container/volume identity, require a
@@ -359,7 +359,7 @@ regular non-symlink artifact, read at most 64 KiB plus one byte through bounded
 child output, and require stable metadata around the read. Normalize exactly
 one M1-21 span and re-prove the complete provider/product/graph snapshot.
 
-- [ ] **Step 6: Harden timeout, ambiguity, and cleanup cases**
+- [x] **Step 6: Harden timeout, ambiguity, and cleanup cases**
 
 Test delayed Collector/EndpointSlice/Job/sink state, thrown/signaled/malformed
 apply or exec, main cancellation before and after Job apply, late-applied Job,
@@ -367,7 +367,7 @@ uncooperative child, provider panic, cleanup panic, resource replacement,
 cleanup continuation/precedence, and global absence failure. Require mutation
 settlement before cleanup and no late mutation after audit.
 
-- [ ] **Step 7: Run six focused passes and commit**
+- [x] **Step 7: Run six focused passes and commit**
 
 Run six combined observability suites plus original product/graph regressions,
 syntax, ESLint, diff-check, and pinned secret scans. Commit as:
@@ -389,7 +389,7 @@ feat: prove local observability span delivery
 - Produces: `local:observability:test`, `local:observability:run`, and
   `local:observability:license` root commands plus exact operator guidance.
 
-- [ ] **Step 1: Write root-command and documentation RED**
+- [x] **Step 1: Write root-command and documentation RED**
 
 Require exact scripts, pinned Node usage, fixed success/failure lines, staged
 Job semantics, internal-only Service, local file sink, one M1-21 span,
@@ -399,7 +399,7 @@ Pending. Reject claims of ambient kubeconfig, host OTLP access, enforced
 NetworkPolicy, remote backend delivery, production packaging, or shared-image
 cleanup.
 
-- [ ] **Step 2: Add scripts and concise README guidance**
+- [x] **Step 2: Add scripts and concise README guidance**
 
 Add these exact scripts:
 
@@ -413,13 +413,13 @@ Document prerequisites, fixed output, cluster-internal OTLP Service, staged
 single span, ephemeral sink, no-network-export configuration, exact image and
 license scope, cleanup behavior, and later M1-30d/M1-30 deferrals.
 
-- [ ] **Step 3: Run focused, root, and full GREEN**
+- [x] **Step 3: Run focused, root, and full GREEN**
 
 Run the contract, root hermetic observability suite, license audit, original
 product and graph suites, and full pinned repository verification. Run
 production npm audit, dependency checks, whitespace, and secret scans.
 
-- [ ] **Step 4: Commit the command/documentation slice**
+- [x] **Step 4: Commit the command/documentation slice**
 
 Commit only `package.json`, README, and the quality contract as:
 
@@ -443,14 +443,14 @@ docs: expose local observability manifest proof
   independent review, M1-30c Complete transition, push, exact-SHA CI success,
   and checked plan closure.
 
-- [ ] **Step 1: Establish clean live preconditions**
+- [x] **Step 1: Establish clean live preconditions**
 
 Require zero M1-30c prefix/label resources and temporary roots. Fingerprint
 shared Docker/Kubernetes state read-only. Confirm exact image/platform and
 owned capacity without deleting a shared image, volume, container, network,
 or cache.
 
-- [ ] **Step 2: Run the exact live command**
+- [x] **Step 2: Run the exact live command**
 
 Run only:
 
@@ -469,7 +469,7 @@ Require one exact span in the local sink, unchanged product/graph state, final
 zero exact-owned containers, networks, local image aliases, cluster resources,
 and temporary roots, with shared/ambient state unchanged.
 
-- [ ] **Step 3: Fix live findings only through TDD**
+- [x] **Step 3: Fix live findings only through TDD**
 
 For each real mismatch, isolate the exact provider representation, write a
 focused failing hermetic regression, implement the narrow fix, rerun all
@@ -477,7 +477,7 @@ affected gates, and rerun the full exact lifecycle. Never weaken image,
 no-network-export, internal-only, one-span, prior-profile, output, license, or
 cleanup requirements.
 
-- [ ] **Step 4: Run the final local gate matrix**
+- [x] **Step 4: Run the final local gate matrix**
 
 Require six observability-suite passes, original product and graph suites, all
 four product Go race/tidy/verify/vet gates, exact graph and observability
@@ -485,7 +485,7 @@ license audits, full pinned repository verify/typecheck/lint/build, production
 audit zero, dependency/license checks, diff-check, and pinned redacted
 Gitleaks scans.
 
-- [ ] **Step 5: Obtain a zero-finding independent review**
+- [x] **Step 5: Obtain a zero-finding independent review**
 
 Review the complete range against the source row, design, plan, M1-21,
 M0-13/M0-22, M1-30a/M1-30b compatibility, manifests, licenses, production
@@ -493,7 +493,7 @@ runtime, tests, live evidence, cleanup, status arithmetic, and secrets. Address
 every Critical, Important, and Minor finding through a separate tests-first
 commit and repeat review.
 
-- [ ] **Step 6: Transition M1-30c to Complete**
+- [x] **Step 6: Transition M1-30c to Complete**
 
 Write completion-contract RED, then change overall `659/1/65/3` to
 `659/0/66/3` and M1 `68/26/1/41/0` to `68/26/0/42/0`. Move exactly one M1-30c
@@ -504,13 +504,13 @@ Pending, and the exact blockers. Run focused/full gates and commit:
 docs: complete M1-30c local observability manifest
 ```
 
-- [ ] **Step 7: Push completion and verify exact-SHA CI**
+- [x] **Step 7: Push completion and verify exact-SHA CI**
 
 Push from a clean tracked tree/index, require equal local/origin/tracking SHAs,
 and watch Runnable UI to terminal success for the exact completion SHA. Record
 the run and job URLs in ignored evidence before closing the plan.
 
-- [ ] **Step 8: Close, push, and verify the plan**
+- [x] **Step 8: Close, push, and verify the plan**
 
 Mark every plan checkbox complete only after the completion CI succeeds.
 Commit only this plan with:
