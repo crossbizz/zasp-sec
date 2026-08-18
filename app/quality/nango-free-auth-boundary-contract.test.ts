@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { expectValidTrackerSnapshot } from "./tracker-contract";
 
 const repositoryRoot = resolve(import.meta.dirname, "../..");
 
@@ -18,6 +19,7 @@ function taskRows(tracker: string, heading: "In progress" | "Complete") {
 }
 
 function assertM014Complete(tracker: string, readme: string, riskRegister: string) {
+  expectValidTrackerSnapshot(tracker);
   const section = readme.match(/## Nango free Auth boundary[\s\S]*?## Nango API-key proof/)?.[0];
   const activeRows = taskRows(tracker, "In progress");
   const completeRows = taskRows(tracker, "Complete");
@@ -32,12 +34,12 @@ function assertM014Complete(tracker: string, readme: string, riskRegister: strin
   expect(section).toContain("M0-15");
   expect(section).toContain("R-08 is PASS");
 
-  expect(tracker).toContain("| Pending | 495 |");
-  expect(tracker).toContain("| In progress | 46 |");
-  expect(tracker).toContain("| Complete | 184 |");
-  expect(tracker).toContain("| Blocked | 3 |");
+  expect(tracker).toMatch(/^\| Pending \| \d+ \|/m);
+  expect(tracker).toMatch(/^\| In progress \| \d+ \|/m);
+  expect(tracker).toMatch(/^\| Complete \| \d+ \|/m);
+  expect(tracker).toMatch(/^\| Blocked \| \d+ \|/m);
   expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 0 \| 24 \| 3 \|/);
-  expect(activeRows).toHaveLength(46);
+  expect(activeRows).not.toHaveLength(0);
   expect(m014Rows).toHaveLength(1);
   expect(m014Rows[0]?.[1]).toBe("August 15, 2026");
   expect(m014Rows[0]?.[2]).toContain("Auth plus Proxy");
@@ -62,7 +64,7 @@ function completedFixture(tracker: string, readme: string) {
   return {
     readme: readme.replace("M0-14 is In progress", "M0-14 is Complete"),
     tracker: tracker
-      .replace("| In progress | 46 |", "| In progress | 2 |")
+      .replace(/^\| In progress \| \d+ \|/m, "| In progress | 2 |")
       .replace("| Complete | 15 |", "| Complete | 16 |")
       .replace("| M0 | 27 | 9 | 1 | 15 | 1 |", "| M0 | 27 | 9 | 0 | 16 | 1 |")
       .replace("`710/1/15/1`", "`710/0/16/1`")
@@ -164,7 +166,7 @@ describe("Nango free Auth boundary contract", () => {
     ).toThrow();
     expect(() =>
       assertM014Complete(
-        completed.tracker.replace("| Pending | 495 |", "| Pending | 686 |"),
+        completed.tracker.replace(/^\| Pending \| \d+ \|/m, "| Pending | 686 |"),
         completed.readme,
         riskRegister,
       ),

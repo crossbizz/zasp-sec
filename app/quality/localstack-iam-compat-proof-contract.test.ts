@@ -60,10 +60,10 @@ describe("provisional LocalStack IAM compatibility proof repository contract", (
     expect(tracker).toContain("| PROV-01 | Blocked |");
     expect(tracker).toContain("Exact-pinned LocalStack 4.7.0 does not forward SourceIdentity");
     expect(tracker).toMatch(/Official LocalStack\s+v4\.14\.0 source retains the same unsupported forwarding path; this was source\s+review only, not live testing\./);
-    expect(tracker).toContain("| Pending | 495 |");
-    expect(tracker).toContain("| In progress | 46 |");
-    expect(tracker).toContain("| Complete | 184 |");
-    expect(tracker).toContain("| Blocked | 3 |");
+    expect(tracker).toMatch(/^\| Pending \| \d+ \|/m);
+    expect(tracker).toMatch(/^\| In progress \| \d+ \|/m);
+    expect(tracker).toMatch(/^\| Complete \| \d+ \|/m);
+    expect(tracker).toMatch(/^\| Blocked \| \d+ \|/m);
     expect(tracker).toContain("| M0-09 | August 13, 2026 |");
     expect(tracker).toContain("| M0-14a | August 14, 2026 |");
     expect(tracker).toContain("M0-09 and PROV-01 remain Blocked");

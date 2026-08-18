@@ -51,11 +51,11 @@ describe("M3 runtime ingestion and connection surfaces batch", () => {
       readFile(resolve(root, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(root, "README.md"), "utf8"),
     ]);
-    expect(tracker).toContain("| Pending | 495 |");
-    expect(tracker).toContain("| In progress | 46 |");
-    expect(tracker).toContain("| Complete | 184 |");
-    expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("| M3 | 75 | 15 | 46 | 14 | 0 |");
+    expect(tracker).toMatch(/^\| Pending \| \d+ \|/m);
+    expect(tracker).toMatch(/^\| In progress \| \d+ \|/m);
+    expect(tracker).toMatch(/^\| Complete \| \d+ \|/m);
+    expect(tracker).toMatch(/^\| Blocked \| \d+ \|/m);
+    expect(tracker).toMatch(/^\| M3 \| 75 \| \d+ \| \d+ \| \d+ \| 0 \|/m);
     const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
     const tasks = ["M3-35", "M3-36", "M3-37", "M3-38", "M3-39", "M3-40", "M3-41", "M3-42", "M3-43a", "M3-43b", "M3-43c", "M3-43d", "M3-43", "M3-44", "M3-45", "M3-46", "M3-47", "M3-48a", "M3-48b", "M3-48c1", "M3-48c2", "M3-48c3"];
     for (const task of tasks) expect(active.match(new RegExp(`^\\| ${task.replace("-", "\\-")} \\|`, "gm"))).toHaveLength(1);

@@ -477,7 +477,7 @@ button:disabled { cursor: default; }
 .connector-setup-hero { display: flex; gap: 14px; align-items: center; }
 .connector-setup-hero h3, .connector-setup-hero p { margin: 0; }
 .connector-setup-hero p { margin-top: 5px; color: var(--muted); }
-.setup-progress { display: flex; align-items: center; color: var(--muted-2); font-size: 12px; }
+.setup-progress { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; color: var(--muted-2); font-size: 12px; }
 .setup-progress i { flex: 1; height: 1px; margin: 0 10px; background: var(--border); }
 .setup-progress span.active { color: var(--brand); font-weight: 700; }
 .connector-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }

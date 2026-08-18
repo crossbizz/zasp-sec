@@ -12,6 +12,7 @@ import { GovernanceView } from "../features/governance/GovernanceViews";
 import { GuardrailView } from "../features/guardrails/GuardrailViews";
 import { RedTeamView } from "../features/redteam/RedTeamViews";
 import { ConnectorView } from "../features/connectors/ConnectorViews";
+import { SensorView } from "../features/sensors/SensorView";
 import { ToolView } from "../features/tools/ToolViews";
 import { IdentityAccessView } from "../features/identity/IdentityAccessView";
 import { IdentityAPIProvider } from "../features/identity/IdentityAPIProvider";
@@ -25,6 +26,7 @@ function RouteSurface({ route, onNavigate, onToast }: { route: AppRoute; onNavig
   if (route.path.startsWith("/guardrails/")) return <GuardrailView route={route} onNavigate={onNavigate} onToast={onToast} />;
   if (route.path.startsWith("/red-team/")) return <RedTeamView route={route} onNavigate={onNavigate} onToast={onToast} />;
   if (route.path === "/connectors") return <ConnectorView onToast={onToast} />;
+  if (route.path === "/integrations/sensors") return <SensorView onToast={onToast} />;
   if (["/prompt-hardening", "/reports"].includes(route.path)) return <ToolView route={route} onToast={onToast} />;
   if (route.path === "/administration/identity-access") return <IdentityAPIProvider><IdentityAccessView /><ScopeOnboardingView /></IdentityAPIProvider>;
   if (route.path === "/administration/api-access") return <APIAccessView />;

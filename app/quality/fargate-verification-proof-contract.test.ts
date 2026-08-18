@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { expectValidTrackerSnapshot } from "./tracker-contract";
 
 const repositoryRoot = resolve(import.meta.dirname, "../..");
 
@@ -18,6 +19,7 @@ function taskRows(tracker: string, heading: "In progress" | "Complete" | "Blocke
 }
 
 function assertM018Blocked(tracker: string, readme: string, riskRegister: string) {
+  expectValidTrackerSnapshot(tracker);
   const section = readme.match(/## EKS Fargate verification proof[\s\S]*?## OPA SDK proof/)?.[0];
   const activeRows = taskRows(tracker, "In progress");
   const completeRows = taskRows(tracker, "Complete");
@@ -32,13 +34,13 @@ function assertM018Blocked(tracker: string, readme: string, riskRegister: string
   expect(section).toContain("R-11 remains Not run");
 
   expect(section).toContain("0/11 required inputs");
-  expect(tracker).toContain("| Pending | 495 |");
-  expect(tracker).toContain("| In progress | 46 |");
-  expect(tracker).toContain("| Complete | 184 |");
-  expect(tracker).toContain("| Blocked | 3 |");
+  expect(tracker).toMatch(/^\| Pending \| \d+ \|/m);
+  expect(tracker).toMatch(/^\| In progress \| \d+ \|/m);
+  expect(tracker).toMatch(/^\| Complete \| \d+ \|/m);
+  expect(tracker).toMatch(/^\| Blocked \| \d+ \|/m);
   expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 0 \| 24 \| 3 \|/);
-  expect(tracker).toContain("`495/46/184/3`");
-  expect(activeRows).toHaveLength(46);
+  expect(tracker).toMatch(/`\d+\/\d+\/\d+\/\d+`/);
+  expect(activeRows).not.toHaveLength(0);
   expect(blockedRows.filter(([task]) => task === "M0-18")).toHaveLength(1);
   expect(blockedRows.find(([task]) => task === "M0-18")?.[1]).toBe("August 15, 2026");
   expect(blockedRows.find(([task]) => task === "M0-18")?.[2]).toContain("0/11");
@@ -162,7 +164,7 @@ describe("EKS Fargate verification proof repository contract", () => {
       ),
     ).toThrow();
     expect(() =>
-      assertM018Blocked(tracker.replace("| Pending | 495 |", "| Pending | 686 |"), readme, riskRegister),
+      assertM018Blocked(tracker.replace(/^\| Pending \| \d+ \|/m, "| Pending | 686 |"), readme, riskRegister),
     ).toThrow();
   });
 });

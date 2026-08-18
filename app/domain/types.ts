@@ -210,6 +210,8 @@ export interface Connector {
   syncHistory?: Array<{ id: string; status: "succeeded" | "failed"; started: string; collected: number }>;
   supportedActions?: Array<"authorize" | "sync" | "delete">;
   lastError?: string;
+  setupSteps?: string[];
+  setupNote?: string;
 }
 
 export interface Report {

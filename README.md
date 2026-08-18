@@ -284,10 +284,18 @@ connection catalog/list/detail product surfaces. Durable AWS queue, object,
 index, and staging lifecycle evidence remains gated by M1A-10; the local worker
 tests do not substitute for that provider gate.
 
+M3-48d through M3-52 and M4-01a through M4-01 are batched as In progress.
+Provider-specific connection setup, sensor lifecycle surfaces, the composed
+connector/sensor/runtime fixture, and full-scope canonical reconciliation now
+run locally. The M3 gate remains intentionally non-PASS for release purposes:
+real SQS, S3, OpenSearch, connector, sensor, and staging evidence still depends
+on M1A-10. The M4 reconciliation batch likewise makes no Neon or staging claim.
+
 ```bash
 go test -C services/platform -race -count=1 ./integration
 go test -C services/platform -race -count=1 ./connectors ./sensor
 go test -C services/platform -race -count=1 ./runtimeevent
+go test -C services/platform -race -count=1 ./m3gate ./reconciliation
 terraform -chdir=deploy/staging init -backend=false
 terraform -chdir=deploy/staging validate
 ```

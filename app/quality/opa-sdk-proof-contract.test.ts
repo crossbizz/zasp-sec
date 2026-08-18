@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { expectValidTrackerSnapshot } from "./tracker-contract";
 
 const repositoryRoot = resolve(import.meta.dirname, "../..");
 
@@ -21,6 +22,7 @@ const completionEvidence =
   ".superpowers/sdd/2026-08-15-m0-17-opa-sdk-proof-implementation-plan/task-5-report.md; proof head bd72e785c543f381d2d8a9bdf9a4150275605e3d";
 
 function assertM017Complete(tracker: string, readme: string, riskRegister: string) {
+  expectValidTrackerSnapshot(tracker);
   const section = readme.match(/## OPA SDK proof[\s\S]*?## Promptfoo red-team proof/)?.[0];
   const activeRows = taskRows(tracker, "In progress");
   const completeRows = taskRows(tracker, "Complete");
@@ -34,13 +36,13 @@ function assertM017Complete(tracker: string, readme: string, riskRegister: strin
   expect(section).toContain("R-10 is PASS");
   expect(section).not.toMatch(/uses an OPA server|customer-facing Rego|external policy service/i);
 
-  expect(tracker).toContain("| Pending | 495 |");
-  expect(tracker).toContain("| In progress | 46 |");
-  expect(tracker).toContain("| Complete | 184 |");
-  expect(tracker).toContain("| Blocked | 3 |");
+  expect(tracker).toMatch(/^\| Pending \| \d+ \|/m);
+  expect(tracker).toMatch(/^\| In progress \| \d+ \|/m);
+  expect(tracker).toMatch(/^\| Complete \| \d+ \|/m);
+  expect(tracker).toMatch(/^\| Blocked \| \d+ \|/m);
   expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 0 \| 24 \| 3 \|/);
-  expect(tracker).toContain("`495/46/184/3`");
-  expect(activeRows).toHaveLength(46);
+  expect(tracker).toMatch(/`\d+\/\d+\/\d+\/\d+`/);
+  expect(activeRows).not.toHaveLength(0);
   expect(completeRows.filter(([task]) => task === "M0-17")).toHaveLength(1);
   expect(completeRows.find(([task]) => task === "M0-17")?.[1]).toBe("August 15, 2026");
   expect(completeRows.find(([task]) => task === "M0-17")?.[2]).toContain("OPA Go SDK");

@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 495 |
-| In progress | 46 |
+| Pending | 473 |
+| In progress | 68 |
 | Complete | 184 |
 | Blocked | 3 |
 
@@ -27,8 +27,8 @@ In progress, Complete, or Blocked is Pending.
 | M1 | 68 | 0 | 0 | 68 | 0 |
 | M1A | 10 | 4 | 0 | 6 | 0 |
 | M2 | 72 | 0 | 0 | 72 | 0 |
-| M3 | 75 | 15 | 46 | 14 | 0 |
-| M4 | 82 | 82 | 0 | 0 | 0 |
+| M3 | 75 | 0 | 61 | 14 | 0 |
+| M4 | 82 | 75 | 7 | 0 | 0 |
 | M5 | 42 | 42 | 0 | 0 | 0 |
 | M6 | 36 | 36 | 0 | 0 | 0 |
 | M7 | 62 | 62 | 0 | 0 | 0 |
@@ -70,13 +70,35 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `495/46/184/3` because
+session configuration. The 728 source-plan counts are `473/68/184/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M4-01 | August 18, 2026 | The bounded local asset/agent/tool/identity/runtime/relationship reconciliation gate is implemented; Neon/provider verification remains gated by M1A-10 and M3-52. |
+| M4-01f | August 18, 2026 | Scoped canonical relationship projection is deterministic and replay-safe in the local product boundary. |
+| M4-01e | August 18, 2026 | Runtime/workload/sandbox/isolation reconciliation preserves stable scoped identity locally. |
+| M4-01d | August 18, 2026 | Identity reconciliation retains only credential references and fingerprints locally. |
+| M4-01c | August 18, 2026 | Tool reconciliation prevents duplicate scoped source tools locally. |
+| M4-01b | August 18, 2026 | Agent reconciliation preserves product identity while updating source metadata locally. |
+| M4-01a | August 18, 2026 | Canonical asset reconciliation preserves stable full-scope IDs and evidence locally. |
+| M3-52 | August 18, 2026 | A strict five-check local M3 gate is implemented; real staging remains unavailable and the task is not Complete. |
+| M3-52e | August 18, 2026 | The composed failure fixture retains last-known inventory with an exact stale state. |
+| M3-52d | August 18, 2026 | The local queue/archive/index replay fixture proves linked deterministic references and an empty synthetic DLQ. |
+| M3-52c | August 18, 2026 | One semantic OTLP event and three runtime events traverse the bounded local ingest fixture. |
+| M3-52b | August 18, 2026 | The scoped enrollment/heartbeat fixture produces supported sensor coverage locally. |
+| M3-52a | August 18, 2026 | AWS, Kubernetes, GitHub, and directory fixtures compose into canonical scoped assets locally. |
+| M3-51 | August 18, 2026 | Sensor enrollment, one-time rotation, and confirmed deletion controls are exposed locally. |
+| M3-50 | August 18, 2026 | The Sensors route renders list, detail, enrollment, coverage, and freshness surfaces from generated schema types. |
+| M3-49 | August 18, 2026 | Connection authorize, sync, and delete controls remain capability-gated and product-branded locally. |
+| M3-48 | August 18, 2026 | Catalog, connected list, detail, and provider setup navigation are composed in the Connections route. |
+| M3-48h | August 18, 2026 | The Generic Webhook UI exposes one fixed destination and signature-status flow without per-action URLs. |
+| M3-48g | August 18, 2026 | The directory-security setup flow is visibly separate from product sign-in and Stytch SSO. |
+| M3-48f | August 18, 2026 | GitHub access review displays returned Repository/Organization scope before initial sync. |
+| M3-48e | August 18, 2026 | Kubernetes setup exposes coverage, scoped enrollment, Helm, heartbeat, and degraded-state steps locally. |
+| M3-48d | August 18, 2026 | AWS setup exposes access review, role/external-ID, test, initial-sync, coverage, and permission remediation locally. |
 | M3-48c3 | August 18, 2026 | Capability-gated integration detail actions are implemented locally; generated-client wiring remains in progress. |
 | M3-48c2 | August 18, 2026 | Bounded integration data capabilities and sync-history detail are implemented locally. |
 | M3-48c1 | August 18, 2026 | Integration detail health, scope, freshness, and last-sync summary are implemented locally. |

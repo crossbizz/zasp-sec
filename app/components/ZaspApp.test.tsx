@@ -60,7 +60,45 @@ describe("Zasp application", () => {
     expect(dialog).toHaveTextContent("failed");
     expect(screen.getByRole("button", { name: "Sync now" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Delete connection" })).toBeVisible();
-    expect(screen.queryByRole("button", { name: "Review access" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Review access" })).toBeVisible();
+  });
+
+  it("renders provider-specific connection setup and remediation flows", async () => {
+    render(<ZaspApp />);
+    await userEvent.click(screen.getByRole("link", { name: "Connections" }));
+    await userEvent.click(screen.getByRole("button", { name: "Connect Amazon Web Services" }));
+    const aws = screen.getByRole("dialog", { name: "Connect Amazon Web Services" });
+    for (const label of ["Review access", "Role and external ID", "Test connection", "Initial sync", "Coverage"]) expect(aws).toHaveTextContent(label);
+    expect(aws).toHaveTextContent("Missing iam:GetRole permission");
+    await userEvent.click(screen.getByRole("button", { name: "Close" }));
+
+    await userEvent.click(screen.getByRole("button", { name: "View GitHub connection" }));
+    await userEvent.click(screen.getByRole("button", { name: "Review access" }));
+    expect(screen.getByRole("dialog", { name: "Review GitHub access" })).toHaveTextContent("Repository and Organization scope");
+    expect(screen.getByRole("dialog", { name: "Review GitHub access" })).toHaveTextContent("Scope validation");
+  });
+
+  it("keeps directory security and signed webhooks separate and bounded", async () => {
+    render(<ZaspApp />);
+    await userEvent.click(screen.getByRole("link", { name: "Connections" }));
+    await userEvent.click(screen.getByRole("button", { name: "Connect Workforce Directory" }));
+    expect(screen.getByRole("dialog", { name: "Connect Workforce Directory" })).toHaveTextContent("Directory security integration");
+    expect(screen.getByRole("dialog", { name: "Connect Workforce Directory" })).toHaveTextContent("separate from product sign-in");
+    await userEvent.click(screen.getByRole("button", { name: "Close" }));
+    await userEvent.click(screen.getByRole("button", { name: "Connect Generic Webhook" }));
+    expect(screen.getByRole("dialog", { name: "Connect Generic Webhook" })).toHaveTextContent("Signature status");
+    expect(screen.queryByLabelText(/action url/i)).not.toBeInTheDocument();
+  });
+
+  it("renders sensor list, coverage, enrollment, rotation, and deletion controls", async () => {
+    render(<ZaspApp />);
+    await userEvent.click(screen.getByRole("link", { name: "Sensors" }));
+    expect(screen.getByRole("heading", { name: "Runtime sensors" })).toBeVisible();
+    expect(screen.getByText("Unsupported kernel")).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "View production-us-west sensor" }));
+    expect(screen.getByRole("dialog", { name: "production-us-west" })).toHaveTextContent("Coverage");
+    expect(screen.getByRole("button", { name: "Rotate enrollment token" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Delete sensor" })).toBeVisible();
   });
 
   it.each([
