@@ -40,7 +40,7 @@
 - Consumes: the M1-34 source row, this design, M1-33 Complete state, and exact blocker set.
 - Produces: exact M1-34 In-progress status at overall `653/1/71/3` and M1 `68/20/1/47/0`.
 
-- [ ] **Step 1: Write the failing source, design, and status contract**
+- [x] **Step 1: Write the failing source, design, and status contract**
 
 Parse the exact M1-34 source section and require its dependency, deliverable,
 verification, and timebox literals. Bind the selected package, exact three
@@ -52,7 +52,7 @@ Require M1-34 as the sole active row, M1-33 exactly once in Complete, M1-35
 absent from active and complete rows, and blockers exactly M0-09, M0-18, and
 M0-19.
 
-- [ ] **Step 2: Witness focused status RED**
+- [x] **Step 2: Witness focused status RED**
 
 Run:
 
@@ -65,7 +65,7 @@ npm exec vitest run \
 Expected: the new contract fails only because M1-34 is absent, counts remain
 `654/0/71/3`, and README does not name active M1-34. M1-33 stays green.
 
-- [ ] **Step 3: Move only M1-34 to In progress**
+- [x] **Step 3: Move only M1-34 to In progress**
 
 Change overall `654/0/71/3` to `653/1/71/3` and M1 `68/21/0/47/0` to
 `68/20/1/47/0`. Add exactly one current row:
@@ -77,13 +77,13 @@ Change overall `654/0/71/3` to `653/1/71/3` and M1 `68/21/0/47/0` to
 Update only current count/status fixtures mechanically. Preserve historical
 mutation fixtures, M1-33 Complete, M1-35 Pending, and every blocker.
 
-- [ ] **Step 4: Run focused and full quality GREEN**
+- [x] **Step 4: Run focused and full quality GREEN**
 
 Require exact 728-task arithmetic, active rows `['M1-34']`, 71 complete rows,
 one completed M1-33, no active/complete M1-35, and exact blockers. Run the
 focused pair and full pinned `npm test`.
 
-- [ ] **Step 5: Scan and commit the start transition**
+- [x] **Step 5: Scan and commit the start transition**
 
 Run staged whitespace and pinned redacted Gitleaks checks. Commit only the
 status/README/quality slice as:
@@ -104,7 +104,7 @@ docs: start M1-34 S3 bucket layout
 - Consumes: `domain.Scope`, `domain.ProductID`, and explicit deployment configuration.
 - Produces: validated immutable `Layout`, exact prefixes/keys, copied configuration, and fixed `Encryption`.
 
-- [ ] **Step 1: Write compiler-failing public contract tests**
+- [x] **Step 1: Write compiler-failing public contract tests**
 
 Create `layout_test.go` first. Require `New`, `Validate`, `Configuration`,
 `Encryption`, `WorkspacePrefix`, `Prefix`, and `Key`. Pin one exact valid
@@ -116,7 +116,7 @@ key does not. Split each output independently and require exact segment count,
 canonical IDs, requested class, no empty segment, no period-only segment, and
 length at most 1,024 bytes.
 
-- [ ] **Step 2: Witness absent-package RED**
+- [x] **Step 2: Witness absent-package RED**
 
 Run:
 
@@ -127,7 +127,7 @@ go test -C services/platform ./bucketlayout -count=1
 Expected: FAIL because the requested package/API is absent. Record the exact
 compiler or package-not-found failure before creating `layout.go`.
 
-- [ ] **Step 3: Add configuration and KMS hostile tests**
+- [x] **Step 3: Add configuration and KMS hostile tests**
 
 Reject empty, short, long, uppercase, non-hex, customer/prose-bearing, extra-
 suffix, whitespace, Unicode, dotted, underscored, ARN-shaped, and IP-shaped
@@ -138,7 +138,7 @@ UUIDs, trailing data, and every account/Region mismatch.
 Require only the exact fixed encryption value: `aws:kms`, the validated ARN,
 and `BucketKeyEnabled=true`. Prove copied return state cannot mutate the layout.
 
-- [ ] **Step 4: Add key-escape and forged-state tests**
+- [x] **Step 4: Add key-escape and forged-state tests**
 
 Reject zero/forged layout, scope, class, and object reference; object/scope ID
 collisions; every alternate class spelling; and internal hostile construction
@@ -149,7 +149,7 @@ Because the public API accepts no raw key text, also mutate every private field
 independently inside the package test and require exact `ErrLayout`. Error text
 must never contain the rejected value.
 
-- [ ] **Step 5: Implement the minimal immutable value**
+- [x] **Step 5: Implement the minimal immutable value**
 
 Use fixed ASCII construction, strict regular expressions created at package
 initialization, private validated state, direct concatenation, and one final
@@ -161,13 +161,13 @@ return zero values. Build results only after validating the layout, scope,
 class, reference, ID distinctness, exact prefix, segment grammar, and byte
 limit.
 
-- [ ] **Step 6: Run focused stability and full platform gates**
+- [x] **Step 6: Run focused stability and full platform gates**
 
 Run the focused package under race six times. Then run full platform race,
 tidy-diff, module verification, vet, package coverage, and concurrent calls.
 Require no dependency-file change.
 
-- [ ] **Step 7: Review and commit the package slice**
+- [x] **Step 7: Review and commit the package slice**
 
 Review every validation branch, returned byte, error path, copy boundary, and
 test mutation. Add tests-first fixes, scan, and commit only the package and
@@ -190,7 +190,7 @@ feat: define scoped S3 bucket layout
 - Consumes: the reviewed `bucketlayout` package.
 - Produces: one exact hermetic root command and bounded documentation.
 
-- [ ] **Step 1: Write root/documentation RED**
+- [x] **Step 1: Write root/documentation RED**
 
 Require exactly one `s3:bucket-layout:test` command:
 
@@ -202,13 +202,13 @@ Require no `s3:bucket-layout:run` or provider command. Require README to state
 the exact key grammar, three classes, bucket name, fixed SSE-KMS result,
 provider/IAM/retention deferrals, M1-33 Complete, and M1-35 Pending.
 
-- [ ] **Step 2: Add wiring and run hermetic GREEN**
+- [x] **Step 2: Add wiring and run hermetic GREEN**
 
 Add only the exact package script and README section. Run focused Vitest, the
 root command, full pinned repository verification, production audit,
 dependency validation, and whitespace checks.
 
-- [ ] **Step 3: Review and commit wiring/docs**
+- [x] **Step 3: Review and commit wiring/docs**
 
 Review for unsupported provider, isolation, encryption, and privacy claims.
 Scan staged content and commit only the exact wiring/docs/test delta as:
@@ -232,13 +232,13 @@ docs: expose S3 bucket layout contract
 - Consumes: the complete M1-34 range and all retained evidence.
 - Produces: zero-finding review, exact Complete transition, exact-SHA CI evidence, and a closed plan.
 
-- [ ] **Step 1: Obtain zero-finding whole-range review**
+- [x] **Step 1: Obtain zero-finding whole-range review**
 
 Review from the exact pre-M1-34 base through implementation head. Resolve every
 Critical, Important, and Minor finding tests-first in separate commits. Do not
 advance status while any finding remains.
 
-- [ ] **Step 2: Run the final matrix**
+- [x] **Step 2: Run the final matrix**
 
 Run six fresh focused race passes, full platform race/tidy-diff/module-verify/
 vet, package coverage, root layout command, full pinned repository verification,
@@ -246,14 +246,14 @@ production audit, dependency validation, diff checks, exact range/per-commit/
 history secret scans, and ignored-evidence scan. No provider/live command is
 part of M1-34.
 
-- [ ] **Step 3: Write completion-contract RED**
+- [x] **Step 3: Write completion-contract RED**
 
 Change only the M1-34 status test to expect overall `653/0/72/3`, M1
 `68/20/0/48/0`, no active row, exactly one completed M1-33 and M1-34, M1-35
 absent from active/complete, and exact blockers. Witness failure while the
 tracker remains In progress.
 
-- [ ] **Step 4: Transition only M1-34 to Complete**
+- [x] **Step 4: Transition only M1-34 to Complete**
 
 Update README, tracker, and all current status/count fixtures mechanically.
 Run focused GREEN and full pinned verification. Commit only the completion
@@ -263,13 +263,13 @@ transition as:
 docs: complete M1-34 S3 bucket layout
 ```
 
-- [ ] **Step 5: Push completion and verify exact-SHA CI**
+- [x] **Step 5: Push completion and verify exact-SHA CI**
 
 Push only after local green and scans. Require local, origin, and tracking SHAs
 to match; locate Runnable UI for the exact completion SHA; and wait for terminal
 success. Failure or SHA mismatch blocks closure.
 
-- [ ] **Step 6: Close, push, and verify the plan**
+- [x] **Step 6: Close, push, and verify the plan**
 
 Only after completion CI success, change every plan checkbox to `[x]` in a
 separate `docs: close M1-34 S3 bucket layout plan` commit. Push it, require
