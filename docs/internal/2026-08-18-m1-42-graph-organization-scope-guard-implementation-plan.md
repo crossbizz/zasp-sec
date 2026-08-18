@@ -27,49 +27,49 @@ two-Organization driver. Preserve the M1-16 Neo4j adapter and provider proof.
 
 ## Task 1: Start M1-42 with an exact repository contract
 
-- [ ] Add a focused contract binding the source task, design, plan, exact
+- [x] Add a focused contract binding the source task, design, plan, exact
   status arithmetic, M1-41 Complete, and M1-43 absent.
-- [ ] Run it before status edits and retain the intended Pending-state RED.
-- [ ] Move only M1-42 to In progress at the exact start counts; update README
+- [x] Run it before status edits and retain the intended Pending-state RED.
+- [x] Move only M1-42 to In progress at the exact start counts; update README
   and affected current-count contracts.
-- [ ] Run focused/full pinned gates, scan the exact change, update ignored
+- [x] Run focused/full pinned gates, scan the exact change, update ignored
   evidence, and commit the start transition atomically.
 
 ## Task 2: Specify cross-Organization graph behavior first
 
-- [ ] Add exact direct tests for scoped write-projection and bounded-query
+- [x] Add exact direct tests for scoped write-projection and bounded-query
   construction, including zero and foreign Organization denial before I/O.
-- [ ] Add one stateful driver containing otherwise identical A and B fixture
+- [x] Add one stateful driver containing otherwise identical A and B fixture
   paths and prove an A query returns only the A path.
-- [ ] Add hostile B-node, B-edge, cross-scope endpoint, direction, depth,
+- [x] Add hostile B-node, B-edge, cross-scope endpoint, direction, depth,
   duplicate, bound, and malformed-result cases with no returned projection.
-- [ ] Add alternating concurrent A/B writes and reads with independent state.
-- [ ] Run the focused package and retain a genuine RED at the absent explicit
+- [x] Add alternating concurrent A/B writes and reads with independent state.
+- [x] Run the focused package and retain a genuine RED at the absent explicit
   builder or binding behavior before production implementation.
 
 ## Task 3: Implement and review the product guard
 
-- [ ] Route writes through `buildDriverProjection` and reads through
+- [x] Route writes through `buildDriverProjection` and reads through
   `buildDriverQuery`, with complete validation before driver I/O.
-- [ ] Preserve exact result-scope, endpoint, topology, bound, ordering, panic,
+- [x] Preserve exact result-scope, endpoint, topology, bound, ordering, panic,
   deadline, defensive-copy, and fixed-error enforcement.
-- [ ] Run the binding mutation and prove removing Organization filtering or
+- [x] Run the binding mutation and prove removing Organization filtering or
   result validation makes the A/B fixture fail before restoring GREEN.
-- [ ] Run six focused race passes, package coverage, and full platform
+- [x] Run six focused race passes, package coverage, and full platform
   race/tidy-diff/module-verification/vet.
-- [ ] Run inherited M1-16 graph/Neo4j hermetic gates without invoking the live
+- [x] Run inherited M1-16 graph/Neo4j hermetic gates without invoking the live
   command, then pinned repository verify, audit, and whitespace checks.
-- [ ] Scan and review the exact implementation for scope omission, tenant
+- [x] Scan and review the exact implementation for scope omission, tenant
   retention, provider-result trust, path traversal, and concurrency; resolve
   every Critical, Important, and Minor finding tests-first.
 
 ## Task 4: Complete, ship, and close M1-42
 
-- [ ] Change the focused contract first and retain the intended completion RED.
-- [ ] Move only M1-42 to Complete at the exact completion counts; keep M1-43
+- [x] Change the focused contract first and retain the intended completion RED.
+- [x] Move only M1-42 to Complete at the exact completion counts; keep M1-43
   Pending and all three blockers unchanged.
-- [ ] Re-run every final gate/scan, commit, push, and require exact-SHA
+- [x] Re-run every final gate/scan, commit, push, and require exact-SHA
   Runnable UI success before claiming completion.
-- [ ] Check these 19 execution steps, commit plan closure, push, require a
+- [x] Check these 19 execution steps, commit plan closure, push, require a
   second exact-SHA Runnable UI success, reconcile refs/evidence, and proceed
   directly to M1-43.
