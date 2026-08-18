@@ -59,11 +59,11 @@ describe("M1-27 raw fetch lint", () => {
     expect(readme).toContain("M1-28b is Complete");
     expect(readme).toContain("M1-28c is Complete");
     expect(tracker).toContain("| Pending | 644 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 80 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 81 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`644/1/80/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "11", "1", "56", "0"]);
+    expect(tracker).toContain("`644/0/81/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "11", "0", "57", "0"]);
     expect(active.filter(([task]) => task === "M1-27")).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-27")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-26")).toHaveLength(1);

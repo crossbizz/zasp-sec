@@ -133,14 +133,14 @@ M1-38 is Complete. The repository query boundary requires one canonical
 product Organization ID before SQL execution and prepends its trusted string as
 argument `$1`; missing or invalid scope cannot reach the executor. It does not
 parse SQL or store tenant state. M1-45a still owns transaction-local tenant
-context and later RLS tasks own database enforcement. M1-39 is In progress.
+context and later RLS tasks own database enforcement. M1-39 is Complete.
 
 ## OpenSearch Organization scope guard
 
-M1-39 is In progress. The existing EventStore index-document and search-query
-builders are being made explicitly scope-mandatory, with the canonical
-Organization ID fixed before driver I/O. The same-session fixture must prove an
-Organization A query cannot return an Organization B document. M1-14 remains
+M1-39 is Complete. The EventStore index-document and search-query builders now
+require explicit canonical Organization scope before driver I/O. The
+same-session fixture proves an Organization A query cannot return an
+Organization B document. M1-14 remains
 the disposable OpenSearch provider-compatibility authority; its provider
 lifecycle stays unchanged, and this task makes no AWS release-parity claim.
 M1-40 remains Pending.

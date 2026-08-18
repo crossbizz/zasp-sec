@@ -51,12 +51,12 @@ describe("M1-20 AI gateway contract", () => {
 
     expect(readme).toMatch(/M1-20\s+is\s+Complete/);
     expect(tracker).toContain("| Pending | 644 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 80 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 81 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`644/1/80/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "11", "1", "56", "0"]);
-    expect(active.map(([task]) => task)).toEqual(["M1-39"]);
+    expect(tracker).toContain("`644/0/81/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "11", "0", "57", "0"]);
+    expect(active.map(([task]) => task)).toEqual([]);
     expect(complete.filter(([task]) => task === "M1-19")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-20")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-21")).toHaveLength(1);

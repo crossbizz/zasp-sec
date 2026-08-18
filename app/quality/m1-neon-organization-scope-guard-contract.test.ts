@@ -59,16 +59,16 @@ describe("M1-38 Neon Organization scope guard contract", () => {
     expect(readme).toContain("M1-37 is Complete");
     expect(readme).toContain("M1-38 is Complete");
     expect(tracker).toContain("| Pending | 644 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 80 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 81 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`644/1/80/3`");
-    expect(m1).toEqual(["M1", "68", "11", "1", "56", "0"]);
+    expect(tracker).toContain("`644/0/81/3`");
+    expect(m1).toEqual(["M1", "68", "11", "0", "57", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active).toHaveLength(1);
+    expect(active).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-37")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-38")).toHaveLength(1);
-    expect(active.filter(([task]) => task === "M1-39")).toHaveLength(1);
+    expect(complete.filter(([task]) => task === "M1-39")).toHaveLength(1);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
     expect(tracker).toContain("R-03 remains incomplete");
     expect(tracker).toContain("R-11 remains Not run");
@@ -85,7 +85,7 @@ describe("M1-38 Neon Organization scope guard contract", () => {
       "before SQL execution",
       "argument `$1`",
       "M1-45a",
-      "M1-39 is In progress",
+      "M1-39 is Complete",
     ]) expect(prose).toContain(value);
     expect(section).not.toMatch(/parses SQL|row-level security is complete|reads credentials|provider call/i);
   });
