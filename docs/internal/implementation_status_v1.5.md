@@ -14,9 +14,9 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 619 |
+| Pending | 596 |
 | In progress | 0 |
-| Complete | 106 |
+| Complete | 129 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -26,7 +26,7 @@ In progress, Complete, or Blocked is Pending.
 | M0 | 27 | 0 | 0 | 24 | 3 |
 | M1 | 68 | 0 | 0 | 68 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
-| M2 | 72 | 58 | 0 | 14 | 0 |
+| M2 | 72 | 35 | 0 | 37 | 0 |
 | M3 | 75 | 75 | 0 | 0 | 0 |
 | M4 | 82 | 82 | 0 | 0 | 0 |
 | M5 | 42 | 42 | 0 | 0 | 0 |
@@ -70,7 +70,7 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `619/0/106/3` because
+session configuration. The 728 source-plan counts are `596/0/129/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
@@ -82,6 +82,29 @@ PROV-01 is excluded from those counts.
 
 | Task | Completed | Evidence |
 | --- | --- | --- |
+| M2-30 | August 18, 2026 | Added replay-safe SCIM member deprovision reconciliation that disables the product principal, removes every scoped Workspace grant, records one bounded audit summary, and retries safely after failure. |
+| M2-29 | August 18, 2026 | Added a bounded Svix-compatible Stytch webhook signature, timestamp, project, event-identity, duplicate-key, and replay verifier plus the exact internal HTTP endpoint. |
+| M2-28 | August 18, 2026 | Added the fresh-authenticated SCIM connection delete operation with exact provider acknowledgement and audit correlation. |
+| M2-27 | August 18, 2026 | Added the fresh-authenticated SCIM connection create operation with a one-time bearer credential response that is excluded from list models. |
+| M2-26 | August 18, 2026 | Added the paginated Organization-scoped SCIM connection list operation without retained bearer credentials. |
+| M2-25 | August 18, 2026 | Added the product-owned SCIM connection service with strict provider config, response, HTTPS endpoint, credential, panic, and error boundaries. |
+| M2-24 | August 18, 2026 | Added the fresh-authenticated SSO connection test operation with one fixed product result and audit correlation. |
+| M2-23 | August 18, 2026 | Added the fresh-authenticated SSO connection delete operation with exact provider acknowledgement and audit correlation. |
+| M2-22 | August 18, 2026 | Added the fresh-authenticated SSO connection create operation with strict SAML/OIDC and identity-provider configuration. |
+| M2-21 | August 18, 2026 | Added the paginated Organization-scoped SSO connection list operation. |
+| M2-20 | August 18, 2026 | Added the product-owned SSO service over the Stytch adapter with strict create, list, delete, test, panic, and provider-error semantics. |
+| M2-19 | August 18, 2026 | Added the paginated built-in role and permission-list operation. |
+| M2-18 | August 18, 2026 | Added the paginated Organization member-list operation with administrative permission enforcement. |
+| M2-17 | August 18, 2026 | Added the authenticated current-principal operation over the product store. |
+| M2-16 | August 18, 2026 | Added the scoped Environment update operation with strict JSON, authorization, and audit correlation. |
+| M2-15 | August 18, 2026 | Added the scoped Environment lookup operation. |
+| M2-14 | August 18, 2026 | Added the scoped Environment create operation with strict parent Workspace validation and audit correlation. |
+| M2-13 | August 18, 2026 | Added the cursor-paginated authorized Environment-list operation. |
+| M2-12 | August 18, 2026 | Added the scoped Workspace update operation with strict JSON, authorization, and audit correlation. |
+| M2-11 | August 18, 2026 | Added the scoped Workspace lookup operation. |
+| M2-10 | August 18, 2026 | Added the Organization Workspace create operation with strict JSON, permission enforcement, and audit correlation. |
+| M2-09 | August 18, 2026 | Added the cursor-paginated authorized Workspace-list operation. |
+| M2-08 | August 18, 2026 | Added the authenticated Organization lookup operation and the shared stable product-error boundary. |
 | M2-07d | August 18, 2026 | Proved the product provision, invitation, first sign-in, Organization Admin reconciliation, and default-scope bootstrap path end to end with no bypass login or stored authentication secret. |
 | M2-07c | August 18, 2026 | Added idempotent first-sign-in creation of one default Workspace and exact production, staging, and development Environments. |
 | M2-07b | August 18, 2026 | Added the product-owned first-Admin invitation boundary using the Stytch-backed member and Organization references without persisting a raw authentication secret. |

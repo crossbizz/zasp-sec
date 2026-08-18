@@ -52,6 +52,7 @@ type MemoryStore struct {
 	principals    map[string]Principal
 	grants        map[domain.ProductID]WorkspaceGrant
 	workspaces    map[domain.ProductID]Workspace
+	defaultScopes map[domain.ProductID]domain.ProductID
 	environments  map[domain.ProductID][]Environment
 	invitations   map[string]ExternalInvitation
 }
@@ -63,7 +64,8 @@ func NewMemoryStore(generate IDGenerator) (*MemoryStore, error) {
 	return &MemoryStore{
 		generate: generate, organizations: map[string]Organization{}, principals: map[string]Principal{},
 		grants: map[domain.ProductID]WorkspaceGrant{}, workspaces: map[domain.ProductID]Workspace{},
-		environments: map[domain.ProductID][]Environment{}, invitations: map[string]ExternalInvitation{},
+		defaultScopes: map[domain.ProductID]domain.ProductID{},
+		environments:  map[domain.ProductID][]Environment{}, invitations: map[string]ExternalInvitation{},
 	}, nil
 }
 
@@ -105,6 +107,10 @@ func (store *MemoryStore) ReconcilePrincipal(ctx context.Context, organizationID
 	if existing, ok := store.principals[key]; ok {
 		if existing.organizationID != organizationID || existing.role != role {
 			return Principal{}, ErrConflict
+		}
+		if !existing.active {
+			existing.active = true
+			store.principals[key] = existing
 		}
 		return existing, nil
 	}
@@ -151,7 +157,11 @@ func (store *MemoryStore) EnsureDefaultScopes(ctx context.Context, organizationI
 	}
 	store.mu.Lock()
 	defer store.mu.Unlock()
-	if workspace, ok := store.workspaces[organizationID]; ok {
+	if !store.organizationExistsLocked(organizationID) {
+		return Workspace{}, nil, ErrNotFound
+	}
+	if workspaceID, ok := store.defaultScopes[organizationID]; ok {
+		workspace := store.workspaces[workspaceID]
 		return workspace, append([]Environment(nil), store.environments[workspace.id]...), nil
 	}
 	workspaceID, err := store.nextID()
@@ -167,9 +177,247 @@ func (store *MemoryStore) EnsureDefaultScopes(ctx context.Context, organizationI
 		}
 		environments = append(environments, Environment{id: id, organizationID: organizationID, workspaceID: workspaceID, name: name})
 	}
-	store.workspaces[organizationID] = workspace
+	store.workspaces[workspaceID] = workspace
+	store.defaultScopes[organizationID] = workspaceID
 	store.environments[workspaceID] = environments
 	return workspace, append([]Environment(nil), environments...), nil
+}
+
+func (store *MemoryStore) GetOrganization(ctx context.Context, authenticatedOrganization domain.ProductID) (Organization, error) {
+	if store == nil || !validContext(ctx) || !validProductID(authenticatedOrganization) {
+		return Organization{}, ErrInvalidRecord
+	}
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+	for _, organization := range store.organizations {
+		if organization.id == authenticatedOrganization {
+			return organization, nil
+		}
+	}
+	return Organization{}, ErrNotFound
+}
+
+func (store *MemoryStore) ListWorkspaces(ctx context.Context, authenticatedOrganization domain.ProductID) ([]Workspace, error) {
+	if store == nil || !validContext(ctx) || !validProductID(authenticatedOrganization) {
+		return nil, ErrInvalidRecord
+	}
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+	result := make([]Workspace, 0)
+	for _, workspace := range store.workspaces {
+		if workspace.organizationID == authenticatedOrganization {
+			result = append(result, workspace)
+		}
+	}
+	sort.Slice(result, func(first, second int) bool { return result[first].id.String() < result[second].id.String() })
+	return result, nil
+}
+
+func (store *MemoryStore) CreateWorkspace(ctx context.Context, authenticatedOrganization domain.ProductID, name string) (Workspace, error) {
+	if store == nil || !validContext(ctx) || !validProductID(authenticatedOrganization) || !validName(name) {
+		return Workspace{}, ErrInvalidRecord
+	}
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	if !store.organizationExistsLocked(authenticatedOrganization) {
+		return Workspace{}, ErrNotFound
+	}
+	for _, workspace := range store.workspaces {
+		if workspace.organizationID == authenticatedOrganization && workspace.name == name {
+			return Workspace{}, ErrConflict
+		}
+	}
+	id, err := store.nextID()
+	if err != nil {
+		return Workspace{}, err
+	}
+	workspace := Workspace{id: id, organizationID: authenticatedOrganization, name: name}
+	if !workspace.valid() {
+		return Workspace{}, ErrInvalidRecord
+	}
+	store.workspaces[id] = workspace
+	return workspace, nil
+}
+
+func (store *MemoryStore) GetWorkspace(ctx context.Context, authenticatedOrganization, workspaceID domain.ProductID) (Workspace, error) {
+	if store == nil || !validContext(ctx) || !validProductID(authenticatedOrganization) || !validProductID(workspaceID) {
+		return Workspace{}, ErrInvalidRecord
+	}
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+	workspace, ok := store.workspaces[workspaceID]
+	if !ok {
+		return Workspace{}, ErrNotFound
+	}
+	if workspace.organizationID != authenticatedOrganization {
+		return Workspace{}, ErrForbidden
+	}
+	return workspace, nil
+}
+
+func (store *MemoryStore) UpdateWorkspace(ctx context.Context, authenticatedOrganization, workspaceID domain.ProductID, name string) (Workspace, error) {
+	if store == nil || !validContext(ctx) || !validProductID(authenticatedOrganization) || !validProductID(workspaceID) || !validName(name) {
+		return Workspace{}, ErrInvalidRecord
+	}
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	workspace, ok := store.workspaces[workspaceID]
+	if !ok {
+		return Workspace{}, ErrNotFound
+	}
+	if workspace.organizationID != authenticatedOrganization {
+		return Workspace{}, ErrForbidden
+	}
+	for id, candidate := range store.workspaces {
+		if id != workspaceID && candidate.organizationID == authenticatedOrganization && candidate.name == name {
+			return Workspace{}, ErrConflict
+		}
+	}
+	workspace.name = name
+	store.workspaces[workspaceID] = workspace
+	return workspace, nil
+}
+
+func (store *MemoryStore) ListEnvironments(ctx context.Context, authenticatedOrganization, workspaceID domain.ProductID) ([]Environment, error) {
+	if store == nil || !validContext(ctx) || !validProductID(authenticatedOrganization) || !validProductID(workspaceID) {
+		return nil, ErrInvalidRecord
+	}
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+	workspace, ok := store.workspaces[workspaceID]
+	if !ok {
+		return nil, ErrNotFound
+	}
+	if workspace.organizationID != authenticatedOrganization {
+		return nil, ErrForbidden
+	}
+	result := append([]Environment(nil), store.environments[workspaceID]...)
+	sort.Slice(result, func(first, second int) bool { return result[first].id.String() < result[second].id.String() })
+	return result, nil
+}
+
+func (store *MemoryStore) CreateEnvironment(ctx context.Context, authenticatedOrganization, workspaceID domain.ProductID, name string) (Environment, error) {
+	if store == nil || !validContext(ctx) || !validProductID(authenticatedOrganization) || !validProductID(workspaceID) || !validName(name) {
+		return Environment{}, ErrInvalidRecord
+	}
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	workspace, ok := store.workspaces[workspaceID]
+	if !ok {
+		return Environment{}, ErrNotFound
+	}
+	if workspace.organizationID != authenticatedOrganization {
+		return Environment{}, ErrForbidden
+	}
+	for _, environment := range store.environments[workspaceID] {
+		if environment.name == name {
+			return Environment{}, ErrConflict
+		}
+	}
+	id, err := store.nextID()
+	if err != nil {
+		return Environment{}, err
+	}
+	environment := Environment{id: id, organizationID: authenticatedOrganization, workspaceID: workspaceID, name: name}
+	if !environment.valid() {
+		return Environment{}, ErrInvalidRecord
+	}
+	store.environments[workspaceID] = append(store.environments[workspaceID], environment)
+	return environment, nil
+}
+
+func (store *MemoryStore) GetEnvironment(ctx context.Context, authenticatedOrganization, environmentID domain.ProductID) (Environment, error) {
+	if store == nil || !validContext(ctx) || !validProductID(authenticatedOrganization) || !validProductID(environmentID) {
+		return Environment{}, ErrInvalidRecord
+	}
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+	return store.environmentLocked(authenticatedOrganization, environmentID)
+}
+
+func (store *MemoryStore) UpdateEnvironment(ctx context.Context, authenticatedOrganization, environmentID domain.ProductID, name string) (Environment, error) {
+	if store == nil || !validContext(ctx) || !validProductID(authenticatedOrganization) || !validProductID(environmentID) || !validName(name) {
+		return Environment{}, ErrInvalidRecord
+	}
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	environment, err := store.environmentLocked(authenticatedOrganization, environmentID)
+	if err != nil {
+		return Environment{}, err
+	}
+	values := store.environments[environment.workspaceID]
+	for _, candidate := range values {
+		if candidate.id != environmentID && candidate.name == name {
+			return Environment{}, ErrConflict
+		}
+	}
+	for index := range values {
+		if values[index].id == environmentID {
+			values[index].name = name
+			environment = values[index]
+			break
+		}
+	}
+	store.environments[environment.workspaceID] = values
+	return environment, nil
+}
+
+func (store *MemoryStore) GetPrincipal(ctx context.Context, authenticatedOrganization, principalID domain.ProductID) (Principal, error) {
+	if store == nil || !validContext(ctx) || !validProductID(authenticatedOrganization) || !validProductID(principalID) {
+		return Principal{}, ErrInvalidRecord
+	}
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+	for _, principal := range store.principals {
+		if principal.id != principalID {
+			continue
+		}
+		if principal.organizationID != authenticatedOrganization {
+			return Principal{}, ErrForbidden
+		}
+		return principal, nil
+	}
+	return Principal{}, ErrNotFound
+}
+
+func (store *MemoryStore) ListPrincipals(ctx context.Context, authenticatedOrganization domain.ProductID) ([]Principal, error) {
+	if store == nil || !validContext(ctx) || !validProductID(authenticatedOrganization) {
+		return nil, ErrInvalidRecord
+	}
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+	result := make([]Principal, 0)
+	for _, principal := range store.principals {
+		if principal.organizationID == authenticatedOrganization {
+			result = append(result, principal)
+		}
+	}
+	sort.Slice(result, func(first, second int) bool { return result[first].id.String() < result[second].id.String() })
+	return result, nil
+}
+
+func (store *MemoryStore) organizationExistsLocked(id domain.ProductID) bool {
+	for _, organization := range store.organizations {
+		if organization.id == id {
+			return true
+		}
+	}
+	return false
+}
+
+func (store *MemoryStore) environmentLocked(organizationID, environmentID domain.ProductID) (Environment, error) {
+	for _, values := range store.environments {
+		for _, environment := range values {
+			if environment.id != environmentID {
+				continue
+			}
+			if environment.organizationID != organizationID {
+				return Environment{}, ErrForbidden
+			}
+			return environment, nil
+		}
+	}
+	return Environment{}, ErrNotFound
 }
 
 func (store *MemoryStore) CreateGrant(ctx context.Context, authenticatedOrganization domain.ProductID, grant WorkspaceGrant) error {

@@ -3,12 +3,305 @@
  * Do not make direct changes to the file.
  */
 
-export type paths = Record<string, never>;
+export type paths = {
+    readonly "/api/v1/admin/members": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List Organization members */
+        readonly get: operations["listMembers"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/admin/roles": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List built-in product roles */
+        readonly get: operations["listBuiltInRoles"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/admin/scim-connections": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List Organization SCIM connections */
+        readonly get: operations["listSCIMConnections"];
+        readonly put?: never;
+        /** Create an Organization SCIM connection */
+        readonly post: operations["createSCIMConnection"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/admin/scim-connections/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                /** @description Exact provider SCIM connection identifier. */
+                readonly id: components["schemas"]["SCIMConnectionID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        readonly post?: never;
+        /** Delete an Organization SCIM connection */
+        readonly delete: operations["deleteSCIMConnection"];
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/admin/sso-connections": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List Organization SSO connections */
+        readonly get: operations["listSSOConnections"];
+        readonly put?: never;
+        /** Create an Organization SSO connection */
+        readonly post: operations["createSSOConnection"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/admin/sso-connections/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                /** @description Exact provider SSO connection identifier. */
+                readonly id: components["schemas"]["SSOConnectionID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        readonly post?: never;
+        /** Delete an Organization SSO connection */
+        readonly delete: operations["deleteSSOConnection"];
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/admin/sso-connections/{id}/test": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                /** @description Exact provider SSO connection identifier. */
+                readonly id: components["schemas"]["SSOConnectionID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Test an Organization SSO connection */
+        readonly post: operations["testSSOConnection"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/environments": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List authorized Workspace Environments */
+        readonly get: operations["listEnvironments"];
+        readonly put?: never;
+        /** Create a Workspace Environment */
+        readonly post: operations["createEnvironment"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/environments/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                /** @description Canonical Environment identifier. */
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get an authorized Environment */
+        readonly get: operations["getEnvironment"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        /** Update an authorized Environment */
+        readonly patch: operations["updateEnvironment"];
+        readonly trace?: never;
+    };
+    readonly "/api/v1/me": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Get the authenticated product principal */
+        readonly get: operations["getCurrentPrincipal"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/organization": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Get the authenticated Organization */
+        readonly get: operations["getOrganization"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/workspaces": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List authorized Workspaces */
+        readonly get: operations["listWorkspaces"];
+        readonly put?: never;
+        /** Create an Organization Workspace */
+        readonly post: operations["createWorkspace"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/workspaces/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                /** @description Canonical Workspace identifier. */
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get an authorized Workspace */
+        readonly get: operations["getWorkspace"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        /** Update an authorized Workspace */
+        readonly patch: operations["updateWorkspace"];
+        readonly trace?: never;
+    };
+};
 export type webhooks = Record<string, never>;
 export type components = {
     schemas: {
+        readonly BuiltInRole: {
+            readonly permissions: readonly components["schemas"]["Permission"][];
+            readonly role: components["schemas"]["BuiltInRoleName"];
+        };
+        /** @enum {string} */
+        readonly BuiltInRoleName: "organization_admin" | "security_admin" | "security_engineer" | "developer_owner" | "compliance_viewer" | "read_only_viewer";
+        readonly BuiltInRolePage: {
+            readonly items: readonly components["schemas"]["BuiltInRole"][];
+            readonly page_info: components["schemas"]["PageInfo"];
+        };
+        readonly ConnectionDeletion: {
+            readonly audit_correlation_id: components["schemas"]["ProductID"];
+            readonly id: string;
+        };
+        /** @enum {string} */
+        readonly ConnectionStatus: "active" | "pending" | "disabled";
+        readonly ConnectionTest: {
+            readonly audit_correlation_id: components["schemas"]["ProductID"];
+            /** @constant */
+            readonly healthy: true;
+        };
         /** @description Opaque canonical base64url cursor without padding. */
         readonly Cursor: string;
+        readonly Environment: {
+            readonly id: components["schemas"]["ProductID"];
+            readonly name: string;
+            readonly organization_id: components["schemas"]["ProductID"];
+            readonly workspace_id: components["schemas"]["ProductID"];
+        };
+        readonly EnvironmentCreateInput: {
+            readonly name: string;
+            readonly workspace_id: components["schemas"]["ProductID"];
+        };
+        readonly EnvironmentMutation: {
+            readonly audit_correlation_id: components["schemas"]["ProductID"];
+            readonly id: components["schemas"]["ProductID"];
+            readonly name: string;
+            readonly organization_id: components["schemas"]["ProductID"];
+            readonly workspace_id: components["schemas"]["ProductID"];
+        };
+        readonly EnvironmentPage: {
+            readonly items: readonly components["schemas"]["Environment"][];
+            readonly page_info: components["schemas"]["PageInfo"];
+        };
+        readonly NameInput: {
+            readonly name: string;
+        };
+        readonly Organization: {
+            readonly domain: string;
+            readonly id: components["schemas"]["ProductID"];
+            readonly name: string;
+        };
         readonly PageInfo: {
             /** @constant */
             readonly has_more: true;
@@ -18,6 +311,20 @@ export type components = {
             readonly has_more: false;
             readonly next_cursor: null;
         };
+        /** @enum {string} */
+        readonly Permission: "view" | "manage_identity" | "manage_integrations" | "manage_findings" | "manage_policies" | "run_tests" | "manage_agents" | "approve_actions" | "export_evidence" | "view_audit";
+        readonly Principal: {
+            readonly active: boolean;
+            readonly id: components["schemas"]["ProductID"];
+            readonly member_reference: string;
+            readonly organization_id: components["schemas"]["ProductID"];
+            readonly organization_reference: string;
+            readonly role: components["schemas"]["BuiltInRoleName"];
+        };
+        readonly PrincipalPage: {
+            readonly items: readonly components["schemas"]["Principal"][];
+            readonly page_info: components["schemas"]["PageInfo"];
+        };
         readonly ProductError: {
             readonly code: string;
             readonly correlation_id: components["schemas"]["ProductID"];
@@ -26,6 +333,79 @@ export type components = {
         };
         /** @description Canonical product identifier. */
         readonly ProductID: string;
+        readonly SCIMConnection: {
+            /** Format: uri */
+            readonly base_url: string;
+            readonly display_name: string;
+            readonly id: components["schemas"]["SCIMConnectionID"];
+            readonly identity_provider: components["schemas"]["SCIMIdentityProvider"];
+            readonly status: components["schemas"]["ConnectionStatus"];
+        };
+        readonly SCIMConnectionCredential: {
+            readonly audit_correlation_id: components["schemas"]["ProductID"];
+            /** Format: uri */
+            readonly base_url: string;
+            readonly bearer_token: string;
+            readonly display_name: string;
+            readonly id: components["schemas"]["SCIMConnectionID"];
+            readonly identity_provider: components["schemas"]["SCIMIdentityProvider"];
+            readonly status: components["schemas"]["ConnectionStatus"];
+        };
+        readonly SCIMConnectionID: string;
+        readonly SCIMConnectionInput: {
+            readonly display_name: string;
+            readonly identity_provider: components["schemas"]["SCIMIdentityProvider"];
+        };
+        readonly SCIMConnectionPage: {
+            readonly items: readonly components["schemas"]["SCIMConnection"][];
+            readonly page_info: components["schemas"]["PageInfo"];
+        };
+        /** @enum {string} */
+        readonly SCIMIdentityProvider: "generic" | "okta" | "microsoft-entra" | "cyberark" | "jumpcloud" | "onelogin" | "pingfederate" | "rippling";
+        readonly SSOConnection: {
+            readonly display_name: string;
+            readonly id: components["schemas"]["SSOConnectionID"];
+            readonly identity_provider: components["schemas"]["SSOIdentityProvider"];
+            readonly protocol: components["schemas"]["SSOProtocol"];
+            readonly status: components["schemas"]["ConnectionStatus"];
+        };
+        readonly SSOConnectionID: string;
+        readonly SSOConnectionInput: {
+            readonly display_name: string;
+            readonly identity_provider: components["schemas"]["SSOIdentityProvider"];
+            readonly protocol: components["schemas"]["SSOProtocol"];
+        };
+        readonly SSOConnectionMutation: {
+            readonly audit_correlation_id: components["schemas"]["ProductID"];
+            readonly display_name: string;
+            readonly id: components["schemas"]["SSOConnectionID"];
+            readonly identity_provider: components["schemas"]["SSOIdentityProvider"];
+            readonly protocol: components["schemas"]["SSOProtocol"];
+            readonly status: components["schemas"]["ConnectionStatus"];
+        };
+        readonly SSOConnectionPage: {
+            readonly items: readonly components["schemas"]["SSOConnection"][];
+            readonly page_info: components["schemas"]["PageInfo"];
+        };
+        /** @enum {string} */
+        readonly SSOIdentityProvider: "classlink" | "cyberark" | "duo" | "generic" | "google-workspace" | "jumpcloud" | "keycloak" | "miniorange" | "microsoft-entra" | "okta" | "onelogin" | "pingfederate" | "rippling" | "salesforce" | "shibboleth";
+        /** @enum {string} */
+        readonly SSOProtocol: "saml" | "oidc";
+        readonly Workspace: {
+            readonly id: components["schemas"]["ProductID"];
+            readonly name: string;
+            readonly organization_id: components["schemas"]["ProductID"];
+        };
+        readonly WorkspaceMutation: {
+            readonly audit_correlation_id: components["schemas"]["ProductID"];
+            readonly id: components["schemas"]["ProductID"];
+            readonly name: string;
+            readonly organization_id: components["schemas"]["ProductID"];
+        };
+        readonly WorkspacePage: {
+            readonly items: readonly components["schemas"]["Workspace"][];
+            readonly page_info: components["schemas"]["PageInfo"];
+        };
     };
     responses: {
         /** @description Request rejected with a product error. */
@@ -48,12 +428,539 @@ export type components = {
     headers: never;
     pathItems: never;
 };
+export type BuiltInRole = components['schemas']['BuiltInRole'];
+export type BuiltInRoleName = components['schemas']['BuiltInRoleName'];
+export type BuiltInRolePage = components['schemas']['BuiltInRolePage'];
+export type ConnectionDeletion = components['schemas']['ConnectionDeletion'];
+export type ConnectionStatus = components['schemas']['ConnectionStatus'];
+export type ConnectionTest = components['schemas']['ConnectionTest'];
 export type Cursor = components['schemas']['Cursor'];
+export type Environment = components['schemas']['Environment'];
+export type EnvironmentCreateInput = components['schemas']['EnvironmentCreateInput'];
+export type EnvironmentMutation = components['schemas']['EnvironmentMutation'];
+export type EnvironmentPage = components['schemas']['EnvironmentPage'];
+export type NameInput = components['schemas']['NameInput'];
+export type Organization = components['schemas']['Organization'];
 export type PageInfo = components['schemas']['PageInfo'];
+export type Permission = components['schemas']['Permission'];
+export type Principal = components['schemas']['Principal'];
+export type PrincipalPage = components['schemas']['PrincipalPage'];
 export type ProductError = components['schemas']['ProductError'];
 export type ProductId = components['schemas']['ProductID'];
+export type ScimConnection = components['schemas']['SCIMConnection'];
+export type ScimConnectionCredential = components['schemas']['SCIMConnectionCredential'];
+export type ScimConnectionId = components['schemas']['SCIMConnectionID'];
+export type ScimConnectionInput = components['schemas']['SCIMConnectionInput'];
+export type ScimConnectionPage = components['schemas']['SCIMConnectionPage'];
+export type ScimIdentityProvider = components['schemas']['SCIMIdentityProvider'];
+export type SsoConnection = components['schemas']['SSOConnection'];
+export type SsoConnectionId = components['schemas']['SSOConnectionID'];
+export type SsoConnectionInput = components['schemas']['SSOConnectionInput'];
+export type SsoConnectionMutation = components['schemas']['SSOConnectionMutation'];
+export type SsoConnectionPage = components['schemas']['SSOConnectionPage'];
+export type SsoIdentityProvider = components['schemas']['SSOIdentityProvider'];
+export type SsoProtocol = components['schemas']['SSOProtocol'];
+export type Workspace = components['schemas']['Workspace'];
+export type WorkspaceMutation = components['schemas']['WorkspaceMutation'];
+export type WorkspacePage = components['schemas']['WorkspacePage'];
 export type ResponseProductErrorResponse = components['responses']['ProductErrorResponse'];
 export type ParameterPageCursor = components['parameters']['PageCursor'];
 export type ParameterPageLimit = components['parameters']['PageLimit'];
 export type $defs = Record<string, never>;
-export type operations = Record<string, never>;
+export interface operations {
+    readonly listMembers: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description Opaque cursor returned by the preceding page. */
+                readonly cursor?: components["parameters"]["PageCursor"];
+                /** @description Maximum number of records to return. */
+                readonly limit?: components["parameters"]["PageLimit"];
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Organization member page. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["PrincipalPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listBuiltInRoles: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description Opaque cursor returned by the preceding page. */
+                readonly cursor?: components["parameters"]["PageCursor"];
+                /** @description Maximum number of records to return. */
+                readonly limit?: components["parameters"]["PageLimit"];
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Built-in role page. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["BuiltInRolePage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listSCIMConnections: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description Opaque cursor returned by the preceding page. */
+                readonly cursor?: components["parameters"]["PageCursor"];
+                /** @description Maximum number of records to return. */
+                readonly limit?: components["parameters"]["PageLimit"];
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description SCIM connection page without bearer credentials. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SCIMConnectionPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly createSCIMConnection: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["SCIMConnectionInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Created SCIM connection with its one-time bearer credential. */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SCIMConnectionCredential"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly deleteSCIMConnection: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                /** @description Exact provider SCIM connection identifier. */
+                readonly id: components["schemas"]["SCIMConnectionID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Deleted SCIM connection. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ConnectionDeletion"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listSSOConnections: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description Opaque cursor returned by the preceding page. */
+                readonly cursor?: components["parameters"]["PageCursor"];
+                /** @description Maximum number of records to return. */
+                readonly limit?: components["parameters"]["PageLimit"];
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description SSO connection page. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SSOConnectionPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly createSSOConnection: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["SSOConnectionInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Created SSO connection. */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SSOConnectionMutation"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly deleteSSOConnection: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                /** @description Exact provider SSO connection identifier. */
+                readonly id: components["schemas"]["SSOConnectionID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Deleted SSO connection. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ConnectionDeletion"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly testSSOConnection: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                /** @description Exact provider SSO connection identifier. */
+                readonly id: components["schemas"]["SSOConnectionID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description SSO connection health result. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ConnectionTest"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listEnvironments: {
+        readonly parameters: {
+            readonly query: {
+                /** @description Opaque cursor returned by the preceding page. */
+                readonly cursor?: components["parameters"]["PageCursor"];
+                /** @description Maximum number of records to return. */
+                readonly limit?: components["parameters"]["PageLimit"];
+                /** @description Canonical parent Workspace identifier. */
+                readonly workspace_id: components["schemas"]["ProductID"];
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized Environment page. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["EnvironmentPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly createEnvironment: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["EnvironmentCreateInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Created Environment. */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["EnvironmentMutation"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getEnvironment: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                /** @description Canonical Environment identifier. */
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized Environment. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["Environment"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly updateEnvironment: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                /** @description Canonical Environment identifier. */
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["NameInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Updated Environment. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["EnvironmentMutation"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getCurrentPrincipal: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authenticated principal. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["Principal"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getOrganization: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authenticated Organization. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["Organization"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listWorkspaces: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description Opaque cursor returned by the preceding page. */
+                readonly cursor?: components["parameters"]["PageCursor"];
+                /** @description Maximum number of records to return. */
+                readonly limit?: components["parameters"]["PageLimit"];
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized Workspace page. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["WorkspacePage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly createWorkspace: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["NameInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Created Workspace. */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["WorkspaceMutation"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getWorkspace: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                /** @description Canonical Workspace identifier. */
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized Workspace. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["Workspace"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly updateWorkspace: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                /** @description Canonical Workspace identifier. */
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["NameInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Updated Workspace. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["WorkspaceMutation"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+}

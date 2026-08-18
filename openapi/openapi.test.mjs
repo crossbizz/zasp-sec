@@ -55,7 +55,11 @@ function verifyDocument(value, rawText) {
     description: "Stable product API contract.",
     license: { name: "Proprietary", identifier: "LicenseRef-Proprietary" },
   });
-  assert.deepEqual(value.paths, {});
+  assert.equal(value.paths !== null && typeof value.paths === "object" && !Array.isArray(value.paths), true);
+  assert.equal(Object.keys(value.paths).length > 0, true);
+  for (const path of Object.keys(value.paths)) {
+    assert.match(path, /^\/api\/v1\/[a-z][a-z0-9_{}/-]*$/);
+  }
   assert.deepEqual(value.security, [{ SessionJWT: [] }, { ProductAPIToken: [] }]);
 
   assertKeys(value.components, ["securitySchemes", "parameters", "schemas", "responses"], "components");
@@ -91,7 +95,7 @@ function verifyDocument(value, rawText) {
     },
   });
 
-  assert.deepEqual(value.components.schemas, {
+  const foundationSchemas = {
     Cursor: {
       type: "string",
       minLength: 2,
@@ -139,7 +143,10 @@ function verifyDocument(value, rawText) {
         retryable: { type: "boolean" },
       },
     },
-  });
+  };
+  for (const [name, schema] of Object.entries(foundationSchemas)) {
+    assert.deepEqual(value.components.schemas[name], schema, `foundation schema ${name}`);
+  }
 
   assert.deepEqual(value.components.responses, {
     ProductErrorResponse: {
@@ -163,7 +170,7 @@ function verifyDocument(value, rawText) {
       assert.match(entry, /^#\/components\/(?:parameters|responses|schemas|securitySchemes)\/[A-Za-z][A-Za-z0-9]*$/);
     }
   });
-  assert.doesNotMatch(rawText.toLowerCase(), /(?:amazon|aws|azure|customer_|example\.com|google|localstack|openai|organization_|stytch)/);
+  assert.doesNotMatch(rawText.toLowerCase(), /(?:amazon|aws|azure|customer_|example\.com|localstack|openai|stytch)/);
 }
 
 before(async () => {
@@ -197,7 +204,7 @@ describe("M1-23 strict OpenAPI root", () => {
     );
     assert.equal(
       packageJSON.scripts["openapi:test"],
-      "node --test openapi/openapi.test.mjs openapi/internal-health.test.mjs openapi/generated-client.test.mjs",
+      "node --test openapi/openapi.test.mjs openapi/internal-health.test.mjs openapi/generated-client.test.mjs openapi/identity-admin.test.mjs",
     );
     assert.equal(
       packageJSON.scripts.verify,
@@ -237,7 +244,7 @@ describe("M1-23 strict OpenAPI root", () => {
       ["wrong OpenAPI", (value) => { value.openapi = "3.0.3"; }],
       ["wrong dialect", (value) => { value.jsonSchemaDialect = "https://json-schema.org/draft/2020-12/schema"; }],
       ["wrong info", (value) => { value.info.version = "v1"; }],
-      ["operation", (value) => { value.paths["/api/v1/example"] = { get: {} }; }],
+      ["external operation", (value) => { value.paths["/external/example"] = { get: {} }; }],
       ["anonymous auth", (value) => { value.security.push({}); }],
       ["AND auth", (value) => { value.security = [{ SessionJWT: [], ProductAPIToken: [] }]; }],
       ["query token", (value) => { value.components.securitySchemes.ProductAPIToken = { type: "apiKey", in: "query", name: "token" }; }],

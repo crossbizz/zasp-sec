@@ -63,7 +63,7 @@ export function parseMapSource(source) {
       requireExactKeys(action, ["id", "operation_id", "availability"]);
       invariant(typeof action.id === "string" && snakePattern.test(action.id));
       invariant(typeof action.operation_id === "string" && identifierPattern.test(action.operation_id));
-      invariant(action.availability === "planned" || action.availability === "available");
+      invariant(action.availability === "planned" || action.availability === "api_available" || action.availability === "available");
       invariant(!actionIDs.has(action.id) && !operationIDs.has(action.operation_id));
       actionIDs.add(action.id);
       operationIDs.add(action.operation_id);
@@ -118,30 +118,36 @@ export function validateCoverage(mapDocument, openAPIDocument) {
   invariant(openAPIDocument.internalOperations instanceof Set);
 
   let planned = 0;
+  let apiAvailable = 0;
   let available = 0;
-  const availableMappings = new Set();
+  const implementedMappings = new Set();
   for (const screen of mapDocument.screens) {
     for (const action of screen.actions) {
       const operation = openAPIDocument.allOperations.get(action.operation_id);
       if (action.availability === "planned") {
         planned += 1;
         invariant(operation === undefined);
+      } else if (action.availability === "api_available") {
+        apiAvailable += 1;
+        invariant(operation?.visibility === "public");
+        implementedMappings.add(action.operation_id);
       } else {
         available += 1;
         invariant(operation?.visibility === "public");
-        availableMappings.add(action.operation_id);
+        implementedMappings.add(action.operation_id);
       }
       invariant(!openAPIDocument.internalOperations.has(action.operation_id));
     }
   }
 
-  invariant(availableMappings.size === openAPIDocument.publicOperations.size);
+  invariant(implementedMappings.size === openAPIDocument.publicOperations.size);
   for (const operationID of openAPIDocument.publicOperations) {
-    invariant(availableMappings.has(operationID));
+    invariant(implementedMappings.has(operationID));
   }
 
   return {
     planned,
+    apiAvailable,
     available,
     public: openAPIDocument.publicOperations.size,
     internal: openAPIDocument.internalOperations.size,
@@ -192,7 +198,7 @@ export async function runMain({
       readSource(openapiPath, OPENAPI_MAX_BYTES),
     ]);
     const result = validateCoverage(parseMapSource(mapSource), parseOpenAPISource(openAPISource));
-    stdout.write(`UI/API coverage passed: planned=${result.planned} available=${result.available} public=${result.public} internal=${result.internal}.\n`);
+    stdout.write(`UI/API coverage passed: planned=${result.planned} api_available=${result.apiAvailable} available=${result.available} public=${result.public} internal=${result.internal}.\n`);
     return 0;
   } catch {
     stderr.write("UI/API coverage rejected.\n");

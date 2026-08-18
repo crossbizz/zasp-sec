@@ -17,7 +17,7 @@
     "openapi:generate": "openapi-typescript openapi/openapi.yaml --output apps/web/api/generated.ts --alphabetize --export-type --immutable --root-types --root-types-no-schema-prefix",
     "openapi:check": "openapi-typescript openapi/openapi.yaml --output apps/web/api/generated.ts --alphabetize --export-type --immutable --root-types --root-types-no-schema-prefix --check",
     "openapi:lint": "REDOCLY_TELEMETRY=off REDOCLY_SUPPRESS_UPDATE_NOTICE=true redocly lint openapi/openapi.yaml openapi/internal-health.yaml --config redocly.yaml",
-    "openapi:test": "node --test openapi/openapi.test.mjs openapi/internal-health.test.mjs openapi/generated-client.test.mjs",
+    "openapi:test": "node --test openapi/openapi.test.mjs openapi/internal-health.test.mjs openapi/generated-client.test.mjs openapi/identity-admin.test.mjs",
     "ui-api:test": "node --test scripts/check-ui-api-coverage.test.mjs",
     "ui-api:check": "node scripts/check-ui-api-coverage.mjs",
     "raw-fetch:test": "node --test eslint-rules/no-raw-fetch.test.mjs",

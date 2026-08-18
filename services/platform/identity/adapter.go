@@ -16,7 +16,12 @@ type StytchDriver interface {
 	EnsureOrganization(context.Context, string, string) (DriverOrganization, error)
 	InviteAdmin(context.Context, string, string) (DriverInvitation, error)
 	ListSSOConnections(context.Context, string) ([]DriverSSOConnection, error)
+	CreateSSOConnection(context.Context, string, DriverSSOConfig) (DriverSSOConnection, error)
+	DeleteSSOConnection(context.Context, string, string) (string, error)
+	TestSSOConnection(context.Context, string, string) error
 	ListSCIMConnections(context.Context, string) ([]DriverSCIMConnection, error)
+	CreateSCIMConnection(context.Context, string, DriverSCIMConfig) (DriverSCIMCredential, error)
+	DeleteSCIMConnection(context.Context, string, string) (string, error)
 }
 
 type Adapter struct {
@@ -117,7 +122,8 @@ func (adapter *Adapter) ListSSOConnections(ctx context.Context, organizationRefe
 	}
 	result := append([]DriverSSOConnection(nil), values...)
 	for _, value := range result {
-		if !validReference(value.Reference, "sso-") || value.OrganizationReference != organizationReference || !validConnectionStatus(value.Status) {
+		if !validSSOReference(value.Reference) || value.OrganizationReference != organizationReference || !validConnectionStatus(value.Status) ||
+			!validName(value.DisplayName) || !validSSOProtocol(value.Protocol) || !validSSOProvider(value.IdentityProvider) {
 			return nil, ErrInvalidRecord
 		}
 	}
@@ -134,7 +140,8 @@ func (adapter *Adapter) ListSCIMConnections(ctx context.Context, organizationRef
 	}
 	result := append([]DriverSCIMConnection(nil), values...)
 	for _, value := range result {
-		if !validReference(value.Reference, "scim-") || value.OrganizationReference != organizationReference || !validConnectionStatus(value.Status) {
+		if !validSCIMReference(value.Reference) || value.OrganizationReference != organizationReference || !validConnectionStatus(value.Status) ||
+			!validName(value.DisplayName) || !validSCIMProvider(value.IdentityProvider) || !validHTTPSURL(value.BaseURL) {
 			return nil, ErrInvalidRecord
 		}
 	}

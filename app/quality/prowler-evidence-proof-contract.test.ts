@@ -171,9 +171,9 @@ describe("Prowler evidence proof contract", () => {
       resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"),
       "utf8",
     );
-    expect(tracker).toContain("| Pending | 619 |");
+    expect(tracker).toContain("| Pending | 596 |");
     expect(tracker).toContain("| In progress | 0 |");
-    expect(tracker).toContain("| Complete | 106 |");
+    expect(tracker).toContain("| Complete | 129 |");
     expect(tracker).toContain("| Blocked | 3 |");
     expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 0 \| 24 \| 3 \|/);
     assertM011Complete(tracker);
@@ -188,7 +188,7 @@ describe("Prowler evidence proof contract", () => {
 
     expect(m011Row).toBeDefined();
     const mutatedTracker = tracker.replace(`${m011Row}\n`, `${m011Row}\n${m011Row}\n`);
-    expect(mutatedTracker).toContain("| Complete | 106 |");
+    expect(mutatedTracker).toContain("| Complete | 129 |");
     expect(() => assertM011Complete(mutatedTracker)).toThrow();
   });
 

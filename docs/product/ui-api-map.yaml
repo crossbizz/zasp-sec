@@ -1,5 +1,65 @@
 schema_version: 1
 screens:
+  - id: identity_foundation
+    label: Identity Foundation
+    actions:
+      - id: view_current_organization
+        operation_id: getOrganization
+        availability: api_available
+      - id: view_workspaces
+        operation_id: listWorkspaces
+        availability: api_available
+      - id: create_workspace
+        operation_id: createWorkspace
+        availability: api_available
+      - id: view_workspace
+        operation_id: getWorkspace
+        availability: api_available
+      - id: update_workspace
+        operation_id: updateWorkspace
+        availability: api_available
+      - id: view_environments
+        operation_id: listEnvironments
+        availability: api_available
+      - id: create_environment
+        operation_id: createEnvironment
+        availability: api_available
+      - id: view_environment
+        operation_id: getEnvironment
+        availability: api_available
+      - id: update_environment
+        operation_id: updateEnvironment
+        availability: api_available
+      - id: view_current_principal
+        operation_id: getCurrentPrincipal
+        availability: api_available
+      - id: view_members
+        operation_id: listMembers
+        availability: api_available
+      - id: view_builtin_roles
+        operation_id: listBuiltInRoles
+        availability: api_available
+      - id: view_sso_connections
+        operation_id: listSSOConnections
+        availability: api_available
+      - id: create_sso_connection
+        operation_id: createSSOConnection
+        availability: api_available
+      - id: delete_sso_connection
+        operation_id: deleteSSOConnection
+        availability: api_available
+      - id: test_sso_connection
+        operation_id: testSSOConnection
+        availability: api_available
+      - id: view_scim_connections
+        operation_id: listSCIMConnections
+        availability: api_available
+      - id: create_scim_connection
+        operation_id: createSCIMConnection
+        availability: api_available
+      - id: delete_scim_connection
+        operation_id: deleteSCIMConnection
+        availability: api_available
   - id: home
     label: Home
     actions:

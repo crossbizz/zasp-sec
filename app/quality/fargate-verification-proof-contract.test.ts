@@ -32,12 +32,12 @@ function assertM018Blocked(tracker: string, readme: string, riskRegister: string
   expect(section).toContain("R-11 remains Not run");
 
   expect(section).toContain("0/11 required inputs");
-  expect(tracker).toContain("| Pending | 619 |");
+  expect(tracker).toContain("| Pending | 596 |");
   expect(tracker).toContain("| In progress | 0 |");
-  expect(tracker).toContain("| Complete | 106 |");
+  expect(tracker).toContain("| Complete | 129 |");
   expect(tracker).toContain("| Blocked | 3 |");
   expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 0 \| 24 \| 3 \|/);
-  expect(tracker).toContain("`619/0/106/3`");
+  expect(tracker).toContain("`596/0/129/3`");
   expect(activeRows.map(([task]) => task)).toEqual([]);
   expect(blockedRows.filter(([task]) => task === "M0-18")).toHaveLength(1);
   expect(blockedRows.find(([task]) => task === "M0-18")?.[1]).toBe("August 15, 2026");
@@ -162,7 +162,7 @@ describe("EKS Fargate verification proof repository contract", () => {
       ),
     ).toThrow();
     expect(() =>
-      assertM018Blocked(tracker.replace("| Pending | 619 |", "| Pending | 686 |"), readme, riskRegister),
+      assertM018Blocked(tracker.replace("| Pending | 596 |", "| Pending | 686 |"), readme, riskRegister),
     ).toThrow();
   });
 });

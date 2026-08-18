@@ -58,11 +58,11 @@ describe("M1-07 configuration loader contract", () => {
     expect(readme).toContain("M1-07 is Complete");
     expect(readme).toContain("required dependency configuration fails startup");
     expect(readme).toContain("PostHog, OpenRouter, and remote OTLP remain optional");
-    expect(tracker).toContain("| Pending | 619 |");
+    expect(tracker).toContain("| Pending | 596 |");
     expect(tracker).toContain("| In progress | 0 |");
-    expect(tracker).toContain("| Complete | 106 |");
+    expect(tracker).toContain("| Complete | 129 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`619/0/106/3`");
+    expect(tracker).toContain("`596/0/129/3`");
     expect(m0).toEqual(["M0", "27", "0", "0", "24", "3"]);
     expect(m1).toEqual(["M1", "68", "0", "0", "68", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);

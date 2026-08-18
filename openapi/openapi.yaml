@@ -7,7 +7,381 @@ info:
   license:
     name: Proprietary
     identifier: LicenseRef-Proprietary
-paths: {}
+paths:
+  /api/v1/organization:
+    get:
+      operationId: getOrganization
+      summary: Get the authenticated Organization
+      responses:
+        '200':
+          description: Authenticated Organization.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '401':
+          $ref: '#/components/responses/ProductErrorResponse'
+        default:
+          $ref: '#/components/responses/ProductErrorResponse'
+  /api/v1/workspaces:
+    get:
+      operationId: listWorkspaces
+      summary: List authorized Workspaces
+      parameters:
+        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/PageLimit'
+      responses:
+        '200':
+          description: Authorized Workspace page.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspacePage'
+        '401':
+          $ref: '#/components/responses/ProductErrorResponse'
+        default:
+          $ref: '#/components/responses/ProductErrorResponse'
+    post:
+      operationId: createWorkspace
+      summary: Create an Organization Workspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NameInput'
+      responses:
+        '201':
+          description: Created Workspace.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceMutation'
+        '401':
+          $ref: '#/components/responses/ProductErrorResponse'
+        default:
+          $ref: '#/components/responses/ProductErrorResponse'
+  /api/v1/workspaces/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Canonical Workspace identifier.
+        schema:
+          $ref: '#/components/schemas/ProductID'
+    get:
+      operationId: getWorkspace
+      summary: Get an authorized Workspace
+      responses:
+        '200':
+          description: Authorized Workspace.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+        '401':
+          $ref: '#/components/responses/ProductErrorResponse'
+        default:
+          $ref: '#/components/responses/ProductErrorResponse'
+    patch:
+      operationId: updateWorkspace
+      summary: Update an authorized Workspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NameInput'
+      responses:
+        '200':
+          description: Updated Workspace.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceMutation'
+        '401':
+          $ref: '#/components/responses/ProductErrorResponse'
+        default:
+          $ref: '#/components/responses/ProductErrorResponse'
+  /api/v1/environments:
+    get:
+      operationId: listEnvironments
+      summary: List authorized Workspace Environments
+      parameters:
+        - name: workspace_id
+          in: query
+          required: true
+          description: Canonical parent Workspace identifier.
+          schema:
+            $ref: '#/components/schemas/ProductID'
+        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/PageLimit'
+      responses:
+        '200':
+          description: Authorized Environment page.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvironmentPage'
+        '401':
+          $ref: '#/components/responses/ProductErrorResponse'
+        default:
+          $ref: '#/components/responses/ProductErrorResponse'
+    post:
+      operationId: createEnvironment
+      summary: Create a Workspace Environment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnvironmentCreateInput'
+      responses:
+        '201':
+          description: Created Environment.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvironmentMutation'
+        '401':
+          $ref: '#/components/responses/ProductErrorResponse'
+        default:
+          $ref: '#/components/responses/ProductErrorResponse'
+  /api/v1/environments/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Canonical Environment identifier.
+        schema:
+          $ref: '#/components/schemas/ProductID'
+    get:
+      operationId: getEnvironment
+      summary: Get an authorized Environment
+      responses:
+        '200':
+          description: Authorized Environment.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Environment'
+        '401':
+          $ref: '#/components/responses/ProductErrorResponse'
+        default:
+          $ref: '#/components/responses/ProductErrorResponse'
+    patch:
+      operationId: updateEnvironment
+      summary: Update an authorized Environment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NameInput'
+      responses:
+        '200':
+          description: Updated Environment.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvironmentMutation'
+        '401':
+          $ref: '#/components/responses/ProductErrorResponse'
+        default:
+          $ref: '#/components/responses/ProductErrorResponse'
+  /api/v1/me:
+    get:
+      operationId: getCurrentPrincipal
+      summary: Get the authenticated product principal
+      responses:
+        '200':
+          description: Authenticated principal.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Principal'
+        '401':
+          $ref: '#/components/responses/ProductErrorResponse'
+        default:
+          $ref: '#/components/responses/ProductErrorResponse'
+  /api/v1/admin/members:
+    get:
+      operationId: listMembers
+      summary: List Organization members
+      parameters:
+        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/PageLimit'
+      responses:
+        '200':
+          description: Organization member page.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrincipalPage'
+        '401':
+          $ref: '#/components/responses/ProductErrorResponse'
+        default:
+          $ref: '#/components/responses/ProductErrorResponse'
+  /api/v1/admin/roles:
+    get:
+      operationId: listBuiltInRoles
+      summary: List built-in product roles
+      parameters:
+        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/PageLimit'
+      responses:
+        '200':
+          description: Built-in role page.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BuiltInRolePage'
+        '401':
+          $ref: '#/components/responses/ProductErrorResponse'
+        default:
+          $ref: '#/components/responses/ProductErrorResponse'
+  /api/v1/admin/sso-connections:
+    get:
+      operationId: listSSOConnections
+      summary: List Organization SSO connections
+      parameters:
+        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/PageLimit'
+      responses:
+        '200':
+          description: SSO connection page.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SSOConnectionPage'
+        '401':
+          $ref: '#/components/responses/ProductErrorResponse'
+        default:
+          $ref: '#/components/responses/ProductErrorResponse'
+    post:
+      operationId: createSSOConnection
+      summary: Create an Organization SSO connection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SSOConnectionInput'
+      responses:
+        '201':
+          description: Created SSO connection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SSOConnectionMutation'
+        '401':
+          $ref: '#/components/responses/ProductErrorResponse'
+        default:
+          $ref: '#/components/responses/ProductErrorResponse'
+  /api/v1/admin/sso-connections/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Exact provider SSO connection identifier.
+        schema:
+          $ref: '#/components/schemas/SSOConnectionID'
+    delete:
+      operationId: deleteSSOConnection
+      summary: Delete an Organization SSO connection
+      responses:
+        '200':
+          description: Deleted SSO connection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionDeletion'
+        '401':
+          $ref: '#/components/responses/ProductErrorResponse'
+        default:
+          $ref: '#/components/responses/ProductErrorResponse'
+  /api/v1/admin/sso-connections/{id}/test:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Exact provider SSO connection identifier.
+        schema:
+          $ref: '#/components/schemas/SSOConnectionID'
+    post:
+      operationId: testSSOConnection
+      summary: Test an Organization SSO connection
+      responses:
+        '200':
+          description: SSO connection health result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionTest'
+        '401':
+          $ref: '#/components/responses/ProductErrorResponse'
+        default:
+          $ref: '#/components/responses/ProductErrorResponse'
+  /api/v1/admin/scim-connections:
+    get:
+      operationId: listSCIMConnections
+      summary: List Organization SCIM connections
+      parameters:
+        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/PageLimit'
+      responses:
+        '200':
+          description: SCIM connection page without bearer credentials.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SCIMConnectionPage'
+        '401':
+          $ref: '#/components/responses/ProductErrorResponse'
+        default:
+          $ref: '#/components/responses/ProductErrorResponse'
+    post:
+      operationId: createSCIMConnection
+      summary: Create an Organization SCIM connection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SCIMConnectionInput'
+      responses:
+        '201':
+          description: Created SCIM connection with its one-time bearer credential.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SCIMConnectionCredential'
+        '401':
+          $ref: '#/components/responses/ProductErrorResponse'
+        default:
+          $ref: '#/components/responses/ProductErrorResponse'
+  /api/v1/admin/scim-connections/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Exact provider SCIM connection identifier.
+        schema:
+          $ref: '#/components/schemas/SCIMConnectionID'
+    delete:
+      operationId: deleteSCIMConnection
+      summary: Delete an Organization SCIM connection
+      responses:
+        '200':
+          description: Deleted SCIM connection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionDeletion'
+        '401':
+          $ref: '#/components/responses/ProductErrorResponse'
+        default:
+          $ref: '#/components/responses/ProductErrorResponse'
 security:
   - SessionJWT: []
   - ProductAPIToken: []
@@ -42,6 +416,31 @@ components:
         maximum: 100
         default: 50
   schemas:
+    NameInput:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: '^(?!\s)(?!.*\s$)[^\x00-\x1F\x7F-\x9F]+$'
+    EnvironmentCreateInput:
+      type: object
+      additionalProperties: false
+      required:
+        - workspace_id
+        - name
+      properties:
+        workspace_id:
+          $ref: '#/components/schemas/ProductID'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: '^(?!\s)(?!.*\s$)[^\x00-\x1F\x7F-\x9F]+$'
     Cursor:
       type: string
       minLength: 2
@@ -76,6 +475,377 @@ components:
       maxLength: 40
       pattern: '^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
       description: Canonical product identifier.
+    Organization:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - domain
+      properties:
+        id:
+          $ref: '#/components/schemas/ProductID'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        domain:
+          type: string
+          minLength: 3
+          maxLength: 253
+    Workspace:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - organization_id
+        - name
+      properties:
+        id:
+          $ref: '#/components/schemas/ProductID'
+        organization_id:
+          $ref: '#/components/schemas/ProductID'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+    Environment:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - organization_id
+        - workspace_id
+        - name
+      properties:
+        id:
+          $ref: '#/components/schemas/ProductID'
+        organization_id:
+          $ref: '#/components/schemas/ProductID'
+        workspace_id:
+          $ref: '#/components/schemas/ProductID'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+    Principal:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - organization_id
+        - organization_reference
+        - member_reference
+        - role
+        - active
+      properties:
+        id:
+          $ref: '#/components/schemas/ProductID'
+        organization_id:
+          $ref: '#/components/schemas/ProductID'
+        organization_reference:
+          type: string
+          minLength: 2
+          maxLength: 128
+        member_reference:
+          type: string
+          minLength: 2
+          maxLength: 128
+        role:
+          $ref: '#/components/schemas/BuiltInRoleName'
+        active:
+          type: boolean
+    BuiltInRoleName:
+      type: string
+      enum:
+        - organization_admin
+        - security_admin
+        - security_engineer
+        - developer_owner
+        - compliance_viewer
+        - read_only_viewer
+    Permission:
+      type: string
+      enum:
+        - view
+        - manage_identity
+        - manage_integrations
+        - manage_findings
+        - manage_policies
+        - run_tests
+        - manage_agents
+        - approve_actions
+        - export_evidence
+        - view_audit
+    BuiltInRole:
+      type: object
+      additionalProperties: false
+      required:
+        - role
+        - permissions
+      properties:
+        role:
+          $ref: '#/components/schemas/BuiltInRoleName'
+        permissions:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/Permission'
+    WorkspacePage:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - page_info
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Workspace'
+        page_info:
+          $ref: '#/components/schemas/PageInfo'
+    EnvironmentPage:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - page_info
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Environment'
+        page_info:
+          $ref: '#/components/schemas/PageInfo'
+    PrincipalPage:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - page_info
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Principal'
+        page_info:
+          $ref: '#/components/schemas/PageInfo'
+    BuiltInRolePage:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - page_info
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/BuiltInRole'
+        page_info:
+          $ref: '#/components/schemas/PageInfo'
+    WorkspaceMutation:
+      type: object
+      additionalProperties: false
+      required: [id, organization_id, name, audit_correlation_id]
+      properties:
+        id:
+          $ref: '#/components/schemas/ProductID'
+        organization_id:
+          $ref: '#/components/schemas/ProductID'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        audit_correlation_id:
+          $ref: '#/components/schemas/ProductID'
+    EnvironmentMutation:
+      type: object
+      additionalProperties: false
+      required: [id, organization_id, workspace_id, name, audit_correlation_id]
+      properties:
+        id:
+          $ref: '#/components/schemas/ProductID'
+        organization_id:
+          $ref: '#/components/schemas/ProductID'
+        workspace_id:
+          $ref: '#/components/schemas/ProductID'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        audit_correlation_id:
+          $ref: '#/components/schemas/ProductID'
+    ConnectionStatus:
+      type: string
+      enum: [active, pending, disabled]
+    SSOConnectionID:
+      type: string
+      minLength: 18
+      maxLength: 128
+      pattern: '^(?:saml|oidc|external)-connection-[A-Za-z0-9_-]+$'
+    SCIMConnectionID:
+      type: string
+      minLength: 20
+      maxLength: 128
+      pattern: '^scim-connection-[A-Za-z0-9_-]+$'
+    SSOProtocol:
+      type: string
+      enum: [saml, oidc]
+    SSOIdentityProvider:
+      type: string
+      enum: [classlink, cyberark, duo, generic, google-workspace, jumpcloud, keycloak, miniorange, microsoft-entra, okta, onelogin, pingfederate, rippling, salesforce, shibboleth]
+    SCIMIdentityProvider:
+      type: string
+      enum: [generic, okta, microsoft-entra, cyberark, jumpcloud, onelogin, pingfederate, rippling]
+    SSOConnectionInput:
+      type: object
+      additionalProperties: false
+      required: [display_name, protocol, identity_provider]
+      properties:
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        protocol:
+          $ref: '#/components/schemas/SSOProtocol'
+        identity_provider:
+          $ref: '#/components/schemas/SSOIdentityProvider'
+    SCIMConnectionInput:
+      type: object
+      additionalProperties: false
+      required: [display_name, identity_provider]
+      properties:
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        identity_provider:
+          $ref: '#/components/schemas/SCIMIdentityProvider'
+    SSOConnection:
+      type: object
+      additionalProperties: false
+      required: [id, status, display_name, protocol, identity_provider]
+      properties:
+        id:
+          $ref: '#/components/schemas/SSOConnectionID'
+        status:
+          $ref: '#/components/schemas/ConnectionStatus'
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        protocol:
+          $ref: '#/components/schemas/SSOProtocol'
+        identity_provider:
+          $ref: '#/components/schemas/SSOIdentityProvider'
+    SSOConnectionMutation:
+      type: object
+      additionalProperties: false
+      required: [id, status, display_name, protocol, identity_provider, audit_correlation_id]
+      properties:
+        id:
+          $ref: '#/components/schemas/SSOConnectionID'
+        status:
+          $ref: '#/components/schemas/ConnectionStatus'
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        protocol:
+          $ref: '#/components/schemas/SSOProtocol'
+        identity_provider:
+          $ref: '#/components/schemas/SSOIdentityProvider'
+        audit_correlation_id:
+          $ref: '#/components/schemas/ProductID'
+    SCIMConnection:
+      type: object
+      additionalProperties: false
+      required: [id, status, display_name, identity_provider, base_url]
+      properties:
+        id:
+          $ref: '#/components/schemas/SCIMConnectionID'
+        status:
+          $ref: '#/components/schemas/ConnectionStatus'
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        identity_provider:
+          $ref: '#/components/schemas/SCIMIdentityProvider'
+        base_url:
+          type: string
+          format: uri
+          pattern: '^https://[^?#]+$'
+    SCIMConnectionCredential:
+      type: object
+      additionalProperties: false
+      required: [id, status, display_name, identity_provider, base_url, bearer_token, audit_correlation_id]
+      properties:
+        id:
+          $ref: '#/components/schemas/SCIMConnectionID'
+        status:
+          $ref: '#/components/schemas/ConnectionStatus'
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        identity_provider:
+          $ref: '#/components/schemas/SCIMIdentityProvider'
+        base_url:
+          type: string
+          format: uri
+          pattern: '^https://[^?#]+$'
+        bearer_token:
+          type: string
+          minLength: 19
+          maxLength: 4096
+          writeOnly: true
+          pattern: '^scim_bearer_token_[A-Za-z0-9_-]+$'
+        audit_correlation_id:
+          $ref: '#/components/schemas/ProductID'
+    SSOConnectionPage:
+      type: object
+      additionalProperties: false
+      required: [items, page_info]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SSOConnection'
+        page_info:
+          $ref: '#/components/schemas/PageInfo'
+    SCIMConnectionPage:
+      type: object
+      additionalProperties: false
+      required: [items, page_info]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SCIMConnection'
+        page_info:
+          $ref: '#/components/schemas/PageInfo'
+    ConnectionDeletion:
+      type: object
+      additionalProperties: false
+      required: [id, audit_correlation_id]
+      properties:
+        id:
+          type: string
+          minLength: 18
+          maxLength: 128
+        audit_correlation_id:
+          $ref: '#/components/schemas/ProductID'
+    ConnectionTest:
+      type: object
+      additionalProperties: false
+      required: [healthy, audit_correlation_id]
+      properties:
+        healthy:
+          const: true
+        audit_correlation_id:
+          $ref: '#/components/schemas/ProductID'
     ProductError:
       type: object
       additionalProperties: false

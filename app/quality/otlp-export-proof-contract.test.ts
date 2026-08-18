@@ -68,11 +68,11 @@ describe("OTLP export proof repository contract", () => {
     expect(readme).toContain("npm run proof:otlp-export:run");
     expect(packageJson.scripts?.["proof:otlp-export:test"]).toBe("node --test proofs/otlp-export/*.test.mjs");
     expect(packageJson.scripts?.["proof:otlp-export:run"]).toBe("node proofs/otlp-export/run.mjs");
-    expect(tracker).toContain("| Pending | 619 |");
+    expect(tracker).toContain("| Pending | 596 |");
     expect(tracker).toContain("| In progress | 0 |");
-    expect(tracker).toContain("| Complete | 106 |");
+    expect(tracker).toContain("| Complete | 129 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`619/0/106/3`");
+    expect(tracker).toContain("`596/0/129/3`");
     expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 0 \| 24 \| 3 \|/);
     expect(summaryRows.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
     expect(m0Row?.slice(2).reduce((sum, count) => sum + Number(count), 0)).toBe(Number(m0Row?.[1]));

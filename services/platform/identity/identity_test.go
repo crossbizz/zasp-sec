@@ -261,6 +261,9 @@ type fakeStytchDriver struct {
 	ensureOrganizationCalls int
 	inviteCalls             int
 	persistedSecret         string
+	ssoConnections          []DriverSSOConnection
+	scimConnections         []DriverSCIMConnection
+	connectionErr           error
 }
 
 func newFakeStytchDriver() *fakeStytchDriver {
@@ -268,6 +271,10 @@ func newFakeStytchDriver() *fakeStytchDriver {
 		session:      driverFixtureSession(),
 		organization: DriverOrganization{Reference: "organization-live-a", Name: "Acme", Domain: "acme.example"},
 		invitation:   DriverInvitation{MemberReference: "member-live-a", OrganizationReference: "organization-live-a", Email: "admin@acme.example"},
+		ssoConnections: []DriverSSOConnection{{Reference: "saml-connection-live-a", OrganizationReference: "organization-live-a", Status: "active",
+			DisplayName: "Corporate SAML", Protocol: "saml", IdentityProvider: "generic"}},
+		scimConnections: []DriverSCIMConnection{{Reference: "scim-connection-live-a", OrganizationReference: "organization-live-a", Status: "active",
+			DisplayName: "Corporate SCIM", IdentityProvider: "generic", BaseURL: "https://scim.example.invalid/v2"}},
 	}
 }
 
@@ -302,11 +309,51 @@ func (driver *fakeStytchDriver) InviteAdmin(context.Context, string, string) (Dr
 }
 
 func (driver *fakeStytchDriver) ListSSOConnections(context.Context, string) ([]DriverSSOConnection, error) {
-	return []DriverSSOConnection{{Reference: "sso-live-a", OrganizationReference: driver.organization.Reference, Status: "active"}}, nil
+	return append([]DriverSSOConnection(nil), driver.ssoConnections...), driver.connectionErr
 }
 
 func (driver *fakeStytchDriver) ListSCIMConnections(context.Context, string) ([]DriverSCIMConnection, error) {
-	return []DriverSCIMConnection{{Reference: "scim-live-a", OrganizationReference: driver.organization.Reference, Status: "active"}}, nil
+	return append([]DriverSCIMConnection(nil), driver.scimConnections...), driver.connectionErr
+}
+
+func (driver *fakeStytchDriver) CreateSSOConnection(_ context.Context, organization string, config DriverSSOConfig) (DriverSSOConnection, error) {
+	if driver.connectionErr != nil {
+		return DriverSSOConnection{}, driver.connectionErr
+	}
+	value := DriverSSOConnection{Reference: "saml-connection-live-created", OrganizationReference: organization, Status: "pending",
+		DisplayName: config.DisplayName, Protocol: config.Protocol, IdentityProvider: config.IdentityProvider}
+	driver.ssoConnections = append(driver.ssoConnections, value)
+	return value, nil
+}
+
+func (driver *fakeStytchDriver) DeleteSSOConnection(_ context.Context, _, reference string) (string, error) {
+	if driver.connectionErr != nil {
+		return "", driver.connectionErr
+	}
+	driver.ssoConnections = nil
+	return reference, nil
+}
+
+func (driver *fakeStytchDriver) TestSSOConnection(context.Context, string, string) error {
+	return driver.connectionErr
+}
+
+func (driver *fakeStytchDriver) CreateSCIMConnection(_ context.Context, organization string, config DriverSCIMConfig) (DriverSCIMCredential, error) {
+	if driver.connectionErr != nil {
+		return DriverSCIMCredential{}, driver.connectionErr
+	}
+	value := DriverSCIMConnection{Reference: "scim-connection-live-created", OrganizationReference: organization, Status: "active",
+		DisplayName: config.DisplayName, IdentityProvider: config.IdentityProvider, BaseURL: "https://scim.example.invalid/v2"}
+	driver.scimConnections = append(driver.scimConnections, value)
+	return DriverSCIMCredential{Connection: value, BearerToken: "scim_bearer_token_fixture"}, nil
+}
+
+func (driver *fakeStytchDriver) DeleteSCIMConnection(_ context.Context, _, reference string) (string, error) {
+	if driver.connectionErr != nil {
+		return "", driver.connectionErr
+	}
+	driver.scimConnections = nil
+	return reference, nil
 }
 
 func fixtureID(t *testing.T, value int) domain.ProductID {

@@ -52,7 +52,7 @@ test("pins the official generator/runtime and wires exact local-only scripts int
   assert.equal(packageJson.scripts?.["openapi:check"], `${generateScript} --check`);
   assert.equal(
     packageJson.scripts?.["openapi:test"],
-    "node --test openapi/openapi.test.mjs openapi/internal-health.test.mjs openapi/generated-client.test.mjs",
+    "node --test openapi/openapi.test.mjs openapi/internal-health.test.mjs openapi/generated-client.test.mjs openapi/identity-admin.test.mjs",
   );
   assert.equal(
     packageJson.scripts?.verify,

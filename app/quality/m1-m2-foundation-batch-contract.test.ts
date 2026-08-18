@@ -46,15 +46,15 @@ describe("M1 tenancy and M2 identity foundation batch", () => {
     const summary = markdownRows(tracker.match(/## Status summary[\s\S]*?## Milestone summary/)?.[0] ?? "").slice(2);
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
-    expect(tracker).toContain("`619/0/106/3`");
+    expect(tracker).toContain("`596/0/129/3`");
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
     expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "0", "0", "68", "0"]);
-    expect(milestones.find(([milestone]) => milestone === "M2")).toEqual(["M2", "72", "58", "0", "14", "0"]);
+    expect(milestones.find(([milestone]) => milestone === "M2")).toEqual(["M2", "72", "35", "0", "37", "0"]);
     expect(active).toEqual([]);
     for (const task of completedBatch) {
       expect(complete.filter(([candidate]) => candidate === task)).toHaveLength(1);
     }
-    expect(complete).toHaveLength(106);
+    expect(complete).toHaveLength(129);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
 
@@ -63,7 +63,7 @@ describe("M1 tenancy and M2 identity foundation batch", () => {
     expect(readme).toContain("M1-36 is PASS");
     expect(readme).toContain("M1-45a through M1-45d and the M1-45 gate are Complete");
     expect(readme).toContain("M2-01 through M2-07d are Complete");
-    expect(readme).toContain("M2-08 remains Pending");
+    expect(readme).toContain("M2-08 through M2-30 are Complete");
     expect(readme).toContain("no local password or customer-facing bypass login");
   });
 });

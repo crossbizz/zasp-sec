@@ -19,6 +19,8 @@ var (
 	ErrConflict            = errors.New("identity conflict")
 	ErrNotFound            = errors.New("identity record not found")
 	ErrForbidden           = errors.New("authorization rejected")
+	ErrWebhookVerification = errors.New("webhook verification rejected")
+	ErrDeprovision         = errors.New("identity deprovision rejected")
 )
 
 type DriverSession struct {
@@ -46,12 +48,34 @@ type DriverSSOConnection struct {
 	Reference             string
 	OrganizationReference string
 	Status                string
+	DisplayName           string
+	Protocol              string
+	IdentityProvider      string
 }
 
 type DriverSCIMConnection struct {
 	Reference             string
 	OrganizationReference string
 	Status                string
+	DisplayName           string
+	IdentityProvider      string
+	BaseURL               string
+}
+
+type DriverSSOConfig struct {
+	DisplayName      string
+	Protocol         string
+	IdentityProvider string
+}
+
+type DriverSCIMConfig struct {
+	DisplayName      string
+	IdentityProvider string
+}
+
+type DriverSCIMCredential struct {
+	Connection  DriverSCIMConnection
+	BearerToken string
 }
 
 type ExternalPrincipal struct {
@@ -164,9 +188,13 @@ func newPrincipal(id, organizationID domain.ProductID, organizationReference, me
 }
 
 func (principal Principal) valid() bool {
+	return principal.validRecord() && principal.active
+}
+
+func (principal Principal) validRecord() bool {
 	return validProductID(principal.id) && validProductID(principal.organizationID) && principal.id != principal.organizationID &&
 		validReference(principal.organizationReference, "organization-") && validReference(principal.memberReference, "member-") &&
-		principal.role.valid() && principal.active
+		principal.role.valid()
 }
 
 func (principal Principal) ID() domain.ProductID             { return principal.id }
@@ -182,6 +210,11 @@ type Workspace struct {
 	name           string
 }
 
+func (workspace Workspace) valid() bool {
+	return validProductID(workspace.id) && validProductID(workspace.organizationID) &&
+		workspace.id != workspace.organizationID && validName(workspace.name)
+}
+
 func (workspace Workspace) ID() domain.ProductID             { return workspace.id }
 func (workspace Workspace) OrganizationID() domain.ProductID { return workspace.organizationID }
 func (workspace Workspace) Name() string                     { return workspace.name }
@@ -191,6 +224,13 @@ type Environment struct {
 	organizationID domain.ProductID
 	workspaceID    domain.ProductID
 	name           string
+}
+
+func (environment Environment) valid() bool {
+	return validProductID(environment.id) && validProductID(environment.organizationID) &&
+		validProductID(environment.workspaceID) && environment.id != environment.organizationID &&
+		environment.id != environment.workspaceID && environment.organizationID != environment.workspaceID &&
+		validName(environment.name)
 }
 
 func (environment Environment) ID() domain.ProductID             { return environment.id }

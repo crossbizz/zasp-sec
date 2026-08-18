@@ -55,16 +55,16 @@ describe("M1-36b hermetic schema check", () => {
     const summary = markdownRows(tracker.match(/## Status summary[\s\S]*?## Milestone summary/)?.[0] ?? "").slice(2);
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
-    expect(tracker).toContain("| Pending | 619 |");
+    expect(tracker).toContain("| Pending | 596 |");
     expect(tracker).toContain("| In progress | 0 |");
-    expect(tracker).toContain("| Complete | 106 |");
+    expect(tracker).toContain("| Complete | 129 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`619/0/106/3`");
+    expect(tracker).toContain("`596/0/129/3`");
     expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "0", "0", "68", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
     expect(active.map(([task]) => task)).toEqual([]);
     expect(active.filter(([task]) => task === "M1-36b")).toHaveLength(0);
-    expect(complete).toHaveLength(106);
+    expect(complete).toHaveLength(129);
     expect(complete.filter(([task]) => task === "M1-36a")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-36b")).toHaveLength(1);
     expect(active.filter(([task]) => task === "M1-36c")).toHaveLength(0);

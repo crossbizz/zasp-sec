@@ -273,7 +273,7 @@ describe("M1-28 internal service health contract", () => {
     );
     assert.equal(
       packageJSON.scripts["openapi:test"],
-      "node --test openapi/openapi.test.mjs openapi/internal-health.test.mjs openapi/generated-client.test.mjs",
+      "node --test openapi/openapi.test.mjs openapi/internal-health.test.mjs openapi/generated-client.test.mjs openapi/identity-admin.test.mjs",
     );
     assert.equal(
       packageJSON.scripts["openapi:lint"],
