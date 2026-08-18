@@ -45,7 +45,7 @@ describe("M1-41 SQS Organization envelope guard contract", () => {
     expect(plan.match(/^- \[[ x]\]/gm) ?? []).toHaveLength(19);
   });
 
-  it("starts only M1-41 with exact arithmetic", async () => {
+  it("completes only M1-41 with exact arithmetic", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -58,17 +58,18 @@ describe("M1-41 SQS Organization envelope guard contract", () => {
     const m1 = milestones.find(([milestone]) => milestone === "M1");
 
     expect(readme).toContain("M1-40 is Complete");
-    expect(readme).toContain("M1-41 is In progress");
+    expect(readme).toContain("M1-41 is Complete");
     expect(tracker).toContain("| Pending | 642 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 82 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 83 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`642/1/82/3`");
-    expect(m1).toEqual(["M1", "68", "9", "1", "58", "0"]);
+    expect(tracker).toContain("`642/0/83/3`");
+    expect(m1).toEqual(["M1", "68", "9", "0", "59", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.map(([task]) => task)).toEqual(["M1-41"]);
+    expect(active).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-40")).toHaveLength(1);
-    expect([...active, ...complete].filter(([task]) => task === "M1-41")).toHaveLength(1);
+    expect(active.filter(([task]) => task === "M1-41")).toHaveLength(0);
+    expect(complete.filter(([task]) => task === "M1-41")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-42")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
@@ -79,7 +80,7 @@ describe("M1-41 SQS Organization envelope guard contract", () => {
     const prose = section.replace(/\s+/g, " ");
 
     for (const value of [
-      "M1-41 is In progress",
+      "M1-41 is Complete",
       "background, runtime-event, and test envelopes",
       "before the handler",
       "Organization A",

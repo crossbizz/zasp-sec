@@ -58,13 +58,13 @@ describe("M1-36c OpenAPI generation and client drift check", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(tracker).toContain("| Pending | 642 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 82 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 83 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`642/1/82/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "9", "1", "58", "0"]);
+    expect(tracker).toContain("`642/0/83/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "9", "0", "59", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.map(([task]) => task)).toEqual(["M1-41"]);
+    expect(active.map(([task]) => task)).toEqual([]);
     expect(complete.filter(([task]) => task === "M1-36b")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-36c")).toHaveLength(1);
     expect(active.filter(([task]) => task === "M1-36d")).toHaveLength(0);

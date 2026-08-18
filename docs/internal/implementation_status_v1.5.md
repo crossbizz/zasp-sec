@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 642 |
-| In progress | 1 |
-| Complete | 82 |
+| In progress | 0 |
+| Complete | 83 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -24,7 +24,7 @@ In progress, Complete, or Blocked is Pending.
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 0 | 0 | 24 | 3 |
-| M1 | 68 | 9 | 1 | 58 | 0 |
+| M1 | 68 | 9 | 0 | 59 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
 | M3 | 75 | 75 | 0 | 0 | 0 |
@@ -68,19 +68,19 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `642/1/82/3` because
+session configuration. The 728 source-plan counts are `642/0/83/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M1-41 | August 18, 2026 | Add one Organization-bound product consumer that validates exact background, runtime-event, and test queue envelopes before any worker handler side effect. |
 
 ## Complete
 
 | Task | Completed | Evidence |
 | --- | --- | --- |
+| M1-41 | August 18, 2026 | Added one Organization-bound product consumer for exact background, runtime-event, and test envelopes; missing or foreign Organization scope fails before handler entry, and strict schema, fixed failure, panic, copy, concurrency, mutation, race, inherited SQS, repository, audit, scan, and zero-finding review gates passed. |
 | M1-40 | August 18, 2026 | Routed all ArtifactStore operations through one scope-mandatory driver locator, proved a same-session Organization-A read cannot return the otherwise identical Organization-B fixture, retained concurrent per-call separation, and passed mutation, race, platform, inherited provider, repository, audit, scan, and zero-finding review gates. |
 | M1-39 | August 18, 2026 | Made both EventStore driver builders explicitly scope-mandatory, fixed canonical Organization/Workspace/Environment values before driver I/O, rejected the same-session Organization-B fixture from an Organization-A query, and passed mutation, concurrency, race, platform, inherited adapter, repository, audit, scan, and zero-finding review gates. |
 | M1-38 | August 18, 2026 | Added a stateless dependency-free repository guard that rejects missing or invalid product Organization scope before SQL execution, prepends the canonical Organization argument without caller-slice mutation or retained tenant state, and passed hostile tests, six race runs, full platform/repository gates, scans, and zero-finding review. |
