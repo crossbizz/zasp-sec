@@ -1,6 +1,6 @@
 # M1-38 Neon Organization Scope Guard Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Add a dependency-free repository guard that rejects customer-data
 queries without one canonical product Organization ID before SQL execution.
@@ -53,14 +53,14 @@ Vitest repository contracts, Node.js 22.23.1, npm 10.9.8.
 - Produces: one unique M1-38 In-progress row, exact arithmetic, and a bounded
   README statement of the call-boundary guarantee.
 
-- [ ] **Step 1: Write the source/design/status contract**
+- [x] **Step 1: Write the source/design/status contract**
 
   Require the source dependency/deliverable/verification text, exact public
   helper signatures, argument-zero behavior, fixed error boundary, deferred
   RLS tasks, M1-37/M1-39 status, blockers, arithmetic, and exactly 16 unchecked
   plan steps.
 
-- [ ] **Step 2: Witness focused status RED**
+- [x] **Step 2: Witness focused status RED**
 
   Run:
 
@@ -71,13 +71,13 @@ Vitest repository contracts, Node.js 22.23.1, npm 10.9.8.
 
   Require failure only because README/tracker still leave M1-38 Pending.
 
-- [ ] **Step 3: Move only M1-38 to In progress**
+- [x] **Step 3: Move only M1-38 to In progress**
 
   Change overall counts to `645/1/79/3` and M1 to `68/12/1/55/0`. Add one
   current M1-38 row and one README section. Preserve M1-37 Complete, absent
   M1-39, R-03/R-11, and the exact blockers.
 
-- [ ] **Step 4: Run status GREEN and commit**
+- [x] **Step 4: Run status GREEN and commit**
 
   Run the focused contract, predecessor/status contracts, pinned full
   repository verification, production audit, whitespace, and staged redacted
@@ -110,7 +110,7 @@ Vitest repository contracts, Node.js 22.23.1, npm 10.9.8.
   func (*Guard) QueryRow(context.Context, domain.ProductID, string, []any, ...any) error
   ```
 
-- [ ] **Step 1: Capture missing repository API RED**
+- [x] **Step 1: Capture missing repository API RED**
 
   Add one valid-call test that constructs a guard, passes a canonical
   Organization ID, statement, two caller arguments, and one destination, then
@@ -123,14 +123,14 @@ Vitest repository contracts, Node.js 22.23.1, npm 10.9.8.
 
   Require compiler failure only on the absent package API.
 
-- [ ] **Step 2: Implement the minimal valid boundary**
+- [x] **Step 2: Implement the minimal valid boundary**
 
   Add `Queryer`, private `Guard.queryer`, fixed errors, `New`, and `QueryRow`.
   Validate the Organization by exact parse/string round-trip, allocate a fresh
   argument slice, prepend the canonical string, forward once, and map any
   downstream non-nil error to `ErrQuery`.
 
-- [ ] **Step 3: Add hostile admission and isolation RED/GREEN**
+- [x] **Step 3: Add hostile admission and isolation RED/GREEN**
 
   Add table tests for zero and malformed direct-state IDs, nil/canceled
   context, empty/whitespace/NUL/invalid-UTF-8/oversized statements, no
@@ -138,7 +138,7 @@ Vitest repository contracts, Node.js 22.23.1, npm 10.9.8.
   fixed-error secrecy, caller-slice mutation, and two concurrent Organizations.
   Every rejected precondition must leave the queryer call count at zero.
 
-- [ ] **Step 4: Run focused stability and commit**
+- [x] **Step 4: Run focused stability and commit**
 
   Run six consecutive
   `/opt/homebrew/bin/go test -C services/platform -race -count=1 ./repository`
@@ -163,27 +163,27 @@ Vitest repository contracts, Node.js 22.23.1, npm 10.9.8.
 - Consumes: exact design-to-head diff and fresh local gate evidence.
 - Produces: zero open Critical, Important, or Minor findings before completion.
 
-- [ ] **Step 1: Audit authorization and data-flow boundaries**
+- [x] **Step 1: Audit authorization and data-flow boundaries**
 
   Trace every call from public admission to the queryer. Require canonical
   Organization validation before execution, exact position-zero insertion,
   no caller slice mutation, no stored tenant state, and no queryer path that
   bypasses the guard after admission.
 
-- [ ] **Step 2: Audit hostile runtime behavior**
+- [x] **Step 2: Audit hostile runtime behavior**
 
   Probe nil/typed-nil and malformed interfaces, direct invalid ProductID
   state, canceled contexts, downstream errors and panics, stateful arguments,
   concurrent Organizations, and rejected-value secrecy. Confirm `database.Pool`
   satisfies `Queryer` at compile time without adapter code.
 
-- [ ] **Step 3: Fix every concrete finding tests-first**
+- [x] **Step 3: Fix every concrete finding tests-first**
 
   For each finding, add the smallest regression test, witness the intended
   failure, implement the minimal correction, and rerun focused plus affected
   gates. Keep each correction in a separate atomic commit.
 
-- [ ] **Step 4: Record zero-finding review**
+- [x] **Step 4: Record zero-finding review**
 
   Require Critical 0 / Important 0 / Minor 0 and Implementation Ready Yes.
   Record exact ranges, RED/GREEN counts, commands, and fixed scope in ignored
@@ -206,27 +206,27 @@ Vitest repository contracts, Node.js 22.23.1, npm 10.9.8.
 - Produces: M1-38 Complete, closed plan, synchronized local/origin/tracking refs,
   and M1-39 still Pending.
 
-- [ ] **Step 1: Write completion-contract RED**
+- [x] **Step 1: Write completion-contract RED**
 
   Change only M1-38 expectations to `645/0/80/3`, M1
   `68/12/0/56/0`, no active task, exactly one completed M1-37 and M1-38,
   absent M1-39, and exact blockers. Witness failure while status is In
   progress.
 
-- [ ] **Step 2: Transition only M1-38 to Complete**
+- [x] **Step 2: Transition only M1-38 to Complete**
 
   Update README, tracker, and current status fixtures mechanically. Run focused
   GREEN, six race passes, full platform and pinned repository gates, audit,
   whitespace, staged scan, and exact-range scan. Commit as
   `docs: complete M1-38 Neon Organization scope guard`.
 
-- [ ] **Step 3: Push and require exact-SHA Runnable UI success**
+- [x] **Step 3: Push and require exact-SHA Runnable UI success**
 
   Push `codex/zasp-implementation`, locate Runnable UI by the exact completion
   SHA, and watch its exact job to terminal success. Record the run/job URL and
   IDs in ignored evidence.
 
-- [ ] **Step 4: Close the plan and continue**
+- [x] **Step 4: Close the plan and continue**
 
   Change all 16 execution checkboxes to `[x]`, commit only this plan as
   `docs: close M1-38 Neon Organization scope guard plan`, push it, require a
