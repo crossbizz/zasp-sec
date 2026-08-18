@@ -1,9 +1,15 @@
 package sessioncontrol
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"errors"
 	"testing"
 	"time"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore"
+	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
 
 func TestSessionsComplianceAndDataControlBoundaries(t *testing.T) {
@@ -51,4 +57,76 @@ func TestSessionsComplianceAndDataControlBoundaries(t *testing.T) {
 	if got, err := data.Get(context.Background(), "environment-1"); err != nil || got.CollectionMode != "metadata_only" {
 		t.Fatalf("settings=%+v err=%v", got, err)
 	}
+}
+
+func TestComplianceExportPersistsExactArtifact(t *testing.T) {
+	values := []ComplianceEvidence{{
+		Control:  ComplianceControl{ID: "soc2-security", Framework: "SOC 2", Name: "Security", EvidenceIDs: []string{"evidence-1"}, FreshUntil: time.Date(2026, 8, 19, 0, 0, 0, 0, time.UTC)},
+		Evidence: []EvidenceRecord{{ID: "evidence-1", AssetID: "asset-1", Source: "runtime", At: time.Date(2026, 8, 18, 0, 0, 0, 0, time.UTC)}}, Freshness: "fresh",
+	}}
+	exported, err := BuildComplianceExport("export-1", values)
+	if err != nil {
+		t.Fatal(err)
+	}
+	locator := complianceExportLocator(t)
+	store := &complianceArtifactStore{}
+	artifact, err := WriteComplianceExportArtifact(context.Background(), store, locator.Scope, locator.Reference, exported)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if store.calls != 1 || store.request.Locator != locator || store.request.MediaType != "application/json" || !bytes.Equal(store.request.Body, artifact.Body) {
+		t.Fatalf("request=%+v artifact=%+v", store.request, artifact)
+	}
+	if artifact.Size != int64(len(artifact.Body)) || artifact.SHA256 != sha256.Sum256(artifact.Body) ||
+		!bytes.Contains(artifact.Body, []byte("evidence-1")) || !bytes.Contains(artifact.Body, []byte("2026-08-18T00:00:00Z")) ||
+		!bytes.Contains(artifact.Body, []byte("control_id,framework,freshness,evidence_count")) || containsCertificationLanguage(string(artifact.Body)) {
+		t.Fatalf("artifact=%s", artifact.Body)
+	}
+	store.mutate = true
+	if _, err := WriteComplianceExportArtifact(context.Background(), store, locator.Scope, locator.Reference, exported); !errors.Is(err, ErrRejected) {
+		t.Fatalf("mutated store result error=%v", err)
+	}
+}
+
+type complianceArtifactStore struct {
+	calls   int
+	request artifactstore.PutRequest
+	mutate  bool
+}
+
+func (s *complianceArtifactStore) Put(_ context.Context, request artifactstore.PutRequest) (artifactstore.Artifact, error) {
+	s.calls++
+	s.request = request
+	body := bytes.Clone(request.Body)
+	if s.mutate {
+		body = append(body, 'x')
+	}
+	return artifactstore.Artifact{Locator: request.Locator, MediaType: request.MediaType, Body: body, Size: int64(len(body)), SHA256: sha256.Sum256(body)}, nil
+}
+func (*complianceArtifactStore) Get(context.Context, artifactstore.Locator) (artifactstore.Artifact, error) {
+	return artifactstore.Artifact{}, errors.New("unexpected get")
+}
+func (*complianceArtifactStore) Delete(context.Context, artifactstore.Locator) error {
+	return errors.New("unexpected delete")
+}
+
+func complianceExportLocator(t *testing.T) artifactstore.Locator {
+	t.Helper()
+	ids := make([]domain.ProductID, 4)
+	for index := range ids {
+		value, err := domain.ParseProductID("pid_00000000-0000-4000-8000-00000000000" + string(rune('1'+index)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids[index] = value
+	}
+	scope, err := domain.NewScope(ids[0], ids[1], ids[2])
+	if err != nil {
+		t.Fatal(err)
+	}
+	reference, err := domain.NewEvidenceRef(ids[3])
+	if err != nil {
+		t.Fatal(err)
+	}
+	return artifactstore.Locator{Scope: scope, Reference: reference}
 }

@@ -28,7 +28,7 @@ describe("M5 worker and Attack Lab completion batch", () => {
       readFile(resolve(root, "README.md"), "utf8"),
     ]);
     expect(selected).toHaveLength(25);
-    for (const value of ["| Pending | 0 |", "| In progress | 316 |", "| Complete | 409 |", "| Blocked | 3 |", "`0/316/409/3`", "| M5 | 42 | 0 | 0 | 42 | 0 |"]) expect(tracker).toContain(value);
+    for (const value of ["| Pending | 0 |", "| In progress | 291 |", "| Complete | 434 |", "| Blocked | 3 |", "`0/291/434/3`", "| M5 | 42 | 0 | 0 | 42 | 0 |"]) expect(tracker).toContain(value);
     const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
     const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] ?? "";
     for (const task of selected) {

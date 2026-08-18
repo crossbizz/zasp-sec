@@ -1,15 +1,21 @@
 package sessioncontrol
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/csv"
 	"encoding/json"
 	"errors"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore"
+	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
 
 var ErrRejected = errors.New("session control operation rejected")
@@ -236,6 +242,42 @@ func BuildComplianceExport(id string, values []ComplianceEvidence) (ComplianceEx
 	return ComplianceExport{ID: id, Status: "completed", Formats: []string{"json", "csv", "human"}, JSON: jsonBytes, CSV: []byte(csvText.String()), Human: human}, nil
 }
 
+type complianceExportPackage struct {
+	Version int             `json:"version"`
+	ID      string          `json:"id"`
+	JSON    json.RawMessage `json:"json"`
+	CSV     string          `json:"csv"`
+	Human   string          `json:"human"`
+}
+
+func WriteComplianceExportArtifact(ctx context.Context, store artifactstore.ArtifactStore, scope domain.Scope, reference domain.EvidenceRef, value ComplianceExport) (artifact artifactstore.Artifact, resultErr error) {
+	if ctx == nil || ctx.Err() != nil || nilInterface(store) || scope.Validate() != nil || reference.Validate() != nil ||
+		!bounded(value.ID, 128) || value.Status != "completed" || len(value.Formats) != 3 || value.Formats[0] != "json" ||
+		value.Formats[1] != "csv" || value.Formats[2] != "human" || len(value.JSON) == 0 || len(value.JSON) > 4*1024*1024 ||
+		!json.Valid(value.JSON) || len(value.CSV) == 0 || len(value.CSV) > 4*1024*1024 || len(value.Human) == 0 ||
+		len(value.Human) > 4096 || containsCertificationLanguage(value.Human) {
+		return artifactstore.Artifact{}, ErrRejected
+	}
+	body, err := json.Marshal(complianceExportPackage{Version: 1, ID: value.ID, JSON: json.RawMessage(bytes.Clone(value.JSON)), CSV: string(value.CSV), Human: value.Human})
+	if err != nil || len(body) == 0 || len(body) > 8*1024*1024 {
+		return artifactstore.Artifact{}, ErrRejected
+	}
+	locator := artifactstore.Locator{Scope: scope, Reference: reference}
+	request := artifactstore.PutRequest{Locator: locator, MediaType: "application/json", Body: bytes.Clone(body)}
+	defer func() {
+		if recover() != nil {
+			artifact = artifactstore.Artifact{}
+			resultErr = ErrRejected
+		}
+	}()
+	returned, err := store.Put(ctx, request)
+	if err != nil || returned.Locator != locator || returned.MediaType != request.MediaType || returned.Size != int64(len(body)) ||
+		returned.SHA256 != sha256.Sum256(body) || !bytes.Equal(returned.Body, body) {
+		return artifactstore.Artifact{}, ErrRejected
+	}
+	return returned, nil
+}
+
 func containsCertificationLanguage(value string) bool {
 	lower := strings.ToLower(value)
 	return strings.Contains(lower, "certified") || strings.Contains(lower, "certification")
@@ -283,6 +325,13 @@ func validEvent(value SessionEvent) bool {
 }
 func bounded(value string, max int) bool {
 	return value != "" && len(value) <= max && strings.TrimSpace(value) == value && !strings.ContainsAny(value, "\r\n\x00")
+}
+func nilInterface(value any) bool {
+	if value == nil {
+		return true
+	}
+	kind := reflect.ValueOf(value).Kind()
+	return (kind == reflect.Pointer || kind == reflect.Interface || kind == reflect.Map || kind == reflect.Slice || kind == reflect.Func || kind == reflect.Chan) && reflect.ValueOf(value).IsNil()
 }
 func contains[T comparable](values []T, target T) bool {
 	for _, value := range values {

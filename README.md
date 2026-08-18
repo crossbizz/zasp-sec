@@ -318,10 +318,12 @@ Go SDK, signed ArtifactStore bundles, bounded restart recovery, runtime-token
 delivery, bounded OpenSearch history, rollout/runtime enforcement, product UI,
 re-test state, and the six-stage local gate. No staging claim is made.
 
-M7-01 through M7-06 are Complete. The session foundation provides idempotent
-projection, three generated APIs, bounded structured search filters, and the
-mixed-confidence Sessions list. M7-07 through M7-40 remain batched as In
-progress; live OpenSearch or staging evidence is not claimed.
+M7-01 through M7-23 are Complete. The session and compliance foundation provides
+idempotent projection, generated APIs, bounded structured search filters,
+mixed-confidence timelines, evidence assembly, ArtifactStore exports, data
+controls, retention, guarded external flows, and allowlist-only product events.
+M7-24 through M7-40 remain batched as In progress; live OpenSearch, scheduled
+retention, or staging evidence is not claimed.
 
 M7-39 through M7-40 and M7A-01 through M7A-17 are batched as In progress. The
 local M7 gate now binds five degraded-state fixtures and six independent MVP

@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 0 |
-| In progress | 316 |
-| Complete | 409 |
+| In progress | 291 |
+| Complete | 434 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -31,7 +31,7 @@ In progress, Complete, or Blocked is Pending.
 | M4 | 82 | 0 | 0 | 82 | 0 |
 | M5 | 42 | 0 | 0 | 42 | 0 |
 | M6 | 36 | 0 | 0 | 36 | 0 |
-| M7 | 62 | 0 | 56 | 6 | 0 |
+| M7 | 62 | 0 | 31 | 31 | 0 |
 | M7A | 113 | 0 | 113 | 0 | 0 |
 | M8 | 141 | 0 | 141 | 0 | 0 |
 
@@ -70,7 +70,7 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `0/316/409/3` because
+session configuration. The 728 source-plan counts are `0/291/434/3` because
 PROV-01 is excluded from those counts.
 For the active M8 resilience batch, live parity, outage injection, and reference load execution remain unresolved.
 
@@ -367,6 +367,13 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 | M7-26a | August 18, 2026 | AI requests reject purposes, models, and providers outside fixed allowlists before egress. |
 | M7-25 | August 18, 2026 | An allowlist-only local redactor retains approved finding summary fields and drops secret/PII inputs. |
 | M7-24 | August 18, 2026 | A server-side flag cache applies explicit defaults after bounded cached values expire. |
+| M3-52 | August 18, 2026 | A strict five-check local M3 gate is implemented; real staging remains unavailable and the task is not Complete. |
+| M3-14 | August 18, 2026 | Strict AWS assume-role identity adapter and local denial fixture are implemented; required real-AWS denial remains unavailable behind M1A-10. |
+
+## Complete
+
+| Task | Completed | Evidence |
+| --- | --- | --- |
 | M7-23 | August 18, 2026 | An allowlist-only product-event serializer rejects prompts, tool arguments, secrets, IPs, and raw evidence. |
 | M7-22a | August 18, 2026 | Required external dependencies cannot be disabled while optional flows can be changed within category policy. |
 | M7-22 | August 18, 2026 | `updateExternalDataFlows` is published and handled by the bounded local service. |
@@ -381,7 +388,7 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 | M7-15c | August 18, 2026 | Compliance evidence renders distinct fresh, stale, and missing states. |
 | M7-15b | August 18, 2026 | Evidence rows retain asset, source, and product evidence references. |
 | M7-15a | August 18, 2026 | The local control list renders SOC 2 Security and HIPAA safeguards without certification claims. |
-| M7-14 | August 18, 2026 | A bounded local artifact builder emits deterministic JSON, CSV, and human-readable evidence; S3 writing remains unresolved. |
+| M7-14 | August 18, 2026 | A bounded deterministic JSON/CSV/human evidence package is written and exactly re-proved through the S3-backed ArtifactStore boundary. |
 | M7-13 | August 18, 2026 | `getComplianceExport` is published and handled by the bounded local service. |
 | M7-12 | August 18, 2026 | `createComplianceExport` is published and handled by the bounded local service. |
 | M7-11 | August 18, 2026 | `listComplianceEvidence` is published and handled by the bounded local service. |
@@ -392,13 +399,6 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 | M7-07c | August 18, 2026 | Session events display source and Exact, Strong, Probable, or Unattributed confidence. |
 | M7-07b | August 18, 2026 | Session rows support tool, runtime, network, file, credential, and policy event classes. |
 | M7-07a | August 18, 2026 | The local session timeline sorts replayed events by canonical UTC event time. |
-| M3-52 | August 18, 2026 | A strict five-check local M3 gate is implemented; real staging remains unavailable and the task is not Complete. |
-| M3-14 | August 18, 2026 | Strict AWS assume-role identity adapter and local denial fixture are implemented; required real-AWS denial remains unavailable behind M1A-10. |
-
-## Complete
-
-| Task | Completed | Evidence |
-| --- | --- | --- |
 | M7-06 | August 18, 2026 | The Sessions surface renders structured filters, freshness, and exact mixed-confidence fixture state. |
 | M7-05 | August 18, 2026 | A bounded structured session-filter builder covers agent, principal, tool, process, file, domain, credential, resource, decision, and time while rejecting raw DSL. |
 | M7-04 | August 18, 2026 | `listSessionEvents` is published in OpenAPI/generated types and handled by the bounded local service. |
