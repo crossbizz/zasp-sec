@@ -96,7 +96,7 @@ function activeFixture(tracker: string, readme: string) {
     readme: readme.replace(/## Nango proxy proof[\s\S]*?(?=## Nango free Auth boundary)/, `${section}\n`),
     tracker: tracker
       .replace(/^\| Pending \| \d+ \|/m, "| Pending | 710 |")
-      .replace("| Complete | 487 |", "| Complete | 16 |")
+      .replace("| Complete | 507 |", "| Complete | 16 |")
       .replace("| Blocked | 3 |", "| Blocked | 1 |")
       .replace("| M0 | 27 | 0 | 0 | 24 | 3 |", "| M0 | 27 | 9 | 1 | 16 | 1 |")
       .replace(/`\d+\/\d+\/\d+\/\d+`/, "`710/1/16/1`")

@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 0 |
-| In progress | 238 |
-| Complete | 487 |
+| In progress | 218 |
+| Complete | 507 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -32,7 +32,7 @@ In progress, Complete, or Blocked is Pending.
 | M5 | 42 | 0 | 0 | 42 | 0 |
 | M6 | 36 | 0 | 0 | 36 | 0 |
 | M7 | 62 | 0 | 0 | 62 | 0 |
-| M7A | 113 | 0 | 91 | 22 | 0 |
+| M7A | 113 | 0 | 71 | 42 | 0 |
 | M8 | 141 | 0 | 141 | 0 | 0 |
 
 ## Execution invariants
@@ -70,7 +70,7 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `0/238/487/3` because
+session configuration. The 728 source-plan counts are `0/218/507/3` because
 PROV-01 is excluded from those counts.
 For the active M8 resilience batch, live parity, outage injection, and reference load execution remain unresolved.
 
@@ -294,6 +294,13 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 | M7A-38c | August 18, 2026 | The trigger source calls durable state persistence before dispatcher delivery for finding, attack-path, and runtime-decision events. |
 | M7A-38b | August 18, 2026 | The automatic dispatcher matches enabled scoped definitions, applies per-definition cooldown, creates immutable queued runs, and emits `security_agent.run`; production queue wiring remains unresolved. |
 | M7A-38a | August 18, 2026 | The internal trigger contract requires canonical source ID, Organization, environment, UTC time, and kind-specific finding/path/runtime fields. |
+| M3-52 | August 18, 2026 | A strict five-check local M3 gate is implemented; real staging remains unavailable and the task is not Complete. |
+| M3-14 | August 18, 2026 | Strict AWS assume-role identity adapter and local denial fixture are implemented; required real-AWS denial remains unavailable behind M1A-10. |
+
+## Complete
+
+| Task | Completed | Evidence |
+| --- | --- | --- |
 | M7A-38 | August 18, 2026 | A canonical Organization/environment/source fingerprint suppresses replayed trigger events for a bounded cooldown without cross-scope collision. |
 | M7A-37 | August 18, 2026 | The runtime-decision matcher requires exact Organization, environment, action, risk, agent, session, count, and bounded UTC window. |
 | M7A-36 | August 18, 2026 | The attack-path matcher binds Organization/environment and exact potential/verified evidence state. |
@@ -305,22 +312,15 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 | M7A-30 | August 18, 2026 | The versioned Suspicious Egress template contains only temporary policy, evidence export, signed handoff, and verification defaults. |
 | M7A-29 | August 18, 2026 | A fail-closed versioned template registry exposes five stable built-in IDs and rejects duplicate or malformed definitions. |
 | M7A-28 | August 18, 2026 | Connection-revoke verification classifies provider/backend uncertainty as Inconclusive rather than success. |
-| M7A-27 | August 18, 2026 | Supported connection revocation executes only with an explicit approval token and a stable run/step idempotency key; production broker wiring remains unresolved. |
+| M7A-27 | August 18, 2026 | Supported connection revocation requires an explicit approval token, uses a stable run/step idempotency key, and fails closed on backend rejection. |
 | M7A-26 | August 18, 2026 | Connection-revoke metadata requires admin approval and is hidden when the injected connector capability reports unsupported. |
 | M7A-25 | August 18, 2026 | The finding-response action permits assignment, notes, and open/investigating state only; Resolved/Safe inputs fail before execution. |
-| M7A-24 | August 18, 2026 | The response-webhook action accepts only a configured destination ID plus run-scoped evidence, never an arbitrary URL; production signer/delivery wiring remains unresolved. |
+| M7A-24 | August 18, 2026 | The response-webhook action accepts only a configured destination, signs one fixed redacted run/evidence payload with its secret, and rejects arbitrary URLs. |
 | M7A-23 | August 18, 2026 | The evidence-export action requires every evidence ID to be scoped to the current run before invoking the bounded backend. |
 | M7A-22 | August 18, 2026 | Attack Lab execution accepts only existing test definitions, approved preflight, and non-production/test targets. |
 | M7A-21 | August 18, 2026 | `run_test` and `rerun_test` accept only an existing TestDefinition ID and reject arbitrary prompt/target content. |
-| M7A-20 | August 18, 2026 | Session isolation executes idempotently through the bounded backend and requires verified gateway-decision evidence; production gateway wiring remains unresolved. |
+| M7A-20 | August 18, 2026 | Session isolation executes idempotently through the bounded backend and requires verified gateway-decision evidence before success. |
 | M7A-19 | August 18, 2026 | `isolate_session` metadata requires one supported scoped session, Monitor/Block-compatible temporary enforcement, approval, reversibility, and TTL. |
-| M3-52 | August 18, 2026 | A strict five-check local M3 gate is implemented; real staging remains unavailable and the task is not Complete. |
-| M3-14 | August 18, 2026 | Strict AWS assume-role identity adapter and local denial fixture are implemented; required real-AWS denial remains unavailable behind M1A-10. |
-
-## Complete
-
-| Task | Completed | Evidence |
-| --- | --- | --- |
 | M7A-18d | August 18, 2026 | `agentsec-worker` runs the bounded periodic claim/cleanup/verify hook; service composition remains owned by the later runtime wiring slice. |
 | M7A-18c | August 18, 2026 | Expiry verification records cleaned or cleanup_failed audit evidence, and uncertainty becomes cleanup_failed rather than silent success. |
 | M7A-18b | August 18, 2026 | Expired product-native controls disable through a scoped idempotency key, with repeat scans leaving the terminal state unchanged. |

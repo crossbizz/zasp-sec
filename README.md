@@ -331,11 +331,10 @@ repeatably executable migration boundary, a bounded temporary runtime-policy
 action, and expiry cleanup. These local contracts do not claim a live Neon
 deployment or provider-backed M7 gate.
 
-M7A-19 through M7A-38 are batched as In progress. The Security Agent runtime
-now has eight guarded response actions, five versioned templates, scoped
-finding/attack-path/runtime matchers, and cooldown deduplication. External
-gateway, connector, webhook, and persistence adapters remain explicit
-unresolved boundaries.
+M7A-19 through M7A-38 are Complete. The Security Agent runtime has eight
+guarded response actions, destination-secret HMAC signing for redacted response
+handoffs, five versioned templates, scoped finding/attack-path/runtime
+matchers, and cooldown deduplication. Provider-backed execution is not claimed.
 
 M7A-38a through M7A-59 are batched as In progress. Canonical trigger sources
 now feed a replay-safe dispatcher, the structured planner separates policy and

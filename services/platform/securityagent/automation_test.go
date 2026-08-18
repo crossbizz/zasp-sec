@@ -2,6 +2,9 @@ package securityagent
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"sync"
 	"testing"
 	"time"
@@ -141,7 +144,9 @@ func TestTemporaryPolicyVerificationAndBoundedExpiryCleanup(t *testing.T) {
 type fakeBuiltinBackend struct {
 	mu        sync.Mutex
 	calls     map[string]int
+	executed  map[string]map[string]string
 	supported map[string]bool
+	secret    []byte
 	verifyErr bool
 }
 
@@ -152,10 +157,16 @@ func (backend *fakeBuiltinBackend) Execute(_ context.Context, key string, parame
 	backend.mu.Lock()
 	defer backend.mu.Unlock()
 	backend.calls[key]++
+	if backend.executed != nil {
+		backend.executed[key] = cloneParameters(parameters)
+	}
 	if idempotency == "" {
 		return "", ErrRejected
 	}
 	return key + "-1", nil
+}
+func (backend *fakeBuiltinBackend) WebhookSigningSecret(context.Context, string) ([]byte, error) {
+	return append([]byte(nil), backend.secret...), nil
 }
 func (backend *fakeBuiltinBackend) Verify(context.Context, string, map[string]string, string) (VerificationOutcome, error) {
 	if backend.verifyErr {
@@ -166,7 +177,7 @@ func (backend *fakeBuiltinBackend) Verify(context.Context, string, map[string]st
 
 func TestBoundedResponseActionSet(t *testing.T) {
 	ctx := context.Background()
-	backend := &fakeBuiltinBackend{calls: map[string]int{}, supported: map[string]bool{"isolate_session": true, "run_test": true, "rerun_test": true, "start_attack_lab": true, "create_evidence_export": true, "send_response_webhook": true, "update_finding_response": true}}
+	backend := &fakeBuiltinBackend{calls: map[string]int{}, executed: map[string]map[string]string{}, supported: map[string]bool{"isolate_session": true, "run_test": true, "rerun_test": true, "start_attack_lab": true, "create_evidence_export": true, "send_response_webhook": true, "update_finding_response": true}, secret: []byte("fixture-response-key")}
 	registry := NewRegistry()
 	if err := RegisterResponseActions(registry, backend); err != nil {
 		t.Fatal(err)
@@ -192,6 +203,13 @@ func TestBoundedResponseActionSet(t *testing.T) {
 		if err := registry.Verify(ctx, request, first); err != nil {
 			t.Fatalf("verify %s: %v", request.ActionKey, err)
 		}
+	}
+	webhookParameters := backend.executed["send_response_webhook"]
+	expectedPayload := `{"type":"security_agent.response","organization_id":"org-a","run_id":"run-1","evidence_id":"run-1:evidence-1"}`
+	mac := hmac.New(sha256.New, backend.secret)
+	_, _ = mac.Write([]byte(expectedPayload))
+	if webhookParameters["destination_id"] != "webhook-1" || webhookParameters["payload"] != expectedPayload || webhookParameters["signature"] != hex.EncodeToString(mac.Sum(nil)) || len(webhookParameters) != 3 {
+		t.Fatalf("unsigned or unredacted webhook parameters=%+v", webhookParameters)
 	}
 
 	badTest := cases[1]

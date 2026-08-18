@@ -2,6 +2,10 @@ package securityagent
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"strings"
 	"sync"
 	"time"
@@ -11,6 +15,15 @@ type BuiltinBackend interface {
 	Supports(context.Context, string, map[string]string) bool
 	Execute(context.Context, string, map[string]string, string) (string, error)
 	Verify(context.Context, string, map[string]string, string) (VerificationOutcome, error)
+}
+type ResponseWebhookSigner interface {
+	WebhookSigningSecret(context.Context, string) ([]byte, error)
+}
+type responseWebhookEvent struct {
+	Type           string `json:"type"`
+	OrganizationID string `json:"organization_id"`
+	RunID          string `json:"run_id"`
+	EvidenceID     string `json:"evidence_id"`
 }
 type builtinAction struct {
 	metadata ActionMetadata
@@ -42,13 +55,50 @@ func (action *builtinAction) Execute(ctx context.Context, request ActionRequest)
 	if prior, ok := action.results[key]; ok {
 		return prior, nil
 	}
-	outcomeID, err := action.backend.Execute(ctx, request.ActionKey, cloneParameters(request.Parameters), key)
+	parameters := cloneParameters(request.Parameters)
+	if request.ActionKey == "send_response_webhook" {
+		parameters, err = action.signedWebhookParameters(ctx, request)
+		if err != nil {
+			return ActionResult{}, err
+		}
+	}
+	outcomeID, err := action.backend.Execute(ctx, request.ActionKey, parameters, key)
 	if err != nil || !bounded(outcomeID, 128) {
 		return ActionResult{}, ErrRejected
 	}
 	result := ActionResult{OutcomeID: outcomeID, State: "succeeded"}
 	action.results[key] = result
 	return result, nil
+}
+func (action *builtinAction) signedWebhookParameters(ctx context.Context, request ActionRequest) (map[string]string, error) {
+	signer, ok := action.backend.(ResponseWebhookSigner)
+	if !ok {
+		return nil, ErrRejected
+	}
+	secret, err := webhookSecret(ctx, signer, request.Parameters["destination_id"])
+	if err != nil || len(secret) < 16 || len(secret) > 256 {
+		return nil, ErrRejected
+	}
+	body, err := json.Marshal(responseWebhookEvent{Type: "security_agent.response", OrganizationID: request.OrganizationID, RunID: request.RunID, EvidenceID: request.Parameters["evidence_id"]})
+	if err != nil || len(body) == 0 || len(body) > 4096 {
+		return nil, ErrRejected
+	}
+	mac := hmac.New(sha256.New, secret)
+	_, _ = mac.Write(body)
+	return map[string]string{"destination_id": request.Parameters["destination_id"], "payload": string(body), "signature": hex.EncodeToString(mac.Sum(nil))}, nil
+}
+func webhookSecret(ctx context.Context, signer ResponseWebhookSigner, destinationID string) (secret []byte, resultErr error) {
+	defer func() {
+		if recover() != nil {
+			secret = nil
+			resultErr = ErrRejected
+		}
+	}()
+	secret, err := signer.WebhookSigningSecret(ctx, destinationID)
+	if err != nil || ctx.Err() != nil {
+		return nil, ErrRejected
+	}
+	return append([]byte(nil), secret...), nil
 }
 func (action *builtinAction) Verify(ctx context.Context, request ActionRequest, result ActionResult) error {
 	if action.VerifyOutcome(ctx, request, result).State != VerificationVerified {

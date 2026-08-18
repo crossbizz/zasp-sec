@@ -14,15 +14,11 @@ describe("M7A response automation batch", () => {
     expect(worker).toContain("scanner.RunOnce");
   });
 
-  it("records the completed expiry slice and the active response slice", () => {
+  it("records the expiry and response slices complete", () => {
     const tracker = read("docs/internal/implementation_status_v1.5.md");
-    for (const value of ["| Pending | 0 |", "| In progress | 238 |", "| Complete | 487 |", "| Blocked | 3 |", "`0/238/487/3`", "| M7A | 113 | 0 | 91 | 22 | 0 |"]) expect(tracker).toContain(value);
-    const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
+    for (const value of ["| Pending | 0 |", "| In progress | 218 |", "| Complete | 507 |", "| Blocked | 3 |", "`0/218/507/3`", "| M7A | 113 | 0 | 71 | 42 | 0 |"]) expect(tracker).toContain(value);
     const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] ?? "";
-    const completedTasks = ["M7A-18", "M7A-18a", "M7A-18b", "M7A-18c", "M7A-18d"];
-    const activeTasks = ["M7A-19", "M7A-20", "M7A-21", "M7A-22", "M7A-23", "M7A-24", "M7A-25", "M7A-26", "M7A-27", "M7A-28", "M7A-29", "M7A-30", "M7A-31", "M7A-32", "M7A-33", "M7A-34", "M7A-35", "M7A-36", "M7A-37", "M7A-38"];
-    for (const task of completedTasks) expect(complete.match(new RegExp(`^\\| ${task} \\|`, "gm"))).toHaveLength(1);
-    for (const task of activeTasks) expect(active.match(new RegExp(`^\\| ${task} \\|`, "gm"))).toHaveLength(1);
-    for (const boundary of ["production gateway wiring remains unresolved", "production signer/delivery wiring remains unresolved", "production broker wiring remains unresolved"]) expect(tracker).toContain(boundary);
+    const tasks = ["M7A-18", "M7A-18a", "M7A-18b", "M7A-18c", "M7A-18d", "M7A-19", "M7A-20", "M7A-21", "M7A-22", "M7A-23", "M7A-24", "M7A-25", "M7A-26", "M7A-27", "M7A-28", "M7A-29", "M7A-30", "M7A-31", "M7A-32", "M7A-33", "M7A-34", "M7A-35", "M7A-36", "M7A-37", "M7A-38"];
+    for (const task of tasks) expect(complete.match(new RegExp(`^\\| ${task} \\|`, "gm"))).toHaveLength(1);
   });
 });
