@@ -56,17 +56,18 @@ describe("M1-39 OpenSearch Organization scope guard contract", () => {
 
     expect(readme).toContain("M1-38 is Complete");
     expect(readme).toContain("M1-39 is Complete");
-    expect(tracker).toContain("| Pending | 644 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 643 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 81 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`644/0/81/3`");
-    expect(m1).toEqual(["M1", "68", "11", "0", "57", "0"]);
+    expect(tracker).toContain("`643/1/81/3`");
+    expect(m1).toEqual(["M1", "68", "10", "1", "57", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active).toHaveLength(0);
+    expect(active).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-39")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-38")).toHaveLength(1);
-    expect([...active, ...complete].filter(([task]) => task === "M1-40")).toHaveLength(0);
+    expect(active.filter(([task]) => task === "M1-40")).toHaveLength(1);
+    expect(complete.filter(([task]) => task === "M1-40")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
     expect(tracker).toContain("R-03 remains incomplete");
     expect(tracker).toContain("R-11 remains Not run");
@@ -83,7 +84,7 @@ describe("M1-39 OpenSearch Organization scope guard contract", () => {
       "Organization A",
       "Organization B",
       "M1-14",
-      "M1-40 remains Pending",
+      "M1-40 is In progress",
     ]) expect(prose).toContain(value);
     expect(section).not.toMatch(/raw OpenSearch DSL|new provider lifecycle|AWS release parity is proven/i);
   });

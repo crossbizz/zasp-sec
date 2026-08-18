@@ -58,14 +58,14 @@ describe("M1-36d UI/API traceability validation", () => {
     const summary = markdownRows(tracker.match(/## Status summary[\s\S]*?## Milestone summary/)?.[0] ?? "").slice(2);
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
-    expect(tracker).toContain("| Pending | 644 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 643 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 81 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`644/0/81/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "11", "0", "57", "0"]);
+    expect(tracker).toContain("`643/1/81/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "10", "1", "57", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.map(([task]) => task)).toEqual([]);
+    expect(active.map(([task]) => task)).toEqual(["M1-40"]);
     expect(active.filter(([task]) => task === "M1-36e")).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-36c")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-36d")).toHaveLength(1);
