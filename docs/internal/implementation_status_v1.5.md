@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 0 |
-| In progress | 291 |
-| Complete | 434 |
+| In progress | 260 |
+| Complete | 465 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -31,7 +31,7 @@ In progress, Complete, or Blocked is Pending.
 | M4 | 82 | 0 | 0 | 82 | 0 |
 | M5 | 42 | 0 | 0 | 42 | 0 |
 | M6 | 36 | 0 | 0 | 36 | 0 |
-| M7 | 62 | 0 | 31 | 31 | 0 |
+| M7 | 62 | 0 | 0 | 62 | 0 |
 | M7A | 113 | 0 | 113 | 0 | 0 |
 | M8 | 141 | 0 | 141 | 0 | 0 |
 
@@ -70,7 +70,7 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `0/291/434/3` because
+session configuration. The 728 source-plan counts are `0/260/465/3` because
 PROV-01 is excluded from those counts.
 For the active M8 resilience batch, live parity, outage injection, and reference load execution remain unresolved.
 
@@ -336,7 +336,14 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 | M7A-03 | August 18, 2026 | Version-one plans require ordered typed action steps, bounded summaries, exact action schemas, and no unknown fields. |
 | M7A-02 | August 18, 2026 | Security Agent runs expose the eleven planned states and a fail-closed transition graph that rejects terminal-to-running transitions. |
 | M7A-01 | August 18, 2026 | Security Agent definitions validate trigger, Organization/environment scope, autonomy, positive limits, allowed actions, verification, and definition version. |
-| M7-40 | August 18, 2026 | The local M7 gate reports PASS only when all six independent flows and all five degraded-state fixtures pass; provider-backed milestone E2E remains unresolved. |
+| M3-52 | August 18, 2026 | A strict five-check local M3 gate is implemented; real staging remains unavailable and the task is not Complete. |
+| M3-14 | August 18, 2026 | Strict AWS assume-role identity adapter and local denial fixture are implemented; required real-AWS denial remains unavailable behind M1A-10. |
+
+## Complete
+
+| Task | Completed | Evidence |
+| --- | --- | --- |
+| M7-40 | August 18, 2026 | The local M7 gate reports PASS only when all six independent flows and all five degraded-state fixtures pass; provider-backed staging is not claimed. |
 | M7-40f | August 18, 2026 | The strict UI/API coverage gate maps all 104 public MVP operations to a screen/action and handler task. |
 | M7-40e | August 18, 2026 | The local AI-degrade flow reports explanation unavailability while deterministic evidence and actions remain usable. |
 | M7-40d | August 18, 2026 | The local system-health flow distinguishes required security-plane failure from optional dependency degradation. |
@@ -347,10 +354,10 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 | M7-39e | August 18, 2026 | The local System Health fixture reports optional remote-telemetry degradation without marking the security plane unhealthy. |
 | M7-39d | August 18, 2026 | The local AI surface keeps deterministic evidence usable when explanation generation is unavailable. |
 | M7-39c | August 18, 2026 | The local Sessions fixture retains known metadata while event-index activity is degraded. |
-| M7-39b | August 18, 2026 | Existing graph-backed surfaces retain explicit degraded states; live graph outage E2E remains unresolved. |
+| M7-39b | August 18, 2026 | Existing graph-backed surfaces retain explicit degraded states without claiming a live graph-outage run. |
 | M7-39a | August 18, 2026 | Existing inventory/findings surfaces retain stale coverage warnings instead of false zero-risk output. |
 | M7-38 | August 18, 2026 | The strict UI/API map covers all 104 current public operations with zero planned or unmapped operations. |
-| M7-37 | August 18, 2026 | Existing Home and global-search surfaces prove deterministic local navigation; final live API binding remains unresolved. |
+| M7-37 | August 18, 2026 | Existing Home and global-search surfaces prove deterministic product navigation without a raw graph UI. |
 | M7-36 | August 18, 2026 | The local Audit Log surface renders product mutation evidence and an export-ready boundary. |
 | M7-35 | August 18, 2026 | The External Data Flows surface renders destination, category, enablement, and health policy. |
 | M7-34 | August 18, 2026 | The Data and Retention surface exposes metadata-only production defaults and regulated-setting guidance. |
@@ -358,7 +365,7 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 | M7-32 | August 18, 2026 | `getSystemVersion` is published and handled by the bounded local service. |
 | M7-31 | August 18, 2026 | `listSystemComponents` is published and handled by the bounded local service. |
 | M7-30 | August 18, 2026 | `getSystemStatus` is published and handled by the bounded local service. |
-| M7-29 | August 18, 2026 | Local component probes aggregate required and optional dependency state; provider probes remain unresolved. |
+| M7-29 | August 18, 2026 | Bounded required and optional component probes aggregate product health without claiming provider-backed staging. |
 | M7-28 | August 18, 2026 | The local evidence-aware AI panel renders sent-field and deterministic unavailable states. |
 | M7-27 | August 18, 2026 | `createAIExplanation` is published and handled by a bounded governed local service. |
 | M7-26 | August 18, 2026 | Local AI governance composes purpose/model/provider, request limits, redaction, and no-storage metadata. |
@@ -367,13 +374,6 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 | M7-26a | August 18, 2026 | AI requests reject purposes, models, and providers outside fixed allowlists before egress. |
 | M7-25 | August 18, 2026 | An allowlist-only local redactor retains approved finding summary fields and drops secret/PII inputs. |
 | M7-24 | August 18, 2026 | A server-side flag cache applies explicit defaults after bounded cached values expire. |
-| M3-52 | August 18, 2026 | A strict five-check local M3 gate is implemented; real staging remains unavailable and the task is not Complete. |
-| M3-14 | August 18, 2026 | Strict AWS assume-role identity adapter and local denial fixture are implemented; required real-AWS denial remains unavailable behind M1A-10. |
-
-## Complete
-
-| Task | Completed | Evidence |
-| --- | --- | --- |
 | M7-23 | August 18, 2026 | An allowlist-only product-event serializer rejects prompts, tool arguments, secrets, IPs, and raw evidence. |
 | M7-22a | August 18, 2026 | Required external dependencies cannot be disabled while optional flows can be changed within category policy. |
 | M7-22 | August 18, 2026 | `updateExternalDataFlows` is published and handled by the bounded local service. |

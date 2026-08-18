@@ -318,16 +318,15 @@ Go SDK, signed ArtifactStore bundles, bounded restart recovery, runtime-token
 delivery, bounded OpenSearch history, rollout/runtime enforcement, product UI,
 re-test state, and the six-stage local gate. No staging claim is made.
 
-M7-01 through M7-23 are Complete. The session and compliance foundation provides
+M7-01 through M7-40 are Complete. The session and compliance milestone provides
 idempotent projection, generated APIs, bounded structured search filters,
 mixed-confidence timelines, evidence assembly, ArtifactStore exports, data
-controls, retention, guarded external flows, and allowlist-only product events.
-M7-24 through M7-40 remain batched as In progress; live OpenSearch, scheduled
-retention, or staging evidence is not claimed.
+controls, retention, guarded external flows, allowlist-only telemetry, governed
+AI, system health, degraded-state UX, complete UI/API coverage, and a local gate.
+Provider-backed staging and live outage injection are not claimed.
 
-M7-39 through M7-40 and M7A-01 through M7A-17 are batched as In progress. The
-local M7 gate now binds five degraded-state fixtures and six independent MVP
-flows. The Security Agent foundation adds tenant-scoped definitions, runs,
+M7A-01 through M7A-17 are batched as In progress. The Security Agent foundation
+adds tenant-scoped definitions, runs,
 steps, approvals, idempotency, structured plans, an action registry, and a
 bounded temporary runtime-policy action. These local contracts do not claim a
 live Neon migration, production policy-service adapter, or provider-backed M7

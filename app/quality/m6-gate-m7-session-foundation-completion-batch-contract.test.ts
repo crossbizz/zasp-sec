@@ -41,7 +41,7 @@ describe("M6 gate and M7 session-foundation completion batch", () => {
       readFile(resolve(root, "README.md"), "utf8"),
     ]);
     expect(selected).toHaveLength(25);
-    for (const value of ["| Pending | 0 |", "| In progress | 291 |", "| Complete | 434 |", "| Blocked | 3 |", "`0/291/434/3`", "| M6 | 36 | 0 | 0 | 36 | 0 |", "| M7 | 62 | 0 | 31 | 31 | 0 |"]) expect(tracker).toContain(value);
+    for (const value of ["| Pending | 0 |", "| In progress | 260 |", "| Complete | 465 |", "| Blocked | 3 |", "`0/260/465/3`", "| M6 | 36 | 0 | 0 | 36 | 0 |", "| M7 | 62 | 0 | 0 | 62 | 0 |"]) expect(tracker).toContain(value);
     const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
     const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] ?? "";
     for (const task of selected) {
@@ -50,7 +50,7 @@ describe("M6 gate and M7 session-foundation completion batch", () => {
     }
     const prose = readme.replace(/\s+/g, " ");
     expect(prose).toContain("M6-01 through M6-31 are Complete");
-    expect(prose).toContain("M7-01 through M7-23 are Complete");
-    expect(prose).toContain("M7-24 through M7-40 remain batched as In progress");
+    expect(prose).toContain("M7-01 through M7-40 are Complete");
+    expect(prose).toContain("Provider-backed staging and live outage injection are not claimed");
   });
 });

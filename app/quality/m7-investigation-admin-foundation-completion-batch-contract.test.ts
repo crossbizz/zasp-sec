@@ -15,13 +15,13 @@ describe("M7 investigation and administration foundation completion batch", () =
 
   it("moves exactly twenty-five tasks to Complete", () => {
     const tracker = read("docs/internal/implementation_status_v1.5.md");
-    for (const value of ["| Pending | 0 |", "| In progress | 291 |", "| Complete | 434 |", "| Blocked | 3 |", "`0/291/434/3`", "| M7 | 62 | 0 | 31 | 31 | 0 |"]) expect(tracker).toContain(value);
+    for (const value of ["| Pending | 0 |", "| In progress | 260 |", "| Complete | 465 |", "| Blocked | 3 |", "`0/260/465/3`", "| M7 | 62 | 0 | 0 | 62 | 0 |"]) expect(tracker).toContain(value);
     const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
     const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] ?? "";
     for (const task of selected) {
       expect(active.match(new RegExp(`^\\| ${task} \\|`, "gm")) ?? []).toHaveLength(0);
       expect(complete.match(new RegExp(`^\\| ${task} \\|`, "gm"))).toHaveLength(1);
     }
-    expect(read("README.md")).toContain("M7-01 through M7-23 are Complete");
+    expect(read("README.md")).toContain("M7-01 through M7-40 are Complete");
   });
 });

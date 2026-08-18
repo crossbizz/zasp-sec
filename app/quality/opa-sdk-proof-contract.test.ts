@@ -152,7 +152,7 @@ describe("OPA SDK proof repository contract", () => {
     ).toThrow();
     expect(() =>
       assertM017Complete(
-        tracker.replace("| Complete | 434 |", "| Complete | 19 |"),
+        tracker.replace("| Complete | 465 |", "| Complete | 19 |"),
         readme,
         riskRegister,
       ),
