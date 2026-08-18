@@ -42,7 +42,7 @@ type Capabilities struct {
 }
 
 func Validate(value Policy, capabilities Capabilities) error {
-	if !bounded(value.ID, 128) || !bounded(value.Name, 256) || value.Scope != "environment" || !contains(capabilities.Triggers, value.Trigger) || !contains(capabilities.Actions, value.Action) || (value.Action != ActionMonitor && value.Action != ActionBlock) || (value.Rollout != "monitor" && value.Rollout != "enforced") || (value.FailureMode != "open" && value.FailureMode != "closed") || len(value.Conditions) == 0 || len(value.Conditions) > 32 {
+	if !bounded(value.ID, 128) || !bounded(value.Name, 256) || value.Scope != "environment" || !contains(capabilities.Triggers, value.Trigger) || !contains(capabilities.Actions, value.Action) || (value.Action != ActionMonitor && value.Action != ActionBlock) || !contains([]string{"draft", "monitor", "enforced", "disabled"}, value.Rollout) || (value.FailureMode != "open" && value.FailureMode != "closed") || len(value.Conditions) == 0 || len(value.Conditions) > 32 {
 		return ErrRejected
 	}
 	for _, condition := range value.Conditions {
@@ -111,7 +111,7 @@ func SignBundle(secret []byte, environmentID string, policies []CompiledPolicy) 
 	}
 	digests := make([]string, len(policies))
 	for i, p := range policies {
-		if !bounded(p.Digest, 64) {
+		if verifyCompiled(p) != nil {
 			return Bundle{}, ErrRejected
 		}
 		digests[i] = p.ID + ":" + p.Digest
@@ -126,6 +126,9 @@ func SignBundle(secret []byte, environmentID string, policies []CompiledPolicy) 
 	return Bundle{EnvironmentID: environmentID, Manifest: string(manifestBytes), Signature: hex.EncodeToString(mac.Sum(nil)), Policies: append([]CompiledPolicy(nil), policies...)}, nil
 }
 func VerifyBundle(secret []byte, bundle Bundle) error {
+	if len(secret) < 16 {
+		return ErrRejected
+	}
 	mac := hmac.New(sha256.New, secret)
 	_, _ = mac.Write([]byte(bundle.Manifest))
 	sig, err := hex.DecodeString(bundle.Signature)
@@ -141,7 +144,7 @@ func VerifyBundle(secret []byte, bundle Bundle) error {
 	}
 	digests := make([]string, len(bundle.Policies))
 	for i, policy := range bundle.Policies {
-		if !bounded(policy.ID, 128) || len(policy.Digest) != 64 {
+		if verifyCompiled(policy) != nil {
 			return ErrRejected
 		}
 		digests[i] = policy.ID + ":" + policy.Digest
@@ -155,17 +158,20 @@ func VerifyBundle(secret []byte, bundle Bundle) error {
 
 type BundleCache struct {
 	mu     sync.RWMutex
+	secret []byte
 	values map[string]Bundle
 }
 
-func NewBundleCache() *BundleCache { return &BundleCache{values: map[string]Bundle{}} }
+func NewBundleCache(secret []byte) *BundleCache {
+	return &BundleCache{secret: append([]byte(nil), secret...), values: map[string]Bundle{}}
+}
 func (cache *BundleCache) Store(bundle Bundle) error {
-	if cache == nil || !bounded(bundle.EnvironmentID, 128) || bundle.Manifest == "" || bundle.Signature == "" {
+	if cache == nil || !bounded(bundle.EnvironmentID, 128) || bundle.Manifest == "" || bundle.Signature == "" || VerifyBundle(cache.secret, bundle) != nil {
 		return ErrRejected
 	}
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
-	cache.values[bundle.EnvironmentID] = bundle
+	cache.values[bundle.EnvironmentID] = cloneBundle(bundle)
 	return nil
 }
 func (cache *BundleCache) Load(environmentID string) Bundle {
@@ -174,7 +180,7 @@ func (cache *BundleCache) Load(environmentID string) Bundle {
 	}
 	cache.mu.RLock()
 	defer cache.mu.RUnlock()
-	return cache.values[environmentID]
+	return cloneBundle(cache.values[environmentID])
 }
 func GetPolicyBundle(cache *BundleCache, environmentID, runtimeEnvironmentID string) (Bundle, error) {
 	if environmentID != runtimeEnvironmentID || !bounded(environmentID, 128) {
@@ -188,8 +194,9 @@ func GetPolicyBundle(cache *BundleCache, environmentID, runtimeEnvironmentID str
 }
 
 type MemoryStore struct {
-	mu     sync.RWMutex
-	values map[string]Policy
+	mu       sync.RWMutex
+	values   map[string]Policy
+	rollouts []RolloutRecord
 }
 
 func NewMemoryStore() *MemoryStore { return &MemoryStore{values: map[string]Policy{}} }
@@ -252,4 +259,36 @@ func equal[T comparable](left, right []T) bool {
 		}
 	}
 	return true
+}
+
+func verifyCompiled(value CompiledPolicy) error {
+	const prefix = "package zasp.runtime\n# deterministic product policy\npolicy := "
+	if !bounded(value.ID, 128) || len(value.Digest) != 64 || !strings.HasPrefix(value.Rego, prefix) || !strings.HasSuffix(value.Rego, "\n") {
+		return ErrRejected
+	}
+	payload := strings.TrimSuffix(strings.TrimPrefix(value.Rego, prefix), "\n")
+	digest := sha256.Sum256([]byte(payload))
+	if hex.EncodeToString(digest[:]) != value.Digest {
+		return ErrRejected
+	}
+	var decoded struct {
+		ID, Trigger string
+		Conditions  []Condition
+		Action      Action
+	}
+	decoder := json.NewDecoder(strings.NewReader(payload))
+	decoder.DisallowUnknownFields()
+	if decoder.Decode(&decoded) != nil || decoder.Decode(&struct{}{}) == nil || decoded.ID != value.ID || decoded.Action != value.Action || !equal(decoded.Conditions, value.Conditions) {
+		return ErrRejected
+	}
+	return nil
+}
+
+func cloneBundle(value Bundle) Bundle {
+	result := value
+	result.Policies = append([]CompiledPolicy(nil), value.Policies...)
+	for i := range result.Policies {
+		result.Policies[i].Conditions = append([]Condition(nil), result.Policies[i].Conditions...)
+	}
+	return result
 }

@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 346 |
-| In progress | 195 |
+| Pending | 320 |
+| In progress | 221 |
 | Complete | 184 |
 | Blocked | 3 |
 
@@ -30,7 +30,7 @@ In progress, Complete, or Blocked is Pending.
 | M3 | 75 | 0 | 61 | 14 | 0 |
 | M4 | 82 | 0 | 82 | 0 | 0 |
 | M5 | 42 | 0 | 42 | 0 | 0 |
-| M6 | 36 | 26 | 10 | 0 | 0 |
+| M6 | 36 | 0 | 36 | 0 | 0 |
 | M7 | 62 | 62 | 0 | 0 | 0 |
 | M7A | 113 | 113 | 0 | 0 | 0 |
 | M8 | 141 | 141 | 0 | 0 | 0 |
@@ -70,13 +70,39 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `346/195/184/3` because
+session configuration. The 728 source-plan counts are `320/221/184/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M6-31 | August 18, 2026 | A six-stage local M6 composition gate requires create, simulate, monitor, enforce, retest, and cached-outage enforcement; staging remains unresolved. |
+| M6-31e | August 18, 2026 | A local signed-bundle fallback keeps known Block decisions until expiry and applies explicit fail-open/fail-closed behavior afterward. |
+| M6-31d | August 18, 2026 | Re-test state becomes Blocked only with an observed policy Block decision and retained correlation evidence. |
+| M6-31c | August 18, 2026 | The local gate fixture enforces a matching action with a stable product block response and correlation ID. |
+| M6-31b | August 18, 2026 | The local gate fixture records one idempotent Monitor decision without blocking the action. |
+| M6-31a | August 18, 2026 | The local gate fixture creates and simulates one Monitor policy against bounded action-context fixtures. |
+| M6-30 | August 18, 2026 | Decision evidence can update a verified local path to Blocked without deleting reachability state. |
+| M6-29 | August 18, 2026 | The local policy detail surface renders simulation, decisions, rollout, enforcement, and disable actions. |
+| M6-28 | August 18, 2026 | The local Policy wizard renders Scope, Trigger, Conditions, Action, Coverage, Simulate, and Rollout while omitting unsupported controls. |
+| M6-27 | August 18, 2026 | The local Policies surface renders Monitor, Enforce, Disabled, coverage, and stale-bundle states. |
+| M6-26 | August 18, 2026 | A focused local metadata-only evaluator p95 measurement boundary is implemented; cluster benchmark evidence remains unresolved. |
+| M6-25 | August 18, 2026 | A local cached-bundle fallback preserves known policy decisions across simulated control-plane outage and explicit expiry behavior. |
+| M6-24 | August 18, 2026 | An idempotent local runtime-decision store accepts a scoped decision exactly once without sensitive payload fields. |
+| M6-23 | August 18, 2026 | Monitor decisions allow the upstream request and emit a metadata-only decision through an injected boundary. |
+| M6-22 | August 18, 2026 | Block decisions return a stable product error and correlation ID without calling the upstream boundary. |
+| M6-21 | August 18, 2026 | Runtime ActionContext normalization requires principal, agent, session, action, resource, and environment scope. |
+| M6-20 | August 18, 2026 | A strict bounded MCP JSON-RPC parser retains method, tool, and resource metadata in canonical ActionContext. |
+| M6-19 | August 18, 2026 | The local runtime HTTP proxy preserves allowed requests through an injected upstream boundary. |
+| M6-18 | August 18, 2026 | The local rollout state machine rejects invalid transitions across draft, monitor, enforce, and disabled states. |
+| M6-17 | August 18, 2026 | Policy simulation evaluates at most 100 injected historical action contexts and returns bounded counts/examples; OpenSearch integration remains unresolved. |
+| M6-16 | August 18, 2026 | `listPolicyDecisions` is published in OpenAPI/generated types and handled by the bounded local service. |
+| M6-15 | August 18, 2026 | `disablePolicy` is published in OpenAPI/generated types and handled by the bounded local service. |
+| M6-14 | August 18, 2026 | `rolloutPolicy` is published in OpenAPI/generated types and handled by the bounded local service. |
+| M6-13 | August 18, 2026 | `simulatePolicy` is published in OpenAPI/generated types and handled by the bounded local service. |
+| M6-12 | August 18, 2026 | `deletePolicy` is published in OpenAPI/generated types and handled by the bounded local service. |
+| M6-11 | August 18, 2026 | `updatePolicy` is published in OpenAPI/generated types and handled by the bounded local service. |
 | M6-10 | August 18, 2026 | `getPolicy` is published in OpenAPI/generated types and handled by the bounded local service. |
 | M6-09 | August 18, 2026 | `createPolicy` is published in OpenAPI/generated types and handled by the bounded local service. |
 | M6-08 | August 18, 2026 | `listPolicies` is published in OpenAPI/generated types and handled by the bounded local service. |

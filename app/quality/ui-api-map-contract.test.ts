@@ -140,6 +140,12 @@ const expectedMap: MapDocument = {
         { id: "view_policies", operation_id: "listPolicies", availability: "api_available" },
         { id: "create_policy", operation_id: "createPolicy", availability: "api_available" },
         { id: "view_policy", operation_id: "getPolicy", availability: "api_available" },
+        { id: "update_policy", operation_id: "updatePolicy", availability: "api_available" },
+        { id: "delete_policy", operation_id: "deletePolicy", availability: "api_available" },
+        { id: "simulate_policy", operation_id: "simulatePolicy", availability: "api_available" },
+        { id: "rollout_policy", operation_id: "rolloutPolicy", availability: "api_available" },
+        { id: "disable_policy", operation_id: "disablePolicy", availability: "api_available" },
+        { id: "view_policy_decisions", operation_id: "listPolicyDecisions", availability: "api_available" },
       ],
     },
     {
@@ -264,13 +270,14 @@ describe("M1-25 UI API map seed", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(readme).toContain("M1-25 is Complete");
-    expect(tracker).toContain("| Pending | 346 |");
-    expect(tracker).toContain("| In progress | 195 |");
+    expect(tracker).toContain("| Pending | 320 |");
+    expect(tracker).toContain("| In progress | 221 |");
     expect(tracker).toContain("| Complete | 184 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`346/195/184/3`");
+    expect(tracker).toContain("`320/221/184/3`");
     expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "0", "0", "68", "0"]);
     expect(active.map(([task]) => task)).toEqual([
+      "M6-31", "M6-31e", "M6-31d", "M6-31c", "M6-31b", "M6-31a", "M6-30", "M6-29", "M6-28", "M6-27", "M6-26", "M6-25", "M6-24", "M6-23", "M6-22", "M6-21", "M6-20", "M6-19", "M6-18", "M6-17", "M6-16", "M6-15", "M6-14", "M6-13", "M6-12", "M6-11",
       "M6-10", "M6-09", "M6-08", "M6-07", "M6-06", "M6-05", "M6-04", "M6-03", "M6-02", "M6-01",
       "M5-35", "M5-34", "M5-33", "M5-33c", "M5-33b", "M5-33a", "M5-32", "M5-31", "M5-30", "M5-29", "M5-28", "M5-27", "M5-26",
       "M5-25", "M5-24", "M5-23", "M5-23d", "M5-23c", "M5-23b", "M5-23a",
@@ -420,6 +427,12 @@ describe("M1-25 UI API map seed", () => {
       "listPolicies",
       "createPolicy",
       "getPolicy",
+      "updatePolicy",
+      "deletePolicy",
+      "simulatePolicy",
+      "rolloutPolicy",
+      "disablePolicy",
+      "listPolicyDecisions",
       "getSystemStatus",
       "listSystemComponents",
       "getSystemVersion",

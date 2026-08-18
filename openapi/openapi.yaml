@@ -1199,6 +1199,72 @@ paths:
         '200': { description: Authorized runtime policy., content: { application/json: { schema: { $ref: '#/components/schemas/Policy' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+    patch:
+      operationId: updatePolicy
+      summary: Update one authorized runtime policy
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/Policy' } } }
+      responses:
+        '200': { description: Updated runtime policy., content: { application/json: { schema: { $ref: '#/components/schemas/Policy' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    delete:
+      operationId: deletePolicy
+      summary: Delete one authorized runtime policy
+      responses:
+        '204': { description: Deleted runtime policy. }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/policies/{id}/simulate:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/PolicyID' } }
+    post:
+      operationId: simulatePolicy
+      summary: Simulate a runtime policy against bounded historical actions
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/PolicySimulationInput' } } }
+      responses:
+        '200': { description: Bounded simulation result., content: { application/json: { schema: { $ref: '#/components/schemas/PolicySimulation' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/policies/{id}/rollout:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/PolicyID' } }
+    post:
+      operationId: rolloutPolicy
+      summary: Advance one policy rollout state for a selected target
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/PolicyRolloutInput' } } }
+      responses:
+        '200': { description: Updated policy rollout., content: { application/json: { schema: { $ref: '#/components/schemas/PolicyRollout' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/policies/{id}/disable:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/PolicyID' } }
+    post:
+      operationId: disablePolicy
+      summary: Disable one authorized runtime policy
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/EmptyInput' } } }
+      responses:
+        '200': { description: Disabled policy rollout., content: { application/json: { schema: { $ref: '#/components/schemas/PolicyRollout' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/policies/{id}/decisions:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/PolicyID' } }
+    get:
+      operationId: listPolicyDecisions
+      summary: List bounded runtime decisions for one policy
+      responses:
+        '200': { description: Authorized runtime decisions., content: { application/json: { schema: { $ref: '#/components/schemas/RuntimeDecisionPage' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/home/summary:
     get:
       operationId: getHomeSummary
@@ -2312,7 +2378,7 @@ components:
         trigger: { type: string, minLength: 1, maxLength: 64 }
         conditions: { type: array, minItems: 1, maxItems: 32, items: { $ref: '#/components/schemas/PolicyCondition' } }
         action: { type: string, enum: [monitor, block] }
-        rollout: { type: string, enum: [monitor, enforced] }
+        rollout: { type: string, enum: [draft, monitor, enforced, disabled] }
         failure_mode: { type: string, enum: [open, closed] }
     PolicyPage:
       type: object
@@ -2320,6 +2386,64 @@ components:
       required: [items]
       properties:
         items: { type: array, maxItems: 1000, items: { $ref: '#/components/schemas/Policy' } }
+    PolicyActionContext:
+      type: object
+      additionalProperties: false
+      required: [principal_id, agent_id, session_id, action, resource, environment_id, metadata]
+      properties:
+        principal_id: { type: string, minLength: 1, maxLength: 128 }
+        agent_id: { type: string, minLength: 1, maxLength: 128 }
+        session_id: { type: string, minLength: 1, maxLength: 128 }
+        action: { type: string, minLength: 1, maxLength: 64 }
+        resource: { type: string, minLength: 1, maxLength: 256 }
+        environment_id: { type: string, minLength: 1, maxLength: 128 }
+        metadata: { type: object, maxProperties: 32, additionalProperties: { type: string, minLength: 1, maxLength: 256 } }
+    PolicySimulationInput:
+      type: object
+      additionalProperties: false
+      required: [events]
+      properties:
+        events: { type: array, minItems: 1, maxItems: 100, items: { $ref: '#/components/schemas/PolicyActionContext' } }
+    PolicySimulation:
+      type: object
+      additionalProperties: false
+      required: [matches, would_block, example_session_ids]
+      properties:
+        matches: { type: integer, minimum: 0, maximum: 100 }
+        would_block: { type: integer, minimum: 0, maximum: 100 }
+        example_session_ids: { type: array, maxItems: 5, items: { type: string, minLength: 1, maxLength: 128 } }
+    PolicyRolloutInput:
+      type: object
+      additionalProperties: false
+      required: [state, target_id]
+      properties:
+        state: { type: string, enum: [monitor, enforced] }
+        target_id: { type: string, minLength: 1, maxLength: 128 }
+    PolicyRollout:
+      type: object
+      additionalProperties: false
+      required: [policy_id, state, target_id]
+      properties:
+        policy_id: { $ref: '#/components/schemas/PolicyID' }
+        state: { type: string, enum: [draft, monitor, enforced, disabled] }
+        target_id: { type: string, minLength: 1, maxLength: 128 }
+    RuntimeDecision:
+      type: object
+      additionalProperties: false
+      required: [id, policy_id, environment_id, result, correlation_id, at]
+      properties:
+        id: { type: string, minLength: 1, maxLength: 128 }
+        policy_id: { $ref: '#/components/schemas/PolicyID' }
+        environment_id: { type: string, minLength: 1, maxLength: 128 }
+        result: { type: string, enum: [allow, monitor, block] }
+        correlation_id: { type: string, minLength: 1, maxLength: 128 }
+        at: { type: string, format: date-time }
+    RuntimeDecisionPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items: { type: array, maxItems: 1000, items: { $ref: '#/components/schemas/RuntimeDecision' } }
     FindingSeverity:
       type: string
       enum: [critical, high, medium, low]

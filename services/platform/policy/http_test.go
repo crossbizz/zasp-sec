@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -21,6 +22,12 @@ func TestHTTPPolicyLifecycleAndStableError(t *testing.T) {
 		{http.MethodPost, "/api/v1/policies", value, http.StatusCreated},
 		{http.MethodGet, "/api/v1/policies", "", http.StatusOK},
 		{http.MethodGet, "/api/v1/policies/policy-1", "", http.StatusOK},
+		{http.MethodPatch, "/api/v1/policies/policy-1", strings.Replace(value, `"action":"block","rollout":"enforced"`, `"action":"monitor","rollout":"monitor"`, 1), http.StatusOK},
+		{http.MethodPost, "/api/v1/policies/policy-1/simulate", `{"events":[{"principal_id":"principal-1","agent_id":"agent-1","session_id":"session-1","action":"tool_call","resource":"shell","environment_id":"environment-1","metadata":{"tool.name":"shell"}}]}`, http.StatusOK},
+		{http.MethodPost, "/api/v1/policies/policy-1/rollout", `{"state":"enforced","target_id":"agent-1"}`, http.StatusOK},
+		{http.MethodGet, "/api/v1/policies/policy-1/decisions", "", http.StatusOK},
+		{http.MethodPost, "/api/v1/policies/policy-1/disable", `{}`, http.StatusOK},
+		{http.MethodDelete, "/api/v1/policies/policy-1", "", http.StatusNoContent},
 	} {
 		request := httptest.NewRequest(item.method, item.path, bytes.NewBufferString(item.body))
 		if item.body != "" {

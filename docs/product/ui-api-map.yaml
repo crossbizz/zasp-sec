@@ -273,6 +273,24 @@ screens:
       - id: view_policy
         operation_id: getPolicy
         availability: api_available
+      - id: update_policy
+        operation_id: updatePolicy
+        availability: api_available
+      - id: delete_policy
+        operation_id: deletePolicy
+        availability: api_available
+      - id: simulate_policy
+        operation_id: simulatePolicy
+        availability: api_available
+      - id: rollout_policy
+        operation_id: rolloutPolicy
+        availability: api_available
+      - id: disable_policy
+        operation_id: disablePolicy
+        availability: api_available
+      - id: view_policy_decisions
+        operation_id: listPolicyDecisions
+        availability: api_available
   - id: system_health
     label: System Health
     actions:

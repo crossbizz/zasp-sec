@@ -10,6 +10,7 @@ type Authorizer func(*http.Request) bool
 
 type HTTPHandler struct {
 	store        *MemoryStore
+	decisions    *DecisionStore
 	capabilities Capabilities
 	authorize    Authorizer
 }
@@ -18,7 +19,7 @@ func NewHTTPHandler(store *MemoryStore, capabilities Capabilities, authorize Aut
 	if store == nil || authorize == nil || len(capabilities.Triggers) == 0 || len(capabilities.Fields) == 0 {
 		return nil, ErrRejected
 	}
-	return &HTTPHandler{store: store, capabilities: capabilities, authorize: authorize}, nil
+	return &HTTPHandler{store: store, decisions: NewDecisionStore(), capabilities: capabilities, authorize: authorize}, nil
 }
 
 func (handler *HTTPHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
@@ -33,6 +34,9 @@ func (handler *HTTPHandler) ServeHTTP(writer http.ResponseWriter, request *http.
 	}
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(status)
+	if status == http.StatusNoContent {
+		return
+	}
 	_ = json.NewEncoder(writer).Encode(value)
 }
 
@@ -51,9 +55,60 @@ func (handler *HTTPHandler) dispatch(request *http.Request) (int, any, error) {
 		}
 	}
 	if strings.HasPrefix(request.URL.Path, "/api/v1/policies/") && request.Method == http.MethodGet {
-		id := strings.TrimPrefix(request.URL.Path, "/api/v1/policies/")
-		value, err := handler.store.Get(request.Context(), id)
-		return http.StatusOK, value, err
+		parts := strings.Split(strings.TrimPrefix(request.URL.Path, "/api/v1/policies/"), "/")
+		if len(parts) == 1 {
+			value, err := handler.store.Get(request.Context(), parts[0])
+			return http.StatusOK, value, err
+		}
+		if len(parts) == 2 && parts[1] == "decisions" {
+			if _, err := handler.store.Get(request.Context(), parts[0]); err != nil {
+				return 0, nil, ErrRejected
+			}
+			return http.StatusOK, map[string]any{"items": handler.decisions.List(parts[0])}, nil
+		}
+	}
+	if strings.HasPrefix(request.URL.Path, "/api/v1/policies/") {
+		parts := strings.Split(strings.TrimPrefix(request.URL.Path, "/api/v1/policies/"), "/")
+		if len(parts) == 1 && request.Method == http.MethodPatch {
+			var value Policy
+			if decode(request, &value) != nil || value.ID != parts[0] {
+				return 0, nil, ErrRejected
+			}
+			return http.StatusOK, value, handler.store.Update(request.Context(), value, handler.capabilities)
+		}
+		if len(parts) == 1 && request.Method == http.MethodDelete {
+			return http.StatusNoContent, nil, handler.store.Delete(request.Context(), parts[0])
+		}
+		if len(parts) == 2 && request.Method == http.MethodPost {
+			switch parts[1] {
+			case "simulate":
+				var input struct {
+					Events []ActionContext `json:"events"`
+				}
+				if decode(request, &input) != nil {
+					return 0, nil, ErrRejected
+				}
+				value, err := handler.store.Simulate(request.Context(), parts[0], input.Events)
+				return http.StatusOK, value, err
+			case "rollout":
+				var input struct {
+					State    RolloutState `json:"state"`
+					TargetID string       `json:"target_id"`
+				}
+				if decode(request, &input) != nil {
+					return 0, nil, ErrRejected
+				}
+				value, err := handler.store.Rollout(request.Context(), parts[0], input.State, input.TargetID)
+				return http.StatusOK, value, err
+			case "disable":
+				var input struct{}
+				if decode(request, &input) != nil {
+					return 0, nil, ErrRejected
+				}
+				value, err := handler.store.Disable(request.Context(), parts[0])
+				return http.StatusOK, value, err
+			}
+		}
 	}
 	return 0, nil, ErrRejected
 }

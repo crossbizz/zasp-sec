@@ -852,6 +852,84 @@ export type paths = {
         readonly get: operations["getPolicy"];
         readonly put?: never;
         readonly post?: never;
+        /** Delete one authorized runtime policy */
+        readonly delete: operations["deletePolicy"];
+        readonly options?: never;
+        readonly head?: never;
+        /** Update one authorized runtime policy */
+        readonly patch: operations["updatePolicy"];
+        readonly trace?: never;
+    };
+    readonly "/api/v1/policies/{id}/decisions": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["PolicyID"];
+            };
+            readonly cookie?: never;
+        };
+        /** List bounded runtime decisions for one policy */
+        readonly get: operations["listPolicyDecisions"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/policies/{id}/disable": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["PolicyID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Disable one authorized runtime policy */
+        readonly post: operations["disablePolicy"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/policies/{id}/rollout": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["PolicyID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Advance one policy rollout state for a selected target */
+        readonly post: operations["rolloutPolicy"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/policies/{id}/simulate": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["PolicyID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Simulate a runtime policy against bounded historical actions */
+        readonly post: operations["simulatePolicy"];
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -1550,10 +1628,21 @@ export type components = {
             readonly id: components["schemas"]["PolicyID"];
             readonly name: string;
             /** @enum {string} */
-            readonly rollout: "monitor" | "enforced";
+            readonly rollout: "draft" | "monitor" | "enforced" | "disabled";
             /** @enum {string} */
             readonly scope: "environment";
             readonly trigger: string;
+        };
+        readonly PolicyActionContext: {
+            readonly action: string;
+            readonly agent_id: string;
+            readonly environment_id: string;
+            readonly metadata: {
+                readonly [key: string]: string;
+            };
+            readonly principal_id: string;
+            readonly resource: string;
+            readonly session_id: string;
         };
         readonly PolicyCondition: {
             readonly field: string;
@@ -1564,6 +1653,25 @@ export type components = {
         readonly PolicyID: string;
         readonly PolicyPage: {
             readonly items: readonly components["schemas"]["Policy"][];
+        };
+        readonly PolicyRollout: {
+            readonly policy_id: components["schemas"]["PolicyID"];
+            /** @enum {string} */
+            readonly state: "draft" | "monitor" | "enforced" | "disabled";
+            readonly target_id: string;
+        };
+        readonly PolicyRolloutInput: {
+            /** @enum {string} */
+            readonly state: "monitor" | "enforced";
+            readonly target_id: string;
+        };
+        readonly PolicySimulation: {
+            readonly example_session_ids: readonly string[];
+            readonly matches: number;
+            readonly would_block: number;
+        };
+        readonly PolicySimulationInput: {
+            readonly events: readonly components["schemas"]["PolicyActionContext"][];
         };
         readonly Principal: {
             readonly active: boolean;
@@ -1598,6 +1706,19 @@ export type components = {
         readonly RiskFactor: {
             readonly evidence_id: components["schemas"]["ProductID"];
             readonly name: string;
+        };
+        readonly RuntimeDecision: {
+            /** Format: date-time */
+            readonly at: string;
+            readonly correlation_id: string;
+            readonly environment_id: string;
+            readonly id: string;
+            readonly policy_id: components["schemas"]["PolicyID"];
+            /** @enum {string} */
+            readonly result: "allow" | "monitor" | "block";
+        };
+        readonly RuntimeDecisionPage: {
+            readonly items: readonly components["schemas"]["RuntimeDecision"][];
         };
         readonly SafetyMetadata: {
             /** @enum {string} */
@@ -1844,9 +1965,14 @@ export type Organization = components['schemas']['Organization'];
 export type PageInfo = components['schemas']['PageInfo'];
 export type Permission = components['schemas']['Permission'];
 export type Policy = components['schemas']['Policy'];
+export type PolicyActionContext = components['schemas']['PolicyActionContext'];
 export type PolicyCondition = components['schemas']['PolicyCondition'];
 export type PolicyId = components['schemas']['PolicyID'];
 export type PolicyPage = components['schemas']['PolicyPage'];
+export type PolicyRollout = components['schemas']['PolicyRollout'];
+export type PolicyRolloutInput = components['schemas']['PolicyRolloutInput'];
+export type PolicySimulation = components['schemas']['PolicySimulation'];
+export type PolicySimulationInput = components['schemas']['PolicySimulationInput'];
 export type Principal = components['schemas']['Principal'];
 export type PrincipalPage = components['schemas']['PrincipalPage'];
 export type ProductError = components['schemas']['ProductError'];
@@ -1855,6 +1981,8 @@ export type RedTeamId = components['schemas']['RedTeamID'];
 export type Relationship = components['schemas']['Relationship'];
 export type RelationshipPage = components['schemas']['RelationshipPage'];
 export type RiskFactor = components['schemas']['RiskFactor'];
+export type RuntimeDecision = components['schemas']['RuntimeDecision'];
+export type RuntimeDecisionPage = components['schemas']['RuntimeDecisionPage'];
 export type SafetyMetadata = components['schemas']['SafetyMetadata'];
 export type ScimConnection = components['schemas']['SCIMConnection'];
 export type ScimConnectionCredential = components['schemas']['SCIMConnectionCredential'];
@@ -3374,6 +3502,164 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["Policy"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly deletePolicy: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["PolicyID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Deleted runtime policy. */
+            readonly 204: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly updatePolicy: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["PolicyID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["Policy"];
+            };
+        };
+        readonly responses: {
+            /** @description Updated runtime policy. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["Policy"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listPolicyDecisions: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["PolicyID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized runtime decisions. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["RuntimeDecisionPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly disablePolicy: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["PolicyID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["EmptyInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Disabled policy rollout. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["PolicyRollout"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly rolloutPolicy: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["PolicyID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["PolicyRolloutInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Updated policy rollout. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["PolicyRollout"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly simulatePolicy: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["PolicyID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["PolicySimulationInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Bounded simulation result. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["PolicySimulation"];
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];

@@ -100,7 +100,7 @@ npm run ui-api:check
 ```
 
 The current honest result is `UI/API coverage passed: planned=3
-api_available=63 available=20 public=83 internal=0.` The gate distinguishes
+api_available=69 available=20 public=89 internal=0.` The gate distinguishes
 implemented API contracts from fully wired UI actions.
 M1-36e is Complete and separately owns local infrastructure smoke checks.
 
@@ -908,15 +908,16 @@ npm run ui-api:check
 The current fixed success line is:
 
 ```text
-UI/API coverage passed: planned=3 api_available=63 available=20 public=83 internal=0.
+UI/API coverage passed: planned=3 api_available=69 available=20 public=89 internal=0.
 ```
 
 M5 now has a local MVP slice for normalized Promptfoo attempts, curated packs,
 test safety, thirteen generated Red Team and Attack Lab API contracts,
 idempotent worker/artifact boundaries, and fail-closed Attack Lab
 sandbox/preflight/evidence/verdict UI contracts. M6 has a local Policy domain,
-validator, deterministic compiler/evaluator, signed bundle/cache boundary, and
-three generated product API contracts. These slices do not claim live
+validator, deterministic compiler/evaluator, signed bundle/cache and fallback,
+HTTP/MCP action normalization, Monitor/Block decisions, rollout/simulation UI,
+and nine generated product API contracts. These slices do not claim live
 EKS/Fargate, SQS, S3, Neon, egress-proxy, staging, OPA SDK, or runtime-gateway
 integration proof.
 
