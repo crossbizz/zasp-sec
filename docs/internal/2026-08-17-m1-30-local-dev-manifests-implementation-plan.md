@@ -65,7 +65,7 @@ Docker 29.4.0, kind 0.32.0, Kubernetes node 1.35.5, Go 1.25.6, Gitleaks
 - Produces: exact M1-30 In-progress status at overall `657/1/67/3` and M1
   `68/24/1/43/0`.
 
-- [ ] **Step 1: Write the failing source, design, and status contract**
+- [x] **Step 1: Write the failing source, design, and status contract**
 
 Create `app/quality/local-start-target-contract.test.ts`. Read the source plan,
 design, tracker, README, and package file. Require the exact source row:
@@ -83,7 +83,7 @@ and M1-31 deferral. Require one active M1-30 row, no complete M1-30 row, one
 complete row for each M1-30a through M1-30d, no other active row, blocker rows
 exactly `M0-09`, `M0-18`, and `M0-19`, and exact start arithmetic.
 
-- [ ] **Step 2: Witness stale-status RED**
+- [x] **Step 2: Witness stale-status RED**
 
 Run:
 
@@ -96,7 +96,7 @@ Expected: the new contract fails only because M1-30 is absent, counts are
 `658/0/67/3`, M1 is `68/25/0/43/0`, and README says M1-30 is Pending. The
 M1-30d dependency contract remains green.
 
-- [ ] **Step 3: Move only M1-30 to In progress**
+- [x] **Step 3: Move only M1-30 to In progress**
 
 Change overall `658/0/67/3` to `657/1/67/3` and M1 `68/25/0/43/0` to
 `68/24/1/43/0`. Add exactly:
@@ -109,14 +109,14 @@ Update README current-state prose to `M1-30 is In progress`. Update only
 current aggregate/status fixtures mechanically; do not rewrite historical
 evidence or completed-task rows.
 
-- [ ] **Step 4: Run focused and all-quality GREEN**
+- [x] **Step 4: Run focused and all-quality GREEN**
 
 Run the new contract, all four local-profile contracts, and `npm test`. Require
 728-task arithmetic, active rows exactly `["M1-30"]`, complete count 67,
 M1-30a through M1-30d each exactly once in Complete, no M1-30 complete row,
 and the exact blocker set.
 
-- [ ] **Step 5: Scan and commit the start transition**
+- [x] **Step 5: Scan and commit the start transition**
 
 Run staged whitespace and pinned redacted Gitleaks checks. Commit only the
 status, README, and quality-contract slice as:
@@ -143,7 +143,7 @@ docs: start M1-30 local dev manifests
   `projectLocalStartExposure(value)`, `validateLocalStartAssembly()`, and
   `runLocalStartMain(runtime?, options?)`.
 
-- [ ] **Step 1: Write absent-module and exact-target tests first**
+- [x] **Step 1: Write absent-module and exact-target tests first**
 
 Create `deploy/local/start.test.mjs`. Before production exists, require import
 failure, then define tests for this exact target projection:
@@ -170,7 +170,7 @@ failure, then define tests for this exact target projection:
 Require a plain deeply frozen object with exact data descriptors and no caller
 input.
 
-- [ ] **Step 2: Witness missing start-boundary RED**
+- [x] **Step 2: Witness missing start-boundary RED**
 
 Run:
 
@@ -181,7 +181,7 @@ node --test deploy/local/start.test.mjs
 Expected: FAIL with `ERR_MODULE_NOT_FOUND` for `deploy/local/start.mjs`; no
 existing local-profile test is changed or failing.
 
-- [ ] **Step 3: Add strict exposure-projection tests**
+- [x] **Step 3: Add strict exposure-projection tests**
 
 Build the canonical 22-resource array from the four reviewed builders. Require:
 
@@ -210,7 +210,7 @@ hostPath or Docker socket mount, replace an array/object prototype, add a
 symbol, add an accessor, add an alias, and add a cycle. Each case must throw
 without invoking a getter or coercion method.
 
-- [ ] **Step 4: Implement immutable target and strict projection**
+- [x] **Step 4: Implement immutable target and strict projection**
 
 In `deploy/local/start.mjs`, import only the reviewed builders and M1-30d
 runtime surface. Define `LOCAL_START_TARGET` from fixed literals and imported
@@ -224,7 +224,7 @@ forbidden exposure keys. Return a deeply frozen summary. Do not coerce keys or
 values and do not accept a caller-supplied success line, command, manifest,
 profile, or provider target.
 
-- [ ] **Step 5: Implement fixed assembly validation**
+- [x] **Step 5: Implement fixed assembly validation**
 
 `validateLocalStartAssembly()` accepts no arguments. Build and concatenate:
 
@@ -245,7 +245,7 @@ manifest names represented by `LOCAL_START_TARGET`. Require
 and staged `["observabilitySpanManifest", "awsEmulatorS3Manifest"]`. Return the
 frozen exposure summary.
 
-- [ ] **Step 6: Implement one exact runtime delegation**
+- [x] **Step 6: Implement one exact runtime delegation**
 
 Implement:
 
@@ -263,7 +263,7 @@ cleanup, and absence call; the exact composite result succeeds; main failure
 and cleanup failure retain M1-30d output and precedence; and runtime/options
 objects reach the delegate unchanged.
 
-- [ ] **Step 7: Run six focused passes and commit**
+- [x] **Step 7: Run six focused passes and commit**
 
 Run six consecutive `node --test deploy/local/start.test.mjs` passes, then the
 complete product, graph, observability, and AWS-emulator suites, syntax,
@@ -288,7 +288,7 @@ feat: add assembled local start target
 - Consumes: Task 2 `deploy/local/start.mjs` and the existing complete
   `local:aws-emulator:test` regression command.
 
-- [ ] **Step 1: Write root-command and documentation RED**
+- [x] **Step 1: Write root-command and documentation RED**
 
 Extend the quality contract to require exactly:
 
@@ -304,7 +304,7 @@ no ambient authority, reverse cleanup, exact license reuse, M1-30 In progress,
 and M1-31 deferral. Reject claims of a persistent cluster, host dashboard,
 production parity, product AWS client wiring, or shared-resource mutation.
 
-- [ ] **Step 2: Witness command/documentation RED**
+- [x] **Step 2: Witness command/documentation RED**
 
 Run:
 
@@ -315,7 +315,7 @@ npx vitest run app/quality/local-start-target-contract.test.ts
 Expected: FAIL only for absent `local:start` and absent assembled-target README
 section.
 
-- [ ] **Step 3: Add the exact script and README section**
+- [x] **Step 3: Add the exact script and README section**
 
 Add `"local:start": "node deploy/local/start.mjs"` without changing existing
 script values. Document that the command is an opt-in, disposable
@@ -324,14 +324,14 @@ LocalStack remain ClusterIP-only and no Ingress, NodePort, LoadBalancer, or
 host workload port is created. State that product AWS client consumption
 belongs to M1-31.
 
-- [ ] **Step 4: Run focused, root, and full GREEN**
+- [x] **Step 4: Run focused, root, and full GREEN**
 
 Run the quality contract, `node --test deploy/local/start.test.mjs`,
 `npm run local:aws-emulator:test`, all four local-profile quality contracts,
 and pinned `npm run verify`. Run `npm audit --omit=dev`, dependency validation,
 syntax, ESLint, whitespace, and pinned redacted secret scans.
 
-- [ ] **Step 5: Commit the command and documentation slice**
+- [x] **Step 5: Commit the command and documentation slice**
 
 Commit only `package.json`, README, and the quality contract as:
 
@@ -354,14 +354,14 @@ docs: expose assembled local start target
 - Produces: exact live assembled evidence, zero-finding review, M1-30 Complete
   transition, pushed exact-SHA CI success, and checked plan closure.
 
-- [ ] **Step 1: Establish exact live preconditions**
+- [x] **Step 1: Establish exact live preconditions**
 
 Require zero M1-30d proof labels, names, node-local owned image aliases,
 volumes, and temporary roots. Fingerprint the exact shared graph,
 observability, LocalStack, Docker, and kubeconfig state read-only. Do not remove
 or retag a shared image or target an ambient Kubernetes context.
 
-- [ ] **Step 2: Run the exact assembled command**
+- [x] **Step 2: Run the exact assembled command**
 
 Run only:
 
@@ -380,14 +380,14 @@ Require exact product readiness, graph persistence, one observability span,
 one endpoint-bound S3 request, internal-only Services, no Docker-published node
 port, zero proof-owned residue, and unchanged selected shared state.
 
-- [ ] **Step 3: Fix live findings only through TDD**
+- [x] **Step 3: Fix live findings only through TDD**
 
 For each real mismatch, isolate the exact representation or lifecycle cause,
 write a focused failing hermetic regression, implement the narrow fix, rerun
 every affected profile, and repeat the exact live command. Do not weaken
 profile immutability, exposure, output, provider, license, or cleanup rules.
 
-- [ ] **Step 4: Run the final gate matrix**
+- [x] **Step 4: Run the final gate matrix**
 
 Require six assembled/AWS-emulator suite passes; product, graph, and
 observability regressions; all four product Go race/tidy-diff/module-verify/vet
@@ -396,7 +396,7 @@ verify/typecheck/lint/build; production audit zero; dependency validation;
 diff-check; and pinned redacted Gitleaks over the range, each commit, tracked
 HEAD, full history, and ignored evidence.
 
-- [ ] **Step 5: Obtain a zero-finding whole-range review**
+- [x] **Step 5: Obtain a zero-finding whole-range review**
 
 Review the source row, design, plan, exact command, resource projection,
 strict input handling, M1-30a through M1-30d compatibility, exposure evidence,
@@ -404,7 +404,7 @@ live evidence, ownership, cleanup, docs, status arithmetic, and scans. Fix
 every Critical, Important, and Minor finding tests-first in a separate commit,
 repeat affected gates and exact live verification, and re-review to zero.
 
-- [ ] **Step 6: Transition M1-30 to Complete**
+- [x] **Step 6: Transition M1-30 to Complete**
 
 Write completion-contract RED, then change overall `657/1/67/3` to
 `657/0/68/3` and M1 `68/24/1/43/0` to `68/24/0/44/0`. Move exactly one M1-30
@@ -415,13 +415,13 @@ M1-31 Pending, and the exact blockers. Run focused and full gates, then commit:
 docs: complete M1-30 local dev manifests
 ```
 
-- [ ] **Step 7: Push completion and verify exact-SHA CI**
+- [x] **Step 7: Push completion and verify exact-SHA CI**
 
 Push from a clean tracked tree and index. Require equal local, origin, and
 tracking SHAs. Watch Runnable UI to terminal success for the exact completion
 SHA and record run/job URLs in ignored evidence.
 
-- [ ] **Step 8: Close, push, and verify the plan**
+- [x] **Step 8: Close, push, and verify the plan**
 
 Mark every plan checkbox complete only after completion CI succeeds. Commit
 only this plan as:
