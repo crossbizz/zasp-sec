@@ -66,14 +66,14 @@ describe("M1-30c local observability manifest", () => {
 
     expect(readme).toContain("M1-30c is Complete");
     expect(readme).toContain("M1-30d is Complete");
-    expect(tracker).toContain("| Pending | 657 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 656 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 68 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`657/0/68/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "24", "0", "44", "0"]);
+    expect(tracker).toContain("`656/1/68/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "23", "1", "44", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active).toHaveLength(0);
+    expect(active).toHaveLength(1);
     expect(complete).toHaveLength(68);
     expect(active.filter(([task]) => task === "M1-30c")).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-30c")).toHaveLength(1);

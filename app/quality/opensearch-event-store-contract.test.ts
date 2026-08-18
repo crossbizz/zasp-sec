@@ -46,13 +46,13 @@ describe("M1-14 OpenSearch EventStore contract", () => {
 
     expect(readme).toContain("M1-14 is Complete");
     expect(readme).toContain("scoped EventStore");
-    expect(tracker).toContain("| Pending | 657 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 656 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 68 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`657/0/68/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "24", "0", "44", "0"]);
-    expect(active.map(([task]) => task)).toEqual([]);
+    expect(tracker).toContain("`656/1/68/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "23", "1", "44", "0"]);
+    expect(active.map(([task]) => task)).toEqual(["M1-31"]);
     expect(complete.filter(([task]) => task === "M1-13")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-14")).toHaveLength(1);
     expect(active.filter(([task]) => task === "M1-15")).toHaveLength(0);
