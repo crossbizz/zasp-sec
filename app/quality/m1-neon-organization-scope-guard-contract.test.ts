@@ -58,11 +58,11 @@ describe("M1-38 Neon Organization scope guard contract", () => {
 
     expect(readme).toContain("M1-37 is Complete");
     expect(readme).toContain("M1-38 is Complete");
-    expect(tracker).toContain("| Pending | 561 |");
+    expect(tracker).toContain("| Pending | 541 |");
     expect(tracker).toContain("| In progress | 0 |");
-    expect(tracker).toContain("| Complete | 164 |");
+    expect(tracker).toContain("| Complete | 184 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`561/0/164/3`");
+    expect(tracker).toContain("`541/0/184/3`");
     expect(m1).toEqual(["M1", "68", "0", "0", "68", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
     expect(active.map(([task]) => task)).toEqual([]);
@@ -76,7 +76,7 @@ describe("M1-38 Neon Organization scope guard contract", () => {
 
   it("documents the pre-SQL guard without claiming SQL parsing or RLS", async () => {
     const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
-    const section = readme.match(/## Neon Organization scope guard[\s\S]*?## Development/)?.[0] ?? "";
+    const section = readme.match(/## Neon Organization scope guard[\s\S]*?## OpenSearch Organization scope guard/)?.[0] ?? "";
     const prose = section.replace(/\s+/g, " ");
 
     for (const value of [

@@ -14,9 +14,9 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 561 |
+| Pending | 541 |
 | In progress | 0 |
-| Complete | 164 |
+| Complete | 184 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -25,9 +25,9 @@ In progress, Complete, or Blocked is Pending.
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 0 | 0 | 24 | 3 |
 | M1 | 68 | 0 | 0 | 68 | 0 |
-| M1A | 10 | 10 | 0 | 0 | 0 |
+| M1A | 10 | 4 | 0 | 6 | 0 |
 | M2 | 72 | 0 | 0 | 72 | 0 |
-| M3 | 75 | 75 | 0 | 0 | 0 |
+| M3 | 75 | 61 | 0 | 14 | 0 |
 | M4 | 82 | 82 | 0 | 0 | 0 |
 | M5 | 42 | 42 | 0 | 0 | 0 |
 | M6 | 36 | 36 | 0 | 0 | 0 |
@@ -70,7 +70,7 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `561/0/164/3` because
+session configuration. The 728 source-plan counts are `541/0/184/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
@@ -82,6 +82,26 @@ PROV-01 is excluded from those counts.
 
 | Task | Completed | Evidence |
 | --- | --- | --- |
+| M3-13 | August 18, 2026 | Added the exact scoped integration-sync job payload, idempotent job-key reuse, and forward-only queued/running/succeeded/failed transitions. |
+| M3-12 | August 18, 2026 | Added the authorized exact integration-sync lookup API and generated client operation. |
+| M3-11 | August 18, 2026 | Added the authorized integration-sync list API and generated client operation. |
+| M3-10 | August 18, 2026 | Added the authorized idempotent integration-sync API with queued status. |
+| M3-09 | August 18, 2026 | Added the authorized integration authorization-confirmation API. |
+| M3-08 | August 18, 2026 | Added integration deletion with exact scope checks and active-sync conflict protection. |
+| M3-07 | August 18, 2026 | Added strict scoped integration configuration update with connector-schema revalidation. |
+| M3-06 | August 18, 2026 | Added exact scoped integration lookup with cross-Organization denial. |
+| M3-05 | August 18, 2026 | Added strict scoped integration creation using only registered connector setup schemas. |
+| M3-04 | August 18, 2026 | Added the authorized scoped integration-list API and generated client operation. |
+| M3-03 | August 18, 2026 | Added the product-only connector-catalog search API and generated client operation. |
+| M3-02a | August 18, 2026 | Added the signed Generic Webhook catalog entry with one HTTPS destination, a secret reference, and response/approval notification capabilities. |
+| M3-02 | August 18, 2026 | Added the immutable connector catalog registry with bounded search and exact capability filters. |
+| M3-01 | August 18, 2026 | Added the product ConnectorManifest boundary; public serialization excludes internal adapter and upstream implementation identity. |
+| M1A-06 | August 18, 2026 | Added exact product IRSA trust and least-privilege scoped S3, SQS, OpenSearch, and KMS permissions without unrelated write actions. |
+| M1A-05 | August 18, 2026 | Added a two-zone VPC-only OpenSearch domain with HTTPS, node encryption, KMS encryption, and product-role access. |
+| M1A-04 | August 18, 2026 | Added the exact three product Standard queues and paired DLQs with encryption, redrive policies, schemas, and queue outputs. |
+| M1A-03 | August 18, 2026 | Added the encrypted versioned evidence/archive bucket, public-access block, rotating KMS key, and three product secret slots. |
+| M1A-02 | August 18, 2026 | Added the private-endpoint EKS control plane, encrypted Kubernetes secrets, and a minimal managed node group consuming both private subnets. |
+| M1A-01 | August 18, 2026 | Added the shared non-production staging VPC and two private, non-public-IP subnets with exact outputs. |
 | M2-47 | August 18, 2026 | Recorded the M2 gate PASS after the complete identity, administration, onboarding, session, deprovision, token, audit, cross-Organization, and single-tenant fixture suite passed without direct Stytch dashboard access. |
 | M2-50 | August 18, 2026 | Proved two SaaS Organizations can use the same product routes independently while cross-Organization reads and mutations remain forbidden. |
 | M2-49 | August 18, 2026 | Added the single-tenant configured-Organization guard before route dispatch and repository mutation. |

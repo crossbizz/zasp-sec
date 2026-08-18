@@ -17,14 +17,14 @@ describe("M2 identity and administration API batch", () => {
       .filter((line) => /^\| M[^ |]+ \|/.test(line))
       .map((line) => line.split("|")[1].trim());
 
-    expect(tracker).toContain("| Pending | 561 |");
+    expect(tracker).toContain("| Pending | 541 |");
     expect(tracker).toContain("| In progress | 0 |");
-    expect(tracker).toContain("| Complete | 164 |");
+    expect(tracker).toContain("| Complete | 184 |");
     expect(tracker).toContain("| Blocked | 3 |");
     expect(tracker).toContain("| M2 | 72 | 0 | 0 | 72 | 0 |");
-    expect(tracker).toContain("`561/0/164/3`");
-    expect(complete).toHaveLength(164);
-    expect(new Set(complete).size).toBe(164);
+    expect(tracker).toContain("`541/0/184/3`");
+    expect(complete).toHaveLength(184);
+    expect(new Set(complete).size).toBe(184);
     for (const task of completedTasks) expect(complete).toContain(task);
   });
 
@@ -47,6 +47,6 @@ describe("M2 identity and administration API batch", () => {
   it("preserves this batch inside the current M2 completion boundary", () => {
     const readme = read("README.md");
     expect(readme).toContain("M2-01 through M2-50 and the M2-47 gate are Complete");
-    expect(readme).toContain("M3-01 remains Pending");
+    expect(readme).toContain("M3-01 through M3-13 are Complete");
   });
 });

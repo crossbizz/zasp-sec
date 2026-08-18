@@ -100,7 +100,7 @@ npm run ui-api:check
 ```
 
 The current honest result is `UI/API coverage passed: planned=5
-api_available=7 available=20 public=27 internal=0.` The gate distinguishes
+api_available=17 available=20 public=37 internal=0.` The gate distinguishes
 implemented API contracts from fully wired UI actions.
 M1-36e is Complete and separately owns local infrastructure smoke checks.
 
@@ -249,7 +249,30 @@ member, removing product grants, and recording the audit summary.
 M2 gate: PASS. The bounded fake-Stytch and product-store suite covers session
 revocation, SCIM deprovisioning, scoped API tokens, audit history, two-Organization
 SaaS isolation, and the single-tenant Organization pin without direct Stytch
-dashboard access. M3-01 remains Pending.
+dashboard access.
+
+## Staging foundation and integration APIs
+
+M1A-01 through M1A-06 are Complete. The `deploy/staging` Terraform root defines
+the shared non-production VPC, two private subnets, encrypted EKS cluster and
+node group, evidence bucket, KMS key, secret slots, the six queue/DLQ resources,
+private OpenSearch, and the product IRSA role. Terraform 1.15.8 validation and
+an offline 34-create plan pass without applying or contacting a staging account.
+M1A-07 remains Pending; no real cloud resource was created by this batch.
+
+M3-01 through M3-13 are Complete. The product now exposes a provider-neutral
+connector catalog, a signed Generic Webhook entry, scoped integration CRUD and
+authorization, sync history, and an idempotent forward-only sync job contract.
+All ten integration operations are present in the OpenAPI document and generated
+client as `api_available`; internal adapter and upstream implementation names are
+excluded from the public catalog. M3-14 remains Pending on M1A-10's real-staging
+gate, so this batch adds no customer credential adapter or provider call.
+
+```bash
+go test -C services/platform -race -count=1 ./integration
+terraform -chdir=deploy/staging init -backend=false
+terraform -chdir=deploy/staging validate
+```
 
 ## Development
 
@@ -836,7 +859,7 @@ npm run ui-api:check
 The current fixed success line is:
 
 ```text
-UI/API coverage passed: planned=5 api_available=7 available=20 public=27 internal=0.
+UI/API coverage passed: planned=5 api_available=17 available=20 public=37 internal=0.
 ```
 
 Failure is fixed as `UI/API coverage rejected.` without parser or artifact

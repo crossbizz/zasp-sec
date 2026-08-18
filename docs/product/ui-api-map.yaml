@@ -93,6 +93,39 @@ screens:
       - id: search_all_entities
         operation_id: globalSearch
         availability: planned
+  - id: integrations
+    label: Integrations
+    actions:
+      - id: search_integration_catalog
+        operation_id: listIntegrationCatalog
+        availability: api_available
+      - id: view_integrations
+        operation_id: listIntegrations
+        availability: api_available
+      - id: create_integration
+        operation_id: createIntegration
+        availability: api_available
+      - id: view_integration
+        operation_id: getIntegration
+        availability: api_available
+      - id: update_integration
+        operation_id: updateIntegration
+        availability: api_available
+      - id: delete_integration
+        operation_id: deleteIntegration
+        availability: api_available
+      - id: authorize_integration
+        operation_id: authorizeIntegration
+        availability: api_available
+      - id: sync_integration
+        operation_id: syncIntegration
+        availability: api_available
+      - id: view_integration_syncs
+        operation_id: listIntegrationSyncs
+        availability: api_available
+      - id: view_integration_sync
+        operation_id: getIntegrationSync
+        availability: api_available
   - id: system_health
     label: System Health
     actions:

@@ -56,11 +56,11 @@ describe("M1-26 UI API coverage CI", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(readme).toContain("M1-26 is Complete");
-    expect(tracker).toContain("| Pending | 561 |");
+    expect(tracker).toContain("| Pending | 541 |");
     expect(tracker).toContain("| In progress | 0 |");
-    expect(tracker).toContain("| Complete | 164 |");
+    expect(tracker).toContain("| Complete | 184 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`561/0/164/3`");
+    expect(tracker).toContain("`541/0/184/3`");
     expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "0", "0", "68", "0"]);
     expect(active.map(([task]) => task)).toEqual([]);
     expect(complete.filter(([task]) => task === "M1-25")).toHaveLength(1);
@@ -84,7 +84,7 @@ describe("M1-26 UI API coverage CI", () => {
 
     expect(section).toContain("npm run ui-api:test");
     expect(section).toContain("npm run ui-api:check");
-    expect(section).toContain("UI/API coverage passed: planned=5 api_available=7 available=20 public=27 internal=0.");
+    expect(section).toContain("UI/API coverage passed: planned=5 api_available=17 available=20 public=37 internal=0.");
     expect(section).toContain("UI/API coverage rejected.");
     expect(prose).toContain("`planned` operation must remain absent");
     expect(prose).toContain("`available` operation must exist exactly once under `/api/v1`");

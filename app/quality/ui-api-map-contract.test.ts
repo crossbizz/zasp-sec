@@ -53,6 +53,22 @@ const expectedMap: MapDocument = {
       ],
     },
     {
+      id: "integrations",
+      label: "Integrations",
+      actions: [
+        { id: "search_integration_catalog", operation_id: "listIntegrationCatalog", availability: "api_available" },
+        { id: "view_integrations", operation_id: "listIntegrations", availability: "api_available" },
+        { id: "create_integration", operation_id: "createIntegration", availability: "api_available" },
+        { id: "view_integration", operation_id: "getIntegration", availability: "api_available" },
+        { id: "update_integration", operation_id: "updateIntegration", availability: "api_available" },
+        { id: "delete_integration", operation_id: "deleteIntegration", availability: "api_available" },
+        { id: "authorize_integration", operation_id: "authorizeIntegration", availability: "api_available" },
+        { id: "sync_integration", operation_id: "syncIntegration", availability: "api_available" },
+        { id: "view_integration_syncs", operation_id: "listIntegrationSyncs", availability: "api_available" },
+        { id: "view_integration_sync", operation_id: "getIntegrationSync", availability: "api_available" },
+      ],
+    },
+    {
       id: "system_health",
       label: "System Health",
       actions: [
@@ -174,11 +190,11 @@ describe("M1-25 UI API map seed", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(readme).toContain("M1-25 is Complete");
-    expect(tracker).toContain("| Pending | 561 |");
+    expect(tracker).toContain("| Pending | 541 |");
     expect(tracker).toContain("| In progress | 0 |");
-    expect(tracker).toContain("| Complete | 164 |");
+    expect(tracker).toContain("| Complete | 184 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`561/0/164/3`");
+    expect(tracker).toContain("`541/0/184/3`");
     expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "0", "0", "68", "0"]);
     expect(active.map(([task]) => task)).toEqual([]);
     expect(complete.filter(([task]) => task === "M1-24")).toHaveLength(1);
@@ -188,7 +204,7 @@ describe("M1-25 UI API map seed", () => {
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
 
-  it("accepts only the exact three-screen, 32-action mixed-lifecycle map", async () => {
+  it("accepts only the exact four-screen, 42-action mixed-lifecycle map", async () => {
     const source = await readFile(resolve(repositoryRoot, "docs/product/ui-api-map.yaml"), "utf8").catch(() => "");
 
     expect(parseStrictMap(source)).toEqual(expectedMap);
@@ -249,6 +265,16 @@ describe("M1-25 UI API map seed", () => {
       "getAuditExport",
       "getHomeSummary",
       "globalSearch",
+      "listIntegrationCatalog",
+      "listIntegrations",
+      "createIntegration",
+      "getIntegration",
+      "updateIntegration",
+      "deleteIntegration",
+      "authorizeIntegration",
+      "syncIntegration",
+      "listIntegrationSyncs",
+      "getIntegrationSync",
       "getSystemStatus",
       "listSystemComponents",
       "getSystemVersion",

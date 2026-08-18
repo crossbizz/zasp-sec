@@ -58,7 +58,7 @@ function verifyDocument(value, rawText) {
   assert.equal(value.paths !== null && typeof value.paths === "object" && !Array.isArray(value.paths), true);
   assert.equal(Object.keys(value.paths).length > 0, true);
   for (const path of Object.keys(value.paths)) {
-    assert.match(path, /^\/api\/v1\/[a-z][a-z0-9_{}/-]*$/);
+    assert.match(path, /^\/api\/v1\/[a-z](?:[a-z0-9_/-]|\{[A-Za-z][A-Za-z0-9]*\})*$/);
   }
   assert.deepEqual(value.security, [{ SessionJWT: [] }, { ProductAPIToken: [] }]);
 

@@ -541,6 +541,189 @@ paths:
           $ref: '#/components/responses/ProductErrorResponse'
         default:
           $ref: '#/components/responses/ProductErrorResponse'
+  /api/v1/integration-catalog:
+    get:
+      operationId: listIntegrationCatalog
+      summary: Search the product connector catalog
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema: { type: string, maxLength: 128 }
+        - name: category
+          in: query
+          required: false
+          schema: { type: string, maxLength: 63 }
+        - name: data_type
+          in: query
+          required: false
+          schema: { type: string, maxLength: 63 }
+        - name: action
+          in: query
+          required: false
+          schema: { type: string, maxLength: 63 }
+        - name: auth_mode
+          in: query
+          required: false
+          schema: { type: string, maxLength: 63 }
+      responses:
+        '200':
+          description: Product connector catalog results.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IntegrationCatalogPage' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/integrations:
+    get:
+      operationId: listIntegrations
+      summary: List integrations in the authorized scope
+      responses:
+        '200':
+          description: Authorized integration records.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IntegrationPage' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    post:
+      operationId: createIntegration
+      summary: Create an integration in the authorized scope
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IntegrationInput' }
+      responses:
+        '201':
+          description: Created integration.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Integration' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/integrations/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/ProductID' }
+    get:
+      operationId: getIntegration
+      summary: Get an authorized integration
+      responses:
+        '200':
+          description: Authorized integration.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Integration' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    patch:
+      operationId: updateIntegration
+      summary: Update an authorized integration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IntegrationUpdateInput' }
+      responses:
+        '200':
+          description: Updated integration.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Integration' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    delete:
+      operationId: deleteIntegration
+      summary: Delete an authorized integration without active sync work
+      responses:
+        '204': { description: Integration deleted. }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/integrations/{id}/authorize:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/ProductID' }
+    post:
+      operationId: authorizeIntegration
+      summary: Confirm authorization for an integration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmptyInput' }
+      responses:
+        '200':
+          description: Authorized integration.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Integration' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/integrations/{id}/sync:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/ProductID' }
+    post:
+      operationId: syncIntegration
+      summary: Queue one idempotent integration sync
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IntegrationSyncInput' }
+      responses:
+        '202':
+          description: Queued or existing idempotent sync.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IntegrationSync' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/integrations/{id}/syncs:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/ProductID' }
+    get:
+      operationId: listIntegrationSyncs
+      summary: List syncs for an authorized integration
+      responses:
+        '200':
+          description: Integration sync records.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IntegrationSyncPage' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/integrations/{id}/syncs/{syncId}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/ProductID' }
+      - name: syncId
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/ProductID' }
+    get:
+      operationId: getIntegrationSync
+      summary: Get one authorized integration sync
+      responses:
+        '200':
+          description: Integration sync record.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IntegrationSync' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
 security:
   - SessionJWT: []
   - ProductAPIToken: []
@@ -1246,6 +1429,124 @@ components:
           format: date-time
         audit_correlation_id:
           $ref: '#/components/schemas/ProductID'
+    EmptyInput:
+      type: object
+      additionalProperties: false
+    ConnectorSetupField:
+      type: object
+      additionalProperties: false
+      required: [key, label, type, required, description]
+      properties:
+        key: { type: string, minLength: 1, maxLength: 63 }
+        label: { type: string, minLength: 1, maxLength: 128 }
+        type: { type: string, minLength: 1, maxLength: 63 }
+        required: { type: boolean }
+        description: { type: string, minLength: 1, maxLength: 512 }
+    ConnectorManifest:
+      type: object
+      additionalProperties: false
+      required: [key, provider, category, description, data_types, actions, auth_mode, setup_schema, access_guidance, test_semantics]
+      properties:
+        key: { type: string, minLength: 1, maxLength: 63 }
+        provider: { type: string, minLength: 1, maxLength: 128 }
+        category: { type: string, minLength: 1, maxLength: 63 }
+        description: { type: string, minLength: 1, maxLength: 512 }
+        data_types:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { type: string, minLength: 1, maxLength: 63 }
+        actions:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { type: string, minLength: 1, maxLength: 63 }
+        auth_mode: { type: string, minLength: 1, maxLength: 63 }
+        setup_schema:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/ConnectorSetupField' }
+        access_guidance: { type: string, minLength: 1, maxLength: 512 }
+        test_semantics: { type: string, minLength: 1, maxLength: 512 }
+    IntegrationCatalogPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ConnectorManifest' }
+    IntegrationConfiguration:
+      type: object
+      minProperties: 1
+      maxProperties: 16
+      additionalProperties: { type: string, minLength: 1, maxLength: 2048 }
+    IntegrationStatus:
+      type: string
+      enum: [pending_authorization, active]
+    IntegrationInput:
+      type: object
+      additionalProperties: false
+      required: [connector_key, name, configuration]
+      properties:
+        connector_key: { type: string, minLength: 1, maxLength: 63 }
+        name: { type: string, minLength: 1, maxLength: 128 }
+        configuration: { $ref: '#/components/schemas/IntegrationConfiguration' }
+    IntegrationUpdateInput:
+      type: object
+      additionalProperties: false
+      required: [name, configuration]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 128 }
+        configuration: { $ref: '#/components/schemas/IntegrationConfiguration' }
+    Integration:
+      type: object
+      additionalProperties: false
+      required: [id, connector_key, name, configuration, status, created_at, updated_at]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        connector_key: { type: string, minLength: 1, maxLength: 63 }
+        name: { type: string, minLength: 1, maxLength: 128 }
+        configuration: { $ref: '#/components/schemas/IntegrationConfiguration' }
+        status: { $ref: '#/components/schemas/IntegrationStatus' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    IntegrationPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Integration' }
+    IntegrationSyncInput:
+      type: object
+      additionalProperties: false
+      required: [job_id]
+      properties:
+        job_id: { type: string, minLength: 8, maxLength: 128, pattern: '^job_[A-Za-z0-9_-]{4,123}$' }
+    IntegrationSyncStatus:
+      type: string
+      enum: [queued, running, succeeded, failed]
+    IntegrationSync:
+      type: object
+      additionalProperties: false
+      required: [id, integration_id, job_id, status, created_at, updated_at]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        integration_id: { $ref: '#/components/schemas/ProductID' }
+        job_id: { type: string, minLength: 8, maxLength: 128, pattern: '^job_[A-Za-z0-9_-]{4,123}$' }
+        status: { $ref: '#/components/schemas/IntegrationSyncStatus' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    IntegrationSyncPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/IntegrationSync' }
     ProductError:
       type: object
       additionalProperties: false

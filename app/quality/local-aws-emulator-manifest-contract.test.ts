@@ -61,15 +61,15 @@ describe("M1-30d local AWS emulator manifest", () => {
 
     expect(readme).toContain("M1-30d is Complete");
     expect(readme).toContain("M1-30 is Complete");
-    expect(tracker).toContain("| Pending | 561 |");
+    expect(tracker).toContain("| Pending | 541 |");
     expect(tracker).toContain("| In progress | 0 |");
-    expect(tracker).toContain("| Complete | 164 |");
+    expect(tracker).toContain("| Complete | 184 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`561/0/164/3`");
+    expect(tracker).toContain("`541/0/184/3`");
     expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "0", "0", "68", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
     expect(active.map(([task]) => task)).toEqual([]);
-    expect(complete).toHaveLength(164);
+    expect(complete).toHaveLength(184);
     expect(active.filter(([task]) => task === "M1-30d")).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-30d")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-30c")).toHaveLength(1);

@@ -283,6 +283,139 @@ export type paths = {
         readonly patch: operations["updateEnvironment"];
         readonly trace?: never;
     };
+    readonly "/api/v1/integration-catalog": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Search the product connector catalog */
+        readonly get: operations["listIntegrationCatalog"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/integrations": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List integrations in the authorized scope */
+        readonly get: operations["listIntegrations"];
+        readonly put?: never;
+        /** Create an integration in the authorized scope */
+        readonly post: operations["createIntegration"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/integrations/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get an authorized integration */
+        readonly get: operations["getIntegration"];
+        readonly put?: never;
+        readonly post?: never;
+        /** Delete an authorized integration without active sync work */
+        readonly delete: operations["deleteIntegration"];
+        readonly options?: never;
+        readonly head?: never;
+        /** Update an authorized integration */
+        readonly patch: operations["updateIntegration"];
+        readonly trace?: never;
+    };
+    readonly "/api/v1/integrations/{id}/authorize": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Confirm authorization for an integration */
+        readonly post: operations["authorizeIntegration"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/integrations/{id}/sync": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Queue one idempotent integration sync */
+        readonly post: operations["syncIntegration"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/integrations/{id}/syncs": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** List syncs for an authorized integration */
+        readonly get: operations["listIntegrationSyncs"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/integrations/{id}/syncs/{syncId}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+                readonly syncId: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get one authorized integration sync */
+        readonly get: operations["getIntegrationSync"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/me": {
         readonly parameters: {
             readonly query?: never;
@@ -453,8 +586,28 @@ export type components = {
             /** @constant */
             readonly healthy: true;
         };
+        readonly ConnectorManifest: {
+            readonly access_guidance: string;
+            readonly actions: readonly string[];
+            readonly auth_mode: string;
+            readonly category: string;
+            readonly data_types: readonly string[];
+            readonly description: string;
+            readonly key: string;
+            readonly provider: string;
+            readonly setup_schema: readonly components["schemas"]["ConnectorSetupField"][];
+            readonly test_semantics: string;
+        };
+        readonly ConnectorSetupField: {
+            readonly description: string;
+            readonly key: string;
+            readonly label: string;
+            readonly required: boolean;
+            readonly type: string;
+        };
         /** @description Opaque canonical base64url cursor without padding. */
         readonly Cursor: string;
+        readonly EmptyInput: Record<string, never>;
         readonly Environment: {
             readonly id: components["schemas"]["ProductID"];
             readonly name: string;
@@ -494,6 +647,55 @@ export type components = {
         readonly GroupMappingPage: {
             readonly items: readonly components["schemas"]["GroupMapping"][];
             readonly page_info: components["schemas"]["PageInfo"];
+        };
+        readonly Integration: {
+            readonly configuration: components["schemas"]["IntegrationConfiguration"];
+            readonly connector_key: string;
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly id: components["schemas"]["ProductID"];
+            readonly name: string;
+            readonly status: components["schemas"]["IntegrationStatus"];
+            /** Format: date-time */
+            readonly updated_at: string;
+        };
+        readonly IntegrationCatalogPage: {
+            readonly items: readonly components["schemas"]["ConnectorManifest"][];
+        };
+        readonly IntegrationConfiguration: {
+            readonly [key: string]: string;
+        };
+        readonly IntegrationInput: {
+            readonly configuration: components["schemas"]["IntegrationConfiguration"];
+            readonly connector_key: string;
+            readonly name: string;
+        };
+        readonly IntegrationPage: {
+            readonly items: readonly components["schemas"]["Integration"][];
+        };
+        /** @enum {string} */
+        readonly IntegrationStatus: "pending_authorization" | "active";
+        readonly IntegrationSync: {
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly id: components["schemas"]["ProductID"];
+            readonly integration_id: components["schemas"]["ProductID"];
+            readonly job_id: string;
+            readonly status: components["schemas"]["IntegrationSyncStatus"];
+            /** Format: date-time */
+            readonly updated_at: string;
+        };
+        readonly IntegrationSyncInput: {
+            readonly job_id: string;
+        };
+        readonly IntegrationSyncPage: {
+            readonly items: readonly components["schemas"]["IntegrationSync"][];
+        };
+        /** @enum {string} */
+        readonly IntegrationSyncStatus: "queued" | "running" | "succeeded" | "failed";
+        readonly IntegrationUpdateInput: {
+            readonly configuration: components["schemas"]["IntegrationConfiguration"];
+            readonly name: string;
         };
         readonly NameInput: {
             readonly name: string;
@@ -643,7 +845,10 @@ export type BuiltInRolePage = components['schemas']['BuiltInRolePage'];
 export type ConnectionDeletion = components['schemas']['ConnectionDeletion'];
 export type ConnectionStatus = components['schemas']['ConnectionStatus'];
 export type ConnectionTest = components['schemas']['ConnectionTest'];
+export type ConnectorManifest = components['schemas']['ConnectorManifest'];
+export type ConnectorSetupField = components['schemas']['ConnectorSetupField'];
 export type Cursor = components['schemas']['Cursor'];
+export type EmptyInput = components['schemas']['EmptyInput'];
 export type Environment = components['schemas']['Environment'];
 export type EnvironmentCreateInput = components['schemas']['EnvironmentCreateInput'];
 export type EnvironmentMutation = components['schemas']['EnvironmentMutation'];
@@ -651,6 +856,17 @@ export type EnvironmentPage = components['schemas']['EnvironmentPage'];
 export type GroupMapping = components['schemas']['GroupMapping'];
 export type GroupMappingInput = components['schemas']['GroupMappingInput'];
 export type GroupMappingPage = components['schemas']['GroupMappingPage'];
+export type Integration = components['schemas']['Integration'];
+export type IntegrationCatalogPage = components['schemas']['IntegrationCatalogPage'];
+export type IntegrationConfiguration = components['schemas']['IntegrationConfiguration'];
+export type IntegrationInput = components['schemas']['IntegrationInput'];
+export type IntegrationPage = components['schemas']['IntegrationPage'];
+export type IntegrationStatus = components['schemas']['IntegrationStatus'];
+export type IntegrationSync = components['schemas']['IntegrationSync'];
+export type IntegrationSyncInput = components['schemas']['IntegrationSyncInput'];
+export type IntegrationSyncPage = components['schemas']['IntegrationSyncPage'];
+export type IntegrationSyncStatus = components['schemas']['IntegrationSyncStatus'];
+export type IntegrationUpdateInput = components['schemas']['IntegrationUpdateInput'];
 export type NameInput = components['schemas']['NameInput'];
 export type Organization = components['schemas']['Organization'];
 export type PageInfo = components['schemas']['PageInfo'];
@@ -1227,6 +1443,261 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["EnvironmentMutation"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listIntegrationCatalog: {
+        readonly parameters: {
+            readonly query?: {
+                readonly action?: string;
+                readonly auth_mode?: string;
+                readonly category?: string;
+                readonly data_type?: string;
+                readonly q?: string;
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Product connector catalog results. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["IntegrationCatalogPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listIntegrations: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized integration records. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["IntegrationPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly createIntegration: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["IntegrationInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Created integration. */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["Integration"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getIntegration: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized integration. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["Integration"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly deleteIntegration: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Integration deleted. */
+            readonly 204: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly updateIntegration: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["IntegrationUpdateInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Updated integration. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["Integration"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly authorizeIntegration: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["EmptyInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Authorized integration. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["Integration"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly syncIntegration: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["IntegrationSyncInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Queued or existing idempotent sync. */
+            readonly 202: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["IntegrationSync"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listIntegrationSyncs: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Integration sync records. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["IntegrationSyncPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getIntegrationSync: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+                readonly syncId: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Integration sync record. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["IntegrationSync"];
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
