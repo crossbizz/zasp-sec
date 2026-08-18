@@ -43,7 +43,8 @@ describe("M1-36b hermetic schema check", () => {
       expect(prose).toContain(value);
     }
     expect(plan).toContain("Use genuine tests-first RED/GREEN");
-    expect(plan.match(/^- \[ \]/gm)).toHaveLength(15);
+    expect(plan.match(/^- \[x\]/gm) ?? []).toHaveLength(15);
+    expect(plan).not.toMatch(/^- \[ \]/m);
   });
 
   it("completes only M1-36b after completed M1-36a and preserves exact blockers", async () => {
