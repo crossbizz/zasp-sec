@@ -917,9 +917,8 @@ field names are rejected. The timestamp is the only date field.
 This task does not apply the template or perform provider I/O, and it does not
 claim OpenSearch or LocalStack parity. It also makes no tenant-isolation claim:
 M1-39 owns cross-Organization query and indexing enforcement. M1-31 is Complete,
-and M1-32 is Complete. M1-33 is In progress, defining the three exact product
-SQS queues and paired DLQs with closed schema metadata and bounded baseline
-settings.
+M1-32 is Complete, and M1-33 is Complete with three exact product SQS queues
+and paired DLQs, closed schema metadata, and bounded baseline settings.
 
 ## SQS queue definitions proof
 
@@ -957,8 +956,8 @@ ambient credentials, profiles, proxies, IMDS, or customer state.
 
 This proof does not implement producer or consumer wiring; M1-41 owns that
 work. M1A-04 owns replay and DLQ-recovery behavior, and M8-03 owns production
-operations. M1-32 is Complete, M1-33 remains In progress until reviewed live
-evidence and exact-SHA CI succeed, and M1-34 remains Pending.
+operations. M1-32 is Complete, and M1-33 is Complete after reviewed live
+evidence; M1-34 remains Pending.
 
 ## Assembled local development target
 
