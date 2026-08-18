@@ -44,7 +44,7 @@ describe("M1-42 graph Organization scope guard contract", () => {
     expect(plan.match(/^- \[[ x]\]/gm) ?? []).toHaveLength(19);
   });
 
-  it("starts only M1-42 with exact arithmetic", async () => {
+  it("completes only M1-42 with exact arithmetic", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -55,15 +55,15 @@ describe("M1-42 graph Organization scope guard contract", () => {
     const summary = markdownRows(tracker.match(/## Status summary[\s\S]*?## Milestone summary/)?.[0] ?? "").slice(2);
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
-    expect(readme).toContain("M1-42 is In progress");
+    expect(readme).toContain("M1-42 is Complete");
     expect(tracker).toContain("| Pending | 641 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 83 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 84 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`641/1/83/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "8", "1", "59", "0"]);
+    expect(tracker).toContain("`641/0/84/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "8", "0", "60", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.map(([task]) => task)).toEqual(["M1-42"]);
+    expect(active).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-41")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-42")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-43")).toHaveLength(0);
@@ -76,7 +76,7 @@ describe("M1-42 graph Organization scope guard contract", () => {
     const prose = section.replace(/\s+/g, " ");
 
     for (const value of [
-      "M1-42 is In progress",
+      "M1-42 is Complete",
       "node and edge writes",
       "bounded reads",
       "Organization A",

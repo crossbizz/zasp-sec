@@ -60,13 +60,13 @@ describe("M1-41 SQS Organization envelope guard contract", () => {
     expect(readme).toContain("M1-40 is Complete");
     expect(readme).toContain("M1-41 is Complete");
     expect(tracker).toContain("| Pending | 641 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 83 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 84 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`641/1/83/3`");
-    expect(m1).toEqual(["M1", "68", "8", "1", "59", "0"]);
+    expect(tracker).toContain("`641/0/84/3`");
+    expect(m1).toEqual(["M1", "68", "8", "0", "60", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.map(([task]) => task)).toEqual(["M1-42"]);
+    expect(active).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-40")).toHaveLength(1);
     expect(active.filter(([task]) => task === "M1-41")).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-41")).toHaveLength(1);
@@ -87,7 +87,7 @@ describe("M1-41 SQS Organization envelope guard contract", () => {
       "Organization B",
       "M1-13",
       "M1-33",
-      "M1-42 is In progress",
+      "M1-42 is Complete",
     ]) expect(prose).toContain(value);
     expect(section).not.toMatch(/adds a new provider lifecycle|proves real-AWS authorization|acknowledges rejected/i);
   });

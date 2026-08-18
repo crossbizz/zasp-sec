@@ -166,14 +166,14 @@ envelope to an Organization A consumer and proves zero handler calls.
 M1-13 remains the SQS adapter and disposable compatibility authority; M1-33
 remains the queue-definition and provisioning authority. This task adds no
 worker loop, acknowledgement, provider lifecycle, or real-AWS authorization
-claim. M1-42 is In progress.
+claim. M1-42 is Complete.
 
 ## Graph Organization scope guard
 
-M1-42 is In progress. The existing product GraphStore is being hardened around
-explicit complete-scope builders for node and edge writes plus bounded reads.
-The binding fixture will prove an Organization A path cannot traverse otherwise
-identical Organization B graph state before any result is returned.
+M1-42 is Complete. The existing product GraphStore now routes node and edge
+writes plus bounded reads through explicit complete-scope builders. The binding
+fixture proves an Organization A path cannot traverse otherwise identical
+Organization B graph state, and hostile foreign provider results fail closed.
 
 M1-16 remains the Neo4j adapter and disposable compatibility authority. M1-42
 adds no new graph provider or database authorization claim, and does not invoke
