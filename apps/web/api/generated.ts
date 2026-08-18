@@ -876,6 +876,118 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/test-runs": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List authorized red-team test runs */
+        readonly get: operations["listTestRuns"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/test-runs/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["RedTeamID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get one authorized red-team test run */
+        readonly get: operations["getTestRun"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/test-runs/{id}/cancel": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["RedTeamID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Cancel one authorized incomplete red-team test run */
+        readonly post: operations["cancelTestRun"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/tests": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List authorized red-team test definitions */
+        readonly get: operations["listTests"];
+        readonly put?: never;
+        /** Create a bounded red-team test definition */
+        readonly post: operations["createTest"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/tests/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["RedTeamID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get one authorized red-team test definition */
+        readonly get: operations["getTest"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        /** Update one bounded red-team test definition */
+        readonly patch: operations["updateTest"];
+        readonly trace?: never;
+    };
+    readonly "/api/v1/tests/{id}/runs": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["RedTeamID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Queue one authorized red-team test run */
+        readonly post: operations["runTest"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/tools": {
         readonly parameters: {
             readonly query?: never;
@@ -1322,6 +1434,7 @@ export type components = {
         };
         /** @description Canonical product identifier. */
         readonly ProductID: string;
+        readonly RedTeamID: string;
         readonly Relationship: {
             readonly evidence_id: components["schemas"]["ProductID"];
             readonly from_id: components["schemas"]["ProductID"];
@@ -1334,6 +1447,13 @@ export type components = {
         readonly RiskFactor: {
             readonly evidence_id: components["schemas"]["ProductID"];
             readonly name: string;
+        };
+        readonly SafetyMetadata: {
+            /** @enum {string} */
+            readonly credential_class: "read_only" | "test_write";
+            /** @enum {string} */
+            readonly environment: "development" | "test" | "staging";
+            readonly expected_side_effects: readonly string[];
         };
         readonly SCIMConnection: {
             /** Format: uri */
@@ -1449,6 +1569,28 @@ export type components = {
         readonly SSOIdentityProvider: "classlink" | "cyberark" | "duo" | "generic" | "google-workspace" | "jumpcloud" | "keycloak" | "miniorange" | "microsoft-entra" | "okta" | "onelogin" | "pingfederate" | "rippling" | "salesforce" | "shibboleth";
         /** @enum {string} */
         readonly SSOProtocol: "saml" | "oidc";
+        readonly TestDefinition: {
+            readonly categories: readonly string[];
+            readonly id: components["schemas"]["RedTeamID"];
+            readonly name: string;
+            readonly safety: components["schemas"]["SafetyMetadata"];
+            readonly target_id: string;
+        };
+        readonly TestDefinitionPage: {
+            readonly items: readonly components["schemas"]["TestDefinition"][];
+        };
+        readonly TestRun: {
+            readonly definition_id: components["schemas"]["RedTeamID"];
+            readonly id: components["schemas"]["RedTeamID"];
+            /** @enum {string} */
+            readonly status: "queued" | "running" | "complete" | "failed" | "cancelled";
+        };
+        readonly TestRunInput: {
+            readonly run_id: components["schemas"]["RedTeamID"];
+        };
+        readonly TestRunPage: {
+            readonly items: readonly components["schemas"]["TestRun"][];
+        };
         readonly Workspace: {
             readonly id: components["schemas"]["ProductID"];
             readonly name: string;
@@ -1552,9 +1694,11 @@ export type Principal = components['schemas']['Principal'];
 export type PrincipalPage = components['schemas']['PrincipalPage'];
 export type ProductError = components['schemas']['ProductError'];
 export type ProductId = components['schemas']['ProductID'];
+export type RedTeamId = components['schemas']['RedTeamID'];
 export type Relationship = components['schemas']['Relationship'];
 export type RelationshipPage = components['schemas']['RelationshipPage'];
 export type RiskFactor = components['schemas']['RiskFactor'];
+export type SafetyMetadata = components['schemas']['SafetyMetadata'];
 export type ScimConnection = components['schemas']['SCIMConnection'];
 export type ScimConnectionCredential = components['schemas']['SCIMConnectionCredential'];
 export type ScimConnectionId = components['schemas']['SCIMConnectionID'];
@@ -1576,6 +1720,11 @@ export type SsoConnectionMutation = components['schemas']['SSOConnectionMutation
 export type SsoConnectionPage = components['schemas']['SSOConnectionPage'];
 export type SsoIdentityProvider = components['schemas']['SSOIdentityProvider'];
 export type SsoProtocol = components['schemas']['SSOProtocol'];
+export type TestDefinition = components['schemas']['TestDefinition'];
+export type TestDefinitionPage = components['schemas']['TestDefinitionPage'];
+export type TestRun = components['schemas']['TestRun'];
+export type TestRunInput = components['schemas']['TestRunInput'];
+export type TestRunPage = components['schemas']['TestRunPage'];
 export type Workspace = components['schemas']['Workspace'];
 export type WorkspaceMutation = components['schemas']['WorkspaceMutation'];
 export type WorkspacePage = components['schemas']['WorkspacePage'];
@@ -3113,6 +3262,208 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["SensorEnrollment"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listTestRuns: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized test runs. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["TestRunPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getTestRun: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["RedTeamID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized test run. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["TestRun"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly cancelTestRun: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["RedTeamID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["EmptyInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Cancelled test run. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["TestRun"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listTests: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized test definitions. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["TestDefinitionPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly createTest: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["TestDefinition"];
+            };
+        };
+        readonly responses: {
+            /** @description Created test definition. */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["TestDefinition"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getTest: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["RedTeamID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized test definition. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["TestDefinition"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly updateTest: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["RedTeamID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["TestDefinition"];
+            };
+        };
+        readonly responses: {
+            /** @description Updated test definition. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["TestDefinition"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly runTest: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["RedTeamID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["TestRunInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Queued test run. */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["TestRun"];
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];

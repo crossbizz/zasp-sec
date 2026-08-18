@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 398 |
-| In progress | 143 |
+| Pending | 369 |
+| In progress | 172 |
 | Complete | 184 |
 | Blocked | 3 |
 
@@ -29,7 +29,7 @@ In progress, Complete, or Blocked is Pending.
 | M2 | 72 | 0 | 0 | 72 | 0 |
 | M3 | 75 | 0 | 61 | 14 | 0 |
 | M4 | 82 | 0 | 82 | 0 | 0 |
-| M5 | 42 | 42 | 0 | 0 | 0 |
+| M5 | 42 | 13 | 29 | 0 | 0 |
 | M6 | 36 | 36 | 0 | 0 | 0 |
 | M7 | 62 | 62 | 0 | 0 | 0 |
 | M7A | 113 | 113 | 0 | 0 | 0 |
@@ -70,13 +70,42 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `398/143/184/3` because
+session configuration. The 728 source-plan counts are `369/172/184/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M5-25 | August 18, 2026 | The local Attack Lab evidence collector binds semantic, gateway, egress, Kubernetes, and cloud side-effect sources without an in-sandbox eBPF dependency. |
+| M5-24 | August 18, 2026 | A bounded canary descriptor requires a test resource, test-write credential class, and observable expected touch. |
+| M5-23 | August 18, 2026 | One local SafetyDecision composes target, credential, destination, and measurable-success checks before sandbox creation. |
+| M5-23d | August 18, 2026 | Attack Lab preflight rejects runs without an explicit observable success criterion. |
+| M5-23c | August 18, 2026 | Attack Lab preflight rejects destinations outside the per-run allowlist. |
+| M5-23b | August 18, 2026 | Attack Lab preflight hard-rejects production-write credentials. |
+| M5-23a | August 18, 2026 | Attack Lab preflight rejects production targets before sandbox creation. |
+| M5-22 | August 18, 2026 | HMAC-bound per-run egress tokens enforce exact host, method, and expiry values locally. |
+| M5-21 | August 18, 2026 | The Fargate sandbox spec names a dedicated egress-proxy SecurityGroupPolicy; live EKS enforcement remains unresolved. |
+| M5-20 | August 18, 2026 | The Fargate sandbox spec uses a dedicated Attack Lab service account and test-role annotation, never the product worker role. |
+| M5-19 | August 18, 2026 | CPU, memory, ephemeral-storage, and timeout limits are mandatory and bounded in the local sandbox spec. |
+| M5-18 | August 18, 2026 | A run-scoped local Fargate Job specification binds the dedicated profile, namespace, labels, and cleanup ownership fields. |
+| M5-17 | August 18, 2026 | SandboxProvider defines Create, Run, Cancel, Destroy, and Capabilities boundaries locally. |
+| M5-16 | August 18, 2026 | Existing Red Team results group deterministic outcomes and link successful attempts to the bounded Attack Lab route locally. |
+| M5-15 | August 18, 2026 | Existing Red Team list/new-test UX renders curated packs and execution limits locally. |
+| M5-14 | August 18, 2026 | The local worker persists an artifact reference plus normalized verdict and rejects a secret-bearing raw fixture. |
+| M5-13 | August 18, 2026 | The local test worker consumes queued runs idempotently; duplicate delivery retains one attempt. |
+| M5-12 | August 18, 2026 | `cancelTestRun` is published in OpenAPI/generated types and handled by the bounded local service. |
+| M5-11 | August 18, 2026 | `getTestRun` is published in OpenAPI/generated types and handled by the bounded local service. |
+| M5-10 | August 18, 2026 | `listTestRuns` is published in OpenAPI/generated types and handled by the bounded local service. |
+| M5-09 | August 18, 2026 | `runTest` is published in OpenAPI/generated types and queues a bounded local run. |
+| M5-08 | August 18, 2026 | `updateTest` is published in OpenAPI/generated types and handled by the bounded local service. |
+| M5-07 | August 18, 2026 | `getTest` is published in OpenAPI/generated types and handled by the bounded local service. |
+| M5-06 | August 18, 2026 | `createTest` is published in OpenAPI/generated types and handled by the bounded local service. |
+| M5-05 | August 18, 2026 | `listTests` is published in OpenAPI/generated types and handled by the bounded local service. |
+| M5-04 | August 18, 2026 | Test safety preflight rejects production targets, production-write credentials, and undeclared side effects locally. |
+| M5-03 | August 18, 2026 | Curated pack selection recommends only capability-relevant tool, data-leakage, and prompt-injection categories with explanations. |
+| M5-02 | August 18, 2026 | Promptfoo output normalizes objective, input artifact, behavior, verdict, evidence, and engine_error separately. |
+| M5-01 | August 18, 2026 | Local TestDefinition, TestRun, TestAttempt, verdict, and safety metadata boundaries are implemented. |
 | M4-59 | August 18, 2026 | A five-check local M4 gate passes only when inventory, capability, posture, attack path, and exposure UX agree; provider release evidence remains unresolved. |
 | M4-59e | August 18, 2026 | The golden exposure fixture renders product-only Why, Evidence, Path, Fix, and Verify concepts locally. |
 | M4-59d | August 18, 2026 | The golden fixture retains a bounded evidence-state attack path and ranked break option locally. |

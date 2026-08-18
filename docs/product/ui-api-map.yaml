@@ -219,6 +219,33 @@ screens:
       - id: view_asset
         operation_id: getAsset
         availability: api_available
+  - id: red_team
+    label: Red Team
+    actions:
+      - id: view_tests
+        operation_id: listTests
+        availability: api_available
+      - id: create_test
+        operation_id: createTest
+        availability: api_available
+      - id: view_test
+        operation_id: getTest
+        availability: api_available
+      - id: update_test
+        operation_id: updateTest
+        availability: api_available
+      - id: run_test
+        operation_id: runTest
+        availability: api_available
+      - id: view_test_runs
+        operation_id: listTestRuns
+        availability: api_available
+      - id: view_test_run
+        operation_id: getTestRun
+        availability: api_available
+      - id: cancel_test_run
+        operation_id: cancelTestRun
+        availability: api_available
   - id: system_health
     label: System Health
     actions:

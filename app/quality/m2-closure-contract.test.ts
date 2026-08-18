@@ -45,7 +45,7 @@ describe("M2 identity and authorization milestone closure", () => {
     expect(tokenView).toContain("createAPIClient()");
     expect(scopeView).toContain("createAPIClient()");
     expect(map.match(/availability: available/g)).toHaveLength(20);
-    expect(map.match(/availability: api_available/g)).toHaveLength(47);
+    expect(map.match(/availability: api_available/g)).toHaveLength(55);
     expect(readme).toContain("M2-01 through M2-50 and the M2-47 gate are Complete");
     expect(readme).toContain("M2 gate: PASS");
     expect(readme).toContain("M3-01 through M3-13 are Complete");

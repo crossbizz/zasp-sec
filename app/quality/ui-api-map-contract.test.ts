@@ -115,6 +115,20 @@ const expectedMap: MapDocument = {
       ],
     },
     {
+      id: "red_team",
+      label: "Red Team",
+      actions: [
+        { id: "view_tests", operation_id: "listTests", availability: "api_available" },
+        { id: "create_test", operation_id: "createTest", availability: "api_available" },
+        { id: "view_test", operation_id: "getTest", availability: "api_available" },
+        { id: "update_test", operation_id: "updateTest", availability: "api_available" },
+        { id: "run_test", operation_id: "runTest", availability: "api_available" },
+        { id: "view_test_runs", operation_id: "listTestRuns", availability: "api_available" },
+        { id: "view_test_run", operation_id: "getTestRun", availability: "api_available" },
+        { id: "cancel_test_run", operation_id: "cancelTestRun", availability: "api_available" },
+      ],
+    },
+    {
       id: "system_health",
       label: "System Health",
       actions: [
@@ -236,13 +250,17 @@ describe("M1-25 UI API map seed", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(readme).toContain("M1-25 is Complete");
-    expect(tracker).toContain("| Pending | 398 |");
-    expect(tracker).toContain("| In progress | 143 |");
+    expect(tracker).toContain("| Pending | 369 |");
+    expect(tracker).toContain("| In progress | 172 |");
     expect(tracker).toContain("| Complete | 184 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`398/143/184/3`");
+    expect(tracker).toContain("`369/172/184/3`");
     expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "0", "0", "68", "0"]);
     expect(active.map(([task]) => task)).toEqual([
+      "M5-25", "M5-24", "M5-23", "M5-23d", "M5-23c", "M5-23b", "M5-23a",
+      "M5-22", "M5-21", "M5-20", "M5-19", "M5-18", "M5-17", "M5-16", "M5-15",
+      "M5-14", "M5-13", "M5-12", "M5-11", "M5-10", "M5-09", "M5-08", "M5-07",
+      "M5-06", "M5-05", "M5-04", "M5-03", "M5-02", "M5-01",
       "M4-59", "M4-59e", "M4-59d", "M4-59c", "M4-59b", "M4-59a", "M4-58", "M4-57",
       "M4-56", "M4-55", "M4-54", "M4-53", "M4-52", "M4-51", "M4-51e", "M4-51d",
       "M4-51c", "M4-51b3", "M4-51b2", "M4-51b1", "M4-51a", "M4-50", "M4-50c",
@@ -271,7 +289,7 @@ describe("M1-25 UI API map seed", () => {
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
 
-  it("accepts only the exact seven-screen, 72-action mixed-lifecycle map", async () => {
+  it("accepts only the exact eight-screen, 78-action mixed-lifecycle map", async () => {
     const source = await readFile(resolve(repositoryRoot, "docs/product/ui-api-map.yaml"), "utf8").catch(() => "");
 
     expect(parseStrictMap(source)).toEqual(expectedMap);
@@ -297,7 +315,7 @@ describe("M1-25 UI API map seed", () => {
     }
   });
 
-  it("resolves every forward reference when all five operations are defined", async () => {
+  it("resolves every mapped operation when all references are defined", async () => {
     const source = await readFile(resolve(repositoryRoot, "docs/product/ui-api-map.yaml"), "utf8").catch(() => "");
     const operationIDs = validateMap(parseStrictMap(source));
     const available = new Set(operationIDs);
@@ -370,6 +388,14 @@ describe("M1-25 UI API map seed", () => {
       "listRuntimes",
       "getRuntime",
       "getAsset",
+      "listTests",
+      "createTest",
+      "getTest",
+      "updateTest",
+      "runTest",
+      "listTestRuns",
+      "getTestRun",
+      "cancelTestRun",
       "getSystemStatus",
       "listSystemComponents",
       "getSystemVersion",
