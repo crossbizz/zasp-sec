@@ -59,14 +59,14 @@ describe("M1-32 OpenSearch index template", () => {
 
     expect(readme).toContain("M1-32 is Complete");
     expect(tracker).toContain("| Pending | 649 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 75 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 76 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`649/1/75/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "16", "1", "51", "0"]);
+    expect(tracker).toContain("`649/0/76/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "16", "0", "52", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.map(([task]) => task)).toEqual(["M1-36c"]);
-    expect(complete).toHaveLength(75);
+    expect(active.map(([task]) => task)).toEqual([]);
+    expect(complete).toHaveLength(76);
     expect(active.filter(([task]) => task === "M1-32")).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-32")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-31")).toHaveLength(1);

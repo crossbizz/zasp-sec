@@ -71,12 +71,12 @@ npm run schema:check
 ```
 
 The gate is hermetic and makes no database, provider, network, Docker, or
-customer-state call. M1-36c is In progress and separately owns OpenAPI
+customer-state call. M1-36c is Complete and separately owns OpenAPI
 generation and generated-client drift.
 
 ## M1 OpenAPI check
 
-M1-36c is In progress. It runs the reviewed exact-pinned OpenAPI generator and
+M1-36c is Complete. It runs the reviewed exact-pinned OpenAPI generator and
 requires no uncommitted generated-client diff:
 
 ```bash
