@@ -855,6 +855,21 @@ export function isObservabilityProviderRead(arguments_, proof) {
   ]);
 }
 
+export function isAwsEmulatorProviderRead(arguments_, proof) {
+  if (proof !== "m1-30d" || !Array.isArray(arguments_)) return false;
+  const selector = new Map([
+    ["deployment", "app.kubernetes.io/component=aws-emulator"],
+    ["replicaset", "app.kubernetes.io/component=aws-emulator"],
+    ["pod", "app.kubernetes.io/component=aws-emulator"],
+    ["service", "app.kubernetes.io/component=aws-emulator"],
+    ["endpointslice", "kubernetes.io/service-name=localstack"],
+  ]).get(arguments_[1]);
+  return selector !== undefined && exactStringArray(arguments_, [
+    "get", arguments_[1], "--namespace", GRAPH_CONSTANTS.namespace,
+    `--selector=${selector}`, "--output=json",
+  ]);
+}
+
 export function validateGraphKubernetesState(value, expected, retained = undefined, requireReplacement = false,
   requireHealthReplacement = false) {
   try {
@@ -1674,6 +1689,7 @@ export class LocalGraphSystem extends LocalProductSystem {
     let selected = arguments_;
     let productResource;
     if (this.productProviderProjection && !isObservabilityProviderRead(arguments_, this.profile.proof) &&
+        !isAwsEmulatorProviderRead(arguments_, this.profile.proof) &&
         Array.isArray(arguments_) && arguments_[0] === "get" &&
         arguments_.at(-1) === "--output=json") {
       const observability = new Set(["m1-30c", "m1-30d"]).has(this.profile.proof);

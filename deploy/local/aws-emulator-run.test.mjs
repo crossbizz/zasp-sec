@@ -684,7 +684,10 @@ test("uses fixed bounded Kubernetes reads, one exact Job apply, and one fixed lo
   }
   const phase = { assertActive() {} };
   const system = new ProviderBoundarySystem();
+  system.productProviderProjection = true;
+  system.productProviderCapture = new Map();
   assert.deepEqual(await system.readAwsEmulatorProviderState(phase), state);
+  assert.equal(system.productProviderCapture.size, 0);
   assert.deepEqual(system.calls.filter(([, , argv]) => argv.includes("get")).map(([, , argv]) => argv.slice(2)), [
     ["get", "configmap", "--namespace", "zasp-local", "--selector=app.kubernetes.io/component=aws-emulator", "--output=json"],
     ["get", "deployment", "--namespace", "zasp-local", "--selector=app.kubernetes.io/component=aws-emulator", "--output=json"],
