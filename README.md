@@ -898,6 +898,27 @@ not create a LocalStack lifecycle or provider resource and does not claim
 LocalStack parity. M1-30 is Complete; M1-31 is Complete. M1-32 is In progress
 and owns the exact session/runtime event index-template contract.
 
+## OpenSearch session/runtime event template
+
+M1-32 is In progress. Its product-owned contract serializes one deterministic
+template for `zasp-session-runtime-events-v1-*` and validates documents against
+exactly 12 fields. Run the hermetic contract from the repository root with
+pinned Go 1.25.6:
+
+```bash
+npm run event:index-template:test
+```
+
+The mapping fixes `index.mapping.total_fields.limit=12`, uses `dynamic: strict`,
+and assigns an explicit `ignore_above` bound to every keyword field. Its
+1,024-field mapping-explosion fixture proves that attacker-controlled dynamic
+field names are rejected. The timestamp is the only date field.
+
+This task does not apply the template or perform provider I/O, and it does not
+claim OpenSearch or LocalStack parity. It also makes no tenant-isolation claim:
+M1-39 owns cross-Organization query and indexing enforcement. M1-31 is Complete,
+and M1-33 is Pending.
+
 ## Assembled local development target
 
 M1-30 is Complete. M1-30a, M1-30b, M1-30c, and M1-30d are Complete. The

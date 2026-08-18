@@ -73,4 +73,40 @@ describe("M1-32 OpenSearch index template", () => {
     expect([...active, ...complete].filter(([task]) => task === "M1-33")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
+
+  it("exposes one exact hermetic root test command without a provider run command", async () => {
+    const packageDocument = JSON.parse(await readFile(resolve(repositoryRoot, "package.json"), "utf8")) as {
+      scripts: Record<string, string>;
+    };
+    expect(packageDocument.scripts["event:index-template:test"]).toBe(
+      "go test -C services/platform -race -count=1 ./eventindex",
+    );
+    expect(Object.keys(packageDocument.scripts).filter((name) => name.startsWith("event:index-template:"))).toEqual([
+      "event:index-template:test",
+    ]);
+  });
+
+  it("documents the exact product-owned template boundary", async () => {
+    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const section = (readme.match(/## OpenSearch session\/runtime event template[\s\S]*?(?=\n## )/)?.[0] ?? "").replace(
+      /\s+/g,
+      " ",
+    );
+    for (const value of [
+      "npm run event:index-template:test",
+      "zasp-session-runtime-events-v1-*",
+      "exactly 12 fields",
+      "index.mapping.total_fields.limit=12",
+      "dynamic: strict",
+      "ignore_above",
+      "1,024-field mapping-explosion fixture",
+      "does not apply the template",
+      "does not claim OpenSearch or LocalStack parity",
+      "M1-31 is Complete",
+      "M1-39 owns cross-Organization query and indexing enforcement",
+      "M1-33 is Pending",
+    ]) {
+      expect(section).toContain(value);
+    }
+  });
 });
