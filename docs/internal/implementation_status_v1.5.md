@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 0 |
-| In progress | 516 |
-| Complete | 209 |
+| In progress | 491 |
+| Complete | 234 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -27,7 +27,7 @@ In progress, Complete, or Blocked is Pending.
 | M1 | 68 | 0 | 0 | 68 | 0 |
 | M1A | 10 | 0 | 4 | 6 | 0 |
 | M2 | 72 | 0 | 0 | 72 | 0 |
-| M3 | 75 | 0 | 36 | 39 | 0 |
+| M3 | 75 | 0 | 11 | 64 | 0 |
 | M4 | 82 | 0 | 82 | 0 | 0 |
 | M5 | 42 | 0 | 42 | 0 | 0 |
 | M6 | 36 | 0 | 36 | 0 | 0 |
@@ -70,7 +70,7 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `0/516/209/3` because
+session configuration. The 728 source-plan counts are `0/491/234/3` because
 PROV-01 is excluded from those counts.
 For the active M8 resilience batch, live parity, outage injection, and reference load execution remain unresolved.
 
@@ -568,37 +568,37 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 | M3-50 | August 18, 2026 | The Sensors route renders list, detail, enrollment, coverage, and freshness surfaces from generated schema types. |
 | M3-49 | August 18, 2026 | Connection authorize, sync, and delete controls remain capability-gated and product-branded locally. |
 | M3-48 | August 18, 2026 | Catalog, connected list, detail, and provider setup navigation are composed in the Connections route. |
-| M3-48h | August 18, 2026 | The Generic Webhook UI exposes one fixed destination and signature-status flow without per-action URLs. |
-| M3-48g | August 18, 2026 | The directory-security setup flow is visibly separate from product sign-in and Stytch SSO. |
-| M3-48f | August 18, 2026 | GitHub access review displays returned Repository/Organization scope before initial sync. |
-| M3-48e | August 18, 2026 | Kubernetes setup exposes coverage, scoped enrollment, Helm, heartbeat, and degraded-state steps locally. |
-| M3-48d | August 18, 2026 | AWS setup exposes access review, role/external-ID, test, initial-sync, coverage, and permission remediation locally. |
-| M3-48c3 | August 18, 2026 | Capability-gated integration detail actions are implemented locally; generated-client wiring remains in progress. |
-| M3-48c2 | August 18, 2026 | Bounded integration data capabilities and sync-history detail are implemented locally. |
-| M3-48c1 | August 18, 2026 | Integration detail health, scope, freshness, and last-sync summary are implemented locally. |
-| M3-48b | August 18, 2026 | Connected-integration freshness list is implemented locally. |
-| M3-48a | August 18, 2026 | Filterable product connector catalog cards remain free of internal adapter names. |
-| M3-47 | August 18, 2026 | Ambiguous runtime lineage remains Probable or Unattributed and cannot upgrade to Exact. |
-| M3-46 | August 18, 2026 | Unique sandbox/container/cgroup/process lineage correlation is implemented as Strong. |
-| M3-45 | August 18, 2026 | Exact session and agent identity correlation is implemented as Exact. |
-| M3-44 | August 18, 2026 | Deterministic scoped runtime-event index documents include archive references. |
-| M3-43 | August 18, 2026 | Runtime worker orders archive, index, correlation, then acknowledgement and is replay-safe locally. |
-| M3-43d | August 18, 2026 | Deterministic correlation writes occur only after archive and indexing succeed. |
-| M3-43c | August 18, 2026 | Deterministic event indexing reuses event IDs and archive references on replay. |
-| M3-43b | August 18, 2026 | Organization/date-scoped deterministic archive keys are implemented locally. |
-| M3-43a | August 18, 2026 | Deterministic batch consumption and replay identity are implemented locally. |
-| M3-42 | August 18, 2026 | Scoped internal event ingest acknowledges only after bounded publisher acceptance. |
-| M3-41 | August 18, 2026 | Runtime events are batched by bounded count and bytes before queue publication. |
-| M3-40 | August 18, 2026 | Metadata-only collection removes content while preserving action metadata. |
-| M3-39 | August 18, 2026 | Sensor/runtime authentication and exact scope checks run before payload parsing. |
-| M3-38 | August 18, 2026 | OTLP semantic attributes map agent, session, task, tool, sandbox, trace, and span identity. |
-| M3-37 | August 18, 2026 | Sensor health derives kernel/BTF/resource/event/drop coverage state locally. |
 | M3-14 | August 18, 2026 | Strict AWS assume-role identity adapter and local denial fixture are implemented; required real-AWS denial remains unavailable behind M1A-10. |
 
 ## Complete
 
 | Task | Completed | Evidence |
 | --- | --- | --- |
+| M3-48h | August 18, 2026 | Generic Webhook setup fixes one signed destination and exposes delivery signature status without per-action URLs. |
+| M3-48g | August 18, 2026 | Launch-IdP setup remains visibly separate from product sign-in and Stytch SSO configuration. |
+| M3-48f | August 18, 2026 | GitHub setup displays authorized Repository and Organization scope with actionable missing-scope state. |
+| M3-48e | August 18, 2026 | Kubernetes setup covers scoped enrollment, Helm, heartbeat, and degraded coverage state. |
+| M3-48d | August 18, 2026 | AWS setup covers access review, role/external ID, test, initial sync, coverage, and exact permission remediation. |
+| M3-48c3 | August 18, 2026 | Capability-gated authorize, sync, and delete controls expose stable product errors. |
+| M3-48c2 | August 18, 2026 | Integration detail renders bounded collected-data capabilities and sync history. |
+| M3-48c1 | August 18, 2026 | Integration detail renders exact health, scope, freshness, and last-sync state. |
+| M3-48b | August 18, 2026 | Connected-integration list distinguishes healthy, stale, and degraded freshness. |
+| M3-48a | August 18, 2026 | Connector catalog filters product cards without exposing internal adapter identity. |
+| M3-47 | August 18, 2026 | Ambiguous concurrent runtime lineage remains Probable or Unattributed and never upgrades to Exact. |
+| M3-46 | August 18, 2026 | Unique sandbox/container/cgroup/process lineage classifies Strong, not Exact. |
+| M3-45 | August 18, 2026 | Exact trace/session identity correlation classifies Exact. |
+| M3-44 | August 18, 2026 | Scoped runtime-event documents include required session, agent, time, and archive references. |
+| M3-43 | August 18, 2026 | Runtime worker persists archive, index, and correlation exactly once before acknowledgement. |
+| M3-43d | August 18, 2026 | Replay-safe correlation writes run only after archive and indexing succeed. |
+| M3-43c | August 18, 2026 | Deterministic event IDs and archive references prevent duplicate indexing on replay. |
+| M3-43b | August 18, 2026 | Deterministic Organization/date archive keys remain inside the scoped prefix. |
+| M3-43a | August 18, 2026 | Replayed runtime batches reuse the same deterministic batch identity. |
+| M3-42 | August 18, 2026 | Scoped internal ingest acknowledges only after bounded publisher acceptance. |
+| M3-41 | August 18, 2026 | Runtime-event batching enforces bounded count and bytes before publication. |
+| M3-40 | August 18, 2026 | Metadata-only collection removes content while retaining action metadata. |
+| M3-39 | August 18, 2026 | Sensor/runtime scope authentication rejects invalid sources before payload parsing. |
+| M3-38 | August 18, 2026 | OTLP semantic normalization preserves agent, session, task, tool, sandbox, trace, and span identity. |
+| M3-37 | August 18, 2026 | Sensor health deterministically derives supported/degraded state from kernel, BTF, resource, rate, and drop evidence. |
 | M3-36 | August 18, 2026 | Process, file, and network Tetragon fixtures normalize with workload identity; the exact-pinned proof suite passes. |
 | M3-35 | August 18, 2026 | Exact-pinned Tetragon wrapper and three bounded tracing policies pass manifest and lifecycle verification. |
 | M3-34 | August 18, 2026 | Scoped token-authenticated heartbeat updates exact capabilities and rejects invalid tokens. |

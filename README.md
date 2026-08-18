@@ -276,13 +276,11 @@ Auth/Proxy, credential-safe connection handling, seven sensor operations, and
 process/file/network normalization. M3-14 remains In progress because its
 required real-AWS denial fixture is unavailable with M1A-10's live staging gate.
 
-M3-37 through M3-48c3 remain batched as In progress. The local MVP slice adds
-sensor health, OTLP semantic
-adapters, scoped pre-parse authentication, metadata filtering, bounded event
-batches, deterministic archive/index/correlation worker stages, and the
-connection catalog/list/detail product surfaces. Durable AWS queue, object,
-index, and staging lifecycle evidence remains gated by M1A-10; the local worker
-tests do not substitute for that provider gate.
+M3-37 through M3-48h are Complete. The reviewed runtime-event and OTLP suites
+prove bounded authenticated ingest, filtering, batching, replay-safe
+archive/index/correlation, confidence classification, and the catalog/detail
+plus five setup flows. The separate M3 gate and real staging evidence remain
+active; these completed component contracts do not substitute for them.
 
 M3-48d through M3-52 and M4-01a through M4-01 are batched as In progress.
 Provider-specific connection setup, sensor lifecycle surfaces, the composed

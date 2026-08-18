@@ -26,6 +26,6 @@ describe("M3-15 through M3-36 completion batch", () => {
     const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] || "";
     const selected = ["M3-15", "M3-16", "M3-17", "M3-18", "M3-19", "M3-20", "M3-21", "M3-22a", "M3-22b", "M3-22c", "M3-22", "M3-23", "M3-24", "M3-25", "M3-26", "M3-27", "M3-28", "M3-29", "M3-30", "M3-31", "M3-32", "M3-33", "M3-34", "M3-35", "M3-36"];
     for (const id of selected) expect(complete.match(new RegExp(`^\\| ${id} \\|`, "gm"))).toHaveLength(1);
-    for (const value of ["| Pending | 0 |", "| In progress | 516 |", "| Complete | 209 |", "`0/516/209/3`", "| M3 | 75 | 0 | 36 | 39 | 0 |"]) expect(tracker).toContain(value);
+    for (const value of ["| Pending | 0 |", "| In progress | 491 |", "| Complete | 234 |", "`0/491/234/3`", "| M3 | 75 | 0 | 11 | 64 | 0 |"]) expect(tracker).toContain(value);
   });
 });
