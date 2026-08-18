@@ -895,12 +895,12 @@ or Kubernetes authority.
 The tests route five real SDK read operations to one bounded loopback capture
 server and assert exact signing and S3 path-style behavior. This boundary does
 not create a LocalStack lifecycle or provider resource and does not claim
-LocalStack parity. M1-30 is Complete; M1-31 is Complete. M1-32 is In progress
+LocalStack parity. M1-30 is Complete; M1-31 is Complete. M1-32 is Complete
 and owns the exact session/runtime event index-template contract.
 
 ## OpenSearch session/runtime event template
 
-M1-32 is In progress. Its product-owned contract serializes one deterministic
+M1-32 is Complete. Its product-owned contract serializes one deterministic
 template for `zasp-session-runtime-events-v1-*` and validates documents against
 exactly 12 fields. Run the hermetic contract from the repository root with
 pinned Go 1.25.6:

@@ -2,7 +2,7 @@
 
 **Source plan:** `docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md`  
 **Source PRD:** `docs/internal/agent_security_platform_PRD_v1.5.md`  
-**Last updated:** August 17, 2026
+**Last updated:** August 18, 2026
 **Execution branch:** `codex/zasp-implementation`
 
 This file is the authoritative execution status for the 728 microtasks in the
@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 655 |
-| In progress | 1 |
-| Complete | 69 |
+| In progress | 0 |
+| Complete | 70 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -24,7 +24,7 @@ In progress, Complete, or Blocked is Pending.
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 0 | 0 | 24 | 3 |
-| M1 | 68 | 22 | 1 | 45 | 0 |
+| M1 | 68 | 22 | 0 | 46 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
 | M3 | 75 | 75 | 0 | 0 | 0 |
@@ -68,19 +68,19 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `655/1/69/3` because
+session configuration. The 728 source-plan counts are `655/0/70/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M1-32 | August 17, 2026 | Adding one exact scoped session/runtime event index template with closed mappings, bounded keyword fields, and dynamic-field rejection. |
 
 ## Complete
 
 | Task | Completed | Evidence |
 | --- | --- | --- |
+| M1-32 | August 18, 2026 | Added one immutable product-owned OpenSearch session/runtime event index-template contract with the exact 12-field M1-14 projection, deterministic JSON, strict dynamic-field rejection, bounded keyword mappings, a 1,024-field mapping-explosion fixture, six race passes, full repository gates and scans, and zero-finding whole-range review. |
 | M1-31 | August 17, 2026 | Added one strict product AWS client factory for SQS, S3, KMS, Secrets Manager, and OpenSearch Service with explicit production authority, exact local and numeric-loopback CI endpoint overrides, synthetic credentials, bounded proxy-free transport, no retries or ambient AWS resolution, real SDK loopback request proofs, six race passes, full repository gates and scans, and zero-finding whole-range review. |
 | M1-30 | August 17, 2026 | Added one strict canonical local start target over the reviewed M1-30d lifecycle, preserved all four completed profile contracts, retained disposable ownership and fixed output, passed exact live verification with zero owned residue and unchanged shared fingerprints, six focused stability runs, full repository gates and scans, and zero-finding whole-range review. |
 | M1-30d | August 17, 2026 | Added the exact opt-in internal LocalStack S3 overlay with immutable Community image and license evidence, fixed synthetic endpoint variables, staged one-shot S3 Job, exact product/graph/observability preservation, complete Docker/containerd/Kubernetes ownership, reverse cleanup including provider TTL collection, fixed output, repeated exact live success, six hermetic stability runs, full repository gates/scans, and zero-finding whole-range review. |

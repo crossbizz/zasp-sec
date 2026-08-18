@@ -65,12 +65,12 @@ describe("M1-23 OpenAPI root", () => {
 
     expect(readme).toMatch(/M1-23\s+is\s+Complete/);
     expect(tracker).toContain("| Pending | 655 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 69 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 70 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`655/1/69/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "22", "1", "45", "0"]);
-    expect(active.map(([task]) => task)).toEqual(["M1-32"]);
+    expect(tracker).toContain("`655/0/70/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "22", "0", "46", "0"]);
+    expect(active.map(([task]) => task)).toEqual([]);
     expect(complete.filter(([task]) => task === "M1-23")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-22")).toHaveLength(1);
     expect(active.filter(([task]) => task === "M1-24")).toHaveLength(0);
