@@ -327,6 +327,13 @@ response actions, five versioned templates, scoped finding/attack-path/runtime
 matchers, and cooldown deduplication. External policy, gateway, connector,
 webhook, and persistence adapters remain explicit unresolved boundaries.
 
+M7A-38a through M7A-59 are batched as In progress. Canonical trigger sources
+now feed a replay-safe dispatcher, the structured planner separates policy and
+untrusted evidence, and deterministic authorization, budgets, queue handling,
+approval resume, execution classification, verification, outcome, and
+cancellation boundaries run locally. Production SQS, provider, and durable
+planner persistence remain unresolved.
+
 ```bash
 go test -C services/platform -race -count=1 ./integration
 go test -C services/platform -race -count=1 ./connectors ./sensor

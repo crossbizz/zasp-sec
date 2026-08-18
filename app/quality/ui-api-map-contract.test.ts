@@ -306,13 +306,14 @@ describe("M1-25 UI API map seed", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(readme).toContain("M1-25 is Complete");
-    expect(tracker).toContain("| Pending | 216 |");
-    expect(tracker).toContain("| In progress | 325 |");
+    expect(tracker).toContain("| Pending | 191 |");
+    expect(tracker).toContain("| In progress | 350 |");
     expect(tracker).toContain("| Complete | 184 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`216/325/184/3`");
+    expect(tracker).toContain("`191/350/184/3`");
     expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "0", "0", "68", "0"]);
     expect(active.map(([task]) => task)).toEqual([
+      "M7A-59", "M7A-58", "M7A-57", "M7A-56", "M7A-55", "M7A-54", "M7A-53", "M7A-52", "M7A-51", "M7A-50", "M7A-49", "M7A-48", "M7A-47", "M7A-46", "M7A-45", "M7A-44", "M7A-43", "M7A-42", "M7A-41", "M7A-40", "M7A-39", "M7A-38d", "M7A-38c", "M7A-38b", "M7A-38a",
       "M7A-38", "M7A-37", "M7A-36", "M7A-35", "M7A-34", "M7A-33", "M7A-32", "M7A-31", "M7A-30", "M7A-29", "M7A-28", "M7A-27", "M7A-26", "M7A-25", "M7A-24", "M7A-23", "M7A-22", "M7A-21", "M7A-20", "M7A-19", "M7A-18d", "M7A-18c", "M7A-18b", "M7A-18a", "M7A-18",
       "M7A-17", "M7A-16", "M7A-15", "M7A-14", "M7A-13", "M7A-12", "M7A-11", "M7A-10", "M7A-09", "M7A-08", "M7A-07", "M7A-06", "M7A-05", "M7A-04", "M7A-03", "M7A-02", "M7A-01",
       "M7-40", "M7-40f", "M7-40e", "M7-40d", "M7-40c", "M7-40b", "M7-40a", "M7-39", "M7-39e", "M7-39d", "M7-39c", "M7-39b", "M7-39a", "M7-38", "M7-37", "M7-36", "M7-35", "M7-34", "M7-33", "M7-32", "M7-31", "M7-30", "M7-29", "M7-28", "M7-27", "M7-26", "M7-26c", "M7-26b", "M7-26a", "M7-25", "M7-24", "M7-23", "M7-22a", "M7-22", "M7-21", "M7-20", "M7-19",

@@ -27,7 +27,12 @@ var (
 
 type Purpose string
 
-const PurposeFindingExplanation Purpose = "finding_explanation"
+const (
+	PurposeFindingExplanation   Purpose = "finding_explanation"
+	PurposeSecurityResponsePlan Purpose = "security_response_plan"
+)
+
+func IsStructuredPurpose(purpose Purpose) bool { return purpose == PurposeSecurityResponsePlan }
 
 type ContentMode string
 

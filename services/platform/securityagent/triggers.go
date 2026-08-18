@@ -86,6 +86,14 @@ func (dedup *TriggerDeduplicator) Claim(event TriggerEvent, cooldown time.Durati
 	dedup.claims[fingerprint] = now.Add(cooldown)
 	return fingerprint, true, nil
 }
+func (dedup *TriggerDeduplicator) release(fingerprint string) {
+	if dedup == nil || fingerprint == "" {
+		return
+	}
+	dedup.mu.Lock()
+	delete(dedup.claims, fingerprint)
+	dedup.mu.Unlock()
+}
 func triggerFingerprint(event TriggerEvent) string {
 	source := strings.Join([]string{event.OrganizationID, event.EnvironmentID, event.Kind, event.SourceID, event.Family, event.Severity, event.EvidenceState, event.PolicyAction, event.Risk, event.AgentID, event.SessionID}, "\x1f")
 	digest := sha256.Sum256([]byte(source))

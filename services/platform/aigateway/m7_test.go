@@ -57,3 +57,12 @@ func TestGovernedExplanationBoundary(t *testing.T) {
 		t.Fatalf("status=%d body=%s", denied.Code, denied.Body.String())
 	}
 }
+
+func TestSecurityResponsePlanPurposeRejectsFreeFormGovernor(t *testing.T) {
+	_, err := NewGovernor(GovernanceConfig{Purposes: []string{string(PurposeSecurityResponsePlan)}, Models: []string{"approved-model"}, Providers: []string{"approved-provider"}, RequireNoStorage: true, MaximumTokens: 512, MaximumCostCents: 5, MaximumConcurrency: 1, Deadline: time.Second}, func(context.Context, GovernedRequest) (GovernedResult, error) {
+		return GovernedResult{}, nil
+	})
+	if err == nil || !IsStructuredPurpose(PurposeSecurityResponsePlan) {
+		t.Fatalf("err=%v structured=%v", err, IsStructuredPurpose(PurposeSecurityResponsePlan))
+	}
+}

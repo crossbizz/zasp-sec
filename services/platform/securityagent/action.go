@@ -63,6 +63,19 @@ func (registry *Registry) lookup(key string) (SecurityAction, error) {
 	}
 	return action, nil
 }
+func (registry *Registry) Metadata(key string) (ActionMetadata, error) {
+	action, err := registry.lookup(key)
+	if err != nil {
+		return ActionMetadata{}, err
+	}
+	metadata := action.Metadata()
+	if ValidateActionMetadata(metadata) != nil {
+		return ActionMetadata{}, ErrRejected
+	}
+	metadata.InputSchema = cloneParameters(metadata.InputSchema)
+	metadata.TargetTypes = cloneStrings(metadata.TargetTypes)
+	return metadata, nil
+}
 func (registry *Registry) Execute(ctx context.Context, request ActionRequest) (ActionResult, error) {
 	action, err := registry.lookup(request.ActionKey)
 	if err != nil {

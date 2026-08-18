@@ -66,7 +66,7 @@ type Governor struct {
 }
 
 func NewGovernor(config GovernanceConfig, provider GovernedProvider) (*Governor, error) {
-	if provider == nil || !validAllowlist(config.Purposes) || !validAllowlist(config.Models) || !validAllowlist(config.Providers) || !config.RequireNoStorage || config.MaximumTokens < 1 || config.MaximumTokens > 8192 || config.MaximumCostCents < 1 || config.MaximumCostCents > 100 || config.MaximumConcurrency < 1 || config.MaximumConcurrency > 100 || config.Deadline <= 0 || config.Deadline > 30*time.Second {
+	if provider == nil || !validAllowlist(config.Purposes) || containsString(config.Purposes, string(PurposeSecurityResponsePlan)) || !validAllowlist(config.Models) || !validAllowlist(config.Providers) || !config.RequireNoStorage || config.MaximumTokens < 1 || config.MaximumTokens > 8192 || config.MaximumCostCents < 1 || config.MaximumCostCents > 100 || config.MaximumConcurrency < 1 || config.MaximumConcurrency > 100 || config.Deadline <= 0 || config.Deadline > 30*time.Second {
 		return nil, ErrInvalidConfiguration
 	}
 	config.Purposes = append([]string(nil), config.Purposes...)
