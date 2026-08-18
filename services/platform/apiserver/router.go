@@ -1,7 +1,6 @@
 package apiserver
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
@@ -62,7 +61,7 @@ func NewRouter(operations []Operation) (http.Handler, error) {
 func (router *operationRouter) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	if request == nil || request.URL == nil || request.URL.Path == "" ||
 		request.URL.EscapedPath() != request.URL.Path || strings.HasSuffix(request.URL.Path, "/") {
-		writeRouterError(writer, http.StatusNotFound, "not_found", "Product route not found")
+		writeRouterError(writer, request, http.StatusNotFound, "not_found", "Product route not found")
 		return
 	}
 	pathSegments := splitPath(request.URL.Path)
@@ -78,10 +77,10 @@ func (router *operationRouter) ServeHTTP(writer http.ResponseWriter, request *ht
 		}
 	}
 	if pathMatched {
-		writeRouterError(writer, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed")
+		writeRouterError(writer, request, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed")
 		return
 	}
-	writeRouterError(writer, http.StatusNotFound, "not_found", "Product route not found")
+	writeRouterError(writer, request, http.StatusNotFound, "not_found", "Product route not found")
 }
 
 func parsePattern(pattern string) ([]routeSegment, error) {
@@ -153,10 +152,10 @@ func validParameterName(name string) bool {
 	return name != ""
 }
 
-func writeRouterError(writer http.ResponseWriter, status int, code string, message string) {
-	writer.Header().Set("Content-Type", "application/json")
-	writer.WriteHeader(status)
-	_ = json.NewEncoder(writer).Encode(map[string]any{
-		"code": code, "message": message, "correlation_id": fallbackCorrelationID, "retryable": false,
-	})
+func writeRouterError(writer http.ResponseWriter, request *http.Request, status int, code string, message string) {
+	correlationID := fallbackCorrelationID
+	if request != nil {
+		correlationID = correlationIDFromContext(request.Context())
+	}
+	writeProductError(writer, status, code, message, correlationID)
 }
