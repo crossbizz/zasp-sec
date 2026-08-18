@@ -25,9 +25,9 @@ describe("M4 inventory and risk completion batch", () => {
     ]);
     expect(completedTasks).toHaveLength(25);
     expect(tracker).toContain("| Pending | 0 |");
-    expect(tracker).toContain("| In progress | 97 |");
-    expect(tracker).toContain("| Complete | 628 |");
-    expect(tracker).toContain("| Blocked | 3 |");
+    expect(tracker).toContain("| In progress | 72 |");
+    expect(tracker).toContain("| Complete | 636 |");
+    expect(tracker).toContain("| Blocked | 20 |");
     expect(tracker).toContain("| M4 | 82 | 0 | 0 | 82 | 0 |");
     const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
     const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] ?? "";

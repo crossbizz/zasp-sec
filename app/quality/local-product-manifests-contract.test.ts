@@ -81,7 +81,7 @@ describe("M1-30a local product manifests", () => {
     expect(complete.filter(([task]) => task === "M1-30b")).toHaveLength(1);
     expect(active.filter(([task]) => task === "M1-30d")).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-30d")).toHaveLength(1);
-    expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
+    expect(blocked.map(([task]) => task)).toEqual(["M8-39", "M8-38", "M8-38b", "M8-37", "M8-36", "M8-36b", "M8-35", "M8-34", "M8-33", "M8-32", "M8-31", "M8-30", "M8-29", "M8-28", "M8-27", "M8-26", "M8-25", "M0-09", "M0-18", "M0-19"]);
   });
 
   it("preserves the exact hermetic and disposable live commands after later profiles complete", async () => {

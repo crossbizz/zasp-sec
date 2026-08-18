@@ -30,7 +30,7 @@ describe("M2 identity governance and UI batch", () => {
     expect(new Set(complete).size).toBe(complete.length);
     for (const task of batch) expect(complete.filter((value) => value === task)).toHaveLength(1);
     expect(taskRows(tracker, "In progress")).not.toHaveLength(0);
-    expect(taskRows(tracker, "Blocked").map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
+    expect(taskRows(tracker, "Blocked").map(([task]) => task)).toEqual(["M8-39", "M8-38", "M8-38b", "M8-37", "M8-36", "M8-36b", "M8-35", "M8-34", "M8-33", "M8-32", "M8-31", "M8-30", "M8-29", "M8-28", "M8-27", "M8-26", "M8-25", "M0-09", "M0-18", "M0-19"]);
   });
 
   it("binds all eight governance operations to OpenAPI and honest UI lifecycle", async () => {

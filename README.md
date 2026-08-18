@@ -376,12 +376,11 @@ and upgrade compatibility plus tracked fixture/release starts. Provider-backed
 preflight and live recovery/upgrade execution remain later release gates; the
 bounded command models and injected lifecycle acceptance criteria are complete.
 
-M8-23c through M8-39 are batched as In progress in the same CLI boundary.
-Rollback and redacted diagnostics models, isolated-AWS parity expectations,
-seven dependency-outage contracts, deterministic latency/load evaluators, a
-bounded event-load plan, and reference-scoped sensor measurements are now
-implemented. Live parity, outage injection, and reference load execution remain
-unresolved, so this batch does not claim release-gate completion.
+M8-23c through M8-39 have been classified at the same CLI boundary. Rollback,
+redacted diagnostics, API/event scenarios, and deterministic evaluators are
+Complete. The 17 tasks that actually execute isolated-AWS parity, dependency
+outages, or reference loads are Blocked—not simulated—until an authorized
+isolated AWS/reference deployment is available.
 
 M8-40a through M8-51d are batched as In progress. Typed release gates now
 aggregate tenant isolation, connector SSRF, six secret-leakage sinks, runtime

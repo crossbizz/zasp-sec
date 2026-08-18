@@ -72,6 +72,6 @@ describe("M1-28 common service health endpoints", () => {
     expect(complete.filter(([task]) => task === "M1-28d")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-28")).toHaveLength(1);
     expect(active.filter(([task]) => task === "M1-29")).toHaveLength(0);
-    expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
+    expect(blocked.map(([task]) => task)).toEqual(["M8-39", "M8-38", "M8-38b", "M8-37", "M8-36", "M8-36b", "M8-35", "M8-34", "M8-33", "M8-32", "M8-31", "M8-30", "M8-29", "M8-28", "M8-27", "M8-26", "M8-25", "M0-09", "M0-18", "M0-19"]);
   });
 });

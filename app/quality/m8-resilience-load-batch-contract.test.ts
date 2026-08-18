@@ -20,12 +20,17 @@ describe("M8-23c through M8-39 resilience and load batch", () => {
     expect(source).not.toContain("universalOverhead");
   });
 
-  it("advances exactly 25 tasks and keeps provider/load execution honest", () => {
+  it("classifies all 25 tasks without treating synthetic provider/load data as live evidence", () => {
     const tracker = read("docs/internal/implementation_status_v1.5.md");
     const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] || "";
-    const selected = ["M8-23c", "M8-23d", "M8-23", "M8-24", "M8-25", "M8-26", "M8-27", "M8-28", "M8-29", "M8-30", "M8-31", "M8-32", "M8-33", "M8-34", "M8-35", "M8-36a", "M8-36b", "M8-36c", "M8-36", "M8-37", "M8-38a", "M8-38b", "M8-38c", "M8-38", "M8-39"];
-    for (const id of selected) expect(active.match(new RegExp(`^\\| ${id} \\|`, "gm"))).toHaveLength(1);
-    for (const value of ["| Pending | 0 |", "| In progress | 97 |", "`0/97/628/3`", "| M8 | 141 | 0 | 91 | 50 | 0 |"]) expect(tracker).toContain(value);
-    expect(tracker).toContain("live parity, outage injection, and reference load execution remain unresolved");
+    const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] || "";
+    const blocked = tracker.match(/## Blocked[\s\S]*/)?.[0] || "";
+    const completed = ["M8-23c", "M8-23d", "M8-23", "M8-24", "M8-36a", "M8-36c", "M8-38a", "M8-38c"];
+    const externallyBlocked = ["M8-25", "M8-26", "M8-27", "M8-28", "M8-29", "M8-30", "M8-31", "M8-32", "M8-33", "M8-34", "M8-35", "M8-36b", "M8-36", "M8-37", "M8-38b", "M8-38", "M8-39"];
+    for (const id of [...completed, ...externallyBlocked]) expect(active.match(new RegExp(`^\\| ${id} \\|`, "gm")) ?? []).toHaveLength(0);
+    for (const id of completed) expect(complete.match(new RegExp(`^\\| ${id} \\|`, "gm"))).toHaveLength(1);
+    for (const id of externallyBlocked) expect(blocked.match(new RegExp(`^\\| ${id} \\|`, "gm"))).toHaveLength(1);
+    for (const value of ["| Pending | 0 |", "| In progress | 72 |", "| Complete | 636 |", "| Blocked | 20 |", "`0/72/636/20`", "| M8 | 141 | 0 | 66 | 58 | 17 |"]) expect(tracker).toContain(value);
+    expect(tracker).toContain("resilience executions require an authorized isolated AWS/reference deployment");
   });
 });

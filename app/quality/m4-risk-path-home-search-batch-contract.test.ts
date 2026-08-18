@@ -42,8 +42,8 @@ describe("M4 risk, path, home, and search batch", () => {
     ]);
     expect(tracker).toMatch(/^\| Pending \| \d+ \|/m);
     expect(tracker).toMatch(/^\| In progress \| \d+ \|/m);
-    expect(tracker).toContain("| Complete | 628 |");
-    expect(tracker).toContain("| Blocked | 3 |");
+    expect(tracker).toContain("| Complete | 636 |");
+    expect(tracker).toContain("| Blocked | 20 |");
     expect(tracker).toContain("| M4 | 82 | 0 | 0 | 82 | 0 |");
     const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
     const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] ?? "";
