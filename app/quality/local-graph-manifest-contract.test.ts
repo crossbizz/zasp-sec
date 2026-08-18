@@ -63,22 +63,22 @@ describe("M1-30b local graph manifest", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(readme).toContain("M1-30b is Complete");
-    expect(readme).toContain("M1-30c is In progress");
+    expect(readme).toContain("M1-30c is Complete");
     expect(readme).toContain("M1-30d remains Pending");
     expect(tracker).toContain("| Pending | 659 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 65 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 66 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`659/1/65/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "26", "1", "41", "0"]);
+    expect(tracker).toContain("`659/0/66/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "26", "0", "42", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.map(([task]) => task)).toEqual(["M1-30c"]);
-    expect(complete).toHaveLength(65);
+    expect(active.map(([task]) => task)).toEqual([]);
+    expect(complete).toHaveLength(66);
     expect(active.filter(([task]) => task === "M1-30b")).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-30b")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-30a")).toHaveLength(1);
-    expect(active.filter(([task]) => task === "M1-30c")).toHaveLength(1);
-    expect(complete.filter(([task]) => task === "M1-30c")).toHaveLength(0);
+    expect(active.filter(([task]) => task === "M1-30c")).toHaveLength(0);
+    expect(complete.filter(([task]) => task === "M1-30c")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-30d")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
@@ -109,7 +109,7 @@ describe("M1-30b local graph manifest", () => {
       "opt-in local development",
       "does not approve redistribution or production packaging",
       "M1-30b is Complete",
-      "M1-30c is In progress",
+      "M1-30c is Complete",
       "M1-30d remains Pending",
     ]) {
       expect(localGraph).toContain(text);

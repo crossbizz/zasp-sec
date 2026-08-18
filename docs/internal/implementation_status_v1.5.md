@@ -2,7 +2,7 @@
 
 **Source plan:** `docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md`  
 **Source PRD:** `docs/internal/agent_security_platform_PRD_v1.5.md`  
-**Last updated:** August 16, 2026
+**Last updated:** August 17, 2026
 **Execution branch:** `codex/zasp-implementation`
 
 This file is the authoritative execution status for the 728 microtasks in the
@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 659 |
-| In progress | 1 |
-| Complete | 65 |
+| In progress | 0 |
+| Complete | 66 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -24,7 +24,7 @@ In progress, Complete, or Blocked is Pending.
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 0 | 0 | 24 | 3 |
-| M1 | 68 | 26 | 1 | 41 | 0 |
+| M1 | 68 | 26 | 0 | 42 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
 | M3 | 75 | 75 | 0 | 0 | 0 |
@@ -68,19 +68,19 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `659/1/65/3` because
+session configuration. The 728 source-plan counts are `659/0/66/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M1-30c | August 16, 2026 | Adding the exact local OpenTelemetry Collector overlay, staged one-span Job, local file-backed sink, immutable image/license proof, prior-profile preservation, and disposable cleanup. |
 
 ## Complete
 
 | Task | Completed | Evidence |
 | --- | --- | --- |
+| M1-30c | August 17, 2026 | Added the exact opt-in local OpenTelemetry Collector overlay with immutable Apache/GPL-scoped images, configuration-only no-egress proof, staged one-span Job, exact M1-21 span and file-backed sink evidence, complete Docker/containerd/Kubernetes ownership, prior-profile preservation, exact shared-image non-mutation, reverse cleanup, fixed output, final exact live passes, six hermetic stability runs, full repository gates/scans, and zero-finding whole-range review. |
 | M1-30b | August 16, 2026 | Added the exact opt-in local Neo4j graph overlay with immutable GPL-scoped images, internal-only health, bounded kubelet PID authority, persistent marker proof across pod replacement, complete Docker/containerd/Kubernetes ownership, exact shared-image non-mutation, reverse cleanup, fixed output, two final exact live passes, six hermetic stability runs, full repository gates/scans, and zero-finding whole-range review. |
 | M1-30a | August 16, 2026 | Added exact local Kubernetes manifests and a disposable kind lifecycle that builds the four real Go service stubs, proves all four pods Ready behind internal-only services, binds complete Docker/containerd/Kubernetes and retained filesystem identity, performs exact-owned cleanup without targeting the ambient cluster, and passed live verification, six hermetic stability runs, full repository gates/scans, and zero-finding independent review. |
 | M1-29 | August 16, 2026 | Added the dependency-free strict Healthy, Degraded, and Unavailable component value with exact required/optional classification, bounded product reason codes, canonical UTC-millisecond last-success state, deterministic required-versus-optional aggregation, exact-zero regression coverage, six race and cross-command passes, 100% health-module statement coverage, full repository gates/scans, and zero-finding independent re-review. |

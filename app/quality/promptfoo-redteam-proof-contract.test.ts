@@ -37,12 +37,12 @@ function assertM016Complete(tracker: string, readme: string, riskRegister: strin
   expect(section).not.toMatch(/Promptfoo Cloud|external model|real credential/i);
 
   expect(tracker).toContain("| Pending | 659 |");
-  expect(tracker).toContain("| In progress | 1 |");
-  expect(tracker).toContain("| Complete | 65 |");
+  expect(tracker).toContain("| In progress | 0 |");
+  expect(tracker).toContain("| Complete | 66 |");
   expect(tracker).toContain("| Blocked | 3 |");
   expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 0 \| 24 \| 3 \|/);
-  expect(tracker).toContain("`659/1/65/3`");
-  expect(activeRows.map(([task]) => task)).toEqual(["M1-30c"]);
+  expect(tracker).toContain("`659/0/66/3`");
+  expect(activeRows.map(([task]) => task)).toEqual([]);
   expect(completeRows.filter(([task]) => task === "M0-16")).toHaveLength(1);
   expect(completeRows.find(([task]) => task === "M0-16")?.[1]).toBe("August 15, 2026");
   expect(completeRows.find(([task]) => task === "M0-16")?.[2]).toContain("Promptfoo");
@@ -135,7 +135,7 @@ describe("Promptfoo red-team proof repository contract", () => {
     ).toThrow();
     expect(() =>
       assertM016Complete(
-        tracker.replace("| Complete | 65 |", "| Complete | 17 |"),
+        tracker.replace("| Complete | 66 |", "| Complete | 17 |"),
         readme,
         riskRegister,
       ),
