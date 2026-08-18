@@ -82,6 +82,7 @@ describe("M1-30 assembled local start target", () => {
     ]);
     const scripts = JSON.parse(packageSource).scripts as Record<string, string>;
     const section = readme.match(/## Assembled local development target[\s\S]*?(?=\n## )/)?.[0] ?? "";
+    const sectionProse = section.replace(/\s+/g, " ");
 
     expect(scripts["local:start"]).toBe("node deploy/local/start.mjs");
     for (const value of [
@@ -89,17 +90,19 @@ describe("M1-30 assembled local start target", () => {
       "M1-30a, M1-30b, M1-30c, and M1-30d",
       "Node.js `22.23.1` and npm `10.9.8`",
       "npm run local:start",
+      "opt-in",
       "start-and-verify",
       "one disposable kind cluster",
       "ClusterIP-only",
       "no Ingress, NodePort, LoadBalancer, or host workload port",
       "never reads the ambient kubeconfig",
       "reverse cleanup",
+      "reuses the reviewed graph, observability, and AWS emulator immutable license audits",
       "Local AWS emulator manifest passed: ready=true internal=true endpoint=true s3=true cleanup=true.",
       "Local AWS emulator manifest failed: <category> rejected.",
       "M1-31",
     ]) {
-      expect(section).toContain(value);
+      expect(sectionProse).toContain(value);
     }
     for (const forbidden of [
       "persistent local cluster",
@@ -108,7 +111,7 @@ describe("M1-30 assembled local start target", () => {
       "product AWS clients are wired",
       "shared resource is modified",
     ]) {
-      expect(section).not.toContain(forbidden);
+      expect(sectionProse).not.toContain(forbidden);
     }
   });
 });

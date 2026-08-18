@@ -51,14 +51,6 @@ export function projectLocalStartExposure(value) {
   if (!Array.isArray(resources) || resources.length !== exactExposure.resources) {
     throw new TypeError("local start resources are invalid");
   }
-  const resourceReferences = new Set();
-  for (const resource of value) {
-    if (resource === null || typeof resource !== "object" || resourceReferences.has(resource)) {
-      throw new TypeError("local start resources are invalid");
-    }
-    resourceReferences.add(resource);
-  }
-
   const counts = {
     ConfigMap: 0,
     Deployment: 0,
@@ -131,12 +123,13 @@ export function projectLocalStartExposure(value) {
 
 export function validateLocalStartAssembly(...input) {
   if (input.length !== 0) throw new TypeError("local start assembly accepts no caller input");
-  const exposure = projectLocalStartExposure([
+  const resources = trustedBuilderSnapshot([
     ...buildProductResources(),
     ...buildGraphResources(),
     ...buildObservabilityResources(),
     ...buildAwsEmulatorResources(),
   ]);
+  const exposure = projectLocalStartExposure(resources);
   const profile = buildAwsEmulatorProfile();
   const applyPlan = awsEmulatorApplyPlan();
   if (profile.proof !== LOCAL_START_TARGET.profile ||
@@ -149,7 +142,15 @@ export function validateLocalStartAssembly(...input) {
 }
 
 export async function runLocalStartMain(runtime = undefined, options = {}) {
-  validateLocalStartAssembly();
+  try {
+    validateLocalStartAssembly();
+  } catch {
+    const stderr = options.stderr ?? process.stderr;
+    const setExitCode = options.setExitCode ?? ((value) => { process.exitCode = value; });
+    stderr.write("Local AWS emulator manifest failed: panic rejected.\n");
+    setExitCode(1);
+    return 1;
+  }
   return await runAwsEmulatorMain(runtime, options);
 }
 
@@ -159,15 +160,23 @@ function arrayOrEmpty(value) {
   return value;
 }
 
-function strictSnapshot(value, active = new Set()) {
+function strictSnapshot(value) {
+  return snapshotValue(value, new Set(), false);
+}
+
+function trustedBuilderSnapshot(value) {
+  return snapshotValue(value, new Set(), true);
+}
+
+function snapshotValue(value, references, allowAliases) {
   if (value === null || typeof value === "string" || typeof value === "boolean" ||
       (typeof value === "number" && Number.isFinite(value))) return value;
-  if (typeof value !== "object" || active.has(value)) throw new TypeError("local start value is invalid");
+  if (typeof value !== "object" || references.has(value)) throw new TypeError("local start value is invalid");
   const array = Array.isArray(value);
   if (Object.getPrototypeOf(value) !== (array ? Array.prototype : Object.prototype)) {
     throw new TypeError("local start value is invalid");
   }
-  active.add(value);
+  references.add(value);
   try {
     const keys = Reflect.ownKeys(value);
     if (keys.some((key) => typeof key !== "string")) throw new TypeError("local start value is invalid");
@@ -179,14 +188,14 @@ function strictSnapshot(value, active = new Set()) {
       }
       return Array.from({ length: length.value }, (_unused, index) => {
         if (keys[index] !== String(index)) throw new TypeError("local start array is invalid");
-        return strictSnapshot(dataValue(value, String(index)), active);
+        return snapshotValue(dataValue(value, String(index)), references, allowAliases);
       });
     }
     const snapshot = {};
-    for (const key of keys) snapshot[key] = strictSnapshot(dataValue(value, key), active);
+    for (const key of keys) snapshot[key] = snapshotValue(dataValue(value, key), references, allowAliases);
     return snapshot;
   } finally {
-    active.delete(value);
+    if (allowAliases) references.delete(value);
   }
 }
 

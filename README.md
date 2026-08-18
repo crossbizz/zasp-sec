@@ -883,13 +883,15 @@ reviewed profiles:
 npm run local:start
 ```
 
-The command delegates once to the reviewed M1-30d assembly. It creates one disposable kind cluster,
-proves the product, graph, observability, and LocalStack S3 profiles together,
-then performs reverse cleanup. All workload services remain ClusterIP-only,
-with no Ingress, NodePort, LoadBalancer, or host workload port, so vendor
-dashboards are not published outside the cluster. The command uses its own
-Docker configuration and kubeconfig and never reads the ambient kubeconfig,
-dotenv, cloud credentials, profiles, proxies, or customer state.
+The opt-in command delegates once to the reviewed M1-30d assembly. It creates
+one disposable kind cluster, proves the product, graph, observability, and
+LocalStack S3 profiles together, then performs reverse cleanup. All workload
+services remain ClusterIP-only, with no Ingress, NodePort, LoadBalancer, or
+host workload port, so vendor dashboards are not published outside the
+cluster. The command uses its own Docker configuration and kubeconfig and
+never reads the ambient kubeconfig, dotenv, cloud credentials, profiles,
+proxies, or customer state. It reuses the reviewed graph, observability, and
+AWS emulator immutable license audits without adding redistribution approval.
 
 Success is exactly
 `Local AWS emulator manifest passed: ready=true internal=true endpoint=true s3=true cleanup=true.`

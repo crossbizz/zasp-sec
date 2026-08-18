@@ -35,12 +35,12 @@ const expectedExposure = {
 };
 
 function canonicalResources() {
-  return structuredClone([
+  return JSON.parse(JSON.stringify([
     ...buildProductResources(),
     ...buildGraphResources(),
     ...buildObservabilityResources(),
     ...buildAwsEmulatorResources(),
-  ]);
+  ]));
 }
 
 function productDeployment(resources) {
@@ -164,6 +164,11 @@ test("rejects accessor, prototype, symbol, alias, cycle, and coercion traps", ()
     },
     () => {
       const resources = canonicalResources();
+      productService(resources).spec.selector = productDeployment(resources).spec.selector.matchLabels;
+      return resources;
+    },
+    () => {
+      const resources = canonicalResources();
       resources[0].cycle = resources;
       return resources;
     },
@@ -176,6 +181,18 @@ test("rejects accessor, prototype, symbol, alias, cycle, and coercion traps", ()
   for (const build of cases) assert.throws(() => projectLocalStartExposure(build()), TypeError);
   assert.equal(getterCalls, 0);
   assert.equal(coercionCalls, 0);
+});
+
+test("does not reread caller values after capturing the strict snapshot", () => {
+  let iteratorReads = 0;
+  const resources = new Proxy(canonicalResources(), {
+    get(target, property, receiver) {
+      if (property === Symbol.iterator) iteratorReads += 1;
+      return Reflect.get(target, property, receiver);
+    },
+  });
+  assert.deepEqual(projectLocalStartExposure(resources), expectedExposure);
+  assert.equal(iteratorReads, 0);
 });
 
 test("delegates one complete lifecycle and preserves the exact fixed output", async () => {
@@ -213,4 +230,31 @@ test("retains reviewed failure normalization and cleanup precedence", async () =
   assert.equal(stdout, "");
   assert.equal(stderr, "Local AWS emulator manifest failed: cleanup rejected.\n");
   assert.deepEqual(events, ["initialize", "preflight", "buildImages", "joinMutations", "cleanup", "auditAbsence"]);
+});
+
+test("normalizes a pre-delegation assembly panic without invoking the runtime", async () => {
+  const events = [];
+  let stderr = "";
+  let exitCode;
+  const originalGetPrototypeOf = Object.getPrototypeOf;
+  let injected = false;
+  Object.getPrototypeOf = (value) => {
+    if (!injected && Array.isArray(value)) {
+      injected = true;
+      throw new Error("private assembly detail");
+    }
+    return originalGetPrototypeOf(value);
+  };
+  try {
+    assert.equal(await runLocalStartMain(successfulRuntime(events), {
+      stdout: { write() {} },
+      stderr: { write(value) { stderr += value; } },
+      setExitCode(value) { exitCode = value; },
+    }), 1);
+  } finally {
+    Object.getPrototypeOf = originalGetPrototypeOf;
+  }
+  assert.deepEqual(events, []);
+  assert.equal(stderr, "Local AWS emulator manifest failed: panic rejected.\n");
+  assert.equal(exitCode, 1);
 });
