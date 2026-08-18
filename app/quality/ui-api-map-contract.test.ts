@@ -126,6 +126,20 @@ const expectedMap: MapDocument = {
         { id: "view_test_runs", operation_id: "listTestRuns", availability: "api_available" },
         { id: "view_test_run", operation_id: "getTestRun", availability: "api_available" },
         { id: "cancel_test_run", operation_id: "cancelTestRun", availability: "api_available" },
+        { id: "view_attack_lab_runs", operation_id: "listAttackLabRuns", availability: "api_available" },
+        { id: "create_attack_lab_run", operation_id: "createAttackLabRun", availability: "api_available" },
+        { id: "view_attack_lab_run", operation_id: "getAttackLabRun", availability: "api_available" },
+        { id: "cancel_attack_lab_run", operation_id: "cancelAttackLabRun", availability: "api_available" },
+        { id: "rerun_attack_lab_run", operation_id: "rerunAttackLabRun", availability: "api_available" },
+      ],
+    },
+    {
+      id: "policies",
+      label: "Policies",
+      actions: [
+        { id: "view_policies", operation_id: "listPolicies", availability: "api_available" },
+        { id: "create_policy", operation_id: "createPolicy", availability: "api_available" },
+        { id: "view_policy", operation_id: "getPolicy", availability: "api_available" },
       ],
     },
     {
@@ -250,13 +264,15 @@ describe("M1-25 UI API map seed", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(readme).toContain("M1-25 is Complete");
-    expect(tracker).toContain("| Pending | 369 |");
-    expect(tracker).toContain("| In progress | 172 |");
+    expect(tracker).toContain("| Pending | 346 |");
+    expect(tracker).toContain("| In progress | 195 |");
     expect(tracker).toContain("| Complete | 184 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`369/172/184/3`");
+    expect(tracker).toContain("`346/195/184/3`");
     expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "0", "0", "68", "0"]);
     expect(active.map(([task]) => task)).toEqual([
+      "M6-10", "M6-09", "M6-08", "M6-07", "M6-06", "M6-05", "M6-04", "M6-03", "M6-02", "M6-01",
+      "M5-35", "M5-34", "M5-33", "M5-33c", "M5-33b", "M5-33a", "M5-32", "M5-31", "M5-30", "M5-29", "M5-28", "M5-27", "M5-26",
       "M5-25", "M5-24", "M5-23", "M5-23d", "M5-23c", "M5-23b", "M5-23a",
       "M5-22", "M5-21", "M5-20", "M5-19", "M5-18", "M5-17", "M5-16", "M5-15",
       "M5-14", "M5-13", "M5-12", "M5-11", "M5-10", "M5-09", "M5-08", "M5-07",
@@ -396,6 +412,14 @@ describe("M1-25 UI API map seed", () => {
       "listTestRuns",
       "getTestRun",
       "cancelTestRun",
+      "listAttackLabRuns",
+      "createAttackLabRun",
+      "getAttackLabRun",
+      "cancelAttackLabRun",
+      "rerunAttackLabRun",
+      "listPolicies",
+      "createPolicy",
+      "getPolicy",
       "getSystemStatus",
       "listSystemComponents",
       "getSystemVersion",

@@ -303,6 +303,81 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/attack-lab/runs": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List authorized Attack Lab runs */
+        readonly get: operations["listAttackLabRuns"];
+        readonly put?: never;
+        /** Create one bounded Attack Lab run */
+        readonly post: operations["createAttackLabRun"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/attack-lab/runs/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["RedTeamID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get one authorized Attack Lab run */
+        readonly get: operations["getAttackLabRun"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/attack-lab/runs/{id}/cancel": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["RedTeamID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Cancel one authorized Attack Lab run */
+        readonly post: operations["cancelAttackLabRun"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/attack-lab/runs/{id}/rerun": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["RedTeamID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Rerun one authorized Attack Lab run */
+        readonly post: operations["rerunAttackLabRun"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/attack-paths": {
         readonly parameters: {
             readonly query?: never;
@@ -746,6 +821,43 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/policies": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List authorized runtime policies */
+        readonly get: operations["listPolicies"];
+        readonly put?: never;
+        /** Create one bounded runtime policy */
+        readonly post: operations["createPolicy"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/policies/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["PolicyID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get one authorized runtime policy */
+        readonly get: operations["getPolicy"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/runtimes": {
         readonly parameters: {
             readonly query?: never;
@@ -1128,6 +1240,21 @@ export type components = {
             readonly items: readonly components["schemas"]["APIToken"][];
             readonly page_info: components["schemas"]["PageInfo"];
         };
+        readonly AttackLabRun: {
+            /** @enum {string} */
+            readonly credential_class: "read_only" | "test_write";
+            readonly destination: string;
+            /** @enum {string} */
+            readonly environment: "development" | "test" | "staging";
+            readonly id: components["schemas"]["RedTeamID"];
+            /** @enum {string} */
+            readonly status: "queued" | "running" | "complete" | "failed" | "cancelled";
+            /** @enum {string} */
+            readonly verdict: "verified" | "not_reproduced" | "inconclusive";
+        };
+        readonly AttackLabRunPage: {
+            readonly items: readonly components["schemas"]["AttackLabRun"][];
+        };
         readonly AttackPath: {
             readonly blocked_edge: number;
             readonly entry_id: components["schemas"]["ProductID"];
@@ -1414,6 +1541,30 @@ export type components = {
         };
         /** @enum {string} */
         readonly Permission: "view" | "manage_identity" | "manage_integrations" | "manage_findings" | "manage_policies" | "run_tests" | "manage_agents" | "approve_actions" | "export_evidence" | "view_audit";
+        readonly Policy: {
+            /** @enum {string} */
+            readonly action: "monitor" | "block";
+            readonly conditions: readonly components["schemas"]["PolicyCondition"][];
+            /** @enum {string} */
+            readonly failure_mode: "open" | "closed";
+            readonly id: components["schemas"]["PolicyID"];
+            readonly name: string;
+            /** @enum {string} */
+            readonly rollout: "monitor" | "enforced";
+            /** @enum {string} */
+            readonly scope: "environment";
+            readonly trigger: string;
+        };
+        readonly PolicyCondition: {
+            readonly field: string;
+            /** @enum {string} */
+            readonly operator: "equals";
+            readonly value: string;
+        };
+        readonly PolicyID: string;
+        readonly PolicyPage: {
+            readonly items: readonly components["schemas"]["Policy"][];
+        };
         readonly Principal: {
             readonly active: boolean;
             readonly id: components["schemas"]["ProductID"];
@@ -1636,6 +1787,8 @@ export type ApiToken = components['schemas']['APIToken'];
 export type ApiTokenCredential = components['schemas']['APITokenCredential'];
 export type ApiTokenInput = components['schemas']['APITokenInput'];
 export type ApiTokenPage = components['schemas']['APITokenPage'];
+export type AttackLabRun = components['schemas']['AttackLabRun'];
+export type AttackLabRunPage = components['schemas']['AttackLabRunPage'];
 export type AttackPath = components['schemas']['AttackPath'];
 export type AttackPathPage = components['schemas']['AttackPathPage'];
 export type AuditEvent = components['schemas']['AuditEvent'];
@@ -1690,6 +1843,10 @@ export type NameInput = components['schemas']['NameInput'];
 export type Organization = components['schemas']['Organization'];
 export type PageInfo = components['schemas']['PageInfo'];
 export type Permission = components['schemas']['Permission'];
+export type Policy = components['schemas']['Policy'];
+export type PolicyCondition = components['schemas']['PolicyCondition'];
+export type PolicyId = components['schemas']['PolicyID'];
+export type PolicyPage = components['schemas']['PolicyPage'];
 export type Principal = components['schemas']['Principal'];
 export type PrincipalPage = components['schemas']['PrincipalPage'];
 export type ProductError = components['schemas']['ProductError'];
@@ -2263,6 +2420,134 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["InventoryRecord"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listAttackLabRuns: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized Attack Lab runs. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AttackLabRunPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly createAttackLabRun: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["AttackLabRun"];
+            };
+        };
+        readonly responses: {
+            /** @description Created Attack Lab run. */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AttackLabRun"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getAttackLabRun: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["RedTeamID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized Attack Lab run. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AttackLabRun"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly cancelAttackLabRun: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["RedTeamID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["EmptyInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Cancelled Attack Lab run. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AttackLabRun"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly rerunAttackLabRun: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["RedTeamID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["TestRunInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Created Attack Lab rerun. */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AttackLabRun"];
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
@@ -3017,6 +3302,78 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["Organization"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listPolicies: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized runtime policies. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["PolicyPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly createPolicy: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["Policy"];
+            };
+        };
+        readonly responses: {
+            /** @description Created runtime policy. */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["Policy"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getPolicy: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["PolicyID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized runtime policy. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["Policy"];
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];

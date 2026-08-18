@@ -246,6 +246,33 @@ screens:
       - id: cancel_test_run
         operation_id: cancelTestRun
         availability: api_available
+      - id: view_attack_lab_runs
+        operation_id: listAttackLabRuns
+        availability: api_available
+      - id: create_attack_lab_run
+        operation_id: createAttackLabRun
+        availability: api_available
+      - id: view_attack_lab_run
+        operation_id: getAttackLabRun
+        availability: api_available
+      - id: cancel_attack_lab_run
+        operation_id: cancelAttackLabRun
+        availability: api_available
+      - id: rerun_attack_lab_run
+        operation_id: rerunAttackLabRun
+        availability: api_available
+  - id: policies
+    label: Policies
+    actions:
+      - id: view_policies
+        operation_id: listPolicies
+        availability: api_available
+      - id: create_policy
+        operation_id: createPolicy
+        availability: api_available
+      - id: view_policy
+        operation_id: getPolicy
+        availability: api_available
   - id: system_health
     label: System Health
     actions:

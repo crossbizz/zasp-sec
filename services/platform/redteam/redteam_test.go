@@ -76,3 +76,43 @@ func TestEgressTokenAndCanaryAreBounded(t *testing.T) {
 		t.Fatalf("canary=%+v err=%v", canary, err)
 	}
 }
+
+func TestAttackLabVerdictWorkerAndGate(t *testing.T) {
+	verified := EvaluateAttackLabVerdict(VerdictInput{CriterionObserved: true, CanaryTouched: true})
+	inconclusive := EvaluateAttackLabVerdict(VerdictInput{InfrastructureFailed: true})
+	if verified != AttackLabVerified || inconclusive != AttackLabInconclusive || EvaluateAttackLabVerdict(VerdictInput{}) != AttackLabNotReproduced {
+		t.Fatalf("verdicts=%q/%q", verified, inconclusive)
+	}
+	provider := &fakeSandboxProvider{}
+	worker := NewAttackLabWorker(provider)
+	input := AttackLabJob{ID: "run-lab-1", Safety: AttackLabInput{Environment: "test", CredentialClass: "test_write", Destination: "canary.internal", AllowedDestinations: []string{"canary.internal"}, SuccessCriterion: "canary touched"}, Limits: SandboxLimits{CPU: "500m", Memory: "1Gi", EphemeralStorage: "2Gi", TimeoutSeconds: 300}, Evidence: EvidenceInput{Semantic: "matched", Gateway: "allowed", Egress: "canary.internal", Kubernetes: "complete", CloudSideEffect: "canary touched"}}
+	for range 2 {
+		result, err := worker.Consume(context.Background(), input)
+		if err != nil || result.Verdict != AttackLabVerified || !result.Cleanup {
+			t.Fatalf("result=%+v err=%v", result, err)
+		}
+	}
+	if provider.creates != 1 || provider.runs != 1 || provider.destroys != 1 {
+		t.Fatalf("provider calls=%d/%d/%d", provider.creates, provider.runs, provider.destroys)
+	}
+	report, err := EvaluateM5Gate(M5GateFixture{RedTeamPassed: true, VerifiedCanary: true, ProductionWriteRejected: true, Cleanup: true})
+	if err != nil || report.Status != "PASS" {
+		t.Fatalf("report=%+v err=%v", report, err)
+	}
+}
+
+type fakeSandboxProvider struct{ creates, runs, destroys int }
+
+func (provider *fakeSandboxProvider) Create(context.Context, FargateSpec) error {
+	provider.creates++
+	return nil
+}
+func (provider *fakeSandboxProvider) Run(context.Context, string) error    { provider.runs++; return nil }
+func (provider *fakeSandboxProvider) Cancel(context.Context, string) error { return nil }
+func (provider *fakeSandboxProvider) Destroy(context.Context, string) error {
+	provider.destroys++
+	return nil
+}
+func (provider *fakeSandboxProvider) Capabilities(context.Context) ([]string, error) {
+	return []string{"fargate_pod"}, nil
+}

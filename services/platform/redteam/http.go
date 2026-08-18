@@ -57,6 +57,19 @@ func (handler *HTTPHandler) dispatch(request *http.Request) (int, any, error) {
 			values, err := handler.store.ListRuns(request.Context())
 			return http.StatusOK, map[string]any{"items": values}, err
 		}
+	case "/api/v1/attack-lab/runs":
+		switch request.Method {
+		case http.MethodGet:
+			values, err := handler.store.ListAttackLabRuns(request.Context())
+			return http.StatusOK, map[string]any{"items": values}, err
+		case http.MethodPost:
+			var value AttackLabRecord
+			if decode(request, &value) != nil {
+				return 0, nil, ErrRejected
+			}
+			created, err := handler.store.CreateAttackLabRun(request.Context(), value)
+			return http.StatusCreated, created, err
+		}
 	}
 	if strings.HasPrefix(request.URL.Path, "/api/v1/tests/") {
 		parts := strings.Split(strings.TrimPrefix(request.URL.Path, "/api/v1/tests/"), "/")
@@ -97,6 +110,33 @@ func (handler *HTTPHandler) dispatch(request *http.Request) (int, any, error) {
 			}
 			value, err := handler.store.CancelRun(request.Context(), parts[0])
 			return http.StatusOK, value, err
+		}
+	}
+	if strings.HasPrefix(request.URL.Path, "/api/v1/attack-lab/runs/") {
+		parts := strings.Split(strings.TrimPrefix(request.URL.Path, "/api/v1/attack-lab/runs/"), "/")
+		if len(parts) == 1 && request.Method == http.MethodGet {
+			value, err := handler.store.GetAttackLabRun(request.Context(), parts[0])
+			return http.StatusOK, value, err
+		}
+		if len(parts) == 2 && request.Method == http.MethodPost {
+			switch parts[1] {
+			case "cancel":
+				var input struct{}
+				if decode(request, &input) != nil {
+					return 0, nil, ErrRejected
+				}
+				value, err := handler.store.CancelAttackLabRun(request.Context(), parts[0])
+				return http.StatusOK, value, err
+			case "rerun":
+				var input struct {
+					RunID string `json:"run_id"`
+				}
+				if decode(request, &input) != nil {
+					return 0, nil, ErrRejected
+				}
+				value, err := handler.store.RerunAttackLabRun(request.Context(), parts[0], input.RunID)
+				return http.StatusCreated, value, err
+			}
 		}
 	}
 	return 0, nil, ErrRejected

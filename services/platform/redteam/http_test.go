@@ -38,6 +38,27 @@ func TestHTTPAuthorizedLifecycleAndStableError(t *testing.T) {
 			t.Fatalf("%s %s status=%d body=%s", item.method, item.path, response.Code, response.Body.String())
 		}
 	}
+	lab := `{"id":"run-lab-1","environment":"test","credential_class":"test_write","destination":"canary.internal","status":"queued","verdict":"inconclusive"}`
+	for _, item := range []struct {
+		method, path, body string
+		status             int
+	}{
+		{http.MethodPost, "/api/v1/attack-lab/runs", lab, http.StatusCreated},
+		{http.MethodGet, "/api/v1/attack-lab/runs", "", http.StatusOK},
+		{http.MethodGet, "/api/v1/attack-lab/runs/run-lab-1", "", http.StatusOK},
+		{http.MethodPost, "/api/v1/attack-lab/runs/run-lab-1/rerun", `{"run_id":"run-lab-2"}`, http.StatusCreated},
+		{http.MethodPost, "/api/v1/attack-lab/runs/run-lab-1/cancel", `{}`, http.StatusOK},
+	} {
+		request := httptest.NewRequest(item.method, item.path, bytes.NewBufferString(item.body))
+		if item.body != "" {
+			request.Header.Set("Content-Type", "application/json")
+		}
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		if response.Code != item.status {
+			t.Fatalf("%s %s status=%d body=%s", item.method, item.path, response.Code, response.Body.String())
+		}
+	}
 	denied, _ := NewHTTPHandler(store, func(*http.Request) bool { return false })
 	response := httptest.NewRecorder()
 	denied.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/tests", nil))

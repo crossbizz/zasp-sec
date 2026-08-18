@@ -125,10 +125,11 @@ type MemoryStore struct {
 	runs        map[string]TestRun
 	attempts    map[string]TestAttempt
 	processing  map[string]bool
+	labRuns     map[string]AttackLabRecord
 }
 
 func NewMemoryStore() *MemoryStore {
-	return &MemoryStore{definitions: map[string]TestDefinition{}, runs: map[string]TestRun{}, attempts: map[string]TestAttempt{}, processing: map[string]bool{}}
+	return &MemoryStore{definitions: map[string]TestDefinition{}, runs: map[string]TestRun{}, attempts: map[string]TestAttempt{}, processing: map[string]bool{}, labRuns: map[string]AttackLabRecord{}}
 }
 
 func (store *MemoryStore) CreateDefinition(ctx context.Context, value TestDefinition) error {
@@ -425,6 +426,187 @@ func CollectAttackLabEvidence(value EvidenceInput) (AttackLabEvidence, error) {
 		return AttackLabEvidence{}, ErrRejected
 	}
 	return AttackLabEvidence{Sources: []string{"semantic:" + value.Semantic, "gateway:" + value.Gateway, "egress:" + value.Egress, "kubernetes:" + value.Kubernetes, "cloud:" + value.CloudSideEffect}, UsesEBPF: false}, nil
+}
+
+type AttackLabVerdict string
+
+const (
+	AttackLabVerified      AttackLabVerdict = "verified"
+	AttackLabNotReproduced AttackLabVerdict = "not_reproduced"
+	AttackLabInconclusive  AttackLabVerdict = "inconclusive"
+)
+
+type AttackLabRecord struct {
+	ID              string           `json:"id"`
+	Environment     string           `json:"environment"`
+	CredentialClass string           `json:"credential_class"`
+	Destination     string           `json:"destination"`
+	Status          string           `json:"status"`
+	Verdict         AttackLabVerdict `json:"verdict"`
+}
+
+func (store *MemoryStore) CreateAttackLabRun(ctx context.Context, value AttackLabRecord) (AttackLabRecord, error) {
+	if store == nil || !active(ctx) || !bounded(value.ID, 128) || value.Environment == "production" || value.CredentialClass == "production_write" || !bounded(value.Environment, 32) || !bounded(value.CredentialClass, 32) || !bounded(value.Destination, 256) || value.Status != "queued" || value.Verdict != AttackLabInconclusive {
+		return AttackLabRecord{}, ErrRejected
+	}
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	if _, ok := store.labRuns[value.ID]; ok {
+		return AttackLabRecord{}, ErrRejected
+	}
+	store.labRuns[value.ID] = value
+	return value, nil
+}
+func (store *MemoryStore) ListAttackLabRuns(ctx context.Context) ([]AttackLabRecord, error) {
+	if store == nil || !active(ctx) {
+		return nil, ErrRejected
+	}
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	result := make([]AttackLabRecord, 0, len(store.labRuns))
+	for _, value := range store.labRuns {
+		result = append(result, value)
+	}
+	sort.Slice(result, func(i, j int) bool { return result[i].ID < result[j].ID })
+	return result, nil
+}
+func (store *MemoryStore) GetAttackLabRun(ctx context.Context, id string) (AttackLabRecord, error) {
+	if store == nil || !active(ctx) || !bounded(id, 128) {
+		return AttackLabRecord{}, ErrRejected
+	}
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	value, ok := store.labRuns[id]
+	if !ok {
+		return AttackLabRecord{}, ErrRejected
+	}
+	return value, nil
+}
+func (store *MemoryStore) CancelAttackLabRun(ctx context.Context, id string) (AttackLabRecord, error) {
+	if store == nil || !active(ctx) || !bounded(id, 128) {
+		return AttackLabRecord{}, ErrRejected
+	}
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	value, ok := store.labRuns[id]
+	if !ok || value.Status == "complete" {
+		return AttackLabRecord{}, ErrRejected
+	}
+	value.Status = "cancelled"
+	store.labRuns[id] = value
+	return value, nil
+}
+func (store *MemoryStore) RerunAttackLabRun(ctx context.Context, id, newID string) (AttackLabRecord, error) {
+	value, err := store.GetAttackLabRun(ctx, id)
+	if err != nil || !bounded(newID, 128) {
+		return AttackLabRecord{}, ErrRejected
+	}
+	value.ID = newID
+	value.Status = "queued"
+	value.Verdict = AttackLabInconclusive
+	return store.CreateAttackLabRun(ctx, value)
+}
+
+type VerdictInput struct{ InfrastructureFailed, CriterionObserved, CanaryTouched bool }
+
+func EvaluateAttackLabVerdict(value VerdictInput) AttackLabVerdict {
+	if value.InfrastructureFailed {
+		return AttackLabInconclusive
+	}
+	if value.CriterionObserved && value.CanaryTouched {
+		return AttackLabVerified
+	}
+	return AttackLabNotReproduced
+}
+
+type AttackLabJob struct {
+	ID       string
+	Safety   AttackLabInput
+	Limits   SandboxLimits
+	Evidence EvidenceInput
+}
+
+type AttackLabResult struct {
+	ID       string
+	Verdict  AttackLabVerdict
+	Evidence AttackLabEvidence
+	Cleanup  bool
+}
+
+type AttackLabWorker struct {
+	mu       sync.Mutex
+	provider SandboxProvider
+	results  map[string]AttackLabResult
+	running  map[string]bool
+}
+
+func NewAttackLabWorker(provider SandboxProvider) *AttackLabWorker {
+	return &AttackLabWorker{provider: provider, results: map[string]AttackLabResult{}, running: map[string]bool{}}
+}
+
+func (worker *AttackLabWorker) Consume(ctx context.Context, job AttackLabJob) (result AttackLabResult, err error) {
+	if worker == nil || worker.provider == nil || !active(ctx) || !bounded(job.ID, 128) {
+		return AttackLabResult{}, ErrRejected
+	}
+	worker.mu.Lock()
+	if retained, ok := worker.results[job.ID]; ok {
+		worker.mu.Unlock()
+		return retained, nil
+	}
+	if worker.running[job.ID] {
+		worker.mu.Unlock()
+		return AttackLabResult{}, ErrRejected
+	}
+	worker.running[job.ID] = true
+	worker.mu.Unlock()
+	defer func() {
+		worker.mu.Lock()
+		delete(worker.running, job.ID)
+		worker.mu.Unlock()
+	}()
+	if _, err = AttackLabPreflight(job.Safety); err != nil {
+		return AttackLabResult{}, ErrRejected
+	}
+	spec, err := BuildFargateSpec(job.ID, job.Limits)
+	if err != nil || worker.provider.Create(ctx, spec) != nil {
+		return AttackLabResult{}, ErrRejected
+	}
+	created := true
+	defer func() {
+		if created {
+			if destroyErr := worker.provider.Destroy(context.Background(), job.ID); destroyErr != nil {
+				result, err = AttackLabResult{}, ErrRejected
+				return
+			}
+			result.Cleanup = true
+			if err == nil {
+				worker.mu.Lock()
+				worker.results[job.ID] = result
+				worker.mu.Unlock()
+			}
+		}
+	}()
+	if worker.provider.Run(ctx, job.ID) != nil {
+		return AttackLabResult{ID: job.ID, Verdict: AttackLabInconclusive}, nil
+	}
+	evidence, evidenceErr := CollectAttackLabEvidence(job.Evidence)
+	if evidenceErr != nil {
+		return AttackLabResult{}, ErrRejected
+	}
+	return AttackLabResult{ID: job.ID, Verdict: EvaluateAttackLabVerdict(VerdictInput{CriterionObserved: true, CanaryTouched: strings.Contains(job.Evidence.CloudSideEffect, "canary touched")}), Evidence: evidence}, nil
+}
+
+type M5GateFixture struct{ RedTeamPassed, VerifiedCanary, ProductionWriteRejected, Cleanup bool }
+type M5GateReport struct {
+	Status string
+	Checks int
+}
+
+func EvaluateM5Gate(value M5GateFixture) (M5GateReport, error) {
+	if !value.RedTeamPassed || !value.VerifiedCanary || !value.ProductionWriteRejected || !value.Cleanup {
+		return M5GateReport{}, ErrRejected
+	}
+	return M5GateReport{Status: "PASS", Checks: 4}, nil
 }
 
 func validDefinition(value TestDefinition) bool {

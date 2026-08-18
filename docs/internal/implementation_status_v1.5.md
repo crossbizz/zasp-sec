@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 369 |
-| In progress | 172 |
+| Pending | 346 |
+| In progress | 195 |
 | Complete | 184 |
 | Blocked | 3 |
 
@@ -29,8 +29,8 @@ In progress, Complete, or Blocked is Pending.
 | M2 | 72 | 0 | 0 | 72 | 0 |
 | M3 | 75 | 0 | 61 | 14 | 0 |
 | M4 | 82 | 0 | 82 | 0 | 0 |
-| M5 | 42 | 13 | 29 | 0 | 0 |
-| M6 | 36 | 36 | 0 | 0 | 0 |
+| M5 | 42 | 0 | 42 | 0 | 0 |
+| M6 | 36 | 26 | 10 | 0 | 0 |
 | M7 | 62 | 62 | 0 | 0 | 0 |
 | M7A | 113 | 113 | 0 | 0 | 0 |
 | M8 | 141 | 141 | 0 | 0 | 0 |
@@ -70,13 +70,36 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `369/172/184/3` because
+session configuration. The 728 source-plan counts are `346/195/184/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M6-10 | August 18, 2026 | `getPolicy` is published in OpenAPI/generated types and handled by the bounded local service. |
+| M6-09 | August 18, 2026 | `createPolicy` is published in OpenAPI/generated types and handled by the bounded local service. |
+| M6-08 | August 18, 2026 | `listPolicies` is published in OpenAPI/generated types and handled by the bounded local service. |
+| M6-07 | August 18, 2026 | A local environment-bound bundle getter rejects cross-environment reads; runtime-token and internal-route integration remain unresolved. |
+| M6-06 | August 18, 2026 | A bounded in-memory last-valid signed-bundle cache is implemented; runtime-gateway restart integration remains unresolved. |
+| M6-05 | August 18, 2026 | A deterministic HMAC-signed local bundle manifest rejects modification; S3 artifact writing remains unresolved. |
+| M6-04 | August 18, 2026 | A deterministic local condition evaluator implements Monitor/Block outcomes; OPA SDK and runtime-gateway integration remain unresolved. |
+| M6-03 | August 18, 2026 | Product Policy compiles to a deterministic internal representation and digest; production OPA/Rego compatibility remains unresolved. |
+| M6-02 | August 18, 2026 | Policy validation rejects triggers, fields, operators, and enforcement actions outside injected runtime capabilities. |
+| M6-01 | August 18, 2026 | The local Policy domain binds environment scope, trigger, conditions, Monitor/Block, rollout, and failure mode. |
+| M5-35 | August 18, 2026 | A local M5 composition gate requires safety, worker replay, verdict, cleanup, and UI readiness; staging Fargate evidence remains unresolved. |
+| M5-34 | August 18, 2026 | The Attack Lab result UI renders verdict, timeline, canary, network, evidence, and rerun concepts with distinct inconclusive outcomes. |
+| M5-33 | August 18, 2026 | Attack Lab preflight composes safety sections and disables Run until explicit approval. |
+| M5-33c | August 18, 2026 | Attack Lab preflight renders bounded runtime/resource limits plus cleanup behavior. |
+| M5-33b | August 18, 2026 | Attack Lab preflight renders allowed destinations and expected side effects. |
+| M5-33a | August 18, 2026 | Attack Lab preflight renders the selected non-production target and test credential class. |
+| M5-32 | August 18, 2026 | The local Attack Lab worker runs preflight, provider, evidence, verdict, and cleanup idempotently with an injected provider. |
+| M5-31 | August 18, 2026 | `rerunAttackLabRun` is published in OpenAPI/generated types and handled by the bounded local service. |
+| M5-30 | August 18, 2026 | `cancelAttackLabRun` is published in OpenAPI/generated types and handled by the bounded local service. |
+| M5-29 | August 18, 2026 | `getAttackLabRun` is published in OpenAPI/generated types and handled by the bounded local service. |
+| M5-28 | August 18, 2026 | `createAttackLabRun` is published in OpenAPI/generated types and handled by the bounded local service. |
+| M5-27 | August 18, 2026 | `listAttackLabRuns` is published in OpenAPI/generated types and handled by the bounded local service. |
+| M5-26 | August 18, 2026 | Attack Lab verdicts distinguish verified canary touches, not reproduced outcomes, and infrastructure-inconclusive results locally. |
 | M5-25 | August 18, 2026 | The local Attack Lab evidence collector binds semantic, gateway, egress, Kubernetes, and cloud side-effect sources without an in-sandbox eBPF dependency. |
 | M5-24 | August 18, 2026 | A bounded canary descriptor requires a test resource, test-write credential class, and observable expected touch. |
 | M5-23 | August 18, 2026 | One local SafetyDecision composes target, credential, destination, and measurable-success checks before sandbox creation. |

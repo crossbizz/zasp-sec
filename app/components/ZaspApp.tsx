@@ -19,6 +19,7 @@ import { IdentityAPIProvider } from "../features/identity/IdentityAPIProvider";
 import { APIAccessView } from "../features/identity/APIAccessView";
 import { ScopeOnboardingView } from "../features/identity/ScopeOnboardingView";
 import { AgentSecurityView } from "../features/agents/AgentSecurityView";
+import { AttackLabView } from "../features/redteam/AttackLabView";
 
 function RouteSurface({ route, onNavigate, onToast }: { route: AppRoute; onNavigate: (path: string) => void; onToast: (message: string) => void }) {
   if (route.path === "/") return <OverviewView onNavigate={onNavigate} />;
@@ -29,6 +30,7 @@ function RouteSurface({ route, onNavigate, onToast }: { route: AppRoute; onNavig
   if (["/identities", "/violations", "/policies"].includes(route.path)) return <GovernanceView route={route} onToast={onToast} />;
   if (route.path.startsWith("/guardrails/")) return <GuardrailView route={route} onNavigate={onNavigate} onToast={onToast} />;
   if (route.path.startsWith("/red-team/")) return <RedTeamView route={route} onNavigate={onNavigate} onToast={onToast} />;
+  if (route.path === "/test/attack-lab") return <AttackLabView />;
   if (route.path === "/connectors") return <ConnectorView onToast={onToast} />;
   if (route.path === "/integrations/sensors") return <SensorView onToast={onToast} />;
   if (["/prompt-hardening", "/reports"].includes(route.path)) return <ToolView route={route} onToast={onToast} />;
