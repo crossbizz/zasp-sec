@@ -303,6 +303,61 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/attack-paths": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List bounded authorized attack paths */
+        readonly get: operations["listAttackPaths"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/attack-paths/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get one bounded authorized attack path */
+        readonly get: operations["getAttackPath"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/attack-paths/{id}/break-options": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get deterministic minimal attack-path break options */
+        readonly get: operations["getAttackPathBreakOptions"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/audit-events": {
         readonly parameters: {
             readonly query?: never;
@@ -394,6 +449,98 @@ export type paths = {
         readonly head?: never;
         /** Update an authorized Environment */
         readonly patch: operations["updateEnvironment"];
+        readonly trace?: never;
+    };
+    readonly "/api/v1/findings": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List relevant findings in the authorized scope */
+        readonly get: operations["listFindings"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/findings/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get one authorized finding */
+        readonly get: operations["getFinding"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        /** Update one authorized finding status */
+        readonly patch: operations["updateFinding"];
+        readonly trace?: never;
+    };
+    readonly "/api/v1/findings/{id}/accept-risk": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Record an authorized finding risk acceptance */
+        readonly post: operations["acceptFindingRisk"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/findings/{id}/ticket": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Send a signed redacted finding ticket webhook */
+        readonly post: operations["createFindingTicket"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/home/summary": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Get the stale-aware authorized home summary */
+        readonly get: operations["getHomeSummary"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
         readonly trace?: never;
     };
     readonly "/api/v1/identities": {
@@ -635,6 +782,23 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/search": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Search authorized product names, types, and IDs */
+        readonly get: operations["globalSearch"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/sensors": {
         readonly parameters: {
             readonly query?: never;
@@ -852,6 +1016,19 @@ export type components = {
             readonly items: readonly components["schemas"]["APIToken"][];
             readonly page_info: components["schemas"]["PageInfo"];
         };
+        readonly AttackPath: {
+            readonly blocked_edge: number;
+            readonly entry_id: components["schemas"]["ProductID"];
+            readonly evidence_ids: readonly components["schemas"]["ProductID"][];
+            readonly id: components["schemas"]["ProductID"];
+            readonly node_ids: readonly components["schemas"]["ProductID"][];
+            readonly sink_id: components["schemas"]["ProductID"];
+            /** @enum {string} */
+            readonly state: "potential" | "observed" | "verified" | "blocked";
+        };
+        readonly AttackPathPage: {
+            readonly items: readonly components["schemas"]["AttackPath"][];
+        };
         readonly AuditEvent: {
             readonly action: string;
             readonly actor_id: components["schemas"]["ProductID"];
@@ -881,6 +1058,17 @@ export type components = {
             readonly status: "ready";
         };
         readonly AuditExportInput: Record<string, never>;
+        readonly BreakOption: {
+            readonly evidence_id: components["schemas"]["ProductID"];
+            /** @enum {string} */
+            readonly kind: "remove_node" | "enforce_policy";
+            readonly path_id: components["schemas"]["ProductID"];
+            readonly rank: number;
+            readonly target_id: components["schemas"]["ProductID"];
+        };
+        readonly BreakOptionPage: {
+            readonly items: readonly components["schemas"]["BreakOption"][];
+        };
         readonly BuiltInRole: {
             readonly permissions: readonly components["schemas"]["Permission"][];
             readonly role: components["schemas"]["BuiltInRoleName"];
@@ -963,6 +1151,38 @@ export type components = {
             readonly items: readonly components["schemas"]["Environment"][];
             readonly page_info: components["schemas"]["PageInfo"];
         };
+        readonly Finding: {
+            readonly acceptance_reason?: string;
+            readonly agent_id?: components["schemas"]["ProductID"];
+            readonly compliance_context?: string;
+            readonly evidence_ids: readonly components["schemas"]["ProductID"][];
+            readonly id: components["schemas"]["ProductID"];
+            readonly path_id?: components["schemas"]["ProductID"];
+            readonly risk_factors: readonly components["schemas"]["RiskFactor"][];
+            readonly rule?: string;
+            readonly severity: components["schemas"]["FindingSeverity"];
+            /** @enum {string} */
+            readonly source: "posture" | "prowler";
+            readonly status: components["schemas"]["FindingStatus"];
+            readonly title: string;
+        };
+        readonly FindingAcceptanceInput: {
+            readonly reason: string;
+        };
+        readonly FindingPage: {
+            readonly items: readonly components["schemas"]["Finding"][];
+        };
+        /** @enum {string} */
+        readonly FindingSeverity: "critical" | "high" | "medium" | "low";
+        /** @enum {string} */
+        readonly FindingStatus: "open" | "under_review" | "resolved" | "accepted";
+        readonly FindingTicket: {
+            readonly ticket_id: string;
+        };
+        readonly FindingUpdateInput: {
+            /** @enum {string} */
+            readonly status: "open" | "under_review" | "resolved";
+        };
         readonly GroupMapping: {
             readonly audit_correlation_id?: components["schemas"]["ProductID"];
             readonly environment_id: components["schemas"]["ProductID"];
@@ -981,6 +1201,14 @@ export type components = {
         readonly GroupMappingPage: {
             readonly items: readonly components["schemas"]["GroupMapping"][];
             readonly page_info: components["schemas"]["PageInfo"];
+        };
+        readonly HomeSummary: {
+            readonly agent_count: number;
+            readonly attention_required: boolean;
+            readonly blocked_changes: number;
+            readonly healthy: boolean;
+            readonly high_risk_paths: number;
+            readonly verified_changes: number;
         };
         readonly Integration: {
             readonly configuration: components["schemas"]["IntegrationConfiguration"];
@@ -1103,6 +1331,10 @@ export type components = {
         readonly RelationshipPage: {
             readonly items: readonly components["schemas"]["Relationship"][];
         };
+        readonly RiskFactor: {
+            readonly evidence_id: components["schemas"]["ProductID"];
+            readonly name: string;
+        };
         readonly SCIMConnection: {
             /** Format: uri */
             readonly base_url: string;
@@ -1132,6 +1364,14 @@ export type components = {
         };
         /** @enum {string} */
         readonly SCIMIdentityProvider: "generic" | "okta" | "microsoft-entra" | "cyberark" | "jumpcloud" | "onelogin" | "pingfederate" | "rippling";
+        readonly SearchResult: {
+            readonly id: components["schemas"]["ProductID"];
+            readonly name: string;
+            readonly type: string;
+        };
+        readonly SearchResultPage: {
+            readonly items: readonly components["schemas"]["SearchResult"][];
+        };
         readonly Sensor: {
             readonly capabilities: readonly string[];
             /** Format: date-time */
@@ -1254,10 +1494,14 @@ export type ApiToken = components['schemas']['APIToken'];
 export type ApiTokenCredential = components['schemas']['APITokenCredential'];
 export type ApiTokenInput = components['schemas']['APITokenInput'];
 export type ApiTokenPage = components['schemas']['APITokenPage'];
+export type AttackPath = components['schemas']['AttackPath'];
+export type AttackPathPage = components['schemas']['AttackPathPage'];
 export type AuditEvent = components['schemas']['AuditEvent'];
 export type AuditEventPage = components['schemas']['AuditEventPage'];
 export type AuditExport = components['schemas']['AuditExport'];
 export type AuditExportInput = components['schemas']['AuditExportInput'];
+export type BreakOption = components['schemas']['BreakOption'];
+export type BreakOptionPage = components['schemas']['BreakOptionPage'];
 export type BuiltInRole = components['schemas']['BuiltInRole'];
 export type BuiltInRoleName = components['schemas']['BuiltInRoleName'];
 export type BuiltInRolePage = components['schemas']['BuiltInRolePage'];
@@ -1275,9 +1519,17 @@ export type Environment = components['schemas']['Environment'];
 export type EnvironmentCreateInput = components['schemas']['EnvironmentCreateInput'];
 export type EnvironmentMutation = components['schemas']['EnvironmentMutation'];
 export type EnvironmentPage = components['schemas']['EnvironmentPage'];
+export type Finding = components['schemas']['Finding'];
+export type FindingAcceptanceInput = components['schemas']['FindingAcceptanceInput'];
+export type FindingPage = components['schemas']['FindingPage'];
+export type FindingSeverity = components['schemas']['FindingSeverity'];
+export type FindingStatus = components['schemas']['FindingStatus'];
+export type FindingTicket = components['schemas']['FindingTicket'];
+export type FindingUpdateInput = components['schemas']['FindingUpdateInput'];
 export type GroupMapping = components['schemas']['GroupMapping'];
 export type GroupMappingInput = components['schemas']['GroupMappingInput'];
 export type GroupMappingPage = components['schemas']['GroupMappingPage'];
+export type HomeSummary = components['schemas']['HomeSummary'];
 export type Integration = components['schemas']['Integration'];
 export type IntegrationCatalogPage = components['schemas']['IntegrationCatalogPage'];
 export type IntegrationConfiguration = components['schemas']['IntegrationConfiguration'];
@@ -1302,12 +1554,15 @@ export type ProductError = components['schemas']['ProductError'];
 export type ProductId = components['schemas']['ProductID'];
 export type Relationship = components['schemas']['Relationship'];
 export type RelationshipPage = components['schemas']['RelationshipPage'];
+export type RiskFactor = components['schemas']['RiskFactor'];
 export type ScimConnection = components['schemas']['SCIMConnection'];
 export type ScimConnectionCredential = components['schemas']['SCIMConnectionCredential'];
 export type ScimConnectionId = components['schemas']['SCIMConnectionID'];
 export type ScimConnectionInput = components['schemas']['SCIMConnectionInput'];
 export type ScimConnectionPage = components['schemas']['SCIMConnectionPage'];
 export type ScimIdentityProvider = components['schemas']['SCIMIdentityProvider'];
+export type SearchResult = components['schemas']['SearchResult'];
+export type SearchResultPage = components['schemas']['SearchResultPage'];
 export type Sensor = components['schemas']['Sensor'];
 export type SensorCoverage = components['schemas']['SensorCoverage'];
 export type SensorEnrollment = components['schemas']['SensorEnrollment'];
@@ -1865,6 +2120,76 @@ export interface operations {
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
+    readonly listAttackPaths: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized attack paths. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AttackPathPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getAttackPath: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized attack path. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AttackPath"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getAttackPathBreakOptions: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Ranked break options. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["BreakOptionPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
     readonly listAuditEvents: {
         readonly parameters: {
             readonly query?: {
@@ -2046,6 +2371,158 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["EnvironmentMutation"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listFindings: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Relevant finding records. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["FindingPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getFinding: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized finding. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["Finding"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly updateFinding: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["FindingUpdateInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Updated finding. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["Finding"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly acceptFindingRisk: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["FindingAcceptanceInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Accepted finding. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["Finding"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly createFindingTicket: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["EmptyInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Created external ticket reference. */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["FindingTicket"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getHomeSummary: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized home summary. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HomeSummary"];
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
@@ -2437,6 +2914,31 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["InventoryRecord"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly globalSearch: {
+        readonly parameters: {
+            readonly query: {
+                readonly limit: number;
+                readonly q: string;
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized search results. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SearchResultPage"];
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];

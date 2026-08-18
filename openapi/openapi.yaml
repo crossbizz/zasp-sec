@@ -953,6 +953,107 @@ paths:
         '200': { description: Authorized Asset., content: { application/json: { schema: { $ref: '#/components/schemas/InventoryRecord' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/findings:
+    get:
+      operationId: listFindings
+      summary: List relevant findings in the authorized scope
+      responses:
+        '200': { description: Relevant finding records., content: { application/json: { schema: { $ref: '#/components/schemas/FindingPage' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/findings/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getFinding
+      summary: Get one authorized finding
+      responses:
+        '200': { description: Authorized finding., content: { application/json: { schema: { $ref: '#/components/schemas/Finding' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    patch:
+      operationId: updateFinding
+      summary: Update one authorized finding status
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/FindingUpdateInput' } } }
+      responses:
+        '200': { description: Updated finding., content: { application/json: { schema: { $ref: '#/components/schemas/Finding' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/findings/{id}/accept-risk:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    post:
+      operationId: acceptFindingRisk
+      summary: Record an authorized finding risk acceptance
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/FindingAcceptanceInput' } } }
+      responses:
+        '200': { description: Accepted finding., content: { application/json: { schema: { $ref: '#/components/schemas/Finding' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/findings/{id}/ticket:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    post:
+      operationId: createFindingTicket
+      summary: Send a signed redacted finding ticket webhook
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/EmptyInput' } } }
+      responses:
+        '201': { description: Created external ticket reference., content: { application/json: { schema: { $ref: '#/components/schemas/FindingTicket' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/attack-paths:
+    get:
+      operationId: listAttackPaths
+      summary: List bounded authorized attack paths
+      responses:
+        '200': { description: Authorized attack paths., content: { application/json: { schema: { $ref: '#/components/schemas/AttackPathPage' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/attack-paths/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getAttackPath
+      summary: Get one bounded authorized attack path
+      responses:
+        '200': { description: Authorized attack path., content: { application/json: { schema: { $ref: '#/components/schemas/AttackPath' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/attack-paths/{id}/break-options:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getAttackPathBreakOptions
+      summary: Get deterministic minimal attack-path break options
+      responses:
+        '200': { description: Ranked break options., content: { application/json: { schema: { $ref: '#/components/schemas/BreakOptionPage' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/home/summary:
+    get:
+      operationId: getHomeSummary
+      summary: Get the stale-aware authorized home summary
+      responses:
+        '200': { description: Authorized home summary., content: { application/json: { schema: { $ref: '#/components/schemas/HomeSummary' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/search:
+    get:
+      operationId: globalSearch
+      summary: Search authorized product names, types, and IDs
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string, minLength: 2, maxLength: 128 } }
+        - { name: limit, in: query, required: true, schema: { type: integer, minimum: 1, maximum: 100 } }
+      responses:
+        '200': { description: Authorized search results., content: { application/json: { schema: { $ref: '#/components/schemas/SearchResultPage' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
 security:
   - SessionJWT: []
   - ProductAPIToken: []
@@ -1948,6 +2049,119 @@ components:
       required: [items]
       properties:
         items: { type: array, maxItems: 10000, items: { $ref: '#/components/schemas/AgentSession' } }
+    FindingStatus:
+      type: string
+      enum: [open, under_review, resolved, accepted]
+    FindingSeverity:
+      type: string
+      enum: [critical, high, medium, low]
+    RiskFactor:
+      type: object
+      additionalProperties: false
+      required: [name, evidence_id]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 64 }
+        evidence_id: { $ref: '#/components/schemas/ProductID' }
+    Finding:
+      type: object
+      additionalProperties: false
+      required: [id, source, title, severity, status, evidence_ids, risk_factors]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        source: { type: string, enum: [posture, prowler] }
+        rule: { type: string, minLength: 1, maxLength: 64 }
+        title: { type: string, minLength: 1, maxLength: 256 }
+        severity: { $ref: '#/components/schemas/FindingSeverity' }
+        status: { $ref: '#/components/schemas/FindingStatus' }
+        agent_id: { $ref: '#/components/schemas/ProductID' }
+        path_id: { $ref: '#/components/schemas/ProductID' }
+        compliance_context: { type: string, minLength: 1, maxLength: 128 }
+        evidence_ids: { type: array, minItems: 1, maxItems: 64, uniqueItems: true, items: { $ref: '#/components/schemas/ProductID' } }
+        risk_factors: { type: array, maxItems: 16, items: { $ref: '#/components/schemas/RiskFactor' } }
+        acceptance_reason: { type: string, minLength: 1, maxLength: 512 }
+    FindingPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items: { type: array, maxItems: 10000, items: { $ref: '#/components/schemas/Finding' } }
+    FindingUpdateInput:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: { type: string, enum: [open, under_review, resolved] }
+    FindingAcceptanceInput:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 512 }
+    FindingTicket:
+      type: object
+      additionalProperties: false
+      required: [ticket_id]
+      properties:
+        ticket_id: { type: string, minLength: 1, maxLength: 128 }
+    AttackPath:
+      type: object
+      additionalProperties: false
+      required: [id, entry_id, sink_id, node_ids, state, evidence_ids, blocked_edge]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        entry_id: { $ref: '#/components/schemas/ProductID' }
+        sink_id: { $ref: '#/components/schemas/ProductID' }
+        node_ids: { type: array, minItems: 2, maxItems: 8, uniqueItems: true, items: { $ref: '#/components/schemas/ProductID' } }
+        state: { type: string, enum: [potential, observed, verified, blocked] }
+        evidence_ids: { type: array, minItems: 1, maxItems: 16, uniqueItems: true, items: { $ref: '#/components/schemas/ProductID' } }
+        blocked_edge: { type: integer, minimum: -1, maximum: 6 }
+    AttackPathPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items: { type: array, maxItems: 1000, items: { $ref: '#/components/schemas/AttackPath' } }
+    BreakOption:
+      type: object
+      additionalProperties: false
+      required: [path_id, target_id, evidence_id, kind, rank]
+      properties:
+        path_id: { $ref: '#/components/schemas/ProductID' }
+        target_id: { $ref: '#/components/schemas/ProductID' }
+        evidence_id: { $ref: '#/components/schemas/ProductID' }
+        kind: { type: string, enum: [remove_node, enforce_policy] }
+        rank: { type: integer, minimum: 1, maximum: 8 }
+    BreakOptionPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items: { type: array, maxItems: 8, items: { $ref: '#/components/schemas/BreakOption' } }
+    HomeSummary:
+      type: object
+      additionalProperties: false
+      required: [agent_count, high_risk_paths, verified_changes, blocked_changes, healthy, attention_required]
+      properties:
+        agent_count: { type: integer, minimum: 0 }
+        high_risk_paths: { type: integer, minimum: 0 }
+        verified_changes: { type: integer, minimum: 0 }
+        blocked_changes: { type: integer, minimum: 0 }
+        healthy: { type: boolean }
+        attention_required: { type: boolean }
+    SearchResult:
+      type: object
+      additionalProperties: false
+      required: [id, type, name]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        type: { type: string, minLength: 1, maxLength: 32 }
+        name: { type: string, minLength: 1, maxLength: 256 }
+    SearchResultPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/SearchResult' } }
     ProductError:
       type: object
       additionalProperties: false

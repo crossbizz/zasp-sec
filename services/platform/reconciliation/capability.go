@@ -165,10 +165,18 @@ func (graph *CapabilityGraph) ApplyEvidence(ctx context.Context, scope domain.Sc
 type PostureRule string
 
 const (
-	RuleOwnerlessAgent   PostureRule = "ownerless_agent"
-	RuleHumanCredential  PostureRule = "human_credential"
-	RuleSharedCredential PostureRule = "shared_credential"
-	RuleUntrustedWrite   PostureRule = "untrusted_production_write"
+	RuleOwnerlessAgent       PostureRule = "ownerless_agent"
+	RuleHumanCredential      PostureRule = "human_credential"
+	RuleSharedCredential     PostureRule = "shared_credential"
+	RuleUntrustedWrite       PostureRule = "untrusted_production_write"
+	RuleShellCredential      PostureRule = "shell_credential"
+	RuleEgressSensitive      PostureRule = "egress_sensitive"
+	RuleUnapprovedTool       PostureRule = "unapproved_tool"
+	RuleDestructiveNoControl PostureRule = "destructive_no_control"
+	RuleNoRuntimeCoverage    PostureRule = "no_runtime_coverage"
+	RuleWeakRuntimeIsolation PostureRule = "weak_runtime_isolation"
+	RuleCICDProductionSecret PostureRule = "cicd_production_secret"
+	RuleZombieCredential     PostureRule = "zombie_credential"
 )
 
 type PostureEvidence struct {
@@ -177,15 +185,30 @@ type PostureEvidence struct {
 }
 
 type PostureInput struct {
-	Scope                 domain.Scope
-	AgentID               domain.ProductID
-	Owner                 string
-	HumanCredential       bool
-	CredentialFingerprint string
-	CredentialAgentCount  int
-	UntrustedInput        bool
-	ProductionWrite       bool
-	EvidenceIDs           []PostureEvidence
+	Scope                  domain.Scope
+	AgentID                domain.ProductID
+	Owner                  string
+	HumanCredential        bool
+	CredentialFingerprint  string
+	CredentialAgentCount   int
+	UntrustedInput         bool
+	ProductionWrite        bool
+	ShellExecution         bool
+	ProductionCredential   bool
+	UnrestrictedEgress     bool
+	SensitiveDataReach     bool
+	UnapprovedRemoteTool   bool
+	DestructiveTool        bool
+	RuntimeControl         bool
+	ProductionAgent        bool
+	RuntimePolicySupported bool
+	HostFilesystem         bool
+	Privileged             bool
+	CICDWrite              bool
+	ProductionSecretReach  bool
+	AgentActive            bool
+	CredentialActive       bool
+	EvidenceIDs            []PostureEvidence
 }
 
 type PostureFinding struct {
@@ -213,6 +236,14 @@ func EvaluatePosture(ctx context.Context, input PostureInput) ([]PostureFinding,
 		{RuleHumanCredential, input.HumanCredential},
 		{RuleSharedCredential, input.CredentialAgentCount > 1 && validFingerprint(input.CredentialFingerprint)},
 		{RuleUntrustedWrite, input.UntrustedInput && input.ProductionWrite},
+		{RuleShellCredential, input.ShellExecution && input.ProductionCredential},
+		{RuleEgressSensitive, input.UnrestrictedEgress && input.SensitiveDataReach},
+		{RuleUnapprovedTool, input.UnapprovedRemoteTool},
+		{RuleDestructiveNoControl, input.DestructiveTool && !input.RuntimeControl},
+		{RuleNoRuntimeCoverage, input.ProductionAgent && !input.RuntimePolicySupported},
+		{RuleWeakRuntimeIsolation, input.HostFilesystem || input.Privileged},
+		{RuleCICDProductionSecret, input.CICDWrite && input.ProductionSecretReach},
+		{RuleZombieCredential, !input.AgentActive && input.CredentialActive},
 	}
 	result := []PostureFinding{}
 	for _, condition := range conditions {
@@ -260,7 +291,14 @@ func capabilityOutcome(value CapabilityCategory) string {
 	}
 }
 func validPostureRule(value PostureRule) bool {
-	return value == RuleOwnerlessAgent || value == RuleHumanCredential || value == RuleSharedCredential || value == RuleUntrustedWrite
+	switch value {
+	case RuleOwnerlessAgent, RuleHumanCredential, RuleSharedCredential, RuleUntrustedWrite,
+		RuleShellCredential, RuleEgressSensitive, RuleUnapprovedTool, RuleDestructiveNoControl,
+		RuleNoRuntimeCoverage, RuleWeakRuntimeIsolation, RuleCICDProductionSecret, RuleZombieCredential:
+		return true
+	default:
+		return false
+	}
 }
 func capabilityKey(scope domain.Scope, agentID, targetID domain.ProductID, category CapabilityCategory) string {
 	return scopeIdentity(scope) + "\x00" + agentID.String() + "\x00" + targetID.String() + "\x00" + string(category)

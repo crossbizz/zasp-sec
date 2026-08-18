@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 451 |
-| In progress | 90 |
+| Pending | 425 |
+| In progress | 116 |
 | Complete | 184 |
 | Blocked | 3 |
 
@@ -28,7 +28,7 @@ In progress, Complete, or Blocked is Pending.
 | M1A | 10 | 4 | 0 | 6 | 0 |
 | M2 | 72 | 0 | 0 | 72 | 0 |
 | M3 | 75 | 0 | 61 | 14 | 0 |
-| M4 | 82 | 53 | 29 | 0 | 0 |
+| M4 | 82 | 27 | 55 | 0 | 0 |
 | M5 | 42 | 42 | 0 | 0 | 0 |
 | M6 | 36 | 36 | 0 | 0 | 0 |
 | M7 | 62 | 62 | 0 | 0 | 0 |
@@ -70,13 +70,39 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `451/90/184/3` because
+session configuration. The 728 source-plan counts are `425/116/184/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M4-49 | August 18, 2026 | The authorized safe global-search API and generated client contract are implemented locally. |
+| M4-48 | August 18, 2026 | Bounded scoped product-name/type/ID search rejects raw graph-query syntax locally. |
+| M4-47 | August 18, 2026 | The authorized stale-aware Home summary API and generated client contract are implemented locally. |
+| M4-46 | August 18, 2026 | Home summary counts, risk-path changes, and coverage freshness fail unhealthy locally. |
+| M4-45 | August 18, 2026 | The authorized deterministic attack-path break-options API is implemented locally. |
+| M4-44 | August 18, 2026 | The authorized bounded attack-path lookup API is implemented locally. |
+| M4-43 | August 18, 2026 | The authorized bounded attack-path list API is implemented locally. |
+| M4-42 | August 18, 2026 | Deterministic evidence-linked node and policy break options are ranked locally. |
+| M4-41 | August 18, 2026 | Potential, Observed, Verified, and Blocked attack-path state is retained locally. |
+| M4-40 | August 18, 2026 | Attack paths are bounded to exact entry, sink, node, edge, and evidence sets locally. |
+| M4-39 | August 18, 2026 | Ticket creation sends an HMAC-signed redacted payload through an injected webhook boundary. |
+| M4-38 | August 18, 2026 | The authorized signed finding-ticket API and generated client contract are implemented locally. |
+| M4-37 | August 18, 2026 | The authorized finding risk-acceptance API records a bounded reason locally. |
+| M4-36 | August 18, 2026 | The authorized finding-status mutation API and generated client contract are implemented locally. |
+| M4-35 | August 18, 2026 | The authorized scoped finding lookup API and generated client contract are implemented locally. |
+| M4-34 | August 18, 2026 | The authorized relevance-filtered finding list API and generated client contract are implemented locally. |
+| M4-33 | August 18, 2026 | Findings retain explainable evidence-linked risk factors without an opaque score. |
+| M4-32 | August 18, 2026 | Unrelated Prowler cloud findings stay out of the default list unless bound to Agent, path, or compliance context. |
+| M4-31 | August 18, 2026 | The inactive-Agent plus active-credential posture rule emits exact evidence locally. |
+| M4-30 | August 18, 2026 | The CI/CD-write plus production-secret posture rule emits exact evidence locally. |
+| M4-29 | August 18, 2026 | Host-filesystem or privileged runtime isolation emits exact posture evidence locally. |
+| M4-28 | August 18, 2026 | Missing supported production runtime-policy coverage emits exact posture evidence locally. |
+| M4-27 | August 18, 2026 | Destructive-tool reach without runtime control emits exact posture evidence locally. |
+| M4-26 | August 18, 2026 | Unapproved remote tool or MCP reach emits exact posture evidence locally. |
+| M4-25 | August 18, 2026 | Unrestricted egress plus sensitive-data reach emits exact posture evidence locally. |
+| M4-24 | August 18, 2026 | Shell/code execution plus a production credential emits exact posture evidence locally. |
 | M4-23 | August 18, 2026 | The untrusted/public-input plus production-write posture rule emits exact supporting evidence locally. |
 | M4-22 | August 18, 2026 | The shared-credential posture rule emits exact supporting evidence locally. |
 | M4-21 | August 18, 2026 | The human-credential posture rule emits exact supporting evidence locally. |

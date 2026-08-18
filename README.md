@@ -99,8 +99,8 @@ npm run ui-api:test
 npm run ui-api:check
 ```
 
-The current honest result is `UI/API coverage passed: planned=5
-api_available=37 available=20 public=57 internal=0.` The gate distinguishes
+The current honest result is `UI/API coverage passed: planned=3
+api_available=47 available=20 public=67 internal=0.` The gate distinguishes
 implemented API contracts from fully wired UI actions.
 M1-36e is Complete and separately owns local infrastructure smoke checks.
 
@@ -297,6 +297,14 @@ six evidence-state capability categories, and four evidence-backed posture
 rules. These are locally tested API and store contracts; they make no Neon,
 live-provider, staging, or release-gate claim while M1A-10 and the preceding M3
 provider work remain unresolved.
+
+M4-24 through M4-49 are batched as In progress. The same local product
+boundary now adds the remaining eight high-signal posture rules,
+relevance-filtered findings and signed ticket actions, bounded attack paths and
+break options, a stale-aware Home summary, and safe indexed search. Ten more
+generated API contracts are `api_available`; no webhook delivery, Neon,
+provider, staging, or release-gate success is claimed by the injected local
+fixtures.
 
 ```bash
 go test -C services/platform -race -count=1 ./integration
@@ -874,9 +882,10 @@ planned daily-queue and search actions to `getHomeSummary` and `globalSearch`.
 System Health maps overall status, component inventory, and version actions to
 `getSystemStatus`, `listSystemComponents`, and `getSystemVersion`.
 
-The artifact contains only stable screen/action identity and operation IDs;
-all five actions are `planned`. It does not add or claim a current OpenAPI
-operation, HTTP path, client method, UI call, or provider integration.
+The artifact contains only stable screen/action identity and operation IDs.
+Home actions are `api_available` through `getHomeSummary` and `globalSearch`;
+the three System Health actions remain `planned`. API availability records a
+generated product contract and does not claim a wired UI or provider integration.
 
 M1-26 adds the reusable bidirectional coverage gate. A `planned` operation must
 remain absent from the current OpenAPI document. An `available` operation must
@@ -892,7 +901,7 @@ npm run ui-api:check
 The current fixed success line is:
 
 ```text
-UI/API coverage passed: planned=5 api_available=37 available=20 public=57 internal=0.
+UI/API coverage passed: planned=3 api_available=47 available=20 public=67 internal=0.
 ```
 
 Failure is fixed as `UI/API coverage rejected.` without parser or artifact

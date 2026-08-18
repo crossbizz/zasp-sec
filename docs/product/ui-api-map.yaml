@@ -89,10 +89,40 @@ screens:
     actions:
       - id: view_home_summary
         operation_id: getHomeSummary
-        availability: planned
+        availability: api_available
       - id: search_all_entities
         operation_id: globalSearch
-        availability: planned
+        availability: api_available
+  - id: findings
+    label: Findings
+    actions:
+      - id: view_findings
+        operation_id: listFindings
+        availability: api_available
+      - id: view_finding
+        operation_id: getFinding
+        availability: api_available
+      - id: update_finding
+        operation_id: updateFinding
+        availability: api_available
+      - id: accept_finding_risk
+        operation_id: acceptFindingRisk
+        availability: api_available
+      - id: create_finding_ticket
+        operation_id: createFindingTicket
+        availability: api_available
+  - id: attack_paths
+    label: Attack Paths
+    actions:
+      - id: view_attack_paths
+        operation_id: listAttackPaths
+        availability: api_available
+      - id: view_attack_path
+        operation_id: getAttackPath
+        availability: api_available
+      - id: view_attack_path_break_options
+        operation_id: getAttackPathBreakOptions
+        availability: api_available
   - id: integrations
     label: Integrations
     actions:

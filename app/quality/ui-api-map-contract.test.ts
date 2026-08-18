@@ -48,8 +48,28 @@ const expectedMap: MapDocument = {
       id: "home",
       label: "Home",
       actions: [
-        { id: "view_home_summary", operation_id: "getHomeSummary", availability: "planned" },
-        { id: "search_all_entities", operation_id: "globalSearch", availability: "planned" },
+        { id: "view_home_summary", operation_id: "getHomeSummary", availability: "api_available" },
+        { id: "search_all_entities", operation_id: "globalSearch", availability: "api_available" },
+      ],
+    },
+    {
+      id: "findings",
+      label: "Findings",
+      actions: [
+        { id: "view_findings", operation_id: "listFindings", availability: "api_available" },
+        { id: "view_finding", operation_id: "getFinding", availability: "api_available" },
+        { id: "update_finding", operation_id: "updateFinding", availability: "api_available" },
+        { id: "accept_finding_risk", operation_id: "acceptFindingRisk", availability: "api_available" },
+        { id: "create_finding_ticket", operation_id: "createFindingTicket", availability: "api_available" },
+      ],
+    },
+    {
+      id: "attack_paths",
+      label: "Attack Paths",
+      actions: [
+        { id: "view_attack_paths", operation_id: "listAttackPaths", availability: "api_available" },
+        { id: "view_attack_path", operation_id: "getAttackPath", availability: "api_available" },
+        { id: "view_attack_path_break_options", operation_id: "getAttackPathBreakOptions", availability: "api_available" },
       ],
     },
     {
@@ -216,13 +236,17 @@ describe("M1-25 UI API map seed", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(readme).toContain("M1-25 is Complete");
-    expect(tracker).toContain("| Pending | 451 |");
-    expect(tracker).toContain("| In progress | 90 |");
+    expect(tracker).toContain("| Pending | 425 |");
+    expect(tracker).toContain("| In progress | 116 |");
     expect(tracker).toContain("| Complete | 184 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`451/90/184/3`");
+    expect(tracker).toContain("`425/116/184/3`");
     expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "0", "0", "68", "0"]);
     expect(active.map(([task]) => task)).toEqual([
+      "M4-49", "M4-48", "M4-47", "M4-46", "M4-45", "M4-44", "M4-43", "M4-42",
+      "M4-41", "M4-40", "M4-39", "M4-38", "M4-37", "M4-36", "M4-35", "M4-34",
+      "M4-33", "M4-32", "M4-31", "M4-30", "M4-29", "M4-28", "M4-27", "M4-26",
+      "M4-25", "M4-24",
       "M4-23", "M4-22", "M4-21", "M4-20", "M4-19", "M4-18", "M4-17", "M4-16",
       "M4-15", "M4-14", "M4-13", "M4-12", "M4-11", "M4-10", "M4-09", "M4-08",
       "M4-07", "M4-06", "M4-05", "M4-04", "M4-03", "M4-02",
@@ -243,7 +267,7 @@ describe("M1-25 UI API map seed", () => {
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
 
-  it("accepts only the exact five-screen, 62-action mixed-lifecycle map", async () => {
+  it("accepts only the exact seven-screen, 72-action mixed-lifecycle map", async () => {
     const source = await readFile(resolve(repositoryRoot, "docs/product/ui-api-map.yaml"), "utf8").catch(() => "");
 
     expect(parseStrictMap(source)).toEqual(expectedMap);
@@ -304,6 +328,14 @@ describe("M1-25 UI API map seed", () => {
       "getAuditExport",
       "getHomeSummary",
       "globalSearch",
+      "listFindings",
+      "getFinding",
+      "updateFinding",
+      "acceptFindingRisk",
+      "createFindingTicket",
+      "listAttackPaths",
+      "getAttackPath",
+      "getAttackPathBreakOptions",
       "listIntegrationCatalog",
       "listIntegrations",
       "createIntegration",
@@ -355,8 +387,8 @@ describe("M1-25 UI API map seed", () => {
     expect(prose).toContain("`getSystemStatus`");
     expect(prose).toContain("`listSystemComponents`");
     expect(prose).toContain("`getSystemVersion`");
-    expect(prose).toContain("all five actions are `planned`");
-    expect(prose).toContain("does not add or claim a current OpenAPI operation");
+    expect(prose).toContain("Home actions are `api_available`");
+    expect(prose).toContain("three System Health actions remain `planned`");
     expect(prose).toContain("M1-26 is Complete");
   });
 });

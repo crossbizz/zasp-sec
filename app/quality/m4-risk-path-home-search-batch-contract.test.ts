@@ -1,0 +1,51 @@
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
+
+import { describe, expect, it } from "vitest";
+
+const root = resolve(import.meta.dirname, "../..");
+const operations = [
+  "listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "createFindingTicket",
+  "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "getHomeSummary", "globalSearch",
+] as const;
+
+describe("M4 risk, path, home, and search batch", () => {
+  it("publishes ten generated product operations", async () => {
+    const [openapi, generated] = await Promise.all([
+      readFile(resolve(root, "openapi/openapi.yaml"), "utf8"),
+      readFile(resolve(root, "apps/web/api/generated.ts"), "utf8"),
+    ]);
+    for (const operation of operations) {
+      expect(openapi).toContain(`operationId: ${operation}`);
+      expect(generated).toContain(operation);
+    }
+  });
+
+  it("implements the remaining posture, finding, path, home, and safe-search boundaries", async () => {
+    const source = (await Promise.all([
+      readFile(resolve(root, "services/platform/reconciliation/capability.go"), "utf8"),
+      readFile(resolve(root, "services/platform/reconciliation/risk.go"), "utf8"),
+    ])).join("\n");
+    for (const value of [
+      "shell_credential", "egress_sensitive", "unapproved_tool", "destructive_no_control",
+      "no_runtime_coverage", "weak_runtime_isolation", "cicd_production_secret", "zombie_credential",
+      "VisibleByDefault", "RiskFactor", "AttackPath", "BreakOption", "HomeSummary", "SearchRecord",
+    ]) expect(source).toContain(value);
+    expect(source).toContain("hmac.New(sha256.New");
+    expect(source).not.toContain("MATCH (n)");
+  });
+
+  it("moves exactly twenty-six related tasks to In progress without provider claims", async () => {
+    const [tracker, readme] = await Promise.all([
+      readFile(resolve(root, "docs/internal/implementation_status_v1.5.md"), "utf8"),
+      readFile(resolve(root, "README.md"), "utf8"),
+    ]);
+    for (const value of ["| Pending | 425 |", "| In progress | 116 |", "| Complete | 184 |", "| Blocked | 3 |", "`425/116/184/3`", "| M4 | 82 | 27 | 55 | 0 | 0 |"]) expect(tracker).toContain(value);
+    const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
+    const tasks = Array.from({ length: 26 }, (_, index) => `M4-${String(index + 24).padStart(2, "0")}`);
+    for (const task of tasks) expect(active.match(new RegExp(`^\\| ${task} \\|`, "gm"))).toHaveLength(1);
+    const prose = readme.replace(/\s+/g, " ");
+    expect(prose).toContain("M4-24 through M4-49 are batched as In progress");
+    expect(prose).toContain("no webhook delivery, Neon, provider, staging, or release-gate success is claimed");
+  });
+});
