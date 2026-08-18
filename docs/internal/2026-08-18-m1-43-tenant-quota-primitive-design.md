@@ -80,7 +80,9 @@ the fixed `ErrInvalidPermit` without changing any counter. When the final permit
 for a key is released, the map entry is deleted, so inactive Organizations are
 not retained indefinitely.
 
-`Usage` is an observation only. It returns the current count and configured
+`Counter` itself also holds one private shared-state pointer, so accidental
+value copies retain the same lock, limits, and map instead of creating two
+locks over one map. `Usage` is an observation only. It returns the current count and configured
 limit for one validated Organization/kind without creating state. Both
 admission and observation are mutex-protected, and concurrent calls do not
 retain caller scope values beyond the immutable Organization key.
