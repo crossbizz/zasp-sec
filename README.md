@@ -382,12 +382,11 @@ Complete. The 17 tasks that actually execute isolated-AWS parity, dependency
 outages, or reference loads are Blocked—not simulated—until an authorized
 isolated AWS/reference deployment is available.
 
-M8-40a through M8-51d are batched as In progress. Typed release gates now
-aggregate tenant isolation, connector SSRF, six secret-leakage sinks, runtime
-bypass, Attack Lab safety, SBOM/signature/vulnerability evidence, reviewed
-dependency ownership, HIPAA defaults, SOC 2 evidence ownership, and the first
-four golden-stage checkpoints. Real scans/signatures and live golden-stage
-execution remain required before these tasks can move to Complete.
+M8-40a through M8-51d are classified. Nineteen deterministic isolation,
+leakage, policy-bypass, Attack Lab safety, vulnerability, supply-chain, HIPAA,
+and SOC 2 gates are Complete. SPDX generation, image-signature verification,
+and four golden stages are Blocked until final immutable release images,
+signing authority, and an authorized golden deployment exist.
 
 M8-51e through M8-60b are batched as In progress. The release chart now has
 SaaS, single-tenant, and lightweight customer-edge profiles; the CLI boundary

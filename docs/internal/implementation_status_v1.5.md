@@ -15,9 +15,9 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 0 |
-| In progress | 72 |
-| Complete | 636 |
-| Blocked | 20 |
+| In progress | 47 |
+| Complete | 655 |
+| Blocked | 26 |
 
 ## Milestone summary
 
@@ -33,7 +33,7 @@ In progress, Complete, or Blocked is Pending.
 | M6 | 36 | 0 | 0 | 36 | 0 |
 | M7 | 62 | 0 | 0 | 62 | 0 |
 | M7A | 113 | 0 | 0 | 113 | 0 |
-| M8 | 141 | 0 | 66 | 58 | 17 |
+| M8 | 141 | 0 | 41 | 77 | 23 |
 
 ## Execution invariants
 
@@ -70,7 +70,7 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `0/72/636/20` because
+session configuration. The 728 source-plan counts are `0/47/655/26` because
 PROV-01 is excluded from those counts.
 The blocked M8 resilience executions require an authorized isolated AWS/reference deployment; deterministic validators remain locally testable.
 
@@ -123,16 +123,17 @@ The blocked M8 resilience executions require an authorized isolated AWS/referenc
 | M8-52a | August 18, 2026 | Usability evidence requires a clean documented target with zero undocumented bootstrap steps. |
 | M8-51 | August 18, 2026 | Golden E2E aggregate links all completed stage and investigate/audit artifacts without rerunning a stage; live E2E remains unresolved. |
 | M8-51e | August 18, 2026 | Golden evidence adds exact session timeline, audit, and compliance references. |
-| M8-51d | August 18, 2026 | Golden-stage evidence requires one simulated/enforced Block policy and an observed blocked retest; live stage execution remains unresolved. |
-| M8-51c | August 18, 2026 | Golden-stage evidence requires a Verified canary-only Attack Lab result. |
-| M8-51b | August 18, 2026 | Golden-stage evidence binds one credible exposure to one high-impact curated Red Team attempt. |
-| M8-51a | August 18, 2026 | Golden-stage evidence requires successful inventory discovery and fresh source state after deployment. |
+| M3-52 | August 18, 2026 | A strict five-check local M3 gate is implemented; real staging remains unavailable and the task is not Complete. |
+| M3-14 | August 18, 2026 | Strict AWS assume-role identity adapter and local denial fixture are implemented; required real-AWS denial remains unavailable behind M1A-10. |
+
+## Complete
+
+| Task | Completed | Evidence |
+| --- | --- | --- |
 | M8-50 | August 18, 2026 | SOC 2 readiness checklist requires release, access, change, backup, incident, and vendor owners, locations, and cadence without claiming Type II completion. |
 | M8-49 | August 18, 2026 | HIPAA profile gate keeps PostHog, OpenRouter, remote OTLP, and raw content disabled and requires the applicable BAA checklist. |
 | M8-48 | August 18, 2026 | Supply-chain inventory requires reviewed owner/status records for Nango, Neo4j, Stytch, Neon, PostHog, OpenRouter, and OTLP. |
 | M8-47 | August 18, 2026 | Vulnerability gate rejects every unaccepted critical result and requires an approved owner/expiry for exceptions. |
-| M8-46 | August 18, 2026 | Image-signature evidence binds immutable image references and requires signed/verified state plus rejection of tampered and unsigned fixtures. |
-| M8-45 | August 18, 2026 | Deterministic SPDX 2.3 inventory generation requires every shipped image by digest and pinned component version/license records; release artifact generation remains unresolved. |
 | M8-44 | August 18, 2026 | Attack Lab safety gate requires rejection of production-write identity, host mounts, and undeclared egress without producing Verified. |
 | M8-43 | August 18, 2026 | Runtime bypass gate requires malformed HTTP/MCP and replay attempts to fail while the signed Block decision remains active. |
 | M8-42 | August 18, 2026 | Secret-leakage gate passes only when all six egress/storage sinks prove seeded and sensitive values absent. |
@@ -148,13 +149,6 @@ The blocked M8 resilience executions require an authorized isolated AWS/referenc
 | M8-40c | August 18, 2026 | OpenSearch isolation evidence requires zero foreign hits and a retained Organization filter. |
 | M8-40b | August 18, 2026 | Graph isolation evidence requires zero foreign nodes/edges and a recorded guard result. |
 | M8-40a | August 18, 2026 | API isolation evidence requires cross-Organization/Workspace reads and mutations denied with no foreign data. |
-| M3-52 | August 18, 2026 | A strict five-check local M3 gate is implemented; real staging remains unavailable and the task is not Complete. |
-| M3-14 | August 18, 2026 | Strict AWS assume-role identity adapter and local denial fixture are implemented; required real-AWS denial remains unavailable behind M1A-10. |
-
-## Complete
-
-| Task | Completed | Evidence |
-| --- | --- | --- |
 | M8-38c | August 18, 2026 | Event-load evaluation requires at least 5k events/sec, exact indexing, recovered backlog, zero drops, and bounded retries. |
 | M8-38a | August 18, 2026 | The generator model produces Organization-scoped batch metadata without allocating every event in memory. |
 | M8-36c | August 18, 2026 | API-load evaluation computes deterministic percentiles and rejects p95 over 750 ms or errors over one percent. |
@@ -798,6 +792,12 @@ The blocked M8 resilience executions require an authorized isolated AWS/referenc
 
 | Task | Blocked since | Exact dependency | Resume condition |
 | --- | --- | --- | --- |
+| M8-51d | August 18, 2026 | No live golden deployment exists for enforced Block and observed retest evidence. | Provide the authorized golden environment and run the exact stage. |
+| M8-51c | August 18, 2026 | M8-27 and the canary-only Attack Lab reference execution are blocked. | Complete the real Fargate parity gate and run the canary stage. |
+| M8-51b | August 18, 2026 | No live golden deployment exists for linked exposure and Red Team evidence. | Provide the authorized golden environment and run the exact stage. |
+| M8-51a | August 18, 2026 | No live golden deployment exists for fresh inventory discovery. | Provide the authorized golden environment and run the exact stage. |
+| M8-46 | August 18, 2026 | No release registry/signing identity or signed immutable image set is available. | Provide the exact release images and authorized signing/verification boundary. |
+| M8-45 | August 18, 2026 | Final shipped image digests are unavailable, so no truthful release SPDX artifact can be generated. | Provide the immutable release image set and generate the deterministic artifact. |
 | M8-39 | August 18, 2026 | Representative sensor workload and measured node metrics are unavailable. | Provide the authorized reference deployment and run the bounded sensor measurement. |
 | M8-38 | August 18, 2026 | No reference event-floor artifact exists because M8-38b is blocked. | Complete M8-38b and record the evaluated artifact. |
 | M8-38b | August 18, 2026 | No authorized reference deployment exists for the 5k events/sec run. | Provide the reference deployment and run the bounded generator. |

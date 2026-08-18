@@ -29,6 +29,6 @@ describe("M8-17a through M8-23b recovery readiness batch", () => {
       expect(active.match(new RegExp(`^\\| ${id} \\|`, "gm")) ?? []).toHaveLength(0);
       expect(complete.match(new RegExp(`^\\| ${id} \\|`, "gm"))).toHaveLength(1);
     }
-    for (const value of ["| Pending | 0 |", "| In progress | 72 |", "| Complete | 636 |", "`0/72/636/20`", "| M8 | 141 | 0 | 66 | 58 | 17 |"]) expect(tracker).toContain(value);
+    for (const value of ["| Pending | 0 |", "| In progress | 47 |", "| Complete | 655 |", "`0/47/655/26`", "| M8 | 141 | 0 | 41 | 77 | 23 |"]) expect(tracker).toContain(value);
   });
 });

@@ -32,7 +32,7 @@ describe("M7A-85 through M7A-101 Security Agent MVP gate", () => {
       expect(complete.match(new RegExp(`^\\| ${id} \\|`, "gm"))).toHaveLength(1);
     }
     expect(tracker).toContain("Pending | 0");
-    expect(tracker).toContain("In progress | 72");
+    expect(tracker).toContain("In progress | 47");
     expect(tracker).toContain("| M7A | 113 | 0 | 0 | 113 | 0 |");
   });
 });

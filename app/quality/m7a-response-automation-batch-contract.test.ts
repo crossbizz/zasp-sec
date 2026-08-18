@@ -16,7 +16,7 @@ describe("M7A response automation batch", () => {
 
   it("records the expiry and response slices complete", () => {
     const tracker = read("docs/internal/implementation_status_v1.5.md");
-    for (const value of ["| Pending | 0 |", "| In progress | 72 |", "| Complete | 636 |", "| Blocked | 20 |", "`0/72/636/20`", "| M7A | 113 | 0 | 0 | 113 | 0 |"]) expect(tracker).toContain(value);
+    for (const value of ["| Pending | 0 |", "| In progress | 47 |", "| Complete | 655 |", "| Blocked | 26 |", "`0/47/655/26`", "| M7A | 113 | 0 | 0 | 113 | 0 |"]) expect(tracker).toContain(value);
     const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] ?? "";
     const tasks = ["M7A-18", "M7A-18a", "M7A-18b", "M7A-18c", "M7A-18d", "M7A-19", "M7A-20", "M7A-21", "M7A-22", "M7A-23", "M7A-24", "M7A-25", "M7A-26", "M7A-27", "M7A-28", "M7A-29", "M7A-30", "M7A-31", "M7A-32", "M7A-33", "M7A-34", "M7A-35", "M7A-36", "M7A-37", "M7A-38"];
     for (const task of tasks) expect(complete.match(new RegExp(`^\\| ${task} \\|`, "gm"))).toHaveLength(1);

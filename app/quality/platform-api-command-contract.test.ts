@@ -66,7 +66,7 @@ describe("M1-01d platform API command repository contract", () => {
     expect(complete.filter(([task]) => task === "M0-23")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-01e")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-01f")).toHaveLength(1);
-    expect(blocked.map(([task]) => task)).toEqual(["M8-39", "M8-38", "M8-38b", "M8-37", "M8-36", "M8-36b", "M8-35", "M8-34", "M8-33", "M8-32", "M8-31", "M8-30", "M8-29", "M8-28", "M8-27", "M8-26", "M8-25", "M0-09", "M0-18", "M0-19"]);
+    expect(blocked.map(([task]) => task)).toEqual(["M8-51d", "M8-51c", "M8-51b", "M8-51a", "M8-46", "M8-45", "M8-39", "M8-38", "M8-38b", "M8-37", "M8-36", "M8-36b", "M8-35", "M8-34", "M8-33", "M8-32", "M8-31", "M8-30", "M8-29", "M8-28", "M8-27", "M8-26", "M8-25", "M0-09", "M0-18", "M0-19"]);
     expect(tracker).toContain("R-03 remains incomplete");
     expect(tracker).toContain("R-11 remains Not run");
   });

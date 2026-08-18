@@ -30,7 +30,7 @@ describe("M2 identity and authorization milestone closure", () => {
     expect(new Set(complete).size).toBe(complete.length);
     for (const task of closingTasks) expect(complete.filter((value) => value === task)).toHaveLength(1);
     expect(rows(tracker, "In progress")).not.toHaveLength(0);
-    expect(rows(tracker, "Blocked").map(([task]) => task)).toEqual(["M8-39", "M8-38", "M8-38b", "M8-37", "M8-36", "M8-36b", "M8-35", "M8-34", "M8-33", "M8-32", "M8-31", "M8-30", "M8-29", "M8-28", "M8-27", "M8-26", "M8-25", "M0-09", "M0-18", "M0-19"]);
+    expect(rows(tracker, "Blocked").map(([task]) => task)).toEqual(["M8-51d", "M8-51c", "M8-51b", "M8-51a", "M8-46", "M8-45", "M8-39", "M8-38", "M8-38b", "M8-37", "M8-36", "M8-36b", "M8-35", "M8-34", "M8-33", "M8-32", "M8-31", "M8-30", "M8-29", "M8-28", "M8-27", "M8-26", "M8-25", "M0-09", "M0-18", "M0-19"]);
   });
 
   it("binds the final product UI to the generated API and records the M2 gate PASS", async () => {
