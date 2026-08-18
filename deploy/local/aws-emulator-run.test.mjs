@@ -21,7 +21,12 @@ import {
 } from "./aws-emulator-run.mjs";
 import { AWS_EMULATOR_CONSTANTS, buildAwsEmulatorCoreResources, buildAwsEmulatorResources, buildAwsEmulatorS3Resources, renderAwsEmulatorCoreManifest, renderAwsEmulatorS3Manifest } from "./aws-emulator-manifest.mjs";
 import { buildGraphResources, renderGraphManifest } from "./graph-manifest.mjs";
-import { isObservabilityProviderRead, projectGraphProviderResources, validateGraphNodeLabel } from "./graph-run.mjs";
+import {
+  isObservabilityProviderRead,
+  parseGraphContainerdImageTargets,
+  projectGraphProviderResources,
+  validateGraphNodeLabel,
+} from "./graph-run.mjs";
 import { buildObservabilityCoreResources, buildObservabilitySpanResources, renderObservabilityCoreManifest, renderObservabilitySpanManifest } from "./observability-manifest.mjs";
 import { buildObservabilityProfile, observabilityApplyPlan } from "./observability-run.mjs";
 import { LocalProductSystem } from "./run.mjs";
@@ -101,6 +106,36 @@ test("pins one exact LocalStack image plan for each supported node platform", ()
   assert.throws(() => buildLocalStackImagePlan("linux/s390x"), TypeError);
   assert.throws(() => buildLocalStackImagePlan(), TypeError);
   assert.throws(() => buildLocalStackImagePlan("linux/arm64", "extra"), TypeError);
+});
+
+test("admits the exact LocalStack plan at the inherited containerd archive boundary", () => {
+  const selected = buildLocalStackImagePlan("linux/arm64");
+  const childDigest = `sha256:${"8".repeat(64)}`;
+  const wrapperDigest = `sha256:${"5".repeat(64)}`;
+  const header = "REF TYPE DIGEST SIZE PLATFORMS LABELS";
+  const baseline = [
+    header,
+    `registry.k8s.io/pause:3.10 application/vnd.oci.image.manifest.v1+json sha256:${"7".repeat(64)} ` +
+      "320 KiB linux/arm64 io.cri-containerd.image=managed",
+    "",
+  ].join("\n");
+  const rows = [
+    `import-2026-08-18@${childDigest} application/vnd.oci.image.manifest.v1+json ${childDigest} ` +
+      "1.2 GiB linux/arm64 io.cri-containerd.image=managed",
+    `import-2026-08-18@${wrapperDigest} application/vnd.oci.image.index.v1+json ${wrapperDigest} ` +
+      "1.2 GiB linux/arm64 io.cri-containerd.image=managed",
+    `${selected.configDigest} application/vnd.oci.image.manifest.v1+json ${childDigest} ` +
+      "1.2 GiB linux/arm64 io.cri-containerd.image=managed",
+  ];
+  const after = [baseline.trimEnd(), ...rows, ""].join("\n");
+  const target = parseGraphContainerdImageTargets(baseline, after, selected);
+  assert.equal(target.manifestDigest, selected.manifestDigest);
+  assert.equal(target.imageID, `docker.io/library/import-2026-08-18@${wrapperDigest}`);
+  assert.deepEqual(target.references.map(({ reference }) => reference), [
+    `import-2026-08-18@${wrapperDigest}`,
+    `import-2026-08-18@${childDigest}`,
+    selected.configDigest,
+  ]);
 });
 
 test("composes only the exact reviewed M1-30d profile and staged apply plan", () => {
