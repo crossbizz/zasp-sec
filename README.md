@@ -16,6 +16,38 @@ All application UI mutations are deterministic browser-local demo actions
 persisted with local storage. Separately documented proof commands use only
 their explicit disposable test fixtures; no production resource is changed.
 
+## Base web shell
+
+The base shell exposes exactly 22 product labels in nine groups:
+
+| Group | Labels |
+| --- | --- |
+| Home | Overview |
+| Inventory | Agents; Tools & MCP; Identities; Runtimes |
+| Exposure | Findings; Attack Paths |
+| Test | Red Team; Attack Lab |
+| Protect | Policies; Security Agents; Approvals |
+| Investigate | Sessions |
+| Compliance | Evidence |
+| Integrations | Connections; Sensors |
+| Administration | Identity & Access; Audit Log; Data & Retention; External Data Flows; System Health; API Access |
+
+No OSS or provider implementation label appears in the product navigation.
+The existing working surfaces continue to use browser-local demonstration data,
+while future routes render a bounded heading inside the same shell.
+
+Run the route, navigation, guard, and application smoke contract from the
+repository root:
+
+```bash
+npm run web:shell:test
+```
+
+The unauthenticated-route guard is an inert scaffold with one public sign-in
+path and closed redirect targets. It is not wired to a fabricated session and
+does not claim that the current prototype is authenticated. M2-01 and M2-02 own
+real authentication and session enforcement.
+
 ## Development
 
 Requires Node.js `22.23.1` and npm `10.9.8`. `.nvmrc` pins the Node runtime;

@@ -82,4 +82,36 @@ describe("M1-35 base web shell", () => {
     expect([...active, ...complete].filter(([task]) => task === "M1-36a")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
+
+  it("exposes one hermetic shell command and the bounded product documentation", async () => {
+    const [packageText, readme] = await Promise.all([
+      readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+    ]);
+    const packageJson = JSON.parse(packageText) as { scripts: Record<string, string> };
+    const command = "vitest run app/domain/routes.test.ts app/domain/route-guard.test.ts app/components/LeftNav.test.tsx app/components/UnauthenticatedRouteGuard.test.tsx app/components/ZaspApp.test.tsx";
+    const section = readme.match(/## Base web shell[\s\S]*?## Development/)?.[0] ?? "";
+    const prose = section.replace(/\s+/g, " ");
+
+    expect(packageJson.scripts["web:shell:test"]).toBe(command);
+    expect(Object.values(packageJson.scripts).filter((value) => value === command)).toHaveLength(1);
+    expect(section).toContain("npm run web:shell:test");
+    expect(prose).toContain("exactly 22 product labels in nine groups");
+    for (const row of [
+      "| Home | Overview |",
+      "| Inventory | Agents; Tools & MCP; Identities; Runtimes |",
+      "| Exposure | Findings; Attack Paths |",
+      "| Test | Red Team; Attack Lab |",
+      "| Protect | Policies; Security Agents; Approvals |",
+      "| Investigate | Sessions |",
+      "| Compliance | Evidence |",
+      "| Integrations | Connections; Sensors |",
+      "| Administration | Identity & Access; Audit Log; Data & Retention; External Data Flows; System Health; API Access |",
+    ]) expect(section).toContain(row);
+    expect(prose).toContain("No OSS or provider implementation label appears in the product navigation.");
+    expect(prose).toContain("The unauthenticated-route guard is an inert scaffold");
+    expect(prose).toContain("M2-01 and M2-02 own real authentication and session enforcement");
+    expect(prose).toContain("browser-local demonstration data");
+    expect(section).not.toMatch(/Cartography|Prowler|Nango|Promptfoo|Neo4j|Tetragon|OpenTelemetry|LocalStack|Stytch/i);
+  });
 });
