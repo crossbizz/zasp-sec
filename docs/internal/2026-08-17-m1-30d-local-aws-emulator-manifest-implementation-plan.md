@@ -69,7 +69,7 @@ Runnable UI.
 - Produces: exact M1-30d In-progress status at overall `658/1/66/3` and M1
   `68/25/1/42/0`.
 
-- [ ] **Step 1: Write the failing source/design/status contract**
+- [x] **Step 1: Write the failing source/design/status contract**
 
 Require the exact source dependency, deliverable, verification, and timebox;
 one active M1-30d row; no complete M1-30d row; one complete M1-30c row; no
@@ -80,7 +80,7 @@ Service, ConfigMap endpoint keys, fixed synthetic credentials, explicit S3
 endpoint argument, profile preservation, license boundary, cleanup, and fixed
 public output.
 
-- [ ] **Step 2: Witness stale-status RED**
+- [x] **Step 2: Witness stale-status RED**
 
 Run:
 
@@ -92,20 +92,20 @@ npx vitest run app/quality/local-aws-emulator-manifest-contract.test.ts \
 Require failures only for stale M1-30d status, counts, and README state. The
 M1-30c contract must remain green.
 
-- [ ] **Step 3: Move only M1-30d to In progress**
+- [x] **Step 3: Move only M1-30d to In progress**
 
 Change overall `659/0/66/3` to `658/1/66/3` and M1 `68/26/0/42/0` to
 `68/25/1/42/0`. Add one active M1-30d row. Preserve M1-30a, M1-30b, and
 M1-30c Complete, M1-30 Pending, and the exact blockers. Update only
 current-state fixtures mechanically.
 
-- [ ] **Step 4: Run focused and all-quality GREEN**
+- [x] **Step 4: Run focused and all-quality GREEN**
 
 Run the new contract, all three prior local-manifest contracts, and every
 `app/quality` test. Require exact 728-task arithmetic, one active row, no
 duplicate task row, and no weakened historical contract.
 
-- [ ] **Step 5: Scan and commit the start transition**
+- [x] **Step 5: Scan and commit the start transition**
 
 Run `git diff --cached --check` and pinned redacted Gitleaks over the exact
 staged patch. Commit only the status, README, and quality-contract slice as:
@@ -138,7 +138,7 @@ docs: start M1-30d local AWS emulator manifest
 - Consumes: `js-yaml` 4.1.1, the design's exact LocalStack index, endpoint
   contract, and immutable upstream source/license evidence.
 
-- [ ] **Step 1: Write manifest, endpoint, Job, and inventory tests first**
+- [x] **Step 1: Write manifest, endpoint, Job, and inventory tests first**
 
 Require exactly one ConfigMap, Deployment, ClusterIP Service, and Job. The
 core renderer contains only the first three; the S3 renderer contains only the
@@ -167,7 +167,7 @@ method/URL/header/no-redirect/order, chunked success, status/redirect/length/
 empty/oversize/hash/timeout/read failures, and abort plus bounded cancel plus
 release on every early rejection.
 
-- [ ] **Step 2: Witness absent-module RED**
+- [x] **Step 2: Witness absent-module RED**
 
 Run:
 
@@ -179,7 +179,7 @@ node --test deploy/local/aws-emulator-manifest.test.mjs \
 Require missing modules, files, and exports only. Existing product, graph, and
 observability manifest/license suites must remain green.
 
-- [ ] **Step 3: Implement strict models, renderers, and parsers**
+- [x] **Step 3: Implement strict models, renderers, and parsers**
 
 Build exact plain objects with no caller input. Parse one bounded UTF-8 YAML
 document under `JSON_SCHEMA`, reject duplicate keys, aliases, and tags,
@@ -188,7 +188,7 @@ copies, and require byte-exact deterministic re-rendering. Bind stage values
 to exact `core` or `s3` resource sets; a complete or mixed manifest fails
 either parser. No parser may call string coercion on hostile input.
 
-- [ ] **Step 4: Add canonical YAML and license records**
+- [x] **Step 4: Add canonical YAML and license records**
 
 Generate `aws-emulator.yaml` from the core renderer and
 `aws-emulator-s3.yaml` from the Job renderer. Record LocalStack Community
@@ -197,7 +197,7 @@ supplemental terms, source manifest, exact image metadata, and the bundled-
 dependency boundary. The audit uses one shared deadline, bounded stream
 reads, deterministic abort/cancel/release, and a fixed summary.
 
-- [ ] **Step 5: Run six focused passes and commit**
+- [x] **Step 5: Run six focused passes and commit**
 
 Run six manifest/Job/license passes plus the M1-30a/b/c manifest and license
 regressions, syntax, ESLint, diff-check, and pinned secret scans. Commit only
@@ -236,7 +236,7 @@ feat: add local AWS emulator Kubernetes manifest
 `provider`, and `readiness`. Unknown or forged categories normalize to
 `panic` in the fixed public failure line.
 
-- [ ] **Step 1: Write profile and LocalStack-runtime tests before production**
+- [x] **Step 1: Write profile and LocalStack-runtime tests before production**
 
 Require exact host/node platform resolution, LocalStack index/config/manifest/
 rootfs/runtime inspection, shared-image admission, immutable pull, kind load,
@@ -252,13 +252,13 @@ partial alias mutation; node replacement; descriptor/path replacement;
 signal/output cap; cancellation; panic; forged categories; and cleanup retry,
 continuation, and precedence.
 
-- [ ] **Step 2: Witness missing AWS-emulator-runtime RED**
+- [x] **Step 2: Witness missing AWS-emulator-runtime RED**
 
 Run the focused AWS-emulator tests before production exports exist. Require
 only new tests to fail and the complete product, graph, and observability
 suites to retain their exact counts.
 
-- [ ] **Step 3: Add narrow profile-composition hooks**
+- [x] **Step 3: Add narrow profile-composition hooks**
 
 Allow exactly the five canonical additional manifest descriptors for
 `m1-30d`. Keep M1-30b, M1-30c, and M1-30d as the only PID-bound profiles.
@@ -267,7 +267,7 @@ plan without changing earlier profile expectations. Validate manifest object
 data descriptors once, snapshot their exact canonical values, and reject
 accessors, duplicates, alternate proof names, order/path drift, or byte drift.
 
-- [ ] **Step 4: Implement exact LocalStack image preparation**
+- [x] **Step 4: Implement exact LocalStack image preparation**
 
 Resolve and retain the LocalStack index, config, selected-platform, rootfs,
 environment, entrypoint, command, exposed-port, volume, label, user, and
@@ -276,7 +276,7 @@ its complete alias and consumer baseline. Otherwise pull once by immutable
 identity. Load and content-prove it in the retained kind node, create only
 required node-local aliases, and retain the complete inventory before apply.
 
-- [ ] **Step 5: Implement staged descriptors and reverse cleanup**
+- [x] **Step 5: Implement staged descriptors and reverse cleanup**
 
 Write and retain separate AWS core and Job paths. Apply product, graph,
 observability core/span, and AWS core during their existing staged lifecycle;
@@ -285,7 +285,7 @@ mutation settlements before cleanup, re-prove every cluster, image,
 descriptor, shared baseline, and root identity before deletion, and retain
 the recovery root when global absence is unproved.
 
-- [ ] **Step 6: Run six focused passes and commit**
+- [x] **Step 6: Run six focused passes and commit**
 
 Run six AWS-emulator/product/graph/observability runtime passes, syntax,
 ESLint, diff-check, and pinned secret scans. Commit the runtime and only the
@@ -310,7 +310,7 @@ feat: prepare disposable local AWS emulator runtime
 - Consumes: Task 2 exact resources and Task 3 retained image, cluster,
   descriptor, product, graph, and observability identities.
 
-- [ ] **Step 1: Write provider and lifecycle tests before implementation**
+- [x] **Step 1: Write provider and lifecycle tests before implementation**
 
 Require exact ConfigMap data/resource version; Deployment/ReplicaSet/pod
 lineage; complete container image/security/resources/command/env/mount/status;
@@ -331,13 +331,13 @@ malformed timestamps; container restart; alternate Service peer; public
 exposure; ConfigMap replacement; premature/failed/replaced Job; log drift;
 and terminal controller state.
 
-- [ ] **Step 2: Witness lifecycle RED**
+- [x] **Step 2: Witness lifecycle RED**
 
 Run the new readiness, Job, S3, and orchestration tests before implementing
 the provider path. Require failures only at absent AWS-emulator behavior;
 product, graph, and observability provider tests remain green.
 
-- [ ] **Step 3: Implement bounded exact LocalStack readiness**
+- [x] **Step 3: Implement bounded exact LocalStack readiness**
 
 Apply the AWS core through its fresh descriptor. Read bounded raw Kubernetes
 JSON with recursive duplicate-key rejection and poll within the main phase
@@ -346,14 +346,14 @@ form one complete exact snapshot and the retained S3 readiness command is
 successful. Re-prove every prior profile snapshot, PID authority, image
 inventory, and descriptor before advancing.
 
-- [ ] **Step 4: Apply and prove the one-shot S3 Job**
+- [x] **Step 4: Apply and prove the one-shot S3 Job**
 
 Only after Step 3, journal one exact Job apply. Definitive rejection fails;
 ambiguous outcomes reconcile through exact absence or exact-owned state. Poll
 for one exact successful Job/pod and the fixed marker. Never recreate or retry
 the Job and never issue the S3 request from the host.
 
-- [ ] **Step 5: Harden timeout, ambiguity, and cleanup cases**
+- [x] **Step 5: Harden timeout, ambiguity, and cleanup cases**
 
 Test delayed Deployment/EndpointSlice/Job state, thrown/signaled/malformed
 apply and logs, main cancellation before and after Job apply, late-applied Job,
@@ -361,7 +361,7 @@ uncooperative child, provider panic, cleanup panic, resource replacement,
 cleanup continuation and precedence, and global absence failure. Require
 mutation settlement before cleanup and no late mutation after audit.
 
-- [ ] **Step 6: Run six focused passes and commit**
+- [x] **Step 6: Run six focused passes and commit**
 
 Run six combined AWS-emulator suites plus unchanged product, graph, and
 observability regressions, syntax, ESLint, diff-check, and pinned secret scans.
@@ -384,7 +384,7 @@ feat: prove local AWS emulator S3 endpoint
 - Produces: `local:aws-emulator:test`, `local:aws-emulator:run`, and
   `local:aws-emulator:license` root commands plus exact operator guidance.
 
-- [ ] **Step 1: Write root-command and documentation RED**
+- [x] **Step 1: Write root-command and documentation RED**
 
 Require exact scripts, pinned Node usage, fixed output, staged Job semantics,
 internal-only Service, ConfigMap endpoint keys, synthetic credentials, one S3
@@ -393,7 +393,7 @@ M1-30d In progress, and M1-30 Pending. Reject claims of ambient kubeconfig,
 host LocalStack access, production AWS parity, persistent emulator state,
 shared LocalStack mutation, or completed M1-31 behavior.
 
-- [ ] **Step 2: Add scripts and concise README guidance**
+- [x] **Step 2: Add scripts and concise README guidance**
 
 Add these exact scripts:
 
@@ -407,13 +407,13 @@ Document prerequisites, fixed output, internal Service, exact endpoint
 ConfigMap, staged one-shot S3 Job, synthetic-only credentials, immutable image
 and license scope, cleanup, and later M1-30/M1-31 boundaries.
 
-- [ ] **Step 3: Run focused, root, and full GREEN**
+- [x] **Step 3: Run focused, root, and full GREEN**
 
 Run the contract, root AWS-emulator suite, license audit, original product,
 graph, and observability suites, and full pinned repository verification. Run
 production npm audit, dependency checks, whitespace, and secret scans.
 
-- [ ] **Step 4: Commit the command/documentation slice**
+- [x] **Step 4: Commit the command/documentation slice**
 
 Commit only `package.json`, README, and the quality contract as:
 
@@ -437,14 +437,14 @@ docs: expose local AWS emulator manifest proof
   review, M1-30d Complete transition, push, exact-SHA CI success, and checked
   plan closure.
 
-- [ ] **Step 1: Establish clean live preconditions**
+- [x] **Step 1: Establish clean live preconditions**
 
 Require zero M1-30d prefix/label resources and temporary roots. Fingerprint
 shared Docker/Kubernetes state read-only. Confirm exact image/platform and
 owned capacity without deleting a shared image, volume, container, network,
 or cache.
 
-- [ ] **Step 2: Run the exact live command**
+- [x] **Step 2: Run the exact live command**
 
 Run only:
 
@@ -463,7 +463,7 @@ Require one exact S3 Job marker, unchanged product/graph/observability state,
 zero exact-owned containers, networks, image aliases, cluster resources, and
 temporary roots, with shared and ambient state unchanged.
 
-- [ ] **Step 3: Fix live findings only through TDD**
+- [x] **Step 3: Fix live findings only through TDD**
 
 For each real mismatch, isolate the exact provider representation, write a
 focused failing hermetic regression, implement the narrow fix, rerun every
@@ -471,7 +471,7 @@ affected gate, and rerun the exact lifecycle. Never weaken immutable image,
 internal-only, one-request, endpoint, credential, prior-profile, output,
 license, or cleanup requirements.
 
-- [ ] **Step 4: Run the final local gate matrix**
+- [x] **Step 4: Run the final local gate matrix**
 
 Require six AWS-emulator-suite passes; original product, graph, and
 observability suites; all four product Go race/tidy/verify/vet gates; exact
@@ -479,7 +479,7 @@ graph, observability, and AWS-emulator license audits; full pinned repository
 verify/typecheck/lint/build; production audit zero; dependency checks;
 diff-check; and pinned redacted Gitleaks scans.
 
-- [ ] **Step 5: Obtain a zero-finding independent review**
+- [x] **Step 5: Obtain a zero-finding independent review**
 
 Review the complete range against the source row, design, plan, M1-30a/b/c
 compatibility, manifests, image/license evidence, production runtime, tests,
@@ -487,7 +487,7 @@ live evidence, cleanup, status arithmetic, and secret scans. Address every
 Critical, Important, and Minor finding through a separate tests-first commit
 and repeat review.
 
-- [ ] **Step 6: Transition M1-30d to Complete**
+- [x] **Step 6: Transition M1-30d to Complete**
 
 Write completion-contract RED, then change overall `658/1/66/3` to
 `658/0/67/3` and M1 `68/25/1/42/0` to `68/25/0/43/0`. Move exactly one
@@ -498,13 +498,13 @@ M1-30 Pending, and the exact blockers. Run focused and full gates, then commit:
 docs: complete M1-30d local AWS emulator manifest
 ```
 
-- [ ] **Step 7: Push completion and verify exact-SHA CI**
+- [x] **Step 7: Push completion and verify exact-SHA CI**
 
 Push from a clean tracked tree and index, require equal local/origin/tracking
 SHAs, and watch Runnable UI to terminal success for the exact completion SHA.
 Record the run and job URLs in ignored evidence before closing the plan.
 
-- [ ] **Step 8: Close, push, and verify the plan**
+- [x] **Step 8: Close, push, and verify the plan**
 
 Mark every plan checkbox complete only after completion CI succeeds. Commit
 only this plan with:
