@@ -45,7 +45,7 @@ describe("M1-37 deployment mode configuration contract", () => {
     expect(plan.match(/^- \[[ x]\]/gm) ?? []).toHaveLength(16);
   });
 
-  it("moves only M1-37 to the unique active row with exact arithmetic", async () => {
+  it("moves only M1-37 to Complete with exact arithmetic", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -58,17 +58,17 @@ describe("M1-37 deployment mode configuration contract", () => {
     const m1 = milestones.find(([milestone]) => milestone === "M1");
 
     expect(readme).toContain("M1-36e is Complete");
-    expect(readme).toContain("M1-37 is In progress");
+    expect(readme).toContain("M1-37 is Complete");
     expect(tracker).toContain("| Pending | 646 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 78 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 79 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`646/1/78/3`");
-    expect(m1).toEqual(["M1", "68", "13", "1", "54", "0"]);
+    expect(tracker).toContain("`646/0/79/3`");
+    expect(m1).toEqual(["M1", "68", "13", "0", "55", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.map(([task]) => task)).toEqual(["M1-37"]);
+    expect(active).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-36e")).toHaveLength(1);
-    expect(complete.filter(([task]) => task === "M1-37")).toHaveLength(0);
+    expect(complete.filter(([task]) => task === "M1-37")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-38")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
     expect(tracker).toContain("R-03 remains incomplete");
@@ -80,7 +80,7 @@ describe("M1-37 deployment mode configuration contract", () => {
     const section = readme.match(/## Deployment mode configuration[\s\S]*?## Development/)?.[0] ?? "";
 
     for (const value of [
-      "M1-37 is In progress",
+      "M1-37 is Complete",
       "AGENTSEC_DEPLOYMENT_MODE",
       "AGENTSEC_SINGLE_TENANT_ORGANIZATION_ID",
       "saas",

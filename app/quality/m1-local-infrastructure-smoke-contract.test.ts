@@ -64,13 +64,13 @@ describe("M1-36e local Kubernetes and LocalStack smoke", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(tracker).toContain("| Pending | 646 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 78 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 79 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`646/1/78/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "13", "1", "54", "0"]);
+    expect(tracker).toContain("`646/0/79/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "13", "0", "55", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.map(([task]) => task)).toEqual(["M1-37"]);
+    expect(active.map(([task]) => task)).toEqual([]);
     expect(complete.filter(([task]) => task === "M1-36d")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-36e")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-37")).toHaveLength(1);
@@ -87,7 +87,7 @@ describe("M1-36e local Kubernetes and LocalStack smoke", () => {
     expect(section).toContain("npm run local:aws-emulator:test");
     expect(section).toContain("npm run local:start");
     expect(prose).toContain("Local AWS emulator manifest passed: ready=true internal=true endpoint=true s3=true cleanup=true.");
-    expect(prose).toContain("M1-37 is In progress");
+    expect(prose).toContain("M1-37 is Complete");
     expect(prose).not.toMatch(/persistent local cluster|shared LocalStack|host port|vendor dashboard/i);
   });
 });

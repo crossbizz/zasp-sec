@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 646 |
-| In progress | 1 |
-| Complete | 78 |
+| In progress | 0 |
+| Complete | 79 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -24,7 +24,7 @@ In progress, Complete, or Blocked is Pending.
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 0 | 0 | 24 | 3 |
-| M1 | 68 | 13 | 1 | 54 | 0 |
+| M1 | 68 | 13 | 0 | 55 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
 | M3 | 75 | 75 | 0 | 0 | 0 |
@@ -68,19 +68,19 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `646/1/78/3` because
+session configuration. The 728 source-plan counts are `646/0/79/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M1-37 | August 18, 2026 | Add strict typed `saas` and `single_tenant` deployment configuration; require one canonical pinned product Organization in single-tenant mode while keeping SaaS unpinned. |
 
 ## Complete
 
 | Task | Completed | Evidence |
 | --- | --- | --- |
+| M1-37 | August 18, 2026 | Added strict typed `saas` and `single_tenant` deployment configuration; SaaS requires the Organization pin absent, single-tenant requires one canonical product Organization ID, and the complete truth table, six race passes, full platform/repository gates, scans, and zero-finding review passed. |
 | M1-36e | August 18, 2026 | Re-ran the reviewed disposable assembled Kubernetes and LocalStack target in 261 seconds with the sole fixed success line; proved exact zero owned residue and unchanged ambient/shared fingerprints; passed six focused runs, 210 inherited tests, all Go/repository/license/audit/scan gates, and zero-finding whole-range review. |
 | M1-36d | August 18, 2026 | Ran the reviewed strict UI/API traceability suite and fixed-output validator six times without changing the action map or API inventory; passed predecessor schema/OpenAPI, four Go, full repository, audit, scan, and zero-finding whole-range review gates. |
 | M1-36c | August 18, 2026 | Re-ran the exact-pinned OpenAPI writer with byte-for-byte stable generated client output; passed strict tests, offline lint, six non-writing drift checks, all Go and repository matrices, audit, scans, and zero-finding whole-range review. |

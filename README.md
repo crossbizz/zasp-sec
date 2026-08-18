@@ -117,16 +117,15 @@ npm run local:start
 The live gate requires only `Local AWS emulator manifest passed: ready=true
 internal=true endpoint=true s3=true cleanup=true.` plus exact owned-resource
 absence and unchanged ambient/shared fingerprints afterward. It creates no
-persistent local environment or public exposure. M1-37 is In progress.
+persistent local environment or public exposure. M1-37 is Complete.
 
 ## Deployment mode configuration
 
-M1-37 is In progress. The existing typed loader is being extended with exact
+M1-37 is Complete. The typed loader accepts exact
 `AGENTSEC_DEPLOYMENT_MODE` values `saas` and `single_tenant`, plus conditional
-`AGENTSEC_SINGLE_TENANT_ORGANIZATION_ID`. SaaS requires no Organization pin;
-single-tenant startup requires one canonical product Organization ID. This task
-adds configuration only: authenticated Organization enforcement remains M2-49,
-and M1-38 remains Pending.
+`AGENTSEC_SINGLE_TENANT_ORGANIZATION_ID`. SaaS starts without an Organization
+pin; single-tenant startup requires one canonical product Organization ID.
+Authenticated Organization enforcement remains M2-49. M1-38 remains Pending.
 
 ## Development
 
