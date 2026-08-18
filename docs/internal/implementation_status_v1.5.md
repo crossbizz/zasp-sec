@@ -14,9 +14,9 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 640 |
-| In progress | 1 |
-| Complete | 84 |
+| Pending | 619 |
+| In progress | 0 |
+| Complete | 106 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -24,9 +24,9 @@ In progress, Complete, or Blocked is Pending.
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 0 | 0 | 24 | 3 |
-| M1 | 68 | 7 | 1 | 60 | 0 |
+| M1 | 68 | 0 | 0 | 68 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
-| M2 | 72 | 72 | 0 | 0 | 0 |
+| M2 | 72 | 58 | 0 | 14 | 0 |
 | M3 | 75 | 75 | 0 | 0 | 0 |
 | M4 | 82 | 82 | 0 | 0 | 0 |
 | M5 | 42 | 42 | 0 | 0 | 0 |
@@ -37,8 +37,10 @@ In progress, Complete, or Blocked is Pending.
 
 ## Execution invariants
 
-- Update this file in the same commit that starts or completes a plan task.
-- A task moves from Pending to In progress before implementation begins.
+- Update this file at the status boundary for an individual task or a cohesive
+  reviewed batch.
+- Related microtasks may move from Pending to Complete together when their
+  implementation commits and verification evidence identify every task.
 - A task moves to Complete only after its required verification and task review pass.
 - A task moves to Blocked only with the exact missing external dependency and evidence.
 - Tests, type-check, lint, and production build must pass before a branch push.
@@ -68,19 +70,40 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `640/1/84/3` because
+session configuration. The 728 source-plan counts are `619/0/106/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M1-43 | August 18, 2026 | Defining exact Organization-scoped concurrency keys and deterministic in-process admission counters for connectors, graph queries, tests, and AI requests; M1-44 remains Pending. |
 
 ## Complete
 
 | Task | Completed | Evidence |
 | --- | --- | --- |
+| M2-07d | August 18, 2026 | Proved the product provision, invitation, first sign-in, Organization Admin reconciliation, and default-scope bootstrap path end to end with no bypass login or stored authentication secret. |
+| M2-07c | August 18, 2026 | Added idempotent first-sign-in creation of one default Workspace and exact production, staging, and development Environments. |
+| M2-07b | August 18, 2026 | Added the product-owned first-Admin invitation boundary using the Stytch-backed member and Organization references without persisting a raw authentication secret. |
+| M2-07a | August 18, 2026 | Added idempotent operator bootstrap orchestration for one external and product Organization plus its designated first Admin. |
+| M2-07 | August 18, 2026 | Added strict idempotent Organization reconciliation that keeps distinct external Organizations in distinct product records. |
+| M2-06 | August 18, 2026 | Added server-side authorization resolution and handler enforcement for exact Organization, Workspace, Environment, and permission scope. |
+| M2-05 | August 18, 2026 | Wired the scoped grant store and resolver behind one fail-closed authorization service. |
+| M2-05b | August 18, 2026 | Added effective permission resolution across built-in principal roles and exact Workspace/Environment grants with cross-scope denial. |
+| M2-05a | August 18, 2026 | Added idempotent Organization-scoped Workspace grant create/list/delete persistence methods. |
+| M2-04 | August 18, 2026 | Defined the exact six built-in PRD roles and immutable product-permission snapshots. |
+| M2-03 | August 18, 2026 | Added idempotent external member and Organization reference reconciliation into product principals. |
+| M2-02a | August 18, 2026 | Added bounded fresh-session revalidation for sensitive operations; revoked, stale, foreign, malformed, and provider-outage paths fail closed. |
+| M2-02 | August 18, 2026 | Added strict bearer-session authentication that returns only the product ExternalPrincipal and one stable authentication failure. |
+| M2-01 | August 18, 2026 | Added a product-owned Stytch B2B adapter boundary for JWT, Organization, invitation, SSO, and SCIM operations without exposing provider SDK types. |
+| M1-45 | August 18, 2026 | Ran the isolated real-Neon tenant lifecycle against eight protected tables; proved same-Organization access, foreign read/write denial, exact reverse migration, and schema/role absence. |
+| M1-45d | August 18, 2026 | Added strict reversible RLS policy down assets in reverse order with exact policy and table-state verification. |
+| M1-45c | August 18, 2026 | Added exact product policy predicates for findings, tests, audit metadata, and export jobs. |
+| M1-45b | August 18, 2026 | Added exact Organization policy predicates for Organizations, grants, integrations, and policies with ENABLE and FORCE RLS. |
+| M1-45a | August 18, 2026 | Added transaction-local Organization context with commit, independent rollback, fixed errors, and panic containment. |
+| M1-44 | August 18, 2026 | Added the bounded cross-Organization SaaS tenancy suite across query, event, artifact, queue, graph, and quota boundaries while preserving explicit single-tenant scope. |
+| M1-43 | August 18, 2026 | Added deterministic in-process Organization-scoped concurrency admission for connectors, graph queries, tests, and AI requests with independent counters and fixed over-limit rejection. |
+| M1-36 | August 18, 2026 | Recorded the exact M1 foundation gate as PASS after M1-36a through M1-36e and the M1-44/M1-45 tenancy prerequisites passed. |
 | M1-42 | August 18, 2026 | Hardened the existing GraphStore with explicit scope-mandatory write/query builders, proved an Organization-A bounded path cannot traverse otherwise identical Organization-B fixture state, retained hostile-result denial and concurrent per-call separation, and passed mutation, race, platform, inherited Neo4j, repository, audit, scan, and zero-finding review gates without a live provider call. |
 | M1-41 | August 18, 2026 | Added one Organization-bound product consumer for exact background, runtime-event, and test envelopes; missing or foreign Organization scope fails before handler entry, and strict schema, fixed failure, panic, copy, concurrency, mutation, race, inherited SQS, repository, audit, scan, and zero-finding review gates passed. |
 | M1-40 | August 18, 2026 | Routed all ArtifactStore operations through one scope-mandatory driver locator, proved a same-session Organization-A read cannot return the otherwise identical Organization-B fixture, retained concurrent per-call separation, and passed mutation, race, platform, inherited provider, repository, audit, scan, and zero-finding review gates. |

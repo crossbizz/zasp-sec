@@ -45,7 +45,7 @@ describe("M1-43 tenant quota primitive contract", () => {
     expect(plan.match(/^- \[[ x]\]/gm) ?? []).toHaveLength(19);
   });
 
-  it("starts only M1-43 with exact arithmetic", async () => {
+  it("records the completed M1 batch with exact arithmetic", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -56,18 +56,18 @@ describe("M1-43 tenant quota primitive contract", () => {
     const summary = markdownRows(tracker.match(/## Status summary[\s\S]*?## Milestone summary/)?.[0] ?? "").slice(2);
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
-    expect(readme).toContain("M1-43 is In progress");
-    expect(tracker).toContain("| Pending | 640 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 84 |");
+    expect(readme).toContain("M1-43 is Complete");
+    expect(tracker).toContain("| Pending | 619 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 106 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`640/1/84/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "7", "1", "60", "0"]);
+    expect(tracker).toContain("`619/0/106/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "0", "0", "68", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.map(([task]) => task)).toEqual(["M1-43"]);
+    expect(active.map(([task]) => task)).toEqual([]);
     expect(complete.filter(([task]) => task === "M1-42")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-43")).toHaveLength(1);
-    expect([...active, ...complete].filter(([task]) => task === "M1-44")).toHaveLength(0);
+    expect(complete.filter(([task]) => task === "M1-44")).toHaveLength(1);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
 
@@ -77,11 +77,11 @@ describe("M1-43 tenant quota primitive contract", () => {
     const prose = section.replace(/\s+/g, " ");
 
     for (const value of [
-      "M1-43 is In progress",
+      "M1-43 is Complete",
       "connectors, graph queries, tests, and AI requests",
       "same Organization",
       "different Organizations",
-      "M1-44 remains Pending",
+      "M1-44 is Complete",
     ]) expect(prose).toContain(value);
     expect(prose).toContain("not a distributed rate limiter, billing meter, or authorization decision");
   });

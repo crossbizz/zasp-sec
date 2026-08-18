@@ -58,15 +58,15 @@ describe("M1-32 OpenSearch index template", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(readme).toContain("M1-32 is Complete");
-    expect(tracker).toContain("| Pending | 640 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 84 |");
+    expect(tracker).toContain("| Pending | 619 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 106 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`640/1/84/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "7", "1", "60", "0"]);
+    expect(tracker).toContain("`619/0/106/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "0", "0", "68", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.map(([task]) => task)).toEqual(["M1-43"]);
-    expect(complete).toHaveLength(84);
+    expect(active.map(([task]) => task)).toEqual([]);
+    expect(complete).toHaveLength(106);
     expect(active.filter(([task]) => task === "M1-32")).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-32")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-31")).toHaveLength(1);

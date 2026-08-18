@@ -64,13 +64,13 @@ describe("M1-23 OpenAPI root", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(readme).toMatch(/M1-23\s+is\s+Complete/);
-    expect(tracker).toContain("| Pending | 640 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 84 |");
+    expect(tracker).toContain("| Pending | 619 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 106 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`640/1/84/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "7", "1", "60", "0"]);
-    expect(active.map(([task]) => task)).toEqual(["M1-43"]);
+    expect(tracker).toContain("`619/0/106/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "0", "0", "68", "0"]);
+    expect(active.map(([task]) => task)).toEqual([]);
     expect(complete.filter(([task]) => task === "M1-23")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-22")).toHaveLength(1);
     expect(active.filter(([task]) => task === "M1-24")).toHaveLength(0);

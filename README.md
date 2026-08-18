@@ -45,8 +45,9 @@ npm run web:shell:test
 
 The unauthenticated-route guard is an inert scaffold with one public sign-in
 path and closed redirect targets. It is not wired to a fabricated session and
-does not claim that the current prototype is authenticated. M2-01 and M2-02 own
-real authentication and session enforcement.
+does not claim that the browser-local prototype is authenticated. M2-01 and
+M2-02 now provide the product authentication boundary; wiring it into the web
+shell remains later API/UI integration work.
 
 ## M1 build check
 
@@ -177,11 +178,11 @@ Organization B graph state, and hostile foreign provider results fail closed.
 
 M1-16 remains the Neo4j adapter and disposable compatibility authority. M1-42
 adds no new graph provider or database authorization claim, and does not invoke
-the live Neo4j lifecycle. M1-43 is In progress.
+the live Neo4j lifecycle. M1-43 is Complete.
 
 ## Tenant quota primitive
 
-M1-43 is In progress. The product boundary defines exact Organization-scoped
+M1-43 is Complete. The product boundary defines exact Organization-scoped
 in-process concurrency keys for connectors, graph queries, tests, and AI
 requests. Workspaces and Environments in the same Organization share capacity,
 while different Organizations retain independent counters and an over-limit
@@ -190,7 +191,7 @@ request fails immediately with one fixed product error.
 This primitive is not a distributed rate limiter, billing meter, or
 authorization decision. It reads no ambient configuration or provider state;
 deployment wiring and distributed enforcement remain later consumer work.
-M1-44 remains Pending.
+M1-44 is Complete.
 
 ## SaaS tenancy foundation check
 
@@ -202,7 +203,7 @@ contracts.
 
 The check is hermetic: it does not contact a provider or claim database RLS
 enforcement. Provider authorization and live Neon policy verification remain
-separate lifecycle work.
+separate lifecycle work. M1-44 is Complete.
 
 ## Neon tenant isolation gate
 
@@ -214,7 +215,26 @@ same-Organization access while cross-Organization reads and writes are denied.
 
 The live gate reverses every policy and requires exact schema and role absence.
 For MVP validation it uses a unique schema and does not require or mutate a
-Neon management branch.
+Neon management branch. M1-45a through M1-45d and the M1-45 gate are Complete.
+
+## M1 foundation gate
+
+M1-36 is PASS. The reviewed build, schema, OpenAPI, UI/API coverage, local
+infrastructure, SaaS tenancy, and live Neon isolation boundaries are green.
+This opens M1A and M2 implementation without waiving the three existing M0
+blockers.
+
+## Identity and authorization foundation
+
+M2-01 through M2-07d are Complete. The product now owns a strict Stytch B2B
+adapter, bearer-session authentication, fresh-auth revalidation, idempotent
+Organization and principal reconciliation, the six built-in PRD roles,
+Organization-scoped Workspace/Environment grants, fail-closed authorization,
+and the first-Admin provision-to-sign-in bootstrap path.
+
+The bootstrap persists only product references and creates one default
+Workspace with production, staging, and development Environments. It creates
+no local password or customer-facing bypass login. M2-08 remains Pending.
 
 ## Development
 
