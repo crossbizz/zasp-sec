@@ -865,7 +865,7 @@ export function validateGraphKubernetesState(value, expected, retained = undefin
     requireExactKeySet(expected, ["imageTargets", "nodeName"], "graph Kubernetes expectation");
     requireExactKeySet(expected.imageTargets, ["busybox", "neo4j"], "graph image targets");
     const platform = platformForNode(expected);
-    if (!/^zasp-m1-30[bc]-[0-9a-f]{16}-control-plane$/.test(expected.nodeName ?? "") ||
+    if (!/^zasp-m1-30[bcd]-[0-9a-f]{16}-control-plane$/.test(expected.nodeName ?? "") ||
         expected.imageTargets.busybox.manifestDigest !== GRAPH_IMAGE_PLANS.busybox.platforms[platform].manifestDigest ||
         expected.imageTargets.neo4j.manifestDigest !== GRAPH_IMAGE_PLANS.neo4j.platforms[platform].manifestDigest ||
         value.healthLog !== graphHealthLog || requireReplacement !== false && requireReplacement !== true ||

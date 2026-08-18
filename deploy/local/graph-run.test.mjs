@@ -500,7 +500,7 @@ function graphProviderState(overrides = {}) {
   const platform = overrides.platform ?? "linux/arm64";
   const busyboxImageTarget = graphBoundArchiveImport("busybox", platform).runtimeTarget;
   const neo4jImageTarget = graphBoundArchiveImport("neo4j", platform).runtimeTarget;
-  const nodeName = `zasp-m1-30b-${marker}-control-plane`;
+  const nodeName = overrides.nodeName ?? `zasp-m1-30b-${marker}-control-plane`;
   const deploymentResource = graphResource("Deployment", "neo4j");
   const serviceResource = graphResource("Service", "neo4j");
   const persistentVolumeResource = graphResource("PersistentVolume", GRAPH_CONSTANTS.persistentVolumeName);
@@ -888,6 +888,15 @@ test("normalizes one exact Bound graph lineage with internal health evidence", (
   });
   assert.ok(Object.isFrozen(snapshot));
   assert.ok(Object.isFrozen(snapshot.neo4j));
+});
+
+test("accepts the exact M1-30d node throughout graph provider validation", () => {
+  const nodeName = `zasp-m1-30d-${marker}-control-plane`;
+  const expected = graphProviderExpectation();
+  expected.nodeName = nodeName;
+  assert.equal(graphRunModule.validateGraphKubernetesState(
+    graphProviderState({ nodeName }), expected,
+  ).ready, true);
 });
 
 test("cross-binds config status images and final imported image IDs on both node platforms", () => {
