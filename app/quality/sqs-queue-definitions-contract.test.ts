@@ -66,7 +66,7 @@ describe("M1-33 SQS queue definitions", () => {
     expect(implementationPlan).toContain("LocalStack queue definitions passed: queues=3 dlqs=3 schemas=3 retention=true redrive=true cleanup=true audit=true.");
   });
 
-  it("completes only M1-33 while preserving M1-32, M1-34, and exact blockers", async () => {
+  it("preserves completed M1-33 and M1-34 with exact blockers", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
@@ -79,20 +79,19 @@ describe("M1-33 SQS queue definitions", () => {
 
     expect(readme).toContain("M1-33 is Complete");
     expect(tracker).toContain("| Pending | 653 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 71 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 72 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`653/1/71/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "20", "1", "47", "0"]);
+    expect(tracker).toContain("`653/0/72/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "20", "0", "48", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active).toHaveLength(1);
-    expect(active[0]?.[0]).toBe("M1-34");
-    expect(complete).toHaveLength(71);
+    expect(active).toHaveLength(0);
+    expect(complete).toHaveLength(72);
     expect(active.filter(([task]) => task === "M1-33")).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-33")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-32")).toHaveLength(1);
-    expect(active.filter(([task]) => task === "M1-34")).toHaveLength(1);
-    expect(complete.filter(([task]) => task === "M1-34")).toHaveLength(0);
+    expect(active.filter(([task]) => task === "M1-34")).toHaveLength(0);
+    expect(complete.filter(([task]) => task === "M1-34")).toHaveLength(1);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
 
@@ -134,7 +133,7 @@ describe("M1-33 SQS queue definitions", () => {
       "M1A-04",
       "M8-03",
       "M1-32 is Complete",
-      "M1-34 is In progress",
+      "M1-34 is Complete",
     ]) expect(sectionProse).toContain(value);
   });
 });

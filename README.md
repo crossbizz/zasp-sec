@@ -957,12 +957,12 @@ ambient credentials, profiles, proxies, IMDS, or customer state.
 This proof does not implement producer or consumer wiring; M1-41 owns that
 work. M1A-04 owns replay and DLQ-recovery behavior, and M8-03 owns production
 operations. M1-32 is Complete, and M1-33 is Complete after reviewed live
-evidence. M1-34 is In progress, defining the exact evidence, export, and policy
-key layout plus customer-managed SSE-KMS configuration contract.
+evidence. M1-34 is Complete with the exact evidence, export, and policy key
+layout plus customer-managed SSE-KMS configuration contract.
 
 ## S3 bucket layout
 
-M1-34 defines one provider-neutral layout beneath the exact prefix
+M1-34 is Complete. It defines one provider-neutral layout beneath the exact prefix
 `organizations/<organization-product-id>/workspaces/<workspace-product-id>/environments/<environment-product-id>/<class>/`.
 The only class segments are `evidence`, `exports`, and `policies`; callers add
 one validated opaque product ID as the final object-key segment. The builder
