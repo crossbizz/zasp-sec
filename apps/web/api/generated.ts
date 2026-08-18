@@ -284,6 +284,23 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/ai/explanations": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Create one governed evidence-aware explanation */
+        readonly post: operations["createAIExplanation"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/assets/{id}": {
         readonly parameters: {
             readonly query?: never;
@@ -1209,6 +1226,75 @@ export type paths = {
         readonly patch: operations["updateDataControls"];
         readonly trace?: never;
     };
+    readonly "/api/v1/settings/external-data-flows": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Get required and optional external data flows */
+        readonly get: operations["getExternalDataFlows"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        /** Update one bounded optional external data flow */
+        readonly patch: operations["updateExternalDataFlows"];
+        readonly trace?: never;
+    };
+    readonly "/api/v1/system/components": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List bounded component health probes */
+        readonly get: operations["listSystemComponents"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/system/status": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Get required and optional component health */
+        readonly get: operations["getSystemStatus"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/system/version": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Get the product service version */
+        readonly get: operations["getSystemVersion"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/test-runs": {
         readonly parameters: {
             readonly query?: never;
@@ -1417,6 +1503,27 @@ export type components = {
         };
         readonly AgentSessionPage: {
             readonly items: readonly components["schemas"]["AgentSession"][];
+        };
+        readonly AIExplanation: {
+            readonly explanation: string;
+            readonly model: string;
+            /** @constant */
+            readonly no_storage: true;
+            readonly provider: string;
+            readonly recommendation: string;
+        };
+        readonly AIExplanationInput: {
+            readonly cost_cents: number;
+            readonly fields: {
+                readonly [key: string]: string;
+            };
+            readonly model: string;
+            readonly provider: string;
+            /** @enum {string} */
+            readonly purpose: "finding_explanation";
+            /** @constant */
+            readonly require_no_storage: true;
+            readonly tokens: number;
         };
         readonly APIToken: {
             readonly audit_correlation_id?: components["schemas"]["ProductID"];
@@ -1656,6 +1763,17 @@ export type components = {
             readonly at: string;
             readonly id: string;
             readonly source: string;
+        };
+        readonly ExternalFlow: {
+            readonly categories: readonly ("identity_metadata" | "product_usage" | "redacted_summary" | "remote_telemetry")[];
+            readonly enabled: boolean;
+            /** @enum {string} */
+            readonly health: "healthy" | "degraded" | "disabled";
+            readonly id: string;
+            readonly required: boolean;
+        };
+        readonly ExternalFlowPage: {
+            readonly items: readonly components["schemas"]["ExternalFlow"][];
         };
         readonly Finding: {
             readonly acceptance_reason?: string;
@@ -2056,6 +2174,26 @@ export type components = {
         readonly SSOIdentityProvider: "classlink" | "cyberark" | "duo" | "generic" | "google-workspace" | "jumpcloud" | "keycloak" | "miniorange" | "microsoft-entra" | "okta" | "onelogin" | "pingfederate" | "rippling" | "salesforce" | "shibboleth";
         /** @enum {string} */
         readonly SSOProtocol: "saml" | "oidc";
+        readonly SystemComponent: {
+            /** Format: date-time */
+            readonly fresh_at: string;
+            readonly id: string;
+            readonly required: boolean;
+            /** @enum {string} */
+            readonly state: "healthy" | "degraded" | "unavailable";
+        };
+        readonly SystemComponentPage: {
+            readonly items: readonly components["schemas"]["SystemComponent"][];
+        };
+        readonly SystemStatus: {
+            /** Format: date-time */
+            readonly fresh_at: string;
+            readonly optional_degraded: boolean;
+            readonly security_plane_healthy: boolean;
+        };
+        readonly SystemVersion: {
+            readonly version: string;
+        };
         readonly TestDefinition: {
             readonly categories: readonly string[];
             readonly id: components["schemas"]["RedTeamID"];
@@ -2119,6 +2257,8 @@ export type AgentMutation = components['schemas']['AgentMutation'];
 export type AgentOwnershipInput = components['schemas']['AgentOwnershipInput'];
 export type AgentSession = components['schemas']['AgentSession'];
 export type AgentSessionPage = components['schemas']['AgentSessionPage'];
+export type AiExplanation = components['schemas']['AIExplanation'];
+export type AiExplanationInput = components['schemas']['AIExplanationInput'];
 export type ApiToken = components['schemas']['APIToken'];
 export type ApiTokenCredential = components['schemas']['APITokenCredential'];
 export type ApiTokenInput = components['schemas']['APITokenInput'];
@@ -2159,6 +2299,8 @@ export type EnvironmentCreateInput = components['schemas']['EnvironmentCreateInp
 export type EnvironmentMutation = components['schemas']['EnvironmentMutation'];
 export type EnvironmentPage = components['schemas']['EnvironmentPage'];
 export type EvidenceRecord = components['schemas']['EvidenceRecord'];
+export type ExternalFlow = components['schemas']['ExternalFlow'];
+export type ExternalFlowPage = components['schemas']['ExternalFlowPage'];
 export type Finding = components['schemas']['Finding'];
 export type FindingAcceptanceInput = components['schemas']['FindingAcceptanceInput'];
 export type FindingPage = components['schemas']['FindingPage'];
@@ -2234,6 +2376,10 @@ export type SsoConnectionMutation = components['schemas']['SSOConnectionMutation
 export type SsoConnectionPage = components['schemas']['SSOConnectionPage'];
 export type SsoIdentityProvider = components['schemas']['SSOIdentityProvider'];
 export type SsoProtocol = components['schemas']['SSOProtocol'];
+export type SystemComponent = components['schemas']['SystemComponent'];
+export type SystemComponentPage = components['schemas']['SystemComponentPage'];
+export type SystemStatus = components['schemas']['SystemStatus'];
+export type SystemVersion = components['schemas']['SystemVersion'];
 export type TestDefinition = components['schemas']['TestDefinition'];
 export type TestDefinitionPage = components['schemas']['TestDefinitionPage'];
 export type TestRun = components['schemas']['TestRun'];
@@ -2753,6 +2899,32 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["AgentSessionPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly createAIExplanation: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["AIExplanationInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Governed explanation. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AIExplanation"];
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
@@ -4358,6 +4530,120 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["DataControls"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getExternalDataFlows: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description External data flows. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ExternalFlowPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly updateExternalDataFlows: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["ExternalFlow"];
+            };
+        };
+        readonly responses: {
+            /** @description Updated external data flow. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ExternalFlow"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listSystemComponents: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description System components. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SystemComponentPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getSystemStatus: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Aggregated system status. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SystemStatus"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getSystemVersion: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Product service version. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SystemVersion"];
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];

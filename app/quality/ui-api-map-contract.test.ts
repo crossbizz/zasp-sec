@@ -61,6 +61,7 @@ const expectedMap: MapDocument = {
         { id: "update_finding", operation_id: "updateFinding", availability: "api_available" },
         { id: "accept_finding_risk", operation_id: "acceptFindingRisk", availability: "api_available" },
         { id: "create_finding_ticket", operation_id: "createFindingTicket", availability: "api_available" },
+        { id: "create_ai_explanation", operation_id: "createAIExplanation", availability: "api_available" },
       ],
     },
     {
@@ -152,9 +153,9 @@ const expectedMap: MapDocument = {
       id: "system_health",
       label: "System Health",
       actions: [
-        { id: "view_system_status", operation_id: "getSystemStatus", availability: "planned" },
-        { id: "view_system_components", operation_id: "listSystemComponents", availability: "planned" },
-        { id: "view_system_version", operation_id: "getSystemVersion", availability: "planned" },
+        { id: "view_system_status", operation_id: "getSystemStatus", availability: "api_available" },
+        { id: "view_system_components", operation_id: "listSystemComponents", availability: "api_available" },
+        { id: "view_system_version", operation_id: "getSystemVersion", availability: "api_available" },
       ],
     },
     {
@@ -182,6 +183,14 @@ const expectedMap: MapDocument = {
       actions: [
         { id: "view_data_controls", operation_id: "getDataControls", availability: "api_available" },
         { id: "update_data_controls", operation_id: "updateDataControls", availability: "api_available" },
+      ],
+    },
+    {
+      id: "external_data_flows",
+      label: "External Data Flows",
+      actions: [
+        { id: "view_external_data_flows", operation_id: "getExternalDataFlows", availability: "api_available" },
+        { id: "update_external_data_flows", operation_id: "updateExternalDataFlows", availability: "api_available" },
       ],
     },
   ],
@@ -297,13 +306,14 @@ describe("M1-25 UI API map seed", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(readme).toContain("M1-25 is Complete");
-    expect(tracker).toContain("| Pending | 295 |");
-    expect(tracker).toContain("| In progress | 246 |");
+    expect(tracker).toContain("| Pending | 266 |");
+    expect(tracker).toContain("| In progress | 275 |");
     expect(tracker).toContain("| Complete | 184 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`295/246/184/3`");
+    expect(tracker).toContain("`266/275/184/3`");
     expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "0", "0", "68", "0"]);
     expect(active.map(([task]) => task)).toEqual([
+      "M7-39e", "M7-39d", "M7-39c", "M7-39b", "M7-39a", "M7-38", "M7-37", "M7-36", "M7-35", "M7-34", "M7-33", "M7-32", "M7-31", "M7-30", "M7-29", "M7-28", "M7-27", "M7-26", "M7-26c", "M7-26b", "M7-26a", "M7-25", "M7-24", "M7-23", "M7-22a", "M7-22", "M7-21", "M7-20", "M7-19",
       "M7-18", "M7-17", "M7-16", "M7-15", "M7-15d", "M7-15c", "M7-15b", "M7-15a", "M7-14", "M7-13", "M7-12", "M7-11", "M7-10", "M7-09", "M7-08", "M7-07", "M7-07c", "M7-07b", "M7-07a", "M7-06", "M7-05", "M7-04", "M7-03", "M7-02", "M7-01",
       "M6-31", "M6-31e", "M6-31d", "M6-31c", "M6-31b", "M6-31a", "M6-30", "M6-29", "M6-28", "M6-27", "M6-26", "M6-25", "M6-24", "M6-23", "M6-22", "M6-21", "M6-20", "M6-19", "M6-18", "M6-17", "M6-16", "M6-15", "M6-14", "M6-13", "M6-12", "M6-11",
       "M6-10", "M6-09", "M6-08", "M6-07", "M6-06", "M6-05", "M6-04", "M6-03", "M6-02", "M6-01",
@@ -340,7 +350,7 @@ describe("M1-25 UI API map seed", () => {
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
 
-  it("accepts only the exact eleven-screen, 87-action mixed-lifecycle map", async () => {
+  it("accepts only the exact twelve-screen, 104-action mixed-lifecycle map", async () => {
     const source = await readFile(resolve(repositoryRoot, "docs/product/ui-api-map.yaml"), "utf8").catch(() => "");
 
     expect(parseStrictMap(source)).toEqual(expectedMap);
@@ -406,6 +416,7 @@ describe("M1-25 UI API map seed", () => {
       "updateFinding",
       "acceptFindingRisk",
       "createFindingTicket",
+      "createAIExplanation",
       "listAttackPaths",
       "getAttackPath",
       "getAttackPathBreakOptions",
@@ -473,6 +484,8 @@ describe("M1-25 UI API map seed", () => {
       "getComplianceExport",
       "getDataControls",
       "updateDataControls",
+      "getExternalDataFlows",
+      "updateExternalDataFlows",
     ]);
     available.delete("globalSearch");
     expect(() => resolveAgainst(operationIDs, available)).toThrow();
@@ -492,7 +505,7 @@ describe("M1-25 UI API map seed", () => {
     expect(prose).toContain("`listSystemComponents`");
     expect(prose).toContain("`getSystemVersion`");
     expect(prose).toContain("Home actions are `api_available`");
-    expect(prose).toContain("three System Health actions remain `planned`");
+    expect(prose).toContain("three System Health actions are now `api_available`");
     expect(prose).toContain("M1-26 is Complete");
   });
 });

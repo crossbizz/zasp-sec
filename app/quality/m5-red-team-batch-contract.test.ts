@@ -28,8 +28,8 @@ describe("M5 red-team and safe Attack Lab batch", () => {
 
   it("records exactly the 29-task M5 batch without claiming provider completion", () => {
     const tracker = read("docs/internal/implementation_status_v1.5.md");
-    expect(tracker).toContain("| Pending | 295 |");
-    expect(tracker).toContain("| In progress | 246 |");
+    expect(tracker).toContain("| Pending | 266 |");
+    expect(tracker).toContain("| In progress | 275 |");
     expect(tracker).toContain("| M5 | 42 | 0 | 42 | 0 | 0 |");
     for (const task of ["M5-01", "M5-12", "M5-17", "M5-23a", "M5-23d", "M5-23", "M5-25", "M5-26", "M5-35"]) expect(tracker).toMatch(new RegExp(`\\| ${task.replace("-", "\\-")} \\| August 18, 2026 \\|`));
   });

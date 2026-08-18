@@ -111,6 +111,9 @@ screens:
       - id: create_finding_ticket
         operation_id: createFindingTicket
         availability: api_available
+      - id: create_ai_explanation
+        operation_id: createAIExplanation
+        availability: api_available
   - id: attack_paths
     label: Attack Paths
     actions:
@@ -296,13 +299,13 @@ screens:
     actions:
       - id: view_system_status
         operation_id: getSystemStatus
-        availability: planned
+        availability: api_available
       - id: view_system_components
         operation_id: listSystemComponents
-        availability: planned
+        availability: api_available
       - id: view_system_version
         operation_id: getSystemVersion
-        availability: planned
+        availability: api_available
   - id: sessions
     label: Sessions
     actions:
@@ -338,4 +341,13 @@ screens:
         availability: api_available
       - id: update_data_controls
         operation_id: updateDataControls
+        availability: api_available
+  - id: external_data_flows
+    label: External Data Flows
+    actions:
+      - id: view_external_data_flows
+        operation_id: getExternalDataFlows
+        availability: api_available
+      - id: update_external_data_flows
+        operation_id: updateExternalDataFlows
         availability: api_available

@@ -51,24 +51,24 @@ function captureStream() {
 test("current API and planned map passes honestly", async () => {
   const { map, openapi } = await currentSources();
   assert.deepEqual(validateCoverage(parseMapSource(map), parseOpenAPISource(openapi)), {
-    planned: 3,
-    apiAvailable: 78,
+    planned: 0,
+    apiAvailable: 84,
     available: 20,
-    public: 98,
+    public: 104,
     internal: 0,
   });
 });
 
-test("all three future public operations resolve and deliberate removal fails", async () => {
+test("all current public operations resolve and deliberate removal fails", async () => {
   const { map } = await currentSources();
   const document = parseMapSource(availableMap(map));
   const operationIDs = document.screens.flatMap((screen) => screen.actions.map((action) => action.operation_id));
   const complete = parseOpenAPISource(futureOpenAPI(operationIDs));
   assert.deepEqual(validateCoverage(document, complete), {
     planned: 0,
-    apiAvailable: 78,
-    available: 23,
-    public: 101,
+    apiAvailable: 84,
+    available: 20,
+    public: 104,
     internal: 0,
   });
 
@@ -83,17 +83,17 @@ test("unmapped public operations fail while unmapped internal operations pass", 
     .map((action) => action.operation_id);
   assert.throws(() => validateCoverage(planned, parseOpenAPISource(futureOpenAPI([...apiOperations, "unmappedPublic"]))));
   assert.deepEqual(validateCoverage(planned, parseOpenAPISource(futureOpenAPI(apiOperations, { internal: ["ingestEvents"] }))), {
-    planned: 3,
-    apiAvailable: 78,
+    planned: 0,
+    apiAvailable: 84,
     available: 20,
-    public: 98,
+    public: 104,
     internal: 1,
   });
 });
 
 test("planned, available, and internal lifecycle mismatches fail", async () => {
   const { map } = await currentSources();
-  const planned = parseMapSource(map);
+  const planned = parseMapSource(map.replace("availability: api_available", "availability: planned"));
   const apiOperations = planned.screens.flatMap((screen) => screen.actions)
     .filter((action) => action.availability !== "planned")
     .map((action) => action.operation_id);
@@ -108,12 +108,12 @@ test("planned, available, and internal lifecycle mismatches fail", async () => {
 
 test("API-available operations require OpenAPI but do not claim a wired UI", async () => {
   const { map } = await currentSources();
-  const apiMap = parseMapSource(map.replace("availability: planned", "availability: api_available"));
+  const apiMap = parseMapSource(map);
   const apiOperations = apiMap.screens.flatMap((screen) => screen.actions)
     .filter((action) => action.availability !== "planned")
     .map((action) => action.operation_id);
   const result = validateCoverage(apiMap, parseOpenAPISource(futureOpenAPI(apiOperations)));
-  assert.deepEqual(result, { planned: 2, apiAvailable: 79, available: 20, public: 99, internal: 0 });
+  assert.deepEqual(result, { planned: 0, apiAvailable: 84, available: 20, public: 104, internal: 0 });
   assert.throws(() => validateCoverage(apiMap, parseOpenAPISource(futureOpenAPI(apiOperations.slice(1)))));
 });
 
@@ -141,7 +141,7 @@ test("strict YAML parsing rejects representation and map-schema ambiguity", asyn
     "schema_version: 1\nscreens:\n  - <<: {id: home}\n",
     `${map}\n---\n{}`,
     map.replace("schema_version: 1", "schema_version: 1\nunknown: true"),
-    map.replace("availability: planned", "availability: active"),
+    map.replace("availability: api_available", "availability: active"),
   ]) {
     assert.throws(() => parseMapSource(hostile));
   }
@@ -173,7 +173,7 @@ test("CLI emits only fixed success or rejection lines", async () => {
   const successOut = captureStream();
   const successErr = captureStream();
   assert.equal(await runMain({ stdout: successOut.stream, stderr: successErr.stream }), 0);
-  assert.equal(successOut.value(), "UI/API coverage passed: planned=3 api_available=78 available=20 public=98 internal=0.\n");
+  assert.equal(successOut.value(), "UI/API coverage passed: planned=0 api_available=84 available=20 public=104 internal=0.\n");
   assert.equal(successErr.value(), "");
 
   const failureOut = captureStream();

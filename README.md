@@ -99,8 +99,8 @@ npm run ui-api:test
 npm run ui-api:check
 ```
 
-The current honest result is `UI/API coverage passed: planned=3
-api_available=78 available=20 public=98 internal=0.` The gate distinguishes
+The current honest result is `UI/API coverage passed: planned=0
+api_available=84 available=20 public=104 internal=0.` The gate distinguishes
 implemented API contracts from fully wired UI actions.
 M1-36e is Complete and separately owns local infrastructure smoke checks.
 
@@ -891,7 +891,7 @@ System Health maps overall status, component inventory, and version actions to
 
 The artifact contains only stable screen/action identity and operation IDs.
 Home actions are `api_available` through `getHomeSummary` and `globalSearch`;
-the three System Health actions remain `planned`. API availability records a
+the three System Health actions are now `api_available`. API availability records a
 generated product contract and does not claim a wired UI or provider integration.
 
 M1-26 adds the reusable bidirectional coverage gate. A `planned` operation must
@@ -908,7 +908,7 @@ npm run ui-api:check
 The current fixed success line is:
 
 ```text
-UI/API coverage passed: planned=3 api_available=78 available=20 public=98 internal=0.
+UI/API coverage passed: planned=0 api_available=84 available=20 public=104 internal=0.
 ```
 
 M5 now has a local MVP slice for normalized Promptfoo attempts, curated packs,
@@ -924,9 +924,11 @@ integration proof.
 M7 now has a local MVP slice for idempotent session projection, structured
 session filtering, mixed-confidence timelines, compliance control/evidence
 freshness, JSON/CSV/human exports, environment data controls, three product
-surfaces, and nine generated product API contracts. OpenSearch-backed filtering,
-S3 export writing, provider persistence, and staging verification remain
-unresolved and are not claimed by this local slice.
+surfaces, retention, governed external flows, allowlist-only telemetry, bounded
+AI explanations, system health, admin/degraded-state surfaces, and fifteen
+generated product API contracts. OpenSearch-backed filtering, S3 export writing,
+provider persistence/probes/scheduling, and staging verification remain unresolved
+and are not claimed by this local slice.
 
 Failure is fixed as `UI/API coverage rejected.` without parser or artifact
 details. Both commands are part of root verification. M1-25 is Complete.

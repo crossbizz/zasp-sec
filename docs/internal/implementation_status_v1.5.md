@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 295 |
-| In progress | 246 |
+| Pending | 266 |
+| In progress | 275 |
 | Complete | 184 |
 | Blocked | 3 |
 
@@ -31,7 +31,7 @@ In progress, Complete, or Blocked is Pending.
 | M4 | 82 | 0 | 82 | 0 | 0 |
 | M5 | 42 | 0 | 42 | 0 | 0 |
 | M6 | 36 | 0 | 36 | 0 | 0 |
-| M7 | 62 | 37 | 25 | 0 | 0 |
+| M7 | 62 | 8 | 54 | 0 | 0 |
 | M7A | 113 | 113 | 0 | 0 | 0 |
 | M8 | 141 | 141 | 0 | 0 | 0 |
 
@@ -70,13 +70,42 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `295/246/184/3` because
+session configuration. The 728 source-plan counts are `266/275/184/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M7-39e | August 18, 2026 | The local System Health fixture reports optional remote-telemetry degradation without marking the security plane unhealthy. |
+| M7-39d | August 18, 2026 | The local AI surface keeps deterministic evidence usable when explanation generation is unavailable. |
+| M7-39c | August 18, 2026 | The local Sessions fixture retains known metadata while event-index activity is degraded. |
+| M7-39b | August 18, 2026 | Existing graph-backed surfaces retain explicit degraded states; live graph outage E2E remains unresolved. |
+| M7-39a | August 18, 2026 | Existing inventory/findings surfaces retain stale coverage warnings instead of false zero-risk output. |
+| M7-38 | August 18, 2026 | The strict UI/API map covers all 104 current public operations with zero planned or unmapped operations. |
+| M7-37 | August 18, 2026 | Existing Home and global-search surfaces prove deterministic local navigation; final live API binding remains unresolved. |
+| M7-36 | August 18, 2026 | The local Audit Log surface renders product mutation evidence and an export-ready boundary. |
+| M7-35 | August 18, 2026 | The External Data Flows surface renders destination, category, enablement, and health policy. |
+| M7-34 | August 18, 2026 | The Data and Retention surface exposes metadata-only production defaults and regulated-setting guidance. |
+| M7-33 | August 18, 2026 | The System Health surface distinguishes required health from optional degradation and displays version/freshness guidance. |
+| M7-32 | August 18, 2026 | `getSystemVersion` is published and handled by the bounded local service. |
+| M7-31 | August 18, 2026 | `listSystemComponents` is published and handled by the bounded local service. |
+| M7-30 | August 18, 2026 | `getSystemStatus` is published and handled by the bounded local service. |
+| M7-29 | August 18, 2026 | Local component probes aggregate required and optional dependency state; provider probes remain unresolved. |
+| M7-28 | August 18, 2026 | The local evidence-aware AI panel renders sent-field and deterministic unavailable states. |
+| M7-27 | August 18, 2026 | `createAIExplanation` is published and handled by a bounded governed local service. |
+| M7-26 | August 18, 2026 | Local AI governance composes purpose/model/provider, request limits, redaction, and no-storage metadata. |
+| M7-26c | August 18, 2026 | Provider selection requires explicit no-storage data-policy metadata. |
+| M7-26b | August 18, 2026 | AI requests enforce bounded tokens, cost, deadline, and concurrency before provider invocation. |
+| M7-26a | August 18, 2026 | AI requests reject purposes, models, and providers outside fixed allowlists before egress. |
+| M7-25 | August 18, 2026 | An allowlist-only local redactor retains approved finding summary fields and drops secret/PII inputs. |
+| M7-24 | August 18, 2026 | A server-side flag cache applies explicit defaults after bounded cached values expire. |
+| M7-23 | August 18, 2026 | An allowlist-only product-event serializer rejects prompts, tool arguments, secrets, IPs, and raw evidence. |
+| M7-22a | August 18, 2026 | Required external dependencies cannot be disabled while optional flows can be changed within category policy. |
+| M7-22 | August 18, 2026 | `updateExternalDataFlows` is published and handled by the bounded local service. |
+| M7-21 | August 18, 2026 | `getExternalDataFlows` is published and handled by the bounded local service. |
+| M7-20 | August 18, 2026 | External-flow models bind required/optional destinations, allowed categories, enablement, and health. |
+| M7-19 | August 18, 2026 | A bounded local retention worker expires product event/evidence references and records the admin policy change; provider scheduling remains unresolved. |
 | M7-18 | August 18, 2026 | `updateDataControls` is published and handled by a bounded environment-scoped local store; provider persistence remains unresolved. |
 | M7-17 | August 18, 2026 | `getDataControls` is published and handled by the bounded local service. |
 | M7-16 | August 18, 2026 | Environment collection mode, retention, and deletion settings validate production as metadata-only. |
