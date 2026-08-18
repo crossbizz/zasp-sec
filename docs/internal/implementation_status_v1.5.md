@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 658 |
-| In progress | 0 |
+| Pending | 657 |
+| In progress | 1 |
 | Complete | 67 |
 | Blocked | 3 |
 
@@ -24,7 +24,7 @@ In progress, Complete, or Blocked is Pending.
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 0 | 0 | 24 | 3 |
-| M1 | 68 | 25 | 0 | 43 | 0 |
+| M1 | 68 | 24 | 1 | 43 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
 | M3 | 75 | 75 | 0 | 0 | 0 |
@@ -68,13 +68,14 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `658/0/67/3` because
+session configuration. The 728 source-plan counts are `657/1/67/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M1-30 | August 17, 2026 | Adding one canonical assembled local start target over the reviewed M1-30d lifecycle, with exact prior-profile preservation, zero external vendor-dashboard exposure, disposable ownership, and fixed output. |
 
 ## Complete
 

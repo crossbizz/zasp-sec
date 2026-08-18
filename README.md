@@ -717,7 +717,7 @@ Successful live verification emits exactly
 The runner uses its own kubeconfig and proof labels, removes only retained
 resources after exact ownership checks, and leaves shared local services
 untouched. M1-30b is Complete, M1-30c is Complete, and M1-30d is Complete.
-M1-30 remains Pending.
+M1-30 is In progress.
 
 ## Platform health wiring
 
@@ -832,7 +832,7 @@ and
 `registry.k8s.io/e2e-test-images/busybox:1.36.1-1@sha256:a9155b13325b2abef48e71de77bb8ac015412a566829f621d06bfae5c699b1b9`.
 They are opt-in local development targets: this proof does not approve
 redistribution or production packaging, and bundled components retain their
-own terms. Aggregate M1-30 verification remains deferred to M1-30.
+own terms. Aggregate M1-30 verification is In progress.
 
 ## Local AWS emulator Kubernetes manifest proof
 
@@ -869,7 +869,7 @@ freshly re-prove as proof-owned.
 This task does not expose LocalStack on the host, reuse a shared LocalStack
 target, persist emulator state, read ambient AWS or Kubernetes authority, or
 wire product AWS clients. M1-31 owns product client-factory consumption of the
-endpoint contract. M1-30 remains Pending until its separate assembled local
+endpoint contract. M1-30 is In progress while its separate assembled local
 start target is implemented and verified.
 
 ## Neon pooled proof
