@@ -90,6 +90,22 @@ export function buildSyntheticObservabilitySpan(...input) {
   });
 }
 
+function buildSyntheticObservabilitySinkSpan() {
+  const value = structuredClone(buildSyntheticObservabilitySpan());
+  const span = value.resourceSpans[0].scopeSpans[0].spans[0];
+  value.resourceSpans[0].scopeSpans[0].spans[0] = {
+    traceId: span.traceId,
+    spanId: span.spanId,
+    flags: span.flags,
+    name: span.name,
+    kind: span.kind,
+    startTimeUnixNano: span.startTimeUnixNano,
+    endTimeUnixNano: span.endTimeUnixNano,
+    status: span.status,
+  };
+  return deepFreeze(value);
+}
+
 export function buildObservabilityResources(...input) {
   if (input.length !== 0) throw new TypeError("observability resources accept no caller input");
   const collectorLabels = { "app.kubernetes.io/name": OBSERVABILITY_CONSTANTS.collectorName, ...commonLabels };
@@ -344,7 +360,7 @@ export function parseObservabilitySink(bytes) {
   } catch {
     invalidSink();
   }
-  requireExactValue(value, buildSyntheticObservabilitySpan(), "observability sink");
+  requireExactValue(value, buildSyntheticObservabilitySinkSpan(), "observability sink");
   return deepFreeze(structuredClone(value));
 }
 

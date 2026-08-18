@@ -467,7 +467,23 @@ function providerList(items) {
   return `${JSON.stringify({ apiVersion: "v1", items, kind: "List", metadata: { resourceVersion: "" } })}\n`;
 }
 
-function sinkFrame(value = buildSyntheticObservabilitySpan(), metadata = "9|10|SIZE|regular file|10001|10001|600") {
+function providerSinkSpan() {
+  const value = clone(buildSyntheticObservabilitySpan());
+  const span = value.resourceSpans[0].scopeSpans[0].spans[0];
+  value.resourceSpans[0].scopeSpans[0].spans[0] = {
+    traceId: span.traceId,
+    spanId: span.spanId,
+    flags: span.flags,
+    name: span.name,
+    kind: span.kind,
+    startTimeUnixNano: span.startTimeUnixNano,
+    endTimeUnixNano: span.endTimeUnixNano,
+    status: span.status,
+  };
+  return value;
+}
+
+function sinkFrame(value = providerSinkSpan(), metadata = "9|10|SIZE|regular file|10001|10001|600") {
   const bytes = `${JSON.stringify(value)}\n`;
   const identity = metadata.replace("SIZE", String(Buffer.byteLength(bytes)));
   return `ZASP-SINK:${identity}\n${bytes}ZASP-SINK:${identity}\n`;

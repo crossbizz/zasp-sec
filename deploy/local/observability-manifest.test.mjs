@@ -25,6 +25,22 @@ function clone(value) {
   return structuredClone(value);
 }
 
+function providerSinkSpan() {
+  const value = clone(buildSyntheticObservabilitySpan());
+  const span = value.resourceSpans[0].scopeSpans[0].spans[0];
+  value.resourceSpans[0].scopeSpans[0].spans[0] = {
+    traceId: span.traceId,
+    spanId: span.spanId,
+    flags: span.flags,
+    name: span.name,
+    kind: span.kind,
+    startTimeUnixNano: span.startTimeUnixNano,
+    endTimeUnixNano: span.endTimeUnixNano,
+    status: span.status,
+  };
+  return value;
+}
+
 test("builds the exact split observability resources and committed bytes", async () => {
   assert.equal(COLLECTOR_IMAGE, collectorImage);
   assert.equal(BUSYBOX_IMAGE, busyboxImage);
@@ -347,12 +363,13 @@ test("rejects non-plain arrays and accessor-backed resource entries without invo
 });
 
 test("parses only one bounded duplicate-safe exact sink record", () => {
-  const bytes = Buffer.from(`${JSON.stringify(buildSyntheticObservabilitySpan())}\n`, "utf8");
+  const bytes = Buffer.from(`${JSON.stringify(providerSinkSpan())}\n`, "utf8");
   assert.deepEqual(parseObservabilitySink(bytes), buildSyntheticObservabilitySpan());
   assert.deepEqual(parseObservabilitySink(new Uint8Array(bytes)), buildSyntheticObservabilitySpan());
   for (const invalid of [
     Buffer.from("", "utf8"),
     Buffer.from("null\n", "utf8"),
+    Buffer.from(`${JSON.stringify(buildSyntheticObservabilitySpan())}\n`, "utf8"),
     Buffer.from(`${JSON.stringify(buildSyntheticObservabilitySpan())}\n{}\n`, "utf8"),
     Buffer.from(JSON.stringify({ ...buildSyntheticObservabilitySpan(), extra: true }), "utf8"),
     Buffer.from('{"resourceSpans":[],"resourceSpans":[]}\n', "utf8"),
