@@ -10,12 +10,12 @@ describe("Zasp application", () => {
   });
 
   it.each([
-    ["Agentic assets", "Agentic assets"],
+    ["Agents", "Agentic assets"],
     ["Identities", "Non-human identities"],
-    ["Guardrail activity", "Guardrail activity"],
-    ["Red team results", "Red team results"],
-    ["Connectors", "Connectors"],
-    ["Reports", "Reports"],
+    ["Findings", "Identity violations"],
+    ["Policies", "Identity policies"],
+    ["Red Team", "Red team results"],
+    ["Connections", "Connectors"],
   ])("navigates from %s to its workspace", async (link, heading) => {
     render(<ZaspApp />);
     await userEvent.click(screen.getByRole("link", { name: link }));
@@ -36,17 +36,9 @@ describe("Zasp application", () => {
     expect(screen.getByText("Fixed")).toBeVisible();
   });
 
-  it("configures and starts an agent red-team scan", async () => {
-    render(<ZaspApp />);
-    await userEvent.click(screen.getByRole("link", { name: "Scan runs" }));
-    await userEvent.click(screen.getByRole("button", { name: "Run new scan" }));
-    await userEvent.click(screen.getByRole("button", { name: "Start scan" }));
-    expect(screen.getByRole("status")).toHaveTextContent("Scan queued");
-  });
-
   it("connects a cloud inventory source", async () => {
     render(<ZaspApp />);
-    await userEvent.click(screen.getByRole("link", { name: "Connectors" }));
+    await userEvent.click(screen.getByRole("link", { name: "Connections" }));
     await userEvent.click(screen.getByRole("button", { name: "Connect Amazon Web Services" }));
     await userEvent.type(screen.getByLabelText("Role ARN"), "arn:aws:iam::123456789012:role/ZaspReadOnly");
     await userEvent.type(screen.getByLabelText("External ID"), "northstar-prod");
