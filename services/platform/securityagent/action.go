@@ -2,6 +2,7 @@ package securityagent
 
 import (
 	"context"
+	"sort"
 	"sync"
 	"time"
 )
@@ -11,6 +12,17 @@ type ActionRequest struct {
 	Parameters                               map[string]string
 }
 type ActionResult struct{ OutcomeID, State string }
+type VerificationState string
+
+const (
+	VerificationVerified     VerificationState = "verified"
+	VerificationInconclusive VerificationState = "inconclusive"
+)
+
+type VerificationOutcome struct{ State VerificationState }
+type outcomeVerifier interface {
+	VerifyOutcome(context.Context, ActionRequest, ActionResult) VerificationOutcome
+}
 type SecurityAction interface {
 	Metadata() ActionMetadata
 	Validate(context.Context, ActionRequest) error
@@ -67,6 +79,38 @@ func (registry *Registry) Verify(ctx context.Context, request ActionRequest, res
 		return err
 	}
 	return action.Verify(ctx, request, result)
+}
+func (registry *Registry) VerifyOutcome(ctx context.Context, request ActionRequest, result ActionResult) VerificationOutcome {
+	action, err := registry.lookup(request.ActionKey)
+	if err != nil {
+		return VerificationOutcome{State: VerificationInconclusive}
+	}
+	if verifier, ok := action.(outcomeVerifier); ok {
+		return verifier.VerifyOutcome(ctx, request, result)
+	}
+	if action.Verify(ctx, request, result) != nil {
+		return VerificationOutcome{State: VerificationInconclusive}
+	}
+	return VerificationOutcome{State: VerificationVerified}
+}
+func (registry *Registry) Available(ctx context.Context, request ActionRequest) []ActionMetadata {
+	if registry == nil || invalidContext(ctx) {
+		return []ActionMetadata{}
+	}
+	registry.mu.RLock()
+	actions := make([]SecurityAction, 0, len(registry.actions))
+	for _, action := range registry.actions {
+		actions = append(actions, action)
+	}
+	registry.mu.RUnlock()
+	result := []ActionMetadata{}
+	for _, action := range actions {
+		if action.Validate(ctx, request) == nil {
+			result = append(result, action.Metadata())
+		}
+	}
+	sort.Slice(result, func(i, j int) bool { return result[i].Key < result[j].Key })
+	return result
 }
 
 type TemporaryPolicySpec struct {
@@ -138,15 +182,21 @@ func (action *TemporaryPolicyAction) Execute(ctx context.Context, request Action
 	return result, nil
 }
 func (action *TemporaryPolicyAction) Verify(ctx context.Context, request ActionRequest, result ActionResult) error {
-	if err := action.Validate(ctx, request); err != nil || result.State != "succeeded" || !bounded(result.OutcomeID, 128) {
-		return ErrRejected
-	}
-	spec, err := action.spec(request)
-	if err != nil {
-		return err
-	}
-	if err := action.service.VerifyTemporaryPolicy(ctx, result.OutcomeID, spec); err != nil {
+	if action.VerifyOutcome(ctx, request, result).State != VerificationVerified {
 		return ErrRejected
 	}
 	return nil
+}
+func (action *TemporaryPolicyAction) VerifyOutcome(ctx context.Context, request ActionRequest, result ActionResult) VerificationOutcome {
+	if err := action.Validate(ctx, request); err != nil || result.State != "succeeded" || !bounded(result.OutcomeID, 128) {
+		return VerificationOutcome{State: VerificationInconclusive}
+	}
+	spec, err := action.spec(request)
+	if err != nil {
+		return VerificationOutcome{State: VerificationInconclusive}
+	}
+	if err := action.service.VerifyTemporaryPolicy(ctx, result.OutcomeID, spec); err != nil {
+		return VerificationOutcome{State: VerificationInconclusive}
+	}
+	return VerificationOutcome{State: VerificationVerified}
 }

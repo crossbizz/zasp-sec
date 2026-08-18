@@ -321,6 +321,12 @@ bounded temporary runtime-policy action. These local contracts do not claim a
 live Neon migration, production policy-service adapter, or provider-backed M7
 gate.
 
+M7A-18 through M7A-38 are batched as In progress. The Security Agent runtime
+now has bounded temporary-control verification and expiry, eight guarded
+response actions, five versioned templates, scoped finding/attack-path/runtime
+matchers, and cooldown deduplication. External policy, gateway, connector,
+webhook, and persistence adapters remain explicit unresolved boundaries.
+
 ```bash
 go test -C services/platform -race -count=1 ./integration
 go test -C services/platform -race -count=1 ./connectors ./sensor

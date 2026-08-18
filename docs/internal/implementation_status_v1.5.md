@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 241 |
-| In progress | 300 |
+| Pending | 216 |
+| In progress | 325 |
 | Complete | 184 |
 | Blocked | 3 |
 
@@ -32,7 +32,7 @@ In progress, Complete, or Blocked is Pending.
 | M5 | 42 | 0 | 42 | 0 | 0 |
 | M6 | 36 | 0 | 36 | 0 | 0 |
 | M7 | 62 | 0 | 62 | 0 | 0 |
-| M7A | 113 | 96 | 17 | 0 | 0 |
+| M7A | 113 | 71 | 42 | 0 | 0 |
 | M8 | 141 | 141 | 0 | 0 | 0 |
 
 ## Execution invariants
@@ -70,13 +70,38 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `241/300/184/3` because
+session configuration. The 728 source-plan counts are `216/325/184/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M7A-38 | August 18, 2026 | A canonical Organization/environment/source fingerprint suppresses replayed trigger events for a bounded cooldown without cross-scope collision. |
+| M7A-37 | August 18, 2026 | The runtime-decision matcher requires exact Organization, environment, action, risk, agent, session, count, and bounded UTC window. |
+| M7A-36 | August 18, 2026 | The attack-path matcher binds Organization/environment and exact potential/verified evidence state. |
+| M7A-35 | August 18, 2026 | The finding matcher binds enabled definitions to Organization, environment, family, and minimum severity and rejects cross-environment input. |
+| M7A-34 | August 18, 2026 | The versioned Shadow Agent Triage template defaults only to non-destructive test, evidence, and configured handoff actions. |
+| M7A-33 | August 18, 2026 | The versioned Repeated Policy Violation template binds its trigger to agent, session, count, and a five-minute window. |
+| M7A-32 | August 18, 2026 | The versioned Prompt/Tool Injection template combines temporary policy plus existing-test actions and requires the linked risk to become blocked or not reproduced. |
+| M7A-31 | August 18, 2026 | The versioned Credential Exposure template makes supported connection revocation explicitly approval-required. |
+| M7A-30 | August 18, 2026 | The versioned Suspicious Egress template contains only temporary policy, evidence export, signed handoff, and verification defaults. |
+| M7A-29 | August 18, 2026 | A fail-closed versioned template registry exposes five stable built-in IDs and rejects duplicate or malformed definitions. |
+| M7A-28 | August 18, 2026 | Connection-revoke verification classifies provider/backend uncertainty as Inconclusive rather than success. |
+| M7A-27 | August 18, 2026 | Supported connection revocation executes only with an explicit approval token and a stable run/step idempotency key; production broker wiring remains unresolved. |
+| M7A-26 | August 18, 2026 | Connection-revoke metadata requires admin approval and is hidden when the injected connector capability reports unsupported. |
+| M7A-25 | August 18, 2026 | The finding-response action permits assignment, notes, and open/investigating state only; Resolved/Safe inputs fail before execution. |
+| M7A-24 | August 18, 2026 | The response-webhook action accepts only a configured destination ID plus run-scoped evidence, never an arbitrary URL; production signer/delivery wiring remains unresolved. |
+| M7A-23 | August 18, 2026 | The evidence-export action requires every evidence ID to be scoped to the current run before invoking the bounded backend. |
+| M7A-22 | August 18, 2026 | Attack Lab execution accepts only existing test definitions, approved preflight, and non-production/test targets. |
+| M7A-21 | August 18, 2026 | `run_test` and `rerun_test` accept only an existing TestDefinition ID and reject arbitrary prompt/target content. |
+| M7A-20 | August 18, 2026 | Session isolation executes idempotently through the bounded backend and requires verified gateway-decision evidence; production gateway wiring remains unresolved. |
+| M7A-19 | August 18, 2026 | `isolate_session` metadata requires one supported scoped session, Monitor/Block-compatible temporary enforcement, approval, reversibility, and TTL. |
+| M7A-18d | August 18, 2026 | `agentsec-worker` contains a bounded periodic hook for the exact claim/cleanup/verify worker path; production repository/service construction remains unresolved. |
+| M7A-18c | August 18, 2026 | Expiry verification records cleaned or cleanup_failed audit evidence, and uncertainty becomes cleanup_failed rather than silent success. |
+| M7A-18b | August 18, 2026 | Expired product-native controls disable through a scoped idempotency key, with repeat scans leaving the terminal state unchanged. |
+| M7A-18a | August 18, 2026 | The Organization-scoped local temporary-control repository atomically claims expired controls so concurrent workers have one winner. |
+| M7A-18 | August 18, 2026 | Temporary-policy verification returns Verified only for the expected scoped state; missing/stale bundle evidence becomes Inconclusive. |
 | M7A-17 | August 18, 2026 | The registered temporary-policy action executes through a bounded policy-service contract and returns the same policy ID for a repeated run/step key; production adapter wiring remains unresolved. |
 | M7A-16 | August 18, 2026 | `create_temporary_policy` metadata restricts requests to Monitor/Block, a bounded scope, a positive TTL, operator approval, reversibility, idempotency, and policy-state verification. |
 | M7A-15 | August 18, 2026 | A fail-closed action registry exposes metadata, validation, execution, and verification contracts and rejects duplicate action keys. |

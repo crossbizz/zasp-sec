@@ -32,16 +32,18 @@ type Approval struct {
 type IdempotencyRecord struct{ OrganizationID, RunID, StepID, ActionKey, State, OutcomeID string }
 
 type MemoryRepository struct {
-	mu        sync.RWMutex
-	agents    map[string]SecurityAgent
-	runs      map[string]SecurityAgentRun
-	steps     map[string]RunStep
-	approvals map[string]Approval
-	claims    map[string]IdempotencyRecord
+	mu            sync.RWMutex
+	agents        map[string]SecurityAgent
+	runs          map[string]SecurityAgentRun
+	steps         map[string]RunStep
+	approvals     map[string]Approval
+	claims        map[string]IdempotencyRecord
+	controls      map[string]TemporaryControl
+	cleanupAudits []CleanupAudit
 }
 
 func NewMemoryRepository() *MemoryRepository {
-	return &MemoryRepository{agents: map[string]SecurityAgent{}, runs: map[string]SecurityAgentRun{}, steps: map[string]RunStep{}, approvals: map[string]Approval{}, claims: map[string]IdempotencyRecord{}}
+	return &MemoryRepository{agents: map[string]SecurityAgent{}, runs: map[string]SecurityAgentRun{}, steps: map[string]RunStep{}, approvals: map[string]Approval{}, claims: map[string]IdempotencyRecord{}, controls: map[string]TemporaryControl{}}
 }
 
 func (repo *MemoryRepository) CreateAgent(ctx context.Context, value SecurityAgent) error {
