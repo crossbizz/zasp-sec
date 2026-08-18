@@ -487,6 +487,16 @@ button:disabled { cursor: default; }
 .connection-success h3 { margin-bottom: 0; }
 .connection-success p { max-width: 520px; color: var(--muted); line-height: 1.5; }
 .connection-success > div { display: flex; gap: 8px; }
+.connection-list { display: grid; gap: 1px; margin: 0 18px 18px; overflow: hidden; border: 1px solid var(--border); border-radius: 8px; background: var(--border); }
+.connection-list > button, .connection-list > div { min-height: 48px; display: grid; grid-template-columns: minmax(160px, 1fr) minmax(90px, .35fr) minmax(130px, .45fr); align-items: center; gap: 12px; padding: 10px 12px; border: 0; background: white; color: var(--ink); text-align: left; }
+.connection-list > button:hover { background: var(--brand-50); }
+.connection-list span { color: var(--muted); font-size: 12px; }
+.connector-detail { display: grid; gap: 20px; }
+.connector-detail .metric-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0; }
+.connector-detail section { display: grid; gap: 10px; }
+.connector-detail section h3 { margin: 0; }
+.connector-detail section > div:not(.connection-list) { display: flex; flex-wrap: wrap; gap: 7px; }
+.connector-detail .connection-list { margin: 0; }
 
 /* Prompt hardening and reports */
 .hardening-summary { display: grid; grid-template-columns: 260px 1fr; gap: 1px; margin-bottom: 16px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--border); box-shadow: var(--shadow); }

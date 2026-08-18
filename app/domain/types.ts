@@ -204,6 +204,12 @@ export interface Connector {
   fields: ConnectorField[];
   lastSync?: string;
   assetsDiscovered?: number;
+  freshness?: "healthy" | "stale" | "degraded";
+  scope?: string;
+  dataTypes?: string[];
+  syncHistory?: Array<{ id: string; status: "succeeded" | "failed"; started: string; collected: number }>;
+  supportedActions?: Array<"authorize" | "sync" | "delete">;
+  lastError?: string;
 }
 
 export interface Report {

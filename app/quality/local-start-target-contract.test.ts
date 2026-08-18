@@ -58,14 +58,14 @@ describe("M1-30 assembled local start target", () => {
 
     expect(readme).toContain("M1-30 is Complete");
     expect(readme).toContain("M1-31");
-    expect(tracker).toContain("| Pending | 517 |");
-    expect(tracker).toContain("| In progress | 24 |");
+    expect(tracker).toContain("| Pending | 495 |");
+    expect(tracker).toContain("| In progress | 46 |");
     expect(tracker).toContain("| Complete | 184 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`517/24/184/3`");
+    expect(tracker).toContain("`495/46/184/3`");
     expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "0", "0", "68", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active).toHaveLength(24);
+    expect(active).toHaveLength(46);
     expect(complete).toHaveLength(184);
     expect(active.filter(([task]) => task === "M1-30")).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-30")).toHaveLength(1);

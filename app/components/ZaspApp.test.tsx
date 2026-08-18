@@ -46,6 +46,23 @@ describe("Zasp application", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Amazon Web Services connected");
   });
 
+  it("renders connection catalog, freshness list, bounded detail history, and supported actions", async () => {
+    render(<ZaspApp />);
+    await userEvent.click(screen.getByRole("link", { name: "Connections" }));
+    expect(screen.getByRole("heading", { name: "Connected integrations" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "View Microsoft Azure connection" })).toBeVisible();
+    expect(screen.queryByText(/cartography|prowler|nango/i)).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "View Kubernetes connection" }));
+    const dialog = screen.getByRole("dialog", { name: "Kubernetes" });
+    expect(dialog).toHaveTextContent("Production / us-west");
+    expect(dialog).toHaveTextContent("Runtime signals");
+    expect(dialog).toHaveTextContent("3h ago");
+    expect(dialog).toHaveTextContent("failed");
+    expect(screen.getByRole("button", { name: "Sync now" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Delete connection" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Review access" })).not.toBeInTheDocument();
+  });
+
   it.each([
     [/^Protected interactions/, "Security agents"],
     [/^Runtime guardrails/, "Security agents"],

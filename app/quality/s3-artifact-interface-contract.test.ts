@@ -46,11 +46,11 @@ describe("M1-12 S3 artifact interface contract", () => {
 
     expect(readme).toContain("M1-12 is Complete");
     expect(readme).toContain("Organization-scoped ArtifactStore");
-    expect(tracker).toContain("| Pending | 517 |");
-    expect(tracker).toContain("| In progress | 24 |");
+    expect(tracker).toContain("| Pending | 495 |");
+    expect(tracker).toContain("| In progress | 46 |");
     expect(tracker).toContain("| Complete | 184 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`517/24/184/3`");
+    expect(tracker).toContain("`495/46/184/3`");
     expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "0", "0", "68", "0"]);
     expect(active.filter(([task]) => task === "M1-12")).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-12")).toHaveLength(1);

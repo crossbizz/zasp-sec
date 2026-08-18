@@ -21,7 +21,7 @@ function assertM014cComplete(tracker: string) {
   const activeRows = markdownRows(inProgress).slice(2);
   const allCompleteRows = markdownRows(complete).slice(2);
   const completeRows = allCompleteRows.filter(([task]) => task === "M0-14c");
-  expect(activeRows).toHaveLength(24);
+  expect(activeRows).toHaveLength(46);
   expect([...activeRows, ...allCompleteRows].filter(([task]) => task === "M0-15")).toHaveLength(1);
   expect(completeRows).toHaveLength(1);
   expect(completeRows[0]?.[1]).toBe("August 15, 2026");
@@ -104,8 +104,8 @@ describe("Nango API-key proof completion contract", () => {
       "utf8",
     );
 
-    expect(tracker).toContain("| Pending | 517 |");
-    expect(tracker).toContain("| In progress | 24 |");
+    expect(tracker).toContain("| Pending | 495 |");
+    expect(tracker).toContain("| In progress | 46 |");
     expect(tracker).toContain("| Complete | 184 |");
     expect(tracker).toContain("| Blocked | 3 |");
     expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 0 \| 24 \| 3 \|/);

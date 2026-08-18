@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 517 |
-| In progress | 24 |
+| Pending | 495 |
+| In progress | 46 |
 | Complete | 184 |
 | Blocked | 3 |
 
@@ -27,7 +27,7 @@ In progress, Complete, or Blocked is Pending.
 | M1 | 68 | 0 | 0 | 68 | 0 |
 | M1A | 10 | 4 | 0 | 6 | 0 |
 | M2 | 72 | 0 | 0 | 72 | 0 |
-| M3 | 75 | 37 | 24 | 14 | 0 |
+| M3 | 75 | 15 | 46 | 14 | 0 |
 | M4 | 82 | 82 | 0 | 0 | 0 |
 | M5 | 42 | 42 | 0 | 0 | 0 |
 | M6 | 36 | 36 | 0 | 0 | 0 |
@@ -70,13 +70,35 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `517/24/184/3` because
+session configuration. The 728 source-plan counts are `495/46/184/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M3-48c3 | August 18, 2026 | Capability-gated integration detail actions are implemented locally; generated-client wiring remains in progress. |
+| M3-48c2 | August 18, 2026 | Bounded integration data capabilities and sync-history detail are implemented locally. |
+| M3-48c1 | August 18, 2026 | Integration detail health, scope, freshness, and last-sync summary are implemented locally. |
+| M3-48b | August 18, 2026 | Connected-integration freshness list is implemented locally. |
+| M3-48a | August 18, 2026 | Filterable product connector catalog cards remain free of internal adapter names. |
+| M3-47 | August 18, 2026 | Ambiguous runtime lineage remains Probable or Unattributed and cannot upgrade to Exact. |
+| M3-46 | August 18, 2026 | Unique sandbox/container/cgroup/process lineage correlation is implemented as Strong. |
+| M3-45 | August 18, 2026 | Exact session and agent identity correlation is implemented as Exact. |
+| M3-44 | August 18, 2026 | Deterministic scoped runtime-event index documents include archive references. |
+| M3-43 | August 18, 2026 | Runtime worker orders archive, index, correlation, then acknowledgement and is replay-safe locally. |
+| M3-43d | August 18, 2026 | Deterministic correlation writes occur only after archive and indexing succeed. |
+| M3-43c | August 18, 2026 | Deterministic event indexing reuses event IDs and archive references on replay. |
+| M3-43b | August 18, 2026 | Organization/date-scoped deterministic archive keys are implemented locally. |
+| M3-43a | August 18, 2026 | Deterministic batch consumption and replay identity are implemented locally. |
+| M3-42 | August 18, 2026 | Scoped internal event ingest acknowledges only after bounded publisher acceptance. |
+| M3-41 | August 18, 2026 | Runtime events are batched by bounded count and bytes before queue publication. |
+| M3-40 | August 18, 2026 | Metadata-only collection removes content while preserving action metadata. |
+| M3-39 | August 18, 2026 | Sensor/runtime authentication and exact scope checks run before payload parsing. |
+| M3-38 | August 18, 2026 | OTLP semantic attributes map agent, session, task, tool, sandbox, trace, and span identity. |
+| M3-37 | August 18, 2026 | Sensor health derives kernel/BTF/resource/event/drop coverage state locally. |
+| M3-36 | August 18, 2026 | Process, file, and network Tetragon fixtures normalize with workload identity. |
+| M3-35 | August 18, 2026 | Exact-pinned Tetragon wrapper and three bounded tracing policies are staged locally. |
 | M3-34 | August 18, 2026 | Sensor heartbeat operation is implemented locally; real staging remains gated by M1A-10. |
 | M3-33 | August 18, 2026 | Sensor coverage API is implemented locally; real staging remains gated by M1A-10. |
 | M3-32 | August 18, 2026 | One-time sensor-token rotation API is implemented locally; real staging remains gated by M1A-10. |

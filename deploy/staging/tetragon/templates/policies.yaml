@@ -1,0 +1,38 @@
+apiVersion: cilium.io/v1alpha1
+kind: TracingPolicy
+metadata:
+  name: zasp-process-exec
+spec:
+  kprobes:
+    - call: sys_execve
+      syscall: true
+      args:
+        - { index: 0, type: string }
+---
+apiVersion: cilium.io/v1alpha1
+kind: TracingPolicy
+metadata:
+  name: zasp-sensitive-file
+spec:
+  kprobes:
+    - call: security_file_permission
+      syscall: false
+      args:
+        - { index: 0, type: file }
+        - { index: 1, type: int }
+      selectors:
+        - matchArgs:
+            - index: 0
+              operator: Prefix
+              values: [/etc, /var/run/secrets, /run/secrets]
+---
+apiVersion: cilium.io/v1alpha1
+kind: TracingPolicy
+metadata:
+  name: zasp-network-connect
+spec:
+  kprobes:
+    - call: tcp_connect
+      syscall: false
+      args:
+        - { index: 0, type: sock }

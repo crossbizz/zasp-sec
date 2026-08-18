@@ -1,0 +1,10 @@
+apiVersion: v2
+name: zasp-tetragon
+description: Zasp runtime sensor wrapper with a deliberately bounded event surface.
+type: application
+version: 0.1.0
+appVersion: "1.7.0"
+dependencies:
+  - name: tetragon
+    version: 1.7.0
+    repository: https://helm.cilium.io

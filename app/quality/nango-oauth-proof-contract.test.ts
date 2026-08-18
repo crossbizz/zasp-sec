@@ -22,7 +22,7 @@ function assertM014bComplete(tracker: string) {
   const completeRows = markdownRows(complete).slice(2);
   const completedM014b = completeRows.filter(([task]) => task === "M0-14b");
 
-  expect(activeRows).toHaveLength(24);
+  expect(activeRows).toHaveLength(46);
   expect([...activeRows, ...completeRows].filter(([task]) => task === "M0-15")).toHaveLength(1);
   expect(completedM014b).toHaveLength(1);
   expect(completedM014b[0]?.[1]).toBe("August 15, 2026");
@@ -108,8 +108,8 @@ describe("Nango OAuth proof contract", () => {
       "utf8",
     );
 
-    expect(tracker).toContain("| Pending | 517 |");
-    expect(tracker).toContain("| In progress | 24 |");
+    expect(tracker).toContain("| Pending | 495 |");
+    expect(tracker).toContain("| In progress | 46 |");
     expect(tracker).toContain("| Complete | 184 |");
     expect(tracker).toContain("| Blocked | 3 |");
     expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 0 \| 24 \| 3 \|/);

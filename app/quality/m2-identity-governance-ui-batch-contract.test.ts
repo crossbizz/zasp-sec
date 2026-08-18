@@ -20,16 +20,16 @@ describe("M2 identity governance and UI batch", () => {
   it("moves exactly twenty related source tasks to Complete", async () => {
     const tracker = await readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8");
     const complete = taskRows(tracker, "Complete").map(([task]) => task);
-    expect(tracker).toContain("| Pending | 517 |");
-    expect(tracker).toContain("| In progress | 24 |");
+    expect(tracker).toContain("| Pending | 495 |");
+    expect(tracker).toContain("| In progress | 46 |");
     expect(tracker).toContain("| Complete | 184 |");
     expect(tracker).toContain("| Blocked | 3 |");
     expect(tracker).toContain("| M2 | 72 | 0 | 0 | 72 | 0 |");
-    expect(tracker).toContain("`517/24/184/3`");
+    expect(tracker).toContain("`495/46/184/3`");
     expect(complete).toHaveLength(184);
     expect(new Set(complete).size).toBe(184);
     for (const task of batch) expect(complete.filter((value) => value === task)).toHaveLength(1);
-    expect(taskRows(tracker, "In progress")).toHaveLength(24);
+    expect(taskRows(tracker, "In progress")).toHaveLength(46);
     expect(taskRows(tracker, "Blocked").map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
 

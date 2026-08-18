@@ -17,12 +17,12 @@ describe("M2 identity and administration API batch", () => {
       .filter((line) => /^\| M[^ |]+ \|/.test(line))
       .map((line) => line.split("|")[1].trim());
 
-    expect(tracker).toContain("| Pending | 517 |");
-    expect(tracker).toContain("| In progress | 24 |");
+    expect(tracker).toContain("| Pending | 495 |");
+    expect(tracker).toContain("| In progress | 46 |");
     expect(tracker).toContain("| Complete | 184 |");
     expect(tracker).toContain("| Blocked | 3 |");
     expect(tracker).toContain("| M2 | 72 | 0 | 0 | 72 | 0 |");
-    expect(tracker).toContain("`517/24/184/3`");
+    expect(tracker).toContain("`495/46/184/3`");
     expect(complete).toHaveLength(184);
     expect(new Set(complete).size).toBe(184);
     for (const task of completedTasks) expect(complete).toContain(task);

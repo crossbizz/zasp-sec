@@ -34,10 +34,10 @@ describe("M3 connector and sensor implementation batch", () => {
       readFile(resolve(root, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(root, "README.md"), "utf8"),
     ]);
-    expect(tracker).toContain("| Pending | 517 |");
-    expect(tracker).toContain("| In progress | 24 |");
+    expect(tracker).toContain("| Pending | 495 |");
+    expect(tracker).toContain("| In progress | 46 |");
     expect(tracker).toContain("| Complete | 184 |");
-    expect(tracker).toContain("| M3 | 75 | 37 | 24 | 14 | 0 |");
+    expect(tracker).toContain("| M3 | 75 | 15 | 46 | 14 | 0 |");
     const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
     for (const task of ["M3-14", "M3-15", "M3-16", "M3-17", "M3-18", "M3-19", "M3-20", "M3-21", "M3-22a", "M3-22b", "M3-22c", "M3-22", "M3-23", "M3-24", "M3-25", "M3-26", "M3-27", "M3-28", "M3-29", "M3-30", "M3-31", "M3-32", "M3-33", "M3-34"]) {
       expect(active.match(new RegExp(`^\\| ${task.replace("-", "\\-")} \\|`, "gm"))).toHaveLength(1);

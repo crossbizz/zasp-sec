@@ -276,9 +276,18 @@ The required real AWS staging authority is unavailable, so M1A-07 through
 M1A-10 and the real-AWS denial/staging smoke gates have not been claimed or
 bypassed.
 
+M3-35 through M3-48c3 are also batched as In progress. The local MVP slice
+adds the exact-pinned Tetragon wrapper, process/file/network and OTLP semantic
+adapters, scoped pre-parse authentication, metadata filtering, bounded event
+batches, deterministic archive/index/correlation worker stages, and the
+connection catalog/list/detail product surfaces. Durable AWS queue, object,
+index, and staging lifecycle evidence remains gated by M1A-10; the local worker
+tests do not substitute for that provider gate.
+
 ```bash
 go test -C services/platform -race -count=1 ./integration
 go test -C services/platform -race -count=1 ./connectors ./sensor
+go test -C services/platform -race -count=1 ./runtimeevent
 terraform -chdir=deploy/staging init -backend=false
 terraform -chdir=deploy/staging validate
 ```
