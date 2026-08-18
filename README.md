@@ -306,12 +306,17 @@ five-check local M4 gate across Inventory, Capability, Posture, Attack Path,
 and Exposure UX. This is coherent local MVP evidence, not Neon, provider,
 staging, external webhook, or release-gate evidence.
 
-M5-01 through M5-30 are Complete. The reviewed Red Team and Attack Lab boundary
+M5-01 through M5-35 are Complete. The reviewed Red Team and Attack Lab boundary
 validates test/run/attempt state, strict Promptfoo normalization, safe worker
 replay and artifacts, capability-driven UX, a bounded Fargate sandbox spec,
 signed egress, preflight, canary evidence, verdicts, and twelve generated APIs.
-M5-31 through M5-35 remain batched as In progress; live Attack Lab/Fargate
-evidence is not claimed.
+The complete local M5 gate does not claim live Attack Lab/Fargate execution.
+
+M6-01 through M6-17 are Complete. The reviewed policy foundation includes the
+domain and generated APIs, valid deterministic Rego evaluated through the OPA
+Go SDK, signed ArtifactStore bundles, bounded restart recovery, runtime-token
+delivery, and a bounded OpenSearch history adapter. M6-18 through M6-31 remain
+batched as In progress; live provider or staging evidence is not claimed.
 
 M7-39 through M7-40 and M7A-01 through M7A-17 are batched as In progress. The
 local M7 gate now binds five degraded-state fixtures and six independent MVP

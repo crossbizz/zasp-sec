@@ -296,10 +296,14 @@ func MeasureDecisionP95(ctx context.Context, compiled CompiledPolicy, input map[
 	if attempts < 1 || attempts > 10_000 {
 		return 0, ErrRejected
 	}
+	prepared, err := prepareCompiled(ctx, compiled)
+	if err != nil {
+		return 0, ErrRejected
+	}
 	values := make([]time.Duration, attempts)
 	for i := range attempts {
 		start := time.Now()
-		if _, err := Evaluate(ctx, compiled, input); err != nil {
+		if _, err := evaluatePrepared(ctx, prepared, input); err != nil {
 			return 0, ErrRejected
 		}
 		values[i] = time.Since(start)

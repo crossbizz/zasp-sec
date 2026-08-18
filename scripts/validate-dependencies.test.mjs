@@ -62,7 +62,20 @@ const awsDependencies = [
   review: "approved",
 }));
 
-const dependencies = [...npmDependencies, ...awsDependencies].sort((left, right) =>
+const policyDependencies = [
+  {
+    ecosystem: "go",
+    manifest: "services/platform/go.mod",
+    name: "github.com/open-policy-agent/opa",
+    version: "v1.17.0",
+    license: "Apache-2.0",
+    owner: "platform-data",
+    scope: "runtime",
+    review: "approved",
+  },
+];
+
+const dependencies = [...npmDependencies, ...awsDependencies, ...policyDependencies].sort((left, right) =>
   `${left.manifest}:${left.name}`.localeCompare(`${right.manifest}:${right.name}`),
 );
 
@@ -116,6 +129,7 @@ function filesFixture() {
       "",
       "require (",
       ...awsDependencies.map(({ name, version }) => `\t${name} ${version}`),
+      ...policyDependencies.map(({ name, version }) => `\t${name} ${version}`),
       ")",
       "",
     ].join("\n"),
@@ -129,12 +143,12 @@ function validate(lock = lockFixture(), files = filesFixture()) {
 }
 
 test("accepts the exact reviewed product runtime inventory", () => {
-  assert.deepEqual(validate(), { manifests: 9, dependencies: 12 });
+  assert.deepEqual(validate(), { manifests: 9, dependencies: 13 });
 });
 
 test("binds the exact six AWS SDK product dependencies", async (t) => {
   assert.deepEqual(
-    lockFixture().dependencies.filter(({ manifest }) => manifest === "services/platform/go.mod"),
+    lockFixture().dependencies.filter(({ name }) => name.startsWith("github.com/aws/aws-sdk-go-v2")),
     awsDependencies,
   );
 
@@ -160,6 +174,22 @@ test("binds the exact six AWS SDK product dependencies", async (t) => {
     );
     assert.throws(() => validate(lockFixture(), files));
   });
+});
+
+test("binds the exact OPA product runtime dependency", async (t) => {
+  const retained = lockFixture().dependencies.filter(({ name }) => name === "github.com/open-policy-agent/opa");
+  assert.deepEqual(retained, policyDependencies);
+  for (const [name, mutate] of [
+    ["version drift", (entry) => { entry.version = "v1.16.0"; }],
+    ["license drift", (entry) => { entry.license = "MIT"; }],
+    ["owner drift", (entry) => { entry.owner = "web-platform"; }],
+  ]) {
+    await t.test(name, () => {
+      const lock = lockFixture();
+      mutate(lock.dependencies.find((entry) => entry.name === "github.com/open-policy-agent/opa"));
+      assert.throws(() => validate(lock));
+    });
+  }
 });
 
 test("rejects YAML aliases, duplicate keys, and oversized input", async (t) => {
@@ -306,7 +336,7 @@ test("tracks direct Go and Python requirements while ignoring development and in
   );
   lock.dependencies.sort((left, right) => `${left.manifest}:${left.name}`.localeCompare(`${right.manifest}:${right.name}`));
 
-  assert.deepEqual(validate(lock, files), { manifests: 9, dependencies: 14 });
+  assert.deepEqual(validate(lock, files), { manifests: 9, dependencies: 15 });
 });
 
 test("accepts only the exact repository-owned health module replacement outside the third-party lock", async (t) => {
@@ -334,6 +364,7 @@ test("accepts only the exact repository-owned health module replacement outside 
       [
         "require (",
         ...awsDependencies.map(({ name, version }) => `\t${name} ${version}`),
+        ...policyDependencies.map(({ name, version }) => `\t${name} ${version}`),
         "\tgithub.com/zasp-ai/zasp-sec/services/health v0.0.0",
         ")",
       ].join("\n"),
@@ -341,7 +372,7 @@ test("accepts only the exact repository-owned health module replacement outside 
     return files;
   }
 
-  assert.deepEqual(validate(lockFixture(), internalFiles()), { manifests: 9, dependencies: 12 });
+  assert.deepEqual(validate(lockFixture(), internalFiles()), { manifests: 9, dependencies: 13 });
 
   for (const [name, mutate] of [
     ["missing replacement", (files) => {

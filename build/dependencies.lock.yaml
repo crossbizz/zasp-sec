@@ -139,3 +139,11 @@ dependencies:
     owner: platform-data
     scope: runtime
     review: approved
+  - ecosystem: go
+    manifest: services/platform/go.mod
+    name: github.com/open-policy-agent/opa
+    version: v1.17.0
+    license: Apache-2.0
+    owner: platform-data
+    scope: runtime
+    review: approved

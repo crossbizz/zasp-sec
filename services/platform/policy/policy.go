@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"sync"
+
+	"github.com/open-policy-agent/opa/v1/rego"
 )
 
 var ErrRejected = errors.New("policy operation rejected")
@@ -54,9 +56,12 @@ func Validate(value Policy, capabilities Capabilities) error {
 }
 
 type CompiledPolicy struct {
-	ID, Rego, Digest string
-	Action           Action
-	Conditions       []Condition
+	ID         string      `json:"id"`
+	Trigger    string      `json:"trigger"`
+	Rego       string      `json:"rego"`
+	Digest     string      `json:"digest"`
+	Action     Action      `json:"action"`
+	Conditions []Condition `json:"conditions"`
 }
 
 func Compile(value Policy) (CompiledPolicy, error) {
@@ -70,39 +75,35 @@ func Compile(value Policy) (CompiledPolicy, error) {
 		}
 		return conditions[i].Value < conditions[j].Value
 	})
-	bytes, err := json.Marshal(struct {
-		ID, Trigger string
-		Conditions  []Condition
-		Action      Action
-	}{value.ID, value.Trigger, conditions, value.Action})
+	module, err := compileRego(value.ID, value.Trigger, value.Action, conditions)
 	if err != nil {
 		return CompiledPolicy{}, ErrRejected
 	}
-	digest := sha256.Sum256(bytes)
-	rego := "package zasp.runtime\n# deterministic product policy\npolicy := " + string(bytes) + "\n"
-	return CompiledPolicy{ID: value.ID, Rego: rego, Digest: hex.EncodeToString(digest[:]), Action: value.Action, Conditions: conditions}, nil
+	digest := sha256.Sum256([]byte(module))
+	return CompiledPolicy{ID: value.ID, Trigger: value.Trigger, Rego: module, Digest: hex.EncodeToString(digest[:]), Action: value.Action, Conditions: conditions}, nil
 }
 
 type Decision struct {
-	Action  Action
-	Matched bool
+	Action  Action `json:"action"`
+	Matched bool   `json:"matched"`
 }
 
 func Evaluate(ctx context.Context, compiled CompiledPolicy, input map[string]string) (Decision, error) {
-	if ctx == nil || ctx.Err() != nil || !bounded(compiled.ID, 128) || len(compiled.Conditions) == 0 {
+	if ctx == nil || ctx.Err() != nil || verifyCompiled(compiled) != nil || !validEvaluationInput(input) {
 		return Decision{}, ErrRejected
 	}
-	for _, condition := range compiled.Conditions {
-		if input[condition.Field] != condition.Value {
-			return Decision{Action: ActionMonitor, Matched: false}, nil
-		}
+	prepared, err := prepareCompiled(ctx, compiled)
+	if err != nil {
+		return Decision{}, ErrRejected
 	}
-	return Decision{Action: compiled.Action, Matched: true}, nil
+	return evaluatePrepared(ctx, prepared, input)
 }
 
 type Bundle struct {
-	EnvironmentID, Manifest, Signature string
-	Policies                           []CompiledPolicy
+	EnvironmentID string           `json:"environment_id"`
+	Manifest      string           `json:"manifest"`
+	Signature     string           `json:"signature"`
+	Policies      []CompiledPolicy `json:"policies"`
 }
 
 func SignBundle(secret []byte, environmentID string, policies []CompiledPolicy) (Bundle, error) {
@@ -262,26 +263,93 @@ func equal[T comparable](left, right []T) bool {
 }
 
 func verifyCompiled(value CompiledPolicy) error {
-	const prefix = "package zasp.runtime\n# deterministic product policy\npolicy := "
-	if !bounded(value.ID, 128) || len(value.Digest) != 64 || !strings.HasPrefix(value.Rego, prefix) || !strings.HasSuffix(value.Rego, "\n") {
+	if !bounded(value.ID, 128) || !bounded(value.Trigger, 64) || len(value.Digest) != 64 || len(value.Conditions) == 0 || (value.Action != ActionMonitor && value.Action != ActionBlock) {
 		return ErrRejected
 	}
-	payload := strings.TrimSuffix(strings.TrimPrefix(value.Rego, prefix), "\n")
-	digest := sha256.Sum256([]byte(payload))
+	expected, err := compileRego(value.ID, value.Trigger, value.Action, value.Conditions)
+	if err != nil || expected != value.Rego {
+		return ErrRejected
+	}
+	digest := sha256.Sum256([]byte(value.Rego))
 	if hex.EncodeToString(digest[:]) != value.Digest {
 		return ErrRejected
 	}
-	var decoded struct {
-		ID, Trigger string
-		Conditions  []Condition
-		Action      Action
-	}
-	decoder := json.NewDecoder(strings.NewReader(payload))
-	decoder.DisallowUnknownFields()
-	if decoder.Decode(&decoded) != nil || decoder.Decode(&struct{}{}) == nil || decoded.ID != value.ID || decoded.Action != value.Action || !equal(decoded.Conditions, value.Conditions) {
-		return ErrRejected
-	}
 	return nil
+}
+
+func compileRego(id, trigger string, action Action, conditions []Condition) (string, error) {
+	if !bounded(id, 128) || !bounded(trigger, 64) || len(conditions) == 0 || len(conditions) > 32 || (action != ActionMonitor && action != ActionBlock) {
+		return "", ErrRejected
+	}
+	var builder strings.Builder
+	builder.WriteString("package zasp.runtime\n\nimport rego.v1\n\npolicy_id := ")
+	idJSON, _ := json.Marshal(id)
+	triggerJSON, _ := json.Marshal(trigger)
+	builder.Write(idJSON)
+	builder.WriteString("\ntrigger := ")
+	builder.Write(triggerJSON)
+	builder.WriteString("\n\ndefault decision := {\"action\": \"monitor\", \"matched\": false}\n\ndecision := {\"action\": ")
+	actionJSON, _ := json.Marshal(action)
+	builder.Write(actionJSON)
+	builder.WriteString(", \"matched\": true} if {\n")
+	for _, condition := range conditions {
+		if condition.Operator != "equals" || !bounded(condition.Field, 128) || !bounded(condition.Value, 256) {
+			return "", ErrRejected
+		}
+		fieldJSON, _ := json.Marshal(condition.Field)
+		valueJSON, _ := json.Marshal(condition.Value)
+		builder.WriteString("\tinput[")
+		builder.Write(fieldJSON)
+		builder.WriteString("] == ")
+		builder.Write(valueJSON)
+		builder.WriteByte('\n')
+	}
+	builder.WriteString("}\n")
+	return builder.String(), nil
+}
+
+func prepareCompiled(ctx context.Context, compiled CompiledPolicy) (rego.PreparedEvalQuery, error) {
+	if verifyCompiled(compiled) != nil {
+		return rego.PreparedEvalQuery{}, ErrRejected
+	}
+	prepared, err := rego.New(rego.Query("data.zasp.runtime.decision"), rego.Module("zasp_runtime.rego", compiled.Rego)).PrepareForEval(ctx)
+	if err != nil {
+		return rego.PreparedEvalQuery{}, ErrRejected
+	}
+	return prepared, nil
+}
+
+func evaluatePrepared(ctx context.Context, prepared rego.PreparedEvalQuery, input map[string]string) (Decision, error) {
+	if ctx == nil || ctx.Err() != nil || !validEvaluationInput(input) {
+		return Decision{}, ErrRejected
+	}
+	results, err := prepared.Eval(ctx, rego.EvalInput(input))
+	if err != nil || len(results) != 1 || len(results[0].Expressions) != 1 {
+		return Decision{}, ErrRejected
+	}
+	encoded, err := json.Marshal(results[0].Expressions[0].Value)
+	if err != nil {
+		return Decision{}, ErrRejected
+	}
+	var decision Decision
+	decoder := json.NewDecoder(strings.NewReader(string(encoded)))
+	decoder.DisallowUnknownFields()
+	if decoder.Decode(&decision) != nil || decoder.Decode(&struct{}{}) == nil || (decision.Action != ActionMonitor && decision.Action != ActionBlock) {
+		return Decision{}, ErrRejected
+	}
+	return decision, nil
+}
+
+func validEvaluationInput(input map[string]string) bool {
+	if len(input) > 64 {
+		return false
+	}
+	for key, value := range input {
+		if !bounded(key, 128) || !bounded(value, 256) {
+			return false
+		}
+	}
+	return true
 }
 
 func cloneBundle(value Bundle) Bundle {

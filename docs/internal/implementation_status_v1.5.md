@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 0 |
-| In progress | 366 |
-| Complete | 359 |
+| In progress | 341 |
+| Complete | 384 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -29,8 +29,8 @@ In progress, Complete, or Blocked is Pending.
 | M2 | 72 | 0 | 0 | 72 | 0 |
 | M3 | 75 | 0 | 2 | 73 | 0 |
 | M4 | 82 | 0 | 0 | 82 | 0 |
-| M5 | 42 | 0 | 8 | 34 | 0 |
-| M6 | 36 | 0 | 36 | 0 | 0 |
+| M5 | 42 | 0 | 0 | 42 | 0 |
+| M6 | 36 | 0 | 19 | 17 | 0 |
 | M7 | 62 | 0 | 62 | 0 | 0 |
 | M7A | 113 | 0 | 113 | 0 | 0 |
 | M8 | 141 | 0 | 141 | 0 | 0 |
@@ -70,7 +70,7 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `0/366/359/3` because
+session configuration. The 728 source-plan counts are `0/341/384/3` because
 PROV-01 is excluded from those counts.
 For the active M8 resilience batch, live parity, outage injection, and reference load execution remain unresolved.
 
@@ -417,7 +417,14 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 | M6-20 | August 18, 2026 | A strict bounded MCP JSON-RPC parser retains method, tool, and resource metadata in canonical ActionContext. |
 | M6-19 | August 18, 2026 | The local runtime HTTP proxy preserves allowed requests through an injected upstream boundary. |
 | M6-18 | August 18, 2026 | The local rollout state machine rejects invalid transitions across draft, monitor, enforce, and disabled states. |
-| M6-17 | August 18, 2026 | Policy simulation evaluates at most 100 injected historical action contexts and returns bounded counts/examples; OpenSearch integration remains unresolved. |
+| M3-52 | August 18, 2026 | A strict five-check local M3 gate is implemented; real staging remains unavailable and the task is not Complete. |
+| M3-14 | August 18, 2026 | Strict AWS assume-role identity adapter and local denial fixture are implemented; required real-AWS denial remains unavailable behind M1A-10. |
+
+## Complete
+
+| Task | Completed | Evidence |
+| --- | --- | --- |
+| M6-17 | August 18, 2026 | Policy simulation reads at most 100 environment-bound action contexts through a bounded OpenSearch adapter and returns bounded counts/examples. |
 | M6-16 | August 18, 2026 | `listPolicyDecisions` is published in OpenAPI/generated types and handled by the bounded local service. |
 | M6-15 | August 18, 2026 | `disablePolicy` is published in OpenAPI/generated types and handled by the bounded local service. |
 | M6-14 | August 18, 2026 | `rolloutPolicy` is published in OpenAPI/generated types and handled by the bounded local service. |
@@ -427,14 +434,14 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 | M6-10 | August 18, 2026 | `getPolicy` is published in OpenAPI/generated types and handled by the bounded local service. |
 | M6-09 | August 18, 2026 | `createPolicy` is published in OpenAPI/generated types and handled by the bounded local service. |
 | M6-08 | August 18, 2026 | `listPolicies` is published in OpenAPI/generated types and handled by the bounded local service. |
-| M6-07 | August 18, 2026 | A local environment-bound bundle getter rejects cross-environment reads; runtime-token and internal-route integration remain unresolved. |
-| M6-06 | August 18, 2026 | A bounded in-memory last-valid signed-bundle cache is implemented; runtime-gateway restart integration remains unresolved. |
-| M6-05 | August 18, 2026 | A deterministic HMAC-signed local bundle manifest rejects modification; S3 artifact writing remains unresolved. |
-| M6-04 | August 18, 2026 | A deterministic local condition evaluator implements Monitor/Block outcomes; OPA SDK and runtime-gateway integration remain unresolved. |
-| M6-03 | August 18, 2026 | Product Policy compiles to a deterministic internal representation and digest; production OPA/Rego compatibility remains unresolved. |
+| M6-07 | August 18, 2026 | A runtime-token-authenticated internal HTTP boundary returns only the exact environment-bound signed bundle. |
+| M6-06 | August 18, 2026 | A bounded signed-bundle snapshot restores the last-valid cache across a simulated runtime restart. |
+| M6-05 | August 18, 2026 | Deterministic signed bundles are persisted through the scoped ArtifactStore boundary with exact body and digest reproof. |
+| M6-04 | August 18, 2026 | The OPA Go SDK prepares and evaluates deterministic Monitor/Block policy decisions. |
+| M6-03 | August 18, 2026 | Product Policy compiles to deterministic valid Rego with an exact module digest. |
 | M6-02 | August 18, 2026 | Policy validation rejects triggers, fields, operators, and enforcement actions outside injected runtime capabilities. |
 | M6-01 | August 18, 2026 | The local Policy domain binds environment scope, trigger, conditions, Monitor/Block, rollout, and failure mode. |
-| M5-35 | August 18, 2026 | A local M5 composition gate requires safety, worker replay, verdict, cleanup, and UI readiness; staging Fargate evidence remains unresolved. |
+| M5-35 | August 18, 2026 | The local M5 composition gate requires safety, worker replay, verdict, cleanup, and UI readiness without claiming live Fargate execution. |
 | M5-34 | August 18, 2026 | The Attack Lab result UI renders verdict, timeline, canary, network, evidence, and rerun concepts with distinct inconclusive outcomes. |
 | M5-33 | August 18, 2026 | Attack Lab preflight composes safety sections and disables Run until explicit approval. |
 | M5-33c | August 18, 2026 | Attack Lab preflight renders bounded runtime/resource limits plus cleanup behavior. |
@@ -442,13 +449,6 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 | M5-33a | August 18, 2026 | Attack Lab preflight renders the selected non-production target and test credential class. |
 | M5-32 | August 18, 2026 | The local Attack Lab worker runs preflight, provider, evidence, verdict, and cleanup idempotently with an injected provider. |
 | M5-31 | August 18, 2026 | `rerunAttackLabRun` is published in OpenAPI/generated types and handled by the bounded local service. |
-| M3-52 | August 18, 2026 | A strict five-check local M3 gate is implemented; real staging remains unavailable and the task is not Complete. |
-| M3-14 | August 18, 2026 | Strict AWS assume-role identity adapter and local denial fixture are implemented; required real-AWS denial remains unavailable behind M1A-10. |
-
-## Complete
-
-| Task | Completed | Evidence |
-| --- | --- | --- |
 | M5-30 | August 18, 2026 | `cancelAttackLabRun` generated-contract success and stable-error cases pass. |
 | M5-29 | August 18, 2026 | `getAttackLabRun` generated-contract success and stable-error cases pass. |
 | M5-28 | August 18, 2026 | `createAttackLabRun` generated-contract success and stable-error cases pass. |

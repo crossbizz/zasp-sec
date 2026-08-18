@@ -1,10 +1,18 @@
 package policy
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"errors"
 	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore"
+	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
 
 func TestPolicyValidationCompileEvaluateBundleAndCache(t *testing.T) {
@@ -47,6 +55,88 @@ func TestPolicyValidationCompileEvaluateBundleAndCache(t *testing.T) {
 	forged.Action = "approve"
 	if Validate(forged, capabilities) == nil {
 		t.Fatal("unsupported action accepted")
+	}
+}
+
+func TestOPAArtifactRuntimeAndHistoricalBoundaries(t *testing.T) {
+	ctx := context.Background()
+	secret := []byte("0123456789abcdef0123456789abcdef")
+	value := Policy{ID: "policy-1", Name: "Block shell", Scope: "environment", Trigger: "tool_call", Conditions: []Condition{{Field: "tool.name", Operator: "equals", Value: "shell"}}, Action: ActionBlock, Rollout: "enforced", FailureMode: "closed"}
+	compiled, err := Compile(value)
+	if err != nil || !strings.Contains(compiled.Rego, "default decision") || !strings.Contains(compiled.Rego, "input[") {
+		t.Fatalf("compiled=%+v err=%v", compiled, err)
+	}
+	matched, err := Evaluate(ctx, compiled, map[string]string{"tool.name": "shell"})
+	unmatched, unmatchedErr := Evaluate(ctx, compiled, map[string]string{"tool.name": "read"})
+	if err != nil || unmatchedErr != nil || !matched.Matched || matched.Action != ActionBlock || unmatched.Matched || unmatched.Action != ActionMonitor {
+		t.Fatalf("matched=%+v unmatched=%+v err=%v/%v", matched, unmatched, err, unmatchedErr)
+	}
+	tampered := compiled
+	tampered.Rego = strings.Replace(tampered.Rego, "package zasp.runtime", "package zasp.runtime[", 1)
+	if _, err := Evaluate(ctx, tampered, map[string]string{"tool.name": "shell"}); !errors.Is(err, ErrRejected) {
+		t.Fatalf("tampered Rego error=%v", err)
+	}
+	if _, err := Evaluate(ctx, compiled, map[string]string{"tool.name": "shell", "extra": strings.Repeat("x", 257)}); !errors.Is(err, ErrRejected) {
+		t.Fatalf("unbounded OPA input error=%v", err)
+	}
+
+	bundle, err := SignBundle(secret, "environment-1", []CompiledPolicy{compiled})
+	if err != nil {
+		t.Fatal(err)
+	}
+	scope := testScope(t)
+	reference, err := domain.NewEvidenceRef(testProductID(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	artifactTarget := &recordingBundleArtifacts{}
+	artifact, err := WriteBundleArtifact(ctx, secret, artifactTarget, scope, reference, bundle)
+	if err != nil || artifact.Reference != reference || artifactTarget.request.MediaType != "application/json" || !bytes.Equal(artifact.Body, artifactTarget.request.Body) || artifact.SHA256 != sha256.Sum256(artifact.Body) {
+		t.Fatalf("artifact=%+v request=%+v err=%v", artifact, artifactTarget.request, err)
+	}
+
+	cache := NewBundleCache(secret)
+	if err := cache.Store(bundle); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := cache.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	restarted, err := RestoreBundleCache(secret, snapshot)
+	if err != nil || restarted.Load("environment-1").Signature != bundle.Signature {
+		t.Fatalf("restored=%+v err=%v", restarted, err)
+	}
+	handler, err := NewBundleHTTPHandler(restarted, "runtime-token-0123456789abcdef")
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodGet, "/internal/v1/policy-bundle?environment_id=environment-1", nil)
+	request.Header.Set("Authorization", "Bearer runtime-token-0123456789abcdef")
+	request.Header.Set("X-Zasp-Runtime-Environment", "environment-1")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), bundle.Signature) {
+		t.Fatalf("status=%d body=%q", response.Code, response.Body.String())
+	}
+	request = httptest.NewRequest(http.MethodGet, "/internal/v1/policy-bundle?environment_id=environment-1", nil)
+	request.Header.Set("Authorization", "Bearer wrong-runtime-token")
+	request.Header.Set("X-Zasp-Runtime-Environment", "environment-1")
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("denied status=%d body=%q", response.Code, response.Body.String())
+	}
+
+	store := NewMemoryStore()
+	capabilities := Capabilities{Triggers: []string{"tool_call"}, Fields: []string{"tool.name"}, Actions: []Action{ActionMonitor, ActionBlock}}
+	if err := store.Create(ctx, value, capabilities); err != nil {
+		t.Fatal(err)
+	}
+	history := &recordingOpenSearchHistory{events: []ActionContext{{PrincipalID: "principal-1", AgentID: "agent-1", SessionID: "session-1", Action: "tool_call", Resource: "shell", EnvironmentID: "environment-1", Metadata: map[string]string{"tool.name": "shell"}}}}
+	simulation, err := store.SimulateOpenSearch(ctx, value.ID, "environment-1", history)
+	if err != nil || history.limit != 100 || simulation.Matches != 1 || simulation.WouldBlock != 1 {
+		t.Fatalf("simulation=%+v limit=%d err=%v", simulation, history.limit, err)
 	}
 }
 
@@ -133,4 +223,50 @@ func TestPolicyAdministrationRuntimeAndGate(t *testing.T) {
 	if err != nil || report.Status != "PASS" || report.Checks != 6 {
 		t.Fatalf("report=%+v err=%v", report, err)
 	}
+}
+
+type recordingBundleArtifacts struct{ request artifactstore.PutRequest }
+
+func (store *recordingBundleArtifacts) Put(_ context.Context, request artifactstore.PutRequest) (artifactstore.Artifact, error) {
+	store.request = request
+	return artifactstore.Artifact{Locator: request.Locator, MediaType: request.MediaType, Body: bytes.Clone(request.Body), Size: int64(len(request.Body)), SHA256: sha256.Sum256(request.Body)}, nil
+}
+
+func (*recordingBundleArtifacts) Get(context.Context, artifactstore.Locator) (artifactstore.Artifact, error) {
+	return artifactstore.Artifact{}, errors.New("unexpected get")
+}
+
+func (*recordingBundleArtifacts) Delete(context.Context, artifactstore.Locator) error {
+	return errors.New("unexpected delete")
+}
+
+type recordingOpenSearchHistory struct {
+	events []ActionContext
+	limit  int
+}
+
+func (history *recordingOpenSearchHistory) SearchPolicyActions(_ context.Context, environmentID string, limit int) ([]ActionContext, error) {
+	if environmentID != "environment-1" {
+		return nil, errors.New("wrong environment")
+	}
+	history.limit = limit
+	return append([]ActionContext(nil), history.events...), nil
+}
+
+func testProductID(t *testing.T) domain.ProductID {
+	t.Helper()
+	value, err := domain.NewProductID()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return value
+}
+
+func testScope(t *testing.T) domain.Scope {
+	t.Helper()
+	value, err := domain.NewScope(testProductID(t), testProductID(t), testProductID(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return value
 }

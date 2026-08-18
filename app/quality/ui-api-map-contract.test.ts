@@ -328,10 +328,10 @@ describe("M1-25 UI API map seed", () => {
 
     expect(readme).toContain("M1-25 is Complete");
     expect(tracker).toContain("| Pending | 0 |");
-    expect(tracker).toContain("| In progress | 366 |");
-    expect(tracker).toContain("| Complete | 359 |");
+    expect(tracker).toContain("| In progress | 341 |");
+    expect(tracker).toContain("| Complete | 384 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`0/366/359/3`");
+    expect(tracker).toContain("`0/341/384/3`");
     expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "0", "0", "68", "0"]);
     expect(active.map(([task]) => task)).toEqual([
       "M1A-10", "M1A-09", "M1A-08", "M1A-07",
@@ -348,9 +348,7 @@ describe("M1-25 UI API map seed", () => {
       "M7A-17", "M7A-16", "M7A-15", "M7A-14", "M7A-13", "M7A-12", "M7A-11", "M7A-10", "M7A-09", "M7A-08", "M7A-07", "M7A-06", "M7A-05", "M7A-04", "M7A-03", "M7A-02", "M7A-01",
       "M7-40", "M7-40f", "M7-40e", "M7-40d", "M7-40c", "M7-40b", "M7-40a", "M7-39", "M7-39e", "M7-39d", "M7-39c", "M7-39b", "M7-39a", "M7-38", "M7-37", "M7-36", "M7-35", "M7-34", "M7-33", "M7-32", "M7-31", "M7-30", "M7-29", "M7-28", "M7-27", "M7-26", "M7-26c", "M7-26b", "M7-26a", "M7-25", "M7-24", "M7-23", "M7-22a", "M7-22", "M7-21", "M7-20", "M7-19",
       "M7-18", "M7-17", "M7-16", "M7-15", "M7-15d", "M7-15c", "M7-15b", "M7-15a", "M7-14", "M7-13", "M7-12", "M7-11", "M7-10", "M7-09", "M7-08", "M7-07", "M7-07c", "M7-07b", "M7-07a", "M7-06", "M7-05", "M7-04", "M7-03", "M7-02", "M7-01",
-      "M6-31", "M6-31e", "M6-31d", "M6-31c", "M6-31b", "M6-31a", "M6-30", "M6-29", "M6-28", "M6-27", "M6-26", "M6-25", "M6-24", "M6-23", "M6-22", "M6-21", "M6-20", "M6-19", "M6-18", "M6-17", "M6-16", "M6-15", "M6-14", "M6-13", "M6-12", "M6-11",
-      "M6-10", "M6-09", "M6-08", "M6-07", "M6-06", "M6-05", "M6-04", "M6-03", "M6-02", "M6-01",
-      "M5-35", "M5-34", "M5-33", "M5-33c", "M5-33b", "M5-33a", "M5-32", "M5-31",
+      "M6-31", "M6-31e", "M6-31d", "M6-31c", "M6-31b", "M6-31a", "M6-30", "M6-29", "M6-28", "M6-27", "M6-26", "M6-25", "M6-24", "M6-23", "M6-22", "M6-21", "M6-20", "M6-19", "M6-18",
       "M3-52",
       "M3-14",
     ]);

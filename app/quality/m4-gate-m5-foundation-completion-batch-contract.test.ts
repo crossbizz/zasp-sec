@@ -28,7 +28,7 @@ describe("M4 gate and M5 foundation completion batch", () => {
       readFile(resolve(root, "README.md"), "utf8"),
     ]);
     expect(selected).toHaveLength(25);
-    for (const value of ["| Pending | 0 |", "| In progress | 366 |", "| Complete | 359 |", "| Blocked | 3 |", "`0/366/359/3`", "| M4 | 82 | 0 | 0 | 82 | 0 |", "| M5 | 42 | 0 | 8 | 34 | 0 |"]) expect(tracker).toContain(value);
+    for (const value of ["| Pending | 0 |", "| In progress | 341 |", "| Complete | 384 |", "| Blocked | 3 |", "`0/341/384/3`", "| M4 | 82 | 0 | 0 | 82 | 0 |", "| M5 | 42 | 0 | 0 | 42 | 0 |"]) expect(tracker).toContain(value);
     const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
     const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] ?? "";
     for (const task of selected) {
@@ -37,7 +37,6 @@ describe("M4 gate and M5 foundation completion batch", () => {
     }
     const prose = readme.replace(/\s+/g, " ");
     expect(prose).toContain("M4-51d through M4-59 are Complete");
-    expect(prose).toContain("M5-01 through M5-30 are Complete");
-    expect(prose).toContain("M5-31 through M5-35 remain batched as In progress");
+    expect(prose).toContain("M5-01 through M5-35 are Complete");
   });
 });

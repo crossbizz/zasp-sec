@@ -29,8 +29,8 @@ describe("M5 red-team and safe Attack Lab batch", () => {
   it("records the nine-task foundation complete without claiming provider completion", () => {
     const tracker = read("docs/internal/implementation_status_v1.5.md");
     expect(tracker).toContain("| Pending | 0 |");
-    expect(tracker).toContain("| In progress | 366 |");
-    expect(tracker).toContain("| M5 | 42 | 0 | 8 | 34 | 0 |");
+    expect(tracker).toContain("| In progress | 341 |");
+    expect(tracker).toContain("| M5 | 42 | 0 | 0 | 42 | 0 |");
     const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
     const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] ?? "";
     for (let index = 1; index <= 9; index += 1) {
