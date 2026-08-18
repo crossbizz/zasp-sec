@@ -46,7 +46,7 @@ describe("M1-36b hermetic schema check", () => {
     expect(plan.match(/^- \[ \]/gm)).toHaveLength(15);
   });
 
-  it("starts only M1-36b after completed M1-36a and preserves exact blockers", async () => {
+  it("completes only M1-36b after completed M1-36a and preserves exact blockers", async () => {
     const tracker = await readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8");
     const active = taskRows(tracker, "In progress");
     const complete = taskRows(tracker, "Complete");
@@ -55,16 +55,17 @@ describe("M1-36b hermetic schema check", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(tracker).toContain("| Pending | 650 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 74 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 75 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`650/1/74/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "17", "1", "50", "0"]);
+    expect(tracker).toContain("`650/0/75/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "17", "0", "51", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active).toHaveLength(1);
-    expect(active.filter(([task]) => task === "M1-36b")).toHaveLength(1);
-    expect(complete).toHaveLength(74);
+    expect(active).toHaveLength(0);
+    expect(active.filter(([task]) => task === "M1-36b")).toHaveLength(0);
+    expect(complete).toHaveLength(75);
     expect(complete.filter(([task]) => task === "M1-36a")).toHaveLength(1);
+    expect(complete.filter(([task]) => task === "M1-36b")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-36c")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
@@ -74,7 +75,7 @@ describe("M1-36b hermetic schema check", () => {
     const section = readme.match(/## M1 schema check[\s\S]*?(?=\n## )/)?.[0] ?? "";
     const prose = section.replace(/\s+/g, " ");
 
-    expect(prose).toContain("M1-36b is In progress");
+    expect(prose).toContain("M1-36b is Complete");
     expect(section).toContain("npm run schema:check");
     expect(prose).toContain("five schema authorities");
     expect(prose).toContain("M1-36c remains Pending");

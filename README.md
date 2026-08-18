@@ -58,11 +58,11 @@ npm run build:repo
 
 The completed gate compiled or executed all eight targets from locked source
 and dependency state without adding a duplicate build runner or product
-behavior. M1-36b is In progress and owns the separate schema-validation gate.
+behavior. M1-36b is Complete and owns the separate schema-validation gate.
 
 ## M1 schema check
 
-M1-36b is In progress. It composes the five schema authorities already owned by
+M1-36b is Complete. It composes the five schema authorities already owned by
 the platform database migration, canonical domain, SecurityEvent, event-index,
 and queue-definition packages:
 

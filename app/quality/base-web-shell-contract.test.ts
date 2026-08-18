@@ -67,14 +67,14 @@ describe("M1-35 base web shell", () => {
 
     expect(readme.replace(/\s+/g, " ")).toContain("M1-35 is Complete");
     expect(tracker).toContain("| Pending | 650 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 74 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 75 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`650/1/74/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "17", "1", "50", "0"]);
+    expect(tracker).toContain("`650/0/75/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "17", "0", "51", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active).toHaveLength(1);
-    expect(complete).toHaveLength(74);
+    expect(active).toHaveLength(0);
+    expect(complete).toHaveLength(75);
     expect(active.filter(([task]) => task === "M1-35")).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-35")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-34")).toHaveLength(1);
