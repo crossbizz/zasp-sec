@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 70 |
-| In progress | 471 |
+| Pending | 45 |
+| In progress | 496 |
 | Complete | 184 |
 | Blocked | 3 |
 
@@ -33,7 +33,7 @@ In progress, Complete, or Blocked is Pending.
 | M6 | 36 | 0 | 36 | 0 | 0 |
 | M7 | 62 | 0 | 62 | 0 | 0 |
 | M7A | 113 | 0 | 113 | 0 | 0 |
-| M8 | 141 | 66 | 75 | 0 | 0 |
+| M8 | 141 | 41 | 100 | 0 | 0 |
 
 ## Execution invariants
 
@@ -70,7 +70,7 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `70/471/184/3` because
+session configuration. The 728 source-plan counts are `45/496/184/3` because
 PROV-01 is excluded from those counts.
 For the active M8 resilience batch, live parity, outage injection, and reference load execution remain unresolved.
 
@@ -78,6 +78,31 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M8-51d | August 18, 2026 | Golden-stage evidence requires one simulated/enforced Block policy and an observed blocked retest; live stage execution remains unresolved. |
+| M8-51c | August 18, 2026 | Golden-stage evidence requires a Verified canary-only Attack Lab result. |
+| M8-51b | August 18, 2026 | Golden-stage evidence binds one credible exposure to one high-impact curated Red Team attempt. |
+| M8-51a | August 18, 2026 | Golden-stage evidence requires successful inventory discovery and fresh source state after deployment. |
+| M8-50 | August 18, 2026 | SOC 2 readiness checklist requires release, access, change, backup, incident, and vendor owners, locations, and cadence without claiming Type II completion. |
+| M8-49 | August 18, 2026 | HIPAA profile gate keeps PostHog, OpenRouter, remote OTLP, and raw content disabled and requires the applicable BAA checklist. |
+| M8-48 | August 18, 2026 | Supply-chain inventory requires reviewed owner/status records for Nango, Neo4j, Stytch, Neon, PostHog, OpenRouter, and OTLP. |
+| M8-47 | August 18, 2026 | Vulnerability gate rejects every unaccepted critical result and requires an approved owner/expiry for exceptions. |
+| M8-46 | August 18, 2026 | Image-signature evidence binds immutable image references and requires signed/verified state plus rejection of tampered and unsigned fixtures. |
+| M8-45 | August 18, 2026 | Deterministic SPDX 2.3 inventory generation requires every shipped image by digest and pinned component version/license records; release artifact generation remains unresolved. |
+| M8-44 | August 18, 2026 | Attack Lab safety gate requires rejection of production-write identity, host mounts, and undeclared egress without producing Verified. |
+| M8-43 | August 18, 2026 | Runtime bypass gate requires malformed HTTP/MCP and replay attempts to fail while the signed Block decision remains active. |
+| M8-42 | August 18, 2026 | Secret-leakage gate passes only when all six egress/storage sinks prove seeded and sensitive values absent. |
+| M8-42f | August 18, 2026 | Metadata-only evidence storage must omit seeded raw content. |
+| M8-42e | August 18, 2026 | Redacted diagnostics/support bundle evidence must omit seeded values. |
+| M8-42d | August 18, 2026 | OTLP leakage evidence requires prohibited attributes removed before export. |
+| M8-42c | August 18, 2026 | AI leakage evidence requires seeded secret, PII, and PHI fixture values absent at the provider boundary. |
+| M8-42b | August 18, 2026 | PostHog leakage evidence additionally requires rejection before egress. |
+| M8-42a | August 18, 2026 | Structured-log leakage evidence requires seeded and sensitive values absent. |
+| M8-41 | August 18, 2026 | Connector SSRF gate requires arbitrary destination override rejection before any request and a retained audit record. |
+| M8-40 | August 18, 2026 | One tenant-isolation gate requires API, graph, OpenSearch, and S3 boundaries all passing. |
+| M8-40d | August 18, 2026 | S3 isolation evidence requires cross-Organization denial with no presigned URL or object body. |
+| M8-40c | August 18, 2026 | OpenSearch isolation evidence requires zero foreign hits and a retained Organization filter. |
+| M8-40b | August 18, 2026 | Graph isolation evidence requires zero foreign nodes/edges and a recorded guard result. |
+| M8-40a | August 18, 2026 | API isolation evidence requires cross-Organization/Workspace reads and mutations denied with no foreign data. |
 | M8-39 | August 18, 2026 | Sensor evidence records reference profile, workload, duration, CPU core-seconds, and peak memory without asserting a universal overhead percentage. |
 | M8-38 | August 18, 2026 | The deterministic event-floor result records rate, recovery, indexing, drops, and retries; reference deployment execution remains unresolved. |
 | M8-38c | August 18, 2026 | Event-load evaluation requires at least 5k events/sec, exact indexing, recovered backlog, zero drops, and bounded retries. |

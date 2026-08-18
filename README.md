@@ -371,6 +371,13 @@ bounded event-load plan, and reference-scoped sensor measurements are now
 implemented. Live parity, outage injection, and reference load execution remain
 unresolved, so this batch does not claim release-gate completion.
 
+M8-40a through M8-51d are batched as In progress. Typed release gates now
+aggregate tenant isolation, connector SSRF, six secret-leakage sinks, runtime
+bypass, Attack Lab safety, SBOM/signature/vulnerability evidence, reviewed
+dependency ownership, HIPAA defaults, SOC 2 evidence ownership, and the first
+four golden-stage checkpoints. Real scans/signatures and live golden-stage
+execution remain required before these tasks can move to Complete.
+
 ```bash
 go test -C services/platform -race -count=1 ./integration
 go test -C services/platform -race -count=1 ./connectors ./sensor
