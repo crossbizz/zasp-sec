@@ -84,7 +84,7 @@ describe("M1-26 UI API coverage CI", () => {
 
     expect(section).toContain("npm run ui-api:test");
     expect(section).toContain("npm run ui-api:check");
-    expect(section).toContain("UI/API coverage passed: planned=3 api_available=69 available=20 public=89 internal=0.");
+    expect(section).toContain("UI/API coverage passed: planned=3 api_available=78 available=20 public=98 internal=0.");
     expect(section).toContain("UI/API coverage rejected.");
     expect(prose).toContain("`planned` operation must remain absent");
     expect(prose).toContain("`available` operation must exist exactly once under `/api/v1`");

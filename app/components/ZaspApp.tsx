@@ -21,6 +21,7 @@ import { ScopeOnboardingView } from "../features/identity/ScopeOnboardingView";
 import { AgentSecurityView } from "../features/agents/AgentSecurityView";
 import { AttackLabView } from "../features/redteam/AttackLabView";
 import { PoliciesView } from "../features/policies/PoliciesView";
+import { SessionsComplianceView } from "../features/sessions/SessionsComplianceView";
 
 function RouteSurface({ route, onNavigate, onToast }: { route: AppRoute; onNavigate: (path: string) => void; onToast: (message: string) => void }) {
   if (route.path === "/") return <OverviewView onNavigate={onNavigate} />;
@@ -29,6 +30,9 @@ function RouteSurface({ route, onNavigate, onToast }: { route: AppRoute; onNavig
   if (["/inventory/tools", "/inventory/runtimes", "/exposure/attack-paths"].includes(route.path)) return <AgentSecurityView path={route.path} onNavigate={onNavigate} />;
   if (route.path.startsWith("/discovery/")) return <DiscoveryView route={route} />;
   if (route.path === "/policies") return <><GovernanceView route={route} onToast={onToast} /><PoliciesView embedded /></>;
+  if (route.path === "/investigate/sessions") return <SessionsComplianceView surface="sessions" />;
+  if (route.path === "/compliance/evidence") return <SessionsComplianceView surface="compliance" />;
+  if (route.path === "/administration/data-retention") return <SessionsComplianceView surface="data-controls" />;
   if (["/identities", "/violations"].includes(route.path)) return <GovernanceView route={route} onToast={onToast} />;
   if (route.path.startsWith("/guardrails/")) return <GuardrailView route={route} onNavigate={onNavigate} onToast={onToast} />;
   if (route.path.startsWith("/red-team/")) return <RedTeamView route={route} onNavigate={onNavigate} onToast={onToast} />;

@@ -100,7 +100,7 @@ npm run ui-api:check
 ```
 
 The current honest result is `UI/API coverage passed: planned=3
-api_available=69 available=20 public=89 internal=0.` The gate distinguishes
+api_available=78 available=20 public=98 internal=0.` The gate distinguishes
 implemented API contracts from fully wired UI actions.
 M1-36e is Complete and separately owns local infrastructure smoke checks.
 
@@ -908,7 +908,7 @@ npm run ui-api:check
 The current fixed success line is:
 
 ```text
-UI/API coverage passed: planned=3 api_available=69 available=20 public=89 internal=0.
+UI/API coverage passed: planned=3 api_available=78 available=20 public=98 internal=0.
 ```
 
 M5 now has a local MVP slice for normalized Promptfoo attempts, curated packs,
@@ -920,6 +920,13 @@ HTTP/MCP action normalization, Monitor/Block decisions, rollout/simulation UI,
 and nine generated product API contracts. These slices do not claim live
 EKS/Fargate, SQS, S3, Neon, egress-proxy, staging, OPA SDK, or runtime-gateway
 integration proof.
+
+M7 now has a local MVP slice for idempotent session projection, structured
+session filtering, mixed-confidence timelines, compliance control/evidence
+freshness, JSON/CSV/human exports, environment data controls, three product
+surfaces, and nine generated product API contracts. OpenSearch-backed filtering,
+S3 export writing, provider persistence, and staging verification remain
+unresolved and are not claimed by this local slice.
 
 Failure is fixed as `UI/API coverage rejected.` without parser or artifact
 details. Both commands are part of root verification. M1-25 is Complete.

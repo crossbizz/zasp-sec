@@ -487,6 +487,76 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/compliance/controls": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List supported compliance controls */
+        readonly get: operations["listComplianceControls"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/compliance/evidence": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List freshness-aware compliance evidence */
+        readonly get: operations["listComplianceEvidence"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/compliance/exports": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Create one bounded evidence export */
+        readonly post: operations["createComplianceExport"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/compliance/exports/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ComplianceExportID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get one authorized evidence export */
+        readonly get: operations["getComplianceExport"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/environments": {
         readonly parameters: {
             readonly query?: never;
@@ -1066,6 +1136,79 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/sessions": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List authorized projected sessions with structured filters */
+        readonly get: operations["listSessions"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/sessions/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["SessionID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get one authorized projected session */
+        readonly get: operations["getSession"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/sessions/{id}/events": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["SessionID"];
+            };
+            readonly cookie?: never;
+        };
+        /** List ordered evidence-linked session events */
+        readonly get: operations["listSessionEvents"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/settings/data-controls": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Get environment data controls */
+        readonly get: operations["getDataControls"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        /** Update bounded environment data controls */
+        readonly patch: operations["updateDataControls"];
+        readonly trace?: never;
+    };
     readonly "/api/v1/test-runs": {
         readonly parameters: {
             readonly query?: never;
@@ -1414,6 +1557,36 @@ export type components = {
         };
         /** @enum {string} */
         readonly CapabilityState: "reachable" | "observed" | "verified" | "blocked";
+        readonly ComplianceControl: {
+            readonly evidence_ids: readonly string[];
+            readonly framework: string;
+            /** Format: date-time */
+            readonly fresh_until: string;
+            readonly id: string;
+            readonly name: string;
+        };
+        readonly ComplianceControlPage: {
+            readonly items: readonly components["schemas"]["ComplianceControl"][];
+        };
+        readonly ComplianceEvidence: {
+            readonly control: components["schemas"]["ComplianceControl"];
+            readonly evidence: readonly components["schemas"]["EvidenceRecord"][];
+            /** @enum {string} */
+            readonly freshness: "fresh" | "stale" | "missing";
+        };
+        readonly ComplianceEvidencePage: {
+            readonly items: readonly components["schemas"]["ComplianceEvidence"][];
+        };
+        readonly ComplianceExport: {
+            readonly formats: readonly ("json" | "csv" | "human")[];
+            readonly id: components["schemas"]["ComplianceExportID"];
+            /** @enum {string} */
+            readonly status: "pending" | "completed" | "failed";
+        };
+        readonly ComplianceExportID: string;
+        readonly ComplianceExportInput: {
+            readonly id: components["schemas"]["ComplianceExportID"];
+        };
         readonly ConnectionDeletion: {
             readonly audit_correlation_id: components["schemas"]["ProductID"];
             readonly id: string;
@@ -1446,6 +1619,15 @@ export type components = {
         };
         /** @description Opaque canonical base64url cursor without padding. */
         readonly Cursor: string;
+        readonly DataControls: {
+            /** @enum {string} */
+            readonly collection_mode: "metadata_only" | "extended";
+            readonly deletion_enabled: boolean;
+            /** @enum {string} */
+            readonly environment_class: "development" | "test" | "staging" | "production";
+            readonly environment_id: string;
+            readonly retention_days: number;
+        };
         readonly EmptyInput: Record<string, never>;
         readonly Environment: {
             readonly id: components["schemas"]["ProductID"];
@@ -1467,6 +1649,13 @@ export type components = {
         readonly EnvironmentPage: {
             readonly items: readonly components["schemas"]["Environment"][];
             readonly page_info: components["schemas"]["PageInfo"];
+        };
+        readonly EvidenceRecord: {
+            readonly asset_id: string;
+            /** Format: date-time */
+            readonly at: string;
+            readonly id: string;
+            readonly source: string;
         };
         readonly Finding: {
             readonly acceptance_reason?: string;
@@ -1812,6 +2001,32 @@ export type components = {
         readonly SensorPage: {
             readonly items: readonly components["schemas"]["Sensor"][];
         };
+        readonly Session: {
+            readonly agent_id: string;
+            readonly events: readonly components["schemas"]["SessionEvent"][];
+            readonly id: components["schemas"]["SessionID"];
+            readonly principal_id: string;
+        };
+        readonly SessionEvent: {
+            /** Format: date-time */
+            readonly at: string;
+            /** @enum {string} */
+            readonly class: "tool" | "runtime" | "network" | "file" | "credential" | "policy";
+            /** @enum {string} */
+            readonly confidence: "exact" | "strong" | "probable" | "unattributed";
+            readonly evidence_id: string;
+            readonly id: string;
+            readonly label: string;
+            readonly session_id: components["schemas"]["SessionID"];
+            readonly source: string;
+        };
+        readonly SessionEventPage: {
+            readonly items: readonly components["schemas"]["SessionEvent"][];
+        };
+        readonly SessionID: string;
+        readonly SessionPage: {
+            readonly items: readonly components["schemas"]["Session"][];
+        };
         readonly SSOConnection: {
             readonly display_name: string;
             readonly id: components["schemas"]["SSOConnectionID"];
@@ -1924,17 +2139,26 @@ export type BuiltInRolePage = components['schemas']['BuiltInRolePage'];
 export type Capability = components['schemas']['Capability'];
 export type CapabilityPage = components['schemas']['CapabilityPage'];
 export type CapabilityState = components['schemas']['CapabilityState'];
+export type ComplianceControl = components['schemas']['ComplianceControl'];
+export type ComplianceControlPage = components['schemas']['ComplianceControlPage'];
+export type ComplianceEvidence = components['schemas']['ComplianceEvidence'];
+export type ComplianceEvidencePage = components['schemas']['ComplianceEvidencePage'];
+export type ComplianceExport = components['schemas']['ComplianceExport'];
+export type ComplianceExportId = components['schemas']['ComplianceExportID'];
+export type ComplianceExportInput = components['schemas']['ComplianceExportInput'];
 export type ConnectionDeletion = components['schemas']['ConnectionDeletion'];
 export type ConnectionStatus = components['schemas']['ConnectionStatus'];
 export type ConnectionTest = components['schemas']['ConnectionTest'];
 export type ConnectorManifest = components['schemas']['ConnectorManifest'];
 export type ConnectorSetupField = components['schemas']['ConnectorSetupField'];
 export type Cursor = components['schemas']['Cursor'];
+export type DataControls = components['schemas']['DataControls'];
 export type EmptyInput = components['schemas']['EmptyInput'];
 export type Environment = components['schemas']['Environment'];
 export type EnvironmentCreateInput = components['schemas']['EnvironmentCreateInput'];
 export type EnvironmentMutation = components['schemas']['EnvironmentMutation'];
 export type EnvironmentPage = components['schemas']['EnvironmentPage'];
+export type EvidenceRecord = components['schemas']['EvidenceRecord'];
 export type Finding = components['schemas']['Finding'];
 export type FindingAcceptanceInput = components['schemas']['FindingAcceptanceInput'];
 export type FindingPage = components['schemas']['FindingPage'];
@@ -1998,6 +2222,11 @@ export type SensorEnrollment = components['schemas']['SensorEnrollment'];
 export type SensorInput = components['schemas']['SensorInput'];
 export type SensorMode = components['schemas']['SensorMode'];
 export type SensorPage = components['schemas']['SensorPage'];
+export type Session = components['schemas']['Session'];
+export type SessionEvent = components['schemas']['SessionEvent'];
+export type SessionEventPage = components['schemas']['SessionEventPage'];
+export type SessionId = components['schemas']['SessionID'];
+export type SessionPage = components['schemas']['SessionPage'];
 export type SsoConnection = components['schemas']['SSOConnection'];
 export type SsoConnectionId = components['schemas']['SSOConnectionID'];
 export type SsoConnectionInput = components['schemas']['SSOConnectionInput'];
@@ -2824,6 +3053,100 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["AuditExport"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listComplianceControls: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Supported controls. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ComplianceControlPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listComplianceEvidence: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Compliance evidence. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ComplianceEvidencePage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly createComplianceExport: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["ComplianceExportInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Created evidence export. */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ComplianceExport"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getComplianceExport: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ComplianceExportID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized evidence export. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ComplianceExport"];
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
@@ -3905,6 +4228,136 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["SensorEnrollment"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listSessions: {
+        readonly parameters: {
+            readonly query?: {
+                readonly agent_id?: string;
+                readonly credential?: string;
+                readonly decision?: string;
+                readonly domain?: string;
+                readonly file?: string;
+                readonly from?: string;
+                readonly principal_id?: string;
+                readonly process?: string;
+                readonly resource?: string;
+                readonly to?: string;
+                readonly tool?: string;
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized sessions. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SessionPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getSession: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["SessionID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized session. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["Session"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listSessionEvents: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["SessionID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Ordered session events. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SessionEventPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getDataControls: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Environment data controls. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["DataControls"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly updateDataControls: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["DataControls"];
+            };
+        };
+        readonly responses: {
+            /** @description Updated environment data controls. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["DataControls"];
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];

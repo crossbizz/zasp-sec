@@ -303,3 +303,39 @@ screens:
       - id: view_system_version
         operation_id: getSystemVersion
         availability: planned
+  - id: sessions
+    label: Sessions
+    actions:
+      - id: view_sessions
+        operation_id: listSessions
+        availability: api_available
+      - id: view_session
+        operation_id: getSession
+        availability: api_available
+      - id: view_session_events
+        operation_id: listSessionEvents
+        availability: api_available
+  - id: compliance
+    label: Compliance
+    actions:
+      - id: view_compliance_controls
+        operation_id: listComplianceControls
+        availability: api_available
+      - id: view_compliance_evidence
+        operation_id: listComplianceEvidence
+        availability: api_available
+      - id: create_compliance_export
+        operation_id: createComplianceExport
+        availability: api_available
+      - id: view_compliance_export
+        operation_id: getComplianceExport
+        availability: api_available
+  - id: data_controls
+    label: Data Controls
+    actions:
+      - id: view_data_controls
+        operation_id: getDataControls
+        availability: api_available
+      - id: update_data_controls
+        operation_id: updateDataControls
+        availability: api_available

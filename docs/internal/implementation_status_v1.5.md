@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 320 |
-| In progress | 221 |
+| Pending | 295 |
+| In progress | 246 |
 | Complete | 184 |
 | Blocked | 3 |
 
@@ -31,7 +31,7 @@ In progress, Complete, or Blocked is Pending.
 | M4 | 82 | 0 | 82 | 0 | 0 |
 | M5 | 42 | 0 | 42 | 0 | 0 |
 | M6 | 36 | 0 | 36 | 0 | 0 |
-| M7 | 62 | 62 | 0 | 0 | 0 |
+| M7 | 62 | 37 | 25 | 0 | 0 |
 | M7A | 113 | 113 | 0 | 0 | 0 |
 | M8 | 141 | 141 | 0 | 0 | 0 |
 
@@ -70,13 +70,38 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `320/221/184/3` because
+session configuration. The 728 source-plan counts are `295/246/184/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M7-18 | August 18, 2026 | `updateDataControls` is published and handled by a bounded environment-scoped local store; provider persistence remains unresolved. |
+| M7-17 | August 18, 2026 | `getDataControls` is published and handled by the bounded local service. |
+| M7-16 | August 18, 2026 | Environment collection mode, retention, and deletion settings validate production as metadata-only. |
+| M7-15 | August 18, 2026 | The local Compliance Evidence surface composes controls, freshness, gaps, and export interaction. |
+| M7-15d | August 18, 2026 | The evidence export action renders a completed local job state. |
+| M7-15c | August 18, 2026 | Compliance evidence renders distinct fresh, stale, and missing states. |
+| M7-15b | August 18, 2026 | Evidence rows retain asset, source, and product evidence references. |
+| M7-15a | August 18, 2026 | The local control list renders SOC 2 Security and HIPAA safeguards without certification claims. |
+| M7-14 | August 18, 2026 | A bounded local artifact builder emits deterministic JSON, CSV, and human-readable evidence; S3 writing remains unresolved. |
+| M7-13 | August 18, 2026 | `getComplianceExport` is published and handled by the bounded local service. |
+| M7-12 | August 18, 2026 | `createComplianceExport` is published and handled by the bounded local service. |
+| M7-11 | August 18, 2026 | `listComplianceEvidence` is published and handled by the bounded local service. |
+| M7-10 | August 18, 2026 | `listComplianceControls` is published and handled by the bounded local service. |
+| M7-09 | August 18, 2026 | The local evidence assembler binds product evidence IDs and marks stale or missing evidence explicitly. |
+| M7-08 | August 18, 2026 | Bounded SOC 2 Security and HIPAA safeguard mappings retain explicit freshness cutoffs. |
+| M7-07 | August 18, 2026 | The local session detail composes an ordered mixed-confidence evidence timeline. |
+| M7-07c | August 18, 2026 | Session events display source and Exact, Strong, Probable, or Unattributed confidence. |
+| M7-07b | August 18, 2026 | Session rows support tool, runtime, network, file, credential, and policy event classes. |
+| M7-07a | August 18, 2026 | The local session timeline sorts replayed events by canonical UTC event time. |
+| M7-06 | August 18, 2026 | The Sessions surface renders structured filters and evidence confidence. |
+| M7-05 | August 18, 2026 | A structured local session-filter builder rejects arbitrary query strings and DSL; OpenSearch integration remains unresolved. |
+| M7-04 | August 18, 2026 | `listSessionEvents` is published and handled by the bounded local service. |
+| M7-03 | August 18, 2026 | `getSession` is published and handled by the bounded local service. |
+| M7-02 | August 18, 2026 | `listSessions` is published and handled by the bounded local service. |
+| M7-01 | August 18, 2026 | An idempotent local session projector correlates ordered semantic/runtime events without changing confidence. |
 | M6-31 | August 18, 2026 | A six-stage local M6 composition gate requires create, simulate, monitor, enforce, retest, and cached-outage enforcement; staging remains unresolved. |
 | M6-31e | August 18, 2026 | A local signed-bundle fallback keeps known Block decisions until expiry and applies explicit fail-open/fail-closed behavior afterward. |
 | M6-31d | August 18, 2026 | Re-test state becomes Blocked only with an observed policy Block decision and retained correlation evidence. |
