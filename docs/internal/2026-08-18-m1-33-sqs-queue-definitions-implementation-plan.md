@@ -40,7 +40,7 @@
 - Consumes: the M1-33 source row, committed design, M1-32 Complete state, and exact blocker set.
 - Produces: exact M1-33 In-progress status at overall `654/1/70/3` and M1 `68/21/1/46/0`.
 
-- [ ] **Step 1: Write the failing source, design, and status contract**
+- [x] **Step 1: Write the failing source, design, and status contract**
 
 Parse the exact M1-33 source section and require its dependency, deliverable,
 verification, and timebox literals. Bind the selected package, all six names,
@@ -51,7 +51,7 @@ Require M1-33 as the sole active row, M1-32 exactly once in Complete, M1-34
 absent from active and complete rows, and blockers exactly M0-09, M0-18, and
 M0-19.
 
-- [ ] **Step 2: Witness focused status RED**
+- [x] **Step 2: Witness focused status RED**
 
 Run:
 
@@ -64,7 +64,7 @@ npm exec vitest run \
 Expected: the new contract fails only because M1-33 is absent, counts remain
 `655/0/70/3`, and README does not name active M1-33. M1-32 stays green.
 
-- [ ] **Step 3: Move only M1-33 to In progress**
+- [x] **Step 3: Move only M1-33 to In progress**
 
 Change overall `655/0/70/3` to `654/1/70/3` and M1 `68/22/0/46/0` to
 `68/21/1/46/0`. Add exactly one current row:
@@ -76,13 +76,13 @@ Change overall `655/0/70/3` to `654/1/70/3` and M1 `68/22/0/46/0` to
 Update only current count/status fixtures mechanically. Preserve historical
 mutation fixtures, M1-32 Complete, M1-34 Pending, and every blocker.
 
-- [ ] **Step 4: Run focused and full quality GREEN**
+- [x] **Step 4: Run focused and full quality GREEN**
 
 Require exact 728-task arithmetic, active rows `['M1-33']`, 70 complete rows,
 one completed M1-32, no active/complete M1-34, and exact blockers. Run the
 focused pair and full pinned `npm test`.
 
-- [ ] **Step 5: Scan and commit the start transition**
+- [x] **Step 5: Scan and commit the start transition**
 
 Run staged whitespace and pinned redacted Gitleaks checks. Commit only the
 status/README/quality slice as:
@@ -103,7 +103,7 @@ docs: start M1-33 SQS queue definitions
 - Consumes: the exact architecture queue names and existing M1-13 background envelope.
 - Produces: immutable `Definition`, copied schema fields/settings, exact `Definitions`, and deterministic `JSON`.
 
-- [ ] **Step 1: Write compiler-failing public contract tests**
+- [x] **Step 1: Write compiler-failing public contract tests**
 
 Create `definitions_test.go` first. Require three valid definitions in exact
 background/runtime-events/tests order. Assert exact kinds, source/DLQ names,
@@ -114,7 +114,7 @@ Also require the exact zero source/DLQ delay and distinct 30-second DLQ
 visibility. Require `Definition{}` accessors to return zero values and
 `Validate` to return exact `ErrDefinitions`.
 
-- [ ] **Step 2: Witness absent-package RED**
+- [x] **Step 2: Witness absent-package RED**
 
 Run:
 
@@ -125,14 +125,14 @@ go test -C services/platform ./queuedefinition -count=1
 Expected: FAIL because every requested production API is absent. Record the
 exact compiler failure before creating `definitions.go`.
 
-- [ ] **Step 3: Add independent exact JSON and copy tests**
+- [x] **Step 3: Add independent exact JSON and copy tests**
 
 Pin compact JSON plus one newline with exact top-level keys and the three exact
 definitions. Decode it with a duplicate-key-rejecting test helper. Mutate every
 returned definition, field slice, settings copy, and JSON byte and prove later
 calls remain canonical. Run the same public calls concurrently under race.
 
-- [ ] **Step 4: Add hostile definition mutations**
+- [x] **Step 4: Add hostile definition mutations**
 
 In the package test, forge every private field independently. Cover zero and
 unknown kind, source/DLQ name or suffix drift, schema drift, missing/extra/
@@ -140,7 +140,7 @@ reordered/duplicate/dotted/control/invalid-UTF8/oversized required fields, and
 every numeric-setting drift. Require only exact `ErrDefinitions`, never wrapped
 or content-bearing errors.
 
-- [ ] **Step 5: Implement the minimal immutable value**
+- [x] **Step 5: Implement the minimal immutable value**
 
 Use one private `[7]string` field array in each comparable `Definition` and a
 function that creates a fresh canonical `[3]Definition`. `Definitions` returns
@@ -151,12 +151,12 @@ Use private JSON structs and `json.Marshal`; append one newline to fresh bytes.
 No provider package, map, caller-supplied configuration, environment, I/O,
 clock, or random boundary belongs in production.
 
-- [ ] **Step 6: Run focused stability and full platform gates**
+- [x] **Step 6: Run focused stability and full platform gates**
 
 Run six focused race passes, full platform race, tidy-diff, module verification,
 and vet. Confirm `services/platform/go.mod` and `go.sum` remain unchanged.
 
-- [ ] **Step 7: Review and commit the package slice**
+- [x] **Step 7: Review and commit the package slice**
 
 Review exact schema/settings/bytes, zero and forged state, fresh copies, fixed
 errors, concurrency, and every hostile field. Add tests-first fixes for any
@@ -186,7 +186,7 @@ feat: define product SQS queues and DLQs
 - Consumes: `queuedefinition.Definitions`, existing strict dynamic-port SDK boundary, exact JSON policy parser, and mutation classification.
 - Produces: `RunQueueDefinitionsProof`, fixed child mode/output, exact six-resource cleanup/audit result.
 
-- [ ] **Step 1: Write lifecycle/compiler RED with a complete fake**
+- [x] **Step 1: Write lifecycle/compiler RED with a complete fake**
 
 Add a complete fake implementing the real queue client's list/create/read/tag/
 set/delete effects. Require DLQ-before-source creation for each definition,
@@ -198,7 +198,7 @@ Run the focused test before production. Expected: compiler failure for absent
 `RunQueueDefinitionsProof` and public result/options types while existing SQS
 tests remain green.
 
-- [ ] **Step 2: Add exact mutation classification RED**
+- [x] **Step 2: Add exact mutation classification RED**
 
 Cover definitive rejection with no adoption; thrown, timeout/signaled, and
 malformed-success create reconciled through bounded exact visibility; delayed
@@ -209,7 +209,7 @@ Arm candidate authority before result interpretation. A first absent read is
 not final proof for an ambiguous mutation; poll within the retained bounded
 context.
 
-- [ ] **Step 3: Add cleanup and audit RED**
+- [x] **Step 3: Add cleanup and audit RED**
 
 Require independent cleanup context, source-first then DLQ reverse dependency
 order, fresh ownership before each deletion, exact absence after acknowledged or
@@ -220,7 +220,7 @@ Include delayed-applied create during main cancellation, re-arm panic, foreign
 replacement, and one target refusing cleanup while all later targets are still
 attempted.
 
-- [ ] **Step 4: Implement minimal child lifecycle**
+- [x] **Step 4: Implement minimal child lifecycle**
 
 Use the exact three product definitions; do not duplicate constants in the proof.
 Create one retained target per source/DLQ, with exact marker/proof/role/kind/
@@ -240,7 +240,7 @@ Failures are exactly:
 LocalStack queue definitions failed: <category> rejected.
 ```
 
-- [ ] **Step 5: Run all proof-module gates**
+- [x] **Step 5: Run all proof-module gates**
 
 Run the new focused tests six times, then the full proof module with race,
 tidy-diff, module verification, and vet. Confirm existing M0-06/M1-13 behavior
@@ -248,7 +248,7 @@ remains green. Align the proof module's existing AWS SDK requirements with the
 already-pinned platform module patch versions; require tidy-diff and module
 verification after that deterministic dependency-file update.
 
-- [ ] **Step 6: Review and commit the child slice**
+- [x] **Step 6: Review and commit the child slice**
 
 Review every authoritative field, mutation result, retained candidate, cleanup
 branch, fixed line, and cross-definition relationship. Add tests-first fixes,
@@ -276,21 +276,21 @@ feat: provision exact LocalStack queue definitions
 - Consumes: the reviewed LocalStack container supervisor and new child mode.
 - Produces: hermetic `sqs:definitions:test`, opt-in `sqs:definitions:run`, exact live evidence, and bounded operator documentation.
 
-- [ ] **Step 1: Write runner-mode RED**
+- [x] **Step 1: Write runner-mode RED**
 
 Require a distinct `QUEUE_DEFINITIONS_MODE`, exact `zasp-m1-33-<marker>` name,
 `zasp.proof=m1-33`, SQS-only service list, explicit dynamic endpoint strategy,
 new child argument/executable/deadline/success/failure lines, and unchanged
 storage/artifact/job-queue modes. Test unknown mode rejection.
 
-- [ ] **Step 2: Add ownership/deadline/cleanup RED**
+- [x] **Step 2: Add ownership/deadline/cleanup RED**
 
 Use complete Docker fixtures. Require exact image ID/ref, labels, environment,
 loopback-only port, no ambient credential/proxy/profile, hard-kill child bound,
 combined bounded output, exact temp identity/revalidation, ambiguous container
 create reconciliation, fresh cleanup ownership, absence, and cleanup precedence.
 
-- [ ] **Step 3: Implement the minimal runner mode**
+- [x] **Step 3: Implement the minimal runner mode**
 
 Add only the new immutable mode configuration and thin entry point. Reuse the
 reviewed supervisor rather than forking it. The outer success is exactly:
@@ -299,7 +299,7 @@ reviewed supervisor rather than forking it. The outer success is exactly:
 LocalStack queue definitions passed: queues=3 dlqs=3 schemas=3 retention=true redrive=true cleanup=true audit=true container_cleanup=true.
 ```
 
-- [ ] **Step 4: Write root/documentation RED**
+- [x] **Step 4: Write root/documentation RED**
 
 Extend the quality contract to require exact scripts:
 
@@ -312,13 +312,13 @@ Require a README section with all six names, schema IDs, exact settings,
 hermetic/live commands, fixed output, disposable-only authority, M1-41/M1A-04/
 M8-03 deferrals, M1-32 Complete, and M1-34 Pending.
 
-- [ ] **Step 5: Add wiring and run hermetic GREEN**
+- [x] **Step 5: Add wiring and run hermetic GREEN**
 
 Add scripts and docs, then run the new root test, focused quality contract, full
 proof/platform gates, dependency validation, full pinned repository verify,
 production audit, syntax/lint, and diff checks.
 
-- [ ] **Step 6: Run the exact live lifecycle**
+- [x] **Step 6: Run the exact live lifecycle**
 
 Preflight exact M1-33 queue/container/temp prefixes and record any known shared
 LocalStack fingerprint without changing it. Run only:
@@ -331,7 +331,7 @@ Require exit 0 and the sole fixed success line. Immediately prove all six exact
 queue names absent through a fresh isolated audit, M1-33 container/temp prefixes
 zero, and any known shared LocalStack fingerprint unchanged.
 
-- [ ] **Step 7: Review and commit runner/root/docs slices**
+- [x] **Step 7: Review and commit runner/root/docs slices**
 
 Keep production runner/tests in one atomic commit if review fixes are required;
 keep root/docs/quality wiring separate. Run staged scans and commit the final
@@ -358,7 +358,7 @@ docs: expose SQS queue definitions proof
 - Consumes: the entire reviewed M1-33 range and exact live evidence.
 - Produces: zero-finding implementation, exact Complete status, successful exact-SHA CI, and a closed plan.
 
-- [ ] **Step 1: Obtain zero-finding whole-range review**
+- [x] **Step 1: Obtain zero-finding whole-range review**
 
 Review source/design/plan/package/proof/runner/root/docs/tracker and evidence.
 Focus on mutable aliases, schema or settings drift, provider attributes,
@@ -370,7 +370,7 @@ For every verified finding, add a focused failing regression, witness RED, make
 the minimal fix, run GREEN, commit separately, and repeat until Critical 0,
 Important 0, Minor 0.
 
-- [ ] **Step 2: Run the final matrix**
+- [x] **Step 2: Run the final matrix**
 
 Run six product/proof focused race passes; full platform and proof race/tidy/
 verify/vet; runner/root/focused/full pinned Node tests; typecheck/lint/build;
@@ -378,14 +378,14 @@ dependency validation; production audit; exact live proof and cleanup audit;
 diff checks; and pinned Gitleaks over range, each commit, tracked HEAD/history,
 and ignored evidence. Require clean tracked tree/index.
 
-- [ ] **Step 3: Write completion-contract RED**
+- [x] **Step 3: Write completion-contract RED**
 
 Change only the M1-33 contract to require overall `654/0/71/3`, M1
 `68/21/0/47/0`, no active row, 71 Complete rows, exactly one completed M1-32
 and M1-33, M1-34 absent from active/complete, and exact blockers. Run focused
 RED against the still-In-progress tracker.
 
-- [ ] **Step 4: Transition only M1-33 to Complete**
+- [x] **Step 4: Transition only M1-33 to Complete**
 
 Move the exact row, update current arithmetic/README/fixtures mechanically, and
 repeat focused/full gates. Commit as:
@@ -394,13 +394,13 @@ repeat focused/full gates. Commit as:
 docs: complete M1-33 SQS queue definitions
 ```
 
-- [ ] **Step 5: Push completion and verify exact-SHA CI**
+- [x] **Step 5: Push completion and verify exact-SHA CI**
 
 Push `codex/zasp-implementation`, prove local/origin/tracking equality, and
 watch Runnable UI for the exact completion SHA to terminal success. Record run
 and job URLs. Do not close the plan before success.
 
-- [ ] **Step 6: Close, push, and verify the plan**
+- [x] **Step 6: Close, push, and verify the plan**
 
 Mark all plan checkboxes complete in one plan-only commit:
 
