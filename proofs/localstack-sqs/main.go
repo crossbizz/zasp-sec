@@ -12,6 +12,7 @@ import (
 
 const proofSuccess = "LocalStack SQS proof passed: queues=true redrive=true batch_events=2 round_trip=true empty=true cleanup=true."
 const jobQueueChildSuccess = "LocalStack job queue passed: publish=2 consume=2 acknowledge=2 scoped=true redrive=true empty=true cleanup=true audit=true."
+const queueDefinitionsChildSuccess = "LocalStack queue definitions passed: queues=3 dlqs=3 schemas=3 retention=true redrive=true cleanup=true audit=true."
 
 func main() {
 	if len(os.Args) == 2 && os.Args[1] == "audit" {
@@ -20,6 +21,10 @@ func main() {
 	}
 	if len(os.Args) == 2 && os.Args[1] == "job-queue" {
 		runJobQueueProofMain()
+		return
+	}
+	if len(os.Args) == 2 && os.Args[1] == "queue-definitions" {
+		runQueueDefinitionsProofMain()
 		return
 	}
 	if len(os.Args) != 1 {
@@ -45,6 +50,32 @@ func main() {
 		failMain("operation")
 	}
 	fmt.Println(proofSuccess)
+}
+
+func runQueueDefinitionsProofMain() {
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+	markerBytes := make([]byte, 8)
+	if _, err := rand.Read(markerBytes); err != nil {
+		failQueueDefinitionsMain("configuration")
+	}
+	marker := hex.EncodeToString(markerBytes)
+	endpoint := os.Getenv("AWS_ENDPOINT_URL")
+	client, err := newDisposableJobSDKQueueClient(ctx, endpoint)
+	if err != nil {
+		failQueueDefinitionsMain("configuration")
+	}
+	result, err := RunQueueDefinitionsProof(ctx, QueueDefinitionsProofOptions{
+		Endpoint: endpoint, Marker: marker, Client: client,
+		CleanupTimeout: 30 * time.Second, PollInterval: 100 * time.Millisecond,
+	})
+	if err != nil {
+		failQueueDefinitionsMain(errorCategory(err))
+	}
+	if line := formatQueueDefinitionsChildSuccess(result); line != queueDefinitionsChildSuccess {
+		failQueueDefinitionsMain("operation")
+	}
+	fmt.Println(queueDefinitionsChildSuccess)
 }
 
 func runJobQueueProofMain() {
@@ -97,5 +128,10 @@ func failMain(category string) {
 
 func failJobQueueMain(category string) {
 	fmt.Fprintf(os.Stderr, "LocalStack job queue failed: %s rejected.\n", category)
+	os.Exit(1)
+}
+
+func failQueueDefinitionsMain(category string) {
+	fmt.Fprintf(os.Stderr, "LocalStack queue definitions failed: %s rejected.\n", category)
 	os.Exit(1)
 }

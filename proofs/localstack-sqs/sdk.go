@@ -132,7 +132,7 @@ func queueNameFromURL(raw string) string {
 }
 
 func (s *sdkQueueClient) CreateQueue(ctx context.Context, name string, attributes, tags map[string]string) (string, error) {
-	output, err := s.client.CreateQueue(ctx, &sqs.CreateQueueInput{QueueName: aws.String(name), Attributes: attributes, Tags: tags})
+	output, err := s.client.CreateQueue(ctx, &sqs.CreateQueueInput{QueueName: aws.String(name), Attributes: attributes, Tags: tags}, oneAttemptSQS)
 	if err != nil {
 		return "", classifyQueueMutationError(err)
 	}
@@ -161,8 +161,8 @@ func (s *sdkQueueClient) ListQueueTags(ctx context.Context, queueURL string) (ma
 }
 
 func (s *sdkQueueClient) SetQueueAttributes(ctx context.Context, queueURL string, attributes map[string]string) error {
-	if _, err := s.client.SetQueueAttributes(ctx, &sqs.SetQueueAttributesInput{QueueUrl: aws.String(queueURL), Attributes: attributes}); err != nil {
-		return errProvider
+	if _, err := s.client.SetQueueAttributes(ctx, &sqs.SetQueueAttributesInput{QueueUrl: aws.String(queueURL), Attributes: attributes}, oneAttemptSQS); err != nil {
+		return classifyQueueMutationError(err)
 	}
 	return nil
 }
@@ -370,8 +370,13 @@ func (s *sdkQueueClient) DeleteJobBatch(ctx context.Context, queueURL string, en
 }
 
 func (s *sdkQueueClient) DeleteQueue(ctx context.Context, queueURL string) error {
-	if _, err := s.client.DeleteQueue(ctx, &sqs.DeleteQueueInput{QueueUrl: aws.String(queueURL)}); err != nil {
-		return errProvider
+	if _, err := s.client.DeleteQueue(ctx, &sqs.DeleteQueueInput{QueueUrl: aws.String(queueURL)}, oneAttemptSQS); err != nil {
+		return classifyQueueMutationError(err)
 	}
 	return nil
+}
+
+func oneAttemptSQS(options *sqs.Options) {
+	options.Retryer = aws.NopRetryer{}
+	options.RetryMaxAttempts = 1
 }

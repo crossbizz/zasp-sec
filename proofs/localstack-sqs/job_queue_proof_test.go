@@ -160,6 +160,12 @@ func TestQueueMutationClassificationSeparatesHTTPRejectionFromAmbiguity(t *testi
 	if mutationIsDefinitive(classifyQueueMutationError(statusCodeError{code: 201})) {
 		t.Fatal("unexpected HTTP 201 error was definitive")
 	}
+	if mutationIsDefinitive(classifyQueueMutationError(statusCodeError{code: 408})) {
+		t.Fatal("HTTP 408 timeout was definitive")
+	}
+	if mutationIsDefinitive(classifyQueueMutationError(statusCodeError{code: 500})) {
+		t.Fatal("HTTP 500 server failure was definitive")
+	}
 	if mutationIsDefinitive(classifyQueueMutationError(errors.New("transport ended after send"))) {
 		t.Fatal("transport ambiguity was definitive")
 	}

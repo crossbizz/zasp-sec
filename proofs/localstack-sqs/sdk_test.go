@@ -1,10 +1,18 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"io"
 	"net"
+	"net/http"
 	"testing"
+	"time"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsretry "github.com/aws/aws-sdk-go-v2/aws/retry"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
 )
 
 func TestSDKClientUsesOnlyExplicitLocalIdentity(t *testing.T) {
@@ -65,5 +73,47 @@ func TestSDKDialerFallsBackAcrossValidatedLoopbackAddresses(t *testing.T) {
 	connection.Close()
 	if attempts != 2 {
 		t.Fatalf("dial attempts = %d, want 2 loopback addresses", attempts)
+	}
+}
+
+func TestSDKQueueMutationsUseOneAttemptAndKeepServerFailureAmbiguous(t *testing.T) {
+	t.Parallel()
+
+	calls := make(map[string]int)
+	transport := roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		target := request.Header.Get("X-Amz-Target")
+		calls[target]++
+		return &http.Response{
+			StatusCode: http.StatusInternalServerError,
+			Status:     "500 Internal Server Error",
+			Header:     http.Header{"Content-Type": []string{"application/x-amz-json-1.0"}},
+			Body:       io.NopCloser(bytes.NewBufferString(`{"__type":"InternalError","message":"retryable"}`)),
+			Request:    request,
+		}, nil
+	})
+	retryer := awsretry.NewStandard(func(options *awsretry.StandardOptions) {
+		options.MaxAttempts = 3
+		options.MaxBackoff = time.Millisecond
+	})
+	client := sqs.New(sqs.Options{
+		Region: fixedRegion, BaseEndpoint: aws.String("http://127.0.0.1:49152"),
+		HTTPClient:  &http.Client{Transport: transport},
+		Credentials: aws.CredentialsProviderFunc(staticLocalCredentials),
+		Retryer:     retryer,
+	})
+	sdkClient := &sdkQueueClient{client: client}
+
+	_, createErr := sdkClient.CreateQueue(context.Background(), "agentsec-background", nil, nil)
+	setErr := sdkClient.SetQueueAttributes(context.Background(), "http://127.0.0.1:49152/000000000000/agentsec-background", map[string]string{"VisibilityTimeout": "300"})
+	deleteErr := sdkClient.DeleteQueue(context.Background(), "http://127.0.0.1:49152/000000000000/agentsec-background")
+	for name, err := range map[string]error{"create": createErr, "set": setErr, "delete": deleteErr} {
+		if err == nil || mutationIsDefinitive(err) {
+			t.Fatalf("%s error = %v, want ambiguous", name, err)
+		}
+	}
+	for _, target := range []string{"AmazonSQS.CreateQueue", "AmazonSQS.SetQueueAttributes", "AmazonSQS.DeleteQueue"} {
+		if calls[target] != 1 {
+			t.Fatalf("%s attempts = %d, want 1", target, calls[target])
+		}
 	}
 }

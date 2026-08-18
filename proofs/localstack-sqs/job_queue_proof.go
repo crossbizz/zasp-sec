@@ -84,7 +84,7 @@ func classifyQueueMutationError(err error) error {
 	var status interface{ HTTPStatusCode() int }
 	if errors.As(err, &status) {
 		code := status.HTTPStatusCode()
-		if code >= 300 && code <= 599 {
+		if code >= 300 && code <= 499 && code != 408 {
 			return definitiveMutationError()
 		}
 	}
