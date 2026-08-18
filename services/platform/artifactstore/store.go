@@ -96,8 +96,12 @@ func (store *Store) Put(ctx context.Context, request PutRequest) (artifact Artif
 		return Artifact{}, ErrArtifact
 	}
 	body := bytes.Clone(request.Body)
+	locator, err := buildDriverLocator(request.Scope, request.Reference)
+	if err != nil {
+		return Artifact{}, ErrArtifact
+	}
 	expected := DriverObject{
-		DriverLocator: driverLocator(request.Locator),
+		DriverLocator: locator,
 		MediaType:     request.MediaType,
 		Body:          body,
 		Size:          int64(len(body)),
@@ -123,7 +127,10 @@ func (store *Store) Get(ctx context.Context, locator Locator) (artifact Artifact
 	if !validLocator(locator) {
 		return Artifact{}, ErrArtifact
 	}
-	expected := driverLocator(locator)
+	expected, err := buildDriverLocator(locator.Scope, locator.Reference)
+	if err != nil {
+		return Artifact{}, ErrArtifact
+	}
 	operationCtx, cancel := context.WithTimeout(ctx, store.config.OperationTimeout)
 	defer cancel()
 	if operationCtx.Err() != nil {
@@ -144,26 +151,33 @@ func (store *Store) Delete(ctx context.Context, locator Locator) (resultErr erro
 	if !validLocator(locator) {
 		return ErrArtifact
 	}
+	driverLocator, err := buildDriverLocator(locator.Scope, locator.Reference)
+	if err != nil {
+		return ErrArtifact
+	}
 	operationCtx, cancel := context.WithTimeout(ctx, store.config.OperationTimeout)
 	defer cancel()
 	if operationCtx.Err() != nil {
 		return ErrDelete
 	}
-	if err := deleteDriver(store.driver, operationCtx, driverLocator(locator)); err != nil || operationCtx.Err() != nil {
+	if err := deleteDriver(store.driver, operationCtx, driverLocator); err != nil || operationCtx.Err() != nil {
 		return ErrDelete
 	}
 	return nil
 }
 
-func canonicalKey(locator Locator) string {
-	return "organizations/" + locator.OrganizationID().String() +
-		"/workspaces/" + locator.WorkspaceID().String() +
-		"/environments/" + locator.EnvironmentID().String() +
-		"/artifacts/" + locator.Reference.String()
-}
-
-func driverLocator(locator Locator) DriverLocator {
-	return DriverLocator{Key: canonicalKey(locator), Scope: locator.Scope, Reference: locator.Reference}
+func buildDriverLocator(scope domain.Scope, reference domain.EvidenceRef) (DriverLocator, error) {
+	if !validLocator(Locator{Scope: scope, Reference: reference}) {
+		return DriverLocator{}, ErrArtifact
+	}
+	return DriverLocator{
+		Key: "organizations/" + scope.OrganizationID().String() +
+			"/workspaces/" + scope.WorkspaceID().String() +
+			"/environments/" + scope.EnvironmentID().String() +
+			"/artifacts/" + reference.String(),
+		Scope:     scope,
+		Reference: reference,
+	}, nil
 }
 
 func validLocator(locator Locator) bool {

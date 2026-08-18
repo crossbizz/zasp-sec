@@ -20,7 +20,11 @@ func TestStorePutGetDeleteHappyPath(t *testing.T) {
 	t.Parallel()
 
 	request := validPutRequest(t)
-	wantKey := canonicalKey(request.Locator)
+	wantLocator, err := buildDriverLocator(request.Scope, request.Reference)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantKey := wantLocator.Key
 	wantChecksum := sha256.Sum256(request.Body)
 	var retained DriverObject
 	driver := &recordingDriver{}
@@ -294,15 +298,109 @@ func TestCanonicalKeyIsStableAndContainsOnlyProductIdentity(t *testing.T) {
 	t.Parallel()
 
 	locator := fixtureLocator(t, 1)
+	driverLocator, err := buildDriverLocator(locator.Scope, locator.Reference)
+	if err != nil {
+		t.Fatalf("buildDriverLocator() error = %v", err)
+	}
 	want := "organizations/pid_00000000-0000-4000-8000-000000000001/" +
 		"workspaces/pid_00000000-0000-4000-8000-000000000002/" +
 		"environments/pid_00000000-0000-4000-8000-000000000003/" +
 		"artifacts/pid_00000000-0000-4000-8000-000000000004"
-	if got := canonicalKey(locator); got != want {
-		t.Fatalf("canonicalKey() = %q, want %q", got, want)
+	if driverLocator.Key != want || driverLocator.Scope != locator.Scope || driverLocator.Reference != locator.Reference {
+		t.Fatalf("buildDriverLocator() = %#v, want key %q", driverLocator, want)
 	}
-	if strings.Contains(canonicalKey(locator), "bucket") || strings.Contains(canonicalKey(locator), "s3") {
+	if strings.Contains(driverLocator.Key, "bucket") || strings.Contains(driverLocator.Key, "s3") {
 		t.Fatal("canonical key exposed provider vocabulary")
+	}
+}
+
+func TestBuildDriverLocatorRejectsInvalidIdentity(t *testing.T) {
+	t.Parallel()
+
+	valid := fixtureLocator(t, 1)
+	for name, input := range map[string]Locator{
+		"zero":      {},
+		"scope":     {Reference: valid.Reference},
+		"reference": {Scope: valid.Scope},
+	} {
+		t.Run(name, func(t *testing.T) {
+			got, err := buildDriverLocator(input.Scope, input.Reference)
+			if !errors.Is(err, ErrArtifact) || got != (DriverLocator{}) {
+				t.Fatalf("buildDriverLocator() = %#v, %v", got, err)
+			}
+		})
+	}
+}
+
+func TestStoreDeniesSameSessionCrossOrganizationRead(t *testing.T) {
+	t.Parallel()
+
+	organizationA, organizationB := crossOrganizationLocators(t)
+	driver := &memoryDriver{objects: make(map[string]DriverObject)}
+	store := mustStore(t, driver, validConfig())
+	request := PutRequest{Locator: organizationB, MediaType: "application/json", Body: []byte(`{"fixture":"organization-b"}`)}
+	if _, err := store.Put(context.Background(), request); err != nil {
+		t.Fatalf("Organization B Put() error = %v", err)
+	}
+	got, err := store.Get(context.Background(), organizationA)
+	if !errors.Is(err, ErrGet) || got.Locator != (Locator{}) || got.MediaType != "" || got.Body != nil || got.Size != 0 || got.SHA256 != ([sha256.Size]byte{}) {
+		t.Fatalf("Organization A Get() = %#v, %v", got, err)
+	}
+
+	organizationALocator, err := buildDriverLocator(organizationA.Scope, organizationA.Reference)
+	if err != nil {
+		t.Fatal(err)
+	}
+	organizationBLocator, err := buildDriverLocator(organizationB.Scope, organizationB.Reference)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if organizationALocator.Key == organizationBLocator.Key {
+		t.Fatal("cross-Organization locators aliased")
+	}
+	aSuffix := strings.TrimPrefix(organizationALocator.Key, "organizations/"+organizationA.OrganizationID().String()+"/")
+	bSuffix := strings.TrimPrefix(organizationBLocator.Key, "organizations/"+organizationB.OrganizationID().String()+"/")
+	if aSuffix != bSuffix {
+		t.Fatalf("same lower-scope suffixes differ: %q != %q", aSuffix, bSuffix)
+	}
+	putCalls, getCalls := driver.calls()
+	if len(putCalls) != 1 || putCalls[0] != organizationBLocator || len(getCalls) != 1 || getCalls[0] != organizationALocator {
+		t.Fatalf("driver calls = put %#v, get %#v", putCalls, getCalls)
+	}
+}
+
+func TestStoreDerivesConcurrentOrganizationPrefixesPerCall(t *testing.T) {
+	t.Parallel()
+
+	organizationA, organizationB := crossOrganizationLocators(t)
+	driver := &memoryDriver{objects: make(map[string]DriverObject)}
+	store := mustStore(t, driver, validConfig())
+	requests := []PutRequest{
+		{Locator: organizationA, MediaType: "application/json", Body: []byte(`{"organization":"a"}`)},
+		{Locator: organizationB, MediaType: "application/json", Body: []byte(`{"organization":"b"}`)},
+	}
+
+	var group sync.WaitGroup
+	for index := range 64 {
+		group.Add(1)
+		go func(request PutRequest) {
+			defer group.Done()
+			if _, err := store.Put(context.Background(), request); err != nil {
+				t.Errorf("Put() error = %v", err)
+			}
+		}(requests[index%len(requests)])
+	}
+	group.Wait()
+
+	putCalls, _ := driver.calls()
+	if len(putCalls) != 64 {
+		t.Fatalf("Put calls = %d, want 64", len(putCalls))
+	}
+	for _, call := range putCalls {
+		wantPrefix := "organizations/" + call.OrganizationID().String() + "/"
+		if !strings.HasPrefix(call.Key, wantPrefix) {
+			t.Fatalf("locator %q does not match call scope %q", call.Key, wantPrefix)
+		}
 	}
 }
 
@@ -336,6 +434,45 @@ type recordingDriver struct {
 	put    func(context.Context, DriverObject) (DriverObject, error)
 	get    func(context.Context, DriverLocator) (DriverObject, error)
 	delete func(context.Context, DriverLocator) error
+}
+
+type memoryDriver struct {
+	mu       sync.Mutex
+	objects  map[string]DriverObject
+	putCalls []DriverLocator
+	getCalls []DriverLocator
+}
+
+func (driver *memoryDriver) Put(_ context.Context, object DriverObject) (DriverObject, error) {
+	driver.mu.Lock()
+	defer driver.mu.Unlock()
+	driver.putCalls = append(driver.putCalls, object.DriverLocator)
+	driver.objects[object.Key] = cloneDriverObject(object)
+	return cloneDriverObject(object), nil
+}
+
+func (driver *memoryDriver) Get(_ context.Context, locator DriverLocator) (DriverObject, error) {
+	driver.mu.Lock()
+	defer driver.mu.Unlock()
+	driver.getCalls = append(driver.getCalls, locator)
+	object, ok := driver.objects[locator.Key]
+	if !ok {
+		return DriverObject{}, errors.New("missing")
+	}
+	return cloneDriverObject(object), nil
+}
+
+func (driver *memoryDriver) Delete(_ context.Context, locator DriverLocator) error {
+	driver.mu.Lock()
+	defer driver.mu.Unlock()
+	delete(driver.objects, locator.Key)
+	return nil
+}
+
+func (driver *memoryDriver) calls() ([]DriverLocator, []DriverLocator) {
+	driver.mu.Lock()
+	defer driver.mu.Unlock()
+	return append([]DriverLocator(nil), driver.putCalls...), append([]DriverLocator(nil), driver.getCalls...)
 }
 
 func (driver *recordingDriver) Put(ctx context.Context, object DriverObject) (DriverObject, error) {
@@ -399,10 +536,40 @@ func fixtureLocator(t *testing.T, offset int) Locator {
 	return Locator{Scope: scope, Reference: reference}
 }
 
+func crossOrganizationLocators(t *testing.T) (Locator, Locator) {
+	t.Helper()
+	ids := make([]domain.ProductID, 5)
+	for index := range ids {
+		text := "pid_00000000-0000-4000-8000-00000000000" + string(rune('1'+index))
+		parsed, err := domain.ParseProductID(text)
+		if err != nil {
+			t.Fatalf("ParseProductID(%q) error = %v", text, err)
+		}
+		ids[index] = parsed
+	}
+	scopeA, err := domain.NewScope(ids[0], ids[2], ids[3])
+	if err != nil {
+		t.Fatal(err)
+	}
+	scopeB, err := domain.NewScope(ids[1], ids[2], ids[3])
+	if err != nil {
+		t.Fatal(err)
+	}
+	reference, err := domain.NewEvidenceRef(ids[4])
+	if err != nil {
+		t.Fatal(err)
+	}
+	return Locator{Scope: scopeA, Reference: reference}, Locator{Scope: scopeB, Reference: reference}
+}
+
 func driverObject(request PutRequest) DriverObject {
 	body := bytes.Clone(request.Body)
+	locator, err := buildDriverLocator(request.Scope, request.Reference)
+	if err != nil {
+		panic(err)
+	}
 	return DriverObject{
-		DriverLocator: DriverLocator{Key: canonicalKey(request.Locator), Scope: request.Scope, Reference: request.Reference},
+		DriverLocator: locator,
 		MediaType:     request.MediaType,
 		Body:          body,
 		Size:          int64(len(body)),
