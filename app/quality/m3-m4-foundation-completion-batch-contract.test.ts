@@ -16,13 +16,13 @@ describe("M3 UI/E2E and M4 reconciliation completion batch", () => {
     for (const operation of ["listAgents", "getAgent", "updateAgent", "getAgentCapabilities", "getAgentRelationships", "listAgentSessions", "listTools", "getTool"]) expect(openapi).toContain(`operationId: ${operation}`);
   });
 
-  it("completes exactly 25 locally verified tasks while the M3 gate stays active", () => {
+  it("completes exactly 25 locally verified tasks while the M3 gate stays blocked", () => {
     const tracker = read("docs/internal/implementation_status_v1.5.md");
-    const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] || "";
+    const blocked = tracker.match(/## Blocked[\s\S]*/)?.[0] || "";
     const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] || "";
-    expect(active.match(/^\| M3-52 \|/gm)).toHaveLength(1);
+    expect(blocked.match(/^\| M3-52 \|/gm)).toHaveLength(1);
     const selected = ["M3-48", "M3-49", "M3-50", "M3-51", "M3-52a", "M3-52b", "M3-52c", "M3-52d", "M3-52e", "M4-01a", "M4-01b", "M4-01c", "M4-01d", "M4-01e", "M4-01f", "M4-01", "M4-02", "M4-03", "M4-04", "M4-05", "M4-06", "M4-07", "M4-08", "M4-09", "M4-10"];
     for (const id of selected) expect(complete.match(new RegExp(`^\\| ${id} \\|`, "gm"))).toHaveLength(1);
-    for (const value of ["| Pending | 0 |", "| In progress | 6 |", "| Complete | 667 |", "`0/6/667/55`", "| M3 | 75 | 0 | 2 | 73 | 0 |", "| M4 | 82 | 0 | 0 | 82 | 0 |"]) expect(tracker).toContain(value);
+    for (const value of ["| Pending | 0 |", "| In progress | 0 |", "| Complete | 667 |", "`0/0/667/61`", "| M3 | 75 | 0 | 0 | 73 | 2 |", "| M4 | 82 | 0 | 0 | 82 | 0 |"]) expect(tracker).toContain(value);
   });
 });

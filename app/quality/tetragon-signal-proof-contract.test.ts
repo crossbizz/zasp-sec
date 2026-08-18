@@ -31,7 +31,7 @@ function assertM012Complete(tracker: string) {
   const m012Rows = completeRows.filter(([task]) => task === "M0-12");
 
   const activeRows = inProgressRows.slice(2);
-  expect(activeRows).not.toHaveLength(0);
+  expect(activeRows).toHaveLength(0);
   expect([...activeRows, ...completeRows].filter(([task]) => task === "M0-15")).toHaveLength(1);
   expect(m012Rows).toHaveLength(1);
   expect(m012Rows[0]).toHaveLength(3);

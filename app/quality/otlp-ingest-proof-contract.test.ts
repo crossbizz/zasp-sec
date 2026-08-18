@@ -24,7 +24,7 @@ function assertM013Complete(tracker: string) {
   const allCompleteRows = markdownRows(complete).slice(2);
   const completeRows = allCompleteRows.filter(([task]) => task === "M0-13");
 
-  expect(inProgressRows).not.toHaveLength(0);
+  expect(inProgressRows).toHaveLength(0);
   expect([...inProgressRows, ...allCompleteRows].filter(([task]) => task === "M0-15")).toHaveLength(1);
   expect(completeRows).toHaveLength(1);
   expect(completeRows[0]?.[1]).toBe("August 14, 2026");

@@ -22,7 +22,7 @@ function assertM014bComplete(tracker: string) {
   const completeRows = markdownRows(complete).slice(2);
   const completedM014b = completeRows.filter(([task]) => task === "M0-14b");
 
-  expect(activeRows).not.toHaveLength(0);
+  expect(activeRows).toHaveLength(0);
   expect([...activeRows, ...completeRows].filter(([task]) => task === "M0-15")).toHaveLength(1);
   expect(completedM014b).toHaveLength(1);
   expect(completedM014b[0]?.[1]).toBe("August 15, 2026");

@@ -24,7 +24,7 @@ function assertM014aComplete(tracker: string) {
   const completeRows = markdownRows(complete).slice(2);
   const rows = completeRows.filter(([task]) => task === "M0-14a");
 
-  expect(activeRows).not.toHaveLength(0);
+  expect(activeRows).toHaveLength(0);
   expect([...activeRows, ...completeRows].filter(([task]) => task === "M0-15")).toHaveLength(1);
   expect(rows).toHaveLength(1);
   expect(rows[0]?.[0]).toBe("M0-14a");

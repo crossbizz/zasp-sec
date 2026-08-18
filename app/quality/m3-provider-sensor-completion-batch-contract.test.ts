@@ -14,11 +14,11 @@ describe("M3-15 through M3-36 completion batch", () => {
     for (const operation of ["listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage"]) expect(openapi).toContain(`operationId: ${operation}`);
   });
 
-  it("keeps the real-AWS credential adapter active behind its exact dependency", () => {
+  it("keeps the real-AWS credential adapter blocked behind its exact dependency", () => {
     const tracker = read("docs/internal/implementation_status_v1.5.md");
-    const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] || "";
-    expect(active.match(/^\| M3-14 \|/gm)).toHaveLength(1);
-    expect(active).toContain("required real-AWS denial remains unavailable");
+    const blocked = tracker.match(/## Blocked[\s\S]*/)?.[0] || "";
+    expect(blocked.match(/^\| M3-14 \|/gm)).toHaveLength(1);
+    expect(blocked).toContain("required real-AWS denial");
   });
 
   it("completes exactly 25 independently verified provider and sensor tasks", () => {
@@ -26,6 +26,6 @@ describe("M3-15 through M3-36 completion batch", () => {
     const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] || "";
     const selected = ["M3-15", "M3-16", "M3-17", "M3-18", "M3-19", "M3-20", "M3-21", "M3-22a", "M3-22b", "M3-22c", "M3-22", "M3-23", "M3-24", "M3-25", "M3-26", "M3-27", "M3-28", "M3-29", "M3-30", "M3-31", "M3-32", "M3-33", "M3-34", "M3-35", "M3-36"];
     for (const id of selected) expect(complete.match(new RegExp(`^\\| ${id} \\|`, "gm"))).toHaveLength(1);
-    for (const value of ["| Pending | 0 |", "| In progress | 6 |", "| Complete | 667 |", "`0/6/667/55`", "| M3 | 75 | 0 | 2 | 73 | 0 |"]) expect(tracker).toContain(value);
+    for (const value of ["| Pending | 0 |", "| In progress | 0 |", "| Complete | 667 |", "`0/0/667/61`", "| M3 | 75 | 0 | 0 | 73 | 2 |"]) expect(tracker).toContain(value);
   });
 });

@@ -15,9 +15,9 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 0 |
-| In progress | 6 |
+| In progress | 0 |
 | Complete | 667 |
-| Blocked | 55 |
+| Blocked | 61 |
 
 ## Milestone summary
 
@@ -25,9 +25,9 @@ In progress, Complete, or Blocked is Pending.
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 0 | 0 | 24 | 3 |
 | M1 | 68 | 0 | 0 | 68 | 0 |
-| M1A | 10 | 0 | 4 | 6 | 0 |
+| M1A | 10 | 0 | 0 | 6 | 4 |
 | M2 | 72 | 0 | 0 | 72 | 0 |
-| M3 | 75 | 0 | 2 | 73 | 0 |
+| M3 | 75 | 0 | 0 | 73 | 2 |
 | M4 | 82 | 0 | 0 | 82 | 0 |
 | M5 | 42 | 0 | 0 | 42 | 0 |
 | M6 | 36 | 0 | 0 | 36 | 0 |
@@ -70,7 +70,7 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `0/6/667/55` because
+session configuration. The 728 source-plan counts are `0/0/667/61` because
 PROV-01 is excluded from those counts.
 The blocked M8 resilience executions require an authorized isolated AWS/reference deployment; deterministic validators remain locally testable.
 
@@ -78,12 +78,6 @@ The blocked M8 resilience executions require an authorized isolated AWS/referenc
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M1A-10 | August 18, 2026 | Typed gate requires private Ready product stubs, exact IRSA dependency smoke, OTLP health, and credential-free evidence; real AWS staging execution remains unresolved. |
-| M1A-09 | August 18, 2026 | Deterministic evidence binds Terraform revision, cluster/version, immutable image hashes, and deploy/smoke runs without credential fields. |
-| M1A-08 | August 18, 2026 | Injected smoke boundary requires exact scoped S3, SQS, and OpenSearch operations through IRSA plus OTLP health evidence. |
-| M1A-07 | August 18, 2026 | Injected staging deployment boundary requires four immutable product workloads Ready on private endpoints with no vendor dashboards. |
-| M3-52 | August 18, 2026 | A strict five-check local M3 gate is implemented; real staging remains unavailable and the task is not Complete. |
-| M3-14 | August 18, 2026 | Strict AWS assume-role identity adapter and local denial fixture are implemented; required real-AWS denial remains unavailable behind M1A-10. |
 
 ## Complete
 
@@ -763,6 +757,12 @@ The blocked M8 resilience executions require an authorized isolated AWS/referenc
 
 | Task | Blocked since | Exact dependency | Resume condition |
 | --- | --- | --- | --- |
+| M1A-10 | August 18, 2026 | The typed aggregate staging gate exists, but no authorized AWS staging execution has produced deployment, IRSA smoke, OTLP, and evidence results. | Provide the isolated staging account/cluster and authorize the exact gate run. |
+| M1A-09 | August 18, 2026 | The deterministic evidence builder exists, but no authorized live deployment and smoke run IDs exist. | Complete M1A-07 and M1A-08 in the isolated staging environment. |
+| M1A-08 | August 18, 2026 | The injected IRSA S3/SQS/OpenSearch smoke boundary exists, but no authorized staging cluster and role are available. | Provide the isolated staging cluster, scoped IRSA role, and private dependencies. |
+| M1A-07 | August 18, 2026 | The injected four-workload deployment boundary exists, but no authorized private AWS staging environment is available. | Provide the isolated AWS staging account/cluster and immutable release images. |
+| M3-52 | August 18, 2026 | The strict five-check local M3 gate is implemented, but its aggregate PASS requires the unavailable M1A-10 live staging evidence. | Complete M1A-10, then evaluate the exact M3 aggregate gate. |
+| M3-14 | August 18, 2026 | The assume-role adapter and local denial fixture are implemented, but the required real-AWS denial cannot run without the isolated staging fixture. | Provide the M1A-10 isolated AWS identities/role and authorize the exact denial proof. |
 | M8-54 | August 18, 2026 | The release-decision contract exists, but its seven aggregate gates include unresolved live and human evidence. | Complete or explicitly waive every upstream release blocker, then evaluate the gate. |
 | M8-63 | August 18, 2026 | The DR gate exists, but no authorized recovery execution has produced objective and cleanup evidence. | Run the authorized isolated SaaS recovery lifecycle and retain its evidence. |
 | M8-63e | August 18, 2026 | The RPO/RTO evaluator exists, but there are no measured recovery timestamps or representative queries. | Supply a completed authorized recovery run with measured objectives. |

@@ -12,11 +12,15 @@ describe("M1A-07 through M1A-10 staging gate batch", () => {
     expect(pkg.scripts["staging:gate:test"]).toBe("node --test deploy/staging/gate.test.mjs");
   });
 
-  it("moves only the final four pending tasks to honest active status", () => {
+  it("blocks the final four staging tasks on the missing authorized AWS run", () => {
     const tracker = read("docs/internal/implementation_status_v1.5.md");
     const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] || "";
-    for (const id of ["M1A-07", "M1A-08", "M1A-09", "M1A-10"]) expect(active.match(new RegExp(`^\\| ${id} \\|`, "gm"))).toHaveLength(1);
-    for (const value of ["| Pending | 0 |", "| In progress | 6 |", "`0/6/667/55`", "| M1A | 10 | 0 | 4 | 6 | 0 |"]) expect(tracker).toContain(value);
-    expect(tracker).toContain("real AWS staging execution remains unresolved");
+    const blocked = tracker.match(/## Blocked[\s\S]*/)?.[0] || "";
+    for (const id of ["M1A-07", "M1A-08", "M1A-09", "M1A-10"]) {
+      expect(active).not.toMatch(new RegExp(`^\\| ${id} \\|`, "m"));
+      expect(blocked.match(new RegExp(`^\\| ${id} \\|`, "gm"))).toHaveLength(1);
+    }
+    for (const value of ["| Pending | 0 |", "| In progress | 0 |", "| Complete | 667 |", "| Blocked | 61 |", "`0/0/667/61`", "| M1A | 10 | 0 | 0 | 6 | 4 |", "| M3 | 75 | 0 | 0 | 73 | 2 |"]) expect(tracker).toContain(value);
+    expect(tracker).toContain("no authorized AWS staging execution");
   });
 });

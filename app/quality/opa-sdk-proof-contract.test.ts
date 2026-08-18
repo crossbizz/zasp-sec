@@ -42,7 +42,7 @@ function assertM017Complete(tracker: string, readme: string, riskRegister: strin
   expect(tracker).toMatch(/^\| Blocked \| \d+ \|/m);
   expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 0 \| 24 \| 3 \|/);
   expect(tracker).toMatch(/`\d+\/\d+\/\d+\/\d+`/);
-  expect(activeRows).not.toHaveLength(0);
+  expect(activeRows).toHaveLength(0);
   expect(completeRows.filter(([task]) => task === "M0-17")).toHaveLength(1);
   expect(completeRows.find(([task]) => task === "M0-17")?.[1]).toBe("August 15, 2026");
   expect(completeRows.find(([task]) => task === "M0-17")?.[2]).toContain("OPA Go SDK");

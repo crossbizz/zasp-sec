@@ -58,7 +58,7 @@ describe("PostHog privacy proof repository contract", () => {
     expect(tracker).toMatch(/^\| Blocked \| \d+ \|/m);
     expect(tracker).toMatch(/`\d+\/\d+\/\d+\/\d+`/);
     expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 0 \| 24 \| 3 \|/);
-    expect(active).not.toHaveLength(0);
+    expect(active).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M0-20")).toHaveLength(1);
     expect(blocked.filter(([task]) => ["M0-09", "M0-18", "M0-19"].includes(task))).toHaveLength(3);
     expect(risk).toContain("PASS — M0-20 —");

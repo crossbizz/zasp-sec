@@ -41,7 +41,7 @@ describe("M6 gate and M7 session-foundation completion batch", () => {
       readFile(resolve(root, "README.md"), "utf8"),
     ]);
     expect(selected).toHaveLength(25);
-    for (const value of ["| Pending | 0 |", "| In progress | 6 |", "| Complete | 667 |", "| Blocked | 55 |", "`0/6/667/55`", "| M6 | 36 | 0 | 0 | 36 | 0 |", "| M7 | 62 | 0 | 0 | 62 | 0 |"]) expect(tracker).toContain(value);
+    for (const value of ["| Pending | 0 |", "| In progress | 0 |", "| Complete | 667 |", "| Blocked | 61 |", "`0/0/667/61`", "| M6 | 36 | 0 | 0 | 36 | 0 |", "| M7 | 62 | 0 | 0 | 62 | 0 |"]) expect(tracker).toContain(value);
     const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
     const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] ?? "";
     for (const task of selected) {

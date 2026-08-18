@@ -40,7 +40,7 @@ function assertM018Blocked(tracker: string, readme: string, riskRegister: string
   expect(tracker).toMatch(/^\| Blocked \| \d+ \|/m);
   expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 0 \| 24 \| 3 \|/);
   expect(tracker).toMatch(/`\d+\/\d+\/\d+\/\d+`/);
-  expect(activeRows).not.toHaveLength(0);
+  expect(activeRows).toHaveLength(0);
   expect(blockedRows.filter(([task]) => task === "M0-18")).toHaveLength(1);
   expect(blockedRows.find(([task]) => task === "M0-18")?.[1]).toBe("August 15, 2026");
   expect(blockedRows.find(([task]) => task === "M0-18")?.[2]).toContain("0/11");

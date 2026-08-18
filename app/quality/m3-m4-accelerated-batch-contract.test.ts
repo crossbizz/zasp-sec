@@ -55,12 +55,12 @@ describe("M3 gate and M4 reconciliation accelerated batch", () => {
     expect(tracker).toMatch(/^\| Pending \| \d+ \|/m);
     expect(tracker).toMatch(/^\| In progress \| \d+ \|/m);
     expect(tracker).toMatch(/^\| Complete \| \d+ \|/m);
-    expect(tracker).toContain("| M3 | 75 | 0 | 2 | 73 | 0 |");
+    expect(tracker).toContain("| M3 | 75 | 0 | 0 | 73 | 2 |");
     expect(tracker).toContain("| M4 | 82 | 0 | 0 | 82 | 0 |");
-    const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
+    const blocked = tracker.match(/## Blocked[\s\S]*/)?.[0] ?? "";
     const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] ?? "";
     for (const task of ["M3-48d", "M3-48e", "M3-48f", "M3-48g", "M3-48h", "M3-48", "M3-49", "M3-50", "M3-51", "M3-52a", "M3-52b", "M3-52c", "M3-52d", "M3-52e", "M4-01a", "M4-01b", "M4-01c", "M4-01d", "M4-01e", "M4-01f", "M4-01"]) expect(complete.match(new RegExp(`^\\| ${task} \\|`, "gm"))).toHaveLength(1);
-    expect(active.match(/^\| M3-52 \|/gm)).toHaveLength(1);
+    expect(blocked.match(/^\| M3-52 \|/gm)).toHaveLength(1);
     expect(readme).toContain("M3-48 through M3-52e and M4-01a through M4-10 are Complete");
     const compactReadme = readme.replace(/\s+/g, " ");
     expect(compactReadme).toContain("aggregate staging PASS still depends on M1A-10");

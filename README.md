@@ -258,7 +258,7 @@ the shared non-production VPC, two private subnets, encrypted EKS cluster and
 node group, evidence bucket, KMS key, secret slots, the six queue/DLQ resources,
 private OpenSearch, and the product IRSA role. Terraform 1.15.8 validation and
 an offline 34-create plan pass without applying or contacting a staging account.
-M1A-07 through M1A-10 are now In progress. One typed staging boundary validates
+M1A-07 through M1A-10 are Blocked. One typed staging boundary validates
 the private four-workload deploy, exact IRSA S3/SQS/OpenSearch smoke, redacted
 deterministic deployment evidence, and the aggregate gate decision. No real
 cloud resource was created; live staging execution remains required.
@@ -273,7 +273,7 @@ excluded from the public catalog.
 M3-15 through M3-36 are Complete. The reviewed Cartography, Prowler, Nango,
 sensor, and Tetragon suites prove scoped normalization, freshness, private
 Auth/Proxy, credential-safe connection handling, seven sensor operations, and
-process/file/network normalization. M3-14 remains In progress because its
+process/file/network normalization. M3-14 is Blocked because its
 required real-AWS denial fixture is unavailable with M1A-10's live staging gate.
 
 M3-37 through M3-48h are Complete. The reviewed runtime-event and OTLP suites
@@ -284,7 +284,7 @@ active; these completed component contracts do not substitute for them.
 
 M3-48 through M3-52e and M4-01a through M4-10 are Complete. Reviewed UI,
 composed fixture, reconciliation, audit, and inventory API suites prove their
-component contracts. M3-52 remains active because its aggregate staging PASS
+component contracts. M3-52 is Blocked because its aggregate staging PASS
 still depends on M1A-10; component completion does not waive that gate.
 
 M4-11 through M4-35 are Complete. Reviewed inventory, capability, posture, and

@@ -37,6 +37,6 @@ describe("M8-60 through M8-54 final release batch", () => {
       expect(active).not.toMatch(new RegExp(`^\\| ${id} \\|`, "m"));
       expect(blocked.match(new RegExp(`^\\| ${id} \\|`, "gm"))).toHaveLength(1);
     }
-    for (const value of ["| Pending | 0 |", "| In progress | 6 |", "| Complete | 667 |", "| Blocked | 55 |", "`0/6/667/55`", "| M8 | 141 | 0 | 0 | 89 | 52 |"]) expect(tracker).toContain(value);
+    for (const value of ["| Pending | 0 |", "| In progress | 0 |", "| Complete | 667 |", "| Blocked | 61 |", "`0/0/667/61`", "| M8 | 141 | 0 | 0 | 89 | 52 |"]) expect(tracker).toContain(value);
   });
 });

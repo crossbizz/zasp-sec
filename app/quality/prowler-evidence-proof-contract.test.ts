@@ -59,7 +59,7 @@ function assertM011Complete(tracker: string) {
   expect(header).toEqual(["Task", "Started", "Current work"]);
   expect(separator).toHaveLength(3);
   expect(separator?.every((cell) => /^:?-{3,}:?$/.test(cell))).toBe(true);
-  expect(dataRows).not.toHaveLength(0);
+  expect(dataRows).toHaveLength(0);
   expect([...dataRows, ...completeRows].filter(([task]) => task === "M0-15")).toHaveLength(1);
   expect(completeSection).toBeDefined();
   expect(m011Rows).toHaveLength(1);

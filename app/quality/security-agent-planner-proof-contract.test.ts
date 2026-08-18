@@ -60,7 +60,7 @@ describe("Security Agent planner boundary repository contract", () => {
     expect(tracker).toMatch(/^\| Blocked \| \d+ \|/m);
     expect(tracker).toMatch(/`\d+\/\d+\/\d+\/\d+`/);
     expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 0 \| 24 \| 3 \|/);
-    expect(active).not.toHaveLength(0);
+    expect(active).toHaveLength(0);
     expect(section(tracker, "Complete").filter(([task]) => task === "M0-21a")).toHaveLength(1);
     expect(section(tracker, "Complete").filter(([task]) => task === "M0-22")).toHaveLength(1);
     expect(blocked.filter(([task]) => ["M0-09", "M0-18", "M0-19"].includes(task))).toHaveLength(3);

@@ -51,8 +51,8 @@ describe("M1A and M3 foundation batch", () => {
     expect(tracker).toMatch(/^\| Pending \| \d+ \|/m);
     expect(tracker).toMatch(/^\| In progress \| \d+ \|/m);
     expect(tracker).toMatch(/^\| Complete \| \d+ \|/m);
-    expect(tracker).toContain("| M1A | 10 | 0 | 4 | 6 | 0 |");
-    expect(tracker).toMatch(/^\| M3 \| 75 \| \d+ \| \d+ \| \d+ \| 0 \|/m);
+    expect(tracker).toContain("| M1A | 10 | 0 | 0 | 6 | 4 |");
+    expect(tracker).toContain("| M3 | 75 | 0 | 0 | 73 | 2 |");
     const tasks = [
       "M1A-01", "M1A-02", "M1A-03", "M1A-04", "M1A-05", "M1A-06",
       "M3-01", "M3-02", "M3-02a", "M3-03", "M3-04", "M3-05", "M3-06",
@@ -63,7 +63,7 @@ describe("M1A and M3 foundation batch", () => {
     }
     for (const task of ["M1A-07", "M1A-08", "M1A-09", "M1A-10"]) expect(tracker.match(new RegExp(`^\\| ${task} \\|`, "gm"))).toHaveLength(1);
     expect(tracker.match(/^\| M3-14 \|/gm)).toHaveLength(1);
-    expect(readme).toContain("M1A-07 through M1A-10 are now In progress");
+    expect(readme).toContain("M1A-07 through M1A-10 are Blocked");
     expect(readme).toContain("M3-15 through M3-36 are Complete");
   });
 });

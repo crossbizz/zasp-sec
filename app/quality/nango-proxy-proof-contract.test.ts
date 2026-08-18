@@ -67,7 +67,7 @@ function assertM015Complete(tracker: string, readme: string, riskRegister: strin
   expect(tracker).toMatch(/^\| Complete \| \d+ \|/m);
   expect(tracker).toMatch(/^\| Blocked \| \d+ \|/m);
   expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 0 \| 24 \| 3 \|/);
-  expect(activeRows).not.toHaveLength(0);
+  expect(activeRows).toHaveLength(0);
   expect(completeRows.filter(([task]) => task === "M0-15")).toHaveLength(1);
   expect(completeRows.filter(([task]) => task === "M0-14")).toHaveLength(1);
   expect(completeRows.filter(([task]) => task === "M0-16")).toHaveLength(1);
@@ -97,7 +97,7 @@ function activeFixture(tracker: string, readme: string) {
     tracker: tracker
       .replace(/^\| Pending \| \d+ \|/m, "| Pending | 710 |")
       .replace("| Complete | 667 |", "| Complete | 16 |")
-      .replace("| Blocked | 55 |", "| Blocked | 1 |")
+      .replace("| Blocked | 61 |", "| Blocked | 1 |")
       .replace("| M0 | 27 | 0 | 0 | 24 | 3 |", "| M0 | 27 | 9 | 1 | 16 | 1 |")
       .replace(/`\d+\/\d+\/\d+\/\d+`/, "`710/1/16/1`")
       .replace(/^\| M0-22 \| August 15, 2026 \|.*\|\n/m, "")

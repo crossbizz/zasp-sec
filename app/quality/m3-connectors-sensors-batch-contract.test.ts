@@ -37,10 +37,10 @@ describe("M3 connector and sensor implementation batch", () => {
     expect(tracker).toMatch(/^\| Pending \| \d+ \|/m);
     expect(tracker).toMatch(/^\| In progress \| \d+ \|/m);
     expect(tracker).toMatch(/^\| Complete \| \d+ \|/m);
-    expect(tracker).toMatch(/^\| M3 \| 75 \| \d+ \| \d+ \| \d+ \| 0 \|/m);
-    const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] ?? "";
+    expect(tracker).toContain("| M3 | 75 | 0 | 0 | 73 | 2 |");
+    const blocked = tracker.match(/## Blocked[\s\S]*/)?.[0] ?? "";
     const complete = tracker.match(/## Complete[\s\S]*?## Blocked/)?.[0] ?? "";
-    expect(active.match(/^\| M3-14 \|/gm)).toHaveLength(1);
+    expect(blocked.match(/^\| M3-14 \|/gm)).toHaveLength(1);
     for (const task of ["M3-15", "M3-16", "M3-17", "M3-18", "M3-19", "M3-20", "M3-21", "M3-22a", "M3-22b", "M3-22c", "M3-22", "M3-23", "M3-24", "M3-25", "M3-26", "M3-27", "M3-28", "M3-29", "M3-30", "M3-31", "M3-32", "M3-33", "M3-34"]) {
       expect(complete.match(new RegExp(`^\\| ${task.replace("-", "\\-")} \\|`, "gm"))).toHaveLength(1);
     }

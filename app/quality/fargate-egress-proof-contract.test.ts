@@ -65,7 +65,7 @@ describe("EKS Fargate egress proof repository contract", () => {
     expect(tracker).toMatch(/^\| Blocked \| \d+ \|/m);
     expect(tracker).toMatch(/`\d+\/\d+\/\d+\/\d+`/);
     expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 0 \| 24 \| 3 \|/);
-    expect(active).not.toHaveLength(0);
+    expect(active).toHaveLength(0);
     expect(blocked.filter(([task]) => task === "M0-19")).toHaveLength(1);
     expect(blocked.find(([task]) => task === "M0-19")?.[2]).toContain("0/19 required inputs");
     expect(blocked.filter(([task]) => task === "M0-18")).toHaveLength(1);

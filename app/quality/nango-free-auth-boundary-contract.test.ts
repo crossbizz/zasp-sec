@@ -39,7 +39,7 @@ function assertM014Complete(tracker: string, readme: string, riskRegister: strin
   expect(tracker).toMatch(/^\| Complete \| \d+ \|/m);
   expect(tracker).toMatch(/^\| Blocked \| \d+ \|/m);
   expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 0 \| 24 \| 3 \|/);
-  expect(activeRows).not.toHaveLength(0);
+  expect(activeRows).toHaveLength(0);
   expect(m014Rows).toHaveLength(1);
   expect(m014Rows[0]?.[1]).toBe("August 15, 2026");
   expect(m014Rows[0]?.[2]).toContain("Auth plus Proxy");

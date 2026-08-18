@@ -76,7 +76,7 @@ describe("OTLP export proof repository contract", () => {
     expect(tracker).toMatch(/\| M0 \| 27 \| 0 \| 0 \| 24 \| 3 \|/);
     expect(summaryRows.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
     expect(m0Row?.slice(2).reduce((sum, count) => sum + Number(count), 0)).toBe(Number(m0Row?.[1]));
-    expect(active).not.toHaveLength(0);
+    expect(active).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M0-22")).toHaveLength(1);
     expect(blocked.filter(([task]) => ["M0-09", "M0-18", "M0-19"].includes(task))).toHaveLength(3);
     expect(riskRows).toHaveLength(1);
