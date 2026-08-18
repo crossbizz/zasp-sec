@@ -59,6 +59,7 @@ export function createBuildTargets({
     NPM_CONFIG_AUDIT: "false",
     NPM_CONFIG_FUND: "false",
     NPM_CONFIG_OFFLINE: "true",
+    NPM_CONFIG_USERCONFIG: nullDevice,
     NPM_CONFIG_UPDATE_NOTIFIER: "false",
   };
   const target = (name, command, args, targetEnvironment, expectedStdout, expectedStderr) => ({
