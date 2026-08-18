@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 647 |
-| In progress | 0 |
+| Pending | 646 |
+| In progress | 1 |
 | Complete | 78 |
 | Blocked | 3 |
 
@@ -24,7 +24,7 @@ In progress, Complete, or Blocked is Pending.
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 0 | 0 | 24 | 3 |
-| M1 | 68 | 14 | 0 | 54 | 0 |
+| M1 | 68 | 13 | 1 | 54 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
 | M3 | 75 | 75 | 0 | 0 | 0 |
@@ -68,13 +68,14 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `647/0/78/3` because
+session configuration. The 728 source-plan counts are `646/1/78/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M1-37 | August 18, 2026 | Add strict typed `saas` and `single_tenant` deployment configuration; require one canonical pinned product Organization in single-tenant mode while keeping SaaS unpinned. |
 
 ## Complete
 
