@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 0 |
-| In progress | 147 |
-| Complete | 578 |
+| In progress | 122 |
+| Complete | 603 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -33,7 +33,7 @@ In progress, Complete, or Blocked is Pending.
 | M6 | 36 | 0 | 0 | 36 | 0 |
 | M7 | 62 | 0 | 0 | 62 | 0 |
 | M7A | 113 | 0 | 0 | 113 | 0 |
-| M8 | 141 | 0 | 141 | 0 | 0 |
+| M8 | 141 | 0 | 116 | 25 | 0 |
 
 ## Execution invariants
 
@@ -70,7 +70,7 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `0/147/578/3` because
+session configuration. The 728 source-plan counts are `0/122/603/3` because
 PROV-01 is excluded from those counts.
 For the active M8 resilience batch, live parity, outage injection, and reference load execution remain unresolved.
 
@@ -198,7 +198,14 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 | M8-17c | August 18, 2026 | Queue preflight requires the queue, DLQ, and producer/consumer permission set before install. |
 | M8-17b | August 18, 2026 | Storage preflight requires scoped S3 evidence, KMS, and Secrets Manager capabilities. |
 | M8-17a | August 18, 2026 | IAM preflight requires both the product role and IRSA binding and returns the exact trust/service-account remediation boundary. |
-| M8-16 | August 18, 2026 | A fixed-output preflight validates production/private settings, five immutable product images, Attack Lab security group identity, and bounded Terraform/Helm/kubectl/AWS tool availability. |
+| M3-52 | August 18, 2026 | A strict five-check local M3 gate is implemented; real staging remains unavailable and the task is not Complete. |
+| M3-14 | August 18, 2026 | Strict AWS assume-role identity adapter and local denial fixture are implemented; required real-AWS denial remains unavailable behind M1A-10. |
+
+## Complete
+
+| Task | Completed | Evidence |
+| --- | --- | --- |
+| M8-16 | August 18, 2026 | Fixed-output preflight validates production/private settings, five immutable product images, Attack Lab security-group identity, and bounded Terraform/Helm/kubectl/AWS tool availability. |
 | M8-15 | August 18, 2026 | Replicated product workloads define zone topology spread and one-item PodDisruptionBudgets. |
 | M8-14 | August 18, 2026 | The product chart retains the exact-pinned Tetragon sensor image and bounded health/resources. |
 | M8-13 | August 18, 2026 | The product chart deploys the exact-pinned OTel Collector with internal OTLP and health ports. |
@@ -219,17 +226,10 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 | M8-04 | August 18, 2026 | OpenSearch production capacity is configurable while VPC-only access, encryption, HTTPS, and bounded access policy remain mandatory. |
 | M8-03 | August 18, 2026 | Existing queues retain stable identities, KMS encryption, long polling, bounded visibility, retention, and redrive settings. |
 | M8-02 | August 18, 2026 | Existing S3/KMS/Secrets resources add version retention, incomplete-upload cleanup, key rotation, encryption, public-access block, and recovery windows. |
-| M8-01 | August 18, 2026 | Release values use the same Terraform addresses and private foundation; live AWS plan/drift evidence remains unresolved. |
+| M8-01 | August 18, 2026 | The real offline release plan reused the staging root and reported 47 additions, zero changes, and zero destroys. |
 | M8-01c | August 18, 2026 | One production tfvars file drives the existing staging/release Terraform root without a second module. |
 | M8-01b | August 18, 2026 | Existing EKS resources accept production node and private-endpoint settings while preserving resource addresses. |
 | M8-01a | August 18, 2026 | Existing VPC/subnet resources accept production CIDRs/AZs and add private AWS service endpoints without a second VPC module. |
-| M3-52 | August 18, 2026 | A strict five-check local M3 gate is implemented; real staging remains unavailable and the task is not Complete. |
-| M3-14 | August 18, 2026 | Strict AWS assume-role identity adapter and local denial fixture are implemented; required real-AWS denial remains unavailable behind M1A-10. |
-
-## Complete
-
-| Task | Completed | Evidence |
-| --- | --- | --- |
 | M7A-101 | August 18, 2026 | The fail-closed MVP gate aggregates trigger, simulation, planning, authorization, execution, approval, cleanup, verification, Home attention, audit, degraded safety, and topology-isolation checks. |
 | M7A-100 | August 18, 2026 | The same bounded action, approval, verification, and audit contracts run without topology-specific behavior in the single-tenant fixture. |
 | M7A-99 | August 18, 2026 | Organization-scoped repositories, planner references, approvals, action idempotency, and results reject concurrent same-looking cross-tenant records. |

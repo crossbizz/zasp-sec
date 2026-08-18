@@ -16,7 +16,7 @@ describe("M1A-07 through M1A-10 staging gate batch", () => {
     const tracker = read("docs/internal/implementation_status_v1.5.md");
     const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] || "";
     for (const id of ["M1A-07", "M1A-08", "M1A-09", "M1A-10"]) expect(active.match(new RegExp(`^\\| ${id} \\|`, "gm"))).toHaveLength(1);
-    for (const value of ["| Pending | 0 |", "| In progress | 147 |", "`0/147/578/3`", "| M1A | 10 | 0 | 4 | 6 | 0 |"]) expect(tracker).toContain(value);
+    for (const value of ["| Pending | 0 |", "| In progress | 122 |", "`0/122/603/3`", "| M1A | 10 | 0 | 4 | 6 | 0 |"]) expect(tracker).toContain(value);
     expect(tracker).toContain("real AWS staging execution remains unresolved");
   });
 });

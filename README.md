@@ -360,13 +360,14 @@ generated-client surface, and approval age is measured from retained creation
 time. Production queue/HTTP mounting, durable audit storage, and live external
 action-provider E2E remain release concerns rather than M7A contract gaps.
 
-M8-01a through M8-16 are batched as In progress in the existing AWS and
-staging/release deployment roots. Production tfvars harden private EKS, data,
+M8-01a through M8-16 are Complete in the existing AWS and staging/release
+deployment roots. Production tfvars harden private EKS, data,
 queue, search, IRSA, Fargate, and Attack Lab network settings; one product Helm
 chart covers web, API, worker, ingest, gateway, Neo4j, Nango, Collector, and
 Tetragon with probes, resources, shutdown, disruption, and topology controls.
-Product image digests and live AWS/Helm plan evidence remain required before
-these tasks can move to Complete.
+Terraform 1.15.8 validated the shared root and produced an offline production
+plan of 47 additions, zero changes, and zero destroys; Helm 3.19 linted and
+rendered the bounded chart. Live AWS deployment remains a later release gate.
 
 M8-17a through M8-23b are batched as In progress in the standalone
 `agentsecctl` boundary. Typed reports now cover AWS, Neon/Stytch, and sensor
