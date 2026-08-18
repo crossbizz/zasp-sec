@@ -537,6 +537,11 @@ test("normalizes one exact internal LocalStack core and one exact completed S3 J
   assert.equal(core.localstack.podName, "localstack-abc123def4-pqrst");
   assert.equal(core.localstack.configResourceVersion, "300");
 
+  const shorterHash = validateAwsEmulatorKubernetesState(
+    awsProviderState({ hash: "9bc99b984", includeJob: false }), expected, undefined, false,
+  );
+  assert.equal(shorterHash.localstack.podName, "localstack-9bc99b984-pqrst");
+
   const complete = validateAwsEmulatorKubernetesState(awsProviderState(), expected, core, true);
   assert.equal(complete.job.log, `${AWS_EMULATOR_CONSTANTS.successMarker}\n`);
   assert.equal(complete.job.jobUid, providerUid(55));
@@ -749,14 +754,13 @@ function awsProviderExpectation(platform = "linux/arm64") {
   };
 }
 
-function awsProviderState({ includeJob = true, platform = "linux/arm64" } = {}) {
+function awsProviderState({ hash = "abc123def4", includeJob = true, platform = "linux/arm64" } = {}) {
   const expected = awsProviderExpectation(platform);
   const [configResource, deploymentResource, serviceResource, jobResource] = buildAwsEmulatorResources();
   const deploymentUid = providerUid(50);
   const replicaSetUid = providerUid(51);
   const podUid = providerUid(52);
   const serviceUid = providerUid(53);
-  const hash = "abc123def4";
   const podName = `localstack-${hash}-pqrst`;
   const podIP = "10.244.0.40";
   const labels = { ...deploymentResource.metadata.labels, "pod-template-hash": hash };

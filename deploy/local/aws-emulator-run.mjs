@@ -266,8 +266,8 @@ export function validateAwsEmulatorKubernetesState(value, expected, retained = u
     const podVersion = providerVersion(localstackPod?.metadata?.resourceVersion);
     const serviceVersion = providerVersion(service?.metadata?.resourceVersion);
     const endpointVersion = providerVersion(endpointSlice?.metadata?.resourceVersion);
-    const hash = /^localstack-([a-z0-9]{10})$/.exec(replicaSet?.metadata?.name ?? "")?.[1];
-    const podName = hash !== undefined && /^localstack-[a-z0-9]{10}-[a-z0-9]{5}$/.test(
+    const hash = /^localstack-([a-z0-9]{1,10})$/.exec(replicaSet?.metadata?.name ?? "")?.[1];
+    const podName = hash !== undefined && /^localstack-[a-z0-9]{1,10}-[a-z0-9]{5}$/.test(
       localstackPod?.metadata?.name ?? "") ? localstackPod.metadata.name : undefined;
     const podIP = validPodAddress(localstackPod?.status?.podIP) ? localstackPod.status.podIP : undefined;
     const clusterIP = validServiceAddress(service?.spec?.clusterIP) ? service.spec.clusterIP : undefined;
