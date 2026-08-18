@@ -177,7 +177,20 @@ Organization B graph state, and hostile foreign provider results fail closed.
 
 M1-16 remains the Neo4j adapter and disposable compatibility authority. M1-42
 adds no new graph provider or database authorization claim, and does not invoke
-the live Neo4j lifecycle. M1-43 remains Pending.
+the live Neo4j lifecycle. M1-43 is In progress.
+
+## Tenant quota primitive
+
+M1-43 is In progress. The product boundary defines exact Organization-scoped
+in-process concurrency keys for connectors, graph queries, tests, and AI
+requests. Workspaces and Environments in the same Organization share capacity,
+while different Organizations retain independent counters and an over-limit
+request fails immediately with one fixed product error.
+
+This primitive is not a distributed rate limiter, billing meter, or
+authorization decision. It reads no ambient configuration or provider state;
+deployment wiring and distributed enforcement remain later consumer work.
+M1-44 remains Pending.
 
 ## Development
 

@@ -56,17 +56,17 @@ describe("M1-42 graph Organization scope guard contract", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(readme).toContain("M1-42 is Complete");
-    expect(tracker).toContain("| Pending | 641 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 640 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 84 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`641/0/84/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "8", "0", "60", "0"]);
+    expect(tracker).toContain("`640/1/84/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "7", "1", "60", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active).toHaveLength(0);
+    expect(active.map(([task]) => task)).toEqual(["M1-43"]);
     expect(complete.filter(([task]) => task === "M1-41")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-42")).toHaveLength(1);
-    expect([...active, ...complete].filter(([task]) => task === "M1-43")).toHaveLength(0);
+    expect([...active, ...complete].filter(([task]) => task === "M1-43")).toHaveLength(1);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
 
@@ -82,7 +82,7 @@ describe("M1-42 graph Organization scope guard contract", () => {
       "Organization A",
       "Organization B",
       "M1-16",
-      "M1-43 remains Pending",
+      "M1-43 is In progress",
     ]) expect(prose).toContain(value);
     expect(prose).toContain("adds no new graph provider or database authorization claim");
   });

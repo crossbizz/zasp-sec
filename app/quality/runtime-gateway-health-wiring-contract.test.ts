@@ -58,14 +58,14 @@ describe("M1-28d runtime-gateway health wiring", () => {
 
     expect(readme).toContain("M1-28d is Complete");
     expect(readme).toContain("M1-28 is Complete");
-    expect(tracker).toContain("| Pending | 641 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 640 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 84 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`641/0/84/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "8", "0", "60", "0"]);
+    expect(tracker).toContain("`640/1/84/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "7", "1", "60", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active).toHaveLength(0);
+    expect(active.map(([task]) => task)).toEqual(["M1-43"]);
     expect(complete.filter(([task]) => task === "M1-28c")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-28d")).toHaveLength(1);
     expect(active.filter(([task]) => task === "M1-28")).toHaveLength(0);
