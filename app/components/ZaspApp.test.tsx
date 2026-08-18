@@ -45,4 +45,22 @@ describe("Zasp application", () => {
     await userEvent.click(screen.getByRole("button", { name: "Connect now" }));
     expect(screen.getByRole("status")).toHaveTextContent("Amazon Web Services connected");
   });
+
+  it.each([
+    [/^Protected interactions/, "Security agents"],
+    [/^Runtime guardrails/, "Security agents"],
+    [/^Enforce the secure code guardrail/, "Identity policies"],
+    [/^Market Research Agent first observed/, "Agentic assets"],
+  ])("keeps the Overview action %s inside the canonical product routes", async (action, heading) => {
+    render(<ZaspApp />);
+    await userEvent.click(screen.getByRole("button", { name: action }));
+    expect(screen.getByRole("heading", { name: heading })).toBeVisible();
+  });
+
+  it("opens the bounded Attack Lab destination from Red Team", async () => {
+    render(<ZaspApp />);
+    await userEvent.click(screen.getByRole("link", { name: "Red Team" }));
+    await userEvent.click(screen.getByRole("button", { name: "Run scan" }));
+    expect(screen.getByRole("heading", { name: "Attack lab" })).toBeVisible();
+  });
 });

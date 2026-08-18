@@ -40,5 +40,9 @@ describe("UnauthenticatedRouteGuard", () => {
     expect(staleRedirect).not.toHaveBeenCalled();
     view.rerender(<UnauthenticatedRouteGuard pathname="/private" sessionState="unauthenticated" onRedirect={currentRedirect}><span>Private</span></UnauthenticatedRouteGuard>);
     expect(currentRedirect).toHaveBeenCalledOnce();
+    const replacementRedirect = vi.fn();
+    view.rerender(<UnauthenticatedRouteGuard pathname="/private" sessionState="unauthenticated" onRedirect={replacementRedirect}><span>Private</span></UnauthenticatedRouteGuard>);
+    expect(replacementRedirect).not.toHaveBeenCalled();
+    expect(currentRedirect).toHaveBeenCalledOnce();
   });
 });

@@ -22,6 +22,10 @@ describe("unauthenticated route guard decision", () => {
       expect(resolveRouteAccess(pathname, "authenticated")).toEqual({ action: "pending" });
     }
     expect(resolveRouteAccess("/", "forged" as never)).toEqual({ action: "pending" });
+    for (const pathname of [null, undefined, Symbol("path"), Object.create(null), { toString: () => { throw new Error("untrusted coercion"); } }]) {
+      expect(() => resolveRouteAccess(pathname as never, "authenticated")).not.toThrow();
+      expect(resolveRouteAccess(pathname as never, "authenticated")).toEqual({ action: "pending" });
+    }
   });
 
   it("never derives a redirect target from the input path", () => {

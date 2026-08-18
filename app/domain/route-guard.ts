@@ -12,7 +12,7 @@ const redirectSignIn: RouteAccess = Object.freeze({ action: "redirect", path: "/
 const canonicalPath = /^\/(?:[a-z0-9-]+(?:\/[a-z0-9-]+)*)?$/;
 
 export function resolveRouteAccess(pathname: string, state: SessionState): RouteAccess {
-  if (!canonicalPath.test(pathname)) return pending;
+  if (typeof pathname !== "string" || !canonicalPath.test(pathname)) return pending;
   if (state !== "loading" && state !== "unauthenticated" && state !== "authenticated") return pending;
   if (state === "loading") return pending;
 
