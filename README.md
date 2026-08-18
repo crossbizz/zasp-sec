@@ -100,7 +100,7 @@ npm run ui-api:check
 ```
 
 The current honest result is `UI/API coverage passed: planned=5
-api_available=24 available=20 public=44 internal=0.` The gate distinguishes
+api_available=37 available=20 public=57 internal=0.` The gate distinguishes
 implemented API contracts from fully wired UI actions.
 M1-36e is Complete and separately owns local infrastructure smoke checks.
 
@@ -290,6 +290,13 @@ connector/sensor/runtime fixture, and full-scope canonical reconciliation now
 run locally. The M3 gate remains intentionally non-PASS for release purposes:
 real SQS, S3, OpenSearch, connector, sensor, and staging evidence still depends
 on M1A-10. The M4 reconciliation batch likewise makes no Neon or staging claim.
+
+M4-02 through M4-23 are batched as In progress. The local platform boundary
+now supports scoped Agent ownership audits, thirteen generated inventory APIs,
+six evidence-state capability categories, and four evidence-backed posture
+rules. These are locally tested API and store contracts; they make no Neon,
+live-provider, staging, or release-gate claim while M1A-10 and the preceding M3
+provider work remain unresolved.
 
 ```bash
 go test -C services/platform -race -count=1 ./integration
@@ -885,7 +892,7 @@ npm run ui-api:check
 The current fixed success line is:
 
 ```text
-UI/API coverage passed: planned=5 api_available=24 available=20 public=44 internal=0.
+UI/API coverage passed: planned=5 api_available=37 available=20 public=57 internal=0.
 ```
 
 Failure is fixed as `UI/API coverage rejected.` without parser or artifact

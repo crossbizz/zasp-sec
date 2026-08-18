@@ -14,8 +14,8 @@ In progress, Complete, or Blocked is Pending.
 
 | Status | Count |
 | --- | ---: |
-| Pending | 473 |
-| In progress | 68 |
+| Pending | 451 |
+| In progress | 90 |
 | Complete | 184 |
 | Blocked | 3 |
 
@@ -28,7 +28,7 @@ In progress, Complete, or Blocked is Pending.
 | M1A | 10 | 4 | 0 | 6 | 0 |
 | M2 | 72 | 0 | 0 | 72 | 0 |
 | M3 | 75 | 0 | 61 | 14 | 0 |
-| M4 | 82 | 75 | 7 | 0 | 0 |
+| M4 | 82 | 53 | 29 | 0 | 0 |
 | M5 | 42 | 42 | 0 | 0 | 0 |
 | M6 | 36 | 36 | 0 | 0 | 0 |
 | M7 | 62 | 62 | 0 | 0 | 0 |
@@ -70,13 +70,35 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `473/68/184/3` because
+session configuration. The 728 source-plan counts are `451/90/184/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| M4-23 | August 18, 2026 | The untrusted/public-input plus production-write posture rule emits exact supporting evidence locally. |
+| M4-22 | August 18, 2026 | The shared-credential posture rule emits exact supporting evidence locally. |
+| M4-21 | August 18, 2026 | The human-credential posture rule emits exact supporting evidence locally. |
+| M4-20 | August 18, 2026 | The ownerless-agent posture rule emits exact supporting evidence locally. |
+| M4-19 | August 18, 2026 | Attack Lab verification and runtime-policy blocking preserve underlying reachability locally. |
+| M4-18 | August 18, 2026 | Matching runtime/provider evidence upgrades reachable capabilities to observed locally. |
+| M4-17 | August 18, 2026 | Bounded scoped graph queries derive Agent-to-target outcomes locally. |
+| M4-16 | August 18, 2026 | Six MVP capability categories and fail-closed evidence-state transitions are implemented locally. |
+| M4-15 | August 18, 2026 | The authorized scoped generic-asset lookup API and generated client contract are implemented locally. |
+| M4-14 | August 18, 2026 | The authorized scoped runtime lookup API and generated client contract are implemented locally. |
+| M4-13 | August 18, 2026 | The authorized scoped runtime list API and generated client contract are implemented locally. |
+| M4-12 | August 18, 2026 | The authorized scoped identity lookup API exposes references and fingerprints but no raw credentials. |
+| M4-11 | August 18, 2026 | The authorized scoped identity list API exposes references and fingerprints but no raw credentials. |
+| M4-10 | August 18, 2026 | The authorized scoped tool lookup API and generated client contract are implemented locally. |
+| M4-09 | August 18, 2026 | The authorized scoped tool list API and generated client contract are implemented locally. |
+| M4-08 | August 18, 2026 | The authorized bounded Agent-session list API and generated client contract are implemented locally. |
+| M4-07 | August 18, 2026 | The authorized bounded Agent-relationship API and generated client contract are implemented locally. |
+| M4-06 | August 18, 2026 | The authorized bounded Agent-capability API and generated client contract are implemented locally. |
+| M4-05 | August 18, 2026 | The authorized Agent ownership/tag mutation emits a scoped audit record locally. |
+| M4-04 | August 18, 2026 | The authorized scoped Agent lookup API and generated client contract are implemented locally. |
+| M4-03 | August 18, 2026 | The authorized scoped Agent list API and generated client contract are implemented locally. |
+| M4-02 | August 18, 2026 | Scoped owner, team, and canonical tag mutation changes only the selected Agent and emits an audit locally. |
 | M4-01 | August 18, 2026 | The bounded local asset/agent/tool/identity/runtime/relationship reconciliation gate is implemented; Neon/provider verification remains gated by M1A-10 and M3-52. |
 | M4-01f | August 18, 2026 | Scoped canonical relationship projection is deterministic and replay-safe in the local product boundary. |
 | M4-01e | August 18, 2026 | Runtime/workload/sandbox/isolation reconciliation preserves stable scoped identity locally. |

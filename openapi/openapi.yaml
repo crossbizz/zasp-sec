@@ -831,6 +831,128 @@ paths:
               schema: { $ref: '#/components/schemas/SensorCoverage' }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/agents:
+    get:
+      operationId: listAgents
+      summary: List canonical Agents in the authorized scope
+      responses:
+        '200': { description: Authorized Agent records., content: { application/json: { schema: { $ref: '#/components/schemas/InventoryPage' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/agents/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getAgent
+      summary: Get one authorized canonical Agent
+      responses:
+        '200': { description: Authorized Agent., content: { application/json: { schema: { $ref: '#/components/schemas/InventoryRecord' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    patch:
+      operationId: updateAgent
+      summary: Update Agent ownership and tags
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/AgentOwnershipInput' } } }
+      responses:
+        '200': { description: Updated Agent and audit reference., content: { application/json: { schema: { $ref: '#/components/schemas/AgentMutation' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/agents/{id}/capabilities:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getAgentCapabilities
+      summary: Get bounded derived Agent capabilities
+      responses:
+        '200': { description: Agent capability records., content: { application/json: { schema: { $ref: '#/components/schemas/CapabilityPage' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/agents/{id}/relationships:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getAgentRelationships
+      summary: Get bounded canonical Agent relationships
+      responses:
+        '200': { description: Agent relationship records., content: { application/json: { schema: { $ref: '#/components/schemas/RelationshipPage' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/agents/{id}/sessions:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: listAgentSessions
+      summary: List bounded sessions for one Agent
+      responses:
+        '200': { description: Agent session records., content: { application/json: { schema: { $ref: '#/components/schemas/AgentSessionPage' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/tools:
+    get:
+      operationId: listTools
+      summary: List canonical Tools in the authorized scope
+      responses:
+        '200': { description: Authorized Tool records., content: { application/json: { schema: { $ref: '#/components/schemas/InventoryPage' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/tools/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getTool
+      summary: Get one authorized canonical Tool
+      responses:
+        '200': { description: Authorized Tool., content: { application/json: { schema: { $ref: '#/components/schemas/InventoryRecord' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/identities:
+    get:
+      operationId: listIdentities
+      summary: List canonical Identities in the authorized scope
+      responses:
+        '200': { description: Authorized Identity records., content: { application/json: { schema: { $ref: '#/components/schemas/InventoryPage' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/identities/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getIdentity
+      summary: Get one authorized canonical Identity
+      responses:
+        '200': { description: Authorized Identity., content: { application/json: { schema: { $ref: '#/components/schemas/InventoryRecord' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/runtimes:
+    get:
+      operationId: listRuntimes
+      summary: List canonical Runtimes in the authorized scope
+      responses:
+        '200': { description: Authorized Runtime records., content: { application/json: { schema: { $ref: '#/components/schemas/InventoryPage' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/runtimes/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getRuntime
+      summary: Get one authorized canonical Runtime
+      responses:
+        '200': { description: Authorized Runtime., content: { application/json: { schema: { $ref: '#/components/schemas/InventoryRecord' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/assets/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getAsset
+      summary: Get one authorized canonical generic Asset
+      responses:
+        '200': { description: Authorized Asset., content: { application/json: { schema: { $ref: '#/components/schemas/InventoryRecord' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
 security:
   - SessionJWT: []
   - ProductAPIToken: []
@@ -1724,6 +1846,108 @@ components:
         event_rate: { type: integer, minimum: 0, maximum: 1000000000 }
         drops: { type: integer, minimum: 0, maximum: 1000000000 }
         last_heartbeat: { type: string, format: date-time }
+    InventoryKind:
+      type: string
+      enum: [asset, agent, tool, identity, runtime]
+    InventoryRecord:
+      type: object
+      additionalProperties: false
+      required: [id, name, kind, owner, team, tags, evidence_id, first_seen, last_seen]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        name: { type: string, minLength: 1, maxLength: 256 }
+        kind: { $ref: '#/components/schemas/InventoryKind' }
+        owner: { type: string, maxLength: 128 }
+        team: { type: string, maxLength: 128 }
+        tags:
+          type: array
+          maxItems: 32
+          uniqueItems: true
+          items: { type: string, minLength: 1, maxLength: 64 }
+        evidence_id: { $ref: '#/components/schemas/ProductID' }
+        first_seen: { type: string, format: date-time }
+        last_seen: { type: string, format: date-time }
+        credential_reference: { type: string, minLength: 1, maxLength: 256 }
+        credential_fingerprint: { type: string, pattern: '^sha256:[0-9a-f]{64}$' }
+        workload_id: { type: string, minLength: 1, maxLength: 256 }
+        sandbox_id: { type: string, minLength: 1, maxLength: 256 }
+        isolation: { type: string, enum: [container, sandbox] }
+    InventoryPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items: { type: array, maxItems: 10000, items: { $ref: '#/components/schemas/InventoryRecord' } }
+    AgentOwnershipInput:
+      type: object
+      additionalProperties: false
+      required: [owner, team, tags]
+      properties:
+        owner: { type: string, minLength: 1, maxLength: 128 }
+        team: { type: string, minLength: 1, maxLength: 128 }
+        tags:
+          type: array
+          maxItems: 32
+          uniqueItems: true
+          items: { type: string, minLength: 1, maxLength: 64 }
+    AgentMutation:
+      type: object
+      additionalProperties: false
+      required: [agent, audit_id]
+      properties:
+        agent: { $ref: '#/components/schemas/InventoryRecord' }
+        audit_id: { $ref: '#/components/schemas/ProductID' }
+    CapabilityState:
+      type: string
+      enum: [reachable, observed, verified, blocked]
+    Capability:
+      type: object
+      additionalProperties: false
+      required: [agent_id, target_id, target_kind, category, outcome, state, reachable, evidence_ids]
+      properties:
+        agent_id: { $ref: '#/components/schemas/ProductID' }
+        target_id: { $ref: '#/components/schemas/ProductID' }
+        target_kind: { type: string, enum: [tool, identity, resource, action] }
+        category: { type: string, enum: [data_read, data_write, action_execute, identity_assume, network_egress, administration] }
+        outcome: { type: string, enum: [read, write, execute, assume, connect, administer] }
+        state: { $ref: '#/components/schemas/CapabilityState' }
+        reachable: { type: boolean }
+        evidence_ids: { type: array, minItems: 1, maxItems: 64, uniqueItems: true, items: { $ref: '#/components/schemas/ProductID' } }
+    CapabilityPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items: { type: array, maxItems: 10000, items: { $ref: '#/components/schemas/Capability' } }
+    Relationship:
+      type: object
+      additionalProperties: false
+      required: [from_id, to_id, type, evidence_id]
+      properties:
+        from_id: { $ref: '#/components/schemas/ProductID' }
+        to_id: { $ref: '#/components/schemas/ProductID' }
+        type: { type: string, minLength: 1, maxLength: 64 }
+        evidence_id: { $ref: '#/components/schemas/ProductID' }
+    RelationshipPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items: { type: array, maxItems: 10000, items: { $ref: '#/components/schemas/Relationship' } }
+    AgentSession:
+      type: object
+      additionalProperties: false
+      required: [id, agent_id, started_at]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        agent_id: { $ref: '#/components/schemas/ProductID' }
+        started_at: { type: string, format: date-time }
+    AgentSessionPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items: { type: array, maxItems: 10000, items: { $ref: '#/components/schemas/AgentSession' } }
     ProductError:
       type: object
       additionalProperties: false

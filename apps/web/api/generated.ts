@@ -190,6 +190,119 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/agents": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List canonical Agents in the authorized scope */
+        readonly get: operations["listAgents"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/agents/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get one authorized canonical Agent */
+        readonly get: operations["getAgent"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        /** Update Agent ownership and tags */
+        readonly patch: operations["updateAgent"];
+        readonly trace?: never;
+    };
+    readonly "/api/v1/agents/{id}/capabilities": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get bounded derived Agent capabilities */
+        readonly get: operations["getAgentCapabilities"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/agents/{id}/relationships": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get bounded canonical Agent relationships */
+        readonly get: operations["getAgentRelationships"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/agents/{id}/sessions": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** List bounded sessions for one Agent */
+        readonly get: operations["listAgentSessions"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/assets/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get one authorized canonical generic Asset */
+        readonly get: operations["getAsset"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/audit-events": {
         readonly parameters: {
             readonly query?: never;
@@ -281,6 +394,42 @@ export type paths = {
         readonly head?: never;
         /** Update an authorized Environment */
         readonly patch: operations["updateEnvironment"];
+        readonly trace?: never;
+    };
+    readonly "/api/v1/identities": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List canonical Identities in the authorized scope */
+        readonly get: operations["listIdentities"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/identities/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get one authorized canonical Identity */
+        readonly get: operations["getIdentity"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
         readonly trace?: never;
     };
     readonly "/api/v1/integration-catalog": {
@@ -450,6 +599,42 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/runtimes": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List canonical Runtimes in the authorized scope */
+        readonly get: operations["listRuntimes"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/runtimes/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get one authorized canonical Runtime */
+        readonly get: operations["getRuntime"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/sensors": {
         readonly parameters: {
             readonly query?: never;
@@ -527,6 +712,42 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/tools": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List canonical Tools in the authorized scope */
+        readonly get: operations["listTools"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/tools/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get one authorized canonical Tool */
+        readonly get: operations["getTool"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/workspaces": {
         readonly parameters: {
             readonly query?: never;
@@ -570,6 +791,24 @@ export type paths = {
 export type webhooks = Record<string, never>;
 export type components = {
     schemas: {
+        readonly AgentMutation: {
+            readonly agent: components["schemas"]["InventoryRecord"];
+            readonly audit_id: components["schemas"]["ProductID"];
+        };
+        readonly AgentOwnershipInput: {
+            readonly owner: string;
+            readonly tags: readonly string[];
+            readonly team: string;
+        };
+        readonly AgentSession: {
+            readonly agent_id: components["schemas"]["ProductID"];
+            readonly id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly started_at: string;
+        };
+        readonly AgentSessionPage: {
+            readonly items: readonly components["schemas"]["AgentSession"][];
+        };
         readonly APIToken: {
             readonly audit_correlation_id?: components["schemas"]["ProductID"];
             /** Format: date-time */
@@ -652,6 +891,24 @@ export type components = {
             readonly items: readonly components["schemas"]["BuiltInRole"][];
             readonly page_info: components["schemas"]["PageInfo"];
         };
+        readonly Capability: {
+            readonly agent_id: components["schemas"]["ProductID"];
+            /** @enum {string} */
+            readonly category: "data_read" | "data_write" | "action_execute" | "identity_assume" | "network_egress" | "administration";
+            readonly evidence_ids: readonly components["schemas"]["ProductID"][];
+            /** @enum {string} */
+            readonly outcome: "read" | "write" | "execute" | "assume" | "connect" | "administer";
+            readonly reachable: boolean;
+            readonly state: components["schemas"]["CapabilityState"];
+            readonly target_id: components["schemas"]["ProductID"];
+            /** @enum {string} */
+            readonly target_kind: "tool" | "identity" | "resource" | "action";
+        };
+        readonly CapabilityPage: {
+            readonly items: readonly components["schemas"]["Capability"][];
+        };
+        /** @enum {string} */
+        readonly CapabilityState: "reachable" | "observed" | "verified" | "blocked";
         readonly ConnectionDeletion: {
             readonly audit_correlation_id: components["schemas"]["ProductID"];
             readonly id: string;
@@ -774,6 +1031,30 @@ export type components = {
             readonly configuration: components["schemas"]["IntegrationConfiguration"];
             readonly name: string;
         };
+        /** @enum {string} */
+        readonly InventoryKind: "asset" | "agent" | "tool" | "identity" | "runtime";
+        readonly InventoryPage: {
+            readonly items: readonly components["schemas"]["InventoryRecord"][];
+        };
+        readonly InventoryRecord: {
+            readonly credential_fingerprint?: string;
+            readonly credential_reference?: string;
+            readonly evidence_id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly first_seen: string;
+            readonly id: components["schemas"]["ProductID"];
+            /** @enum {string} */
+            readonly isolation?: "container" | "sandbox";
+            readonly kind: components["schemas"]["InventoryKind"];
+            /** Format: date-time */
+            readonly last_seen: string;
+            readonly name: string;
+            readonly owner: string;
+            readonly sandbox_id?: string;
+            readonly tags: readonly string[];
+            readonly team: string;
+            readonly workload_id?: string;
+        };
         readonly NameInput: {
             readonly name: string;
         };
@@ -813,6 +1094,15 @@ export type components = {
         };
         /** @description Canonical product identifier. */
         readonly ProductID: string;
+        readonly Relationship: {
+            readonly evidence_id: components["schemas"]["ProductID"];
+            readonly from_id: components["schemas"]["ProductID"];
+            readonly to_id: components["schemas"]["ProductID"];
+            readonly type: string;
+        };
+        readonly RelationshipPage: {
+            readonly items: readonly components["schemas"]["Relationship"][];
+        };
         readonly SCIMConnection: {
             /** Format: uri */
             readonly base_url: string;
@@ -956,6 +1246,10 @@ export type components = {
     headers: never;
     pathItems: never;
 };
+export type AgentMutation = components['schemas']['AgentMutation'];
+export type AgentOwnershipInput = components['schemas']['AgentOwnershipInput'];
+export type AgentSession = components['schemas']['AgentSession'];
+export type AgentSessionPage = components['schemas']['AgentSessionPage'];
 export type ApiToken = components['schemas']['APIToken'];
 export type ApiTokenCredential = components['schemas']['APITokenCredential'];
 export type ApiTokenInput = components['schemas']['APITokenInput'];
@@ -967,6 +1261,9 @@ export type AuditExportInput = components['schemas']['AuditExportInput'];
 export type BuiltInRole = components['schemas']['BuiltInRole'];
 export type BuiltInRoleName = components['schemas']['BuiltInRoleName'];
 export type BuiltInRolePage = components['schemas']['BuiltInRolePage'];
+export type Capability = components['schemas']['Capability'];
+export type CapabilityPage = components['schemas']['CapabilityPage'];
+export type CapabilityState = components['schemas']['CapabilityState'];
 export type ConnectionDeletion = components['schemas']['ConnectionDeletion'];
 export type ConnectionStatus = components['schemas']['ConnectionStatus'];
 export type ConnectionTest = components['schemas']['ConnectionTest'];
@@ -992,6 +1289,9 @@ export type IntegrationSyncInput = components['schemas']['IntegrationSyncInput']
 export type IntegrationSyncPage = components['schemas']['IntegrationSyncPage'];
 export type IntegrationSyncStatus = components['schemas']['IntegrationSyncStatus'];
 export type IntegrationUpdateInput = components['schemas']['IntegrationUpdateInput'];
+export type InventoryKind = components['schemas']['InventoryKind'];
+export type InventoryPage = components['schemas']['InventoryPage'];
+export type InventoryRecord = components['schemas']['InventoryRecord'];
 export type NameInput = components['schemas']['NameInput'];
 export type Organization = components['schemas']['Organization'];
 export type PageInfo = components['schemas']['PageInfo'];
@@ -1000,6 +1300,8 @@ export type Principal = components['schemas']['Principal'];
 export type PrincipalPage = components['schemas']['PrincipalPage'];
 export type ProductError = components['schemas']['ProductError'];
 export type ProductId = components['schemas']['ProductID'];
+export type Relationship = components['schemas']['Relationship'];
+export type RelationshipPage = components['schemas']['RelationshipPage'];
 export type ScimConnection = components['schemas']['SCIMConnection'];
 export type ScimConnectionCredential = components['schemas']['SCIMConnectionCredential'];
 export type ScimConnectionId = components['schemas']['SCIMConnectionID'];
@@ -1393,6 +1695,176 @@ export interface operations {
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
+    readonly listAgents: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized Agent records. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["InventoryPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getAgent: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized Agent. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["InventoryRecord"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly updateAgent: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["AgentOwnershipInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Updated Agent and audit reference. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AgentMutation"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getAgentCapabilities: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Agent capability records. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["CapabilityPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getAgentRelationships: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Agent relationship records. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["RelationshipPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listAgentSessions: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Agent session records. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AgentSessionPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getAsset: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized Asset. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["InventoryRecord"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
     readonly listAuditEvents: {
         readonly parameters: {
             readonly query?: {
@@ -1574,6 +2046,52 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["EnvironmentMutation"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listIdentities: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized Identity records. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["InventoryPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getIdentity: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized Identity. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["InventoryRecord"];
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
@@ -1879,6 +2397,52 @@ export interface operations {
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
+    readonly listRuntimes: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized Runtime records. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["InventoryPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getRuntime: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized Runtime. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["InventoryRecord"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
     readonly listSensors: {
         readonly parameters: {
             readonly query?: never;
@@ -2047,6 +2611,52 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["SensorEnrollment"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listTools: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized Tool records. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["InventoryPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getTool: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized Tool. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["InventoryRecord"];
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];

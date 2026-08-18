@@ -104,6 +104,35 @@ func (store *MemoryStore) Reconcile(ctx context.Context, input SourceAsset) (Ass
 	return cloneAsset(value), nil
 }
 
+func (store *MemoryStore) Get(ctx context.Context, scope domain.Scope, id domain.ProductID) (Asset, error) {
+	if store == nil || store.values == nil || !active(ctx) || scope.Validate() != nil || id.IsZero() {
+		return Asset{}, ErrReconciliation
+	}
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+	value, ok := store.values[id]
+	if !ok || value.Scope != scope {
+		return Asset{}, ErrReconciliation
+	}
+	return cloneAsset(value), nil
+}
+
+func (store *MemoryStore) List(ctx context.Context, scope domain.Scope, kind Kind) ([]Asset, error) {
+	if store == nil || store.values == nil || !active(ctx) || scope.Validate() != nil || !validKind(kind) {
+		return nil, ErrReconciliation
+	}
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+	result := []Asset{}
+	for _, value := range store.values {
+		if value.Scope == scope && value.Kind == kind {
+			result = append(result, cloneAsset(value))
+		}
+	}
+	sort.Slice(result, func(left, right int) bool { return result[left].ID.String() < result[right].ID.String() })
+	return result, nil
+}
+
 func (store *MemoryStore) UpdateOwnership(ctx context.Context, scope domain.Scope, id domain.ProductID, owner, team string, tags []string, at time.Time) (Asset, Audit, error) {
 	if store == nil || !active(ctx) || scope.Validate() != nil || id.IsZero() || !bounded(owner, 128) || !bounded(team, 128) || normalizedTags(tags) == nil || !canonicalTime(at) {
 		return Asset{}, Audit{}, ErrReconciliation
@@ -201,6 +230,28 @@ func (projector *MemoryProjector) Count(scope domain.Scope) int {
 	return count
 }
 
+func (projector *MemoryProjector) ListFrom(ctx context.Context, scope domain.Scope, from domain.ProductID) ([]Relationship, error) {
+	if projector == nil || projector.values == nil || !active(ctx) || scope.Validate() != nil || from.IsZero() {
+		return nil, ErrReconciliation
+	}
+	prefix := scopeIdentity(scope) + "\x00"
+	projector.mu.RLock()
+	defer projector.mu.RUnlock()
+	result := []Relationship{}
+	for key, value := range projector.values {
+		if strings.HasPrefix(key, prefix) && value.From == from {
+			result = append(result, value)
+		}
+	}
+	sort.Slice(result, func(left, right int) bool {
+		if result[left].Type != result[right].Type {
+			return result[left].Type < result[right].Type
+		}
+		return result[left].To.String() < result[right].To.String()
+	})
+	return result, nil
+}
+
 func validSourceAsset(value SourceAsset) bool {
 	if value.Scope.Validate() != nil || !bounded(value.Source, 64) || !bounded(value.SourceID, 512) || !bounded(value.Name, 256) ||
 		value.EvidenceID.IsZero() || !canonicalTime(value.SeenAt) || value.RawCredential != "" || normalizedTags(value.Tags) == nil {
@@ -218,6 +269,10 @@ func validSourceAsset(value SourceAsset) bool {
 	default:
 		return false
 	}
+}
+
+func validKind(value Kind) bool {
+	return value == KindAsset || value == KindAgent || value == KindTool || value == KindIdentity || value == KindRuntime
 }
 
 func normalizedTags(values []string) []string {
