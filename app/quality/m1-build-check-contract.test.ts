@@ -73,14 +73,14 @@ describe("M1-36a clean-checkout build check", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(readme.replace(/\s+/g, " ")).toContain("M1-36a is Complete");
-    expect(tracker).toContain("| Pending | 649 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 648 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 76 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`649/0/76/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "16", "0", "52", "0"]);
+    expect(tracker).toContain("`648/1/76/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "15", "1", "52", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.map(([task]) => task)).toEqual([]);
+    expect(active.map(([task]) => task)).toEqual(["M1-36d"]);
     expect(complete).toHaveLength(76);
     expect(complete.filter(([task]) => task === "M1-35")).toHaveLength(1);
     expect(active.filter(([task]) => task === "M1-36a")).toHaveLength(0);
@@ -95,7 +95,7 @@ describe("M1-36a clean-checkout build check", () => {
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
     ]);
     const packageJson = JSON.parse(packageText) as { scripts: Record<string, string> };
-    const section = readme.match(/## M1 build check[\s\S]*?## Development/)?.[0] ?? "";
+    const section = readme.match(/## M1 build check[\s\S]*?(?=\n## )/)?.[0] ?? "";
     const prose = section.replace(/\s+/g, " ");
 
     expect(packageJson.scripts["build:repo"]).toBe("node scripts/build-repo.mjs");

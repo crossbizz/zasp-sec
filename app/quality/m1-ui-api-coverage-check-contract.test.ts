@@ -17,39 +17,40 @@ function taskRows(tracker: string, heading: "In progress" | "Complete" | "Blocke
   return markdownRows(section).slice(2);
 }
 
-describe("M1-36c OpenAPI generation and client drift check", () => {
-  it("binds the exact source, reviewed generator, commands, and successor boundary", async () => {
+describe("M1-36d UI/API traceability validation", () => {
+  it("binds the exact source, reviewed validator, lifecycle model, and successor", async () => {
     const [source, design, plan, packageSource] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "docs/internal/2026-08-18-m1-36c-m1-openapi-check-design.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "docs/internal/2026-08-18-m1-36c-m1-openapi-check-implementation-plan.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/2026-08-18-m1-36d-m1-ui-api-coverage-check-design.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/2026-08-18-m1-36d-m1-ui-api-coverage-check-implementation-plan.md"), "utf8"),
       readFile(resolve(repositoryRoot, "package.json"), "utf8"),
     ]);
-    const section = source.match(/\*\*M1-36c - M1 OpenAPI check\*\*[\s\S]*?\*\*M1-36d - M1 UI API coverage check/)?.[0] ?? "";
+    const section = source.match(/\*\*M1-36d - M1 UI API coverage check\*\*[\s\S]*?\*\*M1-36e - M1 local infrastructure smoke/)?.[0] ?? "";
     const prose = design.replace(/\s+/g, " ");
     const packageJson = JSON.parse(packageSource);
-    const generator = "openapi-typescript openapi/openapi.yaml --output apps/web/api/generated.ts --alphabetize --export-type --immutable --root-types --root-types-no-schema-prefix";
 
-    expect(section).toContain("Depends on: `M1-36b`");
-    expect(section).toContain("Deliverable: Run OpenAPI generation and generated-client drift check.");
-    expect(section).toContain("Verify: Generated client has no uncommitted diff.");
-    expect(packageJson.devDependencies?.["openapi-typescript"]).toBe("7.13.0");
-    expect(packageJson.scripts?.["openapi:generate"]).toBe(generator);
-    expect(packageJson.scripts?.["openapi:check"]).toBe(`${generator} --check`);
+    expect(section).toContain("Depends on: `M1-36c`");
+    expect(section).toContain("Deliverable: Run UI/API traceability validator.");
+    expect(section).toContain("Verify: No interactive operation lacks a mapped UI action or implementation task.");
+    expect(packageJson.scripts?.["ui-api:test"]).toBe("node --test scripts/check-ui-api-coverage.test.mjs");
+    expect(packageJson.scripts?.["ui-api:check"]).toBe("node scripts/check-ui-api-coverage.mjs");
     for (const value of [
+      "docs/product/ui-api-map.yaml",
       "openapi/openapi.yaml",
-      "apps/web/api/generated.ts",
-      "npm run openapi:generate",
-      "git diff --exit-code -- apps/web/api/generated.ts",
-      "npm run openapi:check",
-      "M1-36d remains Pending",
+      "`planned`",
+      "`available`",
+      "`/api/v1`",
+      "`/internal/v1`",
+      "UI/API coverage passed: planned=5 available=0 public=0 internal=0.",
+      "UI/API coverage rejected.",
+      "M1-36e remains Pending",
     ]) {
       expect(prose).toContain(value);
     }
     expect(plan.match(/^- \[[ x]\]/gm) ?? []).toHaveLength(15);
   });
 
-  it("completes only M1-36c after completed M1-36b and preserves exact blockers", async () => {
+  it("starts only M1-36d after completed M1-36c and preserves exact blockers", async () => {
     const tracker = await readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8");
     const active = taskRows(tracker, "In progress");
     const complete = taskRows(tracker, "Complete");
@@ -65,23 +66,23 @@ describe("M1-36c OpenAPI generation and client drift check", () => {
     expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "15", "1", "52", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
     expect(active).toHaveLength(1);
-    expect(complete.filter(([task]) => task === "M1-36b")).toHaveLength(1);
+    expect(active[0]?.[0]).toBe("M1-36d");
     expect(complete.filter(([task]) => task === "M1-36c")).toHaveLength(1);
-    expect(active.filter(([task]) => task === "M1-36d")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-36d")).toHaveLength(0);
+    expect([...active, ...complete].filter(([task]) => task === "M1-36e")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
 
-  it("documents only the OpenAPI generation and no-drift boundary", async () => {
+  it("documents only the UI/API coverage gate and honest current result", async () => {
     const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
-    const section = readme.match(/## M1 OpenAPI check[\s\S]*?(?=\n## )/)?.[0] ?? "";
+    const section = readme.match(/## M1 UI API coverage check[\s\S]*?(?=\n## )/)?.[0] ?? "";
     const prose = section.replace(/\s+/g, " ");
 
-    expect(prose).toContain("M1-36c is Complete");
-    expect(section).toContain("npm run openapi:generate");
-    expect(section).toContain("npm run openapi:check");
-    expect(prose).toContain("no uncommitted generated-client diff");
     expect(prose).toContain("M1-36d is In progress");
-    expect(prose).not.toMatch(/UI\/API coverage passed|local infrastructure healthy|new API operation/i);
+    expect(section).toContain("npm run ui-api:test");
+    expect(section).toContain("npm run ui-api:check");
+    expect(prose).toContain("UI/API coverage passed: planned=5 available=0 public=0 internal=0.");
+    expect(prose).toContain("M1-36e remains Pending");
+    expect(prose).not.toMatch(/local infrastructure healthy|new API operation|availability: available/i);
   });
 });

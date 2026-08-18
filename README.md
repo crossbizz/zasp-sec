@@ -85,8 +85,23 @@ npm run openapi:check
 ```
 
 The gate reuses the committed M1-23/M1-24 source, output, and flags and adds no
-API operation, schema copy, dependency, or live provider call. M1-36d remains
-Pending and separately owns UI/API traceability validation.
+API operation, schema copy, dependency, or live provider call. M1-36d is In
+progress and separately owns UI/API traceability validation.
+
+## M1 UI API coverage check
+
+M1-36d is In progress. It runs the reviewed strict traceability suite and
+validator:
+
+```bash
+npm run ui-api:test
+npm run ui-api:check
+```
+
+The current honest result is `UI/API coverage passed: planned=5 available=0
+public=0 internal=0.` The gate leaves the operation inventory and map
+availability unchanged.
+M1-36e remains Pending and separately owns local infrastructure smoke checks.
 
 ## Development
 
