@@ -14,11 +14,12 @@ import {
   awsEmulatorApplyPlan,
   buildAwsEmulatorProfile,
   runAwsEmulatorMain,
+  validateAwsEmulatorKubernetesState,
   validateLocalStackImageIndex,
   validateLocalStackImageInspection,
   validateLocalStackImageManifest,
 } from "./aws-emulator-run.mjs";
-import { buildAwsEmulatorCoreResources, buildAwsEmulatorS3Resources, renderAwsEmulatorCoreManifest, renderAwsEmulatorS3Manifest } from "./aws-emulator-manifest.mjs";
+import { AWS_EMULATOR_CONSTANTS, buildAwsEmulatorCoreResources, buildAwsEmulatorResources, buildAwsEmulatorS3Resources, renderAwsEmulatorCoreManifest, renderAwsEmulatorS3Manifest } from "./aws-emulator-manifest.mjs";
 import { buildGraphResources, renderGraphManifest } from "./graph-manifest.mjs";
 import { isObservabilityProviderRead, projectGraphProviderResources } from "./graph-run.mjs";
 import { buildObservabilityCoreResources, buildObservabilitySpanResources, renderObservabilityCoreManifest, renderObservabilitySpanManifest } from "./observability-manifest.mjs";
@@ -28,6 +29,8 @@ import { LocalProductSystem } from "./run.mjs";
 const image = "localstack/localstack:4.7.0@sha256:12253acd9676770e9bd31cbfcf17c5ca6fd7fb5c0c62f3c46dd701f20304260c";
 const armManifestDigest = "sha256:af47acfe2ed73a4984f73709b9f655ca255add4aa847dcbf3010301478890bb6";
 const armConfigDigest = "sha256:ad4f76a02108f52479a33bbe0de40690d63ef51713971731f21f1de1e4eedb85";
+
+const clone = (value) => structuredClone(value);
 
 function input() {
   return {
@@ -450,6 +453,399 @@ test("constructs only an exact AWS runtime profile and emits fixed success or fa
   assert.equal(new AwsEmulatorFailure("forged").category, "panic");
   assert.deepEqual(AWS_EMULATOR_FAILURE_CATEGORIES, ["build", "cleanup", "configuration", "deadline", "normalization", "ownership", "panic", "provider", "readiness"]);
 });
+
+test("normalizes one exact internal LocalStack core and one exact completed S3 Job", () => {
+  const expected = awsProviderExpectation();
+  const core = validateAwsEmulatorKubernetesState(
+    awsProviderState({ includeJob: false }), expected, undefined, false,
+  );
+  assert.equal(core.ready, true);
+  assert.equal(core.job, null);
+  assert.equal(core.localstack.podName, "localstack-abc123def4-pqrst");
+  assert.equal(core.localstack.configResourceVersion, "300");
+
+  const complete = validateAwsEmulatorKubernetesState(awsProviderState(), expected, core, true);
+  assert.equal(complete.job.log, `${AWS_EMULATOR_CONSTANTS.successMarker}\n`);
+  assert.equal(complete.job.jobUid, providerUid(55));
+  assert.deepEqual(complete.localstack, core.localstack);
+});
+
+test("rejects AWS provider ownership, exposure, lineage, status, and evidence drift", () => {
+  const expected = awsProviderExpectation();
+  const core = validateAwsEmulatorKubernetesState(
+    awsProviderState({ includeJob: false }), expected, undefined, false,
+  );
+  const mutations = [
+    ["extra resource", (value) => { value.services.push(clone(value.services[0])); }],
+    ["config replacement", (value) => { value.configMaps[0].metadata.resourceVersion = "foreign"; }],
+    ["deployment owner", (value) => { value.replicaSets[0].metadata.ownerReferences[0].uid = providerUid(99); }],
+    ["pod owner", (value) => { value.pods[0].metadata.ownerReferences[0].uid = providerUid(99); }],
+    ["node", (value) => { value.pods[0].spec.nodeName = "foreign"; }],
+    ["image", (value) => { value.pods[0].status.containerStatuses[0].imageID = "foreign"; }],
+    ["restart", (value) => { value.pods[0].status.containerStatuses[0].restartCount = 1; }],
+    ["external service", (value) => { value.services[0].spec.type = "LoadBalancer"; }],
+    ["endpoint target", (value) => { value.endpointSlices[0].endpoints[0].targetRef.uid = providerUid(99); }],
+    ["endpoint condition", (value) => { value.endpointSlices[0].endpoints[0].conditions.ready = false; }],
+    ["ingress", (value) => { value.ingresses.push({ kind: "Ingress" }); }],
+    ["failed Job", (value) => { value.jobs[0].status.failed = 1; }],
+    ["replaced Job pod", (value) => { value.pods.push(clone(value.pods.at(-1))); }],
+    ["Job retry", (value) => { value.pods.at(-1).status.containerStatuses[0].restartCount = 1; }],
+    ["timestamp", (value) => { value.jobs[0].status.completionTime = "2026-02-30T00:00:00Z"; }],
+    ["alternate endpoint", (value) => { value.configMaps[0].data.AWS_ENDPOINT_URL_S3 = "http://foreign:4566"; }],
+    ["log", (value) => { value.jobLog = "provider output\n"; }],
+  ];
+  for (const [name, mutate] of mutations) {
+    const value = awsProviderState();
+    mutate(value);
+    assert.throws(
+      () => validateAwsEmulatorKubernetesState(value, expected, core, true),
+      { category: "readiness" }, name,
+    );
+  }
+  const accessor = awsProviderState();
+  let reads = 0;
+  Object.defineProperty(accessor.pods, "0", {
+    enumerable: true,
+    get() { reads += 1; return awsProviderState().pods[0]; },
+  });
+  assert.throws(() => validateAwsEmulatorKubernetesState(accessor, expected, core, true),
+    { category: "readiness" });
+  assert.equal(reads, 0);
+});
+
+test("stages exactly one S3 Job after retained LocalStack readiness", async () => {
+  const expected = awsProviderExpectation();
+  const core = validateAwsEmulatorKubernetesState(
+    awsProviderState({ includeJob: false }), expected, undefined, false,
+  );
+  const complete = validateAwsEmulatorKubernetesState(awsProviderState(), expected, core, true);
+  const inherited = Object.freeze({
+    graph: Object.freeze({ internal: true, persistent: true, ready: true }),
+    internal: true,
+    observability: Object.freeze({ internal: true, noEgress: true, ready: true, sink: true, spans: 1 }),
+    pods: 4,
+    ready: 4,
+    services: 4,
+  });
+  class StagedAwsSystem extends LocalAwsEmulatorSystem {
+    constructor(outcome = "applied") {
+      super(input());
+      this.events = [];
+      this.outcome = outcome;
+    }
+    async verifyObservabilityReadiness(value) { this.events.push("observability"); return value; }
+    async pollAwsEmulatorProviderState(_phase, retained, requireJob) {
+      this.events.push(requireJob ? retained === complete ? "stable" : "complete" : "core");
+      return requireJob ? complete : core;
+    }
+    async applyAwsEmulatorJob() { this.events.push("apply-s3"); return { outcome: this.outcome }; }
+  }
+  const phase = { assertActive() {} };
+  const system = new StagedAwsSystem();
+  assert.deepEqual(await system.verifyAdditionalReadiness(inherited, phase), {
+    ...inherited,
+    awsEmulator: { endpoint: true, internal: true, ready: true, s3: true },
+  });
+  assert.deepEqual(system.events, ["observability", "core", "apply-s3", "complete", "stable"]);
+  assert.equal(system.awsEmulatorCoreMayHaveApplied, false);
+  assert.equal(system.awsEmulatorJobMayHaveApplied, false);
+  assert.deepEqual(system.awsEmulatorProviderIdentity, complete);
+
+  for (const outcome of ["definitive", "rejected"]) {
+    const rejected = new StagedAwsSystem(outcome);
+    await assert.rejects(() => rejected.verifyAdditionalReadiness(inherited, phase), { category: "provider" });
+    assert.deepEqual(rejected.events, ["observability", "core", "apply-s3"]);
+    assert.equal(rejected.awsEmulatorJobMayHaveApplied, false);
+  }
+});
+
+test("uses fixed bounded Kubernetes reads, one exact Job apply, and one fixed log", async () => {
+  const state = awsProviderState();
+  const rawState = realisticAwsProviderState();
+  const resources = new Map([
+    ["configmap", rawState.configMaps], ["deployment", rawState.deployments],
+    ["replicaset", rawState.replicaSets], ["pod", rawState.pods], ["service", rawState.services],
+    ["endpointslice", rawState.endpointSlices], ["job", rawState.jobs], ["ingress", rawState.ingresses],
+  ]);
+  class ProviderBoundarySystem extends LocalAwsEmulatorSystem {
+    constructor() {
+      super(input());
+      this.paths = Object.freeze({
+        awsEmulatorCoreManifest: "/safe/runtime/aws-emulator.yaml",
+        awsEmulatorS3Manifest: "/safe/runtime/aws-emulator-s3.yaml",
+        graphManifest: "/safe/runtime/graph.yaml",
+        kubeconfig: "/safe/runtime/kubeconfig",
+        observabilityCoreManifest: "/safe/runtime/observability.yaml",
+      });
+      this.environment = Object.freeze({ PATH: input().path });
+      this.calls = [];
+      this.rawOverride = undefined;
+    }
+    async requireTemporaryOwnership() {}
+    async verifyCluster() { return { token: "a".repeat(64) }; }
+    async requireOwnedPath() {}
+    async verifyAdditionalManifestState() {}
+    async withOwnedFiles(paths, _phase, _category, callback) {
+      return await callback(paths.map((path, index) => ({
+        handle: { fd: index + 3 },
+        identity: { bytes: Buffer.from(path === this.paths.awsEmulatorS3Manifest
+          ? renderAwsEmulatorS3Manifest(buildAwsEmulatorS3Resources()) : "owned", "utf8") },
+      })));
+    }
+    async runRead(command, arguments_) {
+      this.calls.push(["read", command, arguments_]);
+      const get = arguments_.indexOf("get");
+      if (get >= 0) return { stderr: "", stdout: this.rawOverride ?? providerList(resources.get(arguments_[get + 1])) };
+      if (arguments_.includes("logs")) return { stderr: "", stdout: `${AWS_EMULATOR_CONSTANTS.successMarker}\n` };
+      throw new Error("unexpected provider read");
+    }
+    async runMutation(command, arguments_, _phase, _category, options) {
+      this.calls.push(["mutation", command, arguments_, options]);
+      return { outcome: "ambiguous" };
+    }
+  }
+  const phase = { assertActive() {} };
+  const system = new ProviderBoundarySystem();
+  assert.deepEqual(await system.readAwsEmulatorProviderState(phase), state);
+  assert.deepEqual(system.calls.filter(([, , argv]) => argv.includes("get")).map(([, , argv]) => argv.slice(2)), [
+    ["get", "configmap", "--namespace", "zasp-local", "--selector=app.kubernetes.io/component=aws-emulator", "--output=json"],
+    ["get", "deployment", "--namespace", "zasp-local", "--selector=app.kubernetes.io/component=aws-emulator", "--output=json"],
+    ["get", "replicaset", "--namespace", "zasp-local", "--selector=app.kubernetes.io/component=aws-emulator", "--output=json"],
+    ["get", "pod", "--namespace", "zasp-local", "--selector=app.kubernetes.io/component=aws-emulator", "--output=json"],
+    ["get", "service", "--namespace", "zasp-local", "--selector=app.kubernetes.io/component=aws-emulator", "--output=json"],
+    ["get", "endpointslice", "--namespace", "zasp-local", "--selector=kubernetes.io/service-name=localstack", "--output=json"],
+    ["get", "job", "--namespace", "zasp-local", "--selector=app.kubernetes.io/component=aws-emulator", "--output=json"],
+    ["get", "ingress", "--namespace", "zasp-local", "--selector=app.kubernetes.io/component=aws-emulator", "--output=json"],
+  ]);
+  assert.deepEqual(await system.applyAwsEmulatorJob(phase), { outcome: "ambiguous" });
+  const mutation = system.calls.find(([kind]) => kind === "mutation");
+  assert.deepEqual(mutation.slice(1, 3), [
+    "kubectl", ["--kubeconfig", "/dev/fd/3", "apply", "--filename", "-"],
+  ]);
+  assert.equal(mutation[3].input.toString("utf8"), renderAwsEmulatorS3Manifest(buildAwsEmulatorS3Resources()));
+
+  for (const source of [
+    '{"apiVersion":"v1","apiVersion":"v1","items":[],"kind":"List","metadata":{"resourceVersion":""}}\n',
+    '{"apiVersion":"v1","items":[],"kind":"List","metadata":{"resourceVersion":"1"}}\n',
+    '{"apiVersion":"v1","items":[],"kind":"List","metadata":{"resourceVersion":""},"unknown":true}\n',
+  ]) {
+    const rejected = new ProviderBoundarySystem();
+    rejected.rawOverride = source;
+    await assert.rejects(() => rejected.readAwsEmulatorProviderState(phase), { category: "normalization" });
+  }
+});
+
+test("fails fast on one exact terminal S3 Job and reconciles uncertain AWS core state", async () => {
+  const expected = awsProviderExpectation();
+  const coreState = awsProviderState({ includeJob: false });
+  const core = validateAwsEmulatorKubernetesState(coreState, expected, undefined, false);
+  const failedState = failedAwsProviderState();
+  class RecoverySystem extends LocalAwsEmulatorSystem {
+    constructor(values) { super(input()); this.values = [...values]; this.pauses = 0; }
+    awsEmulatorProviderExpectation() { return expected; }
+    async readAwsEmulatorProviderState() { return this.values.shift(); }
+    async verifyAdditionalManifestState() {}
+    async pauseAwsEmulatorPoll() { this.pauses += 1; }
+  }
+  const phase = { assertActive() {} };
+  const failed = new RecoverySystem([failedState]);
+  await assert.rejects(() => failed.pollAwsEmulatorProviderState(phase, core, true), { category: "provider" });
+  assert.equal(failed.pauses, 0);
+
+  const recovered = new RecoverySystem([coreState]);
+  recovered.awsEmulatorCoreMayHaveApplied = true;
+  await recovered.reconcileAwsEmulatorCoreForCleanup(phase);
+  assert.deepEqual(recovered.awsEmulatorProviderIdentity, core);
+  assert.equal(recovered.awsEmulatorCoreMayHaveApplied, false);
+
+  const absent = new RecoverySystem([emptyAwsProviderState()]);
+  absent.awsEmulatorCoreMayHaveApplied = true;
+  await absent.reconcileAwsEmulatorCoreForCleanup(phase);
+  assert.equal(absent.awsEmulatorProviderIdentity, undefined);
+  assert.equal(absent.awsEmulatorCoreMayHaveApplied, false);
+});
+
+function awsProviderExpectation(platform = "linux/arm64") {
+  const selected = buildLocalStackImagePlan(platform);
+  return {
+    imageTarget: {
+      configDigest: selected.configDigest,
+      imageID: `docker.io/library/import-2026-08-17@${selected.manifestDigest}`,
+    },
+    nodeName: `zasp-m1-30d-${input().marker}-control-plane`,
+  };
+}
+
+function awsProviderState({ includeJob = true, platform = "linux/arm64" } = {}) {
+  const expected = awsProviderExpectation(platform);
+  const [configResource, deploymentResource, serviceResource, jobResource] = buildAwsEmulatorResources();
+  const deploymentUid = providerUid(50);
+  const replicaSetUid = providerUid(51);
+  const podUid = providerUid(52);
+  const serviceUid = providerUid(53);
+  const hash = "abc123def4";
+  const podName = `localstack-${hash}-pqrst`;
+  const podIP = "10.244.0.40";
+  const labels = { ...deploymentResource.metadata.labels, "pod-template-hash": hash };
+  const value = {
+    configMaps: [{
+      apiVersion: "v1", data: clone(configResource.data), kind: "ConfigMap",
+      metadata: { labels: clone(configResource.metadata.labels), name: configResource.metadata.name, namespace: "zasp-local", resourceVersion: "300", uid: providerUid(49) },
+    }],
+    deployments: [{
+      apiVersion: "apps/v1", kind: "Deployment",
+      metadata: { generation: 1, labels: clone(deploymentResource.metadata.labels), name: "localstack", namespace: "zasp-local", resourceVersion: "301", uid: deploymentUid },
+      spec: { ...clone(deploymentResource.spec), template: providerTemplate(deploymentResource.spec.template) },
+      status: { availableReplicas: 1, conditions: [{ status: "True", type: "Available" }], observedGeneration: 1, readyReplicas: 1, replicas: 1, unavailableReplicas: 0, updatedReplicas: 1 },
+    }],
+    endpointSlices: [{
+      addressType: "IPv4", apiVersion: "discovery.k8s.io/v1",
+      endpoints: [{ addresses: [podIP], conditions: { ready: true, serving: true, terminating: false }, nodeName: expected.nodeName, targetRef: { kind: "Pod", name: podName, namespace: "zasp-local", uid: podUid } }],
+      kind: "EndpointSlice",
+      metadata: {
+        labels: { ...clone(serviceResource.metadata.labels), "endpointslice.kubernetes.io/managed-by": "endpointslice-controller.k8s.io", "kubernetes.io/service-name": "localstack" },
+        name: "localstack-abcde", namespace: "zasp-local",
+        ownerReferences: [{ apiVersion: "v1", blockOwnerDeletion: true, controller: true, kind: "Service", name: "localstack", uid: serviceUid }],
+        resourceVersion: "305", uid: providerUid(54),
+      },
+      ports: [{ name: "edge", port: 4566, protocol: "TCP" }],
+    }],
+    ingresses: [],
+    jobLog: null,
+    jobs: [],
+    pods: [{
+      apiVersion: "v1", kind: "Pod",
+      metadata: { labels, name: podName, namespace: "zasp-local", ownerReferences: [{ apiVersion: "apps/v1", blockOwnerDeletion: true, controller: true, kind: "ReplicaSet", name: `localstack-${hash}`, uid: replicaSetUid }], resourceVersion: "303", uid: podUid },
+      spec: providerPodSpec(deploymentResource.spec.template, expected.nodeName),
+      status: { conditions: [{ status: "True", type: "Ready" }], containerStatuses: [{ containerID: `containerd://${"a".repeat(64)}`, image: expected.imageTarget.configDigest, imageID: expected.imageTarget.imageID, lastState: {}, name: "localstack", ready: true, restartCount: 0, started: true, state: { running: { startedAt: "2026-08-17T10:00:00Z" } } }], phase: "Running", podIP },
+    }],
+    replicaSets: [{
+      apiVersion: "apps/v1", kind: "ReplicaSet",
+      metadata: { labels, name: `localstack-${hash}`, namespace: "zasp-local", ownerReferences: [{ apiVersion: "apps/v1", blockOwnerDeletion: true, controller: true, kind: "Deployment", name: "localstack", uid: deploymentUid }], resourceVersion: "302", uid: replicaSetUid },
+      spec: { replicas: 1, selector: { matchLabels: { "app.kubernetes.io/name": "localstack", "pod-template-hash": hash } }, template: providerTemplate(deploymentResource.spec.template, labels) },
+      status: { availableReplicas: 1, fullyLabeledReplicas: 1, observedGeneration: 1, readyReplicas: 1, replicas: 1 },
+    }],
+    services: [{
+      apiVersion: "v1", kind: "Service",
+      metadata: { labels: clone(serviceResource.metadata.labels), name: "localstack", namespace: "zasp-local", resourceVersion: "304", uid: serviceUid },
+      spec: { clusterIP: "10.96.0.40", clusterIPs: ["10.96.0.40"], internalTrafficPolicy: "Cluster", ...clone(serviceResource.spec) },
+      status: { loadBalancer: {} },
+    }],
+  };
+  if (!includeJob) return value;
+  const jobUid = providerUid(55);
+  const jobPodUid = providerUid(56);
+  const jobLabels = { ...jobResource.spec.template.metadata.labels, "batch.kubernetes.io/controller-uid": jobUid, "batch.kubernetes.io/job-name": AWS_EMULATOR_CONSTANTS.s3JobName, "controller-uid": jobUid, "job-name": AWS_EMULATOR_CONSTANTS.s3JobName };
+  value.jobs.push({
+    apiVersion: "batch/v1", kind: "Job",
+    metadata: { labels: clone(jobResource.metadata.labels), name: AWS_EMULATOR_CONSTANTS.s3JobName, namespace: "zasp-local", resourceVersion: "306", uid: jobUid },
+    spec: { activeDeadlineSeconds: 30, backoffLimit: 0, completionMode: "NonIndexed", completions: 1, manualSelector: false, parallelism: 1, podReplacementPolicy: "Failed", selector: { matchLabels: { "batch.kubernetes.io/controller-uid": jobUid } }, suspend: false, template: providerTemplate(jobResource.spec.template, jobLabels), ttlSecondsAfterFinished: 60 },
+    status: { completionTime: "2026-08-17T10:00:06Z", conditions: [{ lastProbeTime: "2026-08-17T10:00:06Z", lastTransitionTime: "2026-08-17T10:00:06Z", status: "True", type: "Complete" }], failed: 0, ready: 0, startTime: "2026-08-17T10:00:02Z", succeeded: 1 },
+  });
+  value.pods.push({
+    apiVersion: "v1", kind: "Pod",
+    metadata: { labels: jobLabels, name: "localstack-s3-probe-fghij", namespace: "zasp-local", ownerReferences: [{ apiVersion: "batch/v1", blockOwnerDeletion: true, controller: true, kind: "Job", name: AWS_EMULATOR_CONSTANTS.s3JobName, uid: jobUid }], resourceVersion: "307", uid: jobPodUid },
+    spec: providerPodSpec(jobResource.spec.template, expected.nodeName),
+    status: { conditions: [{ status: "False", type: "Ready" }], containerStatuses: [{ containerID: `containerd://${"b".repeat(64)}`, image: expected.imageTarget.configDigest, imageID: expected.imageTarget.imageID, lastState: {}, name: "s3-probe", ready: false, restartCount: 0, started: false, state: { terminated: { containerID: `containerd://${"b".repeat(64)}`, exitCode: 0, finishedAt: "2026-08-17T10:00:05Z", reason: "Completed", startedAt: "2026-08-17T10:00:03Z" } } }], phase: "Succeeded", podIP: "10.244.0.41" },
+  });
+  value.jobLog = `${AWS_EMULATOR_CONSTANTS.successMarker}\n`;
+  return value;
+}
+
+function emptyAwsProviderState() {
+  return { configMaps: [], deployments: [], endpointSlices: [], ingresses: [], jobLog: null,
+    jobs: [], pods: [], replicaSets: [], services: [] };
+}
+
+function realisticAwsProviderState() {
+  const value = awsProviderState();
+  const timestamp = "2026-08-17T09:59:00Z";
+  for (const items of [value.configMaps, value.deployments, value.endpointSlices, value.jobs, value.pods,
+    value.replicaSets, value.services]) {
+    for (const item of items) {
+      item.metadata.annotations = { "kubectl.kubernetes.io/last-applied-configuration": "{}" };
+      item.metadata.creationTimestamp = timestamp;
+      item.metadata.managedFields = [{ apiVersion: item.apiVersion, manager: "kubectl-client-side-apply" }];
+    }
+  }
+  value.deployments[0].status.conditions.unshift({ lastTransitionTime: timestamp,
+    lastUpdateTime: timestamp, message: "ReplicaSet progressed.", reason: "NewReplicaSetAvailable",
+    status: "True", type: "Progressing" });
+  for (const pod of value.pods) {
+    pod.status.hostIP = "172.18.0.2";
+    pod.status.podIPs = [{ ip: pod.status.podIP }];
+    pod.status.qosClass = "Burstable";
+    pod.status.startTime = timestamp;
+    pod.status.conditions.unshift({ status: "True", type: "PodScheduled" });
+  }
+  value.jobs[0].status.uncountedTerminatedPods = {};
+  for (const item of [...value.deployments, ...value.replicaSets, ...value.jobs]) {
+    delete item.spec.template.spec.hostIPC;
+    delete item.spec.template.spec.hostNetwork;
+    delete item.spec.template.spec.hostPID;
+  }
+  return value;
+}
+
+function failedAwsProviderState() {
+  const value = awsProviderState();
+  value.jobs[0].status.completionTime = undefined;
+  value.jobs[0].status.conditions = [{ lastProbeTime: "2026-08-17T10:00:06Z",
+    lastTransitionTime: "2026-08-17T10:00:06Z", status: "True", type: "Failed" }];
+  value.jobs[0].status.failed = 1;
+  value.jobs[0].status.succeeded = 0;
+  value.jobLog = "";
+  const status = value.pods.at(-1).status;
+  status.phase = "Failed";
+  status.containerStatuses[0].state.terminated.exitCode = 1;
+  status.containerStatuses[0].state.terminated.reason = "Error";
+  return value;
+}
+
+function providerList(items) {
+  return `${JSON.stringify({ apiVersion: "v1", items, kind: "List", metadata: { resourceVersion: "" } })}\n`;
+}
+
+function providerUid(index) {
+  return `${index.toString(16).padStart(8, "0")}-0000-4000-8000-${index.toString(16).padStart(12, "0")}`;
+}
+
+function providerContainer(value) {
+  const projected = { ...clone(value), terminationMessagePath: "/dev/termination-log", terminationMessagePolicy: "File" };
+  projected.volumeMounts = projected.volumeMounts?.map((mount) => {
+    const item = { ...mount };
+    if (item.readOnly === false) delete item.readOnly;
+    return item;
+  });
+  return projected;
+}
+
+function providerTemplate(template, labels = template.metadata.labels) {
+  return { metadata: { creationTimestamp: null, labels: clone(labels) }, spec: { ...clone(template.spec), containers: template.spec.containers.map(providerContainer), schedulerName: "default-scheduler" } };
+}
+
+function providerPodSpec(template, nodeName) {
+  return {
+    automountServiceAccountToken: template.spec.automountServiceAccountToken,
+    containers: template.spec.containers.map(providerContainer),
+    dnsPolicy: template.spec.dnsPolicy,
+    enableServiceLinks: template.spec.enableServiceLinks,
+    nodeName,
+    preemptionPolicy: "PreemptLowerPriority",
+    priority: 0,
+    restartPolicy: template.spec.restartPolicy,
+    schedulerName: "default-scheduler",
+    securityContext: clone(template.spec.securityContext),
+    serviceAccount: "default",
+    serviceAccountName: "default",
+    terminationGracePeriodSeconds: template.spec.terminationGracePeriodSeconds,
+    tolerations: [
+      { effect: "NoExecute", key: "node.kubernetes.io/not-ready", operator: "Exists", tolerationSeconds: 300 },
+      { effect: "NoExecute", key: "node.kubernetes.io/unreachable", operator: "Exists", tolerationSeconds: 300 },
+    ],
+    volumes: clone(template.spec.volumes),
+  };
+}
 
 function localStackIndex() {
   return {
