@@ -101,7 +101,23 @@ npm run ui-api:check
 The current honest result is `UI/API coverage passed: planned=5 available=0
 public=0 internal=0.` The gate leaves the operation inventory and map
 availability unchanged.
-M1-36e remains Pending and separately owns local infrastructure smoke checks.
+M1-36e is In progress and separately owns local infrastructure smoke checks.
+
+## M1 local infrastructure smoke
+
+M1-36e is In progress. It reuses the reviewed disposable assembled target and
+its hostile local-infrastructure suites:
+
+```bash
+node --test deploy/local/start.test.mjs
+npm run local:aws-emulator:test
+npm run local:start
+```
+
+The live gate requires only `Local AWS emulator manifest passed: ready=true
+internal=true endpoint=true s3=true cleanup=true.` plus exact owned-resource
+absence and unchanged ambient/shared fingerprints afterward. It creates no
+persistent local environment or public exposure. M1-37 remains Pending.
 
 ## Development
 

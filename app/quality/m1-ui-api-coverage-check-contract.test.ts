@@ -58,17 +58,18 @@ describe("M1-36d UI/API traceability validation", () => {
     const summary = markdownRows(tracker.match(/## Status summary[\s\S]*?## Milestone summary/)?.[0] ?? "").slice(2);
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
-    expect(tracker).toContain("| Pending | 648 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 647 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 77 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`648/0/77/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "15", "0", "53", "0"]);
+    expect(tracker).toContain("`647/1/77/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "14", "1", "53", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active).toHaveLength(0);
+    expect(active).toHaveLength(1);
+    expect(active.filter(([task]) => task === "M1-36e")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-36c")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-36d")).toHaveLength(1);
-    expect([...active, ...complete].filter(([task]) => task === "M1-36e")).toHaveLength(0);
+    expect(complete.filter(([task]) => task === "M1-36e")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
   });
 
@@ -81,7 +82,7 @@ describe("M1-36d UI/API traceability validation", () => {
     expect(section).toContain("npm run ui-api:test");
     expect(section).toContain("npm run ui-api:check");
     expect(prose).toContain("UI/API coverage passed: planned=5 available=0 public=0 internal=0.");
-    expect(prose).toContain("M1-36e remains Pending");
+    expect(prose).toContain("M1-36e is In progress");
     expect(prose).not.toMatch(/local infrastructure healthy|new API operation|availability: available/i);
   });
 });

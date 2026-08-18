@@ -61,12 +61,12 @@ describe("M1-29 system health aggregator", () => {
     expect(readme).toContain("M1-29 is Complete");
     expect(readme).toContain("M1-30a is Complete");
     expect(readme).toContain("M1-30b is Complete");
-    expect(tracker).toContain("| Pending | 648 |");
-    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Pending | 647 |");
+    expect(tracker).toContain("| In progress | 1 |");
     expect(tracker).toContain("| Complete | 77 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`648/0/77/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "15", "0", "53", "0"]);
+    expect(tracker).toContain("`647/1/77/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "14", "1", "53", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
     expect(active.filter(([task]) => task === "M1-29")).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-29")).toHaveLength(1);
