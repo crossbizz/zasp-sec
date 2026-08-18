@@ -102,15 +102,15 @@ func (store *Store) Index(ctx context.Context, scope domain.Scope, event Event) 
 	if store == nil || nilInterface(store.driver) || ctx == nil {
 		return ErrIndex
 	}
-	if !validEvent(scope, event) {
-		return ErrEvent
+	document, err := buildDriverDocument(scope, event)
+	if err != nil {
+		return err
 	}
 	operationCtx, cancel := context.WithTimeout(ctx, store.config.OperationTimeout)
 	defer cancel()
 	if operationCtx.Err() != nil {
 		return ErrIndex
 	}
-	document := documentFromEvent(event)
 	indexed, err := indexDriver(store.driver, operationCtx, document)
 	if err != nil || operationCtx.Err() != nil || indexed.EventID != document.EventID {
 		return ErrIndex
@@ -122,16 +122,9 @@ func (store *Store) Search(ctx context.Context, scope domain.Scope, filter Filte
 	if store == nil || nilInterface(store.driver) || ctx == nil {
 		return nil, ErrSearch
 	}
-	if scope.Validate() != nil || filter.SessionID.String() == "" || filter.Limit <= 0 || filter.Limit > store.config.MaximumResults {
-		return nil, ErrFilter
-	}
-	query := DriverQuery{
-		OrganizationID: scope.OrganizationID().String(),
-		WorkspaceID:    scope.WorkspaceID().String(),
-		EnvironmentID:  scope.EnvironmentID().String(),
-		SessionID:      filter.SessionID.String(),
-		Limit:          filter.Limit,
-		Sort:           []string{"event_time", "event_id"},
+	query, err := buildDriverQuery(scope, filter, store.config.MaximumResults)
+	if err != nil {
+		return nil, err
 	}
 	operationCtx, cancel := context.WithTimeout(ctx, store.config.OperationTimeout)
 	defer cancel()
@@ -167,11 +160,14 @@ func (store *Store) Search(ctx context.Context, scope domain.Scope, filter Filte
 	return result, nil
 }
 
-func documentFromEvent(event Event) DriverDocument {
+func buildDriverDocument(scope domain.Scope, event Event) (DriverDocument, error) {
+	if !validEvent(scope, event) {
+		return DriverDocument{}, ErrEvent
+	}
 	return DriverDocument{
-		OrganizationID: event.Scope.OrganizationID().String(),
-		WorkspaceID:    event.Scope.WorkspaceID().String(),
-		EnvironmentID:  event.Scope.EnvironmentID().String(),
+		OrganizationID: scope.OrganizationID().String(),
+		WorkspaceID:    scope.WorkspaceID().String(),
+		EnvironmentID:  scope.EnvironmentID().String(),
 		EventID:        event.EventID.String(),
 		SessionID:      event.SessionID.String(),
 		AgentID:        event.AgentID.String(),
@@ -181,7 +177,22 @@ func documentFromEvent(event Event) DriverDocument {
 		Action:         event.Action,
 		Decision:       event.Decision,
 		EventTime:      event.EventTime.Format(timestampLayout),
+	}, nil
+}
+
+func buildDriverQuery(scope domain.Scope, filter Filter, maximumResults int) (DriverQuery, error) {
+	if scope.Validate() != nil || filter.SessionID.String() == "" || maximumResults <= 0 || maximumResults > maximumResultCount ||
+		filter.Limit <= 0 || filter.Limit > maximumResults {
+		return DriverQuery{}, ErrFilter
 	}
+	return DriverQuery{
+		OrganizationID: scope.OrganizationID().String(),
+		WorkspaceID:    scope.WorkspaceID().String(),
+		EnvironmentID:  scope.EnvironmentID().String(),
+		SessionID:      filter.SessionID.String(),
+		Limit:          filter.Limit,
+		Sort:           []string{"event_time", "event_id"},
+	}, nil
 }
 
 func eventFromDocument(document DriverDocument) (Event, error) {

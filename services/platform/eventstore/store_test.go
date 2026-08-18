@@ -265,7 +265,7 @@ func TestStoreRejectsMalformedForeignDuplicateAndUnorderedSearchResults(t *testi
 	scope := testScope(t, "1", "2", "3")
 	first := testEvent(t, scope, "4", "5", "6", "2026-08-15T20:21:22.123Z")
 	second := testEvent(t, scope, "7", "5", "8", "2026-08-15T20:21:22.124Z")
-	firstDocument, secondDocument := documentFromEvent(first), documentFromEvent(second)
+	firstDocument, secondDocument := mustDriverDocument(t, scope, first), mustDriverDocument(t, scope, second)
 	secondSameTime := secondDocument
 	secondSameTime.EventTime = firstDocument.EventTime
 	foreign := firstDocument
@@ -321,15 +321,21 @@ func TestStoreRejectsMismatchedIndexAcknowledgement(t *testing.T) {
 
 func TestStoreSupportsConcurrentIndependentOperations(t *testing.T) {
 	t.Parallel()
-	scope := testScope(t, "1", "2", "3")
-	event := testEvent(t, scope, "4", "5", "6", "2026-08-15T20:21:22.123Z")
-	document := documentFromEvent(event)
+	scopes := []domain.Scope{testScope(t, "1", "2", "3"), testScope(t, "7", "2", "3")}
+	events := []Event{
+		testEvent(t, scopes[0], "4", "5", "6", "2026-08-15T20:21:22.123Z"),
+		testEvent(t, scopes[1], "8", "5", "9", "2026-08-15T20:21:22.123Z"),
+	}
+	documents := map[string]DriverDocument{
+		scopes[0].OrganizationID().String(): mustDriverDocument(t, scopes[0], events[0]),
+		scopes[1].OrganizationID().String(): mustDriverDocument(t, scopes[1], events[1]),
+	}
 	driver := functionDriver{
-		index: func(context.Context, DriverDocument) (DriverIndexed, error) {
-			return DriverIndexed{EventID: event.EventID.String()}, nil
+		index: func(_ context.Context, document DriverDocument) (DriverIndexed, error) {
+			return DriverIndexed{EventID: document.EventID}, nil
 		},
-		search: func(context.Context, DriverQuery) ([]DriverDocument, error) {
-			return []DriverDocument{document}, nil
+		search: func(_ context.Context, query DriverQuery) ([]DriverDocument, error) {
+			return []DriverDocument{documents[query.OrganizationID]}, nil
 		},
 	}
 	store, err := New(driver, Config{OperationTimeout: time.Second, MaximumResults: 10})
@@ -339,6 +345,8 @@ func TestStoreSupportsConcurrentIndependentOperations(t *testing.T) {
 	var wait sync.WaitGroup
 	errorsFound := make(chan error, 64)
 	for index := 0; index < 32; index++ {
+		scope := scopes[index%len(scopes)]
+		event := events[index%len(events)]
 		wait.Add(2)
 		go func() {
 			defer wait.Done()
@@ -356,6 +364,112 @@ func TestStoreSupportsConcurrentIndependentOperations(t *testing.T) {
 		if err != nil {
 			t.Fatalf("concurrent operation error = %v", err)
 		}
+	}
+}
+
+func TestScopedBuildersRequireExactOrganizationAndOwnQueryState(t *testing.T) {
+	t.Parallel()
+	scope := testScope(t, "1", "2", "3")
+	event := testEvent(t, scope, "4", "5", "6", "2026-08-15T20:21:22.123Z")
+	wantDocument := DriverDocument{
+		OrganizationID: scope.OrganizationID().String(),
+		WorkspaceID:    scope.WorkspaceID().String(),
+		EnvironmentID:  scope.EnvironmentID().String(),
+		EventID:        event.EventID.String(),
+		SessionID:      event.SessionID.String(),
+		AgentID:        event.AgentID.String(),
+		Source:         "runtime_gateway",
+		SourceEventID:  "source-event-1",
+		Class:          "tool",
+		Action:         "invoke",
+		Decision:       "allowed",
+		EventTime:      "2026-08-15T20:21:22.123Z",
+	}
+	document, err := buildDriverDocument(scope, event)
+	if err != nil || document != wantDocument {
+		t.Fatalf("buildDriverDocument = %#v, %v", document, err)
+	}
+
+	filter := Filter{SessionID: event.SessionID, Limit: 7}
+	query, err := buildDriverQuery(scope, filter, 10)
+	wantQuery := DriverQuery{
+		OrganizationID: scope.OrganizationID().String(),
+		WorkspaceID:    scope.WorkspaceID().String(),
+		EnvironmentID:  scope.EnvironmentID().String(),
+		SessionID:      event.SessionID.String(),
+		Limit:          7,
+		Sort:           []string{"event_time", "event_id"},
+	}
+	if err != nil || !reflect.DeepEqual(query, wantQuery) {
+		t.Fatalf("buildDriverQuery = %#v, %v", query, err)
+	}
+	query.Sort[0] = "attacker"
+	second, err := buildDriverQuery(scope, filter, 10)
+	if err != nil || !reflect.DeepEqual(second, wantQuery) {
+		t.Fatalf("second buildDriverQuery = %#v, %v", second, err)
+	}
+
+	foreign := event
+	foreign.Scope = testScope(t, "7", "2", "3")
+	for name, candidate := range map[string]struct {
+		scope domain.Scope
+		event Event
+	}{
+		"zero scope":       {scope: domain.Scope{}, event: event},
+		"mismatched scope": {scope: scope, event: foreign},
+		"zero event":       {scope: scope, event: Event{}},
+	} {
+		t.Run("document "+name, func(t *testing.T) {
+			if result, buildErr := buildDriverDocument(candidate.scope, candidate.event); !errors.Is(buildErr, ErrEvent) || result != (DriverDocument{}) {
+				t.Fatalf("buildDriverDocument = %#v, %v", result, buildErr)
+			}
+		})
+	}
+	for name, candidate := range map[string]struct {
+		scope   domain.Scope
+		filter  Filter
+		maximum int
+	}{
+		"zero scope":     {scope: domain.Scope{}, filter: filter, maximum: 10},
+		"zero filter":    {scope: scope, filter: Filter{}, maximum: 10},
+		"over maximum":   {scope: scope, filter: Filter{SessionID: event.SessionID, Limit: 11}, maximum: 10},
+		"zero maximum":   {scope: scope, filter: filter, maximum: 0},
+		"global maximum": {scope: scope, filter: Filter{SessionID: event.SessionID, Limit: 1}, maximum: 101},
+	} {
+		t.Run("query "+name, func(t *testing.T) {
+			if result, buildErr := buildDriverQuery(candidate.scope, candidate.filter, candidate.maximum); !errors.Is(buildErr, ErrFilter) || !reflect.DeepEqual(result, DriverQuery{}) {
+				t.Fatalf("buildDriverQuery = %#v, %v", result, buildErr)
+			}
+		})
+	}
+}
+
+func TestOrganizationAQueryRejectsOrganizationBFixtureWithSameSession(t *testing.T) {
+	t.Parallel()
+	organizationA := testScope(t, "1", "2", "3")
+	organizationB := testScope(t, "7", "2", "3")
+	eventA := testEvent(t, organizationA, "4", "5", "6", "2026-08-15T20:21:22.123Z")
+	eventB := testEvent(t, organizationB, "8", "5", "9", "2026-08-15T20:21:22.123Z")
+	documentB, err := buildDriverDocument(organizationB, eventB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	driver := &recordingDriver{documents: []DriverDocument{documentB}}
+	store, err := New(driver, Config{OperationTimeout: time.Second, MaximumResults: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result, searchErr := store.Search(context.Background(), organizationA, Filter{SessionID: eventA.SessionID, Limit: 1})
+	if !errors.Is(searchErr, ErrSearch) || result != nil {
+		t.Fatalf("Search = %#v, %v", result, searchErr)
+	}
+	wantQuery, err := buildDriverQuery(organizationA, Filter{SessionID: eventA.SessionID, Limit: 1}, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(driver.searchCalls, []DriverQuery{wantQuery}) {
+		t.Fatalf("Search driver calls = %#v", driver.searchCalls)
 	}
 }
 
@@ -400,4 +514,13 @@ func testEvent(t *testing.T, scope domain.Scope, event, session, agent, timestam
 		Scope: scope, EventID: testProductID(t, event), SessionID: testProductID(t, session), AgentID: testProductID(t, agent),
 		Source: "runtime_gateway", SourceEventID: "source-event-1", Class: "tool", Action: "invoke", Decision: "allowed", EventTime: eventTime,
 	}
+}
+
+func mustDriverDocument(t *testing.T, scope domain.Scope, event Event) DriverDocument {
+	t.Helper()
+	document, err := buildDriverDocument(scope, event)
+	if err != nil {
+		t.Fatalf("buildDriverDocument returned error: %v", err)
+	}
+	return document
 }
