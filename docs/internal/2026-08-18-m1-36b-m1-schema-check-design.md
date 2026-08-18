@@ -41,9 +41,9 @@ authorities; it does not copy their schemas into a new manifest.
 child runs from the repository root with Go race detection and count one. Child
 execution receives only `PATH`, `HOME`, `LANG`, and fixed offline Go controls:
 `GOENV=off`, `GOTOOLCHAIN=local`, `GOPROXY=off`, `GOSUMDB=off`, `GOWORK=off`,
-and `CGO_ENABLED=0`. Ambient cloud credentials, profiles, proxies, dotenv,
-database URLs, Node options, and customer configuration do not cross the
-boundary.
+while the host's race-supported Go configuration remains in effect. Ambient
+cloud credentials, profiles, proxies, dotenv, database URLs, Node options, and
+customer configuration do not cross the boundary.
 
 Each child has a 120-second hard `SIGKILL` deadline and separate one-MiB stdout
 and stderr limits. A thrown, signaled, timed-out, nonzero, oversized, or
