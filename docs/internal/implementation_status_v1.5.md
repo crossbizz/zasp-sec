@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 0 |
-| In progress | 391 |
-| Complete | 334 |
+| In progress | 366 |
+| Complete | 359 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -29,7 +29,7 @@ In progress, Complete, or Blocked is Pending.
 | M2 | 72 | 0 | 0 | 72 | 0 |
 | M3 | 75 | 0 | 2 | 73 | 0 |
 | M4 | 82 | 0 | 0 | 82 | 0 |
-| M5 | 42 | 0 | 33 | 9 | 0 |
+| M5 | 42 | 0 | 8 | 34 | 0 |
 | M6 | 36 | 0 | 36 | 0 | 0 |
 | M7 | 62 | 0 | 62 | 0 | 0 |
 | M7A | 113 | 0 | 113 | 0 | 0 |
@@ -70,7 +70,7 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `0/391/334/3` because
+session configuration. The 728 source-plan counts are `0/366/359/3` because
 PROV-01 is excluded from those counts.
 For the active M8 resilience batch, live parity, outage injection, and reference load execution remain unresolved.
 
@@ -442,31 +442,6 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 | M5-33a | August 18, 2026 | Attack Lab preflight renders the selected non-production target and test credential class. |
 | M5-32 | August 18, 2026 | The local Attack Lab worker runs preflight, provider, evidence, verdict, and cleanup idempotently with an injected provider. |
 | M5-31 | August 18, 2026 | `rerunAttackLabRun` is published in OpenAPI/generated types and handled by the bounded local service. |
-| M5-30 | August 18, 2026 | `cancelAttackLabRun` is published in OpenAPI/generated types and handled by the bounded local service. |
-| M5-29 | August 18, 2026 | `getAttackLabRun` is published in OpenAPI/generated types and handled by the bounded local service. |
-| M5-28 | August 18, 2026 | `createAttackLabRun` is published in OpenAPI/generated types and handled by the bounded local service. |
-| M5-27 | August 18, 2026 | `listAttackLabRuns` is published in OpenAPI/generated types and handled by the bounded local service. |
-| M5-26 | August 18, 2026 | Attack Lab verdicts distinguish verified canary touches, not reproduced outcomes, and infrastructure-inconclusive results locally. |
-| M5-25 | August 18, 2026 | The local Attack Lab evidence collector binds semantic, gateway, egress, Kubernetes, and cloud side-effect sources without an in-sandbox eBPF dependency. |
-| M5-24 | August 18, 2026 | A bounded canary descriptor requires a test resource, test-write credential class, and observable expected touch. |
-| M5-23 | August 18, 2026 | One local SafetyDecision composes target, credential, destination, and measurable-success checks before sandbox creation. |
-| M5-23d | August 18, 2026 | Attack Lab preflight rejects runs without an explicit observable success criterion. |
-| M5-23c | August 18, 2026 | Attack Lab preflight rejects destinations outside the per-run allowlist. |
-| M5-23b | August 18, 2026 | Attack Lab preflight hard-rejects production-write credentials. |
-| M5-23a | August 18, 2026 | Attack Lab preflight rejects production targets before sandbox creation. |
-| M5-22 | August 18, 2026 | HMAC-bound per-run egress tokens enforce exact host, method, and expiry values locally. |
-| M5-21 | August 18, 2026 | The Fargate sandbox spec names a dedicated egress-proxy SecurityGroupPolicy; live EKS enforcement remains unresolved. |
-| M5-20 | August 18, 2026 | The Fargate sandbox spec uses a dedicated Attack Lab service account and test-role annotation, never the product worker role. |
-| M5-19 | August 18, 2026 | CPU, memory, ephemeral-storage, and timeout limits are mandatory and bounded in the local sandbox spec. |
-| M5-18 | August 18, 2026 | A run-scoped local Fargate Job specification binds the dedicated profile, namespace, labels, and cleanup ownership fields. |
-| M5-17 | August 18, 2026 | SandboxProvider defines Create, Run, Cancel, Destroy, and Capabilities boundaries locally. |
-| M5-16 | August 18, 2026 | Existing Red Team results group deterministic outcomes and link successful attempts to the bounded Attack Lab route locally. |
-| M5-15 | August 18, 2026 | Existing Red Team list/new-test UX renders curated packs and execution limits locally. |
-| M5-14 | August 18, 2026 | The local worker persists an artifact reference plus normalized verdict and rejects a secret-bearing raw fixture. |
-| M5-13 | August 18, 2026 | The local test worker consumes queued runs idempotently; duplicate delivery retains one attempt. |
-| M5-12 | August 18, 2026 | `cancelTestRun` is published in OpenAPI/generated types and handled by the bounded local service. |
-| M5-11 | August 18, 2026 | `getTestRun` is published in OpenAPI/generated types and handled by the bounded local service. |
-| M5-10 | August 18, 2026 | `listTestRuns` is published in OpenAPI/generated types and handled by the bounded local service. |
 | M3-52 | August 18, 2026 | A strict five-check local M3 gate is implemented; real staging remains unavailable and the task is not Complete. |
 | M3-14 | August 18, 2026 | Strict AWS assume-role identity adapter and local denial fixture are implemented; required real-AWS denial remains unavailable behind M1A-10. |
 
@@ -474,6 +449,31 @@ For the active M8 resilience batch, live parity, outage injection, and reference
 
 | Task | Completed | Evidence |
 | --- | --- | --- |
+| M5-30 | August 18, 2026 | `cancelAttackLabRun` generated-contract success and stable-error cases pass. |
+| M5-29 | August 18, 2026 | `getAttackLabRun` generated-contract success and stable-error cases pass. |
+| M5-28 | August 18, 2026 | `createAttackLabRun` generated-contract success and stable-error cases pass. |
+| M5-27 | August 18, 2026 | `listAttackLabRuns` generated-contract success and stable-error cases pass. |
+| M5-26 | August 18, 2026 | Verdict fixtures distinguish Verified, Not Reproduced, and infrastructure-Inconclusive outcomes. |
+| M5-25 | August 18, 2026 | Evidence collector binds exact semantic, gateway, egress, Kubernetes, and cloud references without in-sandbox eBPF. |
+| M5-24 | August 18, 2026 | Canary descriptor requires a test resource, test-write credential class, and observable expected touch. |
+| M5-23 | August 18, 2026 | One SafetyDecision composes target, credential, destination, and measurable-success checks before sandbox creation. |
+| M5-23d | August 18, 2026 | Preflight rejects runs without an explicit observable success criterion. |
+| M5-23c | August 18, 2026 | Preflight rejects destinations outside the per-run allowlist. |
+| M5-23b | August 18, 2026 | Preflight hard-rejects production-write credentials. |
+| M5-23a | August 18, 2026 | Preflight rejects production targets before sandbox creation. |
+| M5-22 | August 18, 2026 | HMAC-bound egress-token tests enforce exact host, method, and expiry. |
+| M5-21 | August 18, 2026 | Fargate sandbox spec binds a dedicated egress-proxy SecurityGroupPolicy and denies direct egress in the local contract. |
+| M5-20 | August 18, 2026 | Fargate spec uses the dedicated Attack Lab service account and never the product worker role. |
+| M5-19 | August 18, 2026 | CPU, memory, ephemeral-storage, and timeout limits are mandatory and bounded. |
+| M5-18 | August 18, 2026 | Run-scoped Fargate Job spec binds profile, namespace, labels, and cleanup ownership. |
+| M5-17 | August 18, 2026 | SandboxProvider fake contract passes Create, Run, Cancel, Destroy, and Capabilities boundaries. |
+| M5-16 | August 18, 2026 | Red Team results group deterministic outcomes and link successful attempts to Verify safely. |
+| M5-15 | August 18, 2026 | Red Team list/new-test UX renders recommended packs, safety, and execution limits. |
+| M5-14 | August 18, 2026 | Worker retains artifact reference plus normalized verdict and rejects secret-bearing raw output. |
+| M5-13 | August 18, 2026 | Duplicate local queue delivery retains one normalized attempt. |
+| M5-12 | August 18, 2026 | `cancelTestRun` generated-contract success and stable-error cases pass. |
+| M5-11 | August 18, 2026 | `getTestRun` generated-contract success and stable-error cases pass. |
+| M5-10 | August 18, 2026 | `listTestRuns` generated-contract success and stable-error cases pass. |
 | M5-09 | August 18, 2026 | `runTest` queues one bounded local run through the published generated contract. |
 | M5-08 | August 18, 2026 | `updateTest` generated-contract success and stable-error cases pass. |
 | M5-07 | August 18, 2026 | `getTest` generated-contract success and stable-error cases pass. |

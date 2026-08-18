@@ -137,7 +137,7 @@ describe("Promptfoo red-team proof repository contract", () => {
     ).toThrow();
     expect(() =>
       assertM016Complete(
-        tracker.replace("| Complete | 334 |", "| Complete | 17 |"),
+        tracker.replace("| Complete | 359 |", "| Complete | 17 |"),
         readme,
         riskRegister,
       ),

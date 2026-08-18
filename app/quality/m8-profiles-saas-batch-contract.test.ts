@@ -27,6 +27,6 @@ describe("M8-51e through M8-60b deployment-profile batch", () => {
     const active = tracker.match(/## In progress[\s\S]*?## Complete/)?.[0] || "";
     const selected = ["M8-51e", "M8-51", "M8-52a", "M8-52b", "M8-52c", "M8-52d", "M8-52", "M8-53", "M8-55", "M8-56", "M8-57a", "M8-57b", "M8-57c", "M8-57", "M8-58a", "M8-58b", "M8-58", "M8-59a1", "M8-59a2", "M8-59a3", "M8-59a", "M8-59b", "M8-59", "M8-60a", "M8-60b"];
     for (const id of selected) expect(active.match(new RegExp(`^\\| ${id} \\|`, "gm"))).toHaveLength(1);
-    for (const value of ["| Pending | 0 |", "| In progress | 391 |", "`0/391/334/3`", "| M8 | 141 | 0 | 141 | 0 | 0 |"]) expect(tracker).toContain(value);
+    for (const value of ["| Pending | 0 |", "| In progress | 366 |", "`0/366/359/3`", "| M8 | 141 | 0 | 141 | 0 | 0 |"]) expect(tracker).toContain(value);
   });
 });
