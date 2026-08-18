@@ -85,7 +85,7 @@ public output.
 Run:
 
 ```sh
-node --test --import tsx app/quality/local-aws-emulator-manifest-contract.test.ts \
+npx vitest run app/quality/local-aws-emulator-manifest-contract.test.ts \
   app/quality/local-observability-manifest-contract.test.ts
 ```
 
