@@ -15,8 +15,8 @@ In progress, Complete, or Blocked is Pending.
 | Status | Count |
 | --- | ---: |
 | Pending | 643 |
-| In progress | 1 |
-| Complete | 81 |
+| In progress | 0 |
+| Complete | 82 |
 | Blocked | 3 |
 
 ## Milestone summary
@@ -24,7 +24,7 @@ In progress, Complete, or Blocked is Pending.
 | Milestone | Total | Pending | In progress | Complete | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 0 | 0 | 24 | 3 |
-| M1 | 68 | 10 | 1 | 57 | 0 |
+| M1 | 68 | 10 | 0 | 58 | 0 |
 | M1A | 10 | 10 | 0 | 0 | 0 |
 | M2 | 72 | 72 | 0 | 0 | 0 |
 | M3 | 75 | 75 | 0 | 0 | 0 |
@@ -68,19 +68,19 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `643/1/81/3` because
+session configuration. The 728 source-plan counts are `643/0/82/3` because
 PROV-01 is excluded from those counts.
 
 ## In progress
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| M1-40 | August 18, 2026 | Hardening the existing ArtifactStore around one scope-mandatory driver locator and proving a same-session Organization-A read cannot return an otherwise identical Organization-B fixture. |
 
 ## Complete
 
 | Task | Completed | Evidence |
 | --- | --- | --- |
+| M1-40 | August 18, 2026 | Routed all ArtifactStore operations through one scope-mandatory driver locator, proved a same-session Organization-A read cannot return the otherwise identical Organization-B fixture, retained concurrent per-call separation, and passed mutation, race, platform, inherited provider, repository, audit, scan, and zero-finding review gates. |
 | M1-39 | August 18, 2026 | Made both EventStore driver builders explicitly scope-mandatory, fixed canonical Organization/Workspace/Environment values before driver I/O, rejected the same-session Organization-B fixture from an Organization-A query, and passed mutation, concurrency, race, platform, inherited adapter, repository, audit, scan, and zero-finding review gates. |
 | M1-38 | August 18, 2026 | Added a stateless dependency-free repository guard that rejects missing or invalid product Organization scope before SQL execution, prepends the canonical Organization argument without caller-slice mutation or retained tenant state, and passed hostile tests, six race runs, full platform/repository gates, scans, and zero-finding review. |
 | M1-37 | August 18, 2026 | Added strict typed `saas` and `single_tenant` deployment configuration; SaaS requires the Organization pin absent, single-tenant requires one canonical product Organization ID, and the complete truth table, six race passes, full platform/repository gates, scans, and zero-finding review passed. |

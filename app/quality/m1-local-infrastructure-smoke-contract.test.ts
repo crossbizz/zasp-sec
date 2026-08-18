@@ -64,13 +64,13 @@ describe("M1-36e local Kubernetes and LocalStack smoke", () => {
     const milestones = markdownRows(tracker.match(/## Milestone summary[\s\S]*?## Execution invariants/)?.[0] ?? "").slice(2);
 
     expect(tracker).toContain("| Pending | 643 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 81 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 82 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`643/1/81/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "10", "1", "57", "0"]);
+    expect(tracker).toContain("`643/0/82/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "10", "0", "58", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active.map(([task]) => task)).toEqual(["M1-40"]);
+    expect(active.map(([task]) => task)).toEqual([]);
     expect(complete.filter(([task]) => task === "M1-36d")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-36e")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-37")).toHaveLength(1);

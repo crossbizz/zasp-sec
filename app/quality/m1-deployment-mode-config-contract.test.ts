@@ -60,13 +60,13 @@ describe("M1-37 deployment mode configuration contract", () => {
     expect(readme).toContain("M1-36e is Complete");
     expect(readme).toContain("M1-37 is Complete");
     expect(tracker).toContain("| Pending | 643 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 81 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 82 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`643/1/81/3`");
-    expect(m1).toEqual(["M1", "68", "10", "1", "57", "0"]);
+    expect(tracker).toContain("`643/0/82/3`");
+    expect(m1).toEqual(["M1", "68", "10", "0", "58", "0"]);
     expect(summary.reduce((sum, [, count]) => sum + Number(count), 0)).toBe(728);
-    expect(active).toHaveLength(1);
+    expect(active).toHaveLength(0);
     expect(complete.filter(([task]) => task === "M1-36e")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-37")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-38")).toHaveLength(1);

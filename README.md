@@ -143,12 +143,12 @@ same-session fixture proves an Organization A query cannot return an
 Organization B document. M1-14 remains
 the disposable OpenSearch provider-compatibility authority; its provider
 lifecycle stays unchanged, and this task makes no AWS release-parity claim.
-M1-40 is In progress.
+M1-40 is Complete.
 
 ## S3 Organization artifact prefix
 
-M1-40 is In progress. The existing M1-12 ArtifactStore is being hardened around
-one scope-mandatory driver locator, with a same-session fixture proving an
+M1-40 is Complete. The existing M1-12 ArtifactStore now uses one
+scope-mandatory driver locator, with a same-session fixture proving an
 Organization A request cannot read an otherwise identical Organization B
 artifact. M1-12 remains the provider-compatibility authority, M1-34 remains the
 separate bucket-layout authority, and the existing provider lifecycle stays

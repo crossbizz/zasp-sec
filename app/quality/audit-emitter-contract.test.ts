@@ -46,12 +46,12 @@ describe("M1-17 AuditEmitter contract", () => {
 
     expect(readme).toContain("M1-17 is Complete");
     expect(tracker).toContain("| Pending | 643 |");
-    expect(tracker).toContain("| In progress | 1 |");
-    expect(tracker).toContain("| Complete | 81 |");
+    expect(tracker).toContain("| In progress | 0 |");
+    expect(tracker).toContain("| Complete | 82 |");
     expect(tracker).toContain("| Blocked | 3 |");
-    expect(tracker).toContain("`643/1/81/3`");
-    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "10", "1", "57", "0"]);
-    expect(active.map(([task]) => task)).toEqual(["M1-40"]);
+    expect(tracker).toContain("`643/0/82/3`");
+    expect(milestones.find(([milestone]) => milestone === "M1")).toEqual(["M1", "68", "10", "0", "58", "0"]);
+    expect(active.map(([task]) => task)).toEqual([]);
     expect(complete.filter(([task]) => task === "M1-16")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-17")).toHaveLength(1);
     expect(complete.filter(([task]) => task === "M1-18")).toHaveLength(1);
