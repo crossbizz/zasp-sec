@@ -57,8 +57,8 @@ Vitest repository contracts, Node.js 22.23.1, npm 10.9.8.
 
   Require the source dependency/deliverable/verification text, exact public
   helper signatures, argument-zero behavior, fixed error boundary, deferred
-  RLS tasks, M1-37/M1-39 status, blockers, arithmetic, and exactly 16 unchecked
-  plan steps.
+  RLS tasks, M1-37/M1-39 status, blockers, arithmetic, and exactly 16 execution
+  steps.
 
 - [x] **Step 2: Witness focused status RED**
 

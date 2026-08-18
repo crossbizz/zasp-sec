@@ -41,7 +41,7 @@ describe("M1-38 Neon Organization scope guard contract", () => {
       "M1-39 remains Pending",
     ]) expect(prose).toContain(value);
     expect(plan).toContain("Every behavior and status change has a witnessed tests-only RED first");
-    expect(plan.match(/^- \[ \]/gm) ?? []).toHaveLength(16);
+    expect(plan.match(/^- \[[ x]\]/gm) ?? []).toHaveLength(16);
   });
 
   it("moves only M1-38 to Complete with exact arithmetic", async () => {
