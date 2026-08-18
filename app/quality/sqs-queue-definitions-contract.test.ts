@@ -3,6 +3,11 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const repositoryRoot = resolve(import.meta.dirname, "../..");
+const testCommand = "go test -C services/platform -race -count=1 ./queuedefinition && go test -C proofs/localstack-sqs -race -count=1 ./... && node --test proofs/localstack-sqs/queue-definitions-run.test.mjs proofs/localstack-storage/run.test.mjs";
+const runCommand = "node proofs/localstack-sqs/run-queue-definitions.mjs";
+const successLine = "LocalStack queue definitions passed: queues=3 dlqs=3 schemas=3 retention=true redrive=true cleanup=true audit=true container_cleanup=true.";
+
+type PackageManifest = { scripts?: Record<string, string> };
 
 function markdownRows(markdown: string) {
   return markdown
@@ -88,5 +93,47 @@ describe("M1-33 SQS queue definitions", () => {
     expect(complete.filter(([task]) => task === "M1-32")).toHaveLength(1);
     expect([...active, ...complete].filter(([task]) => task === "M1-34")).toHaveLength(0);
     expect(blocked.map(([task]) => task)).toEqual(["M0-09", "M0-18", "M0-19"]);
+  });
+
+  it("exposes the exact hermetic and disposable live proof boundary", async () => {
+    const [manifestText, readme] = await Promise.all([
+      readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+    ]);
+    const manifest = JSON.parse(manifestText) as PackageManifest;
+    const section = readme.match(/## SQS queue definitions proof[\s\S]*?## Assembled local development target/)?.[0];
+    const sectionProse = section?.replace(/\s+/g, " ");
+
+    expect(manifest.scripts?.["sqs:definitions:test"]).toBe(testCommand);
+    expect(manifest.scripts?.["sqs:definitions:run"]).toBe(runCommand);
+    expect(section).toBeDefined();
+    for (const value of [
+      "agentsec-background",
+      "agentsec-background-dlq",
+      "agentsec-runtime-events",
+      "agentsec-runtime-events-dlq",
+      "agentsec-tests",
+      "agentsec-tests-dlq",
+      "agentsec.background.v1",
+      "agentsec.runtime-events.v1",
+      "agentsec.tests.v1",
+      "345600",
+      "1209600",
+      "300 / 120 / 900",
+      "30-second DLQ visibility",
+      "20-second long polling",
+      "262144-byte maximum messages",
+      "maxReceiveCount=5",
+      "npm run sqs:definitions:test",
+      "npm run sqs:definitions:run",
+      successLine,
+      "disposable LocalStack container",
+      "does not read or mutate a shared LocalStack container",
+      "M1-41",
+      "M1A-04",
+      "M8-03",
+      "M1-32 is Complete",
+      "M1-34 remains Pending",
+    ]) expect(sectionProse).toContain(value);
   });
 });

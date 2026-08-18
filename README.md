@@ -921,6 +921,45 @@ and M1-32 is Complete. M1-33 is In progress, defining the three exact product
 SQS queues and paired DLQs with closed schema metadata and bounded baseline
 settings.
 
+## SQS queue definitions proof
+
+M1-33 owns three Standard source queues and their paired dead-letter queues:
+
+| Source queue | Dead-letter queue | Schema ID | Source visibility |
+| --- | --- | --- | --- |
+| `agentsec-background` | `agentsec-background-dlq` | `agentsec.background.v1` | 300 seconds |
+| `agentsec-runtime-events` | `agentsec-runtime-events-dlq` | `agentsec.runtime-events.v1` | 120 seconds |
+| `agentsec-tests` | `agentsec-tests-dlq` | `agentsec.tests.v1` | 900 seconds |
+
+The source visibility sequence is exactly 300 / 120 / 900 seconds. Every
+source uses 345600-second retention, 20-second long polling, 262144-byte
+maximum messages, zero delay, and `maxReceiveCount=5`. Every DLQ uses
+1209600-second retention, 30-second DLQ visibility, the same long-poll and
+message-size bounds, zero delay, and an exact paired-source redrive-allow
+policy.
+
+Run the hermetic contract or the opt-in disposable lifecycle from the
+repository root:
+
+```bash
+npm run sqs:definitions:test
+npm run sqs:definitions:run
+```
+
+Live success is exactly
+`LocalStack queue definitions passed: queues=3 dlqs=3 schemas=3 retention=true redrive=true cleanup=true audit=true container_cleanup=true.`
+Failures are exactly
+`LocalStack queue definitions failed: <category> rejected.` The live command
+creates a disposable LocalStack container, uses only its numeric-loopback SQS
+endpoint, proves all six resources, and removes its exact container and build
+directory. It does not read or mutate a shared LocalStack container, real AWS,
+ambient credentials, profiles, proxies, IMDS, or customer state.
+
+This proof does not implement producer or consumer wiring; M1-41 owns that
+work. M1A-04 owns replay and DLQ-recovery behavior, and M8-03 owns production
+operations. M1-32 is Complete, M1-33 remains In progress until reviewed live
+evidence and exact-SHA CI succeed, and M1-34 remains Pending.
+
 ## Assembled local development target
 
 M1-30 is Complete. M1-30a, M1-30b, M1-30c, and M1-30d are Complete. The
