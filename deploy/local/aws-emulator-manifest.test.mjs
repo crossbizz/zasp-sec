@@ -109,9 +109,9 @@ test("pins the S3-only LocalStack server and internal endpoint contract", () => 
     requests: { cpu: "25m", memory: "64Mi" },
   });
   const probeCommand = "awslocal --endpoint-url http://127.0.0.1:4566 s3api list-buckets --query 'length(Buckets)' --output text >/dev/null 2>&1";
-  assert.deepEqual(container.startupProbe, { exec: { command: ["sh", "-ec", probeCommand] }, failureThreshold: 90, periodSeconds: 2, successThreshold: 1, timeoutSeconds: 1 });
-  assert.deepEqual(container.readinessProbe, { exec: { command: ["sh", "-ec", probeCommand] }, failureThreshold: 3, periodSeconds: 2, successThreshold: 1, timeoutSeconds: 1 });
-  assert.deepEqual(container.livenessProbe, { exec: { command: ["sh", "-ec", probeCommand] }, failureThreshold: 3, periodSeconds: 10, successThreshold: 1, timeoutSeconds: 1 });
+  assert.deepEqual(container.startupProbe, { exec: { command: ["sh", "-ec", probeCommand] }, failureThreshold: 90, periodSeconds: 2, successThreshold: 1, timeoutSeconds: 5 });
+  assert.deepEqual(container.readinessProbe, { exec: { command: ["sh", "-ec", probeCommand] }, failureThreshold: 3, periodSeconds: 2, successThreshold: 1, timeoutSeconds: 5 });
+  assert.deepEqual(container.livenessProbe, { exec: { command: ["sh", "-ec", probeCommand] }, failureThreshold: 3, periodSeconds: 10, successThreshold: 1, timeoutSeconds: 5 });
   assert.deepEqual(container.volumeMounts, [
     { mountPath: "/tmp", name: "localstack-tmp", readOnly: false },
     { mountPath: "/var/lib/localstack", name: "localstack-state", readOnly: false },

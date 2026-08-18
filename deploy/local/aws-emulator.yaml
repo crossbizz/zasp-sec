@@ -62,7 +62,7 @@ items:
                 failureThreshold: 3
                 periodSeconds: 10
                 successThreshold: 1
-                timeoutSeconds: 1
+                timeoutSeconds: 5
               name: localstack
               ports:
                 - containerPort: 4566
@@ -77,7 +77,7 @@ items:
                 failureThreshold: 3
                 periodSeconds: 2
                 successThreshold: 1
-                timeoutSeconds: 1
+                timeoutSeconds: 5
               resources:
                 limits:
                   cpu: 500m
@@ -103,7 +103,7 @@ items:
                 failureThreshold: 90
                 periodSeconds: 2
                 successThreshold: 1
-                timeoutSeconds: 1
+                timeoutSeconds: 5
               volumeMounts:
                 - mountPath: /tmp
                   name: localstack-tmp

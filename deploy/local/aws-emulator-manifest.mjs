@@ -233,7 +233,7 @@ function executableProbe(failureThreshold, periodSeconds) {
     failureThreshold,
     periodSeconds,
     successThreshold: 1,
-    timeoutSeconds: 1,
+    timeoutSeconds: 5,
   };
 }
 
