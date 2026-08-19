@@ -223,6 +223,30 @@ func TestProductionCoreMetadataOwnsOnlyMountedDurableSessionAndCoreSchema(t *tes
 	}
 }
 
+func TestRunnerVersionDistinguishesEmptyBaselineCoreAndDrift(t *testing.T) {
+	baseline, core := Baseline(), ProductionCore()
+	for _, test := range []struct {
+		name    string
+		rows    []Row
+		want    int64
+		wantErr error
+	}{
+		{name: "empty", rows: []Row{fakeRow{values: []any{false}}}, want: 0},
+		{name: "baseline", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(1)}}, fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}}}, want: 1},
+		{name: "core", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(2)}}, fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}}, fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}}}, want: 2},
+		{name: "drift", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(3)}}}, wantErr: ErrInvalidState},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			database := &fakeDatabase{rows: test.rows, transaction: &fakeTransaction{}}
+			runner, _ := NewRunner(database)
+			got, err := runner.Version(context.Background())
+			if got != test.want || !errors.Is(err, test.wantErr) {
+				t.Fatalf("Version = (%d, %v), want (%d, %v)", got, err, test.want, test.wantErr)
+			}
+		})
+	}
+}
+
 func TestRunnerDownCoreRequiresExactCoreAndRestoresBaseline(t *testing.T) {
 	baseline, core := Baseline(), ProductionCore()
 	transaction := &fakeTransaction{rows: []Row{

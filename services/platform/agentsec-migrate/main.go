@@ -7,16 +7,21 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
 
-const postgresDSNEnvironment = "ZASP_POSTGRES_DSN"
+const (
+	postgresDSNEnvironment      = "ZASP_POSTGRES_DSN"
+	migrationTimeoutEnvironment = "ZASP_MIGRATION_TIMEOUT"
+)
 
 var errInvalidMigrationCommand = errors.New("invalid release migration command")
 
 type releaseMigrationRunner interface {
+	Version(context.Context) (int64, error)
 	Up(context.Context) error
 	UpCore(context.Context) error
 	DownCore(context.Context) error
@@ -24,8 +29,14 @@ type releaseMigrationRunner interface {
 }
 
 func main() {
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	signalCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+	timeout, err := loadMigrationTimeout(os.Getenv)
+	if err != nil {
+		log.Fatal("release migration configuration rejected")
+	}
+	ctx, cancel := context.WithTimeout(signalCtx, timeout)
+	defer cancel()
 	dsn := os.Getenv(postgresDSNEnvironment)
 	if dsn == "" {
 		log.Fatal("release migration configuration rejected")
@@ -41,24 +52,72 @@ func main() {
 	}
 }
 
+func loadMigrationTimeout(getenv func(string) string) (time.Duration, error) {
+	if getenv == nil {
+		return 0, errInvalidMigrationCommand
+	}
+	timeout, err := time.ParseDuration(getenv(migrationTimeoutEnvironment))
+	if err != nil || timeout <= 0 || timeout > 30*time.Minute {
+		return 0, errInvalidMigrationCommand
+	}
+	return timeout, nil
+}
+
 func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arguments []string) error {
 	if ctx == nil || runner == nil || len(arguments) != 1 {
 		return errInvalidMigrationCommand
 	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	version, err := runner.Version(ctx)
+	if err != nil {
+		return err
+	}
 	switch arguments[0] {
 	case "up":
-		if err := runner.Up(ctx); err != nil {
-			return err
+		if version == 0 {
+			if err := runner.Up(ctx); err != nil {
+				return err
+			}
+			version = 1
 		}
-		return runner.UpCore(ctx)
+		if version == 1 {
+			if err := runner.UpCore(ctx); err != nil {
+				return err
+			}
+			version = 2
+		}
+		if version != 2 {
+			return migrations.ErrInvalidState
+		}
 	case "down":
-		if err := runner.DownCore(ctx); err != nil {
-			return err
+		if version == 2 {
+			if err := runner.DownCore(ctx); err != nil {
+				return err
+			}
+			version = 1
 		}
-		return runner.Down(ctx)
+		if version == 1 {
+			if err := runner.Down(ctx); err != nil {
+				return err
+			}
+			version = 0
+		}
+		if version != 0 {
+			return migrations.ErrInvalidState
+		}
 	default:
 		return errInvalidMigrationCommand
 	}
+	actual, err := runner.Version(ctx)
+	if err != nil {
+		return err
+	}
+	if actual != version {
+		return migrations.ErrInvalidState
+	}
+	return nil
 }
 
 type migrationDatabase struct{ connection *pgx.Conn }

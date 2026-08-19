@@ -143,6 +143,47 @@ func (runner *Runner) State(ctx context.Context) (State, error) {
 	return readState(ctx, runner.database)
 }
 
+// Version returns the exact release target installed in the database: zero for
+// an empty database, one for the immutable baseline, and two for production
+// core. Any partial, extra, or checksum-drifted state is rejected.
+func (runner *Runner) Version(ctx context.Context) (int64, error) {
+	if runner == nil || nilInterface(runner.database) {
+		return 0, ErrInvalidRunner
+	}
+	if ctx == nil {
+		return 0, ErrInvalidContext
+	}
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+	present, err := tablePresent(ctx, runner.database)
+	if err != nil || !present {
+		return 0, err
+	}
+	var count int64
+	if err := scanRow(ctx, runner.database, countRowsSQL, nil, &count); err != nil {
+		return 0, fixedDatabaseError(ctx, err)
+	}
+	if count != 1 && count != 2 {
+		return 0, ErrInvalidState
+	}
+	metadata := []Metadata{Baseline()}
+	if count == 2 {
+		metadata = append(metadata, ProductionCore())
+	}
+	for _, expected := range metadata {
+		var version int64
+		var name, checksum string
+		if err := scanRow(ctx, runner.database, readVersionSQL, []any{expected.Version()}, &version, &name, &checksum); err != nil {
+			return 0, fixedDatabaseError(ctx, err)
+		}
+		if version != expected.Version() || name != expected.Name() || checksum != expected.Checksum() {
+			return 0, ErrInvalidState
+		}
+	}
+	return count, nil
+}
+
 func (runner *Runner) Up(ctx context.Context) error {
 	if runner == nil || nilInterface(runner.database) {
 		return ErrInvalidRunner
