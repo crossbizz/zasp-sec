@@ -119,9 +119,26 @@ func TestWorkflowRepositoryListsAndAcknowledgesOnlyExactPrincipalScopeReceipts(t
 }
 
 func TestWorkflowRepositoryRejectsMalformedOrExpiredReceiptPayloads(t *testing.T) {
-	repository, _ := NewPostgresRepository(&workflowCallDatabase{response: json.RawMessage(`{"items":[{"id":"pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc","operation":"createPolicy","idempotency_key":"idem-exact-request-1","intent":{},"result":{},"resource_kind":"policy","resource_id":"policy-one","resource_version":1,"audit_id":"pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","correlation_id":"pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","created_at":"2026-08-25T12:00:00Z","expires_at":"2026-08-18T12:00:00Z"}]}`)})
-	if _, err := repository.ListWorkflowMutationReceipts(context.Background(), fixtureRequestIdentity(t), 20); !errors.Is(err, ErrRepositoryUnavailable) {
-		t.Fatalf("expired receipt error = %v", err)
+	for name, payload := range map[string]json.RawMessage{
+		"expired":           json.RawMessage(`{"items":[{"id":"pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc","operation":"createPolicy","idempotency_key":"idem-exact-request-1","intent":{},"result":{},"resource_kind":"policy","resource_id":"policy-one","resource_version":1,"audit_id":"pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","correlation_id":"pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","created_at":"2026-08-25T12:00:00Z","expires_at":"2026-08-18T12:00:00Z"}]}`),
+		"extra envelope":    json.RawMessage(`{"items":[],"unexpected":true}`),
+		"foreign operation": json.RawMessage(`{"items":[{"id":"pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc","operation":"unexpectedMutation","idempotency_key":"idem-exact-request-1","intent":{},"result":{},"resource_kind":"policy","resource_id":"policy-one","resource_version":1,"audit_id":"pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","correlation_id":"pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","created_at":"2026-08-18T12:00:00Z","expires_at":"2026-08-25T12:00:00Z"}]}`),
+	} {
+		t.Run(name, func(t *testing.T) {
+			repository, _ := NewPostgresRepository(&workflowCallDatabase{response: payload})
+			if _, err := repository.ListWorkflowMutationReceipts(context.Background(), fixtureRequestIdentity(t), 20); !errors.Is(err, ErrRepositoryUnavailable) {
+				t.Fatalf("malformed receipt error = %v", err)
+			}
+		})
+	}
+}
+
+func TestWorkflowRepositoryRejectsReplayWithoutOriginalReceiptIdentity(t *testing.T) {
+	database := &workflowCallDatabase{response: json.RawMessage(`{"found":true,"result":{"body":{"id":"policy-one"},"version":1,"secret_generation":0,"audit_id":"pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","correlation_id":"pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","replayed":true}}`)}
+	repository, _ := NewPostgresRepository(database)
+	result, found, err := repository.ReplayWorkflow(context.Background(), fixtureRequestIdentity(t), "createPolicy", "idem-exact-request-1", json.RawMessage(`{"body":{"id":"policy-one"},"expected_version":0,"resource_id":""}`))
+	if !errors.Is(err, ErrRepositoryUnavailable) || found || !reflect.DeepEqual(result, WorkflowMutationResult{}) {
+		t.Fatalf("replay without receipt identity = (%#v, %v, %v)", result, found, err)
 	}
 }
 

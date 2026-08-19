@@ -118,7 +118,8 @@ func (handler *workflowHTTPHandler) read(writer http.ResponseWriter, request *ht
 
 func (handler *workflowHTTPHandler) readMutationReceipts(writer http.ResponseWriter, request *http.Request, identity RequestIdentity) {
 	query, err := url.ParseQuery(request.URL.RawQuery)
-	if err != nil || len(query) > 1 {
+	_, hasLimit := query["limit"]
+	if err != nil || len(query) > 1 || len(query) == 1 && !hasLimit {
 		writeProductionError(writer, request, ErrRepositoryOperation)
 		return
 	}

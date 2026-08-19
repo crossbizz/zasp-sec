@@ -160,10 +160,11 @@ func (repository *PostgresRepository) ListWorkflowMutationReceipts(ctx context.C
 	if err != nil {
 		return nil, err
 	}
+	var raw map[string]json.RawMessage
 	var envelope struct {
 		Items []WorkflowMutationReceipt `json:"items"`
 	}
-	if json.Unmarshal(payload, &envelope) != nil || len(envelope.Items) > limit {
+	if json.Unmarshal(payload, &raw) != nil || len(raw) != 1 || raw["items"] == nil || json.Unmarshal(payload, &envelope) != nil || envelope.Items == nil || len(envelope.Items) > limit {
 		return nil, ErrRepositoryUnavailable
 	}
 	for index := range envelope.Items {
@@ -206,7 +207,8 @@ func validWorkflowMutationReceipt(value WorkflowMutationReceipt) bool {
 	if _, err := domain.ParseProductID(value.CorrelationID); err != nil {
 		return false
 	}
-	return workflowKeyPattern.MatchString(value.Operation) && len(value.IdempotencyKey) >= 16 && len(value.IdempotencyKey) <= 128 && validJSONObjectBody(value.Intent) && !containsSensitiveWorkflowField(value.Intent) && validJSONObjectBody(value.Result) && !containsSensitiveWorkflowField(value.Result) && validWorkflowID(value.ResourceKind, value.ResourceID) && value.ResourceVersion > 0 && !value.CreatedAt.IsZero() && value.ExpiresAt.After(value.CreatedAt) && !value.ExpiresAt.After(value.CreatedAt.Add(7*24*time.Hour))
+	operationKind, _, _, validOperation := workflowMutationTarget(value.Operation)
+	return validOperation && operationKind == value.ResourceKind && len(value.IdempotencyKey) >= 16 && len(value.IdempotencyKey) <= 128 && validJSONObjectBody(value.Intent) && !containsSensitiveWorkflowField(value.Intent) && validJSONObjectBody(value.Result) && !containsSensitiveWorkflowField(value.Result) && validWorkflowID(value.ResourceKind, value.ResourceID) && value.ResourceVersion > 0 && !value.CreatedAt.IsZero() && value.ExpiresAt.After(value.CreatedAt) && !value.ExpiresAt.After(value.CreatedAt.Add(7*24*time.Hour))
 }
 
 func (repository *PostgresRepository) ReplayWorkflow(ctx context.Context, identity RequestIdentity, operation, idempotencyKey string, intent json.RawMessage) (WorkflowMutationResult, bool, error) {
@@ -233,6 +235,9 @@ func (repository *PostgresRepository) ReplayWorkflow(ctx context.Context, identi
 		return WorkflowMutationResult{}, false, ErrRepositoryUnavailable
 	}
 	if _, err := domain.ParseProductID(envelope.Result.CorrelationID); err != nil {
+		return WorkflowMutationResult{}, false, ErrRepositoryUnavailable
+	}
+	if _, err := domain.ParseProductID(envelope.Result.ReceiptID); err != nil {
 		return WorkflowMutationResult{}, false, ErrRepositoryUnavailable
 	}
 	return envelope.Result, true, nil

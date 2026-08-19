@@ -31,6 +31,7 @@ type workflowRepositoryStub struct {
 	cursorPage          WorkflowListPage
 	cursorCalls         int
 	receipts            []WorkflowMutationReceipt
+	receiptListCalls    int
 	receiptID           string
 	receiptListIdentity RequestIdentity
 	receiptAckIdentity  RequestIdentity
@@ -58,6 +59,7 @@ func (repository *workflowRepositoryStub) MutateWorkflow(_ context.Context, iden
 	return repository.result, repository.err
 }
 func (repository *workflowRepositoryStub) ListWorkflowMutationReceipts(_ context.Context, identity RequestIdentity, _ int) ([]WorkflowMutationReceipt, error) {
+	repository.receiptListCalls++
 	repository.receiptListIdentity = identity
 	return repository.receipts, repository.err
 }
@@ -158,6 +160,17 @@ func TestWorkflowHandlerListsAndAcknowledgesExactAuthenticatedReceipts(t *testin
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), receiptID) || repository.receiptListIdentity.Scope != identity.Scope || repository.receiptListIdentity.PrincipalID != identity.PrincipalID {
 		t.Fatalf("receipt list = %d %s identity=%#v", response.Code, response.Body.String(), repository.receiptListIdentity)
+	}
+	for _, target := range []string{
+		"/api/v1/workflow-mutation-receipts?unexpected=true",
+		"/api/v1/workflow-mutation-receipts?limit=20&unexpected=true",
+	} {
+		request = workflowRequest(t, identity, testCorrelationID, "listWorkflowMutationReceipts", nil, http.MethodGet, target, "")
+		response = httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		if response.Code != http.StatusBadRequest || repository.receiptListCalls != 1 {
+			t.Fatalf("unexpected receipt query %q = %d calls=%d body=%s", target, response.Code, repository.receiptListCalls, response.Body.String())
+		}
 	}
 
 	request = workflowRequest(t, identity, testCorrelationID, "acknowledgeWorkflowMutationReceipt", map[string]string{"id": receiptID}, http.MethodPost, "/api/v1/workflow-mutation-receipts/"+receiptID+"/acknowledge", `{}`)
