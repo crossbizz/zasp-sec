@@ -558,9 +558,18 @@ CREATE FUNCTION "public"."zasp_discovery_readiness"(expected_checksum text,expec
  SELECT EXISTS(SELECT 1 FROM zasp_schema_versions v JOIN zasp_schema_metadata m ON m.key='production_core_schema' AND m.value='production-discovery-v1' JOIN zasp_schema_metadata fingerprint ON fingerprint.key='production_discovery_fingerprint' AND fingerprint.value=expected_fingerprint CROSS JOIN live WHERE v.version=10 AND v.name='production_discovery' AND v.checksum=expected_checksum AND live.value=expected_fingerprint AND NOT EXISTS(SELECT 1 FROM zasp_schema_versions newer WHERE newer.version>10))
 $$;
 
-CREATE ROLE zasp_discovery_authority NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
-CREATE ROLE zasp_discovery_api NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
-CREATE ROLE zasp_discovery_worker NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
+DO $roles$
+DECLARE role_name text; unsafe boolean;
+BEGIN
+  FOREACH role_name IN ARRAY ARRAY['zasp_discovery_authority','zasp_discovery_api','zasp_discovery_worker'] LOOP
+    IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname=role_name) THEN
+      EXECUTE format('CREATE ROLE %I NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS',role_name);
+    ELSE
+      SELECT rolcanlogin OR rolsuper OR rolcreatedb OR rolcreaterole OR rolinherit OR rolbypassrls INTO unsafe FROM pg_roles WHERE rolname=role_name;
+      IF unsafe THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='unsafe pre-provisioned discovery role'; END IF;
+    END IF;
+  END LOOP;
+END $roles$;
 GRANT zasp_discovery_authority TO CURRENT_USER WITH ADMIN OPTION;
 GRANT USAGE ON SCHEMA public TO zasp_discovery_api,zasp_discovery_worker;
 GRANT SELECT ON zasp_schema_versions,zasp_schema_metadata TO zasp_discovery_authority,zasp_discovery_api,zasp_discovery_worker;

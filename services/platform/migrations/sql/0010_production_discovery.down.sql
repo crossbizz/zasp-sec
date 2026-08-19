@@ -83,6 +83,3 @@ DROP FUNCTION zasp_valid_product_id(text);
 DROP OWNED BY zasp_discovery_api;
 DROP OWNED BY zasp_discovery_worker;
 DROP OWNED BY zasp_discovery_authority;
-DROP ROLE zasp_discovery_api;
-DROP ROLE zasp_discovery_worker;
-DROP ROLE zasp_discovery_authority;

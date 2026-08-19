@@ -290,6 +290,46 @@ func TestProductionDiscoveryLeastPrivilegeRolesAndLiveReadiness(t *testing.T) {
 	}
 }
 
+func TestProductionDiscoveryRolesAreSafeAcrossDatabasesInOneCluster(t *testing.T) {
+	dsn := startDisposablePostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	first, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer first.Close(context.Background())
+	firstRunner := migrateToProductionDiscovery(t, ctx, first)
+	if _, err := first.Exec(ctx, `CREATE DATABASE zasp_discovery_second`); err != nil {
+		t.Fatal(err)
+	}
+	configuration, err := pgx.ParseConfig(dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	configuration.Database = "zasp_discovery_second"
+	second, err := pgx.ConnectConfig(ctx, configuration)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer second.Close(context.Background())
+	migrateToProductionDiscovery(t, ctx, second)
+	if err := firstRunner.DownProductionDiscovery(ctx); err != nil {
+		t.Fatalf("down first database with shared roles: %v", err)
+	}
+	var roles int
+	if err := second.QueryRow(ctx, `SELECT count(*) FROM pg_roles WHERE rolname IN ('zasp_discovery_authority','zasp_discovery_api','zasp_discovery_worker')`).Scan(&roles); err != nil || roles != 3 {
+		t.Fatalf("shared roles after one database down=%d err=%v", roles, err)
+	}
+	if _, err := second.Exec(ctx, `SET ROLE zasp_discovery_api`); err != nil {
+		t.Fatalf("second database role unusable: %v", err)
+	}
+	var ready bool
+	if err := second.QueryRow(ctx, `SELECT zasp_discovery_readiness($1,$2)`, migrations.ProductionDiscovery().Checksum(), migrations.ProductionDiscoverySemanticFingerprint()).Scan(&ready); err != nil || !ready {
+		t.Fatalf("second database readiness=%v err=%v", ready, err)
+	}
+}
+
 type discoveryFixPostgresFixture struct {
 	t          *testing.T
 	ctx        context.Context
