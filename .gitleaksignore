@@ -26,3 +26,9 @@ proofs/nango-oauth/run.test.mjs:generic-api-key:33
 5a20b590aec4e2cd7d87f7984b265f8114c5ee57:services/platform/apiserver/workflow_handler_test.go:generic-api-key:116
 b1d683c6fb79b337db6e866e95499507b5bfddc3:services/platform/apiserver/workflow_handler_test.go:generic-api-key:300
 ebf8a773634b6212e4334e07497e1ef4e07bb9ee:scripts/production-combined-e2e.mjs:generic-api-key:67
+
+# Batch 2 fix round one adds two descriptive idempotency-key literals only in
+# hermetic transition/replay tests. Ignore their exact introduction findings;
+# changed or relocated values remain detectable.
+b85f368af14ec6c26ae3a629109349bf2d6ad29c:services/platform/apiserver/postgres_integration_test.go:generic-api-key:165
+4eff017ac317a34ffb6eff365798cc29e900bcb8:services/platform/apiserver/workflow_handler_test.go:generic-api-key:144
