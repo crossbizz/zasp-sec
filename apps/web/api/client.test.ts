@@ -1,6 +1,6 @@
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
-import { createAPIClient } from "./client";
+import { APITransportError, createAPIClient } from "./client";
 import type { ProductID } from "./client";
 import type {
   Cursor,
@@ -98,6 +98,9 @@ describe("generated API client", () => {
       | "/api/v1/runtimes"
       | "/api/v1/runtimes/{id}"
       | "/api/v1/search"
+      | "/api/v1/session/bootstrap"
+      | "/api/v1/session/callback"
+      | "/api/v1/session/sign-out"
       | "/api/v1/security-actions"
       | "/api/v1/security-agent-approvals"
       | "/api/v1/security-agent-approvals/{id}"
@@ -137,11 +140,80 @@ describe("generated API client", () => {
   it("constructs the typed Fetch client without performing I/O", () => {
     const fetch = vi.fn(async () => new Response(null, { status: 204 }));
     const client = createAPIClient({
-      baseUrl: "https://example.invalid",
       fetch,
     });
 
     expect(client).toBeDefined();
     expect(fetch).not.toHaveBeenCalled();
   });
+
+  it.each(["https://evil.example", "//evil.example", "/\\evil.example", "/%2f%2fevil.example", "/api?next=//evil.example", "/api#evil"])(
+    "rejects non-relative or redirect-like base URL %s",
+    (baseUrl) => {
+      expect(() => createAPIClient({ baseUrl })).toThrow(APITransportError);
+    },
+  );
+
+  it("enforces same-origin credentials, correlation, CSRF, and redirect policy", async () => {
+    const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request = input instanceof Request ? input : new Request(new URL(String(input), "https://app.zasp.test"), init);
+      expect(request.credentials).toBe("same-origin");
+      expect(request.redirect).toBe("error");
+      expect(request.headers.get("X-Correlation-ID")).toBe("pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee");
+      expect(request.headers.get("X-CSRF-Token")).toBe("csrf-value");
+      expect(request.url).toBe(`${window.location.origin}/api/v1/findings/pid_20000001-0000-4000-8000-000000000001`);
+      return jsonResponse({ id: "pid_20000001-0000-4000-8000-000000000001", source: "posture", title: "Finding", severity: "high", status: "resolved", evidence_ids: [], risk_factors: [] });
+    });
+    const client = createAPIClient({
+      fetch,
+      getCSRFToken: () => "csrf-value",
+      generateCorrelationID: () => "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+    });
+
+    const result = await client.PATCH("/api/v1/findings/{id}", {
+      params: { path: { id: "pid_20000001-0000-4000-8000-000000000001" } },
+      body: { status: "resolved" },
+    });
+    expect(result.error).toBeUndefined();
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  it("bounds time and preserves caller aborts", async () => {
+    const waitForAbort = vi.fn((input: RequestInfo | URL, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      const signal = input instanceof Request ? input.signal : init?.signal;
+      signal?.addEventListener("abort", () => reject(signal.reason), { once: true });
+    }));
+    const timed = createAPIClient({ fetch: waitForAbort, timeoutMs: 5 });
+    await expect(timed.GET("/api/v1/home/summary")).rejects.toMatchObject({ kind: "timeout" });
+
+    const controller = new AbortController();
+    const aborted = createAPIClient({ fetch: waitForAbort, timeoutMs: 1000 });
+    const pending = aborted.GET("/api/v1/home/summary", { signal: controller.signal });
+    controller.abort(new DOMException("caller stopped", "AbortError"));
+    await expect(pending).rejects.toMatchObject({ name: "AbortError", message: "caller stopped" });
+  });
+
+  it.each([
+    ["HTML error", new Response("<html>no</html>", { status: 500, headers: { "Content-Type": "text/html" } }), "invalid_error"],
+    ["malformed success", new Response("not-json", { status: 200, headers: { "Content-Type": "application/json" } }), "invalid_response"],
+    ["oversized body", jsonResponse({ value: "x".repeat(100) }), "response_too_large"],
+  ])("rejects %s without returning simulated data", async (_name, response, kind) => {
+    const client = createAPIClient({ fetch: async () => response.clone(), maximumResponseBytes: 64 });
+    await expect(client.GET("/api/v1/home/summary")).rejects.toMatchObject({ kind });
+  });
+
+  it("notifies once when the fixed product envelope reports session expiry", async () => {
+    const expired = vi.fn();
+    const client = createAPIClient({
+      fetch: async () => jsonResponse({ code: "authentication_required", message: "Authentication required", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: false }, 401),
+      onSessionExpired: expired,
+    });
+    const result = await client.GET("/api/v1/home/summary");
+    expect(result.error).toMatchObject({ code: "authentication_required" });
+    expect(expired).toHaveBeenCalledOnce();
+  });
 });
+
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+}
