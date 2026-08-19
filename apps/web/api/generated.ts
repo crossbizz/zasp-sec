@@ -597,6 +597,48 @@ export type paths = {
         readonly patch: operations["updateIntegration"];
         readonly trace?: never;
     };
+    readonly "/api/v1/integrations/{id}/authorize": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Begin a state-bound first-party integration authorization
+         * @description Creates or replays an exact authorization attempt for the current browser principal and scope. The response contains only the durable attempt reference, a bounded HTTPS provider authorization target, and its expiry; it never returns OAuth state, a PKCE verifier, a provider token, a refresh credential, or secret material.
+         */
+        readonly post: operations["authorizeIntegration"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/integrations/oauth/callback": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Complete a state-bound first-party integration authorization
+         * @description Accepts exactly code and state, or exactly error and state. Code and error are mutually exclusive. Duplicate or additional parameters, including error_description and error_uri, are rejected. The one-time state is reauthorized against the current BrowserSession before any provider exchange. Success and provider denial return a 303 to a fixed same-origin relative path with Cache-Control: no-store and Referrer-Policy: no-referrer; no provider token, verifier, credential, or provider error detail enters the redirect URL.
+         */
+        readonly get: operations["completeIntegrationOAuthCallback"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/me": {
         readonly parameters: {
             readonly query?: never;
@@ -1568,6 +1610,16 @@ export type components = {
             /** Format: date-time */
             readonly updated_at: string;
         };
+        readonly IntegrationAuthorization: {
+            readonly authorization_attempt_id: components["schemas"]["ProductID"];
+            /**
+             * Format: uri
+             * @description Provider authorization target containing opaque state but no provider credential or product secret.
+             */
+            readonly authorization_url: string;
+            /** Format: date-time */
+            readonly expires_at: string;
+        };
         readonly IntegrationCatalogPage: {
             readonly items: readonly components["schemas"]["ConnectorManifest"][];
         };
@@ -1579,6 +1631,9 @@ export type components = {
             readonly connector_key: string;
             readonly name: string;
         };
+        readonly IntegrationOAuthCallbackValue: string;
+        /** @enum {string} */
+        readonly IntegrationOAuthProviderError: "invalid_request" | "unauthorized_client" | "access_denied" | "unsupported_response_type" | "invalid_scope" | "server_error" | "temporarily_unavailable";
         readonly IntegrationPage: {
             readonly items: readonly components["schemas"]["Integration"][];
             readonly page_info: components["schemas"]["PageInfo"];
@@ -2270,9 +2325,12 @@ export type GroupMappingInput = components['schemas']['GroupMappingInput'];
 export type GroupMappingPage = components['schemas']['GroupMappingPage'];
 export type HomeSummary = components['schemas']['HomeSummary'];
 export type Integration = components['schemas']['Integration'];
+export type IntegrationAuthorization = components['schemas']['IntegrationAuthorization'];
 export type IntegrationCatalogPage = components['schemas']['IntegrationCatalogPage'];
 export type IntegrationConfiguration = components['schemas']['IntegrationConfiguration'];
 export type IntegrationInput = components['schemas']['IntegrationInput'];
+export type IntegrationOAuthCallbackValue = components['schemas']['IntegrationOAuthCallbackValue'];
+export type IntegrationOAuthProviderError = components['schemas']['IntegrationOAuthProviderError'];
 export type IntegrationPage = components['schemas']['IntegrationPage'];
 export type IntegrationStatus = components['schemas']['IntegrationStatus'];
 export type IntegrationSync = components['schemas']['IntegrationSync'];
@@ -3469,6 +3527,86 @@ export interface operations {
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly authorizeIntegration: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["EmptyInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Exact authorization attempt and safe provider authorization target. */
+            readonly 200: {
+                headers: {
+                    /** @description Prevent authorization targets from being stored. */
+                    readonly "Cache-Control"?: "no-store";
+                    /** @description Prevent authorization data from entering a Referer header. */
+                    readonly "Referrer-Policy"?: "no-referrer";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["IntegrationAuthorization"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly completeIntegrationOAuthCallback: {
+        readonly parameters: {
+            readonly query: {
+                /** @description Provider authorization code. Required for the success form and mutually exclusive with error. */
+                readonly code?: components["schemas"]["IntegrationOAuthCallbackValue"];
+                /** @description Provider denial code. Required for the provider-error form and mutually exclusive with code. */
+                readonly error?: components["schemas"]["IntegrationOAuthProviderError"];
+                /** @description Opaque one-time state bound to the current browser session and authorization attempt. */
+                readonly state: components["schemas"]["IntegrationOAuthCallbackValue"];
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorization completed or safely denied; continue at the fixed product return path without callback data. */
+            readonly 303: {
+                headers: {
+                    /** @description Prevent callback responses from being stored. */
+                    readonly "Cache-Control"?: "no-store";
+                    /** @description Fixed same-origin relative product return path. */
+                    readonly Location?: string;
+                    /** @description Prevent callback query data from entering a Referer header. */
+                    readonly "Referrer-Policy"?: "no-referrer";
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };

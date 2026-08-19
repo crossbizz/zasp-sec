@@ -440,19 +440,19 @@ describe("production workflow concurrency contract", () => {
     ]);
   });
 
-  it("publishes exactly the mounted Batch 4 risk slice and no ruled-out overclaims", () => {
+  it("publishes exactly the mounted Batch 4 risk slice and launch authorization operations without other overclaims", () => {
     const operations = new Map();
     for (const [path, pathItem] of Object.entries(document.paths)) {
       for (const [method, operation] of Object.entries(pathItem)) {
         if (operation?.operationId) operations.set(operation.operationId, { path, method, operation });
       }
     }
-    assert.equal(operations.size, 80);
-    for (const operationId of ["listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions"]) {
+    assert.equal(operations.size, 82);
+    for (const operationId of ["listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "authorizeIntegration", "completeIntegrationOAuthCallback"]) {
       assert.ok(operations.has(operationId), operationId);
     }
     for (const operationId of [
-      "authorizeIntegration", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync",
+      "syncIntegration", "listIntegrationSyncs", "getIntegrationSync",
       "listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage",
       "updateAgent", "createFindingTicket",
       "listTests", "createTest", "getTest", "updateTest", "runTest", "listTestRuns", "getTestRun", "cancelTestRun",
@@ -461,6 +461,97 @@ describe("production workflow concurrency contract", () => {
       "listSecurityActions", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval",
       "globalSearch", "createAIExplanation",
     ]) assert.equal(operations.has(operationId), false, operationId);
+  });
+
+  it("publishes strict browser-only integration authorization and OAuth callback contracts", () => {
+    const authorizePath = document.paths["/api/v1/integrations/{id}/authorize"];
+    assert.deepEqual(authorizePath.parameters, [{
+      name: "id",
+      in: "path",
+      required: true,
+      schema: { $ref: "#/components/schemas/ProductID" },
+    }]);
+    const authorize = authorizePath.post;
+    assert.equal(authorize.operationId, "authorizeIntegration");
+    assert.deepEqual(authorize.security, [{ BrowserSession: [], BrowserExpectedScope: [] }]);
+    assert.deepEqual(authorize.parameters, [
+      { $ref: "#/components/parameters/CSRFToken" },
+      { $ref: "#/components/parameters/IdempotencyKey" },
+    ]);
+    assert.equal(authorize.requestBody.required, true);
+    assert.deepEqual(authorize.requestBody.content["application/json"].schema, { $ref: "#/components/schemas/EmptyInput" });
+    assert.deepEqual(authorize.responses["200"].content["application/json"].schema, { $ref: "#/components/schemas/IntegrationAuthorization" });
+    assert.deepEqual(Object.keys(authorize.responses["200"].headers).sort(), ["Cache-Control", "Referrer-Policy"]);
+    assert.deepEqual(authorize.responses["200"].headers["Cache-Control"].schema, { type: "string", const: "no-store" });
+    assert.deepEqual(authorize.responses["200"].headers["Referrer-Policy"].schema, { type: "string", const: "no-referrer" });
+
+    const result = document.components.schemas.IntegrationAuthorization;
+    assert.equal(result.additionalProperties, false);
+    assert.deepEqual(result.required, ["authorization_attempt_id", "authorization_url", "expires_at"]);
+    assert.deepEqual(Object.keys(result.properties), ["authorization_attempt_id", "authorization_url", "expires_at"]);
+    assert.deepEqual(result.properties.authorization_attempt_id, { $ref: "#/components/schemas/ProductID" });
+    assert.deepEqual(result.properties.authorization_url, {
+      type: "string",
+      format: "uri",
+      minLength: 10,
+      maxLength: 4096,
+      pattern: "^https://",
+      description: "Provider authorization target containing opaque state but no provider credential or product secret.",
+    });
+    assert.deepEqual(result.properties.expires_at, { type: "string", format: "date-time" });
+    for (const forbidden of ["state", "code", "verifier", "token", "secret", "credential", "refresh_token", "access_token"]) {
+      assert.equal(Object.hasOwn(result.properties, forbidden), false, forbidden);
+    }
+
+    const callback = document.paths["/api/v1/integrations/oauth/callback"].get;
+    assert.equal(callback.operationId, "completeIntegrationOAuthCallback");
+    assert.deepEqual(callback.security, [{ BrowserSession: [] }]);
+    assert.deepEqual(callback.parameters, [
+      {
+        name: "state",
+        in: "query",
+        required: true,
+        description: "Opaque one-time state bound to the current browser session and authorization attempt.",
+        schema: { $ref: "#/components/schemas/IntegrationOAuthCallbackValue" },
+      },
+      {
+        name: "code",
+        in: "query",
+        required: false,
+        description: "Provider authorization code. Required for the success form and mutually exclusive with error.",
+        schema: { $ref: "#/components/schemas/IntegrationOAuthCallbackValue" },
+      },
+      {
+        name: "error",
+        in: "query",
+        required: false,
+        description: "Provider denial code. Required for the provider-error form and mutually exclusive with code.",
+        schema: { $ref: "#/components/schemas/IntegrationOAuthProviderError" },
+      },
+    ]);
+    assert.match(callback.description, /exactly code and state, or exactly error and state/);
+    assert.match(callback.description, /Duplicate or additional parameters, including error_description and error_uri, are rejected/);
+    assert.match(callback.description, /303.*same-origin relative path.*Cache-Control: no-store.*Referrer-Policy: no-referrer/s);
+    assert.equal(Object.hasOwn(callback, "requestBody"), false);
+    assert.deepEqual(Object.keys(callback.responses["303"]).sort(), ["description", "headers"]);
+    assert.deepEqual(callback.responses["303"].headers.Location.schema, {
+      type: "string",
+      minLength: 1,
+      maxLength: 2048,
+      pattern: "^/(?!/)",
+    });
+    assert.deepEqual(callback.responses["303"].headers["Cache-Control"].schema, { type: "string", const: "no-store" });
+    assert.deepEqual(callback.responses["303"].headers["Referrer-Policy"].schema, { type: "string", const: "no-referrer" });
+    assert.deepEqual(document.components.schemas.IntegrationOAuthCallbackValue, {
+      type: "string",
+      minLength: 8,
+      maxLength: 512,
+      pattern: "^[A-Za-z0-9._~-]{8,512}$",
+    });
+    assert.deepEqual(document.components.schemas.IntegrationOAuthProviderError, {
+      type: "string",
+      enum: ["invalid_request", "unauthorized_client", "access_denied", "unsupported_response_type", "invalid_scope", "server_error", "temporarily_unavailable"],
+    });
   });
 
   it("binds risk reads and mutations to strict pagination, security, and recovery contracts", () => {

@@ -699,6 +699,57 @@ paths:
               schema: { $ref: '#/components/schemas/Integration' }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/integrations/oauth/callback:
+    get:
+      operationId: completeIntegrationOAuthCallback
+      summary: Complete a state-bound first-party integration authorization
+      description: >-
+        Accepts exactly code and state, or exactly error and state. Code and
+        error are mutually exclusive. Duplicate or additional parameters,
+        including error_description and error_uri, are rejected. The one-time
+        state is reauthorized against the current BrowserSession before any
+        provider exchange. Success and provider denial return a 303 to a fixed
+        same-origin relative path with Cache-Control: no-store and
+        Referrer-Policy: no-referrer; no provider token, verifier, credential,
+        or provider error detail enters the redirect URL.
+      security:
+        - BrowserSession: []
+      parameters:
+        - name: state
+          in: query
+          required: true
+          description: Opaque one-time state bound to the current browser session and authorization attempt.
+          schema: { $ref: '#/components/schemas/IntegrationOAuthCallbackValue' }
+        - name: code
+          in: query
+          required: false
+          description: Provider authorization code. Required for the success form and mutually exclusive with error.
+          schema: { $ref: '#/components/schemas/IntegrationOAuthCallbackValue' }
+        - name: error
+          in: query
+          required: false
+          description: Provider denial code. Required for the provider-error form and mutually exclusive with code.
+          schema: { $ref: '#/components/schemas/IntegrationOAuthProviderError' }
+      responses:
+        '303':
+          description: Authorization completed or safely denied; continue at the fixed product return path without callback data.
+          headers:
+            Location:
+              description: Fixed same-origin relative product return path.
+              schema: { type: string, minLength: 1, maxLength: 2048, pattern: '^/(?!/)' }
+            Cache-Control:
+              description: Prevent callback responses from being stored.
+              schema: { type: string, const: no-store }
+            Referrer-Policy:
+              description: Prevent callback query data from entering a Referer header.
+              schema: { type: string, const: no-referrer }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/integrations/{id}:
     parameters:
       - name: id
@@ -746,6 +797,52 @@ paths:
       responses:
         '204': { description: Integration deleted., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }, X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/integrations/{id}/authorize:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/ProductID' }
+    post:
+      operationId: authorizeIntegration
+      summary: Begin a state-bound first-party integration authorization
+      description: >-
+        Creates or replays an exact authorization attempt for the current
+        browser principal and scope. The response contains only the durable
+        attempt reference, a bounded HTTPS provider authorization target, and
+        its expiry; it never returns OAuth state, a PKCE verifier, a provider
+        token, a refresh credential, or secret material.
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmptyInput' }
+      responses:
+        '200':
+          description: Exact authorization attempt and safe provider authorization target.
+          headers:
+            Cache-Control:
+              description: Prevent authorization targets from being stored.
+              schema: { type: string, const: no-store }
+            Referrer-Policy:
+              description: Prevent authorization data from entering a Referer header.
+              schema: { type: string, const: no-referrer }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IntegrationAuthorization' }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/agents:
     get:
@@ -2527,6 +2624,28 @@ components:
     IntegrationStatus:
       type: string
       enum: [configured, pending_authorization, active]
+    IntegrationOAuthCallbackValue:
+      type: string
+      minLength: 8
+      maxLength: 512
+      pattern: '^[A-Za-z0-9._~-]{8,512}$'
+    IntegrationOAuthProviderError:
+      type: string
+      enum: [invalid_request, unauthorized_client, access_denied, unsupported_response_type, invalid_scope, server_error, temporarily_unavailable]
+    IntegrationAuthorization:
+      type: object
+      additionalProperties: false
+      required: [authorization_attempt_id, authorization_url, expires_at]
+      properties:
+        authorization_attempt_id: { $ref: '#/components/schemas/ProductID' }
+        authorization_url:
+          type: string
+          format: uri
+          minLength: 10
+          maxLength: 4096
+          pattern: '^https://'
+          description: Provider authorization target containing opaque state but no provider credential or product secret.
+        expires_at: { type: string, format: date-time }
     IntegrationInput:
       type: object
       additionalProperties: false

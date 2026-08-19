@@ -93,13 +93,13 @@ test("reproduces the committed bytes and rejects changed or missing output witho
   }
 });
 
-test("exports exactly the seven Batch 4 risk methods and no removed overclaims", async () => {
+test("exports the Batch 4 risk and launch authorization methods without removed overclaims", async () => {
   const generated = await readFile(generatedPath, "utf8");
-  for (const operationId of ["listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions"]) {
+  for (const operationId of ["listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "authorizeIntegration", "completeIntegrationOAuthCallback"]) {
     assert.match(generated, new RegExp(`\\b${operationId}:`), operationId);
   }
   for (const operationId of [
-    "authorizeIntegration", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync",
+    "syncIntegration", "listIntegrationSyncs", "getIntegrationSync",
     "listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage",
     "updateAgent", "createFindingTicket", "listTests", "createTest", "getTest", "updateTest", "runTest", "listTestRuns", "getTestRun", "cancelTestRun",
     "listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun", "simulatePolicy", "listPolicyDecisions",
@@ -112,4 +112,28 @@ test("exports exactly the seven Batch 4 risk methods and no removed overclaims",
     assert.notEqual(start, -1, operationId);
     assert.match(generated.slice(start, end), /readonly "X-CSRF-Token": components\["parameters"\]\["CSRFToken"\]/, `${operationId} browser CSRF`);
   }
+  const authorizeStart = generated.indexOf("readonly authorizeIntegration:");
+  const authorizeEnd = generated.indexOf("readonly responses:", authorizeStart);
+  assert.notEqual(authorizeStart, -1);
+  assert.match(generated.slice(authorizeStart, authorizeEnd), /readonly "X-CSRF-Token": components\["parameters"\]\["CSRFToken"\]/);
+  assert.match(generated.slice(authorizeStart, authorizeEnd), /readonly "Idempotency-Key": components\["parameters"\]\["IdempotencyKey"\]/);
+  assert.match(generated.slice(authorizeStart, authorizeEnd), /readonly "application\/json": components\["schemas"\]\["EmptyInput"\]/);
+
+  const callbackStart = generated.indexOf("readonly completeIntegrationOAuthCallback:");
+  const callbackEnd = generated.indexOf("readonly responses:", callbackStart);
+  assert.notEqual(callbackStart, -1);
+  const callback = generated.slice(callbackStart, callbackEnd);
+  assert.match(callback, /readonly query: \{[\s\S]*readonly state: components\["schemas"\]\["IntegrationOAuthCallbackValue"\]/);
+  assert.match(callback, /readonly code\?: components\["schemas"\]\["IntegrationOAuthCallbackValue"\]/);
+  assert.match(callback, /readonly error\?: components\["schemas"\]\["IntegrationOAuthProviderError"\]/);
+  assert.doesNotMatch(callback, /X-CSRF-Token|X-Zasp-Expected-Scope|error_description|error_uri/);
+
+  const authorizeOperation = generated.slice(authorizeStart, callbackStart);
+  assert.match(authorizeOperation, /readonly "application\/json": components\["schemas"\]\["IntegrationAuthorization"\]/);
+  assert.match(authorizeOperation, /readonly "Cache-Control"\?: "no-store"/);
+  assert.match(authorizeOperation, /readonly "Referrer-Policy"\?: "no-referrer"/);
+  const callbackOperation = generated.slice(callbackStart, generated.indexOf("readonly createEnvironment:", callbackStart));
+  assert.match(callbackOperation, /readonly 303: \{[\s\S]*readonly Location\?: string[\s\S]*content\?: never/);
+  assert.match(callbackOperation, /readonly "Cache-Control"\?: "no-store"/);
+  assert.match(callbackOperation, /readonly "Referrer-Policy"\?: "no-referrer"/);
 });
