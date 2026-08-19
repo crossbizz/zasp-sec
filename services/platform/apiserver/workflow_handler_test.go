@@ -28,6 +28,9 @@ type workflowRepositoryStub struct {
 	replay              WorkflowMutationResult
 	replayed            bool
 	replayErr           error
+	replayCalls         int
+	replayIntent        json.RawMessage
+	mutationCalls       int
 	getCalls            int
 	cursorPage          WorkflowListPage
 	cursorCalls         int
@@ -56,10 +59,13 @@ func (repository *workflowRepositoryStub) GetWorkflow(_ context.Context, scope d
 	repository.getScope = scope
 	return repository.value, repository.err
 }
-func (repository *workflowRepositoryStub) ReplayWorkflow(_ context.Context, _ RequestIdentity, _ string, _ string, _ json.RawMessage) (WorkflowMutationResult, bool, error) {
+func (repository *workflowRepositoryStub) ReplayWorkflow(_ context.Context, _ RequestIdentity, _ string, _ string, intent json.RawMessage) (WorkflowMutationResult, bool, error) {
+	repository.replayCalls++
+	repository.replayIntent = append(repository.replayIntent[:0], intent...)
 	return repository.replay, repository.replayed, repository.replayErr
 }
 func (repository *workflowRepositoryStub) MutateWorkflow(_ context.Context, identity RequestIdentity, mutation WorkflowMutation) (WorkflowMutationResult, error) {
+	repository.mutationCalls++
 	repository.identity, repository.mutation = identity, mutation
 	return repository.result, repository.err
 }
@@ -382,6 +388,59 @@ func TestWorkflowHandlerRejectsInvalidPolicyTransitionBeforeMutation(t *testing.
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusConflict || repository.mutation.Operation != "" {
 		t.Fatalf("invalid transition = %d %s mutation=%#v", response.Code, response.Body.String(), repository.mutation)
+	}
+}
+
+func TestWorkflowHandlerDeleteRequiresExactEmptyWireBodyBeforeReplayOrMutation(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	tests := []struct {
+		operation string
+		path      string
+		id        string
+	}{
+		{operation: "deletePolicy", path: "/api/v1/policies/policy-bounded", id: "policy-bounded"},
+		{operation: "deleteIntegration", path: "/api/v1/integrations/pid_90000001-0000-4000-8000-000000000001", id: "pid_90000001-0000-4000-8000-000000000001"},
+		{operation: "deleteSecurityAgent", path: "/api/v1/security-agents/pid_90000002-0000-4000-8000-000000000002", id: "pid_90000002-0000-4000-8000-000000000002"},
+	}
+	rejectedBodies := []struct {
+		name string
+		body string
+	}{
+		{name: "whitespace", body: " \n"},
+		{name: "empty object", body: `{}`},
+		{name: "extra field", body: `{"force":true}`},
+		{name: "duplicate field", body: `{"force":true,"force":false}`},
+		{name: "trailing JSON", body: `{} {}`},
+	}
+	for _, operation := range tests {
+		t.Run(operation.operation, func(t *testing.T) {
+			for _, rejected := range rejectedBodies {
+				t.Run(rejected.name, func(t *testing.T) {
+					repository := &workflowRepositoryStub{}
+					handler, _ := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), time.Now)
+					request := workflowRequest(t, identity, testCorrelationID, operation.operation, map[string]string{"id": operation.id}, http.MethodDelete, operation.path, rejected.body)
+					request.Header.Set("Idempotency-Key", "idem-exact-empty-delete-0001")
+					request.Header.Set("If-Match", `"7"`)
+					response := httptest.NewRecorder()
+					handler.ServeHTTP(response, request)
+					if response.Code != http.StatusBadRequest || repository.replayCalls != 0 || repository.mutationCalls != 0 {
+						t.Fatalf("nonempty delete = status %d replay=%d mutation=%d body=%s", response.Code, repository.replayCalls, repository.mutationCalls, response.Body.String())
+					}
+				})
+			}
+
+			repository := &workflowRepositoryStub{result: WorkflowMutationResult{WorkflowValue: WorkflowValue{Version: 8}, AuditID: "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", CorrelationID: testCorrelationID, ReceiptID: "pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc"}}
+			handler, _ := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), time.Now)
+			request := workflowRequest(t, identity, testCorrelationID, operation.operation, map[string]string{"id": operation.id}, http.MethodDelete, operation.path, "")
+			request.Header.Set("Idempotency-Key", "idem-exact-empty-delete-0001")
+			request.Header.Set("If-Match", `"7"`)
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			wantIntent := `{"body":{},"expected_version":7,"resource_id":"` + operation.id + `"}`
+			if response.Code != http.StatusNoContent || repository.replayCalls != 1 || repository.mutationCalls != 1 || string(repository.replayIntent) != wantIntent || string(repository.mutation.Intent) != wantIntent || string(repository.mutation.Body) != `{}` {
+				t.Fatalf("empty delete = status %d replay=%d mutation=%d replay_intent=%s mutation=%#v", response.Code, repository.replayCalls, repository.mutationCalls, repository.replayIntent, repository.mutation)
+			}
+		})
 	}
 }
 

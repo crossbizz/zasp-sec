@@ -563,6 +563,88 @@ func TestRetainedWorkflowMutationsReplayLostResponsesInPostgres(t *testing.T) {
 	}
 }
 
+func TestWorkflowHandlerNonemptyDeletesLeavePostgresMutationAuditAndReceiptsUntouched(t *testing.T) {
+	dsn := startDisposablePostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	connection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner, _ := migrations.NewRunner(&integrationMigrationDatabase{connection: connection})
+	for _, migration := range []struct {
+		name string
+		run  func(context.Context) error
+	}{
+		{name: "schema", run: runner.Up},
+		{name: "core", run: runner.UpCore},
+		{name: "workflows", run: runner.UpWorkflows},
+		{name: "receipts", run: runner.UpWorkflowReceipts},
+		{name: "receipt safety", run: runner.UpWorkflowReceiptSafety},
+	} {
+		if err := migration.run(ctx); err != nil {
+			t.Fatalf("%s migration: %v", migration.name, err)
+		}
+	}
+	database, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
+	if err != nil {
+		t.Fatal(err)
+	}
+	repository, err := NewPostgresRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	principal := integrationProductID(t, "pid_66000004-0000-4000-8000-000000000004")
+	organization := integrationProductID(t, "pid_66000001-0000-4000-8000-000000000001")
+	workspace := integrationProductID(t, "pid_66000002-0000-4000-8000-000000000002")
+	environment := integrationProductID(t, "pid_66000003-0000-4000-8000-000000000003")
+	scope, _ := domain.NewScope(organization, workspace, environment)
+	identity := RequestIdentity{PrincipalID: principal, Scope: scope, Permissions: []string{"view", "manage_workflows"}, CredentialKind: CredentialBrowserSession}
+	deletes := []struct {
+		operation string
+		kind      string
+		id        string
+		path      string
+	}{
+		{operation: "deletePolicy", kind: "policy", id: "policy-postgres-delete", path: "/api/v1/policies/policy-postgres-delete"},
+		{operation: "deleteIntegration", kind: "integration", id: "pid_67000001-0000-4000-8000-000000000001", path: "/api/v1/integrations/pid_67000001-0000-4000-8000-000000000001"},
+		{operation: "deleteSecurityAgent", kind: "security_agent", id: "pid_67000002-0000-4000-8000-000000000002", path: "/api/v1/security-agents/pid_67000002-0000-4000-8000-000000000002"},
+	}
+	for _, deletion := range deletes {
+		if _, err := connection.Exec(ctx, `INSERT INTO zasp_workflow_records (organization_id,workspace_id,environment_id,kind,id,body) VALUES ($1,$2,$3,$4,$5,'{}'::jsonb)`, organization.String(), workspace.String(), environment.String(), deletion.kind, deletion.id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	handler, err := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), time.Now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for index, deletion := range deletes {
+		request := workflowRequest(t, identity, testCorrelationID, deletion.operation, map[string]string{"id": deletion.id}, http.MethodDelete, deletion.path, `{"force":true}`)
+		request.Header.Set("Idempotency-Key", fmt.Sprintf("idem-postgres-delete-%02d", index))
+		request.Header.Set("If-Match", `"1"`)
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		if response.Code != http.StatusBadRequest {
+			t.Fatalf("%s nonempty body = %d %s", deletion.operation, response.Code, response.Body.String())
+		}
+	}
+	var recordCount, idempotencyCount, auditCount, receiptCount int
+	if err := connection.QueryRow(ctx, `SELECT
+		(SELECT count(*) FROM zasp_workflow_records WHERE organization_id=$1 AND deleted_at IS NULL),
+		(SELECT count(*) FROM zasp_workflow_idempotency WHERE organization_id=$1),
+		(SELECT count(*) FROM zasp_workflow_audit WHERE organization_id=$1),
+		(SELECT count(*) FROM zasp_workflow_receipts WHERE organization_id=$1)`, organization.String()).Scan(&recordCount, &idempotencyCount, &auditCount, &receiptCount); err != nil {
+		t.Fatal(err)
+	}
+	if recordCount != 3 || idempotencyCount != 0 || auditCount != 0 || receiptCount != 0 {
+		t.Fatalf("rejected delete durable counts = records:%d idempotency:%d audit:%d receipts:%d", recordCount, idempotencyCount, auditCount, receiptCount)
+	}
+	if err := database.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestSecurityAgentPaginationExceedsOneHundredWithoutTenantDisclosure(t *testing.T) {
 	dsn := startDisposablePostgres(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)

@@ -3,12 +3,35 @@ import { describe, expect, it, vi } from "vitest";
 import { APIProductError, APITransportError, type APIClient } from "../../../apps/web/api/client";
 import { decodeIntegrationPage, decodePolicyPage } from "../../../apps/web/api/decoders";
 import type { Integration, Policy } from "../../../apps/web/api/generated";
+import { createSecurityAgentsAPI } from "../securityagents/SecurityAgentsView";
 import { createIntegrationsAPI, createPoliciesAPI, createRetainedWorkflowMutationController, createWorkflowMutationAttempt, createWorkflowRecoveryAPI, workflowIdempotencyKey } from "./api";
 
 const policy: Policy = { id: "policy-production", name: "Production", scope: "environment", trigger: "tool", conditions: [{ field: "action", operator: "equals", value: "write" }], action: "monitor", rollout: "draft", failure_mode: "open" };
 const environmentID = "pid_10000003-0000-4000-8000-000000000003";
 
 describe("production workflow API", () => {
+	it("sends no wire body for every retained DELETE operation", async () => {
+		const calls: Array<{ path: string; options: unknown }> = [];
+		const client = {
+			DELETE: vi.fn(async (path: string, options: unknown) => {
+				calls.push({ path, options });
+				return { response: new Response(null, { status: 204, headers: { ETag: `"2"`, "X-Audit-ID": "pid_30000001-0000-4000-8000-000000000001", "X-Mutation-Receipt-ID": "pid_30000002-0000-4000-8000-000000000002" } }) };
+			}),
+		} as unknown as APIClient;
+		const attempt = createWorkflowMutationAttempt();
+		await Promise.all([
+			createPoliciesAPI(client).deletePolicy("policy-production", `"1"`, attempt),
+			createIntegrationsAPI(client).deleteIntegration("pid_20000001-0000-4000-8000-000000000001", `"1"`, attempt),
+			createSecurityAgentsAPI(client).deleteSecurityAgent("pid_20000002-0000-4000-8000-000000000002", `"1"`, attempt),
+		]);
+		expect(calls.map((call) => call.path)).toEqual([
+			"/api/v1/policies/{id}",
+			"/api/v1/integrations/{id}",
+			"/api/v1/security-agents/{id}",
+		]);
+		for (const call of calls) expect(call.options).not.toHaveProperty("body");
+	});
+
 	it("pins receipt acknowledgement and relist to the captured scope assertion", async () => {
 		const captured = "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003";
 		const headers: string[] = [];

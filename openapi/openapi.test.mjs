@@ -320,6 +320,17 @@ describe("M1-23 strict OpenAPI root", () => {
 });
 
 describe("production workflow concurrency contract", () => {
+  it("publishes the three retained DELETE operations with no request body", () => {
+    for (const path of ["/api/v1/policies/{id}", "/api/v1/integrations/{id}", "/api/v1/security-agents/{id}"]) {
+      const operation = document.paths[path].delete;
+      assert.equal(Object.hasOwn(operation, "requestBody"), false, path);
+      assert.deepEqual(operation.parameters.map((parameter) => parameter.$ref), [
+        "#/components/parameters/IdempotencyKey",
+        "#/components/parameters/ResourceVersion",
+      ], path);
+    }
+  });
+
   it("separates server-assigned security-agent identity from create input", () => {
     assert.equal(document.paths["/api/v1/security-agents"].post.requestBody.content["application/json"].schema.$ref, "#/components/schemas/SecurityAgentInput");
     assert.equal(document.components.schemas.SecurityAgentInput.properties.id, undefined);

@@ -345,7 +345,12 @@ func canonicalWorkflowIntent(request *http.Request, routed RoutedOperation) (jso
 	if err != nil || len(body) > 16*1024 {
 		return nil, 0, ErrRepositoryOperation
 	}
-	if len(bytes.TrimSpace(body)) == 0 {
+	if action == "delete" {
+		if len(body) != 0 {
+			return nil, 0, ErrRepositoryOperation
+		}
+		body = []byte(`{}`)
+	} else if len(bytes.TrimSpace(body)) == 0 {
 		body = []byte(`{}`)
 	}
 	var decoded map[string]any
