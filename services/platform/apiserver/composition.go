@@ -13,6 +13,7 @@ type Dependencies struct {
 	Identity  http.Handler
 	Inventory http.Handler
 	Risk      http.Handler
+	Workflow  http.Handler
 }
 
 type OperationDefinition struct {
@@ -30,6 +31,7 @@ const (
 	identityDependency
 	inventoryDependency
 	riskDependency
+	workflowDependency
 )
 
 type coreOperation struct {
@@ -58,6 +60,43 @@ var coreOperations = []coreOperation{
 	{OperationDefinition{"GET", "/api/v1/runtimes", "listRuntimes", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
 	{OperationDefinition{"GET", "/api/v1/runtimes/{id}", "getRuntime", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
 	{OperationDefinition{"GET", "/api/v1/assets/{id}", "getAsset", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
+	{OperationDefinition{"GET", "/api/v1/policies", "listPolicies", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/policies", "createPolicy", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/policies/{id}", "getPolicy", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"PATCH", "/api/v1/policies/{id}", "updatePolicy", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"DELETE", "/api/v1/policies/{id}", "deletePolicy", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/policies/{id}/simulate", "simulatePolicy", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/policies/{id}/rollout", "rolloutPolicy", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/policies/{id}/disable", "disablePolicy", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/policies/{id}/decisions", "listPolicyDecisions", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/integration-catalog", "listIntegrationCatalog", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/integrations", "listIntegrations", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/integrations", "createIntegration", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/integrations/{id}", "getIntegration", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"PATCH", "/api/v1/integrations/{id}", "updateIntegration", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"DELETE", "/api/v1/integrations/{id}", "deleteIntegration", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/sensors", "listSensors", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/sensors", "createSensorEnrollment", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/sensors/{id}", "getSensor", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"PATCH", "/api/v1/sensors/{id}", "updateSensor", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"DELETE", "/api/v1/sensors/{id}", "deleteSensor", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/sensors/{id}/rotate-token", "rotateSensorToken", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/sensors/{id}/coverage", "getSensorCoverage", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/security-agent-templates", "listSecurityAgentTemplates", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/security-actions", "listSecurityActions", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/security-agents", "listSecurityAgents", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/security-agents", "createSecurityAgent", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/security-agents/{id}", "getSecurityAgent", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"PATCH", "/api/v1/security-agents/{id}", "updateSecurityAgent", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"DELETE", "/api/v1/security-agents/{id}", "deleteSecurityAgent", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/security-agents/{id}/simulate", "simulateSecurityAgent", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/security-agents/{id}/runs", "runSecurityAgent", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/security-agent-runs", "listSecurityAgentRuns", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/security-agent-runs/{id}", "getSecurityAgentRun", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/security-agent-runs/{id}/cancel", "cancelSecurityAgentRun", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/security-agent-approvals", "listSecurityAgentApprovals", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/security-agent-approvals/{id}", "getSecurityAgentApproval", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/security-agent-approvals/{id}/decision", "decideSecurityAgentApproval", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 }
 
 func CoreOperations() []OperationDefinition {
@@ -69,7 +108,7 @@ func CoreOperations() []OperationDefinition {
 }
 
 func NewComposition(dependencies Dependencies) (http.Handler, error) {
-	handlers := []http.Handler{dependencies.Session, dependencies.Identity, dependencies.Inventory, dependencies.Risk}
+	handlers := []http.Handler{dependencies.Session, dependencies.Identity, dependencies.Inventory, dependencies.Risk, dependencies.Workflow}
 	seenHandlers := make(map[uintptr]struct{}, len(handlers))
 	for _, handler := range handlers {
 		identity, valid := handlerIdentity(handler)
@@ -94,7 +133,7 @@ func NewComposition(dependencies Dependencies) (http.Handler, error) {
 				security = append(security, CredentialBearerToken)
 			}
 		}
-		operations = append(operations, Operation{Method: definition.Method, Pattern: definition.Pattern, OperationID: definition.OperationID, Permission: definition.Permission, Security: security, RequireCSRF: definition.OperationID == "signOutSession" || definition.OperationID == "switchSessionScope", Handler: handler})
+		operations = append(operations, Operation{Method: definition.Method, Pattern: definition.Pattern, OperationID: definition.OperationID, Permission: definition.Permission, Security: security, RequireCSRF: definition.OperationID == "signOutSession" || definition.OperationID == "switchSessionScope" || isMutation(definition.Method), Handler: handler})
 	}
 	router, err := NewRouter(operations)
 	if err != nil {
@@ -130,6 +169,8 @@ func dependencyHandler(dependencies Dependencies, kind dependencyKind) http.Hand
 		return dependencies.Inventory
 	case riskDependency:
 		return dependencies.Risk
+	case workflowDependency:
+		return dependencies.Workflow
 	default:
 		return nil
 	}

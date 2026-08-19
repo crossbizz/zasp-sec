@@ -56,7 +56,21 @@ func NewProductionHandlers(repository *PostgresRepository, provider CallbackProv
 		Identity:  &identityHTTPHandler{repository: repository},
 		Inventory: &coreHTTPHandler{repository: repository, boundary: inventoryDependency},
 		Risk:      &coreHTTPHandler{repository: repository, boundary: riskDependency},
+		Workflow:  &workflowHTTPHandler{repository: repository},
 	}, repository.Authenticate, nil
+}
+
+type workflowHTTPHandler struct{ repository coreRepository }
+
+func (handler *workflowHTTPHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	identity, ok := IdentityFromRequest(request)
+	operation, routed := RoutedOperationFromRequest(request)
+	if !ok || !routed {
+		writeProductionError(writer, request, ErrRepositoryAuthentication)
+		return
+	}
+	payload, err := handler.repository.Read(request.Context(), identity.Scope, "workflow:"+operation.OperationID)
+	writeProductionResponse(writer, request, http.StatusOK, payload, err)
 }
 
 type sessionHTTPHandler struct {

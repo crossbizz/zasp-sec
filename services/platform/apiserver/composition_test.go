@@ -56,8 +56,35 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
 			t.Errorf("%s security = %v, want %v", key, got, operation.Security)
 		}
 	}
-	if len(seen) != 20 {
-		t.Fatalf("mounted operation count = %d, want 20", len(seen))
+	if len(seen) != 57 {
+		t.Fatalf("mounted operation count = %d, want 57", len(seen))
+	}
+}
+
+func TestBatchTwoCompositionExposesOnlyCompleteDurableOperations(t *testing.T) {
+	definitions := make(map[string]OperationDefinition)
+	for _, operation := range CoreOperations() {
+		definitions[operation.OperationID] = operation
+	}
+	for _, operationID := range []string{
+		"listPolicies", "createPolicy", "getPolicy", "updatePolicy", "deletePolicy", "simulatePolicy", "rolloutPolicy", "disablePolicy", "listPolicyDecisions",
+		"listIntegrationCatalog", "listIntegrations", "createIntegration", "getIntegration", "updateIntegration", "deleteIntegration",
+		"listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage",
+		"listSecurityAgentTemplates", "listSecurityActions", "listSecurityAgents", "createSecurityAgent", "getSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval",
+	} {
+		definition, ok := definitions[operationID]
+		if !ok {
+			t.Errorf("complete durable operation %q is not mounted", operationID)
+			continue
+		}
+		if len(definition.Security) != 2 || definition.Permission == "" {
+			t.Errorf("operation %q security/permission = %v/%q", operationID, definition.Security, definition.Permission)
+		}
+	}
+	for _, hidden := range []string{"authorizeIntegration", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync"} {
+		if _, mounted := definitions[hidden]; mounted {
+			t.Errorf("provider-owned operation %q mounted without a provider adapter", hidden)
+		}
 	}
 }
 
@@ -92,7 +119,7 @@ func equalStrings(left, right []string) bool {
 func TestNewCompositionMountsOnlyCoreProductOperations(t *testing.T) {
 	composition, err := NewComposition(Dependencies{
 		Session: handlerResponse("session"), Identity: handlerResponse("identity"),
-		Inventory: handlerResponse("inventory"), Risk: handlerResponse("risk"),
+		Inventory: handlerResponse("inventory"), Risk: handlerResponse("risk"), Workflow: handlerResponse("workflow"),
 	})
 	if err != nil {
 		t.Fatalf("NewComposition() error = %v", err)
@@ -113,16 +140,21 @@ func TestNewCompositionMountsOnlyCoreProductOperations(t *testing.T) {
 		{method: "GET", path: "/api/v1/tools", body: "inventory"},
 		{method: "GET", path: "/api/v1/identities", body: "inventory"},
 		{method: "GET", path: "/api/v1/runtimes", body: "inventory"},
+		{method: "GET", path: "/api/v1/policies", body: "workflow"},
+		{method: "POST", path: "/api/v1/policies", body: "workflow"},
+		{method: "GET", path: "/api/v1/integration-catalog", body: "workflow"},
+		{method: "GET", path: "/api/v1/sensors", body: "workflow"},
+		{method: "GET", path: "/api/v1/security-agents", body: "workflow"},
 	}
 	for _, test := range tests {
 		response := httptest.NewRecorder()
 		request := httptest.NewRequest(test.method, test.path, nil)
 		identity := fixtureRequestIdentity(t)
-		identity.Permissions = []string{"view"}
+		identity.Permissions = []string{"view", "manage_workflows"}
 		identity.CredentialKind = CredentialBrowserSession
 		request = request.WithContext(context.WithValue(request.Context(), identityContextKey{}, identity))
 		request = request.WithContext(context.WithValue(request.Context(), browserSecurityContextKey{}, browserSecurityContext{publicOrigin: "https://app.zasp.test"}))
-		if test.path == "/api/v1/session/sign-out" {
+		if test.method == http.MethodPost || test.method == http.MethodPatch || test.method == http.MethodPut || test.method == http.MethodDelete {
 			request.Header.Set("Origin", "https://app.zasp.test")
 			request.Header.Set("X-CSRF-Token", identity.CSRFToken)
 		}
@@ -142,16 +174,17 @@ func TestNewCompositionMountsOnlyCoreProductOperations(t *testing.T) {
 }
 
 func TestNewCompositionFailsClosedOnInvalidDependencies(t *testing.T) {
-	valid := Dependencies{Session: handlerResponse("session"), Identity: handlerResponse("identity"), Inventory: handlerResponse("inventory"), Risk: handlerResponse("risk")}
+	valid := Dependencies{Session: handlerResponse("session"), Identity: handlerResponse("identity"), Inventory: handlerResponse("inventory"), Risk: handlerResponse("risk"), Workflow: handlerResponse("workflow")}
 	tests := []struct {
 		name         string
 		dependencies Dependencies
 	}{
-		{name: "missing session", dependencies: Dependencies{Identity: valid.Identity, Inventory: valid.Inventory, Risk: valid.Risk}},
-		{name: "missing identity", dependencies: Dependencies{Session: valid.Session, Inventory: valid.Inventory, Risk: valid.Risk}},
-		{name: "missing inventory", dependencies: Dependencies{Session: valid.Session, Identity: valid.Identity, Risk: valid.Risk}},
-		{name: "missing risk", dependencies: Dependencies{Session: valid.Session, Identity: valid.Identity, Inventory: valid.Inventory}},
-		{name: "same handler crosses trust boundary", dependencies: Dependencies{Session: valid.Session, Identity: valid.Session, Inventory: valid.Inventory, Risk: valid.Risk}},
+		{name: "missing session", dependencies: Dependencies{Identity: valid.Identity, Inventory: valid.Inventory, Risk: valid.Risk, Workflow: valid.Workflow}},
+		{name: "missing identity", dependencies: Dependencies{Session: valid.Session, Inventory: valid.Inventory, Risk: valid.Risk, Workflow: valid.Workflow}},
+		{name: "missing inventory", dependencies: Dependencies{Session: valid.Session, Identity: valid.Identity, Risk: valid.Risk, Workflow: valid.Workflow}},
+		{name: "missing risk", dependencies: Dependencies{Session: valid.Session, Identity: valid.Identity, Inventory: valid.Inventory, Workflow: valid.Workflow}},
+		{name: "missing workflow", dependencies: Dependencies{Session: valid.Session, Identity: valid.Identity, Inventory: valid.Inventory, Risk: valid.Risk}},
+		{name: "same handler crosses trust boundary", dependencies: Dependencies{Session: valid.Session, Identity: valid.Session, Inventory: valid.Inventory, Risk: valid.Risk, Workflow: valid.Workflow}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
