@@ -60,15 +60,15 @@ function verifyDocument(value, rawText) {
   for (const path of Object.keys(value.paths)) {
     assert.match(path, /^\/api\/v1\/[a-z](?:[a-z0-9_/-]|\{[A-Za-z][A-Za-z0-9]*\})*$/);
   }
-  assert.deepEqual(value.security, [{ SessionJWT: [] }, { ProductAPIToken: [] }]);
+  assert.deepEqual(value.security, [{ BrowserSession: [] }, { ProductAPIToken: [] }]);
 
   assertKeys(value.components, ["securitySchemes", "parameters", "schemas", "responses"], "components");
   assert.deepEqual(value.components.securitySchemes, {
-    SessionJWT: {
-      type: "http",
-      scheme: "bearer",
-      bearerFormat: "JWT",
-      description: "Human product session token.",
+    BrowserSession: {
+      type: "apiKey",
+      in: "cookie",
+      name: "__Host-zasp_session",
+      description: "Secure, HttpOnly, SameSite=Lax host-only human browser session.",
     },
     ProductAPIToken: {
       type: "http",
@@ -79,6 +79,13 @@ function verifyDocument(value, rawText) {
   });
 
   assert.deepEqual(value.components.parameters, {
+		CSRFToken: {
+			name: "X-CSRF-Token",
+			in: "header",
+			required: true,
+			description: "Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header.",
+			schema: { type: "string", minLength: 32, maxLength: 256 },
+		},
     PageCursor: {
       name: "cursor",
       in: "query",
@@ -246,9 +253,9 @@ describe("M1-23 strict OpenAPI root", () => {
       ["wrong info", (value) => { value.info.version = "v1"; }],
       ["external operation", (value) => { value.paths["/external/example"] = { get: {} }; }],
       ["anonymous auth", (value) => { value.security.push({}); }],
-      ["AND auth", (value) => { value.security = [{ SessionJWT: [], ProductAPIToken: [] }]; }],
+      ["AND auth", (value) => { value.security = [{ BrowserSession: [], ProductAPIToken: [] }]; }],
       ["query token", (value) => { value.components.securitySchemes.ProductAPIToken = { type: "apiKey", in: "query", name: "token" }; }],
-      ["cookie token", (value) => { value.components.securitySchemes.SessionJWT = { type: "apiKey", in: "cookie", name: "session" }; }],
+      ["bearer browser token", (value) => { value.components.securitySchemes.BrowserSession = { type: "http", scheme: "bearer" }; }],
       ["unbounded page", (value) => { value.components.parameters.PageLimit.schema.maximum = 1000; }],
       ["nonoptional cursor", (value) => { value.components.parameters.PageCursor.required = true; }],
       ["contradictory page info", (value) => { value.components.schemas.PageInfo.oneOf[0].properties.has_more.const = false; }],

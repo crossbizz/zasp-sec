@@ -933,10 +933,10 @@ Complete and defines the OpenAPI root separately. M1-22 is Complete.
 ## OpenAPI root
 
 The self-contained `openapi/openapi.yaml` document establishes the OpenAPI
-3.1.0 product root. Global HTTP bearer authentication accepts `SessionJWT` or
-`ProductAPIToken` as separate global security alternatives, so a request uses
-one reviewed token boundary rather than requiring both or permitting anonymous
-access.
+3.1.0 product root. Global authentication accepts the Secure, HttpOnly,
+SameSite=Lax host-only `BrowserSession` cookie or a bearer `ProductAPIToken` as
+separate global security alternatives, so a request uses one reviewed token
+boundary rather than requiring both or permitting anonymous access.
 
 Reusable pagination vocabulary is `Cursor`, `PageCursor`, `PageLimit`, and the
 closed two-state `PageInfo`. The public error vocabulary is canonical

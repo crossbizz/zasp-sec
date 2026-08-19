@@ -87,7 +87,7 @@ describe("M1-23 OpenAPI root", () => {
     expect(section).toMatch(/^npm run openapi:lint$/m);
     expect(section).toContain("`openapi/openapi.yaml`");
     expect(prose).toContain("OpenAPI 3.1.0");
-    expect(prose).toContain("`SessionJWT` or `ProductAPIToken`");
+		expect(prose).toContain("`BrowserSession` cookie or a bearer `ProductAPIToken`");
     expect(prose).toContain("separate global security alternatives");
     for (const component of ["Cursor", "PageCursor", "PageLimit", "PageInfo", "ProductID", "ProductError", "ProductErrorResponse"]) {
       expect(section).toContain(`\`${component}\``);
