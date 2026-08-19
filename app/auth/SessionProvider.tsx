@@ -70,7 +70,7 @@ export type SessionContextValue = SessionState & {
 const SessionContext = createContext<SessionContextValue | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const { client, setCSRFToken, setRequestScope, setQueryScope, suspendQueryCache, sessionExpiry, scopeStale, getScopeStaleGeneration } = useAPI();
+	  const { client, setCSRFToken, setRequestScope, setQueryScope, suspendQueryCache, sessionExpiry, getSessionInvalidationGeneration, scopeStale, getScopeStaleGeneration } = useAPI();
   const [state, setState] = useState<SessionState>({ status: "loading" });
   const [stateSessionExpiry, setStateSessionExpiry] = useState(sessionExpiry);
 	const [stateScopeStale, setStateScopeStale] = useState(scopeStale);
@@ -114,15 +114,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 		});
 	}, []);
   const loadSession = useCallback(async (expiryVersion: number, scopeStaleVersion: number, publishLoading = false): Promise<SessionLoadOutcome> => {
-		if (getScopeStaleGeneration() !== scopeStaleVersion) return { status: "superseded" };
+		if (getSessionInvalidationGeneration() !== expiryVersion || getScopeStaleGeneration() !== scopeStaleVersion) return { status: "superseded" };
 		const generation = latestLoadGeneration.current + 1;
 		latestLoadGeneration.current = generation;
 		activeLoad.current?.abort(new DOMException("A newer session recovery started", "AbortError"));
 		const controller = new AbortController();
 		activeLoad.current = controller;
 		const ownsState = () => latestLoadGeneration.current === generation
-			&& !controller.signal.aborted
-			&& getScopeStaleGeneration() === scopeStaleVersion;
+				&& !controller.signal.aborted
+				&& getSessionInvalidationGeneration() === expiryVersion
+				&& getScopeStaleGeneration() === scopeStaleVersion;
 		if (publishLoading && ownsState()) setState({ status: "loading" });
     try {
 		const result = await client.GET("/api/v1/session/bootstrap", { signal: controller.signal });
@@ -175,26 +176,42 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 	} finally {
 		if (latestLoadGeneration.current === generation) activeLoad.current = null;
     }
-	  }, [client, getScopeStaleGeneration, setCSRFToken, setRequestScope, setQueryScope, settleScopeAttempt, suspendQueryCache]);
+	  }, [client, getScopeStaleGeneration, getSessionInvalidationGeneration, setCSRFToken, setRequestScope, setQueryScope, settleScopeAttempt, suspendQueryCache]);
   const retry = useCallback(async () => {
-	await loadSession(sessionExpiry, scopeStale, true);
-  }, [loadSession, scopeStale, sessionExpiry]);
+	await loadSession(getSessionInvalidationGeneration(), getScopeStaleGeneration(), true);
+	  }, [getScopeStaleGeneration, getSessionInvalidationGeneration, loadSession]);
 	useEffect(() => () => {
-		latestLoadGeneration.current += 1;
-		activeLoad.current?.abort(new DOMException("Session provider unmounted", "AbortError"));
-		activeLoad.current = null;
-	}, []);
-  useEffect(() => {
-    let active = true;
-    queueMicrotask(() => { if (active) void loadSession(0, 0); });
-    return () => { active = false; };
-  }, [loadSession]);
+			latestLoadGeneration.current += 1;
+			activeLoad.current?.abort(new DOMException("Session provider unmounted", "AbortError"));
+			activeLoad.current = null;
+			scopeAttempt.current = null;
+			sessionCSRF.current = null;
+			setCSRFToken(null);
+			setRequestScope(null);
+			suspendQueryCache();
+		}, [setCSRFToken, setRequestScope, suspendQueryCache]);
+	  useEffect(() => {
+	    let active = true;
+	    queueMicrotask(() => { if (active) void loadSession(getSessionInvalidationGeneration(), getScopeStaleGeneration()); });
+	    return () => { active = false; };
+	  }, [getScopeStaleGeneration, getSessionInvalidationGeneration, loadSession]);
 	useEffect(() => {
-		if (scopeStale === 0) return;
+		if (sessionExpiry === 0) return;
+		latestLoadGeneration.current += 1;
+		activeLoad.current?.abort(new DOMException("Session invalidated", "AbortError"));
+		activeLoad.current = null;
+		scopeAttempt.current = null;
+		sessionCSRF.current = null;
 		let active = true;
-		queueMicrotask(() => { if (active) void loadSession(sessionExpiry, scopeStale); });
+		queueMicrotask(() => { if (active) setScopeSwitch({ status: "idle" }); });
 		return () => { active = false; };
-	}, [loadSession, scopeStale, sessionExpiry]);
+	}, [sessionExpiry]);
+		useEffect(() => {
+			if (scopeStale === 0 || sessionExpiry !== stateSessionExpiry) return;
+			let active = true;
+			queueMicrotask(() => { if (active) void loadSession(getSessionInvalidationGeneration(), scopeStale); });
+			return () => { active = false; };
+		}, [getSessionInvalidationGeneration, loadSession, scopeStale, sessionExpiry, stateSessionExpiry]);
   const signOut = useCallback(async () => {
     if (!sessionCSRF.current) throw new Error("Session CSRF token is unavailable");
     const result = await client.POST("/api/v1/session/sign-out", { params: { header: { "X-CSRF-Token": sessionCSRF.current } } });
@@ -212,8 +229,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 	if (scopeAttempt.current !== attempt) return;
     attempt.next = "reconcile";
 	attempt.reconcileCause = cause;
-	await loadSession(sessionExpiry, scopeStale);
-	  }, [loadSession, scopeStale, sessionExpiry]);
+	await loadSession(getSessionInvalidationGeneration(), getScopeStaleGeneration());
+	  }, [getScopeStaleGeneration, getSessionInvalidationGeneration, loadSession]);
   const submitScopeSwitch = useCallback(async (attempt: ScopeAttempt) => {
     if (!sessionCSRF.current) throw new Error("Session CSRF token is unavailable");
 	const attemptGeneration = attempt.generation;

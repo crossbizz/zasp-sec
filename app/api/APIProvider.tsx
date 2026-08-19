@@ -10,6 +10,7 @@ type APIContextValue = {
   queryScopeKey: string | null;
   queryGeneration: number;
   sessionExpiry: number;
+	getSessionInvalidationGeneration(): number;
 	scopeStale: number;
 	getScopeStaleGeneration(): number;
   invalidate(keys: readonly string[]): void;
@@ -49,6 +50,7 @@ export function APIProvider({ children, client: suppliedClient }: { children: Re
   const [revisions, setRevisions] = useState<ReadonlyMap<string, number>>(() => new Map());
   const [queryEpoch, setQueryEpoch] = useState({ scopeKey: "__unscoped__" as string | null, generation: 0 });
   const [sessionExpiry, setSessionExpiry] = useState(0);
+	const [sessionInvalidationGeneration] = useState(() => new GenerationVault());
 	const [scopeStale, setScopeStale] = useState(0);
 	const [scopeStaleGeneration] = useState(() => new GenerationVault());
   const [client] = useState(() => suppliedClient ?? createAPIClient({
@@ -56,9 +58,10 @@ export function APIProvider({ children, client: suppliedClient }: { children: Re
 	getExpectedScope: () => requestScope.get() ?? undefined,
     onSessionExpired: () => {
       csrfToken.set(null);
+	  requestScope.set(null);
       setRevisions(new Map());
       setQueryEpoch((current) => ({ scopeKey: null, generation: current.generation + 1 }));
-      setSessionExpiry((value) => value + 1);
+	  setSessionExpiry(sessionInvalidationGeneration.advance());
     },
 	onScopeStale: () => {
 		csrfToken.set(null);
@@ -93,12 +96,14 @@ export function APIProvider({ children, client: suppliedClient }: { children: Re
     setQueryEpoch((current) => ({ ...current, generation: current.generation + 1 }));
   }, []);
 	const getScopeStaleGeneration = useCallback(() => scopeStaleGeneration.get(), [scopeStaleGeneration]);
+	const getSessionInvalidationGeneration = useCallback(() => sessionInvalidationGeneration.get(), [sessionInvalidationGeneration]);
   const value = useMemo<APIContextValue>(() => ({
     client,
     revisions,
     queryScopeKey: queryEpoch.scopeKey,
     queryGeneration: queryEpoch.generation,
     sessionExpiry,
+	getSessionInvalidationGeneration,
 	scopeStale,
 	getScopeStaleGeneration,
     invalidate,
@@ -107,7 +112,7 @@ export function APIProvider({ children, client: suppliedClient }: { children: Re
     setQueryScope,
     suspendQueryCache,
     clearQueryCache,
-  }), [client, revisions, queryEpoch, sessionExpiry, scopeStale, getScopeStaleGeneration, invalidate, setCSRFToken, setRequestScope, setQueryScope, suspendQueryCache, clearQueryCache]);
+	  }), [client, revisions, queryEpoch, sessionExpiry, getSessionInvalidationGeneration, scopeStale, getScopeStaleGeneration, invalidate, setCSRFToken, setRequestScope, setQueryScope, suspendQueryCache, clearQueryCache]);
   return <APIContext.Provider value={value}>{children}</APIContext.Provider>;
 }
 

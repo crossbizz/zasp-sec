@@ -1,6 +1,6 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { createAPIClient } from "../../apps/web/api/client";
@@ -66,6 +66,27 @@ function ScopeSwitchOverlapConsumer() {
 			<button onClick={() => void client.GET("/api/v1/home/summary")}>Trigger overlapping stale scope</button>
 		</>}
 		{session.scopeSwitch.status === "error" && <button onClick={() => void session.scopeSwitch.retry()}>Retry overlapping reconciliation</button>}
+	</div>;
+}
+
+const emptySessionInvalidationQuery = async (): Promise<readonly string[]> => [];
+
+function SessionInvalidationConsumer({ query }: { query?: (signal?: AbortSignal) => Promise<readonly string[]> }) {
+	const session = useSession();
+	const { client } = useAPI();
+	const [queryEnabled, setQueryEnabled] = useState(false);
+	const protectedQuery = useAPIQuery("session-invalidation-query", query ?? emptySessionInvalidationQuery, queryEnabled && query !== undefined);
+	return <div>
+		<span>invalidation session {session.status}</span>
+		<span>{session.hasCapability("scope-a-only") ? "invalidation A capability" : session.hasCapability("scope-b-only") ? "invalidation B capability" : "invalidation capability hidden"}</span>
+		<span>invalidation query {protectedQuery.status}</span>
+		{protectedQuery.data?.map((item) => <span key={item}>{item}</span>)}
+		<button onClick={() => void session.retry()}>Retry invalidated session</button>
+		<button onClick={() => void client.GET("/api/v1/home/summary", { headers: { "X-Test-Response": "expiry" } })}>Trigger validated expiry</button>
+		<button onClick={() => void client.GET("/api/v1/home/summary", { headers: { "X-Test-Response": "stale" } })}>Trigger stale before expiry</button>
+		<button onClick={() => void client.POST("/api/v1/session/sign-out", { params: { header: { "X-CSRF-Token": "" } } })}>Probe invalidated security</button>
+		<button onClick={() => setQueryEnabled(true)}>Enable invalidation query</button>
+		<button onClick={() => void protectedQuery.retry()}>Refresh invalidation query</button>
 	</div>;
 }
 
@@ -419,6 +440,180 @@ describe("SessionProvider", () => {
 			vi.unstubAllGlobals();
 		}
 	});
+
+	it.each([
+		["bootstrap", "success"],
+		["bootstrap", "error"],
+		["scope list", "success"],
+		["scope list", "error"],
+	] as const)("invalidates a delayed %s %s after a validated 401 and permits newer reauthentication", async (phase, completion) => {
+		const delayed = deferred<Response>();
+		const delayedSignals: AbortSignal[] = [];
+		const observedSecurity: Array<{ csrf: string; scope: string }> = [];
+		let bootstrapCalls = 0;
+		let scopeCalls = 0;
+		const queryInitial = deferred<readonly string[]>();
+		const queryLate = deferred<readonly string[]>();
+		const querySignals: AbortSignal[] = [];
+		const query = vi.fn((signal?: AbortSignal) => {
+			if (signal) querySignals.push(signal);
+			return query.mock.calls.length === 1 ? queryInitial.promise : queryLate.promise;
+		});
+		const fetch = vi.fn(async (request: Request) => {
+			const path = new URL(request.url).pathname;
+			if (path === "/api/v1/session/bootstrap") {
+				bootstrapCalls += 1;
+				if (bootstrapCalls === 2 && phase === "bootstrap") {
+					delayedSignals.push(request.signal);
+					return delayed.promise;
+				}
+				return jsonResponse(sessionBootstrap(bootstrapCalls > 1, bootstrapCalls > 1 ? "scope-b-only" : "scope-a-only"));
+			}
+			if (path === "/api/v1/session/scopes") {
+				scopeCalls += 1;
+				if (scopeCalls === 2 && phase === "scope list") {
+					delayedSignals.push(request.signal);
+					return delayed.promise;
+				}
+				return jsonResponse(sessionScopes());
+			}
+			if (path === "/api/v1/home/summary") return authenticationRequiredResponse();
+			if (path === "/api/v1/session/sign-out") {
+				observedSecurity.push({
+					csrf: request.headers.get("X-CSRF-Token") ?? "",
+					scope: request.headers.get("X-Zasp-Expected-Scope") ?? "",
+				});
+				return new Response(null, { status: 204 });
+			}
+			throw new Error(`unexpected request ${path}`);
+		});
+		vi.stubGlobal("fetch", fetch);
+		try {
+			render(<APIProvider><SessionProvider><SessionInvalidationConsumer query={query} /></SessionProvider></APIProvider>);
+			await screen.findByText("invalidation A capability");
+			await userEvent.click(screen.getByRole("button", { name: "Enable invalidation query" }));
+			await waitFor(() => expect(query).toHaveBeenCalledOnce());
+			act(() => queryInitial.resolve(["protected-scope-a-record"]));
+			await screen.findByText("protected-scope-a-record");
+			await userEvent.click(screen.getByRole("button", { name: "Refresh invalidation query" }));
+			await waitFor(() => expect(query).toHaveBeenCalledTimes(2));
+			await userEvent.click(screen.getByRole("button", { name: "Retry invalidated session" }));
+			await waitFor(() => expect(delayedSignals).toHaveLength(1));
+
+			await userEvent.click(screen.getByRole("button", { name: "Trigger validated expiry" }));
+			await screen.findByText("invalidation session unauthenticated");
+			expect(screen.getByText("invalidation capability hidden")).toBeVisible();
+			expect(screen.getByText("invalidation query idle")).toBeVisible();
+			expect(screen.queryByText("protected-scope-a-record")).not.toBeInTheDocument();
+			expect(delayedSignals[0]?.aborted).toBe(true);
+			expect(querySignals[1]?.aborted).toBe(true);
+
+			if (completion === "success") {
+				act(() => delayed.resolve(phase === "bootstrap" ? jsonResponse(sessionBootstrap(true, "scope-b-only")) : jsonResponse(sessionScopes())));
+				await act(async () => { await delayed.promise; await Promise.resolve(); });
+			} else {
+				act(() => delayed.reject(new Error(`obsolete ${phase} failed`)));
+				await act(async () => { try { await delayed.promise; } catch { /* expected fixture failure */ } await Promise.resolve(); });
+			}
+			expect(screen.getByText("invalidation session unauthenticated")).toBeVisible();
+			expect(screen.getByText("invalidation capability hidden")).toBeVisible();
+
+			await userEvent.click(screen.getByRole("button", { name: "Probe invalidated security" }));
+			await waitFor(() => expect(observedSecurity).toHaveLength(1));
+			expect(observedSecurity).toEqual([{ csrf: "", scope: "" }]);
+
+			await userEvent.click(screen.getByRole("button", { name: "Retry invalidated session" }));
+			await screen.findByText("invalidation B capability");
+			expect(bootstrapCalls).toBe(3);
+		} finally {
+			vi.unstubAllGlobals();
+		}
+	});
+
+	it("lets session invalidation supersede an overlapping stale-scope recovery", async () => {
+		const staleBootstrap = deferred<Response>();
+		let bootstrapCalls = 0;
+		const observedSecurity: Array<{ csrf: string; scope: string }> = [];
+		let staleBootstrapSignal: AbortSignal | undefined;
+		const fetch = vi.fn(async (request: Request) => {
+			const path = new URL(request.url).pathname;
+			if (path === "/api/v1/session/bootstrap") {
+				bootstrapCalls += 1;
+				if (bootstrapCalls === 2) {
+					staleBootstrapSignal = request.signal;
+					return staleBootstrap.promise;
+				}
+				return jsonResponse(sessionBootstrap(bootstrapCalls > 2, bootstrapCalls > 2 ? "scope-b-only" : "scope-a-only"));
+			}
+			if (path === "/api/v1/session/scopes") return jsonResponse(sessionScopes());
+			if (path === "/api/v1/home/summary") return request.headers.get("X-Test-Response") === "stale" ? scopeStaleResponse() : authenticationRequiredResponse();
+			if (path === "/api/v1/session/sign-out") {
+				observedSecurity.push({ csrf: request.headers.get("X-CSRF-Token") ?? "", scope: request.headers.get("X-Zasp-Expected-Scope") ?? "" });
+				return new Response(null, { status: 204 });
+			}
+			throw new Error(`unexpected request ${path}`);
+		});
+		vi.stubGlobal("fetch", fetch);
+		try {
+			render(<APIProvider><SessionProvider><SessionInvalidationConsumer /></SessionProvider></APIProvider>);
+			await screen.findByText("invalidation A capability");
+			await userEvent.click(screen.getByRole("button", { name: "Trigger stale before expiry" }));
+			await waitFor(() => expect(staleBootstrapSignal).toBeDefined());
+			await userEvent.click(screen.getByRole("button", { name: "Trigger validated expiry" }));
+			await screen.findByText("invalidation session unauthenticated");
+			expect(staleBootstrapSignal?.aborted).toBe(true);
+
+			act(() => staleBootstrap.resolve(jsonResponse(sessionBootstrap(true, "scope-b-only"))));
+			await act(async () => { await staleBootstrap.promise; await Promise.resolve(); });
+			expect(screen.getByText("invalidation session unauthenticated")).toBeVisible();
+			expect(screen.getByText("invalidation capability hidden")).toBeVisible();
+			await userEvent.click(screen.getByRole("button", { name: "Probe invalidated security" }));
+			await waitFor(() => expect(observedSecurity).toEqual([{ csrf: "", scope: "" }]));
+
+			await userEvent.click(screen.getByRole("button", { name: "Retry invalidated session" }));
+			await screen.findByText("invalidation B capability");
+		} finally {
+			vi.unstubAllGlobals();
+		}
+	});
+
+	it("clears authenticated transport state and active loads when SessionProvider unmounts", async () => {
+		const delayedBootstrap = deferred<Response>();
+		let bootstrapCalls = 0;
+		let delayedSignal: AbortSignal | undefined;
+		const fetch = vi.fn(async (request: Request) => {
+			const path = new URL(request.url).pathname;
+			if (path === "/api/v1/session/bootstrap") {
+				bootstrapCalls += 1;
+				if (bootstrapCalls === 2) {
+					delayedSignal = request.signal;
+					return delayedBootstrap.promise;
+				}
+				return jsonResponse(sessionBootstrap(false, "scope-a-only"));
+			}
+			if (path === "/api/v1/session/scopes") return jsonResponse(sessionScopes());
+			if (path === "/api/v1/home/summary") return jsonResponse({ agent_count: 0, finding_count: 0, critical_finding_count: 0, attack_path_count: 0 });
+			throw new Error(`unexpected request ${path}`);
+		});
+		vi.stubGlobal("fetch", fetch);
+		try {
+			const rendered = render(<APIProvider><SessionProvider><SessionInvalidationConsumer /></SessionProvider></APIProvider>);
+			await screen.findByText("invalidation A capability");
+			await userEvent.click(screen.getByRole("button", { name: "Retry invalidated session" }));
+			await waitFor(() => expect(delayedSignal).toBeDefined());
+			rendered.rerender(<APIProvider><ScopeProbe /></APIProvider>);
+			expect(delayedSignal?.aborted).toBe(true);
+
+			act(() => delayedBootstrap.resolve(jsonResponse(sessionBootstrap(true, "scope-b-only"))));
+			await act(async () => { await delayedBootstrap.promise; await Promise.resolve(); });
+			await userEvent.click(screen.getByRole("button", { name: "Probe request scope" }));
+			await waitFor(() => expect(fetch).toHaveBeenCalled());
+			const probeRequest = fetch.mock.calls.at(-1)?.[0];
+			expect(probeRequest?.headers.get("X-Zasp-Expected-Scope")).toBeNull();
+		} finally {
+			vi.unstubAllGlobals();
+		}
+	});
   it("bootstraps principal scope and server capabilities then signs out", async () => {
     const fetch = vi.fn(async (request: Request) => {
       if (request.url.endsWith("/api/v1/session/sign-out")) return new Response(null, { status: 204 });
@@ -651,5 +846,9 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 function scopeStaleResponse() {
-	return jsonResponse({ code: "scope_stale", message: "Session scope changed; rebootstrap required", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: true }, 409);
+		return jsonResponse({ code: "scope_stale", message: "Session scope changed; rebootstrap required", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: true }, 409);
+}
+
+function authenticationRequiredResponse() {
+	return jsonResponse({ code: "authentication_required", message: "Authentication required", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: false }, 401);
 }
