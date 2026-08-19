@@ -5,11 +5,13 @@ import { describe, expect, it } from "vitest";
 const read = (path: string) => readFileSync(path, "utf8");
 
 describe("M1A-07 through M1A-10 staging gate batch", () => {
-  it("adds one executable staging deploy, smoke, evidence, and gate boundary", () => {
+  it("adds the exact executable web/API deployment, evidence, and gate boundary", () => {
     const source = read("deploy/staging/gate.mjs");
-    for (const symbol of ["buildStagingDeployment", "startStagingDeployment", "inspectStagingDeployment", "runStagingDependencySmoke", "createStagingEvidence", "evaluateM1AGate"]) expect(source).toContain(`function ${symbol}`);
+    for (const symbol of ["buildStagingDeployment", "startStagingDeployment", "inspectStagingDeployment", "createStagingEvidence", "evaluateM1AGate"]) expect(source).toContain(`function ${symbol}`);
+    for (const contract of ['name: "web"', 'name: "agentsec-api"', 'serviceAccount: "agentsec-web"', 'serviceAccount: "agentsec-api"', "perWorkloadIAM"]) expect(source).toContain(contract);
+    for (const retired of ["runStagingDependencySmoke", "throughIRSA", "otlpHealthEmitted"]) expect(source).not.toContain(retired);
     const pkg = JSON.parse(read("package.json"));
-    expect(pkg.scripts["staging:gate:test"]).toBe("node --test deploy/staging/gate.test.mjs");
+    expect(pkg.scripts["staging:gate:test"]).toBe("node --test deploy/staging/gate.test.mjs deploy/staging/preflight.test.mjs");
   });
 
   it("blocks the final four staging tasks on the missing authorized AWS run", () => {
