@@ -79,6 +79,15 @@ spec:
             - { name: ZASP_DATABASE_AUTHORITY, value: "zasp_discovery_api" }
             - { name: ZASP_STYTCH_BASE_URL, value: "https://api.stytch.com" }
             - { name: ZASP_STYTCH_AUTHORIZE_URL, value: "https://api.stytch.com/v1/b2b/public/oauth/google/start" }
+            - { name: ZASP_CONNECTOR_AWS_REGION, value: {{ required "connectors.awsRegion is required" $root.Values.connectors.awsRegion | quote }} }
+            - { name: ZASP_CONNECTOR_ROLE_ARN, value: {{ required "connectors.roleArn is required" $root.Values.connectors.roleArn | quote }} }
+            - { name: ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE, value: {{ required "connectors.webIdentityTokenFile is required" $root.Values.connectors.webIdentityTokenFile | quote }} }
+            - { name: ZASP_CONNECTOR_KMS_KEY_ARN, value: {{ required "connectors.kmsKeyArn is required" $root.Values.connectors.kmsKeyArn | quote }} }
+            - { name: ZASP_CONNECTOR_SECRET_PREFIX, value: {{ required "connectors.secretPrefix is required" $root.Values.connectors.secretPrefix | quote }} }
+            - { name: ZASP_GITHUB_CLIENT_ID, value: {{ required "connectors.githubClientID is required" $root.Values.connectors.githubClientID | quote }} }
+            - { name: ZASP_GITHUB_CLIENT_SECRET_REFERENCE, value: {{ required "connectors.githubClientSecretReference is required" $root.Values.connectors.githubClientSecretReference | quote }} }
+            - { name: ZASP_OKTA_CLIENT_ID, value: {{ required "connectors.oktaClientID is required" $root.Values.connectors.oktaClientID | quote }} }
+            - { name: ZASP_OKTA_CLIENT_SECRET_REFERENCE, value: {{ required "connectors.oktaClientSecretReference is required" $root.Values.connectors.oktaClientSecretReference | quote }} }
             {{- end }}
             {{- if $root.Values.global.organizationID }}
             - { name: ZASP_ORGANIZATION_ID, value: {{ $root.Values.global.organizationID | quote }} }
@@ -97,6 +106,7 @@ spec:
               exec /app/agentsec-api
           volumeMounts:
             - { name: runtime-secrets, mountPath: /var/run/secrets/zasp, readOnly: true }
+            - { name: connector-web-identity, mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount, readOnly: true }
           {{- end }}
       {{- if eq .name "agentsec-api" }}
       volumes:
@@ -105,6 +115,11 @@ spec:
             driver: secrets-store.csi.k8s.io
             readOnly: true
             volumeAttributes: { secretProviderClass: {{ required "secrets.providerClassName is required" $root.Values.secrets.providerClassName | quote }} }
+        - name: connector-web-identity
+          projected:
+            defaultMode: 256
+            sources:
+              - serviceAccountToken: { audience: sts.amazonaws.com, expirationSeconds: 900, path: token }
       {{- end }}
 {{- end }}
 {{- end }}

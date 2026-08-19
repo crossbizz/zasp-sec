@@ -38,6 +38,16 @@ secrets:
   workflowSigningKeyObjectName: ""
   tokenRevealKeyObjectName: ""
   canaryReadTokenObjectName: ""
+connectors:
+  awsRegion: ""
+  roleArn: ""
+  webIdentityTokenFile: /var/run/secrets/eks.amazonaws.com/serviceaccount/token
+  kmsKeyArn: ""
+  secretPrefix: ""
+  githubClientID: ""
+  githubClientSecretReference: ""
+  oktaClientID: ""
+  oktaClientSecretReference: ""
 schema:
   expectedVersion: 10
   migrationTimeout: 10m
@@ -72,6 +82,12 @@ network:
   postgresCIDR: ""
   stytchCIDR: ""
   canaryCIDR: ""
+  # Native NetworkPolicy is CIDR-based, not an FQDN firewall. Operators must
+  # refresh these canonical snapshots when fixed provider endpoint addresses change.
+  connectorEgressCIDRs:
+    aws: []
+    github: []
+    okta: []
 canary:
   enabled: true
   schedule: "*/5 * * * *"

@@ -16,3 +16,7 @@ opensearch_volume_size    = 100
 evidence_retention_days   = 365
 attack_lab_namespace      = "zasp-attack-lab"
 offline_validation        = true
+connector_client_ids = {
+  github = "Iv1.1234567890abcdef"
+  okta   = "0oa1234567890abcdef"
+}

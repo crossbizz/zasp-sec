@@ -19,6 +19,8 @@ describe("M1A and M3 foundation batch", () => {
       'resource "aws_sqs_queue" "work"', 'resource "aws_sqs_queue" "dead_letter"',
       'resource "aws_opensearch_domain" "events"', 'resource "aws_iam_role" "api"',
       'resource "aws_iam_role" "migration"', 'resource "aws_iam_role" "canary_secret_sync"',
+      'resource "aws_kms_key" "connector_oauth"', 'resource "aws_secretsmanager_secret" "connector_provider"',
+      'resource "aws_iam_role" "api_connectors"',
     ]) expect(main).toContain(resource);
     expect(main).toContain("block_public_acls       = true");
     expect(main).toContain("encrypt_at_rest");
@@ -29,7 +31,7 @@ describe("M1A and M3 foundation batch", () => {
     expect(main).not.toMatch(/iam:(?:Create|Delete|Put|Update)|ec2:(?:Create|Delete|Modify)|secretsmanager:PutSecretValue/);
     expect(main).not.toContain('Action    = "es:ESHttp*"');
     expect(main).not.toContain('resource "aws_iam_role" "product"');
-    for (const output of ["private_subnet_ids", "cluster_name", "bucket_name", "queue_urls", "opensearch_endpoint", "api_role_arn", "migration_role_arn", "canary_secret_sync_role_arn"]) {
+    for (const output of ["private_subnet_ids", "cluster_name", "bucket_name", "queue_urls", "opensearch_endpoint", "api_role_arn", "migration_role_arn", "canary_secret_sync_role_arn", "connector_role_arn", "connector_kms_key_arn", "connector_secret_prefix", "connector_runtime_config"]) {
       expect(outputs).toContain(`output "${output}"`);
     }
     expect(outputs).not.toContain('output "product_role_arn"');

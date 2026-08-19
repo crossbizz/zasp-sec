@@ -37,6 +37,32 @@ output "opensearch_endpoint" {
 output "api_role_arn" {
   value = aws_iam_role.api.arn
 }
+output "connector_role_arn" {
+  description = "Explicit web-identity role assumed only by the API connector runtime."
+  value       = aws_iam_role.api_connectors.arn
+}
+output "connector_kms_key_arn" {
+  description = "Dedicated KMS key for connector OAuth and provider credential records."
+  value       = aws_kms_key.connector_oauth.arn
+}
+output "connector_secret_prefix" {
+  description = "Reference-only OAuth secret namespace; secret values are never Terraform outputs."
+  value       = local.connector_secret_prefix
+}
+output "connector_runtime_config" {
+  description = "Non-secret, reference-only API connector runtime configuration."
+  value = {
+    ZASP_CONNECTOR_AWS_REGION              = var.region
+    ZASP_CONNECTOR_ROLE_ARN                = aws_iam_role.api_connectors.arn
+    ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE = "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
+    ZASP_CONNECTOR_KMS_KEY_ARN             = aws_kms_key.connector_oauth.arn
+    ZASP_CONNECTOR_SECRET_PREFIX           = local.connector_secret_prefix
+    ZASP_GITHUB_CLIENT_ID                  = var.connector_client_ids.github
+    ZASP_GITHUB_CLIENT_SECRET_REFERENCE    = "ref:github/client-secret"
+    ZASP_OKTA_CLIENT_ID                    = var.connector_client_ids.okta
+    ZASP_OKTA_CLIENT_SECRET_REFERENCE      = "ref:okta/client-secret"
+  }
+}
 output "migration_role_arn" {
   value = aws_iam_role.migration.arn
 }

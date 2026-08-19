@@ -67,6 +67,27 @@ spec:
       ports: [{ protocol: TCP, port: 5432 }]
     - to: [{ ipBlock: { cidr: {{ required "network.stytchCIDR is required" .Values.network.stytchCIDR | quote }} } }]
       ports: [{ protocol: TCP, port: 443 }]
+{{- $connectorAWS := required "network.connectorEgressCIDRs.aws is required" .Values.network.connectorEgressCIDRs.aws }}
+{{- $connectorGitHub := required "network.connectorEgressCIDRs.github is required" .Values.network.connectorEgressCIDRs.github }}
+{{- $connectorOkta := required "network.connectorEgressCIDRs.okta is required" .Values.network.connectorEgressCIDRs.okta }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-connector-egress
+  labels: { app.kubernetes.io/part-of: zasp }
+  annotations:
+    zasp.io/network-policy-boundary: native-cidr-snapshot
+    zasp.io/endpoint-groups: aws-sts-secretsmanager,github-oauth-api,okta-tenant
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-api } }
+  policyTypes: [Egress]
+  egress:
+    - to:
+      {{- range $cidr := concat $connectorAWS $connectorGitHub $connectorOkta }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
+      ports: [{ protocol: TCP, port: 443 }]
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

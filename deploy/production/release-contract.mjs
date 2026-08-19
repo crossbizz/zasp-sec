@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
+import { isIP } from "node:net";
 import path from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
@@ -12,6 +13,8 @@ const digestPattern = /^[a-z0-9][a-z0-9./_-]*(?::[A-Za-z0-9._-]+)?@sha256:[0-9a-
 const hostPattern = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
 const namePattern = /^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$/;
 const imageNames = Object.freeze(["web", "agentsecApi"]);
+const connectorKeys = Object.freeze(["awsRegion", "roleArn", "webIdentityTokenFile", "kmsKeyArn", "secretPrefix", "githubClientID", "githubClientSecretReference", "oktaClientID", "oktaClientSecretReference"]);
+const connectorEgressKeys = Object.freeze(["aws", "github", "okta"]);
 
 export async function inspectContainerBuilds() {
   const definitions = [
@@ -64,6 +67,16 @@ export async function renderRelease(value) {
     ["databasePrincipals.runtimeGateway", "zasp_gateway_runtime"],
     ["network.postgresCIDR", "10.30.0.0/24"], ["network.stytchCIDR", "10.40.0.0/24"],
     ["network.canaryCIDR", "10.60.0.0/24"],
+    ["connectors.awsRegion", value.connectors.awsRegion],
+    ["connectors.roleArn", value.connectors.roleArn],
+    ["connectors.webIdentityTokenFile", value.connectors.webIdentityTokenFile],
+    ["connectors.kmsKeyArn", value.connectors.kmsKeyArn],
+    ["connectors.secretPrefix", value.connectors.secretPrefix],
+    ["connectors.githubClientID", value.connectors.githubClientID],
+    ["connectors.githubClientSecretReference", value.connectors.githubClientSecretReference],
+    ["connectors.oktaClientID", value.connectors.oktaClientID],
+    ["connectors.oktaClientSecretReference", value.connectors.oktaClientSecretReference],
+    ...connectorEgressKeys.flatMap((provider) => value.connectorEgressCIDRs[provider].map((cidr, index) => [`network.connectorEgressCIDRs.${provider}[${index}]`, cidr])),
     ...imageNames.map((name) => [`global.productImages.${name}`, value.images[name]]),
   ];
   const args = ["template", "zasp", path.join(root, "deploy/staging/product"), "--namespace", "agentsec"];
@@ -85,8 +98,31 @@ export async function renderRelease(value) {
 }
 
 function validRelease(value) {
-  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).sort().join("\0") !== ["host", "images", "secretProviderClass", "tlsSecretName"].sort().join("\0")) return false;
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).sort().join("\0") !== ["connectorEgressCIDRs", "connectors", "host", "images", "secretProviderClass", "tlsSecretName"].sort().join("\0")) return false;
   if (!hostPattern.test(value.host) || !namePattern.test(value.tlsSecretName) || !namePattern.test(value.secretProviderClass)) return false;
   if (!value.images || typeof value.images !== "object" || Array.isArray(value.images) || Object.keys(value.images).sort().join("\0") !== [...imageNames].sort().join("\0")) return false;
-  return imageNames.every((name) => digestPattern.test(value.images[name]));
+  if (!imageNames.every((name) => digestPattern.test(value.images[name]))) return false;
+  if (!value.connectors || typeof value.connectors !== "object" || Array.isArray(value.connectors) || Object.keys(value.connectors).sort().join("\0") !== [...connectorKeys].sort().join("\0")) return false;
+  const role = /^arn:aws:iam::([0-9]{12}):role\/zasp-production-api-connectors$/.exec(value.connectors.roleArn);
+  const kms = /^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.exec(value.connectors.kmsKeyArn);
+  if (!/^[a-z]{2}(?:-gov)?-[a-z]+-[0-9]$/.test(value.connectors.awsRegion) || !role || !kms || kms[1] !== value.connectors.awsRegion || kms[2] !== role[1]) return false;
+  if (value.connectors.webIdentityTokenFile !== "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || value.connectors.secretPrefix !== "zasp-production/connectors/oauth") return false;
+  if (!/^Iv1\.[A-Za-z0-9]{16}$/.test(value.connectors.githubClientID) || value.connectors.githubClientSecretReference !== "ref:github/client-secret") return false;
+  if (!/^0oa[A-Za-z0-9]{16}$/.test(value.connectors.oktaClientID) || value.connectors.oktaClientSecretReference !== "ref:okta/client-secret") return false;
+  if (!value.connectorEgressCIDRs || typeof value.connectorEgressCIDRs !== "object" || Array.isArray(value.connectorEgressCIDRs) || Object.keys(value.connectorEgressCIDRs).sort().join("\0") !== [...connectorEgressKeys].sort().join("\0")) return false;
+  return connectorEgressKeys.every((provider) => validCIDRList(value.connectorEgressCIDRs[provider]));
+}
+
+function validCIDRList(value) {
+  if (!Array.isArray(value) || value.length < 1 || value.length > 16 || new Set(value).size !== value.length) return false;
+  return value.every((cidr) => {
+    if (typeof cidr !== "string" || cidr.includes(" ")) return false;
+    const match = /^([^/]+)\/([0-9]{1,2})$/.exec(cidr);
+    if (!match || isIP(match[1]) !== 4 || match[1].split(".").some((part) => String(Number(part)) !== part)) return false;
+    const prefix = Number(match[2]);
+    if (prefix < 1 || prefix > 32) return false;
+    const address = match[1].split(".").reduce((result, part) => ((result << 8) | Number(part)) >>> 0, 0);
+    const mask = prefix === 32 ? 0xffffffff : (0xffffffff << (32 - prefix)) >>> 0;
+    return (address & mask) >>> 0 === address;
+  });
 }

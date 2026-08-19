@@ -49,6 +49,12 @@ locals {
     runtime-events = { visibility = 120, schema = "agentsec.runtime-events.v1" }
     tests          = { visibility = 900, schema = "agentsec.tests.v1" }
   }
+  connector_secret_root   = "${var.cluster_name}/connectors"
+  connector_secret_prefix = "${local.connector_secret_root}/oauth"
+  connector_provider_secret_names = {
+    github = "${local.connector_secret_root}/github/client-secret"
+    okta   = "${local.connector_secret_root}/okta/client-secret"
+  }
   bucket_name = "zasp-product-data-${md5(var.account_id)}"
   partition   = startswith(var.region, "cn-") ? "aws-cn" : startswith(var.region, "us-gov-") ? "aws-us-gov" : "aws"
 }
@@ -162,6 +168,17 @@ resource "aws_kms_alias" "staging" {
   target_key_id = aws_kms_key.staging.key_id
 }
 
+resource "aws_kms_key" "connector_oauth" {
+  description             = "ZASP API connector OAuth and provider secret encryption"
+  deletion_window_in_days = 30
+  enable_key_rotation     = true
+}
+
+resource "aws_kms_alias" "connector_oauth" {
+  name          = "alias/${var.cluster_name}-connector-oauth"
+  target_key_id = aws_kms_key.connector_oauth.key_id
+}
+
 resource "aws_s3_bucket" "evidence" {
   bucket = local.bucket_name
 }
@@ -225,6 +242,15 @@ resource "aws_secretsmanager_secret" "product" {
   tags = contains(keys(local.postgres_secret_principals), each.key) ? {
     DatabasePrincipal = local.postgres_secret_principals[each.key]
   } : {}
+}
+
+resource "aws_secretsmanager_secret" "connector_provider" {
+  for_each = local.connector_provider_secret_names
+
+  name                    = each.value
+  kms_key_id              = aws_kms_key.connector_oauth.arn
+  recovery_window_in_days = 30
+  tags                    = { CredentialClass = "${each.key}_oauth_client_secret" }
 }
 
 resource "aws_sqs_queue" "dead_letter" {
@@ -344,6 +370,55 @@ resource "aws_iam_role_policy" "api" {
     Statement = [
       { Effect = "Allow", Action = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"], Resource = [for name in local.api_secret_names : aws_secretsmanager_secret.product[name].arn] },
       { Effect = "Allow", Action = ["kms:Decrypt"], Resource = aws_kms_key.staging.arn, Condition = { StringEquals = { "kms:ViaService" = "secretsmanager.${var.region}.amazonaws.com" } } }
+    ]
+  })
+}
+
+resource "aws_iam_role" "api_connectors" {
+  name = "${var.cluster_name}-api-connectors"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Federated = aws_iam_openid_connect_provider.eks.arn }
+      Action    = "sts:AssumeRoleWithWebIdentity"
+      Condition = {
+        StringEquals = {
+          "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:aud" = "sts.amazonaws.com"
+          "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub" = "system:serviceaccount:agentsec:agentsec-api"
+        }
+      }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "api_connectors" {
+  name = "${var.cluster_name}-api-connector-secrets"
+  role = aws_iam_role.api_connectors.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:CreateSecret",
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DeleteSecret",
+        ]
+        Resource = [
+          "arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_prefix}/*",
+          "arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_root}/github/*",
+          "arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_root}/okta/*",
+        ]
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["kms:GenerateDataKey", "kms:Decrypt"]
+        Resource = aws_kms_key.connector_oauth.arn
+        Condition = {
+          StringEquals = { "kms:ViaService" = "secretsmanager.${var.region}.amazonaws.com" }
+        }
+      },
     ]
   })
 }

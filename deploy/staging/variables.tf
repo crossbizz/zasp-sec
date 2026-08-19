@@ -109,6 +109,23 @@ variable "database_principals" {
   }
 }
 
+variable "connector_client_ids" {
+  description = "Non-secret first-party OAuth client identifiers; client credentials are populated out of band in the connector secret namespace."
+  type = object({
+    github = string
+    okta   = string
+  })
+  default = {
+    github = "Iv1.0000000000000000"
+    okta   = "0oa0000000000000000"
+  }
+
+  validation {
+    condition     = can(regex("^Iv1\\.[A-Za-z0-9]{16}$", var.connector_client_ids.github)) && can(regex("^0oa[A-Za-z0-9]{16}$", var.connector_client_ids.okta))
+    error_message = "connector_client_ids must contain canonical non-secret GitHub and Okta client identifiers."
+  }
+}
+
 variable "endpoint_public_access" {
   description = "Whether the EKS API has a public endpoint; production must remain false."
   type        = bool
