@@ -224,7 +224,7 @@ func bootstrapJSON(identity RequestIdentity) map[string]any {
 	return map[string]any{
 		"principal":       map[string]any{"id": identity.PrincipalID.String(), "organization_id": identity.Scope.OrganizationID().String(), "organization_reference": "organization-live", "member_reference": "member-live", "role": "security_admin", "active": true},
 		"organization_id": identity.Scope.OrganizationID().String(), "workspace_id": identity.Scope.WorkspaceID().String(), "environment_id": identity.Scope.EnvironmentID().String(),
-		"permissions": []string{"view", "manage_findings"}, "capabilities": []string{"inventory.read", "findings.read", "findings.manage", "attack_paths.read"},
+		"permissions": []string{"view"}, "capabilities": []string{"inventory.read"},
 		"csrf_token": identity.CSRFToken, "correlation_id": fallbackCorrelationID,
 	}
 }

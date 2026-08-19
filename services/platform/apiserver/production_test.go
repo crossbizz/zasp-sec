@@ -108,6 +108,16 @@ func TestProductionBootstrapAdvertisesOnlyMountedDurableCapabilities(t *testing.
 	}
 }
 
+func TestBootstrapPayloadSourceContainsOnlyMountedDurableCapabilities(t *testing.T) {
+	bootstrap := bootstrapJSON(fixtureRequestIdentity(t))
+	if !reflect.DeepEqual(bootstrap["permissions"], []string{"view"}) {
+		t.Fatalf("permissions = %#v", bootstrap["permissions"])
+	}
+	if !reflect.DeepEqual(bootstrap["capabilities"], []string{"inventory.read"}) {
+		t.Fatalf("capabilities = %#v", bootstrap["capabilities"])
+	}
+}
+
 func TestProductionProviderFailureReturnsRetryableErrorWithoutFixtureFallback(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "https://app.zasp.test/api/v1/home/summary", nil)
 	request = request.WithContext(context.WithValue(request.Context(), identityContextKey{}, fixtureRequestIdentity(t)))
