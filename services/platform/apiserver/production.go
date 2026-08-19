@@ -31,7 +31,11 @@ type SessionGrant struct {
 	ReturnTo    string
 }
 
-type CookiePolicy struct{ Secure bool }
+type CookiePolicy struct {
+	Secure             bool
+	WorkflowSigningKey []byte
+	Clock              func() time.Time
+}
 
 type sessionRepository interface {
 	Authenticate(context.Context, Credential) (RequestIdentity, error)
@@ -50,27 +54,18 @@ func NewProductionHandlers(repository *PostgresRepository, provider CallbackProv
 	if repository == nil || nilInterface(repository.database) || nilInterface(provider) {
 		return Dependencies{}, nil, ErrRepositoryConfiguration
 	}
+	workflow, err := newWorkflowHTTPHandler(repository, cookie.WorkflowSigningKey, cookie.Clock)
+	if err != nil {
+		return Dependencies{}, nil, ErrRepositoryConfiguration
+	}
 	session := &sessionHTTPHandler{repository: repository, provider: provider, cookie: cookie}
 	return Dependencies{
 		Session:   session,
 		Identity:  &identityHTTPHandler{repository: repository},
 		Inventory: &coreHTTPHandler{repository: repository, boundary: inventoryDependency},
 		Risk:      &coreHTTPHandler{repository: repository, boundary: riskDependency},
-		Workflow:  &workflowHTTPHandler{repository: repository},
+		Workflow:  workflow,
 	}, repository.Authenticate, nil
-}
-
-type workflowHTTPHandler struct{ repository coreRepository }
-
-func (handler *workflowHTTPHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
-	identity, ok := IdentityFromRequest(request)
-	operation, routed := RoutedOperationFromRequest(request)
-	if !ok || !routed {
-		writeProductionError(writer, request, ErrRepositoryAuthentication)
-		return
-	}
-	payload, err := handler.repository.Read(request.Context(), identity.Scope, "workflow:"+operation.OperationID)
-	writeProductionResponse(writer, request, http.StatusOK, payload, err)
 }
 
 type sessionHTTPHandler struct {

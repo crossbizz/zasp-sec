@@ -55,7 +55,7 @@ func TestProductionHandlersIssueHostOnlySecureSessionCookie(t *testing.T) {
 		t.Fatal(err)
 	}
 	grant := sessionGrant(t, "3")
-	handlers, _, err := NewProductionHandlers(repository, CallbackProviderFunc(func(context.Context, string, string) (SessionGrant, error) { return grant, nil }), CookiePolicy{Secure: true})
+	handlers, _, err := NewProductionHandlers(repository, CallbackProviderFunc(func(context.Context, string, string) (SessionGrant, error) { return grant, nil }), fixtureCookiePolicy())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -220,7 +220,7 @@ func newProductionTestServer(t *testing.T, database *persistentJSONDatabase) *ht
 	if err != nil {
 		t.Fatal(err)
 	}
-	handlers, authenticate, err := NewProductionHandlers(repository, CallbackProviderFunc(func(context.Context, string, string) (SessionGrant, error) { return sessionGrant(t, "3"), nil }), CookiePolicy{Secure: true})
+	handlers, authenticate, err := NewProductionHandlers(repository, CallbackProviderFunc(func(context.Context, string, string) (SessionGrant, error) { return sessionGrant(t, "3"), nil }), fixtureCookiePolicy())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -244,6 +244,10 @@ func newProductionTestServer(t *testing.T, database *persistentJSONDatabase) *ht
 	}))
 	origin = server.URL
 	return server
+}
+
+func fixtureCookiePolicy() CookiePolicy {
+	return CookiePolicy{Secure: true, WorkflowSigningKey: []byte("0123456789abcdef0123456789abcdef"), Clock: func() time.Time { return time.Date(2026, 8, 18, 12, 0, 0, 0, time.UTC) }}
 }
 
 func productRequest(t *testing.T, client *http.Client, method, target, session, origin, body string) *http.Response {

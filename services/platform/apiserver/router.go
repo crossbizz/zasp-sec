@@ -93,7 +93,7 @@ func (router *operationRouter) ServeHTTP(writer http.ResponseWriter, request *ht
 	pathMatched := false
 	for _, operation := range router.operations {
 		parameters, matched := matchSegments(operation.segments, pathSegments)
-		if !matched {
+		if !matched || !validRouteParameters(operation.operationID, parameters) {
 			continue
 		}
 		pathMatched = true
@@ -138,6 +138,9 @@ func requestHasCredentialKind(request *http.Request, allowed []CredentialKind) b
 
 func requestHasValidCSRF(request *http.Request) bool {
 	identity, ok := IdentityFromRequest(request)
+	if ok && identity.CredentialKind == CredentialBearerToken {
+		return true
+	}
 	security, securityOK := request.Context().Value(browserSecurityContextKey{}).(browserSecurityContext)
 	if !ok || !securityOK || identity.CredentialKind != CredentialBrowserSession {
 		return false
@@ -191,15 +194,27 @@ func matchSegments(pattern []routeSegment, path []string) (map[string]string, bo
 			return nil, false
 		}
 		if segment.parameter {
-			if segment.name == "id" {
-				if _, err := domain.ParseProductID(path[index]); err != nil {
-					return nil, false
-				}
-			}
 			parameters[segment.name] = path[index]
 		}
 	}
 	return parameters, true
+}
+
+func validRouteParameters(operationID string, parameters map[string]string) bool {
+	for name, value := range parameters {
+		if name == "id" && strings.Contains(operationID, "Policy") {
+			if !policyIDPattern.MatchString(value) {
+				return false
+			}
+			continue
+		}
+		if name == "id" || name == "syncId" {
+			if _, err := domain.ParseProductID(value); err != nil {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func overlappingRouteShape(left, right []routeSegment) bool {

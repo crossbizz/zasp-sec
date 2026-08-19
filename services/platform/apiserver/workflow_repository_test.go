@@ -74,6 +74,16 @@ func TestWorkflowRepositoryMutationCarriesIdempotencyVersionAndAtomicAuditIdenti
 	}
 }
 
+func TestWorkflowRepositoryAcceptsExactReplayWithOriginalAuditCorrelation(t *testing.T) {
+	database := &workflowCallDatabase{response: json.RawMessage(`{"body":{"id":"policy-one"},"version":1,"secret_generation":0,"audit_id":"pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","correlation_id":"pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","replayed":true}`)}
+	repository, _ := NewPostgresRepository(database)
+	identity := fixtureRequestIdentity(t)
+	result, err := repository.MutateWorkflow(context.Background(), identity, WorkflowMutation{Action: "create", Kind: "policy", ID: "policy-one", Operation: "createPolicy", IdempotencyKey: "idem-exact-request-1", Body: json.RawMessage(`{"id":"policy-one"}`), AuditID: "pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc", CorrelationID: "pid_dddddddd-dddd-4ddd-8ddd-dddddddddddd"})
+	if err != nil || !result.Replayed || result.AuditID != "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" || result.CorrelationID != "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" {
+		t.Fatalf("replay = (%#v, %v)", result, err)
+	}
+}
+
 func TestWorkflowRepositoryRejectsMalformedMutationBeforeDatabaseAccess(t *testing.T) {
 	database := &workflowCallDatabase{}
 	repository, _ := NewPostgresRepository(database)
@@ -89,5 +99,20 @@ func TestWorkflowRepositoryRejectsMalformedMutationBeforeDatabaseAccess(t *testi
 	}
 	if database.query != "" {
 		t.Fatalf("malformed mutation reached database: %q", database.query)
+	}
+}
+
+func TestWorkflowSecretFilterAllowsOpaqueReferencesButRejectsReadableValues(t *testing.T) {
+	if containsSensitiveWorkflowField(json.RawMessage(`{"configuration":{"signing_secret_reference":"secret_ref_prod"}}`)) {
+		t.Fatal("opaque secret reference was rejected")
+	}
+	for _, payload := range []json.RawMessage{
+		json.RawMessage(`{"token":"readable"}`),
+		json.RawMessage(`{"configuration":{"password":"readable"}}`),
+		json.RawMessage(`{"provider_secret":"readable"}`),
+	} {
+		if !containsSensitiveWorkflowField(payload) {
+			t.Fatalf("readable secret accepted: %s", payload)
+		}
 	}
 }

@@ -64,7 +64,7 @@ func composeRuntimeDependencies(config RuntimeConfig, database apiserver.JSONDat
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
-	handlers, authenticate, err := apiserver.NewProductionHandlers(repository, provider, apiserver.CookiePolicy{Secure: config.CookieSecure})
+	handlers, authenticate, err := apiserver.NewProductionHandlers(repository, provider, apiserver.CookiePolicy{Secure: config.CookieSecure, WorkflowSigningKey: []byte(config.WorkflowSigningKey), Clock: func() time.Time { return time.Now().UTC().Truncate(time.Second) }})
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}

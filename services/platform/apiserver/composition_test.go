@@ -142,6 +142,7 @@ func TestNewCompositionMountsOnlyCoreProductOperations(t *testing.T) {
 		{method: "GET", path: "/api/v1/runtimes", body: "inventory"},
 		{method: "GET", path: "/api/v1/policies", body: "workflow"},
 		{method: "POST", path: "/api/v1/policies", body: "workflow"},
+		{method: "GET", path: "/api/v1/policies/policy-bounded", body: "workflow"},
 		{method: "GET", path: "/api/v1/integration-catalog", body: "workflow"},
 		{method: "GET", path: "/api/v1/sensors", body: "workflow"},
 		{method: "GET", path: "/api/v1/security-agents", body: "workflow"},
@@ -170,6 +171,23 @@ func TestNewCompositionMountsOnlyCoreProductOperations(t *testing.T) {
 		if response.Code != http.StatusNotFound {
 			t.Errorf("internal path %s status = %d, want 404", path, response.Code)
 		}
+	}
+}
+
+func TestWorkflowMutationAllowsPATWithoutBrowserCSRF(t *testing.T) {
+	composition, err := NewComposition(Dependencies{Session: handlerResponse("session"), Identity: handlerResponse("identity"), Inventory: handlerResponse("inventory"), Risk: handlerResponse("risk"), Workflow: handlerResponse("workflow")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/policies", strings.NewReader(`{"id":"policy-bounded"}`))
+	identity := fixtureRequestIdentity(t)
+	identity.Permissions = []string{"view", "manage_workflows"}
+	identity.CredentialKind = CredentialBearerToken
+	request = request.WithContext(context.WithValue(request.Context(), identityContextKey{}, identity))
+	response := httptest.NewRecorder()
+	composition.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || response.Body.String() != "workflow" {
+		t.Fatalf("PAT mutation = %d %q", response.Code, response.Body.String())
 	}
 }
 

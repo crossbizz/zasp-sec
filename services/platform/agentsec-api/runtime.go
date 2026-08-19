@@ -36,6 +36,7 @@ type RuntimeConfig struct {
 	StytchSecret          string
 	StytchPublicToken     string
 	StytchOrganizationID  string
+	WorkflowSigningKey    string
 }
 
 type StoreDependency struct {
@@ -64,7 +65,7 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 		InternalListenAddress: getenv("ZASP_INTERNAL_LISTEN_ADDRESS"), PublicOrigin: getenv("ZASP_PUBLIC_ORIGIN"),
 		CookieSecure: cookieSecure, ProviderTimeout: providerTimeout, ShutdownTimeout: shutdownTimeout,
 		ReadinessInterval: readinessInterval, ReadinessMaxInterval: readinessMaxInterval,
-		PostgresDSN: getenv("ZASP_POSTGRES_DSN"), StytchBaseURL: getenv("ZASP_STYTCH_BASE_URL"), StytchAuthorizeURL: getenv("ZASP_STYTCH_AUTHORIZE_URL"), StytchProjectID: getenv("ZASP_STYTCH_PROJECT_ID"), StytchSecret: getenv("ZASP_STYTCH_SECRET"), StytchPublicToken: getenv("ZASP_STYTCH_PUBLIC_TOKEN"), StytchOrganizationID: getenv("ZASP_STYTCH_ORGANIZATION_ID"),
+		PostgresDSN: getenv("ZASP_POSTGRES_DSN"), StytchBaseURL: getenv("ZASP_STYTCH_BASE_URL"), StytchAuthorizeURL: getenv("ZASP_STYTCH_AUTHORIZE_URL"), StytchProjectID: getenv("ZASP_STYTCH_PROJECT_ID"), StytchSecret: getenv("ZASP_STYTCH_SECRET"), StytchPublicToken: getenv("ZASP_STYTCH_PUBLIC_TOKEN"), StytchOrganizationID: getenv("ZASP_STYTCH_ORGANIZATION_ID"), WorkflowSigningKey: getenv("ZASP_WORKFLOW_SIGNING_KEY"),
 	}
 	if providerErr != nil || shutdownErr != nil || readinessErr != nil || readinessMaxErr != nil || cookieErr != nil || !validRuntimeConfig(config) {
 		return RuntimeConfig{}, errInvalidRuntimeConfig
@@ -95,7 +96,7 @@ func validRuntimeConfig(config RuntimeConfig) bool {
 	if authorizeErr != nil || baseErr != nil || authorize == nil || base == nil {
 		return false
 	}
-	if !validConfiguredIdentityURL(authorize, config.Environment) || authorize.Path == "" || !validConfiguredIdentityURL(base, config.Environment) || base.Path != "" || len(config.StytchProjectID) < 8 || len(config.StytchProjectID) > 256 || strings.TrimSpace(config.StytchProjectID) != config.StytchProjectID || len(config.StytchSecret) < 8 || len(config.StytchSecret) > 4096 || strings.TrimSpace(config.StytchSecret) != config.StytchSecret || len(config.StytchPublicToken) < 8 || len(config.StytchPublicToken) > 256 || !strings.HasPrefix(config.StytchOrganizationID, "organization-") || len(config.StytchOrganizationID) > 128 {
+	if !validConfiguredIdentityURL(authorize, config.Environment) || authorize.Path == "" || !validConfiguredIdentityURL(base, config.Environment) || base.Path != "" || len(config.StytchProjectID) < 8 || len(config.StytchProjectID) > 256 || strings.TrimSpace(config.StytchProjectID) != config.StytchProjectID || len(config.StytchSecret) < 8 || len(config.StytchSecret) > 4096 || strings.TrimSpace(config.StytchSecret) != config.StytchSecret || len(config.StytchPublicToken) < 8 || len(config.StytchPublicToken) > 256 || !strings.HasPrefix(config.StytchOrganizationID, "organization-") || len(config.StytchOrganizationID) > 128 || len(config.WorkflowSigningKey) < 32 || len(config.WorkflowSigningKey) > 4096 || strings.TrimSpace(config.WorkflowSigningKey) != config.WorkflowSigningKey {
 		return false
 	}
 	return config.ProviderTimeout > 0 && config.ProviderTimeout <= 30*time.Second && config.ShutdownTimeout > 0 && config.ShutdownTimeout <= 30*time.Second && config.ReadinessInterval >= 100*time.Millisecond && config.ReadinessMaxInterval >= config.ReadinessInterval && config.ReadinessMaxInterval <= 5*time.Minute

@@ -135,6 +135,31 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 	if payload, err := repository.Read(ctx, scope, "agents"); err != nil || !equalIntegrationJSON(payload, []byte(agents)) {
 		t.Fatalf("read = (%s, %v)", payload, err)
 	}
+	workflowIdentity := RequestIdentity{PrincipalID: principal, Scope: scope, Permissions: []string{"view", "manage_workflows"}}
+	workflowBody := json.RawMessage(`{"id":"policy-production","name":"Production boundary","scope":"environment","trigger":"tool","conditions":[{"field":"action","operator":"equals","value":"write"}],"action":"monitor","rollout":"draft","failure_mode":"open"}`)
+	workflowCreate := WorkflowMutation{Action: "create", Kind: "policy", ID: "policy-production", Operation: "createPolicy", IdempotencyKey: "idem-production-policy-0001", Body: workflowBody, AuditID: "pid_30000001-0000-4000-8000-000000000001", CorrelationID: "pid_30000002-0000-4000-8000-000000000002"}
+	createdWorkflow, err := repository.MutateWorkflow(ctx, workflowIdentity, workflowCreate)
+	if err != nil || createdWorkflow.Version != 1 || createdWorkflow.Replayed {
+		t.Fatalf("create workflow = (%#v, %v)", createdWorkflow, err)
+	}
+	replayMutation := workflowCreate
+	replayMutation.AuditID = "pid_30000003-0000-4000-8000-000000000003"
+	replayMutation.CorrelationID = "pid_30000004-0000-4000-8000-000000000004"
+	replayedWorkflow, err := repository.MutateWorkflow(ctx, workflowIdentity, replayMutation)
+	if err != nil || !replayedWorkflow.Replayed || replayedWorkflow.AuditID != workflowCreate.AuditID || replayedWorkflow.CorrelationID != workflowCreate.CorrelationID {
+		t.Fatalf("replay workflow = (%#v, %v)", replayedWorkflow, err)
+	}
+	if payload, err := repository.ListWorkflows(ctx, foreignScope, "policy", "", ""); err != nil || !equalIntegrationJSON(payload, []byte(`{"items":[]}`)) {
+		t.Fatalf("foreign workflow list = (%s, %v)", payload, err)
+	}
+	staleMutation := WorkflowMutation{Action: "update", Kind: "policy", ID: "policy-production", Operation: "updatePolicy", IdempotencyKey: "idem-stale-policy-000001", ExpectedVersion: 2, Body: workflowBody, AuditID: "pid_30000005-0000-4000-8000-000000000005", CorrelationID: "pid_30000006-0000-4000-8000-000000000006"}
+	if _, err := repository.MutateWorkflow(ctx, workflowIdentity, staleMutation); !errors.Is(err, ErrRepositoryConflict) {
+		t.Fatalf("stale workflow mutation = %v", err)
+	}
+	var auditCount, idempotencyCount int
+	if err := connection.QueryRow(ctx, `SELECT (SELECT count(*) FROM zasp_workflow_audit WHERE resource_id = 'policy-production'), (SELECT count(*) FROM zasp_workflow_idempotency WHERE operation = 'createPolicy')`).Scan(&auditCount, &idempotencyCount); err != nil || auditCount != 1 || idempotencyCount != 1 {
+		t.Fatalf("workflow ledger counts = (%d, %d, %v)", auditCount, idempotencyCount, err)
+	}
 	if err := database.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -145,6 +170,9 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 	}
 	restartedDatabase, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: restartedConnection})
 	restartedRepository, _ := NewPostgresRepository(restartedDatabase)
+	if persisted, err := restartedRepository.GetWorkflow(ctx, scope, "policy", "policy-production"); err != nil || persisted.Version != 1 || !equalIntegrationJSON(persisted.Body, workflowBody) {
+		t.Fatalf("workflow did not survive repository restart = (%#v, %v)", persisted, err)
+	}
 	if _, err := restartedRepository.Authenticate(ctx, Credential{Kind: CredentialBrowserSession, Value: session}); err != nil {
 		t.Fatalf("session did not survive repository restart: %v", err)
 	}

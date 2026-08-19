@@ -79,10 +79,20 @@ func (repository *PostgresRepository) MutateWorkflow(ctx context.Context, identi
 		return WorkflowMutationResult{}, err
 	}
 	var result WorkflowMutationResult
-	if json.Unmarshal(payload, &result) != nil || result.Version < 1 || result.SecretGeneration < 0 || !validJSONObjectBody(result.Body) || result.AuditID != mutation.AuditID || result.CorrelationID != mutation.CorrelationID {
+	if json.Unmarshal(payload, &result) != nil || result.Version < 1 || result.SecretGeneration < 0 || !validJSONObjectBody(result.Body) || !validMutationResultIDs(result, mutation) {
 		return WorkflowMutationResult{}, ErrRepositoryUnavailable
 	}
 	return result, nil
+}
+
+func validMutationResultIDs(result WorkflowMutationResult, mutation WorkflowMutation) bool {
+	if _, err := domain.ParseProductID(result.AuditID); err != nil {
+		return false
+	}
+	if _, err := domain.ParseProductID(result.CorrelationID); err != nil {
+		return false
+	}
+	return result.Replayed || (result.AuditID == mutation.AuditID && result.CorrelationID == mutation.CorrelationID)
 }
 
 func validWorkflowPage(payload json.RawMessage, err error) (json.RawMessage, error) {
@@ -169,7 +179,8 @@ func containsSensitiveWorkflowField(value json.RawMessage) bool {
 		case map[string]any:
 			for key, nested := range typed {
 				lower := strings.ToLower(key)
-				if lower == "token" || strings.Contains(lower, "password") || strings.Contains(lower, "secret") || strings.Contains(lower, "credential_value") {
+				opaqueReference := strings.HasSuffix(lower, "_reference")
+				if lower == "token" || strings.Contains(lower, "password") || strings.Contains(lower, "secret") && !opaqueReference || strings.Contains(lower, "credential_value") {
 					return true
 				}
 				if visit(nested) {
