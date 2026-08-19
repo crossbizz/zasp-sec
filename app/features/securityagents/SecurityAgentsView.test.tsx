@@ -30,7 +30,7 @@ describe("Security Agent definition surface", () => {
     render(<SecurityAgentsView api={fixtureAPI({ createSecurityAgent })} environmentID={environmentID} />);
     await user.click(await screen.findByRole("button", { name: "Create Security Agent" }));
     await user.click(screen.getByRole("button", { name: "Save Security Agent definition" }));
-    await waitFor(() => expect(createSecurityAgent).toHaveBeenCalledWith(expect.objectContaining({ environment_ids: [environmentID], autonomy: "supervised", allowed_actions: ["run_test"], verification_kind: "test_run" })));
+    await waitFor(() => expect(createSecurityAgent).toHaveBeenCalledWith(expect.objectContaining({ environment_ids: [environmentID], autonomy: "supervised", allowed_actions: ["run_test"], verification_kind: "test_run" }), expect.objectContaining({ idempotencyKey: expect.stringMatching(/^wf_/) })));
     expect(screen.queryByText(/simulate/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/approval/i)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /run/i })).not.toBeInTheDocument();
@@ -47,9 +47,28 @@ describe("Security Agent definition surface", () => {
     await user.clear(screen.getByLabelText("Definition name"));
     await user.type(screen.getByLabelText("Definition name"), "Updated definition");
     await user.click(screen.getByRole("button", { name: "Save definition" }));
-    await waitFor(() => expect(updateSecurityAgent).toHaveBeenCalledWith(agentID, `"7"`, expect.objectContaining({ name: "Updated definition" })));
+    await waitFor(() => expect(updateSecurityAgent).toHaveBeenCalledWith(agentID, `"7"`, expect.objectContaining({ name: "Updated definition" }), expect.objectContaining({ idempotencyKey: expect.stringMatching(/^wf_/) })));
     expect(getSecurityAgent).toHaveBeenCalledTimes(1);
     await user.click(screen.getByRole("button", { name: "Delete definition" }));
-    await waitFor(() => expect(deleteSecurityAgent).toHaveBeenCalledWith(agentID, `"8"`));
+    await waitFor(() => expect(deleteSecurityAgent).toHaveBeenCalledWith(agentID, `"8"`, expect.objectContaining({ idempotencyKey: expect.stringMatching(/^wf_/) })));
+  });
+
+  it("offers a manual retry that retains the exact create intent and attempt after an ambiguous response", async () => {
+    const user = userEvent.setup();
+    const calls: Array<{ value: Parameters<SecurityAgentsAPI["createSecurityAgent"]>[0]; key: string }> = [];
+    const createSecurityAgent = vi.fn(async (value: Parameters<SecurityAgentsAPI["createSecurityAgent"]>[0], attempt?: Parameters<SecurityAgentsAPI["createSecurityAgent"]>[1]) => {
+      calls.push({ value, key: attempt?.idempotencyKey ?? "" });
+      if (calls.length <= 2) throw new TypeError("two transport responses were lost");
+      return { value: created, version: `"1"`, auditID };
+    });
+    render(<SecurityAgentsView api={fixtureAPI({ createSecurityAgent })} environmentID={environmentID} />);
+    await user.click(await screen.findByRole("button", { name: "Create Security Agent" }));
+    await user.click(screen.getByRole("button", { name: "Save Security Agent definition" }));
+    await screen.findByRole("button", { name: "Retry retained Security Agent definition" });
+    expect(screen.getByLabelText("Definition name")).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Retry retained Security Agent definition" }));
+    await waitFor(() => expect(createSecurityAgent).toHaveBeenCalledTimes(3));
+    expect(new Set(calls.map(({ key }) => key)).size).toBe(1);
+    expect(calls[1]?.value).toEqual(calls[0]?.value);
   });
 });

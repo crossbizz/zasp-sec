@@ -19,6 +19,7 @@ import {
   type WorkflowMutationAttempt,
   type WorkflowReceipt,
 } from "../workflows/api";
+import { useRetainedWorkflowMutation } from "../workflows/useRetainedWorkflowMutation";
 
 export const securityAgentOperations = [
   "listSecurityAgentTemplates", "listSecurityAgents", "createSecurityAgent", "getSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent",
@@ -61,6 +62,13 @@ const maximums = { steps: 100, runtime: 86400, temporaryPolicy: 86400, aiTokens:
 const triggerSources = { finding: "credential", attack_path: "verified", runtime_decision: "block" } as const;
 const bounded = (value: string, maximum: number) => Math.max(1, Math.min(maximum, Number(value) || 1));
 type SecurityAgentSnapshot = { agents: readonly SecurityAgentDefinition[]; templates: readonly SecurityAgentTemplate[] };
+type SecurityAgentCreateIntent = { value: SecurityAgentInput };
+type SecurityAgentDetailIntent =
+  | { kind: "update"; id: string; version: string; value: SecurityAgentDefinition }
+  | { kind: "delete"; id: string; version: string };
+type SecurityAgentDetailResult =
+  | { kind: "updated"; receipt: WorkflowReceipt<SecurityAgentDefinition> }
+  | { kind: "deleted"; receipt: WorkflowReceipt<void> };
 
 async function loadSecurityAgentSnapshot(api: SecurityAgentsAPI, signal?: AbortSignal): Promise<SecurityAgentSnapshot> {
   const [page, templates] = await Promise.all([api.listSecurityAgents(signal), api.listSecurityAgentTemplates(signal)]);
@@ -68,6 +76,7 @@ async function loadSecurityAgentSnapshot(api: SecurityAgentsAPI, signal?: AbortS
 }
 
 function Builder({ templates, api, environmentID, onCreated }: { templates: readonly SecurityAgentTemplate[]; api: SecurityAgentsAPI; environmentID: string; onCreated(value: SecurityAgentDefinition): void }) {
+  const mutation = useRetainedWorkflowMutation<SecurityAgentCreateIntent>();
   const [templateID, setTemplateID] = useState(templates[0]?.id ?? "");
   const [name, setName] = useState("Bounded response definition");
   const [steps, setSteps] = useState(10);
@@ -82,29 +91,36 @@ function Builder({ templates, api, environmentID, onCreated }: { templates: read
     if (!selected) return;
     setBusy(true); setError(false);
     try {
-      const receipt = await api.createSecurityAgent({ name, trigger_kind: selected.trigger_kind, trigger_source: triggerSources[selected.trigger_kind], environment_ids: [environmentID], autonomy: "supervised", max_steps: steps, max_duration_seconds: runtime, temporary_policy_seconds: temporaryPolicy, ai_token_budget: aiTokens, concurrency_limit: concurrency, allowed_actions: selected.default_actions, verification_kind: selected.verification_condition, definition_version: selected.version, enabled: true });
+      const intent = { value: { name, trigger_kind: selected.trigger_kind, trigger_source: triggerSources[selected.trigger_kind], environment_ids: [environmentID], autonomy: "supervised" as const, max_steps: steps, max_duration_seconds: runtime, temporary_policy_seconds: temporaryPolicy, ai_token_budget: aiTokens, concurrency_limit: concurrency, allowed_actions: selected.default_actions, verification_kind: selected.verification_condition, definition_version: selected.version, enabled: true } };
+      const receipt = mutation.hasAmbiguousAttempt
+        ? await mutation.retry<WorkflowReceipt<SecurityAgentDefinition>>()
+        : await mutation.execute(intent, (frozen, attempt) => api.createSecurityAgent(frozen.value, attempt));
       onCreated(receipt.value);
     } catch { setError(true); } finally { setBusy(false); }
   };
   return <Card title="Create a definition from a locally supported template"><div className="form-stack">
-    <Select label="Definition template" value={templateID} onChange={(event) => setTemplateID(event.target.value)}>{templates.map((value) => <option key={value.id} value={value.id}>{value.name}</option>)}</Select>
-    <Field label="Definition name" value={name} maxLength={256} onChange={(event) => setName(event.target.value)} />
+    <Select label="Definition template" value={templateID} onChange={(event) => { if (!mutation.hasAmbiguousAttempt) setTemplateID(event.target.value); }}>{templates.map((value) => <option key={value.id} value={value.id}>{value.name}</option>)}</Select>
+    <Field label="Definition name" value={name} disabled={mutation.hasAmbiguousAttempt} maxLength={256} onChange={(event) => setName(event.target.value)} />
     <Field label="Authorized environment" value={environmentID} readOnly />
     {selected && <p>Trigger: {selected.trigger_kind}. Template actions: {selected.default_actions.join(", ")}. Verification: {selected.verification_condition}.</p>}
     <div className="form-grid"><Field label="Step limit" type="number" min={1} max={maximums.steps} value={steps} onChange={(event) => setSteps(bounded(event.target.value, maximums.steps))} /><Field label="Runtime seconds" type="number" min={1} max={maximums.runtime} value={runtime} onChange={(event) => setRuntime(bounded(event.target.value, maximums.runtime))} /><Field label="Temporary-policy seconds" type="number" min={1} max={maximums.temporaryPolicy} value={temporaryPolicy} onChange={(event) => setTemporaryPolicy(bounded(event.target.value, maximums.temporaryPolicy))} /><Field label="AI token budget" type="number" min={1} max={maximums.aiTokens} value={aiTokens} onChange={(event) => setAITokens(bounded(event.target.value, maximums.aiTokens))} /><Field label="Concurrency" type="number" min={1} max={maximums.concurrency} value={concurrency} onChange={(event) => setConcurrency(bounded(event.target.value, maximums.concurrency))} /></div>
     <p>Execution, simulation, approvals, and provider actions remain hidden until a real scoped executor and evidence resolver are available.</p>
-    {error && <p role="alert">The definition was not saved.</p>}<Button variant="primary" disabled={busy || !selected || !name} onClick={() => void save()}>Save Security Agent definition</Button>
+    {error && <p role="alert">{mutation.hasAmbiguousAttempt ? "The response was lost. Retry will reuse the exact definition and idempotency key." : "The definition was not saved."}</p>}<Button variant="primary" disabled={busy || !selected || !name} onClick={() => void save()}>{mutation.hasAmbiguousAttempt ? "Retry retained Security Agent definition" : "Save Security Agent definition"}</Button>
   </div></Card>;
 }
 
 function AgentDetail({ selected, api, canWrite, onChange, onDelete, onClose }: { selected: Versioned<SecurityAgentDefinition>; api: SecurityAgentsAPI; canWrite: boolean; onChange(value: Versioned<SecurityAgentDefinition>): void; onDelete(): void; onClose(): void }) {
+  const mutation = useRetainedWorkflowMutation<SecurityAgentDetailIntent>();
   const [name, setName] = useState(selected.value.name);
   const [enabled, setEnabled] = useState(selected.value.enabled);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
-  const save = async () => { setBusy(true); setError(false); try { const receipt = await api.updateSecurityAgent(selected.value.id, selected.version, { ...selected.value, name, enabled }); onChange(receipt); } catch { setError(true); } finally { setBusy(false); } };
-  const remove = async () => { setBusy(true); setError(false); try { await api.deleteSecurityAgent(selected.value.id, selected.version); onDelete(); } catch { setError(true); setBusy(false); } };
-  return <Drawer open title={selected.value.name} onClose={onClose}><div className="detail-content"><p><Badge tone={enabled ? "success" : "neutral"}>{enabled ? "Enabled" : "Disabled"}</Badge> Resource version {selected.version}</p><Field label="Definition name" value={name} disabled={!canWrite || busy} onChange={(event) => setName(event.target.value)} /><p>{selected.value.trigger_kind} · {selected.value.environment_ids.join(", ")} · supervised</p><h3>Template controls</h3><p>{selected.value.allowed_actions.join(", ")} · verification {selected.value.verification_kind}</p><h3>Limits</h3><p>{selected.value.max_steps} steps · {selected.value.max_duration_seconds}s · concurrency {selected.value.concurrency_limit}</p>{canWrite && <><label className="control-option"><input aria-label="Definition enabled" type="checkbox" checked={enabled} disabled={busy} onChange={(event) => setEnabled(event.target.checked)} /><span><strong>Definition enabled</strong><small>This does not expose execution controls.</small></span></label><div className="button-row"><Button disabled={busy} onClick={() => void save()}>Save definition</Button><Button variant="danger" disabled={busy} onClick={() => void remove()}>Delete definition</Button></div></>}{error && <p role="alert">The definition changed elsewhere or could not be updated. Close and reopen it.</p>}</div></Drawer>;
+  const apply = (result: SecurityAgentDetailResult) => { if (result.kind === "updated") onChange(result.receipt); else onDelete(); };
+  const run = async (operation: () => Promise<SecurityAgentDetailResult>) => { setBusy(true); setError(false); try { apply(await operation()); } catch { setError(true); } finally { setBusy(false); } };
+  const save = () => void run(() => mutation.execute({ kind: "update", id: selected.value.id, version: selected.version, value: { ...selected.value, name, enabled } }, async (intent, attempt) => { if (intent.kind !== "update") throw new TypeError("Invalid retained Security Agent intent"); return { kind: "updated", receipt: await api.updateSecurityAgent(intent.id, intent.version, intent.value, attempt) }; }));
+  const remove = () => void run(() => mutation.execute({ kind: "delete", id: selected.value.id, version: selected.version }, async (intent, attempt) => { if (intent.kind !== "delete") throw new TypeError("Invalid retained Security Agent intent"); return { kind: "deleted", receipt: await api.deleteSecurityAgent(intent.id, intent.version, attempt) }; }));
+  const retry = () => void run(() => mutation.retry<SecurityAgentDetailResult>());
+  return <Drawer open title={selected.value.name} onClose={onClose}><div className="detail-content"><p><Badge tone={enabled ? "success" : "neutral"}>{enabled ? "Enabled" : "Disabled"}</Badge> Resource version {selected.version}</p><Field label="Definition name" value={name} disabled={!canWrite || busy || mutation.hasAmbiguousAttempt} onChange={(event) => setName(event.target.value)} /><p>{selected.value.trigger_kind} · {selected.value.environment_ids.join(", ")} · supervised</p><h3>Template controls</h3><p>{selected.value.allowed_actions.join(", ")} · verification {selected.value.verification_kind}</p><h3>Limits</h3><p>{selected.value.max_steps} steps · {selected.value.max_duration_seconds}s · concurrency {selected.value.concurrency_limit}</p>{canWrite && <><label className="control-option"><input aria-label="Definition enabled" type="checkbox" checked={enabled} disabled={busy || mutation.hasAmbiguousAttempt} onChange={(event) => setEnabled(event.target.checked)} /><span><strong>Definition enabled</strong><small>This does not expose execution controls.</small></span></label><div className="button-row">{mutation.hasAmbiguousAttempt ? <Button disabled={busy} onClick={retry}>Retry retained definition operation</Button> : <><Button disabled={busy} onClick={save}>Save definition</Button><Button variant="danger" disabled={busy} onClick={remove}>Delete definition</Button></>}</div></>}{error && <p role="alert">{mutation.hasAmbiguousAttempt ? "The response was lost. Retry will reuse the exact definition operation and idempotency key." : "The definition changed elsewhere or could not be updated. Close and reopen it."}</p>}</div></Drawer>;
 }
 
 export function SecurityAgentsView({ api = defaultSecurityAgentsAPI, environmentID = "production", canWrite = true, initialSnapshot, autoLoad = true }: { api?: SecurityAgentsAPI; environmentID?: string; canWrite?: boolean; initialSnapshot?: SecurityAgentSnapshot; autoLoad?: boolean }) {

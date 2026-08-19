@@ -32,6 +32,7 @@ export type WorkflowReceipt<T> = Versioned<T> & { auditID: string };
 export type WorkflowMutationAttempt = Readonly<{ idempotencyKey: string }>;
 export type RetainedWorkflowMutationController<I> = {
   execute<T>(intent: I, send: (intent: I, attempt: WorkflowMutationAttempt) => Promise<T>): Promise<T>;
+  retry<T>(): Promise<T>;
   hasAmbiguousAttempt(): boolean;
   resolveAfterServerReconciliation(): void;
 };
@@ -83,6 +84,15 @@ export function createRetainedWorkflowMutationController<I>(): RetainedWorkflowM
       if (!pending) pending = { attempt: createWorkflowMutationAttempt(), intent: canonicalFrozenIntent(intent), send };
       const active = pending;
       if (inFlight) return inFlight as Promise<T>;
+      inFlight = executeWorkflowMutation((attempt) => active.send(active.intent, attempt), active.attempt).then(
+        (result) => { if (pending === active) pending = undefined; return result; },
+        (error: unknown) => { if (!isAmbiguousWorkflowMutationError(error) && pending === active) pending = undefined; throw error; },
+      ).finally(() => { inFlight = undefined; });
+      return inFlight as Promise<T>;
+    },
+    retry<T>(): Promise<T> {
+      if (!pending || inFlight) throw new Error("No settled ambiguous workflow mutation is available to retry");
+      const active = pending;
       inFlight = executeWorkflowMutation((attempt) => active.send(active.intent, attempt), active.attempt).then(
         (result) => { if (pending === active) pending = undefined; return result; },
         (error: unknown) => { if (!isAmbiguousWorkflowMutationError(error) && pending === active) pending = undefined; throw error; },
