@@ -286,10 +286,11 @@ try {
   assert.equal(onboardedScope.stdout.trim(), "1|1|1|1|1", "workspace onboarding did not atomically create its first authorized environment and reload boundary");
   await fillBrowserLabel(browser.cdp, "New environment name", "E2E Development");
   await clickBrowserText(browser.cdp, "Create environment");
-  await waitForBrowserText(browser.cdp, /Environment created/);
+  await waitForBrowserSelectedOption(browser.cdp, "Authorized scope", "E2E Development");
+  await waitForBrowserSelectedOption(browser.cdp, "Authorized environment", "E2E Development");
   await selectBrowserOption(browser.cdp, "Authorized workspace", "Production Workspace");
+  await waitForBrowserSelectedOption(browser.cdp, "Authorized scope", "Production");
   await waitForBrowserSelectedOption(browser.cdp, "Authorized environment", "Production");
-  await waitForBrowserText(browser.cdp, /Active scope changed/);
 
   await navigateBrowser(browser.cdp, `${publicOrigin}/administration/api-access`);
   await waitForBrowserText(browser.cdp, /Create scoped automation credentials/);
