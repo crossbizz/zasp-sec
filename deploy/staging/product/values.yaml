@@ -41,6 +41,14 @@ secrets:
 schema:
   expectedVersion: 10
   migrationTimeout: 10m
+databasePrincipals:
+  migration: ""
+  api: ""
+  discoveryWorker: ""
+  runtimeIngest: ""
+  runtimeWorker: ""
+  outboxWorker: ""
+  runtimeGateway: ""
 serviceAccounts:
   web: agentsec-web
   api:

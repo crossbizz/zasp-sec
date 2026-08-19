@@ -15,7 +15,7 @@ BEGIN
         UNION ALL SELECT 'index',table_class.relname||'.'||index_class.relname,jsonb_build_object('definition',regexp_replace(pg_get_indexdef(index_value.indexrelid,0,true),E'\\s+',' ','g'),'unique',index_value.indisunique,'primary',index_value.indisprimary,'exclusion',index_value.indisexclusion,'valid',index_value.indisvalid,'ready',index_value.indisready) FROM pg_index index_value JOIN pg_class table_class ON table_class.oid=index_value.indrelid JOIN pg_class index_class ON index_class.oid=index_value.indexrelid JOIN pg_namespace namespace ON namespace.oid=table_class.relnamespace WHERE namespace.nspname='public' AND left(table_class.relname,5)='zasp_'
         UNION ALL SELECT 'function',procedure.proname||'('||pg_get_function_identity_arguments(procedure.oid)||')',jsonb_build_object('result',pg_get_function_result(procedure.oid),'language',language.lanname,'kind',procedure.prokind,'volatility',procedure.provolatile,'strict',procedure.proisstrict,'security_definer',procedure.prosecdef,'leakproof',procedure.proleakproof,'parallel',procedure.proparallel,'config',COALESCE(to_jsonb(procedure.proconfig),'[]'::jsonb),'body',regexp_replace(btrim(procedure.prosrc),E'\\s+',' ','g')) FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace JOIN pg_language language ON language.oid=procedure.prolang WHERE namespace.nspname='public' AND left(procedure.proname,5)='zasp_'
     ) SELECT encode(digest(convert_to(COALESCE(jsonb_agg(jsonb_build_array(object_kind,object_identity,definition) ORDER BY object_kind,object_identity)::text,'[]'),'UTF8'),'sha256'),'hex') INTO actual_fingerprint FROM semantic_objects;
-    IF actual_fingerprint<>'02101a20c0c57dfd36212416f24fb057379162994641295727c0d8438478a75b' THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='semantic schema drift blocks rollback'; END IF;
+    IF actual_fingerprint<>'a3ee9cb3bfd3e6ed0d37399817432ec9ebdc4e4a66b778d2e1b79c62f99a65f9' THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='semantic schema drift blocks rollback'; END IF;
 END;
 $rollback_guard$;
 
@@ -37,6 +37,8 @@ END $migration$;
 
 DROP FUNCTION zasp_discovery_readiness(text,text);
 DROP FUNCTION zasp_discovery_security_ready();
+DROP FUNCTION zasp_discovery_principal_ready(text);
+DROP FUNCTION zasp_discovery_register_principals(text,text,text,text,text,text,text);
 DROP FUNCTION zasp_discovery_complete_runtime_stage(text,text,text,text,text,bytea,boolean,text);
 DROP FUNCTION zasp_discovery_create_runtime_batch(text,text,text,text,text,text,text,text,bytea,integer,text,bigint,text,text);
 DROP FUNCTION zasp_discovery_sensor_heartbeat(text,text,text,text,bigint,text,bigint,jsonb);
@@ -98,10 +100,16 @@ DROP TABLE zasp_discovery_syncs;
 DROP TABLE zasp_discovery_schedules;
 DROP TABLE zasp_integration_connections;
 DROP TABLE zasp_integrations;
+DROP TABLE zasp_discovery_principal_bindings;
+DROP FUNCTION zasp_discovery_s3_object_reference(text);
 DROP FUNCTION zasp_reference_only(jsonb);
 DROP FUNCTION zasp_discovery_relationship_id(text,text,text,text,text,text,text);
 DROP FUNCTION zasp_discovery_canonical_id(text,text,text,text,text);
 DROP FUNCTION zasp_valid_product_id(text);
 DROP OWNED BY zasp_discovery_api;
 DROP OWNED BY zasp_discovery_worker;
+DROP OWNED BY zasp_runtime_ingest;
+DROP OWNED BY zasp_runtime_worker;
+DROP OWNED BY zasp_outbox_worker;
+DROP OWNED BY zasp_runtime_gateway;
 DROP OWNED BY zasp_discovery_authority;

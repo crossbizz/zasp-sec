@@ -20,6 +20,10 @@ output "kms_key_arn" {
 output "secret_arns" {
   value = { for key, secret in aws_secretsmanager_secret.product : key => secret.arn }
 }
+output "database_principals" {
+  description = "Non-secret stable PostgreSQL identities registered by the migration job."
+  value       = local.database_principals
+}
 output "queue_urls" {
   value = { for key, queue in aws_sqs_queue.work : key => queue.id }
 }

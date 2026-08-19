@@ -17,6 +17,24 @@ provider "aws" {
 }
 
 locals {
+  database_principals = {
+    migration        = var.database_principals.migration
+    api              = var.database_principals.api
+    discovery_worker = var.database_principals.discovery_worker
+    runtime_ingest   = var.database_principals.runtime_ingest
+    runtime_worker   = var.database_principals.runtime_worker
+    outbox_worker    = var.database_principals.outbox_worker
+    runtime_gateway  = var.database_principals.runtime_gateway
+  }
+  postgres_secret_principals = {
+    postgres-api-dsn             = local.database_principals.api
+    postgres-worker-dsn          = local.database_principals.discovery_worker
+    postgres-migration-dsn       = local.database_principals.migration
+    postgres-runtime-ingest-dsn  = local.database_principals.runtime_ingest
+    postgres-runtime-worker-dsn  = local.database_principals.runtime_worker
+    postgres-outbox-worker-dsn   = local.database_principals.outbox_worker
+    postgres-runtime-gateway-dsn = local.database_principals.runtime_gateway
+  }
   api_secret_names = toset([
     "postgres-api-dsn",
     "stytch-project-id",
@@ -188,6 +206,10 @@ resource "aws_secretsmanager_secret" "product" {
     "postgres-api-dsn",
     "postgres-worker-dsn",
     "postgres-migration-dsn",
+    "postgres-runtime-ingest-dsn",
+    "postgres-runtime-worker-dsn",
+    "postgres-outbox-worker-dsn",
+    "postgres-runtime-gateway-dsn",
     "stytch-project-id",
     "stytch-secret",
     "stytch-public-token",
@@ -200,6 +222,9 @@ resource "aws_secretsmanager_secret" "product" {
   name                    = "${var.cluster_name}/${each.key}"
   kms_key_id              = aws_kms_key.staging.arn
   recovery_window_in_days = 30
+  tags = contains(keys(local.postgres_secret_principals), each.key) ? {
+    DatabasePrincipal = local.postgres_secret_principals[each.key]
+  } : {}
 }
 
 resource "aws_sqs_queue" "dead_letter" {

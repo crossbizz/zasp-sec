@@ -80,6 +80,35 @@ variable "environment" {
   }
 }
 
+variable "database_principals" {
+  description = "Stable PostgreSQL login names provisioned outside Terraform; credentials may rotate, identities must not."
+  type = object({
+    migration        = string
+    api              = string
+    discovery_worker = string
+    runtime_ingest   = string
+    runtime_worker   = string
+    outbox_worker    = string
+    runtime_gateway  = string
+  })
+  default = {
+    migration        = "zasp_migration"
+    api              = "zasp_api_runtime"
+    discovery_worker = "zasp_discovery_runtime"
+    runtime_ingest   = "zasp_ingest_runtime"
+    runtime_worker   = "zasp_runtime_worker_runtime"
+    outbox_worker    = "zasp_outbox_runtime"
+    runtime_gateway  = "zasp_gateway_runtime"
+  }
+
+  validation {
+    condition = length(distinct(values(var.database_principals))) == 7 && alltrue([
+      for principal in values(var.database_principals) : can(regex("^[a-z][a-z0-9_]{2,62}$", principal))
+    ])
+    error_message = "database_principals must contain seven distinct bounded PostgreSQL login names."
+  }
+}
+
 variable "endpoint_public_access" {
   description = "Whether the EKS API has a public endpoint; production must remain false."
   type        = bool

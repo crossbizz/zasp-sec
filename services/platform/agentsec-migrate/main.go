@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"regexp"
 	"syscall"
 	"time"
 
@@ -14,11 +15,23 @@ import (
 )
 
 const (
-	postgresDSNEnvironment      = "ZASP_POSTGRES_DSN"
-	migrationTimeoutEnvironment = "ZASP_MIGRATION_TIMEOUT"
+	postgresDSNEnvironment              = "ZASP_POSTGRES_DSN"
+	migrationTimeoutEnvironment         = "ZASP_MIGRATION_TIMEOUT"
+	migrationPrincipalEnvironment       = "ZASP_MIGRATION_DB_PRINCIPAL"
+	discoveryAPIPrincipalEnvironment    = "ZASP_DISCOVERY_API_DB_PRINCIPAL"
+	discoveryWorkerPrincipalEnvironment = "ZASP_DISCOVERY_WORKER_DB_PRINCIPAL"
+	runtimeIngestPrincipalEnvironment   = "ZASP_RUNTIME_INGEST_DB_PRINCIPAL"
+	runtimeWorkerPrincipalEnvironment   = "ZASP_RUNTIME_WORKER_DB_PRINCIPAL"
+	outboxWorkerPrincipalEnvironment    = "ZASP_OUTBOX_WORKER_DB_PRINCIPAL"
+	runtimeGatewayPrincipalEnvironment  = "ZASP_RUNTIME_GATEWAY_DB_PRINCIPAL"
 )
 
 var errInvalidMigrationCommand = errors.New("invalid release migration command")
+var databasePrincipalPattern = regexp.MustCompile(`^[a-z][a-z0-9_]{2,62}$`)
+
+type discoveryPrincipalRegistration struct {
+	migration, api, discovery, ingest, runtime, outbox, gateway string
+}
 
 type releaseMigrationRunner interface {
 	Version(context.Context) (int64, error)
@@ -53,6 +66,14 @@ func main() {
 	}
 	ctx, cancel := context.WithTimeout(signalCtx, timeout)
 	defer cancel()
+	arguments := os.Args[1:]
+	var registration discoveryPrincipalRegistration
+	if len(arguments) == 1 && arguments[0] == "up" {
+		registration, err = loadDiscoveryPrincipalRegistration(os.Getenv)
+		if err != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+	}
 	dsn := os.Getenv(postgresDSNEnvironment)
 	if dsn == "" {
 		log.Fatal("release migration configuration rejected")
@@ -63,9 +84,43 @@ func main() {
 	}
 	defer func() { _ = connection.Close(context.Background()) }()
 	runner, err := migrations.NewRunner(&migrationDatabase{connection: connection})
-	if err != nil || runReleaseMigration(ctx, runner, os.Args[1:]) != nil {
+	if err != nil || runReleaseMigration(ctx, runner, arguments) != nil {
 		log.Fatal("release migration failed")
 	}
+	if len(arguments) == 1 && arguments[0] == "up" {
+		var registered bool
+		var migrationPrincipalMatches bool
+		if err := connection.QueryRow(ctx, `SELECT session_user=$1`, registration.migration).Scan(&migrationPrincipalMatches); err != nil || !migrationPrincipalMatches {
+			log.Fatal("release migration principal preflight failed")
+		}
+		if err := connection.QueryRow(ctx, `SELECT zasp_discovery_register_principals($1,$2,$3,$4,$5,$6,$7)`, registration.migration, registration.api, registration.discovery, registration.ingest, registration.runtime, registration.outbox, registration.gateway).Scan(&registered); err != nil || !registered {
+			log.Fatal("release migration principal registration failed")
+		}
+	}
+}
+
+func loadDiscoveryPrincipalRegistration(getenv func(string) string) (discoveryPrincipalRegistration, error) {
+	if getenv == nil {
+		return discoveryPrincipalRegistration{}, errInvalidMigrationCommand
+	}
+	registration := discoveryPrincipalRegistration{
+		migration: getenv(migrationPrincipalEnvironment),
+		api:       getenv(discoveryAPIPrincipalEnvironment), discovery: getenv(discoveryWorkerPrincipalEnvironment),
+		ingest: getenv(runtimeIngestPrincipalEnvironment), runtime: getenv(runtimeWorkerPrincipalEnvironment),
+		outbox: getenv(outboxWorkerPrincipalEnvironment), gateway: getenv(runtimeGatewayPrincipalEnvironment),
+	}
+	values := []string{registration.migration, registration.api, registration.discovery, registration.ingest, registration.runtime, registration.outbox, registration.gateway}
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		if !databasePrincipalPattern.MatchString(value) {
+			return discoveryPrincipalRegistration{}, errInvalidMigrationCommand
+		}
+		if _, exists := seen[value]; exists {
+			return discoveryPrincipalRegistration{}, errInvalidMigrationCommand
+		}
+		seen[value] = struct{}{}
+	}
+	return registration, nil
 }
 
 func loadMigrationTimeout(getenv func(string) string) (time.Duration, error) {

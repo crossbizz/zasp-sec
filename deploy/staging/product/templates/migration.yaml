@@ -60,7 +60,15 @@ spec:
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "-ec"]
           args: ['export ZASP_POSTGRES_DSN="$(cat /var/run/secrets/zasp-migration/postgres-dsn)"; exec /app/agentsec-migrate up']
-          env: [{ name: ZASP_MIGRATION_TIMEOUT, value: {{ .Values.schema.migrationTimeout | quote }} }]
+          env:
+            - { name: ZASP_MIGRATION_TIMEOUT, value: {{ .Values.schema.migrationTimeout | quote }} }
+            - { name: ZASP_MIGRATION_DB_PRINCIPAL, value: {{ required "databasePrincipals.migration is required" .Values.databasePrincipals.migration | quote }} }
+            - { name: ZASP_DISCOVERY_API_DB_PRINCIPAL, value: {{ required "databasePrincipals.api is required" .Values.databasePrincipals.api | quote }} }
+            - { name: ZASP_DISCOVERY_WORKER_DB_PRINCIPAL, value: {{ required "databasePrincipals.discoveryWorker is required" .Values.databasePrincipals.discoveryWorker | quote }} }
+            - { name: ZASP_RUNTIME_INGEST_DB_PRINCIPAL, value: {{ required "databasePrincipals.runtimeIngest is required" .Values.databasePrincipals.runtimeIngest | quote }} }
+            - { name: ZASP_RUNTIME_WORKER_DB_PRINCIPAL, value: {{ required "databasePrincipals.runtimeWorker is required" .Values.databasePrincipals.runtimeWorker | quote }} }
+            - { name: ZASP_OUTBOX_WORKER_DB_PRINCIPAL, value: {{ required "databasePrincipals.outboxWorker is required" .Values.databasePrincipals.outboxWorker | quote }} }
+            - { name: ZASP_RUNTIME_GATEWAY_DB_PRINCIPAL, value: {{ required "databasePrincipals.runtimeGateway is required" .Values.databasePrincipals.runtimeGateway | quote }} }
           volumeMounts: [{ name: migration-secrets, mountPath: /var/run/secrets/zasp-migration, readOnly: true }]
           resources: { requests: { cpu: 100m, memory: 64Mi }, limits: { cpu: "1", memory: 256Mi } }
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }

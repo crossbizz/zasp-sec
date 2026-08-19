@@ -19,6 +19,7 @@ import (
 
 const (
 	postgresDiscoveryReadySQL                   = `SELECT to_jsonb(zasp_discovery_readiness($1,$2))`
+	postgresDiscoveryPrincipalReadySQL          = `SELECT to_jsonb(zasp_discovery_principal_ready($1))`
 	postgresDiscoveryCreateIntegrationSQL       = `SELECT zasp_discovery_create_integration($1,$2,$3,$4,$5,$6,$7,$8::jsonb,NULLIF($9,''))`
 	postgresDiscoveryTransitionIntegrationSQL   = `SELECT zasp_discovery_transition_integration($1,$2,$3,$4,$5,$6)`
 	postgresDiscoveryPutConnectionSQL           = `SELECT zasp_discovery_put_connection($1,$2,$3,$4,$5,$6,$7)`
@@ -59,8 +60,18 @@ const (
 	postgresDiscoveryRuntimeStageSQL            = `SELECT zasp_discovery_complete_runtime_stage($1,$2,$3,$4,$5,$6,$7,$8)`
 )
 
+const (
+	DiscoveryDatabaseAuthorityAPI     = "zasp_discovery_api"
+	DiscoveryDatabaseAuthorityWorker  = "zasp_discovery_worker"
+	DiscoveryDatabaseAuthorityIngest  = "zasp_runtime_ingest"
+	DiscoveryDatabaseAuthorityRuntime = "zasp_runtime_worker"
+	DiscoveryDatabaseAuthorityOutbox  = "zasp_outbox_worker"
+	DiscoveryDatabaseAuthorityGateway = "zasp_runtime_gateway"
+)
+
 var referenceOnlyKeyPattern = regexp.MustCompile(`(?i)(secret|password|token|credential|private.?key|session)`)
 var opaqueReferencePattern = regexp.MustCompile(`^ref:[a-z0-9][a-z0-9_./:-]+$`)
+var s3ObjectReferencePattern = regexp.MustCompile(`^s3://([a-z0-9][a-z0-9.-]{1,61}[a-z0-9])/([A-Za-z0-9][A-Za-z0-9._/-]*)$`)
 
 type IntegrationRepository interface {
 	CreateIntegration(context.Context, RequestIdentity, IntegrationCreate) (DiscoveryIntegration, error)
@@ -118,7 +129,7 @@ type RuntimeAuthorityRepository interface {
 
 type DiscoveryRepository struct{ database JSONDatabase }
 
-func NewDiscoveryRepository(database JSONDatabase) (*DiscoveryRepository, error) {
+func newDiscoveryRepositoryUnchecked(database JSONDatabase) (*DiscoveryRepository, error) {
 	if nilInterface(database) {
 		return nil, ErrRepositoryConfiguration
 	}
@@ -132,6 +143,22 @@ func NewDiscoveryRepository(database JSONDatabase) (*DiscoveryRepository, error)
 		return nil, ErrRepositoryConfiguration
 	}
 	return &DiscoveryRepository{database: database}, nil
+}
+
+func NewDiscoveryRepositoryForAuthority(database JSONDatabase, authority string) (*DiscoveryRepository, error) {
+	if !stringIn(authority, DiscoveryDatabaseAuthorityAPI, DiscoveryDatabaseAuthorityWorker, DiscoveryDatabaseAuthorityIngest, DiscoveryDatabaseAuthorityRuntime, DiscoveryDatabaseAuthorityOutbox, DiscoveryDatabaseAuthorityGateway) {
+		return nil, ErrRepositoryConfiguration
+	}
+	repository, err := newDiscoveryRepositoryUnchecked(database)
+	if err != nil {
+		return nil, err
+	}
+	payload, err := database.QueryJSON(context.Background(), postgresDiscoveryPrincipalReadySQL, authority)
+	var ready bool
+	if err != nil || decodeStrictDiscovery(payload, &ready) != nil || !ready {
+		return nil, ErrRepositoryConfiguration
+	}
+	return repository, nil
 }
 
 type IntegrationCreate struct {
@@ -163,7 +190,7 @@ func (repository *DiscoveryRepository) CreateIntegration(ctx context.Context, id
 		return DiscoveryIntegration{}, discoveryProviderError(err)
 	}
 	var result DiscoveryIntegration
-	if decodeStrictDiscovery(payload, &result) != nil || !validDiscoveryIntegration(result) {
+	if decodeStrictDiscovery(payload, &result) != nil || !validDiscoveryIntegration(result) || result.ID != input.ID || result.Kind != input.Kind || result.ConnectorVersion != input.ConnectorVersion || result.DisplayName != input.DisplayName {
 		return DiscoveryIntegration{}, ErrRepositoryUnavailable
 	}
 	result.CreatedAt = result.CreatedAt.UTC()
@@ -207,9 +234,10 @@ func (repository *DiscoveryRepository) PutIntegrationConnection(ctx context.Cont
 		return IntegrationConnectionRecord{}, err
 	}
 	var result IntegrationConnectionRecord
-	if decodeStrictDiscovery(payload, &result) != nil || result.ID != input.ID || result.IntegrationID != input.IntegrationID || result.Provider != input.Provider || result.State != "pending" || result.CreatedAt.IsZero() {
+	if decodeStrictDiscovery(payload, &result) != nil || result.ID != input.ID || result.IntegrationID != input.IntegrationID || result.Provider != input.Provider || !stringIn(result.State, "pending", "verified", "invalid", "revoked") || !validPastServerTime(result.CreatedAt) {
 		return IntegrationConnectionRecord{}, ErrRepositoryUnavailable
 	}
+	result.CreatedAt = result.CreatedAt.UTC()
 	return result, nil
 }
 func (repository *DiscoveryRepository) TransitionIntegrationConnection(ctx context.Context, scope domain.Scope, integrationID string, input IntegrationTransition) (AuthorityStateRecord, error) {
@@ -243,9 +271,11 @@ func (repository *DiscoveryRepository) PutDiscoverySchedule(ctx context.Context,
 		return DiscoveryScheduleRecord{}, err
 	}
 	var result DiscoveryScheduleRecord
-	if decodeStrictDiscovery(payload, &result) != nil || result.ID != input.ID || result.IntegrationID != input.IntegrationID || result.State != "enabled" || result.CadenceSeconds != input.CadenceSeconds || result.NextRunAt.IsZero() || result.Version < 1 {
+	expectedVersion := input.ExpectedVersion + 1
+	if decodeStrictDiscovery(payload, &result) != nil || result.ID != input.ID || result.IntegrationID != input.IntegrationID || !stringIn(result.State, "enabled", "disabled") || result.CadenceSeconds != input.CadenceSeconds || !result.NextRunAt.Equal(input.NextRunAt) || result.Version != expectedVersion {
 		return DiscoveryScheduleRecord{}, ErrRepositoryUnavailable
 	}
+	result.NextRunAt = result.NextRunAt.UTC()
 	return result, nil
 }
 func (repository *DiscoveryRepository) TransitionDiscoverySchedule(ctx context.Context, scope domain.Scope, input IntegrationTransition) (AuthorityStateRecord, error) {
@@ -274,9 +304,10 @@ func (repository *DiscoveryRepository) CreateSensor(ctx context.Context, scope d
 		return SensorRecord{}, err
 	}
 	var result SensorRecord
-	if decodeStrictDiscovery(payload, &result) != nil || result.ID != input.ID || result.Name != input.Name || result.Kind != input.Kind || result.State != "pending" || result.Version != 1 || result.CreatedAt.IsZero() {
+	if decodeStrictDiscovery(payload, &result) != nil || result.ID != input.ID || result.Name != input.Name || result.Kind != input.Kind || !stringIn(result.State, "pending", "active", "degraded", "revoked", "deleted") || result.Version < 1 || !validPastServerTime(result.CreatedAt) {
 		return SensorRecord{}, ErrRepositoryUnavailable
 	}
+	result.CreatedAt = result.CreatedAt.UTC()
 	return result, nil
 }
 func (repository *DiscoveryRepository) TransitionSensor(ctx context.Context, scope domain.Scope, input IntegrationTransition) (AuthorityStateRecord, error) {
@@ -305,9 +336,10 @@ func (repository *DiscoveryRepository) CreateGatewayDevice(ctx context.Context, 
 		return GatewayDeviceRecord{}, err
 	}
 	var result GatewayDeviceRecord
-	if decodeStrictDiscovery(payload, &result) != nil || result.ID != input.ID || result.Name != input.Name || result.State != "pending" || result.Version != 1 || result.ReplayFloor != 0 || result.CreatedAt.IsZero() {
+	if decodeStrictDiscovery(payload, &result) != nil || result.ID != input.ID || result.Name != input.Name || !stringIn(result.State, "pending", "active", "revoked", "deleted") || result.Version < 1 || result.ReplayFloor < 0 || !validPastServerTime(result.CreatedAt) {
 		return GatewayDeviceRecord{}, ErrRepositoryUnavailable
 	}
+	result.CreatedAt = result.CreatedAt.UTC()
 	return result, nil
 }
 func (repository *DiscoveryRepository) TransitionGatewayDevice(ctx context.Context, scope domain.Scope, input IntegrationTransition) (AuthorityStateRecord, error) {
@@ -339,9 +371,11 @@ func (repository *DiscoveryRepository) IssueGatewayEnrollmentToken(ctx context.C
 		return GatewayEnrollmentTokenRecord{}, err
 	}
 	var result GatewayEnrollmentTokenRecord
-	if decodeStrictDiscovery(payload, &result) != nil || result.ID != input.ID || result.DeviceID != input.DeviceID || result.Audience != "runtime-gateway-enroll" || result.IssuedAt.IsZero() || !result.ExpiresAt.After(result.IssuedAt) {
+	if decodeStrictDiscovery(payload, &result) != nil || !validIssuedRecord(result.ID, input.ID, result.DeviceID, input.DeviceID, result.Audience, "runtime-gateway-enroll", result.IssuedAt, result.ExpiresAt, input.ExpiresAt) {
 		return GatewayEnrollmentTokenRecord{}, ErrRepositoryUnavailable
 	}
+	result.IssuedAt = result.IssuedAt.UTC()
+	result.ExpiresAt = result.ExpiresAt.UTC()
 	return result, nil
 }
 func (repository *DiscoveryRepository) RevokeGatewayEnrollmentToken(ctx context.Context, scope domain.Scope, deviceID, id string) error {
@@ -356,7 +390,7 @@ func (repository *DiscoveryRepository) RevokeGatewayEnrollmentToken(ctx context.
 		ID        string    `json:"id"`
 		RevokedAt time.Time `json:"revoked_at"`
 	}
-	if decodeStrictDiscovery(payload, &result) != nil || result.ID != id || result.RevokedAt.IsZero() {
+	if decodeStrictDiscovery(payload, &result) != nil || result.ID != id || !validPastServerTime(result.RevokedAt) {
 		return ErrRepositoryUnavailable
 	}
 	return nil
@@ -370,7 +404,8 @@ func (repository *DiscoveryRepository) authorityState(ctx context.Context, scope
 	var result AuthorityStateRecord
 	expectedID := args[0].(string)
 	expectedState := args[len(args)-1].(string)
-	if decodeStrictDiscovery(payload, &result) != nil || result.ID != expectedID || result.State != expectedState || result.Version < 1 || result.UpdatedAt.IsZero() {
+	expectedVersion := args[len(args)-2].(int64) + 1
+	if decodeStrictDiscovery(payload, &result) != nil || result.ID != expectedID || result.State != expectedState || result.Version != expectedVersion || !validPastServerTime(result.UpdatedAt) {
 		return AuthorityStateRecord{}, ErrRepositoryUnavailable
 	}
 	result.UpdatedAt = result.UpdatedAt.UTC()
@@ -406,7 +441,7 @@ func (repository *DiscoveryRepository) RequestDiscoverySync(ctx context.Context,
 		return SyncRequestResult{}, discoveryProviderError(err)
 	}
 	var result SyncRequestResult
-	if decodeStrictDiscovery(payload, &result) != nil || !validProductID(result.SyncID) || !validProductID(result.JobID) || !validProductID(result.OutboxID) || result.State != "queued" {
+	if decodeStrictDiscovery(payload, &result) != nil || result.SyncID != input.SyncID || result.JobID != input.JobID || result.OutboxID != input.OutboxID || result.State != "queued" {
 		return SyncRequestResult{}, ErrRepositoryUnavailable
 	}
 	return result, nil
@@ -445,7 +480,7 @@ func (repository *DiscoveryRepository) ApplyCompleteSnapshot(ctx context.Context
 		return SnapshotApplyResult{}, discoveryProviderError(err)
 	}
 	var result SnapshotApplyResult
-	if decodeStrictDiscovery(payload, &result) != nil || result.SnapshotID != input.SnapshotID || result.DiscoveredCount < 0 || result.ChangedCount < 0 || result.RemovedCount < 0 || result.CommittedAt.IsZero() {
+	if decodeStrictDiscovery(payload, &result) != nil || result.SnapshotID != input.SnapshotID || result.DiscoveredCount < 0 || result.ChangedCount < 0 || result.RemovedCount < 0 || !validPastServerTime(result.CommittedAt) {
 		return SnapshotApplyResult{}, ErrRepositoryUnavailable
 	}
 	result.CommittedAt = result.CommittedAt.UTC()
@@ -485,7 +520,7 @@ func (repository *DiscoveryRepository) ListInventoryEntityPage(ctx context.Conte
 	last := ""
 	for index := range envelope.Items {
 		item := &envelope.Items[index]
-		if !validProductID(item.ID) || item.ID <= last || len(item.Kind) < 1 || len(item.Kind) > 64 || len(item.DisplayName) < 1 || len(item.DisplayName) > 256 || item.State != "active" || item.Version < 1 || item.FirstSeenAt.IsZero() || item.LastSeenAt.Before(item.FirstSeenAt) || !discoveryValidJSONObject(item.StableFields, 65536) {
+		if !validProductID(item.ID) || item.ID <= last || len(item.Kind) < 1 || len(item.Kind) > 64 || len(item.DisplayName) < 1 || len(item.DisplayName) > 256 || item.State != "active" || item.Version < 1 || item.FirstSeenAt.IsZero() || item.LastSeenAt.Before(item.FirstSeenAt) || !validPastServerTime(item.LastSeenAt) || !discoveryValidJSONObject(item.StableFields, 65536) {
 			return InventoryEntityPage{}, ErrRepositoryUnavailable
 		}
 		last = item.ID
@@ -532,7 +567,7 @@ func (repository *DiscoveryRepository) ClaimOutbox(ctx context.Context, worker, 
 	}
 	for index := range envelope.Items {
 		item := &envelope.Items[index]
-		if !validProductID(item.OrganizationID) || !validProductID(item.WorkspaceID) || !validProductID(item.EnvironmentID) || !validProductID(item.ID) || !stringIn(item.Topic, "discovery-jobs", "runtime-events", "projection-work") || len(item.DeterministicKey) < 16 || len(item.DeterministicKey) > 256 || item.PayloadVersion < 1 || item.PayloadVersion > 32 || !discoveryValidJSONObject(item.Payload, 65536) || len(item.PayloadDigest) != sha256.Size || item.Attempt < 1 || item.Attempt > 100 || item.LeaseExpiresAt.IsZero() {
+		if !validProductID(item.OrganizationID) || !validProductID(item.WorkspaceID) || !validProductID(item.EnvironmentID) || !validProductID(item.ID) || !stringIn(item.Topic, "discovery-jobs", "runtime-events", "projection-work") || len(item.DeterministicKey) < 16 || len(item.DeterministicKey) > 256 || item.PayloadVersion < 1 || item.PayloadVersion > 32 || !discoveryValidJSONObject(item.Payload, 65536) || len(item.PayloadDigest) != sha256.Size || item.Attempt < 1 || item.Attempt > 100 || !validLeaseExpiration(item.LeaseExpiresAt, leaseSeconds) {
 			return nil, ErrRepositoryUnavailable
 		}
 		item.LeaseExpiresAt = item.LeaseExpiresAt.UTC()
@@ -553,7 +588,7 @@ func (repository *DiscoveryRepository) AcknowledgeOutbox(ctx context.Context, sc
 		PublishedAt time.Time `json:"published_at"`
 		ProviderAck string    `json:"provider_ack"`
 	}
-	if decodeStrictDiscovery(payload, &result) != nil || result.ID != id || result.ProviderAck != providerAck || result.PublishedAt.IsZero() {
+	if decodeStrictDiscovery(payload, &result) != nil || result.ID != id || result.ProviderAck != providerAck || !validPastServerTime(result.PublishedAt) {
 		return ErrRepositoryUnavailable
 	}
 	return nil
@@ -581,9 +616,11 @@ func (repository *DiscoveryRepository) IssueSensorToken(ctx context.Context, sco
 		return SensorTokenRecord{}, discoveryProviderError(err)
 	}
 	var result SensorTokenRecord
-	if decodeStrictDiscovery(payload, &result) != nil || result.ID != input.TokenID || result.SensorID != input.SensorID || result.Audience != "event-ingest" || result.IssuedAt.IsZero() || !result.ExpiresAt.After(result.IssuedAt) {
+	if decodeStrictDiscovery(payload, &result) != nil || !validIssuedRecord(result.ID, input.TokenID, result.SensorID, input.SensorID, result.Audience, "event-ingest", result.IssuedAt, result.ExpiresAt, input.ExpiresAt) {
 		return SensorTokenRecord{}, ErrRepositoryUnavailable
 	}
+	result.IssuedAt = result.IssuedAt.UTC()
+	result.ExpiresAt = result.ExpiresAt.UTC()
 	return result, nil
 }
 
@@ -601,7 +638,7 @@ type GatewayCredentialRecord struct {
 }
 
 func (repository *DiscoveryRepository) EnrollGateway(ctx context.Context, scope domain.Scope, input GatewayEnrollment) (GatewayCredentialRecord, error) {
-	if !validDiscoveryRepository(repository, ctx) || scope.Validate() != nil || !validProductID(input.DeviceID) || !validProductID(input.EnrollmentID) || !validProductID(input.CredentialID) || input.Audience != "runtime-gateway" || len(input.TokenHash) != 32 || len(input.Salt) < 16 || len(input.PublicKey) < 32 || !validOpaqueReference(input.KeyReference) || input.ExpiresAt.Location() != time.UTC {
+	if !validDiscoveryRepository(repository, ctx) || scope.Validate() != nil || !validProductID(input.DeviceID) || !validProductID(input.EnrollmentID) || !validProductID(input.CredentialID) || input.Audience != "runtime-gateway" || len(input.TokenHash) != 32 || len(input.Salt) < 16 || len(input.Salt) > 64 || len(input.PublicKey) < 32 || len(input.PublicKey) > 4096 || !validOpaqueReference(input.KeyReference) || input.ExpiresAt.Location() != time.UTC {
 		return GatewayCredentialRecord{}, ErrRepositoryOperation
 	}
 	payload, err := repository.database.QueryJSON(ctx, postgresDiscoveryGatewayEnrollSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), input.DeviceID, input.EnrollmentID, input.CredentialID, input.TokenHash, input.Audience, input.KeyReference, input.PublicKey, input.ExpiresAt)
@@ -609,9 +646,11 @@ func (repository *DiscoveryRepository) EnrollGateway(ctx context.Context, scope 
 		return GatewayCredentialRecord{}, discoveryProviderError(err)
 	}
 	var result GatewayCredentialRecord
-	if decodeStrictDiscovery(payload, &result) != nil || result.ID != input.CredentialID || result.DeviceID != input.DeviceID || result.Audience != "runtime-gateway" {
+	if decodeStrictDiscovery(payload, &result) != nil || !validIssuedRecord(result.ID, input.CredentialID, result.DeviceID, input.DeviceID, result.Audience, "runtime-gateway", result.IssuedAt, result.ExpiresAt, input.ExpiresAt) {
 		return GatewayCredentialRecord{}, ErrRepositoryUnavailable
 	}
+	result.IssuedAt = result.IssuedAt.UTC()
+	result.ExpiresAt = result.ExpiresAt.UTC()
 	return result, nil
 }
 func (repository *DiscoveryRepository) AdvanceGatewayReplay(ctx context.Context, scope domain.Scope, deviceID string, expected, next int64) error {
@@ -644,9 +683,11 @@ func (repository *DiscoveryRepository) RotateGatewayCredential(ctx context.Conte
 		return GatewayCredentialRecord{}, discoveryProviderError(err)
 	}
 	var result GatewayCredentialRecord
-	if decodeStrictDiscovery(payload, &result) != nil || result.ID != input.ReplacementCredentialID || result.DeviceID != input.DeviceID || result.Audience != "runtime-gateway" {
+	if decodeStrictDiscovery(payload, &result) != nil || !validIssuedRecord(result.ID, input.ReplacementCredentialID, result.DeviceID, input.DeviceID, result.Audience, "runtime-gateway", result.IssuedAt, result.ExpiresAt, input.ExpiresAt) {
 		return GatewayCredentialRecord{}, ErrRepositoryUnavailable
 	}
+	result.IssuedAt = result.IssuedAt.UTC()
+	result.ExpiresAt = result.ExpiresAt.UTC()
 	return result, nil
 }
 func (repository *DiscoveryRepository) RevokeGatewayCredential(ctx context.Context, scope domain.Scope, deviceID, credentialID string) error {
@@ -661,7 +702,7 @@ func (repository *DiscoveryRepository) RevokeGatewayCredential(ctx context.Conte
 		ID        string    `json:"id"`
 		RevokedAt time.Time `json:"revoked_at"`
 	}
-	if decodeStrictDiscovery(payload, &result) != nil || result.ID != credentialID || result.RevokedAt.IsZero() {
+	if decodeStrictDiscovery(payload, &result) != nil || result.ID != credentialID || !validPastServerTime(result.RevokedAt) {
 		return ErrRepositoryUnavailable
 	}
 	return nil
@@ -716,9 +757,10 @@ func (repository *DiscoveryRepository) GetInventoryEvidence(ctx context.Context,
 		return InventoryEvidence{}, discoveryProviderError(err)
 	}
 	var result InventoryEvidence
-	if decodeStrictDiscovery(payload, &result) != nil || result.ID != id || !validProductID(result.IntegrationID) || !validProductID(result.SnapshotID) || len(result.Checksum) != 32 || !strings.HasPrefix(result.ObjectReference, "s3://") || result.CollectedAt.IsZero() || (result.EntityID == nil) == (result.FindingID == nil) {
+	if decodeStrictDiscovery(payload, &result) != nil || result.ID != id || !validProductID(result.IntegrationID) || !validProductID(result.SnapshotID) || len(result.Checksum) != 32 || !validS3ObjectReference(result.ObjectReference) || len(result.MediaType) < 1 || len(result.MediaType) > 128 || len(result.SchemaVersion) < 1 || len(result.SchemaVersion) > 64 || len(result.ParserVersion) < 1 || len(result.ParserVersion) > 64 || !validPastServerTime(result.CollectedAt) || !validEvidenceSubject(result.EntityID, result.FindingID) {
 		return InventoryEvidence{}, ErrRepositoryUnavailable
 	}
+	result.CollectedAt = result.CollectedAt.UTC()
 	return result, nil
 }
 
@@ -737,9 +779,11 @@ func (repository *DiscoveryRepository) RotateSensorToken(ctx context.Context, sc
 		return SensorTokenRecord{}, discoveryProviderError(err)
 	}
 	var result SensorTokenRecord
-	if decodeStrictDiscovery(payload, &result) != nil || result.ID != input.ReplacementTokenID || result.SensorID != input.SensorID || result.Audience != "event-ingest" {
+	if decodeStrictDiscovery(payload, &result) != nil || !validIssuedRecord(result.ID, input.ReplacementTokenID, result.SensorID, input.SensorID, result.Audience, "event-ingest", result.IssuedAt, result.ExpiresAt, input.ExpiresAt) {
 		return SensorTokenRecord{}, ErrRepositoryUnavailable
 	}
+	result.IssuedAt = result.IssuedAt.UTC()
+	result.ExpiresAt = result.ExpiresAt.UTC()
 	return result, nil
 }
 func (repository *DiscoveryRepository) RevokeSensorToken(ctx context.Context, scope domain.Scope, sensorID, tokenID string) error {
@@ -754,7 +798,7 @@ func (repository *DiscoveryRepository) RevokeSensorToken(ctx context.Context, sc
 		ID        string    `json:"id"`
 		RevokedAt time.Time `json:"revoked_at"`
 	}
-	if decodeStrictDiscovery(payload, &result) != nil || result.ID != tokenID || result.RevokedAt.IsZero() {
+	if decodeStrictDiscovery(payload, &result) != nil || result.ID != tokenID || !validPastServerTime(result.RevokedAt) {
 		return ErrRepositoryUnavailable
 	}
 	return nil
@@ -780,7 +824,7 @@ func (repository *DiscoveryRepository) RecordSensorHeartbeat(ctx context.Context
 		Sequence   int64     `json:"sequence"`
 		ObservedAt time.Time `json:"observed_at"`
 	}
-	if decodeStrictDiscovery(payload, &result) != nil || result.SensorID != input.SensorID || result.Sequence != input.Sequence || result.ObservedAt.IsZero() {
+	if decodeStrictDiscovery(payload, &result) != nil || result.SensorID != input.SensorID || result.Sequence != input.Sequence || !validPastServerTime(result.ObservedAt) {
 		return ErrRepositoryUnavailable
 	}
 	return nil
@@ -799,7 +843,7 @@ type RuntimeBatchResult struct {
 }
 
 func (repository *DiscoveryRepository) CreateRuntimeBatch(ctx context.Context, scope domain.Scope, input RuntimeBatchCreate) (RuntimeBatchResult, error) {
-	if !validDiscoveryRepository(repository, ctx) || scope.Validate() != nil || !validProductID(input.SensorID) || !validProductID(input.BatchID) || !validProductID(input.JobID) || !validProductID(input.OutboxID) || len(input.IdempotencyKey) < 16 || len(input.IdempotencyKey) > 128 || len(input.PayloadDigest) != 32 || input.EventCount < 1 || input.EventCount > 1000 || len(input.ObjectReference) < 8 || len(input.ObjectReference) > 1024 || !strings.HasPrefix(input.ObjectReference, "s3://") || input.PayloadBytes < 1 || input.PayloadBytes > 64<<20 || len(input.MediaType) < 1 || len(input.MediaType) > 128 || len(input.SchemaVersion) < 1 || len(input.SchemaVersion) > 64 {
+	if !validDiscoveryRepository(repository, ctx) || scope.Validate() != nil || !validProductID(input.SensorID) || !validProductID(input.BatchID) || !validProductID(input.JobID) || !validProductID(input.OutboxID) || len(input.IdempotencyKey) < 16 || len(input.IdempotencyKey) > 128 || len(input.PayloadDigest) != 32 || input.EventCount < 1 || input.EventCount > 1000 || !validS3ObjectReference(input.ObjectReference) || input.PayloadBytes < 1 || input.PayloadBytes > 64<<20 || len(input.MediaType) < 1 || len(input.MediaType) > 128 || len(input.SchemaVersion) < 1 || len(input.SchemaVersion) > 64 {
 		return RuntimeBatchResult{}, ErrRepositoryOperation
 	}
 	payload, err := repository.database.QueryJSON(ctx, postgresDiscoveryRuntimeBatchSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), input.SensorID, input.BatchID, input.JobID, input.OutboxID, input.IdempotencyKey, input.PayloadDigest, input.EventCount, input.ObjectReference, input.PayloadBytes, input.MediaType, input.SchemaVersion)
@@ -820,7 +864,7 @@ type RuntimeStageCompletion struct {
 }
 
 func (repository *DiscoveryRepository) CompleteRuntimeStage(ctx context.Context, scope domain.Scope, input RuntimeStageCompletion) error {
-	if !validDiscoveryRepository(repository, ctx) || scope.Validate() != nil || !validProductID(input.BatchID) || !stringIn(input.Stage, "archive", "index", "correlate", "risk", "graph", "complete") || len(input.InputDigest) != 32 || len(input.ResultReference) > 1024 {
+	if !validDiscoveryRepository(repository, ctx) || scope.Validate() != nil || !validProductID(input.BatchID) || !stringIn(input.Stage, "archive", "index", "correlate", "risk", "graph", "complete") || len(input.InputDigest) != 32 || input.ResultReference != "" && !validS3ObjectReference(input.ResultReference) {
 		return ErrRepositoryOperation
 	}
 	payload, err := repository.database.QueryJSON(ctx, postgresDiscoveryRuntimeStageSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), input.BatchID, input.Stage, input.InputDigest, input.Succeeded, input.ResultReference)
@@ -884,7 +928,7 @@ func (repository *DiscoveryRepository) ClaimDiscoveryJobs(ctx context.Context, w
 	}
 	for index := range envelope.Items {
 		item := &envelope.Items[index]
-		if !validLeaseScope(item.OrganizationID, item.WorkspaceID, item.EnvironmentID) || !validProductID(item.ID) || !validProductID(item.AuthorityID) || item.Kind != kind || item.Attempt < 1 || item.LeaseExpiresAt.IsZero() {
+		if !validLeaseScope(item.OrganizationID, item.WorkspaceID, item.EnvironmentID) || !validProductID(item.ID) || !validProductID(item.AuthorityID) || item.Kind != kind || item.Attempt < 1 || !validLeaseExpiration(item.LeaseExpiresAt, seconds) {
 			return nil, ErrRepositoryUnavailable
 		}
 		if item.Attempt > 100 {
@@ -909,7 +953,7 @@ func (repository *DiscoveryRepository) ClaimDiscoverySchedules(ctx context.Conte
 	}
 	for index := range envelope.Items {
 		item := &envelope.Items[index]
-		if !validLeaseScope(item.OrganizationID, item.WorkspaceID, item.EnvironmentID) || !validProductID(item.ID) || !validProductID(item.IntegrationID) || item.NextRunAt.IsZero() || item.LeaseExpiresAt.IsZero() {
+		if !validLeaseScope(item.OrganizationID, item.WorkspaceID, item.EnvironmentID) || !validProductID(item.ID) || !validProductID(item.IntegrationID) || item.NextRunAt.IsZero() || !validLeaseExpiration(item.LeaseExpiresAt, seconds) {
 			return nil, ErrRepositoryUnavailable
 		}
 		item.NextRunAt = item.NextRunAt.UTC()
@@ -932,7 +976,7 @@ func (repository *DiscoveryRepository) ClaimProjectionWork(ctx context.Context, 
 	}
 	for index := range envelope.Items {
 		item := &envelope.Items[index]
-		if !validLeaseScope(item.OrganizationID, item.WorkspaceID, item.EnvironmentID) || !validProductID(item.SnapshotID) || !stringIn(item.Kind, "risk", "graph", "search") || len(item.Version) < 1 || len(item.InputDigest) != 32 || item.Attempt < 1 || item.LeaseExpiresAt.IsZero() {
+		if !validLeaseScope(item.OrganizationID, item.WorkspaceID, item.EnvironmentID) || !validProductID(item.SnapshotID) || !stringIn(item.Kind, "risk", "graph", "search") || len(item.Version) < 1 || len(item.InputDigest) != 32 || item.Attempt < 1 || !validLeaseExpiration(item.LeaseExpiresAt, seconds) {
 			return nil, ErrRepositoryUnavailable
 		}
 		if len(item.Version) > 64 || item.Attempt > 100 {
@@ -963,7 +1007,11 @@ func (repository *DiscoveryRepository) CompleteDiscoverySchedule(ctx context.Con
 		return DiscoveryScheduleCompletionResult{}, err
 	}
 	var result DiscoveryScheduleCompletionResult
-	if decodeStrictDiscovery(payload, &result) != nil || result.ID != input.ID || !stringIn(result.State, "enabled", "disabled") || result.NextRunAt.IsZero() || result.Version < 1 {
+	expectedState := "enabled"
+	if input.Outcome == "disabled" {
+		expectedState = "disabled"
+	}
+	if decodeStrictDiscovery(payload, &result) != nil || result.ID != input.ID || result.State != expectedState || !result.NextRunAt.Equal(input.NextRunAt) || result.Version < 1 {
 		return DiscoveryScheduleCompletionResult{}, ErrRepositoryUnavailable
 	}
 	result.NextRunAt = result.NextRunAt.UTC()
@@ -993,7 +1041,7 @@ func (repository *DiscoveryRepository) FinishDiscoveryJob(ctx context.Context, s
 		return WorkCompletionResult{}, err
 	}
 	var result WorkCompletionResult
-	if decodeStrictDiscovery(payload, &result) != nil || result.ID != input.ID || !stringIn(result.State, "succeeded", "retryable", "failed", "cancelled") || result.Attempt < 1 || result.Attempt > 100 || (result.State == "retryable") != (result.CompletedAt == nil) {
+	if decodeStrictDiscovery(payload, &result) != nil || result.ID != input.ID || !validCompletionState(input.Outcome, result.State) || result.Attempt < 1 || result.Attempt > 100 || (result.State == "retryable") != (result.CompletedAt == nil) || result.CompletedAt != nil && !validPastServerTime(*result.CompletedAt) {
 		return WorkCompletionResult{}, ErrRepositoryUnavailable
 	}
 	if result.CompletedAt != nil {
@@ -1017,7 +1065,7 @@ func (repository *DiscoveryRepository) FinishProjectionWork(ctx context.Context,
 		return WorkCompletionResult{}, err
 	}
 	var result WorkCompletionResult
-	if decodeStrictDiscovery(payload, &result) != nil || result.SnapshotID != input.SnapshotID || result.Kind != input.Kind || !stringIn(result.State, "succeeded", "retryable", "failed", "cancelled") || result.Attempt < 1 || result.Attempt > 100 || result.CompletedAt != nil {
+	if decodeStrictDiscovery(payload, &result) != nil || result.SnapshotID != input.SnapshotID || result.Kind != input.Kind || !validCompletionState(input.Outcome, result.State) || result.Attempt < 1 || result.Attempt > 100 || result.CompletedAt != nil {
 		return WorkCompletionResult{}, ErrRepositoryUnavailable
 	}
 	return result, nil
@@ -1034,6 +1082,57 @@ func (repository *DiscoveryRepository) claimTyped(ctx context.Context, statement
 		return ErrRepositoryUnavailable
 	}
 	return nil
+}
+
+func validLeaseExpiration(value time.Time, leaseSeconds int) bool {
+	now := time.Now()
+	return !value.IsZero() && value.After(now) && !value.After(now.Add(time.Duration(leaseSeconds)*time.Second+5*time.Second))
+}
+
+func validPastServerTime(value time.Time) bool {
+	return !value.IsZero() && !value.After(time.Now().Add(5*time.Second))
+}
+
+func validRetryAvailability(value time.Time, retrySeconds int) bool {
+	now := time.Now()
+	return value.After(now) && !value.After(now.Add(time.Duration(retrySeconds)*time.Second+5*time.Second))
+}
+
+func validIssuedRecord(id, expectedID, parentID, expectedParentID, audience, expectedAudience string, issuedAt, expiresAt, expectedExpiresAt time.Time) bool {
+	return id == expectedID && parentID == expectedParentID && audience == expectedAudience && validPastServerTime(issuedAt) && expiresAt.Equal(expectedExpiresAt) && expiresAt.After(time.Now()) && expiresAt.After(issuedAt)
+}
+
+func validEvidenceSubject(entityID, findingID *string) bool {
+	if (entityID == nil) == (findingID == nil) {
+		return false
+	}
+	if entityID != nil {
+		return validProductID(*entityID)
+	}
+	return validProductID(*findingID)
+}
+
+func validS3ObjectReference(value string) bool {
+	if len(value) < 8 || len(value) > 1024 {
+		return false
+	}
+	parts := s3ObjectReferencePattern.FindStringSubmatch(value)
+	if len(parts) != 3 || strings.Contains(parts[1], "..") || strings.Contains(parts[1], ".-") || strings.Contains(parts[1], "-.") {
+		return false
+	}
+	for _, segment := range strings.Split(parts[2], "/") {
+		if segment == "" || segment == "." || segment == ".." {
+			return false
+		}
+	}
+	return true
+}
+
+func validCompletionState(requested, returned string) bool {
+	if requested == "retryable" {
+		return returned == "retryable" || returned == "failed"
+	}
+	return returned == requested
 }
 func (repository *DiscoveryRepository) CompleteDiscoveryJob(ctx context.Context, scope domain.Scope, id, worker, token string, resultDigest []byte, retryable bool, lastError string) error {
 	if !validTransitionInput(repository, ctx, scope, id, worker, token) || (len(resultDigest) != 0 && len(resultDigest) != 32) || retryable && (len(lastError) < 1 || len(lastError) > 1024) || !retryable && lastError != "" {
@@ -1069,7 +1168,7 @@ func (repository *DiscoveryRepository) RetryOutbox(ctx context.Context, scope do
 		ID          string    `json:"id"`
 		AvailableAt time.Time `json:"available_at"`
 	}
-	if decodeStrictDiscovery(payload, &result) != nil || result.ID != id || result.AvailableAt.IsZero() {
+	if decodeStrictDiscovery(payload, &result) != nil || result.ID != id || !validRetryAvailability(result.AvailableAt, retrySeconds) {
 		return ErrRepositoryUnavailable
 	}
 	return nil
@@ -1144,13 +1243,13 @@ func validOpaqueReference(value string) bool {
 	return len(value) >= 12 && len(value) <= 512 && opaqueReferencePattern.MatchString(value)
 }
 func validDiscoveryIntegration(value DiscoveryIntegration) bool {
-	return validProductID(value.ID) && len(value.Kind) >= 1 && len(value.Kind) <= 64 && len(value.ConnectorVersion) >= 1 && len(value.DisplayName) >= 1 && stringIn(value.State, "pending", "authorizing", "active", "degraded", "disabled", "deleted") && value.Version > 0 && !value.CreatedAt.IsZero() && !value.UpdatedAt.Before(value.CreatedAt)
+	return validProductID(value.ID) && len(value.Kind) >= 1 && len(value.Kind) <= 64 && len(value.ConnectorVersion) >= 1 && len(value.ConnectorVersion) <= 64 && len(value.DisplayName) >= 1 && len(value.DisplayName) <= 128 && stringIn(value.State, "pending", "authorizing", "active", "degraded", "disabled", "deleted") && value.Version > 0 && validPastServerTime(value.CreatedAt) && !value.UpdatedAt.Before(value.CreatedAt) && validPastServerTime(value.UpdatedAt)
 }
 func validSyncRequest(value SyncRequest) bool {
 	return validProductID(value.IntegrationID) && validProductID(value.SyncID) && validProductID(value.JobID) && validProductID(value.OutboxID) && len(value.IdempotencyKey) >= 16 && len(value.IdempotencyKey) <= 128 && len(value.RequestDigest) == 32 && stringIn(value.TriggerKind, "manual", "schedule", "retry") && len(value.ParserVersion) >= 1 && len(value.ParserVersion) <= 64 && len(value.ToolVersion) >= 1 && len(value.ToolVersion) <= 64
 }
 func validCompleteSnapshot(value CompleteSnapshot) bool {
-	return validProductID(value.IntegrationID) && validProductID(value.SyncID) && validProductID(value.SnapshotID) && value.Generation > 0 && len(value.Source) >= 1 && len(value.Source) <= 64 && value.CursorProvider == value.Source && strings.HasPrefix(value.ManifestReference, "s3://") && len(value.ManifestChecksum) == 32 && value.CollectedAt.Location() == time.UTC && len(value.CursorValue) >= 1 && len(value.CursorValue) <= 4096 && validJSONArray(value.Entities, 16<<20) && validJSONArray(value.Relationships, 16<<20) && validJSONArray(value.Evidence, 16<<20)
+	return validProductID(value.IntegrationID) && validProductID(value.SyncID) && validProductID(value.SnapshotID) && value.Generation > 0 && len(value.Source) >= 1 && len(value.Source) <= 64 && value.CursorProvider == value.Source && validS3ObjectReference(value.ManifestReference) && len(value.ManifestChecksum) == 32 && value.CollectedAt.Location() == time.UTC && validPastServerTime(value.CollectedAt) && len(value.CursorValue) >= 1 && len(value.CursorValue) <= 4096 && validJSONArray(value.Entities, 16<<20) && validJSONArray(value.Relationships, 16<<20) && validJSONArray(value.Evidence, 16<<20)
 }
 func validReferenceOnlyJSON(value json.RawMessage) bool {
 	if !discoveryValidJSONObject(value, 16384) {

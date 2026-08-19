@@ -281,6 +281,30 @@ func TestRunReleaseMigrationRejectsDriftAndHonorsDeadline(t *testing.T) {
 	}
 }
 
+func TestLoadDiscoveryPrincipalRegistrationRequiresDistinctSafeNames(t *testing.T) {
+	values := map[string]string{
+		migrationPrincipalEnvironment:       "zasp_test_migration_login",
+		discoveryAPIPrincipalEnvironment:    "zasp_test_api_login",
+		discoveryWorkerPrincipalEnvironment: "zasp_test_discovery_login",
+		runtimeIngestPrincipalEnvironment:   "zasp_test_ingest_login",
+		runtimeWorkerPrincipalEnvironment:   "zasp_test_runtime_login",
+		outboxWorkerPrincipalEnvironment:    "zasp_test_outbox_login",
+		runtimeGatewayPrincipalEnvironment:  "zasp_test_gateway_login",
+	}
+	registration, err := loadDiscoveryPrincipalRegistration(func(key string) string { return values[key] })
+	if err != nil || registration.migration != values[migrationPrincipalEnvironment] || registration.api != values[discoveryAPIPrincipalEnvironment] || registration.gateway != values[runtimeGatewayPrincipalEnvironment] {
+		t.Fatalf("registration=%#v err=%v", registration, err)
+	}
+	delete(values, runtimeWorkerPrincipalEnvironment)
+	if _, err := loadDiscoveryPrincipalRegistration(func(key string) string { return values[key] }); !errors.Is(err, errInvalidMigrationCommand) {
+		t.Fatalf("missing principal error=%v", err)
+	}
+	values[runtimeWorkerPrincipalEnvironment] = values[discoveryAPIPrincipalEnvironment]
+	if _, err := loadDiscoveryPrincipalRegistration(func(key string) string { return values[key] }); !errors.Is(err, errInvalidMigrationCommand) {
+		t.Fatalf("duplicate principal error=%v", err)
+	}
+}
+
 func TestAgentsecMigrateCLIReachesV10FromEmptyAndV9(t *testing.T) {
 	dsn := startMigrationPostgres(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
@@ -291,15 +315,31 @@ func TestAgentsecMigrateCLIReachesV10FromEmptyAndV9(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	principalNames := []string{"zasp_cli_api_login", "zasp_cli_discovery_login", "zasp_cli_ingest_login", "zasp_cli_runtime_login", "zasp_cli_outbox_login", "zasp_cli_gateway_login"}
+	for _, principal := range principalNames {
+		if _, err := connection.Exec(ctx, fmt.Sprintf(`CREATE ROLE %s LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`, principal)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	principalEnvironment := []string{
+		"ZASP_MIGRATION_DB_PRINCIPAL=zasp_test",
+		"ZASP_DISCOVERY_API_DB_PRINCIPAL=" + principalNames[0], "ZASP_DISCOVERY_WORKER_DB_PRINCIPAL=" + principalNames[1],
+		"ZASP_RUNTIME_INGEST_DB_PRINCIPAL=" + principalNames[2], "ZASP_RUNTIME_WORKER_DB_PRINCIPAL=" + principalNames[3],
+		"ZASP_OUTBOX_WORKER_DB_PRINCIPAL=" + principalNames[4], "ZASP_RUNTIME_GATEWAY_DB_PRINCIPAL=" + principalNames[5],
+	}
 	runCLI := func(label string) {
 		t.Helper()
 		command := exec.CommandContext(ctx, "go", "run", ".", "up")
-		command.Env = append(os.Environ(), "ZASP_POSTGRES_DSN="+dsn, "ZASP_MIGRATION_TIMEOUT=30s")
+		command.Env = append(os.Environ(), append([]string{"ZASP_POSTGRES_DSN=" + dsn, "ZASP_MIGRATION_TIMEOUT=30s"}, principalEnvironment...)...)
 		if output, commandErr := command.CombinedOutput(); commandErr != nil {
 			t.Fatalf("%s: %v output=%q", label, commandErr, output)
 		}
 		if version, versionErr := runner.Version(ctx); versionErr != nil || version != 10 {
 			t.Fatalf("%s version = (%d, %v)", label, version, versionErr)
+		}
+		var bindings int
+		if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_discovery_principal_bindings`).Scan(&bindings); err != nil || bindings != 7 {
+			t.Fatalf("%s principal bindings=%d err=%v", label, bindings, err)
 		}
 	}
 	runCLI("empty to v10")

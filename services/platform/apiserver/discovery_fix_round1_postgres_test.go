@@ -295,7 +295,7 @@ func TestProductionDiscoveryLeastPrivilegeRolesAndLiveReadiness(t *testing.T) {
 	if _, err := fixture.connection.Exec(fixture.ctx, `RESET ROLE`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := fixture.connection.Exec(fixture.ctx, `CREATE ROLE zasp_deployed_api LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS; CREATE ROLE zasp_deployed_worker LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS; GRANT zasp_discovery_api TO zasp_deployed_api; GRANT zasp_discovery_worker TO zasp_deployed_worker`); err != nil {
+	if _, err := fixture.connection.Exec(fixture.ctx, `CREATE ROLE zasp_deployed_api LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS; CREATE ROLE zasp_deployed_worker LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS; CREATE ROLE zasp_deployed_ingest LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS; CREATE ROLE zasp_deployed_runtime LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS; CREATE ROLE zasp_deployed_outbox LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS; CREATE ROLE zasp_deployed_gateway LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS; SELECT zasp_discovery_register_principals(session_user,'zasp_deployed_api','zasp_deployed_worker','zasp_deployed_ingest','zasp_deployed_runtime','zasp_deployed_outbox','zasp_deployed_gateway')`); err != nil {
 		t.Fatal(err)
 	}
 	connectAs := func(role string) *pgx.Conn {
@@ -354,7 +354,7 @@ func TestProductionDiscoveryLeastPrivilegeRolesAndLiveReadiness(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := NewDiscoveryRepository(database); err != nil {
+	if _, err := newDiscoveryRepositoryUnchecked(database); err != nil {
 		t.Fatalf("constructor before drift=%v", err)
 	}
 	if _, err := fixture.connection.Exec(fixture.ctx, `ALTER TABLE zasp_integrations ADD COLUMN live_drift text`); err != nil {
@@ -364,7 +364,7 @@ func TestProductionDiscoveryLeastPrivilegeRolesAndLiveReadiness(t *testing.T) {
 	if err := fixture.connection.QueryRow(fixture.ctx, `SELECT zasp_discovery_readiness($1,$2)`, migrations.ProductionDiscovery().Checksum(), migrations.ProductionDiscoverySemanticFingerprint()).Scan(&ready); err != nil || ready {
 		t.Fatalf("readiness after live drift=%v err=%v", ready, err)
 	}
-	if _, err := NewDiscoveryRepository(database); !errors.Is(err, ErrRepositoryConfiguration) {
+	if _, err := newDiscoveryRepositoryUnchecked(database); !errors.Is(err, ErrRepositoryConfiguration) {
 		t.Fatalf("constructor after live drift=%v", err)
 	}
 }
@@ -379,7 +379,7 @@ func TestProductionDiscoverySecurityDriftBlocksReadinessConstructorAndRollback(t
 		{name: "function owner", drift: `ALTER FUNCTION zasp_discovery_claim_jobs(text,text,integer,integer,text) OWNER TO CURRENT_USER`},
 		{name: "function execute ACL", drift: `GRANT EXECUTE ON FUNCTION zasp_discovery_claim_jobs(text,text,integer,integer,text) TO zasp_discovery_api`},
 		{name: "role attribute", drift: `ALTER ROLE zasp_discovery_api BYPASSRLS`},
-		{name: "role membership", drift: `GRANT zasp_discovery_authority TO zasp_discovery_api`},
+		{name: "role membership", drift: `CREATE ROLE zasp_test_drift_login LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS; GRANT zasp_discovery_api TO zasp_test_drift_login`},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -395,7 +395,7 @@ func TestProductionDiscoverySecurityDriftBlocksReadinessConstructorAndRollback(t
 			if err != nil {
 				t.Fatal(err)
 			}
-			if _, err := NewDiscoveryRepository(database); !errors.Is(err, ErrRepositoryConfiguration) {
+			if _, err := newDiscoveryRepositoryUnchecked(database); !errors.Is(err, ErrRepositoryConfiguration) {
 				t.Fatalf("security constructor=%v", err)
 			}
 			if err := fixture.runner.DownProductionDiscovery(fixture.ctx); err == nil {
@@ -433,7 +433,7 @@ func TestProductionDiscoveryRolesAreSafeAcrossDatabasesInOneCluster(t *testing.T
 		t.Fatalf("down first database with shared roles: %v", err)
 	}
 	var roles int
-	if err := second.QueryRow(ctx, `SELECT count(*) FROM pg_roles WHERE rolname IN ('zasp_discovery_authority','zasp_discovery_api','zasp_discovery_worker')`).Scan(&roles); err != nil || roles != 3 {
+	if err := second.QueryRow(ctx, `SELECT count(*) FROM pg_roles WHERE rolname IN ('zasp_discovery_authority','zasp_discovery_api','zasp_discovery_worker','zasp_runtime_ingest','zasp_runtime_worker','zasp_outbox_worker','zasp_runtime_gateway')`).Scan(&roles); err != nil || roles != 7 {
 		t.Fatalf("shared roles after one database down=%d err=%v", roles, err)
 	}
 	if _, err := second.Exec(ctx, `SET ROLE zasp_discovery_api`); err != nil {
@@ -729,7 +729,7 @@ func newDiscoveryFixPostgresFixture(t *testing.T) *discoveryFixPostgresFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	repository, err := NewDiscoveryRepository(database)
+	repository, err := newDiscoveryRepositoryUnchecked(database)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -778,7 +778,7 @@ func (fixture *discoveryFixPostgresFixture) connectRepository() *DiscoveryReposi
 	if err != nil {
 		fixture.t.Fatal(err)
 	}
-	repository, err := NewDiscoveryRepository(database)
+	repository, err := newDiscoveryRepositoryUnchecked(database)
 	if err != nil {
 		fixture.t.Fatal(err)
 	}

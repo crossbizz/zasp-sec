@@ -4,8 +4,11 @@ import (
 	"context"
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 )
 
 func TestProductionDiscoveryRuntimeBatchPersistsImmutableDurableEnvelope(t *testing.T) {
@@ -252,5 +255,203 @@ func TestProductionDiscoverySnapshotSQLRejectsSourceCursorMismatch(t *testing.T)
 	_, err := fixture.connection.Exec(fixture.ctx, `SELECT zasp_discovery_apply_snapshot($1,$2,$3,$4,$5,$6,1,'aws','s3://zasp-evidence/source/guard.json',$7,transaction_timestamp(),'azure','wrong','[]'::jsonb,'[]'::jsonb,'[]'::jsonb)`, fixture.scope.OrganizationID().String(), fixture.scope.WorkspaceID().String(), fixture.scope.EnvironmentID().String(), integrationID, request.SyncID, "pid_77000002-0000-4000-8000-000000000002", digest[:])
 	if err == nil {
 		t.Fatal("SQL accepted source/cursor mismatch")
+	}
+}
+
+func TestProductionDiscoveryRejectsAmbiguousObjectReferencesWithoutResidue(t *testing.T) {
+	fixture := newDiscoveryFixPostgresFixture(t)
+	for _, reference := range []string{"s3://bucket/key with space", "s3://bucket/key?version=1", "s3://bucket//key", "s3://bucket/../key", "s3://bucket/"} {
+		var valid bool
+		if err := fixture.connection.QueryRow(fixture.ctx, `SELECT zasp_discovery_s3_object_reference($1)`, reference).Scan(&valid); err != nil || valid {
+			t.Fatalf("reference %q valid=%v err=%v", reference, valid, err)
+		}
+	}
+	integrationID := "pid_77100001-0000-4000-8000-000000000001"
+	fixture.createActiveIntegration(integrationID, "Object reference guard")
+	request := fixture.requestSync(integrationID, 602)
+	digest := sha256.Sum256([]byte("manifest"))
+	_, err := fixture.connection.Exec(fixture.ctx, `SELECT zasp_discovery_apply_snapshot($1,$2,$3,$4,$5,$6,1,'aws','s3://bucket/key?version=1',$7,transaction_timestamp(),'aws','cursor','[]'::jsonb,'[]'::jsonb,'[]'::jsonb)`, fixture.scope.OrganizationID().String(), fixture.scope.WorkspaceID().String(), fixture.scope.EnvironmentID().String(), integrationID, request.SyncID, "pid_77100002-0000-4000-8000-000000000002", digest[:])
+	if err == nil {
+		t.Fatal("snapshot accepted ambiguous manifest reference")
+	}
+	var snapshotCount int
+	if err := fixture.connection.QueryRow(fixture.ctx, `SELECT count(*) FROM zasp_discovery_snapshots WHERE integration_id=$1`, integrationID).Scan(&snapshotCount); err != nil || snapshotCount != 0 {
+		t.Fatalf("ambiguous reference residue snapshots=%d err=%v", snapshotCount, err)
+	}
+}
+
+func TestProductionDiscoveryActualSessionPrincipalsHaveExactAuthorities(t *testing.T) {
+	fixture := newDiscoveryFixPostgresFixture(t)
+	var migrationPrincipal string
+	if err := fixture.connection.QueryRow(fixture.ctx, `SELECT session_user`).Scan(&migrationPrincipal); err != nil {
+		t.Fatal(err)
+	}
+	principalNames := []string{"zasp_test_api_login", "zasp_test_discovery_login", "zasp_test_ingest_login", "zasp_test_runtime_login", "zasp_test_outbox_login", "zasp_test_gateway_login"}
+	for _, principal := range principalNames {
+		if _, err := fixture.connection.Exec(fixture.ctx, fmt.Sprintf(`CREATE ROLE %s LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`, principal)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	registrationArguments := []any{migrationPrincipal, principalNames[0], principalNames[1], principalNames[2], principalNames[3], principalNames[4], principalNames[5]}
+	if _, err := fixture.connection.Exec(fixture.ctx, `SELECT zasp_discovery_register_principals($1,$2,$3,$4,$5,$6,$7)`, registrationArguments...); err != nil {
+		t.Fatal(err)
+	}
+	var registered bool
+	if err := fixture.connection.QueryRow(fixture.ctx, `SELECT zasp_discovery_register_principals($1,$2,$3,$4,$5,$6,$7)`, registrationArguments...).Scan(&registered); err != nil || !registered {
+		t.Fatalf("exact registration replay registered=%v err=%v", registered, err)
+	}
+	if _, err := fixture.connection.Exec(fixture.ctx, `CREATE ROLE zasp_test_conflicting_login LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`); err != nil {
+		t.Fatal(err)
+	}
+	conflictingArguments := append([]any(nil), registrationArguments...)
+	conflictingArguments[1] = "zasp_test_conflicting_login"
+	if _, err := fixture.connection.Exec(fixture.ctx, `SELECT zasp_discovery_register_principals($1,$2,$3,$4,$5,$6,$7)`, conflictingArguments...); err == nil {
+		t.Fatal("principal registration accepted changed API identity")
+	}
+	var bindingCount int
+	if err := fixture.connection.QueryRow(fixture.ctx, `SELECT count(*) FROM zasp_discovery_principal_bindings`).Scan(&bindingCount); err != nil || bindingCount != 7 {
+		t.Fatalf("principal registration residue count=%d err=%v", bindingCount, err)
+	}
+	connectAs := func(principal string) (*pgx.Conn, *PostgresJSONDatabase) {
+		t.Helper()
+		configuration, err := pgx.ParseConfig(fixture.dsn)
+		if err != nil {
+			t.Fatal(err)
+		}
+		configuration.User = principal
+		connection, err := pgx.ConnectConfig(fixture.ctx, configuration)
+		if err != nil {
+			t.Fatal(err)
+		}
+		database, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return connection, database
+	}
+	authorities := []string{DiscoveryDatabaseAuthorityAPI, DiscoveryDatabaseAuthorityWorker, DiscoveryDatabaseAuthorityIngest, DiscoveryDatabaseAuthorityRuntime, DiscoveryDatabaseAuthorityOutbox, DiscoveryDatabaseAuthorityGateway}
+	for index, authority := range authorities {
+		connection, database := connectAs(principalNames[index])
+		if _, err := NewDiscoveryRepositoryForAuthority(database, authority); err != nil {
+			connection.Close(context.Background())
+			t.Fatalf("principal %s authority %s: %v", principalNames[index], authority, err)
+		}
+		if _, err := NewDiscoveryRepositoryForAuthority(database, authorities[(index+1)%len(authorities)]); !errors.Is(err, ErrRepositoryConfiguration) {
+			connection.Close(context.Background())
+			t.Fatalf("principal %s accepted wrong authority: %v", principalNames[index], err)
+		}
+		connection.Close(context.Background())
+	}
+
+	type privilegeCase struct {
+		principal, allowed, denied string
+	}
+	for _, test := range []privilegeCase{
+		{principalNames[0], "zasp_discovery_create_integration(text,text,text,text,text,text,text,jsonb,text)", "zasp_discovery_claim_outbox(text,text,integer,integer)"},
+		{principalNames[1], "zasp_discovery_apply_snapshot(text,text,text,text,text,text,bigint,text,text,bytea,timestamptz,text,text,jsonb,jsonb,jsonb)", "zasp_discovery_create_runtime_batch(text,text,text,text,text,text,text,text,bytea,integer,text,bigint,text,text)"},
+		{principalNames[2], "zasp_discovery_create_runtime_batch(text,text,text,text,text,text,text,text,bytea,integer,text,bigint,text,text)", "zasp_discovery_apply_snapshot(text,text,text,text,text,text,bigint,text,text,bytea,timestamptz,text,text,jsonb,jsonb,jsonb)"},
+		{principalNames[3], "zasp_discovery_complete_runtime_stage(text,text,text,text,text,bytea,boolean,text)", "zasp_discovery_gateway_advance_replay(text,text,text,text,bigint,bigint)"},
+		{principalNames[4], "zasp_discovery_claim_outbox(text,text,integer,integer)", "zasp_discovery_claim_schedules(text,text,integer,integer)"},
+		{principalNames[5], "zasp_discovery_gateway_advance_replay(text,text,text,text,bigint,bigint)", "zasp_discovery_sensor_heartbeat(text,text,text,text,bigint,text,bigint,jsonb)"},
+	} {
+		connection, _ := connectAs(test.principal)
+		var allowed, denied bool
+		if err := connection.QueryRow(fixture.ctx, `SELECT has_function_privilege(session_user,$1,'EXECUTE'),has_function_privilege(session_user,$2,'EXECUTE')`, test.allowed, test.denied).Scan(&allowed, &denied); err != nil || !allowed || denied {
+			connection.Close(context.Background())
+			t.Fatalf("privileges %s allowed=%v denied=%v err=%v", test.principal, allowed, denied, err)
+		}
+		connection.Close(context.Background())
+	}
+	apiCompatibilityConnection, _ := connectAs(principalNames[0])
+	var bootstrapRows, administrationRows, highRiskPaths int64
+	if err := apiCompatibilityConnection.QueryRow(fixture.ctx, `SELECT (SELECT count(*) FROM zasp_core_payloads),(SELECT count(*) FROM zasp_organizations),zasp_risk_high_path_count($1,$2,$3)`, fixture.scope.OrganizationID().String(), fixture.scope.WorkspaceID().String(), fixture.scope.EnvironmentID().String()).Scan(&bootstrapRows, &administrationRows, &highRiskPaths); err != nil {
+		apiCompatibilityConnection.Close(context.Background())
+		t.Fatalf("legacy API compatibility query: %v", err)
+	}
+	var inventoryPage []byte
+	if err := apiCompatibilityConnection.QueryRow(fixture.ctx, `SELECT zasp_discovery_entity_page($1,$2,$3,NULL,1)`, fixture.scope.OrganizationID().String(), fixture.scope.WorkspaceID().String(), fixture.scope.EnvironmentID().String()).Scan(&inventoryPage); err != nil {
+		apiCompatibilityConnection.Close(context.Background())
+		t.Fatalf("v10 API function: %v", err)
+	}
+	if _, err := apiCompatibilityConnection.Exec(fixture.ctx, `SELECT * FROM zasp_integrations`); err == nil {
+		apiCompatibilityConnection.Close(context.Background())
+		t.Fatal("API principal read v10 table directly")
+	}
+	if _, err := apiCompatibilityConnection.Exec(fixture.ctx, `SELECT zasp_discovery_claim_jobs('worker','lease-token-7600002',30,1,'discovery')`); err == nil {
+		apiCompatibilityConnection.Close(context.Background())
+		t.Fatal("API principal invoked v10 worker function")
+	}
+	apiCompatibilityConnection.Close(context.Background())
+	discoveryJobID := "pid_76000001-0000-4000-8000-000000000001"
+	runtimeJobID := "pid_76000001-0000-4000-8000-000000000002"
+	if _, err := fixture.connection.Exec(fixture.ctx, `INSERT INTO zasp_discovery_jobs(organization_id,workspace_id,environment_id,id,kind,authority_id,idempotency_key,request_digest,state,attempt,lease_owner,lease_token,lease_expires_at) VALUES($1,$2,$3,$4,'discovery','pid_76000002-0000-4000-8000-000000000001','domain-job-discovery',digest('discovery','sha256'),'leased',1,'worker','lease-token-domain-discovery',transaction_timestamp()+interval '30 seconds'),($1,$2,$3,$5,'runtime','pid_76000002-0000-4000-8000-000000000002','domain-job-runtime-01',digest('runtime','sha256'),'leased',1,'worker','lease-token-domain-runtime-01',transaction_timestamp()+interval '30 seconds')`, fixture.scope.OrganizationID().String(), fixture.scope.WorkspaceID().String(), fixture.scope.EnvironmentID().String(), discoveryJobID, runtimeJobID); err != nil {
+		t.Fatal(err)
+	}
+	runtimeConnection, _ := connectAs(principalNames[3])
+	if _, err := runtimeConnection.Exec(fixture.ctx, `SELECT zasp_discovery_finish_job($1,$2,$3,$4,'worker','lease-token-domain-discovery','succeeded',digest('result','sha256'),NULL,0)`, fixture.scope.OrganizationID().String(), fixture.scope.WorkspaceID().String(), fixture.scope.EnvironmentID().String(), discoveryJobID); err == nil {
+		t.Fatal("runtime principal finished discovery job")
+	}
+	runtimeConnection.Close(context.Background())
+	discoveryDomainConnection, _ := connectAs(principalNames[1])
+	if _, err := discoveryDomainConnection.Exec(fixture.ctx, `SELECT zasp_discovery_complete_job($1,$2,$3,$4,'worker','lease-token-domain-runtime-01',digest('result','sha256'),false,NULL)`, fixture.scope.OrganizationID().String(), fixture.scope.WorkspaceID().String(), fixture.scope.EnvironmentID().String(), runtimeJobID); err == nil {
+		t.Fatal("discovery principal completed runtime job through legacy wrapper")
+	}
+	discoveryDomainConnection.Close(context.Background())
+	var leasedCount int
+	if err := fixture.connection.QueryRow(fixture.ctx, `SELECT count(*) FROM zasp_discovery_jobs WHERE id=ANY($1) AND state='leased'`, []string{discoveryJobID, runtimeJobID}).Scan(&leasedCount); err != nil || leasedCount != 2 {
+		t.Fatalf("cross-domain finish residue leased=%d err=%v", leasedCount, err)
+	}
+	discoveryConnection, _ := connectAs(principalNames[1])
+	if _, err := discoveryConnection.Exec(fixture.ctx, `SELECT zasp_discovery_claim_jobs('worker','lease-token-7600001',30,1,'runtime')`); err == nil {
+		discoveryConnection.Close(context.Background())
+		t.Fatal("discovery principal claimed runtime jobs")
+	}
+	discoveryConnection.Close(context.Background())
+
+	apiConnection, _ := connectAs(principalNames[0])
+	if _, err := apiConnection.Exec(fixture.ctx, `SELECT zasp_discovery_register_principals($1,$2,$3,$4,$5,$6,$7)`, registrationArguments...); err == nil {
+		t.Fatal("runtime principal executed principal registration")
+	}
+	if _, err := fixture.connection.Exec(fixture.ctx, `GRANT SELECT ON zasp_integrations TO zasp_test_api_login`); err != nil {
+		t.Fatal(err)
+	}
+	var ready bool
+	if err := apiConnection.QueryRow(fixture.ctx, `SELECT zasp_discovery_principal_ready($1)`, DiscoveryDatabaseAuthorityAPI).Scan(&ready); err != nil || ready {
+		t.Fatalf("direct ACL ready=%v err=%v", ready, err)
+	}
+	if _, err := fixture.connection.Exec(fixture.ctx, `REVOKE SELECT ON zasp_integrations FROM zasp_test_api_login; GRANT zasp_runtime_gateway TO zasp_test_api_login WITH ADMIN OPTION`); err != nil {
+		t.Fatal(err)
+	}
+	if err := apiConnection.QueryRow(fixture.ctx, `SELECT zasp_discovery_principal_ready($1)`, DiscoveryDatabaseAuthorityAPI).Scan(&ready); err != nil || ready {
+		t.Fatalf("unsafe membership ready=%v err=%v", ready, err)
+	}
+	if _, err := fixture.connection.Exec(fixture.ctx, `REVOKE zasp_runtime_gateway FROM zasp_test_api_login; GRANT zasp_discovery_api TO zasp_test_api_login WITH ADMIN OPTION`); err != nil {
+		t.Fatal(err)
+	}
+	if err := apiConnection.QueryRow(fixture.ctx, `SELECT zasp_discovery_principal_ready($1)`, DiscoveryDatabaseAuthorityAPI).Scan(&ready); err != nil || ready {
+		t.Fatalf("admin option ready=%v err=%v", ready, err)
+	}
+	if _, err := fixture.connection.Exec(fixture.ctx, `REVOKE ADMIN OPTION FOR zasp_discovery_api FROM zasp_test_api_login; ALTER ROLE zasp_test_api_login NOINHERIT`); err != nil {
+		t.Fatal(err)
+	}
+	if err := apiConnection.QueryRow(fixture.ctx, `SELECT zasp_discovery_principal_ready($1)`, DiscoveryDatabaseAuthorityAPI).Scan(&ready); err != nil || ready {
+		t.Fatalf("noinherit ready=%v err=%v", ready, err)
+	}
+	apiConnection.Close(context.Background())
+	if _, err := fixture.connection.Exec(fixture.ctx, `ALTER ROLE zasp_test_api_login INHERIT; CREATE ROLE zasp_test_unbound_login LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS; GRANT zasp_runtime_gateway TO zasp_test_unbound_login`); err != nil {
+		t.Fatal(err)
+	}
+	if err := fixture.connection.QueryRow(fixture.ctx, `SELECT zasp_discovery_security_ready()`).Scan(&ready); err != nil || ready {
+		t.Fatalf("unbound capability member security ready=%v err=%v", ready, err)
+	}
+	if _, err := fixture.connection.Exec(fixture.ctx, `REVOKE zasp_runtime_gateway FROM zasp_test_unbound_login`); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := fixture.connection.Exec(fixture.ctx, `CREATE ROLE zasp_test_rogue NOLOGIN; GRANT EXECUTE ON FUNCTION zasp_discovery_entity_page(text,text,text,text,integer) TO zasp_test_rogue`); err != nil {
+		t.Fatal(err)
+	}
+	if err := fixture.connection.QueryRow(fixture.ctx, `SELECT zasp_discovery_security_ready()`).Scan(&ready); err != nil || ready {
+		t.Fatalf("arbitrary ACL security ready=%v err=%v", ready, err)
 	}
 }

@@ -53,6 +53,16 @@ test("release renders one TLS origin, split ports, private internals, and migrat
   assert.equal(migration.spec.template.spec.serviceAccountName, "agentsec-migration");
   assert.equal(migration.spec.template.spec.containers[0].env.some(({ valueFrom }) => valueFrom?.secretKeyRef), false);
   assert.equal(migration.spec.template.spec.containers[0].volumeMounts[0].mountPath, "/var/run/secrets/zasp-migration");
+  assert.deepEqual(Object.fromEntries(migration.spec.template.spec.containers[0].env.map(({ name, value }) => [name, value])), {
+    ZASP_MIGRATION_TIMEOUT: "10m",
+    ZASP_MIGRATION_DB_PRINCIPAL: "zasp_migration",
+    ZASP_DISCOVERY_API_DB_PRINCIPAL: "zasp_api_runtime",
+    ZASP_DISCOVERY_WORKER_DB_PRINCIPAL: "zasp_discovery_runtime",
+    ZASP_RUNTIME_INGEST_DB_PRINCIPAL: "zasp_ingest_runtime",
+    ZASP_RUNTIME_WORKER_DB_PRINCIPAL: "zasp_runtime_worker_runtime",
+    ZASP_OUTBOX_WORKER_DB_PRINCIPAL: "zasp_outbox_runtime",
+    ZASP_RUNTIME_GATEWAY_DB_PRINCIPAL: "zasp_gateway_runtime",
+  });
   for (const [kind, name, weight] of [["ServiceAccount", "agentsec-migration", "-30"], ["SecretProviderClass", "zasp-production-migration-secrets", "-20"], ["Job", "agentsec-schema-v10", "-10"]]) {
     const resource = one(resources, kind, name);
     assert.equal(resource.metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
@@ -60,6 +70,7 @@ test("release renders one TLS origin, split ports, private internals, and migrat
   }
   assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.metadata.annotations["zasp.io/schema-version"], "10");
   assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_EXPECTED_SCHEMA_VERSION").value, "10");
+  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_DATABASE_AUTHORITY").value, "zasp_discovery_api");
   assert.equal(one(resources, "SecretProviderClass", release.secretProviderClass).spec.secretObjects[0].data.length, 7);
   assert.equal(one(resources, "SecretProviderClass", "zasp-production-migration-secrets").spec.secretObjects[0].data.length, 1);
   assert.equal(one(resources, "SecretProviderClass", "zasp-production-worker-secrets").spec.secretObjects[0].data.length, 1);
@@ -159,6 +170,11 @@ test("terraform binds each shipped secret consumer to one exact least-privilege 
   const apiSecrets = terraform.slice(terraform.indexOf("api_secret_names"), terraform.indexOf("queue_contract"));
   assert.match(apiSecrets, /postgres-api-dsn/);
   assert.doesNotMatch(apiSecrets, /postgres-worker-dsn|postgres-migration-dsn/);
+  assert.match(terraform, /database_principals\s*=\s*\{/);
+  for (const principal of ["migration", "api", "discovery_worker", "runtime_ingest", "runtime_worker", "outbox_worker", "runtime_gateway"]) {
+    assert.match(terraform, new RegExp(`${principal}\\s*=\\s*var\\.database_principals`));
+  }
+  assert.match(terraform, /DatabasePrincipal/);
 });
 
 function one(resources, kind, name) {

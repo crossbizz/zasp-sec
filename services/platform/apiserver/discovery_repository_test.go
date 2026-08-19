@@ -37,7 +37,7 @@ func (database *discoveryCallDatabase) QueryJSON(_ context.Context, query string
 
 func newTestDiscoveryRepository(t *testing.T, database *discoveryCallDatabase) *DiscoveryRepository {
 	t.Helper()
-	repository, err := NewDiscoveryRepository(database)
+	repository, err := newDiscoveryRepositoryUnchecked(database)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +46,7 @@ func newTestDiscoveryRepository(t *testing.T, database *discoveryCallDatabase) *
 
 func TestNewDiscoveryRepositoryRequiresLiveDiscoverySchema(t *testing.T) {
 	database := &discoveryCallDatabase{schema: CoreSchemaVersion, responses: map[string]json.RawMessage{postgresDiscoveryReadySQL: json.RawMessage(`true`)}}
-	if _, err := NewDiscoveryRepository(database); !errors.Is(err, ErrRepositoryConfiguration) {
+	if _, err := newDiscoveryRepositoryUnchecked(database); !errors.Is(err, ErrRepositoryConfiguration) {
 		t.Fatalf("v9 schema accepted for discovery repository: %v", err)
 	}
 }
@@ -85,7 +85,7 @@ func TestDiscoveryRepositoryStrictEntityKeysetsAndOutboxLeases(t *testing.T) {
 		t.Fatalf("hostile keyset error=%v", err)
 	}
 
-	now := time.Date(2026, 8, 19, 0, 2, 0, 0, time.UTC)
+	now := time.Now().Add(30 * time.Second).UTC()
 	database.responses[postgresDiscoveryClaimOutboxSQL] = json.RawMessage(`{"items":[{"organization_id":"` + identity.Scope.OrganizationID().String() + `","workspace_id":"` + identity.Scope.WorkspaceID().String() + `","environment_id":"` + identity.Scope.EnvironmentID().String() + `","id":"pid_40000003-0000-4000-8000-000000000003","topic":"discovery-jobs","deterministic_key":"sync:000000000001","payload_version":1,"payload":{"job_id":"` + id + `"},"payload_digest":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=","attempt":1,"lease_expires_at":"` + now.Format(time.RFC3339) + `"}]}`)
 	claimed, err := repository.ClaimOutbox(context.Background(), "worker-a", "lease-token-00000001", 30, 10)
 	if err != nil || len(claimed) != 1 || claimed[0].Attempt != 1 {
@@ -169,7 +169,7 @@ func TestDiscoveryRepositoryRejectsMissingAndNullClaimItems(t *testing.T) {
 		postgresDiscoveryClaimSchedulesSQL:  json.RawMessage(`{"items":null}`),
 		postgresDiscoveryClaimProjectionSQL: json.RawMessage(`{}`),
 	}}
-	repository, err := NewDiscoveryRepository(database)
+	repository, err := newDiscoveryRepositoryUnchecked(database)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -184,21 +184,108 @@ func TestDiscoveryRepositoryRejectsMissingAndNullClaimItems(t *testing.T) {
 	}
 }
 
+func TestDiscoveryRepositoryRejectsImpossibleLeaseExpirations(t *testing.T) {
+	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{postgresDiscoveryReadySQL: json.RawMessage(`true`)}}
+	repository := newTestDiscoveryRepository(t, database)
+	scope := `"organization_id":"pid_10000001-0000-4000-8000-000000000001","workspace_id":"pid_10000002-0000-4000-8000-000000000002","environment_id":"pid_10000003-0000-4000-8000-000000000003"`
+	past := time.Now().Add(-time.Second).UTC().Format(time.RFC3339Nano)
+	farFuture := time.Now().Add(20 * time.Minute).UTC().Format(time.RFC3339Nano)
+	database.responses[postgresDiscoveryClaimJobsSQL] = json.RawMessage(`{"items":[{` + scope + `,"id":"pid_40000001-0000-4000-8000-000000000001","kind":"discovery","authority_id":"pid_40000002-0000-4000-8000-000000000002","attempt":1,"lease_expires_at":"` + past + `"}]}`)
+	if _, err := repository.ClaimDiscoveryJobs(context.Background(), "worker", "lease-token-00000001", "discovery", 30, 10); !errors.Is(err, ErrRepositoryUnavailable) {
+		t.Fatalf("expired job lease=%v", err)
+	}
+	database.responses[postgresDiscoveryClaimSchedulesSQL] = json.RawMessage(`{"items":[{` + scope + `,"id":"pid_40000003-0000-4000-8000-000000000003","integration_id":"pid_40000004-0000-4000-8000-000000000004","next_run_at":"` + past + `","lease_expires_at":"` + farFuture + `"}]}`)
+	if _, err := repository.ClaimDiscoverySchedules(context.Background(), "worker", "lease-token-00000001", 30, 10); !errors.Is(err, ErrRepositoryUnavailable) {
+		t.Fatalf("unbounded schedule lease=%v", err)
+	}
+	database.responses[postgresDiscoveryClaimProjectionSQL] = json.RawMessage(`{"items":[{` + scope + `,"snapshot_id":"pid_40000005-0000-4000-8000-000000000005","kind":"risk","version":"v1","input_digest":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=","attempt":1,"lease_expires_at":"` + past + `"}]}`)
+	if _, err := repository.ClaimProjectionWork(context.Background(), "worker", "lease-token-00000001", 30, 10); !errors.Is(err, ErrRepositoryUnavailable) {
+		t.Fatalf("expired projection lease=%v", err)
+	}
+	database.responses[postgresDiscoveryClaimOutboxSQL] = json.RawMessage(`{"items":[{` + scope + `,"id":"pid_40000006-0000-4000-8000-000000000006","topic":"discovery-jobs","deterministic_key":"sync:000000000001","payload_version":1,"payload":{},"payload_digest":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=","attempt":1,"lease_expires_at":"` + farFuture + `"}]}`)
+	if _, err := repository.ClaimOutbox(context.Background(), "worker", "lease-token-00000001", 30, 10); !errors.Is(err, ErrRepositoryUnavailable) {
+		t.Fatalf("unbounded outbox lease=%v", err)
+	}
+}
+
+func TestDiscoveryRepositoryRejectsMismatchedLifecycleResults(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{postgresDiscoveryReadySQL: json.RawMessage(`true`)}}
+	repository := newTestDiscoveryRepository(t, database)
+	nextRun := time.Now().Add(time.Hour).UTC()
+	completedAt := time.Now().Add(-time.Second).UTC().Format(time.RFC3339Nano)
+	database.responses[postgresDiscoveryCompleteScheduleSQL] = json.RawMessage(`{"id":"pid_41000001-0000-4000-8000-000000000001","state":"disabled","next_run_at":"` + nextRun.Format(time.RFC3339Nano) + `","version":2}`)
+	if _, err := repository.CompleteDiscoverySchedule(context.Background(), identity.Scope, DiscoveryScheduleCompletion{ID: "pid_41000001-0000-4000-8000-000000000001", Worker: "worker", LeaseToken: "lease-token-00000001", Outcome: "advanced", NextRunAt: nextRun}); !errors.Is(err, ErrRepositoryUnavailable) {
+		t.Fatalf("mismatched schedule completion=%v", err)
+	}
+	database.responses[postgresDiscoveryFinishJobSQL] = json.RawMessage(`{"id":"pid_41000002-0000-4000-8000-000000000002","state":"failed","attempt":1,"completed_at":"` + completedAt + `"}`)
+	if _, err := repository.FinishDiscoveryJob(context.Background(), identity.Scope, DiscoveryJobCompletion{ID: "pid_41000002-0000-4000-8000-000000000002", Worker: "worker", LeaseToken: "lease-token-00000001", Outcome: "succeeded"}); !errors.Is(err, ErrRepositoryUnavailable) {
+		t.Fatalf("mismatched job completion=%v", err)
+	}
+	database.responses[postgresDiscoveryFinishProjectionSQL] = json.RawMessage(`{"snapshot_id":"pid_41000003-0000-4000-8000-000000000003","kind":"risk","state":"failed","attempt":1}`)
+	if _, err := repository.FinishProjectionWork(context.Background(), identity.Scope, ProjectionWorkCompletion{SnapshotID: "pid_41000003-0000-4000-8000-000000000003", Kind: "risk", Version: "v1", Worker: "worker", LeaseToken: "lease-token-00000001", Outcome: "succeeded"}); !errors.Is(err, ErrRepositoryUnavailable) {
+		t.Fatalf("mismatched projection completion=%v", err)
+	}
+}
+
+func TestDiscoveryRepositoryRejectsExpiredIssuedRecords(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{postgresDiscoveryReadySQL: json.RawMessage(`true`)}}
+	repository := newTestDiscoveryRepository(t, database)
+	issued := time.Now().Add(-2 * time.Hour).UTC()
+	expired := time.Now().Add(-time.Hour).UTC()
+	times := `"issued_at":"` + issued.Format(time.RFC3339Nano) + `","expires_at":"` + expired.Format(time.RFC3339Nano) + `"`
+	sensorID := "pid_42000001-0000-4000-8000-000000000001"
+	tokenID := "pid_42000002-0000-4000-8000-000000000002"
+	database.responses[postgresDiscoveryIssueSensorTokenSQL] = json.RawMessage(`{"id":"` + tokenID + `","sensor_id":"` + sensorID + `","audience":"event-ingest",` + times + `}`)
+	if _, err := repository.IssueSensorToken(context.Background(), identity.Scope, SensorTokenIssue{SensorID: sensorID, TokenID: tokenID, Salt: make([]byte, 16), TokenHash: make([]byte, 32), ExpiresAt: expired}); !errors.Is(err, ErrRepositoryUnavailable) {
+		t.Fatalf("expired sensor token=%v", err)
+	}
+	deviceID := "pid_42000003-0000-4000-8000-000000000003"
+	enrollmentID := "pid_42000004-0000-4000-8000-000000000004"
+	database.responses[postgresDiscoveryIssueGatewayEnrollmentSQL] = json.RawMessage(`{"id":"` + enrollmentID + `","device_id":"` + deviceID + `","audience":"runtime-gateway-enroll",` + times + `}`)
+	if _, err := repository.IssueGatewayEnrollmentToken(context.Background(), identity.Scope, GatewayEnrollmentTokenIssue{ID: enrollmentID, DeviceID: deviceID, Salt: make([]byte, 16), TokenHash: make([]byte, 32), ExpiresAt: expired}); !errors.Is(err, ErrRepositoryUnavailable) {
+		t.Fatalf("expired gateway enrollment=%v", err)
+	}
+	credentialID := "pid_42000005-0000-4000-8000-000000000005"
+	database.responses[postgresDiscoveryGatewayEnrollSQL] = json.RawMessage(`{"id":"` + credentialID + `","device_id":"` + deviceID + `","audience":"runtime-gateway",` + times + `}`)
+	if _, err := repository.EnrollGateway(context.Background(), identity.Scope, GatewayEnrollment{DeviceID: deviceID, EnrollmentID: enrollmentID, CredentialID: credentialID, Audience: "runtime-gateway", KeyReference: "ref:gateway/key-0001", TokenHash: make([]byte, 32), Salt: make([]byte, 16), PublicKey: make([]byte, 32), ExpiresAt: expired}); !errors.Is(err, ErrRepositoryUnavailable) {
+		t.Fatalf("expired gateway credential=%v", err)
+	}
+}
+
+func TestDiscoveryRepositoryRejectsAmbiguousS3ObjectReferences(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	batchID := "pid_43000001-0000-4000-8000-000000000001"
+	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{
+		postgresDiscoveryReadySQL:        json.RawMessage(`true`),
+		postgresDiscoveryRuntimeBatchSQL: json.RawMessage(`{"batch_id":"` + batchID + `","replayed":false}`),
+	}}
+	repository := newTestDiscoveryRepository(t, database)
+	for _, reference := range []string{"s3://bucket/key with space", "s3://bucket/key?version=1", "s3://bucket//key", "s3://bucket/../key", "s3://bucket/"} {
+		input := RuntimeBatchCreate{SensorID: "pid_43000002-0000-4000-8000-000000000002", BatchID: batchID, JobID: "pid_43000003-0000-4000-8000-000000000003", OutboxID: "pid_43000004-0000-4000-8000-000000000004", IdempotencyKey: "runtime-batch-key-0001", PayloadDigest: make([]byte, 32), EventCount: 1, ObjectReference: reference, PayloadBytes: 1, MediaType: "application/json", SchemaVersion: "v1"}
+		if _, err := repository.CreateRuntimeBatch(context.Background(), identity.Scope, input); !errors.Is(err, ErrRepositoryOperation) {
+			t.Fatalf("reference %q error=%v", reference, err)
+		}
+	}
+}
+
 func TestDiscoveryRepositoryNormalizesAllLeaseInstantsToUTC(t *testing.T) {
 	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{postgresDiscoveryReadySQL: json.RawMessage(`true`)}}
 	repository := newTestDiscoveryRepository(t, database)
 	scope := `"organization_id":"pid_10000001-0000-4000-8000-000000000001","workspace_id":"pid_10000002-0000-4000-8000-000000000002","environment_id":"pid_10000003-0000-4000-8000-000000000003"`
-	database.responses[postgresDiscoveryClaimJobsSQL] = json.RawMessage(`{"items":[{` + scope + `,"id":"pid_40000001-0000-4000-8000-000000000001","kind":"discovery","authority_id":"pid_40000002-0000-4000-8000-000000000002","attempt":1,"lease_expires_at":"2026-08-19T01:00:00-07:00"}]}`)
+	leaseExpiration := time.Now().Add(30 * time.Second).In(time.FixedZone("test", -7*60*60)).Format(time.RFC3339Nano)
+	database.responses[postgresDiscoveryClaimJobsSQL] = json.RawMessage(`{"items":[{` + scope + `,"id":"pid_40000001-0000-4000-8000-000000000001","kind":"discovery","authority_id":"pid_40000002-0000-4000-8000-000000000002","attempt":1,"lease_expires_at":"` + leaseExpiration + `"}]}`)
 	jobs, err := repository.ClaimDiscoveryJobs(context.Background(), "worker", "lease-token-00000001", "discovery", 30, 10)
 	if err != nil || jobs[0].LeaseExpiresAt.Location() != time.UTC {
 		t.Fatalf("job UTC=%v err=%v", jobs, err)
 	}
-	database.responses[postgresDiscoveryClaimSchedulesSQL] = json.RawMessage(`{"items":[{` + scope + `,"id":"pid_40000003-0000-4000-8000-000000000003","integration_id":"pid_40000004-0000-4000-8000-000000000004","next_run_at":"2026-08-19T00:00:00-07:00","lease_expires_at":"2026-08-19T01:00:00-07:00"}]}`)
+	database.responses[postgresDiscoveryClaimSchedulesSQL] = json.RawMessage(`{"items":[{` + scope + `,"id":"pid_40000003-0000-4000-8000-000000000003","integration_id":"pid_40000004-0000-4000-8000-000000000004","next_run_at":"2026-08-19T00:00:00-07:00","lease_expires_at":"` + leaseExpiration + `"}]}`)
 	schedules, err := repository.ClaimDiscoverySchedules(context.Background(), "worker", "lease-token-00000001", 30, 10)
 	if err != nil || schedules[0].NextRunAt.Location() != time.UTC || schedules[0].LeaseExpiresAt.Location() != time.UTC {
 		t.Fatalf("schedule UTC=%v err=%v", schedules, err)
 	}
-	database.responses[postgresDiscoveryClaimProjectionSQL] = json.RawMessage(`{"items":[{` + scope + `,"snapshot_id":"pid_40000005-0000-4000-8000-000000000005","kind":"risk","version":"v1","input_digest":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=","attempt":1,"lease_expires_at":"2026-08-19T01:00:00-07:00"}]}`)
+	database.responses[postgresDiscoveryClaimProjectionSQL] = json.RawMessage(`{"items":[{` + scope + `,"snapshot_id":"pid_40000005-0000-4000-8000-000000000005","kind":"risk","version":"v1","input_digest":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=","attempt":1,"lease_expires_at":"` + leaseExpiration + `"}]}`)
 	projections, err := repository.ClaimProjectionWork(context.Background(), "worker", "lease-token-00000001", 30, 10)
 	if err != nil || projections[0].LeaseExpiresAt.Location() != time.UTC {
 		t.Fatalf("projection UTC=%v err=%v", projections, err)
@@ -207,34 +294,37 @@ func TestDiscoveryRepositoryNormalizesAllLeaseInstantsToUTC(t *testing.T) {
 
 func TestDiscoveryRepositoryExposesStrictTypedParentLifecycles(t *testing.T) {
 	identity := fixtureRequestIdentity(t)
-	now := time.Date(2026, 8, 19, 18, 0, 0, 0, time.UTC)
+	now := time.Now().UTC().Add(-time.Minute).Truncate(time.Second)
+	offsetNow := now.In(time.FixedZone("test", -7*60*60)).Format(time.RFC3339)
+	offsetNextRun := now.Add(5 * time.Minute).In(time.FixedZone("test", -7*60*60)).Format(time.RFC3339)
+	offsetExpiry := now.Add(time.Hour).In(time.FixedZone("test", -7*60*60)).Format(time.RFC3339)
 	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{
 		postgresDiscoveryReadySQL:                  json.RawMessage(`true`),
-		postgresDiscoveryTransitionIntegrationSQL:  json.RawMessage(`{"id":"pid_60000001-0000-4000-8000-000000000001","state":"active","version":2,"updated_at":"2026-08-19T18:00:00Z"}`),
-		postgresDiscoveryPutConnectionSQL:          json.RawMessage(`{"id":"pid_60000002-0000-4000-8000-000000000002","integration_id":"pid_60000001-0000-4000-8000-000000000001","provider":"aws","state":"pending","created_at":"2026-08-19T18:00:00Z"}`),
-		postgresDiscoveryPutScheduleSQL:            json.RawMessage(`{"id":"pid_60000003-0000-4000-8000-000000000003","integration_id":"pid_60000001-0000-4000-8000-000000000001","state":"enabled","cadence_seconds":300,"next_run_at":"2026-08-19T18:05:00Z","version":1}`),
-		postgresDiscoveryCreateSensorSQL:           json.RawMessage(`{"id":"pid_60000004-0000-4000-8000-000000000004","kind":"otlp","name":"Sensor","state":"pending","version":1,"created_at":"2026-08-19T18:00:00Z"}`),
-		postgresDiscoveryCreateGatewayDeviceSQL:    json.RawMessage(`{"id":"pid_60000005-0000-4000-8000-000000000005","name":"Gateway","state":"pending","version":1,"replay_floor":0,"created_at":"2026-08-19T18:00:00Z"}`),
-		postgresDiscoveryIssueGatewayEnrollmentSQL: json.RawMessage(`{"id":"pid_60000006-0000-4000-8000-000000000006","device_id":"pid_60000005-0000-4000-8000-000000000005","audience":"runtime-gateway-enroll","issued_at":"2026-08-19T18:00:00Z","expires_at":"2026-08-19T19:00:00Z"}`),
+		postgresDiscoveryTransitionIntegrationSQL:  json.RawMessage(`{"id":"pid_60000001-0000-4000-8000-000000000001","state":"active","version":2,"updated_at":"` + offsetNow + `"}`),
+		postgresDiscoveryPutConnectionSQL:          json.RawMessage(`{"id":"pid_60000002-0000-4000-8000-000000000002","integration_id":"pid_60000001-0000-4000-8000-000000000001","provider":"aws","state":"pending","created_at":"` + offsetNow + `"}`),
+		postgresDiscoveryPutScheduleSQL:            json.RawMessage(`{"id":"pid_60000003-0000-4000-8000-000000000003","integration_id":"pid_60000001-0000-4000-8000-000000000001","state":"enabled","cadence_seconds":300,"next_run_at":"` + offsetNextRun + `","version":1}`),
+		postgresDiscoveryCreateSensorSQL:           json.RawMessage(`{"id":"pid_60000004-0000-4000-8000-000000000004","kind":"otlp","name":"Sensor","state":"pending","version":1,"created_at":"` + offsetNow + `"}`),
+		postgresDiscoveryCreateGatewayDeviceSQL:    json.RawMessage(`{"id":"pid_60000005-0000-4000-8000-000000000005","name":"Gateway","state":"pending","version":1,"replay_floor":0,"created_at":"` + offsetNow + `"}`),
+		postgresDiscoveryIssueGatewayEnrollmentSQL: json.RawMessage(`{"id":"pid_60000006-0000-4000-8000-000000000006","device_id":"pid_60000005-0000-4000-8000-000000000005","audience":"runtime-gateway-enroll","issued_at":"` + offsetNow + `","expires_at":"` + offsetExpiry + `"}`),
 	}}
 	repository := newTestDiscoveryRepository(t, database)
 	integrationID := "pid_60000001-0000-4000-8000-000000000001"
-	if result, err := repository.TransitionIntegration(context.Background(), identity.Scope, IntegrationTransition{ID: integrationID, ExpectedVersion: 1, State: "active"}); err != nil || result.State != "active" {
+	if result, err := repository.TransitionIntegration(context.Background(), identity.Scope, IntegrationTransition{ID: integrationID, ExpectedVersion: 1, State: "active"}); err != nil || result.State != "active" || result.UpdatedAt.Location() != time.UTC {
 		t.Fatalf("integration transition=%#v err=%v", result, err)
 	}
-	if result, err := repository.PutIntegrationConnection(context.Background(), identity.Scope, IntegrationConnectionPut{ID: "pid_60000002-0000-4000-8000-000000000002", IntegrationID: integrationID, Provider: "aws", ConnectionReference: "ref:aws/connection-0001"}); err != nil || result.State != "pending" {
+	if result, err := repository.PutIntegrationConnection(context.Background(), identity.Scope, IntegrationConnectionPut{ID: "pid_60000002-0000-4000-8000-000000000002", IntegrationID: integrationID, Provider: "aws", ConnectionReference: "ref:aws/connection-0001"}); err != nil || result.State != "pending" || result.CreatedAt.Location() != time.UTC {
 		t.Fatalf("connection=%#v err=%v", result, err)
 	}
-	if result, err := repository.PutDiscoverySchedule(context.Background(), identity.Scope, DiscoverySchedulePut{ID: "pid_60000003-0000-4000-8000-000000000003", IntegrationID: integrationID, CadenceSeconds: 300, NextRunAt: now.Add(5 * time.Minute)}); err != nil || result.Version != 1 {
+	if result, err := repository.PutDiscoverySchedule(context.Background(), identity.Scope, DiscoverySchedulePut{ID: "pid_60000003-0000-4000-8000-000000000003", IntegrationID: integrationID, CadenceSeconds: 300, NextRunAt: now.Add(5 * time.Minute)}); err != nil || result.Version != 1 || result.NextRunAt.Location() != time.UTC {
 		t.Fatalf("schedule=%#v err=%v", result, err)
 	}
-	if result, err := repository.CreateSensor(context.Background(), identity.Scope, SensorCreate{ID: "pid_60000004-0000-4000-8000-000000000004", Name: "Sensor", Kind: "otlp"}); err != nil || result.State != "pending" {
+	if result, err := repository.CreateSensor(context.Background(), identity.Scope, SensorCreate{ID: "pid_60000004-0000-4000-8000-000000000004", Name: "Sensor", Kind: "otlp"}); err != nil || result.State != "pending" || result.CreatedAt.Location() != time.UTC {
 		t.Fatalf("sensor=%#v err=%v", result, err)
 	}
-	if result, err := repository.CreateGatewayDevice(context.Background(), identity.Scope, GatewayDeviceCreate{ID: "pid_60000005-0000-4000-8000-000000000005", Name: "Gateway"}); err != nil || result.State != "pending" {
+	if result, err := repository.CreateGatewayDevice(context.Background(), identity.Scope, GatewayDeviceCreate{ID: "pid_60000005-0000-4000-8000-000000000005", Name: "Gateway"}); err != nil || result.State != "pending" || result.CreatedAt.Location() != time.UTC {
 		t.Fatalf("device=%#v err=%v", result, err)
 	}
-	if result, err := repository.IssueGatewayEnrollmentToken(context.Background(), identity.Scope, GatewayEnrollmentTokenIssue{ID: "pid_60000006-0000-4000-8000-000000000006", DeviceID: "pid_60000005-0000-4000-8000-000000000005", Salt: make([]byte, 16), TokenHash: make([]byte, 32), ExpiresAt: now.Add(time.Hour)}); err != nil || result.Audience != "runtime-gateway-enroll" {
+	if result, err := repository.IssueGatewayEnrollmentToken(context.Background(), identity.Scope, GatewayEnrollmentTokenIssue{ID: "pid_60000006-0000-4000-8000-000000000006", DeviceID: "pid_60000005-0000-4000-8000-000000000005", Salt: make([]byte, 16), TokenHash: make([]byte, 32), ExpiresAt: now.Add(time.Hour)}); err != nil || result.Audience != "runtime-gateway-enroll" || result.IssuedAt.Location() != time.UTC || result.ExpiresAt.Location() != time.UTC {
 		t.Fatalf("enrollment token=%#v err=%v", result, err)
 	}
 	database.responses[postgresDiscoveryCreateSensorSQL] = json.RawMessage(`{"id":"pid_ffffffff-ffff-4fff-8fff-ffffffffffff","kind":"otlp","name":"Sensor","state":"pending","version":1,"created_at":"2026-08-19T18:00:00Z","unknown":true}`)

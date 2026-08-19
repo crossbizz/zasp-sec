@@ -103,7 +103,7 @@ func TestProductionDiscoveryPostgresAtomicSnapshotReplayIsolationLeaseAndGateway
 	if _, err := NewPostgresRepository(database); err != nil {
 		t.Fatalf("v9 repository compatibility on v10: %v", err)
 	}
-	repository, err := NewDiscoveryRepository(database)
+	repository, err := newDiscoveryRepositoryUnchecked(database)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,7 +124,7 @@ func TestProductionDiscoveryPostgresAtomicSnapshotReplayIsolationLeaseAndGateway
 	}
 	defer secondConnection.Close(ctx)
 	secondDatabase, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: secondConnection})
-	secondRepository, err := NewDiscoveryRepository(secondDatabase)
+	secondRepository, err := newDiscoveryRepositoryUnchecked(secondDatabase)
 	if err != nil {
 		t.Fatal(err)
 	}
