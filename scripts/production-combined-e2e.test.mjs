@@ -29,6 +29,12 @@ test("combined production E2E owns every local boundary and fixed assertion", as
     "/administration/audit-log", "Audit exports unavailable", "/compliance/evidence", "Evidence exports unavailable",
     "/administration/data-retention", "Data deletion unavailable", "/administration/external-data-flows", "identity-provider",
     "/administration/system-health", "production administration lifecycle and hidden provider/export mutations proven",
+    "/violations", "/exposure/attack-paths", "Production credential exposure 0001", "Ranked break option evidence",
+    "lostFindingResponseKeys", "Finding status updated through committed-response recovery", "Accepted production exception",
+    "PAT risk mutation and zero browser receipts proven", "risk pagination, detail, recovery, acceptance, and persistence proven",
+    "browserStorageHistoryAndCaches", "indexedDB.databases", "assertResponsiveRiskLayout", "Emulation.setDeviceMetricsOverride",
+    "browser console and exception stream remained clean", "hidden risk-adjacent routes canonicalized without hidden API calls",
+    "/red-team/results", "/test/attack-lab", "/reports", "/guardrails/dashboard", "/prompt-hardening",
   ]) assert.match(source, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.doesNotMatch(source, /Shown only once/);
   assert.doesNotMatch(source, /"Page\.(?:navigate|reload)"/);

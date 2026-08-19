@@ -30,6 +30,10 @@ let secondBrowserTab;
 let observedSessionCookie = false;
 const lostPolicyResponseKeys = [];
 const workflowPageRequests = { policies: [], integrations: [] };
+const riskPageRequests = { findings: [], attackPaths: [] };
+const lostFindingResponseKeys = [];
+const productAPIRequests = [];
+const browserConsoleErrors = [];
 const administrationRequests = [];
 const lostTokenResponses = { create: false, rotate: false, reveal: false, acknowledge: false };
 const tokenMutationKeys = { create: [], rotate: [] };
@@ -44,6 +48,7 @@ const scopeOverlapProof = {
 };
 let injectLaterReceiptOnNextAcknowledgement = false;
 let expireNextReceiptBeforeAcknowledgement = false;
+let loseNextFindingResponse = true;
 let proxyFailure;
 const cleanupController = installBoundedSignalCleanup(cleanupOwnedResources);
 
@@ -122,6 +127,25 @@ try {
   assert.equal(patCounts.stdout.trim(), "1|1|0", "PAT create/replay inserted a browser mutation receipt");
   console.log("combined E2E: PAT success, replay, and zero browser receipts proven");
 
+  const patFindingID = "pid_30000002-0000-4000-8000-000000000002";
+  const patFinding = await requestHTTPSJSON(`${publicOrigin}/api/v1/findings/${patFindingID}`, { method: "GET", headers: { authorization: patHeaders.authorization } });
+  assert.equal(patFinding.status, 200);
+  assert.match(String(patFinding.headers.etag), /^"[1-9][0-9]*"$/);
+  const patRiskHeaders = { ...patHeaders, "idempotency-key": "production-e2e-risk-pat-0001", "if-match": String(patFinding.headers.etag) };
+  const patRiskBody = JSON.stringify({ status: "under_review" });
+  const patRiskUpdated = await requestHTTPSJSON(`${publicOrigin}/api/v1/findings/${patFindingID}`, { method: "PATCH", headers: patRiskHeaders }, patRiskBody);
+  const patRiskReplayed = await requestHTTPSJSON(`${publicOrigin}/api/v1/findings/${patFindingID}`, { method: "PATCH", headers: patRiskHeaders }, patRiskBody);
+  assert.equal(patRiskUpdated.status, 200);
+  assert.deepEqual(patRiskReplayed.body, patRiskUpdated.body);
+  assert.equal(patRiskUpdated.headers["x-mutation-receipt-id"], undefined);
+  assert.equal(patRiskReplayed.headers["x-mutation-receipt-id"], undefined);
+  const patRiskCounts = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT
+    (SELECT count(*) FROM zasp_workflow_idempotency WHERE operation='updateFinding' AND idempotency_key='production-e2e-risk-pat-0001'),
+    (SELECT count(*) FROM zasp_workflow_audit WHERE operation='updateFinding' AND resource_id='${patFindingID}'),
+    (SELECT count(*) FROM zasp_workflow_receipts WHERE operation='updateFinding' AND idempotency_key='production-e2e-risk-pat-0001');`]);
+  assert.equal(patRiskCounts.stdout.trim(), "1|1|0", "PAT risk mutation inserted a browser receipt");
+  console.log("combined E2E: PAT risk mutation and zero browser receipts proven");
+
   const profile = path.join(temporaryRoot, "chrome-profile");
   browser = await startBrowser(profile, chromePort, `${publicOrigin}/api/v1/session/start?return_to=%2Fdiscovery%2Fassets`);
   let signedIn;
@@ -167,6 +191,76 @@ try {
   workflowPageRequests.policies.length = 0;
   workflowPageRequests.integrations.length = 0;
   console.log("combined E2E: actual two-tab delayed out-of-order ABA stale-scope recovery proven");
+
+  riskPageRequests.findings.length = 0;
+  riskPageRequests.attackPaths.length = 0;
+  await navigateBrowser(browser.cdp, `${publicOrigin}/violations`);
+  await waitForBrowserText(browser.cdp, /Production credential exposure 0102/);
+  assert.equal(await browserCountAriaPrefix(browser.cdp, "Open Production credential exposure"), 102, "finding UI did not traverse exactly 102 stable IDs");
+  assert.equal(riskPageRequests.findings.length, 2, "finding UI did not perform exactly two signed-keyset page requests");
+  await assertResponsiveRiskLayout(browser.cdp, "Findings");
+  await clickBrowserText(browser.cdp, "Production credential exposure 0001");
+  const findingDetail = await waitForBrowserText(browser.cdp, /Public production input/);
+  assert.match(findingDetail, /Public production input/);
+  assert.match(findingDetail, /pid_70000001-0000-4000-8000-000000000001/);
+  await clickBrowserText(browser.cdp, "Mark under review");
+  await waitForBrowserText(browser.cdp, /network error/);
+  assert.equal(lostFindingResponseKeys.length, 1, "committed finding response was not interrupted exactly once");
+  await reloadBrowser(browser.cdp);
+  const recoveredFinding = await waitForBrowserText(browser.cdp, /Recover committed operations/);
+  assert.match(recoveredFinding, /Update Finding/);
+  assert.match(recoveredFinding, /Production credential exposure 0001/);
+  await clickBrowserText(browser.cdp, "Acknowledge recovered result");
+  await waitForBrowserMissing(browser.cdp, '[aria-label="Mutation recovery"]');
+  await clickBrowserText(browser.cdp, "Production credential exposure 0001");
+  const recoveredDetail = await waitForBrowserText(browser.cdp, /version 2/);
+  assert.match(recoveredDetail, /under review/);
+  await fillBrowserLabel(browser.cdp, "Risk acceptance reason", "Accepted production exception");
+  await clickBrowserText(browser.cdp, "Accept risk");
+  const acceptedFinding = await waitForBrowserText(browser.cdp, /Accepted production exception/);
+  assert.match(acceptedFinding, /accepted/);
+  const durableFinding = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT status || '|' || acceptance_reason || '|' || version || '|' ||
+    (SELECT count(*) FROM zasp_workflow_receipts WHERE operation IN ('updateFinding','acceptFindingRisk') AND resource_id='pid_30000001-0000-4000-8000-000000000001' AND acknowledged_at IS NOT NULL)
+    FROM zasp_risk_findings WHERE id='pid_30000001-0000-4000-8000-000000000001' AND organization_id='pid_10000001-0000-4000-8000-000000000001';`]);
+  assert.equal(durableFinding.stdout.trim(), "accepted|Accepted production exception|3|2", "Finding status updated through committed-response recovery was not durable");
+  await clickBrowserAria(browser.cdp, "Close");
+  await waitForBrowserActive(browser.cdp, "Open Production credential exposure 0001");
+
+  await navigateBrowser(browser.cdp, `${publicOrigin}/exposure/attack-paths`);
+  await waitForBrowserText(browser.cdp, /pid_50000102-0000-4000-8000-000000000102/);
+  assert.equal(await browserCountAriaPrefix(browser.cdp, "Open attack path"), 102, "attack-path UI did not traverse exactly 102 stable IDs");
+  assert.equal(riskPageRequests.attackPaths.length, 2, "attack-path UI did not perform exactly two signed-keyset page requests");
+  await assertResponsiveRiskLayout(browser.cdp, "Attack Paths");
+  await clickBrowserAria(browser.cdp, "Open attack path pid_40000001-0000-4000-8000-000000000001");
+  const pathDetail = await waitForBrowserText(browser.cdp, /Remove node/);
+  assert.match(pathDetail, /pid_70000001-0000-4000-8000-000000000001/, "Ranked break option evidence was not rendered");
+  assert.doesNotMatch(pathDetail, /ticket|rerun|simulate/i);
+  await clickBrowserAria(browser.cdp, "Close");
+  await selectBrowserOption(browser.cdp, "Authorized scope", "Staging");
+  await waitForBrowserSelectedOption(browser.cdp, "Authorized scope", "Staging");
+  await waitForBrowserText(browser.cdp, /pid_80000002-0000-4000-8000-000000000002/);
+  assert.equal(await browserCountAriaPrefix(browser.cdp, "Open attack path"), 1, "scope switch retained production attack paths");
+  await selectBrowserOption(browser.cdp, "Authorized scope", "Production");
+  await waitForBrowserSelectedOption(browser.cdp, "Authorized scope", "Production");
+
+  const hiddenRequestStart = productAPIRequests.length;
+  for (const hiddenPath of ["/red-team/results", "/test/attack-lab", "/reports", "/guardrails/dashboard", "/prompt-hardening"]) {
+    await navigateBrowser(browser.cdp, `${publicOrigin}${hiddenPath}`);
+    await waitForBrowserText(browser.cdp, /Security overview/);
+    assert.equal(new URL(await browserCurrentURL(browser.cdp)).pathname, "/", `hidden route was not canonicalized: ${hiddenPath}`);
+  }
+  const hiddenRequests = productAPIRequests.slice(hiddenRequestStart).map((request) => request.path);
+  assert.equal(hiddenRequests.some((requestPath) => /red-team|attack-lab|reports|guardrails|prompt-hardening|ai|tickets/i.test(requestPath)), false);
+  console.log("combined E2E: hidden risk-adjacent routes canonicalized without hidden API calls");
+
+  const browserPersistence = await browserStorageHistoryAndCaches(browser.cdp);
+  assert.deepEqual(browserPersistence.local, {});
+  assert.deepEqual(browserPersistence.session, {});
+  assert.deepEqual(browserPersistence.cacheKeys, []);
+  assert.deepEqual(browserPersistence.indexedDatabases, []);
+  assert.doesNotMatch(JSON.stringify(browserPersistence), /Accepted production exception|zasp_pat_|pid_30000001/);
+  assert.equal(productAPIRequests.every((request) => request.path.startsWith("/api/v1/") && request.host === new URL(publicOrigin).host), true, "a product API request escaped the TLS same-origin /api/v1 boundary");
+  console.log("combined E2E: risk pagination, detail, recovery, acceptance, and persistence proven");
 
   await navigateBrowser(browser.cdp, `${publicOrigin}/policies`);
   await waitForBrowserText(browser.cdp, /Durable scoped runtime controls/);
@@ -236,7 +330,7 @@ try {
   await fillBrowserLabel(browser.cdp, "Signing secret", "secret_ref_combined_e2e");
   await clickBrowserText(browser.cdp, "Save integration");
   await waitForBrowserText(browser.cdp, /Integration created\. Audit pid_/);
-  await clickBrowserText(browser.cdp, "Close");
+  await clickBrowserAria(browser.cdp, "Close");
 
   await navigateBrowser(browser.cdp, `${publicOrigin}/protect/security-agents`);
   await waitForBrowserText(browser.cdp, /Durable, scoped response definitions/);
@@ -447,6 +541,14 @@ try {
   await stopChild(api);
   api = startChild(apiBinary, [], { env: apiEnvironment });
   await waitForHTTP(`http://127.0.0.1:${healthPort}/readyz`, 200);
+  await navigateBrowser(browser.cdp, `${publicOrigin}/violations`);
+  await clickBrowserText(browser.cdp, "Production credential exposure 0001");
+  assert.match(await waitForBrowserText(browser.cdp, /Accepted production exception/), /accepted/);
+  await clickBrowserAria(browser.cdp, "Close");
+  await navigateBrowser(browser.cdp, `${publicOrigin}/exposure/attack-paths`);
+  await clickBrowserAria(browser.cdp, "Open attack path pid_40000001-0000-4000-8000-000000000001");
+  assert.match(await waitForBrowserText(browser.cdp, /Remove node/), /pid_70000001-0000-4000-8000-000000000001/);
+  await clickBrowserAria(browser.cdp, "Close");
   await navigateBrowser(browser.cdp, `${publicOrigin}/policies`);
   const reloaded = await waitForBrowserText(browser.cdp, /Production runtime policy/);
   assert.match(reloaded, /Production runtime policy/);
@@ -472,9 +574,17 @@ try {
   assert.equal(denied.status, 404);
   assert.equal(denied.body.code, "not_found");
   assert.doesNotMatch(JSON.stringify(denied.body), /Foreign tenant agent/);
+  const deniedFinding = await browserFetchJSON(browser.cdp, "/api/v1/findings/pid_90000007-0000-4000-8000-000000000007", {
+    "X-Zasp-Expected-Scope": "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003",
+  });
+  assert.equal(deniedFinding.status, 404);
+  assert.equal(deniedFinding.body.code, "not_found");
+  assert.doesNotMatch(JSON.stringify(deniedFinding.body), /Foreign tenant finding/);
+  assert.deepEqual(browserConsoleErrors, [], `browser console/exception errors: ${JSON.stringify(browserConsoleErrors)}`);
+  console.log("combined E2E: browser console and exception stream remained clean");
   assert.equal(proxyFailure, undefined, `proxy fixture failed: ${proxyFailure}`);
 
-  console.log("production combined E2E passed: callback/cookie/bootstrap, pagination, administration, PAT/receipt recovery, keyboard focus, durable restart/reload, tenant denial");
+  console.log("production combined E2E passed: callback/cookie/bootstrap, risk pagination/recovery, administration, PAT/receipt recovery, responsive keyboard focus, durable restart/reload, tenant denial");
 } finally {
 	await cleanupController.run();
 	cleanupController.dispose();
@@ -523,8 +633,8 @@ async function stopPostgres(value) {
 async function seedPostgres(dsn) {
   const sql = `
 INSERT INTO zasp_authorized_scopes (principal_id, organization_id, workspace_id, environment_id, label, permissions, is_default) VALUES
-('pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','Production','["view","manage_workflows"]'::jsonb,true),
-('pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','pid_10000022-0000-4000-8000-000000000022','pid_10000023-0000-4000-8000-000000000023','Staging','["view","manage_workflows"]'::jsonb,false),
+('pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','Production','["view","manage_workflows","manage_findings"]'::jsonb,true),
+('pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','pid_10000022-0000-4000-8000-000000000022','pid_10000023-0000-4000-8000-000000000023','Staging','["view","manage_workflows","manage_findings"]'::jsonb,false),
 ('pid_90000004-0000-4000-8000-000000000004','pid_90000001-0000-4000-8000-000000000001','pid_90000002-0000-4000-8000-000000000002','pid_90000003-0000-4000-8000-000000000003','Foreign','["view"]'::jsonb,true);
 INSERT INTO zasp_identity_memberships (principal_id, organization_id, organization_reference, member_reference, role) VALUES
 ('pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','organization-test-local','member-test-local','security_admin'),
@@ -548,13 +658,66 @@ INSERT INTO zasp_compliance_evidence(organization_id,control_id,id,asset_id,sour
 INSERT INTO zasp_product_sessions(token_digest,csrf_token,session_id,principal_id,organization_id,workspace_id,environment_id,permissions,expires_at) VALUES
 (digest('target-role-session','sha256'),'target-role-csrf-with-at-least-32-bytes','session-role-change-e2e','pid_10000005-0000-4000-8000-000000000005','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','["view"]'::jsonb,transaction_timestamp()+interval '1 hour');
 INSERT INTO zasp_product_api_tokens (token_digest, principal_id, organization_id, workspace_id, environment_id, permissions, expires_at) VALUES
-(digest('production-e2e-product-token-with-at-least-32-bytes', 'sha256'),'pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','["view","manage_workflows"]'::jsonb,transaction_timestamp() + interval '1 hour');
+(digest('production-e2e-product-token-with-at-least-32-bytes', 'sha256'),'pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','["view","manage_workflows","manage_findings"]'::jsonb,transaction_timestamp() + interval '1 hour');
 INSERT INTO zasp_core_payloads (organization_id, workspace_id, environment_id, operation, payload) VALUES
 ('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','session_bootstrap:pid_10000004-0000-4000-8000-000000000004','{"principal":{"id":"pid_10000004-0000-4000-8000-000000000004","organization_id":"pid_10000001-0000-4000-8000-000000000001","organization_reference":"organization-local","member_reference":"member-local","role":"security_admin","active":true},"organization_id":"pid_10000001-0000-4000-8000-000000000001","workspace_id":"pid_10000002-0000-4000-8000-000000000002","environment_id":"pid_10000003-0000-4000-8000-000000000003","permissions":["view"],"capabilities":["inventory.read","scope.switch"],"csrf_token":"cccccccccccccccccccccccccccccccc","correlation_id":"pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"}'::jsonb),
 ('pid_10000001-0000-4000-8000-000000000001','pid_10000022-0000-4000-8000-000000000022','pid_10000023-0000-4000-8000-000000000023','session_bootstrap:pid_10000004-0000-4000-8000-000000000004','{"principal":{"id":"pid_10000004-0000-4000-8000-000000000004","organization_id":"pid_10000001-0000-4000-8000-000000000001","organization_reference":"organization-local","member_reference":"member-local","role":"security_admin","active":true},"organization_id":"pid_10000001-0000-4000-8000-000000000001","workspace_id":"pid_10000022-0000-4000-8000-000000000022","environment_id":"pid_10000023-0000-4000-8000-000000000023","permissions":["view"],"capabilities":["inventory.read","scope.switch"],"csrf_token":"dddddddddddddddddddddddddddddddd","correlation_id":"pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"}'::jsonb),
 ('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','home','{"agent_count":1,"high_risk_paths":0,"verified_changes":0,"blocked_changes":0,"pending_approvals":0,"oldest_approval_age_seconds":0,"needs_human_runs":0,"failed_runs":0,"inconclusive_runs":0,"recent_contained":0,"recent_remediated":0,"healthy":true,"attention_required":false}'::jsonb),
 ('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','agents','{"items":[{"id":"pid_20000001-0000-4000-8000-000000000001","name":"Support agent","kind":"agent","owner":"security","team":"platform","tags":["production"],"evidence_id":"pid_20000006-0000-4000-8000-000000000006","first_seen":"2026-08-18T09:00:00Z","last_seen":"2026-08-18T10:00:00Z"}]}'::jsonb),
 ('pid_90000001-0000-4000-8000-000000000001','pid_90000002-0000-4000-8000-000000000002','pid_90000003-0000-4000-8000-000000000003','agent:pid_90000001-0000-4000-8000-000000000001','{"id":"pid_90000001-0000-4000-8000-000000000001","name":"Foreign tenant agent","kind":"agent","owner":"foreign","team":"foreign","tags":[],"evidence_id":"pid_90000006-0000-4000-8000-000000000006","first_seen":"2026-08-18T09:00:00Z","last_seen":"2026-08-18T10:00:00Z"}'::jsonb);
+INSERT INTO zasp_risk_findings (organization_id,workspace_id,environment_id,id,source,rule,title,severity,status,agent_id,path_id,created_at,updated_at)
+SELECT 'pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003',
+  'pid_' || (30000000+ordinal)::text || '-0000-4000-8000-' || lpad(ordinal::text,12,'0'), 'posture','public_input',
+  'Production credential exposure ' || lpad(ordinal::text,4,'0'), CASE WHEN ordinal=1 THEN 'critical' ELSE 'high' END,'open',
+  'pid_20000001-0000-4000-8000-000000000001','pid_' || (40000000+ordinal)::text || '-0000-4000-8000-' || lpad(ordinal::text,12,'0'),
+  '2026-08-18T09:00:00Z','2026-08-18T10:00:00Z'
+FROM generate_series(1,102) AS ordinal;
+INSERT INTO zasp_risk_finding_evidence (organization_id,workspace_id,environment_id,finding_id,position,evidence_id)
+SELECT 'pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003',
+  'pid_' || (30000000+ordinal)::text || '-0000-4000-8000-' || lpad(ordinal::text,12,'0'),1,
+  'pid_' || (70000000+ordinal)::text || '-0000-4000-8000-' || lpad(ordinal::text,12,'0')
+FROM generate_series(1,102) AS ordinal;
+INSERT INTO zasp_risk_finding_factors (organization_id,workspace_id,environment_id,finding_id,position,name,evidence_id)
+SELECT 'pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003',
+  'pid_' || (30000000+ordinal)::text || '-0000-4000-8000-' || lpad(ordinal::text,12,'0'),1,'Public production input',
+  'pid_' || (70000000+ordinal)::text || '-0000-4000-8000-' || lpad(ordinal::text,12,'0')
+FROM generate_series(1,102) AS ordinal;
+INSERT INTO zasp_risk_findings (organization_id,workspace_id,environment_id,id,source,title,severity,status,created_at,updated_at) VALUES
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','pid_39000001-0000-4000-8000-000000000001','prowler','Irrelevant provider row','medium','open','2026-08-18T09:00:00Z','2026-08-18T10:00:00Z'),
+('pid_90000001-0000-4000-8000-000000000001','pid_90000002-0000-4000-8000-000000000002','pid_90000003-0000-4000-8000-000000000003','pid_90000007-0000-4000-8000-000000000007','posture','Foreign tenant finding','critical','open','2026-08-18T09:00:00Z','2026-08-18T10:00:00Z');
+INSERT INTO zasp_risk_finding_evidence (organization_id,workspace_id,environment_id,finding_id,position,evidence_id) VALUES
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','pid_39000001-0000-4000-8000-000000000001',1,'pid_79000001-0000-4000-8000-000000000001'),
+('pid_90000001-0000-4000-8000-000000000001','pid_90000002-0000-4000-8000-000000000002','pid_90000003-0000-4000-8000-000000000003','pid_90000007-0000-4000-8000-000000000007',1,'pid_90000006-0000-4000-8000-000000000006');
+INSERT INTO zasp_risk_attack_paths (organization_id,workspace_id,environment_id,id,entry_id,sink_id,state,blocked_edge,created_at,updated_at)
+SELECT 'pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003',
+  'pid_' || (40000000+ordinal)::text || '-0000-4000-8000-' || lpad(ordinal::text,12,'0'),
+  'pid_' || (50000000+ordinal)::text || '-0000-4000-8000-' || lpad(ordinal::text,12,'0'),
+  'pid_' || (60000000+ordinal)::text || '-0000-4000-8000-' || lpad(ordinal::text,12,'0'),
+  'verified',-1,'2026-08-18T09:00:00Z','2026-08-18T10:00:00Z'
+FROM generate_series(1,102) AS ordinal;
+INSERT INTO zasp_risk_attack_path_nodes (organization_id,workspace_id,environment_id,path_id,position,node_id)
+SELECT 'pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003',
+  'pid_' || (40000000+ordinal)::text || '-0000-4000-8000-' || lpad(ordinal::text,12,'0'), position,
+  'pid_' || ((CASE position WHEN 1 THEN 50000000 ELSE 60000000 END)+ordinal)::text || '-0000-4000-8000-' || lpad(ordinal::text,12,'0')
+FROM generate_series(1,102) AS ordinal CROSS JOIN generate_series(1,2) AS position;
+INSERT INTO zasp_risk_attack_path_evidence (organization_id,workspace_id,environment_id,path_id,position,evidence_id)
+SELECT 'pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003',
+  'pid_' || (40000000+ordinal)::text || '-0000-4000-8000-' || lpad(ordinal::text,12,'0'),1,
+  'pid_' || (70000000+ordinal)::text || '-0000-4000-8000-' || lpad(ordinal::text,12,'0')
+FROM generate_series(1,102) AS ordinal;
+INSERT INTO zasp_risk_break_options (organization_id,workspace_id,environment_id,path_id,rank,target_id,evidence_id,kind)
+SELECT 'pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003',
+  'pid_' || (40000000+ordinal)::text || '-0000-4000-8000-' || lpad(ordinal::text,12,'0'),1,
+  'pid_' || (50000000+ordinal)::text || '-0000-4000-8000-' || lpad(ordinal::text,12,'0'),
+  'pid_' || (70000000+ordinal)::text || '-0000-4000-8000-' || lpad(ordinal::text,12,'0'),'remove_node'
+FROM generate_series(1,102) AS ordinal;
+INSERT INTO zasp_risk_attack_paths (organization_id,workspace_id,environment_id,id,entry_id,sink_id,state,blocked_edge,created_at,updated_at) VALUES
+('pid_10000001-0000-4000-8000-000000000001','pid_10000022-0000-4000-8000-000000000022','pid_10000023-0000-4000-8000-000000000023','pid_80000001-0000-4000-8000-000000000001','pid_80000002-0000-4000-8000-000000000002','pid_80000003-0000-4000-8000-000000000003','observed',-1,'2026-08-18T09:00:00Z','2026-08-18T10:00:00Z');
+INSERT INTO zasp_risk_attack_path_nodes (organization_id,workspace_id,environment_id,path_id,position,node_id) VALUES
+('pid_10000001-0000-4000-8000-000000000001','pid_10000022-0000-4000-8000-000000000022','pid_10000023-0000-4000-8000-000000000023','pid_80000001-0000-4000-8000-000000000001',1,'pid_80000002-0000-4000-8000-000000000002'),
+('pid_10000001-0000-4000-8000-000000000001','pid_10000022-0000-4000-8000-000000000022','pid_10000023-0000-4000-8000-000000000023','pid_80000001-0000-4000-8000-000000000001',2,'pid_80000003-0000-4000-8000-000000000003');
+INSERT INTO zasp_risk_attack_path_evidence (organization_id,workspace_id,environment_id,path_id,position,evidence_id) VALUES
+('pid_10000001-0000-4000-8000-000000000001','pid_10000022-0000-4000-8000-000000000022','pid_10000023-0000-4000-8000-000000000023','pid_80000001-0000-4000-8000-000000000001',1,'pid_80000004-0000-4000-8000-000000000004');
 INSERT INTO zasp_workflow_records (organization_id, workspace_id, environment_id, kind, id, body)
 SELECT 'pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','policy',
   'policy-page-' || lpad(ordinal::text, 4, '0'),
@@ -652,6 +815,7 @@ async function startIdentityServer(port, publicOrigin) {
 async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn) {
   const server = https.createServer({ key: await readFile(keyPath), cert: await readFile(certificatePath) }, async (request, response) => {
     const target = new URL(request.url ?? "/", "https://combined.invalid");
+    if (target.pathname.startsWith("/api/")) productAPIRequests.push({ method: request.method, path: target.pathname, host: String(request.headers.host ?? "") });
     const browserTab = String(request.headers["x-zasp-e2e-tab"] ?? "");
     const receiptAcknowledgement = request.method === "POST" && /^\/api\/v1\/workflow-mutation-receipts\/pid_[0-9a-f-]+\/acknowledge$/.test(target.pathname);
     const tokenCreate = request.method === "POST" && target.pathname === "/api/v1/admin/api-tokens";
@@ -662,6 +826,8 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
     if (tokenRotate) tokenMutationKeys.rotate.push(String(request.headers["idempotency-key"] ?? ""));
     if (request.method === "GET" && target.pathname === "/api/v1/policies") workflowPageRequests.policies.push(target.search);
     if (request.method === "GET" && target.pathname === "/api/v1/integrations") workflowPageRequests.integrations.push(target.search);
+    if (request.method === "GET" && target.pathname === "/api/v1/findings") riskPageRequests.findings.push(target.search);
+    if (request.method === "GET" && target.pathname === "/api/v1/attack-paths") riskPageRequests.attackPaths.push(target.search);
     if (receiptAcknowledgement && expireNextReceiptBeforeAcknowledgement) {
       expireNextReceiptBeforeAcknowledgement = false;
       try {
@@ -707,6 +873,16 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
         upstreamResponse.once("end", () => {
           response.writeHead(502, { "content-type": "application/json", "cache-control": "no-store" });
           response.end(JSON.stringify({ code: "dependency_unavailable", message: "Request could not be completed", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: true }));
+        });
+        return;
+      }
+      if (request.method === "PATCH" && /^\/api\/v1\/findings\/pid_[0-9a-f-]+$/.test(target.pathname) && !request.headers.authorization && loseNextFindingResponse && upstreamResponse.statusCode === 200) {
+        loseNextFindingResponse = false;
+        lostFindingResponseKeys.push(String(request.headers["idempotency-key"] ?? ""));
+        upstreamResponse.resume();
+        upstreamResponse.once("end", () => {
+          response.writeHead(200, { ...upstreamResponse.headers, "content-type": "application/json", "cache-control": "no-store" });
+          response.end("{}");
         });
         return;
       }
@@ -794,6 +970,14 @@ async function startBrowser(profile, port, target) {
   const cdp = await attachToBrowserTarget(browserCDP, page.id);
   await cdp.send("Page.enable");
   await cdp.send("Runtime.enable");
+  await cdp.send("Log.enable");
+  cdp.on("Runtime.exceptionThrown", (parameters) => browserConsoleErrors.push({ kind: "exception", text: parameters.exceptionDetails?.text ?? "unknown exception" }));
+  cdp.on("Runtime.consoleAPICalled", (parameters) => {
+    if (parameters.type === "error" || parameters.type === "assert") browserConsoleErrors.push({ kind: parameters.type, text: parameters.args?.map((argument) => argument.value ?? argument.description ?? "").join(" ") });
+  });
+  cdp.on("Log.entryAdded", (parameters) => {
+    if (parameters.entry?.level === "error" && parameters.entry?.source === "javascript") browserConsoleErrors.push({ kind: "log", text: parameters.entry.text });
+  });
   return { child, cdp };
 }
 
@@ -876,6 +1060,44 @@ async function browserStorageAndHistoryText(cdp) {
     returnByValue: true,
   });
   return String(evaluated.result?.value ?? "");
+}
+
+async function browserStorageHistoryAndCaches(cdp) {
+  const evaluated = await cdp.send("Runtime.evaluate", {
+    expression: `(async () => ({
+      local: Object.fromEntries(Object.entries(localStorage)),
+      session: Object.fromEntries(Object.entries(sessionStorage)),
+      historyState: history.state,
+      href: location.href,
+      cacheKeys: 'caches' in globalThis ? await caches.keys() : [],
+      indexedDatabases: typeof indexedDB.databases === 'function' ? (await indexedDB.databases()).map((database) => database.name ?? '') : [],
+    }))()`,
+    awaitPromise: true,
+    returnByValue: true,
+  });
+  return evaluated.result?.value;
+}
+
+async function assertResponsiveRiskLayout(cdp, heading) {
+  for (const viewport of [{ width: 1440, height: 900 }, { width: 1024, height: 768 }, { width: 390, height: 844 }]) {
+    await cdp.send("Emulation.setDeviceMetricsOverride", { ...viewport, deviceScaleFactor: 1, mobile: viewport.width < 600 });
+    await cdp.send("Runtime.evaluate", { expression: "new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))", awaitPromise: true, returnByValue: true });
+    const evaluated = await cdp.send("Runtime.evaluate", {
+      expression: `(() => ({
+        heading: [...document.querySelectorAll('h1,h2')].some((element) => element.textContent?.trim() === ${JSON.stringify(heading)}),
+        viewport: innerWidth,
+        documentWidth: document.documentElement.scrollWidth,
+        bodyWidth: document.body.scrollWidth,
+        focusedVisible: !document.activeElement || document.activeElement === document.body || document.activeElement.getBoundingClientRect().width > 0,
+      }))()`,
+      returnByValue: true,
+    });
+    const state = evaluated.result?.value;
+    assert.equal(state.heading, true, `${heading} heading disappeared at ${viewport.width}x${viewport.height}`);
+    assert.ok(state.documentWidth <= state.viewport && state.bodyWidth <= state.viewport, `${heading} overflowed at ${viewport.width}x${viewport.height}: ${JSON.stringify(state)}`);
+    assert.equal(state.focusedVisible, true, `${heading} focus target was not visible at ${viewport.width}x${viewport.height}`);
+  }
+  await cdp.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
 }
 
 async function waitForBrowserText(cdp, pattern) {
@@ -1044,6 +1266,7 @@ async function attachToBrowserTarget(browserCDP, initialTargetId, browserContext
   assert.ok(attached.sessionId, "Chrome target session was not created");
   return {
     send(method, params = {}) { return browserCDP.send(method, params, attached.sessionId); },
+    on(method, listener) { return browserCDP.on((message) => { if (message.method === method && message.sessionId === attached.sessionId) listener(message.params ?? {}); }); },
     async replaceTarget(url) {
       const previousTargetId = targetId;
       const created = await browserCDP.send("Target.createTarget", { url, ...(browserContextId ? { browserContextId } : {}) });
@@ -1052,6 +1275,8 @@ async function attachToBrowserTarget(browserCDP, initialTargetId, browserContext
       assert.ok(replacement.sessionId, "Chrome replacement target session was not created");
       targetId = created.targetId;
       attached = replacement;
+      await browserCDP.send("Runtime.enable", {}, attached.sessionId);
+      await browserCDP.send("Log.enable", {}, attached.sessionId);
       const closed = await browserCDP.send("Target.closeTarget", { targetId: previousTargetId });
       assert.equal(closed.success, true, "Chrome previous target was not closed");
     },
@@ -1063,6 +1288,7 @@ async function connectCDP(target) {
   let nextID = 0;
   let closed = false;
   const pending = new Map();
+  const listeners = new Set();
   const socket = new WebSocket(target);
   await new Promise((resolve, reject) => {
     socket.addEventListener("open", resolve, { once: true });
@@ -1077,7 +1303,11 @@ async function connectCDP(target) {
   };
   socket.addEventListener("message", (event) => {
     const message = JSON.parse(event.data);
-    if (!message.id || !pending.has(message.id)) return;
+    if (!message.id) {
+      for (const listener of listeners) listener(message);
+      return;
+    }
+    if (!pending.has(message.id)) return;
     const { resolve, reject, timeout } = pending.get(message.id);
     pending.delete(message.id);
     clearTimeout(timeout);
@@ -1085,6 +1315,7 @@ async function connectCDP(target) {
   });
   socket.addEventListener("close", () => { if (!closed) rejectPending("CDP connection closed"); });
   return {
+    on(listener) { listeners.add(listener); return () => listeners.delete(listener); },
     send(method, params = {}, sessionId) {
       const id = ++nextID;
       return new Promise((resolve, reject) => {
