@@ -61,26 +61,45 @@ Release v10 introduces the discovery and runtime authority:
 - runtime batches/events, per-stage idempotency, and correlation state;
 - a transactional outbox for queue publication.
 
-Release v11 introduces Security Agent execution authority:
+Release v11 performs the production cutover from generic integration and
+inventory payload records to v10 authority. It backfills, validates exact row
+equivalence, switches readers and writers, and leaves old rows as read-only
+compatibility projections until a later contract migration. Application
+rollback is supported only to a version that understands the expanded schema;
+schema downgrade is independently data-guarded.
+
+Release v12 introduces Security Agent execution authority:
 
 - definitions and immutable versions;
 - trigger receipts, simulations, plans, plan hashes, and evidence bindings;
 - runs, ordered steps, action attempts, verification results, and cleanup;
 - fresh-auth approvals, expiry, resume state, cancellation, and terminal
   outcomes;
-- action idempotency and immutable audit correlation.
+- action idempotency and immutable audit correlation;
+- explicit `draft`, `validated`, `supervised`, and `autonomous` activation;
+- global, organization, environment, and per-action kill switches.
 
-Both releases use exact checksums, semantic fingerprints, RLS, typed database
+All releases use exact checksums, semantic fingerprints, RLS, typed database
 functions, locked upgrade/downgrade paths, and data-aware rollback guards.
 Migrations never rewrite an already released file.
 
 ## Provider Authorization and Discovery
 
 Integration creation stores only non-secret configuration and opaque secret or
-connection references. AWS uses scoped AssumeRole configuration; GitHub and
-IdP providers use private Nango connections where applicable. The browser
-never receives Nango service credentials, cloud session credentials, or
-provider refresh tokens.
+connection references. AWS, Kubernetes, GitHub, and the launch IdP use
+first-party authorization, collection, normalization, evidence, and health
+paths. Core launch connectors do not depend on Nango and remain available when
+Nango is degraded. Private Nango is limited to explicitly catalogued long-tail
+Auth + Proxy integrations. The browser never receives Nango service
+credentials, cloud session credentials, or provider refresh tokens.
+
+Every credential class has a declared creator, metadata reader, secret
+resolver, rotator, revoker, KMS/storage owner, TTL, audit shape, deletion
+policy, and prohibited surfaces. The API can create or bind an opaque reference
+but cannot read provider secret material. OAuth terminates at a public,
+state-bound return path with PKCE, one-time replay protection, expiry, current
+session/scope reauthorization, fixed safe redirects, and no query-string token;
+Nango's admin API remains private.
 
 A sync request performs one transaction that authorizes the current exact
 scope, creates or replays the durable sync/job, writes its audit record, and
@@ -99,11 +118,17 @@ The discovery worker:
 5. strictly parses and validates one complete candidate snapshot;
 6. atomically applies observations, entities, relationships, evidence,
    source-owned removals, cursor, counts, and last-good state in PostgreSQL;
-7. idempotently updates risk, graph, and search projections;
-8. completes the sync and audit record before acknowledging the queue receipt.
+7. writes deterministic projection-work records in the same transaction;
+8. completes authoritative sync and audit before acknowledging the discovery
+   receipt;
+9. separate projection workers idempotently update risk, graph, and search and
+   report lag/degradation without recollecting or invalidating the snapshot.
 
 A failed or partial collection never replaces the last-good snapshot. The API
-labels retained data with its actual freshness and redacted last error.
+labels retained data with its actual freshness and redacted last error. A
+multi-replica scheduler claims due schedules with leases, deterministic sync
+keys, per-organization fairness, missed-run rules, quotas, and disable/delete
+race protection; schedule capability stays absent until this loop is ready.
 
 ## Sensors and Runtime Activity
 
@@ -122,14 +147,23 @@ records in OpenSearch, correlates them against canonical inventory, updates
 risk/graph projections, commits completion/audit, and acknowledges the queue
 receipt last. Each stage is independently idempotent.
 
-The customer-edge runtime gateway authenticates to the SaaS control plane,
-maintains a bounded signed policy cache, evaluates supported HTTP and MCP
-activity locally, emits metadata-only evidence, and fails according to the
-configured policy mode without depending on PostgreSQL or graph access.
+The customer-edge runtime gateway uses a distinct audience-bound device
+credential, not a sensor or browser token. One-time enrollment, durable
+hash/reference, rotation, revocation, signed-policy version/expiry, and replay
+protection are server-derived from exact scope. It maintains a bounded signed
+policy cache, evaluates supported HTTP and MCP activity locally, emits
+metadata-only evidence, and fails according to the configured policy mode
+without depending on PostgreSQL or graph access.
 
 ## Security Agent Execution
 
-Definitions are durable and versioned. A simulation freezes current policy,
+Definitions are durable and versioned. Existing saved definitions are migrated
+to inert `draft/configured` state regardless of legacy `enabled` fields. Merely
+deploying a worker can never activate them. Activation is a separate fresh-auth
+audited mutation, and all execution paths check global, organization,
+environment, and action kill switches immediately before side effects.
+
+A simulation freezes current policy,
 scope, evidence, capabilities, and topology into a deterministic plan hash.
 The server reauthorizes every transition; the worker never trusts authority
 copied into a queue message.
@@ -141,6 +175,13 @@ from secret references. Approval-required steps pause durably. Approval uses a
 fresh human session, records the exact plan hash, expires, and resumes at most
 once. Role loss, scope change, evidence drift, cancellation, or approval expiry
 fails closed before side effects.
+
+Actions are promoted individually. Production first exposes simulation, then a
+supervised internal low-risk action, then a supervised reversible TTL-bounded
+containment action. Autonomous support is exposed only for a separately
+canaried reversible action. Unsupported Attack Lab, test, export, webhook,
+ticket, revocation, or irreversible actions are absent from the server catalog,
+planner schemas, capabilities, and UI until their own vertical gate passes.
 
 The worker executes one leased step at a time, persists the provider result,
 runs an independent verifier, performs cleanup where required, and records an
@@ -189,8 +230,11 @@ the explicit demo entry and are absent from the production dependency graph.
 ## Workloads and Least Privilege
 
 The production chart and release contract ship separately buildable images for
-web, API, discovery/outbox worker, runtime worker, event-ingest, and runtime
-gateway. Provider tools use a separate digest-pinned runner or isolated Job.
+web, API, discovery/outbox worker, projection worker, runtime worker,
+event-ingest, Security Agent action worker, and runtime gateway. A shared
+compiled binary may expose explicit process modes, but no deployment can gain
+the union of their privileges. Provider tools use a separate digest-pinned
+runner or isolated Job.
 Nango and Neo4j are private managed endpoints or explicitly operated internal
 dependencies; neither is exposed to browsers.
 
@@ -203,6 +247,9 @@ Each workload has its own unshared service account and role:
   provider references, discovery database, and derived projection endpoints;
 - runtime worker: runtime queue, scoped evidence storage/KMS, event index, and
   correlation database/projection endpoints;
+- Security Agent action worker: its dedicated action queue, exact action
+  secrets/endpoints, execution database, kill switches, and no discovery or
+  runtime queue authority;
 - runtime gateway: only control-plane enrollment/policy/event endpoints;
 - migration: database migration secret and no runtime provider rights.
 
@@ -221,6 +268,10 @@ PDBs, topology spread, autoscaling, metrics, alerts, and runbooks.
   authorization.
 - Expired leases, approvals, grants, and secrets are cleaned with bounded,
   starvation-free queries.
+- A restored environment starts with queues quarantined. Restore epochs,
+  completed outbox rows, effect ledgers, approval resumes, unknown outcomes,
+  and temporary controls are reconciled before consumers start, so a completed
+  external effect cannot replay.
 - Shutdown stops new claims, extends or releases current leases safely, drains
   bounded work, and closes dependencies in reverse order.
 
@@ -247,3 +298,39 @@ gates that require external authority. Their absence does not justify a fake
 implementation or a production-ready claim; source and owned ephemeral proof
 must be complete first, and the remaining gate must stay explicit.
 
+## Idempotency and Reconciliation Matrix
+
+Every stage has a full-scope deterministic key and canonical request digest.
+Same key/same digest replays the authoritative result; same key/different
+digest conflicts; missing/unknown external results remain locked for the named
+reconciler.
+
+| Stage | Key authority | Completion authority | Unknown outcome owner |
+| --- | --- | --- | --- |
+| OAuth/connect session | state + integration + principal | durable connection reference | provider/Nango connection reconciler |
+| Sync request | scope + integration + request key | sync/job/outbox transaction | API receipt reconciler |
+| Outbox publish | outbox ID + payload digest | exact queue acknowledgement | outbox publisher |
+| Provider collection | job + attempt + parser/tool version | immutable evidence manifest | discovery worker lease reconciler |
+| S3 evidence | scoped object key + checksum | exact persisted checksum/version | artifact reconciler |
+| Snapshot apply | source + generation + manifest digest | PostgreSQL last-good generation | snapshot repository |
+| Projection | snapshot + projection kind/version | projection-work row | projection worker |
+| Runtime batch/event | sensor + batch/event digest | runtime stage ledger | runtime worker |
+| Trigger/plan | source event version + definition version | immutable plan hash | Security Agent planner worker |
+| Provider action | run + step + input digest | effect ledger + provider reconciliation | action-specific reconciler |
+| Approval/notification | approval/version + decision digest | approval/outbox transaction | approval dispatcher |
+| Verification/cleanup | effect + verifier/control version | durable evidence/absence result | verifier/cleanup worker |
+
+## Recovery and Retention
+
+Raw evidence is immutable while retained, not immortal. Each object has a
+retention class, legal/incident hold state where applicable, approved deletion
+epoch, tombstoned references, append-only audit, and deterministic cleanup of
+PostgreSQL, OpenSearch, Neo4j, and derived caches. Deletion cannot erase
+security audit evidence outside its declared policy.
+
+Backups bind PostgreSQL recovery position, S3 manifest versions, migration and
+application compatibility, and projection rebuild cursors. Restore occurs only
+to a disposable or explicitly authorized target, with queues and workers held.
+The reconciler classifies every outbox/effect/approval/control record before
+workers resume. OpenSearch and Neo4j rebuild from authority. Schema rollback
+never claims to undo an external provider effect.
