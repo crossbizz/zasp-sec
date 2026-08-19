@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { APITransportError } from "../../../apps/web/api/client";
+import { APIProductError, APITransportError } from "../../../apps/web/api/client";
 import type { WorkflowMutationReceipt } from "../../../apps/web/api/generated";
 import type { WorkflowRecoveryAPI } from "./api";
 import { WorkflowMutationProvider, useRetainedWorkflowMutation } from "./useRetainedWorkflowMutation";
@@ -17,7 +17,7 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
-function Probe({ operation, name, send }: { operation: string; name: string; send: (intent: Intent) => Promise<string> }) {
+function Probe({ operation, name, send }: { operation: string; name: string; send: (intent: Intent) => Promise<unknown> }) {
   const mutation = useRetainedWorkflowMutation<Intent>(operation);
   return <section aria-label={name}>
     <output>{`${mutation.isUnresolved ? "unresolved" : "settled"}:${mutation.canRetry ? "retry" : "locked"}`}</output>
@@ -146,4 +146,101 @@ describe("observable scope-owned workflow mutation registry", () => {
     expect(screen.getByRole("button", { name: "Start agent" })).toBeEnabled();
     expect(listReceipts).toHaveBeenCalledTimes(3);
   });
+
+  it("re-lists the captured scope after automatic acknowledgement and renders a later committed receipt", async () => {
+    const user = userEvent.setup();
+    const ownID = "pid_77777777-7777-4777-8777-777777777777";
+    const laterReceipt = receiptFixture("pid_88888888-8888-4888-8888-888888888888");
+    const listReceipts = vi.fn().mockResolvedValueOnce([]).mockResolvedValueOnce([laterReceipt]);
+    const acknowledgeReceipt = vi.fn().mockResolvedValue(undefined);
+    render(<WorkflowMutationProvider scopeKey="principal/organization/workspace-a/environment-a" recovery={{ listReceipts, acknowledgeReceipt }}>
+      <Probe operation="policies" name="policy" send={async () => ({ receiptID: ownID })} />
+    </WorkflowMutationProvider>);
+
+    await waitFor(() => expect(listReceipts).toHaveBeenCalledTimes(1));
+    await user.click(screen.getByRole("button", { name: "Start policy" }));
+    expect(await screen.findByText(new RegExp(laterReceipt.resource_id))).toBeVisible();
+    expect(acknowledgeReceipt).toHaveBeenCalledWith(ownID);
+    expect(listReceipts).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("button", { name: "Start policy" })).toBeDisabled();
+  });
+
+  it("treats an expired acknowledgement as reconciled only after an empty exact-scope relist", async () => {
+    const user = userEvent.setup();
+    const ownID = "pid_77777777-7777-4777-8777-777777777777";
+    const listReceipts = vi.fn().mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+    const acknowledgeReceipt = vi.fn().mockRejectedValue(new APIProductError(404, {
+      code: "not_found", message: "Resource not found", retryable: false,
+      correlation_id: "pid_99999999-9999-4999-8999-999999999999",
+    }));
+    render(<WorkflowMutationProvider scopeKey="principal/organization/workspace-a/environment-a" recovery={{ listReceipts, acknowledgeReceipt }}>
+      <Probe operation="policies" name="policy" send={async () => ({ receiptID: ownID })} />
+    </WorkflowMutationProvider>);
+
+    await waitFor(() => expect(listReceipts).toHaveBeenCalledTimes(1));
+    await user.click(screen.getByRole("button", { name: "Start policy" }));
+    await waitFor(() => expect(listReceipts).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole("button", { name: "Start policy" })).toBeEnabled();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("unlocks an expired listed receipt only after its not-found acknowledgement relists empty", async () => {
+    const user = userEvent.setup();
+    const expired = receiptFixture("pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+    const listReceipts = vi.fn().mockResolvedValueOnce([expired]).mockResolvedValueOnce([]);
+    const acknowledgeReceipt = vi.fn().mockRejectedValue(new APIProductError(404, {
+      code: "not_found", message: "Resource not found", retryable: false,
+      correlation_id: "pid_99999999-9999-4999-8999-999999999999",
+    }));
+    render(<WorkflowMutationProvider scopeKey="principal/organization/workspace-a/environment-a" recovery={{ listReceipts, acknowledgeReceipt }}>
+      <Probe operation="policies" name="policy" send={async () => "unused"} />
+    </WorkflowMutationProvider>);
+
+    await screen.findByRole("heading", { name: "Recover committed operations" });
+    await user.click(screen.getByRole("button", { name: "Acknowledge recovered result" }));
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "Recover committed operations" })).not.toBeInTheDocument());
+    expect(listReceipts).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("button", { name: "Start policy" })).toBeEnabled();
+  });
+
+  it("keeps a forced A to B scope drift locked while captured-scope acknowledgement and relist finish", async () => {
+    const user = userEvent.setup();
+    const acknowledgement = deferred<void>();
+    const scopeBList = deferred<readonly WorkflowMutationReceipt[]>();
+    const listA = vi.fn().mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+    const recoveryA: WorkflowRecoveryAPI = { listReceipts: listA, acknowledgeReceipt: vi.fn(() => acknowledgement.promise) };
+    const recoveryB: WorkflowRecoveryAPI = { listReceipts: vi.fn(() => scopeBList.promise), acknowledgeReceipt: vi.fn() };
+    const view = render(<WorkflowMutationProvider scopeKey="principal/organization/workspace-a/environment-a" recovery={recoveryA}>
+      <Probe operation="policies" name="policy" send={async () => ({ receiptID: "pid_77777777-7777-4777-8777-777777777777" })} />
+    </WorkflowMutationProvider>);
+    await waitFor(() => expect(listA).toHaveBeenCalledTimes(1));
+    await user.click(screen.getByRole("button", { name: "Start policy" }));
+    await waitFor(() => expect(recoveryA.acknowledgeReceipt).toHaveBeenCalledTimes(1));
+
+    view.rerender(<WorkflowMutationProvider scopeKey="principal/organization/workspace-b/environment-b" recovery={recoveryB}>
+      <Probe operation="policies" name="policy" send={async () => "scope B mutation"} />
+    </WorkflowMutationProvider>);
+    expect(screen.getByRole("button", { name: "Start policy" })).toBeDisabled();
+    await act(async () => acknowledgement.resolve());
+    await waitFor(() => expect(listA).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole("button", { name: "Start policy" })).toBeDisabled();
+    await act(async () => scopeBList.resolve([]));
+  });
 });
+
+function receiptFixture(id: string): WorkflowMutationReceipt {
+  return {
+    id,
+    operation: "createPolicy",
+    idempotency_key: "wf_11111111-1111-4111-8111-111111111111",
+    intent: { body: { id: "policy-later" }, expected_version: 0, resource_id: "" },
+    result: { id: "policy-later" },
+    resource_kind: "policy",
+    resource_id: "policy-later",
+    resource_version: 1,
+    audit_id: "pid_33333333-3333-4333-8333-333333333333",
+    correlation_id: "pid_44444444-4444-4444-8444-444444444444",
+    created_at: "2026-08-18T12:00:00Z",
+    expires_at: "2026-08-25T12:00:00Z",
+  };
+}

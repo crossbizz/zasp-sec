@@ -3,6 +3,7 @@
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 import type { WorkflowMutationReceipt } from "../../../apps/web/api/generated";
+import { APIProductError, APITransportError } from "../../../apps/web/api/client";
 import { useAPI } from "../../api/APIProvider";
 import { Button } from "../../components/ui";
 import {
@@ -28,21 +29,33 @@ type ScopeSnapshot = {
   recovery: RecoveryState | null;
 };
 
+type CapturedScopeTransport = {
+  scopeKey: string;
+  generation: number;
+  service: WorkflowRecoveryAPI;
+};
+
 class WorkflowMutationStore {
   private readonly controllers = new Map<string, Controller>();
   private readonly recovery = new Map<string, RecoveryState>();
   private readonly services = new Map<string, WorkflowRecoveryAPI>();
+  private readonly recoveredCallbacks = new Map<string, () => void>();
   private readonly listeners = new Set<() => void>();
   private revision = 0;
   private activeScope = "";
-  private onRecovered: (() => void) | undefined;
+  private activeScopeGeneration = 0;
+  private recoveryActivity = 0;
 
   readonly subscribe = (listener: () => void) => { this.listeners.add(listener); return () => this.listeners.delete(listener); };
   readonly getRevision = () => this.revision;
 
   activate(scopeKey: string, service?: WorkflowRecoveryAPI, onRecovered?: () => void) {
-    this.activeScope = scopeKey;
-    this.onRecovered = onRecovered;
+    const serviceChanged = Boolean(service) && this.services.get(scopeKey) !== service;
+    if (this.activeScope !== scopeKey || serviceChanged) {
+      this.activeScope = scopeKey;
+      this.activeScopeGeneration++;
+    }
+    if (onRecovered) this.recoveredCallbacks.set(scopeKey, onRecovered);
     if (!service) return;
     this.services.set(scopeKey, service);
     if (!this.recovery.has(scopeKey)) {
@@ -54,10 +67,10 @@ class WorkflowMutationStore {
   snapshot(scopeKey: string, operationKey?: string): ScopeSnapshot {
     const recovery = this.recovery.get(scopeKey) ?? null;
     const scopeControllers = this.scopeControllers(scopeKey);
-    const isUnresolved = recovery !== null && (recovery.status !== "ready" || recovery.receipts.length > 0)
+    const isUnresolved = this.recoveryActivity > 0 || recovery !== null && (recovery.status !== "ready" || recovery.receipts.length > 0)
       || scopeControllers.some((controller) => controller.isUnresolved());
     const owner = operationKey ? this.controllers.get(registryKey(scopeKey, operationKey)) : undefined;
-    const canRetry = Boolean(owner?.canRetry()) && recovery?.status !== "loading" && recovery?.status !== "error" && !recovery?.receipts.length;
+    const canRetry = this.recoveryActivity === 0 && Boolean(owner?.canRetry()) && recovery?.status !== "loading" && recovery?.status !== "error" && !recovery?.receipts.length;
     return { isUnresolved, canRetry, recovery };
   }
 
@@ -65,13 +78,14 @@ class WorkflowMutationStore {
     const controller = this.get<I>(scopeKey, operationKey);
     const competing = this.scopeControllers(scopeKey).find((candidate) => candidate !== controller && candidate.isUnresolved());
     const recovery = this.recovery.get(scopeKey);
-    if (competing || recovery && (recovery.status !== "ready" || recovery.receipts.length > 0)) {
+    if (this.recoveryActivity > 0 || competing || recovery && (recovery.status !== "ready" || recovery.receipts.length > 0)) {
       return Promise.reject(new Error("Another workflow mutation or recovery is unresolved in this scope"));
     }
+    const transport = this.captureTransport(scopeKey);
     const promise = controller.execute(intent, async (frozen, attempt) => {
       const result = await send(frozen as I, attempt);
       const receiptID = mutationReceiptID(result);
-      if (receiptID) await this.acknowledgeSuccessfulResult(scopeKey, receiptID);
+      if (receiptID && transport) await this.acknowledgeSuccessfulResult(transport, receiptID);
       return result;
     }) as Promise<T>;
     this.notify();
@@ -94,42 +108,52 @@ class WorkflowMutationStore {
   }
 
   async reconcile(scopeKey: string, signal?: AbortSignal) {
-    const service = this.services.get(scopeKey);
-    if (!service) return;
+    const transport = this.captureTransport(scopeKey);
+    if (!transport) return;
     const current = this.recovery.get(scopeKey) ?? emptyRecovery("loading");
     const generation = current.generation + 1;
     this.recovery.set(scopeKey, { ...current, status: "loading", error: null, generation });
+    this.recoveryActivity++;
     this.notify();
     try {
-      const receipts = await service.listReceipts(signal);
-      if (signal?.aborted || this.recovery.get(scopeKey)?.generation !== generation) return;
+      const receipts = await transport.service.listReceipts(signal);
+      if (signal?.aborted || !this.isTransportCurrent(transport) || this.recovery.get(scopeKey)?.generation !== generation) return;
       this.recovery.set(scopeKey, { status: "ready", receipts, error: null, acknowledging: new Set(), acknowledgementErrors: new Map(), generation });
       this.notify();
     } catch (error) {
-      if (signal?.aborted || this.recovery.get(scopeKey)?.generation !== generation) return;
+      if (signal?.aborted || !this.isTransportCurrent(transport) || this.recovery.get(scopeKey)?.generation !== generation) return;
       this.recovery.set(scopeKey, { ...current, status: "error", error: errorMessage(error, "Committed-operation recovery is unavailable."), generation });
+      this.notify();
+    } finally {
+      this.recoveryActivity--;
       this.notify();
     }
   }
 
   async acknowledge(scopeKey: string, receiptID: string) {
-    const service = this.services.get(scopeKey);
+    const transport = this.captureTransport(scopeKey);
     const current = this.recovery.get(scopeKey);
-    if (!service || !current || current.acknowledging.has(receiptID)) return;
+    if (!transport || !current || current.acknowledging.has(receiptID)) return;
     const acknowledging = new Set(current.acknowledging); acknowledging.add(receiptID);
     const acknowledgementErrors = new Map(current.acknowledgementErrors); acknowledgementErrors.delete(receiptID);
     this.recovery.set(scopeKey, { ...current, acknowledging, acknowledgementErrors });
+    this.recoveryActivity++;
     this.notify();
     try {
-      await service.acknowledgeReceipt(receiptID);
-      const receipts = await service.listReceipts();
+      try {
+        await transport.service.acknowledgeReceipt(receiptID);
+      } catch (error) {
+        if (!isMissingReceipt(error)) throw error;
+      }
+      const receipts = await transport.service.listReceipts();
+      if (!this.isTransportCurrent(transport)) throw scopeGenerationDrift();
       const latest = this.recovery.get(scopeKey);
       if (!latest) return;
       const nextAcknowledging = new Set(latest.acknowledging); nextAcknowledging.delete(receiptID);
       const nextErrors = new Map(latest.acknowledgementErrors); nextErrors.delete(receiptID);
       this.recovery.set(scopeKey, { ...latest, status: "ready", receipts, error: null, acknowledging: nextAcknowledging, acknowledgementErrors: nextErrors });
       if (receipts.length === 0) for (const controller of this.scopeControllers(scopeKey)) if (controller.canRetry()) controller.resolveAfterServerReconciliation();
-      this.onRecovered?.();
+      this.recoveredCallbacks.get(scopeKey)?.();
       this.notify();
     } catch (error) {
       const latest = this.recovery.get(scopeKey);
@@ -137,6 +161,9 @@ class WorkflowMutationStore {
       const nextAcknowledging = new Set(latest.acknowledging); nextAcknowledging.delete(receiptID);
       const nextErrors = new Map(latest.acknowledgementErrors); nextErrors.set(receiptID, errorMessage(error, "Acknowledgement failed."));
       this.recovery.set(scopeKey, { ...latest, acknowledging: nextAcknowledging, acknowledgementErrors: nextErrors });
+      this.notify();
+    } finally {
+      this.recoveryActivity--;
       this.notify();
     }
   }
@@ -157,22 +184,44 @@ class WorkflowMutationStore {
     return [...this.controllers.entries()].filter(([key]) => key.startsWith(prefix)).map(([, controller]) => controller);
   }
 
-  private async acknowledgeSuccessfulResult(scopeKey: string, receiptID: string) {
-    const service = this.services.get(scopeKey);
-    if (!service) return;
-    if (this.activeScope !== scopeKey) {
-      const current = this.recovery.get(scopeKey) ?? emptyRecovery("loading");
-      this.recovery.set(scopeKey, { ...current, status: "loading", error: null });
-      this.notify();
-      return;
-    }
+  private async acknowledgeSuccessfulResult(transport: CapturedScopeTransport, receiptID: string) {
+    const { scopeKey, service } = transport;
+    this.recoveryActivity++;
+    this.notify();
     try {
-      await service.acknowledgeReceipt(receiptID);
+      try {
+        await service.acknowledgeReceipt(receiptID);
+      } catch (error) {
+        if (!isMissingReceipt(error)) throw error;
+      }
+      const receipts = await service.listReceipts();
+      if (!this.isTransportCurrent(transport)) throw scopeGenerationDrift();
+      const current = this.recovery.get(scopeKey) ?? emptyRecovery("ready");
+      this.recovery.set(scopeKey, { ...current, status: "ready", receipts, error: null, acknowledging: new Set(), acknowledgementErrors: new Map() });
+      if (receipts.length === 0) for (const controller of this.scopeControllers(scopeKey)) if (controller.canRetry()) controller.resolveAfterServerReconciliation();
+      this.recoveredCallbacks.get(scopeKey)?.();
+      this.notify();
     } catch (error) {
       const current = this.recovery.get(scopeKey) ?? emptyRecovery("error");
       this.recovery.set(scopeKey, { ...current, status: "error", error: errorMessage(error, "The committed result could not be acknowledged.") });
       this.notify();
+      throw error instanceof APITransportError ? error : new APITransportError("invalid_response", "The committed result could not be reconciled in its captured scope");
+    } finally {
+      this.recoveryActivity--;
+      this.notify();
     }
+  }
+
+  private captureTransport(scopeKey: string): CapturedScopeTransport | undefined {
+    const service = this.services.get(scopeKey);
+    if (!service || this.activeScope !== scopeKey) return undefined;
+    return Object.freeze({ scopeKey, generation: this.activeScopeGeneration, service });
+  }
+
+  private isTransportCurrent(transport: CapturedScopeTransport): boolean {
+    return this.activeScope === transport.scopeKey
+      && this.activeScopeGeneration === transport.generation
+      && this.services.get(transport.scopeKey) === transport.service;
   }
 
   private notify() {
@@ -210,9 +259,18 @@ export function WorkflowMutationProvider({ scopeKey, recovery, onRecovered, chil
 
 export function ProductionWorkflowMutationProvider({ scopeKey, children }: { scopeKey: string; children: ReactNode }) {
   const { client, invalidate } = useAPI();
-  const recovery = useMemo(() => createWorkflowRecoveryAPI(client), [client]);
+  const recovery = useMemo(() => createWorkflowRecoveryAPI(client, scopeKey), [client, scopeKey]);
   const recovered = useCallback(() => invalidate(["workflow:policies", "workflow:integrations", "workflow:security-agents"]), [invalidate]);
   return <WorkflowMutationProvider scopeKey={scopeKey} recovery={recovery} onRecovered={recovered}>{children}</WorkflowMutationProvider>;
+}
+
+const emptySubscribe = () => () => undefined;
+const zeroRevision = () => 0;
+
+export function useWorkflowMutationScopeLock(): boolean {
+  const registry = useContext(WorkflowMutationRegistryContext);
+  useSyncExternalStore(registry?.store.subscribe ?? emptySubscribe, registry?.store.getRevision ?? zeroRevision, registry?.store.getRevision ?? zeroRevision);
+  return registry?.store.snapshot(registry.scopeKey).isUnresolved ?? false;
 }
 
 export function useRetainedWorkflowMutation<I>(operationKey = "component-local") {
@@ -262,3 +320,11 @@ function operationLabel(operation: string): string {
 }
 
 function errorMessage(error: unknown, fallback: string): string { return error instanceof Error && error.message ? error.message : fallback; }
+
+function isMissingReceipt(error: unknown): boolean {
+  return error instanceof APIProductError && error.status === 404 && error.product.code === "not_found";
+}
+
+function scopeGenerationDrift(): APITransportError {
+  return new APITransportError("invalid_response", "Workflow recovery scope changed before reconciliation completed");
+}

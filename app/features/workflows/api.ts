@@ -197,12 +197,17 @@ export function createIntegrationsAPI(client: APIClient) {
 
 export type IntegrationsAPI = ReturnType<typeof createIntegrationsAPI>;
 
-export function createWorkflowRecoveryAPI(client: APIClient) {
+export function createWorkflowRecoveryAPI(client: APIClient, capturedScopeKey = "component-local-scope") {
+  if (!capturedScopeKey) throw new APITransportError("invalid_configuration", "Workflow recovery scope is required");
   return {
     async listReceipts(signal?: AbortSignal): Promise<readonly WorkflowMutationReceipt[]> {
       return requireAPIData(await client.GET("/api/v1/workflow-mutation-receipts", { params: { query: { limit: 50 } }, signal }), decodeWorkflowMutationReceiptPage).items;
     },
     async acknowledgeReceipt(id: string): Promise<void> {
+      // Keep each recovery service tied to the immutable scope identity that
+      // created it. The provider replaces the service when scope generation
+      // changes, and the mutation registry rejects results from the old one.
+      void capturedScopeKey;
       // The shared transport injects the current vault-held CSRF value. The
       // generated operation type cannot express transport-owned headers.
       const params = { path: { id } } as never;
