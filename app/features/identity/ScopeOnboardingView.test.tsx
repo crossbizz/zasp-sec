@@ -7,9 +7,9 @@ import { ScopeOnboardingView, type ScopeAdminAPI } from "./ScopeOnboardingView";
 function fixtureAPI(overrides: Partial<ScopeAdminAPI> = {}): ScopeAdminAPI {
   return {
     listWorkspaces: async () => [{ id: "pid_workspace_a", name: "Agent Security" }],
-    createWorkspace: async (name) => ({ id: "pid_workspace_b", name }),
+    createWorkspace: async (name) => ({ id: "pid_workspace_b", name, initialEnvironmentId: "pid_environment_b" }),
     updateWorkspace: async (id, name) => ({ id, name }),
-    listEnvironments: async () => [{ id: "pid_environment_a", workspaceId: "pid_workspace_a", name: "Production" }],
+    listEnvironments: async (workspaceId) => workspaceId === "pid_workspace_b" ? [{ id: "pid_environment_b", workspaceId, name: "Development" }] : [{ id: "pid_environment_a", workspaceId: "pid_workspace_a", name: "Production" }],
     createEnvironment: async (workspaceId, name) => ({ id: "pid_environment_b", workspaceId, name }),
     updateEnvironment: async (id, name) => ({ id, workspaceId: "pid_workspace_a", name }),
     ...overrides,
@@ -28,7 +28,8 @@ describe("Workspace and Environment onboarding", () => {
     await user.type(screen.getByLabelText("New workspace name"), "Research");
     await user.click(screen.getByRole("button", { name: "Create workspace" }));
     expect(await screen.findByRole("option", { name: "Research" })).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Authorized workspace" })).toHaveValue("pid_workspace_a");
+    expect(screen.getByRole("combobox", { name: "Authorized workspace" })).toHaveValue("pid_workspace_b");
+    await waitFor(() => expect(onScopeChange).toHaveBeenCalledWith({ workspaceId: "pid_workspace_b", environmentId: "pid_environment_b" }));
 
     await user.selectOptions(screen.getByLabelText("Authorized workspace"), "pid_workspace_a");
     await user.selectOptions(await screen.findByLabelText("Authorized environment"), "pid_environment_a");

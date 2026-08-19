@@ -21,6 +21,17 @@ function Consumer() {
   </div>;
 }
 
+function NewlyAuthorizedScopeConsumer() {
+  const session = useSession();
+  return <div>
+    <span>new scope session {session.status}</span>
+    {session.status === "authenticated" && <>
+      <span>new scope environment {session.environmentID}</span>
+      <button onClick={() => void session.switchScope("pid_10000022-0000-4000-8000-000000000022", "pid_10000023-0000-4000-8000-000000000023")}>Switch to newly authorized scope</button>
+    </>}
+  </div>;
+}
+
 function FreshAuthConsumer() {
 	const session = useSession();
 	return <div>
@@ -120,6 +131,32 @@ function wrapper(fetch: (request: Request) => Promise<Response>) {
 }
 
 describe("SessionProvider", () => {
+	it("lets the server authorize a newly created scope that is absent from the cached scope list", async () => {
+		let switched = false;
+		let scopeListCalls = 0;
+		const targets: unknown[] = [];
+		const fetch = vi.fn(async (request: Request) => {
+			const path = new URL(request.url).pathname;
+			if (path === "/api/v1/session/bootstrap") return jsonResponse(sessionBootstrap(switched));
+			if (path === "/api/v1/session/scopes") {
+				scopeListCalls += 1;
+				return jsonResponse({ items: sessionScopes().items.slice(0, switched ? 2 : 1) });
+			}
+			if (path === "/api/v1/session/scope") {
+				targets.push(await request.json());
+				switched = true;
+				return new Response(null, { status: 204 });
+			}
+			throw new Error(`unexpected request ${path}`);
+		});
+		const Wrapper = wrapper(fetch);
+		render(<Wrapper><NewlyAuthorizedScopeConsumer /></Wrapper>);
+		await userEvent.click(await screen.findByRole("button", { name: "Switch to newly authorized scope" }));
+		await screen.findByText("new scope environment pid_10000023-0000-4000-8000-000000000023");
+		expect(targets).toEqual([{ workspace_id: "pid_10000022-0000-4000-8000-000000000022", environment_id: "pid_10000023-0000-4000-8000-000000000023" }]);
+		expect(scopeListCalls).toBe(2);
+	});
+
 	it("uses the exact bootstrap expiry to disable sensitive actions before a server rejection", async () => {
 		const fetch = vi.fn(async () => jsonResponse({
 			...sessionBootstrap(),

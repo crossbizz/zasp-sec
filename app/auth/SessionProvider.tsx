@@ -271,13 +271,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [client, reconcileScope, setCSRFToken, setRequestScope, suspendQueryCache]);
   const switchScope = useCallback(async (workspaceID: string, environmentID: string) => {
     if (state.status !== "authenticated") throw new Error("An authenticated session is required");
-    const selected = state.scopes.find((scope) => scope.workspace_id === workspaceID && scope.environment_id === environmentID);
-    if (!selected) throw new Error("Scope is not authorized");
     const attempt: ScopeAttempt = {
       target: {
-        organizationID: selected.organization_id,
-        workspaceID: selected.workspace_id,
-        environmentID: selected.environment_id,
+		organizationID: state.organizationID,
+		workspaceID,
+		environmentID,
 	      },
 	      next: "mutate",
 		  generation: 0,

@@ -10,9 +10,10 @@ import { Badge, Button, Card, EmptyState, Field, LoadingState, PageHeader } from
 
 type Surface = "sessions" | "compliance" | "data-controls";
 type SessionItem = SessionPage["items"][number];
+export type HydratedSession = SessionItem & { eventsUnavailable?: boolean };
 
 export interface SessionsComplianceAPI {
-  listSessions(): Promise<readonly SessionItem[]>;
+  listSessions(): Promise<readonly HydratedSession[]>;
   revokeSession(id: string, version: number): Promise<void>;
   listControls(): Promise<ComplianceControlPage["items"]>;
   listEvidence(): Promise<ComplianceEvidencePage["items"]>;
@@ -24,10 +25,10 @@ export function createSessionsComplianceAPI(client: APIClient): SessionsComplian
   return {
     async listSessions() {
       const sessions = await loadAllCursorPages(async (cursor) => requireAPIData<SessionPage>(await client.GET("/api/v1/sessions", { params: { query: { limit: 100, ...(cursor ? { cursor } : {}) } } }), decodeSessionPage), { maximumItems: 2_000, maximumPages: 20 });
-      return Promise.all(sessions.items.map(async (session) => {
+      return hydrateSessionEvents(sessions.items, async (session) => {
         const events = await loadAllCursorPages(async (cursor) => requireAPIData<SessionEventPage>(await client.GET("/api/v1/sessions/{id}/events", { params: { path: { id: session.id }, query: { limit: 100, ...(cursor ? { cursor } : {}) } } }), decodeSessionEventPage), { maximumItems: 2_000, maximumPages: 20 });
-        return { ...session, events: events.items };
-      }));
+        return events.items;
+      }, 6);
     },
     async revokeSession(id, version) { const result = await client.DELETE("/api/v1/sessions/{id}", { params: { path: { id }, header: { "X-CSRF-Token": "", "If-Match": `"${version}"` } } }); if (result.error) requireAPIData<never>(result); },
     async listControls() {
@@ -49,11 +50,36 @@ export function createSessionsComplianceAPI(client: APIClient): SessionsComplian
   };
 }
 
+export async function hydrateSessionEvents(
+  sessions: readonly SessionItem[],
+  loadEvents: (session: SessionItem) => Promise<SessionItem["events"]>,
+  concurrency: number,
+): Promise<HydratedSession[]> {
+  const limit = Math.max(1, Math.min(16, Math.floor(concurrency)));
+  const hydrated: HydratedSession[] = new Array(sessions.length);
+  let next = 0;
+  const worker = async () => {
+    for (;;) {
+      const index = next;
+      next += 1;
+      if (index >= sessions.length) return;
+      const session = sessions[index];
+      try {
+        hydrated[index] = { ...session, events: await loadEvents(session) };
+      } catch {
+        hydrated[index] = { ...session, events: [], eventsUnavailable: true };
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, sessions.length) }, worker));
+  return hydrated;
+}
+
 export function SessionsComplianceView({ surface, api: suppliedAPI, client, canMutate = false }: { surface: Surface; api?: SessionsComplianceAPI; client?: APIClient; canMutate?: boolean }) {
   const api = useMemo(() => suppliedAPI ?? (client ? createSessionsComplianceAPI(client) : null), [suppliedAPI, client]);
   const sessionContext = useOptionalSession();
   const fresh = sessionContext?.status === "authenticated" ? sessionContext.isFreshAuthenticated : true;
-  const [sessions, setSessions] = useState<readonly SessionItem[]>([]);
+  const [sessions, setSessions] = useState<readonly HydratedSession[]>([]);
   const [controls, setControls] = useState<ComplianceControlPage["items"]>([]);
   const [evidence, setEvidence] = useState<ComplianceEvidencePage["items"]>([]);
   const [dataControls, setDataControls] = useState<DataControls | null>(null);
@@ -71,8 +97,8 @@ export function SessionsComplianceView({ surface, api: suppliedAPI, client, canM
   }, [api, surface]);
   useEffect(() => { let active = true; queueMicrotask(() => { if (active) void load(); }); return () => { active = false; }; }, [load]);
   if (loading) return <div className="page"><LoadingState label="Loading administration data…" /></div>;
-  if (surface === "sessions") return <div className="page"><PageHeader title="Session investigations" description="Ordered durable session activity with evidence confidence and exact-scope revocation." />{error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}{!fresh && canMutate && <p role="alert">Fresh authentication expired. <Button onClick={() => sessionContext?.reauthenticate()}>Reauthenticate</Button></p>}{sessions.length === 0 ? <EmptyState title="No sessions in this scope" /> : sessions.map((session) => <Card key={session.id} title={session.id}><p>{session.principal_id} · <Badge tone={session.state === "active" ? "success" : "neutral"}>{session.state}</Badge> · version {session.version}</p>{session.events.map((event) => <p key={event.id}>{event.label} · <Badge tone={event.confidence === "exact" ? "success" : event.confidence === "strong" ? "info" : event.confidence === "probable" ? "warning" : "neutral"}>{event.confidence}</Badge> · {event.evidence_id}</p>)}{canMutate && session.state === "active" && <Button disabled={!fresh} variant="danger" aria-label={`Revoke session ${session.id}`} onClick={() => void (async () => { try { if (!api) throw new Error(); await api.revokeSession(session.id, session.version); setSessions((current) => current.map((item) => item.id === session.id ? { ...item, state: "revoked", version: item.version + 1 } : item)); setNotice("Session revoked"); } catch { setError("Session could not be revoked; reload before retrying"); } })()}>Revoke session</Button>}</Card>)}</div>;
-  if (surface === "compliance") return <div className="page"><PageHeader title="Compliance evidence" description="Locally complete control evidence and source freshness without certification claims." />{error && <p role="alert">{error}</p>}<div className="dashboard-grid">{controls.map((control) => { const record = evidence.find((item) => item.control.id === control.id); return <Card key={control.id} title={`${control.framework} · ${control.name}`}><Badge tone={record?.freshness === "fresh" ? "success" : record?.freshness === "stale" ? "warning" : "neutral"}>{record?.freshness ?? "missing"}</Badge>{record?.evidence.map((item) => <p key={item.id}>{item.asset_id} · {item.source} · {item.id}</p>)}</Card>; })}</div><Card title="Evidence exports unavailable"><p>Exports remain disabled until a durable job, artifact, one-time grant, expiry, and recovery lifecycle is installed.</p></Card></div>;
+  if (surface === "sessions") return <div className="page"><PageHeader title="Session investigations" description="Ordered durable session activity with evidence confidence and exact-scope revocation." />{error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}{!fresh && canMutate && <p role="alert">Fresh authentication expired. <Button onClick={() => sessionContext?.reauthenticate()}>Reauthenticate</Button></p>}{sessions.length === 0 ? <EmptyState title="No sessions in this scope" /> : sessions.map((session) => <Card key={session.id} title={session.id}><p>{session.principal_id} · <Badge tone={session.state === "active" ? "success" : "neutral"}>{session.state}</Badge> · version {session.version}</p>{session.eventsUnavailable && <p role="alert">Events for this session could not be loaded. Other session results remain available.</p>}{session.events.map((event) => <p key={event.id}>{event.label} · <Badge tone={event.confidence === "exact" ? "success" : event.confidence === "strong" ? "info" : event.confidence === "probable" ? "warning" : "neutral"}>{event.confidence}</Badge> · {event.evidence_id}</p>)}{canMutate && session.state === "active" && <Button disabled={!fresh} variant="danger" aria-label={`Revoke session ${session.id}`} onClick={() => void (async () => { try { if (!api) throw new Error(); await api.revokeSession(session.id, session.version); setSessions((current) => current.map((item) => item.id === session.id ? { ...item, state: "revoked", version: item.version + 1 } : item)); setNotice("Session revoked"); } catch { setError("Session could not be revoked; reload before retrying"); } })()}>Revoke session</Button>}</Card>)}</div>;
+  if (surface === "compliance") return <div className="page"><PageHeader title="Compliance evidence" description="Locally complete control evidence and source freshness without certification claims." />{error && <p role="alert">{error}</p>}<div className="dashboard-grid">{controls.map((control) => { const records = evidence.filter((item) => item.control.id === control.id); const freshness = records[0]?.freshness ?? "missing"; return <Card key={control.id} title={`${control.framework} · ${control.name}`}><Badge tone={freshness === "fresh" ? "success" : freshness === "stale" ? "warning" : "neutral"}>{freshness}</Badge>{records.flatMap((record) => record.evidence).map((item) => <p key={item.id}>{item.asset_id} · {item.source} · {item.id}</p>)}</Card>; })}</div><Card title="Evidence exports unavailable"><p>Exports remain disabled until a durable job, artifact, one-time grant, expiry, and recovery lifecycle is installed.</p></Card></div>;
   if (!dataControls) return <div className="page"><PageHeader title="Data and retention" />{error && <p role="alert">{error}</p>}</div>;
   return <div className="page"><PageHeader title="Data and retention" description="Environment-scoped durable collection and retention controls." />{error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}{!fresh && canMutate && <p role="alert">Fresh authentication expired. <Button onClick={() => sessionContext?.reauthenticate()}>Reauthenticate</Button></p>}<Card title={`${dataControls.environment_class} controls`}><p><Badge tone="info">{dataControls.collection_mode.replaceAll("_", " ")}</Badge></p><Field label="Retention days" type="number" value={String(dataControls.retention_days)} disabled={!canMutate || !fresh} onChange={(event) => setDataControls({ ...dataControls, retention_days: Number(event.target.value) })} /><p>{dataControls.deletion_enabled ? "Deletion enabled" : "Deletion disabled"}</p>{canMutate && <Button disabled={!fresh} onClick={() => void (async () => { try { if (!api) throw new Error(); setDataControls(await api.updateDataControls(dataControls)); setNotice("Data controls updated"); } catch { setError("Data controls could not be updated; reload before retrying"); } })()}>Save data controls</Button>}</Card><Card title="Data deletion unavailable"><p>Deletion requests remain disabled until the durable job and artifact lifecycle is installed.</p></Card></div>;
 }

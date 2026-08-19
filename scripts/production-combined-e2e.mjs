@@ -280,10 +280,15 @@ try {
   assert.equal(roleResult.stdout.trim(), "read_only_viewer|1", "member role and session revocation were not atomic");
   await fillBrowserLabel(browser.cdp, "New workspace name", "E2E Workspace");
   await clickBrowserText(browser.cdp, "Create workspace");
-  await waitForBrowserText(browser.cdp, /Workspace created/);
+  await waitForBrowserText(browser.cdp, /Workspace and initial environment created/);
+  const onboardedScope = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT count(*) || '|' || count(environment.id) || '|' || count(scope.environment_id) || '|' || count(controls.environment_id) || '|' || count(payload.environment_id) FROM zasp_workspaces workspace JOIN zasp_environments environment ON environment.organization_id=workspace.organization_id AND environment.workspace_id=workspace.id JOIN zasp_authorized_scopes scope ON scope.organization_id=environment.organization_id AND scope.workspace_id=environment.workspace_id AND scope.environment_id=environment.id AND scope.principal_id='pid_10000004-0000-4000-8000-000000000004' JOIN zasp_data_controls controls ON controls.organization_id=environment.organization_id AND controls.workspace_id=environment.workspace_id AND controls.environment_id=environment.id JOIN zasp_core_payloads payload ON payload.organization_id=environment.organization_id AND payload.workspace_id=environment.workspace_id AND payload.environment_id=environment.id AND payload.operation='session_bootstrap:pid_10000004-0000-4000-8000-000000000004' WHERE workspace.name='E2E Workspace';`]);
+  assert.equal(onboardedScope.stdout.trim(), "1|1|1|1|1", "workspace onboarding did not atomically create its first authorized environment and reload boundary");
   await fillBrowserLabel(browser.cdp, "New environment name", "E2E Development");
   await clickBrowserText(browser.cdp, "Create environment");
   await waitForBrowserText(browser.cdp, /Environment created/);
+  await selectBrowserOption(browser.cdp, "Authorized workspace", "Production Workspace");
+  await waitForBrowserSelectedOption(browser.cdp, "Authorized environment", "Production");
+  await waitForBrowserText(browser.cdp, /Active scope changed/);
 
   await navigateBrowser(browser.cdp, `${publicOrigin}/administration/api-access`);
   await waitForBrowserText(browser.cdp, /Create scoped automation credentials/);

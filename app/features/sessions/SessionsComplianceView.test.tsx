@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { SessionsComplianceView, type SessionsComplianceAPI } from "./SessionsComplianceView";
+import { hydrateSessionEvents, SessionsComplianceView, type SessionsComplianceAPI } from "./SessionsComplianceView";
 
 const principal = "pid_10000004-0000-4000-8000-000000000004";
 const workspace = "pid_10000002-0000-4000-8000-000000000002";
@@ -17,7 +17,26 @@ function api(overrides: Partial<SessionsComplianceAPI> = {}): SessionsCompliance
 }; }
 
 describe("Sessions, compliance, and data controls", () => {
+  it("bounds event hydration and preserves sessions whose event request fails", async () => {
+    const sessions = Array.from({ length: 12 }, (_, index) => ({ ...((awaitableSession()) as Awaited<ReturnType<SessionsComplianceAPI["listSessions"]>>[number]), id: `session-${index}` }));
+    let active = 0;
+    let peak = 0;
+    const hydrated = await hydrateSessionEvents(sessions, async (session) => {
+      active += 1;
+      peak = Math.max(peak, active);
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      active -= 1;
+      if (session.id === "session-5") throw new Error("provider detail");
+      return [];
+    }, 4);
+    expect(peak).toBeLessThanOrEqual(4);
+    expect(hydrated).toHaveLength(12);
+    expect(hydrated.find((session) => session.id === "session-5")?.eventsUnavailable).toBe(true);
+    expect(hydrated.filter((session) => session.eventsUnavailable)).toHaveLength(1);
+  });
   it("renders ordered evidence and revokes the exact version", async () => { const revoke = vi.fn(api().revokeSession); render(<SessionsComplianceView surface="sessions" api={api({ revokeSession: revoke })} canMutate />); expect(await screen.findByText(/Shell requested/)).toHaveTextContent("evidence-1"); await userEvent.click(screen.getByRole("button", { name: "Revoke session session-live" })); expect(revoke).toHaveBeenCalledWith("session-live", 1); expect(await screen.findByRole("status")).toHaveTextContent("Session revoked"); });
   it("renders local evidence and keeps exports unavailable", async () => { render(<SessionsComplianceView surface="compliance" api={api()} />); expect(await screen.findByText(/SOC 2/)).toBeVisible(); expect(screen.getByText(/asset-1/)).toBeVisible(); expect(screen.getByText("Evidence exports unavailable")).toBeVisible(); expect(screen.queryByRole("button", { name: /export/i })).not.toBeInTheDocument(); });
   it("updates versioned metadata-only production controls", async () => { const update = vi.fn(api().updateDataControls); render(<SessionsComplianceView surface="data-controls" api={api({ updateDataControls: update })} canMutate />); expect(await screen.findByDisplayValue("30")).toBeVisible(); await userEvent.clear(screen.getByLabelText("Retention days")); await userEvent.type(screen.getByLabelText("Retention days"), "60"); await userEvent.click(screen.getByRole("button", { name: "Save data controls" })); expect(update).toHaveBeenCalledWith(expect.objectContaining({ retention_days: 60, version: 1 })); });
 });
+
+function awaitableSession() { return { id: "session-live", agent_id: "product-console", principal_id: principal, workspace_id: workspace, environment_id: environment, state: "active" as const, authenticated_at: "2026-08-19T00:00:00Z", expires_at: "2026-08-20T00:00:00Z", version: 1, events: [] }; }
