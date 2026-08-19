@@ -14,7 +14,10 @@ test("combined production E2E owns every local boundary and fixed assertion", as
     "/api/v1/session/start", "/auth/callback", "__Host-zasp_session", "Support agent",
     "not_found", "SIGTERM", "pg_ctl", "FIXED_NODE_VERSION", "Roll to monitor",
     "Save Security Agent definition", "configured", "Durable, scoped response definitions",
-    "lostPolicyResponseKeys", "Page.reload", "Recover committed operations", "Acknowledge recovered result", "full-document receipt recovery", "two lost browser responses changed idempotency key", "1|1|1|1",
+    "lostPolicyResponseKeys", "Page.reload", "Recover committed operations", "Acknowledge recovered result", "full-document receipt recovery", "two lost browser responses changed idempotency key", "1|2|2|1",
+    "Input.dispatchKeyEvent", "browserDialogIsolation", "keyboard focus trap and restoration",
+    "PAT success, replay, and zero browser receipts", "1|1|0", "workflowPageRequests", "Paged policy 1000", "Paged integration 1001",
+    "Second-tab committed policy", "Expiry-race committed policy", "seedExpiringReceipt", "expired receipt left workflow mutations locked",
   ]) assert.match(source, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   for (const unsafeControl of ["Enroll sensor", "Create enrollment", "Start bounded run", "waiting_approval", "one-time sensor credential", "Simulate policy", "Decision history"]) {
     const escaped = unsafeControl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

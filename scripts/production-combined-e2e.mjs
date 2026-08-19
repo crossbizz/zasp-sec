@@ -28,6 +28,10 @@ let web;
 let browser;
 let observedSessionCookie = false;
 const lostPolicyResponseKeys = [];
+const workflowPageRequests = { policies: [], integrations: [] };
+let injectLaterReceiptOnNextAcknowledgement = false;
+let expireNextReceiptBeforeAcknowledgement = false;
+let proxyFailure;
 const cleanupController = installBoundedSignalCleanup(cleanupOwnedResources);
 
 try {
@@ -83,8 +87,24 @@ try {
   const key = path.join(temporaryRoot, "tls.key");
   const certificate = path.join(temporaryRoot, "tls.crt");
   await command("openssl", ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1", "-subj", "/CN=127.0.0.1", "-addext", "subjectAltName=IP:127.0.0.1", "-keyout", key, "-out", certificate]);
-  proxy = await startProxy(proxyPort, apiPort, webPort, key, certificate);
+  proxy = await startProxy(proxyPort, apiPort, webPort, key, certificate, dsn);
   await waitForHTTP(`${publicOrigin}/sign-in`, 200, true);
+
+  const patHeaders = { authorization: "Bearer production-e2e-product-token-with-at-least-32-bytes", "content-type": "application/json", "idempotency-key": "production-e2e-pat-0001" };
+  const patBody = JSON.stringify({ id: "policy-pat-e2e", name: "PAT E2E boundary", scope: "environment", trigger: "tool", conditions: [{ field: "action", operator: "equals", value: "read" }], action: "monitor", rollout: "draft", failure_mode: "open" });
+  const patCreated = await requestHTTPSJSON(`${publicOrigin}/api/v1/policies`, { method: "POST", headers: patHeaders }, patBody);
+  const patReplayed = await requestHTTPSJSON(`${publicOrigin}/api/v1/policies`, { method: "POST", headers: patHeaders }, patBody);
+  assert.equal(patCreated.status, 201);
+  assert.equal(patReplayed.status, 201);
+  assert.equal(patCreated.headers["x-mutation-receipt-id"], undefined);
+  assert.equal(patReplayed.headers["x-mutation-receipt-id"], undefined);
+  assert.deepEqual(patReplayed.body, patCreated.body);
+  const patCounts = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT
+    (SELECT count(*) FROM zasp_workflow_idempotency WHERE operation='createPolicy' AND idempotency_key='production-e2e-pat-0001'),
+    (SELECT count(*) FROM zasp_workflow_audit WHERE operation='createPolicy' AND resource_id='policy-pat-e2e'),
+    (SELECT count(*) FROM zasp_workflow_receipts WHERE operation='createPolicy' AND idempotency_key='production-e2e-pat-0001');`]);
+  assert.equal(patCounts.stdout.trim(), "1|1|0", "PAT create/replay inserted a browser mutation receipt");
+  console.log("combined E2E: PAT success, replay, and zero browser receipts proven");
 
   const profile = path.join(temporaryRoot, "chrome-profile");
   browser = await startBrowser(profile, chromePort, `${publicOrigin}/api/v1/session/start?return_to=%2Fdiscovery%2Fassets`);
@@ -98,16 +118,20 @@ try {
   assert.match(signedIn, /Agents/);
   assert.match(signedIn, /Support agent/);
   assert.doesNotMatch(signedIn, /Product API unavailable|Sign-in failed/);
+  assert.doesNotMatch(signedIn, /Recover committed operations|PAT E2E boundary/);
   console.log("combined E2E: browser callback, cookie, bootstrap, and durable data proven");
 
   await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/policies` });
   await waitForBrowserText(browser.cdp, /Durable scoped runtime controls/);
+  await waitForBrowserText(browser.cdp, /Paged policy 1000/);
+  assert.equal(await browserCountAriaPrefix(browser.cdp, "Open "), 1001, "policy UI did not traverse exactly 1001 stable IDs");
+  assert.equal(workflowPageRequests.policies.length, 11, "policy UI pagination requested an extra or missing page");
   await clickBrowserText(browser.cdp, "Create policy");
   await waitForBrowserText(browser.cdp, /exact operation and idempotency key are retained/);
   await browser.cdp.send("Page.reload", { ignoreCache: true });
   const recoveredMutation = await waitForBrowserText(browser.cdp, /Recover committed operations/);
   assert.match(recoveredMutation, /Create Policy/);
-  assert.match(recoveredMutation, /policy policy-production/);
+  assert.match(recoveredMutation, /Committed resource\s+policy-production/);
   assert.equal(await browserTextControlDisabled(browser.cdp, "Create policy"), true, "reloaded create was enabled before receipt reconciliation");
   await clickBrowserText(browser.cdp, "Acknowledge recovered result");
   await waitForBrowserText(browser.cdp, /Production runtime policy/);
@@ -118,18 +142,49 @@ try {
     (SELECT count(*) FROM zasp_workflow_idempotency WHERE operation='createPolicy'),
     (SELECT count(*) FROM zasp_workflow_audit WHERE operation='createPolicy'),
     (SELECT count(*) FROM zasp_workflow_receipts WHERE operation='createPolicy');`]);
-  assert.equal(durableCounts.stdout.trim(), "1|1|1|1", "full reload recovery duplicated durable workflow state");
+  assert.equal(durableCounts.stdout.trim(), "1|2|2|1", "full reload recovery duplicated durable workflow state");
   assert.equal(await browserHasInteractiveText(browser.cdp, /^(?:Simulate policy|Decision history)$/i), false);
   await clickBrowserAria(browser.cdp, "Open Production runtime policy");
   await waitForBrowserText(browser.cdp, /Policy detail · policy-production/);
+  injectLaterReceiptOnNextAcknowledgement = true;
   await clickBrowserText(browser.cdp, "Roll to monitor");
   await waitForBrowserText(browser.cdp, /Policy is monitor\. Audit pid_/);
+  const laterRecovery = await waitForBrowserText(browser.cdp, /Second-tab committed policy/);
+  assert.match(laterRecovery, /Recover committed operations/);
+  assert.equal(await browserTextControlDisabled(browser.cdp, "Enforce policy"), true, "later receipt did not keep mutations locked");
+  await clickBrowserText(browser.cdp, "Acknowledge recovered result");
+  await waitForBrowserMissing(browser.cdp, '[aria-label="Mutation recovery"]');
+
+  await seedExpiringReceipt(dsn);
+  await browser.cdp.send("Page.reload", { ignoreCache: true });
+  const expiringRecovery = await waitForBrowserText(browser.cdp, /Expiry-race committed policy/);
+  assert.match(expiringRecovery, /Recover committed operations/);
+  expireNextReceiptBeforeAcknowledgement = true;
+  await clickBrowserText(browser.cdp, "Acknowledge recovered result");
+  await waitForBrowserMissing(browser.cdp, '[aria-label="Mutation recovery"]');
+  assert.equal(await waitForBrowserControlDisabled(browser.cdp, "Create policy", false), false, "expired receipt left workflow mutations locked");
+  await clickBrowserAria(browser.cdp, "Open Production runtime policy");
+  await waitForBrowserText(browser.cdp, /Policy detail · policy-production/);
   await clickBrowserText(browser.cdp, "Enforce policy");
   await waitForBrowserText(browser.cdp, /Policy is enforced\. Audit pid_/);
 
   await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/connectors` });
   await waitForBrowserText(browser.cdp, /Durable local connector configuration/);
+  await waitForBrowserText(browser.cdp, /Paged integration 1001/);
+  assert.equal(await browserCountAriaPrefix(browser.cdp, "Open "), 1001, "integration UI did not traverse exactly 1001 stable IDs");
+  assert.equal(workflowPageRequests.integrations.length, 11, "integration UI pagination requested an extra or missing page");
   await clickBrowserText(browser.cdp, "Configure Generic Webhook");
+  await waitForBrowserActive(browser.cdp, "Close");
+  assert.equal(await browserDialogIsolation(browser.cdp), true, "active production modal did not isolate its background");
+  await dispatchBrowserKey(browser.cdp, "Tab", { shift: true });
+  await waitForBrowserActive(browser.cdp, "Cancel");
+  await dispatchBrowserKey(browser.cdp, "Tab");
+  await waitForBrowserActive(browser.cdp, "Close");
+  await dispatchBrowserKey(browser.cdp, "Escape");
+  await waitForBrowserActive(browser.cdp, "Configure Generic Webhook");
+  await clickBrowserText(browser.cdp, "Configure Generic Webhook");
+  await waitForBrowserActive(browser.cdp, "Close");
+  console.log("combined E2E: keyboard focus trap and restoration proven");
   await fillBrowserLabel(browser.cdp, "HTTPS destination", "https://hooks.customer.invalid/zasp");
   await fillBrowserLabel(browser.cdp, "Signing secret", "secret_ref_combined_e2e");
   await clickBrowserText(browser.cdp, "Save integration");
@@ -173,8 +228,9 @@ try {
   const denied = await waitForBrowserText(browser.cdp, /not_found/);
   assert.match(denied, /not_found/);
   assert.doesNotMatch(denied, /Foreign tenant agent/);
+  assert.equal(proxyFailure, undefined, `proxy fixture failed: ${proxyFailure}`);
 
-  console.log("production combined E2E passed: callback/cookie/bootstrap, durable workflows, restart/reload, tenant denial");
+  console.log("production combined E2E passed: callback/cookie/bootstrap, pagination, PAT/receipt recovery, keyboard focus, durable restart/reload, tenant denial");
 } finally {
 	await cleanupController.run();
 	cleanupController.dispose();
@@ -226,12 +282,55 @@ INSERT INTO zasp_authorized_scopes (principal_id, organization_id, workspace_id,
 ('pid_90000004-0000-4000-8000-000000000004','pid_90000001-0000-4000-8000-000000000001','pid_90000002-0000-4000-8000-000000000002','pid_90000003-0000-4000-8000-000000000003','Foreign','["view"]'::jsonb,true);
 INSERT INTO zasp_identity_memberships (principal_id, organization_id, organization_reference, member_reference, role) VALUES
 ('pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','organization-test-local','member-test-local','security_admin');
+INSERT INTO zasp_product_api_tokens (token_digest, principal_id, organization_id, workspace_id, environment_id, permissions, expires_at) VALUES
+(digest('production-e2e-product-token-with-at-least-32-bytes', 'sha256'),'pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','["view","manage_workflows"]'::jsonb,transaction_timestamp() + interval '1 hour');
 INSERT INTO zasp_core_payloads (organization_id, workspace_id, environment_id, operation, payload) VALUES
 ('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','session_bootstrap:pid_10000004-0000-4000-8000-000000000004','{"principal":{"id":"pid_10000004-0000-4000-8000-000000000004","organization_id":"pid_10000001-0000-4000-8000-000000000001","organization_reference":"organization-local","member_reference":"member-local","role":"security_admin","active":true},"organization_id":"pid_10000001-0000-4000-8000-000000000001","workspace_id":"pid_10000002-0000-4000-8000-000000000002","environment_id":"pid_10000003-0000-4000-8000-000000000003","permissions":["view"],"capabilities":["inventory.read","scope.switch"],"csrf_token":"cccccccccccccccccccccccccccccccc","correlation_id":"pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"}'::jsonb),
 ('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','home','{"agent_count":1,"high_risk_paths":0,"verified_changes":0,"blocked_changes":0,"pending_approvals":0,"oldest_approval_age_seconds":0,"needs_human_runs":0,"failed_runs":0,"inconclusive_runs":0,"recent_contained":0,"recent_remediated":0,"healthy":true,"attention_required":false}'::jsonb),
 ('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','agents','{"items":[{"id":"pid_20000001-0000-4000-8000-000000000001","name":"Support agent","kind":"agent","owner":"security","team":"platform","tags":["production"],"evidence_id":"pid_20000006-0000-4000-8000-000000000006","first_seen":"2026-08-18T09:00:00Z","last_seen":"2026-08-18T10:00:00Z"}]}'::jsonb),
 ('pid_90000001-0000-4000-8000-000000000001','pid_90000002-0000-4000-8000-000000000002','pid_90000003-0000-4000-8000-000000000003','agent:pid_90000001-0000-4000-8000-000000000001','{"id":"pid_90000001-0000-4000-8000-000000000001","name":"Foreign tenant agent","kind":"agent","owner":"foreign","team":"foreign","tags":[],"evidence_id":"pid_90000006-0000-4000-8000-000000000006","first_seen":"2026-08-18T09:00:00Z","last_seen":"2026-08-18T10:00:00Z"}'::jsonb);
+INSERT INTO zasp_workflow_records (organization_id, workspace_id, environment_id, kind, id, body)
+SELECT 'pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','policy',
+  'policy-page-' || lpad(ordinal::text, 4, '0'),
+  jsonb_build_object('id', 'policy-page-' || lpad(ordinal::text, 4, '0'), 'name', 'Paged policy ' || lpad(ordinal::text, 4, '0'), 'scope', 'environment', 'trigger', 'tool', 'conditions', jsonb_build_array(jsonb_build_object('field', 'action', 'operator', 'equals', 'value', 'read')), 'action', 'monitor', 'rollout', 'draft', 'failure_mode', 'open')
+FROM generate_series(1, 1000) AS ordinal;
+INSERT INTO zasp_workflow_records (organization_id, workspace_id, environment_id, kind, id, body)
+SELECT 'pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','integration',
+  'pid_' || lpad(ordinal::text, 8, '0') || '-0000-4000-8000-' || lpad(ordinal::text, 12, '0'),
+  jsonb_build_object('id', 'pid_' || lpad(ordinal::text, 8, '0') || '-0000-4000-8000-' || lpad(ordinal::text, 12, '0'), 'connector_key', 'generic-webhook', 'name', 'Paged integration ' || lpad(ordinal::text, 4, '0'), 'configuration', jsonb_build_object('destination_url', 'https://paged.invalid/' || ordinal, 'signing_secret_reference', 'secret_ref_paged_' || ordinal), 'status', 'configured', 'created_at', '2026-08-18T10:00:00Z', 'updated_at', '2026-08-18T10:00:00Z')
+FROM generate_series(1, 1001) AS ordinal;
 `;
+  await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1"], { input: sql });
+}
+
+async function seedLaterReceipt(dsn) {
+  await seedRecoveryReceipt(dsn, {
+    policyID: "policy-second-tab", name: "Second-tab committed policy", idempotencyKey: "second-tab-policy-0001",
+    receiptID: "pid_60000001-0000-4000-8000-000000000001", auditID: "pid_60000002-0000-4000-8000-000000000002", correlationID: "pid_60000003-0000-4000-8000-000000000003",
+    createdAt: "transaction_timestamp()", expiresAt: "transaction_timestamp() + interval '7 days'",
+  });
+}
+
+async function seedExpiringReceipt(dsn) {
+  await seedRecoveryReceipt(dsn, {
+    policyID: "policy-expiry-race", name: "Expiry-race committed policy", idempotencyKey: "expiry-race-policy-0001",
+    receiptID: "pid_60000011-0000-4000-8000-000000000011", auditID: "pid_60000012-0000-4000-8000-000000000012", correlationID: "pid_60000013-0000-4000-8000-000000000013",
+    createdAt: "transaction_timestamp() - interval '6 days'", expiresAt: "transaction_timestamp() + interval '1 hour'",
+  });
+}
+
+async function seedRecoveryReceipt(dsn, value) {
+  const body = JSON.stringify({ id: value.policyID, name: value.name, scope: "environment", trigger: "tool", conditions: [{ field: "action", operator: "equals", value: "read" }], action: "monitor", rollout: "draft", failure_mode: "open" });
+  const intent = JSON.stringify({ body: JSON.parse(body), expected_version: 0, resource_id: "" });
+  const sql = `
+INSERT INTO zasp_workflow_records (organization_id, workspace_id, environment_id, kind, id, body)
+VALUES ('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','policy','${value.policyID}','${body}'::jsonb);
+INSERT INTO zasp_workflow_idempotency (organization_id, workspace_id, environment_id, principal_id, operation, idempotency_key, request_digest, response)
+VALUES ('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','pid_10000004-0000-4000-8000-000000000004','createPolicy','${value.idempotencyKey}',digest('${value.idempotencyKey}','sha256'),jsonb_build_object('body','${body}'::jsonb,'version',1,'secret_generation',0,'audit_id','${value.auditID}','correlation_id','${value.correlationID}','receipt_id','${value.receiptID}'));
+INSERT INTO zasp_workflow_audit (organization_id, workspace_id, environment_id, audit_id, correlation_id, principal_id, operation, resource_kind, resource_id, resource_version)
+VALUES ('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','${value.auditID}','${value.correlationID}','pid_10000004-0000-4000-8000-000000000004','createPolicy','policy','${value.policyID}',1);
+INSERT INTO zasp_workflow_receipts (organization_id, workspace_id, environment_id, principal_id, receipt_id, operation, idempotency_key, intent, result, resource_kind, resource_id, resource_version, audit_id, correlation_id, created_at, expires_at)
+VALUES ('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','pid_10000004-0000-4000-8000-000000000004','${value.receiptID}','createPolicy','${value.idempotencyKey}','${intent}'::jsonb,'${body}'::jsonb,'policy','${value.policyID}',1,'${value.auditID}','${value.correlationID}',${value.createdAt},${value.expiresAt});`;
   await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1"], { input: sql });
 }
 
@@ -274,12 +373,26 @@ async function startIdentityServer(port, publicOrigin) {
   return server;
 }
 
-async function startProxy(port, apiPort, webPort, keyPath, certificatePath) {
-  const server = https.createServer({ key: await readFile(keyPath), cert: await readFile(certificatePath) }, (request, response) => {
+async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn) {
+  const server = https.createServer({ key: await readFile(keyPath), cert: await readFile(certificatePath) }, async (request, response) => {
+    const target = new URL(request.url ?? "/", "https://combined.invalid");
+    const receiptAcknowledgement = request.method === "POST" && /^\/api\/v1\/workflow-mutation-receipts\/pid_[0-9a-f-]+\/acknowledge$/.test(target.pathname);
+    if (request.method === "GET" && target.pathname === "/api/v1/policies") workflowPageRequests.policies.push(target.search);
+    if (request.method === "GET" && target.pathname === "/api/v1/integrations") workflowPageRequests.integrations.push(target.search);
+    if (receiptAcknowledgement && expireNextReceiptBeforeAcknowledgement) {
+      expireNextReceiptBeforeAcknowledgement = false;
+      try {
+        const receiptID = target.pathname.split("/").at(-2);
+        await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1", "-c", `UPDATE zasp_workflow_receipts SET expires_at = transaction_timestamp() - interval '1 minute' WHERE receipt_id = '${receiptID}';`]);
+      } catch (error) {
+        proxyFailure = error;
+        response.writeHead(502); response.end("receipt expiry injection failed"); return;
+      }
+    }
     const upstreamPort = request.url?.startsWith("/api/v1/") ? apiPort : webPort;
     const upstream = http.request({ hostname: "127.0.0.1", port: upstreamPort, method: request.method, path: request.url, headers: { ...request.headers, host: `127.0.0.1:${port}` } }, (upstreamResponse) => {
       if ((upstreamResponse.headers["set-cookie"] ?? []).some((value) => value.startsWith("__Host-zasp_session="))) observedSessionCookie = true;
-      if (request.method === "POST" && request.url === "/api/v1/policies" && lostPolicyResponseKeys.length < 2) {
+      if (request.method === "POST" && request.url === "/api/v1/policies" && !request.headers.authorization && lostPolicyResponseKeys.length < 2) {
         lostPolicyResponseKeys.push(String(request.headers["idempotency-key"] ?? ""));
         upstreamResponse.resume();
         upstreamResponse.once("end", () => {
@@ -288,7 +401,22 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath) {
         });
         return;
       }
-      if (request.method === "POST" && request.url === "/api/v1/policies") lostPolicyResponseKeys.push(String(request.headers["idempotency-key"] ?? ""));
+      if (request.method === "POST" && request.url === "/api/v1/policies" && !request.headers.authorization) lostPolicyResponseKeys.push(String(request.headers["idempotency-key"] ?? ""));
+      if (receiptAcknowledgement && injectLaterReceiptOnNextAcknowledgement && upstreamResponse.statusCode === 204) {
+        injectLaterReceiptOnNextAcknowledgement = false;
+        upstreamResponse.resume();
+        upstreamResponse.once("end", async () => {
+          try {
+            await seedLaterReceipt(dsn);
+            response.writeHead(204, upstreamResponse.headers);
+            response.end();
+          } catch (error) {
+            proxyFailure = error;
+            response.writeHead(502); response.end("later receipt injection failed");
+          }
+        });
+        return;
+      }
       response.writeHead(upstreamResponse.statusCode ?? 502, upstreamResponse.headers);
       upstreamResponse.pipe(response);
     });
@@ -341,8 +469,40 @@ async function browserTextControlDisabled(cdp, text) {
   return evaluated.result?.value;
 }
 
+async function waitForBrowserControlDisabled(cdp, text, expected) {
+  await waitForBrowserAction(cdp, `(() => { const value = ${JSON.stringify(text)}; const element = [...document.querySelectorAll('button,input,select,textarea')].find((candidate) => candidate.textContent?.trim() === value || candidate.getAttribute('aria-label') === value); return Boolean(element) && element.disabled === ${JSON.stringify(expected)}; })()`);
+  return expected;
+}
+
+async function browserCountAriaPrefix(cdp, prefix) {
+  const evaluated = await cdp.send("Runtime.evaluate", { expression: `document.querySelectorAll(${JSON.stringify(`[aria-label^="${prefix}"]`)}).length`, returnByValue: true });
+  return evaluated.result?.value;
+}
+
+async function waitForBrowserMissing(cdp, selector) {
+  await waitForBrowserAction(cdp, `document.querySelector(${JSON.stringify(selector)}) === null`);
+}
+
+async function browserDialogIsolation(cdp) {
+  const evaluated = await cdp.send("Runtime.evaluate", { expression: `(() => { const layers = [...document.body.children].filter((element) => element.hasAttribute('data-dialog-layer')); const active = layers.at(-1); return layers.length === 1 && active && !active.hasAttribute('inert') && [...document.body.children].filter((element) => element !== active).every((element) => element.hasAttribute('inert') && element.getAttribute('aria-hidden') === 'true'); })()`, returnByValue: true });
+  return evaluated.result?.value === true;
+}
+
+async function waitForBrowserActive(cdp, label) {
+  await waitForBrowserAction(cdp, `(() => { const active = document.activeElement; const label = active?.getAttribute('aria-label') ?? active?.textContent?.trim(); return label === ${JSON.stringify(label)}; })()`);
+}
+
+async function dispatchBrowserKey(cdp, key, options = {}) {
+  const definitions = { Tab: { code: "Tab", keyCode: 9 }, Escape: { code: "Escape", keyCode: 27 } };
+  const definition = definitions[key];
+  assert.ok(definition, `unsupported browser key ${key}`);
+  const modifiers = options.shift ? 8 : 0;
+  await cdp.send("Input.dispatchKeyEvent", { type: "keyDown", key, code: definition.code, windowsVirtualKeyCode: definition.keyCode, nativeVirtualKeyCode: definition.keyCode, modifiers });
+  await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key, code: definition.code, windowsVirtualKeyCode: definition.keyCode, nativeVirtualKeyCode: definition.keyCode, modifiers });
+}
+
 async function clickBrowserText(cdp, text) {
-  await waitForBrowserAction(cdp, `(() => { const value = ${JSON.stringify(text)}; const element = [...document.querySelectorAll('button,a')].find((candidate) => candidate.textContent?.trim() === value); if (!element) return false; element.click(); return true; })()`);
+  await waitForBrowserAction(cdp, `(() => { const value = ${JSON.stringify(text)}; const element = [...document.querySelectorAll('button,a')].find((candidate) => candidate.textContent?.trim() === value); if (!element) return false; element.focus(); element.click(); return true; })()`);
 }
 
 async function clickBrowserAria(cdp, label) {
@@ -360,6 +520,25 @@ async function waitForBrowserAction(cdp, expression) {
     await delay(25);
   }
   throw new Error(`browser action target unavailable: ${expression}`);
+}
+
+async function requestHTTPSJSON(target, options, body) {
+  return new Promise((resolve, reject) => {
+    const request = https.request(target, { ...options, rejectUnauthorized: false }, (response) => {
+      let payload = "";
+      response.setEncoding("utf8");
+      response.on("data", (chunk) => { payload += chunk; });
+      response.on("end", () => {
+        try {
+          resolve({ status: response.statusCode, headers: response.headers, body: payload === "" ? null : JSON.parse(payload) });
+        } catch (error) {
+          reject(error);
+        }
+      });
+    });
+    request.on("error", reject);
+    request.end(body);
+  });
 }
 
 async function connectCDP(target) {
