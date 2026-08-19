@@ -40,12 +40,12 @@ describe("M2 identity governance and UI batch", () => {
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
     ]);
     for (const operation of [
-      "listGroupMappings", "updateGroupMappings", "listAPITokens", "createAPIToken",
-      "rotateAPIToken", "revokeAPIToken", "listAuditEvents",
+      "listAPITokens", "createAPIToken", "listAPITokenRevealGrants", "revealAPIToken",
+      "acknowledgeAPITokenRevealGrant", "rotateAPIToken", "revokeAPIToken", "listAuditEvents",
     ]) expect(openapi).toContain(`operationId: ${operation}`);
-    for (const hidden of ["createAuditExport", "getAuditExport"]) expect(openapi).not.toContain(`operationId: ${hidden}`);
-    expect(map.match(/availability: planned/g)).toHaveLength(12);
-    expect(map.match(/availability: available/g)).toHaveLength(55);
+    for (const hidden of ["listGroupMappings", "updateGroupMappings", "createAuditExport", "getAuditExport"]) expect(openapi).not.toContain(`operationId: ${hidden}`);
+    expect(map.match(/availability: planned/g)).toHaveLength(14);
+    expect(map.match(/availability: available/g)).toHaveLength(56);
     expect(map.match(/availability: api_available/g)).toHaveLength(63);
     expect(readme).toContain("M2-01 through M2-50 and the M2-47 gate are Complete");
     expect(readme).toContain("M3-01 through M3-13 are Complete");

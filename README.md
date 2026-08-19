@@ -99,8 +99,8 @@ npm run ui-api:test
 npm run ui-api:check
 ```
 
-The current honest result is `UI/API coverage passed: planned=12
-api_available=63 available=55 public=118 internal=0.` The gate distinguishes
+The current honest result is `UI/API coverage passed: planned=14
+api_available=63 available=56 public=119 internal=0.` The gate distinguishes
 implemented API contracts from fully wired UI actions.
 M1-36e is Complete and separately owns local infrastructure smoke checks.
 
@@ -227,8 +227,9 @@ blockers.
 ## Identity and authorization foundation
 
 M2-01 through M2-07d are Complete. The product now owns a strict Stytch B2B
-adapter, bearer-session authentication, fresh-auth revalidation, idempotent
-Organization and principal reconciliation, the six built-in PRD roles,
+OAuth callback adapter, bearer-session authentication bounded by the provider
+session expiry, exact local fresh-auth expiry, idempotent Organization and
+principal reconciliation, the six built-in PRD roles,
 Organization-scoped Workspace/Environment grants, fail-closed authorization,
 and the first-Admin provision-to-sign-in bootstrap path.
 
@@ -236,20 +237,27 @@ The bootstrap persists only product references and creates one default
 Workspace with production, staging, and development Environments. It creates
 no local password or customer-facing bypass login.
 
-M2-01 through M2-50 and the M2-47 gate are Complete. The product exposes 27 strict identity,
-governance, token, and audit operations for Organization, Workspace,
-Environment, principal, role, SSO, SCIM, group-mapping, API-token, and audit
-workflows. The Identity & Access and API Access routes use the generated product
-client for identity administration, scoped credential lifecycle, and authorized
-Workspace/Environment onboarding. Sensitive mutations require fresh authorization;
-SCIM and API-token credentials appear only in their create responses.
-The internal Stytch webhook boundary verifies the Svix-compatible signature,
-timestamp, project, event identity, and replay state before deprovisioning a
-member, removing product grants, and recording the audit summary.
-M2 gate: PASS. The bounded fake-Stytch and product-store suite covers session
-revocation, SCIM deprovisioning, scoped API tokens, audit history, two-Organization
-SaaS isolation, and the single-tenant Organization pin without direct Stytch
-dashboard access.
+M2-01 through M2-50 and the M2-47 gate are Complete. The Batch 3 production
+administration surface mounts 32 durable operations for
+Organization, Workspace, Environment, membership, server-owned roles, API-token
+reveal grants, sessions, audit, local compliance/data controls, registered
+external-flow inventory, and readiness. The Identity & Access and API Access
+routes use the generated product client for identity administration, scoped
+credential lifecycle, and authorized Workspace/Environment onboarding.
+Sensitive mutations require the exact `fresh_auth_expires_at`; reauthentication
+restarts the provider-faithful OAuth start/callback path with a safe return path.
+API-token create and rotate return only encrypted, restart-safe reveal-grant
+metadata. Exact-scope reveal can be retried until explicit acknowledgement,
+which atomically destroys the encrypted recovery material.
+
+The concrete production adapter cannot safely revalidate a Stytch session from
+the retained provider session identifier alone, so it makes no revalidation or
+deprovisioning claim. SSO, SCIM, group-mapping, provider webhook, export, and
+deletion mutations remain unmounted and capability-hidden. A configured Stytch
+boundary is reported degraded/configured-unverified unless a real bounded live
+verifier is registered and succeeds.
+M2 gate: PASS for the completed local product contracts; it does not promote
+those hidden provider boundaries or substitute for live-provider evidence.
 
 ## Staging foundation and integration APIs
 
@@ -996,7 +1004,7 @@ npm run ui-api:check
 The current fixed success line is:
 
 ```text
-UI/API coverage passed: planned=12 api_available=63 available=55 public=118 internal=0.
+UI/API coverage passed: planned=14 api_available=63 available=56 public=119 internal=0.
 ```
 
 M5 now has a local MVP slice for normalized Promptfoo attempts, curated packs,
@@ -2168,5 +2176,7 @@ local D1 and R2 bindings can be enabled with `CLOUDFLARE_D1_BINDING` and
 `CLOUDFLARE_R2_BINDING`; no database or object-storage binding is required for
 the browser-local prototype.
 
-Application authentication will use Stytch B2B. The current prototype runs
-without an authentication gate until that integration is configured.
+The production API authentication boundary uses Stytch B2B OAuth plus durable
+product sessions. It fails startup without complete runtime configuration. The
+browser-local prototype surfaces remain separate and do not imply an
+unauthenticated production mode.

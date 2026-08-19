@@ -20,24 +20,26 @@ const expectedOperations = new Map([
   ["listMembers", ["/api/v1/admin/members", "get"]],
   ["updateMemberRole", ["/api/v1/admin/members/{id}", "patch"]],
   ["listBuiltInRoles", ["/api/v1/admin/roles", "get"]],
-  ["listGroupMappings", ["/api/v1/admin/group-mappings", "get"]],
-  ["updateGroupMappings", ["/api/v1/admin/group-mappings", "patch"]],
   ["listAPITokens", ["/api/v1/admin/api-tokens", "get"]],
   ["createAPIToken", ["/api/v1/admin/api-tokens", "post"]],
+  ["listAPITokenRevealGrants", ["/api/v1/admin/api-token-reveal-grants", "get"]],
+  ["revealAPIToken", ["/api/v1/admin/api-token-reveal-grants/{id}/reveal", "post"]],
+  ["acknowledgeAPITokenRevealGrant", ["/api/v1/admin/api-token-reveal-grants/{id}", "delete"]],
   ["rotateAPIToken", ["/api/v1/admin/api-tokens/{id}/rotate", "post"]],
   ["revokeAPIToken", ["/api/v1/admin/api-tokens/{id}", "delete"]],
   ["listAuditEvents", ["/api/v1/audit-events", "get"]],
 ]);
 
 const hiddenOperations = [
+  "listGroupMappings", "updateGroupMappings",
   "listSSOConnections", "createSSOConnection", "deleteSSOConnection", "testSSOConnection",
   "listSCIMConnections", "createSCIMConnection", "deleteSCIMConnection", "createAuditExport", "getAuditExport",
 ];
 
 const identityUIOperations = new Set([
   "getOrganization", "listWorkspaces", "createWorkspace", "updateWorkspace", "listEnvironments", "createEnvironment", "updateEnvironment",
-  "listMembers", "updateMemberRole", "listBuiltInRoles", "listGroupMappings", "updateGroupMappings",
-  "listAPITokens", "createAPIToken", "rotateAPIToken", "revokeAPIToken", "listAuditEvents",
+  "listMembers", "updateMemberRole", "listBuiltInRoles",
+  "listAPITokens", "createAPIToken", "listAPITokenRevealGrants", "revealAPIToken", "acknowledgeAPITokenRevealGrant", "rotateAPIToken", "revokeAPIToken", "listAuditEvents",
 ]);
 
 test("publishes the identity administration operations at their honest UI lifecycle", async () => {
@@ -64,16 +66,17 @@ test("publishes the identity administration operations at their honest UI lifecy
 test("uses strict product schemas and the shared stable error response", async () => {
   const source = await readFile(resolve(root, "openapi/openapi.yaml"), "utf8");
   const document = load(source, { schema: JSON_SCHEMA, json: false });
-  for (const schema of ["Organization", "Workspace", "Environment", "Principal", "BuiltInRole", "GroupMapping", "APIToken", "AuditEvent"]) {
+  for (const schema of ["Organization", "Workspace", "Environment", "Principal", "BuiltInRole", "APIToken", "APITokenRevealGrant", "APITokenRevealGrantSummary", "APITokenRevealGrantPage", "APITokenRevealedCredential", "AuditEvent"]) {
     assert.equal(document.components?.schemas?.[schema]?.additionalProperties, false);
   }
   for (const [, [path, method]] of expectedOperations) {
     assert.equal(document.paths[path][method].responses?.["default"]?.$ref, "#/components/responses/ProductErrorResponse");
   }
   assert.equal(document.paths["/api/v1/admin/api-tokens"].post.responses["201"].content["application/json"].schema.$ref,
-    "#/components/schemas/APITokenCredential");
+    "#/components/schemas/APITokenRevealGrant");
   assert.equal(document.components.schemas.APIToken.properties.raw_token, undefined);
-  assert.deepEqual(document.components.schemas.APITokenCredential.required.includes("raw_token"), true);
-  assert.equal(document.components.schemas.APITokenCredential.properties.raw_token.readOnly, true);
+  assert.deepEqual(document.components.schemas.APITokenRevealedCredential.required.includes("raw_token"), true);
+  assert.equal(document.components.schemas.APITokenRevealedCredential.properties.raw_token.readOnly, true);
+  assert.equal(document.components.schemas.APITokenRevealGrant.properties.raw_token, undefined);
   assert.equal(document.components.schemas.APITokenPage.properties.items.items.$ref, "#/components/schemas/APIToken");
 });

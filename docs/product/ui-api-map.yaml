@@ -95,15 +95,24 @@ screens:
         availability: planned
       - id: view_group_mappings
         operation_id: listGroupMappings
-        availability: available
+        availability: planned
       - id: update_group_mapping
         operation_id: updateGroupMappings
-        availability: available
+        availability: planned
       - id: view_api_tokens
         operation_id: listAPITokens
         availability: available
       - id: create_api_token
         operation_id: createAPIToken
+        availability: available
+      - id: view_api_token_reveal_grants
+        operation_id: listAPITokenRevealGrants
+        availability: available
+      - id: reveal_api_token
+        operation_id: revealAPIToken
+        availability: available
+      - id: acknowledge_api_token_reveal_grant
+        operation_id: acknowledgeAPITokenRevealGrant
         availability: available
       - id: rotate_api_token
         operation_id: rotateAPIToken
