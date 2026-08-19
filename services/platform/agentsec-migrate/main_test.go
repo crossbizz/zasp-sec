@@ -161,6 +161,24 @@ func (runner *scriptedMigrationRunner) DownProductionRiskProjection(context.Cont
 	return nil
 }
 
+func (runner *scriptedMigrationRunner) UpProductionDiscovery(context.Context) error {
+	runner.events = append(runner.events, "up-production-discovery")
+	if runner.errAt == "up-production-discovery" {
+		return errors.New("detail")
+	}
+	runner.version = 10
+	return nil
+}
+
+func (runner *scriptedMigrationRunner) DownProductionDiscovery(context.Context) error {
+	runner.events = append(runner.events, "down-production-discovery")
+	if runner.errAt == "down-production-discovery" {
+		return errors.New("detail")
+	}
+	runner.version = 9
+	return nil
+}
+
 func (runner *scriptedMigrationRunner) DownWorkflowReceiptSafety(context.Context) error {
 	runner.events = append(runner.events, "down-receipt-safety")
 	if runner.errAt == "down-receipt-safety" {
@@ -212,16 +230,18 @@ func TestRunReleaseMigrationReachesExactTargetStateIdempotently(t *testing.T) {
 		version   int64
 		want      []string
 	}{
-		{direction: "up", version: 0, want: []string{"version", "up-baseline", "up-core", "up-workflows", "up-receipts", "up-receipt-safety", "up-receipt-provenance", "up-production-administration", "up-api-token-reveal-grants", "up-production-risk-projection", "version"}},
-		{direction: "up", version: 1, want: []string{"version", "up-core", "up-workflows", "up-receipts", "up-receipt-safety", "up-receipt-provenance", "up-production-administration", "up-api-token-reveal-grants", "up-production-risk-projection", "version"}},
-		{direction: "up", version: 2, want: []string{"version", "up-workflows", "up-receipts", "up-receipt-safety", "up-receipt-provenance", "up-production-administration", "up-api-token-reveal-grants", "up-production-risk-projection", "version"}},
-		{direction: "up", version: 3, want: []string{"version", "up-receipts", "up-receipt-safety", "up-receipt-provenance", "up-production-administration", "up-api-token-reveal-grants", "up-production-risk-projection", "version"}},
-		{direction: "up", version: 4, want: []string{"version", "up-receipt-safety", "up-receipt-provenance", "up-production-administration", "up-api-token-reveal-grants", "up-production-risk-projection", "version"}},
-		{direction: "up", version: 5, want: []string{"version", "up-receipt-provenance", "up-production-administration", "up-api-token-reveal-grants", "up-production-risk-projection", "version"}},
-		{direction: "up", version: 6, want: []string{"version", "up-production-administration", "up-api-token-reveal-grants", "up-production-risk-projection", "version"}},
-		{direction: "up", version: 7, want: []string{"version", "up-api-token-reveal-grants", "up-production-risk-projection", "version"}},
-		{direction: "up", version: 8, want: []string{"version", "up-production-risk-projection", "version"}},
-		{direction: "up", version: 9, want: []string{"version", "version"}},
+		{direction: "up", version: 0, want: []string{"version", "up-baseline", "up-core", "up-workflows", "up-receipts", "up-receipt-safety", "up-receipt-provenance", "up-production-administration", "up-api-token-reveal-grants", "up-production-risk-projection", "up-production-discovery", "version"}},
+		{direction: "up", version: 1, want: []string{"version", "up-core", "up-workflows", "up-receipts", "up-receipt-safety", "up-receipt-provenance", "up-production-administration", "up-api-token-reveal-grants", "up-production-risk-projection", "up-production-discovery", "version"}},
+		{direction: "up", version: 2, want: []string{"version", "up-workflows", "up-receipts", "up-receipt-safety", "up-receipt-provenance", "up-production-administration", "up-api-token-reveal-grants", "up-production-risk-projection", "up-production-discovery", "version"}},
+		{direction: "up", version: 3, want: []string{"version", "up-receipts", "up-receipt-safety", "up-receipt-provenance", "up-production-administration", "up-api-token-reveal-grants", "up-production-risk-projection", "up-production-discovery", "version"}},
+		{direction: "up", version: 4, want: []string{"version", "up-receipt-safety", "up-receipt-provenance", "up-production-administration", "up-api-token-reveal-grants", "up-production-risk-projection", "up-production-discovery", "version"}},
+		{direction: "up", version: 5, want: []string{"version", "up-receipt-provenance", "up-production-administration", "up-api-token-reveal-grants", "up-production-risk-projection", "up-production-discovery", "version"}},
+		{direction: "up", version: 6, want: []string{"version", "up-production-administration", "up-api-token-reveal-grants", "up-production-risk-projection", "up-production-discovery", "version"}},
+		{direction: "up", version: 7, want: []string{"version", "up-api-token-reveal-grants", "up-production-risk-projection", "up-production-discovery", "version"}},
+		{direction: "up", version: 8, want: []string{"version", "up-production-risk-projection", "up-production-discovery", "version"}},
+		{direction: "up", version: 9, want: []string{"version", "up-production-discovery", "version"}},
+		{direction: "up", version: 10, want: []string{"version", "version"}},
+		{direction: "down", version: 10, want: []string{"version", "down-production-discovery", "down-production-risk-projection", "down-api-token-reveal-grants", "down-production-administration", "down-receipt-provenance", "down-receipt-safety", "down-receipts", "down-workflows", "down-core", "down-baseline", "version"}},
 		{direction: "down", version: 9, want: []string{"version", "down-production-risk-projection", "down-api-token-reveal-grants", "down-production-administration", "down-receipt-provenance", "down-receipt-safety", "down-receipts", "down-workflows", "down-core", "down-baseline", "version"}},
 		{direction: "down", version: 8, want: []string{"version", "down-api-token-reveal-grants", "down-production-administration", "down-receipt-provenance", "down-receipt-safety", "down-receipts", "down-workflows", "down-core", "down-baseline", "version"}},
 		{direction: "down", version: 7, want: []string{"version", "down-production-administration", "down-receipt-provenance", "down-receipt-safety", "down-receipts", "down-workflows", "down-core", "down-baseline", "version"}},
@@ -251,7 +271,7 @@ func TestRunReleaseMigrationReachesExactTargetStateIdempotently(t *testing.T) {
 }
 
 func TestRunReleaseMigrationRejectsDriftAndHonorsDeadline(t *testing.T) {
-	if err := runReleaseMigration(context.Background(), &scriptedMigrationRunner{version: 10}, []string{"up"}); !errors.Is(err, migrations.ErrInvalidState) {
+	if err := runReleaseMigration(context.Background(), &scriptedMigrationRunner{version: 11}, []string{"up"}); !errors.Is(err, migrations.ErrInvalidState) {
 		t.Fatalf("drift error = %v", err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -259,6 +279,34 @@ func TestRunReleaseMigrationRejectsDriftAndHonorsDeadline(t *testing.T) {
 	if err := runReleaseMigration(ctx, &scriptedMigrationRunner{}, []string{"up"}); !errors.Is(err, context.Canceled) {
 		t.Fatalf("deadline error = %v", err)
 	}
+}
+
+func TestAgentsecMigrateCLIReachesV10FromEmptyAndV9(t *testing.T) {
+	dsn := startMigrationPostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	connection := connectMigrationPostgres(t, ctx, dsn)
+	defer func() { _ = connection.Close(context.Background()) }()
+	runner, err := migrations.NewRunner(&migrationDatabase{connection: connection})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runCLI := func(label string) {
+		t.Helper()
+		command := exec.CommandContext(ctx, "go", "run", ".", "up")
+		command.Env = append(os.Environ(), "ZASP_POSTGRES_DSN="+dsn, "ZASP_MIGRATION_TIMEOUT=30s")
+		if output, commandErr := command.CombinedOutput(); commandErr != nil {
+			t.Fatalf("%s: %v output=%q", label, commandErr, output)
+		}
+		if version, versionErr := runner.Version(ctx); versionErr != nil || version != 10 {
+			t.Fatalf("%s version = (%d, %v)", label, version, versionErr)
+		}
+	}
+	runCLI("empty to v10")
+	if err := runner.DownProductionDiscovery(ctx); err != nil {
+		t.Fatalf("v10 to v9 fixture: %v", err)
+	}
+	runCLI("v9 to v10")
 }
 
 func TestRunReleaseMigrationRejectsAmbiguousInputsAndStopsOnFailure(t *testing.T) {
@@ -287,22 +335,22 @@ func TestReleaseMigrationReachesExactPostgresTargetFromEmptyV1AndV2AndRejectsDri
 		t.Fatal(err)
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
-		t.Fatalf("empty to v7: %v", err)
+		t.Fatalf("empty to v10: %v", err)
 	}
-	if version, err := runner.Version(ctx); err != nil || version != 9 {
-		t.Fatalf("v9 = (%d, %v)", version, err)
+	if version, err := runner.Version(ctx); err != nil || version != 10 {
+		t.Fatalf("v10 = (%d, %v)", version, err)
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
-		t.Fatalf("v7 retry: %v", err)
+		t.Fatalf("v10 retry: %v", err)
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"down"}); err != nil {
-		t.Fatalf("v7 to empty: %v", err)
+		t.Fatalf("v10 to empty: %v", err)
 	}
 	if err := runner.Up(ctx); err != nil {
 		t.Fatalf("create v1: %v", err)
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
-		t.Fatalf("v1 to v7: %v", err)
+		t.Fatalf("v1 to v10: %v", err)
 	}
 	if _, err := connection.Exec(ctx, `UPDATE zasp_schema_versions SET checksum = repeat('0', 64) WHERE version = 2`); err != nil {
 		t.Fatal(err)
@@ -326,7 +374,10 @@ func TestV6ReceiptlessPATReplayUsesDurableMarkerAndBlocksEveryRollbackWithoutPar
 		t.Fatal(err)
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
-		t.Fatalf("empty to v7: %v", err)
+		t.Fatalf("empty to v10: %v", err)
+	}
+	if err := runner.DownProductionDiscovery(ctx); err != nil {
+		t.Fatalf("v10 to v9 fixture: %v", err)
 	}
 	if err := runner.DownProductionRiskProjection(ctx); err != nil {
 		t.Fatalf("v9 to v8 fixture: %v", err)
@@ -742,6 +793,9 @@ func migrateToV6(t *testing.T, ctx context.Context, connection *pgx.Conn) *migra
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
 		t.Fatalf("migrate to v6: %v", err)
+	}
+	if err := runner.DownProductionDiscovery(ctx); err != nil {
+		t.Fatalf("down discovery: %v", err)
 	}
 	if err := runner.DownProductionRiskProjection(ctx); err != nil {
 		t.Fatalf("down risk projection: %v", err)

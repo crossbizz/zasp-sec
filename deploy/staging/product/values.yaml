@@ -36,7 +36,7 @@ secrets:
   tokenRevealKeyObjectName: ""
   canaryReadTokenObjectName: ""
 schema:
-  expectedVersion: 9
+  expectedVersion: 10
   migrationTimeout: 10m
 serviceAccounts:
   web: agentsec-web
