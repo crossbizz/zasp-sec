@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -34,10 +35,13 @@ func TestRiskProjectionPostgresPaginationIsolationMutationReplayAndRollbackGuard
 		statement string
 		arguments []any
 	}{
-		{`INSERT INTO zasp_risk_findings (organization_id,workspace_id,environment_id,id,source,title,severity,status) SELECT $1,$2,$3,'pid_'||lpad(ordinal::text,8,'0')||'-0000-4000-8000-'||lpad(ordinal::text,12,'0'),'posture','Finding '||ordinal,'high','open' FROM generate_series(1,100) ordinal`, []any{organization, workspace, environment}},
-		{`INSERT INTO zasp_risk_finding_evidence (organization_id,workspace_id,environment_id,finding_id,position,evidence_id) SELECT $1,$2,$3,'pid_'||lpad(ordinal::text,8,'0')||'-0000-4000-8000-'||lpad(ordinal::text,12,'0'),1,'pid_'||lpad((10000000+ordinal)::text,8,'0')||'-0000-4000-8000-'||lpad(ordinal::text,12,'0') FROM generate_series(1,100) ordinal`, []any{organization, workspace, environment}},
+		{`INSERT INTO zasp_risk_findings (organization_id,workspace_id,environment_id,id,source,title,severity,status) SELECT $1,$2,$3,'pid_'||lpad(ordinal::text,8,'0')||'-0000-4000-8000-'||lpad(ordinal::text,12,'0'),'posture','Finding '||ordinal,'high','open' FROM generate_series(1,1001) ordinal`, []any{organization, workspace, environment}},
+		{`INSERT INTO zasp_risk_finding_evidence (organization_id,workspace_id,environment_id,finding_id,position,evidence_id) SELECT $1,$2,$3,'pid_'||lpad(ordinal::text,8,'0')||'-0000-4000-8000-'||lpad(ordinal::text,12,'0'),1,'pid_'||lpad((10000000+ordinal)::text,8,'0')||'-0000-4000-8000-'||lpad(ordinal::text,12,'0') FROM generate_series(1,1001) ordinal`, []any{organization, workspace, environment}},
 		{`INSERT INTO zasp_risk_findings (organization_id,workspace_id,environment_id,id,source,title,severity,status) VALUES ($1,$2,$3,$4,'posture','Public tool access','high','open')`, []any{organization, workspace, environment, riskFindingID}},
 		{`INSERT INTO zasp_risk_finding_evidence (organization_id,workspace_id,environment_id,finding_id,position,evidence_id) VALUES ($1,$2,$3,$4,1,$5)`, []any{organization, workspace, environment, riskFindingID, riskEvidence}},
+		{`INSERT INTO zasp_risk_attack_paths (organization_id,workspace_id,environment_id,id,entry_id,sink_id,state) SELECT $1,$2,$3,'pid_'||lpad((20000000+ordinal)::text,8,'0')||'-0000-4000-8000-'||lpad(ordinal::text,12,'0'),'pid_'||lpad((50000000+ordinal)::text,8,'0')||'-0000-4000-8000-'||lpad(ordinal::text,12,'0'),'pid_'||lpad((60000000+ordinal)::text,8,'0')||'-0000-4000-8000-'||lpad(ordinal::text,12,'0'),'verified' FROM generate_series(1,1001) ordinal`, []any{organization, workspace, environment}},
+		{`INSERT INTO zasp_risk_attack_path_nodes (organization_id,workspace_id,environment_id,path_id,position,node_id) SELECT $1,$2,$3,'pid_'||lpad((20000000+ordinal)::text,8,'0')||'-0000-4000-8000-'||lpad(ordinal::text,12,'0'),position,CASE position WHEN 1 THEN 'pid_'||lpad((50000000+ordinal)::text,8,'0')||'-0000-4000-8000-'||lpad(ordinal::text,12,'0') ELSE 'pid_'||lpad((60000000+ordinal)::text,8,'0')||'-0000-4000-8000-'||lpad(ordinal::text,12,'0') END FROM generate_series(1,1001) ordinal CROSS JOIN generate_series(1,2) position`, []any{organization, workspace, environment}},
+		{`INSERT INTO zasp_risk_attack_path_evidence (organization_id,workspace_id,environment_id,path_id,position,evidence_id) SELECT $1,$2,$3,'pid_'||lpad((20000000+ordinal)::text,8,'0')||'-0000-4000-8000-'||lpad(ordinal::text,12,'0'),1,'pid_'||lpad((70000000+ordinal)::text,8,'0')||'-0000-4000-8000-'||lpad(ordinal::text,12,'0') FROM generate_series(1,1001) ordinal`, []any{organization, workspace, environment}},
 		{`INSERT INTO zasp_risk_attack_paths (organization_id,workspace_id,environment_id,id,entry_id,sink_id,state) VALUES ($1,$2,$3,$4,$5,$6,'verified')`, []any{organization, workspace, environment, riskPathID, riskNodeOne, riskNodeTwo}},
 		{`INSERT INTO zasp_risk_attack_path_nodes (organization_id,workspace_id,environment_id,path_id,position,node_id) VALUES ($1,$2,$3,$4,1,$5),($1,$2,$3,$4,2,$6)`, []any{organization, workspace, environment, riskPathID, riskNodeOne, riskNodeTwo}},
 		{`INSERT INTO zasp_risk_attack_path_evidence (organization_id,workspace_id,environment_id,path_id,position,evidence_id) VALUES ($1,$2,$3,$4,1,$5)`, []any{organization, workspace, environment, riskPathID, riskEvidence}},
@@ -70,20 +74,6 @@ func TestRiskProjectionPostgresPaginationIsolationMutationReplayAndRollbackGuard
 	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &first) != nil || len(first.Items) != 100 || first.PageInfo.NextCursor == nil || !first.PageInfo.HasMore {
 		t.Fatalf("first page = %d items=%d %s", response.Code, len(first.Items), response.Body.String())
 	}
-	request = riskRequest(t, identity, "listFindings", http.MethodGet, "https://app.zasp.test/api/v1/findings?limit=100&cursor="+*first.PageInfo.NextCursor, "")
-	response = httptest.NewRecorder()
-	handler.ServeHTTP(response, request)
-	var second struct {
-		Items    []RiskFinding `json:"items"`
-		PageInfo struct {
-			NextCursor *string `json:"next_cursor"`
-			HasMore    bool    `json:"has_more"`
-		} `json:"page_info"`
-	}
-	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &second) != nil || len(second.Items) != 1 || second.PageInfo.NextCursor != nil || second.PageInfo.HasMore || second.Items[0].ID != riskFindingID {
-		t.Fatalf("second page = %d %#v %s", response.Code, second, response.Body.String())
-	}
-
 	foreign := identity
 	foreignOrganization, _ := domain.ParseProductID("pid_20000001-0000-4000-8000-000000000001")
 	foreignWorkspace, _ := domain.ParseProductID("pid_20000002-0000-4000-8000-000000000002")
@@ -94,6 +84,79 @@ func TestRiskProjectionPostgresPaginationIsolationMutationReplayAndRollbackGuard
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusNotFound {
 		t.Fatalf("foreign cursor = %d %s", response.Code, response.Body.String())
+	}
+
+	findingCount, findingPages, findingLastID := len(first.Items), 1, first.Items[len(first.Items)-1].ID
+	findingCursor := first.PageInfo.NextCursor
+	for findingCursor != nil {
+		request = riskRequest(t, identity, "listFindings", http.MethodGet, "https://app.zasp.test/api/v1/findings?limit=100&cursor="+*findingCursor, "")
+		response = httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		var page struct {
+			Items    []RiskFinding `json:"items"`
+			PageInfo struct {
+				NextCursor *string `json:"next_cursor"`
+				HasMore    bool    `json:"has_more"`
+			} `json:"page_info"`
+		}
+		if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &page) != nil || len(page.Items) < 1 || page.PageInfo.HasMore != (page.PageInfo.NextCursor != nil) {
+			t.Fatalf("finding page %d = %d %#v %s", findingPages+1, response.Code, page, response.Body.String())
+		}
+		for _, item := range page.Items {
+			if item.ID <= findingLastID {
+				t.Fatalf("finding keyset was not strictly increasing: %s <= %s", item.ID, findingLastID)
+			}
+			findingLastID = item.ID
+		}
+		findingCount += len(page.Items)
+		findingPages++
+		findingCursor = page.PageInfo.NextCursor
+	}
+	if findingCount != 1002 || findingPages != 11 || findingLastID != riskFindingID {
+		t.Fatalf("finding traversal = count:%d pages:%d last:%s", findingCount, findingPages, findingLastID)
+	}
+
+	request = riskRequest(t, identity, "listAttackPaths", http.MethodGet, "https://app.zasp.test/api/v1/attack-paths?limit=100", "")
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	var pathPage struct {
+		Items    []RiskAttackPath `json:"items"`
+		PageInfo struct {
+			NextCursor *string `json:"next_cursor"`
+			HasMore    bool    `json:"has_more"`
+		} `json:"page_info"`
+	}
+	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &pathPage) != nil || len(pathPage.Items) != 100 || pathPage.PageInfo.NextCursor == nil || !pathPage.PageInfo.HasMore {
+		t.Fatalf("first attack-path page = %d %#v %s", response.Code, pathPage, response.Body.String())
+	}
+	pathCount, pathPages, pathLastID := len(pathPage.Items), 1, pathPage.Items[len(pathPage.Items)-1].ID
+	pathCursor := pathPage.PageInfo.NextCursor
+	for pathCursor != nil {
+		request = riskRequest(t, identity, "listAttackPaths", http.MethodGet, "https://app.zasp.test/api/v1/attack-paths?limit=100&cursor="+*pathCursor, "")
+		response = httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		pathPage = struct {
+			Items    []RiskAttackPath `json:"items"`
+			PageInfo struct {
+				NextCursor *string `json:"next_cursor"`
+				HasMore    bool    `json:"has_more"`
+			} `json:"page_info"`
+		}{}
+		if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &pathPage) != nil || len(pathPage.Items) < 1 || pathPage.PageInfo.HasMore != (pathPage.PageInfo.NextCursor != nil) {
+			t.Fatalf("attack-path page %d = %d %#v %s", pathPages+1, response.Code, pathPage, response.Body.String())
+		}
+		for _, item := range pathPage.Items {
+			if item.ID <= pathLastID {
+				t.Fatalf("attack-path keyset was not strictly increasing: %s <= %s", item.ID, pathLastID)
+			}
+			pathLastID = item.ID
+		}
+		pathCount += len(pathPage.Items)
+		pathPages++
+		pathCursor = pathPage.PageInfo.NextCursor
+	}
+	if pathCount != 1002 || pathPages != 11 || pathLastID != riskPathID {
+		t.Fatalf("attack-path traversal = count:%d pages:%d last:%s", pathCount, pathPages, pathLastID)
 	}
 
 	path, err := repository.GetRiskAttackPath(ctx, identity.Scope, riskPathID)
@@ -117,6 +180,14 @@ func TestRiskProjectionPostgresPaginationIsolationMutationReplayAndRollbackGuard
 	handler.ServeHTTP(replayResponse, mutationRequest)
 	if replayResponse.Code != http.StatusOK || replayResponse.Header().Get("X-Audit-ID") != mutationResponse.Header().Get("X-Audit-ID") || replayResponse.Header().Get("X-Mutation-Receipt-ID") != mutationResponse.Header().Get("X-Mutation-Receipt-ID") {
 		t.Fatalf("replay = %d headers=%v %s", replayResponse.Code, replayResponse.Header(), replayResponse.Body.String())
+	}
+	recoveredReceipts, err := repository.ListWorkflowMutationReceipts(ctx, identity, 20)
+	if err != nil || len(recoveredReceipts) != 1 {
+		t.Fatalf("finding recovery receipts = (%#v, %v)", recoveredReceipts, err)
+	}
+	var recoveredFinding RiskFinding
+	if err := decodeStrictRisk(recoveredReceipts[0].Result, &recoveredFinding); err != nil || !strings.HasSuffix(recoveredFinding.CreatedAt.Format(time.RFC3339Nano), "Z") || !strings.HasSuffix(recoveredFinding.UpdatedAt.Format(time.RFC3339Nano), "Z") || strings.Contains(string(recoveredReceipts[0].Result), "+00:00") {
+		t.Fatalf("finding recovery result is not canonical UTC: %s (%v)", recoveredReceipts[0].Result, err)
 	}
 
 	pat := identity

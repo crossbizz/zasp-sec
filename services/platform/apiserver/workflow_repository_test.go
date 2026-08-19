@@ -1,6 +1,7 @@
 package apiserver
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -168,6 +169,15 @@ func TestWorkflowRepositoryListsAndAcknowledgesOnlyExactPrincipalScopeReceipts(t
 	want = []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), "pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc"}
 	if database.query != postgresWorkflowReceiptAcknowledgeSQL || !reflect.DeepEqual(database.args, want) {
 		t.Fatalf("receipt acknowledge query/args = %q/%#v, want %q/%#v", database.query, database.args, postgresWorkflowReceiptAcknowledgeSQL, want)
+	}
+}
+
+func TestWorkflowRepositoryListsExactFindingRecoveryReceipt(t *testing.T) {
+	database := &workflowCallDatabase{response: json.RawMessage(`{"items":[{"id":"pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc","operation":"updateFinding","idempotency_key":"idem-risk-recovery-0001","intent":{"body":{"status":"under_review"},"expected_version":1,"resource_id":"pid_30000001-0000-4000-8000-000000000001"},"result":{"id":"pid_30000001-0000-4000-8000-000000000001","source":"posture","title":"Recover me","severity":"high","status":"under_review","evidence_ids":["pid_30000002-0000-4000-8000-000000000002"],"risk_factors":[],"version":2,"created_at":"2026-08-18T05:00:00-07:00","updated_at":"2026-08-18T05:01:00-07:00"},"resource_kind":"finding","resource_id":"pid_30000001-0000-4000-8000-000000000001","resource_version":2,"audit_id":"pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","correlation_id":"pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","created_at":"2026-08-18T12:00:00Z","expires_at":"2026-08-25T12:00:00Z"}]}`)}
+	repository, _ := NewPostgresRepository(database)
+	receipts, err := repository.ListWorkflowMutationReceipts(context.Background(), fixtureRequestIdentity(t), 20)
+	if err != nil || len(receipts) != 1 || receipts[0].ResourceKind != "finding" || receipts[0].Operation != "updateFinding" || !bytes.Contains(receipts[0].Result, []byte(`"created_at":"2026-08-18T12:00:00Z"`)) || bytes.Contains(receipts[0].Result, []byte(`-07:00`)) {
+		t.Fatalf("finding recovery receipt = (%#v, %v)", receipts, err)
 	}
 }
 

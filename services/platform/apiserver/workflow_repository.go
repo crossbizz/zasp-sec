@@ -187,13 +187,30 @@ func (repository *PostgresRepository) ListWorkflowMutationReceipts(ctx context.C
 		return nil, ErrRepositoryUnavailable
 	}
 	for index := range envelope.Items {
-		if !validWorkflowMutationReceipt(envelope.Items[index]) {
+		if !validWorkflowMutationReceipt(envelope.Items[index]) || !canonicalizeWorkflowMutationReceiptResult(&envelope.Items[index]) {
 			return nil, ErrRepositoryUnavailable
 		}
 		envelope.Items[index].CreatedAt = envelope.Items[index].CreatedAt.UTC()
 		envelope.Items[index].ExpiresAt = envelope.Items[index].ExpiresAt.UTC()
 	}
 	return envelope.Items, nil
+}
+
+func canonicalizeWorkflowMutationReceiptResult(value *WorkflowMutationReceipt) bool {
+	if value.ResourceKind != "finding" {
+		return true
+	}
+	var finding RiskFinding
+	if decodeStrictRisk(value.Result, &finding) != nil || !validRiskFinding(finding) || finding.ID != value.ResourceID || finding.Version != value.ResourceVersion {
+		return false
+	}
+	normalizeRiskFinding(&finding)
+	result, err := json.Marshal(finding)
+	if err != nil {
+		return false
+	}
+	value.Result = result
+	return true
 }
 
 func (repository *PostgresRepository) AcknowledgeWorkflowMutationReceipt(ctx context.Context, identity RequestIdentity, receiptID string) error {
@@ -348,6 +365,10 @@ func validWorkflowKind(value string) bool {
 }
 
 func validWorkflowID(kind, id string) bool {
+	if kind == "finding" {
+		_, err := domain.ParseProductID(id)
+		return err == nil
+	}
 	if !validWorkflowKind(kind) {
 		return false
 	}
