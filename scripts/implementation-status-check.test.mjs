@@ -15,6 +15,10 @@ const canonicalLedgerPath = path.join(
   repositoryRoot,
   "docs/internal/implementation_production_availability_v1.5.tsv",
 );
+const canonicalStatusPath = path.join(
+  repositoryRoot,
+  "docs/internal/implementation_status_v1.5.md",
+);
 
 async function withLedger(mutator, assertion) {
   const directory = await mkdtemp(path.join(os.tmpdir(), "zasp-ledger-"));
@@ -24,6 +28,26 @@ async function withLedger(mutator, assertion) {
     const canonicalLedger = await readFile(canonicalLedgerPath, "utf8");
     await writeFile(ledgerPath, mutator(canonicalLedger), "utf8");
     await assertion(ledgerPath);
+  } finally {
+    await rm(directory, { force: true, recursive: true });
+  }
+}
+
+async function withLedgerAndStatus(ledgerMutator, statusMutator, assertion) {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "zasp-ledger-"));
+  const ledgerPath = path.join(directory, "ledger.tsv");
+  const statusPath = path.join(directory, "status.md");
+
+  try {
+    const [canonicalLedger, canonicalStatus] = await Promise.all([
+      readFile(canonicalLedgerPath, "utf8"),
+      readFile(canonicalStatusPath, "utf8"),
+    ]);
+    await Promise.all([
+      writeFile(ledgerPath, ledgerMutator(canonicalLedger), "utf8"),
+      writeFile(statusPath, statusMutator(canonicalStatus), "utf8"),
+    ]);
+    await assertion({ ledgerPath, statusPath });
   } finally {
     await rm(directory, { force: true, recursive: true });
   }
@@ -120,6 +144,18 @@ test("rejects an external row without an approved typed gate ID", async () => {
   );
 });
 
+test("rejects an approved but wrong production owner for a source ID", async () => {
+  await withLedger(
+    (ledger) => ledger.replace("M2\tM2-20\tComplete\tcomponent-only\tT11-identity-admin", "M2\tM2-20\tComplete\tcomponent-only\tT02-discovery-authority"),
+    async (ledgerPath) => {
+      await assert.rejects(
+        () => validateLedger({ ledgerPath, sourcePlanPath }),
+        /owner T02-discovery-authority does not match expected owner T11-identity-admin for M2-20/,
+      );
+    },
+  );
+});
+
 test("rejects audited production-class count drift", async () => {
   await withLedger(
     (ledger) => ledger.replace("\tproduction-available\t", "\tcomponent-only\t"),
@@ -127,6 +163,39 @@ test("rejects audited production-class count drift", async () => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
         /production-available count is 228; expected 229/,
+      );
+    },
+  );
+});
+
+test("rejects a cross-milestone class swap that preserves global totals", async () => {
+  await withLedger(
+    (ledger) => ledger
+      .replace(
+        "M1\tM1-01e\tComplete\tcomponent-only\tT04-discovery-worker",
+        "M1\tM1-01e\tComplete\tproduction-available\tPROD-current-composition",
+      )
+      .replace(
+        "M2\tM2-01\tComplete\tproduction-available\tPROD-current-composition",
+        "M2\tM2-01\tComplete\tcomponent-only\tT11-identity-admin",
+      ),
+    async (ledgerPath) => {
+      await assert.rejects(
+        () => validateLedger({ ledgerPath, sourcePlanPath }),
+        /M1 production-available count is 44; expected 43/,
+      );
+    },
+  );
+});
+
+test("rejects a published milestone matrix that drifts from the audited map", async () => {
+  await withLedgerAndStatus(
+    (ledger) => ledger,
+    (status) => status.replace("| M1 | 68 | 43 | 25 | 0 | 0 |", "| M1 | 68 | 44 | 24 | 0 | 0 |"),
+    async ({ ledgerPath, statusPath }) => {
+      await assert.rejects(
+        () => validateLedger({ ledgerPath, sourcePlanPath, statusPath }),
+        /documentation matrix does not match audited milestone counts/,
       );
     },
   );

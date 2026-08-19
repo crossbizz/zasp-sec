@@ -59,6 +59,9 @@ matrix below the audit basis is the readiness measure.
 - Component-only and missing rows name exactly one concrete production slice
   (`T02` through `T16`); blocked/external rows name an approved typed `EXT-*`
   gate rather than a grouped owner or generic final task.
+- Every owner must also exactly match its source-ID entry in
+  `docs/internal/implementation_production_availability_owners_v1.5.tsv`;
+  an otherwise valid slice or gate cannot be substituted for another task.
 - Component-only proof, demo UI, memory-backed behavior, or an external gate
   cannot classify a task as production-available.
 - A production-available classification requires the audited behavior to be

@@ -1,37 +1,37 @@
 milestone	id	ledger_status	production_class	owning_production_task	current_evidence
 M0	M0-01	Complete	component-only	T02-discovery-authority	audited component-only proof: risk register
-M0	M0-02	Complete	component-only	T02-discovery-authority	audited component-only proof: Stytch test config
-M0	M0-03	Complete	component-only	T02-discovery-authority	audited component-only proof: Stytch JWT proof
+M0	M0-02	Complete	component-only	T11-identity-admin	audited component-only proof: Stytch test config
+M0	M0-03	Complete	component-only	T11-identity-admin	audited component-only proof: Stytch JWT proof
 M0	M0-04	Complete	component-only	T02-discovery-authority	audited component-only proof: Neon pooled proof
 M0	M0-05	Complete	component-only	T02-discovery-authority	audited component-only proof: Neon migration proof
-M0	M0-06	Complete	component-only	T02-discovery-authority	audited component-only proof: LocalStack SQS proof
-M0	M0-07	Complete	component-only	T02-discovery-authority	audited component-only proof: LocalStack storage proof
-M0	M0-08	Complete	component-only	T02-discovery-authority	audited component-only proof: OpenSearch proof
+M0	M0-06	Complete	component-only	T04-discovery-worker	audited component-only proof: LocalStack SQS proof
+M0	M0-07	Complete	component-only	T04-discovery-worker	audited component-only proof: LocalStack storage proof
+M0	M0-08	Complete	component-only	T04-discovery-worker	audited component-only proof: OpenSearch proof
 M0	M0-09	Blocked	blocked/external	EXT-live-aws	audited external evidence gate: real AWS IAM proof
-M0	M0-10	Complete	component-only	T02-discovery-authority	audited component-only proof: Cartography proof
-M0	M0-11	Complete	component-only	T02-discovery-authority	audited component-only proof: Prowler proof
-M0	M0-12	Complete	component-only	T02-discovery-authority	audited component-only proof: Tetragon proof
-M0	M0-13	Complete	component-only	T02-discovery-authority	audited component-only proof: OTLP proof
-M0	M0-14a	Complete	component-only	T02-discovery-authority	audited component-only proof: Nango free boot proof
-M0	M0-14b	Complete	component-only	T02-discovery-authority	audited component-only proof: Nango OAuth proof
-M0	M0-14c	Complete	component-only	T02-discovery-authority	audited component-only proof: Nango API key proof
-M0	M0-14	Complete	component-only	T02-discovery-authority	audited component-only proof: Nango free auth proof
-M0	M0-15	Complete	component-only	T02-discovery-authority	audited component-only proof: Nango proxy proof
-M0	M0-16	Complete	component-only	T02-discovery-authority	audited component-only proof: Promptfoo proof
-M0	M0-17	Complete	component-only	T02-discovery-authority	audited component-only proof: OPA SDK proof
+M0	M0-10	Complete	component-only	T04-discovery-worker	audited component-only proof: Cartography proof
+M0	M0-11	Complete	component-only	T03-launch-connectors	audited component-only proof: Prowler proof
+M0	M0-12	Complete	component-only	T06-runtime-data-plane	audited component-only proof: Tetragon proof
+M0	M0-13	Complete	component-only	T06-runtime-data-plane	audited component-only proof: OTLP proof
+M0	M0-14a	Complete	component-only	T03-launch-connectors	audited component-only proof: Nango free boot proof
+M0	M0-14b	Complete	component-only	T03-launch-connectors	audited component-only proof: Nango OAuth proof
+M0	M0-14c	Complete	component-only	T03-launch-connectors	audited component-only proof: Nango API key proof
+M0	M0-14	Complete	component-only	T03-launch-connectors	audited component-only proof: Nango free auth proof
+M0	M0-15	Complete	component-only	T03-launch-connectors	audited component-only proof: Nango proxy proof
+M0	M0-16	Complete	component-only	T12-red-team	audited component-only proof: Promptfoo proof
+M0	M0-17	Complete	component-only	T06-runtime-data-plane	audited component-only proof: OPA SDK proof
 M0	M0-18	Blocked	blocked/external	EXT-live-fargate	audited external evidence gate: Fargate verification proof
 M0	M0-19	Blocked	blocked/external	EXT-live-fargate	audited external evidence gate: Fargate egress proof
-M0	M0-20	Complete	component-only	T02-discovery-authority	audited component-only proof: PostHog privacy proof
-M0	M0-21	Complete	component-only	T02-discovery-authority	audited component-only proof: OpenRouter privacy proof
+M0	M0-20	Complete	component-only	T14-data-workflows	audited component-only proof: PostHog privacy proof
+M0	M0-21	Complete	component-only	T14-data-workflows	audited component-only proof: OpenRouter privacy proof
 M0	M0-21a	Complete	component-only	T07-security-agent-authority	audited component-only proof: Security Agent planner boundary proof
-M0	M0-22	Complete	component-only	T02-discovery-authority	audited component-only proof: OTLP export proof
+M0	M0-22	Complete	component-only	T14-data-workflows	audited component-only proof: OTLP export proof
 M0	M0-23	Complete	component-only	T02-discovery-authority	audited component-only proof: M0 gate
 M1	M1-01d	Complete	production-available	PROD-current-composition	audited shipped composition: platform API command
-M1	M1-01e	Complete	component-only	T02-discovery-authority	audited component-only proof: platform worker command
-M1	M1-01f	Complete	component-only	T02-discovery-authority	audited component-only proof: event ingest command
-M1	M1-01a	Complete	component-only	T02-discovery-authority	audited component-only proof: runtime gateway command
-M1	M1-01b	Complete	component-only	T02-discovery-authority	audited component-only proof: worker directories
-M1	M1-01c	Complete	component-only	T02-discovery-authority	audited component-only proof: web and CLI directories
+M1	M1-01e	Complete	component-only	T04-discovery-worker	audited component-only proof: platform worker command
+M1	M1-01f	Complete	component-only	T06-runtime-data-plane	audited component-only proof: event ingest command
+M1	M1-01a	Complete	component-only	T06-runtime-data-plane	audited component-only proof: runtime gateway command
+M1	M1-01b	Complete	component-only	T04-discovery-worker	audited component-only proof: worker directories
+M1	M1-01c	Complete	component-only	T10-product-ui	audited component-only proof: web and CLI directories
 M1	M1-01	Complete	component-only	T02-discovery-authority	audited component-only proof: repo skeleton
 M1	M1-02	Complete	production-available	PROD-current-composition	audited shipped composition: dependency lock
 M1	M1-03	Complete	production-available	PROD-current-composition	audited shipped composition: canonical IDs
@@ -43,17 +43,17 @@ M1	M1-08	Complete	production-available	PROD-current-composition	audited shipped 
 M1	M1-09	Complete	production-available	PROD-current-composition	audited shipped composition: idempotency helper
 M1	M1-10	Complete	production-available	PROD-current-composition	audited shipped composition: Neon schema baseline
 M1	M1-11	Complete	component-only	T02-discovery-authority	audited component-only proof: Neon pool wrapper
-M1	M1-12	Complete	component-only	T02-discovery-authority	audited component-only proof: S3 artifact interface
-M1	M1-13	Complete	component-only	T02-discovery-authority	audited component-only proof: SQS queue interface
-M1	M1-14	Complete	component-only	T02-discovery-authority	audited component-only proof: OpenSearch EventStore
-M1	M1-15	Complete	component-only	T02-discovery-authority	audited component-only proof: GraphStore interface
-M1	M1-16	Complete	component-only	T02-discovery-authority	audited component-only proof: Neo4j GraphStore
+M1	M1-12	Complete	component-only	T04-discovery-worker	audited component-only proof: S3 artifact interface
+M1	M1-13	Complete	component-only	T04-discovery-worker	audited component-only proof: SQS queue interface
+M1	M1-14	Complete	component-only	T04-discovery-worker	audited component-only proof: OpenSearch EventStore
+M1	M1-15	Complete	component-only	T04-discovery-worker	audited component-only proof: GraphStore interface
+M1	M1-16	Complete	component-only	T04-discovery-worker	audited component-only proof: Neo4j GraphStore
 M1	M1-17	Complete	production-available	PROD-current-composition	audited shipped composition: audit emitter contract
 M1	M1-18	Complete	production-available	PROD-current-composition	audited shipped composition: feature flag contract
 M1	M1-19	Complete	production-available	PROD-current-composition	audited shipped composition: analytics contract
 M1	M1-20	Complete	production-available	PROD-current-composition	audited shipped composition: AI gateway contract
 M1	M1-21	Complete	production-available	PROD-current-composition	audited shipped composition: observability contract
-M1	M1-22	Complete	component-only	T02-discovery-authority	audited component-only proof: event envelope
+M1	M1-22	Complete	component-only	T04-discovery-worker	audited component-only proof: event envelope
 M1	M1-23	Complete	production-available	PROD-current-composition	audited shipped composition: OpenAPI root
 M1	M1-24	Complete	production-available	PROD-current-composition	audited shipped composition: generated TS client
 M1	M1-25	Complete	production-available	PROD-current-composition	audited shipped composition: UI API map seed
@@ -61,25 +61,25 @@ M1	M1-26	Complete	production-available	PROD-current-composition	audited shipped 
 M1	M1-27	Complete	production-available	PROD-current-composition	audited shipped composition: raw fetch lint
 M1	M1-28a	Complete	production-available	PROD-current-composition	audited shipped composition: shared health handler
 M1	M1-28b	Complete	production-available	PROD-current-composition	audited shipped composition: platform health wiring
-M1	M1-28c	Complete	component-only	T02-discovery-authority	audited component-only proof: ingest health wiring
-M1	M1-28d	Complete	component-only	T02-discovery-authority	audited component-only proof: gateway health wiring
+M1	M1-28c	Complete	component-only	T06-runtime-data-plane	audited component-only proof: ingest health wiring
+M1	M1-28d	Complete	component-only	T06-runtime-data-plane	audited component-only proof: gateway health wiring
 M1	M1-28	Complete	production-available	PROD-current-composition	audited shipped composition: service health endpoints
 M1	M1-29	Complete	production-available	PROD-current-composition	audited shipped composition: system health aggregator model
-M1	M1-30a	Complete	component-only	T02-discovery-authority	audited component-only proof: local product manifests
-M1	M1-30b	Complete	component-only	T02-discovery-authority	audited component-only proof: local graph manifest
-M1	M1-30c	Complete	component-only	T02-discovery-authority	audited component-only proof: local observability manifest
-M1	M1-30d	Complete	component-only	T02-discovery-authority	audited component-only proof: local AWS emulator manifest
-M1	M1-30	Complete	component-only	T02-discovery-authority	audited component-only proof: local dev manifests
-M1	M1-31	Complete	component-only	T02-discovery-authority	audited component-only proof: LocalStack client factory
-M1	M1-32	Complete	component-only	T02-discovery-authority	audited component-only proof: OpenSearch index template
-M1	M1-33	Complete	component-only	T02-discovery-authority	audited component-only proof: SQS queue definitions
-M1	M1-34	Complete	component-only	T02-discovery-authority	audited component-only proof: S3 bucket layout
+M1	M1-30a	Complete	component-only	T04-discovery-worker	audited component-only proof: local product manifests
+M1	M1-30b	Complete	component-only	T04-discovery-worker	audited component-only proof: local graph manifest
+M1	M1-30c	Complete	component-only	T04-discovery-worker	audited component-only proof: local observability manifest
+M1	M1-30d	Complete	component-only	T04-discovery-worker	audited component-only proof: local AWS emulator manifest
+M1	M1-30	Complete	component-only	T04-discovery-worker	audited component-only proof: local dev manifests
+M1	M1-31	Complete	component-only	T04-discovery-worker	audited component-only proof: LocalStack client factory
+M1	M1-32	Complete	component-only	T04-discovery-worker	audited component-only proof: OpenSearch index template
+M1	M1-33	Complete	component-only	T04-discovery-worker	audited component-only proof: SQS queue definitions
+M1	M1-34	Complete	component-only	T04-discovery-worker	audited component-only proof: S3 bucket layout
 M1	M1-35	Complete	production-available	PROD-current-composition	audited shipped composition: base web shell
 M1	M1-36a	Complete	production-available	PROD-current-composition	audited shipped composition: M1 build check
 M1	M1-36b	Complete	production-available	PROD-current-composition	audited shipped composition: M1 schema check
 M1	M1-36c	Complete	production-available	PROD-current-composition	audited shipped composition: M1 OpenAPI check
 M1	M1-36d	Complete	production-available	PROD-current-composition	audited shipped composition: M1 UI API coverage check
-M1	M1-36e	Complete	component-only	T02-discovery-authority	audited component-only proof: M1 local infrastructure smoke
+M1	M1-36e	Complete	component-only	T04-discovery-worker	audited component-only proof: M1 local infrastructure smoke
 M1	M1-37	Complete	production-available	PROD-current-composition	audited shipped composition: deployment mode config
 M1	M1-38	Complete	production-available	PROD-current-composition	audited shipped composition: Neon Organization scope guard
 M1	M1-39	Complete	production-available	PROD-current-composition	audited shipped composition: OpenSearch Organization scope guard
@@ -94,16 +94,16 @@ M1	M1-45c	Complete	production-available	PROD-current-composition	audited shipped
 M1	M1-45d	Complete	production-available	PROD-current-composition	audited shipped composition: Neon RLS migration rollback
 M1	M1-45	Complete	production-available	PROD-current-composition	audited shipped composition: Neon tenant isolation gate
 M1	M1-36	Complete	production-available	PROD-current-composition	audited shipped composition: M1 gate
-M1A	M1A-01	Complete	component-only	T11-identity-admin	audited component-only proof: staging VPC module
-M1A	M1A-02	Complete	component-only	T11-identity-admin	audited component-only proof: staging EKS module
-M1A	M1A-03	Complete	component-only	T11-identity-admin	audited component-only proof: staging S3 KMS Secrets
-M1A	M1A-04	Complete	component-only	T11-identity-admin	audited component-only proof: staging SQS DLQ
-M1A	M1A-05	Complete	component-only	T11-identity-admin	audited component-only proof: staging OpenSearch
-M1A	M1A-06	Complete	component-only	T11-identity-admin	audited component-only proof: staging IAM IRSA
-M1A	M1A-07	Blocked	blocked/external	EXT-live-stytch	audited external evidence gate: staging product stub deploy
-M1A	M1A-08	Blocked	blocked/external	EXT-live-stytch	audited external evidence gate: staging AWS dependency smoke
-M1A	M1A-09	Blocked	blocked/external	EXT-live-stytch	audited external evidence gate: staging deployment evidence
-M1A	M1A-10	Blocked	blocked/external	EXT-live-stytch	audited external evidence gate: M1A gate
+M1A	M1A-01	Complete	component-only	T15-deployment	audited component-only proof: staging VPC module
+M1A	M1A-02	Complete	component-only	T15-deployment	audited component-only proof: staging EKS module
+M1A	M1A-03	Complete	component-only	T15-deployment	audited component-only proof: staging S3 KMS Secrets
+M1A	M1A-04	Complete	component-only	T15-deployment	audited component-only proof: staging SQS DLQ
+M1A	M1A-05	Complete	component-only	T15-deployment	audited component-only proof: staging OpenSearch
+M1A	M1A-06	Complete	component-only	T15-deployment	audited component-only proof: staging IAM IRSA
+M1A	M1A-07	Blocked	blocked/external	EXT-cloud-deploy	audited external evidence gate: staging product stub deploy
+M1A	M1A-08	Blocked	blocked/external	EXT-cloud-deploy	audited external evidence gate: staging AWS dependency smoke
+M1A	M1A-09	Blocked	blocked/external	EXT-cloud-deploy	audited external evidence gate: staging deployment evidence
+M1A	M1A-10	Blocked	blocked/external	EXT-cloud-deploy	audited external evidence gate: M1A gate
 M2	M2-01	Complete	production-available	PROD-current-composition	audited shipped composition: Stytch adapter
 M2	M2-02	Complete	production-available	PROD-current-composition	audited shipped composition: session middleware
 M2	M2-02a	Complete	production-available	PROD-current-composition	audited shipped composition: fresh-auth guard
@@ -186,26 +186,26 @@ M3	M3-06	Complete	production-available	PROD-current-composition	audited shipped 
 M3	M3-07	Complete	production-available	PROD-current-composition	audited shipped composition: API updateIntegration
 M3	M3-08	Complete	production-available	PROD-current-composition	audited shipped composition: API deleteIntegration
 M3	M3-09	Complete	component-only	T03-launch-connectors	audited component-only proof: API authorizeIntegration
-M3	M3-10	Complete	component-only	T03-launch-connectors	audited component-only proof: API syncIntegration
-M3	M3-11	Complete	component-only	T03-launch-connectors	audited component-only proof: API listIntegrationSyncs
-M3	M3-12	Complete	component-only	T03-launch-connectors	audited component-only proof: API getIntegrationSync
-M3	M3-13	Complete	component-only	T03-launch-connectors	audited component-only proof: integration job payload
+M3	M3-10	Complete	component-only	T04-discovery-worker	audited component-only proof: API syncIntegration
+M3	M3-11	Complete	component-only	T04-discovery-worker	audited component-only proof: API listIntegrationSyncs
+M3	M3-12	Complete	component-only	T04-discovery-worker	audited component-only proof: API getIntegrationSync
+M3	M3-13	Complete	component-only	T04-discovery-worker	audited component-only proof: integration job payload
 M3	M3-14	Blocked	blocked/external	EXT-live-aws	audited external evidence gate: AWS credential adapter
-M3	M3-15	Complete	component-only	T03-launch-connectors	audited component-only proof: Cartography runner
-M3	M3-16	Complete	component-only	T03-launch-connectors	audited component-only proof: Prowler runner
-M3	M3-17	Complete	component-only	T03-launch-connectors	audited component-only proof: AWS normalization
-M3	M3-18	Complete	component-only	T03-launch-connectors	audited component-only proof: Kubernetes normalization
-M3	M3-19	Complete	component-only	T03-launch-connectors	audited component-only proof: GitHub normalization
-M3	M3-20	Complete	component-only	T03-launch-connectors	audited component-only proof: IdP normalization
-M3	M3-21	Complete	component-only	T03-launch-connectors	audited component-only proof: integration freshness
-M3	M3-22a	Complete	component-only	T04-discovery-worker	audited component-only proof: Nango private deployment
-M3	M3-22b	Complete	component-only	T04-discovery-worker	audited component-only proof: Nango free feature boundary
-M3	M3-22c	Complete	component-only	T04-discovery-worker	audited component-only proof: Nango storage secrets
-M3	M3-22	Complete	component-only	T04-discovery-worker	audited component-only proof: Nango internal service config
-M3	M3-23	Complete	component-only	T04-discovery-worker	audited component-only proof: Nango connection adapter
-M3	M3-24	Complete	component-only	T04-discovery-worker	audited component-only proof: Nango auth callback
-M3	M3-25	Complete	component-only	T04-discovery-worker	audited component-only proof: Nango proxy wrapper
-M3	M3-26	Complete	component-only	T04-discovery-worker	audited component-only proof: sensor enrollment model
+M3	M3-15	Complete	component-only	T04-discovery-worker	audited component-only proof: Cartography runner
+M3	M3-16	Complete	component-only	T04-discovery-worker	audited component-only proof: Prowler runner
+M3	M3-17	Complete	component-only	T04-discovery-worker	audited component-only proof: AWS normalization
+M3	M3-18	Complete	component-only	T04-discovery-worker	audited component-only proof: Kubernetes normalization
+M3	M3-19	Complete	component-only	T04-discovery-worker	audited component-only proof: GitHub normalization
+M3	M3-20	Complete	component-only	T04-discovery-worker	audited component-only proof: IdP normalization
+M3	M3-21	Complete	component-only	T04-discovery-worker	audited component-only proof: integration freshness
+M3	M3-22a	Complete	component-only	T03-launch-connectors	audited component-only proof: Nango private deployment
+M3	M3-22b	Complete	component-only	T03-launch-connectors	audited component-only proof: Nango free feature boundary
+M3	M3-22c	Complete	component-only	T03-launch-connectors	audited component-only proof: Nango storage secrets
+M3	M3-22	Complete	component-only	T03-launch-connectors	audited component-only proof: Nango internal service config
+M3	M3-23	Complete	component-only	T03-launch-connectors	audited component-only proof: Nango connection adapter
+M3	M3-24	Complete	component-only	T03-launch-connectors	audited component-only proof: Nango auth callback
+M3	M3-25	Complete	component-only	T03-launch-connectors	audited component-only proof: Nango proxy wrapper
+M3	M3-26	Complete	component-only	T06-runtime-data-plane	audited component-only proof: sensor enrollment model
 M3	M3-27	Complete	component-only	T06-runtime-data-plane	audited component-only proof: API listSensors
 M3	M3-28	Complete	component-only	T06-runtime-data-plane	audited component-only proof: API createSensorEnrollment
 M3	M3-29	Complete	component-only	T06-runtime-data-plane	audited component-only proof: API getSensor
@@ -246,8 +246,8 @@ M3	M3-49	Complete	component-only	T10-product-ui	audited component-only proof: Co
 M3	M3-50	Complete	component-only	T10-product-ui	audited component-only proof: Sensors UI shell
 M3	M3-51	Complete	component-only	T10-product-ui	audited component-only proof: Sensors UI actions
 M3	M3-52a	Complete	component-only	T04-discovery-worker	audited component-only proof: M3 connector E2E
-M3	M3-52b	Complete	component-only	T04-discovery-worker	audited component-only proof: M3 sensor E2E
-M3	M3-52c	Complete	component-only	T04-discovery-worker	audited component-only proof: M3 OTLP eBPF ingest E2E
+M3	M3-52b	Complete	component-only	T06-runtime-data-plane	audited component-only proof: M3 sensor E2E
+M3	M3-52c	Complete	component-only	T06-runtime-data-plane	audited component-only proof: M3 OTLP eBPF ingest E2E
 M3	M3-52d	Complete	component-only	T04-discovery-worker	audited component-only proof: M3 queue index E2E
 M3	M3-52e	Complete	component-only	T04-discovery-worker	audited component-only proof: M3 freshness degrade E2E
 M3	M3-52	Blocked	blocked/external	EXT-human-observation	audited external evidence gate: M3 gate
@@ -294,8 +294,8 @@ M4	M4-34	Complete	production-available	PROD-current-composition	audited shipped 
 M4	M4-35	Complete	production-available	PROD-current-composition	audited shipped composition: API getFinding
 M4	M4-36	Complete	production-available	PROD-current-composition	audited shipped composition: API updateFinding
 M4	M4-37	Complete	production-available	PROD-current-composition	audited shipped composition: API acceptFindingRisk
-M4	M4-38	Complete	component-only	T05-inventory-cutover	audited component-only proof: API createFindingTicket
-M4	M4-39	Complete	component-only	T05-inventory-cutover	audited component-only proof: ticket webhook action
+M4	M4-38	Complete	component-only	T14-data-workflows	audited component-only proof: API createFindingTicket
+M4	M4-39	Complete	component-only	T14-data-workflows	audited component-only proof: ticket webhook action
 M4	M4-40	Complete	component-only	T05-inventory-cutover	audited component-only proof: attack path templates
 M4	M4-41	Complete	component-only	T05-inventory-cutover	audited component-only proof: attack path query
 M4	M4-42	Complete	component-only	T05-inventory-cutover	audited component-only proof: break path options
@@ -304,8 +304,8 @@ M4	M4-44	Complete	production-available	PROD-current-composition	audited shipped 
 M4	M4-45	Complete	production-available	PROD-current-composition	audited shipped composition: API getAttackPathBreakOptions
 M4	M4-46	Complete	production-available	PROD-current-composition	audited shipped composition: home summary service
 M4	M4-47	Complete	production-available	PROD-current-composition	audited shipped composition: API getHomeSummary
-M4	M4-48	Complete	component-only	T05-inventory-cutover	audited component-only proof: global search service
-M4	M4-49	Complete	component-only	T05-inventory-cutover	audited component-only proof: API globalSearch
+M4	M4-48	Complete	component-only	T14-data-workflows	audited component-only proof: global search service
+M4	M4-49	Complete	component-only	T14-data-workflows	audited component-only proof: API globalSearch
 M4	M4-50a	Complete	production-available	PROD-current-composition	audited shipped composition: Agents table
 M4	M4-50b1	Complete	production-available	PROD-current-composition	audited shipped composition: Agents ownership filters
 M4	M4-50b2	Complete	production-available	PROD-current-composition	audited shipped composition: Agents capability filters
@@ -610,15 +610,15 @@ M8	M8-12	Complete	missing	T15-deployment	audited absent shipping composition: He
 M8	M8-13	Complete	missing	T15-deployment	audited absent shipping composition: Helm OTel Collector
 M8	M8-14	Complete	missing	T15-deployment	audited absent shipping composition: Helm Tetragon
 M8	M8-15	Complete	production-available	PROD-current-composition	audited shipped composition: Pod disruption/topology
-M8	M8-16	Complete	component-only	T15-deployment	audited component-only proof: preflight base
-M8	M8-17a	Complete	component-only	T15-deployment	audited component-only proof: preflight IAM IRSA
-M8	M8-17b	Complete	component-only	T15-deployment	audited component-only proof: preflight S3 KMS Secrets
-M8	M8-17c	Complete	component-only	T15-deployment	audited component-only proof: preflight SQS
-M8	M8-17d	Complete	component-only	T15-deployment	audited component-only proof: preflight OpenSearch
-M8	M8-17e	Complete	component-only	T15-deployment	audited component-only proof: preflight EKS Fargate
-M8	M8-17	Complete	component-only	T15-deployment	audited component-only proof: preflight AWS
-M8	M8-18	Complete	component-only	T15-deployment	audited component-only proof: preflight Neon/Stytch
-M8	M8-19	Complete	component-only	T15-deployment	audited component-only proof: preflight sensor
+M8	M8-16	Complete	component-only	T16-recovery-ops	audited component-only proof: preflight base
+M8	M8-17a	Complete	component-only	T16-recovery-ops	audited component-only proof: preflight IAM IRSA
+M8	M8-17b	Complete	component-only	T16-recovery-ops	audited component-only proof: preflight S3 KMS Secrets
+M8	M8-17c	Complete	component-only	T16-recovery-ops	audited component-only proof: preflight SQS
+M8	M8-17d	Complete	component-only	T16-recovery-ops	audited component-only proof: preflight OpenSearch
+M8	M8-17e	Complete	component-only	T16-recovery-ops	audited component-only proof: preflight EKS Fargate
+M8	M8-17	Complete	component-only	T16-recovery-ops	audited component-only proof: preflight AWS
+M8	M8-18	Complete	component-only	T16-recovery-ops	audited component-only proof: preflight Neon/Stytch
+M8	M8-19	Complete	component-only	T16-recovery-ops	audited component-only proof: preflight sensor
 M8	M8-20a	Complete	component-only	T16-recovery-ops	audited component-only proof: backup manifest schema
 M8	M8-20b	Complete	component-only	T16-recovery-ops	audited component-only proof: backup metadata collection
 M8	M8-20c	Complete	component-only	T16-recovery-ops	audited component-only proof: backup graph and evidence refs
@@ -651,31 +651,31 @@ M8	M8-32	Blocked	blocked/external	EXT-cloud-deploy	audited external evidence gat
 M8	M8-33	Blocked	blocked/external	EXT-cloud-deploy	audited external evidence gate: Neo4j outage test
 M8	M8-34	Blocked	blocked/external	EXT-cloud-deploy	audited external evidence gate: SQS saturation test
 M8	M8-35	Blocked	blocked/external	EXT-cloud-deploy	audited external evidence gate: runtime latency test
-M8	M8-36a	Complete	component-only	T15-deployment	audited component-only proof: API load scenario
+M8	M8-36a	Complete	component-only	T16-recovery-ops	audited component-only proof: API load scenario
 M8	M8-36b	Blocked	blocked/external	EXT-cloud-deploy	audited external evidence gate: Run API load
-M8	M8-36c	Complete	component-only	T15-deployment	audited component-only proof: Evaluate API load
+M8	M8-36c	Complete	component-only	T16-recovery-ops	audited component-only proof: Evaluate API load
 M8	M8-36	Blocked	blocked/external	EXT-cloud-deploy	audited external evidence gate: API reference load
 M8	M8-37	Blocked	blocked/external	EXT-cloud-deploy	audited external evidence gate: graph bounded load
-M8	M8-38a	Complete	component-only	T15-deployment	audited component-only proof: Event load generator
+M8	M8-38a	Complete	component-only	T16-recovery-ops	audited component-only proof: Event load generator
 M8	M8-38b	Blocked	blocked/external	EXT-cloud-deploy	audited external evidence gate: Run event floor load
-M8	M8-38c	Complete	component-only	T15-deployment	audited component-only proof: Evaluate event floor load
+M8	M8-38c	Complete	component-only	T16-recovery-ops	audited component-only proof: Evaluate event floor load
 M8	M8-38	Blocked	blocked/external	EXT-cloud-deploy	audited external evidence gate: event floor load
 M8	M8-39	Blocked	blocked/external	EXT-cloud-deploy	audited external evidence gate: sensor overhead measurement
-M8	M8-40a	Complete	component-only	T15-deployment	audited component-only proof: API tenant isolation security test
-M8	M8-40b	Complete	component-only	T15-deployment	audited component-only proof: graph tenant isolation security test
-M8	M8-40c	Complete	component-only	T15-deployment	audited component-only proof: OpenSearch tenant isolation security test
-M8	M8-40d	Complete	component-only	T15-deployment	audited component-only proof: S3 tenant isolation security test
-M8	M8-40	Complete	component-only	T15-deployment	audited component-only proof: Organization/Workspace isolation security result
-M8	M8-41	Complete	component-only	T15-deployment	audited component-only proof: connector SSRF security test
-M8	M8-42a	Complete	component-only	T15-deployment	audited component-only proof: log secret leakage test
-M8	M8-42b	Complete	component-only	T15-deployment	audited component-only proof: PostHog secret leakage test
-M8	M8-42c	Complete	component-only	T15-deployment	audited component-only proof: AI secret leakage test
-M8	M8-42d	Complete	component-only	T15-deployment	audited component-only proof: OTLP secret leakage test
-M8	M8-42e	Complete	component-only	T15-deployment	audited component-only proof: support bundle leakage test
-M8	M8-42f	Complete	component-only	T15-deployment	audited component-only proof: evidence leakage policy test
-M8	M8-42	Complete	component-only	T15-deployment	audited component-only proof: secret leakage security test
-M8	M8-43	Complete	component-only	T15-deployment	audited component-only proof: runtime policy bypass test
-M8	M8-44	Complete	component-only	T15-deployment	audited component-only proof: Attack Lab safety test
+M8	M8-40a	Complete	component-only	T16-recovery-ops	audited component-only proof: API tenant isolation security test
+M8	M8-40b	Complete	component-only	T16-recovery-ops	audited component-only proof: graph tenant isolation security test
+M8	M8-40c	Complete	component-only	T16-recovery-ops	audited component-only proof: OpenSearch tenant isolation security test
+M8	M8-40d	Complete	component-only	T16-recovery-ops	audited component-only proof: S3 tenant isolation security test
+M8	M8-40	Complete	component-only	T16-recovery-ops	audited component-only proof: Organization/Workspace isolation security result
+M8	M8-41	Complete	component-only	T03-launch-connectors	audited component-only proof: connector SSRF security test
+M8	M8-42a	Complete	component-only	T14-data-workflows	audited component-only proof: log secret leakage test
+M8	M8-42b	Complete	component-only	T14-data-workflows	audited component-only proof: PostHog secret leakage test
+M8	M8-42c	Complete	component-only	T14-data-workflows	audited component-only proof: AI secret leakage test
+M8	M8-42d	Complete	component-only	T14-data-workflows	audited component-only proof: OTLP secret leakage test
+M8	M8-42e	Complete	component-only	T14-data-workflows	audited component-only proof: support bundle leakage test
+M8	M8-42f	Complete	component-only	T14-data-workflows	audited component-only proof: evidence leakage policy test
+M8	M8-42	Complete	component-only	T14-data-workflows	audited component-only proof: secret leakage security test
+M8	M8-43	Complete	component-only	T06-runtime-data-plane	audited component-only proof: runtime policy bypass test
+M8	M8-44	Complete	component-only	T13-attack-lab	audited component-only proof: Attack Lab safety test
 M8	M8-45	Blocked	blocked/external	EXT-image-attestation	audited external evidence gate: SBOM generation
 M8	M8-46	Blocked	blocked/external	EXT-image-attestation	audited external evidence gate: image signing
 M8	M8-47	Complete	production-available	PROD-current-composition	audited shipped composition: dependency vulnerability gate
@@ -700,16 +700,16 @@ M8	M8-57a	Complete	missing	T15-deployment	audited absent shipping composition: c
 M8	M8-57b	Complete	missing	T15-deployment	audited absent shipping composition: customer edge runtime gateway values
 M8	M8-57c	Complete	missing	T15-deployment	audited absent shipping composition: customer edge enrollment values
 M8	M8-57	Complete	missing	T15-deployment	audited absent shipping composition: customer edge Helm profile
-M8	M8-58a	Complete	component-only	T15-deployment	audited component-only proof: SaaS quota load fixture
+M8	M8-58a	Complete	component-only	T16-recovery-ops	audited component-only proof: SaaS quota load fixture
 M8	M8-58b	Blocked	blocked/external	EXT-cloud-deploy	audited external evidence gate: SaaS quota load trigger
 M8	M8-58	Blocked	blocked/external	EXT-cloud-deploy	audited external evidence gate: SaaS Organization quota result
-M8	M8-59a1	Complete	component-only	T15-deployment	audited component-only proof: SaaS isolation API/Neon fixture references
-M8	M8-59a2	Complete	component-only	T15-deployment	audited component-only proof: SaaS isolation graph/search fixture references
-M8	M8-59a3	Complete	component-only	T15-deployment	audited component-only proof: SaaS isolation S3/queue fixture references
-M8	M8-59a	Complete	component-only	T15-deployment	audited component-only proof: SaaS tenant isolation release fixture
+M8	M8-59a1	Complete	component-only	T16-recovery-ops	audited component-only proof: SaaS isolation API/Neon fixture references
+M8	M8-59a2	Complete	component-only	T16-recovery-ops	audited component-only proof: SaaS isolation graph/search fixture references
+M8	M8-59a3	Complete	component-only	T16-recovery-ops	audited component-only proof: SaaS isolation S3/queue fixture references
+M8	M8-59a	Complete	component-only	T16-recovery-ops	audited component-only proof: SaaS tenant isolation release fixture
 M8	M8-59b	Blocked	blocked/external	EXT-cloud-deploy	audited external evidence gate: SaaS tenant isolation trigger
 M8	M8-59	Blocked	blocked/external	EXT-cloud-deploy	audited external evidence gate: SaaS tenant isolation result
-M8	M8-60a	Complete	component-only	T15-deployment	audited component-only proof: SaaS golden fixture
+M8	M8-60a	Complete	component-only	T16-recovery-ops	audited component-only proof: SaaS golden fixture
 M8	M8-60b	Blocked	blocked/external	EXT-cloud-deploy	audited external evidence gate: SaaS golden trigger
 M8	M8-60	Blocked	blocked/external	EXT-cloud-deploy	audited external evidence gate: SaaS golden result
 M8	M8-61a	Blocked	blocked/external	EXT-cloud-deploy	audited external evidence gate: single-tenant golden trigger
