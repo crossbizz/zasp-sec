@@ -107,6 +107,24 @@ func (runner *scriptedMigrationRunner) DownWorkflowReceiptProvenance(context.Con
 	return nil
 }
 
+func (runner *scriptedMigrationRunner) UpProductionAdministration(context.Context) error {
+	runner.events = append(runner.events, "up-production-administration")
+	if runner.errAt == "up-production-administration" {
+		return errors.New("detail")
+	}
+	runner.version = 7
+	return nil
+}
+
+func (runner *scriptedMigrationRunner) DownProductionAdministration(context.Context) error {
+	runner.events = append(runner.events, "down-production-administration")
+	if runner.errAt == "down-production-administration" {
+		return errors.New("detail")
+	}
+	runner.version = 6
+	return nil
+}
+
 func (runner *scriptedMigrationRunner) DownWorkflowReceiptSafety(context.Context) error {
 	runner.events = append(runner.events, "down-receipt-safety")
 	if runner.errAt == "down-receipt-safety" {
@@ -158,13 +176,15 @@ func TestRunReleaseMigrationReachesExactTargetStateIdempotently(t *testing.T) {
 		version   int64
 		want      []string
 	}{
-		{direction: "up", version: 0, want: []string{"version", "up-baseline", "up-core", "up-workflows", "up-receipts", "up-receipt-safety", "up-receipt-provenance", "version"}},
-		{direction: "up", version: 1, want: []string{"version", "up-core", "up-workflows", "up-receipts", "up-receipt-safety", "up-receipt-provenance", "version"}},
-		{direction: "up", version: 2, want: []string{"version", "up-workflows", "up-receipts", "up-receipt-safety", "up-receipt-provenance", "version"}},
-		{direction: "up", version: 3, want: []string{"version", "up-receipts", "up-receipt-safety", "up-receipt-provenance", "version"}},
-		{direction: "up", version: 4, want: []string{"version", "up-receipt-safety", "up-receipt-provenance", "version"}},
-		{direction: "up", version: 5, want: []string{"version", "up-receipt-provenance", "version"}},
-		{direction: "up", version: 6, want: []string{"version", "version"}},
+		{direction: "up", version: 0, want: []string{"version", "up-baseline", "up-core", "up-workflows", "up-receipts", "up-receipt-safety", "up-receipt-provenance", "up-production-administration", "version"}},
+		{direction: "up", version: 1, want: []string{"version", "up-core", "up-workflows", "up-receipts", "up-receipt-safety", "up-receipt-provenance", "up-production-administration", "version"}},
+		{direction: "up", version: 2, want: []string{"version", "up-workflows", "up-receipts", "up-receipt-safety", "up-receipt-provenance", "up-production-administration", "version"}},
+		{direction: "up", version: 3, want: []string{"version", "up-receipts", "up-receipt-safety", "up-receipt-provenance", "up-production-administration", "version"}},
+		{direction: "up", version: 4, want: []string{"version", "up-receipt-safety", "up-receipt-provenance", "up-production-administration", "version"}},
+		{direction: "up", version: 5, want: []string{"version", "up-receipt-provenance", "up-production-administration", "version"}},
+		{direction: "up", version: 6, want: []string{"version", "up-production-administration", "version"}},
+		{direction: "up", version: 7, want: []string{"version", "version"}},
+		{direction: "down", version: 7, want: []string{"version", "down-production-administration", "down-receipt-provenance", "down-receipt-safety", "down-receipts", "down-workflows", "down-core", "down-baseline", "version"}},
 		{direction: "down", version: 6, want: []string{"version", "down-receipt-provenance", "down-receipt-safety", "down-receipts", "down-workflows", "down-core", "down-baseline", "version"}},
 		{direction: "down", version: 5, want: []string{"version", "down-receipt-safety", "down-receipts", "down-workflows", "down-core", "down-baseline", "version"}},
 		{direction: "down", version: 4, want: []string{"version", "down-receipts", "down-workflows", "down-core", "down-baseline", "version"}},
@@ -191,7 +211,7 @@ func TestRunReleaseMigrationReachesExactTargetStateIdempotently(t *testing.T) {
 }
 
 func TestRunReleaseMigrationRejectsDriftAndHonorsDeadline(t *testing.T) {
-	if err := runReleaseMigration(context.Background(), &scriptedMigrationRunner{version: 7}, []string{"up"}); !errors.Is(err, migrations.ErrInvalidState) {
+	if err := runReleaseMigration(context.Background(), &scriptedMigrationRunner{version: 8}, []string{"up"}); !errors.Is(err, migrations.ErrInvalidState) {
 		t.Fatalf("drift error = %v", err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -227,22 +247,22 @@ func TestReleaseMigrationReachesExactPostgresTargetFromEmptyV1AndV2AndRejectsDri
 		t.Fatal(err)
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
-		t.Fatalf("empty to v6: %v", err)
+		t.Fatalf("empty to v7: %v", err)
 	}
-	if version, err := runner.Version(ctx); err != nil || version != 6 {
-		t.Fatalf("v6 = (%d, %v)", version, err)
+	if version, err := runner.Version(ctx); err != nil || version != 7 {
+		t.Fatalf("v7 = (%d, %v)", version, err)
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
-		t.Fatalf("v6 retry: %v", err)
+		t.Fatalf("v7 retry: %v", err)
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"down"}); err != nil {
-		t.Fatalf("v6 to empty: %v", err)
+		t.Fatalf("v7 to empty: %v", err)
 	}
 	if err := runner.Up(ctx); err != nil {
 		t.Fatalf("create v1: %v", err)
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
-		t.Fatalf("v1 to v6: %v", err)
+		t.Fatalf("v1 to v7: %v", err)
 	}
 	if _, err := connection.Exec(ctx, `UPDATE zasp_schema_versions SET checksum = repeat('0', 64) WHERE version = 2`); err != nil {
 		t.Fatal(err)
@@ -266,7 +286,10 @@ func TestV6ReceiptlessPATReplayUsesDurableMarkerAndBlocksEveryRollbackWithoutPar
 		t.Fatal(err)
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
-		t.Fatalf("empty to v6: %v", err)
+		t.Fatalf("empty to v7: %v", err)
+	}
+	if err := runner.DownProductionAdministration(ctx); err != nil {
+		t.Fatalf("v7 to v6 fixture: %v", err)
 	}
 	organization := "pid_71000001-0000-4000-8000-000000000001"
 	workspace := "pid_71000002-0000-4000-8000-000000000002"
@@ -673,6 +696,9 @@ func migrateToV6(t *testing.T, ctx context.Context, connection *pgx.Conn) *migra
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
 		t.Fatalf("migrate to v6: %v", err)
+	}
+	if err := runner.DownProductionAdministration(ctx); err != nil {
+		t.Fatalf("migrate v7 to v6 fixture: %v", err)
 	}
 	return runner
 }

@@ -14,22 +14,22 @@ import (
 )
 
 func TestPostgresSchemaReadinessRequiresExactWorkflowRelease(t *testing.T) {
-	if CoreSchemaVersion != "production-workflow-receipt-provenance-v3" {
+	if CoreSchemaVersion != "production-administration-v1" {
 		t.Fatalf("schema target = %q", CoreSchemaVersion)
 	}
-	if !strings.Contains(postgresSchemaVersionSQL, "release.version = 6") || !strings.Contains(postgresSchemaVersionSQL, "release.name = 'workflow_receipt_provenance'") {
+	if !strings.Contains(postgresSchemaVersionSQL, "release.version = 7") || !strings.Contains(postgresSchemaVersionSQL, "release.name = 'production_administration'") {
 		t.Fatalf("schema readiness query does not require provenance release: %s", postgresSchemaVersionSQL)
 	}
-	for _, fragment := range []string{"pg_get_expr", "pg_get_constraintdef", "pg_get_indexdef", "prosrc", "provolatile", "prosecdef", "attnotnull", "format_type", "production_workflow_receipt_provenance_fingerprint"} {
+	for _, fragment := range []string{"pg_get_expr", "pg_get_constraintdef", "pg_get_indexdef", "prosrc", "provolatile", "prosecdef", "attnotnull", "format_type", "production_administration_fingerprint"} {
 		if !strings.Contains(postgresSchemaVersionSQL, fragment) {
 			t.Fatalf("schema readiness query missing exact fingerprint %q: %s", fragment, postgresSchemaVersionSQL)
 		}
 	}
-	if expectedCoreSchemaChecksum() != migrations.WorkflowReceiptProvenance().Checksum() {
-		t.Fatal("schema readiness checksum is not the receipt provenance release checksum")
+	if expectedCoreSchemaChecksum() != migrations.ProductionAdministration().Checksum() {
+		t.Fatal("schema readiness checksum is not the production administration release checksum")
 	}
-	if expectedCoreSchemaFingerprint() != migrations.WorkflowReceiptProvenanceSemanticFingerprint() || len(expectedCoreSchemaFingerprint()) != 64 {
-		t.Fatal("schema readiness fingerprint is not derived from the receipt provenance migration")
+	if expectedCoreSchemaFingerprint() != migrations.ProductionAdministrationSemanticFingerprint() || len(expectedCoreSchemaFingerprint()) != 64 {
+		t.Fatal("schema readiness fingerprint is not derived from the production administration migration")
 	}
 }
 

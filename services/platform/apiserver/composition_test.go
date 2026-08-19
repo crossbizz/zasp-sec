@@ -56,8 +56,8 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
 			t.Errorf("%s security = %v, want %v", key, got, operation.Security)
 		}
 	}
-	if len(seen) != 41 {
-		t.Fatalf("mounted operation count = %d, want 41", len(seen))
+	if len(seen) != 72 {
+		t.Fatalf("mounted operation count = %d, want 72", len(seen))
 	}
 }
 
@@ -99,6 +99,52 @@ func TestBatchTwoCompositionExposesOnlyCompleteDurableOperations(t *testing.T) {
 		if _, mounted := definitions[hidden]; mounted {
 			t.Errorf("provider-owned operation %q mounted without a provider adapter", hidden)
 		}
+	}
+}
+
+func TestBatchThreeCompositionExposesOnlyCompleteDurableOperations(t *testing.T) {
+	definitions := make(map[string]OperationDefinition)
+	for _, operation := range CoreOperations() {
+		definitions[operation.OperationID] = operation
+	}
+
+	for _, operationID := range []string{
+		"getOrganization",
+		"listWorkspaces", "createWorkspace", "getWorkspace", "updateWorkspace",
+		"listEnvironments", "createEnvironment", "getEnvironment", "updateEnvironment",
+		"listMembers", "listBuiltInRoles", "updateMemberRole",
+		"listGroupMappings", "updateGroupMappings",
+		"listAPITokens", "createAPIToken", "rotateAPIToken", "revokeAPIToken",
+		"listAuditEvents",
+		"listSessions", "getSession", "listSessionEvents", "revokeSession",
+		"listComplianceControls", "listComplianceEvidence",
+		"getDataControls", "updateDataControls",
+		"getExternalDataFlows",
+		"getSystemStatus", "listSystemComponents", "getSystemVersion",
+	} {
+		t.Run("mounted_"+operationID, func(t *testing.T) {
+			definition, ok := definitions[operationID]
+			if !ok {
+				t.Fatalf("complete durable operation %q is not mounted", operationID)
+			}
+			if !equalStrings(definition.Security, []string{"BrowserExpectedScope", "BrowserSession"}) || definition.Permission == "" {
+				t.Fatalf("operation %q security/permission = %v/%q", operationID, definition.Security, definition.Permission)
+			}
+		})
+	}
+
+	for _, operationID := range []string{
+		"listSSOConnections", "createSSOConnection", "deleteSSOConnection", "testSSOConnection",
+		"listSCIMConnections", "createSCIMConnection", "deleteSCIMConnection",
+		"createAuditExport", "getAuditExport",
+		"createComplianceExport", "getComplianceExport",
+		"updateExternalDataFlows",
+	} {
+		t.Run("hidden_"+operationID, func(t *testing.T) {
+			if _, mounted := definitions[operationID]; mounted {
+				t.Fatalf("incomplete provider/job operation %q is mounted", operationID)
+			}
+		})
 	}
 }
 

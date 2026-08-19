@@ -12,19 +12,21 @@ import (
 )
 
 const (
-	baselineVersion   = int64(1)
-	baselineName      = "schema_versions"
-	coreVersion       = int64(2)
-	coreName          = "production_core"
-	workflowVersion   = int64(3)
-	workflowName      = "production_workflows"
-	receiptVersion    = int64(4)
-	receiptName       = "workflow_receipts"
-	safetyVersion     = int64(5)
-	safetyName        = "workflow_receipt_safety"
-	provenanceVersion = int64(6)
-	provenanceName    = "workflow_receipt_provenance"
-	rollbackTimeout   = 5 * time.Second
+	baselineVersion       = int64(1)
+	baselineName          = "schema_versions"
+	coreVersion           = int64(2)
+	coreName              = "production_core"
+	workflowVersion       = int64(3)
+	workflowName          = "production_workflows"
+	receiptVersion        = int64(4)
+	receiptName           = "workflow_receipts"
+	safetyVersion         = int64(5)
+	safetyName            = "workflow_receipt_safety"
+	provenanceVersion     = int64(6)
+	provenanceName        = "workflow_receipt_provenance"
+	administrationVersion = int64(7)
+	administrationName    = "production_administration"
+	rollbackTimeout       = 5 * time.Second
 
 	tableExistsSQL           = "SELECT to_regclass('public.zasp_schema_versions') IS NOT NULL"
 	countRowsSQL             = `SELECT count(*) FROM "public"."zasp_schema_versions"`
@@ -32,6 +34,7 @@ const (
 	readVersionSQL           = `SELECT "version", "name", "checksum" FROM "public"."zasp_schema_versions" WHERE "version" = $1`
 	lockTableSQL             = `LOCK TABLE "public"."zasp_schema_versions" IN ACCESS EXCLUSIVE MODE`
 	lockWorkflowMutationsSQL = `LOCK TABLE "public"."zasp_workflow_idempotency" IN ACCESS EXCLUSIVE MODE`
+	lockAdministrationSQL    = `LOCK TABLE "public"."zasp_identity_memberships", "public"."zasp_product_sessions", "public"."zasp_product_api_tokens", "public"."zasp_organizations", "public"."zasp_workspaces", "public"."zasp_environments", "public"."zasp_group_mappings", "public"."zasp_admin_audit", "public"."zasp_session_events", "public"."zasp_compliance_controls", "public"."zasp_compliance_evidence", "public"."zasp_data_controls" IN ACCESS EXCLUSIVE MODE`
 	insertRowSQL             = `INSERT INTO "public"."zasp_schema_versions" ("version", "name", "checksum") VALUES ($1, $2, $3)`
 	deleteRowSQL             = `DELETE FROM "public"."zasp_schema_versions" WHERE "version" = $1 AND "name" = $2 AND "checksum" = $3`
 )
@@ -79,6 +82,12 @@ var provenanceUpSQL string
 
 //go:embed sql/0006_workflow_receipt_provenance.down.sql
 var provenanceDownSQL string
+
+//go:embed sql/0007_production_administration.up.sql
+var administrationUpSQL string
+
+//go:embed sql/0007_production_administration.down.sql
+var administrationDownSQL string
 
 type Metadata struct {
 	version  int64
@@ -142,6 +151,13 @@ func WorkflowReceiptProvenance() Metadata {
 	return Metadata{version: provenanceVersion, name: provenanceName, checksum: hex.EncodeToString(digest[:]), up: up, down: down}
 }
 
+func ProductionAdministration() Metadata {
+	up := strings.TrimSpace(administrationUpSQL)
+	down := strings.TrimSpace(administrationDownSQL)
+	digest := sha256.Sum256([]byte(up + "\x00" + down))
+	return Metadata{version: administrationVersion, name: administrationName, checksum: hex.EncodeToString(digest[:]), up: up, down: down}
+}
+
 func ProductionWorkflowsSemanticFingerprint() string {
 	const marker = "'production_workflows_fingerprint', '"
 	start := strings.Index(workflowUpSQL, marker)
@@ -170,6 +186,10 @@ func WorkflowReceiptSafetySemanticFingerprint() string {
 
 func WorkflowReceiptProvenanceSemanticFingerprint() string {
 	return semanticFingerprint(provenanceUpSQL, "production_workflow_receipt_provenance_fingerprint")
+}
+
+func ProductionAdministrationSemanticFingerprint() string {
+	return semanticFingerprint(administrationUpSQL, "production_administration_fingerprint")
 }
 
 func semanticFingerprint(source, key string) string {
@@ -273,7 +293,7 @@ func (runner *Runner) Version(ctx context.Context) (int64, error) {
 	if err := scanRow(ctx, runner.database, countRowsSQL, nil, &count); err != nil {
 		return 0, fixedDatabaseError(ctx, err)
 	}
-	if count < 1 || count > 6 {
+	if count < 1 || count > 7 {
 		return 0, ErrInvalidState
 	}
 	metadata := []Metadata{Baseline()}
@@ -288,6 +308,8 @@ func (runner *Runner) Version(ctx context.Context) (int64, error) {
 		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety())
 	} else if count == 6 {
 		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance())
+	} else if count == 7 {
+		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration())
 	}
 	for _, expected := range metadata {
 		var version int64
@@ -599,6 +621,57 @@ func (runner *Runner) DownWorkflowReceiptProvenance(ctx context.Context) error {
 	})
 }
 
+func (runner *Runner) UpProductionAdministration(ctx context.Context) error {
+	if runner == nil || nilInterface(runner.database) {
+		return ErrInvalidRunner
+	}
+	return runner.withTransaction(ctx, func(ctx context.Context, transaction Transaction) error {
+		if err := transaction.Exec(ctx, lockTableSQL); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := readWorkflowReceiptProvenanceState(ctx, transaction); err != nil {
+			return err
+		}
+		metadata := ProductionAdministration()
+		if err := transaction.Exec(ctx, metadata.UpSQL()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, insertRowSQL, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		return readProductionAdministrationState(ctx, transaction)
+	})
+}
+
+func (runner *Runner) DownProductionAdministration(ctx context.Context) error {
+	if runner == nil || nilInterface(runner.database) {
+		return ErrInvalidRunner
+	}
+	return runner.withTransaction(ctx, func(ctx context.Context, transaction Transaction) error {
+		present, err := tablePresent(ctx, transaction)
+		if err != nil || !present {
+			return ErrInvalidState
+		}
+		if err := transaction.Exec(ctx, lockAdministrationSQL); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, lockTableSQL); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := readProductionAdministrationState(ctx, transaction); err != nil {
+			return err
+		}
+		metadata := ProductionAdministration()
+		if err := transaction.Exec(ctx, deleteRowSQL, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, metadata.DownSQL()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		return readWorkflowReceiptProvenanceState(ctx, transaction)
+	})
+}
+
 func (runner *Runner) Down(ctx context.Context) error {
 	if runner == nil || nilInterface(runner.database) {
 		return ErrInvalidRunner
@@ -746,6 +819,10 @@ func readWorkflowReceiptSafetyState(ctx context.Context, queryer Queryer) error 
 
 func readWorkflowReceiptProvenanceState(ctx context.Context, queryer Queryer) error {
 	return readExactReleaseState(ctx, queryer, []Metadata{Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance()})
+}
+
+func readProductionAdministrationState(ctx context.Context, queryer Queryer) error {
+	return readExactReleaseState(ctx, queryer, []Metadata{Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration()})
 }
 
 func readExactReleaseState(ctx context.Context, queryer Queryer, expected []Metadata) error {

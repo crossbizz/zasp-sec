@@ -261,6 +261,43 @@ func TestRouterScopeAssertionCoversSwitchAndIgnoresPATHeader(t *testing.T) {
 	}
 }
 
+func TestRouterRequiresFreshBrowserAuthenticationForPrivilegedMutation(t *testing.T) {
+	router, err := NewRouter([]Operation{{
+		Method: http.MethodPatch, Pattern: "/api/v1/admin/members/{id}", OperationID: "updateMemberRole",
+		Permission: "manage_identity", Security: []CredentialKind{CredentialBrowserSession}, RequireCSRF: true,
+		RequireFreshAuth: true, Handler: handlerResponse("updated"),
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		name  string
+		fresh bool
+		want  int
+	}{
+		{name: "stale", fresh: false, want: http.StatusForbidden},
+		{name: "fresh", fresh: true, want: http.StatusOK},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			identity := fixtureRequestIdentity(t)
+			identity.Permissions = []string{"manage_identity"}
+			identity.CredentialKind = CredentialBrowserSession
+			identity.FreshAuthenticated = test.fresh
+			request := httptest.NewRequest(http.MethodPatch, "/api/v1/admin/members/pid_20000001-0000-4000-8000-000000000001", strings.NewReader(`{"role":"read_only_viewer","expected_version":1}`))
+			request = request.WithContext(context.WithValue(request.Context(), identityContextKey{}, identity))
+			request = request.WithContext(context.WithValue(request.Context(), browserSecurityContextKey{}, browserSecurityContext{publicOrigin: "https://app.zasp.test"}))
+			request.Header.Set(expectedScopeHeader, expectedScopeValue(identity.Scope))
+			request.Header.Set("Origin", "https://app.zasp.test")
+			request.Header.Set("X-CSRF-Token", identity.CSRFToken)
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, request)
+			if response.Code != test.want {
+				t.Fatalf("status = %d, want %d: %s", response.Code, test.want, response.Body.String())
+			}
+		})
+	}
+}
+
 func TestRouterUsesFixedErrorsForUnknownRequests(t *testing.T) {
 	router, err := NewRouter([]Operation{{Method: http.MethodGet, Pattern: "/api/v1/agents/{id}", Handler: http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		t.Fatal("unexpected handler call")

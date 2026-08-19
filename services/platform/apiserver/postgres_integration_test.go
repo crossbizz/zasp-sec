@@ -53,6 +53,9 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 	if err := runner.UpWorkflowReceiptProvenance(ctx); err != nil {
 		t.Fatalf("workflow receipt provenance migration: %v", err)
 	}
+	if err := runner.UpProductionAdministration(ctx); err != nil {
+		t.Fatalf("production administration migration: %v", err)
+	}
 	fingerprintQuery := postgresSchemaVersionSQL[:strings.Index(postgresSchemaVersionSQL, "SELECT metadata.value")] + "SELECT value FROM semantic_fingerprint"
 	var actualFingerprint string
 	if err := connection.QueryRow(ctx, fingerprintQuery).Scan(&actualFingerprint); err != nil {
@@ -90,6 +93,21 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 	}
 	if _, err := connection.Exec(ctx, `INSERT INTO zasp_identity_memberships (principal_id, organization_id, organization_reference, member_reference, role) VALUES ($1,$2,'organization-test-local','member-test-local','security_admin')`, principal.String(), organization.String()); err != nil {
 		t.Fatal(err)
+	}
+	for _, seed := range []struct {
+		statement string
+		arguments []any
+	}{
+		{`INSERT INTO zasp_organizations(id,name,domain) VALUES($1,'Test organization','test.invalid')`, []any{organization.String()}},
+		{`INSERT INTO zasp_workspaces(id,organization_id,name) VALUES($2,$1,'Production'),($3,$1,'Staging')`, []any{organization.String(), workspace.String(), workspace2.String()}},
+		{`INSERT INTO zasp_environments(id,organization_id,workspace_id,name,environment_class) VALUES($4,$1,$2,'Production','production'),($5,$1,$3,'Staging','staging')`, []any{organization.String(), workspace.String(), workspace2.String(), environment.String(), environment2.String()}},
+		{`INSERT INTO zasp_data_controls(organization_id,workspace_id,environment_id,environment_class,collection_mode,retention_days,deletion_enabled) VALUES($1,$2,$4,'production','metadata_only',30,true),($1,$3,$5,'staging','metadata_only',30,true)`, []any{organization.String(), workspace.String(), workspace2.String(), environment.String(), environment2.String()}},
+		{`INSERT INTO zasp_compliance_controls(organization_id,id,framework,name,fresh_until) VALUES($1,'access-control','SOC 2','Logical access controls',transaction_timestamp()+interval '24 hours')`, []any{organization.String()}},
+		{`INSERT INTO zasp_compliance_evidence(organization_id,control_id,id,asset_id,source,at) VALUES($1,'access-control','membership-test',$2,'product-membership',transaction_timestamp())`, []any{organization.String(), principal.String()}},
+	} {
+		if _, err := connection.Exec(ctx, seed.statement, seed.arguments...); err != nil {
+			t.Fatal(err)
+		}
 	}
 	const pat = "production-api-token-with-at-least-32-bytes"
 	if _, err := connection.Exec(ctx, `INSERT INTO zasp_product_api_tokens (token_digest, principal_id, organization_id, workspace_id, environment_id, permissions, expires_at) VALUES (digest($1, 'sha256'),$2,$3,$4,$5,'["view"]'::jsonb,$6)`, pat, principal.String(), organization.String(), workspace.String(), environment.String(), time.Now().UTC().Add(time.Hour)); err != nil {
@@ -134,6 +152,47 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 		t.Fatalf("PAT authenticate = (%#v, %v)", patIdentity, err)
 	}
 	identity, _ := repository.Authenticate(ctx, Credential{Kind: CredentialBrowserSession, Value: session})
+	organizationPayload, err := repository.ReadAdministration(ctx, identity, "getOrganization", nil)
+	if err != nil || !strings.Contains(string(organizationPayload), `"domain": "test.invalid"`) {
+		t.Fatalf("durable organization = (%s, %v)", organizationPayload, err)
+	}
+	createdWorkspace, err := repository.MutateAdministration(ctx, identity, administrationMutation{Operation: "createWorkspace", ID: "pid_11000002-0000-4000-8000-000000000002", Name: "Engineering", AuditID: "pid_31000001-0000-4000-8000-000000000001"})
+	if err != nil || !strings.Contains(string(createdWorkspace), `"Engineering"`) {
+		t.Fatalf("create workspace = (%s, %v)", createdWorkspace, err)
+	}
+	if _, err := repository.MutateAdministration(ctx, identity, administrationMutation{Operation: "updateWorkspace", ID: "pid_11000002-0000-4000-8000-000000000002", Name: "Stale update", ExpectedVersion: 2, AuditID: "pid_31000009-0000-4000-8000-000000000009"}); !errors.Is(err, ErrRepositoryConflict) {
+		t.Fatalf("stale workspace precondition = %v", err)
+	}
+	createdEnvironment, err := repository.MutateAdministration(ctx, identity, administrationMutation{Operation: "createEnvironment", ID: "pid_11000003-0000-4000-8000-000000000003", WorkspaceID: "pid_11000002-0000-4000-8000-000000000002", Name: "Development", AuditID: "pid_31000002-0000-4000-8000-000000000002"})
+	if err != nil || !strings.Contains(string(createdEnvironment), `"Development"`) {
+		t.Fatalf("create environment = (%s, %v)", createdEnvironment, err)
+	}
+	const createdRawToken = "zasp_pat_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+	createdToken, err := repository.MutateAdministration(ctx, identity, administrationMutation{Operation: "createAPIToken", ID: "pid_11000005-0000-4000-8000-000000000005", Name: "Automation", WorkspaceID: workspace.String(), EnvironmentID: environment.String(), Permissions: json.RawMessage(`["view"]`), ExpiresAt: time.Now().UTC().Add(time.Hour), IdempotencyKey: "idem-admin-token-0001", RawToken: createdRawToken, AuditID: "pid_31000003-0000-4000-8000-000000000003"})
+	if err != nil || strings.Contains(string(createdToken), createdRawToken) {
+		t.Fatalf("create token = (%s, %v)", createdToken, err)
+	}
+	if _, err := repository.MutateAdministration(ctx, identity, administrationMutation{Operation: "createAPIToken", ID: "pid_11000006-0000-4000-8000-000000000006", Name: "Automation replay", WorkspaceID: workspace.String(), EnvironmentID: environment.String(), Permissions: json.RawMessage(`["view"]`), ExpiresAt: time.Now().UTC().Add(time.Hour), IdempotencyKey: "idem-admin-token-0001", RawToken: "zasp_pat_BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB", AuditID: "pid_31000004-0000-4000-8000-000000000004"}); !errors.Is(err, ErrRepositoryConflict) {
+		t.Fatalf("one-time token replay = %v", err)
+	}
+	if _, err := repository.Authenticate(ctx, Credential{Kind: CredentialBearerToken, Value: createdRawToken}); err != nil {
+		t.Fatalf("created token authentication: %v", err)
+	}
+	const rotatedRawToken = "zasp_pat_CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
+	rotatedToken, err := repository.MutateAdministration(ctx, identity, administrationMutation{Operation: "rotateAPIToken", ID: "pid_11000005-0000-4000-8000-000000000005", ReplacementID: "pid_11000007-0000-4000-8000-000000000007", ExpectedVersion: 1, IdempotencyKey: "idem-admin-rotate-0001", RawToken: rotatedRawToken, AuditID: "pid_31000005-0000-4000-8000-000000000005"})
+	if err != nil || strings.Contains(string(rotatedToken), rotatedRawToken) {
+		t.Fatalf("rotate token = (%s, %v)", rotatedToken, err)
+	}
+	if _, err := repository.Authenticate(ctx, Credential{Kind: CredentialBearerToken, Value: createdRawToken}); !errors.Is(err, ErrRepositoryAuthentication) {
+		t.Fatalf("rotated old token authentication = %v", err)
+	}
+	if _, err := repository.Authenticate(ctx, Credential{Kind: CredentialBearerToken, Value: rotatedRawToken}); err != nil {
+		t.Fatalf("replacement token authentication: %v", err)
+	}
+	dataControls, err := repository.MutateAdministration(ctx, identity, administrationMutation{Operation: "updateDataControls", EnvironmentID: environment.String(), EnvironmentClass: "production", CollectionMode: "metadata_only", RetentionDays: 60, DeletionEnabled: true, ExpectedVersion: 1, AuditID: "pid_31000006-0000-4000-8000-000000000006"})
+	if err != nil || !strings.Contains(string(dataControls), `"retention_days": 60`) {
+		t.Fatalf("update data controls = (%s, %v)", dataControls, err)
+	}
 	if payload, err := repository.Bootstrap(ctx, identity); err != nil || !equalIntegrationJSON(payload, []byte(authoritativeBootstrap)) {
 		t.Fatalf("bootstrap = (%s, %v)", payload, err)
 	}
@@ -304,6 +363,20 @@ FROM idempotency`, organization.String(), workspace.String(), environment.String
 	if _, err := restartedConnection.Exec(ctx, `UPDATE zasp_identity_memberships SET role = 'security_admin' WHERE principal_id = $1 AND organization_id = $2`, principal.String(), organization.String()); err != nil {
 		t.Fatalf("restore membership for session revocation proof: %v", err)
 	}
+	roleAdministrator, err := restartedRepository.Authenticate(ctx, Credential{Kind: CredentialBrowserSession, Value: session})
+	if err != nil {
+		t.Fatalf("authenticate role administrator: %v", err)
+	}
+	roleResult, err := restartedRepository.MutateAdministration(ctx, roleAdministrator, administrationMutation{Operation: "updateMemberRole", ID: principal.String(), Role: "read_only_viewer", ExpectedVersion: 1, AuditID: "pid_31000007-0000-4000-8000-000000000007"})
+	if err != nil || !strings.Contains(string(roleResult), `"role": "read_only_viewer"`) {
+		t.Fatalf("atomic role update = (%s, %v)", roleResult, err)
+	}
+	if _, err := restartedRepository.Authenticate(ctx, Credential{Kind: CredentialBrowserSession, Value: session}); !errors.Is(err, ErrRepositoryAuthentication) {
+		t.Fatalf("role update did not revoke session: %v", err)
+	}
+	if _, err := restartedConnection.Exec(ctx, `UPDATE zasp_identity_memberships SET role = 'security_admin' WHERE principal_id = $1 AND organization_id = $2`, principal.String(), organization.String()); err != nil {
+		t.Fatalf("restore membership after atomic revocation proof: %v", err)
+	}
 	if _, err := restartedConnection.Exec(ctx, `ALTER TABLE zasp_workflow_records ADD COLUMN schema_drift text`); err != nil {
 		t.Fatalf("introduce schema drift: %v", err)
 	}
@@ -407,6 +480,22 @@ FROM idempotency`, organization.String(), workspace.String(), environment.String
 	}
 	defer func() { _ = rollbackConnection.Close(context.Background()) }()
 	rollbackRunner, _ := migrations.NewRunner(&integrationMigrationDatabase{connection: rollbackConnection})
+	if _, err := rollbackConnection.Exec(ctx, `DELETE FROM zasp_product_api_tokens WHERE token_digest = digest($1, 'sha256')`, pat); err != nil {
+		t.Fatalf("remove post-v7 PAT before administration rollback: %v", err)
+	}
+	for _, statement := range []string{
+		`DELETE FROM zasp_admin_audit`, `DELETE FROM zasp_admin_idempotency`, `DELETE FROM zasp_session_events`,
+		`DELETE FROM zasp_product_api_tokens`, `DELETE FROM zasp_compliance_evidence`, `DELETE FROM zasp_compliance_controls`,
+		`DELETE FROM zasp_data_controls`, `DELETE FROM zasp_group_mappings`, `DELETE FROM zasp_environments`,
+		`DELETE FROM zasp_workspaces`, `DELETE FROM zasp_organizations`,
+	} {
+		if _, err := rollbackConnection.Exec(ctx, statement); err != nil {
+			t.Fatalf("remove administration fixture before rollback: %v", err)
+		}
+	}
+	if err := rollbackRunner.DownProductionAdministration(ctx); err != nil {
+		t.Fatalf("production administration rollback: %v", err)
+	}
 	if err := rollbackRunner.DownWorkflowReceiptProvenance(ctx); !errors.Is(err, migrations.ErrDatabase) {
 		t.Fatalf("receipt-less PAT rollback guard = %v", err)
 	}
@@ -498,6 +587,9 @@ func TestWorkflowMigrationExpiresExistingSessionFreshness(t *testing.T) {
 	if err := runner.UpWorkflowReceiptProvenance(ctx); err != nil {
 		t.Fatal(err)
 	}
+	if err := runner.UpProductionAdministration(ctx); err != nil {
+		t.Fatal(err)
+	}
 	database, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
 	repository, err := NewPostgresRepository(database)
 	if err != nil {
@@ -537,6 +629,9 @@ func TestRetainedWorkflowMutationsReplayLostResponsesInPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := runner.UpWorkflowReceiptProvenance(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.UpProductionAdministration(ctx); err != nil {
 		t.Fatal(err)
 	}
 	database, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
@@ -621,6 +716,7 @@ func TestWorkflowHandlerNonemptyDeletesLeavePostgresMutationAuditAndReceiptsUnto
 		{name: "receipts", run: runner.UpWorkflowReceipts},
 		{name: "receipt safety", run: runner.UpWorkflowReceiptSafety},
 		{name: "receipt provenance", run: runner.UpWorkflowReceiptProvenance},
+		{name: "production administration", run: runner.UpProductionAdministration},
 	} {
 		if err := migration.run(ctx); err != nil {
 			t.Fatalf("%s migration: %v", migration.name, err)
@@ -712,6 +808,9 @@ func TestSecurityAgentPaginationExceedsOneHundredWithoutTenantDisclosure(t *test
 	if err := runner.UpWorkflowReceiptProvenance(ctx); err != nil {
 		t.Fatal(err)
 	}
+	if err := runner.UpProductionAdministration(ctx); err != nil {
+		t.Fatal(err)
+	}
 	identity := fixtureRequestIdentity(t)
 	if _, err := connection.Exec(ctx, `
 INSERT INTO zasp_workflow_records (organization_id, workspace_id, environment_id, kind, id, body)
@@ -796,6 +895,9 @@ func TestPolicyAndIntegrationPaginationTraversesOneThousandAndOneRowsExactly(t *
 		t.Fatal(err)
 	}
 	if err := runner.UpWorkflowReceiptProvenance(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.UpProductionAdministration(ctx); err != nil {
 		t.Fatal(err)
 	}
 	identity := fixtureRequestIdentity(t)

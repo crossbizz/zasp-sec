@@ -118,6 +118,24 @@ func TestProductTokenCanReadMeWithoutBrowserCSRF(t *testing.T) {
 	}
 }
 
+func TestProductionAdministrationUsesDurableOrganizationInsteadOfBootstrapPrincipal(t *testing.T) {
+	server := newProductionTestServer(t, newPersistentJSONDatabase(t))
+	defer server.Close()
+	response := productRequest(t, server.Client(), http.MethodGet, server.URL+"/api/v1/organization", "session-a", expectedScopeValue(testScope(t, "1")), "", "")
+	defer response.Body.Close()
+	var organization struct {
+		ID     string `json:"id"`
+		Name   string `json:"name"`
+		Domain string `json:"domain"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&organization); err != nil {
+		t.Fatal(err)
+	}
+	if response.StatusCode != http.StatusOK || organization.ID != testScope(t, "1").OrganizationID().String() || organization.Name != "Test organization" || organization.Domain != "test.invalid" {
+		t.Fatalf("organization = (%d, %#v)", response.StatusCode, organization)
+	}
+}
+
 func TestProductionBootstrapAdvertisesOnlyMountedDurableCapabilities(t *testing.T) {
 	server := newProductionTestServer(t, newPersistentJSONDatabase(t))
 	defer server.Close()
@@ -129,7 +147,7 @@ func TestProductionBootstrapAdvertisesOnlyMountedDurableCapabilities(t *testing.
 	if err := json.NewDecoder(response.Body).Decode(&bootstrap); err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"inventory.read", "scope.switch", "policies.read", "integrations.read", "security-agents.read"}
+	want := []string{"inventory.read", "scope.switch", "policies.read", "integrations.read", "security-agents.read", "administration.read", "system.read"}
 	if response.StatusCode != http.StatusOK || !reflect.DeepEqual(bootstrap.Capabilities, want) {
 		t.Fatalf("bootstrap = (%d, %#v)", response.StatusCode, bootstrap.Capabilities)
 	}
@@ -176,7 +194,7 @@ func TestBootstrapPayloadSourceContainsOnlyMountedDurableCapabilities(t *testing
 	if !reflect.DeepEqual(bootstrap["permissions"], identity.Permissions) {
 		t.Fatalf("permissions = %#v", bootstrap["permissions"])
 	}
-	if !reflect.DeepEqual(bootstrap["capabilities"], []string{"inventory.read", "scope.switch", "policies.read", "integrations.read", "security-agents.read"}) {
+	if !reflect.DeepEqual(bootstrap["capabilities"], []string{"inventory.read", "scope.switch", "policies.read", "integrations.read", "security-agents.read", "administration.read", "system.read"}) {
 		t.Fatalf("capabilities = %#v", bootstrap["capabilities"])
 	}
 }
@@ -194,7 +212,7 @@ func TestBootstrapMapsWorkflowManagementWithoutProviderOnlyCapabilities(t *testi
 	if json.Unmarshal(payload, &bootstrap) != nil {
 		t.Fatal("bootstrap did not decode")
 	}
-	want := []string{"inventory.read", "scope.switch", "policies.read", "integrations.read", "security-agents.read", "policies.write", "integrations.write", "security-agents.write"}
+	want := []string{"inventory.read", "scope.switch", "policies.read", "integrations.read", "security-agents.read", "administration.read", "system.read", "policies.write", "integrations.write", "security-agents.write"}
 	if !reflect.DeepEqual(bootstrap.Capabilities, want) || strings.Contains(string(payload), "authorize") || strings.Contains(string(payload), "sync") {
 		t.Fatalf("workflow capabilities = %#v payload=%s", bootstrap.Capabilities, payload)
 	}
@@ -269,7 +287,37 @@ func newProductionTestServer(t *testing.T, database *persistentJSONDatabase) *ht
 }
 
 func fixtureCookiePolicy() CookiePolicy {
-	return CookiePolicy{Secure: true, WorkflowSigningKey: []byte("0123456789abcdef0123456789abcdef"), Clock: func() time.Time { return time.Date(2026, 8, 18, 12, 0, 0, 0, time.UTC) }}
+	return CookiePolicy{Secure: true, WorkflowSigningKey: []byte("0123456789abcdef0123456789abcdef"), Clock: func() time.Time { return time.Date(2026, 8, 18, 12, 0, 0, 0, time.UTC) }, DeploymentMode: "saas"}
+}
+
+func TestDeploymentAuthenticatorPinsSingleTenantOrganization(t *testing.T) {
+	allowedScope := testScope(t, "8")
+	disallowedScope := testScope(t, "9")
+	allowed := allowedScope.OrganizationID()
+	authenticate := func(context.Context, Credential) (RequestIdentity, error) {
+		return RequestIdentity{PrincipalID: testScope(t, "1").OrganizationID(), Scope: disallowedScope, Permissions: []string{"view"}, CSRFToken: strings.Repeat("c", 32), CredentialKind: CredentialBrowserSession}, nil
+	}
+	wrapped, err := deploymentAuthenticator(authenticate, "single_tenant", allowed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := wrapped(context.Background(), Credential{Kind: CredentialBrowserSession, Value: "session"}); !errors.Is(err, ErrRepositoryAuthentication) {
+		t.Fatalf("cross-tenant authentication error = %v", err)
+	}
+
+	authenticate = func(context.Context, Credential) (RequestIdentity, error) {
+		return RequestIdentity{PrincipalID: testScope(t, "1").OrganizationID(), Scope: allowedScope, Permissions: []string{"view"}, CSRFToken: strings.Repeat("c", 32), CredentialKind: CredentialBrowserSession}, nil
+	}
+	wrapped, err = deploymentAuthenticator(authenticate, "single_tenant", allowed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := wrapped(context.Background(), Credential{Kind: CredentialBrowserSession, Value: "session"}); err != nil {
+		t.Fatalf("pinned authentication error = %v", err)
+	}
+	if _, err := deploymentAuthenticator(authenticate, "saas", allowed); err == nil {
+		t.Fatal("saas accepted an organization pin")
+	}
 }
 
 func productRequest(t *testing.T, client *http.Client, method, target, session, expectedScope, origin, body string) *http.Response {
@@ -346,6 +394,13 @@ func (database *persistentJSONDatabase) QueryJSON(_ context.Context, statement s
 	database.mu.Lock()
 	defer database.mu.Unlock()
 	switch statement {
+	case postgresGetOrganizationSQL:
+		for _, identity := range database.sessions {
+			if identity.Scope.OrganizationID().String() == arguments[0].(string) {
+				return json.Marshal(map[string]string{"id": arguments[0].(string), "name": "Test organization", "domain": "test.invalid"})
+			}
+		}
+		return nil, ErrRepositoryNotFound
 	case postgresAuthenticateSessionSQL:
 		identity, ok := database.sessions[arguments[0].(string)]
 		if !ok {

@@ -29,6 +29,8 @@ type releaseMigrationRunner interface {
 	UpWorkflowReceiptSafety(context.Context) error
 	UpWorkflowReceiptProvenance(context.Context) error
 	DownWorkflowReceiptProvenance(context.Context) error
+	UpProductionAdministration(context.Context) error
+	DownProductionAdministration(context.Context) error
 	DownWorkflowReceiptSafety(context.Context) error
 	DownWorkflowReceipts(context.Context) error
 	DownWorkflows(context.Context) error
@@ -120,10 +122,22 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 			}
 			version = 6
 		}
-		if version != 6 {
+		if version == 6 {
+			if err := runner.UpProductionAdministration(ctx); err != nil {
+				return err
+			}
+			version = 7
+		}
+		if version != 7 {
 			return migrations.ErrInvalidState
 		}
 	case "down":
+		if version == 7 {
+			if err := runner.DownProductionAdministration(ctx); err != nil {
+				return err
+			}
+			version = 6
+		}
 		if version == 6 {
 			if err := runner.DownWorkflowReceiptProvenance(ctx); err != nil {
 				return err

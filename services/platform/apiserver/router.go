@@ -24,13 +24,14 @@ var (
 )
 
 type Operation struct {
-	Method      string
-	Pattern     string
-	OperationID string
-	Permission  string
-	Security    []CredentialKind
-	RequireCSRF bool
-	Handler     http.Handler
+	Method           string
+	Pattern          string
+	OperationID      string
+	Permission       string
+	Security         []CredentialKind
+	RequireCSRF      bool
+	RequireFreshAuth bool
+	Handler          http.Handler
 }
 
 type operationRouter struct {
@@ -38,14 +39,15 @@ type operationRouter struct {
 }
 
 type registeredOperation struct {
-	method      string
-	pattern     string
-	operationID string
-	permission  string
-	security    []CredentialKind
-	requireCSRF bool
-	segments    []routeSegment
-	handler     http.Handler
+	method           string
+	pattern          string
+	operationID      string
+	permission       string
+	security         []CredentialKind
+	requireCSRF      bool
+	requireFreshAuth bool
+	segments         []routeSegment
+	handler          http.Handler
 }
 
 type routeSegment struct {
@@ -83,7 +85,7 @@ func NewRouter(operations []Operation) (http.Handler, error) {
 			}
 		}
 		registered = append(registered, registeredOperation{
-			method: operation.Method, pattern: operation.Pattern, operationID: operation.OperationID, permission: operation.Permission, security: append([]CredentialKind(nil), operation.Security...), requireCSRF: operation.RequireCSRF, segments: segments, handler: operation.Handler,
+			method: operation.Method, pattern: operation.Pattern, operationID: operation.OperationID, permission: operation.Permission, security: append([]CredentialKind(nil), operation.Security...), requireCSRF: operation.RequireCSRF, requireFreshAuth: operation.RequireFreshAuth, segments: segments, handler: operation.Handler,
 		})
 	}
 	return &operationRouter{operations: registered}, nil
@@ -116,6 +118,10 @@ func (router *operationRouter) ServeHTTP(writer http.ResponseWriter, request *ht
 				writeRouterError(writer, request, http.StatusForbidden, "request_forbidden", "Request forbidden")
 				return
 			}
+			if operation.requireFreshAuth && !requestHasFreshBrowserAuthentication(request) {
+				writeRouterError(writer, request, http.StatusForbidden, "fresh_auth_required", "Fresh authentication required")
+				return
+			}
 			if operation.permission != "" && !requestHasPermission(request, operation.permission) {
 				writeRouterError(writer, request, http.StatusForbidden, "request_forbidden", "Request forbidden")
 				return
@@ -131,6 +137,11 @@ func (router *operationRouter) ServeHTTP(writer http.ResponseWriter, request *ht
 		return
 	}
 	writeRouterError(writer, request, http.StatusNotFound, "not_found", "Product route not found")
+}
+
+func requestHasFreshBrowserAuthentication(request *http.Request) bool {
+	identity, ok := IdentityFromRequest(request)
+	return ok && identity.CredentialKind == CredentialBrowserSession && identity.FreshAuthenticated
 }
 
 func operationRequiresBrowserScope(operationID string, security []CredentialKind) bool {

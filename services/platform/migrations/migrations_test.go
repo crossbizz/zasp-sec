@@ -338,8 +338,32 @@ func TestWorkflowReceiptProvenanceMetadataUsesDurableMarkerAndSafeIntermediateDo
 	}
 }
 
+func TestProductionAdministrationMetadataOwnsOnlyDurableLocalAdministration(t *testing.T) {
+	metadata := ProductionAdministration()
+	if metadata.Version() != 7 || metadata.Name() != "production_administration" || len(metadata.Checksum()) != 64 {
+		t.Fatalf("production administration identity = %d/%q/%q", metadata.Version(), metadata.Name(), metadata.Checksum())
+	}
+	for _, fragment := range []string{
+		"zasp_organizations", "zasp_workspaces", "zasp_environments", "zasp_group_mappings", "zasp_admin_audit",
+		"zasp_session_events", "zasp_compliance_controls", "zasp_compliance_evidence", "zasp_data_controls",
+		"production_administration_fingerprint", "production-administration-v1",
+	} {
+		if !strings.Contains(metadata.UpSQL(), fragment) {
+			t.Fatalf("production administration up migration missing %q", fragment)
+		}
+	}
+	for _, prohibited := range []string{"sso_connection", "scim_connection", "compliance_export", "audit_export", "data_deletion"} {
+		if strings.Contains(strings.ToLower(metadata.UpSQL()), prohibited) {
+			t.Fatalf("production administration migration claims hidden boundary %q", prohibited)
+		}
+	}
+	if ProductionAdministrationSemanticFingerprint() == "" {
+		t.Fatal("production administration semantic fingerprint is missing")
+	}
+}
+
 func TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift(t *testing.T) {
-	baseline, core, workflows, receipts, safety, provenance := Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance()
+	baseline, core, workflows, receipts, safety, provenance, administration := Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration()
 	for _, test := range []struct {
 		name    string
 		rows    []Row
@@ -353,7 +377,8 @@ func TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift(t 
 		{name: "receipts", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(4)}}, fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}}, fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}}, fakeRow{values: []any{workflows.Version(), workflows.Name(), workflows.Checksum()}}, fakeRow{values: []any{receipts.Version(), receipts.Name(), receipts.Checksum()}}}, want: 4},
 		{name: "safety", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(5)}}, fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}}, fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}}, fakeRow{values: []any{workflows.Version(), workflows.Name(), workflows.Checksum()}}, fakeRow{values: []any{receipts.Version(), receipts.Name(), receipts.Checksum()}}, fakeRow{values: []any{safety.Version(), safety.Name(), safety.Checksum()}}}, want: 5},
 		{name: "provenance", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(6)}}, fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}}, fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}}, fakeRow{values: []any{workflows.Version(), workflows.Name(), workflows.Checksum()}}, fakeRow{values: []any{receipts.Version(), receipts.Name(), receipts.Checksum()}}, fakeRow{values: []any{safety.Version(), safety.Name(), safety.Checksum()}}, fakeRow{values: []any{provenance.Version(), provenance.Name(), provenance.Checksum()}}}, want: 6},
-		{name: "drift", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(7)}}}, wantErr: ErrInvalidState},
+		{name: "administration", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(7)}}, fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}}, fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}}, fakeRow{values: []any{workflows.Version(), workflows.Name(), workflows.Checksum()}}, fakeRow{values: []any{receipts.Version(), receipts.Name(), receipts.Checksum()}}, fakeRow{values: []any{safety.Version(), safety.Name(), safety.Checksum()}}, fakeRow{values: []any{provenance.Version(), provenance.Name(), provenance.Checksum()}}, fakeRow{values: []any{administration.Version(), administration.Name(), administration.Checksum()}}}, want: 7},
+		{name: "drift", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(8)}}}, wantErr: ErrInvalidState},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			database := &fakeDatabase{rows: test.rows, transaction: &fakeTransaction{}}

@@ -170,7 +170,7 @@ func validPermissions(values []string) bool {
 	seen := make(map[string]struct{}, len(values))
 	for _, value := range values {
 		switch value {
-		case "view", "manage_findings", "manage_workflows":
+		case "view", "manage_findings", "manage_workflows", "manage_identity", "manage_api_tokens", "view_audit", "investigate_sessions", "revoke_sessions", "view_compliance", "manage_data_controls":
 		default:
 			return false
 		}

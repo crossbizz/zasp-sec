@@ -47,6 +47,37 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"GET", "/api/v1/session/scopes", "listSessionScopes", "", []string{"BrowserSession"}}, sessionDependency},
 	{OperationDefinition{"PUT", "/api/v1/session/scope", "switchSessionScope", "", []string{"BrowserSession"}}, sessionDependency},
 	{OperationDefinition{"GET", "/api/v1/me", "getCurrentPrincipal", "", []string{"BrowserSession", "ProductAPIToken"}}, identityDependency},
+	{OperationDefinition{"GET", "/api/v1/organization", "getOrganization", "view", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"GET", "/api/v1/workspaces", "listWorkspaces", "view", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"POST", "/api/v1/workspaces", "createWorkspace", "manage_identity", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"GET", "/api/v1/workspaces/{id}", "getWorkspace", "view", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"PATCH", "/api/v1/workspaces/{id}", "updateWorkspace", "manage_identity", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"GET", "/api/v1/environments", "listEnvironments", "view", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"POST", "/api/v1/environments", "createEnvironment", "manage_identity", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"GET", "/api/v1/environments/{id}", "getEnvironment", "view", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"PATCH", "/api/v1/environments/{id}", "updateEnvironment", "manage_identity", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"GET", "/api/v1/admin/members", "listMembers", "manage_identity", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"GET", "/api/v1/admin/roles", "listBuiltInRoles", "manage_identity", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"PATCH", "/api/v1/admin/members/{id}", "updateMemberRole", "manage_identity", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"GET", "/api/v1/admin/group-mappings", "listGroupMappings", "manage_identity", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"PATCH", "/api/v1/admin/group-mappings", "updateGroupMappings", "manage_identity", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"GET", "/api/v1/admin/api-tokens", "listAPITokens", "manage_api_tokens", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"POST", "/api/v1/admin/api-tokens", "createAPIToken", "manage_api_tokens", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"POST", "/api/v1/admin/api-tokens/{id}/rotate", "rotateAPIToken", "manage_api_tokens", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"DELETE", "/api/v1/admin/api-tokens/{id}", "revokeAPIToken", "manage_api_tokens", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"GET", "/api/v1/audit-events", "listAuditEvents", "view_audit", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"GET", "/api/v1/sessions", "listSessions", "investigate_sessions", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"GET", "/api/v1/sessions/{id}", "getSession", "investigate_sessions", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"GET", "/api/v1/sessions/{id}/events", "listSessionEvents", "investigate_sessions", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"DELETE", "/api/v1/sessions/{id}", "revokeSession", "revoke_sessions", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"GET", "/api/v1/compliance/controls", "listComplianceControls", "view_compliance", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"GET", "/api/v1/compliance/evidence", "listComplianceEvidence", "view_compliance", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"GET", "/api/v1/settings/data-controls", "getDataControls", "view_compliance", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"PATCH", "/api/v1/settings/data-controls", "updateDataControls", "manage_data_controls", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"GET", "/api/v1/settings/external-data-flows", "getExternalDataFlows", "view", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"GET", "/api/v1/system/status", "getSystemStatus", "view", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"GET", "/api/v1/system/components", "listSystemComponents", "view", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"GET", "/api/v1/system/version", "getSystemVersion", "view", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/home/summary", "getHomeSummary", "view", []string{"BrowserSession", "ProductAPIToken"}}, riskDependency},
 	{OperationDefinition{"GET", "/api/v1/agents", "listAgents", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
 	{OperationDefinition{"GET", "/api/v1/agents/{id}", "getAgent", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
@@ -140,13 +171,24 @@ func NewComposition(dependencies Dependencies) (http.Handler, error) {
 			}
 		}
 		requireCSRF := definition.OperationID == "signOutSession" || definition.OperationID == "switchSessionScope" || isMutation(definition.Method) && len(security) > 0
-		operations = append(operations, Operation{Method: definition.Method, Pattern: definition.Pattern, OperationID: definition.OperationID, Permission: definition.Permission, Security: security, RequireCSRF: requireCSRF, Handler: handler})
+		operations = append(operations, Operation{Method: definition.Method, Pattern: definition.Pattern, OperationID: definition.OperationID, Permission: definition.Permission, Security: security, RequireCSRF: requireCSRF, RequireFreshAuth: requiresFreshAuthentication(definition.OperationID), Handler: handler})
 	}
 	router, err := NewRouter(operations)
 	if err != nil {
 		return nil, errors.Join(ErrInvalidComposition, err)
 	}
 	return router, nil
+}
+
+func requiresFreshAuthentication(operationID string) bool {
+	switch operationID {
+	case "createWorkspace", "updateWorkspace", "createEnvironment", "updateEnvironment",
+		"updateMemberRole", "updateGroupMappings", "createAPIToken", "rotateAPIToken", "revokeAPIToken",
+		"revokeSession", "updateDataControls":
+		return true
+	default:
+		return false
+	}
 }
 
 func handlerIdentity(handler http.Handler) (uintptr, bool) {

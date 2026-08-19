@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/healthserver"
 )
 
@@ -21,6 +22,8 @@ var (
 
 type RuntimeConfig struct {
 	Environment           string
+	DeploymentMode        string
+	OrganizationID        string
 	ProductListenAddress  string
 	InternalListenAddress string
 	PublicOrigin          string
@@ -61,7 +64,7 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 	readinessMaxInterval, readinessMaxErr := time.ParseDuration(getenv("ZASP_READINESS_MAX_INTERVAL"))
 	cookieSecure, cookieErr := strconv.ParseBool(getenv("ZASP_COOKIE_SECURE"))
 	config := RuntimeConfig{
-		Environment: getenv("ZASP_ENVIRONMENT"), ProductListenAddress: getenv("ZASP_PRODUCT_LISTEN_ADDRESS"),
+		Environment: getenv("ZASP_ENVIRONMENT"), DeploymentMode: getenv("ZASP_DEPLOYMENT_MODE"), OrganizationID: getenv("ZASP_ORGANIZATION_ID"), ProductListenAddress: getenv("ZASP_PRODUCT_LISTEN_ADDRESS"),
 		InternalListenAddress: getenv("ZASP_INTERNAL_LISTEN_ADDRESS"), PublicOrigin: getenv("ZASP_PUBLIC_ORIGIN"),
 		CookieSecure: cookieSecure, ProviderTimeout: providerTimeout, ShutdownTimeout: shutdownTimeout,
 		ReadinessInterval: readinessInterval, ReadinessMaxInterval: readinessMaxInterval,
@@ -75,6 +78,16 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 
 func validRuntimeConfig(config RuntimeConfig) bool {
 	if config.Environment != "production" && config.Environment != "development" && config.Environment != "test" {
+		return false
+	}
+	if config.DeploymentMode == "saas" && config.OrganizationID != "" {
+		return false
+	}
+	if config.DeploymentMode == "single_tenant" {
+		if _, err := domain.ParseProductID(config.OrganizationID); err != nil {
+			return false
+		}
+	} else if config.DeploymentMode != "saas" {
 		return false
 	}
 	if !validListenAddress(config.ProductListenAddress) || !validListenAddress(config.InternalListenAddress) || config.ProductListenAddress == config.InternalListenAddress {
