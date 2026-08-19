@@ -23,6 +23,9 @@ func TestPostgresSchemaReadinessRequiresExactWorkflowRelease(t *testing.T) {
 	if !strings.Contains(postgresSchemaVersionSQL, "release.version = 11") || !strings.Contains(postgresSchemaVersionSQL, "release.name = 'connector_authorization'") || !strings.Contains(postgresSchemaVersionSQL, "connector_authorization_fingerprint") {
 		t.Fatalf("schema readiness query does not require connector authorization release: %s", postgresSchemaVersionSQL)
 	}
+	if !strings.Contains(postgresSchemaVersionSQL, "production_discovery_release_fingerprint") || !strings.Contains(postgresSchemaVersionSQL, "COALESCE(release_fingerprint.value, expected_fingerprint.value)") {
+		t.Fatalf("schema readiness query does not recognize the v11-to-v10 compatibility contract: %s", postgresSchemaVersionSQL)
+	}
 	for _, fragment := range []string{"pg_get_expr", "pg_get_constraintdef", "pg_get_indexdef", "prosrc", "provolatile", "prosecdef", "attnotnull", "format_type", "production_risk_projection_fingerprint"} {
 		if !strings.Contains(postgresSchemaVersionSQL, fragment) {
 			t.Fatalf("schema readiness query missing exact fingerprint %q: %s", fragment, postgresSchemaVersionSQL)

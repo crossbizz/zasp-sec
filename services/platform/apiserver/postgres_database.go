@@ -83,10 +83,11 @@ SELECT metadata.value
 FROM zasp_schema_metadata AS metadata
 JOIN zasp_schema_versions AS release ON (release.version = 9 AND release.name = 'production_risk_projection') OR (release.version = 10 AND release.name = 'production_discovery') OR (release.version = 11 AND release.name = 'connector_authorization')
 JOIN zasp_schema_metadata AS expected_fingerprint ON expected_fingerprint.key = CASE release.version WHEN 9 THEN 'production_risk_projection_fingerprint' WHEN 10 THEN 'production_discovery_fingerprint' ELSE 'connector_authorization_fingerprint' END
+LEFT JOIN zasp_schema_metadata AS release_fingerprint ON release.version = 10 AND release_fingerprint.key = 'production_discovery_release_fingerprint'
 CROSS JOIN semantic_fingerprint
 WHERE metadata.key = 'production_core_schema' AND metadata.value = CASE release.version WHEN 9 THEN 'production-risk-projection-v1' WHEN 10 THEN 'production-discovery-v1' ELSE 'connector-authorization-v1' END
   AND release.checksum = CASE release.version WHEN 9 THEN $1 WHEN 10 THEN $3 ELSE $5 END
-  AND expected_fingerprint.value = CASE release.version WHEN 9 THEN $2 WHEN 10 THEN $4 ELSE $6 END
+  AND COALESCE(release_fingerprint.value, expected_fingerprint.value) = CASE release.version WHEN 9 THEN $2 WHEN 10 THEN $4 ELSE $6 END
   AND semantic_fingerprint.value = expected_fingerprint.value
   AND NOT EXISTS (SELECT 1 FROM zasp_schema_versions newer WHERE newer.version>release.version)`
 

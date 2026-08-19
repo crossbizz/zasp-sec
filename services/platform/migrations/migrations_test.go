@@ -454,7 +454,7 @@ func TestConnectorAuthorizationMigrationOwnsDurableProviderEffects(t *testing.T)
 		"zasp_connector_oauth_attempts", "zasp_connector_effects", "zasp_connector_credentials", "zasp_connector_audit",
 		"zasp_connector_start_oauth", "zasp_connector_consume_oauth", "zasp_connector_complete_oauth",
 		"zasp_connector_begin_effect", "zasp_connector_resolve_effect", "zasp_connector_claim_reconciliation",
-		"connector_authorization_fingerprint", "connector-authorization-v1",
+		"connector_authorization_fingerprint", "connector-authorization-v1", "zasp_risk_mutate",
 	} {
 		if !strings.Contains(metadata.UpSQL(), fragment) {
 			t.Fatalf("connector authorization migration missing %q", fragment)
@@ -463,7 +463,7 @@ func TestConnectorAuthorizationMigrationOwnsDurableProviderEffects(t *testing.T)
 	if fingerprint := ConnectorAuthorizationSemanticFingerprint(); len(fingerprint) != 64 || !strings.Contains(metadata.UpSQL(), fingerprint) {
 		t.Fatalf("connector authorization semantic fingerprint = %q", fingerprint)
 	}
-	for _, fragment := range []string{"semantic schema drift blocks rollback", "connector authorization data blocks rollback", "production-discovery-v1"} {
+	for _, fragment := range []string{"semantic schema drift blocks rollback", "connector authorization data blocks rollback", "production-discovery-v1", "production_discovery_release_fingerprint", "zasp_risk_mutate"} {
 		if !strings.Contains(metadata.DownSQL(), fragment) {
 			t.Fatalf("connector authorization rollback missing %q", fragment)
 		}
