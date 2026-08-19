@@ -26,7 +26,7 @@ import { AdminOperationsView } from "../features/administration/AdminOperationsV
 import { ProductionSecurityAgentsView, SecurityAgentsView } from "../features/securityagents/SecurityAgentsView";
 import { ProductionIntegrationsView, ProductionPoliciesView } from "../features/workflows/ProductionWorkflowViews";
 import { ProductionWorkflowMutationProvider, useWorkflowMutationScopeLock } from "../features/workflows/useRetainedWorkflowMutation";
-import { APIProvider } from "../api/APIProvider";
+import { APIProvider, useAPI } from "../api/APIProvider";
 import { SessionProvider, useSession } from "../auth/SessionProvider";
 import type { APIClient } from "../../apps/web/api/client";
 
@@ -84,14 +84,31 @@ const productionRoutes = [
   { path: "/policies", label: "Policies", capability: "policies.read" },
   { path: "/connectors", label: "Integrations", capability: "integrations.read" },
   { path: "/protect/security-agents", label: "Security agents", capability: "security-agents.read" },
+  { path: "/administration/identity-access", label: "Identity & Access", capability: "identity.manage" },
+  { path: "/administration/api-access", label: "API Access", capability: "api-access.manage" },
+  { path: "/investigate/sessions", label: "Sessions", capability: "sessions.read" },
+  { path: "/administration/audit-log", label: "Audit Log", capability: "audit.read" },
+  { path: "/compliance/evidence", label: "Compliance", capability: "compliance.read" },
+  { path: "/administration/data-retention", label: "Data & Retention", capability: "compliance.read" },
+  { path: "/administration/external-data-flows", label: "External Data Flows", capability: "system.read" },
+  { path: "/administration/system-health", label: "System Health", capability: "system.read" },
 ] as const;
 
 function ProductionRouteSurface({ path, navigate }: { path: string; navigate(path: string): void }) {
   const session = useSession();
+  const { client } = useAPI();
   if (session.status !== "authenticated") return null;
   if (path === "/policies") return <ProductionPoliciesView canWrite={session.hasCapability("policies.write")} />;
   if (path === "/connectors") return <ProductionIntegrationsView canWrite={session.hasCapability("integrations.write")} />;
   if (path === "/protect/security-agents") return <ProductionSecurityAgentsView environmentID={session.environmentID} />;
+  if (path === "/administration/identity-access") return <IdentityAPIProvider client={client}><IdentityAccessView /><ScopeOnboardingView client={client} /></IdentityAPIProvider>;
+  if (path === "/administration/api-access") return <APIAccessView client={client} />;
+  if (path === "/investigate/sessions") return <SessionsComplianceView surface="sessions" client={client} canMutate={session.hasCapability("sessions.revoke")} />;
+  if (path === "/compliance/evidence") return <SessionsComplianceView surface="compliance" client={client} />;
+  if (path === "/administration/data-retention") return <SessionsComplianceView surface="data-controls" client={client} canMutate={session.hasCapability("data-controls.manage")} />;
+  if (path === "/administration/system-health") return <AdminOperationsView surface="health" client={client} />;
+  if (path === "/administration/external-data-flows") return <AdminOperationsView surface="external" client={client} />;
+  if (path === "/administration/audit-log") return <AdminOperationsView surface="audit" client={client} />;
   return <AgentSecurityView path={path} onNavigate={navigate} />;
 }
 

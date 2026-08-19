@@ -6,9 +6,10 @@ import { APIAccessView, type APIAccessAPI } from "./APIAccessView";
 
 function fixtureAPI(overrides: Partial<APIAccessAPI> = {}): APIAccessAPI {
   return {
-    listTokens: async () => [{ id: "pid_token", name: "CI scanner", workspaceId: "pid_workspace", environmentId: "pid_environment", permissions: ["view"], expiresAt: "2026-08-19T00:00:00.000Z", revokedAt: null }],
-    createToken: async (input) => ({ id: "pid_created", ...input, revokedAt: null, rawToken: "zasp_pat_one_time_fixture" }),
-    revokeToken: async (id) => ({ id, name: "CI scanner", workspaceId: "pid_workspace", environmentId: "pid_environment", permissions: ["view"], expiresAt: "2026-08-19T00:00:00.000Z", revokedAt: "2026-08-18T01:00:00.000Z" }),
+    listTokens: async () => [{ id: "pid_token", name: "CI scanner", workspaceId: "pid_workspace", environmentId: "pid_environment", permissions: ["view"], expiresAt: "2026-08-19T00:00:00.000Z", revokedAt: null, version: 1 }],
+    createToken: async (input) => ({ id: "pid_created", ...input, revokedAt: null, version: 1, rawToken: "zasp_pat_one_time_fixture" }),
+    rotateToken: async (id, version) => ({ id: `${id}_replacement`, name: "CI scanner", workspaceId: "pid_workspace", environmentId: "pid_environment", permissions: ["view"], expiresAt: "2026-08-19T00:00:00.000Z", revokedAt: null, version: version + 1, rawToken: "zasp_pat_rotated_fixture" }),
+    revokeToken: async (id, version) => ({ id, name: "CI scanner", workspaceId: "pid_workspace", environmentId: "pid_environment", permissions: ["view"], expiresAt: "2026-08-19T00:00:00.000Z", revokedAt: "2026-08-18T01:00:00.000Z", version: version + 1 }),
     ...overrides,
   };
 }
@@ -29,7 +30,7 @@ describe("API Access product surface", () => {
 
     vi.spyOn(window, "confirm").mockReturnValue(true);
     await user.click(screen.getByRole("button", { name: "Revoke CI scanner" }));
-    await waitFor(() => expect(revokeToken).toHaveBeenCalledWith("pid_token"));
+    await waitFor(() => expect(revokeToken).toHaveBeenCalledWith("pid_token", 1));
   });
 
   it("fails closed with stable loading, empty, validation, and error states", async () => {

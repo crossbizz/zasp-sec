@@ -1,5 +1,37 @@
 "use client";
-import { useState } from "react";
-import { Badge, Button, Card, PageHeader } from "../../components/ui";
-type Surface="health"|"external"|"audit";
-export function AdminOperationsView({surface}:{surface:Surface}){const[aiFailed,setAIFailed]=useState(false);if(surface==="health")return <div className="page"><PageHeader title="System health" description="Required and optional dependency status with freshness and product guidance."/><Card title="Security plane healthy"><p><Badge tone="success">Required components healthy</Badge></p><p>v1.0.0</p></Card><Card title="Remote telemetry degraded"><p><Badge tone="warning">Optional dependency</Badge></p><p>Security enforcement remains available.</p></Card></div>;if(surface==="external")return <div className="page"><PageHeader title="External data flows" description="Destination, category, enablement, and health controls."/><Card title="Identity service"><p><Badge tone="info">Required</Badge> · Identity metadata</p></Card><Card title="Product analytics"><p>Product usage · Optional · Healthy</p><p>Raw security evidence prohibited</p></Card></div>;return <div className="page"><PageHeader title="Audit log" description="Filterable product-owned mutation evidence and degraded-state guidance."/><div className="button-row">{["SSO","Config","Policy","Test"].map(value=><Badge key={value} tone="neutral">{value}</Badge>)}</div><Card title="Policy changed"><p>principal-1 · production · audit-1</p></Card><p>Session activity degraded</p><p>Capability graph degraded</p><Button>Export audit</Button><Button onClick={()=>setAIFailed(true)}>Explain with AI</Button>{aiFailed&&<Card title="AI explanation unavailable"><p>Deterministic evidence remains available</p></Card>}</div>}
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { requireAPIData, type APIClient } from "../../../apps/web/api/client";
+import type { AuditEventPage, ExternalFlowPage, SystemComponentPage, SystemStatus, SystemVersion } from "../../../apps/web/api/generated";
+import { decodeAuditEventPage, decodeExternalFlowPage, decodeSystemComponentPage, decodeSystemStatus, decodeSystemVersion } from "../../../apps/web/api/administration-decoders";
+import { Badge, Card, EmptyState, LoadingState, PageHeader } from "../../components/ui";
+
+type Surface = "health" | "external" | "audit";
+export interface AdminOperationsAPI {
+  getHealth(): Promise<{ status: SystemStatus; components: SystemComponentPage["items"]; version: string }>;
+  getExternalFlows(): Promise<ExternalFlowPage["items"]>;
+  listAuditEvents(): Promise<AuditEventPage["items"]>;
+}
+
+export function createAdminOperationsAPI(client: APIClient): AdminOperationsAPI {
+  return {
+    async getHealth() { const [status, components, version] = await Promise.all([requireAPIData<SystemStatus>(await client.GET("/api/v1/system/status"), decodeSystemStatus), requireAPIData<SystemComponentPage>(await client.GET("/api/v1/system/components"), decodeSystemComponentPage), requireAPIData<SystemVersion>(await client.GET("/api/v1/system/version"), decodeSystemVersion)]); return { status, components: components.items, version: version.version }; },
+    async getExternalFlows() { return requireAPIData<ExternalFlowPage>(await client.GET("/api/v1/settings/external-data-flows"), decodeExternalFlowPage).items; },
+    async listAuditEvents() { return requireAPIData<AuditEventPage>(await client.GET("/api/v1/audit-events"), decodeAuditEventPage).items; },
+  };
+}
+
+export function AdminOperationsView({ surface, api: suppliedAPI, client }: { surface: Surface; api?: AdminOperationsAPI; client?: APIClient }) {
+  const api = useMemo(() => suppliedAPI ?? (client ? createAdminOperationsAPI(client) : null), [suppliedAPI, client]);
+  const [health, setHealth] = useState<Awaited<ReturnType<AdminOperationsAPI["getHealth"]>> | null>(null);
+  const [flows, setFlows] = useState<ExternalFlowPage["items"]>([]);
+  const [audit, setAudit] = useState<AuditEventPage["items"]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const load = useCallback(async () => { try { if (!api) throw new Error(); if (surface === "health") setHealth(await api.getHealth()); else if (surface === "external") setFlows(await api.getExternalFlows()); else setAudit(await api.listAuditEvents()); } catch { setError("Administration data could not be loaded"); } finally { setLoading(false); } }, [api, surface]);
+  useEffect(() => { let active = true; queueMicrotask(() => { if (active) void load(); }); return () => { active = false; }; }, [load]);
+  if (loading) return <div className="page"><LoadingState label="Loading administration data…" /></div>;
+  if (surface === "health") return <div className="page"><PageHeader title="System health" description="Only registered components with live readiness probes are shown." />{error && <p role="alert">{error}</p>}{health && <><Card title={health.status.security_plane_healthy ? "Security plane healthy" : "Security plane degraded"}><Badge tone={health.status.security_plane_healthy ? "success" : "warning"}>{health.status.security_plane_healthy ? "Required components healthy" : "Required component unavailable"}</Badge><p>{health.version}</p><p>Fresh {health.status.fresh_at}</p></Card>{health.components.map((component) => <Card key={component.id} title={component.id}><Badge tone={component.state === "healthy" ? "success" : "warning"}>{component.state}</Badge><p>{component.required ? "Required" : "Optional"} · fresh {component.fresh_at}</p></Card>)}</>}</div>;
+  if (surface === "external") return <div className="page"><PageHeader title="External data flows" description="Inventory derived only from mounted adapters and their real readiness." />{error && <p role="alert">{error}</p>}{flows.length === 0 ? <EmptyState title="No external adapters registered" /> : flows.map((flow) => <Card key={flow.id} title={flow.id}><Badge tone={flow.required ? "info" : "neutral"}>{flow.required ? "Required" : "Optional"}</Badge><p>{flow.categories.join(" · ")} · {flow.health}</p></Card>)}</div>;
+  return <div className="page"><PageHeader title="Audit log" description="Durable product-owned mutation evidence. Export remains unavailable until its job and artifact lifecycle exists." />{error && <p role="alert">{error}</p>}{audit.length === 0 ? <EmptyState title="No audit events" /> : audit.map((event) => <Card key={event.id} title={event.action}><p>{event.actor_id} · {event.target_id}</p><p><Badge tone={event.outcome === "succeeded" ? "success" : "warning"}>{event.outcome}</Badge> · {event.occurred_at}</p></Card>)}<Card title="Audit exports unavailable"><p>No export mutation is mounted.</p></Card></div>;
+}

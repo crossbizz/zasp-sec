@@ -6,15 +6,9 @@ import { IdentityAccessView, type IdentityAdminAPI } from "./IdentityAccessView"
 
 function fixtureAPI(overrides: Partial<IdentityAdminAPI> = {}): IdentityAdminAPI {
   return {
-    listMembers: async () => [{ id: "pid_member", memberReference: "member-live-a", role: "organization_admin", active: true }],
+    listMembers: async () => [{ id: "pid_member", memberReference: "member-live-a", role: "organization_admin", active: true, version: 1 }],
+    updateMemberRole: async (id, role, version) => ({ id, memberReference: "member-live-a", role, active: true, version: version + 1 }),
     listRoles: async () => [{ role: "organization_admin", permissions: ["view", "manage_identity"] }],
-    listSSO: async () => [{ id: "saml-connection-live-a", displayName: "Corporate SAML", status: "active", protocol: "saml", identityProvider: "generic" }],
-    createSSO: async () => ({ id: "saml-connection-live-created", displayName: "New SSO", status: "pending", protocol: "saml", identityProvider: "generic" }),
-    testSSO: async () => undefined,
-    deleteSSO: async () => undefined,
-    listSCIM: async () => [{ id: "scim-connection-live-a", displayName: "Corporate SCIM", status: "active", identityProvider: "generic", baseUrl: "https://scim.example.invalid/v2" }],
-    createSCIM: async () => ({ id: "scim-connection-live-created", displayName: "New SCIM", status: "active", identityProvider: "generic", baseUrl: "https://scim.example.invalid/v2", bearerToken: "scim_bearer_token_once" }),
-    deleteSCIM: async () => undefined,
     listGroupMappings: async () => [{ groupReference: "idp-group-engineering", role: "security_engineer", workspaceId: "pid_workspace", environmentId: "pid_environment", version: 1 }],
     updateGroupMapping: async (input) => ({ ...input, version: input.expectedVersion + 1 }),
     ...overrides,
@@ -22,15 +16,15 @@ function fixtureAPI(overrides: Partial<IdentityAdminAPI> = {}): IdentityAdminAPI
 }
 
 describe("Identity & Access product surface", () => {
-  it("renders all five API-backed sections with loaded state", async () => {
+  it("renders durable identity sections and an honest unavailable provider state", async () => {
     render(<IdentityAccessView api={fixtureAPI()} />);
     expect(screen.getByText("Loading identity and access…")).toBeInTheDocument();
-    for (const label of ["Members", "Built-in roles", "SSO connections", "SCIM provisioning", "Group mappings"]) {
+    for (const label of ["Members", "Built-in roles", "Enterprise identity", "Group mappings"]) {
       expect(await screen.findByRole("heading", { name: label })).toBeInTheDocument();
       expect(screen.getByRole("link", { name: label })).toHaveAttribute("href", expect.stringMatching(/^#identity-/));
     }
-    expect(screen.getByText("Corporate SAML")).toBeInTheDocument();
-    expect(screen.getByText("Corporate SCIM")).toBeInTheDocument();
+    expect(screen.getByText("Unavailable")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /SSO|SCIM/ })).not.toBeInTheDocument();
     expect(screen.getByText("idp-group-engineering")).toBeInTheDocument();
   });
 
@@ -40,28 +34,24 @@ describe("Identity & Access product surface", () => {
     expect(screen.getByText("No roles")).toBeInTheDocument();
   });
 
-  it("renders one stable product error and supports SSO test success", async () => {
+  it("renders one stable product error and atomically changes a member role", async () => {
     const user = userEvent.setup();
-    const testSSO = vi.fn(async () => undefined);
-    render(<IdentityAccessView api={fixtureAPI({ testSSO })} />);
-    await user.click(await screen.findByRole("button", { name: "Test Corporate SAML" }));
-    expect(await screen.findByRole("status")).toHaveTextContent("SSO connection is healthy");
-    expect(testSSO).toHaveBeenCalledWith("saml-connection-live-a");
+    const updateMemberRole = vi.fn(fixtureAPI().updateMemberRole);
+    render(<IdentityAccessView api={fixtureAPI({ updateMemberRole, listRoles: async () => [{ role: "organization_admin", permissions: ["view"] }, { role: "read_only_viewer", permissions: ["view"] }] })} />);
+    await user.selectOptions(await screen.findByLabelText("Role for member-live-a"), "read_only_viewer");
+    await user.click(screen.getByRole("button", { name: "Update role" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("active sessions revoked");
+    expect(updateMemberRole).toHaveBeenCalledWith("pid_member", "read_only_viewer", 1);
 
     render(<IdentityAccessView api={fixtureAPI({ listMembers: async () => { throw new Error("provider detail"); } })} />);
     expect(await screen.findByRole("alert")).toHaveTextContent("Identity data could not be loaded");
   });
 
-  it("creates and confirms SCIM, then validates and saves one group mapping", async () => {
+  it("validates and saves one group mapping", async () => {
     const user = userEvent.setup();
     const updateGroupMapping = vi.fn(fixtureAPI().updateGroupMapping);
     render(<IdentityAccessView api={fixtureAPI({ updateGroupMapping })} />);
-    await screen.findByText("Corporate SCIM");
-
-    await user.clear(screen.getByLabelText("SCIM display name"));
-    await user.type(screen.getByLabelText("SCIM display name"), "Engineering SCIM");
-    await user.click(screen.getByRole("button", { name: "Create SCIM connection" }));
-    expect(await screen.findByText("Save this bearer token now: scim_bearer_token_once")).toBeInTheDocument();
+    await screen.findByText("Unavailable");
 
     await user.clear(screen.getByLabelText("IdP group reference"));
     await user.click(screen.getByRole("button", { name: "Save group mapping" }));

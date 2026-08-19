@@ -1967,6 +1967,15 @@ export type components = {
             readonly retention_days: number;
             readonly version: number;
         };
+        readonly DataControlsInput: {
+            /** @enum {string} */
+            readonly collection_mode: "metadata_only" | "extended";
+            readonly deletion_enabled: boolean;
+            /** @enum {string} */
+            readonly environment_class: "development" | "test" | "staging" | "production";
+            readonly environment_id: components["schemas"]["ProductID"];
+            readonly retention_days: number;
+        };
         readonly EmptyInput: Record<string, never>;
         readonly Environment: {
             /** @enum {string} */
@@ -2763,6 +2772,7 @@ export type ConnectorManifest = components['schemas']['ConnectorManifest'];
 export type ConnectorSetupField = components['schemas']['ConnectorSetupField'];
 export type Cursor = components['schemas']['Cursor'];
 export type DataControls = components['schemas']['DataControls'];
+export type DataControlsInput = components['schemas']['DataControlsInput'];
 export type EmptyInput = components['schemas']['EmptyInput'];
 export type Environment = components['schemas']['Environment'];
 export type EnvironmentCreateInput = components['schemas']['EnvironmentCreateInput'];
@@ -5555,7 +5565,7 @@ export interface operations {
         };
         readonly requestBody: {
             readonly content: {
-                readonly "application/json": components["schemas"]["DataControls"];
+                readonly "application/json": components["schemas"]["DataControlsInput"];
             };
         };
         readonly responses: {

@@ -20,6 +20,7 @@ describe("Workspace and Environment onboarding", () => {
   it("creates, updates, and selects only API-authorized scopes", async () => {
     const user = userEvent.setup();
     const onScopeChange = vi.fn();
+    const setItem = vi.spyOn(Storage.prototype, "setItem");
     render(<ScopeOnboardingView api={fixtureAPI()} onScopeChange={onScopeChange} />);
     expect(await screen.findByRole("option", { name: "Agent Security" })).toBeInTheDocument();
     expect(screen.queryByText("Inaccessible workspace")).not.toBeInTheDocument();
@@ -45,6 +46,7 @@ describe("Workspace and Environment onboarding", () => {
     await user.type(screen.getByLabelText("New environment name"), "Staging");
     await user.click(screen.getByRole("button", { name: "Create environment" }));
     expect(await screen.findByRole("option", { name: "Staging" })).toBeInTheDocument();
+    expect(setItem).not.toHaveBeenCalledWith("zasp-authorized-scope", expect.anything());
   });
 
   it("renders stable empty, validation, and provider error states", async () => {

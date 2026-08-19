@@ -1687,7 +1687,7 @@ paths:
         - $ref: '#/components/parameters/ResourceVersion'
       requestBody:
         required: true
-        content: { application/json: { schema: { $ref: '#/components/schemas/DataControls' } } }
+        content: { application/json: { schema: { $ref: '#/components/schemas/DataControlsInput' } } }
       responses:
         '200': { description: Updated environment data controls., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/DataControls' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
@@ -2154,6 +2154,16 @@ components:
         deletion_enabled: { type: boolean }
         version: { type: integer, minimum: 1 }
         audit_correlation_id: { $ref: '#/components/schemas/ProductID' }
+    DataControlsInput:
+      type: object
+      additionalProperties: false
+      required: [environment_id, environment_class, collection_mode, retention_days, deletion_enabled]
+      properties:
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        environment_class: { type: string, enum: [development, test, staging, production] }
+        collection_mode: { type: string, enum: [metadata_only, extended] }
+        retention_days: { type: integer, minimum: 1, maximum: 3650 }
+        deletion_enabled: { type: boolean }
     ExternalFlow:
       type: object
       additionalProperties: false
