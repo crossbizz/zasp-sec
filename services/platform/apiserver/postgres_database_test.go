@@ -20,6 +20,9 @@ func TestPostgresSchemaReadinessRequiresExactWorkflowRelease(t *testing.T) {
 	if !strings.Contains(postgresSchemaVersionSQL, "release.version = 9") || !strings.Contains(postgresSchemaVersionSQL, "release.name = 'production_risk_projection'") {
 		t.Fatalf("schema readiness query does not require provenance release: %s", postgresSchemaVersionSQL)
 	}
+	if !strings.Contains(postgresSchemaVersionSQL, "release.version = 11") || !strings.Contains(postgresSchemaVersionSQL, "release.name = 'connector_authorization'") || !strings.Contains(postgresSchemaVersionSQL, "connector_authorization_fingerprint") {
+		t.Fatalf("schema readiness query does not require connector authorization release: %s", postgresSchemaVersionSQL)
+	}
 	for _, fragment := range []string{"pg_get_expr", "pg_get_constraintdef", "pg_get_indexdef", "prosrc", "provolatile", "prosecdef", "attnotnull", "format_type", "production_risk_projection_fingerprint"} {
 		if !strings.Contains(postgresSchemaVersionSQL, fragment) {
 			t.Fatalf("schema readiness query missing exact fingerprint %q: %s", fragment, postgresSchemaVersionSQL)
@@ -46,7 +49,7 @@ func TestPostgresJSONDatabaseRunsSchemaReadAndWriteBoundaries(t *testing.T) {
 	if err != nil || version != CoreSchemaVersion {
 		t.Fatalf("version = (%q, %v)", version, err)
 	}
-	if !reflect.DeepEqual(driver.queryArguments, []any{expectedCoreSchemaChecksum(), expectedCoreSchemaFingerprint(), expectedDiscoverySchemaChecksum(), expectedDiscoverySchemaFingerprint()}) {
+	if !reflect.DeepEqual(driver.queryArguments, []any{expectedCoreSchemaChecksum(), expectedCoreSchemaFingerprint(), expectedDiscoverySchemaChecksum(), expectedDiscoverySchemaFingerprint(), expectedConnectorSchemaChecksum(), expectedConnectorSchemaFingerprint()}) {
 		t.Fatalf("schema checksum arguments = %#v", driver.queryArguments)
 	}
 	payload, err := database.QueryJSON(context.Background(), "SELECT payload", "organization")

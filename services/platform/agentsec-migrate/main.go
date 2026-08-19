@@ -50,6 +50,8 @@ type releaseMigrationRunner interface {
 	DownProductionRiskProjection(context.Context) error
 	UpProductionDiscovery(context.Context) error
 	DownProductionDiscovery(context.Context) error
+	UpConnectorAuthorization(context.Context) error
+	DownConnectorAuthorization(context.Context) error
 	DownWorkflowReceiptSafety(context.Context) error
 	DownWorkflowReceipts(context.Context) error
 	DownWorkflows(context.Context) error
@@ -207,10 +209,22 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 			}
 			version = 10
 		}
-		if version != 10 {
+		if version == 10 {
+			if err := runner.UpConnectorAuthorization(ctx); err != nil {
+				return err
+			}
+			version = 11
+		}
+		if version != 11 {
 			return migrations.ErrInvalidState
 		}
 	case "down":
+		if version == 11 {
+			if err := runner.DownConnectorAuthorization(ctx); err != nil {
+				return err
+			}
+			version = 10
+		}
 		if version == 10 {
 			if err := runner.DownProductionDiscovery(ctx); err != nil {
 				return err

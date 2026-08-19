@@ -81,12 +81,12 @@ const postgresSchemaVersionSQL = `WITH semantic_objects AS (
 )
 SELECT metadata.value
 FROM zasp_schema_metadata AS metadata
-JOIN zasp_schema_versions AS release ON (release.version = 9 AND release.name = 'production_risk_projection') OR (release.version = 10 AND release.name = 'production_discovery')
-JOIN zasp_schema_metadata AS expected_fingerprint ON expected_fingerprint.key = CASE release.version WHEN 9 THEN 'production_risk_projection_fingerprint' ELSE 'production_discovery_fingerprint' END
+JOIN zasp_schema_versions AS release ON (release.version = 9 AND release.name = 'production_risk_projection') OR (release.version = 10 AND release.name = 'production_discovery') OR (release.version = 11 AND release.name = 'connector_authorization')
+JOIN zasp_schema_metadata AS expected_fingerprint ON expected_fingerprint.key = CASE release.version WHEN 9 THEN 'production_risk_projection_fingerprint' WHEN 10 THEN 'production_discovery_fingerprint' ELSE 'connector_authorization_fingerprint' END
 CROSS JOIN semantic_fingerprint
-WHERE metadata.key = 'production_core_schema' AND metadata.value = CASE release.version WHEN 9 THEN 'production-risk-projection-v1' ELSE 'production-discovery-v1' END
-  AND release.checksum = CASE release.version WHEN 9 THEN $1 ELSE $3 END
-  AND expected_fingerprint.value = CASE release.version WHEN 9 THEN $2 ELSE $4 END
+WHERE metadata.key = 'production_core_schema' AND metadata.value = CASE release.version WHEN 9 THEN 'production-risk-projection-v1' WHEN 10 THEN 'production-discovery-v1' ELSE 'connector-authorization-v1' END
+  AND release.checksum = CASE release.version WHEN 9 THEN $1 WHEN 10 THEN $3 ELSE $5 END
+  AND expected_fingerprint.value = CASE release.version WHEN 9 THEN $2 WHEN 10 THEN $4 ELSE $6 END
   AND semantic_fingerprint.value = expected_fingerprint.value
   AND NOT EXISTS (SELECT 1 FROM zasp_schema_versions newer WHERE newer.version>release.version)`
 
@@ -97,6 +97,10 @@ func expectedCoreSchemaFingerprint() string {
 func expectedDiscoverySchemaChecksum() string { return migrations.ProductionDiscovery().Checksum() }
 func expectedDiscoverySchemaFingerprint() string {
 	return migrations.ProductionDiscoverySemanticFingerprint()
+}
+func expectedConnectorSchemaChecksum() string { return migrations.ConnectorAuthorization().Checksum() }
+func expectedConnectorSchemaFingerprint() string {
+	return migrations.ConnectorAuthorizationSemanticFingerprint()
 }
 
 type PostgresRow interface{ Scan(...any) error }
@@ -130,7 +134,7 @@ func (database *PostgresJSONDatabase) SchemaVersion(ctx context.Context) (string
 		return "", ErrRepositoryUnavailable
 	}
 	var version string
-	if err := database.driver.QueryRow(ctx, postgresSchemaVersionSQL, expectedCoreSchemaChecksum(), expectedCoreSchemaFingerprint(), expectedDiscoverySchemaChecksum(), expectedDiscoverySchemaFingerprint()).Scan(&version); err != nil {
+	if err := database.driver.QueryRow(ctx, postgresSchemaVersionSQL, expectedCoreSchemaChecksum(), expectedCoreSchemaFingerprint(), expectedDiscoverySchemaChecksum(), expectedDiscoverySchemaFingerprint(), expectedConnectorSchemaChecksum(), expectedConnectorSchemaFingerprint()).Scan(&version); err != nil {
 		return "", classifyPostgresError(err)
 	}
 	if version == "" {

@@ -445,9 +445,34 @@ func TestProductionDiscoveryMigrationOwnsScopedRuntimeAuthority(t *testing.T) {
 	}
 }
 
+func TestConnectorAuthorizationMigrationOwnsDurableProviderEffects(t *testing.T) {
+	metadata := ConnectorAuthorization()
+	if metadata.Version() != 11 || metadata.Name() != "connector_authorization" || len(metadata.Checksum()) != 64 {
+		t.Fatalf("connector authorization migration identity = %d/%q/%q", metadata.Version(), metadata.Name(), metadata.Checksum())
+	}
+	for _, fragment := range []string{
+		"zasp_connector_oauth_attempts", "zasp_connector_effects", "zasp_connector_credentials", "zasp_connector_audit",
+		"zasp_connector_start_oauth", "zasp_connector_consume_oauth", "zasp_connector_complete_oauth",
+		"zasp_connector_begin_effect", "zasp_connector_resolve_effect", "zasp_connector_claim_reconciliation",
+		"connector_authorization_fingerprint", "connector-authorization-v1",
+	} {
+		if !strings.Contains(metadata.UpSQL(), fragment) {
+			t.Fatalf("connector authorization migration missing %q", fragment)
+		}
+	}
+	if fingerprint := ConnectorAuthorizationSemanticFingerprint(); len(fingerprint) != 64 || !strings.Contains(metadata.UpSQL(), fingerprint) {
+		t.Fatalf("connector authorization semantic fingerprint = %q", fingerprint)
+	}
+	for _, fragment := range []string{"semantic schema drift blocks rollback", "connector authorization data blocks rollback", "production-discovery-v1"} {
+		if !strings.Contains(metadata.DownSQL(), fragment) {
+			t.Fatalf("connector authorization rollback missing %q", fragment)
+		}
+	}
+}
+
 func TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift(t *testing.T) {
 	baseline, core, workflows, receipts, safety, provenance, administration := Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration()
-	reveal, risk, discovery := APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery()
+	reveal, risk, discovery, connector := APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization()
 	for _, test := range []struct {
 		name    string
 		rows    []Row
@@ -463,7 +488,8 @@ func TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift(t 
 		{name: "provenance", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(6)}}, fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}}, fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}}, fakeRow{values: []any{workflows.Version(), workflows.Name(), workflows.Checksum()}}, fakeRow{values: []any{receipts.Version(), receipts.Name(), receipts.Checksum()}}, fakeRow{values: []any{safety.Version(), safety.Name(), safety.Checksum()}}, fakeRow{values: []any{provenance.Version(), provenance.Name(), provenance.Checksum()}}}, want: 6},
 		{name: "administration", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(7)}}, fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}}, fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}}, fakeRow{values: []any{workflows.Version(), workflows.Name(), workflows.Checksum()}}, fakeRow{values: []any{receipts.Version(), receipts.Name(), receipts.Checksum()}}, fakeRow{values: []any{safety.Version(), safety.Name(), safety.Checksum()}}, fakeRow{values: []any{provenance.Version(), provenance.Name(), provenance.Checksum()}}, fakeRow{values: []any{administration.Version(), administration.Name(), administration.Checksum()}}}, want: 7},
 		{name: "discovery", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(10)}}, fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}}, fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}}, fakeRow{values: []any{workflows.Version(), workflows.Name(), workflows.Checksum()}}, fakeRow{values: []any{receipts.Version(), receipts.Name(), receipts.Checksum()}}, fakeRow{values: []any{safety.Version(), safety.Name(), safety.Checksum()}}, fakeRow{values: []any{provenance.Version(), provenance.Name(), provenance.Checksum()}}, fakeRow{values: []any{administration.Version(), administration.Name(), administration.Checksum()}}, fakeRow{values: []any{reveal.Version(), reveal.Name(), reveal.Checksum()}}, fakeRow{values: []any{risk.Version(), risk.Name(), risk.Checksum()}}, fakeRow{values: []any{discovery.Version(), discovery.Name(), discovery.Checksum()}}}, want: 10},
-		{name: "drift", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(11)}}}, wantErr: ErrInvalidState},
+		{name: "connector", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(11)}}, fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}}, fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}}, fakeRow{values: []any{workflows.Version(), workflows.Name(), workflows.Checksum()}}, fakeRow{values: []any{receipts.Version(), receipts.Name(), receipts.Checksum()}}, fakeRow{values: []any{safety.Version(), safety.Name(), safety.Checksum()}}, fakeRow{values: []any{provenance.Version(), provenance.Name(), provenance.Checksum()}}, fakeRow{values: []any{administration.Version(), administration.Name(), administration.Checksum()}}, fakeRow{values: []any{reveal.Version(), reveal.Name(), reveal.Checksum()}}, fakeRow{values: []any{risk.Version(), risk.Name(), risk.Checksum()}}, fakeRow{values: []any{discovery.Version(), discovery.Name(), discovery.Checksum()}}, fakeRow{values: []any{connector.Version(), connector.Name(), connector.Checksum()}}}, want: 11},
+		{name: "drift", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(12)}}}, wantErr: ErrInvalidState},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			database := &fakeDatabase{rows: test.rows, transaction: &fakeTransaction{}}

@@ -134,10 +134,14 @@ func newDiscoveryRepositoryUnchecked(database JSONDatabase) (*DiscoveryRepositor
 		return nil, ErrRepositoryConfiguration
 	}
 	version, err := database.SchemaVersion(context.Background())
-	if err != nil || version != DiscoverySchemaVersion {
+	if err != nil || version != DiscoverySchemaVersion && version != ConnectorSchemaVersion {
 		return nil, ErrRepositoryConfiguration
 	}
-	payload, err := database.QueryJSON(context.Background(), postgresDiscoveryReadySQL, migrations.ProductionDiscovery().Checksum(), migrations.ProductionDiscoverySemanticFingerprint())
+	readySQL, checksum, fingerprint := postgresDiscoveryReadySQL, migrations.ProductionDiscovery().Checksum(), migrations.ProductionDiscoverySemanticFingerprint()
+	if version == ConnectorSchemaVersion {
+		readySQL, checksum, fingerprint = postgresConnectorReadySQL, migrations.ConnectorAuthorization().Checksum(), migrations.ConnectorAuthorizationSemanticFingerprint()
+	}
+	payload, err := database.QueryJSON(context.Background(), readySQL, checksum, fingerprint)
 	var ready bool
 	if err != nil || decodeStrictDiscovery(payload, &ready) != nil || !ready {
 		return nil, ErrRepositoryConfiguration
