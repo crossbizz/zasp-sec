@@ -69,7 +69,8 @@ export function createAPIAccessAPI(client: APIClient): APIAccessAPI {
   };
 }
 
-type PendingMutation = { kind: "create"; key: string; fingerprint: string } | { kind: "rotate"; key: string; tokenID: string };
+type CreateTokenInput = Parameters<APIAccessAPI["createToken"]>[0];
+type PendingMutation = { kind: "create"; key: string; input: CreateTokenInput } | { kind: "rotate"; key: string; tokenID: string };
 
 export function APIAccessView({ api: suppliedAPI, client }: { api?: APIAccessAPI; client?: APIClient }) {
   const liveAPI = useMemo(() => client ? createAPIAccessAPI(client) : null, [client]);
@@ -152,8 +153,8 @@ export function APIAccessView({ api: suppliedAPI, client }: { api?: APIAccessAPI
       {activeScope && <p>New credentials use the authenticated active scope <code>{activeScope.workspaceId}/{activeScope.environmentId}</code>.</p>}
       <Button ref={createTokenButton} variant="primary" disabled={!fresh || activeScope === null || revealed !== null || grants.length > 0 || unresolvedMutation?.kind === "rotate"} onClick={() => void (async () => {
         setError(null); setNotice(null); if (!name.trim()) { setError("Enter a token name"); return; } if (!api || !activeScope) { setError("An authenticated active scope is required"); return; }
-        const fingerprint = JSON.stringify([name.trim(), activeScope.workspaceId, activeScope.environmentId]); const retained = pendingMutation.current; const key = retained?.kind === "create" && retained.fingerprint === fingerprint ? retained.key : `admin_${crypto.randomUUID()}`; retainMutation({ kind: "create", key, fingerprint });
-        try { const created = await api.createToken({ name: name.trim(), workspaceId: activeScope.workspaceId, environmentId: activeScope.environmentId, permissions: ["view"], expiresAt: expiresAt() }, key); setTokens((current) => [...current.filter((item) => item.id !== created.token.id), created.token]); setGrants((current) => [...current.filter((item) => item.grantId !== created.grant.grantId), created.grant]); retainMutation(null); setNotice("API token created; reveal it before the grant expires"); await reveal(created.grant); }
+        const retained = pendingMutation.current; const input: CreateTokenInput = retained?.kind === "create" ? retained.input : { name: name.trim(), workspaceId: activeScope.workspaceId, environmentId: activeScope.environmentId, permissions: ["view"], expiresAt: expiresAt() }; const key = retained?.kind === "create" ? retained.key : `admin_${crypto.randomUUID()}`; retainMutation({ kind: "create", key, input });
+        try { const created = await api.createToken(input, key); setTokens((current) => [...current.filter((item) => item.id !== created.token.id), created.token]); setGrants((current) => [...current.filter((item) => item.grantId !== created.grant.grantId), created.grant]); retainMutation(null); setNotice("API token created; reveal it before the grant expires"); await reveal(created.grant); }
         catch { await reconcileMutation(); setError("Create response was interrupted. Recover a pending grant or retry the exact retained operation."); }
       })()}>{unresolvedMutation?.kind === "create" ? "Retry retained API token create" : "Create API token"}</Button>
     </Card>

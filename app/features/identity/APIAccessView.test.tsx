@@ -109,9 +109,13 @@ describe("API Access product surface", () => {
 
   it("retains and locks an ambiguous create until the exact idempotent retry reconciles", async () => {
     const user = userEvent.setup();
+    let now = Date.parse("2026-08-19T00:00:00.000Z");
+    vi.spyOn(Date, "now").mockImplementation(() => now);
     const recovered = await fixtureAPI().createToken({ name: "Automation", workspaceId: "pid_workspace", environmentId: "pid_environment", permissions: ["view"], expiresAt: "2026-08-20T00:00:00Z" }, "unused");
     const keys: string[] = [];
-    const createToken = vi.fn(async (_input: Parameters<APIAccessAPI["createToken"]>[0], key: string) => {
+    const inputs: Parameters<APIAccessAPI["createToken"]>[0][] = [];
+    const createToken = vi.fn(async (input: Parameters<APIAccessAPI["createToken"]>[0], key: string) => {
+      inputs.push({ ...input, permissions: [...input.permissions] });
       keys.push(key);
       if (keys.length === 1) throw new Error("response lost");
       return recovered;
@@ -123,10 +127,15 @@ describe("API Access product surface", () => {
 
     expect(await screen.findByRole("button", { name: "Retry retained API token create" })).toBeEnabled();
     expect(screen.getByLabelText("Token name")).toBeDisabled();
+    now += 3 * 60 * 60 * 1000;
     await user.click(screen.getByRole("button", { name: "Retry retained API token create" }));
     expect(await screen.findByRole("dialog", { name: "Save API token" })).toBeVisible();
     expect(keys).toHaveLength(2);
     expect(keys[1]).toBe(keys[0]);
+    expect(inputs).toEqual([
+      { name: "Automation", workspaceId: activeWorkspaceID, environmentId: activeEnvironmentID, permissions: ["view"], expiresAt: "2026-08-20T00:00:00.000Z" },
+      { name: "Automation", workspaceId: activeWorkspaceID, environmentId: activeEnvironmentID, permissions: ["view"], expiresAt: "2026-08-20T00:00:00.000Z" },
+    ]);
   });
 
   it("keeps the secret dialog open and retries the exact acknowledgement after a lost response", async () => {
