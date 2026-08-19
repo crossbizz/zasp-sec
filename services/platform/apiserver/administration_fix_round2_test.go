@@ -24,6 +24,16 @@ func TestAdministrationTimeCursorCanonicalizesNumericOffsets(t *testing.T) {
 	}
 }
 
+func TestAdministrationExpiryAcceptsValidDateTimeInstantFormatting(t *testing.T) {
+	now := time.Date(2026, 8, 19, 0, 0, 0, 0, time.UTC)
+	for _, value := range []string{"2026-08-20T00:00:00.560Z", "2026-08-19T17:00:00.56-07:00"} {
+		expires, err := parseAdministrationExpiry(value, now, nil)
+		if err != nil || !expires.Equal(time.Date(2026, 8, 20, 0, 0, 0, 560_000_000, time.UTC)) {
+			t.Fatalf("expiry %q = (%s, %v)", value, expires, err)
+		}
+	}
+}
+
 func TestBodylessRevocationsRejectEveryWireByte(t *testing.T) {
 	identity := fixtureRequestIdentity(t)
 	for _, test := range []struct {

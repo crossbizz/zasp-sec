@@ -709,10 +709,10 @@ func parseAdministrationExpiry(value string, now time.Time, previous error) (tim
 		return time.Time{}, previous
 	}
 	expires, err := time.Parse(time.RFC3339Nano, value)
-	if err != nil || expires.Location() != time.UTC || expires.Format(time.RFC3339Nano) != value || !expires.After(now) || expires.After(now.Add(365*24*time.Hour)) {
+	if err != nil || !expires.After(now) || expires.After(now.Add(365*24*time.Hour)) {
 		return time.Time{}, ErrRepositoryOperation
 	}
-	return expires, nil
+	return expires.UTC(), nil
 }
 
 func newAdministrationToken(previous error) (string, error) {
