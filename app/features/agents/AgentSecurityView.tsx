@@ -1,15 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { createAPIClient, type APIClient } from "../../../apps/web/api/client";
 import type { AgentSession, AttackPath, BreakOption, Capability, Finding, HomeSummary, InventoryRecord, Relationship } from "../../../apps/web/api/generated";
+import { useAPI } from "../../api/APIProvider";
+import { useAPIQuery } from "../../api/query";
 import { Badge, Button, Card, Drawer, MetricGrid, PageHeader, SearchBox, Select } from "../../components/ui";
 
 type AgentFilter = { owner: string; environment: string; risk: string; shell: boolean; highImpact: boolean; sensor: string; policy: string };
 
 export type AgentSecurityAPI = {
   listAgents(): Promise<readonly InventoryRecord[]>;
+  listTools(): Promise<readonly InventoryRecord[]>;
+  listIdentities(): Promise<readonly InventoryRecord[]>;
+  listRuntimes(): Promise<readonly InventoryRecord[]>;
   getAgent(id: string): Promise<InventoryRecord>;
   updateAgent(id: string, owner: string): Promise<InventoryRecord>;
   getAgentCapabilities(id: string): Promise<readonly Capability[]>;
@@ -32,6 +37,9 @@ function requireData<T>(value: { data?: unknown; error?: unknown }): T {
 export function createAgentSecurityAPI(client: APIClient = createAPIClient()): AgentSecurityAPI {
   return {
     async listAgents() { return requireData<{ items: readonly InventoryRecord[] }>(await client.GET("/api/v1/agents")).items; },
+    async listTools() { return requireData<{ items: readonly InventoryRecord[] }>(await client.GET("/api/v1/tools")).items; },
+    async listIdentities() { return requireData<{ items: readonly InventoryRecord[] }>(await client.GET("/api/v1/identities")).items; },
+    async listRuntimes() { return requireData<{ items: readonly InventoryRecord[] }>(await client.GET("/api/v1/runtimes")).items; },
     async getAgent(id) { return requireData<InventoryRecord>(await client.GET("/api/v1/agents/{id}", { params: { path: { id } } })); },
     async updateAgent(id, owner) { return requireData<{ agent: InventoryRecord }>(await client.PATCH("/api/v1/agents/{id}", { params: { path: { id } }, body: { owner, team: "agent-platform", tags: ["production"] } })).agent; },
     async getAgentCapabilities(id) { return requireData<{ items: readonly Capability[] }>(await client.GET("/api/v1/agents/{id}/capabilities", { params: { path: { id } } })).items; },
@@ -78,7 +86,7 @@ const home: HomeSummary = { agent_count: 1, high_risk_paths: 1, verified_changes
 
 export function fixtureAgentSecurityAPI(overrides: Partial<AgentSecurityAPI> = {}): AgentSecurityAPI {
   return {
-    async listAgents() { return agents; }, async getAgent() { return agents[0]; }, async updateAgent(_id, owner) { return { ...agents[0], owner }; },
+    async listAgents() { return agents; }, async listTools() { return tools; }, async listIdentities() { return identities; }, async listRuntimes() { return runtimes; }, async getAgent() { return agents[0]; }, async updateAgent(_id, owner) { return { ...agents[0], owner }; },
     async getAgentCapabilities() { return capabilities; }, async getAgentRelationships() { return relationships; }, async listAgentSessions() { return sessions; },
     async listFindings() { return findings.filter((item) => item.source !== "prowler" || item.agent_id || item.path_id || item.compliance_context); },
     async updateFinding() { return { ...findings[0], status: "under_review" }; }, async acceptFindingRisk() { return { ...findings[0], status: "accepted", acceptance_reason: "Approved product exception" }; },
@@ -130,7 +138,8 @@ function AttackPathsView() {
 
 function HomeView({ onNavigate }: { onNavigate: (path: string) => void }) { return <div className="page"><PageHeader title="Security overview" description="Agent inventory, high-risk paths, and coverage freshness." /><div className="form-error">Coverage is stale</div><MetricGrid metrics={[{ label: "Agents", value: home.agent_count }, { label: "High-risk paths", value: home.high_risk_paths, tone: "danger" }, { label: "Verified changes", value: home.verified_changes }, { label: "Blocked changes", value: home.blocked_changes, tone: "success" }]} /><Card title="Needs attention"><div className="review-summary"><button onClick={() => onNavigate("/exposure/attack-paths")}><span>Critical exposures</span><strong>{home.high_risk_paths}</strong></button><button onClick={() => onNavigate("/protect/security-agents?tab=approvals")}><span>Pending approvals</span><strong>{home.pending_approvals} · oldest {home.oldest_approval_age_seconds}s</strong></button><button onClick={() => onNavigate("/protect/security-agents?tab=runs")}><span>Needs human</span><strong>{home.needs_human_runs}</strong></button><button onClick={() => onNavigate("/protect/security-agents?tab=runs")}><span>Failed or inconclusive</span><strong>{home.failed_runs + home.inconclusive_runs}</strong></button><button onClick={() => onNavigate("/sensors")}><span>Stale launch coverage</span><strong>Degraded</strong></button><button onClick={() => onNavigate("/protect/security-agents?tab=runs")}><span>Recent containment</span><strong>{home.recent_contained + home.recent_remediated}</strong></button></div></Card></div>; }
 
-export function AgentSecurityView({ path, onNavigate, api = createAgentSecurityAPI(), state = "ready" }: { path: string; onNavigate: (path: string) => void; api?: AgentSecurityAPI; state?: "ready" | "loading" | "empty" | "error" }) {
+export function AgentSecurityView({ path, onNavigate, api, state = "ready" }: { path: string; onNavigate: (path: string) => void; api?: AgentSecurityAPI; state?: "ready" | "loading" | "empty" | "error" }) {
+  if (!api) return <ConnectedAgentSecurityView path={path} onNavigate={onNavigate} />;
   if (path === "/") return <HomeView onNavigate={onNavigate} />;
   if (path === "/discovery/assets" && state === "loading") return <div className="page"><PageHeader title="Agents" description="Loading canonical agents." /><Card><p role="status">Loading agents…</p></Card></div>;
   if (path === "/discovery/assets" && state === "empty") return <div className="page"><PageHeader title="Agents" description="Canonical agents with ownership and evidence." /><Card><p>No agents discovered in this scope.</p></Card></div>;
@@ -142,4 +151,54 @@ export function AgentSecurityView({ path, onNavigate, api = createAgentSecurityA
   if (path === "/violations") return <FindingsView api={api} onNavigate={onNavigate} />;
   if (path === "/exposure/attack-paths") return <AttackPathsView />;
   return <HomeView onNavigate={onNavigate} />;
+}
+
+type ConnectedData =
+  | { kind: "home"; value: HomeSummary }
+  | { kind: "inventory"; title: string; values: readonly InventoryRecord[] }
+  | { kind: "findings"; values: readonly Finding[] }
+  | { kind: "paths"; values: readonly AttackPath[] };
+
+function ConnectedAgentSecurityView({ path, onNavigate }: { path: string; onNavigate: (path: string) => void }) {
+  const { client } = useAPI();
+  const api = useMemo(() => createAgentSecurityAPI(client), [client]);
+  const load = useCallback(async (): Promise<ConnectedData> => {
+    switch (path) {
+    case "/": return { kind: "home", value: await api.getHomeSummary() };
+    case "/discovery/assets": return { kind: "inventory", title: "Agents", values: await api.listAgents() };
+    case "/inventory/tools": return { kind: "inventory", title: "Tools & MCP", values: await api.listTools() };
+    case "/identities": return { kind: "inventory", title: "Identities", values: await api.listIdentities() };
+    case "/inventory/runtimes": return { kind: "inventory", title: "Runtimes", values: await api.listRuntimes() };
+    case "/violations": return { kind: "findings", values: await api.listFindings() };
+    case "/exposure/attack-paths": return { kind: "paths", values: await api.listAttackPaths() };
+    default: throw new Error("Production route unavailable");
+    }
+  }, [api, path]);
+  const query = useAPIQuery(`core:${path}`, load);
+  if (query.status === "loading" || query.status === "idle") return <div className="page"><PageHeader title="Loading" description="Loading authorized product data." /><p role="status">Loading authorized data…</p></div>;
+  if (query.status === "forbidden") return <div className="page"><PageHeader title="Forbidden" description="This scope is not authorized." /><div role="alert">Authorization rejected</div></div>;
+  if (query.status === "error") return <div className="page"><PageHeader title="Unavailable" description="Product data is unavailable." /><div role="alert">Product API unavailable</div><Button onClick={() => void query.retry()}>Retry</Button></div>;
+  if (!query.data) return <div className="page"><PageHeader title="Empty" description="No records are available in this scope." /><p>No records in this scope.</p></div>;
+  return <>{query.status === "stale" && <div role="alert" className="form-error">Showing stale data; mutations are disabled.</div>}<ConnectedDataView data={query.data} api={api} stale={query.status === "stale"} onNavigate={onNavigate} /></>;
+}
+
+function ConnectedDataView({ data, api, stale, onNavigate }: { data: ConnectedData; api: AgentSecurityAPI; stale: boolean; onNavigate: (path: string) => void }) {
+  if (data.kind === "home") {
+    const value = data.value;
+    return <div className="page"><PageHeader title="Security overview" description="Authoritative posture for the selected scope." /><MetricGrid metrics={[{ label: "Agents", value: value.agent_count, onClick: () => onNavigate("/discovery/assets") }, { label: "High-risk paths", value: value.high_risk_paths, tone: "danger", onClick: () => onNavigate("/exposure/attack-paths") }, { label: "Verified changes", value: value.verified_changes }, { label: "Blocked changes", value: value.blocked_changes }]} />{value.attention_required && <div role="alert" className="form-error">Attention required</div>}</div>;
+  }
+  if (data.kind === "inventory") {
+    return <div className="page"><PageHeader title={data.title} description="Authorized canonical inventory." /><Card>{data.values.length === 0 ? <p>No records in this scope.</p> : <div className="table-scroll"><table className="data-table"><thead><tr><th>Name</th><th>Owner</th><th>Last seen</th></tr></thead><tbody>{data.values.map((item) => <tr key={item.id}><td>{item.name}</td><td>{item.owner || "Unowned"}</td><td>{item.last_seen}</td></tr>)}</tbody></table></div>}</Card></div>;
+  }
+  if (data.kind === "findings") return <ConnectedFindings initial={data.values} api={api} disabled={stale} />;
+  return <div className="page"><PageHeader title="Attack Paths" description="Authorized evidence paths." /><Card>{data.values.length === 0 ? <p>No attack paths in this scope.</p> : data.values.map((path) => <div key={path.id}><strong>{path.entry_id} → {path.sink_id}</strong><p>{path.state} · {path.node_ids.length} nodes</p></div>)}</Card></div>;
+}
+
+function ConnectedFindings({ initial, api, disabled }: { initial: readonly Finding[]; api: AgentSecurityAPI; disabled: boolean }) {
+  const [values, setValues] = useState(() => [...initial]);
+  const update = async (finding: Finding) => {
+    const updated = await api.updateFinding(finding.id);
+    setValues((current) => current.map((item) => item.id === updated.id ? updated : item));
+  };
+  return <div className="page"><PageHeader title="Findings" description="Authoritative findings for the selected scope." /><Card>{values.length === 0 ? <p>No findings in this scope.</p> : values.map((finding) => <div key={finding.id}><strong>{finding.title}</strong><p>{finding.severity} · <span>{finding.status}</span></p><Button disabled={disabled} onClick={() => void update(finding)}>Mark {finding.title} under review</Button></div>)}</Card></div>;
 }

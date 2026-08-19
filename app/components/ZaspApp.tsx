@@ -18,18 +18,21 @@ import { IdentityAccessView } from "../features/identity/IdentityAccessView";
 import { IdentityAPIProvider } from "../features/identity/IdentityAPIProvider";
 import { APIAccessView } from "../features/identity/APIAccessView";
 import { ScopeOnboardingView } from "../features/identity/ScopeOnboardingView";
-import { AgentSecurityView } from "../features/agents/AgentSecurityView";
+import { AgentSecurityView, fixtureAgentSecurityAPI } from "../features/agents/AgentSecurityView";
 import { AttackLabView } from "../features/redteam/AttackLabView";
 import { PoliciesView } from "../features/policies/PoliciesView";
 import { SessionsComplianceView } from "../features/sessions/SessionsComplianceView";
 import { AdminOperationsView } from "../features/administration/AdminOperationsView";
 import { SecurityAgentsView } from "../features/securityagents/SecurityAgentsView";
+import { APIProvider } from "../api/APIProvider";
+import { SessionProvider, useSession } from "../auth/SessionProvider";
+import type { APIClient } from "../../apps/web/api/client";
 
 function RouteSurface({ route, onNavigate, onToast }: { route: AppRoute; onNavigate: (path: string) => void; onToast: (message: string) => void }) {
   if (route.path === "/") return <OverviewView onNavigate={onNavigate} />;
-  if (route.path === "/discovery/assets") return <><DiscoveryView route={route} /><AgentSecurityView path={route.path} onNavigate={onNavigate} /></>;
-  if (["/identities", "/violations"].includes(route.path)) return <><GovernanceView route={route} onToast={onToast} /><AgentSecurityView path={route.path} onNavigate={onNavigate} /></>;
-  if (["/inventory/tools", "/inventory/runtimes", "/exposure/attack-paths"].includes(route.path)) return <AgentSecurityView path={route.path} onNavigate={onNavigate} />;
+  if (route.path === "/discovery/assets") return <><DiscoveryView route={route} /><AgentSecurityView path={route.path} api={fixtureAgentSecurityAPI()} onNavigate={onNavigate} /></>;
+  if (["/identities", "/violations"].includes(route.path)) return <><GovernanceView route={route} onToast={onToast} /><AgentSecurityView path={route.path} api={fixtureAgentSecurityAPI()} onNavigate={onNavigate} /></>;
+  if (["/inventory/tools", "/inventory/runtimes", "/exposure/attack-paths"].includes(route.path)) return <AgentSecurityView path={route.path} api={fixtureAgentSecurityAPI()} onNavigate={onNavigate} />;
   if (route.path.startsWith("/discovery/")) return <DiscoveryView route={route} />;
   if (route.path === "/policies") return <><GovernanceView route={route} onToast={onToast} /><PoliciesView embedded /></>;
   if (route.path === "/protect/security-agents") {
@@ -70,4 +73,41 @@ function AppContent() {
   return <AppShell route={route} onNavigate={navigate} onSettings={() => setSettingsOpen(true)}><RouteSurface route={route} onNavigate={navigate} onToast={setToast} /><Modal open={settingsOpen} title="Workspace settings" onClose={() => setSettingsOpen(false)} footer={<Button variant="primary" onClick={() => setSettingsOpen(false)}>Done</Button>}><div className="settings-list"><div><strong>Demo environment</strong><p>All actions modify browser-local demonstration data.</p></div><Button variant="danger" onClick={() => { dispatch({ type: "reset" }); window.localStorage.removeItem("zasp-demo-state"); setToast("Demo data reset"); setSettingsOpen(false); }}>Reset demo data</Button></div></Modal>{toast && <Toast message={toast} onClose={() => setToast(null)} />}</AppShell>;
 }
 
-export function ZaspApp() { return <ZaspStoreProvider><AppContent /></ZaspStoreProvider>; }
+export function ZaspDemoApp() { return <ZaspStoreProvider><AppContent /></ZaspStoreProvider>; }
+
+const productionRoutes = [
+  { path: "/", label: "Overview", capability: "inventory.read" },
+  { path: "/discovery/assets", label: "Agents", capability: "inventory.read" },
+  { path: "/inventory/tools", label: "Tools & MCP", capability: "inventory.read" },
+  { path: "/identities", label: "Identities", capability: "inventory.read" },
+  { path: "/inventory/runtimes", label: "Runtimes", capability: "inventory.read" },
+  { path: "/violations", label: "Findings", capability: "findings.read" },
+  { path: "/exposure/attack-paths", label: "Attack Paths", capability: "attack_paths.read" },
+] as const;
+
+function ProductionAppContent() {
+  const session = useSession();
+  const [path, setPath] = useState(() => {
+    const candidate = typeof window === "undefined" ? "/" : window.location.pathname;
+    return productionRoutes.some((route) => route.path === candidate) ? candidate : "/";
+  });
+  if (session.status === "loading") return <main className="page"><h1>Loading Zasp</h1><p role="status">Loading authenticated session…</p></main>;
+  if (session.status === "unauthenticated") return <main className="page"><h1>Sign in to Zasp</h1><Button onClick={() => session.signIn(path)}>Sign in</Button></main>;
+  if (session.status === "forbidden") return <main className="page"><h1>Scope unavailable</h1><p role="alert">Authorization rejected</p></main>;
+  if (session.status === "error") return <main className="page"><h1>Session unavailable</h1><Button onClick={() => void session.retry()}>Retry</Button></main>;
+  const routes = productionRoutes.filter((route) => session.hasCapability(route.capability));
+  const navigate = (nextPath: string) => {
+    if (!routes.some((route) => route.path === nextPath)) return;
+    window.history.pushState({}, "", nextPath);
+    setPath(nextPath);
+  };
+  return <div className="app-shell production-app">
+    <header className="topbar"><button className="brand" onClick={() => navigate("/")} aria-label="Zasp overview">Zasp</button><span>Agent Security</span><Button onClick={() => void session.signOut()}>Sign out</Button></header>
+    <aside className="sidebar"><nav aria-label="Main navigation">{routes.map((route) => <a key={route.path} href={route.path} aria-label={route.label} aria-current={path === route.path ? "page" : undefined} onClick={(event) => { event.preventDefault(); navigate(route.path); }}>{route.label}</a>)}</nav></aside>
+    <main className="main-content"><AgentSecurityView path={path} onNavigate={navigate} /></main>
+  </div>;
+}
+
+export function ZaspApp({ client }: { client?: APIClient } = {}) {
+  return <APIProvider client={client}><SessionProvider><ProductionAppContent /></SessionProvider></APIProvider>;
+}
