@@ -81,7 +81,7 @@ describe("M1-36d UI/API traceability validation", () => {
     expect(prose).toContain("M1-36d is Complete");
     expect(section).toContain("npm run ui-api:test");
     expect(section).toContain("npm run ui-api:check");
-    expect(prose).toContain("UI/API coverage passed: planned=14 api_available=63 available=56 public=119 internal=0.");
+    expect(prose).toContain("UI/API coverage passed: planned=53 api_available=17 available=63 public=80 internal=0.");
     expect(prose).toContain("M1-36e is Complete");
     expect(prose).not.toMatch(/local infrastructure healthy|new API operation|availability: available/i);
   });

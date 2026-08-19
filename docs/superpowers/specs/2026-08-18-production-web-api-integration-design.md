@@ -84,16 +84,18 @@ are 403; neither leaks tenant existence.
 
 ### Durable data ownership
 
-PostgreSQL is authoritative for organizations, principals, scopes, policies,
-integrations, workflow state, and other transactional records. Existing
-PostgreSQL migrations run as an explicit release step and the API refuses to
-become ready on schema drift.
-
-OpenSearch remains authoritative for searchable events and findings, Neo4j for
-relationship and attack-path projections, S3 for immutable evidence and
-exports, and SQS for asynchronous work. The API reads those systems through
-existing bounded interfaces. It never silently replaces provider failure with
-seed data.
+For the MVP risk-serving slice, the typed, scope-keyed PostgreSQL v9 projection
+is authoritative for findings, attack paths, and path-local break options.
+PostgreSQL also remains authoritative for organizations, principals, scopes,
+policies, integrations, workflow recovery, audit, and other transactional
+records. Migrations run as an explicit release step, and the API refuses to
+become ready on schema drift. OpenSearch remains the searchable event
+projection and a future risk enrichment/index target; Neo4j remains the future
+relationship/attack-path enrichment target. Neither is a production
+risk-serving dependency in this
+slice. S3 remains authoritative for immutable evidence and exports, and SQS for
+asynchronous work. The API never silently replaces an empty projection or
+provider failure with seed data.
 
 Memory stores remain allowed only in unit tests and an explicit development
 fixture process. They are rejected when `ZASP_ENVIRONMENT=production`.
@@ -122,21 +124,22 @@ visible only when its required read operation and every offered mutation are
 available to the current principal. This lets complete vertical slices ship
 without presenting dead or simulated controls.
 
-The first usable production slice contains:
+The currently supported production surface contains:
 
 - sign-in, session bootstrap, scope selection, and sign-out;
-- home posture summary and global search;
+- home posture summary and API-backed inventory;
 - asset, identity, finding, and attack-path lists and details;
-- finding status/remediation actions;
-- policy list, create, update, simulation, and activation;
-- integration catalog, connection lifecycle, and sync status;
-- security-agent list, detail, plan, approval, run, and audit status;
+- finding status update and risk acceptance;
+- policy list, create, update, and activation;
+- integration catalog and connection lifecycle;
+- security-agent definition list, detail, create, update, and delete;
 - health-aware error and degraded-state presentation.
 
-Guardrails, reports, red-team execution, compliance exports, sessions, sensors,
-and administration follow in subsequent vertical batches. Until each slice is
-complete, its production navigation and command surfaces remain hidden rather
-than simulated.
+Global search, finding tickets, policy simulation/decisions, provider sync,
+sensors, security-agent execution/approvals, guardrails, reports, Red Team,
+Attack Lab, AI explanations, exports, and deletion jobs follow in later
+vertical slices. Until each slice is complete, its production navigation and
+command surfaces remain hidden rather than simulated.
 
 ## Request Flow
 

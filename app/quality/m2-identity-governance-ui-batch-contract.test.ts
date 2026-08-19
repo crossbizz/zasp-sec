@@ -44,20 +44,20 @@ describe("M2 identity governance and UI batch", () => {
       "acknowledgeAPITokenRevealGrant", "rotateAPIToken", "revokeAPIToken", "listAuditEvents",
     ]) expect(openapi).toContain(`operationId: ${operation}`);
     for (const hidden of ["listGroupMappings", "updateGroupMappings", "createAuditExport", "getAuditExport"]) expect(openapi).not.toContain(`operationId: ${hidden}`);
-    expect(map.match(/availability: planned/g)).toHaveLength(14);
-    expect(map.match(/availability: available/g)).toHaveLength(56);
-    expect(map.match(/availability: api_available/g)).toHaveLength(63);
+    expect(map.match(/availability: planned/g)).toHaveLength(53);
+    expect(map.match(/availability: available/g)).toHaveLength(63);
+    expect(map.match(/availability: api_available/g)).toHaveLength(17);
     expect(readme).toContain("M2-01 through M2-50 and the M2-47 gate are Complete");
     expect(readme).toContain("M3-01 through M3-13 are Complete");
   });
 
   it("ships the durable Identity route over the shared generated API client", async () => {
     const [app, view, provider] = await Promise.all([
-      readFile(resolve(repositoryRoot, "app/components/ZaspApp.tsx"), "utf8"),
+      readFile(resolve(repositoryRoot, "app/components/ZaspProductionApp.tsx"), "utf8"),
       readFile(resolve(repositoryRoot, "app/features/identity/IdentityAccessView.tsx"), "utf8"),
       readFile(resolve(repositoryRoot, "app/features/identity/IdentityAPIProvider.tsx"), "utf8"),
     ]);
-    expect(app).toContain('route.path === "/administration/identity-access"');
+    expect(app).toContain('path === "/administration/identity-access"');
     for (const heading of ["Members", "Built-in roles", "Enterprise identity", "Group mappings"]) {
       expect(view).toContain(`<h2>${heading}</h2>`);
     }

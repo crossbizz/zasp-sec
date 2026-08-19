@@ -1,7 +1,7 @@
 # Zasp Agent Security Console
 
-Zasp is an interactive TypeScript SaaS prototype for discovering, governing,
-protecting, and adversarially testing agentic systems.
+Zasp is an agent-security product with a capability-gated production web/API
+surface and a separate interactive TypeScript demonstration surface.
 
 ## Product workspaces
 
@@ -12,9 +12,29 @@ protecting, and adversarially testing agentic systems.
 - Cloud, model, framework, developer, data, and security connectors
 - Prompt hardening, attack testing, report generation, and scheduling
 
-All application UI mutations are deterministic browser-local demo actions
-persisted with local storage. Separately documented proof commands use only
-their explicit disposable test fixtures; no production resource is changed.
+`ZaspProductionApp` uses the authenticated generated client and durable server
+authorities only. `ZaspDemoApp` is the explicit browser-local demonstration
+surface; its state and fixtures are excluded from both reachable production
+source modules and compiled client/server chunks.
+
+## Production support boundary
+
+The production API publishes and mounts exactly 80 operations. The UI/API map
+reports `planned=53 api_available=17 available=63 public=80 internal=0`.
+Findings and attack paths are the Batch 4 production risk slice:
+
+| Surface | Production support |
+| --- | --- |
+| Findings | Scoped list/detail, status update, and risk acceptance |
+| Attack paths | Scoped list/detail and ranked path-local break options |
+| Risk authority | Typed, scope-keyed PostgreSQL v9 serving projection |
+| Empty scopes | Honest empty state; no fixture or fake producer fallback |
+| Future enrichment | Provider ingestion, OpenSearch indexing, and Neo4j graph projection |
+
+Red Team, Attack Lab, reports, guardrail prototype controls, finding tickets,
+AI explanations, sensors/provider sync, policy simulation/decisions,
+security-agent execution/approvals, exports, and deletion jobs remain hidden
+until their provider, job, artifact, and recovery boundaries are complete.
 
 ## Base web shell
 
@@ -33,8 +53,9 @@ The base shell exposes exactly 22 product labels in nine groups:
 | Administration | Identity & Access; Audit Log; Data & Retention; External Data Flows; System Health; API Access |
 
 No OSS or provider implementation label appears in the product navigation.
-The existing working surfaces continue to use browser-local demonstration data,
-while future routes render a bounded heading inside the same shell.
+The 22-label shell remains available only through `ZaspDemoApp` and uses
+browser-local demonstration data. Production navigation is separately derived
+from server capabilities and does not import this shell's fixture graph.
 
 Run the route, navigation, guard, and application smoke contract from the
 repository root:
@@ -99,8 +120,8 @@ npm run ui-api:test
 npm run ui-api:check
 ```
 
-The current honest result is `UI/API coverage passed: planned=14
-api_available=63 available=56 public=119 internal=0.` The gate distinguishes
+The current honest result is `UI/API coverage passed: planned=53
+api_available=17 available=63 public=80 internal=0.` The gate distinguishes
 implemented API contracts from fully wired UI actions.
 M1-36e is Complete and separately owns local infrastructure smoke checks.
 
@@ -1004,7 +1025,7 @@ npm run ui-api:check
 The current fixed success line is:
 
 ```text
-UI/API coverage passed: planned=14 api_available=63 available=56 public=119 internal=0.
+UI/API coverage passed: planned=53 api_available=17 available=63 public=80 internal=0.
 ```
 
 M5 now has a local MVP slice for normalized Promptfoo attempts, curated packs,

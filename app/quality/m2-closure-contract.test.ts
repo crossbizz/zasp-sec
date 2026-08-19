@@ -35,20 +35,20 @@ describe("M2 identity and authorization milestone closure", () => {
 
   it("binds the final product UI to the generated API and records the M2 gate PASS", async () => {
     const [app, tokenView, scopeView, map, readme] = await Promise.all([
-      readFile(resolve(repositoryRoot, "app/components/ZaspApp.tsx"), "utf8"),
+      readFile(resolve(repositoryRoot, "app/components/ZaspProductionApp.tsx"), "utf8"),
       readFile(resolve(repositoryRoot, "app/features/identity/APIAccessView.tsx"), "utf8"),
       readFile(resolve(repositoryRoot, "app/features/identity/ScopeOnboardingView.tsx"), "utf8"),
       readFile(resolve(repositoryRoot, "docs/product/ui-api-map.yaml"), "utf8"),
       readFile(resolve(repositoryRoot, "README.md"), "utf8"),
     ]);
-    expect(app).toContain('route.path === "/administration/api-access"');
+    expect(app).toContain('path === "/administration/api-access"');
     expect(tokenView).toContain("client ? createAPIAccessAPI(client)");
     expect(scopeView).toContain("client ? createScopeAdminAPI(client)");
     expect(tokenView).not.toContain("createAPIClient()");
     expect(scopeView).not.toContain("createAPIClient()");
-    expect(map.match(/availability: planned/g)).toHaveLength(14);
-    expect(map.match(/availability: available/g)).toHaveLength(56);
-    expect(map.match(/availability: api_available/g)).toHaveLength(63);
+    expect(map.match(/availability: planned/g)).toHaveLength(53);
+    expect(map.match(/availability: available/g)).toHaveLength(63);
+    expect(map.match(/availability: api_available/g)).toHaveLength(17);
     expect(readme).toContain("M2-01 through M2-50 and the M2-47 gate are Complete");
     expect(readme).toContain("M2 gate: PASS");
     expect(readme).toContain("M3-01 through M3-13 are Complete");
