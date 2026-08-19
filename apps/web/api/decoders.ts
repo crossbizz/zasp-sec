@@ -183,7 +183,7 @@ function decodeSecurityAgentReceiptIntent(operation: string, body: unknown, resu
   const update = operation === "updateSecurityAgent";
   const input = decodeSecurityAgentReceiptBody(body, update);
   if (update) { if (!sameJSON(input, result)) fail(); return; }
-  const { id: _id, ...resultInput } = result;
+  const resultInput = Object.fromEntries(Object.entries(result).filter(([key]) => key !== "id"));
   if (!sameJSON(input, resultInput)) fail();
 }
 
@@ -236,6 +236,5 @@ function positiveInteger(value: unknown): void { if (!Number.isSafeInteger(value
 function boundedInteger(value: unknown, minimum: number, maximum: number): void { if (!Number.isSafeInteger(value) || (value as number) < minimum || (value as number) > maximum) fail(); }
 function decodePageInfo(value: unknown): void { const pageInfo = exactRecord(value, ["next_cursor", "has_more"]); if (pageInfo.has_more === true) { boundedString(pageInfo.next_cursor, 2, 512); if (!CURSOR.test(pageInfo.next_cursor)) fail(); } else if (pageInfo.has_more !== false || pageInfo.next_cursor !== null) fail(); }
 function stringRecord(value: unknown, maximum: number, minimum = 0, minimumValueLength = 0): void { if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).length < minimum || Object.keys(value).length > maximum || Object.entries(value).some(([key, item]) => key.length < 1 || key.length > 128 || typeof item !== "string" || item.length < minimumValueLength || item.length > 2048)) fail(); }
-function jsonRecord(value: unknown, maximum: number): void { if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).length > maximum) fail(); }
 function enumValue(value: unknown, allowed: readonly string[]): void { if (typeof value !== "string" || !allowed.includes(value)) fail(); }
 function fail(): never { throw new Error("schema mismatch"); }

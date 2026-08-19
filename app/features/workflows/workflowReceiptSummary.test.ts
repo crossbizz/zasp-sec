@@ -34,7 +34,7 @@ describe("truthful workflow receipt summary", () => {
 
   it("summarizes Security Agent create, update, and delete receipts from allowlisted fields", () => {
     const result = { id: "pid_20000002-0000-4000-8000-000000000002", name: "Credential responder", trigger_kind: "finding", trigger_source: "credential", environment_ids: ["pid_10000003-0000-4000-8000-000000000003"], autonomy: "supervised", max_steps: 10, max_duration_seconds: 900, temporary_policy_seconds: 3600, ai_token_budget: 4000, concurrency_limit: 2, allowed_actions: ["run_test"], verification_kind: "test_run", definition_version: 1, enabled: true };
-    const { id: _id, ...createInput } = result;
+    const createInput = Object.fromEntries(Object.entries(result).filter(([key]) => key !== "id"));
     for (const [operation, body] of [["createSecurityAgent", createInput], ["updateSecurityAgent", result], ["deleteSecurityAgent", {}]] as const) {
       const summary = workflowReceiptSummary({ ...base, operation, intent: { body, expected_version: operation.startsWith("create") ? 0 : 1, resource_id: operation.startsWith("create") ? "" : result.id }, result, resource_kind: "security_agent", resource_id: result.id } as WorkflowMutationReceipt);
       expect(summary.result).toEqual(expect.arrayContaining([{ label: "Committed Security Agent", value: "Credential responder" }, { label: "Committed trigger", value: "finding · credential" }]));

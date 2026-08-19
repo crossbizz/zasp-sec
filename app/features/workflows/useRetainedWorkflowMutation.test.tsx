@@ -210,7 +210,7 @@ describe("observable scope-owned workflow mutation registry", () => {
     expect(screen.getAllByText("destination_url, signing_secret_reference")).toHaveLength(2);
     expect(screen.queryByText("https://secret.invalid")).not.toBeInTheDocument();
     expect(screen.queryByText("secret_ref_1234")).not.toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Mutation recovery" })).not.toHaveTextContent(/[{}\"]/);
+    expect(screen.getByRole("region", { name: "Mutation recovery" })).not.toHaveTextContent(/[{}"]/);
   });
 
   it("keeps a forced A to B scope drift locked while captured-scope acknowledgement and relist finish", async () => {
