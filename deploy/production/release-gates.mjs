@@ -115,21 +115,23 @@ async function goSourceSBOM() {
     const packageID = createHash("sha256").update(`${dependency.name}\0${dependency.version}`).digest("hex").slice(0, 24);
     packages.push({ SPDXID: `SPDXRef-Package-${packageID}`, name: dependency.name, versionInfo: dependency.version, downloadLocation: "NOASSERTION", filesAnalyzed: false, licenseConcluded: license, licenseDeclared: license, copyrightText: "NOASSERTION" });
   }
-  const namespaceID = createHash("sha256").update(JSON.stringify(packages)).digest("hex");
+  const created = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+  const documentNamespace = goDocumentNamespace(packages, created);
   return {
     spdxVersion: "SPDX-2.3",
     dataLicense: "CC0-1.0",
     SPDXID: "SPDXRef-DOCUMENT",
     name: "zasp-production-go-source",
-    documentNamespace: `https://zasp.example/spdx/go-source/${namespaceID}`,
-    creationInfo: { created: new Date().toISOString(), creators: ["Tool: zasp-production-release-gate"] },
+    documentNamespace,
+    creationInfo: { created, creators: ["Tool: zasp-production-release-gate"] },
     packages,
     relationships: packages.map((entry) => ({ spdxElementId: "SPDXRef-DOCUMENT", relationshipType: "DESCRIBES", relatedSpdxElement: entry.SPDXID })),
   };
 }
 
 export function validateGoSpdxDocument(document) {
-  if (!document || document.spdxVersion !== "SPDX-2.3" || document.dataLicense !== "CC0-1.0" || document.SPDXID !== "SPDXRef-DOCUMENT" || document.name !== "zasp-production-go-source" || !/^https:\/\/zasp\.example\/spdx\/go-source\/[a-f0-9]{64}$/.test(document.documentNamespace) || !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(document.creationInfo?.created) || !document.creationInfo?.creators?.includes("Tool: zasp-production-release-gate") || !Array.isArray(document.packages) || !Array.isArray(document.relationships)) throw new Error("Go SBOM gate rejected");
+  const created = document?.creationInfo?.created;
+  if (!document || document.spdxVersion !== "SPDX-2.3" || document.dataLicense !== "CC0-1.0" || document.SPDXID !== "SPDXRef-DOCUMENT" || document.name !== "zasp-production-go-source" || !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/.test(created) || Number.isNaN(Date.parse(created)) || new Date(created).toISOString().replace(/\.000Z$/, "Z") !== created || !document.creationInfo?.creators?.includes("Tool: zasp-production-release-gate") || !Array.isArray(document.packages) || !Array.isArray(document.relationships) || document.documentNamespace !== goDocumentNamespace(document.packages, created)) throw new Error("Go SBOM gate rejected");
   const packageIDs = new Set();
   for (const entry of document.packages) {
     if (!entry || !/^SPDXRef-Package-[A-Za-z0-9.-]+$/.test(entry.SPDXID) || packageIDs.has(entry.SPDXID) || typeof entry.name !== "string" || !entry.name || typeof entry.versionInfo !== "string" || !entry.versionInfo || entry.downloadLocation !== "NOASSERTION" || entry.filesAnalyzed !== false || typeof entry.licenseConcluded !== "string" || entry.licenseDeclared !== entry.licenseConcluded || entry.copyrightText !== "NOASSERTION") throw new Error("Go SBOM gate rejected");
@@ -142,6 +144,11 @@ export function validateGoSpdxDocument(document) {
     described.add(relationship.relatedSpdxElement);
   }
   return true;
+}
+
+function goDocumentNamespace(packages, created) {
+  const namespaceID = createHash("sha256").update(JSON.stringify({ created, packages })).digest("hex");
+  return `https://zasp.example/spdx/go-source/${namespaceID}`;
 }
 
 async function moduleLicense(dependency) {

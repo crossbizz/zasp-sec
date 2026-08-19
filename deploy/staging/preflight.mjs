@@ -1,7 +1,13 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
-export const requiredTools = Object.freeze(["terraform", "helm", "kubectl", "aws"]);
+const toolChecks = Object.freeze([
+  Object.freeze({ tool: "terraform", args: Object.freeze(["version"]) }),
+  Object.freeze({ tool: "helm", args: Object.freeze(["version", "--short"]) }),
+  Object.freeze({ tool: "kubectl", args: Object.freeze(["version", "--client=true", "--output=json"]) }),
+  Object.freeze({ tool: "aws", args: Object.freeze(["--version"]) }),
+]);
+export const requiredTools = Object.freeze(toolChecks.map(({ tool }) => tool));
 const digestPattern = /^[a-z0-9./_-]+(?::[a-zA-Z0-9._-]+)?@sha256:[0-9a-f]{64}$/;
 const rolePrefix = "arn:aws:iam::[0-9]{12}:role/zasp-production-";
 const identityContract = Object.freeze({
@@ -31,8 +37,8 @@ export function runPreflight(argv = process.argv.slice(2), runtime = { spawn: sp
   if (argv.length !== 2 || argv[0] !== "--input") throw new Error("release preflight rejected");
   const input = JSON.parse(runtime.read(argv[1], "utf8"));
   const validated = validateReleaseInput(input);
-  for (const tool of requiredTools) {
-    const result = runtime.spawn(tool, ["version"], { encoding: "utf8", timeout: 10_000, env: { PATH: process.env.PATH || "" }, maxBuffer: 16 * 1024 });
+  for (const { tool, args } of toolChecks) {
+    const result = runtime.spawn(tool, args, { encoding: "utf8", timeout: 10_000, env: { PATH: process.env.PATH || "" }, maxBuffer: 16 * 1024 });
     if (!result || result.status !== 0 || result.signal || result.error) throw new Error("release preflight rejected");
   }
   return validated;

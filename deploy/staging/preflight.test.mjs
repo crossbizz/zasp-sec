@@ -25,8 +25,14 @@ test("release preflight validates the exact two images and least-privilege ident
   const calls = [];
   const value = runPreflight(["--input", "release.json"], { read: () => JSON.stringify(input), spawn: (tool, args, options) => { calls.push({ tool, args, options }); return { status: 0 }; } });
   assert.deepEqual(value, { environment: "production", privateEndpointOnly: true, images: 2, cloudIdentities: 3 });
+  assert.deepEqual(calls.map(({ tool, args }) => ({ tool, args })), [
+    { tool: "terraform", args: ["version"] },
+    { tool: "helm", args: ["version", "--short"] },
+    { tool: "kubectl", args: ["version", "--client=true", "--output=json"] },
+    { tool: "aws", args: ["--version"] },
+  ]);
   assert.deepEqual(calls.map(({ tool }) => tool), requiredTools);
-  assert.ok(calls.every(({ args, options }) => args[0] === "version" && options.timeout === 10_000 && Object.keys(options.env).join() === "PATH"));
+  assert.ok(calls.every(({ options }) => options.timeout === 10_000 && Object.keys(options.env).join() === "PATH"));
 });
 
 test("release preflight rejects public access, mutable images, stale workloads, and shared IAM", () => {

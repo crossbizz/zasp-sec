@@ -190,6 +190,8 @@ type operationalMetrics struct {
 	mu               sync.Mutex
 	requests         map[string]uint64
 	duration         map[string]*durationHistogram
+	sloRequests      map[string]uint64
+	sloDuration      map[string]*durationHistogram
 	dependencies     map[string]uint64
 	poolStats        func() poolSaturation
 	rateLimited      atomic.Uint64
@@ -208,7 +210,7 @@ type poolSaturation struct{ Acquired, Idle, Maximum int32 }
 var durationBuckets = [...]float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10}
 
 const (
-	maximumHTTPMetricSeries     = 18
+	maximumHTTPMetricSeries     = 12
 	maximumPrometheusRenderSize = 64 * 1024
 )
 
@@ -226,7 +228,7 @@ var metricRouteRoots = map[string]struct{}{
 }
 
 func newOperationalMetrics() *operationalMetrics {
-	return &operationalMetrics{requests: make(map[string]uint64), duration: make(map[string]*durationHistogram), dependencies: make(map[string]uint64)}
+	return &operationalMetrics{requests: make(map[string]uint64), duration: make(map[string]*durationHistogram), sloRequests: make(map[string]uint64), sloDuration: make(map[string]*durationHistogram), dependencies: make(map[string]uint64)}
 }
 
 func (metrics *operationalMetrics) observe(method, route string, status int, duration time.Duration) {
@@ -238,22 +240,13 @@ func (metrics *operationalMetrics) observe(method, route string, status int, dur
 	statusClass := metricStatusClass(status)
 	key := method + "\x00" + route + "\x00" + statusClass
 	metrics.mu.Lock()
+	metrics.sloRequests[statusClass]++
+	observeDurationHistogram(metrics.sloDuration, sloRequestClass(method), duration)
 	if _, exists := metrics.requests[key]; !exists && len(metrics.requests) >= maximumHTTPMetricSeries {
 		key = "OTHER\x00/overflow\x00" + statusClass
 	}
 	metrics.requests[key]++
-	histogram := metrics.duration[key]
-	if histogram == nil {
-		histogram = &durationHistogram{counts: make([]uint64, len(durationBuckets))}
-		metrics.duration[key] = histogram
-	}
-	histogram.count++
-	histogram.sum += duration.Seconds()
-	for index, boundary := range durationBuckets {
-		if duration.Seconds() <= boundary {
-			histogram.counts[index]++
-		}
-	}
+	observeDurationHistogram(metrics.duration, key, duration)
 	metrics.mu.Unlock()
 	if status == http.StatusUnauthorized || status == http.StatusForbidden {
 		metrics.authRejected.Add(1)
@@ -303,6 +296,23 @@ func (metrics *operationalMetrics) Prometheus() string {
 		fmt.Fprintf(&output, "zasp_http_request_duration_seconds_bucket{method=%q,route=%q,status_class=%q,le=%q} %d\n", parts[0], parts[1], parts[2], "+Inf", histogram.count)
 		fmt.Fprintf(&output, "zasp_http_request_duration_seconds_sum{method=%q,route=%q,status_class=%q} %.6f\n", parts[0], parts[1], parts[2], histogram.sum)
 		fmt.Fprintf(&output, "zasp_http_request_duration_seconds_count{method=%q,route=%q,status_class=%q} %d\n", parts[0], parts[1], parts[2], histogram.count)
+	}
+	output.WriteString("# HELP zasp_http_slo_requests_total Product API requests aggregated independently of detailed-series overflow.\n# TYPE zasp_http_slo_requests_total counter\n")
+	for _, statusClass := range []string{"1xx", "2xx", "3xx", "4xx", "5xx", "other"} {
+		fmt.Fprintf(&output, "zasp_http_slo_requests_total{status_class=%q} %d\n", statusClass, metrics.sloRequests[statusClass])
+	}
+	output.WriteString("# HELP zasp_http_slo_request_duration_seconds Product API request duration aggregated independently of detailed-series overflow.\n# TYPE zasp_http_slo_request_duration_seconds histogram\n")
+	for _, requestClass := range []string{"read", "mutation", "other"} {
+		histogram := metrics.sloDuration[requestClass]
+		if histogram == nil {
+			histogram = &durationHistogram{counts: make([]uint64, len(durationBuckets))}
+		}
+		for index, boundary := range durationBuckets {
+			fmt.Fprintf(&output, "zasp_http_slo_request_duration_seconds_bucket{request_class=%q,le=%q} %d\n", requestClass, strconv.FormatFloat(boundary, 'g', -1, 64), histogram.counts[index])
+		}
+		fmt.Fprintf(&output, "zasp_http_slo_request_duration_seconds_bucket{request_class=%q,le=%q} %d\n", requestClass, "+Inf", histogram.count)
+		fmt.Fprintf(&output, "zasp_http_slo_request_duration_seconds_sum{request_class=%q} %.6f\n", requestClass, histogram.sum)
+		fmt.Fprintf(&output, "zasp_http_slo_request_duration_seconds_count{request_class=%q} %d\n", requestClass, histogram.count)
 	}
 	output.WriteString("# HELP zasp_dependency_operations_total Repository and identity-provider boundary outcomes.\n# TYPE zasp_dependency_operations_total counter\n")
 	for _, kind := range []string{"provider", "repository"} {
@@ -521,6 +531,32 @@ func metricStatusClass(value int) string {
 		return "other"
 	}
 	return strconv.Itoa(value/100) + "xx"
+}
+
+func sloRequestClass(method string) string {
+	switch method {
+	case http.MethodGet, http.MethodHead:
+		return "read"
+	case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
+		return "mutation"
+	default:
+		return "other"
+	}
+}
+
+func observeDurationHistogram(histograms map[string]*durationHistogram, key string, duration time.Duration) {
+	histogram := histograms[key]
+	if histogram == nil {
+		histogram = &durationHistogram{counts: make([]uint64, len(durationBuckets))}
+		histograms[key] = histogram
+	}
+	histogram.count++
+	histogram.sum += duration.Seconds()
+	for index, boundary := range durationBuckets {
+		if duration.Seconds() <= boundary {
+			histogram.counts[index]++
+		}
+	}
 }
 
 func requestTrace(request *http.Request) (string, string) {

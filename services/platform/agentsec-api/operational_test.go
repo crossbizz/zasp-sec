@@ -47,6 +47,31 @@ func TestOperationalMetricsNormalizeAndBoundHostileLabels(t *testing.T) {
 	}
 }
 
+func TestOperationalSLOHistogramsSurviveDetailedSeriesOverflow(t *testing.T) {
+	metrics := newOperationalMetrics()
+	routes := []string{"/api/v1/admin", "/api/v1/agents", "/api/v1/assets", "/api/v1/attack-paths", "/api/v1/audit-events", "/api/v1/compliance", "/api/v1/environments", "/api/v1/findings", "/api/v1/home", "/api/v1/identities", "/api/v1/integration-catalog", "/api/v1/integrations", "/api/v1/me", "/api/v1/organization", "/api/v1/policies", "/api/v1/runtimes", "/api/v1/security-agent-templates", "/api/v1/security-agents", "/api/v1/session", "/api/v1/sessions", "/api/v1/settings", "/api/v1/system", "/api/v1/tools", "/api/v1/workflow-mutation-receipts", "/api/v1/workspaces"}
+	for _, route := range routes {
+		metrics.observe(http.MethodGet, route, http.StatusOK, 100*time.Millisecond)
+		metrics.observe(http.MethodPost, route, http.StatusInternalServerError, 2*time.Second)
+	}
+
+	payload := metrics.Prometheus()
+	for _, expected := range []string{
+		`zasp_http_slo_requests_total{status_class="2xx"} 25`,
+		`zasp_http_slo_requests_total{status_class="5xx"} 25`,
+		`zasp_http_slo_request_duration_seconds_bucket{request_class="read",le="0.5"} 25`,
+		`zasp_http_slo_request_duration_seconds_bucket{request_class="mutation",le="1"} 0`,
+		`zasp_http_slo_request_duration_seconds_bucket{request_class="mutation",le="2.5"} 25`,
+	} {
+		if !strings.Contains(payload, expected) {
+			t.Fatalf("SLO series missing %q after detailed overflow: %s", expected, payload)
+		}
+	}
+	if len(payload) > 64*1024 {
+		t.Fatalf("prometheus payload = %d bytes, want <= 65536", len(payload))
+	}
+}
+
 func TestStructuredCorrelationRecordDoesNotClaimOpenTelemetryExport(t *testing.T) {
 	var logs bytes.Buffer
 	exporter := newStructuredSpanExporter(&logs)

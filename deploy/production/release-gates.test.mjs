@@ -57,7 +57,6 @@ test("release sources contain truthful runbooks, canary, SBOM/license/image/secr
   assert.equal(result.goSpdx.dataLicense, "CC0-1.0");
   assert.equal(result.goSpdx.SPDXID, "SPDXRef-DOCUMENT");
   assert.match(result.goSpdx.documentNamespace, /^https:\/\/zasp\.example\/spdx\/go-source\/[a-f0-9]{64}$/);
-  assert.match(result.goSpdx.creationInfo.created, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/);
   assert.ok(result.goSpdx.creationInfo.creators.includes("Tool: zasp-production-release-gate"));
   const packageIDs = new Set(result.goSpdx.packages.map(({ SPDXID }) => SPDXID));
   assert.equal(packageIDs.size, result.goSpdx.packages.length);
@@ -70,6 +69,19 @@ test("release sources contain truthful runbooks, canary, SBOM/license/image/secr
   }
   assert.equal(validateGoSpdxDocument(result.goSpdx), true);
   assert.throws(() => validateGoSpdxDocument({ ...result.goSpdx, relationships: [] }), /Go SBOM gate rejected/);
+  const secondResult = await verifyReleaseSources();
+  assert.deepEqual({
+    firstTimestampWholeSecond: /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/.test(result.goSpdx.creationInfo.created),
+    secondTimestampWholeSecond: /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/.test(secondResult.goSpdx.creationInfo.created),
+    distinctTimestamps: result.goSpdx.creationInfo.created !== secondResult.goSpdx.creationInfo.created,
+    distinctNamespaces: result.goSpdx.documentNamespace !== secondResult.goSpdx.documentNamespace,
+  }, {
+    firstTimestampWholeSecond: true,
+    secondTimestampWholeSecond: true,
+    distinctTimestamps: true,
+    distinctNamespaces: true,
+  });
+  assert.throws(() => validateGoSpdxDocument({ ...result.goSpdx, creationInfo: { ...result.goSpdx.creationInfo, created: "2026-08-19T12:34:56.123Z" } }), /Go SBOM gate rejected/);
   assert.equal(result.requiredCI, true);
 });
 

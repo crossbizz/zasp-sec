@@ -109,11 +109,12 @@ test("release renders read-only synthetic and exact SLO budgets without credenti
   const rules = one(resources, "PrometheusRule", "zasp-production-slos");
   const rendered = JSON.stringify(rules);
   for (const budget of ["0.01", "0.5", "ZaspAPIErrorBudgetBurn", "ZaspAPIReadLatencyBudget", "ZaspAPIMutationLatencyBudget", "ZaspWebUnavailable", "ZaspAPIUnavailable"]) assert.match(rendered, new RegExp(budget));
-  assert.match(rendered, /zasp_http_request_duration_seconds_bucket/);
+  assert.match(rendered, /zasp_http_slo_request_duration_seconds_bucket/);
   assert.doesNotMatch(rendered, /http_server_request_duration_seconds_bucket/);
   const errorBudget = rules.spec.groups.flatMap(({ rules: groupRules }) => groupRules).find(({ alert }) => alert === "ZaspAPIErrorBudgetBurn");
+  assert.match(errorBudget.expr, /zasp_http_slo_requests_total/);
   assert.doesNotMatch(errorBudget.expr, /clamp_min/);
-  assert.match(errorBudget.expr, /sum\(rate\(zasp_http_requests_total\[5m\]\)\) > 0/);
+  assert.match(errorBudget.expr, /sum\(rate\(zasp_http_slo_requests_total\[5m\]\)\) > 0/);
   for (const [alert, workload] of [["ZaspWebUnavailable", "web"], ["ZaspAPIUnavailable", "agentsec-api"]]) {
     const availability = rules.spec.groups.flatMap(({ rules: groupRules }) => groupRules).find((rule) => rule.alert === alert);
     assert.match(availability.expr, new RegExp(`deployment="${workload}"`));
