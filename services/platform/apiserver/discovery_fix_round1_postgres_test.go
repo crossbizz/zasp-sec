@@ -623,6 +623,15 @@ func TestProductionDiscoveryTypedLifecyclesAndBoundedWorkerRecovery(t *testing.T
 	if err != nil || replayResult.State != "failed" {
 		t.Fatalf("job replay=%#v err=%v", replayResult, err)
 	}
+	cancelRequest := fixture.requestSync(integrationID, 53)
+	cancelClaims, err := fixture.repository.ClaimDiscoveryJobs(fixture.ctx, "job-worker", "job-cancel-token-00001", "discovery", 30, 1)
+	if err != nil || len(cancelClaims) != 1 || cancelClaims[0].ID != cancelRequest.JobID {
+		t.Fatalf("job cancel claim=%#v err=%v", cancelClaims, err)
+	}
+	cancelledJob, err := fixture.repository.FinishDiscoveryJob(fixture.ctx, fixture.scope, DiscoveryJobCompletion{ID: cancelRequest.JobID, Worker: "job-worker", LeaseToken: "job-cancel-token-00001", Outcome: "cancelled", LastError: "cancelled by authority"})
+	if err != nil || cancelledJob.State != "cancelled" {
+		t.Fatalf("job cancel=%#v err=%v", cancelledJob, err)
+	}
 	projectionRequest := fixture.requestSync(integrationID, 52)
 	projectionSnapshotID := "pid_62000010-0000-4000-8000-000000000010"
 	if _, err := fixture.repository.ApplyCompleteSnapshot(fixture.ctx, fixture.scope, CompleteSnapshot{IntegrationID: integrationID, SyncID: projectionRequest.SyncID, SnapshotID: projectionSnapshotID, Generation: 1, Source: "aws", ManifestReference: "s3://zasp-evidence/typed/projection.json", ManifestChecksum: bytes32(10), CollectedAt: time.Now().UTC(), CursorProvider: "aws", CursorValue: "projection", Entities: json.RawMessage(`[]`), Relationships: json.RawMessage(`[]`), Evidence: json.RawMessage(`[]`)}); err != nil {
@@ -640,8 +649,16 @@ func TestProductionDiscoveryTypedLifecyclesAndBoundedWorkerRecovery(t *testing.T
 			targetKind = claimed[0].Kind
 		}
 		if claimNumber == 1 {
-			if _, err := fixture.connection.Exec(fixture.ctx, `UPDATE zasp_projection_work SET state='cancelled',completed_at=transaction_timestamp() WHERE snapshot_id=$1 AND kind<>$2`, claimed[0].SnapshotID, claimed[0].Kind); err != nil {
-				t.Fatal(err)
+			for other := 1; other <= 2; other++ {
+				cancelToken := "projection-cancel-token-" + strconv.Itoa(other)
+				otherClaims, otherErr := fixture.repository.ClaimProjectionWork(fixture.ctx, "projection-worker", cancelToken, 30, 1)
+				if otherErr != nil || len(otherClaims) != 1 || otherClaims[0].Kind == targetKind {
+					t.Fatalf("projection cancel claim %d=%#v err=%v", other, otherClaims, otherErr)
+				}
+				cancelled, cancelErr := fixture.repository.FinishProjectionWork(fixture.ctx, fixture.scope, ProjectionWorkCompletion{SnapshotID: otherClaims[0].SnapshotID, Kind: otherClaims[0].Kind, Version: otherClaims[0].Version, Worker: "projection-worker", LeaseToken: cancelToken, Outcome: "cancelled", LastError: "cancelled by authority"})
+				if cancelErr != nil || cancelled.State != "cancelled" {
+					t.Fatalf("projection cancel %d=%#v err=%v", other, cancelled, cancelErr)
+				}
 			}
 			if _, err := fixture.connection.Exec(fixture.ctx, `UPDATE zasp_projection_work SET lease_expires_at=transaction_timestamp()-interval '1 second' WHERE snapshot_id=$1 AND kind=$2`, claimed[0].SnapshotID, claimed[0].Kind); err != nil {
 				t.Fatal(err)
@@ -655,12 +672,8 @@ func TestProductionDiscoveryTypedLifecyclesAndBoundedWorkerRecovery(t *testing.T
 				t.Fatalf("projection reclaim=%#v err=%v", claimed, claimErr)
 			}
 		}
-		outcome := "cancelled"
-		if claimed[0].Kind == targetKind {
-			outcome = "retryable"
-			targetAttempts = claimed[0].Attempt
-		}
-		finished, finishErr := fixture.repository.FinishProjectionWork(fixture.ctx, fixture.scope, ProjectionWorkCompletion{SnapshotID: claimed[0].SnapshotID, Kind: claimed[0].Kind, Version: claimed[0].Version, Worker: "projection-worker", LeaseToken: token, Outcome: outcome, LastError: map[bool]string{true: "retry", false: ""}[outcome == "retryable"], RetryAfterSeconds: 0})
+		targetAttempts = claimed[0].Attempt
+		finished, finishErr := fixture.repository.FinishProjectionWork(fixture.ctx, fixture.scope, ProjectionWorkCompletion{SnapshotID: claimed[0].SnapshotID, Kind: claimed[0].Kind, Version: claimed[0].Version, Worker: "projection-worker", LeaseToken: token, Outcome: "retryable", LastError: "retry", RetryAfterSeconds: 0})
 		if finishErr != nil {
 			t.Fatalf("projection finish %d=%#v err=%v", claimNumber, finished, finishErr)
 		}
