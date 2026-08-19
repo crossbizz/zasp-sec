@@ -203,7 +203,7 @@ describe("Zasp application", () => {
 					organization_id: "pid_10000001-0000-4000-8000-000000000001", workspace_id: "pid_10000002-0000-4000-8000-000000000002", environment_id: "pid_10000003-0000-4000-8000-000000000003",
 					permissions: ["view", "manage_workflows"], capabilities: ["policies.read", "policies.write", "integrations.read"], csrf_token: "cccccccccccccccccccccccccccccccc", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
 				});
-				if (path === "/api/v1/policies" && request.method === "GET") return apiJSON({ items: [] });
+				if (path === "/api/v1/policies" && request.method === "GET") return apiJSON({ items: [{ ...policy, id: "policy-existing", name: "Existing policy" }] });
 				if (path === "/api/v1/policies" && request.method === "POST") {
 					keys.push(request.headers.get("Idempotency-Key") ?? "");
 					if (keys.length < 3) return apiJSON({ code: "temporarily_unavailable", message: "Committed response is not available yet.", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: true }, 503);
@@ -216,6 +216,7 @@ describe("Zasp application", () => {
 		render(<ZaspApp client={client} />);
 		await userEvent.click(await screen.findByRole("button", { name: "Create policy" }));
 		expect(await screen.findByRole("button", { name: "Retry retained policy operation" })).toBeVisible();
+		expect(screen.getByRole("button", { name: "Open Existing policy" })).toBeDisabled();
 		await userEvent.click(screen.getByRole("link", { name: "Integrations" }));
 		expect(await screen.findByRole("heading", { name: "Integrations" })).toBeVisible();
 		await userEvent.click(screen.getByRole("link", { name: "Policies" }));
@@ -224,6 +225,42 @@ describe("Zasp application", () => {
 		expect(await screen.findByText(/Policy created\. Audit pid_/)).toBeVisible();
 		await waitFor(() => expect(keys).toHaveLength(3));
 		expect(new Set(keys).size).toBe(1);
+	});
+
+	it("locks every integration control except exact retained retry after an ambiguous save", async () => {
+		window.history.replaceState({}, "", "/connectors");
+		const manifest = {
+			key: "generic-webhook", provider: "Generic Webhook", category: "notification",
+			description: "Store one scoped HTTPS webhook configuration for a future delivery adapter.", data_types: ["configuration"], actions: ["store_configuration"], auth_mode: "secret_reference",
+			setup_schema: [
+				{ key: "destination_url", label: "HTTPS destination", type: "uri", required: true, description: "One allowlisted HTTPS endpoint for all actions." },
+				{ key: "signing_secret_reference", label: "Signing secret", type: "secret_reference", required: true, description: "Product secret reference used to sign each delivery." },
+			],
+			access_guidance: "Save only an HTTPS destination and an opaque product secret reference.", test_semantics: "Validate and durably persist the local configuration without contacting the destination.",
+		};
+		const client = createAPIClient({
+			generateCorrelationID: () => "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+			fetch: async (request) => {
+				const path = new URL(request.url).pathname;
+				if (path === "/api/v1/session/bootstrap") return apiJSON({
+					principal: { id: "pid_10000004-0000-4000-8000-000000000004", organization_id: "pid_10000001-0000-4000-8000-000000000001", organization_reference: "organization-live", member_reference: "member-live", role: "security_admin", active: true },
+					organization_id: "pid_10000001-0000-4000-8000-000000000001", workspace_id: "pid_10000002-0000-4000-8000-000000000002", environment_id: "pid_10000003-0000-4000-8000-000000000003",
+					permissions: ["view", "manage_workflows"], capabilities: ["integrations.read", "integrations.write"], csrf_token: "cccccccccccccccccccccccccccccccc", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+				});
+				if (path === "/api/v1/integrations" && request.method === "GET") return apiJSON({ items: [] });
+				if (path === "/api/v1/integration-catalog") return apiJSON({ items: [manifest] });
+				if (path === "/api/v1/integrations" && request.method === "POST") return apiJSON({}, 201);
+				throw new Error(`unexpected product fetch ${request.method} ${path}`);
+			},
+		});
+		render(<ZaspApp client={client} />);
+		await userEvent.click(await screen.findByRole("button", { name: "Configure Generic Webhook" }));
+		await userEvent.type(screen.getByRole("textbox", { name: /HTTPS destination/ }), "https://hooks.customer.invalid/zasp");
+		await userEvent.type(screen.getByRole("textbox", { name: /Signing secret/ }), "secret-reference");
+		await userEvent.click(screen.getByRole("button", { name: "Save integration" }));
+		expect(await screen.findByRole("button", { name: "Retry retained integration operation" })).toBeEnabled();
+		for (const label of ["Integration name", "HTTPS destination", "Signing secret"]) expect(screen.getByRole("textbox", { name: new RegExp(label) })).toBeDisabled();
+		for (const label of ["Configure Generic Webhook", "Close modal", "Close", "Cancel", "Save integration"]) expect(screen.getByRole("button", { name: label })).toBeDisabled();
 	});
 
 	it("capability-hides sensor enrollment even when stale server capabilities advertise it", async () => {

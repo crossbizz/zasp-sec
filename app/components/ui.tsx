@@ -33,34 +33,34 @@ export function SearchBox({ className = "", ...props }: InputHTMLAttributes<HTML
   return <label className={`search-box ${className}`}><Search size={16} /><input type="search" {...props} /></label>;
 }
 
-export function Select({ label, children, value, onChange, className = "" }: { label?: string; children: ReactNode; value?: string | number; onChange?: React.ChangeEventHandler<HTMLSelectElement>; className?: string }) {
-  return <label className={`field ${className}`}>{label && <span>{label}</span>}<span className="select-wrap"><select value={value} onChange={onChange}>{children}</select><ChevronDown size={15} /></span></label>;
+export function Select({ label, children, value, onChange, disabled, className = "" }: { label?: string; children: ReactNode; value?: string | number; onChange?: React.ChangeEventHandler<HTMLSelectElement>; disabled?: boolean; className?: string }) {
+  return <label className={`field ${className}`}>{label && <span>{label}</span>}<span className="select-wrap"><select value={value} onChange={onChange} disabled={disabled}>{children}</select><ChevronDown size={15} /></span></label>;
 }
 
 export function Field({ label, error, hint, multiline, ...props }: InputHTMLAttributes<HTMLInputElement> & { label: string; error?: string; hint?: string; multiline?: boolean }) {
   return <label className="field"><span>{label}</span>{multiline ? <textarea value={String(props.value ?? "")} placeholder={props.placeholder} onChange={props.onChange as unknown as React.ChangeEventHandler<HTMLTextAreaElement>} /> : <input {...props} />}{hint && <small>{hint}</small>}{error && <small className="field-error">{error}</small>}</label>;
 }
 
-export function Drawer({ open, title, children, onClose, width = "wide" }: { open: boolean; title: string; children: ReactNode; onClose: () => void; width?: "medium" | "wide" }) {
+export function Drawer({ open, title, children, onClose, closeDisabled = false, width = "wide" }: { open: boolean; title: string; children: ReactNode; onClose: () => void; closeDisabled?: boolean; width?: "medium" | "wide" }) {
   useEffect(() => {
     if (!open) return;
-    const handler = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
+    const handler = (event: KeyboardEvent) => { if (event.key === "Escape" && !closeDisabled) onClose(); };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [open, onClose]);
+  }, [open, onClose, closeDisabled]);
   if (!open) return null;
-  return <><button aria-label="Close details" className="overlay" onClick={onClose} /><aside role="dialog" aria-modal="true" aria-label={title} className={`drawer drawer--${width}`}><div className="drawer__header"><h2>{title}</h2><button className="icon-button" onClick={onClose} aria-label="Close"><X /></button></div><div className="drawer__body">{children}</div></aside></>;
+  return <><button aria-label="Close details" className="overlay" disabled={closeDisabled} onClick={onClose} /><aside role="dialog" aria-modal="true" aria-label={title} className={`drawer drawer--${width}`}><div className="drawer__header"><h2>{title}</h2><button className="icon-button" disabled={closeDisabled} onClick={onClose} aria-label="Close"><X /></button></div><div className="drawer__body">{children}</div></aside></>;
 }
 
-export function Modal({ open, title, children, onClose, footer, size = "medium" }: { open: boolean; title: string; children: ReactNode; onClose: () => void; footer?: ReactNode; size?: "medium" | "large" | "full" }) {
+export function Modal({ open, title, children, onClose, closeDisabled = false, footer, size = "medium" }: { open: boolean; title: string; children: ReactNode; onClose: () => void; closeDisabled?: boolean; footer?: ReactNode; size?: "medium" | "large" | "full" }) {
   useEffect(() => {
     if (!open) return;
-    const handler = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
+    const handler = (event: KeyboardEvent) => { if (event.key === "Escape" && !closeDisabled) onClose(); };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [open, onClose]);
+  }, [open, onClose, closeDisabled]);
   if (!open) return null;
-  return <div className="modal-layer"><button aria-label="Close modal" className="overlay" onClick={onClose} /><section role="dialog" aria-modal="true" aria-label={title} className={`modal modal--${size}`}><div className="modal__header"><h2>{title}</h2><button className="icon-button" onClick={onClose} aria-label="Close"><X /></button></div><div className="modal__body">{children}</div>{footer && <div className="modal__footer">{footer}</div>}</section></div>;
+  return <div className="modal-layer"><button aria-label="Close modal" className="overlay" disabled={closeDisabled} onClick={onClose} /><section role="dialog" aria-modal="true" aria-label={title} className={`modal modal--${size}`}><div className="modal__header"><h2>{title}</h2><button className="icon-button" disabled={closeDisabled} onClick={onClose} aria-label="Close"><X /></button></div><div className="modal__body">{children}</div>{footer && <div className="modal__footer">{footer}</div>}</section></div>;
 }
 
 export function Toast({ message, tone = "success", onClose }: { message: string; tone?: "success" | "danger"; onClose: () => void }) {
