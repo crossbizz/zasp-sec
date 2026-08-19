@@ -39,7 +39,7 @@ type coreOperation struct {
 	dependency dependencyKind
 }
 
-var coreOperations = []coreOperation{
+var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"GET", "/api/v1/session/start", "startSession", "", []string{}}, sessionDependency},
 	{OperationDefinition{"GET", "/api/v1/session/bootstrap", "bootstrapSession", "", []string{"BrowserSession"}}, sessionDependency},
 	{OperationDefinition{"POST", "/api/v1/session/callback", "completeSessionCallback", "", []string{}}, sessionDependency},
@@ -81,6 +81,26 @@ var coreOperations = []coreOperation{
 	{OperationDefinition{"GET", "/api/v1/security-agents/{id}", "getSecurityAgent", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"PATCH", "/api/v1/security-agents/{id}", "updateSecurityAgent", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"DELETE", "/api/v1/security-agents/{id}", "deleteSecurityAgent", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+})
+
+func withBrowserExpectedScope(operations []coreOperation) []coreOperation {
+	for index := range operations {
+		definition := &operations[index].OperationDefinition
+		switch definition.OperationID {
+		case "", "startSession", "bootstrapSession", "completeSessionCallback", "signOutSession":
+			continue
+		}
+		for schemeIndex, scheme := range definition.Security {
+			if scheme != "BrowserSession" {
+				continue
+			}
+			definition.Security = append(definition.Security, "")
+			copy(definition.Security[schemeIndex+1:], definition.Security[schemeIndex:])
+			definition.Security[schemeIndex] = "BrowserExpectedScope"
+			break
+		}
+	}
+	return operations
 }
 
 func CoreOperations() []OperationDefinition {
@@ -113,6 +133,8 @@ func NewComposition(dependencies Dependencies) (http.Handler, error) {
 			switch scheme {
 			case "BrowserSession":
 				security = append(security, CredentialBrowserSession)
+			case "BrowserExpectedScope":
+				// The exact header is a request precondition, not a credential.
 			case "ProductAPIToken":
 				security = append(security, CredentialBearerToken)
 			}

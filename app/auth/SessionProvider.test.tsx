@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { createAPIClient } from "../../apps/web/api/client";
-import { APIProvider } from "../api/APIProvider";
+import { APIProvider, useAPI } from "../api/APIProvider";
 import { useAPIQuery } from "../api/query";
 import { buildSignInURL, SessionProvider, useSession } from "./SessionProvider";
 
@@ -33,6 +33,18 @@ function ScopedQueryConsumer({ query }: { query: (signal?: AbortSignal) => Promi
   </div>;
 }
 
+function ScopeStaleConsumer() {
+	const session = useSession();
+	const { client } = useAPI();
+	return <div>
+		<span>stale session {session.status}</span>
+		{session.status === "authenticated" && <>
+			<span>active environment {session.environmentID}</span>
+			<button onClick={() => void client.GET("/api/v1/home/summary")}>Load scoped data</button>
+		</>}
+	</div>;
+}
+
 function wrapper(fetch: (request: Request) => Promise<Response>) {
   const client = createAPIClient({ fetch, generateCorrelationID: () => "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee" });
   function Wrapper({ children }: { children: ReactNode }) {
@@ -42,6 +54,42 @@ function wrapper(fetch: (request: Request) => Promise<Response>) {
 }
 
 describe("SessionProvider", () => {
+	it("fails closed and rebootstraps through an A-to-B-to-A cross-tab scope race", async () => {
+		let activeScope = false;
+		let bootstrapCalls = 0;
+		const scopedAssertions: string[] = [];
+		const fetch = vi.fn(async (request: Request) => {
+			const path = new URL(request.url).pathname;
+			if (path === "/api/v1/session/bootstrap") {
+				bootstrapCalls += 1;
+				expect(request.headers.get("X-Zasp-Expected-Scope")).toBeNull();
+				return jsonResponse(sessionBootstrap(activeScope));
+			}
+			if (path === "/api/v1/session/scopes") return jsonResponse(sessionScopes());
+			if (path === "/api/v1/home/summary") {
+				scopedAssertions.push(request.headers.get("X-Zasp-Expected-Scope") ?? "");
+				activeScope = !activeScope;
+				return jsonResponse({ code: "scope_stale", message: "Session scope changed; rebootstrap required", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: true }, 409);
+			}
+			throw new Error(`unexpected request ${path}`);
+		});
+		vi.stubGlobal("fetch", fetch);
+		try {
+			render(<APIProvider><SessionProvider><ScopeStaleConsumer /></SessionProvider></APIProvider>);
+			await screen.findByText("active environment pid_10000003-0000-4000-8000-000000000003");
+			await userEvent.click(screen.getByRole("button", { name: "Load scoped data" }));
+			await screen.findByText("active environment pid_10000023-0000-4000-8000-000000000023");
+			await userEvent.click(screen.getByRole("button", { name: "Load scoped data" }));
+			await screen.findByText("active environment pid_10000003-0000-4000-8000-000000000003");
+			expect(bootstrapCalls).toBe(3);
+			expect(scopedAssertions).toEqual([
+				"pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003",
+				"pid_10000001-0000-4000-8000-000000000001/pid_10000022-0000-4000-8000-000000000022/pid_10000023-0000-4000-8000-000000000023",
+			]);
+		} finally {
+			vi.unstubAllGlobals();
+		}
+	});
   it("bootstraps principal scope and server capabilities then signs out", async () => {
     const fetch = vi.fn(async (request: Request) => {
       if (request.url.endsWith("/api/v1/session/sign-out")) return new Response(null, { status: 204 });

@@ -258,9 +258,9 @@ export function WorkflowMutationProvider({ scopeKey, recovery, onRecovered, chil
   </WorkflowMutationRegistryContext.Provider>;
 }
 
-export function ProductionWorkflowMutationProvider({ scopeKey, children }: { scopeKey: string; children: ReactNode }) {
+export function ProductionWorkflowMutationProvider({ scopeKey, expectedScope, children }: { scopeKey: string; expectedScope: string; children: ReactNode }) {
   const { client, invalidate } = useAPI();
-  const recovery = useMemo(() => createWorkflowRecoveryAPI(client, scopeKey), [client, scopeKey]);
+	const recovery = useMemo(() => createWorkflowRecoveryAPI(client, expectedScope), [client, expectedScope]);
   const recovered = useCallback(() => invalidate(["workflow:policies", "workflow:integrations", "workflow:security-agents"]), [invalidate]);
   return <WorkflowMutationProvider scopeKey={scopeKey} recovery={recovery} onRecovered={recovered}>{children}</WorkflowMutationProvider>;
 }

@@ -12,6 +12,12 @@ import (
 
 const fallbackCorrelationID = "pid_ffffffff-ffff-4fff-8fff-ffffffffffff"
 
+const (
+	expectedScopeHeader = "X-Zasp-Expected-Scope"
+	scopeStaleCode      = "scope_stale"
+	scopeStaleMessage   = "Session scope changed; rebootstrap required"
+)
+
 var (
 	ErrInvalidOperation   = errors.New("invalid API operation")
 	ErrDuplicateOperation = errors.New("duplicate API operation")
@@ -102,6 +108,10 @@ func (router *operationRouter) ServeHTTP(writer http.ResponseWriter, request *ht
 				writeRouterError(writer, request, http.StatusUnauthorized, "authentication_required", "Authentication required")
 				return
 			}
+			if operationRequiresBrowserScope(operation.operationID, operation.security) && !requestHasExpectedBrowserScope(request) {
+				writeRouterRetryableError(writer, request, http.StatusConflict, scopeStaleCode, scopeStaleMessage)
+				return
+			}
 			if operation.requireCSRF && !requestHasValidCSRF(request) {
 				writeRouterError(writer, request, http.StatusForbidden, "request_forbidden", "Request forbidden")
 				return
@@ -121,6 +131,36 @@ func (router *operationRouter) ServeHTTP(writer http.ResponseWriter, request *ht
 		return
 	}
 	writeRouterError(writer, request, http.StatusNotFound, "not_found", "Product route not found")
+}
+
+func operationRequiresBrowserScope(operationID string, security []CredentialKind) bool {
+	if operationID == "" || operationID == "startSession" || operationID == "bootstrapSession" || operationID == "completeSessionCallback" || operationID == "signOutSession" {
+		return false
+	}
+	for _, kind := range security {
+		if kind == CredentialBrowserSession {
+			return true
+		}
+	}
+	return false
+}
+
+func requestHasExpectedBrowserScope(request *http.Request) bool {
+	identity, ok := IdentityFromRequest(request)
+	if !ok || identity.CredentialKind != CredentialBrowserSession {
+		return true
+	}
+	values := request.Header.Values(expectedScopeHeader)
+	if len(values) != 1 {
+		return false
+	}
+	expected := expectedScopeValue(identity.Scope)
+	provided := values[0]
+	return len(provided) == len(expected) && subtle.ConstantTimeCompare([]byte(provided), []byte(expected)) == 1
+}
+
+func expectedScopeValue(scope domain.Scope) string {
+	return scope.OrganizationID().String() + "/" + scope.WorkspaceID().String() + "/" + scope.EnvironmentID().String()
 }
 
 func requestHasCredentialKind(request *http.Request, allowed []CredentialKind) bool {
@@ -286,4 +326,14 @@ func writeRouterError(writer http.ResponseWriter, request *http.Request, status 
 		correlationID = correlationIDFromContext(request.Context())
 	}
 	writeProductError(writer, status, code, message, correlationID)
+}
+
+func writeRouterRetryableError(writer http.ResponseWriter, request *http.Request, status int, code string, message string) {
+	correlationID := fallbackCorrelationID
+	if request != nil {
+		correlationID = correlationIDFromContext(request.Context())
+	}
+	writer.Header().Set("Content-Type", "application/json")
+	writer.WriteHeader(status)
+	_, _ = writer.Write([]byte(`{"code":"` + code + `","message":"` + message + `","correlation_id":"` + correlationID + `","retryable":true}` + "\n"))
 }

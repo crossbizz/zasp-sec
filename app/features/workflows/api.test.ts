@@ -3,12 +3,33 @@ import { describe, expect, it, vi } from "vitest";
 import { APIProductError, APITransportError, type APIClient } from "../../../apps/web/api/client";
 import { decodeIntegrationPage, decodePolicyPage } from "../../../apps/web/api/decoders";
 import type { Integration, Policy } from "../../../apps/web/api/generated";
-import { createIntegrationsAPI, createPoliciesAPI, createRetainedWorkflowMutationController, createWorkflowMutationAttempt, workflowIdempotencyKey } from "./api";
+import { createIntegrationsAPI, createPoliciesAPI, createRetainedWorkflowMutationController, createWorkflowMutationAttempt, createWorkflowRecoveryAPI, workflowIdempotencyKey } from "./api";
 
 const policy: Policy = { id: "policy-production", name: "Production", scope: "environment", trigger: "tool", conditions: [{ field: "action", operator: "equals", value: "write" }], action: "monitor", rollout: "draft", failure_mode: "open" };
 const environmentID = "pid_10000003-0000-4000-8000-000000000003";
 
 describe("production workflow API", () => {
+	it("pins receipt acknowledgement and relist to the captured scope assertion", async () => {
+		const captured = "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003";
+		const headers: string[] = [];
+		const client = {
+			GET: vi.fn(async (_path: string, options: { headers?: Record<string, string> }) => {
+				headers.push(options.headers?.["X-Zasp-Expected-Scope"] ?? "");
+				return { data: { items: [] }, response: new Response(JSON.stringify({ items: [] }), { status: 200, headers: { "Content-Type": "application/json" } }) };
+			}),
+			POST: vi.fn(async (_path: string, options: { headers?: Record<string, string> }) => {
+				headers.push(options.headers?.["X-Zasp-Expected-Scope"] ?? "");
+				return { response: new Response(null, { status: 204 }) };
+			}),
+		} as unknown as APIClient;
+		const recovery = createWorkflowRecoveryAPI(client, captured);
+		await Promise.all([
+			recovery.acknowledgeReceipt("pid_60000001-0000-4000-8000-000000000001"),
+			recovery.listReceipts(),
+		]);
+		expect(headers).toHaveLength(2);
+		expect(headers).toEqual([captured, captured]);
+	});
 	it("strictly decodes paginated policy and integration pages", () => {
 		const final = { next_cursor: null, has_more: false } as const;
 		expect(() => decodePolicyPage({ items: [policy] })).toThrow();

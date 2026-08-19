@@ -60,7 +60,7 @@ function verifyDocument(value, rawText) {
   for (const path of Object.keys(value.paths)) {
     assert.match(path, /^\/api\/v1\/[a-z](?:[a-z0-9_/-]|\{[A-Za-z][A-Za-z0-9]*\})*$/);
   }
-  assert.deepEqual(value.security, [{ BrowserSession: [] }, { ProductAPIToken: [] }]);
+  assert.deepEqual(value.security, [{ BrowserSession: [], BrowserExpectedScope: [] }, { ProductAPIToken: [] }]);
 
   assertKeys(value.components, ["securitySchemes", "headers", "parameters", "schemas", "responses"], "components");
   assert.deepEqual(value.components.securitySchemes, {
@@ -70,6 +70,12 @@ function verifyDocument(value, rawText) {
       name: "__Host-zasp_session",
       description: "Secure, HttpOnly, SameSite=Lax host-only human browser session.",
     },
+	BrowserExpectedScope: {
+	  type: "apiKey",
+	  in: "header",
+	  name: "X-Zasp-Expected-Scope",
+	  description: "Exact canonical organization/workspace/environment scope captured by the browser before a scoped request. The server compares it with the authenticated session scope before data access; ProductAPIToken scope remains token-owned.",
+	},
     ProductAPIToken: {
       type: "http",
       scheme: "bearer",
@@ -289,7 +295,9 @@ describe("M1-23 strict OpenAPI root", () => {
       ["wrong info", (value) => { value.info.version = "v1"; }],
       ["external operation", (value) => { value.paths["/external/example"] = { get: {} }; }],
       ["anonymous auth", (value) => { value.security.push({}); }],
-      ["AND auth", (value) => { value.security = [{ BrowserSession: [], ProductAPIToken: [] }]; }],
+	  ["scope precondition omitted", (value) => { value.security = [{ BrowserSession: [] }, { ProductAPIToken: [] }]; }],
+	  ["scope precondition as alternative", (value) => { value.security = [{ BrowserSession: [] }, { BrowserExpectedScope: [] }, { ProductAPIToken: [] }]; }],
+	  ["AND auth", (value) => { value.security = [{ BrowserSession: [], BrowserExpectedScope: [], ProductAPIToken: [] }]; }],
       ["query token", (value) => { value.components.securitySchemes.ProductAPIToken = { type: "apiKey", in: "query", name: "token" }; }],
       ["bearer browser token", (value) => { value.components.securitySchemes.BrowserSession = { type: "http", scheme: "bearer" }; }],
       ["unbounded page", (value) => { value.components.parameters.PageLimit.schema.maximum = 1000; }],
@@ -356,7 +364,7 @@ describe("production workflow concurrency contract", () => {
   it("publishes bounded browser-only receipt reconciliation and acknowledgement", () => {
     const list = document.paths["/api/v1/workflow-mutation-receipts"].get;
     assert.equal(list.operationId, "listWorkflowMutationReceipts");
-    assert.deepEqual(list.security, [{ BrowserSession: [] }]);
+	assert.deepEqual(list.security, [{ BrowserSession: [], BrowserExpectedScope: [] }]);
     assert.deepEqual(list.parameters, [{
       name: "limit",
       in: "query",
@@ -367,7 +375,7 @@ describe("production workflow concurrency contract", () => {
 
     const acknowledge = document.paths["/api/v1/workflow-mutation-receipts/{id}/acknowledge"].post;
     assert.equal(acknowledge.operationId, "acknowledgeWorkflowMutationReceipt");
-    assert.deepEqual(acknowledge.security, [{ BrowserSession: [] }]);
+	assert.deepEqual(acknowledge.security, [{ BrowserSession: [], BrowserExpectedScope: [] }]);
     assert.deepEqual(document.paths["/api/v1/workflow-mutation-receipts/{id}/acknowledge"].parameters, [{
       name: "id",
       in: "path",
@@ -383,6 +391,17 @@ describe("production workflow concurrency contract", () => {
     assert.deepEqual(receipt.required, ["id", "operation", "idempotency_key", "intent", "result", "resource_kind", "resource_id", "resource_version", "audit_id", "correlation_id", "created_at", "expires_at"]);
     assert.equal(document.components.schemas.WorkflowMutationReceiptPage.properties.items.maxItems, 50);
   });
+
+	it("requires the browser scope precondition on every scoped session operation", () => {
+		for (const path of ["/api/v1/session/scopes", "/api/v1/session/scope"]) {
+			const operation = document.paths[path].get ?? document.paths[path].put;
+			assert.deepEqual(operation.security, [{ BrowserSession: [], BrowserExpectedScope: [] }], path);
+		}
+		for (const path of ["/api/v1/session/bootstrap", "/api/v1/session/sign-out"]) {
+			const operation = document.paths[path].get ?? document.paths[path].post;
+			assert.deepEqual(operation.security, [{ BrowserSession: [] }], path);
+		}
+	});
 
   it("publishes exact receipt intent and authoritative result object shapes", () => {
     const receipt = document.components.schemas.WorkflowMutationReceipt;

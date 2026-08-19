@@ -26,6 +26,7 @@ let api;
 let postgres;
 let web;
 let browser;
+let secondBrowserTab;
 let observedSessionCookie = false;
 const lostPolicyResponseKeys = [];
 const workflowPageRequests = { policies: [], integrations: [] };
@@ -120,6 +121,31 @@ try {
   assert.doesNotMatch(signedIn, /Product API unavailable|Sign-in failed/);
   assert.doesNotMatch(signedIn, /Recover committed operations|PAT E2E boundary/);
   console.log("combined E2E: browser callback, cookie, bootstrap, and durable data proven");
+
+  secondBrowserTab = await startBrowserTab(chromePort, `${publicOrigin}/`);
+  await waitForBrowserText(secondBrowserTab, /Security overview/);
+  await waitForBrowserSelectedOption(browser.cdp, "Authorized scope", "Production");
+  await waitForBrowserSelectedOption(secondBrowserTab, "Authorized scope", "Production");
+  await selectBrowserOption(secondBrowserTab, "Authorized scope", "Staging");
+  await waitForBrowserSelectedOption(secondBrowserTab, "Authorized scope", "Staging");
+  await clickBrowserAria(browser.cdp, "Overview");
+  await waitForBrowserSelectedOption(browser.cdp, "Authorized scope", "Staging");
+  await selectBrowserOption(browser.cdp, "Authorized scope", "Production");
+  await waitForBrowserSelectedOption(browser.cdp, "Authorized scope", "Production");
+  await clickBrowserAria(secondBrowserTab, "Agents");
+  await waitForBrowserSelectedOption(secondBrowserTab, "Authorized scope", "Production");
+  await selectBrowserOption(secondBrowserTab, "Authorized scope", "Staging");
+  await waitForBrowserSelectedOption(secondBrowserTab, "Authorized scope", "Staging");
+  await clickBrowserAria(browser.cdp, "Agents");
+  await waitForBrowserSelectedOption(browser.cdp, "Authorized scope", "Staging");
+  await selectBrowserOption(browser.cdp, "Authorized scope", "Production");
+  await waitForBrowserSelectedOption(browser.cdp, "Authorized scope", "Production");
+  await secondBrowserTab.send("Page.close");
+  secondBrowserTab.close();
+  secondBrowserTab = undefined;
+  workflowPageRequests.policies.length = 0;
+  workflowPageRequests.integrations.length = 0;
+  console.log("combined E2E: actual two-tab A-to-B, B-to-A, and ABA stale-scope recovery proven");
 
   await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/policies` });
   await waitForBrowserText(browser.cdp, /Durable scoped runtime controls/);
@@ -224,10 +250,12 @@ try {
   assert.equal(await browserHasInteractiveText(browser.cdp, /^(?:Run Security Agent|Simulate Security Agent|Approve|Start bounded run|Runs|Approvals)$/i), false);
   console.log("combined E2E: API restart, browser reload, and durable local workflows proven");
 
-  await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/api/v1/agents/pid_90000001-0000-4000-8000-000000000001` });
-  const denied = await waitForBrowserText(browser.cdp, /not_found/);
-  assert.match(denied, /not_found/);
-  assert.doesNotMatch(denied, /Foreign tenant agent/);
+  const denied = await browserFetchJSON(browser.cdp, "/api/v1/agents/pid_90000001-0000-4000-8000-000000000001", {
+    "X-Zasp-Expected-Scope": "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003",
+  });
+  assert.equal(denied.status, 404);
+  assert.equal(denied.body.code, "not_found");
+  assert.doesNotMatch(JSON.stringify(denied.body), /Foreign tenant agent/);
   assert.equal(proxyFailure, undefined, `proxy fixture failed: ${proxyFailure}`);
 
   console.log("production combined E2E passed: callback/cookie/bootstrap, pagination, PAT/receipt recovery, keyboard focus, durable restart/reload, tenant denial");
@@ -238,6 +266,7 @@ try {
 
 async function cleanupOwnedResources() {
   console.log("combined E2E: cleanup browser");
+  if (secondBrowserTab) secondBrowserTab.close();
   if (browser) {
     browser.cdp.close();
     await stopChild(browser.child);
@@ -279,6 +308,7 @@ async function seedPostgres(dsn) {
   const sql = `
 INSERT INTO zasp_authorized_scopes (principal_id, organization_id, workspace_id, environment_id, label, permissions, is_default) VALUES
 ('pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','Production','["view","manage_workflows"]'::jsonb,true),
+('pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','pid_10000022-0000-4000-8000-000000000022','pid_10000023-0000-4000-8000-000000000023','Staging','["view","manage_workflows"]'::jsonb,false),
 ('pid_90000004-0000-4000-8000-000000000004','pid_90000001-0000-4000-8000-000000000001','pid_90000002-0000-4000-8000-000000000002','pid_90000003-0000-4000-8000-000000000003','Foreign','["view"]'::jsonb,true);
 INSERT INTO zasp_identity_memberships (principal_id, organization_id, organization_reference, member_reference, role) VALUES
 ('pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','organization-test-local','member-test-local','security_admin');
@@ -286,6 +316,7 @@ INSERT INTO zasp_product_api_tokens (token_digest, principal_id, organization_id
 (digest('production-e2e-product-token-with-at-least-32-bytes', 'sha256'),'pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','["view","manage_workflows"]'::jsonb,transaction_timestamp() + interval '1 hour');
 INSERT INTO zasp_core_payloads (organization_id, workspace_id, environment_id, operation, payload) VALUES
 ('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','session_bootstrap:pid_10000004-0000-4000-8000-000000000004','{"principal":{"id":"pid_10000004-0000-4000-8000-000000000004","organization_id":"pid_10000001-0000-4000-8000-000000000001","organization_reference":"organization-local","member_reference":"member-local","role":"security_admin","active":true},"organization_id":"pid_10000001-0000-4000-8000-000000000001","workspace_id":"pid_10000002-0000-4000-8000-000000000002","environment_id":"pid_10000003-0000-4000-8000-000000000003","permissions":["view"],"capabilities":["inventory.read","scope.switch"],"csrf_token":"cccccccccccccccccccccccccccccccc","correlation_id":"pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"}'::jsonb),
+('pid_10000001-0000-4000-8000-000000000001','pid_10000022-0000-4000-8000-000000000022','pid_10000023-0000-4000-8000-000000000023','session_bootstrap:pid_10000004-0000-4000-8000-000000000004','{"principal":{"id":"pid_10000004-0000-4000-8000-000000000004","organization_id":"pid_10000001-0000-4000-8000-000000000001","organization_reference":"organization-local","member_reference":"member-local","role":"security_admin","active":true},"organization_id":"pid_10000001-0000-4000-8000-000000000001","workspace_id":"pid_10000022-0000-4000-8000-000000000022","environment_id":"pid_10000023-0000-4000-8000-000000000023","permissions":["view"],"capabilities":["inventory.read","scope.switch"],"csrf_token":"dddddddddddddddddddddddddddddddd","correlation_id":"pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"}'::jsonb),
 ('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','home','{"agent_count":1,"high_risk_paths":0,"verified_changes":0,"blocked_changes":0,"pending_approvals":0,"oldest_approval_age_seconds":0,"needs_human_runs":0,"failed_runs":0,"inconclusive_runs":0,"recent_contained":0,"recent_remediated":0,"healthy":true,"attention_required":false}'::jsonb),
 ('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','agents','{"items":[{"id":"pid_20000001-0000-4000-8000-000000000001","name":"Support agent","kind":"agent","owner":"security","team":"platform","tags":["production"],"evidence_id":"pid_20000006-0000-4000-8000-000000000006","first_seen":"2026-08-18T09:00:00Z","last_seen":"2026-08-18T10:00:00Z"}]}'::jsonb),
 ('pid_90000001-0000-4000-8000-000000000001','pid_90000002-0000-4000-8000-000000000002','pid_90000003-0000-4000-8000-000000000003','agent:pid_90000001-0000-4000-8000-000000000001','{"id":"pid_90000001-0000-4000-8000-000000000001","name":"Foreign tenant agent","kind":"agent","owner":"foreign","team":"foreign","tags":[],"evidence_id":"pid_90000006-0000-4000-8000-000000000006","first_seen":"2026-08-18T09:00:00Z","last_seen":"2026-08-18T10:00:00Z"}'::jsonb);
@@ -448,6 +479,16 @@ async function startBrowser(profile, port, target) {
   return { child, cdp };
 }
 
+async function startBrowserTab(port, target) {
+  const page = await fetch(`http://127.0.0.1:${port}/json/new?${encodeURIComponent(target)}`, { method: "PUT" }).then((response) => response.json());
+  assert.equal(page.type, "page");
+  assert.ok(page.webSocketDebuggerUrl);
+  const cdp = await connectCDP(page.webSocketDebuggerUrl);
+  await cdp.send("Page.enable");
+  await cdp.send("Runtime.enable");
+  return cdp;
+}
+
 async function waitForBrowserText(cdp, pattern) {
   let last = "";
   for (let attempt = 0; attempt < 300; attempt += 1) {
@@ -472,6 +513,14 @@ async function browserTextControlDisabled(cdp, text) {
 async function waitForBrowserControlDisabled(cdp, text, expected) {
   await waitForBrowserAction(cdp, `(() => { const value = ${JSON.stringify(text)}; const element = [...document.querySelectorAll('button,input,select,textarea')].find((candidate) => candidate.textContent?.trim() === value || candidate.getAttribute('aria-label') === value); return Boolean(element) && element.disabled === ${JSON.stringify(expected)}; })()`);
   return expected;
+}
+
+async function selectBrowserOption(cdp, label, text) {
+  await waitForBrowserAction(cdp, `(() => { const select = document.querySelector(${JSON.stringify(`select[aria-label="${label}"]`)}); const option = select && [...select.options].find((candidate) => candidate.textContent?.trim() === ${JSON.stringify(text)}); if (!select || !option || select.disabled) return false; const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; setter.call(select, option.value); select.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
+}
+
+async function waitForBrowserSelectedOption(cdp, label, text) {
+  await waitForBrowserAction(cdp, `(() => { const select = document.querySelector(${JSON.stringify(`select[aria-label="${label}"]`)}); return Boolean(select && select.options[select.selectedIndex]?.textContent?.trim() === ${JSON.stringify(text)} && !select.disabled); })()`);
 }
 
 async function browserCountAriaPrefix(cdp, prefix) {
@@ -539,6 +588,15 @@ async function requestHTTPSJSON(target, options, body) {
     request.on("error", reject);
     request.end(body);
   });
+}
+
+async function browserFetchJSON(cdp, target, headers) {
+  const evaluated = await cdp.send("Runtime.evaluate", {
+    expression: `(async () => { const response = await fetch(${JSON.stringify(target)}, { headers: ${JSON.stringify(headers)} }); return { status: response.status, body: await response.json() }; })()`,
+    awaitPromise: true,
+    returnByValue: true,
+  });
+  return evaluated.result.value;
 }
 
 async function connectCDP(target) {

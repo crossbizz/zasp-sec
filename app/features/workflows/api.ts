@@ -201,7 +201,7 @@ export function createWorkflowRecoveryAPI(client: APIClient, capturedScopeKey = 
   if (!capturedScopeKey) throw new APITransportError("invalid_configuration", "Workflow recovery scope is required");
   return {
     async listReceipts(signal?: AbortSignal): Promise<readonly WorkflowMutationReceipt[]> {
-      return requireAPIData(await client.GET("/api/v1/workflow-mutation-receipts", { params: { query: { limit: 50 } }, signal }), decodeWorkflowMutationReceiptPage).items;
+	  return requireAPIData(await client.GET("/api/v1/workflow-mutation-receipts", { params: { query: { limit: 50 } }, headers: { "X-Zasp-Expected-Scope": capturedScopeKey }, signal }), decodeWorkflowMutationReceiptPage).items;
     },
     async acknowledgeReceipt(id: string): Promise<void> {
       // Keep each recovery service tied to the immutable scope identity that
@@ -211,7 +211,7 @@ export function createWorkflowRecoveryAPI(client: APIClient, capturedScopeKey = 
       // The shared transport injects the current vault-held CSRF value. The
       // generated operation type cannot express transport-owned headers.
       const params = { path: { id } } as never;
-      const result = await client.POST("/api/v1/workflow-mutation-receipts/{id}/acknowledge", { params, body: {} });
+	  const result = await client.POST("/api/v1/workflow-mutation-receipts/{id}/acknowledge", { params, headers: { "X-Zasp-Expected-Scope": capturedScopeKey }, body: {} });
       if (result.error) requireAPIData<never>(result);
       if (result.response.status !== 204) throw new APITransportError("invalid_response", "Mutation receipt acknowledgement returned an invalid response");
     },

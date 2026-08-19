@@ -18,6 +18,7 @@ test("combined production E2E owns every local boundary and fixed assertion", as
     "Input.dispatchKeyEvent", "browserDialogIsolation", "keyboard focus trap and restoration",
     "PAT success, replay, and zero browser receipts", "1|1|0", "workflowPageRequests", "Paged policy 1000", "Paged integration 1001",
     "Second-tab committed policy", "Expiry-race committed policy", "seedExpiringReceipt", "expired receipt left workflow mutations locked",
+    "startBrowserTab", "actual two-tab A-to-B, B-to-A, and ABA stale-scope recovery proven", "X-Zasp-Expected-Scope",
   ]) assert.match(source, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   for (const unsafeControl of ["Enroll sensor", "Create enrollment", "Start bounded run", "waiting_approval", "one-time sensor credential", "Simulate policy", "Decision history"]) {
     const escaped = unsafeControl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

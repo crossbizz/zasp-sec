@@ -63,70 +63,84 @@ export type SessionContextValue = SessionState & {
 const SessionContext = createContext<SessionContextValue | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const { client, setCSRFToken, setQueryScope, suspendQueryCache, sessionExpiry } = useAPI();
+  const { client, setCSRFToken, setRequestScope, setQueryScope, suspendQueryCache, sessionExpiry, scopeStale } = useAPI();
   const [state, setState] = useState<SessionState>({ status: "loading" });
   const [stateSessionExpiry, setStateSessionExpiry] = useState(sessionExpiry);
+	const [stateScopeStale, setStateScopeStale] = useState(scopeStale);
   const [scopeSwitch, setScopeSwitch] = useState<ScopeSwitchState>({ status: "idle" });
   const scopeAttempt = useRef<ScopeAttempt | null>(null);
   const sessionCSRF = useRef<string | null>(null);
-  const loadSession = useCallback(async (expiryVersion: number): Promise<ActiveScope | null> => {
+  const loadSession = useCallback(async (expiryVersion: number, scopeStaleVersion: number): Promise<ActiveScope | null> => {
     try {
       const result = await client.GET("/api/v1/session/bootstrap");
       if (!result.data) {
         sessionCSRF.current = null;
         setCSRFToken(null);
+		setRequestScope(null);
         suspendQueryCache();
 		  setStateSessionExpiry(expiryVersion);
+		setStateScopeStale(scopeStaleVersion);
         setState({ status: result.response.status === 401 ? "unauthenticated" : result.response.status === 403 ? "forbidden" : "error", error: result.error });
 		  return null;
       }
       const bootstrapValue = requireAPIData(result, decodeSessionBootstrap);
+	  const activeScope = scopeFromBootstrap(bootstrapValue);
+	  setRequestScope(scopeCacheKey(activeScope));
       let scopes: readonly SessionScope[] = [];
       if (bootstrapValue.capabilities.includes("scope.switch")) {
         const scopeResult = await client.GET("/api/v1/session/scopes");
         scopes = requireAPIData(scopeResult, decodeSessionScopePage).items;
         if (!scopes.some((scope) => scope.organization_id === bootstrapValue.organization_id && scope.workspace_id === bootstrapValue.workspace_id && scope.environment_id === bootstrapValue.environment_id)) throw new Error("Active scope is not authorized");
       }
-      const activeScope = scopeFromBootstrap(bootstrapValue);
       sessionCSRF.current = bootstrapValue.csrf_token;
       setCSRFToken(bootstrapValue.csrf_token);
       setStateSessionExpiry(expiryVersion);
+	  setStateScopeStale(scopeStaleVersion);
       setQueryScope(scopeCacheKey(activeScope));
       setState(authenticatedState(bootstrapValue, scopes));
       return activeScope;
     } catch (error) {
       sessionCSRF.current = null;
       setCSRFToken(null);
+	  setRequestScope(null);
       suspendQueryCache();
       setStateSessionExpiry(expiryVersion);
+	  setStateScopeStale(scopeStaleVersion);
       setState({ status: "error", error });
       return null;
     }
-  }, [client, setCSRFToken, setQueryScope, suspendQueryCache]);
+  }, [client, setCSRFToken, setRequestScope, setQueryScope, suspendQueryCache]);
   const retry = useCallback(async () => {
     setState({ status: "loading" });
-    await loadSession(sessionExpiry);
-  }, [loadSession, sessionExpiry]);
+    await loadSession(sessionExpiry, scopeStale);
+  }, [loadSession, scopeStale, sessionExpiry]);
   useEffect(() => {
     let active = true;
-    queueMicrotask(() => { if (active) void loadSession(0); });
+    queueMicrotask(() => { if (active) void loadSession(0, 0); });
     return () => { active = false; };
   }, [loadSession]);
+	useEffect(() => {
+		if (scopeStale === 0) return;
+		let active = true;
+		queueMicrotask(() => { if (active) void loadSession(sessionExpiry, scopeStale); });
+		return () => { active = false; };
+	}, [loadSession, scopeStale, sessionExpiry]);
   const signOut = useCallback(async () => {
     if (!sessionCSRF.current) throw new Error("Session CSRF token is unavailable");
     const result = await client.POST("/api/v1/session/sign-out", { params: { header: { "X-CSRF-Token": sessionCSRF.current } } });
     if (result.error) throw result.error;
     sessionCSRF.current = null;
     setCSRFToken(null);
+	setRequestScope(null);
     suspendQueryCache();
     setState({ status: "unauthenticated" });
-  }, [client, setCSRFToken, suspendQueryCache]);
+  }, [client, setCSRFToken, setRequestScope, suspendQueryCache]);
   const signIn = useCallback((returnTo?: string) => {
     window.location.assign(buildSignInURL(returnTo ?? `${window.location.pathname}${window.location.search}`));
   }, []);
   const reconcileScope = useCallback(async (attempt: ScopeAttempt, cause?: unknown) => {
     attempt.next = "reconcile";
-    const active = await loadSession(sessionExpiry);
+    const active = await loadSession(sessionExpiry, scopeStale);
     if (!active) {
       setScopeSwitch({
         status: "error",
@@ -155,7 +169,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         cause,
       },
     });
-  }, [loadSession, sessionExpiry]);
+  }, [loadSession, scopeStale, sessionExpiry]);
   const submitScopeSwitch = useCallback(async (attempt: ScopeAttempt) => {
     if (!sessionCSRF.current) throw new Error("Session CSRF token is unavailable");
     setScopeSwitch({ status: "pending" });
@@ -172,9 +186,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     attempt.next = "reconcile";
     sessionCSRF.current = null;
     setCSRFToken(null);
+	setRequestScope(null);
     suspendQueryCache();
     await reconcileScope(attempt, mutationError);
-  }, [client, reconcileScope, setCSRFToken, suspendQueryCache]);
+  }, [client, reconcileScope, setCSRFToken, setRequestScope, suspendQueryCache]);
   const switchScope = useCallback(async (workspaceID: string, environmentID: string) => {
     if (state.status !== "authenticated") throw new Error("An authenticated session is required");
     const selected = state.scopes.find((scope) => scope.workspace_id === workspaceID && scope.environment_id === environmentID);
@@ -201,7 +216,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     await submitScopeSwitch(attempt);
   }, [reconcileScope, submitScopeSwitch]);
 	const value = useMemo<SessionContextValue>(() => {
-		const visibleState: SessionState = sessionExpiry === stateSessionExpiry ? state : { status: "unauthenticated" };
+		const visibleState: SessionState = sessionExpiry !== stateSessionExpiry ? { status: "unauthenticated" } : scopeStale !== stateScopeStale ? { status: "loading" } : state;
 		const capabilities = visibleState.status === "authenticated" ? new Set(visibleState.capabilities) : new Set<string>();
 		return {
 			...visibleState,
@@ -212,7 +227,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 			scopeSwitch: { ...scopeSwitch, retry: retryScopeSwitch },
 			retry,
 		};
-	}, [sessionExpiry, stateSessionExpiry, state, signIn, signOut, switchScope, scopeSwitch, retryScopeSwitch, retry]);
+	}, [sessionExpiry, stateSessionExpiry, scopeStale, stateScopeStale, state, signIn, signOut, switchScope, scopeSwitch, retryScopeSwitch, retry]);
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 

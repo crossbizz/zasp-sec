@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -152,6 +153,111 @@ func TestRouterAppliesBrowserCSRFOnlyAfterSchemeMatch(t *testing.T) {
 	router.ServeHTTP(response, request)
 	if response.Code != http.StatusOK {
 		t.Fatalf("valid csrf status = %d body=%s", response.Code, response.Body.String())
+	}
+}
+
+func TestRouterRejectsStaleBrowserScopeBeforeScopedHandlerAccess(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBrowserSession
+	called := 0
+	router, err := NewRouter([]Operation{{
+		Method: http.MethodGet, Pattern: "/api/v1/policies", OperationID: "listPolicies",
+		Security: []CredentialKind{CredentialBrowserSession, CredentialBearerToken},
+		Handler:  http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) { called++; writer.WriteHeader(http.StatusNoContent) }),
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := identity.Scope.OrganizationID().String() + "/" + identity.Scope.WorkspaceID().String() + "/" + identity.Scope.EnvironmentID().String()
+	for _, test := range []struct {
+		name   string
+		values []string
+	}{
+		{name: "missing"},
+		{name: "duplicate", values: []string{expected, expected}},
+		{name: "malformed", values: []string{"not/a/scope"}},
+		{name: "noncanonical", values: []string{strings.ToUpper(expected)}},
+		{name: "forged", values: []string{"pid_20000001-0000-4000-8000-000000000001/pid_20000002-0000-4000-8000-000000000002/pid_20000003-0000-4000-8000-000000000003"}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, "/api/v1/policies", nil)
+			request = request.WithContext(context.WithValue(request.Context(), identityContextKey{}, identity))
+			for _, value := range test.values {
+				request.Header.Add("X-Zasp-Expected-Scope", value)
+			}
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, request)
+			var envelope struct {
+				Code      string `json:"code"`
+				Message   string `json:"message"`
+				Retryable bool   `json:"retryable"`
+			}
+			if json.Unmarshal(response.Body.Bytes(), &envelope) != nil || response.Code != http.StatusConflict || envelope.Code != "scope_stale" || envelope.Message != "Session scope changed; rebootstrap required" || !envelope.Retryable || called != 0 {
+				t.Fatalf("scope rejection = status %d envelope=%#v called=%d body=%s", response.Code, envelope, called, response.Body.String())
+			}
+		})
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/policies", nil)
+	request.Header.Set("X-Zasp-Expected-Scope", expected)
+	request = request.WithContext(context.WithValue(request.Context(), identityContextKey{}, identity))
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusNoContent || called != 1 {
+		t.Fatalf("matching scope = status %d called=%d body=%s", response.Code, called, response.Body.String())
+	}
+}
+
+func TestRouterScopeAssertionCoversSwitchAndIgnoresPATHeader(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBrowserSession
+	expected := identity.Scope.OrganizationID().String() + "/" + identity.Scope.WorkspaceID().String() + "/" + identity.Scope.EnvironmentID().String()
+	called := 0
+	router, err := NewRouter([]Operation{
+		{Method: http.MethodPut, Pattern: "/api/v1/session/scope", OperationID: "switchSessionScope", Security: []CredentialKind{CredentialBrowserSession}, Handler: http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) { called++; writer.WriteHeader(http.StatusNoContent) })},
+		{Method: http.MethodGet, Pattern: "/api/v1/session/bootstrap", OperationID: "bootstrapSession", Security: []CredentialKind{CredentialBrowserSession}, Handler: http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) { called++; writer.WriteHeader(http.StatusNoContent) })},
+		{Method: http.MethodGet, Pattern: "/api/v1/policies", OperationID: "listPolicies", Security: []CredentialKind{CredentialBrowserSession, CredentialBearerToken}, Handler: http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) { called++; writer.WriteHeader(http.StatusNoContent) })},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request := httptest.NewRequest(http.MethodPut, "/api/v1/session/scope", nil)
+	request = request.WithContext(context.WithValue(request.Context(), identityContextKey{}, identity))
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusConflict || called != 0 {
+		t.Fatalf("scope switch without assertion = %d called=%d", response.Code, called)
+	}
+	request = httptest.NewRequest(http.MethodPut, "/api/v1/session/scope", nil)
+	request.Header.Set("X-Zasp-Expected-Scope", expected)
+	request = request.WithContext(context.WithValue(request.Context(), identityContextKey{}, identity))
+	response = httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusNoContent || called != 1 {
+		t.Fatalf("scope switch with assertion = %d called=%d", response.Code, called)
+	}
+
+	request = httptest.NewRequest(http.MethodGet, "/api/v1/session/bootstrap", nil)
+	request = request.WithContext(context.WithValue(request.Context(), identityContextKey{}, identity))
+	response = httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusNoContent || called != 2 {
+		t.Fatalf("bootstrap exemption = %d called=%d", response.Code, called)
+	}
+
+	identity.CredentialKind = CredentialBearerToken
+	for _, value := range []string{"", "forged/browser/scope"} {
+		request = httptest.NewRequest(http.MethodGet, "/api/v1/policies", nil)
+		if value != "" {
+			request.Header.Set("X-Zasp-Expected-Scope", value)
+		}
+		request = request.WithContext(context.WithValue(request.Context(), identityContextKey{}, identity))
+		response = httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+		if response.Code != http.StatusNoContent {
+			t.Fatalf("PAT header %q = %d body=%s", value, response.Code, response.Body.String())
+		}
 	}
 }
 

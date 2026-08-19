@@ -7,6 +7,8 @@ import type { Decoder } from "./decoders";
 const DEFAULT_TIMEOUT_MS = 10_000;
 const DEFAULT_MAXIMUM_RESPONSE_BYTES = 1024 * 1024;
 const PRODUCT_ID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const EXPECTED_SCOPE_HEADER = "X-Zasp-Expected-Scope";
+const SCOPE_STALE_MESSAGE = "Session scope changed; rebootstrap required";
 
 export type APITransportErrorKind =
   | "invalid_configuration"
@@ -54,8 +56,10 @@ export type APIClientOptions = Omit<ClientOptions, "baseUrl" | "credentials" | "
   timeoutMs?: number;
   maximumResponseBytes?: number;
   getCSRFToken?: () => string | undefined;
+	getExpectedScope?: () => string | undefined;
   generateCorrelationID?: () => string;
   onSessionExpired?: () => void;
+	onScopeStale?: () => void;
 };
 
 export function createAPIClient(options: APIClientOptions = {}) {
@@ -65,8 +69,10 @@ export function createAPIClient(options: APIClientOptions = {}) {
     timeoutMs = DEFAULT_TIMEOUT_MS,
     maximumResponseBytes = DEFAULT_MAXIMUM_RESPONSE_BYTES,
     getCSRFToken = () => undefined,
+	getExpectedScope = () => undefined,
     generateCorrelationID = defaultCorrelationID,
     onSessionExpired = () => undefined,
+	onScopeStale = () => undefined,
     ...clientOptions
   } = options;
   if (!validRelativeBaseURL(baseUrl) || typeof configuredFetch !== "function" || !validBound(timeoutMs) || !validBound(maximumResponseBytes)) {
@@ -83,6 +89,11 @@ export function createAPIClient(options: APIClientOptions = {}) {
     }
     const headers = new Headers(request.headers);
     headers.set("X-Correlation-ID", correlationID);
+	const expectedScope = headers.get(EXPECTED_SCOPE_HEADER) ?? getExpectedScope();
+	if (expectedScope !== undefined) {
+		if (!validExpectedScope(expectedScope)) throw new APITransportError("invalid_configuration", "Invalid expected API scope");
+		headers.set(EXPECTED_SCOPE_HEADER, expectedScope);
+	}
     if (isMutation(request.method)) {
       const csrfToken = getCSRFToken();
       if (csrfToken) headers.set("X-CSRF-Token", csrfToken);
@@ -98,7 +109,7 @@ export function createAPIClient(options: APIClientOptions = {}) {
     });
     try {
       const response = await configuredFetch(securedRequest);
-      await validateResponse(response, maximumResponseBytes, onSessionExpired);
+	  await validateResponse(response, maximumResponseBytes, onSessionExpired, onScopeStale);
       return response;
     } catch (error) {
       if (request.signal.aborted) throw request.signal.reason;
@@ -141,7 +152,7 @@ function isMutation(method: string): boolean {
   return method === "POST" || method === "PUT" || method === "PATCH" || method === "DELETE";
 }
 
-async function validateResponse(response: Response, maximumBytes: number, onSessionExpired: () => void): Promise<void> {
+async function validateResponse(response: Response, maximumBytes: number, onSessionExpired: () => void, onScopeStale: () => void): Promise<void> {
   if (!(response instanceof Response) || response.redirected) {
     throw new APITransportError("invalid_response", "API returned an invalid response");
   }
@@ -162,7 +173,13 @@ async function validateResponse(response: Response, maximumBytes: number, onSess
       throw new APITransportError("invalid_error", "API returned an invalid product error");
     }
     if (response.status === 401 && decoded.code === "authentication_required") onSessionExpired();
+	if (response.status === 409 && decoded.code === "scope_stale" && decoded.message === SCOPE_STALE_MESSAGE && decoded.retryable) onScopeStale();
   }
+}
+
+function validExpectedScope(value: string): boolean {
+	const parts = value.split("/");
+	return parts.length === 3 && parts.every((part) => PRODUCT_ID.test(part));
 }
 
 async function readBounded(response: Response, maximumBytes: number): Promise<Uint8Array> {

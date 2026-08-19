@@ -22,7 +22,7 @@ func TestPostgresProductionSliceSurvivesRepositoryRestartAndIsolatesTenants(t *t
 	client := serverA.Client()
 
 	for _, path := range []string{"/api/v1/home/summary", "/api/v1/agents"} {
-		response := productRequest(t, client, http.MethodGet, serverA.URL+path, "session-a", "", "")
+		response := productRequest(t, client, http.MethodGet, serverA.URL+path, "session-a", expectedScopeValue(testScope(t, "1")), "", "")
 		if response.StatusCode != http.StatusOK {
 			t.Fatalf("GET %s status = %d", path, response.StatusCode)
 		}
@@ -32,7 +32,7 @@ func TestPostgresProductionSliceSurvivesRepositoryRestartAndIsolatesTenants(t *t
 
 	serverB := newProductionTestServer(t, database)
 	defer serverB.Close()
-	persisted := productRequest(t, serverB.Client(), http.MethodGet, serverB.URL+"/api/v1/agents", "session-a", "", "")
+	persisted := productRequest(t, serverB.Client(), http.MethodGet, serverB.URL+"/api/v1/agents", "session-a", expectedScopeValue(testScope(t, "1")), "", "")
 	defer persisted.Body.Close()
 	var inventory map[string]any
 	if err := json.NewDecoder(persisted.Body).Decode(&inventory); err != nil {
@@ -41,7 +41,7 @@ func TestPostgresProductionSliceSurvivesRepositoryRestartAndIsolatesTenants(t *t
 	if persisted.StatusCode != http.StatusOK || len(inventory["items"].([]any)) != 1 {
 		t.Fatalf("persisted inventory = (%d, %#v)", persisted.StatusCode, inventory)
 	}
-	foreign := productRequest(t, serverB.Client(), http.MethodGet, serverB.URL+"/api/v1/agents/pid_20000001-0000-4000-8000-000000000001", "session-b", "", "")
+	foreign := productRequest(t, serverB.Client(), http.MethodGet, serverB.URL+"/api/v1/agents/pid_20000001-0000-4000-8000-000000000001", "session-b", expectedScopeValue(testScope(t, "2")), "", "")
 	defer foreign.Body.Close()
 	if foreign.StatusCode != http.StatusNotFound {
 		t.Fatalf("foreign tenant status = %d, want 404", foreign.StatusCode)
@@ -121,7 +121,7 @@ func TestProductTokenCanReadMeWithoutBrowserCSRF(t *testing.T) {
 func TestProductionBootstrapAdvertisesOnlyMountedDurableCapabilities(t *testing.T) {
 	server := newProductionTestServer(t, newPersistentJSONDatabase(t))
 	defer server.Close()
-	response := productRequest(t, server.Client(), http.MethodGet, server.URL+"/api/v1/session/bootstrap", "session-a", "", "")
+	response := productRequest(t, server.Client(), http.MethodGet, server.URL+"/api/v1/session/bootstrap", "session-a", "", "", "")
 	defer response.Body.Close()
 	var bootstrap struct {
 		Capabilities []string `json:"capabilities"`
@@ -139,7 +139,8 @@ func TestProductionSessionListsAndSwitchesOnlyDurableAuthorizedScopes(t *testing
 	database := newPersistentJSONDatabase(t)
 	server := newProductionTestServer(t, database)
 	defer server.Close()
-	response := productRequest(t, server.Client(), http.MethodGet, server.URL+"/api/v1/session/scopes", "session-a", "", "")
+	scopeA := testScope(t, "1")
+	response := productRequest(t, server.Client(), http.MethodGet, server.URL+"/api/v1/session/scopes", "session-a", expectedScopeValue(scopeA), "", "")
 	defer response.Body.Close()
 	var page struct {
 		Items []struct {
@@ -151,7 +152,7 @@ func TestProductionSessionListsAndSwitchesOnlyDurableAuthorizedScopes(t *testing
 		t.Fatalf("scope page = (%d, %#v)", response.StatusCode, page)
 	}
 	body := fmt.Sprintf(`{"workspace_id":%q,"environment_id":%q}`, page.Items[1].WorkspaceID, page.Items[1].EnvironmentID)
-	response = productRequest(t, server.Client(), http.MethodPut, server.URL+"/api/v1/session/scope", "session-a", server.URL, body)
+	response = productRequest(t, server.Client(), http.MethodPut, server.URL+"/api/v1/session/scope", "session-a", expectedScopeValue(scopeA), server.URL, body)
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusNoContent {
 		t.Fatalf("switch status = %d", response.StatusCode)
@@ -162,7 +163,7 @@ func TestProductionSessionListsAndSwitchesOnlyDurableAuthorizedScopes(t *testing
 	}
 	foreign := testScope(t, "2")
 	body = fmt.Sprintf(`{"workspace_id":%q,"environment_id":%q}`, foreign.WorkspaceID(), foreign.EnvironmentID())
-	response = productRequest(t, server.Client(), http.MethodPut, server.URL+"/api/v1/session/scope", "session-a", server.URL, body)
+	response = productRequest(t, server.Client(), http.MethodPut, server.URL+"/api/v1/session/scope", "session-a", expectedScopeValue(alternateScope(t, scopeA.OrganizationID())), server.URL, body)
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusNotFound {
 		t.Fatalf("foreign switch status = %d", response.StatusCode)
@@ -271,13 +272,16 @@ func fixtureCookiePolicy() CookiePolicy {
 	return CookiePolicy{Secure: true, WorkflowSigningKey: []byte("0123456789abcdef0123456789abcdef"), Clock: func() time.Time { return time.Date(2026, 8, 18, 12, 0, 0, 0, time.UTC) }}
 }
 
-func productRequest(t *testing.T, client *http.Client, method, target, session, origin, body string) *http.Response {
+func productRequest(t *testing.T, client *http.Client, method, target, session, expectedScope, origin, body string) *http.Response {
 	t.Helper()
 	request, err := http.NewRequest(method, target, strings.NewReader(body))
 	if err != nil {
 		t.Fatal(err)
 	}
 	request.AddCookie(&http.Cookie{Name: "__Host-zasp_session", Value: session})
+	if expectedScope != "" {
+		request.Header.Set(expectedScopeHeader, expectedScope)
+	}
 	if origin != "" {
 		request.Header.Set("Origin", origin)
 		request.Header.Set("X-CSRF-Token", strings.Repeat("c", 32))

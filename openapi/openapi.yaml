@@ -77,6 +77,7 @@ paths:
       summary: List durable scopes authorized for the browser principal
       security:
         - BrowserSession: []
+          BrowserExpectedScope: []
       responses:
         '200':
           description: Authorized durable scopes.
@@ -89,6 +90,7 @@ paths:
       summary: Switch the browser session to an authorized durable scope
       security:
         - BrowserSession: []
+          BrowserExpectedScope: []
       parameters:
         - $ref: '#/components/parameters/CSRFToken'
       requestBody:
@@ -672,6 +674,7 @@ paths:
       summary: List unacknowledged durable mutation receipts for the exact browser principal and scope
       security:
         - BrowserSession: []
+          BrowserExpectedScope: []
       parameters:
         - name: limit
           in: query
@@ -696,6 +699,7 @@ paths:
       summary: Acknowledge one exact-scope durable mutation receipt
       security:
         - BrowserSession: []
+          BrowserExpectedScope: []
       parameters:
         - $ref: '#/components/parameters/CSRFToken'
       requestBody:
@@ -1785,6 +1789,7 @@ paths:
         default: { $ref: '#/components/responses/ProductErrorResponse' }
 security:
   - BrowserSession: []
+    BrowserExpectedScope: []
   - ProductAPIToken: []
 components:
   securitySchemes:
@@ -1793,6 +1798,11 @@ components:
       in: cookie
       name: __Host-zasp_session
       description: Secure, HttpOnly, SameSite=Lax host-only human browser session.
+    BrowserExpectedScope:
+      type: apiKey
+      in: header
+      name: X-Zasp-Expected-Scope
+      description: Exact canonical organization/workspace/environment scope captured by the browser before a scoped request. The server compares it with the authenticated session scope before data access; ProductAPIToken scope remains token-owned.
     ProductAPIToken:
       type: http
       scheme: bearer

@@ -76,7 +76,7 @@ func TestBatchTwoCompositionExposesOnlyCompleteDurableOperations(t *testing.T) {
 			t.Errorf("complete durable operation %q is not mounted", operationID)
 			continue
 		}
-		if len(definition.Security) != 2 || definition.Permission == "" {
+		if !equalStrings(definition.Security, []string{"BrowserExpectedScope", "BrowserSession", "ProductAPIToken"}) || definition.Permission == "" {
 			t.Errorf("operation %q security/permission = %v/%q", operationID, definition.Security, definition.Permission)
 		}
 	}
@@ -86,7 +86,7 @@ func TestBatchTwoCompositionExposesOnlyCompleteDurableOperations(t *testing.T) {
 			t.Errorf("receipt recovery operation %q is not mounted", operationID)
 			continue
 		}
-		if !equalStrings(definition.Security, []string{"BrowserSession"}) || definition.Permission != "view" {
+		if !equalStrings(definition.Security, []string{"BrowserExpectedScope", "BrowserSession"}) || definition.Permission != "view" {
 			t.Errorf("receipt recovery operation %q security/permission = %v/%q", operationID, definition.Security, definition.Permission)
 		}
 	}
@@ -168,6 +168,9 @@ func TestNewCompositionMountsOnlyCoreProductOperations(t *testing.T) {
 		identity.CredentialKind = CredentialBrowserSession
 		request = request.WithContext(context.WithValue(request.Context(), identityContextKey{}, identity))
 		request = request.WithContext(context.WithValue(request.Context(), browserSecurityContextKey{}, browserSecurityContext{publicOrigin: "https://app.zasp.test"}))
+		if test.path != "/api/v1/session/bootstrap" && test.path != "/api/v1/session/callback" && test.path != "/api/v1/session/sign-out" {
+			request.Header.Set(expectedScopeHeader, expectedScopeValue(identity.Scope))
+		}
 		if test.method == http.MethodPost || test.method == http.MethodPatch || test.method == http.MethodPut || test.method == http.MethodDelete {
 			request.Header.Set("Origin", "https://app.zasp.test")
 			request.Header.Set("X-CSRF-Token", identity.CSRFToken)

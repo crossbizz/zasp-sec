@@ -193,12 +193,14 @@ describe("generated API client", () => {
       expect(request.redirect).toBe("error");
       expect(request.headers.get("X-Correlation-ID")).toBe("pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee");
       expect(request.headers.get("X-CSRF-Token")).toBe("csrf-value");
+	  expect(request.headers.get("X-Zasp-Expected-Scope")).toBe("pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003");
       expect(request.url).toBe(`${window.location.origin}/api/v1/findings/pid_20000001-0000-4000-8000-000000000001`);
       return jsonResponse({ id: "pid_20000001-0000-4000-8000-000000000001", source: "posture", title: "Finding", severity: "high", status: "resolved", evidence_ids: [], risk_factors: [] });
     });
     const client = createAPIClient({
       fetch,
       getCSRFToken: () => "csrf-value",
+	  getExpectedScope: () => "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003",
       generateCorrelationID: () => "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
     });
 
@@ -244,6 +246,26 @@ describe("generated API client", () => {
     expect(result.error).toMatchObject({ code: "authentication_required" });
     expect(expired).toHaveBeenCalledOnce();
   });
+
+	it("preserves an explicit captured scope and requests rebootstrap on scope-stale", async () => {
+		const stale = vi.fn();
+		let currentScope = "pid_10000001-0000-4000-8000-000000000001/pid_10000022-0000-4000-8000-000000000022/pid_10000023-0000-4000-8000-000000000023";
+		const observed: string[] = [];
+		const client = createAPIClient({
+			fetch: async (request: Request) => {
+				observed.push(request.headers.get("X-Zasp-Expected-Scope") ?? "");
+				return jsonResponse({ code: "scope_stale", message: "Session scope changed; rebootstrap required", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: true }, 409);
+			},
+			getExpectedScope: () => currentScope,
+			onScopeStale: stale,
+		});
+		const captured = "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003";
+		const result = await client.GET("/api/v1/workflow-mutation-receipts", { headers: { "X-Zasp-Expected-Scope": captured } });
+		currentScope = captured;
+		expect(result.error).toMatchObject({ code: "scope_stale", retryable: true });
+		expect(observed).toEqual([captured]);
+		expect(stale).toHaveBeenCalledOnce();
+	});
 });
 
 function jsonResponse(body: unknown, status = 200) {
