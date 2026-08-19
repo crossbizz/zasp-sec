@@ -34,6 +34,6 @@ The pre-install/pre-upgrade lifecycle creates the migration service account at h
 
 ## Verify and promote
 
-Require both Deployments available, migration Job complete, PDBs and NetworkPolicies present, internal port 8081 unreachable outside the monitoring namespace, and no provider Service of type LoadBalancer/NodePort. Verify the read-only canary, response security headers, the `agentsec-api` ServiceMonitor scrape, emitted request/repository/provider spans and the exact Prometheus histogram before promotion. Record the reviewed Git SHA, image digests, chart rendering fingerprint, CI run and public URL in release evidence.
+Require both Deployments available, migration Job complete, PDBs and NetworkPolicies present, internal port 8081 unreachable outside the monitoring namespace, and no provider Service of type LoadBalancer/NodePort. Verify the read-only canary, response security headers, the `agentsec-api` ServiceMonitor scrape, emitted API-local request/repository/provider correlation records and the exact Prometheus histogram before promotion. These records are not distributed tracing; end-to-end OpenTelemetry remains an external release gate. Record the reviewed Git SHA, image digests, chart rendering fingerprint, CI run and public URL in release evidence.
 
 Never run this procedure against a shared namespace from a developer harness. The local combined proof owns its PostgreSQL/API/web/Chrome processes and temporary root, fingerprints them, and removes only those resources.

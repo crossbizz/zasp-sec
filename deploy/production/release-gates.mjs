@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
 import net from "node:net";
 import path from "node:path";
@@ -69,7 +70,8 @@ export async function verifyReleaseSources() {
   }
 
   const goSpdx = await goSourceSBOM();
-  if (goSpdx.spdxVersion !== "SPDX-2.3" || goSpdx.packages.length < 20) throw new Error("Go SBOM gate rejected");
+  validateGoSpdxDocument(goSpdx);
+  if (goSpdx.packages.length < 20) throw new Error("Go SBOM gate rejected");
   for (const entry of goSpdx.packages) {
     if (entry.licenseConcluded !== "NOASSERTION" && !allowed.has(entry.licenseConcluded)) throw new Error(`Go license gate rejected: ${entry.name}`);
     if (entry.licenseConcluded === "NOASSERTION" && !entry.name.startsWith("github.com/zasp-ai/zasp-sec/")) throw new Error(`Go license gate rejected: ${entry.name}`);
@@ -88,13 +90,13 @@ export async function verifyReleaseSources() {
 
   await exec("gitleaks", ["git", "--no-banner", "--redact", "--log-opts=HEAD"], { cwd: root, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
   const workflow = await source(".github/workflows/runnable-ui.yml");
-  if (!workflow.includes("github.com/zricethezav/gitleaks/v8@v8.30.1") || !workflow.includes("npm run production:release:gate")) throw new Error("required CI gate rejected");
+  if (!workflow.includes("fetch-depth: 0") || !workflow.includes("github.com/zricethezav/gitleaks/v8@v8.30.1") || !workflow.includes("npm run production:release:gate")) throw new Error("required CI gate rejected");
 
   const definitions = [await source("deploy/production/web.Dockerfile"), await source("deploy/production/api.Dockerfile")];
   const imageReferences = new Set(definitions.flatMap((definition) => [...definition.matchAll(/^FROM\s+(\S+)/gm)].map((match) => match[1])));
   if (imageReferences.size !== 3 || [...imageReferences].some((reference) => !/@sha256:[0-9a-f]{64}$/.test(reference))) throw new Error("image definition gate rejected");
 
-  return deepFreeze({ canary: true, documentation: true, imageDefinitions: imageReferences.size, licensePolicy: true, trackedSecretScan: true, npmSpdxPackages: sbom.packages.length, goSpdxPackages: goSpdx.packages.length, requiredCI: true });
+  return deepFreeze({ canary: true, documentation: true, imageDefinitions: imageReferences.size, licensePolicy: true, trackedSecretScan: true, npmSpdxPackages: sbom.packages.length, goSpdxPackages: goSpdx.packages.length, goSpdx, requiredCI: true });
 }
 
 async function goSourceSBOM() {
@@ -109,9 +111,37 @@ async function goSourceSBOM() {
   }
   const packages = [];
   for (const dependency of [...modules.values()].sort((left, right) => left.name.localeCompare(right.name))) {
-    packages.push({ name: dependency.name, versionInfo: dependency.version, licenseConcluded: await moduleLicense(dependency) });
+    const license = await moduleLicense(dependency);
+    const packageID = createHash("sha256").update(`${dependency.name}\0${dependency.version}`).digest("hex").slice(0, 24);
+    packages.push({ SPDXID: `SPDXRef-Package-${packageID}`, name: dependency.name, versionInfo: dependency.version, downloadLocation: "NOASSERTION", filesAnalyzed: false, licenseConcluded: license, licenseDeclared: license, copyrightText: "NOASSERTION" });
   }
-  return { spdxVersion: "SPDX-2.3", packages };
+  const namespaceID = createHash("sha256").update(JSON.stringify(packages)).digest("hex");
+  return {
+    spdxVersion: "SPDX-2.3",
+    dataLicense: "CC0-1.0",
+    SPDXID: "SPDXRef-DOCUMENT",
+    name: "zasp-production-go-source",
+    documentNamespace: `https://zasp.example/spdx/go-source/${namespaceID}`,
+    creationInfo: { created: new Date().toISOString(), creators: ["Tool: zasp-production-release-gate"] },
+    packages,
+    relationships: packages.map((entry) => ({ spdxElementId: "SPDXRef-DOCUMENT", relationshipType: "DESCRIBES", relatedSpdxElement: entry.SPDXID })),
+  };
+}
+
+export function validateGoSpdxDocument(document) {
+  if (!document || document.spdxVersion !== "SPDX-2.3" || document.dataLicense !== "CC0-1.0" || document.SPDXID !== "SPDXRef-DOCUMENT" || document.name !== "zasp-production-go-source" || !/^https:\/\/zasp\.example\/spdx\/go-source\/[a-f0-9]{64}$/.test(document.documentNamespace) || !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(document.creationInfo?.created) || !document.creationInfo?.creators?.includes("Tool: zasp-production-release-gate") || !Array.isArray(document.packages) || !Array.isArray(document.relationships)) throw new Error("Go SBOM gate rejected");
+  const packageIDs = new Set();
+  for (const entry of document.packages) {
+    if (!entry || !/^SPDXRef-Package-[A-Za-z0-9.-]+$/.test(entry.SPDXID) || packageIDs.has(entry.SPDXID) || typeof entry.name !== "string" || !entry.name || typeof entry.versionInfo !== "string" || !entry.versionInfo || entry.downloadLocation !== "NOASSERTION" || entry.filesAnalyzed !== false || typeof entry.licenseConcluded !== "string" || entry.licenseDeclared !== entry.licenseConcluded || entry.copyrightText !== "NOASSERTION") throw new Error("Go SBOM gate rejected");
+    packageIDs.add(entry.SPDXID);
+  }
+  if (document.relationships.length !== packageIDs.size) throw new Error("Go SBOM gate rejected");
+  const described = new Set();
+  for (const relationship of document.relationships) {
+    if (!relationship || relationship.spdxElementId !== "SPDXRef-DOCUMENT" || relationship.relationshipType !== "DESCRIBES" || !packageIDs.has(relationship.relatedSpdxElement) || described.has(relationship.relatedSpdxElement)) throw new Error("Go SBOM gate rejected");
+    described.add(relationship.relatedSpdxElement);
+  }
+  return true;
 }
 
 async function moduleLicense(dependency) {

@@ -111,6 +111,7 @@ function assertRunnableUiWorkflow(
     "npm run verify",
     "npm run production:release:gate",
   ]);
+  expect(verificationSteps[0]?.with).toEqual({ "fetch-depth": 0 });
   expect(verificationSteps[1]?.with).toMatchObject({
     "node-version": "22.23.1",
     cache: "npm",
@@ -133,7 +134,7 @@ function validWorkflow(): Workflow {
     jobs: {
       verify: {
         steps: [
-          { uses: checkoutAction },
+          { uses: checkoutAction, with: { "fetch-depth": 0 } },
           {
             uses: setupNodeAction,
             with: { "node-version": "22.23.1", cache: "npm" },
@@ -189,7 +190,7 @@ describe("runnable UI GitHub Actions gate", () => {
           verify: {
             steps: [
               { uses: setupNodeAction, with: { "node-version": "22.23.1", cache: "npm" } },
-              { uses: checkoutAction },
+              { uses: checkoutAction, with: { "fetch-depth": 0 } },
               { run: "npm install --global npm@10.9.8" },
               { run: "SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci" },
               { run: "npm run verify" },

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -12,6 +13,57 @@ import (
 
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
 )
+
+func TestOperationalMetricsNormalizeAndBoundHostileLabels(t *testing.T) {
+	metrics := newOperationalMetrics()
+	metrics.observe("TRACE", "/api/v1/hostile", 599, time.Millisecond)
+	methods := []string{"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "TRACE"}
+	routes := []string{"/api/v1/admin", "/api/v1/agents", "/api/v1/assets", "/api/v1/attack-paths", "/api/v1/audit-events", "/api/v1/compliance", "/api/v1/environments", "/api/v1/findings", "/api/v1/home", "/api/v1/identities", "/api/v1/integration-catalog", "/api/v1/integrations", "/api/v1/me", "/api/v1/organization", "/api/v1/policies", "/api/v1/runtimes", "/api/v1/security-agent-templates", "/api/v1/security-agents", "/api/v1/session", "/api/v1/sessions", "/api/v1/settings", "/api/v1/system", "/api/v1/tools", "/api/v1/workflow-mutation-receipts", "/api/v1/workspaces", "/api/v1/hostile"}
+	for index := 0; index < 10_000; index++ {
+		method := methods[index%len(methods)]
+		if index%31 == 0 {
+			method = fmt.Sprintf("%s-%d", method, index)
+		}
+		metrics.observe(
+			method,
+			routes[index%len(routes)],
+			100+(index%7)*100,
+			time.Duration(index+1)*time.Microsecond,
+		)
+	}
+
+	payload := metrics.Prometheus()
+	if len(payload) > 64*1024 {
+		t.Fatalf("prometheus payload = %d bytes, want <= 65536", len(payload))
+	}
+	if strings.Contains(payload, `method="TRACE`) || strings.Contains(payload, `route="/api/v1/hostile`) {
+		t.Fatalf("attacker-controlled label escaped normalization: %s", payload)
+	}
+	if !strings.Contains(payload, `method="OTHER"`) || !strings.Contains(payload, `route="/unmatched"`) {
+		t.Fatalf("normalized fallback labels missing: %s", payload)
+	}
+	if count := strings.Count(payload, "zasp_http_requests_total{"); count > 24 {
+		t.Fatalf("request metric series = %d, want <= 24", count)
+	}
+}
+
+func TestStructuredCorrelationRecordDoesNotClaimOpenTelemetryExport(t *testing.T) {
+	var logs bytes.Buffer
+	exporter := newStructuredSpanExporter(&logs)
+	err := exporter.Export(context.Background(), operationalSpan{
+		TraceID: "0123456789abcdef0123456789abcdef",
+		SpanID:  "0123456789abcdef",
+		Name:    "http.request",
+		Kind:    "server",
+		Status:  "ok",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(logs.String(), `"event":"correlation_span"`) || strings.Contains(logs.String(), `"event":"otel_span"`) {
+		t.Fatalf("local correlation record is mislabeled: %s", logs.String())
+	}
+}
 
 func TestEdgeSecurityAcceptsOnlyExactTrustedTLSForwarding(t *testing.T) {
 	config := edgeSecurityConfig{PublicOrigin: "https://app.zasp.example", TrustedProxyCIDRs: []string{"10.20.0.0/16"}}

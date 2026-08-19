@@ -3,7 +3,7 @@ import { createServer } from "node:http";
 import { once } from "node:events";
 import test from "node:test";
 
-import { loadReleasePolicy, runReadOnlySynthetic, verifyReleaseSources } from "./release-gates.mjs";
+import { loadReleasePolicy, runReadOnlySynthetic, validateGoSpdxDocument, verifyReleaseSources } from "./release-gates.mjs";
 
 test("release policy binds performance, resilience, supply-chain, and owned proof gates", async () => {
   const policy = await loadReleasePolicy();
@@ -52,6 +52,24 @@ test("release sources contain truthful runbooks, canary, SBOM/license/image/secr
   assert.equal(result.trackedSecretScan, true);
   assert.ok(result.npmSpdxPackages > 20);
   assert.ok(result.goSpdxPackages > 20);
+  assert.ok(result.goSpdx, "Go SPDX document is included in release evidence");
+  assert.equal(result.goSpdx.spdxVersion, "SPDX-2.3");
+  assert.equal(result.goSpdx.dataLicense, "CC0-1.0");
+  assert.equal(result.goSpdx.SPDXID, "SPDXRef-DOCUMENT");
+  assert.match(result.goSpdx.documentNamespace, /^https:\/\/zasp\.example\/spdx\/go-source\/[a-f0-9]{64}$/);
+  assert.match(result.goSpdx.creationInfo.created, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/);
+  assert.ok(result.goSpdx.creationInfo.creators.includes("Tool: zasp-production-release-gate"));
+  const packageIDs = new Set(result.goSpdx.packages.map(({ SPDXID }) => SPDXID));
+  assert.equal(packageIDs.size, result.goSpdx.packages.length);
+  assert.ok([...packageIDs].every((id) => /^SPDXRef-Package-[A-Za-z0-9.-]+$/.test(id)));
+  assert.equal(result.goSpdx.relationships.length, result.goSpdx.packages.length);
+  for (const relationship of result.goSpdx.relationships) {
+    assert.equal(relationship.spdxElementId, "SPDXRef-DOCUMENT");
+    assert.equal(relationship.relationshipType, "DESCRIBES");
+    assert.ok(packageIDs.has(relationship.relatedSpdxElement));
+  }
+  assert.equal(validateGoSpdxDocument(result.goSpdx), true);
+  assert.throws(() => validateGoSpdxDocument({ ...result.goSpdx, relationships: [] }), /Go SBOM gate rejected/);
   assert.equal(result.requiredCI, true);
 });
 

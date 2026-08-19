@@ -21,7 +21,7 @@ spec:
     - name: zasp.production
       rules:
         - alert: ZaspAPIErrorBudgetBurn
-          expr: sum(rate(zasp_http_requests_total{status_class="5xx"}[5m])) / clamp_min(sum(rate(zasp_http_requests_total[5m])), 1) > 0.01
+          expr: sum(rate(zasp_http_requests_total{status_class="5xx"}[5m])) / sum(rate(zasp_http_requests_total[5m])) > 0.01 and sum(rate(zasp_http_requests_total[5m])) > 0
           for: 10m
           labels: { severity: page }
           annotations: { summary: "Product API error rate exceeds 1%" }
@@ -35,9 +35,14 @@ spec:
           for: 15m
           labels: { severity: ticket }
           annotations: { summary: "Product API mutation p95 exceeds 1s" }
-        - alert: ZaspWorkloadUnavailable
-          expr: min by (service) (agentsec_ready) < 1
+        - alert: ZaspWebUnavailable
+          expr: kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment="web"} < 1 or absent(kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment="web"})
           for: 5m
           labels: { severity: page }
-          annotations: { summary: "Required Zasp workload is not ready" }
+          annotations: { summary: "Zasp web workload is unavailable or absent" }
+        - alert: ZaspAPIUnavailable
+          expr: kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment="agentsec-api"} < 1 or absent(kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment="agentsec-api"})
+          for: 5m
+          labels: { severity: page }
+          annotations: { summary: "Zasp API workload is unavailable or absent" }
 {{- end }}

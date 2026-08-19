@@ -207,6 +207,24 @@ type poolSaturation struct{ Acquired, Idle, Maximum int32 }
 
 var durationBuckets = [...]float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10}
 
+const (
+	maximumHTTPMetricSeries     = 18
+	maximumPrometheusRenderSize = 64 * 1024
+)
+
+var metricMethods = map[string]struct{}{
+	http.MethodGet: {}, http.MethodHead: {}, http.MethodPost: {}, http.MethodPut: {},
+	http.MethodPatch: {}, http.MethodDelete: {}, http.MethodOptions: {},
+}
+
+var metricRouteRoots = map[string]struct{}{
+	"admin": {}, "agents": {}, "assets": {}, "attack-paths": {}, "audit-events": {},
+	"compliance": {}, "environments": {}, "findings": {}, "home": {}, "identities": {},
+	"integration-catalog": {}, "integrations": {}, "me": {}, "organization": {}, "policies": {},
+	"runtimes": {}, "security-agent-templates": {}, "security-agents": {}, "session": {}, "sessions": {},
+	"settings": {}, "system": {}, "tools": {}, "workflow-mutation-receipts": {}, "workspaces": {},
+}
+
 func newOperationalMetrics() *operationalMetrics {
 	return &operationalMetrics{requests: make(map[string]uint64), duration: make(map[string]*durationHistogram), dependencies: make(map[string]uint64)}
 }
@@ -215,8 +233,14 @@ func (metrics *operationalMetrics) observe(method, route string, status int, dur
 	if metrics == nil {
 		return
 	}
-	key := method + "\x00" + route + "\x00" + strconv.Itoa(status/100) + "xx"
+	method = metricMethod(method)
+	route = operationalRoute(route)
+	statusClass := metricStatusClass(status)
+	key := method + "\x00" + route + "\x00" + statusClass
 	metrics.mu.Lock()
+	if _, exists := metrics.requests[key]; !exists && len(metrics.requests) >= maximumHTTPMetricSeries {
+		key = "OTHER\x00/overflow\x00" + statusClass
+	}
 	metrics.requests[key]++
 	histogram := metrics.duration[key]
 	if histogram == nil {
@@ -300,6 +324,9 @@ func (metrics *operationalMetrics) Prometheus() string {
 	fmt.Fprintf(&output, "# HELP zasp_http_rate_limited_total Rejected requests.\n# TYPE zasp_http_rate_limited_total counter\nzasp_http_rate_limited_total %d\n", metrics.rateLimited.Load())
 	fmt.Fprintf(&output, "# HELP zasp_auth_rejections_total Authentication and authorization rejections.\n# TYPE zasp_auth_rejections_total counter\nzasp_auth_rejections_total %d\n", metrics.authRejected.Load())
 	fmt.Fprintf(&output, "# HELP zasp_dependency_errors_total Bounded dependency failures.\n# TYPE zasp_dependency_errors_total counter\nzasp_dependency_errors_total %d\n", metrics.dependencyErrors.Load())
+	if output.Len() > maximumPrometheusRenderSize {
+		return "# HELP zasp_metrics_render_overflow Metrics render safety fallback.\n# TYPE zasp_metrics_render_overflow gauge\nzasp_metrics_render_overflow 1\n"
+	}
 	return output.String()
 }
 
@@ -408,7 +435,7 @@ func (exporter *structuredSpanExporter) Export(_ context.Context, span operation
 	entry := struct {
 		Event string `json:"event"`
 		operationalSpan
-	}{Event: "otel_span", operationalSpan: span}
+	}{Event: "correlation_span", operationalSpan: span}
 	exporter.mu.Lock()
 	err := json.NewEncoder(exporter.output).Encode(entry)
 	exporter.mu.Unlock()
@@ -472,23 +499,28 @@ func operationalRoute(value string) string {
 	if len(segments) < 3 || segments[0] != "api" || segments[1] != "v1" {
 		return "/unmatched"
 	}
-	route := "/api/v1/" + safeMetricLabel(segments[2])
+	if _, ok := metricRouteRoots[segments[2]]; !ok {
+		return "/unmatched"
+	}
+	route := "/api/v1/" + segments[2]
 	if len(segments) > 3 {
 		route += "/:resource"
 	}
 	return route
 }
 
-func safeMetricLabel(value string) string {
-	if value == "" || len(value) > 64 {
-		return "unknown"
+func metricMethod(value string) string {
+	if _, ok := metricMethods[value]; ok {
+		return value
 	}
-	for _, character := range value {
-		if (character < 'a' || character > 'z') && character != '-' {
-			return "unknown"
-		}
+	return "OTHER"
+}
+
+func metricStatusClass(value int) string {
+	if value < 100 || value > 599 {
+		return "other"
 	}
-	return value
+	return strconv.Itoa(value/100) + "xx"
 }
 
 func requestTrace(request *http.Request) (string, string) {
