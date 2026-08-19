@@ -684,7 +684,7 @@ func TestProductionDiscoveryTypedLifecyclesAndBoundedWorkerRecovery(t *testing.T
 	if targetAttempts != 5 {
 		t.Fatalf("projection attempts=%d", targetAttempts)
 	}
-	runtime := RuntimeBatchCreate{SensorID: sensor.ID, BatchID: "pid_62000007-0000-4000-8000-000000000007", JobID: "pid_62000008-0000-4000-8000-000000000008", OutboxID: "pid_62000009-0000-4000-8000-000000000009", IdempotencyKey: "typed-runtime-batch-0001", PayloadDigest: bytes32(8), EventCount: 1}
+	runtime := RuntimeBatchCreate{SensorID: sensor.ID, BatchID: "pid_62000007-0000-4000-8000-000000000007", JobID: "pid_62000008-0000-4000-8000-000000000008", OutboxID: "pid_62000009-0000-4000-8000-000000000009", IdempotencyKey: "typed-runtime-batch-0001", PayloadDigest: bytes32(8), EventCount: 1, ObjectReference: "s3://zasp-runtime/typed/batch.jsonl", PayloadBytes: 128, MediaType: "application/x-ndjson", SchemaVersion: "runtime-event-v1"}
 	if _, err := fixture.repository.CreateRuntimeBatch(fixture.ctx, fixture.scope, runtime); err != nil {
 		t.Fatal(err)
 	}

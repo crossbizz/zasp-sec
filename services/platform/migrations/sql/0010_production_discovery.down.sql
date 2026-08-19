@@ -15,7 +15,7 @@ BEGIN
         UNION ALL SELECT 'index',table_class.relname||'.'||index_class.relname,jsonb_build_object('definition',regexp_replace(pg_get_indexdef(index_value.indexrelid,0,true),E'\\s+',' ','g'),'unique',index_value.indisunique,'primary',index_value.indisprimary,'exclusion',index_value.indisexclusion,'valid',index_value.indisvalid,'ready',index_value.indisready) FROM pg_index index_value JOIN pg_class table_class ON table_class.oid=index_value.indrelid JOIN pg_class index_class ON index_class.oid=index_value.indexrelid JOIN pg_namespace namespace ON namespace.oid=table_class.relnamespace WHERE namespace.nspname='public' AND left(table_class.relname,5)='zasp_'
         UNION ALL SELECT 'function',procedure.proname||'('||pg_get_function_identity_arguments(procedure.oid)||')',jsonb_build_object('result',pg_get_function_result(procedure.oid),'language',language.lanname,'kind',procedure.prokind,'volatility',procedure.provolatile,'strict',procedure.proisstrict,'security_definer',procedure.prosecdef,'leakproof',procedure.proleakproof,'parallel',procedure.proparallel,'config',COALESCE(to_jsonb(procedure.proconfig),'[]'::jsonb),'body',regexp_replace(btrim(procedure.prosrc),E'\\s+',' ','g')) FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace JOIN pg_language language ON language.oid=procedure.prolang WHERE namespace.nspname='public' AND left(procedure.proname,5)='zasp_'
     ) SELECT encode(digest(convert_to(COALESCE(jsonb_agg(jsonb_build_array(object_kind,object_identity,definition) ORDER BY object_kind,object_identity)::text,'[]'),'UTF8'),'sha256'),'hex') INTO actual_fingerprint FROM semantic_objects;
-    IF actual_fingerprint<>'c73e085b02ae87e7fcba211a4857176174abd71f767924ac906a7b444fad4269' THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='semantic schema drift blocks rollback'; END IF;
+    IF actual_fingerprint<>'02101a20c0c57dfd36212416f24fb057379162994641295727c0d8438478a75b' THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='semantic schema drift blocks rollback'; END IF;
 END;
 $rollback_guard$;
 
@@ -38,7 +38,7 @@ END $migration$;
 DROP FUNCTION zasp_discovery_readiness(text,text);
 DROP FUNCTION zasp_discovery_security_ready();
 DROP FUNCTION zasp_discovery_complete_runtime_stage(text,text,text,text,text,bytea,boolean,text);
-DROP FUNCTION zasp_discovery_create_runtime_batch(text,text,text,text,text,text,text,text,bytea,integer);
+DROP FUNCTION zasp_discovery_create_runtime_batch(text,text,text,text,text,text,text,text,bytea,integer,text,bigint,text,text);
 DROP FUNCTION zasp_discovery_sensor_heartbeat(text,text,text,text,bigint,text,bigint,jsonb);
 DROP FUNCTION zasp_discovery_sensor_revoke(text,text,text,text,text);
 DROP FUNCTION zasp_discovery_sensor_rotate(text,text,text,text,text,text,bytea,bytea,timestamptz);

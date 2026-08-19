@@ -416,7 +416,7 @@ func TestProductionDiscoveryPostgresAtomicSnapshotReplayIsolationLeaseAndGateway
 		t.Fatalf("heartbeat conflict=%v", err)
 	}
 	runtimeDigest := sha256.Sum256([]byte("runtime-batch"))
-	runtimeBatch := RuntimeBatchCreate{SensorID: sensorOne, BatchID: "pid_43000006-0000-4000-8000-000000000006", JobID: "pid_43000007-0000-4000-8000-000000000007", OutboxID: "pid_43000008-0000-4000-8000-000000000008", IdempotencyKey: "runtime-batch-key-0001", PayloadDigest: runtimeDigest[:], EventCount: 2}
+	runtimeBatch := RuntimeBatchCreate{SensorID: sensorOne, BatchID: "pid_43000006-0000-4000-8000-000000000006", JobID: "pid_43000007-0000-4000-8000-000000000007", OutboxID: "pid_43000008-0000-4000-8000-000000000008", IdempotencyKey: "runtime-batch-key-0001", PayloadDigest: runtimeDigest[:], EventCount: 2, ObjectReference: "s3://zasp-runtime/exact/batch.jsonl", PayloadBytes: 256, MediaType: "application/x-ndjson", SchemaVersion: "runtime-event-v1"}
 	if result, err := repository.CreateRuntimeBatch(ctx, scope, runtimeBatch); err != nil || result.Replayed {
 		t.Fatalf("runtime batch=%#v err=%v", result, err)
 	}

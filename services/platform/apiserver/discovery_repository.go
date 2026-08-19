@@ -55,7 +55,7 @@ const (
 	postgresDiscoverySensorRotateSQL            = `SELECT zasp_discovery_sensor_rotate($1,$2,$3,$4,$5,$6,$7,$8,$9)`
 	postgresDiscoverySensorRevokeSQL            = `SELECT zasp_discovery_sensor_revoke($1,$2,$3,$4,$5)`
 	postgresDiscoverySensorHeartbeatSQL         = `SELECT zasp_discovery_sensor_heartbeat($1,$2,$3,$4,$5,$6,$7,$8::jsonb)`
-	postgresDiscoveryRuntimeBatchSQL            = `SELECT zasp_discovery_create_runtime_batch($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
+	postgresDiscoveryRuntimeBatchSQL            = `SELECT zasp_discovery_create_runtime_batch($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`
 	postgresDiscoveryRuntimeStageSQL            = `SELECT zasp_discovery_complete_runtime_stage($1,$2,$3,$4,$5,$6,$7,$8)`
 )
 
@@ -213,7 +213,7 @@ func (repository *DiscoveryRepository) PutIntegrationConnection(ctx context.Cont
 	return result, nil
 }
 func (repository *DiscoveryRepository) TransitionIntegrationConnection(ctx context.Context, scope domain.Scope, integrationID string, input IntegrationTransition) (AuthorityStateRecord, error) {
-	if !validDiscoveryRepository(repository, ctx) || scope.Validate() != nil || !validProductID(integrationID) || !validProductID(input.ID) || input.ExpectedVersion < 1 || !stringIn(input.State, "verified", "invalid", "revoked") {
+	if !validDiscoveryRepository(repository, ctx) || scope.Validate() != nil || !validProductID(integrationID) || !validProductID(input.ID) || input.ExpectedVersion < 1 || !stringIn(input.State, "pending", "verified", "invalid", "revoked") {
 		return AuthorityStateRecord{}, ErrRepositoryOperation
 	}
 	return repository.authorityState(ctx, scope, postgresDiscoveryTransitionConnectionSQL, input.ID, integrationID, input.ExpectedVersion, input.State)
@@ -790,6 +790,8 @@ type RuntimeBatchCreate struct {
 	SensorID, BatchID, JobID, OutboxID, IdempotencyKey string
 	PayloadDigest                                      []byte
 	EventCount                                         int
+	ObjectReference, MediaType, SchemaVersion          string
+	PayloadBytes                                       int64
 }
 type RuntimeBatchResult struct {
 	BatchID  string `json:"batch_id"`
@@ -797,10 +799,10 @@ type RuntimeBatchResult struct {
 }
 
 func (repository *DiscoveryRepository) CreateRuntimeBatch(ctx context.Context, scope domain.Scope, input RuntimeBatchCreate) (RuntimeBatchResult, error) {
-	if !validDiscoveryRepository(repository, ctx) || scope.Validate() != nil || !validProductID(input.SensorID) || !validProductID(input.BatchID) || !validProductID(input.JobID) || !validProductID(input.OutboxID) || len(input.IdempotencyKey) < 16 || len(input.PayloadDigest) != 32 || input.EventCount < 1 || input.EventCount > 1000 {
+	if !validDiscoveryRepository(repository, ctx) || scope.Validate() != nil || !validProductID(input.SensorID) || !validProductID(input.BatchID) || !validProductID(input.JobID) || !validProductID(input.OutboxID) || len(input.IdempotencyKey) < 16 || len(input.IdempotencyKey) > 128 || len(input.PayloadDigest) != 32 || input.EventCount < 1 || input.EventCount > 1000 || len(input.ObjectReference) < 8 || len(input.ObjectReference) > 1024 || !strings.HasPrefix(input.ObjectReference, "s3://") || input.PayloadBytes < 1 || input.PayloadBytes > 64<<20 || len(input.MediaType) < 1 || len(input.MediaType) > 128 || len(input.SchemaVersion) < 1 || len(input.SchemaVersion) > 64 {
 		return RuntimeBatchResult{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresDiscoveryRuntimeBatchSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), input.SensorID, input.BatchID, input.JobID, input.OutboxID, input.IdempotencyKey, input.PayloadDigest, input.EventCount)
+	payload, err := repository.database.QueryJSON(ctx, postgresDiscoveryRuntimeBatchSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), input.SensorID, input.BatchID, input.JobID, input.OutboxID, input.IdempotencyKey, input.PayloadDigest, input.EventCount, input.ObjectReference, input.PayloadBytes, input.MediaType, input.SchemaVersion)
 	if err != nil {
 		return RuntimeBatchResult{}, discoveryProviderError(err)
 	}
@@ -877,7 +879,7 @@ func (repository *DiscoveryRepository) ClaimDiscoveryJobs(ctx context.Context, w
 	if err := repository.claimTyped(ctx, postgresDiscoveryClaimJobsSQL, &envelope, worker, token, seconds, limit, kind); err != nil {
 		return nil, err
 	}
-	if len(envelope.Items) > limit {
+	if envelope.Items == nil || len(envelope.Items) > limit {
 		return nil, ErrRepositoryUnavailable
 	}
 	for index := range envelope.Items {
@@ -902,7 +904,7 @@ func (repository *DiscoveryRepository) ClaimDiscoverySchedules(ctx context.Conte
 	if err := repository.claimTyped(ctx, postgresDiscoveryClaimSchedulesSQL, &envelope, worker, token, seconds, limit); err != nil {
 		return nil, err
 	}
-	if len(envelope.Items) > limit {
+	if envelope.Items == nil || len(envelope.Items) > limit {
 		return nil, ErrRepositoryUnavailable
 	}
 	for index := range envelope.Items {
@@ -925,7 +927,7 @@ func (repository *DiscoveryRepository) ClaimProjectionWork(ctx context.Context, 
 	if err := repository.claimTyped(ctx, postgresDiscoveryClaimProjectionSQL, &envelope, worker, token, seconds, limit); err != nil {
 		return nil, err
 	}
-	if len(envelope.Items) > limit {
+	if envelope.Items == nil || len(envelope.Items) > limit {
 		return nil, ErrRepositoryUnavailable
 	}
 	for index := range envelope.Items {
@@ -1148,7 +1150,7 @@ func validSyncRequest(value SyncRequest) bool {
 	return validProductID(value.IntegrationID) && validProductID(value.SyncID) && validProductID(value.JobID) && validProductID(value.OutboxID) && len(value.IdempotencyKey) >= 16 && len(value.IdempotencyKey) <= 128 && len(value.RequestDigest) == 32 && stringIn(value.TriggerKind, "manual", "schedule", "retry") && len(value.ParserVersion) >= 1 && len(value.ParserVersion) <= 64 && len(value.ToolVersion) >= 1 && len(value.ToolVersion) <= 64
 }
 func validCompleteSnapshot(value CompleteSnapshot) bool {
-	return validProductID(value.IntegrationID) && validProductID(value.SyncID) && validProductID(value.SnapshotID) && value.Generation > 0 && len(value.Source) >= 1 && len(value.Source) <= 64 && strings.HasPrefix(value.ManifestReference, "s3://") && len(value.ManifestChecksum) == 32 && value.CollectedAt.Location() == time.UTC && len(value.CursorProvider) >= 1 && len(value.CursorProvider) <= 64 && len(value.CursorValue) >= 1 && len(value.CursorValue) <= 4096 && validJSONArray(value.Entities, 16<<20) && validJSONArray(value.Relationships, 16<<20) && validJSONArray(value.Evidence, 16<<20)
+	return validProductID(value.IntegrationID) && validProductID(value.SyncID) && validProductID(value.SnapshotID) && value.Generation > 0 && len(value.Source) >= 1 && len(value.Source) <= 64 && value.CursorProvider == value.Source && strings.HasPrefix(value.ManifestReference, "s3://") && len(value.ManifestChecksum) == 32 && value.CollectedAt.Location() == time.UTC && len(value.CursorValue) >= 1 && len(value.CursorValue) <= 4096 && validJSONArray(value.Entities, 16<<20) && validJSONArray(value.Relationships, 16<<20) && validJSONArray(value.Evidence, 16<<20)
 }
 func validReferenceOnlyJSON(value json.RawMessage) bool {
 	if !discoveryValidJSONObject(value, 16384) {

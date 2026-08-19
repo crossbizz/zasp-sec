@@ -162,6 +162,28 @@ func TestDiscoveryRepositoryRejectsHostileLeaseShapesAndTransitions(t *testing.T
 	}
 }
 
+func TestDiscoveryRepositoryRejectsMissingAndNullClaimItems(t *testing.T) {
+	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{
+		postgresDiscoveryReadySQL:           json.RawMessage(`true`),
+		postgresDiscoveryClaimJobsSQL:       json.RawMessage(`{}`),
+		postgresDiscoveryClaimSchedulesSQL:  json.RawMessage(`{"items":null}`),
+		postgresDiscoveryClaimProjectionSQL: json.RawMessage(`{}`),
+	}}
+	repository, err := NewDiscoveryRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repository.ClaimDiscoveryJobs(context.Background(), "worker", "lease-token-00000001", "discovery", 30, 10); !errors.Is(err, ErrRepositoryUnavailable) {
+		t.Fatalf("missing job items error=%v", err)
+	}
+	if _, err := repository.ClaimDiscoverySchedules(context.Background(), "worker", "lease-token-00000001", 30, 10); !errors.Is(err, ErrRepositoryUnavailable) {
+		t.Fatalf("null schedule items error=%v", err)
+	}
+	if _, err := repository.ClaimProjectionWork(context.Background(), "worker", "lease-token-00000001", 30, 10); !errors.Is(err, ErrRepositoryUnavailable) {
+		t.Fatalf("missing projection items error=%v", err)
+	}
+}
+
 func TestDiscoveryRepositoryNormalizesAllLeaseInstantsToUTC(t *testing.T) {
 	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{postgresDiscoveryReadySQL: json.RawMessage(`true`)}}
 	repository := newTestDiscoveryRepository(t, database)
