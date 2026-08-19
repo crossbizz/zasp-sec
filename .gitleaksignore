@@ -73,3 +73,9 @@ e90eb20090470cd54add98ea8fffb0db171685da:services/platform/apiserver/risk_postgr
 # hermetic runtime fixture. Ignore only its exact introduction finding; any
 # changed or relocated value remains detectable.
 85ea81785c5ccfe2ca4043727540c1eb13c5a1a4:services/platform/agentsec-api/runtime_test.go:generic-api-key:207
+
+# The Task 3 release-regression proof uses two descriptive idempotency values
+# only inside disposable PostgreSQL tests. Ignore only their exact introduction
+# findings; changed or relocated values remain detectable.
+df08ea7b4bbca1f8e0b7ec25726d564996af93b7:services/platform/apiserver/connector_authorization_risk_postgres_test.go:generic-api-key:47
+df08ea7b4bbca1f8e0b7ec25726d564996af93b7:services/platform/apiserver/connector_authorization_risk_postgres_test.go:generic-api-key:131
