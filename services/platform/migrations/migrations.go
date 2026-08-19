@@ -12,17 +12,19 @@ import (
 )
 
 const (
-	baselineVersion = int64(1)
-	baselineName    = "schema_versions"
-	coreVersion     = int64(2)
-	coreName        = "production_core"
-	workflowVersion = int64(3)
-	workflowName    = "production_workflows"
-	receiptVersion  = int64(4)
-	receiptName     = "workflow_receipts"
-	safetyVersion   = int64(5)
-	safetyName      = "workflow_receipt_safety"
-	rollbackTimeout = 5 * time.Second
+	baselineVersion   = int64(1)
+	baselineName      = "schema_versions"
+	coreVersion       = int64(2)
+	coreName          = "production_core"
+	workflowVersion   = int64(3)
+	workflowName      = "production_workflows"
+	receiptVersion    = int64(4)
+	receiptName       = "workflow_receipts"
+	safetyVersion     = int64(5)
+	safetyName        = "workflow_receipt_safety"
+	provenanceVersion = int64(6)
+	provenanceName    = "workflow_receipt_provenance"
+	rollbackTimeout   = 5 * time.Second
 
 	tableExistsSQL           = "SELECT to_regclass('public.zasp_schema_versions') IS NOT NULL"
 	countRowsSQL             = `SELECT count(*) FROM "public"."zasp_schema_versions"`
@@ -71,6 +73,12 @@ var safetyUpSQL string
 
 //go:embed sql/0005_workflow_receipt_safety.down.sql
 var safetyDownSQL string
+
+//go:embed sql/0006_workflow_receipt_provenance.up.sql
+var provenanceUpSQL string
+
+//go:embed sql/0006_workflow_receipt_provenance.down.sql
+var provenanceDownSQL string
 
 type Metadata struct {
 	version  int64
@@ -127,6 +135,13 @@ func WorkflowReceiptSafety() Metadata {
 	return Metadata{version: safetyVersion, name: safetyName, checksum: hex.EncodeToString(digest[:]), up: up, down: down}
 }
 
+func WorkflowReceiptProvenance() Metadata {
+	up := strings.TrimSpace(provenanceUpSQL)
+	down := strings.TrimSpace(provenanceDownSQL)
+	digest := sha256.Sum256([]byte(up + "\x00" + down))
+	return Metadata{version: provenanceVersion, name: provenanceName, checksum: hex.EncodeToString(digest[:]), up: up, down: down}
+}
+
 func ProductionWorkflowsSemanticFingerprint() string {
 	const marker = "'production_workflows_fingerprint', '"
 	start := strings.Index(workflowUpSQL, marker)
@@ -151,6 +166,10 @@ func WorkflowReceiptsSemanticFingerprint() string {
 
 func WorkflowReceiptSafetySemanticFingerprint() string {
 	return semanticFingerprint(safetyUpSQL, "production_workflow_receipt_safety_fingerprint")
+}
+
+func WorkflowReceiptProvenanceSemanticFingerprint() string {
+	return semanticFingerprint(provenanceUpSQL, "production_workflow_receipt_provenance_fingerprint")
 }
 
 func semanticFingerprint(source, key string) string {
@@ -254,7 +273,7 @@ func (runner *Runner) Version(ctx context.Context) (int64, error) {
 	if err := scanRow(ctx, runner.database, countRowsSQL, nil, &count); err != nil {
 		return 0, fixedDatabaseError(ctx, err)
 	}
-	if count < 1 || count > 5 {
+	if count < 1 || count > 6 {
 		return 0, ErrInvalidState
 	}
 	metadata := []Metadata{Baseline()}
@@ -267,6 +286,8 @@ func (runner *Runner) Version(ctx context.Context) (int64, error) {
 		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts())
 	} else if count == 5 {
 		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety())
+	} else if count == 6 {
+		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance())
 	}
 	for _, expected := range metadata {
 		var version int64
@@ -519,6 +540,65 @@ func (runner *Runner) DownWorkflowReceiptSafety(ctx context.Context) error {
 	})
 }
 
+func (runner *Runner) UpWorkflowReceiptProvenance(ctx context.Context) error {
+	if runner == nil || nilInterface(runner.database) {
+		return ErrInvalidRunner
+	}
+	return runner.withTransaction(ctx, func(ctx context.Context, transaction Transaction) error {
+		// Serializing with both current writers and rollback prevents an old v5
+		// wrapper from committing a row outside the durable provenance backfill.
+		if err := transaction.Exec(ctx, lockWorkflowMutationsSQL); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, lockTableSQL); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := readWorkflowReceiptSafetyState(ctx, transaction); err != nil {
+			return err
+		}
+		metadata := WorkflowReceiptProvenance()
+		if err := transaction.Exec(ctx, metadata.UpSQL()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, insertRowSQL, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		return readWorkflowReceiptProvenanceState(ctx, transaction)
+	})
+}
+
+func (runner *Runner) DownWorkflowReceiptProvenance(ctx context.Context) error {
+	if runner == nil || nilInterface(runner.database) {
+		return ErrInvalidRunner
+	}
+	return runner.withTransaction(ctx, func(ctx context.Context, transaction Transaction) error {
+		present, err := tablePresent(ctx, transaction)
+		if err != nil || !present {
+			return ErrInvalidState
+		}
+		// The v6 wrapper takes ROW EXCLUSIVE before its post-lock release check.
+		// ACCESS EXCLUSIVE makes the marker guard observe every earlier writer and
+		// forces queued old wrappers to re-check only after this transaction ends.
+		if err := transaction.Exec(ctx, lockWorkflowMutationsSQL); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, lockTableSQL); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := readWorkflowReceiptProvenanceState(ctx, transaction); err != nil {
+			return err
+		}
+		metadata := WorkflowReceiptProvenance()
+		if err := transaction.Exec(ctx, deleteRowSQL, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, metadata.DownSQL()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		return readWorkflowReceiptSafetyState(ctx, transaction)
+	})
+}
+
 func (runner *Runner) Down(ctx context.Context) error {
 	if runner == nil || nilInterface(runner.database) {
 		return ErrInvalidRunner
@@ -662,6 +742,10 @@ func readWorkflowReceiptState(ctx context.Context, queryer Queryer) error {
 
 func readWorkflowReceiptSafetyState(ctx context.Context, queryer Queryer) error {
 	return readExactReleaseState(ctx, queryer, []Metadata{Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety()})
+}
+
+func readWorkflowReceiptProvenanceState(ctx context.Context, queryer Queryer) error {
+	return readExactReleaseState(ctx, queryer, []Metadata{Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance()})
 }
 
 func readExactReleaseState(ctx context.Context, queryer Queryer, expected []Metadata) error {

@@ -303,8 +303,43 @@ func TestWorkflowReceiptSafetyMetadataSeparatesBrowserReceiptsAndBoundedCleanup(
 	}
 }
 
+func TestWorkflowReceiptProvenanceMetadataUsesDurableMarkerAndSafeIntermediateDowngrade(t *testing.T) {
+	metadata := WorkflowReceiptProvenance()
+	if metadata.Version() != 6 || metadata.Name() != "workflow_receipt_provenance" || len(metadata.Checksum()) != 64 {
+		t.Fatalf("workflow receipt provenance identity = %d/%q/%q", metadata.Version(), metadata.Name(), metadata.Checksum())
+	}
+	for _, fragment := range []string{
+		"receipt_semantics", "receiptless_incompatible", "receipt_backed",
+		"production-workflow-receipt-provenance-v3", "production_workflow_receipt_provenance_fingerprint",
+		`LOCK TABLE "public"."zasp_workflow_idempotency" IN ROW EXCLUSIVE MODE`,
+		"workflow receipt provenance release unavailable", `release."version" = 6`, `release."name" = 'workflow_receipt_provenance'`,
+	} {
+		if !strings.Contains(metadata.UpSQL(), fragment) {
+			t.Fatalf("workflow receipt provenance migration missing %q", fragment)
+		}
+	}
+	for _, fragment := range []string{
+		"workflow receipt provenance rollback blocked", "workflow mutations unavailable at intermediate receipt provenance downgrade",
+		"zasp_workflow_idempotency_receipt_semantics_check", "receipt_semantics", "receipt_backed",
+	} {
+		if !strings.Contains(metadata.DownSQL(), fragment) {
+			t.Fatalf("workflow receipt provenance rollback guard missing %q", fragment)
+		}
+	}
+	if strings.Contains(metadata.DownSQL(), `"created_at"`) || strings.Contains(metadata.DownSQL(), `"applied_at" >=`) {
+		t.Fatal("workflow receipt provenance rollback infers compatibility from timestamps")
+	}
+	fingerprint := WorkflowReceiptProvenanceSemanticFingerprint()
+	if fingerprint == strings.Repeat("0", 64) || len(fingerprint) != 64 || !strings.Contains(metadata.UpSQL(), fingerprint) {
+		t.Fatalf("workflow receipt provenance semantic fingerprint = %q", fingerprint)
+	}
+	if WorkflowReceiptProvenance() != metadata {
+		t.Fatal("workflow receipt provenance migration assets are unstable")
+	}
+}
+
 func TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift(t *testing.T) {
-	baseline, core, workflows, receipts, safety := Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety()
+	baseline, core, workflows, receipts, safety, provenance := Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance()
 	for _, test := range []struct {
 		name    string
 		rows    []Row
@@ -317,7 +352,8 @@ func TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift(t 
 		{name: "workflows", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(3)}}, fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}}, fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}}, fakeRow{values: []any{workflows.Version(), workflows.Name(), workflows.Checksum()}}}, want: 3},
 		{name: "receipts", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(4)}}, fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}}, fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}}, fakeRow{values: []any{workflows.Version(), workflows.Name(), workflows.Checksum()}}, fakeRow{values: []any{receipts.Version(), receipts.Name(), receipts.Checksum()}}}, want: 4},
 		{name: "safety", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(5)}}, fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}}, fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}}, fakeRow{values: []any{workflows.Version(), workflows.Name(), workflows.Checksum()}}, fakeRow{values: []any{receipts.Version(), receipts.Name(), receipts.Checksum()}}, fakeRow{values: []any{safety.Version(), safety.Name(), safety.Checksum()}}}, want: 5},
-		{name: "drift", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(6)}}}, wantErr: ErrInvalidState},
+		{name: "provenance", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(6)}}, fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}}, fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}}, fakeRow{values: []any{workflows.Version(), workflows.Name(), workflows.Checksum()}}, fakeRow{values: []any{receipts.Version(), receipts.Name(), receipts.Checksum()}}, fakeRow{values: []any{safety.Version(), safety.Name(), safety.Checksum()}}, fakeRow{values: []any{provenance.Version(), provenance.Name(), provenance.Checksum()}}}, want: 6},
+		{name: "drift", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(7)}}}, wantErr: ErrInvalidState},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			database := &fakeDatabase{rows: test.rows, transaction: &fakeTransaction{}}
@@ -327,6 +363,45 @@ func TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift(t 
 				t.Fatalf("Version = (%d, %v), want (%d, %v)", got, err, test.want, test.wantErr)
 			}
 		})
+	}
+}
+
+func TestRunnerDownWorkflowReceiptProvenanceTakesMutationLockBeforeSchemaLock(t *testing.T) {
+	baseline, core := Baseline(), ProductionCore()
+	workflows, receipts := ProductionWorkflows(), WorkflowReceipts()
+	safety, provenance := WorkflowReceiptSafety(), WorkflowReceiptProvenance()
+	transaction := &fakeTransaction{rows: []Row{
+		fakeRow{values: []any{true}},
+		fakeRow{values: []any{int64(6)}},
+		fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}},
+		fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}},
+		fakeRow{values: []any{workflows.Version(), workflows.Name(), workflows.Checksum()}},
+		fakeRow{values: []any{receipts.Version(), receipts.Name(), receipts.Checksum()}},
+		fakeRow{values: []any{safety.Version(), safety.Name(), safety.Checksum()}},
+		fakeRow{values: []any{provenance.Version(), provenance.Name(), provenance.Checksum()}},
+		fakeRow{values: []any{int64(5)}},
+		fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}},
+		fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}},
+		fakeRow{values: []any{workflows.Version(), workflows.Name(), workflows.Checksum()}},
+		fakeRow{values: []any{receipts.Version(), receipts.Name(), receipts.Checksum()}},
+		fakeRow{values: []any{safety.Version(), safety.Name(), safety.Checksum()}},
+	}}
+	database := &fakeDatabase{transaction: transaction}
+	runner, _ := NewRunner(database)
+	if err := runner.DownWorkflowReceiptProvenance(context.Background()); err != nil {
+		t.Fatalf("DownWorkflowReceiptProvenance: %v", err)
+	}
+	wantPrefix := []string{
+		"begin",
+		"query:SELECT to_regclass('public.zasp_schema_versions') IS NOT NULL", "args:none",
+		`exec:LOCK TABLE "public"."zasp_workflow_idempotency" IN ACCESS EXCLUSIVE MODE`, "args:none",
+		`exec:LOCK TABLE "public"."zasp_schema_versions" IN ACCESS EXCLUSIVE MODE`, "args:none",
+	}
+	if len(database.events) < len(wantPrefix) || !reflect.DeepEqual(database.events[:len(wantPrefix)], wantPrefix) {
+		t.Fatalf("lock order = %#v, want prefix %#v", database.events, wantPrefix)
+	}
+	if !contains(database.events, "exec:"+compactSQL(provenance.DownSQL())) || !contains(database.events, "args:6,workflow_receipt_provenance,"+provenance.Checksum()) {
+		t.Fatalf("workflow receipt provenance down events = %#v", database.events)
 	}
 }
 

@@ -50,6 +50,9 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 	if err := runner.UpWorkflowReceiptSafety(ctx); err != nil {
 		t.Fatalf("workflow receipt safety migration: %v", err)
 	}
+	if err := runner.UpWorkflowReceiptProvenance(ctx); err != nil {
+		t.Fatalf("workflow receipt provenance migration: %v", err)
+	}
 	fingerprintQuery := postgresSchemaVersionSQL[:strings.Index(postgresSchemaVersionSQL, "SELECT metadata.value")] + "SELECT value FROM semantic_fingerprint"
 	var actualFingerprint string
 	if err := connection.QueryRow(ctx, fingerprintQuery).Scan(&actualFingerprint); err != nil {
@@ -261,9 +264,9 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 	if _, err := restartedConnection.Exec(ctx, `
 WITH generated AS (SELECT generate_series(1, 1001) AS ordinal), idempotency AS (
 	  INSERT INTO zasp_workflow_idempotency
-	    (organization_id, workspace_id, environment_id, principal_id, operation, idempotency_key, request_digest, response)
+	    (organization_id, workspace_id, environment_id, principal_id, operation, idempotency_key, request_digest, response, receipt_semantics)
 	  SELECT $1, $2, $3, $4, 'cleanupExpired', 'cleanup-expired-' || lpad(ordinal::text, 4, '0'),
-	         digest(ordinal::text, 'sha256'), jsonb_build_object('receipt_id', 'cleanup-receipt-' || lpad(ordinal::text, 4, '0'))
+	         digest(ordinal::text, 'sha256'), jsonb_build_object('receipt_id', 'cleanup-receipt-' || lpad(ordinal::text, 4, '0')), 'receipt_backed'
   FROM generated
   RETURNING idempotency_key
 )
@@ -404,10 +407,10 @@ FROM idempotency`, organization.String(), workspace.String(), environment.String
 	}
 	defer func() { _ = rollbackConnection.Close(context.Background()) }()
 	rollbackRunner, _ := migrations.NewRunner(&integrationMigrationDatabase{connection: rollbackConnection})
-	if err := rollbackRunner.DownWorkflowReceiptSafety(ctx); !errors.Is(err, migrations.ErrDatabase) {
+	if err := rollbackRunner.DownWorkflowReceiptProvenance(ctx); !errors.Is(err, migrations.ErrDatabase) {
 		t.Fatalf("receipt-less PAT rollback guard = %v", err)
 	}
-	if version, err := rollbackRunner.Version(ctx); err != nil || version != 5 {
+	if version, err := rollbackRunner.Version(ctx); err != nil || version != 6 {
 		t.Fatalf("guarded rollback state = (%d, %v)", version, err)
 	}
 	cleanup, err := rollbackConnection.Begin(ctx)
@@ -430,6 +433,9 @@ FROM idempotency`, organization.String(), workspace.String(), environment.String
 	}
 	if err := cleanup.Commit(ctx); err != nil {
 		t.Fatal(err)
+	}
+	if err := rollbackRunner.DownWorkflowReceiptProvenance(ctx); err != nil {
+		t.Fatalf("workflow receipt provenance rollback: %v", err)
 	}
 	if err := rollbackRunner.DownWorkflowReceiptSafety(ctx); err != nil {
 		t.Fatalf("workflow receipt safety rollback: %v", err)
@@ -489,6 +495,9 @@ func TestWorkflowMigrationExpiresExistingSessionFreshness(t *testing.T) {
 	if err := runner.UpWorkflowReceiptSafety(ctx); err != nil {
 		t.Fatal(err)
 	}
+	if err := runner.UpWorkflowReceiptProvenance(ctx); err != nil {
+		t.Fatal(err)
+	}
 	database, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
 	repository, err := NewPostgresRepository(database)
 	if err != nil {
@@ -525,6 +534,9 @@ func TestRetainedWorkflowMutationsReplayLostResponsesInPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := runner.UpWorkflowReceiptSafety(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.UpWorkflowReceiptProvenance(ctx); err != nil {
 		t.Fatal(err)
 	}
 	database, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
@@ -608,6 +620,7 @@ func TestWorkflowHandlerNonemptyDeletesLeavePostgresMutationAuditAndReceiptsUnto
 		{name: "workflows", run: runner.UpWorkflows},
 		{name: "receipts", run: runner.UpWorkflowReceipts},
 		{name: "receipt safety", run: runner.UpWorkflowReceiptSafety},
+		{name: "receipt provenance", run: runner.UpWorkflowReceiptProvenance},
 	} {
 		if err := migration.run(ctx); err != nil {
 			t.Fatalf("%s migration: %v", migration.name, err)
@@ -696,6 +709,9 @@ func TestSecurityAgentPaginationExceedsOneHundredWithoutTenantDisclosure(t *test
 	if err := runner.UpWorkflowReceiptSafety(ctx); err != nil {
 		t.Fatal(err)
 	}
+	if err := runner.UpWorkflowReceiptProvenance(ctx); err != nil {
+		t.Fatal(err)
+	}
 	identity := fixtureRequestIdentity(t)
 	if _, err := connection.Exec(ctx, `
 INSERT INTO zasp_workflow_records (organization_id, workspace_id, environment_id, kind, id, body)
@@ -777,6 +793,9 @@ func TestPolicyAndIntegrationPaginationTraversesOneThousandAndOneRowsExactly(t *
 		t.Fatal(err)
 	}
 	if err := runner.UpWorkflowReceiptSafety(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.UpWorkflowReceiptProvenance(ctx); err != nil {
 		t.Fatal(err)
 	}
 	identity := fixtureRequestIdentity(t)
