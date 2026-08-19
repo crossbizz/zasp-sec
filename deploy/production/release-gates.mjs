@@ -108,17 +108,17 @@ async function goSourceSBOM() {
     modules.set(name, { name, version: version || "0.0.0-local", directory });
   }
   const packages = [];
-  for (const module of [...modules.values()].sort((left, right) => left.name.localeCompare(right.name))) {
-    packages.push({ name: module.name, versionInfo: module.version, licenseConcluded: await moduleLicense(module) });
+  for (const dependency of [...modules.values()].sort((left, right) => left.name.localeCompare(right.name))) {
+    packages.push({ name: dependency.name, versionInfo: dependency.version, licenseConcluded: await moduleLicense(dependency) });
   }
   return { spdxVersion: "SPDX-2.3", packages };
 }
 
-async function moduleLicense(module) {
-  if (module.name.startsWith("github.com/zasp-ai/zasp-sec/")) return "NOASSERTION";
-  const names = (await readdir(module.directory)).filter((name) => /^(?:licen[cs]e|copying)(?:[._-].*)?$/i.test(name)).sort();
+async function moduleLicense(dependency) {
+  if (dependency.name.startsWith("github.com/zasp-ai/zasp-sec/")) return "NOASSERTION";
+  const names = (await readdir(dependency.directory)).filter((name) => /^(?:licen[cs]e|copying)(?:[._-].*)?$/i.test(name)).sort();
   if (names.length === 0) return "NOASSERTION";
-  const texts = await Promise.all(names.map((name) => readFile(path.join(module.directory, name), "utf8")));
+  const texts = await Promise.all(names.map((name) => readFile(path.join(dependency.directory, name), "utf8")));
   const text = texts.join("\n").toLowerCase();
   if (text.includes("apache license") && text.includes("version 2.0")) return "Apache-2.0";
   if (text.includes("permission is hereby granted, free of charge") || text.includes("the mit license")) return "MIT";
