@@ -934,7 +934,7 @@ async function selectBrowserOptionAndClickSibling(cdp, label, text, buttonText) 
 }
 
 async function waitForBrowserSelectedOption(cdp, label, text) {
-  await waitForBrowserAction(cdp, `(() => { const select = document.querySelector(${JSON.stringify(`select[aria-label="${label}"]`)}); return Boolean(select && select.options[select.selectedIndex]?.textContent?.trim() === ${JSON.stringify(text)} && !select.disabled); })()`);
+  await waitForBrowserAction(cdp, `(() => { const labelText = ${JSON.stringify(label)}; const field = [...document.querySelectorAll('label')].find((candidate) => [...candidate.querySelectorAll('span')].some((span) => span.textContent?.trim() === labelText)); const select = document.querySelector(${JSON.stringify(`select[aria-label="${label}"]`)}) ?? field?.querySelector('select'); return Boolean(select && select.options[select.selectedIndex]?.textContent?.trim() === ${JSON.stringify(text)} && !select.disabled); })()`);
 }
 
 async function browserCountAriaPrefix(cdp, prefix) {
