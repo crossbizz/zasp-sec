@@ -72,10 +72,39 @@ describe("Security Agent definition surface", () => {
     await user.click(screen.getByRole("button", { name: "Save Security Agent definition" }));
     await screen.findByRole("button", { name: "Retry retained Security Agent definition" });
     expect(screen.getByLabelText("Definition name")).toBeDisabled();
+    expect(screen.getByLabelText("Definition template")).toBeDisabled();
+    expect(screen.getByLabelText("Step limit")).toBeDisabled();
+    expect(screen.getByLabelText("Runtime seconds")).toBeDisabled();
+    expect(screen.getByLabelText("Temporary-policy seconds")).toBeDisabled();
+    expect(screen.getByLabelText("AI token budget")).toBeDisabled();
+    expect(screen.getByLabelText("Concurrency")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Create Security Agent" })).toBeDisabled();
     await user.click(screen.getByRole("button", { name: "Retry retained Security Agent definition" }));
     await waitFor(() => expect(createSecurityAgent).toHaveBeenCalledTimes(2));
     expect(new Set(calls.map(({ key }) => key)).size).toBe(1);
     expect(calls[1]?.value).toEqual(calls[0]?.value);
+  });
+
+  it("locks the drawer and every competing definition action while an update is unresolved", async () => {
+    const user = userEvent.setup();
+    const updateSecurityAgent = vi.fn()
+      .mockRejectedValueOnce(new TypeError("committed update response lost"))
+      .mockResolvedValueOnce({ value: { ...created, name: "Updated definition" }, version: `"8"`, auditID });
+    render(<SecurityAgentsView api={fixtureAPI({ updateSecurityAgent })} environmentID={environmentID} autoLoad={false} initialSnapshot={{ agents: [created], templates: [template] }} />);
+    await user.click(screen.getByRole("button", { name: `Open ${created.name}` }));
+    await screen.findByText("Resource version \"7\"");
+    await user.clear(screen.getByLabelText("Definition name"));
+    await user.type(screen.getByLabelText("Definition name"), "Updated definition");
+    await user.click(screen.getByRole("button", { name: "Save definition" }));
+    expect(await screen.findByRole("button", { name: "Retry retained definition operation" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Create Security Agent" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: `Open ${created.name}` })).toBeDisabled();
+    expect(screen.getByLabelText("Definition name")).toBeDisabled();
+    expect(screen.getByLabelText("Definition enabled")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Close details" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Close" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Save definition" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete definition" })).not.toBeInTheDocument();
   });
 
   it("loads all deterministic cursor pages instead of truncating definitions at 100", async () => {
@@ -89,5 +118,12 @@ describe("Security Agent definition surface", () => {
     expect(screen.getByRole("button", { name: `Open ${created.name}` })).toBeInTheDocument();
     expect(listSecurityAgents).toHaveBeenNthCalledWith(1, { cursor: undefined, limit: 100 }, expect.any(AbortSignal));
     expect(listSecurityAgents).toHaveBeenNthCalledWith(2, { cursor, limit: 100 }, expect.any(AbortSignal));
+  });
+
+  it("stops after page 100 without issuing a page 101 request", async () => {
+    const listSecurityAgents = vi.fn(async () => ({ items: [], page_info: { next_cursor: "b3JnLXBhZ2U", has_more: true as const } }));
+    render(<SecurityAgentsView api={fixtureAPI({ listSecurityAgents })} environmentID={environmentID} />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Security Agent definitions are unavailable");
+    expect(listSecurityAgents).toHaveBeenCalledTimes(100);
   });
 });
