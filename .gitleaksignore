@@ -15,3 +15,14 @@ proofs/localstack-iam-compat/sdk_test.go:generic-api-key:61
 # introduction-commit finding; moved or changed values remain detectable.
 proofs/nango-oauth/run.test.mjs:generic-api-key:33
 8320a197d070dff0dd7c2a612325184985f0675e:proofs/nango-oauth/run.test.mjs:generic-api-key:28
+
+# Batch 2 uses fixed synthetic workflow-signing bytes and descriptive
+# idempotency values only inside hermetic local tests. Ignore only the exact
+# introduction-commit findings; changed or relocated values remain detectable.
+5345749a40bcb55572306a4263e8d3e84f3a2b03:services/platform/agentsec-api/runtime_test.go:generic-api-key:24
+5345749a40bcb55572306a4263e8d3e84f3a2b03:services/platform/agentsec-api/runtime_test.go:generic-api-key:168
+5345749a40bcb55572306a4263e8d3e84f3a2b03:services/platform/apiserver/postgres_integration_test.go:generic-api-key:155
+5a20b590aec4e2cd7d87f7984b265f8114c5ee57:services/platform/apiserver/postgres_integration_test.go:generic-api-key:165
+5a20b590aec4e2cd7d87f7984b265f8114c5ee57:services/platform/apiserver/workflow_handler_test.go:generic-api-key:116
+b1d683c6fb79b337db6e866e95499507b5bfddc3:services/platform/apiserver/workflow_handler_test.go:generic-api-key:300
+ebf8a773634b6212e4334e07497e1ef4e07bb9ee:scripts/production-combined-e2e.mjs:generic-api-key:67
