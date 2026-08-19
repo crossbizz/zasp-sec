@@ -284,27 +284,6 @@ func (database *persistentJSONDatabase) QueryJSON(_ context.Context, statement s
 			return nil, ErrRepositoryNotFound
 		}
 		return append(json.RawMessage(nil), value...), nil
-	case postgresCoreWriteSQL:
-		operation, input := arguments[0].(string), arguments[4].(json.RawMessage)
-		key := arguments[1].(string) + "/" + arguments[2].(string) + "/" + arguments[3].(string)
-		if !strings.HasPrefix(operation, "finding:") {
-			return nil, ErrRepositoryNotFound
-		}
-		value, ok := database.records[key][operation]
-		if !ok {
-			return nil, ErrRepositoryNotFound
-		}
-		var finding, patch map[string]any
-		_ = json.Unmarshal(value, &finding)
-		_ = json.Unmarshal(input, &patch)
-		finding["status"] = patch["status"]
-		updated, _ := json.Marshal(finding)
-		database.records[key][operation] = updated
-		var page map[string]any
-		_ = json.Unmarshal(database.records[key]["findings"], &page)
-		page["items"].([]any)[0] = finding
-		database.records[key]["findings"], _ = json.Marshal(page)
-		return updated, nil
 	default:
 		return nil, errors.New("unexpected SQL")
 	}

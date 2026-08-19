@@ -8,9 +8,12 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
 
-const postgresSchemaVersionSQL = `SELECT value FROM zasp_schema_metadata WHERE key = 'production_core_schema'`
+const postgresSchemaVersionSQL = `SELECT metadata.value FROM zasp_schema_metadata AS metadata JOIN zasp_schema_versions AS release ON release.version = 2 AND release.name = 'production_core' WHERE metadata.key = 'production_core_schema' AND release.checksum = $1`
+
+func expectedCoreSchemaChecksum() string { return migrations.ProductionCore().Checksum() }
 
 type PostgresRow interface{ Scan(...any) error }
 
@@ -43,7 +46,7 @@ func (database *PostgresJSONDatabase) SchemaVersion(ctx context.Context) (string
 		return "", ErrRepositoryUnavailable
 	}
 	var version string
-	if err := database.driver.QueryRow(ctx, postgresSchemaVersionSQL).Scan(&version); err != nil {
+	if err := database.driver.QueryRow(ctx, postgresSchemaVersionSQL, expectedCoreSchemaChecksum()).Scan(&version); err != nil {
 		return "", classifyPostgresError(err)
 	}
 	if version == "" {

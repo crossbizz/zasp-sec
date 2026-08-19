@@ -200,6 +200,45 @@ func (runner *Runner) UpCore(ctx context.Context) error {
 	})
 }
 
+// DownCore removes only the production data boundary, leaving the immutable
+// baseline installed for a subsequent exact release migration.
+func (runner *Runner) DownCore(ctx context.Context) error {
+	if runner == nil || nilInterface(runner.database) {
+		return ErrInvalidRunner
+	}
+	return runner.withTransaction(ctx, func(ctx context.Context, transaction Transaction) error {
+		present, err := tablePresent(ctx, transaction)
+		if err != nil {
+			return err
+		}
+		if !present {
+			return ErrInvalidState
+		}
+		if err := transaction.Exec(ctx, lockTableSQL); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := readCoreState(ctx, transaction); err != nil {
+			return err
+		}
+		metadata := ProductionCore()
+		if err := transaction.Exec(ctx, deleteRowSQL, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, metadata.DownSQL()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		state, err := readState(ctx, transaction)
+		if err != nil {
+			return err
+		}
+		baseline := Baseline()
+		if !state.Applied() || state.Version() != baseline.Version() || state.Name() != baseline.Name() || state.Checksum() != baseline.Checksum() {
+			return ErrInvalidState
+		}
+		return nil
+	})
+}
+
 func (runner *Runner) Down(ctx context.Context) error {
 	if runner == nil || nilInterface(runner.database) {
 		return ErrInvalidRunner

@@ -20,7 +20,6 @@ const (
 	postgresCreateSessionSQL       = `SELECT zasp_create_product_session($1, $2, $3, $4, $5, $6, $7::jsonb, $8)`
 	postgresBootstrapSQL           = `SELECT zasp_session_bootstrap($1, $2, $3, $4)`
 	postgresCoreReadSQL            = `SELECT zasp_core_read($1, $2, $3, $4)`
-	postgresCoreWriteSQL           = `SELECT zasp_core_write($1, $2, $3, $4, $5::jsonb)`
 	postgresRevokeSessionSQL       = `UPDATE zasp_product_sessions SET revoked_at = now() WHERE token_digest = digest($1, 'sha256') AND organization_id = $2 AND principal_id = $3`
 )
 
@@ -171,14 +170,6 @@ func (repository *PostgresRepository) Read(ctx context.Context, scope domain.Sco
 		return nil, ErrRepositoryOperation
 	}
 	payload, err := repository.database.QueryJSON(ctx, postgresCoreReadSQL, operation, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String())
-	return validJSONObject(payload, err)
-}
-
-func (repository *PostgresRepository) Write(ctx context.Context, scope domain.Scope, operation string, input json.RawMessage) (json.RawMessage, error) {
-	if scope.Validate() != nil || operation == "" || !json.Valid(input) {
-		return nil, ErrRepositoryOperation
-	}
-	payload, err := repository.database.QueryJSON(ctx, postgresCoreWriteSQL, operation, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), input)
 	return validJSONObject(payload, err)
 }
 

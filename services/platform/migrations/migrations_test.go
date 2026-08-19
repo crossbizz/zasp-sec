@@ -205,18 +205,61 @@ func TestBaselineMetadataIsStableAndOpaque(t *testing.T) {
 	}
 }
 
-func TestProductionCoreMetadataOwnsDurableSessionAndCoreSchema(t *testing.T) {
+func TestProductionCoreMetadataOwnsOnlyMountedDurableSessionAndCoreSchema(t *testing.T) {
 	metadata := ProductionCore()
 	if metadata.Version() != 2 || metadata.Name() != "production_core" || len(metadata.Checksum()) != 64 {
 		t.Fatalf("production core identity = %d/%q/%q", metadata.Version(), metadata.Name(), metadata.Checksum())
 	}
-	for _, fragment := range []string{"zasp_schema_metadata", "zasp_product_sessions", "zasp_core_payloads", "zasp_session_bootstrap", "zasp_core_read", "zasp_core_write", "production-core-v1"} {
+	for _, fragment := range []string{"zasp_schema_metadata", "zasp_product_sessions", "zasp_product_api_tokens", "zasp_create_product_session", "zasp_core_payloads", "zasp_session_bootstrap", "zasp_core_read", "production-core-v1"} {
 		if !strings.Contains(metadata.UpSQL(), fragment) {
 			t.Fatalf("production core up migration missing %q", fragment)
 		}
 	}
+	if strings.Contains(metadata.UpSQL(), "zasp_core_write") {
+		t.Fatal("production core migration exposes an unmounted simulated mutation")
+	}
 	if metadata.UpSQL() == "" || metadata.DownSQL() == "" || ProductionCore() != metadata {
 		t.Fatal("production core migration assets are missing or unstable")
+	}
+}
+
+func TestRunnerDownCoreRequiresExactCoreAndRestoresBaseline(t *testing.T) {
+	baseline, core := Baseline(), ProductionCore()
+	transaction := &fakeTransaction{rows: []Row{
+		fakeRow{values: []any{true}},
+		fakeRow{values: []any{int64(2)}},
+		fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}},
+		fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}},
+		fakeRow{values: []any{true}},
+		fakeRow{values: []any{int64(1)}},
+		fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}},
+	}}
+	database := &fakeDatabase{transaction: transaction}
+	runner, err := NewRunner(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := runner.DownCore(context.Background()); err != nil {
+		t.Fatalf("DownCore: %v", err)
+	}
+
+	want := []string{
+		"begin",
+		"query:SELECT to_regclass('public.zasp_schema_versions') IS NOT NULL", "args:none",
+		`exec:LOCK TABLE "public"."zasp_schema_versions" IN ACCESS EXCLUSIVE MODE`, "args:none",
+		`query:SELECT count(*) FROM "public"."zasp_schema_versions"`, "args:none",
+		`query:SELECT "version", "name", "checksum" FROM "public"."zasp_schema_versions" WHERE "version" = $1`, "args:1",
+		`query:SELECT "version", "name", "checksum" FROM "public"."zasp_schema_versions" WHERE "version" = $1`, "args:2",
+		`exec:DELETE FROM "public"."zasp_schema_versions" WHERE "version" = $1 AND "name" = $2 AND "checksum" = $3`, "args:2,production_core," + core.Checksum(),
+		"exec:" + compactSQL(core.DownSQL()), "args:none",
+		"query:SELECT to_regclass('public.zasp_schema_versions') IS NOT NULL", "args:none",
+		`query:SELECT count(*) FROM "public"."zasp_schema_versions"`, "args:none",
+		`query:SELECT "version", "name", "checksum" FROM "public"."zasp_schema_versions" ORDER BY "version"`, "args:none",
+		"commit",
+	}
+	if !reflect.DeepEqual(database.events, want) {
+		t.Fatalf("events = %#v, want %#v", database.events, want)
 	}
 }
 

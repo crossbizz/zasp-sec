@@ -41,7 +41,6 @@ type sessionRepository interface {
 
 type coreRepository interface {
 	Read(context.Context, domain.Scope, string) (json.RawMessage, error)
-	Write(context.Context, domain.Scope, string, json.RawMessage) (json.RawMessage, error)
 }
 
 func NewProductionHandlers(repository *PostgresRepository, provider CallbackProvider, cookie CookiePolicy) (Dependencies, Authenticator, error) {
@@ -179,22 +178,12 @@ func (handler *coreHTTPHandler) ServeHTTP(writer http.ResponseWriter, request *h
 		writeProductionError(writer, request, ErrRepositoryAuthentication)
 		return
 	}
-	operation, mutation, status, err := productionOperation(request, handler.boundary)
+	operation, _, status, err := productionOperation(request, handler.boundary)
 	if err != nil {
 		writeProductionError(writer, request, err)
 		return
 	}
-	var payload json.RawMessage
-	if mutation {
-		input, readErr := io.ReadAll(io.LimitReader(request.Body, 16*1024+1))
-		if readErr != nil || len(input) > 16*1024 || !json.Valid(input) {
-			writeProductionError(writer, request, ErrRepositoryOperation)
-			return
-		}
-		payload, err = handler.repository.Write(request.Context(), identity.Scope, operation, input)
-	} else {
-		payload, err = handler.repository.Read(request.Context(), identity.Scope, operation)
-	}
+	payload, err := handler.repository.Read(request.Context(), identity.Scope, operation)
 	writeProductionResponse(writer, request, status, payload, err)
 }
 

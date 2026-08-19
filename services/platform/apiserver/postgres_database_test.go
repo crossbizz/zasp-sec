@@ -24,6 +24,9 @@ func TestPostgresJSONDatabaseRunsSchemaReadAndWriteBoundaries(t *testing.T) {
 	if err != nil || version != CoreSchemaVersion {
 		t.Fatalf("version = (%q, %v)", version, err)
 	}
+	if !reflect.DeepEqual(driver.queryArguments, []any{expectedCoreSchemaChecksum()}) {
+		t.Fatalf("schema checksum arguments = %#v", driver.queryArguments)
+	}
 	payload, err := database.QueryJSON(context.Background(), "SELECT payload", "organization")
 	if err != nil || string(payload) != `{"items":[]}` {
 		t.Fatalf("payload = (%q, %v)", payload, err)
@@ -108,14 +111,16 @@ func TestPostgresJSONDatabaseCloseWaitsForInflightQuery(t *testing.T) {
 }
 
 type databaseDriver struct {
-	responses     map[string][]byte
-	rowErr        error
-	execErr       error
-	execArguments []any
-	closes        int
+	responses      map[string][]byte
+	rowErr         error
+	execErr        error
+	execArguments  []any
+	queryArguments []any
+	closes         int
 }
 
-func (driver *databaseDriver) QueryRow(_ context.Context, statement string, _ ...any) PostgresRow {
+func (driver *databaseDriver) QueryRow(_ context.Context, statement string, arguments ...any) PostgresRow {
+	driver.queryArguments = arguments
 	return databaseRow{value: driver.responses[statement], err: driver.rowErr}
 }
 func (driver *databaseDriver) Exec(_ context.Context, _ string, arguments ...any) error {
