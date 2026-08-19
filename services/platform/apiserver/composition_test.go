@@ -56,8 +56,8 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
 			t.Errorf("%s security = %v, want %v", key, got, operation.Security)
 		}
 	}
-	if len(seen) != 57 {
-		t.Fatalf("mounted operation count = %d, want 57", len(seen))
+	if len(seen) != 41 {
+		t.Fatalf("mounted operation count = %d, want 41", len(seen))
 	}
 }
 
@@ -69,8 +69,7 @@ func TestBatchTwoCompositionExposesOnlyCompleteDurableOperations(t *testing.T) {
 	for _, operationID := range []string{
 		"listPolicies", "createPolicy", "getPolicy", "updatePolicy", "deletePolicy", "simulatePolicy", "rolloutPolicy", "disablePolicy", "listPolicyDecisions",
 		"listIntegrationCatalog", "listIntegrations", "createIntegration", "getIntegration", "updateIntegration", "deleteIntegration",
-		"listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage",
-		"listSecurityAgentTemplates", "listSecurityActions", "listSecurityAgents", "createSecurityAgent", "getSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval",
+		"listSecurityAgentTemplates", "listSecurityAgents", "createSecurityAgent", "getSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent",
 	} {
 		definition, ok := definitions[operationID]
 		if !ok {
@@ -81,7 +80,11 @@ func TestBatchTwoCompositionExposesOnlyCompleteDurableOperations(t *testing.T) {
 			t.Errorf("operation %q security/permission = %v/%q", operationID, definition.Security, definition.Permission)
 		}
 	}
-	for _, hidden := range []string{"authorizeIntegration", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync"} {
+	for _, hidden := range []string{
+		"authorizeIntegration", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync",
+		"listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage",
+		"listSecurityActions", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval",
+	} {
 		if _, mounted := definitions[hidden]; mounted {
 			t.Errorf("provider-owned operation %q mounted without a provider adapter", hidden)
 		}
@@ -144,7 +147,6 @@ func TestNewCompositionMountsOnlyCoreProductOperations(t *testing.T) {
 		{method: "POST", path: "/api/v1/policies", body: "workflow"},
 		{method: "GET", path: "/api/v1/policies/policy-bounded", body: "workflow"},
 		{method: "GET", path: "/api/v1/integration-catalog", body: "workflow"},
-		{method: "GET", path: "/api/v1/sensors", body: "workflow"},
 		{method: "GET", path: "/api/v1/security-agents", body: "workflow"},
 	}
 	for _, test := range tests {
@@ -165,7 +167,7 @@ func TestNewCompositionMountsOnlyCoreProductOperations(t *testing.T) {
 		}
 	}
 
-	for _, path := range []string{"/internal/health/live", "/api/v1/sensors/heartbeat", "/api/v1/runtime/events", "/api/v1/policy/bundle", "/api/v1/webhooks/stytch", "/api/v1/search", "/api/v1/findings", "/api/v1/attack-paths"} {
+	for _, path := range []string{"/internal/health/live", "/api/v1/sensors", "/api/v1/sensors/heartbeat", "/api/v1/security-actions", "/api/v1/security-agent-runs", "/api/v1/security-agent-approvals", "/api/v1/runtime/events", "/api/v1/policy/bundle", "/api/v1/webhooks/stytch", "/api/v1/search", "/api/v1/findings", "/api/v1/attack-paths"} {
 		response := httptest.NewRecorder()
 		composition.ServeHTTP(response, httptest.NewRequest(http.MethodPost, path, nil))
 		if response.Code != http.StatusNotFound {
