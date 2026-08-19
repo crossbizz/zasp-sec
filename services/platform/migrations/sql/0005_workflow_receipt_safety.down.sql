@@ -1,3 +1,19 @@
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+          FROM "public"."zasp_workflow_idempotency" AS replay
+          JOIN "public"."zasp_schema_metadata" AS safety
+            ON safety."key" = 'production_core_schema'
+           AND safety."value" = 'production-workflow-receipt-safety-v2'
+           AND replay."created_at" >= safety."applied_at"
+         WHERE NULLIF(replay."response" ->> 'receipt_id', '') IS NULL
+    ) THEN
+        RAISE EXCEPTION USING ERRCODE = '55000', MESSAGE = 'workflow receipt safety rollback blocked';
+    END IF;
+END;
+$$;
+
 UPDATE "public"."zasp_schema_metadata" SET "value" = 'production-workflow-receipts-v1', "applied_at" = transaction_timestamp()
 WHERE "key" = 'production_core_schema' AND "value" = 'production-workflow-receipt-safety-v2';
 

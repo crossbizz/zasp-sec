@@ -289,6 +289,14 @@ func TestWorkflowReceiptSafetyMetadataSeparatesBrowserReceiptsAndBoundedCleanup(
 	if !strings.Contains(metadata.DownSQL(), "production-workflow-receipts-v1") || WorkflowReceiptSafety() != metadata {
 		t.Fatal("workflow receipt safety migration assets are missing or unstable")
 	}
+	for _, fragment := range []string{
+		"workflow receipt safety rollback blocked", "zasp_schema_metadata", "applied_at",
+		"zasp_workflow_idempotency", "response", "receipt_id",
+	} {
+		if !strings.Contains(metadata.DownSQL(), fragment) {
+			t.Fatalf("workflow receipt safety rollback guard missing %q", fragment)
+		}
+	}
 	if fingerprint := WorkflowReceiptSafetySemanticFingerprint(); len(fingerprint) != 64 || !strings.Contains(metadata.UpSQL(), fingerprint) {
 		t.Fatalf("workflow receipt safety semantic fingerprint = %q", fingerprint)
 	}

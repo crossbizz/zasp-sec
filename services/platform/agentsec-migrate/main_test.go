@@ -3,12 +3,15 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -226,6 +229,167 @@ func TestReleaseMigrationReachesExactPostgresTargetFromEmptyV1AndV2AndRejectsDri
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); !errors.Is(err, migrations.ErrInvalidState) {
 		t.Fatalf("drift error = %v", err)
+	}
+}
+
+func TestV5ReceiptlessPATReplayBlocksEveryRollbackWithoutPartialMigration(t *testing.T) {
+	dsn := startMigrationPostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	connection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = connection.Close(context.Background()) }()
+	runner, err := migrations.NewRunner(&migrationDatabase{connection: connection})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
+		t.Fatalf("empty to v5: %v", err)
+	}
+	organization := "pid_71000001-0000-4000-8000-000000000001"
+	workspace := "pid_71000002-0000-4000-8000-000000000002"
+	environment := "pid_71000003-0000-4000-8000-000000000003"
+	principal := "pid_71000004-0000-4000-8000-000000000004"
+	createReplay := func(id, key, auditID, correlationID string, receiptID any) string {
+		t.Helper()
+		body := fmt.Sprintf(`{"id":%q,"name":"Rollback replay","scope":"environment","trigger":"tool","conditions":[{"field":"action","operator":"equals","value":"read"}],"action":"monitor","rollout":"draft","failure_mode":"open"}`, id)
+		intent := fmt.Sprintf(`{"body":%s,"expected_version":0,"resource_id":""}`, body)
+		if _, err := connection.Exec(ctx, `SELECT public.zasp_workflow_mutate(
+			'create','policy',$1,$2,$3,$4,$5,'createPolicy',$6,0,$7::jsonb,$8::jsonb,$9,$10,$11)`,
+			id, organization, workspace, environment, principal, key, intent, body, auditID, correlationID, receiptID); err != nil {
+			t.Fatalf("create replay %s: %v", key, err)
+		}
+		return intent
+	}
+	const patID = "policy-rollback-pat"
+	const patKey = "idem-rollback-pat-0001"
+	createReplay(patID, patKey, "pid_72000001-0000-4000-8000-000000000001", "pid_72000002-0000-4000-8000-000000000002", nil)
+	const browserKey = "idem-rollback-browser-0001"
+	const browserReceiptID = "pid_72000003-0000-4000-8000-000000000003"
+	browserIntent := createReplay("policy-rollback-browser", browserKey, "pid_72000004-0000-4000-8000-000000000004", "pid_72000005-0000-4000-8000-000000000005", browserReceiptID)
+
+	type rollbackSnapshot struct {
+		Version             int64
+		VersionRows         int
+		SafetyChecksum      string
+		Release             string
+		Fingerprint         string
+		MutationFunction    string
+		IdempotencyRowCount int
+		ReceiptlessV5Count  int
+	}
+	snapshot := func() rollbackSnapshot {
+		t.Helper()
+		value := rollbackSnapshot{}
+		value.Version, err = runner.Version(ctx)
+		if err != nil {
+			t.Fatalf("snapshot version: %v", err)
+		}
+		if err := connection.QueryRow(ctx, `SELECT
+			(SELECT count(*) FROM zasp_schema_versions),
+			(SELECT checksum FROM zasp_schema_versions WHERE version=5),
+			(SELECT value FROM zasp_schema_metadata WHERE key='production_core_schema'),
+			(SELECT value FROM zasp_schema_metadata WHERE key='production_workflow_receipt_safety_fingerprint'),
+			pg_get_functiondef('public.zasp_workflow_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)'::regprocedure),
+			(SELECT count(*) FROM zasp_workflow_idempotency),
+			(SELECT count(*) FROM zasp_workflow_idempotency AS replay JOIN zasp_schema_metadata AS safety ON safety.key='production_core_schema' AND safety.value='production-workflow-receipt-safety-v2' AND replay.created_at >= safety.applied_at WHERE NULLIF(replay.response ->> 'receipt_id', '') IS NULL)`).Scan(
+			&value.VersionRows, &value.SafetyChecksum, &value.Release, &value.Fingerprint, &value.MutationFunction, &value.IdempotencyRowCount, &value.ReceiptlessV5Count); err != nil {
+			t.Fatalf("snapshot state: %v", err)
+		}
+		return value
+	}
+	before := snapshot()
+	if before.Version != 5 || before.VersionRows != 5 || before.IdempotencyRowCount != 2 || before.ReceiptlessV5Count != 1 {
+		t.Fatalf("initial v5 snapshot = %#v", before)
+	}
+	for _, rollback := range []struct {
+		name string
+		run  func(context.Context) error
+	}{
+		{name: "DownCore", run: runner.DownCore},
+		{name: "Down", run: runner.Down},
+	} {
+		if err := rollback.run(ctx); !errors.Is(err, migrations.ErrInvalidState) {
+			t.Fatalf("%s v5 precondition = %v", rollback.name, err)
+		}
+		if after := snapshot(); after != before {
+			t.Fatalf("%s changed v5 state: before=%#v after=%#v", rollback.name, before, after)
+		}
+	}
+	for _, rollback := range []struct {
+		name string
+		run  func() error
+	}{
+		{name: "DownWorkflowReceiptSafety", run: func() error { return runner.DownWorkflowReceiptSafety(ctx) }},
+		{name: "release down", run: func() error { return runReleaseMigration(ctx, runner, []string{"down"}) }},
+	} {
+		err := rollback.run()
+		if !errors.Is(err, migrations.ErrDatabase) || err.Error() != migrations.ErrDatabase.Error() {
+			t.Fatalf("%s unsanitized error = %v", rollback.name, err)
+		}
+		if after := snapshot(); after != before {
+			t.Fatalf("%s partially changed v5 state: before=%#v after=%#v", rollback.name, before, after)
+		}
+	}
+	command := exec.CommandContext(ctx, "go", "run", ".", "down")
+	command.Env = append(os.Environ(), "ZASP_POSTGRES_DSN="+dsn, "ZASP_MIGRATION_TIMEOUT=10s")
+	output, commandErr := command.CombinedOutput()
+	if commandErr == nil || !strings.Contains(string(output), "release migration failed") || strings.Contains(string(output), "workflow receipt safety rollback blocked") || strings.Contains(string(output), patKey) {
+		t.Fatalf("migrator CLI error = %v output=%q", commandErr, output)
+	}
+	if after := snapshot(); after != before {
+		t.Fatalf("migrator CLI partially changed v5 state: before=%#v after=%#v", before, after)
+	}
+
+	cleanup, err := connection.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, deletion := range []struct {
+		name      string
+		statement string
+		args      []any
+	}{
+		{name: "idempotency", statement: `DELETE FROM zasp_workflow_idempotency WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND principal_id=$4 AND operation='createPolicy' AND idempotency_key=$5`, args: []any{organization, workspace, environment, principal, patKey}},
+		{name: "audit", statement: `DELETE FROM zasp_workflow_audit WHERE organization_id=$1 AND audit_id=$2`, args: []any{organization, "pid_72000001-0000-4000-8000-000000000001"}},
+		{name: "record", statement: `DELETE FROM zasp_workflow_records WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND kind='policy' AND id=$4`, args: []any{organization, workspace, environment, patID}},
+	} {
+		result, err := cleanup.Exec(ctx, deletion.statement, deletion.args...)
+		if err != nil || result.RowsAffected() != 1 {
+			_ = cleanup.Rollback(ctx)
+			t.Fatalf("exact %s cleanup = rows %d error %v", deletion.name, result.RowsAffected(), err)
+		}
+	}
+	if err := cleanup.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.DownWorkflowReceiptSafety(ctx); err != nil {
+		t.Fatalf("clean v5 to v4: %v", err)
+	}
+	if version, err := runner.Version(ctx); err != nil || version != 4 {
+		t.Fatalf("rollback target = (%d, %v)", version, err)
+	}
+	var replayJSON []byte
+	if err := connection.QueryRow(ctx, `SELECT public.zasp_workflow_replay($1,$2,$3,$4,'createPolicy',$5,$6::jsonb)`, organization, workspace, environment, principal, browserKey, browserIntent).Scan(&replayJSON); err != nil {
+		t.Fatal(err)
+	}
+	var replay struct {
+		Found  bool `json:"found"`
+		Result struct {
+			Replayed  bool   `json:"replayed"`
+			ReceiptID string `json:"receipt_id"`
+		} `json:"result"`
+	}
+	if json.Unmarshal(replayJSON, &replay) != nil || !replay.Found || !replay.Result.Replayed || replay.Result.ReceiptID != browserReceiptID {
+		t.Fatalf("v4 replay semantics = %s", replayJSON)
+	}
+	if err := runReleaseMigration(ctx, runner, []string{"down"}); err != nil {
+		t.Fatalf("clean release down: %v", err)
+	}
+	if version, err := runner.Version(ctx); err != nil || version != 0 {
+		t.Fatalf("clean release target = (%d, %v)", version, err)
 	}
 }
 

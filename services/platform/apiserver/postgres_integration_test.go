@@ -260,10 +260,10 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 	}
 	if _, err := restartedConnection.Exec(ctx, `
 WITH generated AS (SELECT generate_series(1, 1001) AS ordinal), idempotency AS (
-  INSERT INTO zasp_workflow_idempotency
-    (organization_id, workspace_id, environment_id, principal_id, operation, idempotency_key, request_digest, response)
-  SELECT $1, $2, $3, $4, 'cleanupExpired', 'cleanup-expired-' || lpad(ordinal::text, 4, '0'),
-         digest(ordinal::text, 'sha256'), '{}'::jsonb
+	  INSERT INTO zasp_workflow_idempotency
+	    (organization_id, workspace_id, environment_id, principal_id, operation, idempotency_key, request_digest, response)
+	  SELECT $1, $2, $3, $4, 'cleanupExpired', 'cleanup-expired-' || lpad(ordinal::text, 4, '0'),
+	         digest(ordinal::text, 'sha256'), jsonb_build_object('receipt_id', 'cleanup-receipt-' || lpad(ordinal::text, 4, '0'))
   FROM generated
   RETURNING idempotency_key
 )
@@ -404,6 +404,33 @@ FROM idempotency`, organization.String(), workspace.String(), environment.String
 	}
 	defer func() { _ = rollbackConnection.Close(context.Background()) }()
 	rollbackRunner, _ := migrations.NewRunner(&integrationMigrationDatabase{connection: rollbackConnection})
+	if err := rollbackRunner.DownWorkflowReceiptSafety(ctx); !errors.Is(err, migrations.ErrDatabase) {
+		t.Fatalf("receipt-less PAT rollback guard = %v", err)
+	}
+	if version, err := rollbackRunner.Version(ctx); err != nil || version != 5 {
+		t.Fatalf("guarded rollback state = (%d, %v)", version, err)
+	}
+	cleanup, err := rollbackConnection.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, deletion := range []struct {
+		statement string
+		args      []any
+	}{
+		{statement: `DELETE FROM zasp_workflow_idempotency WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND principal_id=$4 AND operation=$5 AND idempotency_key=$6`, args: []any{patIdentity.Scope.OrganizationID().String(), patIdentity.Scope.WorkspaceID().String(), patIdentity.Scope.EnvironmentID().String(), patIdentity.PrincipalID.String(), patMutation.Operation, patMutation.IdempotencyKey}},
+		{statement: `DELETE FROM zasp_workflow_audit WHERE organization_id=$1 AND audit_id=$2`, args: []any{patIdentity.Scope.OrganizationID().String(), patMutation.AuditID}},
+		{statement: `DELETE FROM zasp_workflow_records WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND kind=$4 AND id=$5`, args: []any{patIdentity.Scope.OrganizationID().String(), patIdentity.Scope.WorkspaceID().String(), patIdentity.Scope.EnvironmentID().String(), patMutation.Kind, patMutation.ID}},
+	} {
+		result, err := cleanup.Exec(ctx, deletion.statement, deletion.args...)
+		if err != nil || result.RowsAffected() != 1 {
+			_ = cleanup.Rollback(ctx)
+			t.Fatalf("exact PAT rollback cleanup = rows %d error %v", result.RowsAffected(), err)
+		}
+	}
+	if err := cleanup.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
 	if err := rollbackRunner.DownWorkflowReceiptSafety(ctx); err != nil {
 		t.Fatalf("workflow receipt safety rollback: %v", err)
 	}
