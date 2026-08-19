@@ -27,7 +27,11 @@ test("production container builds are exact, non-root, health-bound, and secret-
     assert.equal(build.containsSecret, false);
     assert.match(build.healthcheck, /127\.0\.0\.1/);
   }
-  assert.doesNotMatch(await readFile(new URL("./web.Dockerfile", import.meta.url), "utf8"), /(?:ARG|ENV)\s+.*(?:SECRET|TOKEN|PASSWORD|DSN)/i);
+  const webDockerfile = await readFile(new URL("./web.Dockerfile", import.meta.url), "utf8");
+  assert.doesNotMatch(webDockerfile, /(?:ARG|ENV)\s+.*(?:SECRET|TOKEN|PASSWORD|DSN)/i);
+  assert.match(webDockerfile, /\/src\/dist\/standalone/);
+  assert.doesNotMatch(webDockerfile, /\/src\/node_modules/);
+  assert.match(await readFile(new URL("../../next.config.ts", import.meta.url), "utf8"), /output:\s*["']standalone["']/);
 });
 
 test("release renders one TLS origin, split ports, private internals, and migration/schema gates", async () => {

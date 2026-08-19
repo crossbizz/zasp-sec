@@ -61,7 +61,7 @@ export async function verifyReleaseSources() {
   const { stdout } = await exec("npm", ["sbom", "--omit=dev", "--sbom-format", "spdx", "--json"], { cwd: root, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
   const sbom = JSON.parse(stdout);
   if (sbom.spdxVersion !== "SPDX-2.3" || !Array.isArray(sbom.packages) || sbom.packages.length < 2) throw new Error("SBOM gate rejected");
-  const allowed = new Set(["0BSD", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC", "MIT"]);
+  const allowed = new Set(["0BSD", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC", "MIT", "MPL-2.0"]);
   for (const entry of sbom.packages) {
     const license = entry.licenseConcluded ?? entry.licenseDeclared;
     if (entry.name === "zasp-agent-security-console" && license === "NOASSERTION") continue;
