@@ -9,7 +9,7 @@ test("release policy binds performance, resilience, supply-chain, and owned proo
   const policy = await loadReleasePolicy();
   assert.deepEqual(policy.performance, { webP95Milliseconds: 2000, apiReadP95Milliseconds: 500, apiMutationP95Milliseconds: 1000, errorRatePercent: 1 });
   assert.deepEqual(policy.resilience, ["replica_restart", "provider_timeout", "queue_redrive", "stale_read_revalidation"]);
-  assert.deepEqual(policy.supplyChain, ["spdx_sbom", "license_allowlist", "offline_dependency_audit", "container_definition", "tracked_secret_scan"]);
+  assert.deepEqual(policy.supplyChain, ["npm_spdx_sbom", "go_spdx_sbom", "license_allowlist", "offline_dependency_audit", "digest_pinned_container_definition", "full_tracked_gitleaks", "required_ci_gate"]);
   assert.equal(policy.proof.ownedPrefix, "zasp-production-e2e-");
   assert.equal(policy.proof.ambientMutation, false);
 });
@@ -45,7 +45,14 @@ test("read-only synthetic proves web and authenticated API correlation without l
 
 test("release sources contain truthful runbooks, canary, SBOM/license/image/secret gates", async () => {
   const result = await verifyReleaseSources();
-  assert.deepEqual(result, { canary: true, documentation: true, imageDefinitions: true, licensePolicy: true, secretScan: true, spdx: true });
+  assert.equal(result.canary, true);
+  assert.equal(result.documentation, true);
+  assert.equal(result.imageDefinitions, 3);
+  assert.equal(result.licensePolicy, true);
+  assert.equal(result.trackedSecretScan, true);
+  assert.ok(result.npmSpdxPackages > 20);
+  assert.ok(result.goSpdxPackages > 20);
+  assert.equal(result.requiredCI, true);
 });
 
 function securityHeaders(extra) {

@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import net from "node:net";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -18,7 +18,7 @@ export async function loadReleasePolicy() {
   return deepFreeze({
     performance: { webP95Milliseconds: 2000, apiReadP95Milliseconds: 500, apiMutationP95Milliseconds: 1000, errorRatePercent: 1 },
     resilience: ["replica_restart", "provider_timeout", "queue_redrive", "stale_read_revalidation"],
-    supplyChain: ["spdx_sbom", "license_allowlist", "offline_dependency_audit", "container_definition", "tracked_secret_scan"],
+    supplyChain: ["npm_spdx_sbom", "go_spdx_sbom", "license_allowlist", "offline_dependency_audit", "digest_pinned_container_definition", "full_tracked_gitleaks", "required_ci_gate"],
     proof: { ownedPrefix: "zasp-production-e2e-", ambientMutation: false },
   });
 }
@@ -68,18 +68,64 @@ export async function verifyReleaseSources() {
     if (!allowed.has(license)) throw new Error(`license gate rejected: ${entry.name}`);
   }
 
+  const goSpdx = await goSourceSBOM();
+  if (goSpdx.spdxVersion !== "SPDX-2.3" || goSpdx.packages.length < 20) throw new Error("Go SBOM gate rejected");
+  for (const entry of goSpdx.packages) {
+    if (entry.licenseConcluded !== "NOASSERTION" && !allowed.has(entry.licenseConcluded)) throw new Error(`Go license gate rejected: ${entry.name}`);
+    if (entry.licenseConcluded === "NOASSERTION" && !entry.name.startsWith("github.com/zasp-ai/zasp-sec/")) throw new Error(`Go license gate rejected: ${entry.name}`);
+  }
+
   const sensitiveSources = await Promise.all([
     source(".dockerignore"), source("deploy/production/api.Dockerfile"), source("deploy/production/web.Dockerfile"),
     source("deploy/staging/product/values.yaml"), source("deploy/staging/product/templates/secrets.yaml"), source("deploy/staging/product/templates/workloads.yaml"),
   ]);
   const combined = sensitiveSources.join("\n");
-  if (/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|AKIA[0-9A-Z]{16}|sk_live_[A-Za-z0-9]{16,}/.test(combined) || !sensitiveSources[0].includes(".env") || !sensitiveSources[4].includes("secretsmanager") || !sensitiveSources[5].includes("secretKeyRef")) throw new Error("secret gate rejected");
+  if (/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|AKIA[0-9A-Z]{16}|sk_live_[A-Za-z0-9]{16,}/.test(combined) || !sensitiveSources[0].includes(".env") || !sensitiveSources[4].includes("secretsmanager") || !sensitiveSources[5].includes("/var/run/secrets/zasp")) throw new Error("secret gate rejected");
   const terraform = await source("deploy/staging/main.tf");
-  for (const contract of ["system:serviceaccount:agentsec:agentsec-product", "secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret", "canary-read-token", "token-reveal-key", "stytch-secret", "postgres-dsn"]) {
+  for (const contract of ["system:serviceaccount:agentsec:agentsec-api", "system:serviceaccount:agentsec:agentsec-migration", "system:serviceaccount:agentsec:agentsec-canary-secret-sync", "secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret", "canary-read-token", "token-reveal-key", "stytch-secret", "postgres-dsn"]) {
     if (!terraform.includes(contract)) throw new Error("secret identity gate rejected");
   }
 
-  return deepFreeze({ canary: true, documentation: true, imageDefinitions: true, licensePolicy: true, secretScan: true, spdx: true });
+  await exec("gitleaks", ["git", "--no-banner", "--redact", "--log-opts=HEAD"], { cwd: root, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
+  const workflow = await source(".github/workflows/runnable-ui.yml");
+  if (!workflow.includes("github.com/zricethezav/gitleaks/v8@v8.30.1") || !workflow.includes("npm run production:release:gate")) throw new Error("required CI gate rejected");
+
+  const definitions = [await source("deploy/production/web.Dockerfile"), await source("deploy/production/api.Dockerfile")];
+  const imageReferences = new Set(definitions.flatMap((definition) => [...definition.matchAll(/^FROM\s+(\S+)/gm)].map((match) => match[1])));
+  if (imageReferences.size !== 3 || [...imageReferences].some((reference) => !/@sha256:[0-9a-f]{64}$/.test(reference))) throw new Error("image definition gate rejected");
+
+  return deepFreeze({ canary: true, documentation: true, imageDefinitions: imageReferences.size, licensePolicy: true, trackedSecretScan: true, npmSpdxPackages: sbom.packages.length, goSpdxPackages: goSpdx.packages.length, requiredCI: true });
+}
+
+async function goSourceSBOM() {
+  const template = "{{with .Module}}{{.Path}}\t{{.Version}}\t{{.Dir}}{{end}}";
+  const { stdout } = await exec("go", ["list", "-deps", "-f", template, "./agentsec-api", "./agentsec-migrate", "./cmd/zasp-healthcheck"], { cwd: path.join(root, "services/platform"), encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
+  const modules = new Map();
+  for (const line of stdout.split("\n")) {
+    if (!line) continue;
+    const [name, version, directory] = line.split("\t");
+    if (!name || !directory || modules.has(name)) continue;
+    modules.set(name, { name, version: version || "0.0.0-local", directory });
+  }
+  const packages = [];
+  for (const module of [...modules.values()].sort((left, right) => left.name.localeCompare(right.name))) {
+    packages.push({ name: module.name, versionInfo: module.version, licenseConcluded: await moduleLicense(module) });
+  }
+  return { spdxVersion: "SPDX-2.3", packages };
+}
+
+async function moduleLicense(module) {
+  if (module.name.startsWith("github.com/zasp-ai/zasp-sec/")) return "NOASSERTION";
+  const names = (await readdir(module.directory)).filter((name) => /^(?:licen[cs]e|copying)(?:[._-].*)?$/i.test(name)).sort();
+  if (names.length === 0) return "NOASSERTION";
+  const texts = await Promise.all(names.map((name) => readFile(path.join(module.directory, name), "utf8")));
+  const text = texts.join("\n").toLowerCase();
+  if (text.includes("apache license") && text.includes("version 2.0")) return "Apache-2.0";
+  if (text.includes("permission is hereby granted, free of charge") || text.includes("the mit license")) return "MIT";
+  if (text.includes("permission to use, copy, modify, and/or distribute")) return "ISC";
+  if (text.includes("redistribution and use in source and binary forms")) return text.includes("neither the name") ? "BSD-3-Clause" : "BSD-2-Clause";
+  if (text.includes("mozilla public license") && text.includes("version 2.0")) return "MPL-2.0";
+  return "NOASSERTION";
 }
 
 async function source(relative) { return readFile(path.join(root, relative), "utf8"); }

@@ -17,6 +17,15 @@ provider "aws" {
 }
 
 locals {
+  api_secret_names = toset([
+    "postgres-dsn",
+    "stytch-project-id",
+    "stytch-secret",
+    "stytch-public-token",
+    "stytch-organization-id",
+    "workflow-signing-key",
+    "token-reveal-key",
+  ])
   queue_contract = {
     background     = { visibility = 300, schema = "agentsec.background.v1" }
     runtime-events = { visibility = 120, schema = "agentsec.runtime-events.v1" }
@@ -274,7 +283,7 @@ resource "aws_opensearch_domain" "events" {
     Version = "2012-10-17"
     Statement = [{
       Effect    = "Allow"
-      Principal = { AWS = aws_iam_role.product.arn }
+      Principal = { AWS = aws_iam_role.api.arn }
       Action    = ["es:ESHttpGet", "es:ESHttpHead", "es:ESHttpPost", "es:ESHttpPut"]
       Resource  = "arn:${local.partition}:es:${var.region}:${var.account_id}:domain/${var.cluster_name}-events/*"
     }]
@@ -291,8 +300,8 @@ resource "aws_iam_openid_connect_provider" "eks" {
   thumbprint_list = [data.tls_certificate.eks.certificates[0].sha1_fingerprint]
 }
 
-resource "aws_iam_role" "product" {
-  name = "${var.cluster_name}-product"
+resource "aws_iam_role" "api" {
+  name = "${var.cluster_name}-api"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
@@ -302,28 +311,69 @@ resource "aws_iam_role" "product" {
       Condition = {
         StringEquals = {
           "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:aud" = "sts.amazonaws.com"
-          "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub" = "system:serviceaccount:agentsec:agentsec-product"
+          "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub" = "system:serviceaccount:agentsec:agentsec-api"
         }
       }
     }]
   })
 }
 
-resource "aws_iam_role_policy" "product" {
-  name = "${var.cluster_name}-product-access"
-  role = aws_iam_role.product.id
+resource "aws_iam_role_policy" "api" {
+  name = "${var.cluster_name}-api-secrets"
+  role = aws_iam_role.api.id
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-      { Effect = "Allow", Action = ["s3:GetObject", "s3:PutObject"], Resource = "${aws_s3_bucket.evidence.arn}/organizations/*" },
-      { Effect = "Allow", Action = ["s3:ListBucket"], Resource = aws_s3_bucket.evidence.arn, Condition = { StringLike = { "s3:prefix" = ["organizations/*"] } } },
-      { Effect = "Allow", Action = ["sqs:DeleteMessage", "sqs:GetQueueAttributes", "sqs:ReceiveMessage", "sqs:SendMessage"], Resource = [for queue in aws_sqs_queue.work : queue.arn] },
-      { Effect = "Allow", Action = ["es:ESHttpGet", "es:ESHttpHead", "es:ESHttpPost", "es:ESHttpPut"], Resource = "${aws_opensearch_domain.events.arn}/*" },
-      { Effect = "Allow", Action = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"], Resource = [for secret in aws_secretsmanager_secret.product : secret.arn] },
-      { Effect = "Allow", Action = ["kms:Decrypt", "kms:Encrypt", "kms:GenerateDataKey"], Resource = aws_kms_key.staging.arn,
-      Condition = { StringEquals = { "kms:ViaService" = ["s3.${var.region}.amazonaws.com", "sqs.${var.region}.amazonaws.com", "es.${var.region}.amazonaws.com", "secretsmanager.${var.region}.amazonaws.com"] } } }
+      { Effect = "Allow", Action = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"], Resource = [for name in local.api_secret_names : aws_secretsmanager_secret.product[name].arn] },
+      { Effect = "Allow", Action = ["kms:Decrypt"], Resource = aws_kms_key.staging.arn, Condition = { StringEquals = { "kms:ViaService" = "secretsmanager.${var.region}.amazonaws.com" } } }
     ]
   })
+}
+
+resource "aws_iam_role" "migration" {
+  name = "${var.cluster_name}-migration"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow", Principal = { Federated = aws_iam_openid_connect_provider.eks.arn }, Action = "sts:AssumeRoleWithWebIdentity"
+      Condition = { StringEquals = {
+        "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:aud" = "sts.amazonaws.com"
+        "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub" = "system:serviceaccount:agentsec:agentsec-migration"
+      } }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "migration" {
+  name = "${var.cluster_name}-migration-secret"
+  role = aws_iam_role.migration.id
+  policy = jsonencode({ Version = "2012-10-17", Statement = [
+    { Effect = "Allow", Action = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"], Resource = aws_secretsmanager_secret.product["postgres-dsn"].arn },
+    { Effect = "Allow", Action = ["kms:Decrypt"], Resource = aws_kms_key.staging.arn, Condition = { StringEquals = { "kms:ViaService" = "secretsmanager.${var.region}.amazonaws.com" } } },
+  ] })
+}
+
+resource "aws_iam_role" "canary_secret_sync" {
+  name = "${var.cluster_name}-canary-secret-sync"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow", Principal = { Federated = aws_iam_openid_connect_provider.eks.arn }, Action = "sts:AssumeRoleWithWebIdentity"
+      Condition = { StringEquals = {
+        "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:aud" = "sts.amazonaws.com"
+        "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub" = "system:serviceaccount:agentsec:agentsec-canary-secret-sync"
+      } }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "canary_secret_sync" {
+  name = "${var.cluster_name}-canary-secret"
+  role = aws_iam_role.canary_secret_sync.id
+  policy = jsonencode({ Version = "2012-10-17", Statement = [
+    { Effect = "Allow", Action = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"], Resource = aws_secretsmanager_secret.product["canary-read-token"].arn },
+    { Effect = "Allow", Action = ["kms:Decrypt"], Resource = aws_kms_key.staging.arn, Condition = { StringEquals = { "kms:ViaService" = "secretsmanager.${var.region}.amazonaws.com" } } },
+  ] })
 }
 
 resource "aws_security_group" "vpc_endpoints" {

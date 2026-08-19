@@ -23,5 +23,9 @@ jobs:
         run: npm install --global npm@10.9.8
       - name: Install locked dependencies
         run: SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci
+      - name: Install pinned secret scanner
+        run: go install github.com/zricethezav/gitleaks/v8@v8.30.1
       - name: Verify runnable UI
         run: npm run verify
+      - name: Verify production release sources
+        run: npm run production:release:gate

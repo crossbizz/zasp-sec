@@ -1,6 +1,17 @@
 {{- if and (ne .Values.profile "customer_edge") .Values.monitoring.enabled }}
 ---
 apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: agentsec-api
+  labels: { app.kubernetes.io/name: agentsec-api, app.kubernetes.io/part-of: zasp }
+spec:
+  selector: { matchLabels: { app.kubernetes.io/name: agentsec-api, app.kubernetes.io/part-of: zasp } }
+  namespaceSelector: { matchNames: [{{ .Release.Namespace | quote }}] }
+  endpoints:
+    - { port: internal, path: /metrics, interval: 30s, scrapeTimeout: 5s }
+---
+apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
   name: zasp-production-slos
@@ -15,12 +26,12 @@ spec:
           labels: { severity: page }
           annotations: { summary: "Product API error rate exceeds 1%" }
         - alert: ZaspAPIReadLatencyBudget
-          expr: histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{service_name="agentsec-api",http_request_method="GET"}[5m]))) > 0.5
+          expr: histogram_quantile(0.95, sum by (le) (rate(zasp_http_request_duration_seconds_bucket{method="GET"}[5m]))) > 0.5
           for: 15m
           labels: { severity: ticket }
           annotations: { summary: "Product API read p95 exceeds 500ms" }
         - alert: ZaspAPIMutationLatencyBudget
-          expr: histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{service_name="agentsec-api",http_request_method!="GET"}[5m]))) > 1
+          expr: histogram_quantile(0.95, sum by (le) (rate(zasp_http_request_duration_seconds_bucket{method!="GET"}[5m]))) > 1
           for: 15m
           labels: { severity: ticket }
           annotations: { summary: "Product API mutation p95 exceeds 1s" }

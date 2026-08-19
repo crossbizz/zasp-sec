@@ -1,5 +1,39 @@
 {{- if ne .Values.profile "customer_edge" }}
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Values.serviceAccounts.migration.name }}
+  labels: { app.kubernetes.io/part-of: zasp }
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-30"
+    helm.sh/hook-delete-policy: before-hook-creation
+    eks.amazonaws.com/role-arn: {{ required "serviceAccounts.migration.roleArn is required" .Values.serviceAccounts.migration.roleArn | quote }}
+automountServiceAccountToken: false
+---
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata:
+  name: {{ .Values.secrets.migrationProviderClassName }}
+  labels: { app.kubernetes.io/part-of: zasp }
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-20"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  provider: aws
+  secretObjects:
+    - secretName: zasp-migration-secrets
+      type: Opaque
+      data: [{ objectName: postgres-dsn, key: ZASP_POSTGRES_DSN }]
+  parameters:
+    region: {{ .Values.secrets.region | quote }}
+    objects: |
+      - objectName: {{ required "secrets.postgresDSNObjectName is required" .Values.secrets.postgresDSNObjectName | quote }}
+        objectType: secretsmanager
+        objectAlias: postgres-dsn
+---
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -17,23 +51,20 @@ spec:
     metadata: { labels: { app.kubernetes.io/name: agentsec-schema, app.kubernetes.io/part-of: zasp } }
     spec:
       restartPolicy: Never
-      serviceAccountName: {{ .Values.serviceAccount.name }}
+      serviceAccountName: {{ .Values.serviceAccounts.migration.name }}
       automountServiceAccountToken: false
       securityContext: { runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532, fsGroup: 65532, seccompProfile: { type: RuntimeDefault } }
       containers:
         - name: migrate
           image: {{ required "global.productImages.agentsecApi must be an immutable digest" .Values.global.productImages.agentsecApi | quote }}
           imagePullPolicy: IfNotPresent
-          command: ["/app/agentsec-migrate"]
-          args: ["up"]
-          env:
-            - { name: ZASP_MIGRATION_TIMEOUT, value: {{ .Values.schema.migrationTimeout | quote }} }
-            - name: ZASP_POSTGRES_DSN
-              valueFrom: { secretKeyRef: { name: zasp-runtime-secrets, key: ZASP_POSTGRES_DSN } }
-          volumeMounts: [{ name: runtime-secrets, mountPath: /var/run/secrets/zasp, readOnly: true }]
+          command: ["/bin/sh", "-ec"]
+          args: ['export ZASP_POSTGRES_DSN="$(cat /var/run/secrets/zasp-migration/postgres-dsn)"; exec /app/agentsec-migrate up']
+          env: [{ name: ZASP_MIGRATION_TIMEOUT, value: {{ .Values.schema.migrationTimeout | quote }} }]
+          volumeMounts: [{ name: migration-secrets, mountPath: /var/run/secrets/zasp-migration, readOnly: true }]
           resources: { requests: { cpu: 100m, memory: 64Mi }, limits: { cpu: "1", memory: 256Mi } }
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
       volumes:
-        - name: runtime-secrets
-          csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: {{ required "secrets.providerClassName is required" .Values.secrets.providerClassName | quote }} } }
+        - name: migration-secrets
+          csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: {{ .Values.secrets.migrationProviderClassName | quote }} } }
 {{- end }}

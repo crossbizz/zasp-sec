@@ -1,5 +1,5 @@
 {{- if ne .Values.profile "customer_edge" }}
-{{- range $name := list "web" "agentsec-api" "agentsec-worker" "event-ingest" "runtime-gateway" }}
+{{- range $name := list "web" "agentsec-api" }}
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -50,7 +50,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata: { name: internal-monitoring, labels: { app.kubernetes.io/part-of: zasp } }
 spec:
-  podSelector: { matchLabels: { app.kubernetes.io/part-of: zasp } }
+  podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-api } }
   policyTypes: [Ingress]
   ingress:
     - from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .Values.monitoring.namespace }} } } }]
@@ -79,14 +79,6 @@ spec:
   egress:
     - to: [{ ipBlock: { cidr: {{ required "network.postgresCIDR is required" .Values.network.postgresCIDR | quote }} } }]
       ports: [{ protocol: TCP, port: 5432 }]
----
-apiVersion: vpcresources.k8s.aws/v1beta1
-kind: SecurityGroupPolicy
-metadata: { name: attack-lab, namespace: zasp-attack-lab }
-spec:
-  podSelector: { matchLabels: { zasp.io/execution: attack-lab } }
-  securityGroups:
-    groupIds: [{{ required "attackLab.securityGroupID is required" .Values.attackLab.securityGroupID | quote }}]
 {{- if .Values.canary.enabled }}
 ---
 apiVersion: networking.k8s.io/v1

@@ -11,7 +11,7 @@ const root = path.resolve(here, "../..");
 const digestPattern = /^[a-z0-9][a-z0-9./_-]*(?::[A-Za-z0-9._-]+)?@sha256:[0-9a-f]{64}$/;
 const hostPattern = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
 const namePattern = /^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$/;
-const imageNames = Object.freeze(["web", "agentsecApi", "agentsecWorker", "eventIngest", "runtimeGateway"]);
+const imageNames = Object.freeze(["web", "agentsecApi"]);
 
 export async function inspectContainerBuilds() {
   const definitions = [
@@ -21,12 +21,14 @@ export async function inspectContainerBuilds() {
   return Promise.all(definitions.map(async ({ name, file, port }) => {
     const source = await readFile(path.join(here, file), "utf8");
     const runtime = source.slice(source.lastIndexOf("\nFROM "));
+    const fromLines = [...source.matchAll(/^FROM\s+(\S+)/gm)].map((match) => match[1]);
     const user = runtime.match(/^USER ([^\n]+)$/m)?.[1] ?? "";
     const healthcheck = runtime.match(/^HEALTHCHECK ([^\n]+)$/m)?.[1] ?? "";
     const exposed = runtime.match(/^EXPOSE ([^\n]+)$/m)?.[1]?.split(/\s+/).map(Number) ?? [];
     return Object.freeze({
       name, user, port, healthcheck,
       readOnlyCompatible: user === "65532:65532" && exposed.includes(port) && !/\b(?:VOLUME|sudo|chmod 777)\b/i.test(runtime),
+      digestPinned: fromLines.length >= 2 && fromLines.every((image) => /@sha256:[0-9a-f]{64}$/.test(image)),
       containsSecret: /(?:ARG|ENV)\s+[^\n]*(?:SECRET|TOKEN|PASSWORD|DSN)/i.test(source),
     });
   }));
@@ -37,7 +39,9 @@ export async function renderRelease(value) {
   const set = [
     ["global.publicOrigin", `https://${value.host}`],
     ["global.trustedProxyCIDRs[0]", "10.20.0.0/16"],
-    ["serviceAccount.roleArn", "arn:aws:iam::123456789012:role/zasp-production-product"],
+    ["serviceAccounts.api.roleArn", "arn:aws:iam::123456789012:role/zasp-production-api"],
+    ["serviceAccounts.migration.roleArn", "arn:aws:iam::123456789012:role/zasp-production-migration"],
+    ["serviceAccounts.canarySecretSync.roleArn", "arn:aws:iam::123456789012:role/zasp-production-canary-sync"],
     ["ingress.host", value.host], ["ingress.tlsSecretName", value.tlsSecretName],
     ["secrets.providerClassName", value.secretProviderClass],
     ["secrets.postgresDSNObjectName", "zasp/production/postgres-dsn"],
@@ -49,7 +53,7 @@ export async function renderRelease(value) {
     ["secrets.tokenRevealKeyObjectName", "zasp/production/token-reveal-key"],
     ["secrets.canaryReadTokenObjectName", "zasp/production/canary-read-token"],
     ["network.postgresCIDR", "10.30.0.0/24"], ["network.stytchCIDR", "10.40.0.0/24"],
-    ["network.otelCollectorCIDR", "10.50.0.0/24"], ["attackLab.securityGroupID", "sg-00000000000000000"],
+    ["network.otelCollectorCIDR", "10.50.0.0/24"],
     ["network.canaryCIDR", "10.60.0.0/24"],
     ...imageNames.map((name) => [`global.productImages.${name}`, value.images[name]]),
   ];

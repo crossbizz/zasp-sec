@@ -1,4 +1,4 @@
-FROM golang:1.25.6-alpine3.22 AS build
+FROM golang:1.25.6-alpine3.22@sha256:fa3380ab0d73b706e6b07d2a306a4dc68f20bfc1437a6a6c47c8f88fe4af6f75 AS build
 ARG VERSION
 WORKDIR /src
 COPY services/platform/go.mod services/platform/go.sum ./
@@ -8,7 +8,7 @@ RUN test -n "$VERSION" && CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="
     CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/agentsec-migrate ./agentsec-migrate && \
     CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/zasp-healthcheck ./cmd/zasp-healthcheck
 
-FROM alpine:3.22.2 AS runtime
+FROM alpine:3.22.2@sha256:4b7ce07002c69e8f3d704a9c5d6fd3053be500b7f1c69fc0d80990c2ad8dd412 AS runtime
 WORKDIR /app
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=build --chown=65532:65532 /out/agentsec-api /out/agentsec-migrate /out/zasp-healthcheck ./

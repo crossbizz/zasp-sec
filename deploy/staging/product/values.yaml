@@ -9,9 +9,6 @@ global:
   productImages:
     web: ""
     agentsecApi: ""
-    agentsecWorker: ""
-    eventIngest: ""
-    runtimeGateway: ""
   images:
     neo4j: neo4j:5.26.28-community@sha256:ff32db30b2baff97971e441b46bfd9c832c1b62c970398ef579244c06b21d357
     nango: nangohq/nango-server:hosted-7faf2c303bbb0322333f526e9ca31c0fe95ef58e@sha256:b191d8d5b072fec5984e28da67298e9dabd5dc3a2585f1ebff7e2f5b9dfb66ed
@@ -20,9 +17,6 @@ global:
 replicas:
   web: 3
   agentsecApi: 3
-  agentsecWorker: 3
-  eventIngest: 3
-  runtimeGateway: 3
 ingress:
   enabled: true
   className: nginx
@@ -30,6 +24,8 @@ ingress:
   tlsSecretName: ""
 secrets:
   providerClassName: ""
+  migrationProviderClassName: zasp-production-migration-secrets
+  canaryProviderClassName: zasp-production-canary-secrets
   region: us-west-2
   postgresDSNObjectName: ""
   stytchProjectIDObjectName: ""
@@ -42,9 +38,18 @@ secrets:
 schema:
   expectedVersion: 9
   migrationTimeout: 10m
-serviceAccount:
-  name: agentsec-product
-  roleArn: ""
+serviceAccounts:
+  web: agentsec-web
+  api:
+    name: agentsec-api
+    roleArn: ""
+  migration:
+    name: agentsec-migration
+    roleArn: ""
+  canary: agentsec-canary
+  canarySecretSync:
+    name: agentsec-canary-secret-sync
+    roleArn: ""
 monitoring:
   namespace: monitoring
   enabled: true
@@ -57,6 +62,4 @@ network:
 canary:
   enabled: true
   schedule: "*/5 * * * *"
-attackLab:
-  securityGroupID: ""
 profile: control_plane
