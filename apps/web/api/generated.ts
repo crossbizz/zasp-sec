@@ -1940,6 +1940,7 @@ export type components = {
         /** @enum {string} */
         readonly CapabilityState: "reachable" | "observed" | "verified" | "blocked";
         readonly ComplianceControl: {
+            /** @description Bounded preview of the first 100 evidence identifiers ordered by identifier; use the paged evidence operation for the complete set. */
             readonly evidence_ids: readonly string[];
             readonly framework: string;
             /** Format: date-time */
@@ -1953,6 +1954,7 @@ export type components = {
         };
         readonly ComplianceEvidence: {
             readonly control: components["schemas"]["ComplianceControl"];
+            /** @description One evidence record per keyset-paged item. */
             readonly evidence: readonly components["schemas"]["EvidenceRecord"][];
             /** @enum {string} */
             readonly freshness: "fresh" | "stale" | "missing";
@@ -2737,6 +2739,8 @@ export type components = {
         readonly WorkspaceMutation: {
             readonly audit_correlation_id: components["schemas"]["ProductID"];
             readonly id: components["schemas"]["ProductID"];
+            /** @description Present only for createWorkspace; the server atomically creates and authorizes this initial development Environment. */
+            readonly initial_environment_id?: components["schemas"]["ProductID"];
             readonly name: string;
             readonly organization_id: components["schemas"]["ProductID"];
             readonly version: number;

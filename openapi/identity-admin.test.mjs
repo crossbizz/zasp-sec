@@ -79,4 +79,11 @@ test("uses strict product schemas and the shared stable error response", async (
   assert.equal(document.components.schemas.APITokenRevealedCredential.properties.raw_token.readOnly, true);
   assert.equal(document.components.schemas.APITokenRevealGrant.properties.raw_token, undefined);
   assert.equal(document.components.schemas.APITokenPage.properties.items.items.$ref, "#/components/schemas/APIToken");
+  assert.equal(Object.hasOwn(document.paths["/api/v1/admin/api-tokens/{id}"].delete, "requestBody"), false);
+  assert.equal(Object.hasOwn(document.paths["/api/v1/sessions/{id}"].delete, "requestBody"), false);
+  assert.equal(document.components.schemas.ComplianceControl.properties.evidence_ids.minItems, 0);
+  assert.equal(document.components.schemas.ComplianceControl.properties.evidence_ids.maxItems, 100);
+  assert.equal(document.components.schemas.ComplianceEvidence.properties.evidence.minItems, 1);
+  assert.equal(document.components.schemas.ComplianceEvidence.properties.evidence.maxItems, 1);
+  assert.equal(document.components.schemas.WorkspaceMutation.properties.initial_environment_id.$ref, "#/components/schemas/ProductID");
 });

@@ -2127,7 +2127,13 @@ components:
         id: { type: string, minLength: 1, maxLength: 128 }
         framework: { type: string, minLength: 1, maxLength: 64 }
         name: { type: string, minLength: 1, maxLength: 256 }
-        evidence_ids: { type: array, minItems: 1, maxItems: 100, uniqueItems: true, items: { type: string, minLength: 1, maxLength: 128 } }
+        evidence_ids:
+          type: array
+          minItems: 0
+          maxItems: 100
+          uniqueItems: true
+          description: Bounded preview of the first 100 evidence identifiers ordered by identifier; use the paged evidence operation for the complete set.
+          items: { type: string, minLength: 1, maxLength: 128 }
         fresh_until: { type: string, format: date-time }
     ComplianceEvidence:
       type: object
@@ -2136,7 +2142,12 @@ components:
       properties:
         control: { $ref: '#/components/schemas/ComplianceControl' }
         freshness: { type: string, enum: [fresh, stale, missing] }
-        evidence: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/EvidenceRecord' } }
+        evidence:
+          type: array
+          minItems: 1
+          maxItems: 1
+          description: One evidence record per keyset-paged item.
+          items: { $ref: '#/components/schemas/EvidenceRecord' }
     EvidenceRecord:
       type: object
       additionalProperties: false
@@ -2498,6 +2509,9 @@ components:
           minLength: 1
           maxLength: 128
         version: { type: integer, minimum: 1 }
+        initial_environment_id:
+          $ref: '#/components/schemas/ProductID'
+          description: Present only for createWorkspace; the server atomically creates and authorizes this initial development Environment.
         audit_correlation_id:
           $ref: '#/components/schemas/ProductID'
     EnvironmentMutation:

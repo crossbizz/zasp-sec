@@ -5,7 +5,7 @@ const SESSION_ID = /^session-[a-z0-9][a-z0-9-]*$/;
 const DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
 
 export const decodeOrganization = (value: unknown) => decoded<Organization>(value, ["id", "name", "domain", "version"], (record) => { id(record.id); text(record.name, 128); text(record.domain, 253); version(record.version); });
-export const decodeWorkspace = (value: unknown) => decoded<WorkspaceMutation>(value, ["id", "organization_id", "name", "version"], (record) => { id(record.id); id(record.organization_id); text(record.name, 128); version(record.version); }, ["audit_correlation_id"]);
+export const decodeWorkspace = (value: unknown) => decoded<WorkspaceMutation>(value, ["id", "organization_id", "name", "version"], (record) => { id(record.id); id(record.organization_id); text(record.name, 128); version(record.version); if (record.initial_environment_id !== undefined) id(record.initial_environment_id); }, ["initial_environment_id", "audit_correlation_id"]);
 export const decodeWorkspacePage = (value: unknown) => page<WorkspacePage>(value, decodeWorkspace);
 export const decodeEnvironment = (value: unknown) => decoded<EnvironmentMutation>(value, ["id", "organization_id", "workspace_id", "name", "environment_class", "version"], (record) => { id(record.id); id(record.organization_id); id(record.workspace_id); text(record.name, 128); one(record.environment_class, ["development", "test", "staging", "production"]); version(record.version); }, ["audit_correlation_id"]);
 export const decodeEnvironmentPage = (value: unknown) => page<EnvironmentPage>(value, decodeEnvironment);

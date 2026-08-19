@@ -345,6 +345,7 @@ type administrationCursor struct {
 	Operation      string `json:"p"`
 	QueryDigest    string `json:"q"`
 	AfterID        string `json:"i"`
+	AfterParentID  string `json:"a,omitempty"`
 	AfterTime      string `json:"t,omitempty"`
 }
 
@@ -408,6 +409,7 @@ func (handler *identityHTTPHandler) serveAdministration(writer http.ResponseWrit
 				return
 			}
 			parameters["after_id"] = position.AfterID
+			parameters["after_parent_id"] = position.AfterParentID
 			parameters["after_time"] = position.AfterTime
 		}
 	}
@@ -460,6 +462,9 @@ func (handler *identityHTTPHandler) mutateAdministration(writer http.ResponseWri
 			return
 		}
 		mutation.ID, err = newWorkflowProductID()
+		if err == nil {
+			mutation.InitialEnvironmentID, err = newWorkflowProductID()
+		}
 		mutation.Name, status = input.Name, http.StatusCreated
 	case "updateWorkspace", "updateEnvironment":
 		var input struct {
@@ -578,6 +583,9 @@ func (handler *identityHTTPHandler) mutateAdministration(writer http.ResponseWri
 		status = http.StatusNoContent
 	case "revokeAPIToken", "revokeSession":
 		mutation.ExpectedVersion, err = parseVersion(request.Header.Get("If-Match"))
+		if err == nil {
+			err = decodeEmptyInput(request)
+		}
 		if err != nil || mutation.ID == "" || routed.OperationID == "revokeAPIToken" && !validAdministrationProductID(mutation.ID) {
 			writeWorkflowMutationError(writer, request, errOrOperation(err))
 			return
@@ -796,6 +804,9 @@ func administrationCursorPosition(operation string, item json.RawMessage) (admin
 		Control    struct {
 			ID string `json:"id"`
 		} `json:"control"`
+		Evidence []struct {
+			ID string `json:"id"`
+		} `json:"evidence"`
 	}
 	if json.Unmarshal(item, &value) != nil {
 		return administrationCursor{}, false
@@ -805,11 +816,16 @@ func administrationCursorPosition(operation string, item json.RawMessage) (admin
 	case "listAPITokenRevealGrants":
 		position.AfterID = value.GrantID
 	case "listComplianceEvidence":
-		position.AfterID = value.Control.ID
+		if len(value.Evidence) == 1 {
+			position.AfterID = value.Evidence[0].ID
+			position.AfterParentID = value.Control.ID
+		} else {
+			position.AfterID = ""
+		}
 	case "listAuditEvents":
-		position.AfterTime = value.OccurredAt
+		position.AfterTime, _ = canonicalAdministrationTime(value.OccurredAt)
 	case "listSessionEvents":
-		position.AfterTime = value.At
+		position.AfterTime, _ = canonicalAdministrationTime(value.At)
 	}
 	return position, validAdministrationCursorPosition(operation, position)
 }
@@ -819,11 +835,23 @@ func validAdministrationCursorPosition(operation string, cursor administrationCu
 		return false
 	}
 	requiresTime := operation == "listAuditEvents" || operation == "listSessionEvents"
+	requiresParent := operation == "listComplianceEvidence"
+	if requiresParent != (cursor.AfterParentID != "") || cursor.AfterParentID != "" && (len(cursor.AfterParentID) > 256 || strings.TrimSpace(cursor.AfterParentID) != cursor.AfterParentID) {
+		return false
+	}
 	if !requiresTime {
 		return cursor.AfterTime == ""
 	}
 	parsed, err := time.Parse(time.RFC3339Nano, cursor.AfterTime)
 	return err == nil && parsed.Location() == time.UTC && parsed.Format(time.RFC3339Nano) == cursor.AfterTime
+}
+
+func canonicalAdministrationTime(value string) (string, bool) {
+	parsed, err := time.Parse(time.RFC3339Nano, value)
+	if err != nil {
+		return "", false
+	}
+	return parsed.UTC().Format(time.RFC3339Nano), true
 }
 
 func administrationCursorBinding(query url.Values) string {

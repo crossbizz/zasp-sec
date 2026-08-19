@@ -384,6 +384,9 @@ func TestAPITokenRevealGrantsMigrationOwnsEncryptedRecoverableSecrets(t *testing
 	if len(fingerprint) != 64 || fingerprint == strings.Repeat("0", 64) {
 		t.Fatalf("API token reveal semantic fingerprint = %q", fingerprint)
 	}
+	if !strings.Contains(APITokenRevealGrants().DownSQL(), "semantic schema drift blocks rollback") || !strings.Contains(ProductionAdministration().DownSQL(), "semantic schema drift blocks rollback") {
+		t.Fatal("v7/v8 rollback must verify the live semantic fingerprint before destructive DDL")
+	}
 }
 
 func TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift(t *testing.T) {
