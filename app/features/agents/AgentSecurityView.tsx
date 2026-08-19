@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 
 import { createAPIClient, type APIClient } from "../../../apps/web/api/client";
-import type { AgentSession, AttackPath, BreakOption, Capability, Finding, HomeSummary, InventoryRecord, Relationship } from "../../../apps/web/api/generated";
+import type { AgentSession, AttackPath, BreakOption, Capability, Finding, HomeSummary, InventoryRecord, Relationship, SearchResult } from "../../../apps/web/api/generated";
 import { useAPI } from "../../api/APIProvider";
 import { useAPIQuery } from "../../api/query";
 import { Badge, Button, Card, Drawer, MetricGrid, PageHeader, SearchBox, Select } from "../../components/ui";
@@ -16,6 +16,9 @@ export type AgentSecurityAPI = {
   listIdentities(): Promise<readonly InventoryRecord[]>;
   listRuntimes(): Promise<readonly InventoryRecord[]>;
   getAgent(id: string): Promise<InventoryRecord>;
+  getTool(id: string): Promise<InventoryRecord>;
+  getIdentity(id: string): Promise<InventoryRecord>;
+  getRuntime(id: string): Promise<InventoryRecord>;
   updateAgent(id: string, owner: string): Promise<InventoryRecord>;
   getAgentCapabilities(id: string): Promise<readonly Capability[]>;
   getAgentRelationships(id: string): Promise<readonly Relationship[]>;
@@ -27,6 +30,7 @@ export type AgentSecurityAPI = {
   listAttackPaths(): Promise<readonly AttackPath[]>;
   getAttackPathBreakOptions(id: string): Promise<readonly BreakOption[]>;
   getHomeSummary(): Promise<HomeSummary>;
+  search(query: string): Promise<readonly SearchResult[]>;
 };
 
 function requireData<T>(value: { data?: unknown; error?: unknown }): T {
@@ -41,6 +45,9 @@ export function createAgentSecurityAPI(client: APIClient = createAPIClient()): A
     async listIdentities() { return requireData<{ items: readonly InventoryRecord[] }>(await client.GET("/api/v1/identities")).items; },
     async listRuntimes() { return requireData<{ items: readonly InventoryRecord[] }>(await client.GET("/api/v1/runtimes")).items; },
     async getAgent(id) { return requireData<InventoryRecord>(await client.GET("/api/v1/agents/{id}", { params: { path: { id } } })); },
+    async getTool(id) { return requireData<InventoryRecord>(await client.GET("/api/v1/tools/{id}", { params: { path: { id } } })); },
+    async getIdentity(id) { return requireData<InventoryRecord>(await client.GET("/api/v1/identities/{id}", { params: { path: { id } } })); },
+    async getRuntime(id) { return requireData<InventoryRecord>(await client.GET("/api/v1/runtimes/{id}", { params: { path: { id } } })); },
     async updateAgent(id, owner) { return requireData<{ agent: InventoryRecord }>(await client.PATCH("/api/v1/agents/{id}", { params: { path: { id } }, body: { owner, team: "agent-platform", tags: ["production"] } })).agent; },
     async getAgentCapabilities(id) { return requireData<{ items: readonly Capability[] }>(await client.GET("/api/v1/agents/{id}/capabilities", { params: { path: { id } } })).items; },
     async getAgentRelationships(id) { return requireData<{ items: readonly Relationship[] }>(await client.GET("/api/v1/agents/{id}/relationships", { params: { path: { id } } })).items; },
@@ -52,6 +59,7 @@ export function createAgentSecurityAPI(client: APIClient = createAPIClient()): A
     async listAttackPaths() { return requireData<{ items: readonly AttackPath[] }>(await client.GET("/api/v1/attack-paths")).items; },
     async getAttackPathBreakOptions(id) { return requireData<{ items: readonly BreakOption[] }>(await client.GET("/api/v1/attack-paths/{id}/break-options", { params: { path: { id } } })).items; },
     async getHomeSummary() { return requireData<HomeSummary>(await client.GET("/api/v1/home/summary")); },
+    async search(query) { return requireData<{ items: readonly SearchResult[] }>(await client.GET("/api/v1/search", { params: { query: { q: query, limit: 20 } } })).items; },
   };
 }
 
@@ -86,11 +94,11 @@ const home: HomeSummary = { agent_count: 1, high_risk_paths: 1, verified_changes
 
 export function fixtureAgentSecurityAPI(overrides: Partial<AgentSecurityAPI> = {}): AgentSecurityAPI {
   return {
-    async listAgents() { return agents; }, async listTools() { return tools; }, async listIdentities() { return identities; }, async listRuntimes() { return runtimes; }, async getAgent() { return agents[0]; }, async updateAgent(_id, owner) { return { ...agents[0], owner }; },
+    async listAgents() { return agents; }, async listTools() { return tools; }, async listIdentities() { return identities; }, async listRuntimes() { return runtimes; }, async getAgent() { return agents[0]; }, async getTool() { return tools[0]; }, async getIdentity() { return identities[0]; }, async getRuntime() { return runtimes[0]; }, async updateAgent(_id, owner) { return { ...agents[0], owner }; },
     async getAgentCapabilities() { return capabilities; }, async getAgentRelationships() { return relationships; }, async listAgentSessions() { return sessions; },
     async listFindings() { return findings.filter((item) => item.source !== "prowler" || item.agent_id || item.path_id || item.compliance_context); },
     async updateFinding() { return { ...findings[0], status: "under_review" }; }, async acceptFindingRisk() { return { ...findings[0], status: "accepted", acceptance_reason: "Approved product exception" }; },
-    async createFindingTicket() { return "ticket-1"; }, async listAttackPaths() { return paths; }, async getAttackPathBreakOptions() { return options; }, async getHomeSummary() { return home; },
+    async createFindingTicket() { return "ticket-1"; }, async listAttackPaths() { return paths; }, async getAttackPathBreakOptions() { return options; }, async getHomeSummary() { return home; }, async search() { return [{ id: ids.agent, name: "Support agent", type: "agent" }]; },
     ...overrides,
   };
 }
@@ -155,7 +163,7 @@ export function AgentSecurityView({ path, onNavigate, api, state = "ready" }: { 
 
 type ConnectedData =
   | { kind: "home"; value: HomeSummary }
-  | { kind: "inventory"; title: string; values: readonly InventoryRecord[] }
+  | { kind: "inventory"; title: string; category: "agent" | "tool" | "identity" | "runtime"; values: readonly InventoryRecord[] }
   | { kind: "findings"; values: readonly Finding[] }
   | { kind: "paths"; values: readonly AttackPath[] };
 
@@ -165,10 +173,10 @@ function ConnectedAgentSecurityView({ path, onNavigate }: { path: string; onNavi
   const load = useCallback(async (): Promise<ConnectedData> => {
     switch (path) {
     case "/": return { kind: "home", value: await api.getHomeSummary() };
-    case "/discovery/assets": return { kind: "inventory", title: "Agents", values: await api.listAgents() };
-    case "/inventory/tools": return { kind: "inventory", title: "Tools & MCP", values: await api.listTools() };
-    case "/identities": return { kind: "inventory", title: "Identities", values: await api.listIdentities() };
-    case "/inventory/runtimes": return { kind: "inventory", title: "Runtimes", values: await api.listRuntimes() };
+    case "/discovery/assets": return { kind: "inventory", title: "Agents", category: "agent", values: await api.listAgents() };
+    case "/inventory/tools": return { kind: "inventory", title: "Tools & MCP", category: "tool", values: await api.listTools() };
+    case "/identities": return { kind: "inventory", title: "Identities", category: "identity", values: await api.listIdentities() };
+    case "/inventory/runtimes": return { kind: "inventory", title: "Runtimes", category: "runtime", values: await api.listRuntimes() };
     case "/violations": return { kind: "findings", values: await api.listFindings() };
     case "/exposure/attack-paths": return { kind: "paths", values: await api.listAttackPaths() };
     default: throw new Error("Production route unavailable");
@@ -184,14 +192,63 @@ function ConnectedAgentSecurityView({ path, onNavigate }: { path: string; onNavi
 
 function ConnectedDataView({ data, api, stale, onNavigate }: { data: ConnectedData; api: AgentSecurityAPI; stale: boolean; onNavigate: (path: string) => void }) {
   if (data.kind === "home") {
-    const value = data.value;
-    return <div className="page"><PageHeader title="Security overview" description="Authoritative posture for the selected scope." /><MetricGrid metrics={[{ label: "Agents", value: value.agent_count, onClick: () => onNavigate("/discovery/assets") }, { label: "High-risk paths", value: value.high_risk_paths, tone: "danger", onClick: () => onNavigate("/exposure/attack-paths") }, { label: "Verified changes", value: value.verified_changes }, { label: "Blocked changes", value: value.blocked_changes }]} />{value.attention_required && <div role="alert" className="form-error">Attention required</div>}</div>;
+    return <ConnectedHome value={data.value} api={api} onNavigate={onNavigate} />;
   }
   if (data.kind === "inventory") {
-    return <div className="page"><PageHeader title={data.title} description="Authorized canonical inventory." /><Card>{data.values.length === 0 ? <p>No records in this scope.</p> : <div className="table-scroll"><table className="data-table"><thead><tr><th>Name</th><th>Owner</th><th>Last seen</th></tr></thead><tbody>{data.values.map((item) => <tr key={item.id}><td>{item.name}</td><td>{item.owner || "Unowned"}</td><td>{item.last_seen}</td></tr>)}</tbody></table></div>}</Card></div>;
+    return <ConnectedInventory title={data.title} category={data.category} values={data.values} api={api} />;
   }
   if (data.kind === "findings") return <ConnectedFindings initial={data.values} api={api} disabled={stale} />;
-  return <div className="page"><PageHeader title="Attack Paths" description="Authorized evidence paths." /><Card>{data.values.length === 0 ? <p>No attack paths in this scope.</p> : data.values.map((path) => <div key={path.id}><strong>{path.entry_id} → {path.sink_id}</strong><p>{path.state} · {path.node_ids.length} nodes</p></div>)}</Card></div>;
+  return <ConnectedPaths values={data.values} api={api} />;
+}
+
+function ConnectedHome({ value, api, onNavigate }: { value: HomeSummary; api: AgentSecurityAPI; onNavigate: (path: string) => void }) {
+  const [search, setSearch] = useState("");
+  const [results, setResults] = useState<readonly SearchResult[]>([]);
+  const [searchError, setSearchError] = useState(false);
+  const submit = async () => {
+    if (search.trim().length < 2) return;
+    try {
+      setResults(await api.search(search.trim()));
+      setSearchError(false);
+    } catch {
+      setSearchError(true);
+      setResults([]);
+    }
+  };
+  const resultPath = (type: string) => type === "agent" ? "/discovery/assets" : type === "tool" ? "/inventory/tools" : type === "identity" ? "/identities" : type === "runtime" ? "/inventory/runtimes" : "/";
+  return <div className="page"><PageHeader title="Security overview" description="Authoritative posture for the selected scope." /><form className="data-toolbar" onSubmit={(event) => { event.preventDefault(); void submit(); }}><SearchBox aria-label="Search authorized records" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search authorized records" /><Button type="submit">Search</Button></form>{searchError && <div role="alert">Search unavailable</div>}{results.length > 0 && <Card title="Search results">{results.map((result) => <button className="row-title" key={result.id} aria-label={`Open search result ${result.name}`} onClick={() => onNavigate(resultPath(result.type))}>{result.name} · {result.type}</button>)}</Card>}<MetricGrid metrics={[{ label: "Agents", value: value.agent_count, onClick: () => onNavigate("/discovery/assets") }, { label: "High-risk paths", value: value.high_risk_paths, tone: "danger", onClick: () => onNavigate("/exposure/attack-paths") }, { label: "Verified changes", value: value.verified_changes }, { label: "Blocked changes", value: value.blocked_changes }]} />{value.attention_required && <div role="alert" className="form-error">Attention required</div>}</div>;
+}
+
+function ConnectedInventory({ title, category, values, api }: { title: string; category: "agent" | "tool" | "identity" | "runtime"; values: readonly InventoryRecord[]; api: AgentSecurityAPI }) {
+  const [selected, setSelected] = useState<InventoryRecord | null>(null);
+  const [detailError, setDetailError] = useState(false);
+  const open = async (item: InventoryRecord) => {
+    try {
+      const loaders = { agent: api.getAgent, tool: api.getTool, identity: api.getIdentity, runtime: api.getRuntime };
+      setSelected(await loaders[category](item.id));
+      setDetailError(false);
+    } catch {
+      setDetailError(true);
+    }
+  };
+  return <div className="page"><PageHeader title={title} description="Authorized canonical inventory." />{detailError && <div role="alert">Inventory detail unavailable</div>}<Card>{values.length === 0 ? <p>No records in this scope.</p> : <div className="table-scroll"><table className="data-table"><thead><tr><th>Name</th><th>Owner</th><th>Last seen</th></tr></thead><tbody>{values.map((item) => <tr key={item.id}><td><button className="row-title" aria-label={`Open ${item.name}`} onClick={() => void open(item)}>{item.name}</button></td><td>{item.owner || "Unowned"}</td><td>{item.last_seen}</td></tr>)}</tbody></table></div>}</Card>{selected && <Drawer open title={selected.name} onClose={() => setSelected(null)}><div className="detail-content"><h3>Canonical record</h3><code>{selected.id}</code><h3>Ownership</h3><p>{selected.owner || "Unowned"} · {selected.team || "No team"}</p><h3>Evidence and freshness</h3><p>{selected.evidence_id} · last seen {selected.last_seen}</p></div></Drawer>}</div>;
+}
+
+function ConnectedPaths({ values, api }: { values: readonly AttackPath[]; api: AgentSecurityAPI }) {
+  const [selected, setSelected] = useState<AttackPath | null>(null);
+  const [breakOptions, setBreakOptions] = useState<readonly BreakOption[]>([]);
+  const [error, setError] = useState(false);
+  const open = async (path: AttackPath) => {
+    setSelected(path);
+    try {
+      setBreakOptions(await api.getAttackPathBreakOptions(path.id));
+      setError(false);
+    } catch {
+      setBreakOptions([]);
+      setError(true);
+    }
+  };
+  return <div className="page"><PageHeader title="Attack Paths" description="Authorized evidence paths." /><Card>{values.length === 0 ? <p>No attack paths in this scope.</p> : values.map((path) => <div key={path.id}><button className="row-title" aria-label={`Open attack path ${path.entry_id} to ${path.sink_id}`} onClick={() => void open(path)}>{path.entry_id} → {path.sink_id}</button><p>{path.state} · {path.node_ids.length} nodes</p></div>)}</Card>{selected && <Drawer open title="Attack path detail" onClose={() => setSelected(null)}><div className="detail-content"><h3>Evidence</h3>{selected.evidence_ids.map((id) => <code key={id}>{id}</code>)}<h3>Break options</h3>{error ? <div role="alert">Break options unavailable</div> : breakOptions.map((option) => <p key={`${option.kind}:${option.target_id}`}>{option.rank}. Enforce policy at {option.target_id}</p>)}</div></Drawer>}</div>;
 }
 
 function ConnectedFindings({ initial, api, disabled }: { initial: readonly Finding[]; api: AgentSecurityAPI; disabled: boolean }) {
