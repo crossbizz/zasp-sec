@@ -35,7 +35,7 @@ screens:
     actions:
       - id: view_current_organization
         operation_id: getOrganization
-        availability: api_available
+        availability: available
       - id: view_workspaces
         operation_id: listWorkspaces
         availability: available
@@ -66,30 +66,33 @@ screens:
       - id: view_members
         operation_id: listMembers
         availability: available
+      - id: update_member_role
+        operation_id: updateMemberRole
+        availability: available
       - id: view_builtin_roles
         operation_id: listBuiltInRoles
         availability: available
       - id: view_sso_connections
         operation_id: listSSOConnections
-        availability: available
+        availability: planned
       - id: create_sso_connection
         operation_id: createSSOConnection
-        availability: available
+        availability: planned
       - id: delete_sso_connection
         operation_id: deleteSSOConnection
-        availability: available
+        availability: planned
       - id: test_sso_connection
         operation_id: testSSOConnection
-        availability: available
+        availability: planned
       - id: view_scim_connections
         operation_id: listSCIMConnections
-        availability: available
+        availability: planned
       - id: create_scim_connection
         operation_id: createSCIMConnection
-        availability: available
+        availability: planned
       - id: delete_scim_connection
         operation_id: deleteSCIMConnection
-        availability: available
+        availability: planned
       - id: view_group_mappings
         operation_id: listGroupMappings
         availability: available
@@ -102,18 +105,21 @@ screens:
       - id: create_api_token
         operation_id: createAPIToken
         availability: available
+      - id: rotate_api_token
+        operation_id: rotateAPIToken
+        availability: available
       - id: revoke_api_token
         operation_id: revokeAPIToken
         availability: available
       - id: view_audit_events
         operation_id: listAuditEvents
-        availability: api_available
+        availability: available
       - id: create_audit_export
         operation_id: createAuditExport
-        availability: api_available
+        availability: planned
       - id: view_audit_export
         operation_id: getAuditExport
-        availability: api_available
+        availability: planned
   - id: home
     label: Home
     actions:
@@ -329,25 +335,28 @@ screens:
     actions:
       - id: view_system_status
         operation_id: getSystemStatus
-        availability: api_available
+        availability: available
       - id: view_system_components
         operation_id: listSystemComponents
-        availability: api_available
+        availability: available
       - id: view_system_version
         operation_id: getSystemVersion
-        availability: api_available
+        availability: available
   - id: sessions
     label: Sessions
     actions:
       - id: view_sessions
         operation_id: listSessions
-        availability: api_available
+        availability: available
       - id: view_session
         operation_id: getSession
-        availability: api_available
+        availability: available
       - id: view_session_events
         operation_id: listSessionEvents
-        availability: api_available
+        availability: available
+      - id: revoke_session
+        operation_id: revokeSession
+        availability: available
   - id: security_agents
     label: Security Agents
     actions:
@@ -401,31 +410,31 @@ screens:
     actions:
       - id: view_compliance_controls
         operation_id: listComplianceControls
-        availability: api_available
+        availability: available
       - id: view_compliance_evidence
         operation_id: listComplianceEvidence
-        availability: api_available
+        availability: available
       - id: create_compliance_export
         operation_id: createComplianceExport
-        availability: api_available
+        availability: planned
       - id: view_compliance_export
         operation_id: getComplianceExport
-        availability: api_available
+        availability: planned
   - id: data_controls
     label: Data Controls
     actions:
       - id: view_data_controls
         operation_id: getDataControls
-        availability: api_available
+        availability: available
       - id: update_data_controls
         operation_id: updateDataControls
-        availability: api_available
+        availability: available
   - id: external_data_flows
     label: External Data Flows
     actions:
       - id: view_external_data_flows
         operation_id: getExternalDataFlows
-        availability: api_available
+        availability: available
       - id: update_external_data_flows
         operation_id: updateExternalDataFlows
-        availability: api_available
+        availability: planned

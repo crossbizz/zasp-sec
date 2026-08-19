@@ -18,29 +18,26 @@ const expectedOperations = new Map([
   ["updateEnvironment", ["/api/v1/environments/{id}", "patch"]],
   ["getCurrentPrincipal", ["/api/v1/me", "get"]],
   ["listMembers", ["/api/v1/admin/members", "get"]],
+  ["updateMemberRole", ["/api/v1/admin/members/{id}", "patch"]],
   ["listBuiltInRoles", ["/api/v1/admin/roles", "get"]],
-  ["listSSOConnections", ["/api/v1/admin/sso-connections", "get"]],
-  ["createSSOConnection", ["/api/v1/admin/sso-connections", "post"]],
-  ["deleteSSOConnection", ["/api/v1/admin/sso-connections/{id}", "delete"]],
-  ["testSSOConnection", ["/api/v1/admin/sso-connections/{id}/test", "post"]],
-  ["listSCIMConnections", ["/api/v1/admin/scim-connections", "get"]],
-  ["createSCIMConnection", ["/api/v1/admin/scim-connections", "post"]],
-  ["deleteSCIMConnection", ["/api/v1/admin/scim-connections/{id}", "delete"]],
   ["listGroupMappings", ["/api/v1/admin/group-mappings", "get"]],
   ["updateGroupMappings", ["/api/v1/admin/group-mappings", "patch"]],
   ["listAPITokens", ["/api/v1/admin/api-tokens", "get"]],
   ["createAPIToken", ["/api/v1/admin/api-tokens", "post"]],
+  ["rotateAPIToken", ["/api/v1/admin/api-tokens/{id}/rotate", "post"]],
   ["revokeAPIToken", ["/api/v1/admin/api-tokens/{id}", "delete"]],
   ["listAuditEvents", ["/api/v1/audit-events", "get"]],
-  ["createAuditExport", ["/api/v1/audit-exports", "post"]],
-  ["getAuditExport", ["/api/v1/audit-exports/{id}", "get"]],
 ]);
 
+const hiddenOperations = [
+  "listSSOConnections", "createSSOConnection", "deleteSSOConnection", "testSSOConnection",
+  "listSCIMConnections", "createSCIMConnection", "deleteSCIMConnection", "createAuditExport", "getAuditExport",
+];
+
 const identityUIOperations = new Set([
-  "listWorkspaces", "createWorkspace", "updateWorkspace", "listEnvironments", "createEnvironment", "updateEnvironment",
-  "listMembers", "listBuiltInRoles", "listSSOConnections", "createSSOConnection", "deleteSSOConnection",
-  "testSSOConnection", "listSCIMConnections", "createSCIMConnection", "deleteSCIMConnection",
-  "listGroupMappings", "updateGroupMappings", "listAPITokens", "createAPIToken", "revokeAPIToken",
+  "getOrganization", "listWorkspaces", "createWorkspace", "updateWorkspace", "listEnvironments", "createEnvironment", "updateEnvironment",
+  "listMembers", "updateMemberRole", "listBuiltInRoles", "listGroupMappings", "updateGroupMappings",
+  "listAPITokens", "createAPIToken", "rotateAPIToken", "revokeAPIToken", "listAuditEvents",
 ]);
 
 test("publishes the identity administration operations at their honest UI lifecycle", async () => {
@@ -56,13 +53,18 @@ test("publishes the identity administration operations at their honest UI lifecy
     assert.equal(document.paths?.[path]?.[method]?.operationId, operationID);
     assert.equal(mapped.get(operationID), identityUIOperations.has(operationID) ? "available" : "api_available");
   }
+  const published = new Set(Object.values(document.paths).flatMap((path) => Object.values(path).map((operation) => operation?.operationId).filter(Boolean)));
+  for (const operationID of hiddenOperations) {
+    assert.equal(published.has(operationID), false, `${operationID} must remain hidden until its durable provider/job lifecycle exists`);
+    assert.equal(mapped.get(operationID), "planned");
+  }
   assert.equal([...mapped].filter(([operationID, value]) => identityUIOperations.has(operationID) && value === "available").length, identityUIOperations.size);
 });
 
 test("uses strict product schemas and the shared stable error response", async () => {
   const source = await readFile(resolve(root, "openapi/openapi.yaml"), "utf8");
   const document = load(source, { schema: JSON_SCHEMA, json: false });
-  for (const schema of ["Organization", "Workspace", "Environment", "Principal", "BuiltInRole", "SSOConnection", "SCIMConnection", "GroupMapping", "APIToken", "AuditEvent", "AuditExport"]) {
+  for (const schema of ["Organization", "Workspace", "Environment", "Principal", "BuiltInRole", "GroupMapping", "APIToken", "AuditEvent"]) {
     assert.equal(document.components?.schemas?.[schema]?.additionalProperties, false);
   }
   for (const [, [path, method]] of expectedOperations) {

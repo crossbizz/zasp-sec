@@ -105,10 +105,14 @@ paths:
   /api/v1/organization:
     get:
       operationId: getOrganization
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
       summary: Get the authenticated Organization
       responses:
         '200':
           description: Authenticated Organization.
+          headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }
           content:
             application/json:
               schema:
@@ -120,6 +124,9 @@ paths:
   /api/v1/workspaces:
     get:
       operationId: listWorkspaces
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
       summary: List authorized Workspaces
       parameters:
         - $ref: '#/components/parameters/PageCursor'
@@ -137,7 +144,13 @@ paths:
           $ref: '#/components/responses/ProductErrorResponse'
     post:
       operationId: createWorkspace
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
       summary: Create an Organization Workspace
+
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
       requestBody:
         required: true
         content:
@@ -147,6 +160,7 @@ paths:
       responses:
         '201':
           description: Created Workspace.
+          headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }
           content:
             application/json:
               schema:
@@ -165,10 +179,14 @@ paths:
           $ref: '#/components/schemas/ProductID'
     get:
       operationId: getWorkspace
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
       summary: Get an authorized Workspace
       responses:
         '200':
           description: Authorized Workspace.
+          headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }
           content:
             application/json:
               schema:
@@ -179,7 +197,14 @@ paths:
           $ref: '#/components/responses/ProductErrorResponse'
     patch:
       operationId: updateWorkspace
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
       summary: Update an authorized Workspace
+
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/ResourceVersion'
       requestBody:
         required: true
         content:
@@ -189,6 +214,7 @@ paths:
       responses:
         '200':
           description: Updated Workspace.
+          headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }
           content:
             application/json:
               schema:
@@ -200,6 +226,9 @@ paths:
   /api/v1/environments:
     get:
       operationId: listEnvironments
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
       summary: List authorized Workspace Environments
       parameters:
         - name: workspace_id
@@ -223,7 +252,13 @@ paths:
           $ref: '#/components/responses/ProductErrorResponse'
     post:
       operationId: createEnvironment
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
       summary: Create a Workspace Environment
+
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
       requestBody:
         required: true
         content:
@@ -233,6 +268,7 @@ paths:
       responses:
         '201':
           description: Created Environment.
+          headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }
           content:
             application/json:
               schema:
@@ -251,10 +287,14 @@ paths:
           $ref: '#/components/schemas/ProductID'
     get:
       operationId: getEnvironment
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
       summary: Get an authorized Environment
       responses:
         '200':
           description: Authorized Environment.
+          headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }
           content:
             application/json:
               schema:
@@ -265,7 +305,14 @@ paths:
           $ref: '#/components/responses/ProductErrorResponse'
     patch:
       operationId: updateEnvironment
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
       summary: Update an authorized Environment
+
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/ResourceVersion'
       requestBody:
         required: true
         content:
@@ -275,6 +322,7 @@ paths:
       responses:
         '200':
           description: Updated Environment.
+          headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }
           content:
             application/json:
               schema:
@@ -301,6 +349,9 @@ paths:
   /api/v1/admin/members:
     get:
       operationId: listMembers
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
       summary: List Organization members
       parameters:
         - $ref: '#/components/parameters/PageCursor'
@@ -316,9 +367,34 @@ paths:
           $ref: '#/components/responses/ProductErrorResponse'
         default:
           $ref: '#/components/responses/ProductErrorResponse'
+  /api/v1/admin/members/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/ProductID' }
+    patch:
+      operationId: updateMemberRole
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      summary: Atomically update a member role and revoke active sessions
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/ResourceVersion'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/MemberRoleInput' } } }
+      responses:
+        '200': { description: Updated member., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/Principal' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/admin/roles:
     get:
       operationId: listBuiltInRoles
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
       summary: List built-in product roles
       parameters:
         - $ref: '#/components/parameters/PageCursor'
@@ -334,151 +410,12 @@ paths:
           $ref: '#/components/responses/ProductErrorResponse'
         default:
           $ref: '#/components/responses/ProductErrorResponse'
-  /api/v1/admin/sso-connections:
-    get:
-      operationId: listSSOConnections
-      summary: List Organization SSO connections
-      parameters:
-        - $ref: '#/components/parameters/PageCursor'
-        - $ref: '#/components/parameters/PageLimit'
-      responses:
-        '200':
-          description: SSO connection page.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SSOConnectionPage'
-        '401':
-          $ref: '#/components/responses/ProductErrorResponse'
-        default:
-          $ref: '#/components/responses/ProductErrorResponse'
-    post:
-      operationId: createSSOConnection
-      summary: Create an Organization SSO connection
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SSOConnectionInput'
-      responses:
-        '201':
-          description: Created SSO connection.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SSOConnectionMutation'
-        '401':
-          $ref: '#/components/responses/ProductErrorResponse'
-        default:
-          $ref: '#/components/responses/ProductErrorResponse'
-  /api/v1/admin/sso-connections/{id}:
-    parameters:
-      - name: id
-        in: path
-        required: true
-        description: Exact provider SSO connection identifier.
-        schema:
-          $ref: '#/components/schemas/SSOConnectionID'
-    delete:
-      operationId: deleteSSOConnection
-      summary: Delete an Organization SSO connection
-      responses:
-        '200':
-          description: Deleted SSO connection.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ConnectionDeletion'
-        '401':
-          $ref: '#/components/responses/ProductErrorResponse'
-        default:
-          $ref: '#/components/responses/ProductErrorResponse'
-  /api/v1/admin/sso-connections/{id}/test:
-    parameters:
-      - name: id
-        in: path
-        required: true
-        description: Exact provider SSO connection identifier.
-        schema:
-          $ref: '#/components/schemas/SSOConnectionID'
-    post:
-      operationId: testSSOConnection
-      summary: Test an Organization SSO connection
-      responses:
-        '200':
-          description: SSO connection health result.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ConnectionTest'
-        '401':
-          $ref: '#/components/responses/ProductErrorResponse'
-        default:
-          $ref: '#/components/responses/ProductErrorResponse'
-  /api/v1/admin/scim-connections:
-    get:
-      operationId: listSCIMConnections
-      summary: List Organization SCIM connections
-      parameters:
-        - $ref: '#/components/parameters/PageCursor'
-        - $ref: '#/components/parameters/PageLimit'
-      responses:
-        '200':
-          description: SCIM connection page without bearer credentials.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SCIMConnectionPage'
-        '401':
-          $ref: '#/components/responses/ProductErrorResponse'
-        default:
-          $ref: '#/components/responses/ProductErrorResponse'
-    post:
-      operationId: createSCIMConnection
-      summary: Create an Organization SCIM connection
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SCIMConnectionInput'
-      responses:
-        '201':
-          description: Created SCIM connection with its one-time bearer credential.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SCIMConnectionCredential'
-        '401':
-          $ref: '#/components/responses/ProductErrorResponse'
-        default:
-          $ref: '#/components/responses/ProductErrorResponse'
-  /api/v1/admin/scim-connections/{id}:
-    parameters:
-      - name: id
-        in: path
-        required: true
-        description: Exact provider SCIM connection identifier.
-        schema:
-          $ref: '#/components/schemas/SCIMConnectionID'
-    delete:
-      operationId: deleteSCIMConnection
-      summary: Delete an Organization SCIM connection
-      responses:
-        '200':
-          description: Deleted SCIM connection.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ConnectionDeletion'
-        '401':
-          $ref: '#/components/responses/ProductErrorResponse'
-        default:
-          $ref: '#/components/responses/ProductErrorResponse'
   /api/v1/admin/group-mappings:
     get:
       operationId: listGroupMappings
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
       summary: List Organization IdP group mappings
       parameters:
         - $ref: '#/components/parameters/PageCursor'
@@ -496,7 +433,13 @@ paths:
           $ref: '#/components/responses/ProductErrorResponse'
     patch:
       operationId: updateGroupMappings
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
       summary: Create or version-update an IdP group mapping
+
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
       requestBody:
         required: true
         content:
@@ -506,6 +449,7 @@ paths:
       responses:
         '200':
           description: Updated group mapping.
+          headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }
           content:
             application/json:
               schema:
@@ -517,6 +461,9 @@ paths:
   /api/v1/admin/api-tokens:
     get:
       operationId: listAPITokens
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
       summary: List scoped product API tokens
       parameters:
         - $ref: '#/components/parameters/PageCursor'
@@ -534,7 +481,14 @@ paths:
           $ref: '#/components/responses/ProductErrorResponse'
     post:
       operationId: createAPIToken
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
       summary: Create a scoped product API token
+
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -544,6 +498,7 @@ paths:
       responses:
         '201':
           description: Created API token with its one-time raw credential.
+          headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }
           content:
             application/json:
               schema:
@@ -562,10 +517,18 @@ paths:
           $ref: '#/components/schemas/ProductID'
     delete:
       operationId: revokeAPIToken
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
       summary: Revoke a product API token
+
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/ResourceVersion'
       responses:
         '200':
           description: Revoked API token.
+          headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }
           content:
             application/json:
               schema:
@@ -574,9 +537,35 @@ paths:
           $ref: '#/components/responses/ProductErrorResponse'
         default:
           $ref: '#/components/responses/ProductErrorResponse'
+  /api/v1/admin/api-tokens/{id}/rotate:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/ProductID' }
+    post:
+      operationId: rotateAPIToken
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      summary: Rotate a scoped product API token and return the replacement once
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ResourceVersion'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, additionalProperties: false } } }
+      responses:
+        '201': { description: Rotated API token with its one-time credential., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/APITokenCredential' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/audit-events:
     get:
       operationId: listAuditEvents
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
       summary: List redacted Organization audit events
       parameters:
         - $ref: '#/components/parameters/PageCursor'
@@ -588,49 +577,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuditEventPage'
-        '401':
-          $ref: '#/components/responses/ProductErrorResponse'
-        default:
-          $ref: '#/components/responses/ProductErrorResponse'
-  /api/v1/audit-exports:
-    post:
-      operationId: createAuditExport
-      summary: Create a bounded Organization audit export
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AuditExportInput'
-      responses:
-        '201':
-          description: Created audit export.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AuditExport'
-        '401':
-          $ref: '#/components/responses/ProductErrorResponse'
-        default:
-          $ref: '#/components/responses/ProductErrorResponse'
-  /api/v1/audit-exports/{id}:
-    parameters:
-      - name: id
-        in: path
-        required: true
-        description: Canonical audit export identifier.
-        schema:
-          $ref: '#/components/schemas/ProductID'
-    get:
-      operationId: getAuditExport
-      summary: Get an Organization audit export
-      responses:
-        '200':
-          description: Audit export state.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AuditExport'
         '401':
           $ref: '#/components/responses/ProductErrorResponse'
         default:
@@ -1642,19 +1588,17 @@ paths:
   /api/v1/sessions:
     get:
       operationId: listSessions
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
       summary: List authorized projected sessions with structured filters
       parameters:
         - { name: agent_id, in: query, required: false, schema: { type: string, minLength: 1, maxLength: 128 } }
-        - { name: principal_id, in: query, required: false, schema: { type: string, minLength: 1, maxLength: 128 } }
-        - { name: tool, in: query, required: false, schema: { type: string, minLength: 1, maxLength: 256 } }
-        - { name: process, in: query, required: false, schema: { type: string, minLength: 1, maxLength: 256 } }
-        - { name: file, in: query, required: false, schema: { type: string, minLength: 1, maxLength: 256 } }
-        - { name: domain, in: query, required: false, schema: { type: string, minLength: 1, maxLength: 256 } }
-        - { name: credential, in: query, required: false, schema: { type: string, minLength: 1, maxLength: 256 } }
-        - { name: resource, in: query, required: false, schema: { type: string, minLength: 1, maxLength: 256 } }
-        - { name: decision, in: query, required: false, schema: { type: string, minLength: 1, maxLength: 256 } }
+        - { name: principal_id, in: query, required: false, schema: { $ref: '#/components/schemas/ProductID' } }
         - { name: from, in: query, required: false, schema: { type: string, format: date-time } }
         - { name: to, in: query, required: false, schema: { type: string, format: date-time } }
+        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/PageLimit'
       responses:
         '200': { description: Authorized sessions., content: { application/json: { schema: { $ref: '#/components/schemas/SessionPage' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
@@ -1664,9 +1608,25 @@ paths:
       - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/SessionID' } }
     get:
       operationId: getSession
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
       summary: Get one authorized projected session
       responses:
-        '200': { description: Authorized session., content: { application/json: { schema: { $ref: '#/components/schemas/Session' } } } }
+        '200': { description: Authorized session., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/Session' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    delete:
+      operationId: revokeSession
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      summary: Atomically revoke one authorized session
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/ResourceVersion'
+      responses:
+        '204': { description: Session revoked. }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/sessions/{id}/events:
@@ -1674,6 +1634,9 @@ paths:
       - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/SessionID' } }
     get:
       operationId: listSessionEvents
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
       summary: List ordered evidence-linked session events
       responses:
         '200': { description: Ordered session events., content: { application/json: { schema: { $ref: '#/components/schemas/SessionEventPage' } } } }
@@ -1682,6 +1645,9 @@ paths:
   /api/v1/compliance/controls:
     get:
       operationId: listComplianceControls
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
       summary: List supported compliance controls
       responses:
         '200': { description: Supported controls., content: { application/json: { schema: { $ref: '#/components/schemas/ComplianceControlPage' } } } }
@@ -1690,66 +1656,51 @@ paths:
   /api/v1/compliance/evidence:
     get:
       operationId: listComplianceEvidence
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
       summary: List freshness-aware compliance evidence
       responses:
         '200': { description: Compliance evidence., content: { application/json: { schema: { $ref: '#/components/schemas/ComplianceEvidencePage' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
-  /api/v1/compliance/exports:
-    post:
-      operationId: createComplianceExport
-      summary: Create one bounded evidence export
-      requestBody:
-        required: true
-        content: { application/json: { schema: { $ref: '#/components/schemas/ComplianceExportInput' } } }
-      responses:
-        '201': { description: Created evidence export., content: { application/json: { schema: { $ref: '#/components/schemas/ComplianceExport' } } } }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-  /api/v1/compliance/exports/{id}:
-    parameters:
-      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ComplianceExportID' } }
-    get:
-      operationId: getComplianceExport
-      summary: Get one authorized evidence export
-      responses:
-        '200': { description: Authorized evidence export., content: { application/json: { schema: { $ref: '#/components/schemas/ComplianceExport' } } } }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/settings/data-controls:
     get:
       operationId: getDataControls
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
       summary: Get environment data controls
       responses:
-        '200': { description: Environment data controls., content: { application/json: { schema: { $ref: '#/components/schemas/DataControls' } } } }
+        '200': { description: Environment data controls., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/DataControls' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
     patch:
       operationId: updateDataControls
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
       summary: Update bounded environment data controls
+
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/ResourceVersion'
       requestBody:
         required: true
         content: { application/json: { schema: { $ref: '#/components/schemas/DataControls' } } }
       responses:
-        '200': { description: Updated environment data controls., content: { application/json: { schema: { $ref: '#/components/schemas/DataControls' } } } }
+        '200': { description: Updated environment data controls., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/DataControls' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/settings/external-data-flows:
     get:
       operationId: getExternalDataFlows
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
       summary: Get required and optional external data flows
       responses:
         '200': { description: External data flows., content: { application/json: { schema: { $ref: '#/components/schemas/ExternalFlowPage' } } } }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-    patch:
-      operationId: updateExternalDataFlows
-      summary: Update one bounded optional external data flow
-      requestBody:
-        required: true
-        content: { application/json: { schema: { $ref: '#/components/schemas/ExternalFlow' } } }
-      responses:
-        '200': { description: Updated external data flow., content: { application/json: { schema: { $ref: '#/components/schemas/ExternalFlow' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/ai/explanations:
@@ -1766,6 +1717,9 @@ paths:
   /api/v1/system/status:
     get:
       operationId: getSystemStatus
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
       summary: Get required and optional component health
       responses:
         '200': { description: Aggregated system status., content: { application/json: { schema: { $ref: '#/components/schemas/SystemStatus' } } } }
@@ -1774,6 +1728,9 @@ paths:
   /api/v1/system/components:
     get:
       operationId: listSystemComponents
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
       summary: List bounded component health probes
       responses:
         '200': { description: System components., content: { application/json: { schema: { $ref: '#/components/schemas/SystemComponentPage' } } } }
@@ -1782,6 +1739,9 @@ paths:
   /api/v1/system/version:
     get:
       operationId: getSystemVersion
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
       summary: Get the product service version
       responses:
         '200': { description: Product service version., content: { application/json: { schema: { $ref: '#/components/schemas/SystemVersion' } } } }
@@ -2130,13 +2090,19 @@ components:
     Session:
       type: object
       additionalProperties: false
-      required: [id, agent_id, principal_id, events]
+      required: [id, agent_id, principal_id, workspace_id, environment_id, state, authenticated_at, expires_at, version, events]
       properties:
         id: { $ref: '#/components/schemas/SessionID' }
         agent_id: { type: string, minLength: 1, maxLength: 128 }
-        principal_id: { type: string, minLength: 1, maxLength: 128 }
+        principal_id: { $ref: '#/components/schemas/ProductID' }
+        workspace_id: { $ref: '#/components/schemas/ProductID' }
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        state: { type: string, enum: [active, revoked, expired] }
+        authenticated_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+        version: { type: integer, minimum: 1 }
         events: { type: array, maxItems: 1000, items: { $ref: '#/components/schemas/SessionEvent' } }
-    SessionPage: { type: object, additionalProperties: false, required: [items], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/Session' } } } }
+    SessionPage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/Session' } }, page_info: { $ref: '#/components/schemas/PageInfo' } } }
     SessionEventPage: { type: object, additionalProperties: false, required: [items], properties: { items: { type: array, maxItems: 1000, items: { $ref: '#/components/schemas/SessionEvent' } } } }
     ComplianceControl:
       type: object
@@ -2179,13 +2145,15 @@ components:
     DataControls:
       type: object
       additionalProperties: false
-      required: [environment_id, environment_class, collection_mode, retention_days, deletion_enabled]
+      required: [environment_id, environment_class, collection_mode, retention_days, deletion_enabled, version]
       properties:
         environment_id: { type: string, minLength: 1, maxLength: 128 }
         environment_class: { type: string, enum: [development, test, staging, production] }
         collection_mode: { type: string, enum: [metadata_only, extended] }
         retention_days: { type: integer, minimum: 1, maximum: 3650 }
         deletion_enabled: { type: boolean }
+        version: { type: integer, minimum: 1 }
+        audit_correlation_id: { $ref: '#/components/schemas/ProductID' }
     ExternalFlow:
       type: object
       additionalProperties: false
@@ -2304,6 +2272,7 @@ components:
         - id
         - name
         - domain
+        - version
       properties:
         id:
           $ref: '#/components/schemas/ProductID'
@@ -2315,6 +2284,9 @@ components:
           type: string
           minLength: 3
           maxLength: 253
+        version:
+          type: integer
+          minimum: 1
     Workspace:
       type: object
       additionalProperties: false
@@ -2322,6 +2294,7 @@ components:
         - id
         - organization_id
         - name
+        - version
       properties:
         id:
           $ref: '#/components/schemas/ProductID'
@@ -2331,6 +2304,9 @@ components:
           type: string
           minLength: 1
           maxLength: 128
+        version:
+          type: integer
+          minimum: 1
     Environment:
       type: object
       additionalProperties: false
@@ -2339,6 +2315,8 @@ components:
         - organization_id
         - workspace_id
         - name
+        - environment_class
+        - version
       properties:
         id:
           $ref: '#/components/schemas/ProductID'
@@ -2350,6 +2328,12 @@ components:
           type: string
           minLength: 1
           maxLength: 128
+        environment_class:
+          type: string
+          enum: [development, test, staging, production]
+        version:
+          type: integer
+          minimum: 1
     Principal:
       type: object
       additionalProperties: false
@@ -2377,6 +2361,9 @@ components:
           $ref: '#/components/schemas/BuiltInRoleName'
         active:
           type: boolean
+        version:
+          type: integer
+          minimum: 1
     BuiltInRoleName:
       type: string
       enum:
@@ -2386,19 +2373,25 @@ components:
         - developer_owner
         - compliance_viewer
         - read_only_viewer
+    MemberRoleInput:
+      type: object
+      additionalProperties: false
+      required: [role]
+      properties:
+        role: { $ref: '#/components/schemas/BuiltInRoleName' }
     Permission:
       type: string
       enum:
         - view
         - manage_identity
-        - manage_integrations
         - manage_findings
-        - manage_policies
-        - run_tests
-        - manage_agents
-        - approve_actions
-        - export_evidence
+        - manage_workflows
+        - manage_api_tokens
         - view_audit
+        - investigate_sessions
+        - revoke_sessions
+        - view_compliance
+        - manage_data_controls
     BuiltInRole:
       type: object
       additionalProperties: false
@@ -2469,7 +2462,7 @@ components:
     WorkspaceMutation:
       type: object
       additionalProperties: false
-      required: [id, organization_id, name, audit_correlation_id]
+      required: [id, organization_id, name, version, audit_correlation_id]
       properties:
         id:
           $ref: '#/components/schemas/ProductID'
@@ -2479,12 +2472,13 @@ components:
           type: string
           minLength: 1
           maxLength: 128
+        version: { type: integer, minimum: 1 }
         audit_correlation_id:
           $ref: '#/components/schemas/ProductID'
     EnvironmentMutation:
       type: object
       additionalProperties: false
-      required: [id, organization_id, workspace_id, name, audit_correlation_id]
+      required: [id, organization_id, workspace_id, name, environment_class, version, audit_correlation_id]
       properties:
         id:
           $ref: '#/components/schemas/ProductID'
@@ -2496,6 +2490,8 @@ components:
           type: string
           minLength: 1
           maxLength: 128
+        environment_class: { type: string, enum: [development, test, staging, production] }
+        version: { type: integer, minimum: 1 }
         audit_correlation_id:
           $ref: '#/components/schemas/ProductID'
     ConnectionStatus:
@@ -2746,7 +2742,7 @@ components:
     APIToken:
       type: object
       additionalProperties: false
-      required: [id, name, principal_id, workspace_id, environment_id, permissions, created_at, expires_at, last_used_at, revoked_at]
+      required: [id, name, principal_id, workspace_id, environment_id, permissions, created_at, expires_at, last_used_at, revoked_at, version]
       properties:
         id:
           $ref: '#/components/schemas/ProductID'
@@ -2783,12 +2779,13 @@ components:
             - type: string
               format: date-time
             - type: 'null'
+        version: { type: integer, minimum: 1 }
         audit_correlation_id:
           $ref: '#/components/schemas/ProductID'
     APITokenCredential:
       type: object
       additionalProperties: false
-      required: [id, name, principal_id, workspace_id, environment_id, permissions, created_at, expires_at, last_used_at, revoked_at, raw_token, audit_correlation_id]
+      required: [id, name, principal_id, workspace_id, environment_id, permissions, created_at, expires_at, last_used_at, revoked_at, version, raw_token, audit_correlation_id]
       properties:
         id:
           $ref: '#/components/schemas/ProductID'
@@ -2825,6 +2822,7 @@ components:
             - type: string
               format: date-time
             - type: 'null'
+        version: { type: integer, minimum: 1 }
         raw_token:
           type: string
           minLength: 52
