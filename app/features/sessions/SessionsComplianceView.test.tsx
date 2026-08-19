@@ -1,7 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { hydrateSessionEvents, SessionsComplianceView, type SessionsComplianceAPI } from "./SessionsComplianceView";
+import type { APIClient } from "../../../apps/web/api/client";
+import { createSessionsComplianceAPI, hydrateSessionEvents, SessionsComplianceView, type SessionsComplianceAPI } from "./SessionsComplianceView";
 
 const principal = "pid_10000004-0000-4000-8000-000000000004";
 const workspace = "pid_10000002-0000-4000-8000-000000000002";
@@ -35,6 +36,10 @@ describe("Sessions, compliance, and data controls", () => {
     expect(hydrated.filter((session) => session.eventsUnavailable)).toHaveLength(1);
   });
   it("renders ordered evidence and revokes the exact version", async () => { const revoke = vi.fn(api().revokeSession); render(<SessionsComplianceView surface="sessions" api={api({ revokeSession: revoke })} canMutate />); expect(await screen.findByText(/Shell requested/)).toHaveTextContent("evidence-1"); await userEvent.click(screen.getByRole("button", { name: "Revoke session session-live" })); expect(revoke).toHaveBeenCalledWith("session-live", 1); expect(await screen.findByRole("status")).toHaveTextContent("Session revoked"); });
+  it("accepts only the declared 204 session revoke response", async () => {
+    const client = { DELETE: vi.fn(async () => ({ response: new Response("{}", { status: 200, headers: { "content-type": "application/json" } }), data: {} })) } as unknown as APIClient;
+    await expect(createSessionsComplianceAPI(client).revokeSession("session-live", 1)).rejects.toMatchObject({ kind: "invalid_response" });
+  });
   it("renders local evidence and keeps exports unavailable", async () => { render(<SessionsComplianceView surface="compliance" api={api()} />); expect(await screen.findByText(/SOC 2/)).toBeVisible(); expect(screen.getByText(/asset-1/)).toBeVisible(); expect(screen.getByText("Evidence exports unavailable")).toBeVisible(); expect(screen.queryByRole("button", { name: /export/i })).not.toBeInTheDocument(); });
   it("updates versioned metadata-only production controls", async () => { const update = vi.fn(api().updateDataControls); render(<SessionsComplianceView surface="data-controls" api={api({ updateDataControls: update })} canMutate />); expect(await screen.findByDisplayValue("30")).toBeVisible(); await userEvent.clear(screen.getByLabelText("Retention days")); await userEvent.type(screen.getByLabelText("Retention days"), "60"); await userEvent.click(screen.getByRole("button", { name: "Save data controls" })); expect(update).toHaveBeenCalledWith(expect.objectContaining({ retention_days: 60, version: 1 })); });
 });

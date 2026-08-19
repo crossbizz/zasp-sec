@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { requireAPIData, type APIClient } from "../../../apps/web/api/client";
+import { APITransportError, requireAPIData, type APIClient } from "../../../apps/web/api/client";
 import type { ComplianceControlPage, ComplianceEvidencePage, DataControls, SessionEventPage, SessionPage } from "../../../apps/web/api/generated";
 import { decodeComplianceControlPage, decodeComplianceEvidencePage, decodeDataControls, decodeSessionEventPage, decodeSessionPage } from "../../../apps/web/api/administration-decoders";
 import { loadAllCursorPages } from "../../../apps/web/api/pagination";
@@ -30,7 +30,7 @@ export function createSessionsComplianceAPI(client: APIClient): SessionsComplian
         return events.items;
       }, 6);
     },
-    async revokeSession(id, version) { const result = await client.DELETE("/api/v1/sessions/{id}", { params: { path: { id }, header: { "X-CSRF-Token": "", "If-Match": `"${version}"` } } }); if (result.error) requireAPIData<never>(result); },
+    async revokeSession(id, version) { const result = await client.DELETE("/api/v1/sessions/{id}", { params: { path: { id }, header: { "X-CSRF-Token": "", "If-Match": `"${version}"` } } }); if (result.error) requireAPIData<never>(result); if (result.response.status !== 204) throw new APITransportError("invalid_response", "Session revocation returned an invalid status"); },
     async listControls() {
       const loaded = await loadAllCursorPages(async (cursor) => requireAPIData<ComplianceControlPage>(
         await client.GET("/api/v1/compliance/controls", { params: { query: { limit: 100, ...(cursor ? { cursor } : {}) } } }),

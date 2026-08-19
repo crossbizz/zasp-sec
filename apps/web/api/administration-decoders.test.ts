@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decodeAPITokenRevealGrant, decodeAPITokenRevealedCredential, decodeDataControls, decodeOrganization, decodeSessionPage, decodeSystemComponentPage } from "./administration-decoders";
+import { decodeAPITokenRevealGrant, decodeAPITokenRevealedCredential, decodeComplianceEvidencePage, decodeDataControls, decodeOrganization, decodeSessionPage, decodeSystemComponentPage } from "./administration-decoders";
 
 const id = "pid_10000001-0000-4000-8000-000000000001";
 describe("administration response decoders", () => {
@@ -28,5 +28,13 @@ describe("administration response decoders", () => {
     expect(() => decodeSessionPage({ items: [], page_info: { next_cursor: "forged", has_more: false } })).toThrow("schema mismatch");
     expect(decodeSystemComponentPage({ items: [{ id: "postgresql", required: true, state: "healthy", fresh_at: "2026-08-19T00:00:00Z" }] }).items).toHaveLength(1);
     expect(() => decodeSystemComponentPage({ items: [{ id: "fabricated", required: true, state: "ready", fresh_at: "2026-08-19T00:00:00Z" }] })).toThrow("schema mismatch");
+  });
+  it("requires exactly one evidence record in every paged compliance item", () => {
+    const evidence = { id: "evidence-1", asset_id: "asset-1", source: "runtime", at: "2026-08-19T00:00:00Z" };
+    const item = { control: { id: "control-1", framework: "SOC 2", name: "Access control", evidence_ids: ["evidence-1"], fresh_until: "2026-08-20T00:00:00Z" }, freshness: "fresh", evidence: [evidence] };
+    const page = (items: unknown[]) => ({ items, page_info: { next_cursor: null, has_more: false } });
+    expect(decodeComplianceEvidencePage(page([item])).items[0]?.evidence).toEqual([evidence]);
+    expect(() => decodeComplianceEvidencePage(page([{ ...item, evidence: [] }]))).toThrow("schema mismatch");
+    expect(() => decodeComplianceEvidencePage(page([{ ...item, evidence: [evidence, { ...evidence, id: "evidence-2" }] }]))).toThrow("schema mismatch");
   });
 });
