@@ -53,4 +53,47 @@ func TestExpiredRevealSecretsAreGloballyDestroyedWithoutOwnerTraffic(t *testing.
 	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_api_token_reveal_grants WHERE acknowledged_at IS NULL OR ciphertext IS NOT NULL OR nonce IS NOT NULL OR authentication_tag IS NOT NULL`).Scan(&pendingSecrets); err != nil || pendingSecrets != 0 {
 		t.Fatalf("readiness left ownerless expired secrets = (%d, %v)", pendingSecrets, err)
 	}
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_api_token_reveal_grants(organization_id,workspace_id,environment_id,principal_id,token_id,grant_id,operation,ciphertext,nonce,authentication_tag,expires_at)
+		SELECT $1,$2,$3,$4,$5,'pid_'||lpad((43000000+ordinal)::text,8,'0')||'-0000-4000-8000-'||lpad(ordinal::text,12,'0'),'createAPIToken',decode('01','hex'),decode(repeat('02',12),'hex'),decode(repeat('03',16),'hex'),transaction_timestamp()-interval '1 hour'
+		FROM generate_series(1,1500) ordinal`, organization, workspace, environment, identity.PrincipalID.String(), tokenID); err != nil {
+		t.Fatal(err)
+	}
+	secondConnection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = secondConnection.Close(context.Background()) }()
+	secondDatabase, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: secondConnection})
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondRepository, err := NewPostgresRepository(secondDatabase)
+	if err != nil {
+		t.Fatal(err)
+	}
+	type cleanupResult struct {
+		cleaned int
+		err     error
+	}
+	results := make(chan cleanupResult, 2)
+	for _, cleanupRepository := range []*PostgresRepository{repository, secondRepository} {
+		go func(candidate *PostgresRepository) {
+			count, cleanupErr := candidate.CleanupExpiredAPITokenRevealGrants(ctx, 1000)
+			results <- cleanupResult{cleaned: count, err: cleanupErr}
+		}(cleanupRepository)
+	}
+	total := 0
+	for range 2 {
+		result := <-results
+		if result.err != nil || result.cleaned < 1 || result.cleaned > 1000 {
+			t.Fatalf("concurrent cleanup = (%d, %v)", result.cleaned, result.err)
+		}
+		total += result.cleaned
+	}
+	if total != 1500 {
+		t.Fatalf("concurrent cleanup total = %d, want 1500", total)
+	}
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_api_token_reveal_grants WHERE acknowledged_at IS NULL OR ciphertext IS NOT NULL OR nonce IS NOT NULL OR authentication_tag IS NOT NULL`).Scan(&pendingSecrets); err != nil || pendingSecrets != 0 {
+		t.Fatalf("overlapping cleanup left or double-counted secrets = (%d, %v)", pendingSecrets, err)
+	}
 }
