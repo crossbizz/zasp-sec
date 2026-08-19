@@ -20,13 +20,16 @@ var (
 )
 
 type RuntimeConfig struct {
-	Environment           string
-	ProductListenAddress  string
-	InternalListenAddress string
-	PublicOrigin          string
-	CookieSecure          bool
-	ProviderTimeout       time.Duration
-	ShutdownTimeout       time.Duration
+	Environment            string
+	ProductListenAddress   string
+	InternalListenAddress  string
+	PublicOrigin           string
+	CookieSecure           bool
+	ProviderTimeout        time.Duration
+	ShutdownTimeout        time.Duration
+	PostgresDSN            string
+	IdentityCallbackURL    string
+	IdentityCallbackBearer string
 }
 
 type StoreDependency struct {
@@ -54,6 +57,7 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 		Environment: getenv("ZASP_ENVIRONMENT"), ProductListenAddress: getenv("ZASP_PRODUCT_LISTEN_ADDRESS"),
 		InternalListenAddress: getenv("ZASP_INTERNAL_LISTEN_ADDRESS"), PublicOrigin: getenv("ZASP_PUBLIC_ORIGIN"),
 		CookieSecure: cookieSecure, ProviderTimeout: providerTimeout, ShutdownTimeout: shutdownTimeout,
+		PostgresDSN: getenv("ZASP_POSTGRES_DSN"), IdentityCallbackURL: getenv("ZASP_IDENTITY_CALLBACK_URL"), IdentityCallbackBearer: getenv("ZASP_IDENTITY_CALLBACK_BEARER"),
 	}
 	if providerErr != nil || shutdownErr != nil || cookieErr != nil || !validRuntimeConfig(config) {
 		return RuntimeConfig{}, errInvalidRuntimeConfig
@@ -73,6 +77,14 @@ func validRuntimeConfig(config RuntimeConfig) bool {
 		return false
 	}
 	if config.Environment == "production" && !config.CookieSecure {
+		return false
+	}
+	database, databaseErr := url.Parse(config.PostgresDSN)
+	if databaseErr != nil || database.Scheme != "postgres" && database.Scheme != "postgresql" || database.Host == "" || database.User == nil || database.Path == "" || strings.TrimSpace(config.PostgresDSN) != config.PostgresDSN {
+		return false
+	}
+	callback, callbackErr := url.Parse(config.IdentityCallbackURL)
+	if callbackErr != nil || callback.Scheme != "https" || callback.Host == "" || callback.User != nil || callback.RawQuery != "" || callback.Fragment != "" || callback.Path != "" || len(config.IdentityCallbackBearer) < 8 || len(config.IdentityCallbackBearer) > 4096 || strings.TrimSpace(config.IdentityCallbackBearer) != config.IdentityCallbackBearer {
 		return false
 	}
 	return config.ProviderTimeout > 0 && config.ProviderTimeout <= 30*time.Second && config.ShutdownTimeout > 0 && config.ShutdownTimeout <= 30*time.Second

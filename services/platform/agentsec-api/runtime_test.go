@@ -3,11 +3,14 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"net"
 	"net/http"
 	"testing"
 	"time"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
 )
 
 func TestLoadRuntimeConfigIsStrict(t *testing.T) {
@@ -15,6 +18,8 @@ func TestLoadRuntimeConfigIsStrict(t *testing.T) {
 		"ZASP_ENVIRONMENT": "production", "ZASP_PRODUCT_LISTEN_ADDRESS": ":8080", "ZASP_INTERNAL_LISTEN_ADDRESS": ":8081",
 		"ZASP_PUBLIC_ORIGIN": "https://app.zasp.example", "ZASP_COOKIE_SECURE": "true",
 		"ZASP_PROVIDER_TIMEOUT": "5s", "ZASP_SHUTDOWN_TIMEOUT": "5s",
+		"ZASP_POSTGRES_DSN":          "postgres://zasp:secret@db.internal:5432/zasp?sslmode=require",
+		"ZASP_IDENTITY_CALLBACK_URL": "https://identity.internal", "ZASP_IDENTITY_CALLBACK_BEARER": "provider-secret",
 	}
 	config, err := loadRuntimeConfig(func(key string) string { return values[key] })
 	if err != nil {
@@ -24,7 +29,7 @@ func TestLoadRuntimeConfigIsStrict(t *testing.T) {
 		t.Fatalf("config = %#v", config)
 	}
 
-	for _, key := range []string{"ZASP_ENVIRONMENT", "ZASP_PRODUCT_LISTEN_ADDRESS", "ZASP_INTERNAL_LISTEN_ADDRESS", "ZASP_PUBLIC_ORIGIN", "ZASP_COOKIE_SECURE", "ZASP_PROVIDER_TIMEOUT", "ZASP_SHUTDOWN_TIMEOUT"} {
+	for _, key := range []string{"ZASP_ENVIRONMENT", "ZASP_PRODUCT_LISTEN_ADDRESS", "ZASP_INTERNAL_LISTEN_ADDRESS", "ZASP_PUBLIC_ORIGIN", "ZASP_COOKIE_SECURE", "ZASP_PROVIDER_TIMEOUT", "ZASP_SHUTDOWN_TIMEOUT", "ZASP_POSTGRES_DSN", "ZASP_IDENTITY_CALLBACK_URL", "ZASP_IDENTITY_CALLBACK_BEARER"} {
 		t.Run("missing "+key, func(t *testing.T) {
 			copy := mapsClone(values)
 			delete(copy, key)
@@ -45,6 +50,13 @@ func TestRuntimeRejectsMemoryDependenciesInProduction(t *testing.T) {
 	dependencies.Stores[0].Durable = true
 	if err := validateRuntime(config, dependencies); err != nil {
 		t.Fatalf("durable validateRuntime() error = %v", err)
+	}
+}
+
+func TestComposeRuntimeDependenciesRejectsSchemaDrift(t *testing.T) {
+	_, err := composeRuntimeDependencies(fixtureRuntimeConfig(), schemaDriftDatabase{}, apiserver.CallbackProviderFunc(func(context.Context, string, string) (string, error) { return "session", nil }))
+	if err == nil {
+		t.Fatal("composeRuntimeDependencies() accepted schema drift")
 	}
 }
 
@@ -110,7 +122,8 @@ func TestServeRuntimeClosesProductListenerAfterPartialStartup(t *testing.T) {
 }
 
 func fixtureRuntimeConfig() RuntimeConfig {
-	return RuntimeConfig{Environment: "production", ProductListenAddress: ":8080", InternalListenAddress: ":8081", PublicOrigin: "https://app.zasp.example", CookieSecure: true, ProviderTimeout: 5 * time.Second, ShutdownTimeout: 5 * time.Second}
+	return RuntimeConfig{Environment: "production", ProductListenAddress: ":8080", InternalListenAddress: ":8081", PublicOrigin: "https://app.zasp.example", CookieSecure: true, ProviderTimeout: 5 * time.Second, ShutdownTimeout: 5 * time.Second,
+		PostgresDSN: "postgres://zasp:secret@db.internal:5432/zasp?sslmode=require", IdentityCallbackURL: "https://identity.internal", IdentityCallbackBearer: "provider-secret"}
 }
 
 func fixtureRuntimeDependencies() RuntimeDependencies {
@@ -146,3 +159,11 @@ func mapsClone(source map[string]string) map[string]string {
 	}
 	return result
 }
+
+type schemaDriftDatabase struct{}
+
+func (schemaDriftDatabase) SchemaVersion(context.Context) (string, error) { return "old-schema", nil }
+func (schemaDriftDatabase) QueryJSON(context.Context, string, ...any) (json.RawMessage, error) {
+	return nil, errors.New("unused")
+}
+func (schemaDriftDatabase) Exec(context.Context, string, ...any) error { return errors.New("unused") }
