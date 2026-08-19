@@ -2,8 +2,122 @@
 
 import { X, Search, ChevronDown, Check, AlertTriangle, Inbox, LoaderCircle } from "lucide-react";
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
-import { useEffect } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import type { Severity } from "../domain/types";
+
+type DialogStackEntry = {
+  layer: HTMLDivElement;
+  dialog: HTMLElement;
+  invoker: HTMLElement | null;
+};
+
+const dialogStack: DialogStackEntry[] = [];
+const hiddenBodyChildren = new Map<HTMLElement, { ariaHidden: string | null; inert: boolean }>();
+let dialogBodyObserver: MutationObserver | null = null;
+
+function restoreBodyChild(element: HTMLElement) {
+  const previous = hiddenBodyChildren.get(element);
+  if (!previous) return;
+  if (previous.ariaHidden === null) element.removeAttribute("aria-hidden");
+  else element.setAttribute("aria-hidden", previous.ariaHidden);
+  if (previous.inert) element.setAttribute("inert", "");
+  else element.removeAttribute("inert");
+  hiddenBodyChildren.delete(element);
+}
+
+function hideBodyChild(element: HTMLElement) {
+  if (!hiddenBodyChildren.has(element)) hiddenBodyChildren.set(element, { ariaHidden: element.getAttribute("aria-hidden"), inert: element.hasAttribute("inert") });
+  element.setAttribute("aria-hidden", "true");
+  element.setAttribute("inert", "");
+}
+
+function syncDialogLayers() {
+  if (typeof document === "undefined") return;
+  const active = dialogStack.at(-1);
+  const hidden = new Set(Array.from(document.body.children).filter((element): element is HTMLElement => element instanceof HTMLElement && element !== active?.layer));
+  for (const element of Array.from(hiddenBodyChildren.keys())) if (!hidden.has(element)) restoreBodyChild(element);
+  for (const element of hidden) hideBodyChild(element);
+  dialogStack.forEach((entry, index) => { entry.layer.style.zIndex = String(100 + index); });
+  if (active) {
+    if (!dialogBodyObserver) {
+      dialogBodyObserver = new MutationObserver(syncDialogLayers);
+      dialogBodyObserver.observe(document.body, { childList: true });
+    }
+  } else {
+    dialogBodyObserver?.disconnect();
+    dialogBodyObserver = null;
+    for (const element of Array.from(hiddenBodyChildren.keys())) restoreBodyChild(element);
+  }
+}
+
+function tabbableElements(dialog: HTMLElement) {
+  const selector = "a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=\"-1\"])";
+  return Array.from(dialog.querySelectorAll<HTMLElement>(selector)).filter((element) => element.tabIndex >= 0 && element.getAttribute("aria-hidden") !== "true");
+}
+
+function useAccessibleDialog(open: boolean, closeDisabled: boolean, onClose: () => void) {
+  const dialogRef = useRef<HTMLElement>(null);
+  const layerRef = useRef<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    const layer = layerRef.current;
+    const dialog = dialogRef.current;
+    if (!open || !layer || !dialog) return;
+    const invoker = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const entry: DialogStackEntry = { layer, dialog, invoker };
+    dialogStack.push(entry);
+    syncDialogLayers();
+    queueMicrotask(() => {
+      if (dialogStack.at(-1) !== entry || !dialog.isConnected) return;
+      (dialog.querySelector<HTMLElement>("[autofocus]") ?? tabbableElements(dialog)[0] ?? dialog).focus();
+    });
+
+    return () => {
+      const index = dialogStack.indexOf(entry);
+      if (index >= 0) dialogStack.splice(index, 1);
+      syncDialogLayers();
+      queueMicrotask(() => { if (entry.invoker?.isConnected) entry.invoker.focus(); });
+    };
+  }, [open]);
+
+  const handleKeyDown = useCallback((event: KeyboardEvent) => {
+    const dialog = dialogRef.current;
+    if (!dialog || dialogStack.at(-1)?.dialog !== dialog) return;
+    if (event.key === "Escape") {
+      if (closeDisabled) return;
+      event.preventDefault();
+      event.stopPropagation();
+      onClose();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const tabbable = tabbableElements(dialog);
+    if (tabbable.length === 0) {
+      event.preventDefault();
+      dialog.focus();
+      return;
+    }
+    const first = tabbable[0];
+    const last = tabbable.at(-1)!;
+    const active = document.activeElement;
+    if (event.shiftKey && (active === first || !dialog.contains(active))) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && (active === last || !dialog.contains(active))) {
+      event.preventDefault();
+      first.focus();
+    }
+  }, [closeDisabled, onClose]);
+
+  useEffect(() => {
+    if (!open) return;
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown, open]);
+
+  return { dialogRef, layerRef };
+}
 
 export function Button({ variant = "secondary", icon, children, className = "", ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "ghost" | "danger"; icon?: ReactNode }) {
   return <button className={`button button--${variant} ${className}`} {...props}>{icon}{children}</button>;
@@ -42,25 +156,15 @@ export function Field({ label, error, hint, multiline, ...props }: InputHTMLAttr
 }
 
 export function Drawer({ open, title, children, onClose, closeDisabled = false, width = "wide" }: { open: boolean; title: string; children: ReactNode; onClose: () => void; closeDisabled?: boolean; width?: "medium" | "wide" }) {
-  useEffect(() => {
-    if (!open) return;
-    const handler = (event: KeyboardEvent) => { if (event.key === "Escape" && !closeDisabled) onClose(); };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [open, onClose, closeDisabled]);
-  if (!open) return null;
-  return <><button aria-label="Close details" className="overlay" disabled={closeDisabled} onClick={onClose} /><aside role="dialog" aria-modal="true" aria-label={title} className={`drawer drawer--${width}`}><div className="drawer__header"><h2>{title}</h2><button className="icon-button" disabled={closeDisabled} onClick={onClose} aria-label="Close"><X /></button></div><div className="drawer__body">{children}</div></aside></>;
+  const { dialogRef, layerRef } = useAccessibleDialog(open, closeDisabled, onClose);
+  if (!open || typeof document === "undefined") return null;
+  return createPortal(<div ref={layerRef} data-dialog-layer style={{ position: "relative" }}><button type="button" tabIndex={-1} aria-label="Close details" className="overlay" disabled={closeDisabled} onClick={onClose} /><aside ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} className={`drawer drawer--${width}`}><div className="drawer__header"><h2>{title}</h2><button type="button" className="icon-button" disabled={closeDisabled} onClick={onClose} aria-label="Close"><X /></button></div><div className="drawer__body">{children}</div></aside></div>, document.body);
 }
 
 export function Modal({ open, title, children, onClose, closeDisabled = false, footer, size = "medium" }: { open: boolean; title: string; children: ReactNode; onClose: () => void; closeDisabled?: boolean; footer?: ReactNode; size?: "medium" | "large" | "full" }) {
-  useEffect(() => {
-    if (!open) return;
-    const handler = (event: KeyboardEvent) => { if (event.key === "Escape" && !closeDisabled) onClose(); };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [open, onClose, closeDisabled]);
-  if (!open) return null;
-  return <div className="modal-layer"><button aria-label="Close modal" className="overlay" disabled={closeDisabled} onClick={onClose} /><section role="dialog" aria-modal="true" aria-label={title} className={`modal modal--${size}`}><div className="modal__header"><h2>{title}</h2><button className="icon-button" disabled={closeDisabled} onClick={onClose} aria-label="Close"><X /></button></div><div className="modal__body">{children}</div>{footer && <div className="modal__footer">{footer}</div>}</section></div>;
+  const { dialogRef, layerRef } = useAccessibleDialog(open, closeDisabled, onClose);
+  if (!open || typeof document === "undefined") return null;
+  return createPortal(<div ref={layerRef} data-dialog-layer style={{ position: "relative" }}><div className="modal-layer"><button type="button" tabIndex={-1} aria-label="Close modal" className="overlay" disabled={closeDisabled} onClick={onClose} /><section ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} className={`modal modal--${size}`}><div className="modal__header"><h2>{title}</h2><button type="button" className="icon-button" disabled={closeDisabled} onClick={onClose} aria-label="Close"><X /></button></div><div className="modal__body">{children}</div>{footer && <div className="modal__footer">{footer}</div>}</section></div></div>, document.body);
 }
 
 export function Toast({ message, tone = "success", onClose }: { message: string; tone?: "success" | "danger"; onClose: () => void }) {

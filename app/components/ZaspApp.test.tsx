@@ -44,7 +44,7 @@ describe("Zasp application", () => {
     await userEvent.type(screen.getByLabelText("Role ARN"), "arn:aws:iam::123456789012:role/ZaspReadOnly");
     await userEvent.type(screen.getByLabelText("External ID"), "northstar-prod");
     await userEvent.click(screen.getByRole("button", { name: "Connect now" }));
-    expect(screen.getByRole("status")).toHaveTextContent("Amazon Web Services connected");
+    expect(screen.getByRole("status", { hidden: true })).toHaveTextContent("Amazon Web Services connected");
   });
 
   it("renders connection catalog, freshness list, bounded detail history, and supported actions", async () => {
@@ -265,7 +265,8 @@ describe("Zasp application", () => {
 		await userEvent.click(screen.getByRole("button", { name: "Save integration" }));
 		expect(await screen.findByRole("button", { name: "Retry retained integration operation" })).toBeEnabled();
 		for (const label of ["Integration name", "HTTPS destination", "Signing secret"]) expect(screen.getByRole("textbox", { name: new RegExp(label) })).toBeDisabled();
-		for (const label of ["Configure Generic Webhook", "Close modal", "Close", "Cancel", "Save integration"]) expect(screen.getByRole("button", { name: label })).toBeDisabled();
+		expect(screen.getByRole("button", { name: "Configure Generic Webhook", hidden: true })).toBeDisabled();
+		for (const label of ["Close modal", "Close", "Cancel", "Save integration"]) expect(screen.getByRole("button", { name: label })).toBeDisabled();
 	});
 
 	it("capability-hides sensor enrollment even when stale server capabilities advertise it", async () => {
