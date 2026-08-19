@@ -103,6 +103,8 @@ func classifyPostgresError(err error) error {
 			return ErrRepositoryOperation
 		case "23505", "40001", "40P01":
 			return ErrRepositoryConflict
+		case "P0002":
+			return ErrRepositoryNotFound
 		}
 	}
 	return ErrRepositoryUnavailable

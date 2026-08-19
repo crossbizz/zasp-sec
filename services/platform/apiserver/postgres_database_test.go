@@ -66,6 +66,7 @@ func TestPostgresJSONDatabaseClassifiesMissingValidationAndConflict(t *testing.T
 		{name: "null payload", driver: &databaseDriver{responses: map[string][]byte{"SELECT payload": nil}}, wantErr: ErrRepositoryNotFound},
 		{name: "validation", driver: &databaseDriver{rowErr: &pgconn.PgError{Code: "22023"}}, wantErr: ErrRepositoryOperation},
 		{name: "conflict", driver: &databaseDriver{rowErr: &pgconn.PgError{Code: "23505"}}, wantErr: ErrRepositoryConflict},
+		{name: "workflow missing", driver: &databaseDriver{rowErr: &pgconn.PgError{Code: "P0002"}}, wantErr: ErrRepositoryNotFound},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			database, err := NewPostgresJSONDatabase(test.driver)
