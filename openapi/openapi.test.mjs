@@ -384,6 +384,28 @@ describe("production workflow concurrency contract", () => {
     assert.equal(document.components.schemas.WorkflowMutationReceiptPage.properties.items.maxItems, 50);
   });
 
+  it("publishes exact receipt intent and authoritative result object shapes", () => {
+    const receipt = document.components.schemas.WorkflowMutationReceipt;
+    assert.equal(receipt.properties.intent.$ref, "#/components/schemas/WorkflowMutationIntent");
+    assert.deepEqual(receipt.properties.result.oneOf, [
+      { $ref: "#/components/schemas/Policy" },
+      { $ref: "#/components/schemas/Integration" },
+      { $ref: "#/components/schemas/SecurityAgentDefinition" },
+    ]);
+    const intent = document.components.schemas.WorkflowMutationIntent;
+    assert.equal(intent.additionalProperties, false);
+    assert.deepEqual(intent.required, ["resource_id", "expected_version", "body"]);
+    assert.deepEqual(intent.properties.body.oneOf, [
+      { $ref: "#/components/schemas/Policy" },
+      { $ref: "#/components/schemas/PolicyRolloutInput" },
+      { $ref: "#/components/schemas/EmptyInput" },
+      { $ref: "#/components/schemas/IntegrationInput" },
+      { $ref: "#/components/schemas/IntegrationUpdateInput" },
+      { $ref: "#/components/schemas/SecurityAgentInput" },
+      { $ref: "#/components/schemas/SecurityAgentDefinition" },
+    ]);
+  });
+
   it("bounds Security Agent definition pagination with the shared opaque cursor contract", () => {
     const operation = document.paths["/api/v1/security-agents"].get;
     assert.deepEqual(operation.parameters, [

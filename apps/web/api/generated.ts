@@ -2749,6 +2749,11 @@ export type components = {
         readonly TestRunPage: {
             readonly items: readonly components["schemas"]["TestRun"][];
         };
+        readonly WorkflowMutationIntent: {
+            readonly body: components["schemas"]["Policy"] | components["schemas"]["PolicyRolloutInput"] | components["schemas"]["EmptyInput"] | components["schemas"]["IntegrationInput"] | components["schemas"]["IntegrationUpdateInput"] | components["schemas"]["SecurityAgentInput"] | components["schemas"]["SecurityAgentDefinition"];
+            readonly expected_version: number;
+            readonly resource_id: string;
+        };
         readonly WorkflowMutationReceipt: {
             readonly audit_id: components["schemas"]["ProductID"];
             readonly correlation_id: components["schemas"]["ProductID"];
@@ -2758,18 +2763,14 @@ export type components = {
             readonly expires_at: string;
             readonly id: components["schemas"]["ProductID"];
             readonly idempotency_key: string;
-            readonly intent: {
-                readonly [key: string]: unknown;
-            };
+            readonly intent: components["schemas"]["WorkflowMutationIntent"];
             /** @enum {string} */
             readonly operation: "createPolicy" | "updatePolicy" | "deletePolicy" | "rolloutPolicy" | "disablePolicy" | "createIntegration" | "updateIntegration" | "deleteIntegration" | "createSecurityAgent" | "updateSecurityAgent" | "deleteSecurityAgent";
             readonly resource_id: string;
             /** @enum {string} */
             readonly resource_kind: "policy" | "integration" | "security_agent";
             readonly resource_version: number;
-            readonly result: {
-                readonly [key: string]: unknown;
-            };
+            readonly result: components["schemas"]["Policy"] | components["schemas"]["Integration"] | components["schemas"]["SecurityAgentDefinition"];
         };
         readonly WorkflowMutationReceiptPage: {
             readonly items: readonly components["schemas"]["WorkflowMutationReceipt"][];
@@ -2982,6 +2983,7 @@ export type TestDefinitionPage = components['schemas']['TestDefinitionPage'];
 export type TestRun = components['schemas']['TestRun'];
 export type TestRunInput = components['schemas']['TestRunInput'];
 export type TestRunPage = components['schemas']['TestRunPage'];
+export type WorkflowMutationIntent = components['schemas']['WorkflowMutationIntent'];
 export type WorkflowMutationReceipt = components['schemas']['WorkflowMutationReceipt'];
 export type WorkflowMutationReceiptPage = components['schemas']['WorkflowMutationReceiptPage'];
 export type Workspace = components['schemas']['Workspace'];

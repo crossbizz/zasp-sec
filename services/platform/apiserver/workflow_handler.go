@@ -257,7 +257,7 @@ func (handler *workflowHTTPHandler) mutate(writer http.ResponseWriter, request *
 		return
 	}
 	idempotencyKey := request.Header.Get("Idempotency-Key")
-	if len(idempotencyKey) < 16 || len(idempotencyKey) > 128 {
+	if len(idempotencyKey) < 16 || len(idempotencyKey) > 128 || !workflowKeyPattern.MatchString(idempotencyKey) {
 		writeProductionStatusError(writer, request, http.StatusBadRequest, "operation_rejected", "Operation rejected", false)
 		return
 	}

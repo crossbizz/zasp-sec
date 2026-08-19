@@ -1862,8 +1862,12 @@ components:
         id: { $ref: '#/components/schemas/ProductID' }
         operation: { type: string, enum: [createPolicy, updatePolicy, deletePolicy, rolloutPolicy, disablePolicy, createIntegration, updateIntegration, deleteIntegration, createSecurityAgent, updateSecurityAgent, deleteSecurityAgent] }
         idempotency_key: { type: string, minLength: 16, maxLength: 128, pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]*$' }
-        intent: { type: object, maxProperties: 8, additionalProperties: true }
-        result: { type: object, maxProperties: 64, additionalProperties: true }
+        intent: { $ref: '#/components/schemas/WorkflowMutationIntent' }
+        result:
+          oneOf:
+            - { $ref: '#/components/schemas/Policy' }
+            - { $ref: '#/components/schemas/Integration' }
+            - { $ref: '#/components/schemas/SecurityAgentDefinition' }
         resource_kind: { type: string, enum: [policy, integration, security_agent] }
         resource_id: { type: string, minLength: 1, maxLength: 128 }
         resource_version: { type: integer, minimum: 1 }
@@ -1871,6 +1875,22 @@ components:
         correlation_id: { $ref: '#/components/schemas/ProductID' }
         created_at: { type: string, format: date-time }
         expires_at: { type: string, format: date-time }
+    WorkflowMutationIntent:
+      type: object
+      additionalProperties: false
+      required: [resource_id, expected_version, body]
+      properties:
+        resource_id: { type: string, minLength: 0, maxLength: 128 }
+        expected_version: { type: integer, minimum: 0 }
+        body:
+          oneOf:
+            - { $ref: '#/components/schemas/Policy' }
+            - { $ref: '#/components/schemas/PolicyRolloutInput' }
+            - { $ref: '#/components/schemas/EmptyInput' }
+            - { $ref: '#/components/schemas/IntegrationInput' }
+            - { $ref: '#/components/schemas/IntegrationUpdateInput' }
+            - { $ref: '#/components/schemas/SecurityAgentInput' }
+            - { $ref: '#/components/schemas/SecurityAgentDefinition' }
     WorkflowMutationReceiptPage:
       type: object
       additionalProperties: false

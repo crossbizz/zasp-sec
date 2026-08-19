@@ -227,11 +227,11 @@ func validWorkflowMutationReceipt(value WorkflowMutationReceipt) bool {
 		return false
 	}
 	operationKind, _, _, validOperation := workflowMutationTarget(value.Operation)
-	return validOperation && operationKind == value.ResourceKind && len(value.IdempotencyKey) >= 16 && len(value.IdempotencyKey) <= 128 && validJSONObjectBody(value.Intent) && !containsSensitiveWorkflowField(value.Intent) && validJSONObjectBody(value.Result) && !containsSensitiveWorkflowField(value.Result) && validWorkflowID(value.ResourceKind, value.ResourceID) && value.ResourceVersion > 0 && !value.CreatedAt.IsZero() && value.ExpiresAt.After(value.CreatedAt) && !value.ExpiresAt.After(value.CreatedAt.Add(7*24*time.Hour))
+	return validOperation && operationKind == value.ResourceKind && len(value.IdempotencyKey) >= 16 && len(value.IdempotencyKey) <= 128 && workflowKeyPattern.MatchString(value.IdempotencyKey) && validJSONObjectBody(value.Intent) && !containsSensitiveWorkflowField(value.Intent) && validJSONObjectBody(value.Result) && !containsSensitiveWorkflowField(value.Result) && validWorkflowID(value.ResourceKind, value.ResourceID) && value.ResourceVersion > 0 && !value.CreatedAt.IsZero() && value.ExpiresAt.After(value.CreatedAt) && !value.ExpiresAt.After(value.CreatedAt.Add(7*24*time.Hour))
 }
 
 func (repository *PostgresRepository) ReplayWorkflow(ctx context.Context, identity RequestIdentity, operation, idempotencyKey string, intent json.RawMessage) (WorkflowMutationResult, bool, error) {
-	if repository == nil || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) || !workflowKeyPattern.MatchString(operation) || len(idempotencyKey) < 16 || len(idempotencyKey) > 128 || !validJSONObjectBody(intent) || containsSensitiveWorkflowField(intent) {
+	if repository == nil || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) || !workflowKeyPattern.MatchString(operation) || len(idempotencyKey) < 16 || len(idempotencyKey) > 128 || !workflowKeyPattern.MatchString(idempotencyKey) || !validJSONObjectBody(intent) || containsSensitiveWorkflowField(intent) {
 		return WorkflowMutationResult{}, false, ErrRepositoryOperation
 	}
 	payload, err := repository.database.QueryJSON(ctx, postgresWorkflowReplaySQL,
@@ -314,7 +314,7 @@ func validWorkflowPage(payload json.RawMessage, err error) (json.RawMessage, err
 }
 
 func validWorkflowMutation(value WorkflowMutation) bool {
-	if !validWorkflowID(value.Kind, value.ID) || !workflowKeyPattern.MatchString(value.Operation) || len(value.IdempotencyKey) < 16 || len(value.IdempotencyKey) > 128 || !validJSONObjectBody(value.Intent) || containsSensitiveWorkflowField(value.Intent) || !validJSONObjectBody(value.Body) || containsSensitiveWorkflowField(value.Body) {
+	if !validWorkflowID(value.Kind, value.ID) || !workflowKeyPattern.MatchString(value.Operation) || len(value.IdempotencyKey) < 16 || len(value.IdempotencyKey) > 128 || !workflowKeyPattern.MatchString(value.IdempotencyKey) || !validJSONObjectBody(value.Intent) || containsSensitiveWorkflowField(value.Intent) || !validJSONObjectBody(value.Body) || containsSensitiveWorkflowField(value.Body) {
 		return false
 	}
 	if _, err := domain.ParseProductID(value.AuditID); err != nil {

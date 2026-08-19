@@ -99,26 +99,13 @@ describe("observable scope-owned workflow mutation registry", () => {
 
   it("keeps a server-recovered result globally locked through acknowledgement failure and retry", async () => {
     const user = userEvent.setup();
-    const receipt: WorkflowMutationReceipt = {
-      id: "pid_11111111-1111-4111-8111-111111111111",
-      operation: "createSecurityAgent",
-      idempotency_key: "wf_11111111-1111-4111-8111-111111111111",
-      intent: { kind: "create" },
-      result: { id: "pid_22222222-2222-4222-8222-222222222222" },
-      resource_kind: "security_agent",
-      resource_id: "pid_22222222-2222-4222-8222-222222222222",
-      resource_version: 1,
-      audit_id: "pid_33333333-3333-4333-8333-333333333333",
-      correlation_id: "pid_44444444-4444-4444-8444-444444444444",
-      created_at: "2026-08-18T12:00:00Z",
-      expires_at: "2026-08-25T12:00:00Z",
-    };
+    const receipt = receiptFixture("pid_11111111-1111-4111-8111-111111111111");
     const nextReceipt: WorkflowMutationReceipt = {
       ...receipt,
       id: "pid_55555555-5555-4555-8555-555555555555",
-      operation: "createIntegration",
-      resource_kind: "integration",
-      resource_id: "pid_66666666-6666-4666-8666-666666666666",
+      resource_id: "policy-later-second",
+      intent: { body: { ...receipt.result, id: "policy-later-second", name: "Second policy" }, expected_version: 0, resource_id: "" },
+      result: { ...receipt.result, id: "policy-later-second", name: "Second policy" },
     };
     const acknowledgeReceipt = vi.fn()
       .mockRejectedValueOnce(new APITransportError("timeout", "Acknowledgement response was lost"))
@@ -203,6 +190,29 @@ describe("observable scope-owned workflow mutation registry", () => {
     expect(screen.getByRole("button", { name: "Start policy" })).toBeEnabled();
   });
 
+  it("renders allowlisted frozen intent and committed result details without configuration values or raw JSON", async () => {
+    const integration = {
+      id: "pid_20000001-0000-4000-8000-000000000001", connector_key: "generic-webhook", name: "Webhook",
+      configuration: { destination_url: "https://secret.invalid", signing_secret_reference: "secret_ref_1234" },
+      status: "configured", created_at: "2026-08-18T12:00:00Z", updated_at: "2026-08-18T12:00:00Z",
+    };
+    const receipt = {
+      ...receiptFixture("pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"), operation: "createIntegration",
+      intent: { body: { connector_key: integration.connector_key, name: integration.name, configuration: integration.configuration }, expected_version: 0, resource_id: "" },
+      result: integration, resource_kind: "integration", resource_id: integration.id,
+    } as WorkflowMutationReceipt;
+    render(<WorkflowMutationProvider scopeKey="principal/organization/workspace-a/environment-a" recovery={{ listReceipts: async () => [receipt], acknowledgeReceipt: vi.fn() }}>
+      <Probe operation="integrations" name="integration" send={async () => "unused"} />
+    </WorkflowMutationProvider>);
+
+    await screen.findByRole("heading", { name: "Frozen request" });
+    expect(screen.getByRole("heading", { name: "Committed result" })).toBeVisible();
+    expect(screen.getAllByText("destination_url, signing_secret_reference")).toHaveLength(2);
+    expect(screen.queryByText("https://secret.invalid")).not.toBeInTheDocument();
+    expect(screen.queryByText("secret_ref_1234")).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Mutation recovery" })).not.toHaveTextContent(/[{}\"]/);
+  });
+
   it("keeps a forced A to B scope drift locked while captured-scope acknowledgement and relist finish", async () => {
     const user = userEvent.setup();
     const acknowledgement = deferred<void>();
@@ -229,12 +239,13 @@ describe("observable scope-owned workflow mutation registry", () => {
 });
 
 function receiptFixture(id: string): WorkflowMutationReceipt {
+  const policy = { id: "policy-later", name: "Later policy", scope: "environment", trigger: "tool", conditions: [{ field: "action", operator: "equals", value: "write" }], action: "monitor", rollout: "draft", failure_mode: "open" } as const;
   return {
     id,
     operation: "createPolicy",
     idempotency_key: "wf_11111111-1111-4111-8111-111111111111",
-    intent: { body: { id: "policy-later" }, expected_version: 0, resource_id: "" },
-    result: { id: "policy-later" },
+    intent: { body: policy, expected_version: 0, resource_id: "" },
+    result: policy,
     resource_kind: "policy",
     resource_id: "policy-later",
     resource_version: 1,

@@ -238,6 +238,20 @@ func TestWorkflowHandlerCreatesPolicyWithExactIdempotencyAuditAndVersion(t *test
 	}
 }
 
+func TestWorkflowHandlerRejectsIdempotencyKeysOutsideThePublishedPattern(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	identity.Permissions = []string{"view", "manage_workflows"}
+	repository := &workflowRepositoryStub{}
+	handler, _ := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), time.Now)
+	request := workflowRequest(t, identity, "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "createPolicy", nil, http.MethodPost, "/api/v1/policies", `{"id":"policy-bounded","name":"Bounded policy","scope":"environment","trigger":"tool","conditions":[{"field":"action","operator":"equals","value":"write"}],"action":"monitor","rollout":"draft","failure_mode":"open"}`)
+	request.Header.Set("Idempotency-Key", "idem invalid key 0001")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest || repository.mutation.Operation != "" {
+		t.Fatalf("invalid idempotency response=%d mutation=%#v", response.Code, repository.mutation)
+	}
+}
+
 func TestWorkflowHandlerPATMutationAndReplayNeverCreateBrowserReceipts(t *testing.T) {
 	identity := fixtureRequestIdentity(t)
 	identity.CredentialKind = CredentialBearerToken

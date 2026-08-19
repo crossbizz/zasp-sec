@@ -12,6 +12,7 @@ import {
   type WorkflowMutationAttempt,
   type WorkflowRecoveryAPI,
 } from "./api";
+import { workflowReceiptSummary } from "./workflowReceiptSummary";
 
 type Controller = ReturnType<typeof createRetainedWorkflowMutationController<unknown>>;
 type RecoveryState = {
@@ -293,13 +294,21 @@ function WorkflowRecoveryPanel({ store, scopeKey }: { store: WorkflowMutationSto
   if (recovery.status === "loading") return <section aria-label="Mutation recovery"><p role="status">Checking committed operations before enabling changes…</p></section>;
   if (recovery.status === "error") return <section aria-label="Mutation recovery"><p role="alert">{recovery.error}</p><Button onClick={() => void store.reconcile(scopeKey)}>Retry committed-operation recovery</Button></section>;
   if (recovery.receipts.length === 0) return null;
-  return <section aria-label="Mutation recovery"><h2>Recover committed operations</h2><p>These changes committed before their browser responses were acknowledged. Review the durable result before making another change.</p>{recovery.receipts.map((receipt) => <article key={receipt.id}>
-    <h3>{operationLabel(receipt.operation)}</h3>
-    <p>{receipt.resource_kind.replaceAll("_", " ")} {receipt.resource_id} · version {receipt.resource_version}</p>
-    <p>Audit {receipt.audit_id} · correlation {receipt.correlation_id}</p>
-    {recovery.acknowledgementErrors.get(receipt.id) && <p role="alert">{recovery.acknowledgementErrors.get(receipt.id)}</p>}
-    <Button disabled={recovery.acknowledging.has(receipt.id)} onClick={() => void store.acknowledge(scopeKey, receipt.id)}>{recovery.acknowledging.has(receipt.id) ? "Acknowledging recovered result…" : "Acknowledge recovered result"}</Button>
-  </article>)}</section>;
+  return <section aria-label="Mutation recovery"><h2>Recover committed operations</h2><p>These changes committed before their browser responses were acknowledged. Review the frozen request and authoritative result before making another change.</p>{recovery.receipts.map((receipt) => {
+    const summary = workflowReceiptSummary(receipt);
+    return <article key={receipt.id}>
+      <h3>{operationLabel(receipt.operation)}</h3>
+      <h4>Frozen request</h4><ReceiptSummaryFields fields={summary.intent} />
+      <h4>Committed result</h4><ReceiptSummaryFields fields={summary.result} />
+      <p>Audit {receipt.audit_id} · correlation {receipt.correlation_id}</p>
+      {recovery.acknowledgementErrors.get(receipt.id) && <p role="alert">{recovery.acknowledgementErrors.get(receipt.id)}</p>}
+      <Button disabled={recovery.acknowledging.has(receipt.id)} onClick={() => void store.acknowledge(scopeKey, receipt.id)}>{recovery.acknowledging.has(receipt.id) ? "Acknowledging recovered result…" : "Acknowledge recovered result"}</Button>
+    </article>;
+  })}</section>;
+}
+
+function ReceiptSummaryFields({ fields }: { fields: ReturnType<typeof workflowReceiptSummary>["intent"] }) {
+  return <dl>{fields.map(({ label, value }) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>;
 }
 
 function emptyRecovery(status: RecoveryState["status"]): RecoveryState {
