@@ -35,7 +35,7 @@ func buildRuntimeDependencies(ctx context.Context, config RuntimeConfig) (Runtim
 		pool.Close()
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
-	authenticator, err := apiserver.NewStytchOAuthAuthenticator(config.StytchBaseURL, config.StytchProjectID, config.StytchSecret, config.ProviderTimeout, func() time.Time { return time.Now().UTC() })
+	authenticator, err := apiserver.NewStytchOAuthAuthenticator(config.StytchBaseURL, config.StytchProjectID, config.StytchSecret, config.ProviderTimeout, func() time.Time { return time.Now().UTC().Truncate(time.Millisecond) })
 	if err != nil {
 		_ = database.Close()
 		return RuntimeDependencies{}, errRuntimeUnavailable

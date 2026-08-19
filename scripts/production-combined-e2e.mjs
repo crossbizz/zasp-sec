@@ -8,6 +8,7 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { installBoundedSignalCleanup } from "./bounded-signal-cleanup.mjs";
 
 const FIXED_NODE_VERSION = "v22.23.1";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -26,6 +27,7 @@ let postgres;
 let web;
 let browser;
 let observedSessionCookie = false;
+const cleanupController = installBoundedSignalCleanup(cleanupOwnedResources);
 
 try {
   const ports = await Promise.all(Array.from({ length: 7 }, reservePort));
@@ -56,13 +58,19 @@ try {
     ZASP_READINESS_INTERVAL: "100ms",
     ZASP_READINESS_MAX_INTERVAL: "1s",
     ZASP_POSTGRES_DSN: dsn,
-    ZASP_IDENTITY_AUTHORIZE_URL: `http://127.0.0.1:${identityPort}/authorize`,
-    ZASP_IDENTITY_EXCHANGE_URL: `http://127.0.0.1:${identityPort}/token`,
-    ZASP_IDENTITY_CLIENT_ID: "local-client",
-    ZASP_IDENTITY_CLIENT_SECRET: "local-secret",
+    ZASP_STYTCH_BASE_URL: `http://127.0.0.1:${identityPort}`,
+    ZASP_STYTCH_AUTHORIZE_URL: `http://127.0.0.1:${identityPort}/v1/b2b/public/oauth/google/start`,
+    ZASP_STYTCH_PROJECT_ID: "project-test-local",
+    ZASP_STYTCH_SECRET: "secret-test-local",
+    ZASP_STYTCH_PUBLIC_TOKEN: "public-token-test-local",
+    ZASP_STYTCH_ORGANIZATION_ID: "organization-test-local",
   };
   api = startChild(apiBinary, [], { env: apiEnvironment });
-  await waitForHTTP(`http://127.0.0.1:${healthPort}/readyz`, 200);
+	try {
+		await waitForHTTP(`http://127.0.0.1:${healthPort}/readyz`, 200);
+	} catch (error) {
+		throw new Error(`${error instanceof Error ? error.message : "API readiness failed"}: ${api.output()}`);
+	}
   console.log("combined E2E: Go product and internal listeners ready");
 
   await command("npm", ["run", "build"], { cwd: root, timeout: 120_000 });
@@ -101,6 +109,11 @@ try {
 
   console.log("production combined E2E passed: callback/cookie/bootstrap, durable data, restart/reload, tenant denial");
 } finally {
+	await cleanupController.run();
+	cleanupController.dispose();
+}
+
+async function cleanupOwnedResources() {
   console.log("combined E2E: cleanup browser");
   if (browser) {
     browser.cdp.close();
@@ -145,7 +158,7 @@ INSERT INTO zasp_authorized_scopes (principal_id, organization_id, workspace_id,
 ('pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','Production','["view"]'::jsonb,true),
 ('pid_90000004-0000-4000-8000-000000000004','pid_90000001-0000-4000-8000-000000000001','pid_90000002-0000-4000-8000-000000000002','pid_90000003-0000-4000-8000-000000000003','Foreign','["view"]'::jsonb,true);
 INSERT INTO zasp_identity_memberships (principal_id, organization_id, organization_reference, member_reference, role) VALUES
-('pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','organization-local','member-local','security_admin');
+('pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','organization-test-local','member-test-local','security_admin');
 INSERT INTO zasp_core_payloads (organization_id, workspace_id, environment_id, operation, payload) VALUES
 ('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','session_bootstrap:pid_10000004-0000-4000-8000-000000000004','{"principal":{"id":"pid_10000004-0000-4000-8000-000000000004","organization_id":"pid_10000001-0000-4000-8000-000000000001","organization_reference":"organization-local","member_reference":"member-local","role":"security_admin","active":true},"organization_id":"pid_10000001-0000-4000-8000-000000000001","workspace_id":"pid_10000002-0000-4000-8000-000000000002","environment_id":"pid_10000003-0000-4000-8000-000000000003","permissions":["view"],"capabilities":["inventory.read","scope.switch"],"csrf_token":"cccccccccccccccccccccccccccccccc","correlation_id":"pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"}'::jsonb),
 ('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','agents','{"items":[{"id":"pid_20000001-0000-4000-8000-000000000001","name":"Support agent","kind":"agent","owner":"security","team":"platform","tags":["production"],"evidence_id":"pid_20000006-0000-4000-8000-000000000006","first_seen":"2026-08-18T09:00:00Z","last_seen":"2026-08-18T10:00:00Z"}]}'::jsonb),
@@ -157,27 +170,32 @@ INSERT INTO zasp_core_payloads (organization_id, workspace_id, environment_id, o
 async function startIdentityServer(port, publicOrigin) {
   const server = http.createServer(async (request, response) => {
     const target = new URL(request.url ?? "/", `http://127.0.0.1:${port}`);
-    if (request.method === "GET" && target.pathname === "/authorize") {
-      assert.equal(target.searchParams.get("client_id"), "local-client");
-      assert.equal(target.searchParams.get("redirect_uri"), `${publicOrigin}/auth/callback`);
-      const state = target.searchParams.get("state");
-      assert.ok(state && state.length >= 32);
-      response.writeHead(302, { location: `${publicOrigin}/auth/callback?code=local-code&state=${encodeURIComponent(state)}` });
+    if (request.method === "GET" && target.pathname === "/v1/b2b/public/oauth/google/start") {
+      assert.equal(target.searchParams.get("public_token"), "public-token-test-local");
+      assert.equal(target.searchParams.get("organization_id"), "organization-test-local");
+      const callback = new URL(target.searchParams.get("login_redirect_url"));
+      assert.equal(callback.origin, publicOrigin);
+      assert.equal(callback.pathname, "/auth/callback");
+      assert.equal(target.searchParams.get("signup_redirect_url"), callback.toString());
+      assert.ok((callback.searchParams.get("state") ?? "").length >= 32);
+      callback.searchParams.set("token", "local-oauth-token");
+      response.writeHead(302, { location: callback.toString() });
       response.end();
       return;
     }
-    if (request.method === "HEAD" && target.pathname === "/token") {
-      response.writeHead(204);
-      response.end();
-      return;
-    }
-    if (request.method === "POST" && target.pathname === "/token") {
-      assert.equal(request.headers.authorization, `Basic ${Buffer.from("local-client:local-secret").toString("base64")}`);
-      const body = new URLSearchParams(await readBody(request));
-      assert.equal(body.get("code"), "local-code");
-      assert.ok((body.get("state") ?? "").length >= 32);
+    if (request.method === "POST" && target.pathname === "/v1/b2b/oauth/authenticate") {
+      assert.equal(request.headers.authorization, `Basic ${Buffer.from("project-test-local:secret-test-local").toString("base64")}`);
+      assert.deepEqual(JSON.parse(await readBody(request)), { oauth_token: "local-oauth-token", session_duration_minutes: 60 });
       response.writeHead(200, { "content-type": "application/json" });
-      response.end(JSON.stringify({ organization_reference: "organization-local", member_reference: "member-local", expires_at: new Date(Date.now() + 3_600_000).toISOString() }));
+      response.end(JSON.stringify({ status_code: 200, request_id: "request-id-test-oauth", member_id: "member-test-local", organization_id: "organization-test-local", session_jwt: "header.payload.signature" }));
+      return;
+    }
+    if (request.method === "POST" && target.pathname === "/v1/b2b/sessions/authenticate") {
+      assert.equal(request.headers.authorization, `Basic ${Buffer.from("project-test-local:secret-test-local").toString("base64")}`);
+      assert.deepEqual(JSON.parse(await readBody(request)), { session_jwt: "header.payload.signature" });
+      const now = new Date();
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ status_code: 200, request_id: "request-id-test-session", session_jwt: "header.payload.signature", member_session: { member_session_id: "member-session-test-local", member_id: "member-test-local", organization_id: "organization-test-local", started_at: now.toISOString(), last_accessed_at: now.toISOString(), expires_at: new Date(now.getTime() + 3_600_000).toISOString() } }));
       return;
     }
     response.writeHead(404);
@@ -284,6 +302,7 @@ async function stopChild(child) {
 
 async function command(executable, args, options = {}) {
   const child = spawn(executable, args, { cwd: options.cwd ?? root, env: options.env ?? process.env, stdio: ["pipe", "pipe", "pipe"] });
+	children.push(child);
   let stdout = "";
   let stderr = "";
   child.stdout.on("data", (value) => { stdout += value; });
