@@ -78,6 +78,7 @@ DECLARE
     result_version bigint;
     result_secret_generation bigint;
     approval_body jsonb;
+    decision_body jsonb;
 BEGIN
     IF mutation NOT IN ('create', 'update', 'delete', 'rotate_secret', 'audit') OR
        requested_kind NOT IN ('policy', 'integration', 'sensor', 'security_agent', 'security_agent_run', 'security_agent_approval', 'policy_decision') OR
@@ -137,7 +138,18 @@ BEGIN
            AND "kind" = requested_kind AND "id" = requested_id AND "deleted_at" IS NULL AND "version" = expected_version
         RETURNING "body", "version", "secret_generation" INTO result_body, result_version, result_secret_generation;
     ELSE
-        result_body := requested_body; result_version := GREATEST(expected_version, 1); result_secret_generation := 0;
+        IF requested_kind = 'policy' AND requested_operation = 'simulatePolicy' THEN
+            decision_body := requested_body -> '_decision';
+            IF jsonb_typeof(decision_body) <> 'object' OR decision_body ->> 'id' IS NULL OR decision_body ->> 'policy_id' <> requested_id THEN
+                RAISE EXCEPTION USING ERRCODE = '22023', MESSAGE = 'invalid policy decision';
+            END IF;
+            result_body := requested_body - '_decision';
+            INSERT INTO "public"."zasp_workflow_records" ("organization_id", "workspace_id", "environment_id", "kind", "id", "body")
+            VALUES (requested_organization_id, requested_workspace_id, requested_environment_id, 'policy_decision', decision_body ->> 'id', decision_body);
+        ELSE
+            result_body := requested_body;
+        END IF;
+        result_version := GREATEST(expected_version, 1); result_secret_generation := 0;
     END IF;
 
     IF result_body IS NULL THEN

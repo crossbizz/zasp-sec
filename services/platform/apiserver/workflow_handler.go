@@ -234,7 +234,17 @@ func (handler *workflowHTTPHandler) buildMutation(request *http.Request, identit
 				}
 			}
 		}
-		body, _ = json.Marshal(map[string]any{"matches": matches, "would_block": blocks, "example_session_ids": examples})
+		result := "allow"
+		if blocks > 0 {
+			result = "block"
+		} else if matches > 0 {
+			result = "monitor"
+		}
+		decisionID := handler.idempotentProductID(identity.Scope, "simulatePolicy:"+id, idempotencyKey)
+		body, _ = json.Marshal(map[string]any{
+			"matches": matches, "would_block": blocks, "example_session_ids": examples,
+			"_decision": map[string]any{"id": decisionID, "policy_id": id, "environment_id": identity.Scope.EnvironmentID().String(), "result": result, "correlation_id": correlationID, "at": handler.now().Format(time.RFC3339)},
+		})
 		action, expected, status = "audit", stored.Version, http.StatusOK
 	case "rolloutPolicy", "disablePolicy":
 		stored, err := handler.repository.GetWorkflow(request.Context(), identity.Scope, "policy", id)
