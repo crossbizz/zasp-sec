@@ -10,6 +10,22 @@ DECLARE
     mutation_response jsonb;
     existing_receipt_id text;
 BEGIN
+    LOCK TABLE "public"."zasp_workflow_idempotency" IN ROW EXCLUSIVE MODE;
+    IF NOT EXISTS (
+        SELECT 1
+          FROM "public"."zasp_schema_versions" AS release
+          JOIN "public"."zasp_schema_metadata" AS schema_marker
+            ON schema_marker."key" = 'production_core_schema'
+           AND schema_marker."value" = 'production-workflow-receipt-safety-v2'
+         WHERE release."version" = 5
+           AND release."name" = 'workflow_receipt_safety'
+           AND NOT EXISTS (
+               SELECT 1 FROM "public"."zasp_schema_versions" AS later_release
+                WHERE later_release."version" > 5
+           )
+    ) THEN
+        RAISE EXCEPTION USING ERRCODE = '55000', MESSAGE = 'workflow receipt safety release unavailable';
+    END IF;
     IF requested_receipt_id IS NOT NULL AND requested_receipt_id <> '' AND length(requested_receipt_id) > 128 THEN
         RAISE EXCEPTION USING ERRCODE = '22023', MESSAGE = 'invalid workflow receipt';
     END IF;
@@ -96,7 +112,7 @@ END;
 $$;
 
 INSERT INTO "public"."zasp_schema_metadata" ("key", "value")
-VALUES ('production_workflow_receipt_safety_fingerprint', 'c650841f82f86ce0bd3eeac3da8e63d01be0fdc86a6d72eef33be9c9766bae49');
+VALUES ('production_workflow_receipt_safety_fingerprint', '5054e88fa5d21a4848be0c27754e61875720f88bc5437a85aca1d2dd7536ca2b');
 
 UPDATE "public"."zasp_schema_metadata" SET "value" = 'production-workflow-receipt-safety-v2', "applied_at" = transaction_timestamp()
 WHERE "key" = 'production_core_schema' AND "value" = 'production-workflow-receipts-v1';

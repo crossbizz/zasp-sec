@@ -24,13 +24,14 @@ const (
 	safetyName      = "workflow_receipt_safety"
 	rollbackTimeout = 5 * time.Second
 
-	tableExistsSQL = "SELECT to_regclass('public.zasp_schema_versions') IS NOT NULL"
-	countRowsSQL   = `SELECT count(*) FROM "public"."zasp_schema_versions"`
-	readRowSQL     = `SELECT "version", "name", "checksum" FROM "public"."zasp_schema_versions" ORDER BY "version"`
-	readVersionSQL = `SELECT "version", "name", "checksum" FROM "public"."zasp_schema_versions" WHERE "version" = $1`
-	lockTableSQL   = `LOCK TABLE "public"."zasp_schema_versions" IN ACCESS EXCLUSIVE MODE`
-	insertRowSQL   = `INSERT INTO "public"."zasp_schema_versions" ("version", "name", "checksum") VALUES ($1, $2, $3)`
-	deleteRowSQL   = `DELETE FROM "public"."zasp_schema_versions" WHERE "version" = $1 AND "name" = $2 AND "checksum" = $3`
+	tableExistsSQL           = "SELECT to_regclass('public.zasp_schema_versions') IS NOT NULL"
+	countRowsSQL             = `SELECT count(*) FROM "public"."zasp_schema_versions"`
+	readRowSQL               = `SELECT "version", "name", "checksum" FROM "public"."zasp_schema_versions" ORDER BY "version"`
+	readVersionSQL           = `SELECT "version", "name", "checksum" FROM "public"."zasp_schema_versions" WHERE "version" = $1`
+	lockTableSQL             = `LOCK TABLE "public"."zasp_schema_versions" IN ACCESS EXCLUSIVE MODE`
+	lockWorkflowMutationsSQL = `LOCK TABLE "public"."zasp_workflow_idempotency" IN ACCESS EXCLUSIVE MODE`
+	insertRowSQL             = `INSERT INTO "public"."zasp_schema_versions" ("version", "name", "checksum") VALUES ($1, $2, $3)`
+	deleteRowSQL             = `DELETE FROM "public"."zasp_schema_versions" WHERE "version" = $1 AND "name" = $2 AND "checksum" = $3`
 )
 
 var (
@@ -493,6 +494,13 @@ func (runner *Runner) DownWorkflowReceiptSafety(ctx context.Context) error {
 		present, err := tablePresent(ctx, transaction)
 		if err != nil || !present {
 			return ErrInvalidState
+		}
+		// Every v5 workflow mutation takes a conflicting relation lock before
+		// checking the installed release. Taking the same lock first here gives
+		// the guard a stable view of all earlier writers and makes queued v5
+		// writers re-check the release only after this transaction commits.
+		if err := transaction.Exec(ctx, lockWorkflowMutationsSQL); err != nil {
+			return fixedDatabaseError(ctx, err)
 		}
 		if err := transaction.Exec(ctx, lockTableSQL); err != nil {
 			return fixedDatabaseError(ctx, err)

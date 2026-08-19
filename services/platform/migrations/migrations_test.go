@@ -280,7 +280,8 @@ func TestWorkflowReceiptSafetyMetadataSeparatesBrowserReceiptsAndBoundedCleanup(
 	for _, fragment := range []string{
 		"zasp_workflow_receipt_cleanup", "requested_limit", "LIMIT requested_limit", "SKIP LOCKED",
 		"requested_receipt_id IS NOT NULL", "requested_receipt_id <> ''", "production-workflow-receipt-safety-v2",
-		"production_workflow_receipt_safety_fingerprint",
+		"production_workflow_receipt_safety_fingerprint", `LOCK TABLE "public"."zasp_workflow_idempotency" IN ROW EXCLUSIVE MODE`,
+		"workflow receipt safety release unavailable", `release."version" = 5`, `release."name" = 'workflow_receipt_safety'`,
 	} {
 		if !strings.Contains(metadata.UpSQL(), fragment) {
 			t.Fatalf("workflow receipt safety migration missing %q", fragment)
@@ -291,7 +292,7 @@ func TestWorkflowReceiptSafetyMetadataSeparatesBrowserReceiptsAndBoundedCleanup(
 	}
 	for _, fragment := range []string{
 		"workflow receipt safety rollback blocked", "zasp_schema_metadata", "applied_at",
-		"zasp_workflow_idempotency", "response", "receipt_id",
+		"zasp_workflow_idempotency", "response", "receipt_id", `LOCK TABLE "public"."zasp_workflow_idempotency" IN ACCESS EXCLUSIVE MODE`,
 	} {
 		if !strings.Contains(metadata.DownSQL(), fragment) {
 			t.Fatalf("workflow receipt safety rollback guard missing %q", fragment)
@@ -441,6 +442,43 @@ func TestRunnerAppliesAndRemovesWorkflowReleaseOnlyFromExactAdjacentStates(t *te
 	}
 	if !contains(downDB.events, "args:3,production_workflows,"+workflows.Checksum()) || !contains(downDB.events, "exec:"+compactSQL(workflows.DownSQL())) {
 		t.Fatalf("workflow down events = %#v", downDB.events)
+	}
+}
+
+func TestRunnerDownWorkflowReceiptSafetyTakesMutationLockBeforeSchemaLock(t *testing.T) {
+	baseline, core := Baseline(), ProductionCore()
+	workflows, receipts, safety := ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety()
+	transaction := &fakeTransaction{rows: []Row{
+		fakeRow{values: []any{true}},
+		fakeRow{values: []any{int64(5)}},
+		fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}},
+		fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}},
+		fakeRow{values: []any{workflows.Version(), workflows.Name(), workflows.Checksum()}},
+		fakeRow{values: []any{receipts.Version(), receipts.Name(), receipts.Checksum()}},
+		fakeRow{values: []any{safety.Version(), safety.Name(), safety.Checksum()}},
+		fakeRow{values: []any{int64(4)}},
+		fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}},
+		fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}},
+		fakeRow{values: []any{workflows.Version(), workflows.Name(), workflows.Checksum()}},
+		fakeRow{values: []any{receipts.Version(), receipts.Name(), receipts.Checksum()}},
+	}}
+	database := &fakeDatabase{transaction: transaction}
+	runner, _ := NewRunner(database)
+	if err := runner.DownWorkflowReceiptSafety(context.Background()); err != nil {
+		t.Fatalf("DownWorkflowReceiptSafety: %v", err)
+	}
+
+	wantPrefix := []string{
+		"begin",
+		"query:SELECT to_regclass('public.zasp_schema_versions') IS NOT NULL", "args:none",
+		`exec:LOCK TABLE "public"."zasp_workflow_idempotency" IN ACCESS EXCLUSIVE MODE`, "args:none",
+		`exec:LOCK TABLE "public"."zasp_schema_versions" IN ACCESS EXCLUSIVE MODE`, "args:none",
+	}
+	if len(database.events) < len(wantPrefix) || !reflect.DeepEqual(database.events[:len(wantPrefix)], wantPrefix) {
+		t.Fatalf("lock order = %#v, want prefix %#v", database.events, wantPrefix)
+	}
+	if !contains(database.events, "exec:"+compactSQL(safety.DownSQL())) || !contains(database.events, "args:5,workflow_receipt_safety,"+safety.Checksum()) {
+		t.Fatalf("workflow receipt safety down events = %#v", database.events)
 	}
 }
 

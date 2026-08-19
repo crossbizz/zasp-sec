@@ -1,3 +1,5 @@
+LOCK TABLE "public"."zasp_workflow_idempotency" IN ACCESS EXCLUSIVE MODE;
+
 DO $$
 BEGIN
     IF EXISTS (
