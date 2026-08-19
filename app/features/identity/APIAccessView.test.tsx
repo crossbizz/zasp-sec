@@ -200,6 +200,6 @@ describe("API Access product surface", () => {
     fireEvent.click(screen.getByText("Expire session in test"));
     await waitFor(() => expect(screen.queryByText(/^zasp_pat_/)).not.toBeInTheDocument());
     expect(screen.queryByRole("button", { name: "Copy token" })).not.toBeInTheDocument();
-    expect(screen.getByText(/revealed token was cleared/)).toBeInTheDocument();
+    expect(await screen.findByText(/revealed token was cleared/)).toBeInTheDocument();
   });
 });
