@@ -76,6 +76,16 @@ func TestConnectorAuthorizationPostgresOneTimeOAuthUnknownEffectAndReferenceOnly
 	if err := connection.QueryRow(ctx, `SELECT zasp_connector_start_oauth($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13)`, conflictArgs...).Scan(&replayed); err == nil {
 		t.Fatal("same OAuth attempt with changed digest succeeded")
 	}
+	connectorRepository := &ConnectorRepository{database: database}
+	foreignIdentity := identity
+	foreignIdentity.Scope = alternateScope(t, scope.OrganizationID())
+	if _, err := connectorRepository.ConsumeOAuth(ctx, foreignIdentity, stateDigest[:], sessionDigest[:]); !errors.Is(err, ErrRepositoryNotFound) {
+		t.Fatalf("cross-scope callback consume = %v, want not found", err)
+	}
+	var pendingStatus string
+	if err := connection.QueryRow(ctx, `SELECT status FROM zasp_connector_oauth_attempts WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND id=$4`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), attemptID).Scan(&pendingStatus); err != nil || pendingStatus != "pending" {
+		t.Fatalf("cross-scope callback residue status = %q, %v", pendingStatus, err)
+	}
 
 	var consumed []byte
 	if err := connection.QueryRow(ctx, `SELECT zasp_connector_consume_oauth($1,$2,$3,$4,$5,$6)`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), stateDigest[:], principalID, sessionDigest[:]).Scan(&consumed); err != nil {

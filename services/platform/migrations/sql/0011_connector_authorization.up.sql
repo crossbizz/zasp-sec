@@ -192,7 +192,7 @@ LANGUAGE plpgsql AS $$
 DECLARE row_value zasp_connector_oauth_attempts%ROWTYPE;
 BEGIN
   SELECT * INTO row_value FROM zasp_connector_oauth_attempts WHERE organization_id=organization_value AND workspace_id=workspace_value AND environment_id=environment_value AND state_hash=state_value FOR UPDATE;
-  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='02000',MESSAGE='oauth attempt unavailable'; END IF;
+  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='oauth attempt unavailable'; END IF;
   IF row_value.status<>'pending' OR row_value.expires_at<=transaction_timestamp() OR row_value.principal_id<>principal_value OR row_value.session_digest<>session_value THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='oauth attempt rejected'; END IF;
   UPDATE zasp_connector_oauth_attempts SET status='consuming',consumed_at=transaction_timestamp(),updated_at=transaction_timestamp() WHERE organization_id=organization_value AND workspace_id=workspace_value AND environment_id=environment_value AND id=row_value.id RETURNING * INTO row_value;
   RETURN jsonb_build_object('id',row_value.id,'integration_id',row_value.integration_id,'provider',row_value.provider,'principal_id',row_value.principal_id,'pkce_verifier_reference',row_value.pkce_verifier_reference,'request_digest',encode(row_value.request_digest,'hex'),'requested_scopes',row_value.requested_scopes,'return_path',row_value.return_path,'expires_at',row_value.expires_at,'consumed_at',row_value.consumed_at);
@@ -322,7 +322,7 @@ DO $risk_migration$ DECLARE definition text; BEGIN
  EXECUTE definition;
 END $risk_migration$;
 
-INSERT INTO zasp_schema_metadata(key,value) VALUES ('connector_authorization_fingerprint', 'a59ef98ba1ffdcca3996cbf4d95fcd83c204dabf6f12457d90387acbe93e5b38');
+INSERT INTO zasp_schema_metadata(key,value) VALUES ('connector_authorization_fingerprint', '3d21ec8953f6c3d9066c34a7f663f5543d18b96c226b890e47204083d3f5f478');
 UPDATE zasp_schema_metadata SET value='a3ee9cb3bfd3e6ed0d37399817432ec9ebdc4e4a66b778d2e1b79c62f99a65f9' WHERE key='production_discovery_fingerprint' AND EXISTS(SELECT 1 FROM zasp_schema_metadata WHERE key='production_discovery_release_fingerprint');
 DELETE FROM zasp_schema_metadata WHERE key='production_discovery_release_fingerprint';
 UPDATE zasp_schema_metadata SET value='connector-authorization-v1',applied_at=transaction_timestamp() WHERE key='production_core_schema' AND value='production-discovery-v1';
