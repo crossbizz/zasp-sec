@@ -252,70 +252,6 @@ func (handler *workflowHTTPHandler) buildMutation(request *http.Request, identit
 			return WorkflowMutation{}, 0, "", ErrRepositoryOperation
 		}
 		body, _ = json.Marshal(value)
-	case "simulatePolicy":
-		stored, err := handler.repository.GetWorkflow(request.Context(), identity.Scope, "policy", id)
-		if err != nil {
-			return WorkflowMutation{}, 0, "", err
-		}
-		if stored.Version != expected {
-			return WorkflowMutation{}, 0, "", ErrRepositoryConflict
-		}
-		var input struct {
-			Events []platformpolicy.ActionContext `json:"events"`
-		}
-		if decodeProductionJSON(request, &input) != nil || len(input.Events) < 1 || len(input.Events) > 100 {
-			return WorkflowMutation{}, 0, "", ErrRepositoryOperation
-		}
-		var value platformpolicy.Policy
-		if json.Unmarshal(stored.Body, &value) != nil {
-			return WorkflowMutation{}, 0, "", ErrRepositoryUnavailable
-		}
-		compiled, err := platformpolicy.Compile(value)
-		if err != nil {
-			return WorkflowMutation{}, 0, "", ErrRepositoryOperation
-		}
-		matches, blocks, examples := 0, 0, []string{}
-		for _, event := range input.Events {
-			normalized, normalizeErr := platformpolicy.NormalizeActionContext(event)
-			if normalizeErr != nil || normalized.EnvironmentID != identity.Scope.EnvironmentID().String() {
-				return WorkflowMutation{}, 0, "", ErrRepositoryOperation
-			}
-			evaluation := make(map[string]string, len(normalized.Metadata)+6)
-			for key, value := range normalized.Metadata {
-				evaluation[key] = value
-			}
-			evaluation["principal_id"] = normalized.PrincipalID
-			evaluation["agent_id"] = normalized.AgentID
-			evaluation["session_id"] = normalized.SessionID
-			evaluation["action"] = normalized.Action
-			evaluation["resource"] = normalized.Resource
-			evaluation["environment_id"] = normalized.EnvironmentID
-			decision, evaluateErr := platformpolicy.Evaluate(request.Context(), compiled, evaluation)
-			if evaluateErr != nil {
-				return WorkflowMutation{}, 0, "", ErrRepositoryOperation
-			}
-			if decision.Matched {
-				matches++
-				if decision.Action == platformpolicy.ActionBlock {
-					blocks++
-				}
-				if session := normalized.SessionID; len(examples) < 5 && session != "" {
-					examples = append(examples, session)
-				}
-			}
-		}
-		result := "allow"
-		if blocks > 0 {
-			result = "block"
-		} else if matches > 0 {
-			result = "monitor"
-		}
-		decisionID := handler.idempotentProductID(identity.Scope, "simulatePolicy:"+id, idempotencyKey)
-		body, _ = json.Marshal(map[string]any{
-			"matches": matches, "would_block": blocks, "example_session_ids": examples,
-			"_decision": map[string]any{"id": decisionID, "policy_id": id, "environment_id": identity.Scope.EnvironmentID().String(), "result": result, "correlation_id": correlationID, "at": handler.now().Format(time.RFC3339)},
-		})
-		action, expected, status = "audit", stored.Version, http.StatusOK
 	case "rolloutPolicy", "disablePolicy":
 		stored, err := handler.repository.GetWorkflow(request.Context(), identity.Scope, "policy", id)
 		if err != nil {
@@ -383,8 +319,6 @@ func workflowReadTarget(routed RoutedOperation) (kind string, list bool, parentF
 		return "policy", true, "", "", true
 	case "getPolicy":
 		return "policy", false, "", "", true
-	case "listPolicyDecisions":
-		return "policy_decision", true, "policy_id", routed.PathParameters["id"], true
 	case "listIntegrations":
 		return "integration", true, "", "", true
 	case "getIntegration":
@@ -406,7 +340,7 @@ func workflowMutationTarget(operation string) (kind, action string, status int, 
 		return "policy", "update", http.StatusOK, true
 	case "deletePolicy":
 		return "policy", "delete", http.StatusNoContent, true
-	case "simulatePolicy", "rolloutPolicy", "disablePolicy":
+	case "rolloutPolicy", "disablePolicy":
 		return "policy", "update", http.StatusOK, true
 	case "createIntegration":
 		return "integration", "create", http.StatusCreated, true

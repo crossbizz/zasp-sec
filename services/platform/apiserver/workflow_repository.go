@@ -163,7 +163,7 @@ func validWorkflowMutation(value WorkflowMutation) bool {
 	switch value.Action {
 	case "create":
 		return value.ExpectedVersion == 0
-	case "update", "delete", "rotate_secret", "audit":
+	case "update", "delete", "rotate_secret":
 		return value.ExpectedVersion > 0
 	default:
 		return false
@@ -172,7 +172,7 @@ func validWorkflowMutation(value WorkflowMutation) bool {
 
 func validWorkflowKind(value string) bool {
 	switch value {
-	case "policy", "integration", "sensor", "security_agent", "security_agent_run", "security_agent_approval", "policy_decision":
+	case "policy", "integration", "sensor", "security_agent", "security_agent_run", "security_agent_approval":
 		return true
 	default:
 		return false

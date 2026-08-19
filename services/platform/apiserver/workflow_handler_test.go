@@ -150,11 +150,10 @@ func TestWorkflowHandlerRejectsInvalidPolicyTransitionBeforeMutation(t *testing.
 	}
 }
 
-func TestWorkflowHandlerBuildsAtomicDurablePolicyDecision(t *testing.T) {
+func TestWorkflowHandlerRejectsUnmountedPolicySimulationWithoutPersistence(t *testing.T) {
 	identity := fixtureRequestIdentity(t)
 	correlation := "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
-	policyBody := json.RawMessage(`{"id":"policy-bounded","name":"Bounded policy","scope":"environment","trigger":"tool","conditions":[{"field":"action","operator":"equals","value":"write"}],"action":"block","rollout":"enforced","failure_mode":"closed"}`)
-	repository := &workflowRepositoryStub{value: WorkflowValue{Body: policyBody, Version: 2}, result: WorkflowMutationResult{WorkflowValue: WorkflowValue{Body: json.RawMessage(`{"matches":1,"would_block":1,"example_session_ids":["session-1"]}`), Version: 2}, AuditID: "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", CorrelationID: correlation}}
+	repository := &workflowRepositoryStub{}
 	handler, _ := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), func() time.Time { return time.Date(2026, 8, 18, 12, 0, 0, 0, time.UTC) })
 	request := workflowRequest(t, identity, correlation, "simulatePolicy", map[string]string{"id": "policy-bounded"}, http.MethodPost, "/api/v1/policies/policy-bounded/simulate", `{"events":[{"principal_id":"principal-1","agent_id":"agent-1","session_id":"session-1","action":"write","resource":"scoped-resource","environment_id":"`+identity.Scope.EnvironmentID().String()+`","metadata":{}}]}`)
 	request.Header.Set("Idempotency-Key", "idem-simulate-policy-001")
@@ -162,13 +161,8 @@ func TestWorkflowHandlerBuildsAtomicDurablePolicyDecision(t *testing.T) {
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 
-	var mutation map[string]any
-	if json.Unmarshal(repository.mutation.Body, &mutation) != nil {
-		t.Fatalf("simulation mutation = %s", repository.mutation.Body)
-	}
-	decision, ok := mutation["_decision"].(map[string]any)
-	if response.Code != http.StatusOK || !ok || decision["policy_id"] != "policy-bounded" || decision["environment_id"] != identity.Scope.EnvironmentID().String() || decision["result"] != "block" || decision["correlation_id"] != correlation || decision["at"] != "2026-08-18T12:00:00Z" {
-		t.Fatalf("atomic policy decision = response %d mutation %s", response.Code, repository.mutation.Body)
+	if response.Code != http.StatusNotFound || repository.getCalls != 0 || repository.mutation.Operation != "" {
+		t.Fatalf("unmounted simulation = response %d reads=%d mutation=%#v body=%s", response.Code, repository.getCalls, repository.mutation, response.Body.String())
 	}
 }
 

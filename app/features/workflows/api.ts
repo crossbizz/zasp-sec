@@ -7,8 +7,6 @@ import {
   decodePolicy,
   decodePolicyPage,
   decodePolicyRollout,
-  decodePolicySimulation,
-  decodeRuntimeDecisionPage,
   type Decoder,
 } from "../../../apps/web/api/decoders";
 import type {
@@ -19,9 +17,6 @@ import type {
   Policy,
   PolicyRollout,
   PolicyRolloutInput,
-  PolicySimulation,
-  PolicySimulationInput,
-  RuntimeDecision,
 } from "../../../apps/web/api/generated";
 
 const quotedVersion = /^"[1-9][0-9]*"$/;
@@ -140,9 +135,6 @@ export function createPoliciesAPI(client: APIClient) {
     async getPolicy(id: string, signal?: AbortSignal): Promise<Versioned<Policy>> {
       return requireWorkflowVersioned(await client.GET("/api/v1/policies/{id}", { params: { path: { id } }, signal }), decodePolicy);
     },
-    async listPolicyDecisions(id: string, signal?: AbortSignal): Promise<readonly RuntimeDecision[]> {
-      return requireAPIData(await client.GET("/api/v1/policies/{id}/decisions", { params: { path: { id } }, signal }), decodeRuntimeDecisionPage).items;
-    },
     async createPolicy(value: Policy, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<Policy>> {
       return executeWorkflowMutation(async (active) => requireWorkflowReceipt(await client.POST("/api/v1/policies", { params: { header: workflowMutationHeaders(active) }, body: value }), decodePolicy), attempt);
     },
@@ -151,9 +143,6 @@ export function createPoliciesAPI(client: APIClient) {
     },
     async deletePolicy(id: string, version: string, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<void>> {
       return executeWorkflowMutation(async (active) => { const result = await client.DELETE("/api/v1/policies/{id}", { params: { path: { id }, header: workflowMutationHeaders(active, version) as { "Idempotency-Key": string; "If-Match": string } } }); if (result.error) requireAPIData<never>(result); return requireWorkflowEmptyReceipt(result.response); }, attempt);
-    },
-    async simulatePolicy(id: string, version: string, value: PolicySimulationInput, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<PolicySimulation>> {
-      return executeWorkflowMutation(async (active) => requireWorkflowReceipt(await client.POST("/api/v1/policies/{id}/simulate", { params: { path: { id }, header: workflowMutationHeaders(active, version) as { "Idempotency-Key": string; "If-Match": string } }, body: value }), decodePolicySimulation), attempt);
     },
     async rolloutPolicy(id: string, version: string, value: PolicyRolloutInput, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<PolicyRollout>> {
       return executeWorkflowMutation(async (active) => requireWorkflowReceipt(await client.POST("/api/v1/policies/{id}/rollout", { params: { path: { id }, header: workflowMutationHeaders(active, version) as { "Idempotency-Key": string; "If-Match": string } }, body: value }), decodePolicyRollout), attempt);

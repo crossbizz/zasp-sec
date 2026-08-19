@@ -103,8 +103,7 @@ try {
   await waitForBrowserText(browser.cdp, /Durable scoped runtime controls/);
   await clickBrowserText(browser.cdp, "Create policy");
   await waitForBrowserText(browser.cdp, /Policy created\. Audit pid_/);
-  await clickBrowserText(browser.cdp, "Simulate policy");
-  await waitForBrowserText(browser.cdp, /Simulation recorded\. Audit pid_/);
+  assert.equal(await browserHasInteractiveText(browser.cdp, /^(?:Simulate policy|Decision history)$/i), false);
   await clickBrowserText(browser.cdp, "Roll to monitor");
   await waitForBrowserText(browser.cdp, /Policy is monitor\. Audit pid_/);
   await clickBrowserText(browser.cdp, "Enforce policy");

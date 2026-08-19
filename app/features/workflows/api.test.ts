@@ -101,12 +101,4 @@ describe("production workflow API", () => {
     expect(first.length).toBeLessThanOrEqual(128);
   });
 
-  it("loads durable policy decisions through the generated operation", async () => {
-    const decision = { id: "pid_30000005-0000-4000-8000-000000000005", policy_id: policy.id, environment_id: environmentID, result: "monitor" as const, correlation_id: "pid_30000006-0000-4000-8000-000000000006", at: "2026-08-18T12:00:00Z" };
-    const GET = vi.fn(async () => ({ data: { items: [decision] }, response: new Response(JSON.stringify({ items: [decision] }), { status: 200, headers: { "Content-Type": "application/json" } }) }));
-    const api = createPoliciesAPI({ GET } as unknown as APIClient);
-
-    await expect(api.listPolicyDecisions(policy.id)).resolves.toEqual([decision]);
-    expect(GET).toHaveBeenCalledWith("/api/v1/policies/{id}/decisions", { params: { path: { id: policy.id } }, signal: undefined });
-  });
 });

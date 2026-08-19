@@ -155,10 +155,10 @@ const expectedMap: MapDocument = {
         { id: "view_policy", operation_id: "getPolicy", availability: "available" },
         { id: "update_policy", operation_id: "updatePolicy", availability: "available" },
         { id: "delete_policy", operation_id: "deletePolicy", availability: "api_available" },
-        { id: "simulate_policy", operation_id: "simulatePolicy", availability: "available" },
+        { id: "simulate_policy", operation_id: "simulatePolicy", availability: "api_available" },
         { id: "rollout_policy", operation_id: "rolloutPolicy", availability: "available" },
         { id: "disable_policy", operation_id: "disablePolicy", availability: "available" },
-        { id: "view_policy_decisions", operation_id: "listPolicyDecisions", availability: "available" },
+        { id: "view_policy_decisions", operation_id: "listPolicyDecisions", availability: "api_available" },
       ],
     },
     {

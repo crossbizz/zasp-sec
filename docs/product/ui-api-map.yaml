@@ -305,7 +305,7 @@ screens:
         availability: api_available
       - id: simulate_policy
         operation_id: simulatePolicy
-        availability: available
+        availability: api_available
       - id: rollout_policy
         operation_id: rolloutPolicy
         availability: available
@@ -314,7 +314,7 @@ screens:
         availability: available
       - id: view_policy_decisions
         operation_id: listPolicyDecisions
-        availability: available
+        availability: api_available
   - id: system_health
     label: System Health
     actions:

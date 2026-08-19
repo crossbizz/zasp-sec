@@ -56,8 +56,8 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
 			t.Errorf("%s security = %v, want %v", key, got, operation.Security)
 		}
 	}
-	if len(seen) != 41 {
-		t.Fatalf("mounted operation count = %d, want 41", len(seen))
+	if len(seen) != 39 {
+		t.Fatalf("mounted operation count = %d, want 39", len(seen))
 	}
 }
 
@@ -67,7 +67,7 @@ func TestBatchTwoCompositionExposesOnlyCompleteDurableOperations(t *testing.T) {
 		definitions[operation.OperationID] = operation
 	}
 	for _, operationID := range []string{
-		"listPolicies", "createPolicy", "getPolicy", "updatePolicy", "deletePolicy", "simulatePolicy", "rolloutPolicy", "disablePolicy", "listPolicyDecisions",
+		"listPolicies", "createPolicy", "getPolicy", "updatePolicy", "deletePolicy", "rolloutPolicy", "disablePolicy",
 		"listIntegrationCatalog", "listIntegrations", "createIntegration", "getIntegration", "updateIntegration", "deleteIntegration",
 		"listSecurityAgentTemplates", "listSecurityAgents", "createSecurityAgent", "getSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent",
 	} {
@@ -81,6 +81,7 @@ func TestBatchTwoCompositionExposesOnlyCompleteDurableOperations(t *testing.T) {
 		}
 	}
 	for _, hidden := range []string{
+		"simulatePolicy", "listPolicyDecisions",
 		"authorizeIntegration", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync",
 		"listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage",
 		"listSecurityActions", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval",

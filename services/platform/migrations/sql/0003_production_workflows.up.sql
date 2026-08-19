@@ -20,7 +20,7 @@ CREATE TABLE "public"."zasp_workflow_records" (
     "organization_id" text NOT NULL,
     "workspace_id" text NOT NULL,
     "environment_id" text NOT NULL,
-    "kind" text NOT NULL CHECK ("kind" IN ('policy', 'integration', 'sensor', 'security_agent', 'security_agent_run', 'security_agent_approval', 'policy_decision')),
+    "kind" text NOT NULL CHECK ("kind" IN ('policy', 'integration', 'sensor', 'security_agent', 'security_agent_run', 'security_agent_approval')),
     "id" text NOT NULL,
     "version" bigint NOT NULL DEFAULT 1 CHECK ("version" > 0),
     "body" jsonb NOT NULL CHECK (jsonb_typeof("body") = 'object'),
@@ -128,10 +128,9 @@ DECLARE
     result_body jsonb;
     result_version bigint;
     result_secret_generation bigint;
-    decision_body jsonb;
 BEGIN
-    IF mutation NOT IN ('create', 'update', 'delete', 'rotate_secret', 'audit') OR
-       requested_kind NOT IN ('policy', 'integration', 'sensor', 'security_agent', 'security_agent_run', 'security_agent_approval', 'policy_decision') OR
+    IF mutation NOT IN ('create', 'update', 'delete', 'rotate_secret') OR
+       requested_kind NOT IN ('policy', 'integration', 'sensor', 'security_agent', 'security_agent_run', 'security_agent_approval') OR
        length(requested_id) < 1 OR length(requested_id) > 128 OR
        length(requested_idempotency_key) < 16 OR length(requested_idempotency_key) > 128 OR
        jsonb_typeof(requested_intent) <> 'object' OR jsonb_typeof(requested_body) <> 'object' THEN
@@ -181,30 +180,6 @@ BEGIN
          WHERE "organization_id" = requested_organization_id AND "workspace_id" = requested_workspace_id AND "environment_id" = requested_environment_id
            AND "kind" = requested_kind AND "id" = requested_id AND "deleted_at" IS NULL AND "version" = expected_version
         RETURNING "body", "version", "secret_generation" INTO result_body, result_version, result_secret_generation;
-    ELSE
-        IF requested_kind = 'policy' AND requested_operation = 'simulatePolicy' THEN
-            decision_body := requested_body -> '_decision';
-            IF jsonb_typeof(decision_body) <> 'object' OR decision_body ->> 'id' IS NULL OR decision_body ->> 'policy_id' <> requested_id THEN
-                RAISE EXCEPTION USING ERRCODE = '22023', MESSAGE = 'invalid policy decision';
-            END IF;
-            PERFORM 1 FROM "public"."zasp_workflow_records"
-             WHERE "organization_id" = requested_organization_id AND "workspace_id" = requested_workspace_id AND "environment_id" = requested_environment_id
-               AND "kind" = 'policy' AND "id" = requested_id AND "deleted_at" IS NULL AND "version" = expected_version
-             FOR UPDATE;
-            IF NOT FOUND THEN
-                IF EXISTS (SELECT 1 FROM "public"."zasp_workflow_records" WHERE "organization_id" = requested_organization_id AND "workspace_id" = requested_workspace_id AND "environment_id" = requested_environment_id AND "kind" = 'policy' AND "id" = requested_id AND "deleted_at" IS NULL) THEN
-                    RAISE EXCEPTION USING ERRCODE = '40001', MESSAGE = 'workflow version conflict';
-                END IF;
-                RAISE EXCEPTION USING ERRCODE = 'P0002', MESSAGE = 'workflow record missing';
-            END IF;
-            result_body := requested_body - '_decision';
-            decision_body := decision_body || jsonb_build_object('at', to_jsonb(transaction_timestamp()), 'correlation_id', requested_correlation_id);
-            INSERT INTO "public"."zasp_workflow_records" ("organization_id", "workspace_id", "environment_id", "kind", "id", "body")
-            VALUES (requested_organization_id, requested_workspace_id, requested_environment_id, 'policy_decision', decision_body ->> 'id', decision_body);
-        ELSE
-            result_body := requested_body;
-        END IF;
-        result_version := GREATEST(expected_version, 1); result_secret_generation := 0;
     END IF;
 
     IF result_body IS NULL THEN
