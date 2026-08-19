@@ -37,3 +37,9 @@ b85f368af14ec6c26ae3a629109349bf2d6ad29c:services/platform/apiserver/postgres_in
 # the hermetic real-PostgreSQL receipt lifecycle test. Ignore only its exact
 # introduction finding; changed or relocated values remain detectable.
 6bd6cf8388cfdc40825bfd287de675fa39fe3cf0:services/platform/apiserver/postgres_integration_test.go:generic-api-key:173
+
+# Batch 2 fix round five adds two descriptive idempotency-key literals only in
+# hermetic PAT and production-browser tests. Ignore only their exact
+# introduction findings; changed or relocated values remain detectable.
+31aa0cc419b41628fe63d71c10563210bfa459c5:services/platform/apiserver/workflow_handler_test.go:generic-api-key:258
+9bad12f52815bb4337fefa112934694a36b85268:scripts/production-combined-e2e.mjs:generic-api-key:316
