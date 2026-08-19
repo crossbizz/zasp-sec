@@ -895,7 +895,9 @@ paths:
           BrowserExpectedScope: []
         - ProductAPIToken: []
       summary: Update one authorized finding status
+      description: BrowserSession requests require the shared CSRF header and a same-origin Origin. ProductAPIToken requests omit the browser-only header at transport time; OpenAPI cannot conditionally require a parameter by security alternative.
       parameters:
+        - $ref: '#/components/parameters/CSRFToken'
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/ResourceVersion'
       requestBody:
@@ -915,7 +917,9 @@ paths:
           BrowserExpectedScope: []
         - ProductAPIToken: []
       summary: Record an authorized finding risk acceptance
+      description: BrowserSession requests require the shared CSRF header and a same-origin Origin. ProductAPIToken requests omit the browser-only header at transport time; OpenAPI cannot conditionally require a parameter by security alternative.
       parameters:
+        - $ref: '#/components/parameters/CSRFToken'
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/ResourceVersion'
       requestBody:

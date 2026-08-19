@@ -481,7 +481,9 @@ describe("production workflow concurrency contract", () => {
     for (const [path, method] of [["/api/v1/findings/{id}", "patch"], ["/api/v1/findings/{id}/accept-risk", "post"]]) {
       const operation = document.paths[path][method];
       assert.deepEqual(operation.security, [{ BrowserSession: [], BrowserExpectedScope: [] }, { ProductAPIToken: [] }]);
+      assert.match(operation.description, /BrowserSession requests require the shared CSRF header.*ProductAPIToken requests omit/s);
       assert.deepEqual(operation.parameters, [
+        { $ref: "#/components/parameters/CSRFToken" },
         { $ref: "#/components/parameters/IdempotencyKey" },
         { $ref: "#/components/parameters/ResourceVersion" },
       ]);

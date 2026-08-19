@@ -106,4 +106,10 @@ test("exports exactly the seven Batch 4 risk methods and no removed overclaims",
     "listSecurityActions", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval",
     "globalSearch", "createAIExplanation",
   ]) assert.doesNotMatch(generated, new RegExp(`\\b${operationId}:`), operationId);
+  for (const operationId of ["updateFinding", "acceptFindingRisk"]) {
+    const start = generated.indexOf(`readonly ${operationId}:`);
+    const end = generated.indexOf("readonly responses:", start);
+    assert.notEqual(start, -1, operationId);
+    assert.match(generated.slice(start, end), /readonly "X-CSRF-Token": components\["parameters"\]\["CSRFToken"\]/, `${operationId} browser CSRF`);
+  }
 });

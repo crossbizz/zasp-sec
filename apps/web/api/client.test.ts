@@ -108,7 +108,7 @@ describe("generated API client", () => {
     });
 
     const result = await client.PATCH("/api/v1/findings/{id}", {
-		params: { path: { id: "pid_20000001-0000-4000-8000-000000000001" }, header: { "Idempotency-Key": "idem-finding-update-0001", "If-Match": `"1"` } },
+		params: { path: { id: "pid_20000001-0000-4000-8000-000000000001" }, header: { "Idempotency-Key": "idem-finding-update-0001", "If-Match": `"1"`, "X-CSRF-Token": "" } },
       body: { status: "resolved" },
     });
     expect(result.error).toBeUndefined();

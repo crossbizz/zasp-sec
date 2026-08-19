@@ -38,11 +38,23 @@ describe("production risk API", () => {
     expect(result.receiptID).toMatch(/^pid_/);
     expect(requests[0]!.headers.get("Idempotency-Key")).toBe("idem-risk-update-0001");
     expect(requests[0]!.headers.get("If-Match")).toBe('"1"');
+    expect(requests[0]!.headers.get("X-CSRF-Token")).toBe("csrf");
   });
 
   it("requires PAT mutations to return zero browser receipt", async () => {
     const client = createAPIClient({ getExpectedScope: () => scope, fetch: async () => response({ ...finding, status: "accepted", acceptance_reason: "Approved", version: 2 }, { ETag: '"2"', "X-Audit-ID": "pid_30000001-0000-4000-8000-000000000001", "X-Mutation-Receipt-ID": "pid_30000002-0000-4000-8000-000000000002" }) });
     await expect(createProductionRiskAPI(client, "pat").acceptFindingRisk(finding.id, "Approved", '"1"', { idempotencyKey: "idem-risk-accept-0001" })).rejects.toMatchObject({ kind: "invalid_response" });
+  });
+
+  it("omits the browser-only CSRF transport header for a valid PAT mutation", async () => {
+    let request: Request | undefined;
+    const client = createAPIClient({ getExpectedScope: () => scope, fetch: async (current) => {
+      request = current;
+      return response({ ...finding, status: "accepted", acceptance_reason: "Approved", version: 2 }, { ETag: '"2"', "X-Audit-ID": "pid_30000001-0000-4000-8000-000000000001" });
+    } });
+    const result = await createProductionRiskAPI(client, "pat").acceptFindingRisk(finding.id, "Approved", '"1"', { idempotencyKey: "idem-risk-accept-0001" });
+    expect(result.receiptID).toBeUndefined();
+    expect(request!.headers.has("X-CSRF-Token")).toBe(false);
   });
 
   it("rejects malformed success and repeated cursors and preserves caller abort", async () => {

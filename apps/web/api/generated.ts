@@ -459,7 +459,10 @@ export type paths = {
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
-        /** Update one authorized finding status */
+        /**
+         * Update one authorized finding status
+         * @description BrowserSession requests require the shared CSRF header and a same-origin Origin. ProductAPIToken requests omit the browser-only header at transport time; OpenAPI cannot conditionally require a parameter by security alternative.
+         */
         readonly patch: operations["updateFinding"];
         readonly trace?: never;
     };
@@ -474,7 +477,10 @@ export type paths = {
         };
         readonly get?: never;
         readonly put?: never;
-        /** Record an authorized finding risk acceptance */
+        /**
+         * Record an authorized finding risk acceptance
+         * @description BrowserSession requests require the shared CSRF header and a same-origin Origin. ProductAPIToken requests omit the browser-only header at transport time; OpenAPI cannot conditionally require a parameter by security alternative.
+         */
         readonly post: operations["acceptFindingRisk"];
         readonly delete?: never;
         readonly options?: never;
@@ -3152,6 +3158,8 @@ export interface operations {
                 readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Quoted current durable resource version. */
                 readonly "If-Match": components["parameters"]["ResourceVersion"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
             };
             readonly path: {
                 readonly id: components["schemas"]["ProductID"];
@@ -3188,6 +3196,8 @@ export interface operations {
                 readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Quoted current durable resource version. */
                 readonly "If-Match": components["parameters"]["ResourceVersion"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
             };
             readonly path: {
                 readonly id: components["schemas"]["ProductID"];

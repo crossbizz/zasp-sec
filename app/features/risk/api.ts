@@ -35,11 +35,11 @@ export function createProductionRiskAPI(client: APIClient, credentialKind: Crede
       return requireRiskVersioned(result, decodeFinding);
     },
     async updateFinding(id, status, version, attempt, signal) {
-      const result = await client.PATCH("/api/v1/findings/{id}", { params: { path: { id }, header: mutationHeaders(version, attempt) }, body: { status }, signal });
+      const result = await client.PATCH("/api/v1/findings/{id}", { params: { path: { id }, header: mutationHeaders(version, attempt, credentialKind) }, body: { status }, signal });
       return requireRiskMutation(result, credentialKind);
     },
     async acceptFindingRisk(id, reason, version, attempt, signal) {
-      const result = await client.POST("/api/v1/findings/{id}/accept-risk", { params: { path: { id }, header: mutationHeaders(version, attempt) }, body: { reason }, signal });
+      const result = await client.POST("/api/v1/findings/{id}/accept-risk", { params: { path: { id }, header: mutationHeaders(version, attempt, credentialKind) }, body: { reason }, signal });
       return requireRiskMutation(result, credentialKind);
     },
     async listAttackPaths(signal) {
@@ -72,7 +72,11 @@ function requireRiskMutation(result: APIResult, credentialKind: CredentialKind):
   return { ...versioned, auditID, ...(receiptID ? { receiptID } : {}) };
 }
 
-function mutationHeaders(version: string, attempt: RiskMutationAttempt): { "If-Match": string; "Idempotency-Key": string } {
+function mutationHeaders(version: string, attempt: RiskMutationAttempt, credentialKind: CredentialKind): { "If-Match": string; "Idempotency-Key": string; "X-CSRF-Token": string } {
   if (!quotedVersion.test(version) || !/^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$/.test(attempt.idempotencyKey)) throw new APITransportError("invalid_configuration", "Invalid risk mutation precondition");
-  return { "If-Match": version, "Idempotency-Key": attempt.idempotencyKey };
+  const headers = { "If-Match": version, "Idempotency-Key": attempt.idempotencyKey };
+  // OpenAPI cannot conditionally require a header by security alternative.
+  // Browser requests carry a transport-owned placeholder that the CSRF vault
+  // replaces; PAT requests omit the browser-only header at transport time.
+  return credentialKind === "browser" ? { ...headers, "X-CSRF-Token": "" } : headers as typeof headers & { "X-CSRF-Token": string };
 }
