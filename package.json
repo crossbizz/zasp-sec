@@ -21,6 +21,7 @@
     "ui-api:test": "node --test scripts/check-ui-api-coverage.test.mjs",
     "ui-api:check": "node scripts/check-ui-api-coverage.mjs",
     "raw-fetch:test": "node --test eslint-rules/no-raw-fetch.test.mjs",
+    "implementation:status:check": "node scripts/implementation-status-check.mjs",
     "health:test": "go test -C services/health -race -count=1 ./...",
     "health:contract:test": "node --test openapi/internal-health.test.mjs && go test -C services/health -race -count=1 ./... && go test -C services/platform -race -count=1 ./healthserver ./agentsec-api ./agentsec-worker && go test -C services/event-ingest -race -count=1 ./... && go test -C services/runtime-gateway -race -count=1 ./...",
     "platform:health:test": "go test -C services/platform -race -count=1 ./healthserver ./agentsec-api ./agentsec-worker",
@@ -129,7 +130,7 @@
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "saas:tenancy:test": "go test -C services/platform -race -count=1 -timeout=90s ./config ./repository ./eventstore ./artifactstore ./jobqueue ./graphstore ./tenantquota",
     "staging:gate:test": "node --test deploy/staging/gate.test.mjs deploy/staging/preflight.test.mjs",
-    "verify": "npm run dependencies:check && npm run health:contract:test && npm run openapi:test && npm run openapi:lint && npm run openapi:check && npm run ui-api:test && npm run ui-api:check && npm run raw-fetch:test && npm run saas:tenancy:test && npm run db:tenant-rls:test && npm test && npm run typecheck && npm run lint && npm run production:imports:test && npm run production:imports:source && npm run production:release:test && npm run build && npm run production:imports:compiled",
+    "verify": "npm run dependencies:check && npm run health:contract:test && npm run openapi:test && npm run openapi:lint && npm run openapi:check && npm run ui-api:test && npm run ui-api:check && npm run raw-fetch:test && npm run saas:tenancy:test && npm run db:tenant-rls:test && npm test && npm run typecheck && npm run lint && npm run production:imports:test && npm run production:imports:source && npm run production:release:test && npm run build && npm run production:imports:compiled && npm run implementation:status:check",
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {

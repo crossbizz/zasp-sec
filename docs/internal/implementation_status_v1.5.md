@@ -2,13 +2,16 @@
 
 **Source plan:** `docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md`
 **Source PRD:** `docs/internal/agent_security_platform_PRD_v1.5.md`
-**Last updated:** August 18, 2026
-**Execution branch:** `codex/zasp-implementation`
+**Last updated:** August 19, 2026
+**Execution branch:** `codex/production-auto-discovery`
 
-This file is the authoritative execution status for the 728 microtasks in the
-v1.5 technical implementation plan. The plan remains authoritative for scope,
-dependencies, deliverables, and verification. A plan task not listed under
-In progress, Complete, or Blocked is Pending.
+This file preserves the authoritative historical execution evidence for the
+728 microtasks in the v1.5 technical implementation plan. Production
+availability is separately authoritative in
+`docs/internal/implementation_production_availability_v1.5.tsv`; it is
+machine-checked against the source plan. The plan remains authoritative for
+scope, dependencies, deliverables, and verification. A plan task not listed
+under In progress, Complete, or Blocked is Pending.
 
 ## Status summary
 
@@ -18,6 +21,11 @@ In progress, Complete, or Blocked is Pending.
 | In progress | 0 |
 | Complete | 667 |
 | Blocked | 61 |
+
+The statuses in this table are historical execution statuses. Historical
+`Complete` means the recorded component, proof, fixture, or release work passed
+its historical gate; it does not imply the behavior is wired into the currently
+shipped production runtime.
 
 ## Milestone summary
 
@@ -35,6 +43,9 @@ In progress, Complete, or Blocked is Pending.
 | M7A | 113 | 0 | 0 | 113 | 0 |
 | M8 | 141 | 0 | 0 | 89 | 52 |
 
+This matrix preserves historical execution counts. The production-availability
+matrix below the audit basis is the readiness measure.
+
 ## Execution invariants
 
 - Update this file at the status boundary for an individual task or a cohesive
@@ -43,10 +54,68 @@ In progress, Complete, or Blocked is Pending.
   implementation commits and verification evidence identify every task.
 - A task moves to Complete only after its required verification and task review pass.
 - A task moves to Blocked only with the exact missing external dependency and evidence.
+- Every source-plan ID appears exactly once in the production-availability TSV
+  with its historical status, production class, owner, and current evidence.
+- Component-only and missing rows name exactly one concrete production slice
+  (`T02` through `T16`); blocked/external rows name an approved typed `EXT-*`
+  gate rather than a grouped owner or generic final task.
+- Component-only proof, demo UI, memory-backed behavior, or an external gate
+  cannot classify a task as production-available.
+- A production-available classification requires the audited behavior to be
+  composed into the shipped runtime; external evidence gates remain explicit.
 - Tests, type-check, lint, and production build must pass before a branch push.
 - The UI must remain runnable and use product APIs as those contracts become available.
 - Existing demo UI is reusable design input, not evidence that a plan task is complete.
 - Security-sensitive behavior follows test-first implementation and fails closed.
+
+## Production availability summary
+
+| Production class | Count |
+| --- | ---: |
+| Production-available | 229 |
+| Component-only | 425 |
+| Blocked/external | 61 |
+| Missing | 13 |
+
+`production-available` is the readiness measure: it requires source-reachable
+production composition, not merely a component proof or external evidence.
+
+## Production-availability audit basis
+
+- `README.md` and `services/platform/apiserver/composition_test.go` establish
+  the 80-operation production API boundary and keep sync, sensor, runtime, and
+  Security Agent execution operations unmounted.
+- `services/platform/agentsec-worker`, `services/event-ingest`, and
+  `services/runtime-gateway` are health-only executables; their component
+  packages do not constitute a running product loop.
+- Memory-backed sensor, runtime-event, and Security Agent repositories remain
+  component evidence rather than durable production authority.
+- `app/components/ZaspProductionApp.tsx` exposes only capability-gated routes
+  backed by the mounted production API; connector authorization/sync and
+  Security Agent execution remain hidden.
+- `deploy/staging/product/templates` ships web and API only; the worker,
+  ingest, gateway, Nango, Neo4j, collector, and customer-edge claims remain
+  component-only or missing until a composed workload is shipped.
+- `docs/operations/production-deployment.md` and release contracts retain
+  image, provider, DNS/TLS, secret, tracing, and public-deployment evidence as
+  explicit external gates.
+
+## Production availability by milestone
+
+| Milestone | Total | Production-available | Component-only | Blocked/external | Missing |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| M0 | 27 | 0 | 24 | 3 | 0 |
+| M1 | 68 | 43 | 25 | 0 | 0 |
+| M1A | 10 | 0 | 6 | 4 | 0 |
+| M2 | 72 | 50 | 22 | 0 | 0 |
+| M3 | 75 | 13 | 60 | 2 | 0 |
+| M4 | 82 | 42 | 40 | 0 | 0 |
+| M5 | 42 | 0 | 42 | 0 | 0 |
+| M6 | 36 | 13 | 23 | 0 | 0 |
+| M7 | 62 | 37 | 25 | 0 | 0 |
+| M7A | 113 | 21 | 92 | 0 | 0 |
+| M8 | 141 | 10 | 66 | 52 | 13 |
+| **Total** | **728** | **229** | **425** | **61** | **13** |
 
 ## Prerequisite work
 

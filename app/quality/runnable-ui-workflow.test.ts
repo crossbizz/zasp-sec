@@ -86,6 +86,7 @@ function assertRunnableUiWorkflow(
     "npm run production:release:test",
     "npm run build",
     "npm run production:imports:compiled",
+    "npm run implementation:status:check",
   ]);
 
   const verificationJobs = Object.values(workflow.jobs ?? {}).filter((job) =>
@@ -100,7 +101,7 @@ function assertRunnableUiWorkflow(
   expect(verificationJob["continue-on-error"]).toBeUndefined();
 
   const verificationSteps = verificationJob.steps ?? [];
-  expect(verificationSteps).toHaveLength(8);
+  expect(verificationSteps).toHaveLength(9);
   expect(verificationSteps.map((step) => step.uses ?? step.run)).toEqual([
     checkoutAction,
     setupNodeAction,
@@ -108,6 +109,7 @@ function assertRunnableUiWorkflow(
     "npm install --global npm@10.9.8",
     "SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci",
     "go install github.com/zricethezav/gitleaks/v8@v8.30.1",
+    "npm run implementation:status:check",
     "npm run verify",
     "npm run production:release:gate",
   ]);
@@ -143,6 +145,7 @@ function validWorkflow(): Workflow {
           { run: "npm install --global npm@10.9.8" },
           { run: "SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci" },
           { run: "go install github.com/zricethezav/gitleaks/v8@v8.30.1" },
+          { run: "npm run implementation:status:check" },
           { run: "npm run verify" },
           { run: "npm run production:release:gate" },
         ],
