@@ -39,7 +39,7 @@ export function useRetainedWorkflowMutation<I>(operationKey = "component-local")
   const [, refresh] = useReducer((value: number) => value + 1, 0);
   const settle = useCallback(async <T,>(promise: Promise<T>) => {
     try { return await promise; } finally { refresh(); }
-  }, [controller]);
+  }, []);
   const execute = useCallback(<T,>(intent: I, send: (frozenIntent: I, attempt: WorkflowMutationAttempt) => Promise<T>) => settle(controller.execute(intent, send)), [controller, settle]);
   const retry = useCallback(<T,>() => settle(controller.retry<T>()), [controller, settle]);
   const resolveAfterServerReconciliation = useCallback(() => {
