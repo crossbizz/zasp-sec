@@ -119,7 +119,13 @@ func TestNewCompositionMountsOnlyCoreProductOperations(t *testing.T) {
 		request := httptest.NewRequest(test.method, test.path, nil)
 		identity := fixtureRequestIdentity(t)
 		identity.Permissions = []string{"view"}
+		identity.CredentialKind = CredentialBrowserSession
 		request = request.WithContext(context.WithValue(request.Context(), identityContextKey{}, identity))
+		request = request.WithContext(context.WithValue(request.Context(), browserSecurityContextKey{}, browserSecurityContext{publicOrigin: "https://app.zasp.test"}))
+		if test.path == "/api/v1/session/sign-out" {
+			request.Header.Set("Origin", "https://app.zasp.test")
+			request.Header.Set("X-CSRF-Token", identity.CSRFToken)
+		}
 		composition.ServeHTTP(response, request)
 		if response.Code != http.StatusOK || response.Body.String() != test.body {
 			t.Errorf("%s %s = (%d, %q), want (200, %q)", test.method, test.path, response.Code, response.Body.String(), test.body)

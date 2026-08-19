@@ -46,7 +46,10 @@ func TestProductMiddlewareAuthenticatesCookieAndOwnsRequestIdentity(t *testing.T
 
 func TestProductMiddlewareSeparatesAuthenticationAndBrowserMutationRejection(t *testing.T) {
 	identity := fixtureRequestIdentity(t)
-	next := http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) { writer.WriteHeader(http.StatusNoContent) })
+	next, err := NewRouter([]Operation{{Method: http.MethodPost, Pattern: "/api/v1/session/sign-out", Security: []CredentialKind{CredentialBrowserSession}, RequireCSRF: true, Handler: http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) { writer.WriteHeader(http.StatusNoContent) })}})
+	if err != nil {
+		t.Fatal(err)
+	}
 	authenticate := func(_ context.Context, credential Credential) (RequestIdentity, error) {
 		if credential.Value == "expired" {
 			return RequestIdentity{}, ErrAuthenticationRequired

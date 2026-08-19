@@ -82,7 +82,16 @@ func NewComposition(dependencies Dependencies) (http.Handler, error) {
 	operations := make([]Operation, 0, len(coreOperations))
 	for _, definition := range coreOperations {
 		handler := dependencyHandler(dependencies, definition.dependency)
-		operations = append(operations, Operation{Method: definition.Method, Pattern: definition.Pattern, OperationID: definition.OperationID, Permission: definition.Permission, Handler: handler})
+		security := make([]CredentialKind, 0, len(definition.Security))
+		for _, scheme := range definition.Security {
+			switch scheme {
+			case "BrowserSession":
+				security = append(security, CredentialBrowserSession)
+			case "ProductAPIToken":
+				security = append(security, CredentialBearerToken)
+			}
+		}
+		operations = append(operations, Operation{Method: definition.Method, Pattern: definition.Pattern, OperationID: definition.OperationID, Permission: definition.Permission, Security: security, RequireCSRF: definition.OperationID == "signOutSession", Handler: handler})
 	}
 	router, err := NewRouter(operations)
 	if err != nil {

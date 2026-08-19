@@ -2,6 +2,7 @@ package apiserver
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 	"net/http"
 	"strings"
@@ -21,6 +22,8 @@ type Operation struct {
 	Pattern     string
 	OperationID string
 	Permission  string
+	Security    []CredentialKind
+	RequireCSRF bool
 	Handler     http.Handler
 }
 
@@ -33,6 +36,8 @@ type registeredOperation struct {
 	pattern     string
 	operationID string
 	permission  string
+	security    []CredentialKind
+	requireCSRF bool
 	segments    []routeSegment
 	handler     http.Handler
 }
@@ -72,7 +77,7 @@ func NewRouter(operations []Operation) (http.Handler, error) {
 			}
 		}
 		registered = append(registered, registeredOperation{
-			method: operation.Method, pattern: operation.Pattern, operationID: operation.OperationID, permission: operation.Permission, segments: segments, handler: operation.Handler,
+			method: operation.Method, pattern: operation.Pattern, operationID: operation.OperationID, permission: operation.Permission, security: append([]CredentialKind(nil), operation.Security...), requireCSRF: operation.RequireCSRF, segments: segments, handler: operation.Handler,
 		})
 	}
 	return &operationRouter{operations: registered}, nil
@@ -93,6 +98,14 @@ func (router *operationRouter) ServeHTTP(writer http.ResponseWriter, request *ht
 		}
 		pathMatched = true
 		if operation.method == request.Method {
+			if len(operation.security) > 0 && !requestHasCredentialKind(request, operation.security) {
+				writeRouterError(writer, request, http.StatusUnauthorized, "authentication_required", "Authentication required")
+				return
+			}
+			if operation.requireCSRF && !requestHasValidCSRF(request) {
+				writeRouterError(writer, request, http.StatusForbidden, "request_forbidden", "Request forbidden")
+				return
+			}
 			if operation.permission != "" && !requestHasPermission(request, operation.permission) {
 				writeRouterError(writer, request, http.StatusForbidden, "request_forbidden", "Request forbidden")
 				return
@@ -108,6 +121,29 @@ func (router *operationRouter) ServeHTTP(writer http.ResponseWriter, request *ht
 		return
 	}
 	writeRouterError(writer, request, http.StatusNotFound, "not_found", "Product route not found")
+}
+
+func requestHasCredentialKind(request *http.Request, allowed []CredentialKind) bool {
+	identity, ok := IdentityFromRequest(request)
+	if !ok {
+		return false
+	}
+	for _, kind := range allowed {
+		if identity.CredentialKind == kind {
+			return true
+		}
+	}
+	return false
+}
+
+func requestHasValidCSRF(request *http.Request) bool {
+	identity, ok := IdentityFromRequest(request)
+	security, securityOK := request.Context().Value(browserSecurityContextKey{}).(browserSecurityContext)
+	if !ok || !securityOK || identity.CredentialKind != CredentialBrowserSession {
+		return false
+	}
+	csrf := request.Header.Get("X-CSRF-Token")
+	return request.Header.Get("Origin") == security.publicOrigin && len(csrf) == len(identity.CSRFToken) && subtle.ConstantTimeCompare([]byte(csrf), []byte(identity.CSRFToken)) == 1
 }
 
 func parsePattern(pattern string) ([]routeSegment, error) {

@@ -109,6 +109,52 @@ func TestRouterEnforcesExactOperationPermission(t *testing.T) {
 	}
 }
 
+func TestRouterRejectsWrongCredentialSchemeBeforeCSRFAndPermission(t *testing.T) {
+	called := false
+	router, err := NewRouter([]Operation{{Method: "POST", Pattern: "/api/v1/session/sign-out", OperationID: "signOutSession", Permission: "view", Security: []CredentialKind{CredentialBrowserSession}, RequireCSRF: true, Handler: http.HandlerFunc(func(http.ResponseWriter, *http.Request) { called = true })}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := fixtureRequestIdentity(t)
+	identity.Permissions = nil
+	identity.CredentialKind = CredentialBearerToken
+	request := httptest.NewRequest(http.MethodPost, "https://app.zasp.test/api/v1/session/sign-out", nil)
+	request = request.WithContext(context.WithValue(request.Context(), identityContextKey{}, identity))
+	request = request.WithContext(context.WithValue(request.Context(), browserSecurityContextKey{}, browserSecurityContext{publicOrigin: "https://app.zasp.test"}))
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusUnauthorized || decodeErrorCode(t, response) != "authentication_required" || called {
+		t.Fatalf("wrong scheme = (%d, %s, called=%v)", response.Code, response.Body.String(), called)
+	}
+}
+
+func TestRouterAppliesBrowserCSRFOnlyAfterSchemeMatch(t *testing.T) {
+	router, err := NewRouter([]Operation{{Method: "POST", Pattern: "/api/v1/session/sign-out", OperationID: "signOutSession", Security: []CredentialKind{CredentialBrowserSession}, RequireCSRF: true, Handler: handlerResponse("ok")}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBrowserSession
+	request := httptest.NewRequest(http.MethodPost, "https://app.zasp.test/api/v1/session/sign-out", nil)
+	request = request.WithContext(context.WithValue(request.Context(), identityContextKey{}, identity))
+	request = request.WithContext(context.WithValue(request.Context(), browserSecurityContextKey{}, browserSecurityContext{publicOrigin: "https://app.zasp.test"}))
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("missing csrf status = %d", response.Code)
+	}
+	request = httptest.NewRequest(http.MethodPost, "https://app.zasp.test/api/v1/session/sign-out", nil)
+	request.Header.Set("Origin", "https://app.zasp.test")
+	request.Header.Set("X-CSRF-Token", identity.CSRFToken)
+	request = request.WithContext(context.WithValue(request.Context(), identityContextKey{}, identity))
+	request = request.WithContext(context.WithValue(request.Context(), browserSecurityContextKey{}, browserSecurityContext{publicOrigin: "https://app.zasp.test"}))
+	response = httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("valid csrf status = %d body=%s", response.Code, response.Body.String())
+	}
+}
+
 func TestRouterUsesFixedErrorsForUnknownRequests(t *testing.T) {
 	router, err := NewRouter([]Operation{{Method: http.MethodGet, Pattern: "/api/v1/agents/{id}", Handler: http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		t.Fatal("unexpected handler call")

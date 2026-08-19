@@ -3,7 +3,6 @@ package apiserver
 import (
 	"bytes"
 	"context"
-	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"io"
@@ -34,10 +33,11 @@ type Credential struct {
 }
 
 type RequestIdentity struct {
-	PrincipalID domain.ProductID
-	Scope       domain.Scope
-	Permissions []string
-	CSRFToken   string
+	PrincipalID    domain.ProductID
+	Scope          domain.Scope
+	Permissions    []string
+	CSRFToken      string
+	CredentialKind CredentialKind
 }
 
 type Authenticator func(context.Context, Credential) (RequestIdentity, error)
@@ -51,6 +51,8 @@ type ProductSecurity struct {
 
 type identityContextKey struct{}
 type correlationContextKey struct{}
+type browserSecurityContextKey struct{}
+type browserSecurityContext struct{ publicOrigin string }
 
 func NewProductMiddleware(security ProductSecurity, next http.Handler) (http.Handler, error) {
 	if next == nil || security.Authenticate == nil || security.GenerateCorrelationID == nil || security.MaximumBodyBytes < 1 {
@@ -105,14 +107,9 @@ func NewProductMiddleware(security ProductSecurity, next http.Handler) (http.Han
 			writeProductError(writer, http.StatusUnauthorized, "authentication_required", "Authentication required", correlationID)
 			return
 		}
-		if browser && isMutation(request.Method) {
-			csrf := request.Header.Get("X-CSRF-Token")
-			if request.Header.Get("Origin") != security.PublicOrigin || len(csrf) != len(identity.CSRFToken) || subtle.ConstantTimeCompare([]byte(csrf), []byte(identity.CSRFToken)) != 1 {
-				writeProductError(writer, http.StatusForbidden, "request_forbidden", "Request forbidden", correlationID)
-				return
-			}
-		}
+		identity.CredentialKind = credential.Kind
 		request = request.WithContext(context.WithValue(request.Context(), identityContextKey{}, identity))
+		request = request.WithContext(context.WithValue(request.Context(), browserSecurityContextKey{}, browserSecurityContext{publicOrigin: security.PublicOrigin}))
 		next.ServeHTTP(writer, request)
 	}), nil
 }
