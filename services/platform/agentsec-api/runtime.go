@@ -28,6 +28,9 @@ type RuntimeConfig struct {
 	ProductListenAddress  string
 	InternalListenAddress string
 	PublicOrigin          string
+	TrustedProxyCIDRs     []string
+	RequestRatePerSecond  int
+	RequestBurst          int
 	CookieSecure          bool
 	ProviderTimeout       time.Duration
 	ShutdownTimeout       time.Duration
@@ -54,6 +57,7 @@ type RuntimeDependencies struct {
 	ReadinessCheck func(context.Context) error
 	Stores         []StoreDependency
 	Closers        []io.Closer
+	Metrics        *operationalMetrics
 }
 
 func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
@@ -65,9 +69,12 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 	readinessInterval, readinessErr := time.ParseDuration(getenv("ZASP_READINESS_INTERVAL"))
 	readinessMaxInterval, readinessMaxErr := time.ParseDuration(getenv("ZASP_READINESS_MAX_INTERVAL"))
 	cookieSecure, cookieErr := strconv.ParseBool(getenv("ZASP_COOKIE_SECURE"))
+	requestRate, requestRateErr := strconv.Atoi(getenv("ZASP_REQUEST_RATE_PER_SECOND"))
+	requestBurst, requestBurstErr := strconv.Atoi(getenv("ZASP_REQUEST_BURST"))
 	config := RuntimeConfig{
 		Environment: getenv("ZASP_ENVIRONMENT"), DeploymentMode: getenv("ZASP_DEPLOYMENT_MODE"), OrganizationID: getenv("ZASP_ORGANIZATION_ID"), ProductListenAddress: getenv("ZASP_PRODUCT_LISTEN_ADDRESS"),
 		InternalListenAddress: getenv("ZASP_INTERNAL_LISTEN_ADDRESS"), PublicOrigin: getenv("ZASP_PUBLIC_ORIGIN"),
+		TrustedProxyCIDRs: parseTrustedProxyCIDRs(getenv("ZASP_TRUSTED_PROXY_CIDRS")), RequestRatePerSecond: requestRate, RequestBurst: requestBurst,
 		CookieSecure: cookieSecure, ProviderTimeout: providerTimeout, ShutdownTimeout: shutdownTimeout,
 		ReadinessInterval: readinessInterval, ReadinessMaxInterval: readinessMaxInterval,
 		PostgresDSN: getenv("ZASP_POSTGRES_DSN"), StytchBaseURL: getenv("ZASP_STYTCH_BASE_URL"), StytchAuthorizeURL: getenv("ZASP_STYTCH_AUTHORIZE_URL"), StytchProjectID: getenv("ZASP_STYTCH_PROJECT_ID"), StytchSecret: getenv("ZASP_STYTCH_SECRET"), StytchPublicToken: getenv("ZASP_STYTCH_PUBLIC_TOKEN"), StytchOrganizationID: getenv("ZASP_STYTCH_ORGANIZATION_ID"), WorkflowSigningKey: getenv("ZASP_WORKFLOW_SIGNING_KEY"),
@@ -77,7 +84,7 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 	if revealKeyErr == nil && base64.RawURLEncoding.EncodeToString(decodedRevealKey) == revealKey {
 		config.TokenRevealKey = append([]byte(nil), decodedRevealKey...)
 	}
-	if providerErr != nil || shutdownErr != nil || readinessErr != nil || readinessMaxErr != nil || cookieErr != nil || revealKeyErr != nil || !validRuntimeConfig(config) {
+	if providerErr != nil || shutdownErr != nil || readinessErr != nil || readinessMaxErr != nil || cookieErr != nil || requestRateErr != nil || requestBurstErr != nil || revealKeyErr != nil || !validRuntimeConfig(config) {
 		return RuntimeConfig{}, errInvalidRuntimeConfig
 	}
 	return config, nil
@@ -107,6 +114,15 @@ func validRuntimeConfig(config RuntimeConfig) bool {
 	if config.Environment == "production" && !config.CookieSecure {
 		return false
 	}
+	if len(config.TrustedProxyCIDRs) == 0 || config.RequestRatePerSecond < 1 || config.RequestRatePerSecond > 10000 || config.RequestBurst < 1 || config.RequestBurst > 10000 {
+		return false
+	}
+	for _, value := range config.TrustedProxyCIDRs {
+		_, network, parseErr := net.ParseCIDR(value)
+		if parseErr != nil || network.String() != value {
+			return false
+		}
+	}
 	database, databaseErr := url.Parse(config.PostgresDSN)
 	if databaseErr != nil || database.Scheme != "postgres" && database.Scheme != "postgresql" || database.Host == "" || database.User == nil || database.Path == "" || strings.TrimSpace(config.PostgresDSN) != config.PostgresDSN {
 		return false
@@ -120,6 +136,27 @@ func validRuntimeConfig(config RuntimeConfig) bool {
 		return false
 	}
 	return config.ProviderTimeout > 0 && config.ProviderTimeout <= 30*time.Second && config.ShutdownTimeout > 0 && config.ShutdownTimeout <= 30*time.Second && config.ReadinessInterval >= 100*time.Millisecond && config.ReadinessMaxInterval >= config.ReadinessInterval && config.ReadinessMaxInterval <= 5*time.Minute
+}
+
+func parseTrustedProxyCIDRs(value string) []string {
+	if value == "" || strings.TrimSpace(value) != value {
+		return nil
+	}
+	entries := strings.Split(value, ",")
+	if len(entries) > 16 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(entries))
+	for _, entry := range entries {
+		if entry == "" || strings.TrimSpace(entry) != entry {
+			return nil
+		}
+		if _, duplicate := seen[entry]; duplicate {
+			return nil
+		}
+		seen[entry] = struct{}{}
+	}
+	return entries
 }
 
 func validConfiguredIdentityURL(value *url.URL, environment string) bool {
@@ -192,7 +229,11 @@ func serveRuntime(ctx context.Context, output io.Writer, version string, config 
 		_ = internalListener.Close()
 		return err
 	}
-	health, err := healthserver.New(healthserver.Config{Service: "agentsec-api", Version: version, ReadyInterval: config.ReadinessInterval, ReadyMaxInterval: config.ReadinessMaxInterval, ReadyCheck: func(checkCtx context.Context) bool {
+	var metrics func() string
+	if dependencies.Metrics != nil {
+		metrics = dependencies.Metrics.Prometheus
+	}
+	health, err := healthserver.New(healthserver.Config{Service: "agentsec-api", Version: version, Metrics: metrics, ReadyInterval: config.ReadinessInterval, ReadyMaxInterval: config.ReadinessMaxInterval, ReadyCheck: func(checkCtx context.Context) bool {
 		checkCtx, cancelCheck := context.WithTimeout(checkCtx, config.ProviderTimeout)
 		defer cancelCheck()
 		return dependencies.ReadinessCheck(checkCtx) == nil

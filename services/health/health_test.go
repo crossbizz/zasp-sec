@@ -73,6 +73,20 @@ func TestHandlerDistinguishesLivenessReadinessVersionAndMetrics(t *testing.T) {
 	})
 }
 
+func TestHandlerAppendsBoundedOperationalMetrics(t *testing.T) {
+	handler, err := New(Config{Service: testService, Version: testVersion, Metrics: func() string {
+		return "# HELP zasp_http_requests_total Requests.\n# TYPE zasp_http_requests_total counter\nzasp_http_requests_total 2\n"
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, MetricsPath, nil))
+	if response.Code != http.StatusOK || !strings.HasSuffix(response.Body.String(), "zasp_http_requests_total 2\n") {
+		t.Fatalf("metrics = %d %q", response.Code, response.Body.String())
+	}
+}
+
 func TestHandlerExactMethodsPathsHeadersAndHead(t *testing.T) {
 	handler := newTestHandler(t)
 	handler.SetReady(true)

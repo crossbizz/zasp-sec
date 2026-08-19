@@ -1,0 +1,12 @@
+.git
+.superpowers
+.env
+.env.*
+.DS_Store
+.next
+.vinext
+.wrangler
+dist
+node_modules
+coverage
+*.log

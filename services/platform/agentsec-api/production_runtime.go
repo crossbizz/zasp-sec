@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
+	"os"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -78,7 +79,16 @@ func composeRuntimeDependencies(config RuntimeConfig, database apiserver.JSONDat
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
-	return RuntimeDependencies{ProductHandler: product, ReadinessCheck: func(ctx context.Context) error {
+	edge, err := newEdgeSecurityMiddleware(edgeSecurityConfig{PublicOrigin: config.PublicOrigin, TrustedProxyCIDRs: config.TrustedProxyCIDRs}, product)
+	if err != nil {
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	metrics := newOperationalMetrics()
+	operational, err := newOperationalMiddleware(os.Stdout, metrics, newRequestLimiter(config.RequestRatePerSecond, config.RequestBurst, 10000, time.Now), edge)
+	if err != nil {
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	return RuntimeDependencies{ProductHandler: operational, Metrics: metrics, ReadinessCheck: func(ctx context.Context) error {
 		if err := repository.Ready(ctx); err != nil {
 			return errRuntimeUnavailable
 		}

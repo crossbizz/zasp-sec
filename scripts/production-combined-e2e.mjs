@@ -81,6 +81,9 @@ try {
     ZASP_PRODUCT_LISTEN_ADDRESS: `127.0.0.1:${apiPort}`,
     ZASP_INTERNAL_LISTEN_ADDRESS: `127.0.0.1:${healthPort}`,
     ZASP_PUBLIC_ORIGIN: publicOrigin,
+    ZASP_TRUSTED_PROXY_CIDRS: "127.0.0.0/8",
+    ZASP_REQUEST_RATE_PER_SECOND: "1000",
+    ZASP_REQUEST_BURST: "2000",
     ZASP_COOKIE_SECURE: "true",
     ZASP_PROVIDER_TIMEOUT: "5s",
     ZASP_SHUTDOWN_TIMEOUT: "5s",
@@ -893,7 +896,14 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
       }
     }
     const upstreamPort = request.url?.startsWith("/api/v1/") ? apiPort : webPort;
-    const upstreamHeaders = { ...request.headers, host: `127.0.0.1:${port}` };
+    const upstreamHeaders = {
+      ...request.headers,
+      host: `127.0.0.1:${port}`,
+      "x-forwarded-for": "127.0.0.1",
+      "x-forwarded-host": `127.0.0.1:${port}`,
+      "x-forwarded-port": String(port),
+      "x-forwarded-proto": "https",
+    };
     delete upstreamHeaders["x-zasp-e2e-tab"];
     const upstream = http.request({ hostname: "127.0.0.1", port: upstreamPort, method: request.method, path: request.url, headers: upstreamHeaders }, (upstreamResponse) => {
       if (findingRecoveryRefetch) riskRecoverySequence.push(`GET:${upstreamResponse.statusCode}`);

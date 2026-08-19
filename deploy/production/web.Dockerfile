@@ -5,6 +5,7 @@ RUN npm ci --ignore-scripts
 COPY app ./app
 COPY apps ./apps
 COPY public ./public
+COPY worker ./worker
 COPY next.config.ts postcss.config.mjs tsconfig.json vite.config.ts cloudflare-env.d.ts next-env.d.ts ./
 RUN npm run build
 

@@ -1,9 +1,10 @@
 FROM golang:1.25.6-alpine3.22 AS build
+ARG VERSION
 WORKDIR /src
 COPY services/platform/go.mod services/platform/go.sum ./
 RUN go mod download
 COPY services/platform ./
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/agentsec-api ./agentsec-api && \
+RUN test -n "$VERSION" && CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w -X main.buildVersion=$VERSION" -o /out/agentsec-api ./agentsec-api && \
     CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/agentsec-migrate ./agentsec-migrate && \
     CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/zasp-healthcheck ./cmd/zasp-healthcheck
 

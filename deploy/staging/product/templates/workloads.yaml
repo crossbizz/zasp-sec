@@ -75,6 +75,8 @@ spec:
             - { name: ZASP_READINESS_INTERVAL, value: "5s" }
             - { name: ZASP_READINESS_MAX_INTERVAL, value: "1m" }
             - { name: ZASP_TRUSTED_PROXY_CIDRS, value: {{ join "," $root.Values.global.trustedProxyCIDRs | quote }} }
+            - { name: ZASP_REQUEST_RATE_PER_SECOND, value: "100" }
+            - { name: ZASP_REQUEST_BURST, value: "200" }
             - { name: ZASP_EXPECTED_SCHEMA_VERSION, value: {{ $root.Values.schema.expectedVersion | quote }} }
             {{- range $name := list "ZASP_POSTGRES_DSN" "ZASP_STYTCH_PROJECT_ID" "ZASP_STYTCH_SECRET" "ZASP_STYTCH_PUBLIC_TOKEN" "ZASP_STYTCH_ORGANIZATION_ID" "ZASP_WORKFLOW_SIGNING_KEY" "ZASP_TOKEN_REVEAL_KEY" }}
             - name: {{ $name }}

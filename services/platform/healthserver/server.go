@@ -34,6 +34,7 @@ type Config struct {
 	ReadyCheck       func(context.Context) bool
 	ReadyInterval    time.Duration
 	ReadyMaxInterval time.Duration
+	Metrics          func() string
 }
 
 type Server struct {
@@ -58,7 +59,7 @@ func New(config Config) (*Server, error) {
 	if config.ReadyInterval < 100*time.Millisecond || config.ReadyMaxInterval < config.ReadyInterval || config.ReadyMaxInterval > 5*time.Minute {
 		return nil, ErrInvalidConfig
 	}
-	handler, err := health.New(health.Config{Service: config.Service, Version: config.Version})
+	handler, err := health.New(health.Config{Service: config.Service, Version: config.Version, Metrics: config.Metrics})
 	if err != nil {
 		return nil, ErrInvalidConfig
 	}

@@ -22,19 +22,21 @@ var ErrInvalidConfig = errors.New("invalid health handler configuration")
 type Config struct {
 	Service string
 	Version string
+	Metrics func() string
 }
 
 type Handler struct {
 	service string
 	version string
 	ready   atomic.Bool
+	metrics func() string
 }
 
 func New(config Config) (*Handler, error) {
 	if !validService(config.Service) || !validVersion(config.Version) {
 		return nil, ErrInvalidConfig
 	}
-	return &Handler{service: config.Service, version: config.Version}, nil
+	return &Handler{service: config.Service, version: config.Version, metrics: config.Metrics}, nil
 }
 
 func (handler *Handler) SetReady(ready bool) {
@@ -85,7 +87,7 @@ func (handler *Handler) response(path string) (int, string, string) {
 		if handler.ready.Load() {
 			ready = "1"
 		}
-		return http.StatusOK, metricsContentType,
+		body :=
 			"# HELP agentsec_up Process liveness.\n" +
 				"# TYPE agentsec_up gauge\n" +
 				"agentsec_up{service=\"" + handler.service + "\"} 1\n" +
@@ -95,7 +97,29 @@ func (handler *Handler) response(path string) (int, string, string) {
 				"# HELP agentsec_build_info Build information.\n" +
 				"# TYPE agentsec_build_info gauge\n" +
 				"agentsec_build_info{service=\"" + handler.service + "\",version=\"" + handler.version + "\"} 1\n"
+		return http.StatusOK, metricsContentType, body + handler.additionalMetrics()
 	}
+}
+
+func (handler *Handler) additionalMetrics() (value string) {
+	if handler.metrics == nil {
+		return ""
+	}
+	defer func() {
+		if recover() != nil {
+			value = ""
+		}
+	}()
+	value = handler.metrics()
+	if len(value) > 64*1024 || value != "" && value[len(value)-1] != '\n' {
+		return ""
+	}
+	for _, character := range []byte(value) {
+		if character != '\n' && (character < 0x20 || character > 0x7e) {
+			return ""
+		}
+	}
+	return value
 }
 
 func setCommonHeaders(response http.ResponseWriter) {
