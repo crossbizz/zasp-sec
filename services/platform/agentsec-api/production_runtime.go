@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"io"
 	"os"
@@ -57,15 +58,23 @@ func buildRuntimeDependencies(ctx context.Context, config RuntimeConfig) (Runtim
 		return RuntimeDependencies{}, err
 	}
 	dependencies.Closers = []io.Closer{database}
+	dependencies.Metrics.poolStats = func() poolSaturation {
+		stat := pool.Stat()
+		return poolSaturation{Acquired: stat.AcquiredConns(), Idle: stat.IdleConns(), Maximum: stat.MaxConns()}
+	}
 	return dependencies, nil
 }
 
 func composeRuntimeDependencies(config RuntimeConfig, database apiserver.JSONDatabase, provider apiserver.CallbackProvider) (RuntimeDependencies, error) {
-	repository, err := apiserver.NewPostgresRepository(database)
+	metrics := newOperationalMetrics()
+	exporter := newStructuredSpanExporter(os.Stdout)
+	tracedDatabase := &tracedJSONDatabase{next: database, metrics: metrics, exporter: exporter}
+	tracedProvider := &tracedCallbackProvider{next: provider, metrics: metrics, exporter: exporter}
+	repository, err := apiserver.NewPostgresRepository(tracedDatabase)
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
-	handlers, authenticate, err := apiserver.NewProductionHandlers(repository, provider, apiserver.CookiePolicy{Secure: config.CookieSecure, WorkflowSigningKey: []byte(config.WorkflowSigningKey), TokenRevealKey: config.TokenRevealKey, Clock: func() time.Time { return time.Now().UTC().Truncate(time.Second) }, BuildVersion: buildVersion, DeploymentMode: config.DeploymentMode, OrganizationID: config.OrganizationID})
+	handlers, authenticate, err := apiserver.NewProductionHandlers(repository, tracedProvider, apiserver.CookiePolicy{Secure: config.CookieSecure, WorkflowSigningKey: []byte(config.WorkflowSigningKey), TokenRevealKey: config.TokenRevealKey, Clock: func() time.Time { return time.Now().UTC().Truncate(time.Second) }, BuildVersion: buildVersion, DeploymentMode: config.DeploymentMode, OrganizationID: config.OrganizationID})
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
@@ -79,24 +88,75 @@ func composeRuntimeDependencies(config RuntimeConfig, database apiserver.JSONDat
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
-	edge, err := newEdgeSecurityMiddleware(edgeSecurityConfig{PublicOrigin: config.PublicOrigin, TrustedProxyCIDRs: config.TrustedProxyCIDRs}, product)
+	operational, err := newOperationalMiddleware(os.Stdout, metrics, newRequestLimiter(config.RequestRatePerSecond, config.RequestBurst, 10000, time.Now), config.RequestTimeout, exporter, product)
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
-	metrics := newOperationalMetrics()
-	operational, err := newOperationalMiddleware(os.Stdout, metrics, newRequestLimiter(config.RequestRatePerSecond, config.RequestBurst, 10000, time.Now), edge)
+	edge, err := newEdgeSecurityMiddleware(edgeSecurityConfig{PublicOrigin: config.PublicOrigin, TrustedProxyCIDRs: config.TrustedProxyCIDRs}, operational)
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
-	return RuntimeDependencies{ProductHandler: operational, Metrics: metrics, ReadinessCheck: func(ctx context.Context) error {
+	return RuntimeDependencies{ProductHandler: edge, Metrics: metrics, ReadinessCheck: func(ctx context.Context) error {
 		if err := repository.Ready(ctx); err != nil {
 			return errRuntimeUnavailable
 		}
-		if err := provider.Ready(ctx); err != nil {
+		if err := tracedProvider.Ready(ctx); err != nil {
 			return errRuntimeUnavailable
 		}
 		return nil
 	}, Stores: []StoreDependency{{Name: "postgres-core", Durable: true}}}, nil
+}
+
+type tracedJSONDatabase struct {
+	next     apiserver.JSONDatabase
+	metrics  *operationalMetrics
+	exporter operationalSpanExporter
+}
+
+func (database *tracedJSONDatabase) SchemaVersion(ctx context.Context) (value string, err error) {
+	ctx, end := startOperationalSpan(ctx, database.exporter, "repository.schema", "client", map[string]string{"db.system": "postgresql", "db.operation.name": "schema"})
+	defer func() { database.metrics.observeDependency("repository", err); end(err) }()
+	return database.next.SchemaVersion(ctx)
+}
+
+func (database *tracedJSONDatabase) QueryJSON(ctx context.Context, statement string, arguments ...any) (value json.RawMessage, err error) {
+	ctx, end := startOperationalSpan(ctx, database.exporter, "repository.query", "client", map[string]string{"db.system": "postgresql", "db.operation.name": "query"})
+	defer func() { database.metrics.observeDependency("repository", err); end(err) }()
+	return database.next.QueryJSON(ctx, statement, arguments...)
+}
+
+func (database *tracedJSONDatabase) Exec(ctx context.Context, statement string, arguments ...any) (err error) {
+	ctx, end := startOperationalSpan(ctx, database.exporter, "repository.exec", "client", map[string]string{"db.system": "postgresql", "db.operation.name": "exec"})
+	defer func() { database.metrics.observeDependency("repository", err); end(err) }()
+	return database.next.Exec(ctx, statement, arguments...)
+}
+
+type tracedCallbackProvider struct {
+	next     apiserver.CallbackProvider
+	metrics  *operationalMetrics
+	exporter operationalSpanExporter
+}
+
+func (provider *tracedCallbackProvider) Complete(ctx context.Context, code, state string) (grant apiserver.SessionGrant, err error) {
+	ctx, end := startOperationalSpan(ctx, provider.exporter, "identity.complete", "client", map[string]string{"server.address": "stytch", "rpc.method": "complete"})
+	defer func() { provider.metrics.observeDependency("provider", err); end(err) }()
+	return provider.next.Complete(ctx, code, state)
+}
+
+func (provider *tracedCallbackProvider) Ready(ctx context.Context) (err error) {
+	ctx, end := startOperationalSpan(ctx, provider.exporter, "identity.ready", "client", map[string]string{"server.address": "stytch", "rpc.method": "ready"})
+	defer func() { provider.metrics.observeDependency("provider", err); end(err) }()
+	return provider.next.Ready(ctx)
+}
+
+func (provider *tracedCallbackProvider) Start(ctx context.Context, returnTo string) (target string, err error) {
+	starter, ok := provider.next.(apiserver.IdentityStarter)
+	if !ok {
+		return "", errRuntimeUnavailable
+	}
+	ctx, end := startOperationalSpan(ctx, provider.exporter, "identity.start", "client", map[string]string{"server.address": "stytch", "rpc.method": "start"})
+	defer func() { provider.metrics.observeDependency("provider", err); end(err) }()
+	return starter.Start(ctx, returnTo)
 }
 
 func generateCorrelationID() string {

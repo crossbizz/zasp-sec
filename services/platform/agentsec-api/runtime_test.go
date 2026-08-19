@@ -19,7 +19,7 @@ func TestLoadRuntimeConfigIsStrict(t *testing.T) {
 		"ZASP_ENVIRONMENT": "production", "ZASP_PRODUCT_LISTEN_ADDRESS": ":8080", "ZASP_INTERNAL_LISTEN_ADDRESS": ":8081",
 		"ZASP_PUBLIC_ORIGIN": "https://app.zasp.example", "ZASP_COOKIE_SECURE": "true",
 		"ZASP_TRUSTED_PROXY_CIDRS": "10.20.0.0/16,2001:db8::/32", "ZASP_REQUEST_RATE_PER_SECOND": "100", "ZASP_REQUEST_BURST": "200",
-		"ZASP_PROVIDER_TIMEOUT": "5s", "ZASP_SHUTDOWN_TIMEOUT": "5s",
+		"ZASP_PROVIDER_TIMEOUT": "5s", "ZASP_REQUEST_TIMEOUT": "10s", "ZASP_SHUTDOWN_TIMEOUT": "5s",
 		"ZASP_READINESS_INTERVAL": "5s", "ZASP_READINESS_MAX_INTERVAL": "1m",
 		"ZASP_DEPLOYMENT_MODE": "saas", "ZASP_ORGANIZATION_ID": "",
 		"ZASP_POSTGRES_DSN":    "postgres://zasp:secret@db.internal:5432/zasp?sslmode=require",
@@ -33,7 +33,7 @@ func TestLoadRuntimeConfigIsStrict(t *testing.T) {
 		t.Fatalf("config = %#v", config)
 	}
 
-	for _, key := range []string{"ZASP_ENVIRONMENT", "ZASP_PRODUCT_LISTEN_ADDRESS", "ZASP_INTERNAL_LISTEN_ADDRESS", "ZASP_PUBLIC_ORIGIN", "ZASP_COOKIE_SECURE", "ZASP_TRUSTED_PROXY_CIDRS", "ZASP_REQUEST_RATE_PER_SECOND", "ZASP_REQUEST_BURST", "ZASP_PROVIDER_TIMEOUT", "ZASP_SHUTDOWN_TIMEOUT", "ZASP_READINESS_INTERVAL", "ZASP_READINESS_MAX_INTERVAL", "ZASP_DEPLOYMENT_MODE", "ZASP_POSTGRES_DSN", "ZASP_STYTCH_BASE_URL", "ZASP_STYTCH_AUTHORIZE_URL", "ZASP_STYTCH_PROJECT_ID", "ZASP_STYTCH_SECRET", "ZASP_STYTCH_PUBLIC_TOKEN", "ZASP_STYTCH_ORGANIZATION_ID", "ZASP_WORKFLOW_SIGNING_KEY", "ZASP_TOKEN_REVEAL_KEY"} {
+	for _, key := range []string{"ZASP_ENVIRONMENT", "ZASP_PRODUCT_LISTEN_ADDRESS", "ZASP_INTERNAL_LISTEN_ADDRESS", "ZASP_PUBLIC_ORIGIN", "ZASP_COOKIE_SECURE", "ZASP_TRUSTED_PROXY_CIDRS", "ZASP_REQUEST_RATE_PER_SECOND", "ZASP_REQUEST_BURST", "ZASP_PROVIDER_TIMEOUT", "ZASP_REQUEST_TIMEOUT", "ZASP_SHUTDOWN_TIMEOUT", "ZASP_READINESS_INTERVAL", "ZASP_READINESS_MAX_INTERVAL", "ZASP_DEPLOYMENT_MODE", "ZASP_POSTGRES_DSN", "ZASP_STYTCH_BASE_URL", "ZASP_STYTCH_AUTHORIZE_URL", "ZASP_STYTCH_PROJECT_ID", "ZASP_STYTCH_SECRET", "ZASP_STYTCH_PUBLIC_TOKEN", "ZASP_STYTCH_ORGANIZATION_ID", "ZASP_WORKFLOW_SIGNING_KEY", "ZASP_TOKEN_REVEAL_KEY"} {
 		t.Run("missing "+key, func(t *testing.T) {
 			copy := mapsClone(values)
 			delete(copy, key)
@@ -85,9 +85,10 @@ func TestServeRuntimeSplitsProductAndInternalListeners(t *testing.T) {
 		return listener, err
 	}
 	dependencies := fixtureRuntimeDependencies()
+	var output bytes.Buffer
 	result := make(chan error, 1)
 	go func() {
-		result <- serveRuntime(ctx, &bytes.Buffer{}, "1.2.3", fixtureRuntimeConfig(), dependencies, listen)
+		result <- serveRuntime(ctx, &output, "1.2.3", fixtureRuntimeConfig(), dependencies, listen)
 	}()
 
 	listeners := map[string]net.Listener{}
@@ -117,6 +118,11 @@ func TestServeRuntimeSplitsProductAndInternalListeners(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("serveRuntime() did not drain")
+	}
+	for _, event := range []string{`"event":"runtime_started"`, `"event":"runtime_stopped"`} {
+		if !bytes.Contains(output.Bytes(), []byte(event)) {
+			t.Fatalf("lifecycle log missing %s: %s", event, output.String())
+		}
 	}
 }
 
@@ -175,7 +181,7 @@ func TestServeRuntimeClosesProductListenerAfterPartialStartup(t *testing.T) {
 }
 
 func fixtureRuntimeConfig() RuntimeConfig {
-	return RuntimeConfig{Environment: "production", DeploymentMode: "saas", ProductListenAddress: ":8080", InternalListenAddress: ":8081", PublicOrigin: "https://app.zasp.example", TrustedProxyCIDRs: []string{"10.20.0.0/16"}, RequestRatePerSecond: 100, RequestBurst: 200, CookieSecure: true, ProviderTimeout: 5 * time.Second, ShutdownTimeout: 5 * time.Second,
+	return RuntimeConfig{Environment: "production", DeploymentMode: "saas", ProductListenAddress: ":8080", InternalListenAddress: ":8081", PublicOrigin: "https://app.zasp.example", TrustedProxyCIDRs: []string{"10.20.0.0/16"}, RequestRatePerSecond: 100, RequestBurst: 200, CookieSecure: true, ProviderTimeout: 5 * time.Second, RequestTimeout: 10 * time.Second, ShutdownTimeout: 5 * time.Second,
 		ReadinessInterval: 100 * time.Millisecond, ReadinessMaxInterval: 500 * time.Millisecond, PostgresDSN: "postgres://zasp:secret@db.internal:5432/zasp?sslmode=require", StytchBaseURL: "https://api.stytch.com", StytchAuthorizeURL: "https://api.stytch.com/v1/b2b/public/oauth/google/start", StytchProjectID: "project-live-local", StytchSecret: "secret-live-local", StytchPublicToken: "public-token-live-local", StytchOrganizationID: "organization-live-local", WorkflowSigningKey: "0123456789abcdef0123456789abcdef", TokenRevealKey: []byte("0123456789abcdef0123456789abcdef")}
 }
 
