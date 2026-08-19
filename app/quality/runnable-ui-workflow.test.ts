@@ -30,6 +30,7 @@ type PackageManifest = {
 const repositoryRoot = process.cwd();
 const checkoutAction = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1";
 const setupNodeAction = "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020";
+const setupGoAction = "actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16";
 
 async function readWorkflow(): Promise<Workflow> {
   const source = await readFile(
@@ -99,17 +100,25 @@ function assertRunnableUiWorkflow(
   expect(verificationJob["continue-on-error"]).toBeUndefined();
 
   const verificationSteps = verificationJob.steps ?? [];
-  expect(verificationSteps).toHaveLength(5);
+  expect(verificationSteps).toHaveLength(8);
   expect(verificationSteps.map((step) => step.uses ?? step.run)).toEqual([
     checkoutAction,
     setupNodeAction,
+    setupGoAction,
     "npm install --global npm@10.9.8",
     "SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci",
+    "go install github.com/zricethezav/gitleaks/v8@v8.30.1",
     "npm run verify",
+    "npm run production:release:gate",
   ]);
   expect(verificationSteps[1]?.with).toMatchObject({
     "node-version": "22.23.1",
     cache: "npm",
+  });
+  expect(verificationSteps[2]?.with).toMatchObject({
+    "go-version": "1.25.6",
+    cache: true,
+    "cache-dependency-path": "services/platform/go.sum",
   });
   for (const step of verificationSteps) {
     expect(step.if).toBeUndefined();
@@ -129,9 +138,12 @@ function validWorkflow(): Workflow {
             uses: setupNodeAction,
             with: { "node-version": "22.23.1", cache: "npm" },
           },
+          { uses: setupGoAction, with: { "go-version": "1.25.6", cache: true, "cache-dependency-path": "services/platform/go.sum" } },
           { run: "npm install --global npm@10.9.8" },
           { run: "SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci" },
+          { run: "go install github.com/zricethezav/gitleaks/v8@v8.30.1" },
           { run: "npm run verify" },
+          { run: "npm run production:release:gate" },
         ],
       },
     },

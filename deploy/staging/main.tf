@@ -279,15 +279,6 @@ resource "aws_opensearch_domain" "events" {
     subnet_ids         = aws_subnet.private[*].id
     security_group_ids = [aws_security_group.opensearch.id]
   }
-  access_policies = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Principal = { AWS = aws_iam_role.api.arn }
-      Action    = ["es:ESHttpGet", "es:ESHttpHead", "es:ESHttpPost", "es:ESHttpPut"]
-      Resource  = "arn:${local.partition}:es:${var.region}:${var.account_id}:domain/${var.cluster_name}-events/*"
-    }]
-  })
 }
 
 data "tls_certificate" "eks" {

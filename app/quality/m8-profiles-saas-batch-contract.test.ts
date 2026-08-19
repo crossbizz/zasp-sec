@@ -17,6 +17,13 @@ describe("M8-51e through M8-60b deployment-profile batch", () => {
     for (const forbidden of ["web:", "agentsecApi:", "neo4j:", "nango:", "neon:", "stytch:"]) expect(edge).not.toContain(forbidden);
   });
 
+  it("fails closed for the deferred customer-edge workload until its image and release proof ship", () => {
+    const template = read("deploy/staging/product/templates/edge.yaml");
+    expect(template).toContain("customer_edge is not shipped");
+    expect(template).toContain("fail ");
+    for (const forbidden of ["kind: DaemonSet", "runtime-gateway", "tetragon", "privileged: true"]) expect(template).not.toContain(forbidden);
+  });
+
   it("adds usability, partner-value, quota, isolation, and SaaS golden models", () => {
     const source = read("cmd/agentsecctl/profiles.go");
     for (const symbol of ["EvaluateInstallUsability", "EvaluateDesignPartnerValue", "ValidateDeploymentProfile", "RunQuotaFixture", "ValidateIsolationSuite", "RunIsolationSuite", "RunSaaSGoldenFixture"]) expect(source).toContain(`func ${symbol}`);

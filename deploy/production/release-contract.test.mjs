@@ -121,6 +121,7 @@ test("release rejects unpinned images and hostile public identifiers", async () 
 test("terraform binds each shipped secret consumer to one exact least-privilege IRSA role", async () => {
   const terraform = await readFile(new URL("../staging/main.tf", import.meta.url), "utf8");
   assert.doesNotMatch(terraform, /aws_iam_role"\s+"product"|system:serviceaccount:agentsec:agentsec-product/);
+  assert.doesNotMatch(terraform, /Principal\s*=\s*\{\s*AWS\s*=\s*aws_iam_role\.api\.arn/);
   for (const [role, account, secret] of [
     ["api", "agentsec-api", "api_secret_names"],
     ["migration", "agentsec-migration", "postgres-dsn"],
