@@ -57,4 +57,3 @@ rejection.
   dependency-free.
 - No JSON schema, storage, provider, credential, configuration, network, or
   authorization behavior is added in this task.
-

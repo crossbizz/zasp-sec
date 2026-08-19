@@ -1,7 +1,7 @@
 # M0-10 Cartography Delivery Waiver Design
 
-**Date:** August 14, 2026  
-**Decision owner:** Product owner, delegated to the implementation agent  
+**Date:** August 14, 2026
+**Decision owner:** Product owner, delegated to the implementation agent
 **Status:** Approved for execution by the instruction to decide, fix, and proceed
 
 ## Decision

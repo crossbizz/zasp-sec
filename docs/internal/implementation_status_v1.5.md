@@ -1,7 +1,7 @@
 # Agent Security Platform Implementation Status
 
-**Source plan:** `docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md`  
-**Source PRD:** `docs/internal/agent_security_platform_PRD_v1.5.md`  
+**Source plan:** `docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md`
+**Source PRD:** `docs/internal/agent_security_platform_PRD_v1.5.md`
 **Last updated:** August 18, 2026
 **Execution branch:** `codex/zasp-implementation`
 

@@ -1,8 +1,8 @@
 # Provisional LocalStack IAM compatibility design
 
-**Status:** Approved design; implementation planning pending user review  
-**Date:** August 13, 2026  
-**Related source task:** M0-09  
+**Status:** Approved design; implementation planning pending user review
+**Date:** August 13, 2026
+**Related source task:** M0-09
 **Temporary work item:** PROV-01
 
 ## Context
