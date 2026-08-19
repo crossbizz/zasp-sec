@@ -38,11 +38,32 @@ function ScopeStaleConsumer() {
 	const { client } = useAPI();
 	return <div>
 		<span>stale session {session.status}</span>
+		<button onClick={() => void session.retry()}>Retry session</button>
 		{session.status === "authenticated" && <>
 			<span>active environment {session.environmentID}</span>
+			<span>{session.hasCapability("scope-a-only") ? "scope A capability" : session.hasCapability("scope-b-only") ? "scope B capability" : "shared capability"}</span>
 			<button onClick={() => void client.GET("/api/v1/home/summary")}>Load scoped data</button>
+			<button onClick={() => void session.signOut()}>Sign out recovered session</button>
 		</>}
 	</div>;
+}
+
+function ScopeProbe() {
+	const { client } = useAPI();
+	return <button onClick={() => void client.GET("/api/v1/home/summary")}>Probe request scope</button>;
+}
+
+type Deferred<T> = {
+	promise: Promise<T>;
+	resolve(value: T): void;
+	reject(error: unknown): void;
+};
+
+function deferred<T>(): Deferred<T> {
+	let resolve: Deferred<T>["resolve"] = () => undefined;
+	let reject: Deferred<T>["reject"] = () => undefined;
+	const promise = new Promise<T>((done, fail) => { resolve = done; reject = fail; });
+	return { promise, resolve, reject };
 }
 
 function wrapper(fetch: (request: Request) => Promise<Response>) {
@@ -54,6 +75,190 @@ function wrapper(fetch: (request: Request) => Promise<Response>) {
 }
 
 describe("SessionProvider", () => {
+	it("keeps the newest A-B-A recovery when an older scope list succeeds late", async () => {
+		const staleResponses = [deferred<Response>(), deferred<Response>()];
+		const oldScopeList = deferred<Response>();
+		const recoverySignals: AbortSignal[] = [];
+		const observedHomeScopes: string[] = [];
+		const observedSignOutSecurity: Array<{ csrf: string; scope: string }> = [];
+		let bootstrapCalls = 0;
+		let scopeCalls = 0;
+		let homeCalls = 0;
+		const fetch = vi.fn(async (request: Request) => {
+			const path = new URL(request.url).pathname;
+			if (path === "/api/v1/session/bootstrap") {
+				bootstrapCalls += 1;
+				recoverySignals.push(request.signal);
+				return jsonResponse(sessionBootstrap(bootstrapCalls === 2, bootstrapCalls === 2 ? "scope-b-only" : "scope-a-only"));
+			}
+			if (path === "/api/v1/session/scopes") {
+				scopeCalls += 1;
+				recoverySignals.push(request.signal);
+				if (scopeCalls === 2) return oldScopeList.promise;
+				return jsonResponse(sessionScopes());
+			}
+			if (path === "/api/v1/home/summary") {
+				homeCalls += 1;
+				observedHomeScopes.push(request.headers.get("X-Zasp-Expected-Scope") ?? "");
+				if (homeCalls <= 2) return staleResponses[homeCalls - 1]!.promise;
+				return jsonResponse({ agent_count: 0, finding_count: 0, critical_finding_count: 0, attack_path_count: 0 });
+			}
+			if (path === "/api/v1/session/sign-out") {
+				observedSignOutSecurity.push({
+					csrf: request.headers.get("X-CSRF-Token") ?? "",
+					scope: request.headers.get("X-Zasp-Expected-Scope") ?? "",
+				});
+				return new Response(null, { status: 204 });
+			}
+			throw new Error(`unexpected request ${path}`);
+		});
+		vi.stubGlobal("fetch", fetch);
+		try {
+			render(<APIProvider><SessionProvider><ScopeStaleConsumer /></SessionProvider></APIProvider>);
+			await screen.findByText("scope A capability");
+			await userEvent.click(screen.getByRole("button", { name: "Load scoped data" }));
+			await userEvent.click(screen.getByRole("button", { name: "Load scoped data" }));
+
+			act(() => staleResponses[0]!.resolve(scopeStaleResponse()));
+			await waitFor(() => expect(scopeCalls).toBe(2));
+			expect(screen.getByText("stale session loading")).toBeVisible();
+			act(() => staleResponses[1]!.resolve(scopeStaleResponse()));
+			await waitFor(() => expect(bootstrapCalls).toBe(3));
+			await screen.findByText("scope A capability");
+			expect(recoverySignals[3]?.aborted).toBe(true);
+
+			act(() => oldScopeList.resolve(jsonResponse(sessionScopes())));
+			await act(async () => { await oldScopeList.promise; await Promise.resolve(); });
+			expect(screen.getByText("stale session authenticated")).toBeVisible();
+			expect(screen.getByText("scope A capability")).toBeVisible();
+			expect(screen.queryByText("scope B capability")).not.toBeInTheDocument();
+
+			await userEvent.click(screen.getByRole("button", { name: "Load scoped data" }));
+			await waitFor(() => expect(homeCalls).toBe(3));
+			expect(observedHomeScopes.at(-1)).toBe("pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003");
+			await userEvent.click(screen.getByRole("button", { name: "Sign out recovered session" }));
+			await waitFor(() => expect(observedSignOutSecurity).toHaveLength(1));
+			expect(observedSignOutSecurity).toEqual([{
+				csrf: "cccccccccccccccccccccccccccccccc",
+				scope: "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003",
+			}]);
+		} finally {
+			vi.unstubAllGlobals();
+		}
+	});
+
+	it("keeps the newest recovery when an aborted older scope list errors late", async () => {
+		const staleResponses = [deferred<Response>(), deferred<Response>()];
+		const oldScopeList = deferred<Response>();
+		let bootstrapCalls = 0;
+		let scopeCalls = 0;
+		let homeCalls = 0;
+		const fetch = vi.fn(async (request: Request) => {
+			const path = new URL(request.url).pathname;
+			if (path === "/api/v1/session/bootstrap") {
+				bootstrapCalls += 1;
+				return jsonResponse(sessionBootstrap(bootstrapCalls === 2, bootstrapCalls === 2 ? "scope-b-only" : "scope-a-only"));
+			}
+			if (path === "/api/v1/session/scopes") {
+				scopeCalls += 1;
+				if (scopeCalls === 2) return oldScopeList.promise;
+				return jsonResponse(sessionScopes());
+			}
+			if (path === "/api/v1/home/summary") {
+				homeCalls += 1;
+				if (homeCalls <= 2) return staleResponses[homeCalls - 1]!.promise;
+				return jsonResponse({ agent_count: 0, finding_count: 0, critical_finding_count: 0, attack_path_count: 0 });
+			}
+			throw new Error(`unexpected request ${path}`);
+		});
+		vi.stubGlobal("fetch", fetch);
+		try {
+			render(<APIProvider><SessionProvider><ScopeStaleConsumer /></SessionProvider></APIProvider>);
+			await screen.findByText("scope A capability");
+			await userEvent.click(screen.getByRole("button", { name: "Load scoped data" }));
+			await userEvent.click(screen.getByRole("button", { name: "Load scoped data" }));
+			act(() => staleResponses[0]!.resolve(scopeStaleResponse()));
+			await waitFor(() => expect(scopeCalls).toBe(2));
+			act(() => staleResponses[1]!.resolve(scopeStaleResponse()));
+			await screen.findByText("scope A capability");
+
+			act(() => oldScopeList.reject(new Error("obsolete scope list failed")));
+			await act(async () => { try { await oldScopeList.promise; } catch { /* expected fixture failure */ } await Promise.resolve(); });
+			expect(screen.getByText("stale session authenticated")).toBeVisible();
+			expect(screen.getByText("scope A capability")).toBeVisible();
+			expect(screen.queryByText("stale session error")).not.toBeInTheDocument();
+		} finally {
+			vi.unstubAllGlobals();
+		}
+	});
+
+	it("shows the latest recovery error and allows a later retry to finish", async () => {
+		let bootstrapCalls = 0;
+		let homeCalls = 0;
+		const fetch = vi.fn(async (request: Request) => {
+			const path = new URL(request.url).pathname;
+			if (path === "/api/v1/session/bootstrap") {
+				bootstrapCalls += 1;
+				if (bootstrapCalls === 2) return jsonResponse({ code: "provider_unavailable", message: "Provider unavailable", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: true }, 503);
+				return jsonResponse(sessionBootstrap(bootstrapCalls === 3, bootstrapCalls === 3 ? "scope-b-only" : "scope-a-only"));
+			}
+			if (path === "/api/v1/session/scopes") return jsonResponse(sessionScopes());
+			if (path === "/api/v1/home/summary") {
+				homeCalls += 1;
+				return homeCalls === 1 ? scopeStaleResponse() : jsonResponse({ agent_count: 0, finding_count: 0, critical_finding_count: 0, attack_path_count: 0 });
+			}
+			throw new Error(`unexpected request ${path}`);
+		});
+		vi.stubGlobal("fetch", fetch);
+		try {
+			render(<APIProvider><SessionProvider><ScopeStaleConsumer /></SessionProvider></APIProvider>);
+			await screen.findByText("scope A capability");
+			await userEvent.click(screen.getByRole("button", { name: "Load scoped data" }));
+			await screen.findByText("stale session error");
+			expect(screen.queryByText("stale session loading")).not.toBeInTheDocument();
+
+			await userEvent.click(screen.getByRole("button", { name: "Retry session" }));
+			await screen.findByText("scope B capability");
+			expect(screen.getByText("stale session authenticated")).toBeVisible();
+		} finally {
+			vi.unstubAllGlobals();
+		}
+	});
+
+	it("aborts bootstrap on unmount and cannot publish its late scope", async () => {
+		const bootstrap = deferred<Response>();
+		let bootstrapSignal: AbortSignal | undefined;
+		const observedHomeScopes: string[] = [];
+		const fetch = vi.fn(async (request: Request) => {
+			const path = new URL(request.url).pathname;
+			if (path === "/api/v1/session/bootstrap") {
+				bootstrapSignal = request.signal;
+				return bootstrap.promise;
+			}
+			if (path === "/api/v1/session/scopes") return jsonResponse(sessionScopes());
+			if (path === "/api/v1/home/summary") {
+				observedHomeScopes.push(request.headers.get("X-Zasp-Expected-Scope") ?? "");
+				return jsonResponse({ agent_count: 0, finding_count: 0, critical_finding_count: 0, attack_path_count: 0 });
+			}
+			throw new Error(`unexpected request ${path}`);
+		});
+		vi.stubGlobal("fetch", fetch);
+		try {
+			const rendered = render(<APIProvider><SessionProvider><ScopeStaleConsumer /></SessionProvider></APIProvider>);
+			await waitFor(() => expect(bootstrapSignal).toBeDefined());
+			rendered.rerender(<APIProvider><ScopeProbe /></APIProvider>);
+			expect(bootstrapSignal?.aborted).toBe(true);
+
+			act(() => bootstrap.resolve(jsonResponse(sessionBootstrap(false, "scope-a-only"))));
+			await act(async () => { await bootstrap.promise; await Promise.resolve(); });
+			await userEvent.click(screen.getByRole("button", { name: "Probe request scope" }));
+			await waitFor(() => expect(observedHomeScopes).toHaveLength(1));
+			expect(observedHomeScopes).toEqual([""]);
+		} finally {
+			vi.unstubAllGlobals();
+		}
+	});
+
 	it("fails closed and rebootstraps through an A-to-B-to-A cross-tab scope race", async () => {
 		let activeScope = false;
 		let bootstrapCalls = 0;
@@ -294,7 +499,7 @@ describe("SessionProvider", () => {
   });
 });
 
-function sessionBootstrap(switched = false) {
+function sessionBootstrap(switched = false, exclusiveCapability?: "scope-a-only" | "scope-b-only") {
   return {
     principal: {
       id: "pid_10000004-0000-4000-8000-000000000004",
@@ -306,8 +511,8 @@ function sessionBootstrap(switched = false) {
 	workspace_id: switched ? "pid_10000022-0000-4000-8000-000000000022" : "pid_10000002-0000-4000-8000-000000000002",
 	environment_id: switched ? "pid_10000023-0000-4000-8000-000000000023" : "pid_10000003-0000-4000-8000-000000000003",
     permissions: ["view", "manage_findings"],
-	capabilities: ["inventory.read", "scope.switch"],
-    csrf_token: "cccccccccccccccccccccccccccccccc",
+	capabilities: ["inventory.read", "scope.switch", ...(exclusiveCapability ? [exclusiveCapability] : [])],
+	csrf_token: switched ? "dddddddddddddddddddddddddddddddd" : "cccccccccccccccccccccccccccccccc",
     correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
   };
 }
@@ -319,4 +524,8 @@ function sessionScopes() { return { items: [
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+}
+
+function scopeStaleResponse() {
+	return jsonResponse({ code: "scope_stale", message: "Session scope changed; rebootstrap required", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: true }, 409);
 }

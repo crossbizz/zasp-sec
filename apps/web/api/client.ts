@@ -109,7 +109,9 @@ export function createAPIClient(options: APIClientOptions = {}) {
     });
     try {
       const response = await configuredFetch(securedRequest);
-	  await validateResponse(response, maximumResponseBytes, onSessionExpired, onScopeStale);
+	  throwIfRequestStopped(request.signal, timeout.signal);
+	  await validateResponse(response, maximumResponseBytes, onSessionExpired, onScopeStale, signal);
+	  throwIfRequestStopped(request.signal, timeout.signal);
       return response;
     } catch (error) {
       if (request.signal.aborted) throw request.signal.reason;
@@ -152,7 +154,8 @@ function isMutation(method: string): boolean {
   return method === "POST" || method === "PUT" || method === "PATCH" || method === "DELETE";
 }
 
-async function validateResponse(response: Response, maximumBytes: number, onSessionExpired: () => void, onScopeStale: () => void): Promise<void> {
+async function validateResponse(response: Response, maximumBytes: number, onSessionExpired: () => void, onScopeStale: () => void, signal: AbortSignal): Promise<void> {
+  if (signal.aborted) throw signal.reason;
   if (!(response instanceof Response) || response.redirected) {
     throw new APITransportError("invalid_response", "API returned an invalid response");
   }
@@ -162,6 +165,7 @@ async function validateResponse(response: Response, maximumBytes: number, onSess
     throw new APITransportError(response.ok ? "invalid_response" : "invalid_error", "API returned an invalid content type");
   }
   const payload = await readBounded(response.clone(), maximumBytes);
+	if (signal.aborted) throw signal.reason;
   let decoded: unknown;
   try {
     decoded = JSON.parse(new TextDecoder().decode(payload));
@@ -175,6 +179,11 @@ async function validateResponse(response: Response, maximumBytes: number, onSess
     if (response.status === 401 && decoded.code === "authentication_required") onSessionExpired();
 	if (response.status === 409 && decoded.code === "scope_stale" && decoded.message === SCOPE_STALE_MESSAGE && decoded.retryable) onScopeStale();
   }
+}
+
+function throwIfRequestStopped(requestSignal: AbortSignal, timeoutSignal: AbortSignal): void {
+	if (requestSignal.aborted) throw requestSignal.reason;
+	if (timeoutSignal.aborted) throw new APITransportError("timeout", "API request timed out");
 }
 
 function validExpectedScope(value: string): boolean {

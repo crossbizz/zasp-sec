@@ -47,6 +47,11 @@ type ScopeAttempt = {
   next: "reconcile" | "mutate";
 };
 
+type SessionLoadOutcome =
+	| { status: "authenticated"; activeScope: ActiveScope }
+	| { status: "failed" }
+	| { status: "superseded" };
+
 export type SessionContextValue = SessionState & {
   hasCapability(capability: string): boolean;
   signIn(returnTo?: string): void;
@@ -63,43 +68,62 @@ export type SessionContextValue = SessionState & {
 const SessionContext = createContext<SessionContextValue | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const { client, setCSRFToken, setRequestScope, setQueryScope, suspendQueryCache, sessionExpiry, scopeStale } = useAPI();
+  const { client, setCSRFToken, setRequestScope, setQueryScope, suspendQueryCache, sessionExpiry, scopeStale, getScopeStaleGeneration } = useAPI();
   const [state, setState] = useState<SessionState>({ status: "loading" });
   const [stateSessionExpiry, setStateSessionExpiry] = useState(sessionExpiry);
 	const [stateScopeStale, setStateScopeStale] = useState(scopeStale);
   const [scopeSwitch, setScopeSwitch] = useState<ScopeSwitchState>({ status: "idle" });
   const scopeAttempt = useRef<ScopeAttempt | null>(null);
   const sessionCSRF = useRef<string | null>(null);
-  const loadSession = useCallback(async (expiryVersion: number, scopeStaleVersion: number): Promise<ActiveScope | null> => {
+	const latestLoadGeneration = useRef(0);
+	const activeLoad = useRef<AbortController | null>(null);
+  const loadSession = useCallback(async (expiryVersion: number, scopeStaleVersion: number, publishLoading = false): Promise<SessionLoadOutcome> => {
+		const generation = latestLoadGeneration.current + 1;
+		latestLoadGeneration.current = generation;
+		activeLoad.current?.abort(new DOMException("A newer session recovery started", "AbortError"));
+		const controller = new AbortController();
+		activeLoad.current = controller;
+		const ownsState = () => latestLoadGeneration.current === generation
+			&& !controller.signal.aborted
+			&& getScopeStaleGeneration() === scopeStaleVersion;
+		if (publishLoading && ownsState()) setState({ status: "loading" });
     try {
-      const result = await client.GET("/api/v1/session/bootstrap");
+		const result = await client.GET("/api/v1/session/bootstrap", { signal: controller.signal });
+		if (!ownsState()) return { status: "superseded" };
       if (!result.data) {
         sessionCSRF.current = null;
         setCSRFToken(null);
 		setRequestScope(null);
         suspendQueryCache();
-		  setStateSessionExpiry(expiryVersion);
+        setStateSessionExpiry(expiryVersion);
 		setStateScopeStale(scopeStaleVersion);
         setState({ status: result.response.status === 401 ? "unauthenticated" : result.response.status === 403 ? "forbidden" : "error", error: result.error });
-		  return null;
+		  return { status: "failed" };
       }
       const bootstrapValue = requireAPIData(result, decodeSessionBootstrap);
 	  const activeScope = scopeFromBootstrap(bootstrapValue);
-	  setRequestScope(scopeCacheKey(activeScope));
+	  const activeScopeKey = scopeCacheKey(activeScope);
       let scopes: readonly SessionScope[] = [];
       if (bootstrapValue.capabilities.includes("scope.switch")) {
-        const scopeResult = await client.GET("/api/v1/session/scopes");
+		const scopeResult = await client.GET("/api/v1/session/scopes", {
+			headers: { "X-Zasp-Expected-Scope": activeScopeKey },
+			signal: controller.signal,
+		});
+		if (!ownsState()) return { status: "superseded" };
         scopes = requireAPIData(scopeResult, decodeSessionScopePage).items;
         if (!scopes.some((scope) => scope.organization_id === bootstrapValue.organization_id && scope.workspace_id === bootstrapValue.workspace_id && scope.environment_id === bootstrapValue.environment_id)) throw new Error("Active scope is not authorized");
       }
+		if (!ownsState()) return { status: "superseded" };
       sessionCSRF.current = bootstrapValue.csrf_token;
       setCSRFToken(bootstrapValue.csrf_token);
+	  setRequestScope(activeScopeKey);
       setStateSessionExpiry(expiryVersion);
 	  setStateScopeStale(scopeStaleVersion);
-      setQueryScope(scopeCacheKey(activeScope));
+	  setQueryScope(activeScopeKey);
       setState(authenticatedState(bootstrapValue, scopes));
-      return activeScope;
+	  return { status: "authenticated", activeScope };
     } catch (error) {
+		if (!ownsState()) return { status: "superseded" };
       sessionCSRF.current = null;
       setCSRFToken(null);
 	  setRequestScope(null);
@@ -107,13 +131,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setStateSessionExpiry(expiryVersion);
 	  setStateScopeStale(scopeStaleVersion);
       setState({ status: "error", error });
-      return null;
+	  return { status: "failed" };
+	} finally {
+		if (latestLoadGeneration.current === generation) activeLoad.current = null;
     }
-  }, [client, setCSRFToken, setRequestScope, setQueryScope, suspendQueryCache]);
+  }, [client, getScopeStaleGeneration, setCSRFToken, setRequestScope, setQueryScope, suspendQueryCache]);
   const retry = useCallback(async () => {
-    setState({ status: "loading" });
-    await loadSession(sessionExpiry, scopeStale);
+	await loadSession(sessionExpiry, scopeStale, true);
   }, [loadSession, scopeStale, sessionExpiry]);
+	useEffect(() => () => {
+		latestLoadGeneration.current += 1;
+		activeLoad.current?.abort(new DOMException("Session provider unmounted", "AbortError"));
+		activeLoad.current = null;
+	}, []);
   useEffect(() => {
     let active = true;
     queueMicrotask(() => { if (active) void loadSession(0, 0); });
@@ -140,8 +170,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
   const reconcileScope = useCallback(async (attempt: ScopeAttempt, cause?: unknown) => {
     attempt.next = "reconcile";
-    const active = await loadSession(sessionExpiry, scopeStale);
-    if (!active) {
+	const outcome = await loadSession(sessionExpiry, scopeStale);
+	if (outcome.status === "superseded") return;
+	if (outcome.status === "failed") {
       setScopeSwitch({
         status: "error",
         error: {
@@ -153,7 +184,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       });
       return;
     }
-    if (sameScope(active, attempt.target)) {
+	const active = outcome.activeScope;
+	if (sameScope(active, attempt.target)) {
       scopeAttempt.current = null;
       setScopeSwitch({ status: "idle" });
       return;

@@ -266,6 +266,24 @@ describe("generated API client", () => {
 		expect(observed).toEqual([captured]);
 		expect(stale).toHaveBeenCalledOnce();
 	});
+
+	it("ignores a scope-stale response that completes after caller cancellation", async () => {
+		let resolveResponse: ((response: Response) => void) | undefined;
+		const response = new Promise<Response>((resolve) => { resolveResponse = resolve; });
+		const stale = vi.fn();
+		const client = createAPIClient({
+			fetch: async () => response,
+			onScopeStale: stale,
+		});
+		const controller = new AbortController();
+		const pending = client.GET("/api/v1/home/summary", { signal: controller.signal });
+
+		controller.abort(new DOMException("newer recovery owns the session", "AbortError"));
+		resolveResponse?.(jsonResponse({ code: "scope_stale", message: "Session scope changed; rebootstrap required", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: true }, 409));
+
+		await expect(pending).rejects.toMatchObject({ name: "AbortError", message: "newer recovery owns the session" });
+		expect(stale).not.toHaveBeenCalled();
+	});
 });
 
 function jsonResponse(body: unknown, status = 200) {

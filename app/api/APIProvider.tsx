@@ -11,6 +11,7 @@ type APIContextValue = {
   queryGeneration: number;
   sessionExpiry: number;
 	scopeStale: number;
+	getScopeStaleGeneration(): number;
   invalidate(keys: readonly string[]): void;
   setCSRFToken(value: string | null): void;
 	setRequestScope(value: string | null): void;
@@ -33,6 +34,15 @@ class ScopeVault {
 	set(value: string | null) { this.#value = value; }
 }
 
+class GenerationVault {
+	#value = 0;
+	get() { return this.#value; }
+	advance() {
+		this.#value += 1;
+		return this.#value;
+	}
+}
+
 export function APIProvider({ children, client: suppliedClient }: { children: ReactNode; client?: APIClient }) {
   const [csrfToken] = useState(() => new CSRFVault());
 	const [requestScope] = useState(() => new ScopeVault());
@@ -40,6 +50,7 @@ export function APIProvider({ children, client: suppliedClient }: { children: Re
   const [queryEpoch, setQueryEpoch] = useState({ scopeKey: "__unscoped__" as string | null, generation: 0 });
   const [sessionExpiry, setSessionExpiry] = useState(0);
 	const [scopeStale, setScopeStale] = useState(0);
+	const [scopeStaleGeneration] = useState(() => new GenerationVault());
   const [client] = useState(() => suppliedClient ?? createAPIClient({
     getCSRFToken: () => csrfToken.get() ?? undefined,
 	getExpectedScope: () => requestScope.get() ?? undefined,
@@ -54,7 +65,7 @@ export function APIProvider({ children, client: suppliedClient }: { children: Re
 		requestScope.set(null);
 		setRevisions(new Map());
 		setQueryEpoch((current) => ({ scopeKey: null, generation: current.generation + 1 }));
-		setScopeStale((value) => value + 1);
+		setScopeStale(scopeStaleGeneration.advance());
 	},
   }));
   const invalidate = useCallback((keys: readonly string[]) => {
@@ -81,6 +92,7 @@ export function APIProvider({ children, client: suppliedClient }: { children: Re
     setRevisions(new Map());
     setQueryEpoch((current) => ({ ...current, generation: current.generation + 1 }));
   }, []);
+	const getScopeStaleGeneration = useCallback(() => scopeStaleGeneration.get(), [scopeStaleGeneration]);
   const value = useMemo<APIContextValue>(() => ({
     client,
     revisions,
@@ -88,13 +100,14 @@ export function APIProvider({ children, client: suppliedClient }: { children: Re
     queryGeneration: queryEpoch.generation,
     sessionExpiry,
 	scopeStale,
+	getScopeStaleGeneration,
     invalidate,
     setCSRFToken,
 	setRequestScope,
     setQueryScope,
     suspendQueryCache,
     clearQueryCache,
-  }), [client, revisions, queryEpoch, sessionExpiry, scopeStale, invalidate, setCSRFToken, setRequestScope, setQueryScope, suspendQueryCache, clearQueryCache]);
+  }), [client, revisions, queryEpoch, sessionExpiry, scopeStale, getScopeStaleGeneration, invalidate, setCSRFToken, setRequestScope, setQueryScope, suspendQueryCache, clearQueryCache]);
   return <APIContext.Provider value={value}>{children}</APIContext.Provider>;
 }
 
