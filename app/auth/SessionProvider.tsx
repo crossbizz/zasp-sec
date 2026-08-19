@@ -16,6 +16,7 @@ type AuthenticatedSession = {
   permissions: readonly string[];
   capabilities: readonly string[];
 	 scopes: readonly SessionScope[];
+	 freshAuthExpiresAt: string;
 };
 
 type SessionState = AuthenticatedSession | {
@@ -56,6 +57,8 @@ type SessionLoadOutcome =
 
 export type SessionContextValue = SessionState & {
   hasCapability(capability: string): boolean;
+	isFreshAuthenticated: boolean;
+	reauthenticate(): void;
   signIn(returnTo?: string): void;
   signOut(): Promise<void>;
   retry(): Promise<void>;
@@ -70,11 +73,12 @@ export type SessionContextValue = SessionState & {
 const SessionContext = createContext<SessionContextValue | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
-	  const { client, setCSRFToken, setRequestScope, setQueryScope, suspendQueryCache, sessionExpiry, getSessionInvalidationGeneration, scopeStale, getScopeStaleGeneration } = useAPI();
+	  const { client, setCSRFToken, setRequestScope, setQueryScope, suspendQueryCache, sessionExpiry, getSessionInvalidationGeneration, scopeStale, getScopeStaleGeneration, freshAuthRequired, markFreshAuthenticated } = useAPI();
   const [state, setState] = useState<SessionState>({ status: "loading" });
   const [stateSessionExpiry, setStateSessionExpiry] = useState(sessionExpiry);
 	const [stateScopeStale, setStateScopeStale] = useState(scopeStale);
   const [scopeSwitch, setScopeSwitch] = useState<ScopeSwitchState>({ status: "idle" });
+	const [freshClock, setFreshClock] = useState(() => Date.now());
 	const scopeAttempt = useRef<ScopeAttempt | null>(null);
 	const sessionCSRF = useRef<string | null>(null);
 	const latestLoadGeneration = useRef(0);
@@ -160,6 +164,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 	  setStateScopeStale(scopeStaleVersion);
 		  setQueryScope(activeScopeKey);
 	      setState(authenticatedState(bootstrapValue, scopes));
+		  if (Date.parse(bootstrapValue.fresh_auth_expires_at) > Date.now()) markFreshAuthenticated();
 		  settleScopeAttempt({ status: "authenticated", activeScope });
 		  return { status: "authenticated", activeScope };
     } catch (error) {
@@ -176,7 +181,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 	} finally {
 		if (latestLoadGeneration.current === generation) activeLoad.current = null;
     }
-	  }, [client, getScopeStaleGeneration, getSessionInvalidationGeneration, setCSRFToken, setRequestScope, setQueryScope, settleScopeAttempt, suspendQueryCache]);
+	  }, [client, getScopeStaleGeneration, getSessionInvalidationGeneration, markFreshAuthenticated, setCSRFToken, setRequestScope, setQueryScope, settleScopeAttempt, suspendQueryCache]);
   const retry = useCallback(async () => {
 	await loadSession(getSessionInvalidationGeneration(), getScopeStaleGeneration(), true);
 	  }, [getScopeStaleGeneration, getSessionInvalidationGeneration, loadSession]);
@@ -225,6 +230,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const signIn = useCallback((returnTo?: string) => {
     window.location.assign(buildSignInURL(returnTo ?? `${window.location.pathname}${window.location.search}`));
   }, []);
+	const reauthenticate = useCallback(() => signIn(`${window.location.pathname}${window.location.search}`), [signIn]);
+	useEffect(() => {
+		if (state.status !== "authenticated") return;
+		const expires = Date.parse(state.freshAuthExpiresAt);
+		const delay = Math.max(0, expires - Date.now());
+		setFreshClock(Date.now());
+		if (delay === 0) return;
+		const timer = window.setTimeout(() => setFreshClock(Date.now()), delay + 5);
+		return () => window.clearTimeout(timer);
+	}, [state]);
   const reconcileScope = useCallback(async (attempt: ScopeAttempt, cause?: unknown) => {
 	if (scopeAttempt.current !== attempt) return;
     attempt.next = "reconcile";
@@ -283,16 +298,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 	const value = useMemo<SessionContextValue>(() => {
 		const visibleState: SessionState = sessionExpiry !== stateSessionExpiry ? { status: "unauthenticated" } : scopeStale !== stateScopeStale ? { status: "loading" } : state;
 		const capabilities = visibleState.status === "authenticated" ? new Set(visibleState.capabilities) : new Set<string>();
+		const isFreshAuthenticated = visibleState.status === "authenticated" && freshAuthRequired === 0 && freshClock < Date.parse(visibleState.freshAuthExpiresAt);
 		return {
 			...visibleState,
 			hasCapability: (capability: string) => capabilities.has(capability),
+			isFreshAuthenticated,
+			reauthenticate,
 			signIn,
 			signOut,
 			switchScope,
 			scopeSwitch: { ...scopeSwitch, retry: retryScopeSwitch },
 			retry,
 		};
-	}, [sessionExpiry, stateSessionExpiry, scopeStale, stateScopeStale, state, signIn, signOut, switchScope, scopeSwitch, retryScopeSwitch, retry]);
+	}, [sessionExpiry, stateSessionExpiry, scopeStale, stateScopeStale, state, freshAuthRequired, freshClock, reauthenticate, signIn, signOut, switchScope, scopeSwitch, retryScopeSwitch, retry]);
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 
@@ -300,6 +318,10 @@ export function useSession(): SessionContextValue {
   const value = useContext(SessionContext);
   if (!value) throw new Error("useSession must be used inside SessionProvider");
   return value;
+}
+
+export function useOptionalSession(): SessionContextValue | null {
+	return useContext(SessionContext);
 }
 
 export function buildSignInURL(returnTo: string): string {
@@ -324,6 +346,7 @@ function authenticatedState(value: SessionBootstrap, scopes: readonly SessionSco
     permissions: value.permissions,
     capabilities: value.capabilities,
 	 scopes,
+	 freshAuthExpiresAt: value.fresh_auth_expires_at,
   };
 }
 

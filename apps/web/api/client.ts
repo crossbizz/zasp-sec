@@ -9,6 +9,7 @@ const DEFAULT_MAXIMUM_RESPONSE_BYTES = 1024 * 1024;
 const PRODUCT_ID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const EXPECTED_SCOPE_HEADER = "X-Zasp-Expected-Scope";
 const SCOPE_STALE_MESSAGE = "Session scope changed; rebootstrap required";
+const FRESH_AUTH_MESSAGE = "Fresh authentication required";
 
 export type APITransportErrorKind =
   | "invalid_configuration"
@@ -60,6 +61,7 @@ export type APIClientOptions = Omit<ClientOptions, "baseUrl" | "credentials" | "
   generateCorrelationID?: () => string;
   onSessionExpired?: () => void;
 	onScopeStale?: () => void;
+	onFreshAuthRequired?: () => void;
 };
 
 export function createAPIClient(options: APIClientOptions = {}) {
@@ -73,6 +75,7 @@ export function createAPIClient(options: APIClientOptions = {}) {
     generateCorrelationID = defaultCorrelationID,
     onSessionExpired = () => undefined,
 	onScopeStale = () => undefined,
+	onFreshAuthRequired = () => undefined,
     ...clientOptions
   } = options;
   if (!validRelativeBaseURL(baseUrl) || typeof configuredFetch !== "function" || !validBound(timeoutMs) || !validBound(maximumResponseBytes)) {
@@ -110,7 +113,7 @@ export function createAPIClient(options: APIClientOptions = {}) {
     try {
       const response = await configuredFetch(securedRequest);
 	  throwIfRequestStopped(request.signal, timeout.signal);
-	  await validateResponse(response, maximumResponseBytes, onSessionExpired, onScopeStale, signal);
+	  await validateResponse(response, maximumResponseBytes, onSessionExpired, onScopeStale, onFreshAuthRequired, signal);
 	  throwIfRequestStopped(request.signal, timeout.signal);
       return response;
     } catch (error) {
@@ -154,7 +157,7 @@ function isMutation(method: string): boolean {
   return method === "POST" || method === "PUT" || method === "PATCH" || method === "DELETE";
 }
 
-async function validateResponse(response: Response, maximumBytes: number, onSessionExpired: () => void, onScopeStale: () => void, signal: AbortSignal): Promise<void> {
+async function validateResponse(response: Response, maximumBytes: number, onSessionExpired: () => void, onScopeStale: () => void, onFreshAuthRequired: () => void, signal: AbortSignal): Promise<void> {
   if (signal.aborted) throw signal.reason;
   if (!(response instanceof Response) || response.redirected) {
     throw new APITransportError("invalid_response", "API returned an invalid response");
@@ -178,6 +181,7 @@ async function validateResponse(response: Response, maximumBytes: number, onSess
     }
     if (response.status === 401 && decoded.code === "authentication_required") onSessionExpired();
 	if (response.status === 409 && decoded.code === "scope_stale" && decoded.message === SCOPE_STALE_MESSAGE && decoded.retryable) onScopeStale();
+	if (response.status === 403 && decoded.code === "fresh_auth_required" && decoded.message === FRESH_AUTH_MESSAGE && !decoded.retryable) onFreshAuthRequired();
   }
 }
 

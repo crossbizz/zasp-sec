@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
@@ -39,6 +40,7 @@ type RequestIdentity struct {
 	CSRFToken          string
 	CredentialKind     CredentialKind
 	FreshAuthenticated bool
+	FreshAuthExpiresAt time.Time
 }
 
 type Authenticator func(context.Context, Credential) (RequestIdentity, error)

@@ -9,8 +9,6 @@ function fixtureAPI(overrides: Partial<IdentityAdminAPI> = {}): IdentityAdminAPI
     listMembers: async () => [{ id: "pid_member", memberReference: "member-live-a", role: "organization_admin", active: true, version: 1 }],
     updateMemberRole: async (id, role, version) => ({ id, memberReference: "member-live-a", role, active: true, version: version + 1 }),
     listRoles: async () => [{ role: "organization_admin", permissions: ["view", "manage_identity"] }],
-    listGroupMappings: async () => [{ groupReference: "idp-group-engineering", role: "security_engineer", workspaceId: "pid_workspace", environmentId: "pid_environment", version: 1 }],
-    updateGroupMapping: async (input) => ({ ...input, version: input.expectedVersion + 1 }),
     ...overrides,
   };
 }
@@ -23,9 +21,10 @@ describe("Identity & Access product surface", () => {
       expect(await screen.findByRole("heading", { name: label })).toBeInTheDocument();
       expect(screen.getByRole("link", { name: label })).toHaveAttribute("href", expect.stringMatching(/^#identity-/));
     }
-    expect(screen.getByText("Unavailable")).toBeInTheDocument();
+    expect(screen.getAllByText("Unavailable")).toHaveLength(2);
     expect(screen.queryByRole("button", { name: /SSO|SCIM/ })).not.toBeInTheDocument();
-    expect(screen.getByText("idp-group-engineering")).toBeInTheDocument();
+    expect(screen.getByText(/hidden until verified provider group claims/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText("IdP group reference")).not.toBeInTheDocument();
   });
 
   it("renders explicit empty member and role states", async () => {
@@ -45,19 +44,5 @@ describe("Identity & Access product surface", () => {
 
     render(<IdentityAccessView api={fixtureAPI({ listMembers: async () => { throw new Error("provider detail"); } })} />);
     expect(await screen.findByRole("alert")).toHaveTextContent("Identity data could not be loaded");
-  });
-
-  it("validates and saves one group mapping", async () => {
-    const user = userEvent.setup();
-    const updateGroupMapping = vi.fn(fixtureAPI().updateGroupMapping);
-    render(<IdentityAccessView api={fixtureAPI({ updateGroupMapping })} />);
-    await screen.findByText("Unavailable");
-
-    await user.clear(screen.getByLabelText("IdP group reference"));
-    await user.click(screen.getByRole("button", { name: "Save group mapping" }));
-    expect(screen.getByText("Enter a valid IdP group reference")).toBeInTheDocument();
-    await user.type(screen.getByRole("textbox", { name: /IdP group reference/ }), "idp-group-platform");
-    await user.click(screen.getByRole("button", { name: "Save group mapping" }));
-    await waitFor(() => expect(updateGroupMapping).toHaveBeenCalledWith(expect.objectContaining({ groupReference: "idp-group-platform" })));
   });
 });

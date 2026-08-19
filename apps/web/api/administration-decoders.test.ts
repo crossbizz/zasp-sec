@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decodeAPITokenCredential, decodeDataControls, decodeOrganization, decodeSessionPage, decodeSystemComponentPage } from "./administration-decoders";
+import { decodeAPITokenRevealGrant, decodeAPITokenRevealedCredential, decodeDataControls, decodeOrganization, decodeSessionPage, decodeSystemComponentPage } from "./administration-decoders";
 
 const id = "pid_10000001-0000-4000-8000-000000000001";
 describe("administration response decoders", () => {
@@ -8,15 +8,20 @@ describe("administration response decoders", () => {
     expect(() => decodeOrganization({ id, name: "Zasp", domain: "zasp.example", version: 1, injected: true })).toThrow("schema mismatch");
     expect(decodeDataControls({ environment_id: id, environment_class: "production", collection_mode: "metadata_only", retention_days: 30, deletion_enabled: true, version: 1 })).toMatchObject({ retention_days: 30 });
   });
-  it("requires an exact one-time token credential", () => {
-    const token = { id, name: "Automation", principal_id: id, workspace_id: id, environment_id: id, permissions: ["view"], created_at: "2026-08-19T00:00:00Z", expires_at: "2026-08-20T00:00:00Z", last_used_at: null, revoked_at: null, version: 1, raw_token: `zasp_pat_${"A".repeat(43)}`, audit_correlation_id: id };
-    expect(decodeAPITokenCredential(token).raw_token).toBe(token.raw_token);
-    expect(() => decodeAPITokenCredential({ ...token, raw_token: "stored-secret" })).toThrow("schema mismatch");
+  it("separates exact durable reveal metadata from the bounded revealed credential", () => {
+    const token = { id, name: "Automation", principal_id: id, workspace_id: id, environment_id: id, permissions: ["view"], created_at: "2026-08-19T00:00:00Z", expires_at: "2026-08-20T00:00:00Z", last_used_at: null, revoked_at: null, version: 1, audit_correlation_id: id };
+    const grant = { grant_id: id, expires_at: "2026-08-19T00:05:00Z", token };
+    expect(decodeAPITokenRevealGrant(grant).grant_id).toBe(id);
+    expect(() => decodeAPITokenRevealGrant({ ...grant, raw_token: `zasp_pat_${"A".repeat(43)}` })).toThrow("schema mismatch");
+    const revealed = { grant_id: id, token_id: id, expires_at: grant.expires_at, raw_token: `zasp_pat_${"A".repeat(43)}` };
+    expect(decodeAPITokenRevealedCredential(revealed).raw_token).toBe(revealed.raw_token);
+    expect(() => decodeAPITokenRevealedCredential({ ...revealed, raw_token: "stored-secret" })).toThrow("schema mismatch");
   });
   it("accepts PostgreSQL RFC 3339 offsets without accepting informal dates", () => {
-    const token = { id, name: "Automation", principal_id: id, workspace_id: id, environment_id: id, permissions: ["view"], created_at: "2026-08-19T00:00:00+00:00", expires_at: "2026-08-20T01:02:03.456-07:00", last_used_at: null, revoked_at: null, version: 1, raw_token: `zasp_pat_${"A".repeat(43)}`, audit_correlation_id: id };
-    expect(decodeAPITokenCredential(token).created_at).toBe(token.created_at);
-    expect(() => decodeAPITokenCredential({ ...token, created_at: "August 19, 2026" })).toThrow("schema mismatch");
+    const token = { id, name: "Automation", principal_id: id, workspace_id: id, environment_id: id, permissions: ["view"], created_at: "2026-08-19T00:00:00+00:00", expires_at: "2026-08-20T01:02:03.456-07:00", last_used_at: null, revoked_at: null, version: 1, audit_correlation_id: id };
+    const grant = { grant_id: id, expires_at: "2026-08-19T00:05:00+00:00", token };
+    expect(decodeAPITokenRevealGrant(grant).token.created_at).toBe(token.created_at);
+    expect(() => decodeAPITokenRevealGrant({ ...grant, token: { ...token, created_at: "August 19, 2026" } })).toThrow("schema mismatch");
   });
   it("bounds session pages and component inventories", () => {
     expect(decodeSessionPage({ items: [], page_info: { next_cursor: null, has_more: false } }).items).toEqual([]);

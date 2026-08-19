@@ -81,15 +81,15 @@ const postgresSchemaVersionSQL = `WITH semantic_objects AS (
 )
 SELECT metadata.value
 FROM zasp_schema_metadata AS metadata
-JOIN zasp_schema_versions AS release ON release.version = 7 AND release.name = 'production_administration'
-JOIN zasp_schema_metadata AS expected_fingerprint ON expected_fingerprint.key = 'production_administration_fingerprint'
+JOIN zasp_schema_versions AS release ON release.version = 8 AND release.name = 'api_token_reveal_grants'
+JOIN zasp_schema_metadata AS expected_fingerprint ON expected_fingerprint.key = 'api_token_reveal_grants_fingerprint'
 CROSS JOIN semantic_fingerprint
-WHERE metadata.key = 'production_core_schema' AND metadata.value = 'production-administration-v1'
+WHERE metadata.key = 'production_core_schema' AND metadata.value = 'api-token-reveal-grants-v1'
   AND release.checksum = $1 AND expected_fingerprint.value = $2 AND semantic_fingerprint.value = $2`
 
-func expectedCoreSchemaChecksum() string { return migrations.ProductionAdministration().Checksum() }
+func expectedCoreSchemaChecksum() string { return migrations.APITokenRevealGrants().Checksum() }
 func expectedCoreSchemaFingerprint() string {
-	return migrations.ProductionAdministrationSemanticFingerprint()
+	return migrations.APITokenRevealGrantsSemanticFingerprint()
 }
 
 type PostgresRow interface{ Scan(...any) error }
@@ -184,7 +184,7 @@ func classifyPostgresError(err error) error {
 			return ErrRepositoryNotFound
 		}
 	}
-	return ErrRepositoryUnavailable
+	return errors.Join(ErrRepositoryUnavailable, err)
 }
 
 func (database *PostgresJSONDatabase) Close() error {

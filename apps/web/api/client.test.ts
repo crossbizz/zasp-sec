@@ -64,9 +64,11 @@ describe("generated API client", () => {
     expect(finalPage.has_more).toBe(false);
     expectTypeOf<keyof paths>().toEqualTypeOf<
       | "/api/v1/admin/api-tokens"
+      | "/api/v1/admin/api-token-reveal-grants"
+      | "/api/v1/admin/api-token-reveal-grants/{id}"
+      | "/api/v1/admin/api-token-reveal-grants/{id}/reveal"
       | "/api/v1/admin/api-tokens/{id}"
       | "/api/v1/admin/api-tokens/{id}/rotate"
-      | "/api/v1/admin/group-mappings"
       | "/api/v1/admin/members"
       | "/api/v1/admin/members/{id}"
       | "/api/v1/admin/roles"

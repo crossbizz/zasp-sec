@@ -22,7 +22,7 @@ func TestLoadRuntimeConfigIsStrict(t *testing.T) {
 		"ZASP_READINESS_INTERVAL": "5s", "ZASP_READINESS_MAX_INTERVAL": "1m",
 		"ZASP_DEPLOYMENT_MODE": "saas", "ZASP_ORGANIZATION_ID": "",
 		"ZASP_POSTGRES_DSN":    "postgres://zasp:secret@db.internal:5432/zasp?sslmode=require",
-		"ZASP_STYTCH_BASE_URL": "https://api.stytch.com", "ZASP_STYTCH_AUTHORIZE_URL": "https://api.stytch.com/v1/b2b/public/oauth/google/start", "ZASP_STYTCH_PROJECT_ID": "project-live-local", "ZASP_STYTCH_SECRET": "secret-live-local", "ZASP_STYTCH_PUBLIC_TOKEN": "public-token-live-local", "ZASP_STYTCH_ORGANIZATION_ID": "organization-live-local", "ZASP_WORKFLOW_SIGNING_KEY": "0123456789abcdef0123456789abcdef",
+		"ZASP_STYTCH_BASE_URL": "https://api.stytch.com", "ZASP_STYTCH_AUTHORIZE_URL": "https://api.stytch.com/v1/b2b/public/oauth/google/start", "ZASP_STYTCH_PROJECT_ID": "project-live-local", "ZASP_STYTCH_SECRET": "secret-live-local", "ZASP_STYTCH_PUBLIC_TOKEN": "public-token-live-local", "ZASP_STYTCH_ORGANIZATION_ID": "organization-live-local", "ZASP_WORKFLOW_SIGNING_KEY": "0123456789abcdef0123456789abcdef", "ZASP_TOKEN_REVEAL_KEY": "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY",
 	}
 	config, err := loadRuntimeConfig(func(key string) string { return values[key] })
 	if err != nil {
@@ -32,7 +32,7 @@ func TestLoadRuntimeConfigIsStrict(t *testing.T) {
 		t.Fatalf("config = %#v", config)
 	}
 
-	for _, key := range []string{"ZASP_ENVIRONMENT", "ZASP_PRODUCT_LISTEN_ADDRESS", "ZASP_INTERNAL_LISTEN_ADDRESS", "ZASP_PUBLIC_ORIGIN", "ZASP_COOKIE_SECURE", "ZASP_PROVIDER_TIMEOUT", "ZASP_SHUTDOWN_TIMEOUT", "ZASP_READINESS_INTERVAL", "ZASP_READINESS_MAX_INTERVAL", "ZASP_DEPLOYMENT_MODE", "ZASP_POSTGRES_DSN", "ZASP_STYTCH_BASE_URL", "ZASP_STYTCH_AUTHORIZE_URL", "ZASP_STYTCH_PROJECT_ID", "ZASP_STYTCH_SECRET", "ZASP_STYTCH_PUBLIC_TOKEN", "ZASP_STYTCH_ORGANIZATION_ID", "ZASP_WORKFLOW_SIGNING_KEY"} {
+	for _, key := range []string{"ZASP_ENVIRONMENT", "ZASP_PRODUCT_LISTEN_ADDRESS", "ZASP_INTERNAL_LISTEN_ADDRESS", "ZASP_PUBLIC_ORIGIN", "ZASP_COOKIE_SECURE", "ZASP_PROVIDER_TIMEOUT", "ZASP_SHUTDOWN_TIMEOUT", "ZASP_READINESS_INTERVAL", "ZASP_READINESS_MAX_INTERVAL", "ZASP_DEPLOYMENT_MODE", "ZASP_POSTGRES_DSN", "ZASP_STYTCH_BASE_URL", "ZASP_STYTCH_AUTHORIZE_URL", "ZASP_STYTCH_PROJECT_ID", "ZASP_STYTCH_SECRET", "ZASP_STYTCH_PUBLIC_TOKEN", "ZASP_STYTCH_ORGANIZATION_ID", "ZASP_WORKFLOW_SIGNING_KEY", "ZASP_TOKEN_REVEAL_KEY"} {
 		t.Run("missing "+key, func(t *testing.T) {
 			copy := mapsClone(values)
 			delete(copy, key)
@@ -175,7 +175,7 @@ func TestServeRuntimeClosesProductListenerAfterPartialStartup(t *testing.T) {
 
 func fixtureRuntimeConfig() RuntimeConfig {
 	return RuntimeConfig{Environment: "production", DeploymentMode: "saas", ProductListenAddress: ":8080", InternalListenAddress: ":8081", PublicOrigin: "https://app.zasp.example", CookieSecure: true, ProviderTimeout: 5 * time.Second, ShutdownTimeout: 5 * time.Second,
-		ReadinessInterval: 100 * time.Millisecond, ReadinessMaxInterval: 500 * time.Millisecond, PostgresDSN: "postgres://zasp:secret@db.internal:5432/zasp?sslmode=require", StytchBaseURL: "https://api.stytch.com", StytchAuthorizeURL: "https://api.stytch.com/v1/b2b/public/oauth/google/start", StytchProjectID: "project-live-local", StytchSecret: "secret-live-local", StytchPublicToken: "public-token-live-local", StytchOrganizationID: "organization-live-local", WorkflowSigningKey: "0123456789abcdef0123456789abcdef"}
+		ReadinessInterval: 100 * time.Millisecond, ReadinessMaxInterval: 500 * time.Millisecond, PostgresDSN: "postgres://zasp:secret@db.internal:5432/zasp?sslmode=require", StytchBaseURL: "https://api.stytch.com", StytchAuthorizeURL: "https://api.stytch.com/v1/b2b/public/oauth/google/start", StytchProjectID: "project-live-local", StytchSecret: "secret-live-local", StytchPublicToken: "public-token-live-local", StytchOrganizationID: "organization-live-local", WorkflowSigningKey: "0123456789abcdef0123456789abcdef", TokenRevealKey: []byte("0123456789abcdef0123456789abcdef")}
 }
 
 func fixtureRuntimeDependencies() RuntimeDependencies {

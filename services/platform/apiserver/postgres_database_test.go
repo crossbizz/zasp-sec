@@ -14,22 +14,22 @@ import (
 )
 
 func TestPostgresSchemaReadinessRequiresExactWorkflowRelease(t *testing.T) {
-	if CoreSchemaVersion != "production-administration-v1" {
+	if CoreSchemaVersion != "api-token-reveal-grants-v1" {
 		t.Fatalf("schema target = %q", CoreSchemaVersion)
 	}
-	if !strings.Contains(postgresSchemaVersionSQL, "release.version = 7") || !strings.Contains(postgresSchemaVersionSQL, "release.name = 'production_administration'") {
+	if !strings.Contains(postgresSchemaVersionSQL, "release.version = 8") || !strings.Contains(postgresSchemaVersionSQL, "release.name = 'api_token_reveal_grants'") {
 		t.Fatalf("schema readiness query does not require provenance release: %s", postgresSchemaVersionSQL)
 	}
-	for _, fragment := range []string{"pg_get_expr", "pg_get_constraintdef", "pg_get_indexdef", "prosrc", "provolatile", "prosecdef", "attnotnull", "format_type", "production_administration_fingerprint"} {
+	for _, fragment := range []string{"pg_get_expr", "pg_get_constraintdef", "pg_get_indexdef", "prosrc", "provolatile", "prosecdef", "attnotnull", "format_type", "api_token_reveal_grants_fingerprint"} {
 		if !strings.Contains(postgresSchemaVersionSQL, fragment) {
 			t.Fatalf("schema readiness query missing exact fingerprint %q: %s", fragment, postgresSchemaVersionSQL)
 		}
 	}
-	if expectedCoreSchemaChecksum() != migrations.ProductionAdministration().Checksum() {
-		t.Fatal("schema readiness checksum is not the production administration release checksum")
+	if expectedCoreSchemaChecksum() != migrations.APITokenRevealGrants().Checksum() {
+		t.Fatal("schema readiness checksum is not the API token reveal grant release checksum")
 	}
-	if expectedCoreSchemaFingerprint() != migrations.ProductionAdministrationSemanticFingerprint() || len(expectedCoreSchemaFingerprint()) != 64 {
-		t.Fatal("schema readiness fingerprint is not derived from the production administration migration")
+	if expectedCoreSchemaFingerprint() != migrations.APITokenRevealGrantsSemanticFingerprint() || len(expectedCoreSchemaFingerprint()) != 64 {
+		t.Fatal("schema readiness fingerprint is not derived from the API token reveal grant migration")
 	}
 }
 

@@ -17,11 +17,12 @@ export function decodeSessionCallbackResult(value: unknown): SessionCallbackResu
 }
 
 export function decodeSessionBootstrap(value: unknown): SessionBootstrap {
-  const record = exactRecord(value, ["principal", "organization_id", "workspace_id", "environment_id", "permissions", "capabilities", "csrf_token", "correlation_id"]);
+  const record = exactRecord(value, ["principal", "organization_id", "workspace_id", "environment_id", "permissions", "capabilities", "csrf_token", "fresh_auth_expires_at", "correlation_id"]);
   decodePrincipal(record.principal);
   for (const key of ["organization_id", "workspace_id", "environment_id", "correlation_id"] as const) productID(record[key]);
   stringArray(record.permissions, 32); stringArray(record.capabilities, 128);
   boundedString(record.csrf_token, 32, 256);
+  dateTime(record.fresh_auth_expires_at);
   return value as SessionBootstrap;
 }
 

@@ -11,8 +11,10 @@ type APIContextValue = {
   queryGeneration: number;
   sessionExpiry: number;
 	getSessionInvalidationGeneration(): number;
-	scopeStale: number;
-	getScopeStaleGeneration(): number;
+  scopeStale: number;
+  getScopeStaleGeneration(): number;
+	freshAuthRequired: number;
+	markFreshAuthenticated(): void;
   invalidate(keys: readonly string[]): void;
   setCSRFToken(value: string | null): void;
 	setRequestScope(value: string | null): void;
@@ -53,6 +55,7 @@ export function APIProvider({ children, client: suppliedClient }: { children: Re
 	const [sessionInvalidationGeneration] = useState(() => new GenerationVault());
 	const [scopeStale, setScopeStale] = useState(0);
 	const [scopeStaleGeneration] = useState(() => new GenerationVault());
+	const [freshAuthRequired, setFreshAuthRequired] = useState(0);
   const [client] = useState(() => suppliedClient ?? createAPIClient({
     getCSRFToken: () => csrfToken.get() ?? undefined,
 	getExpectedScope: () => requestScope.get() ?? undefined,
@@ -69,6 +72,12 @@ export function APIProvider({ children, client: suppliedClient }: { children: Re
 		setRevisions(new Map());
 		setQueryEpoch((current) => ({ scopeKey: null, generation: current.generation + 1 }));
 		setScopeStale(scopeStaleGeneration.advance());
+	},
+	onFreshAuthRequired: () => {
+		csrfToken.set(null);
+		setRevisions(new Map());
+		setQueryEpoch((current) => ({ ...current, generation: current.generation + 1 }));
+		setFreshAuthRequired((current) => current + 1);
 	},
   }));
   const invalidate = useCallback((keys: readonly string[]) => {
@@ -97,6 +106,7 @@ export function APIProvider({ children, client: suppliedClient }: { children: Re
   }, []);
 	const getScopeStaleGeneration = useCallback(() => scopeStaleGeneration.get(), [scopeStaleGeneration]);
 	const getSessionInvalidationGeneration = useCallback(() => sessionInvalidationGeneration.get(), [sessionInvalidationGeneration]);
+	const markFreshAuthenticated = useCallback(() => setFreshAuthRequired(0), []);
   const value = useMemo<APIContextValue>(() => ({
     client,
     revisions,
@@ -106,13 +116,15 @@ export function APIProvider({ children, client: suppliedClient }: { children: Re
 	getSessionInvalidationGeneration,
 	scopeStale,
 	getScopeStaleGeneration,
+	freshAuthRequired,
+	markFreshAuthenticated,
     invalidate,
     setCSRFToken,
 	setRequestScope,
     setQueryScope,
     suspendQueryCache,
     clearQueryCache,
-	  }), [client, revisions, queryEpoch, sessionExpiry, getSessionInvalidationGeneration, scopeStale, getScopeStaleGeneration, invalidate, setCSRFToken, setRequestScope, setQueryScope, suspendQueryCache, clearQueryCache]);
+	  }), [client, revisions, queryEpoch, sessionExpiry, getSessionInvalidationGeneration, scopeStale, getScopeStaleGeneration, freshAuthRequired, markFreshAuthenticated, invalidate, setCSRFToken, setRequestScope, setQueryScope, suspendQueryCache, clearQueryCache]);
   return <APIContext.Provider value={value}>{children}</APIContext.Provider>;
 }
 

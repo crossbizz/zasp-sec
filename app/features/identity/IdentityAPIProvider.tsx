@@ -5,12 +5,10 @@ import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { requireAPIData, type APIClient } from "../../../apps/web/api/client";
 import type {
   BuiltInRolePage,
-  GroupMapping,
-  GroupMappingPage,
   Principal,
   PrincipalPage,
 } from "../../../apps/web/api/generated";
-import { decodeBuiltInRolePage, decodeGroupMapping, decodeGroupMappingPage, decodePrincipal, decodePrincipalPage } from "../../../apps/web/api/administration-decoders";
+import { decodeBuiltInRolePage, decodePrincipal, decodePrincipalPage } from "../../../apps/web/api/administration-decoders";
 import type { IdentityAdminAPI } from "./IdentityAccessView";
 
 const IdentityAPIContext = createContext<IdentityAdminAPI | null>(null);
@@ -28,17 +26,6 @@ export function createIdentityAdminAPI(client: APIClient): IdentityAdminAPI {
     async listRoles() {
       const page = requireAPIData<BuiltInRolePage>(await client.GET("/api/v1/admin/roles"), decodeBuiltInRolePage);
       return page.items.map((item) => ({ role: item.role, permissions: [...item.permissions] }));
-    },
-    async listGroupMappings() {
-      const page = requireAPIData<GroupMappingPage>(await client.GET("/api/v1/admin/group-mappings"), decodeGroupMappingPage);
-      return page.items.map((item) => ({ groupReference: item.group_reference, role: item.role, workspaceId: item.workspace_id, environmentId: item.environment_id, version: item.version }));
-    },
-    async updateGroupMapping(input) {
-      const item = requireAPIData<GroupMapping>(await client.PATCH("/api/v1/admin/group-mappings", { params: { header: { "X-CSRF-Token": "" } }, body: {
-        group_reference: input.groupReference, role: input.role as "read_only_viewer", workspace_id: input.workspaceId,
-        environment_id: input.environmentId, expected_version: input.expectedVersion,
-      } }), decodeGroupMapping);
-      return { groupReference: item.group_reference, role: item.role, workspaceId: item.workspace_id, environmentId: item.environment_id, version: item.version };
     },
   };
 }

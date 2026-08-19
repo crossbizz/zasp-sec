@@ -59,12 +59,13 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"GET", "/api/v1/admin/members", "listMembers", "manage_identity", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/admin/roles", "listBuiltInRoles", "manage_identity", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"PATCH", "/api/v1/admin/members/{id}", "updateMemberRole", "manage_identity", []string{"BrowserSession"}}, identityDependency},
-	{OperationDefinition{"GET", "/api/v1/admin/group-mappings", "listGroupMappings", "manage_identity", []string{"BrowserSession"}}, identityDependency},
-	{OperationDefinition{"PATCH", "/api/v1/admin/group-mappings", "updateGroupMappings", "manage_identity", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/admin/api-tokens", "listAPITokens", "manage_api_tokens", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"POST", "/api/v1/admin/api-tokens", "createAPIToken", "manage_api_tokens", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"POST", "/api/v1/admin/api-tokens/{id}/rotate", "rotateAPIToken", "manage_api_tokens", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"DELETE", "/api/v1/admin/api-tokens/{id}", "revokeAPIToken", "manage_api_tokens", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"GET", "/api/v1/admin/api-token-reveal-grants", "listAPITokenRevealGrants", "manage_api_tokens", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"POST", "/api/v1/admin/api-token-reveal-grants/{id}/reveal", "revealAPIToken", "manage_api_tokens", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"DELETE", "/api/v1/admin/api-token-reveal-grants/{id}", "acknowledgeAPITokenRevealGrant", "manage_api_tokens", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/audit-events", "listAuditEvents", "view_audit", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/sessions", "listSessions", "investigate_sessions", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/sessions/{id}", "getSession", "investigate_sessions", []string{"BrowserSession"}}, identityDependency},
@@ -183,7 +184,7 @@ func NewComposition(dependencies Dependencies) (http.Handler, error) {
 func requiresFreshAuthentication(operationID string) bool {
 	switch operationID {
 	case "createWorkspace", "updateWorkspace", "createEnvironment", "updateEnvironment",
-		"updateMemberRole", "updateGroupMappings", "createAPIToken", "rotateAPIToken", "revokeAPIToken",
+		"updateMemberRole", "createAPIToken", "rotateAPIToken", "revokeAPIToken", "revealAPIToken", "acknowledgeAPITokenRevealGrant",
 		"revokeSession", "updateDataControls":
 		return true
 	default:

@@ -13,17 +13,17 @@ import (
 	platformidentity "github.com/zasp-ai/zasp-sec/services/platform/identity"
 )
 
-const CoreSchemaVersion = "production-administration-v1"
+const CoreSchemaVersion = "api-token-reveal-grants-v1"
 
 const (
-	postgresAuthenticateSessionSQL = `SELECT jsonb_build_object('principal_id', session.principal_id, 'organization_id', session.organization_id, 'workspace_id', session.workspace_id, 'environment_id', session.environment_id, 'permissions', zasp_effective_scope_permissions(scope.permissions, membership.role), 'csrf_token', session.csrf_token, 'fresh_authenticated', session.authenticated_at > now() - interval '5 minutes') FROM zasp_product_sessions AS session JOIN zasp_identity_memberships AS membership ON membership.principal_id = session.principal_id AND membership.organization_id = session.organization_id AND membership.active JOIN zasp_authorized_scopes AS scope ON scope.principal_id = session.principal_id AND scope.organization_id = session.organization_id AND scope.workspace_id = session.workspace_id AND scope.environment_id = session.environment_id WHERE session.token_digest = digest($1, 'sha256') AND session.revoked_at IS NULL AND session.expires_at > now()`
+	postgresAuthenticateSessionSQL = `SELECT jsonb_build_object('principal_id', session.principal_id, 'organization_id', session.organization_id, 'workspace_id', session.workspace_id, 'environment_id', session.environment_id, 'permissions', zasp_effective_scope_permissions(scope.permissions, membership.role), 'csrf_token', session.csrf_token, 'fresh_authenticated', session.authenticated_at > now() - interval '5 minutes', 'fresh_auth_expires_at', session.authenticated_at + interval '5 minutes') FROM zasp_product_sessions AS session JOIN zasp_identity_memberships AS membership ON membership.principal_id = session.principal_id AND membership.organization_id = session.organization_id AND membership.active JOIN zasp_authorized_scopes AS scope ON scope.principal_id = session.principal_id AND scope.organization_id = session.organization_id AND scope.workspace_id = session.workspace_id AND scope.environment_id = session.environment_id WHERE session.token_digest = digest($1, 'sha256') AND session.revoked_at IS NULL AND session.expires_at > now()`
 	postgresAuthenticatePATSQL     = `WITH used AS (UPDATE zasp_product_api_tokens SET last_used_at=transaction_timestamp() WHERE token_digest=digest($1,'sha256') AND revoked_at IS NULL AND expires_at>now() RETURNING *) SELECT jsonb_build_object('principal_id', token.principal_id, 'organization_id', token.organization_id, 'workspace_id', token.workspace_id, 'environment_id', token.environment_id, 'permissions', (SELECT COALESCE(jsonb_agg(permission ORDER BY permission), '[]'::jsonb) FROM jsonb_array_elements_text(token.permissions) AS permission WHERE zasp_effective_scope_permissions(scope.permissions, membership.role) ? permission)) FROM used AS token JOIN zasp_identity_memberships AS membership ON membership.principal_id = token.principal_id AND membership.organization_id = token.organization_id AND membership.active JOIN zasp_authorized_scopes AS scope ON scope.principal_id = token.principal_id AND scope.organization_id = token.organization_id AND scope.workspace_id = token.workspace_id AND scope.environment_id = token.environment_id`
-	postgresCreateSessionSQL       = `WITH created AS (SELECT zasp_create_product_session($1, $2, $3, $4, $5, $6, $7::jsonb, $8) AS value) SELECT value || jsonb_build_object('fresh_authenticated', true) FROM created`
+	postgresCreateSessionSQL       = `WITH created AS (SELECT zasp_create_product_session($1, $2, $3, $4, $5, $6, $7::jsonb, $8) AS value) SELECT value || jsonb_build_object('fresh_authenticated', true, 'fresh_auth_expires_at', transaction_timestamp() + interval '5 minutes') FROM created`
 	postgresBootstrapSQL           = `SELECT payload || jsonb_build_object('principal', jsonb_build_object('id', membership.principal_id, 'organization_id', membership.organization_id, 'organization_reference', membership.organization_reference, 'member_reference', membership.member_reference, 'role', membership.role, 'active', membership.active)) FROM zasp_core_payloads AS payloads JOIN zasp_identity_memberships AS membership ON membership.principal_id = $1 AND membership.organization_id = $2 AND membership.active WHERE payloads.organization_id = $2 AND payloads.workspace_id = $3 AND payloads.environment_id = $4 AND payloads.operation = 'session_bootstrap:' || $1`
 	postgresCoreReadSQL            = `SELECT zasp_core_read($1, $2, $3, $4)`
 	postgresRevokeSessionSQL       = `UPDATE zasp_product_sessions SET revoked_at = now() WHERE token_digest = digest($1, 'sha256') AND organization_id = $2 AND principal_id = $3`
 	postgresListScopesSQL          = `SELECT jsonb_build_object('items', COALESCE(jsonb_agg(jsonb_build_object('organization_id', organization_id, 'workspace_id', workspace_id, 'environment_id', environment_id, 'label', label) ORDER BY label, workspace_id, environment_id), '[]'::jsonb)) FROM zasp_authorized_scopes WHERE principal_id = $1 AND organization_id = $2`
-	postgresSwitchScopeSQL         = `WITH authorized AS (SELECT scope.workspace_id, scope.environment_id, zasp_effective_scope_permissions(scope.permissions, membership.role) AS permissions FROM zasp_authorized_scopes AS scope JOIN zasp_identity_memberships AS membership ON membership.principal_id = scope.principal_id AND membership.organization_id = scope.organization_id AND membership.active WHERE scope.principal_id = $3 AND scope.organization_id = $4 AND scope.workspace_id = $5 AND scope.environment_id = $6), updated AS (UPDATE zasp_product_sessions AS session SET workspace_id = authorized.workspace_id, environment_id = authorized.environment_id, permissions = authorized.permissions, csrf_token = $2 FROM authorized WHERE session.token_digest = digest($1, 'sha256') AND session.principal_id = $3 AND session.organization_id = $4 AND session.revoked_at IS NULL AND session.expires_at > now() RETURNING session.principal_id, session.organization_id, session.workspace_id, session.environment_id, session.permissions, session.csrf_token, session.authenticated_at) SELECT jsonb_build_object('principal_id', principal_id, 'organization_id', organization_id, 'workspace_id', workspace_id, 'environment_id', environment_id, 'permissions', permissions, 'csrf_token', csrf_token, 'fresh_authenticated', authenticated_at > now() - interval '5 minutes') FROM updated`
+	postgresSwitchScopeSQL         = `WITH authorized AS (SELECT scope.workspace_id, scope.environment_id, zasp_effective_scope_permissions(scope.permissions, membership.role) AS permissions FROM zasp_authorized_scopes AS scope JOIN zasp_identity_memberships AS membership ON membership.principal_id = scope.principal_id AND membership.organization_id = scope.organization_id AND membership.active WHERE scope.principal_id = $3 AND scope.organization_id = $4 AND scope.workspace_id = $5 AND scope.environment_id = $6), updated AS (UPDATE zasp_product_sessions AS session SET workspace_id = authorized.workspace_id, environment_id = authorized.environment_id, permissions = authorized.permissions, csrf_token = $2 FROM authorized WHERE session.token_digest = digest($1, 'sha256') AND session.principal_id = $3 AND session.organization_id = $4 AND session.revoked_at IS NULL AND session.expires_at > now() RETURNING session.principal_id, session.organization_id, session.workspace_id, session.environment_id, session.permissions, session.csrf_token, session.authenticated_at) SELECT jsonb_build_object('principal_id', principal_id, 'organization_id', organization_id, 'workspace_id', workspace_id, 'environment_id', environment_id, 'permissions', permissions, 'csrf_token', csrf_token, 'fresh_authenticated', authenticated_at > now() - interval '5 minutes', 'fresh_auth_expires_at', authenticated_at + interval '5 minutes') FROM updated`
 	postgresResolveIdentitySQL     = `SELECT jsonb_build_object('principal_id', membership.principal_id, 'organization_id', membership.organization_id, 'organization_reference', membership.organization_reference, 'member_reference', membership.member_reference, 'role', membership.role, 'active', membership.active, 'workspace_id', scope.workspace_id, 'environment_id', scope.environment_id, 'permissions', zasp_effective_scope_permissions(scope.permissions, membership.role)) FROM zasp_identity_memberships AS membership JOIN zasp_authorized_scopes AS scope ON scope.principal_id = membership.principal_id AND scope.organization_id = membership.organization_id AND scope.is_default WHERE membership.organization_reference = $1 AND membership.member_reference = $2`
 	postgresBeginIdentitySQL       = `INSERT INTO zasp_identity_states (state_digest, return_path, expires_at) VALUES (digest($1, 'sha256'), $2, now() + interval '10 minutes')`
 	postgresConsumeIdentitySQL     = `WITH consumed AS (UPDATE zasp_identity_states SET consumed_at = now() WHERE state_digest = digest($1, 'sha256') AND consumed_at IS NULL AND expires_at > now() RETURNING return_path) SELECT jsonb_build_object('return_path', return_path) FROM consumed`
@@ -100,6 +100,7 @@ func identityFromJSON(payload json.RawMessage, requireCSRF bool) (RequestIdentit
 		Permissions        []string `json:"permissions"`
 		CSRFToken          string   `json:"csrf_token"`
 		FreshAuthenticated bool     `json:"fresh_authenticated"`
+		FreshAuthExpiresAt string   `json:"fresh_auth_expires_at"`
 	}
 	if err := json.Unmarshal(payload, &value); err != nil {
 		return RequestIdentity{}, err
@@ -109,7 +110,15 @@ func identityFromJSON(payload json.RawMessage, requireCSRF bool) (RequestIdentit
 	workspace, workspaceErr := domain.ParseProductID(value.WorkspaceID)
 	environment, environmentErr := domain.ParseProductID(value.EnvironmentID)
 	scope, scopeErr := domain.NewScope(organization, workspace, environment)
-	identity := RequestIdentity{PrincipalID: principal, Scope: scope, Permissions: append([]string(nil), value.Permissions...), CSRFToken: value.CSRFToken, FreshAuthenticated: value.FreshAuthenticated}
+	var freshAuthExpiresAt time.Time
+	if value.FreshAuthExpiresAt != "" {
+		parsed, parseErr := time.Parse(time.RFC3339Nano, value.FreshAuthExpiresAt)
+		if parseErr != nil {
+			return RequestIdentity{}, ErrRepositoryAuthentication
+		}
+		freshAuthExpiresAt = parsed.UTC()
+	}
+	identity := RequestIdentity{PrincipalID: principal, Scope: scope, Permissions: append([]string(nil), value.Permissions...), CSRFToken: value.CSRFToken, FreshAuthenticated: value.FreshAuthenticated, FreshAuthExpiresAt: freshAuthExpiresAt}
 	if principalErr != nil || organizationErr != nil || workspaceErr != nil || environmentErr != nil || scopeErr != nil || !validRequestIdentity(identity, requireCSRF) {
 		return RequestIdentity{}, ErrRepositoryAuthentication
 	}
@@ -354,7 +363,11 @@ func scopeKey(scope domain.Scope) string {
 }
 
 func identityJSON(identity RequestIdentity) map[string]any {
-	return map[string]any{"principal_id": identity.PrincipalID.String(), "organization_id": identity.Scope.OrganizationID().String(), "workspace_id": identity.Scope.WorkspaceID().String(), "environment_id": identity.Scope.EnvironmentID().String(), "permissions": identity.Permissions, "csrf_token": identity.CSRFToken}
+	value := map[string]any{"principal_id": identity.PrincipalID.String(), "organization_id": identity.Scope.OrganizationID().String(), "workspace_id": identity.Scope.WorkspaceID().String(), "environment_id": identity.Scope.EnvironmentID().String(), "permissions": identity.Permissions, "csrf_token": identity.CSRFToken, "fresh_authenticated": identity.FreshAuthenticated}
+	if !identity.FreshAuthExpiresAt.IsZero() {
+		value["fresh_auth_expires_at"] = identity.FreshAuthExpiresAt.UTC().Format(time.RFC3339Nano)
+	}
+	return value
 }
 
 func bootstrapJSON(identity RequestIdentity) map[string]any {

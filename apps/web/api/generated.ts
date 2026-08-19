@@ -4,6 +4,61 @@
  */
 
 export type paths = {
+    readonly "/api/v1/admin/api-token-reveal-grants": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List this principal's pending exact-scope API token reveal grants */
+        readonly get: operations["listAPITokenRevealGrants"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/admin/api-token-reveal-grants/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        readonly post?: never;
+        /** Acknowledge a reveal grant and atomically destroy its encrypted credential */
+        readonly delete: operations["acknowledgeAPITokenRevealGrant"];
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/admin/api-token-reveal-grants/{id}/reveal": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Reveal an unacknowledged API token credential in its exact scope */
+        readonly post: operations["revealAPIToken"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/admin/api-tokens": {
         readonly parameters: {
             readonly query?: never;
@@ -53,30 +108,12 @@ export type paths = {
         };
         readonly get?: never;
         readonly put?: never;
-        /** Rotate a scoped product API token and return the replacement once */
+        /** Rotate a scoped product API token and create a durable one-time reveal grant */
         readonly post: operations["rotateAPIToken"];
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
         readonly patch?: never;
-        readonly trace?: never;
-    };
-    readonly "/api/v1/admin/group-mappings": {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path?: never;
-            readonly cookie?: never;
-        };
-        /** List Organization IdP group mappings */
-        readonly get: operations["listGroupMappings"];
-        readonly put?: never;
-        readonly post?: never;
-        readonly delete?: never;
-        readonly options?: never;
-        readonly head?: never;
-        /** Create or version-update an IdP group mapping */
-        readonly patch: operations["updateGroupMappings"];
         readonly trace?: never;
     };
     readonly "/api/v1/admin/members": {
@@ -1769,23 +1806,6 @@ export type components = {
             readonly version: number;
             readonly workspace_id: components["schemas"]["ProductID"];
         };
-        readonly APITokenCredential: {
-            readonly audit_correlation_id: components["schemas"]["ProductID"];
-            /** Format: date-time */
-            readonly created_at: string;
-            readonly environment_id: components["schemas"]["ProductID"];
-            /** Format: date-time */
-            readonly expires_at: string;
-            readonly id: components["schemas"]["ProductID"];
-            readonly last_used_at: string | null;
-            readonly name: string;
-            readonly permissions: readonly components["schemas"]["Permission"][];
-            readonly principal_id: components["schemas"]["ProductID"];
-            readonly raw_token: string;
-            readonly revoked_at: string | null;
-            readonly version: number;
-            readonly workspace_id: components["schemas"]["ProductID"];
-        };
         readonly APITokenInput: {
             readonly environment_id: components["schemas"]["ProductID"];
             /** Format: date-time */
@@ -1797,6 +1817,31 @@ export type components = {
         readonly APITokenPage: {
             readonly items: readonly components["schemas"]["APIToken"][];
             readonly page_info: components["schemas"]["PageInfo"];
+        };
+        readonly APITokenRevealedCredential: {
+            /** Format: date-time */
+            readonly expires_at: string;
+            readonly grant_id: components["schemas"]["ProductID"];
+            readonly raw_token: string;
+            readonly token_id: components["schemas"]["ProductID"];
+        };
+        readonly APITokenRevealGrant: {
+            /** Format: date-time */
+            readonly expires_at: string;
+            readonly grant_id: components["schemas"]["ProductID"];
+            readonly token: components["schemas"]["APIToken"];
+        };
+        readonly APITokenRevealGrantPage: {
+            readonly items: readonly components["schemas"]["APITokenRevealGrantSummary"][];
+            readonly page_info: components["schemas"]["PageInfo"];
+        };
+        readonly APITokenRevealGrantSummary: {
+            /** Format: date-time */
+            readonly expires_at: string;
+            readonly grant_id: components["schemas"]["ProductID"];
+            /** @enum {string} */
+            readonly operation: "createAPIToken" | "rotateAPIToken";
+            readonly token_id: components["schemas"]["ProductID"];
         };
         readonly AttackLabRun: {
             /** @enum {string} */
@@ -1904,6 +1949,7 @@ export type components = {
         };
         readonly ComplianceControlPage: {
             readonly items: readonly components["schemas"]["ComplianceControl"][];
+            readonly page_info: components["schemas"]["PageInfo"];
         };
         readonly ComplianceEvidence: {
             readonly control: components["schemas"]["ComplianceControl"];
@@ -1913,6 +1959,7 @@ export type components = {
         };
         readonly ComplianceEvidencePage: {
             readonly items: readonly components["schemas"]["ComplianceEvidence"][];
+            readonly page_info: components["schemas"]["PageInfo"];
         };
         readonly ComplianceExport: {
             readonly formats: readonly ("json" | "csv" | "human")[];
@@ -2535,6 +2582,8 @@ export type components = {
             readonly correlation_id: components["schemas"]["ProductID"];
             readonly csrf_token: string;
             readonly environment_id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly fresh_auth_expires_at: string;
             readonly organization_id: components["schemas"]["ProductID"];
             readonly permissions: readonly components["schemas"]["Permission"][];
             readonly principal: components["schemas"]["Principal"];
@@ -2562,6 +2611,7 @@ export type components = {
         };
         readonly SessionEventPage: {
             readonly items: readonly components["schemas"]["SessionEvent"][];
+            readonly page_info: components["schemas"]["PageInfo"];
         };
         readonly SessionID: string;
         readonly SessionPage: {
@@ -2739,9 +2789,12 @@ export type AgentSessionPage = components['schemas']['AgentSessionPage'];
 export type AiExplanation = components['schemas']['AIExplanation'];
 export type AiExplanationInput = components['schemas']['AIExplanationInput'];
 export type ApiToken = components['schemas']['APIToken'];
-export type ApiTokenCredential = components['schemas']['APITokenCredential'];
 export type ApiTokenInput = components['schemas']['APITokenInput'];
 export type ApiTokenPage = components['schemas']['APITokenPage'];
+export type ApiTokenRevealedCredential = components['schemas']['APITokenRevealedCredential'];
+export type ApiTokenRevealGrant = components['schemas']['APITokenRevealGrant'];
+export type ApiTokenRevealGrantPage = components['schemas']['APITokenRevealGrantPage'];
+export type ApiTokenRevealGrantSummary = components['schemas']['APITokenRevealGrantSummary'];
 export type AttackLabRun = components['schemas']['AttackLabRun'];
 export type AttackLabRunPage = components['schemas']['AttackLabRunPage'];
 export type AttackPath = components['schemas']['AttackPath'];
@@ -2908,6 +2961,93 @@ export type HeaderWorkflowETag = components['headers']['WorkflowETag'];
 export type HeaderWorkflowMutationReceiptId = components['headers']['WorkflowMutationReceiptID'];
 export type $defs = Record<string, never>;
 export interface operations {
+    readonly listAPITokenRevealGrants: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description Opaque cursor returned by the preceding page. */
+                readonly cursor?: components["parameters"]["PageCursor"];
+                /** @description Maximum number of records to return. */
+                readonly limit?: components["parameters"]["PageLimit"];
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Pending reveal grant page. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["APITokenRevealGrantPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly acknowledgeAPITokenRevealGrant: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": Record<string, never>;
+            };
+        };
+        readonly responses: {
+            /** @description Credential material destroyed. */
+            readonly 204: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly revealAPIToken: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": Record<string, never>;
+            };
+        };
+        readonly responses: {
+            /** @description Revealed API token credential; never cache. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["APITokenRevealedCredential"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
     readonly listAPITokens: {
         readonly parameters: {
             readonly query?: {
@@ -2953,14 +3093,14 @@ export interface operations {
             };
         };
         readonly responses: {
-            /** @description Created API token with its one-time raw credential. */
+            /** @description Created API token with durable one-time reveal grant metadata. */
             readonly 201: {
                 headers: {
                     readonly ETag: components["headers"]["WorkflowETag"];
                     readonly [name: string]: unknown;
                 };
                 content: {
-                    readonly "application/json": components["schemas"]["APITokenCredential"];
+                    readonly "application/json": components["schemas"]["APITokenRevealGrant"];
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
@@ -3020,71 +3160,13 @@ export interface operations {
             };
         };
         readonly responses: {
-            /** @description Rotated API token with its one-time credential. */
+            /** @description Rotated API token with durable reveal grant metadata. */
             readonly 201: {
                 headers: {
-                    readonly ETag: components["headers"]["WorkflowETag"];
                     readonly [name: string]: unknown;
                 };
                 content: {
-                    readonly "application/json": components["schemas"]["APITokenCredential"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly listGroupMappings: {
-        readonly parameters: {
-            readonly query?: {
-                /** @description Opaque cursor returned by the preceding page. */
-                readonly cursor?: components["parameters"]["PageCursor"];
-                /** @description Maximum number of records to return. */
-                readonly limit?: components["parameters"]["PageLimit"];
-            };
-            readonly header?: never;
-            readonly path?: never;
-            readonly cookie?: never;
-        };
-        readonly requestBody?: never;
-        readonly responses: {
-            /** @description Group mapping page. */
-            readonly 200: {
-                headers: {
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["GroupMappingPage"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly updateGroupMappings: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header: {
-                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
-                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
-            };
-            readonly path?: never;
-            readonly cookie?: never;
-        };
-        readonly requestBody: {
-            readonly content: {
-                readonly "application/json": components["schemas"]["GroupMappingInput"];
-            };
-        };
-        readonly responses: {
-            /** @description Updated group mapping. */
-            readonly 200: {
-                headers: {
-                    readonly ETag: components["headers"]["WorkflowETag"];
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["GroupMapping"];
+                    readonly "application/json": components["schemas"]["APITokenRevealGrant"];
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
@@ -3154,12 +3236,7 @@ export interface operations {
     };
     readonly listBuiltInRoles: {
         readonly parameters: {
-            readonly query?: {
-                /** @description Opaque cursor returned by the preceding page. */
-                readonly cursor?: components["parameters"]["PageCursor"];
-                /** @description Maximum number of records to return. */
-                readonly limit?: components["parameters"]["PageLimit"];
-            };
+            readonly query?: never;
             readonly header?: never;
             readonly path?: never;
             readonly cookie?: never;
@@ -3602,7 +3679,12 @@ export interface operations {
     };
     readonly listComplianceControls: {
         readonly parameters: {
-            readonly query?: never;
+            readonly query?: {
+                /** @description Opaque cursor returned by the preceding page. */
+                readonly cursor?: components["parameters"]["PageCursor"];
+                /** @description Maximum number of records to return. */
+                readonly limit?: components["parameters"]["PageLimit"];
+            };
             readonly header?: never;
             readonly path?: never;
             readonly cookie?: never;
@@ -3624,7 +3706,12 @@ export interface operations {
     };
     readonly listComplianceEvidence: {
         readonly parameters: {
-            readonly query?: never;
+            readonly query?: {
+                /** @description Opaque cursor returned by the preceding page. */
+                readonly cursor?: components["parameters"]["PageCursor"];
+                /** @description Maximum number of records to return. */
+                readonly limit?: components["parameters"]["PageLimit"];
+            };
             readonly header?: never;
             readonly path?: never;
             readonly cookie?: never;
@@ -5506,7 +5593,12 @@ export interface operations {
     };
     readonly listSessionEvents: {
         readonly parameters: {
-            readonly query?: never;
+            readonly query?: {
+                /** @description Opaque cursor returned by the preceding page. */
+                readonly cursor?: components["parameters"]["PageCursor"];
+                /** @description Maximum number of records to return. */
+                readonly limit?: components["parameters"]["PageLimit"];
+            };
             readonly header?: never;
             readonly path: {
                 readonly id: components["schemas"]["SessionID"];

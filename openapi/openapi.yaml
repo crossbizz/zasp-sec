@@ -396,9 +396,6 @@ paths:
         - BrowserSession: []
           BrowserExpectedScope: []
       summary: List built-in product roles
-      parameters:
-        - $ref: '#/components/parameters/PageCursor'
-        - $ref: '#/components/parameters/PageLimit'
       responses:
         '200':
           description: Built-in role page.
@@ -406,54 +403,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BuiltInRolePage'
-        '401':
-          $ref: '#/components/responses/ProductErrorResponse'
-        default:
-          $ref: '#/components/responses/ProductErrorResponse'
-  /api/v1/admin/group-mappings:
-    get:
-      operationId: listGroupMappings
-      security:
-        - BrowserSession: []
-          BrowserExpectedScope: []
-      summary: List Organization IdP group mappings
-      parameters:
-        - $ref: '#/components/parameters/PageCursor'
-        - $ref: '#/components/parameters/PageLimit'
-      responses:
-        '200':
-          description: Group mapping page.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/GroupMappingPage'
-        '401':
-          $ref: '#/components/responses/ProductErrorResponse'
-        default:
-          $ref: '#/components/responses/ProductErrorResponse'
-    patch:
-      operationId: updateGroupMappings
-      security:
-        - BrowserSession: []
-          BrowserExpectedScope: []
-      summary: Create or version-update an IdP group mapping
-
-      parameters:
-        - $ref: '#/components/parameters/CSRFToken'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/GroupMappingInput'
-      responses:
-        '200':
-          description: Updated group mapping.
-          headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/GroupMapping'
         '401':
           $ref: '#/components/responses/ProductErrorResponse'
         default:
@@ -497,12 +446,12 @@ paths:
               $ref: '#/components/schemas/APITokenInput'
       responses:
         '201':
-          description: Created API token with its one-time raw credential.
+          description: Created API token with durable one-time reveal grant metadata.
           headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/APITokenCredential'
+                $ref: '#/components/schemas/APITokenRevealGrant'
         '401':
           $ref: '#/components/responses/ProductErrorResponse'
         default:
@@ -548,7 +497,7 @@ paths:
       security:
         - BrowserSession: []
           BrowserExpectedScope: []
-      summary: Rotate a scoped product API token and return the replacement once
+      summary: Rotate a scoped product API token and create a durable one-time reveal grant
       parameters:
         - $ref: '#/components/parameters/CSRFToken'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -557,7 +506,63 @@ paths:
         required: true
         content: { application/json: { schema: { type: object, additionalProperties: false } } }
       responses:
-        '201': { description: Rotated API token with its one-time credential., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/APITokenCredential' } } } }
+        '201': { description: Rotated API token with durable reveal grant metadata., content: { application/json: { schema: { $ref: '#/components/schemas/APITokenRevealGrant' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/admin/api-token-reveal-grants:
+    get:
+      operationId: listAPITokenRevealGrants
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      summary: List this principal's pending exact-scope API token reveal grants
+      parameters:
+        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/PageLimit'
+      responses:
+        '200': { description: Pending reveal grant page., content: { application/json: { schema: { $ref: '#/components/schemas/APITokenRevealGrantPage' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/admin/api-token-reveal-grants/{id}/reveal:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/ProductID' }
+    post:
+      operationId: revealAPIToken
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      summary: Reveal an unacknowledged API token credential in its exact scope
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, additionalProperties: false } } }
+      responses:
+        '200': { description: Revealed API token credential; never cache., content: { application/json: { schema: { $ref: '#/components/schemas/APITokenRevealedCredential' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/admin/api-token-reveal-grants/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/ProductID' }
+    delete:
+      operationId: acknowledgeAPITokenRevealGrant
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      summary: Acknowledge a reveal grant and atomically destroy its encrypted credential
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, additionalProperties: false } } }
+      responses:
+        '204': { description: Credential material destroyed. }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/audit-events:
@@ -1638,6 +1643,9 @@ paths:
         - BrowserSession: []
           BrowserExpectedScope: []
       summary: List ordered evidence-linked session events
+      parameters:
+        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/PageLimit'
       responses:
         '200': { description: Ordered session events., content: { application/json: { schema: { $ref: '#/components/schemas/SessionEventPage' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
@@ -1649,6 +1657,9 @@ paths:
         - BrowserSession: []
           BrowserExpectedScope: []
       summary: List supported compliance controls
+      parameters:
+        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/PageLimit'
       responses:
         '200': { description: Supported controls., content: { application/json: { schema: { $ref: '#/components/schemas/ComplianceControlPage' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
@@ -1660,6 +1671,9 @@ paths:
         - BrowserSession: []
           BrowserExpectedScope: []
       summary: List freshness-aware compliance evidence
+      parameters:
+        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/PageLimit'
       responses:
         '200': { description: Compliance evidence., content: { application/json: { schema: { $ref: '#/components/schemas/ComplianceEvidencePage' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
@@ -1883,7 +1897,7 @@ components:
     SessionBootstrap:
       type: object
       additionalProperties: false
-      required: [principal, organization_id, workspace_id, environment_id, permissions, capabilities, csrf_token, correlation_id]
+      required: [principal, organization_id, workspace_id, environment_id, permissions, capabilities, csrf_token, fresh_auth_expires_at, correlation_id]
       properties:
         principal: { $ref: '#/components/schemas/Principal' }
         organization_id: { $ref: '#/components/schemas/ProductID' }
@@ -1892,6 +1906,7 @@ components:
         permissions: { type: array, uniqueItems: true, items: { $ref: '#/components/schemas/Permission' } }
         capabilities: { type: array, uniqueItems: true, items: { type: string, minLength: 1, maxLength: 128 } }
         csrf_token: { type: string, minLength: 32, maxLength: 256 }
+        fresh_auth_expires_at: { type: string, format: date-time }
         correlation_id: { $ref: '#/components/schemas/ProductID' }
     SessionScope:
       type: object
@@ -2103,7 +2118,7 @@ components:
         version: { type: integer, minimum: 1 }
         events: { type: array, maxItems: 1000, items: { $ref: '#/components/schemas/SessionEvent' } }
     SessionPage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/Session' } }, page_info: { $ref: '#/components/schemas/PageInfo' } } }
-    SessionEventPage: { type: object, additionalProperties: false, required: [items], properties: { items: { type: array, maxItems: 1000, items: { $ref: '#/components/schemas/SessionEvent' } } } }
+    SessionEventPage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/SessionEvent' } }, page_info: { $ref: '#/components/schemas/PageInfo' } } }
     ComplianceControl:
       type: object
       additionalProperties: false
@@ -2131,8 +2146,8 @@ components:
         asset_id: { type: string, minLength: 1, maxLength: 128 }
         source: { type: string, minLength: 1, maxLength: 64 }
         at: { type: string, format: date-time }
-    ComplianceControlPage: { type: object, additionalProperties: false, required: [items], properties: { items: { type: array, maxItems: 500, items: { $ref: '#/components/schemas/ComplianceControl' } } } }
-    ComplianceEvidencePage: { type: object, additionalProperties: false, required: [items], properties: { items: { type: array, maxItems: 500, items: { $ref: '#/components/schemas/ComplianceEvidence' } } } }
+    ComplianceControlPage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/ComplianceControl' } }, page_info: { $ref: '#/components/schemas/PageInfo' } } }
+    ComplianceEvidencePage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/ComplianceEvidence' } }, page_info: { $ref: '#/components/schemas/PageInfo' } } }
     ComplianceExportInput: { type: object, additionalProperties: false, required: [id], properties: { id: { $ref: '#/components/schemas/ComplianceExportID' } } }
     ComplianceExport:
       type: object
@@ -2792,55 +2807,51 @@ components:
         version: { type: integer, minimum: 1 }
         audit_correlation_id:
           $ref: '#/components/schemas/ProductID'
-    APITokenCredential:
+    APITokenRevealGrant:
       type: object
       additionalProperties: false
-      required: [id, name, principal_id, workspace_id, environment_id, permissions, created_at, expires_at, last_used_at, revoked_at, version, raw_token, audit_correlation_id]
+      required: [grant_id, expires_at, token]
       properties:
-        id:
+        grant_id:
           $ref: '#/components/schemas/ProductID'
-        name:
-          type: string
-          minLength: 1
-          maxLength: 128
-        principal_id:
-          $ref: '#/components/schemas/ProductID'
-        workspace_id:
-          $ref: '#/components/schemas/ProductID'
-        environment_id:
-          $ref: '#/components/schemas/ProductID'
-        permissions:
-          type: array
-          minItems: 1
-          maxItems: 10
-          uniqueItems: true
-          items:
-            $ref: '#/components/schemas/Permission'
-        created_at:
-          type: string
-          format: date-time
         expires_at:
           type: string
           format: date-time
-        last_used_at:
-          oneOf:
-            - type: string
-              format: date-time
-            - type: 'null'
-        revoked_at:
-          oneOf:
-            - type: string
-              format: date-time
-            - type: 'null'
-        version: { type: integer, minimum: 1 }
+        token:
+          $ref: '#/components/schemas/APIToken'
+    APITokenRevealGrantSummary:
+      type: object
+      additionalProperties: false
+      required: [grant_id, token_id, operation, expires_at]
+      properties:
+        grant_id: { $ref: '#/components/schemas/ProductID' }
+        token_id: { $ref: '#/components/schemas/ProductID' }
+        operation: { type: string, enum: [createAPIToken, rotateAPIToken] }
+        expires_at: { type: string, format: date-time }
+    APITokenRevealGrantPage:
+      type: object
+      additionalProperties: false
+      required: [items, page_info]
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items: { $ref: '#/components/schemas/APITokenRevealGrantSummary' }
+        page_info: { $ref: '#/components/schemas/PageInfo' }
+    APITokenRevealedCredential:
+      type: object
+      additionalProperties: false
+      required: [grant_id, token_id, raw_token, expires_at]
+      properties:
+        grant_id: { $ref: '#/components/schemas/ProductID' }
+        token_id: { $ref: '#/components/schemas/ProductID' }
         raw_token:
           type: string
           minLength: 52
           maxLength: 52
           pattern: '^zasp_pat_[A-Za-z0-9_-]{43}$'
           readOnly: true
-        audit_correlation_id:
-          $ref: '#/components/schemas/ProductID'
+        expires_at: { type: string, format: date-time }
     APITokenPage:
       type: object
       additionalProperties: false

@@ -1,6 +1,7 @@
 package apiserver
 
 import (
+	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
@@ -21,6 +22,14 @@ type CallbackProvider interface {
 	Complete(context.Context, string, string) (SessionGrant, error)
 	Ready(context.Context) error
 }
+
+// IdentityLiveVerifier is deliberately separate from CallbackProvider.Ready:
+// Ready validates local configuration, while VerifyIdentityProvider performs a
+// bounded remote probe. A configured provider must not be reported healthy
+// unless it implements this boundary and the probe succeeds.
+type IdentityLiveVerifier interface {
+	VerifyIdentityProvider(context.Context) error
+}
 type CallbackProviderFunc func(context.Context, string, string) (SessionGrant, error)
 
 func (function CallbackProviderFunc) Complete(ctx context.Context, code, state string) (SessionGrant, error) {
@@ -40,6 +49,7 @@ type SessionGrant struct {
 type CookiePolicy struct {
 	Secure             bool
 	WorkflowSigningKey []byte
+	TokenRevealKey     []byte
 	Clock              func() time.Time
 	BuildVersion       string
 	DeploymentMode     string
@@ -60,7 +70,7 @@ type coreRepository interface {
 }
 
 func NewProductionHandlers(repository *PostgresRepository, provider CallbackProvider, cookie CookiePolicy) (Dependencies, Authenticator, error) {
-	if repository == nil || nilInterface(repository.database) || nilInterface(provider) {
+	if repository == nil || nilInterface(repository.database) || nilInterface(provider) || len(cookie.TokenRevealKey) != 32 {
 		return Dependencies{}, nil, ErrRepositoryConfiguration
 	}
 	now := cookie.Clock
@@ -83,7 +93,7 @@ func NewProductionHandlers(repository *PostgresRepository, provider CallbackProv
 	}
 	return Dependencies{
 		Session:   session,
-		Identity:  &identityHTTPHandler{repository: repository, administration: repository, provider: provider, signingKey: append([]byte(nil), cookie.WorkflowSigningKey...), now: cookie.Clock, version: version},
+		Identity:  &identityHTTPHandler{repository: repository, administration: repository, provider: provider, signingKey: append([]byte(nil), cookie.WorkflowSigningKey...), tokenRevealKey: append([]byte(nil), cookie.TokenRevealKey...), now: cookie.Clock, version: version},
 		Inventory: &coreHTTPHandler{repository: repository, boundary: inventoryDependency},
 		Risk:      &coreHTTPHandler{repository: repository, boundary: riskDependency},
 		Workflow:  workflow,
@@ -243,6 +253,12 @@ func authorizedBootstrap(payload json.RawMessage, identity RequestIdentity) (jso
 		"permissions":     identity.Permissions,
 		"capabilities":    capabilities,
 		"csrf_token":      identity.CSRFToken,
+		"fresh_auth_expires_at": func() any {
+			if identity.FreshAuthExpiresAt.IsZero() {
+				return nil
+			}
+			return identity.FreshAuthExpiresAt.UTC().Format(time.RFC3339Nano)
+		}(),
 	}
 	for name, replacement := range replacements {
 		encoded, err := json.Marshal(replacement)
@@ -290,6 +306,7 @@ type identityHTTPHandler struct {
 	administration administrationRepository
 	provider       CallbackProvider
 	signingKey     []byte
+	tokenRevealKey []byte
 	now            func() time.Time
 	version        string
 }
@@ -327,7 +344,8 @@ type administrationCursor struct {
 	EnvironmentID  string `json:"e"`
 	Operation      string `json:"p"`
 	QueryDigest    string `json:"q"`
-	Offset         int    `json:"x"`
+	AfterID        string `json:"i"`
+	AfterTime      string `json:"t,omitempty"`
 }
 
 func (handler *identityHTTPHandler) serveAdministration(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, routed RoutedOperation) {
@@ -364,12 +382,15 @@ func (handler *identityHTTPHandler) serveAdministration(writer http.ResponseWrit
 			return
 		}
 		parameters["limit"] = strconv.Itoa(limit)
-		parameters["offset"] = "0"
 		parameters["cursor_binding"] = administrationCursorBinding(query)
 		if routed.OperationID == "listEnvironments" {
 			workspace := query.Get("workspace_id")
 			if !validAdministrationProductID(workspace) {
 				writeProductionError(writer, request, ErrRepositoryOperation)
+				return
+			}
+			if workspace != identity.Scope.WorkspaceID().String() {
+				writeProductionError(writer, request, ErrRepositoryNotFound)
 				return
 			}
 			parameters["workspace_id"] = workspace
@@ -381,15 +402,20 @@ func (handler *identityHTTPHandler) serveAdministration(writer http.ResponseWrit
 			}
 		}
 		if cursor := query.Get("cursor"); cursor != "" {
-			offset, valid := handler.decodeAdministrationCursor(cursor, identity, routed.OperationID, parameters["cursor_binding"])
+			position, valid := handler.decodeAdministrationCursor(cursor, identity, routed.OperationID, parameters["cursor_binding"])
 			if !valid {
 				writeProductionError(writer, request, ErrRepositoryNotFound)
 				return
 			}
-			parameters["offset"] = strconv.Itoa(offset)
+			parameters["after_id"] = position.AfterID
+			parameters["after_time"] = position.AfterTime
 		}
 	}
 	if id := parameters["id"]; id != "" && routed.OperationID != "getSession" && routed.OperationID != "listSessionEvents" && !validAdministrationProductID(id) {
+		writeProductionError(writer, request, ErrRepositoryNotFound)
+		return
+	}
+	if routed.OperationID == "getEnvironment" && parameters["id"] != identity.Scope.EnvironmentID().String() {
 		writeProductionError(writer, request, ErrRepositoryNotFound)
 		return
 	}
@@ -413,6 +439,10 @@ func (handler *identityHTTPHandler) serveAdministration(writer http.ResponseWrit
 
 func (handler *identityHTTPHandler) mutateAdministration(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, routed RoutedOperation) {
 	mutation := administrationMutation{Operation: routed.OperationID, ID: routed.PathParameters["id"]}
+	if routed.OperationID == "revealAPIToken" {
+		handler.revealAPIToken(writer, request, identity, mutation.ID)
+		return
+	}
 	auditID, err := newWorkflowProductID()
 	if err != nil {
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
@@ -443,6 +473,10 @@ func (handler *identityHTTPHandler) mutateAdministration(writer http.ResponseWri
 			writeWorkflowMutationError(writer, request, errOrOperation(err))
 			return
 		}
+		if routed.OperationID == "updateEnvironment" && mutation.ID != identity.Scope.EnvironmentID().String() {
+			writeProductionError(writer, request, ErrRepositoryNotFound)
+			return
+		}
 		mutation.Name = input.Name
 	case "createEnvironment":
 		var input struct {
@@ -451,6 +485,10 @@ func (handler *identityHTTPHandler) mutateAdministration(writer http.ResponseWri
 		}
 		if decodeProductionJSON(request, &input) != nil || !validAdministrationProductID(input.WorkspaceID) || !validAdministrationName(input.Name) {
 			writeProductionError(writer, request, ErrRepositoryOperation)
+			return
+		}
+		if input.WorkspaceID != identity.Scope.WorkspaceID().String() {
+			writeProductionError(writer, request, ErrRepositoryNotFound)
 			return
 		}
 		mutation.ID, err = newWorkflowProductID()
@@ -496,10 +534,21 @@ func (handler *identityHTTPHandler) mutateAdministration(writer http.ResponseWri
 			writeProductionError(writer, request, ErrRepositoryOperation)
 			return
 		}
+		if input.WorkspaceID != identity.Scope.WorkspaceID().String() || input.EnvironmentID != identity.Scope.EnvironmentID().String() {
+			writeProductionError(writer, request, ErrRepositoryNotFound)
+			return
+		}
 		mutation.ID, err = newWorkflowProductID()
-		mutation.RawToken, err = newAdministrationToken(err)
+		rawToken, tokenErr := newAdministrationToken(err)
+		mutation.GrantID, err = newWorkflowProductID()
 		mutation.Name, mutation.WorkspaceID, mutation.EnvironmentID = input.Name, input.WorkspaceID, input.EnvironmentID
 		mutation.Permissions, _ = json.Marshal(input.Permissions)
+		mutation.revealKey = handler.tokenRevealKey
+		if tokenErr == nil && err == nil {
+			err = prepareAPITokenReveal(identity, &mutation, routed.OperationID, rawToken, handler.now())
+		} else if err == nil {
+			err = tokenErr
+		}
 		status = http.StatusCreated
 	case "rotateAPIToken":
 		mutation.ExpectedVersion, err = parseVersion(request.Header.Get("If-Match"))
@@ -512,8 +561,21 @@ func (handler *identityHTTPHandler) mutateAdministration(writer http.ResponseWri
 			return
 		}
 		mutation.ReplacementID, err = newWorkflowProductID()
-		mutation.RawToken, err = newAdministrationToken(err)
+		rawToken, tokenErr := newAdministrationToken(err)
+		mutation.GrantID, err = newWorkflowProductID()
+		mutation.revealKey = handler.tokenRevealKey
+		if tokenErr == nil && err == nil {
+			err = prepareAPITokenReveal(identity, &mutation, routed.OperationID, rawToken, handler.now())
+		} else if err == nil {
+			err = tokenErr
+		}
 		status = http.StatusCreated
+	case "acknowledgeAPITokenRevealGrant":
+		if !validAdministrationProductID(mutation.ID) || decodeEmptyInput(request) != nil {
+			writeProductionError(writer, request, ErrRepositoryNotFound)
+			return
+		}
+		status = http.StatusNoContent
 	case "revokeAPIToken", "revokeSession":
 		mutation.ExpectedVersion, err = parseVersion(request.Header.Get("If-Match"))
 		if err != nil || mutation.ID == "" || routed.OperationID == "revokeAPIToken" && !validAdministrationProductID(mutation.ID) {
@@ -562,13 +624,40 @@ func (handler *identityHTTPHandler) mutateAdministration(writer http.ResponseWri
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
 		return
 	}
-	if mutation.RawToken != "" {
-		value["raw_token"] = mutation.RawToken
+	if (routed.OperationID == "createAPIToken" || routed.OperationID == "rotateAPIToken") && value["grant_id"] == nil {
+		value = map[string]any{"grant_id": mutation.GrantID, "expires_at": mutation.GrantExpiresAt, "token": value}
 	}
 	if version, ok := value["version"].(float64); ok && version >= 1 {
 		writer.Header().Set("ETag", quoteVersion(int64(version)))
 	}
+	if routed.OperationID == "createAPIToken" || routed.OperationID == "rotateAPIToken" {
+		writer.Header().Set("Cache-Control", "no-store")
+	}
 	writeJSONValue(writer, request, status, value, nil)
+}
+
+func (handler *identityHTTPHandler) revealAPIToken(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, grantID string) {
+	if !validAdministrationProductID(grantID) || decodeEmptyInput(request) != nil {
+		writeProductionError(writer, request, ErrRepositoryNotFound)
+		return
+	}
+	payload, err := handler.administration.ReadAdministration(request.Context(), identity, "revealAPIToken", map[string]string{"id": grantID})
+	if err != nil {
+		writeProductionError(writer, request, err)
+		return
+	}
+	var envelope apiTokenRevealEnvelope
+	if json.Unmarshal(payload, &envelope) != nil || envelope.GrantID != grantID {
+		writeProductionError(writer, request, ErrRepositoryNotFound)
+		return
+	}
+	raw, err := decryptAPITokenReveal(handler.tokenRevealKey, identity, envelope)
+	if err != nil {
+		writeProductionError(writer, request, err)
+		return
+	}
+	writer.Header().Set("Cache-Control", "no-store")
+	writeJSONValue(writer, request, http.StatusOK, map[string]any{"grant_id": envelope.GrantID, "token_id": envelope.TokenID, "raw_token": raw, "expires_at": envelope.ExpiresAt}, nil)
 }
 
 func errOrOperation(err error) error {
@@ -631,7 +720,7 @@ func newAdministrationToken(previous error) (string, error) {
 
 func administrationPagedOperation(operation string) bool {
 	switch operation {
-	case "listWorkspaces", "listEnvironments", "listMembers", "listGroupMappings", "listAPITokens", "listAuditEvents", "listSessions":
+	case "listWorkspaces", "listEnvironments", "listMembers", "listAPITokens", "listAPITokenRevealGrants", "listAuditEvents", "listSessions", "listSessionEvents", "listComplianceControls", "listComplianceEvidence":
 		return true
 	default:
 		return false
@@ -642,7 +731,7 @@ func (handler *identityHTTPHandler) writeAdministrationPage(writer http.Response
 	var page struct {
 		Items []json.RawMessage `json:"items"`
 	}
-	limit, offset := adminLimit(parameters), adminOffset(parameters)
+	limit := adminLimit(parameters)
 	if json.Unmarshal(payload, &page) != nil || len(page.Items) > limit+1 {
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
 		return
@@ -653,31 +742,88 @@ func (handler *identityHTTPHandler) writeAdministrationPage(writer http.Response
 	}
 	var cursor any
 	if hasMore {
-		cursor = handler.encodeAdministrationCursor(identity, operation, parameters["cursor_binding"], offset+limit)
+		position, valid := administrationCursorPosition(operation, page.Items[len(page.Items)-1])
+		if !valid {
+			writeProductionError(writer, request, ErrRepositoryUnavailable)
+			return
+		}
+		cursor = handler.encodeAdministrationCursor(identity, operation, parameters["cursor_binding"], position)
+	}
+	if operation == "listAPITokenRevealGrants" {
+		writer.Header().Set("Cache-Control", "no-store")
 	}
 	writeJSONValue(writer, request, http.StatusOK, map[string]any{"items": page.Items, "page_info": map[string]any{"next_cursor": cursor, "has_more": hasMore}}, nil)
 }
 
-func (handler *identityHTTPHandler) encodeAdministrationCursor(identity RequestIdentity, operation, queryDigest string, offset int) string {
-	payload, _ := json.Marshal(administrationCursor{Version: 1, OrganizationID: identity.Scope.OrganizationID().String(), WorkspaceID: identity.Scope.WorkspaceID().String(), EnvironmentID: identity.Scope.EnvironmentID().String(), Operation: operation, QueryDigest: queryDigest, Offset: offset})
+func (handler *identityHTTPHandler) encodeAdministrationCursor(identity RequestIdentity, operation, queryDigest string, position administrationCursor) string {
+	position.Version = 2
+	position.OrganizationID = identity.Scope.OrganizationID().String()
+	position.WorkspaceID = identity.Scope.WorkspaceID().String()
+	position.EnvironmentID = identity.Scope.EnvironmentID().String()
+	position.Operation = operation
+	position.QueryDigest = queryDigest
+	payload, _ := json.Marshal(position)
 	mac := hmac.New(sha256.New, handler.signingKey)
 	_, _ = mac.Write(payload)
 	return base64.RawURLEncoding.EncodeToString(append(payload, mac.Sum(nil)...))
 }
 
-func (handler *identityHTTPHandler) decodeAdministrationCursor(value string, identity RequestIdentity, operation, queryDigest string) (int, bool) {
+func (handler *identityHTTPHandler) decodeAdministrationCursor(value string, identity RequestIdentity, operation, queryDigest string) (administrationCursor, bool) {
 	decoded, err := base64.RawURLEncoding.DecodeString(value)
 	if err != nil || base64.RawURLEncoding.EncodeToString(decoded) != value || len(decoded) <= sha256.Size || len(value) > 512 {
-		return 0, false
+		return administrationCursor{}, false
 	}
 	payload, signature := decoded[:len(decoded)-sha256.Size], decoded[len(decoded)-sha256.Size:]
 	mac := hmac.New(sha256.New, handler.signingKey)
 	_, _ = mac.Write(payload)
 	var cursor administrationCursor
-	if !hmac.Equal(signature, mac.Sum(nil)) || json.Unmarshal(payload, &cursor) != nil || cursor.Version != 1 || cursor.OrganizationID != identity.Scope.OrganizationID().String() || cursor.WorkspaceID != identity.Scope.WorkspaceID().String() || cursor.EnvironmentID != identity.Scope.EnvironmentID().String() || cursor.Operation != operation || cursor.QueryDigest != queryDigest || cursor.Offset < 1 || cursor.Offset > 1_000_000 {
-		return 0, false
+	if !hmac.Equal(signature, mac.Sum(nil)) || json.Unmarshal(payload, &cursor) != nil {
+		return administrationCursor{}, false
 	}
-	return cursor.Offset, true
+	canonical, marshalErr := json.Marshal(cursor)
+	if marshalErr != nil || !bytes.Equal(canonical, payload) || cursor.Version != 2 || cursor.OrganizationID != identity.Scope.OrganizationID().String() || cursor.WorkspaceID != identity.Scope.WorkspaceID().String() || cursor.EnvironmentID != identity.Scope.EnvironmentID().String() || cursor.Operation != operation || cursor.QueryDigest != queryDigest || !validAdministrationCursorPosition(operation, cursor) {
+		return administrationCursor{}, false
+	}
+	return cursor, true
+}
+
+func administrationCursorPosition(operation string, item json.RawMessage) (administrationCursor, bool) {
+	var value struct {
+		ID         string `json:"id"`
+		GrantID    string `json:"grant_id"`
+		OccurredAt string `json:"occurred_at"`
+		At         string `json:"at"`
+		Control    struct {
+			ID string `json:"id"`
+		} `json:"control"`
+	}
+	if json.Unmarshal(item, &value) != nil {
+		return administrationCursor{}, false
+	}
+	position := administrationCursor{AfterID: value.ID}
+	switch operation {
+	case "listAPITokenRevealGrants":
+		position.AfterID = value.GrantID
+	case "listComplianceEvidence":
+		position.AfterID = value.Control.ID
+	case "listAuditEvents":
+		position.AfterTime = value.OccurredAt
+	case "listSessionEvents":
+		position.AfterTime = value.At
+	}
+	return position, validAdministrationCursorPosition(operation, position)
+}
+
+func validAdministrationCursorPosition(operation string, cursor administrationCursor) bool {
+	if len(cursor.AfterID) < 1 || len(cursor.AfterID) > 256 || strings.TrimSpace(cursor.AfterID) != cursor.AfterID {
+		return false
+	}
+	requiresTime := operation == "listAuditEvents" || operation == "listSessionEvents"
+	if !requiresTime {
+		return cursor.AfterTime == ""
+	}
+	parsed, err := time.Parse(time.RFC3339Nano, cursor.AfterTime)
+	return err == nil && parsed.Location() == time.UTC && parsed.Format(time.RFC3339Nano) == cursor.AfterTime
 }
 
 func administrationCursorBinding(query url.Values) string {
@@ -726,7 +872,7 @@ func (handler *identityHTTPHandler) serveLocalAdministration(writer http.Respons
 	case "listBuiltInRoles":
 		writeJSONValue(writer, request, http.StatusOK, map[string]any{"items": serverOwnedRoles(), "page_info": map[string]any{"next_cursor": nil, "has_more": false}}, nil)
 	case "getExternalDataFlows":
-		providerHealthy := handler.provider.Ready(request.Context()) == nil
+		providerHealthy := handler.providerLiveVerified(request.Context())
 		state := "degraded"
 		if providerHealthy {
 			state = "healthy"
@@ -738,9 +884,9 @@ func (handler *identityHTTPHandler) serveLocalAdministration(writer http.Respons
 		if repository, ok := handler.administration.(*PostgresRepository); ok {
 			databaseHealthy = repository.Ready(request.Context()) == nil
 		}
-		providerHealthy := handler.provider.Ready(request.Context()) == nil
+		providerHealthy := handler.providerLiveVerified(request.Context())
 		if routed.OperationID == "getSystemStatus" {
-			writeJSONValue(writer, request, http.StatusOK, map[string]any{"security_plane_healthy": databaseHealthy && providerHealthy, "optional_degraded": false, "fresh_at": now}, nil)
+			writeJSONValue(writer, request, http.StatusOK, map[string]any{"security_plane_healthy": databaseHealthy && providerHealthy, "optional_degraded": !providerHealthy, "fresh_at": now}, nil)
 		} else {
 			componentState := func(healthy bool) string {
 				if healthy {
@@ -748,7 +894,11 @@ func (handler *identityHTTPHandler) serveLocalAdministration(writer http.Respons
 				}
 				return "unavailable"
 			}
-			writeJSONValue(writer, request, http.StatusOK, map[string]any{"items": []any{map[string]any{"id": "postgresql", "required": true, "state": componentState(databaseHealthy), "fresh_at": now}, map[string]any{"id": "identity-provider", "required": true, "state": componentState(providerHealthy), "fresh_at": now}}}, nil)
+			providerState := "degraded"
+			if providerHealthy {
+				providerState = "healthy"
+			}
+			writeJSONValue(writer, request, http.StatusOK, map[string]any{"items": []any{map[string]any{"id": "postgresql", "required": true, "state": componentState(databaseHealthy), "fresh_at": now}, map[string]any{"id": "identity-provider", "required": true, "state": providerState, "fresh_at": now}}}, nil)
 		}
 	case "getSystemVersion":
 		writeJSONValue(writer, request, http.StatusOK, map[string]string{"version": handler.version}, nil)
@@ -756,6 +906,11 @@ func (handler *identityHTTPHandler) serveLocalAdministration(writer http.Respons
 		return false
 	}
 	return true
+}
+
+func (handler *identityHTTPHandler) providerLiveVerified(ctx context.Context) bool {
+	verifier, ok := handler.provider.(IdentityLiveVerifier)
+	return ok && verifier.VerifyIdentityProvider(ctx) == nil
 }
 
 func serverOwnedRoles() []map[string]any {

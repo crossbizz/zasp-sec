@@ -56,6 +56,9 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 	if err := runner.UpProductionAdministration(ctx); err != nil {
 		t.Fatalf("production administration migration: %v", err)
 	}
+	if err := runner.UpAPITokenRevealGrants(ctx); err != nil {
+		t.Fatalf("API token reveal grants migration: %v", err)
+	}
 	fingerprintQuery := postgresSchemaVersionSQL[:strings.Index(postgresSchemaVersionSQL, "SELECT metadata.value")] + "SELECT value FROM semantic_fingerprint"
 	var actualFingerprint string
 	if err := connection.QueryRow(ctx, fingerprintQuery).Scan(&actualFingerprint); err != nil {
@@ -163,26 +166,61 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 	if _, err := repository.MutateAdministration(ctx, identity, administrationMutation{Operation: "updateWorkspace", ID: "pid_11000002-0000-4000-8000-000000000002", Name: "Stale update", ExpectedVersion: 2, AuditID: "pid_31000009-0000-4000-8000-000000000009"}); !errors.Is(err, ErrRepositoryConflict) {
 		t.Fatalf("stale workspace precondition = %v", err)
 	}
-	createdEnvironment, err := repository.MutateAdministration(ctx, identity, administrationMutation{Operation: "createEnvironment", ID: "pid_11000003-0000-4000-8000-000000000003", WorkspaceID: "pid_11000002-0000-4000-8000-000000000002", Name: "Development", AuditID: "pid_31000002-0000-4000-8000-000000000002"})
+	createdEnvironment, err := repository.MutateAdministration(ctx, identity, administrationMutation{Operation: "createEnvironment", ID: "pid_11000003-0000-4000-8000-000000000003", WorkspaceID: workspace.String(), Name: "Development", AuditID: "pid_31000002-0000-4000-8000-000000000002"})
 	if err != nil || !strings.Contains(string(createdEnvironment), `"Development"`) {
 		t.Fatalf("create environment = (%s, %v)", createdEnvironment, err)
 	}
 	const createdRawToken = "zasp_pat_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-	createdToken, err := repository.MutateAdministration(ctx, identity, administrationMutation{Operation: "createAPIToken", ID: "pid_11000005-0000-4000-8000-000000000005", Name: "Automation", WorkspaceID: workspace.String(), EnvironmentID: environment.String(), Permissions: json.RawMessage(`["view"]`), ExpiresAt: time.Now().UTC().Add(time.Hour), IdempotencyKey: "idem-admin-token-0001", RawToken: createdRawToken, AuditID: "pid_31000003-0000-4000-8000-000000000003"})
+	createdMutation := administrationMutation{Operation: "createAPIToken", ID: "pid_11000005-0000-4000-8000-000000000005", Name: "Automation", WorkspaceID: workspace.String(), EnvironmentID: environment.String(), Permissions: json.RawMessage(`["view"]`), ExpiresAt: time.Now().UTC().Add(time.Hour), IdempotencyKey: "idem-admin-token-0001", GrantID: "pid_41000003-0000-4000-8000-000000000003", AuditID: "pid_31000003-0000-4000-8000-000000000003", revealKey: []byte("0123456789abcdef0123456789abcdef")}
+	if err := prepareAPITokenReveal(identity, &createdMutation, createdMutation.Operation, createdRawToken, time.Now().UTC()); err != nil {
+		t.Fatal(err)
+	}
+	createdToken, err := repository.MutateAdministration(ctx, identity, createdMutation)
 	if err != nil || strings.Contains(string(createdToken), createdRawToken) {
 		t.Fatalf("create token = (%s, %v)", createdToken, err)
 	}
-	if _, err := repository.MutateAdministration(ctx, identity, administrationMutation{Operation: "createAPIToken", ID: "pid_11000006-0000-4000-8000-000000000006", Name: "Automation replay", WorkspaceID: workspace.String(), EnvironmentID: environment.String(), Permissions: json.RawMessage(`["view"]`), ExpiresAt: time.Now().UTC().Add(time.Hour), IdempotencyKey: "idem-admin-token-0001", RawToken: "zasp_pat_BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB", AuditID: "pid_31000004-0000-4000-8000-000000000004"}); !errors.Is(err, ErrRepositoryConflict) {
+	if replayed, err := repository.MutateAdministration(ctx, identity, createdMutation); err != nil || !bytes.Equal(replayed, createdToken) {
+		t.Fatalf("lost create response reconciliation = (%s, %v)", replayed, err)
+	}
+	createdEnvelopePayload, err := repository.ReadAdministration(ctx, identity, "revealAPIToken", map[string]string{"id": createdMutation.GrantID})
+	var createdEnvelope apiTokenRevealEnvelope
+	if err != nil || json.Unmarshal(createdEnvelopePayload, &createdEnvelope) != nil {
+		t.Fatalf("created token reveal envelope = (%s, %v)", createdEnvelopePayload, err)
+	}
+	if revealed, err := decryptAPITokenReveal(createdMutation.revealKey, identity, createdEnvelope); err != nil || revealed != createdRawToken {
+		t.Fatalf("lost reveal response reconciliation = (%q, %v, %#v)", revealed, err, createdEnvelope)
+	}
+	conflictingMutation := administrationMutation{Operation: "createAPIToken", ID: "pid_11000006-0000-4000-8000-000000000006", Name: "Automation replay", WorkspaceID: workspace.String(), EnvironmentID: environment.String(), Permissions: json.RawMessage(`["view"]`), ExpiresAt: time.Now().UTC().Add(time.Hour), IdempotencyKey: "idem-admin-token-0001", GrantID: "pid_41000004-0000-4000-8000-000000000004", AuditID: "pid_31000004-0000-4000-8000-000000000004", revealKey: []byte("0123456789abcdef0123456789abcdef")}
+	if err := prepareAPITokenReveal(identity, &conflictingMutation, conflictingMutation.Operation, "zasp_pat_BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB", time.Now().UTC()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repository.MutateAdministration(ctx, identity, conflictingMutation); !errors.Is(err, ErrRepositoryConflict) {
 		t.Fatalf("one-time token replay = %v", err)
 	}
 	if _, err := repository.Authenticate(ctx, Credential{Kind: CredentialBearerToken, Value: createdRawToken}); err != nil {
 		t.Fatalf("created token authentication: %v", err)
 	}
 	const rotatedRawToken = "zasp_pat_CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
-	rotatedToken, err := repository.MutateAdministration(ctx, identity, administrationMutation{Operation: "rotateAPIToken", ID: "pid_11000005-0000-4000-8000-000000000005", ReplacementID: "pid_11000007-0000-4000-8000-000000000007", ExpectedVersion: 1, IdempotencyKey: "idem-admin-rotate-0001", RawToken: rotatedRawToken, AuditID: "pid_31000005-0000-4000-8000-000000000005"})
+	rotatedMutation := administrationMutation{Operation: "rotateAPIToken", ID: "pid_11000005-0000-4000-8000-000000000005", ReplacementID: "pid_11000007-0000-4000-8000-000000000007", ExpectedVersion: 1, IdempotencyKey: "idem-admin-rotate-0001", GrantID: "pid_41000005-0000-4000-8000-000000000005", AuditID: "pid_31000005-0000-4000-8000-000000000005", revealKey: []byte("0123456789abcdef0123456789abcdef")}
+	if err := prepareAPITokenReveal(identity, &rotatedMutation, rotatedMutation.Operation, rotatedRawToken, time.Now().UTC()); err != nil {
+		t.Fatal(err)
+	}
+	rotatedToken, err := repository.MutateAdministration(ctx, identity, rotatedMutation)
 	if err != nil || strings.Contains(string(rotatedToken), rotatedRawToken) {
 		t.Fatalf("rotate token = (%s, %v)", rotatedToken, err)
 	}
+	if _, err := repository.ReadAdministration(ctx, identity, "revealAPIToken", map[string]string{"id": createdMutation.GrantID}); !errors.Is(err, ErrRepositoryNotFound) {
+		t.Fatalf("rotation left old reveal grant usable: %v", err)
+	}
+	rotatedEnvelopePayload, err := repository.ReadAdministration(ctx, identity, "revealAPIToken", map[string]string{"id": rotatedMutation.GrantID})
+	var rotatedEnvelope apiTokenRevealEnvelope
+	if err != nil || json.Unmarshal(rotatedEnvelopePayload, &rotatedEnvelope) != nil {
+		t.Fatalf("rotated token reveal envelope = (%s, %v)", rotatedEnvelopePayload, err)
+	}
+	if revealed, err := decryptAPITokenReveal(rotatedMutation.revealKey, identity, rotatedEnvelope); err != nil || revealed != rotatedRawToken {
+		t.Fatalf("rotated reveal = (%q, %v)", revealed, err)
+	}
+	tokenIdentity := identity
 	if _, err := repository.Authenticate(ctx, Credential{Kind: CredentialBearerToken, Value: createdRawToken}); !errors.Is(err, ErrRepositoryAuthentication) {
 		t.Fatalf("rotated old token authentication = %v", err)
 	}
@@ -277,6 +315,16 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 	}
 	restartedDatabase, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: restartedConnection})
 	restartedRepository, _ := NewPostgresRepository(restartedDatabase)
+	restartedEnvelopePayload, err := restartedRepository.ReadAdministration(ctx, tokenIdentity, "revealAPIToken", map[string]string{"id": rotatedMutation.GrantID})
+	if err != nil || !bytes.Equal(restartedEnvelopePayload, rotatedEnvelopePayload) {
+		t.Fatalf("reveal grant restart reconciliation = (%s, %v)", restartedEnvelopePayload, err)
+	}
+	if _, err := restartedRepository.MutateAdministration(ctx, tokenIdentity, administrationMutation{Operation: "acknowledgeAPITokenRevealGrant", ID: rotatedMutation.GrantID, AuditID: "pid_31000015-0000-4000-8000-000000000015"}); err != nil {
+		t.Fatalf("acknowledge reveal grant after restart: %v", err)
+	}
+	if _, err := restartedRepository.ReadAdministration(ctx, tokenIdentity, "revealAPIToken", map[string]string{"id": rotatedMutation.GrantID}); !errors.Is(err, ErrRepositoryNotFound) {
+		t.Fatalf("acknowledged reveal grant remained usable: %v", err)
+	}
 	if persisted, err := restartedRepository.GetWorkflow(ctx, scope, "policy", "policy-production"); err != nil || persisted.Version != 1 || !equalIntegrationJSON(persisted.Body, workflowBody) {
 		t.Fatalf("workflow did not survive repository restart = (%#v, %v)", persisted, err)
 	}
@@ -484,7 +532,7 @@ FROM idempotency`, organization.String(), workspace.String(), environment.String
 		t.Fatalf("remove post-v7 PAT before administration rollback: %v", err)
 	}
 	for _, statement := range []string{
-		`DELETE FROM zasp_admin_audit`, `DELETE FROM zasp_admin_idempotency`, `DELETE FROM zasp_session_events`,
+		`DELETE FROM zasp_api_token_reveal_grants`, `DELETE FROM zasp_admin_audit`, `DELETE FROM zasp_admin_idempotency`, `DELETE FROM zasp_session_events`,
 		`DELETE FROM zasp_product_api_tokens`, `DELETE FROM zasp_compliance_evidence`, `DELETE FROM zasp_compliance_controls`,
 		`DELETE FROM zasp_data_controls`, `DELETE FROM zasp_group_mappings`, `DELETE FROM zasp_environments`,
 		`DELETE FROM zasp_workspaces`, `DELETE FROM zasp_organizations`,
@@ -492,6 +540,9 @@ FROM idempotency`, organization.String(), workspace.String(), environment.String
 		if _, err := rollbackConnection.Exec(ctx, statement); err != nil {
 			t.Fatalf("remove administration fixture before rollback: %v", err)
 		}
+	}
+	if err := rollbackRunner.DownAPITokenRevealGrants(ctx); err != nil {
+		t.Fatalf("API token reveal grant rollback: %v", err)
 	}
 	if err := rollbackRunner.DownProductionAdministration(ctx); err != nil {
 		t.Fatalf("production administration rollback: %v", err)
@@ -590,6 +641,9 @@ func TestWorkflowMigrationExpiresExistingSessionFreshness(t *testing.T) {
 	if err := runner.UpProductionAdministration(ctx); err != nil {
 		t.Fatal(err)
 	}
+	if err := runner.UpAPITokenRevealGrants(ctx); err != nil {
+		t.Fatal(err)
+	}
 	database, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
 	repository, err := NewPostgresRepository(database)
 	if err != nil {
@@ -632,6 +686,9 @@ func TestRetainedWorkflowMutationsReplayLostResponsesInPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := runner.UpProductionAdministration(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.UpAPITokenRevealGrants(ctx); err != nil {
 		t.Fatal(err)
 	}
 	database, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
@@ -717,6 +774,7 @@ func TestWorkflowHandlerNonemptyDeletesLeavePostgresMutationAuditAndReceiptsUnto
 		{name: "receipt safety", run: runner.UpWorkflowReceiptSafety},
 		{name: "receipt provenance", run: runner.UpWorkflowReceiptProvenance},
 		{name: "production administration", run: runner.UpProductionAdministration},
+		{name: "API token reveal grants", run: runner.UpAPITokenRevealGrants},
 	} {
 		if err := migration.run(ctx); err != nil {
 			t.Fatalf("%s migration: %v", migration.name, err)
@@ -811,6 +869,9 @@ func TestSecurityAgentPaginationExceedsOneHundredWithoutTenantDisclosure(t *test
 	if err := runner.UpProductionAdministration(ctx); err != nil {
 		t.Fatal(err)
 	}
+	if err := runner.UpAPITokenRevealGrants(ctx); err != nil {
+		t.Fatal(err)
+	}
 	identity := fixtureRequestIdentity(t)
 	if _, err := connection.Exec(ctx, `
 INSERT INTO zasp_workflow_records (organization_id, workspace_id, environment_id, kind, id, body)
@@ -898,6 +959,9 @@ func TestPolicyAndIntegrationPaginationTraversesOneThousandAndOneRowsExactly(t *
 		t.Fatal(err)
 	}
 	if err := runner.UpProductionAdministration(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.UpAPITokenRevealGrants(ctx); err != nil {
 		t.Fatal(err)
 	}
 	identity := fixtureRequestIdentity(t)
