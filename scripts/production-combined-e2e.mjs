@@ -434,7 +434,7 @@ try {
   await clickBrowserAria(browser.cdp, "Open Production runtime policy");
   assert.match(await waitForBrowserText(browser.cdp, /Policy detail · policy-production/), /enforced/);
   await navigateBrowser(browser.cdp, `${publicOrigin}/connectors`);
-  assert.match(await waitForBrowserText(browser.cdp, /Generic Webhook/), /configured/);
+  assert.match(await waitForBrowserText(browser.cdp, /Generic Webhook[\s\S]*configured/), /configured/);
   await navigateBrowser(browser.cdp, `${publicOrigin}/protect/security-agents`);
   await waitForBrowserText(browser.cdp, /Bounded response definition/);
   await clickBrowserAria(browser.cdp, "Open Bounded response definition");
