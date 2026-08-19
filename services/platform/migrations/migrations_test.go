@@ -389,6 +389,32 @@ func TestAPITokenRevealGrantsMigrationOwnsEncryptedRecoverableSecrets(t *testing
 	}
 }
 
+func TestProductionRiskProjectionMigrationOwnsTypedRiskAuthority(t *testing.T) {
+	metadata := ProductionRiskProjection()
+	if metadata.Version() != 9 || metadata.Name() != "production_risk_projection" || len(metadata.Checksum()) != 64 {
+		t.Fatalf("risk projection migration identity = %d/%q/%q", metadata.Version(), metadata.Name(), metadata.Checksum())
+	}
+	for _, fragment := range []string{
+		"zasp_risk_findings", "zasp_risk_finding_evidence", "zasp_risk_finding_factors",
+		"zasp_risk_attack_paths", "zasp_risk_attack_path_nodes", "zasp_risk_attack_path_evidence", "zasp_risk_break_options",
+		"zasp_risk_finding_page", "zasp_risk_attack_path_page", "zasp_risk_mutate",
+		"production_risk_projection_fingerprint", "production-risk-projection-v1",
+	} {
+		if !strings.Contains(metadata.UpSQL(), fragment) {
+			t.Fatalf("risk projection migration missing %q", fragment)
+		}
+	}
+	fingerprint := ProductionRiskProjectionSemanticFingerprint()
+	if len(fingerprint) != 64 || fingerprint == strings.Repeat("0", 64) {
+		t.Fatalf("risk projection semantic fingerprint = %q", fingerprint)
+	}
+	for _, fragment := range []string{"semantic schema drift blocks rollback", "risk projection data blocks rollback", "api-token-reveal-grants-v1"} {
+		if !strings.Contains(metadata.DownSQL(), fragment) {
+			t.Fatalf("risk projection down migration missing %q", fragment)
+		}
+	}
+}
+
 func TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift(t *testing.T) {
 	baseline, core, workflows, receipts, safety, provenance, administration := Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration()
 	for _, test := range []struct {
@@ -405,7 +431,7 @@ func TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift(t 
 		{name: "safety", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(5)}}, fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}}, fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}}, fakeRow{values: []any{workflows.Version(), workflows.Name(), workflows.Checksum()}}, fakeRow{values: []any{receipts.Version(), receipts.Name(), receipts.Checksum()}}, fakeRow{values: []any{safety.Version(), safety.Name(), safety.Checksum()}}}, want: 5},
 		{name: "provenance", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(6)}}, fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}}, fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}}, fakeRow{values: []any{workflows.Version(), workflows.Name(), workflows.Checksum()}}, fakeRow{values: []any{receipts.Version(), receipts.Name(), receipts.Checksum()}}, fakeRow{values: []any{safety.Version(), safety.Name(), safety.Checksum()}}, fakeRow{values: []any{provenance.Version(), provenance.Name(), provenance.Checksum()}}}, want: 6},
 		{name: "administration", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(7)}}, fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}}, fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}}, fakeRow{values: []any{workflows.Version(), workflows.Name(), workflows.Checksum()}}, fakeRow{values: []any{receipts.Version(), receipts.Name(), receipts.Checksum()}}, fakeRow{values: []any{safety.Version(), safety.Name(), safety.Checksum()}}, fakeRow{values: []any{provenance.Version(), provenance.Name(), provenance.Checksum()}}, fakeRow{values: []any{administration.Version(), administration.Name(), administration.Checksum()}}}, want: 7},
-		{name: "drift", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(9)}}}, wantErr: ErrInvalidState},
+		{name: "drift", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(10)}}}, wantErr: ErrInvalidState},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			database := &fakeDatabase{rows: test.rows, transaction: &fakeTransaction{}}

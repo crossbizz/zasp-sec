@@ -28,6 +28,8 @@ const (
 	administrationName    = "production_administration"
 	revealGrantsVersion   = int64(8)
 	revealGrantsName      = "api_token_reveal_grants"
+	riskProjectionVersion = int64(9)
+	riskProjectionName    = "production_risk_projection"
 	rollbackTimeout       = 5 * time.Second
 
 	tableExistsSQL           = "SELECT to_regclass('public.zasp_schema_versions') IS NOT NULL"
@@ -38,6 +40,7 @@ const (
 	lockWorkflowMutationsSQL = `LOCK TABLE "public"."zasp_workflow_idempotency" IN ACCESS EXCLUSIVE MODE`
 	lockAdministrationSQL    = `LOCK TABLE "public"."zasp_identity_memberships", "public"."zasp_product_sessions", "public"."zasp_product_api_tokens", "public"."zasp_organizations", "public"."zasp_workspaces", "public"."zasp_environments", "public"."zasp_group_mappings", "public"."zasp_admin_audit", "public"."zasp_session_events", "public"."zasp_compliance_controls", "public"."zasp_compliance_evidence", "public"."zasp_data_controls" IN ACCESS EXCLUSIVE MODE`
 	lockRevealGrantsSQL      = `LOCK TABLE "public"."zasp_admin_idempotency", "public"."zasp_api_token_reveal_grants", "public"."zasp_product_api_tokens" IN ACCESS EXCLUSIVE MODE`
+	lockRiskProjectionSQL    = `LOCK TABLE "public"."zasp_risk_findings", "public"."zasp_risk_finding_evidence", "public"."zasp_risk_finding_factors", "public"."zasp_risk_attack_paths", "public"."zasp_risk_attack_path_nodes", "public"."zasp_risk_attack_path_evidence", "public"."zasp_risk_break_options", "public"."zasp_workflow_idempotency", "public"."zasp_workflow_audit", "public"."zasp_workflow_receipts" IN ACCESS EXCLUSIVE MODE`
 	insertRowSQL             = `INSERT INTO "public"."zasp_schema_versions" ("version", "name", "checksum") VALUES ($1, $2, $3)`
 	deleteRowSQL             = `DELETE FROM "public"."zasp_schema_versions" WHERE "version" = $1 AND "name" = $2 AND "checksum" = $3`
 )
@@ -97,6 +100,12 @@ var revealGrantsUpSQL string
 
 //go:embed sql/0008_api_token_reveal_grants.down.sql
 var revealGrantsDownSQL string
+
+//go:embed sql/0009_production_risk_projection.up.sql
+var riskProjectionUpSQL string
+
+//go:embed sql/0009_production_risk_projection.down.sql
+var riskProjectionDownSQL string
 
 type Metadata struct {
 	version  int64
@@ -174,6 +183,13 @@ func APITokenRevealGrants() Metadata {
 	return Metadata{version: revealGrantsVersion, name: revealGrantsName, checksum: hex.EncodeToString(digest[:]), up: up, down: down}
 }
 
+func ProductionRiskProjection() Metadata {
+	up := strings.TrimSpace(riskProjectionUpSQL)
+	down := strings.TrimSpace(riskProjectionDownSQL)
+	digest := sha256.Sum256([]byte(up + "\x00" + down))
+	return Metadata{version: riskProjectionVersion, name: riskProjectionName, checksum: hex.EncodeToString(digest[:]), up: up, down: down}
+}
+
 func ProductionWorkflowsSemanticFingerprint() string {
 	const marker = "'production_workflows_fingerprint', '"
 	start := strings.Index(workflowUpSQL, marker)
@@ -210,6 +226,10 @@ func ProductionAdministrationSemanticFingerprint() string {
 
 func APITokenRevealGrantsSemanticFingerprint() string {
 	return semanticFingerprint(revealGrantsUpSQL, "api_token_reveal_grants_fingerprint")
+}
+
+func ProductionRiskProjectionSemanticFingerprint() string {
+	return semanticFingerprint(riskProjectionUpSQL, "production_risk_projection_fingerprint")
 }
 
 func semanticFingerprint(source, key string) string {
@@ -313,7 +333,7 @@ func (runner *Runner) Version(ctx context.Context) (int64, error) {
 	if err := scanRow(ctx, runner.database, countRowsSQL, nil, &count); err != nil {
 		return 0, fixedDatabaseError(ctx, err)
 	}
-	if count < 1 || count > 8 {
+	if count < 1 || count > 9 {
 		return 0, ErrInvalidState
 	}
 	metadata := []Metadata{Baseline()}
@@ -332,6 +352,8 @@ func (runner *Runner) Version(ctx context.Context) (int64, error) {
 		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration())
 	} else if count == 8 {
 		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants())
+	} else if count == 9 {
+		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection())
 	}
 	for _, expected := range metadata {
 		var version int64
@@ -757,6 +779,69 @@ func (runner *Runner) DownAPITokenRevealGrants(ctx context.Context) error {
 	})
 }
 
+func (runner *Runner) UpProductionRiskProjection(ctx context.Context) error {
+	if runner == nil || nilInterface(runner.database) {
+		return ErrInvalidRunner
+	}
+	return runner.withTransaction(ctx, func(ctx context.Context, transaction Transaction) error {
+		if err := transaction.Exec(ctx, lockRevealGrantsSQL); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, lockWorkflowMutationsSQL); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, lockTableSQL); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := readAPITokenRevealGrantsState(ctx, transaction); err != nil {
+			return err
+		}
+		metadata := ProductionRiskProjection()
+		if err := transaction.Exec(ctx, metadata.UpSQL()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, insertRowSQL, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		return readProductionRiskProjectionState(ctx, transaction)
+	})
+}
+
+func (runner *Runner) DownProductionRiskProjection(ctx context.Context) error {
+	if runner == nil || nilInterface(runner.database) {
+		return ErrInvalidRunner
+	}
+	return runner.withTransaction(ctx, func(ctx context.Context, transaction Transaction) error {
+		present, err := tablePresent(ctx, transaction)
+		if err != nil || !present {
+			return ErrInvalidState
+		}
+		if err := transaction.Exec(ctx, lockRiskProjectionSQL); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, lockRevealGrantsSQL); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, lockAdministrationSQL); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, lockTableSQL); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := readProductionRiskProjectionState(ctx, transaction); err != nil {
+			return err
+		}
+		metadata := ProductionRiskProjection()
+		if err := transaction.Exec(ctx, deleteRowSQL, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, metadata.DownSQL()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		return readAPITokenRevealGrantsState(ctx, transaction)
+	})
+}
+
 func (runner *Runner) Down(ctx context.Context) error {
 	if runner == nil || nilInterface(runner.database) {
 		return ErrInvalidRunner
@@ -912,6 +997,10 @@ func readProductionAdministrationState(ctx context.Context, queryer Queryer) err
 
 func readAPITokenRevealGrantsState(ctx context.Context, queryer Queryer) error {
 	return readExactReleaseState(ctx, queryer, []Metadata{Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants()})
+}
+
+func readProductionRiskProjectionState(ctx context.Context, queryer Queryer) error {
+	return readExactReleaseState(ctx, queryer, []Metadata{Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection()})
 }
 
 func readExactReleaseState(ctx context.Context, queryer Queryer, expected []Metadata) error {

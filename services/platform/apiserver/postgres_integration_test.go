@@ -59,6 +59,9 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 	if err := runner.UpAPITokenRevealGrants(ctx); err != nil {
 		t.Fatalf("API token reveal grants migration: %v", err)
 	}
+	if err := runner.UpProductionRiskProjection(ctx); err != nil {
+		t.Fatalf("production risk projection migration: %v", err)
+	}
 	fingerprintQuery := postgresSchemaVersionSQL[:strings.Index(postgresSchemaVersionSQL, "SELECT metadata.value")] + "SELECT value FROM semantic_fingerprint"
 	var actualFingerprint string
 	if err := connection.QueryRow(ctx, fingerprintQuery).Scan(&actualFingerprint); err != nil {
@@ -547,6 +550,9 @@ FROM idempotency`, organization.String(), workspace.String(), environment.String
 		if _, err := rollbackConnection.Exec(ctx, statement); err != nil {
 			t.Fatalf("remove administration fixture before rollback: %v", err)
 		}
+	}
+	if err := rollbackRunner.DownProductionRiskProjection(ctx); err != nil {
+		t.Fatalf("production risk projection rollback: %v", err)
 	}
 	if err := rollbackRunner.DownAPITokenRevealGrants(ctx); err != nil {
 		t.Fatalf("API token reveal grant rollback: %v", err)
