@@ -58,6 +58,57 @@ describe("API query state machine", () => {
 		expect(result.current.api.sessionExpiry).toBe(0);
 	});
 
+	it("never exposes prior-scope data while the next scope is delayed or fails", async () => {
+		type Deferred = {
+			promise: Promise<readonly string[]>;
+			resolve(value: readonly string[]): void;
+			reject(error: unknown): void;
+		};
+		const deferred = (): Deferred => {
+			let resolve: Deferred["resolve"] = () => undefined;
+			let reject: Deferred["reject"] = () => undefined;
+			const promise = new Promise<readonly string[]>((done, fail) => { resolve = done; reject = fail; });
+			return { promise, resolve, reject };
+		};
+		const initial = deferred();
+		const scopeA = deferred();
+		const lateScopeA = deferred();
+		const scopeB = deferred();
+		const attempts = [initial, scopeA, lateScopeA, scopeB];
+		const signals: AbortSignal[] = [];
+		const query = vi.fn((signal?: AbortSignal) => {
+			if (signal) signals.push(signal);
+			const attempt = attempts[query.mock.calls.length - 1];
+			if (!attempt) throw new Error("unexpected query attempt");
+			return attempt.promise;
+		});
+		const wrapper = ({ children }: { children: ReactNode }) => <APIProvider>{children}</APIProvider>;
+		const { result } = renderHook(() => ({ query: useAPIQuery("agents", query), api: useAPI() }), { wrapper });
+
+		await waitFor(() => expect(query).toHaveBeenCalledTimes(1));
+		act(() => result.current.api.setQueryScope("organization-a/workspace-a/environment-a"));
+		await waitFor(() => expect(query).toHaveBeenCalledTimes(2));
+		expect(signals[0]?.aborted).toBe(true);
+		act(() => scopeA.resolve(["scope-a-agent"]));
+		await waitFor(() => expect(result.current.query).toMatchObject({ status: "success", data: ["scope-a-agent"] }));
+
+		act(() => { void result.current.query.retry(); });
+		await waitFor(() => expect(query).toHaveBeenCalledTimes(3));
+		act(() => result.current.api.setQueryScope("organization-a/workspace-b/environment-b"));
+		expect(result.current.query.status).toBe("loading");
+		expect(result.current.query.data).toBeUndefined();
+		await waitFor(() => expect(query).toHaveBeenCalledTimes(4));
+		expect(signals[2]?.aborted).toBe(true);
+		act(() => scopeB.reject(new Error("scope B provider unavailable")));
+		await waitFor(() => expect(result.current.query.status).toBe("error"));
+		expect(result.current.query.data).toBeUndefined();
+
+		act(() => lateScopeA.resolve(["late-scope-a-agent"]));
+		act(() => initial.resolve(["initial-unscoped-agent"]));
+		await waitFor(() => expect(result.current.query.status).toBe("error"));
+		expect(result.current.query.data).toBeUndefined();
+	});
+
   it("keeps authoritative data stale when refresh fails", async () => {
     const query = vi.fn<() => Promise<readonly string[]>>()
       .mockResolvedValueOnce(["finding-1"])

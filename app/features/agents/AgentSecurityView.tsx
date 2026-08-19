@@ -12,10 +12,10 @@ import { Badge, Button, Card, Drawer, MetricGrid, PageHeader, SearchBox, Select 
 type AgentFilter = { owner: string; environment: string; risk: string; shell: boolean; highImpact: boolean; sensor: string; policy: string };
 
 export type AgentSecurityAPI = {
-  listAgents(): Promise<readonly InventoryRecord[]>;
-  listTools(): Promise<readonly InventoryRecord[]>;
-  listIdentities(): Promise<readonly InventoryRecord[]>;
-  listRuntimes(): Promise<readonly InventoryRecord[]>;
+  listAgents(signal?: AbortSignal): Promise<readonly InventoryRecord[]>;
+  listTools(signal?: AbortSignal): Promise<readonly InventoryRecord[]>;
+  listIdentities(signal?: AbortSignal): Promise<readonly InventoryRecord[]>;
+  listRuntimes(signal?: AbortSignal): Promise<readonly InventoryRecord[]>;
   getAgent(id: string): Promise<InventoryRecord>;
   getTool(id: string): Promise<InventoryRecord>;
   getIdentity(id: string): Promise<InventoryRecord>;
@@ -30,7 +30,7 @@ export type AgentSecurityAPI = {
   createFindingTicket(id: string): Promise<string>;
   listAttackPaths(): Promise<readonly AttackPath[]>;
   getAttackPathBreakOptions(id: string): Promise<readonly BreakOption[]>;
-  getHomeSummary(): Promise<HomeSummary>;
+  getHomeSummary(signal?: AbortSignal): Promise<HomeSummary>;
   search(query: string): Promise<readonly SearchResult[]>;
 };
 
@@ -43,10 +43,10 @@ type ProductionAgentSecurityAPI = Pick<AgentSecurityAPI,
 
 export function createAgentSecurityAPI(client: APIClient = createAPIClient()): ProductionAgentSecurityAPI {
   return {
-    async listAgents() { return requireAPIData(await client.GET("/api/v1/agents"), decodeInventoryPage).items; },
-    async listTools() { return requireAPIData(await client.GET("/api/v1/tools"), decodeInventoryPage).items; },
-    async listIdentities() { return requireAPIData(await client.GET("/api/v1/identities"), decodeInventoryPage).items; },
-    async listRuntimes() { return requireAPIData(await client.GET("/api/v1/runtimes"), decodeInventoryPage).items; },
+    async listAgents(signal) { return requireAPIData(await client.GET("/api/v1/agents", { signal }), decodeInventoryPage).items; },
+    async listTools(signal) { return requireAPIData(await client.GET("/api/v1/tools", { signal }), decodeInventoryPage).items; },
+    async listIdentities(signal) { return requireAPIData(await client.GET("/api/v1/identities", { signal }), decodeInventoryPage).items; },
+    async listRuntimes(signal) { return requireAPIData(await client.GET("/api/v1/runtimes", { signal }), decodeInventoryPage).items; },
     async getAgent(id) { return requireAPIData(await client.GET("/api/v1/agents/{id}", { params: { path: { id } } }), decodeInventoryRecord); },
     async getTool(id) { return requireAPIData(await client.GET("/api/v1/tools/{id}", { params: { path: { id } } }), decodeInventoryRecord); },
     async getIdentity(id) { return requireAPIData(await client.GET("/api/v1/identities/{id}", { params: { path: { id } } }), decodeInventoryRecord); },
@@ -54,7 +54,7 @@ export function createAgentSecurityAPI(client: APIClient = createAPIClient()): P
     async getAgentCapabilities(id) { return requireAPIData(await client.GET("/api/v1/agents/{id}/capabilities", { params: { path: { id } } }), decodeCapabilityPage).items; },
     async getAgentRelationships(id) { return requireAPIData(await client.GET("/api/v1/agents/{id}/relationships", { params: { path: { id } } }), decodeRelationshipPage).items; },
     async listAgentSessions(id) { return requireAPIData(await client.GET("/api/v1/agents/{id}/sessions", { params: { path: { id } } }), decodeAgentSessionPage).items; },
-    async getHomeSummary() { return requireAPIData(await client.GET("/api/v1/home/summary"), decodeHomeSummary); },
+    async getHomeSummary(signal) { return requireAPIData(await client.GET("/api/v1/home/summary", { signal }), decodeHomeSummary); },
   };
 }
 
@@ -163,13 +163,13 @@ type ConnectedData =
 function ConnectedAgentSecurityView({ path, onNavigate }: { path: string; onNavigate: (path: string) => void }) {
   const { client } = useAPI();
   const api = useMemo(() => createAgentSecurityAPI(client), [client]);
-  const load = useCallback(async (): Promise<ConnectedData> => {
+  const load = useCallback(async (signal?: AbortSignal): Promise<ConnectedData> => {
     switch (path) {
-    case "/": return { kind: "home", value: await api.getHomeSummary() };
-    case "/discovery/assets": return { kind: "inventory", title: "Agents", category: "agent", values: await api.listAgents() };
-    case "/inventory/tools": return { kind: "inventory", title: "Tools & MCP", category: "tool", values: await api.listTools() };
-    case "/identities": return { kind: "inventory", title: "Identities", category: "identity", values: await api.listIdentities() };
-    case "/inventory/runtimes": return { kind: "inventory", title: "Runtimes", category: "runtime", values: await api.listRuntimes() };
+    case "/": return { kind: "home", value: await api.getHomeSummary(signal) };
+    case "/discovery/assets": return { kind: "inventory", title: "Agents", category: "agent", values: await api.listAgents(signal) };
+    case "/inventory/tools": return { kind: "inventory", title: "Tools & MCP", category: "tool", values: await api.listTools(signal) };
+    case "/identities": return { kind: "inventory", title: "Identities", category: "identity", values: await api.listIdentities(signal) };
+    case "/inventory/runtimes": return { kind: "inventory", title: "Runtimes", category: "runtime", values: await api.listRuntimes(signal) };
     default: throw new Error("Production route unavailable");
     }
   }, [api, path]);

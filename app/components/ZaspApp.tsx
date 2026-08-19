@@ -117,7 +117,7 @@ function ProductionAppContent() {
   if (session.status === "loading") return <main className="page"><h1>Loading Zasp</h1><p role="status">Loading authenticated session…</p></main>;
   if (session.status === "unauthenticated") return <main className="page"><h1>Sign in to Zasp</h1><Button onClick={() => session.signIn(path)}>Sign in</Button></main>;
   if (session.status === "forbidden") return <main className="page"><h1>Scope unavailable</h1><p role="alert">Authorization rejected</p></main>;
-  if (session.status === "error") return <main className="page"><h1>Session unavailable</h1><Button onClick={() => void session.retry()}>Retry</Button></main>;
+  if (session.status === "error") return <main className="page"><h1>Session unavailable</h1>{session.scopeSwitch.status === "error" ? <><p role="alert">{session.scopeSwitch.error?.message ?? "Scope reconciliation failed"}</p><Button onClick={() => void session.scopeSwitch.retry()}>Retry scope reconciliation</Button></> : <Button onClick={() => void session.retry()}>Retry</Button>}</main>;
   if (session.status !== "authenticated") return null;
   const routes = productionRoutes.filter((route) => session.hasCapability(route.capability));
 	if (routes.length === 0) return <main className="page"><h1>No product capabilities</h1><p>Your account has no enabled product routes.</p><Button onClick={() => void session.signOut()}>Sign out</Button></main>;

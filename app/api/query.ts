@@ -13,48 +13,64 @@ export type QueryState<T> = {
   retry(): Promise<void>;
 };
 
-export function useAPIQuery<T>(key: string, query: () => Promise<T>, enabled = true): QueryState<T> {
-	const { revisions, queryGeneration } = useAPI();
+type StoredQueryState<T> = Omit<QueryState<T>, "retry"> & { epoch: string };
+
+export function useAPIQuery<T>(key: string, query: (signal?: AbortSignal) => Promise<T>, enabled = true): QueryState<T> {
+	const { revisions, queryScopeKey, queryGeneration } = useAPI();
   const revision = revisions.get(key) ?? 0;
-  const data = useRef<T | undefined>(undefined);
+  const epoch = `${queryScopeKey ?? "__suspended__"}\u0000${queryGeneration}`;
+  const queryEnabled = enabled && queryScopeKey !== null;
+  const data = useRef<{ epoch: string; value: T } | undefined>(undefined);
   const request = useRef(0);
-  const [state, setState] = useState<Omit<QueryState<T>, "retry">>({ status: enabled ? "loading" : "idle" });
+  const controller = useRef<AbortController | null>(null);
+  const [state, setState] = useState<StoredQueryState<T>>({ epoch, status: queryEnabled ? "loading" : "idle" });
   const load = useCallback(async () => {
-    if (!enabled) {
+    if (!queryEnabled) {
+      setState({ epoch, status: "idle" });
       return;
     }
     const current = ++request.current;
+    controller.current?.abort();
+    const currentController = new AbortController();
+    controller.current = currentController;
     try {
-      const value = await query();
-      if (request.current !== current) return;
-      data.current = value;
-      setState({ status: isEmpty(value) ? "empty" : "success", data: value });
+      const value = await query(currentController.signal);
+      if (currentController.signal.aborted || request.current !== current) return;
+      data.current = { epoch, value };
+      setState({ epoch, status: isEmpty(value) ? "empty" : "success", data: value });
     } catch (error) {
-      if (request.current !== current) return;
+      if (currentController.signal.aborted || request.current !== current) return;
 	  if (isProtectedFailure(error)) {
 		data.current = undefined;
-		setState({ status: "forbidden", error });
-	  } else if (data.current !== undefined) {
-        setState({ status: "stale", data: data.current, error });
+		setState({ epoch, status: "forbidden", error });
+	  } else if (data.current?.epoch === epoch) {
+        setState({ epoch, status: "stale", data: data.current.value, error });
       } else {
-        setState({ status: isForbidden(error) ? "forbidden" : "error", error });
+        setState({ epoch, status: isForbidden(error) ? "forbidden" : "error", error });
       }
     }
-  }, [enabled, query]);
+  }, [epoch, queryEnabled, query]);
   const retry = useCallback(async () => {
-    if (!enabled) {
-      setState({ status: "idle" });
+    if (!queryEnabled) {
+      setState({ epoch, status: "idle" });
       return;
     }
-    if (data.current === undefined) setState({ status: "loading" });
+    if (data.current?.epoch !== epoch) setState({ epoch, status: "loading" });
     await load();
-  }, [enabled, load]);
+  }, [epoch, queryEnabled, load]);
   useEffect(() => {
     let active = true;
     queueMicrotask(() => { if (active) void load(); });
-    return () => { active = false; request.current += 1; };
+    return () => {
+      active = false;
+      request.current += 1;
+      controller.current?.abort();
+    };
 	}, [load, revision, queryGeneration]);
-  return { ...state, retry };
+  const visibleState: Omit<QueryState<T>, "retry"> = state.epoch === epoch
+    ? state
+    : { status: queryEnabled ? "loading" : "idle" };
+  return { ...visibleState, retry };
 }
 
 export type MutationState<TResult> = {

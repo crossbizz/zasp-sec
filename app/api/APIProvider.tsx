@@ -7,10 +7,13 @@ import { createAPIClient, type APIClient } from "../../apps/web/api/client";
 type APIContextValue = {
   client: APIClient;
   revisions: ReadonlyMap<string, number>;
+  queryScopeKey: string | null;
   queryGeneration: number;
   sessionExpiry: number;
   invalidate(keys: readonly string[]): void;
   setCSRFToken(value: string | null): void;
+  setQueryScope(scopeKey: string): void;
+  suspendQueryCache(): void;
   clearQueryCache(): void;
 };
 
@@ -25,14 +28,14 @@ class CSRFVault {
 export function APIProvider({ children, client: suppliedClient }: { children: ReactNode; client?: APIClient }) {
   const [csrfToken] = useState(() => new CSRFVault());
   const [revisions, setRevisions] = useState<ReadonlyMap<string, number>>(() => new Map());
-	const [queryGeneration, setQueryGeneration] = useState(0);
+  const [queryEpoch, setQueryEpoch] = useState({ scopeKey: "__unscoped__" as string | null, generation: 0 });
   const [sessionExpiry, setSessionExpiry] = useState(0);
   const [client] = useState(() => suppliedClient ?? createAPIClient({
     getCSRFToken: () => csrfToken.get() ?? undefined,
     onSessionExpired: () => {
       csrfToken.set(null);
       setRevisions(new Map());
-	  setQueryGeneration((value) => value + 1);
+      setQueryEpoch((current) => ({ scopeKey: null, generation: current.generation + 1 }));
       setSessionExpiry((value) => value + 1);
     },
   }));
@@ -44,13 +47,33 @@ export function APIProvider({ children, client: suppliedClient }: { children: Re
     });
   }, []);
   const setCSRFToken = useCallback((value: string | null) => { csrfToken.set(value); }, [csrfToken]);
+  const setQueryScope = useCallback((scopeKey: string) => {
+    if (!scopeKey) throw new Error("Query scope key is required");
+    setRevisions(new Map());
+    setQueryEpoch((current) => current.scopeKey === scopeKey
+      ? current
+      : { scopeKey, generation: current.generation + 1 });
+  }, []);
+  const suspendQueryCache = useCallback(() => {
+    setRevisions(new Map());
+    setQueryEpoch((current) => ({ scopeKey: null, generation: current.generation + 1 }));
+  }, []);
   const clearQueryCache = useCallback(() => {
     setRevisions(new Map());
-	setQueryGeneration((value) => value + 1);
+    setQueryEpoch((current) => ({ ...current, generation: current.generation + 1 }));
   }, []);
   const value = useMemo<APIContextValue>(() => ({
-	client, revisions, queryGeneration, sessionExpiry, invalidate, setCSRFToken, clearQueryCache,
-	}), [client, revisions, queryGeneration, sessionExpiry, invalidate, setCSRFToken, clearQueryCache]);
+    client,
+    revisions,
+    queryScopeKey: queryEpoch.scopeKey,
+    queryGeneration: queryEpoch.generation,
+    sessionExpiry,
+    invalidate,
+    setCSRFToken,
+    setQueryScope,
+    suspendQueryCache,
+    clearQueryCache,
+  }), [client, revisions, queryEpoch, sessionExpiry, invalidate, setCSRFToken, setQueryScope, suspendQueryCache, clearQueryCache]);
   return <APIContext.Provider value={value}>{children}</APIContext.Provider>;
 }
 

@@ -1,10 +1,11 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { createAPIClient } from "../../apps/web/api/client";
 import { APIProvider } from "../api/APIProvider";
+import { useAPIQuery } from "../api/query";
 import { buildSignInURL, SessionProvider, useSession } from "./SessionProvider";
 
 function Consumer() {
@@ -12,10 +13,23 @@ function Consumer() {
   return <div>
     <span>{session.status}</span>
 	<span>scope {session.scopeSwitch.status}</span>
+	{session.scopeSwitch.error && <span>scope error {session.scopeSwitch.error.code}</span>}
     <span>{session.hasCapability("inventory.read") ? "inventory enabled" : "inventory hidden"}</span>
     {session.status === "authenticated" && <button onClick={() => void session.signOut()}>Sign out</button>}
 	{session.status === "authenticated" && session.scopes.length > 1 && <button onClick={() => void session.switchScope(session.scopes[1].workspace_id, session.scopes[1].environment_id)}>Switch scope</button>}
 	{session.scopeSwitch.status === "error" && <button onClick={() => void session.scopeSwitch.retry()}>Retry scope switch</button>}
+  </div>;
+}
+
+function ScopedQueryConsumer({ query }: { query: (signal?: AbortSignal) => Promise<readonly string[]> }) {
+  const session = useSession();
+  const scoped = useAPIQuery("scoped-records", query, session.status === "authenticated");
+  return <div>
+    <span>session {session.status}</span>
+    <span>query {scoped.status}</span>
+    {scoped.data?.map((item) => <span key={item}>{item}</span>)}
+    {session.status === "authenticated" && session.scopes.length > 1 && <button onClick={() => void session.switchScope(session.scopes[1].workspace_id, session.scopes[1].environment_id)}>Switch scoped query</button>}
+    <button onClick={() => void scoped.retry()}>Refresh scoped query</button>
   </div>;
 }
 
@@ -90,6 +104,128 @@ describe("SessionProvider", () => {
 		await waitFor(() => expect(screen.getByText("scope idle")).toBeVisible());
 		expect(scopeAttempts).toBe(2);
 		expect(bootstrapCalls).toBe(3);
+	});
+
+	it("treats an errored mutation as success when bootstrap proves the target scope", async () => {
+		let activeScope = false;
+		let scopeAttempts = 0;
+		const fetch = vi.fn(async (request: Request) => {
+			if (request.url.endsWith("/api/v1/session/scope")) {
+				scopeAttempts += 1;
+				activeScope = true;
+				return jsonResponse({ code: "provider_unavailable", message: "Provider unavailable", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: true }, 503);
+			}
+			if (request.url.endsWith("/api/v1/session/scopes")) return jsonResponse(sessionScopes());
+			return jsonResponse(sessionBootstrap(activeScope));
+		});
+		const Wrapper = wrapper(fetch);
+		render(<Wrapper><Consumer /></Wrapper>);
+		await userEvent.click(await screen.findByRole("button", { name: "Switch scope" }));
+		await waitFor(() => expect(screen.getByText("scope idle")).toBeVisible());
+		expect(screen.queryByText(/scope error/)).not.toBeInTheDocument();
+		expect(scopeAttempts).toBe(1);
+	});
+
+	it("retries failed reconciliation before resending a successful mutation", async () => {
+		let activeScope = false;
+		let scopeAttempts = 0;
+		let bootstrapCalls = 0;
+		const fetch = vi.fn(async (request: Request) => {
+			if (request.url.endsWith("/api/v1/session/scope")) {
+				scopeAttempts += 1;
+				activeScope = true;
+				return new Response(null, { status: 204 });
+			}
+			if (request.url.endsWith("/api/v1/session/scopes")) return jsonResponse(sessionScopes());
+			bootstrapCalls += 1;
+			if (bootstrapCalls === 2) return jsonResponse({ code: "provider_unavailable", message: "Provider unavailable", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: true }, 503);
+			return jsonResponse(sessionBootstrap(activeScope));
+		});
+		const Wrapper = wrapper(fetch);
+		render(<Wrapper><Consumer /></Wrapper>);
+		await userEvent.click(await screen.findByRole("button", { name: "Switch scope" }));
+		await screen.findByText("scope error scope_reconciliation_failed");
+		expect(scopeAttempts).toBe(1);
+		await userEvent.click(screen.getByRole("button", { name: "Retry scope switch" }));
+		await waitFor(() => expect(screen.getByText("scope idle")).toBeVisible());
+		expect(scopeAttempts).toBe(1);
+		expect(bootstrapCalls).toBe(3);
+	});
+
+	it("reports the authoritative different scope before allowing a resend", async () => {
+		let scopeAttempts = 0;
+		let activeScope = false;
+		const fetch = vi.fn(async (request: Request) => {
+			if (request.url.endsWith("/api/v1/session/scope")) {
+				scopeAttempts += 1;
+				if (scopeAttempts === 2) activeScope = true;
+				return new Response(null, { status: 204 });
+			}
+			if (request.url.endsWith("/api/v1/session/scopes")) return jsonResponse(sessionScopes());
+			return jsonResponse(sessionBootstrap(activeScope));
+		});
+		const Wrapper = wrapper(fetch);
+		render(<Wrapper><Consumer /></Wrapper>);
+		await userEvent.click(await screen.findByRole("button", { name: "Switch scope" }));
+		await screen.findByText("scope error scope_not_applied");
+		expect(scopeAttempts).toBe(1);
+		await userEvent.click(screen.getByRole("button", { name: "Retry scope switch" }));
+		await waitFor(() => expect(screen.getByText("scope idle")).toBeVisible());
+		expect(scopeAttempts).toBe(2);
+	});
+
+	it("removes scope A data before a delayed failing scope B query and ignores late A completion", async () => {
+		type Deferred = {
+			promise: Promise<readonly string[]>;
+			resolve(value: readonly string[]): void;
+			reject(error: unknown): void;
+		};
+		const deferred = (): Deferred => {
+			let resolve: Deferred["resolve"] = () => undefined;
+			let reject: Deferred["reject"] = () => undefined;
+			const promise = new Promise<readonly string[]>((done, fail) => { resolve = done; reject = fail; });
+			return { promise, resolve, reject };
+		};
+		const scopeA = deferred();
+		const lateScopeA = deferred();
+		const scopeB = deferred();
+		const attempts = [scopeA, lateScopeA, scopeB];
+		const signals: AbortSignal[] = [];
+		const query = vi.fn((signal?: AbortSignal) => {
+			if (signal) signals.push(signal);
+			const attempt = attempts[query.mock.calls.length - 1];
+			if (!attempt) throw new Error("unexpected scoped query attempt");
+			return attempt.promise;
+		});
+		let activeScope = false;
+		const fetch = vi.fn(async (request: Request) => {
+			if (request.url.endsWith("/api/v1/session/scope")) {
+				activeScope = true;
+				return new Response(null, { status: 204 });
+			}
+			if (request.url.endsWith("/api/v1/session/scopes")) return jsonResponse(sessionScopes());
+			return jsonResponse(sessionBootstrap(activeScope));
+		});
+		const Wrapper = wrapper(fetch);
+		render(<Wrapper><ScopedQueryConsumer query={query} /></Wrapper>);
+		await waitFor(() => expect(query).toHaveBeenCalledTimes(1));
+		act(() => scopeA.resolve(["scope-a-agent"]));
+		await screen.findByText("scope-a-agent");
+
+		await userEvent.click(screen.getByRole("button", { name: "Refresh scoped query" }));
+		await waitFor(() => expect(query).toHaveBeenCalledTimes(2));
+		await userEvent.click(screen.getByRole("button", { name: "Switch scoped query" }));
+		await waitFor(() => expect(query).toHaveBeenCalledTimes(3));
+		expect(signals[1]?.aborted).toBe(true);
+		expect(screen.queryByText("scope-a-agent")).not.toBeInTheDocument();
+		expect(screen.getByText("query loading")).toBeVisible();
+
+		act(() => scopeB.reject(new Error("scope B provider unavailable")));
+		await screen.findByText("query error");
+		expect(screen.queryByText("scope-a-agent")).not.toBeInTheDocument();
+		act(() => lateScopeA.resolve(["late-scope-a-agent"]));
+		await waitFor(() => expect(screen.getByText("query error")).toBeVisible());
+		expect(screen.queryByText("late-scope-a-agent")).not.toBeInTheDocument();
 	});
 
   it("fails closed and exposes no capability when the session expired", async () => {
