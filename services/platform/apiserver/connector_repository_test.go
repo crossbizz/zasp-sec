@@ -73,6 +73,21 @@ func TestConnectorRepositoryStartsAndConsumesBoundOAuthWithoutSecretBytes(t *tes
 	}
 }
 
+func TestConnectorRepositoryReadinessRechecksLiveSemanticAndPrincipalAuthority(t *testing.T) {
+	database := &connectorCallDatabase{responses: map[string]json.RawMessage{postgresConnectorReadySQL: json.RawMessage(`true`), postgresDiscoveryPrincipalReadySQL: json.RawMessage(`true`)}}
+	repository, err := NewConnectorRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := repository.Ready(context.Background()); err != nil {
+		t.Fatalf("ready connector repository: %v", err)
+	}
+	database.responses[postgresConnectorReadySQL] = json.RawMessage(`false`)
+	if err := repository.Ready(context.Background()); !errors.Is(err, ErrRepositoryUnavailable) {
+		t.Fatalf("live connector drift readiness = %v", err)
+	}
+}
+
 func TestConnectorRepositoryStrictlyDecodesUnknownEffectClaims(t *testing.T) {
 	now := time.Now().UTC()
 	database := &connectorCallDatabase{responses: map[string]json.RawMessage{

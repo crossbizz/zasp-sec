@@ -55,7 +55,7 @@ func TestProductionHandlersIssueHostOnlySecureSessionCookie(t *testing.T) {
 		t.Fatal(err)
 	}
 	grant := sessionGrant(t, "3")
-	handlers, _, err := NewProductionHandlers(repository, CallbackProviderFunc(func(context.Context, string, string) (SessionGrant, error) { return grant, nil }), fixtureCookiePolicy())
+	handlers, _, err := NewProductionHandlers(repository, CallbackProviderFunc(func(context.Context, string, string) (SessionGrant, error) { return grant, nil }), http.NotFoundHandler(), fixtureCookiePolicy())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -260,7 +260,7 @@ func newProductionTestServer(t *testing.T, database *persistentJSONDatabase) *ht
 	if err != nil {
 		t.Fatal(err)
 	}
-	handlers, authenticate, err := NewProductionHandlers(repository, CallbackProviderFunc(func(context.Context, string, string) (SessionGrant, error) { return sessionGrant(t, "3"), nil }), fixtureCookiePolicy())
+	handlers, authenticate, err := NewProductionHandlers(repository, CallbackProviderFunc(func(context.Context, string, string) (SessionGrant, error) { return sessionGrant(t, "3"), nil }), http.NotFoundHandler(), fixtureCookiePolicy())
 	if err != nil {
 		t.Fatal(err)
 	}

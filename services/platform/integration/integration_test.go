@@ -55,7 +55,7 @@ func TestConnectorManifestPublicBoundaryAndCatalog(t *testing.T) {
 	if err := catalog.ValidateSetup("aws", map[string]string{"role_arn": "arn:aws:iam::000000000000:role/zasp-read", "external_id_reference": "ref:aws/external-id-0001", "region": "us-east-1"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := catalog.ValidateSetup("github", map[string]string{"connection_reference": "ref:github/connection-fixture"}); err != nil {
+	if err := catalog.ValidateSetup("github", map[string]string{"authorization_mode": "github_app"}); err != nil {
 		t.Fatal(err)
 	}
 	for name, config := range map[string]map[string]string{
@@ -96,9 +96,10 @@ func TestLaunchCatalogUsesFirstPartyAuthorizationForAWSKubernetesGitHubAndOkta(t
 			t.Fatalf("launch manifest %q = %#v, %t", key, item, ok)
 		}
 	}
-	for _, key := range []string{"github", "kubernetes", "okta"} {
-		if err := catalog.ValidateSetup(key, map[string]string{"connection_reference": "ref:" + key + "/connection-0001"}); err != nil {
-			t.Fatalf("%s reference bind rejected: %v", key, err)
+	setups := map[string]map[string]string{"github": {"authorization_mode": "github_app"}, "kubernetes": {"connection_reference": "ref:kubernetes/connection-0001"}, "okta": {"issuer": "https://acme.okta.com"}}
+	for key, setup := range setups {
+		if err := catalog.ValidateSetup(key, setup); err != nil {
+			t.Fatalf("%s setup rejected: %v", key, err)
 		}
 	}
 }

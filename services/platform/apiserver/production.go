@@ -69,8 +69,8 @@ type coreRepository interface {
 	Read(context.Context, domain.Scope, string) (json.RawMessage, error)
 }
 
-func NewProductionHandlers(repository *PostgresRepository, provider CallbackProvider, cookie CookiePolicy) (Dependencies, Authenticator, error) {
-	if repository == nil || nilInterface(repository.database) || nilInterface(provider) || len(cookie.TokenRevealKey) != 32 {
+func NewProductionHandlers(repository *PostgresRepository, provider CallbackProvider, connector http.Handler, cookie CookiePolicy) (Dependencies, Authenticator, error) {
+	if repository == nil || nilInterface(repository.database) || nilInterface(provider) || nilInterface(connector) || len(cookie.TokenRevealKey) != 32 {
 		return Dependencies{}, nil, ErrRepositoryConfiguration
 	}
 	now := cookie.Clock
@@ -101,6 +101,7 @@ func NewProductionHandlers(repository *PostgresRepository, provider CallbackProv
 		Inventory: &coreHTTPHandler{repository: repository, boundary: inventoryDependency},
 		Risk:      risk,
 		Workflow:  workflow,
+		Connector: connector,
 	}, mustDeploymentAuthenticator(repository.Authenticate, cookie.DeploymentMode, pinnedOrganization), nil
 }
 

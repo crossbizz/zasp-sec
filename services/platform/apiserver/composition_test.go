@@ -78,8 +78,8 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
 			public[key] = documented.OperationID
 		}
 	}
-	if len(seen) != 80 || len(public) != 80 {
-		t.Fatalf("mounted/public operation counts = %d/%d, want 80/80", len(seen), len(public))
+	if len(seen) != 82 || len(public) != 82 {
+		t.Fatalf("mounted/public operation counts = %d/%d, want 82/82", len(seen), len(public))
 	}
 	for key, operationID := range public {
 		if _, mounted := seen[key]; !mounted {
@@ -108,7 +108,7 @@ func TestBatchFourCompositionHasExactRiskSliceAndNoOverclaims(t *testing.T) {
 		}
 	}
 	for _, operationID := range []string{
-		"authorizeIntegration", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync",
+		"syncIntegration", "listIntegrationSyncs", "getIntegrationSync",
 		"listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage",
 		"updateAgent", "createFindingTicket",
 		"listTests", "createTest", "getTest", "updateTest", "runTest", "listTestRuns", "getTestRun", "cancelTestRun",
@@ -154,13 +154,87 @@ func TestBatchTwoCompositionExposesOnlyCompleteDurableOperations(t *testing.T) {
 	}
 	for _, hidden := range []string{
 		"simulatePolicy", "listPolicyDecisions",
-		"authorizeIntegration", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync",
+		"syncIntegration", "listIntegrationSyncs", "getIntegrationSync",
 		"listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage",
 		"listSecurityActions", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval",
 	} {
 		if _, mounted := definitions[hidden]; mounted {
 			t.Errorf("provider-owned operation %q mounted without a provider adapter", hidden)
 		}
+	}
+}
+
+func TestConnectorOAuthOperationsHaveExactBrowserSecurity(t *testing.T) {
+	definitions := make(map[string]OperationDefinition)
+	for _, operation := range CoreOperations() {
+		definitions[operation.OperationID] = operation
+	}
+	authorize, ok := definitions["authorizeIntegration"]
+	if !ok || authorize.Method != http.MethodPost || authorize.Pattern != "/api/v1/integrations/{id}/authorize" || authorize.Permission != "manage_workflows" || !equalStrings(authorize.Security, []string{"BrowserExpectedScope", "BrowserSession"}) {
+		t.Fatalf("authorize definition = %#v, exists=%v", authorize, ok)
+	}
+	callback, ok := definitions["completeIntegrationOAuthCallback"]
+	if !ok || callback.Method != http.MethodGet || callback.Pattern != "/api/v1/integrations/oauth/callback" || callback.Permission != "manage_workflows" || !equalStrings(callback.Security, []string{"BrowserSession"}) {
+		t.Fatalf("callback definition = %#v, exists=%v", callback, ok)
+	}
+}
+
+func TestConnectorOAuthCompositionEnforcesFreshScopedAuthorizeAndSessionBoundCallback(t *testing.T) {
+	composition, err := NewComposition(Dependencies{Session: handlerResponse("session"), Identity: handlerResponse("identity"), Inventory: handlerResponse("inventory"), Risk: handlerResponse("risk"), Workflow: handlerResponse("workflow"), Connector: handlerResponse("connector")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := fixtureRequestIdentity(t)
+	identity.Permissions = []string{"manage_workflows"}
+	identity.CredentialKind = CredentialBrowserSession
+	identity.FreshAuthenticated = true
+	authorize := func(identity RequestIdentity, scoped, csrf bool) *httptest.ResponseRecorder {
+		request := httptest.NewRequest(http.MethodPost, "/api/v1/integrations/pid_70000001-0000-4000-8000-000000000001/authorize", nil)
+		request = request.WithContext(context.WithValue(request.Context(), identityContextKey{}, identity))
+		request = request.WithContext(context.WithValue(request.Context(), browserSecurityContextKey{}, browserSecurityContext{publicOrigin: "https://app.zasp.test"}))
+		if scoped {
+			request.Header.Set(expectedScopeHeader, expectedScopeValue(identity.Scope))
+		}
+		if csrf {
+			request.Header.Set("Origin", "https://app.zasp.test")
+			request.Header.Set("X-CSRF-Token", identity.CSRFToken)
+		}
+		response := httptest.NewRecorder()
+		composition.ServeHTTP(response, request)
+		return response
+	}
+	if response := authorize(identity, false, true); response.Code != http.StatusConflict {
+		t.Fatalf("authorize without expected scope = %d %s", response.Code, response.Body.String())
+	}
+	if response := authorize(identity, true, false); response.Code != http.StatusForbidden {
+		t.Fatalf("authorize without CSRF = %d %s", response.Code, response.Body.String())
+	}
+	stale := identity
+	stale.FreshAuthenticated = false
+	if response := authorize(stale, true, true); response.Code != http.StatusForbidden {
+		t.Fatalf("authorize with stale session = %d %s", response.Code, response.Body.String())
+	}
+	pat := identity
+	pat.CredentialKind = CredentialBearerToken
+	if response := authorize(pat, true, true); response.Code != http.StatusUnauthorized {
+		t.Fatalf("authorize with PAT = %d %s", response.Code, response.Body.String())
+	}
+	if response := authorize(identity, true, true); response.Code != http.StatusOK || response.Body.String() != "connector" {
+		t.Fatalf("valid authorize = %d %s", response.Code, response.Body.String())
+	}
+	callbackRequest := httptest.NewRequest(http.MethodGet, "/api/v1/integrations/oauth/callback?code=provider-code-0001&state=provider-state-0001", nil)
+	callbackRequest = callbackRequest.WithContext(context.WithValue(callbackRequest.Context(), identityContextKey{}, stale))
+	callbackResponse := httptest.NewRecorder()
+	composition.ServeHTTP(callbackResponse, callbackRequest)
+	if callbackResponse.Code != http.StatusOK || callbackResponse.Body.String() != "connector" {
+		t.Fatalf("session-bound callback without scope/fresh headers = %d %s", callbackResponse.Code, callbackResponse.Body.String())
+	}
+	callbackRequest = httptest.NewRequest(http.MethodGet, "/api/v1/integrations/oauth/callback?error=access_denied&state=provider-state-0001", nil)
+	callbackRequest = callbackRequest.WithContext(context.WithValue(callbackRequest.Context(), identityContextKey{}, pat))
+	callbackResponse = httptest.NewRecorder()
+	composition.ServeHTTP(callbackResponse, callbackRequest)
+	if callbackResponse.Code != http.StatusUnauthorized {
+		t.Fatalf("callback with PAT = %d %s", callbackResponse.Code, callbackResponse.Body.String())
 	}
 }
 
@@ -242,7 +316,7 @@ func equalStrings(left, right []string) bool {
 func TestNewCompositionMountsOnlyCoreProductOperations(t *testing.T) {
 	composition, err := NewComposition(Dependencies{
 		Session: handlerResponse("session"), Identity: handlerResponse("identity"),
-		Inventory: handlerResponse("inventory"), Risk: handlerResponse("risk"), Workflow: handlerResponse("workflow"),
+		Inventory: handlerResponse("inventory"), Risk: handlerResponse("risk"), Workflow: handlerResponse("workflow"), Connector: handlerResponse("connector"),
 	})
 	if err != nil {
 		t.Fatalf("NewComposition() error = %v", err)
@@ -268,6 +342,8 @@ func TestNewCompositionMountsOnlyCoreProductOperations(t *testing.T) {
 		{method: "GET", path: "/api/v1/policies/policy-bounded", body: "workflow"},
 		{method: "GET", path: "/api/v1/integration-catalog", body: "workflow"},
 		{method: "GET", path: "/api/v1/security-agents", body: "workflow"},
+		{method: "POST", path: "/api/v1/integrations/pid_70000001-0000-4000-8000-000000000001/authorize", body: "connector"},
+		{method: "GET", path: "/api/v1/integrations/oauth/callback", body: "connector"},
 	}
 	for _, test := range tests {
 		response := httptest.NewRecorder()
@@ -277,7 +353,7 @@ func TestNewCompositionMountsOnlyCoreProductOperations(t *testing.T) {
 		identity.CredentialKind = CredentialBrowserSession
 		request = request.WithContext(context.WithValue(request.Context(), identityContextKey{}, identity))
 		request = request.WithContext(context.WithValue(request.Context(), browserSecurityContextKey{}, browserSecurityContext{publicOrigin: "https://app.zasp.test"}))
-		if test.path != "/api/v1/session/bootstrap" && test.path != "/api/v1/session/callback" && test.path != "/api/v1/session/sign-out" {
+		if test.path != "/api/v1/session/bootstrap" && test.path != "/api/v1/session/callback" && test.path != "/api/v1/session/sign-out" && test.path != "/api/v1/integrations/oauth/callback" {
 			request.Header.Set(expectedScopeHeader, expectedScopeValue(identity.Scope))
 		}
 		if test.method == http.MethodPost || test.method == http.MethodPatch || test.method == http.MethodPut || test.method == http.MethodDelete {
@@ -300,7 +376,7 @@ func TestNewCompositionMountsOnlyCoreProductOperations(t *testing.T) {
 }
 
 func TestWorkflowMutationAllowsPATWithoutBrowserCSRF(t *testing.T) {
-	composition, err := NewComposition(Dependencies{Session: handlerResponse("session"), Identity: handlerResponse("identity"), Inventory: handlerResponse("inventory"), Risk: handlerResponse("risk"), Workflow: handlerResponse("workflow")})
+	composition, err := NewComposition(Dependencies{Session: handlerResponse("session"), Identity: handlerResponse("identity"), Inventory: handlerResponse("inventory"), Risk: handlerResponse("risk"), Workflow: handlerResponse("workflow"), Connector: handlerResponse("connector")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -317,7 +393,7 @@ func TestWorkflowMutationAllowsPATWithoutBrowserCSRF(t *testing.T) {
 }
 
 func TestUnauthenticatedSessionCallbackDoesNotRequirePreexistingCSRF(t *testing.T) {
-	composition, err := NewComposition(Dependencies{Session: handlerResponse("session"), Identity: handlerResponse("identity"), Inventory: handlerResponse("inventory"), Risk: handlerResponse("risk"), Workflow: handlerResponse("workflow")})
+	composition, err := NewComposition(Dependencies{Session: handlerResponse("session"), Identity: handlerResponse("identity"), Inventory: handlerResponse("inventory"), Risk: handlerResponse("risk"), Workflow: handlerResponse("workflow"), Connector: handlerResponse("connector")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -329,17 +405,18 @@ func TestUnauthenticatedSessionCallbackDoesNotRequirePreexistingCSRF(t *testing.
 }
 
 func TestNewCompositionFailsClosedOnInvalidDependencies(t *testing.T) {
-	valid := Dependencies{Session: handlerResponse("session"), Identity: handlerResponse("identity"), Inventory: handlerResponse("inventory"), Risk: handlerResponse("risk"), Workflow: handlerResponse("workflow")}
+	valid := Dependencies{Session: handlerResponse("session"), Identity: handlerResponse("identity"), Inventory: handlerResponse("inventory"), Risk: handlerResponse("risk"), Workflow: handlerResponse("workflow"), Connector: handlerResponse("connector")}
 	tests := []struct {
 		name         string
 		dependencies Dependencies
 	}{
-		{name: "missing session", dependencies: Dependencies{Identity: valid.Identity, Inventory: valid.Inventory, Risk: valid.Risk, Workflow: valid.Workflow}},
-		{name: "missing identity", dependencies: Dependencies{Session: valid.Session, Inventory: valid.Inventory, Risk: valid.Risk, Workflow: valid.Workflow}},
-		{name: "missing inventory", dependencies: Dependencies{Session: valid.Session, Identity: valid.Identity, Risk: valid.Risk, Workflow: valid.Workflow}},
-		{name: "missing risk", dependencies: Dependencies{Session: valid.Session, Identity: valid.Identity, Inventory: valid.Inventory, Workflow: valid.Workflow}},
-		{name: "missing workflow", dependencies: Dependencies{Session: valid.Session, Identity: valid.Identity, Inventory: valid.Inventory, Risk: valid.Risk}},
-		{name: "same handler crosses trust boundary", dependencies: Dependencies{Session: valid.Session, Identity: valid.Session, Inventory: valid.Inventory, Risk: valid.Risk, Workflow: valid.Workflow}},
+		{name: "missing session", dependencies: Dependencies{Identity: valid.Identity, Inventory: valid.Inventory, Risk: valid.Risk, Workflow: valid.Workflow, Connector: valid.Connector}},
+		{name: "missing identity", dependencies: Dependencies{Session: valid.Session, Inventory: valid.Inventory, Risk: valid.Risk, Workflow: valid.Workflow, Connector: valid.Connector}},
+		{name: "missing inventory", dependencies: Dependencies{Session: valid.Session, Identity: valid.Identity, Risk: valid.Risk, Workflow: valid.Workflow, Connector: valid.Connector}},
+		{name: "missing risk", dependencies: Dependencies{Session: valid.Session, Identity: valid.Identity, Inventory: valid.Inventory, Workflow: valid.Workflow, Connector: valid.Connector}},
+		{name: "missing workflow", dependencies: Dependencies{Session: valid.Session, Identity: valid.Identity, Inventory: valid.Inventory, Risk: valid.Risk, Connector: valid.Connector}},
+		{name: "missing connector", dependencies: Dependencies{Session: valid.Session, Identity: valid.Identity, Inventory: valid.Inventory, Risk: valid.Risk, Workflow: valid.Workflow}},
+		{name: "same handler crosses trust boundary", dependencies: Dependencies{Session: valid.Session, Identity: valid.Session, Inventory: valid.Inventory, Risk: valid.Risk, Workflow: valid.Workflow, Connector: valid.Connector}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

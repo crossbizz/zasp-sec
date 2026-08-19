@@ -15,9 +15,13 @@ type workflowCallDatabase struct {
 	err      error
 	query    string
 	args     []any
+	schema   string
 }
 
 func (database *workflowCallDatabase) SchemaVersion(context.Context) (string, error) {
+	if database.schema != "" {
+		return database.schema, nil
+	}
 	return CoreSchemaVersion, nil
 }
 func (database *workflowCallDatabase) QueryJSON(_ context.Context, query string, args ...any) (json.RawMessage, error) {
@@ -90,6 +94,24 @@ func TestWorkflowRepositoryMutationCarriesIdempotencyVersionAndAtomicAuditIdenti
 	}
 	if database.query != postgresWorkflowMutateSQL || !reflect.DeepEqual(database.args, want) {
 		t.Fatalf("mutation query/args = %q/%#v, want %q/%#v", database.query, database.args, postgresWorkflowMutateSQL, want)
+	}
+}
+
+func TestWorkflowRepositoryIntegrationMutationUsesConnectorAuthority(t *testing.T) {
+	database := &workflowCallDatabase{schema: ConnectorSchemaVersion, response: json.RawMessage(`{"body":{"id":"pid_70000001-0000-4000-8000-000000000001","connector_key":"github","name":"GitHub","configuration":{"authorization_mode":"github_app"},"status":"pending_authorization","created_at":"2026-08-19T00:00:00Z","updated_at":"2026-08-19T00:00:00Z"},"version":1,"secret_generation":0,"audit_id":"pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","correlation_id":"pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","receipt_id":"pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc","replayed":false}`)}
+	repository, _ := NewPostgresRepository(database)
+	identity := fixtureRequestIdentity(t)
+	mutation := WorkflowMutation{
+		Action: "create", Kind: "integration", ID: "pid_70000001-0000-4000-8000-000000000001", Operation: "createIntegration",
+		IdempotencyKey: "idem-connector-create-0001", Intent: json.RawMessage(`{"body":{"connector_key":"github"},"expected_version":0,"resource_id":""}`),
+		Body:    json.RawMessage(`{"id":"pid_70000001-0000-4000-8000-000000000001","connector_key":"github","name":"GitHub","configuration":{"authorization_mode":"github_app"},"status":"pending_authorization","created_at":"2026-08-19T00:00:00Z","updated_at":"2026-08-19T00:00:00Z"}`),
+		AuditID: "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", CorrelationID: "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ReceiptID: "pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+	}
+	if _, err := repository.MutateWorkflow(context.Background(), identity, mutation); err != nil {
+		t.Fatal(err)
+	}
+	if database.query != postgresConnectorWorkflowMutateSQL {
+		t.Fatalf("integration mutation query = %q, want %q", database.query, postgresConnectorWorkflowMutateSQL)
 	}
 }
 

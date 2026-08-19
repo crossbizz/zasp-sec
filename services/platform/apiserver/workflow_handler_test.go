@@ -547,10 +547,19 @@ func TestWorkflowHandlerPublishesOnlyLocallyCompleteCatalogAndTemplates(t *testi
 			TestSemantics string   `json:"test_semantics"`
 		} `json:"items"`
 	}
-	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &catalog) != nil || len(catalog.Items) != 1 || catalog.Items[0].Key != "generic-webhook" ||
-		!slices.Equal(catalog.Items[0].Actions, []string{"store_configuration"}) || catalog.Items[0].AuthMode != "secret_reference" ||
-		!strings.Contains(catalog.Items[0].Description, "future delivery adapter") || !strings.Contains(catalog.Items[0].TestSemantics, "without contacting") {
+	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &catalog) != nil || len(catalog.Items) != 5 {
 		t.Fatalf("local catalog = %d %s", response.Code, response.Body.String())
+	}
+	for _, item := range catalog.Items {
+		if item.Key == "generic-webhook" {
+			if !slices.Equal(item.Actions, []string{"store_configuration"}) || item.AuthMode != "secret_reference" || !strings.Contains(item.Description, "future delivery adapter") || !strings.Contains(item.TestSemantics, "without contacting") {
+				t.Fatalf("local webhook catalog = %#v", item)
+			}
+			continue
+		}
+		if !slices.Equal(item.Actions, []string{"authorize"}) || !slices.Contains([]string{"aws", "github", "kubernetes", "okta"}, item.Key) {
+			t.Fatalf("launch catalog overclaimed collection = %#v", item)
+		}
 	}
 
 	request = workflowRequest(t, identity, testCorrelationID, "listSecurityAgentTemplates", nil, http.MethodGet, "/api/v1/security-agent-templates", "")
@@ -567,6 +576,30 @@ func TestWorkflowHandlerPublishesOnlyLocallyCompleteCatalogAndTemplates(t *testi
 	for _, action := range templates.Items[0].DefaultActions {
 		if !servedWorkflowActions([]string{action}) {
 			t.Fatalf("template publishes unsupported action %q", action)
+		}
+	}
+}
+
+func TestWorkflowHandlerCreatesOAuthIntegrationPendingAuthorizationWithoutCredentialReference(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	repository := &workflowRepositoryStub{}
+	handler, _ := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), time.Now)
+	tests := []struct {
+		key           string
+		configuration string
+	}{
+		{key: "github", configuration: `{"authorization_mode":"github_app"}`},
+		{key: "okta", configuration: `{"issuer":"https://acme.okta.com"}`},
+	}
+	for _, test := range tests {
+		request := workflowRequest(t, identity, testCorrelationID, "createIntegration", nil, http.MethodPost, "/api/v1/integrations", `{"connector_key":"`+test.key+`","name":"Launch","configuration":`+test.configuration+`}`)
+		mutation, _, _, err := handler.buildMutation(request, identity, RoutedOperation{OperationID: "createIntegration", PathParameters: map[string]string{}}, "idem-create-"+test.key+"-0001", "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", testCorrelationID)
+		var body map[string]any
+		if err != nil || json.Unmarshal(mutation.Body, &body) != nil || body["connector_key"] != test.key || body["status"] != "pending_authorization" {
+			t.Fatalf("%s integration = %v %s", test.key, err, mutation.Body)
+		}
+		if strings.Contains(string(mutation.Body), "connection_reference") {
+			t.Fatalf("%s pre-authorization body contains credential reference: %s", test.key, mutation.Body)
 		}
 	}
 }

@@ -9,6 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.107.2
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.44.6
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.46.6
+	github.com/aws/aws-sdk-go-v2/service/sts v1.41.6
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/neo4j/neo4j-go-driver/v6 v6.2.0
 	github.com/open-policy-agent/opa v1.17.0

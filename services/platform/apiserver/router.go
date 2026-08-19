@@ -147,7 +147,7 @@ func requestHasFreshBrowserAuthentication(request *http.Request) bool {
 }
 
 func operationRequiresBrowserScope(operationID string, security []CredentialKind) bool {
-	if operationID == "" || operationID == "startSession" || operationID == "bootstrapSession" || operationID == "completeSessionCallback" || operationID == "signOutSession" {
+	if operationID == "" || operationID == "startSession" || operationID == "bootstrapSession" || operationID == "completeSessionCallback" || operationID == "completeIntegrationOAuthCallback" || operationID == "signOutSession" {
 		return false
 	}
 	for _, kind := range security {

@@ -2,6 +2,7 @@ package apiserver
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"regexp"
@@ -20,7 +21,7 @@ const (
 	postgresConnectorBeginEffectSQL         = `SELECT zasp_connector_begin_effect($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
 	postgresConnectorResolveEffectSQL       = `SELECT zasp_connector_resolve_effect($1,$2,$3,$4,$5,$6,$7::jsonb,$8)`
 	postgresConnectorPutCredentialSQL       = `SELECT zasp_connector_put_credential($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb)`
-	postgresConnectorCompleteOAuthSQL       = `SELECT zasp_connector_complete_oauth($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb)`
+	postgresConnectorCompleteOAuthSQL       = `SELECT zasp_connector_complete_oauth($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12)`
 	postgresConnectorClaimReconciliationSQL = `SELECT zasp_connector_claim_reconciliation($1,$2,$3)`
 )
 
@@ -44,20 +45,38 @@ func NewConnectorRepository(database JSONDatabase) (*ConnectorRepository, error)
 	if nilInterface(database) {
 		return nil, ErrRepositoryConfiguration
 	}
-	version, err := database.SchemaVersion(context.Background())
-	if err != nil || version != ConnectorSchemaVersion {
+	repository := &ConnectorRepository{database: database}
+	if err := repository.ready(context.Background()); err != nil {
 		return nil, ErrRepositoryConfiguration
 	}
-	payload, err := database.QueryJSON(context.Background(), postgresConnectorReadySQL, migrations.ConnectorAuthorization().Checksum(), migrations.ConnectorAuthorizationSemanticFingerprint())
+	return repository, nil
+}
+
+func (repository *ConnectorRepository) Ready(ctx context.Context) error {
+	if err := repository.ready(ctx); err != nil {
+		return ErrRepositoryUnavailable
+	}
+	return nil
+}
+
+func (repository *ConnectorRepository) ready(ctx context.Context) error {
+	if !validConnectorRepository(repository, ctx) {
+		return ErrRepositoryUnavailable
+	}
+	version, err := repository.database.SchemaVersion(ctx)
+	if err != nil || version != ConnectorSchemaVersion {
+		return ErrRepositoryUnavailable
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresConnectorReadySQL, migrations.ConnectorAuthorization().Checksum(), migrations.ConnectorAuthorizationSemanticFingerprint())
 	var ready bool
 	if err != nil || decodeStrictDiscovery(payload, &ready) != nil || !ready {
-		return nil, ErrRepositoryConfiguration
+		return ErrRepositoryUnavailable
 	}
-	payload, err = database.QueryJSON(context.Background(), postgresDiscoveryPrincipalReadySQL, DiscoveryDatabaseAuthorityAPI)
+	payload, err = repository.database.QueryJSON(ctx, postgresDiscoveryPrincipalReadySQL, DiscoveryDatabaseAuthorityAPI)
 	if err != nil || decodeStrictDiscovery(payload, &ready) != nil || !ready {
-		return nil, ErrRepositoryConfiguration
+		return ErrRepositoryUnavailable
 	}
-	return &ConnectorRepository{database: database}, nil
+	return nil
 }
 
 type OAuthStart struct {
@@ -225,7 +244,9 @@ func (repository *ConnectorRepository) CompleteOAuth(ctx context.Context, scope 
 	if !validConnectorRepository(repository, ctx) || scope.Validate() != nil || !validProductID(input.AttemptID) || !validProductID(input.EffectID) || !validProductID(input.ConnectionID) || !validOpaqueReference(input.ConnectionReference) || len(input.ProviderSubject) < 1 || len(input.ProviderSubject) > 256 || !validProductID(input.CredentialID) || len(input.CredentialClass) < 1 || len(input.CredentialClass) > 64 || !validConnectorMetadata(input.Metadata) {
 		return OAuthCompletionRecord{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresConnectorCompleteOAuthSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), input.AttemptID, input.EffectID, input.ConnectionID, input.ConnectionReference, input.ProviderSubject, input.CredentialID, input.CredentialClass, input.Metadata)
+	canonicalMetadata, _ := canonicalConnectorMetadata(input.Metadata)
+	digest := sha256.Sum256([]byte(strings.Join([]string{input.AttemptID, input.EffectID, input.ConnectionID, input.ConnectionReference, input.ProviderSubject, input.CredentialID, input.CredentialClass, string(canonicalMetadata)}, "\x1f")))
+	payload, err := repository.database.QueryJSON(ctx, postgresConnectorCompleteOAuthSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), input.AttemptID, input.EffectID, input.ConnectionID, input.ConnectionReference, input.ProviderSubject, input.CredentialID, input.CredentialClass, canonicalMetadata, digest[:])
 	if err != nil {
 		return OAuthCompletionRecord{}, discoveryProviderError(err)
 	}
@@ -235,6 +256,18 @@ func (repository *ConnectorRepository) CompleteOAuth(ctx context.Context, scope 
 	}
 	result.CompletedAt = result.CompletedAt.UTC()
 	return result, nil
+}
+
+func canonicalConnectorMetadata(value json.RawMessage) (json.RawMessage, error) {
+	var object map[string]any
+	if decodeStrictDiscovery(value, &object) != nil || object == nil {
+		return nil, ErrRepositoryOperation
+	}
+	canonical, err := json.Marshal(object)
+	if err != nil {
+		return nil, ErrRepositoryOperation
+	}
+	return canonical, nil
 }
 
 type ConnectorEffectLease struct {

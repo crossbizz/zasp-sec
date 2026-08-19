@@ -7,11 +7,14 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
+	"github.com/zasp-ai/zasp-sec/services/platform/connectors/githubdiscovery"
 )
 
 func buildRuntimeDependencies(ctx context.Context, config RuntimeConfig) (RuntimeDependencies, error) {
@@ -57,7 +60,7 @@ func buildRuntimeDependencies(ctx context.Context, config RuntimeConfig) (Runtim
 		_ = database.Close()
 		return RuntimeDependencies{}, err
 	}
-	dependencies.Closers = []io.Closer{database}
+	dependencies.Closers = append(dependencies.Closers, database)
 	dependencies.Metrics.poolStats = func() poolSaturation {
 		stat := pool.Stat()
 		return poolSaturation{Acquired: stat.AcquiredConns(), Idle: stat.IdleConns(), Maximum: stat.MaxConns()}
@@ -74,7 +77,56 @@ func composeRuntimeDependencies(config RuntimeConfig, database apiserver.JSONDat
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
-	handlers, authenticate, err := apiserver.NewProductionHandlers(repository, tracedProvider, apiserver.CookiePolicy{Secure: config.CookieSecure, WorkflowSigningKey: []byte(config.WorkflowSigningKey), TokenRevealKey: config.TokenRevealKey, Clock: func() time.Time { return time.Now().UTC().Truncate(time.Second) }, BuildVersion: buildVersion, DeploymentMode: config.DeploymentMode, OrganizationID: config.OrganizationID})
+	connectorRepository, err := apiserver.NewConnectorRepository(tracedDatabase)
+	if err != nil {
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	secretsClient, secretsTransport, err := newConnectorSecretsClient(config)
+	if err != nil {
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	secretsDriver := &connectorSecretsDriver{client: secretsClient}
+	secretStore, err := apiserver.NewDurableOAuthSecretStore(secretsDriver, config.ConnectorSecretPrefix, config.ConnectorKMSKeyARN, config.ProviderTimeout, func() time.Time { return time.Now().UTC() })
+	if err != nil {
+		secretsTransport.CloseIdleConnections()
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	providerHTTP, err := newConnectorHTTPClient(config.ProviderTimeout)
+	if err != nil {
+		secretsTransport.CloseIdleConnections()
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	providerTransport, ok := providerHTTP.Transport.(*http.Transport)
+	if !ok {
+		secretsTransport.CloseIdleConnections()
+		providerHTTP.CloseIdleConnections()
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	connectorResources := []io.Closer{transportCloser{secretsTransport}, transportCloser{providerTransport}}
+	keepConnectorResources := false
+	defer func() {
+		if !keepConnectorResources {
+			for _, closer := range connectorResources {
+				_ = closer.Close()
+			}
+		}
+	}()
+	providerSecrets := &connectorProviderSecrets{driver: secretsDriver, root: strings.TrimSuffix(config.ConnectorSecretPrefix, "/oauth"), kmsKey: config.ConnectorKMSKeyARN}
+	githubAdapter, err := githubdiscovery.NewAdapter(githubdiscovery.Config{ClientID: config.GitHubClientID, ClientSecretReference: config.GitHubSecretReference, CallbackURL: config.PublicOrigin + "/api/v1/integrations/oauth/callback"}, &githubExchangeClient{http: providerHTTP, secrets: providerSecrets}, config.ProviderTimeout)
+	if err != nil {
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	connectorHandler, err := apiserver.NewConnectorHTTPHandler(apiserver.ConnectorHTTPConfig{
+		Repository: connectorRepository, Workflows: repository, Secrets: secretStore, Clock: func() time.Time { return time.Now().UTC() },
+		Providers: map[string]apiserver.ConnectorOAuthProviderDefinition{
+			"github": {Provider: &githubOAuthProvider{adapter: githubAdapter}, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"},
+			"okta":   {Factory: &oktaOAuthFactory{clientID: config.OktaClientID, secretReference: config.OktaSecretReference, callback: config.PublicOrigin + "/api/v1/integrations/oauth/callback", exchange: &oktaExchangeClient{http: providerHTTP, secrets: providerSecrets}, timeout: config.ProviderTimeout}, RequestedScopes: []string{"offline_access", "okta.apps.read", "okta.groups.read", "okta.users.read"}, CredentialClass: "okta_refresh_reference"},
+		},
+	})
+	if err != nil {
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	handlers, authenticate, err := apiserver.NewProductionHandlers(repository, tracedProvider, connectorHandler, apiserver.CookiePolicy{Secure: config.CookieSecure, WorkflowSigningKey: []byte(config.WorkflowSigningKey), TokenRevealKey: config.TokenRevealKey, Clock: func() time.Time { return time.Now().UTC().Truncate(time.Second) }, BuildVersion: buildVersion, DeploymentMode: config.DeploymentMode, OrganizationID: config.OrganizationID})
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
@@ -96,15 +148,28 @@ func composeRuntimeDependencies(config RuntimeConfig, database apiserver.JSONDat
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
+	keepConnectorResources = true
 	return RuntimeDependencies{ProductHandler: edge, Metrics: metrics, ReadinessCheck: func(ctx context.Context) error {
 		if err := repository.Ready(ctx); err != nil {
+			return errRuntimeUnavailable
+		}
+		if err := connectorRepository.Ready(ctx); err != nil {
 			return errRuntimeUnavailable
 		}
 		if err := tracedProvider.Ready(ctx); err != nil {
 			return errRuntimeUnavailable
 		}
 		return nil
-	}, Stores: []StoreDependency{{Name: "postgres-core", Durable: true}}}, nil
+	}, Stores: []StoreDependency{{Name: "postgres-core", Durable: true}, {Name: "aws-secrets-manager-oauth", Durable: true}}, Closers: connectorResources}, nil
+}
+
+type transportCloser struct{ transport *http.Transport }
+
+func (closer transportCloser) Close() error {
+	if closer.transport != nil {
+		closer.transport.CloseIdleConnections()
+	}
+	return nil
 }
 
 type tracedJSONDatabase struct {

@@ -14,6 +14,7 @@ type Dependencies struct {
 	Inventory http.Handler
 	Risk      http.Handler
 	Workflow  http.Handler
+	Connector http.Handler
 }
 
 type OperationDefinition struct {
@@ -32,6 +33,7 @@ const (
 	inventoryDependency
 	riskDependency
 	workflowDependency
+	connectorDependency
 )
 
 type coreOperation struct {
@@ -114,6 +116,8 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"GET", "/api/v1/integrations/{id}", "getIntegration", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"PATCH", "/api/v1/integrations/{id}", "updateIntegration", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"DELETE", "/api/v1/integrations/{id}", "deleteIntegration", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/integrations/{id}/authorize", "authorizeIntegration", "manage_workflows", []string{"BrowserSession"}}, connectorDependency},
+	{OperationDefinition{"GET", "/api/v1/integrations/oauth/callback", "completeIntegrationOAuthCallback", "manage_workflows", []string{"BrowserSession"}}, connectorDependency},
 	{OperationDefinition{"GET", "/api/v1/security-agent-templates", "listSecurityAgentTemplates", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/security-agents", "listSecurityAgents", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/security-agents", "createSecurityAgent", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
@@ -126,7 +130,7 @@ func withBrowserExpectedScope(operations []coreOperation) []coreOperation {
 	for index := range operations {
 		definition := &operations[index].OperationDefinition
 		switch definition.OperationID {
-		case "", "startSession", "bootstrapSession", "completeSessionCallback", "signOutSession":
+		case "", "startSession", "bootstrapSession", "completeSessionCallback", "completeIntegrationOAuthCallback", "signOutSession":
 			continue
 		}
 		for schemeIndex, scheme := range definition.Security {
@@ -151,7 +155,7 @@ func CoreOperations() []OperationDefinition {
 }
 
 func NewComposition(dependencies Dependencies) (http.Handler, error) {
-	handlers := []http.Handler{dependencies.Session, dependencies.Identity, dependencies.Inventory, dependencies.Risk, dependencies.Workflow}
+	handlers := []http.Handler{dependencies.Session, dependencies.Identity, dependencies.Inventory, dependencies.Risk, dependencies.Workflow, dependencies.Connector}
 	seenHandlers := make(map[uintptr]struct{}, len(handlers))
 	for _, handler := range handlers {
 		identity, valid := handlerIdentity(handler)
@@ -192,7 +196,7 @@ func requiresFreshAuthentication(operationID string) bool {
 	switch operationID {
 	case "createWorkspace", "updateWorkspace", "createEnvironment", "updateEnvironment",
 		"updateMemberRole", "createAPIToken", "rotateAPIToken", "revokeAPIToken", "revealAPIToken", "acknowledgeAPITokenRevealGrant",
-		"revokeSession", "updateDataControls":
+		"revokeSession", "updateDataControls", "authorizeIntegration":
 		return true
 	default:
 		return false
@@ -228,6 +232,8 @@ func dependencyHandler(dependencies Dependencies, kind dependencyKind) http.Hand
 		return dependencies.Risk
 	case workflowDependency:
 		return dependencies.Workflow
+	case connectorDependency:
+		return dependencies.Connector
 	default:
 		return nil
 	}

@@ -46,7 +46,10 @@ type JSONDatabase interface {
 	Exec(context.Context, string, ...any) error
 }
 
-type PostgresRepository struct{ database JSONDatabase }
+type PostgresRepository struct {
+	database           JSONDatabase
+	connectorWorkflows bool
+}
 
 func NewPostgresRepository(database JSONDatabase) (*PostgresRepository, error) {
 	if nilInterface(database) {
@@ -56,7 +59,7 @@ func NewPostgresRepository(database JSONDatabase) (*PostgresRepository, error) {
 	if err != nil || version != CoreSchemaVersion && version != DiscoverySchemaVersion && version != ConnectorSchemaVersion {
 		return nil, ErrRepositoryConfiguration
 	}
-	return &PostgresRepository{database: database}, nil
+	return &PostgresRepository{database: database, connectorWorkflows: version == ConnectorSchemaVersion}, nil
 }
 
 func (repository *PostgresRepository) Ready(ctx context.Context) error {

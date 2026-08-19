@@ -558,7 +558,11 @@ func (handler *workflowHTTPHandler) integrationBody(request *http.Request, scope
 	}
 	now := handler.now().Format(time.RFC3339)
 	if current == nil {
-		current = map[string]any{"id": id, "connector_key": input.ConnectorKey, "status": "configured", "created_at": now}
+		status := "pending_authorization"
+		if input.ConnectorKey == "generic-webhook" {
+			status = "configured"
+		}
+		current = map[string]any{"id": id, "connector_key": input.ConnectorKey, "status": status, "created_at": now}
 	}
 	current["name"], current["configuration"], current["updated_at"] = input.Name, input.Configuration, now
 	body, _ := json.Marshal(current)
@@ -631,8 +635,16 @@ func workflowTemplates() []map[string]any {
 
 func locallyCompleteWorkflowManifests() []platformintegration.ConnectorManifest {
 	values := platformintegration.BuiltinManifests()
-	result := make([]platformintegration.ConnectorManifest, 0, 1)
+	result := make([]platformintegration.ConnectorManifest, 0, 5)
 	for _, value := range values {
+		if value.Key == "aws" || value.Key == "github" || value.Key == "kubernetes" || value.Key == "okta" {
+			value.Description = "Authorize " + value.Provider + " through the first-party credential boundary. Collection remains unavailable until its worker capability is ready."
+			value.DataTypes = []string{"authorization"}
+			value.Actions = []string{"authorize"}
+			value.TestSemantics = "Validate the bounded first-party authorization and durable opaque credential reference without claiming collection readiness."
+			result = append(result, value)
+			continue
+		}
 		if value.Key == "generic-webhook" {
 			value.Description = "Store one scoped HTTPS webhook configuration for a future delivery adapter."
 			value.DataTypes = []string{"configuration"}

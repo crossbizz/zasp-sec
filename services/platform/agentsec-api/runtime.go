@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -23,30 +24,42 @@ var (
 )
 
 type RuntimeConfig struct {
-	Environment           string
-	DeploymentMode        string
-	OrganizationID        string
-	ProductListenAddress  string
-	InternalListenAddress string
-	PublicOrigin          string
-	TrustedProxyCIDRs     []string
-	RequestRatePerSecond  int
-	RequestBurst          int
-	CookieSecure          bool
-	ProviderTimeout       time.Duration
-	RequestTimeout        time.Duration
-	ShutdownTimeout       time.Duration
-	ReadinessInterval     time.Duration
-	ReadinessMaxInterval  time.Duration
-	PostgresDSN           string
-	StytchBaseURL         string
-	StytchAuthorizeURL    string
-	StytchProjectID       string
-	StytchSecret          string
-	StytchPublicToken     string
-	StytchOrganizationID  string
-	WorkflowSigningKey    string
-	TokenRevealKey        []byte
+	Environment                 string
+	DeploymentMode              string
+	OrganizationID              string
+	ProductListenAddress        string
+	InternalListenAddress       string
+	PublicOrigin                string
+	TrustedProxyCIDRs           []string
+	RequestRatePerSecond        int
+	RequestBurst                int
+	CookieSecure                bool
+	ProviderTimeout             time.Duration
+	RequestTimeout              time.Duration
+	ShutdownTimeout             time.Duration
+	ReadinessInterval           time.Duration
+	ReadinessMaxInterval        time.Duration
+	PostgresDSN                 string
+	StytchBaseURL               string
+	StytchAuthorizeURL          string
+	StytchProjectID             string
+	StytchSecret                string
+	StytchPublicToken           string
+	StytchOrganizationID        string
+	WorkflowSigningKey          string
+	TokenRevealKey              []byte
+	ConnectorAWSRegion          string
+	ConnectorRoleARN            string
+	ConnectorTokenFile          string
+	ConnectorKMSKeyARN          string
+	ConnectorSecretPrefix       string
+	GitHubClientID              string
+	GitHubSecretReference       string
+	OktaClientID                string
+	OktaSecretReference         string
+	NangoBaseURL                string
+	NangoServiceSecretReference string
+	NangoEnvironment            string
 }
 
 type StoreDependency struct {
@@ -81,6 +94,9 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 		CookieSecure: cookieSecure, ProviderTimeout: providerTimeout, RequestTimeout: requestTimeout, ShutdownTimeout: shutdownTimeout,
 		ReadinessInterval: readinessInterval, ReadinessMaxInterval: readinessMaxInterval,
 		PostgresDSN: getenv("ZASP_POSTGRES_DSN"), StytchBaseURL: getenv("ZASP_STYTCH_BASE_URL"), StytchAuthorizeURL: getenv("ZASP_STYTCH_AUTHORIZE_URL"), StytchProjectID: getenv("ZASP_STYTCH_PROJECT_ID"), StytchSecret: getenv("ZASP_STYTCH_SECRET"), StytchPublicToken: getenv("ZASP_STYTCH_PUBLIC_TOKEN"), StytchOrganizationID: getenv("ZASP_STYTCH_ORGANIZATION_ID"), WorkflowSigningKey: getenv("ZASP_WORKFLOW_SIGNING_KEY"),
+		ConnectorAWSRegion: getenv("ZASP_CONNECTOR_AWS_REGION"), ConnectorRoleARN: getenv("ZASP_CONNECTOR_ROLE_ARN"), ConnectorTokenFile: getenv("ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE"), ConnectorKMSKeyARN: getenv("ZASP_CONNECTOR_KMS_KEY_ARN"), ConnectorSecretPrefix: getenv("ZASP_CONNECTOR_SECRET_PREFIX"),
+		GitHubClientID: getenv("ZASP_GITHUB_CLIENT_ID"), GitHubSecretReference: getenv("ZASP_GITHUB_CLIENT_SECRET_REFERENCE"), OktaClientID: getenv("ZASP_OKTA_CLIENT_ID"), OktaSecretReference: getenv("ZASP_OKTA_CLIENT_SECRET_REFERENCE"),
+		NangoBaseURL: getenv("ZASP_NANGO_BASE_URL"), NangoServiceSecretReference: getenv("ZASP_NANGO_SERVICE_SECRET_REFERENCE"), NangoEnvironment: getenv("ZASP_NANGO_ENVIRONMENT"),
 	}
 	revealKey := getenv("ZASP_TOKEN_REVEAL_KEY")
 	decodedRevealKey, revealKeyErr := base64.RawURLEncoding.DecodeString(revealKey)
@@ -120,6 +136,12 @@ func validRuntimeConfig(config RuntimeConfig) bool {
 	if len(config.TrustedProxyCIDRs) == 0 || config.RequestRatePerSecond < 1 || config.RequestRatePerSecond > 10000 || config.RequestBurst < 1 || config.RequestBurst > 10000 {
 		return false
 	}
+	if !connectorRegionPattern.MatchString(config.ConnectorAWSRegion) || !connectorRolePattern.MatchString(config.ConnectorRoleARN) || config.ConnectorTokenFile != "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || !connectorKMSPattern.MatchString(config.ConnectorKMSKeyARN) || !connectorPrefixPattern.MatchString(config.ConnectorSecretPrefix) || !strings.HasSuffix(config.ConnectorSecretPrefix, "/oauth") || !githubClientPattern.MatchString(config.GitHubClientID) || !connectorReferencePattern.MatchString(config.GitHubSecretReference) || !oktaClientPattern.MatchString(config.OktaClientID) || !connectorReferencePattern.MatchString(config.OktaSecretReference) {
+		return false
+	}
+	if !validOptionalNangoConfig(config) {
+		return false
+	}
 	for _, value := range config.TrustedProxyCIDRs {
 		_, network, parseErr := net.ParseCIDR(value)
 		if parseErr != nil || network.String() != value {
@@ -139,6 +161,27 @@ func validRuntimeConfig(config RuntimeConfig) bool {
 		return false
 	}
 	return config.ProviderTimeout > 0 && config.ProviderTimeout <= 30*time.Second && config.RequestTimeout > 0 && config.RequestTimeout <= 30*time.Second && config.ShutdownTimeout > 0 && config.ShutdownTimeout <= 30*time.Second && config.ReadinessInterval >= 100*time.Millisecond && config.ReadinessMaxInterval >= config.ReadinessInterval && config.ReadinessMaxInterval <= 5*time.Minute
+}
+
+var connectorRegionPattern = regexp.MustCompile(`^[a-z]{2}(?:-gov)?-[a-z]+-[0-9]$`)
+var connectorRolePattern = regexp.MustCompile(`^arn:aws:iam::[0-9]{12}:role/[A-Za-z0-9+=,.@_/-]{1,512}$`)
+var connectorKMSPattern = regexp.MustCompile(`^arn:aws:kms:[a-z]{2}(?:-gov)?-[a-z]+-[0-9]:[0-9]{12}:key/[0-9a-f-]{36}$`)
+var connectorPrefixPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9/_-]{2,127}$`)
+var connectorReferencePattern = regexp.MustCompile(`^ref:(?:github|okta)/[a-z0-9][a-z0-9_./:-]{3,507}$`)
+var githubClientPattern = regexp.MustCompile(`^Iv1\.[A-Za-z0-9]{16}$`)
+var oktaClientPattern = regexp.MustCompile(`^0oa[A-Za-z0-9]{16}$`)
+var nangoReferencePattern = regexp.MustCompile(`^ref:nango/[a-z0-9][a-z0-9_./:-]{7,507}$`)
+var nangoEnvironmentPattern = regexp.MustCompile(`^[a-z][a-z0-9_-]{2,63}$`)
+
+func validOptionalNangoConfig(config RuntimeConfig) bool {
+	if config.NangoBaseURL == "" && config.NangoServiceSecretReference == "" && config.NangoEnvironment == "" {
+		return true
+	}
+	if !nangoReferencePattern.MatchString(config.NangoServiceSecretReference) || !nangoEnvironmentPattern.MatchString(config.NangoEnvironment) {
+		return false
+	}
+	parsed, err := url.Parse(config.NangoBaseURL)
+	return err == nil && parsed.Scheme == "http" && parsed.User == nil && parsed.RawQuery == "" && parsed.Fragment == "" && parsed.Path == "" && parsed.Port() != "" && strings.HasSuffix(strings.ToLower(parsed.Hostname()), ".svc.cluster.local") && net.ParseIP(parsed.Hostname()) == nil
 }
 
 func parseTrustedProxyCIDRs(value string) []string {

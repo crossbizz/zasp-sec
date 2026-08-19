@@ -16,6 +16,7 @@ const (
 	postgresWorkflowGetSQL                = `SELECT zasp_workflow_get($1, $2, $3, $4, $5)`
 	postgresWorkflowReplaySQL             = `SELECT zasp_workflow_replay($1, $2, $3, $4, $5, $6, $7::jsonb)`
 	postgresWorkflowMutateSQL             = `SELECT zasp_workflow_mutate($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13, $14, $15)`
+	postgresConnectorWorkflowMutateSQL    = `SELECT zasp_connector_workflow_mutate($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13, $14, $15)`
 	postgresWorkflowReceiptListSQL        = `SELECT zasp_workflow_receipt_list($1, $2, $3, $4, $5)`
 	postgresWorkflowReceiptAcknowledgeSQL = `SELECT zasp_workflow_receipt_acknowledge($1, $2, $3, $4, $5)`
 	postgresWorkflowReceiptCleanupSQL     = `SELECT zasp_workflow_receipt_cleanup($1)`
@@ -135,7 +136,11 @@ func (repository *PostgresRepository) MutateWorkflow(ctx context.Context, identi
 	if repository == nil || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) || !validWorkflowMutation(mutation) || !validMutationReceiptIdentity(identity, mutation.ReceiptID) {
 		return WorkflowMutationResult{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresWorkflowMutateSQL,
+	query := postgresWorkflowMutateSQL
+	if mutation.Kind == "integration" && repository.connectorWorkflows {
+		query = postgresConnectorWorkflowMutateSQL
+	}
+	payload, err := repository.database.QueryJSON(ctx, query,
 		mutation.Action, mutation.Kind, mutation.ID,
 		identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(),
 		identity.PrincipalID.String(), mutation.Operation, mutation.IdempotencyKey, mutation.ExpectedVersion, mutation.Intent, mutation.Body, mutation.AuditID, mutation.CorrelationID,
