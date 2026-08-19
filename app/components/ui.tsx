@@ -2,7 +2,7 @@
 
 import { X, Search, ChevronDown, Check, AlertTriangle, Inbox, LoaderCircle } from "lucide-react";
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
-import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import type { Severity } from "../domain/types";
 
@@ -119,9 +119,9 @@ function useAccessibleDialog(open: boolean, closeDisabled: boolean, onClose: () 
   return { dialogRef, layerRef };
 }
 
-export function Button({ variant = "secondary", icon, children, className = "", ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "ghost" | "danger"; icon?: ReactNode }) {
-  return <button className={`button button--${variant} ${className}`} {...props}>{icon}{children}</button>;
-}
+export const Button = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "ghost" | "danger"; icon?: ReactNode }>(function Button({ variant = "secondary", icon, children, className = "", ...props }, ref) {
+  return <button ref={ref} className={`button button--${variant} ${className}`} {...props}>{icon}{children}</button>;
+});
 
 export function Card({ children, className = "", id, title, action }: { children: ReactNode; className?: string; id?: string; title?: ReactNode; action?: ReactNode }) {
   return <section id={id} className={`card ${className}`}>{title && <div className="card__header"><div className="card__title">{title}</div>{action}</div>}{children}</section>;

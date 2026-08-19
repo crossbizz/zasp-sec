@@ -86,6 +86,7 @@ export function APIAccessView({ api: suppliedAPI, client }: { api?: APIAccessAPI
   const [acknowledging, setAcknowledging] = useState(false);
   const [name, setName] = useState(""); const [workspaceId, setWorkspaceId] = useState(""); const [environmentId, setEnvironmentId] = useState("");
   const pendingMutation = useRef<PendingMutation | null>(null);
+  const createTokenButton = useRef<HTMLButtonElement>(null);
   const [unresolvedMutation, setUnresolvedMutation] = useState<PendingMutation | null>(null);
 
   const load = useCallback(async (signal?: AbortSignal) => {
@@ -108,12 +109,12 @@ export function APIAccessView({ api: suppliedAPI, client }: { api?: APIAccessAPI
     if (!api || !fresh) return;
     setError(null); setSecretStatus("");
     try { setRevealed(await api.revealGrant(grant.grantId)); }
-    catch { setError("The API token reveal grant is unavailable or expired"); await load(); }
+    catch { await load(); setError("The API token reveal grant is unavailable or expired"); }
   };
   const closeSecret = async () => {
     if (!api || !revealed || acknowledging) return;
     setAcknowledging(true); setSecretStatus("Destroying the encrypted recovery copy…");
-    try { await api.acknowledgeGrant(revealed.grantId); setGrants((current) => current.filter((grant) => grant.grantId !== revealed.grantId)); pendingMutation.current = null; setUnresolvedMutation(null); setRevealed(null); setSecretStatus(""); setNotice("API token saved and reveal grant acknowledged"); }
+    try { await api.acknowledgeGrant(revealed.grantId); setGrants((current) => current.filter((grant) => grant.grantId !== revealed.grantId)); pendingMutation.current = null; setUnresolvedMutation(null); setRevealed(null); setSecretStatus(""); setNotice("API token saved and reveal grant acknowledged"); window.requestAnimationFrame(() => createTokenButton.current?.focus()); }
     catch { setSecretStatus("Acknowledgement failed. Keep this dialog open and retry."); }
     finally { setAcknowledging(false); }
   };
@@ -135,7 +136,7 @@ export function APIAccessView({ api: suppliedAPI, client }: { api?: APIAccessAPI
       {grants.length === 0 ? <EmptyState title="No pending credentials" description="Unacknowledged token credentials after create or rotate appear here across reloads." /> : <ul className="identity-list">{grants.map((grant) => <li key={grant.grantId}><span><strong>{grant.operation === "createAPIToken" ? "Created token" : "Rotated token"}</strong><small>expires {grant.expiresAt}</small></span><Button disabled={!fresh || revealed !== null} onClick={() => void reveal(grant)}>Reveal token</Button></li>)}</ul>}
     </Card>
     <Card title={<h2>Create API token</h2>}><div className="identity-form-grid"><Field disabled={!fresh || recoveryLocked} label="Token name" value={name} onChange={(event) => setName(event.target.value)} /><Field disabled={!fresh || recoveryLocked} label="Workspace ID" value={workspaceId} onChange={(event) => setWorkspaceId(event.target.value)} /><Field disabled={!fresh || recoveryLocked} label="Environment ID" value={environmentId} onChange={(event) => setEnvironmentId(event.target.value)} /></div>
-      <Button variant="primary" disabled={!fresh || revealed !== null || grants.length > 0 || unresolvedMutation?.kind === "rotate"} onClick={() => void (async () => {
+      <Button ref={createTokenButton} variant="primary" disabled={!fresh || revealed !== null || grants.length > 0 || unresolvedMutation?.kind === "rotate"} onClick={() => void (async () => {
         setError(null); setNotice(null); if (!name.trim() || !workspaceId.startsWith("pid_") || !environmentId.startsWith("pid_")) { setError("Enter token name and canonical scope IDs"); return; } if (!api) { setError("API token could not be created"); return; }
         const fingerprint = JSON.stringify([name.trim(), workspaceId, environmentId]); const retained = pendingMutation.current; const key = retained?.kind === "create" && retained.fingerprint === fingerprint ? retained.key : `admin_${crypto.randomUUID()}`; retainMutation({ kind: "create", key, fingerprint });
         try { const created = await api.createToken({ name: name.trim(), workspaceId, environmentId, permissions: ["view"], expiresAt: expiresAt() }, key); setTokens((current) => [...current.filter((item) => item.id !== created.token.id), created.token]); setGrants((current) => [...current.filter((item) => item.grantId !== created.grant.grantId), created.grant]); retainMutation(null); setNotice("API token created; reveal it before the grant expires"); await reveal(created.grant); }

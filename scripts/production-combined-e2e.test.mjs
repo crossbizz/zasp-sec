@@ -14,19 +14,23 @@ test("combined production E2E owns every local boundary and fixed assertion", as
     "/api/v1/session/start", "/auth/callback", "__Host-zasp_session", "Support agent",
     "not_found", "SIGTERM", "pg_ctl", "FIXED_NODE_VERSION", "Roll to monitor",
     "Save Security Agent definition", "configured", "Durable, scoped response definitions",
-    "lostPolicyResponseKeys", "Page.reload", "Recover committed operations", "Acknowledge recovered result", "full-document receipt recovery", "two lost browser responses changed idempotency key", "1|2|2|1",
+    "lostPolicyResponseKeys", "replaceTarget", "Recover committed operations", "Acknowledge recovered result", "full-document receipt recovery", "two lost browser responses changed idempotency key", "1|2|2|1",
     "Input.dispatchKeyEvent", "browserDialogIsolation", "keyboard focus trap and restoration",
     "PAT success, replay, and zero browser receipts", "1|1|0", "workflowPageRequests", "Paged policy 1000", "Paged integration 1001",
     "Second-tab committed policy", "Expiry-race committed policy", "seedExpiringReceipt", "expired receipt left workflow mutations locked",
     "startBrowserTab", "actual two-tab delayed out-of-order ABA stale-scope recovery proven", "X-Zasp-Expected-Scope",
     "delayedFirstTabBootstrap", "secondTabBootstrapWhileFirstDelayed", "firstTabScopeStaleResponses", "X-Zasp-E2E-Tab",
     "ZASP_DEPLOYMENT_MODE", "/administration/identity-access", "member-target-local", "Member role updated; active sessions revoked",
-    "/administration/api-access", "Shown only once\\.", "Rotate E2E API token", "old API token remained valid after rotation",
+    "/administration/api-access", "ZASP_TOKEN_REVEAL_KEY", "lostTokenResponses", "Save API token", "Copy token",
+    "Acknowledgement failed", "Rotate E2E API token", "old API token remained valid after rotation", "api_token.reveal.acknowledge", "restartReloadURL",
+    "Fresh authentication expired", "Reauthenticate", "configured provider remained falsely healthy", "CDP request timed out", "navigateBrowser", "reloadBrowser", "Target.attachToTarget", "Target.closeTarget", "sessionId", "cdp.replaceTarget",
     "session-investigation-e2e", "Shell requested by E2E", "Revoke session session-investigation-e2e",
     "/administration/audit-log", "Audit exports unavailable", "/compliance/evidence", "Evidence exports unavailable",
     "/administration/data-retention", "Data deletion unavailable", "/administration/external-data-flows", "identity-provider",
     "/administration/system-health", "production administration lifecycle and hidden provider/export mutations proven",
   ]) assert.match(source, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.doesNotMatch(source, /Shown only once/);
+  assert.doesNotMatch(source, /"Page\.(?:navigate|reload)"/);
   for (const unsafeControl of ["Enroll sensor", "Create enrollment", "Start bounded run", "waiting_approval", "one-time sensor credential", "Simulate policy", "Decision history"]) {
     const escaped = unsafeControl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     assert.doesNotMatch(source, new RegExp(`(?:clickBrowserText|clickBrowserTextContains|clickBrowserAria)\\([^\\n]*${escaped}`, "i"));

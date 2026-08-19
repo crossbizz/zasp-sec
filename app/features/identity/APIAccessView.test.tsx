@@ -40,6 +40,7 @@ describe("API Access product surface", () => {
     await user.click(screen.getByRole("button", { name: "I saved it — destroy recovery copy" }));
     await waitFor(() => expect(acknowledgeGrant).toHaveBeenCalledWith("pid_grant"));
     expect(screen.queryByRole("dialog", { name: "Save API token" })).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Create API token" })).toHaveFocus());
 
     vi.spyOn(window, "confirm").mockReturnValue(true);
     await user.click(screen.getByRole("button", { name: "Revoke CI scanner" }));
@@ -100,6 +101,21 @@ describe("API Access product surface", () => {
     await user.click(screen.getByRole("button", { name: "I saved it — destroy recovery copy" }));
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Save API token" })).not.toBeInTheDocument());
     expect(acknowledgeGrant).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps a pending grant and visible retry feedback after a lost reveal response", async () => {
+    const user = userEvent.setup();
+    const grant = { grantId: "pid_grant", tokenId: "pid_token", operation: "createAPIToken" as const, expiresAt: "2026-08-19T00:05:00Z" };
+    const revealGrant = vi.fn()
+      .mockRejectedValueOnce(new Error("response lost"))
+      .mockResolvedValueOnce({ grantId: grant.grantId, tokenId: grant.tokenId, rawToken: `zasp_pat_${"A".repeat(43)}`, expiresAt: grant.expiresAt });
+    render(<APIAccessView api={fixtureAPI({ listPendingGrants: async () => [grant], revealGrant })} />);
+    await user.click(await screen.findByRole("button", { name: "Reveal token" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("reveal grant is unavailable or expired");
+    expect(screen.getByRole("button", { name: "Reveal token" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "Reveal token" }));
+    expect(await screen.findByRole("dialog", { name: "Save API token" })).toBeVisible();
+    expect(revealGrant).toHaveBeenCalledTimes(2);
   });
 
   it("fails closed with stable loading, empty, validation, and error states", async () => {

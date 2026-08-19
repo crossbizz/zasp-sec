@@ -28,6 +28,7 @@ describe("Workspace and Environment onboarding", () => {
     await user.type(screen.getByLabelText("New workspace name"), "Research");
     await user.click(screen.getByRole("button", { name: "Create workspace" }));
     expect(await screen.findByRole("option", { name: "Research" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Authorized workspace" })).toHaveValue("pid_workspace_a");
 
     await user.selectOptions(screen.getByLabelText("Authorized workspace"), "pid_workspace_a");
     await user.selectOptions(await screen.findByLabelText("Authorized environment"), "pid_environment_a");
