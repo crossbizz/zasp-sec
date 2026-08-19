@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import type { SecurityAction, SecurityAgentDefinition, SecurityAgentSimulation } from "../../../apps/web/api/generated";
+import type { SecurityAction, SecurityAgentDefinition, SecurityAgentRunDetail, SecurityAgentSimulation } from "../../../apps/web/api/generated";
 import { SecurityAgentsView, type SecurityAgentsAPI } from "./SecurityAgentsView";
 
 const action: SecurityAction = { key: "run_test", risk_class: "low", target_types: ["test_definition"], approval_floor: "none", reversible: true, verification_kind: "test_run" };
@@ -50,5 +50,29 @@ describe("Security Agent builder", () => {
     await user.click(screen.getByRole("tab", { name: /Security Agents/ }));
     await user.click(screen.getByRole("button", { name: "Bounded response" }));
     expect(await screen.findByText(/3600s temporary policy · 4000 AI tokens · concurrency 2/)).toBeInTheDocument();
+  });
+
+  it("starts, refreshes, and cancels a durable bounded run from authorized controls", async () => {
+    const user = userEvent.setup();
+    const evidenceID = "pid_90000002-0000-4000-8000-000000000002";
+    const run = { id: "pid_90000003-0000-4000-8000-000000000003", agent_id: created.id, state: "waiting_approval" as const, evidence_ids: [evidenceID], definition_version: 1, version: 1 };
+    const detail = { run, evidence_ids: [evidenceID], plan: { summary: "bounded", steps: [] }, authorization: "approval_required" as const, approvals: [], execution: [], verification: "pending" as const } as unknown as SecurityAgentRunDetail;
+    const runSecurityAgent = vi.fn(async () => run);
+    const getSecurityAgentRun = vi.fn(async () => detail);
+    const cancelSecurityAgentRun = vi.fn(async () => ({ ...run, state: "cancelled" as const, version: 2 }));
+    render(<SecurityAgentsView environmentID="pid_10000003-0000-4000-8000-000000000003" api={fixtureAPI({ listSecurityAgents: async () => ({ items: [created] }), runSecurityAgent, getSecurityAgentRun, cancelSecurityAgentRun })} />);
+
+    await user.click(await screen.findByRole("button", { name: "Bounded response" }));
+    await user.type(screen.getByLabelText("Run evidence ID"), evidenceID);
+    await user.click(screen.getByRole("button", { name: "Start bounded run" }));
+    await waitFor(() => expect(runSecurityAgent).toHaveBeenCalledWith(created.id, { environment_id: "pid_10000003-0000-4000-8000-000000000003", trigger_kind: "finding", trigger_id: evidenceID }));
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    await user.click(screen.getByRole("tab", { name: /Runs/ }));
+    await user.click(screen.getByRole("button", { name: run.id }));
+    await user.click(await screen.findByRole("button", { name: "Refresh run" }));
+    expect(getSecurityAgentRun).toHaveBeenCalledTimes(2);
+    await user.click(screen.getByRole("button", { name: "Cancel run" }));
+    await waitFor(() => expect(cancelSecurityAgentRun).toHaveBeenCalledWith(run.id));
+    expect((await screen.findAllByText("cancelled")).length).toBeGreaterThan(0);
   });
 });

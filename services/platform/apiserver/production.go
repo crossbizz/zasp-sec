@@ -179,13 +179,7 @@ func authorizedBootstrap(payload json.RawMessage, identity RequestIdentity) (jso
 	if json.Unmarshal(payload, &value) != nil {
 		return nil, ErrRepositoryUnavailable
 	}
-	capabilities := []string{}
-	for _, permission := range identity.Permissions {
-		if permission == "view" {
-			capabilities = append(capabilities, "inventory.read", "scope.switch")
-			break
-		}
-	}
+	capabilities := capabilitiesForPermissions(identity.Permissions)
 	replacements := map[string]any{
 		"organization_id": identity.Scope.OrganizationID().String(),
 		"workspace_id":    identity.Scope.WorkspaceID().String(),
@@ -206,6 +200,19 @@ func authorizedBootstrap(payload json.RawMessage, identity RequestIdentity) (jso
 		return nil, ErrRepositoryUnavailable
 	}
 	return result, nil
+}
+
+func capabilitiesForPermissions(permissions []string) []string {
+	capabilities := []string{}
+	for _, permission := range permissions {
+		switch permission {
+		case "view":
+			capabilities = append(capabilities, "inventory.read", "scope.switch", "policies.read", "integrations.read", "sensors.read", "security-agents.read")
+		case "manage_workflows":
+			capabilities = append(capabilities, "policies.write", "integrations.write", "sensors.write", "security-agents.write", "security-agents.run", "security-agents.approve")
+		}
+	}
+	return capabilities
 }
 
 type identityHTTPHandler struct{ repository sessionRepository }

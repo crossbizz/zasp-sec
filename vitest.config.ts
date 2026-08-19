@@ -5,6 +5,7 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: "jsdom",
+    environmentOptions: { jsdom: { url: "https://app.zasp.test/" } },
     setupFiles: ["./vitest.setup.ts"],
     css: true,
     include: ["app/**/*.test.{ts,tsx}", "apps/web/**/*.test.{ts,tsx}"],

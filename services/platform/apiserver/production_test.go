@@ -129,7 +129,8 @@ func TestProductionBootstrapAdvertisesOnlyMountedDurableCapabilities(t *testing.
 	if err := json.NewDecoder(response.Body).Decode(&bootstrap); err != nil {
 		t.Fatal(err)
 	}
-	if response.StatusCode != http.StatusOK || !reflect.DeepEqual(bootstrap.Capabilities, []string{"inventory.read", "scope.switch"}) {
+	want := []string{"inventory.read", "scope.switch", "policies.read", "integrations.read", "sensors.read", "security-agents.read"}
+	if response.StatusCode != http.StatusOK || !reflect.DeepEqual(bootstrap.Capabilities, want) {
 		t.Fatalf("bootstrap = (%d, %#v)", response.StatusCode, bootstrap.Capabilities)
 	}
 }
@@ -169,12 +170,32 @@ func TestProductionSessionListsAndSwitchesOnlyDurableAuthorizedScopes(t *testing
 }
 
 func TestBootstrapPayloadSourceContainsOnlyMountedDurableCapabilities(t *testing.T) {
-	bootstrap := bootstrapJSON(fixtureRequestIdentity(t))
-	if !reflect.DeepEqual(bootstrap["permissions"], []string{"view"}) {
+	identity := fixtureRequestIdentity(t)
+	bootstrap := bootstrapJSON(identity)
+	if !reflect.DeepEqual(bootstrap["permissions"], identity.Permissions) {
 		t.Fatalf("permissions = %#v", bootstrap["permissions"])
 	}
-	if !reflect.DeepEqual(bootstrap["capabilities"], []string{"inventory.read", "scope.switch"}) {
+	if !reflect.DeepEqual(bootstrap["capabilities"], []string{"inventory.read", "scope.switch", "policies.read", "integrations.read", "sensors.read", "security-agents.read"}) {
 		t.Fatalf("capabilities = %#v", bootstrap["capabilities"])
+	}
+}
+
+func TestBootstrapMapsWorkflowManagementWithoutProviderOnlyCapabilities(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	identity.Permissions = []string{"view", "manage_workflows"}
+	payload, err := authorizedBootstrap(json.RawMessage(`{"principal":{}}`), identity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var bootstrap struct {
+		Capabilities []string `json:"capabilities"`
+	}
+	if json.Unmarshal(payload, &bootstrap) != nil {
+		t.Fatal("bootstrap did not decode")
+	}
+	want := []string{"inventory.read", "scope.switch", "policies.read", "integrations.read", "sensors.read", "security-agents.read", "policies.write", "integrations.write", "sensors.write", "security-agents.write", "security-agents.run", "security-agents.approve"}
+	if !reflect.DeepEqual(bootstrap.Capabilities, want) || strings.Contains(string(payload), "authorize") || strings.Contains(string(payload), "sync") {
+		t.Fatalf("workflow capabilities = %#v payload=%s", bootstrap.Capabilities, payload)
 	}
 }
 

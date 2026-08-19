@@ -23,7 +23,8 @@ import { AttackLabView } from "../features/redteam/AttackLabView";
 import { PoliciesView } from "../features/policies/PoliciesView";
 import { SessionsComplianceView } from "../features/sessions/SessionsComplianceView";
 import { AdminOperationsView } from "../features/administration/AdminOperationsView";
-import { SecurityAgentsView } from "../features/securityagents/SecurityAgentsView";
+import { ProductionSecurityAgentsView, SecurityAgentsView } from "../features/securityagents/SecurityAgentsView";
+import { ProductionIntegrationsView, ProductionPoliciesView, ProductionSensorsView } from "../features/workflows/ProductionWorkflowViews";
 import { APIProvider } from "../api/APIProvider";
 import { SessionProvider, useSession } from "../auth/SessionProvider";
 import type { APIClient } from "../../apps/web/api/client";
@@ -81,7 +82,23 @@ const productionRoutes = [
   { path: "/inventory/tools", label: "Tools & MCP", capability: "inventory.read" },
   { path: "/identities", label: "Identities", capability: "inventory.read" },
   { path: "/inventory/runtimes", label: "Runtimes", capability: "inventory.read" },
+  { path: "/policies", label: "Policies", capability: "policies.read" },
+  { path: "/connectors", label: "Integrations", capability: "integrations.read" },
+  { path: "/integrations/sensors", label: "Sensors", capability: "sensors.read" },
+  { path: "/protect/security-agents", label: "Security agents", capability: "security-agents.read" },
+  { path: "/protect/approvals", label: "Approvals", capability: "security-agents.read" },
 ] as const;
+
+function ProductionRouteSurface({ path, navigate }: { path: string; navigate(path: string): void }) {
+  const session = useSession();
+  if (session.status !== "authenticated") return null;
+  if (path === "/policies") return <ProductionPoliciesView canWrite={session.hasCapability("policies.write")} />;
+  if (path === "/connectors") return <ProductionIntegrationsView canWrite={session.hasCapability("integrations.write")} />;
+  if (path === "/integrations/sensors") return <ProductionSensorsView canWrite={session.hasCapability("sensors.write")} />;
+  if (path === "/protect/security-agents") return <ProductionSecurityAgentsView environmentID={session.environmentID} />;
+  if (path === "/protect/approvals") return <ProductionSecurityAgentsView initialTab="approvals" environmentID={session.environmentID} />;
+  return <AgentSecurityView path={path} onNavigate={navigate} />;
+}
 
 function ProductionAppContent() {
   const session = useSession();
@@ -131,7 +148,7 @@ function ProductionAppContent() {
   return <div className="app-shell production-app">
     <header className="topbar"><button className="brand" onClick={() => navigate("/")} aria-label="Zasp overview">Zasp</button><span>Agent Security</span>{session.hasCapability("scope.switch") && session.scopes.length > 1 && <><select aria-label="Authorized scope" value={selectedScope} disabled={session.scopeSwitch.status === "pending"} onChange={(event) => { const scope = session.scopes.find((item) => `${item.workspace_id}/${item.environment_id}` === event.target.value); if (scope) void session.switchScope(scope.workspace_id, scope.environment_id); }}>{session.scopes.map((scope) => <option key={`${scope.workspace_id}/${scope.environment_id}`} value={`${scope.workspace_id}/${scope.environment_id}`}>{scope.label}</option>)}</select>{session.scopeSwitch.status === "pending" && <span role="status">Switching scope…</span>}{session.scopeSwitch.status === "error" && <span role="alert">Scope switch failed <Button onClick={() => void session.scopeSwitch.retry()}>Retry</Button></span>}</>}<Button onClick={() => void session.signOut()}>Sign out</Button></header>
     <aside className="sidebar"><nav aria-label="Main navigation">{routes.map((route) => <a key={route.path} href={route.path} aria-label={route.label} aria-current={visiblePath === route.path ? "page" : undefined} onClick={(event) => { event.preventDefault(); navigate(route.path); }}>{route.label}</a>)}</nav></aside>
-    <main className="main-content"><AgentSecurityView path={visiblePath} onNavigate={navigate} /></main>
+    <main className="main-content"><ProductionRouteSurface path={visiblePath} navigate={navigate} /></main>
   </div>;
 }
 
