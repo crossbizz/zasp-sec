@@ -1,5 +1,17 @@
 schema_version: 1
 screens:
+  - id: browser_session
+    label: Browser Session
+    actions:
+      - id: bootstrap_browser_session
+        operation_id: bootstrapSession
+        availability: available
+      - id: complete_browser_session_callback
+        operation_id: completeSessionCallback
+        availability: available
+      - id: sign_out_browser_session
+        operation_id: signOutSession
+        availability: available
   - id: identity_foundation
     label: Identity Foundation
     actions:
