@@ -50,3 +50,10 @@ b85f368af14ec6c26ae3a629109349bf2d6ad29c:services/platform/apiserver/postgres_in
 09a495ce8092b08d9f670c739bff2f2cc5631ccd:services/platform/agentsec-api/runtime_test.go:generic-api-key:25
 09a495ce8092b08d9f670c739bff2f2cc5631ccd:services/platform/agentsec-api/runtime_test.go:generic-api-key:178
 c18029951a778b186499fdf1baa9cfa5db844180:scripts/production-combined-e2e.mjs:generic-api-key:88
+
+# Batch 4 uses descriptive idempotency-key literals only inside hermetic risk
+# adapter and HTTP/PostgreSQL tests. Ignore only their exact introduction
+# findings; changed or relocated values remain detectable.
+4c9f2028a8efcb2cd64c21a8284cb2ca5cbea7ee:app/features/risk/api.test.ts:generic-api-key:43
+61bb73adcfd45b5d149b4bd6f3f1b5b39d5f586f:services/platform/apiserver/risk_postgres_integration_test.go:generic-api-key:126
+61bb73adcfd45b5d149b4bd6f3f1b5b39d5f586f:services/platform/apiserver/risk_handler_test.go:generic-api-key:192
