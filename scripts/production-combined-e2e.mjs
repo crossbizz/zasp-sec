@@ -30,6 +30,7 @@ let secondBrowserTab;
 let observedSessionCookie = false;
 const lostPolicyResponseKeys = [];
 const workflowPageRequests = { policies: [], integrations: [] };
+const administrationRequests = [];
 const scopeOverlapProof = {
   delayNextFirstTabBootstrap: false,
   delayedFirstTabBootstrap: undefined,
@@ -62,6 +63,8 @@ try {
   const apiEnvironment = {
     ...process.env,
     ZASP_ENVIRONMENT: "test",
+    ZASP_DEPLOYMENT_MODE: "saas",
+    ZASP_ORGANIZATION_ID: "",
     ZASP_PRODUCT_LISTEN_ADDRESS: `127.0.0.1:${apiPort}`,
     ZASP_INTERNAL_LISTEN_ADDRESS: `127.0.0.1:${healthPort}`,
     ZASP_PUBLIC_ORIGIN: publicOrigin,
@@ -245,6 +248,85 @@ try {
   assert.doesNotMatch(approvalsHidden, /Approve|Pending approvals/);
   console.log("combined E2E: full-document receipt recovery, local integration, Security Agent definition, and hidden unsafe controls proven");
 
+  await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/administration/identity-access` });
+  const identityAccess = await waitForBrowserText(browser.cdp, /member-target-local/);
+  assert.match(identityAccess, /E2E Organization/);
+  assert.match(identityAccess, /Enterprise identity\s+Unavailable/);
+  assert.doesNotMatch(identityAccess, /Configure SSO|Enable SCIM|Rotate webhook/);
+  await selectBrowserOptionAndClickSibling(browser.cdp, "Role for member-target-local", "read only viewer", "Update role");
+  await waitForBrowserText(browser.cdp, /Member role updated; active sessions revoked/);
+  const roleResult = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT role || '|' || (SELECT count(*) FROM zasp_product_sessions WHERE session_id='session-role-change-e2e' AND revoked_at IS NOT NULL) FROM zasp_identity_memberships WHERE principal_id='pid_10000005-0000-4000-8000-000000000005';`]);
+  assert.equal(roleResult.stdout.trim(), "read_only_viewer|1", "member role and session revocation were not atomic");
+  await fillBrowserLabel(browser.cdp, "New workspace name", "E2E Workspace");
+  await clickBrowserText(browser.cdp, "Create workspace");
+  await waitForBrowserText(browser.cdp, /Workspace created/);
+  await fillBrowserLabel(browser.cdp, "New environment name", "E2E Development");
+  await clickBrowserText(browser.cdp, "Create environment");
+  await waitForBrowserText(browser.cdp, /Environment created/);
+
+  await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/administration/api-access` });
+  await waitForBrowserText(browser.cdp, /Create scoped automation credentials/);
+  const seededTokenCount = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT count(*) FROM zasp_product_api_tokens WHERE organization_id='pid_10000001-0000-4000-8000-000000000001';`]);
+  assert.equal(seededTokenCount.stdout.trim(), "1");
+  const browserTokenInventory = await browserFetchJSON(browser.cdp, "/api/v1/admin/api-tokens", {
+    "X-Zasp-Expected-Scope": "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003",
+  });
+  assert.equal(browserTokenInventory.status, 200, JSON.stringify(browserTokenInventory.body));
+  assert.equal(browserTokenInventory.body.items.length, 1);
+  await fillBrowserLabel(browser.cdp, "Token name", "E2E API token");
+  await fillBrowserLabel(browser.cdp, "Workspace ID", "pid_10000002-0000-4000-8000-000000000002");
+  await fillBrowserLabel(browser.cdp, "Environment ID", "pid_10000003-0000-4000-8000-000000000003");
+  await clickBrowserText(browser.cdp, "Create API token");
+  const tokenCreateOutcome = await waitForBrowserText(browser.cdp, /Shown only once\.|API token could not be created/);
+  assert.match(tokenCreateOutcome, /Shown only once\./, `administration requests: ${JSON.stringify(administrationRequests)}`);
+  const originalAPIToken = await waitForBrowserTextMatch(browser.cdp, /zasp_pat_[A-Za-z0-9_-]{43}/);
+  const originalTokenAccess = await requestHTTPSJSON(`${publicOrigin}/api/v1/agents`, { method: "GET", headers: { authorization: `Bearer ${originalAPIToken}` } });
+  assert.equal(originalTokenAccess.status, 200);
+  await clickBrowserAria(browser.cdp, "Rotate E2E API token");
+  await waitForBrowserTextMissing(browser.cdp, originalAPIToken);
+  const rotatedAPIToken = await waitForBrowserTextMatch(browser.cdp, /zasp_pat_[A-Za-z0-9_-]{43}/);
+  assert.notEqual(rotatedAPIToken, originalAPIToken);
+  const oldTokenAccess = await requestHTTPSJSON(`${publicOrigin}/api/v1/agents`, { method: "GET", headers: { authorization: `Bearer ${originalAPIToken}` } });
+  assert.equal(oldTokenAccess.status, 401, "old API token remained valid after rotation");
+  const rotatedTokenAccess = await requestHTTPSJSON(`${publicOrigin}/api/v1/agents`, { method: "GET", headers: { authorization: `Bearer ${rotatedAPIToken}` } });
+  assert.equal(rotatedTokenAccess.status, 200);
+  await browser.cdp.send("Page.reload", { ignoreCache: true });
+  const reloadedAPIInventory = await waitForBrowserText(browser.cdp, /E2E API token/);
+  assert.doesNotMatch(reloadedAPIInventory, /zasp_pat_/, "one-time API token survived a browser reload");
+
+  await seedInvestigationSession(dsn);
+  await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/investigate/sessions` });
+  const investigation = await waitForBrowserText(browser.cdp, /Shell requested by E2E/);
+  assert.match(investigation, /evidence-session-e2e/);
+  await clickBrowserAria(browser.cdp, "Revoke session session-investigation-e2e");
+  const sessionRevokeOutcome = await waitForBrowserText(browser.cdp, /Session revoked|Session could not be revoked/);
+  assert.match(sessionRevokeOutcome, /Session revoked/, `administration requests: ${JSON.stringify(administrationRequests)}`);
+  const revokedSession = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT (revoked_at IS NOT NULL)::text || '|' || version FROM zasp_product_sessions WHERE session_id='session-investigation-e2e';`]);
+  assert.equal(revokedSession.stdout.trim(), "true|2");
+
+  await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/administration/audit-log` });
+  const auditLog = await waitForBrowserText(browser.cdp, /session\.revoke/);
+  assert.match(auditLog, /member\.role\.update/);
+  assert.match(auditLog, /api_token\.create/);
+  assert.match(auditLog, /api_token\.rotate/);
+  assert.match(auditLog, /Audit exports unavailable/);
+  assert.equal(await browserHasInteractiveText(browser.cdp, /^Export$/i), false);
+  await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/compliance/evidence` });
+  const compliance = await waitForBrowserText(browser.cdp, /evidence-membership/);
+  assert.match(compliance, /SOC 2/);
+  assert.match(compliance, /Evidence exports unavailable/);
+  await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/administration/data-retention` });
+  const dataControls = await waitForBrowserText(browser.cdp, /production controls/);
+  assert.match(dataControls, /metadata only/);
+  assert.match(dataControls, /Data deletion unavailable/);
+  await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/administration/external-data-flows` });
+  const externalFlows = await waitForBrowserText(browser.cdp, /identity-provider/);
+  assert.doesNotMatch(externalFlows, /analytics|warehouse|support/i);
+  await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/administration/system-health` });
+  const systemHealth = await waitForBrowserText(browser.cdp, /postgresql/);
+  assert.match(systemHealth, /identity-provider/);
+  console.log("combined E2E: production administration lifecycle and hidden provider/export mutations proven");
+
   await stopChild(api);
   api = startChild(apiBinary, [], { env: apiEnvironment });
   await waitForHTTP(`http://127.0.0.1:${healthPort}/readyz`, 200);
@@ -261,6 +343,10 @@ try {
   await clickBrowserAria(browser.cdp, "Open Bounded response definition");
   assert.match(await waitForBrowserText(browser.cdp, /Resource version/), /supervised/);
   assert.equal(await browserHasInteractiveText(browser.cdp, /^(?:Run Security Agent|Simulate Security Agent|Approve|Start bounded run|Runs|Approvals)$/i), false);
+  await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/administration/audit-log` });
+  assert.match(await waitForBrowserText(browser.cdp, /session\.revoke/), /api_token\.rotate/);
+  await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/compliance/evidence` });
+  assert.match(await waitForBrowserText(browser.cdp, /evidence-membership/), /Evidence exports unavailable/);
   console.log("combined E2E: API restart, browser reload, and durable local workflows proven");
 
   const denied = await browserFetchJSON(browser.cdp, "/api/v1/agents/pid_90000001-0000-4000-8000-000000000001", {
@@ -271,7 +357,7 @@ try {
   assert.doesNotMatch(JSON.stringify(denied.body), /Foreign tenant agent/);
   assert.equal(proxyFailure, undefined, `proxy fixture failed: ${proxyFailure}`);
 
-  console.log("production combined E2E passed: callback/cookie/bootstrap, pagination, PAT/receipt recovery, keyboard focus, durable restart/reload, tenant denial");
+  console.log("production combined E2E passed: callback/cookie/bootstrap, pagination, administration, PAT/receipt recovery, keyboard focus, durable restart/reload, tenant denial");
 } finally {
 	await cleanupController.run();
 	cleanupController.dispose();
@@ -324,7 +410,25 @@ INSERT INTO zasp_authorized_scopes (principal_id, organization_id, workspace_id,
 ('pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','pid_10000022-0000-4000-8000-000000000022','pid_10000023-0000-4000-8000-000000000023','Staging','["view","manage_workflows"]'::jsonb,false),
 ('pid_90000004-0000-4000-8000-000000000004','pid_90000001-0000-4000-8000-000000000001','pid_90000002-0000-4000-8000-000000000002','pid_90000003-0000-4000-8000-000000000003','Foreign','["view"]'::jsonb,true);
 INSERT INTO zasp_identity_memberships (principal_id, organization_id, organization_reference, member_reference, role) VALUES
-('pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','organization-test-local','member-test-local','security_admin');
+('pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','organization-test-local','member-test-local','security_admin'),
+('pid_10000005-0000-4000-8000-000000000005','pid_10000001-0000-4000-8000-000000000001','organization-test-local','member-target-local','security_engineer');
+INSERT INTO zasp_organizations(id,name,domain) VALUES
+('pid_10000001-0000-4000-8000-000000000001','E2E Organization','e2e.invalid');
+INSERT INTO zasp_workspaces(id,organization_id,name) VALUES
+('pid_10000002-0000-4000-8000-000000000002','pid_10000001-0000-4000-8000-000000000001','Production Workspace'),
+('pid_10000022-0000-4000-8000-000000000022','pid_10000001-0000-4000-8000-000000000001','Staging Workspace');
+INSERT INTO zasp_environments(id,organization_id,workspace_id,name,environment_class) VALUES
+('pid_10000003-0000-4000-8000-000000000003','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','Production','production'),
+('pid_10000023-0000-4000-8000-000000000023','pid_10000001-0000-4000-8000-000000000001','pid_10000022-0000-4000-8000-000000000022','Staging','staging');
+INSERT INTO zasp_data_controls(organization_id,workspace_id,environment_id,environment_class,collection_mode,retention_days,deletion_enabled,migration_seeded) VALUES
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','production','metadata_only',30,true,false),
+('pid_10000001-0000-4000-8000-000000000001','pid_10000022-0000-4000-8000-000000000022','pid_10000023-0000-4000-8000-000000000023','staging','metadata_only',30,true,false);
+INSERT INTO zasp_compliance_controls(organization_id,id,framework,name,fresh_until) VALUES
+('pid_10000001-0000-4000-8000-000000000001','access-control','SOC 2','Logical access controls',transaction_timestamp()+interval '24 hours');
+INSERT INTO zasp_compliance_evidence(organization_id,control_id,id,asset_id,source,at) VALUES
+('pid_10000001-0000-4000-8000-000000000001','access-control','evidence-membership','pid_10000004-0000-4000-8000-000000000004','product-membership',transaction_timestamp());
+INSERT INTO zasp_product_sessions(token_digest,csrf_token,session_id,principal_id,organization_id,workspace_id,environment_id,permissions,expires_at) VALUES
+(digest('target-role-session','sha256'),'target-role-csrf-with-at-least-32-bytes','session-role-change-e2e','pid_10000005-0000-4000-8000-000000000005','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','["view"]'::jsonb,transaction_timestamp()+interval '1 hour');
 INSERT INTO zasp_product_api_tokens (token_digest, principal_id, organization_id, workspace_id, environment_id, permissions, expires_at) VALUES
 (digest('production-e2e-product-token-with-at-least-32-bytes', 'sha256'),'pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','["view","manage_workflows"]'::jsonb,transaction_timestamp() + interval '1 hour');
 INSERT INTO zasp_core_payloads (organization_id, workspace_id, environment_id, operation, payload) VALUES
@@ -344,6 +448,15 @@ SELECT 'pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-0
   jsonb_build_object('id', 'pid_' || lpad(ordinal::text, 8, '0') || '-0000-4000-8000-' || lpad(ordinal::text, 12, '0'), 'connector_key', 'generic-webhook', 'name', 'Paged integration ' || lpad(ordinal::text, 4, '0'), 'configuration', jsonb_build_object('destination_url', 'https://paged.invalid/' || ordinal, 'signing_secret_reference', 'secret_ref_paged_' || ordinal), 'status', 'configured', 'created_at', '2026-08-18T10:00:00Z', 'updated_at', '2026-08-18T10:00:00Z')
 FROM generate_series(1, 1001) AS ordinal;
 `;
+  await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1"], { input: sql });
+}
+
+async function seedInvestigationSession(dsn) {
+  const sql = `
+INSERT INTO zasp_product_sessions(token_digest,csrf_token,session_id,principal_id,organization_id,workspace_id,environment_id,permissions,expires_at) VALUES
+(digest('investigation-session-e2e','sha256'),'investigation-csrf-with-at-least-32-bytes','session-investigation-e2e','pid_10000005-0000-4000-8000-000000000005','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','["view"]'::jsonb,transaction_timestamp()+interval '1 hour');
+INSERT INTO zasp_session_events(organization_id,session_id,id,class,label,evidence_id,source,confidence,at) VALUES
+('pid_10000001-0000-4000-8000-000000000001','session-investigation-e2e','event-investigation-e2e','tool','Shell requested by E2E','evidence-session-e2e','product-runtime','exact',transaction_timestamp());`;
   await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1"], { input: sql });
 }
 
@@ -438,6 +551,9 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
     const upstreamHeaders = { ...request.headers, host: `127.0.0.1:${port}` };
     delete upstreamHeaders["x-zasp-e2e-tab"];
     const upstream = http.request({ hostname: "127.0.0.1", port: upstreamPort, method: request.method, path: request.url, headers: upstreamHeaders }, (upstreamResponse) => {
+      if (/^\/api\/v1\/(?:admin|organization|workspaces|environments|sessions|audit-events|compliance|settings|system)\b/.test(target.pathname)) {
+        administrationRequests.push({ method: request.method, path: target.pathname, status: upstreamResponse.statusCode });
+      }
       if (target.pathname.startsWith("/api/v1/session/")) response.once("finish", () => { scopeOverlapProof.events.push(`${browserTab || "untagged"}:${request.socket.remotePort}:${request.method}:${target.pathname}:finished`); });
       if ((upstreamResponse.headers["set-cookie"] ?? []).some((value) => value.startsWith("__Host-zasp_session="))) observedSessionCookie = true;
       if (target.pathname.startsWith("/api/v1/session/") || upstreamResponse.statusCode === 409) scopeOverlapProof.events.push(`${browserTab || "untagged"}:${request.socket.remotePort}:${request.method}:${target.pathname}:${upstreamResponse.statusCode}`);
@@ -604,6 +720,23 @@ async function waitForBrowserText(cdp, pattern) {
   throw new Error(`browser text did not match ${pattern}: ${last}`);
 }
 
+async function waitForBrowserTextMatch(cdp, pattern) {
+  for (let attempt = 0; attempt < 300; attempt += 1) {
+    const match = (await browserBodyText(cdp)).match(pattern);
+    if (match) return match[0];
+    await delay(50);
+  }
+  throw new Error(`browser text did not contain ${pattern}`);
+}
+
+async function waitForBrowserTextMissing(cdp, text) {
+  for (let attempt = 0; attempt < 300; attempt += 1) {
+    if (!(await browserBodyText(cdp)).includes(text)) return;
+    await delay(50);
+  }
+  throw new Error(`browser text still contained ${text.slice(0, 16)}…`);
+}
+
 async function waitForScopeOverlap(predicate, message) {
   for (let attempt = 0; attempt < 200; attempt += 1) {
     if (predicate()) return;
@@ -628,7 +761,12 @@ async function waitForBrowserControlDisabled(cdp, text, expected) {
 }
 
 async function selectBrowserOption(cdp, label, text) {
-  await waitForBrowserAction(cdp, `(() => { const select = document.querySelector(${JSON.stringify(`select[aria-label="${label}"]`)}); const option = select && [...select.options].find((candidate) => candidate.textContent?.trim() === ${JSON.stringify(text)}); if (!select || !option || select.disabled) return false; const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; setter.call(select, option.value); select.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
+  await waitForBrowserAction(cdp, `(() => { const labelText = ${JSON.stringify(label)}; const field = [...document.querySelectorAll('label')].find((candidate) => [...candidate.querySelectorAll('span')].some((span) => span.textContent?.trim() === labelText)); const select = document.querySelector(${JSON.stringify(`select[aria-label="${label}"]`)}) ?? field?.querySelector('select'); const option = select && [...select.options].find((candidate) => candidate.textContent?.trim() === ${JSON.stringify(text)}); if (!select || !option || select.disabled) return false; const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; setter.call(select, option.value); select.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
+}
+
+async function selectBrowserOptionAndClickSibling(cdp, label, text, buttonText) {
+  await selectBrowserOption(cdp, label, text);
+  await waitForBrowserAction(cdp, `(() => { const labelText = ${JSON.stringify(label)}; const field = [...document.querySelectorAll('label')].find((candidate) => [...candidate.querySelectorAll('span')].some((span) => span.textContent?.trim() === labelText)); const select = document.querySelector(${JSON.stringify(`select[aria-label="${label}"]`)}) ?? field?.querySelector('select'); const row = select?.closest('li'); const button = row && [...row.querySelectorAll('button')].find((candidate) => candidate.textContent?.trim() === ${JSON.stringify(buttonText)}); if (!button || button.disabled) return false; button.click(); return true; })()`);
 }
 
 async function waitForBrowserSelectedOption(cdp, label, text) {
@@ -672,6 +810,7 @@ async function clickBrowserAria(cdp, label) {
 
 async function fillBrowserLabel(cdp, label, value) {
   await waitForBrowserAction(cdp, `(() => { const text = ${JSON.stringify(label)}; const value = ${JSON.stringify(value)}; const label = [...document.querySelectorAll('label')].find((candidate) => [...candidate.querySelectorAll('span')].some((span) => span.textContent?.trim() === text)); const control = label?.querySelector('input,textarea,select'); if (!control) return false; const prototype = control instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : control instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(prototype, 'value').set.call(control, value); control.dispatchEvent(new Event('input', { bubbles: true })); control.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
+  await cdp.send("Runtime.evaluate", { expression: "new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))", awaitPromise: true, returnByValue: true });
 }
 
 async function waitForBrowserAction(cdp, expression) {
