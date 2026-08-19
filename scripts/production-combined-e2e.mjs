@@ -30,6 +30,13 @@ let secondBrowserTab;
 let observedSessionCookie = false;
 const lostPolicyResponseKeys = [];
 const workflowPageRequests = { policies: [], integrations: [] };
+const scopeOverlapProof = {
+  delayNextFirstTabBootstrap: false,
+  delayedFirstTabBootstrap: undefined,
+  events: [],
+  firstTabScopeStaleResponses: 0,
+  secondTabBootstrapWhileFirstDelayed: false,
+};
 let injectLaterReceiptOnNextAcknowledgement = false;
 let expireNextReceiptBeforeAcknowledgement = false;
 let proxyFailure;
@@ -122,30 +129,36 @@ try {
   assert.doesNotMatch(signedIn, /Recover committed operations|PAT E2E boundary/);
   console.log("combined E2E: browser callback, cookie, bootstrap, and durable data proven");
 
-  secondBrowserTab = await startBrowserTab(chromePort, `${publicOrigin}/`);
+  const sharedSessionCookie = await getBrowserSessionCookie(browser.cdp, publicOrigin);
+  await setBrowserTabHeader(browser.cdp, "first");
+  secondBrowserTab = await startBrowserTab(chromePort, `${publicOrigin}/`, sharedSessionCookie);
   await waitForBrowserText(secondBrowserTab, /Security overview/);
+  await setBrowserTabHeader(secondBrowserTab, "second");
   await waitForBrowserSelectedOption(browser.cdp, "Authorized scope", "Production");
   await waitForBrowserSelectedOption(secondBrowserTab, "Authorized scope", "Production");
+  scopeOverlapProof.delayNextFirstTabBootstrap = true;
   await selectBrowserOption(secondBrowserTab, "Authorized scope", "Staging");
   await waitForBrowserSelectedOption(secondBrowserTab, "Authorized scope", "Staging");
   await clickBrowserAria(browser.cdp, "Overview");
-  await waitForBrowserSelectedOption(browser.cdp, "Authorized scope", "Staging");
-  await selectBrowserOption(browser.cdp, "Authorized scope", "Production");
+  await waitForBrowserText(browser.cdp, /Loading authenticated session/);
+  await waitForScopeOverlap(() => scopeOverlapProof.delayedFirstTabBootstrap?.ready === true, "first-tab B bootstrap was not delayed");
+  await selectBrowserOption(secondBrowserTab, "Authorized scope", "Production");
+  try {
+    await waitForBrowserSelectedOption(secondBrowserTab, "Authorized scope", "Production");
+  } catch (error) {
+    throw new Error(`${error instanceof Error ? error.message : "second-tab recovery failed"}; body=${JSON.stringify(await browserBodyText(secondBrowserTab))}; events=${JSON.stringify(scopeOverlapProof.events)}`);
+  }
+  assert.equal(scopeOverlapProof.secondTabBootstrapWhileFirstDelayed, true, "second-tab A bootstrap did not overlap the delayed first-tab B bootstrap");
+  releaseDelayedFirstTabBootstrap();
   await waitForBrowserSelectedOption(browser.cdp, "Authorized scope", "Production");
-  await clickBrowserAria(secondBrowserTab, "Agents");
-  await waitForBrowserSelectedOption(secondBrowserTab, "Authorized scope", "Production");
-  await selectBrowserOption(secondBrowserTab, "Authorized scope", "Staging");
-  await waitForBrowserSelectedOption(secondBrowserTab, "Authorized scope", "Staging");
-  await clickBrowserAria(browser.cdp, "Agents");
-  await waitForBrowserSelectedOption(browser.cdp, "Authorized scope", "Staging");
-  await selectBrowserOption(browser.cdp, "Authorized scope", "Production");
-  await waitForBrowserSelectedOption(browser.cdp, "Authorized scope", "Production");
-  await secondBrowserTab.send("Page.close");
-  secondBrowserTab.close();
+  await waitForScopeOverlap(() => scopeOverlapProof.firstTabScopeStaleResponses >= 2, "first tab did not receive two scope_stale responses");
+  const authoritativeScope = await browserBodyText(browser.cdp);
+  assert.doesNotMatch(authoritativeScope, /Loading authenticated session|Product API unavailable/);
+  await secondBrowserTab.dispose();
   secondBrowserTab = undefined;
   workflowPageRequests.policies.length = 0;
   workflowPageRequests.integrations.length = 0;
-  console.log("combined E2E: actual two-tab A-to-B, B-to-A, and ABA stale-scope recovery proven");
+  console.log("combined E2E: actual two-tab delayed out-of-order ABA stale-scope recovery proven");
 
   await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/policies` });
   await waitForBrowserText(browser.cdp, /Durable scoped runtime controls/);
@@ -266,7 +279,7 @@ try {
 
 async function cleanupOwnedResources() {
   console.log("combined E2E: cleanup browser");
-  if (secondBrowserTab) secondBrowserTab.close();
+  if (secondBrowserTab) await secondBrowserTab.dispose();
   if (browser) {
     browser.cdp.close();
     await stopChild(browser.child);
@@ -407,6 +420,7 @@ async function startIdentityServer(port, publicOrigin) {
 async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn) {
   const server = https.createServer({ key: await readFile(keyPath), cert: await readFile(certificatePath) }, async (request, response) => {
     const target = new URL(request.url ?? "/", "https://combined.invalid");
+    const browserTab = String(request.headers["x-zasp-e2e-tab"] ?? "");
     const receiptAcknowledgement = request.method === "POST" && /^\/api\/v1\/workflow-mutation-receipts\/pid_[0-9a-f-]+\/acknowledge$/.test(target.pathname);
     if (request.method === "GET" && target.pathname === "/api/v1/policies") workflowPageRequests.policies.push(target.search);
     if (request.method === "GET" && target.pathname === "/api/v1/integrations") workflowPageRequests.integrations.push(target.search);
@@ -421,8 +435,21 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
       }
     }
     const upstreamPort = request.url?.startsWith("/api/v1/") ? apiPort : webPort;
-    const upstream = http.request({ hostname: "127.0.0.1", port: upstreamPort, method: request.method, path: request.url, headers: { ...request.headers, host: `127.0.0.1:${port}` } }, (upstreamResponse) => {
+    const upstreamHeaders = { ...request.headers, host: `127.0.0.1:${port}` };
+    delete upstreamHeaders["x-zasp-e2e-tab"];
+    const upstream = http.request({ hostname: "127.0.0.1", port: upstreamPort, method: request.method, path: request.url, headers: upstreamHeaders }, (upstreamResponse) => {
+      if (target.pathname.startsWith("/api/v1/session/")) response.once("finish", () => { scopeOverlapProof.events.push(`${browserTab || "untagged"}:${request.socket.remotePort}:${request.method}:${target.pathname}:finished`); });
       if ((upstreamResponse.headers["set-cookie"] ?? []).some((value) => value.startsWith("__Host-zasp_session="))) observedSessionCookie = true;
+      if (target.pathname.startsWith("/api/v1/session/") || upstreamResponse.statusCode === 409) scopeOverlapProof.events.push(`${browserTab || "untagged"}:${request.socket.remotePort}:${request.method}:${target.pathname}:${upstreamResponse.statusCode}`);
+      if (browserTab === "first" && upstreamResponse.statusCode === 409) scopeOverlapProof.firstTabScopeStaleResponses += 1;
+      if (browserTab === "second" && target.pathname === "/api/v1/session/bootstrap" && scopeOverlapProof.delayedFirstTabBootstrap && !scopeOverlapProof.delayedFirstTabBootstrap.released) {
+        scopeOverlapProof.secondTabBootstrapWhileFirstDelayed = true;
+      }
+      if (browserTab === "first" && target.pathname === "/api/v1/session/bootstrap" && scopeOverlapProof.delayNextFirstTabBootstrap) {
+        scopeOverlapProof.delayNextFirstTabBootstrap = false;
+        captureDelayedFirstTabBootstrap(response, upstreamResponse);
+        return;
+      }
       if (request.method === "POST" && request.url === "/api/v1/policies" && !request.headers.authorization && lostPolicyResponseKeys.length < 2) {
         lostPolicyResponseKeys.push(String(request.headers["idempotency-key"] ?? ""));
         upstreamResponse.resume();
@@ -459,6 +486,34 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
   return server;
 }
 
+function captureDelayedFirstTabBootstrap(response, upstreamResponse) {
+  assert.equal(scopeOverlapProof.delayedFirstTabBootstrap, undefined);
+  const delayedFirstTabBootstrap = {
+    body: undefined,
+    headers: upstreamResponse.headers,
+    ready: false,
+    released: false,
+    response,
+    status: upstreamResponse.statusCode ?? 502,
+  };
+  scopeOverlapProof.delayedFirstTabBootstrap = delayedFirstTabBootstrap;
+  const chunks = [];
+  upstreamResponse.on("data", (chunk) => { chunks.push(chunk); });
+  upstreamResponse.once("end", () => {
+    delayedFirstTabBootstrap.body = Buffer.concat(chunks);
+    delayedFirstTabBootstrap.ready = true;
+  });
+}
+
+function releaseDelayedFirstTabBootstrap() {
+  const delayedFirstTabBootstrap = scopeOverlapProof.delayedFirstTabBootstrap;
+  assert.ok(delayedFirstTabBootstrap?.ready, "delayed first-tab bootstrap was not ready");
+  assert.equal(delayedFirstTabBootstrap.released, false, "delayed first-tab bootstrap was released twice");
+  delayedFirstTabBootstrap.released = true;
+  delayedFirstTabBootstrap.response.writeHead(delayedFirstTabBootstrap.status, delayedFirstTabBootstrap.headers);
+  delayedFirstTabBootstrap.response.end(delayedFirstTabBootstrap.body);
+}
+
 async function startBrowser(profile, port, target) {
   const child = startChild(chrome, ["--headless=new", "--no-first-run", "--disable-background-networking", "--disable-component-update", "--ignore-certificate-errors", `--user-data-dir=${profile}`, `--remote-debugging-port=${port}`, target]);
   let page;
@@ -479,25 +534,82 @@ async function startBrowser(profile, port, target) {
   return { child, cdp };
 }
 
-async function startBrowserTab(port, target) {
-  const page = await fetch(`http://127.0.0.1:${port}/json/new?${encodeURIComponent(target)}`, { method: "PUT" }).then((response) => response.json());
+async function startBrowserTab(port, target, sessionCookie) {
+  const version = await fetch(`http://127.0.0.1:${port}/json/version`).then((response) => response.json());
+  assert.ok(version.webSocketDebuggerUrl);
+  const browserCDP = await connectCDP(version.webSocketDebuggerUrl);
+  const context = await browserCDP.send("Target.createBrowserContext");
+  const created = await browserCDP.send("Target.createTarget", { url: "about:blank", browserContextId: context.browserContextId });
+  let page;
+  for (let attempt = 0; attempt < 200; attempt += 1) {
+    const pages = await fetch(`http://127.0.0.1:${port}/json/list`).then((response) => response.json());
+    page = pages.find((value) => value.id === created.targetId && value.webSocketDebuggerUrl);
+    if (page) break;
+    await delay(25);
+  }
+  assert.ok(page, "isolated browser tab debugging endpoint unavailable");
   assert.equal(page.type, "page");
   assert.ok(page.webSocketDebuggerUrl);
   const cdp = await connectCDP(page.webSocketDebuggerUrl);
   await cdp.send("Page.enable");
   await cdp.send("Runtime.enable");
+  await cdp.send("Network.enable");
+  const stored = await cdp.send("Network.setCookie", {
+    name: sessionCookie.name,
+    value: sessionCookie.value,
+    url: target,
+    httpOnly: true,
+    secure: true,
+    sameSite: sessionCookie.sameSite,
+  });
+  assert.equal(stored.success, true, "shared session cookie was not installed in the isolated tab");
+  await cdp.send("Page.navigate", { url: target });
+  let disposed = false;
+  cdp.dispose = async () => {
+    if (disposed) return;
+    disposed = true;
+    try { await browserCDP.send("Target.disposeBrowserContext", { browserContextId: context.browserContextId }); } finally {
+      cdp.close();
+      browserCDP.close();
+    }
+  };
   return cdp;
+}
+
+async function getBrowserSessionCookie(cdp, origin) {
+  await cdp.send("Network.enable");
+  const cookies = await cdp.send("Network.getCookies", { urls: [origin] });
+  const sessionCookie = cookies.cookies.find((cookie) => cookie.name === "__Host-zasp_session");
+  assert.ok(sessionCookie, "signed-in Chrome tab did not retain the product session cookie");
+  return sessionCookie;
+}
+
+async function setBrowserTabHeader(cdp, value) {
+  await cdp.send("Network.enable");
+  await cdp.send("Network.setExtraHTTPHeaders", { headers: { "X-Zasp-E2E-Tab": value } });
+}
+
+async function browserBodyText(cdp) {
+  const evaluated = await cdp.send("Runtime.evaluate", { expression: "document.body ? document.body.innerText : ''", returnByValue: true });
+  return evaluated.result?.value ?? "";
 }
 
 async function waitForBrowserText(cdp, pattern) {
   let last = "";
   for (let attempt = 0; attempt < 300; attempt += 1) {
-    const evaluated = await cdp.send("Runtime.evaluate", { expression: "document.body ? document.body.innerText : ''", returnByValue: true });
-    last = evaluated.result?.value ?? "";
+    last = await browserBodyText(cdp);
     if (pattern.test(last)) return last;
     await delay(50);
   }
   throw new Error(`browser text did not match ${pattern}: ${last}`);
+}
+
+async function waitForScopeOverlap(predicate, message) {
+  for (let attempt = 0; attempt < 200; attempt += 1) {
+    if (predicate()) return;
+    await delay(25);
+  }
+  throw new Error(message);
 }
 
 async function browserHasInteractiveText(cdp, pattern) {
