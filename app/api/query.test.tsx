@@ -109,6 +109,78 @@ describe("API query state machine", () => {
 		expect(result.current.query.data).toBeUndefined();
 	});
 
+  it("keys retained data and request ownership by the exact query key", async () => {
+    const keyAInitial = deferred<readonly string[]>();
+    const keyALate = deferred<readonly string[]>();
+    const keyB = deferred<readonly string[]>();
+    const keyASignals: AbortSignal[] = [];
+    const keyBSignals: AbortSignal[] = [];
+    const queryA = vi.fn((signal?: AbortSignal) => {
+      if (signal) keyASignals.push(signal);
+      return queryA.mock.calls.length === 1 ? keyAInitial.promise : keyALate.promise;
+    });
+    const queryB = vi.fn((signal?: AbortSignal) => {
+      if (signal) keyBSignals.push(signal);
+      return keyB.promise;
+    });
+    const wrapper = ({ children }: { children: ReactNode }) => <APIProvider>{children}</APIProvider>;
+    const { result, rerender } = renderHook(
+      ({ keyName, query }: { keyName: string; query: (signal?: AbortSignal) => Promise<readonly string[]> }) => useAPIQuery(keyName, query),
+      { wrapper, initialProps: { keyName: "core:/discovery/assets", query: queryA } },
+    );
+
+    await waitFor(() => expect(queryA).toHaveBeenCalledOnce());
+    act(() => keyAInitial.resolve(["key-a-agent"]));
+    await waitFor(() => expect(result.current).toMatchObject({ status: "success", data: ["key-a-agent"] }));
+
+    act(() => { void result.current.retry(); });
+    await waitFor(() => expect(queryA).toHaveBeenCalledTimes(2));
+    rerender({ keyName: "core:/inventory/tools", query: queryB });
+    expect(result.current.status).toBe("loading");
+    expect(result.current.data).toBeUndefined();
+    expect(keyASignals[1]?.aborted).toBe(true);
+
+    await waitFor(() => expect(queryB).toHaveBeenCalledOnce());
+    act(() => keyB.reject(new Error("key B provider unavailable")));
+    await waitFor(() => expect(result.current.status).toBe("error"));
+    expect(result.current.data).toBeUndefined();
+
+    act(() => keyALate.resolve(["late-key-a-agent"]));
+    await waitFor(() => expect(result.current.status).toBe("error"));
+    expect(result.current.data).toBeUndefined();
+    expect(keyBSignals).toHaveLength(1);
+  });
+
+  it("synchronously masks data and aborts its request when disabled", async () => {
+    const initial = deferred<readonly string[]>();
+    const late = deferred<readonly string[]>();
+    const signals: AbortSignal[] = [];
+    const query = vi.fn((signal?: AbortSignal) => {
+      if (signal) signals.push(signal);
+      return query.mock.calls.length === 1 ? initial.promise : late.promise;
+    });
+    const wrapper = ({ children }: { children: ReactNode }) => <APIProvider>{children}</APIProvider>;
+    const { result, rerender } = renderHook(
+      ({ enabled }: { enabled: boolean }) => useAPIQuery("core:/discovery/assets", query, enabled),
+      { wrapper, initialProps: { enabled: true } },
+    );
+
+    await waitFor(() => expect(query).toHaveBeenCalledOnce());
+    act(() => initial.resolve(["visible-agent"]));
+    await waitFor(() => expect(result.current).toMatchObject({ status: "success", data: ["visible-agent"] }));
+    act(() => { void result.current.retry(); });
+    await waitFor(() => expect(query).toHaveBeenCalledTimes(2));
+
+    rerender({ enabled: false });
+    expect(result.current.status).toBe("idle");
+    expect(result.current.data).toBeUndefined();
+    expect(signals[1]?.aborted).toBe(true);
+
+    act(() => late.resolve(["late-disabled-agent"]));
+    await waitFor(() => expect(result.current.status).toBe("idle"));
+    expect(result.current.data).toBeUndefined();
+  });
+
   it("keeps authoritative data stale when refresh fails", async () => {
     const query = vi.fn<() => Promise<readonly string[]>>()
       .mockResolvedValueOnce(["finding-1"])
@@ -121,3 +193,16 @@ describe("API query state machine", () => {
     expect(result.current.data).toEqual(["finding-1"]);
   });
 });
+
+type Deferred<T> = {
+  promise: Promise<T>;
+  resolve(value: T): void;
+  reject(error: unknown): void;
+};
+
+function deferred<T>(): Deferred<T> {
+  let resolve: Deferred<T>["resolve"] = () => undefined;
+  let reject: Deferred<T>["reject"] = () => undefined;
+  const promise = new Promise<T>((done, fail) => { resolve = done; reject = fail; });
+  return { promise, resolve, reject };
+}

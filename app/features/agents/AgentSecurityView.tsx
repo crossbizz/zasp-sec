@@ -163,6 +163,7 @@ type ConnectedData =
 function ConnectedAgentSecurityView({ path, onNavigate }: { path: string; onNavigate: (path: string) => void }) {
   const { client } = useAPI();
   const api = useMemo(() => createAgentSecurityAPI(client), [client]);
+  const supported = connectedPaths.has(path);
   const load = useCallback(async (signal?: AbortSignal): Promise<ConnectedData> => {
     switch (path) {
     case "/": return { kind: "home", value: await api.getHomeSummary(signal) };
@@ -173,13 +174,22 @@ function ConnectedAgentSecurityView({ path, onNavigate }: { path: string; onNavi
     default: throw new Error("Production route unavailable");
     }
   }, [api, path]);
-  const query = useAPIQuery(`core:${path}`, load);
+  const query = useAPIQuery(`core:${path}`, load, supported);
+  if (!supported) return <div className="page"><PageHeader title="Unavailable" description="This production route is not available." /><div role="alert">Product route unavailable</div></div>;
   if (query.status === "loading" || query.status === "idle") return <div className="page"><PageHeader title="Loading" description="Loading authorized product data." /><p role="status">Loading authorized data…</p></div>;
   if (query.status === "forbidden") return <div className="page"><PageHeader title="Forbidden" description="This scope is not authorized." /><div role="alert">Authorization rejected</div></div>;
   if (query.status === "error") return <div className="page"><PageHeader title="Unavailable" description="Product data is unavailable." /><div role="alert">Product API unavailable</div><Button onClick={() => void query.retry()}>Retry</Button></div>;
   if (!query.data) return <div className="page"><PageHeader title="Empty" description="No records are available in this scope." /><p>No records in this scope.</p></div>;
   return <>{query.status === "stale" && <div role="alert" className="form-error">Showing stale data.</div>}<ConnectedDataView data={query.data} api={api} onNavigate={onNavigate} /></>;
 }
+
+const connectedPaths = new Set([
+  "/",
+  "/discovery/assets",
+  "/inventory/tools",
+  "/identities",
+  "/inventory/runtimes",
+]);
 
 function ConnectedDataView({ data, api, onNavigate }: { data: ConnectedData; api: ProductionAgentSecurityAPI; onNavigate: (path: string) => void }) {
   if (data.kind === "home") {

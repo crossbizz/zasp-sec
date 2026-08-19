@@ -4,7 +4,7 @@ import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { createAPIClient } from "../../apps/web/api/client";
-import { APIProvider } from "../api/APIProvider";
+import { APIProvider, useAPI } from "../api/APIProvider";
 import { AgentSecurityView } from "../features/agents/AgentSecurityView";
 
 describe("connected core risk workflow", () => {
@@ -50,6 +50,89 @@ describe("connected core risk workflow", () => {
     await userEvent.click(screen.getByRole("button", { name: "Close" }));
 		expect(fetch.mock.calls.some(([request]) => /search|attack-paths|findings/.test(new URL((request as Request).url).pathname))).toBe(false);
   });
+
+  it("never renders route A data or completion after route B takes query ownership", async () => {
+    const lateAgents = deferred<Response>();
+    const delayedTools = deferred<Response>();
+    const agentSignals: AbortSignal[] = [];
+    let agentCalls = 0;
+    const fetch = vi.fn((request: Request): Promise<Response> => {
+      const path = new URL(request.url).pathname;
+      if (path === "/api/v1/agents") {
+        agentCalls += 1;
+        agentSignals.push(request.signal);
+        return agentCalls === 1
+          ? Promise.resolve(jsonResponse({ items: [agent()] }))
+          : lateAgents.promise;
+      }
+      if (path === "/api/v1/tools") return delayedTools.promise;
+      return Promise.resolve(jsonResponse({ code: "not_found", message: "Resource not found", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: false }, 404));
+    });
+    const client = createAPIClient({ fetch, generateCorrelationID: () => "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee" });
+    function Workflow() {
+      const [path, setPath] = useState("/discovery/assets");
+      const { invalidate } = useAPI();
+      return <>
+        <button onClick={() => invalidate(["core:/discovery/assets"])}>Refresh agents</button>
+        <button onClick={() => setPath("/inventory/tools")}>Tools</button>
+        <AgentSecurityView path={path} onNavigate={setPath} />
+      </>;
+    }
+    render(<APIProvider client={client}><Workflow /></APIProvider>);
+
+    expect(await screen.findByText("Support agent")).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Refresh agents" }));
+    await waitFor(() => expect(agentCalls).toBe(2));
+    await userEvent.click(screen.getByRole("button", { name: "Tools" }));
+    expect(screen.getByRole("status")).toHaveTextContent("Loading authorized data");
+    expect(screen.queryByText("Support agent")).not.toBeInTheDocument();
+    expect(agentSignals[1]?.aborted).toBe(true);
+
+    delayedTools.reject(new Error("tool provider unavailable"));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Product API unavailable");
+    expect(screen.queryByText("Support agent")).not.toBeInTheDocument();
+
+    lateAgents.resolve(jsonResponse({ items: [{ ...agent(), name: "Late route A agent" }] }));
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Product API unavailable"));
+    expect(screen.queryByText("Late route A agent")).not.toBeInTheDocument();
+  });
+
+  it("masks connected route data and aborts its request when the route becomes disabled", async () => {
+    const lateAgents = deferred<Response>();
+    const signals: AbortSignal[] = [];
+    let calls = 0;
+    const fetch = vi.fn((request: Request): Promise<Response> => {
+      if (new URL(request.url).pathname !== "/api/v1/agents") {
+        return Promise.resolve(jsonResponse({ code: "not_found", message: "Resource not found", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: false }, 404));
+      }
+      calls += 1;
+      signals.push(request.signal);
+      return calls === 1 ? Promise.resolve(jsonResponse({ items: [agent()] })) : lateAgents.promise;
+    });
+    const client = createAPIClient({ fetch, generateCorrelationID: () => "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee" });
+    function Workflow() {
+      const [path, setPath] = useState("/discovery/assets");
+      const { invalidate } = useAPI();
+      return <>
+        <button onClick={() => invalidate(["core:/discovery/assets"])}>Refresh agents</button>
+        <button onClick={() => setPath("/unsupported")}>Disable route</button>
+        <AgentSecurityView path={path} onNavigate={setPath} />
+      </>;
+    }
+    render(<APIProvider client={client}><Workflow /></APIProvider>);
+
+    expect(await screen.findByText("Support agent")).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Refresh agents" }));
+    await waitFor(() => expect(calls).toBe(2));
+    await userEvent.click(screen.getByRole("button", { name: "Disable route" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Product route unavailable");
+    expect(screen.queryByText("Support agent")).not.toBeInTheDocument();
+    expect(signals[1]?.aborted).toBe(true);
+
+    lateAgents.resolve(jsonResponse({ items: [{ ...agent(), name: "Late disabled agent" }] }));
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Product route unavailable"));
+    expect(screen.queryByText("Late disabled agent")).not.toBeInTheDocument();
+  });
 });
 
 function agent() {
@@ -57,4 +140,17 @@ function agent() {
 }
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+}
+
+type Deferred<T> = {
+  promise: Promise<T>;
+  resolve(value: T): void;
+  reject(error: unknown): void;
+};
+
+function deferred<T>(): Deferred<T> {
+  let resolve: Deferred<T>["resolve"] = () => undefined;
+  let reject: Deferred<T>["reject"] = () => undefined;
+  const promise = new Promise<T>((done, fail) => { resolve = done; reject = fail; });
+  return { promise, resolve, reject };
 }

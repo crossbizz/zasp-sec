@@ -18,7 +18,7 @@ type StoredQueryState<T> = Omit<QueryState<T>, "retry"> & { epoch: string };
 export function useAPIQuery<T>(key: string, query: (signal?: AbortSignal) => Promise<T>, enabled = true): QueryState<T> {
 	const { revisions, queryScopeKey, queryGeneration } = useAPI();
   const revision = revisions.get(key) ?? 0;
-  const epoch = `${queryScopeKey ?? "__suspended__"}\u0000${queryGeneration}`;
+  const epoch = JSON.stringify([queryScopeKey, queryGeneration, key]);
   const queryEnabled = enabled && queryScopeKey !== null;
   const data = useRef<{ epoch: string; value: T } | undefined>(undefined);
   const request = useRef(0);
@@ -67,7 +67,7 @@ export function useAPIQuery<T>(key: string, query: (signal?: AbortSignal) => Pro
       controller.current?.abort();
     };
 	}, [load, revision, queryGeneration]);
-  const visibleState: Omit<QueryState<T>, "retry"> = state.epoch === epoch
+  const visibleState: Omit<QueryState<T>, "retry"> = queryEnabled && state.epoch === epoch
     ? state
     : { status: queryEnabled ? "loading" : "idle" };
   return { ...visibleState, retry };
