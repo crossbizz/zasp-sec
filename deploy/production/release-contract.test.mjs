@@ -68,6 +68,21 @@ test("release applies non-root rollout, zone and host spread, drain, PDB, and de
   assert.ok(policies.some(({ metadata }) => metadata.name === "internal-monitoring"));
 });
 
+test("release renders read-only synthetic and exact SLO budgets without credential values", async () => {
+  const resources = await renderRelease(release);
+  const canary = one(resources, "CronJob", "production-readonly-canary");
+  assert.equal(canary.spec.concurrencyPolicy, "Forbid");
+  assert.equal(canary.spec.jobTemplate.spec.activeDeadlineSeconds, 60);
+  const container = canary.spec.jobTemplate.spec.template.spec.containers[0];
+  assert.match(container.args[0], /\/sign-in/);
+  assert.match(container.args[0], /\/api\/v1\/home\/summary/);
+  assert.deepEqual(container.env[1].valueFrom.secretKeyRef, { name: "zasp-runtime-secrets", key: "ZASP_CANARY_READ_TOKEN" });
+  assert.doesNotMatch(JSON.stringify(canary), /Bearer [A-Za-z0-9_-]{16}/);
+  const rules = one(resources, "PrometheusRule", "zasp-production-slos");
+  const rendered = JSON.stringify(rules);
+  for (const budget of ["0.01", "0.5", "ZaspAPIErrorBudgetBurn", "ZaspAPIReadLatencyBudget", "ZaspAPIMutationLatencyBudget", "ZaspWorkloadUnavailable"]) assert.match(rendered, new RegExp(budget));
+});
+
 test("release rejects unpinned images and hostile public identifiers", async () => {
   await assert.rejects(() => renderRelease({ ...release, host: "app.zasp.example\nmalicious: true" }), /release rejected/);
   await assert.rejects(() => renderRelease({ ...release, images: { ...release.images, web: "zasp/web:latest" } }), /release rejected/);

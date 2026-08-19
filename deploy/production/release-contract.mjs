@@ -46,8 +46,10 @@ export async function renderRelease(value) {
     ["secrets.stytchOrganizationIDObjectName", "zasp/production/stytch-organization-id"],
     ["secrets.workflowSigningKeyObjectName", "zasp/production/workflow-signing-key"],
     ["secrets.tokenRevealKeyObjectName", "zasp/production/token-reveal-key"],
+    ["secrets.canaryReadTokenObjectName", "zasp/production/canary-read-token"],
     ["network.postgresCIDR", "10.30.0.0/24"], ["network.stytchCIDR", "10.40.0.0/24"],
     ["network.otelCollectorCIDR", "10.50.0.0/24"], ["attackLab.securityGroupID", "sg-00000000000000000"],
+    ["network.canaryCIDR", "10.60.0.0/24"],
     ...imageNames.map((name) => [`global.productImages.${name}`, value.images[name]]),
   ];
   const args = ["template", "zasp", path.join(root, "deploy/staging/product"), "--namespace", "agentsec"];

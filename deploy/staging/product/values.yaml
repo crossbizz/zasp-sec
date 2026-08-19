@@ -38,6 +38,7 @@ secrets:
   stytchOrganizationIDObjectName: ""
   workflowSigningKeyObjectName: ""
   tokenRevealKeyObjectName: ""
+  canaryReadTokenObjectName: ""
 schema:
   expectedVersion: 9
   migrationTimeout: 10m
@@ -45,11 +46,16 @@ serviceAccount:
   name: agentsec-product
 monitoring:
   namespace: monitoring
+  enabled: true
 network:
   ingressNamespace: ingress-nginx
   postgresCIDR: ""
   stytchCIDR: ""
   otelCollectorCIDR: ""
+  canaryCIDR: ""
+canary:
+  enabled: true
+  schedule: "*/5 * * * *"
 attackLab:
   securityGroupID: ""
 profile: control_plane

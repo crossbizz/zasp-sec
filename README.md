@@ -36,6 +36,25 @@ AI explanations, sensors/provider sync, policy simulation/decisions,
 security-agent execution/approvals, exports, and deletion jobs remain hidden
 until their provider, job, artifact, and recovery boundaries are complete.
 
+Production packaging now supplies separate non-root web/API images and one TLS
+ingress: `/api/v1` routes to API port 8080, `/` routes to web port 3000, and
+API health/readiness/metrics stay private on 8081. Secrets are resolved through
+secret-manager CSI references, schema v9 is a blocking release Job, and the
+chart includes default-deny network policy, disruption/spread/drain controls,
+read-only canaries, security headers, SLO alerts and immutable image inputs.
+
+Run the hermetic source release gate with pinned Node 22.23.1:
+
+```bash
+npm run production:release:gate
+```
+
+Deployment, recovery, authentication/support, observability/correlation and
+exact workflow truth are in [`docs/operations`](docs/operations). Built-image
+scanning/signing, remote CI, production secret values, live providers and
+public DNS/TLS remain release-environment gates; local source verification does
+not claim they have run.
+
 ## Base web shell
 
 The base shell exposes exactly 22 product labels in nine groups:
@@ -64,11 +83,9 @@ repository root:
 npm run web:shell:test
 ```
 
-The unauthenticated-route guard is an inert scaffold with one public sign-in
-path and closed redirect targets. It is not wired to a fabricated session and
-does not claim that the browser-local prototype is authenticated. M2-01 and
-M2-02 now provide the product authentication boundary; wiring it into the web
-shell remains later API/UI integration work.
+The unauthenticated-route guard has one public sign-in path and closed redirect
+targets. Production composition uses the M2 Stytch/durable-session boundary;
+the separate browser-local demonstration surface does not claim authentication.
 
 ## M1 build check
 

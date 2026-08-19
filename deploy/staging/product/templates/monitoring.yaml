@@ -1,0 +1,32 @@
+{{- if and (ne .Values.profile "customer_edge") .Values.monitoring.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: zasp-production-slos
+  labels: { app.kubernetes.io/part-of: zasp }
+spec:
+  groups:
+    - name: zasp.production
+      rules:
+        - alert: ZaspAPIErrorBudgetBurn
+          expr: sum(rate(zasp_http_requests_total{status_class="5xx"}[5m])) / clamp_min(sum(rate(zasp_http_requests_total[5m])), 1) > 0.01
+          for: 10m
+          labels: { severity: page }
+          annotations: { summary: "Product API error rate exceeds 1%" }
+        - alert: ZaspAPIReadLatencyBudget
+          expr: histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{service_name="agentsec-api",http_request_method="GET"}[5m]))) > 0.5
+          for: 15m
+          labels: { severity: ticket }
+          annotations: { summary: "Product API read p95 exceeds 500ms" }
+        - alert: ZaspAPIMutationLatencyBudget
+          expr: histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{service_name="agentsec-api",http_request_method!="GET"}[5m]))) > 1
+          for: 15m
+          labels: { severity: ticket }
+          annotations: { summary: "Product API mutation p95 exceeds 1s" }
+        - alert: ZaspWorkloadUnavailable
+          expr: min by (service) (agentsec_ready) < 1
+          for: 5m
+          labels: { severity: page }
+          annotations: { summary: "Required Zasp workload is not ready" }
+{{- end }}

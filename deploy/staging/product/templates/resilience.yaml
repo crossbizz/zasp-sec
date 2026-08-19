@@ -87,4 +87,16 @@ spec:
   podSelector: { matchLabels: { zasp.io/execution: attack-lab } }
   securityGroups:
     groupIds: [{{ required "attackLab.securityGroupID is required" .Values.attackLab.securityGroupID | quote }}]
+{{- if .Values.canary.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: readonly-canary-egress, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: production-readonly-canary } }
+  policyTypes: [Egress]
+  egress:
+    - to: [{ ipBlock: { cidr: {{ required "network.canaryCIDR is required" .Values.network.canaryCIDR | quote }} } }]
+      ports: [{ protocol: TCP, port: 443 }]
+{{- end }}
 {{- end }}
