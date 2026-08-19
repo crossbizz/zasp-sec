@@ -195,6 +195,45 @@ func TestProductionDiscoveryPostgresAtomicSnapshotReplayIsolationLeaseAndGateway
 	if err := connection.QueryRow(ctx, `SELECT zasp_discovery_canonical_id($1,$2,$3,'aws_account','123456789012')`, scope.OrganizationID().String(), scope.WorkspaceID().String(), foreignEnvironment).Scan(&foreignCanonical); err != nil || foreignCanonical == entityID {
 		t.Fatalf("foreign canonical=%q err=%v", foreignCanonical, err)
 	}
+	for _, pageID := range []string{"pid_b0000001-0000-4000-8000-000000000001", "pid_c0000001-0000-4000-8000-000000000001", "pid_d0000001-0000-4000-8000-000000000001"} {
+		if _, err := connection.Exec(ctx, `INSERT INTO zasp_inventory_entities(organization_id,workspace_id,environment_id,id,kind,display_name,first_seen_at,last_seen_at) VALUES($1,$2,$3,$4,'test','Page row',transaction_timestamp(),transaction_timestamp())`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), pageID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	firstPage, err := repository.ListInventoryEntityPage(ctx, scope, "", 2)
+	if err != nil || len(firstPage.Items) != 2 || firstPage.NextID == "" {
+		t.Fatalf("stable first page=%#v err=%v", firstPage, err)
+	}
+	if _, err := connection.Exec(ctx, `DELETE FROM zasp_inventory_entities WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND id='pid_c0000001-0000-4000-8000-000000000001'`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_inventory_entities(organization_id,workspace_id,environment_id,id,kind,display_name,first_seen_at,last_seen_at) VALUES($1,$2,$3,'pid_f0000001-0000-4000-8000-000000000001','test','Inserted row',transaction_timestamp(),transaction_timestamp())`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()); err != nil {
+		t.Fatal(err)
+	}
+	seen := map[string]bool{}
+	last := ""
+	for _, item := range firstPage.Items {
+		seen[item.ID] = true
+		last = item.ID
+	}
+	cursor := firstPage.NextID
+	for cursor != "" {
+		page, err := repository.ListInventoryEntityPage(ctx, scope, cursor, 2)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, item := range page.Items {
+			if seen[item.ID] || item.ID <= last {
+				t.Fatalf("unstable keyset id=%s last=%s", item.ID, last)
+			}
+			seen[item.ID] = true
+			last = item.ID
+		}
+		cursor = page.NextID
+	}
+	if !seen["pid_f0000001-0000-4000-8000-000000000001"] {
+		t.Fatal("insert after cursor was starved")
+	}
 	secondIntegrationID := "pid_42000001-0000-4000-8000-000000000001"
 	if _, err := repository.CreateIntegration(ctx, identity, IntegrationCreate{ID: secondIntegrationID, Kind: "aws", ConnectorVersion: "1.0.0", DisplayName: "AWS secondary", Configuration: json.RawMessage(`{"role_reference":"ref:aws/role/prod0002"}`)}); err != nil {
 		t.Fatal(err)
