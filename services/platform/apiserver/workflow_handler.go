@@ -696,6 +696,17 @@ func decodeEmptyInput(request *http.Request) error {
 	return nil
 }
 
+func requireZeroByteInput(request *http.Request) error {
+	if request.Body == nil {
+		return nil
+	}
+	var one [1]byte
+	if _, err := io.ReadFull(request.Body, one[:]); err != io.EOF {
+		return ErrRepositoryOperation
+	}
+	return nil
+}
+
 func writeJSONValue(writer http.ResponseWriter, request *http.Request, status int, value any, valueErr error) {
 	if valueErr != nil {
 		writeProductionError(writer, request, valueErr)

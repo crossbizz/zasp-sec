@@ -584,7 +584,7 @@ func (handler *identityHTTPHandler) mutateAdministration(writer http.ResponseWri
 	case "revokeAPIToken", "revokeSession":
 		mutation.ExpectedVersion, err = parseVersion(request.Header.Get("If-Match"))
 		if err == nil {
-			err = decodeEmptyInput(request)
+			err = requireZeroByteInput(request)
 		}
 		if err != nil || mutation.ID == "" || routed.OperationID == "revokeAPIToken" && !validAdministrationProductID(mutation.ID) {
 			writeWorkflowMutationError(writer, request, errOrOperation(err))
