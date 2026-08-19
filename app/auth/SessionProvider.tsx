@@ -74,15 +74,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const signIn = useCallback((returnTo?: string) => {
     window.location.assign(buildSignInURL(returnTo ?? `${window.location.pathname}${window.location.search}`));
   }, []);
-  const visibleState: SessionState = sessionExpiry === stateSessionExpiry ? state : { status: "unauthenticated" };
-  const capabilities = visibleState.status === "authenticated" ? new Set(visibleState.capabilities) : new Set<string>();
-  const value = useMemo<SessionContextValue>(() => ({
-    ...visibleState,
-    hasCapability: (capability: string) => capabilities.has(capability),
-    signIn,
-    signOut,
-    retry,
-  }), [visibleState, capabilities, signIn, signOut, retry]);
+	const value = useMemo<SessionContextValue>(() => {
+		const visibleState: SessionState = sessionExpiry === stateSessionExpiry ? state : { status: "unauthenticated" };
+		const capabilities = visibleState.status === "authenticated" ? new Set(visibleState.capabilities) : new Set<string>();
+		return {
+			...visibleState,
+			hasCapability: (capability: string) => capabilities.has(capability),
+			signIn,
+			signOut,
+			retry,
+		};
+	}, [sessionExpiry, stateSessionExpiry, state, signIn, signOut, retry]);
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 
