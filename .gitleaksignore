@@ -32,3 +32,8 @@ ebf8a773634b6212e4334e07497e1ef4e07bb9ee:scripts/production-combined-e2e.mjs:gen
 # changed or relocated values remain detectable.
 b85f368af14ec6c26ae3a629109349bf2d6ad29c:services/platform/apiserver/postgres_integration_test.go:generic-api-key:165
 4eff017ac317a34ffb6eff365798cc29e900bcb8:services/platform/apiserver/workflow_handler_test.go:generic-api-key:144
+
+# Batch 2 fix round four adds one descriptive idempotency-key literal only in
+# the hermetic real-PostgreSQL receipt lifecycle test. Ignore only its exact
+# introduction finding; changed or relocated values remain detectable.
+6bd6cf8388cfdc40825bfd287de675fa39fe3cf0:services/platform/apiserver/postgres_integration_test.go:generic-api-key:173
