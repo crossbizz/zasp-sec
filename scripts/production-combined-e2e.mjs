@@ -104,6 +104,10 @@ try {
   await waitForBrowserText(browser.cdp, /Durable scoped runtime controls/);
   await clickBrowserText(browser.cdp, "Create policy");
   await waitForBrowserText(browser.cdp, /exact operation and idempotency key are retained/);
+  await clickBrowserText(browser.cdp, "Integrations");
+  await waitForBrowserText(browser.cdp, /Durable local connector configuration/);
+  await clickBrowserText(browser.cdp, "Policies");
+  await waitForBrowserText(browser.cdp, /exact operation and idempotency key are retained/);
   await clickBrowserText(browser.cdp, "Retry retained policy operation");
   await waitForBrowserText(browser.cdp, /Policy created\. Audit pid_/);
   assert.equal(lostPolicyResponseKeys.length, 3);
@@ -136,7 +140,7 @@ try {
   await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/protect/approvals` });
   const approvalsHidden = await waitForBrowserText(browser.cdp, /Security overview/);
   assert.doesNotMatch(approvalsHidden, /Approve|Pending approvals/);
-  console.log("combined E2E: policy, local integration, Security Agent definition, and hidden unsafe controls proven");
+  console.log("combined E2E: route-remounted policy reconciliation, local integration, Security Agent definition, and hidden unsafe controls proven");
 
   await stopChild(api);
   api = startChild(apiBinary, [], { env: apiEnvironment });
