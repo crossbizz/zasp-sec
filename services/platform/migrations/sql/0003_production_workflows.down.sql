@@ -6,3 +6,4 @@ DROP FUNCTION "public"."zasp_workflow_list"(text, text, text, text, text, text);
 DROP TABLE "public"."zasp_workflow_audit";
 DROP TABLE "public"."zasp_workflow_idempotency";
 DROP TABLE "public"."zasp_workflow_records";
+ALTER TABLE "public"."zasp_product_sessions" DROP COLUMN "authenticated_at";

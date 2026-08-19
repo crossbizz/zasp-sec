@@ -1,3 +1,6 @@
+ALTER TABLE "public"."zasp_product_sessions"
+ADD COLUMN "authenticated_at" timestamp with time zone NOT NULL DEFAULT transaction_timestamp();
+
 CREATE TABLE "public"."zasp_workflow_records" (
     "organization_id" text NOT NULL,
     "workspace_id" text NOT NULL,

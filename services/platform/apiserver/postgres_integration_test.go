@@ -107,10 +107,10 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	if _, err := repository.Authenticate(ctx, Credential{Kind: CredentialBrowserSession, Value: session}); err != nil {
-		t.Fatalf("session authenticate: %v", err)
+	if identity, err := repository.Authenticate(ctx, Credential{Kind: CredentialBrowserSession, Value: session}); err != nil || !identity.FreshAuthenticated {
+		t.Fatalf("fresh session authenticate = (%#v, %v)", identity, err)
 	}
-	if identity, err := repository.Authenticate(ctx, Credential{Kind: CredentialBearerToken, Value: pat}); err != nil || identity.CSRFToken != "" {
+	if identity, err := repository.Authenticate(ctx, Credential{Kind: CredentialBearerToken, Value: pat}); err != nil || identity.CSRFToken != "" || identity.FreshAuthenticated {
 		t.Fatalf("PAT authenticate = (%#v, %v)", identity, err)
 	}
 	identity, _ := repository.Authenticate(ctx, Credential{Kind: CredentialBrowserSession, Value: session})
@@ -121,7 +121,7 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 		t.Fatalf("scope list = (%s, %v)", payload, err)
 	}
 	switched, err := repository.SwitchScope(ctx, identity, session, scope2)
-	if err != nil || switched.Scope != scope2 {
+	if err != nil || switched.Scope != scope2 || !switched.FreshAuthenticated {
 		t.Fatalf("scope switch = (%#v, %v)", switched, err)
 	}
 	foreignOrganization := integrationProductID(t, "pid_20000001-0000-4000-8000-000000000001")
@@ -209,6 +209,18 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 	}
 	if _, err := restartedRepository.Authenticate(ctx, Credential{Kind: CredentialBrowserSession, Value: session}); err != nil {
 		t.Fatalf("session did not survive repository restart: %v", err)
+	}
+	if _, err := restartedConnection.Exec(ctx, `UPDATE zasp_identity_memberships SET active = false WHERE principal_id = $1 AND organization_id = $2`, principal.String(), organization.String()); err != nil {
+		t.Fatalf("revoke membership: %v", err)
+	}
+	if _, err := restartedRepository.Authenticate(ctx, Credential{Kind: CredentialBrowserSession, Value: session}); !errors.Is(err, ErrRepositoryAuthentication) {
+		t.Fatalf("role-revoked browser session = %v", err)
+	}
+	if _, err := restartedRepository.Authenticate(ctx, Credential{Kind: CredentialBearerToken, Value: pat}); !errors.Is(err, ErrRepositoryAuthentication) {
+		t.Fatalf("role-revoked PAT = %v", err)
+	}
+	if _, err := restartedConnection.Exec(ctx, `UPDATE zasp_identity_memberships SET active = true WHERE principal_id = $1 AND organization_id = $2`, principal.String(), organization.String()); err != nil {
+		t.Fatalf("restore membership for session revocation proof: %v", err)
 	}
 	if err := restartedRepository.Revoke(ctx, identity, session); err != nil {
 		t.Fatalf("revoke: %v", err)

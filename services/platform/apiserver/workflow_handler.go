@@ -334,7 +334,7 @@ func (handler *workflowHTTPHandler) buildMutation(request *http.Request, identit
 		value["state"], value["version"] = "cancelled", expected+1
 		body, _ = json.Marshal(value)
 	case "decideSecurityAgentApproval":
-		if request.Header.Get("X-Zasp-Fresh-Auth") != "confirmed" {
+		if request.Header.Get("X-Zasp-Fresh-Auth") != "confirmed" || identity.CredentialKind != CredentialBrowserSession || !identity.FreshAuthenticated {
 			return WorkflowMutation{}, 0, "", ErrRepositoryAuthorization
 		}
 		stored, getErr := handler.repository.GetWorkflow(request.Context(), identity.Scope, "security_agent_approval", id)

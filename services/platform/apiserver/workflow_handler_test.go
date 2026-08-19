@@ -289,6 +289,36 @@ func TestWorkflowHandlerRejectsExpiredOrNonpendingApproval(t *testing.T) {
 	}
 }
 
+func TestWorkflowHandlerRequiresServerVerifiedFreshBrowserSessionForApproval(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBrowserSession
+	identity.FreshAuthenticated = false
+	approvalID := "pid_90000001-0000-4000-8000-000000000001"
+	repository := &workflowRepositoryStub{value: WorkflowValue{Version: 1, Body: json.RawMessage(`{"id":"` + approvalID + `","run_id":"pid_90000002-0000-4000-8000-000000000002","step_id":"pid_90000003-0000-4000-8000-000000000003","state":"pending","expires_at":"2026-08-18T12:10:00Z","version":1}`)}}
+	handler, _ := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), func() time.Time { return time.Date(2026, 8, 18, 12, 0, 0, 0, time.UTC) })
+	request := workflowRequest(t, identity, "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "decideSecurityAgentApproval", map[string]string{"id": approvalID}, http.MethodPost, "/api/v1/security-agent-approvals/"+approvalID+"/decision", `{"decision":"approved"}`)
+	request.Header.Set("Idempotency-Key", "idem-unfresh-approval-01")
+	request.Header.Set("If-Match", `"1"`)
+	request.Header.Set("X-Zasp-Fresh-Auth", "confirmed")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusForbidden || repository.mutation.Operation != "" {
+		t.Fatalf("unfresh browser approval = %d %s mutation=%#v", response.Code, response.Body.String(), repository.mutation)
+	}
+
+	identity.FreshAuthenticated = true
+	identity.CredentialKind = CredentialBearerToken
+	request = workflowRequest(t, identity, "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "decideSecurityAgentApproval", map[string]string{"id": approvalID}, http.MethodPost, "/api/v1/security-agent-approvals/"+approvalID+"/decision", `{"decision":"approved"}`)
+	request.Header.Set("Idempotency-Key", "idem-pat-approval-denied")
+	request.Header.Set("If-Match", `"1"`)
+	request.Header.Set("X-Zasp-Fresh-Auth", "confirmed")
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusForbidden || repository.mutation.Operation != "" {
+		t.Fatalf("PAT approval = %d %s mutation=%#v", response.Code, response.Body.String(), repository.mutation)
+	}
+}
+
 func TestSensorCoverageOmitsUnknownTimestampInsteadOfEmittingInvalidDate(t *testing.T) {
 	coverage, err := sensorCoverage(json.RawMessage(`{"id":"pid_90000001-0000-4000-8000-000000000001","capabilities":[]}`))
 	if err != nil {

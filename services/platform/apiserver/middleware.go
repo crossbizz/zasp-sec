@@ -33,11 +33,12 @@ type Credential struct {
 }
 
 type RequestIdentity struct {
-	PrincipalID    domain.ProductID
-	Scope          domain.Scope
-	Permissions    []string
-	CSRFToken      string
-	CredentialKind CredentialKind
+	PrincipalID        domain.ProductID
+	Scope              domain.Scope
+	Permissions        []string
+	CSRFToken          string
+	CredentialKind     CredentialKind
+	FreshAuthenticated bool
 }
 
 type Authenticator func(context.Context, Credential) (RequestIdentity, error)
