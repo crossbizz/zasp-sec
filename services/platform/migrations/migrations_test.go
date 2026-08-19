@@ -205,6 +205,56 @@ func TestBaselineMetadataIsStableAndOpaque(t *testing.T) {
 	}
 }
 
+func TestProductionCoreMetadataOwnsDurableSessionAndCoreSchema(t *testing.T) {
+	metadata := ProductionCore()
+	if metadata.Version() != 2 || metadata.Name() != "production_core" || len(metadata.Checksum()) != 64 {
+		t.Fatalf("production core identity = %d/%q/%q", metadata.Version(), metadata.Name(), metadata.Checksum())
+	}
+	for _, fragment := range []string{"zasp_schema_metadata", "zasp_product_sessions", "zasp_core_payloads", "zasp_session_bootstrap", "zasp_core_read", "zasp_core_write", "production-core-v1"} {
+		if !strings.Contains(metadata.UpSQL(), fragment) {
+			t.Fatalf("production core up migration missing %q", fragment)
+		}
+	}
+	if metadata.UpSQL() == "" || metadata.DownSQL() == "" || ProductionCore() != metadata {
+		t.Fatal("production core migration assets are missing or unstable")
+	}
+}
+
+func TestRunnerUpCoreRequiresBaselineAndRecordsExactRelease(t *testing.T) {
+	baseline, core := Baseline(), ProductionCore()
+	transaction := &fakeTransaction{rows: append(exactRows(),
+		fakeRow{values: []any{int64(2)}},
+		fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}},
+		fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}},
+	)}
+	database := &fakeDatabase{transaction: transaction}
+	runner, err := NewRunner(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := runner.UpCore(context.Background()); err != nil {
+		t.Fatalf("UpCore: %v", err)
+	}
+
+	want := []string{
+		"begin",
+		"query:SELECT to_regclass('public.zasp_schema_versions') IS NOT NULL", "args:none",
+		`query:SELECT count(*) FROM "public"."zasp_schema_versions"`, "args:none",
+		`query:SELECT "version", "name", "checksum" FROM "public"."zasp_schema_versions" ORDER BY "version"`, "args:none",
+		"exec:" + compactSQL(core.UpSQL()), "args:none",
+		`exec:INSERT INTO "public"."zasp_schema_versions" ("version", "name", "checksum") VALUES ($1, $2, $3)`,
+		"args:2,production_core," + core.Checksum(),
+		`query:SELECT count(*) FROM "public"."zasp_schema_versions"`, "args:none",
+		`query:SELECT "version", "name", "checksum" FROM "public"."zasp_schema_versions" WHERE "version" = $1`, "args:1",
+		`query:SELECT "version", "name", "checksum" FROM "public"."zasp_schema_versions" WHERE "version" = $1`, "args:2",
+		"commit",
+	}
+	if !reflect.DeepEqual(database.events, want) {
+		t.Fatalf("events = %#v, want %#v", database.events, want)
+	}
+}
+
 func TestRunnerUpCreatesAndRecordsExactBaselineInOneTransaction(t *testing.T) {
 	metadata := Baseline()
 	transaction := &fakeTransaction{rows: append([]Row{fakeRow{values: []any{false}}}, exactRows()...)}

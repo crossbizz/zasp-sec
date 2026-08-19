@@ -14,11 +14,14 @@ import (
 const (
 	baselineVersion = int64(1)
 	baselineName    = "schema_versions"
+	coreVersion     = int64(2)
+	coreName        = "production_core"
 	rollbackTimeout = 5 * time.Second
 
 	tableExistsSQL = "SELECT to_regclass('public.zasp_schema_versions') IS NOT NULL"
 	countRowsSQL   = `SELECT count(*) FROM "public"."zasp_schema_versions"`
 	readRowSQL     = `SELECT "version", "name", "checksum" FROM "public"."zasp_schema_versions" ORDER BY "version"`
+	readVersionSQL = `SELECT "version", "name", "checksum" FROM "public"."zasp_schema_versions" WHERE "version" = $1`
 	lockTableSQL   = `LOCK TABLE "public"."zasp_schema_versions" IN ACCESS EXCLUSIVE MODE`
 	insertRowSQL   = `INSERT INTO "public"."zasp_schema_versions" ("version", "name", "checksum") VALUES ($1, $2, $3)`
 	deleteRowSQL   = `DELETE FROM "public"."zasp_schema_versions" WHERE "version" = $1 AND "name" = $2 AND "checksum" = $3`
@@ -38,6 +41,12 @@ var baselineUpSQL string
 //go:embed sql/0001_schema_versions.down.sql
 var baselineDownSQL string
 
+//go:embed sql/0002_production_core.up.sql
+var coreUpSQL string
+
+//go:embed sql/0002_production_core.down.sql
+var coreDownSQL string
+
 type Metadata struct {
 	version  int64
 	name     string
@@ -53,6 +62,19 @@ func Baseline() Metadata {
 	return Metadata{
 		version:  baselineVersion,
 		name:     baselineName,
+		checksum: hex.EncodeToString(digest[:]),
+		up:       up,
+		down:     down,
+	}
+}
+
+func ProductionCore() Metadata {
+	up := strings.TrimSpace(coreUpSQL)
+	down := strings.TrimSpace(coreDownSQL)
+	digest := sha256.Sum256([]byte(up + "\x00" + down))
+	return Metadata{
+		version:  coreVersion,
+		name:     coreName,
 		checksum: hex.EncodeToString(digest[:]),
 		up:       up,
 		down:     down,
@@ -148,6 +170,33 @@ func (runner *Runner) Up(ctx context.Context) error {
 			return ErrInvalidState
 		}
 		return nil
+	})
+}
+
+// UpCore applies the first production data boundary only when the immutable
+// baseline is the database's exact current state. Release tooling calls this
+// explicitly; the API process never mutates its schema during startup.
+func (runner *Runner) UpCore(ctx context.Context) error {
+	if runner == nil || nilInterface(runner.database) {
+		return ErrInvalidRunner
+	}
+	return runner.withTransaction(ctx, func(ctx context.Context, transaction Transaction) error {
+		state, err := readState(ctx, transaction)
+		if err != nil {
+			return err
+		}
+		baseline := Baseline()
+		if !state.Applied() || state.Version() != baseline.Version() || state.Name() != baseline.Name() || state.Checksum() != baseline.Checksum() {
+			return ErrInvalidState
+		}
+		metadata := ProductionCore()
+		if err := transaction.Exec(ctx, metadata.UpSQL()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, insertRowSQL, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		return readCoreState(ctx, transaction)
 	})
 }
 
@@ -278,6 +327,26 @@ func readPresentState(ctx context.Context, queryer Queryer) (State, error) {
 		return State{}, ErrInvalidState
 	}
 	return state, nil
+}
+
+func readCoreState(ctx context.Context, queryer Queryer) error {
+	var count int64
+	if err := scanRow(ctx, queryer, countRowsSQL, nil, &count); err != nil {
+		return fixedDatabaseError(ctx, err)
+	}
+	if count != 2 {
+		return ErrInvalidState
+	}
+	for _, metadata := range []Metadata{Baseline(), ProductionCore()} {
+		state := State{applied: true}
+		if err := scanRow(ctx, queryer, readVersionSQL, []any{metadata.Version()}, &state.version, &state.name, &state.checksum); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if state.version != metadata.Version() || state.name != metadata.Name() || state.checksum != metadata.Checksum() {
+			return ErrInvalidState
+		}
+	}
+	return nil
 }
 
 func scanRow(ctx context.Context, queryer Queryer, statement string, arguments []any, destinations ...any) error {
