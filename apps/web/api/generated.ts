@@ -2821,7 +2821,7 @@ export type components = {
         readonly WorkflowAuditID: components["schemas"]["ProductID"];
         /** @description Quoted durable resource version for optimistic concurrency. */
         readonly WorkflowETag: string;
-        /** @description Durable recovery receipt bound to the exact authenticated principal, scope, operation, intent, and attempt key. */
+        /** @description BrowserSession-only durable recovery receipt bound to the exact authenticated principal, scope, operation, intent, and attempt key. This header is absent for ProductAPIToken mutations and replays. */
         readonly WorkflowMutationReceiptID: components["schemas"]["ProductID"];
     };
     pathItems: never;

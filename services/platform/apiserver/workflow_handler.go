@@ -286,10 +286,13 @@ func (handler *workflowHTTPHandler) mutate(writer http.ResponseWriter, request *
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
 		return
 	}
-	receiptID, err := newWorkflowProductID()
-	if err != nil {
-		writeProductionError(writer, request, ErrRepositoryUnavailable)
-		return
+	receiptID := ""
+	if identity.CredentialKind == CredentialBrowserSession {
+		receiptID, err = newWorkflowProductID()
+		if err != nil {
+			writeProductionError(writer, request, ErrRepositoryUnavailable)
+			return
+		}
 	}
 	mutation, status, responseKind, err := handler.buildMutation(request, identity, routed, idempotencyKey, auditID, correlationID)
 	if err != nil {
@@ -309,7 +312,9 @@ func (handler *workflowHTTPHandler) mutate(writer http.ResponseWriter, request *
 func (handler *workflowHTTPHandler) writeMutationResult(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, routed RoutedOperation, idempotencyKey string, intent json.RawMessage, result WorkflowMutationResult, status int, responseKind string) {
 	writer.Header().Set("ETag", quoteVersion(result.Version))
 	writer.Header().Set("X-Audit-ID", result.AuditID)
-	writer.Header().Set("X-Mutation-Receipt-ID", result.ReceiptID)
+	if result.ReceiptID != "" {
+		writer.Header().Set("X-Mutation-Receipt-ID", result.ReceiptID)
+	}
 	if status == http.StatusNoContent {
 		writer.WriteHeader(status)
 		return

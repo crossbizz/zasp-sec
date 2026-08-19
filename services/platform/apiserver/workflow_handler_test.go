@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -234,6 +235,36 @@ func TestWorkflowHandlerCreatesPolicyWithExactIdempotencyAuditAndVersion(t *test
 	}
 	if repository.identity.Scope != identity.Scope || repository.mutation.Action != "create" || repository.mutation.Kind != "policy" || repository.mutation.ID != "policy-bounded" || repository.mutation.IdempotencyKey != "idem-create-policy-0001" || repository.mutation.CorrelationID != correlation || repository.mutation.ReceiptID == "" {
 		t.Fatalf("mutation = %#v identity=%#v", repository.mutation, repository.identity)
+	}
+}
+
+func TestWorkflowHandlerPATMutationAndReplayNeverCreateBrowserReceipts(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBearerToken
+	correlation := "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+	result := WorkflowMutationResult{
+		WorkflowValue: WorkflowValue{Body: json.RawMessage(`{"id":"policy-pat","name":"PAT policy","scope":"environment","trigger":"tool","conditions":[{"field":"action","operator":"equals","value":"write"}],"action":"monitor","rollout":"draft","failure_mode":"open"}`), Version: 1},
+		AuditID:       "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+		CorrelationID: correlation,
+	}
+	for _, replayed := range []bool{false, true} {
+		t.Run(strconv.FormatBool(replayed), func(t *testing.T) {
+			repository := &workflowRepositoryStub{result: result, replay: result, replayed: replayed}
+			if replayed {
+				repository.replay.Replayed = true
+			}
+			handler, _ := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), time.Now)
+			request := workflowRequest(t, identity, correlation, "createPolicy", nil, http.MethodPost, "/api/v1/policies", `{"id":"policy-pat","name":"PAT policy","scope":"environment","trigger":"tool","conditions":[{"field":"action","operator":"equals","value":"write"}],"action":"monitor","rollout":"draft","failure_mode":"open"}`)
+			request.Header.Set("Idempotency-Key", "idem-pat-policy-0001")
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			if response.Code != http.StatusCreated || response.Header().Get("ETag") != `"1"` || response.Header().Get("X-Audit-ID") != result.AuditID || response.Header().Get("X-Mutation-Receipt-ID") != "" {
+				t.Fatalf("PAT mutation response = %d headers=%v body=%s", response.Code, response.Header(), response.Body.String())
+			}
+			if !replayed && repository.mutation.ReceiptID != "" {
+				t.Fatalf("PAT mutation carried receipt %q", repository.mutation.ReceiptID)
+			}
+		})
 	}
 }
 

@@ -18,6 +18,7 @@ const (
 	postgresWorkflowMutateSQL             = `SELECT zasp_workflow_mutate($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13, $14, $15)`
 	postgresWorkflowReceiptListSQL        = `SELECT zasp_workflow_receipt_list($1, $2, $3, $4, $5)`
 	postgresWorkflowReceiptAcknowledgeSQL = `SELECT zasp_workflow_receipt_acknowledge($1, $2, $3, $4, $5)`
+	postgresWorkflowReceiptCleanupSQL     = `SELECT zasp_workflow_receipt_cleanup($1)`
 )
 
 var workflowKeyPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`)
@@ -131,7 +132,7 @@ func (repository *PostgresRepository) GetWorkflow(ctx context.Context, scope dom
 }
 
 func (repository *PostgresRepository) MutateWorkflow(ctx context.Context, identity RequestIdentity, mutation WorkflowMutation) (WorkflowMutationResult, error) {
-	if repository == nil || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) || !validWorkflowMutation(mutation) {
+	if repository == nil || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) || !validWorkflowMutation(mutation) || !validMutationReceiptIdentity(identity, mutation.ReceiptID) {
 		return WorkflowMutationResult{}, ErrRepositoryOperation
 	}
 	payload, err := repository.database.QueryJSON(ctx, postgresWorkflowMutateSQL,
@@ -148,6 +149,24 @@ func (repository *PostgresRepository) MutateWorkflow(ctx context.Context, identi
 		return WorkflowMutationResult{}, ErrRepositoryUnavailable
 	}
 	return result, nil
+}
+
+func (repository *PostgresRepository) CleanupExpiredWorkflowMutationReceipts(ctx context.Context, limit int) (int, error) {
+	if repository == nil || nilInterface(repository.database) || ctx == nil || limit < 1 || limit > 1000 {
+		return 0, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresWorkflowReceiptCleanupSQL, limit)
+	if err != nil {
+		return 0, err
+	}
+	var raw map[string]json.RawMessage
+	var result struct {
+		Deleted int `json:"deleted"`
+	}
+	if json.Unmarshal(payload, &raw) != nil || len(raw) != 1 || raw["deleted"] == nil || json.Unmarshal(payload, &result) != nil || result.Deleted < 0 || result.Deleted > limit {
+		return 0, ErrRepositoryUnavailable
+	}
+	return result.Deleted, nil
 }
 
 func (repository *PostgresRepository) ListWorkflowMutationReceipts(ctx context.Context, identity RequestIdentity, limit int) ([]WorkflowMutationReceipt, error) {
@@ -237,7 +256,7 @@ func (repository *PostgresRepository) ReplayWorkflow(ctx context.Context, identi
 	if _, err := domain.ParseProductID(envelope.Result.CorrelationID); err != nil {
 		return WorkflowMutationResult{}, false, ErrRepositoryUnavailable
 	}
-	if _, err := domain.ParseProductID(envelope.Result.ReceiptID); err != nil {
+	if !validMutationReceiptIdentity(identity, envelope.Result.ReceiptID) {
 		return WorkflowMutationResult{}, false, ErrRepositoryUnavailable
 	}
 	return envelope.Result, true, nil
@@ -250,10 +269,29 @@ func validMutationResultIDs(result WorkflowMutationResult, mutation WorkflowMuta
 	if _, err := domain.ParseProductID(result.CorrelationID); err != nil {
 		return false
 	}
-	if _, err := domain.ParseProductID(result.ReceiptID); err != nil {
+	if result.ReceiptID != "" {
+		if _, err := domain.ParseProductID(result.ReceiptID); err != nil {
+			return false
+		}
+	}
+	if (result.ReceiptID == "") != (mutation.ReceiptID == "") {
+		return false
+	}
+	if !result.Replayed && result.ReceiptID != mutation.ReceiptID {
 		return false
 	}
 	return result.Replayed || (result.AuditID == mutation.AuditID && result.CorrelationID == mutation.CorrelationID)
+}
+
+func validMutationReceiptIdentity(identity RequestIdentity, receiptID string) bool {
+	if identity.CredentialKind == CredentialBearerToken {
+		return receiptID == ""
+	}
+	if identity.CredentialKind != CredentialBrowserSession {
+		return false
+	}
+	_, err := domain.ParseProductID(receiptID)
+	return err == nil
 }
 
 func validWorkflowPage(payload json.RawMessage, err error) (json.RawMessage, error) {
@@ -285,8 +323,10 @@ func validWorkflowMutation(value WorkflowMutation) bool {
 	if _, err := domain.ParseProductID(value.CorrelationID); err != nil {
 		return false
 	}
-	if _, err := domain.ParseProductID(value.ReceiptID); err != nil {
-		return false
+	if value.ReceiptID != "" {
+		if _, err := domain.ParseProductID(value.ReceiptID); err != nil {
+			return false
+		}
 	}
 	switch value.Action {
 	case "create":

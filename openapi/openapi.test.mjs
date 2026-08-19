@@ -88,7 +88,7 @@ function verifyDocument(value, rawText) {
       schema: { $ref: "#/components/schemas/ProductID" },
     },
     WorkflowMutationReceiptID: {
-      description: "Durable recovery receipt bound to the exact authenticated principal, scope, operation, intent, and attempt key.",
+      description: "BrowserSession-only durable recovery receipt bound to the exact authenticated principal, scope, operation, intent, and attempt key. This header is absent for ProductAPIToken mutations and replays.",
       schema: { $ref: "#/components/schemas/ProductID" },
     },
   });

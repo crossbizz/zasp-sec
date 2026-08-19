@@ -47,6 +47,9 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 	if err := runner.UpWorkflowReceipts(ctx); err != nil {
 		t.Fatalf("workflow receipt migration: %v", err)
 	}
+	if err := runner.UpWorkflowReceiptSafety(ctx); err != nil {
+		t.Fatalf("workflow receipt safety migration: %v", err)
+	}
 	fingerprintQuery := postgresSchemaVersionSQL[:strings.Index(postgresSchemaVersionSQL, "SELECT metadata.value")] + "SELECT value FROM semantic_fingerprint"
 	var actualFingerprint string
 	if err := connection.QueryRow(ctx, fingerprintQuery).Scan(&actualFingerprint); err != nil {
@@ -123,8 +126,9 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 	if identity, err := repository.Authenticate(ctx, Credential{Kind: CredentialBrowserSession, Value: session}); err != nil || !identity.FreshAuthenticated {
 		t.Fatalf("fresh session authenticate = (%#v, %v)", identity, err)
 	}
-	if identity, err := repository.Authenticate(ctx, Credential{Kind: CredentialBearerToken, Value: pat}); err != nil || identity.CSRFToken != "" || identity.FreshAuthenticated {
-		t.Fatalf("PAT authenticate = (%#v, %v)", identity, err)
+	patIdentity, err := repository.Authenticate(ctx, Credential{Kind: CredentialBearerToken, Value: pat})
+	if err != nil || patIdentity.CSRFToken != "" || patIdentity.FreshAuthenticated {
+		t.Fatalf("PAT authenticate = (%#v, %v)", patIdentity, err)
 	}
 	identity, _ := repository.Authenticate(ctx, Credential{Kind: CredentialBrowserSession, Value: session})
 	if payload, err := repository.Bootstrap(ctx, identity); err != nil || !equalIntegrationJSON(payload, []byte(authoritativeBootstrap)) {
@@ -148,7 +152,30 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 	if payload, err := repository.Read(ctx, scope, "agents"); err != nil || !equalIntegrationJSON(payload, []byte(agents)) {
 		t.Fatalf("read = (%s, %v)", payload, err)
 	}
-	workflowIdentity := RequestIdentity{PrincipalID: principal, Scope: scope, Permissions: []string{"view", "manage_workflows"}}
+	workflowIdentity := RequestIdentity{PrincipalID: principal, Scope: scope, Permissions: []string{"view", "manage_workflows"}, CredentialKind: CredentialBrowserSession}
+	patBody := json.RawMessage(`{"id":"policy-pat","name":"PAT boundary","scope":"environment","trigger":"tool","conditions":[{"field":"action","operator":"equals","value":"read"}],"action":"monitor","rollout":"draft","failure_mode":"open"}`)
+	patMutation := WorkflowMutation{Action: "create", Kind: "policy", ID: "policy-pat", Operation: "createPolicy", IdempotencyKey: "idem-production-pat-0001", Intent: json.RawMessage(`{"body":{"id":"policy-pat"},"expected_version":0,"resource_id":""}`), Body: patBody, AuditID: "pid_30000007-0000-4000-8000-000000000007", CorrelationID: "pid_30000008-0000-4000-8000-000000000008"}
+	createdPAT, err := repository.MutateWorkflow(ctx, patIdentity, patMutation)
+	if err != nil || createdPAT.Version != 1 || createdPAT.Replayed || createdPAT.ReceiptID != "" {
+		t.Fatalf("PAT workflow create = (%#v, %v)", createdPAT, err)
+	}
+	patReplay := patMutation
+	patReplay.AuditID = "pid_30000009-0000-4000-8000-000000000009"
+	patReplay.CorrelationID = "pid_30000010-0000-4000-8000-000000000010"
+	replayedPAT, err := repository.MutateWorkflow(ctx, patIdentity, patReplay)
+	if err != nil || !replayedPAT.Replayed || replayedPAT.ReceiptID != "" || replayedPAT.AuditID != patMutation.AuditID || replayedPAT.CorrelationID != patMutation.CorrelationID {
+		t.Fatalf("PAT workflow replay = (%#v, %v)", replayedPAT, err)
+	}
+	if patReceipts, err := repository.ListWorkflowMutationReceipts(ctx, workflowIdentity, 20); err != nil || len(patReceipts) != 0 {
+		t.Fatalf("PAT poisoned browser receipt queue = (%#v, %v)", patReceipts, err)
+	}
+	var patIdempotencyCount, patAuditCount, patReceiptCount int
+	if err := connection.QueryRow(ctx, `SELECT
+  (SELECT count(*) FROM zasp_workflow_idempotency WHERE operation = $1 AND idempotency_key = $2),
+  (SELECT count(*) FROM zasp_workflow_audit WHERE operation = $1 AND resource_id = $3),
+  (SELECT count(*) FROM zasp_workflow_receipts WHERE operation = $1 AND idempotency_key = $2)`, patMutation.Operation, patMutation.IdempotencyKey, patMutation.ID).Scan(&patIdempotencyCount, &patAuditCount, &patReceiptCount); err != nil || patIdempotencyCount != 1 || patAuditCount != 1 || patReceiptCount != 0 {
+		t.Fatalf("PAT persistence counts = (%d, %d, %d, %v)", patIdempotencyCount, patAuditCount, patReceiptCount, err)
+	}
 	workflowBody := json.RawMessage(`{"id":"policy-production","name":"Production boundary","scope":"environment","trigger":"tool","conditions":[{"field":"action","operator":"equals","value":"write"}],"action":"monitor","rollout":"draft","failure_mode":"open"}`)
 	workflowCreate := WorkflowMutation{Action: "create", Kind: "policy", ID: "policy-production", Operation: "createPolicy", IdempotencyKey: "idem-production-policy-0001", Intent: json.RawMessage(`{"body":{"id":"policy-production"},"expected_version":0,"resource_id":""}`), Body: workflowBody, AuditID: "pid_30000001-0000-4000-8000-000000000001", CorrelationID: "pid_30000002-0000-4000-8000-000000000002", ReceiptID: "pid_30000003-0000-4000-8000-000000000003"}
 	createdWorkflow, err := repository.MutateWorkflow(ctx, workflowIdentity, workflowCreate)
@@ -175,7 +202,7 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 		t.Fatalf("stale workflow mutation = %v", err)
 	}
 	var auditCount, idempotencyCount int
-	if err := connection.QueryRow(ctx, `SELECT (SELECT count(*) FROM zasp_workflow_audit WHERE resource_id = 'policy-production'), (SELECT count(*) FROM zasp_workflow_idempotency WHERE operation = 'createPolicy')`).Scan(&auditCount, &idempotencyCount); err != nil || auditCount != 1 || idempotencyCount != 1 {
+	if err := connection.QueryRow(ctx, `SELECT (SELECT count(*) FROM zasp_workflow_audit WHERE resource_id = 'policy-production'), (SELECT count(*) FROM zasp_workflow_idempotency WHERE operation = 'createPolicy')`).Scan(&auditCount, &idempotencyCount); err != nil || auditCount != 1 || idempotencyCount != 2 {
 		t.Fatalf("workflow ledger counts = (%d, %d, %v)", auditCount, idempotencyCount, err)
 	}
 	if err := database.Close(); err != nil {
@@ -218,12 +245,49 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 	if _, err := restartedConnection.Exec(ctx, `UPDATE zasp_workflow_receipts SET created_at = transaction_timestamp() - interval '8 days', expires_at = transaction_timestamp() - interval '1 day' WHERE receipt_id = $1`, workflowCreate.ReceiptID); err != nil {
 		t.Fatalf("expire receipt: %v", err)
 	}
-	if _, err := restartedRepository.ListWorkflowMutationReceipts(ctx, workflowIdentity, 20); err != nil {
-		t.Fatalf("expired receipt cleanup: %v", err)
+	if expired, err := restartedRepository.ListWorkflowMutationReceipts(ctx, workflowIdentity, 20); err != nil || len(expired) != 0 {
+		t.Fatalf("expired receipt visibility = (%#v, %v)", expired, err)
 	}
 	var receiptCount int
+	if err := restartedConnection.QueryRow(ctx, `SELECT count(*) FROM zasp_workflow_receipts WHERE receipt_id = $1`, workflowCreate.ReceiptID).Scan(&receiptCount); err != nil || receiptCount != 1 {
+		t.Fatalf("receipt list performed cleanup = (%d, %v)", receiptCount, err)
+	}
+	if err := restartedRepository.Ready(ctx); err != nil {
+		t.Fatalf("readiness receipt cleanup: %v", err)
+	}
 	if err := restartedConnection.QueryRow(ctx, `SELECT count(*) FROM zasp_workflow_receipts WHERE receipt_id = $1`, workflowCreate.ReceiptID).Scan(&receiptCount); err != nil || receiptCount != 0 {
 		t.Fatalf("expired receipt count = (%d, %v)", receiptCount, err)
+	}
+	if _, err := restartedConnection.Exec(ctx, `
+WITH generated AS (SELECT generate_series(1, 1001) AS ordinal), idempotency AS (
+  INSERT INTO zasp_workflow_idempotency
+    (organization_id, workspace_id, environment_id, principal_id, operation, idempotency_key, request_digest, response)
+  SELECT $1, $2, $3, $4, 'cleanupExpired', 'cleanup-expired-' || lpad(ordinal::text, 4, '0'),
+         digest(ordinal::text, 'sha256'), '{}'::jsonb
+  FROM generated
+  RETURNING idempotency_key
+)
+INSERT INTO zasp_workflow_receipts
+  (organization_id, workspace_id, environment_id, principal_id, receipt_id, operation, idempotency_key,
+   intent, result, resource_kind, resource_id, resource_version, audit_id, correlation_id, created_at, expires_at)
+SELECT $1, $2, $3, $4, 'cleanup-receipt-' || right(idempotency_key, 4), 'cleanupExpired', idempotency_key,
+       '{}'::jsonb, '{}'::jsonb, 'policy', 'policy-production', 1,
+       'cleanup-audit-' || right(idempotency_key, 4), 'cleanup-correlation-' || right(idempotency_key, 4),
+       transaction_timestamp() - interval '8 days', transaction_timestamp() - interval '1 day'
+FROM idempotency`, organization.String(), workspace.String(), environment.String(), principal.String()); err != nil {
+		t.Fatalf("seed bounded receipt cleanup: %v", err)
+	}
+	if deleted, err := restartedRepository.CleanupExpiredWorkflowMutationReceipts(ctx, 1000); err != nil || deleted != 1000 {
+		t.Fatalf("bounded receipt cleanup = (%d, %v)", deleted, err)
+	}
+	if err := restartedConnection.QueryRow(ctx, `SELECT count(*) FROM zasp_workflow_receipts WHERE operation = 'cleanupExpired'`).Scan(&receiptCount); err != nil || receiptCount != 1 {
+		t.Fatalf("bounded receipt cleanup remainder = (%d, %v)", receiptCount, err)
+	}
+	if err := restartedRepository.Ready(ctx); err != nil {
+		t.Fatalf("readiness cleanup remainder: %v", err)
+	}
+	if err := restartedConnection.QueryRow(ctx, `SELECT count(*) FROM zasp_workflow_receipts WHERE operation = 'cleanupExpired'`).Scan(&receiptCount); err != nil || receiptCount != 0 {
+		t.Fatalf("readiness cleanup remainder count = (%d, %v)", receiptCount, err)
 	}
 	if _, err := restartedConnection.Exec(ctx, `UPDATE zasp_identity_memberships SET role = 'read_only_viewer' WHERE principal_id = $1 AND organization_id = $2`, principal.String(), organization.String()); err != nil {
 		t.Fatalf("downgrade membership: %v", err)
@@ -340,6 +404,9 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 	}
 	defer func() { _ = rollbackConnection.Close(context.Background()) }()
 	rollbackRunner, _ := migrations.NewRunner(&integrationMigrationDatabase{connection: rollbackConnection})
+	if err := rollbackRunner.DownWorkflowReceiptSafety(ctx); err != nil {
+		t.Fatalf("workflow receipt safety rollback: %v", err)
+	}
 	if err := rollbackRunner.DownWorkflowReceipts(ctx); err != nil {
 		t.Fatalf("workflow receipt rollback: %v", err)
 	}
@@ -392,6 +459,9 @@ func TestWorkflowMigrationExpiresExistingSessionFreshness(t *testing.T) {
 	if err := runner.UpWorkflowReceipts(ctx); err != nil {
 		t.Fatal(err)
 	}
+	if err := runner.UpWorkflowReceiptSafety(ctx); err != nil {
+		t.Fatal(err)
+	}
 	database, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
 	repository, err := NewPostgresRepository(database)
 	if err != nil {
@@ -427,6 +497,9 @@ func TestRetainedWorkflowMutationsReplayLostResponsesInPostgres(t *testing.T) {
 	if err := runner.UpWorkflowReceipts(ctx); err != nil {
 		t.Fatal(err)
 	}
+	if err := runner.UpWorkflowReceiptSafety(ctx); err != nil {
+		t.Fatal(err)
+	}
 	database, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
 	repository, err := NewPostgresRepository(database)
 	if err != nil {
@@ -437,7 +510,7 @@ func TestRetainedWorkflowMutationsReplayLostResponsesInPostgres(t *testing.T) {
 	workspace := integrationProductID(t, "pid_61000002-0000-4000-8000-000000000002")
 	environment := integrationProductID(t, "pid_61000003-0000-4000-8000-000000000003")
 	scope, _ := domain.NewScope(organization, workspace, environment)
-	identity := RequestIdentity{PrincipalID: principal, Scope: scope, Permissions: []string{"view", "manage_workflows"}}
+	identity := RequestIdentity{PrincipalID: principal, Scope: scope, Permissions: []string{"view", "manage_workflows"}, CredentialKind: CredentialBrowserSession}
 	sequence := 0
 	assertReplay := func(mutation WorkflowMutation) WorkflowMutationResult {
 		t.Helper()
@@ -509,6 +582,9 @@ func TestSecurityAgentPaginationExceedsOneHundredWithoutTenantDisclosure(t *test
 		t.Fatal(err)
 	}
 	if err := runner.UpWorkflowReceipts(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.UpWorkflowReceiptSafety(ctx); err != nil {
 		t.Fatal(err)
 	}
 	identity := fixtureRequestIdentity(t)
@@ -589,6 +665,9 @@ func TestPolicyAndIntegrationPaginationTraversesOneThousandAndOneRowsExactly(t *
 		t.Fatal(err)
 	}
 	if err := runner.UpWorkflowReceipts(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.UpWorkflowReceiptSafety(ctx); err != nil {
 		t.Fatal(err)
 	}
 	identity := fixtureRequestIdentity(t)

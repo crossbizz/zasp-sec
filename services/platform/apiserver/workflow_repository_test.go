@@ -92,6 +92,56 @@ func TestWorkflowRepositoryMutationCarriesIdempotencyVersionAndAtomicAuditIdenti
 	}
 }
 
+func TestWorkflowRepositoryPATMutationAndReplayRequireNoReceiptIdentity(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBearerToken
+	response := json.RawMessage(`{"body":{"id":"policy-one"},"version":1,"secret_generation":0,"audit_id":"pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","correlation_id":"pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","replayed":false}`)
+	database := &workflowCallDatabase{response: response}
+	repository, _ := NewPostgresRepository(database)
+	mutation := WorkflowMutation{Action: "create", Kind: "policy", ID: "policy-one", Operation: "createPolicy", IdempotencyKey: "idem-pat-request-0001", Intent: json.RawMessage(`{"body":{"id":"policy-one"},"expected_version":0,"resource_id":""}`), Body: json.RawMessage(`{"id":"policy-one"}`), AuditID: "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", CorrelationID: "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"}
+	result, err := repository.MutateWorkflow(context.Background(), identity, mutation)
+	if err != nil || result.ReceiptID != "" {
+		t.Fatalf("PAT mutation = (%#v, %v)", result, err)
+	}
+	if got := database.args[len(database.args)-1]; got != "" {
+		t.Fatalf("PAT receipt argument = %#v", got)
+	}
+
+	database.response = json.RawMessage(`{"found":true,"result":{"body":{"id":"policy-one"},"version":1,"secret_generation":0,"audit_id":"pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","correlation_id":"pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","replayed":true}}`)
+	replayed, found, err := repository.ReplayWorkflow(context.Background(), identity, mutation.Operation, mutation.IdempotencyKey, mutation.Intent)
+	if err != nil || !found || !replayed.Replayed || replayed.ReceiptID != "" {
+		t.Fatalf("PAT replay = (%#v, %v, %v)", replayed, found, err)
+	}
+}
+
+func TestWorkflowRepositoryCleansExpiredReceiptsWithAnExactBound(t *testing.T) {
+	database := &workflowCallDatabase{response: json.RawMessage(`{"deleted":1000}`)}
+	repository, _ := NewPostgresRepository(database)
+	deleted, err := repository.CleanupExpiredWorkflowMutationReceipts(context.Background(), 1000)
+	if err != nil || deleted != 1000 || database.query != postgresWorkflowReceiptCleanupSQL || !reflect.DeepEqual(database.args, []any{1000}) {
+		t.Fatalf("cleanup = (%d, %v) query=%q args=%#v", deleted, err, database.query, database.args)
+	}
+	database.query = ""
+	if _, err := repository.CleanupExpiredWorkflowMutationReceipts(context.Background(), 1001); !errors.Is(err, ErrRepositoryOperation) || database.query != "" {
+		t.Fatalf("unbounded cleanup = %v query=%q", err, database.query)
+	}
+}
+
+func TestWorkflowRepositoryReadinessRunsOneBoundedReceiptCleanup(t *testing.T) {
+	database := &workflowCallDatabase{response: json.RawMessage(`{"deleted":0}`)}
+	repository, _ := NewPostgresRepository(database)
+	if err := repository.Ready(context.Background()); err != nil {
+		t.Fatalf("Ready: %v", err)
+	}
+	if database.query != postgresWorkflowReceiptCleanupSQL || !reflect.DeepEqual(database.args, []any{1000}) {
+		t.Fatalf("readiness cleanup query=%q args=%#v", database.query, database.args)
+	}
+	database.response = json.RawMessage(`{"deleted":1001}`)
+	if err := repository.Ready(context.Background()); !errors.Is(err, ErrRepositoryUnavailable) {
+		t.Fatalf("unbounded readiness cleanup error = %v", err)
+	}
+}
+
 func TestWorkflowRepositoryListsAndAcknowledgesOnlyExactPrincipalScopeReceipts(t *testing.T) {
 	created := time.Date(2026, 8, 18, 12, 0, 0, 0, time.UTC)
 	expires := created.Add(7 * 24 * time.Hour)

@@ -20,6 +20,8 @@ const (
 	workflowName    = "production_workflows"
 	receiptVersion  = int64(4)
 	receiptName     = "workflow_receipts"
+	safetyVersion   = int64(5)
+	safetyName      = "workflow_receipt_safety"
 	rollbackTimeout = 5 * time.Second
 
 	tableExistsSQL = "SELECT to_regclass('public.zasp_schema_versions') IS NOT NULL"
@@ -62,6 +64,12 @@ var receiptUpSQL string
 
 //go:embed sql/0004_workflow_receipts.down.sql
 var receiptDownSQL string
+
+//go:embed sql/0005_workflow_receipt_safety.up.sql
+var safetyUpSQL string
+
+//go:embed sql/0005_workflow_receipt_safety.down.sql
+var safetyDownSQL string
 
 type Metadata struct {
 	version  int64
@@ -111,6 +119,13 @@ func WorkflowReceipts() Metadata {
 	return Metadata{version: receiptVersion, name: receiptName, checksum: hex.EncodeToString(digest[:]), up: up, down: down}
 }
 
+func WorkflowReceiptSafety() Metadata {
+	up := strings.TrimSpace(safetyUpSQL)
+	down := strings.TrimSpace(safetyDownSQL)
+	digest := sha256.Sum256([]byte(up + "\x00" + down))
+	return Metadata{version: safetyVersion, name: safetyName, checksum: hex.EncodeToString(digest[:]), up: up, down: down}
+}
+
 func ProductionWorkflowsSemanticFingerprint() string {
 	const marker = "'production_workflows_fingerprint', '"
 	start := strings.Index(workflowUpSQL, marker)
@@ -130,18 +145,26 @@ func ProductionWorkflowsSemanticFingerprint() string {
 }
 
 func WorkflowReceiptsSemanticFingerprint() string {
-	const marker = "'production_workflow_receipts_fingerprint', '"
-	start := strings.Index(receiptUpSQL, marker)
+	return semanticFingerprint(receiptUpSQL, "production_workflow_receipts_fingerprint")
+}
+
+func WorkflowReceiptSafetySemanticFingerprint() string {
+	return semanticFingerprint(safetyUpSQL, "production_workflow_receipt_safety_fingerprint")
+}
+
+func semanticFingerprint(source, key string) string {
+	marker := "'" + key + "', '"
+	start := strings.Index(source, marker)
 	if start < 0 {
 		return ""
 	}
 	start += len(marker)
-	if len(receiptUpSQL) < start+64 {
+	if len(source) < start+64 {
 		return ""
 	}
-	value := receiptUpSQL[start : start+64]
+	value := source[start : start+64]
 	decoded, err := hex.DecodeString(value)
-	if err != nil || len(decoded) != sha256.Size || len(receiptUpSQL) == start+64 || receiptUpSQL[start+64] != '\'' {
+	if err != nil || len(decoded) != sha256.Size || len(source) == start+64 || source[start+64] != '\'' {
 		return ""
 	}
 	return value
@@ -210,8 +233,8 @@ func (runner *Runner) State(ctx context.Context) (State, error) {
 }
 
 // Version returns the exact release target installed in the database: zero for
-// an empty database, one for the immutable baseline, and two for production
-// core. Any partial, extra, or checksum-drifted state is rejected.
+// an empty database through the exact current production release. Any partial,
+// extra, or checksum-drifted state is rejected.
 func (runner *Runner) Version(ctx context.Context) (int64, error) {
 	if runner == nil || nilInterface(runner.database) {
 		return 0, ErrInvalidRunner
@@ -230,7 +253,7 @@ func (runner *Runner) Version(ctx context.Context) (int64, error) {
 	if err := scanRow(ctx, runner.database, countRowsSQL, nil, &count); err != nil {
 		return 0, fixedDatabaseError(ctx, err)
 	}
-	if count < 1 || count > 4 {
+	if count < 1 || count > 5 {
 		return 0, ErrInvalidState
 	}
 	metadata := []Metadata{Baseline()}
@@ -241,6 +264,8 @@ func (runner *Runner) Version(ctx context.Context) (int64, error) {
 		metadata = append(metadata, ProductionWorkflows())
 	} else if count == 4 {
 		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts())
+	} else if count == 5 {
+		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety())
 	}
 	for _, expected := range metadata {
 		var version int64
@@ -441,6 +466,51 @@ func (runner *Runner) DownWorkflowReceipts(ctx context.Context) error {
 	})
 }
 
+func (runner *Runner) UpWorkflowReceiptSafety(ctx context.Context) error {
+	if runner == nil || nilInterface(runner.database) {
+		return ErrInvalidRunner
+	}
+	return runner.withTransaction(ctx, func(ctx context.Context, transaction Transaction) error {
+		if err := readWorkflowReceiptState(ctx, transaction); err != nil {
+			return err
+		}
+		metadata := WorkflowReceiptSafety()
+		if err := transaction.Exec(ctx, metadata.UpSQL()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, insertRowSQL, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		return readWorkflowReceiptSafetyState(ctx, transaction)
+	})
+}
+
+func (runner *Runner) DownWorkflowReceiptSafety(ctx context.Context) error {
+	if runner == nil || nilInterface(runner.database) {
+		return ErrInvalidRunner
+	}
+	return runner.withTransaction(ctx, func(ctx context.Context, transaction Transaction) error {
+		present, err := tablePresent(ctx, transaction)
+		if err != nil || !present {
+			return ErrInvalidState
+		}
+		if err := transaction.Exec(ctx, lockTableSQL); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := readWorkflowReceiptSafetyState(ctx, transaction); err != nil {
+			return err
+		}
+		metadata := WorkflowReceiptSafety()
+		if err := transaction.Exec(ctx, deleteRowSQL, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, metadata.DownSQL()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		return readWorkflowReceiptState(ctx, transaction)
+	})
+}
+
 func (runner *Runner) Down(ctx context.Context) error {
 	if runner == nil || nilInterface(runner.database) {
 		return ErrInvalidRunner
@@ -580,6 +650,10 @@ func readWorkflowState(ctx context.Context, queryer Queryer) error {
 
 func readWorkflowReceiptState(ctx context.Context, queryer Queryer) error {
 	return readExactReleaseState(ctx, queryer, []Metadata{Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts()})
+}
+
+func readWorkflowReceiptSafetyState(ctx context.Context, queryer Queryer) error {
+	return readExactReleaseState(ctx, queryer, []Metadata{Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety()})
 }
 
 func readExactReleaseState(ctx context.Context, queryer Queryer, expected []Metadata) error {

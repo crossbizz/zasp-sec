@@ -272,8 +272,30 @@ func TestWorkflowReceiptsMetadataExtendsTheImmutableWorkflowRelease(t *testing.T
 	}
 }
 
+func TestWorkflowReceiptSafetyMetadataSeparatesBrowserReceiptsAndBoundedCleanup(t *testing.T) {
+	metadata := WorkflowReceiptSafety()
+	if metadata.Version() != 5 || metadata.Name() != "workflow_receipt_safety" || len(metadata.Checksum()) != 64 {
+		t.Fatalf("workflow receipt safety identity = %d/%q/%q", metadata.Version(), metadata.Name(), metadata.Checksum())
+	}
+	for _, fragment := range []string{
+		"zasp_workflow_receipt_cleanup", "requested_limit", "LIMIT requested_limit", "SKIP LOCKED",
+		"requested_receipt_id IS NOT NULL", "requested_receipt_id <> ''", "production-workflow-receipt-safety-v2",
+		"production_workflow_receipt_safety_fingerprint",
+	} {
+		if !strings.Contains(metadata.UpSQL(), fragment) {
+			t.Fatalf("workflow receipt safety migration missing %q", fragment)
+		}
+	}
+	if !strings.Contains(metadata.DownSQL(), "production-workflow-receipts-v1") || WorkflowReceiptSafety() != metadata {
+		t.Fatal("workflow receipt safety migration assets are missing or unstable")
+	}
+	if fingerprint := WorkflowReceiptSafetySemanticFingerprint(); len(fingerprint) != 64 || !strings.Contains(metadata.UpSQL(), fingerprint) {
+		t.Fatalf("workflow receipt safety semantic fingerprint = %q", fingerprint)
+	}
+}
+
 func TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift(t *testing.T) {
-	baseline, core, workflows, receipts := Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts()
+	baseline, core, workflows, receipts, safety := Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety()
 	for _, test := range []struct {
 		name    string
 		rows    []Row
@@ -285,7 +307,8 @@ func TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift(t 
 		{name: "core", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(2)}}, fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}}, fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}}}, want: 2},
 		{name: "workflows", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(3)}}, fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}}, fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}}, fakeRow{values: []any{workflows.Version(), workflows.Name(), workflows.Checksum()}}}, want: 3},
 		{name: "receipts", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(4)}}, fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}}, fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}}, fakeRow{values: []any{workflows.Version(), workflows.Name(), workflows.Checksum()}}, fakeRow{values: []any{receipts.Version(), receipts.Name(), receipts.Checksum()}}}, want: 4},
-		{name: "drift", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(5)}}}, wantErr: ErrInvalidState},
+		{name: "safety", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(5)}}, fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}}, fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}}, fakeRow{values: []any{workflows.Version(), workflows.Name(), workflows.Checksum()}}, fakeRow{values: []any{receipts.Version(), receipts.Name(), receipts.Checksum()}}, fakeRow{values: []any{safety.Version(), safety.Name(), safety.Checksum()}}}, want: 5},
+		{name: "drift", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(6)}}}, wantErr: ErrInvalidState},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			database := &fakeDatabase{rows: test.rows, transaction: &fakeTransaction{}}
