@@ -75,8 +75,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 229 |
-| Component-only | 425 |
+| Production-available | 235 |
+| Component-only | 419 |
 | Blocked/external | 61 |
 | Missing | 13 |
 
@@ -88,6 +88,11 @@ production composition, not merely a component proof or external evidence.
 - `README.md` and `services/platform/apiserver/composition_test.go` establish
   the 80-operation production API boundary and keep sync, sensor, runtime, and
   Security Agent execution operations unmounted.
+- Immutable release v10 now supplies the shipped PostgreSQL discovery/runtime
+  authority, strict repositories, session-user-bound database principals,
+  migration/release wiring, bounded recovery state machines, and durable
+  runtime-envelope handoff. Public connector operations and future worker
+  processes remain owned by Tasks 3 through 6 and are not claimed here.
 - `services/platform/agentsec-worker`, `services/event-ingest`, and
   `services/runtime-gateway` are health-only executables; their component
   packages do not constitute a running product loop.
@@ -107,8 +112,8 @@ production composition, not merely a component proof or external evidence.
 
 | Milestone | Total | Production-available | Component-only | Blocked/external | Missing |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| M0 | 27 | 0 | 24 | 3 | 0 |
-| M1 | 68 | 43 | 25 | 0 | 0 |
+| M0 | 27 | 4 | 20 | 3 | 0 |
+| M1 | 68 | 45 | 23 | 0 | 0 |
 | M1A | 10 | 0 | 6 | 4 | 0 |
 | M2 | 72 | 50 | 22 | 0 | 0 |
 | M3 | 75 | 13 | 60 | 2 | 0 |
@@ -118,7 +123,7 @@ production composition, not merely a component proof or external evidence.
 | M7 | 62 | 37 | 25 | 0 | 0 |
 | M7A | 113 | 21 | 92 | 0 | 0 |
 | M8 | 141 | 10 | 66 | 52 | 13 |
-| **Total** | **728** | **229** | **425** | **61** | **13** |
+| **Total** | **728** | **235** | **419** | **61** | **13** |
 
 ## Prerequisite work
 

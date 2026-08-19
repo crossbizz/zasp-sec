@@ -122,11 +122,14 @@ test("rejects a production class paired with the wrong historical state", async 
 
 test("rejects a grouped production owner for component-only work", async () => {
   await withLedger(
-    (ledger) => ledger.replace("T02-discovery-authority", "Tasks 2-9 production promotion"),
+    (ledger) => ledger.replace(
+      "M1\tM1-01e\tComplete\tcomponent-only\tT04-discovery-worker",
+      "M1\tM1-01e\tComplete\tcomponent-only\tTasks 2-9 production promotion",
+    ),
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /component-only requires one concrete owner task ID for M0-01/,
+        /component-only requires one concrete owner task ID for M1-01e/,
       );
     },
   );
@@ -162,7 +165,7 @@ test("rejects audited production-class count drift", async () => {
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /production-available count is 228; expected 229/,
+        /production-available count is 234; expected 235/,
       );
     },
   );
@@ -182,7 +185,7 @@ test("rejects a cross-milestone class swap that preserves global totals", async 
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /M1 production-available count is 44; expected 43/,
+        /M1 production-available count is 46; expected 45/,
       );
     },
   );
@@ -191,7 +194,7 @@ test("rejects a cross-milestone class swap that preserves global totals", async 
 test("rejects a published milestone matrix that drifts from the audited map", async () => {
   await withLedgerAndStatus(
     (ledger) => ledger,
-    (status) => status.replace("| M1 | 68 | 43 | 25 | 0 | 0 |", "| M1 | 68 | 44 | 24 | 0 | 0 |"),
+    (status) => status.replace("| M1 | 68 | 45 | 23 | 0 | 0 |", "| M1 | 68 | 46 | 22 | 0 | 0 |"),
     async ({ ledgerPath, statusPath }) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath, statusPath }),

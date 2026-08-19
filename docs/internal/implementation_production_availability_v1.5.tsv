@@ -1,9 +1,9 @@
 milestone	id	ledger_status	production_class	owning_production_task	current_evidence
-M0	M0-01	Complete	component-only	T02-discovery-authority	audited component-only proof: risk register
+M0	M0-01	Complete	production-available	T02-discovery-authority	v10 production discovery/runtime risk boundary; full race, real PostgreSQL, release gates, and independent 0/0/0 review at 48d9768
 M0	M0-02	Complete	component-only	T11-identity-admin	audited component-only proof: Stytch test config
 M0	M0-03	Complete	component-only	T11-identity-admin	audited component-only proof: Stytch JWT proof
-M0	M0-04	Complete	component-only	T02-discovery-authority	audited component-only proof: Neon pooled proof
-M0	M0-05	Complete	component-only	T02-discovery-authority	audited component-only proof: Neon migration proof
+M0	M0-04	Complete	production-available	T02-discovery-authority	actual registered API PostgreSQL session exercises legacy and v10 reads while direct v10 table and worker authority remain denied at 48d9768
+M0	M0-05	Complete	production-available	T02-discovery-authority	immutable v10 fresh/v9 upgrade, restart, fingerprint drift, guarded down, and shipped migrator lifecycle at 48d9768
 M0	M0-06	Complete	component-only	T04-discovery-worker	audited component-only proof: LocalStack SQS proof
 M0	M0-07	Complete	component-only	T04-discovery-worker	audited component-only proof: LocalStack storage proof
 M0	M0-08	Complete	component-only	T04-discovery-worker	audited component-only proof: OpenSearch proof
@@ -25,14 +25,14 @@ M0	M0-20	Complete	component-only	T14-data-workflows	audited component-only proof
 M0	M0-21	Complete	component-only	T14-data-workflows	audited component-only proof: OpenRouter privacy proof
 M0	M0-21a	Complete	component-only	T07-security-agent-authority	audited component-only proof: Security Agent planner boundary proof
 M0	M0-22	Complete	component-only	T14-data-workflows	audited component-only proof: OTLP export proof
-M0	M0-23	Complete	component-only	T02-discovery-authority	audited component-only proof: M0 gate
+M0	M0-23	Complete	production-available	T02-discovery-authority	Task 2 production gate: 44-package race, hostile PostgreSQL, migration/deploy contracts, clean patch, and independent 0/0/0 review at 48d9768
 M1	M1-01d	Complete	production-available	PROD-current-composition	audited shipped composition: platform API command
 M1	M1-01e	Complete	component-only	T04-discovery-worker	audited component-only proof: platform worker command
 M1	M1-01f	Complete	component-only	T06-runtime-data-plane	audited component-only proof: event ingest command
 M1	M1-01a	Complete	component-only	T06-runtime-data-plane	audited component-only proof: runtime gateway command
 M1	M1-01b	Complete	component-only	T04-discovery-worker	audited component-only proof: worker directories
 M1	M1-01c	Complete	component-only	T10-product-ui	audited component-only proof: web and CLI directories
-M1	M1-01	Complete	component-only	T02-discovery-authority	audited component-only proof: repo skeleton
+M1	M1-01	Complete	production-available	T02-discovery-authority	shipped platform v10 discovery/runtime authority, strict repositories, exact principal composition, and recovery state machines at 48d9768
 M1	M1-02	Complete	production-available	PROD-current-composition	audited shipped composition: dependency lock
 M1	M1-03	Complete	production-available	PROD-current-composition	audited shipped composition: canonical IDs
 M1	M1-04	Complete	production-available	PROD-current-composition	audited shipped composition: scope model
@@ -42,7 +42,7 @@ M1	M1-07	Complete	production-available	PROD-current-composition	audited shipped 
 M1	M1-08	Complete	production-available	PROD-current-composition	audited shipped composition: external client policy
 M1	M1-09	Complete	production-available	PROD-current-composition	audited shipped composition: idempotency helper
 M1	M1-10	Complete	production-available	PROD-current-composition	audited shipped composition: Neon schema baseline
-M1	M1-11	Complete	component-only	T02-discovery-authority	audited component-only proof: Neon pool wrapper
+M1	M1-11	Complete	production-available	T02-discovery-authority	production PostgreSQL session-user authority, bounded claims/leases, UTC outputs, and actual-login compatibility proof at 48d9768
 M1	M1-12	Complete	component-only	T04-discovery-worker	audited component-only proof: S3 artifact interface
 M1	M1-13	Complete	component-only	T04-discovery-worker	audited component-only proof: SQS queue interface
 M1	M1-14	Complete	component-only	T04-discovery-worker	audited component-only proof: OpenSearch EventStore
