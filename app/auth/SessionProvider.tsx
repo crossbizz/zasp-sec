@@ -235,10 +235,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 		if (state.status !== "authenticated") return;
 		const expires = Date.parse(state.freshAuthExpiresAt);
 		const delay = Math.max(0, expires - Date.now());
-		setFreshClock(Date.now());
-		if (delay === 0) return;
-		const timer = window.setTimeout(() => setFreshClock(Date.now()), delay + 5);
-		return () => window.clearTimeout(timer);
+		let active = true;
+		queueMicrotask(() => { if (active) setFreshClock(Date.now()); });
+		const timer = delay === 0 ? undefined : window.setTimeout(() => setFreshClock(Date.now()), delay + 5);
+		return () => { active = false; if (timer !== undefined) window.clearTimeout(timer); };
 	}, [state]);
   const reconcileScope = useCallback(async (attempt: ScopeAttempt, cause?: unknown) => {
 	if (scopeAttempt.current !== attempt) return;
