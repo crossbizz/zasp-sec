@@ -202,8 +202,7 @@ export type paths = {
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
-        /** Update Agent ownership and tags */
-        readonly patch: operations["updateAgent"];
+        readonly patch?: never;
         readonly trace?: never;
     };
     readonly "/api/v1/agents/{id}/capabilities": {
@@ -263,23 +262,6 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
-    readonly "/api/v1/ai/explanations": {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path?: never;
-            readonly cookie?: never;
-        };
-        readonly get?: never;
-        readonly put?: never;
-        /** Create one governed evidence-aware explanation */
-        readonly post: operations["createAIExplanation"];
-        readonly delete?: never;
-        readonly options?: never;
-        readonly head?: never;
-        readonly patch?: never;
-        readonly trace?: never;
-    };
     readonly "/api/v1/assets/{id}": {
         readonly parameters: {
             readonly query?: never;
@@ -293,81 +275,6 @@ export type paths = {
         readonly get: operations["getAsset"];
         readonly put?: never;
         readonly post?: never;
-        readonly delete?: never;
-        readonly options?: never;
-        readonly head?: never;
-        readonly patch?: never;
-        readonly trace?: never;
-    };
-    readonly "/api/v1/attack-lab/runs": {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path?: never;
-            readonly cookie?: never;
-        };
-        /** List authorized Attack Lab runs */
-        readonly get: operations["listAttackLabRuns"];
-        readonly put?: never;
-        /** Create one bounded Attack Lab run */
-        readonly post: operations["createAttackLabRun"];
-        readonly delete?: never;
-        readonly options?: never;
-        readonly head?: never;
-        readonly patch?: never;
-        readonly trace?: never;
-    };
-    readonly "/api/v1/attack-lab/runs/{id}": {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["RedTeamID"];
-            };
-            readonly cookie?: never;
-        };
-        /** Get one authorized Attack Lab run */
-        readonly get: operations["getAttackLabRun"];
-        readonly put?: never;
-        readonly post?: never;
-        readonly delete?: never;
-        readonly options?: never;
-        readonly head?: never;
-        readonly patch?: never;
-        readonly trace?: never;
-    };
-    readonly "/api/v1/attack-lab/runs/{id}/cancel": {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["RedTeamID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly get?: never;
-        readonly put?: never;
-        /** Cancel one authorized Attack Lab run */
-        readonly post: operations["cancelAttackLabRun"];
-        readonly delete?: never;
-        readonly options?: never;
-        readonly head?: never;
-        readonly patch?: never;
-        readonly trace?: never;
-    };
-    readonly "/api/v1/attack-lab/runs/{id}/rerun": {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["RedTeamID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly get?: never;
-        readonly put?: never;
-        /** Rerun one authorized Attack Lab run */
-        readonly post: operations["rerunAttackLabRun"];
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -575,25 +482,6 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
-    readonly "/api/v1/findings/{id}/ticket": {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["ProductID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly get?: never;
-        readonly put?: never;
-        /** Send a signed redacted finding ticket webhook */
-        readonly post: operations["createFindingTicket"];
-        readonly delete?: never;
-        readonly options?: never;
-        readonly head?: never;
-        readonly patch?: never;
-        readonly trace?: never;
-    };
     readonly "/api/v1/home/summary": {
         readonly parameters: {
             readonly query?: never;
@@ -703,83 +591,6 @@ export type paths = {
         readonly patch: operations["updateIntegration"];
         readonly trace?: never;
     };
-    readonly "/api/v1/integrations/{id}/authorize": {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["ProductID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly get?: never;
-        readonly put?: never;
-        /** Confirm authorization for an integration */
-        readonly post: operations["authorizeIntegration"];
-        readonly delete?: never;
-        readonly options?: never;
-        readonly head?: never;
-        readonly patch?: never;
-        readonly trace?: never;
-    };
-    readonly "/api/v1/integrations/{id}/sync": {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["ProductID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly get?: never;
-        readonly put?: never;
-        /** Queue one idempotent integration sync */
-        readonly post: operations["syncIntegration"];
-        readonly delete?: never;
-        readonly options?: never;
-        readonly head?: never;
-        readonly patch?: never;
-        readonly trace?: never;
-    };
-    readonly "/api/v1/integrations/{id}/syncs": {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["ProductID"];
-            };
-            readonly cookie?: never;
-        };
-        /** List syncs for an authorized integration */
-        readonly get: operations["listIntegrationSyncs"];
-        readonly put?: never;
-        readonly post?: never;
-        readonly delete?: never;
-        readonly options?: never;
-        readonly head?: never;
-        readonly patch?: never;
-        readonly trace?: never;
-    };
-    readonly "/api/v1/integrations/{id}/syncs/{syncId}": {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["ProductID"];
-                readonly syncId: components["schemas"]["ProductID"];
-            };
-            readonly cookie?: never;
-        };
-        /** Get one authorized integration sync */
-        readonly get: operations["getIntegrationSync"];
-        readonly put?: never;
-        readonly post?: never;
-        readonly delete?: never;
-        readonly options?: never;
-        readonly head?: never;
-        readonly patch?: never;
-        readonly trace?: never;
-    };
     readonly "/api/v1/me": {
         readonly parameters: {
             readonly query?: never;
@@ -853,25 +664,6 @@ export type paths = {
         readonly patch: operations["updatePolicy"];
         readonly trace?: never;
     };
-    readonly "/api/v1/policies/{id}/decisions": {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["PolicyID"];
-            };
-            readonly cookie?: never;
-        };
-        /** List bounded runtime decisions for one policy */
-        readonly get: operations["listPolicyDecisions"];
-        readonly put?: never;
-        readonly post?: never;
-        readonly delete?: never;
-        readonly options?: never;
-        readonly head?: never;
-        readonly patch?: never;
-        readonly trace?: never;
-    };
     readonly "/api/v1/policies/{id}/disable": {
         readonly parameters: {
             readonly query?: never;
@@ -910,25 +702,6 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
-    readonly "/api/v1/policies/{id}/simulate": {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["PolicyID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly get?: never;
-        readonly put?: never;
-        /** Simulate a runtime policy against bounded historical actions */
-        readonly post: operations["simulatePolicy"];
-        readonly delete?: never;
-        readonly options?: never;
-        readonly head?: never;
-        readonly patch?: never;
-        readonly trace?: never;
-    };
     readonly "/api/v1/runtimes": {
         readonly parameters: {
             readonly query?: never;
@@ -959,150 +732,6 @@ export type paths = {
         readonly get: operations["getRuntime"];
         readonly put?: never;
         readonly post?: never;
-        readonly delete?: never;
-        readonly options?: never;
-        readonly head?: never;
-        readonly patch?: never;
-        readonly trace?: never;
-    };
-    readonly "/api/v1/search": {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path?: never;
-            readonly cookie?: never;
-        };
-        /** Search authorized product names, types, and IDs */
-        readonly get: operations["globalSearch"];
-        readonly put?: never;
-        readonly post?: never;
-        readonly delete?: never;
-        readonly options?: never;
-        readonly head?: never;
-        readonly patch?: never;
-        readonly trace?: never;
-    };
-    readonly "/api/v1/security-actions": {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path?: never;
-            readonly cookie?: never;
-        };
-        /** List supported scoped Security Agent actions */
-        readonly get: operations["listSecurityActions"];
-        readonly put?: never;
-        readonly post?: never;
-        readonly delete?: never;
-        readonly options?: never;
-        readonly head?: never;
-        readonly patch?: never;
-        readonly trace?: never;
-    };
-    readonly "/api/v1/security-agent-approvals": {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path?: never;
-            readonly cookie?: never;
-        };
-        /** List Workspace and Environment authorized approvals */
-        readonly get: operations["listSecurityAgentApprovals"];
-        readonly put?: never;
-        readonly post?: never;
-        readonly delete?: never;
-        readonly options?: never;
-        readonly head?: never;
-        readonly patch?: never;
-        readonly trace?: never;
-    };
-    readonly "/api/v1/security-agent-approvals/{id}": {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["ProductID"];
-            };
-            readonly cookie?: never;
-        };
-        /** Get expected effect, reversibility, TTL, and evidence for one approval */
-        readonly get: operations["getSecurityAgentApproval"];
-        readonly put?: never;
-        readonly post?: never;
-        readonly delete?: never;
-        readonly options?: never;
-        readonly head?: never;
-        readonly patch?: never;
-        readonly trace?: never;
-    };
-    readonly "/api/v1/security-agent-approvals/{id}/decision": {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["ProductID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly get?: never;
-        readonly put?: never;
-        /** Record a fresh-auth guarded approval decision */
-        readonly post: operations["decideSecurityAgentApproval"];
-        readonly delete?: never;
-        readonly options?: never;
-        readonly head?: never;
-        readonly patch?: never;
-        readonly trace?: never;
-    };
-    readonly "/api/v1/security-agent-runs": {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path?: never;
-            readonly cookie?: never;
-        };
-        /** List authorized Security Agent runs */
-        readonly get: operations["listSecurityAgentRuns"];
-        readonly put?: never;
-        readonly post?: never;
-        readonly delete?: never;
-        readonly options?: never;
-        readonly head?: never;
-        readonly patch?: never;
-        readonly trace?: never;
-    };
-    readonly "/api/v1/security-agent-runs/{id}": {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["ProductID"];
-            };
-            readonly cookie?: never;
-        };
-        /** Get redacted Security Agent run detail */
-        readonly get: operations["getSecurityAgentRun"];
-        readonly put?: never;
-        readonly post?: never;
-        readonly delete?: never;
-        readonly options?: never;
-        readonly head?: never;
-        readonly patch?: never;
-        readonly trace?: never;
-    };
-    readonly "/api/v1/security-agent-runs/{id}/cancel": {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["ProductID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly get?: never;
-        readonly put?: never;
-        /** Cancel future work for one nonterminal run */
-        readonly post: operations["cancelSecurityAgentRun"];
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -1163,121 +792,6 @@ export type paths = {
         readonly head?: never;
         /** Update or enable a bounded Security Agent definition */
         readonly patch: operations["updateSecurityAgent"];
-        readonly trace?: never;
-    };
-    readonly "/api/v1/security-agents/{id}/runs": {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["ProductID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly get?: never;
-        readonly put?: never;
-        /** Start one scoped manual Security Agent run */
-        readonly post: operations["runSecurityAgent"];
-        readonly delete?: never;
-        readonly options?: never;
-        readonly head?: never;
-        readonly patch?: never;
-        readonly trace?: never;
-    };
-    readonly "/api/v1/security-agents/{id}/simulate": {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["ProductID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly get?: never;
-        readonly put?: never;
-        /** Simulate scoped planning and authorization without side effects */
-        readonly post: operations["simulateSecurityAgent"];
-        readonly delete?: never;
-        readonly options?: never;
-        readonly head?: never;
-        readonly patch?: never;
-        readonly trace?: never;
-    };
-    readonly "/api/v1/sensors": {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path?: never;
-            readonly cookie?: never;
-        };
-        /** List sensors in the authorized scope */
-        readonly get: operations["listSensors"];
-        readonly put?: never;
-        /** Create a sensor enrollment and return its token once */
-        readonly post: operations["createSensorEnrollment"];
-        readonly delete?: never;
-        readonly options?: never;
-        readonly head?: never;
-        readonly patch?: never;
-        readonly trace?: never;
-    };
-    readonly "/api/v1/sensors/{id}": {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["ProductID"];
-            };
-            readonly cookie?: never;
-        };
-        /** Get an authorized sensor */
-        readonly get: operations["getSensor"];
-        readonly put?: never;
-        readonly post?: never;
-        /** Delete an authorized sensor */
-        readonly delete: operations["deleteSensor"];
-        readonly options?: never;
-        readonly head?: never;
-        /** Update an authorized sensor */
-        readonly patch: operations["updateSensor"];
-        readonly trace?: never;
-    };
-    readonly "/api/v1/sensors/{id}/coverage": {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["ProductID"];
-            };
-            readonly cookie?: never;
-        };
-        /** Get bounded sensor coverage and drop health */
-        readonly get: operations["getSensorCoverage"];
-        readonly put?: never;
-        readonly post?: never;
-        readonly delete?: never;
-        readonly options?: never;
-        readonly head?: never;
-        readonly patch?: never;
-        readonly trace?: never;
-    };
-    readonly "/api/v1/sensors/{id}/rotate-token": {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["ProductID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly get?: never;
-        readonly put?: never;
-        /** Rotate a sensor token and return it once */
-        readonly post: operations["rotateSensorToken"];
-        readonly delete?: never;
-        readonly options?: never;
-        readonly head?: never;
-        readonly patch?: never;
         readonly trace?: never;
     };
     readonly "/api/v1/session/bootstrap": {
@@ -1524,118 +1038,6 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
-    readonly "/api/v1/test-runs": {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path?: never;
-            readonly cookie?: never;
-        };
-        /** List authorized red-team test runs */
-        readonly get: operations["listTestRuns"];
-        readonly put?: never;
-        readonly post?: never;
-        readonly delete?: never;
-        readonly options?: never;
-        readonly head?: never;
-        readonly patch?: never;
-        readonly trace?: never;
-    };
-    readonly "/api/v1/test-runs/{id}": {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["RedTeamID"];
-            };
-            readonly cookie?: never;
-        };
-        /** Get one authorized red-team test run */
-        readonly get: operations["getTestRun"];
-        readonly put?: never;
-        readonly post?: never;
-        readonly delete?: never;
-        readonly options?: never;
-        readonly head?: never;
-        readonly patch?: never;
-        readonly trace?: never;
-    };
-    readonly "/api/v1/test-runs/{id}/cancel": {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["RedTeamID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly get?: never;
-        readonly put?: never;
-        /** Cancel one authorized incomplete red-team test run */
-        readonly post: operations["cancelTestRun"];
-        readonly delete?: never;
-        readonly options?: never;
-        readonly head?: never;
-        readonly patch?: never;
-        readonly trace?: never;
-    };
-    readonly "/api/v1/tests": {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path?: never;
-            readonly cookie?: never;
-        };
-        /** List authorized red-team test definitions */
-        readonly get: operations["listTests"];
-        readonly put?: never;
-        /** Create a bounded red-team test definition */
-        readonly post: operations["createTest"];
-        readonly delete?: never;
-        readonly options?: never;
-        readonly head?: never;
-        readonly patch?: never;
-        readonly trace?: never;
-    };
-    readonly "/api/v1/tests/{id}": {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["RedTeamID"];
-            };
-            readonly cookie?: never;
-        };
-        /** Get one authorized red-team test definition */
-        readonly get: operations["getTest"];
-        readonly put?: never;
-        readonly post?: never;
-        readonly delete?: never;
-        readonly options?: never;
-        readonly head?: never;
-        /** Update one bounded red-team test definition */
-        readonly patch: operations["updateTest"];
-        readonly trace?: never;
-    };
-    readonly "/api/v1/tests/{id}/runs": {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["RedTeamID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly get?: never;
-        readonly put?: never;
-        /** Queue one authorized red-team test run */
-        readonly post: operations["runTest"];
-        readonly delete?: never;
-        readonly options?: never;
-        readonly head?: never;
-        readonly patch?: never;
-        readonly trace?: never;
-    };
     readonly "/api/v1/tools": {
         readonly parameters: {
             readonly query?: never;
@@ -1860,6 +1262,8 @@ export type components = {
         };
         readonly AttackPath: {
             readonly blocked_edge: number;
+            /** Format: date-time */
+            readonly created_at: string;
             readonly entry_id: components["schemas"]["ProductID"];
             readonly evidence_ids: readonly components["schemas"]["ProductID"][];
             readonly id: components["schemas"]["ProductID"];
@@ -1867,9 +1271,13 @@ export type components = {
             readonly sink_id: components["schemas"]["ProductID"];
             /** @enum {string} */
             readonly state: "potential" | "observed" | "verified" | "blocked";
+            /** Format: date-time */
+            readonly updated_at: string;
+            readonly version: number;
         };
         readonly AttackPathPage: {
             readonly items: readonly components["schemas"]["AttackPath"][];
+            readonly page_info: components["schemas"]["PageInfo"];
         };
         readonly AuditEvent: {
             readonly action: string;
@@ -2075,6 +1483,8 @@ export type components = {
             readonly acceptance_reason?: string;
             readonly agent_id?: components["schemas"]["ProductID"];
             readonly compliance_context?: string;
+            /** Format: date-time */
+            readonly created_at: string;
             readonly evidence_ids: readonly components["schemas"]["ProductID"][];
             readonly id: components["schemas"]["ProductID"];
             readonly path_id?: components["schemas"]["ProductID"];
@@ -2085,12 +1495,16 @@ export type components = {
             readonly source: "posture" | "prowler";
             readonly status: components["schemas"]["FindingStatus"];
             readonly title: string;
+            /** Format: date-time */
+            readonly updated_at: string;
+            readonly version: number;
         };
         readonly FindingAcceptanceInput: {
             readonly reason: string;
         };
         readonly FindingPage: {
             readonly items: readonly components["schemas"]["Finding"][];
+            readonly page_info: components["schemas"]["PageInfo"];
         };
         /** @enum {string} */
         readonly FindingSeverity: "critical" | "high" | "medium" | "low";
@@ -2705,7 +2119,7 @@ export type components = {
             readonly items: readonly components["schemas"]["TestRun"][];
         };
         readonly WorkflowMutationIntent: {
-            readonly body: components["schemas"]["Policy"] | components["schemas"]["PolicyRolloutInput"] | components["schemas"]["EmptyInput"] | components["schemas"]["IntegrationInput"] | components["schemas"]["IntegrationUpdateInput"] | components["schemas"]["SecurityAgentInput"] | components["schemas"]["SecurityAgentDefinition"];
+            readonly body: components["schemas"]["Policy"] | components["schemas"]["PolicyRolloutInput"] | components["schemas"]["EmptyInput"] | components["schemas"]["IntegrationInput"] | components["schemas"]["IntegrationUpdateInput"] | components["schemas"]["SecurityAgentInput"] | components["schemas"]["SecurityAgentDefinition"] | components["schemas"]["FindingUpdateInput"] | components["schemas"]["FindingAcceptanceInput"];
             readonly expected_version: number;
             readonly resource_id: string;
         };
@@ -2720,12 +2134,12 @@ export type components = {
             readonly idempotency_key: string;
             readonly intent: components["schemas"]["WorkflowMutationIntent"];
             /** @enum {string} */
-            readonly operation: "createPolicy" | "updatePolicy" | "deletePolicy" | "rolloutPolicy" | "disablePolicy" | "createIntegration" | "updateIntegration" | "deleteIntegration" | "createSecurityAgent" | "updateSecurityAgent" | "deleteSecurityAgent";
+            readonly operation: "createPolicy" | "updatePolicy" | "deletePolicy" | "rolloutPolicy" | "disablePolicy" | "createIntegration" | "updateIntegration" | "deleteIntegration" | "createSecurityAgent" | "updateSecurityAgent" | "deleteSecurityAgent" | "updateFinding" | "acceptFindingRisk";
             readonly resource_id: string;
             /** @enum {string} */
-            readonly resource_kind: "policy" | "integration" | "security_agent";
+            readonly resource_kind: "policy" | "integration" | "security_agent" | "finding";
             readonly resource_version: number;
-            readonly result: components["schemas"]["Policy"] | components["schemas"]["Integration"] | components["schemas"]["SecurityAgentDefinition"];
+            readonly result: components["schemas"]["Policy"] | components["schemas"]["Integration"] | components["schemas"]["SecurityAgentDefinition"] | components["schemas"]["Finding"];
         };
         readonly WorkflowMutationReceiptPage: {
             readonly items: readonly components["schemas"]["WorkflowMutationReceipt"][];
@@ -3306,34 +2720,6 @@ export interface operations {
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
-    readonly updateAgent: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["ProductID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly requestBody: {
-            readonly content: {
-                readonly "application/json": components["schemas"]["AgentOwnershipInput"];
-            };
-        };
-        readonly responses: {
-            /** @description Updated Agent and audit reference. */
-            readonly 200: {
-                headers: {
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["AgentMutation"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
     readonly getAgentCapabilities: {
         readonly parameters: {
             readonly query?: never;
@@ -3406,32 +2792,6 @@ export interface operations {
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
-    readonly createAIExplanation: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path?: never;
-            readonly cookie?: never;
-        };
-        readonly requestBody: {
-            readonly content: {
-                readonly "application/json": components["schemas"]["AIExplanationInput"];
-            };
-        };
-        readonly responses: {
-            /** @description Governed explanation. */
-            readonly 200: {
-                headers: {
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["AIExplanation"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
     readonly getAsset: {
         readonly parameters: {
             readonly query?: never;
@@ -3456,137 +2816,14 @@ export interface operations {
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
-    readonly listAttackLabRuns: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path?: never;
-            readonly cookie?: never;
-        };
-        readonly requestBody?: never;
-        readonly responses: {
-            /** @description Authorized Attack Lab runs. */
-            readonly 200: {
-                headers: {
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["AttackLabRunPage"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly createAttackLabRun: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path?: never;
-            readonly cookie?: never;
-        };
-        readonly requestBody: {
-            readonly content: {
-                readonly "application/json": components["schemas"]["AttackLabRun"];
-            };
-        };
-        readonly responses: {
-            /** @description Created Attack Lab run. */
-            readonly 201: {
-                headers: {
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["AttackLabRun"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly getAttackLabRun: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["RedTeamID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly requestBody?: never;
-        readonly responses: {
-            /** @description Authorized Attack Lab run. */
-            readonly 200: {
-                headers: {
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["AttackLabRun"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly cancelAttackLabRun: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["RedTeamID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly requestBody: {
-            readonly content: {
-                readonly "application/json": components["schemas"]["EmptyInput"];
-            };
-        };
-        readonly responses: {
-            /** @description Cancelled Attack Lab run. */
-            readonly 200: {
-                headers: {
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["AttackLabRun"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly rerunAttackLabRun: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["RedTeamID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly requestBody: {
-            readonly content: {
-                readonly "application/json": components["schemas"]["TestRunInput"];
-            };
-        };
-        readonly responses: {
-            /** @description Created Attack Lab rerun. */
-            readonly 201: {
-                headers: {
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["AttackLabRun"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
     readonly listAttackPaths: {
         readonly parameters: {
-            readonly query?: never;
+            readonly query?: {
+                /** @description Opaque cursor returned by the preceding page. */
+                readonly cursor?: components["parameters"]["PageCursor"];
+                /** @description Maximum number of records to return. */
+                readonly limit?: components["parameters"]["PageLimit"];
+            };
             readonly header?: never;
             readonly path?: never;
             readonly cookie?: never;
@@ -3857,7 +3094,12 @@ export interface operations {
     };
     readonly listFindings: {
         readonly parameters: {
-            readonly query?: never;
+            readonly query?: {
+                /** @description Opaque cursor returned by the preceding page. */
+                readonly cursor?: components["parameters"]["PageCursor"];
+                /** @description Maximum number of records to return. */
+                readonly limit?: components["parameters"]["PageLimit"];
+            };
             readonly header?: never;
             readonly path?: never;
             readonly cookie?: never;
@@ -3891,6 +3133,7 @@ export interface operations {
             /** @description Authorized finding. */
             readonly 200: {
                 headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -3904,7 +3147,12 @@ export interface operations {
     readonly updateFinding: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+            };
             readonly path: {
                 readonly id: components["schemas"]["ProductID"];
             };
@@ -3919,6 +3167,9 @@ export interface operations {
             /** @description Updated finding. */
             readonly 200: {
                 headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly "X-Mutation-Receipt-ID": components["headers"]["WorkflowMutationReceiptID"];
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -3932,7 +3183,12 @@ export interface operations {
     readonly acceptFindingRisk: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+            };
             readonly path: {
                 readonly id: components["schemas"]["ProductID"];
             };
@@ -3947,38 +3203,13 @@ export interface operations {
             /** @description Accepted finding. */
             readonly 200: {
                 headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly "X-Mutation-Receipt-ID": components["headers"]["WorkflowMutationReceiptID"];
                     readonly [name: string]: unknown;
                 };
                 content: {
                     readonly "application/json": components["schemas"]["Finding"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly createFindingTicket: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["ProductID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly requestBody: {
-            readonly content: {
-                readonly "application/json": components["schemas"]["EmptyInput"];
-            };
-        };
-        readonly responses: {
-            /** @description Created external ticket reference. */
-            readonly 201: {
-                headers: {
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["FindingTicket"];
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
@@ -4231,111 +3462,6 @@ export interface operations {
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
-    readonly authorizeIntegration: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["ProductID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly requestBody: {
-            readonly content: {
-                readonly "application/json": components["schemas"]["EmptyInput"];
-            };
-        };
-        readonly responses: {
-            /** @description Authorized integration. */
-            readonly 200: {
-                headers: {
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["Integration"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly syncIntegration: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["ProductID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly requestBody: {
-            readonly content: {
-                readonly "application/json": components["schemas"]["IntegrationSyncInput"];
-            };
-        };
-        readonly responses: {
-            /** @description Queued or existing idempotent sync. */
-            readonly 202: {
-                headers: {
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["IntegrationSync"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly listIntegrationSyncs: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["ProductID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly requestBody?: never;
-        readonly responses: {
-            /** @description Integration sync records. */
-            readonly 200: {
-                headers: {
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["IntegrationSyncPage"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly getIntegrationSync: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["ProductID"];
-                readonly syncId: components["schemas"]["ProductID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly requestBody?: never;
-        readonly responses: {
-            /** @description Integration sync record. */
-            readonly 200: {
-                headers: {
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["IntegrationSync"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
     readonly getCurrentPrincipal: {
         readonly parameters: {
             readonly query?: never;
@@ -4531,30 +3657,6 @@ export interface operations {
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
-    readonly listPolicyDecisions: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["PolicyID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly requestBody?: never;
-        readonly responses: {
-            /** @description Authorized runtime decisions. */
-            readonly 200: {
-                headers: {
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["RuntimeDecisionPage"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
     readonly disablePolicy: {
         readonly parameters: {
             readonly query?: never;
@@ -4627,41 +3729,6 @@ export interface operations {
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
-    readonly simulatePolicy: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header: {
-                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
-                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Quoted current durable resource version. */
-                readonly "If-Match": components["parameters"]["ResourceVersion"];
-            };
-            readonly path: {
-                readonly id: components["schemas"]["PolicyID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly requestBody: {
-            readonly content: {
-                readonly "application/json": components["schemas"]["PolicySimulationInput"];
-            };
-        };
-        readonly responses: {
-            /** @description Bounded simulation result. */
-            readonly 200: {
-                headers: {
-                    readonly ETag: components["headers"]["WorkflowETag"];
-                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["PolicySimulation"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
     readonly listRuntimes: {
         readonly parameters: {
             readonly query?: never;
@@ -4702,223 +3769,6 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["InventoryRecord"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly globalSearch: {
-        readonly parameters: {
-            readonly query: {
-                readonly limit: number;
-                readonly q: string;
-            };
-            readonly header?: never;
-            readonly path?: never;
-            readonly cookie?: never;
-        };
-        readonly requestBody?: never;
-        readonly responses: {
-            /** @description Authorized search results. */
-            readonly 200: {
-                headers: {
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["SearchResultPage"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly listSecurityActions: {
-        readonly parameters: {
-            readonly query?: {
-                readonly target?: string;
-            };
-            readonly header?: never;
-            readonly path?: never;
-            readonly cookie?: never;
-        };
-        readonly requestBody?: never;
-        readonly responses: {
-            /** @description Supported action page. */
-            readonly 200: {
-                headers: {
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["SecurityActionPage"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly listSecurityAgentApprovals: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path?: never;
-            readonly cookie?: never;
-        };
-        readonly requestBody?: never;
-        readonly responses: {
-            /** @description Authorized approval page. */
-            readonly 200: {
-                headers: {
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["SecurityAgentApprovalPage"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly getSecurityAgentApproval: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["ProductID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly requestBody?: never;
-        readonly responses: {
-            /** @description Authorized approval detail. */
-            readonly 200: {
-                headers: {
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["SecurityAgentApproval"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly decideSecurityAgentApproval: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header: {
-                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
-                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Quoted current durable resource version. */
-                readonly "If-Match": components["parameters"]["ResourceVersion"];
-                /** @description Explicit fresh-auth confirmation required for an approval decision. */
-                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
-            };
-            readonly path: {
-                readonly id: components["schemas"]["ProductID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly requestBody: {
-            readonly content: {
-                readonly "application/json": components["schemas"]["SecurityAgentApprovalDecision"];
-            };
-        };
-        readonly responses: {
-            /** @description Updated approval. */
-            readonly 200: {
-                headers: {
-                    readonly ETag: components["headers"]["WorkflowETag"];
-                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["SecurityAgentApproval"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly listSecurityAgentRuns: {
-        readonly parameters: {
-            readonly query?: {
-                readonly agent_id?: components["schemas"]["ProductID"];
-                /** @description Opaque cursor returned by the preceding page. */
-                readonly cursor?: components["parameters"]["PageCursor"];
-                readonly environment_id?: components["schemas"]["ProductID"];
-                /** @description Maximum number of records to return. */
-                readonly limit?: components["parameters"]["PageLimit"];
-                readonly status?: components["schemas"]["SecurityAgentRunState"];
-            };
-            readonly header?: never;
-            readonly path?: never;
-            readonly cookie?: never;
-        };
-        readonly requestBody?: never;
-        readonly responses: {
-            /** @description Security Agent run page. */
-            readonly 200: {
-                headers: {
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["SecurityAgentRunPage"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly getSecurityAgentRun: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["ProductID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly requestBody?: never;
-        readonly responses: {
-            /** @description Redacted run detail. */
-            readonly 200: {
-                headers: {
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["SecurityAgentRunDetail"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly cancelSecurityAgentRun: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header: {
-                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
-                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Quoted current durable resource version. */
-                readonly "If-Match": components["parameters"]["ResourceVersion"];
-            };
-            readonly path: {
-                readonly id: components["schemas"]["ProductID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly requestBody?: never;
-        readonly responses: {
-            /** @description Cancelled run. */
-            readonly 200: {
-                headers: {
-                    readonly ETag: components["headers"]["WorkflowETag"];
-                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["SecurityAgentRun"];
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
@@ -5091,274 +3941,6 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["SecurityAgentDefinition"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly runSecurityAgent: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header: {
-                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
-                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-            };
-            readonly path: {
-                readonly id: components["schemas"]["ProductID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly requestBody: {
-            readonly content: {
-                readonly "application/json": components["schemas"]["SecurityAgentManualRunInput"];
-            };
-        };
-        readonly responses: {
-            /** @description Queued Security Agent run. */
-            readonly 201: {
-                headers: {
-                    readonly ETag: components["headers"]["WorkflowETag"];
-                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["SecurityAgentRun"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly simulateSecurityAgent: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header: {
-                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
-                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Quoted current durable resource version. */
-                readonly "If-Match": components["parameters"]["ResourceVersion"];
-            };
-            readonly path: {
-                readonly id: components["schemas"]["ProductID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly requestBody: {
-            readonly content: {
-                readonly "application/json": components["schemas"]["SecurityAgentSimulationInput"];
-            };
-        };
-        readonly responses: {
-            /** @description Side-effect-free simulation. */
-            readonly 200: {
-                headers: {
-                    readonly ETag: components["headers"]["WorkflowETag"];
-                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["SecurityAgentSimulation"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly listSensors: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path?: never;
-            readonly cookie?: never;
-        };
-        readonly requestBody?: never;
-        readonly responses: {
-            /** @description Authorized sensor records. */
-            readonly 200: {
-                headers: {
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["SensorPage"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly createSensorEnrollment: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header: {
-                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
-                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-            };
-            readonly path?: never;
-            readonly cookie?: never;
-        };
-        readonly requestBody: {
-            readonly content: {
-                readonly "application/json": components["schemas"]["SensorInput"];
-            };
-        };
-        readonly responses: {
-            /** @description Created sensor enrollment. */
-            readonly 201: {
-                headers: {
-                    readonly ETag: components["headers"]["WorkflowETag"];
-                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["SensorEnrollment"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly getSensor: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["ProductID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly requestBody?: never;
-        readonly responses: {
-            /** @description Authorized sensor record. */
-            readonly 200: {
-                headers: {
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["Sensor"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly deleteSensor: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header: {
-                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
-                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Quoted current durable resource version. */
-                readonly "If-Match": components["parameters"]["ResourceVersion"];
-            };
-            readonly path: {
-                readonly id: components["schemas"]["ProductID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly requestBody?: never;
-        readonly responses: {
-            /** @description Sensor deleted. */
-            readonly 204: {
-                headers: {
-                    readonly ETag: components["headers"]["WorkflowETag"];
-                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
-                    readonly [name: string]: unknown;
-                };
-                content?: never;
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly updateSensor: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header: {
-                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
-                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Quoted current durable resource version. */
-                readonly "If-Match": components["parameters"]["ResourceVersion"];
-            };
-            readonly path: {
-                readonly id: components["schemas"]["ProductID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly requestBody: {
-            readonly content: {
-                readonly "application/json": components["schemas"]["SensorInput"];
-            };
-        };
-        readonly responses: {
-            /** @description Updated sensor record. */
-            readonly 200: {
-                headers: {
-                    readonly ETag: components["headers"]["WorkflowETag"];
-                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["Sensor"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly getSensorCoverage: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["ProductID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly requestBody?: never;
-        readonly responses: {
-            /** @description Sensor coverage state. */
-            readonly 200: {
-                headers: {
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["SensorCoverage"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly rotateSensorToken: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header: {
-                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
-                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Quoted current durable resource version. */
-                readonly "If-Match": components["parameters"]["ResourceVersion"];
-            };
-            readonly path: {
-                readonly id: components["schemas"]["ProductID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly requestBody: {
-            readonly content: {
-                readonly "application/json": components["schemas"]["EmptyInput"];
-            };
-        };
-        readonly responses: {
-            /** @description Rotated sensor enrollment. */
-            readonly 200: {
-                headers: {
-                    readonly ETag: components["headers"]["WorkflowETag"];
-                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["SensorEnrollment"];
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
@@ -5761,208 +4343,6 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["SystemVersion"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly listTestRuns: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path?: never;
-            readonly cookie?: never;
-        };
-        readonly requestBody?: never;
-        readonly responses: {
-            /** @description Authorized test runs. */
-            readonly 200: {
-                headers: {
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["TestRunPage"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly getTestRun: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["RedTeamID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly requestBody?: never;
-        readonly responses: {
-            /** @description Authorized test run. */
-            readonly 200: {
-                headers: {
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["TestRun"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly cancelTestRun: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["RedTeamID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly requestBody: {
-            readonly content: {
-                readonly "application/json": components["schemas"]["EmptyInput"];
-            };
-        };
-        readonly responses: {
-            /** @description Cancelled test run. */
-            readonly 200: {
-                headers: {
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["TestRun"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly listTests: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path?: never;
-            readonly cookie?: never;
-        };
-        readonly requestBody?: never;
-        readonly responses: {
-            /** @description Authorized test definitions. */
-            readonly 200: {
-                headers: {
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["TestDefinitionPage"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly createTest: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path?: never;
-            readonly cookie?: never;
-        };
-        readonly requestBody: {
-            readonly content: {
-                readonly "application/json": components["schemas"]["TestDefinition"];
-            };
-        };
-        readonly responses: {
-            /** @description Created test definition. */
-            readonly 201: {
-                headers: {
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["TestDefinition"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly getTest: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["RedTeamID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly requestBody?: never;
-        readonly responses: {
-            /** @description Authorized test definition. */
-            readonly 200: {
-                headers: {
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["TestDefinition"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly updateTest: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["RedTeamID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly requestBody: {
-            readonly content: {
-                readonly "application/json": components["schemas"]["TestDefinition"];
-            };
-        };
-        readonly responses: {
-            /** @description Updated test definition. */
-            readonly 200: {
-                headers: {
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["TestDefinition"];
-                };
-            };
-            readonly 401: components["responses"]["ProductErrorResponse"];
-            readonly default: components["responses"]["ProductErrorResponse"];
-        };
-    };
-    readonly runTest: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header?: never;
-            readonly path: {
-                readonly id: components["schemas"]["RedTeamID"];
-            };
-            readonly cookie?: never;
-        };
-        readonly requestBody: {
-            readonly content: {
-                readonly "application/json": components["schemas"]["TestRunInput"];
-            };
-        };
-        readonly responses: {
-            /** @description Queued test run. */
-            readonly 201: {
-                headers: {
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["TestRun"];
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];

@@ -344,12 +344,13 @@ describe("production workflow concurrency contract", () => {
       "createIntegration", "updateIntegration", "deleteIntegration",
       "createPolicy", "updatePolicy", "deletePolicy", "rolloutPolicy", "disablePolicy",
       "createSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent",
+      "updateFinding", "acceptFindingRisk",
     ]);
     const operations = [
       "createIntegration", "updateIntegration", "deleteIntegration",
-      "createSensorEnrollment", "updateSensor", "deleteSensor", "rotateSensorToken",
-      "createPolicy", "updatePolicy", "deletePolicy", "simulatePolicy", "rolloutPolicy", "disablePolicy",
-      "createSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent", "simulateSecurityAgent", "runSecurityAgent", "cancelSecurityAgentRun", "decideSecurityAgentApproval",
+      "createPolicy", "updatePolicy", "deletePolicy", "rolloutPolicy", "disablePolicy",
+      "createSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent",
+      "updateFinding", "acceptFindingRisk",
     ];
     const located = new Map();
     for (const path of Object.values(document.paths)) {
@@ -421,6 +422,7 @@ describe("production workflow concurrency contract", () => {
       { $ref: "#/components/schemas/Policy" },
       { $ref: "#/components/schemas/Integration" },
       { $ref: "#/components/schemas/SecurityAgentDefinition" },
+      { $ref: "#/components/schemas/Finding" },
     ]);
     const intent = document.components.schemas.WorkflowMutationIntent;
     assert.equal(intent.additionalProperties, false);
@@ -433,6 +435,64 @@ describe("production workflow concurrency contract", () => {
       { $ref: "#/components/schemas/IntegrationUpdateInput" },
       { $ref: "#/components/schemas/SecurityAgentInput" },
       { $ref: "#/components/schemas/SecurityAgentDefinition" },
+      { $ref: "#/components/schemas/FindingUpdateInput" },
+      { $ref: "#/components/schemas/FindingAcceptanceInput" },
+    ]);
+  });
+
+  it("publishes exactly the mounted Batch 4 risk slice and no ruled-out overclaims", () => {
+    const operations = new Map();
+    for (const [path, pathItem] of Object.entries(document.paths)) {
+      for (const [method, operation] of Object.entries(pathItem)) {
+        if (operation?.operationId) operations.set(operation.operationId, { path, method, operation });
+      }
+    }
+    assert.equal(operations.size, 80);
+    for (const operationId of ["listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions"]) {
+      assert.ok(operations.has(operationId), operationId);
+    }
+    for (const operationId of [
+      "authorizeIntegration", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync",
+      "listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage",
+      "updateAgent", "createFindingTicket",
+      "listTests", "createTest", "getTest", "updateTest", "runTest", "listTestRuns", "getTestRun", "cancelTestRun",
+      "listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun",
+      "simulatePolicy", "listPolicyDecisions",
+      "listSecurityActions", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval",
+      "globalSearch", "createAIExplanation",
+    ]) assert.equal(operations.has(operationId), false, operationId);
+  });
+
+  it("binds risk reads and mutations to strict pagination, security, and recovery contracts", () => {
+    for (const path of ["/api/v1/findings", "/api/v1/attack-paths"]) {
+      assert.deepEqual(document.paths[path].get.parameters, [
+        { $ref: "#/components/parameters/PageCursor" },
+        { $ref: "#/components/parameters/PageLimit" },
+      ]);
+    }
+    for (const name of ["FindingPage", "AttackPathPage"]) {
+      const page = document.components.schemas[name];
+      assert.deepEqual(page.required, ["items", "page_info"]);
+      assert.equal(page.properties.items.maxItems, 100);
+      assert.deepEqual(page.properties.page_info, { $ref: "#/components/schemas/PageInfo" });
+    }
+    assert.equal(document.components.schemas.BreakOptionPage.properties.items.maxItems, 8);
+
+    for (const [path, method] of [["/api/v1/findings/{id}", "patch"], ["/api/v1/findings/{id}/accept-risk", "post"]]) {
+      const operation = document.paths[path][method];
+      assert.deepEqual(operation.security, [{ BrowserSession: [], BrowserExpectedScope: [] }, { ProductAPIToken: [] }]);
+      assert.deepEqual(operation.parameters, [
+        { $ref: "#/components/parameters/IdempotencyKey" },
+        { $ref: "#/components/parameters/ResourceVersion" },
+      ]);
+      assert.deepEqual(Object.keys(operation.responses["200"].headers).sort(), ["ETag", "X-Audit-ID", "X-Mutation-Receipt-ID"]);
+    }
+    assert.deepEqual(document.components.schemas.WorkflowMutationReceipt.properties.operation.enum.slice(-2), ["updateFinding", "acceptFindingRisk"]);
+    assert.equal(document.components.schemas.WorkflowMutationReceipt.properties.resource_kind.enum.includes("finding"), true);
+    assert.deepEqual(document.components.schemas.WorkflowMutationReceipt.properties.result.oneOf.at(-1), { $ref: "#/components/schemas/Finding" });
+    assert.deepEqual(document.components.schemas.WorkflowMutationIntent.properties.body.oneOf.slice(-2), [
+      { $ref: "#/components/schemas/FindingUpdateInput" },
+      { $ref: "#/components/schemas/FindingAcceptanceInput" },
     ]);
   });
 

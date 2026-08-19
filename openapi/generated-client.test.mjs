@@ -92,3 +92,18 @@ test("reproduces the committed bytes and rejects changed or missing output witho
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test("exports exactly the seven Batch 4 risk methods and no removed overclaims", async () => {
+  const generated = await readFile(generatedPath, "utf8");
+  for (const operationId of ["listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions"]) {
+    assert.match(generated, new RegExp(`\\b${operationId}:`), operationId);
+  }
+  for (const operationId of [
+    "authorizeIntegration", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync",
+    "listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage",
+    "updateAgent", "createFindingTicket", "listTests", "createTest", "getTest", "updateTest", "runTest", "listTestRuns", "getTestRun", "cancelTestRun",
+    "listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun", "simulatePolicy", "listPolicyDecisions",
+    "listSecurityActions", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval",
+    "globalSearch", "createAIExplanation",
+  ]) assert.doesNotMatch(generated, new RegExp(`\\b${operationId}:`), operationId);
+});

@@ -747,209 +747,6 @@ paths:
         '204': { description: Integration deleted., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }, X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
-  /api/v1/integrations/{id}/authorize:
-    parameters:
-      - name: id
-        in: path
-        required: true
-        schema: { $ref: '#/components/schemas/ProductID' }
-    post:
-      operationId: authorizeIntegration
-      summary: Confirm authorization for an integration
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/EmptyInput' }
-      responses:
-        '200':
-          description: Authorized integration.
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Integration' }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-  /api/v1/integrations/{id}/sync:
-    parameters:
-      - name: id
-        in: path
-        required: true
-        schema: { $ref: '#/components/schemas/ProductID' }
-    post:
-      operationId: syncIntegration
-      summary: Queue one idempotent integration sync
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/IntegrationSyncInput' }
-      responses:
-        '202':
-          description: Queued or existing idempotent sync.
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/IntegrationSync' }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-  /api/v1/integrations/{id}/syncs:
-    parameters:
-      - name: id
-        in: path
-        required: true
-        schema: { $ref: '#/components/schemas/ProductID' }
-    get:
-      operationId: listIntegrationSyncs
-      summary: List syncs for an authorized integration
-      responses:
-        '200':
-          description: Integration sync records.
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/IntegrationSyncPage' }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-  /api/v1/integrations/{id}/syncs/{syncId}:
-    parameters:
-      - name: id
-        in: path
-        required: true
-        schema: { $ref: '#/components/schemas/ProductID' }
-      - name: syncId
-        in: path
-        required: true
-        schema: { $ref: '#/components/schemas/ProductID' }
-    get:
-      operationId: getIntegrationSync
-      summary: Get one authorized integration sync
-      responses:
-        '200':
-          description: Integration sync record.
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/IntegrationSync' }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-  /api/v1/sensors:
-    get:
-      operationId: listSensors
-      summary: List sensors in the authorized scope
-      responses:
-        '200':
-          description: Authorized sensor records.
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/SensorPage' }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-    post:
-      operationId: createSensorEnrollment
-      summary: Create a sensor enrollment and return its token once
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/SensorInput' }
-      responses:
-        '201':
-          description: Created sensor enrollment.
-          headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' } }
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/SensorEnrollment' }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-  /api/v1/sensors/{id}:
-    parameters:
-      - name: id
-        in: path
-        required: true
-        schema: { $ref: '#/components/schemas/ProductID' }
-    get:
-      operationId: getSensor
-      summary: Get an authorized sensor
-      responses:
-        '200':
-          description: Authorized sensor record.
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Sensor' }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-    patch:
-      operationId: updateSensor
-      summary: Update an authorized sensor
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/ResourceVersion'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/SensorInput' }
-      responses:
-        '200':
-          description: Updated sensor record.
-          headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' } }
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Sensor' }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-    delete:
-      operationId: deleteSensor
-      summary: Delete an authorized sensor
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/ResourceVersion'
-      responses:
-        '204': { description: Sensor deleted., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' } } }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-  /api/v1/sensors/{id}/rotate-token:
-    parameters:
-      - name: id
-        in: path
-        required: true
-        schema: { $ref: '#/components/schemas/ProductID' }
-    post:
-      operationId: rotateSensorToken
-      summary: Rotate a sensor token and return it once
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/ResourceVersion'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/EmptyInput' }
-      responses:
-        '200':
-          description: Rotated sensor enrollment.
-          headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' } }
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/SensorEnrollment' }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-  /api/v1/sensors/{id}/coverage:
-    parameters:
-      - name: id
-        in: path
-        required: true
-        schema: { $ref: '#/components/schemas/ProductID' }
-    get:
-      operationId: getSensorCoverage
-      summary: Get bounded sensor coverage and drop health
-      responses:
-        '200':
-          description: Sensor coverage state.
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/SensorCoverage' }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/agents:
     get:
       operationId: listAgents
@@ -966,16 +763,6 @@ paths:
       summary: Get one authorized canonical Agent
       responses:
         '200': { description: Authorized Agent., content: { application/json: { schema: { $ref: '#/components/schemas/InventoryRecord' } } } }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-    patch:
-      operationId: updateAgent
-      summary: Update Agent ownership and tags
-      requestBody:
-        required: true
-        content: { application/json: { schema: { $ref: '#/components/schemas/AgentOwnershipInput' } } }
-      responses:
-        '200': { description: Updated Agent and audit reference., content: { application/json: { schema: { $ref: '#/components/schemas/AgentMutation' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/agents/{id}/capabilities:
@@ -1075,7 +862,14 @@ paths:
   /api/v1/findings:
     get:
       operationId: listFindings
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
       summary: List relevant findings in the authorized scope
+      parameters:
+        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/PageLimit'
       responses:
         '200': { description: Relevant finding records., content: { application/json: { schema: { $ref: '#/components/schemas/FindingPage' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
@@ -1085,19 +879,30 @@ paths:
       - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
     get:
       operationId: getFinding
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
       summary: Get one authorized finding
       responses:
-        '200': { description: Authorized finding., content: { application/json: { schema: { $ref: '#/components/schemas/Finding' } } } }
+        '200': { description: Authorized finding., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/Finding' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
     patch:
       operationId: updateFinding
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
       summary: Update one authorized finding status
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ResourceVersion'
       requestBody:
         required: true
         content: { application/json: { schema: { $ref: '#/components/schemas/FindingUpdateInput' } } }
       responses:
-        '200': { description: Updated finding., content: { application/json: { schema: { $ref: '#/components/schemas/Finding' } } } }
+        '200': { description: Updated finding., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }, X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/Finding' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/findings/{id}/accept-risk:
@@ -1105,31 +910,32 @@ paths:
       - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
     post:
       operationId: acceptFindingRisk
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
       summary: Record an authorized finding risk acceptance
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ResourceVersion'
       requestBody:
         required: true
         content: { application/json: { schema: { $ref: '#/components/schemas/FindingAcceptanceInput' } } }
       responses:
-        '200': { description: Accepted finding., content: { application/json: { schema: { $ref: '#/components/schemas/Finding' } } } }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-  /api/v1/findings/{id}/ticket:
-    parameters:
-      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
-    post:
-      operationId: createFindingTicket
-      summary: Send a signed redacted finding ticket webhook
-      requestBody:
-        required: true
-        content: { application/json: { schema: { $ref: '#/components/schemas/EmptyInput' } } }
-      responses:
-        '201': { description: Created external ticket reference., content: { application/json: { schema: { $ref: '#/components/schemas/FindingTicket' } } } }
+        '200': { description: Accepted finding., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }, X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/Finding' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/attack-paths:
     get:
       operationId: listAttackPaths
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
       summary: List bounded authorized attack paths
+      parameters:
+        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/PageLimit'
       responses:
         '200': { description: Authorized attack paths., content: { application/json: { schema: { $ref: '#/components/schemas/AttackPathPage' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
@@ -1139,6 +945,10 @@ paths:
       - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
     get:
       operationId: getAttackPath
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
       summary: Get one bounded authorized attack path
       responses:
         '200': { description: Authorized attack path., content: { application/json: { schema: { $ref: '#/components/schemas/AttackPath' } } } }
@@ -1149,145 +959,13 @@ paths:
       - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
     get:
       operationId: getAttackPathBreakOptions
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
       summary: Get deterministic minimal attack-path break options
       responses:
         '200': { description: Ranked break options., content: { application/json: { schema: { $ref: '#/components/schemas/BreakOptionPage' } } } }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-  /api/v1/tests:
-    get:
-      operationId: listTests
-      summary: List authorized red-team test definitions
-      responses:
-        '200': { description: Authorized test definitions., content: { application/json: { schema: { $ref: '#/components/schemas/TestDefinitionPage' } } } }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-    post:
-      operationId: createTest
-      summary: Create a bounded red-team test definition
-      requestBody:
-        required: true
-        content: { application/json: { schema: { $ref: '#/components/schemas/TestDefinition' } } }
-      responses:
-        '201': { description: Created test definition., content: { application/json: { schema: { $ref: '#/components/schemas/TestDefinition' } } } }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-  /api/v1/tests/{id}:
-    parameters:
-      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/RedTeamID' } }
-    get:
-      operationId: getTest
-      summary: Get one authorized red-team test definition
-      responses:
-        '200': { description: Authorized test definition., content: { application/json: { schema: { $ref: '#/components/schemas/TestDefinition' } } } }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-    patch:
-      operationId: updateTest
-      summary: Update one bounded red-team test definition
-      requestBody:
-        required: true
-        content: { application/json: { schema: { $ref: '#/components/schemas/TestDefinition' } } }
-      responses:
-        '200': { description: Updated test definition., content: { application/json: { schema: { $ref: '#/components/schemas/TestDefinition' } } } }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-  /api/v1/tests/{id}/runs:
-    parameters:
-      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/RedTeamID' } }
-    post:
-      operationId: runTest
-      summary: Queue one authorized red-team test run
-      requestBody:
-        required: true
-        content: { application/json: { schema: { $ref: '#/components/schemas/TestRunInput' } } }
-      responses:
-        '201': { description: Queued test run., content: { application/json: { schema: { $ref: '#/components/schemas/TestRun' } } } }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-  /api/v1/test-runs:
-    get:
-      operationId: listTestRuns
-      summary: List authorized red-team test runs
-      responses:
-        '200': { description: Authorized test runs., content: { application/json: { schema: { $ref: '#/components/schemas/TestRunPage' } } } }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-  /api/v1/test-runs/{id}:
-    parameters:
-      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/RedTeamID' } }
-    get:
-      operationId: getTestRun
-      summary: Get one authorized red-team test run
-      responses:
-        '200': { description: Authorized test run., content: { application/json: { schema: { $ref: '#/components/schemas/TestRun' } } } }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-  /api/v1/test-runs/{id}/cancel:
-    parameters:
-      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/RedTeamID' } }
-    post:
-      operationId: cancelTestRun
-      summary: Cancel one authorized incomplete red-team test run
-      requestBody:
-        required: true
-        content: { application/json: { schema: { $ref: '#/components/schemas/EmptyInput' } } }
-      responses:
-        '200': { description: Cancelled test run., content: { application/json: { schema: { $ref: '#/components/schemas/TestRun' } } } }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-  /api/v1/attack-lab/runs:
-    get:
-      operationId: listAttackLabRuns
-      summary: List authorized Attack Lab runs
-      responses:
-        '200': { description: Authorized Attack Lab runs., content: { application/json: { schema: { $ref: '#/components/schemas/AttackLabRunPage' } } } }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-    post:
-      operationId: createAttackLabRun
-      summary: Create one bounded Attack Lab run
-      requestBody:
-        required: true
-        content: { application/json: { schema: { $ref: '#/components/schemas/AttackLabRun' } } }
-      responses:
-        '201': { description: Created Attack Lab run., content: { application/json: { schema: { $ref: '#/components/schemas/AttackLabRun' } } } }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-  /api/v1/attack-lab/runs/{id}:
-    parameters:
-      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/RedTeamID' } }
-    get:
-      operationId: getAttackLabRun
-      summary: Get one authorized Attack Lab run
-      responses:
-        '200': { description: Authorized Attack Lab run., content: { application/json: { schema: { $ref: '#/components/schemas/AttackLabRun' } } } }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-  /api/v1/attack-lab/runs/{id}/cancel:
-    parameters:
-      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/RedTeamID' } }
-    post:
-      operationId: cancelAttackLabRun
-      summary: Cancel one authorized Attack Lab run
-      requestBody:
-        required: true
-        content: { application/json: { schema: { $ref: '#/components/schemas/EmptyInput' } } }
-      responses:
-        '200': { description: Cancelled Attack Lab run., content: { application/json: { schema: { $ref: '#/components/schemas/AttackLabRun' } } } }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-  /api/v1/attack-lab/runs/{id}/rerun:
-    parameters:
-      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/RedTeamID' } }
-    post:
-      operationId: rerunAttackLabRun
-      summary: Rerun one authorized Attack Lab run
-      requestBody:
-        required: true
-        content: { application/json: { schema: { $ref: '#/components/schemas/TestRunInput' } } }
-      responses:
-        '201': { description: Created Attack Lab rerun., content: { application/json: { schema: { $ref: '#/components/schemas/AttackLabRun' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/policies:
@@ -1346,22 +1024,6 @@ paths:
         '204': { description: Deleted runtime policy., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }, X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
-  /api/v1/policies/{id}/simulate:
-    parameters:
-      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/PolicyID' } }
-    post:
-      operationId: simulatePolicy
-      summary: Simulate a runtime policy against bounded historical actions
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/ResourceVersion'
-      requestBody:
-        required: true
-        content: { application/json: { schema: { $ref: '#/components/schemas/PolicySimulationInput' } } }
-      responses:
-        '200': { description: Bounded simulation result., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/PolicySimulation' } } } }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/policies/{id}/rollout:
     parameters:
       - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/PolicyID' } }
@@ -1394,32 +1056,12 @@ paths:
         '200': { description: Disabled policy rollout., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }, X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/PolicyRollout' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
-  /api/v1/policies/{id}/decisions:
-    parameters:
-      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/PolicyID' } }
-    get:
-      operationId: listPolicyDecisions
-      summary: List bounded runtime decisions for one policy
-      responses:
-        '200': { description: Authorized runtime decisions., content: { application/json: { schema: { $ref: '#/components/schemas/RuntimeDecisionPage' } } } }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/security-agent-templates:
     get:
       operationId: listSecurityAgentTemplates
       summary: List bounded product Security Agent templates
       responses:
         '200': { description: Product template page., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentTemplatePage' } } } }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-  /api/v1/security-actions:
-    get:
-      operationId: listSecurityActions
-      summary: List supported scoped Security Agent actions
-      parameters:
-        - { name: target, in: query, required: false, schema: { type: string, minLength: 1, maxLength: 64 } }
-      responses:
-        '200': { description: Supported action page., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityActionPage' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/security-agents:
@@ -1474,120 +1116,12 @@ paths:
         '204': { description: Security Agent safely disabled and soft-deleted., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }, X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
-  /api/v1/security-agents/{id}/simulate:
-    parameters:
-      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
-    post:
-      operationId: simulateSecurityAgent
-      summary: Simulate scoped planning and authorization without side effects
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/ResourceVersion'
-      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentSimulationInput' } } } }
-      responses:
-        '200': { description: Side-effect-free simulation., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentSimulation' } } } }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-  /api/v1/security-agents/{id}/runs:
-    parameters:
-      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
-    post:
-      operationId: runSecurityAgent
-      summary: Start one scoped manual Security Agent run
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentManualRunInput' } } } }
-      responses:
-        '201': { description: Queued Security Agent run., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentRun' } } } }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-  /api/v1/security-agent-runs:
-    get:
-      operationId: listSecurityAgentRuns
-      summary: List authorized Security Agent runs
-      parameters:
-        - $ref: '#/components/parameters/PageCursor'
-        - $ref: '#/components/parameters/PageLimit'
-        - { name: agent_id, in: query, required: false, schema: { $ref: '#/components/schemas/ProductID' } }
-        - { name: status, in: query, required: false, schema: { $ref: '#/components/schemas/SecurityAgentRunState' } }
-        - { name: environment_id, in: query, required: false, schema: { $ref: '#/components/schemas/ProductID' } }
-      responses:
-        '200': { description: Security Agent run page., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentRunPage' } } } }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-  /api/v1/security-agent-runs/{id}:
-    parameters:
-      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
-    get:
-      operationId: getSecurityAgentRun
-      summary: Get redacted Security Agent run detail
-      responses:
-        '200': { description: Redacted run detail., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentRunDetail' } } } }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-  /api/v1/security-agent-runs/{id}/cancel:
-    parameters:
-      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
-    post:
-      operationId: cancelSecurityAgentRun
-      summary: Cancel future work for one nonterminal run
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/ResourceVersion'
-      responses:
-        '200': { description: Cancelled run., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentRun' } } } }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-  /api/v1/security-agent-approvals:
-    get:
-      operationId: listSecurityAgentApprovals
-      summary: List Workspace and Environment authorized approvals
-      responses:
-        '200': { description: Authorized approval page., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentApprovalPage' } } } }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-  /api/v1/security-agent-approvals/{id}:
-    parameters:
-      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
-    get:
-      operationId: getSecurityAgentApproval
-      summary: Get expected effect, reversibility, TTL, and evidence for one approval
-      responses:
-        '200': { description: Authorized approval detail., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentApproval' } } } }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-  /api/v1/security-agent-approvals/{id}/decision:
-    parameters:
-      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
-    post:
-      operationId: decideSecurityAgentApproval
-      summary: Record a fresh-auth guarded approval decision
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/ResourceVersion'
-        - $ref: '#/components/parameters/FreshAuth'
-      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentApprovalDecision' } } } }
-      responses:
-        '200': { description: Updated approval., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentApproval' } } } }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/home/summary:
     get:
       operationId: getHomeSummary
       summary: Get the stale-aware authorized home summary
       responses:
         '200': { description: Authorized home summary., content: { application/json: { schema: { $ref: '#/components/schemas/HomeSummary' } } } }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
-  /api/v1/search:
-    get:
-      operationId: globalSearch
-      summary: Search authorized product names, types, and IDs
-      parameters:
-        - { name: q, in: query, required: true, schema: { type: string, minLength: 2, maxLength: 128 } }
-        - { name: limit, in: query, required: true, schema: { type: integer, minimum: 1, maximum: 100 } }
-      responses:
-        '200': { description: Authorized search results., content: { application/json: { schema: { $ref: '#/components/schemas/SearchResultPage' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/sessions:
@@ -1717,17 +1251,6 @@ paths:
         '200': { description: External data flows., content: { application/json: { schema: { $ref: '#/components/schemas/ExternalFlowPage' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
-  /api/v1/ai/explanations:
-    post:
-      operationId: createAIExplanation
-      summary: Create one governed evidence-aware explanation
-      requestBody:
-        required: true
-        content: { application/json: { schema: { $ref: '#/components/schemas/AIExplanationInput' } } }
-      responses:
-        '200': { description: Governed explanation., content: { application/json: { schema: { $ref: '#/components/schemas/AIExplanation' } } } }
-        '401': { $ref: '#/components/responses/ProductErrorResponse' }
-        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/system/status:
     get:
       operationId: getSystemStatus
@@ -1844,7 +1367,7 @@ components:
       required: [id, operation, idempotency_key, intent, result, resource_kind, resource_id, resource_version, audit_id, correlation_id, created_at, expires_at]
       properties:
         id: { $ref: '#/components/schemas/ProductID' }
-        operation: { type: string, enum: [createPolicy, updatePolicy, deletePolicy, rolloutPolicy, disablePolicy, createIntegration, updateIntegration, deleteIntegration, createSecurityAgent, updateSecurityAgent, deleteSecurityAgent] }
+        operation: { type: string, enum: [createPolicy, updatePolicy, deletePolicy, rolloutPolicy, disablePolicy, createIntegration, updateIntegration, deleteIntegration, createSecurityAgent, updateSecurityAgent, deleteSecurityAgent, updateFinding, acceptFindingRisk] }
         idempotency_key: { type: string, minLength: 16, maxLength: 128, pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]*$' }
         intent: { $ref: '#/components/schemas/WorkflowMutationIntent' }
         result:
@@ -1852,7 +1375,8 @@ components:
             - { $ref: '#/components/schemas/Policy' }
             - { $ref: '#/components/schemas/Integration' }
             - { $ref: '#/components/schemas/SecurityAgentDefinition' }
-        resource_kind: { type: string, enum: [policy, integration, security_agent] }
+            - { $ref: '#/components/schemas/Finding' }
+        resource_kind: { type: string, enum: [policy, integration, security_agent, finding] }
         resource_id: { type: string, minLength: 1, maxLength: 128 }
         resource_version: { type: integer, minimum: 1 }
         audit_id: { $ref: '#/components/schemas/ProductID' }
@@ -1875,6 +1399,8 @@ components:
             - { $ref: '#/components/schemas/IntegrationUpdateInput' }
             - { $ref: '#/components/schemas/SecurityAgentInput' }
             - { $ref: '#/components/schemas/SecurityAgentDefinition' }
+            - { $ref: '#/components/schemas/FindingUpdateInput' }
+            - { $ref: '#/components/schemas/FindingAcceptanceInput' }
     WorkflowMutationReceiptPage:
       type: object
       additionalProperties: false
@@ -3413,7 +2939,7 @@ components:
     Finding:
       type: object
       additionalProperties: false
-      required: [id, source, title, severity, status, evidence_ids, risk_factors]
+      required: [id, source, title, severity, status, evidence_ids, risk_factors, version, created_at, updated_at]
       properties:
         id: { $ref: '#/components/schemas/ProductID' }
         source: { type: string, enum: [posture, prowler] }
@@ -3427,12 +2953,16 @@ components:
         evidence_ids: { type: array, minItems: 1, maxItems: 64, uniqueItems: true, items: { $ref: '#/components/schemas/ProductID' } }
         risk_factors: { type: array, maxItems: 16, items: { $ref: '#/components/schemas/RiskFactor' } }
         acceptance_reason: { type: string, minLength: 1, maxLength: 512 }
+        version: { type: integer, minimum: 1 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
     FindingPage:
       type: object
       additionalProperties: false
-      required: [items]
+      required: [items, page_info]
       properties:
-        items: { type: array, maxItems: 10000, items: { $ref: '#/components/schemas/Finding' } }
+        items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/Finding' } }
+        page_info: { $ref: '#/components/schemas/PageInfo' }
     FindingUpdateInput:
       type: object
       additionalProperties: false
@@ -3454,7 +2984,7 @@ components:
     AttackPath:
       type: object
       additionalProperties: false
-      required: [id, entry_id, sink_id, node_ids, state, evidence_ids, blocked_edge]
+      required: [id, entry_id, sink_id, node_ids, state, evidence_ids, blocked_edge, version, created_at, updated_at]
       properties:
         id: { $ref: '#/components/schemas/ProductID' }
         entry_id: { $ref: '#/components/schemas/ProductID' }
@@ -3463,12 +2993,16 @@ components:
         state: { type: string, enum: [potential, observed, verified, blocked] }
         evidence_ids: { type: array, minItems: 1, maxItems: 16, uniqueItems: true, items: { $ref: '#/components/schemas/ProductID' } }
         blocked_edge: { type: integer, minimum: -1, maximum: 6 }
+        version: { type: integer, minimum: 1 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
     AttackPathPage:
       type: object
       additionalProperties: false
-      required: [items]
+      required: [items, page_info]
       properties:
-        items: { type: array, maxItems: 1000, items: { $ref: '#/components/schemas/AttackPath' } }
+        items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/AttackPath' } }
+        page_info: { $ref: '#/components/schemas/PageInfo' }
     BreakOption:
       type: object
       additionalProperties: false

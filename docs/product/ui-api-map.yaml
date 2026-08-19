@@ -137,40 +137,40 @@ screens:
         availability: api_available
       - id: search_all_entities
         operation_id: globalSearch
-        availability: api_available
+        availability: planned
   - id: findings
     label: Findings
     actions:
       - id: view_findings
         operation_id: listFindings
-        availability: api_available
+        availability: available
       - id: view_finding
         operation_id: getFinding
-        availability: api_available
+        availability: available
       - id: update_finding
         operation_id: updateFinding
-        availability: api_available
+        availability: available
       - id: accept_finding_risk
         operation_id: acceptFindingRisk
-        availability: api_available
+        availability: available
       - id: create_finding_ticket
         operation_id: createFindingTicket
-        availability: api_available
+        availability: planned
       - id: create_ai_explanation
         operation_id: createAIExplanation
-        availability: api_available
+        availability: planned
   - id: attack_paths
     label: Attack Paths
     actions:
       - id: view_attack_paths
         operation_id: listAttackPaths
-        availability: api_available
+        availability: available
       - id: view_attack_path
         operation_id: getAttackPath
-        availability: api_available
+        availability: available
       - id: view_attack_path_break_options
         operation_id: getAttackPathBreakOptions
-        availability: api_available
+        availability: available
   - id: integrations
     label: Integrations
     actions:
@@ -194,37 +194,37 @@ screens:
         availability: available
       - id: authorize_integration
         operation_id: authorizeIntegration
-        availability: api_available
+        availability: planned
       - id: sync_integration
         operation_id: syncIntegration
-        availability: api_available
+        availability: planned
       - id: view_integration_syncs
         operation_id: listIntegrationSyncs
-        availability: api_available
+        availability: planned
       - id: view_integration_sync
         operation_id: getIntegrationSync
-        availability: api_available
+        availability: planned
       - id: view_sensors
         operation_id: listSensors
-        availability: api_available
+        availability: planned
       - id: create_sensor_enrollment
         operation_id: createSensorEnrollment
-        availability: api_available
+        availability: planned
       - id: view_sensor
         operation_id: getSensor
-        availability: api_available
+        availability: planned
       - id: update_sensor
         operation_id: updateSensor
-        availability: api_available
+        availability: planned
       - id: delete_sensor
         operation_id: deleteSensor
-        availability: api_available
+        availability: planned
       - id: rotate_sensor_token
         operation_id: rotateSensorToken
-        availability: api_available
+        availability: planned
       - id: view_sensor_coverage
         operation_id: getSensorCoverage
-        availability: api_available
+        availability: planned
   - id: inventory
     label: Inventory
     actions:
@@ -236,7 +236,7 @@ screens:
         availability: api_available
       - id: update_agent
         operation_id: updateAgent
-        availability: api_available
+        availability: planned
       - id: view_agent_capabilities
         operation_id: getAgentCapabilities
         availability: api_available
@@ -272,43 +272,43 @@ screens:
     actions:
       - id: view_tests
         operation_id: listTests
-        availability: api_available
+        availability: planned
       - id: create_test
         operation_id: createTest
-        availability: api_available
+        availability: planned
       - id: view_test
         operation_id: getTest
-        availability: api_available
+        availability: planned
       - id: update_test
         operation_id: updateTest
-        availability: api_available
+        availability: planned
       - id: run_test
         operation_id: runTest
-        availability: api_available
+        availability: planned
       - id: view_test_runs
         operation_id: listTestRuns
-        availability: api_available
+        availability: planned
       - id: view_test_run
         operation_id: getTestRun
-        availability: api_available
+        availability: planned
       - id: cancel_test_run
         operation_id: cancelTestRun
-        availability: api_available
+        availability: planned
       - id: view_attack_lab_runs
         operation_id: listAttackLabRuns
-        availability: api_available
+        availability: planned
       - id: create_attack_lab_run
         operation_id: createAttackLabRun
-        availability: api_available
+        availability: planned
       - id: view_attack_lab_run
         operation_id: getAttackLabRun
-        availability: api_available
+        availability: planned
       - id: cancel_attack_lab_run
         operation_id: cancelAttackLabRun
-        availability: api_available
+        availability: planned
       - id: rerun_attack_lab_run
         operation_id: rerunAttackLabRun
-        availability: api_available
+        availability: planned
   - id: policies
     label: Policies
     actions:
@@ -329,7 +329,7 @@ screens:
         availability: api_available
       - id: simulate_policy
         operation_id: simulatePolicy
-        availability: api_available
+        availability: planned
       - id: rollout_policy
         operation_id: rolloutPolicy
         availability: available
@@ -338,7 +338,7 @@ screens:
         availability: available
       - id: view_policy_decisions
         operation_id: listPolicyDecisions
-        availability: api_available
+        availability: planned
   - id: system_health
     label: System Health
     actions:
@@ -374,7 +374,7 @@ screens:
         availability: available
       - id: view_security_actions
         operation_id: listSecurityActions
-        availability: api_available
+        availability: planned
       - id: view_security_agents
         operation_id: listSecurityAgents
         availability: available
@@ -392,28 +392,28 @@ screens:
         availability: available
       - id: simulate_security_agent
         operation_id: simulateSecurityAgent
-        availability: api_available
+        availability: planned
       - id: run_security_agent
         operation_id: runSecurityAgent
-        availability: api_available
+        availability: planned
       - id: view_security_agent_runs
         operation_id: listSecurityAgentRuns
-        availability: api_available
+        availability: planned
       - id: view_security_agent_run
         operation_id: getSecurityAgentRun
-        availability: api_available
+        availability: planned
       - id: cancel_security_agent_run
         operation_id: cancelSecurityAgentRun
-        availability: api_available
+        availability: planned
       - id: view_security_agent_approvals
         operation_id: listSecurityAgentApprovals
-        availability: api_available
+        availability: planned
       - id: view_security_agent_approval
         operation_id: getSecurityAgentApproval
-        availability: api_available
+        availability: planned
       - id: decide_security_agent_approval
         operation_id: decideSecurityAgentApproval
-        availability: api_available
+        availability: planned
   - id: compliance
     label: Compliance
     actions:
