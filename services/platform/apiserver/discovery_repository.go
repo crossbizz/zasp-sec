@@ -774,6 +774,15 @@ func CanonicalDiscoveryID(scope domain.Scope, kind, sourceNativeID string) (stri
 	return fmt.Sprintf("pid_%s-%s-4%s-8%s-%s", hexValue[:8], hexValue[8:12], hexValue[13:16], hexValue[17:20], hexValue[20:32]), nil
 }
 
+func CanonicalDiscoveryRelationshipID(scope domain.Scope, integrationID, source, kind, sourceNativeID string) (string, error) {
+	if scope.Validate() != nil || !validProductID(integrationID) || len(source) < 1 || len(source) > 64 || len(kind) < 1 || len(kind) > 64 || len(sourceNativeID) < 1 || len(sourceNativeID) > 1024 {
+		return "", ErrRepositoryOperation
+	}
+	digest := sha256.Sum256([]byte(strings.Join([]string{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), integrationID, source, kind, sourceNativeID}, "\x1f")))
+	hexValue := hex.EncodeToString(digest[:])
+	return fmt.Sprintf("pid_%s-%s-4%s-8%s-%s", hexValue[:8], hexValue[8:12], hexValue[13:16], hexValue[17:20], hexValue[20:32]), nil
+}
+
 func validDiscoveryRepository(repository *DiscoveryRepository, ctx context.Context) bool {
 	return repository != nil && !nilInterface(repository.database) && ctx != nil && ctx.Err() == nil
 }

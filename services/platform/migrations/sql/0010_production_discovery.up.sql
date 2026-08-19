@@ -19,6 +19,22 @@ BEGIN
 END;
 $$;
 
+CREATE FUNCTION "public"."zasp_discovery_relationship_id"(
+    organization_id text, workspace_id text, environment_id text, integration_id text, source text, relationship_kind text, source_native_id text
+) RETURNS text LANGUAGE plpgsql IMMUTABLE STRICT AS $$
+DECLARE hex_value text;
+BEGIN
+    IF NOT zasp_valid_product_id(organization_id) OR NOT zasp_valid_product_id(workspace_id)
+       OR NOT zasp_valid_product_id(environment_id) OR NOT zasp_valid_product_id(integration_id)
+       OR length(source) NOT BETWEEN 1 AND 64 OR length(relationship_kind) NOT BETWEEN 1 AND 64
+       OR length(source_native_id) NOT BETWEEN 1 AND 1024 THEN
+        RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='invalid relationship identity input';
+    END IF;
+    hex_value := encode(digest(convert_to(concat_ws(chr(31),organization_id,workspace_id,environment_id,integration_id,source,relationship_kind,source_native_id),'UTF8'),'sha256'),'hex');
+    RETURN 'pid_'||substr(hex_value,1,8)||'-'||substr(hex_value,9,4)||'-4'||substr(hex_value,14,3)||'-8'||substr(hex_value,18,3)||'-'||substr(hex_value,21,12);
+END;
+$$;
+
 CREATE FUNCTION "public"."zasp_reference_only"(value jsonb) RETURNS boolean
 LANGUAGE sql IMMUTABLE STRICT AS $$
     SELECT jsonb_typeof(value)='object'
@@ -104,13 +120,13 @@ CREATE TABLE "public"."zasp_discovery_snapshots" (
     candidate_digest bytea NOT NULL CHECK(octet_length(candidate_digest)=32), apply_result jsonb,
     complete boolean NOT NULL, is_last_good boolean NOT NULL DEFAULT false, collected_at timestamptz NOT NULL, committed_at timestamptz,
     created_at timestamptz NOT NULL DEFAULT transaction_timestamp(),
-    PRIMARY KEY (organization_id,workspace_id,environment_id,id), UNIQUE(organization_id,workspace_id,environment_id,integration_id,generation),
+    PRIMARY KEY (organization_id,workspace_id,environment_id,id), UNIQUE(organization_id,workspace_id,environment_id,integration_id,source,generation),
     UNIQUE(organization_id,workspace_id,environment_id,integration_id,id),
     FOREIGN KEY (organization_id,workspace_id,environment_id,integration_id) REFERENCES zasp_integrations(organization_id,workspace_id,environment_id,id),
     FOREIGN KEY (organization_id,workspace_id,environment_id,integration_id,sync_id) REFERENCES zasp_discovery_syncs(organization_id,workspace_id,environment_id,integration_id,id),
     CHECK ((state='complete')=(complete AND committed_at IS NOT NULL)), CHECK (NOT is_last_good OR state='complete')
 );
-CREATE UNIQUE INDEX zasp_discovery_snapshots_last_good_idx ON zasp_discovery_snapshots(organization_id,workspace_id,environment_id,integration_id) WHERE is_last_good;
+CREATE UNIQUE INDEX zasp_discovery_snapshots_last_good_idx ON zasp_discovery_snapshots(organization_id,workspace_id,environment_id,integration_id,source) WHERE is_last_good;
 
 ALTER TABLE zasp_discovery_syncs ADD CONSTRAINT zasp_discovery_syncs_snapshot_fk
 FOREIGN KEY (organization_id,workspace_id,environment_id,snapshot_id) REFERENCES zasp_discovery_snapshots(organization_id,workspace_id,environment_id,id) DEFERRABLE INITIALLY DEFERRED;
@@ -135,11 +151,11 @@ CREATE TABLE "public"."zasp_inventory_entities" (
 
 CREATE TABLE "public"."zasp_inventory_source_observations" (
     organization_id text NOT NULL, workspace_id text NOT NULL, environment_id text NOT NULL,
-    integration_id text NOT NULL, entity_id text NOT NULL, source_native_id text NOT NULL CHECK(length(source_native_id) BETWEEN 1 AND 1024),
+    integration_id text NOT NULL, source text NOT NULL CHECK(length(source) BETWEEN 1 AND 64), entity_id text NOT NULL, source_native_id text NOT NULL CHECK(length(source_native_id) BETWEEN 1 AND 1024),
     snapshot_id text NOT NULL, source_state text NOT NULL CHECK(source_state IN ('present','removed')), attributes jsonb NOT NULL DEFAULT '{}'::jsonb CHECK(jsonb_typeof(attributes)='object' AND octet_length(attributes::text)<=262144),
     first_seen_at timestamptz NOT NULL, last_seen_at timestamptz NOT NULL, removed_at timestamptz,
-    PRIMARY KEY(organization_id,workspace_id,environment_id,integration_id,entity_id),
-    UNIQUE(organization_id,workspace_id,environment_id,integration_id,source_native_id),
+    PRIMARY KEY(organization_id,workspace_id,environment_id,integration_id,source,entity_id),
+    UNIQUE(organization_id,workspace_id,environment_id,integration_id,source,source_native_id),
     FOREIGN KEY(organization_id,workspace_id,environment_id,integration_id) REFERENCES zasp_integrations(organization_id,workspace_id,environment_id,id),
     FOREIGN KEY(organization_id,workspace_id,environment_id,entity_id) REFERENCES zasp_inventory_entities(organization_id,workspace_id,environment_id,id),
     FOREIGN KEY(organization_id,workspace_id,environment_id,integration_id,snapshot_id) REFERENCES zasp_discovery_snapshots(organization_id,workspace_id,environment_id,integration_id,id),
@@ -148,12 +164,12 @@ CREATE TABLE "public"."zasp_inventory_source_observations" (
 
 CREATE TABLE "public"."zasp_inventory_relationships" (
     organization_id text NOT NULL, workspace_id text NOT NULL, environment_id text NOT NULL,
-    id text NOT NULL CHECK(zasp_valid_product_id(id)), integration_id text NOT NULL, snapshot_id text NOT NULL,
+    id text NOT NULL CHECK(zasp_valid_product_id(id)), integration_id text NOT NULL, source text NOT NULL CHECK(length(source) BETWEEN 1 AND 64), snapshot_id text NOT NULL,
     from_entity_id text NOT NULL, to_entity_id text NOT NULL, kind text NOT NULL CHECK(length(kind) BETWEEN 1 AND 64),
     source_native_id text NOT NULL CHECK(length(source_native_id) BETWEEN 1 AND 1024), state text NOT NULL DEFAULT 'present' CHECK(state IN ('present','removed')),
     attributes jsonb NOT NULL DEFAULT '{}'::jsonb CHECK(jsonb_typeof(attributes)='object' AND octet_length(attributes::text)<=65536),
     first_seen_at timestamptz NOT NULL, last_seen_at timestamptz NOT NULL, removed_at timestamptz,
-    PRIMARY KEY(organization_id,workspace_id,environment_id,id), UNIQUE(organization_id,workspace_id,environment_id,integration_id,source_native_id),
+    PRIMARY KEY(organization_id,workspace_id,environment_id,id), UNIQUE(organization_id,workspace_id,environment_id,integration_id,source,source_native_id),
     FOREIGN KEY(organization_id,workspace_id,environment_id,integration_id) REFERENCES zasp_integrations(organization_id,workspace_id,environment_id,id),
     FOREIGN KEY(organization_id,workspace_id,environment_id,from_entity_id) REFERENCES zasp_inventory_entities(organization_id,workspace_id,environment_id,id),
     FOREIGN KEY(organization_id,workspace_id,environment_id,to_entity_id) REFERENCES zasp_inventory_entities(organization_id,workspace_id,environment_id,id),
@@ -171,6 +187,7 @@ CREATE TABLE "public"."zasp_inventory_evidence" (
     FOREIGN KEY(organization_id,workspace_id,environment_id,integration_id) REFERENCES zasp_integrations(organization_id,workspace_id,environment_id,id),
     FOREIGN KEY(organization_id,workspace_id,environment_id,integration_id,snapshot_id) REFERENCES zasp_discovery_snapshots(organization_id,workspace_id,environment_id,integration_id,id),
     FOREIGN KEY(organization_id,workspace_id,environment_id,entity_id) REFERENCES zasp_inventory_entities(organization_id,workspace_id,environment_id,id),
+    FOREIGN KEY(organization_id,workspace_id,environment_id,finding_id) REFERENCES zasp_risk_findings(organization_id,workspace_id,environment_id,id),
     CHECK((entity_id IS NOT NULL)::int+(finding_id IS NOT NULL)::int=1), CHECK(finding_id IS NULL OR zasp_valid_product_id(finding_id))
 );
 
@@ -260,6 +277,7 @@ CREATE TABLE "public"."zasp_gateway_enrollment_tokens" (
     salt bytea NOT NULL CHECK(octet_length(salt) BETWEEN 16 AND 64), token_hash bytea NOT NULL CHECK(octet_length(token_hash)=32),
     issued_at timestamptz NOT NULL DEFAULT transaction_timestamp(), expires_at timestamptz NOT NULL, consumed_at timestamptz, revoked_at timestamptz,
     PRIMARY KEY(organization_id,workspace_id,environment_id,id), UNIQUE(token_hash),
+    UNIQUE(organization_id,workspace_id,environment_id,device_id,id),
     FOREIGN KEY(organization_id,workspace_id,environment_id,device_id) REFERENCES zasp_gateway_devices(organization_id,workspace_id,environment_id,id) ON DELETE CASCADE,
     CHECK(expires_at>issued_at), CHECK(consumed_at IS NULL OR consumed_at>=issued_at)
 );
@@ -272,7 +290,7 @@ CREATE TABLE "public"."zasp_gateway_credentials" (
     PRIMARY KEY(organization_id,workspace_id,environment_id,id),
     UNIQUE(organization_id,workspace_id,environment_id,device_id,id),
     FOREIGN KEY(organization_id,workspace_id,environment_id,device_id) REFERENCES zasp_gateway_devices(organization_id,workspace_id,environment_id,id) ON DELETE CASCADE,
-    FOREIGN KEY(organization_id,workspace_id,environment_id,enrollment_token_id) REFERENCES zasp_gateway_enrollment_tokens(organization_id,workspace_id,environment_id,id),
+    FOREIGN KEY(organization_id,workspace_id,environment_id,device_id,enrollment_token_id) REFERENCES zasp_gateway_enrollment_tokens(organization_id,workspace_id,environment_id,device_id,id),
     FOREIGN KEY(organization_id,workspace_id,environment_id,device_id,rotated_from_id) REFERENCES zasp_gateway_credentials(organization_id,workspace_id,environment_id,device_id,id),
     CHECK(expires_at>issued_at), CHECK((rotated_from_id IS NULL)=(enrollment_token_id IS NOT NULL))
 );
@@ -290,8 +308,9 @@ CREATE TABLE "public"."zasp_gateway_policy_subscriptions" (
 CREATE INDEX zasp_discovery_schedules_claim_idx ON zasp_discovery_schedules(next_run_at,organization_id,id) WHERE state='enabled';
 CREATE INDEX zasp_discovery_jobs_claim_idx ON zasp_discovery_jobs(available_at,organization_id,created_at,id) WHERE state IN ('queued','retryable','leased');
 CREATE INDEX zasp_discovery_outbox_claim_idx ON zasp_discovery_outbox(available_at,organization_id,created_at,id) WHERE state IN ('pending','failed','leased');
+CREATE INDEX zasp_projection_work_claim_idx ON zasp_projection_work(organization_id,snapshot_id,kind) WHERE state IN ('pending','leased');
 CREATE INDEX zasp_inventory_entities_page_idx ON zasp_inventory_entities(organization_id,workspace_id,environment_id,id) WHERE state='active';
-CREATE INDEX zasp_inventory_observations_source_idx ON zasp_inventory_source_observations(organization_id,workspace_id,environment_id,integration_id,source_state,entity_id);
+CREATE INDEX zasp_inventory_observations_source_idx ON zasp_inventory_source_observations(organization_id,workspace_id,environment_id,integration_id,source,source_state,entity_id);
 
 CREATE FUNCTION "public"."zasp_discovery_create_integration"(organization_id text,workspace_id text,environment_id text,integration_id text,integration_kind text,connector_version text,display_name text,configuration jsonb,credential_reference text)
 RETURNS jsonb LANGUAGE plpgsql AS $$ DECLARE result jsonb; BEGIN
@@ -325,48 +344,56 @@ END $$;
 CREATE FUNCTION "public"."zasp_discovery_apply_snapshot"(organization_id text,workspace_id text,environment_id text,integration_id text,sync_id text,snapshot_id text,generation bigint,source text,manifest_reference text,manifest_checksum bytea,collected_at timestamptz,cursor_provider text,cursor_value text,entities jsonb,relationships jsonb,evidence jsonb)
 RETURNS jsonb LANGUAGE plpgsql AS $$
 #variable_conflict use_column
-DECLARE entity_count integer; applied_changed_count integer; applied_removed_count integer; committed timestamptz:=transaction_timestamp(); requested_digest bytea; prior_digest bytea; prior_result jsonb;
+DECLARE applied_discovered_count integer; applied_changed_count integer; applied_removed_count integer; committed timestamptz:=transaction_timestamp(); requested_digest bytea; prior_digest bytea; prior_result jsonb;
 BEGIN
   IF jsonb_typeof(entities)<>'array' OR jsonb_typeof(relationships)<>'array' OR jsonb_typeof(evidence)<>'array' OR jsonb_array_length(entities)>10000 OR jsonb_array_length(relationships)>20000 OR jsonb_array_length(evidence)>20000 OR octet_length(manifest_checksum)<>32 THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='invalid complete snapshot'; END IF;
   requested_digest:=digest(convert_to(jsonb_build_object('integration_id',$4,'sync_id',$5,'snapshot_id',$6,'generation',$7,'source',$8,'manifest_reference',$9,'manifest_checksum',encode($10,'hex'),'collected_at_epoch_us',floor(extract(epoch FROM $11)*1000000)::bigint,'cursor_provider',$12,'cursor_value',$13,'entities',$14,'relationships',$15,'evidence',$16)::text,'UTF8'),'sha256');
-  PERFORM pg_advisory_xact_lock(hashtextextended(concat_ws(chr(31),$1,$2,$3,$6),0));
+  PERFORM pg_advisory_xact_lock(hashtextextended(concat_ws(chr(31),$1,$2,$3,$4,$8),0));
   SELECT candidate_digest,apply_result INTO prior_digest,prior_result FROM zasp_discovery_snapshots s WHERE s.organization_id=$1 AND s.workspace_id=$2 AND s.environment_id=$3 AND s.integration_id=$4 AND s.id=$6;
   IF FOUND THEN IF prior_digest<>requested_digest OR prior_result IS NULL THEN RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='snapshot replay conflict'; END IF; RETURN prior_result; END IF;
+  IF EXISTS(SELECT 1 FROM zasp_discovery_snapshots s WHERE s.organization_id=$1 AND s.workspace_id=$2 AND s.environment_id=$3 AND s.integration_id=$4 AND s.source=$8 AND s.is_last_good AND s.generation >= $7) THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='stale snapshot generation'; END IF;
   IF NOT EXISTS(SELECT 1 FROM zasp_discovery_syncs s WHERE s.organization_id=$1 AND s.workspace_id=$2 AND s.environment_id=$3 AND s.integration_id=$4 AND s.id=$5 AND s.state IN ('queued','running')) THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='sync missing'; END IF;
   IF EXISTS(SELECT 1 FROM jsonb_to_recordset(entities) e(id text,kind text,source_native_id text,display_name text,stable_fields jsonb,attributes jsonb) WHERE e.id<>zasp_discovery_canonical_id($1,$2,$3,e.kind,e.source_native_id) OR jsonb_typeof(e.stable_fields)<>'object' OR jsonb_typeof(e.attributes)<>'object') THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='noncanonical entity'; END IF;
   IF EXISTS(SELECT source_native_id FROM jsonb_to_recordset(entities) e(id text,kind text,source_native_id text,display_name text,stable_fields jsonb,attributes jsonb) GROUP BY source_native_id HAVING count(*)>1) THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='duplicate source identity'; END IF;
+  WITH candidate AS (SELECT * FROM jsonb_to_recordset(entities) e(id text,kind text,source_native_id text,display_name text,stable_fields jsonb,attributes jsonb))
+  SELECT count(*) FILTER (WHERE observation.entity_id IS NULL),
+         count(*) FILTER (WHERE observation.entity_id IS NOT NULL AND (entity.kind IS DISTINCT FROM candidate.kind OR entity.display_name IS DISTINCT FROM candidate.display_name OR entity.stable_fields IS DISTINCT FROM candidate.stable_fields OR entity.state<>'active' OR observation.source_state<>'present' OR observation.attributes IS DISTINCT FROM candidate.attributes))
+    INTO applied_discovered_count,applied_changed_count
+    FROM candidate
+    LEFT JOIN zasp_inventory_source_observations observation ON observation.organization_id=$1 AND observation.workspace_id=$2 AND observation.environment_id=$3 AND observation.integration_id=$4 AND observation.source=$8 AND observation.source_native_id=candidate.source_native_id
+    LEFT JOIN zasp_inventory_entities entity ON entity.organization_id=$1 AND entity.workspace_id=$2 AND entity.environment_id=$3 AND entity.id=candidate.id;
   INSERT INTO zasp_discovery_snapshots(organization_id,workspace_id,environment_id,id,integration_id,sync_id,generation,source,manifest_reference,manifest_checksum,candidate_digest,state,complete,is_last_good,collected_at)
   VALUES($1,$2,$3,$6,$4,$5,$7,$8,$9,$10,requested_digest,'candidate',false,false,$11);
   WITH candidate AS (SELECT * FROM jsonb_to_recordset(entities) e(id text,kind text,source_native_id text,display_name text,stable_fields jsonb,attributes jsonb))
   INSERT INTO zasp_inventory_entities(organization_id,workspace_id,environment_id,id,kind,display_name,stable_fields,state,first_seen_at,last_seen_at)
   SELECT $1,$2,$3,id,kind,display_name,stable_fields,'active',committed,committed FROM candidate
-  ON CONFLICT(organization_id,workspace_id,environment_id,id) DO UPDATE SET kind=excluded.kind,display_name=excluded.display_name,stable_fields=excluded.stable_fields,state='active',tombstoned_at=NULL,last_seen_at=committed,version=zasp_inventory_entities.version+1;
-  GET DIAGNOSTICS applied_changed_count=ROW_COUNT;
+  ON CONFLICT(organization_id,workspace_id,environment_id,id) DO UPDATE SET
+    version=zasp_inventory_entities.version+CASE WHEN zasp_inventory_entities.kind IS DISTINCT FROM excluded.kind OR zasp_inventory_entities.display_name IS DISTINCT FROM excluded.display_name OR zasp_inventory_entities.stable_fields IS DISTINCT FROM excluded.stable_fields OR zasp_inventory_entities.state<>'active' THEN 1 ELSE 0 END,
+    kind=excluded.kind,display_name=excluded.display_name,stable_fields=excluded.stable_fields,state='active',tombstoned_at=NULL,last_seen_at=committed;
   WITH candidate AS (SELECT * FROM jsonb_to_recordset(entities) e(id text,kind text,source_native_id text,display_name text,stable_fields jsonb,attributes jsonb))
-  INSERT INTO zasp_inventory_source_observations(organization_id,workspace_id,environment_id,integration_id,entity_id,source_native_id,snapshot_id,source_state,attributes,first_seen_at,last_seen_at)
-  SELECT $1,$2,$3,$4,id,source_native_id,$6,'present',attributes,committed,committed FROM candidate
-  ON CONFLICT(organization_id,workspace_id,environment_id,integration_id,entity_id) DO UPDATE SET source_native_id=excluded.source_native_id,snapshot_id=$6,source_state='present',attributes=excluded.attributes,last_seen_at=committed,removed_at=NULL;
+  INSERT INTO zasp_inventory_source_observations(organization_id,workspace_id,environment_id,integration_id,source,entity_id,source_native_id,snapshot_id,source_state,attributes,first_seen_at,last_seen_at)
+  SELECT $1,$2,$3,$4,$8,id,source_native_id,$6,'present',attributes,committed,committed FROM candidate
+  ON CONFLICT(organization_id,workspace_id,environment_id,integration_id,source,entity_id) DO UPDATE SET source_native_id=excluded.source_native_id,snapshot_id=$6,source_state='present',attributes=excluded.attributes,last_seen_at=committed,removed_at=NULL;
   UPDATE zasp_inventory_source_observations o SET source_state='removed',removed_at=committed,last_seen_at=committed,snapshot_id=$6
-   WHERE o.organization_id=$1 AND o.workspace_id=$2 AND o.environment_id=$3 AND o.integration_id=$4 AND o.source_state='present'
+   WHERE o.organization_id=$1 AND o.workspace_id=$2 AND o.environment_id=$3 AND o.integration_id=$4 AND o.source=$8 AND o.source_state='present'
      AND NOT EXISTS(SELECT 1 FROM jsonb_to_recordset(entities) e(id text) WHERE e.id=o.entity_id);
   GET DIAGNOSTICS applied_removed_count=ROW_COUNT;
   UPDATE zasp_inventory_entities entity SET state='tombstoned',tombstoned_at=committed,last_seen_at=committed,version=version+1
    WHERE entity.organization_id=$1 AND entity.workspace_id=$2 AND entity.environment_id=$3 AND entity.state='active'
      AND NOT EXISTS(SELECT 1 FROM zasp_inventory_source_observations o WHERE o.organization_id=entity.organization_id AND o.workspace_id=entity.workspace_id AND o.environment_id=entity.environment_id AND o.entity_id=entity.id AND o.source_state='present');
-  IF EXISTS(SELECT 1 FROM jsonb_to_recordset(relationships) r(id text,kind text,source_native_id text,from_entity_id text,to_entity_id text,attributes jsonb) WHERE r.id<>zasp_discovery_canonical_id($1,$2,$3,'relationship:'||r.kind,r.source_native_id) OR r.from_entity_id=r.to_entity_id OR NOT EXISTS(SELECT 1 FROM zasp_inventory_entities e WHERE e.organization_id=$1 AND e.workspace_id=$2 AND e.environment_id=$3 AND e.id=r.from_entity_id AND e.state='active') OR NOT EXISTS(SELECT 1 FROM zasp_inventory_entities e WHERE e.organization_id=$1 AND e.workspace_id=$2 AND e.environment_id=$3 AND e.id=r.to_entity_id AND e.state='active')) THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='invalid relationship'; END IF;
-  INSERT INTO zasp_inventory_relationships(organization_id,workspace_id,environment_id,id,integration_id,snapshot_id,from_entity_id,to_entity_id,kind,source_native_id,state,attributes,first_seen_at,last_seen_at)
-  SELECT $1,$2,$3,id,$4,$6,from_entity_id,to_entity_id,kind,source_native_id,'present',attributes,committed,committed FROM jsonb_to_recordset(relationships) r(id text,kind text,source_native_id text,from_entity_id text,to_entity_id text,attributes jsonb)
+  IF EXISTS(SELECT 1 FROM jsonb_to_recordset(relationships) r(id text,kind text,source_native_id text,from_entity_id text,to_entity_id text,attributes jsonb) WHERE r.id<>zasp_discovery_relationship_id($1,$2,$3,$4,$8,r.kind,r.source_native_id) OR r.from_entity_id=r.to_entity_id OR NOT EXISTS(SELECT 1 FROM zasp_inventory_entities e WHERE e.organization_id=$1 AND e.workspace_id=$2 AND e.environment_id=$3 AND e.id=r.from_entity_id AND e.state='active') OR NOT EXISTS(SELECT 1 FROM zasp_inventory_entities e WHERE e.organization_id=$1 AND e.workspace_id=$2 AND e.environment_id=$3 AND e.id=r.to_entity_id AND e.state='active')) THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='invalid relationship'; END IF;
+  INSERT INTO zasp_inventory_relationships(organization_id,workspace_id,environment_id,id,integration_id,source,snapshot_id,from_entity_id,to_entity_id,kind,source_native_id,state,attributes,first_seen_at,last_seen_at)
+  SELECT $1,$2,$3,id,$4,$8,$6,from_entity_id,to_entity_id,kind,source_native_id,'present',attributes,committed,committed FROM jsonb_to_recordset(relationships) r(id text,kind text,source_native_id text,from_entity_id text,to_entity_id text,attributes jsonb)
   ON CONFLICT(organization_id,workspace_id,environment_id,id) DO UPDATE SET snapshot_id=$6,state='present',attributes=excluded.attributes,last_seen_at=committed,removed_at=NULL;
-  UPDATE zasp_inventory_relationships r SET state='removed',removed_at=committed,last_seen_at=committed,snapshot_id=$6 WHERE r.organization_id=$1 AND r.workspace_id=$2 AND r.environment_id=$3 AND r.integration_id=$4 AND r.state='present' AND NOT EXISTS(SELECT 1 FROM jsonb_to_recordset(relationships) x(id text) WHERE x.id=r.id);
+  UPDATE zasp_inventory_relationships r SET state='removed',removed_at=committed,last_seen_at=committed,snapshot_id=$6 WHERE r.organization_id=$1 AND r.workspace_id=$2 AND r.environment_id=$3 AND r.integration_id=$4 AND r.source=$8 AND r.state='present' AND NOT EXISTS(SELECT 1 FROM jsonb_to_recordset(relationships) x(id text) WHERE x.id=r.id);
   INSERT INTO zasp_inventory_evidence(organization_id,workspace_id,environment_id,id,integration_id,snapshot_id,entity_id,finding_id,object_reference,checksum,media_type,schema_version,parser_version,collected_at)
   SELECT $1,$2,$3,id,$4,$6,entity_id,finding_id,object_reference,decode(checksum_hex,'hex'),media_type,schema_version,parser_version,$11 FROM jsonb_to_recordset(evidence) e(id text,entity_id text,finding_id text,object_reference text,checksum_hex text,media_type text,schema_version text,parser_version text);
-  UPDATE zasp_discovery_snapshots SET is_last_good=false WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND integration_id=$4 AND is_last_good;
+  UPDATE zasp_discovery_snapshots SET is_last_good=false WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND integration_id=$4 AND source=$8 AND is_last_good;
   UPDATE zasp_discovery_snapshots SET state='complete',complete=true,is_last_good=true,committed_at=committed WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND integration_id=$4 AND id=$6;
   INSERT INTO zasp_discovery_cursors(organization_id,workspace_id,environment_id,integration_id,provider,cursor_value,snapshot_id,committed_at) VALUES($1,$2,$3,$4,$12,$13,$6,committed) ON CONFLICT(organization_id,workspace_id,environment_id,integration_id,provider) DO UPDATE SET cursor_value=$13,snapshot_id=$6,committed_at=committed;
   INSERT INTO zasp_projection_work(organization_id,workspace_id,environment_id,snapshot_id,kind,version,input_digest) SELECT $1,$2,$3,$6,kind,'v1',$10 FROM unnest(ARRAY['risk','graph','search']) kind;
-  entity_count:=jsonb_array_length(entities);
-  UPDATE zasp_discovery_syncs SET state='succeeded',snapshot_id=$6,discovered_count=entity_count,changed_count=applied_changed_count,removed_count=applied_removed_count,completed_at=committed WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND integration_id=$4 AND id=$5;
-  prior_result:=jsonb_build_object('snapshot_id',$6,'discovered_count',entity_count,'changed_count',applied_changed_count,'removed_count',applied_removed_count,'committed_at',committed);
+  UPDATE zasp_discovery_syncs SET state='succeeded',snapshot_id=$6,discovered_count=applied_discovered_count,changed_count=applied_changed_count,removed_count=applied_removed_count,completed_at=committed WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND integration_id=$4 AND id=$5;
+  prior_result:=jsonb_build_object('snapshot_id',$6,'discovered_count',applied_discovered_count,'changed_count',applied_changed_count,'removed_count',applied_removed_count,'committed_at',committed);
   UPDATE zasp_discovery_snapshots SET apply_result=prior_result WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND integration_id=$4 AND id=$6;
   RETURN prior_result;
 END $$;
@@ -537,5 +564,5 @@ DO $migration$ DECLARE definition text; BEGIN
  definition:=replace(definition,'release."name" = ''production_risk_projection''','release."name" = ''production_discovery'''); definition:=replace(definition,'later_release."version" > 9','later_release."version" > 10'); EXECUTE definition;
 END $migration$;
 
-INSERT INTO zasp_schema_metadata(key,value) VALUES ('production_discovery_fingerprint', 'adeb38ce0184bdd83f964f63a4979eb256cc3bce91d7492e5f1082b992a4a0ae');
+INSERT INTO zasp_schema_metadata(key,value) VALUES ('production_discovery_fingerprint', 'bd966f5d85716df21f5c246e1508465bfdfadfe6f2dfdcadfcc5fbe4b22cd4e8');
 UPDATE zasp_schema_metadata SET value='production-discovery-v1',applied_at=transaction_timestamp() WHERE key='production_core_schema' AND value='production-risk-projection-v1';
