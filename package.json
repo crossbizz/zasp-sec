@@ -28,6 +28,7 @@
     "runtime-gateway:health:test": "go test -C services/runtime-gateway -race -count=1 ./...",
     "local:product:test": "node --test deploy/local/manifests.test.mjs deploy/local/run.test.mjs",
     "local:product:run": "node deploy/local/run.mjs",
+    "production:combined-e2e:test": "node --test scripts/production-combined-e2e.test.mjs && node scripts/production-combined-e2e.mjs",
     "local:graph:test": "node --test deploy/local/manifests.test.mjs deploy/local/run.test.mjs deploy/local/graph-manifest.test.mjs deploy/local/graph-run.test.mjs deploy/local/graph-license-audit.test.mjs",
     "local:graph:run": "node deploy/local/graph-run.mjs",
     "local:graph:license": "node deploy/local/graph-license-audit.mjs",
