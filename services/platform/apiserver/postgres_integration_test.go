@@ -163,7 +163,7 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 	if err != nil || !strings.Contains(string(createdWorkspace), `"Engineering"`) {
 		t.Fatalf("create workspace = (%s, %v)", createdWorkspace, err)
 	}
-	if _, err := repository.MutateAdministration(ctx, identity, administrationMutation{Operation: "updateWorkspace", ID: "pid_11000002-0000-4000-8000-000000000002", Name: "Stale update", ExpectedVersion: 2, AuditID: "pid_31000009-0000-4000-8000-000000000009"}); !errors.Is(err, ErrRepositoryConflict) {
+	if _, err := repository.MutateAdministration(ctx, identity, administrationMutation{Operation: "updateWorkspace", ID: workspace.String(), Name: "Stale update", ExpectedVersion: 2, AuditID: "pid_31000009-0000-4000-8000-000000000009"}); !errors.Is(err, ErrRepositoryConflict) {
 		t.Fatalf("stale workspace precondition = %v", err)
 	}
 	createdEnvironment, err := repository.MutateAdministration(ctx, identity, administrationMutation{Operation: "createEnvironment", ID: "pid_11000003-0000-4000-8000-000000000003", WorkspaceID: workspace.String(), Name: "Development", AuditID: "pid_31000002-0000-4000-8000-000000000002"})
