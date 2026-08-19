@@ -29,7 +29,6 @@ type riskRepositoryStub struct {
 	pageCalls     int
 	mutation      RiskFindingMutation
 	mutationCalls int
-	replayCalls   int
 }
 
 func (repository *riskRepositoryStub) GetRiskFinding(_ context.Context, scope domain.Scope, _ string) (RiskFinding, error) {
@@ -62,12 +61,11 @@ func (repository *riskRepositoryStub) Read(_ context.Context, scope domain.Scope
 	repository.scope = scope
 	return repository.home, repository.err
 }
-func (repository *riskRepositoryStub) ReplayRiskFinding(_ context.Context, _ RequestIdentity, _, _ string, _ json.RawMessage) (RiskFindingMutationResult, bool, error) {
-	repository.replayCalls++
-	return repository.replay, repository.replayed, repository.err
-}
 func (repository *riskRepositoryStub) MutateRiskFinding(_ context.Context, _ RequestIdentity, mutation RiskFindingMutation) (RiskFindingMutationResult, error) {
 	repository.mutation, repository.mutationCalls = mutation, repository.mutationCalls+1
+	if repository.replayed {
+		return repository.replay, repository.err
+	}
 	finding := repository.finding
 	finding.Version = mutation.ExpectedVersion + 1
 	finding.Status = mutation.Status
@@ -177,8 +175,8 @@ func TestRiskHandlerMutationsRequireStrictPreconditionsAndReturnBrowserReceipt(t
 	request.Header.Set("Idempotency-Key", "idem-risk-update-002")
 	response = httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
-	if response.Code != http.StatusBadRequest || repository.mutationCalls != 1 || repository.replayCalls != 1 {
-		t.Fatalf("invalid body = %d mutation=%d replay=%d", response.Code, repository.mutationCalls, repository.replayCalls)
+	if response.Code != http.StatusBadRequest || repository.mutationCalls != 1 {
+		t.Fatalf("invalid body = %d mutation=%d", response.Code, repository.mutationCalls)
 	}
 }
 
@@ -207,8 +205,38 @@ func TestRiskHandlerReplaysLostMutationWithoutWritingAgain(t *testing.T) {
 	request.Header.Set("Idempotency-Key", "idem-risk-update-001")
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
-	if response.Code != http.StatusOK || repository.mutationCalls != 0 || response.Header().Get("X-Audit-ID") != replayed.AuditID || response.Header().Get("X-Mutation-Receipt-ID") != replayed.ReceiptID {
+	if response.Code != http.StatusOK || repository.mutationCalls != 1 || response.Header().Get("X-Audit-ID") != replayed.AuditID || response.Header().Get("X-Mutation-Receipt-ID") != replayed.ReceiptID {
 		t.Fatalf("replay = %d headers=%v mutation=%d body=%s", response.Code, response.Header(), repository.mutationCalls, response.Body.String())
+	}
+}
+
+func TestRiskHandlerKeepsInvisibleFindingReplayNondisclosing(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	for _, test := range []struct {
+		operation string
+		method    string
+		target    string
+		body      string
+	}{
+		{operation: "updateFinding", method: http.MethodPatch, target: "https://app.zasp.test/api/v1/findings/" + riskFindingID, body: `{"status":"under_review"}`},
+		{operation: "acceptFindingRisk", method: http.MethodPost, target: "https://app.zasp.test/api/v1/findings/" + riskFindingID + "/accept-risk", body: `{"reason":"Approved exception"}`},
+	} {
+		t.Run(test.operation, func(t *testing.T) {
+			database := &invisibleRiskMutationDatabase{}
+			repository, _ := NewPostgresRepository(database)
+			handler, err := newRiskHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), func() time.Time { return time.Date(2026, 8, 19, 1, 0, 0, 0, time.UTC) })
+			if err != nil {
+				t.Fatal(err)
+			}
+			request := riskRequest(t, identity, test.operation, test.method, test.target, test.body)
+			request.Header.Set("If-Match", `"1"`)
+			request.Header.Set("Idempotency-Key", "idem-invisible-risk-001")
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			if response.Code != http.StatusNotFound || len(database.queries) != 1 || database.queries[0] != postgresRiskFindingMutateSQL {
+				t.Fatalf("invisible %s = %d queries=%#v body=%s", test.operation, response.Code, database.queries, response.Body.String())
+			}
+		})
 	}
 }
 

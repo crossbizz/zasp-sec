@@ -397,7 +397,7 @@ func TestProductionRiskProjectionMigrationOwnsTypedRiskAuthority(t *testing.T) {
 	for _, fragment := range []string{
 		"zasp_risk_findings", "zasp_risk_finding_evidence", "zasp_risk_finding_factors",
 		"zasp_risk_attack_paths", "zasp_risk_attack_path_nodes", "zasp_risk_attack_path_evidence", "zasp_risk_break_options",
-		"zasp_risk_finding_page", "zasp_risk_attack_path_valid", "zasp_risk_attack_path_page", "zasp_risk_mutate",
+		"zasp_risk_finding_visible", "zasp_risk_finding_page", "zasp_risk_attack_path_valid", "zasp_risk_attack_path_page", "zasp_risk_mutate",
 		"production_risk_projection_fingerprint", "production-risk-projection-v1",
 	} {
 		if !strings.Contains(metadata.UpSQL(), fragment) {

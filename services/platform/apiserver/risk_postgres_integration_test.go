@@ -32,6 +32,8 @@ func TestRiskProjectionPostgresPaginationIsolationMutationReplayAndRollbackGuard
 	}
 	identity := fixtureRequestIdentity(t)
 	organization, workspace, environment := identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String()
+	invisibleFinding := "pid_81000001-0000-4000-8000-000000000001"
+	invisibleAcceptFinding := "pid_81000003-0000-4000-8000-000000000003"
 	for _, seed := range []struct {
 		statement string
 		arguments []any
@@ -40,6 +42,8 @@ func TestRiskProjectionPostgresPaginationIsolationMutationReplayAndRollbackGuard
 		{`INSERT INTO zasp_risk_finding_evidence (organization_id,workspace_id,environment_id,finding_id,position,evidence_id) SELECT $1,$2,$3,'pid_'||lpad(ordinal::text,8,'0')||'-0000-4000-8000-'||lpad(ordinal::text,12,'0'),1,'pid_'||lpad((10000000+ordinal)::text,8,'0')||'-0000-4000-8000-'||lpad(ordinal::text,12,'0') FROM generate_series(1,1001) ordinal`, []any{organization, workspace, environment}},
 		{`INSERT INTO zasp_risk_findings (organization_id,workspace_id,environment_id,id,source,title,severity,status) VALUES ($1,$2,$3,$4,'posture','Public tool access','high','open')`, []any{organization, workspace, environment, riskFindingID}},
 		{`INSERT INTO zasp_risk_finding_evidence (organization_id,workspace_id,environment_id,finding_id,position,evidence_id) VALUES ($1,$2,$3,$4,1,$5)`, []any{organization, workspace, environment, riskFindingID, riskEvidence}},
+		{`INSERT INTO zasp_risk_findings (organization_id,workspace_id,environment_id,id,source,title,severity,status) VALUES ($1,$2,$3,$4,'prowler','Uncorrelated provider observation','high','open'),($1,$2,$3,$5,'prowler','Second uncorrelated provider observation','high','open')`, []any{organization, workspace, environment, invisibleFinding, invisibleAcceptFinding}},
+		{`INSERT INTO zasp_risk_finding_evidence (organization_id,workspace_id,environment_id,finding_id,position,evidence_id) VALUES ($1,$2,$3,$4,1,'pid_81000002-0000-4000-8000-000000000002'),($1,$2,$3,$5,1,'pid_81000004-0000-4000-8000-000000000004')`, []any{organization, workspace, environment, invisibleFinding, invisibleAcceptFinding}},
 		{`INSERT INTO zasp_risk_attack_paths (organization_id,workspace_id,environment_id,id,entry_id,sink_id,state) SELECT $1,$2,$3,'pid_'||lpad((20000000+ordinal)::text,8,'0')||'-0000-4000-8000-'||lpad(ordinal::text,12,'0'),'pid_'||lpad((50000000+ordinal)::text,8,'0')||'-0000-4000-8000-'||lpad(ordinal::text,12,'0'),'pid_'||lpad((60000000+ordinal)::text,8,'0')||'-0000-4000-8000-'||lpad(ordinal::text,12,'0'),'verified' FROM generate_series(1,1001) ordinal`, []any{organization, workspace, environment}},
 		{`INSERT INTO zasp_risk_attack_path_nodes (organization_id,workspace_id,environment_id,path_id,position,node_id) SELECT $1,$2,$3,'pid_'||lpad((20000000+ordinal)::text,8,'0')||'-0000-4000-8000-'||lpad(ordinal::text,12,'0'),position,CASE position WHEN 1 THEN 'pid_'||lpad((50000000+ordinal)::text,8,'0')||'-0000-4000-8000-'||lpad(ordinal::text,12,'0') ELSE 'pid_'||lpad((60000000+ordinal)::text,8,'0')||'-0000-4000-8000-'||lpad(ordinal::text,12,'0') END FROM generate_series(1,1001) ordinal CROSS JOIN generate_series(1,2) position`, []any{organization, workspace, environment}},
 		{`INSERT INTO zasp_risk_attack_path_evidence (organization_id,workspace_id,environment_id,path_id,position,evidence_id) SELECT $1,$2,$3,'pid_'||lpad((20000000+ordinal)::text,8,'0')||'-0000-4000-8000-'||lpad(ordinal::text,12,'0'),1,'pid_'||lpad((70000000+ordinal)::text,8,'0')||'-0000-4000-8000-'||lpad(ordinal::text,12,'0') FROM generate_series(1,1001) ordinal`, []any{organization, workspace, environment}},
@@ -116,6 +120,68 @@ func TestRiskProjectionPostgresPaginationIsolationMutationReplayAndRollbackGuard
 	if findingCount != 1002 || findingPages != 11 || findingLastID != riskFindingID {
 		t.Fatalf("finding traversal = count:%d pages:%d last:%s", findingCount, findingPages, findingLastID)
 	}
+	for _, id := range []string{invisibleFinding, invisibleAcceptFinding} {
+		if _, err := repository.GetRiskFinding(ctx, identity.Scope, id); !errors.Is(err, ErrRepositoryNotFound) {
+			t.Fatalf("irrelevant Prowler detail %s must be absent: %v", id, err)
+		}
+	}
+	request = riskRequest(t, identity, "getFinding", http.MethodGet, "https://app.zasp.test/api/v1/findings/"+invisibleFinding, "")
+	request = request.WithContext(context.WithValue(request.Context(), routedOperationContextKey{}, RoutedOperation{OperationID: "getFinding", PathParameters: map[string]string{"id": invisibleFinding}}))
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("irrelevant Prowler HTTP detail = %d %s", response.Code, response.Body.String())
+	}
+	for attempt := 0; attempt < 2; attempt++ {
+		request = riskRequest(t, identity, "updateFinding", http.MethodPatch, "https://app.zasp.test/api/v1/findings/"+invisibleFinding, `{"status":"under_review"}`)
+		request = request.WithContext(context.WithValue(request.Context(), routedOperationContextKey{}, RoutedOperation{OperationID: "updateFinding", PathParameters: map[string]string{"id": invisibleFinding}}))
+		request.Header.Set("If-Match", `"1"`)
+		request.Header.Set("Idempotency-Key", "idem-invisible-update-001")
+		response = httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		if response.Code != http.StatusNotFound {
+			t.Fatalf("irrelevant Prowler repeated PATCH %d = %d %s", attempt+1, response.Code, response.Body.String())
+		}
+	}
+	visibilityConnection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	visibilityDatabase, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: visibilityConnection})
+	visibilityRepository, _ := NewPostgresRepository(visibilityDatabase)
+	visibilityHandler, _ := newRiskHTTPHandler(visibilityRepository, []byte("0123456789abcdef0123456789abcdef"), time.Now)
+	invisibleRequests := make([]*http.Request, 2)
+	invisibleResponses := []*httptest.ResponseRecorder{httptest.NewRecorder(), httptest.NewRecorder()}
+	for index := range invisibleRequests {
+		invisibleRequests[index] = riskRequest(t, identity, "acceptFindingRisk", http.MethodPost, "https://app.zasp.test/api/v1/findings/"+invisibleAcceptFinding+"/accept-risk", `{"reason":"Approved exception"}`)
+		invisibleRequests[index] = invisibleRequests[index].WithContext(context.WithValue(invisibleRequests[index].Context(), routedOperationContextKey{}, RoutedOperation{OperationID: "acceptFindingRisk", PathParameters: map[string]string{"id": invisibleAcceptFinding}}))
+		invisibleRequests[index].Header.Set("If-Match", `"1"`)
+		invisibleRequests[index].Header.Set("Idempotency-Key", "idem-invisible-accept-001")
+	}
+	startInvisible := make(chan struct{})
+	var invisibleGroup sync.WaitGroup
+	for index, currentHandler := range []*riskHTTPHandler{handler, visibilityHandler} {
+		invisibleGroup.Add(1)
+		go func(index int, currentHandler *riskHTTPHandler) {
+			defer invisibleGroup.Done()
+			<-startInvisible
+			currentHandler.ServeHTTP(invisibleResponses[index], invisibleRequests[index])
+		}(index, currentHandler)
+	}
+	close(startInvisible)
+	invisibleGroup.Wait()
+	if invisibleResponses[0].Code != http.StatusNotFound || invisibleResponses[1].Code != http.StatusNotFound {
+		t.Fatalf("irrelevant Prowler concurrent accept = first:%d/%s second:%d/%s", invisibleResponses[0].Code, invisibleResponses[0].Body.String(), invisibleResponses[1].Code, invisibleResponses[1].Body.String())
+	}
+	var invisibleRows, invisibleIdempotency, invisibleAudits, invisibleReceipts int
+	if err := connection.QueryRow(ctx, `SELECT
+		(SELECT count(*) FROM zasp_risk_findings WHERE id IN ($1,$2) AND status='open' AND version=1 AND acceptance_reason IS NULL),
+		(SELECT count(*) FROM zasp_workflow_idempotency WHERE idempotency_key IN ('idem-invisible-update-001','idem-invisible-accept-001')),
+		(SELECT count(*) FROM zasp_workflow_audit WHERE resource_id IN ($1,$2)),
+		(SELECT count(*) FROM zasp_workflow_receipts WHERE resource_id IN ($1,$2))`, invisibleFinding, invisibleAcceptFinding).Scan(&invisibleRows, &invisibleIdempotency, &invisibleAudits, &invisibleReceipts); err != nil || invisibleRows != 2 || invisibleIdempotency != 0 || invisibleAudits != 0 || invisibleReceipts != 0 {
+		t.Fatalf("irrelevant Prowler residue = rows:%d idempotency:%d audit:%d receipt:%d (%v)", invisibleRows, invisibleIdempotency, invisibleAudits, invisibleReceipts, err)
+	}
+	_ = visibilityDatabase.Close()
 
 	request = riskRequest(t, identity, "listAttackPaths", http.MethodGet, "https://app.zasp.test/api/v1/attack-paths?limit=100", "")
 	response = httptest.NewRecorder()

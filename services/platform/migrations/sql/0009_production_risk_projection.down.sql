@@ -8,7 +8,7 @@ BEGIN
         UNION ALL SELECT 'index',table_class.relname||'.'||index_class.relname,jsonb_build_object('definition',regexp_replace(pg_get_indexdef(index_value.indexrelid,0,true),E'\\s+',' ','g'),'unique',index_value.indisunique,'primary',index_value.indisprimary,'exclusion',index_value.indisexclusion,'valid',index_value.indisvalid,'ready',index_value.indisready) FROM pg_index index_value JOIN pg_class table_class ON table_class.oid=index_value.indrelid JOIN pg_class index_class ON index_class.oid=index_value.indexrelid JOIN pg_namespace namespace ON namespace.oid=table_class.relnamespace WHERE namespace.nspname='public' AND left(table_class.relname,5)='zasp_'
         UNION ALL SELECT 'function',procedure.proname||'('||pg_get_function_identity_arguments(procedure.oid)||')',jsonb_build_object('result',pg_get_function_result(procedure.oid),'language',language.lanname,'kind',procedure.prokind,'volatility',procedure.provolatile,'strict',procedure.proisstrict,'security_definer',procedure.prosecdef,'leakproof',procedure.proleakproof,'parallel',procedure.proparallel,'config',COALESCE(to_jsonb(procedure.proconfig),'[]'::jsonb),'body',regexp_replace(btrim(procedure.prosrc),E'\\s+',' ','g')) FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace JOIN pg_language language ON language.oid=procedure.prolang WHERE namespace.nspname='public' AND left(procedure.proname,5)='zasp_'
     ) SELECT encode(digest(convert_to(COALESCE(jsonb_agg(jsonb_build_array(object_kind,object_identity,definition) ORDER BY object_kind,object_identity)::text,'[]'),'UTF8'),'sha256'),'hex') INTO actual_fingerprint FROM semantic_objects;
-    IF actual_fingerprint<>'cd079f2f94be689b1ce89d9e55ce685f65f10595871a5362cfb76edc7410e16e' THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='semantic schema drift blocks rollback'; END IF;
+    IF actual_fingerprint<>'d5999a521fa7cef426fcc096b3d7f66b32e3ad6b22f864c59d326ac14849fc74' THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='semantic schema drift blocks rollback'; END IF;
 END;
 $rollback_guard$;
 
@@ -47,6 +47,7 @@ DROP FUNCTION "public"."zasp_risk_attack_path_get"(text,text,text,text);
 DROP FUNCTION "public"."zasp_risk_attack_path_valid"("public"."zasp_risk_attack_paths");
 DROP FUNCTION "public"."zasp_risk_finding_page"(text,text,text,text,integer);
 DROP FUNCTION "public"."zasp_risk_finding_get"(text,text,text,text);
+DROP FUNCTION "public"."zasp_risk_finding_visible"("public"."zasp_risk_findings");
 
 ALTER TABLE "public"."zasp_workflow_receipts" DROP CONSTRAINT "zasp_workflow_receipts_resource_kind_check";
 ALTER TABLE "public"."zasp_workflow_receipts" ADD CONSTRAINT "zasp_workflow_receipts_resource_kind_check"

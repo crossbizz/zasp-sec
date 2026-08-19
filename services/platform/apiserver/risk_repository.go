@@ -96,19 +96,6 @@ type RiskFindingMutationResult struct {
 	Replayed      bool        `json:"replayed"`
 }
 
-func (repository *PostgresRepository) ReplayRiskFinding(ctx context.Context, identity RequestIdentity, operation, idempotencyKey string, intent json.RawMessage) (RiskFindingMutationResult, bool, error) {
-	replayed, found, err := repository.ReplayWorkflow(ctx, identity, operation, idempotencyKey, intent)
-	if err != nil || !found {
-		return RiskFindingMutationResult{}, found, err
-	}
-	var finding RiskFinding
-	if decodeStrictRisk(replayed.Body, &finding) != nil || !validRiskFinding(finding) || finding.Version != replayed.Version {
-		return RiskFindingMutationResult{}, false, ErrRepositoryUnavailable
-	}
-	normalizeRiskFinding(&finding)
-	return RiskFindingMutationResult{Body: finding, Version: replayed.Version, AuditID: replayed.AuditID, CorrelationID: replayed.CorrelationID, ReceiptID: replayed.ReceiptID, Replayed: true}, true, nil
-}
-
 func (repository *PostgresRepository) GetRiskFinding(ctx context.Context, scope domain.Scope, id string) (RiskFinding, error) {
 	if !validRiskRead(repository, ctx, scope, id) {
 		return RiskFinding{}, ErrRepositoryOperation

@@ -121,6 +121,19 @@ ALTER TABLE "public"."zasp_workflow_receipts" DROP CONSTRAINT "zasp_workflow_rec
 ALTER TABLE "public"."zasp_workflow_receipts" ADD CONSTRAINT "zasp_workflow_receipts_resource_kind_check"
 CHECK ("resource_kind" IN ('policy', 'integration', 'sensor', 'security_agent', 'security_agent_run', 'security_agent_approval', 'finding'));
 
+CREATE FUNCTION "public"."zasp_risk_finding_visible"(
+    candidate "public"."zasp_risk_findings"
+)
+RETURNS boolean LANGUAGE sql IMMUTABLE AS $$
+    SELECT COALESCE(
+        candidate."source"<>'prowler'
+        OR candidate."agent_id" IS NOT NULL
+        OR candidate."path_id" IS NOT NULL
+        OR candidate."compliance_context" IS NOT NULL,
+        false
+    )
+$$;
+
 CREATE FUNCTION "public"."zasp_risk_attack_path_valid"(
     candidate "public"."zasp_risk_attack_paths"
 )
@@ -157,9 +170,10 @@ DECLARE
     evidence_count integer;
     factor_count integer;
 BEGIN
-    SELECT * INTO finding FROM "public"."zasp_risk_findings"
+    SELECT * INTO finding FROM "public"."zasp_risk_findings" AS candidate
      WHERE "organization_id"=requested_organization_id AND "workspace_id"=requested_workspace_id
-       AND "environment_id"=requested_environment_id AND "id"=requested_id;
+       AND "environment_id"=requested_environment_id AND "id"=requested_id
+       AND "public"."zasp_risk_finding_visible"(candidate);
     IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='P0002', MESSAGE='risk finding missing'; END IF;
     SELECT count(*), COALESCE(jsonb_agg("evidence_id" ORDER BY "position"),'[]'::jsonb)
       INTO evidence_count, evidence
@@ -194,10 +208,10 @@ DECLARE response jsonb;
 BEGIN
     IF requested_limit NOT BETWEEN 1 AND 100 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='invalid risk page limit'; END IF;
     WITH candidates AS (
-        SELECT "id" FROM "public"."zasp_risk_findings"
+        SELECT "id" FROM "public"."zasp_risk_findings" AS candidate
          WHERE "organization_id"=requested_organization_id AND "workspace_id"=requested_workspace_id
            AND "environment_id"=requested_environment_id AND (requested_after_id IS NULL OR "id">requested_after_id)
-           AND ("source"<>'prowler' OR "agent_id" IS NOT NULL OR "path_id" IS NOT NULL OR "compliance_context" IS NOT NULL)
+           AND "public"."zasp_risk_finding_visible"(candidate)
          ORDER BY "id" LIMIT requested_limit+1
     ), visible AS (SELECT "id" FROM candidates ORDER BY "id" LIMIT requested_limit)
     SELECT jsonb_build_object(
@@ -322,7 +336,7 @@ BEGIN
        OR requested_operation='acceptFindingRisk' AND (requested_status<>'accepted' OR length(requested_reason) NOT BETWEEN 1 AND 512) THEN
         RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='invalid risk mutation';
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM "public"."zasp_risk_findings" WHERE "organization_id"=requested_organization_id AND "workspace_id"=requested_workspace_id AND "environment_id"=requested_environment_id AND "id"=requested_finding_id) THEN
+    IF NOT EXISTS (SELECT 1 FROM "public"."zasp_risk_findings" AS candidate WHERE "organization_id"=requested_organization_id AND "workspace_id"=requested_workspace_id AND "environment_id"=requested_environment_id AND "id"=requested_finding_id AND "public"."zasp_risk_finding_visible"(candidate)) THEN
         RAISE EXCEPTION USING ERRCODE='P0002', MESSAGE='risk finding missing';
     END IF;
     requested_intent := jsonb_build_object('resource_id',requested_finding_id,'expected_version',expected_version,'body',CASE WHEN requested_operation='updateFinding' THEN jsonb_build_object('status',requested_status) ELSE jsonb_build_object('reason',requested_reason) END);
@@ -335,8 +349,8 @@ BEGIN
         IF prior_digest<>digest_value THEN RAISE EXCEPTION USING ERRCODE='23505', MESSAGE='idempotency conflict'; END IF;
         RETURN prior_response||jsonb_build_object('replayed',true);
     END IF;
-    UPDATE "public"."zasp_risk_findings" SET "status"=requested_status,"acceptance_reason"=CASE WHEN requested_operation='acceptFindingRisk' THEN requested_reason ELSE NULL END,"version"="version"+1,"updated_at"=transaction_timestamp()
-     WHERE "organization_id"=requested_organization_id AND "workspace_id"=requested_workspace_id AND "environment_id"=requested_environment_id AND "id"=requested_finding_id AND "version"=expected_version
+    UPDATE "public"."zasp_risk_findings" AS candidate SET "status"=requested_status,"acceptance_reason"=CASE WHEN requested_operation='acceptFindingRisk' THEN requested_reason ELSE NULL END,"version"="version"+1,"updated_at"=transaction_timestamp()
+     WHERE "organization_id"=requested_organization_id AND "workspace_id"=requested_workspace_id AND "environment_id"=requested_environment_id AND "id"=requested_finding_id AND "version"=expected_version AND "public"."zasp_risk_finding_visible"(candidate)
      RETURNING "version" INTO result_version;
     IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='40001', MESSAGE='risk finding version conflict'; END IF;
     result_body := "public"."zasp_risk_finding_get"(requested_finding_id,requested_organization_id,requested_workspace_id,requested_environment_id);
@@ -364,7 +378,7 @@ END;
 $migration$;
 
 INSERT INTO "public"."zasp_schema_metadata" ("key","value")
-VALUES ('production_risk_projection_fingerprint', 'cd079f2f94be689b1ce89d9e55ce685f65f10595871a5362cfb76edc7410e16e');
+VALUES ('production_risk_projection_fingerprint', 'd5999a521fa7cef426fcc096b3d7f66b32e3ad6b22f864c59d326ac14849fc74');
 
 UPDATE "public"."zasp_schema_metadata" SET "value"='production-risk-projection-v1',"applied_at"=transaction_timestamp()
 WHERE "key"='production_core_schema' AND "value"='api-token-reveal-grants-v1';

@@ -21,7 +21,6 @@ type riskRepository interface {
 	ListRiskAttackPathPage(context.Context, domain.Scope, string, int) (RiskAttackPathPage, error)
 	GetRiskBreakOptions(context.Context, domain.Scope, string) ([]RiskBreakOption, error)
 	CountHighRiskPaths(context.Context, domain.Scope) (int64, error)
-	ReplayRiskFinding(context.Context, RequestIdentity, string, string, json.RawMessage) (RiskFindingMutationResult, bool, error)
 	MutateRiskFinding(context.Context, RequestIdentity, RiskFindingMutation) (RiskFindingMutationResult, error)
 }
 
@@ -280,24 +279,6 @@ func (handler *riskHTTPHandler) mutateFinding(writer http.ResponseWriter, reques
 		writeProductionError(writer, request, ErrRepositoryNotFound)
 		return
 	}
-	body := map[string]any{"status": status}
-	if routed.OperationID == "acceptFindingRisk" {
-		body = map[string]any{"reason": reason}
-	}
-	intent, err := json.Marshal(map[string]any{"resource_id": id, "expected_version": expectedVersion, "body": body})
-	if err != nil {
-		writeProductionError(writer, request, ErrRepositoryUnavailable)
-		return
-	}
-	result, replayed, err := handler.repository.ReplayRiskFinding(request.Context(), identity, routed.OperationID, idempotencyKey, intent)
-	if err != nil {
-		writeWorkflowMutationError(writer, request, err)
-		return
-	}
-	if replayed {
-		handler.writeMutationResult(writer, request, result)
-		return
-	}
 	auditID, err := newWorkflowProductID()
 	if err != nil {
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
@@ -311,7 +292,7 @@ func (handler *riskHTTPHandler) mutateFinding(writer http.ResponseWriter, reques
 			return
 		}
 	}
-	result, err = handler.repository.MutateRiskFinding(request.Context(), identity, RiskFindingMutation{Operation: routed.OperationID, FindingID: id, IdempotencyKey: idempotencyKey, ExpectedVersion: expectedVersion, Status: status, Reason: reason, AuditID: auditID, CorrelationID: correlationIDFromContext(request.Context()), ReceiptID: receiptID})
+	result, err := handler.repository.MutateRiskFinding(request.Context(), identity, RiskFindingMutation{Operation: routed.OperationID, FindingID: id, IdempotencyKey: idempotencyKey, ExpectedVersion: expectedVersion, Status: status, Reason: reason, AuditID: auditID, CorrelationID: correlationIDFromContext(request.Context()), ReceiptID: receiptID})
 	if err != nil {
 		writeWorkflowMutationError(writer, request, err)
 		return

@@ -3,6 +3,7 @@ package apiserver
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
@@ -22,6 +23,19 @@ func validRiskFindingJSON() string {
 
 func validRiskPathJSON() string {
 	return `{"id":"` + riskPathID + `","entry_id":"` + riskNodeOne + `","sink_id":"` + riskNodeTwo + `","node_ids":["` + riskNodeOne + `","` + riskNodeTwo + `"],"state":"verified","evidence_ids":["` + riskEvidence + `"],"blocked_edge":-1,"version":1,"created_at":"2026-08-19T00:00:00Z","updated_at":"2026-08-19T00:00:01Z"}`
+}
+
+type invisibleRiskMutationDatabase struct {
+	workflowCallDatabase
+	queries []string
+}
+
+func (database *invisibleRiskMutationDatabase) QueryJSON(_ context.Context, query string, _ ...any) (json.RawMessage, error) {
+	database.queries = append(database.queries, query)
+	if query == postgresRiskFindingMutateSQL {
+		return nil, ErrRepositoryNotFound
+	}
+	return json.RawMessage(`{"found":true,"result":{"body":` + validRiskFindingJSON() + `,"version":2,"audit_id":"pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","correlation_id":"pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","receipt_id":"pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc","replayed":true}}`), nil
 }
 
 func TestRiskRepositoryReadsOnlyTheExactScopeAndRejectsProviderShapeDrift(t *testing.T) {
@@ -113,6 +127,21 @@ func TestRiskRepositoryMutationCarriesScopeVersionAuditAndReceiptAtomically(t *t
 	result, err = repository.MutateRiskFinding(context.Background(), identity, mutation)
 	if err != nil || !result.Replayed || result.AuditID != winnerAudit || result.CorrelationID != winnerCorrelation || result.ReceiptID != winnerReceipt {
 		t.Fatalf("concurrent winner replay = (%#v, %v)", result, err)
+	}
+}
+
+func TestRiskRepositoryAtomicMutationPreservesFindingVisibilityNotFound(t *testing.T) {
+	database := &invisibleRiskMutationDatabase{}
+	repository, _ := NewPostgresRepository(database)
+	identity := fixtureRequestIdentity(t)
+	mutation := RiskFindingMutation{Operation: "updateFinding", FindingID: riskFindingID, IdempotencyKey: "idem-risk-update-001", ExpectedVersion: 1, Status: "under_review", AuditID: "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", CorrelationID: "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ReceiptID: "pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc"}
+
+	result, err := repository.MutateRiskFinding(context.Background(), identity, mutation)
+	if !errors.Is(err, ErrRepositoryNotFound) || !reflect.DeepEqual(result, RiskFindingMutationResult{}) {
+		t.Fatalf("invisible atomic mutation = (%#v, %v)", result, err)
+	}
+	if !reflect.DeepEqual(database.queries, []string{postgresRiskFindingMutateSQL}) {
+		t.Fatalf("invisible mutation queries = %#v", database.queries)
 	}
 }
 
