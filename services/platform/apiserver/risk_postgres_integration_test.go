@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
@@ -336,6 +337,47 @@ func TestRiskProjectionPostgresPaginationIsolationMutationReplayAndRollbackGuard
 		t.Fatalf("concurrent durable cardinality = idempotency:%d audit:%d receipt:%d (%v)", concurrentIdempotency, concurrentAudits, concurrentReceipts, err)
 	}
 	_ = secondDatabase.Close()
+
+	foreignEvidenceFinding := "pid_82000001-0000-4000-8000-000000000001"
+	foreignEvidencePath := "pid_82000002-0000-4000-8000-000000000002"
+	foreignEvidenceID := "pid_82000003-0000-4000-8000-000000000003"
+	for _, seed := range []struct {
+		statement string
+		arguments []any
+	}{
+		{`INSERT INTO zasp_risk_findings (organization_id,workspace_id,environment_id,id,source,title,severity,status) VALUES ($1,$2,$3,$4,'posture','Foreign factor evidence','high','open')`, []any{organization, workspace, environment, foreignEvidenceFinding}},
+		{`INSERT INTO zasp_risk_finding_evidence (organization_id,workspace_id,environment_id,finding_id,position,evidence_id) VALUES ($1,$2,$3,$4,1,$5)`, []any{organization, workspace, environment, foreignEvidenceFinding, riskEvidence}},
+		{`INSERT INTO zasp_risk_finding_factors (organization_id,workspace_id,environment_id,finding_id,position,name,evidence_id) VALUES ($1,$2,$3,$4,1,'Foreign evidence',$5)`, []any{organization, workspace, environment, foreignEvidenceFinding, foreignEvidenceID}},
+		{`INSERT INTO zasp_risk_attack_paths (organization_id,workspace_id,environment_id,id,entry_id,sink_id,state) VALUES ($1,$2,$3,$4,$5,$6,'verified')`, []any{organization, workspace, environment, foreignEvidencePath, riskNodeOne, riskNodeTwo}},
+		{`INSERT INTO zasp_risk_attack_path_nodes (organization_id,workspace_id,environment_id,path_id,position,node_id) VALUES ($1,$2,$3,$4,1,$5),($1,$2,$3,$4,2,$6)`, []any{organization, workspace, environment, foreignEvidencePath, riskNodeOne, riskNodeTwo}},
+		{`INSERT INTO zasp_risk_attack_path_evidence (organization_id,workspace_id,environment_id,path_id,position,evidence_id) VALUES ($1,$2,$3,$4,1,$5)`, []any{organization, workspace, environment, foreignEvidencePath, riskEvidence}},
+		{`INSERT INTO zasp_risk_break_options (organization_id,workspace_id,environment_id,path_id,rank,target_id,evidence_id,kind) VALUES ($1,$2,$3,$4,1,$5,$6,'remove_node')`, []any{organization, workspace, environment, foreignEvidencePath, riskNodeOne, foreignEvidenceID}},
+	} {
+		if _, err := connection.Exec(ctx, seed.statement, seed.arguments...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, check := range []struct {
+		name  string
+		query string
+		id    string
+	}{
+		{"break option", `SELECT zasp_risk_break_options_get($1,$2,$3,$4)`, foreignEvidencePath},
+		{"finding factor", `SELECT zasp_risk_finding_get($1,$2,$3,$4)`, foreignEvidenceFinding},
+	} {
+		var payload json.RawMessage
+		err := connection.QueryRow(ctx, check.query, check.id, organization, workspace, environment).Scan(&payload)
+		var projectionError *pgconn.PgError
+		if !errors.As(err, &projectionError) || projectionError.Code != "22023" {
+			t.Fatalf("%s foreign evidence projection = %s (%v)", check.name, payload, err)
+		}
+	}
+	if _, err := repository.GetRiskFinding(ctx, identity.Scope, foreignEvidenceFinding); !errors.Is(err, ErrRepositoryUnavailable) {
+		t.Fatalf("foreign finding-factor evidence repository error = %v", err)
+	}
+	if _, err := repository.GetRiskBreakOptions(ctx, identity.Scope, foreignEvidencePath); !errors.Is(err, ErrRepositoryUnavailable) {
+		t.Fatalf("foreign break-option evidence repository error = %v", err)
+	}
 
 	hostileFinding := "pid_70000001-0000-4000-8000-000000000001"
 	if _, err := connection.Exec(ctx, `INSERT INTO zasp_risk_findings (organization_id,workspace_id,environment_id,id,source,title,severity,status) VALUES ($1,$2,$3,$4,'posture','Malformed','high','open')`, organization, workspace, environment, hostileFinding); err != nil {

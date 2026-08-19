@@ -93,7 +93,7 @@ function ProductionAttackPathsView({ api }: { api: ProductionRiskAPI }) {
       (value) => { if (isCurrent()) setDetail(value); },
       (error) => { if (isCurrent()) setDetailError(message(error, "Attack path detail is unavailable.")); },
     );
-    const optionsRequest = api.getAttackPathBreakOptions(path.id, controller.signal).then(
+    const optionsRequest = api.getAttackPathBreakOptions(path, controller.signal).then(
       (value) => { if (isCurrent()) setOptions(value); },
       (error) => { if (isCurrent()) setOptionsError(message(error, "Break options are unavailable.")); },
     );

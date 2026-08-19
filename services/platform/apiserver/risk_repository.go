@@ -198,6 +198,10 @@ func (repository *PostgresRepository) GetRiskBreakOptions(ctx context.Context, s
 	if !validRiskRead(repository, ctx, scope, pathID) {
 		return nil, ErrRepositoryOperation
 	}
+	path, err := repository.GetRiskAttackPath(ctx, scope, pathID)
+	if err != nil {
+		return nil, err
+	}
 	payload, err := repository.database.QueryJSON(ctx, postgresRiskBreakOptionsGetSQL, pathID, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String())
 	if err != nil {
 		return nil, riskProviderError(err)
@@ -208,9 +212,16 @@ func (repository *PostgresRepository) GetRiskBreakOptions(ctx context.Context, s
 	if decodeStrictRisk(payload, &envelope) != nil || envelope.Items == nil || len(envelope.Items) > 8 {
 		return nil, ErrRepositoryUnavailable
 	}
+	evidence := make(map[string]struct{}, len(path.EvidenceIDs))
+	for _, evidenceID := range path.EvidenceIDs {
+		evidence[evidenceID] = struct{}{}
+	}
 	seen := map[string]struct{}{}
 	for index, option := range envelope.Items {
 		if option.PathID != pathID || !validProductID(option.TargetID) || !validProductID(option.EvidenceID) || option.Kind != "remove_node" && option.Kind != "enforce_policy" || option.Rank != index+1 {
+			return nil, ErrRepositoryUnavailable
+		}
+		if _, belongsToPath := evidence[option.EvidenceID]; !belongsToPath {
 			return nil, ErrRepositoryUnavailable
 		}
 		key := option.Kind + "\x00" + option.TargetID
@@ -295,11 +306,13 @@ func validRiskFinding(value RiskFinding) bool {
 		if len(factor.Name) < 1 || len(factor.Name) > 64 || !validProductID(factor.EvidenceID) {
 			return false
 		}
-		key := factor.Name + "\x00" + factor.EvidenceID
-		if _, duplicate := seenFactors[key]; duplicate {
+		if _, belongsToFinding := seenEvidence[factor.EvidenceID]; !belongsToFinding {
 			return false
 		}
-		seenFactors[key] = struct{}{}
+		if _, duplicate := seenFactors[factor.Name]; duplicate {
+			return false
+		}
+		seenFactors[factor.Name] = struct{}{}
 	}
 	return true
 }

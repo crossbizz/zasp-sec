@@ -7,6 +7,7 @@ import { createProductionRiskAPI } from "./api";
 
 const scope = "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003";
 const finding = { id: "pid_20000001-0000-4000-8000-000000000001", source: "posture", title: "Public tool access", severity: "high", status: "open", evidence_ids: ["pid_20000002-0000-4000-8000-000000000002"], risk_factors: [], version: 1, created_at: "2026-08-19T00:00:00Z", updated_at: "2026-08-19T00:00:01Z" } as const;
+const path = { id: "pid_30000001-0000-4000-8000-000000000001", entry_id: "pid_30000002-0000-4000-8000-000000000002", sink_id: "pid_30000003-0000-4000-8000-000000000003", node_ids: ["pid_30000002-0000-4000-8000-000000000002", "pid_30000003-0000-4000-8000-000000000003"], state: "verified", evidence_ids: [finding.evidence_ids[0]], blocked_edge: -1, version: 1, created_at: "2026-08-19T00:00:00Z", updated_at: "2026-08-19T00:00:01Z" } as const;
 
 const response = (body: unknown, headers: Record<string, string> = {}) => new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json", ...headers } });
 
@@ -44,6 +45,11 @@ describe("production risk API", () => {
   it("requires PAT mutations to return zero browser receipt", async () => {
     const client = createAPIClient({ getExpectedScope: () => scope, fetch: async () => response({ ...finding, status: "accepted", acceptance_reason: "Approved", version: 2 }, { ETag: '"2"', "X-Audit-ID": "pid_30000001-0000-4000-8000-000000000001", "X-Mutation-Receipt-ID": "pid_30000002-0000-4000-8000-000000000002" }) });
     await expect(createProductionRiskAPI(client, "pat").acceptFindingRisk(finding.id, "Approved", '"1"', { idempotencyKey: "idem-risk-accept-0001" })).rejects.toMatchObject({ kind: "invalid_response" });
+  });
+
+  it("rejects break-option evidence outside the supplied path context", async () => {
+    const client = createAPIClient({ getExpectedScope: () => scope, fetch: async () => response({ items: [{ path_id: path.id, target_id: path.entry_id, evidence_id: "pid_90000001-0000-4000-8000-000000000001", kind: "remove_node", rank: 1 }] }) });
+    await expect(createProductionRiskAPI(client).getAttackPathBreakOptions(path)).rejects.toBeInstanceOf(APITransportError);
   });
 
   it("omits the browser-only CSRF transport header for a valid PAT mutation", async () => {

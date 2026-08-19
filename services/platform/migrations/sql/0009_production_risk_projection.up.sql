@@ -187,7 +187,8 @@ BEGIN
        AND "environment_id"=requested_environment_id AND "finding_id"=requested_id;
     IF evidence_count NOT BETWEEN 1 AND 64 OR factor_count NOT BETWEEN 0 AND 16
        OR EXISTS (SELECT 1 FROM "public"."zasp_risk_finding_evidence" WHERE "organization_id"=requested_organization_id AND "workspace_id"=requested_workspace_id AND "environment_id"=requested_environment_id AND "finding_id"=requested_id HAVING min("position")<>1 OR max("position")<>count(*))
-       OR EXISTS (SELECT 1 FROM "public"."zasp_risk_finding_factors" WHERE "organization_id"=requested_organization_id AND "workspace_id"=requested_workspace_id AND "environment_id"=requested_environment_id AND "finding_id"=requested_id HAVING min("position")<>1 OR max("position")<>count(*) OR count(DISTINCT "evidence_id")<>count(*)) THEN
+       OR EXISTS (SELECT 1 FROM "public"."zasp_risk_finding_factors" WHERE "organization_id"=requested_organization_id AND "workspace_id"=requested_workspace_id AND "environment_id"=requested_environment_id AND "finding_id"=requested_id HAVING min("position")<>1 OR max("position")<>count(*) OR count(DISTINCT "evidence_id")<>count(*))
+       OR EXISTS (SELECT 1 FROM "public"."zasp_risk_finding_factors" AS factor WHERE factor."organization_id"=requested_organization_id AND factor."workspace_id"=requested_workspace_id AND factor."environment_id"=requested_environment_id AND factor."finding_id"=requested_id AND NOT EXISTS (SELECT 1 FROM "public"."zasp_risk_finding_evidence" AS parent_evidence WHERE parent_evidence."organization_id"=factor."organization_id" AND parent_evidence."workspace_id"=factor."workspace_id" AND parent_evidence."environment_id"=factor."environment_id" AND parent_evidence."finding_id"=factor."finding_id" AND parent_evidence."evidence_id"=factor."evidence_id")) THEN
         RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='invalid stored risk finding projection';
     END IF;
     RETURN jsonb_strip_nulls(jsonb_build_object(
@@ -291,7 +292,8 @@ BEGIN
      WHERE "organization_id"=requested_organization_id AND "workspace_id"=requested_workspace_id AND "environment_id"=requested_environment_id AND "path_id"=requested_path_id;
     IF option_count>8
        OR EXISTS (SELECT 1 FROM "public"."zasp_risk_break_options" WHERE "organization_id"=requested_organization_id AND "workspace_id"=requested_workspace_id AND "environment_id"=requested_environment_id AND "path_id"=requested_path_id HAVING count(*)>0 AND (min("rank")<>1 OR max("rank")<>count(*)))
-       OR EXISTS (SELECT 1 FROM "public"."zasp_risk_break_options" AS option WHERE option."organization_id"=requested_organization_id AND option."workspace_id"=requested_workspace_id AND option."environment_id"=requested_environment_id AND option."path_id"=requested_path_id AND option."kind"='remove_node' AND NOT EXISTS (SELECT 1 FROM "public"."zasp_risk_attack_path_nodes" AS node WHERE node."organization_id"=option."organization_id" AND node."workspace_id"=option."workspace_id" AND node."environment_id"=option."environment_id" AND node."path_id"=option."path_id" AND node."node_id"=option."target_id")) THEN
+       OR EXISTS (SELECT 1 FROM "public"."zasp_risk_break_options" AS option WHERE option."organization_id"=requested_organization_id AND option."workspace_id"=requested_workspace_id AND option."environment_id"=requested_environment_id AND option."path_id"=requested_path_id AND option."kind"='remove_node' AND NOT EXISTS (SELECT 1 FROM "public"."zasp_risk_attack_path_nodes" AS node WHERE node."organization_id"=option."organization_id" AND node."workspace_id"=option."workspace_id" AND node."environment_id"=option."environment_id" AND node."path_id"=option."path_id" AND node."node_id"=option."target_id"))
+       OR EXISTS (SELECT 1 FROM "public"."zasp_risk_break_options" AS option WHERE option."organization_id"=requested_organization_id AND option."workspace_id"=requested_workspace_id AND option."environment_id"=requested_environment_id AND option."path_id"=requested_path_id AND NOT EXISTS (SELECT 1 FROM "public"."zasp_risk_attack_path_evidence" AS parent_evidence WHERE parent_evidence."organization_id"=option."organization_id" AND parent_evidence."workspace_id"=option."workspace_id" AND parent_evidence."environment_id"=option."environment_id" AND parent_evidence."path_id"=option."path_id" AND parent_evidence."evidence_id"=option."evidence_id")) THEN
         RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='invalid stored break options';
     END IF;
     RETURN response;
@@ -378,7 +380,7 @@ END;
 $migration$;
 
 INSERT INTO "public"."zasp_schema_metadata" ("key","value")
-VALUES ('production_risk_projection_fingerprint', 'd5999a521fa7cef426fcc096b3d7f66b32e3ad6b22f864c59d326ac14849fc74');
+VALUES ('production_risk_projection_fingerprint', '35bbafb29b403b71eafa01dd331eb1785de209efd352eca455ffeed1ac43fad3');
 
 UPDATE "public"."zasp_schema_metadata" SET "value"='production-risk-projection-v1',"applied_at"=transaction_timestamp()
 WHERE "key"='production_core_schema' AND "value"='api-token-reveal-grants-v1';

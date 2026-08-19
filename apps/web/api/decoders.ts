@@ -80,8 +80,9 @@ export function decodeFinding(value: unknown): Finding {
   for (const key of ["rule", "compliance_context", "acceptance_reason"] as const) if (record[key] !== undefined) boundedString(record[key], 1, key === "rule" ? 64 : key === "compliance_context" ? 128 : 512);
   for (const key of ["agent_id", "path_id"] as const) if (record[key] !== undefined) productID(record[key]);
   productIDArray(record.evidence_ids, 64);
-  const factors = array(record.risk_factors, 16); const factorKeys = new Set<string>();
-  for (const factor of factors) { const item = exactRecord(factor, ["name", "evidence_id"]); boundedString(item.name, 1, 64); productID(item.evidence_id); const key = `${item.name}\u0000${item.evidence_id}`; if (factorKeys.has(key)) fail(); factorKeys.add(key); }
+  const evidenceIDs = new Set(record.evidence_ids as readonly string[]);
+  const factors = array(record.risk_factors, 16); const factorNames = new Set<string>();
+  for (const factor of factors) { const item = exactRecord(factor, ["name", "evidence_id"]); boundedString(item.name, 1, 64); productID(item.evidence_id); if (!evidenceIDs.has(item.evidence_id as string) || factorNames.has(item.name as string)) fail(); factorNames.add(item.name as string); }
   positiveInteger(record.version); dateTime(record.created_at); dateTime(record.updated_at);
   if (Date.parse(record.updated_at as string) < Date.parse(record.created_at as string)) fail();
   if ((record.status === "accepted") !== (typeof record.acceptance_reason === "string")) fail();
@@ -106,9 +107,10 @@ export function decodeAttackPathPage(value: unknown): AttackPathPage {
   const record = exactRecord(value, ["items", "page_info"]); for (const item of array(record.items, 100)) decodeAttackPath(item); decodePageInfo(record.page_info); return value as AttackPathPage;
 }
 
-export function decodeBreakOptionPage(value: unknown): BreakOptionPage {
+export function decodeBreakOptionPage(value: unknown, path: Pick<AttackPath, "id" | "evidence_ids">): BreakOptionPage {
   const record = exactRecord(value, ["items"]); const items = array(record.items, 8); let pathID: string | undefined; const targets = new Set<string>();
-  for (let index = 0; index < items.length; index++) { const item = exactRecord(items[index], ["path_id", "target_id", "evidence_id", "kind", "rank"]); productID(item.path_id); productID(item.target_id); productID(item.evidence_id); enumValue(item.kind, ["remove_node", "enforce_policy"]); if (item.rank !== index + 1 || pathID !== undefined && item.path_id !== pathID) fail(); pathID = item.path_id as string; const key = `${item.kind}\u0000${item.target_id}`; if (targets.has(key)) fail(); targets.add(key); }
+  productID(path.id); productIDArray(path.evidence_ids, 16); const evidenceIDs = new Set(path.evidence_ids);
+  for (let index = 0; index < items.length; index++) { const item = exactRecord(items[index], ["path_id", "target_id", "evidence_id", "kind", "rank"]); productID(item.path_id); productID(item.target_id); productID(item.evidence_id); enumValue(item.kind, ["remove_node", "enforce_policy"]); if (item.rank !== index + 1 || item.path_id !== path.id || pathID !== undefined && item.path_id !== pathID || !evidenceIDs.has(item.evidence_id as string)) fail(); pathID = item.path_id as string; const key = `${item.kind}\u0000${item.target_id}`; if (targets.has(key)) fail(); targets.add(key); }
   return value as BreakOptionPage;
 }
 

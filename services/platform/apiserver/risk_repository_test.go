@@ -10,11 +10,12 @@ import (
 )
 
 const (
-	riskFindingID = "pid_40000001-0000-4000-8000-000000000001"
-	riskPathID    = "pid_40000002-0000-4000-8000-000000000002"
-	riskEvidence  = "pid_40000003-0000-4000-8000-000000000003"
-	riskNodeOne   = "pid_40000004-0000-4000-8000-000000000004"
-	riskNodeTwo   = "pid_40000005-0000-4000-8000-000000000005"
+	riskFindingID       = "pid_40000001-0000-4000-8000-000000000001"
+	riskPathID          = "pid_40000002-0000-4000-8000-000000000002"
+	riskEvidence        = "pid_40000003-0000-4000-8000-000000000003"
+	riskNodeOne         = "pid_40000004-0000-4000-8000-000000000004"
+	riskNodeTwo         = "pid_40000005-0000-4000-8000-000000000005"
+	riskForeignEvidence = "pid_40000006-0000-4000-8000-000000000006"
 )
 
 func validRiskFindingJSON() string {
@@ -28,6 +29,16 @@ func validRiskPathJSON() string {
 type invisibleRiskMutationDatabase struct {
 	workflowCallDatabase
 	queries []string
+}
+
+type riskProjectionDatabase struct {
+	workflowCallDatabase
+	responses map[string]json.RawMessage
+}
+
+func (database *riskProjectionDatabase) QueryJSON(_ context.Context, query string, args ...any) (json.RawMessage, error) {
+	database.query, database.args = query, append([]any(nil), args...)
+	return database.responses[query], nil
 }
 
 func (database *invisibleRiskMutationDatabase) QueryJSON(_ context.Context, query string, _ ...any) (json.RawMessage, error) {
@@ -84,22 +95,43 @@ func TestRiskRepositoryUsesStableBoundedFindingAndPathPages(t *testing.T) {
 
 func TestRiskRepositoryValidatesAttackPathAndBreakOptionCrossReferences(t *testing.T) {
 	identity := fixtureRequestIdentity(t)
-	database := &workflowCallDatabase{response: json.RawMessage(validRiskPathJSON())}
+	database := &riskProjectionDatabase{responses: map[string]json.RawMessage{
+		postgresRiskAttackPathGetSQL: json.RawMessage(validRiskPathJSON()),
+	}}
 	repository, _ := NewPostgresRepository(database)
 
 	path, err := repository.GetRiskAttackPath(context.Background(), identity.Scope, riskPathID)
 	if err != nil || path.EntryID != riskNodeOne {
 		t.Fatalf("path = (%#v, %v)", path, err)
 	}
-	database.response = json.RawMessage(`{"items":[{"path_id":"` + riskPathID + `","target_id":"` + riskNodeOne + `","evidence_id":"` + riskEvidence + `","kind":"remove_node","rank":1}]}`)
+	database.responses[postgresRiskBreakOptionsGetSQL] = json.RawMessage(`{"items":[{"path_id":"` + riskPathID + `","target_id":"` + riskNodeOne + `","evidence_id":"` + riskEvidence + `","kind":"remove_node","rank":1}]}`)
 	options, err := repository.GetRiskBreakOptions(context.Background(), identity.Scope, riskPathID)
 	if err != nil || len(options) != 1 || options[0].PathID != riskPathID {
 		t.Fatalf("options = (%#v, %v)", options, err)
 	}
 
-	database.response = json.RawMessage(`{"items":[{"path_id":"` + riskFindingID + `","target_id":"` + riskNodeOne + `","evidence_id":"` + riskEvidence + `","kind":"remove_node","rank":1}]}`)
+	database.responses[postgresRiskBreakOptionsGetSQL] = json.RawMessage(`{"items":[{"path_id":"` + riskFindingID + `","target_id":"` + riskNodeOne + `","evidence_id":"` + riskEvidence + `","kind":"remove_node","rank":1}]}`)
 	if _, err := repository.GetRiskBreakOptions(context.Background(), identity.Scope, riskPathID); err != ErrRepositoryUnavailable {
 		t.Fatalf("cross-scope option error = %v", err)
+	}
+}
+
+func TestRiskRepositoryRejectsEvidenceReferencesOutsideTheirParentProjection(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	findingPayload := strings.Replace(validRiskFindingJSON(), `"risk_factors":[]`, `"risk_factors":[{"name":"Foreign evidence","evidence_id":"`+riskForeignEvidence+`"}]`, 1)
+	findingDatabase := &workflowCallDatabase{response: json.RawMessage(findingPayload)}
+	findingRepository, _ := NewPostgresRepository(findingDatabase)
+	if _, err := findingRepository.GetRiskFinding(context.Background(), identity.Scope, riskFindingID); err != ErrRepositoryUnavailable {
+		t.Fatalf("foreign finding-factor evidence error = %v", err)
+	}
+
+	optionDatabase := &riskProjectionDatabase{responses: map[string]json.RawMessage{
+		postgresRiskAttackPathGetSQL:   json.RawMessage(validRiskPathJSON()),
+		postgresRiskBreakOptionsGetSQL: json.RawMessage(`{"items":[{"path_id":"` + riskPathID + `","target_id":"` + riskNodeOne + `","evidence_id":"` + riskForeignEvidence + `","kind":"remove_node","rank":1}]}`),
+	}}
+	optionRepository, _ := NewPostgresRepository(optionDatabase)
+	if _, err := optionRepository.GetRiskBreakOptions(context.Background(), identity.Scope, riskPathID); err != ErrRepositoryUnavailable {
+		t.Fatalf("foreign break-option evidence error = %v", err)
 	}
 }
 

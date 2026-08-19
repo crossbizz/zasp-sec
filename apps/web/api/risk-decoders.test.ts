@@ -17,7 +17,7 @@ describe("strict risk decoders", () => {
   it("accepts exact bounded finding, path, and break-option pages", () => {
     expect(decodeFindingPage({ items: [finding], page_info: { next_cursor: null, has_more: false } }).items[0]?.id).toBe(finding.id);
     expect(decodeAttackPathPage({ items: [path], page_info: { next_cursor: null, has_more: false } }).items[0]?.id).toBe(path.id);
-    expect(decodeBreakOptionPage({ items: [{ path_id: path.id, target_id: path.entry_id, evidence_id: finding.evidence_ids[0], kind: "remove_node", rank: 1 }] }).items).toHaveLength(1);
+    expect(decodeBreakOptionPage({ items: [{ path_id: path.id, target_id: path.entry_id, evidence_id: finding.evidence_ids[0], kind: "remove_node", rank: 1 }] }, path).items).toHaveLength(1);
   });
 
   it.each([
@@ -31,7 +31,13 @@ describe("strict risk decoders", () => {
   it("rejects oversized pages, malformed path edges, and noncontiguous break ranks", () => {
     expect(() => decodeFindingPage({ items: Array.from({ length: 101 }, () => finding), page_info: { next_cursor: null, has_more: false } })).toThrow("schema mismatch");
     expect(() => decodeAttackPathPage({ items: [{ ...path, blocked_edge: 0 }], page_info: { next_cursor: null, has_more: false } })).toThrow("schema mismatch");
-    expect(() => decodeBreakOptionPage({ items: [{ path_id: path.id, target_id: path.entry_id, evidence_id: finding.evidence_ids[0], kind: "remove_node", rank: 2 }] })).toThrow("schema mismatch");
+    expect(() => decodeBreakOptionPage({ items: [{ path_id: path.id, target_id: path.entry_id, evidence_id: finding.evidence_ids[0], kind: "remove_node", rank: 2 }] }, path)).toThrow("schema mismatch");
+  });
+
+  it("rejects evidence references outside their parent finding or attack path", () => {
+    const foreignEvidence = "pid_90000001-0000-4000-8000-000000000001";
+    expect(() => decodeFinding({ ...finding, risk_factors: [{ name: "Foreign evidence", evidence_id: foreignEvidence }] })).toThrow("schema mismatch");
+    expect(() => decodeBreakOptionPage({ items: [{ path_id: path.id, target_id: path.entry_id, evidence_id: foreignEvidence, kind: "remove_node", rank: 1 }] }, path)).toThrow("schema mismatch");
   });
 
   it.each(["updateFinding", "acceptFindingRisk"])("discriminates exact %s receipts", (operation) => {

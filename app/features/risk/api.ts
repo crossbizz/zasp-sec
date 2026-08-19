@@ -21,7 +21,7 @@ export type ProductionRiskAPI = Readonly<{
   acceptFindingRisk(id: string, reason: string, version: string, attempt: RiskMutationAttempt, signal?: AbortSignal): Promise<RiskMutationResult>;
   listAttackPaths(signal?: AbortSignal): Promise<readonly AttackPath[]>;
   getAttackPath(id: string, signal?: AbortSignal): Promise<AttackPath>;
-  getAttackPathBreakOptions(id: string, signal?: AbortSignal): Promise<readonly BreakOption[]>;
+  getAttackPathBreakOptions(path: AttackPath, signal?: AbortSignal): Promise<readonly BreakOption[]>;
 }>;
 
 export function createProductionRiskAPI(client: APIClient, credentialKind: CredentialKind = "browser"): ProductionRiskAPI {
@@ -49,8 +49,8 @@ export function createProductionRiskAPI(client: APIClient, credentialKind: Crede
     async getAttackPath(id, signal) {
       return requireAPIData(await client.GET("/api/v1/attack-paths/{id}", { params: { path: { id } }, signal }), decodeAttackPath);
     },
-    async getAttackPathBreakOptions(id, signal) {
-      return requireAPIData(await client.GET("/api/v1/attack-paths/{id}/break-options", { params: { path: { id } }, signal }), decodeBreakOptionPage).items;
+    async getAttackPathBreakOptions(path, signal) {
+      return requireAPIData(await client.GET("/api/v1/attack-paths/{id}/break-options", { params: { path: { id: path.id } }, signal }), (value) => decodeBreakOptionPage(value, path)).items;
     },
   };
 }
