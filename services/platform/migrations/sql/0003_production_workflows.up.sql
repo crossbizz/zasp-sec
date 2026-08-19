@@ -128,7 +128,6 @@ DECLARE
     result_body jsonb;
     result_version bigint;
     result_secret_generation bigint;
-    approval_body jsonb;
     decision_body jsonb;
 BEGIN
     IF mutation NOT IN ('create', 'update', 'delete', 'rotate_secret', 'audit') OR

@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 import { createAPIClient } from "../../apps/web/api/client";
@@ -189,36 +189,62 @@ describe("Zasp application", () => {
 		expect(requests).toEqual(expect.arrayContaining(["/api/v1/session/bootstrap", "/api/v1/policies", "/api/v1/policies/policy-production", "/api/v1/policies/policy-production/decisions", "/api/v1/integrations", "/api/v1/integration-catalog"]));
 	});
 
-	it("holds a sensor enrollment credential only until the accessible dialog closes", async () => {
+	it("capability-hides sensor enrollment even when stale server capabilities advertise it", async () => {
 		window.history.replaceState({}, "", "/integrations/sensors");
-		const sensorID = "pid_90000001-0000-4000-8000-000000000001";
-		const token = "sen_one_time_enrollment_credential";
+		const requests: string[] = [];
 		const client = createAPIClient({
 			generateCorrelationID: () => "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
 			fetch: async (request) => {
 				const path = new URL(request.url).pathname;
+				requests.push(path);
 				if (path === "/api/v1/session/bootstrap") return apiJSON({
 					principal: { id: "pid_10000004-0000-4000-8000-000000000004", organization_id: "pid_10000001-0000-4000-8000-000000000001", organization_reference: "organization-live", member_reference: "member-live", role: "security_admin", active: true },
 					organization_id: "pid_10000001-0000-4000-8000-000000000001", workspace_id: "pid_10000002-0000-4000-8000-000000000002", environment_id: "pid_10000003-0000-4000-8000-000000000003",
-					permissions: ["view", "manage_workflows"], capabilities: ["sensors.read", "sensors.write"], csrf_token: "cccccccccccccccccccccccccccccccc", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+					permissions: ["view", "manage_workflows"], capabilities: ["inventory.read", "sensors.read", "sensors.write"], csrf_token: "cccccccccccccccccccccccccccccccc", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
 				});
-				if (path === "/api/v1/sensors" && request.method === "GET") return apiJSON({ items: [] });
-				if (path === "/api/v1/sensors" && request.method === "POST") return apiJSON({ id: sensorID, name: "Production sensor", mode: "metadata_only", capabilities: [], token, created_at: "2026-08-18T12:00:00Z", updated_at: "2026-08-18T12:00:00Z" }, 201, { ETag: '"1"', "X-Audit-ID": "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" });
+				if (path === "/api/v1/home/summary") return apiJSON({ agent_count: 0, high_risk_paths: 0, verified_changes: 0, blocked_changes: 0, pending_approvals: 0, oldest_approval_age_seconds: 0, needs_human_runs: 0, failed_runs: 0, inconclusive_runs: 0, recent_contained: 0, recent_remediated: 0, healthy: true, attention_required: false });
 				throw new Error(`unexpected product fetch ${request.method} ${path}`);
 			},
 		});
 		render(<ZaspApp client={client} />);
-		const enroll = await screen.findByRole("button", { name: "Enroll sensor" });
-		await userEvent.click(enroll);
-		expect(screen.getByRole("dialog", { name: "Enroll runtime sensor" })).toBeVisible();
-		await userEvent.keyboard("{Escape}");
-		expect(screen.queryByRole("dialog", { name: "Enroll runtime sensor" })).not.toBeInTheDocument();
-		await userEvent.click(enroll);
-		await userEvent.click(screen.getByRole("button", { name: "Create enrollment" }));
-		expect(await screen.findByText(token)).toBeVisible();
-		expect(window.localStorage.getItem("zasp_state")).toBeNull();
-		await userEvent.click(within(screen.getByRole("dialog", { name: "Production sensor" })).getAllByRole("button", { name: "Close" }).at(-1)!);
-		expect(screen.queryByText(token)).not.toBeInTheDocument();
+		expect(await screen.findByRole("heading", { name: "Security overview" })).toBeVisible();
+		expect(window.location.pathname).toBe("/");
+		expect(screen.queryByRole("link", { name: "Sensors" })).not.toBeInTheDocument();
+		expect(requests).not.toContain("/api/v1/sensors");
+	});
+
+	it("clears visible workflow state while switching scopes and remounts on the exact new scope", async () => {
+		window.history.replaceState({}, "", "/policies");
+		let switched = false;
+		let releaseReconciliation: (() => void) | undefined;
+		const reconciliationGate = new Promise<void>((resolve) => { releaseReconciliation = resolve; });
+		const organizationID = "pid_10000001-0000-4000-8000-000000000001";
+		const productionWorkspace = "pid_10000002-0000-4000-8000-000000000002";
+		const productionEnvironment = "pid_10000003-0000-4000-8000-000000000003";
+		const stagingWorkspace = "pid_10000022-0000-4000-8000-000000000022";
+		const stagingEnvironment = "pid_10000023-0000-4000-8000-000000000023";
+		const client = createAPIClient({
+			generateCorrelationID: () => "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+			fetch: async (request) => {
+				const path = new URL(request.url).pathname;
+				if (path === "/api/v1/session/bootstrap") { if (switched) await reconciliationGate; return apiJSON({ principal: { id: "pid_10000004-0000-4000-8000-000000000004", organization_id: organizationID, organization_reference: "organization-live", member_reference: "member-live", role: "security_admin", active: true }, organization_id: organizationID, workspace_id: switched ? stagingWorkspace : productionWorkspace, environment_id: switched ? stagingEnvironment : productionEnvironment, permissions: ["view", "manage_workflows"], capabilities: ["policies.read", "policies.write", "scope.switch"], csrf_token: "cccccccccccccccccccccccccccccccc", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee" }); }
+				if (path === "/api/v1/session/scopes") return apiJSON({ items: [{ organization_id: organizationID, workspace_id: productionWorkspace, environment_id: productionEnvironment, label: "Production" }, { organization_id: organizationID, workspace_id: stagingWorkspace, environment_id: stagingEnvironment, label: "Staging" }] });
+				if (path === "/api/v1/session/scope" && request.method === "PUT") { switched = true; return new Response(null, { status: 204 }); }
+				if (path === "/api/v1/policies") return apiJSON({ items: [{ id: switched ? "policy-staging" : "policy-production", name: switched ? "Staging policy" : "Production policy", scope: "environment", trigger: "tool", conditions: [{ field: "action", operator: "equals", value: "write" }], action: "monitor", rollout: "draft", failure_mode: "open" }] });
+				if (path === "/api/v1/policies/policy-production") return apiJSON({ id: "policy-production", name: "Production policy", scope: "environment", trigger: "tool", conditions: [{ field: "action", operator: "equals", value: "write" }], action: "monitor", rollout: "draft", failure_mode: "open" }, 200, { ETag: '"1"' });
+				if (path.endsWith("/decisions")) return apiJSON({ items: [] });
+				throw new Error(`unexpected product fetch ${request.method} ${path}`);
+			},
+		});
+		render(<ZaspApp client={client} />);
+		await userEvent.click(await screen.findByRole("button", { name: "Open Production policy" }));
+		expect(await screen.findByText("Policy detail · policy-production")).toBeVisible();
+		await userEvent.selectOptions(screen.getByRole("combobox", { name: "Authorized scope" }), `${stagingWorkspace}/${stagingEnvironment}`);
+		expect(await screen.findByText("Switching authorized scope…")).toBeVisible();
+		expect(screen.queryByText("Policy detail · policy-production")).not.toBeInTheDocument();
+		releaseReconciliation?.();
+		expect(await screen.findByRole("button", { name: "Open Staging policy" })).toBeVisible();
+		expect(screen.queryByText("Policy detail · policy-production")).not.toBeInTheDocument();
 	});
 
 	it.each(["initial", "popstate"])("blocks %s navigation to a capability-hidden production route before fetching", async (mode) => {

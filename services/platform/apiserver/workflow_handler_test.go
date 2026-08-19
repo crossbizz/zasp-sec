@@ -7,6 +7,8 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -115,7 +117,7 @@ func TestWorkflowHandlerRequiresVersionAndMapsConflictWithoutMutationSuccess(t *
 func TestWorkflowHandlerRolloutPersistsUpdatedPolicyButReturnsRolloutReceipt(t *testing.T) {
 	identity := fixtureRequestIdentity(t)
 	correlation := "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
-	policyBody := json.RawMessage(`{"id":"policy-bounded","name":"Bounded policy","scope":"environment","trigger":"tool","conditions":[{"field":"action","operator":"equals","value":"write"}],"action":"monitor","rollout":"draft","failure_mode":"open"}`)
+	policyBody := json.RawMessage(`{"id":"policy-bounded","name":"Bounded policy","scope":"environment","trigger":"tool","conditions":[{"field":"action","operator":"equals","value":"write"}],"action":"monitor","rollout":"monitor","failure_mode":"open"}`)
 	repository := &workflowRepositoryStub{value: WorkflowValue{Body: policyBody, Version: 2}, result: WorkflowMutationResult{WorkflowValue: WorkflowValue{Version: 3}, AuditID: "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", CorrelationID: correlation}}
 	handler, _ := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), time.Now)
 	request := workflowRequest(t, identity, correlation, "rolloutPolicy", map[string]string{"id": "policy-bounded"}, http.MethodPost, "/api/v1/policies/policy-bounded/rollout", `{"state":"enforced","target_id":"pid_10000003-0000-4000-8000-000000000003"}`)
@@ -131,6 +133,20 @@ func TestWorkflowHandlerRolloutPersistsUpdatedPolicyButReturnsRolloutReceipt(t *
 	var receipt map[string]any
 	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &receipt) != nil || receipt["policy_id"] != "policy-bounded" || receipt["state"] != "enforced" {
 		t.Fatalf("rollout response = %d %s", response.Code, response.Body.String())
+	}
+}
+
+func TestWorkflowHandlerRejectsInvalidPolicyTransitionBeforeMutation(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	repository := &workflowRepositoryStub{value: WorkflowValue{Body: json.RawMessage(`{"id":"policy-bounded","name":"Bounded policy","scope":"environment","trigger":"tool","conditions":[{"field":"action","operator":"equals","value":"write"}],"action":"monitor","rollout":"draft","failure_mode":"open"}`), Version: 2}}
+	handler, _ := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), time.Now)
+	request := workflowRequest(t, identity, testCorrelationID, "rolloutPolicy", map[string]string{"id": "policy-bounded"}, http.MethodPost, "/api/v1/policies/policy-bounded/rollout", `{"state":"enforced","target_id":"pid_10000003-0000-4000-8000-000000000003"}`)
+	request.Header.Set("Idempotency-Key", "idem-invalid-transition-01")
+	request.Header.Set("If-Match", `"2"`)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusConflict || repository.mutation.Operation != "" {
+		t.Fatalf("invalid transition = %d %s mutation=%#v", response.Code, response.Body.String(), repository.mutation)
 	}
 }
 
@@ -156,38 +172,7 @@ func TestWorkflowHandlerBuildsAtomicDurablePolicyDecision(t *testing.T) {
 	}
 }
 
-func TestWorkflowHandlerSensorSecretIsDeterministicForReplayAndNeverStoredInBody(t *testing.T) {
-	identity := fixtureRequestIdentity(t)
-	correlation := "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
-	sensorID := "pid_90000001-0000-4000-8000-000000000001"
-	stored := json.RawMessage(`{"id":"` + sensorID + `","name":"prod sensor","mode":"metadata_only","capabilities":[],"created_at":"2026-08-18T12:00:00Z","updated_at":"2026-08-18T12:00:00Z"}`)
-	repository := &workflowRepositoryStub{result: WorkflowMutationResult{WorkflowValue: WorkflowValue{Body: stored, Version: 1, SecretGeneration: 0}, AuditID: "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", CorrelationID: correlation}}
-	handler, _ := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), func() time.Time { return time.Date(2026, 8, 18, 12, 0, 0, 0, time.UTC) })
-	request := workflowRequest(t, identity, correlation, "createSensorEnrollment", nil, http.MethodPost, "/api/v1/sensors", `{"name":"prod sensor","mode":"metadata_only"}`)
-	request.Header.Set("Idempotency-Key", "idem-create-sensor-0001")
-	response := httptest.NewRecorder()
-	handler.ServeHTTP(response, request)
-	var first map[string]any
-	if json.Unmarshal(response.Body.Bytes(), &first) != nil || len(first["token"].(string)) < 44 {
-		t.Fatalf("enrollment = %s", response.Body.String())
-	}
-	if bytes.Contains(repository.mutation.Body, []byte("token")) {
-		t.Fatalf("stored body contains secret: %s", repository.mutation.Body)
-	}
-
-	repository.result.Replayed = true
-	request = workflowRequest(t, identity, correlation, "createSensorEnrollment", nil, http.MethodPost, "/api/v1/sensors", `{"name":"prod sensor","mode":"metadata_only"}`)
-	request.Header.Set("Idempotency-Key", "idem-create-sensor-0001")
-	response = httptest.NewRecorder()
-	handler.ServeHTTP(response, request)
-	var second map[string]any
-	_ = json.Unmarshal(response.Body.Bytes(), &second)
-	if second["token"] != first["token"] {
-		t.Fatalf("replayed token changed: %q != %q", second["token"], first["token"])
-	}
-}
-
-func TestWorkflowHandlerUpdatesPreserveServerOwnedIntegrationAndSensorState(t *testing.T) {
+func TestWorkflowHandlerUpdatesPreserveServerOwnedIntegrationState(t *testing.T) {
 	identity := fixtureRequestIdentity(t)
 	correlation := "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
 	repository := &workflowRepositoryStub{value: WorkflowValue{Version: 4, Body: json.RawMessage(`{"id":"pid_90000001-0000-4000-8000-000000000001","connector_key":"generic-webhook","name":"old","configuration":{"destination_url":"https://example.test/hooks","signing_secret_reference":"secret_ref_old"},"status":"authorized","created_at":"2026-08-01T00:00:00Z","updated_at":"2026-08-02T00:00:00Z"}`)}}
@@ -200,14 +185,6 @@ func TestWorkflowHandlerUpdatesPreserveServerOwnedIntegrationAndSensorState(t *t
 		t.Fatalf("integration update = %v %s", err, mutation.Body)
 	}
 
-	repository.value = WorkflowValue{Version: 2, SecretGeneration: 1, Body: json.RawMessage(`{"id":"pid_90000001-0000-4000-8000-000000000001","name":"old sensor","mode":"metadata_only","capabilities":["events"],"last_heartbeat":"2026-08-17T12:00:00Z","created_at":"2026-08-01T00:00:00Z","updated_at":"2026-08-02T00:00:00Z"}`)}
-	request = workflowRequest(t, identity, correlation, "updateSensor", map[string]string{"id": "pid_90000001-0000-4000-8000-000000000001"}, http.MethodPatch, "/api/v1/sensors/pid_90000001-0000-4000-8000-000000000001", `{"name":"new sensor","mode":"full"}`)
-	request.Header.Set("If-Match", `"2"`)
-	mutation, _, _, err = handler.buildMutation(request, identity, RoutedOperation{OperationID: "updateSensor", PathParameters: map[string]string{"id": "pid_90000001-0000-4000-8000-000000000001"}}, "idem-update-sensor-000001", "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", correlation)
-	var sensorValue map[string]any
-	if err != nil || json.Unmarshal(mutation.Body, &sensorValue) != nil || sensorValue["created_at"] != "2026-08-01T00:00:00Z" || sensorValue["last_heartbeat"] != "2026-08-17T12:00:00Z" || len(sensorValue["capabilities"].([]any)) != 1 {
-		t.Fatalf("sensor update = %v %s", err, mutation.Body)
-	}
 }
 
 func TestWorkflowHandlerUsesServerScopeAndNondisclosingFixedErrors(t *testing.T) {
@@ -247,10 +224,10 @@ func TestWorkflowHandlerDecodesSecurityAgentContractAndBuildsDurableDefinition(t
 	}
 }
 
-func TestWorkflowHandlerRejectsUnservedSecurityActionAndMalformedRunEvidence(t *testing.T) {
+func TestWorkflowHandlerRejectsUnservedSecurityAction(t *testing.T) {
 	identity := fixtureRequestIdentity(t)
 	correlation := "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
-	repository := &workflowRepositoryStub{value: WorkflowValue{Version: 1, Body: json.RawMessage(`{"id":"pid_90000001-0000-4000-8000-000000000001","allowed_actions":["run_test"]}`)}}
+	repository := &workflowRepositoryStub{}
 	handler, _ := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), time.Now)
 	body := `{"name":"Unsafe response","trigger_kind":"finding","trigger_source":"credential","environment_ids":["pid_10000003-0000-4000-8000-000000000003"],"autonomy":"supervised","max_steps":10,"max_duration_seconds":900,"temporary_policy_seconds":3600,"ai_token_budget":4000,"concurrency_limit":2,"allowed_actions":["provider_magic_success"],"verification_kind":"test_run","definition_version":1,"enabled":true}`
 	request := workflowRequest(t, identity, correlation, "createSecurityAgent", nil, http.MethodPost, "/api/v1/security-agents", body)
@@ -259,101 +236,6 @@ func TestWorkflowHandlerRejectsUnservedSecurityActionAndMalformedRunEvidence(t *
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusBadRequest || repository.mutation.Operation != "" {
 		t.Fatalf("unknown action response = %d mutation=%#v", response.Code, repository.mutation)
-	}
-
-	request = workflowRequest(t, identity, correlation, "runSecurityAgent", map[string]string{"id": "pid_90000001-0000-4000-8000-000000000001"}, http.MethodPost, "/api/v1/security-agents/pid_90000001-0000-4000-8000-000000000001/runs", `{"environment_id":"pid_10000003-0000-4000-8000-000000000003","trigger_kind":"finding","trigger_id":"not-an-evidence-id"}`)
-	request.Header.Set("Idempotency-Key", "idem-reject-run-evidence")
-	response = httptest.NewRecorder()
-	handler.ServeHTTP(response, request)
-	if response.Code != http.StatusBadRequest {
-		t.Fatalf("malformed evidence response = %d %s", response.Code, response.Body.String())
-	}
-}
-
-func TestWorkflowHandlerBuildsAtomicRunApprovalEnvelope(t *testing.T) {
-	identity := fixtureRequestIdentity(t)
-	repository := &workflowRepositoryStub{value: WorkflowValue{Version: 3, Body: json.RawMessage(`{"id":"pid_90000001-0000-4000-8000-000000000001","allowed_actions":["run_test"]}`)}}
-	handler, _ := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), time.Now)
-	request := workflowRequest(t, identity, "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "runSecurityAgent", map[string]string{"id": "pid_90000001-0000-4000-8000-000000000001"}, http.MethodPost, "/api/v1/security-agents/pid_90000001-0000-4000-8000-000000000001/runs", `{"environment_id":"pid_10000003-0000-4000-8000-000000000003","trigger_kind":"finding","trigger_id":"pid_90000002-0000-4000-8000-000000000002"}`)
-	request.Header.Set("Idempotency-Key", "idem-run-agent-approval-1")
-	mutation, _, _, err := handler.buildMutation(request, identity, RoutedOperation{OperationID: "runSecurityAgent", PathParameters: map[string]string{"id": "pid_90000001-0000-4000-8000-000000000001"}}, "idem-run-agent-approval-1", "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
-	var value struct {
-		Approval map[string]any `json:"_approval"`
-	}
-	if err != nil || json.Unmarshal(mutation.Body, &value) != nil || value.Approval["state"] != "pending" || value.Approval["run_id"] != mutation.ID || value.Approval["expires_at"] != nil {
-		t.Fatalf("atomic run mutation = (%v, %s)", err, mutation.Body)
-	}
-}
-
-func TestWorkflowHandlerRunDetailIncludesDurableScopedApprovals(t *testing.T) {
-	identity := fixtureRequestIdentity(t)
-	runID := "pid_90000001-0000-4000-8000-000000000001"
-	repository := &workflowRepositoryStub{value: WorkflowValue{Version: 1, Body: json.RawMessage(`{"id":"` + runID + `","agent_id":"pid_90000002-0000-4000-8000-000000000002","state":"waiting_approval","evidence_ids":["pid_90000003-0000-4000-8000-000000000003"],"definition_version":1,"version":1}`)}, page: json.RawMessage(`{"items":[{"id":"pid_90000004-0000-4000-8000-000000000004","run_id":"` + runID + `","step_id":"pid_90000005-0000-4000-8000-000000000005","state":"pending","expires_at":"2026-08-18T12:15:00Z","version":1}]}`)}
-	handler, _ := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), time.Now)
-	request := workflowRequest(t, identity, "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "getSecurityAgentRun", map[string]string{"id": runID}, http.MethodGet, "/api/v1/security-agent-runs/"+runID, "")
-	response := httptest.NewRecorder()
-	handler.ServeHTTP(response, request)
-	var detail struct {
-		Approvals []map[string]any `json:"approvals"`
-	}
-	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &detail) != nil || len(detail.Approvals) != 1 || detail.Approvals[0]["run_id"] != runID {
-		t.Fatalf("run detail = %d %s", response.Code, response.Body.String())
-	}
-}
-
-func TestWorkflowHandlerRejectsExpiredOrNonpendingApproval(t *testing.T) {
-	identity := fixtureRequestIdentity(t)
-	approvalID := "pid_90000001-0000-4000-8000-000000000001"
-	repository := &workflowRepositoryStub{value: WorkflowValue{Version: 1, Body: json.RawMessage(`{"id":"` + approvalID + `","run_id":"pid_90000002-0000-4000-8000-000000000002","step_id":"pid_90000003-0000-4000-8000-000000000003","state":"pending","expires_at":"2026-08-18T11:59:59Z","version":1}`)}}
-	handler, _ := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), func() time.Time { return time.Date(2026, 8, 18, 12, 0, 0, 0, time.UTC) })
-	request := workflowRequest(t, identity, "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "decideSecurityAgentApproval", map[string]string{"id": approvalID}, http.MethodPost, "/api/v1/security-agent-approvals/"+approvalID+"/decision", `{"decision":"approved"}`)
-	request.Header.Set("Idempotency-Key", "idem-expired-approval-01")
-	request.Header.Set("If-Match", `"1"`)
-	request.Header.Set("X-Zasp-Fresh-Auth", "confirmed")
-	response := httptest.NewRecorder()
-	handler.ServeHTTP(response, request)
-	if response.Code != http.StatusConflict || repository.mutation.Operation != "" {
-		t.Fatalf("expired approval = %d %s mutation=%#v", response.Code, response.Body.String(), repository.mutation)
-	}
-}
-
-func TestWorkflowHandlerRequiresServerVerifiedFreshBrowserSessionForApproval(t *testing.T) {
-	identity := fixtureRequestIdentity(t)
-	identity.CredentialKind = CredentialBrowserSession
-	identity.FreshAuthenticated = false
-	approvalID := "pid_90000001-0000-4000-8000-000000000001"
-	repository := &workflowRepositoryStub{value: WorkflowValue{Version: 1, Body: json.RawMessage(`{"id":"` + approvalID + `","run_id":"pid_90000002-0000-4000-8000-000000000002","step_id":"pid_90000003-0000-4000-8000-000000000003","state":"pending","expires_at":"2026-08-18T12:10:00Z","version":1}`)}}
-	handler, _ := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), func() time.Time { return time.Date(2026, 8, 18, 12, 0, 0, 0, time.UTC) })
-	request := workflowRequest(t, identity, "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "decideSecurityAgentApproval", map[string]string{"id": approvalID}, http.MethodPost, "/api/v1/security-agent-approvals/"+approvalID+"/decision", `{"decision":"approved"}`)
-	request.Header.Set("Idempotency-Key", "idem-unfresh-approval-01")
-	request.Header.Set("If-Match", `"1"`)
-	request.Header.Set("X-Zasp-Fresh-Auth", "confirmed")
-	response := httptest.NewRecorder()
-	handler.ServeHTTP(response, request)
-	if response.Code != http.StatusForbidden || repository.mutation.Operation != "" {
-		t.Fatalf("unfresh browser approval = %d %s mutation=%#v", response.Code, response.Body.String(), repository.mutation)
-	}
-
-	identity.FreshAuthenticated = true
-	identity.CredentialKind = CredentialBearerToken
-	request = workflowRequest(t, identity, "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "decideSecurityAgentApproval", map[string]string{"id": approvalID}, http.MethodPost, "/api/v1/security-agent-approvals/"+approvalID+"/decision", `{"decision":"approved"}`)
-	request.Header.Set("Idempotency-Key", "idem-pat-approval-denied")
-	request.Header.Set("If-Match", `"1"`)
-	request.Header.Set("X-Zasp-Fresh-Auth", "confirmed")
-	response = httptest.NewRecorder()
-	handler.ServeHTTP(response, request)
-	if response.Code != http.StatusForbidden || repository.mutation.Operation != "" {
-		t.Fatalf("PAT approval = %d %s mutation=%#v", response.Code, response.Body.String(), repository.mutation)
-	}
-}
-
-func TestSensorCoverageOmitsUnknownTimestampInsteadOfEmittingInvalidDate(t *testing.T) {
-	coverage, err := sensorCoverage(json.RawMessage(`{"id":"pid_90000001-0000-4000-8000-000000000001","capabilities":[]}`))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, exists := coverage["last_heartbeat"]; exists {
-		t.Fatalf("unknown last heartbeat must be omitted: %#v", coverage)
 	}
 }
 
@@ -370,10 +252,16 @@ func TestWorkflowHandlerPublishesOnlyLocallyCompleteCatalogAndTemplates(t *testi
 	handler.ServeHTTP(response, request)
 	var catalog struct {
 		Items []struct {
-			Key string `json:"key"`
+			Key           string   `json:"key"`
+			Description   string   `json:"description"`
+			Actions       []string `json:"actions"`
+			AuthMode      string   `json:"auth_mode"`
+			TestSemantics string   `json:"test_semantics"`
 		} `json:"items"`
 	}
-	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &catalog) != nil || len(catalog.Items) != 1 || catalog.Items[0].Key != "generic-webhook" {
+	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &catalog) != nil || len(catalog.Items) != 1 || catalog.Items[0].Key != "generic-webhook" ||
+		!slices.Equal(catalog.Items[0].Actions, []string{"store_configuration"}) || catalog.Items[0].AuthMode != "secret_reference" ||
+		!strings.Contains(catalog.Items[0].Description, "future delivery adapter") || !strings.Contains(catalog.Items[0].TestSemantics, "without contacting") {
 		t.Fatalf("local catalog = %d %s", response.Code, response.Body.String())
 	}
 

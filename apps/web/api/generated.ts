@@ -2190,7 +2190,7 @@ export type components = {
             readonly items: readonly components["schemas"]["Integration"][];
         };
         /** @enum {string} */
-        readonly IntegrationStatus: "pending_authorization" | "active";
+        readonly IntegrationStatus: "configured" | "pending_authorization" | "active";
         readonly IntegrationSync: {
             /** Format: date-time */
             readonly created_at: string;
@@ -4265,6 +4265,7 @@ export interface operations {
             /** @description Authorized integration. */
             readonly 200: {
                 headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -4555,6 +4556,7 @@ export interface operations {
             /** @description Authorized runtime policy. */
             readonly 200: {
                 headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -5045,15 +5047,7 @@ export interface operations {
     };
     readonly listSecurityAgents: {
         readonly parameters: {
-            readonly query?: {
-                /** @description Opaque cursor returned by the preceding page. */
-                readonly cursor?: components["parameters"]["PageCursor"];
-                readonly environment_id?: components["schemas"]["ProductID"];
-                /** @description Maximum number of records to return. */
-                readonly limit?: components["parameters"]["PageLimit"];
-                readonly status?: "enabled" | "disabled";
-                readonly trigger?: "finding" | "attack_path" | "runtime_decision";
-            };
+            readonly query?: never;
             readonly header?: never;
             readonly path?: never;
             readonly cookie?: never;
@@ -5118,6 +5112,7 @@ export interface operations {
             /** @description Authorized Security Agent. */
             readonly 200: {
                 headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
                     readonly [name: string]: unknown;
                 };
                 content: {

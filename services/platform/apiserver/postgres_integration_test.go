@@ -285,6 +285,88 @@ func TestWorkflowMigrationExpiresExistingSessionFreshness(t *testing.T) {
 	}
 }
 
+func TestRetainedWorkflowMutationsReplayLostResponsesInPostgres(t *testing.T) {
+	dsn := startDisposablePostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	connection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner, _ := migrations.NewRunner(&integrationMigrationDatabase{connection: connection})
+	if err := runner.Up(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.UpCore(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.UpWorkflows(ctx); err != nil {
+		t.Fatal(err)
+	}
+	database, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
+	repository, err := NewPostgresRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	principal := integrationProductID(t, "pid_61000004-0000-4000-8000-000000000004")
+	organization := integrationProductID(t, "pid_61000001-0000-4000-8000-000000000001")
+	workspace := integrationProductID(t, "pid_61000002-0000-4000-8000-000000000002")
+	environment := integrationProductID(t, "pid_61000003-0000-4000-8000-000000000003")
+	scope, _ := domain.NewScope(organization, workspace, environment)
+	identity := RequestIdentity{PrincipalID: principal, Scope: scope, Permissions: []string{"view", "manage_workflows"}}
+	sequence := 0
+	assertReplay := func(mutation WorkflowMutation) WorkflowMutationResult {
+		t.Helper()
+		sequence++
+		mutation.IdempotencyKey = fmt.Sprintf("idem-lost-response-%02d", sequence)
+		mutation.AuditID = fmt.Sprintf("pid_62000001-0000-4000-8000-%012d", sequence)
+		mutation.CorrelationID = fmt.Sprintf("pid_62000002-0000-4000-8000-%012d", sequence)
+		created, err := repository.MutateWorkflow(ctx, identity, mutation)
+		if err != nil {
+			t.Fatalf("%s first result: %v", mutation.Operation, err)
+		}
+		replayed, found, err := repository.ReplayWorkflow(ctx, identity, mutation.Operation, mutation.IdempotencyKey, mutation.Intent)
+		if err != nil || !found || !replayed.Replayed || replayed.AuditID != created.AuditID || replayed.CorrelationID != created.CorrelationID || replayed.Version != created.Version || !equalIntegrationJSON(replayed.Body, created.Body) {
+			t.Fatalf("%s lost response = created %#v replay %#v found=%v err=%v", mutation.Operation, created, replayed, found, err)
+		}
+		return created
+	}
+	intent := func(id string, expected int64, body json.RawMessage) json.RawMessage {
+		value, _ := json.Marshal(map[string]any{"resource_id": id, "expected_version": expected, "body": json.RawMessage(body)})
+		return value
+	}
+	policyID := "policy-lost-response"
+	policy := json.RawMessage(`{"id":"policy-lost-response","name":"Lost response","scope":"environment","trigger":"tool","conditions":[{"field":"action","operator":"equals","value":"write"}],"action":"monitor","rollout":"draft","failure_mode":"open"}`)
+	assertReplay(WorkflowMutation{Action: "create", Kind: "policy", ID: policyID, Operation: "createPolicy", Intent: intent("", 0, policy), Body: policy})
+	updatedPolicy := json.RawMessage(`{"id":"policy-lost-response","name":"Updated","scope":"environment","trigger":"tool","conditions":[{"field":"action","operator":"equals","value":"write"}],"action":"monitor","rollout":"draft","failure_mode":"open"}`)
+	assertReplay(WorkflowMutation{Action: "update", Kind: "policy", ID: policyID, Operation: "updatePolicy", ExpectedVersion: 1, Intent: intent(policyID, 1, updatedPolicy), Body: updatedPolicy})
+	decision := json.RawMessage(`{"matches":1,"would_block":0,"example_session_ids":[],"_decision":{"id":"pid_63000001-0000-4000-8000-000000000001","policy_id":"policy-lost-response","environment_id":"` + environment.String() + `","result":"monitor"}}`)
+	assertReplay(WorkflowMutation{Action: "audit", Kind: "policy", ID: policyID, Operation: "simulatePolicy", ExpectedVersion: 2, Intent: intent(policyID, 2, json.RawMessage(`{"events":[{"action":"write"}]}`)), Body: decision})
+	monitor := json.RawMessage(`{"id":"policy-lost-response","name":"Updated","scope":"environment","trigger":"tool","conditions":[{"field":"action","operator":"equals","value":"write"}],"action":"monitor","rollout":"monitor","failure_mode":"open","_target_environment_id":"` + environment.String() + `"}`)
+	assertReplay(WorkflowMutation{Action: "update", Kind: "policy", ID: policyID, Operation: "rolloutPolicy", ExpectedVersion: 2, Intent: intent(policyID, 2, json.RawMessage(`{"state":"monitor","target_id":"`+environment.String()+`"}`)), Body: monitor})
+	disabled := json.RawMessage(`{"id":"policy-lost-response","name":"Updated","scope":"environment","trigger":"tool","conditions":[{"field":"action","operator":"equals","value":"write"}],"action":"monitor","rollout":"disabled","failure_mode":"open","_target_environment_id":"` + environment.String() + `"}`)
+	assertReplay(WorkflowMutation{Action: "update", Kind: "policy", ID: policyID, Operation: "disablePolicy", ExpectedVersion: 3, Intent: intent(policyID, 3, json.RawMessage(`{}`)), Body: disabled})
+	assertReplay(WorkflowMutation{Action: "delete", Kind: "policy", ID: policyID, Operation: "deletePolicy", ExpectedVersion: 4, Intent: intent(policyID, 4, json.RawMessage(`{}`)), Body: json.RawMessage(`{}`)})
+
+	integrationID := "pid_64000001-0000-4000-8000-000000000001"
+	integration := json.RawMessage(`{"id":"` + integrationID + `","connector_key":"generic-webhook","name":"Local","configuration":{"url":"https://example.invalid"},"status":"configured","created_at":"2026-08-18T12:00:00Z","updated_at":"2026-08-18T12:00:00Z"}`)
+	assertReplay(WorkflowMutation{Action: "create", Kind: "integration", ID: integrationID, Operation: "createIntegration", Intent: intent("", 0, json.RawMessage(`{"connector_key":"generic-webhook","name":"Local","configuration":{"url":"https://example.invalid"}}`)), Body: integration})
+	assertReplay(WorkflowMutation{Action: "update", Kind: "integration", ID: integrationID, Operation: "updateIntegration", ExpectedVersion: 1, Intent: intent(integrationID, 1, json.RawMessage(`{"name":"Updated","configuration":{"url":"https://example.invalid"}}`)), Body: integration})
+	assertReplay(WorkflowMutation{Action: "delete", Kind: "integration", ID: integrationID, Operation: "deleteIntegration", ExpectedVersion: 2, Intent: intent(integrationID, 2, json.RawMessage(`{}`)), Body: json.RawMessage(`{}`)})
+
+	agentID := "pid_65000001-0000-4000-8000-000000000001"
+	agent := json.RawMessage(`{"id":"` + agentID + `","name":"Definition","trigger_kind":"finding","trigger_source":"credential","environment_ids":["` + environment.String() + `"],"autonomy":"supervised","max_steps":10,"max_duration_seconds":900,"temporary_policy_seconds":3600,"ai_token_budget":4000,"concurrency_limit":2,"allowed_actions":["run_test"],"verification_kind":"test_run","definition_version":1,"enabled":true}`)
+	assertReplay(WorkflowMutation{Action: "create", Kind: "security_agent", ID: agentID, Operation: "createSecurityAgent", Intent: intent("", 0, agent), Body: agent})
+	assertReplay(WorkflowMutation{Action: "update", Kind: "security_agent", ID: agentID, Operation: "updateSecurityAgent", ExpectedVersion: 1, Intent: intent(agentID, 1, agent), Body: agent})
+	assertReplay(WorkflowMutation{Action: "delete", Kind: "security_agent", ID: agentID, Operation: "deleteSecurityAgent", ExpectedVersion: 2, Intent: intent(agentID, 2, json.RawMessage(`{}`)), Body: json.RawMessage(`{}`)})
+	if sequence != 12 {
+		t.Fatalf("replayed mutation count = %d", sequence)
+	}
+	if err := database.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func startDisposablePostgres(t *testing.T) string {
 	t.Helper()
 	initdb, initErr := exec.LookPath("initdb")

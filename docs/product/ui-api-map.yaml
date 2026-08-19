@@ -152,22 +152,22 @@ screens:
     actions:
       - id: search_integration_catalog
         operation_id: listIntegrationCatalog
-        availability: api_available
+        availability: available
       - id: view_integrations
         operation_id: listIntegrations
-        availability: api_available
+        availability: available
       - id: create_integration
         operation_id: createIntegration
-        availability: api_available
+        availability: available
       - id: view_integration
         operation_id: getIntegration
-        availability: api_available
+        availability: available
       - id: update_integration
         operation_id: updateIntegration
-        availability: api_available
+        availability: available
       - id: delete_integration
         operation_id: deleteIntegration
-        availability: api_available
+        availability: available
       - id: authorize_integration
         operation_id: authorizeIntegration
         availability: api_available
@@ -290,31 +290,31 @@ screens:
     actions:
       - id: view_policies
         operation_id: listPolicies
-        availability: api_available
+        availability: available
       - id: create_policy
         operation_id: createPolicy
-        availability: api_available
+        availability: available
       - id: view_policy
         operation_id: getPolicy
-        availability: api_available
+        availability: available
       - id: update_policy
         operation_id: updatePolicy
-        availability: api_available
+        availability: available
       - id: delete_policy
         operation_id: deletePolicy
         availability: api_available
       - id: simulate_policy
         operation_id: simulatePolicy
-        availability: api_available
+        availability: available
       - id: rollout_policy
         operation_id: rolloutPolicy
-        availability: api_available
+        availability: available
       - id: disable_policy
         operation_id: disablePolicy
-        availability: api_available
+        availability: available
       - id: view_policy_decisions
         operation_id: listPolicyDecisions
-        availability: api_available
+        availability: available
   - id: system_health
     label: System Health
     actions:
@@ -347,7 +347,7 @@ screens:
         availability: available
       - id: view_security_actions
         operation_id: listSecurityActions
-        availability: available
+        availability: api_available
       - id: view_security_agents
         operation_id: listSecurityAgents
         availability: available
@@ -365,28 +365,28 @@ screens:
         availability: available
       - id: simulate_security_agent
         operation_id: simulateSecurityAgent
-        availability: available
+        availability: api_available
       - id: run_security_agent
         operation_id: runSecurityAgent
-        availability: available
+        availability: api_available
       - id: view_security_agent_runs
         operation_id: listSecurityAgentRuns
-        availability: available
+        availability: api_available
       - id: view_security_agent_run
         operation_id: getSecurityAgentRun
-        availability: available
+        availability: api_available
       - id: cancel_security_agent_run
         operation_id: cancelSecurityAgentRun
-        availability: available
+        availability: api_available
       - id: view_security_agent_approvals
         operation_id: listSecurityAgentApprovals
-        availability: available
+        availability: api_available
       - id: view_security_agent_approval
         operation_id: getSecurityAgentApproval
-        availability: available
+        availability: api_available
       - id: decide_security_agent_approval
         operation_id: decideSecurityAgentApproval
-        availability: available
+        availability: api_available
   - id: compliance
     label: Compliance
     actions:

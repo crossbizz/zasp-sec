@@ -1,7 +1,7 @@
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import { APIProductError, APITransportError, createAPIClient, requireAPIData } from "./client";
-import { decodeHomeSummary, decodeInventoryPage, decodeSessionBootstrap } from "./decoders";
+import { decodeHomeSummary, decodeIntegration, decodeInventoryPage, decodePolicySimulation, decodeRuntimeDecisionPage, decodeSecurityAgentDefinition, decodeSessionBootstrap } from "./decoders";
 import type { ProductID } from "./client";
 import type {
   Cursor,
@@ -21,6 +21,12 @@ describe("generated API client", () => {
 		expect(() => requireAPIData({ data: { agent_count: 1 }, response }, decodeHomeSummary)).toThrow(expect.objectContaining({ kind: "invalid_response" }));
 		expect(() => requireAPIData({ data: { items: [{ id: "pid_20000001-0000-4000-8000-000000000001", name: "Agent", kind: "agent", owner: "", team: "", tags: [], evidence_id: "pid_20000006-0000-4000-8000-000000000006", first_seen: "2026-08-18T09:00:00Z", last_seen: "2026-08-18T10:00:00Z", unexpected: true }] }, response }, decodeInventoryPage)).toThrow(expect.objectContaining({ kind: "invalid_response" }));
 		expect(() => requireAPIData({ data: { principal: {}, capabilities: ["inventory.read"] }, response }, decodeSessionBootstrap)).toThrow(expect.objectContaining({ kind: "invalid_response" }));
+	});
+	it("enforces exact workflow response bounds without narrowing bounded identifiers", () => {
+		expect(() => decodePolicySimulation({ matches: 101, would_block: 0, example_session_ids: [] })).toThrow("schema mismatch");
+		expect(() => decodeIntegration({ id: "pid_20000001-0000-4000-8000-000000000001", connector_key: "generic-webhook", name: "Local", configuration: {}, status: "configured", created_at: "2026-08-18T12:00:00Z", updated_at: "2026-08-18T12:00:00Z" })).toThrow("schema mismatch");
+		expect(() => decodeSecurityAgentDefinition({ id: "pid_20000001-0000-4000-8000-000000000001", name: "Definition", trigger_kind: "finding", trigger_source: "credential", environment_ids: ["pid_10000003-0000-4000-8000-000000000003"], autonomy: "supervised", max_steps: 10, max_duration_seconds: 900, temporary_policy_seconds: 3600, ai_token_budget: 4000, concurrency_limit: 11, allowed_actions: ["run_test"], verification_kind: "test_run", definition_version: 1, enabled: true })).toThrow("schema mismatch");
+		expect(decodeRuntimeDecisionPage({ items: [{ id: "decision-1", policy_id: "policy-production", environment_id: "environment-production", result: "monitor", correlation_id: "correlation-1", at: "2026-08-18T12:00:00Z" }] }).items[0]?.id).toBe("decision-1");
 	});
 	it("preserves a validated product error with status and correlation", () => {
 		const error = {

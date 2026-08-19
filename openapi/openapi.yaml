@@ -709,6 +709,7 @@ paths:
       responses:
         '200':
           description: Authorized integration.
+          headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Integration' }
@@ -1314,7 +1315,7 @@ paths:
       operationId: getPolicy
       summary: Get one authorized runtime policy
       responses:
-        '200': { description: Authorized runtime policy., content: { application/json: { schema: { $ref: '#/components/schemas/Policy' } } } }
+        '200': { description: Authorized runtime policy., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/Policy' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
     patch:
@@ -1420,12 +1421,6 @@ paths:
     get:
       operationId: listSecurityAgents
       summary: List Organization-scoped Security Agents
-      parameters:
-        - $ref: '#/components/parameters/PageCursor'
-        - $ref: '#/components/parameters/PageLimit'
-        - { name: status, in: query, required: false, schema: { type: string, enum: [enabled, disabled] } }
-        - { name: trigger, in: query, required: false, schema: { type: string, enum: [finding, attack_path, runtime_decision] } }
-        - { name: environment_id, in: query, required: false, schema: { $ref: '#/components/schemas/ProductID' } }
       responses:
         '200': { description: Security Agent page., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentPage' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
@@ -1447,7 +1442,7 @@ paths:
       operationId: getSecurityAgent
       summary: Get one authorized Security Agent
       responses:
-        '200': { description: Authorized Security Agent., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentDefinition' } } } }
+        '200': { description: Authorized Security Agent., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentDefinition' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
     patch:
@@ -2859,7 +2854,7 @@ components:
       additionalProperties: { type: string, minLength: 1, maxLength: 2048 }
     IntegrationStatus:
       type: string
-      enum: [pending_authorization, active]
+      enum: [configured, pending_authorization, active]
     IntegrationInput:
       type: object
       additionalProperties: false
