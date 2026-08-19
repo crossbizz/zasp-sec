@@ -657,6 +657,9 @@ func TestWorkflowMigrationExpiresExistingSessionFreshness(t *testing.T) {
 	if err := runner.UpAPITokenRevealGrants(ctx); err != nil {
 		t.Fatal(err)
 	}
+	if err := runner.UpProductionRiskProjection(ctx); err != nil {
+		t.Fatal(err)
+	}
 	database, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
 	repository, err := NewPostgresRepository(database)
 	if err != nil {
@@ -702,6 +705,9 @@ func TestRetainedWorkflowMutationsReplayLostResponsesInPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := runner.UpAPITokenRevealGrants(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.UpProductionRiskProjection(ctx); err != nil {
 		t.Fatal(err)
 	}
 	database, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
@@ -788,6 +794,7 @@ func TestWorkflowHandlerNonemptyDeletesLeavePostgresMutationAuditAndReceiptsUnto
 		{name: "receipt provenance", run: runner.UpWorkflowReceiptProvenance},
 		{name: "production administration", run: runner.UpProductionAdministration},
 		{name: "API token reveal grants", run: runner.UpAPITokenRevealGrants},
+		{name: "production risk projection", run: runner.UpProductionRiskProjection},
 	} {
 		if err := migration.run(ctx); err != nil {
 			t.Fatalf("%s migration: %v", migration.name, err)
@@ -885,6 +892,9 @@ func TestSecurityAgentPaginationExceedsOneHundredWithoutTenantDisclosure(t *test
 	if err := runner.UpAPITokenRevealGrants(ctx); err != nil {
 		t.Fatal(err)
 	}
+	if err := runner.UpProductionRiskProjection(ctx); err != nil {
+		t.Fatal(err)
+	}
 	identity := fixtureRequestIdentity(t)
 	if _, err := connection.Exec(ctx, `
 INSERT INTO zasp_workflow_records (organization_id, workspace_id, environment_id, kind, id, body)
@@ -975,6 +985,9 @@ func TestPolicyAndIntegrationPaginationTraversesOneThousandAndOneRowsExactly(t *
 		t.Fatal(err)
 	}
 	if err := runner.UpAPITokenRevealGrants(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.UpProductionRiskProjection(ctx); err != nil {
 		t.Fatal(err)
 	}
 	identity := fixtureRequestIdentity(t)
@@ -1078,6 +1091,7 @@ func TestAdministrationKeysetsAndExactScopePreconditionsWithHostilePostgresData(
 		{name: "receipt provenance", run: runner.UpWorkflowReceiptProvenance},
 		{name: "production administration", run: runner.UpProductionAdministration},
 		{name: "API token reveal grants", run: runner.UpAPITokenRevealGrants},
+		{name: "production risk projection", run: runner.UpProductionRiskProjection},
 	} {
 		if err := migration.run(ctx); err != nil {
 			t.Fatalf("%s migration: %v", migration.name, err)

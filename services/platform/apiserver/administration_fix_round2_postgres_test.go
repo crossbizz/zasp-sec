@@ -201,6 +201,9 @@ func TestWorkspaceOnboardingIsAtomicAndRollbackDriftFailsClosedWithPostgres(t *t
 			t.Fatal(err)
 		}
 	}
+	if err := runner.DownProductionRiskProjection(ctx); err != nil {
+		t.Fatalf("clean v9 rollback: %v", err)
+	}
 	if _, err := connection.Exec(ctx, `ALTER TABLE zasp_api_token_reveal_grants ADD COLUMN hostile_drift text`); err != nil {
 		t.Fatal(err)
 	}
@@ -234,7 +237,7 @@ func runRound2Migrations(t *testing.T, ctx context.Context, connection *pgx.Conn
 	if err != nil {
 		t.Fatal(err)
 	}
-	steps := []func(context.Context) error{runner.Up, runner.UpCore, runner.UpWorkflows, runner.UpWorkflowReceipts, runner.UpWorkflowReceiptSafety, runner.UpWorkflowReceiptProvenance, runner.UpProductionAdministration, runner.UpAPITokenRevealGrants}
+	steps := []func(context.Context) error{runner.Up, runner.UpCore, runner.UpWorkflows, runner.UpWorkflowReceipts, runner.UpWorkflowReceiptSafety, runner.UpWorkflowReceiptProvenance, runner.UpProductionAdministration, runner.UpAPITokenRevealGrants, runner.UpProductionRiskProjection}
 	for index, step := range steps {
 		if err := step(ctx); err != nil {
 			t.Fatalf("migration %d: %v", index+1, err)

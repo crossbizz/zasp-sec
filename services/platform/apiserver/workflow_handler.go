@@ -523,6 +523,8 @@ func workflowMutationTarget(operation string) (kind, action string, status int, 
 		return "security_agent", "update", http.StatusOK, true
 	case "deleteSecurityAgent":
 		return "security_agent", "delete", http.StatusNoContent, true
+	case "updateFinding", "acceptFindingRisk":
+		return "finding", "update", http.StatusOK, true
 	default:
 		return "", "", 0, false
 	}

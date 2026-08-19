@@ -56,8 +56,70 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
 			t.Errorf("%s security = %v, want %v", key, got, operation.Security)
 		}
 	}
-	if len(seen) != 73 {
-		t.Fatalf("mounted operation count = %d, want 73", len(seen))
+	public := make(map[string]string)
+	for path, pathItem := range document.Paths {
+		for method, node := range pathItem {
+			switch strings.ToUpper(method) {
+			case http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
+			default:
+				continue
+			}
+			var documented openAPIOperation
+			if err := node.Decode(&documented); err != nil {
+				t.Fatalf("decode public %s %s: %v", method, path, err)
+			}
+			key := strings.ToUpper(method) + " " + path
+			if documented.OperationID == "" {
+				t.Fatalf("public operation %s has no operationId", key)
+			}
+			if _, duplicate := public[key]; duplicate {
+				t.Fatalf("duplicate public operation %s", key)
+			}
+			public[key] = documented.OperationID
+		}
+	}
+	if len(seen) != 80 || len(public) != 80 {
+		t.Fatalf("mounted/public operation counts = %d/%d, want 80/80", len(seen), len(public))
+	}
+	for key, operationID := range public {
+		if _, mounted := seen[key]; !mounted {
+			t.Fatalf("public operation %s (%s) is not mounted", key, operationID)
+		}
+	}
+}
+
+func TestBatchFourCompositionHasExactRiskSliceAndNoOverclaims(t *testing.T) {
+	definitions := make(map[string]OperationDefinition)
+	for _, operation := range CoreOperations() {
+		definitions[operation.OperationID] = operation
+	}
+	for _, operationID := range []string{"listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions"} {
+		definition, ok := definitions[operationID]
+		if !ok {
+			t.Errorf("risk operation %q is not mounted", operationID)
+			continue
+		}
+		permission := "view"
+		if operationID == "updateFinding" || operationID == "acceptFindingRisk" {
+			permission = "manage_findings"
+		}
+		if definition.Permission != permission || !equalStrings(definition.Security, []string{"BrowserExpectedScope", "BrowserSession", "ProductAPIToken"}) {
+			t.Errorf("risk operation %q security/permission = %v/%q", operationID, definition.Security, definition.Permission)
+		}
+	}
+	for _, operationID := range []string{
+		"authorizeIntegration", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync",
+		"listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage",
+		"updateAgent", "createFindingTicket",
+		"listTests", "createTest", "getTest", "updateTest", "runTest", "listTestRuns", "getTestRun", "cancelTestRun",
+		"listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun",
+		"simulatePolicy", "listPolicyDecisions",
+		"listSecurityActions", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval",
+		"globalSearch", "createAIExplanation",
+	} {
+		if _, mounted := definitions[operationID]; mounted {
+			t.Errorf("incomplete operation %q remains mounted", operationID)
+		}
 	}
 }
 
@@ -228,7 +290,7 @@ func TestNewCompositionMountsOnlyCoreProductOperations(t *testing.T) {
 		}
 	}
 
-	for _, path := range []string{"/internal/health/live", "/api/v1/sensors", "/api/v1/sensors/heartbeat", "/api/v1/security-actions", "/api/v1/security-agent-runs", "/api/v1/security-agent-approvals", "/api/v1/runtime/events", "/api/v1/policy/bundle", "/api/v1/webhooks/stytch", "/api/v1/search", "/api/v1/findings", "/api/v1/attack-paths"} {
+	for _, path := range []string{"/internal/health/live", "/api/v1/sensors", "/api/v1/sensors/heartbeat", "/api/v1/security-actions", "/api/v1/security-agent-runs", "/api/v1/security-agent-approvals", "/api/v1/runtime/events", "/api/v1/policy/bundle", "/api/v1/webhooks/stytch", "/api/v1/search"} {
 		response := httptest.NewRecorder()
 		composition.ServeHTTP(response, httptest.NewRequest(http.MethodPost, path, nil))
 		if response.Code != http.StatusNotFound {

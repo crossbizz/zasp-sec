@@ -147,7 +147,7 @@ func TestProductionBootstrapAdvertisesOnlyMountedDurableCapabilities(t *testing.
 	if err := json.NewDecoder(response.Body).Decode(&bootstrap); err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"inventory.read", "scope.switch", "policies.read", "integrations.read", "security-agents.read", "administration.read", "system.read"}
+	want := []string{"inventory.read", "scope.switch", "policies.read", "integrations.read", "security-agents.read", "findings.read", "attack-paths.read", "administration.read", "system.read", "findings.write"}
 	if response.StatusCode != http.StatusOK || !reflect.DeepEqual(bootstrap.Capabilities, want) {
 		t.Fatalf("bootstrap = (%d, %#v)", response.StatusCode, bootstrap.Capabilities)
 	}
@@ -194,7 +194,7 @@ func TestBootstrapPayloadSourceContainsOnlyMountedDurableCapabilities(t *testing
 	if !reflect.DeepEqual(bootstrap["permissions"], identity.Permissions) {
 		t.Fatalf("permissions = %#v", bootstrap["permissions"])
 	}
-	if !reflect.DeepEqual(bootstrap["capabilities"], []string{"inventory.read", "scope.switch", "policies.read", "integrations.read", "security-agents.read", "administration.read", "system.read"}) {
+	if !reflect.DeepEqual(bootstrap["capabilities"], []string{"inventory.read", "scope.switch", "policies.read", "integrations.read", "security-agents.read", "findings.read", "attack-paths.read", "administration.read", "system.read", "findings.write"}) {
 		t.Fatalf("capabilities = %#v", bootstrap["capabilities"])
 	}
 }
@@ -212,7 +212,7 @@ func TestBootstrapMapsWorkflowManagementWithoutProviderOnlyCapabilities(t *testi
 	if json.Unmarshal(payload, &bootstrap) != nil {
 		t.Fatal("bootstrap did not decode")
 	}
-	want := []string{"inventory.read", "scope.switch", "policies.read", "integrations.read", "security-agents.read", "administration.read", "system.read", "policies.write", "integrations.write", "security-agents.write"}
+	want := []string{"inventory.read", "scope.switch", "policies.read", "integrations.read", "security-agents.read", "findings.read", "attack-paths.read", "administration.read", "system.read", "policies.write", "integrations.write", "security-agents.write"}
 	if !reflect.DeepEqual(bootstrap.Capabilities, want) || strings.Contains(string(payload), "authorize") || strings.Contains(string(payload), "sync") {
 		t.Fatalf("workflow capabilities = %#v payload=%s", bootstrap.Capabilities, payload)
 	}
@@ -442,6 +442,8 @@ func (database *persistentJSONDatabase) QueryJSON(_ context.Context, statement s
 			return nil, ErrRepositoryNotFound
 		}
 		return append(json.RawMessage(nil), value...), nil
+	case postgresRiskHighPathCountSQL:
+		return json.RawMessage(`0`), nil
 	case postgresListScopesSQL:
 		principal := arguments[0].(string)
 		scopes := database.authorizedScopes[principal]

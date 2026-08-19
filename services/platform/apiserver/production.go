@@ -86,6 +86,10 @@ func NewProductionHandlers(repository *PostgresRepository, provider CallbackProv
 	if err != nil {
 		return Dependencies{}, nil, ErrRepositoryConfiguration
 	}
+	risk, err := newRiskHTTPHandler(repository, cookie.WorkflowSigningKey, cookie.Clock)
+	if err != nil {
+		return Dependencies{}, nil, ErrRepositoryConfiguration
+	}
 	session := &sessionHTTPHandler{repository: repository, provider: provider, cookie: cookie, deploymentMode: cookie.DeploymentMode, organizationID: pinnedOrganization}
 	version := cookie.BuildVersion
 	if version == "" {
@@ -95,7 +99,7 @@ func NewProductionHandlers(repository *PostgresRepository, provider CallbackProv
 		Session:   session,
 		Identity:  &identityHTTPHandler{repository: repository, administration: repository, provider: provider, signingKey: append([]byte(nil), cookie.WorkflowSigningKey...), tokenRevealKey: append([]byte(nil), cookie.TokenRevealKey...), now: cookie.Clock, version: version},
 		Inventory: &coreHTTPHandler{repository: repository, boundary: inventoryDependency},
-		Risk:      &coreHTTPHandler{repository: repository, boundary: riskDependency},
+		Risk:      risk,
 		Workflow:  workflow,
 	}, mustDeploymentAuthenticator(repository.Authenticate, cookie.DeploymentMode, pinnedOrganization), nil
 }
@@ -279,9 +283,11 @@ func capabilitiesForPermissions(permissions []string) []string {
 	for _, permission := range permissions {
 		switch permission {
 		case "view":
-			capabilities = append(capabilities, "inventory.read", "scope.switch", "policies.read", "integrations.read", "security-agents.read", "administration.read", "system.read")
+			capabilities = append(capabilities, "inventory.read", "scope.switch", "policies.read", "integrations.read", "security-agents.read", "findings.read", "attack-paths.read", "administration.read", "system.read")
 		case "manage_workflows":
 			capabilities = append(capabilities, "policies.write", "integrations.write", "security-agents.write")
+		case "manage_findings":
+			capabilities = append(capabilities, "findings.write")
 		case "manage_identity":
 			capabilities = append(capabilities, "identity.manage")
 		case "manage_api_tokens":
