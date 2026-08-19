@@ -64,7 +64,7 @@ describe("Security Agent definition surface", () => {
     const calls: Array<{ value: Parameters<SecurityAgentsAPI["createSecurityAgent"]>[0]; key: string }> = [];
     const createSecurityAgent = vi.fn(async (value: Parameters<SecurityAgentsAPI["createSecurityAgent"]>[0], attempt?: Parameters<SecurityAgentsAPI["createSecurityAgent"]>[1]) => {
       calls.push({ value, key: attempt?.idempotencyKey ?? "" });
-      if (calls.length <= 2) throw new TypeError("two transport responses were lost");
+      if (calls.length === 1) throw new TypeError("two transport responses were lost");
       return { value: created, version: `"1"`, auditID };
     });
     render(<SecurityAgentsView api={fixtureAPI({ createSecurityAgent })} environmentID={environmentID} />);
@@ -73,7 +73,7 @@ describe("Security Agent definition surface", () => {
     await screen.findByRole("button", { name: "Retry retained Security Agent definition" });
     expect(screen.getByLabelText("Definition name")).toBeDisabled();
     await user.click(screen.getByRole("button", { name: "Retry retained Security Agent definition" }));
-    await waitFor(() => expect(createSecurityAgent).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(createSecurityAgent).toHaveBeenCalledTimes(2));
     expect(new Set(calls.map(({ key }) => key)).size).toBe(1);
     expect(calls[1]?.value).toEqual(calls[0]?.value);
   });

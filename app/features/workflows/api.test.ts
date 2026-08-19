@@ -49,30 +49,32 @@ describe("production workflow API", () => {
   });
 
   it("freezes one attempt and canonical intent across two lost responses and a manual retry", async () => {
-    const controller = createRetainedWorkflowMutationController<{ name: string; configuration: Record<string, string> }>();
-    const observed: Array<{ key: string; intent: { name: string; configuration: Record<string, string> } }> = [];
-    let calls = 0;
-    const send = vi.fn(async (intent: { name: string; configuration: Record<string, string> }, attempt: { idempotencyKey: string }) => {
+    const controller = createRetainedWorkflowMutationController<Policy>();
+    const observed: Array<{ key: string; intent: Policy }> = [];
+    const POST = vi.fn()
+      .mockRejectedValueOnce(new TypeError("first response lost after commit"))
+      .mockRejectedValueOnce(new TypeError("second response lost after replay"))
+      .mockResolvedValueOnce({ data: policy, response: new Response(JSON.stringify(policy), { status: 201, headers: { ETag: '"1"', "X-Audit-ID": "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "Content-Type": "application/json" } }) });
+    const api = createPoliciesAPI({ POST } as unknown as APIClient);
+    const send = (intent: Policy, attempt: { idempotencyKey: string }) => {
       observed.push({ key: attempt.idempotencyKey, intent });
-      calls++;
-      if (calls <= 2) throw new TypeError("response lost after commit");
-      return "replayed";
-    });
-    const mutableIntent = { name: "Original", configuration: { account: "production" } };
+      return api.createPolicy(intent, attempt);
+    };
+    const mutableIntent = structuredClone(policy);
 
-    await expect(controller.execute(mutableIntent, send)).rejects.toThrow("response lost after commit");
+    await expect(controller.execute(mutableIntent, send)).rejects.toThrow("second response lost after replay");
     expect(controller.hasAmbiguousAttempt()).toBe(true);
-    mutableIntent.name = "Changed after send";
-    mutableIntent.configuration.account = "foreign";
+    (mutableIntent as { name: string }).name = "Changed after send";
 
-    await expect(controller.execute({ name: "Ordinary retry must be ignored", configuration: { account: "other" } }, send)).resolves.toBe("replayed");
+    await expect(controller.execute({ ...policy, name: "Ordinary retry must be ignored" }, send)).resolves.toMatchObject({ version: '"1"' });
     expect(new Set(observed.map(({ key }) => key)).size).toBe(1);
     expect(observed.map(({ intent }) => intent)).toEqual([
-      { name: "Original", configuration: { account: "production" } },
-      { name: "Original", configuration: { account: "production" } },
-      { name: "Original", configuration: { account: "production" } },
+      policy,
+      policy,
     ]);
-    expect(observed.every(({ intent }) => Object.isFrozen(intent) && Object.isFrozen(intent.configuration))).toBe(true);
+    expect(POST).toHaveBeenCalledTimes(3);
+    expect(new Set(POST.mock.calls.map(([, options]) => options.params.header["Idempotency-Key"])).size).toBe(1);
+    expect(observed.every(({ intent }) => Object.isFrozen(intent) && Object.isFrozen(intent.conditions))).toBe(true);
     expect(controller.hasAmbiguousAttempt()).toBe(false);
   });
 

@@ -79,7 +79,7 @@ export function createRetainedWorkflowMutationController<I>(): RetainedWorkflowM
       if (!pending) pending = { attempt: createWorkflowMutationAttempt(), intent: canonicalFrozenIntent(intent), send };
       const active = pending;
       if (inFlight) return inFlight as Promise<T>;
-      inFlight = executeWorkflowMutation((attempt) => active.send(active.intent, attempt), active.attempt).then(
+      inFlight = active.send(active.intent, active.attempt).then(
         (result) => { if (pending === active) pending = undefined; return result; },
         (error: unknown) => { if (!isAmbiguousWorkflowMutationError(error) && pending === active) pending = undefined; throw error; },
       ).finally(() => { inFlight = undefined; });
@@ -88,7 +88,7 @@ export function createRetainedWorkflowMutationController<I>(): RetainedWorkflowM
     retry<T>(): Promise<T> {
       if (!pending || inFlight) throw new Error("No settled ambiguous workflow mutation is available to retry");
       const active = pending;
-      inFlight = executeWorkflowMutation((attempt) => active.send(active.intent, attempt), active.attempt).then(
+      inFlight = active.send(active.intent, active.attempt).then(
         (result) => { if (pending === active) pending = undefined; return result; },
         (error: unknown) => { if (!isAmbiguousWorkflowMutationError(error) && pending === active) pending = undefined; throw error; },
       ).finally(() => { inFlight = undefined; });

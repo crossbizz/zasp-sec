@@ -27,6 +27,7 @@ let postgres;
 let web;
 let browser;
 let observedSessionCookie = false;
+const lostPolicyResponseKeys = [];
 const cleanupController = installBoundedSignalCleanup(cleanupOwnedResources);
 
 try {
@@ -102,7 +103,11 @@ try {
   await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/policies` });
   await waitForBrowserText(browser.cdp, /Durable scoped runtime controls/);
   await clickBrowserText(browser.cdp, "Create policy");
+  await waitForBrowserText(browser.cdp, /exact operation and idempotency key are retained/);
+  await clickBrowserText(browser.cdp, "Retry retained policy operation");
   await waitForBrowserText(browser.cdp, /Policy created\. Audit pid_/);
+  assert.equal(lostPolicyResponseKeys.length, 3);
+  assert.equal(new Set(lostPolicyResponseKeys).size, 1, "ambiguous browser retries changed idempotency key");
   assert.equal(await browserHasInteractiveText(browser.cdp, /^(?:Simulate policy|Decision history)$/i), false);
   await clickBrowserText(browser.cdp, "Roll to monitor");
   await waitForBrowserText(browser.cdp, /Policy is monitor\. Audit pid_/);
@@ -115,7 +120,7 @@ try {
   await fillBrowserLabel(browser.cdp, "HTTPS destination", "https://hooks.customer.invalid/zasp");
   await fillBrowserLabel(browser.cdp, "Signing secret", "secret_ref_combined_e2e");
   await clickBrowserText(browser.cdp, "Save integration");
-  await waitForBrowserText(browser.cdp, /Integration saved\. Audit pid_/);
+  await waitForBrowserText(browser.cdp, /Integration created\. Audit pid_/);
   await clickBrowserText(browser.cdp, "Close");
 
   await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/protect/security-agents` });
@@ -261,6 +266,16 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath) {
     const upstreamPort = request.url?.startsWith("/api/v1/") ? apiPort : webPort;
     const upstream = http.request({ hostname: "127.0.0.1", port: upstreamPort, method: request.method, path: request.url, headers: { ...request.headers, host: `127.0.0.1:${port}` } }, (upstreamResponse) => {
       if ((upstreamResponse.headers["set-cookie"] ?? []).some((value) => value.startsWith("__Host-zasp_session="))) observedSessionCookie = true;
+      if (request.method === "POST" && request.url === "/api/v1/policies" && lostPolicyResponseKeys.length < 2) {
+        lostPolicyResponseKeys.push(String(request.headers["idempotency-key"] ?? ""));
+        upstreamResponse.resume();
+        upstreamResponse.once("end", () => {
+          response.writeHead(upstreamResponse.statusCode ?? 201, { "content-type": "application/json", "cache-control": "no-store" });
+          response.end("{}");
+        });
+        return;
+      }
+      if (request.method === "POST" && request.url === "/api/v1/policies") lostPolicyResponseKeys.push(String(request.headers["idempotency-key"] ?? ""));
       response.writeHead(upstreamResponse.statusCode ?? 502, upstreamResponse.headers);
       upstreamResponse.pipe(response);
     });
