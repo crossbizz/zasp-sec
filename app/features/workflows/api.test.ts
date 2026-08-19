@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { APITransportError, type APIClient } from "../../../apps/web/api/client";
 import type { Policy } from "../../../apps/web/api/generated";
-import { createPoliciesAPI, createWorkflowMutationAttempt, workflowIdempotencyKey } from "./api";
+import { createPoliciesAPI, createRetainedWorkflowMutationController, createWorkflowMutationAttempt, workflowIdempotencyKey } from "./api";
 
 const policy: Policy = { id: "policy-production", name: "Production", scope: "environment", trigger: "tool", conditions: [{ field: "action", operator: "equals", value: "write" }], action: "monitor", rollout: "draft", failure_mode: "open" };
 const environmentID = "pid_10000003-0000-4000-8000-000000000003";
@@ -46,6 +46,50 @@ describe("production workflow API", () => {
 
     await expect(api.createPolicy(policy, attempt)).resolves.toMatchObject({ version: '"1"' });
     expect(POST.mock.calls.map(([, options]) => options.params.header["Idempotency-Key"])).toEqual([attempt.idempotencyKey, attempt.idempotencyKey]);
+  });
+
+  it("freezes one attempt and canonical intent across two lost responses and a manual retry", async () => {
+    const controller = createRetainedWorkflowMutationController<{ name: string; configuration: Record<string, string> }>();
+    const observed: Array<{ key: string; intent: { name: string; configuration: Record<string, string> } }> = [];
+    let calls = 0;
+    const send = vi.fn(async (intent: { name: string; configuration: Record<string, string> }, attempt: { idempotencyKey: string }) => {
+      observed.push({ key: attempt.idempotencyKey, intent });
+      calls++;
+      if (calls <= 2) throw new TypeError("response lost after commit");
+      return "replayed";
+    });
+    const mutableIntent = { name: "Original", configuration: { account: "production" } };
+
+    await expect(controller.execute(mutableIntent, send)).rejects.toThrow("response lost after commit");
+    expect(controller.hasAmbiguousAttempt()).toBe(true);
+    mutableIntent.name = "Changed after send";
+    mutableIntent.configuration.account = "foreign";
+
+    await expect(controller.execute({ name: "Ordinary retry must be ignored", configuration: { account: "other" } }, send)).resolves.toBe("replayed");
+    expect(new Set(observed.map(({ key }) => key)).size).toBe(1);
+    expect(observed.map(({ intent }) => intent)).toEqual([
+      { name: "Original", configuration: { account: "production" } },
+      { name: "Original", configuration: { account: "production" } },
+      { name: "Original", configuration: { account: "production" } },
+    ]);
+    expect(observed.every(({ intent }) => Object.isFrozen(intent) && Object.isFrozen(intent.configuration))).toBe(true);
+    expect(controller.hasAmbiguousAttempt()).toBe(false);
+  });
+
+  it("permits a fresh attempt only after a definitive result or explicit server reconciliation", async () => {
+    const controller = createRetainedWorkflowMutationController<{ name: string }>();
+    const keys: string[] = [];
+    const ambiguous = async (_intent: Readonly<{ name: string }>, attempt: { idempotencyKey: string }) => {
+      keys.push(attempt.idempotencyKey);
+      throw new APITransportError("timeout", "lost");
+    };
+    await expect(controller.execute({ name: "one" }, ambiguous)).rejects.toThrow("lost");
+    await expect(controller.execute({ name: "two" }, ambiguous)).rejects.toThrow("lost");
+    expect(new Set(keys).size).toBe(1);
+
+    controller.resolveAfterServerReconciliation();
+    await expect(controller.execute({ name: "two" }, ambiguous)).rejects.toThrow("lost");
+    expect(new Set(keys).size).toBe(2);
   });
 
   it("generates unique bounded protocol keys", () => {

@@ -30,6 +30,11 @@ const productID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[
 export type Versioned<T> = { value: T; version: string };
 export type WorkflowReceipt<T> = Versioned<T> & { auditID: string };
 export type WorkflowMutationAttempt = Readonly<{ idempotencyKey: string }>;
+export type RetainedWorkflowMutationController<I> = {
+  execute<T>(intent: I, send: (intent: I, attempt: WorkflowMutationAttempt) => Promise<T>): Promise<T>;
+  hasAmbiguousAttempt(): boolean;
+  resolveAfterServerReconciliation(): void;
+};
 
 type APIResult<T> = { data?: T; error?: unknown; response: Response };
 
@@ -59,12 +64,62 @@ export function workflowMutationHeaders(attempt: WorkflowMutationAttempt, versio
   return headers;
 }
 
+export function isAmbiguousWorkflowMutationError(error: unknown): boolean {
+  return error instanceof TypeError || error instanceof APITransportError && ["timeout", "invalid_response", "invalid_error"].includes(error.kind);
+}
+
 export async function executeWorkflowMutation<T>(send: (attempt: WorkflowMutationAttempt) => Promise<T>, attempt: WorkflowMutationAttempt = createWorkflowMutationAttempt()): Promise<T> {
   try { return await send(attempt); } catch (error) {
-    const ambiguous = error instanceof TypeError || error instanceof APITransportError && ["timeout", "invalid_response", "invalid_error"].includes(error.kind);
-    if (!ambiguous) throw error;
+    if (!isAmbiguousWorkflowMutationError(error)) throw error;
     return send(attempt);
   }
+}
+
+export function createRetainedWorkflowMutationController<I>(): RetainedWorkflowMutationController<I> {
+  let pending: { attempt: WorkflowMutationAttempt; intent: I; send: (intent: I, attempt: WorkflowMutationAttempt) => Promise<unknown> } | undefined;
+  let inFlight: Promise<unknown> | undefined;
+  return {
+    execute<T>(intent: I, send: (intent: I, attempt: WorkflowMutationAttempt) => Promise<T>): Promise<T> {
+      if (!pending) pending = { attempt: createWorkflowMutationAttempt(), intent: canonicalFrozenIntent(intent), send };
+      const active = pending;
+      if (inFlight) return inFlight as Promise<T>;
+      inFlight = executeWorkflowMutation((attempt) => active.send(active.intent, attempt), active.attempt).then(
+        (result) => { if (pending === active) pending = undefined; return result; },
+        (error: unknown) => { if (!isAmbiguousWorkflowMutationError(error) && pending === active) pending = undefined; throw error; },
+      ).finally(() => { inFlight = undefined; });
+      return inFlight as Promise<T>;
+    },
+    hasAmbiguousAttempt() { return pending !== undefined && inFlight === undefined; },
+    resolveAfterServerReconciliation() {
+      if (inFlight) throw new Error("Cannot reconcile a workflow mutation while its request is in flight");
+      pending = undefined;
+    },
+  };
+}
+
+function canonicalFrozenIntent<I>(intent: I): I {
+  const serialized = JSON.stringify(canonicalJSONValue(intent));
+  if (serialized === undefined) throw new TypeError("Workflow mutation intent must be a JSON value");
+  return deepFreeze(JSON.parse(serialized) as I);
+}
+
+function canonicalJSONValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalJSONValue);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>)
+      .filter(([, nested]) => nested !== undefined)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, nested]) => [key, canonicalJSONValue(nested)]));
+  }
+  return value;
+}
+
+function deepFreeze<I>(value: I): I {
+  if (value && typeof value === "object" && !Object.isFrozen(value)) {
+    for (const nested of Object.values(value as Record<string, unknown>)) deepFreeze(nested);
+    Object.freeze(value);
+  }
+  return value;
 }
 
 export function createPoliciesAPI(client: APIClient) {
