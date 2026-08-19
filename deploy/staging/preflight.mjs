@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
 const toolChecks = Object.freeze([
-  Object.freeze({ tool: "terraform", args: Object.freeze(["version"]) }),
+  Object.freeze({ tool: "terraform", args: Object.freeze(["version", "-json"]) }),
   Object.freeze({ tool: "helm", args: Object.freeze(["version", "--short"]) }),
   Object.freeze({ tool: "kubectl", args: Object.freeze(["version", "--client=true", "--output=json"]) }),
   Object.freeze({ tool: "aws", args: Object.freeze(["--version"]) }),

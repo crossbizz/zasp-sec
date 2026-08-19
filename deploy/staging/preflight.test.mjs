@@ -26,7 +26,7 @@ test("release preflight validates the exact two images and least-privilege ident
   const value = runPreflight(["--input", "release.json"], { read: () => JSON.stringify(input), spawn: (tool, args, options) => { calls.push({ tool, args, options }); return { status: 0 }; } });
   assert.deepEqual(value, { environment: "production", privateEndpointOnly: true, images: 2, cloudIdentities: 3 });
   assert.deepEqual(calls.map(({ tool, args }) => ({ tool, args })), [
-    { tool: "terraform", args: ["version"] },
+    { tool: "terraform", args: ["version", "-json"] },
     { tool: "helm", args: ["version", "--short"] },
     { tool: "kubectl", args: ["version", "--client=true", "--output=json"] },
     { tool: "aws", args: ["--version"] },
