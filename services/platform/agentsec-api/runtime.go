@@ -27,6 +27,8 @@ type RuntimeConfig struct {
 	CookieSecure           bool
 	ProviderTimeout        time.Duration
 	ShutdownTimeout        time.Duration
+	ReadinessInterval      time.Duration
+	ReadinessMaxInterval   time.Duration
 	PostgresDSN            string
 	IdentityCallbackURL    string
 	IdentityCallbackBearer string
@@ -50,14 +52,17 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 	}
 	providerTimeout, providerErr := time.ParseDuration(getenv("ZASP_PROVIDER_TIMEOUT"))
 	shutdownTimeout, shutdownErr := time.ParseDuration(getenv("ZASP_SHUTDOWN_TIMEOUT"))
+	readinessInterval, readinessErr := time.ParseDuration(getenv("ZASP_READINESS_INTERVAL"))
+	readinessMaxInterval, readinessMaxErr := time.ParseDuration(getenv("ZASP_READINESS_MAX_INTERVAL"))
 	cookieSecure, cookieErr := strconv.ParseBool(getenv("ZASP_COOKIE_SECURE"))
 	config := RuntimeConfig{
 		Environment: getenv("ZASP_ENVIRONMENT"), ProductListenAddress: getenv("ZASP_PRODUCT_LISTEN_ADDRESS"),
 		InternalListenAddress: getenv("ZASP_INTERNAL_LISTEN_ADDRESS"), PublicOrigin: getenv("ZASP_PUBLIC_ORIGIN"),
 		CookieSecure: cookieSecure, ProviderTimeout: providerTimeout, ShutdownTimeout: shutdownTimeout,
+		ReadinessInterval: readinessInterval, ReadinessMaxInterval: readinessMaxInterval,
 		PostgresDSN: getenv("ZASP_POSTGRES_DSN"), IdentityCallbackURL: getenv("ZASP_IDENTITY_CALLBACK_URL"), IdentityCallbackBearer: getenv("ZASP_IDENTITY_CALLBACK_BEARER"),
 	}
-	if providerErr != nil || shutdownErr != nil || cookieErr != nil || !validRuntimeConfig(config) {
+	if providerErr != nil || shutdownErr != nil || readinessErr != nil || readinessMaxErr != nil || cookieErr != nil || !validRuntimeConfig(config) {
 		return RuntimeConfig{}, errInvalidRuntimeConfig
 	}
 	return config, nil
@@ -85,7 +90,7 @@ func validRuntimeConfig(config RuntimeConfig) bool {
 	if callbackErr != nil || callback.Scheme != "https" || callback.Host == "" || callback.User != nil || callback.RawQuery != "" || callback.Fragment != "" || callback.Path != "" || len(config.IdentityCallbackBearer) < 8 || len(config.IdentityCallbackBearer) > 4096 || strings.TrimSpace(config.IdentityCallbackBearer) != config.IdentityCallbackBearer {
 		return false
 	}
-	return config.ProviderTimeout > 0 && config.ProviderTimeout <= 30*time.Second && config.ShutdownTimeout > 0 && config.ShutdownTimeout <= 30*time.Second
+	return config.ProviderTimeout > 0 && config.ProviderTimeout <= 30*time.Second && config.ShutdownTimeout > 0 && config.ShutdownTimeout <= 30*time.Second && config.ReadinessInterval >= 100*time.Millisecond && config.ReadinessMaxInterval >= config.ReadinessInterval && config.ReadinessMaxInterval <= 5*time.Minute
 }
 
 func validListenAddress(address string) bool {
@@ -153,7 +158,7 @@ func serveRuntime(ctx context.Context, output io.Writer, version string, config 
 		_ = internalListener.Close()
 		return err
 	}
-	health, err := healthserver.New(healthserver.Config{Service: "agentsec-api", Version: version, ReadyCheck: func(checkCtx context.Context) bool {
+	health, err := healthserver.New(healthserver.Config{Service: "agentsec-api", Version: version, ReadyInterval: config.ReadinessInterval, ReadyMaxInterval: config.ReadinessMaxInterval, ReadyCheck: func(checkCtx context.Context) bool {
 		checkCtx, cancelCheck := context.WithTimeout(checkCtx, config.ProviderTimeout)
 		defer cancelCheck()
 		return dependencies.ReadinessCheck(checkCtx) == nil

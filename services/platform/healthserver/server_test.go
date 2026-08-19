@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -41,6 +42,51 @@ func TestNewRetainsExactBoundedHTTPServer(t *testing.T) {
 	}
 	if got, want := server.shutdownTimeout, 5*time.Second; got != want {
 		t.Fatalf("shutdownTimeout = %v, want %v", got, want)
+	}
+}
+
+func TestReadinessProbesBackOffWithoutOverlapAndRecover(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	var active, maximum, calls atomic.Int32
+	ready := atomic.Bool{}
+	states := make(chan bool, 8)
+	check := func(context.Context) bool {
+		current := active.Add(1)
+		defer active.Add(-1)
+		for {
+			prior := maximum.Load()
+			if current <= prior || maximum.CompareAndSwap(prior, current) {
+				break
+			}
+		}
+		count := calls.Add(1)
+		if count >= 3 {
+			ready.Store(true)
+		}
+		time.Sleep(3 * time.Millisecond)
+		return ready.Load()
+	}
+	done := make(chan struct{})
+	go func() {
+		runReadyProbes(ctx, 5*time.Millisecond, 20*time.Millisecond, check, func(value bool) {
+			states <- value
+			if value {
+				cancel()
+			}
+		})
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("probe loop did not recover")
+	}
+	if maximum.Load() != 1 || calls.Load() != 3 {
+		t.Fatalf("probes max/calls = %d/%d", maximum.Load(), calls.Load())
+	}
+	if !ready.Load() {
+		t.Fatal("readiness did not recover")
 	}
 }
 

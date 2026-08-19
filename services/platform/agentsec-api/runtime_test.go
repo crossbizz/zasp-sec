@@ -19,6 +19,7 @@ func TestLoadRuntimeConfigIsStrict(t *testing.T) {
 		"ZASP_ENVIRONMENT": "production", "ZASP_PRODUCT_LISTEN_ADDRESS": ":8080", "ZASP_INTERNAL_LISTEN_ADDRESS": ":8081",
 		"ZASP_PUBLIC_ORIGIN": "https://app.zasp.example", "ZASP_COOKIE_SECURE": "true",
 		"ZASP_PROVIDER_TIMEOUT": "5s", "ZASP_SHUTDOWN_TIMEOUT": "5s",
+		"ZASP_READINESS_INTERVAL": "5s", "ZASP_READINESS_MAX_INTERVAL": "1m",
 		"ZASP_POSTGRES_DSN":          "postgres://zasp:secret@db.internal:5432/zasp?sslmode=require",
 		"ZASP_IDENTITY_CALLBACK_URL": "https://identity.internal", "ZASP_IDENTITY_CALLBACK_BEARER": "provider-secret",
 	}
@@ -30,7 +31,7 @@ func TestLoadRuntimeConfigIsStrict(t *testing.T) {
 		t.Fatalf("config = %#v", config)
 	}
 
-	for _, key := range []string{"ZASP_ENVIRONMENT", "ZASP_PRODUCT_LISTEN_ADDRESS", "ZASP_INTERNAL_LISTEN_ADDRESS", "ZASP_PUBLIC_ORIGIN", "ZASP_COOKIE_SECURE", "ZASP_PROVIDER_TIMEOUT", "ZASP_SHUTDOWN_TIMEOUT", "ZASP_POSTGRES_DSN", "ZASP_IDENTITY_CALLBACK_URL", "ZASP_IDENTITY_CALLBACK_BEARER"} {
+	for _, key := range []string{"ZASP_ENVIRONMENT", "ZASP_PRODUCT_LISTEN_ADDRESS", "ZASP_INTERNAL_LISTEN_ADDRESS", "ZASP_PUBLIC_ORIGIN", "ZASP_COOKIE_SECURE", "ZASP_PROVIDER_TIMEOUT", "ZASP_SHUTDOWN_TIMEOUT", "ZASP_READINESS_INTERVAL", "ZASP_READINESS_MAX_INTERVAL", "ZASP_POSTGRES_DSN", "ZASP_IDENTITY_CALLBACK_URL", "ZASP_IDENTITY_CALLBACK_BEARER"} {
 		t.Run("missing "+key, func(t *testing.T) {
 			copy := mapsClone(values)
 			delete(copy, key)
@@ -164,7 +165,7 @@ func TestServeRuntimeClosesProductListenerAfterPartialStartup(t *testing.T) {
 
 func fixtureRuntimeConfig() RuntimeConfig {
 	return RuntimeConfig{Environment: "production", ProductListenAddress: ":8080", InternalListenAddress: ":8081", PublicOrigin: "https://app.zasp.example", CookieSecure: true, ProviderTimeout: 5 * time.Second, ShutdownTimeout: 5 * time.Second,
-		PostgresDSN: "postgres://zasp:secret@db.internal:5432/zasp?sslmode=require", IdentityCallbackURL: "https://identity.internal", IdentityCallbackBearer: "provider-secret"}
+		ReadinessInterval: 100 * time.Millisecond, ReadinessMaxInterval: 500 * time.Millisecond, PostgresDSN: "postgres://zasp:secret@db.internal:5432/zasp?sslmode=require", IdentityCallbackURL: "https://identity.internal", IdentityCallbackBearer: "provider-secret"}
 }
 
 func fixtureRuntimeDependencies() RuntimeDependencies {
