@@ -43,8 +43,8 @@ describe("M2 identity governance and UI batch", () => {
       "listGroupMappings", "updateGroupMappings", "listAPITokens", "createAPIToken",
       "revokeAPIToken", "listAuditEvents", "createAuditExport", "getAuditExport",
     ]) expect(openapi).toContain(`operationId: ${operation}`);
-    expect(map.match(/availability: available/g)).toHaveLength(41);
-    expect(map.match(/availability: api_available/g)).toHaveLength(84);
+    expect(map.match(/availability: available/g)).toHaveLength(46);
+    expect(map.match(/availability: api_available/g)).toHaveLength(79);
     expect(readme).toContain("M2-01 through M2-50 and the M2-47 gate are Complete");
     expect(readme).toContain("M3-01 through M3-13 are Complete");
   });
