@@ -79,11 +79,12 @@ const capabilities: Capability[] = [
 ];
 const relationships: Relationship[] = [{ from_id: ids.agent, to_id: ids.tool, type: "uses", evidence_id: ids.evidence }];
 const sessions: AgentSession[] = [{ id: ids.evidence, agent_id: ids.agent, started_at: "2026-08-18T10:00:00.000Z" }];
+const riskTime = { version: 1, created_at: "2026-08-18T09:00:00.000Z", updated_at: "2026-08-18T10:00:00.000Z" } as const;
 const findings: Finding[] = [
-  { id: ids.finding, source: "posture", rule: "ownerless_agent", title: "Owner missing on production agent", severity: "high", status: "open", agent_id: ids.agent, path_id: ids.path, evidence_ids: [ids.evidence], risk_factors: [{ name: "production", evidence_id: ids.evidence }] },
-  { id: "pid_20000008-0000-4000-8000-000000000008", source: "prowler", title: "Unrelated cloud record", severity: "medium", status: "open", evidence_ids: [ids.evidence], risk_factors: [] },
+  { id: ids.finding, source: "posture", rule: "ownerless_agent", title: "Owner missing on production agent", severity: "high", status: "open", agent_id: ids.agent, path_id: ids.path, evidence_ids: [ids.evidence], risk_factors: [{ name: "production", evidence_id: ids.evidence }], ...riskTime },
+  { id: "pid_20000008-0000-4000-8000-000000000008", source: "prowler", title: "Unrelated cloud record", severity: "medium", status: "open", evidence_ids: [ids.evidence], risk_factors: [], ...riskTime },
 ];
-const paths: AttackPath[] = [{ id: ids.path, entry_id: ids.agent, sink_id: ids.tool, node_ids: [ids.agent, ids.identity, ids.tool], state: "observed", evidence_ids: [ids.evidence], blocked_edge: 1 }];
+const paths: AttackPath[] = [{ id: ids.path, entry_id: ids.agent, sink_id: ids.tool, node_ids: [ids.agent, ids.identity, ids.tool], state: "observed", evidence_ids: [ids.evidence], blocked_edge: -1, ...riskTime }];
 const options: BreakOption[] = [{ path_id: ids.path, target_id: ids.identity, evidence_id: ids.evidence, kind: "enforce_policy", rank: 1 }];
 const home: HomeSummary = { agent_count: 1, high_risk_paths: 1, verified_changes: 1, blocked_changes: 1, pending_approvals: 1, oldest_approval_age_seconds: 900, needs_human_runs: 1, failed_runs: 0, inconclusive_runs: 1, recent_contained: 2, recent_remediated: 1, healthy: false, attention_required: true };
 

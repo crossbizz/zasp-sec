@@ -1,5 +1,5 @@
-import { ZaspApp } from "../components/ZaspApp";
+import { ZaspProductionApp } from "../components/ZaspProductionApp";
 
 export default function ProductDeepLinkPage() {
-  return <ZaspApp />;
+  return <ZaspProductionApp />;
 }

@@ -257,7 +257,7 @@ describe("M1-23 strict OpenAPI root", () => {
     );
     assert.equal(
       packageJSON.scripts.verify,
-      "npm run dependencies:check && npm run health:contract:test && npm run openapi:test && npm run openapi:lint && npm run openapi:check && npm run ui-api:test && npm run ui-api:check && npm run raw-fetch:test && npm run saas:tenancy:test && npm run db:tenant-rls:test && npm test && npm run typecheck && npm run lint && npm run build",
+      "npm run dependencies:check && npm run health:contract:test && npm run openapi:test && npm run openapi:lint && npm run openapi:check && npm run ui-api:test && npm run ui-api:check && npm run raw-fetch:test && npm run saas:tenancy:test && npm run db:tenant-rls:test && npm test && npm run typecheck && npm run lint && npm run production:imports:test && npm run production:imports:source && npm run build && npm run production:imports:compiled",
     );
     assert.equal(packageJSON.devDependencies["@redocly/cli"], "2.43.1");
     assert.equal(packageJSON.devDependencies["js-yaml"], "4.1.1");

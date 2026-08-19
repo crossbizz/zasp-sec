@@ -29,6 +29,9 @@
     "local:product:test": "node --test deploy/local/manifests.test.mjs deploy/local/run.test.mjs",
     "local:product:run": "node deploy/local/run.mjs",
     "production:combined-e2e:test": "node --test scripts/production-combined-e2e.test.mjs && node scripts/production-combined-e2e.mjs",
+    "production:imports:test": "node --test scripts/check-production-imports.test.mjs",
+    "production:imports:source": "node scripts/check-production-imports.mjs --source",
+    "production:imports:compiled": "node scripts/check-production-imports.mjs --compiled",
     "local:graph:test": "node --test deploy/local/manifests.test.mjs deploy/local/run.test.mjs deploy/local/graph-manifest.test.mjs deploy/local/graph-run.test.mjs deploy/local/graph-license-audit.test.mjs",
     "local:graph:run": "node deploy/local/graph-run.mjs",
     "local:graph:license": "node deploy/local/graph-license-audit.mjs",
@@ -124,7 +127,7 @@
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "saas:tenancy:test": "go test -C services/platform -race -count=1 -timeout=90s ./config ./repository ./eventstore ./artifactstore ./jobqueue ./graphstore ./tenantquota",
     "staging:gate:test": "node --test deploy/staging/gate.test.mjs",
-    "verify": "npm run dependencies:check && npm run health:contract:test && npm run openapi:test && npm run openapi:lint && npm run openapi:check && npm run ui-api:test && npm run ui-api:check && npm run raw-fetch:test && npm run saas:tenancy:test && npm run db:tenant-rls:test && npm test && npm run typecheck && npm run lint && npm run build",
+    "verify": "npm run dependencies:check && npm run health:contract:test && npm run openapi:test && npm run openapi:lint && npm run openapi:check && npm run ui-api:test && npm run ui-api:check && npm run raw-fetch:test && npm run saas:tenancy:test && npm run db:tenant-rls:test && npm test && npm run typecheck && npm run lint && npm run production:imports:test && npm run production:imports:source && npm run build && npm run production:imports:compiled",
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {

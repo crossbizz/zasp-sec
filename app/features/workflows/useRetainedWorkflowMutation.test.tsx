@@ -100,13 +100,13 @@ describe("observable scope-owned workflow mutation registry", () => {
   it("keeps a server-recovered result globally locked through acknowledgement failure and retry", async () => {
     const user = userEvent.setup();
     const receipt = receiptFixture("pid_11111111-1111-4111-8111-111111111111");
-    const nextReceipt: WorkflowMutationReceipt = {
+	const nextReceipt = {
       ...receipt,
       id: "pid_55555555-5555-4555-8555-555555555555",
       resource_id: "policy-later-second",
       intent: { body: { ...receipt.result, id: "policy-later-second", name: "Second policy" }, expected_version: 0, resource_id: "" },
       result: { ...receipt.result, id: "policy-later-second", name: "Second policy" },
-    };
+	} as WorkflowMutationReceipt;
     const acknowledgeReceipt = vi.fn()
       .mockRejectedValueOnce(new APITransportError("timeout", "Acknowledgement response was lost"))
       .mockResolvedValueOnce(undefined)

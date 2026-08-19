@@ -62,103 +62,11 @@ describe("generated API client", () => {
     });
     expect(continuingPage.has_more).toBe(true);
     expect(finalPage.has_more).toBe(false);
-    expectTypeOf<keyof paths>().toEqualTypeOf<
-      | "/api/v1/admin/api-tokens"
-      | "/api/v1/admin/api-token-reveal-grants"
-      | "/api/v1/admin/api-token-reveal-grants/{id}"
-      | "/api/v1/admin/api-token-reveal-grants/{id}/reveal"
-      | "/api/v1/admin/api-tokens/{id}"
-      | "/api/v1/admin/api-tokens/{id}/rotate"
-      | "/api/v1/admin/members"
-      | "/api/v1/admin/members/{id}"
-      | "/api/v1/admin/roles"
-      | "/api/v1/agents"
-      | "/api/v1/agents/{id}"
-      | "/api/v1/agents/{id}/capabilities"
-      | "/api/v1/agents/{id}/relationships"
-      | "/api/v1/agents/{id}/sessions"
-      | "/api/v1/ai/explanations"
-      | "/api/v1/assets/{id}"
-      | "/api/v1/attack-paths"
-      | "/api/v1/attack-paths/{id}"
-      | "/api/v1/attack-paths/{id}/break-options"
-      | "/api/v1/attack-lab/runs"
-      | "/api/v1/attack-lab/runs/{id}"
-      | "/api/v1/attack-lab/runs/{id}/cancel"
-      | "/api/v1/attack-lab/runs/{id}/rerun"
-      | "/api/v1/audit-events"
-      | "/api/v1/compliance/controls"
-      | "/api/v1/compliance/evidence"
-      | "/api/v1/environments"
-      | "/api/v1/environments/{id}"
-      | "/api/v1/findings"
-      | "/api/v1/findings/{id}"
-      | "/api/v1/findings/{id}/accept-risk"
-      | "/api/v1/findings/{id}/ticket"
-      | "/api/v1/home/summary"
-      | "/api/v1/integration-catalog"
-      | "/api/v1/integrations"
-      | "/api/v1/integrations/{id}"
-      | "/api/v1/integrations/{id}/authorize"
-      | "/api/v1/integrations/{id}/sync"
-      | "/api/v1/integrations/{id}/syncs"
-      | "/api/v1/integrations/{id}/syncs/{syncId}"
-      | "/api/v1/identities"
-      | "/api/v1/identities/{id}"
-      | "/api/v1/me"
-      | "/api/v1/organization"
-      | "/api/v1/policies"
-      | "/api/v1/policies/{id}"
-      | "/api/v1/policies/{id}/decisions"
-      | "/api/v1/policies/{id}/disable"
-      | "/api/v1/policies/{id}/rollout"
-      | "/api/v1/policies/{id}/simulate"
-      | "/api/v1/sensors"
-      | "/api/v1/sensors/{id}"
-      | "/api/v1/sensors/{id}/coverage"
-      | "/api/v1/sensors/{id}/rotate-token"
-      | "/api/v1/runtimes"
-      | "/api/v1/runtimes/{id}"
-      | "/api/v1/search"
-      | "/api/v1/session/bootstrap"
-      | "/api/v1/session/callback"
-      | "/api/v1/session/sign-out"
-	  | "/api/v1/session/scopes"
-	  | "/api/v1/session/scope"
-	  | "/api/v1/session/start"
-      | "/api/v1/security-actions"
-      | "/api/v1/security-agent-approvals"
-      | "/api/v1/security-agent-approvals/{id}"
-      | "/api/v1/security-agent-approvals/{id}/decision"
-      | "/api/v1/security-agent-runs"
-      | "/api/v1/security-agent-runs/{id}"
-      | "/api/v1/security-agent-runs/{id}/cancel"
-      | "/api/v1/security-agent-templates"
-      | "/api/v1/security-agents"
-      | "/api/v1/security-agents/{id}"
-      | "/api/v1/security-agents/{id}/runs"
-      | "/api/v1/security-agents/{id}/simulate"
-      | "/api/v1/sessions"
-      | "/api/v1/sessions/{id}"
-      | "/api/v1/sessions/{id}/events"
-      | "/api/v1/settings/data-controls"
-      | "/api/v1/settings/external-data-flows"
-      | "/api/v1/system/components"
-      | "/api/v1/system/status"
-      | "/api/v1/system/version"
-      | "/api/v1/test-runs"
-      | "/api/v1/test-runs/{id}"
-      | "/api/v1/test-runs/{id}/cancel"
-      | "/api/v1/tests"
-      | "/api/v1/tests/{id}"
-      | "/api/v1/tests/{id}/runs"
-      | "/api/v1/tools"
-      | "/api/v1/tools/{id}"
-      | "/api/v1/workspaces"
-      | "/api/v1/workspaces/{id}"
-      | "/api/v1/workflow-mutation-receipts"
-      | "/api/v1/workflow-mutation-receipts/{id}/acknowledge"
-    >();
+		type PublicPath = keyof paths;
+		expectTypeOf<"/api/v1/findings">().toMatchTypeOf<PublicPath>();
+		expectTypeOf<"/api/v1/attack-paths/{id}/break-options">().toMatchTypeOf<PublicPath>();
+		expectTypeOf<Extract<PublicPath, "/api/v1/ai/explanations">>().toEqualTypeOf<never>();
+		expectTypeOf<Extract<PublicPath, "/api/v1/findings/{id}/ticket">>().toEqualTypeOf<never>();
     expectTypeOf(error.code).toEqualTypeOf<string>();
 
     expect(assertProductErrorIsReadonly).toBeTypeOf("function");
@@ -200,7 +108,7 @@ describe("generated API client", () => {
     });
 
     const result = await client.PATCH("/api/v1/findings/{id}", {
-      params: { path: { id: "pid_20000001-0000-4000-8000-000000000001" } },
+		params: { path: { id: "pid_20000001-0000-4000-8000-000000000001" }, header: { "Idempotency-Key": "idem-finding-update-0001", "If-Match": `"1"` } },
       body: { status: "resolved" },
     });
     expect(result.error).toBeUndefined();

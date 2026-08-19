@@ -1,4 +1,4 @@
-import type { AgentSession, Capability, ConnectorManifest, HomeSummary, Integration, InventoryRecord, Policy, PolicyRollout, PolicySimulation, Principal, Relationship, RuntimeDecision, SecurityAgentDefinition, SecurityAgentPage, SecurityAgentTemplate, SessionBootstrap, SessionCallbackResult, SessionScope, SessionScopePage, WorkflowMutationReceipt, WorkflowMutationReceiptPage } from "./generated";
+import type { AgentSession, AttackPath, AttackPathPage, BreakOptionPage, Capability, ConnectorManifest, Finding, FindingPage, HomeSummary, Integration, InventoryRecord, Policy, PolicyRollout, PolicySimulation, Principal, Relationship, RuntimeDecision, SecurityAgentDefinition, SecurityAgentPage, SecurityAgentTemplate, SessionBootstrap, SessionCallbackResult, SessionScope, SessionScopePage, WorkflowMutationReceipt, WorkflowMutationReceiptPage } from "./generated";
 
 const PRODUCT_ID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
@@ -72,6 +72,46 @@ export function decodeHomeSummary(value: unknown): HomeSummary {
   return value as HomeSummary;
 }
 
+export function decodeFinding(value: unknown): Finding {
+  const required = ["id", "source", "title", "severity", "status", "evidence_ids", "risk_factors", "version", "created_at", "updated_at"];
+  const record = exactRecord(value, required, ["rule", "agent_id", "path_id", "compliance_context", "acceptance_reason"]);
+  productID(record.id); enumValue(record.source, ["posture", "prowler"]); boundedString(record.title, 1, 256);
+  enumValue(record.severity, ["critical", "high", "medium", "low"]); enumValue(record.status, ["open", "under_review", "resolved", "accepted"]);
+  for (const key of ["rule", "compliance_context", "acceptance_reason"] as const) if (record[key] !== undefined) boundedString(record[key], 1, key === "rule" ? 64 : key === "compliance_context" ? 128 : 512);
+  for (const key of ["agent_id", "path_id"] as const) if (record[key] !== undefined) productID(record[key]);
+  productIDArray(record.evidence_ids, 64);
+  const factors = array(record.risk_factors, 16); const factorKeys = new Set<string>();
+  for (const factor of factors) { const item = exactRecord(factor, ["name", "evidence_id"]); boundedString(item.name, 1, 64); productID(item.evidence_id); const key = `${item.name}\u0000${item.evidence_id}`; if (factorKeys.has(key)) fail(); factorKeys.add(key); }
+  positiveInteger(record.version); dateTime(record.created_at); dateTime(record.updated_at);
+  if (Date.parse(record.updated_at as string) < Date.parse(record.created_at as string)) fail();
+  if ((record.status === "accepted") !== (typeof record.acceptance_reason === "string")) fail();
+  return value as Finding;
+}
+
+export function decodeFindingPage(value: unknown): FindingPage {
+  const record = exactRecord(value, ["items", "page_info"]); for (const item of array(record.items, 100)) decodeFinding(item); decodePageInfo(record.page_info); return value as FindingPage;
+}
+
+export function decodeAttackPath(value: unknown): AttackPath {
+  const record = exactRecord(value, ["id", "entry_id", "sink_id", "node_ids", "state", "evidence_ids", "blocked_edge", "version", "created_at", "updated_at"]);
+  productID(record.id); productID(record.entry_id); productID(record.sink_id); productIDArrayBounded(record.node_ids, 2, 8); productIDArray(record.evidence_ids, 16);
+  const nodes = record.node_ids as readonly string[]; if (nodes[0] !== record.entry_id || nodes[nodes.length - 1] !== record.sink_id) fail();
+  enumValue(record.state, ["potential", "observed", "verified", "blocked"]); boundedInteger(record.blocked_edge, -1, 6);
+  if (record.state === "blocked" ? (record.blocked_edge as number) < 0 || (record.blocked_edge as number) >= nodes.length - 1 : record.blocked_edge !== -1) fail();
+  positiveInteger(record.version); dateTime(record.created_at); dateTime(record.updated_at); if (Date.parse(record.updated_at as string) < Date.parse(record.created_at as string)) fail();
+  return value as AttackPath;
+}
+
+export function decodeAttackPathPage(value: unknown): AttackPathPage {
+  const record = exactRecord(value, ["items", "page_info"]); for (const item of array(record.items, 100)) decodeAttackPath(item); decodePageInfo(record.page_info); return value as AttackPathPage;
+}
+
+export function decodeBreakOptionPage(value: unknown): BreakOptionPage {
+  const record = exactRecord(value, ["items"]); const items = array(record.items, 8); let pathID: string | undefined; const targets = new Set<string>();
+  for (let index = 0; index < items.length; index++) { const item = exactRecord(items[index], ["path_id", "target_id", "evidence_id", "kind", "rank"]); productID(item.path_id); productID(item.target_id); productID(item.evidence_id); enumValue(item.kind, ["remove_node", "enforce_policy"]); if (item.rank !== index + 1 || pathID !== undefined && item.path_id !== pathID) fail(); pathID = item.path_id as string; const key = `${item.kind}\u0000${item.target_id}`; if (targets.has(key)) fail(); targets.add(key); }
+  return value as BreakOptionPage;
+}
+
 export function decodePolicy(value: unknown): Policy {
   const record = exactRecord(value, ["id", "name", "scope", "trigger", "conditions", "action", "rollout", "failure_mode"]);
   if (typeof record.id !== "string" || !/^policy-[a-z0-9][a-z0-9-]{0,120}$/.test(record.id)) fail();
@@ -88,8 +128,8 @@ export function decodeWorkflowMutationReceipt(value: unknown): WorkflowMutationR
   const record = exactRecord(value, ["id", "operation", "idempotency_key", "intent", "result", "resource_kind", "resource_id", "resource_version", "audit_id", "correlation_id", "created_at", "expires_at"]);
   productID(record.id);
   if (typeof record.idempotency_key !== "string" || !IDEMPOTENCY_KEY.test(record.idempotency_key)) fail();
-  enumValue(record.operation, ["createPolicy", "updatePolicy", "deletePolicy", "rolloutPolicy", "disablePolicy", "createIntegration", "updateIntegration", "deleteIntegration", "createSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent"]);
-  enumValue(record.resource_kind, ["policy", "integration", "security_agent"]);
+  enumValue(record.operation, ["createPolicy", "updatePolicy", "deletePolicy", "rolloutPolicy", "disablePolicy", "createIntegration", "updateIntegration", "deleteIntegration", "createSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent", "updateFinding", "acceptFindingRisk"]);
+  enumValue(record.resource_kind, ["policy", "integration", "security_agent", "finding"]);
   if (typeof record.resource_id !== "string" || !workflowResourceID(record.resource_kind, record.resource_id)) fail();
   positiveInteger(record.resource_version);
   productID(record.audit_id); productID(record.correlation_id);
@@ -115,7 +155,9 @@ export function decodeSecurityAgentTemplatePage(value: unknown): { readonly item
 
 function decodeWorkflowReceiptPayload(operation: unknown, kind: unknown, resourceID: string, intentValue: unknown, resultValue: unknown): void {
   const expectedKind = typeof operation === "string" && operation.includes("Integration") ? "integration"
-    : typeof operation === "string" && operation.includes("SecurityAgent") ? "security_agent" : "policy";
+    : typeof operation === "string" && operation.includes("SecurityAgent") ? "security_agent"
+    : typeof operation === "string" && operation.includes("Finding") ? "finding"
+    : typeof operation === "string" && ["createPolicy", "updatePolicy", "deletePolicy", "rolloutPolicy", "disablePolicy"].includes(operation) ? "policy" : fail();
   if (kind !== expectedKind) fail();
   const intent = exactRecord(intentValue, ["body", "expected_version", "resource_id"]);
   const create = typeof operation === "string" && operation.startsWith("create");
@@ -133,6 +175,14 @@ function decodeWorkflowReceiptPayload(operation: unknown, kind: unknown, resourc
     decodeIntegration(resultValue);
     if ((resultValue as Integration).id !== resourceID) fail();
     decodeIntegrationReceiptIntent(operation as string, intent.body, resultValue as Integration);
+    return;
+  }
+  if (kind === "finding") {
+    decodeFinding(resultValue);
+    if ((resultValue as Finding).id !== resourceID) fail();
+    const input = operation === "updateFinding" ? exactRecord(intent.body, ["status"]) : operation === "acceptFindingRisk" ? exactRecord(intent.body, ["reason"]) : fail();
+    if (operation === "updateFinding") { enumValue(input.status, ["open", "under_review", "resolved"]); if ((resultValue as Finding).status !== input.status) fail(); }
+    else { boundedString(input.reason, 1, 512); if ((resultValue as Finding).status !== "accepted" || (resultValue as Finding).acceptance_reason !== input.reason) fail(); }
     return;
   }
   decodeSecurityAgentDefinition(resultValue);
@@ -201,7 +251,7 @@ function decodeSecurityAgentReceiptBody(value: unknown, includeID: boolean): Rec
 }
 
 function workflowResourceID(kind: unknown, value: string): boolean {
-  return kind === "policy" ? POLICY_ID.test(value) : (kind === "integration" || kind === "security_agent") && PRODUCT_ID.test(value);
+  return kind === "policy" ? POLICY_ID.test(value) : (kind === "integration" || kind === "security_agent" || kind === "finding") && PRODUCT_ID.test(value);
 }
 
 function emptyRecord(value: unknown): void { exactRecord(value, []); }
@@ -233,6 +283,7 @@ function productID(value: unknown): asserts value is string { if (typeof value !
 function dateTime(value: unknown): asserts value is string { if (typeof value !== "string" || !DATE_TIME.test(value) || Number.isNaN(Date.parse(value))) fail(); }
 function stringArray(value: unknown, maximumItems: number, maximumLength = 128, minimumItems = 0): asserts value is readonly string[] { const values = array(value, maximumItems); if (values.length < minimumItems || new Set(values).size !== values.length || values.some((item) => typeof item !== "string" || item.length < 1 || item.length > maximumLength)) fail(); }
 function productIDArray(value: unknown, maximum: number): void { const values = array(value, maximum); if (values.length < 1 || new Set(values).size !== values.length) fail(); for (const item of values) productID(item); }
+function productIDArrayBounded(value: unknown, minimum: number, maximum: number): void { const values = array(value, maximum); if (values.length < minimum || new Set(values).size !== values.length) fail(); for (const item of values) productID(item); }
 function positiveInteger(value: unknown): void { if (!Number.isSafeInteger(value) || (value as number) < 1) fail(); }
 function boundedInteger(value: unknown, minimum: number, maximum: number): void { if (!Number.isSafeInteger(value) || (value as number) < minimum || (value as number) > maximum) fail(); }
 function decodePageInfo(value: unknown): void { const pageInfo = exactRecord(value, ["next_cursor", "has_more"]); if (pageInfo.has_more === true) { boundedString(pageInfo.next_cursor, 2, 512); if (!CURSOR.test(pageInfo.next_cursor)) fail(); } else if (pageInfo.has_more !== false || pageInfo.next_cursor !== null) fail(); }

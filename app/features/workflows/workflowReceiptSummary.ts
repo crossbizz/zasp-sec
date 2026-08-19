@@ -16,7 +16,19 @@ export function workflowReceiptSummary(receipt: WorkflowMutationReceipt): Workfl
     return { intent: integrationIntent(receipt.operation, receipt.resource_id, intent.body), result: integrationResult(result, receipt.resource_version) };
   case "security_agent":
     return { intent: securityAgentIntent(receipt.operation, receipt.resource_id, intent.body), result: securityAgentResult(result, receipt.resource_version) };
+  case "finding":
+    return { intent: findingIntent(receipt.operation, receipt.resource_id, intent.body), result: findingResult(result, receipt.resource_version) };
   }
+}
+
+function findingIntent(operation: string, resourceID: string, body: Record<string, unknown>): readonly WorkflowReceiptSummaryField[] {
+  if (operation === "updateFinding") return [field("Requested finding", resourceID), field("Requested status", body.status)];
+  if (operation === "acceptFindingRisk") return [field("Requested finding", resourceID), field("Requested acceptance reason", body.reason)];
+  return [field("Rejected operation", operation)];
+}
+
+function findingResult(result: Record<string, unknown>, version: number): readonly WorkflowReceiptSummaryField[] {
+  return [field("Committed resource", result.id), field("Committed finding", result.title), field("Committed status", result.status), field("Committed version", version)];
 }
 
 function policyIntent(operation: string, resourceID: string, body: Record<string, unknown>): readonly WorkflowReceiptSummaryField[] {
