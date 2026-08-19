@@ -175,7 +175,16 @@ resource "aws_s3_bucket_lifecycle_configuration" "evidence" {
 }
 
 resource "aws_secretsmanager_secret" "product" {
-  for_each = toset(["database", "identity-provider", "webhook-signing"])
+  for_each = toset([
+    "postgres-dsn",
+    "stytch-project-id",
+    "stytch-secret",
+    "stytch-public-token",
+    "stytch-organization-id",
+    "workflow-signing-key",
+    "token-reveal-key",
+    "canary-read-token",
+  ])
 
   name                    = "${var.cluster_name}/${each.key}"
   kms_key_id              = aws_kms_key.staging.arn
@@ -293,7 +302,7 @@ resource "aws_iam_role" "product" {
       Condition = {
         StringEquals = {
           "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:aud" = "sts.amazonaws.com"
-          "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub" = "system:serviceaccount:zasp:product-stubs"
+          "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub" = "system:serviceaccount:agentsec:agentsec-product"
         }
       }
     }]
@@ -310,8 +319,9 @@ resource "aws_iam_role_policy" "product" {
       { Effect = "Allow", Action = ["s3:ListBucket"], Resource = aws_s3_bucket.evidence.arn, Condition = { StringLike = { "s3:prefix" = ["organizations/*"] } } },
       { Effect = "Allow", Action = ["sqs:DeleteMessage", "sqs:GetQueueAttributes", "sqs:ReceiveMessage", "sqs:SendMessage"], Resource = [for queue in aws_sqs_queue.work : queue.arn] },
       { Effect = "Allow", Action = ["es:ESHttpGet", "es:ESHttpHead", "es:ESHttpPost", "es:ESHttpPut"], Resource = "${aws_opensearch_domain.events.arn}/*" },
+      { Effect = "Allow", Action = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"], Resource = [for secret in aws_secretsmanager_secret.product : secret.arn] },
       { Effect = "Allow", Action = ["kms:Decrypt", "kms:Encrypt", "kms:GenerateDataKey"], Resource = aws_kms_key.staging.arn,
-      Condition = { StringEquals = { "kms:ViaService" = ["s3.${var.region}.amazonaws.com", "sqs.${var.region}.amazonaws.com", "es.${var.region}.amazonaws.com"] } } }
+      Condition = { StringEquals = { "kms:ViaService" = ["s3.${var.region}.amazonaws.com", "sqs.${var.region}.amazonaws.com", "es.${var.region}.amazonaws.com", "secretsmanager.${var.region}.amazonaws.com"] } } }
     ]
   })
 }

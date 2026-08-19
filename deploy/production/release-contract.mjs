@@ -37,6 +37,7 @@ export async function renderRelease(value) {
   const set = [
     ["global.publicOrigin", `https://${value.host}`],
     ["global.trustedProxyCIDRs[0]", "10.20.0.0/16"],
+    ["serviceAccount.roleArn", "arn:aws:iam::123456789012:role/zasp-production-product"],
     ["ingress.host", value.host], ["ingress.tlsSecretName", value.tlsSecretName],
     ["secrets.providerClassName", value.secretProviderClass],
     ["secrets.postgresDSNObjectName", "zasp/production/postgres-dsn"],

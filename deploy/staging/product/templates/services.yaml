@@ -5,6 +5,8 @@ kind: ServiceAccount
 metadata:
   name: {{ .Values.serviceAccount.name }}
   labels: { app.kubernetes.io/part-of: zasp }
+  annotations:
+    eks.amazonaws.com/role-arn: {{ required "serviceAccount.roleArn is required" .Values.serviceAccount.roleArn | quote }}
 automountServiceAccountToken: false
 ---
 apiVersion: v1

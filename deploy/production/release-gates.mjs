@@ -74,6 +74,10 @@ export async function verifyReleaseSources() {
   ]);
   const combined = sensitiveSources.join("\n");
   if (/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|AKIA[0-9A-Z]{16}|sk_live_[A-Za-z0-9]{16,}/.test(combined) || !sensitiveSources[0].includes(".env") || !sensitiveSources[4].includes("secretsmanager") || !sensitiveSources[5].includes("secretKeyRef")) throw new Error("secret gate rejected");
+  const terraform = await source("deploy/staging/main.tf");
+  for (const contract of ["system:serviceaccount:agentsec:agentsec-product", "secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret", "canary-read-token", "token-reveal-key", "stytch-secret", "postgres-dsn"]) {
+    if (!terraform.includes(contract)) throw new Error("secret identity gate rejected");
+  }
 
   return deepFreeze({ canary: true, documentation: true, imageDefinitions: true, licensePolicy: true, secretScan: true, spdx: true });
 }

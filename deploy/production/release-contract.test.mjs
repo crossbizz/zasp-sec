@@ -47,6 +47,8 @@ test("release renders one TLS origin, split ports, private internals, and migrat
   assert.equal(one(resources, "Job", "agentsec-schema-v9").metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
   assert.deepEqual(one(resources, "Job", "agentsec-schema-v9").spec.template.spec.containers[0].args, ["up"]);
   assert.equal(one(resources, "SecretProviderClass", release.secretProviderClass).spec.provider, "aws");
+  assert.equal(one(resources, "ServiceAccount", "agentsec-product").metadata.annotations["eks.amazonaws.com/role-arn"], "arn:aws:iam::123456789012:role/zasp-production-product");
+  assert.equal(one(resources, "SecretProviderClass", release.secretProviderClass).spec.secretObjects[0].data.length, 8);
 });
 
 test("release applies non-root rollout, zone and host spread, drain, PDB, and default-deny policies", async () => {
