@@ -5,13 +5,18 @@ import { describe, expect, it } from "vitest";
 const read = (file: string) => fs.readFileSync(path.join(process.cwd(), file), "utf8");
 
 describe("M7 sessions, compliance, and data-controls batch", () => {
-  it("publishes the exact nine product operations", () => {
+  it("publishes the exact eight mounted product operations", () => {
     const source = read("openapi/openapi.yaml");
-    for (const id of ["listSessions", "getSession", "listSessionEvents", "listComplianceControls", "listComplianceEvidence", "createComplianceExport", "getComplianceExport", "getDataControls", "updateDataControls"]) expect(source).toContain(`operationId: ${id}`);
+    for (const id of ["listSessions", "getSession", "listSessionEvents", "revokeSession", "listComplianceControls", "listComplianceEvidence", "getDataControls", "updateDataControls"]) expect(source).toContain(`operationId: ${id}`);
+    for (const hidden of ["createComplianceExport", "getComplianceExport"]) expect(source).not.toContain(`operationId: ${hidden}`);
   });
-  it("implements local projection, evidence, export, and data-control boundaries", () => {
-    const source = read("services/platform/sessioncontrol/sessioncontrol.go");
-    for (const symbol of ["NewProjector", "BuildSessionFilter", "AssembleComplianceEvidence", "BuildComplianceExport", "WriteComplianceExportArtifact", "NewDataControlStore"]) expect(source).toContain(` ${symbol}`);
+  it("implements durable session, evidence, and data controls while hiding exports", () => {
+    const repository = read("services/platform/apiserver/administration_repository.go");
+    const view = read("app/features/sessions/SessionsComplianceView.tsx");
+    for (const symbol of ["postgresListSessionsSQL", "postgresRevokeInvestigatedSessionSQL", "postgresListComplianceEvidenceSQL", "postgresUpdateDataControlsSQL"]) expect(repository).toContain(symbol);
+    expect(view).toContain("Evidence exports unavailable");
+    expect(view).toContain("Data deletion unavailable");
+    expect(view).not.toMatch(/createComplianceExport|getComplianceExport/);
   });
   it("records the session and compliance slice complete", () => {
     const tracker = read("docs/internal/implementation_status_v1.5.md");

@@ -35,7 +35,7 @@ const expectedMap: MapDocument = {
       id: "identity_foundation",
       label: "Identity Foundation",
       actions: [
-        { id: "view_current_organization", operation_id: "getOrganization", availability: "api_available" },
+        { id: "view_current_organization", operation_id: "getOrganization", availability: "available" },
         { id: "view_workspaces", operation_id: "listWorkspaces", availability: "available" },
         { id: "create_workspace", operation_id: "createWorkspace", availability: "available" },
         { id: "view_workspace", operation_id: "getWorkspace", availability: "api_available" },
@@ -46,22 +46,24 @@ const expectedMap: MapDocument = {
         { id: "update_environment", operation_id: "updateEnvironment", availability: "available" },
         { id: "view_current_principal", operation_id: "getCurrentPrincipal", availability: "api_available" },
         { id: "view_members", operation_id: "listMembers", availability: "available" },
+        { id: "update_member_role", operation_id: "updateMemberRole", availability: "available" },
         { id: "view_builtin_roles", operation_id: "listBuiltInRoles", availability: "available" },
-        { id: "view_sso_connections", operation_id: "listSSOConnections", availability: "available" },
-        { id: "create_sso_connection", operation_id: "createSSOConnection", availability: "available" },
-        { id: "delete_sso_connection", operation_id: "deleteSSOConnection", availability: "available" },
-        { id: "test_sso_connection", operation_id: "testSSOConnection", availability: "available" },
-        { id: "view_scim_connections", operation_id: "listSCIMConnections", availability: "available" },
-        { id: "create_scim_connection", operation_id: "createSCIMConnection", availability: "available" },
-        { id: "delete_scim_connection", operation_id: "deleteSCIMConnection", availability: "available" },
+        { id: "view_sso_connections", operation_id: "listSSOConnections", availability: "planned" },
+        { id: "create_sso_connection", operation_id: "createSSOConnection", availability: "planned" },
+        { id: "delete_sso_connection", operation_id: "deleteSSOConnection", availability: "planned" },
+        { id: "test_sso_connection", operation_id: "testSSOConnection", availability: "planned" },
+        { id: "view_scim_connections", operation_id: "listSCIMConnections", availability: "planned" },
+        { id: "create_scim_connection", operation_id: "createSCIMConnection", availability: "planned" },
+        { id: "delete_scim_connection", operation_id: "deleteSCIMConnection", availability: "planned" },
         { id: "view_group_mappings", operation_id: "listGroupMappings", availability: "available" },
         { id: "update_group_mapping", operation_id: "updateGroupMappings", availability: "available" },
         { id: "view_api_tokens", operation_id: "listAPITokens", availability: "available" },
         { id: "create_api_token", operation_id: "createAPIToken", availability: "available" },
+        { id: "rotate_api_token", operation_id: "rotateAPIToken", availability: "available" },
         { id: "revoke_api_token", operation_id: "revokeAPIToken", availability: "available" },
-        { id: "view_audit_events", operation_id: "listAuditEvents", availability: "api_available" },
-        { id: "create_audit_export", operation_id: "createAuditExport", availability: "api_available" },
-        { id: "view_audit_export", operation_id: "getAuditExport", availability: "api_available" },
+        { id: "view_audit_events", operation_id: "listAuditEvents", availability: "available" },
+        { id: "create_audit_export", operation_id: "createAuditExport", availability: "planned" },
+        { id: "view_audit_export", operation_id: "getAuditExport", availability: "planned" },
       ],
     },
     {
@@ -173,18 +175,19 @@ const expectedMap: MapDocument = {
       id: "system_health",
       label: "System Health",
       actions: [
-        { id: "view_system_status", operation_id: "getSystemStatus", availability: "api_available" },
-        { id: "view_system_components", operation_id: "listSystemComponents", availability: "api_available" },
-        { id: "view_system_version", operation_id: "getSystemVersion", availability: "api_available" },
+        { id: "view_system_status", operation_id: "getSystemStatus", availability: "available" },
+        { id: "view_system_components", operation_id: "listSystemComponents", availability: "available" },
+        { id: "view_system_version", operation_id: "getSystemVersion", availability: "available" },
       ],
     },
     {
       id: "sessions",
       label: "Sessions",
       actions: [
-        { id: "view_sessions", operation_id: "listSessions", availability: "api_available" },
-        { id: "view_session", operation_id: "getSession", availability: "api_available" },
-        { id: "view_session_events", operation_id: "listSessionEvents", availability: "api_available" },
+        { id: "view_sessions", operation_id: "listSessions", availability: "available" },
+        { id: "view_session", operation_id: "getSession", availability: "available" },
+        { id: "view_session_events", operation_id: "listSessionEvents", availability: "available" },
+        { id: "revoke_session", operation_id: "revokeSession", availability: "available" },
       ],
     },
     {
@@ -212,26 +215,26 @@ const expectedMap: MapDocument = {
       id: "compliance",
       label: "Compliance",
       actions: [
-        { id: "view_compliance_controls", operation_id: "listComplianceControls", availability: "api_available" },
-        { id: "view_compliance_evidence", operation_id: "listComplianceEvidence", availability: "api_available" },
-        { id: "create_compliance_export", operation_id: "createComplianceExport", availability: "api_available" },
-        { id: "view_compliance_export", operation_id: "getComplianceExport", availability: "api_available" },
+        { id: "view_compliance_controls", operation_id: "listComplianceControls", availability: "available" },
+        { id: "view_compliance_evidence", operation_id: "listComplianceEvidence", availability: "available" },
+        { id: "create_compliance_export", operation_id: "createComplianceExport", availability: "planned" },
+        { id: "view_compliance_export", operation_id: "getComplianceExport", availability: "planned" },
       ],
     },
     {
       id: "data_controls",
       label: "Data Controls",
       actions: [
-        { id: "view_data_controls", operation_id: "getDataControls", availability: "api_available" },
-        { id: "update_data_controls", operation_id: "updateDataControls", availability: "api_available" },
+        { id: "view_data_controls", operation_id: "getDataControls", availability: "available" },
+        { id: "update_data_controls", operation_id: "updateDataControls", availability: "available" },
       ],
     },
     {
       id: "external_data_flows",
       label: "External Data Flows",
       actions: [
-        { id: "view_external_data_flows", operation_id: "getExternalDataFlows", availability: "api_available" },
-        { id: "update_external_data_flows", operation_id: "updateExternalDataFlows", availability: "api_available" },
+        { id: "view_external_data_flows", operation_id: "getExternalDataFlows", availability: "available" },
+        { id: "update_external_data_flows", operation_id: "updateExternalDataFlows", availability: "planned" },
       ],
     },
   ],
@@ -362,7 +365,7 @@ describe("M1-25 UI API map seed", () => {
     expect(blocked.map(([task]) => task)).toEqual(["M1A-10", "M1A-09", "M1A-08", "M1A-07", "M3-52", "M3-14", "M8-54", "M8-63", "M8-63e", "M8-63d", "M8-63c", "M8-63b", "M8-63a", "M8-62", "M8-62e", "M8-62d", "M8-62c", "M8-62b", "M8-62a", "M8-61", "M8-61a", "M8-60", "M8-60b", "M8-59", "M8-59b", "M8-58", "M8-58b", "M8-53", "M8-52", "M8-52d", "M8-52c", "M8-52b", "M8-52a", "M8-51", "M8-51e", "M8-51d", "M8-51c", "M8-51b", "M8-51a", "M8-46", "M8-45", "M8-39", "M8-38", "M8-38b", "M8-37", "M8-36", "M8-36b", "M8-35", "M8-34", "M8-33", "M8-32", "M8-31", "M8-30", "M8-29", "M8-28", "M8-27", "M8-26", "M8-25", "M0-09", "M0-18", "M0-19"]);
   });
 
-  it("accepts only the exact sixteen-screen, 127-action mixed-lifecycle map", async () => {
+  it("accepts only the exact sixteen-screen, 130-action mixed-lifecycle map", async () => {
     const source = await readFile(resolve(repositoryRoot, "docs/product/ui-api-map.yaml"), "utf8").catch(() => "");
 
     expect(parseStrictMap(source)).toEqual(expectedMap);
@@ -413,6 +416,7 @@ describe("M1-25 UI API map seed", () => {
       "updateEnvironment",
       "getCurrentPrincipal",
       "listMembers",
+      "updateMemberRole",
       "listBuiltInRoles",
       "listSSOConnections",
       "createSSOConnection",
@@ -425,6 +429,7 @@ describe("M1-25 UI API map seed", () => {
       "updateGroupMappings",
       "listAPITokens",
       "createAPIToken",
+      "rotateAPIToken",
       "revokeAPIToken",
       "listAuditEvents",
       "createAuditExport",
@@ -498,6 +503,7 @@ describe("M1-25 UI API map seed", () => {
       "listSessions",
       "getSession",
       "listSessionEvents",
+      "revokeSession",
       "listSecurityAgentTemplates",
       "listSecurityActions",
       "listSecurityAgents",
@@ -540,7 +546,8 @@ describe("M1-25 UI API map seed", () => {
     expect(prose).toContain("`listSystemComponents`");
     expect(prose).toContain("`getSystemVersion`");
     expect(prose).toContain("Home actions are `api_available`");
-    expect(prose).toContain("three System Health actions are now `api_available`");
+    expect(prose).toContain("three System Health actions are `available`");
+    expect(prose).toContain("Twelve provider, export, and external-flow mutations remain `planned`");
     expect(prose).toContain("M1-26 is Complete");
   });
 });

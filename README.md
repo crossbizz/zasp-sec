@@ -99,8 +99,8 @@ npm run ui-api:test
 npm run ui-api:check
 ```
 
-The current honest result is `UI/API coverage passed: planned=0
-api_available=84 available=35 public=119 internal=0.` The gate distinguishes
+The current honest result is `UI/API coverage passed: planned=12
+api_available=63 available=55 public=118 internal=0.` The gate distinguishes
 implemented API contracts from fully wired UI actions.
 M1-36e is Complete and separately owns local infrastructure smoke checks.
 
@@ -971,14 +971,16 @@ or shared-resource I/O occurs during these local verification commands.
 ## UI-to-API map seed
 
 M1-25 seeds the strict checked-in `docs/product/ui-api-map.yaml`. Home maps its
-planned daily-queue and search actions to `getHomeSummary` and `globalSearch`.
+daily-queue and search actions to `getHomeSummary` and `globalSearch`.
 System Health maps overall status, component inventory, and version actions to
 `getSystemStatus`, `listSystemComponents`, and `getSystemVersion`.
 
 The artifact contains only stable screen/action identity and operation IDs.
 Home actions are `api_available` through `getHomeSummary` and `globalSearch`;
-the three System Health actions are now `api_available`. API availability records a
-generated product contract and does not claim a wired UI or provider integration.
+the three System Health actions are `available` through live readiness data. API
+availability records a generated product contract and does not claim a wired UI or
+provider integration. Twelve provider, export, and external-flow mutations remain
+`planned` and absent until their complete durable boundaries exist.
 
 M1-26 adds the reusable bidirectional coverage gate. A `planned` operation must
 remain absent from the current OpenAPI document. An `available` operation must
@@ -994,7 +996,7 @@ npm run ui-api:check
 The current fixed success line is:
 
 ```text
-UI/API coverage passed: planned=0 api_available=84 available=35 public=119 internal=0.
+UI/API coverage passed: planned=12 api_available=63 available=55 public=118 internal=0.
 ```
 
 M5 now has a local MVP slice for normalized Promptfoo attempts, curated packs,
@@ -1007,14 +1009,12 @@ and nine generated product API contracts. These slices do not claim live
 EKS/Fargate, SQS, S3, Neon, egress-proxy, staging, OPA SDK, or runtime-gateway
 integration proof.
 
-M7 now has a local MVP slice for idempotent session projection, structured
-session filtering, mixed-confidence timelines, compliance control/evidence
-freshness, JSON/CSV/human exports, environment data controls, three product
-surfaces, retention, governed external flows, allowlist-only telemetry, bounded
-AI explanations, system health, admin/degraded-state surfaces, and fifteen
-generated product API contracts. OpenSearch-backed filtering, S3 export writing,
-provider persistence/probes/scheduling, and staging verification remain unresolved
-and are not claimed by this local slice.
+M7 now has a durable local slice for structured session filtering,
+mixed-confidence timelines and revocation, compliance control/evidence freshness,
+environment data controls, registered external-flow inventory, and live system
+readiness surfaces. SSO/SCIM administration, audit and compliance exports, data
+deletion jobs, and external-flow mutation remain unavailable until their complete
+provider or job/artifact boundaries exist; those successes are not claimed.
 
 Failure is fixed as `UI/API coverage rejected.` without parser or artifact
 details. Both commands are part of root verification. M1-25 is Complete.

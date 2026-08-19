@@ -28,20 +28,20 @@ describe("M2 identity and administration API batch", () => {
     for (const task of completedTasks) expect(complete).toContain(task);
   });
 
-  it("binds every public operation, provider service, webhook, and deprovision boundary", () => {
+  it("binds durable local operations and leaves incomplete provider administration unmounted", () => {
     const openapi = read("openapi/openapi.yaml");
-    const handler = read("services/platform/identity/http.go");
-    const connections = read("services/platform/identity/connections.go");
-    const webhook = read("services/platform/identity/webhook.go");
+    const composition = read("services/platform/apiserver/composition.go");
+    const view = read("app/features/identity/IdentityAccessView.tsx");
     for (const operation of [
       "getOrganization", "listWorkspaces", "createWorkspace", "getWorkspace", "updateWorkspace", "listEnvironments", "createEnvironment",
-      "getEnvironment", "updateEnvironment", "getCurrentPrincipal", "listMembers", "listBuiltInRoles", "listSSOConnections", "createSSOConnection",
-      "deleteSSOConnection", "testSSOConnection", "listSCIMConnections", "createSCIMConnection", "deleteSCIMConnection",
+      "getEnvironment", "updateEnvironment", "getCurrentPrincipal", "listMembers", "listBuiltInRoles",
     ]) expect(openapi).toContain(`operationId: ${operation}`);
-    expect(handler).toContain("WithConnectionService");
-    expect(connections).toContain("type ConnectionService struct");
-    expect(webhook).toContain("Svix-Signature");
-    expect(webhook).toContain("deprovisionMember");
+    for (const hidden of ["listSSOConnections", "createSSOConnection", "deleteSSOConnection", "testSSOConnection", "listSCIMConnections", "createSCIMConnection", "deleteSCIMConnection"]) {
+      expect(openapi).not.toContain(`operationId: ${hidden}`);
+      expect(composition).not.toContain(`"${hidden}"`);
+    }
+    expect(view).toContain("Unavailable");
+    expect(view).toContain("no complete provider configuration");
   });
 
   it("preserves this batch inside the current M2 completion boundary", () => {
