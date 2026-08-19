@@ -427,6 +427,8 @@ func TestProductionDiscoveryMigrationOwnsScopedRuntimeAuthority(t *testing.T) {
 		"zasp_sensor_heartbeats", "zasp_runtime_batches", "zasp_runtime_stages", "zasp_discovery_jobs",
 		"zasp_discovery_outbox", "zasp_projection_work", "zasp_gateway_devices", "zasp_gateway_enrollment_tokens",
 		"zasp_gateway_credentials", "zasp_gateway_policy_subscriptions", "production_discovery_fingerprint",
+		"zasp_discovery_apply_snapshot", "zasp_discovery_claim_jobs", "zasp_discovery_claim_schedules", "zasp_discovery_claim_projection_work",
+		"zasp_discovery_complete_job", "zasp_discovery_retry_outbox", "zasp_discovery_complete_runtime_stage", "zasp_discovery_gateway_rotate",
 		"production-discovery-v1",
 	} {
 		if !strings.Contains(metadata.UpSQL(), fragment) {

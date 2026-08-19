@@ -8,7 +8,7 @@ BEGIN
         UNION ALL SELECT 'index',table_class.relname||'.'||index_class.relname,jsonb_build_object('definition',regexp_replace(pg_get_indexdef(index_value.indexrelid,0,true),E'\\s+',' ','g'),'unique',index_value.indisunique,'primary',index_value.indisprimary,'exclusion',index_value.indisexclusion,'valid',index_value.indisvalid,'ready',index_value.indisready) FROM pg_index index_value JOIN pg_class table_class ON table_class.oid=index_value.indrelid JOIN pg_class index_class ON index_class.oid=index_value.indexrelid JOIN pg_namespace namespace ON namespace.oid=table_class.relnamespace WHERE namespace.nspname='public' AND left(table_class.relname,5)='zasp_'
         UNION ALL SELECT 'function',procedure.proname||'('||pg_get_function_identity_arguments(procedure.oid)||')',jsonb_build_object('result',pg_get_function_result(procedure.oid),'language',language.lanname,'kind',procedure.prokind,'volatility',procedure.provolatile,'strict',procedure.proisstrict,'security_definer',procedure.prosecdef,'leakproof',procedure.proleakproof,'parallel',procedure.proparallel,'config',COALESCE(to_jsonb(procedure.proconfig),'[]'::jsonb),'body',regexp_replace(btrim(procedure.prosrc),E'\\s+',' ','g')) FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace JOIN pg_language language ON language.oid=procedure.prolang WHERE namespace.nspname='public' AND left(procedure.proname,5)='zasp_'
     ) SELECT encode(digest(convert_to(COALESCE(jsonb_agg(jsonb_build_array(object_kind,object_identity,definition) ORDER BY object_kind,object_identity)::text,'[]'),'UTF8'),'sha256'),'hex') INTO actual_fingerprint FROM semantic_objects;
-    IF actual_fingerprint<>'b23a94a7a0bd8dcac9af0b2440f807900ddd39670ac527dda45b9d511c4fa33b' THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='semantic schema drift blocks rollback'; END IF;
+    IF actual_fingerprint<>'adeb38ce0184bdd83f964f63a4979eb256cc3bce91d7492e5f1082b992a4a0ae' THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='semantic schema drift blocks rollback'; END IF;
 END;
 $rollback_guard$;
 
@@ -28,10 +28,31 @@ DO $migration$ DECLARE definition text; BEGIN
  definition:=replace(definition,'release."name" = ''production_discovery''','release."name" = ''production_risk_projection'''); definition:=replace(definition,'later_release."version" > 10','later_release."version" > 9'); EXECUTE definition;
 END $migration$;
 
-DROP FUNCTION zasp_discovery_readiness();
+DROP FUNCTION zasp_discovery_readiness(text,text);
+DROP FUNCTION zasp_discovery_complete_runtime_stage(text,text,text,text,text,bytea,boolean,text);
+DROP FUNCTION zasp_discovery_create_runtime_batch(text,text,text,text,text,text,text,text,bytea,integer);
+DROP FUNCTION zasp_discovery_sensor_heartbeat(text,text,text,text,bigint,text,bigint,jsonb);
+DROP FUNCTION zasp_discovery_sensor_revoke(text,text,text,text,text);
+DROP FUNCTION zasp_discovery_sensor_rotate(text,text,text,text,text,text,bytea,bytea,timestamptz);
+DROP FUNCTION zasp_discovery_evidence_get(text,text,text,text);
+DROP FUNCTION zasp_discovery_complete_projection(text,text,text,text,text,text,text,text,boolean);
+DROP FUNCTION zasp_discovery_complete_job(text,text,text,text,text,text,bytea,boolean,text);
+DROP FUNCTION zasp_discovery_retry_outbox(text,text,text,text,text,text,integer,text);
+DROP FUNCTION zasp_discovery_put_gateway_policy(text,text,text,text,text,bigint,bytea,bytea,timestamptz,timestamptz,bigint);
+DROP FUNCTION zasp_discovery_gateway_revoke(text,text,text,text,text);
+DROP FUNCTION zasp_discovery_gateway_rotate(text,text,text,text,text,text,text,bytea,timestamptz);
+DROP FUNCTION zasp_discovery_gateway_advance_replay(text,text,text,text,bigint,bigint);
+DROP FUNCTION zasp_discovery_gateway_enroll(text,text,text,text,text,text,bytea,text,text,bytea,timestamptz);
+DROP FUNCTION zasp_discovery_issue_sensor_token(text,text,text,text,text,bytea,bytea,timestamptz);
 DROP FUNCTION zasp_discovery_ack_outbox(text,text,text,text,text,text,text);
+DROP FUNCTION zasp_discovery_claim_projection_work(text,text,integer,integer);
+DROP FUNCTION zasp_discovery_claim_schedules(text,text,integer,integer);
+DROP FUNCTION zasp_discovery_claim_jobs(text,text,integer,integer,text);
 DROP FUNCTION zasp_discovery_claim_outbox(text,text,integer,integer);
 DROP FUNCTION zasp_discovery_entity_page(text,text,text,text,integer);
+DROP FUNCTION zasp_discovery_apply_snapshot(text,text,text,text,text,text,bigint,text,text,bytea,timestamptz,text,text,jsonb,jsonb,jsonb);
+DROP FUNCTION zasp_discovery_request_sync(text,text,text,text,text,text,text,text,text,bytea,text,text,text);
+DROP FUNCTION zasp_discovery_create_integration(text,text,text,text,text,text,text,jsonb,text);
 DROP TABLE zasp_gateway_policy_subscriptions;
 DROP TABLE zasp_gateway_credentials;
 DROP TABLE zasp_gateway_enrollment_tokens;
