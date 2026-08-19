@@ -49,8 +49,24 @@ function ScopeStaleConsumer() {
 }
 
 function ScopeProbe() {
+		const { client } = useAPI();
+		return <button onClick={() => void client.GET("/api/v1/home/summary")}>Probe request scope</button>;
+}
+
+function ScopeSwitchOverlapConsumer() {
+	const session = useSession();
 	const { client } = useAPI();
-	return <button onClick={() => void client.GET("/api/v1/home/summary")}>Probe request scope</button>;
+	return <div>
+		<span>overlap session {session.status}</span>
+		<span>overlap switch {session.scopeSwitch.status}</span>
+		{session.scopeSwitch.error && <span>overlap error {session.scopeSwitch.error.code}</span>}
+		{session.status === "authenticated" && <>
+			<span>overlap environment {session.environmentID}</span>
+			{session.scopes.length > 1 && <button onClick={() => void session.switchScope(session.scopes[1].workspace_id, session.scopes[1].environment_id)}>Start overlapping switch</button>}
+			<button onClick={() => void client.GET("/api/v1/home/summary")}>Trigger overlapping stale scope</button>
+		</>}
+		{session.scopeSwitch.status === "error" && <button onClick={() => void session.scopeSwitch.retry()}>Retry overlapping reconciliation</button>}
+	</div>;
 }
 
 type Deferred<T> = {
@@ -291,6 +307,114 @@ describe("SessionProvider", () => {
 				"pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003",
 				"pid_10000001-0000-4000-8000-000000000001/pid_10000022-0000-4000-8000-000000000022/pid_10000023-0000-4000-8000-000000000023",
 			]);
+		} finally {
+			vi.unstubAllGlobals();
+		}
+	});
+
+	it.each([
+		["success", new Response(null, { status: 204 })],
+		["error", jsonResponse({ code: "provider_unavailable", message: "Provider unavailable", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: true }, 503)],
+	])("lets the newest authoritative target settle a pending switch before its old %s completes", async (_completion, oldSwitchResponse) => {
+		const oldSwitch = deferred<Response>();
+		let bootstrapCalls = 0;
+		const fetch = vi.fn(async (request: Request) => {
+			const path = new URL(request.url).pathname;
+			if (path === "/api/v1/session/bootstrap") {
+				bootstrapCalls += 1;
+				return jsonResponse(sessionBootstrap(bootstrapCalls > 1));
+			}
+			if (path === "/api/v1/session/scopes") return jsonResponse(sessionScopes());
+			if (path === "/api/v1/session/scope") return oldSwitch.promise;
+			if (path === "/api/v1/home/summary") return scopeStaleResponse();
+			throw new Error(`unexpected request ${path}`);
+		});
+		vi.stubGlobal("fetch", fetch);
+		try {
+			render(<APIProvider><SessionProvider><ScopeSwitchOverlapConsumer /></SessionProvider></APIProvider>);
+			await userEvent.click(await screen.findByRole("button", { name: "Start overlapping switch" }));
+			expect(screen.getByText("overlap switch pending")).toBeVisible();
+			await userEvent.click(screen.getByRole("button", { name: "Trigger overlapping stale scope" }));
+
+			await screen.findByText("overlap environment pid_10000023-0000-4000-8000-000000000023");
+			await waitFor(() => expect(screen.getByText("overlap switch idle")).toBeVisible());
+			expect(bootstrapCalls).toBe(2);
+
+			act(() => oldSwitch.resolve(oldSwitchResponse));
+			await act(async () => { await oldSwitch.promise; await Promise.resolve(); });
+			expect(screen.getByText("overlap switch idle")).toBeVisible();
+			expect(screen.getByText("overlap environment pid_10000023-0000-4000-8000-000000000023")).toBeVisible();
+			expect(bootstrapCalls).toBe(2);
+		} finally {
+			vi.unstubAllGlobals();
+		}
+	});
+
+	it("clears pending when the newest authoritative load confirms a different A-B-A scope", async () => {
+		const oldSwitch = deferred<Response>();
+		let bootstrapCalls = 0;
+		const fetch = vi.fn(async (request: Request) => {
+			const path = new URL(request.url).pathname;
+			if (path === "/api/v1/session/bootstrap") {
+				bootstrapCalls += 1;
+				return jsonResponse(sessionBootstrap(false));
+			}
+			if (path === "/api/v1/session/scopes") return jsonResponse(sessionScopes());
+			if (path === "/api/v1/session/scope") return oldSwitch.promise;
+			if (path === "/api/v1/home/summary") return scopeStaleResponse();
+			throw new Error(`unexpected request ${path}`);
+		});
+		vi.stubGlobal("fetch", fetch);
+		try {
+			render(<APIProvider><SessionProvider><ScopeSwitchOverlapConsumer /></SessionProvider></APIProvider>);
+			await userEvent.click(await screen.findByRole("button", { name: "Start overlapping switch" }));
+			await userEvent.click(screen.getByRole("button", { name: "Trigger overlapping stale scope" }));
+
+			await screen.findByText("overlap error scope_not_applied");
+			expect(screen.getByText("overlap switch error")).toBeVisible();
+			expect(screen.getByText("overlap environment pid_10000003-0000-4000-8000-000000000003")).toBeVisible();
+			expect(bootstrapCalls).toBe(2);
+
+			act(() => oldSwitch.resolve(jsonResponse({ code: "provider_unavailable", message: "Provider unavailable", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: true }, 503)));
+			await act(async () => { await oldSwitch.promise; await Promise.resolve(); });
+			expect(screen.getByText("overlap error scope_not_applied")).toBeVisible();
+			expect(bootstrapCalls).toBe(2);
+		} finally {
+			vi.unstubAllGlobals();
+		}
+	});
+
+	it("leaves a failed newest switch-owned load on the reconciliation retry path", async () => {
+		const oldSwitch = deferred<Response>();
+		let bootstrapCalls = 0;
+		const fetch = vi.fn(async (request: Request) => {
+			const path = new URL(request.url).pathname;
+			if (path === "/api/v1/session/bootstrap") {
+				bootstrapCalls += 1;
+				if (bootstrapCalls === 2) return jsonResponse({ code: "provider_unavailable", message: "Provider unavailable", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: true }, 503);
+				return jsonResponse(sessionBootstrap(bootstrapCalls > 2));
+			}
+			if (path === "/api/v1/session/scopes") return jsonResponse(sessionScopes());
+			if (path === "/api/v1/session/scope") return oldSwitch.promise;
+			if (path === "/api/v1/home/summary") return scopeStaleResponse();
+			throw new Error(`unexpected request ${path}`);
+		});
+		vi.stubGlobal("fetch", fetch);
+		try {
+			render(<APIProvider><SessionProvider><ScopeSwitchOverlapConsumer /></SessionProvider></APIProvider>);
+			await userEvent.click(await screen.findByRole("button", { name: "Start overlapping switch" }));
+			await userEvent.click(screen.getByRole("button", { name: "Trigger overlapping stale scope" }));
+
+			await screen.findByText("overlap error scope_reconciliation_failed");
+			expect(screen.getByText("overlap session error")).toBeVisible();
+			await userEvent.click(screen.getByRole("button", { name: "Retry overlapping reconciliation" }));
+			await screen.findByText("overlap environment pid_10000023-0000-4000-8000-000000000023");
+			expect(screen.getByText("overlap switch idle")).toBeVisible();
+
+			act(() => oldSwitch.resolve(jsonResponse({ code: "provider_unavailable", message: "Provider unavailable", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: true }, 503)));
+			await act(async () => { await oldSwitch.promise; await Promise.resolve(); });
+			expect(screen.getByText("overlap switch idle")).toBeVisible();
+			expect(bootstrapCalls).toBe(3);
 		} finally {
 			vi.unstubAllGlobals();
 		}

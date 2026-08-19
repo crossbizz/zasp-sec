@@ -45,6 +45,8 @@ type ScopeSwitchState = {
 type ScopeAttempt = {
   target: ActiveScope;
   next: "reconcile" | "mutate";
+	generation: number;
+	reconcileCause?: unknown;
 };
 
 type SessionLoadOutcome =
@@ -73,11 +75,46 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [stateSessionExpiry, setStateSessionExpiry] = useState(sessionExpiry);
 	const [stateScopeStale, setStateScopeStale] = useState(scopeStale);
   const [scopeSwitch, setScopeSwitch] = useState<ScopeSwitchState>({ status: "idle" });
-  const scopeAttempt = useRef<ScopeAttempt | null>(null);
-  const sessionCSRF = useRef<string | null>(null);
+	const scopeAttempt = useRef<ScopeAttempt | null>(null);
+	const sessionCSRF = useRef<string | null>(null);
 	const latestLoadGeneration = useRef(0);
 	const activeLoad = useRef<AbortController | null>(null);
+	const settleScopeAttempt = useCallback((outcome: { status: "authenticated"; activeScope: ActiveScope } | { status: "failed" }, failureCause?: unknown) => {
+		const attempt = scopeAttempt.current;
+		if (!attempt) return;
+		attempt.generation += 1;
+		if (outcome.status === "failed") {
+			attempt.next = "reconcile";
+			setScopeSwitch({
+				status: "error",
+				error: {
+					code: "scope_reconciliation_failed",
+					message: "The active scope could not be confirmed. Retry reconciliation before resending the switch.",
+					target: attempt.target,
+					cause: failureCause ?? attempt.reconcileCause,
+				},
+			});
+			return;
+		}
+		if (sameScope(outcome.activeScope, attempt.target)) {
+			scopeAttempt.current = null;
+			setScopeSwitch({ status: "idle" });
+			return;
+		}
+		attempt.next = "mutate";
+		setScopeSwitch({
+			status: "error",
+			error: {
+				code: "scope_not_applied",
+				message: "The server confirmed a different active scope. Retry to submit a new switch from that authoritative scope.",
+				target: attempt.target,
+				active: outcome.activeScope,
+				cause: attempt.reconcileCause,
+			},
+		});
+	}, []);
   const loadSession = useCallback(async (expiryVersion: number, scopeStaleVersion: number, publishLoading = false): Promise<SessionLoadOutcome> => {
+		if (getScopeStaleGeneration() !== scopeStaleVersion) return { status: "superseded" };
 		const generation = latestLoadGeneration.current + 1;
 		latestLoadGeneration.current = generation;
 		activeLoad.current?.abort(new DOMException("A newer session recovery started", "AbortError"));
@@ -95,10 +132,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setCSRFToken(null);
 		setRequestScope(null);
         suspendQueryCache();
-        setStateSessionExpiry(expiryVersion);
-		setStateScopeStale(scopeStaleVersion);
-        setState({ status: result.response.status === 401 ? "unauthenticated" : result.response.status === 403 ? "forbidden" : "error", error: result.error });
-		  return { status: "failed" };
+	        setStateSessionExpiry(expiryVersion);
+			setStateScopeStale(scopeStaleVersion);
+	        setState({ status: result.response.status === 401 ? "unauthenticated" : result.response.status === 403 ? "forbidden" : "error", error: result.error });
+			settleScopeAttempt({ status: "failed" }, result.error);
+			  return { status: "failed" };
       }
       const bootstrapValue = requireAPIData(result, decodeSessionBootstrap);
 	  const activeScope = scopeFromBootstrap(bootstrapValue);
@@ -119,23 +157,25 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 	  setRequestScope(activeScopeKey);
       setStateSessionExpiry(expiryVersion);
 	  setStateScopeStale(scopeStaleVersion);
-	  setQueryScope(activeScopeKey);
-      setState(authenticatedState(bootstrapValue, scopes));
-	  return { status: "authenticated", activeScope };
+		  setQueryScope(activeScopeKey);
+	      setState(authenticatedState(bootstrapValue, scopes));
+		  settleScopeAttempt({ status: "authenticated", activeScope });
+		  return { status: "authenticated", activeScope };
     } catch (error) {
 		if (!ownsState()) return { status: "superseded" };
       sessionCSRF.current = null;
       setCSRFToken(null);
 	  setRequestScope(null);
       suspendQueryCache();
-      setStateSessionExpiry(expiryVersion);
-	  setStateScopeStale(scopeStaleVersion);
-      setState({ status: "error", error });
-	  return { status: "failed" };
+		  setStateSessionExpiry(expiryVersion);
+		  setStateScopeStale(scopeStaleVersion);
+	      setState({ status: "error", error });
+		  settleScopeAttempt({ status: "failed" }, error);
+		  return { status: "failed" };
 	} finally {
 		if (latestLoadGeneration.current === generation) activeLoad.current = null;
     }
-  }, [client, getScopeStaleGeneration, setCSRFToken, setRequestScope, setQueryScope, suspendQueryCache]);
+	  }, [client, getScopeStaleGeneration, setCSRFToken, setRequestScope, setQueryScope, settleScopeAttempt, suspendQueryCache]);
   const retry = useCallback(async () => {
 	await loadSession(sessionExpiry, scopeStale, true);
   }, [loadSession, scopeStale, sessionExpiry]);
@@ -169,41 +209,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     window.location.assign(buildSignInURL(returnTo ?? `${window.location.pathname}${window.location.search}`));
   }, []);
   const reconcileScope = useCallback(async (attempt: ScopeAttempt, cause?: unknown) => {
+	if (scopeAttempt.current !== attempt) return;
     attempt.next = "reconcile";
-	const outcome = await loadSession(sessionExpiry, scopeStale);
-	if (outcome.status === "superseded") return;
-	if (outcome.status === "failed") {
-      setScopeSwitch({
-        status: "error",
-        error: {
-          code: "scope_reconciliation_failed",
-          message: "The active scope could not be confirmed. Retry reconciliation before resending the switch.",
-          target: attempt.target,
-          cause,
-        },
-      });
-      return;
-    }
-	const active = outcome.activeScope;
-	if (sameScope(active, attempt.target)) {
-      scopeAttempt.current = null;
-      setScopeSwitch({ status: "idle" });
-      return;
-    }
-    attempt.next = "mutate";
-    setScopeSwitch({
-      status: "error",
-      error: {
-        code: "scope_not_applied",
-        message: "The server confirmed a different active scope. Retry to submit a new switch from that authoritative scope.",
-        target: attempt.target,
-        active,
-        cause,
-      },
-    });
-  }, [loadSession, scopeStale, sessionExpiry]);
+	attempt.reconcileCause = cause;
+	await loadSession(sessionExpiry, scopeStale);
+	  }, [loadSession, scopeStale, sessionExpiry]);
   const submitScopeSwitch = useCallback(async (attempt: ScopeAttempt) => {
     if (!sessionCSRF.current) throw new Error("Session CSRF token is unavailable");
+	const attemptGeneration = attempt.generation;
     setScopeSwitch({ status: "pending" });
     let mutationError: unknown;
     try {
@@ -215,7 +228,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       mutationError = error;
     }
+	if (scopeAttempt.current !== attempt || attempt.generation !== attemptGeneration) return;
     attempt.next = "reconcile";
+	attempt.reconcileCause = mutationError;
     sessionCSRF.current = null;
     setCSRFToken(null);
 	setRequestScope(null);
@@ -231,9 +246,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         organizationID: selected.organization_id,
         workspaceID: selected.workspace_id,
         environmentID: selected.environment_id,
-      },
-      next: "mutate",
-    };
+	      },
+	      next: "mutate",
+		  generation: 0,
+	    };
     scopeAttempt.current = attempt;
     await submitScopeSwitch(attempt);
   }, [state, submitScopeSwitch]);
