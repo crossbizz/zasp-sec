@@ -96,6 +96,24 @@ func ProductionWorkflows() Metadata {
 	return Metadata{version: workflowVersion, name: workflowName, checksum: hex.EncodeToString(digest[:]), up: up, down: down}
 }
 
+func ProductionWorkflowsSemanticFingerprint() string {
+	const marker = "'production_workflows_fingerprint', '"
+	start := strings.Index(workflowUpSQL, marker)
+	if start < 0 {
+		return ""
+	}
+	start += len(marker)
+	if len(workflowUpSQL) < start+64 {
+		return ""
+	}
+	value := workflowUpSQL[start : start+64]
+	decoded, err := hex.DecodeString(value)
+	if err != nil || len(decoded) != sha256.Size || len(workflowUpSQL) == start+64 || workflowUpSQL[start+64] != '\'' {
+		return ""
+	}
+	return value
+}
+
 func (metadata Metadata) Version() int64   { return metadata.version }
 func (metadata Metadata) Name() string     { return metadata.name }
 func (metadata Metadata) Checksum() string { return metadata.checksum }

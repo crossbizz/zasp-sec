@@ -245,6 +245,9 @@ func TestProductionWorkflowsMetadataOwnsAtomicScopedWorkflowState(t *testing.T) 
 	if metadata.UpSQL() == "" || metadata.DownSQL() == "" || ProductionWorkflows() != metadata {
 		t.Fatal("production workflows migration assets are missing or unstable")
 	}
+	if fingerprint := ProductionWorkflowsSemanticFingerprint(); len(fingerprint) != 64 || !strings.Contains(metadata.UpSQL(), fingerprint) {
+		t.Fatalf("production workflow semantic fingerprint = %q", fingerprint)
+	}
 }
 
 func TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsAndDrift(t *testing.T) {

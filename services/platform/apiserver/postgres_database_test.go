@@ -20,13 +20,16 @@ func TestPostgresSchemaReadinessRequiresExactWorkflowRelease(t *testing.T) {
 	if !strings.Contains(postgresSchemaVersionSQL, "release.version = 3") || !strings.Contains(postgresSchemaVersionSQL, "release.name = 'production_workflows'") {
 		t.Fatalf("schema readiness query does not require workflow release: %s", postgresSchemaVersionSQL)
 	}
-	for _, fragment := range []string{"zasp_workflow_replay(text,text,text,text,text,text,jsonb)", "zasp_workflow_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text)", "pg_attribute", "pg_constraint", "authenticated_at", "zasp_effective_scope_permissions(jsonb,text)"} {
+	for _, fragment := range []string{"pg_get_expr", "pg_get_constraintdef", "pg_get_indexdef", "prosrc", "provolatile", "prosecdef", "attnotnull", "format_type", "production_workflows_fingerprint"} {
 		if !strings.Contains(postgresSchemaVersionSQL, fragment) {
 			t.Fatalf("schema readiness query missing exact fingerprint %q: %s", fragment, postgresSchemaVersionSQL)
 		}
 	}
 	if expectedCoreSchemaChecksum() != migrations.ProductionWorkflows().Checksum() {
 		t.Fatal("schema readiness checksum is not the workflow release checksum")
+	}
+	if expectedCoreSchemaFingerprint() != migrations.ProductionWorkflowsSemanticFingerprint() || len(expectedCoreSchemaFingerprint()) != 64 {
+		t.Fatal("schema readiness fingerprint is not derived from the workflow migration")
 	}
 }
 
@@ -43,7 +46,7 @@ func TestPostgresJSONDatabaseRunsSchemaReadAndWriteBoundaries(t *testing.T) {
 	if err != nil || version != CoreSchemaVersion {
 		t.Fatalf("version = (%q, %v)", version, err)
 	}
-	if !reflect.DeepEqual(driver.queryArguments, []any{expectedCoreSchemaChecksum()}) {
+	if !reflect.DeepEqual(driver.queryArguments, []any{expectedCoreSchemaChecksum(), expectedCoreSchemaFingerprint()}) {
 		t.Fatalf("schema checksum arguments = %#v", driver.queryArguments)
 	}
 	payload, err := database.QueryJSON(context.Background(), "SELECT payload", "organization")

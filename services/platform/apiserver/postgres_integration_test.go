@@ -202,6 +202,82 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 	if err := restartedRepository.Ready(ctx); err != nil {
 		t.Fatalf("restored schema readiness: %v", err)
 	}
+	var originalMutationFunction string
+	if err := restartedConnection.QueryRow(ctx, `SELECT pg_get_functiondef('public.zasp_workflow_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text)'::regprocedure)`).Scan(&originalMutationFunction); err != nil {
+		t.Fatalf("capture mutation function: %v", err)
+	}
+	if _, err := restartedConnection.Exec(ctx, `CREATE OR REPLACE FUNCTION public.zasp_workflow_mutate(mutation text, requested_kind text, requested_id text, requested_organization_id text, requested_workspace_id text, requested_environment_id text, requested_principal_id text, requested_operation text, requested_idempotency_key text, expected_version bigint, requested_intent jsonb, requested_body jsonb, requested_audit_id text, requested_correlation_id text) RETURNS jsonb LANGUAGE plpgsql AS $$ BEGIN RETURN '{}'::jsonb; END $$`); err != nil {
+		t.Fatalf("introduce mutation function drift: %v", err)
+	}
+	if err := restartedRepository.Ready(ctx); !errors.Is(err, ErrRepositoryUnavailable) {
+		t.Fatalf("mutation function drift readiness = %v", err)
+	}
+	if _, err := restartedConnection.Exec(ctx, originalMutationFunction); err != nil {
+		t.Fatalf("restore mutation function: %v", err)
+	}
+	if err := restartedRepository.Ready(ctx); err != nil {
+		t.Fatalf("restored mutation function readiness: %v", err)
+	}
+	if _, err := restartedConnection.Exec(ctx, `ALTER TABLE zasp_authorized_scopes ALTER COLUMN permissions DROP NOT NULL`); err != nil {
+		t.Fatalf("introduce authorization drift: %v", err)
+	}
+	if err := restartedRepository.Ready(ctx); !errors.Is(err, ErrRepositoryUnavailable) {
+		t.Fatalf("authorization drift readiness = %v", err)
+	}
+	if _, err := restartedConnection.Exec(ctx, `ALTER TABLE zasp_authorized_scopes ALTER COLUMN permissions SET NOT NULL`); err != nil {
+		t.Fatalf("restore authorization schema: %v", err)
+	}
+	if err := restartedRepository.Ready(ctx); err != nil {
+		t.Fatalf("restored authorization readiness: %v", err)
+	}
+	if _, err := restartedConnection.Exec(ctx, `ALTER TABLE zasp_authorized_scopes ALTER COLUMN label TYPE varchar(128)`); err != nil {
+		t.Fatalf("introduce authorization type drift: %v", err)
+	}
+	if err := restartedRepository.Ready(ctx); !errors.Is(err, ErrRepositoryUnavailable) {
+		t.Fatalf("authorization type drift readiness = %v", err)
+	}
+	if _, err := restartedConnection.Exec(ctx, `ALTER TABLE zasp_authorized_scopes ALTER COLUMN label TYPE text`); err != nil {
+		t.Fatalf("restore authorization type: %v", err)
+	}
+	if _, err := restartedConnection.Exec(ctx, `ALTER TABLE zasp_workflow_records ALTER COLUMN version SET DEFAULT 2`); err != nil {
+		t.Fatalf("introduce workflow default drift: %v", err)
+	}
+	if err := restartedRepository.Ready(ctx); !errors.Is(err, ErrRepositoryUnavailable) {
+		t.Fatalf("workflow default drift readiness = %v", err)
+	}
+	if _, err := restartedConnection.Exec(ctx, `ALTER TABLE zasp_workflow_records ALTER COLUMN version SET DEFAULT 1`); err != nil {
+		t.Fatalf("restore workflow default: %v", err)
+	}
+	var constraintName, constraintDefinition string
+	if err := restartedConnection.QueryRow(ctx, `SELECT conname, pg_get_constraintdef(oid, true) FROM pg_constraint WHERE conrelid = 'public.zasp_workflow_records'::regclass AND contype = 'c' AND pg_get_constraintdef(oid, true) LIKE '%kind%'`).Scan(&constraintName, &constraintDefinition); err != nil {
+		t.Fatalf("capture workflow constraint: %v", err)
+	}
+	constraintIdentifier := pgx.Identifier{constraintName}.Sanitize()
+	if _, err := restartedConnection.Exec(ctx, `ALTER TABLE zasp_workflow_records DROP CONSTRAINT `+constraintIdentifier); err != nil {
+		t.Fatalf("introduce workflow constraint drift: %v", err)
+	}
+	if err := restartedRepository.Ready(ctx); !errors.Is(err, ErrRepositoryUnavailable) {
+		t.Fatalf("workflow constraint drift readiness = %v", err)
+	}
+	if _, err := restartedConnection.Exec(ctx, `ALTER TABLE zasp_workflow_records ADD CONSTRAINT `+constraintIdentifier+` `+constraintDefinition); err != nil {
+		t.Fatalf("restore workflow constraint: %v", err)
+	}
+	var indexDefinition string
+	if err := restartedConnection.QueryRow(ctx, `SELECT pg_get_indexdef('public.zasp_workflow_records_list_idx'::regclass, 0, true)`).Scan(&indexDefinition); err != nil {
+		t.Fatalf("capture workflow index: %v", err)
+	}
+	if _, err := restartedConnection.Exec(ctx, `DROP INDEX zasp_workflow_records_list_idx`); err != nil {
+		t.Fatalf("introduce workflow index drift: %v", err)
+	}
+	if err := restartedRepository.Ready(ctx); !errors.Is(err, ErrRepositoryUnavailable) {
+		t.Fatalf("workflow index drift readiness = %v", err)
+	}
+	if _, err := restartedConnection.Exec(ctx, indexDefinition); err != nil {
+		t.Fatalf("restore workflow index: %v", err)
+	}
+	if err := restartedRepository.Ready(ctx); err != nil {
+		t.Fatalf("fully restored semantic readiness: %v", err)
+	}
 	if err := restartedRepository.Revoke(ctx, identity, session); err != nil {
 		t.Fatalf("revoke: %v", err)
 	}

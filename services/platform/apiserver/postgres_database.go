@@ -11,36 +11,86 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
 
-const postgresSchemaVersionSQL = `SELECT metadata.value
+const postgresSchemaVersionSQL = `WITH semantic_objects AS (
+    SELECT 'table'::text AS object_kind, class.relname::text AS object_identity,
+           jsonb_build_object('row_security', class.relrowsecurity, 'force_row_security', class.relforcerowsecurity, 'persistence', class.relpersistence) AS definition
+      FROM pg_class AS class
+      JOIN pg_namespace AS namespace ON namespace.oid = class.relnamespace
+     WHERE namespace.nspname = 'public' AND left(class.relname, 5) = 'zasp_' AND class.relkind IN ('r', 'p')
+    UNION ALL
+    SELECT 'column', class.relname || '.' || attribute.attnum || '.' || attribute.attname,
+           jsonb_build_object(
+             'type', format_type(attribute.atttypid, attribute.atttypmod),
+             'not_null', attribute.attnotnull,
+             'default', COALESCE(regexp_replace(pg_get_expr(default_value.adbin, default_value.adrelid, true), E'\\s+', ' ', 'g'), ''),
+             'identity', attribute.attidentity,
+             'generated', attribute.attgenerated,
+             'collation', CASE WHEN attribute.attcollation = 0 THEN '' ELSE attribute.attcollation::regcollation::text END)
+      FROM pg_attribute AS attribute
+      JOIN pg_class AS class ON class.oid = attribute.attrelid
+      JOIN pg_namespace AS namespace ON namespace.oid = class.relnamespace
+      LEFT JOIN pg_attrdef AS default_value ON default_value.adrelid = attribute.attrelid AND default_value.adnum = attribute.attnum
+     WHERE namespace.nspname = 'public' AND left(class.relname, 5) = 'zasp_' AND class.relkind IN ('r', 'p')
+       AND attribute.attnum > 0 AND NOT attribute.attisdropped
+    UNION ALL
+    SELECT 'constraint', class.relname || '.' || constraint_value.conname,
+           jsonb_build_object(
+             'type', constraint_value.contype,
+             'definition', regexp_replace(pg_get_constraintdef(constraint_value.oid, true), E'\\s+', ' ', 'g'),
+             'deferrable', constraint_value.condeferrable,
+             'deferred', constraint_value.condeferred,
+             'validated', constraint_value.convalidated)
+      FROM pg_constraint AS constraint_value
+      JOIN pg_class AS class ON class.oid = constraint_value.conrelid
+      JOIN pg_namespace AS namespace ON namespace.oid = class.relnamespace
+     WHERE namespace.nspname = 'public' AND left(class.relname, 5) = 'zasp_'
+    UNION ALL
+    SELECT 'index', table_class.relname || '.' || index_class.relname,
+           jsonb_build_object(
+             'definition', regexp_replace(pg_get_indexdef(index_value.indexrelid, 0, true), E'\\s+', ' ', 'g'),
+             'unique', index_value.indisunique,
+             'primary', index_value.indisprimary,
+             'exclusion', index_value.indisexclusion,
+             'valid', index_value.indisvalid,
+             'ready', index_value.indisready)
+      FROM pg_index AS index_value
+      JOIN pg_class AS table_class ON table_class.oid = index_value.indrelid
+      JOIN pg_class AS index_class ON index_class.oid = index_value.indexrelid
+      JOIN pg_namespace AS namespace ON namespace.oid = table_class.relnamespace
+     WHERE namespace.nspname = 'public' AND left(table_class.relname, 5) = 'zasp_'
+    UNION ALL
+    SELECT 'function', procedure.proname || '(' || pg_get_function_identity_arguments(procedure.oid) || ')',
+           jsonb_build_object(
+             'result', pg_get_function_result(procedure.oid),
+             'language', language.lanname,
+             'kind', procedure.prokind,
+             'volatility', procedure.provolatile,
+             'strict', procedure.proisstrict,
+             'security_definer', procedure.prosecdef,
+             'leakproof', procedure.proleakproof,
+             'parallel', procedure.proparallel,
+             'config', COALESCE(to_jsonb(procedure.proconfig), '[]'::jsonb),
+             'body', regexp_replace(btrim(procedure.prosrc), E'\\s+', ' ', 'g'))
+      FROM pg_proc AS procedure
+      JOIN pg_namespace AS namespace ON namespace.oid = procedure.pronamespace
+      JOIN pg_language AS language ON language.oid = procedure.prolang
+     WHERE namespace.nspname = 'public' AND left(procedure.proname, 5) = 'zasp_'
+), semantic_fingerprint AS (
+    SELECT encode(digest(convert_to(COALESCE(jsonb_agg(jsonb_build_array(object_kind, object_identity, definition) ORDER BY object_kind, object_identity)::text, '[]'), 'UTF8'), 'sha256'), 'hex') AS value
+      FROM semantic_objects
+)
+SELECT metadata.value
 FROM zasp_schema_metadata AS metadata
 JOIN zasp_schema_versions AS release ON release.version = 3 AND release.name = 'production_workflows'
-WHERE metadata.key = 'production_core_schema' AND release.checksum = $1
-  AND to_regclass('public.zasp_workflow_records') IS NOT NULL
-  AND to_regclass('public.zasp_workflow_idempotency') IS NOT NULL
-  AND to_regclass('public.zasp_workflow_audit') IS NOT NULL
-  AND to_regclass('public.zasp_workflow_records_list_idx') IS NOT NULL
-  AND to_regprocedure('public.zasp_workflow_list(text,text,text,text,text,text)') IS NOT NULL
-  AND to_regprocedure('public.zasp_workflow_get(text,text,text,text,text)') IS NOT NULL
-  AND to_regprocedure('public.zasp_workflow_replay(text,text,text,text,text,text,jsonb)') IS NOT NULL
-  AND to_regprocedure('public.zasp_workflow_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text)') IS NOT NULL
-  AND to_regprocedure('public.zasp_effective_scope_permissions(jsonb,text)') IS NOT NULL
-  AND (SELECT array_agg(attribute.attname ORDER BY attribute.attnum)
-         FROM pg_attribute AS attribute
-        WHERE attribute.attrelid = 'public.zasp_workflow_records'::regclass AND attribute.attnum > 0 AND NOT attribute.attisdropped)
-      = ARRAY['organization_id','workspace_id','environment_id','kind','id','version','body','secret_generation','deleted_at','created_at','updated_at']::name[]
-  AND (SELECT array_agg(attribute.attname ORDER BY attribute.attnum)
-         FROM pg_attribute AS attribute
-        WHERE attribute.attrelid = 'public.zasp_workflow_idempotency'::regclass AND attribute.attnum > 0 AND NOT attribute.attisdropped)
-      = ARRAY['organization_id','workspace_id','environment_id','principal_id','operation','idempotency_key','request_digest','response','created_at']::name[]
-  AND (SELECT array_agg(attribute.attname ORDER BY attribute.attnum)
-         FROM pg_attribute AS attribute
-        WHERE attribute.attrelid = 'public.zasp_workflow_audit'::regclass AND attribute.attnum > 0 AND NOT attribute.attisdropped)
-      = ARRAY['organization_id','workspace_id','environment_id','audit_id','correlation_id','principal_id','operation','resource_kind','resource_id','resource_version','created_at']::name[]
-  AND (SELECT count(*) FROM pg_constraint WHERE conrelid = 'public.zasp_workflow_records'::regclass AND contype = 'c') = 4
-  AND (SELECT count(*) FROM pg_constraint WHERE conrelid = 'public.zasp_workflow_idempotency'::regclass AND contype = 'c') = 1
-  AND EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'public.zasp_product_sessions'::regclass AND attname = 'authenticated_at' AND attnotnull AND NOT attisdropped)`
+JOIN zasp_schema_metadata AS expected_fingerprint ON expected_fingerprint.key = 'production_workflows_fingerprint'
+CROSS JOIN semantic_fingerprint
+WHERE metadata.key = 'production_core_schema' AND metadata.value = 'production-workflows-v1'
+  AND release.checksum = $1 AND expected_fingerprint.value = $2 AND semantic_fingerprint.value = $2`
 
 func expectedCoreSchemaChecksum() string { return migrations.ProductionWorkflows().Checksum() }
+func expectedCoreSchemaFingerprint() string {
+	return migrations.ProductionWorkflowsSemanticFingerprint()
+}
 
 type PostgresRow interface{ Scan(...any) error }
 
@@ -73,7 +123,7 @@ func (database *PostgresJSONDatabase) SchemaVersion(ctx context.Context) (string
 		return "", ErrRepositoryUnavailable
 	}
 	var version string
-	if err := database.driver.QueryRow(ctx, postgresSchemaVersionSQL, expectedCoreSchemaChecksum()).Scan(&version); err != nil {
+	if err := database.driver.QueryRow(ctx, postgresSchemaVersionSQL, expectedCoreSchemaChecksum(), expectedCoreSchemaFingerprint()).Scan(&version); err != nil {
 		return "", classifyPostgresError(err)
 	}
 	if version == "" {

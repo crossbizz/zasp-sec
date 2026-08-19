@@ -217,5 +217,8 @@ BEGIN
 END;
 $$;
 
+INSERT INTO "public"."zasp_schema_metadata" ("key", "value")
+VALUES ('production_workflows_fingerprint', '273847f5dd0db07612b058bbaf6aa4759c9cc852d63333ba5b3df6ee366b3887');
+
 UPDATE "public"."zasp_schema_metadata" SET "value" = 'production-workflows-v1', "applied_at" = transaction_timestamp()
 WHERE "key" = 'production_core_schema' AND "value" = 'production-core-v1';
