@@ -303,10 +303,11 @@ try {
   });
   assert.equal(browserTokenInventory.status, 200, JSON.stringify(browserTokenInventory.body));
   assert.equal(browserTokenInventory.body.items.length, 1);
+  await waitForBrowserText(browser.cdp, /New credentials use the authenticated active scope/);
+  assert.equal(await browserLabeledControlDisabled(browser.cdp, "Workspace ID"), null, "token create exposed an editable workspace ID");
+  assert.equal(await browserLabeledControlDisabled(browser.cdp, "Environment ID"), null, "token create exposed an editable environment ID");
 
   await fillBrowserLabel(browser.cdp, "Token name", "Accessibility token");
-  await fillBrowserLabel(browser.cdp, "Workspace ID", "pid_10000002-0000-4000-8000-000000000002");
-  await fillBrowserLabel(browser.cdp, "Environment ID", "pid_10000003-0000-4000-8000-000000000003");
   await clickBrowserText(browser.cdp, "Create API token");
   const accessibleTokenOutcome = await waitForBrowserText(browser.cdp, /Save API token|Create response was interrupted/);
   assert.match(accessibleTokenOutcome, /Save API token/, `accessible token create failed: ${JSON.stringify(administrationRequests.slice(-8))}`);
@@ -316,13 +317,23 @@ try {
   await waitForBrowserActive(browser.cdp, "Copy token");
   await clickBrowserText(browser.cdp, "Copy token");
   assert.match(await waitForBrowserText(browser.cdp, /Token copied to clipboard|Copy failed/), /Token copied to clipboard|Copy failed/);
+  await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1", "-c", `UPDATE zasp_product_sessions SET authenticated_at=transaction_timestamp()-interval '10 minutes' WHERE principal_id='pid_10000004-0000-4000-8000-000000000004' AND revoked_at IS NULL;`]);
+  await clickBrowserText(browser.cdp, "I saved it — destroy recovery copy");
+  await waitForBrowserText(browser.cdp, /revealed token was cleared/);
+  assert.doesNotMatch(await browserBodyText(browser.cdp), /zasp_pat_[A-Za-z0-9_-]{43}/, "fresh-auth expiry left a raw token in the document");
+  assert.equal(await browserHasInteractiveText(browser.cdp, /^Copy token$/), false, "fresh-auth expiry left token copy enabled");
+  await clickBrowserText(browser.cdp, "Reauthenticate");
+  await waitForBrowserText(browser.cdp, /Continue through the configured identity provider/);
+  await clickBrowserText(browser.cdp, "Continue to sign in");
+  await waitForBrowserText(browser.cdp, /Created token/);
+  assert.equal(identityOAuthStarts, 3, "token-dialog reauthentication did not use the provider-faithful flow");
+  await clickBrowserText(browser.cdp, "Reveal token");
+  await waitForBrowserText(browser.cdp, /Save API token/);
   await clickBrowserText(browser.cdp, "I saved it — destroy recovery copy");
   await waitForBrowserMissing(browser.cdp, '[aria-label="Save API token"]');
   await waitForBrowserActive(browser.cdp, "Create API token");
 
   await fillBrowserLabel(browser.cdp, "Token name", "E2E API token");
-  await fillBrowserLabel(browser.cdp, "Workspace ID", "pid_10000002-0000-4000-8000-000000000002");
-  await fillBrowserLabel(browser.cdp, "Environment ID", "pid_10000003-0000-4000-8000-000000000003");
   lostTokenResponses.create = true;
   await clickBrowserText(browser.cdp, "Create API token");
   const tokenCreateOutcome = await waitForBrowserText(browser.cdp, /Create response was interrupted/);
