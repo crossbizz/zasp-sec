@@ -31,6 +31,8 @@ let observedSessionCookie = false;
 const lostPolicyResponseKeys = [];
 const workflowPageRequests = { policies: [], integrations: [] };
 const riskPageRequests = { findings: [], attackPaths: [] };
+const riskRecoverySequence = [];
+const delayedRiskDetailResponses = [];
 const lostFindingResponseKeys = [];
 const productAPIRequests = [];
 const browserConsoleErrors = [];
@@ -49,6 +51,8 @@ const scopeOverlapProof = {
 let injectLaterReceiptOnNextAcknowledgement = false;
 let expireNextReceiptBeforeAcknowledgement = false;
 let loseNextFindingResponse = true;
+let failNextRiskRecoveryRefetch = false;
+let delayRiskDetailResponses = false;
 let proxyFailure;
 const cleanupController = installBoundedSignalCleanup(cleanupOwnedResources);
 
@@ -206,12 +210,29 @@ try {
   await clickBrowserText(browser.cdp, "Mark under review");
   await waitForBrowserText(browser.cdp, /network error/);
   assert.equal(lostFindingResponseKeys.length, 1, "committed finding response was not interrupted exactly once");
+  await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1", "-c", `UPDATE zasp_authorized_scopes SET permissions='["view","manage_workflows"]'::jsonb WHERE principal_id='pid_10000004-0000-4000-8000-000000000004' AND organization_id='pid_10000001-0000-4000-8000-000000000001' AND workspace_id='pid_10000002-0000-4000-8000-000000000002' AND environment_id='pid_10000003-0000-4000-8000-000000000003'; UPDATE zasp_product_sessions SET permissions='["view","manage_workflows"]'::jsonb WHERE principal_id='pid_10000004-0000-4000-8000-000000000004' AND revoked_at IS NULL;`]);
   await reloadBrowser(browser.cdp);
   const recoveredFinding = await waitForBrowserText(browser.cdp, /Recover committed operations/);
   assert.match(recoveredFinding, /Update Finding/);
   assert.match(recoveredFinding, /Production credential exposure 0001/);
+  assert.equal(await browserHasInteractiveText(browser.cdp, /^(?:Mark under review|Accept risk|Retry retained finding update|Retry retained risk acceptance)$/i), false, "findings.write downgrade retained an interactive mutation or retry");
+  const downgradedPatchCount = productAPIRequests.filter((request) => request.method === "PATCH" && request.path === "/api/v1/findings/pid_30000001-0000-4000-8000-000000000001").length;
+  await delay(100);
+  assert.equal(productAPIRequests.filter((request) => request.method === "PATCH" && request.path === "/api/v1/findings/pid_30000001-0000-4000-8000-000000000001").length, downgradedPatchCount, "capability downgrade emitted a hidden finding retry");
+  riskRecoverySequence.length = 0;
+  failNextRiskRecoveryRefetch = true;
+  await clickBrowserText(browser.cdp, "Acknowledge recovered result");
+  await waitForBrowserText(browser.cdp, /Injected authoritative refetch failure/);
+  assert.match(await browserBodyText(browser.cdp), /Recover committed operations/);
+  assert.equal(riskRecoverySequence.some((event) => event.startsWith("POST:")), false, "failed authoritative refetch still issued receipt ACK");
   await clickBrowserText(browser.cdp, "Acknowledge recovered result");
   await waitForBrowserMissing(browser.cdp, '[aria-label="Mutation recovery"]');
+  const refetchIndex = riskRecoverySequence.findIndex((event) => event === "GET:200");
+  const acknowledgementIndex = riskRecoverySequence.findIndex((event) => event === "POST:204");
+  assert.ok(refetchIndex >= 0 && acknowledgementIndex > refetchIndex, `receipt ACK did not follow authoritative refetch: ${riskRecoverySequence.join(",")}`);
+  await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1", "-c", `UPDATE zasp_authorized_scopes SET permissions='["view","manage_workflows","manage_findings"]'::jsonb WHERE principal_id='pid_10000004-0000-4000-8000-000000000004' AND organization_id='pid_10000001-0000-4000-8000-000000000001' AND workspace_id='pid_10000002-0000-4000-8000-000000000002' AND environment_id='pid_10000003-0000-4000-8000-000000000003'; UPDATE zasp_product_sessions SET permissions='["view","manage_workflows","manage_findings"]'::jsonb WHERE principal_id='pid_10000004-0000-4000-8000-000000000004' AND revoked_at IS NULL;`]);
+  await reloadBrowser(browser.cdp);
+  await waitForBrowserText(browser.cdp, /Production credential exposure 0102/);
   await clickBrowserText(browser.cdp, "Production credential exposure 0001");
   const recoveredDetail = await waitForBrowserText(browser.cdp, /version 2/);
   assert.match(recoveredDetail, /under review/);
@@ -231,11 +252,34 @@ try {
   assert.equal(await browserCountAriaPrefix(browser.cdp, "Open attack path"), 102, "attack-path UI did not traverse exactly 102 stable IDs");
   assert.equal(riskPageRequests.attackPaths.length, 2, "attack-path UI did not perform exactly two signed-keyset page requests");
   await assertResponsiveRiskLayout(browser.cdp, "Attack Paths");
+  delayedRiskDetailResponses.length = 0;
+  delayRiskDetailResponses = true;
   await clickBrowserAria(browser.cdp, "Open attack path pid_40000001-0000-4000-8000-000000000001");
-  const pathDetail = await waitForBrowserText(browser.cdp, /Remove node/);
+  await waitForScopeOverlap(() => delayedRiskDetailResponses.length === 2 && delayedRiskDetailResponses.every((entry) => entry.ready), "attack-path detail responses were not captured");
+  const initialPathDetail = await waitForBrowserText(browser.cdp, /Loading path detail/);
+  assert.match(initialPathDetail, /Loading break options/);
+  releaseRiskDetailResponse("path");
+  const partialPathDetail = await waitForBrowserText(browser.cdp, /State verified/);
+  assert.match(partialPathDetail, /Loading break options/);
+  releaseRiskDetailResponse("options", { status: 503, body: JSON.stringify({ code: "dependency_unavailable", message: "Injected break-option failure", retryable: true, correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee" }) });
+  const pathDetail = await waitForBrowserText(browser.cdp, /Injected break-option failure/);
   assert.match(pathDetail, /pid_70000001-0000-4000-8000-000000000001/, "Ranked break option evidence was not rendered");
   assert.doesNotMatch(pathDetail, /ticket|rerun|simulate/i);
   await clickBrowserAria(browser.cdp, "Close");
+
+  delayedRiskDetailResponses.length = 0;
+  delayRiskDetailResponses = true;
+  await clickBrowserAria(browser.cdp, "Open attack path pid_40000001-0000-4000-8000-000000000001");
+  await waitForScopeOverlap(() => delayedRiskDetailResponses.length === 2 && delayedRiskDetailResponses.every((entry) => entry.ready), "cancellable attack-path responses were not captured");
+  await waitForBrowserText(browser.cdp, /Loading path detail/);
+  await navigateBrowser(browser.cdp, `${publicOrigin}/violations`);
+  await waitForBrowserText(browser.cdp, /Production credential exposure 0102/);
+  await waitForScopeOverlap(() => delayedRiskDetailResponses.every((entry) => entry.closed), "route unmount did not abort both attack-path detail responses");
+  assert.equal((await browserBodyText(browser.cdp)).includes("Attack path detail"), false, "late attack-path response remained visible after route unmount");
+  delayRiskDetailResponses = false;
+  delayedRiskDetailResponses.length = 0;
+  await navigateBrowser(browser.cdp, `${publicOrigin}/exposure/attack-paths`);
+  await waitForBrowserText(browser.cdp, /pid_50000102-0000-4000-8000-000000000102/);
   await selectBrowserOption(browser.cdp, "Authorized scope", "Staging");
   await waitForBrowserSelectedOption(browser.cdp, "Authorized scope", "Staging");
   await waitForBrowserText(browser.cdp, /pid_80000002-0000-4000-8000-000000000002/);
@@ -828,6 +872,16 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
     if (request.method === "GET" && target.pathname === "/api/v1/integrations") workflowPageRequests.integrations.push(target.search);
     if (request.method === "GET" && target.pathname === "/api/v1/findings") riskPageRequests.findings.push(target.search);
     if (request.method === "GET" && target.pathname === "/api/v1/attack-paths") riskPageRequests.attackPaths.push(target.search);
+    const findingRecoveryRefetch = request.method === "GET" && target.pathname === "/api/v1/findings/pid_30000001-0000-4000-8000-000000000001";
+    const riskDetailKind = request.method === "GET" && target.pathname === "/api/v1/attack-paths/pid_40000001-0000-4000-8000-000000000001" ? "path"
+      : request.method === "GET" && target.pathname === "/api/v1/attack-paths/pid_40000001-0000-4000-8000-000000000001/break-options" ? "options" : undefined;
+    if (findingRecoveryRefetch && failNextRiskRecoveryRefetch) {
+      failNextRiskRecoveryRefetch = false;
+      riskRecoverySequence.push("GET:503");
+      response.writeHead(503, { "content-type": "application/json", "cache-control": "no-store" });
+      response.end(JSON.stringify({ code: "dependency_unavailable", message: "Injected authoritative refetch failure", retryable: true, correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee" }));
+      return;
+    }
     if (receiptAcknowledgement && expireNextReceiptBeforeAcknowledgement) {
       expireNextReceiptBeforeAcknowledgement = false;
       try {
@@ -842,6 +896,12 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
     const upstreamHeaders = { ...request.headers, host: `127.0.0.1:${port}` };
     delete upstreamHeaders["x-zasp-e2e-tab"];
     const upstream = http.request({ hostname: "127.0.0.1", port: upstreamPort, method: request.method, path: request.url, headers: upstreamHeaders }, (upstreamResponse) => {
+      if (findingRecoveryRefetch) riskRecoverySequence.push(`GET:${upstreamResponse.statusCode}`);
+      if (receiptAcknowledgement) riskRecoverySequence.push(`POST:${upstreamResponse.statusCode}`);
+      if (riskDetailKind && delayRiskDetailResponses) {
+        captureRiskDetailResponse(riskDetailKind, response, upstreamResponse);
+        return;
+      }
       if (/^\/api\/v1\/(?:admin|organization|workspaces|environments|sessions|audit-events|compliance|settings|system)\b/.test(target.pathname)) {
         const record = { method: request.method, path: target.pathname, status: upstreamResponse.statusCode, cacheControl: String(upstreamResponse.headers["cache-control"] ?? "") };
         administrationRequests.push(record);
@@ -948,6 +1008,28 @@ function releaseDelayedFirstTabBootstrap() {
   delayedFirstTabBootstrap.released = true;
   delayedFirstTabBootstrap.response.writeHead(delayedFirstTabBootstrap.status, delayedFirstTabBootstrap.headers);
   delayedFirstTabBootstrap.response.end(delayedFirstTabBootstrap.body);
+}
+
+function captureRiskDetailResponse(kind, response, upstreamResponse) {
+  const captured = { body: undefined, closed: false, headers: upstreamResponse.headers, kind, ready: false, released: false, response, status: upstreamResponse.statusCode ?? 502 };
+  delayedRiskDetailResponses.push(captured);
+  const chunks = [];
+  response.once("close", () => { if (!response.writableEnded) captured.closed = true; });
+  upstreamResponse.on("data", (chunk) => { chunks.push(chunk); });
+  upstreamResponse.once("end", () => {
+    captured.body = Buffer.concat(chunks);
+    captured.ready = true;
+  });
+}
+
+function releaseRiskDetailResponse(kind, override = {}) {
+  const captured = delayedRiskDetailResponses.find((entry) => entry.kind === kind && !entry.released);
+  assert.ok(captured?.ready, `delayed ${kind} response was not ready`);
+  captured.released = true;
+  if (captured.closed || captured.response.destroyed) return;
+  const headers = override.headers ?? (override.status ? { "content-type": "application/json", "cache-control": "no-store" } : captured.headers);
+  captured.response.writeHead(override.status ?? captured.status, headers);
+  captured.response.end(override.body ?? captured.body);
 }
 
 async function startBrowser(profile, port, target) {

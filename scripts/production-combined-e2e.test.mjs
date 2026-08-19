@@ -32,6 +32,8 @@ test("combined production E2E owns every local boundary and fixed assertion", as
     "/violations", "/exposure/attack-paths", "Production credential exposure 0001", "Ranked break option evidence",
     "lostFindingResponseKeys", "Finding status updated through committed-response recovery", "Accepted production exception",
     "PAT risk mutation and zero browser receipts proven", "risk pagination, detail, recovery, acceptance, and persistence proven",
+    "Injected authoritative refetch failure", "receipt ACK did not follow authoritative refetch", "findings.write downgrade retained an interactive mutation or retry",
+    "Loading path detail", "Loading break options", "Injected break-option failure", "route unmount did not abort both attack-path detail responses",
     "browserStorageHistoryAndCaches", "indexedDB.databases", "assertResponsiveRiskLayout", "Emulation.setDeviceMetricsOverride",
     "browser console and exception stream remained clean", "hidden risk-adjacent routes canonicalized without hidden API calls",
     "/red-team/results", "/test/attack-lab", "/reports", "/guardrails/dashboard", "/prompt-hardening",
