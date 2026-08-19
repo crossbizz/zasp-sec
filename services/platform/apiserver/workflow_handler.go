@@ -514,7 +514,7 @@ func (handler *workflowHTTPHandler) sensorBody(request *http.Request, scope doma
 
 func securityAgentBody(request *http.Request, scope domain.Scope, id string, create bool) (json.RawMessage, string, error) {
 	var input struct {
-		ID                     string   `json:"id"`
+		ID                     *string  `json:"id"`
 		Name                   string   `json:"name"`
 		TriggerKind            string   `json:"trigger_kind"`
 		TriggerSource          string   `json:"trigger_source"`
@@ -535,10 +535,12 @@ func securityAgentBody(request *http.Request, scope domain.Scope, id string, cre
 	if decoder.Decode(&input) != nil {
 		return nil, "", ErrRepositoryOperation
 	}
-	if create && input.ID == "" {
-		input.ID = id
-	} else if id == "" {
-		id = input.ID
+	if create {
+		if input.ID != nil {
+			return nil, "", ErrRepositoryOperation
+		}
+	} else if input.ID == nil || *input.ID != id {
+		return nil, "", ErrRepositoryOperation
 	}
 	value := securityagent.SecurityAgent{ID: id, OrganizationID: scope.OrganizationID().String(), Name: input.Name, Trigger: securityagent.Trigger{Kind: input.TriggerKind, Source: input.TriggerSource}, Scope: securityagent.Scope{OrganizationID: scope.OrganizationID().String(), EnvironmentIDs: input.EnvironmentIDs}, Autonomy: securityagent.Autonomy(input.Autonomy), Limits: securityagent.RunLimits{MaxSteps: input.MaxSteps, MaxDuration: time.Duration(input.MaxDurationSeconds) * time.Second, TemporaryPolicyTTL: time.Duration(input.TemporaryPolicySeconds) * time.Second, MaxAITokens: input.AITokenBudget, MaxConcurrent: input.ConcurrencyLimit}, AllowedActions: input.AllowedActions, Verification: securityagent.Verification{Kind: input.VerificationKind}, DefinitionVersion: input.DefinitionVersion, Enabled: input.Enabled}
 	if securityagent.ValidateAgent(value) != nil || !exactWorkflowEnvironment(input.EnvironmentIDs, scope.EnvironmentID().String()) || !servedWorkflowActions(input.AllowedActions) {

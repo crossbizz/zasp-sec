@@ -201,13 +201,21 @@ func TestWorkflowHandlerDecodesSecurityAgentContractAndBuildsDurableDefinition(t
 	resultBody := json.RawMessage(`{"id":"pid_90000001-0000-4000-8000-000000000001","name":"Bounded response","trigger_kind":"finding","trigger_source":"credential","environment_ids":["pid_10000003-0000-4000-8000-000000000003"],"autonomy":"supervised","max_steps":10,"max_duration_seconds":900,"temporary_policy_seconds":3600,"ai_token_budget":4000,"concurrency_limit":2,"allowed_actions":["run_test"],"verification_kind":"test_run","definition_version":1,"enabled":true}`)
 	repository := &workflowRepositoryStub{result: WorkflowMutationResult{WorkflowValue: WorkflowValue{Body: resultBody, Version: 1}, AuditID: "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", CorrelationID: correlation}}
 	handler, _ := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), func() time.Time { return time.Date(2026, 8, 18, 12, 0, 0, 0, time.UTC) })
-	body := `{"id":"","name":"Bounded response","trigger_kind":"finding","trigger_source":"credential","environment_ids":["pid_10000003-0000-4000-8000-000000000003"],"autonomy":"supervised","max_steps":10,"max_duration_seconds":900,"temporary_policy_seconds":3600,"ai_token_budget":4000,"concurrency_limit":2,"allowed_actions":["run_test"],"verification_kind":"test_run","definition_version":1,"enabled":true}`
+	body := `{"name":"Bounded response","trigger_kind":"finding","trigger_source":"credential","environment_ids":["pid_10000003-0000-4000-8000-000000000003"],"autonomy":"supervised","max_steps":10,"max_duration_seconds":900,"temporary_policy_seconds":3600,"ai_token_budget":4000,"concurrency_limit":2,"allowed_actions":["run_test"],"verification_kind":"test_run","definition_version":1,"enabled":true}`
 	request := workflowRequest(t, identity, correlation, "createSecurityAgent", nil, http.MethodPost, "/api/v1/security-agents", body)
 	request.Header.Set("Idempotency-Key", "idem-create-agent-0001")
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusCreated || repository.mutation.Kind != "security_agent" {
 		t.Fatalf("response = %d %s mutation=%#v", response.Code, response.Body.String(), repository.mutation)
+	}
+	repository.mutation = WorkflowMutation{}
+	request = workflowRequest(t, identity, correlation, "createSecurityAgent", nil, http.MethodPost, "/api/v1/security-agents", `{"id":"pid_90000001-0000-4000-8000-000000000001","name":"Client assigned","trigger_kind":"finding","trigger_source":"credential","environment_ids":["pid_10000003-0000-4000-8000-000000000003"],"autonomy":"supervised","max_steps":10,"max_duration_seconds":900,"temporary_policy_seconds":3600,"ai_token_budget":4000,"concurrency_limit":2,"allowed_actions":["run_test"],"verification_kind":"test_run","definition_version":1,"enabled":true}`)
+	request.Header.Set("Idempotency-Key", "idem-reject-client-agent-id")
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest || repository.mutation.Operation != "" {
+		t.Fatalf("client-assigned id response = %d mutation=%#v", response.Code, repository.mutation)
 	}
 }
 
@@ -216,7 +224,7 @@ func TestWorkflowHandlerRejectsUnservedSecurityActionAndMalformedRunEvidence(t *
 	correlation := "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
 	repository := &workflowRepositoryStub{value: WorkflowValue{Version: 1, Body: json.RawMessage(`{"id":"pid_90000001-0000-4000-8000-000000000001","allowed_actions":["run_test"]}`)}}
 	handler, _ := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), time.Now)
-	body := `{"id":"","name":"Unsafe response","trigger_kind":"finding","trigger_source":"credential","environment_ids":["pid_10000003-0000-4000-8000-000000000003"],"autonomy":"supervised","max_steps":10,"max_duration_seconds":900,"temporary_policy_seconds":3600,"ai_token_budget":4000,"concurrency_limit":2,"allowed_actions":["provider_magic_success"],"verification_kind":"test_run","definition_version":1,"enabled":true}`
+	body := `{"name":"Unsafe response","trigger_kind":"finding","trigger_source":"credential","environment_ids":["pid_10000003-0000-4000-8000-000000000003"],"autonomy":"supervised","max_steps":10,"max_duration_seconds":900,"temporary_policy_seconds":3600,"ai_token_budget":4000,"concurrency_limit":2,"allowed_actions":["provider_magic_success"],"verification_kind":"test_run","definition_version":1,"enabled":true}`
 	request := workflowRequest(t, identity, correlation, "createSecurityAgent", nil, http.MethodPost, "/api/v1/security-agents", body)
 	request.Header.Set("Idempotency-Key", "idem-reject-agent-action")
 	response := httptest.NewRecorder()

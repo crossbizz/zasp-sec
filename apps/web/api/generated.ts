@@ -2454,6 +2454,24 @@ export type components = {
             readonly trigger_source: string;
             readonly verification_kind: string;
         };
+        readonly SecurityAgentInput: {
+            readonly ai_token_budget: number;
+            readonly allowed_actions: readonly string[];
+            /** @enum {string} */
+            readonly autonomy: "supervised" | "autonomous";
+            readonly concurrency_limit: number;
+            readonly definition_version: number;
+            readonly enabled: boolean;
+            readonly environment_ids: readonly components["schemas"]["ProductID"][];
+            readonly max_duration_seconds: number;
+            readonly max_steps: number;
+            readonly name: string;
+            readonly temporary_policy_seconds: number;
+            /** @enum {string} */
+            readonly trigger_kind: "finding" | "attack_path" | "runtime_decision";
+            readonly trigger_source: string;
+            readonly verification_kind: string;
+        };
         readonly SecurityAgentManualRunInput: {
             readonly environment_id: components["schemas"]["ProductID"];
             readonly trigger_id: components["schemas"]["ProductID"];
@@ -2723,13 +2741,24 @@ export type components = {
     parameters: {
         /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
         readonly CSRFToken: string;
+        /** @description Explicit fresh-auth confirmation required for an approval decision. */
+        readonly FreshAuth: "confirmed";
+        /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+        readonly IdempotencyKey: string;
         /** @description Opaque cursor returned by the preceding page. */
         readonly PageCursor: components["schemas"]["Cursor"];
         /** @description Maximum number of records to return. */
         readonly PageLimit: number;
+        /** @description Quoted current durable resource version. */
+        readonly ResourceVersion: string;
     };
     requestBodies: never;
-    headers: never;
+    headers: {
+        /** @description Durable audit record identifier for this mutation or its exact replay. */
+        readonly WorkflowAuditID: components["schemas"]["ProductID"];
+        /** @description Quoted durable resource version for optimistic concurrency. */
+        readonly WorkflowETag: string;
+    };
     pathItems: never;
 };
 export type AgentMutation = components['schemas']['AgentMutation'];
@@ -2843,6 +2872,7 @@ export type SecurityAgentApproval = components['schemas']['SecurityAgentApproval
 export type SecurityAgentApprovalDecision = components['schemas']['SecurityAgentApprovalDecision'];
 export type SecurityAgentApprovalPage = components['schemas']['SecurityAgentApprovalPage'];
 export type SecurityAgentDefinition = components['schemas']['SecurityAgentDefinition'];
+export type SecurityAgentInput = components['schemas']['SecurityAgentInput'];
 export type SecurityAgentManualRunInput = components['schemas']['SecurityAgentManualRunInput'];
 export type SecurityAgentPage = components['schemas']['SecurityAgentPage'];
 export type SecurityAgentRun = components['schemas']['SecurityAgentRun'];
@@ -2892,8 +2922,13 @@ export type WorkspaceMutation = components['schemas']['WorkspaceMutation'];
 export type WorkspacePage = components['schemas']['WorkspacePage'];
 export type ResponseProductErrorResponse = components['responses']['ProductErrorResponse'];
 export type ParameterCsrfToken = components['parameters']['CSRFToken'];
+export type ParameterFreshAuth = components['parameters']['FreshAuth'];
+export type ParameterIdempotencyKey = components['parameters']['IdempotencyKey'];
 export type ParameterPageCursor = components['parameters']['PageCursor'];
 export type ParameterPageLimit = components['parameters']['PageLimit'];
+export type ParameterResourceVersion = components['parameters']['ResourceVersion'];
+export type HeaderWorkflowAuditId = components['headers']['WorkflowAuditID'];
+export type HeaderWorkflowETag = components['headers']['WorkflowETag'];
 export type $defs = Record<string, never>;
 export interface operations {
     readonly listAPITokens: {
@@ -4188,7 +4223,10 @@ export interface operations {
     readonly createIntegration: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
             readonly path?: never;
             readonly cookie?: never;
         };
@@ -4201,6 +4239,8 @@ export interface operations {
             /** @description Created integration. */
             readonly 201: {
                 headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -4238,7 +4278,12 @@ export interface operations {
     readonly deleteIntegration: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+            };
             readonly path: {
                 readonly id: components["schemas"]["ProductID"];
             };
@@ -4249,6 +4294,8 @@ export interface operations {
             /** @description Integration deleted. */
             readonly 204: {
                 headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
                     readonly [name: string]: unknown;
                 };
                 content?: never;
@@ -4260,7 +4307,12 @@ export interface operations {
     readonly updateIntegration: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+            };
             readonly path: {
                 readonly id: components["schemas"]["ProductID"];
             };
@@ -4275,6 +4327,8 @@ export interface operations {
             /** @description Updated integration. */
             readonly 200: {
                 headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -4459,7 +4513,10 @@ export interface operations {
     readonly createPolicy: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
             readonly path?: never;
             readonly cookie?: never;
         };
@@ -4472,6 +4529,8 @@ export interface operations {
             /** @description Created runtime policy. */
             readonly 201: {
                 headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -4509,7 +4568,12 @@ export interface operations {
     readonly deletePolicy: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+            };
             readonly path: {
                 readonly id: components["schemas"]["PolicyID"];
             };
@@ -4520,6 +4584,8 @@ export interface operations {
             /** @description Deleted runtime policy. */
             readonly 204: {
                 headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
                     readonly [name: string]: unknown;
                 };
                 content?: never;
@@ -4531,7 +4597,12 @@ export interface operations {
     readonly updatePolicy: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+            };
             readonly path: {
                 readonly id: components["schemas"]["PolicyID"];
             };
@@ -4546,6 +4617,8 @@ export interface operations {
             /** @description Updated runtime policy. */
             readonly 200: {
                 headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -4583,7 +4656,12 @@ export interface operations {
     readonly disablePolicy: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+            };
             readonly path: {
                 readonly id: components["schemas"]["PolicyID"];
             };
@@ -4598,6 +4676,8 @@ export interface operations {
             /** @description Disabled policy rollout. */
             readonly 200: {
                 headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -4611,7 +4691,12 @@ export interface operations {
     readonly rolloutPolicy: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+            };
             readonly path: {
                 readonly id: components["schemas"]["PolicyID"];
             };
@@ -4626,6 +4711,8 @@ export interface operations {
             /** @description Updated policy rollout. */
             readonly 200: {
                 headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -4639,7 +4726,12 @@ export interface operations {
     readonly simulatePolicy: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+            };
             readonly path: {
                 readonly id: components["schemas"]["PolicyID"];
             };
@@ -4654,6 +4746,8 @@ export interface operations {
             /** @description Bounded simulation result. */
             readonly 200: {
                 headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -4805,7 +4899,14 @@ export interface operations {
     readonly decideSecurityAgentApproval: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+                /** @description Explicit fresh-auth confirmation required for an approval decision. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
             readonly path: {
                 readonly id: components["schemas"]["ProductID"];
             };
@@ -4820,6 +4921,8 @@ export interface operations {
             /** @description Updated approval. */
             readonly 200: {
                 headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -4884,7 +4987,12 @@ export interface operations {
     readonly cancelSecurityAgentRun: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+            };
             readonly path: {
                 readonly id: components["schemas"]["ProductID"];
             };
@@ -4895,6 +5003,8 @@ export interface operations {
             /** @description Cancelled run. */
             readonly 200: {
                 headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -4957,19 +5067,24 @@ export interface operations {
     readonly createSecurityAgent: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
             readonly path?: never;
             readonly cookie?: never;
         };
         readonly requestBody: {
             readonly content: {
-                readonly "application/json": components["schemas"]["SecurityAgentDefinition"];
+                readonly "application/json": components["schemas"]["SecurityAgentInput"];
             };
         };
         readonly responses: {
             /** @description Created Security Agent. */
             readonly 201: {
                 headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -5005,7 +5120,12 @@ export interface operations {
     readonly deleteSecurityAgent: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+            };
             readonly path: {
                 readonly id: components["schemas"]["ProductID"];
             };
@@ -5016,6 +5136,8 @@ export interface operations {
             /** @description Security Agent safely disabled and soft-deleted. */
             readonly 204: {
                 headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
                     readonly [name: string]: unknown;
                 };
                 content?: never;
@@ -5026,7 +5148,12 @@ export interface operations {
     readonly updateSecurityAgent: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+            };
             readonly path: {
                 readonly id: components["schemas"]["ProductID"];
             };
@@ -5041,6 +5168,8 @@ export interface operations {
             /** @description Updated Security Agent. */
             readonly 200: {
                 headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -5053,7 +5182,10 @@ export interface operations {
     readonly runSecurityAgent: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
             readonly path: {
                 readonly id: components["schemas"]["ProductID"];
             };
@@ -5068,6 +5200,8 @@ export interface operations {
             /** @description Queued Security Agent run. */
             readonly 201: {
                 headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -5080,7 +5214,12 @@ export interface operations {
     readonly simulateSecurityAgent: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+            };
             readonly path: {
                 readonly id: components["schemas"]["ProductID"];
             };
@@ -5095,6 +5234,8 @@ export interface operations {
             /** @description Side-effect-free simulation. */
             readonly 200: {
                 headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -5129,7 +5270,10 @@ export interface operations {
     readonly createSensorEnrollment: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
             readonly path?: never;
             readonly cookie?: never;
         };
@@ -5142,6 +5286,8 @@ export interface operations {
             /** @description Created sensor enrollment. */
             readonly 201: {
                 headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -5179,7 +5325,12 @@ export interface operations {
     readonly deleteSensor: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+            };
             readonly path: {
                 readonly id: components["schemas"]["ProductID"];
             };
@@ -5190,6 +5341,8 @@ export interface operations {
             /** @description Sensor deleted. */
             readonly 204: {
                 headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
                     readonly [name: string]: unknown;
                 };
                 content?: never;
@@ -5201,7 +5354,12 @@ export interface operations {
     readonly updateSensor: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+            };
             readonly path: {
                 readonly id: components["schemas"]["ProductID"];
             };
@@ -5216,6 +5374,8 @@ export interface operations {
             /** @description Updated sensor record. */
             readonly 200: {
                 headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -5253,7 +5413,12 @@ export interface operations {
     readonly rotateSensorToken: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+            };
             readonly path: {
                 readonly id: components["schemas"]["ProductID"];
             };
@@ -5268,6 +5433,8 @@ export interface operations {
             /** @description Rotated sensor enrollment. */
             readonly 200: {
                 headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
                     readonly [name: string]: unknown;
                 };
                 content: {

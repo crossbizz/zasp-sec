@@ -62,7 +62,7 @@ function verifyDocument(value, rawText) {
   }
   assert.deepEqual(value.security, [{ BrowserSession: [] }, { ProductAPIToken: [] }]);
 
-  assertKeys(value.components, ["securitySchemes", "parameters", "schemas", "responses"], "components");
+  assertKeys(value.components, ["securitySchemes", "headers", "parameters", "schemas", "responses"], "components");
   assert.deepEqual(value.components.securitySchemes, {
     BrowserSession: {
       type: "apiKey",
@@ -78,6 +78,17 @@ function verifyDocument(value, rawText) {
     },
   });
 
+  assert.deepEqual(value.components.headers, {
+    WorkflowETag: {
+      description: "Quoted durable resource version for optimistic concurrency.",
+      schema: { type: "string", pattern: '^"[1-9][0-9]*"$' },
+    },
+    WorkflowAuditID: {
+      description: "Durable audit record identifier for this mutation or its exact replay.",
+      schema: { $ref: "#/components/schemas/ProductID" },
+    },
+  });
+
   assert.deepEqual(value.components.parameters, {
 		CSRFToken: {
 			name: "X-CSRF-Token",
@@ -86,6 +97,20 @@ function verifyDocument(value, rawText) {
 			description: "Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header.",
 			schema: { type: "string", minLength: 32, maxLength: 256 },
 		},
+    FreshAuth: {
+      name: "X-Zasp-Fresh-Auth",
+      in: "header",
+      required: true,
+      description: "Explicit fresh-auth confirmation required for an approval decision.",
+      schema: { type: "string", const: "confirmed" },
+    },
+    IdempotencyKey: {
+      name: "Idempotency-Key",
+      in: "header",
+      required: true,
+      description: "Caller-generated key binding an exact workflow mutation and its durable response.",
+      schema: { type: "string", minLength: 16, maxLength: 128, pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]*$" },
+    },
     PageCursor: {
       name: "cursor",
       in: "query",
@@ -99,6 +124,13 @@ function verifyDocument(value, rawText) {
       required: false,
       description: "Maximum number of records to return.",
       schema: { type: "integer", minimum: 1, maximum: 100, default: 50 },
+    },
+    ResourceVersion: {
+      name: "If-Match",
+      in: "header",
+      required: true,
+      description: "Quoted current durable resource version.",
+      schema: { type: "string", pattern: '^"[1-9][0-9]*"$' },
     },
   });
 
@@ -174,7 +206,7 @@ function verifyDocument(value, rawText) {
       }
     }
     if (typeof entry === "string" && path.endsWith(".$ref")) {
-      assert.match(entry, /^#\/components\/(?:parameters|responses|schemas|securitySchemes)\/[A-Za-z][A-Za-z0-9]*$/);
+      assert.match(entry, /^#\/components\/(?:headers|parameters|responses|schemas|securitySchemes)\/[A-Za-z][A-Za-z0-9]*$/);
     }
   });
   assert.doesNotMatch(rawText.toLowerCase(), /(?:amazon|aws|azure|customer_|example\.com|localstack|openai|stytch)/);
@@ -271,6 +303,41 @@ describe("M1-23 strict OpenAPI root", () => {
       const candidate = clone(document);
       mutate(candidate);
       assert.throws(() => verifyDocument(candidate, JSON.stringify(candidate)), undefined, name);
+    }
+  });
+});
+
+describe("production workflow concurrency contract", () => {
+  it("separates server-assigned security-agent identity from create input", () => {
+    assert.equal(document.paths["/api/v1/security-agents"].post.requestBody.content["application/json"].schema.$ref, "#/components/schemas/SecurityAgentInput");
+    assert.equal(document.components.schemas.SecurityAgentInput.properties.id, undefined);
+    assert.equal(document.components.schemas.SecurityAgentInput.required.includes("id"), false);
+    assert.equal(document.components.schemas.SecurityAgentDefinition.required.includes("id"), true);
+  });
+
+  it("types idempotency, versions, fresh auth, and durable mutation receipts", () => {
+    const creates = new Set(["createIntegration", "createSensorEnrollment", "createPolicy", "createSecurityAgent", "runSecurityAgent"]);
+    const operations = [
+      "createIntegration", "updateIntegration", "deleteIntegration",
+      "createSensorEnrollment", "updateSensor", "deleteSensor", "rotateSensorToken",
+      "createPolicy", "updatePolicy", "deletePolicy", "simulatePolicy", "rolloutPolicy", "disablePolicy",
+      "createSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent", "simulateSecurityAgent", "runSecurityAgent", "cancelSecurityAgentRun", "decideSecurityAgentApproval",
+    ];
+    const located = new Map();
+    for (const path of Object.values(document.paths)) {
+      for (const operation of Object.values(path)) {
+        if (operation?.operationId) located.set(operation.operationId, operation);
+      }
+    }
+    for (const operationId of operations) {
+      const operation = located.get(operationId);
+      assert.ok(operation, operationId);
+      const refs = (operation.parameters ?? []).map((parameter) => parameter.$ref);
+      assert.ok(refs.includes("#/components/parameters/IdempotencyKey"), `${operationId} idempotency`);
+      if (!creates.has(operationId)) assert.ok(refs.includes("#/components/parameters/ResourceVersion"), `${operationId} version`);
+      if (operationId === "decideSecurityAgentApproval") assert.ok(refs.includes("#/components/parameters/FreshAuth"), `${operationId} fresh auth`);
+      const success = Object.entries(operation.responses).find(([status]) => status.startsWith("2"))?.[1];
+      assert.deepEqual(Object.keys(success.headers ?? {}).sort(), ["ETag", "X-Audit-ID"]);
     }
   });
 });
