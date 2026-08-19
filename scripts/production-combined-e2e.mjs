@@ -105,6 +105,8 @@ try {
   await waitForBrowserText(browser.cdp, /Policy created\. Audit pid_/);
   await clickBrowserText(browser.cdp, "Simulate policy");
   await waitForBrowserText(browser.cdp, /Simulation recorded\. Audit pid_/);
+  await clickBrowserText(browser.cdp, "Roll to monitor");
+  await waitForBrowserText(browser.cdp, /Policy is monitor\. Audit pid_/);
   await clickBrowserText(browser.cdp, "Enforce policy");
   await waitForBrowserText(browser.cdp, /Policy is enforced\. Audit pid_/);
 
@@ -117,35 +119,20 @@ try {
   await waitForBrowserText(browser.cdp, /Integration saved\. Audit pid_/);
   await clickBrowserText(browser.cdp, "Close");
 
-  await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/integrations/sensors` });
-  await waitForBrowserText(browser.cdp, /Durable scoped collectors/);
-  await clickBrowserText(browser.cdp, "Enroll sensor");
-  await clickBrowserText(browser.cdp, "Create enrollment");
-  const enrollment = await waitForBrowserText(browser.cdp, /sen_[A-Za-z0-9_-]+/);
-  const enrollmentToken = enrollment.match(/sen_[A-Za-z0-9_-]+/)?.[0];
-  assert.ok(enrollmentToken, "one-time sensor credential was not rendered");
-  await clickBrowserText(browser.cdp, "Close");
-  assert.doesNotMatch(await browserText(browser.cdp), new RegExp(enrollmentToken));
-
   await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/protect/security-agents` });
-  await waitForBrowserText(browser.cdp, /Bounded automated response definitions/);
+  await waitForBrowserText(browser.cdp, /Durable, scoped response definitions/);
   await clickBrowserText(browser.cdp, "Create Security Agent");
-  await clickBrowserTextContains(browser.cdp, "Actions");
-  await clickBrowserAria(browser.cdp, "Select run_test");
-  await clickBrowserTextContains(browser.cdp, "Simulate");
-  await fillBrowserLabel(browser.cdp, "Evidence ID", "pid_80000001-0000-4000-8000-000000000001");
-  await clickBrowserText(browser.cdp, "Save Security Agent");
-  await delay(200);
-  await clickBrowserTextContains(browser.cdp, "Security Agents");
-  await waitForBrowserText(browser.cdp, /Bounded response/);
-  await clickBrowserText(browser.cdp, "Bounded response");
-  await fillBrowserLabel(browser.cdp, "Run evidence ID", "pid_80000001-0000-4000-8000-000000000001");
-  await clickBrowserText(browser.cdp, "Start bounded run");
-  await delay(200);
-  await clickBrowserAria(browser.cdp, "Close");
-  await clickBrowserTextContains(browser.cdp, "Runs");
-  await waitForBrowserText(browser.cdp, /waiting_approval/);
-  console.log("combined E2E: policy, integration, one-time sensor, and bounded Security Agent workflows proven");
+  await clickBrowserText(browser.cdp, "Save Security Agent definition");
+  await waitForBrowserText(browser.cdp, /Bounded response definition/);
+  assert.equal(await browserHasInteractiveText(browser.cdp, /^(?:Run Security Agent|Simulate Security Agent|Approve|Start bounded run|Runs|Approvals)$/i), false);
+
+  await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/integrations/sensors` });
+  const sensorHidden = await waitForBrowserText(browser.cdp, /Security overview/);
+  assert.doesNotMatch(sensorHidden, /Enroll sensor|Sensors/);
+  await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/protect/approvals` });
+  const approvalsHidden = await waitForBrowserText(browser.cdp, /Security overview/);
+  assert.doesNotMatch(approvalsHidden, /Approve|Pending approvals/);
+  console.log("combined E2E: policy, local integration, Security Agent definition, and hidden unsafe controls proven");
 
   await stopChild(api);
   api = startChild(apiBinary, [], { env: apiEnvironment });
@@ -157,15 +144,13 @@ try {
   await clickBrowserAria(browser.cdp, "Open Production runtime policy");
   assert.match(await waitForBrowserText(browser.cdp, /Policy detail · policy-production/), /enforced/);
   await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/connectors` });
-  assert.match(await waitForBrowserText(browser.cdp, /Generic Webhook/), /pending_authorization/);
-  await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/integrations/sensors` });
-  assert.match(await waitForBrowserText(browser.cdp, /Production sensor/), /Awaiting heartbeat/);
-  assert.doesNotMatch(await browserText(browser.cdp), /sen_[A-Za-z0-9_-]+/);
+  assert.match(await waitForBrowserText(browser.cdp, /Generic Webhook/), /configured/);
   await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/protect/security-agents` });
-  await waitForBrowserText(browser.cdp, /Bounded response/);
-  await clickBrowserTextContains(browser.cdp, "Runs");
-  assert.match(await waitForBrowserText(browser.cdp, /waiting_approval/), /pid_/);
-  console.log("combined E2E: API restart, browser reload, durable workflows, and secret non-replay proven");
+  await waitForBrowserText(browser.cdp, /Bounded response definition/);
+  await clickBrowserAria(browser.cdp, "Open Bounded response definition");
+  assert.match(await waitForBrowserText(browser.cdp, /Resource version/), /supervised/);
+  assert.equal(await browserHasInteractiveText(browser.cdp, /^(?:Run Security Agent|Simulate Security Agent|Approve|Start bounded run|Runs|Approvals)$/i), false);
+  console.log("combined E2E: API restart, browser reload, and durable local workflows proven");
 
   await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/api/v1/agents/pid_90000001-0000-4000-8000-000000000001` });
   const denied = await waitForBrowserText(browser.cdp, /not_found/);
@@ -226,6 +211,7 @@ INSERT INTO zasp_identity_memberships (principal_id, organization_id, organizati
 ('pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','organization-test-local','member-test-local','security_admin');
 INSERT INTO zasp_core_payloads (organization_id, workspace_id, environment_id, operation, payload) VALUES
 ('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','session_bootstrap:pid_10000004-0000-4000-8000-000000000004','{"principal":{"id":"pid_10000004-0000-4000-8000-000000000004","organization_id":"pid_10000001-0000-4000-8000-000000000001","organization_reference":"organization-local","member_reference":"member-local","role":"security_admin","active":true},"organization_id":"pid_10000001-0000-4000-8000-000000000001","workspace_id":"pid_10000002-0000-4000-8000-000000000002","environment_id":"pid_10000003-0000-4000-8000-000000000003","permissions":["view"],"capabilities":["inventory.read","scope.switch"],"csrf_token":"cccccccccccccccccccccccccccccccc","correlation_id":"pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"}'::jsonb),
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','home','{"agent_count":1,"high_risk_paths":0,"verified_changes":0,"blocked_changes":0,"pending_approvals":0,"oldest_approval_age_seconds":0,"needs_human_runs":0,"failed_runs":0,"inconclusive_runs":0,"recent_contained":0,"recent_remediated":0,"healthy":true,"attention_required":false}'::jsonb),
 ('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','agents','{"items":[{"id":"pid_20000001-0000-4000-8000-000000000001","name":"Support agent","kind":"agent","owner":"security","team":"platform","tags":["production"],"evidence_id":"pid_20000006-0000-4000-8000-000000000006","first_seen":"2026-08-18T09:00:00Z","last_seen":"2026-08-18T10:00:00Z"}]}'::jsonb),
 ('pid_90000001-0000-4000-8000-000000000001','pid_90000002-0000-4000-8000-000000000002','pid_90000003-0000-4000-8000-000000000003','agent:pid_90000001-0000-4000-8000-000000000001','{"id":"pid_90000001-0000-4000-8000-000000000001","name":"Foreign tenant agent","kind":"agent","owner":"foreign","team":"foreign","tags":[],"evidence_id":"pid_90000006-0000-4000-8000-000000000006","first_seen":"2026-08-18T09:00:00Z","last_seen":"2026-08-18T10:00:00Z"}'::jsonb);
 `;
@@ -318,17 +304,13 @@ async function waitForBrowserText(cdp, pattern) {
   throw new Error(`browser text did not match ${pattern}: ${last}`);
 }
 
-async function browserText(cdp) {
-  const evaluated = await cdp.send("Runtime.evaluate", { expression: "document.body ? document.body.innerText : ''", returnByValue: true });
-  return evaluated.result?.value ?? "";
+async function browserHasInteractiveText(cdp, pattern) {
+  const evaluated = await cdp.send("Runtime.evaluate", { expression: `(() => { const matcher = new RegExp(${JSON.stringify(pattern.source)}, ${JSON.stringify(pattern.flags)}); return [...document.querySelectorAll('button,a')].some((candidate) => matcher.test(candidate.textContent ?? '')); })()`, returnByValue: true });
+  return evaluated.result?.value === true;
 }
 
 async function clickBrowserText(cdp, text) {
   await waitForBrowserAction(cdp, `(() => { const value = ${JSON.stringify(text)}; const element = [...document.querySelectorAll('button,a')].find((candidate) => candidate.textContent?.trim() === value); if (!element) return false; element.click(); return true; })()`);
-}
-
-async function clickBrowserTextContains(cdp, text) {
-  await waitForBrowserAction(cdp, `(() => { const value = ${JSON.stringify(text)}; const element = [...document.querySelectorAll('button,a')].find((candidate) => candidate.textContent?.includes(value)); if (!element) return false; element.click(); return true; })()`);
 }
 
 async function clickBrowserAria(cdp, label) {

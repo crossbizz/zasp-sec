@@ -12,8 +12,13 @@ test("combined production E2E owns every local boundary and fixed assertion", as
   for (const value of [
     "initdb", "postgres", "agentsec-migrate", "agentsec-api", "vinext", "Google Chrome",
     "/api/v1/session/start", "/auth/callback", "__Host-zasp_session", "Support agent",
-    "not_found", "SIGTERM", "pg_ctl", "FIXED_NODE_VERSION",
+    "not_found", "SIGTERM", "pg_ctl", "FIXED_NODE_VERSION", "Roll to monitor",
+    "Save Security Agent definition", "configured", "Durable, scoped response definitions",
   ]) assert.match(source, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  for (const unsafeControl of ["Enroll sensor", "Create enrollment", "Start bounded run", "waiting_approval", "one-time sensor credential"]) {
+    const escaped = unsafeControl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    assert.doesNotMatch(source, new RegExp(`(?:clickBrowserText|clickBrowserTextContains|clickBrowserAria)\\([^\\n]*${escaped}`, "i"));
+  }
   assert.doesNotMatch(source, /(?:^|[/])\.env(?:$|[/ ])|docker|kubectl|localhost:\d{2,5}/i);
 });
 
