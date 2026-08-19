@@ -48,7 +48,7 @@ gateway workloads serve one capability-gated, API-backed production UI.
 | 6 | 2, 4 | sensors, ingest, runtime worker/gateway and their inert deployment slice | sensor/runtime capability per workload readiness | revoke device/token; preserve archived evidence |
 | 7 | 2, 5 | inert v12 SA authority, activation and kill switches | simulation only; execution stays killed | guarded v12 down before effects |
 | 8 | 4, 7 | structured planning, supervised low-risk action and inert action-worker deployment | one action at a time after verifier/readiness | action reconciliation/compensation |
-| 9 | 6, 8 | supervised containment, per-action deployment, and evidence-backed autonomy | per-action owned canary and kill switch | TTL cleanup + effect reconciliation |
+| 9 | 6, 8, 14 | supervised containment, per-action deployment, and evidence-backed autonomy | per-action owned canary and kill switch | TTL cleanup + effect reconciliation |
 | 10 | 3–9 | API-backed discovery/runtime/SA UI | server capability plus dependency readiness | hide control; durable state retained |
 | 11 | 1, 2 | production SSO/SCIM/group administration | each provider/webhook after live dependency readiness | local session deprovision reconciliation |
 | 12 | 2, 4 | Red Team test worker/artifacts/UI and inert deployment slice | isolated target and artifact readiness | cancel/reconcile job; retain evidence |
@@ -143,9 +143,6 @@ private Nango without becoming a core readiness dependency.
 
 **Primary files:**
 
-- Create: `services/platform/jobqueue/sqsdriver/*`
-- Create: `services/platform/artifactstore/s3driver/*`
-- Create: `services/platform/eventstore/opensearchdriver/*`
 - Create: `services/platform/connectors/nango/*`
 - Create: `services/platform/connectors/awsdiscovery/*`
 - Create: `services/platform/connectors/kubernetesdiscovery/*`
