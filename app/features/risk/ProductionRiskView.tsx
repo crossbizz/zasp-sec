@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { AttackPath, BreakOption, Finding } from "../../../apps/web/api/generated";
 import { useAPI } from "../../api/APIProvider";
@@ -23,17 +23,27 @@ function ProductionFindingsView({ api, canWrite }: { api: ProductionRiskAPI; can
   const [reason, setReason] = useState("");
   const detailRequest = useRef<AbortController | null>(null);
   const { invalidate } = useAPI();
-  const update = useRetainedWorkflowMutation<{ id: string; status: "under_review"; version: string }>("finding:update");
-  const accept = useRetainedWorkflowMutation<{ id: string; reason: string; version: string }>("finding:accept");
+  const update = useRetainedWorkflowMutation<{ id: string; status: "under_review"; version: string }>("finding:update", canWrite);
+  const accept = useRetainedWorkflowMutation<{ id: string; reason: string; version: string }>("finding:accept", canWrite);
   const locked = update.isUnresolved || accept.isUnresolved;
+
+  useEffect(() => () => {
+    detailRequest.current?.abort();
+    detailRequest.current = null;
+  }, []);
 
   const open = async (finding: Finding) => {
     detailRequest.current?.abort(); const controller = new AbortController(); detailRequest.current = controller;
     setDetailState("loading"); setMutationError(null);
-    try { setDetail(await api.getFinding(finding.id, controller.signal)); setDetailState("idle"); }
-    catch (error) { if (!controller.signal.aborted) { setDetailState("error"); setMutationError(message(error, "Finding detail is unavailable.")); } }
+    try {
+      const value = await api.getFinding(finding.id, controller.signal);
+      if (controller.signal.aborted || detailRequest.current !== controller) return;
+      setDetail(value); setDetailState("idle");
+    } catch (error) {
+      if (!controller.signal.aborted && detailRequest.current === controller) { setDetailState("error"); setMutationError(message(error, "Finding detail is unavailable.")); }
+    }
   };
-  const close = () => { detailRequest.current?.abort(); setDetail(null); setReason(""); setMutationError(null); };
+  const close = () => { detailRequest.current?.abort(); detailRequest.current = null; setDetail(null); setReason(""); setMutationError(null); };
   const markUnderReview = async () => {
     if (!canWrite || !detail || locked) return;
     setMutationError(null);
@@ -64,24 +74,37 @@ function FindingDetail({ finding }: { finding: Finding }) {
 
 function ProductionAttackPathsView({ api }: { api: ProductionRiskAPI }) {
   const query = useAPIQuery("risk:attack-paths", useCallback((signal?: AbortSignal) => api.listAttackPaths(signal), [api]));
+  const [selectedPathID, setSelectedPathID] = useState<string | null>(null);
   const [detail, setDetail] = useState<AttackPath | null>(null);
   const [options, setOptions] = useState<readonly BreakOption[] | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [optionsError, setOptionsError] = useState<string | null>(null);
   const request = useRef<AbortController | null>(null);
+  useEffect(() => () => {
+    request.current?.abort();
+    request.current = null;
+  }, []);
   const open = async (path: AttackPath) => {
-    request.current?.abort(); const controller = new AbortController(); request.current = controller; setDetailError(null); setOptionsError(null); setDetail(null); setOptions(null);
-    const [pathResult, optionResult] = await Promise.allSettled([api.getAttackPath(path.id, controller.signal), api.getAttackPathBreakOptions(path.id, controller.signal)]);
-    if (controller.signal.aborted) return;
-    if (pathResult.status === "fulfilled") setDetail(pathResult.value); else setDetailError(message(pathResult.reason, "Attack path detail is unavailable."));
-    if (optionResult.status === "fulfilled") setOptions(optionResult.value); else setOptionsError(message(optionResult.reason, "Break options are unavailable."));
+    request.current?.abort();
+    const controller = new AbortController(); request.current = controller;
+    setSelectedPathID(path.id); setDetailError(null); setOptionsError(null); setDetail(null); setOptions(null);
+    const isCurrent = () => !controller.signal.aborted && request.current === controller;
+    const detailRequest = api.getAttackPath(path.id, controller.signal).then(
+      (value) => { if (isCurrent()) setDetail(value); },
+      (error) => { if (isCurrent()) setDetailError(message(error, "Attack path detail is unavailable.")); },
+    );
+    const optionsRequest = api.getAttackPathBreakOptions(path.id, controller.signal).then(
+      (value) => { if (isCurrent()) setOptions(value); },
+      (error) => { if (isCurrent()) setOptionsError(message(error, "Break options are unavailable.")); },
+    );
+    await Promise.allSettled([detailRequest, optionsRequest]);
   };
-  const close = () => { request.current?.abort(); setDetail(null); setOptions(null); setDetailError(null); setOptionsError(null); };
+  const close = () => { request.current?.abort(); request.current = null; setSelectedPathID(null); setDetail(null); setOptions(null); setDetailError(null); setOptionsError(null); };
   if (query.status === "loading" || query.status === "idle") return <RiskState title="Attack Paths" status="Loading authorized attack paths…" />;
   if (query.status === "forbidden") return <RiskState title="Attack Paths" alert="Attack paths are not authorized in this scope." />;
   if (query.status === "error") return <RiskState title="Attack Paths" alert="Attack paths are unavailable." retry={() => void query.retry()} />;
   const paths = query.data ?? [];
-  return <div className="page"><PageHeader title="Attack Paths" description="Bounded evidence paths from entry conditions to impact." />{query.status === "stale" && <div role="alert" className="form-error">Showing stale attack paths.</div>}<Card>{paths.length === 0 ? <p>No attack paths in this scope.</p> : <div className="table-scroll"><table className="data-table"><thead><tr><th>Path</th><th>State</th><th>Nodes</th><th>Updated</th></tr></thead><tbody>{paths.map((path) => <tr key={path.id}><td><button className="row-title" aria-label={`Open attack path ${path.id}`} onClick={() => void open(path)}>{path.entry_id} → {path.sink_id}</button></td><td>{path.state}</td><td>{path.node_ids.length}</td><td>{path.updated_at}</td></tr>)}</tbody></table></div>}</Card>{!detail && !detailError && options === null && optionsError === null ? null : <Drawer open title="Attack path detail" onClose={close}>{detailError ? <p role="alert">{detailError}</p> : detail ? <><p>{detail.node_ids.join(" → ")}</p><p>State {detail.state}{detail.state === "blocked" ? ` · blocked edge ${detail.blocked_edge}` : ""}</p><h3>Evidence</h3><ul>{detail.evidence_ids.map((id) => <li key={id}><code>{id}</code></li>)}</ul></> : <p role="status">Loading path detail…</p>}<h3>Break path</h3>{optionsError ? <p role="alert">{optionsError}</p> : options === null ? <p role="status">Loading break options…</p> : options.length === 0 ? <p>No deterministic break options are available.</p> : <ol>{options.map((option) => <li key={`${option.kind}/${option.target_id}`}>{option.rank}. {option.kind === "remove_node" ? "Remove node" : "Enforce policy"} at <code>{option.target_id}</code> · evidence <code>{option.evidence_id}</code></li>)}</ol>}</Drawer>}</div>;
+  return <div className="page"><PageHeader title="Attack Paths" description="Bounded evidence paths from entry conditions to impact." />{query.status === "stale" && <div role="alert" className="form-error">Showing stale attack paths.</div>}<Card>{paths.length === 0 ? <p>No attack paths in this scope.</p> : <div className="table-scroll"><table className="data-table"><thead><tr><th>Path</th><th>State</th><th>Nodes</th><th>Updated</th></tr></thead><tbody>{paths.map((path) => <tr key={path.id}><td><button className="row-title" aria-label={`Open attack path ${path.id}`} onClick={() => void open(path)}>{path.entry_id} → {path.sink_id}</button></td><td>{path.state}</td><td>{path.node_ids.length}</td><td>{path.updated_at}</td></tr>)}</tbody></table></div>}</Card>{selectedPathID === null ? null : <Drawer open title="Attack path detail" onClose={close}>{detailError ? <p role="alert">{detailError}</p> : detail ? <><p>{detail.node_ids.join(" → ")}</p><p>State {detail.state}{detail.state === "blocked" ? ` · blocked edge ${detail.blocked_edge}` : ""}</p><h3>Evidence</h3><ul>{detail.evidence_ids.map((id) => <li key={id}><code>{id}</code></li>)}</ul></> : <p role="status">Loading path detail…</p>}<h3>Break path</h3>{optionsError ? <p role="alert">{optionsError}</p> : options === null ? <p role="status">Loading break options…</p> : options.length === 0 ? <p>No deterministic break options are available.</p> : <ol>{options.map((option) => <li key={`${option.kind}/${option.target_id}`}>{option.rank}. {option.kind === "remove_node" ? "Remove node" : "Enforce policy"} at <code>{option.target_id}</code> · evidence <code>{option.evidence_id}</code></li>)}</ol>}</Drawer>}</div>;
 }
 
 function RiskState({ title, status, alert, retry }: { title: string; status?: string; alert?: string; retry?: () => void }) {

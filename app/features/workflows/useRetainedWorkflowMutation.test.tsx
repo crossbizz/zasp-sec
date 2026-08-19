@@ -9,6 +9,7 @@ import type { WorkflowRecoveryAPI } from "./api";
 import { WorkflowMutationProvider, useRetainedWorkflowMutation } from "./useRetainedWorkflowMutation";
 
 type Intent = { name: string };
+const authoritativeRefetch = async () => undefined;
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -17,12 +18,13 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
-function Probe({ operation, name, send }: { operation: string; name: string; send: (intent: Intent) => Promise<unknown> }) {
-  const mutation = useRetainedWorkflowMutation<Intent>(operation);
+function Probe({ operation, name, send, enabled = true, exposeRetry = false }: { operation: string; name: string; send: (intent: Intent) => Promise<unknown>; enabled?: boolean; exposeRetry?: boolean }) {
+  const mutation = useRetainedWorkflowMutation<Intent>(operation, enabled);
   return <section aria-label={name}>
     <output>{`${mutation.isUnresolved ? "unresolved" : "settled"}:${mutation.canRetry ? "retry" : "locked"}`}</output>
     <button disabled={mutation.isUnresolved} onClick={() => void mutation.execute({ name }, send).catch(() => undefined)}>Start {name}</button>
     {mutation.canRetry && <button onClick={() => void mutation.retry().catch(() => undefined)}>Retry {name}</button>}
+    {exposeRetry && <button onClick={() => void mutation.retry().catch(() => undefined)}>Force retry {name}</button>}
   </section>;
 }
 
@@ -116,7 +118,7 @@ describe("observable scope-owned workflow mutation registry", () => {
       .mockResolvedValueOnce([nextReceipt])
       .mockResolvedValueOnce([]);
     const recovery: WorkflowRecoveryAPI = { listReceipts, acknowledgeReceipt };
-    render(<WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a" recovery={recovery}>
+    render(<WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a" recovery={recovery} reconcileReceipt={authoritativeRefetch}>
       <Probe operation="security-agent:create" name="agent" send={async () => "new agent"} />
     </WorkflowMutationProvider>);
 
@@ -134,21 +136,79 @@ describe("observable scope-owned workflow mutation registry", () => {
     expect(listReceipts).toHaveBeenCalledTimes(3);
   });
 
+  it("refetches the authoritative resource before ACK and preserves the receipt across refetch failure and scope changes", async () => {
+    const user = userEvent.setup();
+    const receipt = receiptFixture("pid_11111111-1111-4111-8111-111111111111");
+    const refetch = deferred<void>();
+    const reconcileReceipt = vi.fn(() => refetch.promise);
+    const acknowledgeReceipt = vi.fn().mockResolvedValue(undefined);
+    const listA = vi.fn().mockResolvedValueOnce([receipt]).mockResolvedValueOnce([receipt]).mockResolvedValueOnce([]);
+    const listB = vi.fn().mockResolvedValue([]);
+    const recoveryA: WorkflowRecoveryAPI = { listReceipts: listA, acknowledgeReceipt };
+    const recoveryB: WorkflowRecoveryAPI = { listReceipts: listB, acknowledgeReceipt: vi.fn() };
+    const view = render(<WorkflowMutationProvider scopeKey="principal/organization/workspace-a/environment-a" recovery={recoveryA} reconcileReceipt={reconcileReceipt}>
+      <Probe operation="policies" name="policy" send={async () => "unused"} />
+    </WorkflowMutationProvider>);
+
+    await screen.findByRole("heading", { name: "Recover committed operations" });
+    await user.click(screen.getByRole("button", { name: "Acknowledge recovered result" }));
+    expect(reconcileReceipt).toHaveBeenCalledWith(receipt, expect.any(AbortSignal));
+    expect(acknowledgeReceipt).not.toHaveBeenCalled();
+
+    view.rerender(<WorkflowMutationProvider scopeKey="principal/organization/workspace-b/environment-b" recovery={recoveryB} reconcileReceipt={async () => undefined}>
+      <Probe operation="policies" name="policy" send={async () => "scope B"} />
+    </WorkflowMutationProvider>);
+    await act(async () => refetch.reject(new APITransportError("timeout", "Authoritative resource refetch failed")));
+    expect(acknowledgeReceipt).not.toHaveBeenCalled();
+
+    view.rerender(<WorkflowMutationProvider scopeKey="principal/organization/workspace-a/environment-a" recovery={recoveryA} reconcileReceipt={async () => undefined}>
+      <Probe operation="policies" name="policy" send={async () => "scope A"} />
+    </WorkflowMutationProvider>);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Authoritative resource refetch failed");
+    expect(screen.getByRole("heading", { name: "Recover committed operations" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Acknowledge recovered result" }));
+    await waitFor(() => expect(acknowledgeReceipt).toHaveBeenCalledWith(receipt.id));
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "Recover committed operations" })).not.toBeInTheDocument());
+    expect(reconcileReceipt.mock.invocationCallOrder[0]).toBeLessThan(acknowledgeReceipt.mock.invocationCallOrder[0]);
+  });
+
+  it("retains an ambiguous attempt but blocks retry transport after current authorization is lost", async () => {
+    const user = userEvent.setup();
+    const send = vi.fn().mockRejectedValueOnce(new APITransportError("timeout", "response lost")).mockResolvedValueOnce("must not send");
+    const view = render(<WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a">
+      <Probe operation="finding:update" name="finding" send={send} exposeRetry />
+    </WorkflowMutationProvider>);
+    await user.click(screen.getByRole("button", { name: "Start finding" }));
+    await waitFor(() => expect(screen.getByRole("region", { name: "finding" })).toHaveTextContent("unresolved:retry"));
+
+    view.rerender(<WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a">
+      <Probe operation="finding:update" name="finding" send={send} enabled={false} exposeRetry />
+    </WorkflowMutationProvider>);
+    expect(screen.getByRole("region", { name: "finding" })).toHaveTextContent("unresolved:locked");
+    expect(screen.queryByRole("button", { name: "Retry finding" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Force retry finding" }));
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
   it("re-lists the captured scope after automatic acknowledgement and renders a later committed receipt", async () => {
     const user = userEvent.setup();
     const ownID = "pid_77777777-7777-4777-8777-777777777777";
+    const ownReceipt = receiptFixture(ownID);
     const laterReceipt = receiptFixture("pid_88888888-8888-4888-8888-888888888888");
-    const listReceipts = vi.fn().mockResolvedValueOnce([]).mockResolvedValueOnce([laterReceipt]);
+    const listReceipts = vi.fn().mockResolvedValueOnce([]).mockResolvedValueOnce([ownReceipt, laterReceipt]).mockResolvedValueOnce([laterReceipt]);
     const acknowledgeReceipt = vi.fn().mockResolvedValue(undefined);
-    render(<WorkflowMutationProvider scopeKey="principal/organization/workspace-a/environment-a" recovery={{ listReceipts, acknowledgeReceipt }}>
+    const reconcileReceipt = vi.fn(authoritativeRefetch);
+    render(<WorkflowMutationProvider scopeKey="principal/organization/workspace-a/environment-a" recovery={{ listReceipts, acknowledgeReceipt }} reconcileReceipt={reconcileReceipt}>
       <Probe operation="policies" name="policy" send={async () => ({ receiptID: ownID })} />
     </WorkflowMutationProvider>);
 
     await waitFor(() => expect(listReceipts).toHaveBeenCalledTimes(1));
     await user.click(screen.getByRole("button", { name: "Start policy" }));
     expect(await screen.findByText(new RegExp(laterReceipt.resource_id))).toBeVisible();
+    expect(reconcileReceipt).toHaveBeenCalledWith(ownReceipt, expect.any(AbortSignal));
     expect(acknowledgeReceipt).toHaveBeenCalledWith(ownID);
-    expect(listReceipts).toHaveBeenCalledTimes(2);
+    expect(reconcileReceipt.mock.invocationCallOrder[0]).toBeLessThan(acknowledgeReceipt.mock.invocationCallOrder[0]);
+    expect(listReceipts).toHaveBeenCalledTimes(3);
     expect(screen.getByRole("button", { name: "Start policy" })).toBeDisabled();
   });
 
@@ -160,7 +220,7 @@ describe("observable scope-owned workflow mutation registry", () => {
       code: "not_found", message: "Resource not found", retryable: false,
       correlation_id: "pid_99999999-9999-4999-8999-999999999999",
     }));
-    render(<WorkflowMutationProvider scopeKey="principal/organization/workspace-a/environment-a" recovery={{ listReceipts, acknowledgeReceipt }}>
+    render(<WorkflowMutationProvider scopeKey="principal/organization/workspace-a/environment-a" recovery={{ listReceipts, acknowledgeReceipt }} reconcileReceipt={authoritativeRefetch}>
       <Probe operation="policies" name="policy" send={async () => ({ receiptID: ownID })} />
     </WorkflowMutationProvider>);
 
@@ -179,7 +239,7 @@ describe("observable scope-owned workflow mutation registry", () => {
       code: "not_found", message: "Resource not found", retryable: false,
       correlation_id: "pid_99999999-9999-4999-8999-999999999999",
     }));
-    render(<WorkflowMutationProvider scopeKey="principal/organization/workspace-a/environment-a" recovery={{ listReceipts, acknowledgeReceipt }}>
+    render(<WorkflowMutationProvider scopeKey="principal/organization/workspace-a/environment-a" recovery={{ listReceipts, acknowledgeReceipt }} reconcileReceipt={authoritativeRefetch}>
       <Probe operation="policies" name="policy" send={async () => "unused"} />
     </WorkflowMutationProvider>);
 
@@ -201,7 +261,7 @@ describe("observable scope-owned workflow mutation registry", () => {
       intent: { body: { connector_key: integration.connector_key, name: integration.name, configuration: integration.configuration }, expected_version: 0, resource_id: "" },
       result: integration, resource_kind: "integration", resource_id: integration.id,
     } as WorkflowMutationReceipt;
-    render(<WorkflowMutationProvider scopeKey="principal/organization/workspace-a/environment-a" recovery={{ listReceipts: async () => [receipt], acknowledgeReceipt: vi.fn() }}>
+    render(<WorkflowMutationProvider scopeKey="principal/organization/workspace-a/environment-a" recovery={{ listReceipts: async () => [receipt], acknowledgeReceipt: vi.fn() }} reconcileReceipt={authoritativeRefetch}>
       <Probe operation="integrations" name="integration" send={async () => "unused"} />
     </WorkflowMutationProvider>);
 
@@ -217,22 +277,23 @@ describe("observable scope-owned workflow mutation registry", () => {
     const user = userEvent.setup();
     const acknowledgement = deferred<void>();
     const scopeBList = deferred<readonly WorkflowMutationReceipt[]>();
-    const listA = vi.fn().mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+    const ownReceipt = receiptFixture("pid_77777777-7777-4777-8777-777777777777");
+    const listA = vi.fn().mockResolvedValueOnce([]).mockResolvedValueOnce([ownReceipt]).mockResolvedValueOnce([]);
     const recoveryA: WorkflowRecoveryAPI = { listReceipts: listA, acknowledgeReceipt: vi.fn(() => acknowledgement.promise) };
     const recoveryB: WorkflowRecoveryAPI = { listReceipts: vi.fn(() => scopeBList.promise), acknowledgeReceipt: vi.fn() };
-    const view = render(<WorkflowMutationProvider scopeKey="principal/organization/workspace-a/environment-a" recovery={recoveryA}>
+    const view = render(<WorkflowMutationProvider scopeKey="principal/organization/workspace-a/environment-a" recovery={recoveryA} reconcileReceipt={authoritativeRefetch}>
       <Probe operation="policies" name="policy" send={async () => ({ receiptID: "pid_77777777-7777-4777-8777-777777777777" })} />
     </WorkflowMutationProvider>);
     await waitFor(() => expect(listA).toHaveBeenCalledTimes(1));
     await user.click(screen.getByRole("button", { name: "Start policy" }));
     await waitFor(() => expect(recoveryA.acknowledgeReceipt).toHaveBeenCalledTimes(1));
 
-    view.rerender(<WorkflowMutationProvider scopeKey="principal/organization/workspace-b/environment-b" recovery={recoveryB}>
+    view.rerender(<WorkflowMutationProvider scopeKey="principal/organization/workspace-b/environment-b" recovery={recoveryB} reconcileReceipt={authoritativeRefetch}>
       <Probe operation="policies" name="policy" send={async () => "scope B mutation"} />
     </WorkflowMutationProvider>);
     expect(screen.getByRole("button", { name: "Start policy" })).toBeDisabled();
     await act(async () => acknowledgement.resolve());
-    await waitFor(() => expect(listA).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(listA).toHaveBeenCalledTimes(3));
     expect(screen.getByRole("button", { name: "Start policy" })).toBeDisabled();
     await act(async () => scopeBList.resolve([]));
   });

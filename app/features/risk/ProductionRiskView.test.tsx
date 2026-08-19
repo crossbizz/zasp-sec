@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -9,6 +9,13 @@ import { ProductionRiskView } from "./ProductionRiskView";
 
 const finding = { id: "pid_20000001-0000-4000-8000-000000000001", source: "posture", title: "Public tool access", severity: "high", status: "open", evidence_ids: ["pid_20000002-0000-4000-8000-000000000002"], risk_factors: [{ name: "Public input", evidence_id: "pid_20000002-0000-4000-8000-000000000002" }], version: 1, created_at: "2026-08-19T00:00:00Z", updated_at: "2026-08-19T00:00:01Z" } as const;
 const path = { id: "pid_30000001-0000-4000-8000-000000000001", entry_id: "pid_30000002-0000-4000-8000-000000000002", sink_id: "pid_30000003-0000-4000-8000-000000000003", node_ids: ["pid_30000002-0000-4000-8000-000000000002", "pid_30000003-0000-4000-8000-000000000003"], state: "verified", evidence_ids: [finding.evidence_ids[0]], blocked_edge: -1, version: 1, created_at: "2026-08-19T00:00:00Z", updated_at: "2026-08-19T00:00:01Z" } as const;
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((next, fail) => { resolve = next; reject = fail; });
+  return { promise, resolve, reject };
+}
 
 function QueryScope({ children }: { children: ReactNode }) {
   const { setQueryScope } = useAPI();
@@ -58,5 +65,57 @@ describe("production risk views", () => {
     expect(dialog).toHaveTextContent(`${path.node_ids[0]} → ${path.node_ids[1]}`);
     expect(dialog).toHaveTextContent("1. Remove node");
     expect(dialog).not.toHaveTextContent(/ticket|rerun|simulate/i);
+  });
+
+  it("opens attack-path detail immediately and preserves independent partial loading and error truth", async () => {
+    const detail = deferred<typeof path>();
+    const options = deferred<readonly []>();
+    renderRisk("/exposure/attack-paths", fixtureAPI({
+      getAttackPath: vi.fn(() => detail.promise),
+      getAttackPathBreakOptions: vi.fn(() => options.promise),
+    }));
+    await userEvent.click(await screen.findByRole("button", { name: `Open attack path ${path.id}` }));
+
+    const dialog = screen.getByRole("dialog", { name: "Attack path detail" });
+    expect(dialog).toHaveTextContent("Loading path detail…");
+    expect(dialog).toHaveTextContent("Loading break options…");
+    await act(async () => detail.resolve(path));
+    await waitFor(() => expect(dialog).toHaveTextContent(`${path.node_ids[0]} → ${path.node_ids[1]}`));
+    expect(dialog).toHaveTextContent("Loading break options…");
+    await act(async () => options.reject(new Error("Break-option provider unavailable")));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Break-option provider unavailable");
+    expect(dialog).toHaveTextContent(`${path.node_ids[0]} → ${path.node_ids[1]}`);
+  });
+
+  it("aborts finding detail on route unmount and ignores a late response", async () => {
+    const detail = deferred<{ value: typeof finding; version: string }>();
+    let signal: AbortSignal | undefined;
+    const api = fixtureAPI({ getFinding: vi.fn((_id, currentSignal) => { signal = currentSignal; return detail.promise; }) });
+    const view = renderRisk("/violations", api);
+    await userEvent.click(await screen.findByRole("button", { name: "Open Public tool access" }));
+    expect(signal?.aborted).toBe(false);
+
+    view.rerender(<APIProvider><QueryScope><ProductionRiskView path="/exposure/attack-paths" api={api} canWrite={false} /></QueryScope></APIProvider>);
+    expect(signal?.aborted).toBe(true);
+    await act(async () => detail.resolve({ value: finding, version: '"1"' }));
+    expect(screen.queryByRole("dialog", { name: "Public tool access" })).not.toBeInTheDocument();
+  });
+
+  it("aborts both attack-path detail requests on route unmount and ignores late settlements", async () => {
+    const detail = deferred<typeof path>();
+    const options = deferred<readonly []>();
+    const signals: AbortSignal[] = [];
+    const api = fixtureAPI({
+      getAttackPath: vi.fn((_id, signal) => { if (signal) signals.push(signal); return detail.promise; }),
+      getAttackPathBreakOptions: vi.fn((_id, signal) => { if (signal) signals.push(signal); return options.promise; }),
+    });
+    const view = renderRisk("/exposure/attack-paths", api);
+    await userEvent.click(await screen.findByRole("button", { name: `Open attack path ${path.id}` }));
+    expect(signals).toHaveLength(2);
+
+    view.rerender(<APIProvider><QueryScope><ProductionRiskView path="/violations" api={api} canWrite={false} /></QueryScope></APIProvider>);
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
+    await act(async () => { detail.resolve(path); options.resolve([]); });
+    expect(screen.queryByRole("dialog", { name: "Attack path detail" })).not.toBeInTheDocument();
   });
 });

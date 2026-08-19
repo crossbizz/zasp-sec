@@ -2,11 +2,13 @@ import type { APIClient } from "../../../apps/web/api/client";
 import { APIProductError, APITransportError, requireAPIData } from "../../../apps/web/api/client";
 import {
   decodeConnectorManifestPage,
+  decodeFinding,
   decodeIntegration,
   decodeIntegrationPage,
   decodePolicy,
   decodePolicyPage,
   decodePolicyRollout,
+  decodeSecurityAgentDefinition,
   decodeWorkflowMutationReceiptPage,
   type Decoder,
 } from "../../../apps/web/api/decoders";
@@ -219,6 +221,56 @@ export function createWorkflowRecoveryAPI(client: APIClient, capturedScopeKey = 
 }
 
 export type WorkflowRecoveryAPI = ReturnType<typeof createWorkflowRecoveryAPI>;
+
+export function createWorkflowReceiptReconciler(client: APIClient, capturedScopeKey: string) {
+  if (!capturedScopeKey) throw new APITransportError("invalid_configuration", "Workflow recovery scope is required");
+  const headers = { "X-Zasp-Expected-Scope": capturedScopeKey };
+  return async (receipt: WorkflowMutationReceipt, signal: AbortSignal): Promise<void> => {
+    const expectedVersion = `"${receipt.resource_version}"`;
+    switch (receipt.operation) {
+      case "createPolicy": case "updatePolicy": case "rolloutPolicy": case "disablePolicy": {
+        const value = requireWorkflowVersioned(await client.GET("/api/v1/policies/{id}", { params: { path: { id: receipt.resource_id } }, headers, signal }), decodePolicy);
+        requireRecoveredVersion(value.version, expectedVersion);
+        return;
+      }
+      case "deletePolicy":
+        return requireRecoveredDeletion(await client.GET("/api/v1/policies/{id}", { params: { path: { id: receipt.resource_id } }, headers, signal }));
+      case "createIntegration": case "updateIntegration": {
+        const value = requireWorkflowVersioned(await client.GET("/api/v1/integrations/{id}", { params: { path: { id: receipt.resource_id } }, headers, signal }), decodeIntegration);
+        requireRecoveredVersion(value.version, expectedVersion);
+        return;
+      }
+      case "deleteIntegration":
+        return requireRecoveredDeletion(await client.GET("/api/v1/integrations/{id}", { params: { path: { id: receipt.resource_id } }, headers, signal }));
+      case "createSecurityAgent": case "updateSecurityAgent": {
+        const value = requireWorkflowVersioned(await client.GET("/api/v1/security-agents/{id}", { params: { path: { id: receipt.resource_id } }, headers, signal }), decodeSecurityAgentDefinition);
+        requireRecoveredVersion(value.version, expectedVersion);
+        return;
+      }
+      case "deleteSecurityAgent":
+        return requireRecoveredDeletion(await client.GET("/api/v1/security-agents/{id}", { params: { path: { id: receipt.resource_id } }, headers, signal }));
+      case "updateFinding": case "acceptFindingRisk": {
+        const value = requireWorkflowVersioned(await client.GET("/api/v1/findings/{id}", { params: { path: { id: receipt.resource_id } }, headers, signal }), decodeFinding);
+        requireRecoveredVersion(value.version, expectedVersion);
+        return;
+      }
+    }
+  };
+}
+
+function requireRecoveredVersion(actual: string, expected: string): void {
+  if (actual !== expected) throw new APITransportError("invalid_response", "Authoritative resource version does not match the committed receipt");
+}
+
+function requireRecoveredDeletion(result: APIResult<unknown>): void {
+  try {
+    requireAPIData(result);
+  } catch (error) {
+    if (error instanceof APIProductError && error.status === 404 && error.product.code === "not_found") return;
+    throw error;
+  }
+  throw new APITransportError("invalid_response", "Authoritative resource still exists after the committed deletion");
+}
 
 async function loadAllWorkflowPages<T>(request: (cursor?: string) => Promise<APIResult<unknown>>, decode: Decoder<WorkflowPage<T>>): Promise<readonly T[]> {
   const items: T[] = [];

@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createAPIClient, APITransportError } from "../../../apps/web/api/client";
+import type { WorkflowMutationReceipt } from "../../../apps/web/api/generated";
+import { createWorkflowReceiptReconciler } from "../workflows/api";
 import { createProductionRiskAPI } from "./api";
 
 const scope = "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003";
@@ -55,5 +57,26 @@ describe("production risk API", () => {
     const pending = createProductionRiskAPI(createAPIClient({ getExpectedScope: () => scope, fetch }), "browser").listAttackPaths(controller.signal);
     controller.abort(new DOMException("obsolete", "AbortError"));
     await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  it("authoritatively refetches an exact-scope finding receipt and rejects version drift", async () => {
+    const requests: Request[] = [];
+    const versions = ['"2"', '"3"'];
+    const client = createAPIClient({ fetch: async (request) => {
+      requests.push(request);
+      return response({ ...finding, status: "under_review", version: 2 }, { ETag: versions.shift()! });
+    } });
+    const receipt = {
+      id: "pid_30000001-0000-4000-8000-000000000001", operation: "updateFinding",
+      idempotency_key: "idem-risk-recovery-0001", intent: { resource_id: finding.id, expected_version: 1, body: { status: "under_review" } },
+      result: { ...finding, status: "under_review", version: 2 }, resource_kind: "finding", resource_id: finding.id, resource_version: 2,
+      audit_id: "pid_30000002-0000-4000-8000-000000000002", correlation_id: "pid_30000003-0000-4000-8000-000000000003",
+      created_at: "2026-08-19T00:00:00Z", expires_at: "2026-08-26T00:00:00Z",
+    } as WorkflowMutationReceipt;
+    const reconcile = createWorkflowReceiptReconciler(client, scope);
+    await reconcile(receipt, new AbortController().signal);
+    expect(requests[0]!.method).toBe("GET");
+    expect(requests[0]!.headers.get("X-Zasp-Expected-Scope")).toBe(scope);
+    await expect(reconcile(receipt, new AbortController().signal)).rejects.toThrow("version does not match");
   });
 });
