@@ -80,6 +80,29 @@ func TestRouterProvidesValidatedProductIDPathParametersAndOperation(t *testing.T
 	}
 }
 
+func TestRouterProvidesValidatedSessionIDPathParameters(t *testing.T) {
+	for _, operationID := range []string{"getSession", "listSessionEvents", "revokeSession"} {
+		t.Run(operationID, func(t *testing.T) {
+			called := false
+			router, err := NewRouter([]Operation{{Method: http.MethodGet, Pattern: "/api/v1/sessions/{id}", OperationID: operationID, Handler: http.HandlerFunc(func(http.ResponseWriter, *http.Request) { called = true })}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/sessions/session-investigation-e2e", nil))
+			if response.Code != http.StatusOK || !called {
+				t.Fatalf("valid SessionID response = (%d, called=%v)", response.Code, called)
+			}
+			called = false
+			response = httptest.NewRecorder()
+			router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/sessions/pid_20000001-0000-4000-8000-000000000001", nil))
+			if response.Code != http.StatusNotFound || called {
+				t.Fatalf("invalid SessionID response = (%d, called=%v)", response.Code, called)
+			}
+		})
+	}
+}
+
 func TestRouterEnforcesExactOperationPermission(t *testing.T) {
 	router, err := NewRouter([]Operation{{Method: "GET", Pattern: "/api/v1/agents", OperationID: "listAgents", Permission: "view", Handler: handlerResponse("agents")}})
 	if err != nil {

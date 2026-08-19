@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	"errors"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
@@ -21,6 +22,7 @@ const (
 var (
 	ErrInvalidOperation   = errors.New("invalid API operation")
 	ErrDuplicateOperation = errors.New("duplicate API operation")
+	sessionIDPattern      = regexp.MustCompile(`^session-[a-z0-9][a-z0-9-]*$`)
 )
 
 type Operation struct {
@@ -253,6 +255,12 @@ func matchSegments(pattern []routeSegment, path []string) (map[string]string, bo
 
 func validRouteParameters(operationID string, parameters map[string]string) bool {
 	for name, value := range parameters {
+		if name == "id" && (operationID == "getSession" || operationID == "listSessionEvents" || operationID == "revokeSession") {
+			if len(value) > 128 || !sessionIDPattern.MatchString(value) {
+				return false
+			}
+			continue
+		}
 		if name == "id" && strings.Contains(operationID, "Policy") {
 			if !policyIDPattern.MatchString(value) {
 				return false
