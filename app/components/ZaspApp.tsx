@@ -111,7 +111,7 @@ function ProductionAppContent() {
 		const allowed = productionRoutes.some((route) => route.path === window.location.pathname && session.hasCapability(route.capability));
 		if (!allowed) {
 			window.history.replaceState({}, "", "/");
-			setPath("/");
+			queueMicrotask(() => setPath("/"));
 		}
 	}, [session]);
   if (session.status === "loading") return <main className="page"><h1>Loading Zasp</h1><p role="status">Loading authenticated session…</p></main>;

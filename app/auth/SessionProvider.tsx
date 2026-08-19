@@ -113,7 +113,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 		clearQueryCache();
 		if (mutationError && reconciled) setScopeSwitch({ status: "error", error: mutationError });
 		else setScopeSwitch({ status: "idle" });
-	}, [client, clearQueryCache, loadSession, sessionExpiry, state]);
+	}, [client, clearQueryCache, loadSession, sessionExpiry, setCSRFToken, state]);
 	const retryScopeSwitch = useCallback(async () => {
 		if (!scopeTarget.current) throw new Error("Scope retry is unavailable");
 		await switchScope(scopeTarget.current.workspaceID, scopeTarget.current.environmentID);
