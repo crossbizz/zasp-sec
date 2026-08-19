@@ -5,6 +5,7 @@ import (
 	"errors"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestPostgresJSONDatabaseRunsSchemaReadAndWriteBoundaries(t *testing.T) {
@@ -52,6 +53,34 @@ func TestPostgresJSONDatabaseFailsClosedOnDriverErrors(t *testing.T) {
 	}
 }
 
+func TestPostgresJSONDatabaseCloseWaitsForInflightQuery(t *testing.T) {
+	driver := &blockingDatabaseDriver{started: make(chan struct{}), release: make(chan struct{})}
+	database, err := NewPostgresJSONDatabase(driver)
+	if err != nil {
+		t.Fatal(err)
+	}
+	queryDone := make(chan error, 1)
+	go func() {
+		_, queryErr := database.QueryJSON(context.Background(), "SELECT payload")
+		queryDone <- queryErr
+	}()
+	<-driver.started
+	closeDone := make(chan error, 1)
+	go func() { closeDone <- database.Close() }()
+	select {
+	case err := <-closeDone:
+		t.Fatalf("Close completed during inflight query: %v", err)
+	case <-time.After(25 * time.Millisecond):
+	}
+	close(driver.release)
+	if err := <-queryDone; err != nil {
+		t.Fatalf("query failed: %v", err)
+	}
+	if err := <-closeDone; err != nil || driver.closes != 1 {
+		t.Fatalf("close = (%v, %d)", err, driver.closes)
+	}
+}
+
 type databaseDriver struct {
 	responses     map[string][]byte
 	rowErr        error
@@ -72,6 +101,30 @@ func (driver *databaseDriver) Close() error { driver.closes++; return nil }
 type databaseRow struct {
 	value []byte
 	err   error
+}
+
+type blockingDatabaseDriver struct {
+	started chan struct{}
+	release chan struct{}
+	closes  int
+}
+
+func (driver *blockingDatabaseDriver) QueryRow(context.Context, string, ...any) PostgresRow {
+	return blockingDatabaseRow{started: driver.started, release: driver.release}
+}
+func (*blockingDatabaseDriver) Exec(context.Context, string, ...any) error { return nil }
+func (driver *blockingDatabaseDriver) Close() error                        { driver.closes++; return nil }
+
+type blockingDatabaseRow struct {
+	started chan struct{}
+	release chan struct{}
+}
+
+func (row blockingDatabaseRow) Scan(destinations ...any) error {
+	close(row.started)
+	<-row.release
+	*(destinations[0].(*[]byte)) = []byte(`{"items":[]}`)
+	return nil
 }
 
 func (row databaseRow) Scan(destination ...any) error {

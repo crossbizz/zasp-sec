@@ -17,7 +17,7 @@ type PostgresDriver interface {
 }
 
 type PostgresJSONDatabase struct {
-	mu     sync.Mutex
+	mu     sync.RWMutex
 	driver PostgresDriver
 	closed bool
 }
@@ -30,7 +30,12 @@ func NewPostgresJSONDatabase(driver PostgresDriver) (*PostgresJSONDatabase, erro
 }
 
 func (database *PostgresJSONDatabase) SchemaVersion(ctx context.Context) (string, error) {
-	if !database.usable(ctx) {
+	if database == nil || ctx == nil || ctx.Err() != nil {
+		return "", ErrRepositoryOperation
+	}
+	database.mu.RLock()
+	defer database.mu.RUnlock()
+	if database.closed || nilInterface(database.driver) {
 		return "", ErrRepositoryOperation
 	}
 	var version string
@@ -41,7 +46,12 @@ func (database *PostgresJSONDatabase) SchemaVersion(ctx context.Context) (string
 }
 
 func (database *PostgresJSONDatabase) QueryJSON(ctx context.Context, statement string, arguments ...any) (json.RawMessage, error) {
-	if !database.usable(ctx) || statement == "" {
+	if database == nil || ctx == nil || ctx.Err() != nil || statement == "" {
+		return nil, ErrRepositoryOperation
+	}
+	database.mu.RLock()
+	defer database.mu.RUnlock()
+	if database.closed || nilInterface(database.driver) {
 		return nil, ErrRepositoryOperation
 	}
 	var payload []byte
@@ -52,7 +62,12 @@ func (database *PostgresJSONDatabase) QueryJSON(ctx context.Context, statement s
 }
 
 func (database *PostgresJSONDatabase) Exec(ctx context.Context, statement string, arguments ...any) error {
-	if !database.usable(ctx) || statement == "" || database.driver.Exec(ctx, statement, arguments...) != nil {
+	if database == nil || ctx == nil || ctx.Err() != nil || statement == "" {
+		return ErrRepositoryOperation
+	}
+	database.mu.RLock()
+	defer database.mu.RUnlock()
+	if database.closed || nilInterface(database.driver) || database.driver.Exec(ctx, statement, arguments...) != nil {
 		return ErrRepositoryOperation
 	}
 	return nil
@@ -72,13 +87,4 @@ func (database *PostgresJSONDatabase) Close() error {
 		return ErrRepositoryOperation
 	}
 	return nil
-}
-
-func (database *PostgresJSONDatabase) usable(ctx context.Context) bool {
-	if database == nil || ctx == nil || ctx.Err() != nil {
-		return false
-	}
-	database.mu.Lock()
-	defer database.mu.Unlock()
-	return !database.closed && !nilInterface(database.driver)
 }
