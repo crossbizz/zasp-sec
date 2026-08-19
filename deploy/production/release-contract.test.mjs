@@ -90,6 +90,7 @@ test("release applies non-root rollout, zone and host spread, drain, PDB, and de
   assert.equal(JSON.stringify(resources).includes("agentsec-worker"), false);
   assert.equal(JSON.stringify(resources).includes("event-ingest"), false);
   assert.equal(JSON.stringify(resources).includes("runtime-gateway"), false);
+  assert.equal(JSON.stringify(resources).includes("4317"), false);
 });
 
 test("release renders read-only synthetic and exact SLO budgets without credential values", async () => {

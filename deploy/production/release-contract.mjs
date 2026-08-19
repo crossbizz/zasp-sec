@@ -53,7 +53,6 @@ export async function renderRelease(value) {
     ["secrets.tokenRevealKeyObjectName", "zasp/production/token-reveal-key"],
     ["secrets.canaryReadTokenObjectName", "zasp/production/canary-read-token"],
     ["network.postgresCIDR", "10.30.0.0/24"], ["network.stytchCIDR", "10.40.0.0/24"],
-    ["network.otelCollectorCIDR", "10.50.0.0/24"],
     ["network.canaryCIDR", "10.60.0.0/24"],
     ...imageNames.map((name) => [`global.productImages.${name}`, value.images[name]]),
   ];

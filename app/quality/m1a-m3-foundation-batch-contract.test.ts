@@ -17,7 +17,8 @@ describe("M1A and M3 foundation batch", () => {
       'resource "aws_eks_cluster" "staging"', 'resource "aws_eks_node_group" "staging"', 'resource "aws_s3_bucket" "evidence"',
       'resource "aws_kms_key" "staging"', 'resource "aws_secretsmanager_secret" "product"',
       'resource "aws_sqs_queue" "work"', 'resource "aws_sqs_queue" "dead_letter"',
-      'resource "aws_opensearch_domain" "events"', 'resource "aws_iam_role" "product"',
+      'resource "aws_opensearch_domain" "events"', 'resource "aws_iam_role" "api"',
+      'resource "aws_iam_role" "migration"', 'resource "aws_iam_role" "canary_secret_sync"',
     ]) expect(main).toContain(resource);
     expect(main).toContain("block_public_acls       = true");
     expect(main).toContain("encrypt_at_rest");
@@ -27,9 +28,11 @@ describe("M1A and M3 foundation batch", () => {
     expect(main).not.toMatch(/Action\s*=\s*"\*"/);
     expect(main).not.toMatch(/iam:(?:Create|Delete|Put|Update)|ec2:(?:Create|Delete|Modify)|secretsmanager:PutSecretValue/);
     expect(main).not.toContain('Action    = "es:ESHttp*"');
-    for (const output of ["private_subnet_ids", "cluster_name", "bucket_name", "queue_urls", "opensearch_endpoint", "product_role_arn"]) {
+    expect(main).not.toContain('resource "aws_iam_role" "product"');
+    for (const output of ["private_subnet_ids", "cluster_name", "bucket_name", "queue_urls", "opensearch_endpoint", "api_role_arn", "migration_role_arn", "canary_secret_sync_role_arn"]) {
       expect(outputs).toContain(`output "${output}"`);
     }
+    expect(outputs).not.toContain('output "product_role_arn"');
   });
 
   it("publishes mounted integration definitions without provider execution routes", async () => {

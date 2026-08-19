@@ -67,8 +67,6 @@ spec:
       ports: [{ protocol: TCP, port: 5432 }]
     - to: [{ ipBlock: { cidr: {{ required "network.stytchCIDR is required" .Values.network.stytchCIDR | quote }} } }]
       ports: [{ protocol: TCP, port: 443 }]
-    - to: [{ ipBlock: { cidr: {{ required "network.otelCollectorCIDR is required" .Values.network.otelCollectorCIDR | quote }} } }]
-      ports: [{ protocol: TCP, port: 4317 }]
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

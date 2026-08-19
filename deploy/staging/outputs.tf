@@ -30,8 +30,14 @@ output "opensearch_endpoint" {
   value     = aws_opensearch_domain.events.endpoint
   sensitive = true
 }
-output "product_role_arn" {
-  value = aws_iam_role.product.arn
+output "api_role_arn" {
+  value = aws_iam_role.api.arn
+}
+output "migration_role_arn" {
+  value = aws_iam_role.migration.arn
+}
+output "canary_secret_sync_role_arn" {
+  value = aws_iam_role.canary_secret_sync.arn
 }
 output "attack_lab_security_group_id" {
   value = aws_security_group.attack_lab.id
