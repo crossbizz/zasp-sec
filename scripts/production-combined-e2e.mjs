@@ -396,7 +396,7 @@ try {
   console.log("combined E2E: full-document receipt recovery, local integration, Security Agent definition, and hidden unsafe controls proven");
 
   await navigateBrowser(browser.cdp, `${publicOrigin}/administration/identity-access`);
-  const identityAccess = await waitForBrowserText(browser.cdp, /member-target-local/);
+  const identityAccess = await waitForBrowserText(browser.cdp, /member-target-local[\s\S]*E2E Organization/);
   assert.match(identityAccess, /E2E Organization/);
   assert.match(identityAccess, /Enterprise identity\s+Unavailable/);
   assert.match(identityAccess, /Group mappings\s+Unavailable/);
