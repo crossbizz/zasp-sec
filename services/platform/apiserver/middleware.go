@@ -64,6 +64,7 @@ func NewProductMiddleware(security ProductSecurity, next http.Handler) (http.Han
 		return nil, ErrInvalidProductSecurity
 	}
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Cache-Control", "no-store")
 		correlationID := security.GenerateCorrelationID()
 		if _, err := domain.ParseProductID(correlationID); err != nil {
 			writeProductError(writer, http.StatusInternalServerError, "operation_rejected", "Operation rejected", fallbackCorrelationID)

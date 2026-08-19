@@ -44,7 +44,7 @@ func newWorkflowHTTPHandler(repository workflowRepository, signingKey []byte, no
 	if instant.IsZero() {
 		return nil, ErrRepositoryConfiguration
 	}
-	catalog, err := platformintegration.NewCatalog(platformintegration.BuiltinManifests())
+	catalog, err := platformintegration.NewCatalog(locallyCompleteWorkflowManifests())
 	if err != nil {
 		return nil, ErrRepositoryConfiguration
 	}
@@ -683,9 +683,23 @@ func workflowPolicyCapabilities() platformpolicy.Capabilities {
 
 func workflowTemplates() []map[string]any {
 	values := securityagent.BuiltInTemplates()
-	result := make([]map[string]any, len(values))
+	result := make([]map[string]any, 0, len(values))
 	for index, value := range values {
-		result[index] = map[string]any{"id": deterministicProductID(index + 1), "name": value.Name, "version": value.Version, "trigger_kind": value.TriggerKind, "default_actions": value.DefaultActions, "verification_condition": value.VerificationCondition}
+		if !servedWorkflowActions(value.DefaultActions) {
+			continue
+		}
+		result = append(result, map[string]any{"id": deterministicProductID(index + 1), "name": value.Name, "version": value.Version, "trigger_kind": value.TriggerKind, "default_actions": value.DefaultActions, "verification_condition": value.VerificationCondition})
+	}
+	return result
+}
+
+func locallyCompleteWorkflowManifests() []platformintegration.ConnectorManifest {
+	values := platformintegration.BuiltinManifests()
+	result := make([]platformintegration.ConnectorManifest, 0, 1)
+	for _, value := range values {
+		if value.Key == "generic-webhook" {
+			result = append(result, value)
+		}
 	}
 	return result
 }

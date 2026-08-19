@@ -42,6 +42,9 @@ func TestProductMiddlewareAuthenticatesCookieAndOwnsRequestIdentity(t *testing.T
 	if response.Header().Get("X-Correlation-ID") != testCorrelationID {
 		t.Fatalf("correlation header = %q", response.Header().Get("X-Correlation-ID"))
 	}
+	if response.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("cache control = %q, want no-store", response.Header().Get("Cache-Control"))
+	}
 }
 
 func TestProductMiddlewareSeparatesAuthenticationAndBrowserMutationRejection(t *testing.T) {

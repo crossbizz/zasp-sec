@@ -329,6 +329,44 @@ func TestSensorCoverageOmitsUnknownTimestampInsteadOfEmittingInvalidDate(t *test
 	}
 }
 
+func TestWorkflowHandlerPublishesOnlyLocallyCompleteCatalogAndTemplates(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	repository := &workflowRepositoryStub{}
+	handler, err := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), time.Now)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request := workflowRequest(t, identity, testCorrelationID, "listIntegrationCatalog", nil, http.MethodGet, "/api/v1/integration-catalog", "")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	var catalog struct {
+		Items []struct {
+			Key string `json:"key"`
+		} `json:"items"`
+	}
+	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &catalog) != nil || len(catalog.Items) != 1 || catalog.Items[0].Key != "generic-webhook" {
+		t.Fatalf("local catalog = %d %s", response.Code, response.Body.String())
+	}
+
+	request = workflowRequest(t, identity, testCorrelationID, "listSecurityAgentTemplates", nil, http.MethodGet, "/api/v1/security-agent-templates", "")
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	var templates struct {
+		Items []struct {
+			DefaultActions []string `json:"default_actions"`
+		} `json:"items"`
+	}
+	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &templates) != nil || len(templates.Items) != 1 {
+		t.Fatalf("local templates = %d %s", response.Code, response.Body.String())
+	}
+	for _, action := range templates.Items[0].DefaultActions {
+		if !servedWorkflowActions([]string{action}) {
+			t.Fatalf("template publishes unsupported action %q", action)
+		}
+	}
+}
+
 func workflowRequest(t *testing.T, identity RequestIdentity, correlation, operation string, params map[string]string, method, path, body string) *http.Request {
 	t.Helper()
 	var source *bytes.Reader
