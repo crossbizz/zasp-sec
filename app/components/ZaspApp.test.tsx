@@ -134,7 +134,7 @@ describe("Zasp application", () => {
         if (path === "/api/v1/session/bootstrap") return apiJSON({
           principal: { id: "pid_10000004-0000-4000-8000-000000000004", organization_id: "pid_10000001-0000-4000-8000-000000000001", organization_reference: "organization-live", member_reference: "member-live", role: "security_admin", active: true },
           organization_id: "pid_10000001-0000-4000-8000-000000000001", workspace_id: "pid_10000002-0000-4000-8000-000000000002", environment_id: "pid_10000003-0000-4000-8000-000000000003",
-		  permissions: ["view"], capabilities: ["inventory.read", "scope.switch"], csrf_token: "cccccccccccccccccccccccccccccccc", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+		  permissions: ["view"], capabilities: ["inventory.read", "scope.switch"], csrf_token: "cccccccccccccccccccccccccccccccc", fresh_auth_expires_at: new Date(Date.now() + 60_000).toISOString(), correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
         });
 		if (path === "/api/v1/session/scopes") return apiJSON({ items: [
 			{ organization_id: "pid_10000001-0000-4000-8000-000000000001", workspace_id: "pid_10000002-0000-4000-8000-000000000002", environment_id: "pid_10000003-0000-4000-8000-000000000003", label: "Production" },
@@ -166,7 +166,7 @@ describe("Zasp application", () => {
 				if (path === "/api/v1/session/bootstrap") return apiJSON({
 					principal: { id: "pid_10000004-0000-4000-8000-000000000004", organization_id: "pid_10000001-0000-4000-8000-000000000001", organization_reference: "organization-live", member_reference: "member-live", role: "security_admin", active: true },
 					organization_id: "pid_10000001-0000-4000-8000-000000000001", workspace_id: "pid_10000002-0000-4000-8000-000000000002", environment_id: "pid_10000003-0000-4000-8000-000000000003",
-					permissions: ["view", "manage_workflows"], capabilities: ["policies.read", "policies.write", "integrations.read", "sensors.read", "security-agents.read"], csrf_token: "cccccccccccccccccccccccccccccccc", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+					permissions: ["view", "manage_workflows"], capabilities: ["policies.read", "policies.write", "integrations.read", "sensors.read", "security-agents.read"], csrf_token: "cccccccccccccccccccccccccccccccc", fresh_auth_expires_at: new Date(Date.now() + 60_000).toISOString(), correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
 				});
 				if (path === "/api/v1/policies") return apiJSON({ items: [{ id: "policy-production", name: "Production policy", scope: "environment", trigger: "tool", conditions: [{ field: "action", operator: "equals", value: "write" }], action: "monitor", rollout: "draft", failure_mode: "open" }], page_info: { next_cursor: null, has_more: false } });
 				if (path === "/api/v1/workflow-mutation-receipts") return apiJSON({ items: [] });
@@ -199,7 +199,7 @@ describe("Zasp application", () => {
 				if (path === "/api/v1/session/bootstrap") return apiJSON({
 					principal: { id: "pid_10000004-0000-4000-8000-000000000004", organization_id: "pid_10000001-0000-4000-8000-000000000001", organization_reference: "organization-live", member_reference: "member-live", role: "security_admin", active: true },
 					organization_id: "pid_10000001-0000-4000-8000-000000000001", workspace_id: "pid_10000002-0000-4000-8000-000000000002", environment_id: "pid_10000003-0000-4000-8000-000000000003",
-					permissions: ["view"], capabilities: ["inventory.read", "identity.manage", "api-access.manage", "sessions.read", "sessions.revoke", "audit.read", "compliance.read", "data-controls.manage", "system.read"], csrf_token: "cccccccccccccccccccccccccccccccc", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+					permissions: ["view"], capabilities: ["inventory.read", "identity.manage", "api-access.manage", "sessions.read", "sessions.revoke", "audit.read", "compliance.read", "data-controls.manage", "system.read"], csrf_token: "cccccccccccccccccccccccccccccccc", fresh_auth_expires_at: new Date(Date.now() + 60_000).toISOString(), correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
 				});
 				if (path === "/api/v1/home/summary") return apiJSON({ agent_count: 0, high_risk_paths: 0, verified_changes: 0, blocked_changes: 0, pending_approvals: 0, oldest_approval_age_seconds: 0, needs_human_runs: 0, failed_runs: 0, inconclusive_runs: 0, recent_contained: 0, recent_remediated: 0, healthy: true, attention_required: false });
 				throw new Error(`unexpected product fetch ${path}`);
@@ -224,7 +224,7 @@ describe("Zasp application", () => {
 				if (path === "/api/v1/session/bootstrap") return apiJSON({
 					principal: { id: "pid_10000004-0000-4000-8000-000000000004", organization_id: "pid_10000001-0000-4000-8000-000000000001", organization_reference: "organization-live", member_reference: "member-live", role: "security_admin", active: true },
 					organization_id: "pid_10000001-0000-4000-8000-000000000001", workspace_id: "pid_10000002-0000-4000-8000-000000000002", environment_id: "pid_10000003-0000-4000-8000-000000000003",
-					permissions: ["view", "manage_workflows"], capabilities: ["policies.read", "policies.write", "integrations.read"], csrf_token: "cccccccccccccccccccccccccccccccc", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+					permissions: ["view", "manage_workflows"], capabilities: ["policies.read", "policies.write", "integrations.read"], csrf_token: "cccccccccccccccccccccccccccccccc", fresh_auth_expires_at: new Date(Date.now() + 60_000).toISOString(), correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
 				});
 				if (path === "/api/v1/policies" && request.method === "GET") return apiJSON({ items: [{ ...policy, id: "policy-existing", name: "Existing policy" }], page_info: { next_cursor: null, has_more: false } });
 				if (path === "/api/v1/workflow-mutation-receipts") return apiJSON({ items: [] });
@@ -271,7 +271,7 @@ describe("Zasp application", () => {
 				if (path === "/api/v1/session/bootstrap") return apiJSON({
 					principal: { id: "pid_10000004-0000-4000-8000-000000000004", organization_id: "pid_10000001-0000-4000-8000-000000000001", organization_reference: "organization-live", member_reference: "member-live", role: "security_admin", active: true },
 					organization_id: "pid_10000001-0000-4000-8000-000000000001", workspace_id: "pid_10000002-0000-4000-8000-000000000002", environment_id: "pid_10000003-0000-4000-8000-000000000003",
-					permissions: ["view", "manage_workflows"], capabilities: ["integrations.read", "integrations.write"], csrf_token: "cccccccccccccccccccccccccccccccc", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+					permissions: ["view", "manage_workflows"], capabilities: ["integrations.read", "integrations.write"], csrf_token: "cccccccccccccccccccccccccccccccc", fresh_auth_expires_at: new Date(Date.now() + 60_000).toISOString(), correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
 				});
 				if (path === "/api/v1/integrations" && request.method === "GET") return apiJSON({ items: [], page_info: { next_cursor: null, has_more: false } });
 				if (path === "/api/v1/workflow-mutation-receipts") return apiJSON({ items: [] });
@@ -302,7 +302,7 @@ describe("Zasp application", () => {
 				if (path === "/api/v1/session/bootstrap") return apiJSON({
 					principal: { id: "pid_10000004-0000-4000-8000-000000000004", organization_id: "pid_10000001-0000-4000-8000-000000000001", organization_reference: "organization-live", member_reference: "member-live", role: "security_admin", active: true },
 					organization_id: "pid_10000001-0000-4000-8000-000000000001", workspace_id: "pid_10000002-0000-4000-8000-000000000002", environment_id: "pid_10000003-0000-4000-8000-000000000003",
-					permissions: ["view", "manage_workflows"], capabilities: ["inventory.read", "sensors.read", "sensors.write"], csrf_token: "cccccccccccccccccccccccccccccccc", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+					permissions: ["view", "manage_workflows"], capabilities: ["inventory.read", "sensors.read", "sensors.write"], csrf_token: "cccccccccccccccccccccccccccccccc", fresh_auth_expires_at: new Date(Date.now() + 60_000).toISOString(), correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
 				});
 				if (path === "/api/v1/home/summary") return apiJSON({ agent_count: 0, high_risk_paths: 0, verified_changes: 0, blocked_changes: 0, pending_approvals: 0, oldest_approval_age_seconds: 0, needs_human_runs: 0, failed_runs: 0, inconclusive_runs: 0, recent_contained: 0, recent_remediated: 0, healthy: true, attention_required: false });
 				throw new Error(`unexpected product fetch ${request.method} ${path}`);
@@ -329,7 +329,7 @@ describe("Zasp application", () => {
 			generateCorrelationID: () => "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
 			fetch: async (request) => {
 				const path = new URL(request.url).pathname;
-				if (path === "/api/v1/session/bootstrap") { if (switched) await reconciliationGate; return apiJSON({ principal: { id: "pid_10000004-0000-4000-8000-000000000004", organization_id: organizationID, organization_reference: "organization-live", member_reference: "member-live", role: "security_admin", active: true }, organization_id: organizationID, workspace_id: switched ? stagingWorkspace : productionWorkspace, environment_id: switched ? stagingEnvironment : productionEnvironment, permissions: ["view", "manage_workflows"], capabilities: ["policies.read", "policies.write", "scope.switch"], csrf_token: "cccccccccccccccccccccccccccccccc", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee" }); }
+				if (path === "/api/v1/session/bootstrap") { if (switched) await reconciliationGate; return apiJSON({ principal: { id: "pid_10000004-0000-4000-8000-000000000004", organization_id: organizationID, organization_reference: "organization-live", member_reference: "member-live", role: "security_admin", active: true }, organization_id: organizationID, workspace_id: switched ? stagingWorkspace : productionWorkspace, environment_id: switched ? stagingEnvironment : productionEnvironment, permissions: ["view", "manage_workflows"], capabilities: ["policies.read", "policies.write", "scope.switch"], csrf_token: "cccccccccccccccccccccccccccccccc", fresh_auth_expires_at: new Date(Date.now() + 60_000).toISOString(), correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee" }); }
 				if (path === "/api/v1/session/scopes") return apiJSON({ items: [{ organization_id: organizationID, workspace_id: productionWorkspace, environment_id: productionEnvironment, label: "Production" }, { organization_id: organizationID, workspace_id: stagingWorkspace, environment_id: stagingEnvironment, label: "Staging" }] });
 				if (path === "/api/v1/session/scope" && request.method === "PUT") { switched = true; return new Response(null, { status: 204 }); }
 				if (path === "/api/v1/workflow-mutation-receipts") return apiJSON({ items: [] });
@@ -360,7 +360,7 @@ describe("Zasp application", () => {
 				if (path === "/api/v1/session/bootstrap") return apiJSON({
 					principal: { id: "pid_10000004-0000-4000-8000-000000000004", organization_id: "pid_10000001-0000-4000-8000-000000000001", organization_reference: "organization-live", member_reference: "member-live", role: "security_admin", active: true },
 					organization_id: "pid_10000001-0000-4000-8000-000000000001", workspace_id: "pid_10000002-0000-4000-8000-000000000002", environment_id: "pid_10000003-0000-4000-8000-000000000003",
-					permissions: ["view"], capabilities: ["inventory.read"], csrf_token: "cccccccccccccccccccccccccccccccc", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+					permissions: ["view"], capabilities: ["inventory.read"], csrf_token: "cccccccccccccccccccccccccccccccc", fresh_auth_expires_at: new Date(Date.now() + 60_000).toISOString(), correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
 				});
 				if (path === "/api/v1/home/summary") return apiJSON({ agent_count: 0, high_risk_paths: 0, verified_changes: 0, blocked_changes: 0, pending_approvals: 0, oldest_approval_age_seconds: 0, needs_human_runs: 0, failed_runs: 0, inconclusive_runs: 0, recent_contained: 0, recent_remediated: 0, healthy: true, attention_required: false });
 				return apiJSON({ code: "not_found", message: "Resource not found", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: false }, 404);
@@ -389,7 +389,7 @@ describe("Zasp application", () => {
 				if (path === "/api/v1/session/bootstrap") return apiJSON({
 					principal: { id: "pid_10000004-0000-4000-8000-000000000004", organization_id: "pid_10000001-0000-4000-8000-000000000001", organization_reference: "organization-live", member_reference: "member-live", role: "read_only_viewer", active: true },
 					organization_id: "pid_10000001-0000-4000-8000-000000000001", workspace_id: "pid_10000002-0000-4000-8000-000000000002", environment_id: "pid_10000003-0000-4000-8000-000000000003",
-					permissions: [], capabilities: [], csrf_token: "cccccccccccccccccccccccccccccccc", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+					permissions: [], capabilities: [], csrf_token: "cccccccccccccccccccccccccccccccc", fresh_auth_expires_at: new Date(Date.now() + 60_000).toISOString(), correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
 				});
 				throw new Error(`unexpected product fetch ${path}`);
 			},

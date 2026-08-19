@@ -3,6 +3,7 @@
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 
 import { requireAPIData, type APIClient } from "../../../apps/web/api/client";
+import { loadAllCursorPages } from "../../../apps/web/api/pagination";
 import type {
   BuiltInRolePage,
   Principal,
@@ -16,8 +17,8 @@ const IdentityAPIContext = createContext<IdentityAdminAPI | null>(null);
 export function createIdentityAdminAPI(client: APIClient): IdentityAdminAPI {
   return {
     async listMembers() {
-      const page = requireAPIData<PrincipalPage>(await client.GET("/api/v1/admin/members"), decodePrincipalPage);
-      return page.items.map((item) => ({ id: item.id, memberReference: item.member_reference, role: item.role, active: item.active, version: item.version ?? 1 }));
+      const loaded = await loadAllCursorPages(async (cursor) => requireAPIData<PrincipalPage>(await client.GET("/api/v1/admin/members", { params: { query: { limit: 100, ...(cursor ? { cursor } : {}) } } }), decodePrincipalPage), { maximumItems: 2_000, maximumPages: 20 });
+      return loaded.items.map((item) => ({ id: item.id, memberReference: item.member_reference, role: item.role, active: item.active, version: item.version ?? 1 }));
     },
     async updateMemberRole(id, role, version) {
       const item = requireAPIData<Principal>(await client.PATCH("/api/v1/admin/members/{id}", { params: { path: { id }, header: { "X-CSRF-Token": "", "If-Match": `"${version}"` } }, body: { role: role as Principal["role"] } }), decodePrincipal);

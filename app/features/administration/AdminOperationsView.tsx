@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { requireAPIData, type APIClient } from "../../../apps/web/api/client";
+import { loadAllCursorPages } from "../../../apps/web/api/pagination";
 import type { AuditEventPage, ExternalFlowPage, SystemComponentPage, SystemStatus, SystemVersion } from "../../../apps/web/api/generated";
 import { decodeAuditEventPage, decodeExternalFlowPage, decodeSystemComponentPage, decodeSystemStatus, decodeSystemVersion } from "../../../apps/web/api/administration-decoders";
 import { Badge, Card, EmptyState, LoadingState, PageHeader } from "../../components/ui";
@@ -17,7 +18,7 @@ export function createAdminOperationsAPI(client: APIClient): AdminOperationsAPI 
   return {
     async getHealth() { const [status, components, version] = await Promise.all([requireAPIData<SystemStatus>(await client.GET("/api/v1/system/status"), decodeSystemStatus), requireAPIData<SystemComponentPage>(await client.GET("/api/v1/system/components"), decodeSystemComponentPage), requireAPIData<SystemVersion>(await client.GET("/api/v1/system/version"), decodeSystemVersion)]); return { status, components: components.items, version: version.version }; },
     async getExternalFlows() { return requireAPIData<ExternalFlowPage>(await client.GET("/api/v1/settings/external-data-flows"), decodeExternalFlowPage).items; },
-    async listAuditEvents() { return requireAPIData<AuditEventPage>(await client.GET("/api/v1/audit-events"), decodeAuditEventPage).items; },
+    async listAuditEvents() { return (await loadAllCursorPages(async (cursor) => requireAPIData<AuditEventPage>(await client.GET("/api/v1/audit-events", { params: { query: { limit: 100, ...(cursor ? { cursor } : {}) } } }), decodeAuditEventPage), { maximumItems: 2_000, maximumPages: 20 })).items; },
   };
 }
 

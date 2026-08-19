@@ -21,6 +21,14 @@ function Consumer() {
   </div>;
 }
 
+function FreshAuthConsumer() {
+	const session = useSession();
+	return <div>
+		<span>{session.status} {session.status === "authenticated" && session.isFreshAuthenticated ? "fresh active" : "fresh expired"}</span>
+		<button disabled={session.status !== "authenticated" || !session.isFreshAuthenticated}>Sensitive action</button>
+	</div>;
+}
+
 function ScopedQueryConsumer({ query }: { query: (signal?: AbortSignal) => Promise<readonly string[]> }) {
   const session = useSession();
   const scoped = useAPIQuery("scoped-records", query, session.status === "authenticated");
@@ -112,6 +120,18 @@ function wrapper(fetch: (request: Request) => Promise<Response>) {
 }
 
 describe("SessionProvider", () => {
+	it("uses the exact bootstrap expiry to disable sensitive actions before a server rejection", async () => {
+		const fetch = vi.fn(async () => jsonResponse({
+			...sessionBootstrap(),
+			capabilities: ["inventory.read"],
+			fresh_auth_expires_at: new Date(Date.now() - 1_000).toISOString(),
+		}));
+		const Wrapper = wrapper(fetch);
+		render(<Wrapper><FreshAuthConsumer /></Wrapper>);
+		expect(await screen.findByText("authenticated fresh expired")).toBeVisible();
+		expect(screen.getByRole("button", { name: "Sensitive action" })).toBeDisabled();
+	});
+
 	it("keeps the newest A-B-A recovery when an older scope list succeeds late", async () => {
 		const staleResponses = [deferred<Response>(), deferred<Response>()];
 		const oldScopeList = deferred<Response>();
@@ -832,6 +852,7 @@ function sessionBootstrap(switched = false, exclusiveCapability?: "scope-a-only"
     permissions: ["view", "manage_findings"],
 	capabilities: ["inventory.read", "scope.switch", ...(exclusiveCapability ? [exclusiveCapability] : [])],
 	csrf_token: switched ? "dddddddddddddddddddddddddddddddd" : "cccccccccccccccccccccccccccccccc",
+	fresh_auth_expires_at: new Date(Date.now() + 60_000).toISOString(),
     correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
   };
 }

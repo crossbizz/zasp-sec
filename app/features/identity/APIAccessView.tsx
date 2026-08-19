@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { requireAPIData, type APIClient } from "../../../apps/web/api/client";
+import { loadAllCursorPages } from "../../../apps/web/api/pagination";
 import type { ApiToken, ApiTokenPage, ApiTokenRevealedCredential, ApiTokenRevealGrant, ApiTokenRevealGrantPage } from "../../../apps/web/api/generated";
 import { decodeAPIToken, decodeAPITokenPage, decodeAPITokenRevealedCredential, decodeAPITokenRevealGrant, decodeAPITokenRevealGrantPage } from "../../../apps/web/api/administration-decoders";
 import { useOptionalSession } from "../../auth/SessionProvider";
@@ -39,10 +40,12 @@ function grantView(grant: { readonly grant_id: string; readonly token_id: string
 export function createAPIAccessAPI(client: APIClient): APIAccessAPI {
   return {
     async listTokens(signal) {
-      return loadAll(async (cursor) => requireAPIData<ApiTokenPage>(await client.GET("/api/v1/admin/api-tokens", { params: { query: { limit: 100, ...(cursor ? { cursor } : {}) } }, signal }), decodeAPITokenPage), tokenView);
+      const loaded = await loadAllCursorPages(async (cursor) => requireAPIData<ApiTokenPage>(await client.GET("/api/v1/admin/api-tokens", { params: { query: { limit: 100, ...(cursor ? { cursor } : {}) } }, signal }), decodeAPITokenPage), { maximumItems: MAXIMUM_LIST_ITEMS, maximumPages: MAXIMUM_LIST_PAGES });
+      return loaded.items.map(tokenView);
     },
     async listPendingGrants(signal) {
-      return loadAll(async (cursor) => requireAPIData<ApiTokenRevealGrantPage>(await client.GET("/api/v1/admin/api-token-reveal-grants", { params: { query: { limit: 100, ...(cursor ? { cursor } : {}) } }, signal }), decodeAPITokenRevealGrantPage), grantView);
+      const loaded = await loadAllCursorPages(async (cursor) => requireAPIData<ApiTokenRevealGrantPage>(await client.GET("/api/v1/admin/api-token-reveal-grants", { params: { query: { limit: 100, ...(cursor ? { cursor } : {}) } }, signal }), decodeAPITokenRevealGrantPage), { maximumItems: MAXIMUM_LIST_ITEMS, maximumPages: MAXIMUM_LIST_PAGES });
+      return loaded.items.map(grantView);
     },
     async createToken(input, idempotencyKey) {
       const result = requireAPIData<ApiTokenRevealGrant>(await client.POST("/api/v1/admin/api-tokens", { params: { header: { "X-CSRF-Token": "", "Idempotency-Key": idempotencyKey } }, body: { name: input.name, workspace_id: input.workspaceId, environment_id: input.environmentId, permissions: input.permissions as ApiToken["permissions"], expires_at: input.expiresAt } }), decodeAPITokenRevealGrant);
@@ -66,18 +69,6 @@ export function createAPIAccessAPI(client: APIClient): APIAccessAPI {
   };
 }
 
-async function loadAll<T, U>(read: (cursor?: string) => Promise<{ readonly items: readonly T[]; readonly page_info: { readonly next_cursor: string | null; readonly has_more: boolean } }>, map: (item: T) => U): Promise<U[]> {
-  const result: U[] = []; let cursor: string | undefined;
-  for (let page = 0; page < MAXIMUM_LIST_PAGES; page += 1) {
-    const response = await read(cursor); result.push(...response.items.map(map));
-    if (result.length > MAXIMUM_LIST_ITEMS) throw new Error("bounded list exceeded");
-    if (!response.page_info.has_more) return result;
-    if (!response.page_info.next_cursor || response.page_info.next_cursor === cursor) throw new Error("invalid list continuation");
-    cursor = response.page_info.next_cursor;
-  }
-  throw new Error("bounded list page cap exceeded");
-}
-
 type PendingMutation = { kind: "create"; key: string; fingerprint: string } | { kind: "rotate"; key: string; tokenID: string };
 
 export function APIAccessView({ api: suppliedAPI, client }: { api?: APIAccessAPI; client?: APIClient }) {
@@ -95,6 +86,7 @@ export function APIAccessView({ api: suppliedAPI, client }: { api?: APIAccessAPI
   const [acknowledging, setAcknowledging] = useState(false);
   const [name, setName] = useState(""); const [workspaceId, setWorkspaceId] = useState(""); const [environmentId, setEnvironmentId] = useState("");
   const pendingMutation = useRef<PendingMutation | null>(null);
+  const [unresolvedMutation, setUnresolvedMutation] = useState<PendingMutation | null>(null);
 
   const load = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -121,15 +113,18 @@ export function APIAccessView({ api: suppliedAPI, client }: { api?: APIAccessAPI
   const closeSecret = async () => {
     if (!api || !revealed || acknowledging) return;
     setAcknowledging(true); setSecretStatus("Destroying the encrypted recovery copy…");
-    try { await api.acknowledgeGrant(revealed.grantId); setGrants((current) => current.filter((grant) => grant.grantId !== revealed.grantId)); setRevealed(null); setSecretStatus(""); setNotice("API token saved and reveal grant acknowledged"); }
+    try { await api.acknowledgeGrant(revealed.grantId); setGrants((current) => current.filter((grant) => grant.grantId !== revealed.grantId)); pendingMutation.current = null; setUnresolvedMutation(null); setRevealed(null); setSecretStatus(""); setNotice("API token saved and reveal grant acknowledged"); }
     catch { setSecretStatus("Acknowledgement failed. Keep this dialog open and retry."); }
     finally { setAcknowledging(false); }
   };
-  const reconcileMutation = async () => { await load(); pendingMutation.current = null; };
+  const retainMutation = (value: PendingMutation | null) => { pendingMutation.current = value; setUnresolvedMutation(value); };
+  const reconcileMutation = async () => { await load(); };
   const expiresAt = () => new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  const recoveryLocked = grants.length > 0 || unresolvedMutation !== null;
   return <div className="page api-access">
     <PageHeader title="API Access" eyebrow="Administration" description="Create scoped automation credentials with encrypted, restart-safe one-time reveal recovery." />
     {error && <div className="error-banner" role="alert">{error}</div>}{notice && <div className="success-banner" role="status">{notice}</div>}
+    {unresolvedMutation && <div className="error-banner" role="status">A token mutation has an ambiguous response. Other token controls stay locked until its durable reveal grant is recovered or the exact retained operation is retried.</div>}
     {!fresh && <div className="error-banner" role="alert">Fresh authentication expired. <Button onClick={() => session?.reauthenticate()}>Reauthenticate</Button></div>}
     <Modal open={revealed !== null} title="Save API token" closeDisabled={acknowledging} onClose={() => void closeSecret()} footer={<Button disabled={acknowledging} onClick={() => void closeSecret()}>I saved it — destroy recovery copy</Button>}>
       <p>This secret is recoverable only until you acknowledge it or the reveal grant expires.</p><pre aria-label="API token credential">{revealed?.rawToken}</pre>
@@ -139,14 +134,14 @@ export function APIAccessView({ api: suppliedAPI, client }: { api?: APIAccessAPI
     <Card title={<h2>Pending reveal grants</h2>}>
       {grants.length === 0 ? <EmptyState title="No pending credentials" description="Unacknowledged token credentials after create or rotate appear here across reloads." /> : <ul className="identity-list">{grants.map((grant) => <li key={grant.grantId}><span><strong>{grant.operation === "createAPIToken" ? "Created token" : "Rotated token"}</strong><small>expires {grant.expiresAt}</small></span><Button disabled={!fresh || revealed !== null} onClick={() => void reveal(grant)}>Reveal token</Button></li>)}</ul>}
     </Card>
-    <Card title={<h2>Create API token</h2>}><div className="identity-form-grid"><Field disabled={!fresh} label="Token name" value={name} onChange={(event) => setName(event.target.value)} /><Field disabled={!fresh} label="Workspace ID" value={workspaceId} onChange={(event) => setWorkspaceId(event.target.value)} /><Field disabled={!fresh} label="Environment ID" value={environmentId} onChange={(event) => setEnvironmentId(event.target.value)} /></div>
-      <Button variant="primary" disabled={!fresh || revealed !== null} onClick={() => void (async () => {
+    <Card title={<h2>Create API token</h2>}><div className="identity-form-grid"><Field disabled={!fresh || recoveryLocked} label="Token name" value={name} onChange={(event) => setName(event.target.value)} /><Field disabled={!fresh || recoveryLocked} label="Workspace ID" value={workspaceId} onChange={(event) => setWorkspaceId(event.target.value)} /><Field disabled={!fresh || recoveryLocked} label="Environment ID" value={environmentId} onChange={(event) => setEnvironmentId(event.target.value)} /></div>
+      <Button variant="primary" disabled={!fresh || revealed !== null || grants.length > 0 || unresolvedMutation?.kind === "rotate"} onClick={() => void (async () => {
         setError(null); setNotice(null); if (!name.trim() || !workspaceId.startsWith("pid_") || !environmentId.startsWith("pid_")) { setError("Enter token name and canonical scope IDs"); return; } if (!api) { setError("API token could not be created"); return; }
-        const fingerprint = JSON.stringify([name.trim(), workspaceId, environmentId]); const retained = pendingMutation.current; const key = retained?.kind === "create" && retained.fingerprint === fingerprint ? retained.key : `admin_${crypto.randomUUID()}`; pendingMutation.current = { kind: "create", key, fingerprint };
-        try { const created = await api.createToken({ name: name.trim(), workspaceId, environmentId, permissions: ["view"], expiresAt: expiresAt() }, key); setTokens((current) => [...current.filter((item) => item.id !== created.token.id), created.token]); setGrants((current) => [...current.filter((item) => item.grantId !== created.grant.grantId), created.grant]); pendingMutation.current = null; setNotice("API token created; reveal it before the grant expires"); await reveal(created.grant); }
-        catch { setError("Create response was interrupted. Reconciling the durable reveal grant before any retry."); await reconcileMutation(); }
-      })()}>Create API token</Button>
+        const fingerprint = JSON.stringify([name.trim(), workspaceId, environmentId]); const retained = pendingMutation.current; const key = retained?.kind === "create" && retained.fingerprint === fingerprint ? retained.key : `admin_${crypto.randomUUID()}`; retainMutation({ kind: "create", key, fingerprint });
+        try { const created = await api.createToken({ name: name.trim(), workspaceId, environmentId, permissions: ["view"], expiresAt: expiresAt() }, key); setTokens((current) => [...current.filter((item) => item.id !== created.token.id), created.token]); setGrants((current) => [...current.filter((item) => item.grantId !== created.grant.grantId), created.grant]); retainMutation(null); setNotice("API token created; reveal it before the grant expires"); await reveal(created.grant); }
+        catch { await reconcileMutation(); setError("Create response was interrupted. Recover a pending grant or retry the exact retained operation."); }
+      })()}>{unresolvedMutation?.kind === "create" ? "Retry retained API token create" : "Create API token"}</Button>
     </Card>
-    <Card title={<h2>API tokens</h2>}>{tokens.length === 0 ? <EmptyState title="No API tokens" description="Create a scoped credential for automation." /> : <ul className="identity-list">{tokens.map((token) => <li key={token.id}><span><strong>{token.name}</strong><small>{token.permissions.join(" · ")} · expires {token.expiresAt}</small></span><div className="row-actions"><Badge tone={token.revokedAt ? "neutral" : "success"}>{token.revokedAt ? "Revoked" : "Active"}</Badge>{!token.revokedAt && <><Button disabled={!fresh || revealed !== null} aria-label={`Rotate ${token.name}`} onClick={() => void (async () => { if (!api) return; const retained = pendingMutation.current; const key = retained?.kind === "rotate" && retained.tokenID === token.id ? retained.key : `admin_${crypto.randomUUID()}`; pendingMutation.current = { kind: "rotate", key, tokenID: token.id }; try { const rotated = await api.rotateToken(token.id, token.version, key); setTokens((current) => [...current.filter((item) => item.id !== token.id && item.id !== rotated.token.id), rotated.token]); setGrants((current) => [...current.filter((item) => item.grantId !== rotated.grant.grantId), rotated.grant]); pendingMutation.current = null; setNotice("API token rotated; the old token is revoked"); await reveal(rotated.grant); } catch { setError("Rotate response was interrupted. Reconciling before retry."); await reconcileMutation(); } })()}>Rotate</Button><Button disabled={!fresh || revealed !== null} variant="danger" aria-label={`Revoke ${token.name}`} onClick={() => { if (window.confirm(`Revoke ${token.name}?`)) void (async () => { try { if (!api) throw new Error(); const revoked = await api.revokeToken(token.id, token.version); setTokens((current) => current.map((item) => item.id === token.id ? revoked : item)); setGrants((current) => current.filter((grant) => grant.tokenId !== token.id)); setNotice("API token revoked"); } catch { setError("API token could not be revoked"); } })(); }}>Revoke</Button></>}</div></li>)}</ul>}</Card>
+    <Card title={<h2>API tokens</h2>}>{tokens.length === 0 ? <EmptyState title="No API tokens" description="Create a scoped credential for automation." /> : <ul className="identity-list">{tokens.map((token) => <li key={token.id}><span><strong>{token.name}</strong><small>{token.permissions.join(" · ")} · expires {token.expiresAt}</small></span><div className="row-actions"><Badge tone={token.revokedAt ? "neutral" : "success"}>{token.revokedAt ? "Revoked" : "Active"}</Badge>{!token.revokedAt && <><Button disabled={!fresh || revealed !== null || grants.length > 0 || unresolvedMutation !== null && (unresolvedMutation.kind !== "rotate" || unresolvedMutation.tokenID !== token.id)} aria-label={`Rotate ${token.name}`} onClick={() => void (async () => { if (!api) return; const retained = pendingMutation.current; const key = retained?.kind === "rotate" && retained.tokenID === token.id ? retained.key : `admin_${crypto.randomUUID()}`; retainMutation({ kind: "rotate", key, tokenID: token.id }); try { const rotated = await api.rotateToken(token.id, token.version, key); setTokens((current) => [...current.filter((item) => item.id !== token.id && item.id !== rotated.token.id), rotated.token]); setGrants((current) => [...current.filter((item) => item.grantId !== rotated.grant.grantId), rotated.grant]); retainMutation(null); setNotice("API token rotated; the old token is revoked"); await reveal(rotated.grant); } catch { await reconcileMutation(); setError("Rotate response was interrupted. Recover a pending grant or retry the exact retained operation."); } })()}>{unresolvedMutation?.kind === "rotate" && unresolvedMutation.tokenID === token.id ? "Retry rotate" : "Rotate"}</Button><Button disabled={!fresh || revealed !== null || recoveryLocked} variant="danger" aria-label={`Revoke ${token.name}`} onClick={() => { if (window.confirm(`Revoke ${token.name}?`)) void (async () => { try { if (!api) throw new Error(); const revoked = await api.revokeToken(token.id, token.version); setTokens((current) => current.map((item) => item.id === token.id ? revoked : item)); setGrants((current) => current.filter((grant) => grant.tokenId !== token.id)); setNotice("API token revoked"); } catch { setError("API token could not be revoked"); } })(); }}>Revoke</Button></>}</div></li>)}</ul>}</Card>
   </div>;
 }

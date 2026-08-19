@@ -242,6 +242,23 @@ describe("generated API client", () => {
     expect(expired).toHaveBeenCalledOnce();
   });
 
+  it("invalidates fresh-only state only for the exact fixed fresh-auth envelope", async () => {
+    const freshRequired = vi.fn();
+    const responses = [
+      { code: "fresh_auth_required", message: "Fresh authentication required", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: false },
+      { code: "authorization_rejected", message: "Authorization rejected", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: false },
+    ];
+    const client = createAPIClient({
+      fetch: async () => jsonResponse(responses.shift(), 403),
+      onFreshAuthRequired: freshRequired,
+    });
+
+    expect((await client.GET("/api/v1/home/summary")).error).toMatchObject({ code: "fresh_auth_required" });
+    expect(freshRequired).toHaveBeenCalledOnce();
+    expect((await client.GET("/api/v1/home/summary")).error).toMatchObject({ code: "authorization_rejected" });
+    expect(freshRequired).toHaveBeenCalledOnce();
+  });
+
 	it("preserves an explicit captured scope and requests rebootstrap on scope-stale", async () => {
 		const stale = vi.fn();
 		let currentScope = "pid_10000001-0000-4000-8000-000000000001/pid_10000022-0000-4000-8000-000000000022/pid_10000023-0000-4000-8000-000000000023";
