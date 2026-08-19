@@ -1085,15 +1085,17 @@ func TestAdministrationKeysetsAndExactScopePreconditionsWithHostilePostgresData(
 	siblingEnvironment := "pid_20000003-0000-4000-8000-000000000003"
 	siblingToken := "pid_20000005-0000-4000-8000-000000000005"
 	ungrantedWorkspace := "pid_30000002-0000-4000-8000-000000000002"
+	authorizedEnvironment := "pid_21000003-0000-4000-8000-000000000003"
+	ungrantedEnvironment := "pid_31000003-0000-4000-8000-000000000003"
 	for _, seed := range []struct {
 		statement string
 		arguments []any
 	}{
 		{`INSERT INTO zasp_organizations(id,name,domain) VALUES($1,'Keyset organization','keyset.invalid')`, []any{organization}},
 		{`INSERT INTO zasp_workspaces(id,organization_id,name) VALUES($2,$1,'Active'),($3,$1,'Sibling'),($4,$1,'Ungranted')`, []any{organization, workspace, siblingWorkspace, ungrantedWorkspace}},
-		{`INSERT INTO zasp_environments(id,organization_id,workspace_id,name,environment_class) VALUES($3,$1,$2,'Active','production'),($5,$1,$4,'Sibling','staging')`, []any{organization, workspace, environment, siblingWorkspace, siblingEnvironment}},
+		{`INSERT INTO zasp_environments(id,organization_id,workspace_id,name,environment_class) VALUES($3,$1,$2,'Active','production'),($5,$1,$4,'Sibling','staging'),($6,$1,$2,'Authorized secondary','development'),($7,$1,$2,'Ungranted sibling','test')`, []any{organization, workspace, environment, siblingWorkspace, siblingEnvironment, authorizedEnvironment, ungrantedEnvironment}},
 		{`INSERT INTO zasp_identity_memberships(principal_id,organization_id,organization_reference,member_reference,role) VALUES($2,$1,'keyset-org','keyset-member','security_admin')`, []any{organization, identity.PrincipalID.String()}},
-		{`INSERT INTO zasp_authorized_scopes(principal_id,organization_id,workspace_id,environment_id,label,permissions,is_default) VALUES($2,$1,$3,$4,'Active','["view","manage_identity"]'::jsonb,true),($2,$1,$5,$6,'Sibling','["view","manage_identity"]'::jsonb,false)`, []any{organization, identity.PrincipalID.String(), workspace, environment, siblingWorkspace, siblingEnvironment}},
+		{`INSERT INTO zasp_authorized_scopes(principal_id,organization_id,workspace_id,environment_id,label,permissions,is_default) VALUES($2,$1,$3,$4,'Active','["view","manage_identity"]'::jsonb,true),($2,$1,$5,$6,'Sibling','["view","manage_identity"]'::jsonb,false),($2,$1,$3,$7,'Authorized secondary','["view","manage_identity"]'::jsonb,false)`, []any{organization, identity.PrincipalID.String(), workspace, environment, siblingWorkspace, siblingEnvironment, authorizedEnvironment}},
 		{`INSERT INTO zasp_product_api_tokens(token_digest,id,name,principal_id,organization_id,workspace_id,environment_id,permissions,expires_at) VALUES(digest('sibling-token-secret','sha256'),$5,'Sibling token',$2,$1,$3,$4,'["view"]'::jsonb,transaction_timestamp()+interval '1 hour')`, []any{organization, identity.PrincipalID.String(), siblingWorkspace, siblingEnvironment, siblingToken}},
 		{`INSERT INTO zasp_workspaces(id,organization_id,name) SELECT 'pid_' || lpad(ordinal::text,8,'0') || '-0000-4000-8000-' || lpad(ordinal::text,12,'0'),$1,'Workspace ' || ordinal FROM generate_series(1,1000) AS ordinal`, []any{organization}},
 		{`INSERT INTO zasp_environments(id,organization_id,workspace_id,name,environment_class) SELECT 'pid_'||lpad((40000000+ordinal)::text,8,'0')||'-0000-4000-8000-'||lpad(ordinal::text,12,'0'),$1,'pid_'||lpad(ordinal::text,8,'0')||'-0000-4000-8000-'||lpad(ordinal::text,12,'0'),'Environment '||ordinal,'development' FROM generate_series(1,151) AS ordinal`, []any{organization}},
@@ -1131,6 +1133,12 @@ func TestAdministrationKeysetsAndExactScopePreconditionsWithHostilePostgresData(
 			t.Fatalf("decode workspace page: %s", response.Body.String())
 		}
 		return page, response.Code, response.Body.String()
+	}
+	environmentRequest := workflowRequest(t, identity, testCorrelationID, "listEnvironments", nil, http.MethodGet, "/api/v1/environments?workspace_id="+workspace+"&limit=100", "")
+	environmentResponse := httptest.NewRecorder()
+	handler.ServeHTTP(environmentResponse, environmentRequest)
+	if environmentResponse.Code != http.StatusOK || !strings.Contains(environmentResponse.Body.String(), environment) || !strings.Contains(environmentResponse.Body.String(), authorizedEnvironment) || strings.Contains(environmentResponse.Body.String(), ungrantedEnvironment) || strings.Contains(environmentResponse.Body.String(), siblingEnvironment) {
+		t.Fatalf("authorized environment selector = %d %s", environmentResponse.Code, environmentResponse.Body.String())
 	}
 	first, status, body := readPage(t, identity, "/api/v1/workspaces?limit=100")
 	if status != http.StatusOK || len(first.Items) != 100 || !first.PageInfo.HasMore || first.PageInfo.NextCursor == nil {

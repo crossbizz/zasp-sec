@@ -63,4 +63,16 @@ describe("Workspace and Environment onboarding", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Authorized scopes could not be loaded");
     expect(screen.queryByText("database detail")).not.toBeInTheDocument();
   });
+
+  it("renders only the exact environments returned by the authorized scope boundary", async () => {
+    const listEnvironments = vi.fn(async (workspaceId: string) => [
+      { id: "pid_environment_a", workspaceId, name: "Production" },
+      { id: "pid_environment_b", workspaceId, name: "Authorized development" },
+    ]);
+    render(<ScopeOnboardingView api={fixtureAPI({ listEnvironments })} />);
+    expect(await screen.findByRole("option", { name: "Production" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Authorized development" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Unpermitted environment" })).not.toBeInTheDocument();
+    expect(listEnvironments).toHaveBeenCalledWith("pid_workspace_a");
+  });
 });

@@ -128,15 +128,18 @@ func TestWorkflowRepositoryCleansExpiredReceiptsWithAnExactBound(t *testing.T) {
 }
 
 func TestWorkflowRepositoryReadinessRunsOneBoundedReceiptCleanup(t *testing.T) {
-	database := &workflowCallDatabase{response: json.RawMessage(`{"deleted":0}`)}
+	database := &round4ReadinessDatabase{responses: map[string]json.RawMessage{
+		postgresWorkflowReceiptCleanupSQL: json.RawMessage(`{"deleted":0}`),
+		postgresRevealGrantCleanupSQL:     json.RawMessage(`{"cleaned":0}`),
+	}, errors: map[string]error{}}
 	repository, _ := NewPostgresRepository(database)
 	if err := repository.Ready(context.Background()); err != nil {
 		t.Fatalf("Ready: %v", err)
 	}
-	if database.query != postgresWorkflowReceiptCleanupSQL || !reflect.DeepEqual(database.args, []any{1000}) {
-		t.Fatalf("readiness cleanup query=%q args=%#v", database.query, database.args)
+	if len(database.queries) != 2 || database.queries[0] != postgresWorkflowReceiptCleanupSQL {
+		t.Fatalf("readiness cleanup queries=%#v", database.queries)
 	}
-	database.response = json.RawMessage(`{"deleted":1001}`)
+	database.responses[postgresWorkflowReceiptCleanupSQL] = json.RawMessage(`{"deleted":1001}`)
 	if err := repository.Ready(context.Background()); !errors.Is(err, ErrRepositoryUnavailable) {
 		t.Fatalf("unbounded readiness cleanup error = %v", err)
 	}

@@ -86,4 +86,8 @@ test("uses strict product schemas and the shared stable error response", async (
   assert.equal(document.components.schemas.ComplianceEvidence.properties.evidence.minItems, 1);
   assert.equal(document.components.schemas.ComplianceEvidence.properties.evidence.maxItems, 1);
   assert.equal(document.components.schemas.WorkspaceMutation.properties.initial_environment_id.$ref, "#/components/schemas/ProductID");
+  const environmentList = document.paths["/api/v1/environments"].get;
+  assert.deepEqual(environmentList.security, [{ BrowserSession: [], BrowserExpectedScope: [] }]);
+  assert.equal(environmentList.parameters.find((parameter) => parameter.name === "workspace_id")?.required, true);
+  assert.match(environmentList.summary, /authorized/i);
 });

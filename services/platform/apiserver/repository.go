@@ -68,6 +68,9 @@ func (repository *PostgresRepository) Ready(ctx context.Context) error {
 	if _, err := repository.CleanupExpiredWorkflowMutationReceipts(ctx, 1000); err != nil {
 		return ErrRepositoryUnavailable
 	}
+	if _, err := repository.CleanupExpiredAPITokenRevealGrants(ctx, 1000); err != nil {
+		return ErrRepositoryUnavailable
+	}
 	return nil
 }
 
