@@ -263,7 +263,7 @@ func (repository *PostgresRepository) MutateRiskFinding(ctx context.Context, ide
 		return RiskFindingMutationResult{}, riskProviderError(err)
 	}
 	var result RiskFindingMutationResult
-	if decodeStrictRisk(payload, &result) != nil || !validRiskFinding(result.Body) || result.Version != result.Body.Version || result.Version != mutation.ExpectedVersion+1 || result.AuditID != mutation.AuditID || result.CorrelationID != mutation.CorrelationID || result.ReceiptID != mutation.ReceiptID {
+	if decodeStrictRisk(payload, &result) != nil || !validRiskFinding(result.Body) || result.Version != result.Body.Version || result.Version != mutation.ExpectedVersion+1 || !validProductID(result.AuditID) || !validProductID(result.CorrelationID) || !validMutationReceiptIdentity(identity, result.ReceiptID) || !result.Replayed && (result.AuditID != mutation.AuditID || result.CorrelationID != mutation.CorrelationID || result.ReceiptID != mutation.ReceiptID) {
 		return RiskFindingMutationResult{}, ErrRepositoryUnavailable
 	}
 	normalizeRiskFinding(&result.Body)

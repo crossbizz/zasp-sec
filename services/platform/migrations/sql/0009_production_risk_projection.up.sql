@@ -121,6 +121,31 @@ ALTER TABLE "public"."zasp_workflow_receipts" DROP CONSTRAINT "zasp_workflow_rec
 ALTER TABLE "public"."zasp_workflow_receipts" ADD CONSTRAINT "zasp_workflow_receipts_resource_kind_check"
 CHECK ("resource_kind" IN ('policy', 'integration', 'sensor', 'security_agent', 'security_agent_run', 'security_agent_approval', 'finding'));
 
+CREATE FUNCTION "public"."zasp_risk_attack_path_valid"(
+    candidate "public"."zasp_risk_attack_paths"
+)
+RETURNS boolean LANGUAGE sql STABLE AS $$
+    SELECT COALESCE(
+        (SELECT count(*) BETWEEN 2 AND 8
+             AND min("position")=1 AND max("position")=count(*)
+             AND (array_agg("node_id" ORDER BY "position"))[1]=candidate."entry_id"
+             AND (array_agg("node_id" ORDER BY "position" DESC))[1]=candidate."sink_id"
+          FROM "public"."zasp_risk_attack_path_nodes"
+         WHERE "organization_id"=candidate."organization_id" AND "workspace_id"=candidate."workspace_id"
+           AND "environment_id"=candidate."environment_id" AND "path_id"=candidate."id")
+        AND
+        (SELECT count(*) BETWEEN 1 AND 16 AND min("position")=1 AND max("position")=count(*)
+          FROM "public"."zasp_risk_attack_path_evidence"
+         WHERE "organization_id"=candidate."organization_id" AND "workspace_id"=candidate."workspace_id"
+           AND "environment_id"=candidate."environment_id" AND "path_id"=candidate."id")
+        AND (candidate."state"<>'blocked' OR candidate."blocked_edge" <
+            (SELECT count(*)-1 FROM "public"."zasp_risk_attack_path_nodes"
+              WHERE "organization_id"=candidate."organization_id" AND "workspace_id"=candidate."workspace_id"
+                AND "environment_id"=candidate."environment_id" AND "path_id"=candidate."id")),
+        false
+    )
+$$;
+
 CREATE FUNCTION "public"."zasp_risk_finding_get"(
     requested_id text, requested_organization_id text, requested_workspace_id text, requested_environment_id text
 )
@@ -196,9 +221,10 @@ DECLARE
     first_node text;
     last_node text;
 BEGIN
-    SELECT * INTO path FROM "public"."zasp_risk_attack_paths"
+    SELECT * INTO path FROM "public"."zasp_risk_attack_paths" AS candidate
      WHERE "organization_id"=requested_organization_id AND "workspace_id"=requested_workspace_id
-       AND "environment_id"=requested_environment_id AND "id"=requested_id;
+       AND "environment_id"=requested_environment_id AND "id"=requested_id
+       AND "public"."zasp_risk_attack_path_valid"(candidate);
     IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='P0002', MESSAGE='risk path missing'; END IF;
     SELECT count(*), COALESCE(jsonb_agg("node_id" ORDER BY "position"),'[]'::jsonb),
            (array_agg("node_id" ORDER BY "position"))[1], (array_agg("node_id" ORDER BY "position" DESC))[1]
@@ -209,12 +235,6 @@ BEGIN
       INTO evidence_count,evidence FROM "public"."zasp_risk_attack_path_evidence"
      WHERE "organization_id"=requested_organization_id AND "workspace_id"=requested_workspace_id
        AND "environment_id"=requested_environment_id AND "path_id"=requested_id;
-    IF node_count NOT BETWEEN 2 AND 8 OR evidence_count NOT BETWEEN 1 AND 16 OR first_node<>path."entry_id" OR last_node<>path."sink_id"
-       OR EXISTS (SELECT 1 FROM "public"."zasp_risk_attack_path_nodes" WHERE "organization_id"=requested_organization_id AND "workspace_id"=requested_workspace_id AND "environment_id"=requested_environment_id AND "path_id"=requested_id HAVING min("position")<>1 OR max("position")<>count(*))
-       OR EXISTS (SELECT 1 FROM "public"."zasp_risk_attack_path_evidence" WHERE "organization_id"=requested_organization_id AND "workspace_id"=requested_workspace_id AND "environment_id"=requested_environment_id AND "path_id"=requested_id HAVING min("position")<>1 OR max("position")<>count(*))
-       OR (path."state"='blocked' AND path."blocked_edge">=node_count-1) THEN
-        RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='invalid stored risk path projection';
-    END IF;
     RETURN jsonb_build_object('id',path."id",'entry_id',path."entry_id",'sink_id',path."sink_id",'node_ids',nodes,
         'state',path."state",'evidence_ids',evidence,'blocked_edge',path."blocked_edge",'version',path."version",
         'created_at',path."created_at",'updated_at',path."updated_at");
@@ -230,9 +250,10 @@ DECLARE response jsonb;
 BEGIN
     IF requested_limit NOT BETWEEN 1 AND 100 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='invalid risk page limit'; END IF;
     WITH candidates AS (
-        SELECT "id" FROM "public"."zasp_risk_attack_paths"
+        SELECT "id" FROM "public"."zasp_risk_attack_paths" AS candidate
          WHERE "organization_id"=requested_organization_id AND "workspace_id"=requested_workspace_id
            AND "environment_id"=requested_environment_id AND (requested_after_id IS NULL OR "id">requested_after_id)
+           AND "public"."zasp_risk_attack_path_valid"(candidate)
          ORDER BY "id" LIMIT requested_limit+1
     ), visible AS (SELECT "id" FROM candidates ORDER BY "id" LIMIT requested_limit)
     SELECT jsonb_build_object(
@@ -249,7 +270,7 @@ CREATE FUNCTION "public"."zasp_risk_break_options_get"(
 RETURNS jsonb LANGUAGE plpgsql STABLE AS $$
 DECLARE option_count integer; response jsonb; path_exists boolean;
 BEGIN
-    SELECT EXISTS(SELECT 1 FROM "public"."zasp_risk_attack_paths" WHERE "organization_id"=requested_organization_id AND "workspace_id"=requested_workspace_id AND "environment_id"=requested_environment_id AND "id"=requested_path_id) INTO path_exists;
+    SELECT EXISTS(SELECT 1 FROM "public"."zasp_risk_attack_paths" AS candidate WHERE "organization_id"=requested_organization_id AND "workspace_id"=requested_workspace_id AND "environment_id"=requested_environment_id AND "id"=requested_path_id AND "public"."zasp_risk_attack_path_valid"(candidate)) INTO path_exists;
     IF NOT path_exists THEN RAISE EXCEPTION USING ERRCODE='P0002', MESSAGE='risk path missing'; END IF;
     SELECT count(*), jsonb_build_object('items',COALESCE(jsonb_agg(jsonb_build_object('path_id',"path_id",'target_id',"target_id",'evidence_id',"evidence_id",'kind',"kind",'rank',"rank") ORDER BY "rank"),'[]'::jsonb))
       INTO option_count,response FROM "public"."zasp_risk_break_options"
@@ -267,9 +288,10 @@ CREATE FUNCTION "public"."zasp_risk_high_path_count"(
     requested_organization_id text, requested_workspace_id text, requested_environment_id text
 )
 RETURNS bigint LANGUAGE sql STABLE AS $$
-    SELECT count(*) FROM "public"."zasp_risk_attack_paths"
+    SELECT count(*) FROM "public"."zasp_risk_attack_paths" AS candidate
      WHERE "organization_id"=requested_organization_id AND "workspace_id"=requested_workspace_id
        AND "environment_id"=requested_environment_id AND "state"<>'blocked'
+       AND "public"."zasp_risk_attack_path_valid"(candidate)
 $$;
 
 CREATE FUNCTION "public"."zasp_risk_mutate"(
@@ -342,7 +364,7 @@ END;
 $migration$;
 
 INSERT INTO "public"."zasp_schema_metadata" ("key","value")
-VALUES ('production_risk_projection_fingerprint', 'ae8c0dcb0fdae3bfa854c2a0c1ea412d8582453073fad8db496e019831553972');
+VALUES ('production_risk_projection_fingerprint', 'cd079f2f94be689b1ce89d9e55ce685f65f10595871a5362cfb76edc7410e16e');
 
 UPDATE "public"."zasp_schema_metadata" SET "value"='production-risk-projection-v1',"applied_at"=transaction_timestamp()
 WHERE "key"='production_core_schema' AND "value"='api-token-reveal-grants-v1';

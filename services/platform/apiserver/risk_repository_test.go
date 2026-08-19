@@ -105,6 +105,15 @@ func TestRiskRepositoryMutationCarriesScopeVersionAuditAndReceiptAtomically(t *t
 	if database.query != postgresRiskFindingMutateSQL || !reflect.DeepEqual(database.args, want) {
 		t.Fatalf("mutation args = %#v, want %#v", database.args, want)
 	}
+
+	winnerAudit := "pid_dddddddd-dddd-4ddd-8ddd-dddddddddddd"
+	winnerCorrelation := "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
+	winnerReceipt := "pid_ffffffff-ffff-4fff-8fff-ffffffffffff"
+	database.response = json.RawMessage(`{"body":` + updatedFinding + `,"version":3,"audit_id":"` + winnerAudit + `","correlation_id":"` + winnerCorrelation + `","receipt_id":"` + winnerReceipt + `","replayed":true}`)
+	result, err = repository.MutateRiskFinding(context.Background(), identity, mutation)
+	if err != nil || !result.Replayed || result.AuditID != winnerAudit || result.CorrelationID != winnerCorrelation || result.ReceiptID != winnerReceipt {
+		t.Fatalf("concurrent winner replay = (%#v, %v)", result, err)
+	}
 }
 
 func TestRiskRepositoryRejectsMalformedProjectionValuesBeforeTheyReachHTTP(t *testing.T) {

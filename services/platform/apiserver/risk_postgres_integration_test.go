@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -164,6 +165,28 @@ func TestRiskProjectionPostgresPaginationIsolationMutationReplayAndRollbackGuard
 	if err != nil || optionsErr != nil || len(path.NodeIDs) != 2 || len(options) != 1 || options[0].TargetID != riskNodeOne {
 		t.Fatalf("path/options = %#v/%#v (%v/%v)", path, options, err, optionsErr)
 	}
+	highPathCount, err := repository.CountHighRiskPaths(ctx, identity.Scope)
+	if err != nil || highPathCount != 1002 {
+		t.Fatalf("valid high path count = %d (%v)", highPathCount, err)
+	}
+	hostilePath := "pid_80000001-0000-4000-8000-000000000001"
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_risk_attack_paths (organization_id,workspace_id,environment_id,id,entry_id,sink_id,state) VALUES ($1,$2,$3,$4,$5,$6,'verified')`, organization, workspace, environment, hostilePath, riskNodeOne, riskNodeTwo); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repository.GetRiskAttackPath(ctx, identity.Scope, hostilePath); !errors.Is(err, ErrRepositoryNotFound) {
+		t.Fatalf("malformed detail must be absent: %v", err)
+	}
+	if _, err := repository.GetRiskBreakOptions(ctx, identity.Scope, hostilePath); !errors.Is(err, ErrRepositoryNotFound) {
+		t.Fatalf("malformed break-options path must be absent: %v", err)
+	}
+	malformedPage, err := repository.ListRiskAttackPathPage(ctx, identity.Scope, pathLastID, 100)
+	if err != nil || len(malformedPage.Items) != 0 || malformedPage.NextID != "" {
+		t.Fatalf("malformed list candidate must be absent: %#v (%v)", malformedPage, err)
+	}
+	highPathCount, err = repository.CountHighRiskPaths(ctx, identity.Scope)
+	if err != nil || highPathCount != 1002 {
+		t.Fatalf("malformed path contradicted home count = %d (%v)", highPathCount, err)
+	}
 
 	mutationRequest := riskRequest(t, identity, "updateFinding", http.MethodPatch, "https://app.zasp.test/api/v1/findings/"+riskFindingID, `{"status":"under_review"}`)
 	mutationRequest.Header.Set("If-Match", `"1"`)
@@ -204,6 +227,49 @@ func TestRiskProjectionPostgresPaginationIsolationMutationReplayAndRollbackGuard
 	if err := connection.QueryRow(ctx, `SELECT (SELECT count(*) FROM zasp_workflow_audit WHERE resource_kind='finding'),(SELECT count(*) FROM zasp_workflow_receipts WHERE resource_kind='finding')`).Scan(&audits, &receipts); err != nil || audits != 2 || receipts != 1 {
 		t.Fatalf("durable evidence = audits:%d receipts:%d err:%v", audits, receipts, err)
 	}
+
+	concurrentFinding := "pid_80000002-0000-4000-8000-000000000002"
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_risk_findings (organization_id,workspace_id,environment_id,id,source,title,severity,status) VALUES ($1,$2,$3,$4,'posture','Concurrent replay','high','open')`, organization, workspace, environment, concurrentFinding); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_risk_finding_evidence (organization_id,workspace_id,environment_id,finding_id,position,evidence_id) VALUES ($1,$2,$3,$4,1,$5)`, organization, workspace, environment, concurrentFinding, "pid_80000003-0000-4000-8000-000000000003"); err != nil {
+		t.Fatal(err)
+	}
+	secondConnection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondDatabase, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: secondConnection})
+	secondRepository, _ := NewPostgresRepository(secondDatabase)
+	secondHandler, _ := newRiskHTTPHandler(secondRepository, []byte("0123456789abcdef0123456789abcdef"), time.Now)
+	requests := make([]*http.Request, 2)
+	responses := []*httptest.ResponseRecorder{httptest.NewRecorder(), httptest.NewRecorder()}
+	for index := range requests {
+		requests[index] = riskRequest(t, identity, "updateFinding", http.MethodPatch, "https://app.zasp.test/api/v1/findings/"+concurrentFinding, `{"status":"under_review"}`)
+		requests[index] = requests[index].WithContext(context.WithValue(requests[index].Context(), routedOperationContextKey{}, RoutedOperation{OperationID: "updateFinding", PathParameters: map[string]string{"id": concurrentFinding}}))
+		requests[index].Header.Set("If-Match", `"1"`)
+		requests[index].Header.Set("Idempotency-Key", "idem-pg-risk-concurrent-001")
+	}
+	start := make(chan struct{})
+	var group sync.WaitGroup
+	for index, currentHandler := range []*riskHTTPHandler{handler, secondHandler} {
+		group.Add(1)
+		go func(index int, currentHandler *riskHTTPHandler) {
+			defer group.Done()
+			<-start
+			currentHandler.ServeHTTP(responses[index], requests[index])
+		}(index, currentHandler)
+	}
+	close(start)
+	group.Wait()
+	if responses[0].Code != http.StatusOK || responses[1].Code != http.StatusOK || responses[0].Header().Get("X-Audit-ID") != responses[1].Header().Get("X-Audit-ID") || responses[0].Header().Get("X-Mutation-Receipt-ID") != responses[1].Header().Get("X-Mutation-Receipt-ID") || !equalIntegrationJSON(responses[0].Body.Bytes(), responses[1].Body.Bytes()) {
+		t.Fatalf("concurrent same-key replay = first:%d/%v/%s second:%d/%v/%s", responses[0].Code, responses[0].Header(), responses[0].Body.String(), responses[1].Code, responses[1].Header(), responses[1].Body.String())
+	}
+	var concurrentIdempotency, concurrentAudits, concurrentReceipts int
+	if err := connection.QueryRow(ctx, `SELECT (SELECT count(*) FROM zasp_workflow_idempotency WHERE idempotency_key='idem-pg-risk-concurrent-001'),(SELECT count(*) FROM zasp_workflow_audit WHERE resource_id=$1),(SELECT count(*) FROM zasp_workflow_receipts WHERE resource_id=$1)`, concurrentFinding).Scan(&concurrentIdempotency, &concurrentAudits, &concurrentReceipts); err != nil || concurrentIdempotency != 1 || concurrentAudits != 1 || concurrentReceipts != 1 {
+		t.Fatalf("concurrent durable cardinality = idempotency:%d audit:%d receipt:%d (%v)", concurrentIdempotency, concurrentAudits, concurrentReceipts, err)
+	}
+	_ = secondDatabase.Close()
 
 	hostileFinding := "pid_70000001-0000-4000-8000-000000000001"
 	if _, err := connection.Exec(ctx, `INSERT INTO zasp_risk_findings (organization_id,workspace_id,environment_id,id,source,title,severity,status) VALUES ($1,$2,$3,$4,'posture','Malformed','high','open')`, organization, workspace, environment, hostileFinding); err != nil {
