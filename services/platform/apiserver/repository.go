@@ -54,8 +54,11 @@ func (repository *PostgresRepository) Authenticate(ctx context.Context, credenti
 		return RequestIdentity{}, ErrRepositoryAuthentication
 	}
 	var value struct {
-		PrincipalID, OrganizationID, WorkspaceID, EnvironmentID string
-		CSRFToken                                               string
+		PrincipalID    string `json:"principal_id"`
+		OrganizationID string `json:"organization_id"`
+		WorkspaceID    string `json:"workspace_id"`
+		EnvironmentID  string `json:"environment_id"`
+		CSRFToken      string `json:"csrf_token"`
 	}
 	if err := json.Unmarshal(payload, &value); err != nil {
 		return RequestIdentity{}, ErrRepositoryAuthentication
@@ -134,7 +137,7 @@ func scopeKey(scope domain.Scope) string {
 }
 
 func identityJSON(identity RequestIdentity) map[string]any {
-	return map[string]any{"PrincipalID": identity.PrincipalID.String(), "OrganizationID": identity.Scope.OrganizationID().String(), "WorkspaceID": identity.Scope.WorkspaceID().String(), "EnvironmentID": identity.Scope.EnvironmentID().String(), "CSRFToken": identity.CSRFToken}
+	return map[string]any{"principal_id": identity.PrincipalID.String(), "organization_id": identity.Scope.OrganizationID().String(), "workspace_id": identity.Scope.WorkspaceID().String(), "environment_id": identity.Scope.EnvironmentID().String(), "csrf_token": identity.CSRFToken}
 }
 
 func bootstrapJSON(identity RequestIdentity) map[string]any {
