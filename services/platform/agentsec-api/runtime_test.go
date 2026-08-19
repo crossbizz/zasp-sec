@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -42,7 +43,7 @@ func TestLoadRuntimeConfigIsStrict(t *testing.T) {
 
 func TestRuntimeRejectsMemoryDependenciesInProduction(t *testing.T) {
 	config := fixtureRuntimeConfig()
-	dependencies := RuntimeDependencies{ProductHandler: http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}), MigrationReady: true, IdentityReady: true, CompositionReady: true,
+	dependencies := RuntimeDependencies{ProductHandler: http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}), ReadinessCheck: func(context.Context) error { return nil },
 		Stores: []StoreDependency{{Name: "core", Durable: false}}}
 	if err := validateRuntime(config, dependencies); !errors.Is(err, errInvalidRuntimeDependencies) {
 		t.Fatalf("validateRuntime() error = %v, want errInvalidRuntimeDependencies", err)
@@ -54,7 +55,9 @@ func TestRuntimeRejectsMemoryDependenciesInProduction(t *testing.T) {
 }
 
 func TestComposeRuntimeDependenciesRejectsSchemaDrift(t *testing.T) {
-	_, err := composeRuntimeDependencies(fixtureRuntimeConfig(), schemaDriftDatabase{}, apiserver.CallbackProviderFunc(func(context.Context, string, string) (string, error) { return "session", nil }))
+	_, err := composeRuntimeDependencies(fixtureRuntimeConfig(), schemaDriftDatabase{}, apiserver.CallbackProviderFunc(func(context.Context, string, string) (apiserver.SessionGrant, error) {
+		return apiserver.SessionGrant{}, nil
+	}))
 	if err == nil {
 		t.Fatal("composeRuntimeDependencies() accepted schema drift")
 	}
@@ -105,6 +108,44 @@ func TestServeRuntimeSplitsProductAndInternalListeners(t *testing.T) {
 	}
 }
 
+func TestServeRuntimeReadinessTracksRequiredProviderChecks(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	opened := make(chan commandListenResult, 2)
+	listen := func(network, address string) (net.Listener, error) {
+		listener, err := net.Listen("tcp", "127.0.0.1:0")
+		opened <- commandListenResult{listener: listener, network: network, address: address, err: err}
+		return listener, err
+	}
+	var providersReady atomic.Bool
+	dependencies := fixtureRuntimeDependencies()
+	dependencies.ReadinessCheck = func(context.Context) error {
+		if !providersReady.Load() {
+			return errors.New("required provider unavailable")
+		}
+		return nil
+	}
+	result := make(chan error, 1)
+	go func() {
+		result <- serveRuntime(ctx, &bytes.Buffer{}, "1.2.3", fixtureRuntimeConfig(), dependencies, listen)
+	}()
+	listeners := map[string]net.Listener{}
+	for len(listeners) < 2 {
+		value := <-opened
+		listeners[value.address] = value.listener
+	}
+	readyURL := "http://" + listeners[":8081"].Addr().String() + "/readyz"
+	waitForStatus(t, readyURL, http.StatusServiceUnavailable)
+	providersReady.Store(true)
+	waitForStatus(t, readyURL, http.StatusOK)
+	providersReady.Store(false)
+	waitForStatus(t, readyURL, http.StatusServiceUnavailable)
+	cancel()
+	if err := <-result; err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestServeRuntimeClosesProductListenerAfterPartialStartup(t *testing.T) {
 	first := &commandListener{}
 	calls := 0
@@ -133,7 +174,7 @@ func fixtureRuntimeDependencies() RuntimeDependencies {
 			return
 		}
 		writer.WriteHeader(http.StatusNoContent)
-	}), MigrationReady: true, IdentityReady: true, CompositionReady: true, Stores: []StoreDependency{{Name: "core", Durable: true}}}
+	}), ReadinessCheck: func(context.Context) error { return nil }, Stores: []StoreDependency{{Name: "core", Durable: true}}}
 }
 
 func waitForStatus(t *testing.T, target string, status int) {

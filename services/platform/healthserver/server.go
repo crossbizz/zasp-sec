@@ -27,8 +27,9 @@ var (
 )
 
 type Config struct {
-	Service string
-	Version string
+	Service    string
+	Version    string
+	ReadyCheck func(context.Context) bool
 }
 
 type Server struct {
@@ -38,6 +39,7 @@ type Server struct {
 	used            atomic.Bool
 	serve           func(net.Listener) error
 	shutdown        func(context.Context) error
+	readyCheck      func(context.Context) bool
 }
 
 func New(config Config) (*Server, error) {
@@ -59,6 +61,7 @@ func New(config Config) (*Server, error) {
 		shutdownTimeout: shutdownTimeout,
 		serve:           httpServer.Serve,
 		shutdown:        httpServer.Shutdown,
+		readyCheck:      config.ReadyCheck,
 	}, nil
 }
 
@@ -78,18 +81,26 @@ func (server *Server) Serve(ctx context.Context, listener net.Listener) error {
 		return nil
 	}
 
-	server.handler.SetReady(true)
+	server.handler.SetReady(server.ready())
 	serveDone := make(chan struct{})
 	shutdownDone := make(chan error, 1)
 	go func() {
-		select {
-		case <-ctx.Done():
-			server.handler.SetReady(false)
-			shutdownContext, cancel := context.WithTimeout(context.Background(), server.shutdownTimeout)
-			defer cancel()
-			shutdownDone <- server.shutdown(shutdownContext)
-		case <-serveDone:
-			shutdownDone <- nil
+		ticker := time.NewTicker(25 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				server.handler.SetReady(false)
+				shutdownContext, cancel := context.WithTimeout(context.Background(), server.shutdownTimeout)
+				defer cancel()
+				shutdownDone <- server.shutdown(shutdownContext)
+				return
+			case <-serveDone:
+				shutdownDone <- nil
+				return
+			case <-ticker.C:
+				server.handler.SetReady(server.ready())
+			}
 		}
 	}()
 
@@ -104,6 +115,18 @@ func (server *Server) Serve(ctx context.Context, listener net.Listener) error {
 		return nil
 	}
 	return ErrInvalidRuntime
+}
+
+func (server *Server) ready() (ready bool) {
+	if server.readyCheck == nil {
+		return true
+	}
+	defer func() {
+		if recover() != nil {
+			ready = false
+		}
+	}()
+	return server.readyCheck(context.Background())
 }
 
 func invalidInterface(value any) bool {

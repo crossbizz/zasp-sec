@@ -12,12 +12,22 @@ import (
 )
 
 type CallbackProvider interface {
-	Complete(context.Context, string, string) (string, error)
+	Complete(context.Context, string, string) (SessionGrant, error)
+	Ready(context.Context) error
 }
-type CallbackProviderFunc func(context.Context, string, string) (string, error)
+type CallbackProviderFunc func(context.Context, string, string) (SessionGrant, error)
 
-func (function CallbackProviderFunc) Complete(ctx context.Context, code, state string) (string, error) {
+func (function CallbackProviderFunc) Complete(ctx context.Context, code, state string) (SessionGrant, error) {
 	return function(ctx, code, state)
+}
+
+func (function CallbackProviderFunc) Ready(context.Context) error { return nil }
+
+type SessionGrant struct {
+	PrincipalID domain.ProductID
+	Scope       domain.Scope
+	Permissions []string
+	ExpiresAt   time.Time
 }
 
 type CookiePolicy struct{ Secure bool }
@@ -25,6 +35,7 @@ type CookiePolicy struct{ Secure bool }
 type sessionRepository interface {
 	Authenticate(context.Context, Credential) (RequestIdentity, error)
 	Bootstrap(context.Context, RequestIdentity) (json.RawMessage, error)
+	CreateSession(context.Context, SessionGrant) (string, error)
 	Revoke(context.Context, RequestIdentity, string) error
 }
 
@@ -74,9 +85,14 @@ func (handler *sessionHTTPHandler) ServeHTTP(writer http.ResponseWriter, request
 			writeProductionError(writer, request, ErrRepositoryOperation)
 			return
 		}
-		token, err := handler.provider.Complete(request.Context(), input.AuthorizationCode, input.State)
-		if err != nil || token == "" {
+		grant, err := handler.provider.Complete(request.Context(), input.AuthorizationCode, input.State)
+		if err != nil {
 			writeProductionError(writer, request, ErrRepositoryAuthentication)
+			return
+		}
+		token, err := handler.repository.CreateSession(request.Context(), grant)
+		if err != nil || token == "" {
+			writeProductionError(writer, request, err)
 			return
 		}
 		http.SetCookie(writer, &http.Cookie{Name: browserSessionCookie, Value: token, Path: "/", Secure: handler.cookie.Secure, HttpOnly: true, SameSite: http.SameSiteLaxMode})
@@ -259,6 +275,9 @@ func writeProductionError(writer http.ResponseWriter, request *http.Request, err
 	}
 	if errors.Is(err, ErrRepositoryOperation) {
 		status, code, message, retryable = http.StatusBadRequest, "invalid_request", "Request rejected", false
+	}
+	if errors.Is(err, ErrRepositoryConflict) {
+		status, code, message, retryable = http.StatusConflict, "operation_conflict", "Operation conflicted", false
 	}
 	correlation := fallbackCorrelationID
 	if request != nil {

@@ -3,7 +3,11 @@ package apiserver
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"sync"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 const postgresSchemaVersionSQL = `SELECT value FROM zasp_schema_metadata WHERE key = 'production_core_schema'`
@@ -39,8 +43,11 @@ func (database *PostgresJSONDatabase) SchemaVersion(ctx context.Context) (string
 		return "", ErrRepositoryUnavailable
 	}
 	var version string
-	if database.driver.QueryRow(ctx, postgresSchemaVersionSQL).Scan(&version) != nil || version == "" {
-		return "", ErrRepositoryUnavailable
+	if err := database.driver.QueryRow(ctx, postgresSchemaVersionSQL).Scan(&version); err != nil {
+		return "", classifyPostgresError(err)
+	}
+	if version == "" {
+		return "", ErrRepositoryNotFound
 	}
 	return version, nil
 }
@@ -55,7 +62,13 @@ func (database *PostgresJSONDatabase) QueryJSON(ctx context.Context, statement s
 		return nil, ErrRepositoryUnavailable
 	}
 	var payload []byte
-	if database.driver.QueryRow(ctx, statement, arguments...).Scan(&payload) != nil || !json.Valid(payload) {
+	if err := database.driver.QueryRow(ctx, statement, arguments...).Scan(&payload); err != nil {
+		return nil, classifyPostgresError(err)
+	}
+	if len(payload) == 0 {
+		return nil, ErrRepositoryNotFound
+	}
+	if !json.Valid(payload) {
 		return nil, ErrRepositoryUnavailable
 	}
 	return append(json.RawMessage(nil), payload...), nil
@@ -67,10 +80,29 @@ func (database *PostgresJSONDatabase) Exec(ctx context.Context, statement string
 	}
 	database.mu.RLock()
 	defer database.mu.RUnlock()
-	if database.closed || nilInterface(database.driver) || database.driver.Exec(ctx, statement, arguments...) != nil {
+	if database.closed || nilInterface(database.driver) {
 		return ErrRepositoryUnavailable
 	}
+	if err := database.driver.Exec(ctx, statement, arguments...); err != nil {
+		return classifyPostgresError(err)
+	}
 	return nil
+}
+
+func classifyPostgresError(err error) error {
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrRepositoryNotFound
+	}
+	var provider *pgconn.PgError
+	if errors.As(err, &provider) {
+		switch provider.Code {
+		case "22023", "22P02", "23514":
+			return ErrRepositoryOperation
+		case "23505", "40001", "40P01":
+			return ErrRepositoryConflict
+		}
+	}
+	return ErrRepositoryUnavailable
 }
 
 func (database *PostgresJSONDatabase) Close() error {

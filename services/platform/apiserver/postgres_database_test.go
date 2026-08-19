@@ -6,6 +6,9 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 func TestPostgresJSONDatabaseRunsSchemaReadAndWriteBoundaries(t *testing.T) {
@@ -33,6 +36,29 @@ func TestPostgresJSONDatabaseRunsSchemaReadAndWriteBoundaries(t *testing.T) {
 	}
 	if err := database.Close(); err != nil || driver.closes != 1 {
 		t.Fatalf("close = (%v, %d)", err, driver.closes)
+	}
+}
+
+func TestPostgresJSONDatabaseClassifiesMissingValidationAndConflict(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		driver  *databaseDriver
+		wantErr error
+	}{
+		{name: "no rows", driver: &databaseDriver{rowErr: pgx.ErrNoRows}, wantErr: ErrRepositoryNotFound},
+		{name: "null payload", driver: &databaseDriver{responses: map[string][]byte{"SELECT payload": nil}}, wantErr: ErrRepositoryNotFound},
+		{name: "validation", driver: &databaseDriver{rowErr: &pgconn.PgError{Code: "22023"}}, wantErr: ErrRepositoryOperation},
+		{name: "conflict", driver: &databaseDriver{rowErr: &pgconn.PgError{Code: "23505"}}, wantErr: ErrRepositoryConflict},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			database, err := NewPostgresJSONDatabase(test.driver)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := database.QueryJSON(context.Background(), "SELECT payload"); !errors.Is(err, test.wantErr) {
+				t.Fatalf("error = %v, want %v", err, test.wantErr)
+			}
+		})
 	}
 }
 

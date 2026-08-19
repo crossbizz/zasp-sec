@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
@@ -52,7 +53,8 @@ func TestProductionHandlersIssueHostOnlySecureSessionCookie(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	handlers, _, err := NewProductionHandlers(repository, CallbackProviderFunc(func(context.Context, string, string) (string, error) { return "session-a", nil }), CookiePolicy{Secure: true})
+	grant := sessionGrant(t, "3")
+	handlers, _, err := NewProductionHandlers(repository, CallbackProviderFunc(func(context.Context, string, string) (SessionGrant, error) { return grant, nil }), CookiePolicy{Secure: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,8 +67,28 @@ func TestProductionHandlersIssueHostOnlySecureSessionCookie(t *testing.T) {
 		t.Fatalf("callback = (%d, %#v)", response.Code, cookies)
 	}
 	cookie := cookies[0]
-	if cookie.Name != "__Host-zasp_session" || cookie.Value != "session-a" || !cookie.Secure || !cookie.HttpOnly || cookie.SameSite != http.SameSiteLaxMode || cookie.Path != "/" || cookie.Domain != "" {
+	if cookie.Name != "__Host-zasp_session" || cookie.Value == "" || cookie.Value == "session-a" || !cookie.Secure || !cookie.HttpOnly || cookie.SameSite != http.SameSiteLaxMode || cookie.Path != "/" || cookie.Domain != "" {
 		t.Fatalf("cookie = %#v", cookie)
+	}
+	identity, err := repository.Authenticate(context.Background(), Credential{Kind: CredentialBrowserSession, Value: cookie.Value})
+	if err != nil || identity.PrincipalID != grant.PrincipalID || len(database.sessions) != 3 {
+		t.Fatalf("created session = (%#v, %v, count=%d)", identity, err, len(database.sessions))
+	}
+}
+
+func TestPostgresRepositorySeparatesBrowserSessionsAndProductTokens(t *testing.T) {
+	database := newPersistentJSONDatabase(t)
+	database.productTokens["pat-a"] = database.sessions["session-a"]
+	repository, err := NewPostgresRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repository.Authenticate(context.Background(), Credential{Kind: CredentialBearerToken, Value: "session-a"}); err == nil {
+		t.Fatal("browser session authenticated as product token")
+	}
+	identity, err := repository.Authenticate(context.Background(), Credential{Kind: CredentialBearerToken, Value: "pat-a"})
+	if err != nil || identity.CSRFToken != "" || identity.PrincipalID.IsZero() {
+		t.Fatalf("product token identity = (%#v, %v)", identity, err)
 	}
 }
 
@@ -104,6 +126,15 @@ func TestProductionProviderFailureReturnsRetryableErrorWithoutFixtureFallback(t 
 	}
 }
 
+func TestProductionConflictUsesFixedNondisclosingEnvelope(t *testing.T) {
+	request := httptest.NewRequest(http.MethodGet, "https://app.zasp.test/api/v1/home/summary", nil)
+	response := httptest.NewRecorder()
+	writeProductionError(response, request, ErrRepositoryConflict)
+	if response.Code != http.StatusConflict || decodeErrorCode(t, response) != "operation_conflict" {
+		t.Fatalf("conflict = (%d, %s)", response.Code, response.Body.String())
+	}
+}
+
 type unavailableCoreRepository struct{}
 
 func (unavailableCoreRepository) Read(context.Context, domain.Scope, string) (json.RawMessage, error) {
@@ -119,7 +150,7 @@ func newProductionTestServer(t *testing.T, database *persistentJSONDatabase) *ht
 	if err != nil {
 		t.Fatal(err)
 	}
-	handlers, authenticate, err := NewProductionHandlers(repository, CallbackProviderFunc(func(context.Context, string, string) (string, error) { return "session-a", nil }), CookiePolicy{Secure: true})
+	handlers, authenticate, err := NewProductionHandlers(repository, CallbackProviderFunc(func(context.Context, string, string) (SessionGrant, error) { return sessionGrant(t, "3"), nil }), CookiePolicy{Secure: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,9 +198,10 @@ func productRequest(t *testing.T, client *http.Client, method, target, session, 
 }
 
 type persistentJSONDatabase struct {
-	mu       sync.Mutex
-	sessions map[string]RequestIdentity
-	records  map[string]map[string]json.RawMessage
+	mu            sync.Mutex
+	sessions      map[string]RequestIdentity
+	productTokens map[string]RequestIdentity
+	records       map[string]map[string]json.RawMessage
 }
 
 func newPersistentJSONDatabase(t *testing.T) *persistentJSONDatabase {
@@ -183,6 +215,7 @@ func newPersistentJSONDatabase(t *testing.T) *persistentJSONDatabase {
 			"session-a": {PrincipalID: principalA, Scope: scopeA, Permissions: []string{"view", "manage_findings"}, CSRFToken: strings.Repeat("c", 32)},
 			"session-b": {PrincipalID: principalB, Scope: scopeB, Permissions: []string{"view"}, CSRFToken: strings.Repeat("d", 32)},
 		},
+		productTokens: map[string]RequestIdentity{},
 		records: map[string]map[string]json.RawMessage{
 			scopeKey(scopeA): {
 				"home":     json.RawMessage(`{"agent_count":1,"high_risk_paths":1,"verified_changes":0,"blocked_changes":0,"pending_approvals":0,"oldest_approval_age_seconds":0,"needs_human_runs":0,"failed_runs":0,"inconclusive_runs":0,"recent_contained":0,"recent_remediated":0,"healthy":true,"attention_required":false}`),
@@ -194,6 +227,13 @@ func newPersistentJSONDatabase(t *testing.T) *persistentJSONDatabase {
 			scopeKey(scopeB): {},
 		},
 	}
+}
+
+func sessionGrant(t *testing.T, suffix string) SessionGrant {
+	t.Helper()
+	scope := testScope(t, suffix)
+	principal, _ := domain.ParseProductID("pid_" + suffix + "0000004-0000-4000-8000-000000000004")
+	return SessionGrant{PrincipalID: principal, Scope: scope, Permissions: []string{"view"}, ExpiresAt: time.Now().UTC().Add(time.Hour).Truncate(time.Second)}
 }
 
 func (database *persistentJSONDatabase) SchemaVersion(context.Context) (string, error) {
@@ -208,6 +248,25 @@ func (database *persistentJSONDatabase) QueryJSON(_ context.Context, statement s
 		if !ok {
 			return nil, ErrRepositoryAuthentication
 		}
+		return json.Marshal(identityJSON(identity))
+	case postgresAuthenticatePATSQL:
+		identity, ok := database.productTokens[arguments[0].(string)]
+		if !ok {
+			return nil, ErrRepositoryAuthentication
+		}
+		identity.CSRFToken = ""
+		return json.Marshal(identityJSON(identity))
+	case postgresCreateSessionSQL:
+		token, csrf := arguments[0].(string), arguments[1].(string)
+		principal, _ := domain.ParseProductID(arguments[2].(string))
+		organization, _ := domain.ParseProductID(arguments[3].(string))
+		workspace, _ := domain.ParseProductID(arguments[4].(string))
+		environment, _ := domain.ParseProductID(arguments[5].(string))
+		scope, _ := domain.NewScope(organization, workspace, environment)
+		var permissions []string
+		_ = json.Unmarshal(arguments[6].(json.RawMessage), &permissions)
+		identity := RequestIdentity{PrincipalID: principal, Scope: scope, Permissions: permissions, CSRFToken: csrf}
+		database.sessions[token] = identity
 		return json.Marshal(identityJSON(identity))
 	case postgresBootstrapSQL:
 		principal := arguments[0].(string)

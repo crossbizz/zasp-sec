@@ -67,7 +67,15 @@ func composeRuntimeDependencies(config RuntimeConfig, database apiserver.JSONDat
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
-	return RuntimeDependencies{ProductHandler: product, MigrationReady: true, IdentityReady: true, CompositionReady: true, Stores: []StoreDependency{{Name: "postgres-core", Durable: true}}}, nil
+	return RuntimeDependencies{ProductHandler: product, ReadinessCheck: func(ctx context.Context) error {
+		if err := repository.Ready(ctx); err != nil {
+			return errRuntimeUnavailable
+		}
+		if err := provider.Ready(ctx); err != nil {
+			return errRuntimeUnavailable
+		}
+		return nil
+	}, Stores: []StoreDependency{{Name: "postgres-core", Durable: true}}}, nil
 }
 
 func generateCorrelationID() string {

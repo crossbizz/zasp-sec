@@ -38,12 +38,10 @@ type StoreDependency struct {
 }
 
 type RuntimeDependencies struct {
-	ProductHandler   http.Handler
-	MigrationReady   bool
-	IdentityReady    bool
-	CompositionReady bool
-	Stores           []StoreDependency
-	Closers          []io.Closer
+	ProductHandler http.Handler
+	ReadinessCheck func(context.Context) error
+	Stores         []StoreDependency
+	Closers        []io.Closer
 }
 
 func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
@@ -100,7 +98,7 @@ func validListenAddress(address string) bool {
 }
 
 func validateRuntime(config RuntimeConfig, dependencies RuntimeDependencies) error {
-	if !validRuntimeConfig(config) || invalidRuntimeValue(dependencies.ProductHandler) || !dependencies.MigrationReady || !dependencies.IdentityReady || !dependencies.CompositionReady || len(dependencies.Stores) == 0 {
+	if !validRuntimeConfig(config) || invalidRuntimeValue(dependencies.ProductHandler) || dependencies.ReadinessCheck == nil || len(dependencies.Stores) == 0 {
 		return errInvalidRuntimeDependencies
 	}
 	seen := make(map[string]struct{}, len(dependencies.Stores))
@@ -155,7 +153,11 @@ func serveRuntime(ctx context.Context, output io.Writer, version string, config 
 		_ = internalListener.Close()
 		return err
 	}
-	health, err := healthserver.New(healthserver.Config{Service: "agentsec-api", Version: version})
+	health, err := healthserver.New(healthserver.Config{Service: "agentsec-api", Version: version, ReadyCheck: func(checkCtx context.Context) bool {
+		checkCtx, cancelCheck := context.WithTimeout(checkCtx, config.ProviderTimeout)
+		defer cancelCheck()
+		return dependencies.ReadinessCheck(checkCtx) == nil
+	}})
 	if err != nil {
 		return errRuntimeUnavailable
 	}
