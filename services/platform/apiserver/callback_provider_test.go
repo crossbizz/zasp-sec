@@ -5,87 +5,105 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
 
-func TestHTTPCallbackProviderExchangesBoundedCodeWithoutRedirects(t *testing.T) {
+type fixedIdentityExchanger struct{ identity ExternalIdentity }
+
+func (value fixedIdentityExchanger) Exchange(context.Context, string, string) (ExternalIdentity, error) {
+	return value.identity, nil
+}
+func (fixedIdentityExchanger) Ready(context.Context) error { return nil }
+
+type fixedGrantResolver struct {
+	grant SessionGrant
+	got   ExternalIdentity
+}
+
+func (resolver *fixedGrantResolver) ResolveIdentity(_ context.Context, identity ExternalIdentity) (SessionGrant, error) {
+	resolver.got = identity
+	return resolver.grant, nil
+}
+
+type fixedIdentityStateRepository struct {
+	state    string
+	consumed string
+	returnTo string
+}
+
+func (repository *fixedIdentityStateRepository) BeginIdentity(context.Context, string) (string, error) {
+	return repository.state, nil
+}
+func (repository *fixedIdentityStateRepository) ConsumeIdentity(_ context.Context, state string) (string, error) {
+	repository.consumed = state
+	return repository.returnTo, nil
+}
+
+func TestRepositoryIdentityProviderDerivesGrantFromServerSideMembership(t *testing.T) {
+	grant := sessionGrant(t, "1")
+	external := ExternalIdentity{OrganizationReference: "organization-live-a", MemberReference: "member-live-a", ExpiresAt: grant.ExpiresAt}
+	resolver := &fixedGrantResolver{grant: grant}
+	provider, err := NewRepositoryIdentityProvider(fixedIdentityExchanger{identity: external}, resolver)
+	if err != nil {
+		t.Fatal(err)
+	}
+	grant.ReturnTo = "/"
+	got, err := provider.Complete(context.Background(), "code", strings.Repeat("s", 32))
+	if err != nil || !reflect.DeepEqual(got, grant) || resolver.got != external {
+		t.Fatalf("grant = (%#v, %v), external=%#v", got, err, resolver.got)
+	}
+}
+
+func TestOIDCCodeExchangerReturnsOnlyBoundedExternalIdentity(t *testing.T) {
+	expires := time.Now().UTC().Add(time.Hour).Truncate(time.Second)
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		if request.Method != http.MethodPost || request.Header.Get("Authorization") != "Bearer provider-secret" || request.Header.Get("Content-Type") != "application/json" {
-			t.Fatalf("request = %s %#v", request.Method, request.Header)
+		if request.Method == http.MethodHead {
+			writer.WriteHeader(http.StatusNoContent)
+			return
 		}
-		var input map[string]string
-		if json.NewDecoder(request.Body).Decode(&input) != nil || input["authorization_code"] != "code" || input["state"] != "state" {
-			t.Fatalf("input = %#v", input)
+		client, secret, ok := request.BasicAuth()
+		if !ok || client != "client-id" || secret != "client-secret" {
+			t.Fatal("missing client authentication")
+		}
+		if request.ParseForm() != nil || request.Form.Get("grant_type") != "authorization_code" || request.Form.Get("code") != "code" || request.Form.Get("state") != strings.Repeat("s", 32) {
+			t.Fatalf("form = %#v", request.Form)
 		}
 		writer.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(writer).Encode(map[string]any{
-			"principal_id": "pid_10000004-0000-4000-8000-000000000004", "organization_id": "pid_10000001-0000-4000-8000-000000000001",
-			"workspace_id": "pid_10000002-0000-4000-8000-000000000002", "environment_id": "pid_10000003-0000-4000-8000-000000000003",
-			"permissions": []string{"view"}, "expires_at": time.Now().UTC().Add(time.Hour).Truncate(time.Second).Format(time.RFC3339),
-		})
+		_ = json.NewEncoder(writer).Encode(map[string]string{"organization_reference": "organization-live-a", "member_reference": "member-live-a", "expires_at": expires.Format(time.RFC3339)})
 	}))
 	defer server.Close()
-	provider, err := NewHTTPCallbackProvider(server.URL, "provider-secret", 2*time.Second)
+	exchanger, err := NewOIDCCodeExchanger(server.URL+"/token", "client-id", "client-secret", time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
-	grant, err := provider.Complete(context.Background(), "code", "state")
-	if err != nil || grant.PrincipalID.String() != "pid_10000004-0000-4000-8000-000000000004" || grant.Scope.OrganizationID().String() != "pid_10000001-0000-4000-8000-000000000001" || len(grant.Permissions) != 1 || grant.Permissions[0] != "view" {
-		t.Fatalf("Complete() = (%#v, %v)", grant, err)
+	identity, err := exchanger.Exchange(context.Background(), "code", strings.Repeat("s", 32))
+	if err != nil || identity.OrganizationReference != "organization-live-a" || identity.ExpiresAt != expires {
+		t.Fatalf("identity = (%#v, %v)", identity, err)
 	}
 }
 
-func TestNewHTTPCallbackProviderRejectsMalformedURLWithoutPanic(t *testing.T) {
-	defer func() {
-		if recovered := recover(); recovered != nil {
-			t.Fatalf("NewHTTPCallbackProvider panicked: %v", recovered)
-		}
-	}()
-	if provider, err := NewHTTPCallbackProvider("%", "provider-secret", time.Second); provider != nil || err == nil {
-		t.Fatalf("provider/error = (%#v, %v)", provider, err)
-	}
-}
-
-func TestHTTPCallbackProviderFailsClosedOnProviderHTML(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
-		writer.Header().Set("Content-Type", "text/html")
-		writer.WriteHeader(http.StatusBadGateway)
-		_, _ = writer.Write([]byte("<html>secret</html>"))
-	}))
-	defer server.Close()
-	provider, err := NewHTTPCallbackProvider(server.URL, "provider-secret", 2*time.Second)
+func TestRepositoryIdentityProviderOwnsStartStateAndConsumesItBeforeExchange(t *testing.T) {
+	grant := sessionGrant(t, "1")
+	external := ExternalIdentity{OrganizationReference: "organization-live-a", MemberReference: "member-live-a", ExpiresAt: grant.ExpiresAt}
+	states := &fixedIdentityStateRepository{state: strings.Repeat("s", 32), returnTo: "/discovery/assets"}
+	provider, err := NewRepositoryIdentityProviderWithStart(fixedIdentityExchanger{identity: external}, &fixedGrantResolver{grant: grant}, states, "https://identity.example/authorize", "client-id", "https://app.zasp.example/auth/callback")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := provider.Complete(context.Background(), "code", "state"); err == nil {
-		t.Fatal("Complete() accepted HTML provider error")
-	}
-}
-
-func TestHTTPCallbackProviderReadinessRequiresHealthyExactEndpoint(t *testing.T) {
-	healthy := true
-	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		if request.Method != http.MethodHead || request.Header.Get("Authorization") != "Bearer provider-secret" {
-			writer.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		if !healthy {
-			writer.WriteHeader(http.StatusServiceUnavailable)
-			return
-		}
-		writer.WriteHeader(http.StatusNoContent)
-	}))
-	defer server.Close()
-	provider, err := NewHTTPCallbackProvider(server.URL, "provider-secret", time.Second)
+	target, err := provider.Start(context.Background(), "/discovery/assets")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := provider.Ready(context.Background()); err != nil {
-		t.Fatalf("healthy readiness = %v", err)
+	parsed, _ := url.Parse(target)
+	if parsed.Host != "identity.example" || parsed.Query().Get("state") != states.state || parsed.Query().Get("redirect_uri") != "https://app.zasp.example/auth/callback" {
+		t.Fatalf("start target = %s", target)
 	}
-	healthy = false
-	if err := provider.Ready(context.Background()); err == nil {
-		t.Fatal("unhealthy provider remained ready")
+	completed, err := provider.Complete(context.Background(), "code", states.state)
+	if err != nil || states.consumed != states.state || completed.ReturnTo != "/discovery/assets" {
+		t.Fatalf("complete/consumed = (%v, %q, %q)", err, states.consumed, completed.ReturnTo)
 	}
 }

@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 
 import { createAPIClient, requireAPIData, type APIClient } from "../../../apps/web/api/client";
+import { decodeAgentSessionPage, decodeCapabilityPage, decodeHomeSummary, decodeInventoryPage, decodeInventoryRecord, decodeRelationshipPage } from "../../../apps/web/api/decoders";
 import type { AgentSession, AttackPath, BreakOption, Capability, Finding, HomeSummary, InventoryRecord, Relationship, SearchResult } from "../../../apps/web/api/generated";
 import { useAPI } from "../../api/APIProvider";
 import { useAPIQuery } from "../../api/query";
@@ -42,18 +43,18 @@ type ProductionAgentSecurityAPI = Pick<AgentSecurityAPI,
 
 export function createAgentSecurityAPI(client: APIClient = createAPIClient()): ProductionAgentSecurityAPI {
   return {
-    async listAgents() { return requireAPIData<{ items: readonly InventoryRecord[] }>(await client.GET("/api/v1/agents")).items; },
-    async listTools() { return requireAPIData<{ items: readonly InventoryRecord[] }>(await client.GET("/api/v1/tools")).items; },
-    async listIdentities() { return requireAPIData<{ items: readonly InventoryRecord[] }>(await client.GET("/api/v1/identities")).items; },
-    async listRuntimes() { return requireAPIData<{ items: readonly InventoryRecord[] }>(await client.GET("/api/v1/runtimes")).items; },
-    async getAgent(id) { return requireAPIData<InventoryRecord>(await client.GET("/api/v1/agents/{id}", { params: { path: { id } } })); },
-    async getTool(id) { return requireAPIData<InventoryRecord>(await client.GET("/api/v1/tools/{id}", { params: { path: { id } } })); },
-    async getIdentity(id) { return requireAPIData<InventoryRecord>(await client.GET("/api/v1/identities/{id}", { params: { path: { id } } })); },
-    async getRuntime(id) { return requireAPIData<InventoryRecord>(await client.GET("/api/v1/runtimes/{id}", { params: { path: { id } } })); },
-    async getAgentCapabilities(id) { return requireAPIData<{ items: readonly Capability[] }>(await client.GET("/api/v1/agents/{id}/capabilities", { params: { path: { id } } })).items; },
-    async getAgentRelationships(id) { return requireAPIData<{ items: readonly Relationship[] }>(await client.GET("/api/v1/agents/{id}/relationships", { params: { path: { id } } })).items; },
-    async listAgentSessions(id) { return requireAPIData<{ items: readonly AgentSession[] }>(await client.GET("/api/v1/agents/{id}/sessions", { params: { path: { id } } })).items; },
-    async getHomeSummary() { return requireAPIData<HomeSummary>(await client.GET("/api/v1/home/summary")); },
+    async listAgents() { return requireAPIData(await client.GET("/api/v1/agents"), decodeInventoryPage).items; },
+    async listTools() { return requireAPIData(await client.GET("/api/v1/tools"), decodeInventoryPage).items; },
+    async listIdentities() { return requireAPIData(await client.GET("/api/v1/identities"), decodeInventoryPage).items; },
+    async listRuntimes() { return requireAPIData(await client.GET("/api/v1/runtimes"), decodeInventoryPage).items; },
+    async getAgent(id) { return requireAPIData(await client.GET("/api/v1/agents/{id}", { params: { path: { id } } }), decodeInventoryRecord); },
+    async getTool(id) { return requireAPIData(await client.GET("/api/v1/tools/{id}", { params: { path: { id } } }), decodeInventoryRecord); },
+    async getIdentity(id) { return requireAPIData(await client.GET("/api/v1/identities/{id}", { params: { path: { id } } }), decodeInventoryRecord); },
+    async getRuntime(id) { return requireAPIData(await client.GET("/api/v1/runtimes/{id}", { params: { path: { id } } }), decodeInventoryRecord); },
+    async getAgentCapabilities(id) { return requireAPIData(await client.GET("/api/v1/agents/{id}/capabilities", { params: { path: { id } } }), decodeCapabilityPage).items; },
+    async getAgentRelationships(id) { return requireAPIData(await client.GET("/api/v1/agents/{id}/relationships", { params: { path: { id } } }), decodeRelationshipPage).items; },
+    async listAgentSessions(id) { return requireAPIData(await client.GET("/api/v1/agents/{id}/sessions", { params: { path: { id } } }), decodeAgentSessionPage).items; },
+    async getHomeSummary() { return requireAPIData(await client.GET("/api/v1/home/summary"), decodeHomeSummary); },
   };
 }
 

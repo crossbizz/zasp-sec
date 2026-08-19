@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 
-import { APIProductError, APITransportError, createAPIClient, requireAPIData, type APIClient } from "../../../apps/web/api/client";
-import { safeReturnPath } from "../browser-flow";
+import { APIProductError, createAPIClient, requireAPIData, type APIClient } from "../../../apps/web/api/client";
+import { decodeSessionCallbackResult } from "../../../apps/web/api/decoders";
 
 const replaceBrowserLocation = (path: string) => window.location.replace(path);
 
@@ -16,16 +16,14 @@ export function CallbackCompletion({ suppliedClient, replaceLocation = replaceBr
       const query = new URLSearchParams(window.location.search);
       const authorizationCode = query.get("code") ?? "";
       const state = query.get("state") ?? "";
-      const returnTo = safeReturnPath(query.get("return_to"));
       if (!authorizationCode || state.length < 32 || state.length > 512) {
         setFailure({ message: "The sign-in callback is invalid or expired." });
         return;
       }
       try {
         const result = await client.POST("/api/v1/session/callback", { body: { authorization_code: authorizationCode, state } });
-        if (result.error) requireAPIData<never>(result);
-        if (result.response.status !== 204) throw new APITransportError("invalid_response", "Session callback returned an invalid response");
-        if (active) replaceLocation(returnTo);
+        const completed = requireAPIData(result, decodeSessionCallbackResult);
+        if (active) replaceLocation(completed.return_to);
       } catch (error) {
         if (!active) return;
         setFailure(error instanceof APIProductError ? { message: error.message, correlation: error.correlationID } : { message: "Sign-in could not be completed." });

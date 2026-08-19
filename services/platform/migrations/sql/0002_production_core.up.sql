@@ -24,6 +24,38 @@ CREATE TABLE "public"."zasp_product_sessions" (
 CREATE INDEX "zasp_product_sessions_scope_idx"
 ON "public"."zasp_product_sessions" ("organization_id", "workspace_id", "environment_id", "principal_id");
 
+CREATE TABLE "public"."zasp_authorized_scopes" (
+    "principal_id" text NOT NULL,
+    "organization_id" text NOT NULL,
+    "workspace_id" text NOT NULL,
+    "environment_id" text NOT NULL,
+    "label" text NOT NULL CHECK (char_length("label") BETWEEN 1 AND 128),
+    "permissions" jsonb NOT NULL CHECK (jsonb_typeof("permissions") = 'array'),
+	"is_default" boolean NOT NULL DEFAULT false,
+    PRIMARY KEY ("principal_id", "organization_id", "workspace_id", "environment_id")
+);
+
+CREATE UNIQUE INDEX "zasp_authorized_scopes_default_idx"
+ON "public"."zasp_authorized_scopes" ("principal_id", "organization_id") WHERE "is_default";
+
+CREATE TABLE "public"."zasp_identity_memberships" (
+    "principal_id" text NOT NULL,
+    "organization_id" text NOT NULL,
+    "organization_reference" text NOT NULL,
+    "member_reference" text NOT NULL,
+    "role" text NOT NULL,
+    "active" boolean NOT NULL DEFAULT true,
+    PRIMARY KEY ("organization_reference", "member_reference"),
+    UNIQUE ("principal_id", "organization_id")
+);
+
+CREATE TABLE "public"."zasp_identity_states" (
+    "state_digest" bytea PRIMARY KEY,
+    "return_path" text NOT NULL CHECK (char_length("return_path") BETWEEN 1 AND 2048),
+    "expires_at" timestamp with time zone NOT NULL,
+    "consumed_at" timestamp with time zone
+);
+
 CREATE TABLE "public"."zasp_product_api_tokens" (
     "token_digest" bytea PRIMARY KEY,
     "principal_id" text NOT NULL,

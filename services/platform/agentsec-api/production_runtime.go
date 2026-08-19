@@ -34,7 +34,17 @@ func buildRuntimeDependencies(ctx context.Context, config RuntimeConfig) (Runtim
 		pool.Close()
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
-	provider, err := apiserver.NewHTTPCallbackProvider(config.IdentityCallbackURL, config.IdentityCallbackBearer, config.ProviderTimeout)
+	exchanger, err := apiserver.NewOIDCCodeExchanger(config.IdentityExchangeURL, config.IdentityClientID, config.IdentityClientSecret, config.ProviderTimeout)
+	if err != nil {
+		_ = database.Close()
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	repository, err := apiserver.NewPostgresRepository(database)
+	if err != nil {
+		_ = database.Close()
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	provider, err := apiserver.NewRepositoryIdentityProviderWithStart(exchanger, repository, repository, config.IdentityAuthorizeURL, config.IdentityClientID, config.PublicOrigin+"/auth/callback")
 	if err != nil {
 		_ = database.Close()
 		return RuntimeDependencies{}, errRuntimeUnavailable

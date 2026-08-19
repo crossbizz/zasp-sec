@@ -28,6 +28,7 @@ type SessionGrant struct {
 	Scope       domain.Scope
 	Permissions []string
 	ExpiresAt   time.Time
+	ReturnTo    string
 }
 
 type CookiePolicy struct{ Secure bool }
@@ -37,6 +38,8 @@ type sessionRepository interface {
 	Bootstrap(context.Context, RequestIdentity) (json.RawMessage, error)
 	CreateSession(context.Context, SessionGrant) (string, error)
 	Revoke(context.Context, RequestIdentity, string) error
+	ListScopes(context.Context, RequestIdentity) (json.RawMessage, error)
+	SwitchScope(context.Context, RequestIdentity, string, domain.Scope) (RequestIdentity, error)
 }
 
 type coreRepository interface {
@@ -64,6 +67,19 @@ type sessionHTTPHandler struct {
 
 func (handler *sessionHTTPHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	switch request.URL.Path {
+	case "/api/v1/session/start":
+		starter, ok := handler.provider.(IdentityStarter)
+		returnTo := request.URL.Query().Get("return_to")
+		if !ok || !validReturnPath(returnTo) {
+			writeProductionError(writer, request, ErrRepositoryOperation)
+			return
+		}
+		target, err := starter.Start(request.Context(), returnTo)
+		if err != nil {
+			writeProductionError(writer, request, err)
+			return
+		}
+		http.Redirect(writer, request, target, http.StatusFound)
 	case "/api/v1/session/bootstrap":
 		identity, ok := IdentityFromRequest(request)
 		if !ok {
@@ -89,13 +105,21 @@ func (handler *sessionHTTPHandler) ServeHTTP(writer http.ResponseWriter, request
 			writeProductionError(writer, request, ErrRepositoryAuthentication)
 			return
 		}
+		if !validReturnPath(grant.ReturnTo) {
+			grant.ReturnTo = "/"
+		}
 		token, err := handler.repository.CreateSession(request.Context(), grant)
 		if err != nil || token == "" {
 			writeProductionError(writer, request, err)
 			return
 		}
 		http.SetCookie(writer, &http.Cookie{Name: browserSessionCookie, Value: token, Path: "/", Secure: handler.cookie.Secure, HttpOnly: true, SameSite: http.SameSiteLaxMode})
-		writer.WriteHeader(http.StatusNoContent)
+		payload, marshalErr := json.Marshal(map[string]string{"return_to": grant.ReturnTo})
+		if marshalErr != nil {
+			writeProductionError(writer, request, ErrRepositoryUnavailable)
+			return
+		}
+		writeProductionResponse(writer, request, http.StatusOK, payload, nil)
 	case "/api/v1/session/sign-out":
 		identity, ok := IdentityFromRequest(request)
 		cookie, cookieErr := request.Cookie(browserSessionCookie)
@@ -104,6 +128,37 @@ func (handler *sessionHTTPHandler) ServeHTTP(writer http.ResponseWriter, request
 			return
 		}
 		http.SetCookie(writer, &http.Cookie{Name: browserSessionCookie, Path: "/", MaxAge: -1, Expires: time.Unix(1, 0), Secure: handler.cookie.Secure, HttpOnly: true, SameSite: http.SameSiteLaxMode})
+		writer.WriteHeader(http.StatusNoContent)
+	case "/api/v1/session/scopes":
+		identity, ok := IdentityFromRequest(request)
+		if !ok {
+			writeProductionError(writer, request, ErrRepositoryAuthentication)
+			return
+		}
+		payload, err := handler.repository.ListScopes(request.Context(), identity)
+		writeProductionResponse(writer, request, http.StatusOK, payload, err)
+	case "/api/v1/session/scope":
+		identity, ok := IdentityFromRequest(request)
+		cookie, cookieErr := request.Cookie(browserSessionCookie)
+		var input struct {
+			WorkspaceID   string `json:"workspace_id"`
+			EnvironmentID string `json:"environment_id"`
+		}
+		if !ok || cookieErr != nil || decodeProductionJSON(request, &input) != nil {
+			writeProductionError(writer, request, ErrRepositoryOperation)
+			return
+		}
+		workspace, workspaceErr := domain.ParseProductID(input.WorkspaceID)
+		environment, environmentErr := domain.ParseProductID(input.EnvironmentID)
+		scope, scopeErr := domain.NewScope(identity.Scope.OrganizationID(), workspace, environment)
+		if workspaceErr != nil || environmentErr != nil || scopeErr != nil {
+			writeProductionError(writer, request, ErrRepositoryNotFound)
+			return
+		}
+		if _, err := handler.repository.SwitchScope(request.Context(), identity, cookie.Value, scope); err != nil {
+			writeProductionError(writer, request, err)
+			return
+		}
 		writer.WriteHeader(http.StatusNoContent)
 	default:
 		writeProductionError(writer, request, ErrRepositoryNotFound)
@@ -118,7 +173,7 @@ func authorizedBootstrap(payload json.RawMessage, identity RequestIdentity) (jso
 	capabilities := []string{}
 	for _, permission := range identity.Permissions {
 		if permission == "view" {
-			capabilities = append(capabilities, "inventory.read")
+			capabilities = append(capabilities, "inventory.read", "scope.switch")
 			break
 		}
 	}

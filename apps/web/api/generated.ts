@@ -1408,6 +1408,40 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/session/scope": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        /** Switch the browser session to an authorized durable scope */
+        readonly put: operations["switchSessionScope"];
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/session/scopes": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List durable scopes authorized for the browser principal */
+        readonly get: operations["listSessionScopes"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/session/sign-out": {
         readonly parameters: {
             readonly query?: never;
@@ -1419,6 +1453,23 @@ export type paths = {
         readonly put?: never;
         /** Revoke the browser session and expire its host-only cookie */
         readonly post: operations["signOutSession"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/session/start": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Start a repository-owned browser identity flow */
+        readonly get: operations["startSession"];
+        readonly put?: never;
+        readonly post?: never;
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -2535,6 +2586,9 @@ export type components = {
             readonly authorization_code: string;
             readonly state: string;
         };
+        readonly SessionCallbackResult: {
+            readonly return_to: string;
+        };
         readonly SessionEvent: {
             /** Format: date-time */
             readonly at: string;
@@ -2554,6 +2608,19 @@ export type components = {
         readonly SessionID: string;
         readonly SessionPage: {
             readonly items: readonly components["schemas"]["Session"][];
+        };
+        readonly SessionScope: {
+            readonly environment_id: components["schemas"]["ProductID"];
+            readonly label: string;
+            readonly organization_id: components["schemas"]["ProductID"];
+            readonly workspace_id: components["schemas"]["ProductID"];
+        };
+        readonly SessionScopePage: {
+            readonly items: readonly components["schemas"]["SessionScope"][];
+        };
+        readonly SessionScopeSwitchInput: {
+            readonly environment_id: components["schemas"]["ProductID"];
+            readonly workspace_id: components["schemas"]["ProductID"];
         };
         readonly SSOConnection: {
             readonly display_name: string;
@@ -2796,10 +2863,14 @@ export type SensorPage = components['schemas']['SensorPage'];
 export type Session = components['schemas']['Session'];
 export type SessionBootstrap = components['schemas']['SessionBootstrap'];
 export type SessionCallbackInput = components['schemas']['SessionCallbackInput'];
+export type SessionCallbackResult = components['schemas']['SessionCallbackResult'];
 export type SessionEvent = components['schemas']['SessionEvent'];
 export type SessionEventPage = components['schemas']['SessionEventPage'];
 export type SessionId = components['schemas']['SessionID'];
 export type SessionPage = components['schemas']['SessionPage'];
+export type SessionScope = components['schemas']['SessionScope'];
+export type SessionScopePage = components['schemas']['SessionScopePage'];
+export type SessionScopeSwitchInput = components['schemas']['SessionScopeSwitchInput'];
 export type SsoConnection = components['schemas']['SSOConnection'];
 export type SsoConnectionId = components['schemas']['SSOConnectionID'];
 export type SsoConnectionInput = components['schemas']['SSOConnectionInput'];
@@ -5242,16 +5313,69 @@ export interface operations {
             };
         };
         readonly responses: {
-            /** @description Session established with a Secure, HttpOnly, SameSite=Lax __Host-zasp_session cookie. */
-            readonly 204: {
+            /** @description Session established with a Secure, HttpOnly, SameSite=Lax __Host-zasp_session cookie and the state-bound return path. */
+            readonly 200: {
                 headers: {
                     /** @description Host-only __Host-zasp_session cookie; Secure, HttpOnly, Path=/, SameSite=Lax. */
                     readonly "Set-Cookie"?: string;
                     readonly [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    readonly "application/json": components["schemas"]["SessionCallbackResult"];
+                };
             };
             readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly switchSessionScope: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["SessionScopeSwitchInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Session scope switched and protected caches must be reloaded. */
+            readonly 204: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listSessionScopes: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized durable scopes. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SessionScopePage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -5276,6 +5400,28 @@ export interface operations {
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
             readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly startSession: {
+        readonly parameters: {
+            readonly query: {
+                readonly return_to: string;
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Redirect to the configured identity authorization endpoint. */
+            readonly 302: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };

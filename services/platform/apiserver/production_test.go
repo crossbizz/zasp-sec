@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -63,7 +64,7 @@ func TestProductionHandlersIssueHostOnlySecureSessionCookie(t *testing.T) {
 	response := httptest.NewRecorder()
 	handlers.Session.ServeHTTP(response, request)
 	cookies := response.Result().Cookies()
-	if response.Code != http.StatusNoContent || len(cookies) != 1 {
+	if response.Code != http.StatusOK || len(cookies) != 1 || response.Body.String() != "{\"return_to\":\"/\"}\n" {
 		t.Fatalf("callback = (%d, %#v)", response.Code, cookies)
 	}
 	cookie := cookies[0]
@@ -103,8 +104,42 @@ func TestProductionBootstrapAdvertisesOnlyMountedDurableCapabilities(t *testing.
 	if err := json.NewDecoder(response.Body).Decode(&bootstrap); err != nil {
 		t.Fatal(err)
 	}
-	if response.StatusCode != http.StatusOK || !reflect.DeepEqual(bootstrap.Capabilities, []string{"inventory.read"}) {
+	if response.StatusCode != http.StatusOK || !reflect.DeepEqual(bootstrap.Capabilities, []string{"inventory.read", "scope.switch"}) {
 		t.Fatalf("bootstrap = (%d, %#v)", response.StatusCode, bootstrap.Capabilities)
+	}
+}
+
+func TestProductionSessionListsAndSwitchesOnlyDurableAuthorizedScopes(t *testing.T) {
+	database := newPersistentJSONDatabase(t)
+	server := newProductionTestServer(t, database)
+	defer server.Close()
+	response := productRequest(t, server.Client(), http.MethodGet, server.URL+"/api/v1/session/scopes", "session-a", "", "")
+	defer response.Body.Close()
+	var page struct {
+		Items []struct {
+			WorkspaceID   string `json:"workspace_id"`
+			EnvironmentID string `json:"environment_id"`
+		} `json:"items"`
+	}
+	if json.NewDecoder(response.Body).Decode(&page) != nil || response.StatusCode != http.StatusOK || len(page.Items) != 2 {
+		t.Fatalf("scope page = (%d, %#v)", response.StatusCode, page)
+	}
+	body := fmt.Sprintf(`{"workspace_id":%q,"environment_id":%q}`, page.Items[1].WorkspaceID, page.Items[1].EnvironmentID)
+	response = productRequest(t, server.Client(), http.MethodPut, server.URL+"/api/v1/session/scope", "session-a", server.URL, body)
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusNoContent {
+		t.Fatalf("switch status = %d", response.StatusCode)
+	}
+	identity, err := (&PostgresRepository{database: database}).Authenticate(context.Background(), Credential{Kind: CredentialBrowserSession, Value: "session-a"})
+	if err != nil || identity.Scope.WorkspaceID().String() != page.Items[1].WorkspaceID {
+		t.Fatalf("switched identity = (%#v, %v)", identity, err)
+	}
+	foreign := testScope(t, "2")
+	body = fmt.Sprintf(`{"workspace_id":%q,"environment_id":%q}`, foreign.WorkspaceID(), foreign.EnvironmentID())
+	response = productRequest(t, server.Client(), http.MethodPut, server.URL+"/api/v1/session/scope", "session-a", server.URL, body)
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusNotFound {
+		t.Fatalf("foreign switch status = %d", response.StatusCode)
 	}
 }
 
@@ -113,7 +148,7 @@ func TestBootstrapPayloadSourceContainsOnlyMountedDurableCapabilities(t *testing
 	if !reflect.DeepEqual(bootstrap["permissions"], []string{"view"}) {
 		t.Fatalf("permissions = %#v", bootstrap["permissions"])
 	}
-	if !reflect.DeepEqual(bootstrap["capabilities"], []string{"inventory.read"}) {
+	if !reflect.DeepEqual(bootstrap["capabilities"], []string{"inventory.read", "scope.switch"}) {
 		t.Fatalf("capabilities = %#v", bootstrap["capabilities"])
 	}
 }
@@ -208,16 +243,18 @@ func productRequest(t *testing.T, client *http.Client, method, target, session, 
 }
 
 type persistentJSONDatabase struct {
-	mu            sync.Mutex
-	sessions      map[string]RequestIdentity
-	productTokens map[string]RequestIdentity
-	records       map[string]map[string]json.RawMessage
+	mu               sync.Mutex
+	sessions         map[string]RequestIdentity
+	productTokens    map[string]RequestIdentity
+	records          map[string]map[string]json.RawMessage
+	authorizedScopes map[string][]domain.Scope
 }
 
 func newPersistentJSONDatabase(t *testing.T) *persistentJSONDatabase {
 	t.Helper()
 	scopeA := testScope(t, "1")
 	scopeB := testScope(t, "2")
+	scopeA2 := alternateScope(t, scopeA.OrganizationID())
 	principalA, _ := domain.ParseProductID("pid_10000004-0000-4000-8000-000000000004")
 	principalB, _ := domain.ParseProductID("pid_20000004-0000-4000-8000-000000000004")
 	return &persistentJSONDatabase{
@@ -225,7 +262,8 @@ func newPersistentJSONDatabase(t *testing.T) *persistentJSONDatabase {
 			"session-a": {PrincipalID: principalA, Scope: scopeA, Permissions: []string{"view", "manage_findings"}, CSRFToken: strings.Repeat("c", 32)},
 			"session-b": {PrincipalID: principalB, Scope: scopeB, Permissions: []string{"view"}, CSRFToken: strings.Repeat("d", 32)},
 		},
-		productTokens: map[string]RequestIdentity{},
+		productTokens:    map[string]RequestIdentity{},
+		authorizedScopes: map[string][]domain.Scope{principalA.String(): {scopeA, scopeA2}, principalB.String(): {scopeB}},
 		records: map[string]map[string]json.RawMessage{
 			scopeKey(scopeA): {
 				"home":     json.RawMessage(`{"agent_count":1,"high_risk_paths":1,"verified_changes":0,"blocked_changes":0,"pending_approvals":0,"oldest_approval_age_seconds":0,"needs_human_runs":0,"failed_runs":0,"inconclusive_runs":0,"recent_contained":0,"recent_remediated":0,"healthy":true,"attention_required":false}`),
@@ -234,7 +272,8 @@ func newPersistentJSONDatabase(t *testing.T) *persistentJSONDatabase {
 				"finding:pid_20000005-0000-4000-8000-000000000005": json.RawMessage(`{"id":"pid_20000005-0000-4000-8000-000000000005","source":"posture","title":"Owner missing","severity":"high","status":"open","agent_id":"pid_20000001-0000-4000-8000-000000000001","evidence_ids":["pid_20000006-0000-4000-8000-000000000006"],"risk_factors":[]}`),
 				"attack_paths": json.RawMessage(`{"items":[{"id":"pid_20000007-0000-4000-8000-000000000007","entry_id":"pid_20000001-0000-4000-8000-000000000001","sink_id":"pid_20000003-0000-4000-8000-000000000003","node_ids":["pid_20000001-0000-4000-8000-000000000001","pid_20000003-0000-4000-8000-000000000003"],"state":"observed","evidence_ids":["pid_20000006-0000-4000-8000-000000000006"],"blocked_edge":-1}]}`),
 			},
-			scopeKey(scopeB): {},
+			scopeKey(scopeB):  {},
+			scopeKey(scopeA2): {"agents": json.RawMessage(`{"items":[]}`), "home": json.RawMessage(`{"agent_count":0,"high_risk_paths":0,"verified_changes":0,"blocked_changes":0,"pending_approvals":0,"oldest_approval_age_seconds":0,"needs_human_runs":0,"failed_runs":0,"inconclusive_runs":0,"recent_contained":0,"recent_remediated":0,"healthy":true,"attention_required":false}`)},
 		},
 	}
 }
@@ -294,9 +333,50 @@ func (database *persistentJSONDatabase) QueryJSON(_ context.Context, statement s
 			return nil, ErrRepositoryNotFound
 		}
 		return append(json.RawMessage(nil), value...), nil
+	case postgresListScopesSQL:
+		principal := arguments[0].(string)
+		scopes := database.authorizedScopes[principal]
+		items := make([]map[string]string, 0, len(scopes))
+		for index, scope := range scopes {
+			items = append(items, map[string]string{"organization_id": scope.OrganizationID().String(), "workspace_id": scope.WorkspaceID().String(), "environment_id": scope.EnvironmentID().String(), "label": fmt.Sprintf("Scope %d", index+1)})
+		}
+		return json.Marshal(map[string]any{"items": items})
+	case postgresSwitchScopeSQL:
+		token, csrf, principal := arguments[0].(string), arguments[1].(string), arguments[2].(string)
+		identity, ok := database.sessions[token]
+		if !ok || identity.PrincipalID.String() != principal {
+			return nil, ErrRepositoryNotFound
+		}
+		workspace, _ := domain.ParseProductID(arguments[4].(string))
+		environment, _ := domain.ParseProductID(arguments[5].(string))
+		target, _ := domain.NewScope(identity.Scope.OrganizationID(), workspace, environment)
+		authorized := false
+		for _, scope := range database.authorizedScopes[principal] {
+			if scope == target {
+				authorized = true
+			}
+		}
+		if !authorized {
+			return nil, ErrRepositoryNotFound
+		}
+		identity.Scope = target
+		identity.CSRFToken = csrf
+		database.sessions[token] = identity
+		return json.Marshal(identityJSON(identity))
 	default:
 		return nil, errors.New("unexpected SQL")
 	}
+}
+
+func alternateScope(t *testing.T, organization domain.ProductID) domain.Scope {
+	t.Helper()
+	workspace, _ := domain.ParseProductID("pid_10000022-0000-4000-8000-000000000022")
+	environment, _ := domain.ParseProductID("pid_10000023-0000-4000-8000-000000000023")
+	scope, err := domain.NewScope(organization, workspace, environment)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return scope
 }
 func (database *persistentJSONDatabase) Exec(_ context.Context, statement string, arguments ...any) error {
 	if statement != postgresRevokeSessionSQL {

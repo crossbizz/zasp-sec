@@ -56,8 +56,8 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
 			t.Errorf("%s security = %v, want %v", key, got, operation.Security)
 		}
 	}
-	if len(seen) != 17 {
-		t.Fatalf("mounted operation count = %d, want 17", len(seen))
+	if len(seen) != 20 {
+		t.Fatalf("mounted operation count = %d, want 20", len(seen))
 	}
 }
 

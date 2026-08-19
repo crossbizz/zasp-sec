@@ -8,6 +8,20 @@ info:
     name: Proprietary
     identifier: LicenseRef-Proprietary
 paths:
+  /api/v1/session/start:
+    get:
+      operationId: startSession
+      summary: Start a repository-owned browser identity flow
+      security: []
+      parameters:
+        - name: return_to
+          in: query
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 2048, pattern: '^/(?!/)' }
+      responses:
+        '302': { description: Redirect to the configured identity authorization endpoint. }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/session/bootstrap:
     get:
       operationId: bootstrapSession
@@ -33,12 +47,15 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/SessionCallbackInput' }
       responses:
-        '204':
-          description: Session established with a Secure, HttpOnly, SameSite=Lax __Host-zasp_session cookie.
+        '200':
+          description: Session established with a Secure, HttpOnly, SameSite=Lax __Host-zasp_session cookie and the state-bound return path.
           headers:
             Set-Cookie:
               schema: { type: string }
               description: Host-only __Host-zasp_session cookie; Secure, HttpOnly, Path=/, SameSite=Lax.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionCallbackResult' }
         '400': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/session/sign-out:
@@ -53,6 +70,35 @@ paths:
         '204': { description: Session revoked and cookie expired. }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/session/scopes:
+    get:
+      operationId: listSessionScopes
+      summary: List durable scopes authorized for the browser principal
+      security:
+        - BrowserSession: []
+      responses:
+        '200':
+          description: Authorized durable scopes.
+          content: { application/json: { schema: { $ref: '#/components/schemas/SessionScopePage' } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/session/scope:
+    put:
+      operationId: switchSessionScope
+      summary: Switch the browser session to an authorized durable scope
+      security:
+        - BrowserSession: []
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/SessionScopeSwitchInput' } } }
+      responses:
+        '204': { description: Session scope switched and protected caches must be reloaded. }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/organization:
     get:
@@ -1663,6 +1709,12 @@ components:
       properties:
         authorization_code: { type: string, minLength: 1, maxLength: 4096 }
         state: { type: string, minLength: 32, maxLength: 512 }
+    SessionCallbackResult:
+      type: object
+      additionalProperties: false
+      required: [return_to]
+      properties:
+        return_to: { type: string, minLength: 1, maxLength: 2048, pattern: '^/(?!/)' }
     SessionBootstrap:
       type: object
       additionalProperties: false
@@ -1676,6 +1728,28 @@ components:
         capabilities: { type: array, uniqueItems: true, items: { type: string, minLength: 1, maxLength: 128 } }
         csrf_token: { type: string, minLength: 32, maxLength: 256 }
         correlation_id: { $ref: '#/components/schemas/ProductID' }
+    SessionScope:
+      type: object
+      additionalProperties: false
+      required: [organization_id, workspace_id, environment_id, label]
+      properties:
+        organization_id: { $ref: '#/components/schemas/ProductID' }
+        workspace_id: { $ref: '#/components/schemas/ProductID' }
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        label: { type: string, minLength: 1, maxLength: 128 }
+    SessionScopePage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/SessionScope' } }
+    SessionScopeSwitchInput:
+      type: object
+      additionalProperties: false
+      required: [workspace_id, environment_id]
+      properties:
+        workspace_id: { $ref: '#/components/schemas/ProductID' }
+        environment_id: { $ref: '#/components/schemas/ProductID' }
     SecurityAgentRunState: { type: string, enum: [queued, planning, waiting_approval, running, verifying, contained, remediated, needs_human, failed, inconclusive, cancelled] }
     SecurityAgentTemplate:
       type: object

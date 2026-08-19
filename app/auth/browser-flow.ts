@@ -9,14 +9,6 @@ export function safeReturnPath(value: string | null | undefined): string {
   }
 }
 
-export function buildIdentityStartURL(configured: string | undefined, returnTo: string): string | null {
-  if (!configured) return null;
-  try {
-    const target = new URL(configured);
-    if (target.protocol !== "https:" || target.username || target.password || target.hash) return null;
-    target.searchParams.set("return_to", safeReturnPath(returnTo));
-    return target.toString();
-  } catch {
-    return null;
-  }
+export function buildIdentityStartURL(returnTo: string): string {
+  return `/api/v1/session/start?return_to=${encodeURIComponent(safeReturnPath(returnTo))}`;
 }

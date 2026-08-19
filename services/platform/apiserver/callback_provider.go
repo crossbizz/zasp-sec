@@ -1,108 +1,131 @@
 package apiserver
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"errors"
-	"io"
 	"net"
-	"net/http"
 	"net/url"
 	"strings"
 	"time"
-
-	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
 
-type HTTPCallbackProvider struct {
-	endpoint string
-	bearer   string
-	client   *http.Client
+type ExternalIdentity struct {
+	OrganizationReference string
+	MemberReference       string
+	ExpiresAt             time.Time
 }
 
-func (provider *HTTPCallbackProvider) Ready(ctx context.Context) error {
-	if provider == nil || provider.client == nil || ctx == nil || ctx.Err() != nil {
-		return ErrRepositoryUnavailable
+type IdentityExchanger interface {
+	Exchange(context.Context, string, string) (ExternalIdentity, error)
+	Ready(context.Context) error
+}
+
+type IdentityGrantResolver interface {
+	ResolveIdentity(context.Context, ExternalIdentity) (SessionGrant, error)
+}
+
+type IdentityStateRepository interface {
+	BeginIdentity(context.Context, string) (string, error)
+	ConsumeIdentity(context.Context, string) (string, error)
+}
+
+type IdentityStarter interface {
+	Start(context.Context, string) (string, error)
+}
+
+type RepositoryIdentityProvider struct {
+	exchanger    IdentityExchanger
+	resolver     IdentityGrantResolver
+	states       IdentityStateRepository
+	authorizeURL string
+	clientID     string
+	redirectURI  string
+}
+
+func NewRepositoryIdentityProviderWithStart(exchanger IdentityExchanger, resolver IdentityGrantResolver, states IdentityStateRepository, authorizeURL, clientID, redirectURI string) (*RepositoryIdentityProvider, error) {
+	provider, err := NewRepositoryIdentityProvider(exchanger, resolver)
+	if err != nil || nilInterface(states) || !boundedSecret(clientID) {
+		return nil, ErrRepositoryConfiguration
 	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodHead, provider.endpoint, nil)
-	if err != nil {
-		return ErrRepositoryUnavailable
+	authorize, authorizeErr := url.Parse(authorizeURL)
+	redirect, redirectErr := url.Parse(redirectURI)
+	if authorizeErr != nil || redirectErr != nil || !validIdentityURL(authorize, "") || !validIdentityURL(redirect, "/auth/callback") {
+		return nil, ErrRepositoryConfiguration
 	}
-	request.Header.Set("Authorization", "Bearer "+provider.bearer)
-	response, err := provider.client.Do(request)
-	if err != nil {
-		return ErrRepositoryUnavailable
+	provider.states = states
+	provider.authorizeURL = authorizeURL
+	provider.clientID = clientID
+	provider.redirectURI = redirectURI
+	return provider, nil
+}
+
+func (provider *RepositoryIdentityProvider) Start(ctx context.Context, returnTo string) (string, error) {
+	if provider == nil || nilInterface(provider.states) || ctx == nil || ctx.Err() != nil || !validReturnPath(returnTo) {
+		return "", ErrRepositoryOperation
 	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusNoContent {
+	state, err := provider.states.BeginIdentity(ctx, returnTo)
+	if err != nil || len(state) < 32 || len(state) > 512 {
+		return "", ErrRepositoryUnavailable
+	}
+	target, _ := url.Parse(provider.authorizeURL)
+	query := target.Query()
+	query.Set("response_type", "code")
+	query.Set("client_id", provider.clientID)
+	query.Set("redirect_uri", provider.redirectURI)
+	query.Set("state", state)
+	target.RawQuery = query.Encode()
+	return target.String(), nil
+}
+
+func NewRepositoryIdentityProvider(exchanger IdentityExchanger, resolver IdentityGrantResolver) (*RepositoryIdentityProvider, error) {
+	if nilInterface(exchanger) || nilInterface(resolver) {
+		return nil, ErrRepositoryConfiguration
+	}
+	return &RepositoryIdentityProvider{exchanger: exchanger, resolver: resolver}, nil
+}
+
+func (provider *RepositoryIdentityProvider) Complete(ctx context.Context, code, state string) (SessionGrant, error) {
+	if provider == nil || ctx == nil || ctx.Err() != nil || code == "" || len(code) > 4096 || len(state) < 32 || len(state) > 512 {
+		return SessionGrant{}, ErrRepositoryAuthentication
+	}
+	returnTo := "/"
+	if provider.states != nil {
+		var consumeErr error
+		returnTo, consumeErr = provider.states.ConsumeIdentity(ctx, state)
+		if consumeErr != nil || !validReturnPath(returnTo) {
+			return SessionGrant{}, ErrRepositoryAuthentication
+		}
+	}
+	external, err := provider.exchanger.Exchange(ctx, code, state)
+	if err != nil || !validExternalIdentity(external) {
+		return SessionGrant{}, ErrRepositoryAuthentication
+	}
+	grant, err := provider.resolver.ResolveIdentity(ctx, external)
+	if err != nil || !validSessionGrant(grant) || grant.ExpiresAt.After(external.ExpiresAt) {
+		return SessionGrant{}, ErrRepositoryAuthentication
+	}
+	grant.ReturnTo = returnTo
+	return grant, nil
+}
+
+func validReturnPath(value string) bool {
+	return strings.HasPrefix(value, "/") && !strings.HasPrefix(value, "//") && !strings.ContainsAny(value, "\\\r\n") && len(value) <= 2048
+}
+
+func validIdentityURL(value *url.URL, exactPath string) bool {
+	if value == nil || value.Host == "" || value.User != nil || value.RawQuery != "" || value.Fragment != "" || value.Path == "" || exactPath != "" && value.Path != exactPath {
+		return false
+	}
+	loopback := net.ParseIP(value.Hostname()) != nil && net.ParseIP(value.Hostname()).IsLoopback()
+	return value.Scheme == "https" || value.Scheme == "http" && loopback
+}
+
+func (provider *RepositoryIdentityProvider) Ready(ctx context.Context) error {
+	if provider == nil || provider.exchanger.Ready(ctx) != nil {
 		return ErrRepositoryUnavailable
 	}
 	return nil
 }
 
-func NewHTTPCallbackProvider(endpoint, bearer string, timeout time.Duration) (*HTTPCallbackProvider, error) {
-	parsed, err := url.Parse(endpoint)
-	if err != nil || parsed == nil {
-		return nil, ErrRepositoryConfiguration
-	}
-	loopback := net.ParseIP(parsed.Hostname()) != nil && net.ParseIP(parsed.Hostname()).IsLoopback()
-	if parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.Path != "" ||
-		(parsed.Scheme != "https" && !(parsed.Scheme == "http" && loopback)) || len(bearer) < 8 || len(bearer) > 4096 || strings.TrimSpace(bearer) != bearer || timeout <= 0 || timeout > 30*time.Second {
-		return nil, ErrRepositoryConfiguration
-	}
-	client := &http.Client{Timeout: timeout, CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("provider redirect rejected") }}
-	return &HTTPCallbackProvider{endpoint: endpoint, bearer: bearer, client: client}, nil
-}
-
-func (provider *HTTPCallbackProvider) Complete(ctx context.Context, code, state string) (SessionGrant, error) {
-	if provider == nil || provider.client == nil || ctx == nil || ctx.Err() != nil || code == "" || state == "" || len(code) > 4096 || len(state) > 512 {
-		return SessionGrant{}, ErrRepositoryAuthentication
-	}
-	payload, err := json.Marshal(map[string]string{"authorization_code": code, "state": state})
-	if err != nil {
-		return SessionGrant{}, ErrRepositoryAuthentication
-	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, provider.endpoint, bytes.NewReader(payload))
-	if err != nil {
-		return SessionGrant{}, ErrRepositoryAuthentication
-	}
-	request.Header.Set("Authorization", "Bearer "+provider.bearer)
-	request.Header.Set("Content-Type", "application/json")
-	response, err := provider.client.Do(request)
-	if err != nil {
-		return SessionGrant{}, ErrRepositoryAuthentication
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK || response.Header.Get("Content-Type") != "application/json" {
-		return SessionGrant{}, ErrRepositoryAuthentication
-	}
-	decoder := json.NewDecoder(io.LimitReader(response.Body, 8*1024+1))
-	decoder.DisallowUnknownFields()
-	var value struct {
-		PrincipalID    string   `json:"principal_id"`
-		OrganizationID string   `json:"organization_id"`
-		WorkspaceID    string   `json:"workspace_id"`
-		EnvironmentID  string   `json:"environment_id"`
-		Permissions    []string `json:"permissions"`
-		ExpiresAt      string   `json:"expires_at"`
-	}
-	if decoder.Decode(&value) != nil {
-		return SessionGrant{}, ErrRepositoryAuthentication
-	}
-	var extra any
-	if decoder.Decode(&extra) != io.EOF {
-		return SessionGrant{}, ErrRepositoryAuthentication
-	}
-	principal, principalErr := domain.ParseProductID(value.PrincipalID)
-	organization, organizationErr := domain.ParseProductID(value.OrganizationID)
-	workspace, workspaceErr := domain.ParseProductID(value.WorkspaceID)
-	environment, environmentErr := domain.ParseProductID(value.EnvironmentID)
-	scope, scopeErr := domain.NewScope(organization, workspace, environment)
-	expiresAt, expiresErr := time.Parse(time.RFC3339, value.ExpiresAt)
-	grant := SessionGrant{PrincipalID: principal, Scope: scope, Permissions: append([]string(nil), value.Permissions...), ExpiresAt: expiresAt}
-	if principalErr != nil || organizationErr != nil || workspaceErr != nil || environmentErr != nil || scopeErr != nil || expiresErr != nil || !validSessionGrant(grant) {
-		return SessionGrant{}, ErrRepositoryAuthentication
-	}
-	return grant, nil
+func validExternalIdentity(value ExternalIdentity) bool {
+	return strings.HasPrefix(value.OrganizationReference, "organization-") && len(value.OrganizationReference) <= 128 && strings.HasPrefix(value.MemberReference, "member-") && len(value.MemberReference) <= 128 && value.ExpiresAt.Location() == time.UTC && value.ExpiresAt.After(time.Now().UTC()) && !value.ExpiresAt.After(time.Now().UTC().Add(24*time.Hour))
 }

@@ -20,18 +20,20 @@ var (
 )
 
 type RuntimeConfig struct {
-	Environment            string
-	ProductListenAddress   string
-	InternalListenAddress  string
-	PublicOrigin           string
-	CookieSecure           bool
-	ProviderTimeout        time.Duration
-	ShutdownTimeout        time.Duration
-	ReadinessInterval      time.Duration
-	ReadinessMaxInterval   time.Duration
-	PostgresDSN            string
-	IdentityCallbackURL    string
-	IdentityCallbackBearer string
+	Environment           string
+	ProductListenAddress  string
+	InternalListenAddress string
+	PublicOrigin          string
+	CookieSecure          bool
+	ProviderTimeout       time.Duration
+	ShutdownTimeout       time.Duration
+	ReadinessInterval     time.Duration
+	ReadinessMaxInterval  time.Duration
+	PostgresDSN           string
+	IdentityAuthorizeURL  string
+	IdentityExchangeURL   string
+	IdentityClientID      string
+	IdentityClientSecret  string
 }
 
 type StoreDependency struct {
@@ -60,7 +62,7 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 		InternalListenAddress: getenv("ZASP_INTERNAL_LISTEN_ADDRESS"), PublicOrigin: getenv("ZASP_PUBLIC_ORIGIN"),
 		CookieSecure: cookieSecure, ProviderTimeout: providerTimeout, ShutdownTimeout: shutdownTimeout,
 		ReadinessInterval: readinessInterval, ReadinessMaxInterval: readinessMaxInterval,
-		PostgresDSN: getenv("ZASP_POSTGRES_DSN"), IdentityCallbackURL: getenv("ZASP_IDENTITY_CALLBACK_URL"), IdentityCallbackBearer: getenv("ZASP_IDENTITY_CALLBACK_BEARER"),
+		PostgresDSN: getenv("ZASP_POSTGRES_DSN"), IdentityAuthorizeURL: getenv("ZASP_IDENTITY_AUTHORIZE_URL"), IdentityExchangeURL: getenv("ZASP_IDENTITY_EXCHANGE_URL"), IdentityClientID: getenv("ZASP_IDENTITY_CLIENT_ID"), IdentityClientSecret: getenv("ZASP_IDENTITY_CLIENT_SECRET"),
 	}
 	if providerErr != nil || shutdownErr != nil || readinessErr != nil || readinessMaxErr != nil || cookieErr != nil || !validRuntimeConfig(config) {
 		return RuntimeConfig{}, errInvalidRuntimeConfig
@@ -86,11 +88,20 @@ func validRuntimeConfig(config RuntimeConfig) bool {
 	if databaseErr != nil || database.Scheme != "postgres" && database.Scheme != "postgresql" || database.Host == "" || database.User == nil || database.Path == "" || strings.TrimSpace(config.PostgresDSN) != config.PostgresDSN {
 		return false
 	}
-	callback, callbackErr := url.Parse(config.IdentityCallbackURL)
-	if callbackErr != nil || callback.Scheme != "https" || callback.Host == "" || callback.User != nil || callback.RawQuery != "" || callback.Fragment != "" || callback.Path != "" || len(config.IdentityCallbackBearer) < 8 || len(config.IdentityCallbackBearer) > 4096 || strings.TrimSpace(config.IdentityCallbackBearer) != config.IdentityCallbackBearer {
+	authorize, authorizeErr := url.Parse(config.IdentityAuthorizeURL)
+	exchange, exchangeErr := url.Parse(config.IdentityExchangeURL)
+	if authorizeErr != nil || exchangeErr != nil || authorize == nil || exchange == nil {
+		return false
+	}
+	if !validConfiguredIdentityURL(authorize, config.Environment) || !validConfiguredIdentityURL(exchange, config.Environment) || len(config.IdentityClientID) < 8 || len(config.IdentityClientID) > 256 || strings.TrimSpace(config.IdentityClientID) != config.IdentityClientID || len(config.IdentityClientSecret) < 8 || len(config.IdentityClientSecret) > 4096 || strings.TrimSpace(config.IdentityClientSecret) != config.IdentityClientSecret {
 		return false
 	}
 	return config.ProviderTimeout > 0 && config.ProviderTimeout <= 30*time.Second && config.ShutdownTimeout > 0 && config.ShutdownTimeout <= 30*time.Second && config.ReadinessInterval >= 100*time.Millisecond && config.ReadinessMaxInterval >= config.ReadinessInterval && config.ReadinessMaxInterval <= 5*time.Minute
+}
+
+func validConfiguredIdentityURL(value *url.URL, environment string) bool {
+	loopback := net.ParseIP(value.Hostname()) != nil && net.ParseIP(value.Hostname()).IsLoopback()
+	return value.Host != "" && value.User == nil && value.RawQuery == "" && value.Fragment == "" && value.Path != "" && (value.Scheme == "https" || environment == "test" && value.Scheme == "http" && loopback)
 }
 
 func validListenAddress(address string) bool {

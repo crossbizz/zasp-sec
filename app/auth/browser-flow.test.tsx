@@ -6,18 +6,17 @@ import { CallbackCompletion } from "./callback/page";
 import { buildIdentityStartURL, safeReturnPath } from "./browser-flow";
 
 describe("browser sign-in flow", () => {
-  it("builds only an HTTPS identity start URL with a bounded return path", () => {
-    expect(buildIdentityStartURL("https://identity.example/start?tenant=zasp", "/discovery/assets?owner=security"))
-      .toBe("https://identity.example/start?tenant=zasp&return_to=%2Fdiscovery%2Fassets%3Fowner%3Dsecurity");
-    expect(buildIdentityStartURL("http://identity.example/start", "/")).toBeNull();
-    expect(buildIdentityStartURL("https://user:secret@identity.example/start", "/")).toBeNull();
+  it("starts identity only through the bounded same-origin API", () => {
+    expect(buildIdentityStartURL("/discovery/assets?owner=security"))
+      .toBe("/api/v1/session/start?return_to=%2Fdiscovery%2Fassets%3Fowner%3Dsecurity");
+    expect(buildIdentityStartURL("//evil.example/steal")).toBe("/api/v1/session/start?return_to=%2F");
     expect(safeReturnPath("//evil.example/steal")).toBe("/");
   });
 
   it("exchanges the callback and replaces with the bounded deep link", async () => {
     window.history.replaceState({}, "", `/auth/callback?code=authorization-code&state=${"s".repeat(32)}&return_to=%2Fdiscovery%2Fassets`);
 		const replace = vi.fn();
-    const POST = vi.fn(async () => ({ data: undefined, error: undefined, response: new Response(null, { status: 204 }) }));
+    const POST = vi.fn(async () => ({ data: { return_to: "/discovery/assets" }, error: undefined, response: new Response(null, { status: 200 }) }));
 		render(<CallbackCompletion suppliedClient={{ POST } as unknown as APIClient} replaceLocation={replace} />);
     await waitFor(() => expect(POST).toHaveBeenCalledWith("/api/v1/session/callback", { body: { authorization_code: "authorization-code", state: "s".repeat(32) } }));
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/discovery/assets"));

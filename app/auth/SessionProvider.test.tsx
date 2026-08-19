@@ -13,6 +13,7 @@ function Consumer() {
     <span>{session.status}</span>
     <span>{session.hasCapability("inventory.read") ? "inventory enabled" : "inventory hidden"}</span>
     {session.status === "authenticated" && <button onClick={() => void session.signOut()}>Sign out</button>}
+	{session.status === "authenticated" && session.scopes.length > 1 && <button onClick={() => void session.switchScope(session.scopes[1].workspace_id, session.scopes[1].environment_id)}>Switch scope</button>}
   </div>;
 }
 
@@ -28,6 +29,7 @@ describe("SessionProvider", () => {
   it("bootstraps principal scope and server capabilities then signs out", async () => {
     const fetch = vi.fn(async (request: Request) => {
       if (request.url.endsWith("/api/v1/session/sign-out")) return new Response(null, { status: 204 });
+	  if (request.url.endsWith("/api/v1/session/scopes")) return jsonResponse(sessionScopes());
       return jsonResponse(sessionBootstrap());
     });
     const Wrapper = wrapper(fetch);
@@ -37,7 +39,20 @@ describe("SessionProvider", () => {
     expect(screen.getByText("inventory enabled")).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "Sign out" }));
     await waitFor(() => expect(screen.getByText("unauthenticated")).toBeVisible());
-    expect(fetch).toHaveBeenCalledTimes(2);
+	expect(fetch).toHaveBeenCalledTimes(3);
+  });
+
+  it("switches only a listed scope and clears protected query state before rebootstrap", async () => {
+	let switched = false;
+	const fetch = vi.fn(async (request: Request) => {
+		if (request.url.endsWith("/api/v1/session/scope")) { switched = true; expect(request.method).toBe("PUT"); return new Response(null, { status: 204 }); }
+		if (request.url.endsWith("/api/v1/session/scopes")) return jsonResponse(sessionScopes());
+		return jsonResponse(sessionBootstrap(switched));
+	});
+	const Wrapper = wrapper(fetch); render(<Wrapper><Consumer /></Wrapper>);
+	await screen.findByRole("button", { name: "Switch scope" });
+	await userEvent.click(screen.getByRole("button", { name: "Switch scope" }));
+	await waitFor(() => expect(fetch.mock.calls.filter(([request]) => request.url.endsWith("/api/v1/session/bootstrap"))).toHaveLength(2));
   });
 
   it("fails closed and exposes no capability when the session expired", async () => {
@@ -58,7 +73,7 @@ describe("SessionProvider", () => {
   });
 });
 
-function sessionBootstrap() {
+function sessionBootstrap(switched = false) {
   return {
     principal: {
       id: "pid_10000004-0000-4000-8000-000000000004",
@@ -67,14 +82,19 @@ function sessionBootstrap() {
       role: "security_admin", active: true,
     },
     organization_id: "pid_10000001-0000-4000-8000-000000000001",
-    workspace_id: "pid_10000002-0000-4000-8000-000000000002",
-    environment_id: "pid_10000003-0000-4000-8000-000000000003",
+	workspace_id: switched ? "pid_10000022-0000-4000-8000-000000000022" : "pid_10000002-0000-4000-8000-000000000002",
+	environment_id: switched ? "pid_10000023-0000-4000-8000-000000000023" : "pid_10000003-0000-4000-8000-000000000003",
     permissions: ["view", "manage_findings"],
-    capabilities: ["inventory.read", "findings.read", "findings.manage"],
+	capabilities: ["inventory.read", "scope.switch"],
     csrf_token: "cccccccccccccccccccccccccccccccc",
     correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
   };
 }
+
+function sessionScopes() { return { items: [
+	{ organization_id: "pid_10000001-0000-4000-8000-000000000001", workspace_id: "pid_10000002-0000-4000-8000-000000000002", environment_id: "pid_10000003-0000-4000-8000-000000000003", label: "Production" },
+	{ organization_id: "pid_10000001-0000-4000-8000-000000000001", workspace_id: "pid_10000022-0000-4000-8000-000000000022", environment_id: "pid_10000023-0000-4000-8000-000000000023", label: "Staging" },
+] }; }
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });

@@ -38,9 +38,12 @@ type coreOperation struct {
 }
 
 var coreOperations = []coreOperation{
+	{OperationDefinition{"GET", "/api/v1/session/start", "startSession", "", []string{}}, sessionDependency},
 	{OperationDefinition{"GET", "/api/v1/session/bootstrap", "bootstrapSession", "", []string{"BrowserSession"}}, sessionDependency},
 	{OperationDefinition{"POST", "/api/v1/session/callback", "completeSessionCallback", "", []string{}}, sessionDependency},
 	{OperationDefinition{"POST", "/api/v1/session/sign-out", "signOutSession", "", []string{"BrowserSession"}}, sessionDependency},
+	{OperationDefinition{"GET", "/api/v1/session/scopes", "listSessionScopes", "", []string{"BrowserSession"}}, sessionDependency},
+	{OperationDefinition{"PUT", "/api/v1/session/scope", "switchSessionScope", "", []string{"BrowserSession"}}, sessionDependency},
 	{OperationDefinition{"GET", "/api/v1/me", "getCurrentPrincipal", "", []string{"BrowserSession", "ProductAPIToken"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/home/summary", "getHomeSummary", "view", []string{"BrowserSession", "ProductAPIToken"}}, riskDependency},
 	{OperationDefinition{"GET", "/api/v1/agents", "listAgents", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
@@ -91,7 +94,7 @@ func NewComposition(dependencies Dependencies) (http.Handler, error) {
 				security = append(security, CredentialBearerToken)
 			}
 		}
-		operations = append(operations, Operation{Method: definition.Method, Pattern: definition.Pattern, OperationID: definition.OperationID, Permission: definition.Permission, Security: security, RequireCSRF: definition.OperationID == "signOutSession", Handler: handler})
+		operations = append(operations, Operation{Method: definition.Method, Pattern: definition.Pattern, OperationID: definition.OperationID, Permission: definition.Permission, Security: security, RequireCSRF: definition.OperationID == "signOutSession" || definition.OperationID == "switchSessionScope", Handler: handler})
 	}
 	router, err := NewRouter(operations)
 	if err != nil {

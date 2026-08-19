@@ -2,6 +2,7 @@ import createClient from "openapi-fetch";
 import type { ClientOptions } from "openapi-fetch";
 
 import type { paths, ProductError, ProductId } from "./generated";
+import type { Decoder } from "./decoders";
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 const DEFAULT_MAXIMUM_RESPONSE_BYTES = 1024 * 1024;
@@ -38,8 +39,11 @@ export class APIProductError extends Error {
   }
 }
 
-export function requireAPIData<T>(result: { data?: unknown; error?: unknown; response: Response }): T {
-  if (result.data !== undefined) return result.data as T;
+export function requireAPIData<T>(result: { data?: unknown; error?: unknown; response: Response }, decode?: Decoder<T>): T {
+  if (result.data !== undefined) {
+    if (!decode) return result.data as T;
+    try { return decode(result.data); } catch { throw new APITransportError("invalid_response", "API success response failed its operation schema"); }
+  }
   if (isProductError(result.error)) throw new APIProductError(result.response.status, result.error as ProductError);
   throw new APITransportError("invalid_error", "API request failed without a valid product error");
 }

@@ -2,7 +2,9 @@
 
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
-import type { Principal, SessionBootstrap } from "../../apps/web/api/generated";
+import type { Principal, SessionBootstrap, SessionScope } from "../../apps/web/api/generated";
+import { requireAPIData } from "../../apps/web/api/client";
+import { decodeSessionBootstrap, decodeSessionScopePage } from "../../apps/web/api/decoders";
 import { useAPI } from "../api/APIProvider";
 
 type AuthenticatedSession = {
@@ -13,6 +15,7 @@ type AuthenticatedSession = {
   environmentID: string;
   permissions: readonly string[];
   capabilities: readonly string[];
+	 scopes: readonly SessionScope[];
 };
 
 type SessionState = AuthenticatedSession | {
@@ -25,6 +28,7 @@ export type SessionContextValue = SessionState & {
   signIn(returnTo?: string): void;
   signOut(): Promise<void>;
   retry(): Promise<void>;
+	 switchScope(workspaceID: string, environmentID: string): Promise<void>;
 };
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -43,11 +47,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setState({ status: result.response.status === 401 ? "unauthenticated" : result.response.status === 403 ? "forbidden" : "error", error: result.error });
         return;
       }
-      const bootstrapValue = result.data as unknown as SessionBootstrap;
+	  const bootstrapValue = requireAPIData(result, decodeSessionBootstrap);
+	  let scopes: readonly SessionScope[] = [];
+	  if (bootstrapValue.capabilities.includes("scope.switch")) {
+		const scopeResult = await client.GET("/api/v1/session/scopes");
+		scopes = requireAPIData(scopeResult, decodeSessionScopePage).items;
+	  }
       sessionCSRF.current = bootstrapValue.csrf_token;
       setCSRFToken(bootstrapValue.csrf_token);
       setStateSessionExpiry(expiryVersion);
-      setState(authenticatedState(bootstrapValue));
+	  setState(authenticatedState(bootstrapValue, scopes));
     } catch (error) {
       setCSRFToken(null);
       setState({ status: "error", error });
@@ -74,6 +83,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const signIn = useCallback((returnTo?: string) => {
     window.location.assign(buildSignInURL(returnTo ?? `${window.location.pathname}${window.location.search}`));
   }, []);
+	const switchScope = useCallback(async (workspaceID: string, environmentID: string) => {
+		if (state.status !== "authenticated" || !sessionCSRF.current || !state.scopes.some((scope) => scope.workspace_id === workspaceID && scope.environment_id === environmentID)) throw new Error("Scope is not authorized");
+		const result = await client.PUT("/api/v1/session/scope", { params: { header: { "X-CSRF-Token": sessionCSRF.current } }, body: { workspace_id: workspaceID, environment_id: environmentID } });
+		if (result.error || result.response.status !== 204) requireAPIData<never>(result);
+		clearQueryCache();
+		await loadSession(sessionExpiry + 1);
+	}, [client, clearQueryCache, loadSession, sessionExpiry, state]);
 	const value = useMemo<SessionContextValue>(() => {
 		const visibleState: SessionState = sessionExpiry === stateSessionExpiry ? state : { status: "unauthenticated" };
 		const capabilities = visibleState.status === "authenticated" ? new Set(visibleState.capabilities) : new Set<string>();
@@ -82,9 +98,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 			hasCapability: (capability: string) => capabilities.has(capability),
 			signIn,
 			signOut,
+			switchScope,
 			retry,
 		};
-	}, [sessionExpiry, stateSessionExpiry, state, signIn, signOut, retry]);
+	}, [sessionExpiry, stateSessionExpiry, state, signIn, signOut, switchScope, retry]);
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 
@@ -106,7 +123,7 @@ export function buildSignInURL(returnTo: string): string {
   }
 }
 
-function authenticatedState(value: SessionBootstrap): AuthenticatedSession {
+function authenticatedState(value: SessionBootstrap, scopes: readonly SessionScope[]): AuthenticatedSession {
   return {
     status: "authenticated",
     principal: value.principal,
@@ -115,5 +132,6 @@ function authenticatedState(value: SessionBootstrap): AuthenticatedSession {
     environmentID: value.environment_id,
     permissions: value.permissions,
     capabilities: value.capabilities,
+	 scopes,
   };
 }

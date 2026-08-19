@@ -88,6 +88,10 @@ func NewProductMiddleware(security ProductSecurity, next http.Handler) (http.Han
 			return
 		}
 
+		if request.URL.Path == "/api/v1/session/start" && request.Method == http.MethodGet {
+			next.ServeHTTP(writer, request)
+			return
+		}
 		if request.URL.Path == "/api/v1/session/callback" && request.Method == http.MethodPost {
 			if request.Header.Get("Origin") != security.PublicOrigin {
 				writeProductError(writer, http.StatusForbidden, "request_forbidden", "Request forbidden", correlationID)

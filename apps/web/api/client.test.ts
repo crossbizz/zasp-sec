@@ -1,6 +1,7 @@
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import { APIProductError, APITransportError, createAPIClient, requireAPIData } from "./client";
+import { decodeHomeSummary, decodeInventoryPage, decodeSessionBootstrap } from "./decoders";
 import type { ProductID } from "./client";
 import type {
   Cursor,
@@ -15,6 +16,12 @@ function assertProductErrorIsReadonly(value: ProductError) {
 }
 
 describe("generated API client", () => {
+	it("fails successful visible-operation payloads closed through strict decoders", () => {
+		const response = new Response("{}", { status: 200 });
+		expect(() => requireAPIData({ data: { agent_count: 1 }, response }, decodeHomeSummary)).toThrow(expect.objectContaining({ kind: "invalid_response" }));
+		expect(() => requireAPIData({ data: { items: [{ id: "pid_20000001-0000-4000-8000-000000000001", name: "Agent", kind: "agent", owner: "", team: "", tags: [], evidence_id: "pid_20000006-0000-4000-8000-000000000006", first_seen: "2026-08-18T09:00:00Z", last_seen: "2026-08-18T10:00:00Z", unexpected: true }] }, response }, decodeInventoryPage)).toThrow(expect.objectContaining({ kind: "invalid_response" }));
+		expect(() => requireAPIData({ data: { principal: {}, capabilities: ["inventory.read"] }, response }, decodeSessionBootstrap)).toThrow(expect.objectContaining({ kind: "invalid_response" }));
+	});
 	it("preserves a validated product error with status and correlation", () => {
 		const error = {
 			code: "authorization_rejected", message: "Authorization rejected",
@@ -115,6 +122,9 @@ describe("generated API client", () => {
       | "/api/v1/session/bootstrap"
       | "/api/v1/session/callback"
       | "/api/v1/session/sign-out"
+	  | "/api/v1/session/scopes"
+	  | "/api/v1/session/scope"
+	  | "/api/v1/session/start"
       | "/api/v1/security-actions"
       | "/api/v1/security-agent-approvals"
       | "/api/v1/security-agent-approvals/{id}"

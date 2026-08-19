@@ -134,8 +134,12 @@ describe("Zasp application", () => {
         if (path === "/api/v1/session/bootstrap") return apiJSON({
           principal: { id: "pid_10000004-0000-4000-8000-000000000004", organization_id: "pid_10000001-0000-4000-8000-000000000001", organization_reference: "organization-live", member_reference: "member-live", role: "security_admin", active: true },
           organization_id: "pid_10000001-0000-4000-8000-000000000001", workspace_id: "pid_10000002-0000-4000-8000-000000000002", environment_id: "pid_10000003-0000-4000-8000-000000000003",
-          permissions: ["view", "manage_findings"], capabilities: ["inventory.read", "findings.read", "findings.manage", "attack_paths.read"], csrf_token: "cccccccccccccccccccccccccccccccc", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+		  permissions: ["view"], capabilities: ["inventory.read", "scope.switch"], csrf_token: "cccccccccccccccccccccccccccccccc", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
         });
+		if (path === "/api/v1/session/scopes") return apiJSON({ items: [
+			{ organization_id: "pid_10000001-0000-4000-8000-000000000001", workspace_id: "pid_10000002-0000-4000-8000-000000000002", environment_id: "pid_10000003-0000-4000-8000-000000000003", label: "Production" },
+			{ organization_id: "pid_10000001-0000-4000-8000-000000000001", workspace_id: "pid_10000022-0000-4000-8000-000000000022", environment_id: "pid_10000023-0000-4000-8000-000000000023", label: "Staging" },
+		] });
         if (path === "/api/v1/home/summary") return apiJSON({ agent_count: 1, high_risk_paths: 1, verified_changes: 0, blocked_changes: 0, pending_approvals: 0, oldest_approval_age_seconds: 0, needs_human_runs: 0, failed_runs: 0, inconclusive_runs: 0, recent_contained: 0, recent_remediated: 0, healthy: true, attention_required: false });
         if (path === "/api/v1/agents") return apiJSON({ items: [] });
         return apiJSON({ code: "not_found", message: "Resource not found", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: false }, 404);
@@ -146,6 +150,7 @@ describe("Zasp application", () => {
     expect(screen.getByRole("link", { name: "Agents" })).toBeVisible();
     expect(screen.queryByRole("link", { name: "Policies" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Red Team" })).not.toBeInTheDocument();
+	expect(screen.getByRole("combobox", { name: "Authorized scope" })).toBeVisible();
     await userEvent.click(screen.getByRole("link", { name: "Agents" }));
     expect(await screen.findByText("No records in this scope.")).toBeVisible();
   });
@@ -176,6 +181,7 @@ describe("Zasp application", () => {
 		}
 		expect(requests).not.toContain("/api/v1/findings");
 		expect(screen.queryByRole("link", { name: "Findings" })).not.toBeInTheDocument();
+		if (mode === "initial") expect(window.location.pathname).toBe("/");
 	});
 });
 

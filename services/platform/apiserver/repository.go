@@ -21,6 +21,11 @@ const (
 	postgresBootstrapSQL           = `SELECT zasp_session_bootstrap($1, $2, $3, $4)`
 	postgresCoreReadSQL            = `SELECT zasp_core_read($1, $2, $3, $4)`
 	postgresRevokeSessionSQL       = `UPDATE zasp_product_sessions SET revoked_at = now() WHERE token_digest = digest($1, 'sha256') AND organization_id = $2 AND principal_id = $3`
+	postgresListScopesSQL          = `SELECT jsonb_build_object('items', COALESCE(jsonb_agg(jsonb_build_object('organization_id', organization_id, 'workspace_id', workspace_id, 'environment_id', environment_id, 'label', label) ORDER BY label, workspace_id, environment_id), '[]'::jsonb)) FROM zasp_authorized_scopes WHERE principal_id = $1 AND organization_id = $2`
+	postgresSwitchScopeSQL         = `WITH authorized AS (SELECT workspace_id, environment_id, permissions FROM zasp_authorized_scopes WHERE principal_id = $3 AND organization_id = $4 AND workspace_id = $5 AND environment_id = $6), updated AS (UPDATE zasp_product_sessions AS session SET workspace_id = authorized.workspace_id, environment_id = authorized.environment_id, permissions = authorized.permissions, csrf_token = $2 FROM authorized WHERE session.token_digest = digest($1, 'sha256') AND session.principal_id = $3 AND session.organization_id = $4 AND session.revoked_at IS NULL AND session.expires_at > now() RETURNING session.principal_id, session.organization_id, session.workspace_id, session.environment_id, session.permissions, session.csrf_token) SELECT jsonb_build_object('principal_id', principal_id, 'organization_id', organization_id, 'workspace_id', workspace_id, 'environment_id', environment_id, 'permissions', permissions, 'csrf_token', csrf_token) FROM updated`
+	postgresResolveIdentitySQL     = `SELECT jsonb_build_object('principal_id', membership.principal_id, 'organization_id', membership.organization_id, 'workspace_id', scope.workspace_id, 'environment_id', scope.environment_id, 'permissions', scope.permissions) FROM zasp_identity_memberships AS membership JOIN zasp_authorized_scopes AS scope ON scope.principal_id = membership.principal_id AND scope.organization_id = membership.organization_id AND scope.is_default WHERE membership.organization_reference = $1 AND membership.member_reference = $2 AND membership.active`
+	postgresBeginIdentitySQL       = `INSERT INTO zasp_identity_states (state_digest, return_path, expires_at) VALUES (digest($1, 'sha256'), $2, now() + interval '10 minutes')`
+	postgresConsumeIdentitySQL     = `WITH consumed AS (UPDATE zasp_identity_states SET consumed_at = now() WHERE state_digest = digest($1, 'sha256') AND consumed_at IS NULL AND expires_at > now() RETURNING return_path) SELECT jsonb_build_object('return_path', return_path) FROM consumed`
 )
 
 var (
@@ -180,6 +185,80 @@ func (repository *PostgresRepository) Revoke(ctx context.Context, identity Reque
 	return nil
 }
 
+func (repository *PostgresRepository) ListScopes(ctx context.Context, identity RequestIdentity) (json.RawMessage, error) {
+	if !validRequestIdentity(identity, true) {
+		return nil, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresListScopesSQL, identity.PrincipalID.String(), identity.Scope.OrganizationID().String())
+	return validJSONObject(payload, err)
+}
+
+func (repository *PostgresRepository) SwitchScope(ctx context.Context, identity RequestIdentity, token string, scope domain.Scope) (RequestIdentity, error) {
+	if !validRequestIdentity(identity, true) || token == "" || scope.Validate() != nil || scope.OrganizationID() != identity.Scope.OrganizationID() {
+		return RequestIdentity{}, ErrRepositoryNotFound
+	}
+	csrf := identity.CSRFToken
+	payload, err := repository.database.QueryJSON(ctx, postgresSwitchScopeSQL, token, csrf, identity.PrincipalID.String(), identity.Scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String())
+	if err != nil {
+		if errors.Is(err, ErrRepositoryNotFound) {
+			return RequestIdentity{}, ErrRepositoryNotFound
+		}
+		return RequestIdentity{}, ErrRepositoryUnavailable
+	}
+	updated, err := identityFromJSON(payload, true)
+	if err != nil || updated.Scope != scope || updated.PrincipalID != identity.PrincipalID {
+		return RequestIdentity{}, ErrRepositoryUnavailable
+	}
+	return updated, nil
+}
+
+func (repository *PostgresRepository) ResolveIdentity(ctx context.Context, external ExternalIdentity) (SessionGrant, error) {
+	if repository == nil || !validExternalIdentity(external) {
+		return SessionGrant{}, ErrRepositoryAuthentication
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresResolveIdentitySQL, external.OrganizationReference, external.MemberReference)
+	if err != nil {
+		return SessionGrant{}, ErrRepositoryAuthentication
+	}
+	identity, err := identityFromJSON(payload, false)
+	grant := SessionGrant{PrincipalID: identity.PrincipalID, Scope: identity.Scope, Permissions: identity.Permissions, ExpiresAt: external.ExpiresAt}
+	if err != nil || !validSessionGrant(grant) {
+		return SessionGrant{}, ErrRepositoryAuthentication
+	}
+	return grant, nil
+}
+
+func (repository *PostgresRepository) BeginIdentity(ctx context.Context, returnTo string) (string, error) {
+	if repository == nil || !validReturnPath(returnTo) {
+		return "", ErrRepositoryOperation
+	}
+	state, err := randomCredential()
+	if err != nil {
+		return "", ErrRepositoryUnavailable
+	}
+	if err := repository.database.Exec(ctx, postgresBeginIdentitySQL, state, returnTo); err != nil {
+		return "", ErrRepositoryUnavailable
+	}
+	return state, nil
+}
+
+func (repository *PostgresRepository) ConsumeIdentity(ctx context.Context, state string) (string, error) {
+	if repository == nil || len(state) < 32 || len(state) > 512 {
+		return "", ErrRepositoryAuthentication
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresConsumeIdentitySQL, state)
+	if err != nil {
+		return "", ErrRepositoryAuthentication
+	}
+	var value struct {
+		ReturnPath string `json:"return_path"`
+	}
+	if json.Unmarshal(payload, &value) != nil || !validReturnPath(value.ReturnPath) {
+		return "", ErrRepositoryAuthentication
+	}
+	return value.ReturnPath, nil
+}
+
 func validJSONObject(payload json.RawMessage, err error) (json.RawMessage, error) {
 	if err != nil {
 		if errors.Is(err, ErrRepositoryNotFound) {
@@ -224,7 +303,7 @@ func bootstrapJSON(identity RequestIdentity) map[string]any {
 	return map[string]any{
 		"principal":       map[string]any{"id": identity.PrincipalID.String(), "organization_id": identity.Scope.OrganizationID().String(), "organization_reference": "organization-live", "member_reference": "member-live", "role": "security_admin", "active": true},
 		"organization_id": identity.Scope.OrganizationID().String(), "workspace_id": identity.Scope.WorkspaceID().String(), "environment_id": identity.Scope.EnvironmentID().String(),
-		"permissions": []string{"view"}, "capabilities": []string{"inventory.read"},
+		"permissions": []string{"view"}, "capabilities": []string{"inventory.read", "scope.switch"},
 		"csrf_token": identity.CSRFToken, "correlation_id": fallbackCorrelationID,
 	}
 }

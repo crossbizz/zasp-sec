@@ -90,6 +90,9 @@ function ProductionAppContent() {
     return productionRoutes.some((route) => route.path === candidate) ? candidate : "/";
   });
 	useEffect(() => {
+		if (!productionRoutes.some((route) => route.path === window.location.pathname)) window.history.replaceState({}, "", "/");
+	}, []);
+	useEffect(() => {
 		const handlePopState = () => {
 			const candidate = window.location.pathname;
 			const allowed = session.status === "authenticated" && productionRoutes.some((route) => route.path === candidate && session.hasCapability(route.capability));
@@ -107,6 +110,7 @@ function ProductionAppContent() {
   if (session.status === "unauthenticated") return <main className="page"><h1>Sign in to Zasp</h1><Button onClick={() => session.signIn(path)}>Sign in</Button></main>;
   if (session.status === "forbidden") return <main className="page"><h1>Scope unavailable</h1><p role="alert">Authorization rejected</p></main>;
   if (session.status === "error") return <main className="page"><h1>Session unavailable</h1><Button onClick={() => void session.retry()}>Retry</Button></main>;
+  if (session.status !== "authenticated") return null;
   const routes = productionRoutes.filter((route) => session.hasCapability(route.capability));
 	const visiblePath = routes.some((route) => route.path === path) ? path : "/";
   const navigate = (nextPath: string) => {
@@ -114,8 +118,9 @@ function ProductionAppContent() {
     window.history.pushState({}, "", nextPath);
     setPath(nextPath);
   };
+  const selectedScope = `${session.workspaceID}/${session.environmentID}`;
   return <div className="app-shell production-app">
-    <header className="topbar"><button className="brand" onClick={() => navigate("/")} aria-label="Zasp overview">Zasp</button><span>Agent Security</span><Button onClick={() => void session.signOut()}>Sign out</Button></header>
+    <header className="topbar"><button className="brand" onClick={() => navigate("/")} aria-label="Zasp overview">Zasp</button><span>Agent Security</span>{session.hasCapability("scope.switch") && session.scopes.length > 1 && <select aria-label="Authorized scope" value={selectedScope} onChange={(event) => { const scope = session.scopes.find((item) => `${item.workspace_id}/${item.environment_id}` === event.target.value); if (scope) void session.switchScope(scope.workspace_id, scope.environment_id); }}>{session.scopes.map((scope) => <option key={`${scope.workspace_id}/${scope.environment_id}`} value={`${scope.workspace_id}/${scope.environment_id}`}>{scope.label}</option>)}</select>}<Button onClick={() => void session.signOut()}>Sign out</Button></header>
     <aside className="sidebar"><nav aria-label="Main navigation">{routes.map((route) => <a key={route.path} href={route.path} aria-label={route.label} aria-current={visiblePath === route.path ? "page" : undefined} onClick={(event) => { event.preventDefault(); navigate(route.path); }}>{route.label}</a>)}</nav></aside>
     <main className="main-content"><AgentSecurityView path={visiblePath} onNavigate={navigate} /></main>
   </div>;
