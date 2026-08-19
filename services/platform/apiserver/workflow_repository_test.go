@@ -6,6 +6,7 @@ import (
 	"errors"
 	"reflect"
 	"testing"
+	"time"
 )
 
 type workflowCallDatabase struct {
@@ -69,14 +70,14 @@ func TestWorkflowRepositoryPagesSecurityAgentDefinitionsByStableID(t *testing.T)
 }
 
 func TestWorkflowRepositoryMutationCarriesIdempotencyVersionAndAtomicAuditIdentity(t *testing.T) {
-	database := &workflowCallDatabase{response: json.RawMessage(`{"body":{"id":"policy-one"},"version":3,"secret_generation":0,"audit_id":"pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","correlation_id":"pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","replayed":false}`)}
+	database := &workflowCallDatabase{response: json.RawMessage(`{"body":{"id":"policy-one"},"version":3,"secret_generation":0,"audit_id":"pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","correlation_id":"pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","receipt_id":"pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc","replayed":false}`)}
 	repository, _ := NewPostgresRepository(database)
 	identity := fixtureRequestIdentity(t)
 	mutation := WorkflowMutation{
 		Action: "update", Kind: "policy", ID: "policy-one", Operation: "updatePolicy",
 		IdempotencyKey: "idem-exact-request-1", ExpectedVersion: 2,
 		Intent: json.RawMessage(`{"body":{"id":"policy-one"},"expected_version":2,"resource_id":"policy-one"}`), Body: json.RawMessage(`{"id":"policy-one"}`),
-		AuditID: "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", CorrelationID: "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+		AuditID: "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", CorrelationID: "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ReceiptID: "pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc",
 	}
 	result, err := repository.MutateWorkflow(context.Background(), identity, mutation)
 	if err != nil || result.Version != 3 || result.Replayed || result.AuditID != mutation.AuditID || result.CorrelationID != mutation.CorrelationID {
@@ -84,18 +85,51 @@ func TestWorkflowRepositoryMutationCarriesIdempotencyVersionAndAtomicAuditIdenti
 	}
 	want := []any{
 		"update", "policy", "policy-one", identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(),
-		identity.PrincipalID.String(), "updatePolicy", "idem-exact-request-1", int64(2), mutation.Intent, json.RawMessage(`{"id":"policy-one"}`), mutation.AuditID, mutation.CorrelationID,
+		identity.PrincipalID.String(), "updatePolicy", "idem-exact-request-1", int64(2), mutation.Intent, json.RawMessage(`{"id":"policy-one"}`), mutation.AuditID, mutation.CorrelationID, mutation.ReceiptID,
 	}
 	if database.query != postgresWorkflowMutateSQL || !reflect.DeepEqual(database.args, want) {
 		t.Fatalf("mutation query/args = %q/%#v, want %q/%#v", database.query, database.args, postgresWorkflowMutateSQL, want)
 	}
 }
 
-func TestWorkflowRepositoryAcceptsExactReplayWithOriginalAuditCorrelation(t *testing.T) {
-	database := &workflowCallDatabase{response: json.RawMessage(`{"body":{"id":"policy-one"},"version":1,"secret_generation":0,"audit_id":"pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","correlation_id":"pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","replayed":true}`)}
+func TestWorkflowRepositoryListsAndAcknowledgesOnlyExactPrincipalScopeReceipts(t *testing.T) {
+	created := time.Date(2026, 8, 18, 12, 0, 0, 0, time.UTC)
+	expires := created.Add(7 * 24 * time.Hour)
+	database := &workflowCallDatabase{response: json.RawMessage(`{"items":[{"id":"pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc","operation":"createPolicy","idempotency_key":"idem-exact-request-1","intent":{"body":{"id":"policy-one"},"expected_version":0,"resource_id":""},"result":{"id":"policy-one"},"resource_kind":"policy","resource_id":"policy-one","resource_version":1,"audit_id":"pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","correlation_id":"pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","created_at":"2026-08-18T12:00:00Z","expires_at":"2026-08-25T12:00:00Z"}]}`)}
 	repository, _ := NewPostgresRepository(database)
 	identity := fixtureRequestIdentity(t)
-	result, err := repository.MutateWorkflow(context.Background(), identity, WorkflowMutation{Action: "create", Kind: "policy", ID: "policy-one", Operation: "createPolicy", IdempotencyKey: "idem-exact-request-1", Intent: json.RawMessage(`{"body":{"id":"policy-one"},"expected_version":0,"resource_id":""}`), Body: json.RawMessage(`{"id":"policy-one"}`), AuditID: "pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc", CorrelationID: "pid_dddddddd-dddd-4ddd-8ddd-dddddddddddd"})
+
+	receipts, err := repository.ListWorkflowMutationReceipts(context.Background(), identity, 20)
+	if err != nil || len(receipts) != 1 || receipts[0].CreatedAt != created || receipts[0].ExpiresAt != expires || receipts[0].Operation != "createPolicy" || string(receipts[0].Result) != `{"id":"policy-one"}` {
+		t.Fatalf("ListWorkflowMutationReceipts = (%#v, %v)", receipts, err)
+	}
+	want := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), 20}
+	if database.query != postgresWorkflowReceiptListSQL || !reflect.DeepEqual(database.args, want) {
+		t.Fatalf("receipt list query/args = %q/%#v, want %q/%#v", database.query, database.args, postgresWorkflowReceiptListSQL, want)
+	}
+
+	database.response = json.RawMessage(`{"acknowledged":true}`)
+	if err := repository.AcknowledgeWorkflowMutationReceipt(context.Background(), identity, "pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc"); err != nil {
+		t.Fatalf("AcknowledgeWorkflowMutationReceipt: %v", err)
+	}
+	want = []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), "pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc"}
+	if database.query != postgresWorkflowReceiptAcknowledgeSQL || !reflect.DeepEqual(database.args, want) {
+		t.Fatalf("receipt acknowledge query/args = %q/%#v, want %q/%#v", database.query, database.args, postgresWorkflowReceiptAcknowledgeSQL, want)
+	}
+}
+
+func TestWorkflowRepositoryRejectsMalformedOrExpiredReceiptPayloads(t *testing.T) {
+	repository, _ := NewPostgresRepository(&workflowCallDatabase{response: json.RawMessage(`{"items":[{"id":"pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc","operation":"createPolicy","idempotency_key":"idem-exact-request-1","intent":{},"result":{},"resource_kind":"policy","resource_id":"policy-one","resource_version":1,"audit_id":"pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","correlation_id":"pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","created_at":"2026-08-25T12:00:00Z","expires_at":"2026-08-18T12:00:00Z"}]}`)})
+	if _, err := repository.ListWorkflowMutationReceipts(context.Background(), fixtureRequestIdentity(t), 20); !errors.Is(err, ErrRepositoryUnavailable) {
+		t.Fatalf("expired receipt error = %v", err)
+	}
+}
+
+func TestWorkflowRepositoryAcceptsExactReplayWithOriginalAuditCorrelation(t *testing.T) {
+	database := &workflowCallDatabase{response: json.RawMessage(`{"body":{"id":"policy-one"},"version":1,"secret_generation":0,"audit_id":"pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","correlation_id":"pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","receipt_id":"pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee","replayed":true}`)}
+	repository, _ := NewPostgresRepository(database)
+	identity := fixtureRequestIdentity(t)
+	result, err := repository.MutateWorkflow(context.Background(), identity, WorkflowMutation{Action: "create", Kind: "policy", ID: "policy-one", Operation: "createPolicy", IdempotencyKey: "idem-exact-request-1", Intent: json.RawMessage(`{"body":{"id":"policy-one"},"expected_version":0,"resource_id":""}`), Body: json.RawMessage(`{"id":"policy-one"}`), AuditID: "pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc", CorrelationID: "pid_dddddddd-dddd-4ddd-8ddd-dddddddddddd", ReceiptID: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"})
 	if err != nil || !result.Replayed || result.AuditID != "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" || result.CorrelationID != "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" {
 		t.Fatalf("replay = (%#v, %v)", result, err)
 	}

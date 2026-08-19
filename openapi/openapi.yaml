@@ -666,6 +666,50 @@ paths:
               schema: { $ref: '#/components/schemas/IntegrationCatalogPage' }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/workflow-mutation-receipts:
+    get:
+      operationId: listWorkflowMutationReceipts
+      summary: List unacknowledged durable mutation receipts for the exact browser principal and scope
+      security:
+        - BrowserSession: []
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+      responses:
+        '200':
+          description: Bounded unacknowledged mutation receipts.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkflowMutationReceiptPage' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/workflow-mutation-receipts/{id}/acknowledge:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/ProductID' }
+    post:
+      operationId: acknowledgeWorkflowMutationReceipt
+      summary: Acknowledge one exact-scope durable mutation receipt
+      security:
+        - BrowserSession: []
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmptyInput' }
+      responses:
+        '204': { description: Mutation receipt acknowledged. }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/integrations:
     get:
       operationId: listIntegrations
@@ -691,7 +735,7 @@ paths:
       responses:
         '201':
           description: Created integration.
-          headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' } }
+          headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }, X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' } }
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Integration' }
@@ -729,7 +773,7 @@ paths:
       responses:
         '200':
           description: Updated integration.
-          headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' } }
+          headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }, X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' } }
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Integration' }
@@ -742,7 +786,7 @@ paths:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/ResourceVersion'
       responses:
-        '204': { description: Integration deleted., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' } } }
+        '204': { description: Integration deleted., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }, X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/integrations/{id}/authorize:
@@ -1305,7 +1349,7 @@ paths:
         required: true
         content: { application/json: { schema: { $ref: '#/components/schemas/Policy' } } }
       responses:
-        '201': { description: Created runtime policy., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/Policy' } } } }
+        '201': { description: Created runtime policy., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }, X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/Policy' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/policies/{id}:
@@ -1328,7 +1372,7 @@ paths:
         required: true
         content: { application/json: { schema: { $ref: '#/components/schemas/Policy' } } }
       responses:
-        '200': { description: Updated runtime policy., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/Policy' } } } }
+        '200': { description: Updated runtime policy., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }, X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/Policy' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
     delete:
@@ -1338,7 +1382,7 @@ paths:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/ResourceVersion'
       responses:
-        '204': { description: Deleted runtime policy., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' } } }
+        '204': { description: Deleted runtime policy., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }, X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/policies/{id}/simulate:
@@ -1370,7 +1414,7 @@ paths:
         required: true
         content: { application/json: { schema: { $ref: '#/components/schemas/PolicyRolloutInput' } } }
       responses:
-        '200': { description: Updated policy rollout., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/PolicyRollout' } } } }
+        '200': { description: Updated policy rollout., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }, X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/PolicyRollout' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/policies/{id}/disable:
@@ -1386,7 +1430,7 @@ paths:
         required: true
         content: { application/json: { schema: { $ref: '#/components/schemas/EmptyInput' } } }
       responses:
-        '200': { description: Disabled policy rollout., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/PolicyRollout' } } } }
+        '200': { description: Disabled policy rollout., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }, X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/PolicyRollout' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/policies/{id}/decisions:
@@ -1435,7 +1479,7 @@ paths:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentInput' } } } }
       responses:
-        '201': { description: Created Security Agent., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentDefinition' } } } }
+        '201': { description: Created Security Agent., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }, X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentDefinition' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/security-agents/{id}:
@@ -1456,7 +1500,7 @@ paths:
         - $ref: '#/components/parameters/ResourceVersion'
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentDefinition' } } } }
       responses:
-        '200': { description: Updated Security Agent., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentDefinition' } } } }
+        '200': { description: Updated Security Agent., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }, X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentDefinition' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
     delete:
@@ -1466,7 +1510,7 @@ paths:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/ResourceVersion'
       responses:
-        '204': { description: Security Agent safely disabled and soft-deleted., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' } } }
+        '204': { description: Security Agent safely disabled and soft-deleted., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }, X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/security-agents/{id}/simulate:
@@ -1755,6 +1799,9 @@ components:
     WorkflowAuditID:
       description: Durable audit record identifier for this mutation or its exact replay.
       schema: { $ref: '#/components/schemas/ProductID' }
+    WorkflowMutationReceiptID:
+      description: Durable recovery receipt bound to the exact authenticated principal, scope, operation, intent, and attempt key.
+      schema: { $ref: '#/components/schemas/ProductID' }
   parameters:
     CSRFToken:
       name: X-CSRF-Token
@@ -1801,6 +1848,29 @@ components:
       description: Quoted current durable resource version.
       schema: { type: string, pattern: '^"[1-9][0-9]*"$' }
   schemas:
+    WorkflowMutationReceipt:
+      type: object
+      additionalProperties: false
+      required: [id, operation, idempotency_key, intent, result, resource_kind, resource_id, resource_version, audit_id, correlation_id, created_at, expires_at]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        operation: { type: string, enum: [createPolicy, updatePolicy, deletePolicy, rolloutPolicy, disablePolicy, createIntegration, updateIntegration, deleteIntegration, createSecurityAgent, updateSecurityAgent, deleteSecurityAgent] }
+        idempotency_key: { type: string, minLength: 16, maxLength: 128, pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]*$' }
+        intent: { type: object, maxProperties: 8, additionalProperties: true }
+        result: { type: object, maxProperties: 64, additionalProperties: true }
+        resource_kind: { type: string, enum: [policy, integration, security_agent] }
+        resource_id: { type: string, minLength: 1, maxLength: 128 }
+        resource_version: { type: integer, minimum: 1 }
+        audit_id: { $ref: '#/components/schemas/ProductID' }
+        correlation_id: { $ref: '#/components/schemas/ProductID' }
+        created_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+    WorkflowMutationReceiptPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items: { type: array, maxItems: 50, items: { $ref: '#/components/schemas/WorkflowMutationReceipt' } }
     SessionCallbackInput:
       type: object
       additionalProperties: false

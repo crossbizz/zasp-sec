@@ -56,8 +56,8 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
 			t.Errorf("%s security = %v, want %v", key, got, operation.Security)
 		}
 	}
-	if len(seen) != 39 {
-		t.Fatalf("mounted operation count = %d, want 39", len(seen))
+	if len(seen) != 41 {
+		t.Fatalf("mounted operation count = %d, want 41", len(seen))
 	}
 }
 
@@ -78,6 +78,16 @@ func TestBatchTwoCompositionExposesOnlyCompleteDurableOperations(t *testing.T) {
 		}
 		if len(definition.Security) != 2 || definition.Permission == "" {
 			t.Errorf("operation %q security/permission = %v/%q", operationID, definition.Security, definition.Permission)
+		}
+	}
+	for _, operationID := range []string{"listWorkflowMutationReceipts", "acknowledgeWorkflowMutationReceipt"} {
+		definition, ok := definitions[operationID]
+		if !ok {
+			t.Errorf("receipt recovery operation %q is not mounted", operationID)
+			continue
+		}
+		if !equalStrings(definition.Security, []string{"BrowserSession"}) || definition.Permission != "view" {
+			t.Errorf("receipt recovery operation %q security/permission = %v/%q", operationID, definition.Security, definition.Permission)
 		}
 	}
 	for _, hidden := range []string{

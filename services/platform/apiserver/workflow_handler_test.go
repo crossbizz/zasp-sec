@@ -16,20 +16,24 @@ import (
 )
 
 type workflowRepositoryStub struct {
-	page        json.RawMessage
-	value       WorkflowValue
-	result      WorkflowMutationResult
-	err         error
-	listScope   domain.Scope
-	getScope    domain.Scope
-	mutation    WorkflowMutation
-	identity    RequestIdentity
-	replay      WorkflowMutationResult
-	replayed    bool
-	replayErr   error
-	getCalls    int
-	cursorPage  WorkflowListPage
-	cursorCalls int
+	page                json.RawMessage
+	value               WorkflowValue
+	result              WorkflowMutationResult
+	err                 error
+	listScope           domain.Scope
+	getScope            domain.Scope
+	mutation            WorkflowMutation
+	identity            RequestIdentity
+	replay              WorkflowMutationResult
+	replayed            bool
+	replayErr           error
+	getCalls            int
+	cursorPage          WorkflowListPage
+	cursorCalls         int
+	receipts            []WorkflowMutationReceipt
+	receiptID           string
+	receiptListIdentity RequestIdentity
+	receiptAckIdentity  RequestIdentity
 }
 
 func (repository *workflowRepositoryStub) ListWorkflows(_ context.Context, scope domain.Scope, _, _, _ string) (json.RawMessage, error) {
@@ -53,11 +57,19 @@ func (repository *workflowRepositoryStub) MutateWorkflow(_ context.Context, iden
 	repository.identity, repository.mutation = identity, mutation
 	return repository.result, repository.err
 }
+func (repository *workflowRepositoryStub) ListWorkflowMutationReceipts(_ context.Context, identity RequestIdentity, _ int) ([]WorkflowMutationReceipt, error) {
+	repository.receiptListIdentity = identity
+	return repository.receipts, repository.err
+}
+func (repository *workflowRepositoryStub) AcknowledgeWorkflowMutationReceipt(_ context.Context, identity RequestIdentity, receiptID string) error {
+	repository.receiptAckIdentity, repository.receiptID = identity, receiptID
+	return repository.err
+}
 
 func TestWorkflowHandlerReplaysLostRolloutResponseBeforeMutablePolicyRead(t *testing.T) {
 	identity := fixtureRequestIdentity(t)
 	correlation := "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
-	repository := &workflowRepositoryStub{replayed: true, replay: WorkflowMutationResult{WorkflowValue: WorkflowValue{Body: json.RawMessage(`{"id":"policy-bounded","rollout":"enforced"}`), Version: 3}, AuditID: "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", CorrelationID: correlation, Replayed: true}}
+	repository := &workflowRepositoryStub{replayed: true, replay: WorkflowMutationResult{WorkflowValue: WorkflowValue{Body: json.RawMessage(`{"id":"policy-bounded","rollout":"enforced"}`), Version: 3}, AuditID: "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", CorrelationID: correlation, ReceiptID: "pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc", Replayed: true}}
 	handler, _ := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), time.Now)
 	request := workflowRequest(t, identity, correlation, "rolloutPolicy", map[string]string{"id": "policy-bounded"}, http.MethodPost, "/api/v1/policies/policy-bounded/rollout", `{"state":"enforced","target_id":"pid_10000003-0000-4000-8000-000000000003"}`)
 	request.Header.Set("Idempotency-Key", "idem-rollout-policy-001")
@@ -117,7 +129,7 @@ func TestWorkflowHandlerCreatesPolicyWithExactIdempotencyAuditAndVersion(t *test
 	correlation := "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
 	repository := &workflowRepositoryStub{result: WorkflowMutationResult{
 		WorkflowValue: WorkflowValue{Body: json.RawMessage(`{"id":"policy-bounded","name":"Bounded policy","scope":"environment","trigger":"tool","conditions":[{"field":"action","operator":"equals","value":"write"}],"action":"monitor","rollout":"draft","failure_mode":"open"}`), Version: 1},
-		AuditID:       "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", CorrelationID: correlation,
+		AuditID:       "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", CorrelationID: correlation, ReceiptID: "pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc",
 	}}
 	handler, err := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), func() time.Time { return time.Date(2026, 8, 18, 12, 0, 0, 0, time.UTC) })
 	if err != nil {
@@ -127,11 +139,44 @@ func TestWorkflowHandlerCreatesPolicyWithExactIdempotencyAuditAndVersion(t *test
 	request.Header.Set("Idempotency-Key", "idem-create-policy-0001")
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
-	if response.Code != http.StatusCreated || response.Header().Get("ETag") != `"1"` || response.Header().Get("X-Audit-ID") != repository.result.AuditID {
+	if response.Code != http.StatusCreated || response.Header().Get("ETag") != `"1"` || response.Header().Get("X-Audit-ID") != repository.result.AuditID || response.Header().Get("X-Mutation-Receipt-ID") != repository.result.ReceiptID {
 		t.Fatalf("response = %d headers=%v body=%s", response.Code, response.Header(), response.Body.String())
 	}
-	if repository.identity.Scope != identity.Scope || repository.mutation.Action != "create" || repository.mutation.Kind != "policy" || repository.mutation.ID != "policy-bounded" || repository.mutation.IdempotencyKey != "idem-create-policy-0001" || repository.mutation.CorrelationID != correlation {
+	if repository.identity.Scope != identity.Scope || repository.mutation.Action != "create" || repository.mutation.Kind != "policy" || repository.mutation.ID != "policy-bounded" || repository.mutation.IdempotencyKey != "idem-create-policy-0001" || repository.mutation.CorrelationID != correlation || repository.mutation.ReceiptID == "" {
 		t.Fatalf("mutation = %#v identity=%#v", repository.mutation, repository.identity)
+	}
+}
+
+func TestWorkflowHandlerListsAndAcknowledgesExactAuthenticatedReceipts(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	receiptID := "pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+	repository := &workflowRepositoryStub{receipts: []WorkflowMutationReceipt{{ID: receiptID, Operation: "createPolicy", IdempotencyKey: "idem-create-policy-0001", Intent: json.RawMessage(`{"body":{}}`), Result: json.RawMessage(`{"id":"policy-bounded"}`), ResourceKind: "policy", ResourceID: "policy-bounded", ResourceVersion: 1, AuditID: "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", CorrelationID: "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", CreatedAt: time.Date(2026, 8, 18, 12, 0, 0, 0, time.UTC), ExpiresAt: time.Date(2026, 8, 25, 12, 0, 0, 0, time.UTC)}}}
+	handler, _ := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), time.Now)
+
+	request := workflowRequest(t, identity, testCorrelationID, "listWorkflowMutationReceipts", nil, http.MethodGet, "/api/v1/workflow-mutation-receipts?limit=20", "")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), receiptID) || repository.receiptListIdentity.Scope != identity.Scope || repository.receiptListIdentity.PrincipalID != identity.PrincipalID {
+		t.Fatalf("receipt list = %d %s identity=%#v", response.Code, response.Body.String(), repository.receiptListIdentity)
+	}
+
+	request = workflowRequest(t, identity, testCorrelationID, "acknowledgeWorkflowMutationReceipt", map[string]string{"id": receiptID}, http.MethodPost, "/api/v1/workflow-mutation-receipts/"+receiptID+"/acknowledge", `{}`)
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusNoContent || repository.receiptID != receiptID || repository.receiptAckIdentity.Scope != identity.Scope || repository.receiptAckIdentity.PrincipalID != identity.PrincipalID {
+		t.Fatalf("receipt acknowledgement = %d %s id=%q identity=%#v", response.Code, response.Body.String(), repository.receiptID, repository.receiptAckIdentity)
+	}
+}
+
+func TestWorkflowHandlerReceiptAcknowledgementIsNondisclosing(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	repository := &workflowRepositoryStub{err: ErrRepositoryNotFound}
+	handler, _ := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), time.Now)
+	request := workflowRequest(t, identity, testCorrelationID, "acknowledgeWorkflowMutationReceipt", map[string]string{"id": "pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc"}, http.MethodPost, "/api/v1/workflow-mutation-receipts/pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc/acknowledge", `{}`)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusNotFound || strings.Contains(response.Body.String(), "receipt") {
+		t.Fatalf("foreign receipt response = %d %s", response.Code, response.Body.String())
 	}
 }
 

@@ -250,8 +250,30 @@ func TestProductionWorkflowsMetadataOwnsAtomicScopedWorkflowState(t *testing.T) 
 	}
 }
 
-func TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsAndDrift(t *testing.T) {
-	baseline, core, workflows := Baseline(), ProductionCore(), ProductionWorkflows()
+func TestWorkflowReceiptsMetadataExtendsTheImmutableWorkflowRelease(t *testing.T) {
+	metadata := WorkflowReceipts()
+	if metadata.Version() != 4 || metadata.Name() != "workflow_receipts" || len(metadata.Checksum()) != 64 {
+		t.Fatalf("workflow receipt identity = %d/%q/%q", metadata.Version(), metadata.Name(), metadata.Checksum())
+	}
+	for _, fragment := range []string{
+		"zasp_workflow_receipts", "zasp_workflow_receipt_list", "zasp_workflow_receipt_acknowledge",
+		"acknowledged_at", "expires_at", "requested_receipt_id", "interval '7 days'",
+		"production-workflow-receipts-v1", "production_workflow_receipts_fingerprint",
+	} {
+		if !strings.Contains(metadata.UpSQL(), fragment) {
+			t.Fatalf("workflow receipt migration missing %q", fragment)
+		}
+	}
+	if !strings.Contains(metadata.DownSQL(), "production-workflows-v1") || WorkflowReceipts() != metadata {
+		t.Fatal("workflow receipt migration assets are missing or unstable")
+	}
+	if fingerprint := WorkflowReceiptsSemanticFingerprint(); len(fingerprint) != 64 || !strings.Contains(metadata.UpSQL(), fingerprint) {
+		t.Fatalf("workflow receipt semantic fingerprint = %q", fingerprint)
+	}
+}
+
+func TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift(t *testing.T) {
+	baseline, core, workflows, receipts := Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts()
 	for _, test := range []struct {
 		name    string
 		rows    []Row
@@ -262,7 +284,8 @@ func TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsAndDrift(t *testing
 		{name: "baseline", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(1)}}, fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}}}, want: 1},
 		{name: "core", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(2)}}, fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}}, fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}}}, want: 2},
 		{name: "workflows", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(3)}}, fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}}, fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}}, fakeRow{values: []any{workflows.Version(), workflows.Name(), workflows.Checksum()}}}, want: 3},
-		{name: "drift", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(4)}}}, wantErr: ErrInvalidState},
+		{name: "receipts", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(4)}}, fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}}, fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}}, fakeRow{values: []any{workflows.Version(), workflows.Name(), workflows.Checksum()}}, fakeRow{values: []any{receipts.Version(), receipts.Name(), receipts.Checksum()}}}, want: 4},
+		{name: "drift", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(5)}}}, wantErr: ErrInvalidState},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			database := &fakeDatabase{rows: test.rows, transaction: &fakeTransaction{}}

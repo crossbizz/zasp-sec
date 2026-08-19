@@ -18,6 +18,8 @@ const (
 	coreName        = "production_core"
 	workflowVersion = int64(3)
 	workflowName    = "production_workflows"
+	receiptVersion  = int64(4)
+	receiptName     = "workflow_receipts"
 	rollbackTimeout = 5 * time.Second
 
 	tableExistsSQL = "SELECT to_regclass('public.zasp_schema_versions') IS NOT NULL"
@@ -54,6 +56,12 @@ var workflowUpSQL string
 
 //go:embed sql/0003_production_workflows.down.sql
 var workflowDownSQL string
+
+//go:embed sql/0004_workflow_receipts.up.sql
+var receiptUpSQL string
+
+//go:embed sql/0004_workflow_receipts.down.sql
+var receiptDownSQL string
 
 type Metadata struct {
 	version  int64
@@ -96,6 +104,13 @@ func ProductionWorkflows() Metadata {
 	return Metadata{version: workflowVersion, name: workflowName, checksum: hex.EncodeToString(digest[:]), up: up, down: down}
 }
 
+func WorkflowReceipts() Metadata {
+	up := strings.TrimSpace(receiptUpSQL)
+	down := strings.TrimSpace(receiptDownSQL)
+	digest := sha256.Sum256([]byte(up + "\x00" + down))
+	return Metadata{version: receiptVersion, name: receiptName, checksum: hex.EncodeToString(digest[:]), up: up, down: down}
+}
+
 func ProductionWorkflowsSemanticFingerprint() string {
 	const marker = "'production_workflows_fingerprint', '"
 	start := strings.Index(workflowUpSQL, marker)
@@ -109,6 +124,24 @@ func ProductionWorkflowsSemanticFingerprint() string {
 	value := workflowUpSQL[start : start+64]
 	decoded, err := hex.DecodeString(value)
 	if err != nil || len(decoded) != sha256.Size || len(workflowUpSQL) == start+64 || workflowUpSQL[start+64] != '\'' {
+		return ""
+	}
+	return value
+}
+
+func WorkflowReceiptsSemanticFingerprint() string {
+	const marker = "'production_workflow_receipts_fingerprint', '"
+	start := strings.Index(receiptUpSQL, marker)
+	if start < 0 {
+		return ""
+	}
+	start += len(marker)
+	if len(receiptUpSQL) < start+64 {
+		return ""
+	}
+	value := receiptUpSQL[start : start+64]
+	decoded, err := hex.DecodeString(value)
+	if err != nil || len(decoded) != sha256.Size || len(receiptUpSQL) == start+64 || receiptUpSQL[start+64] != '\'' {
 		return ""
 	}
 	return value
@@ -197,7 +230,7 @@ func (runner *Runner) Version(ctx context.Context) (int64, error) {
 	if err := scanRow(ctx, runner.database, countRowsSQL, nil, &count); err != nil {
 		return 0, fixedDatabaseError(ctx, err)
 	}
-	if count < 1 || count > 3 {
+	if count < 1 || count > 4 {
 		return 0, ErrInvalidState
 	}
 	metadata := []Metadata{Baseline()}
@@ -206,6 +239,8 @@ func (runner *Runner) Version(ctx context.Context) (int64, error) {
 	}
 	if count == 3 {
 		metadata = append(metadata, ProductionWorkflows())
+	} else if count == 4 {
+		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts())
 	}
 	for _, expected := range metadata {
 		var version int64
@@ -361,6 +396,51 @@ func (runner *Runner) DownWorkflows(ctx context.Context) error {
 	})
 }
 
+func (runner *Runner) UpWorkflowReceipts(ctx context.Context) error {
+	if runner == nil || nilInterface(runner.database) {
+		return ErrInvalidRunner
+	}
+	return runner.withTransaction(ctx, func(ctx context.Context, transaction Transaction) error {
+		if err := readWorkflowState(ctx, transaction); err != nil {
+			return err
+		}
+		metadata := WorkflowReceipts()
+		if err := transaction.Exec(ctx, metadata.UpSQL()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, insertRowSQL, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		return readWorkflowReceiptState(ctx, transaction)
+	})
+}
+
+func (runner *Runner) DownWorkflowReceipts(ctx context.Context) error {
+	if runner == nil || nilInterface(runner.database) {
+		return ErrInvalidRunner
+	}
+	return runner.withTransaction(ctx, func(ctx context.Context, transaction Transaction) error {
+		present, err := tablePresent(ctx, transaction)
+		if err != nil || !present {
+			return ErrInvalidState
+		}
+		if err := transaction.Exec(ctx, lockTableSQL); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := readWorkflowReceiptState(ctx, transaction); err != nil {
+			return err
+		}
+		metadata := WorkflowReceipts()
+		if err := transaction.Exec(ctx, deleteRowSQL, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, metadata.DownSQL()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		return readWorkflowState(ctx, transaction)
+	})
+}
+
 func (runner *Runner) Down(ctx context.Context) error {
 	if runner == nil || nilInterface(runner.database) {
 		return ErrInvalidRunner
@@ -496,6 +576,10 @@ func readCoreState(ctx context.Context, queryer Queryer) error {
 
 func readWorkflowState(ctx context.Context, queryer Queryer) error {
 	return readExactReleaseState(ctx, queryer, []Metadata{Baseline(), ProductionCore(), ProductionWorkflows()})
+}
+
+func readWorkflowReceiptState(ctx context.Context, queryer Queryer) error {
+	return readExactReleaseState(ctx, queryer, []Metadata{Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts()})
 }
 
 func readExactReleaseState(ctx context.Context, queryer Queryer, expected []Metadata) error {

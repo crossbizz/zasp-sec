@@ -68,6 +68,24 @@ func (runner *scriptedMigrationRunner) UpWorkflows(context.Context) error {
 	return nil
 }
 
+func (runner *scriptedMigrationRunner) UpWorkflowReceipts(context.Context) error {
+	runner.events = append(runner.events, "up-receipts")
+	if runner.errAt == "up-receipts" {
+		return errors.New("detail")
+	}
+	runner.version = 4
+	return nil
+}
+
+func (runner *scriptedMigrationRunner) DownWorkflowReceipts(context.Context) error {
+	runner.events = append(runner.events, "down-receipts")
+	if runner.errAt == "down-receipts" {
+		return errors.New("detail")
+	}
+	runner.version = 3
+	return nil
+}
+
 func (runner *scriptedMigrationRunner) DownWorkflows(context.Context) error {
 	runner.events = append(runner.events, "down-workflows")
 	if runner.errAt == "down-workflows" {
@@ -101,10 +119,12 @@ func TestRunReleaseMigrationReachesExactTargetStateIdempotently(t *testing.T) {
 		version   int64
 		want      []string
 	}{
-		{direction: "up", version: 0, want: []string{"version", "up-baseline", "up-core", "up-workflows", "version"}},
-		{direction: "up", version: 1, want: []string{"version", "up-core", "up-workflows", "version"}},
-		{direction: "up", version: 2, want: []string{"version", "up-workflows", "version"}},
-		{direction: "up", version: 3, want: []string{"version", "version"}},
+		{direction: "up", version: 0, want: []string{"version", "up-baseline", "up-core", "up-workflows", "up-receipts", "version"}},
+		{direction: "up", version: 1, want: []string{"version", "up-core", "up-workflows", "up-receipts", "version"}},
+		{direction: "up", version: 2, want: []string{"version", "up-workflows", "up-receipts", "version"}},
+		{direction: "up", version: 3, want: []string{"version", "up-receipts", "version"}},
+		{direction: "up", version: 4, want: []string{"version", "version"}},
+		{direction: "down", version: 4, want: []string{"version", "down-receipts", "down-workflows", "down-core", "down-baseline", "version"}},
 		{direction: "down", version: 3, want: []string{"version", "down-workflows", "down-core", "down-baseline", "version"}},
 		{direction: "down", version: 2, want: []string{"version", "down-core", "down-baseline", "version"}},
 		{direction: "down", version: 1, want: []string{"version", "down-baseline", "version"}},
@@ -128,7 +148,7 @@ func TestRunReleaseMigrationReachesExactTargetStateIdempotently(t *testing.T) {
 }
 
 func TestRunReleaseMigrationRejectsDriftAndHonorsDeadline(t *testing.T) {
-	if err := runReleaseMigration(context.Background(), &scriptedMigrationRunner{version: 4}, []string{"up"}); !errors.Is(err, migrations.ErrInvalidState) {
+	if err := runReleaseMigration(context.Background(), &scriptedMigrationRunner{version: 5}, []string{"up"}); !errors.Is(err, migrations.ErrInvalidState) {
 		t.Fatalf("drift error = %v", err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -164,22 +184,22 @@ func TestReleaseMigrationReachesExactPostgresTargetFromEmptyV1AndV2AndRejectsDri
 		t.Fatal(err)
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
-		t.Fatalf("empty to v3: %v", err)
+		t.Fatalf("empty to v4: %v", err)
 	}
-	if version, err := runner.Version(ctx); err != nil || version != 3 {
-		t.Fatalf("v3 = (%d, %v)", version, err)
+	if version, err := runner.Version(ctx); err != nil || version != 4 {
+		t.Fatalf("v4 = (%d, %v)", version, err)
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
-		t.Fatalf("v3 retry: %v", err)
+		t.Fatalf("v4 retry: %v", err)
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"down"}); err != nil {
-		t.Fatalf("v3 to empty: %v", err)
+		t.Fatalf("v4 to empty: %v", err)
 	}
 	if err := runner.Up(ctx); err != nil {
 		t.Fatalf("create v1: %v", err)
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
-		t.Fatalf("v1 to v3: %v", err)
+		t.Fatalf("v1 to v4: %v", err)
 	}
 	if _, err := connection.Exec(ctx, `UPDATE zasp_schema_versions SET checksum = repeat('0', 64) WHERE version = 2`); err != nil {
 		t.Fatal(err)

@@ -25,6 +25,8 @@ type releaseMigrationRunner interface {
 	Up(context.Context) error
 	UpCore(context.Context) error
 	UpWorkflows(context.Context) error
+	UpWorkflowReceipts(context.Context) error
+	DownWorkflowReceipts(context.Context) error
 	DownWorkflows(context.Context) error
 	DownCore(context.Context) error
 	Down(context.Context) error
@@ -96,10 +98,22 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 			}
 			version = 3
 		}
-		if version != 3 {
+		if version == 3 {
+			if err := runner.UpWorkflowReceipts(ctx); err != nil {
+				return err
+			}
+			version = 4
+		}
+		if version != 4 {
 			return migrations.ErrInvalidState
 		}
 	case "down":
+		if version == 4 {
+			if err := runner.DownWorkflowReceipts(ctx); err != nil {
+				return err
+			}
+			version = 3
+		}
 		if version == 3 {
 			if err := runner.DownWorkflows(ctx); err != nil {
 				return err

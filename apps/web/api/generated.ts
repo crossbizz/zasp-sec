@@ -1766,6 +1766,42 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/workflow-mutation-receipts": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List unacknowledged durable mutation receipts for the exact browser principal and scope */
+        readonly get: operations["listWorkflowMutationReceipts"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/workflow-mutation-receipts/{id}/acknowledge": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Acknowledge one exact-scope durable mutation receipt */
+        readonly post: operations["acknowledgeWorkflowMutationReceipt"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/workspaces": {
         readonly parameters: {
             readonly query?: never;
@@ -2711,6 +2747,31 @@ export type components = {
         readonly TestRunPage: {
             readonly items: readonly components["schemas"]["TestRun"][];
         };
+        readonly WorkflowMutationReceipt: {
+            readonly audit_id: components["schemas"]["ProductID"];
+            readonly correlation_id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly expires_at: string;
+            readonly id: components["schemas"]["ProductID"];
+            readonly idempotency_key: string;
+            readonly intent: {
+                readonly [key: string]: unknown;
+            };
+            /** @enum {string} */
+            readonly operation: "createPolicy" | "updatePolicy" | "deletePolicy" | "rolloutPolicy" | "disablePolicy" | "createIntegration" | "updateIntegration" | "deleteIntegration" | "createSecurityAgent" | "updateSecurityAgent" | "deleteSecurityAgent";
+            readonly resource_id: string;
+            /** @enum {string} */
+            readonly resource_kind: "policy" | "integration" | "security_agent";
+            readonly resource_version: number;
+            readonly result: {
+                readonly [key: string]: unknown;
+            };
+        };
+        readonly WorkflowMutationReceiptPage: {
+            readonly items: readonly components["schemas"]["WorkflowMutationReceipt"][];
+        };
         readonly Workspace: {
             readonly id: components["schemas"]["ProductID"];
             readonly name: string;
@@ -2758,6 +2819,8 @@ export type components = {
         readonly WorkflowAuditID: components["schemas"]["ProductID"];
         /** @description Quoted durable resource version for optimistic concurrency. */
         readonly WorkflowETag: string;
+        /** @description Durable recovery receipt bound to the exact authenticated principal, scope, operation, intent, and attempt key. */
+        readonly WorkflowMutationReceiptID: components["schemas"]["ProductID"];
     };
     pathItems: never;
 };
@@ -2917,6 +2980,8 @@ export type TestDefinitionPage = components['schemas']['TestDefinitionPage'];
 export type TestRun = components['schemas']['TestRun'];
 export type TestRunInput = components['schemas']['TestRunInput'];
 export type TestRunPage = components['schemas']['TestRunPage'];
+export type WorkflowMutationReceipt = components['schemas']['WorkflowMutationReceipt'];
+export type WorkflowMutationReceiptPage = components['schemas']['WorkflowMutationReceiptPage'];
 export type Workspace = components['schemas']['Workspace'];
 export type WorkspaceMutation = components['schemas']['WorkspaceMutation'];
 export type WorkspacePage = components['schemas']['WorkspacePage'];
@@ -2929,6 +2994,7 @@ export type ParameterPageLimit = components['parameters']['PageLimit'];
 export type ParameterResourceVersion = components['parameters']['ResourceVersion'];
 export type HeaderWorkflowAuditId = components['headers']['WorkflowAuditID'];
 export type HeaderWorkflowETag = components['headers']['WorkflowETag'];
+export type HeaderWorkflowMutationReceiptId = components['headers']['WorkflowMutationReceiptID'];
 export type $defs = Record<string, never>;
 export interface operations {
     readonly listAPITokens: {
@@ -4241,6 +4307,7 @@ export interface operations {
                 headers: {
                     readonly ETag: components["headers"]["WorkflowETag"];
                     readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly "X-Mutation-Receipt-ID": components["headers"]["WorkflowMutationReceiptID"];
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -4297,6 +4364,7 @@ export interface operations {
                 headers: {
                     readonly ETag: components["headers"]["WorkflowETag"];
                     readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly "X-Mutation-Receipt-ID": components["headers"]["WorkflowMutationReceiptID"];
                     readonly [name: string]: unknown;
                 };
                 content?: never;
@@ -4330,6 +4398,7 @@ export interface operations {
                 headers: {
                     readonly ETag: components["headers"]["WorkflowETag"];
                     readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly "X-Mutation-Receipt-ID": components["headers"]["WorkflowMutationReceiptID"];
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -4532,6 +4601,7 @@ export interface operations {
                 headers: {
                     readonly ETag: components["headers"]["WorkflowETag"];
                     readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly "X-Mutation-Receipt-ID": components["headers"]["WorkflowMutationReceiptID"];
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -4588,6 +4658,7 @@ export interface operations {
                 headers: {
                     readonly ETag: components["headers"]["WorkflowETag"];
                     readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly "X-Mutation-Receipt-ID": components["headers"]["WorkflowMutationReceiptID"];
                     readonly [name: string]: unknown;
                 };
                 content?: never;
@@ -4621,6 +4692,7 @@ export interface operations {
                 headers: {
                     readonly ETag: components["headers"]["WorkflowETag"];
                     readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly "X-Mutation-Receipt-ID": components["headers"]["WorkflowMutationReceiptID"];
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -4680,6 +4752,7 @@ export interface operations {
                 headers: {
                     readonly ETag: components["headers"]["WorkflowETag"];
                     readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly "X-Mutation-Receipt-ID": components["headers"]["WorkflowMutationReceiptID"];
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -4715,6 +4788,7 @@ export interface operations {
                 headers: {
                     readonly ETag: components["headers"]["WorkflowETag"];
                     readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly "X-Mutation-Receipt-ID": components["headers"]["WorkflowMutationReceiptID"];
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -5093,6 +5167,7 @@ export interface operations {
                 headers: {
                     readonly ETag: components["headers"]["WorkflowETag"];
                     readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly "X-Mutation-Receipt-ID": components["headers"]["WorkflowMutationReceiptID"];
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -5149,6 +5224,7 @@ export interface operations {
                 headers: {
                     readonly ETag: components["headers"]["WorkflowETag"];
                     readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly "X-Mutation-Receipt-ID": components["headers"]["WorkflowMutationReceiptID"];
                     readonly [name: string]: unknown;
                 };
                 content?: never;
@@ -5182,6 +5258,7 @@ export interface operations {
                 headers: {
                     readonly ETag: components["headers"]["WorkflowETag"];
                     readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly "X-Mutation-Receipt-ID": components["headers"]["WorkflowMutationReceiptID"];
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -6096,6 +6173,62 @@ export interface operations {
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listWorkflowMutationReceipts: {
+        readonly parameters: {
+            readonly query?: {
+                readonly limit?: number;
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Bounded unacknowledged mutation receipts. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["WorkflowMutationReceiptPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly acknowledgeWorkflowMutationReceipt: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["EmptyInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Mutation receipt acknowledged. */
+            readonly 204: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };

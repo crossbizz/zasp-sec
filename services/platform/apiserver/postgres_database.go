@@ -81,15 +81,15 @@ const postgresSchemaVersionSQL = `WITH semantic_objects AS (
 )
 SELECT metadata.value
 FROM zasp_schema_metadata AS metadata
-JOIN zasp_schema_versions AS release ON release.version = 3 AND release.name = 'production_workflows'
-JOIN zasp_schema_metadata AS expected_fingerprint ON expected_fingerprint.key = 'production_workflows_fingerprint'
+JOIN zasp_schema_versions AS release ON release.version = 4 AND release.name = 'workflow_receipts'
+JOIN zasp_schema_metadata AS expected_fingerprint ON expected_fingerprint.key = 'production_workflow_receipts_fingerprint'
 CROSS JOIN semantic_fingerprint
-WHERE metadata.key = 'production_core_schema' AND metadata.value = 'production-workflows-v1'
+WHERE metadata.key = 'production_core_schema' AND metadata.value = 'production-workflow-receipts-v1'
   AND release.checksum = $1 AND expected_fingerprint.value = $2 AND semantic_fingerprint.value = $2`
 
-func expectedCoreSchemaChecksum() string { return migrations.ProductionWorkflows().Checksum() }
+func expectedCoreSchemaChecksum() string { return migrations.WorkflowReceipts().Checksum() }
 func expectedCoreSchemaFingerprint() string {
-	return migrations.ProductionWorkflowsSemanticFingerprint()
+	return migrations.WorkflowReceiptsSemanticFingerprint()
 }
 
 type PostgresRow interface{ Scan(...any) error }

@@ -14,22 +14,22 @@ import (
 )
 
 func TestPostgresSchemaReadinessRequiresExactWorkflowRelease(t *testing.T) {
-	if CoreSchemaVersion != "production-workflows-v1" {
+	if CoreSchemaVersion != "production-workflow-receipts-v1" {
 		t.Fatalf("schema target = %q", CoreSchemaVersion)
 	}
-	if !strings.Contains(postgresSchemaVersionSQL, "release.version = 3") || !strings.Contains(postgresSchemaVersionSQL, "release.name = 'production_workflows'") {
-		t.Fatalf("schema readiness query does not require workflow release: %s", postgresSchemaVersionSQL)
+	if !strings.Contains(postgresSchemaVersionSQL, "release.version = 4") || !strings.Contains(postgresSchemaVersionSQL, "release.name = 'workflow_receipts'") {
+		t.Fatalf("schema readiness query does not require receipt release: %s", postgresSchemaVersionSQL)
 	}
-	for _, fragment := range []string{"pg_get_expr", "pg_get_constraintdef", "pg_get_indexdef", "prosrc", "provolatile", "prosecdef", "attnotnull", "format_type", "production_workflows_fingerprint"} {
+	for _, fragment := range []string{"pg_get_expr", "pg_get_constraintdef", "pg_get_indexdef", "prosrc", "provolatile", "prosecdef", "attnotnull", "format_type", "production_workflow_receipts_fingerprint"} {
 		if !strings.Contains(postgresSchemaVersionSQL, fragment) {
 			t.Fatalf("schema readiness query missing exact fingerprint %q: %s", fragment, postgresSchemaVersionSQL)
 		}
 	}
-	if expectedCoreSchemaChecksum() != migrations.ProductionWorkflows().Checksum() {
-		t.Fatal("schema readiness checksum is not the workflow release checksum")
+	if expectedCoreSchemaChecksum() != migrations.WorkflowReceipts().Checksum() {
+		t.Fatal("schema readiness checksum is not the receipt release checksum")
 	}
-	if expectedCoreSchemaFingerprint() != migrations.ProductionWorkflowsSemanticFingerprint() || len(expectedCoreSchemaFingerprint()) != 64 {
-		t.Fatal("schema readiness fingerprint is not derived from the workflow migration")
+	if expectedCoreSchemaFingerprint() != migrations.WorkflowReceiptsSemanticFingerprint() || len(expectedCoreSchemaFingerprint()) != 64 {
+		t.Fatal("schema readiness fingerprint is not derived from the receipt migration")
 	}
 }
 

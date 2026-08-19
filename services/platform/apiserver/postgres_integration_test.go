@@ -44,6 +44,17 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 	if err := runner.UpWorkflows(ctx); err != nil {
 		t.Fatalf("workflow migration: %v", err)
 	}
+	if err := runner.UpWorkflowReceipts(ctx); err != nil {
+		t.Fatalf("workflow receipt migration: %v", err)
+	}
+	fingerprintQuery := postgresSchemaVersionSQL[:strings.Index(postgresSchemaVersionSQL, "SELECT metadata.value")] + "SELECT value FROM semantic_fingerprint"
+	var actualFingerprint string
+	if err := connection.QueryRow(ctx, fingerprintQuery).Scan(&actualFingerprint); err != nil {
+		t.Fatalf("semantic fingerprint query: %v", err)
+	}
+	if actualFingerprint != expectedCoreSchemaFingerprint() {
+		t.Fatalf("semantic fingerprint = %q, migration marker = %q", actualFingerprint, expectedCoreSchemaFingerprint())
+	}
 
 	principal := integrationProductID(t, "pid_10000004-0000-4000-8000-000000000004")
 	organization := integrationProductID(t, "pid_10000001-0000-4000-8000-000000000001")
@@ -139,22 +150,27 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 	}
 	workflowIdentity := RequestIdentity{PrincipalID: principal, Scope: scope, Permissions: []string{"view", "manage_workflows"}}
 	workflowBody := json.RawMessage(`{"id":"policy-production","name":"Production boundary","scope":"environment","trigger":"tool","conditions":[{"field":"action","operator":"equals","value":"write"}],"action":"monitor","rollout":"draft","failure_mode":"open"}`)
-	workflowCreate := WorkflowMutation{Action: "create", Kind: "policy", ID: "policy-production", Operation: "createPolicy", IdempotencyKey: "idem-production-policy-0001", Intent: json.RawMessage(`{"body":{"id":"policy-production"},"expected_version":0,"resource_id":""}`), Body: workflowBody, AuditID: "pid_30000001-0000-4000-8000-000000000001", CorrelationID: "pid_30000002-0000-4000-8000-000000000002"}
+	workflowCreate := WorkflowMutation{Action: "create", Kind: "policy", ID: "policy-production", Operation: "createPolicy", IdempotencyKey: "idem-production-policy-0001", Intent: json.RawMessage(`{"body":{"id":"policy-production"},"expected_version":0,"resource_id":""}`), Body: workflowBody, AuditID: "pid_30000001-0000-4000-8000-000000000001", CorrelationID: "pid_30000002-0000-4000-8000-000000000002", ReceiptID: "pid_30000003-0000-4000-8000-000000000003"}
 	createdWorkflow, err := repository.MutateWorkflow(ctx, workflowIdentity, workflowCreate)
 	if err != nil || createdWorkflow.Version != 1 || createdWorkflow.Replayed {
 		t.Fatalf("create workflow = (%#v, %v)", createdWorkflow, err)
 	}
 	replayMutation := workflowCreate
-	replayMutation.AuditID = "pid_30000003-0000-4000-8000-000000000003"
+	replayMutation.AuditID = "pid_30000005-0000-4000-8000-000000000005"
 	replayMutation.CorrelationID = "pid_30000004-0000-4000-8000-000000000004"
+	replayMutation.ReceiptID = "pid_30000006-0000-4000-8000-000000000006"
 	replayedWorkflow, err := repository.MutateWorkflow(ctx, workflowIdentity, replayMutation)
-	if err != nil || !replayedWorkflow.Replayed || replayedWorkflow.AuditID != workflowCreate.AuditID || replayedWorkflow.CorrelationID != workflowCreate.CorrelationID {
+	if err != nil || !replayedWorkflow.Replayed || replayedWorkflow.AuditID != workflowCreate.AuditID || replayedWorkflow.CorrelationID != workflowCreate.CorrelationID || replayedWorkflow.ReceiptID != workflowCreate.ReceiptID {
 		t.Fatalf("replay workflow = (%#v, %v)", replayedWorkflow, err)
+	}
+	receipts, err := repository.ListWorkflowMutationReceipts(ctx, workflowIdentity, 20)
+	if err != nil || len(receipts) != 1 || receipts[0].ID != workflowCreate.ReceiptID || receipts[0].Operation != workflowCreate.Operation || receipts[0].IdempotencyKey != workflowCreate.IdempotencyKey || receipts[0].AuditID != workflowCreate.AuditID || receipts[0].CorrelationID != workflowCreate.CorrelationID || !equalIntegrationJSON(receipts[0].Intent, workflowCreate.Intent) || !equalIntegrationJSON(receipts[0].Result, workflowBody) {
+		t.Fatalf("committed receipt = (%#v, %v)", receipts, err)
 	}
 	if payload, err := repository.ListWorkflows(ctx, foreignScope, "policy", "", ""); err != nil || !equalIntegrationJSON(payload, []byte(`{"items":[]}`)) {
 		t.Fatalf("foreign workflow list = (%s, %v)", payload, err)
 	}
-	staleMutation := WorkflowMutation{Action: "update", Kind: "policy", ID: "policy-production", Operation: "updatePolicy", IdempotencyKey: "idem-stale-policy-000001", ExpectedVersion: 2, Intent: json.RawMessage(`{"body":{"id":"policy-production"},"expected_version":2,"resource_id":"policy-production"}`), Body: workflowBody, AuditID: "pid_30000008-0000-4000-8000-000000000008", CorrelationID: "pid_30000009-0000-4000-8000-000000000009"}
+	staleMutation := WorkflowMutation{Action: "update", Kind: "policy", ID: "policy-production", Operation: "updatePolicy", IdempotencyKey: "idem-stale-policy-000001", ExpectedVersion: 2, Intent: json.RawMessage(`{"body":{"id":"policy-production"},"expected_version":2,"resource_id":"policy-production"}`), Body: workflowBody, AuditID: "pid_30000008-0000-4000-8000-000000000008", CorrelationID: "pid_30000009-0000-4000-8000-000000000009", ReceiptID: "pid_30000010-0000-4000-8000-000000000010"}
 	if _, err := repository.MutateWorkflow(ctx, workflowIdentity, staleMutation); !errors.Is(err, ErrRepositoryConflict) {
 		t.Fatalf("stale workflow mutation = %v", err)
 	}
@@ -177,6 +193,37 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 	}
 	if _, err := restartedRepository.Authenticate(ctx, Credential{Kind: CredentialBrowserSession, Value: session}); err != nil {
 		t.Fatalf("session did not survive repository restart: %v", err)
+	}
+	receipts, err = restartedRepository.ListWorkflowMutationReceipts(ctx, workflowIdentity, 20)
+	if err != nil || len(receipts) != 1 || receipts[0].ID != workflowCreate.ReceiptID {
+		t.Fatalf("receipt did not survive repository restart = (%#v, %v)", receipts, err)
+	}
+	if err := restartedRepository.AcknowledgeWorkflowMutationReceipt(ctx, workflowIdentity, "pid_39999999-0000-4999-8999-999999999999"); !errors.Is(err, ErrRepositoryNotFound) {
+		t.Fatalf("forged receipt acknowledgement = %v", err)
+	}
+	foreignReceiptIdentity := workflowIdentity
+	foreignReceiptIdentity.Scope = foreignScope
+	if err := restartedRepository.AcknowledgeWorkflowMutationReceipt(ctx, foreignReceiptIdentity, workflowCreate.ReceiptID); !errors.Is(err, ErrRepositoryNotFound) {
+		t.Fatalf("foreign receipt acknowledgement = %v", err)
+	}
+	if err := restartedRepository.AcknowledgeWorkflowMutationReceipt(ctx, workflowIdentity, workflowCreate.ReceiptID); err != nil {
+		t.Fatalf("receipt acknowledgement: %v", err)
+	}
+	if err := restartedRepository.AcknowledgeWorkflowMutationReceipt(ctx, workflowIdentity, workflowCreate.ReceiptID); err != nil {
+		t.Fatalf("idempotent receipt acknowledgement: %v", err)
+	}
+	if receipts, err := restartedRepository.ListWorkflowMutationReceipts(ctx, workflowIdentity, 20); err != nil || len(receipts) != 0 {
+		t.Fatalf("acknowledged receipts = (%#v, %v)", receipts, err)
+	}
+	if _, err := restartedConnection.Exec(ctx, `UPDATE zasp_workflow_receipts SET created_at = transaction_timestamp() - interval '8 days', expires_at = transaction_timestamp() - interval '1 day' WHERE receipt_id = $1`, workflowCreate.ReceiptID); err != nil {
+		t.Fatalf("expire receipt: %v", err)
+	}
+	if _, err := restartedRepository.ListWorkflowMutationReceipts(ctx, workflowIdentity, 20); err != nil {
+		t.Fatalf("expired receipt cleanup: %v", err)
+	}
+	var receiptCount int
+	if err := restartedConnection.QueryRow(ctx, `SELECT count(*) FROM zasp_workflow_receipts WHERE receipt_id = $1`, workflowCreate.ReceiptID).Scan(&receiptCount); err != nil || receiptCount != 0 {
+		t.Fatalf("expired receipt count = (%d, %v)", receiptCount, err)
 	}
 	if _, err := restartedConnection.Exec(ctx, `UPDATE zasp_identity_memberships SET role = 'read_only_viewer' WHERE principal_id = $1 AND organization_id = $2`, principal.String(), organization.String()); err != nil {
 		t.Fatalf("downgrade membership: %v", err)
@@ -203,10 +250,10 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 		t.Fatalf("restored schema readiness: %v", err)
 	}
 	var originalMutationFunction string
-	if err := restartedConnection.QueryRow(ctx, `SELECT pg_get_functiondef('public.zasp_workflow_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text)'::regprocedure)`).Scan(&originalMutationFunction); err != nil {
+	if err := restartedConnection.QueryRow(ctx, `SELECT pg_get_functiondef('public.zasp_workflow_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)'::regprocedure)`).Scan(&originalMutationFunction); err != nil {
 		t.Fatalf("capture mutation function: %v", err)
 	}
-	if _, err := restartedConnection.Exec(ctx, `CREATE OR REPLACE FUNCTION public.zasp_workflow_mutate(mutation text, requested_kind text, requested_id text, requested_organization_id text, requested_workspace_id text, requested_environment_id text, requested_principal_id text, requested_operation text, requested_idempotency_key text, expected_version bigint, requested_intent jsonb, requested_body jsonb, requested_audit_id text, requested_correlation_id text) RETURNS jsonb LANGUAGE plpgsql AS $$ BEGIN RETURN '{}'::jsonb; END $$`); err != nil {
+	if _, err := restartedConnection.Exec(ctx, `CREATE OR REPLACE FUNCTION public.zasp_workflow_mutate(mutation text, requested_kind text, requested_id text, requested_organization_id text, requested_workspace_id text, requested_environment_id text, requested_principal_id text, requested_operation text, requested_idempotency_key text, expected_version bigint, requested_intent jsonb, requested_body jsonb, requested_audit_id text, requested_correlation_id text, requested_receipt_id text) RETURNS jsonb LANGUAGE plpgsql AS $$ BEGIN RETURN '{}'::jsonb; END $$`); err != nil {
 		t.Fatalf("introduce mutation function drift: %v", err)
 	}
 	if err := restartedRepository.Ready(ctx); !errors.Is(err, ErrRepositoryUnavailable) {
@@ -293,6 +340,9 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 	}
 	defer func() { _ = rollbackConnection.Close(context.Background()) }()
 	rollbackRunner, _ := migrations.NewRunner(&integrationMigrationDatabase{connection: rollbackConnection})
+	if err := rollbackRunner.DownWorkflowReceipts(ctx); err != nil {
+		t.Fatalf("workflow receipt rollback: %v", err)
+	}
 	if err := rollbackRunner.DownWorkflows(ctx); err != nil {
 		t.Fatalf("workflow rollback: %v", err)
 	}
@@ -339,6 +389,9 @@ func TestWorkflowMigrationExpiresExistingSessionFreshness(t *testing.T) {
 	if err := runner.UpWorkflows(ctx); err != nil {
 		t.Fatal(err)
 	}
+	if err := runner.UpWorkflowReceipts(ctx); err != nil {
+		t.Fatal(err)
+	}
 	database, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
 	repository, err := NewPostgresRepository(database)
 	if err != nil {
@@ -371,6 +424,9 @@ func TestRetainedWorkflowMutationsReplayLostResponsesInPostgres(t *testing.T) {
 	if err := runner.UpWorkflows(ctx); err != nil {
 		t.Fatal(err)
 	}
+	if err := runner.UpWorkflowReceipts(ctx); err != nil {
+		t.Fatal(err)
+	}
 	database, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
 	repository, err := NewPostgresRepository(database)
 	if err != nil {
@@ -389,6 +445,7 @@ func TestRetainedWorkflowMutationsReplayLostResponsesInPostgres(t *testing.T) {
 		mutation.IdempotencyKey = fmt.Sprintf("idem-lost-response-%02d", sequence)
 		mutation.AuditID = fmt.Sprintf("pid_62000001-0000-4000-8000-%012d", sequence)
 		mutation.CorrelationID = fmt.Sprintf("pid_62000002-0000-4000-8000-%012d", sequence)
+		mutation.ReceiptID = fmt.Sprintf("pid_62000003-0000-4000-8000-%012d", sequence)
 		created, err := repository.MutateWorkflow(ctx, identity, mutation)
 		if err != nil {
 			t.Fatalf("%s first result: %v", mutation.Operation, err)
@@ -449,6 +506,9 @@ func TestSecurityAgentPaginationExceedsOneHundredWithoutTenantDisclosure(t *test
 		t.Fatal(err)
 	}
 	if err := runner.UpWorkflows(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.UpWorkflowReceipts(ctx); err != nil {
 		t.Fatal(err)
 	}
 	identity := fixtureRequestIdentity(t)

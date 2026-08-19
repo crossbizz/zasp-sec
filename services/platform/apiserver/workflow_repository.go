@@ -5,16 +5,19 @@ import (
 	"encoding/json"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
 
 const (
-	postgresWorkflowListSQL   = `SELECT zasp_workflow_list($1, $2, $3, $4, NULLIF($5, ''), NULLIF($6, ''))`
-	postgresWorkflowPageSQL   = `SELECT zasp_workflow_page($1, $2, $3, $4, NULLIF($5, ''), $6)`
-	postgresWorkflowGetSQL    = `SELECT zasp_workflow_get($1, $2, $3, $4, $5)`
-	postgresWorkflowReplaySQL = `SELECT zasp_workflow_replay($1, $2, $3, $4, $5, $6, $7::jsonb)`
-	postgresWorkflowMutateSQL = `SELECT zasp_workflow_mutate($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13, $14)`
+	postgresWorkflowListSQL               = `SELECT zasp_workflow_list($1, $2, $3, $4, NULLIF($5, ''), NULLIF($6, ''))`
+	postgresWorkflowPageSQL               = `SELECT zasp_workflow_page($1, $2, $3, $4, NULLIF($5, ''), $6)`
+	postgresWorkflowGetSQL                = `SELECT zasp_workflow_get($1, $2, $3, $4, $5)`
+	postgresWorkflowReplaySQL             = `SELECT zasp_workflow_replay($1, $2, $3, $4, $5, $6, $7::jsonb)`
+	postgresWorkflowMutateSQL             = `SELECT zasp_workflow_mutate($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13, $14, $15)`
+	postgresWorkflowReceiptListSQL        = `SELECT zasp_workflow_receipt_list($1, $2, $3, $4, $5)`
+	postgresWorkflowReceiptAcknowledgeSQL = `SELECT zasp_workflow_receipt_acknowledge($1, $2, $3, $4, $5)`
 )
 
 var workflowKeyPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`)
@@ -42,6 +45,7 @@ type WorkflowMutation struct {
 	Body            json.RawMessage
 	AuditID         string
 	CorrelationID   string
+	ReceiptID       string
 }
 
 type workflowReplayEnvelope struct {
@@ -53,7 +57,23 @@ type WorkflowMutationResult struct {
 	WorkflowValue
 	AuditID       string `json:"audit_id"`
 	CorrelationID string `json:"correlation_id"`
+	ReceiptID     string `json:"receipt_id"`
 	Replayed      bool   `json:"replayed"`
+}
+
+type WorkflowMutationReceipt struct {
+	ID              string          `json:"id"`
+	Operation       string          `json:"operation"`
+	IdempotencyKey  string          `json:"idempotency_key"`
+	Intent          json.RawMessage `json:"intent"`
+	Result          json.RawMessage `json:"result"`
+	ResourceKind    string          `json:"resource_kind"`
+	ResourceID      string          `json:"resource_id"`
+	ResourceVersion int64           `json:"resource_version"`
+	AuditID         string          `json:"audit_id"`
+	CorrelationID   string          `json:"correlation_id"`
+	CreatedAt       time.Time       `json:"created_at"`
+	ExpiresAt       time.Time       `json:"expires_at"`
 }
 
 func (repository *PostgresRepository) ListWorkflows(ctx context.Context, scope domain.Scope, kind, parentField, parentID string) (json.RawMessage, error) {
@@ -118,6 +138,7 @@ func (repository *PostgresRepository) MutateWorkflow(ctx context.Context, identi
 		mutation.Action, mutation.Kind, mutation.ID,
 		identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(),
 		identity.PrincipalID.String(), mutation.Operation, mutation.IdempotencyKey, mutation.ExpectedVersion, mutation.Intent, mutation.Body, mutation.AuditID, mutation.CorrelationID,
+		mutation.ReceiptID,
 	)
 	if err != nil {
 		return WorkflowMutationResult{}, err
@@ -127,6 +148,65 @@ func (repository *PostgresRepository) MutateWorkflow(ctx context.Context, identi
 		return WorkflowMutationResult{}, ErrRepositoryUnavailable
 	}
 	return result, nil
+}
+
+func (repository *PostgresRepository) ListWorkflowMutationReceipts(ctx context.Context, identity RequestIdentity, limit int) ([]WorkflowMutationReceipt, error) {
+	if repository == nil || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) || limit < 1 || limit > 50 {
+		return nil, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresWorkflowReceiptListSQL,
+		identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	var envelope struct {
+		Items []WorkflowMutationReceipt `json:"items"`
+	}
+	if json.Unmarshal(payload, &envelope) != nil || len(envelope.Items) > limit {
+		return nil, ErrRepositoryUnavailable
+	}
+	for index := range envelope.Items {
+		if !validWorkflowMutationReceipt(envelope.Items[index]) {
+			return nil, ErrRepositoryUnavailable
+		}
+		envelope.Items[index].CreatedAt = envelope.Items[index].CreatedAt.UTC()
+		envelope.Items[index].ExpiresAt = envelope.Items[index].ExpiresAt.UTC()
+	}
+	return envelope.Items, nil
+}
+
+func (repository *PostgresRepository) AcknowledgeWorkflowMutationReceipt(ctx context.Context, identity RequestIdentity, receiptID string) error {
+	if repository == nil || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) {
+		return ErrRepositoryOperation
+	}
+	if _, err := domain.ParseProductID(receiptID); err != nil {
+		return ErrRepositoryNotFound
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresWorkflowReceiptAcknowledgeSQL,
+		identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), receiptID,
+	)
+	if err != nil {
+		return err
+	}
+	var value map[string]bool
+	if json.Unmarshal(payload, &value) != nil || len(value) != 1 || !value["acknowledged"] {
+		return ErrRepositoryUnavailable
+	}
+	return nil
+}
+
+func validWorkflowMutationReceipt(value WorkflowMutationReceipt) bool {
+	if _, err := domain.ParseProductID(value.ID); err != nil {
+		return false
+	}
+	if _, err := domain.ParseProductID(value.AuditID); err != nil {
+		return false
+	}
+	if _, err := domain.ParseProductID(value.CorrelationID); err != nil {
+		return false
+	}
+	return workflowKeyPattern.MatchString(value.Operation) && len(value.IdempotencyKey) >= 16 && len(value.IdempotencyKey) <= 128 && validJSONObjectBody(value.Intent) && !containsSensitiveWorkflowField(value.Intent) && validJSONObjectBody(value.Result) && !containsSensitiveWorkflowField(value.Result) && validWorkflowID(value.ResourceKind, value.ResourceID) && value.ResourceVersion > 0 && !value.CreatedAt.IsZero() && value.ExpiresAt.After(value.CreatedAt) && !value.ExpiresAt.After(value.CreatedAt.Add(7*24*time.Hour))
 }
 
 func (repository *PostgresRepository) ReplayWorkflow(ctx context.Context, identity RequestIdentity, operation, idempotencyKey string, intent json.RawMessage) (WorkflowMutationResult, bool, error) {
@@ -165,6 +245,9 @@ func validMutationResultIDs(result WorkflowMutationResult, mutation WorkflowMuta
 	if _, err := domain.ParseProductID(result.CorrelationID); err != nil {
 		return false
 	}
+	if _, err := domain.ParseProductID(result.ReceiptID); err != nil {
+		return false
+	}
 	return result.Replayed || (result.AuditID == mutation.AuditID && result.CorrelationID == mutation.CorrelationID)
 }
 
@@ -195,6 +278,9 @@ func validWorkflowMutation(value WorkflowMutation) bool {
 		return false
 	}
 	if _, err := domain.ParseProductID(value.CorrelationID); err != nil {
+		return false
+	}
+	if _, err := domain.ParseProductID(value.ReceiptID); err != nil {
 		return false
 	}
 	switch value.Action {

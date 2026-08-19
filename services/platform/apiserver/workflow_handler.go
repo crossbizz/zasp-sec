@@ -29,6 +29,8 @@ type workflowRepository interface {
 	GetWorkflow(context.Context, domain.Scope, string, string) (WorkflowValue, error)
 	ReplayWorkflow(context.Context, RequestIdentity, string, string, json.RawMessage) (WorkflowMutationResult, bool, error)
 	MutateWorkflow(context.Context, RequestIdentity, WorkflowMutation) (WorkflowMutationResult, error)
+	ListWorkflowMutationReceipts(context.Context, RequestIdentity, int) ([]WorkflowMutationReceipt, error)
+	AcknowledgeWorkflowMutationReceipt(context.Context, RequestIdentity, string) error
 }
 
 type workflowHTTPHandler struct {
@@ -71,6 +73,10 @@ func (handler *workflowHTTPHandler) ServeHTTP(writer http.ResponseWriter, reques
 }
 
 func (handler *workflowHTTPHandler) read(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, routed RoutedOperation) {
+	if routed.OperationID == "listWorkflowMutationReceipts" {
+		handler.readMutationReceipts(writer, request, identity)
+		return
+	}
 	if routed.OperationID == "listIntegrationCatalog" {
 		values, err := handler.catalog.SearchContext(request.Context(), platformintegration.CatalogFilter{
 			Query: request.URL.Query().Get("q"), Category: request.URL.Query().Get("category"), DataType: request.URL.Query().Get("data_type"), Action: request.URL.Query().Get("action"), AuthMode: request.URL.Query().Get("auth_mode"),
@@ -108,6 +114,28 @@ func (handler *workflowHTTPHandler) read(writer http.ResponseWriter, request *ht
 	}
 	writer.Header().Set("ETag", quoteVersion(value.Version))
 	writeProductionResponse(writer, request, http.StatusOK, value.Body, nil)
+}
+
+func (handler *workflowHTTPHandler) readMutationReceipts(writer http.ResponseWriter, request *http.Request, identity RequestIdentity) {
+	query, err := url.ParseQuery(request.URL.RawQuery)
+	if err != nil || len(query) > 1 {
+		writeProductionError(writer, request, ErrRepositoryOperation)
+		return
+	}
+	limit := 20
+	if values, present := query["limit"]; present {
+		if len(values) != 1 {
+			writeProductionError(writer, request, ErrRepositoryOperation)
+			return
+		}
+		limit, err = strconv.Atoi(values[0])
+		if err != nil || limit < 1 || limit > 50 {
+			writeProductionError(writer, request, ErrRepositoryOperation)
+			return
+		}
+	}
+	receipts, err := handler.repository.ListWorkflowMutationReceipts(request.Context(), identity, limit)
+	writeJSONValue(writer, request, http.StatusOK, map[string]any{"items": receipts}, err)
 }
 
 type workflowCursorPayload struct {
@@ -199,6 +227,19 @@ func (handler *workflowHTTPHandler) decodeWorkflowCursor(value string, scope dom
 }
 
 func (handler *workflowHTTPHandler) mutate(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, routed RoutedOperation) {
+	if routed.OperationID == "acknowledgeWorkflowMutationReceipt" {
+		if decodeEmptyInput(request) != nil {
+			writeProductionError(writer, request, ErrRepositoryOperation)
+			return
+		}
+		err := handler.repository.AcknowledgeWorkflowMutationReceipt(request.Context(), identity, routed.PathParameters["id"])
+		if err != nil {
+			writeProductionError(writer, request, err)
+			return
+		}
+		writer.WriteHeader(http.StatusNoContent)
+		return
+	}
 	idempotencyKey := request.Header.Get("Idempotency-Key")
 	if len(idempotencyKey) < 16 || len(idempotencyKey) > 128 {
 		writeProductionStatusError(writer, request, http.StatusBadRequest, "operation_rejected", "Operation rejected", false)
@@ -229,11 +270,17 @@ func (handler *workflowHTTPHandler) mutate(writer http.ResponseWriter, request *
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
 		return
 	}
+	receiptID, err := newWorkflowProductID()
+	if err != nil {
+		writeProductionError(writer, request, ErrRepositoryUnavailable)
+		return
+	}
 	mutation, status, responseKind, err := handler.buildMutation(request, identity, routed, idempotencyKey, auditID, correlationID)
 	if err != nil {
 		writeWorkflowMutationError(writer, request, err)
 		return
 	}
+	mutation.ReceiptID = receiptID
 	mutation.Intent = intent
 	result, err = handler.repository.MutateWorkflow(request.Context(), identity, mutation)
 	if err != nil {
@@ -246,6 +293,7 @@ func (handler *workflowHTTPHandler) mutate(writer http.ResponseWriter, request *
 func (handler *workflowHTTPHandler) writeMutationResult(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, routed RoutedOperation, idempotencyKey string, intent json.RawMessage, result WorkflowMutationResult, status int, responseKind string) {
 	writer.Header().Set("ETag", quoteVersion(result.Version))
 	writer.Header().Set("X-Audit-ID", result.AuditID)
+	writer.Header().Set("X-Mutation-Receipt-ID", result.ReceiptID)
 	if status == http.StatusNoContent {
 		writer.WriteHeader(status)
 		return

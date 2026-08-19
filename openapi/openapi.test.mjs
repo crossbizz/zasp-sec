@@ -87,6 +87,10 @@ function verifyDocument(value, rawText) {
       description: "Durable audit record identifier for this mutation or its exact replay.",
       schema: { $ref: "#/components/schemas/ProductID" },
     },
+    WorkflowMutationReceiptID: {
+      description: "Durable recovery receipt bound to the exact authenticated principal, scope, operation, intent, and attempt key.",
+      schema: { $ref: "#/components/schemas/ProductID" },
+    },
   });
 
   assert.deepEqual(value.components.parameters, {
@@ -317,6 +321,11 @@ describe("production workflow concurrency contract", () => {
 
   it("types idempotency, versions, fresh auth, and durable mutation receipts", () => {
     const creates = new Set(["createIntegration", "createSensorEnrollment", "createPolicy", "createSecurityAgent", "runSecurityAgent"]);
+    const durableReceiptMutations = new Set([
+      "createIntegration", "updateIntegration", "deleteIntegration",
+      "createPolicy", "updatePolicy", "deletePolicy", "rolloutPolicy", "disablePolicy",
+      "createSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent",
+    ]);
     const operations = [
       "createIntegration", "updateIntegration", "deleteIntegration",
       "createSensorEnrollment", "updateSensor", "deleteSensor", "rotateSensorToken",
@@ -337,8 +346,42 @@ describe("production workflow concurrency contract", () => {
       if (!creates.has(operationId)) assert.ok(refs.includes("#/components/parameters/ResourceVersion"), `${operationId} version`);
       if (operationId === "decideSecurityAgentApproval") assert.ok(refs.includes("#/components/parameters/FreshAuth"), `${operationId} fresh auth`);
       const success = Object.entries(operation.responses).find(([status]) => status.startsWith("2"))?.[1];
-      assert.deepEqual(Object.keys(success.headers ?? {}).sort(), ["ETag", "X-Audit-ID"]);
+      const expectedHeaders = durableReceiptMutations.has(operationId)
+        ? ["ETag", "X-Audit-ID", "X-Mutation-Receipt-ID"]
+        : ["ETag", "X-Audit-ID"];
+      assert.deepEqual(Object.keys(success.headers ?? {}).sort(), expectedHeaders);
     }
+  });
+
+  it("publishes bounded browser-only receipt reconciliation and acknowledgement", () => {
+    const list = document.paths["/api/v1/workflow-mutation-receipts"].get;
+    assert.equal(list.operationId, "listWorkflowMutationReceipts");
+    assert.deepEqual(list.security, [{ BrowserSession: [] }]);
+    assert.deepEqual(list.parameters, [{
+      name: "limit",
+      in: "query",
+      required: false,
+      schema: { type: "integer", minimum: 1, maximum: 50, default: 20 },
+    }]);
+    assert.equal(list.responses["200"].content["application/json"].schema.$ref, "#/components/schemas/WorkflowMutationReceiptPage");
+
+    const acknowledge = document.paths["/api/v1/workflow-mutation-receipts/{id}/acknowledge"].post;
+    assert.equal(acknowledge.operationId, "acknowledgeWorkflowMutationReceipt");
+    assert.deepEqual(acknowledge.security, [{ BrowserSession: [] }]);
+    assert.deepEqual(document.paths["/api/v1/workflow-mutation-receipts/{id}/acknowledge"].parameters, [{
+      name: "id",
+      in: "path",
+      required: true,
+      schema: { $ref: "#/components/schemas/ProductID" },
+    }]);
+    assert.deepEqual(acknowledge.parameters, [{ $ref: "#/components/parameters/CSRFToken" }]);
+    assert.equal(acknowledge.requestBody.content["application/json"].schema.$ref, "#/components/schemas/EmptyInput");
+    assert.deepEqual(Object.keys(acknowledge.responses), ["204", "400", "401", "403", "404", "default"]);
+
+    const receipt = document.components.schemas.WorkflowMutationReceipt;
+    assert.equal(receipt.additionalProperties, false);
+    assert.deepEqual(receipt.required, ["id", "operation", "idempotency_key", "intent", "result", "resource_kind", "resource_id", "resource_version", "audit_id", "correlation_id", "created_at", "expires_at"]);
+    assert.equal(document.components.schemas.WorkflowMutationReceiptPage.properties.items.maxItems, 50);
   });
 
   it("bounds Security Agent definition pagination with the shared opaque cursor contract", () => {
