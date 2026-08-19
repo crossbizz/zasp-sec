@@ -83,9 +83,11 @@ repository root:
 npm run web:shell:test
 ```
 
-The unauthenticated-route guard has one public sign-in path and closed redirect
-targets. Production composition uses the M2 Stytch/durable-session boundary;
-the separate browser-local demonstration surface does not claim authentication.
+The unauthenticated-route guard is an inert scaffold with one public sign-in
+path and closed redirect targets. M2-01 and M2-02 now provide the product
+authentication boundary, and production composition wires that durable
+session boundary around the guard. The separate browser-local demonstration
+surface does not claim authentication.
 
 ## M1 build check
 

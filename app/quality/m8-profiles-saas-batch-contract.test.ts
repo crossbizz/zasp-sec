@@ -12,7 +12,7 @@ describe("M8-51e through M8-60b deployment-profile batch", () => {
     expect(saas).toContain("deploymentMode: saas");
     expect(saas).not.toContain("organizationID:");
     expect(single).toContain("deploymentMode: single_tenant");
-    expect(single).toContain("organizationID: org_customer_required");
+    expect(single).toContain("organizationID: pid_11111111-1111-4111-8111-111111111111");
     for (const value of ["sensor", "runtimeGateway", "policyCache", "enrollmentSecretRef", "saasAPIEndpoint"]) expect(edge).toContain(value);
     for (const forbidden of ["web:", "agentsecApi:", "neo4j:", "nango:", "neon:", "stytch:"]) expect(edge).not.toContain(forbidden);
   });

@@ -22,10 +22,12 @@ describe("M8-01a through M8-16 release foundation batch", () => {
     const resilience = read("deploy/staging/product/templates/resilience.yaml");
     expect(chart).toContain("name: zasp-product");
     for (const value of ["web", "agentsec-api", "agentsec-worker", "event-ingest", "runtime-gateway"]) expect(workloads).toContain(`"name" "${value}"`);
-    for (const value of ["neo4j", "nango", "otel-collector", "tetragon"]) expect(workloads).toContain(`name: ${value}`);
+    for (const value of ["neo4j", "nango", "otel-collector", "tetragon"]) expect(workloads).not.toContain(`name: ${value}`);
     for (const value of ["readinessProbe", "livenessProbe", "terminationGracePeriodSeconds", "preStop", "resources:"]) expect(workloads).toContain(value);
-    for (const value of ["ClusterIP", "agentsec-api", "runtime-gateway", "neo4j", "nango", "otel-collector"]) expect(services).toContain(value);
-    for (const value of ["PodDisruptionBudget", "topologySpreadConstraints", "maxUnavailable", "SecurityGroupPolicy"]) expect(resilience).toContain(value);
+    for (const value of ["ClusterIP", "agentsec-api", "runtime-gateway"]) expect(services).toContain(value);
+    for (const value of ["neo4j", "nango", "otel-collector"]) expect(services).not.toContain(`name: ${value}`);
+    for (const value of ["PodDisruptionBudget", "SecurityGroupPolicy", "default-deny", "api-from-ingress"]) expect(resilience).toContain(value);
+    for (const value of ["topologySpreadConstraints", "maxUnavailable"]) expect(workloads).toContain(value);
     expect(values).toContain("privateEndpointOnly: true");
   });
 
