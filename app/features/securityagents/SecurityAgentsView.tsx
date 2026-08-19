@@ -71,14 +71,16 @@ type SecurityAgentDetailResult =
   | { kind: "deleted"; receipt: WorkflowReceipt<void> };
 
 async function loadSecurityAgentSnapshot(api: SecurityAgentsAPI, signal?: AbortSignal): Promise<SecurityAgentSnapshot> {
-  const templatesPromise = api.listSecurityAgentTemplates(signal);
+  const [firstPage, templates] = await Promise.all([
+    api.listSecurityAgents({ limit: 100 }, signal),
+    api.listSecurityAgentTemplates(signal),
+  ]);
   const agents: SecurityAgentDefinition[] = [];
-  let cursor: string | undefined;
+  let page = firstPage;
   for (let pageNumber = 0; pageNumber < 100; pageNumber++) {
-    const page = await api.listSecurityAgents({ cursor, limit: 100 }, signal);
     agents.push(...page.items);
-    if (!page.page_info.has_more) return { agents, templates: await templatesPromise };
-    cursor = page.page_info.next_cursor;
+    if (!page.page_info.has_more) return { agents, templates };
+    page = await api.listSecurityAgents({ cursor: page.page_info.next_cursor, limit: 100 }, signal);
   }
   throw new Error("Security Agent definition pagination exceeded its bounded page count");
 }

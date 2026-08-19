@@ -170,7 +170,6 @@ describe("Zasp application", () => {
 				});
 				if (path === "/api/v1/policies") return apiJSON({ items: [{ id: "policy-production", name: "Production policy", scope: "environment", trigger: "tool", conditions: [{ field: "action", operator: "equals", value: "write" }], action: "monitor", rollout: "draft", failure_mode: "open" }] });
 				if (path === "/api/v1/policies/policy-production") return apiJSON({ id: "policy-production", name: "Production policy", scope: "environment", trigger: "tool", conditions: [{ field: "action", operator: "equals", value: "write" }], action: "monitor", rollout: "draft", failure_mode: "open" }, 200, { ETag: '"1"' });
-				if (path === "/api/v1/policies/policy-production/decisions") return apiJSON({ items: [{ id: "decision-1", policy_id: "policy-production", environment_id: "pid_10000003-0000-4000-8000-000000000003", result: "monitor", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", at: "2026-08-18T12:00:00Z" }] });
 				if (path === "/api/v1/integrations") return apiJSON({ items: [] });
 				if (path === "/api/v1/integration-catalog") return apiJSON({ items: [] });
 				throw new Error(`unexpected product fetch ${path}`);
@@ -181,12 +180,14 @@ describe("Zasp application", () => {
 		expect(screen.getByRole("link", { name: "Integrations" })).toBeVisible();
 		expect(screen.getByRole("button", { name: "Create policy" })).toBeVisible();
 		await userEvent.click(await screen.findByRole("button", { name: "Open Production policy" }));
-		expect(await screen.findByRole("heading", { name: "Decision history" })).toBeVisible();
-		expect(await screen.findByText(/correlation pid_eeeeeeee/)).toBeVisible();
+		expect(await screen.findByText("Policy detail · policy-production")).toBeVisible();
+		expect(screen.queryByRole("button", { name: /simulate policy/i })).not.toBeInTheDocument();
+		expect(screen.queryByRole("heading", { name: "Decision history" })).not.toBeInTheDocument();
 		await userEvent.click(screen.getByRole("link", { name: "Integrations" }));
 		expect(await screen.findByRole("heading", { name: "Integrations" })).toBeVisible();
 		expect(screen.queryByRole("button", { name: /authorize|sync/i })).not.toBeInTheDocument();
-		expect(requests).toEqual(expect.arrayContaining(["/api/v1/session/bootstrap", "/api/v1/policies", "/api/v1/policies/policy-production", "/api/v1/policies/policy-production/decisions", "/api/v1/integrations", "/api/v1/integration-catalog"]));
+		expect(requests).toEqual(expect.arrayContaining(["/api/v1/session/bootstrap", "/api/v1/policies", "/api/v1/policies/policy-production", "/api/v1/integrations", "/api/v1/integration-catalog"]));
+		expect(requests).not.toContain("/api/v1/policies/policy-production/decisions");
 	});
 
 	it("capability-hides sensor enrollment even when stale server capabilities advertise it", async () => {
@@ -232,7 +233,6 @@ describe("Zasp application", () => {
 				if (path === "/api/v1/session/scope" && request.method === "PUT") { switched = true; return new Response(null, { status: 204 }); }
 				if (path === "/api/v1/policies") return apiJSON({ items: [{ id: switched ? "policy-staging" : "policy-production", name: switched ? "Staging policy" : "Production policy", scope: "environment", trigger: "tool", conditions: [{ field: "action", operator: "equals", value: "write" }], action: "monitor", rollout: "draft", failure_mode: "open" }] });
 				if (path === "/api/v1/policies/policy-production") return apiJSON({ id: "policy-production", name: "Production policy", scope: "environment", trigger: "tool", conditions: [{ field: "action", operator: "equals", value: "write" }], action: "monitor", rollout: "draft", failure_mode: "open" }, 200, { ETag: '"1"' });
-				if (path.endsWith("/decisions")) return apiJSON({ items: [] });
 				throw new Error(`unexpected product fetch ${request.method} ${path}`);
 			},
 		});
