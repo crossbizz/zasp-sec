@@ -212,6 +212,53 @@ func TestWorkflowHandlerRejectsUnservedSecurityActionAndMalformedRunEvidence(t *
 	}
 }
 
+func TestWorkflowHandlerBuildsAtomicRunApprovalEnvelope(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	repository := &workflowRepositoryStub{value: WorkflowValue{Version: 3, Body: json.RawMessage(`{"id":"pid_90000001-0000-4000-8000-000000000001","allowed_actions":["run_test"]}`)}}
+	handler, _ := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), time.Now)
+	request := workflowRequest(t, identity, "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "runSecurityAgent", map[string]string{"id": "pid_90000001-0000-4000-8000-000000000001"}, http.MethodPost, "/api/v1/security-agents/pid_90000001-0000-4000-8000-000000000001/runs", `{"environment_id":"pid_10000003-0000-4000-8000-000000000003","trigger_kind":"finding","trigger_id":"pid_90000002-0000-4000-8000-000000000002"}`)
+	request.Header.Set("Idempotency-Key", "idem-run-agent-approval-1")
+	mutation, _, _, err := handler.buildMutation(request, identity, RoutedOperation{OperationID: "runSecurityAgent", PathParameters: map[string]string{"id": "pid_90000001-0000-4000-8000-000000000001"}}, "idem-run-agent-approval-1", "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
+	var value struct {
+		Approval map[string]any `json:"_approval"`
+	}
+	if err != nil || json.Unmarshal(mutation.Body, &value) != nil || value.Approval["state"] != "pending" || value.Approval["run_id"] != mutation.ID || value.Approval["expires_at"] != nil {
+		t.Fatalf("atomic run mutation = (%v, %s)", err, mutation.Body)
+	}
+}
+
+func TestWorkflowHandlerRunDetailIncludesDurableScopedApprovals(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	runID := "pid_90000001-0000-4000-8000-000000000001"
+	repository := &workflowRepositoryStub{value: WorkflowValue{Version: 1, Body: json.RawMessage(`{"id":"` + runID + `","agent_id":"pid_90000002-0000-4000-8000-000000000002","state":"waiting_approval","evidence_ids":["pid_90000003-0000-4000-8000-000000000003"],"definition_version":1,"version":1}`)}, page: json.RawMessage(`{"items":[{"id":"pid_90000004-0000-4000-8000-000000000004","run_id":"` + runID + `","step_id":"pid_90000005-0000-4000-8000-000000000005","state":"pending","expires_at":"2026-08-18T12:15:00Z","version":1}]}`)}
+	handler, _ := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), time.Now)
+	request := workflowRequest(t, identity, "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "getSecurityAgentRun", map[string]string{"id": runID}, http.MethodGet, "/api/v1/security-agent-runs/"+runID, "")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	var detail struct {
+		Approvals []map[string]any `json:"approvals"`
+	}
+	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &detail) != nil || len(detail.Approvals) != 1 || detail.Approvals[0]["run_id"] != runID {
+		t.Fatalf("run detail = %d %s", response.Code, response.Body.String())
+	}
+}
+
+func TestWorkflowHandlerRejectsExpiredOrNonpendingApproval(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	approvalID := "pid_90000001-0000-4000-8000-000000000001"
+	repository := &workflowRepositoryStub{value: WorkflowValue{Version: 1, Body: json.RawMessage(`{"id":"` + approvalID + `","run_id":"pid_90000002-0000-4000-8000-000000000002","step_id":"pid_90000003-0000-4000-8000-000000000003","state":"pending","expires_at":"2026-08-18T11:59:59Z","version":1}`)}}
+	handler, _ := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), func() time.Time { return time.Date(2026, 8, 18, 12, 0, 0, 0, time.UTC) })
+	request := workflowRequest(t, identity, "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "decideSecurityAgentApproval", map[string]string{"id": approvalID}, http.MethodPost, "/api/v1/security-agent-approvals/"+approvalID+"/decision", `{"decision":"approved"}`)
+	request.Header.Set("Idempotency-Key", "idem-expired-approval-01")
+	request.Header.Set("If-Match", `"1"`)
+	request.Header.Set("X-Zasp-Fresh-Auth", "confirmed")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusConflict || repository.mutation.Operation != "" {
+		t.Fatalf("expired approval = %d %s mutation=%#v", response.Code, response.Body.String(), repository.mutation)
+	}
+}
+
 func TestSensorCoverageOmitsUnknownTimestampInsteadOfEmittingInvalidDate(t *testing.T) {
 	coverage, err := sensorCoverage(json.RawMessage(`{"id":"pid_90000001-0000-4000-8000-000000000001","capabilities":[]}`))
 	if err != nil {

@@ -156,6 +156,30 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 	if _, err := repository.MutateWorkflow(ctx, workflowIdentity, staleMutation); !errors.Is(err, ErrRepositoryConflict) {
 		t.Fatalf("stale workflow mutation = %v", err)
 	}
+	agentID := "pid_40000001-0000-4000-8000-000000000001"
+	agentBody := json.RawMessage(`{"id":"` + agentID + `","name":"Bounded response","allowed_actions":["run_test"]}`)
+	if _, err := repository.MutateWorkflow(ctx, workflowIdentity, WorkflowMutation{Action: "create", Kind: "security_agent", ID: agentID, Operation: "createSecurityAgent", IdempotencyKey: "idem-production-agent-0001", Body: agentBody, AuditID: "pid_40000002-0000-4000-8000-000000000002", CorrelationID: "pid_40000003-0000-4000-8000-000000000003"}); err != nil {
+		t.Fatalf("create security agent: %v", err)
+	}
+	runID := "pid_40000004-0000-4000-8000-000000000004"
+	approvalID := "pid_40000005-0000-4000-8000-000000000005"
+	runBody := json.RawMessage(`{"id":"` + runID + `","agent_id":"` + agentID + `","state":"waiting_approval","evidence_ids":["pid_40000006-0000-4000-8000-000000000006"],"definition_version":1,"version":1,"_approval":{"id":"` + approvalID + `","run_id":"` + runID + `","step_id":"pid_40000007-0000-4000-8000-000000000007","state":"pending","version":1,"expected_effect":"run_test","reversible":true,"ttl_seconds":900,"evidence_summary":["pid_40000006-0000-4000-8000-000000000006"]}}`)
+	runResult, err := repository.MutateWorkflow(ctx, workflowIdentity, WorkflowMutation{Action: "create", Kind: "security_agent_run", ID: runID, Operation: "runSecurityAgent", IdempotencyKey: "idem-production-run-00001", Body: runBody, AuditID: "pid_40000008-0000-4000-8000-000000000008", CorrelationID: "pid_40000009-0000-4000-8000-000000000009"})
+	if err != nil || bytes.Contains(runResult.Body, []byte(`"_approval"`)) {
+		t.Fatalf("atomic run/approval = (%s, %v)", runResult.Body, err)
+	}
+	approvalPage, err := repository.ListWorkflows(ctx, scope, "security_agent_approval", "run_id", runID)
+	if err != nil || !bytes.Contains(approvalPage, []byte(approvalID)) || !bytes.Contains(approvalPage, []byte(`"state": "pending"`)) {
+		t.Fatalf("durable approval = (%s, %v)", approvalPage, err)
+	}
+	cancelBody := json.RawMessage(`{"id":"` + runID + `","agent_id":"` + agentID + `","state":"cancelled","evidence_ids":["pid_40000006-0000-4000-8000-000000000006"],"definition_version":1,"version":2}`)
+	if _, err := repository.MutateWorkflow(ctx, workflowIdentity, WorkflowMutation{Action: "update", Kind: "security_agent_run", ID: runID, Operation: "cancelSecurityAgentRun", IdempotencyKey: "idem-production-cancel-01", ExpectedVersion: 1, Body: cancelBody, AuditID: "pid_40000010-0000-4000-8000-000000000010", CorrelationID: "pid_40000011-0000-4000-8000-000000000011"}); err != nil {
+		t.Fatalf("cancel security agent run: %v", err)
+	}
+	approvalPage, err = repository.ListWorkflows(ctx, scope, "security_agent_approval", "run_id", runID)
+	if err != nil || !bytes.Contains(approvalPage, []byte(`"state": "cancelled"`)) || bytes.Contains(approvalPage, []byte(`"state": "pending"`)) {
+		t.Fatalf("bounded cancellation cleanup = (%s, %v)", approvalPage, err)
+	}
 	var auditCount, idempotencyCount int
 	if err := connection.QueryRow(ctx, `SELECT (SELECT count(*) FROM zasp_workflow_audit WHERE resource_id = 'policy-production'), (SELECT count(*) FROM zasp_workflow_idempotency WHERE operation = 'createPolicy')`).Scan(&auditCount, &idempotencyCount); err != nil || auditCount != 1 || idempotencyCount != 1 {
 		t.Fatalf("workflow ledger counts = (%d, %d, %v)", auditCount, idempotencyCount, err)

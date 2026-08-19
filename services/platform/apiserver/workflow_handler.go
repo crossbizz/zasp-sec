@@ -113,7 +113,19 @@ func (handler *workflowHTTPHandler) read(writer http.ResponseWriter, request *ht
 			writeProductionError(writer, request, ErrRepositoryUnavailable)
 			return
 		}
-		writeJSONValue(writer, request, http.StatusOK, map[string]any{"run": run, "evidence_ids": run["evidence_ids"], "plan": map[string]any{"summary": "Durable bounded plan", "steps": []any{}}, "authorization": "approval_required", "approvals": []any{}, "execution": []any{}, "verification": "pending"}, nil)
+		approvalPage, listErr := handler.repository.ListWorkflows(request.Context(), identity.Scope, "security_agent_approval", "run_id", routed.PathParameters["id"])
+		var approvals struct {
+			Items []map[string]any `json:"items"`
+		}
+		if listErr != nil || json.Unmarshal(approvalPage, &approvals) != nil {
+			writeProductionError(writer, request, ErrRepositoryUnavailable)
+			return
+		}
+		steps := make([]map[string]any, len(approvals.Items))
+		for index, approval := range approvals.Items {
+			steps[index] = map[string]any{"index": index, "action": approval["expected_effect"], "authorization": "approval_required", "approval_required": true}
+		}
+		writeJSONValue(writer, request, http.StatusOK, map[string]any{"run": run, "evidence_ids": run["evidence_ids"], "plan": map[string]any{"summary": "Durable bounded plan", "steps": steps}, "authorization": "approval_required", "approvals": approvals.Items, "execution": []any{}, "verification": "pending"}, nil)
 		return
 	}
 	writeProductionResponse(writer, request, http.StatusOK, value.Body, nil)
@@ -331,6 +343,12 @@ func (handler *workflowHTTPHandler) buildMutation(request *http.Request, identit
 		var value map[string]any
 		if json.Unmarshal(stored.Body, &value) != nil {
 			return WorkflowMutation{}, 0, "", ErrRepositoryUnavailable
+		}
+		state, _ := value["state"].(string)
+		expiresText, _ := value["expires_at"].(string)
+		expiresAt, expiresErr := time.Parse(time.RFC3339, expiresText)
+		if state != "pending" || expiresErr != nil || !expiresAt.After(handler.now()) {
+			return WorkflowMutation{}, 0, "", ErrRepositoryConflict
 		}
 		value["state"], value["version"] = input.Decision, expected+1
 		body, _ = json.Marshal(value)
@@ -563,8 +581,19 @@ func (handler *workflowHTTPHandler) securityAgentRun(request *http.Request, scop
 	if _, err := domain.ParseProductID(input.TriggerID); err != nil {
 		return nil, "", ErrRepositoryOperation
 	}
+	var agent struct {
+		AllowedActions []string `json:"allowed_actions"`
+	}
+	if json.Unmarshal(stored.Body, &agent) != nil || len(agent.AllowedActions) == 0 {
+		return nil, "", ErrRepositoryUnavailable
+	}
 	runID := handler.idempotentProductID(scope, "runSecurityAgent:"+agentID, idempotencyKey)
-	payload, _ := json.Marshal(map[string]any{"id": runID, "agent_id": agentID, "state": "waiting_approval", "evidence_ids": []string{input.TriggerID}, "definition_version": stored.Version, "version": 1})
+	approvalID := handler.idempotentProductID(scope, "approveSecurityAgentRun:"+runID, idempotencyKey)
+	stepID := handler.idempotentProductID(scope, "securityAgentStep:"+runID, idempotencyKey)
+	payload, _ := json.Marshal(map[string]any{
+		"id": runID, "agent_id": agentID, "state": "waiting_approval", "evidence_ids": []string{input.TriggerID}, "definition_version": stored.Version, "version": 1,
+		"_approval": map[string]any{"id": approvalID, "run_id": runID, "step_id": stepID, "state": "pending", "version": 1, "expected_effect": agent.AllowedActions[0], "reversible": true, "ttl_seconds": 900, "evidence_summary": []string{input.TriggerID}},
+	})
 	return payload, runID, nil
 }
 

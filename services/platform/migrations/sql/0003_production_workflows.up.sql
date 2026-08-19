@@ -77,6 +77,7 @@ DECLARE
     result_body jsonb;
     result_version bigint;
     result_secret_generation bigint;
+    approval_body jsonb;
 BEGIN
     IF mutation NOT IN ('create', 'update', 'delete', 'rotate_secret', 'audit') OR
        requested_kind NOT IN ('policy', 'integration', 'sensor', 'security_agent', 'security_agent_run', 'security_agent_approval', 'policy_decision') OR
@@ -97,14 +98,34 @@ BEGIN
     END IF;
 
     IF mutation = 'create' THEN
-        INSERT INTO "public"."zasp_workflow_records" ("organization_id", "workspace_id", "environment_id", "kind", "id", "body")
-        VALUES (requested_organization_id, requested_workspace_id, requested_environment_id, requested_kind, requested_id, requested_body)
-        RETURNING "body", "version", "secret_generation" INTO result_body, result_version, result_secret_generation;
+        IF requested_kind = 'security_agent_run' AND requested_operation = 'runSecurityAgent' THEN
+            approval_body := requested_body -> '_approval';
+            IF jsonb_typeof(approval_body) <> 'object' OR approval_body ->> 'id' IS NULL OR approval_body ->> 'run_id' <> requested_id THEN
+                RAISE EXCEPTION USING ERRCODE = '22023', MESSAGE = 'invalid workflow approval';
+            END IF;
+            result_body := requested_body - '_approval';
+            INSERT INTO "public"."zasp_workflow_records" ("organization_id", "workspace_id", "environment_id", "kind", "id", "body")
+            VALUES (requested_organization_id, requested_workspace_id, requested_environment_id, requested_kind, requested_id, result_body)
+            RETURNING "body", "version", "secret_generation" INTO result_body, result_version, result_secret_generation;
+            approval_body := approval_body || jsonb_build_object('expires_at', to_jsonb(transaction_timestamp() + interval '15 minutes'));
+            INSERT INTO "public"."zasp_workflow_records" ("organization_id", "workspace_id", "environment_id", "kind", "id", "body")
+            VALUES (requested_organization_id, requested_workspace_id, requested_environment_id, 'security_agent_approval', approval_body ->> 'id', approval_body);
+        ELSE
+            INSERT INTO "public"."zasp_workflow_records" ("organization_id", "workspace_id", "environment_id", "kind", "id", "body")
+            VALUES (requested_organization_id, requested_workspace_id, requested_environment_id, requested_kind, requested_id, requested_body)
+            RETURNING "body", "version", "secret_generation" INTO result_body, result_version, result_secret_generation;
+        END IF;
     ELSIF mutation = 'update' THEN
         UPDATE "public"."zasp_workflow_records" SET "body" = requested_body, "version" = "version" + 1, "updated_at" = transaction_timestamp()
          WHERE "organization_id" = requested_organization_id AND "workspace_id" = requested_workspace_id AND "environment_id" = requested_environment_id
            AND "kind" = requested_kind AND "id" = requested_id AND "deleted_at" IS NULL AND "version" = expected_version
         RETURNING "body", "version", "secret_generation" INTO result_body, result_version, result_secret_generation;
+        IF result_body IS NOT NULL AND requested_kind = 'security_agent_run' AND requested_operation = 'cancelSecurityAgentRun' THEN
+            UPDATE "public"."zasp_workflow_records"
+               SET "body" = jsonb_set(jsonb_set("body", '{state}', '"cancelled"'::jsonb, true), '{version}', to_jsonb("version" + 1), true), "version" = "version" + 1, "updated_at" = transaction_timestamp()
+             WHERE "organization_id" = requested_organization_id AND "workspace_id" = requested_workspace_id AND "environment_id" = requested_environment_id
+               AND "kind" = 'security_agent_approval' AND "deleted_at" IS NULL AND "body" ->> 'run_id' = requested_id AND "body" ->> 'state' = 'pending';
+        END IF;
     ELSIF mutation = 'delete' THEN
         UPDATE "public"."zasp_workflow_records" SET "deleted_at" = transaction_timestamp(), "version" = "version" + 1, "updated_at" = transaction_timestamp()
          WHERE "organization_id" = requested_organization_id AND "workspace_id" = requested_workspace_id AND "environment_id" = requested_environment_id
