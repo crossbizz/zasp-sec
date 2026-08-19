@@ -98,8 +98,8 @@ describe("Security Agent definition surface", () => {
     await user.type(screen.getByLabelText("Definition name"), "Updated definition");
     await user.click(screen.getByRole("button", { name: "Save definition" }));
     expect(await screen.findByRole("button", { name: "Retry retained definition operation" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Create Security Agent" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: `Open ${created.name}` })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Create Security Agent", hidden: true })).toBeDisabled();
+    expect(screen.getByRole("button", { name: `Open ${created.name}`, hidden: true })).toBeDisabled();
     expect(screen.getByLabelText("Definition name")).toBeDisabled();
     expect(screen.getByLabelText("Definition enabled")).toBeDisabled();
     expect(screen.getByRole("button", { name: "Close details" })).toBeDisabled();
