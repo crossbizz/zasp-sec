@@ -1,0 +1,41 @@
+{{- if and (ne .Values.profile "customer_edge") .Values.ingress.enabled }}
+{{- $host := required "ingress.host is required" .Values.ingress.host -}}
+{{- if ne .Values.global.publicOrigin (printf "https://%s" $host) -}}
+{{- fail "global.publicOrigin must exactly match ingress TLS origin" -}}
+{{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: zasp-product
+  labels: { app.kubernetes.io/part-of: zasp }
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "16k"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "5"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "30"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
+      add_header Content-Security-Policy "default-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; object-src 'none'; connect-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'" always;
+      add_header X-Frame-Options "DENY" always;
+      add_header X-Content-Type-Options "nosniff" always;
+      add_header Referrer-Policy "no-referrer" always;
+      add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()" always;
+spec:
+  ingressClassName: {{ .Values.ingress.className | quote }}
+  tls:
+    - hosts: [{{ $host | quote }}]
+      secretName: {{ required "ingress.tlsSecretName is required" .Values.ingress.tlsSecretName | quote }}
+  rules:
+    - host: {{ $host | quote }}
+      http:
+        paths:
+          - path: /api/v1
+            pathType: Prefix
+            backend: { service: { name: agentsec-api, port: { number: 8080 } } }
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: web, port: { number: 3000 } } }
+{{- end }}

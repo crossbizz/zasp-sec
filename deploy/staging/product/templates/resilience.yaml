@@ -1,13 +1,84 @@
 {{- if ne .Values.profile "customer_edge" }}
-{{- range $name := list "web" "agentsec-api" "agentsec-worker" "event-ingest" "runtime-gateway" "nango" "otel-collector" }}
+{{- range $name := list "web" "agentsec-api" "agentsec-worker" "event-ingest" "runtime-gateway" }}
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
-metadata: { name: {{ $name }} }
+metadata: { name: {{ $name }}, labels: { app.kubernetes.io/name: {{ $name }}, app.kubernetes.io/part-of: zasp } }
 spec:
-  maxUnavailable: 1
+  minAvailable: 1
   selector: { matchLabels: { app.kubernetes.io/name: {{ $name }} } }
 {{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: default-deny, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: dns-egress, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/part-of: zasp } }
+  policyTypes: [Egress]
+  egress:
+    - to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } } }]
+      ports: [{ protocol: UDP, port: 53 }, { protocol: TCP, port: 53 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: web-from-ingress, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: web } }
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .Values.network.ingressNamespace }} } } }]
+      ports: [{ protocol: TCP, port: 3000 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: api-from-ingress, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-api } }
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .Values.network.ingressNamespace }} } } }]
+      ports: [{ protocol: TCP, port: 8080 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: internal-monitoring, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/part-of: zasp } }
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .Values.monitoring.namespace }} } } }]
+      ports: [{ protocol: TCP, port: 8081 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: api-dependencies, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-api } }
+  policyTypes: [Egress]
+  egress:
+    - to: [{ ipBlock: { cidr: {{ required "network.postgresCIDR is required" .Values.network.postgresCIDR | quote }} } }]
+      ports: [{ protocol: TCP, port: 5432 }]
+    - to: [{ ipBlock: { cidr: {{ required "network.stytchCIDR is required" .Values.network.stytchCIDR | quote }} } }]
+      ports: [{ protocol: TCP, port: 443 }]
+    - to: [{ ipBlock: { cidr: {{ required "network.otelCollectorCIDR is required" .Values.network.otelCollectorCIDR | quote }} } }]
+      ports: [{ protocol: TCP, port: 4317 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: schema-database, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-schema } }
+  policyTypes: [Egress]
+  egress:
+    - to: [{ ipBlock: { cidr: {{ required "network.postgresCIDR is required" .Values.network.postgresCIDR | quote }} } }]
+      ports: [{ protocol: TCP, port: 5432 }]
 ---
 apiVersion: vpcresources.k8s.aws/v1beta1
 kind: SecurityGroupPolicy
@@ -16,5 +87,4 @@ spec:
   podSelector: { matchLabels: { zasp.io/execution: attack-lab } }
   securityGroups:
     groupIds: [{{ required "attackLab.securityGroupID is required" .Values.attackLab.securityGroupID | quote }}]
-# topologySpreadConstraints are defined on every replicated workload template.
 {{- end }}

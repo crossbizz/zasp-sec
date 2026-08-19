@@ -1,9 +1,11 @@
 global:
   environment: production
-  deploymentMode: staging
+  deploymentMode: saas
   organizationID: ""
   privateEndpointOnly: true
   terminationGracePeriodSeconds: 30
+  publicOrigin: ""
+  trustedProxyCIDRs: []
   productImages:
     web: ""
     agentsecApi: ""
@@ -21,6 +23,33 @@ replicas:
   agentsecWorker: 3
   eventIngest: 3
   runtimeGateway: 3
+ingress:
+  enabled: true
+  className: nginx
+  host: ""
+  tlsSecretName: ""
+secrets:
+  providerClassName: ""
+  region: us-west-2
+  postgresDSNObjectName: ""
+  stytchProjectIDObjectName: ""
+  stytchSecretObjectName: ""
+  stytchPublicTokenObjectName: ""
+  stytchOrganizationIDObjectName: ""
+  workflowSigningKeyObjectName: ""
+  tokenRevealKeyObjectName: ""
+schema:
+  expectedVersion: 9
+  migrationTimeout: 10m
+serviceAccount:
+  name: agentsec-product
+monitoring:
+  namespace: monitoring
+network:
+  ingressNamespace: ingress-nginx
+  postgresCIDR: ""
+  stytchCIDR: ""
+  otelCollectorCIDR: ""
 attackLab:
   securityGroupID: ""
 profile: control_plane

@@ -1,0 +1,12 @@
+.git
+.superpowers
+.env*
+.wrangler
+.next
+.vinext
+dist
+node_modules
+coverage
+*.log
+deploy/local
+proofs
