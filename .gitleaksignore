@@ -68,3 +68,8 @@ c18029951a778b186499fdf1baa9cfa5db844180:scripts/production-combined-e2e.mjs:gen
 # exact introduction findings; changed or relocated values remain detectable.
 e90eb20090470cd54add98ea8fffb0db171685da:services/platform/apiserver/risk_handler_test.go:generic-api-key:233
 e90eb20090470cd54add98ea8fffb0db171685da:services/platform/apiserver/risk_postgres_integration_test.go:generic-api-key:159
+
+# Task 3 uses one fixed synthetic workflow-signing value only inside the
+# hermetic runtime fixture. Ignore only its exact introduction finding; any
+# changed or relocated value remains detectable.
+85ea81785c5ccfe2ca4043727540c1eb13c5a1a4:services/platform/agentsec-api/runtime_test.go:generic-api-key:207
