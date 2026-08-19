@@ -4849,6 +4849,7 @@ export interface operations {
                     readonly "application/json": components["schemas"]["SecurityActionPage"];
                 };
             };
+            readonly 401: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -4870,6 +4871,7 @@ export interface operations {
                     readonly "application/json": components["schemas"]["SecurityAgentApprovalPage"];
                 };
             };
+            readonly 401: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -4893,6 +4895,7 @@ export interface operations {
                     readonly "application/json": components["schemas"]["SecurityAgentApproval"];
                 };
             };
+            readonly 401: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -4929,6 +4932,7 @@ export interface operations {
                     readonly "application/json": components["schemas"]["SecurityAgentApproval"];
                 };
             };
+            readonly 401: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -4958,6 +4962,7 @@ export interface operations {
                     readonly "application/json": components["schemas"]["SecurityAgentRunPage"];
                 };
             };
+            readonly 401: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -4981,6 +4986,7 @@ export interface operations {
                     readonly "application/json": components["schemas"]["SecurityAgentRunDetail"];
                 };
             };
+            readonly 401: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -5011,6 +5017,7 @@ export interface operations {
                     readonly "application/json": components["schemas"]["SecurityAgentRun"];
                 };
             };
+            readonly 401: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -5032,6 +5039,7 @@ export interface operations {
                     readonly "application/json": components["schemas"]["SecurityAgentTemplatePage"];
                 };
             };
+            readonly 401: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -5061,6 +5069,7 @@ export interface operations {
                     readonly "application/json": components["schemas"]["SecurityAgentPage"];
                 };
             };
+            readonly 401: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -5091,6 +5100,7 @@ export interface operations {
                     readonly "application/json": components["schemas"]["SecurityAgentDefinition"];
                 };
             };
+            readonly 401: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -5114,6 +5124,7 @@ export interface operations {
                     readonly "application/json": components["schemas"]["SecurityAgentDefinition"];
                 };
             };
+            readonly 401: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -5142,6 +5153,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            readonly 401: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -5176,6 +5188,7 @@ export interface operations {
                     readonly "application/json": components["schemas"]["SecurityAgentDefinition"];
                 };
             };
+            readonly 401: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -5208,6 +5221,7 @@ export interface operations {
                     readonly "application/json": components["schemas"]["SecurityAgentRun"];
                 };
             };
+            readonly 401: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -5242,6 +5256,7 @@ export interface operations {
                     readonly "application/json": components["schemas"]["SecurityAgentSimulation"];
                 };
             };
+            readonly 401: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };

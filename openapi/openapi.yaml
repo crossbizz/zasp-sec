@@ -1404,6 +1404,7 @@ paths:
       summary: List bounded product Security Agent templates
       responses:
         '200': { description: Product template page., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentTemplatePage' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/security-actions:
     get:
@@ -1413,6 +1414,7 @@ paths:
         - { name: target, in: query, required: false, schema: { type: string, minLength: 1, maxLength: 64 } }
       responses:
         '200': { description: Supported action page., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityActionPage' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/security-agents:
     get:
@@ -1426,6 +1428,7 @@ paths:
         - { name: environment_id, in: query, required: false, schema: { $ref: '#/components/schemas/ProductID' } }
       responses:
         '200': { description: Security Agent page., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentPage' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
     post:
       operationId: createSecurityAgent
@@ -1435,6 +1438,7 @@ paths:
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentInput' } } } }
       responses:
         '201': { description: Created Security Agent., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentDefinition' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/security-agents/{id}:
     parameters:
@@ -1444,6 +1448,7 @@ paths:
       summary: Get one authorized Security Agent
       responses:
         '200': { description: Authorized Security Agent., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentDefinition' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
     patch:
       operationId: updateSecurityAgent
@@ -1454,6 +1459,7 @@ paths:
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentDefinition' } } } }
       responses:
         '200': { description: Updated Security Agent., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentDefinition' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
     delete:
       operationId: deleteSecurityAgent
@@ -1463,6 +1469,7 @@ paths:
         - $ref: '#/components/parameters/ResourceVersion'
       responses:
         '204': { description: Security Agent safely disabled and soft-deleted., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/security-agents/{id}/simulate:
     parameters:
@@ -1476,6 +1483,7 @@ paths:
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentSimulationInput' } } } }
       responses:
         '200': { description: Side-effect-free simulation., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentSimulation' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/security-agents/{id}/runs:
     parameters:
@@ -1488,6 +1496,7 @@ paths:
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentManualRunInput' } } } }
       responses:
         '201': { description: Queued Security Agent run., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentRun' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/security-agent-runs:
     get:
@@ -1501,6 +1510,7 @@ paths:
         - { name: environment_id, in: query, required: false, schema: { $ref: '#/components/schemas/ProductID' } }
       responses:
         '200': { description: Security Agent run page., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentRunPage' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/security-agent-runs/{id}:
     parameters:
@@ -1510,6 +1520,7 @@ paths:
       summary: Get redacted Security Agent run detail
       responses:
         '200': { description: Redacted run detail., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentRunDetail' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/security-agent-runs/{id}/cancel:
     parameters:
@@ -1522,6 +1533,7 @@ paths:
         - $ref: '#/components/parameters/ResourceVersion'
       responses:
         '200': { description: Cancelled run., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentRun' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/security-agent-approvals:
     get:
@@ -1529,6 +1541,7 @@ paths:
       summary: List Workspace and Environment authorized approvals
       responses:
         '200': { description: Authorized approval page., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentApprovalPage' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/security-agent-approvals/{id}:
     parameters:
@@ -1538,6 +1551,7 @@ paths:
       summary: Get expected effect, reversibility, TTL, and evidence for one approval
       responses:
         '200': { description: Authorized approval detail., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentApproval' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/security-agent-approvals/{id}/decision:
     parameters:
@@ -1552,6 +1566,7 @@ paths:
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentApprovalDecision' } } } }
       responses:
         '200': { description: Updated approval., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentApproval' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/home/summary:
     get:
