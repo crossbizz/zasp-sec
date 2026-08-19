@@ -18,7 +18,7 @@ provider "aws" {
 
 locals {
   api_secret_names = toset([
-    "postgres-dsn",
+    "postgres-api-dsn",
     "stytch-project-id",
     "stytch-secret",
     "stytch-public-token",
@@ -185,7 +185,9 @@ resource "aws_s3_bucket_lifecycle_configuration" "evidence" {
 
 resource "aws_secretsmanager_secret" "product" {
   for_each = toset([
-    "postgres-dsn",
+    "postgres-api-dsn",
+    "postgres-worker-dsn",
+    "postgres-migration-dsn",
     "stytch-project-id",
     "stytch-secret",
     "stytch-public-token",
@@ -321,6 +323,29 @@ resource "aws_iam_role_policy" "api" {
   })
 }
 
+resource "aws_iam_role" "worker" {
+  name = "${var.cluster_name}-discovery-worker"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow", Principal = { Federated = aws_iam_openid_connect_provider.eks.arn }, Action = "sts:AssumeRoleWithWebIdentity"
+      Condition = { StringEquals = {
+        "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:aud" = "sts.amazonaws.com"
+        "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub" = "system:serviceaccount:agentsec:zasp-discovery-worker"
+      } }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "worker" {
+  name = "${var.cluster_name}-discovery-worker-secret"
+  role = aws_iam_role.worker.id
+  policy = jsonencode({ Version = "2012-10-17", Statement = [
+    { Effect = "Allow", Action = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"], Resource = aws_secretsmanager_secret.product["postgres-worker-dsn"].arn },
+    { Effect = "Allow", Action = ["kms:Decrypt"], Resource = aws_kms_key.staging.arn, Condition = { StringEquals = { "kms:ViaService" = "secretsmanager.${var.region}.amazonaws.com" } } },
+  ] })
+}
+
 resource "aws_iam_role" "migration" {
   name = "${var.cluster_name}-migration"
   assume_role_policy = jsonencode({
@@ -339,7 +364,7 @@ resource "aws_iam_role_policy" "migration" {
   name = "${var.cluster_name}-migration-secret"
   role = aws_iam_role.migration.id
   policy = jsonencode({ Version = "2012-10-17", Statement = [
-    { Effect = "Allow", Action = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"], Resource = aws_secretsmanager_secret.product["postgres-dsn"].arn },
+    { Effect = "Allow", Action = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"], Resource = aws_secretsmanager_secret.product["postgres-migration-dsn"].arn },
     { Effect = "Allow", Action = ["kms:Decrypt"], Resource = aws_kms_key.staging.arn, Condition = { StringEquals = { "kms:ViaService" = "secretsmanager.${var.region}.amazonaws.com" } } },
   ] })
 }

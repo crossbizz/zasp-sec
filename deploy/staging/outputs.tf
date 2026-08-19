@@ -36,6 +36,10 @@ output "api_role_arn" {
 output "migration_role_arn" {
   value = aws_iam_role.migration.arn
 }
+
+output "worker_role_arn" {
+  value = aws_iam_role.worker.arn
+}
 output "canary_secret_sync_role_arn" {
   value = aws_iam_role.canary_secret_sync.arn
 }

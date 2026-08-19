@@ -30,7 +30,7 @@ spec:
   parameters:
     region: {{ .Values.secrets.region | quote }}
     objects: |
-      - objectName: {{ required "secrets.postgresDSNObjectName is required" .Values.secrets.postgresDSNObjectName | quote }}
+      - objectName: {{ required "secrets.migrationPostgresDSNObjectName is required" .Values.secrets.migrationPostgresDSNObjectName | quote }}
         objectType: secretsmanager
         objectAlias: postgres-dsn
 ---

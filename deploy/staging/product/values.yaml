@@ -25,9 +25,12 @@ ingress:
 secrets:
   providerClassName: ""
   migrationProviderClassName: zasp-production-migration-secrets
+  workerProviderClassName: zasp-production-worker-secrets
   canaryProviderClassName: zasp-production-canary-secrets
   region: us-west-2
-  postgresDSNObjectName: ""
+  apiPostgresDSNObjectName: ""
+  migrationPostgresDSNObjectName: ""
+  workerPostgresDSNObjectName: ""
   stytchProjectIDObjectName: ""
   stytchSecretObjectName: ""
   stytchPublicTokenObjectName: ""
@@ -45,6 +48,9 @@ serviceAccounts:
     roleArn: ""
   migration:
     name: agentsec-migration
+    roleArn: ""
+  worker:
+    name: zasp-discovery-worker
     roleArn: ""
   canary: agentsec-canary
   canarySecretSync:

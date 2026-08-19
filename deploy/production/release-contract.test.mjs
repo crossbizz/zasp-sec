@@ -62,9 +62,16 @@ test("release renders one TLS origin, split ports, private internals, and migrat
   assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_EXPECTED_SCHEMA_VERSION").value, "10");
   assert.equal(one(resources, "SecretProviderClass", release.secretProviderClass).spec.secretObjects[0].data.length, 7);
   assert.equal(one(resources, "SecretProviderClass", "zasp-production-migration-secrets").spec.secretObjects[0].data.length, 1);
+  assert.equal(one(resources, "SecretProviderClass", "zasp-production-worker-secrets").spec.secretObjects[0].data.length, 1);
   assert.equal(one(resources, "SecretProviderClass", "zasp-production-canary-secrets").spec.secretObjects[0].data.length, 1);
   assert.equal(one(resources, "ServiceAccount", "agentsec-api").metadata.annotations["eks.amazonaws.com/role-arn"], "arn:aws:iam::123456789012:role/zasp-production-api");
   assert.equal(one(resources, "ServiceAccount", "agentsec-migration").metadata.annotations["eks.amazonaws.com/role-arn"], "arn:aws:iam::123456789012:role/zasp-production-migration");
+  assert.equal(one(resources, "ServiceAccount", "zasp-discovery-worker").metadata.annotations["eks.amazonaws.com/role-arn"], "arn:aws:iam::123456789012:role/zasp-production-worker");
+  const rendered = JSON.stringify(resources);
+  assert.match(rendered, /zasp\/production\/postgres-api-dsn/);
+  assert.match(rendered, /zasp\/production\/postgres-worker-dsn/);
+  assert.match(rendered, /zasp\/production\/postgres-migration-dsn/);
+  assert.doesNotMatch(rendered, /zasp\/production\/postgres-dsn"/);
   for (const name of ["agentsec-web", "agentsec-canary"]) {
     assert.equal(one(resources, "ServiceAccount", name).metadata.annotations?.["eks.amazonaws.com/role-arn"], undefined);
   }
@@ -136,18 +143,22 @@ test("terraform binds each shipped secret consumer to one exact least-privilege 
   assert.doesNotMatch(terraform, /Principal\s*=\s*\{\s*AWS\s*=\s*aws_iam_role\.api\.arn/);
   for (const [role, account, secret] of [
     ["api", "agentsec-api", "api_secret_names"],
-    ["migration", "agentsec-migration", "postgres-dsn"],
+    ["worker", "zasp-discovery-worker", "postgres-worker-dsn"],
+    ["migration", "agentsec-migration", "postgres-migration-dsn"],
     ["canary_secret_sync", "agentsec-canary-secret-sync", "canary-read-token"],
   ]) {
     assert.match(terraform, new RegExp(`resource "aws_iam_role" "${role}"`));
     assert.match(terraform, new RegExp(`system:serviceaccount:agentsec:${account}`));
     assert.match(terraform, new RegExp(secret));
   }
-  for (const policy of ["api", "migration", "canary_secret_sync"]) {
+  for (const policy of ["api", "worker", "migration", "canary_secret_sync"]) {
     const block = terraform.slice(terraform.indexOf(`resource "aws_iam_role_policy" "${policy}"`));
     assert.match(block.slice(0, block.indexOf("\n}\n") + 3), /secretsmanager:DescribeSecret.*secretsmanager:GetSecretValue/s);
     assert.doesNotMatch(block.slice(0, block.indexOf("\n}\n") + 3), /s3:|sqs:|es:|kms:Encrypt|kms:GenerateDataKey/);
   }
+  const apiSecrets = terraform.slice(terraform.indexOf("api_secret_names"), terraform.indexOf("queue_contract"));
+  assert.match(apiSecrets, /postgres-api-dsn/);
+  assert.doesNotMatch(apiSecrets, /postgres-worker-dsn|postgres-migration-dsn/);
 });
 
 function one(resources, kind, name) {
