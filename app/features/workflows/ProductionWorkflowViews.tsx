@@ -43,7 +43,7 @@ export function ProductionPoliciesView({ canWrite }: { canWrite: boolean }) {
   const { client, invalidate } = useAPI();
   const session = useSession();
   const api = useMemo(() => createPoliciesAPI(client), [client]);
-  const mutation = useRetainedWorkflowMutation<PolicyMutationIntent>();
+  const mutation = useRetainedWorkflowMutation<PolicyMutationIntent>("policies");
   const query = useAPIQuery("workflow:policies", api.listPolicies);
   const [selected, setSelected] = useState<Versioned<Policy> | null>(null);
   const [policyID, setPolicyID] = useState("policy-production");
@@ -86,7 +86,7 @@ export function ProductionPoliciesView({ canWrite }: { canWrite: boolean }) {
 export function ProductionIntegrationsView({ canWrite }: { canWrite: boolean }) {
   const { client, invalidate } = useAPI();
   const api = useMemo(() => createIntegrationsAPI(client), [client]);
-  const mutation = useRetainedWorkflowMutation<IntegrationMutationIntent>();
+  const mutation = useRetainedWorkflowMutation<IntegrationMutationIntent>("integrations");
   const catalog = useAPIQuery("workflow:integration-catalog", api.listCatalog);
   const integrations = useAPIQuery("workflow:integrations", api.listIntegrations);
   const [manifest, setManifest] = useState<ConnectorManifest | null>(null);

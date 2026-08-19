@@ -25,6 +25,7 @@ import { SessionsComplianceView } from "../features/sessions/SessionsComplianceV
 import { AdminOperationsView } from "../features/administration/AdminOperationsView";
 import { ProductionSecurityAgentsView, SecurityAgentsView } from "../features/securityagents/SecurityAgentsView";
 import { ProductionIntegrationsView, ProductionPoliciesView } from "../features/workflows/ProductionWorkflowViews";
+import { WorkflowMutationProvider } from "../features/workflows/useRetainedWorkflowMutation";
 import { APIProvider } from "../api/APIProvider";
 import { SessionProvider, useSession } from "../auth/SessionProvider";
 import type { APIClient } from "../../apps/web/api/client";
@@ -139,11 +140,12 @@ function ProductionAppContent() {
     setPath(nextPath);
   };
   const selectedScope = `${session.workspaceID}/${session.environmentID}`;
-  return <div className="app-shell production-app">
+  const workflowScopeKey = `${session.organizationID}/${session.workspaceID}/${session.environmentID}`;
+  return <WorkflowMutationProvider scopeKey={workflowScopeKey}><div className="app-shell production-app">
     <header className="topbar"><button className="brand" onClick={() => navigate("/")} aria-label="Zasp overview">Zasp</button><span>Agent Security</span>{session.hasCapability("scope.switch") && session.scopes.length > 1 && <><select aria-label="Authorized scope" value={selectedScope} disabled={session.scopeSwitch.status === "pending"} onChange={(event) => { const scope = session.scopes.find((item) => `${item.workspace_id}/${item.environment_id}` === event.target.value); if (scope) void session.switchScope(scope.workspace_id, scope.environment_id); }}>{session.scopes.map((scope) => <option key={`${scope.workspace_id}/${scope.environment_id}`} value={`${scope.workspace_id}/${scope.environment_id}`}>{scope.label}</option>)}</select>{session.scopeSwitch.status === "pending" && <span role="status">Switching scope…</span>}{session.scopeSwitch.status === "error" && <span role="alert">Scope switch failed <Button onClick={() => void session.scopeSwitch.retry()}>Retry</Button></span>}</>}<Button onClick={() => void session.signOut()}>Sign out</Button></header>
     <aside className="sidebar"><nav aria-label="Main navigation">{routes.map((route) => <a key={route.path} href={route.path} aria-label={route.label} aria-current={visiblePath === route.path ? "page" : undefined} onClick={(event) => { event.preventDefault(); navigate(route.path); }}>{route.label}</a>)}</nav></aside>
     <main className="main-content">{session.scopeSwitch.status === "pending" ? <LoadingState label="Switching authorized scope…" /> : <ProductionRouteSurface key={`${session.organizationID}/${session.workspaceID}/${session.environmentID}`} path={visiblePath} navigate={navigate} />}</main>
-  </div>;
+  </div></WorkflowMutationProvider>;
 }
 
 export function ZaspApp({ client }: { client?: APIClient } = {}) {

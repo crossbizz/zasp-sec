@@ -86,7 +86,7 @@ async function loadSecurityAgentSnapshot(api: SecurityAgentsAPI, signal?: AbortS
 }
 
 function Builder({ templates, api, environmentID, onCreated }: { templates: readonly SecurityAgentTemplate[]; api: SecurityAgentsAPI; environmentID: string; onCreated(value: SecurityAgentDefinition): void }) {
-  const mutation = useRetainedWorkflowMutation<SecurityAgentCreateIntent>();
+  const mutation = useRetainedWorkflowMutation<SecurityAgentCreateIntent>("security-agent:create");
   const [templateID, setTemplateID] = useState(templates[0]?.id ?? "");
   const [name, setName] = useState("Bounded response definition");
   const [steps, setSteps] = useState(10);
@@ -120,7 +120,7 @@ function Builder({ templates, api, environmentID, onCreated }: { templates: read
 }
 
 function AgentDetail({ selected, api, canWrite, onChange, onDelete, onClose }: { selected: Versioned<SecurityAgentDefinition>; api: SecurityAgentsAPI; canWrite: boolean; onChange(value: Versioned<SecurityAgentDefinition>): void; onDelete(): void; onClose(): void }) {
-  const mutation = useRetainedWorkflowMutation<SecurityAgentDetailIntent>();
+  const mutation = useRetainedWorkflowMutation<SecurityAgentDetailIntent>(`security-agent:${selected.value.id}`);
   const [name, setName] = useState(selected.value.name);
   const [enabled, setEnabled] = useState(selected.value.enabled);
   const [busy, setBusy] = useState(false);

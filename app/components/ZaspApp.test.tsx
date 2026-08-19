@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 import { createAPIClient } from "../../apps/web/api/client";
@@ -188,6 +188,42 @@ describe("Zasp application", () => {
 		expect(screen.queryByRole("button", { name: /authorize|sync/i })).not.toBeInTheDocument();
 		expect(requests).toEqual(expect.arrayContaining(["/api/v1/session/bootstrap", "/api/v1/policies", "/api/v1/policies/policy-production", "/api/v1/integrations", "/api/v1/integration-catalog"]));
 		expect(requests).not.toContain("/api/v1/policies/policy-production/decisions");
+	});
+
+	it("restores one retryable committed policy attempt after navigating away and back", async () => {
+		window.history.replaceState({}, "", "/policies");
+		const keys: string[] = [];
+		const policy = { id: "policy-production", name: "Production runtime policy", scope: "environment", trigger: "tool", conditions: [{ field: "action", operator: "equals", value: "write" }], action: "monitor", rollout: "draft", failure_mode: "open" };
+		const client = createAPIClient({
+			generateCorrelationID: () => "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+			fetch: async (request) => {
+				const path = new URL(request.url).pathname;
+				if (path === "/api/v1/session/bootstrap") return apiJSON({
+					principal: { id: "pid_10000004-0000-4000-8000-000000000004", organization_id: "pid_10000001-0000-4000-8000-000000000001", organization_reference: "organization-live", member_reference: "member-live", role: "security_admin", active: true },
+					organization_id: "pid_10000001-0000-4000-8000-000000000001", workspace_id: "pid_10000002-0000-4000-8000-000000000002", environment_id: "pid_10000003-0000-4000-8000-000000000003",
+					permissions: ["view", "manage_workflows"], capabilities: ["policies.read", "policies.write", "integrations.read"], csrf_token: "cccccccccccccccccccccccccccccccc", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+				});
+				if (path === "/api/v1/policies" && request.method === "GET") return apiJSON({ items: [] });
+				if (path === "/api/v1/policies" && request.method === "POST") {
+					keys.push(request.headers.get("Idempotency-Key") ?? "");
+					if (keys.length < 3) return apiJSON({ code: "temporarily_unavailable", message: "Committed response is not available yet.", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: true }, 503);
+					return apiJSON(policy, 201, { ETag: '"1"', "X-Audit-ID": "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" });
+				}
+				if (path === "/api/v1/integrations" || path === "/api/v1/integration-catalog") return apiJSON({ items: [] });
+				throw new Error(`unexpected product fetch ${request.method} ${path}`);
+			},
+		});
+		render(<ZaspApp client={client} />);
+		await userEvent.click(await screen.findByRole("button", { name: "Create policy" }));
+		expect(await screen.findByRole("button", { name: "Retry retained policy operation" })).toBeVisible();
+		await userEvent.click(screen.getByRole("link", { name: "Integrations" }));
+		expect(await screen.findByRole("heading", { name: "Integrations" })).toBeVisible();
+		await userEvent.click(screen.getByRole("link", { name: "Policies" }));
+		expect(await screen.findByRole("button", { name: "Retry retained policy operation" })).toBeVisible();
+		await userEvent.click(screen.getByRole("button", { name: "Retry retained policy operation" }));
+		expect(await screen.findByText(/Policy created\. Audit pid_/)).toBeVisible();
+		await waitFor(() => expect(keys).toHaveLength(3));
+		expect(new Set(keys).size).toBe(1);
 	});
 
 	it("capability-hides sensor enrollment even when stale server capabilities advertise it", async () => {

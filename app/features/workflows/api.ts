@@ -1,5 +1,5 @@
 import type { APIClient } from "../../../apps/web/api/client";
-import { APITransportError, requireAPIData } from "../../../apps/web/api/client";
+import { APIProductError, APITransportError, requireAPIData } from "../../../apps/web/api/client";
 import {
   decodeConnectorManifestPage,
   decodeIntegration,
@@ -61,7 +61,9 @@ export function workflowMutationHeaders(attempt: WorkflowMutationAttempt, versio
 }
 
 export function isAmbiguousWorkflowMutationError(error: unknown): boolean {
-  return error instanceof TypeError || error instanceof APITransportError && ["timeout", "invalid_response", "invalid_error"].includes(error.kind);
+  return error instanceof TypeError
+    || error instanceof APIProductError && error.product.retryable
+    || error instanceof APITransportError && ["timeout", "invalid_response", "invalid_error"].includes(error.kind);
 }
 
 export async function executeWorkflowMutation<T>(send: (attempt: WorkflowMutationAttempt) => Promise<T>, attempt: WorkflowMutationAttempt = createWorkflowMutationAttempt()): Promise<T> {

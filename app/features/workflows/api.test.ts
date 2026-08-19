@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { APITransportError, type APIClient } from "../../../apps/web/api/client";
+import { APIProductError, APITransportError, type APIClient } from "../../../apps/web/api/client";
 import type { Policy } from "../../../apps/web/api/generated";
 import { createPoliciesAPI, createRetainedWorkflowMutationController, createWorkflowMutationAttempt, workflowIdempotencyKey } from "./api";
 
@@ -76,6 +76,26 @@ describe("production workflow API", () => {
     expect(new Set(POST.mock.calls.map(([, options]) => options.params.header["Idempotency-Key"])).size).toBe(1);
     expect(observed.every(({ intent }) => Object.isFrozen(intent) && Object.isFrozen(intent.conditions))).toBe(true);
     expect(controller.hasAmbiguousAttempt()).toBe(false);
+  });
+
+  it("retains a committed attempt after a valid retryable product error", async () => {
+    const controller = createRetainedWorkflowMutationController<Policy>();
+    const keys: string[] = [];
+    const send = async (_intent: Policy, attempt: { idempotencyKey: string }) => {
+      keys.push(attempt.idempotencyKey);
+      if (keys.length < 2) throw new APIProductError(503, {
+        code: "temporarily_unavailable",
+        message: "The committed mutation response is not yet available.",
+        correlation_id: "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        retryable: true,
+      });
+      return "reconciled";
+    };
+
+    await expect(controller.execute(policy, send)).rejects.toMatchObject({ status: 503 });
+    expect(controller.hasAmbiguousAttempt()).toBe(true);
+    await expect(controller.retry()).resolves.toBe("reconciled");
+    expect(new Set(keys).size).toBe(1);
   });
 
   it("permits a fresh attempt only after a definitive result or explicit server reconciliation", async () => {
