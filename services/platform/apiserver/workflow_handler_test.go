@@ -112,7 +112,7 @@ func TestWorkflowHandlerBuildsAtomicDurablePolicyDecision(t *testing.T) {
 	policyBody := json.RawMessage(`{"id":"policy-bounded","name":"Bounded policy","scope":"environment","trigger":"tool","conditions":[{"field":"action","operator":"equals","value":"write"}],"action":"block","rollout":"enforced","failure_mode":"closed"}`)
 	repository := &workflowRepositoryStub{value: WorkflowValue{Body: policyBody, Version: 2}, result: WorkflowMutationResult{WorkflowValue: WorkflowValue{Body: json.RawMessage(`{"matches":1,"would_block":1,"example_session_ids":["session-1"]}`), Version: 2}, AuditID: "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", CorrelationID: correlation}}
 	handler, _ := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), func() time.Time { return time.Date(2026, 8, 18, 12, 0, 0, 0, time.UTC) })
-	request := workflowRequest(t, identity, correlation, "simulatePolicy", map[string]string{"id": "policy-bounded"}, http.MethodPost, "/api/v1/policies/policy-bounded/simulate", `{"events":[{"action":"write","session_id":"session-1"}]}`)
+	request := workflowRequest(t, identity, correlation, "simulatePolicy", map[string]string{"id": "policy-bounded"}, http.MethodPost, "/api/v1/policies/policy-bounded/simulate", `{"events":[{"principal_id":"principal-1","agent_id":"agent-1","session_id":"session-1","action":"write","resource":"scoped-resource","environment_id":"`+identity.Scope.EnvironmentID().String()+`","metadata":{}}]}`)
 	request.Header.Set("Idempotency-Key", "idem-simulate-policy-001")
 	request.Header.Set("If-Match", `"2"`)
 	response := httptest.NewRecorder()

@@ -205,7 +205,7 @@ func (handler *workflowHTTPHandler) buildMutation(request *http.Request, identit
 			return WorkflowMutation{}, 0, "", err
 		}
 		var input struct {
-			Events []map[string]string `json:"events"`
+			Events []platformpolicy.ActionContext `json:"events"`
 		}
 		if decodeProductionJSON(request, &input) != nil || len(input.Events) < 1 || len(input.Events) > 100 {
 			return WorkflowMutation{}, 0, "", ErrRepositoryOperation
@@ -220,7 +220,21 @@ func (handler *workflowHTTPHandler) buildMutation(request *http.Request, identit
 		}
 		matches, blocks, examples := 0, 0, []string{}
 		for _, event := range input.Events {
-			decision, evaluateErr := platformpolicy.Evaluate(request.Context(), compiled, event)
+			normalized, normalizeErr := platformpolicy.NormalizeActionContext(event)
+			if normalizeErr != nil || normalized.EnvironmentID != identity.Scope.EnvironmentID().String() {
+				return WorkflowMutation{}, 0, "", ErrRepositoryOperation
+			}
+			evaluation := make(map[string]string, len(normalized.Metadata)+6)
+			for key, value := range normalized.Metadata {
+				evaluation[key] = value
+			}
+			evaluation["principal_id"] = normalized.PrincipalID
+			evaluation["agent_id"] = normalized.AgentID
+			evaluation["session_id"] = normalized.SessionID
+			evaluation["action"] = normalized.Action
+			evaluation["resource"] = normalized.Resource
+			evaluation["environment_id"] = normalized.EnvironmentID
+			decision, evaluateErr := platformpolicy.Evaluate(request.Context(), compiled, evaluation)
 			if evaluateErr != nil {
 				return WorkflowMutation{}, 0, "", ErrRepositoryOperation
 			}
@@ -229,7 +243,7 @@ func (handler *workflowHTTPHandler) buildMutation(request *http.Request, identit
 				if decision.Action == platformpolicy.ActionBlock {
 					blocks++
 				}
-				if session := event["session_id"]; len(examples) < 5 && session != "" {
+				if session := normalized.SessionID; len(examples) < 5 && session != "" {
 					examples = append(examples, session)
 				}
 			}

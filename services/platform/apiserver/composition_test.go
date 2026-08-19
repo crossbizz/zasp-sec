@@ -191,6 +191,18 @@ func TestWorkflowMutationAllowsPATWithoutBrowserCSRF(t *testing.T) {
 	}
 }
 
+func TestUnauthenticatedSessionCallbackDoesNotRequirePreexistingCSRF(t *testing.T) {
+	composition, err := NewComposition(Dependencies{Session: handlerResponse("session"), Identity: handlerResponse("identity"), Inventory: handlerResponse("inventory"), Risk: handlerResponse("risk"), Workflow: handlerResponse("workflow")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := httptest.NewRecorder()
+	composition.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/api/v1/session/callback", nil))
+	if response.Code != http.StatusOK || response.Body.String() != "session" {
+		t.Fatalf("callback = %d %q", response.Code, response.Body.String())
+	}
+}
+
 func TestNewCompositionFailsClosedOnInvalidDependencies(t *testing.T) {
 	valid := Dependencies{Session: handlerResponse("session"), Identity: handlerResponse("identity"), Inventory: handlerResponse("inventory"), Risk: handlerResponse("risk"), Workflow: handlerResponse("workflow")}
 	tests := []struct {

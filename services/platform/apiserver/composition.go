@@ -133,7 +133,8 @@ func NewComposition(dependencies Dependencies) (http.Handler, error) {
 				security = append(security, CredentialBearerToken)
 			}
 		}
-		operations = append(operations, Operation{Method: definition.Method, Pattern: definition.Pattern, OperationID: definition.OperationID, Permission: definition.Permission, Security: security, RequireCSRF: definition.OperationID == "signOutSession" || definition.OperationID == "switchSessionScope" || isMutation(definition.Method), Handler: handler})
+		requireCSRF := definition.OperationID == "signOutSession" || definition.OperationID == "switchSessionScope" || isMutation(definition.Method) && len(security) > 0
+		operations = append(operations, Operation{Method: definition.Method, Pattern: definition.Pattern, OperationID: definition.OperationID, Permission: definition.Permission, Security: security, RequireCSRF: requireCSRF, Handler: handler})
 	}
 	router, err := NewRouter(operations)
 	if err != nil {
