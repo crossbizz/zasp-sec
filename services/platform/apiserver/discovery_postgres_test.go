@@ -113,7 +113,7 @@ func TestProductionDiscoveryPostgresAtomicSnapshotReplayIsolationLeaseAndGateway
 	if _, err := repository.CreateIntegration(ctx, identity, IntegrationCreate{ID: integrationID, Kind: "aws", ConnectorVersion: "1.0.0", DisplayName: "AWS", Configuration: json.RawMessage(`{"role_reference":"ref:aws/role/prod0001"}`)}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := connection.Exec(ctx, `UPDATE zasp_integrations SET state='active' WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND id=$4`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), integrationID); err != nil {
+	if _, err := repository.TransitionIntegration(ctx, scope, IntegrationTransition{ID: integrationID, ExpectedVersion: 1, State: "active"}); err != nil {
 		t.Fatal(err)
 	}
 	digest := sha256.Sum256([]byte("sync-one"))
@@ -238,7 +238,7 @@ func TestProductionDiscoveryPostgresAtomicSnapshotReplayIsolationLeaseAndGateway
 	if _, err := repository.CreateIntegration(ctx, identity, IntegrationCreate{ID: secondIntegrationID, Kind: "aws", ConnectorVersion: "1.0.0", DisplayName: "AWS secondary", Configuration: json.RawMessage(`{"role_reference":"ref:aws/role/prod0002"}`)}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := connection.Exec(ctx, `UPDATE zasp_integrations SET state='active' WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND id=$4`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), secondIntegrationID); err != nil {
+	if _, err := repository.TransitionIntegration(ctx, scope, IntegrationTransition{ID: secondIntegrationID, ExpectedVersion: 1, State: "active"}); err != nil {
 		t.Fatal(err)
 	}
 	wrongParentSnapshot := "pid_42000002-0000-4000-8000-000000000002"
@@ -267,7 +267,7 @@ func TestProductionDiscoveryPostgresAtomicSnapshotReplayIsolationLeaseAndGateway
 	if err := connection.QueryRow(ctx, `SELECT (SELECT id FROM zasp_discovery_snapshots WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND integration_id=$4 AND is_last_good),(SELECT cursor_value FROM zasp_discovery_cursors WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND integration_id=$4 AND provider='aws'),(SELECT state FROM zasp_discovery_syncs WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND id=$5)`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), integrationID, secondRequest.SyncID).Scan(&lastGood, &cursorValue, &syncState); err != nil || lastGood != candidate.SnapshotID || cursorValue != "cursor-1" || syncState != "queued" {
 		t.Fatalf("last-good=%s cursor=%s sync=%s err=%v", lastGood, cursorValue, syncState, err)
 	}
-	if _, err := connection.Exec(ctx, `INSERT INTO zasp_inventory_source_observations(organization_id,workspace_id,environment_id,integration_id,entity_id,source_native_id,snapshot_id,source_state,attributes,first_seen_at,last_seen_at) VALUES($1,$2,$3,$4,$5,'foreign-native',$6,'present','{}',transaction_timestamp(),transaction_timestamp())`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), secondIntegrationID, entityID, candidate.SnapshotID); err == nil {
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_inventory_source_observations(organization_id,workspace_id,environment_id,integration_id,source,entity_id,source_native_id,snapshot_id,source_state,attributes,first_seen_at,last_seen_at) VALUES($1,$2,$3,$4,'aws',$5,'foreign-native',$6,'present','{}',transaction_timestamp(),transaction_timestamp())`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), secondIntegrationID, entityID, candidate.SnapshotID); err == nil {
 		t.Fatal("wrong-integration observation snapshot unexpectedly accepted")
 	}
 	claims, err := repository.ClaimOutbox(ctx, "worker-a", "lease-token-00000001", 30, 10)
@@ -284,6 +284,9 @@ func TestProductionDiscoveryPostgresAtomicSnapshotReplayIsolationLeaseAndGateway
 	if err := repository.AcknowledgeOutbox(ctx, scope, request.OutboxID, "worker-a", "lease-token-00000001", "wrong-owner"); !errors.Is(err, ErrRepositoryNotFound) {
 		t.Fatalf("wrong-owner ack=%v", err)
 	}
+	if err := repository.RetryOutbox(ctx, scope, request.OutboxID, "worker-a", "lease-token-00000001", 5, "expired owner"); !errors.Is(err, ErrRepositoryNotFound) {
+		t.Fatalf("expired-owner retry=%v", err)
+	}
 	if err := repository.AcknowledgeOutbox(ctx, scope, request.OutboxID, "worker-b", "lease-token-00000002", "provider-ack-1"); err != nil {
 		t.Fatal(err)
 	}
@@ -297,8 +300,11 @@ func TestProductionDiscoveryPostgresAtomicSnapshotReplayIsolationLeaseAndGateway
 	if err := connection.QueryRow(ctx, `SELECT zasp_discovery_claim_jobs('job-worker-b','job-lease-token-0002',30,10,'discovery')`).Scan(&jobClaim2); err != nil || !strings.Contains(string(jobClaim2), request.JobID) {
 		t.Fatalf("job reclaim=%s err=%v", jobClaim2, err)
 	}
+	if _, err := repository.FinishDiscoveryJob(ctx, scope, DiscoveryJobCompletion{ID: request.JobID, Worker: "job-worker-a", LeaseToken: "job-lease-token-0001", Outcome: "failed", LastError: "expired owner"}); !errors.Is(err, ErrRepositoryNotFound) {
+		t.Fatalf("expired-owner job completion=%v", err)
+	}
 	scheduleID := "pid_42000007-0000-4000-8000-000000000007"
-	if _, err := connection.Exec(ctx, `INSERT INTO zasp_discovery_schedules(organization_id,workspace_id,environment_id,id,integration_id,cadence_seconds,next_run_at) VALUES($1,$2,$3,$4,$5,300,transaction_timestamp()-interval '1 minute')`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), scheduleID, integrationID); err != nil {
+	if _, err := repository.PutDiscoverySchedule(ctx, scope, DiscoverySchedulePut{ID: scheduleID, IntegrationID: integrationID, CadenceSeconds: 300, NextRunAt: time.Now().UTC().Add(-time.Minute)}); err != nil {
 		t.Fatal(err)
 	}
 	var scheduleClaim []byte
@@ -314,10 +320,10 @@ func TestProductionDiscoveryPostgresAtomicSnapshotReplayIsolationLeaseAndGateway
 	enrollmentID := "pid_41000007-0000-4000-8000-000000000007"
 	credentialID := "pid_41000008-0000-4000-8000-000000000008"
 	tokenHash := sha256.Sum256([]byte("gateway-token"))
-	if _, err := connection.Exec(ctx, `INSERT INTO zasp_gateway_devices(organization_id,workspace_id,environment_id,id,name) VALUES($1,$2,$3,$4,'Gateway')`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), deviceID); err != nil {
+	if _, err := repository.CreateGatewayDevice(ctx, scope, GatewayDeviceCreate{ID: deviceID, Name: "Gateway"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := connection.Exec(ctx, `INSERT INTO zasp_gateway_enrollment_tokens(organization_id,workspace_id,environment_id,id,device_id,audience,salt,token_hash,expires_at) VALUES($1,$2,$3,$5,$4,'runtime-gateway-enroll',$6,$7,transaction_timestamp()+interval '1 hour')`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), deviceID, enrollmentID, make([]byte, 16), tokenHash[:]); err != nil {
+	if _, err := repository.IssueGatewayEnrollmentToken(ctx, scope, GatewayEnrollmentTokenIssue{ID: enrollmentID, DeviceID: deviceID, Salt: make([]byte, 16), TokenHash: tokenHash[:], ExpiresAt: time.Now().UTC().Add(time.Hour)}); err != nil {
 		t.Fatal(err)
 	}
 	enrollment := GatewayEnrollment{DeviceID: deviceID, EnrollmentID: enrollmentID, CredentialID: credentialID, Audience: "runtime-gateway", KeyReference: "ref:kms/gateway/key-0001", TokenHash: tokenHash[:], Salt: make([]byte, 16), PublicKey: make([]byte, 32), ExpiresAt: time.Now().UTC().Add(time.Hour)}
@@ -362,11 +368,11 @@ func TestProductionDiscoveryPostgresAtomicSnapshotReplayIsolationLeaseAndGateway
 		t.Fatalf("stale policy=%v", err)
 	}
 	foreignDevice := "pid_41000009-0000-4000-8000-000000000009"
-	if _, err := connection.Exec(ctx, `INSERT INTO zasp_gateway_devices(organization_id,workspace_id,environment_id,id,name) VALUES($1,$2,$3,$4,'Foreign')`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), foreignDevice); err != nil {
+	if _, err := repository.CreateGatewayDevice(ctx, scope, GatewayDeviceCreate{ID: foreignDevice, Name: "Foreign"}); err != nil {
 		t.Fatal(err)
 	}
 	foreignEnrollment := "pid_41000011-0000-4000-8000-000000000011"
-	if _, err := connection.Exec(ctx, `INSERT INTO zasp_gateway_enrollment_tokens(organization_id,workspace_id,environment_id,id,device_id,audience,salt,token_hash,expires_at) VALUES($1,$2,$3,$4,$5,'runtime-gateway-enroll',$6,$7,transaction_timestamp()+interval '1 hour')`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), foreignEnrollment, foreignDevice, make([]byte, 16), sha256.New().Sum(nil)); err != nil {
+	if _, err := repository.IssueGatewayEnrollmentToken(ctx, scope, GatewayEnrollmentTokenIssue{ID: foreignEnrollment, DeviceID: foreignDevice, Salt: make([]byte, 16), TokenHash: sha256.New().Sum(nil), ExpiresAt: time.Now().UTC().Add(time.Hour)}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := connection.Exec(ctx, `INSERT INTO zasp_gateway_credentials(organization_id,workspace_id,environment_id,id,device_id,enrollment_token_id,enrollment_digest,audience,key_reference,public_key,expires_at,rotated_from_id) VALUES($1,$2,$3,'pid_41000010-0000-4000-8000-000000000010',$4,$5,$6,'runtime-gateway','ref:kms/gateway/key-0002',$7,transaction_timestamp()+interval '1 hour',$8)`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), foreignDevice, foreignEnrollment, make([]byte, 32), make([]byte, 32), credentialID); err == nil {
@@ -375,10 +381,13 @@ func TestProductionDiscoveryPostgresAtomicSnapshotReplayIsolationLeaseAndGateway
 	sensorOne := "pid_43000001-0000-4000-8000-000000000001"
 	sensorTwo := "pid_43000002-0000-4000-8000-000000000002"
 	sensorToken := "pid_43000003-0000-4000-8000-000000000003"
-	if _, err := connection.Exec(ctx, `INSERT INTO zasp_sensors(organization_id,workspace_id,environment_id,id,name,kind) VALUES($1,$2,$3,$4,'one','otlp'),($1,$2,$3,$5,'two','otlp')`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), sensorOne, sensorTwo); err != nil {
+	if _, err := repository.CreateSensor(ctx, scope, SensorCreate{ID: sensorOne, Name: "one", Kind: "otlp"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := connection.Exec(ctx, `INSERT INTO zasp_sensor_tokens(organization_id,workspace_id,environment_id,id,sensor_id,salt,token_hash,expires_at) VALUES($1,$2,$3,$4,$5,$6,$7,transaction_timestamp()+interval '1 hour')`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), sensorToken, sensorOne, make([]byte, 16), make([]byte, 32)); err != nil {
+	if _, err := repository.CreateSensor(ctx, scope, SensorCreate{ID: sensorTwo, Name: "two", Kind: "otlp"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repository.IssueSensorToken(ctx, scope, SensorTokenIssue{SensorID: sensorOne, TokenID: sensorToken, Salt: make([]byte, 16), TokenHash: make([]byte, 32), ExpiresAt: time.Now().UTC().Add(time.Hour)}); err != nil {
 		t.Fatal(err)
 	}
 	rotatedSensorToken := "pid_43000005-0000-4000-8000-000000000005"

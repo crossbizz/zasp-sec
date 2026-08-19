@@ -18,37 +18,57 @@ import (
 )
 
 const (
-	postgresDiscoveryReadySQL              = `SELECT to_jsonb(zasp_discovery_readiness($1,$2))`
-	postgresDiscoveryCreateIntegrationSQL  = `SELECT zasp_discovery_create_integration($1,$2,$3,$4,$5,$6,$7,$8::jsonb,NULLIF($9,''))`
-	postgresDiscoveryRequestSyncSQL        = `SELECT zasp_discovery_request_sync($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`
-	postgresDiscoveryApplySnapshotSQL      = `SELECT zasp_discovery_apply_snapshot($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb,$15::jsonb,$16::jsonb)`
-	postgresDiscoveryEntityPageSQL         = `SELECT zasp_discovery_entity_page($1,$2,$3,NULLIF($4,''),$5)`
-	postgresDiscoveryClaimOutboxSQL        = `SELECT zasp_discovery_claim_outbox($1,$2,$3,$4)`
-	postgresDiscoveryAckOutboxSQL          = `SELECT zasp_discovery_ack_outbox($1,$2,$3,$4,$5,$6,$7)`
-	postgresDiscoveryIssueSensorTokenSQL   = `SELECT zasp_discovery_issue_sensor_token($1,$2,$3,$4,$5,$6,$7,$8)`
-	postgresDiscoveryGatewayEnrollSQL      = `SELECT zasp_discovery_gateway_enroll($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`
-	postgresDiscoveryGatewayAdvanceSQL     = `SELECT zasp_discovery_gateway_advance_replay($1,$2,$3,$4,$5,$6)`
-	postgresDiscoveryGatewayRotateSQL      = `SELECT zasp_discovery_gateway_rotate($1,$2,$3,$4,$5,$6,$7,$8,$9)`
-	postgresDiscoveryGatewayRevokeSQL      = `SELECT zasp_discovery_gateway_revoke($1,$2,$3,$4,$5)`
-	postgresDiscoveryGatewayPolicySQL      = `SELECT zasp_discovery_put_gateway_policy($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`
-	postgresDiscoveryClaimJobsSQL          = `SELECT zasp_discovery_claim_jobs($1,$2,$3,$4,$5)`
-	postgresDiscoveryClaimSchedulesSQL     = `SELECT zasp_discovery_claim_schedules($1,$2,$3,$4)`
-	postgresDiscoveryClaimProjectionSQL    = `SELECT zasp_discovery_claim_projection_work($1,$2,$3,$4)`
-	postgresDiscoveryCompleteJobSQL        = `SELECT zasp_discovery_complete_job($1,$2,$3,$4,$5,$6,$7,$8,$9)`
-	postgresDiscoveryRetryOutboxSQL        = `SELECT zasp_discovery_retry_outbox($1,$2,$3,$4,$5,$6,$7,$8)`
-	postgresDiscoveryCompleteProjectionSQL = `SELECT zasp_discovery_complete_projection($1,$2,$3,$4,$5,$6,$7,$8,$9)`
-	postgresDiscoveryEvidenceGetSQL        = `SELECT zasp_discovery_evidence_get($1,$2,$3,$4)`
-	postgresDiscoverySensorRotateSQL       = `SELECT zasp_discovery_sensor_rotate($1,$2,$3,$4,$5,$6,$7,$8,$9)`
-	postgresDiscoverySensorRevokeSQL       = `SELECT zasp_discovery_sensor_revoke($1,$2,$3,$4,$5)`
-	postgresDiscoverySensorHeartbeatSQL    = `SELECT zasp_discovery_sensor_heartbeat($1,$2,$3,$4,$5,$6,$7,$8::jsonb)`
-	postgresDiscoveryRuntimeBatchSQL       = `SELECT zasp_discovery_create_runtime_batch($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
-	postgresDiscoveryRuntimeStageSQL       = `SELECT zasp_discovery_complete_runtime_stage($1,$2,$3,$4,$5,$6,$7,$8)`
+	postgresDiscoveryReadySQL                   = `SELECT to_jsonb(zasp_discovery_readiness($1,$2))`
+	postgresDiscoveryCreateIntegrationSQL       = `SELECT zasp_discovery_create_integration($1,$2,$3,$4,$5,$6,$7,$8::jsonb,NULLIF($9,''))`
+	postgresDiscoveryTransitionIntegrationSQL   = `SELECT zasp_discovery_transition_integration($1,$2,$3,$4,$5,$6)`
+	postgresDiscoveryPutConnectionSQL           = `SELECT zasp_discovery_put_connection($1,$2,$3,$4,$5,$6,$7)`
+	postgresDiscoveryTransitionConnectionSQL    = `SELECT zasp_discovery_transition_connection($1,$2,$3,$4,$5,$6,$7)`
+	postgresDiscoveryPutScheduleSQL             = `SELECT zasp_discovery_put_schedule($1,$2,$3,$4,$5,$6,$7,$8)`
+	postgresDiscoveryTransitionScheduleSQL      = `SELECT zasp_discovery_transition_schedule($1,$2,$3,$4,$5,$6)`
+	postgresDiscoveryCreateSensorSQL            = `SELECT zasp_discovery_create_sensor($1,$2,$3,$4,$5,$6)`
+	postgresDiscoveryTransitionSensorSQL        = `SELECT zasp_discovery_transition_sensor($1,$2,$3,$4,$5,$6)`
+	postgresDiscoveryCreateGatewayDeviceSQL     = `SELECT zasp_discovery_create_gateway_device($1,$2,$3,$4,$5)`
+	postgresDiscoveryTransitionGatewayDeviceSQL = `SELECT zasp_discovery_transition_gateway_device($1,$2,$3,$4,$5,$6)`
+	postgresDiscoveryIssueGatewayEnrollmentSQL  = `SELECT zasp_discovery_issue_gateway_enrollment($1,$2,$3,$4,$5,$6,$7,$8)`
+	postgresDiscoveryRevokeGatewayEnrollmentSQL = `SELECT zasp_discovery_revoke_gateway_enrollment($1,$2,$3,$4,$5)`
+	postgresDiscoveryRequestSyncSQL             = `SELECT zasp_discovery_request_sync($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`
+	postgresDiscoveryApplySnapshotSQL           = `SELECT zasp_discovery_apply_snapshot($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb,$15::jsonb,$16::jsonb)`
+	postgresDiscoveryEntityPageSQL              = `SELECT zasp_discovery_entity_page($1,$2,$3,NULLIF($4,''),$5)`
+	postgresDiscoveryClaimOutboxSQL             = `SELECT zasp_discovery_claim_outbox($1,$2,$3,$4)`
+	postgresDiscoveryAckOutboxSQL               = `SELECT zasp_discovery_ack_outbox($1,$2,$3,$4,$5,$6,$7)`
+	postgresDiscoveryIssueSensorTokenSQL        = `SELECT zasp_discovery_issue_sensor_token($1,$2,$3,$4,$5,$6,$7,$8)`
+	postgresDiscoveryGatewayEnrollSQL           = `SELECT zasp_discovery_gateway_enroll($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`
+	postgresDiscoveryGatewayAdvanceSQL          = `SELECT zasp_discovery_gateway_advance_replay($1,$2,$3,$4,$5,$6)`
+	postgresDiscoveryGatewayRotateSQL           = `SELECT zasp_discovery_gateway_rotate($1,$2,$3,$4,$5,$6,$7,$8,$9)`
+	postgresDiscoveryGatewayRevokeSQL           = `SELECT zasp_discovery_gateway_revoke($1,$2,$3,$4,$5)`
+	postgresDiscoveryGatewayPolicySQL           = `SELECT zasp_discovery_put_gateway_policy($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`
+	postgresDiscoveryClaimJobsSQL               = `SELECT zasp_discovery_claim_jobs($1,$2,$3,$4,$5)`
+	postgresDiscoveryClaimSchedulesSQL          = `SELECT zasp_discovery_claim_schedules($1,$2,$3,$4)`
+	postgresDiscoveryCompleteScheduleSQL        = `SELECT zasp_discovery_complete_schedule($1,$2,$3,$4,$5,$6,$7,$8)`
+	postgresDiscoveryClaimProjectionSQL         = `SELECT zasp_discovery_claim_projection_work($1,$2,$3,$4)`
+	postgresDiscoveryFinishJobSQL               = `SELECT zasp_discovery_finish_job($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
+	postgresDiscoveryFinishProjectionSQL        = `SELECT zasp_discovery_finish_projection($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`
+	postgresDiscoveryCompleteJobSQL             = `SELECT zasp_discovery_complete_job($1,$2,$3,$4,$5,$6,$7,$8,$9)`
+	postgresDiscoveryRetryOutboxSQL             = `SELECT zasp_discovery_retry_outbox($1,$2,$3,$4,$5,$6,$7,$8)`
+	postgresDiscoveryCompleteProjectionSQL      = `SELECT zasp_discovery_complete_projection($1,$2,$3,$4,$5,$6,$7,$8,$9)`
+	postgresDiscoveryEvidenceGetSQL             = `SELECT zasp_discovery_evidence_get($1,$2,$3,$4)`
+	postgresDiscoverySensorRotateSQL            = `SELECT zasp_discovery_sensor_rotate($1,$2,$3,$4,$5,$6,$7,$8,$9)`
+	postgresDiscoverySensorRevokeSQL            = `SELECT zasp_discovery_sensor_revoke($1,$2,$3,$4,$5)`
+	postgresDiscoverySensorHeartbeatSQL         = `SELECT zasp_discovery_sensor_heartbeat($1,$2,$3,$4,$5,$6,$7,$8::jsonb)`
+	postgresDiscoveryRuntimeBatchSQL            = `SELECT zasp_discovery_create_runtime_batch($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
+	postgresDiscoveryRuntimeStageSQL            = `SELECT zasp_discovery_complete_runtime_stage($1,$2,$3,$4,$5,$6,$7,$8)`
 )
 
 var referenceOnlyKeyPattern = regexp.MustCompile(`(?i)(secret|password|token|credential|private.?key|session)`)
+var opaqueReferencePattern = regexp.MustCompile(`^ref:[a-z0-9][a-z0-9_./:-]+$`)
 
 type IntegrationRepository interface {
 	CreateIntegration(context.Context, RequestIdentity, IntegrationCreate) (DiscoveryIntegration, error)
+	TransitionIntegration(context.Context, domain.Scope, IntegrationTransition) (AuthorityStateRecord, error)
+	PutIntegrationConnection(context.Context, domain.Scope, IntegrationConnectionPut) (IntegrationConnectionRecord, error)
+	TransitionIntegrationConnection(context.Context, domain.Scope, string, IntegrationTransition) (AuthorityStateRecord, error)
+	PutDiscoverySchedule(context.Context, domain.Scope, DiscoverySchedulePut) (DiscoveryScheduleRecord, error)
+	TransitionDiscoverySchedule(context.Context, domain.Scope, IntegrationTransition) (AuthorityStateRecord, error)
 	RequestDiscoverySync(context.Context, RequestIdentity, SyncRequest) (SyncRequestResult, error)
 }
 
@@ -64,10 +84,26 @@ type EvidenceRepository interface {
 type OutboxRepository interface {
 	ClaimOutbox(context.Context, string, string, int, int) ([]DiscoveryOutboxEvent, error)
 	AcknowledgeOutbox(context.Context, domain.Scope, string, string, string, string) error
+	RetryOutbox(context.Context, domain.Scope, string, string, string, int, string) error
+}
+
+type DiscoveryWorkerRepository interface {
+	ClaimDiscoveryJobs(context.Context, string, string, string, int, int) ([]DiscoveryJobLease, error)
+	FinishDiscoveryJob(context.Context, domain.Scope, DiscoveryJobCompletion) (WorkCompletionResult, error)
+	ClaimDiscoverySchedules(context.Context, string, string, int, int) ([]DiscoveryScheduleLease, error)
+	CompleteDiscoverySchedule(context.Context, domain.Scope, DiscoveryScheduleCompletion) (DiscoveryScheduleCompletionResult, error)
+	ClaimProjectionWork(context.Context, string, string, int, int) ([]ProjectionWorkLease, error)
+	FinishProjectionWork(context.Context, domain.Scope, ProjectionWorkCompletion) (WorkCompletionResult, error)
 }
 
 type RuntimeAuthorityRepository interface {
+	CreateSensor(context.Context, domain.Scope, SensorCreate) (SensorRecord, error)
+	TransitionSensor(context.Context, domain.Scope, IntegrationTransition) (AuthorityStateRecord, error)
 	IssueSensorToken(context.Context, domain.Scope, SensorTokenIssue) (SensorTokenRecord, error)
+	CreateGatewayDevice(context.Context, domain.Scope, GatewayDeviceCreate) (GatewayDeviceRecord, error)
+	TransitionGatewayDevice(context.Context, domain.Scope, IntegrationTransition) (AuthorityStateRecord, error)
+	IssueGatewayEnrollmentToken(context.Context, domain.Scope, GatewayEnrollmentTokenIssue) (GatewayEnrollmentTokenRecord, error)
+	RevokeGatewayEnrollmentToken(context.Context, domain.Scope, string, string) error
 	EnrollGateway(context.Context, domain.Scope, GatewayEnrollment) (GatewayCredentialRecord, error)
 	AdvanceGatewayReplay(context.Context, domain.Scope, string, int64, int64) error
 	RotateGatewayCredential(context.Context, domain.Scope, GatewayCredentialRotation) (GatewayCredentialRecord, error)
@@ -131,6 +167,212 @@ func (repository *DiscoveryRepository) CreateIntegration(ctx context.Context, id
 		return DiscoveryIntegration{}, ErrRepositoryUnavailable
 	}
 	result.CreatedAt = result.CreatedAt.UTC()
+	result.UpdatedAt = result.UpdatedAt.UTC()
+	return result, nil
+}
+
+type IntegrationTransition struct {
+	ID, State       string
+	ExpectedVersion int64
+}
+type AuthorityStateRecord struct {
+	ID        string    `json:"id"`
+	State     string    `json:"state"`
+	Version   int64     `json:"version"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+func (repository *DiscoveryRepository) TransitionIntegration(ctx context.Context, scope domain.Scope, input IntegrationTransition) (AuthorityStateRecord, error) {
+	if !validDiscoveryRepository(repository, ctx) || scope.Validate() != nil || !validProductID(input.ID) || input.ExpectedVersion < 1 || !stringIn(input.State, "authorizing", "active", "degraded", "disabled", "deleted") {
+		return AuthorityStateRecord{}, ErrRepositoryOperation
+	}
+	return repository.authorityState(ctx, scope, postgresDiscoveryTransitionIntegrationSQL, input.ID, input.ExpectedVersion, input.State)
+}
+
+type IntegrationConnectionPut struct{ ID, IntegrationID, Provider, ConnectionReference string }
+type IntegrationConnectionRecord struct {
+	ID            string    `json:"id"`
+	IntegrationID string    `json:"integration_id"`
+	Provider      string    `json:"provider"`
+	State         string    `json:"state"`
+	CreatedAt     time.Time `json:"created_at"`
+}
+
+func (repository *DiscoveryRepository) PutIntegrationConnection(ctx context.Context, scope domain.Scope, input IntegrationConnectionPut) (IntegrationConnectionRecord, error) {
+	if !validDiscoveryRepository(repository, ctx) || scope.Validate() != nil || !validProductID(input.ID) || !validProductID(input.IntegrationID) || len(input.Provider) < 1 || len(input.Provider) > 64 || !validOpaqueReference(input.ConnectionReference) {
+		return IntegrationConnectionRecord{}, ErrRepositoryOperation
+	}
+	payload, err := repository.scopedTransition(ctx, scope, postgresDiscoveryPutConnectionSQL, input.ID, input.IntegrationID, input.Provider, input.ConnectionReference)
+	if err != nil {
+		return IntegrationConnectionRecord{}, err
+	}
+	var result IntegrationConnectionRecord
+	if decodeStrictDiscovery(payload, &result) != nil || result.ID != input.ID || result.IntegrationID != input.IntegrationID || result.Provider != input.Provider || result.State != "pending" || result.CreatedAt.IsZero() {
+		return IntegrationConnectionRecord{}, ErrRepositoryUnavailable
+	}
+	return result, nil
+}
+func (repository *DiscoveryRepository) TransitionIntegrationConnection(ctx context.Context, scope domain.Scope, integrationID string, input IntegrationTransition) (AuthorityStateRecord, error) {
+	if !validDiscoveryRepository(repository, ctx) || scope.Validate() != nil || !validProductID(integrationID) || !validProductID(input.ID) || input.ExpectedVersion < 1 || !stringIn(input.State, "verified", "invalid", "revoked") {
+		return AuthorityStateRecord{}, ErrRepositoryOperation
+	}
+	return repository.authorityState(ctx, scope, postgresDiscoveryTransitionConnectionSQL, input.ID, integrationID, input.ExpectedVersion, input.State)
+}
+
+type DiscoverySchedulePut struct {
+	ID, IntegrationID string
+	CadenceSeconds    int
+	NextRunAt         time.Time
+	ExpectedVersion   int64
+}
+type DiscoveryScheduleRecord struct {
+	ID             string    `json:"id"`
+	IntegrationID  string    `json:"integration_id"`
+	State          string    `json:"state"`
+	CadenceSeconds int       `json:"cadence_seconds"`
+	NextRunAt      time.Time `json:"next_run_at"`
+	Version        int64     `json:"version"`
+}
+
+func (repository *DiscoveryRepository) PutDiscoverySchedule(ctx context.Context, scope domain.Scope, input DiscoverySchedulePut) (DiscoveryScheduleRecord, error) {
+	if !validDiscoveryRepository(repository, ctx) || scope.Validate() != nil || !validProductID(input.ID) || !validProductID(input.IntegrationID) || input.CadenceSeconds < 300 || input.CadenceSeconds > 2678400 || input.NextRunAt.Location() != time.UTC || input.ExpectedVersion < 0 {
+		return DiscoveryScheduleRecord{}, ErrRepositoryOperation
+	}
+	payload, err := repository.scopedTransition(ctx, scope, postgresDiscoveryPutScheduleSQL, input.ID, input.IntegrationID, input.CadenceSeconds, input.NextRunAt, input.ExpectedVersion)
+	if err != nil {
+		return DiscoveryScheduleRecord{}, err
+	}
+	var result DiscoveryScheduleRecord
+	if decodeStrictDiscovery(payload, &result) != nil || result.ID != input.ID || result.IntegrationID != input.IntegrationID || result.State != "enabled" || result.CadenceSeconds != input.CadenceSeconds || result.NextRunAt.IsZero() || result.Version < 1 {
+		return DiscoveryScheduleRecord{}, ErrRepositoryUnavailable
+	}
+	return result, nil
+}
+func (repository *DiscoveryRepository) TransitionDiscoverySchedule(ctx context.Context, scope domain.Scope, input IntegrationTransition) (AuthorityStateRecord, error) {
+	if !validDiscoveryRepository(repository, ctx) || scope.Validate() != nil || !validProductID(input.ID) || input.ExpectedVersion < 1 || !stringIn(input.State, "enabled", "disabled", "deleted") {
+		return AuthorityStateRecord{}, ErrRepositoryOperation
+	}
+	return repository.authorityState(ctx, scope, postgresDiscoveryTransitionScheduleSQL, input.ID, input.ExpectedVersion, input.State)
+}
+
+type SensorCreate struct{ ID, Name, Kind string }
+type SensorRecord struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	Kind      string    `json:"kind"`
+	State     string    `json:"state"`
+	Version   int64     `json:"version"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func (repository *DiscoveryRepository) CreateSensor(ctx context.Context, scope domain.Scope, input SensorCreate) (SensorRecord, error) {
+	if !validDiscoveryRepository(repository, ctx) || scope.Validate() != nil || !validProductID(input.ID) || len(input.Name) < 1 || len(input.Name) > 128 || !stringIn(input.Kind, "tetragon", "otlp") {
+		return SensorRecord{}, ErrRepositoryOperation
+	}
+	payload, err := repository.scopedTransition(ctx, scope, postgresDiscoveryCreateSensorSQL, input.ID, input.Name, input.Kind)
+	if err != nil {
+		return SensorRecord{}, err
+	}
+	var result SensorRecord
+	if decodeStrictDiscovery(payload, &result) != nil || result.ID != input.ID || result.Name != input.Name || result.Kind != input.Kind || result.State != "pending" || result.Version != 1 || result.CreatedAt.IsZero() {
+		return SensorRecord{}, ErrRepositoryUnavailable
+	}
+	return result, nil
+}
+func (repository *DiscoveryRepository) TransitionSensor(ctx context.Context, scope domain.Scope, input IntegrationTransition) (AuthorityStateRecord, error) {
+	if !validDiscoveryRepository(repository, ctx) || scope.Validate() != nil || !validProductID(input.ID) || input.ExpectedVersion < 1 || !stringIn(input.State, "active", "degraded", "revoked", "deleted") {
+		return AuthorityStateRecord{}, ErrRepositoryOperation
+	}
+	return repository.authorityState(ctx, scope, postgresDiscoveryTransitionSensorSQL, input.ID, input.ExpectedVersion, input.State)
+}
+
+type GatewayDeviceCreate struct{ ID, Name string }
+type GatewayDeviceRecord struct {
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	State       string    `json:"state"`
+	Version     int64     `json:"version"`
+	ReplayFloor int64     `json:"replay_floor"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+func (repository *DiscoveryRepository) CreateGatewayDevice(ctx context.Context, scope domain.Scope, input GatewayDeviceCreate) (GatewayDeviceRecord, error) {
+	if !validDiscoveryRepository(repository, ctx) || scope.Validate() != nil || !validProductID(input.ID) || len(input.Name) < 1 || len(input.Name) > 128 {
+		return GatewayDeviceRecord{}, ErrRepositoryOperation
+	}
+	payload, err := repository.scopedTransition(ctx, scope, postgresDiscoveryCreateGatewayDeviceSQL, input.ID, input.Name)
+	if err != nil {
+		return GatewayDeviceRecord{}, err
+	}
+	var result GatewayDeviceRecord
+	if decodeStrictDiscovery(payload, &result) != nil || result.ID != input.ID || result.Name != input.Name || result.State != "pending" || result.Version != 1 || result.ReplayFloor != 0 || result.CreatedAt.IsZero() {
+		return GatewayDeviceRecord{}, ErrRepositoryUnavailable
+	}
+	return result, nil
+}
+func (repository *DiscoveryRepository) TransitionGatewayDevice(ctx context.Context, scope domain.Scope, input IntegrationTransition) (AuthorityStateRecord, error) {
+	if !validDiscoveryRepository(repository, ctx) || scope.Validate() != nil || !validProductID(input.ID) || input.ExpectedVersion < 1 || !stringIn(input.State, "active", "revoked", "deleted") {
+		return AuthorityStateRecord{}, ErrRepositoryOperation
+	}
+	return repository.authorityState(ctx, scope, postgresDiscoveryTransitionGatewayDeviceSQL, input.ID, input.ExpectedVersion, input.State)
+}
+
+type GatewayEnrollmentTokenIssue struct {
+	ID, DeviceID    string
+	Salt, TokenHash []byte
+	ExpiresAt       time.Time
+}
+type GatewayEnrollmentTokenRecord struct {
+	ID        string    `json:"id"`
+	DeviceID  string    `json:"device_id"`
+	Audience  string    `json:"audience"`
+	IssuedAt  time.Time `json:"issued_at"`
+	ExpiresAt time.Time `json:"expires_at"`
+}
+
+func (repository *DiscoveryRepository) IssueGatewayEnrollmentToken(ctx context.Context, scope domain.Scope, input GatewayEnrollmentTokenIssue) (GatewayEnrollmentTokenRecord, error) {
+	if !validDiscoveryRepository(repository, ctx) || scope.Validate() != nil || !validProductID(input.ID) || !validProductID(input.DeviceID) || len(input.Salt) < 16 || len(input.Salt) > 64 || len(input.TokenHash) != 32 || input.ExpiresAt.Location() != time.UTC {
+		return GatewayEnrollmentTokenRecord{}, ErrRepositoryOperation
+	}
+	payload, err := repository.scopedTransition(ctx, scope, postgresDiscoveryIssueGatewayEnrollmentSQL, input.ID, input.DeviceID, input.Salt, input.TokenHash, input.ExpiresAt)
+	if err != nil {
+		return GatewayEnrollmentTokenRecord{}, err
+	}
+	var result GatewayEnrollmentTokenRecord
+	if decodeStrictDiscovery(payload, &result) != nil || result.ID != input.ID || result.DeviceID != input.DeviceID || result.Audience != "runtime-gateway-enroll" || result.IssuedAt.IsZero() || !result.ExpiresAt.After(result.IssuedAt) {
+		return GatewayEnrollmentTokenRecord{}, ErrRepositoryUnavailable
+	}
+	return result, nil
+}
+func (repository *DiscoveryRepository) RevokeGatewayEnrollmentToken(ctx context.Context, scope domain.Scope, deviceID, id string) error {
+	if !validDiscoveryRepository(repository, ctx) || scope.Validate() != nil || !validProductID(deviceID) || !validProductID(id) {
+		return ErrRepositoryOperation
+	}
+	payload, err := repository.scopedTransition(ctx, scope, postgresDiscoveryRevokeGatewayEnrollmentSQL, id, deviceID)
+	if err != nil {
+		return err
+	}
+	var result struct {
+		ID        string    `json:"id"`
+		RevokedAt time.Time `json:"revoked_at"`
+	}
+	if decodeStrictDiscovery(payload, &result) != nil || result.ID != id || result.RevokedAt.IsZero() {
+		return ErrRepositoryUnavailable
+	}
+	return nil
+}
+
+func (repository *DiscoveryRepository) authorityState(ctx context.Context, scope domain.Scope, statement string, args ...any) (AuthorityStateRecord, error) {
+	payload, err := repository.scopedTransition(ctx, scope, statement, args...)
+	if err != nil {
+		return AuthorityStateRecord{}, err
+	}
+	var result AuthorityStateRecord
+	expectedID := args[0].(string)
+	expectedState := args[len(args)-1].(string)
+	if decodeStrictDiscovery(payload, &result) != nil || result.ID != expectedID || result.State != expectedState || result.Version < 1 || result.UpdatedAt.IsZero() {
+		return AuthorityStateRecord{}, ErrRepositoryUnavailable
+	}
 	result.UpdatedAt = result.UpdatedAt.UTC()
 	return result, nil
 }
@@ -290,7 +532,7 @@ func (repository *DiscoveryRepository) ClaimOutbox(ctx context.Context, worker, 
 	}
 	for index := range envelope.Items {
 		item := &envelope.Items[index]
-		if !validProductID(item.OrganizationID) || !validProductID(item.WorkspaceID) || !validProductID(item.EnvironmentID) || !validProductID(item.ID) || !stringIn(item.Topic, "discovery-jobs", "runtime-events", "projection-work") || len(item.DeterministicKey) < 16 || item.PayloadVersion < 1 || item.PayloadVersion > 32 || !discoveryValidJSONObject(item.Payload, 65536) || len(item.PayloadDigest) != sha256.Size || item.Attempt < 1 || item.LeaseExpiresAt.IsZero() {
+		if !validProductID(item.OrganizationID) || !validProductID(item.WorkspaceID) || !validProductID(item.EnvironmentID) || !validProductID(item.ID) || !stringIn(item.Topic, "discovery-jobs", "runtime-events", "projection-work") || len(item.DeterministicKey) < 16 || len(item.DeterministicKey) > 256 || item.PayloadVersion < 1 || item.PayloadVersion > 32 || !discoveryValidJSONObject(item.Payload, 65536) || len(item.PayloadDigest) != sha256.Size || item.Attempt < 1 || item.Attempt > 100 || item.LeaseExpiresAt.IsZero() {
 			return nil, ErrRepositoryUnavailable
 		}
 		item.LeaseExpiresAt = item.LeaseExpiresAt.UTC()
@@ -359,7 +601,7 @@ type GatewayCredentialRecord struct {
 }
 
 func (repository *DiscoveryRepository) EnrollGateway(ctx context.Context, scope domain.Scope, input GatewayEnrollment) (GatewayCredentialRecord, error) {
-	if !validDiscoveryRepository(repository, ctx) || scope.Validate() != nil || !validProductID(input.DeviceID) || !validProductID(input.EnrollmentID) || !validProductID(input.CredentialID) || input.Audience != "runtime-gateway" || len(input.TokenHash) != 32 || len(input.Salt) < 16 || len(input.PublicKey) < 32 || !strings.HasPrefix(input.KeyReference, "ref:") || input.ExpiresAt.Location() != time.UTC {
+	if !validDiscoveryRepository(repository, ctx) || scope.Validate() != nil || !validProductID(input.DeviceID) || !validProductID(input.EnrollmentID) || !validProductID(input.CredentialID) || input.Audience != "runtime-gateway" || len(input.TokenHash) != 32 || len(input.Salt) < 16 || len(input.PublicKey) < 32 || !validOpaqueReference(input.KeyReference) || input.ExpiresAt.Location() != time.UTC {
 		return GatewayCredentialRecord{}, ErrRepositoryOperation
 	}
 	payload, err := repository.database.QueryJSON(ctx, postgresDiscoveryGatewayEnrollSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), input.DeviceID, input.EnrollmentID, input.CredentialID, input.TokenHash, input.Audience, input.KeyReference, input.PublicKey, input.ExpiresAt)
@@ -394,7 +636,7 @@ type GatewayCredentialRotation struct {
 }
 
 func (repository *DiscoveryRepository) RotateGatewayCredential(ctx context.Context, scope domain.Scope, input GatewayCredentialRotation) (GatewayCredentialRecord, error) {
-	if !validDiscoveryRepository(repository, ctx) || scope.Validate() != nil || !validProductID(input.DeviceID) || !validProductID(input.CurrentCredentialID) || !validProductID(input.ReplacementCredentialID) || input.CurrentCredentialID == input.ReplacementCredentialID || !strings.HasPrefix(input.KeyReference, "ref:") || len(input.PublicKey) < 32 || len(input.PublicKey) > 4096 || input.ExpiresAt.Location() != time.UTC {
+	if !validDiscoveryRepository(repository, ctx) || scope.Validate() != nil || !validProductID(input.DeviceID) || !validProductID(input.CurrentCredentialID) || !validProductID(input.ReplacementCredentialID) || input.CurrentCredentialID == input.ReplacementCredentialID || !validOpaqueReference(input.KeyReference) || len(input.PublicKey) < 32 || len(input.PublicKey) > 4096 || input.ExpiresAt.Location() != time.UTC {
 		return GatewayCredentialRecord{}, ErrRepositoryOperation
 	}
 	payload, err := repository.database.QueryJSON(ctx, postgresDiscoveryGatewayRotateSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), input.DeviceID, input.CurrentCredentialID, input.ReplacementCredentialID, input.KeyReference, input.PublicKey, input.ExpiresAt)
@@ -638,10 +880,15 @@ func (repository *DiscoveryRepository) ClaimDiscoveryJobs(ctx context.Context, w
 	if len(envelope.Items) > limit {
 		return nil, ErrRepositoryUnavailable
 	}
-	for _, item := range envelope.Items {
+	for index := range envelope.Items {
+		item := &envelope.Items[index]
 		if !validLeaseScope(item.OrganizationID, item.WorkspaceID, item.EnvironmentID) || !validProductID(item.ID) || !validProductID(item.AuthorityID) || item.Kind != kind || item.Attempt < 1 || item.LeaseExpiresAt.IsZero() {
 			return nil, ErrRepositoryUnavailable
 		}
+		if item.Attempt > 100 {
+			return nil, ErrRepositoryUnavailable
+		}
+		item.LeaseExpiresAt = item.LeaseExpiresAt.UTC()
 	}
 	return envelope.Items, nil
 }
@@ -658,10 +905,13 @@ func (repository *DiscoveryRepository) ClaimDiscoverySchedules(ctx context.Conte
 	if len(envelope.Items) > limit {
 		return nil, ErrRepositoryUnavailable
 	}
-	for _, item := range envelope.Items {
+	for index := range envelope.Items {
+		item := &envelope.Items[index]
 		if !validLeaseScope(item.OrganizationID, item.WorkspaceID, item.EnvironmentID) || !validProductID(item.ID) || !validProductID(item.IntegrationID) || item.NextRunAt.IsZero() || item.LeaseExpiresAt.IsZero() {
 			return nil, ErrRepositoryUnavailable
 		}
+		item.NextRunAt = item.NextRunAt.UTC()
+		item.LeaseExpiresAt = item.LeaseExpiresAt.UTC()
 	}
 	return envelope.Items, nil
 }
@@ -678,12 +928,97 @@ func (repository *DiscoveryRepository) ClaimProjectionWork(ctx context.Context, 
 	if len(envelope.Items) > limit {
 		return nil, ErrRepositoryUnavailable
 	}
-	for _, item := range envelope.Items {
+	for index := range envelope.Items {
+		item := &envelope.Items[index]
 		if !validLeaseScope(item.OrganizationID, item.WorkspaceID, item.EnvironmentID) || !validProductID(item.SnapshotID) || !stringIn(item.Kind, "risk", "graph", "search") || len(item.Version) < 1 || len(item.InputDigest) != 32 || item.Attempt < 1 || item.LeaseExpiresAt.IsZero() {
 			return nil, ErrRepositoryUnavailable
 		}
+		if len(item.Version) > 64 || item.Attempt > 100 {
+			return nil, ErrRepositoryUnavailable
+		}
+		item.LeaseExpiresAt = item.LeaseExpiresAt.UTC()
 	}
 	return envelope.Items, nil
+}
+
+type DiscoveryScheduleCompletion struct {
+	ID, Worker, LeaseToken, Outcome string
+	NextRunAt                       time.Time
+}
+type DiscoveryScheduleCompletionResult struct {
+	ID        string    `json:"id"`
+	State     string    `json:"state"`
+	NextRunAt time.Time `json:"next_run_at"`
+	Version   int64     `json:"version"`
+}
+
+func (repository *DiscoveryRepository) CompleteDiscoverySchedule(ctx context.Context, scope domain.Scope, input DiscoveryScheduleCompletion) (DiscoveryScheduleCompletionResult, error) {
+	if !validTransitionInput(repository, ctx, scope, input.ID, input.Worker, input.LeaseToken) || !stringIn(input.Outcome, "advanced", "released", "disabled") || input.NextRunAt.Location() != time.UTC {
+		return DiscoveryScheduleCompletionResult{}, ErrRepositoryOperation
+	}
+	payload, err := repository.scopedTransition(ctx, scope, postgresDiscoveryCompleteScheduleSQL, input.ID, input.Worker, input.LeaseToken, input.Outcome, input.NextRunAt)
+	if err != nil {
+		return DiscoveryScheduleCompletionResult{}, err
+	}
+	var result DiscoveryScheduleCompletionResult
+	if decodeStrictDiscovery(payload, &result) != nil || result.ID != input.ID || !stringIn(result.State, "enabled", "disabled") || result.NextRunAt.IsZero() || result.Version < 1 {
+		return DiscoveryScheduleCompletionResult{}, ErrRepositoryUnavailable
+	}
+	result.NextRunAt = result.NextRunAt.UTC()
+	return result, nil
+}
+
+type DiscoveryJobCompletion struct {
+	ID, Worker, LeaseToken, Outcome, LastError string
+	ResultDigest                               []byte
+	RetryAfterSeconds                          int
+}
+type WorkCompletionResult struct {
+	ID          string     `json:"id"`
+	SnapshotID  string     `json:"snapshot_id"`
+	Kind        string     `json:"kind"`
+	State       string     `json:"state"`
+	Attempt     int        `json:"attempt"`
+	CompletedAt *time.Time `json:"completed_at"`
+}
+
+func (repository *DiscoveryRepository) FinishDiscoveryJob(ctx context.Context, scope domain.Scope, input DiscoveryJobCompletion) (WorkCompletionResult, error) {
+	if !validTransitionInput(repository, ctx, scope, input.ID, input.Worker, input.LeaseToken) || !stringIn(input.Outcome, "succeeded", "retryable", "failed", "cancelled") || (len(input.ResultDigest) != 0 && len(input.ResultDigest) != 32) || (input.Outcome == "succeeded" && input.LastError != "") || (input.Outcome != "succeeded" && (len(input.LastError) < 1 || len(input.LastError) > 1024)) || input.RetryAfterSeconds < 0 || input.RetryAfterSeconds > 3600 {
+		return WorkCompletionResult{}, ErrRepositoryOperation
+	}
+	payload, err := repository.scopedTransition(ctx, scope, postgresDiscoveryFinishJobSQL, input.ID, input.Worker, input.LeaseToken, input.Outcome, input.ResultDigest, input.LastError, input.RetryAfterSeconds)
+	if err != nil {
+		return WorkCompletionResult{}, err
+	}
+	var result WorkCompletionResult
+	if decodeStrictDiscovery(payload, &result) != nil || result.ID != input.ID || !stringIn(result.State, "succeeded", "retryable", "failed", "cancelled") || result.Attempt < 1 || result.Attempt > 100 || (result.State == "retryable") != (result.CompletedAt == nil) {
+		return WorkCompletionResult{}, ErrRepositoryUnavailable
+	}
+	if result.CompletedAt != nil {
+		completedAt := result.CompletedAt.UTC()
+		result.CompletedAt = &completedAt
+	}
+	return result, nil
+}
+
+type ProjectionWorkCompletion struct {
+	SnapshotID, Kind, Version, Worker, LeaseToken, Outcome, LastError string
+	RetryAfterSeconds                                                 int
+}
+
+func (repository *DiscoveryRepository) FinishProjectionWork(ctx context.Context, scope domain.Scope, input ProjectionWorkCompletion) (WorkCompletionResult, error) {
+	if !validTransitionInput(repository, ctx, scope, input.SnapshotID, input.Worker, input.LeaseToken) || !stringIn(input.Kind, "risk", "graph", "search") || len(input.Version) < 1 || len(input.Version) > 64 || !stringIn(input.Outcome, "succeeded", "retryable", "failed", "cancelled") || (input.Outcome == "succeeded" && input.LastError != "") || (input.Outcome != "succeeded" && (len(input.LastError) < 1 || len(input.LastError) > 1024)) || input.RetryAfterSeconds < 0 || input.RetryAfterSeconds > 3600 {
+		return WorkCompletionResult{}, ErrRepositoryOperation
+	}
+	payload, err := repository.scopedTransition(ctx, scope, postgresDiscoveryFinishProjectionSQL, input.SnapshotID, input.Kind, input.Version, input.Worker, input.LeaseToken, input.Outcome, input.LastError, input.RetryAfterSeconds)
+	if err != nil {
+		return WorkCompletionResult{}, err
+	}
+	var result WorkCompletionResult
+	if decodeStrictDiscovery(payload, &result) != nil || result.SnapshotID != input.SnapshotID || result.Kind != input.Kind || !stringIn(result.State, "succeeded", "retryable", "failed", "cancelled") || result.Attempt < 1 || result.Attempt > 100 || result.CompletedAt != nil {
+		return WorkCompletionResult{}, ErrRepositoryUnavailable
+	}
+	return result, nil
 }
 func (repository *DiscoveryRepository) claimTyped(ctx context.Context, statement string, destination any, args ...any) error {
 	if !validDiscoveryRepository(repository, ctx) {
@@ -710,7 +1045,12 @@ func (repository *DiscoveryRepository) CompleteDiscoveryJob(ctx context.Context,
 		ID    string `json:"id"`
 		State string `json:"state"`
 	}
-	if decodeStrictDiscovery(payload, &result) != nil || result.ID != id || result.State != map[bool]string{true: "retryable", false: "succeeded"}[retryable] {
+	decodeErr := decodeStrictDiscovery(payload, &result)
+	validState := result.State == "succeeded"
+	if retryable {
+		validState = stringIn(result.State, "retryable", "failed")
+	}
+	if decodeErr != nil || result.ID != id || !validState {
 		return ErrRepositoryUnavailable
 	}
 	return nil
@@ -745,7 +1085,12 @@ func (repository *DiscoveryRepository) CompleteProjectionWork(ctx context.Contex
 		Kind       string `json:"kind"`
 		State      string `json:"state"`
 	}
-	if decodeStrictDiscovery(payload, &result) != nil || result.SnapshotID != snapshotID || result.Kind != kind || result.State != map[bool]string{true: "succeeded", false: "failed"}[succeeded] {
+	decodeErr := decodeStrictDiscovery(payload, &result)
+	validState := result.State == "succeeded"
+	if !succeeded {
+		validState = stringIn(result.State, "retryable", "failed")
+	}
+	if decodeErr != nil || result.SnapshotID != snapshotID || result.Kind != kind || !validState {
 		return ErrRepositoryUnavailable
 	}
 	return nil
@@ -782,7 +1127,7 @@ func CanonicalDiscoveryRelationshipID(scope domain.Scope, integrationID, source,
 	if scope.Validate() != nil || !validProductID(integrationID) || len(source) < 1 || len(source) > 64 || len(kind) < 1 || len(kind) > 64 || len(sourceNativeID) < 1 || len(sourceNativeID) > 1024 {
 		return "", ErrRepositoryOperation
 	}
-	digest := sha256.Sum256([]byte(strings.Join([]string{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), integrationID, source, kind, sourceNativeID}, "\x1f")))
+	digest := sha256.Sum256([]byte(strings.Join([]string{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), integrationID, source, sourceNativeID}, "\x1f")))
 	hexValue := hex.EncodeToString(digest[:])
 	return fmt.Sprintf("pid_%s-%s-4%s-8%s-%s", hexValue[:8], hexValue[8:12], hexValue[13:16], hexValue[17:20], hexValue[20:32]), nil
 }
@@ -791,7 +1136,10 @@ func validDiscoveryRepository(repository *DiscoveryRepository, ctx context.Conte
 	return repository != nil && !nilInterface(repository.database) && ctx != nil && ctx.Err() == nil
 }
 func validIntegrationCreate(value IntegrationCreate) bool {
-	return validProductID(value.ID) && len(value.Kind) >= 1 && len(value.Kind) <= 64 && len(value.ConnectorVersion) >= 1 && len(value.ConnectorVersion) <= 64 && len(value.DisplayName) >= 1 && len(value.DisplayName) <= 128 && validReferenceOnlyJSON(value.Configuration) && (value.CredentialReference == "" || strings.HasPrefix(value.CredentialReference, "ref:"))
+	return validProductID(value.ID) && len(value.Kind) >= 1 && len(value.Kind) <= 64 && len(value.ConnectorVersion) >= 1 && len(value.ConnectorVersion) <= 64 && len(value.DisplayName) >= 1 && len(value.DisplayName) <= 128 && validReferenceOnlyJSON(value.Configuration) && (value.CredentialReference == "" || validOpaqueReference(value.CredentialReference))
+}
+func validOpaqueReference(value string) bool {
+	return len(value) >= 12 && len(value) <= 512 && opaqueReferencePattern.MatchString(value)
 }
 func validDiscoveryIntegration(value DiscoveryIntegration) bool {
 	return validProductID(value.ID) && len(value.Kind) >= 1 && len(value.Kind) <= 64 && len(value.ConnectorVersion) >= 1 && len(value.DisplayName) >= 1 && stringIn(value.State, "pending", "authorizing", "active", "degraded", "disabled", "deleted") && value.Version > 0 && !value.CreatedAt.IsZero() && !value.UpdatedAt.Before(value.CreatedAt)
