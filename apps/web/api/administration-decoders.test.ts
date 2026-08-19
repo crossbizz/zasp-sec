@@ -13,6 +13,11 @@ describe("administration response decoders", () => {
     expect(decodeAPITokenCredential(token).raw_token).toBe(token.raw_token);
     expect(() => decodeAPITokenCredential({ ...token, raw_token: "stored-secret" })).toThrow("schema mismatch");
   });
+  it("accepts PostgreSQL RFC 3339 offsets without accepting informal dates", () => {
+    const token = { id, name: "Automation", principal_id: id, workspace_id: id, environment_id: id, permissions: ["view"], created_at: "2026-08-19T00:00:00+00:00", expires_at: "2026-08-20T01:02:03.456-07:00", last_used_at: null, revoked_at: null, version: 1, raw_token: `zasp_pat_${"A".repeat(43)}`, audit_correlation_id: id };
+    expect(decodeAPITokenCredential(token).created_at).toBe(token.created_at);
+    expect(() => decodeAPITokenCredential({ ...token, created_at: "August 19, 2026" })).toThrow("schema mismatch");
+  });
   it("bounds session pages and component inventories", () => {
     expect(decodeSessionPage({ items: [], page_info: { next_cursor: null, has_more: false } }).items).toEqual([]);
     expect(() => decodeSessionPage({ items: [], page_info: { next_cursor: "forged", has_more: false } })).toThrow("schema mismatch");

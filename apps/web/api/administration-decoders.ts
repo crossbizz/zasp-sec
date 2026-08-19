@@ -2,7 +2,7 @@ import type { ApiToken, ApiTokenCredential, ApiTokenPage, AuditEventPage, BuiltI
 
 const PRODUCT_ID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const SESSION_ID = /^session-[a-z0-9][a-z0-9-]*$/;
-const DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
+const DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
 
 export const decodeOrganization = (value: unknown) => decoded<Organization>(value, ["id", "name", "domain", "version"], (record) => { id(record.id); text(record.name, 128); text(record.domain, 253); version(record.version); });
 export const decodeWorkspace = (value: unknown) => decoded<WorkspaceMutation>(value, ["id", "organization_id", "name", "version"], (record) => { id(record.id); id(record.organization_id); text(record.name, 128); version(record.version); }, ["audit_correlation_id"]);
