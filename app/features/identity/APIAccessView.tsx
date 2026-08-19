@@ -106,10 +106,15 @@ export function APIAccessView({ api: suppliedAPI, client }: { api?: APIAccessAPI
   }, [revealed]);
   useEffect(() => {
     if (fresh || revealed === null) return;
-    setRevealed(null);
-    setSecretStatus("");
-    setAcknowledging(false);
-    setError("Fresh authentication or session validity expired; the revealed token was cleared. Reauthenticate to recover the pending grant.");
+    let active = true;
+    queueMicrotask(() => {
+      if (!active) return;
+      setRevealed(null);
+      setSecretStatus("");
+      setAcknowledging(false);
+      setError("Fresh authentication or session validity expired; the revealed token was cleared. Reauthenticate to recover the pending grant.");
+    });
+    return () => { active = false; };
   }, [fresh, revealed]);
   if (loading) return <div className="page"><LoadingState label="Loading API access…" /></div>;
 
