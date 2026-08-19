@@ -71,15 +71,18 @@ func BuiltinManifests() []ConnectorManifest {
 			DataTypes:   []string{"identity", "policy", "resource"}, Actions: []string{"inventory_read", "posture_read"}, AuthMode: "aws_assume_role",
 			SetupSchema: []SetupField{
 				{Key: "role_arn", Label: "Read role ARN", Type: "string", Required: true, Description: "Customer role trusted for the product's external-ID-bound session."},
-				{Key: "external_id", Label: "External ID", Type: "secret_reference", Required: true, Description: "Product secret reference for the customer trust condition."},
+				{Key: "external_id_reference", Label: "External ID", Type: "secret_reference", Required: true, Description: "Opaque product reference for the customer trust condition."},
 				{Key: "region", Label: "Home region", Type: "string", Required: true, Description: "AWS region used for the identity check and regional inventory."},
 			}, AccessGuidance: "Grant the documented read-only policy to one external-ID-bound role.", TestSemantics: "Assume the role, verify the returned account identity, and prove an unauthorized action is denied.", adapterKey: "aws_inventory_v1", ossName: "cartography-prowler",
 		},
 		{
-			Key: "github", Provider: "GitHub", Category: "developer", Description: "Inventory organizations, repositories, applications, workflows, and permissions through a durable connection reference.", DataTypes: []string{"identity", "repository", "workflow"}, Actions: []string{"inventory_read"}, AuthMode: "nango_oauth", SetupSchema: []SetupField{{Key: "connection_reference", Label: "Connection reference", Type: "connection_reference", Required: true, Description: "Organization-scoped durable connection reference returned by the product auth flow."}}, AccessGuidance: "Authorize only the organizations and repositories intended for inventory.", TestSemantics: "Resolve the connection reference and read one bounded repository fixture.", adapterKey: "github_nango_v1", ossName: "nango",
+			Key: "github", Provider: "GitHub", Category: "developer", Description: "Inventory organizations, repositories, applications, workflows, and permissions through a first-party GitHub App installation.", DataTypes: []string{"identity", "repository", "workflow"}, Actions: []string{"inventory_read"}, AuthMode: "github_app_oauth", SetupSchema: []SetupField{{Key: "connection_reference", Label: "Connection reference", Type: "connection_reference", Required: true, Description: "Organization-scoped opaque reference returned by the first-party authorization flow."}}, AccessGuidance: "Authorize only the organizations and repositories intended for inventory.", TestSemantics: "Verify the GitHub App installation and its bounded permission set.", adapterKey: "github_first_party_v1", ossName: "github-app",
 		},
 		{
-			Key: "okta", Provider: "Okta", Category: "identity", Description: "Inventory users, groups, applications, and service principals through a durable connection reference.", DataTypes: []string{"application", "group", "identity"}, Actions: []string{"inventory_read"}, AuthMode: "nango_oauth", SetupSchema: []SetupField{{Key: "connection_reference", Label: "Connection reference", Type: "connection_reference", Required: true, Description: "Organization-scoped durable connection reference returned by the product auth flow."}}, AccessGuidance: "Grant read-only directory scopes and restrict the integration account.", TestSemantics: "Resolve the connection reference and read one bounded directory fixture.", adapterKey: "okta_nango_v1", ossName: "nango",
+			Key: "kubernetes", Provider: "Kubernetes", Category: "runtime", Description: "Inventory one cluster through an explicitly bound cluster credential reference.", DataTypes: []string{"identity", "resource", "workload"}, Actions: []string{"inventory_read"}, AuthMode: "credential_reference", SetupSchema: []SetupField{{Key: "connection_reference", Label: "Cluster credential reference", Type: "connection_reference", Required: true, Description: "Opaque cluster-scoped reference created outside the browser."}}, AccessGuidance: "Grant get, list, and watch only for documented inventory resources.", TestSemantics: "Use the explicit endpoint and CA to verify server version and self-subject rules.", adapterKey: "kubernetes_first_party_v1", ossName: "kubernetes-client",
+		},
+		{
+			Key: "okta", Provider: "Okta", Category: "identity", Description: "Inventory users, groups, applications, and service principals through first-party OAuth with PKCE.", DataTypes: []string{"application", "group", "identity"}, Actions: []string{"inventory_read"}, AuthMode: "okta_oauth_pkce", SetupSchema: []SetupField{{Key: "connection_reference", Label: "Connection reference", Type: "connection_reference", Required: true, Description: "Organization-scoped opaque reference returned by the first-party authorization flow."}}, AccessGuidance: "Grant the fixed read-only directory scopes and restrict the integration account.", TestSemantics: "Verify issuer, subject, scopes, and one bounded directory page.", adapterKey: "okta_first_party_v1", ossName: "okta-api",
 		},
 		{
 			Key: "generic-webhook", Provider: "Generic Webhook", Category: "notification",
@@ -156,8 +159,8 @@ func (catalog *Catalog) ValidateSetup(key string, configuration map[string]strin
 	switch key {
 	case "aws":
 		return validateAWSSetup(configuration)
-	case "github", "okta":
-		if !strings.HasPrefix(configuration["connection_reference"], "connection_ref_") || len(configuration["connection_reference"]) > 256 {
+	case "github", "kubernetes", "okta":
+		if !validOpaqueReference(configuration["connection_reference"], 512) {
 			return ErrInvalid
 		}
 		return nil
@@ -183,10 +186,23 @@ var awsRolePattern = regexp.MustCompile(`^arn:aws:iam::[0-9]{12}:role/[A-Za-z0-9
 var awsRegionPattern = regexp.MustCompile(`^[a-z]{2}(?:-gov)?-[a-z]+-[0-9]$`)
 
 func validateAWSSetup(configuration map[string]string) error {
-	if !awsRolePattern.MatchString(configuration["role_arn"]) || !strings.HasPrefix(configuration["external_id"], "secret_ref_") || len(configuration["external_id"]) > 128 || !awsRegionPattern.MatchString(configuration["region"]) {
+	if !awsRolePattern.MatchString(configuration["role_arn"]) || !validOpaqueReference(configuration["external_id_reference"], 512) || !awsRegionPattern.MatchString(configuration["region"]) {
 		return ErrInvalid
 	}
 	return nil
+}
+
+func validOpaqueReference(value string, maximum int) bool {
+	if len(value) < 12 || len(value) > maximum || !strings.HasPrefix(value, "ref:") {
+		return false
+	}
+	for _, character := range value[4:] {
+		if character >= 'a' && character <= 'z' || character >= '0' && character <= '9' || strings.ContainsRune("_./:-", character) {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func publicManifest(value ConnectorManifest) PublicManifest {

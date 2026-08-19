@@ -52,10 +52,10 @@ func TestConnectorManifestPublicBoundaryAndCatalog(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := catalog.ValidateSetup("aws", map[string]string{"role_arn": "arn:aws:iam::000000000000:role/zasp-read", "external_id": "secret_ref_aws_external", "region": "us-east-1"}); err != nil {
+	if err := catalog.ValidateSetup("aws", map[string]string{"role_arn": "arn:aws:iam::000000000000:role/zasp-read", "external_id_reference": "ref:aws/external-id-0001", "region": "us-east-1"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := catalog.ValidateSetup("github", map[string]string{"connection_reference": "connection_ref_fixture"}); err != nil {
+	if err := catalog.ValidateSetup("github", map[string]string{"connection_reference": "ref:github/connection-fixture"}); err != nil {
 		t.Fatal(err)
 	}
 	for name, config := range map[string]map[string]string{
@@ -74,6 +74,32 @@ func TestConnectorManifestPublicBoundaryAndCatalog(t *testing.T) {
 	cancel()
 	if _, err := catalog.SearchContext(canceled, CatalogFilter{}); err == nil {
 		t.Fatal("canceled catalog search accepted")
+	}
+}
+
+func TestLaunchCatalogUsesFirstPartyAuthorizationForAWSKubernetesGitHubAndOkta(t *testing.T) {
+	catalog, err := NewCatalog(BuiltinManifests())
+	if err != nil {
+		t.Fatal(err)
+	}
+	items, err := catalog.Search(CatalogFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := map[string]PublicManifest{}
+	for _, item := range items {
+		seen[item.Key] = item
+	}
+	for _, key := range []string{"aws", "github", "kubernetes", "okta"} {
+		item, ok := seen[key]
+		if !ok || item.AuthMode == "nango_oauth" || item.AuthMode == "" {
+			t.Fatalf("launch manifest %q = %#v, %t", key, item, ok)
+		}
+	}
+	for _, key := range []string{"github", "kubernetes", "okta"} {
+		if err := catalog.ValidateSetup(key, map[string]string{"connection_reference": "ref:" + key + "/connection-0001"}); err != nil {
+			t.Fatalf("%s reference bind rejected: %v", key, err)
+		}
 	}
 }
 
