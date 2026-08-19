@@ -12,6 +12,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
 
 func TestProductionDiscoverySnapshotGenerationOrderingAndMeaningfulChanges(t *testing.T) {
@@ -222,6 +223,70 @@ func TestProductionDiscoveryExactFindingAndEnrollmentParentsAndProjectionPlan(t 
 	}
 	if !strings.Contains(plan.String(), "zasp_projection_work_claim_idx") {
 		t.Fatalf("projection claim plan:\n%s", plan.String())
+	}
+}
+
+func TestProductionDiscoveryLeastPrivilegeRolesAndLiveReadiness(t *testing.T) {
+	fixture := newDiscoveryFixPostgresFixture(t)
+	scope := fixture.scopeArgs()
+	var forcedTables, totalTables int
+	if err := fixture.connection.QueryRow(fixture.ctx, `SELECT count(*) FILTER (WHERE relforcerowsecurity),count(*) FROM pg_class JOIN pg_namespace n ON n.oid=relnamespace WHERE n.nspname='public' AND relkind='r' AND relname IN ('zasp_integrations','zasp_discovery_jobs','zasp_discovery_outbox','zasp_projection_work')`).Scan(&forcedTables, &totalTables); err != nil || forcedTables != totalTables || totalTables != 4 {
+		t.Fatalf("forced RLS=%d/%d err=%v", forcedTables, totalTables, err)
+	}
+	var unsafeFunctions int
+	if err := fixture.connection.QueryRow(fixture.ctx, `SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.proname LIKE 'zasp_discovery_%' AND (NOT p.prosecdef OR NOT COALESCE(p.proconfig,'{}') @> ARRAY['search_path=pg_catalog, public'])`).Scan(&unsafeFunctions); err != nil || unsafeFunctions != 0 {
+		t.Fatalf("unsafe discovery functions=%d err=%v", unsafeFunctions, err)
+	}
+	integrationID := "pid_58000001-0000-4000-8000-000000000001"
+	if _, err := fixture.connection.Exec(fixture.ctx, `SET ROLE zasp_discovery_api`); err != nil {
+		t.Fatal(err)
+	}
+	var created []byte
+	if err := fixture.connection.QueryRow(fixture.ctx, `SELECT zasp_discovery_create_integration($1,$2,$3,$4,'aws','1.0.0','Role-bound','{}'::jsonb,NULL)`, append(scope, integrationID)...).Scan(&created); err != nil || !strings.Contains(string(created), integrationID) {
+		t.Fatalf("scoped API function=%s err=%v", created, err)
+	}
+	if _, err := fixture.connection.Exec(fixture.ctx, `SELECT count(*) FROM zasp_integrations`); err == nil {
+		t.Fatal("API role received direct table access")
+	}
+	if _, err := fixture.connection.Exec(fixture.ctx, `SELECT zasp_discovery_claim_jobs('api-worker','api-lease-token-0001',30,10,'discovery')`); err == nil {
+		t.Fatal("API role received worker claim authority")
+	}
+	if _, err := fixture.connection.Exec(fixture.ctx, `RESET ROLE`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fixture.connection.Exec(fixture.ctx, `UPDATE zasp_integrations SET state='active' WHERE id=$1`, integrationID); err != nil {
+		t.Fatal(err)
+	}
+	request := fixture.requestSync(integrationID, 41)
+	if _, err := fixture.connection.Exec(fixture.ctx, `SET ROLE zasp_discovery_worker`); err != nil {
+		t.Fatal(err)
+	}
+	var claimed []byte
+	if err := fixture.connection.QueryRow(fixture.ctx, `SELECT zasp_discovery_claim_jobs('role-worker','role-lease-token-001',30,10,'discovery')`).Scan(&claimed); err != nil || !strings.Contains(string(claimed), request.JobID) {
+		t.Fatalf("global worker claim=%s err=%v", claimed, err)
+	}
+	if _, err := fixture.connection.Exec(fixture.ctx, `SELECT count(*) FROM zasp_discovery_jobs`); err == nil {
+		t.Fatal("worker role received direct table access")
+	}
+	if _, err := fixture.connection.Exec(fixture.ctx, `RESET ROLE`); err != nil {
+		t.Fatal(err)
+	}
+	database, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: fixture.connection})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NewDiscoveryRepository(database); err != nil {
+		t.Fatalf("constructor before drift=%v", err)
+	}
+	if _, err := fixture.connection.Exec(fixture.ctx, `ALTER TABLE zasp_integrations ADD COLUMN live_drift text`); err != nil {
+		t.Fatal(err)
+	}
+	var ready bool
+	if err := fixture.connection.QueryRow(fixture.ctx, `SELECT zasp_discovery_readiness($1,$2)`, migrations.ProductionDiscovery().Checksum(), migrations.ProductionDiscoverySemanticFingerprint()).Scan(&ready); err != nil || ready {
+		t.Fatalf("readiness after live drift=%v err=%v", ready, err)
+	}
+	if _, err := NewDiscoveryRepository(database); !errors.Is(err, ErrRepositoryConfiguration) {
+		t.Fatalf("constructor after live drift=%v", err)
 	}
 }
 

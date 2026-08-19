@@ -86,6 +86,10 @@ func NewDiscoveryRepository(database JSONDatabase) (*DiscoveryRepository, error)
 	if nilInterface(database) {
 		return nil, ErrRepositoryConfiguration
 	}
+	version, err := database.SchemaVersion(context.Background())
+	if err != nil || version != DiscoverySchemaVersion {
+		return nil, ErrRepositoryConfiguration
+	}
 	payload, err := database.QueryJSON(context.Background(), postgresDiscoveryReadySQL, migrations.ProductionDiscovery().Checksum(), migrations.ProductionDiscoverySemanticFingerprint())
 	var ready bool
 	if err != nil || decodeStrictDiscovery(payload, &ready) != nil || !ready {

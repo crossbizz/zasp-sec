@@ -13,6 +13,14 @@ type discoveryCallDatabase struct {
 	workflowCallDatabase
 	responses map[string]json.RawMessage
 	errors    map[string]error
+	schema    string
+}
+
+func (database *discoveryCallDatabase) SchemaVersion(context.Context) (string, error) {
+	if database.schema != "" {
+		return database.schema, nil
+	}
+	return DiscoverySchemaVersion, nil
 }
 
 func (database *discoveryCallDatabase) QueryJSON(_ context.Context, query string, args ...any) (json.RawMessage, error) {
@@ -33,6 +41,13 @@ func newTestDiscoveryRepository(t *testing.T, database *discoveryCallDatabase) *
 		t.Fatal(err)
 	}
 	return repository
+}
+
+func TestNewDiscoveryRepositoryRequiresLiveDiscoverySchema(t *testing.T) {
+	database := &discoveryCallDatabase{schema: CoreSchemaVersion, responses: map[string]json.RawMessage{postgresDiscoveryReadySQL: json.RawMessage(`true`)}}
+	if _, err := NewDiscoveryRepository(database); !errors.Is(err, ErrRepositoryConfiguration) {
+		t.Fatalf("v9 schema accepted for discovery repository: %v", err)
+	}
 }
 
 func TestDiscoveryRepositoryCreatesReferenceOnlyIntegrationInExactScope(t *testing.T) {
