@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
@@ -62,6 +61,9 @@ func (handler *sessionHTTPHandler) ServeHTTP(writer http.ResponseWriter, request
 			return
 		}
 		payload, err := handler.repository.Bootstrap(request.Context(), identity)
+		if err == nil {
+			payload, err = authorizedBootstrap(payload, identity)
+		}
 		writeProductionResponse(writer, request, http.StatusOK, payload, err)
 	case "/api/v1/session/callback":
 		var input struct {
@@ -91,6 +93,40 @@ func (handler *sessionHTTPHandler) ServeHTTP(writer http.ResponseWriter, request
 	default:
 		writeProductionError(writer, request, ErrRepositoryNotFound)
 	}
+}
+
+func authorizedBootstrap(payload json.RawMessage, identity RequestIdentity) (json.RawMessage, error) {
+	var value map[string]json.RawMessage
+	if json.Unmarshal(payload, &value) != nil {
+		return nil, ErrRepositoryUnavailable
+	}
+	capabilities := []string{}
+	for _, permission := range identity.Permissions {
+		if permission == "view" {
+			capabilities = append(capabilities, "inventory.read")
+			break
+		}
+	}
+	replacements := map[string]any{
+		"organization_id": identity.Scope.OrganizationID().String(),
+		"workspace_id":    identity.Scope.WorkspaceID().String(),
+		"environment_id":  identity.Scope.EnvironmentID().String(),
+		"permissions":     identity.Permissions,
+		"capabilities":    capabilities,
+		"csrf_token":      identity.CSRFToken,
+	}
+	for name, replacement := range replacements {
+		encoded, err := json.Marshal(replacement)
+		if err != nil {
+			return nil, ErrRepositoryUnavailable
+		}
+		value[name] = encoded
+	}
+	result, err := json.Marshal(value)
+	if err != nil {
+		return nil, ErrRepositoryUnavailable
+	}
+	return result, nil
 }
 
 type identityHTTPHandler struct{ repository sessionRepository }
@@ -147,54 +183,41 @@ func (handler *coreHTTPHandler) ServeHTTP(writer http.ResponseWriter, request *h
 }
 
 func productionOperation(request *http.Request, boundary dependencyKind) (string, bool, int, error) {
-	path := request.URL.Path
+	routed, ok := RoutedOperationFromRequest(request)
+	if !ok {
+		return "", false, 0, ErrRepositoryNotFound
+	}
+	id := routed.PathParameters["id"]
 	if boundary == inventoryDependency {
-		collections := map[string]string{"/api/v1/agents": "agents", "/api/v1/tools": "tools", "/api/v1/identities": "identities", "/api/v1/runtimes": "runtimes"}
-		if value := collections[path]; value != "" {
-			return value, false, http.StatusOK, nil
-		}
-		for prefix, name := range map[string]string{"/api/v1/agents/": "agent:", "/api/v1/tools/": "tool:", "/api/v1/identities/": "identity:", "/api/v1/runtimes/": "runtime:", "/api/v1/assets/": "asset:"} {
-			if strings.HasPrefix(path, prefix) {
-				tail := strings.TrimPrefix(path, prefix)
-				if prefix == "/api/v1/agents/" && strings.Contains(tail, "/") {
-					parts := strings.SplitN(tail, "/", 2)
-					return "agent_" + parts[1] + ":" + parts[0], false, http.StatusOK, nil
-				}
-				if request.Method == http.MethodPatch && prefix == "/api/v1/agents/" {
-					return name + tail, true, http.StatusOK, nil
-				}
-				return name + tail, false, http.StatusOK, nil
-			}
+		switch routed.OperationID {
+		case "listAgents":
+			return "agents", false, http.StatusOK, nil
+		case "getAgent":
+			return "agent:" + id, false, http.StatusOK, nil
+		case "getAgentCapabilities":
+			return "agent_capabilities:" + id, false, http.StatusOK, nil
+		case "getAgentRelationships":
+			return "agent_relationships:" + id, false, http.StatusOK, nil
+		case "listAgentSessions":
+			return "agent_sessions:" + id, false, http.StatusOK, nil
+		case "listTools":
+			return "tools", false, http.StatusOK, nil
+		case "getTool":
+			return "tool:" + id, false, http.StatusOK, nil
+		case "listIdentities":
+			return "identities", false, http.StatusOK, nil
+		case "getIdentity":
+			return "identity:" + id, false, http.StatusOK, nil
+		case "listRuntimes":
+			return "runtimes", false, http.StatusOK, nil
+		case "getRuntime":
+			return "runtime:" + id, false, http.StatusOK, nil
+		case "getAsset":
+			return "asset:" + id, false, http.StatusOK, nil
 		}
 	}
-	if boundary == riskDependency {
-		switch path {
-		case "/api/v1/home/summary":
-			return "home", false, http.StatusOK, nil
-		case "/api/v1/search":
-			return "search:" + request.URL.RawQuery, false, http.StatusOK, nil
-		case "/api/v1/findings":
-			return "findings", false, http.StatusOK, nil
-		case "/api/v1/attack-paths":
-			return "attack_paths", false, http.StatusOK, nil
-		}
-		if strings.HasPrefix(path, "/api/v1/findings/") {
-			tail := strings.TrimPrefix(path, "/api/v1/findings/")
-			if strings.HasSuffix(tail, "/accept-risk") {
-				return "finding_accept:" + strings.TrimSuffix(tail, "/accept-risk"), true, http.StatusOK, nil
-			}
-			if strings.HasSuffix(tail, "/ticket") {
-				return "finding_ticket:" + strings.TrimSuffix(tail, "/ticket"), true, http.StatusCreated, nil
-			}
-			return "finding:" + tail, request.Method == http.MethodPatch, http.StatusOK, nil
-		}
-		if strings.HasPrefix(path, "/api/v1/attack-paths/") {
-			tail := strings.TrimPrefix(path, "/api/v1/attack-paths/")
-			if strings.HasSuffix(tail, "/break-options") {
-				return "attack_path_break_options:" + strings.TrimSuffix(tail, "/break-options"), false, http.StatusOK, nil
-			}
-			return "attack_path:" + tail, false, http.StatusOK, nil
-		}
+	if boundary == riskDependency && routed.OperationID == "getHomeSummary" {
+		return "home", false, http.StatusOK, nil
 	}
 	return "", false, 0, ErrRepositoryNotFound
 }

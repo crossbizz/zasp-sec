@@ -16,8 +16,11 @@ type Dependencies struct {
 }
 
 type OperationDefinition struct {
-	Method  string
-	Pattern string
+	Method      string
+	Pattern     string
+	OperationID string
+	Permission  string
+	Security    []string
 }
 
 type dependencyKind uint8
@@ -35,33 +38,23 @@ type coreOperation struct {
 }
 
 var coreOperations = []coreOperation{
-	{OperationDefinition{"GET", "/api/v1/session/bootstrap"}, sessionDependency},
-	{OperationDefinition{"POST", "/api/v1/session/callback"}, sessionDependency},
-	{OperationDefinition{"POST", "/api/v1/session/sign-out"}, sessionDependency},
-	{OperationDefinition{"GET", "/api/v1/me"}, identityDependency},
-	{OperationDefinition{"GET", "/api/v1/home/summary"}, riskDependency},
-	{OperationDefinition{"GET", "/api/v1/search"}, riskDependency},
-	{OperationDefinition{"GET", "/api/v1/agents"}, inventoryDependency},
-	{OperationDefinition{"GET", "/api/v1/agents/{id}"}, inventoryDependency},
-	{OperationDefinition{"PATCH", "/api/v1/agents/{id}"}, inventoryDependency},
-	{OperationDefinition{"GET", "/api/v1/agents/{id}/capabilities"}, inventoryDependency},
-	{OperationDefinition{"GET", "/api/v1/agents/{id}/relationships"}, inventoryDependency},
-	{OperationDefinition{"GET", "/api/v1/agents/{id}/sessions"}, inventoryDependency},
-	{OperationDefinition{"GET", "/api/v1/tools"}, inventoryDependency},
-	{OperationDefinition{"GET", "/api/v1/tools/{id}"}, inventoryDependency},
-	{OperationDefinition{"GET", "/api/v1/identities"}, inventoryDependency},
-	{OperationDefinition{"GET", "/api/v1/identities/{id}"}, inventoryDependency},
-	{OperationDefinition{"GET", "/api/v1/runtimes"}, inventoryDependency},
-	{OperationDefinition{"GET", "/api/v1/runtimes/{id}"}, inventoryDependency},
-	{OperationDefinition{"GET", "/api/v1/assets/{id}"}, inventoryDependency},
-	{OperationDefinition{"GET", "/api/v1/findings"}, riskDependency},
-	{OperationDefinition{"GET", "/api/v1/findings/{id}"}, riskDependency},
-	{OperationDefinition{"PATCH", "/api/v1/findings/{id}"}, riskDependency},
-	{OperationDefinition{"POST", "/api/v1/findings/{id}/accept-risk"}, riskDependency},
-	{OperationDefinition{"POST", "/api/v1/findings/{id}/ticket"}, riskDependency},
-	{OperationDefinition{"GET", "/api/v1/attack-paths"}, riskDependency},
-	{OperationDefinition{"GET", "/api/v1/attack-paths/{id}"}, riskDependency},
-	{OperationDefinition{"GET", "/api/v1/attack-paths/{id}/break-options"}, riskDependency},
+	{OperationDefinition{"GET", "/api/v1/session/bootstrap", "bootstrapSession", "", []string{"BrowserSession"}}, sessionDependency},
+	{OperationDefinition{"POST", "/api/v1/session/callback", "completeSessionCallback", "", []string{}}, sessionDependency},
+	{OperationDefinition{"POST", "/api/v1/session/sign-out", "signOutSession", "", []string{"BrowserSession"}}, sessionDependency},
+	{OperationDefinition{"GET", "/api/v1/me", "getCurrentPrincipal", "", []string{"BrowserSession", "ProductAPIToken"}}, identityDependency},
+	{OperationDefinition{"GET", "/api/v1/home/summary", "getHomeSummary", "view", []string{"BrowserSession", "ProductAPIToken"}}, riskDependency},
+	{OperationDefinition{"GET", "/api/v1/agents", "listAgents", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
+	{OperationDefinition{"GET", "/api/v1/agents/{id}", "getAgent", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
+	{OperationDefinition{"GET", "/api/v1/agents/{id}/capabilities", "getAgentCapabilities", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
+	{OperationDefinition{"GET", "/api/v1/agents/{id}/relationships", "getAgentRelationships", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
+	{OperationDefinition{"GET", "/api/v1/agents/{id}/sessions", "listAgentSessions", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
+	{OperationDefinition{"GET", "/api/v1/tools", "listTools", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
+	{OperationDefinition{"GET", "/api/v1/tools/{id}", "getTool", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
+	{OperationDefinition{"GET", "/api/v1/identities", "listIdentities", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
+	{OperationDefinition{"GET", "/api/v1/identities/{id}", "getIdentity", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
+	{OperationDefinition{"GET", "/api/v1/runtimes", "listRuntimes", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
+	{OperationDefinition{"GET", "/api/v1/runtimes/{id}", "getRuntime", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
+	{OperationDefinition{"GET", "/api/v1/assets/{id}", "getAsset", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
 }
 
 func CoreOperations() []OperationDefinition {
@@ -89,7 +82,7 @@ func NewComposition(dependencies Dependencies) (http.Handler, error) {
 	operations := make([]Operation, 0, len(coreOperations))
 	for _, definition := range coreOperations {
 		handler := dependencyHandler(dependencies, definition.dependency)
-		operations = append(operations, Operation{Method: definition.Method, Pattern: definition.Pattern, Handler: handler})
+		operations = append(operations, Operation{Method: definition.Method, Pattern: definition.Pattern, OperationID: definition.OperationID, Permission: definition.Permission, Handler: handler})
 	}
 	router, err := NewRouter(operations)
 	if err != nil {

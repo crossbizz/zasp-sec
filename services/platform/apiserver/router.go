@@ -1,9 +1,12 @@
 package apiserver
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
 
 const fallbackCorrelationID = "pid_ffffffff-ffff-4fff-8fff-ffffffffffff"
@@ -14,9 +17,11 @@ var (
 )
 
 type Operation struct {
-	Method  string
-	Pattern string
-	Handler http.Handler
+	Method      string
+	Pattern     string
+	OperationID string
+	Permission  string
+	Handler     http.Handler
 }
 
 type operationRouter struct {
@@ -24,16 +29,26 @@ type operationRouter struct {
 }
 
 type registeredOperation struct {
-	method   string
-	pattern  string
-	segments []routeSegment
-	handler  http.Handler
+	method      string
+	pattern     string
+	operationID string
+	permission  string
+	segments    []routeSegment
+	handler     http.Handler
 }
 
 type routeSegment struct {
 	literal   string
 	parameter bool
+	name      string
 }
+
+type RoutedOperation struct {
+	OperationID    string
+	PathParameters map[string]string
+}
+
+type routedOperationContextKey struct{}
 
 func NewRouter(operations []Operation) (http.Handler, error) {
 	if len(operations) == 0 {
@@ -51,8 +66,13 @@ func NewRouter(operations []Operation) (http.Handler, error) {
 			return nil, ErrDuplicateOperation
 		}
 		seen[key] = struct{}{}
+		for _, existing := range registered {
+			if existing.method == operation.Method && overlappingRouteShape(existing.segments, segments) {
+				return nil, ErrDuplicateOperation
+			}
+		}
 		registered = append(registered, registeredOperation{
-			method: operation.Method, pattern: operation.Pattern, segments: segments, handler: operation.Handler,
+			method: operation.Method, pattern: operation.Pattern, operationID: operation.OperationID, permission: operation.Permission, segments: segments, handler: operation.Handler,
 		})
 	}
 	return &operationRouter{operations: registered}, nil
@@ -67,11 +87,18 @@ func (router *operationRouter) ServeHTTP(writer http.ResponseWriter, request *ht
 	pathSegments := splitPath(request.URL.Path)
 	pathMatched := false
 	for _, operation := range router.operations {
-		if !matchSegments(operation.segments, pathSegments) {
+		parameters, matched := matchSegments(operation.segments, pathSegments)
+		if !matched {
 			continue
 		}
 		pathMatched = true
 		if operation.method == request.Method {
+			if operation.permission != "" && !requestHasPermission(request, operation.permission) {
+				writeRouterError(writer, request, http.StatusForbidden, "request_forbidden", "Request forbidden")
+				return
+			}
+			routed := RoutedOperation{OperationID: operation.operationID, PathParameters: parameters}
+			request = request.WithContext(context.WithValue(request.Context(), routedOperationContextKey{}, routed))
 			operation.handler.ServeHTTP(writer, request)
 			return
 		}
@@ -103,7 +130,7 @@ func parsePattern(pattern string) ([]routeSegment, error) {
 				return nil, ErrInvalidOperation
 			}
 			parameters[name] = struct{}{}
-			segments[index] = routeSegment{parameter: true}
+			segments[index] = routeSegment{parameter: true, name: name}
 			continue
 		}
 		if strings.ContainsAny(part, "{}") {
@@ -118,16 +145,66 @@ func splitPath(path string) []string {
 	return strings.Split(strings.TrimPrefix(path, "/"), "/")
 }
 
-func matchSegments(pattern []routeSegment, path []string) bool {
+func matchSegments(pattern []routeSegment, path []string) (map[string]string, bool) {
 	if len(pattern) != len(path) {
-		return false
+		return nil, false
 	}
+	parameters := make(map[string]string)
 	for index, segment := range pattern {
 		if path[index] == "" || (!segment.parameter && segment.literal != path[index]) {
+			return nil, false
+		}
+		if segment.parameter {
+			if segment.name == "id" {
+				if _, err := domain.ParseProductID(path[index]); err != nil {
+					return nil, false
+				}
+			}
+			parameters[segment.name] = path[index]
+		}
+	}
+	return parameters, true
+}
+
+func overlappingRouteShape(left, right []routeSegment) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if !left[index].parameter && !right[index].parameter && left[index].literal != right[index].literal {
 			return false
 		}
 	}
 	return true
+}
+
+func requestHasPermission(request *http.Request, permission string) bool {
+	identity, ok := IdentityFromRequest(request)
+	if !ok {
+		return false
+	}
+	for _, granted := range identity.Permissions {
+		if granted == permission {
+			return true
+		}
+	}
+	return false
+}
+
+func RoutedOperationFromRequest(request *http.Request) (RoutedOperation, bool) {
+	if request == nil {
+		return RoutedOperation{}, false
+	}
+	routed, ok := request.Context().Value(routedOperationContextKey{}).(RoutedOperation)
+	if !ok || routed.PathParameters == nil {
+		return RoutedOperation{}, false
+	}
+	copyParameters := make(map[string]string, len(routed.PathParameters))
+	for name, value := range routed.PathParameters {
+		copyParameters[name] = value
+	}
+	routed.PathParameters = copyParameters
+	return routed, true
 }
 
 func validMethod(method string) bool {

@@ -151,11 +151,30 @@ func requestCredential(request *http.Request) (Credential, bool, bool) {
 }
 
 func validRequestIdentity(identity RequestIdentity, requireCSRF bool) bool {
-	if identity.PrincipalID.IsZero() || identity.Scope.Validate() != nil {
+	if identity.PrincipalID.IsZero() || identity.Scope.Validate() != nil || !validPermissions(identity.Permissions) {
 		return false
 	}
 	if requireCSRF && (len(identity.CSRFToken) < 32 || len(identity.CSRFToken) > 256) {
 		return false
+	}
+	return true
+}
+
+func validPermissions(values []string) bool {
+	if len(values) > 32 {
+		return false
+	}
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		switch value {
+		case "view", "manage_findings":
+		default:
+			return false
+		}
+		if _, duplicate := seen[value]; duplicate {
+			return false
+		}
+		seen[value] = struct{}{}
 	}
 	return true
 }

@@ -12,7 +12,7 @@ import (
 const CoreSchemaVersion = "production-core-v1"
 
 const (
-	postgresAuthenticateSessionSQL = `SELECT jsonb_build_object('principal_id', principal_id, 'organization_id', organization_id, 'workspace_id', workspace_id, 'environment_id', environment_id, 'csrf_token', csrf_token) FROM zasp_product_sessions WHERE token_digest = digest($1, 'sha256') AND revoked_at IS NULL AND expires_at > now()`
+	postgresAuthenticateSessionSQL = `SELECT jsonb_build_object('principal_id', principal_id, 'organization_id', organization_id, 'workspace_id', workspace_id, 'environment_id', environment_id, 'permissions', permissions, 'csrf_token', csrf_token) FROM zasp_product_sessions WHERE token_digest = digest($1, 'sha256') AND revoked_at IS NULL AND expires_at > now()`
 	postgresBootstrapSQL           = `SELECT zasp_session_bootstrap($1, $2, $3, $4)`
 	postgresCoreReadSQL            = `SELECT zasp_core_read($1, $2, $3, $4, $5)`
 	postgresCoreWriteSQL           = `SELECT zasp_core_write($1, $2, $3, $4, $5, $6::jsonb)`
@@ -55,11 +55,12 @@ func (repository *PostgresRepository) Authenticate(ctx context.Context, credenti
 		return RequestIdentity{}, ErrRepositoryAuthentication
 	}
 	var value struct {
-		PrincipalID    string `json:"principal_id"`
-		OrganizationID string `json:"organization_id"`
-		WorkspaceID    string `json:"workspace_id"`
-		EnvironmentID  string `json:"environment_id"`
-		CSRFToken      string `json:"csrf_token"`
+		PrincipalID    string   `json:"principal_id"`
+		OrganizationID string   `json:"organization_id"`
+		WorkspaceID    string   `json:"workspace_id"`
+		EnvironmentID  string   `json:"environment_id"`
+		Permissions    []string `json:"permissions"`
+		CSRFToken      string   `json:"csrf_token"`
 	}
 	if err := json.Unmarshal(payload, &value); err != nil {
 		return RequestIdentity{}, ErrRepositoryAuthentication
@@ -69,7 +70,7 @@ func (repository *PostgresRepository) Authenticate(ctx context.Context, credenti
 	workspace, workspaceErr := domain.ParseProductID(value.WorkspaceID)
 	environment, environmentErr := domain.ParseProductID(value.EnvironmentID)
 	scope, scopeErr := domain.NewScope(organization, workspace, environment)
-	identity := RequestIdentity{PrincipalID: principal, Scope: scope, CSRFToken: value.CSRFToken}
+	identity := RequestIdentity{PrincipalID: principal, Scope: scope, Permissions: append([]string(nil), value.Permissions...), CSRFToken: value.CSRFToken}
 	if principalErr != nil || organizationErr != nil || workspaceErr != nil || environmentErr != nil || scopeErr != nil || !validRequestIdentity(identity, credential.Kind == CredentialBrowserSession) {
 		return RequestIdentity{}, ErrRepositoryAuthentication
 	}
@@ -141,7 +142,7 @@ func scopeKey(scope domain.Scope) string {
 }
 
 func identityJSON(identity RequestIdentity) map[string]any {
-	return map[string]any{"principal_id": identity.PrincipalID.String(), "organization_id": identity.Scope.OrganizationID().String(), "workspace_id": identity.Scope.WorkspaceID().String(), "environment_id": identity.Scope.EnvironmentID().String(), "csrf_token": identity.CSRFToken}
+	return map[string]any{"principal_id": identity.PrincipalID.String(), "organization_id": identity.Scope.OrganizationID().String(), "workspace_id": identity.Scope.WorkspaceID().String(), "environment_id": identity.Scope.EnvironmentID().String(), "permissions": identity.Permissions, "csrf_token": identity.CSRFToken}
 }
 
 func bootstrapJSON(identity RequestIdentity) map[string]any {

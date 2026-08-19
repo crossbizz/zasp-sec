@@ -184,7 +184,7 @@ func fixtureRequestIdentity(t *testing.T) RequestIdentity {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return RequestIdentity{PrincipalID: principal, Scope: scope, CSRFToken: strings.Repeat("c", 32)}
+	return RequestIdentity{PrincipalID: principal, Scope: scope, Permissions: []string{"view", "manage_findings"}, CSRFToken: strings.Repeat("c", 32)}
 }
 
 func decodeErrorCode(t *testing.T, response *httptest.ResponseRecorder) string {

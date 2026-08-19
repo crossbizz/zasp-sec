@@ -15,6 +15,7 @@ CREATE TABLE "public"."zasp_product_sessions" (
     "organization_id" text NOT NULL,
     "workspace_id" text NOT NULL,
     "environment_id" text NOT NULL,
+	"permissions" jsonb NOT NULL CHECK (jsonb_typeof("permissions") = 'array'),
     "csrf_token" text NOT NULL,
     "expires_at" timestamp with time zone NOT NULL,
     "revoked_at" timestamp with time zone

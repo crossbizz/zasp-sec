@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -18,32 +19,27 @@ func TestPostgresProductionSliceSurvivesRepositoryRestartAndIsolatesTenants(t *t
 	serverA := newProductionTestServer(t, database)
 	client := serverA.Client()
 
-	for _, path := range []string{"/api/v1/home/summary", "/api/v1/agents", "/api/v1/findings", "/api/v1/attack-paths"} {
+	for _, path := range []string{"/api/v1/home/summary", "/api/v1/agents"} {
 		response := productRequest(t, client, http.MethodGet, serverA.URL+path, "session-a", "", "")
 		if response.StatusCode != http.StatusOK {
 			t.Fatalf("GET %s status = %d", path, response.StatusCode)
 		}
 		_ = response.Body.Close()
 	}
-	mutation := productRequest(t, client, http.MethodPatch, serverA.URL+"/api/v1/findings/pid_20000005-0000-4000-8000-000000000005", "session-a", serverA.URL, `{"status":"under_review"}`)
-	if mutation.StatusCode != http.StatusOK {
-		t.Fatalf("mutation status = %d", mutation.StatusCode)
-	}
-	_ = mutation.Body.Close()
 	serverA.Close()
 
 	serverB := newProductionTestServer(t, database)
 	defer serverB.Close()
-	persisted := productRequest(t, serverB.Client(), http.MethodGet, serverB.URL+"/api/v1/findings/pid_20000005-0000-4000-8000-000000000005", "session-a", "", "")
+	persisted := productRequest(t, serverB.Client(), http.MethodGet, serverB.URL+"/api/v1/agents", "session-a", "", "")
 	defer persisted.Body.Close()
-	var finding map[string]any
-	if err := json.NewDecoder(persisted.Body).Decode(&finding); err != nil {
+	var inventory map[string]any
+	if err := json.NewDecoder(persisted.Body).Decode(&inventory); err != nil {
 		t.Fatal(err)
 	}
-	if persisted.StatusCode != http.StatusOK || finding["status"] != "under_review" {
-		t.Fatalf("persisted finding = (%d, %#v)", persisted.StatusCode, finding)
+	if persisted.StatusCode != http.StatusOK || len(inventory["items"].([]any)) != 1 {
+		t.Fatalf("persisted inventory = (%d, %#v)", persisted.StatusCode, inventory)
 	}
-	foreign := productRequest(t, serverB.Client(), http.MethodGet, serverB.URL+"/api/v1/findings/pid_20000005-0000-4000-8000-000000000005", "session-b", "", "")
+	foreign := productRequest(t, serverB.Client(), http.MethodGet, serverB.URL+"/api/v1/agents/pid_20000001-0000-4000-8000-000000000001", "session-b", "", "")
 	defer foreign.Body.Close()
 	if foreign.StatusCode != http.StatusNotFound {
 		t.Fatalf("foreign tenant status = %d, want 404", foreign.StatusCode)
@@ -74,9 +70,26 @@ func TestProductionHandlersIssueHostOnlySecureSessionCookie(t *testing.T) {
 	}
 }
 
+func TestProductionBootstrapAdvertisesOnlyMountedDurableCapabilities(t *testing.T) {
+	server := newProductionTestServer(t, newPersistentJSONDatabase(t))
+	defer server.Close()
+	response := productRequest(t, server.Client(), http.MethodGet, server.URL+"/api/v1/session/bootstrap", "session-a", "", "")
+	defer response.Body.Close()
+	var bootstrap struct {
+		Capabilities []string `json:"capabilities"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&bootstrap); err != nil {
+		t.Fatal(err)
+	}
+	if response.StatusCode != http.StatusOK || !reflect.DeepEqual(bootstrap.Capabilities, []string{"inventory.read"}) {
+		t.Fatalf("bootstrap = (%d, %#v)", response.StatusCode, bootstrap.Capabilities)
+	}
+}
+
 func TestProductionProviderFailureReturnsRetryableErrorWithoutFixtureFallback(t *testing.T) {
-	request := httptest.NewRequest(http.MethodGet, "https://app.zasp.test/api/v1/findings", nil)
+	request := httptest.NewRequest(http.MethodGet, "https://app.zasp.test/api/v1/home/summary", nil)
 	request = request.WithContext(context.WithValue(request.Context(), identityContextKey{}, fixtureRequestIdentity(t)))
+	request = request.WithContext(context.WithValue(request.Context(), routedOperationContextKey{}, RoutedOperation{OperationID: "getHomeSummary", PathParameters: map[string]string{}}))
 	response := httptest.NewRecorder()
 	(&coreHTTPHandler{repository: unavailableCoreRepository{}, boundary: riskDependency}).ServeHTTP(response, request)
 	if response.Code != http.StatusServiceUnavailable {
@@ -167,8 +180,8 @@ func newPersistentJSONDatabase(t *testing.T) *persistentJSONDatabase {
 	principalB, _ := domain.ParseProductID("pid_20000004-0000-4000-8000-000000000004")
 	return &persistentJSONDatabase{
 		sessions: map[string]RequestIdentity{
-			"session-a": {PrincipalID: principalA, Scope: scopeA, CSRFToken: strings.Repeat("c", 32)},
-			"session-b": {PrincipalID: principalB, Scope: scopeB, CSRFToken: strings.Repeat("d", 32)},
+			"session-a": {PrincipalID: principalA, Scope: scopeA, Permissions: []string{"view", "manage_findings"}, CSRFToken: strings.Repeat("c", 32)},
+			"session-b": {PrincipalID: principalB, Scope: scopeB, Permissions: []string{"view"}, CSRFToken: strings.Repeat("d", 32)},
 		},
 		records: map[string]map[string]json.RawMessage{
 			scopeKey(scopeA): {
