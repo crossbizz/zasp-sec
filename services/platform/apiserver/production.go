@@ -417,7 +417,7 @@ func (handler *identityHTTPHandler) serveAdministration(writer http.ResponseWrit
 		writeProductionError(writer, request, ErrRepositoryNotFound)
 		return
 	}
-	if routed.OperationID == "getEnvironment" && parameters["id"] != identity.Scope.EnvironmentID().String() {
+	if (routed.OperationID == "getWorkspace" && parameters["id"] != identity.Scope.WorkspaceID().String()) || (routed.OperationID == "getEnvironment" && parameters["id"] != identity.Scope.EnvironmentID().String()) {
 		writeProductionError(writer, request, ErrRepositoryNotFound)
 		return
 	}
@@ -443,6 +443,10 @@ func (handler *identityHTTPHandler) mutateAdministration(writer http.ResponseWri
 	mutation := administrationMutation{Operation: routed.OperationID, ID: routed.PathParameters["id"]}
 	if routed.OperationID == "revealAPIToken" {
 		handler.revealAPIToken(writer, request, identity, mutation.ID)
+		return
+	}
+	if routed.OperationID == "updateWorkspace" && mutation.ID != identity.Scope.WorkspaceID().String() {
+		writeProductionError(writer, request, ErrRepositoryNotFound)
 		return
 	}
 	auditID, err := newWorkflowProductID()

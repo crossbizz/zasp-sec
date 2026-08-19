@@ -1084,17 +1084,20 @@ func TestAdministrationKeysetsAndExactScopePreconditionsWithHostilePostgresData(
 	siblingWorkspace := "pid_20000002-0000-4000-8000-000000000002"
 	siblingEnvironment := "pid_20000003-0000-4000-8000-000000000003"
 	siblingToken := "pid_20000005-0000-4000-8000-000000000005"
+	ungrantedWorkspace := "pid_30000002-0000-4000-8000-000000000002"
 	for _, seed := range []struct {
 		statement string
 		arguments []any
 	}{
 		{`INSERT INTO zasp_organizations(id,name,domain) VALUES($1,'Keyset organization','keyset.invalid')`, []any{organization}},
-		{`INSERT INTO zasp_workspaces(id,organization_id,name) VALUES($2,$1,'Active'),($3,$1,'Sibling')`, []any{organization, workspace, siblingWorkspace}},
+		{`INSERT INTO zasp_workspaces(id,organization_id,name) VALUES($2,$1,'Active'),($3,$1,'Sibling'),($4,$1,'Ungranted')`, []any{organization, workspace, siblingWorkspace, ungrantedWorkspace}},
 		{`INSERT INTO zasp_environments(id,organization_id,workspace_id,name,environment_class) VALUES($3,$1,$2,'Active','production'),($5,$1,$4,'Sibling','staging')`, []any{organization, workspace, environment, siblingWorkspace, siblingEnvironment}},
 		{`INSERT INTO zasp_identity_memberships(principal_id,organization_id,organization_reference,member_reference,role) VALUES($2,$1,'keyset-org','keyset-member','security_admin')`, []any{organization, identity.PrincipalID.String()}},
 		{`INSERT INTO zasp_authorized_scopes(principal_id,organization_id,workspace_id,environment_id,label,permissions,is_default) VALUES($2,$1,$3,$4,'Active','["view","manage_identity"]'::jsonb,true),($2,$1,$5,$6,'Sibling','["view","manage_identity"]'::jsonb,false)`, []any{organization, identity.PrincipalID.String(), workspace, environment, siblingWorkspace, siblingEnvironment}},
 		{`INSERT INTO zasp_product_api_tokens(token_digest,id,name,principal_id,organization_id,workspace_id,environment_id,permissions,expires_at) VALUES(digest('sibling-token-secret','sha256'),$5,'Sibling token',$2,$1,$3,$4,'["view"]'::jsonb,transaction_timestamp()+interval '1 hour')`, []any{organization, identity.PrincipalID.String(), siblingWorkspace, siblingEnvironment, siblingToken}},
 		{`INSERT INTO zasp_workspaces(id,organization_id,name) SELECT 'pid_' || lpad(ordinal::text,8,'0') || '-0000-4000-8000-' || lpad(ordinal::text,12,'0'),$1,'Workspace ' || ordinal FROM generate_series(1,1000) AS ordinal`, []any{organization}},
+		{`INSERT INTO zasp_environments(id,organization_id,workspace_id,name,environment_class) SELECT 'pid_'||lpad((40000000+ordinal)::text,8,'0')||'-0000-4000-8000-'||lpad(ordinal::text,12,'0'),$1,'pid_'||lpad(ordinal::text,8,'0')||'-0000-4000-8000-'||lpad(ordinal::text,12,'0'),'Environment '||ordinal,'development' FROM generate_series(1,151) AS ordinal`, []any{organization}},
+		{`INSERT INTO zasp_authorized_scopes(principal_id,organization_id,workspace_id,environment_id,label,permissions,is_default) SELECT $2,$1,'pid_'||lpad(ordinal::text,8,'0')||'-0000-4000-8000-'||lpad(ordinal::text,12,'0'),'pid_'||lpad((40000000+ordinal)::text,8,'0')||'-0000-4000-8000-'||lpad(ordinal::text,12,'0'),'Granted '||ordinal,'["view","manage_identity"]'::jsonb,false FROM generate_series(1,151) AS ordinal`, []any{organization, identity.PrincipalID.String()}},
 	} {
 		if _, err := connection.Exec(ctx, seed.statement, seed.arguments...); err != nil {
 			t.Fatal(err)
@@ -1133,15 +1136,26 @@ func TestAdministrationKeysetsAndExactScopePreconditionsWithHostilePostgresData(
 	if status != http.StatusOK || len(first.Items) != 100 || !first.PageInfo.HasMore || first.PageInfo.NextCursor == nil {
 		t.Fatalf("first administration page = %d items=%d body=%s", status, len(first.Items), body)
 	}
-	seen := make(map[string]struct{}, 1002)
+	seen := make(map[string]struct{}, 153)
 	for _, item := range first.Items {
 		seen[item.ID] = struct{}{}
 	}
-	if _, err := connection.Exec(ctx, `DELETE FROM zasp_workspaces WHERE id=$1`, first.Items[0].ID); err != nil {
-		t.Fatal(err)
+	for _, statement := range []string{`DELETE FROM zasp_authorized_scopes WHERE organization_id=$1 AND workspace_id=$2`, `DELETE FROM zasp_environments WHERE organization_id=$1 AND workspace_id=$2`, `DELETE FROM zasp_workspaces WHERE organization_id=$1 AND id=$2`} {
+		if _, err := connection.Exec(ctx, statement, organization, first.Items[0].ID); err != nil {
+			t.Fatal(err)
+		}
 	}
-	if _, err := connection.Exec(ctx, `INSERT INTO zasp_workspaces(id,organization_id,name) VALUES('pid_00000000-0000-4000-8000-000000000000',$1,'Inserted behind cursor')`, organization); err != nil {
-		t.Fatal(err)
+	for _, insert := range []struct {
+		statement string
+		arguments []any
+	}{
+		{`INSERT INTO zasp_workspaces(id,organization_id,name) VALUES('pid_00000000-0000-4000-8000-000000000000',$1,'Inserted behind cursor')`, []any{organization}},
+		{`INSERT INTO zasp_environments(id,organization_id,workspace_id,name,environment_class) VALUES('pid_49999999-0000-4000-8000-000000000000',$1,'pid_00000000-0000-4000-8000-000000000000','Inserted behind cursor','development')`, []any{organization}},
+		{`INSERT INTO zasp_authorized_scopes(principal_id,organization_id,workspace_id,environment_id,label,permissions,is_default) VALUES($2,$1,'pid_00000000-0000-4000-8000-000000000000','pid_49999999-0000-4000-8000-000000000000','Inserted behind cursor','["view"]'::jsonb,false)`, []any{organization, identity.PrincipalID.String()}},
+	} {
+		if _, err := connection.Exec(ctx, insert.statement, insert.arguments...); err != nil {
+			t.Fatal(err)
+		}
 	}
 	cursor := *first.PageInfo.NextCursor
 	requests := 1
@@ -1168,11 +1182,14 @@ func TestAdministrationKeysetsAndExactScopePreconditionsWithHostilePostgresData(
 		}
 		cursor = *page.PageInfo.NextCursor
 	}
-	if len(seen) != 1002 || requests != 11 {
-		t.Fatalf("administration traversal = %d unique rows/%d requests, want 1002/11", len(seen), requests)
+	if len(seen) != 153 || requests != 2 {
+		t.Fatalf("authorized administration traversal = %d unique rows/%d requests, want 153/2", len(seen), requests)
 	}
 	if _, exists := seen["pid_00000000-0000-4000-8000-000000000000"]; exists {
 		t.Fatal("key inserted behind the cursor leaked into the continuation")
+	}
+	if _, exists := seen[ungrantedWorkspace]; exists {
+		t.Fatal("ungranted workspace leaked into the authorized traversal")
 	}
 	_, status, body = readPage(t, identity, "/api/v1/workspaces?limit=50&cursor="+*first.PageInfo.NextCursor)
 	if status != http.StatusNotFound || strings.Contains(body, cursor) {
@@ -1188,6 +1205,15 @@ func TestAdministrationKeysetsAndExactScopePreconditionsWithHostilePostgresData(
 
 	if _, err := repository.ReadAdministration(ctx, identity, "getEnvironment", map[string]string{"id": siblingEnvironment}); !errors.Is(err, ErrRepositoryNotFound) {
 		t.Fatalf("sibling environment read = %v", err)
+	}
+	if _, err := repository.ReadAdministration(ctx, identity, "getWorkspace", map[string]string{"id": ungrantedWorkspace}); !errors.Is(err, ErrRepositoryNotFound) {
+		t.Fatalf("ungranted workspace read = %v", err)
+	}
+	for index, target := range []string{siblingWorkspace, ungrantedWorkspace} {
+		auditID := []string{"pid_30000016-0000-4000-8000-000000000016", "pid_30000017-0000-4000-8000-000000000017"}[index]
+		if _, err := repository.MutateAdministration(ctx, identity, administrationMutation{Operation: "updateWorkspace", ID: target, Name: "Hostile", ExpectedVersion: 1, AuditID: auditID}); !errors.Is(err, ErrRepositoryNotFound) {
+			t.Fatalf("foreign workspace update %s = %v", target, err)
+		}
 	}
 	if _, err := repository.MutateAdministration(ctx, identity, administrationMutation{Operation: "createEnvironment", ID: "pid_30000003-0000-4000-8000-000000000003", WorkspaceID: siblingWorkspace, Name: "Hostile", AuditID: "pid_30000006-0000-4000-8000-000000000006"}); !errors.Is(err, ErrRepositoryNotFound) {
 		t.Fatalf("sibling environment create = %v", err)
@@ -1214,6 +1240,9 @@ func TestAdministrationKeysetsAndExactScopePreconditionsWithHostilePostgresData(
 	var hostileClaims int
 	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_admin_idempotency WHERE idempotency_key IN ('idem-hostile-token-0001','idem-hostile-rotate-0001')`).Scan(&hostileClaims); err != nil || hostileClaims != 0 {
 		t.Fatalf("hostile precondition idempotency claims = (%d, %v)", hostileClaims, err)
+	}
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_admin_audit WHERE id IN ('pid_30000016-0000-4000-8000-000000000016','pid_30000017-0000-4000-8000-000000000017')`).Scan(&hostileClaims); err != nil || hostileClaims != 0 {
+		t.Fatalf("hostile workspace audit residue = (%d, %v)", hostileClaims, err)
 	}
 	request := workflowRequest(t, identity, testCorrelationID, "listEnvironments", nil, http.MethodGet, "/api/v1/environments?workspace_id="+workspace+"&workspace_id="+siblingWorkspace, "")
 	response := httptest.NewRecorder()
