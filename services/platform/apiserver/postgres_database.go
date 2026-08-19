@@ -36,11 +36,11 @@ func (database *PostgresJSONDatabase) SchemaVersion(ctx context.Context) (string
 	database.mu.RLock()
 	defer database.mu.RUnlock()
 	if database.closed || nilInterface(database.driver) {
-		return "", ErrRepositoryOperation
+		return "", ErrRepositoryUnavailable
 	}
 	var version string
 	if database.driver.QueryRow(ctx, postgresSchemaVersionSQL).Scan(&version) != nil || version == "" {
-		return "", ErrRepositoryOperation
+		return "", ErrRepositoryUnavailable
 	}
 	return version, nil
 }
@@ -52,11 +52,11 @@ func (database *PostgresJSONDatabase) QueryJSON(ctx context.Context, statement s
 	database.mu.RLock()
 	defer database.mu.RUnlock()
 	if database.closed || nilInterface(database.driver) {
-		return nil, ErrRepositoryOperation
+		return nil, ErrRepositoryUnavailable
 	}
 	var payload []byte
 	if database.driver.QueryRow(ctx, statement, arguments...).Scan(&payload) != nil || !json.Valid(payload) {
-		return nil, ErrRepositoryOperation
+		return nil, ErrRepositoryUnavailable
 	}
 	return append(json.RawMessage(nil), payload...), nil
 }
@@ -68,7 +68,7 @@ func (database *PostgresJSONDatabase) Exec(ctx context.Context, statement string
 	database.mu.RLock()
 	defer database.mu.RUnlock()
 	if database.closed || nilInterface(database.driver) || database.driver.Exec(ctx, statement, arguments...) != nil {
-		return ErrRepositoryOperation
+		return ErrRepositoryUnavailable
 	}
 	return nil
 }

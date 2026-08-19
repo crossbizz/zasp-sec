@@ -74,6 +74,32 @@ func TestProductionHandlersIssueHostOnlySecureSessionCookie(t *testing.T) {
 	}
 }
 
+func TestProductionProviderFailureReturnsRetryableErrorWithoutFixtureFallback(t *testing.T) {
+	request := httptest.NewRequest(http.MethodGet, "https://app.zasp.test/api/v1/findings", nil)
+	request = request.WithContext(context.WithValue(request.Context(), identityContextKey{}, fixtureRequestIdentity(t)))
+	response := httptest.NewRecorder()
+	(&coreHTTPHandler{repository: unavailableCoreRepository{}, boundary: riskDependency}).ServeHTTP(response, request)
+	if response.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	var envelope map[string]any
+	if err := json.Unmarshal(response.Body.Bytes(), &envelope); err != nil {
+		t.Fatal(err)
+	}
+	if envelope["code"] != "provider_unavailable" || envelope["retryable"] != true || strings.Contains(response.Body.String(), "items") {
+		t.Fatalf("provider envelope = %#v", envelope)
+	}
+}
+
+type unavailableCoreRepository struct{}
+
+func (unavailableCoreRepository) Read(context.Context, domain.Scope, string) (json.RawMessage, error) {
+	return nil, ErrRepositoryUnavailable
+}
+func (unavailableCoreRepository) Write(context.Context, domain.Scope, string, json.RawMessage) (json.RawMessage, error) {
+	return nil, ErrRepositoryUnavailable
+}
+
 func newProductionTestServer(t *testing.T, database *persistentJSONDatabase) *httptest.Server {
 	t.Helper()
 	repository, err := NewPostgresRepository(database)

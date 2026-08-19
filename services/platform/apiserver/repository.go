@@ -24,6 +24,7 @@ var (
 	ErrRepositoryAuthentication = errors.New("repository authentication rejected")
 	ErrRepositoryNotFound       = errors.New("repository record not found")
 	ErrRepositoryOperation      = errors.New("repository operation rejected")
+	ErrRepositoryUnavailable    = errors.New("repository provider unavailable")
 )
 
 type JSONDatabase interface {
@@ -110,6 +111,9 @@ func validJSONObject(payload json.RawMessage, err error) (json.RawMessage, error
 	if err != nil {
 		if errors.Is(err, ErrRepositoryNotFound) {
 			return nil, ErrRepositoryNotFound
+		}
+		if errors.Is(err, ErrRepositoryUnavailable) {
+			return nil, ErrRepositoryUnavailable
 		}
 		return nil, ErrRepositoryOperation
 	}

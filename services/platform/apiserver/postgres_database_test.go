@@ -42,13 +42,13 @@ func TestPostgresJSONDatabaseFailsClosedOnDriverErrors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := database.SchemaVersion(context.Background()); !errors.Is(err, ErrRepositoryOperation) {
+	if _, err := database.SchemaVersion(context.Background()); !errors.Is(err, ErrRepositoryUnavailable) {
 		t.Fatalf("schema error = %v", err)
 	}
-	if _, err := database.QueryJSON(context.Background(), "SELECT payload"); !errors.Is(err, ErrRepositoryOperation) {
+	if _, err := database.QueryJSON(context.Background(), "SELECT payload"); !errors.Is(err, ErrRepositoryUnavailable) {
 		t.Fatalf("query error = %v", err)
 	}
-	if err := database.Exec(context.Background(), "UPDATE session"); !errors.Is(err, ErrRepositoryOperation) {
+	if err := database.Exec(context.Background(), "UPDATE session"); !errors.Is(err, ErrRepositoryUnavailable) {
 		t.Fatalf("exec error = %v", err)
 	}
 }
