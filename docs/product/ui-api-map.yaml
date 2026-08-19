@@ -21,6 +21,15 @@ screens:
       - id: switch_browser_session_scope
         operation_id: switchSessionScope
         availability: available
+  - id: workflow_recovery
+    label: Workflow Recovery
+    actions:
+      - id: list_workflow_mutation_receipts
+        operation_id: listWorkflowMutationReceipts
+        availability: available
+      - id: acknowledge_workflow_mutation_receipt
+        operation_id: acknowledgeWorkflowMutationReceipt
+        availability: available
   - id: identity_foundation
     label: Identity Foundation
     actions:

@@ -10,7 +10,7 @@ const environmentID = "pid_10000003-0000-4000-8000-000000000003";
 describe("production workflow API", () => {
   it("uses a caller key and quoted version from the generated contract", async () => {
     const GET = vi.fn(async () => ({ data: policy, response: new Response(JSON.stringify(policy), { status: 200, headers: { ETag: '"3"', "Content-Type": "application/json" } }) }));
-    const POST = vi.fn(async () => ({ data: { policy_id: policy.id, state: "enforced", target_id: environmentID }, response: new Response("{}", { status: 200, headers: { ETag: '"4"', "X-Audit-ID": "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "Content-Type": "application/json" } }) }));
+    const POST = vi.fn(async () => ({ data: { policy_id: policy.id, state: "enforced", target_id: environmentID }, response: new Response("{}", { status: 200, headers: { ETag: '"4"', "X-Audit-ID": "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "X-Mutation-Receipt-ID": "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "Content-Type": "application/json" } }) }));
     const api = createPoliciesAPI({ GET, POST } as unknown as APIClient);
     const current = await api.getPolicy(policy.id);
     await api.rolloutPolicy(policy.id, current.version, { state: "enforced", target_id: environmentID });
@@ -26,7 +26,7 @@ describe("production workflow API", () => {
     const POST = vi.fn(async () => {
       calls++;
       if (calls === 1) throw new APITransportError("timeout", "response lost");
-      return { data: policy, response: new Response(JSON.stringify(policy), { status: 201, headers: { ETag: '"1"', "X-Audit-ID": "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "Content-Type": "application/json" } }) };
+      return { data: policy, response: new Response(JSON.stringify(policy), { status: 201, headers: { ETag: '"1"', "X-Audit-ID": "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "X-Mutation-Receipt-ID": "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "Content-Type": "application/json" } }) };
     });
     const attempt = createWorkflowMutationAttempt();
     const api = createPoliciesAPI({ POST } as unknown as APIClient);
@@ -40,7 +40,7 @@ describe("production workflow API", () => {
   it("replays a native fetch rejection with the same client attempt", async () => {
     const POST = vi.fn()
       .mockRejectedValueOnce(new TypeError("fetch failed after commit"))
-      .mockResolvedValueOnce({ data: policy, response: new Response(JSON.stringify(policy), { status: 201, headers: { ETag: '"1"', "X-Audit-ID": "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "Content-Type": "application/json" } }) });
+      .mockResolvedValueOnce({ data: policy, response: new Response(JSON.stringify(policy), { status: 201, headers: { ETag: '"1"', "X-Audit-ID": "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "X-Mutation-Receipt-ID": "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "Content-Type": "application/json" } }) });
     const attempt = createWorkflowMutationAttempt();
     const api = createPoliciesAPI({ POST } as unknown as APIClient);
 
@@ -54,7 +54,7 @@ describe("production workflow API", () => {
     const POST = vi.fn()
       .mockRejectedValueOnce(new TypeError("first response lost after commit"))
       .mockRejectedValueOnce(new TypeError("second response lost after replay"))
-      .mockResolvedValueOnce({ data: policy, response: new Response(JSON.stringify(policy), { status: 201, headers: { ETag: '"1"', "X-Audit-ID": "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "Content-Type": "application/json" } }) });
+      .mockResolvedValueOnce({ data: policy, response: new Response(JSON.stringify(policy), { status: 201, headers: { ETag: '"1"', "X-Audit-ID": "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "X-Mutation-Receipt-ID": "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "Content-Type": "application/json" } }) });
     const api = createPoliciesAPI({ POST } as unknown as APIClient);
     const send = (intent: Policy, attempt: { idempotencyKey: string }) => {
       observed.push({ key: attempt.idempotencyKey, intent });
@@ -66,7 +66,8 @@ describe("production workflow API", () => {
     expect(controller.hasAmbiguousAttempt()).toBe(true);
     (mutableIntent as { name: string }).name = "Changed after send";
 
-    await expect(controller.execute({ ...policy, name: "Ordinary retry must be ignored" }, send)).resolves.toMatchObject({ version: '"1"' });
+    await expect(controller.execute({ ...policy, name: "Competing intent" }, send)).rejects.toThrow("different workflow mutation");
+    await expect(controller.retry()).resolves.toMatchObject({ version: '"1"' });
     expect(new Set(observed.map(({ key }) => key)).size).toBe(1);
     expect(observed.map(({ intent }) => intent)).toEqual([
       policy,
@@ -106,7 +107,7 @@ describe("production workflow API", () => {
       throw new APITransportError("timeout", "lost");
     };
     await expect(controller.execute({ name: "one" }, ambiguous)).rejects.toThrow("lost");
-    await expect(controller.execute({ name: "two" }, ambiguous)).rejects.toThrow("lost");
+    await expect(controller.execute({ name: "two" }, ambiguous)).rejects.toThrow("different workflow mutation");
     expect(new Set(keys).size).toBe(1);
 
     controller.resolveAfterServerReconciliation();

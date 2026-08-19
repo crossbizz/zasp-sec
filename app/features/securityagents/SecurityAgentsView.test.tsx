@@ -9,6 +9,7 @@ import { SecurityAgentsView, type SecurityAgentsAPI } from "./SecurityAgentsView
 const environmentID = "pid_10000003-0000-4000-8000-000000000003";
 const agentID = "pid_40000001-0000-4000-8000-000000000001";
 const auditID = "pid_40000002-0000-4000-8000-000000000002";
+const receiptID = "pid_40000003-0000-4000-8000-000000000003";
 const template: SecurityAgentTemplate = { id: "pid_70000001-0000-4000-8000-000000000001", name: "Prompt containment", version: 1, trigger_kind: "finding", default_actions: ["run_test"], verification_condition: "test_run" };
 const created: SecurityAgentDefinition = { id: agentID, name: "Bounded response definition", trigger_kind: "finding", trigger_source: "credential", environment_ids: [environmentID], autonomy: "supervised", max_steps: 10, max_duration_seconds: 900, temporary_policy_seconds: 3600, ai_token_budget: 4000, concurrency_limit: 2, allowed_actions: ["run_test"], verification_kind: "test_run", definition_version: 1, enabled: true };
 
@@ -16,10 +17,10 @@ function fixtureAPI(overrides: Partial<SecurityAgentsAPI> = {}): SecurityAgentsA
   return {
     listSecurityAgentTemplates: async () => [template],
     listSecurityAgents: async () => ({ items: [], page_info: { next_cursor: null, has_more: false } }),
-    createSecurityAgent: async () => ({ value: created, version: `"1"`, auditID }),
+    createSecurityAgent: async () => ({ value: created, version: `"1"`, auditID, receiptID }),
     getSecurityAgent: async () => ({ value: created, version: `"7"` }),
-    updateSecurityAgent: async (_id, _version, value) => ({ value, version: `"8"`, auditID }),
-    deleteSecurityAgent: async () => ({ value: undefined, version: `"9"`, auditID }),
+    updateSecurityAgent: async (_id, _version, value) => ({ value, version: `"8"`, auditID, receiptID }),
+    deleteSecurityAgent: async () => ({ value: undefined, version: `"9"`, auditID, receiptID }),
     ...overrides,
   };
 }
@@ -65,7 +66,7 @@ describe("Security Agent definition surface", () => {
     const createSecurityAgent = vi.fn(async (value: Parameters<SecurityAgentsAPI["createSecurityAgent"]>[0], attempt?: Parameters<SecurityAgentsAPI["createSecurityAgent"]>[1]) => {
       calls.push({ value, key: attempt?.idempotencyKey ?? "" });
       if (calls.length === 1) throw new TypeError("two transport responses were lost");
-      return { value: created, version: `"1"`, auditID };
+      return { value: created, version: `"1"`, auditID, receiptID };
     });
     render(<SecurityAgentsView api={fixtureAPI({ createSecurityAgent })} environmentID={environmentID} />);
     await user.click(await screen.findByRole("button", { name: "Create Security Agent" }));
@@ -89,7 +90,7 @@ describe("Security Agent definition surface", () => {
     const user = userEvent.setup();
     const updateSecurityAgent = vi.fn()
       .mockRejectedValueOnce(new TypeError("committed update response lost"))
-      .mockResolvedValueOnce({ value: { ...created, name: "Updated definition" }, version: `"8"`, auditID });
+      .mockResolvedValueOnce({ value: { ...created, name: "Updated definition" }, version: `"8"`, auditID, receiptID });
     render(<SecurityAgentsView api={fixtureAPI({ updateSecurityAgent })} environmentID={environmentID} autoLoad={false} initialSnapshot={{ agents: [created], templates: [template] }} />);
     await user.click(screen.getByRole("button", { name: `Open ${created.name}` }));
     await screen.findByText("Resource version \"7\"");

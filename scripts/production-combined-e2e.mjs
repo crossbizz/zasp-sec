@@ -104,15 +104,24 @@ try {
   await waitForBrowserText(browser.cdp, /Durable scoped runtime controls/);
   await clickBrowserText(browser.cdp, "Create policy");
   await waitForBrowserText(browser.cdp, /exact operation and idempotency key are retained/);
-  await clickBrowserText(browser.cdp, "Integrations");
-  await waitForBrowserText(browser.cdp, /Durable local connector configuration/);
-  await clickBrowserText(browser.cdp, "Policies");
-  await waitForBrowserText(browser.cdp, /exact operation and idempotency key are retained/);
-  await clickBrowserText(browser.cdp, "Retry retained policy operation");
-  await waitForBrowserText(browser.cdp, /Policy created\. Audit pid_/);
-  assert.equal(lostPolicyResponseKeys.length, 3);
-  assert.equal(new Set(lostPolicyResponseKeys).size, 1, "ambiguous browser retries changed idempotency key");
+  await browser.cdp.send("Page.reload", { ignoreCache: true });
+  const recoveredMutation = await waitForBrowserText(browser.cdp, /Recover committed operations/);
+  assert.match(recoveredMutation, /Create Policy/);
+  assert.match(recoveredMutation, /policy policy-production/);
+  assert.equal(await browserTextControlDisabled(browser.cdp, "Create policy"), true, "reloaded create was enabled before receipt reconciliation");
+  await clickBrowserText(browser.cdp, "Acknowledge recovered result");
+  await waitForBrowserText(browser.cdp, /Production runtime policy/);
+  assert.equal(lostPolicyResponseKeys.length, 2);
+  assert.equal(new Set(lostPolicyResponseKeys).size, 1, "two lost browser responses changed idempotency key");
+  const durableCounts = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT
+    (SELECT count(*) FROM zasp_workflow_records WHERE kind='policy' AND id='policy-production'),
+    (SELECT count(*) FROM zasp_workflow_idempotency WHERE operation='createPolicy'),
+    (SELECT count(*) FROM zasp_workflow_audit WHERE operation='createPolicy'),
+    (SELECT count(*) FROM zasp_workflow_receipts WHERE operation='createPolicy');`]);
+  assert.equal(durableCounts.stdout.trim(), "1|1|1|1", "full reload recovery duplicated durable workflow state");
   assert.equal(await browserHasInteractiveText(browser.cdp, /^(?:Simulate policy|Decision history)$/i), false);
+  await clickBrowserAria(browser.cdp, "Open Production runtime policy");
+  await waitForBrowserText(browser.cdp, /Policy detail · policy-production/);
   await clickBrowserText(browser.cdp, "Roll to monitor");
   await waitForBrowserText(browser.cdp, /Policy is monitor\. Audit pid_/);
   await clickBrowserText(browser.cdp, "Enforce policy");
@@ -140,7 +149,7 @@ try {
   await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/protect/approvals` });
   const approvalsHidden = await waitForBrowserText(browser.cdp, /Security overview/);
   assert.doesNotMatch(approvalsHidden, /Approve|Pending approvals/);
-  console.log("combined E2E: route-remounted policy reconciliation, local integration, Security Agent definition, and hidden unsafe controls proven");
+  console.log("combined E2E: full-document receipt recovery, local integration, Security Agent definition, and hidden unsafe controls proven");
 
   await stopChild(api);
   api = startChild(apiBinary, [], { env: apiEnvironment });
@@ -325,6 +334,11 @@ async function waitForBrowserText(cdp, pattern) {
 async function browserHasInteractiveText(cdp, pattern) {
   const evaluated = await cdp.send("Runtime.evaluate", { expression: `(() => { const matcher = new RegExp(${JSON.stringify(pattern.source)}, ${JSON.stringify(pattern.flags)}); return [...document.querySelectorAll('button,a')].some((candidate) => matcher.test(candidate.textContent ?? '')); })()`, returnByValue: true });
   return evaluated.result?.value === true;
+}
+
+async function browserTextControlDisabled(cdp, text) {
+  const evaluated = await cdp.send("Runtime.evaluate", { expression: `(() => { const value = ${JSON.stringify(text)}; const element = [...document.querySelectorAll('button,input,select,textarea')].find((candidate) => candidate.textContent?.trim() === value || candidate.getAttribute('aria-label') === value); return element instanceof HTMLButtonElement || element instanceof HTMLInputElement || element instanceof HTMLSelectElement || element instanceof HTMLTextAreaElement ? element.disabled : null; })()`, returnByValue: true });
+  return evaluated.result?.value;
 }
 
 async function clickBrowserText(cdp, text) {

@@ -161,6 +161,8 @@ describe("generated API client", () => {
       | "/api/v1/tools/{id}"
       | "/api/v1/workspaces"
       | "/api/v1/workspaces/{id}"
+      | "/api/v1/workflow-mutation-receipts"
+      | "/api/v1/workflow-mutation-receipts/{id}/acknowledge"
     >();
     expectTypeOf(error.code).toEqualTypeOf<string>();
 

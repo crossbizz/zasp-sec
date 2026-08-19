@@ -73,7 +73,7 @@ describe("M1-26 UI API coverage CI", () => {
   it("records zero remaining planned forward references while allowing later UI wiring", async () => {
     const map = await readFile(resolve(repositoryRoot, "docs/product/ui-api-map.yaml"), "utf8");
     expect(map.match(/availability: planned/g) ?? []).toHaveLength(0);
-    expect(map.match(/availability: available/g)).toHaveLength(44);
+    expect(map.match(/availability: available/g)).toHaveLength(46);
     expect(map).not.toMatch(/^\s*(?:route|path|method|server):/m);
   });
 

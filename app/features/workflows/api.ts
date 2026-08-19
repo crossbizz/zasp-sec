@@ -7,6 +7,7 @@ import {
   decodePolicy,
   decodePolicyPage,
   decodePolicyRollout,
+  decodeWorkflowMutationReceiptPage,
   type Decoder,
 } from "../../../apps/web/api/decoders";
 import type {
@@ -17,18 +18,21 @@ import type {
   Policy,
   PolicyRollout,
   PolicyRolloutInput,
+  WorkflowMutationReceipt,
 } from "../../../apps/web/api/generated";
 
 const quotedVersion = /^"[1-9][0-9]*"$/;
 const productID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 export type Versioned<T> = { value: T; version: string };
-export type WorkflowReceipt<T> = Versioned<T> & { auditID: string };
+export type WorkflowReceipt<T> = Versioned<T> & { auditID: string; receiptID: string };
 export type WorkflowMutationAttempt = Readonly<{ idempotencyKey: string }>;
 export type RetainedWorkflowMutationController<I> = {
   execute<T>(intent: I, send: (intent: I, attempt: WorkflowMutationAttempt) => Promise<T>): Promise<T>;
   retry<T>(): Promise<T>;
   hasAmbiguousAttempt(): boolean;
+  isUnresolved(): boolean;
+  canRetry(): boolean;
   resolveAfterServerReconciliation(): void;
 };
 
@@ -48,8 +52,10 @@ export function requireWorkflowVersioned<T>(result: APIResult<unknown>, decode: 
 export function requireWorkflowReceipt<T>(result: APIResult<unknown>, decode: Decoder<T>): WorkflowReceipt<T> {
 	const versioned = requireWorkflowVersioned<T>(result, decode);
   const auditID = result.response.headers.get("X-Audit-ID");
+  const receiptID = result.response.headers.get("X-Mutation-Receipt-ID");
   if (!auditID || !productID.test(auditID)) throw new APITransportError("invalid_response", "Workflow response omitted a valid audit identifier");
-  return { ...versioned, auditID };
+  if (!receiptID || !productID.test(receiptID)) throw new APITransportError("invalid_response", "Workflow response omitted a valid mutation receipt identifier");
+  return { ...versioned, auditID, receiptID };
 }
 
 export function createWorkflowMutationAttempt(): WorkflowMutationAttempt { return Object.freeze({ idempotencyKey: workflowIdempotencyKey() }); }
@@ -78,7 +84,13 @@ export function createRetainedWorkflowMutationController<I>(): RetainedWorkflowM
   let inFlight: Promise<unknown> | undefined;
   return {
     execute<T>(intent: I, send: (intent: I, attempt: WorkflowMutationAttempt) => Promise<T>): Promise<T> {
-      if (!pending) pending = { attempt: createWorkflowMutationAttempt(), intent: canonicalFrozenIntent(intent), send };
+      const frozenIntent = canonicalFrozenIntent(intent);
+      if (pending) {
+        if (JSON.stringify(frozenIntent) !== JSON.stringify(pending.intent)) return Promise.reject(new Error("A different workflow mutation is already unresolved"));
+        if (!inFlight) return Promise.reject(new Error("Retry the retained workflow mutation explicitly"));
+      } else {
+        pending = { attempt: createWorkflowMutationAttempt(), intent: frozenIntent, send };
+      }
       const active = pending;
       if (inFlight) return inFlight as Promise<T>;
       inFlight = active.send(active.intent, active.attempt).then(
@@ -97,6 +109,8 @@ export function createRetainedWorkflowMutationController<I>(): RetainedWorkflowM
       return inFlight as Promise<T>;
     },
     hasAmbiguousAttempt() { return pending !== undefined && inFlight === undefined; },
+    isUnresolved() { return pending !== undefined; },
+    canRetry() { return pending !== undefined && inFlight === undefined; },
     resolveAfterServerReconciliation() {
       if (inFlight) throw new Error("Cannot reconcile a workflow mutation while its request is in flight");
       pending = undefined;
@@ -182,9 +196,28 @@ export function createIntegrationsAPI(client: APIClient) {
 
 export type IntegrationsAPI = ReturnType<typeof createIntegrationsAPI>;
 
+export function createWorkflowRecoveryAPI(client: APIClient) {
+  return {
+    async listReceipts(signal?: AbortSignal): Promise<readonly WorkflowMutationReceipt[]> {
+      return requireAPIData(await client.GET("/api/v1/workflow-mutation-receipts", { params: { query: { limit: 50 } }, signal }), decodeWorkflowMutationReceiptPage).items;
+    },
+    async acknowledgeReceipt(id: string): Promise<void> {
+      // The shared transport injects the current vault-held CSRF value. The
+      // generated operation type cannot express transport-owned headers.
+      const params = { path: { id } } as never;
+      const result = await client.POST("/api/v1/workflow-mutation-receipts/{id}/acknowledge", { params, body: {} });
+      if (result.error) requireAPIData<never>(result);
+      if (result.response.status !== 204) throw new APITransportError("invalid_response", "Mutation receipt acknowledgement returned an invalid response");
+    },
+  };
+}
+
+export type WorkflowRecoveryAPI = ReturnType<typeof createWorkflowRecoveryAPI>;
+
 export function requireWorkflowEmptyReceipt(response: Response): WorkflowReceipt<void> {
   const version = response.headers.get("ETag");
   const auditID = response.headers.get("X-Audit-ID");
-  if (!version || !quotedVersion.test(version) || !auditID || !productID.test(auditID)) throw new APITransportError("invalid_response", "Workflow response omitted durable mutation headers");
-  return { value: undefined, version, auditID };
+  const receiptID = response.headers.get("X-Mutation-Receipt-ID");
+  if (!version || !quotedVersion.test(version) || !auditID || !productID.test(auditID) || !receiptID || !productID.test(receiptID)) throw new APITransportError("invalid_response", "Workflow response omitted durable mutation headers");
+  return { value: undefined, version, auditID, receiptID };
 }
