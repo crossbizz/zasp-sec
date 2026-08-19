@@ -81,15 +81,22 @@ const postgresSchemaVersionSQL = `WITH semantic_objects AS (
 )
 SELECT metadata.value
 FROM zasp_schema_metadata AS metadata
-JOIN zasp_schema_versions AS release ON release.version = 9 AND release.name = 'production_risk_projection'
-JOIN zasp_schema_metadata AS expected_fingerprint ON expected_fingerprint.key = 'production_risk_projection_fingerprint'
+JOIN zasp_schema_versions AS release ON (release.version = 9 AND release.name = 'production_risk_projection') OR (release.version = 10 AND release.name = 'production_discovery')
+JOIN zasp_schema_metadata AS expected_fingerprint ON expected_fingerprint.key = CASE release.version WHEN 9 THEN 'production_risk_projection_fingerprint' ELSE 'production_discovery_fingerprint' END
 CROSS JOIN semantic_fingerprint
-WHERE metadata.key = 'production_core_schema' AND metadata.value = 'production-risk-projection-v1'
-  AND release.checksum = $1 AND expected_fingerprint.value = $2 AND semantic_fingerprint.value = $2`
+WHERE metadata.key = 'production_core_schema' AND metadata.value = CASE release.version WHEN 9 THEN 'production-risk-projection-v1' ELSE 'production-discovery-v1' END
+  AND release.checksum = CASE release.version WHEN 9 THEN $1 ELSE $3 END
+  AND expected_fingerprint.value = CASE release.version WHEN 9 THEN $2 ELSE $4 END
+  AND semantic_fingerprint.value = expected_fingerprint.value
+  AND NOT EXISTS (SELECT 1 FROM zasp_schema_versions newer WHERE newer.version>release.version)`
 
 func expectedCoreSchemaChecksum() string { return migrations.ProductionRiskProjection().Checksum() }
 func expectedCoreSchemaFingerprint() string {
 	return migrations.ProductionRiskProjectionSemanticFingerprint()
+}
+func expectedDiscoverySchemaChecksum() string { return migrations.ProductionDiscovery().Checksum() }
+func expectedDiscoverySchemaFingerprint() string {
+	return migrations.ProductionDiscoverySemanticFingerprint()
 }
 
 type PostgresRow interface{ Scan(...any) error }
@@ -123,7 +130,7 @@ func (database *PostgresJSONDatabase) SchemaVersion(ctx context.Context) (string
 		return "", ErrRepositoryUnavailable
 	}
 	var version string
-	if err := database.driver.QueryRow(ctx, postgresSchemaVersionSQL, expectedCoreSchemaChecksum(), expectedCoreSchemaFingerprint()).Scan(&version); err != nil {
+	if err := database.driver.QueryRow(ctx, postgresSchemaVersionSQL, expectedCoreSchemaChecksum(), expectedCoreSchemaFingerprint(), expectedDiscoverySchemaChecksum(), expectedDiscoverySchemaFingerprint()).Scan(&version); err != nil {
 		return "", classifyPostgresError(err)
 	}
 	if version == "" {

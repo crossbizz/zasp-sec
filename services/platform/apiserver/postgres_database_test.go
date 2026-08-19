@@ -46,7 +46,7 @@ func TestPostgresJSONDatabaseRunsSchemaReadAndWriteBoundaries(t *testing.T) {
 	if err != nil || version != CoreSchemaVersion {
 		t.Fatalf("version = (%q, %v)", version, err)
 	}
-	if !reflect.DeepEqual(driver.queryArguments, []any{expectedCoreSchemaChecksum(), expectedCoreSchemaFingerprint()}) {
+	if !reflect.DeepEqual(driver.queryArguments, []any{expectedCoreSchemaChecksum(), expectedCoreSchemaFingerprint(), expectedDiscoverySchemaChecksum(), expectedDiscoverySchemaFingerprint()}) {
 		t.Fatalf("schema checksum arguments = %#v", driver.queryArguments)
 	}
 	payload, err := database.QueryJSON(context.Background(), "SELECT payload", "organization")

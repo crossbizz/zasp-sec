@@ -100,6 +100,9 @@ func TestProductionDiscoveryPostgresAtomicSnapshotReplayIsolationLeaseAndGateway
 	}
 	migrateToProductionDiscovery(t, ctx, connection)
 	database, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
+	if _, err := NewPostgresRepository(database); err != nil {
+		t.Fatalf("v9 repository compatibility on v10: %v", err)
+	}
 	repository, err := NewDiscoveryRepository(database)
 	if err != nil {
 		t.Fatal(err)

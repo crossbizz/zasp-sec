@@ -14,6 +14,7 @@ import (
 )
 
 const CoreSchemaVersion = "production-risk-projection-v1"
+const DiscoverySchemaVersion = "production-discovery-v1"
 
 const (
 	postgresAuthenticateSessionSQL = `SELECT jsonb_build_object('principal_id', session.principal_id, 'organization_id', session.organization_id, 'workspace_id', session.workspace_id, 'environment_id', session.environment_id, 'permissions', zasp_effective_scope_permissions(scope.permissions, membership.role), 'csrf_token', session.csrf_token, 'fresh_authenticated', session.authenticated_at > now() - interval '5 minutes', 'fresh_auth_expires_at', session.authenticated_at + interval '5 minutes') FROM zasp_product_sessions AS session JOIN zasp_identity_memberships AS membership ON membership.principal_id = session.principal_id AND membership.organization_id = session.organization_id AND membership.active JOIN zasp_authorized_scopes AS scope ON scope.principal_id = session.principal_id AND scope.organization_id = session.organization_id AND scope.workspace_id = session.workspace_id AND scope.environment_id = session.environment_id WHERE session.token_digest = digest($1, 'sha256') AND session.revoked_at IS NULL AND session.expires_at > now()`
@@ -51,7 +52,7 @@ func NewPostgresRepository(database JSONDatabase) (*PostgresRepository, error) {
 		return nil, ErrRepositoryConfiguration
 	}
 	version, err := database.SchemaVersion(context.Background())
-	if err != nil || version != CoreSchemaVersion {
+	if err != nil || version != CoreSchemaVersion && version != DiscoverySchemaVersion {
 		return nil, ErrRepositoryConfiguration
 	}
 	return &PostgresRepository{database: database}, nil
@@ -62,7 +63,7 @@ func (repository *PostgresRepository) Ready(ctx context.Context) error {
 		return ErrRepositoryUnavailable
 	}
 	version, err := repository.database.SchemaVersion(ctx)
-	if err != nil || version != CoreSchemaVersion {
+	if err != nil || version != CoreSchemaVersion && version != DiscoverySchemaVersion {
 		return ErrRepositoryUnavailable
 	}
 	if _, err := repository.CleanupExpiredWorkflowMutationReceipts(ctx, 1000); err != nil {
