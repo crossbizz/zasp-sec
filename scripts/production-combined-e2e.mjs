@@ -288,8 +288,9 @@ try {
   await clickBrowserText(browser.cdp, "Create environment");
   await waitForBrowserSelectedOption(browser.cdp, "Authorized scope", "E2E Development");
   await waitForBrowserSelectedOption(browser.cdp, "Authorized environment", "E2E Development");
-  await selectBrowserOption(browser.cdp, "Authorized workspace", "Production Workspace");
+  await selectBrowserOption(browser.cdp, "Authorized scope", "Production");
   await waitForBrowserSelectedOption(browser.cdp, "Authorized scope", "Production");
+  await waitForBrowserSelectedOption(browser.cdp, "Authorized workspace", "Production Workspace");
   await waitForBrowserSelectedOption(browser.cdp, "Authorized environment", "Production");
 
   await navigateBrowser(browser.cdp, `${publicOrigin}/administration/api-access`);
