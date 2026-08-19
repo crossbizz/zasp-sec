@@ -1,6 +1,7 @@
 package apiserver
 
 import (
+	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/rand"
@@ -9,6 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -23,6 +25,7 @@ import (
 type workflowRepository interface {
 	ListWorkflows(context.Context, domain.Scope, string, string, string) (json.RawMessage, error)
 	GetWorkflow(context.Context, domain.Scope, string, string) (WorkflowValue, error)
+	ReplayWorkflow(context.Context, RequestIdentity, string, string, json.RawMessage) (WorkflowMutationResult, bool, error)
 	MutateWorkflow(context.Context, RequestIdentity, WorkflowMutation) (WorkflowMutationResult, error)
 }
 
@@ -137,6 +140,25 @@ func (handler *workflowHTTPHandler) mutate(writer http.ResponseWriter, request *
 		writeProductionStatusError(writer, request, http.StatusBadRequest, "operation_rejected", "Operation rejected", false)
 		return
 	}
+	intent, _, err := canonicalWorkflowIntent(request, routed)
+	if err != nil {
+		writeWorkflowMutationError(writer, request, err)
+		return
+	}
+	result, replayed, err := handler.repository.ReplayWorkflow(request.Context(), identity, routed.OperationID, idempotencyKey, intent)
+	if err != nil {
+		writeWorkflowMutationError(writer, request, err)
+		return
+	}
+	if replayed {
+		_, _, status, ok := workflowMutationTarget(routed.OperationID)
+		if !ok {
+			writeWorkflowMutationError(writer, request, ErrRepositoryNotFound)
+			return
+		}
+		handler.writeMutationResult(writer, request, identity, routed, idempotencyKey, intent, result, status, workflowResponseKind(routed, identity.Scope, intent))
+		return
+	}
 	correlationID := correlationIDFromContext(request.Context())
 	auditID, err := newWorkflowProductID()
 	if err != nil {
@@ -148,11 +170,16 @@ func (handler *workflowHTTPHandler) mutate(writer http.ResponseWriter, request *
 		writeWorkflowMutationError(writer, request, err)
 		return
 	}
-	result, err := handler.repository.MutateWorkflow(request.Context(), identity, mutation)
+	mutation.Intent = intent
+	result, err = handler.repository.MutateWorkflow(request.Context(), identity, mutation)
 	if err != nil {
 		writeWorkflowMutationError(writer, request, err)
 		return
 	}
+	handler.writeMutationResult(writer, request, identity, routed, idempotencyKey, intent, result, status, responseKind)
+}
+
+func (handler *workflowHTTPHandler) writeMutationResult(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, routed RoutedOperation, idempotencyKey string, intent json.RawMessage, result WorkflowMutationResult, status int, responseKind string) {
 	writer.Header().Set("ETag", quoteVersion(result.Version))
 	writer.Header().Set("X-Audit-ID", result.AuditID)
 	if status == http.StatusNoContent {
@@ -160,13 +187,71 @@ func (handler *workflowHTTPHandler) mutate(writer http.ResponseWriter, request *
 		return
 	}
 	payload := result.Body
+	var err error
 	if responseKind == "sensor_secret" {
-		payload, err = handler.sensorEnrollment(result, identity.Scope, mutation.ID, idempotencyKey)
+		payload, err = handler.sensorEnrollment(result, identity.Scope, routed.PathParameters["id"], idempotencyKey)
 	} else if strings.HasPrefix(responseKind, "policy_rollout:") {
 		parts := strings.SplitN(responseKind, ":", 3)
-		payload, err = json.Marshal(map[string]any{"policy_id": mutation.ID, "state": parts[1], "target_id": parts[2]})
+		payload, err = json.Marshal(map[string]any{"policy_id": routed.PathParameters["id"], "state": parts[1], "target_id": parts[2]})
 	}
 	writeProductionResponse(writer, request, status, payload, err)
+}
+
+func canonicalWorkflowIntent(request *http.Request, routed RoutedOperation) (json.RawMessage, int64, error) {
+	_, action, _, ok := workflowMutationTarget(routed.OperationID)
+	if !ok {
+		return nil, 0, ErrRepositoryNotFound
+	}
+	expected := int64(0)
+	if action != "create" {
+		var err error
+		expected, err = parseVersion(request.Header.Get("If-Match"))
+		if err != nil {
+			return nil, 0, errPreconditionRequired
+		}
+	}
+	body, err := io.ReadAll(io.LimitReader(request.Body, 16*1024+1))
+	if err != nil || len(body) > 16*1024 {
+		return nil, 0, ErrRepositoryOperation
+	}
+	if len(bytes.TrimSpace(body)) == 0 {
+		body = []byte(`{}`)
+	}
+	var decoded map[string]any
+	if json.Unmarshal(body, &decoded) != nil || decoded == nil {
+		return nil, 0, ErrRepositoryOperation
+	}
+	canonicalBody, err := json.Marshal(decoded)
+	if err != nil {
+		return nil, 0, ErrRepositoryOperation
+	}
+	request.Body = io.NopCloser(bytes.NewReader(canonicalBody))
+	intent, err := json.Marshal(map[string]any{"resource_id": routed.PathParameters["id"], "expected_version": expected, "body": decoded})
+	if err != nil {
+		return nil, 0, ErrRepositoryOperation
+	}
+	return intent, expected, nil
+}
+
+func workflowResponseKind(routed RoutedOperation, scope domain.Scope, intent json.RawMessage) string {
+	switch routed.OperationID {
+	case "createSensorEnrollment", "rotateSensorToken":
+		return "sensor_secret"
+	case "rolloutPolicy":
+		var value struct {
+			Body struct {
+				State string `json:"state"`
+			} `json:"body"`
+		}
+		if json.Unmarshal(intent, &value) != nil || value.Body.State != "monitor" && value.Body.State != "enforced" {
+			return "body"
+		}
+		return "policy_rollout:" + value.Body.State + ":" + scope.EnvironmentID().String()
+	case "disablePolicy":
+		return "policy_rollout:disabled:" + scope.EnvironmentID().String()
+	default:
+		return "body"
+	}
 }
 
 func (handler *workflowHTTPHandler) buildMutation(request *http.Request, identity RequestIdentity, routed RoutedOperation, idempotencyKey, auditID, correlationID string) (WorkflowMutation, int, string, error) {
@@ -192,6 +277,9 @@ func (handler *workflowHTTPHandler) buildMutation(request *http.Request, identit
 		if decodeProductionJSON(request, &value) != nil || platformpolicy.Validate(value, workflowPolicyCapabilities()) != nil {
 			return WorkflowMutation{}, 0, "", ErrRepositoryOperation
 		}
+		if routed.OperationID == "createPolicy" && value.Rollout != string(platformpolicy.RolloutDraft) {
+			return WorkflowMutation{}, 0, "", ErrRepositoryOperation
+		}
 		if id == "" {
 			id = value.ID
 		}
@@ -203,6 +291,9 @@ func (handler *workflowHTTPHandler) buildMutation(request *http.Request, identit
 		stored, err := handler.repository.GetWorkflow(request.Context(), identity.Scope, "policy", id)
 		if err != nil {
 			return WorkflowMutation{}, 0, "", err
+		}
+		if stored.Version != expected {
+			return WorkflowMutation{}, 0, "", ErrRepositoryConflict
 		}
 		var input struct {
 			Events []platformpolicy.ActionContext `json:"events"`
@@ -279,7 +370,7 @@ func (handler *workflowHTTPHandler) buildMutation(request *http.Request, identit
 				State    string `json:"state"`
 				TargetID string `json:"target_id"`
 			}
-			if decodeProductionJSON(request, &input) != nil || (input.State != "monitor" && input.State != "enforced") || input.TargetID == "" {
+			if decodeProductionJSON(request, &input) != nil || (input.State != "monitor" && input.State != "enforced") || input.TargetID != identity.Scope.EnvironmentID().String() {
 				return WorkflowMutation{}, 0, "", ErrRepositoryOperation
 			}
 			state, target = input.State, input.TargetID
@@ -287,6 +378,7 @@ func (handler *workflowHTTPHandler) buildMutation(request *http.Request, identit
 			return WorkflowMutation{}, 0, "", ErrRepositoryOperation
 		}
 		policyValue["rollout"] = state
+		policyValue["_target_environment_id"] = target
 		body, _ = json.Marshal(policyValue)
 		responseKind = "policy_rollout:" + state + ":" + target
 	case "deletePolicy", "deleteIntegration", "deleteSensor", "deleteSecurityAgent":

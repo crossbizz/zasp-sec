@@ -12,7 +12,8 @@ import (
 const (
 	postgresWorkflowListSQL   = `SELECT zasp_workflow_list($1, $2, $3, $4, NULLIF($5, ''), NULLIF($6, ''))`
 	postgresWorkflowGetSQL    = `SELECT zasp_workflow_get($1, $2, $3, $4, $5)`
-	postgresWorkflowMutateSQL = `SELECT zasp_workflow_mutate($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12, $13)`
+	postgresWorkflowReplaySQL = `SELECT zasp_workflow_replay($1, $2, $3, $4, $5, $6, $7::jsonb)`
+	postgresWorkflowMutateSQL = `SELECT zasp_workflow_mutate($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13, $14)`
 )
 
 var workflowKeyPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`)
@@ -31,9 +32,15 @@ type WorkflowMutation struct {
 	Operation       string
 	IdempotencyKey  string
 	ExpectedVersion int64
+	Intent          json.RawMessage
 	Body            json.RawMessage
 	AuditID         string
 	CorrelationID   string
+}
+
+type workflowReplayEnvelope struct {
+	Found  bool                   `json:"found"`
+	Result WorkflowMutationResult `json:"result"`
 }
 
 type WorkflowMutationResult struct {
@@ -73,7 +80,7 @@ func (repository *PostgresRepository) MutateWorkflow(ctx context.Context, identi
 	payload, err := repository.database.QueryJSON(ctx, postgresWorkflowMutateSQL,
 		mutation.Action, mutation.Kind, mutation.ID,
 		identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(),
-		identity.PrincipalID.String(), mutation.Operation, mutation.IdempotencyKey, mutation.ExpectedVersion, mutation.Body, mutation.AuditID, mutation.CorrelationID,
+		identity.PrincipalID.String(), mutation.Operation, mutation.IdempotencyKey, mutation.ExpectedVersion, mutation.Intent, mutation.Body, mutation.AuditID, mutation.CorrelationID,
 	)
 	if err != nil {
 		return WorkflowMutationResult{}, err
@@ -83,6 +90,35 @@ func (repository *PostgresRepository) MutateWorkflow(ctx context.Context, identi
 		return WorkflowMutationResult{}, ErrRepositoryUnavailable
 	}
 	return result, nil
+}
+
+func (repository *PostgresRepository) ReplayWorkflow(ctx context.Context, identity RequestIdentity, operation, idempotencyKey string, intent json.RawMessage) (WorkflowMutationResult, bool, error) {
+	if repository == nil || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) || !workflowKeyPattern.MatchString(operation) || len(idempotencyKey) < 16 || len(idempotencyKey) > 128 || !validJSONObjectBody(intent) || containsSensitiveWorkflowField(intent) {
+		return WorkflowMutationResult{}, false, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresWorkflowReplaySQL,
+		identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), operation, idempotencyKey, intent,
+	)
+	if err != nil {
+		return WorkflowMutationResult{}, false, err
+	}
+	var envelope workflowReplayEnvelope
+	if json.Unmarshal(payload, &envelope) != nil {
+		return WorkflowMutationResult{}, false, ErrRepositoryUnavailable
+	}
+	if !envelope.Found {
+		return WorkflowMutationResult{}, false, nil
+	}
+	if envelope.Result.Version < 1 || envelope.Result.SecretGeneration < 0 || !validJSONObjectBody(envelope.Result.Body) || !envelope.Result.Replayed {
+		return WorkflowMutationResult{}, false, ErrRepositoryUnavailable
+	}
+	if _, err := domain.ParseProductID(envelope.Result.AuditID); err != nil {
+		return WorkflowMutationResult{}, false, ErrRepositoryUnavailable
+	}
+	if _, err := domain.ParseProductID(envelope.Result.CorrelationID); err != nil {
+		return WorkflowMutationResult{}, false, ErrRepositoryUnavailable
+	}
+	return envelope.Result, true, nil
 }
 
 func validMutationResultIDs(result WorkflowMutationResult, mutation WorkflowMutation) bool {
@@ -115,7 +151,7 @@ func validWorkflowPage(payload json.RawMessage, err error) (json.RawMessage, err
 }
 
 func validWorkflowMutation(value WorkflowMutation) bool {
-	if !validWorkflowID(value.Kind, value.ID) || !workflowKeyPattern.MatchString(value.Operation) || len(value.IdempotencyKey) < 16 || len(value.IdempotencyKey) > 128 || !validJSONObjectBody(value.Body) || containsSensitiveWorkflowField(value.Body) {
+	if !validWorkflowID(value.Kind, value.ID) || !workflowKeyPattern.MatchString(value.Operation) || len(value.IdempotencyKey) < 16 || len(value.IdempotencyKey) > 128 || !validJSONObjectBody(value.Intent) || containsSensitiveWorkflowField(value.Intent) || !validJSONObjectBody(value.Body) || containsSensitiveWorkflowField(value.Body) {
 		return false
 	}
 	if _, err := domain.ParseProductID(value.AuditID); err != nil {

@@ -22,6 +22,10 @@ type workflowRepositoryStub struct {
 	getScope  domain.Scope
 	mutation  WorkflowMutation
 	identity  RequestIdentity
+	replay    WorkflowMutationResult
+	replayed  bool
+	replayErr error
+	getCalls  int
 }
 
 func (repository *workflowRepositoryStub) ListWorkflows(_ context.Context, scope domain.Scope, _, _, _ string) (json.RawMessage, error) {
@@ -29,12 +33,36 @@ func (repository *workflowRepositoryStub) ListWorkflows(_ context.Context, scope
 	return repository.page, repository.err
 }
 func (repository *workflowRepositoryStub) GetWorkflow(_ context.Context, scope domain.Scope, _, _ string) (WorkflowValue, error) {
+	repository.getCalls++
 	repository.getScope = scope
 	return repository.value, repository.err
+}
+func (repository *workflowRepositoryStub) ReplayWorkflow(_ context.Context, _ RequestIdentity, _ string, _ string, _ json.RawMessage) (WorkflowMutationResult, bool, error) {
+	return repository.replay, repository.replayed, repository.replayErr
 }
 func (repository *workflowRepositoryStub) MutateWorkflow(_ context.Context, identity RequestIdentity, mutation WorkflowMutation) (WorkflowMutationResult, error) {
 	repository.identity, repository.mutation = identity, mutation
 	return repository.result, repository.err
+}
+
+func TestWorkflowHandlerReplaysLostRolloutResponseBeforeMutablePolicyRead(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	correlation := "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+	repository := &workflowRepositoryStub{replayed: true, replay: WorkflowMutationResult{WorkflowValue: WorkflowValue{Body: json.RawMessage(`{"id":"policy-bounded","rollout":"enforced"}`), Version: 3}, AuditID: "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", CorrelationID: correlation, Replayed: true}}
+	handler, _ := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), time.Now)
+	request := workflowRequest(t, identity, correlation, "rolloutPolicy", map[string]string{"id": "policy-bounded"}, http.MethodPost, "/api/v1/policies/policy-bounded/rollout", `{"state":"enforced","target_id":"pid_10000003-0000-4000-8000-000000000003"}`)
+	request.Header.Set("Idempotency-Key", "idem-rollout-policy-001")
+	request.Header.Set("If-Match", `"2"`)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK || repository.getCalls != 0 || response.Header().Get("X-Audit-ID") != repository.replay.AuditID {
+		t.Fatalf("lost-response replay = status %d reads %d headers %v body %s", response.Code, repository.getCalls, response.Header(), response.Body.String())
+	}
+	var receipt map[string]any
+	if json.Unmarshal(response.Body.Bytes(), &receipt) != nil || receipt["state"] != "enforced" || receipt["target_id"] != identity.Scope.EnvironmentID().String() {
+		t.Fatalf("replayed rollout receipt = %s", response.Body.String())
+	}
 }
 
 func TestWorkflowHandlerCreatesPolicyWithExactIdempotencyAuditAndVersion(t *testing.T) {

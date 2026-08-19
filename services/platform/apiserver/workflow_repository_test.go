@@ -58,7 +58,8 @@ func TestWorkflowRepositoryMutationCarriesIdempotencyVersionAndAtomicAuditIdenti
 	identity := fixtureRequestIdentity(t)
 	mutation := WorkflowMutation{
 		Action: "update", Kind: "policy", ID: "policy-one", Operation: "updatePolicy",
-		IdempotencyKey: "idem-exact-request-1", ExpectedVersion: 2, Body: json.RawMessage(`{"id":"policy-one"}`),
+		IdempotencyKey: "idem-exact-request-1", ExpectedVersion: 2,
+		Intent: json.RawMessage(`{"body":{"id":"policy-one"},"expected_version":2,"resource_id":"policy-one"}`), Body: json.RawMessage(`{"id":"policy-one"}`),
 		AuditID: "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", CorrelationID: "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
 	}
 	result, err := repository.MutateWorkflow(context.Background(), identity, mutation)
@@ -67,7 +68,7 @@ func TestWorkflowRepositoryMutationCarriesIdempotencyVersionAndAtomicAuditIdenti
 	}
 	want := []any{
 		"update", "policy", "policy-one", identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(),
-		identity.PrincipalID.String(), "updatePolicy", "idem-exact-request-1", int64(2), json.RawMessage(`{"id":"policy-one"}`), mutation.AuditID, mutation.CorrelationID,
+		identity.PrincipalID.String(), "updatePolicy", "idem-exact-request-1", int64(2), mutation.Intent, json.RawMessage(`{"id":"policy-one"}`), mutation.AuditID, mutation.CorrelationID,
 	}
 	if database.query != postgresWorkflowMutateSQL || !reflect.DeepEqual(database.args, want) {
 		t.Fatalf("mutation query/args = %q/%#v, want %q/%#v", database.query, database.args, postgresWorkflowMutateSQL, want)
@@ -78,7 +79,7 @@ func TestWorkflowRepositoryAcceptsExactReplayWithOriginalAuditCorrelation(t *tes
 	database := &workflowCallDatabase{response: json.RawMessage(`{"body":{"id":"policy-one"},"version":1,"secret_generation":0,"audit_id":"pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","correlation_id":"pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","replayed":true}`)}
 	repository, _ := NewPostgresRepository(database)
 	identity := fixtureRequestIdentity(t)
-	result, err := repository.MutateWorkflow(context.Background(), identity, WorkflowMutation{Action: "create", Kind: "policy", ID: "policy-one", Operation: "createPolicy", IdempotencyKey: "idem-exact-request-1", Body: json.RawMessage(`{"id":"policy-one"}`), AuditID: "pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc", CorrelationID: "pid_dddddddd-dddd-4ddd-8ddd-dddddddddddd"})
+	result, err := repository.MutateWorkflow(context.Background(), identity, WorkflowMutation{Action: "create", Kind: "policy", ID: "policy-one", Operation: "createPolicy", IdempotencyKey: "idem-exact-request-1", Intent: json.RawMessage(`{"body":{"id":"policy-one"},"expected_version":0,"resource_id":""}`), Body: json.RawMessage(`{"id":"policy-one"}`), AuditID: "pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc", CorrelationID: "pid_dddddddd-dddd-4ddd-8ddd-dddddddddddd"})
 	if err != nil || !result.Replayed || result.AuditID != "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" || result.CorrelationID != "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" {
 		t.Fatalf("replay = (%#v, %v)", result, err)
 	}

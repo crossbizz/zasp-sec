@@ -1,5 +1,20 @@
 ALTER TABLE "public"."zasp_product_sessions"
-ADD COLUMN "authenticated_at" timestamp with time zone NOT NULL DEFAULT transaction_timestamp();
+ADD COLUMN "authenticated_at" timestamp with time zone;
+
+UPDATE "public"."zasp_product_sessions"
+SET "authenticated_at" = LEAST("expires_at", transaction_timestamp() - interval '6 minutes');
+
+ALTER TABLE "public"."zasp_product_sessions"
+ALTER COLUMN "authenticated_at" SET NOT NULL,
+ALTER COLUMN "authenticated_at" SET DEFAULT transaction_timestamp();
+
+CREATE FUNCTION "public"."zasp_effective_scope_permissions"(requested_permissions jsonb, requested_role text)
+RETURNS jsonb LANGUAGE sql IMMUTABLE AS $$
+    SELECT COALESCE(jsonb_agg(permission ORDER BY permission), '[]'::jsonb)
+      FROM jsonb_array_elements_text(requested_permissions) AS permission
+     WHERE permission = 'view'
+        OR permission = 'manage_workflows' AND requested_role IN ('organization_admin', 'security_admin', 'security_engineer')
+$$;
 
 CREATE TABLE "public"."zasp_workflow_records" (
     "organization_id" text NOT NULL,
@@ -66,11 +81,44 @@ RETURNS jsonb LANGUAGE sql STABLE AS $$
        AND "environment_id" = requested_environment_id AND "kind" = requested_kind AND "id" = requested_id AND "deleted_at" IS NULL
 $$;
 
+CREATE FUNCTION "public"."zasp_workflow_replay"(
+    requested_organization_id text, requested_workspace_id text, requested_environment_id text,
+    requested_principal_id text, requested_operation text, requested_idempotency_key text,
+    requested_intent jsonb
+)
+RETURNS jsonb LANGUAGE plpgsql AS $$
+DECLARE
+    digest_value bytea;
+    prior_digest bytea;
+    prior_response jsonb;
+BEGIN
+    IF length(requested_operation) < 1 OR length(requested_operation) > 128 OR
+       length(requested_idempotency_key) < 16 OR length(requested_idempotency_key) > 128 OR
+       jsonb_typeof(requested_intent) <> 'object' THEN
+        RAISE EXCEPTION USING ERRCODE = '22023', MESSAGE = 'invalid workflow replay';
+    END IF;
+    PERFORM pg_advisory_xact_lock(hashtextextended(concat_ws(chr(31), requested_organization_id, requested_workspace_id, requested_environment_id, requested_principal_id, requested_operation, requested_idempotency_key), 0));
+    digest_value := digest(convert_to(requested_intent::text, 'UTF8'), 'sha256');
+    SELECT "request_digest", "response" INTO prior_digest, prior_response
+      FROM "public"."zasp_workflow_idempotency"
+     WHERE "organization_id" = requested_organization_id AND "workspace_id" = requested_workspace_id
+       AND "environment_id" = requested_environment_id AND "principal_id" = requested_principal_id
+       AND "operation" = requested_operation AND "idempotency_key" = requested_idempotency_key;
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object('found', false);
+    END IF;
+    IF prior_digest <> digest_value THEN
+        RAISE EXCEPTION USING ERRCODE = '23505', MESSAGE = 'idempotency conflict';
+    END IF;
+    RETURN jsonb_build_object('found', true, 'result', prior_response || jsonb_build_object('replayed', true));
+END;
+$$;
+
 CREATE FUNCTION "public"."zasp_workflow_mutate"(
     mutation text, requested_kind text, requested_id text,
     requested_organization_id text, requested_workspace_id text, requested_environment_id text,
     requested_principal_id text, requested_operation text, requested_idempotency_key text,
-    expected_version bigint, requested_body jsonb, requested_audit_id text, requested_correlation_id text
+    expected_version bigint, requested_intent jsonb, requested_body jsonb, requested_audit_id text, requested_correlation_id text
 )
 RETURNS jsonb LANGUAGE plpgsql AS $$
 DECLARE
@@ -87,11 +135,12 @@ BEGIN
        requested_kind NOT IN ('policy', 'integration', 'sensor', 'security_agent', 'security_agent_run', 'security_agent_approval', 'policy_decision') OR
        length(requested_id) < 1 OR length(requested_id) > 128 OR
        length(requested_idempotency_key) < 16 OR length(requested_idempotency_key) > 128 OR
-       jsonb_typeof(requested_body) <> 'object' THEN
+       jsonb_typeof(requested_intent) <> 'object' OR jsonb_typeof(requested_body) <> 'object' THEN
         RAISE EXCEPTION USING ERRCODE = '22023', MESSAGE = 'invalid workflow mutation';
     END IF;
 
-    digest_value := digest(convert_to(mutation || chr(31) || requested_kind || chr(31) || requested_id || chr(31) || requested_body::text || chr(31) || expected_version::text, 'UTF8'), 'sha256');
+	PERFORM pg_advisory_xact_lock(hashtextextended(concat_ws(chr(31), requested_organization_id, requested_workspace_id, requested_environment_id, requested_principal_id, requested_operation, requested_idempotency_key), 0));
+    digest_value := digest(convert_to(requested_intent::text, 'UTF8'), 'sha256');
     SELECT "request_digest", "response" INTO prior_digest, prior_response FROM "public"."zasp_workflow_idempotency"
      WHERE "organization_id" = requested_organization_id AND "workspace_id" = requested_workspace_id
        AND "environment_id" = requested_environment_id AND "principal_id" = requested_principal_id
@@ -102,34 +151,27 @@ BEGIN
     END IF;
 
     IF mutation = 'create' THEN
-        IF requested_kind = 'security_agent_run' AND requested_operation = 'runSecurityAgent' THEN
-            approval_body := requested_body -> '_approval';
-            IF jsonb_typeof(approval_body) <> 'object' OR approval_body ->> 'id' IS NULL OR approval_body ->> 'run_id' <> requested_id THEN
-                RAISE EXCEPTION USING ERRCODE = '22023', MESSAGE = 'invalid workflow approval';
-            END IF;
-            result_body := requested_body - '_approval';
-            INSERT INTO "public"."zasp_workflow_records" ("organization_id", "workspace_id", "environment_id", "kind", "id", "body")
-            VALUES (requested_organization_id, requested_workspace_id, requested_environment_id, requested_kind, requested_id, result_body)
-            RETURNING "body", "version", "secret_generation" INTO result_body, result_version, result_secret_generation;
-            approval_body := approval_body || jsonb_build_object('expires_at', to_jsonb(transaction_timestamp() + interval '15 minutes'));
-            INSERT INTO "public"."zasp_workflow_records" ("organization_id", "workspace_id", "environment_id", "kind", "id", "body")
-            VALUES (requested_organization_id, requested_workspace_id, requested_environment_id, 'security_agent_approval', approval_body ->> 'id', approval_body);
-        ELSE
-            INSERT INTO "public"."zasp_workflow_records" ("organization_id", "workspace_id", "environment_id", "kind", "id", "body")
-            VALUES (requested_organization_id, requested_workspace_id, requested_environment_id, requested_kind, requested_id, requested_body)
-            RETURNING "body", "version", "secret_generation" INTO result_body, result_version, result_secret_generation;
+        IF requested_kind = 'policy' AND (requested_operation <> 'createPolicy' OR requested_body ->> 'rollout' <> 'draft') THEN
+            RAISE EXCEPTION USING ERRCODE = '22023', MESSAGE = 'policy must be created as draft';
         END IF;
-    ELSIF mutation = 'update' THEN
-        UPDATE "public"."zasp_workflow_records" SET "body" = requested_body, "version" = "version" + 1, "updated_at" = transaction_timestamp()
-         WHERE "organization_id" = requested_organization_id AND "workspace_id" = requested_workspace_id AND "environment_id" = requested_environment_id
-           AND "kind" = requested_kind AND "id" = requested_id AND "deleted_at" IS NULL AND "version" = expected_version
+        INSERT INTO "public"."zasp_workflow_records" ("organization_id", "workspace_id", "environment_id", "kind", "id", "body")
+        VALUES (requested_organization_id, requested_workspace_id, requested_environment_id, requested_kind, requested_id, requested_body)
         RETURNING "body", "version", "secret_generation" INTO result_body, result_version, result_secret_generation;
-        IF result_body IS NOT NULL AND requested_kind = 'security_agent_run' AND requested_operation = 'cancelSecurityAgentRun' THEN
-            UPDATE "public"."zasp_workflow_records"
-               SET "body" = jsonb_set(jsonb_set("body", '{state}', '"cancelled"'::jsonb, true), '{version}', to_jsonb("version" + 1), true), "version" = "version" + 1, "updated_at" = transaction_timestamp()
-             WHERE "organization_id" = requested_organization_id AND "workspace_id" = requested_workspace_id AND "environment_id" = requested_environment_id
-               AND "kind" = 'security_agent_approval' AND "deleted_at" IS NULL AND "body" ->> 'run_id' = requested_id AND "body" ->> 'state' = 'pending';
-        END IF;
+    ELSIF mutation = 'update' THEN
+        UPDATE "public"."zasp_workflow_records" AS record
+           SET "body" = CASE WHEN requested_kind = 'policy' THEN requested_body - '_target_environment_id' ELSE requested_body END,
+               "version" = record."version" + 1,
+               "updated_at" = transaction_timestamp()
+         WHERE record."organization_id" = requested_organization_id AND record."workspace_id" = requested_workspace_id AND record."environment_id" = requested_environment_id
+           AND record."kind" = requested_kind AND record."id" = requested_id AND record."deleted_at" IS NULL AND record."version" = expected_version
+           AND (requested_kind <> 'policy' OR
+                requested_operation = 'updatePolicy' AND requested_body ->> 'rollout' = record."body" ->> 'rollout' OR
+                requested_operation = 'rolloutPolicy' AND requested_body ->> '_target_environment_id' = requested_environment_id AND
+                    ((record."body" ->> 'rollout' = 'draft' AND requested_body ->> 'rollout' = 'monitor') OR
+                     (record."body" ->> 'rollout' = 'monitor' AND requested_body ->> 'rollout' = 'enforced')) OR
+                requested_operation = 'disablePolicy' AND requested_body ->> '_target_environment_id' = requested_environment_id AND
+                    record."body" ->> 'rollout' IN ('monitor', 'enforced') AND requested_body ->> 'rollout' = 'disabled')
+        RETURNING record."body", record."version", record."secret_generation" INTO result_body, result_version, result_secret_generation;
     ELSIF mutation = 'delete' THEN
         UPDATE "public"."zasp_workflow_records" SET "deleted_at" = transaction_timestamp(), "version" = "version" + 1, "updated_at" = transaction_timestamp()
          WHERE "organization_id" = requested_organization_id AND "workspace_id" = requested_workspace_id AND "environment_id" = requested_environment_id
@@ -146,7 +188,18 @@ BEGIN
             IF jsonb_typeof(decision_body) <> 'object' OR decision_body ->> 'id' IS NULL OR decision_body ->> 'policy_id' <> requested_id THEN
                 RAISE EXCEPTION USING ERRCODE = '22023', MESSAGE = 'invalid policy decision';
             END IF;
+            PERFORM 1 FROM "public"."zasp_workflow_records"
+             WHERE "organization_id" = requested_organization_id AND "workspace_id" = requested_workspace_id AND "environment_id" = requested_environment_id
+               AND "kind" = 'policy' AND "id" = requested_id AND "deleted_at" IS NULL AND "version" = expected_version
+             FOR UPDATE;
+            IF NOT FOUND THEN
+                IF EXISTS (SELECT 1 FROM "public"."zasp_workflow_records" WHERE "organization_id" = requested_organization_id AND "workspace_id" = requested_workspace_id AND "environment_id" = requested_environment_id AND "kind" = 'policy' AND "id" = requested_id AND "deleted_at" IS NULL) THEN
+                    RAISE EXCEPTION USING ERRCODE = '40001', MESSAGE = 'workflow version conflict';
+                END IF;
+                RAISE EXCEPTION USING ERRCODE = 'P0002', MESSAGE = 'workflow record missing';
+            END IF;
             result_body := requested_body - '_decision';
+            decision_body := decision_body || jsonb_build_object('at', to_jsonb(transaction_timestamp()), 'correlation_id', requested_correlation_id);
             INSERT INTO "public"."zasp_workflow_records" ("organization_id", "workspace_id", "environment_id", "kind", "id", "body")
             VALUES (requested_organization_id, requested_workspace_id, requested_environment_id, 'policy_decision', decision_body ->> 'id', decision_body);
         ELSE
