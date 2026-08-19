@@ -58,6 +58,8 @@ Release v10 introduces the discovery and runtime authority:
   relationships, and evidence references;
 - sensors, one-time enrollment-token hashes, rotations, revocations, and
   heartbeat state;
+- distinct runtime-gateway devices, one-time audience-bound enrollment hashes,
+  rotation/revocation, replay state, and signed-policy subscriptions;
 - runtime batches/events, per-stage idempotency, and correlation state;
 - a transactional outbox for queue publication.
 
@@ -158,7 +160,8 @@ without depending on PostgreSQL or graph access.
 ## Security Agent Execution
 
 Definitions are durable and versioned. Existing saved definitions are migrated
-to inert `draft/configured` state regardless of legacy `enabled` fields. Merely
+to inert `draft` state regardless of legacy `enabled` fields. `Configured` is
+descriptive UI copy, never a persisted activation value. Merely
 deploying a worker can never activate them. Activation is a separate fresh-auth
 audited mutation, and all execution paths check global, organization,
 environment, and action kill switches immediately before side effects.

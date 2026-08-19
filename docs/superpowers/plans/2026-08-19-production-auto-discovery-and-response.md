@@ -43,18 +43,18 @@ gateway workloads serve one capability-gated, API-backed production UI.
 | 1 | audited base | exact 728-row ownership/evidence manifest | none | documentation/validator only |
 | 2 | 1 | v10 discovery/runtime authority | no new public capability | guarded v10 schema down |
 | 3 | 2 | first-party connector and credential adapters | authorization only when exact provider dependency is ready | revoke reference/session; no snapshot mutation |
-| 4 | 2, 3 | outbox, scheduler, discovery and projection workers | sync/history/schedule per dependency readiness | last-good snapshot preserved |
+| 4 | 2, 3 | outbox, scheduler, discovery/projection workers and their inert deployment slice | sync/history/schedule per dependency readiness | last-good snapshot preserved |
 | 5 | 2, 4 | v11 backfill/validate/cutover and typed inventory | inventory only after equivalence validation | app rollback to compatible reader; guarded schema down |
-| 6 | 2, 4 | sensors, ingest, runtime worker/gateway | sensor/runtime capability per workload readiness | revoke device/token; preserve archived evidence |
+| 6 | 2, 4 | sensors, ingest, runtime worker/gateway and their inert deployment slice | sensor/runtime capability per workload readiness | revoke device/token; preserve archived evidence |
 | 7 | 2, 5 | inert v12 SA authority, activation and kill switches | simulation only; execution stays killed | guarded v12 down before effects |
-| 8 | 4, 7 | structured planning and supervised low-risk action | one action at a time after verifier/readiness | action reconciliation/compensation |
-| 9 | 6, 8 | supervised containment and evidence-backed autonomy | per-action canary and kill switch | TTL cleanup + effect reconciliation |
+| 8 | 4, 7 | structured planning, supervised low-risk action and inert action-worker deployment | one action at a time after verifier/readiness | action reconciliation/compensation |
+| 9 | 6, 8 | supervised containment, per-action deployment, and evidence-backed autonomy | per-action owned canary and kill switch | TTL cleanup + effect reconciliation |
 | 10 | 3–9 | API-backed discovery/runtime/SA UI | server capability plus dependency readiness | hide control; durable state retained |
 | 11 | 1, 2 | production SSO/SCIM/group administration | each provider/webhook after live dependency readiness | local session deprovision reconciliation |
-| 12 | 2, 4 | Red Team test worker/artifacts/UI | isolated target and artifact readiness | cancel/reconcile job; retain evidence |
-| 13 | 2, 4, 12 | Attack Lab sandbox worker/UI | isolated Fargate/network/cleanup readiness | destroy owned sandbox only |
-| 14 | 2, 4, 11–13 | exports, retention, deletion, external flow, AI/telemetry | per-operation provider/policy readiness | deletion epoch/audit and artifact grants |
-| 15 | 2–14 | exact workload images/IAM/network/observability | deploy ready does not auto-enable actions | Helm/app rollback within schema window |
+| 12 | 2, 4 | Red Team test worker/artifacts/UI and inert deployment slice | isolated target and artifact readiness | cancel/reconcile job; retain evidence |
+| 13 | 2, 4, 12 | Attack Lab sandbox worker/UI and isolated deployment slice | isolated Fargate/network/cleanup readiness | destroy owned sandbox only |
+| 14 | 2, 4, 11–13 | exports, retention, deletion, external flow, AI/telemetry and their worker slices | per-operation provider/policy readiness | deletion epoch/audit and artifact grants |
+| 15 | 2–14 | consolidated release topology, hardening and shared infrastructure | deploy ready does not auto-enable actions | Helm/app rollback within schema window |
 | 16 | 2–15 | backup/restore/upgrade/DR proof | consumers held until reconciliation | restore epoch; never undo external effects |
 | 17 | 1–16 | complete owned E2E and final ledger | only externally validated features claim release-ready | reviewed commits and documented external gates |
 
@@ -111,9 +111,9 @@ scoped in the production migration chain.
 - Create: `services/platform/apiserver/discovery_repository_test.go`
 - Create: `services/platform/apiserver/discovery_postgres_test.go`
 
-**Microtask promotion scope:** `M3-03`–`M3-13`, `M3-23`–`M3-44`, the
-discovery/storage portions of `M1-11`–`M1-16`, `M1-22`, `M1-30`–`M1-34`,
-`M2-20`–`M2-33`, and their production persistence dependencies.
+**Microtask promotion scope:** exactly the manifest rows owned by
+`T02-discovery-authority`. Other milestone tasks are dependencies, not shared
+promotion ownership.
 
 **Steps:**
 
@@ -123,7 +123,8 @@ discovery/storage portions of `M1-11`–`M1-16`, `M1-22`, `M1-30`–`M1-34`,
 2. Add v10 tables, RLS, constraints, indexes, typed functions, checksum,
    semantic fingerprint, readiness, locked upgrade, and data-aware down guard.
 3. Implement strict PostgreSQL repositories for integration, sync, snapshot,
-   inventory, evidence, sensor, runtime job, and outbox operations.
+   inventory, evidence, sensor, runtime job, outbox, and distinct gateway
+   device/enrollment/credential/policy-subscription operations.
 4. Implement atomic complete-snapshot apply with last-good preservation,
    source-owned tombstones, cursor commit, and derived-projection work records.
 5. Prove replay, concurrency, restart, stable keysets, hostile data, drift,
@@ -155,9 +156,10 @@ private Nango without becoming a core readiness dependency.
 - Modify: `services/platform/agentsec-api/production_runtime.go`
 - Modify: `openapi/openapi.yaml`
 
-**Microtask promotion scope:** `M3-09`–`M3-21`, `M3-45`–`M3-47`, provider
-driver and queue/storage component tasks from M0–M2, excluding only evidence
-that inherently requires externally supplied live credentials.
+**Microtask promotion scope:** exactly the manifest rows owned by
+`T03-launch-connectors`. Queue/storage components owned by Task 4 are inputs,
+not shared promotion scope. Evidence that inherently requires live credentials
+retains its typed external gate.
 
 **Steps:**
 
@@ -194,9 +196,8 @@ projections.
 - Modify: `services/platform/apiserver/composition.go`
 - Modify: `openapi/openapi.yaml`
 
-**Microtask promotion scope:** `M3-10`–`M3-21`, `M3-45`–`M3-47`, queue,
-artifact, graph, search, scheduler, freshness, and reconciliation component
-tasks mapped to owner `T04-discovery-worker` in the availability manifest.
+**Microtask promotion scope:** exactly the manifest rows owned by
+`T04-discovery-worker`.
 
 **Steps:**
 
@@ -214,6 +215,9 @@ tasks mapped to owner `T04-discovery-worker` in the availability manifest.
    worker/dependency readiness is true.
 7. Inject crashes and unknown outcomes at every stage; prove no duplicate
    effects and last-good retention.
+8. Build and render inert discovery/outbox and projection worker images,
+   workload-specific identities, queues, secrets, private networking, drain,
+   metrics, and alerts before the first owned canary.
 
 **Gate:** driver contracts, worker race/integration tests, real PostgreSQL plus
 production-equivalent queue/storage/index/graph proof, OpenAPI parity, full Go
@@ -236,9 +240,9 @@ payloads.
 - Create: `services/platform/migrations/sql/0011_discovery_cutover.down.sql`
 - Modify: `scripts/production-combined-e2e.mjs`
 
-**Microtask promotion scope:** component-only reconciliation, capability,
-inventory, risk, search, and graph tasks in M2/M4/M5 that are required by the
-public production inventory and posture routes.
+**Microtask promotion scope:** exactly the manifest rows owned by
+`T05-inventory-cutover`. Search and ticket behaviors owned by Task 14 remain
+dependencies rather than overlapping scope.
 
 **Steps:**
 
@@ -277,8 +281,8 @@ gateway enforces signed policy from its local cache.
 - Modify: `services/platform/agentsec-worker/*`
 - Modify: `openapi/openapi.yaml`
 
-**Microtask promotion scope:** `M3-27`–`M3-44`, `M3-50`, `M3-51`, `M6-19`–
-`M6-25`, and required runtime evidence/correlation tasks.
+**Microtask promotion scope:** exactly the manifest rows owned by
+`T06-runtime-data-plane`.
 
 **Steps:**
 
@@ -292,6 +296,9 @@ gateway enforces signed policy from its local cache.
    evaluation, metadata evidence, offline behavior, and bounded drain.
 5. Inject failures after each stage and prove deterministic replay, no duplicate
    event/audit, no cross-scope token use, and immediate rotation/revocation.
+6. Build and render inert event-ingest, runtime-worker, and runtime-gateway
+   images with separate identities, private APIs, queues, policies, resources,
+   drain, metrics, and alerts before the owned runtime canary.
 
 **Gate:** real PostgreSQL plus queue/S3/OpenSearch proof, gateway and worker race
 tests, private-auth abuse tests, browser sensor journey, and full release checks.
@@ -313,14 +320,13 @@ and audit survive restart and are authorized at each state transition.
 - Modify: `services/platform/apiserver/composition.go`
 - Modify: `openapi/openapi.yaml`
 
-**Microtask promotion scope:** `M7A-05`–`M7A-14`, `M7A-29`–`M7A-49`,
-`M7A-61`–`M7A-76`, and their exact authorization, audit, receipt, and migration
-dependencies.
+**Microtask promotion scope:** exactly the manifest rows owned by
+`T07-security-agent-authority`.
 
 **Steps:**
 
 1. Add failing migration tests that quarantine every legacy `enabled=true`
-   definition into inert `draft/configured` state and cannot execute on deploy.
+   definition into exact persisted `draft` state and cannot execute on deploy.
 2. Add global, organization, environment, and per-action kill switches plus an
    explicit fresh-auth audited `draft -> validated -> supervised -> autonomous`
    activation state machine.
@@ -357,9 +363,9 @@ supervised internal low-risk action, with no other action advertised.
 - Create: `services/platform/securityagent/postgres_*`
 - Create: `services/platform/securityagent/provider_*`
 
-**Microtask promotion scope:** `M7A-15`–`M7A-28`, `M7A-35`–`M7A-60`,
-`M7A-91`–`M7A-101`, plus M5/M6 policy and runtime triggers required by the
-execution path.
+**Microtask promotion scope:** exactly the manifest rows owned by
+`T08-supervised-agent`. Policy/runtime/Red Team/Attack Lab/data-workflow tasks
+remain explicit dependencies owned by their verticals.
 
 **Steps:**
 
@@ -397,9 +403,9 @@ deployment, and canary evidence is green.
 - Modify: `services/platform/policy/*`
 - Modify: `docs/product/security-agent-action-readiness.tsv`
 
-**Microtask promotion scope:** remaining `M7A-35`–`M7A-60` and `M7A-91`–
-`M7A-101`, with cross-task dependencies on Red Team, Attack Lab, export,
-webhook, ticket, connector revocation, and runtime policy owners.
+**Microtask promotion scope:** exactly the manifest rows owned by
+`T09-agent-actions`, with cross-task dependencies on Red Team, Attack Lab,
+export, webhook, ticket, connector revocation, and runtime policy owners.
 
 **Steps:**
 
@@ -415,6 +421,9 @@ webhook, ticket, connector revocation, and runtime policy owners.
    kill switches, alerts, and canaries.
 5. Allow autonomous mode only for a separately canaried reversible action with
    quotas, durable budgets, TTL cleanup, and immediate kill-switch proof.
+6. Each promoted action owns its exact action-worker image/role/network/secret
+   delta and must deploy inert before its owned canary; Task 15 only consolidates
+   and hardens the already-proven slices.
 
 **Gate:** one independent review and owned canary per action; unsupported
 actions remain unadvertised; full cross-scope and failure-injection matrix.
@@ -435,8 +444,8 @@ approval, run, and verification workflows from the production frontend.
 - Modify: `app/components/ZaspProductionApp.tsx`
 - Modify: `docs/product/ui-api-map.yaml`
 
-**Microtask promotion scope:** `M3-48c2`–`M3-51`, `M7A-84`, `M7A-86`–
-`M7A-90`, and any remaining component-only production frontend tasks in M4/M7.
+**Microtask promotion scope:** exactly the manifest rows owned by
+`T10-product-ui`.
 
 **Steps:**
 
@@ -465,9 +474,8 @@ type/lint/build, source/compiled graph checks, and installed-browser journeys.
 provider-faithful production workflow, including deprovisioning and group
 authorization effects.
 
-**Microtask promotion scope:** component-only M2 identity tasks mapped to
-`T11-identity-admin`, including `M2-20`–`M2-33`, `M2-41`, `M2-42`,
-`M2-43c`–`M2-43e`, and `M2-47a`–`M2-47b`.
+**Microtask promotion scope:** exactly the manifest rows owned by
+`T11-identity-admin`.
 
 **Steps:** implement typed provider connections, verified callbacks/webhooks,
 SCIM lifecycle, atomic deprovision/session revocation, validated group mapping
@@ -484,16 +492,19 @@ replay, deprovision, and tenant-isolation tests.
 **Outcome:** Users can configure, run, cancel, retry, and inspect supported Red
 Team tests through durable queued execution and immutable evidence.
 
-**Microtask promotion scope:** the Red Team portion of all 42 M5 tasks, owned by
-`T12-red-team` in the manifest.
+**Microtask promotion scope:** exactly the manifest rows owned by
+`T12-red-team`.
 
 **Steps:** add durable schema/API, bounded Promptfoo/test runner, queue/outbox,
 artifact evidence, idempotent replay/cancel/reconcile, least-privilege worker,
 API-backed UI, and real browser/restart/cross-scope proof. No arbitrary targets,
 shell, prompts, or egress are accepted.
 
+The task also builds/renders its inert worker image, queue, role, network,
+resources, drain, metrics, and alert slice before the owned canary.
+
 **Gate:** worker failure matrix, S3 evidence checks, provider budget/redaction,
-browser journey, deployment and security review.
+browser journey, owned deployment/canary, and security review.
 
 ---
 
@@ -502,8 +513,7 @@ browser journey, deployment and security review.
 **Outcome:** Attack Lab runs only inside an owned disposable sandbox with exact
 network, identity, cleanup, evidence, and cancellation boundaries.
 
-**Microtask promotion scope:** the Attack Lab portion of M5 and its M8 Fargate,
-security-group, preflight, deployment, and cleanup dependencies, owned by
+**Microtask promotion scope:** exactly the manifest rows owned by
 `T13-attack-lab`.
 
 **Steps:** add durable run state and outbox, exact Fargate profile/task identity,
@@ -521,14 +531,15 @@ write identity, plus full API/browser/deployment gates.
 **Outcome:** Remaining M4/M7 workflows use durable bounded jobs, grants,
 providers, and truthful production UI instead of component-only proofs.
 
-**Microtask promotion scope:** M4 search/ticket gaps and component-only M7
-export, retention/deletion, external-flow, telemetry, AI, and associated UI
-tasks, each mapped to owner `T14-data-workflows`.
+**Microtask promotion scope:** exactly the manifest rows owned by
+`T14-data-workflows`.
 
 **Steps:** implement signed artifact grants and export jobs; retention/deletion
 epochs across PostgreSQL/S3/OpenSearch/Neo4j with audit/holds; guarded external-
 flow mutation; bounded consent-aware telemetry; provider-safe AI explanations;
 typed search/ticket APIs and UI; replay/expiry/revocation/restart/security tests.
+Build and render each required inert worker/provider deployment slice before
+its owned canary.
 
 **Gate:** real durable/provider contracts, no-secret/PII/PHI egress tests,
 browser workflows, lifecycle cleanup, and independent review.
@@ -537,8 +548,8 @@ browser workflows, lifecycle cleanup, and independent review.
 
 ### Task 15: Deploy every production data-plane workload with least privilege
 
-**Outcome:** The release chart and infrastructure deploy the exact runtime that
-implements discovery, sensors, runtime processing, and Security Agent actions.
+**Outcome:** The release chart and infrastructure consolidate and harden the
+already owned/deployed vertical slices into one exact production topology.
 
 **Primary files:**
 
@@ -549,17 +560,14 @@ implements discovery, sensors, runtime processing, and Security Agent actions.
 - Modify: `deploy/production/release-gates.*`
 - Modify: `docs/operations/*`
 
-**Microtask promotion scope:** `M8-09a`–`M8-14`, `M8-57a`–`M8-57`, and the
-component-only deployment/observability/operations tasks required by the new
-workloads.
+**Microtask promotion scope:** exactly the manifest rows owned by
+`T15-deployment`.
 
 **Steps:**
 
-1. Add separately buildable, non-root, read-only compatible, digest-pinned
-   images for discovery/outbox worker, projection worker, runtime worker,
-   event-ingest, Security Agent action worker, runtime gateway, Red Team worker,
-   Attack Lab launcher, retention/export worker, and isolated provider tools.
-2. Render private workloads/services with exact probes, resources, drain,
+1. Verify every vertical's separately buildable, non-root, read-only compatible,
+   digest-pinned image and reject any missing or duplicate workload authority.
+2. Consolidate private workloads/services with exact probes, resources, drain,
    PDBs, topology, autoscaling, default-deny networking, and workload-specific
    service accounts.
 3. Add least-privilege Terraform roles for each workload and exact queue,
@@ -582,9 +590,8 @@ NetworkPolicy tests, full secret/history scans, and clean rollback proof.
 **Outcome:** Recovery preserves authority and never replays a completed queue
 publication or external effect.
 
-**Microtask promotion scope:** component-only M8 backup, restore, upgrade,
-diagnostic, preflight, canary, DR, load, and operational tasks mapped to
-`T16-recovery-ops`; truly live/customer/cloud observations remain typed
+**Microtask promotion scope:** exactly the manifest rows owned by
+`T16-recovery-ops`; truly live/customer/cloud observations retain typed
 external gates.
 
 **Steps:**
