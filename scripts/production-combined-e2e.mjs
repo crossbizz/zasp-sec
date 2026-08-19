@@ -64,6 +64,7 @@ try {
     ZASP_STYTCH_SECRET: "secret-test-local",
     ZASP_STYTCH_PUBLIC_TOKEN: "public-token-test-local",
     ZASP_STYTCH_ORGANIZATION_ID: "organization-test-local",
+    ZASP_WORKFLOW_SIGNING_KEY: "0123456789abcdef0123456789abcdef",
   };
   api = startChild(apiBinary, [], { env: apiEnvironment });
 	try {
@@ -86,28 +87,92 @@ try {
 
   const profile = path.join(temporaryRoot, "chrome-profile");
   browser = await startBrowser(profile, chromePort, `${publicOrigin}/api/v1/session/start?return_to=%2Fdiscovery%2Fassets`);
-  const signedIn = await waitForBrowserText(browser.cdp, /Support agent/);
+  let signedIn;
+  try {
+    signedIn = await waitForBrowserText(browser.cdp, /Support agent/);
+  } catch (error) {
+    throw new Error(`${error instanceof Error ? error.message : "browser sign-in failed"}: ${api.output()}`);
+  }
   assert.equal(observedSessionCookie, true, "__Host-zasp_session was not issued through the combined origin");
   assert.match(signedIn, /Agents/);
   assert.match(signedIn, /Support agent/);
   assert.doesNotMatch(signedIn, /Product API unavailable|Sign-in failed/);
   console.log("combined E2E: browser callback, cookie, bootstrap, and durable data proven");
 
+  await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/policies` });
+  await waitForBrowserText(browser.cdp, /Durable scoped runtime controls/);
+  await clickBrowserText(browser.cdp, "Create policy");
+  await waitForBrowserText(browser.cdp, /Policy created\. Audit pid_/);
+  await clickBrowserText(browser.cdp, "Simulate policy");
+  await waitForBrowserText(browser.cdp, /Simulation recorded\. Audit pid_/);
+  await clickBrowserText(browser.cdp, "Enforce policy");
+  await waitForBrowserText(browser.cdp, /Policy is enforced\. Audit pid_/);
+
+  await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/connectors` });
+  await waitForBrowserText(browser.cdp, /Durable local connector configuration/);
+  await clickBrowserText(browser.cdp, "Configure Generic Webhook");
+  await fillBrowserLabel(browser.cdp, "HTTPS destination", "https://hooks.customer.invalid/zasp");
+  await fillBrowserLabel(browser.cdp, "Signing secret", "secret_ref_combined_e2e");
+  await clickBrowserText(browser.cdp, "Save integration");
+  await waitForBrowserText(browser.cdp, /Integration saved\. Audit pid_/);
+  await clickBrowserText(browser.cdp, "Close");
+
+  await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/integrations/sensors` });
+  await waitForBrowserText(browser.cdp, /Durable scoped collectors/);
+  await clickBrowserText(browser.cdp, "Enroll sensor");
+  await clickBrowserText(browser.cdp, "Create enrollment");
+  const enrollment = await waitForBrowserText(browser.cdp, /sen_[A-Za-z0-9_-]+/);
+  const enrollmentToken = enrollment.match(/sen_[A-Za-z0-9_-]+/)?.[0];
+  assert.ok(enrollmentToken, "one-time sensor credential was not rendered");
+  await clickBrowserText(browser.cdp, "Close");
+  assert.doesNotMatch(await browserText(browser.cdp), new RegExp(enrollmentToken));
+
+  await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/protect/security-agents` });
+  await waitForBrowserText(browser.cdp, /Bounded automated response definitions/);
+  await clickBrowserText(browser.cdp, "Create Security Agent");
+  await clickBrowserTextContains(browser.cdp, "Actions");
+  await clickBrowserAria(browser.cdp, "Select run_test");
+  await clickBrowserTextContains(browser.cdp, "Simulate");
+  await fillBrowserLabel(browser.cdp, "Evidence ID", "pid_80000001-0000-4000-8000-000000000001");
+  await clickBrowserText(browser.cdp, "Save Security Agent");
+  await delay(200);
+  await clickBrowserTextContains(browser.cdp, "Security Agents");
+  await waitForBrowserText(browser.cdp, /Bounded response/);
+  await clickBrowserText(browser.cdp, "Bounded response");
+  await fillBrowserLabel(browser.cdp, "Run evidence ID", "pid_80000001-0000-4000-8000-000000000001");
+  await clickBrowserText(browser.cdp, "Start bounded run");
+  await delay(200);
+  await clickBrowserAria(browser.cdp, "Close");
+  await clickBrowserTextContains(browser.cdp, "Runs");
+  await waitForBrowserText(browser.cdp, /waiting_approval/);
+  console.log("combined E2E: policy, integration, one-time sensor, and bounded Security Agent workflows proven");
+
   await stopChild(api);
   api = startChild(apiBinary, [], { env: apiEnvironment });
   await waitForHTTP(`http://127.0.0.1:${healthPort}/readyz`, 200);
-  await browser.cdp.send("Page.reload", { ignoreCache: true });
-  const reloaded = await waitForBrowserText(browser.cdp, /Support agent/);
-  assert.match(reloaded, /Support agent/);
+  await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/policies` });
+  const reloaded = await waitForBrowserText(browser.cdp, /Production runtime policy/);
+  assert.match(reloaded, /Production runtime policy/);
   assert.doesNotMatch(reloaded, /Sign in to Zasp|Product API unavailable/);
-  console.log("combined E2E: API restart and browser reload proven");
+  await clickBrowserAria(browser.cdp, "Open Production runtime policy");
+  assert.match(await waitForBrowserText(browser.cdp, /Policy detail · policy-production/), /enforced/);
+  await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/connectors` });
+  assert.match(await waitForBrowserText(browser.cdp, /Generic Webhook/), /pending_authorization/);
+  await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/integrations/sensors` });
+  assert.match(await waitForBrowserText(browser.cdp, /Production sensor/), /Awaiting heartbeat/);
+  assert.doesNotMatch(await browserText(browser.cdp), /sen_[A-Za-z0-9_-]+/);
+  await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/protect/security-agents` });
+  await waitForBrowserText(browser.cdp, /Bounded response/);
+  await clickBrowserTextContains(browser.cdp, "Runs");
+  assert.match(await waitForBrowserText(browser.cdp, /waiting_approval/), /pid_/);
+  console.log("combined E2E: API restart, browser reload, durable workflows, and secret non-replay proven");
 
   await browser.cdp.send("Page.navigate", { url: `${publicOrigin}/api/v1/agents/pid_90000001-0000-4000-8000-000000000001` });
   const denied = await waitForBrowserText(browser.cdp, /not_found/);
   assert.match(denied, /not_found/);
   assert.doesNotMatch(denied, /Foreign tenant agent/);
 
-  console.log("production combined E2E passed: callback/cookie/bootstrap, durable data, restart/reload, tenant denial");
+  console.log("production combined E2E passed: callback/cookie/bootstrap, durable workflows, restart/reload, tenant denial");
 } finally {
 	await cleanupController.run();
 	cleanupController.dispose();
@@ -155,7 +220,7 @@ async function stopPostgres(value) {
 async function seedPostgres(dsn) {
   const sql = `
 INSERT INTO zasp_authorized_scopes (principal_id, organization_id, workspace_id, environment_id, label, permissions, is_default) VALUES
-('pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','Production','["view"]'::jsonb,true),
+('pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','Production','["view","manage_workflows"]'::jsonb,true),
 ('pid_90000004-0000-4000-8000-000000000004','pid_90000001-0000-4000-8000-000000000001','pid_90000002-0000-4000-8000-000000000002','pid_90000003-0000-4000-8000-000000000003','Foreign','["view"]'::jsonb,true);
 INSERT INTO zasp_identity_memberships (principal_id, organization_id, organization_reference, member_reference, role) VALUES
 ('pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','organization-test-local','member-test-local','security_admin');
@@ -251,6 +316,36 @@ async function waitForBrowserText(cdp, pattern) {
     await delay(50);
   }
   throw new Error(`browser text did not match ${pattern}: ${last}`);
+}
+
+async function browserText(cdp) {
+  const evaluated = await cdp.send("Runtime.evaluate", { expression: "document.body ? document.body.innerText : ''", returnByValue: true });
+  return evaluated.result?.value ?? "";
+}
+
+async function clickBrowserText(cdp, text) {
+  await waitForBrowserAction(cdp, `(() => { const value = ${JSON.stringify(text)}; const element = [...document.querySelectorAll('button,a')].find((candidate) => candidate.textContent?.trim() === value); if (!element) return false; element.click(); return true; })()`);
+}
+
+async function clickBrowserTextContains(cdp, text) {
+  await waitForBrowserAction(cdp, `(() => { const value = ${JSON.stringify(text)}; const element = [...document.querySelectorAll('button,a')].find((candidate) => candidate.textContent?.includes(value)); if (!element) return false; element.click(); return true; })()`);
+}
+
+async function clickBrowserAria(cdp, label) {
+  await waitForBrowserAction(cdp, `(() => { const element = document.querySelector(${JSON.stringify(`[aria-label="${label}"]`)}); if (!element) return false; element.click(); return true; })()`);
+}
+
+async function fillBrowserLabel(cdp, label, value) {
+  await waitForBrowserAction(cdp, `(() => { const text = ${JSON.stringify(label)}; const value = ${JSON.stringify(value)}; const label = [...document.querySelectorAll('label')].find((candidate) => [...candidate.querySelectorAll('span')].some((span) => span.textContent?.trim() === text)); const control = label?.querySelector('input,textarea,select'); if (!control) return false; const prototype = control instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : control instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(prototype, 'value').set.call(control, value); control.dispatchEvent(new Event('input', { bubbles: true })); control.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
+}
+
+async function waitForBrowserAction(cdp, expression) {
+  for (let attempt = 0; attempt < 200; attempt += 1) {
+    const evaluated = await cdp.send("Runtime.evaluate", { expression, returnByValue: true });
+    if (evaluated.result?.value === true) return;
+    await delay(25);
+  }
+  throw new Error(`browser action target unavailable: ${expression}`);
 }
 
 async function connectCDP(target) {
