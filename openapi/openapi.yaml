@@ -1705,9 +1705,9 @@ components:
     SessionCallbackInput:
       type: object
       additionalProperties: false
-      required: [authorization_code, state]
+      required: [provider_token, state]
       properties:
-        authorization_code: { type: string, minLength: 1, maxLength: 4096 }
+        provider_token: { type: string, minLength: 1, maxLength: 4096 }
         state: { type: string, minLength: 32, maxLength: 512 }
     SessionCallbackResult:
       type: object

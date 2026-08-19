@@ -59,7 +59,7 @@ func TestProductionHandlersIssueHostOnlySecureSessionCookie(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	request := httptest.NewRequest(http.MethodPost, "https://app.zasp.test/api/v1/session/callback", strings.NewReader(`{"authorization_code":"code","state":"ssssssssssssssssssssssssssssssss"}`))
+	request := httptest.NewRequest(http.MethodPost, "https://app.zasp.test/api/v1/session/callback", strings.NewReader(`{"provider_token":"provider-token","state":"ssssssssssssssssssssssssssssssss"}`))
 	request.Header.Set("Content-Type", "application/json")
 	response := httptest.NewRecorder()
 	handlers.Session.ServeHTTP(response, request)
@@ -90,6 +90,31 @@ func TestPostgresRepositorySeparatesBrowserSessionsAndProductTokens(t *testing.T
 	identity, err := repository.Authenticate(context.Background(), Credential{Kind: CredentialBearerToken, Value: "pat-a"})
 	if err != nil || identity.CSRFToken != "" || identity.PrincipalID.IsZero() {
 		t.Fatalf("product token identity = (%#v, %v)", identity, err)
+	}
+}
+
+func TestProductTokenCanReadMeWithoutBrowserCSRF(t *testing.T) {
+	database := newPersistentJSONDatabase(t)
+	database.productTokens["pat-a"] = database.sessions["session-a"]
+	server := newProductionTestServer(t, database)
+	defer server.Close()
+	request, err := http.NewRequest(http.MethodGet, server.URL+"/api/v1/me", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header.Set("Authorization", "Bearer pat-a")
+	response, err := server.Client().Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	var principal struct {
+		ID     string `json:"id"`
+		Role   string `json:"role"`
+		Active bool   `json:"active"`
+	}
+	if json.NewDecoder(response.Body).Decode(&principal) != nil || response.StatusCode != http.StatusOK || principal.ID != "pid_10000004-0000-4000-8000-000000000004" || principal.Role != "security_admin" || !principal.Active {
+		t.Fatalf("PAT /me = (%d, %#v)", response.StatusCode, principal)
 	}
 }
 

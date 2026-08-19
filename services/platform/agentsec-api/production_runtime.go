@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
@@ -34,7 +35,7 @@ func buildRuntimeDependencies(ctx context.Context, config RuntimeConfig) (Runtim
 		pool.Close()
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
-	exchanger, err := apiserver.NewOIDCCodeExchanger(config.IdentityExchangeURL, config.IdentityClientID, config.IdentityClientSecret, config.ProviderTimeout)
+	authenticator, err := apiserver.NewStytchOAuthAuthenticator(config.StytchBaseURL, config.StytchProjectID, config.StytchSecret, config.ProviderTimeout, func() time.Time { return time.Now().UTC() })
 	if err != nil {
 		_ = database.Close()
 		return RuntimeDependencies{}, errRuntimeUnavailable
@@ -44,7 +45,7 @@ func buildRuntimeDependencies(ctx context.Context, config RuntimeConfig) (Runtim
 		_ = database.Close()
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
-	provider, err := apiserver.NewRepositoryIdentityProviderWithStart(exchanger, repository, repository, config.IdentityAuthorizeURL, config.IdentityClientID, config.PublicOrigin+"/auth/callback")
+	provider, err := apiserver.NewRepositoryIdentityProviderWithStart(authenticator, repository, repository, config.StytchAuthorizeURL, config.StytchPublicToken, config.StytchOrganizationID, config.PublicOrigin+"/auth/callback")
 	if err != nil {
 		_ = database.Close()
 		return RuntimeDependencies{}, errRuntimeUnavailable

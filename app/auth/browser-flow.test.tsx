@@ -14,16 +14,16 @@ describe("browser sign-in flow", () => {
   });
 
   it("exchanges the callback and replaces with the bounded deep link", async () => {
-    window.history.replaceState({}, "", `/auth/callback?code=authorization-code&state=${"s".repeat(32)}&return_to=%2Fdiscovery%2Fassets`);
+    window.history.replaceState({}, "", `/auth/callback?token=stytch-oauth-token&state=${"s".repeat(32)}&return_to=%2Fdiscovery%2Fassets`);
 		const replace = vi.fn();
     const POST = vi.fn(async () => ({ data: { return_to: "/discovery/assets" }, error: undefined, response: new Response(null, { status: 200 }) }));
 		render(<CallbackCompletion suppliedClient={{ POST } as unknown as APIClient} replaceLocation={replace} />);
-    await waitFor(() => expect(POST).toHaveBeenCalledWith("/api/v1/session/callback", { body: { authorization_code: "authorization-code", state: "s".repeat(32) } }));
+    await waitFor(() => expect(POST).toHaveBeenCalledWith("/api/v1/session/callback", { body: { provider_token: "stytch-oauth-token", state: "s".repeat(32) } }));
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/discovery/assets"));
   });
 
   it("does not call the API for a malformed callback", async () => {
-    window.history.replaceState({}, "", "/auth/callback?code=authorization-code&state=short");
+    window.history.replaceState({}, "", "/auth/callback?token=stytch-oauth-token&state=short");
     const POST = vi.fn();
     render(<CallbackCompletion suppliedClient={{ POST } as unknown as APIClient} />);
     expect(await screen.findByRole("alert")).toHaveTextContent("invalid or expired");

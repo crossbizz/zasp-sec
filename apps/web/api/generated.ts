@@ -2583,7 +2583,7 @@ export type components = {
             readonly workspace_id: components["schemas"]["ProductID"];
         };
         readonly SessionCallbackInput: {
-            readonly authorization_code: string;
+            readonly provider_token: string;
             readonly state: string;
         };
         readonly SessionCallbackResult: {

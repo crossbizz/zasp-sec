@@ -5,22 +5,17 @@ import (
 	"net"
 	"net/url"
 	"strings"
-	"time"
+
+	platformidentity "github.com/zasp-ai/zasp-sec/services/platform/identity"
 )
 
-type ExternalIdentity struct {
-	OrganizationReference string
-	MemberReference       string
-	ExpiresAt             time.Time
-}
-
-type IdentityExchanger interface {
-	Exchange(context.Context, string, string) (ExternalIdentity, error)
+type ExternalIdentityAuthenticator interface {
+	Authenticate(context.Context, string) (platformidentity.ExternalPrincipal, error)
 	Ready(context.Context) error
 }
 
 type IdentityGrantResolver interface {
-	ResolveIdentity(context.Context, ExternalIdentity) (SessionGrant, error)
+	ResolveIdentity(context.Context, platformidentity.ExternalPrincipal) (SessionGrant, error)
 }
 
 type IdentityStateRepository interface {
@@ -33,27 +28,29 @@ type IdentityStarter interface {
 }
 
 type RepositoryIdentityProvider struct {
-	exchanger    IdentityExchanger
-	resolver     IdentityGrantResolver
-	states       IdentityStateRepository
-	authorizeURL string
-	clientID     string
-	redirectURI  string
+	authenticator         ExternalIdentityAuthenticator
+	resolver              IdentityGrantResolver
+	states                IdentityStateRepository
+	authorizeURL          string
+	publicToken           string
+	organizationReference string
+	redirectURI           string
 }
 
-func NewRepositoryIdentityProviderWithStart(exchanger IdentityExchanger, resolver IdentityGrantResolver, states IdentityStateRepository, authorizeURL, clientID, redirectURI string) (*RepositoryIdentityProvider, error) {
-	provider, err := NewRepositoryIdentityProvider(exchanger, resolver)
-	if err != nil || nilInterface(states) || !boundedSecret(clientID) {
+func NewRepositoryIdentityProviderWithStart(authenticator ExternalIdentityAuthenticator, resolver IdentityGrantResolver, states IdentityStateRepository, authorizeURL, publicToken, organizationReference, redirectURI string) (*RepositoryIdentityProvider, error) {
+	provider, err := NewRepositoryIdentityProvider(authenticator, resolver)
+	if err != nil || nilInterface(states) || !boundedSecret(publicToken) || !validStytchReference(organizationReference, "organization-") {
 		return nil, ErrRepositoryConfiguration
 	}
 	authorize, authorizeErr := url.Parse(authorizeURL)
 	redirect, redirectErr := url.Parse(redirectURI)
-	if authorizeErr != nil || redirectErr != nil || !validIdentityURL(authorize, "") || !validIdentityURL(redirect, "/auth/callback") {
+	if authorizeErr != nil || redirectErr != nil || !validIdentityURL(authorize, "") || !validStytchAuthorizePath(authorize.Path) || !validIdentityURL(redirect, "/auth/callback") {
 		return nil, ErrRepositoryConfiguration
 	}
 	provider.states = states
 	provider.authorizeURL = authorizeURL
-	provider.clientID = clientID
+	provider.publicToken = publicToken
+	provider.organizationReference = organizationReference
 	provider.redirectURI = redirectURI
 	return provider, nil
 }
@@ -68,19 +65,23 @@ func (provider *RepositoryIdentityProvider) Start(ctx context.Context, returnTo 
 	}
 	target, _ := url.Parse(provider.authorizeURL)
 	query := target.Query()
-	query.Set("response_type", "code")
-	query.Set("client_id", provider.clientID)
-	query.Set("redirect_uri", provider.redirectURI)
-	query.Set("state", state)
+	callback, _ := url.Parse(provider.redirectURI)
+	callbackQuery := callback.Query()
+	callbackQuery.Set("state", state)
+	callback.RawQuery = callbackQuery.Encode()
+	query.Set("public_token", provider.publicToken)
+	query.Set("organization_id", provider.organizationReference)
+	query.Set("login_redirect_url", callback.String())
+	query.Set("signup_redirect_url", callback.String())
 	target.RawQuery = query.Encode()
 	return target.String(), nil
 }
 
-func NewRepositoryIdentityProvider(exchanger IdentityExchanger, resolver IdentityGrantResolver) (*RepositoryIdentityProvider, error) {
-	if nilInterface(exchanger) || nilInterface(resolver) {
+func NewRepositoryIdentityProvider(authenticator ExternalIdentityAuthenticator, resolver IdentityGrantResolver) (*RepositoryIdentityProvider, error) {
+	if nilInterface(authenticator) || nilInterface(resolver) {
 		return nil, ErrRepositoryConfiguration
 	}
-	return &RepositoryIdentityProvider{exchanger: exchanger, resolver: resolver}, nil
+	return &RepositoryIdentityProvider{authenticator: authenticator, resolver: resolver}, nil
 }
 
 func (provider *RepositoryIdentityProvider) Complete(ctx context.Context, code, state string) (SessionGrant, error) {
@@ -95,12 +96,12 @@ func (provider *RepositoryIdentityProvider) Complete(ctx context.Context, code, 
 			return SessionGrant{}, ErrRepositoryAuthentication
 		}
 	}
-	external, err := provider.exchanger.Exchange(ctx, code, state)
-	if err != nil || !validExternalIdentity(external) {
+	external, err := provider.authenticator.Authenticate(ctx, code)
+	if err != nil {
 		return SessionGrant{}, ErrRepositoryAuthentication
 	}
 	grant, err := provider.resolver.ResolveIdentity(ctx, external)
-	if err != nil || !validSessionGrant(grant) || grant.ExpiresAt.After(external.ExpiresAt) {
+	if err != nil || !validSessionGrant(grant) || grant.ExpiresAt.After(external.ExpiresAt()) {
 		return SessionGrant{}, ErrRepositoryAuthentication
 	}
 	grant.ReturnTo = returnTo
@@ -119,13 +120,22 @@ func validIdentityURL(value *url.URL, exactPath string) bool {
 	return value.Scheme == "https" || value.Scheme == "http" && loopback
 }
 
+func validStytchReference(value, prefix string) bool {
+	return strings.HasPrefix(value, prefix) && len(value) <= 128 && strings.TrimSpace(value) == value
+}
+
+func validStytchAuthorizePath(value string) bool {
+	for _, provider := range []string{"google", "microsoft", "github", "slack", "hubspot"} {
+		if value == "/v1/b2b/public/oauth/"+provider+"/start" {
+			return true
+		}
+	}
+	return false
+}
+
 func (provider *RepositoryIdentityProvider) Ready(ctx context.Context) error {
-	if provider == nil || provider.exchanger.Ready(ctx) != nil {
+	if provider == nil || provider.authenticator.Ready(ctx) != nil {
 		return ErrRepositoryUnavailable
 	}
 	return nil
-}
-
-func validExternalIdentity(value ExternalIdentity) bool {
-	return strings.HasPrefix(value.OrganizationReference, "organization-") && len(value.OrganizationReference) <= 128 && strings.HasPrefix(value.MemberReference, "member-") && len(value.MemberReference) <= 128 && value.ExpiresAt.Location() == time.UTC && value.ExpiresAt.After(time.Now().UTC()) && !value.ExpiresAt.After(time.Now().UTC().Add(24*time.Hour))
 }

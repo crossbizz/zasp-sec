@@ -30,10 +30,12 @@ type RuntimeConfig struct {
 	ReadinessInterval     time.Duration
 	ReadinessMaxInterval  time.Duration
 	PostgresDSN           string
-	IdentityAuthorizeURL  string
-	IdentityExchangeURL   string
-	IdentityClientID      string
-	IdentityClientSecret  string
+	StytchBaseURL         string
+	StytchAuthorizeURL    string
+	StytchProjectID       string
+	StytchSecret          string
+	StytchPublicToken     string
+	StytchOrganizationID  string
 }
 
 type StoreDependency struct {
@@ -62,7 +64,7 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 		InternalListenAddress: getenv("ZASP_INTERNAL_LISTEN_ADDRESS"), PublicOrigin: getenv("ZASP_PUBLIC_ORIGIN"),
 		CookieSecure: cookieSecure, ProviderTimeout: providerTimeout, ShutdownTimeout: shutdownTimeout,
 		ReadinessInterval: readinessInterval, ReadinessMaxInterval: readinessMaxInterval,
-		PostgresDSN: getenv("ZASP_POSTGRES_DSN"), IdentityAuthorizeURL: getenv("ZASP_IDENTITY_AUTHORIZE_URL"), IdentityExchangeURL: getenv("ZASP_IDENTITY_EXCHANGE_URL"), IdentityClientID: getenv("ZASP_IDENTITY_CLIENT_ID"), IdentityClientSecret: getenv("ZASP_IDENTITY_CLIENT_SECRET"),
+		PostgresDSN: getenv("ZASP_POSTGRES_DSN"), StytchBaseURL: getenv("ZASP_STYTCH_BASE_URL"), StytchAuthorizeURL: getenv("ZASP_STYTCH_AUTHORIZE_URL"), StytchProjectID: getenv("ZASP_STYTCH_PROJECT_ID"), StytchSecret: getenv("ZASP_STYTCH_SECRET"), StytchPublicToken: getenv("ZASP_STYTCH_PUBLIC_TOKEN"), StytchOrganizationID: getenv("ZASP_STYTCH_ORGANIZATION_ID"),
 	}
 	if providerErr != nil || shutdownErr != nil || readinessErr != nil || readinessMaxErr != nil || cookieErr != nil || !validRuntimeConfig(config) {
 		return RuntimeConfig{}, errInvalidRuntimeConfig
@@ -88,12 +90,12 @@ func validRuntimeConfig(config RuntimeConfig) bool {
 	if databaseErr != nil || database.Scheme != "postgres" && database.Scheme != "postgresql" || database.Host == "" || database.User == nil || database.Path == "" || strings.TrimSpace(config.PostgresDSN) != config.PostgresDSN {
 		return false
 	}
-	authorize, authorizeErr := url.Parse(config.IdentityAuthorizeURL)
-	exchange, exchangeErr := url.Parse(config.IdentityExchangeURL)
-	if authorizeErr != nil || exchangeErr != nil || authorize == nil || exchange == nil {
+	authorize, authorizeErr := url.Parse(config.StytchAuthorizeURL)
+	base, baseErr := url.Parse(config.StytchBaseURL)
+	if authorizeErr != nil || baseErr != nil || authorize == nil || base == nil {
 		return false
 	}
-	if !validConfiguredIdentityURL(authorize, config.Environment) || !validConfiguredIdentityURL(exchange, config.Environment) || len(config.IdentityClientID) < 8 || len(config.IdentityClientID) > 256 || strings.TrimSpace(config.IdentityClientID) != config.IdentityClientID || len(config.IdentityClientSecret) < 8 || len(config.IdentityClientSecret) > 4096 || strings.TrimSpace(config.IdentityClientSecret) != config.IdentityClientSecret {
+	if !validConfiguredIdentityURL(authorize, config.Environment) || authorize.Path == "" || !validConfiguredIdentityURL(base, config.Environment) || base.Path != "" || len(config.StytchProjectID) < 8 || len(config.StytchProjectID) > 256 || strings.TrimSpace(config.StytchProjectID) != config.StytchProjectID || len(config.StytchSecret) < 8 || len(config.StytchSecret) > 4096 || strings.TrimSpace(config.StytchSecret) != config.StytchSecret || len(config.StytchPublicToken) < 8 || len(config.StytchPublicToken) > 256 || !strings.HasPrefix(config.StytchOrganizationID, "organization-") || len(config.StytchOrganizationID) > 128 {
 		return false
 	}
 	return config.ProviderTimeout > 0 && config.ProviderTimeout <= 30*time.Second && config.ShutdownTimeout > 0 && config.ShutdownTimeout <= 30*time.Second && config.ReadinessInterval >= 100*time.Millisecond && config.ReadinessMaxInterval >= config.ReadinessInterval && config.ReadinessMaxInterval <= 5*time.Minute
@@ -101,7 +103,7 @@ func validRuntimeConfig(config RuntimeConfig) bool {
 
 func validConfiguredIdentityURL(value *url.URL, environment string) bool {
 	loopback := net.ParseIP(value.Hostname()) != nil && net.ParseIP(value.Hostname()).IsLoopback()
-	return value.Host != "" && value.User == nil && value.RawQuery == "" && value.Fragment == "" && value.Path != "" && (value.Scheme == "https" || environment == "test" && value.Scheme == "http" && loopback)
+	return value.Host != "" && value.User == nil && value.RawQuery == "" && value.Fragment == "" && (value.Scheme == "https" || environment == "test" && value.Scheme == "http" && loopback)
 }
 
 func validListenAddress(address string) bool {

@@ -82,7 +82,7 @@ func (handler *sessionHTTPHandler) ServeHTTP(writer http.ResponseWriter, request
 		http.Redirect(writer, request, target, http.StatusFound)
 	case "/api/v1/session/bootstrap":
 		identity, ok := IdentityFromRequest(request)
-		if !ok {
+		if !ok || identity.CredentialKind != CredentialBrowserSession || !validRequestIdentity(identity, true) {
 			writeProductionError(writer, request, ErrRepositoryAuthentication)
 			return
 		}
@@ -93,14 +93,14 @@ func (handler *sessionHTTPHandler) ServeHTTP(writer http.ResponseWriter, request
 		writeProductionResponse(writer, request, http.StatusOK, payload, err)
 	case "/api/v1/session/callback":
 		var input struct {
-			AuthorizationCode string `json:"authorization_code"`
-			State             string `json:"state"`
+			ProviderToken string `json:"provider_token"`
+			State         string `json:"state"`
 		}
-		if decodeProductionJSON(request, &input) != nil || input.AuthorizationCode == "" || len(input.AuthorizationCode) > 4096 || len(input.State) < 32 || len(input.State) > 512 {
+		if decodeProductionJSON(request, &input) != nil || input.ProviderToken == "" || len(input.ProviderToken) > 4096 || len(input.State) < 32 || len(input.State) > 512 {
 			writeProductionError(writer, request, ErrRepositoryOperation)
 			return
 		}
-		grant, err := handler.provider.Complete(request.Context(), input.AuthorizationCode, input.State)
+		grant, err := handler.provider.Complete(request.Context(), input.ProviderToken, input.State)
 		if err != nil {
 			writeProductionError(writer, request, ErrRepositoryAuthentication)
 			return

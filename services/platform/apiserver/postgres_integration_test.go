@@ -54,7 +54,8 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 	if err != nil {
 		t.Fatal(err)
 	}
-	bootstrap := `{"capabilities":["inventory.read"],"principal":{"id":"pid_10000004-0000-4000-8000-000000000004"}}`
+	bootstrap := `{"capabilities":["inventory.read"],"principal":{"id":"pid_90000004-0000-4000-8000-000000000004","organization_id":"pid_90000001-0000-4000-8000-000000000001","organization_reference":"organization-attacker","member_reference":"member-attacker","role":"organization_admin","active":false}}`
+	authoritativeBootstrap := `{"capabilities":["inventory.read"],"principal":{"id":"pid_10000004-0000-4000-8000-000000000004","organization_id":"pid_10000001-0000-4000-8000-000000000001","organization_reference":"organization-test-local","member_reference":"member-test-local","role":"security_admin","active":true}}`
 	agents := `{"items":[]}`
 	if _, err := connection.Exec(ctx, `INSERT INTO zasp_core_payloads (organization_id, workspace_id, environment_id, operation, payload) VALUES ($1,$2,$3,$4,$5::jsonb),($1,$2,$3,$6,$7::jsonb)`, organization.String(), workspace.String(), environment.String(), "session_bootstrap:"+principal.String(), bootstrap, "agents", agents); err != nil {
 		t.Fatal(err)
@@ -65,7 +66,7 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 	if _, err := connection.Exec(ctx, `INSERT INTO zasp_authorized_scopes (principal_id, organization_id, workspace_id, environment_id, label, permissions, is_default) VALUES ($1,$2,$3,$4,'Production','["view"]'::jsonb,true),($1,$2,$5,$6,'Staging','["view"]'::jsonb,false)`, principal.String(), organization.String(), workspace.String(), environment.String(), workspace2.String(), environment2.String()); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := connection.Exec(ctx, `INSERT INTO zasp_identity_memberships (principal_id, organization_id, organization_reference, member_reference, role) VALUES ($1,$2,'organization-live-a','member-live-a','security_admin')`, principal.String(), organization.String()); err != nil {
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_identity_memberships (principal_id, organization_id, organization_reference, member_reference, role) VALUES ($1,$2,'organization-test-local','member-test-local','security_admin')`, principal.String(), organization.String()); err != nil {
 		t.Fatal(err)
 	}
 	const pat = "production-api-token-with-at-least-32-bytes"
@@ -80,7 +81,7 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 	if err != nil {
 		t.Fatal(err)
 	}
-	resolved, err := repository.ResolveIdentity(ctx, ExternalIdentity{OrganizationReference: "organization-live-a", MemberReference: "member-live-a", ExpiresAt: time.Now().UTC().Add(time.Hour).Truncate(time.Second)})
+	resolved, err := repository.ResolveIdentity(ctx, stytchExternalPrincipal(t, time.Now().UTC().Add(time.Hour).Truncate(time.Second)))
 	if err != nil || resolved.PrincipalID != principal || resolved.Scope != scope {
 		t.Fatalf("resolved identity = (%#v, %v)", resolved, err)
 	}
@@ -110,7 +111,7 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 		t.Fatalf("PAT authenticate = (%#v, %v)", identity, err)
 	}
 	identity, _ := repository.Authenticate(ctx, Credential{Kind: CredentialBrowserSession, Value: session})
-	if payload, err := repository.Bootstrap(ctx, identity); err != nil || !equalIntegrationJSON(payload, []byte(bootstrap)) {
+	if payload, err := repository.Bootstrap(ctx, identity); err != nil || !equalIntegrationJSON(payload, []byte(authoritativeBootstrap)) {
 		t.Fatalf("bootstrap = (%s, %v)", payload, err)
 	}
 	if payload, err := repository.ListScopes(ctx, identity); err != nil || !strings.Contains(string(payload), workspace2.String()) {

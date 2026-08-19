@@ -14,14 +14,14 @@ export function CallbackCompletion({ suppliedClient, replaceLocation = replaceBr
     let active = true;
     const complete = async () => {
       const query = new URLSearchParams(window.location.search);
-      const authorizationCode = query.get("code") ?? "";
+      const providerToken = query.get("token") ?? "";
       const state = query.get("state") ?? "";
-      if (!authorizationCode || state.length < 32 || state.length > 512) {
+      if (!providerToken || state.length < 32 || state.length > 512) {
         setFailure({ message: "The sign-in callback is invalid or expired." });
         return;
       }
       try {
-        const result = await client.POST("/api/v1/session/callback", { body: { authorization_code: authorizationCode, state } });
+        const result = await client.POST("/api/v1/session/callback", { body: { provider_token: providerToken, state } });
         const completed = requireAPIData(result, decodeSessionCallbackResult);
         if (active) replaceLocation(completed.return_to);
       } catch (error) {

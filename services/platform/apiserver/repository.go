@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	platformidentity "github.com/zasp-ai/zasp-sec/services/platform/identity"
 )
 
 const CoreSchemaVersion = "production-core-v1"
@@ -18,12 +19,12 @@ const (
 	postgresAuthenticateSessionSQL = `SELECT jsonb_build_object('principal_id', principal_id, 'organization_id', organization_id, 'workspace_id', workspace_id, 'environment_id', environment_id, 'permissions', permissions, 'csrf_token', csrf_token) FROM zasp_product_sessions WHERE token_digest = digest($1, 'sha256') AND revoked_at IS NULL AND expires_at > now()`
 	postgresAuthenticatePATSQL     = `SELECT jsonb_build_object('principal_id', principal_id, 'organization_id', organization_id, 'workspace_id', workspace_id, 'environment_id', environment_id, 'permissions', permissions) FROM zasp_product_api_tokens WHERE token_digest = digest($1, 'sha256') AND revoked_at IS NULL AND expires_at > now()`
 	postgresCreateSessionSQL       = `SELECT zasp_create_product_session($1, $2, $3, $4, $5, $6, $7::jsonb, $8)`
-	postgresBootstrapSQL           = `SELECT zasp_session_bootstrap($1, $2, $3, $4)`
+	postgresBootstrapSQL           = `SELECT payload || jsonb_build_object('principal', jsonb_build_object('id', membership.principal_id, 'organization_id', membership.organization_id, 'organization_reference', membership.organization_reference, 'member_reference', membership.member_reference, 'role', membership.role, 'active', membership.active)) FROM zasp_core_payloads AS payloads JOIN zasp_identity_memberships AS membership ON membership.principal_id = $1 AND membership.organization_id = $2 AND membership.active WHERE payloads.organization_id = $2 AND payloads.workspace_id = $3 AND payloads.environment_id = $4 AND payloads.operation = 'session_bootstrap:' || $1`
 	postgresCoreReadSQL            = `SELECT zasp_core_read($1, $2, $3, $4)`
 	postgresRevokeSessionSQL       = `UPDATE zasp_product_sessions SET revoked_at = now() WHERE token_digest = digest($1, 'sha256') AND organization_id = $2 AND principal_id = $3`
 	postgresListScopesSQL          = `SELECT jsonb_build_object('items', COALESCE(jsonb_agg(jsonb_build_object('organization_id', organization_id, 'workspace_id', workspace_id, 'environment_id', environment_id, 'label', label) ORDER BY label, workspace_id, environment_id), '[]'::jsonb)) FROM zasp_authorized_scopes WHERE principal_id = $1 AND organization_id = $2`
 	postgresSwitchScopeSQL         = `WITH authorized AS (SELECT workspace_id, environment_id, permissions FROM zasp_authorized_scopes WHERE principal_id = $3 AND organization_id = $4 AND workspace_id = $5 AND environment_id = $6), updated AS (UPDATE zasp_product_sessions AS session SET workspace_id = authorized.workspace_id, environment_id = authorized.environment_id, permissions = authorized.permissions, csrf_token = $2 FROM authorized WHERE session.token_digest = digest($1, 'sha256') AND session.principal_id = $3 AND session.organization_id = $4 AND session.revoked_at IS NULL AND session.expires_at > now() RETURNING session.principal_id, session.organization_id, session.workspace_id, session.environment_id, session.permissions, session.csrf_token) SELECT jsonb_build_object('principal_id', principal_id, 'organization_id', organization_id, 'workspace_id', workspace_id, 'environment_id', environment_id, 'permissions', permissions, 'csrf_token', csrf_token) FROM updated`
-	postgresResolveIdentitySQL     = `SELECT jsonb_build_object('principal_id', membership.principal_id, 'organization_id', membership.organization_id, 'workspace_id', scope.workspace_id, 'environment_id', scope.environment_id, 'permissions', scope.permissions) FROM zasp_identity_memberships AS membership JOIN zasp_authorized_scopes AS scope ON scope.principal_id = membership.principal_id AND scope.organization_id = membership.organization_id AND scope.is_default WHERE membership.organization_reference = $1 AND membership.member_reference = $2 AND membership.active`
+	postgresResolveIdentitySQL     = `SELECT jsonb_build_object('principal_id', membership.principal_id, 'organization_id', membership.organization_id, 'organization_reference', membership.organization_reference, 'member_reference', membership.member_reference, 'role', membership.role, 'active', membership.active, 'workspace_id', scope.workspace_id, 'environment_id', scope.environment_id, 'permissions', scope.permissions) FROM zasp_identity_memberships AS membership JOIN zasp_authorized_scopes AS scope ON scope.principal_id = membership.principal_id AND scope.organization_id = membership.organization_id AND scope.is_default WHERE membership.organization_reference = $1 AND membership.member_reference = $2`
 	postgresBeginIdentitySQL       = `INSERT INTO zasp_identity_states (state_digest, return_path, expires_at) VALUES (digest($1, 'sha256'), $2, now() + interval '10 minutes')`
 	postgresConsumeIdentitySQL     = `WITH consumed AS (UPDATE zasp_identity_states SET consumed_at = now() WHERE state_digest = digest($1, 'sha256') AND consumed_at IS NULL AND expires_at > now() RETURNING return_path) SELECT jsonb_build_object('return_path', return_path) FROM consumed`
 )
@@ -163,11 +164,15 @@ func equalPermissionSets(left, right []string) bool {
 }
 
 func (repository *PostgresRepository) Bootstrap(ctx context.Context, identity RequestIdentity) (json.RawMessage, error) {
-	if !validRequestIdentity(identity, true) {
+	if !validRequestIdentity(identity, false) {
 		return nil, ErrRepositoryOperation
 	}
 	payload, err := repository.database.QueryJSON(ctx, postgresBootstrapSQL, identity.PrincipalID.String(), identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String())
-	return validJSONObject(payload, err)
+	payload, err = validJSONObject(payload, err)
+	if err != nil || validateBootstrapMembership(payload, identity) != nil {
+		return nil, ErrRepositoryOperation
+	}
+	return payload, nil
 }
 
 func (repository *PostgresRepository) Read(ctx context.Context, scope domain.Scope, operation string) (json.RawMessage, error) {
@@ -212,20 +217,68 @@ func (repository *PostgresRepository) SwitchScope(ctx context.Context, identity 
 	return updated, nil
 }
 
-func (repository *PostgresRepository) ResolveIdentity(ctx context.Context, external ExternalIdentity) (SessionGrant, error) {
-	if repository == nil || !validExternalIdentity(external) {
+func (repository *PostgresRepository) ResolveIdentity(ctx context.Context, external platformidentity.ExternalPrincipal) (SessionGrant, error) {
+	if repository == nil || external.OrganizationReference() == "" || external.MemberReference() == "" {
 		return SessionGrant{}, ErrRepositoryAuthentication
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresResolveIdentitySQL, external.OrganizationReference, external.MemberReference)
+	payload, err := repository.database.QueryJSON(ctx, postgresResolveIdentitySQL, external.OrganizationReference(), external.MemberReference())
 	if err != nil {
 		return SessionGrant{}, ErrRepositoryAuthentication
 	}
-	identity, err := identityFromJSON(payload, false)
-	grant := SessionGrant{PrincipalID: identity.PrincipalID, Scope: identity.Scope, Permissions: identity.Permissions, ExpiresAt: external.ExpiresAt}
-	if err != nil || !validSessionGrant(grant) {
+	identity, role, active, err := membershipIdentityFromJSON(payload)
+	grant := SessionGrant{PrincipalID: identity.PrincipalID, Scope: identity.Scope, Permissions: identity.Permissions, ExpiresAt: external.ExpiresAt()}
+	if err != nil || !active || !validMembershipRole(role) || !validSessionGrant(grant) {
 		return SessionGrant{}, ErrRepositoryAuthentication
 	}
 	return grant, nil
+}
+
+func membershipIdentityFromJSON(payload json.RawMessage) (RequestIdentity, string, bool, error) {
+	var value struct {
+		PrincipalID           string   `json:"principal_id"`
+		OrganizationID        string   `json:"organization_id"`
+		OrganizationReference string   `json:"organization_reference"`
+		MemberReference       string   `json:"member_reference"`
+		Role                  string   `json:"role"`
+		Active                bool     `json:"active"`
+		WorkspaceID           string   `json:"workspace_id"`
+		EnvironmentID         string   `json:"environment_id"`
+		Permissions           []string `json:"permissions"`
+	}
+	if json.Unmarshal(payload, &value) != nil || !validStytchReference(value.OrganizationReference, "organization-") || !validStytchReference(value.MemberReference, "member-") || !validMembershipRole(value.Role) {
+		return RequestIdentity{}, "", false, ErrRepositoryAuthentication
+	}
+	identityPayload, err := json.Marshal(map[string]any{
+		"principal_id": value.PrincipalID, "organization_id": value.OrganizationID, "workspace_id": value.WorkspaceID,
+		"environment_id": value.EnvironmentID, "permissions": value.Permissions,
+	})
+	if err != nil {
+		return RequestIdentity{}, "", false, ErrRepositoryAuthentication
+	}
+	identity, err := identityFromJSON(identityPayload, false)
+	return identity, value.Role, value.Active, err
+}
+
+func validateBootstrapMembership(payload json.RawMessage, identity RequestIdentity) error {
+	var value struct {
+		Principal struct {
+			ID                    string `json:"id"`
+			OrganizationID        string `json:"organization_id"`
+			OrganizationReference string `json:"organization_reference"`
+			MemberReference       string `json:"member_reference"`
+			Role                  string `json:"role"`
+			Active                bool   `json:"active"`
+		} `json:"principal"`
+	}
+	if json.Unmarshal(payload, &value) != nil || value.Principal.ID != identity.PrincipalID.String() || value.Principal.OrganizationID != identity.Scope.OrganizationID().String() || !validStytchReference(value.Principal.OrganizationReference, "organization-") || !validStytchReference(value.Principal.MemberReference, "member-") || !validMembershipRole(value.Principal.Role) || !value.Principal.Active {
+		return ErrRepositoryOperation
+	}
+	return nil
+}
+
+func validMembershipRole(value string) bool {
+	_, ok := platformidentity.BuiltInRoles()[platformidentity.Role(value)]
+	return ok
 }
 
 func (repository *PostgresRepository) BeginIdentity(ctx context.Context, returnTo string) (string, error) {
