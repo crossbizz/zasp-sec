@@ -11,9 +11,9 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
 
-const postgresSchemaVersionSQL = `SELECT metadata.value FROM zasp_schema_metadata AS metadata JOIN zasp_schema_versions AS release ON release.version = 2 AND release.name = 'production_core' WHERE metadata.key = 'production_core_schema' AND release.checksum = $1`
+const postgresSchemaVersionSQL = `SELECT metadata.value FROM zasp_schema_metadata AS metadata JOIN zasp_schema_versions AS release ON release.version = 3 AND release.name = 'production_workflows' WHERE metadata.key = 'production_core_schema' AND release.checksum = $1`
 
-func expectedCoreSchemaChecksum() string { return migrations.ProductionCore().Checksum() }
+func expectedCoreSchemaChecksum() string { return migrations.ProductionWorkflows().Checksum() }
 
 type PostgresRow interface{ Scan(...any) error }
 

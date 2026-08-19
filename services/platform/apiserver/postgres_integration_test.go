@@ -39,6 +39,9 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 	if err := runner.UpCore(ctx); err != nil {
 		t.Fatalf("core migration: %v", err)
 	}
+	if err := runner.UpWorkflows(ctx); err != nil {
+		t.Fatalf("workflow migration: %v", err)
+	}
 
 	principal := integrationProductID(t, "pid_10000004-0000-4000-8000-000000000004")
 	organization := integrationProductID(t, "pid_10000001-0000-4000-8000-000000000001")
@@ -160,6 +163,9 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 	}
 	defer func() { _ = rollbackConnection.Close(context.Background()) }()
 	rollbackRunner, _ := migrations.NewRunner(&integrationMigrationDatabase{connection: rollbackConnection})
+	if err := rollbackRunner.DownWorkflows(ctx); err != nil {
+		t.Fatalf("workflow rollback: %v", err)
+	}
 	if err := rollbackRunner.DownCore(ctx); err != nil {
 		t.Fatalf("core rollback: %v", err)
 	}

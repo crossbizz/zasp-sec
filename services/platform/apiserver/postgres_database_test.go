@@ -4,12 +4,26 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
+
+func TestPostgresSchemaReadinessRequiresExactWorkflowRelease(t *testing.T) {
+	if CoreSchemaVersion != "production-workflows-v1" {
+		t.Fatalf("schema target = %q", CoreSchemaVersion)
+	}
+	if !strings.Contains(postgresSchemaVersionSQL, "release.version = 3") || !strings.Contains(postgresSchemaVersionSQL, "release.name = 'production_workflows'") {
+		t.Fatalf("schema readiness query does not require workflow release: %s", postgresSchemaVersionSQL)
+	}
+	if expectedCoreSchemaChecksum() != migrations.ProductionWorkflows().Checksum() {
+		t.Fatal("schema readiness checksum is not the workflow release checksum")
+	}
+}
 
 func TestPostgresJSONDatabaseRunsSchemaReadAndWriteBoundaries(t *testing.T) {
 	driver := &databaseDriver{responses: map[string][]byte{

@@ -16,6 +16,8 @@ const (
 	baselineName    = "schema_versions"
 	coreVersion     = int64(2)
 	coreName        = "production_core"
+	workflowVersion = int64(3)
+	workflowName    = "production_workflows"
 	rollbackTimeout = 5 * time.Second
 
 	tableExistsSQL = "SELECT to_regclass('public.zasp_schema_versions') IS NOT NULL"
@@ -46,6 +48,12 @@ var coreUpSQL string
 
 //go:embed sql/0002_production_core.down.sql
 var coreDownSQL string
+
+//go:embed sql/0003_production_workflows.up.sql
+var workflowUpSQL string
+
+//go:embed sql/0003_production_workflows.down.sql
+var workflowDownSQL string
 
 type Metadata struct {
 	version  int64
@@ -79,6 +87,13 @@ func ProductionCore() Metadata {
 		up:       up,
 		down:     down,
 	}
+}
+
+func ProductionWorkflows() Metadata {
+	up := strings.TrimSpace(workflowUpSQL)
+	down := strings.TrimSpace(workflowDownSQL)
+	digest := sha256.Sum256([]byte(up + "\x00" + down))
+	return Metadata{version: workflowVersion, name: workflowName, checksum: hex.EncodeToString(digest[:]), up: up, down: down}
 }
 
 func (metadata Metadata) Version() int64   { return metadata.version }
@@ -164,12 +179,15 @@ func (runner *Runner) Version(ctx context.Context) (int64, error) {
 	if err := scanRow(ctx, runner.database, countRowsSQL, nil, &count); err != nil {
 		return 0, fixedDatabaseError(ctx, err)
 	}
-	if count != 1 && count != 2 {
+	if count < 1 || count > 3 {
 		return 0, ErrInvalidState
 	}
 	metadata := []Metadata{Baseline()}
-	if count == 2 {
+	if count >= 2 {
 		metadata = append(metadata, ProductionCore())
+	}
+	if count == 3 {
+		metadata = append(metadata, ProductionWorkflows())
 	}
 	for _, expected := range metadata {
 		var version int64
@@ -277,6 +295,51 @@ func (runner *Runner) DownCore(ctx context.Context) error {
 			return ErrInvalidState
 		}
 		return nil
+	})
+}
+
+func (runner *Runner) UpWorkflows(ctx context.Context) error {
+	if runner == nil || nilInterface(runner.database) {
+		return ErrInvalidRunner
+	}
+	return runner.withTransaction(ctx, func(ctx context.Context, transaction Transaction) error {
+		if err := readCoreState(ctx, transaction); err != nil {
+			return err
+		}
+		metadata := ProductionWorkflows()
+		if err := transaction.Exec(ctx, metadata.UpSQL()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, insertRowSQL, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		return readWorkflowState(ctx, transaction)
+	})
+}
+
+func (runner *Runner) DownWorkflows(ctx context.Context) error {
+	if runner == nil || nilInterface(runner.database) {
+		return ErrInvalidRunner
+	}
+	return runner.withTransaction(ctx, func(ctx context.Context, transaction Transaction) error {
+		present, err := tablePresent(ctx, transaction)
+		if err != nil || !present {
+			return ErrInvalidState
+		}
+		if err := transaction.Exec(ctx, lockTableSQL); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := readWorkflowState(ctx, transaction); err != nil {
+			return err
+		}
+		metadata := ProductionWorkflows()
+		if err := transaction.Exec(ctx, deleteRowSQL, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, metadata.DownSQL()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		return readCoreState(ctx, transaction)
 	})
 }
 
@@ -410,14 +473,22 @@ func readPresentState(ctx context.Context, queryer Queryer) (State, error) {
 }
 
 func readCoreState(ctx context.Context, queryer Queryer) error {
+	return readExactReleaseState(ctx, queryer, []Metadata{Baseline(), ProductionCore()})
+}
+
+func readWorkflowState(ctx context.Context, queryer Queryer) error {
+	return readExactReleaseState(ctx, queryer, []Metadata{Baseline(), ProductionCore(), ProductionWorkflows()})
+}
+
+func readExactReleaseState(ctx context.Context, queryer Queryer, expected []Metadata) error {
 	var count int64
 	if err := scanRow(ctx, queryer, countRowsSQL, nil, &count); err != nil {
 		return fixedDatabaseError(ctx, err)
 	}
-	if count != 2 {
+	if count != int64(len(expected)) {
 		return ErrInvalidState
 	}
-	for _, metadata := range []Metadata{Baseline(), ProductionCore()} {
+	for _, metadata := range expected {
 		state := State{applied: true}
 		if err := scanRow(ctx, queryer, readVersionSQL, []any{metadata.Version()}, &state.version, &state.name, &state.checksum); err != nil {
 			return fixedDatabaseError(ctx, err)

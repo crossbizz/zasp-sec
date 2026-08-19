@@ -223,8 +223,31 @@ func TestProductionCoreMetadataOwnsOnlyMountedDurableSessionAndCoreSchema(t *tes
 	}
 }
 
-func TestRunnerVersionDistinguishesEmptyBaselineCoreAndDrift(t *testing.T) {
-	baseline, core := Baseline(), ProductionCore()
+func TestProductionWorkflowsMetadataOwnsAtomicScopedWorkflowState(t *testing.T) {
+	metadata := ProductionWorkflows()
+	if metadata.Version() != 3 || metadata.Name() != "production_workflows" || len(metadata.Checksum()) != 64 {
+		t.Fatalf("production workflows identity = %d/%q/%q", metadata.Version(), metadata.Name(), metadata.Checksum())
+	}
+	for _, fragment := range []string{
+		"zasp_workflow_records", "zasp_workflow_idempotency", "zasp_workflow_audit",
+		"zasp_workflow_list", "zasp_workflow_get", "zasp_workflow_mutate",
+		"organization_id", "workspace_id", "environment_id", "expected_version",
+		"requested_idempotency_key", "requested_correlation_id", "production-workflows-v1",
+	} {
+		if !strings.Contains(metadata.UpSQL(), fragment) {
+			t.Fatalf("production workflows migration missing %q", fragment)
+		}
+	}
+	if strings.Contains(metadata.UpSQL(), "enrollment_token") || strings.Contains(metadata.UpSQL(), "provider_secret") {
+		t.Fatal("workflow schema persists readable one-time or provider secrets")
+	}
+	if metadata.UpSQL() == "" || metadata.DownSQL() == "" || ProductionWorkflows() != metadata {
+		t.Fatal("production workflows migration assets are missing or unstable")
+	}
+}
+
+func TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsAndDrift(t *testing.T) {
+	baseline, core, workflows := Baseline(), ProductionCore(), ProductionWorkflows()
 	for _, test := range []struct {
 		name    string
 		rows    []Row
@@ -234,7 +257,8 @@ func TestRunnerVersionDistinguishesEmptyBaselineCoreAndDrift(t *testing.T) {
 		{name: "empty", rows: []Row{fakeRow{values: []any{false}}}, want: 0},
 		{name: "baseline", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(1)}}, fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}}}, want: 1},
 		{name: "core", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(2)}}, fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}}, fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}}}, want: 2},
-		{name: "drift", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(3)}}}, wantErr: ErrInvalidState},
+		{name: "workflows", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(3)}}, fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}}, fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}}, fakeRow{values: []any{workflows.Version(), workflows.Name(), workflows.Checksum()}}}, want: 3},
+		{name: "drift", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(4)}}}, wantErr: ErrInvalidState},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			database := &fakeDatabase{rows: test.rows, transaction: &fakeTransaction{}}
@@ -319,6 +343,46 @@ func TestRunnerUpCoreRequiresBaselineAndRecordsExactRelease(t *testing.T) {
 	}
 	if !reflect.DeepEqual(database.events, want) {
 		t.Fatalf("events = %#v, want %#v", database.events, want)
+	}
+}
+
+func TestRunnerAppliesAndRemovesWorkflowReleaseOnlyFromExactAdjacentStates(t *testing.T) {
+	baseline, core, workflows := Baseline(), ProductionCore(), ProductionWorkflows()
+	upRows := []Row{
+		fakeRow{values: []any{int64(2)}},
+		fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}},
+		fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}},
+		fakeRow{values: []any{int64(3)}},
+		fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}},
+		fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}},
+		fakeRow{values: []any{workflows.Version(), workflows.Name(), workflows.Checksum()}},
+	}
+	upDB := &fakeDatabase{transaction: &fakeTransaction{rows: upRows}}
+	runner, _ := NewRunner(upDB)
+	if err := runner.UpWorkflows(context.Background()); err != nil {
+		t.Fatalf("UpWorkflows: %v", err)
+	}
+	if !contains(upDB.events, "args:3,production_workflows,"+workflows.Checksum()) || !contains(upDB.events, "exec:"+compactSQL(workflows.UpSQL())) {
+		t.Fatalf("workflow up events = %#v", upDB.events)
+	}
+
+	downRows := []Row{
+		fakeRow{values: []any{true}},
+		fakeRow{values: []any{int64(3)}},
+		fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}},
+		fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}},
+		fakeRow{values: []any{workflows.Version(), workflows.Name(), workflows.Checksum()}},
+		fakeRow{values: []any{int64(2)}},
+		fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}},
+		fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}},
+	}
+	downDB := &fakeDatabase{transaction: &fakeTransaction{rows: downRows}}
+	runner, _ = NewRunner(downDB)
+	if err := runner.DownWorkflows(context.Background()); err != nil {
+		t.Fatalf("DownWorkflows: %v", err)
+	}
+	if !contains(downDB.events, "args:3,production_workflows,"+workflows.Checksum()) || !contains(downDB.events, "exec:"+compactSQL(workflows.DownSQL())) {
+		t.Fatalf("workflow down events = %#v", downDB.events)
 	}
 }
 

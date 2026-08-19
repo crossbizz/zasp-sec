@@ -13,7 +13,7 @@ import (
 	platformidentity "github.com/zasp-ai/zasp-sec/services/platform/identity"
 )
 
-const CoreSchemaVersion = "production-core-v1"
+const CoreSchemaVersion = "production-workflows-v1"
 
 const (
 	postgresAuthenticateSessionSQL = `SELECT jsonb_build_object('principal_id', principal_id, 'organization_id', organization_id, 'workspace_id', workspace_id, 'environment_id', environment_id, 'permissions', permissions, 'csrf_token', csrf_token) FROM zasp_product_sessions WHERE token_digest = digest($1, 'sha256') AND revoked_at IS NULL AND expires_at > now()`
