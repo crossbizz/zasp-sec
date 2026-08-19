@@ -1421,6 +1421,9 @@ paths:
     get:
       operationId: listSecurityAgents
       summary: List Organization-scoped Security Agents
+      parameters:
+        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/PageLimit'
       responses:
         '200': { description: Security Agent page., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentPage' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
@@ -1913,10 +1916,10 @@ components:
     SecurityAgentPage:
       type: object
       additionalProperties: false
-      required: [items]
+      required: [items, page_info]
       properties:
         items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/SecurityAgentDefinition' } }
-        next_cursor: { type: string, maxLength: 128 }
+        page_info: { $ref: '#/components/schemas/PageInfo' }
     SecurityAgentSimulationInput:
       type: object
       additionalProperties: false

@@ -81,6 +81,25 @@ RETURNS jsonb LANGUAGE sql STABLE AS $$
        AND "environment_id" = requested_environment_id AND "kind" = requested_kind AND "id" = requested_id AND "deleted_at" IS NULL
 $$;
 
+CREATE FUNCTION "public"."zasp_workflow_page"(requested_kind text, requested_organization_id text, requested_workspace_id text, requested_environment_id text, requested_after_id text DEFAULT NULL, requested_limit integer DEFAULT 50)
+RETURNS jsonb LANGUAGE sql STABLE AS $$
+    WITH candidates AS (
+        SELECT "id", "body"
+          FROM "public"."zasp_workflow_records"
+         WHERE "organization_id" = requested_organization_id AND "workspace_id" = requested_workspace_id
+           AND "environment_id" = requested_environment_id AND "kind" = requested_kind AND "deleted_at" IS NULL
+           AND (requested_after_id IS NULL OR "id" > requested_after_id)
+         ORDER BY "id"
+         LIMIT requested_limit + 1
+    ), visible AS (
+        SELECT "id", "body" FROM candidates ORDER BY "id" LIMIT requested_limit
+    )
+    SELECT jsonb_build_object(
+        'items', COALESCE((SELECT jsonb_agg("body" ORDER BY "id") FROM visible), '[]'::jsonb),
+        'next_id', CASE WHEN (SELECT count(*) FROM candidates) > requested_limit THEN (SELECT "id" FROM visible ORDER BY "id" DESC LIMIT 1) ELSE NULL END
+    )
+$$;
+
 CREATE FUNCTION "public"."zasp_workflow_replay"(
     requested_organization_id text, requested_workspace_id text, requested_environment_id text,
     requested_principal_id text, requested_operation text, requested_idempotency_key text,

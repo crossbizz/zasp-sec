@@ -27,7 +27,7 @@ export const securityAgentOperations = [
 
 export type SecurityAgentsAPI = {
   listSecurityAgentTemplates(signal?: AbortSignal): Promise<readonly SecurityAgentTemplate[]>;
-  listSecurityAgents(signal?: AbortSignal): Promise<SecurityAgentPage>;
+  listSecurityAgents(options?: { cursor?: string; limit?: number }, signal?: AbortSignal): Promise<SecurityAgentPage>;
   createSecurityAgent(value: SecurityAgentInput, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<SecurityAgentDefinition>>;
   getSecurityAgent(id: string, signal?: AbortSignal): Promise<Versioned<SecurityAgentDefinition>>;
   updateSecurityAgent(id: string, version: string, value: SecurityAgentDefinition, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<SecurityAgentDefinition>>;
@@ -39,8 +39,8 @@ export function createSecurityAgentsAPI(client: APIClient = createAPIClient()): 
     async listSecurityAgentTemplates(signal) {
       return requireAPIData(await client.GET("/api/v1/security-agent-templates", { signal }), decodeSecurityAgentTemplatePage).items;
     },
-    async listSecurityAgents(signal) {
-      return requireAPIData(await client.GET("/api/v1/security-agents", { signal }), decodeSecurityAgentPage);
+    async listSecurityAgents(options = {}, signal) {
+      return requireAPIData(await client.GET("/api/v1/security-agents", { params: { query: options }, signal }), decodeSecurityAgentPage);
     },
     async createSecurityAgent(value, attempt) {
       return executeWorkflowMutation(async (active) => requireWorkflowReceipt(await client.POST("/api/v1/security-agents", { params: { header: workflowMutationHeaders(active) }, body: value }), decodeSecurityAgentDefinition), attempt);
@@ -71,8 +71,16 @@ type SecurityAgentDetailResult =
   | { kind: "deleted"; receipt: WorkflowReceipt<void> };
 
 async function loadSecurityAgentSnapshot(api: SecurityAgentsAPI, signal?: AbortSignal): Promise<SecurityAgentSnapshot> {
-  const [page, templates] = await Promise.all([api.listSecurityAgents(signal), api.listSecurityAgentTemplates(signal)]);
-  return { agents: page.items, templates };
+  const templatesPromise = api.listSecurityAgentTemplates(signal);
+  const agents: SecurityAgentDefinition[] = [];
+  let cursor: string | undefined;
+  for (let pageNumber = 0; pageNumber < 100; pageNumber++) {
+    const page = await api.listSecurityAgents({ cursor, limit: 100 }, signal);
+    agents.push(...page.items);
+    if (!page.page_info.has_more) return { agents, templates: await templatesPromise };
+    cursor = page.page_info.next_cursor;
+  }
+  throw new Error("Security Agent definition pagination exceeded its bounded page count");
 }
 
 function Builder({ templates, api, environmentID, onCreated }: { templates: readonly SecurityAgentTemplate[]; api: SecurityAgentsAPI; environmentID: string; onCreated(value: SecurityAgentDefinition): void }) {

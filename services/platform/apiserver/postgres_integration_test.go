@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"os/exec"
 	"path/filepath"
 	"reflect"
@@ -349,6 +351,83 @@ func TestRetainedWorkflowMutationsReplayLostResponsesInPostgres(t *testing.T) {
 	assertReplay(WorkflowMutation{Action: "delete", Kind: "security_agent", ID: agentID, Operation: "deleteSecurityAgent", ExpectedVersion: 2, Intent: intent(agentID, 2, json.RawMessage(`{}`)), Body: json.RawMessage(`{}`)})
 	if sequence != 11 {
 		t.Fatalf("replayed mutation count = %d", sequence)
+	}
+	if err := database.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSecurityAgentPaginationExceedsOneHundredWithoutTenantDisclosure(t *testing.T) {
+	dsn := startDisposablePostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	connection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner, _ := migrations.NewRunner(&integrationMigrationDatabase{connection: connection})
+	if err := runner.Up(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.UpCore(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.UpWorkflows(ctx); err != nil {
+		t.Fatal(err)
+	}
+	identity := fixtureRequestIdentity(t)
+	if _, err := connection.Exec(ctx, `
+INSERT INTO zasp_workflow_records (organization_id, workspace_id, environment_id, kind, id, body)
+SELECT $1, $2, $3, 'security_agent', generated.id,
+       jsonb_build_object('id', generated.id, 'name', 'Definition ' || generated.ordinal, 'trigger_kind', 'finding', 'trigger_source', 'credential',
+         'environment_ids', jsonb_build_array($3::text), 'autonomy', 'supervised', 'max_steps', 10, 'max_duration_seconds', 900,
+         'temporary_policy_seconds', 3600, 'ai_token_budget', 4000, 'concurrency_limit', 2, 'allowed_actions', jsonb_build_array('run_test'),
+         'verification_kind', 'test_run', 'definition_version', 1, 'enabled', true)
+FROM (
+  SELECT ordinal, 'pid_' || lpad(ordinal::text, 8, '0') || '-0000-4000-8000-' || lpad(ordinal::text, 12, '0') AS id
+  FROM generate_series(1, 101) AS ordinal
+) AS generated`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String()); err != nil {
+		t.Fatal(err)
+	}
+	database, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
+	repository, _ := NewPostgresRepository(database)
+	handler, _ := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), time.Now)
+	request := workflowRequest(t, identity, testCorrelationID, "listSecurityAgents", nil, http.MethodGet, "/api/v1/security-agents?limit=100", "")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	var first struct {
+		Items    []json.RawMessage `json:"items"`
+		PageInfo struct {
+			NextCursor *string `json:"next_cursor"`
+			HasMore    bool    `json:"has_more"`
+		} `json:"page_info"`
+	}
+	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &first) != nil || len(first.Items) != 100 || !first.PageInfo.HasMore || first.PageInfo.NextCursor == nil {
+		t.Fatalf("first real page = %d items=%d body=%s", response.Code, len(first.Items), response.Body.String())
+	}
+	request = workflowRequest(t, identity, testCorrelationID, "listSecurityAgents", nil, http.MethodGet, "/api/v1/security-agents?limit=100&cursor="+*first.PageInfo.NextCursor, "")
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	var second struct {
+		Items    []json.RawMessage `json:"items"`
+		PageInfo struct {
+			NextCursor *string `json:"next_cursor"`
+			HasMore    bool    `json:"has_more"`
+		} `json:"page_info"`
+	}
+	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &second) != nil || len(second.Items) != 1 || second.PageInfo.HasMore || second.PageInfo.NextCursor != nil {
+		t.Fatalf("second real page = %d items=%d body=%s", response.Code, len(second.Items), response.Body.String())
+	}
+	foreign := identity
+	foreignOrganization := integrationProductID(t, "pid_20000001-0000-4000-8000-000000000001")
+	foreignWorkspace := integrationProductID(t, "pid_20000002-0000-4000-8000-000000000002")
+	foreignEnvironment := integrationProductID(t, "pid_20000003-0000-4000-8000-000000000003")
+	foreign.Scope, _ = domain.NewScope(foreignOrganization, foreignWorkspace, foreignEnvironment)
+	request = workflowRequest(t, foreign, testCorrelationID, "listSecurityAgents", nil, http.MethodGet, "/api/v1/security-agents?cursor="+*first.PageInfo.NextCursor, "")
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusNotFound || bytes.Contains(response.Body.Bytes(), []byte(identity.Scope.OrganizationID().String())) {
+		t.Fatalf("foreign real cursor = %d %s", response.Code, response.Body.String())
 	}
 	if err := database.Close(); err != nil {
 		t.Fatal(err)

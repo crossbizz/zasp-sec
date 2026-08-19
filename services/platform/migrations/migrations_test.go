@@ -230,7 +230,7 @@ func TestProductionWorkflowsMetadataOwnsAtomicScopedWorkflowState(t *testing.T) 
 	}
 	for _, fragment := range []string{
 		"zasp_workflow_records", "zasp_workflow_idempotency", "zasp_workflow_audit",
-		"zasp_workflow_list", "zasp_workflow_get", "zasp_workflow_replay", "zasp_workflow_mutate",
+		"zasp_workflow_list", "zasp_workflow_page", "zasp_workflow_get", "zasp_workflow_replay", "zasp_workflow_mutate",
 		"organization_id", "workspace_id", "environment_id", "expected_version",
 		"requested_idempotency_key", "requested_intent", "pg_advisory_xact_lock", "requested_correlation_id", "production-workflows-v1",
 		"SET \"authenticated_at\" = LEAST", "zasp_effective_scope_permissions",

@@ -340,4 +340,15 @@ describe("production workflow concurrency contract", () => {
       assert.deepEqual(Object.keys(success.headers ?? {}).sort(), ["ETag", "X-Audit-ID"]);
     }
   });
+
+  it("bounds Security Agent definition pagination with the shared opaque cursor contract", () => {
+    const operation = document.paths["/api/v1/security-agents"].get;
+    assert.deepEqual(operation.parameters, [
+      { $ref: "#/components/parameters/PageCursor" },
+      { $ref: "#/components/parameters/PageLimit" },
+    ]);
+    assert.deepEqual(document.components.schemas.SecurityAgentPage.required, ["items", "page_info"]);
+    assert.deepEqual(document.components.schemas.SecurityAgentPage.properties.page_info, { $ref: "#/components/schemas/PageInfo" });
+    assert.equal(document.components.schemas.SecurityAgentPage.properties.next_cursor, undefined);
+  });
 });

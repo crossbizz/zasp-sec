@@ -11,6 +11,7 @@ import (
 
 const (
 	postgresWorkflowListSQL   = `SELECT zasp_workflow_list($1, $2, $3, $4, NULLIF($5, ''), NULLIF($6, ''))`
+	postgresWorkflowPageSQL   = `SELECT zasp_workflow_page($1, $2, $3, $4, NULLIF($5, ''), $6)`
 	postgresWorkflowGetSQL    = `SELECT zasp_workflow_get($1, $2, $3, $4, $5)`
 	postgresWorkflowReplaySQL = `SELECT zasp_workflow_replay($1, $2, $3, $4, $5, $6, $7::jsonb)`
 	postgresWorkflowMutateSQL = `SELECT zasp_workflow_mutate($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13, $14)`
@@ -23,6 +24,11 @@ type WorkflowValue struct {
 	Body             json.RawMessage `json:"body"`
 	Version          int64           `json:"version"`
 	SecretGeneration int64           `json:"secret_generation"`
+}
+
+type WorkflowListPage struct {
+	Items  []json.RawMessage
+	NextID string
 }
 
 type WorkflowMutation struct {
@@ -56,6 +62,37 @@ func (repository *PostgresRepository) ListWorkflows(ctx context.Context, scope d
 	}
 	payload, err := repository.database.QueryJSON(ctx, postgresWorkflowListSQL, kind, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), parentField, parentID)
 	return validWorkflowPage(payload, err)
+}
+
+func (repository *PostgresRepository) ListWorkflowPage(ctx context.Context, scope domain.Scope, kind, afterID string, limit int) (WorkflowListPage, error) {
+	if repository == nil || nilInterface(repository.database) || ctx == nil || scope.Validate() != nil || !validWorkflowKind(kind) || limit < 1 || limit > 100 || afterID != "" && !validWorkflowID(kind, afterID) {
+		return WorkflowListPage{}, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresWorkflowPageSQL, kind, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), afterID, limit)
+	if err != nil {
+		return WorkflowListPage{}, err
+	}
+	var raw map[string]json.RawMessage
+	var envelope struct {
+		Items  []json.RawMessage `json:"items"`
+		NextID *string           `json:"next_id"`
+	}
+	if json.Unmarshal(payload, &raw) != nil || len(raw) != 2 || raw["items"] == nil || raw["next_id"] == nil || json.Unmarshal(payload, &envelope) != nil || len(envelope.Items) > limit {
+		return WorkflowListPage{}, ErrRepositoryUnavailable
+	}
+	for _, item := range envelope.Items {
+		if !validJSONObjectBody(item) {
+			return WorkflowListPage{}, ErrRepositoryUnavailable
+		}
+	}
+	nextID := ""
+	if envelope.NextID != nil {
+		nextID = *envelope.NextID
+		if !validWorkflowID(kind, nextID) || len(envelope.Items) != limit {
+			return WorkflowListPage{}, ErrRepositoryUnavailable
+		}
+	}
+	return WorkflowListPage{Items: envelope.Items, NextID: nextID}, nil
 }
 
 func (repository *PostgresRepository) GetWorkflow(ctx context.Context, scope domain.Scope, kind, id string) (WorkflowValue, error) {

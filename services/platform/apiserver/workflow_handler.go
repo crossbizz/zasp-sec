@@ -6,11 +6,13 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -23,6 +25,7 @@ import (
 
 type workflowRepository interface {
 	ListWorkflows(context.Context, domain.Scope, string, string, string) (json.RawMessage, error)
+	ListWorkflowPage(context.Context, domain.Scope, string, string, int) (WorkflowListPage, error)
 	GetWorkflow(context.Context, domain.Scope, string, string) (WorkflowValue, error)
 	ReplayWorkflow(context.Context, RequestIdentity, string, string, json.RawMessage) (WorkflowMutationResult, bool, error)
 	MutateWorkflow(context.Context, RequestIdentity, WorkflowMutation) (WorkflowMutationResult, error)
@@ -90,6 +93,10 @@ func (handler *workflowHTTPHandler) read(writer http.ResponseWriter, request *ht
 		return
 	}
 	if list {
+		if routed.OperationID == "listSecurityAgents" {
+			handler.readSecurityAgentPage(writer, request, identity)
+			return
+		}
 		payload, err := handler.repository.ListWorkflows(request.Context(), identity.Scope, kind, parentField, parentID)
 		writeProductionResponse(writer, request, http.StatusOK, payload, err)
 		return
@@ -101,6 +108,94 @@ func (handler *workflowHTTPHandler) read(writer http.ResponseWriter, request *ht
 	}
 	writer.Header().Set("ETag", quoteVersion(value.Version))
 	writeProductionResponse(writer, request, http.StatusOK, value.Body, nil)
+}
+
+type workflowCursorPayload struct {
+	Version        int    `json:"v"`
+	OrganizationID string `json:"o"`
+	WorkspaceID    string `json:"w"`
+	EnvironmentID  string `json:"e"`
+	Kind           string `json:"k"`
+	AfterID        string `json:"a"`
+}
+
+func (handler *workflowHTTPHandler) readSecurityAgentPage(writer http.ResponseWriter, request *http.Request, identity RequestIdentity) {
+	query, queryErr := url.ParseQuery(request.URL.RawQuery)
+	if queryErr != nil {
+		writeProductionError(writer, request, ErrRepositoryNotFound)
+		return
+	}
+	limit, ok := workflowPageLimit(query)
+	if !ok {
+		writeProductionError(writer, request, ErrRepositoryOperation)
+		return
+	}
+	afterID := ""
+	if values, present := query["cursor"]; present {
+		if len(values) != 1 {
+			writeProductionError(writer, request, ErrRepositoryNotFound)
+			return
+		}
+		var valid bool
+		afterID, valid = handler.decodeWorkflowCursor(values[0], identity.Scope, "security_agent")
+		if !valid {
+			writeProductionError(writer, request, ErrRepositoryNotFound)
+			return
+		}
+	}
+	page, err := handler.repository.ListWorkflowPage(request.Context(), identity.Scope, "security_agent", afterID, limit)
+	if err != nil {
+		writeProductionError(writer, request, err)
+		return
+	}
+	pageInfo := map[string]any{"next_cursor": nil, "has_more": false}
+	if page.NextID != "" {
+		pageInfo["next_cursor"] = handler.encodeWorkflowCursor(identity.Scope, "security_agent", page.NextID)
+		pageInfo["has_more"] = true
+	}
+	payload, err := json.Marshal(map[string]any{"items": page.Items, "page_info": pageInfo})
+	writeProductionResponse(writer, request, http.StatusOK, payload, err)
+}
+
+func workflowPageLimit(query url.Values) (int, bool) {
+	values, present := query["limit"]
+	if !present {
+		return 50, true
+	}
+	if len(values) != 1 {
+		return 0, false
+	}
+	limit, err := strconv.Atoi(values[0])
+	return limit, err == nil && limit >= 1 && limit <= 100
+}
+
+func (handler *workflowHTTPHandler) encodeWorkflowCursor(scope domain.Scope, kind, afterID string) string {
+	payload, _ := json.Marshal(workflowCursorPayload{Version: 1, OrganizationID: scope.OrganizationID().String(), WorkspaceID: scope.WorkspaceID().String(), EnvironmentID: scope.EnvironmentID().String(), Kind: kind, AfterID: afterID})
+	mac := hmac.New(sha256.New, handler.signingKey)
+	_, _ = mac.Write(payload)
+	return base64.RawURLEncoding.EncodeToString(append(payload, mac.Sum(nil)...))
+}
+
+func (handler *workflowHTTPHandler) decodeWorkflowCursor(value string, scope domain.Scope, kind string) (string, bool) {
+	if len(value) < 2 || len(value) > 512 {
+		return "", false
+	}
+	decoded, err := base64.RawURLEncoding.DecodeString(value)
+	if err != nil || base64.RawURLEncoding.EncodeToString(decoded) != value || len(decoded) <= sha256.Size {
+		return "", false
+	}
+	payload, signature := decoded[:len(decoded)-sha256.Size], decoded[len(decoded)-sha256.Size:]
+	mac := hmac.New(sha256.New, handler.signingKey)
+	_, _ = mac.Write(payload)
+	if !hmac.Equal(signature, mac.Sum(nil)) {
+		return "", false
+	}
+	var raw map[string]json.RawMessage
+	var cursor workflowCursorPayload
+	if json.Unmarshal(payload, &raw) != nil || len(raw) != 6 || json.Unmarshal(payload, &cursor) != nil || cursor.Version != 1 || cursor.OrganizationID != scope.OrganizationID().String() || cursor.WorkspaceID != scope.WorkspaceID().String() || cursor.EnvironmentID != scope.EnvironmentID().String() || cursor.Kind != kind || !validWorkflowID(kind, cursor.AfterID) {
+		return "", false
+	}
+	return cursor.AfterID, true
 }
 
 func (handler *workflowHTTPHandler) mutate(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, routed RoutedOperation) {

@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import type { SecurityAgentDefinition, SecurityAgentTemplate } from "../../../apps/web/api/generated";
+import { decodeSecurityAgentPage } from "../../../apps/web/api/decoders";
 import { SecurityAgentsView, type SecurityAgentsAPI } from "./SecurityAgentsView";
 
 const environmentID = "pid_10000003-0000-4000-8000-000000000003";
@@ -14,7 +15,7 @@ const created: SecurityAgentDefinition = { id: agentID, name: "Bounded response 
 function fixtureAPI(overrides: Partial<SecurityAgentsAPI> = {}): SecurityAgentsAPI {
   return {
     listSecurityAgentTemplates: async () => [template],
-    listSecurityAgents: async () => ({ items: [] }),
+    listSecurityAgents: async () => ({ items: [], page_info: { next_cursor: null, has_more: false } }),
     createSecurityAgent: async () => ({ value: created, version: `"1"`, auditID }),
     getSecurityAgent: async () => ({ value: created, version: `"7"` }),
     updateSecurityAgent: async (_id, _version, value) => ({ value, version: `"8"`, auditID }),
@@ -24,6 +25,11 @@ function fixtureAPI(overrides: Partial<SecurityAgentsAPI> = {}): SecurityAgentsA
 }
 
 describe("Security Agent definition surface", () => {
+  it("strictly rejects noncanonical or contradictory pagination metadata", () => {
+    expect(() => decodeSecurityAgentPage({ items: [], page_info: { next_cursor: "bad=", has_more: true } })).toThrow();
+    expect(() => decodeSecurityAgentPage({ items: [], page_info: { next_cursor: "b2s", has_more: false } })).toThrow();
+    expect(() => decodeSecurityAgentPage({ items: [], page_info: { next_cursor: null, has_more: false }, unexpected: true })).toThrow();
+  });
   it("creates only from locally supported templates and exposes no execution controls", async () => {
     const user = userEvent.setup();
     const createSecurityAgent = vi.fn(fixtureAPI().createSecurityAgent);
@@ -70,5 +76,18 @@ describe("Security Agent definition surface", () => {
     await waitFor(() => expect(createSecurityAgent).toHaveBeenCalledTimes(3));
     expect(new Set(calls.map(({ key }) => key)).size).toBe(1);
     expect(calls[1]?.value).toEqual(calls[0]?.value);
+  });
+
+  it("loads all deterministic cursor pages instead of truncating definitions at 100", async () => {
+    const second = { ...created, id: "pid_40000003-0000-4000-8000-000000000003", name: "Second page definition" };
+    const cursor = "b3JnLXBhZ2UtMg";
+    const listSecurityAgents = vi.fn(async (options?: { cursor?: string; limit?: number }) => options?.cursor
+      ? { items: [second], page_info: { next_cursor: null, has_more: false as const } }
+      : { items: [created], page_info: { next_cursor: cursor, has_more: true as const } });
+    render(<SecurityAgentsView api={fixtureAPI({ listSecurityAgents })} environmentID={environmentID} />);
+    await screen.findByRole("button", { name: `Open ${second.name}` });
+    expect(screen.getByRole("button", { name: `Open ${created.name}` })).toBeInTheDocument();
+    expect(listSecurityAgents).toHaveBeenNthCalledWith(1, { cursor: undefined, limit: 100 }, expect.any(AbortSignal));
+    expect(listSecurityAgents).toHaveBeenNthCalledWith(2, { cursor, limit: 100 }, expect.any(AbortSignal));
   });
 });

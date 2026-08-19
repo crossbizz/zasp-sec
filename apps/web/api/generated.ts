@@ -2480,7 +2480,7 @@ export type components = {
         };
         readonly SecurityAgentPage: {
             readonly items: readonly components["schemas"]["SecurityAgentDefinition"][];
-            readonly next_cursor?: string;
+            readonly page_info: components["schemas"]["PageInfo"];
         };
         readonly SecurityAgentRun: {
             readonly agent_id: components["schemas"]["ProductID"];
@@ -5047,7 +5047,12 @@ export interface operations {
     };
     readonly listSecurityAgents: {
         readonly parameters: {
-            readonly query?: never;
+            readonly query?: {
+                /** @description Opaque cursor returned by the preceding page. */
+                readonly cursor?: components["parameters"]["PageCursor"];
+                /** @description Maximum number of records to return. */
+                readonly limit?: components["parameters"]["PageLimit"];
+            };
             readonly header?: never;
             readonly path?: never;
             readonly cookie?: never;

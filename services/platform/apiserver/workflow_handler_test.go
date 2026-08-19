@@ -16,23 +16,30 @@ import (
 )
 
 type workflowRepositoryStub struct {
-	page      json.RawMessage
-	value     WorkflowValue
-	result    WorkflowMutationResult
-	err       error
-	listScope domain.Scope
-	getScope  domain.Scope
-	mutation  WorkflowMutation
-	identity  RequestIdentity
-	replay    WorkflowMutationResult
-	replayed  bool
-	replayErr error
-	getCalls  int
+	page        json.RawMessage
+	value       WorkflowValue
+	result      WorkflowMutationResult
+	err         error
+	listScope   domain.Scope
+	getScope    domain.Scope
+	mutation    WorkflowMutation
+	identity    RequestIdentity
+	replay      WorkflowMutationResult
+	replayed    bool
+	replayErr   error
+	getCalls    int
+	cursorPage  WorkflowListPage
+	cursorCalls int
 }
 
 func (repository *workflowRepositoryStub) ListWorkflows(_ context.Context, scope domain.Scope, _, _, _ string) (json.RawMessage, error) {
 	repository.listScope = scope
 	return repository.page, repository.err
+}
+func (repository *workflowRepositoryStub) ListWorkflowPage(_ context.Context, scope domain.Scope, _, _ string, _ int) (WorkflowListPage, error) {
+	repository.listScope = scope
+	repository.cursorCalls++
+	return repository.cursorPage, repository.err
 }
 func (repository *workflowRepositoryStub) GetWorkflow(_ context.Context, scope domain.Scope, _, _ string) (WorkflowValue, error) {
 	repository.getCalls++
@@ -64,6 +71,43 @@ func TestWorkflowHandlerReplaysLostRolloutResponseBeforeMutablePolicyRead(t *tes
 	var receipt map[string]any
 	if json.Unmarshal(response.Body.Bytes(), &receipt) != nil || receipt["state"] != "enforced" || receipt["target_id"] != identity.Scope.EnvironmentID().String() {
 		t.Fatalf("replayed rollout receipt = %s", response.Body.String())
+	}
+}
+
+func TestWorkflowHandlerUsesOpaqueScopeBoundSecurityAgentCursor(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	repository := &workflowRepositoryStub{cursorPage: WorkflowListPage{Items: []json.RawMessage{json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001"}`)}, NextID: "pid_40000001-0000-4000-8000-000000000001"}}
+	handler, _ := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), time.Now)
+	request := workflowRequest(t, identity, testCorrelationID, "listSecurityAgents", nil, http.MethodGet, "/api/v1/security-agents?limit=1", "")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	var page struct {
+		Items    []json.RawMessage `json:"items"`
+		PageInfo struct {
+			NextCursor *string `json:"next_cursor"`
+			HasMore    bool    `json:"has_more"`
+		} `json:"page_info"`
+	}
+	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &page) != nil || len(page.Items) != 1 || page.PageInfo.NextCursor == nil || !page.PageInfo.HasMore {
+		t.Fatalf("first page = %d %s", response.Code, response.Body.String())
+	}
+	cursor := *page.PageInfo.NextCursor
+	request = workflowRequest(t, identity, testCorrelationID, "listSecurityAgents", nil, http.MethodGet, "/api/v1/security-agents?cursor=%%%", "")
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusNotFound || repository.cursorCalls != 1 {
+		t.Fatalf("invalid cursor = %d calls=%d body=%s", response.Code, repository.cursorCalls, response.Body.String())
+	}
+	foreign := fixtureRequestIdentity(t)
+	organization, _ := domain.ParseProductID("pid_20000001-0000-4000-8000-000000000001")
+	workspace, _ := domain.ParseProductID("pid_20000002-0000-4000-8000-000000000002")
+	environment, _ := domain.ParseProductID("pid_20000003-0000-4000-8000-000000000003")
+	foreign.Scope, _ = domain.NewScope(organization, workspace, environment)
+	request = workflowRequest(t, foreign, testCorrelationID, "listSecurityAgents", nil, http.MethodGet, "/api/v1/security-agents?cursor="+cursor, "")
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusNotFound || repository.cursorCalls != 1 || strings.Contains(response.Body.String(), identity.Scope.OrganizationID().String()) {
+		t.Fatalf("foreign cursor = %d calls=%d body=%s", response.Code, repository.cursorCalls, response.Body.String())
 	}
 }
 

@@ -52,6 +52,22 @@ func TestWorkflowRepositoryListsAndGetsOnlyTheExactAuthorizedScope(t *testing.T)
 	}
 }
 
+func TestWorkflowRepositoryPagesSecurityAgentDefinitionsByStableID(t *testing.T) {
+	database := &workflowCallDatabase{response: json.RawMessage(`{"items":[{"id":"pid_40000001-0000-4000-8000-000000000001"}],"next_id":"pid_40000001-0000-4000-8000-000000000001"}`)}
+	repository, _ := NewPostgresRepository(database)
+	identity := fixtureRequestIdentity(t)
+	after := "pid_40000000-0000-4000-8000-000000000000"
+
+	page, err := repository.ListWorkflowPage(context.Background(), identity.Scope, "security_agent", after, 1)
+	if err != nil || len(page.Items) != 1 || page.NextID != "pid_40000001-0000-4000-8000-000000000001" {
+		t.Fatalf("ListWorkflowPage = (%#v, %v)", page, err)
+	}
+	want := []any{"security_agent", identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), after, 1}
+	if database.query != postgresWorkflowPageSQL || !reflect.DeepEqual(database.args, want) {
+		t.Fatalf("page query/args = %q/%#v, want %q/%#v", database.query, database.args, postgresWorkflowPageSQL, want)
+	}
+}
+
 func TestWorkflowRepositoryMutationCarriesIdempotencyVersionAndAtomicAuditIdentity(t *testing.T) {
 	database := &workflowCallDatabase{response: json.RawMessage(`{"body":{"id":"policy-one"},"version":3,"secret_generation":0,"audit_id":"pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","correlation_id":"pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","replayed":false}`)}
 	repository, _ := NewPostgresRepository(database)
