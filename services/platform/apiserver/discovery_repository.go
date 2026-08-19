@@ -652,6 +652,9 @@ func (repository *DiscoveryRepository) ClaimDiscoverySchedules(ctx context.Conte
 	var envelope struct {
 		Items []DiscoveryScheduleLease `json:"items"`
 	}
+	if err := repository.claimTyped(ctx, postgresDiscoveryClaimSchedulesSQL, &envelope, worker, token, seconds, limit); err != nil {
+		return nil, err
+	}
 	if len(envelope.Items) > limit {
 		return nil, ErrRepositoryUnavailable
 	}
@@ -659,9 +662,6 @@ func (repository *DiscoveryRepository) ClaimDiscoverySchedules(ctx context.Conte
 		if !validLeaseScope(item.OrganizationID, item.WorkspaceID, item.EnvironmentID) || !validProductID(item.ID) || !validProductID(item.IntegrationID) || item.NextRunAt.IsZero() || item.LeaseExpiresAt.IsZero() {
 			return nil, ErrRepositoryUnavailable
 		}
-	}
-	if err := repository.claimTyped(ctx, postgresDiscoveryClaimSchedulesSQL, &envelope, worker, token, seconds, limit); err != nil {
-		return nil, err
 	}
 	return envelope.Items, nil
 }
@@ -672,6 +672,9 @@ func (repository *DiscoveryRepository) ClaimProjectionWork(ctx context.Context, 
 	var envelope struct {
 		Items []ProjectionWorkLease `json:"items"`
 	}
+	if err := repository.claimTyped(ctx, postgresDiscoveryClaimProjectionSQL, &envelope, worker, token, seconds, limit); err != nil {
+		return nil, err
+	}
 	if len(envelope.Items) > limit {
 		return nil, ErrRepositoryUnavailable
 	}
@@ -679,9 +682,6 @@ func (repository *DiscoveryRepository) ClaimProjectionWork(ctx context.Context, 
 		if !validLeaseScope(item.OrganizationID, item.WorkspaceID, item.EnvironmentID) || !validProductID(item.SnapshotID) || !stringIn(item.Kind, "risk", "graph", "search") || len(item.Version) < 1 || len(item.InputDigest) != 32 || item.Attempt < 1 || item.LeaseExpiresAt.IsZero() {
 			return nil, ErrRepositoryUnavailable
 		}
-	}
-	if err := repository.claimTyped(ctx, postgresDiscoveryClaimProjectionSQL, &envelope, worker, token, seconds, limit); err != nil {
-		return nil, err
 	}
 	return envelope.Items, nil
 }

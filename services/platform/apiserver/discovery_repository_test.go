@@ -133,6 +133,14 @@ func TestDiscoveryRepositoryRejectsHostileLeaseShapesAndTransitions(t *testing.T
 	if _, err := repository.ClaimDiscoveryJobs(context.Background(), "", "short", "discovery", 1, 101); !errors.Is(err, ErrRepositoryOperation) {
 		t.Fatalf("invalid claim=%v", err)
 	}
+	database.responses[postgresDiscoveryClaimSchedulesSQL] = json.RawMessage(`{"items":[{"organization_id":"bad","workspace_id":"pid_10000002-0000-4000-8000-000000000002","environment_id":"pid_10000003-0000-4000-8000-000000000003","id":"pid_40000001-0000-4000-8000-000000000001","integration_id":"pid_40000002-0000-4000-8000-000000000002","next_run_at":"2026-08-19T00:00:00Z","lease_expires_at":"2026-08-19T01:00:00Z"}]}`)
+	if _, err := repository.ClaimDiscoverySchedules(context.Background(), "worker", "lease-token-00000001", 30, 10); !errors.Is(err, ErrRepositoryUnavailable) {
+		t.Fatalf("malformed schedule lease=%v", err)
+	}
+	database.responses[postgresDiscoveryClaimProjectionSQL] = json.RawMessage(`{"items":[{"organization_id":"pid_10000001-0000-4000-8000-000000000001","workspace_id":"pid_10000002-0000-4000-8000-000000000002","environment_id":"pid_10000003-0000-4000-8000-000000000003","snapshot_id":"bad","kind":"risk","version":"v1","input_digest":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=","attempt":1,"lease_expires_at":"2026-08-19T01:00:00Z"}]}`)
+	if _, err := repository.ClaimProjectionWork(context.Background(), "worker", "lease-token-00000001", 30, 10); !errors.Is(err, ErrRepositoryUnavailable) {
+		t.Fatalf("malformed projection lease=%v", err)
+	}
 	identity := fixtureRequestIdentity(t)
 	database.responses[postgresDiscoveryCompleteJobSQL] = json.RawMessage(`{"id":"pid_ffffffff-ffff-4fff-8fff-ffffffffffff","state":"succeeded"}`)
 	if err := repository.CompleteDiscoveryJob(context.Background(), identity.Scope, "pid_40000001-0000-4000-8000-000000000001", "worker", "lease-token-00000001", make([]byte, 32), false, ""); !errors.Is(err, ErrRepositoryUnavailable) {
