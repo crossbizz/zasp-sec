@@ -29,6 +29,11 @@ export type SessionContextValue = SessionState & {
   signOut(): Promise<void>;
   retry(): Promise<void>;
 	 switchScope(workspaceID: string, environmentID: string): Promise<void>;
+	 scopeSwitch: {
+		 status: "idle" | "pending" | "error";
+		 error?: unknown;
+		 retry(): Promise<void>;
+	 };
 };
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -37,6 +42,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const { client, setCSRFToken, clearQueryCache, sessionExpiry } = useAPI();
   const [state, setState] = useState<SessionState>({ status: "loading" });
   const [stateSessionExpiry, setStateSessionExpiry] = useState(sessionExpiry);
+	const [scopeSwitch, setScopeSwitch] = useState<{ status: "idle" | "pending" | "error"; error?: unknown }>({ status: "idle" });
+	const scopeTarget = useRef<{ workspaceID: string; environmentID: string } | null>(null);
   const sessionCSRF = useRef<string | null>(null);
   const loadSession = useCallback(async (expiryVersion: number) => {
     try {
@@ -44,22 +51,28 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (!result.data) {
         sessionCSRF.current = null;
         setCSRFToken(null);
+		setStateSessionExpiry(expiryVersion);
         setState({ status: result.response.status === 401 ? "unauthenticated" : result.response.status === 403 ? "forbidden" : "error", error: result.error });
-        return;
+		return false;
       }
 	  const bootstrapValue = requireAPIData(result, decodeSessionBootstrap);
 	  let scopes: readonly SessionScope[] = [];
 	  if (bootstrapValue.capabilities.includes("scope.switch")) {
 		const scopeResult = await client.GET("/api/v1/session/scopes");
 		scopes = requireAPIData(scopeResult, decodeSessionScopePage).items;
+		if (!scopes.some((scope) => scope.organization_id === bootstrapValue.organization_id && scope.workspace_id === bootstrapValue.workspace_id && scope.environment_id === bootstrapValue.environment_id)) throw new Error("Active scope is not authorized");
 	  }
       sessionCSRF.current = bootstrapValue.csrf_token;
       setCSRFToken(bootstrapValue.csrf_token);
       setStateSessionExpiry(expiryVersion);
 	  setState(authenticatedState(bootstrapValue, scopes));
+	  return true;
     } catch (error) {
+	  sessionCSRF.current = null;
       setCSRFToken(null);
+	  setStateSessionExpiry(expiryVersion);
       setState({ status: "error", error });
+	  return false;
     }
   }, [client, setCSRFToken]);
   const retry = useCallback(async () => {
@@ -85,11 +98,26 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 	const switchScope = useCallback(async (workspaceID: string, environmentID: string) => {
 		if (state.status !== "authenticated" || !sessionCSRF.current || !state.scopes.some((scope) => scope.workspace_id === workspaceID && scope.environment_id === environmentID)) throw new Error("Scope is not authorized");
-		const result = await client.PUT("/api/v1/session/scope", { params: { header: { "X-CSRF-Token": sessionCSRF.current } }, body: { workspace_id: workspaceID, environment_id: environmentID } });
-		if (result.error || result.response.status !== 204) requireAPIData<never>(result);
+		scopeTarget.current = { workspaceID, environmentID };
+		setScopeSwitch({ status: "pending" });
+		let mutationError: unknown;
+		try {
+			const result = await client.PUT("/api/v1/session/scope", { params: { header: { "X-CSRF-Token": sessionCSRF.current } }, body: { workspace_id: workspaceID, environment_id: environmentID } });
+			if (result.error || result.response.status !== 204) requireAPIData<never>(result);
+		} catch (error) {
+			mutationError = error;
+		}
+		sessionCSRF.current = null;
+		setCSRFToken(null);
+		const reconciled = await loadSession(sessionExpiry);
 		clearQueryCache();
-		await loadSession(sessionExpiry + 1);
+		if (mutationError && reconciled) setScopeSwitch({ status: "error", error: mutationError });
+		else setScopeSwitch({ status: "idle" });
 	}, [client, clearQueryCache, loadSession, sessionExpiry, state]);
+	const retryScopeSwitch = useCallback(async () => {
+		if (!scopeTarget.current) throw new Error("Scope retry is unavailable");
+		await switchScope(scopeTarget.current.workspaceID, scopeTarget.current.environmentID);
+	}, [switchScope]);
 	const value = useMemo<SessionContextValue>(() => {
 		const visibleState: SessionState = sessionExpiry === stateSessionExpiry ? state : { status: "unauthenticated" };
 		const capabilities = visibleState.status === "authenticated" ? new Set(visibleState.capabilities) : new Set<string>();
@@ -99,9 +127,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 			signIn,
 			signOut,
 			switchScope,
+			scopeSwitch: { ...scopeSwitch, retry: retryScopeSwitch },
 			retry,
 		};
-	}, [sessionExpiry, stateSessionExpiry, state, signIn, signOut, switchScope, retry]);
+	}, [sessionExpiry, stateSessionExpiry, state, signIn, signOut, switchScope, scopeSwitch, retryScopeSwitch, retry]);
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 

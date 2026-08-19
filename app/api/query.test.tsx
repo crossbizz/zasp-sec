@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { APIProvider } from "./APIProvider";
+import { APIProvider, useAPI } from "./APIProvider";
 import { useAPIMutation, useAPIQuery } from "./query";
 
 describe("API query state machine", () => {
@@ -46,6 +46,17 @@ describe("API query state machine", () => {
     await waitFor(() => expect(findings).toHaveBeenCalledTimes(2));
     expect(agents).toHaveBeenCalledTimes(1);
   });
+
+	it("rotates protected query generation without expiring the authenticated session", async () => {
+		const query = vi.fn(async () => ["agent-1"]);
+		const wrapper = ({ children }: { children: ReactNode }) => <APIProvider>{children}</APIProvider>;
+		const { result } = renderHook(() => ({ query: useAPIQuery("agents", query), api: useAPI() }), { wrapper });
+		await waitFor(() => expect(query).toHaveBeenCalledOnce());
+		expect(result.current.api.sessionExpiry).toBe(0);
+		act(() => result.current.api.clearQueryCache());
+		await waitFor(() => expect(query).toHaveBeenCalledTimes(2));
+		expect(result.current.api.sessionExpiry).toBe(0);
+	});
 
   it("keeps authoritative data stale when refresh fails", async () => {
     const query = vi.fn<() => Promise<readonly string[]>>()

@@ -106,12 +106,21 @@ function ProductionAppContent() {
 		window.addEventListener("popstate", handlePopState);
 		return () => window.removeEventListener("popstate", handlePopState);
 	}, [session]);
+	useEffect(() => {
+		if (session.status !== "authenticated") return;
+		const allowed = productionRoutes.some((route) => route.path === window.location.pathname && session.hasCapability(route.capability));
+		if (!allowed) {
+			window.history.replaceState({}, "", "/");
+			setPath("/");
+		}
+	}, [session]);
   if (session.status === "loading") return <main className="page"><h1>Loading Zasp</h1><p role="status">Loading authenticated session…</p></main>;
   if (session.status === "unauthenticated") return <main className="page"><h1>Sign in to Zasp</h1><Button onClick={() => session.signIn(path)}>Sign in</Button></main>;
   if (session.status === "forbidden") return <main className="page"><h1>Scope unavailable</h1><p role="alert">Authorization rejected</p></main>;
   if (session.status === "error") return <main className="page"><h1>Session unavailable</h1><Button onClick={() => void session.retry()}>Retry</Button></main>;
   if (session.status !== "authenticated") return null;
   const routes = productionRoutes.filter((route) => session.hasCapability(route.capability));
+	if (routes.length === 0) return <main className="page"><h1>No product capabilities</h1><p>Your account has no enabled product routes.</p><Button onClick={() => void session.signOut()}>Sign out</Button></main>;
 	const visiblePath = routes.some((route) => route.path === path) ? path : "/";
   const navigate = (nextPath: string) => {
     if (!routes.some((route) => route.path === nextPath)) return;
@@ -120,7 +129,7 @@ function ProductionAppContent() {
   };
   const selectedScope = `${session.workspaceID}/${session.environmentID}`;
   return <div className="app-shell production-app">
-    <header className="topbar"><button className="brand" onClick={() => navigate("/")} aria-label="Zasp overview">Zasp</button><span>Agent Security</span>{session.hasCapability("scope.switch") && session.scopes.length > 1 && <select aria-label="Authorized scope" value={selectedScope} onChange={(event) => { const scope = session.scopes.find((item) => `${item.workspace_id}/${item.environment_id}` === event.target.value); if (scope) void session.switchScope(scope.workspace_id, scope.environment_id); }}>{session.scopes.map((scope) => <option key={`${scope.workspace_id}/${scope.environment_id}`} value={`${scope.workspace_id}/${scope.environment_id}`}>{scope.label}</option>)}</select>}<Button onClick={() => void session.signOut()}>Sign out</Button></header>
+    <header className="topbar"><button className="brand" onClick={() => navigate("/")} aria-label="Zasp overview">Zasp</button><span>Agent Security</span>{session.hasCapability("scope.switch") && session.scopes.length > 1 && <><select aria-label="Authorized scope" value={selectedScope} disabled={session.scopeSwitch.status === "pending"} onChange={(event) => { const scope = session.scopes.find((item) => `${item.workspace_id}/${item.environment_id}` === event.target.value); if (scope) void session.switchScope(scope.workspace_id, scope.environment_id); }}>{session.scopes.map((scope) => <option key={`${scope.workspace_id}/${scope.environment_id}`} value={`${scope.workspace_id}/${scope.environment_id}`}>{scope.label}</option>)}</select>{session.scopeSwitch.status === "pending" && <span role="status">Switching scope…</span>}{session.scopeSwitch.status === "error" && <span role="alert">Scope switch failed <Button onClick={() => void session.scopeSwitch.retry()}>Retry</Button></span>}</>}<Button onClick={() => void session.signOut()}>Sign out</Button></header>
     <aside className="sidebar"><nav aria-label="Main navigation">{routes.map((route) => <a key={route.path} href={route.path} aria-label={route.label} aria-current={visiblePath === route.path ? "page" : undefined} onClick={(event) => { event.preventDefault(); navigate(route.path); }}>{route.label}</a>)}</nav></aside>
     <main className="main-content"><AgentSecurityView path={visiblePath} onNavigate={navigate} /></main>
   </div>;

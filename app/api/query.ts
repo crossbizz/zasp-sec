@@ -14,7 +14,7 @@ export type QueryState<T> = {
 };
 
 export function useAPIQuery<T>(key: string, query: () => Promise<T>, enabled = true): QueryState<T> {
-  const { revisions, sessionExpiry } = useAPI();
+	const { revisions, queryGeneration } = useAPI();
   const revision = revisions.get(key) ?? 0;
   const data = useRef<T | undefined>(undefined);
   const request = useRef(0);
@@ -53,7 +53,7 @@ export function useAPIQuery<T>(key: string, query: () => Promise<T>, enabled = t
     let active = true;
     queueMicrotask(() => { if (active) void load(); });
     return () => { active = false; request.current += 1; };
-  }, [load, revision, sessionExpiry]);
+	}, [load, revision, queryGeneration]);
   return { ...state, retry };
 }
 

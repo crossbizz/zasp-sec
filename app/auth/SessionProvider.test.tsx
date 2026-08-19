@@ -11,9 +11,11 @@ function Consumer() {
   const session = useSession();
   return <div>
     <span>{session.status}</span>
+	<span>scope {session.scopeSwitch.status}</span>
     <span>{session.hasCapability("inventory.read") ? "inventory enabled" : "inventory hidden"}</span>
     {session.status === "authenticated" && <button onClick={() => void session.signOut()}>Sign out</button>}
 	{session.status === "authenticated" && session.scopes.length > 1 && <button onClick={() => void session.switchScope(session.scopes[1].workspace_id, session.scopes[1].environment_id)}>Switch scope</button>}
+	{session.scopeSwitch.status === "error" && <button onClick={() => void session.scopeSwitch.retry()}>Retry scope switch</button>}
   </div>;
 }
 
@@ -54,6 +56,41 @@ describe("SessionProvider", () => {
 	await userEvent.click(screen.getByRole("button", { name: "Switch scope" }));
 	await waitFor(() => expect(fetch.mock.calls.filter(([request]) => request.url.endsWith("/api/v1/session/bootstrap"))).toHaveLength(2));
   });
+
+	it("reconciles an ambiguous scope failure and exposes bounded retry state", async () => {
+		let scopeAttempts = 0;
+		let bootstrapCalls = 0;
+		let activeScope = false;
+		let releaseFirst: (() => void) | undefined;
+		const firstScopeResponse = new Promise<void>((resolve) => { releaseFirst = resolve; });
+		const fetch = vi.fn(async (request: Request) => {
+			if (request.url.endsWith("/api/v1/session/scope")) {
+				scopeAttempts += 1;
+				expect(request.headers.get("X-CSRF-Token")).toBe("cccccccccccccccccccccccccccccccc");
+				if (scopeAttempts === 1) {
+					await firstScopeResponse;
+					return jsonResponse({ code: "provider_unavailable", message: "Provider unavailable", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: true }, 503);
+				}
+				activeScope = true;
+				return new Response(null, { status: 204 });
+			}
+			if (request.url.endsWith("/api/v1/session/scopes")) return jsonResponse(sessionScopes());
+			bootstrapCalls += 1;
+			return jsonResponse(sessionBootstrap(activeScope));
+		});
+		const Wrapper = wrapper(fetch);
+		render(<Wrapper><Consumer /></Wrapper>);
+		await screen.findByRole("button", { name: "Switch scope" });
+		await userEvent.click(screen.getByRole("button", { name: "Switch scope" }));
+		expect(screen.getByText("scope pending")).toBeVisible();
+		releaseFirst?.();
+		await screen.findByText("scope error");
+		expect(bootstrapCalls).toBe(2);
+		await userEvent.click(screen.getByRole("button", { name: "Retry scope switch" }));
+		await waitFor(() => expect(screen.getByText("scope idle")).toBeVisible());
+		expect(scopeAttempts).toBe(2);
+		expect(bootstrapCalls).toBe(3);
+	});
 
   it("fails closed and exposes no capability when the session expired", async () => {
     const fetch = vi.fn(async () => jsonResponse({
