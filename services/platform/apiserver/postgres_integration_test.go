@@ -570,6 +570,104 @@ FROM (
 	}
 }
 
+func TestPolicyAndIntegrationPaginationTraversesOneThousandAndOneRowsExactly(t *testing.T) {
+	dsn := startDisposablePostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	connection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner, _ := migrations.NewRunner(&integrationMigrationDatabase{connection: connection})
+	if err := runner.Up(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.UpCore(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.UpWorkflows(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.UpWorkflowReceipts(ctx); err != nil {
+		t.Fatal(err)
+	}
+	identity := fixtureRequestIdentity(t)
+	for _, kind := range []string{"policy", "integration"} {
+		if _, err := connection.Exec(ctx, `
+INSERT INTO zasp_workflow_records (organization_id, workspace_id, environment_id, kind, id, body)
+SELECT $1, $2, $3, $4, generated.id, jsonb_build_object('id', generated.id)
+FROM (
+  SELECT CASE WHEN $4 = 'policy'
+              THEN 'policy-' || lpad(ordinal::text, 4, '0')
+              ELSE 'pid_' || lpad(ordinal::text, 8, '0') || '-0000-4000-8000-' || lpad(ordinal::text, 12, '0')
+         END AS id
+  FROM generate_series(1, 1001) AS ordinal
+) AS generated`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), kind); err != nil {
+			t.Fatal(err)
+		}
+	}
+	database, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
+	repository, _ := NewPostgresRepository(database)
+	handler, _ := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), time.Now)
+	for _, test := range []struct {
+		operation string
+		path      string
+	}{
+		{operation: "listPolicies", path: "/api/v1/policies"},
+		{operation: "listIntegrations", path: "/api/v1/integrations"},
+	} {
+		t.Run(test.operation, func(t *testing.T) {
+			cursor := ""
+			seen := make(map[string]struct{}, 1001)
+			requests := 0
+			for {
+				target := test.path + "?limit=100"
+				if cursor != "" {
+					target += "&cursor=" + cursor
+				}
+				request := workflowRequest(t, identity, testCorrelationID, test.operation, nil, http.MethodGet, target, "")
+				response := httptest.NewRecorder()
+				handler.ServeHTTP(response, request)
+				requests++
+				var page struct {
+					Items []struct {
+						ID string `json:"id"`
+					} `json:"items"`
+					PageInfo struct {
+						NextCursor *string `json:"next_cursor"`
+						HasMore    bool    `json:"has_more"`
+					} `json:"page_info"`
+				}
+				if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &page) != nil {
+					t.Fatalf("page %d = %d %s", requests, response.Code, response.Body.String())
+				}
+				for _, item := range page.Items {
+					if _, duplicate := seen[item.ID]; duplicate {
+						t.Fatalf("duplicate stable ID %q", item.ID)
+					}
+					seen[item.ID] = struct{}{}
+				}
+				if !page.PageInfo.HasMore {
+					if page.PageInfo.NextCursor != nil {
+						t.Fatal("final page returned a cursor")
+					}
+					break
+				}
+				if page.PageInfo.NextCursor == nil {
+					t.Fatal("continuing page omitted cursor")
+				}
+				cursor = *page.PageInfo.NextCursor
+			}
+			if len(seen) != 1001 || requests != 11 {
+				t.Fatalf("traversal = %d rows in %d requests, want 1001/11", len(seen), requests)
+			}
+		})
+	}
+	if err := database.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func startDisposablePostgres(t *testing.T) string {
 	t.Helper()
 	initdb, initErr := exec.LookPath("initdb")

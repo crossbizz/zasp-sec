@@ -37,6 +37,7 @@ export type RetainedWorkflowMutationController<I> = {
 };
 
 type APIResult<T> = { data?: T; error?: unknown; response: Response };
+type WorkflowPage<T> = { readonly items: readonly T[]; readonly page_info: { readonly next_cursor: string; readonly has_more: true } | { readonly next_cursor: null; readonly has_more: false } };
 
 export function workflowIdempotencyKey(): string {
   return `wf_${globalThis.crypto.randomUUID()}`;
@@ -146,7 +147,7 @@ function deepFreeze<I>(value: I): I {
 export function createPoliciesAPI(client: APIClient) {
   return {
     async listPolicies(signal?: AbortSignal): Promise<readonly Policy[]> {
-      return requireAPIData(await client.GET("/api/v1/policies", { signal }), decodePolicyPage).items;
+      return loadAllWorkflowPages((cursor) => client.GET("/api/v1/policies", { params: { query: { cursor, limit: 100 } }, signal }), decodePolicyPage);
     },
     async getPolicy(id: string, signal?: AbortSignal): Promise<Versioned<Policy>> {
       return requireWorkflowVersioned(await client.GET("/api/v1/policies/{id}", { params: { path: { id } }, signal }), decodePolicy);
@@ -177,7 +178,7 @@ export function createIntegrationsAPI(client: APIClient) {
       return requireAPIData(await client.GET("/api/v1/integration-catalog", { signal }), decodeConnectorManifestPage).items;
     },
     async listIntegrations(signal?: AbortSignal): Promise<readonly Integration[]> {
-      return requireAPIData(await client.GET("/api/v1/integrations", { signal }), decodeIntegrationPage).items;
+      return loadAllWorkflowPages((cursor) => client.GET("/api/v1/integrations", { params: { query: { cursor, limit: 100 } }, signal }), decodeIntegrationPage);
     },
     async getIntegration(id: string, signal?: AbortSignal): Promise<Versioned<Integration>> {
       return requireWorkflowVersioned(await client.GET("/api/v1/integrations/{id}", { params: { path: { id } }, signal }), decodeIntegration);
@@ -213,6 +214,18 @@ export function createWorkflowRecoveryAPI(client: APIClient) {
 }
 
 export type WorkflowRecoveryAPI = ReturnType<typeof createWorkflowRecoveryAPI>;
+
+async function loadAllWorkflowPages<T>(request: (cursor?: string) => Promise<APIResult<unknown>>, decode: Decoder<WorkflowPage<T>>): Promise<readonly T[]> {
+  const items: T[] = [];
+  let cursor: string | undefined;
+  for (let pageNumber = 0; pageNumber < 100; pageNumber++) {
+    const page = requireAPIData(await request(cursor), decode);
+    items.push(...page.items);
+    if (!page.page_info.has_more) return items;
+    cursor = page.page_info.next_cursor;
+  }
+  throw new APITransportError("invalid_response", "Workflow pagination exceeded its bounded page count");
+}
 
 export function requireWorkflowEmptyReceipt(response: Response): WorkflowReceipt<void> {
   const version = response.headers.get("ETag");

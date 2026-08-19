@@ -2224,6 +2224,7 @@ export type components = {
         };
         readonly IntegrationPage: {
             readonly items: readonly components["schemas"]["Integration"][];
+            readonly page_info: components["schemas"]["PageInfo"];
         };
         /** @enum {string} */
         readonly IntegrationStatus: "configured" | "pending_authorization" | "active";
@@ -2326,6 +2327,7 @@ export type components = {
         readonly PolicyID: string;
         readonly PolicyPage: {
             readonly items: readonly components["schemas"]["Policy"][];
+            readonly page_info: components["schemas"]["PageInfo"];
         };
         readonly PolicyRollout: {
             readonly policy_id: components["schemas"]["PolicyID"];
@@ -4266,7 +4268,12 @@ export interface operations {
     };
     readonly listIntegrations: {
         readonly parameters: {
-            readonly query?: never;
+            readonly query?: {
+                /** @description Opaque cursor returned by the preceding page. */
+                readonly cursor?: components["parameters"]["PageCursor"];
+                /** @description Maximum number of records to return. */
+                readonly limit?: components["parameters"]["PageLimit"];
+            };
             readonly header?: never;
             readonly path?: never;
             readonly cookie?: never;
@@ -4560,7 +4567,12 @@ export interface operations {
     };
     readonly listPolicies: {
         readonly parameters: {
-            readonly query?: never;
+            readonly query?: {
+                /** @description Opaque cursor returned by the preceding page. */
+                readonly cursor?: components["parameters"]["PageCursor"];
+                /** @description Maximum number of records to return. */
+                readonly limit?: components["parameters"]["PageLimit"];
+            };
             readonly header?: never;
             readonly path?: never;
             readonly cookie?: never;

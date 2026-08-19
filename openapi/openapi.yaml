@@ -714,6 +714,9 @@ paths:
     get:
       operationId: listIntegrations
       summary: List integrations in the authorized scope
+      parameters:
+        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/PageLimit'
       responses:
         '200':
           description: Authorized integration records.
@@ -1336,6 +1339,9 @@ paths:
     get:
       operationId: listPolicies
       summary: List authorized runtime policies
+      parameters:
+        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/PageLimit'
       responses:
         '200': { description: Authorized runtime policies., content: { application/json: { schema: { $ref: '#/components/schemas/PolicyPage' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
@@ -2958,11 +2964,13 @@ components:
     IntegrationPage:
       type: object
       additionalProperties: false
-      required: [items]
+      required: [items, page_info]
       properties:
         items:
           type: array
+          maxItems: 100
           items: { $ref: '#/components/schemas/Integration' }
+        page_info: { $ref: '#/components/schemas/PageInfo' }
     IntegrationSyncInput:
       type: object
       additionalProperties: false
@@ -3267,9 +3275,10 @@ components:
     PolicyPage:
       type: object
       additionalProperties: false
-      required: [items]
+      required: [items, page_info]
       properties:
-        items: { type: array, maxItems: 1000, items: { $ref: '#/components/schemas/Policy' } }
+        items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/Policy' } }
+        page_info: { $ref: '#/components/schemas/PageInfo' }
     PolicyActionContext:
       type: object
       additionalProperties: false

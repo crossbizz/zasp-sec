@@ -394,4 +394,17 @@ describe("production workflow concurrency contract", () => {
     assert.deepEqual(document.components.schemas.SecurityAgentPage.properties.page_info, { $ref: "#/components/schemas/PageInfo" });
     assert.equal(document.components.schemas.SecurityAgentPage.properties.next_cursor, undefined);
   });
+
+  it("bounds policy and integration pagination with the same exact cursor contract", () => {
+    for (const [path, schemaName] of [["/api/v1/policies", "PolicyPage"], ["/api/v1/integrations", "IntegrationPage"]]) {
+      assert.deepEqual(document.paths[path].get.parameters, [
+        { $ref: "#/components/parameters/PageCursor" },
+        { $ref: "#/components/parameters/PageLimit" },
+      ]);
+      const schema = document.components.schemas[schemaName];
+      assert.deepEqual(schema.required, ["items", "page_info"]);
+      assert.equal(schema.properties.items.maxItems, 100);
+      assert.deepEqual(schema.properties.page_info, { $ref: "#/components/schemas/PageInfo" });
+    }
+  });
 });

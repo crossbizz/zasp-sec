@@ -30,6 +30,9 @@ type workflowRepositoryStub struct {
 	getCalls            int
 	cursorPage          WorkflowListPage
 	cursorCalls         int
+	cursorKind          string
+	cursorAfter         string
+	cursorLimit         int
 	receipts            []WorkflowMutationReceipt
 	receiptListCalls    int
 	receiptID           string
@@ -41,9 +44,10 @@ func (repository *workflowRepositoryStub) ListWorkflows(_ context.Context, scope
 	repository.listScope = scope
 	return repository.page, repository.err
 }
-func (repository *workflowRepositoryStub) ListWorkflowPage(_ context.Context, scope domain.Scope, _, _ string, _ int) (WorkflowListPage, error) {
+func (repository *workflowRepositoryStub) ListWorkflowPage(_ context.Context, scope domain.Scope, kind, after string, limit int) (WorkflowListPage, error) {
 	repository.listScope = scope
 	repository.cursorCalls++
+	repository.cursorKind, repository.cursorAfter, repository.cursorLimit = kind, after, limit
 	return repository.cursorPage, repository.err
 }
 func (repository *workflowRepositoryStub) GetWorkflow(_ context.Context, scope domain.Scope, _, _ string) (WorkflowValue, error) {
@@ -109,7 +113,7 @@ func TestWorkflowHandlerUsesOpaqueScopeBoundSecurityAgentCursor(t *testing.T) {
 	request = workflowRequest(t, identity, testCorrelationID, "listSecurityAgents", nil, http.MethodGet, "/api/v1/security-agents?cursor=%%%", "")
 	response = httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
-	if response.Code != http.StatusNotFound || repository.cursorCalls != 1 {
+	if response.Code != http.StatusBadRequest || repository.cursorCalls != 1 {
 		t.Fatalf("invalid cursor = %d calls=%d body=%s", response.Code, repository.cursorCalls, response.Body.String())
 	}
 	foreign := fixtureRequestIdentity(t)
@@ -122,6 +126,90 @@ func TestWorkflowHandlerUsesOpaqueScopeBoundSecurityAgentCursor(t *testing.T) {
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusNotFound || repository.cursorCalls != 1 || strings.Contains(response.Body.String(), identity.Scope.OrganizationID().String()) {
 		t.Fatalf("foreign cursor = %d calls=%d body=%s", response.Code, repository.cursorCalls, response.Body.String())
+	}
+}
+
+func TestWorkflowHandlerPagesEveryUnboundedWorkflowListWithKindBoundCursors(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	key := []byte("0123456789abcdef0123456789abcdef")
+	tests := []struct {
+		operation string
+		path      string
+		kind      string
+		nextID    string
+	}{
+		{operation: "listPolicies", path: "/api/v1/policies", kind: "policy", nextID: "policy-second-page"},
+		{operation: "listIntegrations", path: "/api/v1/integrations", kind: "integration", nextID: "pid_40000002-0000-4000-8000-000000000002"},
+	}
+	for _, test := range tests {
+		t.Run(test.operation, func(t *testing.T) {
+			repository := &workflowRepositoryStub{cursorPage: WorkflowListPage{Items: []json.RawMessage{json.RawMessage(`{"id":"policy-first-page"}`)}, NextID: test.nextID}}
+			handler, _ := newWorkflowHTTPHandler(repository, key, time.Now)
+			request := workflowRequest(t, identity, testCorrelationID, test.operation, nil, http.MethodGet, test.path+"?limit=1", "")
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			var page struct {
+				PageInfo struct {
+					NextCursor *string `json:"next_cursor"`
+					HasMore    bool    `json:"has_more"`
+				} `json:"page_info"`
+			}
+			if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &page) != nil || page.PageInfo.NextCursor == nil || !page.PageInfo.HasMore || repository.cursorKind != test.kind || repository.cursorLimit != 1 {
+				t.Fatalf("first page = %d %s repository=%#v", response.Code, response.Body.String(), repository)
+			}
+
+			cursor := *page.PageInfo.NextCursor
+			request = workflowRequest(t, identity, testCorrelationID, test.operation, nil, http.MethodGet, test.path+"?cursor="+cursor+"&limit=100", "")
+			response = httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			if response.Code != http.StatusOK || repository.cursorAfter != test.nextID || repository.cursorKind != test.kind || repository.cursorLimit != 100 {
+				t.Fatalf("next page = %d after=%q kind=%q limit=%d body=%s", response.Code, repository.cursorAfter, repository.cursorKind, repository.cursorLimit, response.Body.String())
+			}
+
+			foreignKindPath := "/api/v1/policies"
+			foreignKindOperation := "listPolicies"
+			if test.kind == "policy" {
+				foreignKindPath, foreignKindOperation = "/api/v1/integrations", "listIntegrations"
+			}
+			request = workflowRequest(t, identity, testCorrelationID, foreignKindOperation, nil, http.MethodGet, foreignKindPath+"?cursor="+cursor, "")
+			response = httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			if response.Code != http.StatusNotFound || repository.cursorCalls != 2 {
+				t.Fatalf("foreign kind cursor = %d calls=%d body=%s", response.Code, repository.cursorCalls, response.Body.String())
+			}
+		})
+	}
+}
+
+func TestWorkflowHandlerRejectsUndeclaredDuplicateAndMalformedListQueries(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	repository := &workflowRepositoryStub{page: json.RawMessage(`{"items":[]}`), cursorPage: WorkflowListPage{Items: []json.RawMessage{}}}
+	handler, _ := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), time.Now)
+	tests := []struct {
+		operation string
+		target    string
+	}{
+		{operation: "listIntegrationCatalog", target: "/api/v1/integration-catalog?unknown=value"},
+		{operation: "listIntegrationCatalog", target: "/api/v1/integration-catalog?q=one&q=two"},
+		{operation: "listIntegrationCatalog", target: "/api/v1/integration-catalog?q=%ZZ"},
+		{operation: "listPolicies", target: "/api/v1/policies?unknown=value"},
+		{operation: "listPolicies", target: "/api/v1/policies?limit=1&limit=2"},
+		{operation: "listIntegrations", target: "/api/v1/integrations?cursor=one&cursor=two"},
+		{operation: "listSecurityAgents", target: "/api/v1/security-agents?limit=1&unknown=value"},
+		{operation: "listSecurityAgents", target: "/api/v1/security-agents?cursor=%ZZ"},
+		{operation: "listWorkflowMutationReceipts", target: "/api/v1/workflow-mutation-receipts?limit=1&limit=2"},
+		{operation: "listWorkflowMutationReceipts", target: "/api/v1/workflow-mutation-receipts?limit=%ZZ"},
+	}
+	for _, test := range tests {
+		request := workflowRequest(t, identity, testCorrelationID, test.operation, nil, http.MethodGet, test.target, "")
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		if response.Code != http.StatusBadRequest {
+			t.Errorf("%s %q = %d body=%s", test.operation, test.target, response.Code, response.Body.String())
+		}
+	}
+	if repository.cursorCalls != 0 || repository.receiptListCalls != 0 {
+		t.Fatalf("invalid queries reached repository: cursor=%d receipts=%d", repository.cursorCalls, repository.receiptListCalls)
 	}
 }
 

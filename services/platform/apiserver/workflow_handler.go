@@ -78,8 +78,13 @@ func (handler *workflowHTTPHandler) read(writer http.ResponseWriter, request *ht
 		return
 	}
 	if routed.OperationID == "listIntegrationCatalog" {
+		query, ok := exactWorkflowQuery(request.URL.RawQuery, map[string]int{"q": 128, "category": 63, "data_type": 63, "action": 63, "auth_mode": 63})
+		if !ok {
+			writeProductionError(writer, request, ErrRepositoryOperation)
+			return
+		}
 		values, err := handler.catalog.SearchContext(request.Context(), platformintegration.CatalogFilter{
-			Query: request.URL.Query().Get("q"), Category: request.URL.Query().Get("category"), DataType: request.URL.Query().Get("data_type"), Action: request.URL.Query().Get("action"), AuthMode: request.URL.Query().Get("auth_mode"),
+			Query: query.Get("q"), Category: query.Get("category"), DataType: query.Get("data_type"), Action: query.Get("action"), AuthMode: query.Get("auth_mode"),
 		})
 		payload, marshalErr := json.Marshal(map[string]any{"items": values})
 		if err != nil || marshalErr != nil {
@@ -99,12 +104,12 @@ func (handler *workflowHTTPHandler) read(writer http.ResponseWriter, request *ht
 		return
 	}
 	if list {
-		if routed.OperationID == "listSecurityAgents" {
-			handler.readSecurityAgentPage(writer, request, identity)
+		if parentField != "" || parentID != "" {
+			payload, err := handler.repository.ListWorkflows(request.Context(), identity.Scope, kind, parentField, parentID)
+			writeProductionResponse(writer, request, http.StatusOK, payload, err)
 			return
 		}
-		payload, err := handler.repository.ListWorkflows(request.Context(), identity.Scope, kind, parentField, parentID)
-		writeProductionResponse(writer, request, http.StatusOK, payload, err)
+		handler.readWorkflowPage(writer, request, identity, kind)
 		return
 	}
 	value, err := handler.repository.GetWorkflow(request.Context(), identity.Scope, kind, routed.PathParameters["id"])
@@ -117,18 +122,14 @@ func (handler *workflowHTTPHandler) read(writer http.ResponseWriter, request *ht
 }
 
 func (handler *workflowHTTPHandler) readMutationReceipts(writer http.ResponseWriter, request *http.Request, identity RequestIdentity) {
-	query, err := url.ParseQuery(request.URL.RawQuery)
-	_, hasLimit := query["limit"]
-	if err != nil || len(query) > 1 || len(query) == 1 && !hasLimit {
+	query, ok := exactWorkflowQuery(request.URL.RawQuery, map[string]int{"limit": 3})
+	if !ok {
 		writeProductionError(writer, request, ErrRepositoryOperation)
 		return
 	}
 	limit := 20
 	if values, present := query["limit"]; present {
-		if len(values) != 1 {
-			writeProductionError(writer, request, ErrRepositoryOperation)
-			return
-		}
+		var err error
 		limit, err = strconv.Atoi(values[0])
 		if err != nil || limit < 1 || limit > 50 {
 			writeProductionError(writer, request, ErrRepositoryOperation)
@@ -148,10 +149,10 @@ type workflowCursorPayload struct {
 	AfterID        string `json:"a"`
 }
 
-func (handler *workflowHTTPHandler) readSecurityAgentPage(writer http.ResponseWriter, request *http.Request, identity RequestIdentity) {
-	query, queryErr := url.ParseQuery(request.URL.RawQuery)
-	if queryErr != nil {
-		writeProductionError(writer, request, ErrRepositoryNotFound)
+func (handler *workflowHTTPHandler) readWorkflowPage(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, kind string) {
+	query, ok := exactWorkflowQuery(request.URL.RawQuery, map[string]int{"cursor": 512, "limit": 3})
+	if !ok {
+		writeProductionError(writer, request, ErrRepositoryOperation)
 		return
 	}
 	limit, ok := workflowPageLimit(query)
@@ -166,24 +167,38 @@ func (handler *workflowHTTPHandler) readSecurityAgentPage(writer http.ResponseWr
 			return
 		}
 		var valid bool
-		afterID, valid = handler.decodeWorkflowCursor(values[0], identity.Scope, "security_agent")
+		afterID, valid = handler.decodeWorkflowCursor(values[0], identity.Scope, kind)
 		if !valid {
 			writeProductionError(writer, request, ErrRepositoryNotFound)
 			return
 		}
 	}
-	page, err := handler.repository.ListWorkflowPage(request.Context(), identity.Scope, "security_agent", afterID, limit)
+	page, err := handler.repository.ListWorkflowPage(request.Context(), identity.Scope, kind, afterID, limit)
 	if err != nil {
 		writeProductionError(writer, request, err)
 		return
 	}
 	pageInfo := map[string]any{"next_cursor": nil, "has_more": false}
 	if page.NextID != "" {
-		pageInfo["next_cursor"] = handler.encodeWorkflowCursor(identity.Scope, "security_agent", page.NextID)
+		pageInfo["next_cursor"] = handler.encodeWorkflowCursor(identity.Scope, kind, page.NextID)
 		pageInfo["has_more"] = true
 	}
 	payload, err := json.Marshal(map[string]any{"items": page.Items, "page_info": pageInfo})
 	writeProductionResponse(writer, request, http.StatusOK, payload, err)
+}
+
+func exactWorkflowQuery(raw string, allowed map[string]int) (url.Values, bool) {
+	query, err := url.ParseQuery(raw)
+	if err != nil {
+		return nil, false
+	}
+	for key, values := range query {
+		maximum, declared := allowed[key]
+		if !declared || len(values) != 1 || len(values[0]) > maximum {
+			return nil, false
+		}
+	}
+	return query, true
 }
 
 func workflowPageLimit(query url.Values) (int, bool) {

@@ -1,13 +1,39 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { APIProductError, APITransportError, type APIClient } from "../../../apps/web/api/client";
-import type { Policy } from "../../../apps/web/api/generated";
-import { createPoliciesAPI, createRetainedWorkflowMutationController, createWorkflowMutationAttempt, workflowIdempotencyKey } from "./api";
+import { decodeIntegrationPage, decodePolicyPage } from "../../../apps/web/api/decoders";
+import type { Integration, Policy } from "../../../apps/web/api/generated";
+import { createIntegrationsAPI, createPoliciesAPI, createRetainedWorkflowMutationController, createWorkflowMutationAttempt, workflowIdempotencyKey } from "./api";
 
 const policy: Policy = { id: "policy-production", name: "Production", scope: "environment", trigger: "tool", conditions: [{ field: "action", operator: "equals", value: "write" }], action: "monitor", rollout: "draft", failure_mode: "open" };
 const environmentID = "pid_10000003-0000-4000-8000-000000000003";
 
 describe("production workflow API", () => {
+	it("strictly decodes paginated policy and integration pages", () => {
+		const final = { next_cursor: null, has_more: false } as const;
+		expect(() => decodePolicyPage({ items: [policy] })).toThrow();
+		expect(() => decodePolicyPage({ items: [policy], page_info: final, extra: true })).toThrow();
+		expect(() => decodeIntegrationPage({ items: [], page_info: { next_cursor: "bad=", has_more: true } })).toThrow();
+		expect(decodePolicyPage({ items: [policy], page_info: final })).toEqual({ items: [policy], page_info: final });
+	});
+
+	it("loads every policy and integration page with a fixed request bound", async () => {
+		const integration: Integration = { id: "pid_90000001-0000-4000-8000-000000000001", connector_key: "generic-webhook", name: "Webhook", configuration: { destination_url: "https://example.test/hook" }, status: "configured", created_at: "2026-08-18T00:00:00Z", updated_at: "2026-08-18T00:00:00Z" };
+		for (const test of [
+			{ path: "/api/v1/policies", load: (client: APIClient) => createPoliciesAPI(client).listPolicies(), item: policy },
+			{ path: "/api/v1/integrations", load: (client: APIClient) => createIntegrationsAPI(client).listIntegrations(), item: integration },
+		] as const) {
+			const GET = vi.fn(async (_path: string, options: { params: { query: { cursor?: string; limit: number } } }) => {
+				const continuing = options.params.query.cursor === undefined;
+				const data = { items: [test.item], page_info: continuing ? { next_cursor: "b3JnLXBhZ2UtMg", has_more: true as const } : { next_cursor: null, has_more: false as const } };
+				return { data, response: new Response(JSON.stringify(data), { status: 200, headers: { "Content-Type": "application/json" } }) };
+			});
+			const items = await test.load({ GET } as unknown as APIClient);
+			expect(items).toEqual([test.item, test.item]);
+			expect(GET).toHaveBeenNthCalledWith(1, test.path, expect.objectContaining({ params: { query: { cursor: undefined, limit: 100 } } }));
+			expect(GET).toHaveBeenNthCalledWith(2, test.path, expect.objectContaining({ params: { query: { cursor: "b3JnLXBhZ2UtMg", limit: 100 } } }));
+		}
+	});
   it("uses a caller key and quoted version from the generated contract", async () => {
     const GET = vi.fn(async () => ({ data: policy, response: new Response(JSON.stringify(policy), { status: 200, headers: { ETag: '"3"', "Content-Type": "application/json" } }) }));
     const POST = vi.fn(async () => ({ data: { policy_id: policy.id, state: "enforced", target_id: environmentID }, response: new Response("{}", { status: 200, headers: { ETag: '"4"', "X-Audit-ID": "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "X-Mutation-Receipt-ID": "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "Content-Type": "application/json" } }) }));
