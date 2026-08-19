@@ -21,7 +21,7 @@ test("combined production E2E owns every local boundary and fixed assertion", as
     "startBrowserTab", "actual two-tab delayed out-of-order ABA stale-scope recovery proven", "X-Zasp-Expected-Scope",
     "delayedFirstTabBootstrap", "secondTabBootstrapWhileFirstDelayed", "firstTabScopeStaleResponses", "X-Zasp-E2E-Tab",
     "ZASP_DEPLOYMENT_MODE", "/administration/identity-access", "member-target-local", "Member role updated; active sessions revoked",
-    "Workspace and initial environment created", "workspace onboarding did not atomically create its first authorized environment and reload boundary", "Active scope changed",
+    "E2E Workspace", "workspace onboarding did not atomically create its first authorized environment and reload boundary", "Active scope changed",
     "/administration/api-access", "ZASP_TOKEN_REVEAL_KEY", "lostTokenResponses", "Save API token", "Copy token",
     "Acknowledgement failed", "Rotate E2E API token", "old API token remained valid after rotation", "api_token.reveal.acknowledge", "restartReloadURL",
     "Fresh authentication expired", "Reauthenticate", "configured provider remained falsely healthy", "CDP request timed out", "navigateBrowser", "reloadBrowser", "Target.attachToTarget", "Target.closeTarget", "sessionId", "cdp.replaceTarget",
