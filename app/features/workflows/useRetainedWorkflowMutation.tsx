@@ -122,12 +122,13 @@ class WorkflowMutationStore {
     this.notify();
     try {
       await service.acknowledgeReceipt(receiptID);
+      const receipts = await service.listReceipts();
       const latest = this.recovery.get(scopeKey);
       if (!latest) return;
       const nextAcknowledging = new Set(latest.acknowledging); nextAcknowledging.delete(receiptID);
       const nextErrors = new Map(latest.acknowledgementErrors); nextErrors.delete(receiptID);
-      this.recovery.set(scopeKey, { ...latest, receipts: latest.receipts.filter((receipt) => receipt.id !== receiptID), acknowledging: nextAcknowledging, acknowledgementErrors: nextErrors });
-      for (const controller of this.scopeControllers(scopeKey)) if (controller.canRetry()) controller.resolveAfterServerReconciliation();
+      this.recovery.set(scopeKey, { ...latest, status: "ready", receipts, error: null, acknowledging: nextAcknowledging, acknowledgementErrors: nextErrors });
+      if (receipts.length === 0) for (const controller of this.scopeControllers(scopeKey)) if (controller.canRetry()) controller.resolveAfterServerReconciliation();
       this.onRecovered?.();
       this.notify();
     } catch (error) {

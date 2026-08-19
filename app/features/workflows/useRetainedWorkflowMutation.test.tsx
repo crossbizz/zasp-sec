@@ -113,10 +113,22 @@ describe("observable scope-owned workflow mutation registry", () => {
       created_at: "2026-08-18T12:00:00Z",
       expires_at: "2026-08-25T12:00:00Z",
     };
+    const nextReceipt: WorkflowMutationReceipt = {
+      ...receipt,
+      id: "pid_55555555-5555-4555-8555-555555555555",
+      operation: "createIntegration",
+      resource_kind: "integration",
+      resource_id: "pid_66666666-6666-4666-8666-666666666666",
+    };
     const acknowledgeReceipt = vi.fn()
       .mockRejectedValueOnce(new APITransportError("timeout", "Acknowledgement response was lost"))
+      .mockResolvedValueOnce(undefined)
       .mockResolvedValueOnce(undefined);
-    const recovery: WorkflowRecoveryAPI = { listReceipts: vi.fn(async () => [receipt]), acknowledgeReceipt };
+    const listReceipts = vi.fn()
+      .mockResolvedValueOnce([receipt])
+      .mockResolvedValueOnce([nextReceipt])
+      .mockResolvedValueOnce([]);
+    const recovery: WorkflowRecoveryAPI = { listReceipts, acknowledgeReceipt };
     render(<WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a" recovery={recovery}>
       <Probe operation="security-agent:create" name="agent" send={async () => "new agent"} />
     </WorkflowMutationProvider>);
@@ -127,7 +139,11 @@ describe("observable scope-owned workflow mutation registry", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Acknowledgement response was lost");
     expect(screen.getByRole("button", { name: "Start agent" })).toBeDisabled();
     await user.click(screen.getByRole("button", { name: "Acknowledge recovered result" }));
+    expect(await screen.findByText(new RegExp(nextReceipt.resource_id))).toBeVisible();
+    expect(screen.getByRole("button", { name: "Start agent" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Acknowledge recovered result" }));
     await waitFor(() => expect(screen.queryByRole("heading", { name: "Recover committed operations" })).not.toBeInTheDocument());
     expect(screen.getByRole("button", { name: "Start agent" })).toBeEnabled();
+    expect(listReceipts).toHaveBeenCalledTimes(3);
   });
 });
