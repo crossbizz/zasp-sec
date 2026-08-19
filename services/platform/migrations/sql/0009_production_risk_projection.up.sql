@@ -187,7 +187,7 @@ BEGIN
        AND "environment_id"=requested_environment_id AND "finding_id"=requested_id;
     IF evidence_count NOT BETWEEN 1 AND 64 OR factor_count NOT BETWEEN 0 AND 16
        OR EXISTS (SELECT 1 FROM "public"."zasp_risk_finding_evidence" WHERE "organization_id"=requested_organization_id AND "workspace_id"=requested_workspace_id AND "environment_id"=requested_environment_id AND "finding_id"=requested_id HAVING min("position")<>1 OR max("position")<>count(*))
-       OR EXISTS (SELECT 1 FROM "public"."zasp_risk_finding_factors" WHERE "organization_id"=requested_organization_id AND "workspace_id"=requested_workspace_id AND "environment_id"=requested_environment_id AND "finding_id"=requested_id HAVING min("position")<>1 OR max("position")<>count(*) OR count(DISTINCT "evidence_id")<>count(*))
+       OR EXISTS (SELECT 1 FROM "public"."zasp_risk_finding_factors" WHERE "organization_id"=requested_organization_id AND "workspace_id"=requested_workspace_id AND "environment_id"=requested_environment_id AND "finding_id"=requested_id HAVING min("position")<>1 OR max("position")<>count(*))
        OR EXISTS (SELECT 1 FROM "public"."zasp_risk_finding_factors" AS factor WHERE factor."organization_id"=requested_organization_id AND factor."workspace_id"=requested_workspace_id AND factor."environment_id"=requested_environment_id AND factor."finding_id"=requested_id AND NOT EXISTS (SELECT 1 FROM "public"."zasp_risk_finding_evidence" AS parent_evidence WHERE parent_evidence."organization_id"=factor."organization_id" AND parent_evidence."workspace_id"=factor."workspace_id" AND parent_evidence."environment_id"=factor."environment_id" AND parent_evidence."finding_id"=factor."finding_id" AND parent_evidence."evidence_id"=factor."evidence_id")) THEN
         RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='invalid stored risk finding projection';
     END IF;
@@ -380,7 +380,7 @@ END;
 $migration$;
 
 INSERT INTO "public"."zasp_schema_metadata" ("key","value")
-VALUES ('production_risk_projection_fingerprint', '35bbafb29b403b71eafa01dd331eb1785de209efd352eca455ffeed1ac43fad3');
+VALUES ('production_risk_projection_fingerprint', '1f75d1a9271ef19ae2a7c9525f9382f31f37f922ae2a058993705fe11ec373d2');
 
 UPDATE "public"."zasp_schema_metadata" SET "value"='production-risk-projection-v1',"applied_at"=transaction_timestamp()
 WHERE "key"='production_core_schema' AND "value"='api-token-reveal-grants-v1';

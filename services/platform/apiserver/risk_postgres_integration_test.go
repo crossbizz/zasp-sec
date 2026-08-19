@@ -338,6 +338,32 @@ func TestRiskProjectionPostgresPaginationIsolationMutationReplayAndRollbackGuard
 	}
 	_ = secondDatabase.Close()
 
+	sharedEvidenceFinding := "pid_83000001-0000-4000-8000-000000000001"
+	for _, seed := range []struct {
+		statement string
+		arguments []any
+	}{
+		{`INSERT INTO zasp_risk_findings (organization_id,workspace_id,environment_id,id,source,title,severity,status) VALUES ($1,$2,$3,$4,'posture','Shared factor evidence','high','open')`, []any{organization, workspace, environment, sharedEvidenceFinding}},
+		{`INSERT INTO zasp_risk_finding_evidence (organization_id,workspace_id,environment_id,finding_id,position,evidence_id) VALUES ($1,$2,$3,$4,1,$5)`, []any{organization, workspace, environment, sharedEvidenceFinding, riskEvidence}},
+		{`INSERT INTO zasp_risk_finding_factors (organization_id,workspace_id,environment_id,finding_id,position,name,evidence_id) VALUES ($1,$2,$3,$4,1,'Public input',$5),($1,$2,$3,$4,2,'Privileged sink',$5)`, []any{organization, workspace, environment, sharedEvidenceFinding, riskEvidence}},
+	} {
+		if _, err := connection.Exec(ctx, seed.statement, seed.arguments...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_risk_finding_factors (organization_id,workspace_id,environment_id,finding_id,position,name,evidence_id) VALUES ($1,$2,$3,$4,3,'Public input',$5)`, organization, workspace, environment, sharedEvidenceFinding, riskEvidence); err == nil {
+		t.Fatal("duplicate factor name was accepted")
+	} else {
+		var duplicateNameError *pgconn.PgError
+		if !errors.As(err, &duplicateNameError) || duplicateNameError.Code != "23505" {
+			t.Fatalf("duplicate factor name error = %v", err)
+		}
+	}
+	sharedEvidenceProjection, err := repository.GetRiskFinding(ctx, identity.Scope, sharedEvidenceFinding)
+	if err != nil || len(sharedEvidenceProjection.RiskFactors) != 2 || sharedEvidenceProjection.RiskFactors[0].Name != "Public input" || sharedEvidenceProjection.RiskFactors[1].Name != "Privileged sink" || sharedEvidenceProjection.RiskFactors[0].EvidenceID != riskEvidence || sharedEvidenceProjection.RiskFactors[1].EvidenceID != riskEvidence {
+		t.Fatalf("shared parent evidence projection = %#v (%v)", sharedEvidenceProjection, err)
+	}
+
 	foreignEvidenceFinding := "pid_82000001-0000-4000-8000-000000000001"
 	foreignEvidencePath := "pid_82000002-0000-4000-8000-000000000002"
 	foreignEvidenceID := "pid_82000003-0000-4000-8000-000000000003"
