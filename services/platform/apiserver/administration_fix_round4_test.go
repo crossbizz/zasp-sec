@@ -107,6 +107,9 @@ func TestRevealGrantCleanupIsGloballyBoundedAndStrictlyDecoded(t *testing.T) {
 	if !strings.Contains(postgresRevealGrantCleanupSQL, "SKIP LOCKED") || !strings.Contains(postgresRevealGrantCleanupSQL, "LIMIT $1") {
 		t.Fatalf("cleanup is not bounded and overlap-safe: %s", postgresRevealGrantCleanupSQL)
 	}
+	if !strings.Contains(postgresRevealGrantCleanupSQL, "ORDER BY reveal.organization_id,reveal.workspace_id,reveal.environment_id,reveal.principal_id,reveal.grant_id FOR UPDATE") {
+		t.Fatalf("cleanup does not use the existing pending-grant index order: %s", postgresRevealGrantCleanupSQL)
+	}
 }
 
 func TestReadinessRunsBothGlobalCleanupsAndFailsClosed(t *testing.T) {
