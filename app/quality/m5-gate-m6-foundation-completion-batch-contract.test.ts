@@ -10,14 +10,18 @@ const selected = [
 ];
 
 describe("M5 gate and M6 policy-foundation completion batch", () => {
-  it("keeps all policy operations in the generated product contract", async () => {
+  it("keeps mounted policy operations and hides unserved projections", async () => {
     const [openapi, generated] = await Promise.all([
       readFile(resolve(root, "openapi/openapi.yaml"), "utf8"),
       readFile(resolve(root, "apps/web/api/generated.ts"), "utf8"),
     ]);
-    for (const operation of ["listPolicies", "createPolicy", "getPolicy", "updatePolicy", "deletePolicy", "simulatePolicy", "rolloutPolicy", "disablePolicy", "listPolicyDecisions"]) {
+    for (const operation of ["listPolicies", "createPolicy", "getPolicy", "updatePolicy", "deletePolicy", "rolloutPolicy", "disablePolicy"]) {
       expect(openapi).toContain(`operationId: ${operation}`);
       expect(generated).toContain(operation);
+    }
+    for (const operation of ["simulatePolicy", "listPolicyDecisions"]) {
+      expect(openapi).not.toContain(`operationId: ${operation}`);
+      expect(generated).not.toContain(` ${operation}:`);
     }
   });
 

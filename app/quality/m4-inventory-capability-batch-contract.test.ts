@@ -4,10 +4,10 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const root = resolve(import.meta.dirname, "../..");
-const operations = ["listAgents", "getAgent", "updateAgent", "getAgentCapabilities", "getAgentRelationships", "listAgentSessions", "listTools", "getTool", "listIdentities", "getIdentity", "listRuntimes", "getRuntime", "getAsset"];
+const operations = ["listAgents", "getAgent", "getAgentCapabilities", "getAgentRelationships", "listAgentSessions", "listTools", "getTool", "listIdentities", "getIdentity", "listRuntimes", "getRuntime", "getAsset"];
 
 describe("M4 inventory, capability, and posture batch", () => {
-  it("publishes all thirteen inventory operations in OpenAPI and generated client", async () => {
+  it("publishes twelve inventory reads and hides the unmounted agent mutation", async () => {
     const [openapi, generated] = await Promise.all([
       readFile(resolve(root, "openapi/openapi.yaml"), "utf8"),
       readFile(resolve(root, "apps/web/api/generated.ts"), "utf8"),
@@ -16,6 +16,8 @@ describe("M4 inventory, capability, and posture batch", () => {
       expect(openapi).toContain(`operationId: ${operation}`);
       expect(generated).toContain(operation);
     }
+    expect(openapi).not.toContain("operationId: updateAgent");
+    expect(generated).not.toContain(" updateAgent:");
   });
 
   it("binds six capability categories and four evidence-backed posture rules", async () => {

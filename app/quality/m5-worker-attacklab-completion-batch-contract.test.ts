@@ -11,14 +11,14 @@ const selected = [
 ];
 
 describe("M5 worker and Attack Lab completion batch", () => {
-  it("keeps the run and Attack Lab operations in the generated product contract", async () => {
+  it("keeps run and Attack Lab operations outside the product contract", async () => {
     const [openapi, generated] = await Promise.all([
       readFile(resolve(root, "openapi/openapi.yaml"), "utf8"),
       readFile(resolve(root, "apps/web/api/generated.ts"), "utf8"),
     ]);
     for (const operation of ["listTestRuns", "getTestRun", "cancelTestRun", "listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun"]) {
-      expect(openapi).toContain(`operationId: ${operation}`);
-      expect(generated).toContain(operation);
+      expect(openapi).not.toContain(`operationId: ${operation}`);
+      expect(generated).not.toContain(` ${operation}:`);
     }
   });
 

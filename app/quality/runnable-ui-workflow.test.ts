@@ -80,7 +80,10 @@ function assertRunnableUiWorkflow(
     "npm test",
     "npm run typecheck",
     "npm run lint",
+    "npm run production:imports:test",
+    "npm run production:imports:source",
     "npm run build",
+    "npm run production:imports:compiled",
   ]);
 
   const verificationJobs = Object.values(workflow.jobs ?? {}).filter((job) =>

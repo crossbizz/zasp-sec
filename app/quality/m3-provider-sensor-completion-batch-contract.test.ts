@@ -11,7 +11,7 @@ describe("M3-15 through M3-36 completion batch", () => {
     const sensor = read("services/platform/sensor/sensor.go") + read("services/platform/sensor/http.go");
     for (const method of ["List", "Create", "Get", "Update", "Delete", "Rotate", "Coverage", "Heartbeat"]) expect(sensor).toContain(`) ${method}(`);
     const openapi = read("openapi/openapi.yaml");
-    for (const operation of ["listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage"]) expect(openapi).toContain(`operationId: ${operation}`);
+    for (const operation of ["listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage"]) expect(openapi).not.toContain(`operationId: ${operation}`);
   });
 
   it("keeps the real-AWS credential adapter blocked behind its exact dependency", () => {

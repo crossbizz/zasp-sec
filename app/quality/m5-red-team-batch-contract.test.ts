@@ -7,10 +7,10 @@ const root = process.cwd();
 const read = (file: string) => fs.readFileSync(path.join(root, file), "utf8");
 
 describe("M5 red-team and safe Attack Lab batch", () => {
-  it("publishes the eight red-team operations through the strict contract", () => {
+  it("keeps the eight red-team executor operations outside the strict contract", () => {
     const openapi = read("openapi/openapi.yaml");
     for (const operation of ["listTests", "createTest", "getTest", "updateTest", "runTest", "listTestRuns", "getTestRun", "cancelTestRun"]) {
-      expect(openapi).toContain(`operationId: ${operation}`);
+      expect(openapi).not.toContain(`operationId: ${operation}`);
     }
   });
 

@@ -6,15 +6,20 @@ import { describe, expect, it } from "vitest";
 const root = resolve(import.meta.dirname, "../..");
 
 describe("M4 UI and golden-gate batch", () => {
-  it("wires the seven product routes to one generated-schema Agent Security surface", async () => {
-    const [app, view] = await Promise.all([
-      readFile(resolve(root, "app/components/ZaspApp.tsx"), "utf8"),
+  it("wires production inventory and risk routes without importing demo actions", async () => {
+    const [app, productionView, riskView, demoView] = await Promise.all([
+      readFile(resolve(root, "app/components/ZaspProductionApp.tsx"), "utf8"),
+      readFile(resolve(root, "app/features/agents/ProductionAgentSecurityView.tsx"), "utf8"),
+      readFile(resolve(root, "app/features/risk/ProductionRiskView.tsx"), "utf8"),
       readFile(resolve(root, "app/features/agents/AgentSecurityView.tsx"), "utf8"),
     ]);
-    expect(app).toContain("<AgentSecurityView");
+    expect(app).toContain("<ProductionAgentSecurityView");
+    expect(app).toContain("<ProductionRiskView");
     for (const route of ["/discovery/assets", "/inventory/tools", "/identities", "/inventory/runtimes", "/violations", "/exposure/attack-paths"]) expect(app).toContain(route);
-    for (const operation of ["listAgents", "getAgent", "updateAgent", "getAgentCapabilities", "getAgentRelationships", "listAgentSessions", "listFindings", "updateFinding", "acceptFindingRisk", "createFindingTicket", "listAttackPaths", "getAttackPathBreakOptions", "getHomeSummary"]) expect(view).toContain(operation);
-    for (const heading of ["Why", "Evidence", "Path", "Fix", "Verify", "Effective capabilities", "Runtime policy coverage"]) expect(view).toContain(heading);
+    for (const operation of ["listAgents", "getAgent", "getAgentCapabilities", "getAgentRelationships", "listAgentSessions", "getHomeSummary"]) expect(productionView).toContain(operation);
+    for (const operation of ["updateFinding", "acceptFindingRisk", "getAttackPathBreakOptions"]) expect(riskView).toContain(operation);
+    for (const hidden of ["updateAgent", "createFindingTicket", "globalSearch"]) expect(productionView + riskView).not.toContain(hidden);
+    for (const heading of ["Why", "Evidence", "Path", "Fix", "Verify", "Effective capabilities", "Runtime policy coverage"]) expect(demoView).toContain(heading);
   });
 
   it("implements one coherent five-stage local M4 gate", async () => {

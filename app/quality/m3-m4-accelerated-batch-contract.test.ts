@@ -33,18 +33,20 @@ describe("M3 gate and M4 reconciliation accelerated batch", () => {
   });
 
   it("exposes provider-specific connection and generated-schema sensor flows", async () => {
-    const [connectors, sensors, seed, app] = await Promise.all([
+    const [connectors, sensors, seed, demoApp, productionApp] = await Promise.all([
       readFile(resolve(root, "app/features/connectors/ConnectorViews.tsx"), "utf8"),
       readFile(resolve(root, "app/features/sensors/SensorView.tsx"), "utf8"),
       readFile(resolve(root, "app/domain/seed.ts"), "utf8"),
-      readFile(resolve(root, "app/components/ZaspApp.tsx"), "utf8"),
+      readFile(resolve(root, "app/components/ZaspDemoApp.tsx"), "utf8"),
+      readFile(resolve(root, "app/components/ZaspProductionApp.tsx"), "utf8"),
     ]);
     expect(connectors).toMatch(/setupSteps[\s\S]*Setup boundary/);
     expect(connectors).toContain('key={selected?.id ?? "none"}');
     for (const value of ["AWS", "Kubernetes", "GitHub", "Generic Webhook", "Workforce Directory", "Missing iam:GetRole"]) expect(seed).toContain(value);
     expect(sensors).toContain('from "../../../apps/web/api/generated"');
     for (const value of ["Enroll sensor", "Rotate enrollment token", "Delete sensor", "Unsupported kernel", "Copy this token now"]) expect(sensors).toContain(value);
-    expect(app).toContain("<SensorView");
+    expect(demoApp).toContain("<SensorView");
+    expect(productionApp).not.toContain("SensorView");
   });
 
   it("moves exactly the 22-task batch to In progress without a provider claim", async () => {

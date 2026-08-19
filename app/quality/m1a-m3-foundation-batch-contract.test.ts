@@ -32,13 +32,10 @@ describe("M1A and M3 foundation batch", () => {
     }
   });
 
-  it("publishes the ten M3 integration operations without provider names", async () => {
+  it("publishes mounted integration definitions without provider execution routes", async () => {
     const openapi = await readFile(resolve(root, "openapi/openapi.yaml"), "utf8");
-    for (const operation of [
-      "listIntegrationCatalog", "listIntegrations", "createIntegration", "getIntegration",
-      "updateIntegration", "deleteIntegration", "authorizeIntegration", "syncIntegration",
-      "listIntegrationSyncs", "getIntegrationSync",
-    ]) expect(openapi).toContain(`operationId: ${operation}`);
+    for (const operation of ["listIntegrationCatalog", "listIntegrations", "createIntegration", "getIntegration", "updateIntegration", "deleteIntegration"]) expect(openapi).toContain(`operationId: ${operation}`);
+    for (const operation of ["authorizeIntegration", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync"]) expect(openapi).not.toContain(`operationId: ${operation}`);
     const section = openapi.match(/ {2}\/api\/v1\/integration-catalog:[\s\S]*?(?=security:)/)?.[0] ?? "";
     expect(section).not.toMatch(/nango|cartography|prowler|adapter_key/i);
   });

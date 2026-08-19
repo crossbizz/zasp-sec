@@ -5,12 +5,13 @@ import { describe, expect, it } from "vitest";
 
 const root = resolve(import.meta.dirname, "../..");
 const operations = [
-  "listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "createFindingTicket",
-  "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "getHomeSummary", "globalSearch",
+  "listFindings", "getFinding", "updateFinding", "acceptFindingRisk",
+  "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "getHomeSummary",
 ] as const;
+const hiddenOperations = ["createFindingTicket", "globalSearch"] as const;
 
 describe("M4 risk, path, home, and search batch", () => {
-  it("publishes ten generated product operations", async () => {
+  it("publishes eight mounted product operations and hides external actions", async () => {
     const [openapi, generated] = await Promise.all([
       readFile(resolve(root, "openapi/openapi.yaml"), "utf8"),
       readFile(resolve(root, "apps/web/api/generated.ts"), "utf8"),
@@ -18,6 +19,10 @@ describe("M4 risk, path, home, and search batch", () => {
     for (const operation of operations) {
       expect(openapi).toContain(`operationId: ${operation}`);
       expect(generated).toContain(operation);
+    }
+    for (const operation of hiddenOperations) {
+      expect(openapi).not.toContain(`operationId: ${operation}`);
+      expect(generated).not.toContain(` ${operation}:`);
     }
   });
 

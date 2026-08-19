@@ -10,25 +10,29 @@ const retainedOperations = ["listSecurityAgentTemplates", "listSecurityAgents", 
 const hiddenExecutionOperations = operations.filter((operation) => !retainedOperations.includes(operation as typeof retainedOperations[number]));
 
 describe("M7A audit, API, and builder batch", () => {
-  it("publishes all fifteen generated Security Agent operations", async () => {
+  it("publishes only the six mounted Security Agent definition operations", async () => {
     const [openapi, generated] = await Promise.all([
       readFile(resolve(root, "openapi/openapi.yaml"), "utf8"),
       readFile(resolve(root, "apps/web/api/generated.ts"), "utf8"),
     ]);
-    for (const operation of operations) {
+    for (const operation of retainedOperations) {
       expect(openapi).toContain(`operationId: ${operation}`);
       expect(generated).toContain(operation);
+    }
+    for (const operation of hiddenExecutionOperations) {
+      expect(openapi).not.toContain(`operationId: ${operation}`);
+      expect(generated).not.toContain(` ${operation}:`);
     }
   });
 
   it("ships the generated-client definition surface and hides executor-dependent controls", async () => {
     const [app, view, routes] = await Promise.all([
-      readFile(resolve(root, "app/components/ZaspApp.tsx"), "utf8"),
+      readFile(resolve(root, "app/components/ZaspProductionApp.tsx"), "utf8"),
       readFile(resolve(root, "app/features/securityagents/SecurityAgentsView.tsx"), "utf8"),
       readFile(resolve(root, "app/domain/routes.ts"), "utf8"),
     ]);
     expect(routes).toContain('path: "/protect/security-agents"');
-    expect(app).toContain("<SecurityAgentsView");
+    expect(app).toContain("<ProductionSecurityAgentsView");
     expect(view).toContain('from "../../../apps/web/api/generated"');
     for (const operation of retainedOperations) expect(view).toContain(operation);
     for (const operation of hiddenExecutionOperations) expect(view).not.toContain(operation);
