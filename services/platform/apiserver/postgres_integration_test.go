@@ -66,7 +66,7 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 	if _, err := connection.Exec(ctx, `INSERT INTO zasp_core_payloads (organization_id, workspace_id, environment_id, operation, payload) VALUES ($1,$2,$3,'agents','{"items":[]}'::jsonb)`, organization.String(), workspace2.String(), environment2.String()); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := connection.Exec(ctx, `INSERT INTO zasp_authorized_scopes (principal_id, organization_id, workspace_id, environment_id, label, permissions, is_default) VALUES ($1,$2,$3,$4,'Production','["view"]'::jsonb,true),($1,$2,$5,$6,'Staging','["view"]'::jsonb,false)`, principal.String(), organization.String(), workspace.String(), environment.String(), workspace2.String(), environment2.String()); err != nil {
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_authorized_scopes (principal_id, organization_id, workspace_id, environment_id, label, permissions, is_default) VALUES ($1,$2,$3,$4,'Production','["view","manage_workflows"]'::jsonb,true),($1,$2,$5,$6,'Staging','["view","manage_workflows"]'::jsonb,false)`, principal.String(), organization.String(), workspace.String(), environment.String(), workspace2.String(), environment2.String()); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := connection.Exec(ctx, `INSERT INTO zasp_identity_memberships (principal_id, organization_id, organization_reference, member_reference, role) VALUES ($1,$2,'organization-test-local','member-test-local','security_admin')`, principal.String(), organization.String()); err != nil {
@@ -102,7 +102,7 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 	if err := repository.Ready(ctx); err != nil {
 		t.Fatalf("repository readiness: %v", err)
 	}
-	grant := SessionGrant{PrincipalID: principal, Scope: scope, Permissions: []string{"view"}, ExpiresAt: time.Now().UTC().Add(time.Hour)}
+	grant := SessionGrant{PrincipalID: principal, Scope: scope, Permissions: []string{"view", "manage_workflows"}, ExpiresAt: time.Now().UTC().Add(time.Hour)}
 	session, err := repository.CreateSession(ctx, grant)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
@@ -186,17 +186,29 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 	if _, err := restartedRepository.Authenticate(ctx, Credential{Kind: CredentialBrowserSession, Value: session}); err != nil {
 		t.Fatalf("session did not survive repository restart: %v", err)
 	}
-	if _, err := restartedConnection.Exec(ctx, `UPDATE zasp_identity_memberships SET active = false WHERE principal_id = $1 AND organization_id = $2`, principal.String(), organization.String()); err != nil {
-		t.Fatalf("revoke membership: %v", err)
+	if _, err := restartedConnection.Exec(ctx, `UPDATE zasp_identity_memberships SET role = 'read_only_viewer' WHERE principal_id = $1 AND organization_id = $2`, principal.String(), organization.String()); err != nil {
+		t.Fatalf("downgrade membership: %v", err)
 	}
-	if _, err := restartedRepository.Authenticate(ctx, Credential{Kind: CredentialBrowserSession, Value: session}); !errors.Is(err, ErrRepositoryAuthentication) {
-		t.Fatalf("role-revoked browser session = %v", err)
+	if downgraded, err := restartedRepository.Authenticate(ctx, Credential{Kind: CredentialBrowserSession, Value: session}); err != nil || !equalPermissionSets(downgraded.Permissions, []string{"view"}) {
+		t.Fatalf("role-downgraded browser session = (%#v, %v)", downgraded, err)
 	}
-	if _, err := restartedRepository.Authenticate(ctx, Credential{Kind: CredentialBearerToken, Value: pat}); !errors.Is(err, ErrRepositoryAuthentication) {
-		t.Fatalf("role-revoked PAT = %v", err)
+	if downgraded, err := restartedRepository.Authenticate(ctx, Credential{Kind: CredentialBearerToken, Value: pat}); err != nil || !equalPermissionSets(downgraded.Permissions, []string{"view"}) {
+		t.Fatalf("role-downgraded PAT = (%#v, %v)", downgraded, err)
 	}
-	if _, err := restartedConnection.Exec(ctx, `UPDATE zasp_identity_memberships SET active = true WHERE principal_id = $1 AND organization_id = $2`, principal.String(), organization.String()); err != nil {
+	if _, err := restartedConnection.Exec(ctx, `UPDATE zasp_identity_memberships SET role = 'security_admin' WHERE principal_id = $1 AND organization_id = $2`, principal.String(), organization.String()); err != nil {
 		t.Fatalf("restore membership for session revocation proof: %v", err)
+	}
+	if _, err := restartedConnection.Exec(ctx, `ALTER TABLE zasp_workflow_records ADD COLUMN schema_drift text`); err != nil {
+		t.Fatalf("introduce schema drift: %v", err)
+	}
+	if err := restartedRepository.Ready(ctx); !errors.Is(err, ErrRepositoryUnavailable) {
+		t.Fatalf("schema drift readiness = %v", err)
+	}
+	if _, err := restartedConnection.Exec(ctx, `ALTER TABLE zasp_workflow_records DROP COLUMN schema_drift`); err != nil {
+		t.Fatalf("remove schema drift: %v", err)
+	}
+	if err := restartedRepository.Ready(ctx); err != nil {
+		t.Fatalf("restored schema readiness: %v", err)
 	}
 	if err := restartedRepository.Revoke(ctx, identity, session); err != nil {
 		t.Fatalf("revoke: %v", err)
@@ -224,6 +236,52 @@ func TestPostgresProductionBoundaryRunsMigrationsAndPersistsAcrossRestart(t *tes
 	}
 	if state, err := rollbackRunner.State(ctx); err != nil || state.Applied() {
 		t.Fatalf("rolled back state = (%#v, %v)", state, err)
+	}
+}
+
+func TestWorkflowMigrationExpiresExistingSessionFreshness(t *testing.T) {
+	dsn := startDisposablePostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	connection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner, _ := migrations.NewRunner(&integrationMigrationDatabase{connection: connection})
+	if err := runner.Up(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.UpCore(ctx); err != nil {
+		t.Fatal(err)
+	}
+	const token = "old-live-session-with-at-least-32-bytes"
+	principal := "pid_51000004-0000-4000-8000-000000000004"
+	organization := "pid_51000001-0000-4000-8000-000000000001"
+	workspace := "pid_51000002-0000-4000-8000-000000000002"
+	environment := "pid_51000003-0000-4000-8000-000000000003"
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_identity_memberships (principal_id,organization_id,organization_reference,member_reference,role) VALUES ($1,$2,'organization-old','member-old','security_admin')`, principal, organization); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_authorized_scopes (principal_id,organization_id,workspace_id,environment_id,label,permissions,is_default) VALUES ($1,$2,$3,$4,'Old','["view","manage_workflows"]'::jsonb,true)`, principal, organization, workspace, environment); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_product_sessions (token_digest,principal_id,organization_id,workspace_id,environment_id,permissions,csrf_token,expires_at) VALUES (digest($1,'sha256'),$2,$3,$4,$5,'["view","manage_workflows"]'::jsonb,$6,transaction_timestamp()+interval '1 hour')`, token, principal, organization, workspace, environment, strings.Repeat("c", 32)); err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.UpWorkflows(ctx); err != nil {
+		t.Fatal(err)
+	}
+	database, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
+	repository, err := NewPostgresRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity, err := repository.Authenticate(ctx, Credential{Kind: CredentialBrowserSession, Value: token})
+	if err != nil || identity.FreshAuthenticated {
+		t.Fatalf("pre-v3 session freshness = (%#v, %v)", identity, err)
+	}
+	if err := database.Close(); err != nil {
+		t.Fatal(err)
 	}
 }
 

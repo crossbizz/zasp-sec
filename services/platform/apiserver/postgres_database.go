@@ -11,7 +11,34 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
 
-const postgresSchemaVersionSQL = `SELECT metadata.value FROM zasp_schema_metadata AS metadata JOIN zasp_schema_versions AS release ON release.version = 3 AND release.name = 'production_workflows' WHERE metadata.key = 'production_core_schema' AND release.checksum = $1`
+const postgresSchemaVersionSQL = `SELECT metadata.value
+FROM zasp_schema_metadata AS metadata
+JOIN zasp_schema_versions AS release ON release.version = 3 AND release.name = 'production_workflows'
+WHERE metadata.key = 'production_core_schema' AND release.checksum = $1
+  AND to_regclass('public.zasp_workflow_records') IS NOT NULL
+  AND to_regclass('public.zasp_workflow_idempotency') IS NOT NULL
+  AND to_regclass('public.zasp_workflow_audit') IS NOT NULL
+  AND to_regclass('public.zasp_workflow_records_list_idx') IS NOT NULL
+  AND to_regprocedure('public.zasp_workflow_list(text,text,text,text,text,text)') IS NOT NULL
+  AND to_regprocedure('public.zasp_workflow_get(text,text,text,text,text)') IS NOT NULL
+  AND to_regprocedure('public.zasp_workflow_replay(text,text,text,text,text,text,jsonb)') IS NOT NULL
+  AND to_regprocedure('public.zasp_workflow_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text)') IS NOT NULL
+  AND to_regprocedure('public.zasp_effective_scope_permissions(jsonb,text)') IS NOT NULL
+  AND (SELECT array_agg(attribute.attname ORDER BY attribute.attnum)
+         FROM pg_attribute AS attribute
+        WHERE attribute.attrelid = 'public.zasp_workflow_records'::regclass AND attribute.attnum > 0 AND NOT attribute.attisdropped)
+      = ARRAY['organization_id','workspace_id','environment_id','kind','id','version','body','secret_generation','deleted_at','created_at','updated_at']::name[]
+  AND (SELECT array_agg(attribute.attname ORDER BY attribute.attnum)
+         FROM pg_attribute AS attribute
+        WHERE attribute.attrelid = 'public.zasp_workflow_idempotency'::regclass AND attribute.attnum > 0 AND NOT attribute.attisdropped)
+      = ARRAY['organization_id','workspace_id','environment_id','principal_id','operation','idempotency_key','request_digest','response','created_at']::name[]
+  AND (SELECT array_agg(attribute.attname ORDER BY attribute.attnum)
+         FROM pg_attribute AS attribute
+        WHERE attribute.attrelid = 'public.zasp_workflow_audit'::regclass AND attribute.attnum > 0 AND NOT attribute.attisdropped)
+      = ARRAY['organization_id','workspace_id','environment_id','audit_id','correlation_id','principal_id','operation','resource_kind','resource_id','resource_version','created_at']::name[]
+  AND (SELECT count(*) FROM pg_constraint WHERE conrelid = 'public.zasp_workflow_records'::regclass AND contype = 'c') = 4
+  AND (SELECT count(*) FROM pg_constraint WHERE conrelid = 'public.zasp_workflow_idempotency'::regclass AND contype = 'c') = 1
+  AND EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'public.zasp_product_sessions'::regclass AND attname = 'authenticated_at' AND attnotnull AND NOT attisdropped)`
 
 func expectedCoreSchemaChecksum() string { return migrations.ProductionWorkflows().Checksum() }
 

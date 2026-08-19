@@ -20,6 +20,11 @@ func TestPostgresSchemaReadinessRequiresExactWorkflowRelease(t *testing.T) {
 	if !strings.Contains(postgresSchemaVersionSQL, "release.version = 3") || !strings.Contains(postgresSchemaVersionSQL, "release.name = 'production_workflows'") {
 		t.Fatalf("schema readiness query does not require workflow release: %s", postgresSchemaVersionSQL)
 	}
+	for _, fragment := range []string{"zasp_workflow_replay(text,text,text,text,text,text,jsonb)", "zasp_workflow_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text)", "pg_attribute", "pg_constraint", "authenticated_at", "zasp_effective_scope_permissions(jsonb,text)"} {
+		if !strings.Contains(postgresSchemaVersionSQL, fragment) {
+			t.Fatalf("schema readiness query missing exact fingerprint %q: %s", fragment, postgresSchemaVersionSQL)
+		}
+	}
 	if expectedCoreSchemaChecksum() != migrations.ProductionWorkflows().Checksum() {
 		t.Fatal("schema readiness checksum is not the workflow release checksum")
 	}
