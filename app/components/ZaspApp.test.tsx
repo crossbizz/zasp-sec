@@ -149,6 +149,34 @@ describe("Zasp application", () => {
     await userEvent.click(screen.getByRole("link", { name: "Agents" }));
     expect(await screen.findByText("No records in this scope.")).toBeVisible();
   });
+
+	it.each(["initial", "popstate"])("blocks %s navigation to a capability-hidden production route before fetching", async (mode) => {
+		const requests: string[] = [];
+		if (mode === "initial") window.history.replaceState({}, "", "/violations");
+		const client = createAPIClient({
+			generateCorrelationID: () => "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+			fetch: async (request) => {
+				const path = new URL(request.url).pathname;
+				requests.push(path);
+				if (path === "/api/v1/session/bootstrap") return apiJSON({
+					principal: { id: "pid_10000004-0000-4000-8000-000000000004", organization_id: "pid_10000001-0000-4000-8000-000000000001", organization_reference: "organization-live", member_reference: "member-live", role: "security_admin", active: true },
+					organization_id: "pid_10000001-0000-4000-8000-000000000001", workspace_id: "pid_10000002-0000-4000-8000-000000000002", environment_id: "pid_10000003-0000-4000-8000-000000000003",
+					permissions: ["view"], capabilities: ["inventory.read"], csrf_token: "cccccccccccccccccccccccccccccccc", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+				});
+				if (path === "/api/v1/home/summary") return apiJSON({ agent_count: 0, high_risk_paths: 0, verified_changes: 0, blocked_changes: 0, pending_approvals: 0, oldest_approval_age_seconds: 0, needs_human_runs: 0, failed_runs: 0, inconclusive_runs: 0, recent_contained: 0, recent_remediated: 0, healthy: true, attention_required: false });
+				return apiJSON({ code: "not_found", message: "Resource not found", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: false }, 404);
+			},
+		});
+		render(<ZaspApp client={client} />);
+		expect(await screen.findByRole("heading", { name: "Security overview" })).toBeVisible();
+		if (mode === "popstate") {
+			window.history.pushState({}, "", "/violations");
+			window.dispatchEvent(new PopStateEvent("popstate"));
+			expect(await screen.findByRole("heading", { name: "Security overview" })).toBeVisible();
+		}
+		expect(requests).not.toContain("/api/v1/findings");
+		expect(screen.queryByRole("link", { name: "Findings" })).not.toBeInTheDocument();
+	});
 });
 
 function apiJSON(body: unknown, status = 200) {

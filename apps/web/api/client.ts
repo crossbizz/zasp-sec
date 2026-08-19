@@ -1,7 +1,7 @@
 import createClient from "openapi-fetch";
 import type { ClientOptions } from "openapi-fetch";
 
-import type { paths, ProductId } from "./generated";
+import type { paths, ProductError, ProductId } from "./generated";
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 const DEFAULT_MAXIMUM_RESPONSE_BYTES = 1024 * 1024;
@@ -22,6 +22,26 @@ export class APITransportError extends Error {
     this.name = "APITransportError";
     this.kind = kind;
   }
+}
+
+export class APIProductError extends Error {
+  readonly status: number;
+  readonly product: ProductError;
+  readonly correlationID: string;
+
+  constructor(status: number, product: ProductError) {
+    super(product.message);
+    this.name = "APIProductError";
+    this.status = status;
+    this.product = product;
+    this.correlationID = product.correlation_id;
+  }
+}
+
+export function requireAPIData<T>(result: { data?: unknown; error?: unknown; response: Response }): T {
+  if (result.data !== undefined) return result.data as T;
+  if (isProductError(result.error)) throw new APIProductError(result.response.status, result.error as ProductError);
+  throw new APITransportError("invalid_error", "API request failed without a valid product error");
 }
 
 export type APIClientOptions = Omit<ClientOptions, "baseUrl" | "credentials" | "fetch" | "redirect"> & {
@@ -48,10 +68,10 @@ export function createAPIClient(options: APIClientOptions = {}) {
   if (!validRelativeBaseURL(baseUrl) || typeof configuredFetch !== "function" || !validBound(timeoutMs) || !validBound(maximumResponseBytes)) {
     throw new APITransportError("invalid_configuration", "Invalid API client configuration");
   }
-  const origin = globalThis.location?.origin;
-  if (!origin || origin === "null") {
-    throw new APITransportError("invalid_configuration", "Same-origin API location is unavailable");
-  }
+  // Client Components also render on the server. This non-routable placeholder
+  // prevents server rendering from performing I/O while browser instances bind
+  // to the actual same-origin location below.
+  const origin = globalThis.location?.origin && globalThis.location.origin !== "null" ? globalThis.location.origin : "http://same-origin.invalid";
   const transport = async (request: Request): Promise<Response> => {
     const correlationID = generateCorrelationID();
     if (!PRODUCT_ID.test(correlationID)) {

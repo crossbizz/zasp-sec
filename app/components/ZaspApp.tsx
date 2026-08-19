@@ -81,8 +81,6 @@ const productionRoutes = [
   { path: "/inventory/tools", label: "Tools & MCP", capability: "inventory.read" },
   { path: "/identities", label: "Identities", capability: "inventory.read" },
   { path: "/inventory/runtimes", label: "Runtimes", capability: "inventory.read" },
-  { path: "/violations", label: "Findings", capability: "findings.read" },
-  { path: "/exposure/attack-paths", label: "Attack Paths", capability: "attack_paths.read" },
 ] as const;
 
 function ProductionAppContent() {
@@ -91,11 +89,26 @@ function ProductionAppContent() {
     const candidate = typeof window === "undefined" ? "/" : window.location.pathname;
     return productionRoutes.some((route) => route.path === candidate) ? candidate : "/";
   });
+	useEffect(() => {
+		const handlePopState = () => {
+			const candidate = window.location.pathname;
+			const allowed = session.status === "authenticated" && productionRoutes.some((route) => route.path === candidate && session.hasCapability(route.capability));
+			if (allowed) {
+				setPath(candidate);
+				return;
+			}
+			window.history.replaceState({}, "", "/");
+			setPath("/");
+		};
+		window.addEventListener("popstate", handlePopState);
+		return () => window.removeEventListener("popstate", handlePopState);
+	}, [session]);
   if (session.status === "loading") return <main className="page"><h1>Loading Zasp</h1><p role="status">Loading authenticated session…</p></main>;
   if (session.status === "unauthenticated") return <main className="page"><h1>Sign in to Zasp</h1><Button onClick={() => session.signIn(path)}>Sign in</Button></main>;
   if (session.status === "forbidden") return <main className="page"><h1>Scope unavailable</h1><p role="alert">Authorization rejected</p></main>;
   if (session.status === "error") return <main className="page"><h1>Session unavailable</h1><Button onClick={() => void session.retry()}>Retry</Button></main>;
   const routes = productionRoutes.filter((route) => session.hasCapability(route.capability));
+	const visiblePath = routes.some((route) => route.path === path) ? path : "/";
   const navigate = (nextPath: string) => {
     if (!routes.some((route) => route.path === nextPath)) return;
     window.history.pushState({}, "", nextPath);
@@ -103,8 +116,8 @@ function ProductionAppContent() {
   };
   return <div className="app-shell production-app">
     <header className="topbar"><button className="brand" onClick={() => navigate("/")} aria-label="Zasp overview">Zasp</button><span>Agent Security</span><Button onClick={() => void session.signOut()}>Sign out</Button></header>
-    <aside className="sidebar"><nav aria-label="Main navigation">{routes.map((route) => <a key={route.path} href={route.path} aria-label={route.label} aria-current={path === route.path ? "page" : undefined} onClick={(event) => { event.preventDefault(); navigate(route.path); }}>{route.label}</a>)}</nav></aside>
-    <main className="main-content"><AgentSecurityView path={path} onNavigate={navigate} /></main>
+    <aside className="sidebar"><nav aria-label="Main navigation">{routes.map((route) => <a key={route.path} href={route.path} aria-label={route.label} aria-current={visiblePath === route.path ? "page" : undefined} onClick={(event) => { event.preventDefault(); navigate(route.path); }}>{route.label}</a>)}</nav></aside>
+    <main className="main-content"><AgentSecurityView path={visiblePath} onNavigate={navigate} /></main>
   </div>;
 }
 

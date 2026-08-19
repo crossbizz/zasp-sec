@@ -31,7 +31,10 @@ export function useAPIQuery<T>(key: string, query: () => Promise<T>, enabled = t
       setState({ status: isEmpty(value) ? "empty" : "success", data: value });
     } catch (error) {
       if (request.current !== current) return;
-      if (data.current !== undefined) {
+	  if (isProtectedFailure(error)) {
+		data.current = undefined;
+		setState({ status: "forbidden", error });
+	  } else if (data.current !== undefined) {
         setState({ status: "stale", data: data.current, error });
       } else {
         setState({ status: isForbidden(error) ? "forbidden" : "error", error });
@@ -93,4 +96,13 @@ function isForbidden(error: unknown): boolean {
   const response = (error as { response?: { status?: unknown } }).response;
   const product = (error as { error?: { code?: unknown } }).error;
   return response?.status === 403 || product?.code === "authorization_rejected";
+}
+
+function isProtectedFailure(error: unknown): boolean {
+	if (isForbidden(error)) return true;
+	if (!error || typeof error !== "object") return false;
+	const response = (error as { response?: { status?: unknown }; status?: unknown }).response;
+	const status = response?.status ?? (error as { status?: unknown }).status;
+	const product = (error as { error?: { code?: unknown }; product?: { code?: unknown } }).error ?? (error as { product?: { code?: unknown } }).product;
+	return status === 401 || product?.code === "authentication_required";
 }

@@ -22,8 +22,8 @@ describe("API query state machine", () => {
 
     query.mockRejectedValueOnce({ response: { status: 403 }, error: { code: "authorization_rejected" } });
     await act(async () => result.current.retry());
-    await waitFor(() => expect(result.current.status).toBe("stale"));
-    expect(result.current.data).toEqual(["agent-1"]);
+    await waitFor(() => expect(result.current.status).toBe("forbidden"));
+    expect(result.current.data).toBeUndefined();
 
     query.mockRejectedValueOnce({ response: { status: 403 }, error: { code: "authorization_rejected" } });
     rerender();

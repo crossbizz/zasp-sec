@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 
-import { createAPIClient, type APIClient } from "../../../apps/web/api/client";
+import { createAPIClient, requireAPIData, type APIClient } from "../../../apps/web/api/client";
 import type { AgentSession, AttackPath, BreakOption, Capability, Finding, HomeSummary, InventoryRecord, Relationship, SearchResult } from "../../../apps/web/api/generated";
 import { useAPI } from "../../api/APIProvider";
 import { useAPIQuery } from "../../api/query";
@@ -33,33 +33,27 @@ export type AgentSecurityAPI = {
   search(query: string): Promise<readonly SearchResult[]>;
 };
 
-function requireData<T>(value: { data?: unknown; error?: unknown }): T {
-  if (value.error || value.data === undefined) throw new Error("product API rejected");
-  return value.data as T;
-}
+type ProductionAgentSecurityAPI = Pick<AgentSecurityAPI,
+  "listAgents" | "listTools" | "listIdentities" | "listRuntimes" |
+  "getAgent" | "getTool" | "getIdentity" | "getRuntime" |
+  "getAgentCapabilities" | "getAgentRelationships" | "listAgentSessions" |
+  "getHomeSummary"
+>;
 
-export function createAgentSecurityAPI(client: APIClient = createAPIClient()): AgentSecurityAPI {
+export function createAgentSecurityAPI(client: APIClient = createAPIClient()): ProductionAgentSecurityAPI {
   return {
-    async listAgents() { return requireData<{ items: readonly InventoryRecord[] }>(await client.GET("/api/v1/agents")).items; },
-    async listTools() { return requireData<{ items: readonly InventoryRecord[] }>(await client.GET("/api/v1/tools")).items; },
-    async listIdentities() { return requireData<{ items: readonly InventoryRecord[] }>(await client.GET("/api/v1/identities")).items; },
-    async listRuntimes() { return requireData<{ items: readonly InventoryRecord[] }>(await client.GET("/api/v1/runtimes")).items; },
-    async getAgent(id) { return requireData<InventoryRecord>(await client.GET("/api/v1/agents/{id}", { params: { path: { id } } })); },
-    async getTool(id) { return requireData<InventoryRecord>(await client.GET("/api/v1/tools/{id}", { params: { path: { id } } })); },
-    async getIdentity(id) { return requireData<InventoryRecord>(await client.GET("/api/v1/identities/{id}", { params: { path: { id } } })); },
-    async getRuntime(id) { return requireData<InventoryRecord>(await client.GET("/api/v1/runtimes/{id}", { params: { path: { id } } })); },
-    async updateAgent(id, owner) { return requireData<{ agent: InventoryRecord }>(await client.PATCH("/api/v1/agents/{id}", { params: { path: { id } }, body: { owner, team: "agent-platform", tags: ["production"] } })).agent; },
-    async getAgentCapabilities(id) { return requireData<{ items: readonly Capability[] }>(await client.GET("/api/v1/agents/{id}/capabilities", { params: { path: { id } } })).items; },
-    async getAgentRelationships(id) { return requireData<{ items: readonly Relationship[] }>(await client.GET("/api/v1/agents/{id}/relationships", { params: { path: { id } } })).items; },
-    async listAgentSessions(id) { return requireData<{ items: readonly AgentSession[] }>(await client.GET("/api/v1/agents/{id}/sessions", { params: { path: { id } } })).items; },
-    async listFindings() { return requireData<{ items: readonly Finding[] }>(await client.GET("/api/v1/findings")).items; },
-    async updateFinding(id) { return requireData<Finding>(await client.PATCH("/api/v1/findings/{id}", { params: { path: { id } }, body: { status: "under_review" } })); },
-    async acceptFindingRisk(id) { return requireData<Finding>(await client.POST("/api/v1/findings/{id}/accept-risk", { params: { path: { id } }, body: { reason: "Approved product exception" } })); },
-    async createFindingTicket(id) { return requireData<{ ticket_id: string }>(await client.POST("/api/v1/findings/{id}/ticket", { params: { path: { id } }, body: {} })).ticket_id; },
-    async listAttackPaths() { return requireData<{ items: readonly AttackPath[] }>(await client.GET("/api/v1/attack-paths")).items; },
-    async getAttackPathBreakOptions(id) { return requireData<{ items: readonly BreakOption[] }>(await client.GET("/api/v1/attack-paths/{id}/break-options", { params: { path: { id } } })).items; },
-    async getHomeSummary() { return requireData<HomeSummary>(await client.GET("/api/v1/home/summary")); },
-    async search(query) { return requireData<{ items: readonly SearchResult[] }>(await client.GET("/api/v1/search", { params: { query: { q: query, limit: 20 } } })).items; },
+    async listAgents() { return requireAPIData<{ items: readonly InventoryRecord[] }>(await client.GET("/api/v1/agents")).items; },
+    async listTools() { return requireAPIData<{ items: readonly InventoryRecord[] }>(await client.GET("/api/v1/tools")).items; },
+    async listIdentities() { return requireAPIData<{ items: readonly InventoryRecord[] }>(await client.GET("/api/v1/identities")).items; },
+    async listRuntimes() { return requireAPIData<{ items: readonly InventoryRecord[] }>(await client.GET("/api/v1/runtimes")).items; },
+    async getAgent(id) { return requireAPIData<InventoryRecord>(await client.GET("/api/v1/agents/{id}", { params: { path: { id } } })); },
+    async getTool(id) { return requireAPIData<InventoryRecord>(await client.GET("/api/v1/tools/{id}", { params: { path: { id } } })); },
+    async getIdentity(id) { return requireAPIData<InventoryRecord>(await client.GET("/api/v1/identities/{id}", { params: { path: { id } } })); },
+    async getRuntime(id) { return requireAPIData<InventoryRecord>(await client.GET("/api/v1/runtimes/{id}", { params: { path: { id } } })); },
+    async getAgentCapabilities(id) { return requireAPIData<{ items: readonly Capability[] }>(await client.GET("/api/v1/agents/{id}/capabilities", { params: { path: { id } } })).items; },
+    async getAgentRelationships(id) { return requireAPIData<{ items: readonly Relationship[] }>(await client.GET("/api/v1/agents/{id}/relationships", { params: { path: { id } } })).items; },
+    async listAgentSessions(id) { return requireAPIData<{ items: readonly AgentSession[] }>(await client.GET("/api/v1/agents/{id}/sessions", { params: { path: { id } } })).items; },
+    async getHomeSummary() { return requireAPIData<HomeSummary>(await client.GET("/api/v1/home/summary")); },
   };
 }
 
@@ -163,9 +157,7 @@ export function AgentSecurityView({ path, onNavigate, api, state = "ready" }: { 
 
 type ConnectedData =
   | { kind: "home"; value: HomeSummary }
-  | { kind: "inventory"; title: string; category: "agent" | "tool" | "identity" | "runtime"; values: readonly InventoryRecord[] }
-  | { kind: "findings"; values: readonly Finding[] }
-  | { kind: "paths"; values: readonly AttackPath[] };
+  | { kind: "inventory"; title: string; category: "agent" | "tool" | "identity" | "runtime"; values: readonly InventoryRecord[] };
 
 function ConnectedAgentSecurityView({ path, onNavigate }: { path: string; onNavigate: (path: string) => void }) {
   const { client } = useAPI();
@@ -177,8 +169,6 @@ function ConnectedAgentSecurityView({ path, onNavigate }: { path: string; onNavi
     case "/inventory/tools": return { kind: "inventory", title: "Tools & MCP", category: "tool", values: await api.listTools() };
     case "/identities": return { kind: "inventory", title: "Identities", category: "identity", values: await api.listIdentities() };
     case "/inventory/runtimes": return { kind: "inventory", title: "Runtimes", category: "runtime", values: await api.listRuntimes() };
-    case "/violations": return { kind: "findings", values: await api.listFindings() };
-    case "/exposure/attack-paths": return { kind: "paths", values: await api.listAttackPaths() };
     default: throw new Error("Production route unavailable");
     }
   }, [api, path]);
@@ -187,39 +177,24 @@ function ConnectedAgentSecurityView({ path, onNavigate }: { path: string; onNavi
   if (query.status === "forbidden") return <div className="page"><PageHeader title="Forbidden" description="This scope is not authorized." /><div role="alert">Authorization rejected</div></div>;
   if (query.status === "error") return <div className="page"><PageHeader title="Unavailable" description="Product data is unavailable." /><div role="alert">Product API unavailable</div><Button onClick={() => void query.retry()}>Retry</Button></div>;
   if (!query.data) return <div className="page"><PageHeader title="Empty" description="No records are available in this scope." /><p>No records in this scope.</p></div>;
-  return <>{query.status === "stale" && <div role="alert" className="form-error">Showing stale data; mutations are disabled.</div>}<ConnectedDataView data={query.data} api={api} stale={query.status === "stale"} onNavigate={onNavigate} /></>;
+  return <>{query.status === "stale" && <div role="alert" className="form-error">Showing stale data.</div>}<ConnectedDataView data={query.data} api={api} onNavigate={onNavigate} /></>;
 }
 
-function ConnectedDataView({ data, api, stale, onNavigate }: { data: ConnectedData; api: AgentSecurityAPI; stale: boolean; onNavigate: (path: string) => void }) {
+function ConnectedDataView({ data, api, onNavigate }: { data: ConnectedData; api: ProductionAgentSecurityAPI; onNavigate: (path: string) => void }) {
   if (data.kind === "home") {
-    return <ConnectedHome value={data.value} api={api} onNavigate={onNavigate} />;
+    return <ConnectedHome value={data.value} onNavigate={onNavigate} />;
   }
   if (data.kind === "inventory") {
     return <ConnectedInventory title={data.title} category={data.category} values={data.values} api={api} />;
   }
-  if (data.kind === "findings") return <ConnectedFindings initial={data.values} api={api} disabled={stale} />;
-  return <ConnectedPaths values={data.values} api={api} />;
+  return null;
 }
 
-function ConnectedHome({ value, api, onNavigate }: { value: HomeSummary; api: AgentSecurityAPI; onNavigate: (path: string) => void }) {
-  const [search, setSearch] = useState("");
-  const [results, setResults] = useState<readonly SearchResult[]>([]);
-  const [searchError, setSearchError] = useState(false);
-  const submit = async () => {
-    if (search.trim().length < 2) return;
-    try {
-      setResults(await api.search(search.trim()));
-      setSearchError(false);
-    } catch {
-      setSearchError(true);
-      setResults([]);
-    }
-  };
-  const resultPath = (type: string) => type === "agent" ? "/discovery/assets" : type === "tool" ? "/inventory/tools" : type === "identity" ? "/identities" : type === "runtime" ? "/inventory/runtimes" : "/";
-  return <div className="page"><PageHeader title="Security overview" description="Authoritative posture for the selected scope." /><form className="data-toolbar" onSubmit={(event) => { event.preventDefault(); void submit(); }}><SearchBox aria-label="Search authorized records" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search authorized records" /><Button type="submit">Search</Button></form>{searchError && <div role="alert">Search unavailable</div>}{results.length > 0 && <Card title="Search results">{results.map((result) => <button className="row-title" key={result.id} aria-label={`Open search result ${result.name}`} onClick={() => onNavigate(resultPath(result.type))}>{result.name} · {result.type}</button>)}</Card>}<MetricGrid metrics={[{ label: "Agents", value: value.agent_count, onClick: () => onNavigate("/discovery/assets") }, { label: "High-risk paths", value: value.high_risk_paths, tone: "danger", onClick: () => onNavigate("/exposure/attack-paths") }, { label: "Verified changes", value: value.verified_changes }, { label: "Blocked changes", value: value.blocked_changes }]} />{value.attention_required && <div role="alert" className="form-error">Attention required</div>}</div>;
+function ConnectedHome({ value, onNavigate }: { value: HomeSummary; onNavigate: (path: string) => void }) {
+  return <div className="page"><PageHeader title="Security overview" description="Authoritative posture for the selected scope." /><MetricGrid metrics={[{ label: "Agents", value: value.agent_count, onClick: () => onNavigate("/discovery/assets") }, { label: "Verified changes", value: value.verified_changes }, { label: "Blocked changes", value: value.blocked_changes }]} />{value.attention_required && <div role="alert" className="form-error">Attention required</div>}</div>;
 }
 
-function ConnectedInventory({ title, category, values, api }: { title: string; category: "agent" | "tool" | "identity" | "runtime"; values: readonly InventoryRecord[]; api: AgentSecurityAPI }) {
+function ConnectedInventory({ title, category, values, api }: { title: string; category: "agent" | "tool" | "identity" | "runtime"; values: readonly InventoryRecord[]; api: ProductionAgentSecurityAPI }) {
   const [selected, setSelected] = useState<InventoryRecord | null>(null);
   const [detailError, setDetailError] = useState(false);
   const open = async (item: InventoryRecord) => {
@@ -232,30 +207,4 @@ function ConnectedInventory({ title, category, values, api }: { title: string; c
     }
   };
   return <div className="page"><PageHeader title={title} description="Authorized canonical inventory." />{detailError && <div role="alert">Inventory detail unavailable</div>}<Card>{values.length === 0 ? <p>No records in this scope.</p> : <div className="table-scroll"><table className="data-table"><thead><tr><th>Name</th><th>Owner</th><th>Last seen</th></tr></thead><tbody>{values.map((item) => <tr key={item.id}><td><button className="row-title" aria-label={`Open ${item.name}`} onClick={() => void open(item)}>{item.name}</button></td><td>{item.owner || "Unowned"}</td><td>{item.last_seen}</td></tr>)}</tbody></table></div>}</Card>{selected && <Drawer open title={selected.name} onClose={() => setSelected(null)}><div className="detail-content"><h3>Canonical record</h3><code>{selected.id}</code><h3>Ownership</h3><p>{selected.owner || "Unowned"} · {selected.team || "No team"}</p><h3>Evidence and freshness</h3><p>{selected.evidence_id} · last seen {selected.last_seen}</p></div></Drawer>}</div>;
-}
-
-function ConnectedPaths({ values, api }: { values: readonly AttackPath[]; api: AgentSecurityAPI }) {
-  const [selected, setSelected] = useState<AttackPath | null>(null);
-  const [breakOptions, setBreakOptions] = useState<readonly BreakOption[]>([]);
-  const [error, setError] = useState(false);
-  const open = async (path: AttackPath) => {
-    setSelected(path);
-    try {
-      setBreakOptions(await api.getAttackPathBreakOptions(path.id));
-      setError(false);
-    } catch {
-      setBreakOptions([]);
-      setError(true);
-    }
-  };
-  return <div className="page"><PageHeader title="Attack Paths" description="Authorized evidence paths." /><Card>{values.length === 0 ? <p>No attack paths in this scope.</p> : values.map((path) => <div key={path.id}><button className="row-title" aria-label={`Open attack path ${path.entry_id} to ${path.sink_id}`} onClick={() => void open(path)}>{path.entry_id} → {path.sink_id}</button><p>{path.state} · {path.node_ids.length} nodes</p></div>)}</Card>{selected && <Drawer open title="Attack path detail" onClose={() => setSelected(null)}><div className="detail-content"><h3>Evidence</h3>{selected.evidence_ids.map((id) => <code key={id}>{id}</code>)}<h3>Break options</h3>{error ? <div role="alert">Break options unavailable</div> : breakOptions.map((option) => <p key={`${option.kind}:${option.target_id}`}>{option.rank}. Enforce policy at {option.target_id}</p>)}</div></Drawer>}</div>;
-}
-
-function ConnectedFindings({ initial, api, disabled }: { initial: readonly Finding[]; api: AgentSecurityAPI; disabled: boolean }) {
-  const [values, setValues] = useState(() => [...initial]);
-  const update = async (finding: Finding) => {
-    const updated = await api.updateFinding(finding.id);
-    setValues((current) => current.map((item) => item.id === updated.id ? updated : item));
-  };
-  return <div className="page"><PageHeader title="Findings" description="Authoritative findings for the selected scope." /><Card>{values.length === 0 ? <p>No findings in this scope.</p> : values.map((finding) => <div key={finding.id}><strong>{finding.title}</strong><p>{finding.severity} · <span>{finding.status}</span></p><Button disabled={disabled} onClick={() => void update(finding)}>Mark {finding.title} under review</Button></div>)}</Card></div>;
 }

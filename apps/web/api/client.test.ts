@@ -1,6 +1,6 @@
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
-import { APITransportError, createAPIClient } from "./client";
+import { APIProductError, APITransportError, createAPIClient, requireAPIData } from "./client";
 import type { ProductID } from "./client";
 import type {
   Cursor,
@@ -15,6 +15,20 @@ function assertProductErrorIsReadonly(value: ProductError) {
 }
 
 describe("generated API client", () => {
+	it("preserves a validated product error with status and correlation", () => {
+		const error = {
+			code: "authorization_rejected", message: "Authorization rejected",
+			correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: false,
+		};
+		expect(() => requireAPIData({ error, response: new Response(JSON.stringify(error), { status: 403 }) }))
+			.toThrow(expect.objectContaining({ name: "APIProductError", status: 403, product: error }));
+		try {
+			requireAPIData({ error, response: new Response(JSON.stringify(error), { status: 403 }) });
+		} catch (caught) {
+			expect(caught).toBeInstanceOf(APIProductError);
+			expect((caught as APIProductError).correlationID).toBe(error.correlation_id);
+		}
+	});
   it("exposes the exact immutable root component and identity-path types", () => {
     const correlationID = "pid_12345678-1234-4123-8123-123456789abc" as ProductID;
     const cursor = "YQ" as Cursor;
