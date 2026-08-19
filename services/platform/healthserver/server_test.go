@@ -90,6 +90,38 @@ func TestReadinessProbesBackOffWithoutOverlapAndRecover(t *testing.T) {
 	}
 }
 
+func TestReadyPropagatesCancellationToBlockedProbe(t *testing.T) {
+	probeStarted := make(chan struct{})
+	probeDone := make(chan struct{})
+	server, err := New(Config{Service: "agentsec-api", Version: "dev", ReadyCheck: func(ctx context.Context) bool {
+		close(probeStarted)
+		<-ctx.Done()
+		close(probeDone)
+		return false
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	result := make(chan bool, 1)
+	go func() { result <- server.ready(ctx) }()
+	<-probeStarted
+	cancel()
+	select {
+	case ready := <-result:
+		if ready {
+			t.Fatal("canceled provider probe reported ready")
+		}
+	case <-time.After(250 * time.Millisecond):
+		t.Fatal("provider probe did not observe runtime cancellation")
+	}
+	select {
+	case <-probeDone:
+	default:
+		t.Fatal("provider probe did not finish before readiness returned")
+	}
+}
+
 func TestNewRejectsInvalidSharedConfiguration(t *testing.T) {
 	t.Parallel()
 

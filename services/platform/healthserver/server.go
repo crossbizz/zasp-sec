@@ -104,7 +104,7 @@ func (server *Server) Serve(ctx context.Context, listener net.Listener) error {
 	probeCtx, cancelProbes := context.WithCancel(ctx)
 	probeDone := make(chan struct{})
 	go func() {
-		runReadyProbes(probeCtx, server.readyInterval, server.readyMaxInterval, func(context.Context) bool { return server.ready() }, server.handler.SetReady)
+		runReadyProbes(probeCtx, server.readyInterval, server.readyMaxInterval, server.ready, server.handler.SetReady)
 		close(probeDone)
 	}()
 	go func() {
@@ -169,7 +169,7 @@ func runReadyProbes(ctx context.Context, interval, maximum time.Duration, check 
 	}
 }
 
-func (server *Server) ready() (ready bool) {
+func (server *Server) ready(ctx context.Context) (ready bool) {
 	if server.readyCheck == nil {
 		return true
 	}
@@ -178,7 +178,7 @@ func (server *Server) ready() (ready bool) {
 			ready = false
 		}
 	}()
-	return server.readyCheck(context.Background())
+	return server.readyCheck(ctx)
 }
 
 func invalidInterface(value any) bool {
