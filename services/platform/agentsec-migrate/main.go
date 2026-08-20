@@ -65,6 +65,8 @@ type releaseMigrationRunner interface {
 	DownReferenceAuthorization(context.Context) error
 	UpProductionDiscoveryExecution(context.Context) error
 	DownProductionDiscoveryExecution(context.Context) error
+	UpProductionTypedInventoryCutover(context.Context) error
+	DownProductionTypedInventoryCutover(context.Context) error
 	DownWorkflowReceiptSafety(context.Context) error
 	DownWorkflowReceipts(context.Context) error
 	DownWorkflows(context.Context) error
@@ -121,7 +123,7 @@ func registerReleasePrincipals(ctx context.Context, queryer principalQueryer, re
 		{`SELECT session_user=$1`, []any{registration.migration}},
 		{`SELECT zasp_discovery_register_principals($1,$2,$3,$4,$5,$6,$7)`, []any{registration.migration, registration.api, registration.discovery, registration.ingest, registration.runtime, registration.outbox, registration.gateway}},
 		{`SELECT zasp_execution_register_principals($1,$2,$3,$4,$5,$6)`, []any{registration.migration, registration.scheduler, registration.discovery, registration.projectionRisk, registration.projectionGraph, registration.projectionSearch}},
-		{`SELECT zasp_execution_readiness($1,$2)`, []any{migrations.ProductionDiscoveryExecution().Checksum(), migrations.ProductionDiscoveryExecutionSemanticFingerprint()}},
+		{`SELECT zasp_inventory_readiness($1,$2)`, []any{migrations.ProductionTypedInventoryCutover().Checksum(), migrations.ProductionTypedInventoryCutoverSemanticFingerprint()}},
 	}
 	for _, check := range checks {
 		ready = false
@@ -260,10 +262,22 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 			}
 			version = 13
 		}
-		if version != 13 {
+		if version == 13 {
+			if err := runner.UpProductionTypedInventoryCutover(ctx); err != nil {
+				return err
+			}
+			version = 14
+		}
+		if version != 14 {
 			return migrations.ErrInvalidState
 		}
 	case "down":
+		if version == 14 {
+			if err := runner.DownProductionTypedInventoryCutover(ctx); err != nil {
+				return err
+			}
+			version = 13
+		}
 		if version == 13 {
 			if err := runner.DownProductionDiscoveryExecution(ctx); err != nil {
 				return err

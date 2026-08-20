@@ -233,6 +233,24 @@ func (runner *scriptedMigrationRunner) DownProductionDiscoveryExecution(context.
 	return nil
 }
 
+func (runner *scriptedMigrationRunner) UpProductionTypedInventoryCutover(context.Context) error {
+	runner.events = append(runner.events, "up-production-typed-inventory-cutover")
+	if runner.errAt == "up-production-typed-inventory-cutover" {
+		return errors.New("detail")
+	}
+	runner.version = 14
+	return nil
+}
+
+func (runner *scriptedMigrationRunner) DownProductionTypedInventoryCutover(context.Context) error {
+	runner.events = append(runner.events, "down-production-typed-inventory-cutover")
+	if runner.errAt == "down-production-typed-inventory-cutover" {
+		return errors.New("detail")
+	}
+	runner.version = 13
+	return nil
+}
+
 func (runner *scriptedMigrationRunner) DownWorkflowReceiptSafety(context.Context) error {
 	runner.events = append(runner.events, "down-receipt-safety")
 	if runner.errAt == "down-receipt-safety" {
@@ -298,6 +316,8 @@ func TestRunReleaseMigrationReachesExactTargetStateIdempotently(t *testing.T) {
 		{direction: "up", version: 11, want: []string{"version", "version"}},
 		{direction: "up", version: 12, want: []string{"version", "version"}},
 		{direction: "up", version: 13, want: []string{"version", "version"}},
+		{direction: "up", version: 14, want: []string{"version", "version"}},
+		{direction: "down", version: 14, want: []string{"version", "down-production-typed-inventory-cutover", "down-production-discovery-execution", "down-reference-authorization", "down-connector-authorization", "down-production-discovery", "down-production-risk-projection", "down-api-token-reveal-grants", "down-production-administration", "down-receipt-provenance", "down-receipt-safety", "down-receipts", "down-workflows", "down-core", "down-baseline", "version"}},
 		{direction: "down", version: 13, want: []string{"version", "down-production-discovery-execution", "down-reference-authorization", "down-connector-authorization", "down-production-discovery", "down-production-risk-projection", "down-api-token-reveal-grants", "down-production-administration", "down-receipt-provenance", "down-receipt-safety", "down-receipts", "down-workflows", "down-core", "down-baseline", "version"}},
 		{direction: "down", version: 12, want: []string{"version", "down-reference-authorization", "down-connector-authorization", "down-production-discovery", "down-production-risk-projection", "down-api-token-reveal-grants", "down-production-administration", "down-receipt-provenance", "down-receipt-safety", "down-receipts", "down-workflows", "down-core", "down-baseline", "version"}},
 		{direction: "down", version: 11, want: []string{"version", "down-connector-authorization", "down-production-discovery", "down-production-risk-projection", "down-api-token-reveal-grants", "down-production-administration", "down-receipt-provenance", "down-receipt-safety", "down-receipts", "down-workflows", "down-core", "down-baseline", "version"}},
@@ -322,6 +342,9 @@ func TestRunReleaseMigrationReachesExactTargetStateIdempotently(t *testing.T) {
 				if test.version <= 12 {
 					steps = append(steps, "up-production-discovery-execution")
 				}
+				if test.version <= 13 {
+					steps = append(steps, "up-production-typed-inventory-cutover")
+				}
 				test.want = append(steps, test.want[len(test.want)-1])
 			}
 			runner := &scriptedMigrationRunner{version: test.version}
@@ -342,12 +365,108 @@ func TestRunReleaseMigrationReachesExactTargetStateIdempotently(t *testing.T) {
 
 func TestRunReleaseMigrationIncludesDiscoveryExecutionRelease(t *testing.T) {
 	up := &scriptedMigrationRunner{version: 11}
-	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || !equalMigrationEvents(up.events, []string{"version", "up-reference-authorization", "up-production-discovery-execution", "version"}) {
-		t.Fatalf("v11 to v13 = %#v, %v", up.events, err)
+	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || !equalMigrationEvents(up.events, []string{"version", "up-reference-authorization", "up-production-discovery-execution", "up-production-typed-inventory-cutover", "version"}) {
+		t.Fatalf("v11 to v14 = %#v, %v", up.events, err)
 	}
-	down := &scriptedMigrationRunner{version: 13}
-	if err := runReleaseMigration(context.Background(), down, []string{"down"}); err != nil || len(down.events) < 4 || down.events[1] != "down-production-discovery-execution" || down.events[2] != "down-reference-authorization" {
-		t.Fatalf("v13 down = %#v, %v", down.events, err)
+	down := &scriptedMigrationRunner{version: 14}
+	if err := runReleaseMigration(context.Background(), down, []string{"down"}); err != nil || len(down.events) < 5 || down.events[1] != "down-production-typed-inventory-cutover" || down.events[2] != "down-production-discovery-execution" || down.events[3] != "down-reference-authorization" {
+		t.Fatalf("v14 down = %#v, %v", down.events, err)
+	}
+}
+
+func TestAgentsecMigrateCLIReachesV14FromV13AndRollsBackBeforeCutover(t *testing.T) {
+	up := &scriptedMigrationRunner{version: 13}
+	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || !equalMigrationEvents(up.events, []string{"version", "up-production-typed-inventory-cutover", "version"}) {
+		t.Fatalf("v13 to v14 = %#v, %v", up.events, err)
+	}
+	down := &scriptedMigrationRunner{version: 14}
+	if err := runReleaseMigration(context.Background(), down, []string{"down"}); err != nil || len(down.events) < 3 || down.events[1] != "down-production-typed-inventory-cutover" || down.events[2] != "down-production-discovery-execution" {
+		t.Fatalf("v14 down = %#v, %v", down.events, err)
+	}
+}
+
+func TestAgentsecMigrateV14LiveFingerprintMatchesPinnedAuthority(t *testing.T) {
+	dsn := startMigrationPostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	connection := connectMigrationPostgres(t, ctx, dsn)
+	defer func() { _ = connection.Close(context.Background()) }()
+	runner, err := migrations.NewRunner(&migrationDatabase{connection: connection})
+	if err != nil {
+		t.Fatal(err)
+	}
+	steps := []func(context.Context) error{
+		runner.Up, runner.UpCore, runner.UpWorkflows, runner.UpWorkflowReceipts, runner.UpWorkflowReceiptSafety, runner.UpWorkflowReceiptProvenance,
+		runner.UpProductionAdministration, runner.UpAPITokenRevealGrants, runner.UpProductionRiskProjection, runner.UpProductionDiscovery,
+		runner.UpConnectorAuthorization, runner.UpReferenceAuthorization, runner.UpProductionDiscoveryExecution,
+	}
+	for index, step := range steps {
+		if err := step(ctx); err != nil {
+			t.Fatalf("v13 setup step %d: %v", index+1, err)
+		}
+	}
+	transaction, err := connection.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = transaction.Rollback(context.Background()) }()
+	if _, err := transaction.Exec(ctx, migrations.ProductionTypedInventoryCutover().UpSQL()); err != nil {
+		t.Fatalf("v14 SQL: %v", err)
+	}
+	var live string
+	if err := transaction.QueryRow(ctx, `SELECT zasp_inventory_live_fingerprint()`).Scan(&live); err != nil {
+		t.Fatal(err)
+	}
+	if live != migrations.ProductionTypedInventoryCutoverSemanticFingerprint() {
+		t.Fatalf("v14 live fingerprint = %s, pinned = %s", live, migrations.ProductionTypedInventoryCutoverSemanticFingerprint())
+	}
+}
+
+func TestAgentsecMigrateV14InstallsRollsBackReappliesAndBlocksPostCutoverRollback(t *testing.T) {
+	dsn := startMigrationPostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	connection := connectMigrationPostgres(t, ctx, dsn)
+	defer func() { _ = connection.Close(context.Background()) }()
+	runner, err := migrations.NewRunner(&migrationDatabase{connection: connection})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
+		t.Fatalf("install v14: %v", err)
+	}
+	if version, versionErr := runner.Version(ctx); versionErr != nil || version != 14 {
+		t.Fatalf("installed version = (%d, %v)", version, versionErr)
+	}
+	if err := runner.DownProductionTypedInventoryCutover(ctx); err != nil {
+		t.Fatalf("pre-cutover down: %v", err)
+	}
+	var executionReady bool
+	if err := connection.QueryRow(ctx, `SELECT zasp_execution_readiness($1,$2)`, migrations.ProductionDiscoveryExecution().Checksum(), migrations.ProductionDiscoveryExecutionSemanticFingerprint()).Scan(&executionReady); err != nil || !executionReady {
+		t.Fatalf("v13 readiness after down = %v, %v", executionReady, err)
+	}
+	if err := runner.UpProductionTypedInventoryCutover(ctx); err != nil {
+		t.Fatalf("v14 reapply: %v", err)
+	}
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_inventory_cutover_state(
+		organization_id,workspace_id,environment_id,phase,rule_catalog_digest,legacy_digest,typed_digest,
+		backfilled_at,equivalent_at,cutover_at
+	) VALUES(
+		'pid_74000001-0000-4000-8000-000000000001','pid_74000002-0000-4000-8000-000000000002','pid_74000003-0000-4000-8000-000000000003',
+		'cutover','a2ac63a7fc968b0c0c883a999418e1eb14c2d8de3ffe62e95717b7dea6133c52',decode(repeat('ab',32),'hex'),decode(repeat('ab',32),'hex'),
+		transaction_timestamp(),transaction_timestamp(),transaction_timestamp()
+	)`); err != nil {
+		t.Fatalf("mark cutover: %v", err)
+	}
+	if err := runner.DownProductionTypedInventoryCutover(ctx); !errors.Is(err, migrations.ErrInvalidState) {
+		t.Fatalf("post-cutover down error = %v", err)
+	}
+	if version, versionErr := runner.Version(ctx); versionErr != nil || version != 14 {
+		t.Fatalf("blocked rollback version = (%d, %v)", version, versionErr)
+	}
+	var inventoryReady bool
+	if err := connection.QueryRow(ctx, `SELECT zasp_inventory_readiness($1,$2)`, migrations.ProductionTypedInventoryCutover().Checksum(), migrations.ProductionTypedInventoryCutoverSemanticFingerprint()).Scan(&inventoryReady); err != nil || !inventoryReady {
+		t.Fatalf("v14 readiness after blocked rollback = %v, %v", inventoryReady, err)
 	}
 }
 
@@ -364,7 +483,7 @@ func equalMigrationEvents(left, right []string) bool {
 }
 
 func TestRunReleaseMigrationRejectsDriftAndHonorsDeadline(t *testing.T) {
-	if err := runReleaseMigration(context.Background(), &scriptedMigrationRunner{version: 14}, []string{"up"}); !errors.Is(err, migrations.ErrInvalidState) {
+	if err := runReleaseMigration(context.Background(), &scriptedMigrationRunner{version: 15}, []string{"up"}); !errors.Is(err, migrations.ErrInvalidState) {
 		t.Fatalf("drift error = %v", err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -430,13 +549,13 @@ func (queryer *scriptedPrincipalQueryer) QueryRow(_ context.Context, statement s
 	return scriptedPrincipalRow{value: value}
 }
 
-func TestRegisterReleasePrincipalsRequiresPostRegistrationExecutionReadiness(t *testing.T) {
+func TestRegisterReleasePrincipalsRequiresPostRegistrationInventoryReadiness(t *testing.T) {
 	registration := discoveryPrincipalRegistration{migration: "migration_login", api: "api_login", discovery: "discovery_login", ingest: "ingest_login", runtime: "runtime_login", outbox: "outbox_login", gateway: "gateway_login", scheduler: "scheduler_login", projectionRisk: "risk_login", projectionGraph: "graph_login", projectionSearch: "search_login"}
 	queryer := &scriptedPrincipalQueryer{values: []bool{true, true, true, false}}
 	if err := registerReleasePrincipals(context.Background(), queryer, registration); !errors.Is(err, errReleasePrincipalRegistration) {
 		t.Fatalf("readiness error=%v", err)
 	}
-	if len(queryer.statements) != 4 || !strings.Contains(queryer.statements[3], "zasp_execution_readiness") {
+	if len(queryer.statements) != 4 || !strings.Contains(queryer.statements[3], "zasp_inventory_readiness") {
 		t.Fatalf("registration statements=%#v", queryer.statements)
 	}
 	queryer = &scriptedPrincipalQueryer{values: []bool{true, true, true, true}}
@@ -445,7 +564,7 @@ func TestRegisterReleasePrincipalsRequiresPostRegistrationExecutionReadiness(t *
 	}
 }
 
-func TestAgentsecMigrateCLIReachesV13FromEmptyAndV12(t *testing.T) {
+func TestAgentsecMigrateCLIReachesV14FromEmptyAndV12(t *testing.T) {
 	dsn := startMigrationPostgres(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
@@ -476,7 +595,7 @@ func TestAgentsecMigrateCLIReachesV13FromEmptyAndV12(t *testing.T) {
 		if output, commandErr := command.CombinedOutput(); commandErr != nil {
 			t.Fatalf("%s: %v output=%q", label, commandErr, output)
 		}
-		if version, versionErr := runner.Version(ctx); versionErr != nil || version != 13 {
+		if version, versionErr := runner.Version(ctx); versionErr != nil || version != 14 {
 			t.Fatalf("%s version = (%d, %v)", label, version, versionErr)
 		}
 		var bindings int
@@ -484,17 +603,17 @@ func TestAgentsecMigrateCLIReachesV13FromEmptyAndV12(t *testing.T) {
 			t.Fatalf("%s principal bindings=%d err=%v", label, bindings, err)
 		}
 	}
-	runCLI("empty to v13")
+	runCLI("empty to v14")
 	var connectorReady bool
 	if err := connection.QueryRow(ctx, `SELECT zasp_connector_security_ready()`).Scan(&connectorReady); err != nil || !connectorReady {
 		t.Fatalf("connector security ready before down=%v err=%v", connectorReady, err)
 	}
-	var executionReleaseReady bool
-	if err := connection.QueryRow(ctx, `SELECT zasp_execution_readiness($1,$2)`, migrations.ProductionDiscoveryExecution().Checksum(), migrations.ProductionDiscoveryExecutionSemanticFingerprint()).Scan(&executionReleaseReady); err != nil || !executionReleaseReady {
+	var inventoryReleaseReady bool
+	if err := connection.QueryRow(ctx, `SELECT zasp_inventory_readiness($1,$2)`, migrations.ProductionTypedInventoryCutover().Checksum(), migrations.ProductionTypedInventoryCutoverSemanticFingerprint()).Scan(&inventoryReleaseReady); err != nil || !inventoryReleaseReady {
 		var securityReady, referenceReady bool
 		var memberships string
 		_ = connection.QueryRow(ctx, `SELECT zasp_execution_security_ready(),zasp_reference_authorization_security_ready(),COALESCE(string_agg(role_name||':'||member_name||':'||admin_option,',' ORDER BY role_name,member_name),'') FROM (SELECT role.rolname role_name,member.rolname member_name,membership.admin_option::text FROM pg_auth_members membership JOIN pg_roles role ON role.oid=membership.roleid JOIN pg_roles member ON member.oid=membership.member WHERE role.rolname IN('zasp_discovery_scheduler','zasp_projection_risk_worker','zasp_projection_graph_worker','zasp_projection_search_worker')) memberships`).Scan(&securityReady, &referenceReady, &memberships)
-		t.Fatalf("execution release ready before down=%v security=%v reference=%v memberships=%s err=%v", executionReleaseReady, securityReady, referenceReady, memberships, err)
+		t.Fatalf("inventory release ready before down=%v security=%v reference=%v memberships=%s err=%v", inventoryReleaseReady, securityReady, referenceReady, memberships, err)
 	}
 	var executionBindings int
 	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_discovery_execution_principals`).Scan(&executionBindings); err != nil || executionBindings != 5 {
@@ -549,6 +668,9 @@ func TestAgentsecMigrateCLIReachesV13FromEmptyAndV12(t *testing.T) {
 		t.Fatalf("execution API privileges read=%v worker=%v legacy_sync=%v raw_subject=%v legacy_reference=%v err=%v", apiRead, apiWorker, legacySync, rawSubject, legacyReference, err)
 	}
 	apiConnection.Close(context.Background())
+	if err := runner.DownProductionTypedInventoryCutover(ctx); err != nil {
+		t.Fatalf("v14 to v13 fixture: %v", err)
+	}
 	if err := runner.DownProductionDiscoveryExecution(ctx); err != nil {
 		_, detail := connection.Exec(ctx, migrations.ProductionDiscoveryExecution().DownSQL())
 		t.Fatalf("v13 to v12 fixture: %v detail=%#v", err, detail)
@@ -556,7 +678,7 @@ func TestAgentsecMigrateCLIReachesV13FromEmptyAndV12(t *testing.T) {
 	if err := runner.DownReferenceAuthorization(ctx); err != nil {
 		t.Fatalf("v12 to v11 fixture: %v", err)
 	}
-	runCLI("v11 to v13")
+	runCLI("v11 to v14")
 }
 
 func TestRunReleaseMigrationRejectsAmbiguousInputsAndStopsOnFailure(t *testing.T) {
@@ -585,22 +707,22 @@ func TestReleaseMigrationReachesExactPostgresTargetFromEmptyV1AndV2AndRejectsDri
 		t.Fatal(err)
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
-		t.Fatalf("empty to v13: %v", err)
+		t.Fatalf("empty to v14: %v", err)
 	}
-	if version, err := runner.Version(ctx); err != nil || version != 13 {
-		t.Fatalf("v13 = (%d, %v)", version, err)
+	if version, err := runner.Version(ctx); err != nil || version != 14 {
+		t.Fatalf("v14 = (%d, %v)", version, err)
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
-		t.Fatalf("v13 retry: %v", err)
+		t.Fatalf("v14 retry: %v", err)
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"down"}); err != nil {
-		t.Fatalf("v13 to empty: %v", err)
+		t.Fatalf("v14 to empty: %v", err)
 	}
 	if err := runner.Up(ctx); err != nil {
 		t.Fatalf("create v1: %v", err)
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
-		t.Fatalf("v1 to v13: %v", err)
+		t.Fatalf("v1 to v14: %v", err)
 	}
 	if _, err := connection.Exec(ctx, `UPDATE zasp_schema_versions SET checksum = repeat('0', 64) WHERE version = 2`); err != nil {
 		t.Fatal(err)
@@ -624,7 +746,10 @@ func TestV6ReceiptlessPATReplayUsesDurableMarkerAndBlocksEveryRollbackWithoutPar
 		t.Fatal(err)
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
-		t.Fatalf("empty to v13: %v", err)
+		t.Fatalf("empty to v14: %v", err)
+	}
+	if err := runner.DownProductionTypedInventoryCutover(ctx); err != nil {
+		t.Fatalf("v14 to v13 fixture: %v", err)
 	}
 	if err := runner.DownProductionDiscoveryExecution(ctx); err != nil {
 		t.Fatalf("v13 to v12 fixture: %v", err)
@@ -1052,6 +1177,9 @@ func migrateToV6(t *testing.T, ctx context.Context, connection *pgx.Conn) *migra
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
 		t.Fatalf("migrate to v6: %v", err)
+	}
+	if err := runner.DownProductionTypedInventoryCutover(ctx); err != nil {
+		t.Fatalf("down typed inventory cutover: %v", err)
 	}
 	if err := runner.DownProductionDiscoveryExecution(ctx); err != nil {
 		t.Fatalf("down production discovery execution: %v", err)
