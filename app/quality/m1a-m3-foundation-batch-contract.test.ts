@@ -37,10 +37,13 @@ describe("M1A and M3 foundation batch", () => {
     expect(outputs).not.toContain('output "product_role_arn"');
   });
 
-  it("publishes mounted integration definitions and only the launch authorization routes", async () => {
+  it("publishes mounted integration definitions, launch authorization, and Task 4 discovery routes", async () => {
     const openapi = await readFile(resolve(root, "openapi/openapi.yaml"), "utf8");
-    for (const operation of ["listIntegrationCatalog", "listIntegrations", "createIntegration", "getIntegration", "updateIntegration", "deleteIntegration", "authorizeIntegration", "authorizeIntegrationReference", "completeIntegrationOAuthCallback"]) expect(openapi).toContain(`operationId: ${operation}`);
-    for (const operation of ["syncIntegration", "listIntegrationSyncs", "getIntegrationSync"]) expect(openapi).not.toContain(`operationId: ${operation}`);
+    for (const operation of [
+      "listIntegrationCatalog", "listIntegrations", "createIntegration", "getIntegration", "updateIntegration", "deleteIntegration",
+      "authorizeIntegration", "authorizeIntegrationReference", "completeIntegrationOAuthCallback",
+      "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness",
+    ]) expect(openapi).toContain(`operationId: ${operation}`);
     const section = openapi.match(/ {2}\/api\/v1\/integration-catalog:[\s\S]*?(?=security:)/)?.[0] ?? "";
     expect(section).not.toMatch(/nango|cartography|prowler|adapter_key/i);
   });

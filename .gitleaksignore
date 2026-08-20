@@ -90,3 +90,8 @@ df08ea7b4bbca1f8e0b7ec25726d564996af93b7:services/platform/apiserver/connector_a
 # findings; changed or relocated values remain detectable.
 e17eb5670ce1a04d2daf071c460164858aeaa10b:services/platform/apiserver/workflow_handler_test.go:generic-api-key:462
 e17eb5670ce1a04d2daf071c460164858aeaa10b:services/platform/apiserver/workflow_handler_test.go:generic-api-key:480
+
+# Task 4 receipt binding uses one descriptive idempotency-key literal only in
+# the hermetic repository validator test. Ignore only its exact introduction
+# finding; changed or relocated values remain detectable.
+1cd938e715bdcb07d6d66b338455f72f0d31f671:services/platform/apiserver/workflow_repository_test.go:generic-api-key:224

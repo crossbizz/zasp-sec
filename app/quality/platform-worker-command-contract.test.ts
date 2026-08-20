@@ -70,7 +70,7 @@ describe("M1-01e platform worker command repository contract", () => {
     expect(tracker).toContain("R-11 remains Not run");
   });
 
-  it("keeps the worker in the service-local module with only version output", async () => {
+  it("keeps the worker in the service-local module with bounded production bootstrap and version output", async () => {
     const [goModule, command, commandTest] = await Promise.all([
       readFile(resolve(repositoryRoot, "services/platform/go.mod"), "utf8"),
       readFile(resolve(repositoryRoot, "services/platform/agentsec-worker/main.go"), "utf8"),
@@ -81,7 +81,9 @@ describe("M1-01e platform worker command repository contract", () => {
     expect(command).toContain('buildVersion           = "dev"');
     expect(command).toContain('io.WriteString(output, "agentsec-worker build "+version+"\\n")');
     expect(command).toContain("len(version) > 64");
-    expect(command).not.toContain("os.Getenv");
+    expect(command).toContain("loadWorkerRuntimeConfig(os.Getenv)");
+    expect(command).toContain("buildWorkerRuntime(ctx, config)");
+    expect(command).toContain("serveWorkerRuntime(ctx, os.Stdout, buildVersion, config, dependencies, net.Listen)");
     expect(command).not.toContain('"net/http"');
     expect(command).not.toContain('"flag"');
     expect(command).not.toContain('"time"');
