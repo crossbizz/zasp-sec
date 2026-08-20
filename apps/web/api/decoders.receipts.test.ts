@@ -97,6 +97,20 @@ describe("workflow mutation receipt decoder", () => {
     }
   });
 
+  it.each([
+    ["create resource version drift", "createIntegration", (value: MutableReceipt) => { value.resource_version = 2; }],
+    ["update resource version drift", "updateIntegration", (value: MutableReceipt) => { value.resource_version = 3; }],
+    ["delete resource version drift", "deleteIntegration", (value: MutableReceipt) => { value.resource_version = 3; }],
+    ["other delete resource", "deleteIntegration", (value: MutableReceipt) => { value.intent = { ...value.intent, resource_id: "pid_20000001-0000-4000-8000-000000000099" }; }],
+    ["nonempty delete body", "deleteIntegration", (value: MutableReceipt) => { value.intent = { ...value.intent, body: { force: true } }; }],
+    ["unrelated create body", "createIntegration", (value: MutableReceipt) => { value.intent = { ...value.intent, body: { ...(value.intent.body as Record<string, unknown>), name: "Other" } }; }],
+    ["unrelated update body", "updateIntegration", (value: MutableReceipt) => { value.intent = { ...value.intent, body: { ...(value.intent.body as Record<string, unknown>), configuration: { installation_reference: "ref:github/installation/customer-9999" } } }; }],
+  ])("rejects integration receipt %s", (_name, operation, mutate) => {
+    const value = receipt(operation);
+    mutate(value);
+    expect(() => decodeWorkflowMutationReceipt(value)).toThrow("schema mismatch");
+  });
+
 	it("accepts an exact Kubernetes reference authorization intent", () => {
 		const value = receipt("completeIntegrationReferenceAuthorization");
 		value.result = { ...value.result, connector_key: "kubernetes", configuration: { connection_reference: "ref:kubernetes/connection/customer-0001" } };

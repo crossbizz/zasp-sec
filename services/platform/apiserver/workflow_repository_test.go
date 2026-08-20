@@ -277,6 +277,41 @@ func TestWorkflowRepositoryBindsIntegrationReceiptResultsToOperation(t *testing.
 			value.Intent = json.RawMessage(`{"body":{"name":"GitHub","configuration":{"installation_reference":"ref:github/installation/customer-0001"}},"expected_version":1,"resource_id":"` + integrationID + `"}`)
 			value.Result = json.RawMessage(`{"id":"` + integrationID + `","status":"deleted"}`)
 		},
+		"delete other resource": func(value *WorkflowMutationReceipt) {
+			value.Intent = json.RawMessage(`{"body":{},"expected_version":1,"resource_id":"pid_74000001-0000-4000-8000-000000000099"}`)
+		},
+		"delete nonempty body": func(value *WorkflowMutationReceipt) {
+			value.Intent = json.RawMessage(`{"body":{"force":true},"expected_version":1,"resource_id":"` + integrationID + `"}`)
+		},
+		"delete version drift": func(value *WorkflowMutationReceipt) { value.ResourceVersion = 3 },
+		"create wrong resource identity": func(value *WorkflowMutationReceipt) {
+			*value = valid[0]
+			value.Intent = json.RawMessage(`{"body":{"connector_key":"github","name":"GitHub","configuration":{"installation_reference":"ref:github/installation/customer-0001"}},"expected_version":0,"resource_id":"` + integrationID + `"}`)
+		},
+		"create unrelated body": func(value *WorkflowMutationReceipt) {
+			*value = valid[0]
+			value.Intent = json.RawMessage(`{"body":{"connector_key":"github","name":"Other","configuration":{"installation_reference":"ref:github/installation/customer-0001"}},"expected_version":0,"resource_id":""}`)
+		},
+		"create expected version drift": func(value *WorkflowMutationReceipt) {
+			*value = valid[0]
+			value.Intent = json.RawMessage(`{"body":{"connector_key":"github","name":"GitHub","configuration":{"installation_reference":"ref:github/installation/customer-0001"}},"expected_version":1,"resource_id":""}`)
+		},
+		"create resource version drift": func(value *WorkflowMutationReceipt) {
+			*value = valid[0]
+			value.ResourceVersion = 2
+		},
+		"update unrelated body": func(value *WorkflowMutationReceipt) {
+			*value = valid[1]
+			value.Intent = json.RawMessage(`{"body":{"name":"Other","configuration":{"installation_reference":"ref:github/installation/customer-0001"}},"expected_version":1,"resource_id":"` + integrationID + `"}`)
+		},
+		"update other resource": func(value *WorkflowMutationReceipt) {
+			*value = valid[1]
+			value.Intent = json.RawMessage(`{"body":{"name":"GitHub","configuration":{"installation_reference":"ref:github/installation/customer-0001"}},"expected_version":1,"resource_id":"pid_74000001-0000-4000-8000-000000000099"}`)
+		},
+		"update version drift": func(value *WorkflowMutationReceipt) {
+			*value = valid[1]
+			value.ResourceVersion = 3
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			value := valid[2]

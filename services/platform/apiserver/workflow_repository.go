@@ -249,12 +249,33 @@ func validWorkflowMutationReceipt(value WorkflowMutationReceipt) bool {
 		return false
 	}
 	operationKind, _, _, validOperation := workflowMutationTarget(value.Operation)
-	return validOperation && operationKind == value.ResourceKind && len(value.IdempotencyKey) >= 16 && len(value.IdempotencyKey) <= 128 && workflowKeyPattern.MatchString(value.IdempotencyKey) && validJSONObjectBody(value.Intent) && !containsSensitiveWorkflowField(value.Intent) && validJSONObjectBody(value.Result) && !containsSensitiveWorkflowField(value.Result) && validWorkflowID(value.ResourceKind, value.ResourceID) && value.ResourceVersion > 0 && !value.CreatedAt.IsZero() && value.ExpiresAt.After(value.CreatedAt) && !value.ExpiresAt.After(value.CreatedAt.Add(7*24*time.Hour)) && validIntegrationWorkflowReceiptResult(value)
+	return validOperation && operationKind == value.ResourceKind && len(value.IdempotencyKey) >= 16 && len(value.IdempotencyKey) <= 128 && workflowKeyPattern.MatchString(value.IdempotencyKey) && validJSONObjectBody(value.Intent) && !containsSensitiveWorkflowField(value.Intent) && validJSONObjectBody(value.Result) && !containsSensitiveWorkflowField(value.Result) && validWorkflowID(value.ResourceKind, value.ResourceID) && value.ResourceVersion > 0 && !value.CreatedAt.IsZero() && value.ExpiresAt.After(value.CreatedAt) && !value.ExpiresAt.After(value.CreatedAt.Add(7*24*time.Hour)) && validIntegrationWorkflowReceipt(value)
 }
 
-func validIntegrationWorkflowReceiptResult(value WorkflowMutationReceipt) bool {
+func validIntegrationWorkflowReceipt(value WorkflowMutationReceipt) bool {
 	if !stringIn(value.Operation, "createIntegration", "updateIntegration", "deleteIntegration") {
 		return true
+	}
+	if !exactJSONFields(value.Intent, "body", "expected_version", "resource_id") {
+		return false
+	}
+	var intent struct {
+		Body            json.RawMessage `json:"body"`
+		ExpectedVersion int64           `json:"expected_version"`
+		ResourceID      string          `json:"resource_id"`
+	}
+	if decodeStrictDiscovery(value.Intent, &intent) != nil {
+		return false
+	}
+	if value.Operation == "createIntegration" {
+		if intent.ExpectedVersion != 0 || intent.ResourceID != "" || value.ResourceVersion != 1 {
+			return false
+		}
+	} else if intent.ExpectedVersion < 1 || intent.ResourceID != value.ResourceID || intent.ExpectedVersion != value.ResourceVersion-1 {
+		return false
+	}
+	if value.Operation == "deleteIntegration" && !exactJSONFields(intent.Body) {
+		return false
 	}
 	if value.Operation == "deleteIntegration" && exactJSONFields(value.Result, "id", "status") {
 		var result struct {
@@ -280,7 +301,34 @@ func validIntegrationWorkflowReceiptResult(value WorkflowMutationReceipt) bool {
 			return false
 		}
 	}
-	return value.Operation != "deleteIntegration" || result.Status == "revoking"
+	if value.Operation == "deleteIntegration" {
+		return result.Status == "revoking"
+	}
+	if value.Operation == "createIntegration" {
+		var body struct {
+			ConnectorKey  string            `json:"connector_key"`
+			Name          string            `json:"name"`
+			Configuration map[string]string `json:"configuration"`
+		}
+		return exactJSONFields(intent.Body, "connector_key", "configuration", "name") && decodeStrictDiscovery(intent.Body, &body) == nil && body.ConnectorKey == result.ConnectorKey && body.Name == result.Name && equalWorkflowStringMaps(body.Configuration, result.Configuration)
+	}
+	var body struct {
+		Name          string            `json:"name"`
+		Configuration map[string]string `json:"configuration"`
+	}
+	return exactJSONFields(intent.Body, "configuration", "name") && decodeStrictDiscovery(intent.Body, &body) == nil && body.Name == result.Name && equalWorkflowStringMaps(body.Configuration, result.Configuration)
+}
+
+func equalWorkflowStringMaps(left, right map[string]string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for key, value := range left {
+		if right[key] != value {
+			return false
+		}
+	}
+	return true
 }
 
 func validDiscoveryWorkflowReceipt(value WorkflowMutationReceipt, identity RequestIdentity) bool {

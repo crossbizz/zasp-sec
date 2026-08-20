@@ -630,7 +630,7 @@ describe("production workflow concurrency contract", () => {
 
     const raw = JSON.stringify({ sync, list, detail, schedulePath, freshness, syncSchema, schedule, freshnessSchema, receipt });
     for (const forbidden of ["job_id", "outbox_id", "manifest_key", "connection_reference", "credential_reference", "provider_cursor", "last_error"]) {
-      assert.equal(raw.includes(`\"${forbidden}\"`), false, forbidden);
+      assert.equal(raw.includes(`"${forbidden}"`), false, forbidden);
     }
   });
 

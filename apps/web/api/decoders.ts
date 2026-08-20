@@ -300,6 +300,9 @@ function decodeWorkflowReceiptPayload(operation: unknown, kind: unknown, resourc
     return;
   }
   if (kind === "integration") {
+    if (operation === "createIntegration") {
+      if (resourceVersion !== 1) fail();
+    } else if ((operation === "updateIntegration" || operation === "deleteIntegration") && intent.expected_version !== resourceVersion - 1) fail();
     if (operation === "deleteIntegration") {
       const terminal = Boolean(resultValue) && typeof resultValue === "object" && !Array.isArray(resultValue) && (resultValue as Record<string, unknown>).status === "deleted";
       if (terminal) {
