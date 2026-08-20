@@ -5,11 +5,13 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/sensor"
 )
 
@@ -100,6 +102,52 @@ func TestProductionIngestRejectsDuplicateNestedJSONBeforeReservation(t *testing.
 	handler.ServeHTTP(recorder, request)
 	if recorder.Code != http.StatusBadRequest || repository.authenticateCalls != 1 || repository.reserveCalls != 0 {
 		t.Fatalf("response=%d auth=%d reserve=%d body=%s", recorder.Code, repository.authenticateCalls, repository.reserveCalls, recorder.Body.String())
+	}
+}
+
+func TestDecodeArchivedBatchReturnsExactCanonicalRecords(t *testing.T) {
+	now := time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC)
+	scope := fixtureScope(t, 70)
+	body := productionEventBody(now)
+
+	batch, err := DecodeArchivedBatch(scope, body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if batch.Source != "tetragon" || len(batch.Records) != 1 || batch.Records[0].Scope != scope || batch.Records[0].Source != "tetragon" || batch.Records[0].SourceEventID != "event-1" || batch.Records[0].EventTime != now || batch.Records[0].Content["binary"] != "agent" {
+		t.Fatalf("batch=%#v", batch)
+	}
+	batch.Records[0].Content["binary"] = "mutated"
+	again, err := DecodeArchivedBatch(scope, body)
+	if err != nil || again.Records[0].Content["binary"] != "agent" {
+		t.Fatalf("decoder retained mutable output: batch=%#v err=%v", again, err)
+	}
+}
+
+func TestDecodeArchivedBatchRejectsHostileOrDriftedPayloads(t *testing.T) {
+	now := time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC)
+	scope := fixtureScope(t, 70)
+	valid := productionEventBody(now)
+	for _, test := range []struct {
+		name string
+		body []byte
+	}{
+		{name: "invalid scope", body: valid},
+		{name: "unknown field", body: bytes.Replace(valid, []byte(`"source":"tetragon"`), []byte(`"source":"tetragon","scope":"forged"`), 1)},
+		{name: "duplicate nested key", body: bytes.Replace(valid, []byte(`"content":{"binary":"agent"}`), []byte(`"content":{"binary":"agent","binary":"drift"}`), 1)},
+		{name: "trailing value", body: append(bytes.Clone(valid), []byte(` {}`)...)},
+		{name: "unknown source", body: bytes.Replace(valid, []byte(`"source":"tetragon"`), []byte(`"source":"unknown"`), 1)},
+		{name: "invalid utf8", body: append(bytes.Clone(valid), 0xff)},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			inputScope := scope
+			if test.name == "invalid scope" {
+				inputScope = domain.Scope{}
+			}
+			if batch, err := DecodeArchivedBatch(inputScope, test.body); !errors.Is(err, ErrProductionIngest) || batch.Source != "" || batch.Records != nil {
+				t.Fatalf("batch=%#v err=%v", batch, err)
+			}
+		})
 	}
 }
 

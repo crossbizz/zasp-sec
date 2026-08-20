@@ -35,6 +35,10 @@ type runtimeArchiveExecutorConfig struct {
 
 type runtimeArchiveExecutor struct{ config runtimeArchiveExecutorConfig }
 
+type runtimeArchivedBatchReader interface {
+	Read(context.Context, runtimeevent.StageLease) ([]byte, error)
+}
+
 func newRuntimeArchiveExecutor(config runtimeArchiveExecutorConfig) (*runtimeArchiveExecutor, error) {
 	if nilWorkerDependency(config.API) || !workerBucketPattern.MatchString(config.Bucket) || !workerAccountPattern.MatchString(config.ExpectedOwner) || !workerKMSPattern.MatchString(config.KMSKeyARN) || config.MaximumBytes < 1 || config.MaximumBytes > 64<<20 {
 		return nil, errRuntimeUnavailable
@@ -49,37 +53,47 @@ func (executor *runtimeArchiveExecutor) Execute(ctx context.Context, lease runti
 			resultErr = errRuntimeStageRetryable
 		}
 	}()
-	if executor == nil || ctx == nil || ctx.Err() != nil || !exactRuntimeStageLease(lease, runtimeevent.RuntimeStageArchive) {
-		return runtimeStageEffect{}, errRuntimeStageMalformed
+	body, err := executor.Read(ctx, lease)
+	if err != nil {
+		return runtimeStageEffect{}, err
+	}
+	digest := sha256.Sum256(body)
+	clear(body)
+	return runtimeStageEffect{EffectDigest: digest, ResultReference: lease.InputReference, ResultVersionID: lease.InputVersionID, ResultDigest: digest}, nil
+}
+
+func (executor *runtimeArchiveExecutor) Read(ctx context.Context, lease runtimeevent.StageLease) ([]byte, error) {
+	if executor == nil || ctx == nil || ctx.Err() != nil || !exactRuntimeStageLease(lease, runtimeevent.RuntimeStageArchive) && !exactRuntimeStageLease(lease, runtimeevent.RuntimeStageIndex) {
+		return nil, errRuntimeStageMalformed
 	}
 	key, ok := runtimeArchiveKey(lease, executor.config.Bucket)
 	if !ok {
-		return runtimeStageEffect{}, errRuntimeStageMalformed
+		return nil, errRuntimeStageMalformed
 	}
 	head, err := executor.config.API.HeadObject(ctx, &s3.HeadObjectInput{Bucket: aws.String(executor.config.Bucket), Key: aws.String(key), VersionId: aws.String(lease.InputVersionID), ExpectedBucketOwner: aws.String(executor.config.ExpectedOwner), ChecksumMode: types.ChecksumModeEnabled}, runtimeArchiveOneAttempt)
 	if err != nil || ctx.Err() != nil {
-		return runtimeStageEffect{}, runtimeArchiveReadError(ctx, err)
+		return nil, runtimeArchiveReadError(ctx, err)
 	}
 	if !validRuntimeArchiveHead(head, lease, executor.config) {
-		return runtimeStageEffect{}, errRuntimeStageMalformed
+		return nil, errRuntimeStageMalformed
 	}
 	output, err := executor.config.API.GetObject(ctx, &s3.GetObjectInput{Bucket: aws.String(executor.config.Bucket), Key: aws.String(key), VersionId: aws.String(lease.InputVersionID), ExpectedBucketOwner: aws.String(executor.config.ExpectedOwner), ChecksumMode: types.ChecksumModeEnabled}, runtimeArchiveOneAttempt)
 	if err != nil || output == nil || output.Body == nil || ctx.Err() != nil {
-		return runtimeStageEffect{}, runtimeArchiveReadError(ctx, err)
+		return nil, runtimeArchiveReadError(ctx, err)
 	}
 	body, readErr := io.ReadAll(io.LimitReader(output.Body, executor.config.MaximumBytes+1))
 	closeErr := output.Body.Close()
 	if readErr != nil || closeErr != nil || ctx.Err() != nil {
 		clear(body)
-		return runtimeStageEffect{}, runtimeArchiveReadError(ctx, readErr)
+		return nil, runtimeArchiveReadError(ctx, readErr)
 	}
 	digest := sha256.Sum256(body)
 	valid := int64(len(body)) >= 1 && int64(len(body)) <= executor.config.MaximumBytes && validRuntimeArchiveGet(output, lease, executor.config, digest) && subtle.ConstantTimeCompare(digest[:], lease.InputDigest[:]) == 1
-	clear(body)
 	if !valid {
-		return runtimeStageEffect{}, errRuntimeStageMalformed
+		clear(body)
+		return nil, errRuntimeStageMalformed
 	}
-	return runtimeStageEffect{EffectDigest: digest, ResultReference: lease.InputReference, ResultVersionID: lease.InputVersionID, ResultDigest: digest}, nil
+	return body, nil
 }
 
 func runtimeArchiveKey(lease runtimeevent.StageLease, bucket string) (string, bool) {
@@ -164,3 +178,4 @@ func int64Text(value int64) string {
 }
 
 var _ runtimeStageExecutor = (*runtimeArchiveExecutor)(nil)
+var _ runtimeArchivedBatchReader = (*runtimeArchiveExecutor)(nil)

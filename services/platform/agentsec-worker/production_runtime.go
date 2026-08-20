@@ -113,8 +113,14 @@ func composeWorkerRuntime(ctx context.Context, config workerRuntimeConfig, datab
 			return workerRuntimeDependencies{}, errRuntimeUnavailable
 		}
 		return dependencies, nil
-	case workerModeRuntimeArchive:
-		stage, err := newProductionRuntimeArchive(ctx, config)
+	case workerModeRuntimeArchive, workerModeRuntimeIndex:
+		var stage *productionRuntimeStageDependencies
+		var err error
+		if config.Mode == workerModeRuntimeArchive {
+			stage, err = newProductionRuntimeArchive(ctx, config)
+		} else {
+			stage, err = newProductionRuntimeIndex(ctx, config)
+		}
 		if err != nil {
 			return workerRuntimeDependencies{}, errRuntimeUnavailable
 		}
@@ -184,10 +190,11 @@ func composeRuntimeCoordinatorWorkerRuntime(config workerRuntimeConfig, database
 }
 
 func composeRuntimeStageWorkerRuntime(config workerRuntimeConfig, database apiserver.JSONDatabase, stage *productionRuntimeStageDependencies) (workerRuntimeDependencies, error) {
-	if !validWorkerRuntimeConfig(config) || database == nil || stage == nil || stage.Executor == nil || stage.ready == nil || stage.close == nil || config.Mode != workerModeRuntimeArchive || stage.Stage != runtimeevent.RuntimeStageArchive {
+	wantStage, authority, ok := runtimeStageBinding(config.Mode)
+	if !validWorkerRuntimeConfig(config) || database == nil || stage == nil || stage.Executor == nil || stage.ready == nil || stage.close == nil || !ok || stage.Stage != wantStage {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
-	repository, err := runtimeevent.NewPostgresProductionPipelineRepository(database, runtimeevent.ProductionPipelineAuthorityArchive)
+	repository, err := runtimeevent.NewPostgresProductionPipelineRepository(database, authority)
 	if err != nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
@@ -206,6 +213,17 @@ func composeRuntimeStageWorkerRuntime(config workerRuntimeConfig, database apise
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
 	return workerRuntimeDependencies{Processor: readinessGatedWorkerProcessor{delegate: processor, ready: ready}, Ready: ready, Close: stage.Close}, nil
+}
+
+func runtimeStageBinding(mode workerMode) (runtimeevent.RuntimeStage, runtimeevent.ProductionPipelineAuthority, bool) {
+	switch mode {
+	case workerModeRuntimeArchive:
+		return runtimeevent.RuntimeStageArchive, runtimeevent.ProductionPipelineAuthorityArchive, true
+	case workerModeRuntimeIndex:
+		return runtimeevent.RuntimeStageIndex, runtimeevent.ProductionPipelineAuthorityIndex, true
+	default:
+		return "", "", false
+	}
 }
 
 func productionDiscoveryDependenciesConfig(config workerRuntimeConfig) productionDiscoveryDependencyConfig {

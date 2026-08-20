@@ -116,6 +116,35 @@ type ProductionIngestConfig struct {
 
 type ProductionIngestHandler struct{ config ProductionIngestConfig }
 
+// ArchivedBatch is the strict, canonical runtime-event representation used by
+// every post-archive stage. It intentionally excludes transport credentials and
+// caller-provided scope; scope is supplied by the durable stage lease.
+type ArchivedBatch struct {
+	Source  string
+	Records []Record
+}
+
+func DecodeArchivedBatch(scope domain.Scope, body []byte) (ArchivedBatch, error) {
+	if scope.Validate() != nil || len(body) == 0 || len(body) > maximumProductionIngestBytes || !utf8.Valid(body) || !uniqueProductionJSON(body) {
+		return ArchivedBatch{}, ErrProductionIngest
+	}
+	var input ingestInput
+	decoder := json.NewDecoder(bytes.NewReader(body))
+	decoder.DisallowUnknownFields()
+	if decoder.Decode(&input) != nil || decoder.Decode(&struct{}{}) != io.EOF || input.Source != "tetragon" && input.Source != "otlp" || len(input.Events) == 0 || len(input.Events) > maximumProductionEvents {
+		return ArchivedBatch{}, ErrProductionIngest
+	}
+	records := make([]Record, len(input.Events))
+	for index, event := range input.Events {
+		record, err := event.toRecord(scope, input.Source)
+		if err != nil {
+			return ArchivedBatch{}, ErrProductionIngest
+		}
+		records[index] = cloneRecord(record)
+	}
+	return ArchivedBatch{Source: input.Source, Records: records}, nil
+}
+
 func NewProductionIngestHandler(config ProductionIngestConfig) (*ProductionIngestHandler, error) {
 	if nilProductionIngestValue(config.Repository) || nilProductionIngestValue(config.Artifacts) || config.MaximumBytes <= 0 || config.MaximumBytes > maximumProductionIngestBytes || config.Clock == nil {
 		return nil, ErrProductionIngest
