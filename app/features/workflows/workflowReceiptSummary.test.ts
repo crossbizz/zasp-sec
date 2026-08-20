@@ -32,6 +32,20 @@ describe("truthful workflow receipt summary", () => {
     expect(serialized).not.toContain("secret_ref_1234");
   });
 
+	it("summarizes reference authorization intent without rendering any reference value", () => {
+		const configuration = { role_arn: "arn:aws:iam::123456789012:role/zasp-discovery", external_id_reference: "ref:aws/external-id/customer-0001", region: "us-east-1" };
+		const result = { id: "pid_20000001-0000-4000-8000-000000000001", connector_key: "aws", name: "AWS", configuration, status: "active", created_at: "2026-08-18T12:00:00Z", updated_at: "2026-08-18T12:00:00Z" };
+		const receipt = { ...base, operation: "completeIntegrationReferenceAuthorization", intent: { configuration, expected_version: 1, idempotency_key: base.idempotency_key, integration_id: result.id, provider: "aws", scope: { organization_id: "pid_10000001-0000-4000-8000-000000000001", workspace_id: "pid_10000002-0000-4000-8000-000000000002", environment_id: "pid_10000003-0000-4000-8000-000000000003" } }, result, resource_kind: "integration", resource_id: result.id } as unknown as WorkflowMutationReceipt;
+		const summary = workflowReceiptSummary(receipt);
+		expect(summary.intent).toEqual([
+			{ label: "Requested integration", value: result.id },
+			{ label: "Requested provider", value: "aws" },
+			{ label: "Requested configuration fields", value: "external_id_reference, region, role_arn" },
+		]);
+		const serialized = JSON.stringify(summary);
+		for (const hidden of Object.values(configuration)) expect(serialized).not.toContain(hidden);
+	});
+
   it("summarizes Security Agent create, update, and delete receipts from allowlisted fields", () => {
     const result = { id: "pid_20000002-0000-4000-8000-000000000002", name: "Credential responder", trigger_kind: "finding", trigger_source: "credential", environment_ids: ["pid_10000003-0000-4000-8000-000000000003"], autonomy: "supervised", max_steps: 10, max_duration_seconds: 900, temporary_policy_seconds: 3600, ai_token_budget: 4000, concurrency_limit: 2, allowed_actions: ["run_test"], verification_kind: "test_run", definition_version: 1, enabled: true };
     const createInput = Object.fromEntries(Object.entries(result).filter(([key]) => key !== "id"));

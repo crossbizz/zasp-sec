@@ -87,6 +87,24 @@ describe("production integration deletion", () => {
     expect(new Set(calls.map(([, options]) => options.params.header["Idempotency-Key"])).size).toBe(1);
     expect(calls.map(([, options]) => options.params.header["If-Match"])).toEqual(['"1"', '"1"']);
   });
+
+	it("formats opaque configuration references without rendering their values", async () => {
+		const user = userEvent.setup();
+		const aws: Integration = { ...integration, connector_key: "aws", name: "AWS", configuration: { role_arn: "arn:aws:iam::123456789012:role/zasp-discovery", external_id_reference: "ref:aws/external-id/customer-0001", region: "us-east-1" } };
+		const GET = vi.fn(async (path: string) => {
+			if (path === "/api/v1/integration-catalog") return jsonResult({ items: [] });
+			if (path === "/api/v1/integrations") return jsonResult({ items: [aws], page_info: { next_cursor: null, has_more: false } });
+			if (path === "/api/v1/integrations/{id}") return jsonResult(aws, 200, { ETag: '"1"' });
+			throw new Error(`unexpected GET ${path}`);
+		});
+		render(<APIProvider client={{ GET } as unknown as APIClient}><ProductionIntegrationsView canWrite={false} /></APIProvider>);
+
+		await user.click(await screen.findByRole("button", { name: "Open AWS" }));
+		const reference = screen.getByLabelText("external id reference");
+		expect(reference).toHaveValue("Configured reference");
+		expect(reference).toBeDisabled();
+		expect(document.body.innerHTML).not.toContain("ref:aws/external-id/customer-0001");
+	});
 });
 
 function jsonResult(data: unknown, status = 200, headers: Record<string, string> = {}) {

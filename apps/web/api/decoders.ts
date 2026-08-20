@@ -5,6 +5,10 @@ const DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
 const CURSOR = /^(?:[A-Za-z0-9_-]{4})*(?:[A-Za-z0-9_-][AQgw]|[A-Za-z0-9_-]{2}[AEIMQUYcgkosw048])?$/;
 const IDEMPOTENCY_KEY = /^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$/;
 const POLICY_ID = /^policy-[a-z0-9][a-z0-9-]{0,120}$/;
+const AWS_ROLE_ARN = /^arn:aws(?:-[a-z]+)?:iam::[0-9]{12}:role\/[A-Za-z0-9+=,.@_/-]{1,128}$/;
+const AWS_EXTERNAL_ID_REFERENCE = /^ref:aws\/external-id\/[A-Za-z0-9][A-Za-z0-9._-]{7,127}$/;
+const AWS_REGION = /^[a-z]{2}(?:-gov)?-[a-z]+-[1-9][0-9]?$/;
+const KUBERNETES_CONNECTION_REFERENCE = /^ref:kubernetes\/connection\/[A-Za-z0-9][A-Za-z0-9._-]{7,127}$/;
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 export type Decoder<T> = (value: unknown) => T;
@@ -130,7 +134,7 @@ export function decodeWorkflowMutationReceipt(value: unknown): WorkflowMutationR
   const record = exactRecord(value, ["id", "operation", "idempotency_key", "intent", "result", "resource_kind", "resource_id", "resource_version", "audit_id", "correlation_id", "created_at", "expires_at"]);
   productID(record.id);
   if (typeof record.idempotency_key !== "string" || !IDEMPOTENCY_KEY.test(record.idempotency_key)) fail();
-  enumValue(record.operation, ["createPolicy", "updatePolicy", "deletePolicy", "rolloutPolicy", "disablePolicy", "createIntegration", "updateIntegration", "deleteIntegration", "remediateIntegrationAuthorization", "createSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent", "updateFinding", "acceptFindingRisk"]);
+  enumValue(record.operation, ["createPolicy", "updatePolicy", "deletePolicy", "rolloutPolicy", "disablePolicy", "createIntegration", "updateIntegration", "deleteIntegration", "remediateIntegrationAuthorization", "completeIntegrationReferenceAuthorization", "createSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent", "updateFinding", "acceptFindingRisk"]);
   enumValue(record.resource_kind, ["policy", "integration", "security_agent", "finding"]);
   if (typeof record.resource_id !== "string" || !workflowResourceID(record.resource_kind, record.resource_id)) fail();
   positiveInteger(record.resource_version);
@@ -138,7 +142,7 @@ export function decodeWorkflowMutationReceipt(value: unknown): WorkflowMutationR
   dateTime(record.created_at); dateTime(record.expires_at);
   const lifetime = Date.parse(record.expires_at) - Date.parse(record.created_at);
   if (lifetime <= 0 || lifetime > SEVEN_DAYS_MS || containsReadableWorkflowSecret(record.intent) || containsReadableWorkflowSecret(record.result)) fail();
-  decodeWorkflowReceiptPayload(record.operation, record.resource_kind, record.resource_id, record.intent, record.result);
+  decodeWorkflowReceiptPayload(record.operation, record.resource_kind, record.resource_id, record.resource_version as number, record.idempotency_key as string, record.intent, record.result);
   return value as WorkflowMutationReceipt;
 }
 export function decodePolicySimulation(value: unknown): PolicySimulation { const record = exactRecord(value, ["matches", "would_block", "example_session_ids"]); boundedInteger(record.matches, 0, 100); boundedInteger(record.would_block, 0, 100); stringArray(record.example_session_ids, 5); return value as PolicySimulation; }
@@ -147,7 +151,7 @@ export function decodeRuntimeDecisionPage(value: unknown): { readonly items: rea
 
 export function decodeConnectorManifest(value: unknown): ConnectorManifest { const record = exactRecord(value, ["key", "provider", "category", "description", "data_types", "actions", "auth_mode", "setup_schema", "access_guidance", "test_semantics"]); boundedString(record.key, 1, 63); boundedString(record.provider, 1, 128); boundedString(record.category, 1, 63); boundedString(record.description, 1, 512); stringArray(record.data_types, 64, 63, 1); stringArray(record.actions, 64, 63, 1); boundedString(record.auth_mode, 1, 63); const setup = array(record.setup_schema, 64); if (setup.length < 1) fail(); for (const field of setup) { const item = exactRecord(field, ["key", "label", "type", "required", "description"]); boundedString(item.key, 1, 63); boundedString(item.label, 1, 128); boundedString(item.type, 1, 63); if (typeof item.required !== "boolean") fail(); boundedString(item.description, 1, 512); } boundedString(record.access_guidance, 1, 512); boundedString(record.test_semantics, 1, 512); return value as ConnectorManifest; }
 export function decodeConnectorManifestPage(value: unknown): { readonly items: readonly ConnectorManifest[] } { const record = exactRecord(value, ["items"]); for (const item of array(record.items, 100)) decodeConnectorManifest(item); return value as { readonly items: readonly ConnectorManifest[] }; }
-export function decodeIntegration(value: unknown): Integration { const record = exactRecord(value, ["id", "connector_key", "name", "configuration", "status", "created_at", "updated_at"]); productID(record.id); boundedString(record.connector_key, 1, 63); boundedString(record.name, 1, 128); stringRecord(record.configuration, 16, 1, 1); enumValue(record.status, ["configured", "pending_authorization", "active", "degraded", "revoking"]); dateTime(record.created_at); dateTime(record.updated_at); return value as Integration; }
+export function decodeIntegration(value: unknown): Integration { const record = exactRecord(value, ["id", "connector_key", "name", "configuration", "status", "created_at", "updated_at"]); productID(record.id); boundedString(record.connector_key, 1, 63); boundedString(record.name, 1, 128); decodeIntegrationConfiguration(record.connector_key as string, record.configuration); enumValue(record.status, ["configured", "pending_authorization", "active", "degraded", "revoking"]); dateTime(record.created_at); dateTime(record.updated_at); return value as Integration; }
 export function decodeIntegrationPage(value: unknown): { readonly items: readonly Integration[]; readonly page_info: { readonly next_cursor: string; readonly has_more: true } | { readonly next_cursor: null; readonly has_more: false } } { const record = exactRecord(value, ["items", "page_info"]); for (const item of array(record.items, 100)) decodeIntegration(item); decodePageInfo(record.page_info); return value as { readonly items: readonly Integration[]; readonly page_info: { readonly next_cursor: string; readonly has_more: true } | { readonly next_cursor: null; readonly has_more: false } }; }
 
 export function decodeSecurityAgentDefinition(value: unknown): SecurityAgentDefinition { const record = exactRecord(value, ["id", "name", "trigger_kind", "trigger_source", "environment_ids", "autonomy", "max_steps", "max_duration_seconds", "temporary_policy_seconds", "ai_token_budget", "concurrency_limit", "allowed_actions", "verification_kind", "definition_version", "enabled"]); productID(record.id); boundedString(record.name, 1, 256); enumValue(record.trigger_kind, ["finding", "attack_path", "runtime_decision"]); boundedString(record.trigger_source, 1, 64); productIDArray(record.environment_ids, 100); enumValue(record.autonomy, ["supervised", "autonomous"]); boundedInteger(record.max_steps, 1, 100); boundedInteger(record.max_duration_seconds, 1, 86400); boundedInteger(record.temporary_policy_seconds, 1, 86400); boundedInteger(record.ai_token_budget, 1, 12000); boundedInteger(record.concurrency_limit, 1, 10); positiveInteger(record.definition_version); stringArray(record.allowed_actions, 32, 128, 1); boundedString(record.verification_kind, 1, 64); if (typeof record.enabled !== "boolean") fail(); return value as SecurityAgentDefinition; }
@@ -155,12 +159,19 @@ export function decodeSecurityAgentPage(value: unknown): SecurityAgentPage { con
 export function decodeSecurityAgentTemplate(value: unknown): SecurityAgentTemplate { const record = exactRecord(value, ["id", "name", "version", "trigger_kind", "default_actions", "verification_condition"]); productID(record.id); boundedString(record.name, 1, 256); positiveInteger(record.version); enumValue(record.trigger_kind, ["finding", "attack_path", "runtime_decision"]); stringArray(record.default_actions, 32, 128, 1); boundedString(record.verification_condition, 1, 256); return value as SecurityAgentTemplate; }
 export function decodeSecurityAgentTemplatePage(value: unknown): { readonly items: readonly SecurityAgentTemplate[] } { const record = exactRecord(value, ["items"]); for (const item of array(record.items, 20)) decodeSecurityAgentTemplate(item); return value as { readonly items: readonly SecurityAgentTemplate[] }; }
 
-function decodeWorkflowReceiptPayload(operation: unknown, kind: unknown, resourceID: string, intentValue: unknown, resultValue: unknown): void {
+function decodeWorkflowReceiptPayload(operation: unknown, kind: unknown, resourceID: string, resourceVersion: number, idempotencyKey: string, intentValue: unknown, resultValue: unknown): void {
   const expectedKind = typeof operation === "string" && operation.includes("Integration") ? "integration"
     : typeof operation === "string" && operation.includes("SecurityAgent") ? "security_agent"
     : typeof operation === "string" && operation.includes("Finding") ? "finding"
     : typeof operation === "string" && ["createPolicy", "updatePolicy", "deletePolicy", "rolloutPolicy", "disablePolicy"].includes(operation) ? "policy" : fail();
   if (kind !== expectedKind) fail();
+  if (operation === "completeIntegrationReferenceAuthorization") {
+    decodeIntegration(resultValue);
+    const result = resultValue as Integration;
+    if (kind !== "integration" || result.id !== resourceID || result.status !== "active") fail();
+    decodeReferenceAuthorizationReceiptIntent(intentValue, result, resourceID, resourceVersion, idempotencyKey);
+    return;
+  }
   const intent = exactRecord(intentValue, ["body", "expected_version", "resource_id"]);
   const create = typeof operation === "string" && operation.startsWith("create");
   if (create) {
@@ -227,8 +238,36 @@ function decodeIntegrationReceiptIntent(operation: string, body: unknown, result
     boundedString(input.connector_key, 1, 63);
     if (input.connector_key !== result.connector_key) fail();
   }
-  boundedString(input.name, 1, 128); stringRecord(input.configuration, 16, 1, 1);
+  boundedString(input.name, 1, 128); decodeIntegrationConfiguration(result.connector_key, input.configuration);
   if (input.name !== result.name || !sameJSON(input.configuration, result.configuration)) fail();
+}
+
+function decodeReferenceAuthorizationReceiptIntent(value: unknown, result: Integration, resourceID: string, resourceVersion: number, receiptIdempotencyKey: string): void {
+  const input = exactRecord(value, ["configuration", "expected_version", "idempotency_key", "integration_id", "provider", "scope"]);
+  if (!Number.isSafeInteger(input.expected_version) || (input.expected_version as number) < 1 || (input.expected_version as number) + 1 !== resourceVersion) fail();
+  if (input.idempotency_key !== receiptIdempotencyKey || input.integration_id !== resourceID) fail();
+  enumValue(input.provider, ["aws", "kubernetes"]);
+  if (input.provider !== result.connector_key) fail();
+  const scope = exactRecord(input.scope, ["environment_id", "organization_id", "workspace_id"]);
+  productID(scope.environment_id); productID(scope.organization_id); productID(scope.workspace_id);
+  decodeIntegrationConfiguration(input.provider as string, input.configuration);
+  if (!sameJSON(input.configuration, result.configuration)) fail();
+}
+
+function decodeIntegrationConfiguration(connectorKey: string, value: unknown): void {
+  if (connectorKey === "aws") {
+    const configuration = exactRecord(value, ["external_id_reference", "region", "role_arn"]);
+    if (typeof configuration.role_arn !== "string" || !AWS_ROLE_ARN.test(configuration.role_arn)) fail();
+    if (typeof configuration.external_id_reference !== "string" || !AWS_EXTERNAL_ID_REFERENCE.test(configuration.external_id_reference)) fail();
+    if (typeof configuration.region !== "string" || !AWS_REGION.test(configuration.region)) fail();
+    return;
+  }
+  if (connectorKey === "kubernetes") {
+    const configuration = exactRecord(value, ["connection_reference"]);
+    if (typeof configuration.connection_reference !== "string" || !KUBERNETES_CONNECTION_REFERENCE.test(configuration.connection_reference)) fail();
+    return;
+  }
+  stringRecord(value, 16, 1, 1);
 }
 
 function decodeSecurityAgentReceiptIntent(operation: string, body: unknown, result: SecurityAgentDefinition): void {

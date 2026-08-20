@@ -9,16 +9,25 @@ export type WorkflowReceiptSummary = Readonly<{
 export function workflowReceiptSummary(receipt: WorkflowMutationReceipt): WorkflowReceiptSummary {
   const intent = receipt.intent as { body: Record<string, unknown>; expected_version: number; resource_id: string };
   const result = receipt.result as Record<string, unknown>;
+  const operation = receipt.operation as string;
   switch (receipt.resource_kind) {
   case "policy":
-    return { intent: policyIntent(receipt.operation, receipt.resource_id, intent.body), result: policyResult(result, receipt.resource_version) };
+    return { intent: policyIntent(operation, receipt.resource_id, intent.body), result: policyResult(result, receipt.resource_version) };
   case "integration":
-    return { intent: integrationIntent(receipt.operation, receipt.resource_id, intent.body), result: integrationResult(result, receipt.resource_version) };
+    return { intent: operation === "completeIntegrationReferenceAuthorization" ? referenceAuthorizationIntent(receipt.intent as unknown as Record<string, unknown>) : integrationIntent(operation, receipt.resource_id, intent.body), result: integrationResult(result, receipt.resource_version) };
   case "security_agent":
-    return { intent: securityAgentIntent(receipt.operation, receipt.resource_id, intent.body), result: securityAgentResult(result, receipt.resource_version) };
+    return { intent: securityAgentIntent(operation, receipt.resource_id, intent.body), result: securityAgentResult(result, receipt.resource_version) };
   case "finding":
-    return { intent: findingIntent(receipt.operation, receipt.resource_id, intent.body), result: findingResult(result, receipt.resource_version) };
+    return { intent: findingIntent(operation, receipt.resource_id, intent.body), result: findingResult(result, receipt.resource_version) };
   }
+}
+
+function referenceAuthorizationIntent(intent: Record<string, unknown>): readonly WorkflowReceiptSummaryField[] {
+  return [
+    field("Requested integration", intent.integration_id),
+    field("Requested provider", intent.provider),
+    field("Requested configuration fields", configurationKeys(intent.configuration)),
+  ];
 }
 
 function findingIntent(operation: string, resourceID: string, body: Record<string, unknown>): readonly WorkflowReceiptSummaryField[] {
