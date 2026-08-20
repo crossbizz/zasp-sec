@@ -59,6 +59,84 @@ func TestClientWritesRawPagesThenManifestAndReturnsBoundCompleteSnapshot(t *test
 	}
 }
 
+func TestClientSupportsMaximumPageBoundWhenTheActualCollectionIsSmall(t *testing.T) {
+	t.Parallel()
+	request := testRequest(t, collection.ProviderAWS)
+	request.Bounds.MaxPages = 10_000
+	request.Bounds.MaxRawBytes = 16 * 1024
+	page := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "done"}, true, nil, nil)
+	store := &recordingArtifacts{bucket: "zasp-evidence"}
+	client, err := New(Config{Provider: request.Provider, API: &recordingAPI{pages: []Page{page}}, Artifacts: store, CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.CollectWithCredential(context.Background(), request, []byte("temporary-aws-credential")); err != nil {
+		t.Fatalf("small one-page collection with max page bound failed: %v", err)
+	}
+	if len(store.requests) != 2 {
+		t.Fatalf("artifact writes = %d, want raw+manifest", len(store.requests))
+	}
+}
+
+func TestSnapshotBudgetIsCumulativeAcrossPages(t *testing.T) {
+	t.Parallel()
+	budget := newSnapshotBudget(64)
+	if !budget.addPage([]json.RawMessage{json.RawMessage(`{"id":"one"}`)}, nil, []int{16}) {
+		t.Fatal("first page should fit")
+	}
+	if budget.addPage([]json.RawMessage{json.RawMessage(`{"id":"two-two-two"}`)}, []json.RawMessage{json.RawMessage(`{"id":"edge"}`)}, []int{24}) {
+		t.Fatal("second page exceeded the shared snapshot budget")
+	}
+}
+
+func TestClientRejectsCrossPageIdentityDriftAndDanglingRelationshipsAsMalformed(t *testing.T) {
+	t.Parallel()
+	request := testRequest(t, collection.ProviderAWS)
+	first := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "page-2"}, false,
+		[]json.RawMessage{json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":"same-native-id","display_name":"first","stable_fields":{},"attributes":{}}`)}, nil)
+	duplicateSource := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "done"}, true,
+		[]json.RawMessage{json.RawMessage(`{"id":"pid_40000002-0000-4000-8000-000000000002","kind":"aws_role","source_native_id":"same-native-id","display_name":"second","stable_fields":{},"attributes":{}}`)}, nil)
+	dangling := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "done"}, true, nil,
+		[]json.RawMessage{json.RawMessage(`{"id":"pid_40000003-0000-4000-8000-000000000003","kind":"contains","source_native_id":"dangling-edge","from_entity_id":"pid_40000004-0000-4000-8000-000000000004","to_entity_id":"pid_40000005-0000-4000-8000-000000000005","attributes":{}}`)})
+
+	for name, pages := range map[string][]Page{
+		"duplicate source identity": {first, duplicateSource},
+		"dangling relationship":     {dangling},
+	} {
+		t.Run(name, func(t *testing.T) {
+			store := &recordingArtifacts{bucket: "zasp-evidence"}
+			client, err := New(Config{Provider: request.Provider, API: &recordingAPI{pages: pages}, Artifacts: store, CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := client.CollectWithCredential(context.Background(), request, []byte("temporary-aws-credential")); !failureHasCode(err, collection.FailureMalformed) {
+				t.Fatalf("error = %v, want malformed", err)
+			}
+			for _, write := range store.requests {
+				if bytes.Contains(write.Body, []byte(`"objects"`)) {
+					t.Fatal("malformed provider output persisted a manifest")
+				}
+			}
+		})
+	}
+}
+
+func TestNewPageRejectsWhitespaceAndControlInventoryText(t *testing.T) {
+	t.Parallel()
+	subject := collection.SubjectBinding{Kind: "aws_account", ID: "123456789012"}
+	cursor := collection.Cursor{Provider: collection.ProviderAWS, Version: "cursor_v1", Value: "done"}
+	for name, entity := range map[string]json.RawMessage{
+		"whitespace source": json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":" 123456789012","display_name":"Production","stable_fields":{},"attributes":{}}`),
+		"control display":   json.RawMessage("{\"id\":\"pid_40000001-0000-4000-8000-000000000001\",\"kind\":\"aws_account\",\"source_native_id\":\"123456789012\",\"display_name\":\"Prod\\u0000uction\",\"stable_fields\":{},\"attributes\":{}}"),
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := NewPage(collection.ProviderAWS, subject, cursor, true, []json.RawMessage{entity}, nil); !errors.Is(err, collection.ErrContract) {
+				t.Fatalf("NewPage error = %v, want contract rejection", err)
+			}
+		})
+	}
+}
+
 func TestClientReturnsPartialOnlyAfterManifestLastWhenPageBoundIsReached(t *testing.T) {
 	t.Parallel()
 	request := testRequest(t, collection.ProviderKubernetes)
@@ -390,6 +468,28 @@ func TestClientReadinessDistinguishesProviderContractFailureFromOutage(t *testin
 				t.Fatalf("readiness = %#v, want %s", status, test.want)
 			}
 		})
+	}
+}
+
+func TestClientReadinessDoesNotReportReadyAfterConcurrentCancellation(t *testing.T) {
+	t.Parallel()
+	request := testRequest(t, collection.ProviderAWS)
+	ctx, cancel := context.WithCancel(context.Background())
+	client, err := New(Config{
+		Provider: request.Provider,
+		API: &recordingAPI{readiness: func(context.Context) error {
+			cancel()
+			return nil
+		}},
+		Artifacts: &recordingArtifacts{bucket: "zasp-evidence"}, CollectorVersion: request.CollectorVersion,
+		ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	status := client.Check(ctx)
+	if status.Ready || status.Code != collection.ReadinessCancelled {
+		t.Fatalf("readiness = %#v, want cancelled", status)
 	}
 }
 

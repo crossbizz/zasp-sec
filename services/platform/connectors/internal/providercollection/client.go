@@ -26,8 +26,6 @@ const (
 	manifestSchemaVersion = "manifest_v1"
 	redactedPageVersion   = "redacted_page_v1"
 	maximumArtifactBytes  = 64 * 1024 * 1024
-	manifestBaseReserve   = 8 * 1024
-	manifestObjectReserve = 8 * 1024
 )
 
 var (
@@ -170,6 +168,10 @@ func (client *Client) Check(ctx context.Context) collection.Readiness {
 		}
 		return status
 	}
+	if ctx.Err() != nil {
+		status.Code = collection.ReadinessCancelled
+		return status
+	}
 	status.Ready = true
 	status.Code = collection.ReadinessReady
 	return status
@@ -184,20 +186,35 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 	}
 
 	cursor := request.Cursor
-	manifestReserve := int64(manifestBaseReserve + request.Bounds.MaxPages*manifestObjectReserve)
-	if manifestReserve >= request.Bounds.MaxRawBytes || manifestReserve > maximumArtifactBytes {
+	descriptorReserve, err := nextManifestDescriptorReserve(request)
+	if err != nil {
 		return nil, collection.ErrContract
 	}
-	remainingBytes := request.Bounds.MaxRawBytes - manifestReserve
+	remainingRawBytes := request.Bounds.MaxRawBytes
 	remainingItems := request.Bounds.MaxItems
 	remainingRelationships := request.Bounds.MaxItems * 2
 	objects := make([]collection.RawObject, 0, request.Bounds.MaxPages)
 	entities := make([]json.RawMessage, 0)
 	relationships := make([]json.RawMessage, 0)
 	entityObjects := make(map[string]collection.RawObject)
+	entitySourceIDs := make(map[string]struct{})
+	relationshipIDs := make(map[string]struct{})
+	relationshipSourceIDs := make(map[string]struct{})
+	snapshotLimit := newSnapshotBudget(maximumArtifactBytes)
 	complete := false
 
 	for pageNumber := 1; pageNumber <= request.Bounds.MaxPages; pageNumber++ {
+		manifestBody, err := marshalManifest(request, cursor, objects)
+		if err != nil || len(manifestBody) > maximumArtifactBytes {
+			return nil, collection.ErrContract
+		}
+		remainingBytes := remainingRawBytes - int64(len(manifestBody)) - descriptorReserve
+		if remainingBytes < 1 {
+			if len(objects) == 0 {
+				return nil, collection.ErrContract
+			}
+			break
+		}
 		pageRequest := PageRequest{Provider: request.Provider, Subject: request.ExpectedSubject, Cursor: cursor, Page: pageNumber, RemainingItems: remainingItems, RemainingBytes: remainingBytes}
 		borrowed := bytes.Clone(credential)
 		page, err := fetchPage(client.api, ctx, borrowed, pageRequest)
@@ -212,15 +229,36 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 			return nil, malformedFailure()
 		}
 		pageEntityIDs := make([]string, len(page.Entities))
+		pageEntitySources := make([]string, len(page.Entities))
 		for index, entity := range page.Entities {
-			identity, ok := itemIdentity(entity)
+			identity, source, ok := entityIdentity(entity)
 			if !ok {
-				return nil, collection.ErrContract
+				return nil, malformedFailure()
 			}
 			if _, exists := entityObjects[identity]; exists {
-				return nil, collection.ErrContract
+				return nil, malformedFailure()
+			}
+			if _, exists := entitySourceIDs[source]; exists {
+				return nil, malformedFailure()
 			}
 			pageEntityIDs[index] = identity
+			pageEntitySources[index] = source
+		}
+		pageRelationshipIDs := make([]string, len(page.Relationships))
+		pageRelationshipSources := make([]string, len(page.Relationships))
+		for index, relationship := range page.Relationships {
+			identity, source, _, _, ok := relationshipIdentity(relationship)
+			if !ok {
+				return nil, malformedFailure()
+			}
+			if _, exists := relationshipIDs[identity]; exists {
+				return nil, malformedFailure()
+			}
+			if _, exists := relationshipSourceIDs[source]; exists {
+				return nil, malformedFailure()
+			}
+			pageRelationshipIDs[index] = identity
+			pageRelationshipSources[index] = source
 		}
 
 		reference, err := deterministicEvidenceReference(request, fmt.Sprintf("raw-page-%06d", pageNumber))
@@ -236,17 +274,32 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 		if err != nil {
 			return nil, outcomeUnknown()
 		}
+		evidenceLengths := make([]int, len(pageEntityIDs))
+		for index, identity := range pageEntityIDs {
+			item, itemErr := evidenceForEntity(request, identity, object)
+			encoded, encodeErr := json.Marshal(item)
+			if itemErr != nil || encodeErr != nil {
+				return nil, collection.ErrContract
+			}
+			evidenceLengths[index] = len(encoded)
+		}
+		if !snapshotLimit.addPage(page.Entities, page.Relationships, evidenceLengths) {
+			return nil, malformedFailure()
+		}
 		objects = append(objects, object)
 		for index, entity := range page.Entities {
 			entityObjects[pageEntityIDs[index]] = object
+			entitySourceIDs[pageEntitySources[index]] = struct{}{}
 			entities = append(entities, bytes.Clone(entity))
 		}
-		for _, relationship := range page.Relationships {
+		for index, relationship := range page.Relationships {
+			relationshipIDs[pageRelationshipIDs[index]] = struct{}{}
+			relationshipSourceIDs[pageRelationshipSources[index]] = struct{}{}
 			relationships = append(relationships, bytes.Clone(relationship))
 		}
 		remainingItems -= len(page.Entities)
 		remainingRelationships -= len(page.Relationships)
-		remainingBytes -= artifact.Size
+		remainingRawBytes -= artifact.Size
 		cursor = page.Cursor
 		complete = page.Complete
 		if complete {
@@ -257,8 +310,11 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 	sort.Slice(objects, func(left, right int) bool {
 		return objects[left].Reference().String() < objects[right].Reference().String()
 	})
+	if complete && !relationshipsResolve(relationships, entityObjects) {
+		return nil, malformedFailure()
+	}
 	manifestBody, err := marshalManifest(request, cursor, objects)
-	if err != nil || len(manifestBody) > maximumArtifactBytes || int64(len(manifestBody)) > manifestReserve {
+	if err != nil || len(manifestBody) > maximumArtifactBytes || int64(len(manifestBody)) > remainingRawBytes {
 		return nil, collection.ErrContract
 	}
 	manifestReference, err := deterministicEvidenceReference(request, "manifest")
@@ -288,11 +344,11 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 
 	entityBody, relationshipBody, evidenceBody, err := snapshotBodies(request, entities, relationships, entityObjects)
 	if err != nil {
-		return nil, collection.ErrContract
+		return nil, malformedFailure()
 	}
 	snapshot, err := collection.NewSnapshotCandidate(request.Provider, request.ParserVersion, request.ToolVersion, entityBody, relationshipBody, evidenceBody)
 	if err != nil {
-		return nil, collection.ErrContract
+		return nil, malformedFailure()
 	}
 	result, err := collection.NewCompleteResult(request, request.ExpectedSubject, cursor, manifest, snapshot)
 	if err != nil {
@@ -325,6 +381,8 @@ func validNormalizedInventory(provider collection.Provider, entities, relationsh
 		return false
 	}
 	var total int64
+	entityIDs := make(map[string]struct{}, len(entities))
+	entitySourceIDs := make(map[string]struct{}, len(entities))
 	for _, entity := range entities {
 		total += int64(len(entity))
 		if total > maximumArtifactBytes {
@@ -333,7 +391,21 @@ func validNormalizedInventory(provider collection.Provider, entities, relationsh
 		if !validProviderEntity(provider, entity) {
 			return false
 		}
+		identity, source, ok := entityIdentity(entity)
+		if !ok {
+			return false
+		}
+		if _, duplicate := entityIDs[identity]; duplicate {
+			return false
+		}
+		if _, duplicate := entitySourceIDs[source]; duplicate {
+			return false
+		}
+		entityIDs[identity] = struct{}{}
+		entitySourceIDs[source] = struct{}{}
 	}
+	relationshipIDs := make(map[string]struct{}, len(relationships))
+	relationshipSourceIDs := make(map[string]struct{}, len(relationships))
 	for _, relationship := range relationships {
 		total += int64(len(relationship))
 		if total > maximumArtifactBytes {
@@ -342,13 +414,25 @@ func validNormalizedInventory(provider collection.Provider, entities, relationsh
 		if !validProviderRelationship(relationship) {
 			return false
 		}
+		identity, source, _, _, ok := relationshipIdentity(relationship)
+		if !ok {
+			return false
+		}
+		if _, duplicate := relationshipIDs[identity]; duplicate {
+			return false
+		}
+		if _, duplicate := relationshipSourceIDs[source]; duplicate {
+			return false
+		}
+		relationshipIDs[identity] = struct{}{}
+		relationshipSourceIDs[source] = struct{}{}
 	}
 	return true
 }
 
 func validProviderEntity(provider collection.Provider, raw json.RawMessage) bool {
 	var entity normalizedPageEntity
-	if !decodeExactObject(raw, &entity) || !validProductIDText(entity.ID) || len(entity.SourceNativeID) < 1 || len(entity.SourceNativeID) > 1024 || len(entity.DisplayName) < 1 || len(entity.DisplayName) > 256 {
+	if !decodeExactObject(raw, &entity) || !validProductIDText(entity.ID) || !boundedInventoryText(entity.SourceNativeID, 1024) || !boundedInventoryText(entity.DisplayName, 256) {
 		return false
 	}
 	kinds, stable, attributes := providerEntitySchema(provider)
@@ -381,10 +465,22 @@ func providerEntitySchema(provider collection.Provider) (map[string]bool, map[st
 
 func validProviderRelationship(raw json.RawMessage) bool {
 	var relationship normalizedPageRelationship
-	if !decodeExactObject(raw, &relationship) || !validProductIDText(relationship.ID) || !validProductIDText(relationship.FromEntityID) || !validProductIDText(relationship.ToEntityID) || relationship.FromEntityID == relationship.ToEntityID || len(relationship.SourceNativeID) < 1 || len(relationship.SourceNativeID) > 1024 {
+	if !decodeExactObject(raw, &relationship) || !validProductIDText(relationship.ID) || !validProductIDText(relationship.FromEntityID) || !validProductIDText(relationship.ToEntityID) || relationship.FromEntityID == relationship.ToEntityID || !boundedInventoryText(relationship.SourceNativeID, 1024) {
 		return false
 	}
 	return tokenSet("contains", "member_of", "attached_to", "manages", "owns", "trusts", "depends_on")[relationship.Kind] && validScalarObject(relationship.Attributes, tokenSet("state", "type"))
+}
+
+func boundedInventoryText(value string, maximum int) bool {
+	if len(value) < 1 || len(value) > maximum || !utf8.ValidString(value) || strings.TrimSpace(value) != value {
+		return false
+	}
+	for _, character := range value {
+		if unicode.IsControl(character) {
+			return false
+		}
+	}
+	return true
 }
 
 func validScalarObject(raw json.RawMessage, allowed map[string]bool) bool {
@@ -458,6 +554,90 @@ func malformedFailure() error {
 	return failure
 }
 
+type snapshotBudget struct {
+	limit             int64
+	entityBytes       int64
+	entityCount       int
+	relationshipBytes int64
+	relationshipCount int
+	evidenceBytes     int64
+	evidenceCount     int
+}
+
+func newSnapshotBudget(limit int64) *snapshotBudget {
+	return &snapshotBudget{limit: limit}
+}
+
+func (budget *snapshotBudget) addPage(entities, relationships []json.RawMessage, evidenceLengths []int) bool {
+	if budget == nil || budget.limit < 6 || len(evidenceLengths) != len(entities) {
+		return false
+	}
+	entityBytes := budget.entityBytes + rawArrayContribution(entities, budget.entityCount)
+	relationshipBytes := budget.relationshipBytes + rawArrayContribution(relationships, budget.relationshipCount)
+	evidenceBytes := budget.evidenceBytes + lengthArrayContribution(evidenceLengths, budget.evidenceCount)
+	if 6+entityBytes+relationshipBytes+evidenceBytes > budget.limit {
+		return false
+	}
+	budget.entityBytes = entityBytes
+	budget.entityCount += len(entities)
+	budget.relationshipBytes = relationshipBytes
+	budget.relationshipCount += len(relationships)
+	budget.evidenceBytes = evidenceBytes
+	budget.evidenceCount += len(evidenceLengths)
+	return true
+}
+
+func rawArrayContribution(values []json.RawMessage, priorCount int) int64 {
+	lengths := make([]int, len(values))
+	for index := range values {
+		lengths[index] = len(values[index])
+	}
+	return lengthArrayContribution(lengths, priorCount)
+}
+
+func lengthArrayContribution(lengths []int, priorCount int) int64 {
+	var total int64
+	for index, length := range lengths {
+		total += int64(length)
+		if priorCount > 0 || index > 0 {
+			total++
+		}
+	}
+	return total
+}
+
+func entityIdentity(value json.RawMessage) (string, string, bool) {
+	var entity normalizedPageEntity
+	if !decodeExactObject(value, &entity) || !validProductIDText(entity.ID) || !boundedInventoryText(entity.SourceNativeID, 1024) {
+		return "", "", false
+	}
+	return entity.ID, entity.SourceNativeID, true
+}
+
+func relationshipIdentity(value json.RawMessage) (string, string, string, string, bool) {
+	var relationship normalizedPageRelationship
+	if !decodeExactObject(value, &relationship) || !validProductIDText(relationship.ID) || !boundedInventoryText(relationship.SourceNativeID, 1024) || !validProductIDText(relationship.FromEntityID) || !validProductIDText(relationship.ToEntityID) {
+		return "", "", "", "", false
+	}
+	return relationship.ID, relationship.SourceNativeID, relationship.FromEntityID, relationship.ToEntityID, true
+}
+
+func relationshipsResolve(relationships []json.RawMessage, entities map[string]collection.RawObject) bool {
+	for _, raw := range relationships {
+		_, _, from, to, ok := relationshipIdentity(raw)
+		if !ok {
+			return false
+		}
+		if _, exists := entities[from]; !exists {
+			return false
+		}
+		if _, exists := entities[to]; !exists {
+			return false
+		}
+	}
+	return true
+}
+
 func snapshotBodies(request collection.Request, entities, relationships []json.RawMessage, entityObjects map[string]collection.RawObject) ([]byte, []byte, []byte, error) {
 	sort.Slice(entities, func(left, right int) bool { return identityForSort(entities[left]) < identityForSort(entities[right]) })
 	sort.Slice(relationships, func(left, right int) bool {
@@ -470,16 +650,11 @@ func snapshotBodies(request collection.Request, entities, relationships []json.R
 		if !ok || !exists {
 			return nil, nil, nil, collection.ErrContract
 		}
-		checksum := object.Checksum()
-		evidenceReference, err := deterministicEvidenceReference(request, "evidence:"+entityID+":"+object.Reference().String())
+		item, err := evidenceForEntity(request, entityID, object)
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		evidence = append(evidence, evidenceItem{
-			ID: evidenceReference.String(), EntityID: entityID, ObjectReference: object.ObjectReference(), ArtifactReference: object.Reference().String(),
-			ArtifactKey: object.Key(), ArtifactVersionID: object.VersionID(), ChecksumHex: hex.EncodeToString(checksum[:]), SizeBytes: object.Size(), MediaType: object.MediaType(),
-			SchemaVersion: object.SchemaVersion(), ParserVersion: object.ParserVersion(), ToolVersion: object.ToolVersion(),
-		})
+		evidence = append(evidence, item)
 	}
 	sort.Slice(evidence, func(left, right int) bool { return evidence[left].ID < evidence[right].ID })
 	entityBody, entityErr := json.Marshal(entities)
@@ -489,6 +664,19 @@ func snapshotBodies(request collection.Request, entities, relationships []json.R
 		return nil, nil, nil, collection.ErrContract
 	}
 	return entityBody, relationshipBody, evidenceBody, nil
+}
+
+func evidenceForEntity(request collection.Request, entityID string, object collection.RawObject) (evidenceItem, error) {
+	checksum := object.Checksum()
+	evidenceReference, err := deterministicEvidenceReference(request, "evidence:"+entityID+":"+object.Reference().String())
+	if err != nil {
+		return evidenceItem{}, err
+	}
+	return evidenceItem{
+		ID: evidenceReference.String(), EntityID: entityID, ObjectReference: object.ObjectReference(), ArtifactReference: object.Reference().String(),
+		ArtifactKey: object.Key(), ArtifactVersionID: object.VersionID(), ChecksumHex: hex.EncodeToString(checksum[:]), SizeBytes: object.Size(), MediaType: object.MediaType(),
+		SchemaVersion: object.SchemaVersion(), ParserVersion: object.ParserVersion(), ToolVersion: object.ToolVersion(),
+	}, nil
 }
 
 type evidenceItem struct {
@@ -538,6 +726,23 @@ type manifestDescriptor struct {
 type manifestSubject struct {
 	Kind string `json:"kind"`
 	ID   string `json:"id"`
+}
+
+func nextManifestDescriptorReserve(request collection.Request) (int64, error) {
+	reference, err := deterministicEvidenceReference(request, "raw-page-010000")
+	if err != nil {
+		return 0, err
+	}
+	key := artifactKey(request.Scope, reference)
+	maximumBucket := strings.Repeat("a", 63)
+	encoded, err := json.Marshal(manifestDescriptor{
+		Reference: reference.String(), Key: key, VersionID: strings.Repeat("<", 1024), ObjectReference: "s3://" + maximumBucket + "/" + key,
+		ChecksumHex: strings.Repeat("f", sha256.Size*2), SizeBytes: request.Bounds.MaxRawBytes, MediaType: "application/json", SchemaVersion: rawSchemaVersion,
+	})
+	if err != nil || len(encoded) >= maximumArtifactBytes {
+		return 0, collection.ErrContract
+	}
+	return int64(len(encoded) + 1), nil
 }
 
 func marshalManifest(request collection.Request, cursor collection.Cursor, objects []collection.RawObject) ([]byte, error) {
