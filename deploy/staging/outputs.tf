@@ -57,7 +57,8 @@ output "connector_runtime_config" {
     ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE = "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
     ZASP_CONNECTOR_KMS_KEY_ARN             = aws_kms_key.connector_oauth.arn
     ZASP_CONNECTOR_SECRET_PREFIX           = local.connector_secret_prefix
-    ZASP_AWS_CUSTOMER_ROLE_PREFIX          = var.aws_reference_role_prefix
+    ZASP_AWS_CUSTOMER_ROLE_PREFIXES        = jsonencode(sort(tolist(var.aws_reference_role_prefixes)))
+    ZASP_AWS_CUSTOMER_ROLE_ARNS            = jsonencode(sort(tolist(var.aws_reference_role_arns)))
     ZASP_KUBERNETES_EGRESS_CIDRS           = join(",", var.kubernetes_connector_egress_cidrs)
     ZASP_GITHUB_CLIENT_ID                  = var.connector_client_ids.github
     ZASP_GITHUB_CLIENT_SECRET_REFERENCE    = "ref:github/client-secret"

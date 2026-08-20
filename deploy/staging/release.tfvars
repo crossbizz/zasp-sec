@@ -21,6 +21,6 @@ connector_client_ids = {
   okta   = "0oa1234567890abcdef"
 }
 github_app_id                     = "123456"
-aws_reference_role_prefix         = "arn:aws:iam::000000000000:role/zasp-reference/"
-aws_reference_role_arns           = ["arn:aws:iam::000000000000:role/zasp-reference/customer-0001"]
+aws_reference_role_prefixes       = ["arn:aws:iam::111111111111:role/zasp-reference/", "arn:aws:iam::222222222222:role/zasp-reference/"]
+aws_reference_role_arns           = ["arn:aws:iam::111111111111:role/zasp-reference/customer-0001", "arn:aws:iam::222222222222:role/zasp-reference/customer-0002"]
 kubernetes_connector_egress_cidrs = ["203.0.113.0/28"]

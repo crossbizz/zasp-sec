@@ -12,7 +12,8 @@ const release = Object.freeze({
   connectors: Object.freeze({
     awsRegion: "us-west-2",
     roleArn: "arn:aws:iam::123456789012:role/zasp-production-api-connectors",
-    awsCustomerRolePrefix: "arn:aws:iam::123456789012:role/zasp-reference/",
+    awsCustomerRolePrefixes: Object.freeze(["arn:aws:iam::111111111111:role/zasp,reference/", "arn:aws:iam::222222222222:role/zasp-reference/"]),
+    awsCustomerRoleARNs: Object.freeze(["arn:aws:iam::111111111111:role/zasp,reference/customer-0001", "arn:aws:iam::222222222222:role/zasp-reference/customer-0002"]),
     webIdentityTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
     kmsKeyArn: "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111",
     secretPrefix: "zasp-production/connectors/oauth",
@@ -144,13 +145,14 @@ test("release gives only API an explicit connector identity, reference-only conf
   const pod = api.spec.template.spec;
   const container = pod.containers[0];
   const env = Object.fromEntries(container.env.map(({ name, value }) => [name, value]));
-  assert.deepEqual(Object.fromEntries(Object.entries(env).filter(([name]) => name.startsWith("ZASP_CONNECTOR_") || name.startsWith("ZASP_GITHUB_") || name.startsWith("ZASP_OKTA_") || name === "ZASP_AWS_CUSTOMER_ROLE_PREFIX" || name === "ZASP_KUBERNETES_EGRESS_CIDRS")), {
+  assert.deepEqual(Object.fromEntries(Object.entries(env).filter(([name]) => name.startsWith("ZASP_CONNECTOR_") || name.startsWith("ZASP_GITHUB_") || name.startsWith("ZASP_OKTA_") || name === "ZASP_AWS_CUSTOMER_ROLE_PREFIXES" || name === "ZASP_AWS_CUSTOMER_ROLE_ARNS" || name === "ZASP_KUBERNETES_EGRESS_CIDRS")), {
     ZASP_CONNECTOR_AWS_REGION: release.connectors.awsRegion,
     ZASP_CONNECTOR_ROLE_ARN: release.connectors.roleArn,
     ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE: release.connectors.webIdentityTokenFile,
     ZASP_CONNECTOR_KMS_KEY_ARN: release.connectors.kmsKeyArn,
     ZASP_CONNECTOR_SECRET_PREFIX: release.connectors.secretPrefix,
-    ZASP_AWS_CUSTOMER_ROLE_PREFIX: release.connectors.awsCustomerRolePrefix,
+    ZASP_AWS_CUSTOMER_ROLE_PREFIXES: JSON.stringify(release.connectors.awsCustomerRolePrefixes),
+    ZASP_AWS_CUSTOMER_ROLE_ARNS: JSON.stringify(release.connectors.awsCustomerRoleARNs),
     ZASP_KUBERNETES_EGRESS_CIDRS: release.connectorEgressCIDRs.kubernetes.join(","),
     ZASP_GITHUB_CLIENT_ID: release.connectors.githubClientID,
     ZASP_GITHUB_CLIENT_SECRET_REFERENCE: release.connectors.githubClientSecretReference,
@@ -237,7 +239,10 @@ test("release rejects unpinned images and hostile public identifiers", async () 
   await assert.rejects(() => renderRelease({ ...release, connectors: { ...release.connectors, roleArn: "arn:aws:iam::123456789012:role/zasp-production-api" } }), /release rejected/);
   await assert.rejects(() => renderRelease({ ...release, connectors: { ...release.connectors, webIdentityTokenFile: "/tmp/token" } }), /release rejected/);
   await assert.rejects(() => renderRelease({ ...release, connectors: { ...release.connectors, githubClientSecretReference: "raw-secret" } }), /release rejected/);
-  await assert.rejects(() => renderRelease({ ...release, connectors: { ...release.connectors, awsCustomerRolePrefix: "arn:aws:iam::123456789012:role/*" } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, connectors: { ...release.connectors, awsCustomerRolePrefixes: ["arn:aws:iam::123456789012:role/*"] } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, connectors: { ...release.connectors, awsCustomerRolePrefixes: [release.connectors.awsCustomerRolePrefixes[0], release.connectors.awsCustomerRolePrefixes[0]] } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, connectors: { ...release.connectors, awsCustomerRoleARNs: ["arn:aws:iam::333333333333:role/zasp-reference/unprovisioned"] } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, connectors: { ...release.connectors, awsCustomerRolePrefixes: Array.from({ length: 65 }, (_, index) => `arn:aws:iam::${String(index + 1).padStart(12, "0")}:role/zasp-reference/`) } }), /release rejected/);
   await assert.rejects(() => renderRelease({ ...release, connectorEgressCIDRs: { ...release.connectorEgressCIDRs, github: ["0.0.0.0/0"] } }), /release rejected/);
   await assert.rejects(() => renderRelease({ ...release, connectorEgressCIDRs: { ...release.connectorEgressCIDRs, okta: [] } }), /release rejected/);
   await assert.rejects(() => renderRelease({ ...release, connectorEgressCIDRs: { ...release.connectorEgressCIDRs, kubernetes: [] } }), /release rejected/);
@@ -327,14 +332,14 @@ test("terraform isolates connector mutation and reference authorization behind o
     assert.doesNotMatch(block, /aws_kms_key\.connector_oauth\.arn|connector_secret_prefix|connector_secret_root/, name);
   }
   assert.match(variables, /variable "connector_client_ids"/);
-  assert.match(variables, /variable "aws_reference_role_prefix"/);
+  assert.match(variables, /variable "aws_reference_role_prefixes"/);
   assert.match(variables, /variable "aws_reference_role_arns"/);
   assert.match(variables, /variable "connector_reference_ids"/);
   assert.match(outputs, /output "connector_role_arn"/);
   assert.match(outputs, /output "connector_kms_key_arn"/);
   assert.match(outputs, /output "connector_secret_prefix"/);
   assert.match(outputs, /output "connector_runtime_config"/);
-  for (const name of ["ZASP_CONNECTOR_AWS_REGION", "ZASP_CONNECTOR_ROLE_ARN", "ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE", "ZASP_CONNECTOR_KMS_KEY_ARN", "ZASP_CONNECTOR_SECRET_PREFIX", "ZASP_AWS_CUSTOMER_ROLE_PREFIX", "ZASP_KUBERNETES_EGRESS_CIDRS", "ZASP_GITHUB_CLIENT_ID", "ZASP_GITHUB_CLIENT_SECRET_REFERENCE", "ZASP_GITHUB_APP_ID", "ZASP_GITHUB_PRIVATE_KEY_REFERENCE", "ZASP_OKTA_CLIENT_ID", "ZASP_OKTA_CLIENT_SECRET_REFERENCE"]) assert.match(outputs, new RegExp(name));
+  for (const name of ["ZASP_CONNECTOR_AWS_REGION", "ZASP_CONNECTOR_ROLE_ARN", "ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE", "ZASP_CONNECTOR_KMS_KEY_ARN", "ZASP_CONNECTOR_SECRET_PREFIX", "ZASP_AWS_CUSTOMER_ROLE_PREFIXES", "ZASP_AWS_CUSTOMER_ROLE_ARNS", "ZASP_KUBERNETES_EGRESS_CIDRS", "ZASP_GITHUB_CLIENT_ID", "ZASP_GITHUB_CLIENT_SECRET_REFERENCE", "ZASP_GITHUB_APP_ID", "ZASP_GITHUB_PRIVATE_KEY_REFERENCE", "ZASP_OKTA_CLIENT_ID", "ZASP_OKTA_CLIENT_SECRET_REFERENCE"]) assert.match(outputs, new RegExp(name));
   assert.doesNotMatch(terraform, /aws_secretsmanager_secret_version|secret_string|secret_binary/i);
 });
 

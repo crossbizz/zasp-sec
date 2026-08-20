@@ -41,7 +41,8 @@ secrets:
 connectors:
   awsRegion: ""
   roleArn: ""
-  awsCustomerRolePrefix: ""
+  awsCustomerRolePrefixes: []
+  awsCustomerRoleARNs: []
   webIdentityTokenFile: /var/run/secrets/eks.amazonaws.com/serviceaccount/token
   kmsKeyArn: ""
   secretPrefix: ""

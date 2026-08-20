@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"testing"
 	"time"
@@ -15,6 +16,26 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/awsdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/kubernetesdiscovery"
 )
+
+func TestAWSCustomerRolePrefixesAreBoundedAndExact(t *testing.T) {
+	prefixes := make([]string, 64)
+	for index := range prefixes {
+		prefixes[index] = fmt.Sprintf("arn:aws:iam::%012d:role/zasp/", index+1)
+	}
+	if !validAWSCustomerRolePrefixes(prefixes) {
+		t.Fatal("64 exact cross-account prefixes rejected")
+	}
+	for name, values := range map[string][]string{
+		"empty":      nil,
+		"duplicate":  {prefixes[0], prefixes[0]},
+		"wildcard":   {"arn:aws:iam::123456789012:role/zasp/*/"},
+		"over bound": append(append([]string(nil), prefixes...), "arn:aws:iam::999999999999:role/zasp/"),
+	} {
+		if validAWSCustomerRolePrefixes(values) {
+			t.Fatalf("%s prefix list accepted: %#v", name, values)
+		}
+	}
+}
 
 type referenceAssumeRoleStub struct {
 	input      *sts.AssumeRoleInput
@@ -76,7 +97,7 @@ func TestAWSReferenceIdentityUsesOnlyExplicitScopedAssumeRoleCredentials(t *test
 	caller := &referenceCallerIdentityStub{output: &sts.GetCallerIdentityOutput{Account: aws.String("123456789012"), Arn: aws.String("arn:aws:sts::123456789012:assumed-role/zasp/customer")}}
 	var region string
 	var credentials aws.Credentials
-	client := &awsReferenceIdentityClient{assume: assume, rolePrefix: "arn:aws:iam::123456789012:role/zasp/", newCaller: func(value string, valueCredentials aws.Credentials) awsCallerIdentityAPI {
+	client := &awsReferenceIdentityClient{assume: assume, rolePrefixes: []string{"arn:aws:iam::111111111111:role/zasp/", "arn:aws:iam::123456789012:role/zasp/"}, roleARNs: []string{"arn:aws:iam::111111111111:role/zasp/customer", "arn:aws:iam::123456789012:role/zasp/customer"}, newCaller: func(value string, valueCredentials aws.Credentials) awsCallerIdentityAPI {
 		region, credentials = value, valueCredentials
 		return caller
 	}}
@@ -84,6 +105,16 @@ func TestAWSReferenceIdentityUsesOnlyExplicitScopedAssumeRoleCredentials(t *test
 	identity, err := client.GetCallerIdentity(context.Background(), request)
 	if err != nil || identity.AccountID != "123456789012" || assume.input == nil || assume.roleARN != request.RoleARN || assume.externalID != "external-id-value" || assume.duration != 900 || region != request.Region || credentials.AccessKeyID == "" || !credentials.CanExpire {
 		t.Fatalf("identity=%#v err=%v assume=%#v region=%q credentials=%#v", identity, err, assume.input, region, credentials)
+	}
+	assume.input = nil
+	request.RoleARN = "arn:aws:iam::111111111111:role/zasp/customer"
+	if _, err := client.GetCallerIdentity(context.Background(), request); err != nil || assume.input == nil || assume.roleARN != request.RoleARN {
+		t.Fatalf("second-account role did not reach STS: err=%v input=%#v", err, assume.input)
+	}
+	assume.input = nil
+	request.RoleARN = "arn:aws:iam::111111111111:role/zasp/unlisted"
+	if _, err := client.GetCallerIdentity(context.Background(), request); !errors.Is(err, errRuntimeUnavailable) || assume.input != nil {
+		t.Fatalf("prefix-matching unlisted role reached STS: err=%v input=%#v", err, assume.input)
 	}
 	assume.input = nil
 	request.RoleARN = "arn:aws:iam::123456789012:role/unscoped/customer"

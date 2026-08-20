@@ -136,25 +136,27 @@ variable "github_app_id" {
   }
 }
 
-variable "aws_reference_role_prefix" {
-  description = "Canonical customer role path prefix accepted by the AWS reference authorization runtime."
-  type        = string
-  default     = "arn:aws:iam::000000000000:role/zasp-reference/"
+variable "aws_reference_role_prefixes" {
+  description = "Canonical customer role path prefixes accepted by the AWS reference authorization runtime across configured accounts."
+  type        = set(string)
+  default     = ["arn:aws:iam::111111111111:role/zasp-reference/"]
   validation {
-    condition     = can(regex("^arn:aws:iam::[0-9]{12}:role/[A-Za-z0-9+=,.@_/-]{1,120}/$", var.aws_reference_role_prefix)) && startswith(var.aws_reference_role_prefix, "arn:aws:iam::${var.account_id}:role/") && !strcontains(var.aws_reference_role_prefix, "*")
-    error_message = "aws_reference_role_prefix must be one wildcard-free role path prefix in the configured account."
+    condition = length(var.aws_reference_role_prefixes) >= 1 && length(var.aws_reference_role_prefixes) <= 64 && alltrue([
+      for prefix in var.aws_reference_role_prefixes : can(regex("^arn:aws:iam::[0-9]{12}:role/[A-Za-z0-9+=,.@_/-]{1,120}/$", prefix)) && !strcontains(prefix, "*")
+    ])
+    error_message = "aws_reference_role_prefixes must contain one to 64 exact wildcard-free customer role path prefixes."
   }
 }
 
 variable "aws_reference_role_arns" {
   description = "Exact customer roles the connector runtime may assume for read-only reference authorization."
   type        = set(string)
-  default     = ["arn:aws:iam::000000000000:role/zasp-reference/customer-0001"]
+  default     = ["arn:aws:iam::111111111111:role/zasp-reference/customer-0001"]
   validation {
-    condition = length(var.aws_reference_role_arns) >= 1 && length(var.aws_reference_role_arns) <= 32 && alltrue([
-      for role in var.aws_reference_role_arns : startswith(role, var.aws_reference_role_prefix) && role != var.aws_reference_role_prefix && !strcontains(role, "*") && can(regex("^arn:aws:iam::[0-9]{12}:role/[A-Za-z0-9+=,.@_/-]{1,128}$", role))
+    condition = length(var.aws_reference_role_arns) >= 1 && length(var.aws_reference_role_arns) <= 64 && alltrue([
+      for role in var.aws_reference_role_arns : anytrue([for prefix in var.aws_reference_role_prefixes : startswith(role, prefix) && role != prefix]) && !strcontains(role, "*") && can(regex("^arn:aws:iam::[0-9]{12}:role/[A-Za-z0-9+=,.@_/-]{1,128}$", role))
     ])
-    error_message = "aws_reference_role_arns must contain one to 32 exact wildcard-free roles beneath aws_reference_role_prefix."
+    error_message = "aws_reference_role_arns must contain one to 64 exact wildcard-free roles beneath the configured customer prefixes."
   }
 }
 

@@ -13,7 +13,7 @@ const digestPattern = /^[a-z0-9][a-z0-9./_-]*(?::[A-Za-z0-9._-]+)?@sha256:[0-9a-
 const hostPattern = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
 const namePattern = /^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$/;
 const imageNames = Object.freeze(["web", "agentsecApi"]);
-const connectorKeys = Object.freeze(["awsRegion", "roleArn", "awsCustomerRolePrefix", "webIdentityTokenFile", "kmsKeyArn", "secretPrefix", "githubClientID", "githubClientSecretReference", "githubAppID", "githubPrivateKeyReference", "oktaClientID", "oktaClientSecretReference"]);
+const connectorKeys = Object.freeze(["awsRegion", "roleArn", "awsCustomerRolePrefixes", "awsCustomerRoleARNs", "webIdentityTokenFile", "kmsKeyArn", "secretPrefix", "githubClientID", "githubClientSecretReference", "githubAppID", "githubPrivateKeyReference", "oktaClientID", "oktaClientSecretReference"]);
 const connectorEgressKeys = Object.freeze(["aws", "github", "okta", "kubernetes"]);
 
 export async function inspectContainerBuilds() {
@@ -69,7 +69,6 @@ export async function renderRelease(value) {
     ["network.canaryCIDR", "10.60.0.0/24"],
     ["connectors.awsRegion", value.connectors.awsRegion],
     ["connectors.roleArn", value.connectors.roleArn],
-    ["connectors.awsCustomerRolePrefix", value.connectors.awsCustomerRolePrefix],
     ["connectors.webIdentityTokenFile", value.connectors.webIdentityTokenFile],
     ["connectors.kmsKeyArn", value.connectors.kmsKeyArn],
     ["connectors.secretPrefix", value.connectors.secretPrefix],
@@ -79,11 +78,13 @@ export async function renderRelease(value) {
     ["connectors.githubPrivateKeyReference", value.connectors.githubPrivateKeyReference],
     ["connectors.oktaClientID", value.connectors.oktaClientID],
     ["connectors.oktaClientSecretReference", value.connectors.oktaClientSecretReference],
+    ...value.connectors.awsCustomerRolePrefixes.map((prefix, index) => [`connectors.awsCustomerRolePrefixes[${index}]`, prefix]),
+    ...value.connectors.awsCustomerRoleARNs.map((roleARN, index) => [`connectors.awsCustomerRoleARNs[${index}]`, roleARN]),
     ...connectorEgressKeys.flatMap((provider) => value.connectorEgressCIDRs[provider].map((cidr, index) => [`network.connectorEgressCIDRs.${provider}[${index}]`, cidr])),
     ...imageNames.map((name) => [`global.productImages.${name}`, value.images[name]]),
   ];
   const args = ["template", "zasp", path.join(root, "deploy/staging/product"), "--namespace", "agentsec"];
-  for (const [key, entry] of set) args.push("--set-string", `${key}=${entry}`);
+  for (const [key, entry] of set) args.push("--set-string", `${key}=${entry.replaceAll("\\", "\\\\").replaceAll(",", "\\,")}`);
   let stdout;
   try {
     ({ stdout } = await exec("helm", args, { cwd: root, encoding: "utf8", maxBuffer: 4 * 1024 * 1024 }));
@@ -107,9 +108,10 @@ function validRelease(value) {
   if (!imageNames.every((name) => digestPattern.test(value.images[name]))) return false;
   if (!value.connectors || typeof value.connectors !== "object" || Array.isArray(value.connectors) || Object.keys(value.connectors).sort().join("\0") !== [...connectorKeys].sort().join("\0")) return false;
   const role = /^arn:aws:iam::([0-9]{12}):role\/zasp-production-api-connectors$/.exec(value.connectors.roleArn);
-  const customerRole = /^arn:aws:iam::([0-9]{12}):role\/zasp-reference\/$/.exec(value.connectors.awsCustomerRolePrefix);
   const kms = /^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.exec(value.connectors.kmsKeyArn);
-  if (!/^[a-z]{2}(?:-gov)?-[a-z]+-[0-9]$/.test(value.connectors.awsRegion) || !role || !customerRole || !kms || kms[1] !== value.connectors.awsRegion || kms[2] !== role[1] || customerRole[1] !== role[1]) return false;
+  if (!/^[a-z]{2}(?:-gov)?-[a-z]+-[0-9]$/.test(value.connectors.awsRegion) || !role || !kms || kms[1] !== value.connectors.awsRegion || kms[2] !== role[1]) return false;
+  if (!Array.isArray(value.connectors.awsCustomerRolePrefixes) || value.connectors.awsCustomerRolePrefixes.length < 1 || value.connectors.awsCustomerRolePrefixes.length > 64 || new Set(value.connectors.awsCustomerRolePrefixes).size !== value.connectors.awsCustomerRolePrefixes.length || !value.connectors.awsCustomerRolePrefixes.every((prefix) => /^arn:aws:iam::[0-9]{12}:role\/[A-Za-z0-9+=,.@_/-]{1,120}\/$/.test(prefix))) return false;
+  if (!Array.isArray(value.connectors.awsCustomerRoleARNs) || value.connectors.awsCustomerRoleARNs.length < 1 || value.connectors.awsCustomerRoleARNs.length > 64 || new Set(value.connectors.awsCustomerRoleARNs).size !== value.connectors.awsCustomerRoleARNs.length || !value.connectors.awsCustomerRoleARNs.every((roleARN) => /^arn:aws:iam::[0-9]{12}:role\/[A-Za-z0-9+=,.@_/-]{1,128}$/.test(roleARN) && value.connectors.awsCustomerRolePrefixes.some((prefix) => roleARN.startsWith(prefix) && roleARN !== prefix))) return false;
   if (value.connectors.webIdentityTokenFile !== "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || value.connectors.secretPrefix !== "zasp-production/connectors/oauth") return false;
   if (!/^Iv1\.[A-Za-z0-9]{16}$/.test(value.connectors.githubClientID) || value.connectors.githubClientSecretReference !== "ref:github/client-secret" || !/^[1-9][0-9]{0,15}$/.test(value.connectors.githubAppID) || value.connectors.githubPrivateKeyReference !== "ref:github/app-private-key") return false;
   if (!/^0oa[A-Za-z0-9]{16}$/.test(value.connectors.oktaClientID) || value.connectors.oktaClientSecretReference !== "ref:okta/client-secret") return false;

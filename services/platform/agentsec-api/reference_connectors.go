@@ -24,7 +24,10 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/kubernetesdiscovery"
 )
 
-var awsCustomerRolePrefixPattern = regexp.MustCompile(`^arn:aws:iam::[0-9]{12}:role/[A-Za-z0-9+=,.@_/-]{1,120}/$`)
+var (
+	awsCustomerRolePrefixPattern = regexp.MustCompile(`^arn:aws:iam::[0-9]{12}:role/[A-Za-z0-9+=,.@_/-]{1,120}/$`)
+	awsCustomerRoleARNPattern    = regexp.MustCompile(`^arn:aws:iam::[0-9]{12}:role/[A-Za-z0-9+=,.@_/-]{1,128}$`)
+)
 
 type referenceSecretResolver struct {
 	driver *connectorSecretsDriver
@@ -63,13 +66,14 @@ type awsCallerIdentityAPI interface {
 }
 
 type awsReferenceIdentityClient struct {
-	assume     awsReferenceAPI
-	newCaller  func(string, aws.Credentials) awsCallerIdentityAPI
-	rolePrefix string
+	assume       awsReferenceAPI
+	newCaller    func(string, aws.Credentials) awsCallerIdentityAPI
+	rolePrefixes []string
+	roleARNs     []string
 }
 
 func (client *awsReferenceIdentityClient) GetCallerIdentity(ctx context.Context, request awsdiscovery.AssumeRoleRequest) (awsdiscovery.Identity, error) {
-	if client == nil || client.assume == nil || client.newCaller == nil || ctx == nil || ctx.Err() != nil || !awsCustomerRolePrefixPattern.MatchString(client.rolePrefix) || !strings.HasPrefix(request.RoleARN, client.rolePrefix) || request.RoleARN == client.rolePrefix || request.Duration != 15*time.Minute || len(request.ExternalID) < 16 || len(request.ExternalID) > 256 {
+	if client == nil || client.assume == nil || client.newCaller == nil || ctx == nil || ctx.Err() != nil || !validAWSCustomerRoleAuthority(client.rolePrefixes, client.roleARNs) || !containsString(client.roleARNs, request.RoleARN) || request.Duration != 15*time.Minute || len(request.ExternalID) < 16 || len(request.ExternalID) > 256 {
 		return awsdiscovery.Identity{}, errRuntimeUnavailable
 	}
 	duration := int32(900)
@@ -86,6 +90,100 @@ func (client *awsReferenceIdentityClient) GetCallerIdentity(ctx context.Context,
 		return awsdiscovery.Identity{}, errRuntimeUnavailable
 	}
 	return awsdiscovery.Identity{AccountID: *identity.Account, PrincipalARN: *identity.Arn}, nil
+}
+
+func parseAWSCustomerRolePrefixes(value string) []string {
+	if value == "" {
+		return nil
+	}
+	var values []string
+	if json.Unmarshal([]byte(value), &values) != nil || !validAWSCustomerRolePrefixes(values) {
+		return nil
+	}
+	canonical, err := json.Marshal(values)
+	if err != nil || string(canonical) != value {
+		return nil
+	}
+	return append([]string(nil), values...)
+}
+
+func parseAWSCustomerRoleARNs(value string) []string {
+	if value == "" {
+		return nil
+	}
+	var values []string
+	if json.Unmarshal([]byte(value), &values) != nil || !validAWSCustomerRoleARNs(values) {
+		return nil
+	}
+	canonical, err := json.Marshal(values)
+	if err != nil || string(canonical) != value {
+		return nil
+	}
+	return append([]string(nil), values...)
+}
+
+func validAWSCustomerRolePrefixes(values []string) bool {
+	if len(values) < 1 || len(values) > 64 {
+		return false
+	}
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		if !awsCustomerRolePrefixPattern.MatchString(value) {
+			return false
+		}
+		if _, duplicate := seen[value]; duplicate {
+			return false
+		}
+		seen[value] = struct{}{}
+	}
+	return true
+}
+
+func matchesAWSCustomerRolePrefix(roleARN string, prefixes []string) bool {
+	for _, prefix := range prefixes {
+		if roleARN != prefix && strings.HasPrefix(roleARN, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func validAWSCustomerRoleARNs(values []string) bool {
+	if len(values) < 1 || len(values) > 64 {
+		return false
+	}
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		if !awsCustomerRoleARNPattern.MatchString(value) {
+			return false
+		}
+		if _, duplicate := seen[value]; duplicate {
+			return false
+		}
+		seen[value] = struct{}{}
+	}
+	return true
+}
+
+func validAWSCustomerRoleAuthority(prefixes, roleARNs []string) bool {
+	if !validAWSCustomerRolePrefixes(prefixes) || !validAWSCustomerRoleARNs(roleARNs) {
+		return false
+	}
+	for _, roleARN := range roleARNs {
+		if !matchesAWSCustomerRolePrefix(roleARN, prefixes) {
+			return false
+		}
+	}
+	return true
+}
+
+func containsString(values []string, candidate string) bool {
+	for _, value := range values {
+		if value == candidate {
+			return true
+		}
+	}
+	return false
 }
 
 type awsReferenceProbe struct{ adapter *awsdiscovery.Adapter }
@@ -268,7 +366,7 @@ func parseReferenceCIDRs(values []string) ([]*net.IPNet, error) {
 }
 
 func newReferenceAWSClient(config RuntimeConfig) (*awsReferenceIdentityClient, *http.Transport, error) {
-	if !awsCustomerRolePrefixPattern.MatchString(config.AWSCustomerRolePrefix) {
+	if !validAWSCustomerRoleAuthority(config.AWSCustomerRolePrefixes, config.AWSCustomerRoleARNs) {
 		return nil, nil, errRuntimeUnavailable
 	}
 	transport := &http.Transport{Proxy: nil, DialContext: (&net.Dialer{Timeout: 3 * time.Second}).DialContext, ForceAttemptHTTP2: true, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12}, TLSHandshakeTimeout: 3 * time.Second, ResponseHeaderTimeout: config.ProviderTimeout, MaxResponseHeaderBytes: 1 << 20}
@@ -277,7 +375,7 @@ func newReferenceAWSClient(config RuntimeConfig) (*awsReferenceIdentityClient, *
 	webSTS := sts.NewFromConfig(base)
 	base.Credentials = aws.NewCredentialsCache(&connectorWebIdentityProvider{client: webSTS, roleARN: config.ConnectorRoleARN, tokenFile: config.ConnectorTokenFile, timeout: config.ProviderTimeout})
 	assume := sts.NewFromConfig(base)
-	return &awsReferenceIdentityClient{assume: assume, rolePrefix: config.AWSCustomerRolePrefix, newCaller: func(region string, credentials aws.Credentials) awsCallerIdentityAPI {
+	return &awsReferenceIdentityClient{assume: assume, rolePrefixes: append([]string(nil), config.AWSCustomerRolePrefixes...), roleARNs: append([]string(nil), config.AWSCustomerRoleARNs...), newCaller: func(region string, credentials aws.Credentials) awsCallerIdentityAPI {
 		candidate := base
 		candidate.Region = region
 		candidate.Credentials = aws.CredentialsProviderFunc(func(context.Context) (aws.Credentials, error) { return credentials, nil })
