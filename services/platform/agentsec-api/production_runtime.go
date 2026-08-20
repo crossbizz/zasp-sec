@@ -132,6 +132,10 @@ func composeRuntimeDependencies(config RuntimeConfig, database apiserver.JSONDat
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
+	connectorReconciler, err := apiserver.NewConnectorReconciler(apiserver.ConnectorReconcilerConfig{Repository: connectorRepository, Workflows: repository, Registry: connectorRegistry, Owner: "agentsec-api-connector", LeaseSeconds: 30, Limit: 25, Interval: time.Second})
+	if err != nil {
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
 	handlers, authenticate, err := apiserver.NewProductionHandlers(repository, tracedProvider, connectorHandler, apiserver.CookiePolicy{Secure: config.CookieSecure, WorkflowSigningKey: []byte(config.WorkflowSigningKey), TokenRevealKey: config.TokenRevealKey, Clock: func() time.Time { return time.Now().UTC().Truncate(time.Second) }, BuildVersion: buildVersion, DeploymentMode: config.DeploymentMode, OrganizationID: config.OrganizationID, ConnectorCapabilities: connectorRegistry})
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
@@ -155,7 +159,7 @@ func composeRuntimeDependencies(config RuntimeConfig, database apiserver.JSONDat
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
 	keepConnectorResources = true
-	return RuntimeDependencies{ProductHandler: edge, Metrics: metrics, ReadinessCheck: func(ctx context.Context) error {
+	return RuntimeDependencies{ProductHandler: edge, Metrics: metrics, LifecycleWorker: connectorReconciler.Run, ReadinessCheck: func(ctx context.Context) error {
 		if err := repository.Ready(ctx); err != nil {
 			return errRuntimeUnavailable
 		}
@@ -163,6 +167,9 @@ func composeRuntimeDependencies(config RuntimeConfig, database apiserver.JSONDat
 			return errRuntimeUnavailable
 		}
 		if err := tracedProvider.Ready(ctx); err != nil {
+			return errRuntimeUnavailable
+		}
+		if !connectorReconciler.Ready() {
 			return errRuntimeUnavailable
 		}
 		return nil

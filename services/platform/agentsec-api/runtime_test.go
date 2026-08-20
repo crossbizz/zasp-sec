@@ -148,6 +148,45 @@ func TestServeRuntimeSplitsProductAndInternalListeners(t *testing.T) {
 	}
 }
 
+func TestServeRuntimeRunsAndCancelsConnectorLifecycleWorker(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	opened := make(chan commandListenResult, 2)
+	listen := func(network, address string) (net.Listener, error) {
+		listener, err := net.Listen("tcp", "127.0.0.1:0")
+		opened <- commandListenResult{listener: listener, network: network, address: address, err: err}
+		return listener, err
+	}
+	started, stopped := make(chan struct{}), make(chan struct{})
+	dependencies := fixtureRuntimeDependencies()
+	dependencies.LifecycleWorker = func(workerContext context.Context) error {
+		close(started)
+		<-workerContext.Done()
+		close(stopped)
+		return workerContext.Err()
+	}
+	result := make(chan error, 1)
+	go func() {
+		result <- serveRuntime(ctx, &bytes.Buffer{}, "1.2.3", fixtureRuntimeConfig(), dependencies, listen)
+	}()
+	for range 2 {
+		<-opened
+	}
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("connector lifecycle worker did not start")
+	}
+	cancel()
+	if err := <-result; err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-stopped:
+	case <-time.After(time.Second):
+		t.Fatal("connector lifecycle worker did not stop")
+	}
+}
+
 func TestServeRuntimeReadinessTracksRequiredProviderChecks(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

@@ -68,11 +68,12 @@ type StoreDependency struct {
 }
 
 type RuntimeDependencies struct {
-	ProductHandler http.Handler
-	ReadinessCheck func(context.Context) error
-	Stores         []StoreDependency
-	Closers        []io.Closer
-	Metrics        *operationalMetrics
+	ProductHandler  http.Handler
+	ReadinessCheck  func(context.Context) error
+	LifecycleWorker func(context.Context) error
+	Stores          []StoreDependency
+	Closers         []io.Closer
+	Metrics         *operationalMetrics
 }
 
 func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
@@ -305,15 +306,24 @@ func serveRuntime(ctx context.Context, output io.Writer, version string, config 
 	defer cancel()
 	productDone := make(chan error, 1)
 	internalDone := make(chan error, 1)
+	var workerDone chan error
 	go func() { productDone <- productServer.Serve(productListener) }()
 	go func() { internalDone <- health.Serve(runtimeCtx, internalListener) }()
+	if dependencies.LifecycleWorker != nil {
+		workerDone = make(chan error, 1)
+		go func() { workerDone <- dependencies.LifecycleWorker(runtimeCtx) }()
+	}
 
-	var productErr, internalErr error
+	var productErr, internalErr, workerErr error
+	workerFinished := false
 	select {
 	case <-ctx.Done():
 	case productErr = <-productDone:
 		cancel()
 	case internalErr = <-internalDone:
+		cancel()
+	case workerErr = <-workerDone:
+		workerFinished = true
 		cancel()
 	}
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), config.ShutdownTimeout)
@@ -326,10 +336,13 @@ func serveRuntime(ctx context.Context, output io.Writer, version string, config 
 	if internalErr == nil {
 		internalErr = <-internalDone
 	}
-	if ctx.Err() != nil && (productErr == nil || errors.Is(productErr, http.ErrServerClosed)) && internalErr == nil && shutdownErr == nil {
+	if workerDone != nil && !workerFinished {
+		workerErr = <-workerDone
+	}
+	if ctx.Err() != nil && (productErr == nil || errors.Is(productErr, http.ErrServerClosed)) && internalErr == nil && (workerErr == nil || errors.Is(workerErr, context.Canceled)) && shutdownErr == nil {
 		return nil
 	}
-	return errors.Join(errRuntimeUnavailable, productErr, internalErr, shutdownErr)
+	return errors.Join(errRuntimeUnavailable, productErr, internalErr, workerErr, shutdownErr)
 }
 
 func writeLifecycle(output io.Writer, event, version string) error {
