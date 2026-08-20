@@ -1284,7 +1284,14 @@ func TestAdministrationKeysetsAndExactScopePreconditionsWithHostilePostgresData(
 }
 
 func startDisposablePostgres(t *testing.T) string {
+	return startDisposablePostgresAs(t, "zasp_test")
+}
+
+func startDisposablePostgresAs(t *testing.T, username string) string {
 	t.Helper()
+	if username != "zasp_test" && username != "zasp_e2e" {
+		t.Fatal("unsupported disposable PostgreSQL owner")
+	}
 	initdb, initErr := exec.LookPath("initdb")
 	postgres, postgresErr := exec.LookPath("postgres")
 	pgIsReady, readyErr := exec.LookPath("pg_isready")
@@ -1294,7 +1301,7 @@ func startDisposablePostgres(t *testing.T) string {
 	}
 	root := t.TempDir()
 	data := filepath.Join(root, "data")
-	if err := exec.Command(initdb, "--no-locale", "--encoding=UTF8", "--auth-local=trust", "--auth-host=trust", "--username=zasp_test", "-D", data).Run(); err != nil {
+	if err := exec.Command(initdb, "--no-locale", "--encoding=UTF8", "--auth-local=trust", "--auth-host=trust", "--username="+username, "-D", data).Run(); err != nil {
 		t.Fatalf("initdb: %v", err)
 	}
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -1322,8 +1329,8 @@ func startDisposablePostgres(t *testing.T) string {
 		stopped = true
 	})
 	for deadline := time.Now().Add(10 * time.Second); time.Now().Before(deadline); {
-		if exec.Command(pgIsReady, "-h", "127.0.0.1", "-p", strconv.Itoa(port), "-U", "zasp_test", "-d", "postgres").Run() == nil {
-			return fmt.Sprintf("postgres://zasp_test@127.0.0.1:%d/postgres?sslmode=disable", port)
+		if exec.Command(pgIsReady, "-h", "127.0.0.1", "-p", strconv.Itoa(port), "-U", username, "-d", "postgres").Run() == nil {
+			return fmt.Sprintf("postgres://%s@127.0.0.1:%d/postgres?sslmode=disable", username, port)
 		}
 		time.Sleep(25 * time.Millisecond)
 	}

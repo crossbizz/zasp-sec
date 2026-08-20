@@ -133,6 +133,77 @@ func TestProductionDiscoveryExecutionPostgresInstallsExactAuthority(t *testing.T
 	}
 }
 
+func TestProductionDiscoveryExecutionFingerprintIsStableAcrossMigrationPrincipalAndOwnerReapply(t *testing.T) {
+	dsn := startDisposablePostgresAs(t, "zasp_e2e")
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	connection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close(ctx)
+
+	runner := migrateToReferenceAuthorization(t, ctx, connection)
+	securityShape := func() json.RawMessage {
+		t.Helper()
+		var shape json.RawMessage
+		if queryErr := connection.QueryRow(ctx, `SELECT jsonb_build_object(
+			'receipts_owner',c.relowner::regrole::text,'receipts_acl',COALESCE(c.relacl::text,''),
+			'workflow_owner',w.proowner::regrole::text,'workflow_acl',COALESCE(w.proacl::text,''),
+			'risk_owner',r.proowner::regrole::text,'risk_acl',COALESCE(r.proacl::text,''))
+			FROM pg_class c,pg_proc w,pg_proc r
+			WHERE c.oid='zasp_workflow_receipts'::regclass
+			AND w.oid='zasp_workflow_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)'::regprocedure
+			AND r.oid='zasp_risk_mutate(text,text,text,text,text,text,text,bigint,text,text,text,text,text)'::regprocedure`).Scan(&shape); queryErr != nil {
+			t.Fatal(queryErr)
+		}
+		return shape
+	}
+	priorSecurityShape := securityShape()
+	metadata := migrations.ProductionDiscoveryExecution()
+	if _, err := connection.Exec(ctx, metadata.UpSQL()); err != nil {
+		t.Fatalf("autocommit v13 SQL: %v", err)
+	}
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_schema_versions(version,name,checksum) VALUES($1,$2,$3)`, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
+		t.Fatalf("autocommit v13 release: %v", err)
+	}
+	var liveFingerprint string
+	if err := connection.QueryRow(ctx, `SELECT zasp_execution_live_fingerprint()`).Scan(&liveFingerprint); err != nil {
+		t.Fatal(err)
+	}
+	if liveFingerprint != migrations.ProductionDiscoveryExecutionSemanticFingerprint() {
+		t.Fatalf("autocommit fingerprint live=%q expected=%q", liveFingerprint, migrations.ProductionDiscoveryExecutionSemanticFingerprint())
+	}
+	var stableOwners bool
+	if err := connection.QueryRow(ctx, `SELECT
+		(SELECT relowner='zasp_discovery_authority'::regrole FROM pg_class WHERE oid='zasp_workflow_receipts'::regclass)
+		AND (SELECT proowner='zasp_discovery_authority'::regrole FROM pg_proc WHERE oid='zasp_workflow_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)'::regprocedure)
+		AND (SELECT proowner='zasp_discovery_authority'::regrole FROM pg_proc WHERE oid='zasp_risk_mutate(text,text,text,text,text,text,text,bigint,text,text,text,text,text)'::regprocedure)`).Scan(&stableOwners); err != nil || !stableOwners {
+		t.Fatalf("stable inherited authority owners=%v err=%v", stableOwners, err)
+	}
+	if _, err := connection.Exec(ctx, `ALTER TABLE zasp_workflow_receipts OWNER TO zasp_discovery_authority;
+		ALTER FUNCTION zasp_workflow_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text) OWNER TO zasp_discovery_authority;
+		ALTER FUNCTION zasp_risk_mutate(text,text,text,text,text,text,text,bigint,text,text,text,text,text) OWNER TO zasp_discovery_authority`); err != nil {
+		t.Fatalf("owner normalization reapply: %v", err)
+	}
+	var replayFingerprint string
+	if err := connection.QueryRow(ctx, `SELECT zasp_execution_live_fingerprint()`).Scan(&replayFingerprint); err != nil || replayFingerprint != liveFingerprint {
+		t.Fatalf("owner normalization replay fingerprint=%q want=%q err=%v", replayFingerprint, liveFingerprint, err)
+	}
+	if err := runner.DownProductionDiscoveryExecution(ctx); err != nil {
+		t.Fatalf("v13 down with prior owner: %v", err)
+	}
+	if restoredSecurityShape := securityShape(); !bytes.Equal(restoredSecurityShape, priorSecurityShape) {
+		t.Fatalf("v12 inherited security shape after down=%s want=%s", restoredSecurityShape, priorSecurityShape)
+	}
+	if err := runner.UpProductionDiscoveryExecution(ctx); err != nil {
+		t.Fatalf("v13 re-up with non-default migration principal: %v", err)
+	}
+	if err := connection.QueryRow(ctx, `SELECT zasp_execution_live_fingerprint()`).Scan(&replayFingerprint); err != nil || replayFingerprint != liveFingerprint {
+		t.Fatalf("v13 re-up fingerprint=%q want=%q err=%v", replayFingerprint, liveFingerprint, err)
+	}
+}
+
 func TestProductionDiscoveryExecutionPostgresRejectsUnsafePreexistingCapabilityRoles(t *testing.T) {
 	for _, test := range []struct {
 		name  string

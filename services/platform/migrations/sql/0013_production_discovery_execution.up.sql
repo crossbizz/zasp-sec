@@ -897,6 +897,24 @@ BEGIN
  RETURN result||jsonb_build_object('remaining_count',remaining_count);
 END $$;
 
+-- V13 evolves these inherited objects and therefore owns their exact security
+-- shape. Their prior owner was the environment-specific migration login, which
+-- made otherwise identical live fingerprints depend on that login's name.
+DO $prior_owner$ DECLARE prior_owner text;workflow_owner text;risk_owner text;BEGIN
+ SELECT c.relowner::regrole::text,p.proowner::regrole::text,r.proowner::regrole::text INTO prior_owner,workflow_owner,risk_owner
+ FROM pg_class c,pg_proc p,pg_proc r
+ WHERE c.oid='zasp_workflow_receipts'::regclass
+   AND p.oid='zasp_workflow_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)'::regprocedure
+   AND r.oid='zasp_risk_mutate(text,text,text,text,text,text,text,bigint,text,text,text,text,text)'::regprocedure;
+ IF prior_owner IS NULL OR prior_owner<>workflow_owner OR prior_owner<>risk_owner OR NOT EXISTS(SELECT 1 FROM pg_roles role_value WHERE role_value.rolname=prior_owner AND role_value.rolcanlogin)
+   OR NOT (prior_owner=session_user OR EXISTS(SELECT 1 FROM zasp_discovery_principal_bindings binding WHERE binding.principal_name=prior_owner AND binding.authority_role='zasp_discovery_authority'))
+ THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='unsafe inherited execution owner';END IF;
+ INSERT INTO zasp_schema_metadata(key,value) VALUES('production_discovery_execution_prior_owner',prior_owner);
+END $prior_owner$;
+ALTER TABLE public.zasp_workflow_receipts OWNER TO zasp_discovery_authority;
+ALTER FUNCTION public.zasp_workflow_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text) OWNER TO zasp_discovery_authority;
+ALTER FUNCTION public.zasp_risk_mutate(text,text,text,text,text,text,text,bigint,text,text,text,text,text) OWNER TO zasp_discovery_authority;
+
 CREATE FUNCTION public.zasp_execution_live_fingerprint() RETURNS text LANGUAGE sql STABLE AS $$
  WITH objects AS (
   SELECT 'table'::text kind,c.relname identity,jsonb_build_object('owner',c.relowner::regrole::text,'rls',c.relrowsecurity,'force',c.relforcerowsecurity,'acl',COALESCE((SELECT jsonb_agg(jsonb_build_array(CASE WHEN acl.grantee=0 THEN 'PUBLIC' ELSE grantee.rolname END,acl.privilege_type,acl.is_grantable,grantor.rolname) ORDER BY CASE WHEN acl.grantee=0 THEN 'PUBLIC' ELSE grantee.rolname END,acl.privilege_type,acl.is_grantable,grantor.rolname) FROM aclexplode(COALESCE(c.relacl,acldefault('r',c.relowner))) acl LEFT JOIN pg_roles grantee ON grantee.oid=acl.grantee LEFT JOIN pg_roles grantor ON grantor.oid=acl.grantor),'[]'::jsonb)) definition FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relname=ANY(ARRAY['zasp_discovery_execution_principals','zasp_discovery_connection_subjects','zasp_discovery_execution_quotas','zasp_discovery_generation_reservations','zasp_discovery_job_authorities','zasp_discovery_job_checkpoints','zasp_discovery_upgrade_transitions','zasp_discovery_snapshot_inputs','zasp_discovery_snapshot_projection_items','zasp_discovery_projection_cursors','zasp_discovery_schedule_runs','zasp_discovery_projection_receipts','zasp_discovery_risk_projection_current','zasp_discovery_risk_projection_items','zasp_discovery_freshness_versions','zasp_discovery_outbox_topic_fairness','zasp_discovery_syncs','zasp_workflow_receipts'])
@@ -912,6 +930,7 @@ $$;
 
 CREATE FUNCTION public.zasp_execution_security_ready() RETURNS boolean LANGUAGE sql STABLE AS $$
  SELECT zasp_reference_authorization_security_ready()
+ AND EXISTS(SELECT 1 FROM zasp_schema_metadata marker JOIN pg_roles role_value ON role_value.rolname=marker.value WHERE marker.key='production_discovery_execution_prior_owner' AND role_value.rolcanlogin AND (marker.value=session_user OR EXISTS(SELECT 1 FROM zasp_discovery_principal_bindings binding WHERE binding.principal_name=marker.value AND binding.authority_role='zasp_discovery_authority')))
  AND NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname IN('zasp_discovery_scheduler','zasp_projection_risk_worker','zasp_projection_graph_worker','zasp_projection_search_worker') AND (rolcanlogin OR rolsuper OR rolcreatedb OR rolcreaterole OR rolreplication OR rolinherit OR rolbypassrls))
  AND (SELECT count(*) FROM pg_roles WHERE rolname IN('zasp_discovery_scheduler','zasp_projection_risk_worker','zasp_projection_graph_worker','zasp_projection_search_worker'))=4
  AND NOT EXISTS(SELECT 1 FROM pg_roles r WHERE r.rolname IN('zasp_discovery_scheduler','zasp_projection_risk_worker','zasp_projection_graph_worker','zasp_projection_search_worker') AND NOT shobj_description(r.oid,'pg_authid')=ANY(ARRAY[format('zasp-managed:production-discovery-execution-v1:database:%s:created',(SELECT oid FROM pg_database WHERE datname=current_database())),format('zasp-managed:production-discovery-execution-v1:database:%s:bound',(SELECT oid FROM pg_database WHERE datname=current_database()))]))
@@ -1013,5 +1032,5 @@ SELECT organization_id,workspace_id,environment_id,audit_id,correlation_id,'pid_
 
 DO $release_evolution$ DECLARE definition text;BEGIN SELECT pg_get_functiondef('public.zasp_workflow_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)'::regprocedure) INTO definition;definition:=replace(definition,'reference-authorization-v1','production-discovery-execution-v1');definition:=replace(definition,'release."version" = 12','release."version" = 13');definition:=replace(definition,'release."name" = ''reference_authorization''','release."name" = ''production_discovery_execution''');definition:=replace(definition,'later_release."version" > 12','later_release."version" > 13');EXECUTE definition;SELECT pg_get_functiondef('public.zasp_risk_mutate(text,text,text,text,text,text,text,bigint,text,text,text,text,text)'::regprocedure) INTO definition;definition:=replace(definition,'reference-authorization-v1','production-discovery-execution-v1');definition:=replace(replace(definition,'release."version"=12','release."version"=13'),'release."version" = 12','release."version" = 13');definition:=replace(replace(definition,'release."name"=''reference_authorization''','release."name"=''production_discovery_execution'''),'release."name" = ''reference_authorization''','release."name" = ''production_discovery_execution''');definition:=replace(replace(definition,'later."version">12','later."version">13'),'later."version" > 12','later."version" > 13');EXECUTE definition;END $release_evolution$;
 
-INSERT INTO zasp_schema_metadata(key,value) VALUES('production_discovery_execution_fingerprint', '5f182eb762ba597ada9f95bd4b9047450c3114ddbce2b78fc7a8551c2f35cfe6');
+INSERT INTO zasp_schema_metadata(key,value) VALUES('production_discovery_execution_fingerprint', '6a3a830ff7e43a220be6e0658a6262ed92c8c0165c803b34319acb0e0ed6cb9c');
 UPDATE zasp_schema_metadata SET value='production-discovery-execution-v1',applied_at=transaction_timestamp() WHERE key='production_core_schema' AND value='reference-authorization-v1';
