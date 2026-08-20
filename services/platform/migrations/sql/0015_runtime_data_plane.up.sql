@@ -7,6 +7,25 @@ DO $release_guard$ BEGIN
   END IF;
 END $release_guard$;
 
+DO $product_release_evolution$ DECLARE definition text;original_definition text;BEGIN
+ SELECT pg_get_functiondef('public.zasp_workflow_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)'::regprocedure) INTO STRICT definition;
+ original_definition:=definition;
+ definition:=replace(definition,'typed-inventory-cutover-v1','runtime-data-plane-v1');
+ definition:=replace(definition,'release."version" = 14','release."version" = 15');
+ definition:=replace(definition,'release."name" = ''typed_inventory_cutover''','release."name" = ''runtime_data_plane''');
+ definition:=replace(definition,'later_release."version" > 14','later_release."version" > 15');
+ IF definition=original_definition OR position('runtime-data-plane-v1' IN definition)=0 OR position('release."version" = 15' IN definition)=0 OR position('release."name" = ''runtime_data_plane''' IN definition)=0 OR position('later_release."version" > 15' IN definition)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='workflow v15 compatibility evolution failed';END IF;
+ EXECUTE definition;
+ SELECT pg_get_functiondef('public.zasp_risk_mutate(text,text,text,text,text,text,text,bigint,text,text,text,text,text)'::regprocedure) INTO STRICT definition;
+ original_definition:=definition;
+ definition:=replace(definition,'typed-inventory-cutover-v1','runtime-data-plane-v1');
+ definition:=replace(replace(definition,'release."version"=14','release."version"=15'),'release."version" = 14','release."version" = 15');
+ definition:=replace(replace(definition,'release."name"=''typed_inventory_cutover''','release."name"=''runtime_data_plane'''),'release."name" = ''typed_inventory_cutover''','release."name" = ''runtime_data_plane''');
+ definition:=replace(replace(definition,'later."version">14','later."version">15'),'later."version" > 14','later."version" > 15');
+ IF definition=original_definition OR position('runtime-data-plane-v1' IN definition)=0 OR position('runtime_data_plane' IN definition)=0 OR position('release."version"=15' IN definition)=0 AND position('release."version" = 15' IN definition)=0 OR position('later."version">15' IN definition)=0 AND position('later."version" > 15' IN definition)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='risk v15 compatibility evolution failed';END IF;
+ EXECUTE definition;
+END $product_release_evolution$;
+
 DO $runtime_roles$
 DECLARE role_name text;role_value record;created_role boolean;marker_prefix text:=format('zasp-managed:runtime-data-plane-v1:database:%s:',(SELECT oid FROM pg_database WHERE datname=current_database()));
 BEGIN
@@ -996,7 +1015,7 @@ $$;
 ALTER FUNCTION public.zasp_runtime_data_plane_security_ready() OWNER TO zasp_discovery_authority;
 REVOKE ALL ON FUNCTION public.zasp_runtime_data_plane_security_ready() FROM PUBLIC;
 
-INSERT INTO public.zasp_schema_metadata(key,value) VALUES('runtime_data_plane_fingerprint', '2a4346e8b06e5a0b599d3b124653d3628b1c0c4f513b2576ab6faeaa39b28c59');
+INSERT INTO public.zasp_schema_metadata(key,value) VALUES('runtime_data_plane_fingerprint', '30382bb2234522539d91ef9d268b4ad93069c137759788c3a2926b3aeff1de9b');
 DO $schema_marker$ BEGIN UPDATE zasp_schema_metadata SET value='runtime-data-plane-v1' WHERE key='production_core_schema' AND value='typed-inventory-cutover-v1';IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='runtime data plane schema marker drift';END IF;END $schema_marker$;
 
 CREATE FUNCTION public.zasp_runtime_data_plane_readiness(expected_checksum text,expected_fingerprint text) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $$
@@ -1004,7 +1023,7 @@ CREATE FUNCTION public.zasp_runtime_data_plane_readiness(expected_checksum text,
   AND EXISTS(SELECT 1 FROM zasp_schema_versions release WHERE (release.version,release.name,release.checksum)=(15,'runtime_data_plane',expected_checksum) AND NOT EXISTS(SELECT 1 FROM zasp_schema_versions later WHERE later.version>15))
 	  AND EXISTS(SELECT 1 FROM zasp_schema_versions release WHERE (release.version,release.name,release.checksum)=(14,'typed_inventory_cutover','5b3f27aa7f315325c64caabee4c2a9e6d43235f4c3136cd2728df35cb4351a13'))
 	  AND EXISTS(SELECT 1 FROM zasp_schema_metadata metadata WHERE (metadata.key,metadata.value)=('typed_inventory_cutover_fingerprint','707a81d31a7dfd00cf7f5c60c081bf4c567054e7cf761b80cb142855adaacabd'))
-	  AND zasp_inventory_live_fingerprint()='707a81d31a7dfd00cf7f5c60c081bf4c567054e7cf761b80cb142855adaacabd'
+	  AND zasp_inventory_live_fingerprint()='37569422ad74740090997ffd9570eaf337ca16ec96aa12f707719b7d52a2635a'
 	  AND zasp_inventory_security_ready()
   AND EXISTS(SELECT 1 FROM zasp_schema_metadata metadata WHERE (metadata.key,metadata.value)=('production_core_schema','runtime-data-plane-v1'))
   AND EXISTS(SELECT 1 FROM zasp_schema_metadata metadata WHERE (metadata.key,metadata.value)=('runtime_data_plane_fingerprint',expected_fingerprint))

@@ -194,7 +194,7 @@ func TestBootstrapPayloadSourceContainsOnlyMountedDurableCapabilities(t *testing
 	if !reflect.DeepEqual(bootstrap["permissions"], identity.Permissions) {
 		t.Fatalf("permissions = %#v", bootstrap["permissions"])
 	}
-	if !reflect.DeepEqual(bootstrap["capabilities"], []string{"inventory.read", "scope.switch", "policies.read", "integrations.read", "security-agents.read", "findings.read", "attack-paths.read", "administration.read", "system.read", "findings.write"}) {
+	if !reflect.DeepEqual(bootstrap["capabilities"], []string{"inventory.read", "scope.switch", "policies.read", "integrations.read", "sensors.read", "security-agents.read", "findings.read", "attack-paths.read", "administration.read", "system.read", "findings.write"}) {
 		t.Fatalf("capabilities = %#v", bootstrap["capabilities"])
 	}
 }
@@ -212,7 +212,7 @@ func TestBootstrapMapsWorkflowManagementWithoutProviderOnlyCapabilities(t *testi
 	if json.Unmarshal(payload, &bootstrap) != nil {
 		t.Fatal("bootstrap did not decode")
 	}
-	want := []string{"inventory.read", "scope.switch", "policies.read", "integrations.read", "security-agents.read", "findings.read", "attack-paths.read", "administration.read", "system.read", "policies.write", "integrations.write", "security-agents.write"}
+	want := []string{"inventory.read", "scope.switch", "policies.read", "integrations.read", "sensors.read", "security-agents.read", "findings.read", "attack-paths.read", "administration.read", "system.read", "policies.write", "integrations.write", "sensors.write", "security-agents.write"}
 	if !reflect.DeepEqual(bootstrap.Capabilities, want) || strings.Contains(string(payload), "authorize") || strings.Contains(string(payload), "sync") {
 		t.Fatalf("workflow capabilities = %#v payload=%s", bootstrap.Capabilities, payload)
 	}

@@ -68,11 +68,32 @@ func TestProductionRuntimeDataPlanePostgresKeepsInheritedProductAuthorityReady(t
 	if version, err := database.SchemaVersion(ctx); err != nil || version != RuntimeDataPlaneSchemaVersion {
 		t.Fatalf("schema version=(%q,%v)", version, err)
 	}
-	if _, err := NewPostgresRepository(database); err != nil {
+	repository, err := NewPostgresRepository(database)
+	if err != nil {
 		t.Fatalf("product repository: %v", err)
 	}
 	if _, err := NewPostgresInventoryRepository(database); err != nil {
 		t.Fatalf("inventory repository: %v", err)
+	}
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBearerToken
+	policy := json.RawMessage(`{"id":"policy-v15-compatibility","name":"V15 compatibility","scope":"environment","trigger":"tool","conditions":[{"field":"action","operator":"equals","value":"read"}],"action":"monitor","rollout":"draft","failure_mode":"open"}`)
+	workflow, err := repository.MutateWorkflow(ctx, identity, WorkflowMutation{
+		Action: "create", Kind: "policy", ID: "policy-v15-compatibility", Operation: "createPolicy", IdempotencyKey: "runtime-v15-workflow-0001",
+		Intent: json.RawMessage(`{"body":` + string(policy) + `,"expected_version":0,"resource_id":""}`), Body: policy,
+		AuditID: "pid_97000001-0000-4000-8000-000000000001", CorrelationID: "pid_97000002-0000-4000-8000-000000000002",
+	})
+	if err != nil || workflow.Version != 1 || workflow.Replayed {
+		t.Fatalf("v15 workflow mutation=%#v err=%v", workflow, err)
+	}
+	findingID := "pid_97000003-0000-4000-8000-000000000003"
+	seedConnectorRiskFinding(t, ctx, connection, identity, findingID)
+	risk, err := repository.MutateRiskFinding(ctx, identity, RiskFindingMutation{
+		Operation: "updateFinding", FindingID: findingID, IdempotencyKey: "runtime-v15-risk-0001", ExpectedVersion: 1, Status: "resolved",
+		AuditID: "pid_97000004-0000-4000-8000-000000000004", CorrelationID: "pid_97000005-0000-4000-8000-000000000005",
+	})
+	if err != nil || risk.Version != 2 || risk.Body.Status != "resolved" {
+		t.Fatalf("v15 risk mutation=%#v err=%v", risk, err)
 	}
 
 	if _, err := connection.Exec(ctx, `GRANT EXECUTE ON FUNCTION zasp_inventory_page(text,text,text,text,text,integer) TO PUBLIC`); err != nil {

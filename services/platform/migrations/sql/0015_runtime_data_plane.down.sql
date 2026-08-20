@@ -1,5 +1,5 @@
 DO $runtime_guard$ BEGIN
- IF zasp_runtime_data_plane_live_fingerprint()<>'2a4346e8b06e5a0b599d3b124653d3628b1c0c4f513b2576ab6faeaa39b28c59' OR NOT zasp_runtime_data_plane_security_ready() THEN
+ IF zasp_runtime_data_plane_live_fingerprint()<>'30382bb2234522539d91ef9d268b4ad93069c137759788c3a2926b3aeff1de9b' OR NOT zasp_runtime_data_plane_security_ready() THEN
   RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='runtime data plane semantic drift blocks rollback';
  END IF;
  IF EXISTS(SELECT 1 FROM zasp_runtime_data_plane_state WHERE used_at IS NOT NULL) THEN
@@ -128,6 +128,25 @@ DROP TABLE public.zasp_runtime_data_plane_state;
 
 DELETE FROM public.zasp_schema_metadata WHERE key='runtime_data_plane_fingerprint';
 DO $schema_marker$ BEGIN UPDATE zasp_schema_metadata SET value='typed-inventory-cutover-v1' WHERE key='production_core_schema' AND value='runtime-data-plane-v1';IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='runtime data plane schema marker drift';END IF;END $schema_marker$;
+
+DO $product_release_restore$ DECLARE definition text;original_definition text;BEGIN
+ SELECT pg_get_functiondef('public.zasp_workflow_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)'::regprocedure) INTO STRICT definition;
+ original_definition:=definition;
+ definition:=replace(definition,'runtime-data-plane-v1','typed-inventory-cutover-v1');
+ definition:=replace(definition,'release."version" = 15','release."version" = 14');
+ definition:=replace(definition,'release."name" = ''runtime_data_plane''','release."name" = ''typed_inventory_cutover''');
+ definition:=replace(definition,'later_release."version" > 15','later_release."version" > 14');
+ IF definition=original_definition OR position('typed-inventory-cutover-v1' IN definition)=0 OR position('release."version" = 14' IN definition)=0 OR position('release."name" = ''typed_inventory_cutover''' IN definition)=0 OR position('later_release."version" > 14' IN definition)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='workflow v14 compatibility restoration failed';END IF;
+ EXECUTE definition;
+ SELECT pg_get_functiondef('public.zasp_risk_mutate(text,text,text,text,text,text,text,bigint,text,text,text,text,text)'::regprocedure) INTO STRICT definition;
+ original_definition:=definition;
+ definition:=replace(definition,'runtime-data-plane-v1','typed-inventory-cutover-v1');
+ definition:=replace(replace(definition,'release."version"=15','release."version"=14'),'release."version" = 15','release."version" = 14');
+ definition:=replace(replace(definition,'release."name"=''runtime_data_plane''','release."name"=''typed_inventory_cutover'''),'release."name" = ''runtime_data_plane''','release."name" = ''typed_inventory_cutover''');
+ definition:=replace(replace(definition,'later."version">15','later."version">14'),'later."version" > 15','later."version" > 14');
+ IF definition=original_definition OR position('typed-inventory-cutover-v1' IN definition)=0 OR position('typed_inventory_cutover' IN definition)=0 OR position('release."version"=14' IN definition)=0 AND position('release."version" = 14' IN definition)=0 OR position('later."version">14' IN definition)=0 AND position('later."version" > 14' IN definition)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='risk v14 compatibility restoration failed';END IF;
+ EXECUTE definition;
+END $product_release_restore$;
 
 GRANT EXECUTE ON FUNCTION public.zasp_discovery_issue_sensor_token(text,text,text,text,text,bytea,bytea,timestamptz),public.zasp_discovery_sensor_rotate(text,text,text,text,text,text,bytea,bytea,timestamptz),public.zasp_discovery_sensor_revoke(text,text,text,text,text) TO zasp_discovery_api;
 GRANT EXECUTE ON FUNCTION public.zasp_discovery_issue_gateway_enrollment(text,text,text,text,text,bytea,bytea,timestamptz),public.zasp_discovery_revoke_gateway_enrollment(text,text,text,text,text) TO zasp_discovery_api;
