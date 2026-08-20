@@ -53,9 +53,10 @@ locals {
     "token-reveal-key",
   ])
   queue_contract = {
-    background     = { visibility = 300, schema = "agentsec.background.v1" }
-    runtime-events = { visibility = 120, schema = "agentsec.runtime-events.v1" }
-    tests          = { visibility = 900, schema = "agentsec.tests.v1" }
+    background       = { visibility = 300, schema = "agentsec.background.v1" }
+    "discovery-jobs" = { visibility = 30, schema = "agentsec.discovery-jobs.v1" }
+    runtime-events   = { visibility = 120, schema = "agentsec.runtime-events.v1" }
+    tests            = { visibility = 900, schema = "agentsec.tests.v1" }
   }
   connector_secret_root   = "${var.cluster_name}/connectors"
   connector_secret_prefix = "${local.connector_secret_root}/oauth"
@@ -560,6 +561,43 @@ resource "aws_iam_role_policy" "scheduler" {
   policy = jsonencode({ Version = "2012-10-17", Statement = [
     { Effect = "Allow", Action = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"], Resource = aws_secretsmanager_secret.product["postgres-scheduler-dsn"].arn },
     { Effect = "Allow", Action = ["kms:Decrypt"], Resource = aws_kms_key.staging.arn, Condition = { StringEquals = { "kms:ViaService" = "secretsmanager.${var.region}.amazonaws.com" } } },
+  ] })
+}
+
+resource "aws_iam_role" "outbox" {
+  name = "${var.cluster_name}-outbox"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow", Principal = { Federated = aws_iam_openid_connect_provider.eks.arn }, Action = "sts:AssumeRoleWithWebIdentity"
+      Condition = { StringEquals = {
+        "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:aud" = "sts.amazonaws.com"
+        "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub" = "system:serviceaccount:agentsec:zasp-outbox-publisher"
+      } }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "outbox" {
+  name = "${var.cluster_name}-outbox"
+  role = aws_iam_role.outbox.id
+  policy = jsonencode({ Version = "2012-10-17", Statement = [
+    { Effect = "Allow", Action = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"], Resource = aws_secretsmanager_secret.product["postgres-outbox-worker-dsn"].arn },
+    {
+      Effect = "Allow", Action = ["kms:Decrypt"], Resource = aws_kms_key.staging.arn
+      Condition = { StringEquals = {
+        "kms:ViaService"                  = "secretsmanager.${var.region}.amazonaws.com"
+        "kms:EncryptionContext:SecretARN" = aws_secretsmanager_secret.product["postgres-outbox-worker-dsn"].arn
+      } }
+    },
+    { Effect = "Allow", Action = ["sqs:SendMessage"], Resource = aws_sqs_queue.work["discovery-jobs"].arn },
+    {
+      Effect = "Allow", Action = ["kms:Decrypt", "kms:GenerateDataKey"], Resource = aws_kms_key.staging.arn
+      Condition = { StringEquals = {
+        "kms:ViaService"                          = "sqs.${var.region}.amazonaws.com"
+        "kms:EncryptionContext:aws:sqs:queue-arn" = aws_sqs_queue.work["discovery-jobs"].arn
+      } }
+    },
   ] })
 }
 

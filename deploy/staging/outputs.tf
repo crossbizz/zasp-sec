@@ -82,6 +82,18 @@ output "worker_role_arn" {
 output "scheduler_role_arn" {
   value = aws_iam_role.scheduler.arn
 }
+output "outbox_role_arn" {
+  value = aws_iam_role.outbox.arn
+}
+output "outbox_runtime_config" {
+  description = "Non-secret, explicit discovery outbox publication authority."
+  value = {
+    ZASP_AWS_REGION                     = var.region
+    ZASP_DISCOVERY_QUEUE_URL            = aws_sqs_queue.work["discovery-jobs"].id
+    ZASP_OUTBOX_ROLE_ARN                = aws_iam_role.outbox.arn
+    ZASP_OUTBOX_WEB_IDENTITY_TOKEN_FILE = "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
+  }
+}
 output "projection_search_role_arn" {
   value = aws_iam_role.projection_search.arn
 }

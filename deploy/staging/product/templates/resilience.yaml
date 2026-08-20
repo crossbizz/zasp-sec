@@ -1,5 +1,5 @@
 {{- if ne .Values.profile "customer_edge" }}
-{{- range $name := list "web" "agentsec-api" "agentsec-discovery-scheduler" "agentsec-projection-search" }}
+{{- range $name := list "web" "agentsec-api" "agentsec-discovery-scheduler" "agentsec-projection-search" "agentsec-outbox-publisher" }}
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -120,6 +120,24 @@ spec:
     - to: [{ ipBlock: { cidr: {{ required "network.postgresCIDR is required" .Values.network.postgresCIDR | quote }} } }]
       ports: [{ protocol: TCP, port: 5432 }]
     - to: [{ ipBlock: { cidr: {{ required "network.opensearchCIDR is required" .Values.network.opensearchCIDR | quote }} } }]
+      ports: [{ protocol: TCP, port: 443 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: outbox-dependencies
+  labels: { app.kubernetes.io/part-of: zasp }
+  annotations: { zasp.io/endpoint-groups: aws-sts-sqs }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-outbox-publisher } }
+  policyTypes: [Egress]
+  egress:
+    - to: [{ ipBlock: { cidr: {{ required "network.postgresCIDR is required" .Values.network.postgresCIDR | quote }} } }]
+      ports: [{ protocol: TCP, port: 5432 }]
+    - to:
+      {{- range $cidr := required "network.outboxEgressCIDRs is required" .Values.network.outboxEgressCIDRs }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
       ports: [{ protocol: TCP, port: 443 }]
 {{- if .Values.canary.enabled }}
 ---

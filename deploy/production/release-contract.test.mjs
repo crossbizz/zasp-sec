@@ -14,6 +14,11 @@ const release = Object.freeze({
     awsRegion: "us-west-2", endpoint: "https://vpc-zasp.us-west-2.es.amazonaws.com", index: "zasp-inventory-v1",
     roleArn: "arn:aws:iam::123456789012:role/zasp-production-projection-search", webIdentityTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
   }),
+  outbox: Object.freeze({
+    awsRegion: "us-west-2", queueURL: "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-discovery-jobs",
+    roleArn: "arn:aws:iam::123456789012:role/zasp-production-outbox", webIdentityTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
+    egressCIDRs: Object.freeze(["10.70.0.0/28"]),
+  }),
   connectors: Object.freeze({
     awsRegion: "us-west-2",
     roleArn: "arn:aws:iam::123456789012:role/zasp-production-api-connectors",
@@ -124,9 +129,9 @@ test("release renders one TLS origin, split ports, private internals, and migrat
 
 test("release applies non-root rollout, zone and host spread, drain, PDB, and default-deny policies", async () => {
   const resources = await renderRelease(release);
-  assert.deepEqual(resources.filter(({ kind }) => kind === "Deployment").map(({ metadata }) => metadata.name).sort(), ["agentsec-api", "agentsec-discovery-scheduler", "agentsec-projection-search", "web"]);
+  assert.deepEqual(resources.filter(({ kind }) => kind === "Deployment").map(({ metadata }) => metadata.name).sort(), ["agentsec-api", "agentsec-discovery-scheduler", "agentsec-outbox-publisher", "agentsec-projection-search", "web"]);
   assert.deepEqual(resources.filter(({ kind }) => kind === "Service").map(({ metadata }) => metadata.name).sort(), ["agentsec-api", "web"]);
-  for (const name of ["web", "agentsec-api", "agentsec-discovery-scheduler", "agentsec-projection-search"]) {
+  for (const name of ["web", "agentsec-api", "agentsec-discovery-scheduler", "agentsec-outbox-publisher", "agentsec-projection-search"]) {
     const deployment = one(resources, "Deployment", name);
     assert.deepEqual(deployment.spec.strategy.rollingUpdate, { maxSurge: 1, maxUnavailable: 0 });
     assert.equal(deployment.spec.template.spec.securityContext.seccompProfile.type, "RuntimeDefault");
@@ -168,6 +173,26 @@ test("release applies non-root rollout, zone and host spread, drain, PDB, and de
   assert.equal(JSON.stringify(resources).includes("event-ingest"), false);
   assert.equal(JSON.stringify(resources).includes("runtime-gateway"), false);
   assert.equal(JSON.stringify(resources).includes("4317"), false);
+});
+
+test("release isolates the discovery outbox publisher behind exact DB, queue, and web-identity authority", async () => {
+  const resources = await renderRelease(release);
+  const deployment = one(resources, "Deployment", "agentsec-outbox-publisher");
+  const pod = deployment.spec.template.spec;
+  const container = pod.containers[0];
+  const env = Object.fromEntries(container.env.map(({ name, value }) => [name, value]));
+  assert.deepEqual(Object.fromEntries(Object.entries(env).filter(([name]) => name !== "ZASP_WORKER_ID")), {
+    ZASP_WORKER_MODE: "outbox", ZASP_DATABASE_AUTHORITY: "zasp_outbox_worker", ZASP_POLL_INTERVAL: "1s", ZASP_LEASE_DURATION: "30s", ZASP_BATCH_SIZE: "10", ZASP_SHUTDOWN_TIMEOUT: "15s",
+    ZASP_DISCOVERY_QUEUE_URL: release.outbox.queueURL, ZASP_AWS_REGION: release.outbox.awsRegion, ZASP_OUTBOX_ROLE_ARN: release.outbox.roleArn, ZASP_OUTBOX_WEB_IDENTITY_TOKEN_FILE: release.outbox.webIdentityTokenFile,
+  });
+  assert.equal(pod.serviceAccountName, "zasp-outbox-publisher");
+  assert.equal(one(resources, "ServiceAccount", "zasp-outbox-publisher").metadata.annotations["eks.amazonaws.com/role-arn"], release.outbox.roleArn);
+  assert.equal(one(resources, "SecretProviderClass", "zasp-production-outbox-secrets").spec.secretObjects[0].data.length, 1);
+  assert.equal(container.env.find(({ name }) => name === "ZASP_WORKER_ID").valueFrom.fieldRef.fieldPath, "metadata.name");
+  assert.equal(pod.automountServiceAccountToken, false);
+  assert.deepEqual(container.volumeMounts.find(({ name }) => name === "outbox-web-identity"), { name: "outbox-web-identity", mountPath: "/var/run/secrets/eks.amazonaws.com/serviceaccount", readOnly: true });
+  assert.deepEqual(one(resources, "NetworkPolicy", "outbox-dependencies").spec.egress.flatMap(({ to }) => to.map(({ ipBlock }) => ipBlock.cidr)).sort(), ["10.30.0.0/24", ...release.outbox.egressCIDRs].sort());
+  assert.doesNotMatch(JSON.stringify(deployment), /AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|AWS_SESSION_TOKEN|ZASP_PROJECTION_|ZASP_CONNECTOR_/);
 });
 
 test("release gives only API an explicit connector identity, reference-only config, and bounded provider egress", async () => {
@@ -288,6 +313,7 @@ test("terraform binds each shipped secret consumer to one exact least-privilege 
     ["api", "agentsec-api", "api_secret_names"],
     ["worker", "zasp-discovery-worker", "postgres-worker-dsn"],
     ["scheduler", "zasp-discovery-scheduler", "postgres-scheduler-dsn"],
+    ["outbox", "zasp-outbox-publisher", "postgres-outbox-worker-dsn"],
     ["projection_search", "zasp-projection-search", "postgres-projection-search-dsn"],
     ["migration", "agentsec-migration", "postgres-migration-dsn"],
     ["canary_secret_sync", "agentsec-canary-secret-sync", "canary-read-token"],
@@ -307,6 +333,12 @@ test("terraform binds each shipped secret consumer to one exact least-privilege 
   assert.match(projectionPolicy, /es:ESHttpGet.*es:ESHttpPost.*es:ESHttpPut/s);
   assert.match(projectionPolicy, /aws_opensearch_domain\.events\.arn/);
   assert.doesNotMatch(projectionPolicy, /es:\*|Resource\s*=\s*"\*"|s3:|sqs:/);
+  const outboxPolicyStart = terraform.indexOf('resource "aws_iam_role_policy" "outbox"');
+  const outboxPolicy = terraform.slice(outboxPolicyStart, terraform.indexOf("\nresource ", outboxPolicyStart + 1));
+  assert.match(outboxPolicy, /sqs:SendMessage/);
+  assert.match(outboxPolicy, /aws_sqs_queue\.work\["discovery-jobs"\]\.arn/);
+  assert.match(outboxPolicy, /kms:ViaService[\s\S]*sqs\.\$\{var\.region\}\.amazonaws\.com/);
+  assert.doesNotMatch(outboxPolicy, /sqs:\*|Resource\s*=\s*"\*"|sqs:ReceiveMessage|sqs:DeleteMessage/);
   const apiSecrets = terraform.slice(terraform.indexOf("api_secret_names"), terraform.indexOf("queue_contract"));
   assert.match(apiSecrets, /postgres-api-dsn/);
   assert.doesNotMatch(apiSecrets, /postgres-worker-dsn|postgres-migration-dsn/);

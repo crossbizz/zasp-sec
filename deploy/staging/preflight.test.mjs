@@ -18,6 +18,7 @@ const input = {
     agentsecApi: { serviceAccount: "agentsec-api", roleArn: "arn:aws:iam::123456789012:role/zasp-production-api" },
     discoveryScheduler: { serviceAccount: "zasp-discovery-scheduler", roleArn: "arn:aws:iam::123456789012:role/zasp-production-discovery-scheduler" },
     projectionSearch: { serviceAccount: "zasp-projection-search", roleArn: "arn:aws:iam::123456789012:role/zasp-production-projection-search" },
+    outboxPublisher: { serviceAccount: "zasp-outbox-publisher", roleArn: "arn:aws:iam::123456789012:role/zasp-production-outbox" },
     migration: { serviceAccount: "agentsec-migration", roleArn: "arn:aws:iam::123456789012:role/zasp-production-migration" },
     canary: { serviceAccount: "agentsec-canary", roleArn: null },
     canarySecretSync: { serviceAccount: "agentsec-canary-secret-sync", roleArn: "arn:aws:iam::123456789012:role/zasp-production-canary-secret-sync" },
@@ -27,7 +28,7 @@ const input = {
 test("release preflight validates the exact three images and least-privilege identities", () => {
   const calls = [];
   const value = runPreflight(["--input", "release.json"], { read: () => JSON.stringify(input), spawn: (tool, args, options) => { calls.push({ tool, args, options }); return { status: 0 }; } });
-  assert.deepEqual(value, { environment: "production", privateEndpointOnly: true, images: 3, cloudIdentities: 5 });
+  assert.deepEqual(value, { environment: "production", privateEndpointOnly: true, images: 3, cloudIdentities: 6 });
   assert.deepEqual(calls.map(({ tool, args }) => ({ tool, args })), [
     { tool: "terraform", args: ["version", "-json"] },
     { tool: "helm", args: ["version", "--short"] },

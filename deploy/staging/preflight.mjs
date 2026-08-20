@@ -15,6 +15,7 @@ const identityContract = Object.freeze({
   agentsecApi: Object.freeze({ serviceAccount: "agentsec-api", role: new RegExp(`^${rolePrefix}api$`) }),
   discoveryScheduler: Object.freeze({ serviceAccount: "zasp-discovery-scheduler", role: new RegExp(`^${rolePrefix}discovery-scheduler$`) }),
   projectionSearch: Object.freeze({ serviceAccount: "zasp-projection-search", role: new RegExp(`^${rolePrefix}projection-search$`) }),
+  outboxPublisher: Object.freeze({ serviceAccount: "zasp-outbox-publisher", role: new RegExp(`^${rolePrefix}outbox$`) }),
   migration: Object.freeze({ serviceAccount: "agentsec-migration", role: new RegExp(`^${rolePrefix}migration$`) }),
   canary: Object.freeze({ serviceAccount: "agentsec-canary", role: null }),
   canarySecretSync: Object.freeze({ serviceAccount: "agentsec-canary-secret-sync", role: new RegExp(`^${rolePrefix}canary-secret-sync$`) }),
@@ -32,7 +33,7 @@ export function validateReleaseInput(input) {
     const identity = input.workloadIdentities[name];
     if (!exactKeys(identity, ["serviceAccount", "roleArn"]) || identity.serviceAccount !== expected.serviceAccount || (expected.role === null ? identity.roleArn !== null : !expected.role.test(identity.roleArn))) throw new Error("release preflight rejected");
   }
-  return Object.freeze({ environment: "production", privateEndpointOnly: true, images: 3, cloudIdentities: 5 });
+  return Object.freeze({ environment: "production", privateEndpointOnly: true, images: 3, cloudIdentities: 6 });
 }
 
 export function runPreflight(argv = process.argv.slice(2), runtime = { spawn: spawnSync, read: readFileSync }) {

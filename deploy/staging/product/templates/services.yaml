@@ -37,6 +37,15 @@ automountServiceAccountToken: false
 apiVersion: v1
 kind: ServiceAccount
 metadata:
+  name: {{ .Values.serviceAccounts.outbox.name }}
+  labels: { app.kubernetes.io/part-of: zasp }
+  annotations:
+    eks.amazonaws.com/role-arn: {{ required "serviceAccounts.outbox.roleArn is required" .Values.serviceAccounts.outbox.roleArn | quote }}
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
   name: {{ .Values.serviceAccounts.api.name }}
   labels: { app.kubernetes.io/part-of: zasp }
   annotations:
