@@ -46,6 +46,7 @@ type Artifact struct {
 	Body      []byte
 	Size      int64
 	SHA256    [sha256.Size]byte
+	VersionID string
 }
 
 type DriverLocator struct {
@@ -60,6 +61,7 @@ type DriverObject struct {
 	Body      []byte
 	Size      int64
 	SHA256    [sha256.Size]byte
+	VersionID string
 }
 
 type Driver interface {
@@ -196,10 +198,22 @@ func validMediaType(value string) bool {
 func validDriverObject(object DriverObject, maximumBytes int64) bool {
 	if object.Key == "" || !validLocator(Locator{Scope: object.Scope, Reference: object.Reference}) ||
 		!validMediaType(object.MediaType) || len(object.Body) == 0 || int64(len(object.Body)) > maximumBytes ||
-		object.Size != int64(len(object.Body)) {
+		object.Size != int64(len(object.Body)) || !validVersionID(object.VersionID) {
 		return false
 	}
 	return object.SHA256 == sha256.Sum256(object.Body)
+}
+
+func validVersionID(value string) bool {
+	if len(value) > 1024 {
+		return false
+	}
+	for _, character := range value {
+		if character < 0x21 || character == 0x7f {
+			return false
+		}
+	}
+	return true
 }
 
 func exactDriverObject(value, expected DriverObject, maximumBytes int64) bool {
@@ -215,6 +229,7 @@ func artifactFromDriver(object DriverObject) Artifact {
 		Body:      bytes.Clone(object.Body),
 		Size:      object.Size,
 		SHA256:    object.SHA256,
+		VersionID: object.VersionID,
 	}
 }
 

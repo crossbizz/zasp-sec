@@ -82,6 +82,28 @@ func TestStorePutGetDeleteHappyPath(t *testing.T) {
 	}
 }
 
+func TestStorePreservesAnOpaqueDriverVersionWithoutLettingItChangeContentIdentity(t *testing.T) {
+	t.Parallel()
+	request := validPutRequest(t)
+	driver := &recordingDriver{put: func(_ context.Context, object DriverObject) (DriverObject, error) {
+		object.VersionID = "version-1"
+		return object, nil
+	}}
+	store := mustStore(t, driver, validConfig())
+	artifact, err := store.Put(context.Background(), request)
+	if err != nil || artifact.VersionID != "version-1" {
+		t.Fatalf("Put() = %#v, %v", artifact, err)
+	}
+
+	hostile := &recordingDriver{put: func(_ context.Context, object DriverObject) (DriverObject, error) {
+		object.VersionID = "version 1"
+		return object, nil
+	}}
+	if _, err := mustStore(t, hostile, validConfig()).Put(context.Background(), request); !errors.Is(err, ErrPut) {
+		t.Fatalf("hostile version error = %v", err)
+	}
+}
+
 func TestNewRejectsInvalidConfigurationAndDriver(t *testing.T) {
 	t.Parallel()
 
