@@ -37,7 +37,7 @@ test("combined production E2E owns every local boundary and fixed assertion", as
     "browserStorageHistoryAndCaches", "indexedDB.databases", "assertResponsiveRiskLayout", "Emulation.setDeviceMetricsOverride",
     "browser console and exception stream remained clean", "hidden risk-adjacent routes canonicalized without hidden API calls",
     "/red-team/results", "/test/attack-lab", "/reports", "/guardrails/dashboard", "/prompt-hardening",
-    "schema 14 typed_inventory_cutover verified", "ZASP_CONNECTOR_AWS_REGION", "ZASP_CONNECTOR_ROLE_ARN",
+    "schema 14 typed_inventory_cutover verified", "schema 15 runtime_data_plane verified", "ZASP_CONNECTOR_AWS_REGION", "ZASP_CONNECTOR_ROLE_ARN",
     "ZASP_DISCOVERY_PARSER_VERSION", "ZASP_DISCOVERY_TOOL_VERSION",
     "ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE", "ZASP_CONNECTOR_KMS_KEY_ARN", "ZASP_CONNECTOR_SECRET_PREFIX",
     "ZASP_AWS_CUSTOMER_ROLE_PREFIXES", "ZASP_AWS_CUSTOMER_ROLE_ARNS", "ZASP_KUBERNETES_EGRESS_CIDRS",
@@ -70,12 +70,18 @@ test("combined production E2E owns every local boundary and fixed assertion", as
     "zero fake collection/projection database completion", "cleanup Task4 workers",
     "ZASP_MIGRATION_DB_PRINCIPAL", "ZASP_DISCOVERY_API_DB_PRINCIPAL", "ZASP_DISCOVERY_WORKER_DB_PRINCIPAL",
     "ZASP_RUNTIME_INGEST_DB_PRINCIPAL", "ZASP_RUNTIME_WORKER_DB_PRINCIPAL", "ZASP_OUTBOX_WORKER_DB_PRINCIPAL", "ZASP_RUNTIME_GATEWAY_DB_PRINCIPAL",
+    "ZASP_RUNTIME_COORDINATOR_DB_PRINCIPAL", "ZASP_RUNTIME_ARCHIVE_DB_PRINCIPAL", "ZASP_RUNTIME_INDEX_DB_PRINCIPAL",
+    "ZASP_RUNTIME_CORRELATION_DB_PRINCIPAL", "ZASP_RUNTIME_PROJECTION_DB_PRINCIPAL", "ZASP_GATEWAY_CONTROL_DB_PRINCIPAL",
     "provisionPostgresPrincipals", "apiDSN", "zasp.production-e2e.test", "--host-resolver-rules", "SIGQUIT",
     "schema 14 typed_inventory_cutover verified", "agentsec-worker-e2e", "runDeterministicLocalDiscovery",
     "deterministic local provider and artifact authority completed public sync", "typed inventory public routes derive only from complete discovery snapshots",
     "typed inventory browser deep-link reload proven", "second-source retention proven", "complete-empty source removal proven",
     "failed and partial discovery retained the last complete inventory", "typed inventory database forensics proved exact current source/snapshot/evidence bindings",
     "/api/v1/tools", "/api/v1/identities", "/api/v1/runtimes", "inventory=pid_",
+		"assertTask6SensorBrowserState", "/api/v1/sensors", "/coverage", "/rotate-token", "Runtime sensors", "Enroll sensor",
+		"Create enrollment", "Copy this token now", "Save sensor", "Rotate enrollment token", "Delete sensor",
+		"Task6 authenticated heartbeat and healthy sensor coverage proven", "Task6 token rotation and version-pinned sensor update proven",
+		"Task6 reload and deletion left no enrollment credential in persistent browser state", "zasp_runtime_sensor_heartbeat",
   ]) assert.match(source, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   const apiEnvironment = source.slice(source.indexOf("const apiEnvironment = {"), source.indexOf("api = startChild(apiBinary"));
   for (const value of ["HOSTNAME", "ZASP_DISCOVERY_PARSER_VERSION", "ZASP_DISCOVERY_TOOL_VERSION", "ZASP_AWS_CUSTOMER_ROLE_PREFIXES", "ZASP_AWS_CUSTOMER_ROLE_ARNS", "ZASP_KUBERNETES_EGRESS_CIDRS"]) assert.match(apiEnvironment, new RegExp(value));
@@ -94,7 +100,7 @@ test("combined production E2E owns every local boundary and fixed assertion", as
   const seedBoundary = source.slice(source.indexOf("async function seedPostgres"), source.indexOf("async function exercisePublicDiscoveryLifecycle"));
   assert.doesNotMatch(seedBoundary, /INSERT INTO zasp_inventory_/i);
   assert.doesNotMatch(seedBoundary, /'(?:home|agents|tools|identities|runtimes|(?:agent|tool|identity|runtime|asset):pid_[0-9a-f-]{36}|agent_(?:capabilities|relationships|sessions):pid_[0-9a-f-]{36})'/i);
-  for (const unsafeControl of ["Enroll sensor", "Create enrollment", "Start bounded run", "waiting_approval", "one-time sensor credential", "Simulate policy", "Decision history"]) {
+  for (const unsafeControl of ["Start bounded run", "waiting_approval", "Simulate policy", "Decision history"]) {
     const escaped = unsafeControl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     assert.doesNotMatch(source, new RegExp(`(?:clickBrowserText|clickBrowserTextContains|clickBrowserAria)\\([^\\n]*${escaped}`, "i"));
   }

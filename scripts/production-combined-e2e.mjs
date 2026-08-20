@@ -104,10 +104,17 @@ try {
     ZASP_PROJECTION_RISK_DB_PRINCIPAL: "zasp_e2e_projection_risk",
     ZASP_PROJECTION_GRAPH_DB_PRINCIPAL: "zasp_e2e_projection_graph",
     ZASP_PROJECTION_SEARCH_DB_PRINCIPAL: "zasp_e2e_projection_search",
+    ZASP_RUNTIME_COORDINATOR_DB_PRINCIPAL: "zasp_e2e_coordinator",
+    ZASP_RUNTIME_ARCHIVE_DB_PRINCIPAL: "zasp_e2e_archive",
+    ZASP_RUNTIME_INDEX_DB_PRINCIPAL: "zasp_e2e_index",
+    ZASP_RUNTIME_CORRELATION_DB_PRINCIPAL: "zasp_e2e_correlation",
+    ZASP_RUNTIME_PROJECTION_DB_PRINCIPAL: "zasp_e2e_runtime_projection",
+    ZASP_GATEWAY_CONTROL_DB_PRINCIPAL: "zasp_e2e_gateway_control",
   } });
-  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version=14;"]);
-  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover", "combined E2E did not migrate to the typed inventory cutover release");
+  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15) ORDER BY version;"]);
+  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane", "combined E2E did not migrate through the typed inventory and runtime data-plane releases");
   console.log("combined E2E: schema 14 typed_inventory_cutover verified");
+  console.log("combined E2E: schema 15 runtime_data_plane verified");
   await seedPostgres(dsn);
   console.log("combined E2E: migrations and durable seed ready");
 
@@ -253,6 +260,7 @@ try {
   console.log("combined E2E: browser callback, cookie, bootstrap, and durable data proven");
   await assertTask4BrowserPublicState(browser.cdp, publicOrigin, task4Public.syncID);
   await assertTypedInventoryBrowserState(browser.cdp, publicOrigin);
+  await assertTask6SensorBrowserState(browser.cdp, publicOrigin, dsn);
   await exerciseTypedInventoryRetention(publicOrigin, dsn, postgresPort, workerE2EBinary, patHeaders.authorization);
   await navigateBrowser(browser.cdp, `${publicOrigin}/discovery/assets`);
   await waitForBrowserText(browser.cdp, /No records in this scope/);
@@ -576,13 +584,10 @@ try {
   await waitForBrowserText(browser.cdp, /Bounded response definition/);
   assert.equal(await browserHasInteractiveText(browser.cdp, /^(?:Run Security Agent|Simulate Security Agent|Approve|Start bounded run|Runs|Approvals)$/i), false);
 
-  await navigateBrowser(browser.cdp, `${publicOrigin}/integrations/sensors`);
-  const sensorHidden = await waitForBrowserText(browser.cdp, /Security overview/);
-  assert.doesNotMatch(sensorHidden, /Enroll sensor|Sensors/);
   await navigateBrowser(browser.cdp, `${publicOrigin}/protect/approvals`);
   const approvalsHidden = await waitForBrowserText(browser.cdp, /Security overview/);
   assert.doesNotMatch(approvalsHidden, /Approve|Pending approvals/);
-  console.log("combined E2E: full-document receipt recovery, local integration, Security Agent definition, and hidden unsafe controls proven");
+  console.log("combined E2E: full-document receipt recovery, local integration, Security Agent definition, and hidden unsafe response controls proven");
 
   await navigateBrowser(browser.cdp, `${publicOrigin}/administration/identity-access`);
   const identityAccess = await waitForBrowserText(browser.cdp, /member-target-local[\s\S]*E2E Organization/);
@@ -900,6 +905,12 @@ CREATE ROLE zasp_e2e_scheduler LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE
 CREATE ROLE zasp_e2e_projection_risk LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
 CREATE ROLE zasp_e2e_projection_graph LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
 CREATE ROLE zasp_e2e_projection_search LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+CREATE ROLE zasp_e2e_coordinator LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+CREATE ROLE zasp_e2e_archive LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+CREATE ROLE zasp_e2e_index LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+CREATE ROLE zasp_e2e_correlation LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+CREATE ROLE zasp_e2e_runtime_projection LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+CREATE ROLE zasp_e2e_gateway_control LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
 `;
   await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1"], { input: sql });
 }
@@ -1995,6 +2006,89 @@ async function assertTypedInventoryBrowserState(cdp, publicOrigin) {
   await navigateBrowser(cdp, `${publicOrigin}/inventory/runtimes`);
   await waitForBrowserText(cdp, /Production runtime/);
   console.log("combined E2E: typed inventory browser deep-link reload proven across agents, tools, identities, and runtimes");
+}
+
+async function assertTask6SensorBrowserState(cdp, publicOrigin, dsn) {
+  const sensorCredentialPattern = /\bzasp_sensor_v1\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}\b/;
+  const sensorAPIPath = "/api/v1/sensors";
+  const sensorRequestStart = productAPIRequests.length;
+  const scopePredicate = `sensor_row.organization_id='pid_10000001-0000-4000-8000-000000000001' AND sensor_row.workspace_id='pid_10000002-0000-4000-8000-000000000002' AND sensor_row.environment_id='pid_10000003-0000-4000-8000-000000000003'`;
+  await navigateBrowser(cdp, `${publicOrigin}/integrations/sensors`);
+  await waitForBrowserText(cdp, /Runtime sensors/);
+  await waitForBrowserText(cdp, /No runtime sensors/);
+  await clickBrowserText(cdp, "Enroll sensor");
+  await waitForBrowserText(cdp, /Enroll runtime sensor/);
+  await fillBrowserLabel(cdp, "Sensor name", "Production E2E sensor");
+  await selectBrowserOption(cdp, "Sensor kind", "Tetragon");
+  await selectBrowserOption(cdp, "Collection mode", "Metadata only");
+  await clickBrowserText(cdp, "Create enrollment");
+  await waitForBrowserText(cdp, /Sensor enrollment created\. Copy the token before closing\./);
+  await waitForBrowserText(cdp, /Copy this token now/);
+  let firstCredential = await waitForBrowserTextMatch(cdp, sensorCredentialPattern);
+  assert.equal(firstCredential.length, 81, "sensor enrollment token did not use the exact v1 wire shape");
+
+  const createdWitness = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',sensor_row.id,sensor_row.state,sensor_row.version,sensor_row.mode,count(token_row.id),min(token_row.token_generation),min(octet_length(token_row.locator_digest)),min(octet_length(token_row.salt)),min(octet_length(token_row.token_hash)),(SELECT count(*) FROM zasp_runtime_sensor_mutations mutation WHERE mutation.sensor_id=sensor_row.id AND mutation.result::text LIKE '%zasp_sensor_v1.%')) FROM zasp_sensors sensor_row JOIN zasp_sensor_tokens token_row ON (token_row.organization_id,token_row.workspace_id,token_row.environment_id,token_row.sensor_id)=(sensor_row.organization_id,sensor_row.workspace_id,sensor_row.environment_id,sensor_row.id) WHERE ${scopePredicate} AND sensor_row.name='Production E2E sensor' GROUP BY sensor_row.organization_id,sensor_row.workspace_id,sensor_row.environment_id,sensor_row.id,sensor_row.state,sensor_row.version,sensor_row.mode;`]);
+  const [sensorID, ...createdAuthority] = createdWitness.stdout.trim().split("|");
+  assert.match(sensorID, /^pid_[0-9a-f-]{36}$/);
+  assert.deepEqual(createdAuthority, ["pending", "1", "metadata_only", "1", "1", "32", "32", "32", "0"], "sensor enrollment did not persist only exact hashed token authority");
+  const enrollmentPersistence = await browserStorageHistoryAndCaches(cdp);
+  assert.doesNotMatch(JSON.stringify(enrollmentPersistence), sensorCredentialPattern, "one-time enrollment token entered persistent browser state");
+
+  const [, firstLocatorValue, firstSecretValue] = firstCredential.split(".");
+  const firstLocator = Buffer.from(firstLocatorValue, "base64url");
+  const firstSecret = Buffer.from(firstSecretValue, "base64url");
+  assert.equal(firstLocator.length, 16);
+  assert.equal(firstSecret.length, 32);
+  await command(path.join(postgresBin, "psql"), [dsn, "-At", "-v", "ON_ERROR_STOP=1"], { input: `SELECT zasp_runtime_sensor_heartbeat(decode('${firstLocator.toString("hex")}','hex'),decode('${firstSecret.toString("hex")}','hex'),'event-ingest',1,'healthy','["file","network","process"]'::jsonb,'6.8.0',true,125,0);` });
+  firstLocator.fill(0);
+  firstSecret.fill(0);
+  await clickBrowserText(cdp, "Done");
+  await waitForBrowserTextMissing(cdp, firstCredential);
+  await clickBrowserAria(cdp, "Open Production E2E sensor");
+  let sensorDetail = await waitForBrowserText(cdp, /125 events\/s/);
+  assert.match(sensorDetail, /healthy/);
+  assert.match(sensorDetail, /6\.8\.0/);
+  assert.match(sensorDetail, /file · network · process/);
+  console.log("combined E2E: Task6 authenticated heartbeat and healthy sensor coverage proven");
+
+  await fillBrowserLabel(cdp, "Sensor name", "Production E2E sensor renamed");
+  await selectBrowserOption(cdp, "Collection mode", "Full");
+  await clickBrowserText(cdp, "Save sensor");
+  await waitForBrowserText(cdp, /Sensor settings saved\./);
+  await clickBrowserText(cdp, "Rotate enrollment token");
+  await waitForBrowserText(cdp, /Enrollment token rotated\. Copy it before closing\./);
+  await waitForBrowserText(cdp, /Copy this token now/);
+  let secondCredential = await waitForBrowserTextMatch(cdp, sensorCredentialPattern);
+  assert.notEqual(secondCredential, firstCredential, "sensor rotation repeated the prior enrollment credential");
+  const rotatedWitness = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',sensor_row.name,sensor_row.mode,sensor_row.state,sensor_row.version,count(token_row.id),count(*) FILTER(WHERE token_row.revoked_at IS NULL),count(*) FILTER(WHERE token_row.revoked_at IS NOT NULL),max(token_row.token_generation),max(token_row.sensor_version_at_issue) FILTER(WHERE token_row.revoked_at IS NULL)) FROM zasp_sensors sensor_row JOIN zasp_sensor_tokens token_row ON (token_row.organization_id,token_row.workspace_id,token_row.environment_id,token_row.sensor_id)=(sensor_row.organization_id,sensor_row.workspace_id,sensor_row.environment_id,sensor_row.id) WHERE ${scopePredicate} AND sensor_row.id='${sensorID}' GROUP BY sensor_row.name,sensor_row.mode,sensor_row.state,sensor_row.version;`]);
+  assert.equal(rotatedWitness.stdout.trim(), "Production E2E sensor renamed|full|active|2|2|1|1|2|2", "sensor update/rotation authority was not exact");
+  console.log("combined E2E: Task6 token rotation and version-pinned sensor update proven");
+
+  await reloadBrowser(cdp);
+  await waitForBrowserText(cdp, /Production E2E sensor renamed/);
+  const reloadedForensics = await browserConnectorForensics(cdp);
+  assert.doesNotMatch(JSON.stringify(reloadedForensics), sensorCredentialPattern, "sensor enrollment credential survived a full browser reload");
+  assert.equal(JSON.stringify(reloadedForensics).includes(firstCredential) || JSON.stringify(reloadedForensics).includes(secondCredential), false, "known sensor credential survived a full browser reload");
+  await clickBrowserAria(cdp, "Open Production E2E sensor renamed");
+  sensorDetail = await waitForBrowserText(cdp, /125 events\/s/);
+  assert.match(sensorDetail, /Resource version "2"/);
+  await clickBrowserText(cdp, "Delete sensor");
+  await waitForBrowserText(cdp, /Sensor deleted and its active tokens revoked\./);
+  await waitForBrowserAction(cdp, `document.querySelector(${JSON.stringify('[aria-label="Open Production E2E sensor renamed"]')}) === null`);
+  const deletedWitness = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',sensor_row.state,sensor_row.version,sensor_row.revoked_at IS NOT NULL,count(token_row.id),count(*) FILTER(WHERE token_row.revoked_at IS NOT NULL)) FROM zasp_sensors sensor_row JOIN zasp_sensor_tokens token_row ON (token_row.organization_id,token_row.workspace_id,token_row.environment_id,token_row.sensor_id)=(sensor_row.organization_id,sensor_row.workspace_id,sensor_row.environment_id,sensor_row.id) WHERE ${scopePredicate} AND sensor_row.id='${sensorID}' GROUP BY sensor_row.state,sensor_row.version,sensor_row.revoked_at;`]);
+  assert.equal(deletedWitness.stdout.trim(), "deleted|3|t|2|2", "sensor deletion did not revoke the sensor and every token exactly once");
+  const deletedForensics = await browserConnectorForensics(cdp);
+  assert.doesNotMatch(JSON.stringify(deletedForensics), sensorCredentialPattern, "sensor credential survived deletion in persistent browser state");
+  assert.equal(JSON.stringify(deletedForensics).includes(firstCredential) || JSON.stringify(deletedForensics).includes(secondCredential), false, "known sensor credential survived deletion in persistent browser state");
+  const sensorRequests = new Set(productAPIRequests.slice(sensorRequestStart).map((request) => `${request.method} ${request.path}`));
+  for (const expectedRequest of [
+    `GET ${sensorAPIPath}`, `POST ${sensorAPIPath}`, `GET ${sensorAPIPath}/${sensorID}`,
+    `GET ${sensorAPIPath}/${sensorID}/coverage`, `PATCH ${sensorAPIPath}/${sensorID}`,
+    `POST ${sensorAPIPath}/${sensorID}/rotate-token`, `DELETE ${sensorAPIPath}/${sensorID}`,
+  ]) assert.equal(sensorRequests.has(expectedRequest), true, `installed browser omitted sensor operation ${expectedRequest}`);
+  firstCredential = "";
+  secondCredential = "";
+  console.log("combined E2E: Task6 reload and deletion left no enrollment credential in persistent browser state");
 }
 
 async function navigateBrowser(cdp, url) {
