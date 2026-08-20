@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"net"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -76,13 +77,6 @@ func composeWorkerRuntime(ctx context.Context, config workerRuntimeConfig, datab
 			_ = publisher.close()
 			return workerRuntimeDependencies{}, errRuntimeUnavailable
 		}
-		repositoryReady := dependencies.Ready
-		dependencies.Ready = func(readyCtx context.Context) error {
-			if repositoryReady(readyCtx) != nil || publisher.ready(readyCtx) != nil {
-				return errRuntimeUnavailable
-			}
-			return nil
-		}
 		dependencies.Close = publisher.close
 		return dependencies, nil
 	case workerModeScheduler:
@@ -95,6 +89,17 @@ func composeWorkerRuntime(ctx context.Context, config workerRuntimeConfig, datab
 			return workerRuntimeDependencies{}, errRuntimeUnavailable
 		}
 		return workerRuntimeDependencies{Processor: processor, Ready: repository.Ready, Close: func() error { return nil }}, nil
+	case workerModeDiscovery:
+		discovery, err := newProductionDiscoveryDependencies(productionDiscoveryDependenciesConfig(config))
+		if err != nil {
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
+		dependencies, err := composeDiscoveryWorkerRuntime(config, database, discovery)
+		if err != nil {
+			_ = discovery.Close()
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
+		return dependencies, nil
 	case workerModeProjectionSearch:
 		projector, err := newProductionSearchProjection(ctx, config)
 		if err != nil {
@@ -115,6 +120,45 @@ func composeWorkerRuntime(ctx context.Context, config workerRuntimeConfig, datab
 	}
 }
 
+func productionDiscoveryDependenciesConfig(config workerRuntimeConfig) productionDiscoveryDependencyConfig {
+	return productionDiscoveryDependencyConfig{
+		Cloud:       productionDiscoveryCloudConfig{Region: config.AWSRegion, RoleARN: config.DiscoveryRoleARN, TokenFile: config.DiscoveryTokenFile, SecretRoot: config.DiscoverySecretPrefix, Timeout: config.ProviderTimeout, Clock: func() time.Time { return time.Now().UTC() }},
+		Artifacts:   productionDiscoveryArtifactConfig{Bucket: config.EvidenceBucket, ExpectedBucketOwner: config.EvidenceOwner, KMSKeyARN: config.EvidenceKMSKeyARN, OperationTimeout: minDuration(config.LeaseDuration/3, 30*time.Second), MaximumBytes: 64 << 20},
+		GitHubAppID: config.GitHubAppID, GitHubPrivateKeyReference: config.GitHubPrivateKeyReference, OktaClientID: config.OktaClientID, OktaClientSecretReference: config.OktaClientSecretReference,
+		AWSCollectorVersion: config.AWSCollectorVersion, KubernetesCollectorVersion: config.KubernetesCollectorVersion, GitHubCollectorVersion: config.GitHubCollectorVersion, OktaCollectorVersion: config.OktaCollectorVersion,
+		ParserVersion: config.ParserVersion, ToolVersion: config.ToolVersion, KubernetesAllowedCIDRs: config.KubernetesEgressCIDRs, ProviderTimeout: config.ProviderTimeout, ReadinessTimeout: config.DiscoveryReadinessTimeout,
+		QueueURL: config.DiscoveryQueueURL, QueueOperationTimeout: minDuration(config.LeaseDuration/3, 30*time.Second), LeaseDuration: config.LeaseDuration, ShutdownTimeout: config.ShutdownTimeout,
+	}
+}
+
+func composeDiscoveryWorkerRuntime(config workerRuntimeConfig, database apiserver.JSONDatabase, discovery *productionDiscoveryDependencies) (workerRuntimeDependencies, error) {
+	if !validWorkerRuntimeConfig(config) || config.Mode != workerModeDiscovery || database == nil || discovery == nil || discovery.Factory == nil || discovery.Queue == nil || discovery.ready == nil || discovery.close == nil {
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
+	repository, err := apiserver.NewDiscoveryExecutionRepository(database, apiserver.DiscoveryExecutionAuthorityWorker)
+	if err != nil {
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
+	processor, err := newDiscoveryProcessor(discoveryProcessorConfig{
+		Authority: repository, Queue: discovery.Queue, CollectorFactory: discovery.Factory, WorkerID: config.WorkerID,
+		LeaseSeconds: int(config.LeaseDuration / time.Second), BatchSize: config.BatchSize, HeartbeatInterval: config.LeaseDuration / 3, Now: func() time.Time { return time.Now().UTC() }, NewLeaseToken: newWorkerLeaseToken,
+	})
+	if err != nil {
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
+	check := func(ctx context.Context) error {
+		if repository.Ready(ctx) != nil || discovery.Ready(ctx) != nil {
+			return errRuntimeUnavailable
+		}
+		return nil
+	}
+	ready, err := newBoundedCachedWorkerReadiness(check, minDuration(config.LeaseDuration/3, 5*time.Second), workerReadinessCacheTTL(config.PollInterval))
+	if err != nil {
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
+	return workerRuntimeDependencies{Processor: readinessGatedWorkerProcessor{delegate: processor, ready: ready}, Ready: ready, Close: discovery.Close}, nil
+}
+
 func composeOutboxWorkerRuntime(config workerRuntimeConfig, database apiserver.JSONDatabase, publisher outboxPublisher, publisherReady func(context.Context) error) (workerRuntimeDependencies, error) {
 	if !validWorkerRuntimeConfig(config) || database == nil || publisher == nil || publisherReady == nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
@@ -123,14 +167,80 @@ func composeOutboxWorkerRuntime(config workerRuntimeConfig, database apiserver.J
 	if err != nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
+	check := func(ctx context.Context) error {
+		if repository.Ready(ctx) != nil || publisherReady(ctx) != nil {
+			return errRuntimeUnavailable
+		}
+		return nil
+	}
+	ready, err := newBoundedCachedWorkerReadiness(check, minDuration(config.LeaseDuration/3, 5*time.Second), workerReadinessCacheTTL(config.PollInterval))
+	if err != nil {
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
 	processor, err := newOutboxProcessor(outboxProcessorConfig{
 		Authority: repository, Publisher: publisher, Topic: discoveryOutboxTopic, WorkerID: config.WorkerID,
-		LeaseSeconds: int(config.LeaseDuration / time.Second), BatchSize: min(config.BatchSize, 10), RetrySeconds: int(config.LeaseDuration / time.Second), NewLeaseToken: newWorkerLeaseToken, Ready: publisherReady,
+		LeaseSeconds: int(config.LeaseDuration / time.Second), BatchSize: min(config.BatchSize, 10), RetrySeconds: int(config.LeaseDuration / time.Second), NewLeaseToken: newWorkerLeaseToken, Ready: ready,
 	})
 	if err != nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
-	return workerRuntimeDependencies{Processor: processor, Ready: repository.Ready, Close: func() error { return nil }}, nil
+	return workerRuntimeDependencies{Processor: processor, Ready: ready, Close: func() error { return nil }}, nil
+}
+
+type readinessGatedWorkerProcessor struct {
+	delegate workerProcessor
+	ready    func(context.Context) error
+}
+
+func (processor readinessGatedWorkerProcessor) RunOnce(ctx context.Context) error {
+	if processor.delegate == nil || processor.ready == nil || ctx == nil || ctx.Err() != nil || processor.ready(ctx) != nil {
+		return errWorkerExecution
+	}
+	return processor.delegate.RunOnce(ctx)
+}
+
+type boundedCachedWorkerReadiness struct {
+	mu        sync.Mutex
+	check     func(context.Context) error
+	timeout   time.Duration
+	ttl       time.Duration
+	checkedAt time.Time
+	now       func() time.Time
+	ready     bool
+}
+
+func newBoundedCachedWorkerReadiness(check func(context.Context) error, timeout, ttl time.Duration) (func(context.Context) error, error) {
+	if check == nil || timeout < 100*time.Millisecond || timeout > 30*time.Second || ttl < 10*time.Millisecond || ttl > time.Second {
+		return nil, errRuntimeUnavailable
+	}
+	readiness := &boundedCachedWorkerReadiness{check: check, timeout: timeout, ttl: ttl, now: time.Now}
+	return readiness.Ready, nil
+}
+
+func (readiness *boundedCachedWorkerReadiness) Ready(ctx context.Context) error {
+	if readiness == nil || ctx == nil || ctx.Err() != nil {
+		return errRuntimeUnavailable
+	}
+	readiness.mu.Lock()
+	defer readiness.mu.Unlock()
+	now := readiness.now()
+	elapsed := now.Sub(readiness.checkedAt)
+	if readiness.ready && elapsed >= 0 && elapsed < readiness.ttl {
+		return nil
+	}
+	bounded, cancel := context.WithTimeout(ctx, readiness.timeout)
+	defer cancel()
+	if readiness.check(bounded) != nil || bounded.Err() != nil {
+		readiness.ready = false
+		return errRuntimeUnavailable
+	}
+	readiness.checkedAt = now
+	readiness.ready = true
+	return nil
+}
+
+func workerReadinessCacheTTL(pollInterval time.Duration) time.Duration {
+	return minDuration(maxDuration(pollInterval/2, 10*time.Millisecond), time.Second)
 }
 
 func composeProjectionWorkerRuntime(config workerRuntimeConfig, database apiserver.JSONDatabase, projector productionProjectionProjector) (workerRuntimeDependencies, error) {

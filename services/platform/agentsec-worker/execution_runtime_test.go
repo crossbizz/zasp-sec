@@ -161,11 +161,11 @@ func TestDiscoveryProcessorRenewsDatabaseLeaseAndQueueVisibilityDuringSlowCollec
 	scope := workerScope(t)
 	jobID := workerID(t, "pid_10000003-0000-4000-8000-000000000003")
 	input := workerExecutionInput(scope, jobID.String())
-	heartbeatSeen := make(chan struct{}, 1)
-	visibilitySeen := make(chan struct{}, 1)
+	heartbeatSeen := make(chan struct{}, 2)
+	visibilitySeen := make(chan struct{}, 2)
 	authority := &recordingDiscoveryAuthority{input: input, steps: &[]string{}, heartbeatSeen: heartbeatSeen}
 	queue := &recordingDiscoveryQueue{deliveries: []jobqueue.Delivery{{Job: jobqueue.Job{Scope: scope, JobID: jobID, Kind: "discovery", Payload: json.RawMessage(`{"version":1}`)}}}, steps: &[]string{}, visibilitySeen: visibilitySeen}
-	collector := waitingCollector{heartbeatSeen: heartbeatSeen, visibilitySeen: visibilitySeen, outcome: workerCompleteOutcome(t, input)}
+	collector := waitingCollector{heartbeatSeen: heartbeatSeen, visibilitySeen: visibilitySeen, renewals: 2, outcome: workerCompleteOutcome(t, input)}
 	processor, err := newDiscoveryProcessor(discoveryProcessorConfig{Authority: authority, Queue: queue, CollectorFactory: workerCollectorFactory(collector), WorkerID: "discovery-01", LeaseSeconds: 30, BatchSize: 1, HeartbeatInterval: 10 * time.Millisecond, Now: func() time.Time { return time.Now().UTC() }, NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil }})
 	if err != nil {
 		t.Fatal(err)
@@ -365,6 +365,7 @@ func workerCollectorFactory(collector discoveryCollector) discoveryCollectorFact
 type waitingCollector struct {
 	heartbeatSeen  <-chan struct{}
 	visibilitySeen <-chan struct{}
+	renewals       int
 	outcome        collection.Outcome
 }
 
@@ -429,11 +430,13 @@ func (*parallelDiscoveryAuthority) FinishDiscoveryJob(_ context.Context, _ domai
 }
 
 func (collector waitingCollector) Collect(ctx context.Context, _ collection.Request) (collection.Outcome, error) {
-	for _, signal := range []<-chan struct{}{collector.heartbeatSeen, collector.visibilitySeen} {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-signal:
+	for index := 0; index < collector.renewals; index++ {
+		for _, signal := range []<-chan struct{}{collector.heartbeatSeen, collector.visibilitySeen} {
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-signal:
+			}
 		}
 	}
 	return collector.outcome, nil

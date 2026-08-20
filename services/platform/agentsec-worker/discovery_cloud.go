@@ -14,8 +14,10 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 )
 
@@ -122,6 +124,8 @@ type productionDiscoveryCloudAuthority struct {
 	secrets     *secretsmanager.Client
 	assumeRole  *sts.Client
 	s3          *s3.Client
+	sqs         *sqs.Client
+	kms         *kms.Client
 	transport   *http.Transport
 	clock       func() time.Time
 	closeOnce   sync.Once
@@ -137,7 +141,7 @@ func newProductionDiscoveryCloudAuthority(config productionDiscoveryCloudConfig)
 	webIdentity := &discoveryWebIdentityProvider{client: sts.NewFromConfig(base), roleARN: config.RoleARN, tokenFile: config.TokenFile, timeout: config.Timeout, clock: config.Clock}
 	credentials := aws.NewCredentialsCache(webIdentity)
 	base.Credentials = credentials
-	return &productionDiscoveryCloudAuthority{base: base, credentials: credentials, secrets: secretsmanager.NewFromConfig(base), assumeRole: sts.NewFromConfig(base), s3: s3.NewFromConfig(base), transport: transport, clock: config.Clock}, nil
+	return &productionDiscoveryCloudAuthority{base: base, credentials: credentials, secrets: secretsmanager.NewFromConfig(base), assumeRole: sts.NewFromConfig(base), s3: s3.NewFromConfig(base), sqs: sqs.NewFromConfig(base), kms: kms.NewFromConfig(base), transport: transport, clock: config.Clock}, nil
 }
 
 func (authority *productionDiscoveryCloudAuthority) NewCallerIdentity(region string, credentials aws.Credentials) (discoveryCallerIdentityAPI, error) {

@@ -39,9 +39,13 @@ func (caller *discoveryAWSCollectionIdentityCaller) GetCollectionIdentity(ctx co
 		return awsdiscovery.Identity{}, awsdiscovery.ErrDenied
 	}
 	envelope, err := decodeDiscoveryCredentialEnvelope(credential)
-	if err != nil || envelope.Provider != collection.ProviderAWS || !envelope.ExpiresAt.After(time.Now().UTC()) {
+	if err != nil || envelope.Provider != collection.ProviderAWS {
 		envelope.Destroy()
 		return awsdiscovery.Identity{}, awsdiscovery.ErrDenied
+	}
+	if !envelope.ExpiresAt.After(time.Now().UTC()) {
+		envelope.Destroy()
+		return awsdiscovery.Identity{}, discoveryCredentialFailure(ctx, collection.FailureRetryable)
 	}
 	defer envelope.Destroy()
 	credentials := aws.Credentials{AccessKeyID: string(envelope.AccessKeyID), SecretAccessKey: string(envelope.SecretAccessKey), SessionToken: string(envelope.SessionToken), CanExpire: true, Expires: envelope.ExpiresAt, Source: "zasp-discovery-assume-role"}
@@ -91,9 +95,13 @@ func (api *discoveryBearerCollectionAPI) FetchCollectionPage(ctx context.Context
 		return githubdiscovery.CollectionPage{}, discoveryCredentialFailure(ctx, collection.FailureMalformed)
 	}
 	envelope, err := decodeDiscoveryCredentialEnvelope(credential)
-	if err != nil || envelope.Provider != request.Provider || envelope.SubjectKind != request.Subject.Kind || envelope.SubjectID != request.Subject.ID || !envelope.ExpiresAt.After(time.Now().UTC()) {
+	if err != nil || envelope.Provider != request.Provider || envelope.SubjectKind != request.Subject.Kind || envelope.SubjectID != request.Subject.ID {
 		envelope.Destroy()
 		return githubdiscovery.CollectionPage{}, discoveryCredentialFailure(ctx, collection.FailureMalformed)
+	}
+	if !envelope.ExpiresAt.After(time.Now().UTC()) {
+		envelope.Destroy()
+		return githubdiscovery.CollectionPage{}, discoveryCredentialFailure(ctx, collection.FailureRetryable)
 	}
 	defer envelope.Destroy()
 	token := bytes.Clone(envelope.BearerToken)

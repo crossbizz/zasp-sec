@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"net"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -17,16 +19,49 @@ func TestComposeWorkerRuntimeMountsOnlyProductionReadyModes(t *testing.T) {
 	if err != nil || dependencies.Processor == nil || dependencies.Ready == nil {
 		t.Fatalf("scheduler dependencies=%#v err=%v", dependencies, err)
 	}
-	discovery := scheduler
-	discovery.Mode = workerModeDiscovery
-	discovery.DatabaseAuthority = "zasp_discovery_worker"
-	discovery.DiscoveryQueueURL = "https://sqs.us-west-2.amazonaws.com/123456789012/zasp-discovery"
-	discovery.AWSRegion = "us-west-2"
-	discovery.EvidenceBucket = "zasp-production-evidence"
-	discovery.EvidenceOwner = "123456789012"
-	discovery.EvidenceKMSKeyARN = "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111"
-	if _, err := composeWorkerRuntime(context.Background(), discovery, database); !errors.Is(err, errRuntimeUnavailable) {
-		t.Fatalf("uncomposed discovery mode error=%v", err)
+	discovery := validDiscoveryRuntimeConfig()
+	discoveryDependencies, err := composeWorkerRuntime(context.Background(), discovery, database)
+	if err != nil || discoveryDependencies.Processor == nil || discoveryDependencies.Ready == nil || discoveryDependencies.Close == nil {
+		t.Fatalf("discovery dependencies=%#v error=%v", discoveryDependencies, err)
+	}
+	if err := discoveryDependencies.Close(); err != nil {
+		t.Fatalf("discovery close=%v", err)
+	}
+}
+
+func TestComposeDiscoveryWorkerRuntimeBindsRepositoryQueueFactoryAndClose(t *testing.T) {
+	closed := false
+	discovery := &productionDiscoveryDependencies{
+		Factory: &errorDiscoveryCollectorFactory{collector: &lifecycleJobCollector{}}, Queue: &recordingDiscoveryQueue{},
+		ready: func(context.Context) error { return nil }, close: func() error { closed = true; return nil },
+	}
+	dependencies, err := composeDiscoveryWorkerRuntime(validDiscoveryRuntimeConfig(), readyWorkerDatabase{}, discovery)
+	if err != nil || dependencies.Processor == nil || dependencies.Ready == nil || dependencies.Close == nil {
+		t.Fatalf("dependencies=%#v err=%v", dependencies, err)
+	}
+	if err := dependencies.Ready(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := dependencies.Close(); err != nil || !closed {
+		t.Fatalf("close=%v closed=%v", err, closed)
+	}
+}
+
+func TestComposeDiscoveryWorkerRuntimeReadinessGatesQueueConsumption(t *testing.T) {
+	steps := []string{}
+	discovery := &productionDiscoveryDependencies{
+		Factory: &errorDiscoveryCollectorFactory{collector: &lifecycleJobCollector{}}, Queue: &recordingDiscoveryQueue{steps: &steps},
+		ready: func(context.Context) error { return errRuntimeUnavailable }, close: func() error { return nil },
+	}
+	dependencies, err := composeDiscoveryWorkerRuntime(validDiscoveryRuntimeConfig(), readyWorkerDatabase{}, discovery)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := dependencies.Processor.RunOnce(context.Background()); !errors.Is(err, errWorkerExecution) {
+		t.Fatalf("not-ready discovery RunOnce error = %v", err)
+	}
+	if len(steps) != 0 {
+		t.Fatalf("not-ready discovery consumed the queue: %v", steps)
 	}
 }
 
@@ -44,6 +79,33 @@ func TestComposeOutboxWorkerRuntimeBindsExactTopicAuthority(t *testing.T) {
 	}
 	if err := dependencies.Ready(context.Background()); err != nil {
 		t.Fatalf("outbox readiness = %v", err)
+	}
+}
+
+func TestComposeOutboxWorkerRuntimeStopsBeforeClaimWhenRepositoryDrifts(t *testing.T) {
+	config := validSchedulerRuntimeConfig()
+	config.Mode, config.DatabaseAuthority, config.WorkerID = workerModeOutbox, "zasp_outbox_worker", "outbox-01"
+	config.DiscoveryQueueURL = "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-discovery-jobs"
+	config.AWSRegion = "us-west-2"
+	config.OutboxRoleARN = "arn:aws:iam::123456789012:role/zasp-production-outbox"
+	config.OutboxTokenFile = "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
+	database := &driftingWorkerDatabase{}
+	publisher := &recordingOutboxPublisher{}
+	dependencies, err := composeOutboxWorkerRuntime(config, database, publisher, readyOutboxDependency)
+	if err != nil {
+		t.Fatal(err)
+	}
+	database.resetAndDrift()
+	if err := dependencies.Processor.RunOnce(context.Background()); !errors.Is(err, errWorkerExecution) {
+		t.Fatalf("repository-drift RunOnce error = %v", err)
+	}
+	if publisher.calls != 0 {
+		t.Fatalf("repository drift published %d batches", publisher.calls)
+	}
+	for _, statement := range database.statementsSnapshot() {
+		if strings.Contains(statement, "claim_outbox") {
+			t.Fatalf("repository drift reached claim: %q", statement)
+		}
 	}
 }
 
@@ -178,6 +240,17 @@ func validSchedulerRuntimeConfig() workerRuntimeConfig {
 	}
 }
 
+func validDiscoveryRuntimeConfig() workerRuntimeConfig {
+	return workerRuntimeConfig{
+		Mode: workerModeDiscovery, PostgresDSN: "postgres://discovery@postgres.internal/zasp?sslmode=verify-full", DatabaseAuthority: "zasp_discovery_worker", WorkerID: "discovery-01",
+		PollInterval: time.Second, LeaseDuration: 30 * time.Second, BatchSize: 8, ShutdownTimeout: 15 * time.Second,
+		DiscoveryQueueURL: "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-discovery-jobs", AWSRegion: "us-west-2", EvidenceBucket: "zasp-production-evidence", EvidenceOwner: "123456789012", EvidenceKMSKeyARN: "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111",
+		ParserVersion: "inventory-parser-2026.08.20", ToolVersion: "collector-tool-2026.08.20", DiscoveryRoleARN: "arn:aws:iam::123456789012:role/zasp-production-discovery-worker", DiscoveryTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", DiscoverySecretPrefix: "zasp-production/connectors",
+		AWSCollectorVersion: "aws-collector-v1", KubernetesCollectorVersion: "kubernetes-collector-v1", GitHubCollectorVersion: "github-collector-v1", OktaCollectorVersion: "okta-collector-v1", KubernetesEgressCIDRs: []string{"203.0.113.0/24"},
+		GitHubAppID: "123456", GitHubPrivateKeyReference: "ref:github/app-private-key-0001", OktaClientID: "0oa1234567890abcdef", OktaClientSecretReference: "ref:okta/client-secret-0001", ProviderTimeout: 5 * time.Second, DiscoveryReadinessTimeout: 5 * time.Second,
+	}
+}
+
 type readyWorkerDatabase struct{}
 
 func (readyWorkerDatabase) SchemaVersion(context.Context) (string, error) {
@@ -187,3 +260,38 @@ func (readyWorkerDatabase) QueryJSON(_ context.Context, _ string, _ ...any) (jso
 	return json.RawMessage(`true`), nil
 }
 func (readyWorkerDatabase) Exec(context.Context, string, ...any) error { return nil }
+
+type driftingWorkerDatabase struct {
+	mu         sync.Mutex
+	drifted    bool
+	statements []string
+}
+
+func (*driftingWorkerDatabase) SchemaVersion(context.Context) (string, error) {
+	return "production-discovery-execution-v1", nil
+}
+
+func (database *driftingWorkerDatabase) QueryJSON(_ context.Context, statement string, _ ...any) (json.RawMessage, error) {
+	database.mu.Lock()
+	defer database.mu.Unlock()
+	database.statements = append(database.statements, statement)
+	if database.drifted {
+		return json.RawMessage(`false`), nil
+	}
+	return json.RawMessage(`true`), nil
+}
+
+func (*driftingWorkerDatabase) Exec(context.Context, string, ...any) error { return nil }
+
+func (database *driftingWorkerDatabase) resetAndDrift() {
+	database.mu.Lock()
+	database.statements = nil
+	database.drifted = true
+	database.mu.Unlock()
+}
+
+func (database *driftingWorkerDatabase) statementsSnapshot() []string {
+	database.mu.Lock()
+	defer database.mu.Unlock()
+	return append([]string(nil), database.statements...)
+}

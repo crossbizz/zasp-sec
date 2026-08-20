@@ -181,7 +181,7 @@ func TestProductionDiscoveryCredentialsResolveExactProviderMaterial(t *testing.T
 				t.Fatalf("use: %v", err)
 			}
 			material.Destroy()
-			if got.Provider != test.wantFields.Provider || got.SubjectKind != test.wantFields.SubjectKind || got.SubjectID != test.wantFields.SubjectID || got.Region != test.wantFields.Region || got.Endpoint != test.wantFields.Endpoint || got.Context != test.wantFields.Context || got.Issuer != test.wantFields.Issuer || !bytes.Equal(got.CABundlePEM, test.wantFields.CABundlePEM) || !bytes.Equal(got.BearerToken, test.wantFields.BearerToken) || !bytes.Equal(got.AccessKeyID, test.wantFields.AccessKeyID) || !bytes.Equal(got.SecretAccessKey, test.wantFields.SecretAccessKey) || !bytes.Equal(got.SessionToken, test.wantFields.SessionToken) || got.ExpiresAt.After(test.input.LeaseExpiresAt) || !got.ExpiresAt.After(now) {
+			if got.Provider != test.wantFields.Provider || got.SubjectKind != test.wantFields.SubjectKind || got.SubjectID != test.wantFields.SubjectID || got.Region != test.wantFields.Region || got.Endpoint != test.wantFields.Endpoint || got.Context != test.wantFields.Context || got.Issuer != test.wantFields.Issuer || !bytes.Equal(got.CABundlePEM, test.wantFields.CABundlePEM) || !bytes.Equal(got.BearerToken, test.wantFields.BearerToken) || !bytes.Equal(got.AccessKeyID, test.wantFields.AccessKeyID) || !bytes.Equal(got.SecretAccessKey, test.wantFields.SecretAccessKey) || !bytes.Equal(got.SessionToken, test.wantFields.SessionToken) || !got.ExpiresAt.After(test.input.LeaseExpiresAt.Add(time.Minute)) {
 				t.Fatalf("unexpected envelope: %#v", got)
 			}
 			if !equalStrings(secrets.calls, test.wantCalls) {

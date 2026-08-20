@@ -17,14 +17,11 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 )
-
-var discoveryGitHubPermissionPattern = regexp.MustCompile(`^[a-z][a-z_]{0,63}$`)
 
 type productionDiscoveryGitHubTokenClient struct {
 	http  *http.Client
@@ -75,7 +72,7 @@ func (client *productionDiscoveryGitHubTokenClient) MintDiscoveryInstallationTok
 	}
 	jwt := unsigned + "." + base64.RawURLEncoding.EncodeToString(signature)
 	clear(signature)
-	request, _ := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.github.com/app/installations/"+strconv.FormatInt(installationID, 10)+"/access_tokens", strings.NewReader(`{}`))
+	request, _ := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.github.com/app/installations/"+strconv.FormatInt(installationID, 10)+"/access_tokens", strings.NewReader(`{"permissions":{"contents":"read","metadata":"read"}}`))
 	request.Header.Set("Accept", "application/vnd.github+json")
 	request.Header.Set("Authorization", "Bearer "+jwt)
 	request.Header.Set("Content-Type", "application/json")
@@ -195,15 +192,7 @@ func performDiscoveryProviderJSON(client *http.Client, request *http.Request, ex
 }
 
 func validDiscoveryGitHubPermissions(values map[string]string) bool {
-	if len(values) < 1 || len(values) > 64 {
-		return false
-	}
-	for key, value := range values {
-		if !discoveryGitHubPermissionPattern.MatchString(key) || value != "read" && value != "write" {
-			return false
-		}
-	}
-	return true
+	return len(values) == 2 && values["contents"] == "read" && values["metadata"] == "read"
 }
 
 func hasDuplicateDiscoveryStrings(values []string) bool {

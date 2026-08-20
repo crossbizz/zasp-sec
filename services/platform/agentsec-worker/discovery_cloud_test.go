@@ -53,7 +53,7 @@ func TestProductionDiscoveryCloudAuthorityHasNoAmbientCredentialsOrProxy(t *test
 		t.Fatal(err)
 	}
 	defer authority.Close()
-	if authority.base.Region != "us-east-1" || authority.base.Credentials != authority.credentials || authority.transport.Proxy != nil || authority.secrets == nil || authority.assumeRole == nil || authority.s3 == nil {
+	if authority.base.Region != "us-east-1" || authority.base.Credentials != authority.credentials || authority.transport.Proxy != nil || authority.secrets == nil || authority.assumeRole == nil || authority.s3 == nil || authority.sqs == nil || authority.kms == nil {
 		t.Fatalf("authority=%#v", authority)
 	}
 	for _, mutate := range []func(*productionDiscoveryCloudConfig){

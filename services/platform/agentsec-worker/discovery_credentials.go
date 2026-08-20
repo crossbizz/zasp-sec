@@ -171,7 +171,7 @@ func (resolver *productionDiscoveryCredentialResolver) resolveAWS(ctx context.Co
 	accessKey := []byte(*output.Credentials.AccessKeyId)
 	secretKey := []byte(*output.Credentials.SecretAccessKey)
 	sessionToken := []byte(*output.Credentials.SessionToken)
-	expiresAt := boundedDiscoveryCredentialExpiry(now, bound.Input.LeaseExpiresAt, output.Credentials.Expiration.UTC())
+	expiresAt := providerDiscoveryCredentialExpiry(now, output.Credentials.Expiration.UTC())
 	if !validAWSDiscoveryMaterial(accessKey, secretKey, sessionToken, expiresAt, now) {
 		clear(accessKey)
 		clear(secretKey)
@@ -216,7 +216,7 @@ func (resolver *productionDiscoveryCredentialResolver) resolveKubernetes(ctx con
 		clear(token)
 		return discoveryCredentialEnvelope{}, mapDiscoveryCredentialDependency(ctx, tokenErr)
 	}
-	expiresAt := bound.Input.LeaseExpiresAt.UTC()
+	expiresAt := now.Add(10 * time.Minute).UTC()
 	if !expiresAt.After(now) {
 		clear(caBundle)
 		clear(token)
@@ -247,7 +247,7 @@ func (resolver *productionDiscoveryCredentialResolver) resolveGitHub(ctx context
 		result.Destroy()
 		return discoveryCredentialEnvelope{}, mapDiscoveryCredentialDependency(ctx, mintErr)
 	}
-	expiresAt := boundedDiscoveryCredentialExpiry(now, bound.Input.LeaseExpiresAt, result.ExpiresAt)
+	expiresAt := providerDiscoveryCredentialExpiry(now, result.ExpiresAt)
 	if result.InstallationID != installationID || !validDiscoveryOpaqueSecret(result.Token, 16, 8192) || !expiresAt.After(now) {
 		result.Destroy()
 		return discoveryCredentialEnvelope{}, discoveryCredentialFailure(ctx, collection.FailureDenied)
@@ -286,7 +286,7 @@ func (resolver *productionDiscoveryCredentialResolver) resolveOkta(ctx context.C
 		result.Destroy()
 		return discoveryCredentialEnvelope{}, mapDiscoveryCredentialDependency(ctx, exchangeErr)
 	}
-	expiresAt := boundedDiscoveryCredentialExpiry(now, bound.Input.LeaseExpiresAt, result.ExpiresAt)
+	expiresAt := providerDiscoveryCredentialExpiry(now, result.ExpiresAt)
 	wantScopes := []string{"okta.apps.read", "okta.groups.read", "okta.users.read"}
 	if result.Tenant != bound.Input.SubjectID || !equalDiscoveryStrings(result.Scopes, wantScopes) || !validDiscoveryOpaqueSecret(result.Token, 16, 8192) || !expiresAt.After(now) {
 		result.Destroy()
@@ -484,12 +484,8 @@ func validAWSDiscoveryMaterial(accessKey, secretKey, token []byte, expiresAt, no
 	return validExpiration && len(accessKey) >= 16 && len(accessKey) <= 128 && len(secretKey) >= 32 && len(secretKey) <= 128 && len(token) >= 16 && len(token) <= 4096 && validDiscoveryOpaqueSecret(accessKey, 16, 128) && validDiscoveryOpaqueSecret(secretKey, 32, 128) && validDiscoveryOpaqueSecret(token, 16, 4096)
 }
 
-func boundedDiscoveryCredentialExpiry(now, lease, provider time.Time) time.Time {
-	expiresAt := lease.UTC()
-	providerExpiry := provider.UTC().Add(-30 * time.Second)
-	if providerExpiry.Before(expiresAt) {
-		expiresAt = providerExpiry
-	}
+func providerDiscoveryCredentialExpiry(now, provider time.Time) time.Time {
+	expiresAt := provider.UTC().Add(-30 * time.Second)
 	if !expiresAt.After(now) {
 		return time.Time{}
 	}

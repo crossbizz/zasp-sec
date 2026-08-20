@@ -58,10 +58,17 @@ func TestProductionDiscoveryGitHubTokenClientMintsExactInstallationToken(t *test
 		t.Fatalf("request=%#v", transport.request)
 	}
 	payload, _ := io.ReadAll(transport.request.Body)
-	if string(payload) != `{}` || bytes.Contains(payload, privateKey) {
+	if string(payload) != `{"permissions":{"contents":"read","metadata":"read"}}` || bytes.Contains(payload, privateKey) {
 		t.Fatalf("payload=%q", payload)
 	}
 	result.Destroy()
+
+	for _, permissions := range []string{`{"contents":"write","metadata":"read"}`, `{"contents":"read","metadata":"read","issues":"read"}`} {
+		transport.body = []byte(`{"token":"github-installation-token","expires_at":"` + now.Add(time.Hour).Format(time.RFC3339) + `","permissions":` + permissions + `,"repository_selection":"all"}`)
+		if _, err := client.MintDiscoveryInstallationToken(context.Background(), "123456", privateKey, 987654); err == nil {
+			t.Fatalf("hostile permissions accepted: %s", permissions)
+		}
+	}
 }
 
 func TestProductionDiscoveryOktaTokenClientExchangesExactRefreshWithoutRotationLoss(t *testing.T) {

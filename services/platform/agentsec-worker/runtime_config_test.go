@@ -82,6 +82,11 @@ func TestWorkerRuntimeConfigRequiresOnlyModeOwnedDependencies(t *testing.T) {
 		"ZASP_OUTBOX_ROLE_ARN": "arn:aws:iam::123456789012:role/zasp-production-outbox", "ZASP_OUTBOX_WEB_IDENTITY_TOKEN_FILE": "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
 		"ZASP_EVIDENCE_KMS_KEY_ARN":     "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111",
 		"ZASP_DISCOVERY_PARSER_VERSION": "parser-v1", "ZASP_DISCOVERY_TOOL_VERSION": "tool-v1",
+		"ZASP_DISCOVERY_ROLE_ARN": "arn:aws:iam::123456789012:role/zasp-production-discovery-worker", "ZASP_DISCOVERY_WEB_IDENTITY_TOKEN_FILE": "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
+		"ZASP_DISCOVERY_SECRET_PREFIX": "zasp-production/connectors", "ZASP_DISCOVERY_AWS_COLLECTOR_VERSION": "aws-collector-v1", "ZASP_DISCOVERY_KUBERNETES_COLLECTOR_VERSION": "kubernetes-collector-v1",
+		"ZASP_DISCOVERY_GITHUB_COLLECTOR_VERSION": "github-collector-v1", "ZASP_DISCOVERY_OKTA_COLLECTOR_VERSION": "okta-collector-v1", "ZASP_KUBERNETES_EGRESS_CIDRS": "203.0.113.0/24",
+		"ZASP_GITHUB_APP_ID": "123456", "ZASP_GITHUB_PRIVATE_KEY_REFERENCE": "ref:github/app-private-key-0001", "ZASP_OKTA_CLIENT_ID": "0oa1234567890abcdef", "ZASP_OKTA_CLIENT_SECRET_REFERENCE": "ref:okta/client-secret-0001",
+		"ZASP_PROVIDER_TIMEOUT": "5s", "ZASP_DISCOVERY_READINESS_TIMEOUT": "5s",
 		"ZASP_OPENSEARCH_ENDPOINT": "https://vpc-zasp.us-west-2.es.amazonaws.com", "ZASP_OPENSEARCH_INDEX": "zasp-inventory-v1",
 		"ZASP_NEO4J_URI": "neo4j+s://neo4j.internal.example:7687", "ZASP_NEO4J_CREDENTIAL_REFERENCE": "ref:neo4j/production",
 		"ZASP_PROJECTION_ROLE_ARN": "arn:aws:iam::123456789012:role/zasp-production-projection", "ZASP_PROJECTION_WEB_IDENTITY_TOKEN_FILE": "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
@@ -105,6 +110,61 @@ func TestWorkerRuntimeConfigRequiresOnlyModeOwnedDependencies(t *testing.T) {
 		if _, err := loadWorkerRuntimeConfig(mapLookup(values)); !errors.Is(err, errWorkerConfiguration) {
 			t.Fatalf("%s missing %s error = %v", test.mode, test.remove, err)
 		}
+	}
+}
+
+func TestDiscoveryRuntimeRequiresExactProviderQueueAndCloudAuthority(t *testing.T) {
+	t.Parallel()
+	base := validDiscoveryRuntimeEnvironment()
+	config, err := loadWorkerRuntimeConfig(mapLookup(base))
+	if err != nil {
+		t.Fatalf("valid discovery config error = %v", err)
+	}
+	if config.DiscoveryRoleARN != base["ZASP_DISCOVERY_ROLE_ARN"] || config.AWSCollectorVersion != "aws-collector-v1" || len(config.KubernetesEgressCIDRs) != 1 || config.ProviderTimeout != 5*time.Second {
+		t.Fatalf("config=%#v", config)
+	}
+	for name, mutate := range map[string]func(map[string]string){
+		"missing role":           func(values map[string]string) { delete(values, "ZASP_DISCOVERY_ROLE_ARN") },
+		"ambient token":          func(values map[string]string) { delete(values, "ZASP_DISCOVERY_WEB_IDENTITY_TOKEN_FILE") },
+		"oauth secret namespace": func(values map[string]string) { values["ZASP_DISCOVERY_SECRET_PREFIX"] += "/oauth" },
+		"queue region drift":     func(values map[string]string) { values["ZASP_AWS_REGION"] = "us-east-1" },
+		"queue account drift": func(values map[string]string) {
+			values["ZASP_DISCOVERY_ROLE_ARN"] = "arn:aws:iam::210987654321:role/zasp-production-discovery-worker"
+		},
+		"kms account drift": func(values map[string]string) {
+			values["ZASP_EVIDENCE_KMS_KEY_ARN"] = "arn:aws:kms:us-west-2:210987654321:key/11111111-1111-4111-8111-111111111111"
+		},
+		"unbounded kubernetes": func(values map[string]string) { values["ZASP_KUBERNETES_EGRESS_CIDRS"] = "0.0.0.0/0" },
+		"collector drift":      func(values map[string]string) { delete(values, "ZASP_DISCOVERY_GITHUB_COLLECTOR_VERSION") },
+		"foreign github reference": func(values map[string]string) {
+			values["ZASP_GITHUB_PRIVATE_KEY_REFERENCE"] = "ref:okta/app-private-key-0001"
+		},
+		"foreign okta reference": func(values map[string]string) {
+			values["ZASP_OKTA_CLIENT_SECRET_REFERENCE"] = "ref:github/client-secret-0001"
+		},
+		"provider timeout":          func(values map[string]string) { values["ZASP_PROVIDER_TIMEOUT"] = "31s" },
+		"oversized discovery batch": func(values map[string]string) { values["ZASP_BATCH_SIZE"] = "11" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			values := cloneStringMap(base)
+			mutate(values)
+			if _, err := loadWorkerRuntimeConfig(mapLookup(values)); !errors.Is(err, errWorkerConfiguration) {
+				t.Fatalf("error=%v", err)
+			}
+		})
+	}
+}
+
+func validDiscoveryRuntimeEnvironment() map[string]string {
+	return map[string]string{
+		"ZASP_WORKER_MODE": "discovery", "ZASP_POSTGRES_DSN": "postgres://discovery@postgres.internal/zasp?sslmode=verify-full", "ZASP_DATABASE_AUTHORITY": "zasp_discovery_worker", "ZASP_WORKER_ID": "discovery-01",
+		"ZASP_POLL_INTERVAL": "1s", "ZASP_LEASE_DURATION": "30s", "ZASP_BATCH_SIZE": "8", "ZASP_SHUTDOWN_TIMEOUT": "15s",
+		"ZASP_DISCOVERY_QUEUE_URL": "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-discovery-jobs", "ZASP_AWS_REGION": "us-west-2", "ZASP_EVIDENCE_BUCKET": "zasp-production-evidence", "ZASP_EVIDENCE_BUCKET_OWNER": "123456789012",
+		"ZASP_EVIDENCE_KMS_KEY_ARN": "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111", "ZASP_DISCOVERY_PARSER_VERSION": "inventory-parser-2026.08.20", "ZASP_DISCOVERY_TOOL_VERSION": "collector-tool-2026.08.20",
+		"ZASP_DISCOVERY_ROLE_ARN": "arn:aws:iam::123456789012:role/zasp-production-discovery-worker", "ZASP_DISCOVERY_WEB_IDENTITY_TOKEN_FILE": "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", "ZASP_DISCOVERY_SECRET_PREFIX": "zasp-production/connectors",
+		"ZASP_DISCOVERY_AWS_COLLECTOR_VERSION": "aws-collector-v1", "ZASP_DISCOVERY_KUBERNETES_COLLECTOR_VERSION": "kubernetes-collector-v1", "ZASP_DISCOVERY_GITHUB_COLLECTOR_VERSION": "github-collector-v1", "ZASP_DISCOVERY_OKTA_COLLECTOR_VERSION": "okta-collector-v1",
+		"ZASP_KUBERNETES_EGRESS_CIDRS": "203.0.113.0/24", "ZASP_GITHUB_APP_ID": "123456", "ZASP_GITHUB_PRIVATE_KEY_REFERENCE": "ref:github/app-private-key-0001", "ZASP_OKTA_CLIENT_ID": "0oa1234567890abcdef", "ZASP_OKTA_CLIENT_SECRET_REFERENCE": "ref:okta/client-secret-0001",
+		"ZASP_PROVIDER_TIMEOUT": "5s", "ZASP_DISCOVERY_READINESS_TIMEOUT": "5s",
 	}
 }
 

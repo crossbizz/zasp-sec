@@ -26,31 +26,45 @@ var (
 )
 
 type workerRuntimeConfig struct {
-	Mode                   workerMode
-	ProjectionKind         string
-	PostgresDSN            string
-	DatabaseAuthority      string
-	WorkerID               string
-	PollInterval           time.Duration
-	LeaseDuration          time.Duration
-	BatchSize              int
-	ShutdownTimeout        time.Duration
-	DiscoveryQueueURL      string
-	AWSRegion              string
-	EvidenceBucket         string
-	EvidenceOwner          string
-	EvidenceKMSKeyARN      string
-	ParserVersion          string
-	ToolVersion            string
-	OpenSearchURL          string
-	OpenSearchIndex        string
-	Neo4jURI               string
-	Neo4jCredential        string
-	ProjectionRoleARN      string
-	ProjectionTokenFile    string
-	ProjectionSecretPrefix string
-	OutboxRoleARN          string
-	OutboxTokenFile        string
+	Mode                       workerMode
+	ProjectionKind             string
+	PostgresDSN                string
+	DatabaseAuthority          string
+	WorkerID                   string
+	PollInterval               time.Duration
+	LeaseDuration              time.Duration
+	BatchSize                  int
+	ShutdownTimeout            time.Duration
+	DiscoveryQueueURL          string
+	AWSRegion                  string
+	EvidenceBucket             string
+	EvidenceOwner              string
+	EvidenceKMSKeyARN          string
+	ParserVersion              string
+	ToolVersion                string
+	DiscoveryRoleARN           string
+	DiscoveryTokenFile         string
+	DiscoverySecretPrefix      string
+	AWSCollectorVersion        string
+	KubernetesCollectorVersion string
+	GitHubCollectorVersion     string
+	OktaCollectorVersion       string
+	KubernetesEgressCIDRs      []string
+	GitHubAppID                string
+	GitHubPrivateKeyReference  string
+	OktaClientID               string
+	OktaClientSecretReference  string
+	ProviderTimeout            time.Duration
+	DiscoveryReadinessTimeout  time.Duration
+	OpenSearchURL              string
+	OpenSearchIndex            string
+	Neo4jURI                   string
+	Neo4jCredential            string
+	ProjectionRoleARN          string
+	ProjectionTokenFile        string
+	ProjectionSecretPrefix     string
+	OutboxRoleARN              string
+	OutboxTokenFile            string
 }
 
 func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, error) {
@@ -60,6 +74,8 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 	poll, pollErr := time.ParseDuration(getenv("ZASP_POLL_INTERVAL"))
 	lease, leaseErr := time.ParseDuration(getenv("ZASP_LEASE_DURATION"))
 	shutdown, shutdownErr := time.ParseDuration(getenv("ZASP_SHUTDOWN_TIMEOUT"))
+	providerTimeout, providerTimeoutErr := time.ParseDuration(getenv("ZASP_PROVIDER_TIMEOUT"))
+	discoveryReadinessTimeout, discoveryReadinessTimeoutErr := time.ParseDuration(getenv("ZASP_DISCOVERY_READINESS_TIMEOUT"))
 	batch, batchErr := strconv.Atoi(getenv("ZASP_BATCH_SIZE"))
 	config := workerRuntimeConfig{
 		Mode: workerMode(getenv("ZASP_WORKER_MODE")), PostgresDSN: getenv("ZASP_POSTGRES_DSN"),
@@ -67,15 +83,26 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 		PollInterval: poll, LeaseDuration: lease, BatchSize: batch, ShutdownTimeout: shutdown,
 		DiscoveryQueueURL: getenv("ZASP_DISCOVERY_QUEUE_URL"), AWSRegion: getenv("ZASP_AWS_REGION"), EvidenceBucket: getenv("ZASP_EVIDENCE_BUCKET"), EvidenceOwner: getenv("ZASP_EVIDENCE_BUCKET_OWNER"),
 		EvidenceKMSKeyARN: getenv("ZASP_EVIDENCE_KMS_KEY_ARN"), ParserVersion: getenv("ZASP_DISCOVERY_PARSER_VERSION"), ToolVersion: getenv("ZASP_DISCOVERY_TOOL_VERSION"),
+		DiscoveryRoleARN: getenv("ZASP_DISCOVERY_ROLE_ARN"), DiscoveryTokenFile: getenv("ZASP_DISCOVERY_WEB_IDENTITY_TOKEN_FILE"), DiscoverySecretPrefix: getenv("ZASP_DISCOVERY_SECRET_PREFIX"),
+		AWSCollectorVersion: getenv("ZASP_DISCOVERY_AWS_COLLECTOR_VERSION"), KubernetesCollectorVersion: getenv("ZASP_DISCOVERY_KUBERNETES_COLLECTOR_VERSION"), GitHubCollectorVersion: getenv("ZASP_DISCOVERY_GITHUB_COLLECTOR_VERSION"), OktaCollectorVersion: getenv("ZASP_DISCOVERY_OKTA_COLLECTOR_VERSION"),
+		KubernetesEgressCIDRs: parseWorkerCIDRs(getenv("ZASP_KUBERNETES_EGRESS_CIDRS")), GitHubAppID: getenv("ZASP_GITHUB_APP_ID"), GitHubPrivateKeyReference: getenv("ZASP_GITHUB_PRIVATE_KEY_REFERENCE"),
+		OktaClientID: getenv("ZASP_OKTA_CLIENT_ID"), OktaClientSecretReference: getenv("ZASP_OKTA_CLIENT_SECRET_REFERENCE"), ProviderTimeout: providerTimeout, DiscoveryReadinessTimeout: discoveryReadinessTimeout,
 		OpenSearchURL: getenv("ZASP_OPENSEARCH_ENDPOINT"), OpenSearchIndex: getenv("ZASP_OPENSEARCH_INDEX"), Neo4jURI: getenv("ZASP_NEO4J_URI"), Neo4jCredential: getenv("ZASP_NEO4J_CREDENTIAL_REFERENCE"),
 		ProjectionRoleARN: getenv("ZASP_PROJECTION_ROLE_ARN"), ProjectionTokenFile: getenv("ZASP_PROJECTION_WEB_IDENTITY_TOKEN_FILE"), ProjectionSecretPrefix: getenv("ZASP_PROJECTION_SECRET_PREFIX"),
 		OutboxRoleARN: getenv("ZASP_OUTBOX_ROLE_ARN"), OutboxTokenFile: getenv("ZASP_OUTBOX_WEB_IDENTITY_TOKEN_FILE"),
 	}
 	config.ProjectionKind = projectionKind(config.Mode)
-	if pollErr != nil || leaseErr != nil || shutdownErr != nil || batchErr != nil || !validWorkerRuntimeConfig(config) {
+	if pollErr != nil || leaseErr != nil || shutdownErr != nil || batchErr != nil || config.Mode == workerModeDiscovery && (providerTimeoutErr != nil || discoveryReadinessTimeoutErr != nil) || !validWorkerRuntimeConfig(config) {
 		return workerRuntimeConfig{}, errWorkerConfiguration
 	}
 	return config, nil
+}
+
+func parseWorkerCIDRs(value string) []string {
+	if value == "" {
+		return nil
+	}
+	return strings.Split(value, ",")
 }
 
 func validWorkerRuntimeConfig(config workerRuntimeConfig) bool {
@@ -89,7 +116,7 @@ func validWorkerRuntimeConfig(config workerRuntimeConfig) bool {
 	}[config.Mode]
 	return wantAuthority != "" && config.DatabaseAuthority == wantAuthority && workerIdentityPattern.MatchString(config.WorkerID) && validModeDependencies(config) &&
 		config.PollInterval >= 50*time.Millisecond && config.PollInterval <= time.Minute && config.LeaseDuration >= 5*time.Second && config.LeaseDuration <= 15*time.Minute &&
-		config.BatchSize >= 1 && config.BatchSize <= 64 && config.ShutdownTimeout >= time.Second && config.ShutdownTimeout <= time.Minute && config.ShutdownTimeout < config.LeaseDuration
+		config.BatchSize >= 1 && config.BatchSize <= 64 && (config.Mode != workerModeDiscovery || config.BatchSize <= 10) && config.ShutdownTimeout >= time.Second && config.ShutdownTimeout <= time.Minute && config.ShutdownTimeout < config.LeaseDuration
 }
 
 var (
@@ -108,7 +135,7 @@ func validModeDependencies(config workerRuntimeConfig) bool {
 	case workerModeOutbox:
 		return validOutboxAWSAuthority(config)
 	case workerModeDiscovery:
-		return validSQSURL(config.DiscoveryQueueURL) && workerRegionPattern.MatchString(config.AWSRegion) && workerBucketPattern.MatchString(config.EvidenceBucket) && workerAccountPattern.MatchString(config.EvidenceOwner) && workerKMSPattern.MatchString(config.EvidenceKMSKeyARN) && workerVersionPattern.MatchString(config.ParserVersion) && workerVersionPattern.MatchString(config.ToolVersion)
+		return validDiscoveryRuntimeAuthority(config)
 	case workerModeProjectionSearch:
 		return validProjectionAWSAuthority(config) && validOpenSearchEndpoint(config.OpenSearchURL, config.AWSRegion) && config.OpenSearchIndex == "zasp-inventory-v1"
 	case workerModeProjectionGraph:
@@ -121,6 +148,32 @@ func validModeDependencies(config workerRuntimeConfig) bool {
 	default:
 		return false
 	}
+}
+
+func validDiscoveryRuntimeAuthority(config workerRuntimeConfig) bool {
+	queue, queueErr := url.Parse(config.DiscoveryQueueURL)
+	role := discoveryAWSRolePattern.FindStringSubmatch(config.DiscoveryRoleARN)
+	kms := regexp.MustCompile(`^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`).FindStringSubmatch(config.EvidenceKMSKeyARN)
+	if queueErr != nil || queue == nil || !validSQSURL(config.DiscoveryQueueURL) || len(role) != 2 || len(kms) != 3 {
+		return false
+	}
+	queueParts := strings.Split(strings.TrimPrefix(queue.Path, "/"), "/")
+	if len(queueParts) != 2 || queueParts[1] != "agentsec-discovery-jobs" {
+		return false
+	}
+	if queue.Hostname() != "sqs."+config.AWSRegion+".amazonaws.com" || queueParts[0] != role[1] || role[1] != config.EvidenceOwner || kms[1] != config.AWSRegion || kms[2] != config.EvidenceOwner {
+		return false
+	}
+	for _, version := range []string{config.AWSCollectorVersion, config.KubernetesCollectorVersion, config.GitHubCollectorVersion, config.OktaCollectorVersion, config.ParserVersion, config.ToolVersion} {
+		if !workerVersionPattern.MatchString(version) {
+			return false
+		}
+	}
+	return workerRegionPattern.MatchString(config.AWSRegion) && workerBucketPattern.MatchString(config.EvidenceBucket) && workerAccountPattern.MatchString(config.EvidenceOwner) &&
+		config.DiscoveryTokenFile == "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" && validDiscoverySecretRoot(config.DiscoverySecretPrefix) &&
+		validDiscoveryCIDRs(config.KubernetesEgressCIDRs) && discoveryGitHubAppIDPattern.MatchString(config.GitHubAppID) && validDiscoveryCredentialReference(config.GitHubPrivateKeyReference, "ref:github/") &&
+		discoveryOktaClientIDPattern.MatchString(config.OktaClientID) && validDiscoveryCredentialReference(config.OktaClientSecretReference, "ref:okta/") &&
+		config.ProviderTimeout >= 100*time.Millisecond && config.ProviderTimeout <= 30*time.Second && config.DiscoveryReadinessTimeout >= time.Second && config.DiscoveryReadinessTimeout <= 10*time.Second
 }
 
 func validOutboxAWSAuthority(config workerRuntimeConfig) bool {

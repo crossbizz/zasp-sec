@@ -125,6 +125,23 @@ func TestDiscoveryProviderAPIsRejectForeignOrMalformedEnvelopeBeforeProvider(t *
 	}
 }
 
+func TestDiscoveryProviderAPIsClassifyExpiredEphemeralTokenRetryable(t *testing.T) {
+	stub := &discoveryCollectionAPIStub{}
+	api := newDiscoveryGitHubCollectionAPI(stub)
+	request := githubdiscovery.CollectionPageRequest{Provider: collection.ProviderGitHub, Subject: collection.SubjectBinding{Kind: "github_installation", ID: "123456"}, Page: 1, RemainingItems: 1, RemainingBytes: 4096}
+	envelope := discoveryCredentialEnvelope{Version: discoveryCredentialEnvelopeVersion, Provider: collection.ProviderGitHub, SubjectKind: "github_installation", SubjectID: "123456", ExpiresAt: time.Now().UTC().Add(-time.Second), BearerToken: []byte("github-installation-token")}
+	credential, err := encodeDiscoveryCredentialEnvelope(envelope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = api.FetchCollectionPage(context.Background(), credential, request)
+	clear(credential)
+	var failure *collection.Failure
+	if !errors.As(err, &failure) || failure == nil || failure.Code() != collection.FailureRetryable || len(stub.credential) != 0 {
+		t.Fatalf("failure=%#v err=%v providerCredential=%q", failure, err, stub.credential)
+	}
+}
+
 func TestDiscoveryAWSIdentityCallerUsesExplicitSessionAndAttestsSubject(t *testing.T) {
 	now := time.Now().UTC()
 	stub := &discoveryCallerIdentityStub{output: &sts.GetCallerIdentityOutput{Account: aws.String("123456789012"), Arn: aws.String("arn:aws:sts::123456789012:assumed-role/zasp/discovery-session"), UserId: aws.String("role-id:session")}}
