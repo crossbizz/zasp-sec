@@ -79,3 +79,9 @@ e90eb20090470cd54add98ea8fffb0db171685da:services/platform/apiserver/risk_postgr
 # findings; changed or relocated values remain detectable.
 df08ea7b4bbca1f8e0b7ec25726d564996af93b7:services/platform/apiserver/connector_authorization_risk_postgres_test.go:generic-api-key:47
 df08ea7b4bbca1f8e0b7ec25726d564996af93b7:services/platform/apiserver/connector_authorization_risk_postgres_test.go:generic-api-key:131
+
+# Task 3 asynchronous-delete tests use one descriptive idempotency-key literal
+# twice to prove exact lost-response replay. Ignore only its two introduction
+# findings; changed or relocated values remain detectable.
+e17eb5670ce1a04d2daf071c460164858aeaa10b:services/platform/apiserver/workflow_handler_test.go:generic-api-key:462
+e17eb5670ce1a04d2daf071c460164858aeaa10b:services/platform/apiserver/workflow_handler_test.go:generic-api-key:480
