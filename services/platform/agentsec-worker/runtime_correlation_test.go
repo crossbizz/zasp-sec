@@ -26,7 +26,7 @@ func TestRuntimeCorrelationExecutorConsumesIndexReceiptAndPersistsExactAttributi
 	lease.InputVersionID = "index-receipt-version"
 	artifacts := &runtimeCorrelationArtifactStoreStub{inputReference: lease.InputReference, input: artifactstore.Artifact{Locator: artifactstore.Locator{Scope: lease.Scope, Reference: indexReference, VersionID: lease.InputVersionID}, MediaType: "application/json", Body: indexBody, Size: int64(len(indexBody)), SHA256: indexObjectDigest}, outputReference: "s3://zasp-evidence/organizations/" + lease.Scope.OrganizationID().String() + "/workspaces/" + lease.Scope.WorkspaceID().String() + "/environments/" + lease.Scope.EnvironmentID().String() + "/artifacts/" + mustProductID(t, "pid_00000092-0000-4000-8000-000000000092").String()}
 	reader := &runtimeArchivedReaderStub{body: body}
-	executor, err := newRuntimeCorrelationExecutor(runtimeCorrelationExecutorConfig{Reader: reader, Receipts: artifacts, ImplementationVersion: "runtime-correlate-v1"})
+	executor, err := newRuntimeCorrelationExecutor(runtimeCorrelationExecutorConfig{Reader: reader, Receipts: artifacts, ImplementationVersion: "runtime-correlation-v1"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +54,7 @@ func TestRuntimeCorrelationExecutorRejectsReceiptDriftBeforeArchiveRead(t *testi
 	lease.InputVersionID = "index-receipt-version"
 	artifacts := &runtimeCorrelationArtifactStoreStub{inputReference: lease.InputReference, input: artifactstore.Artifact{Locator: artifactstore.Locator{Scope: lease.Scope, Reference: indexReference, VersionID: lease.InputVersionID}, MediaType: "application/json", Body: indexBody, Size: int64(len(indexBody)), SHA256: indexObjectDigest}}
 	reader := &runtimeArchivedReaderStub{body: body}
-	executor, _ := newRuntimeCorrelationExecutor(runtimeCorrelationExecutorConfig{Reader: reader, Receipts: artifacts, ImplementationVersion: "runtime-correlate-v1"})
+	executor, _ := newRuntimeCorrelationExecutor(runtimeCorrelationExecutorConfig{Reader: reader, Receipts: artifacts, ImplementationVersion: "runtime-correlation-v1"})
 	if effect, err := executor.Execute(context.Background(), lease); !errors.Is(err, errRuntimeStageMalformed) || effect != (runtimeStageEffect{}) || reader.calls != 0 || artifacts.putCalls != 0 {
 		t.Fatalf("effect=%#v err=%v read=%d put=%d", effect, err, reader.calls, artifacts.putCalls)
 	}

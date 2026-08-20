@@ -74,7 +74,7 @@ func (provider *outboxWebIdentityProvider) Retrieve(ctx context.Context) (aws.Cr
 
 func validOutboxSession(value string) bool {
 	switch value {
-	case "", "zasp-outbox-worker", "zasp-runtime-outbox-worker", "zasp-runtime-coordinator", "zasp-runtime-archive-worker", "zasp-runtime-index-worker", "zasp-runtime-correlation-worker", "zasp-runtime-projection-worker":
+	case "", "zasp-outbox-worker", "zasp-runtime-outbox-worker", "zasp-runtime-coordinator", "zasp-runtime-archive-worker", "zasp-runtime-index-worker", "zasp-runtime-correlation-worker", "zasp-runtime-projection-worker", "zasp-runtime-complete-worker":
 		return true
 	default:
 		return false

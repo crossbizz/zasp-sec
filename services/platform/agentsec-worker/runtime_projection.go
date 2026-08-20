@@ -22,7 +22,7 @@ type runtimeProjectionExecutor struct {
 }
 
 func newRuntimeProjectionExecutor(config runtimeProjectionExecutorConfig) (*runtimeProjectionExecutor, error) {
-	if nilWorkerDependency(config.Reader) || nilWorkerDependency(config.Receipts) || config.ImplementationVersion != "runtime-project-v1" {
+	if nilWorkerDependency(config.Reader) || nilWorkerDependency(config.Receipts) || config.ImplementationVersion != "runtime-projection-v1" {
 		return nil, errRuntimeUnavailable
 	}
 	return &runtimeProjectionExecutor{config: config}, nil
@@ -57,7 +57,7 @@ func (executor *runtimeProjectionExecutor) Execute(ctx context.Context, lease ru
 	}
 	correlationReceipt, err := runtimecorrelation.DecodeReceipt(artifact.Body)
 	clear(artifact.Body)
-	if err != nil || correlationReceipt.Scope != lease.Scope || correlationReceipt.BatchID != lease.BatchID || correlationReceipt.Generation != lease.Generation || correlationReceipt.EffectDigest != lease.InputDigest || correlationReceipt.ImplementationVersion != "runtime-correlate-v1" {
+	if err != nil || correlationReceipt.Scope != lease.Scope || correlationReceipt.BatchID != lease.BatchID || correlationReceipt.Generation != lease.Generation || correlationReceipt.EffectDigest != lease.InputDigest || correlationReceipt.ImplementationVersion != "runtime-correlation-v1" {
 		return runtimeStageEffect{}, errRuntimeStageMalformed
 	}
 	archiveLease := lease

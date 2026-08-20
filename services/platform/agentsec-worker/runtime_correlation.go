@@ -24,7 +24,7 @@ type runtimeCorrelationExecutor struct {
 }
 
 func newRuntimeCorrelationExecutor(config runtimeCorrelationExecutorConfig) (*runtimeCorrelationExecutor, error) {
-	if nilWorkerDependency(config.Reader) || nilWorkerDependency(config.Receipts) || config.ImplementationVersion != "runtime-correlate-v1" {
+	if nilWorkerDependency(config.Reader) || nilWorkerDependency(config.Receipts) || config.ImplementationVersion != "runtime-correlation-v1" {
 		return nil, errRuntimeUnavailable
 	}
 	return &runtimeCorrelationExecutor{config: config}, nil

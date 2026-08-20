@@ -66,7 +66,7 @@ func TestProjectionReceiptRejectsRiskAndAuthorityTampering(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	receipt := Receipt{ImplementationVersion: "runtime-project-v1", Scope: scope, BatchID: projectionID(t, 9), Generation: 2, InputReference: "s3://zasp-evidence/correlation.json", InputVersionID: "correlation-version", InputDigest: sha256.Sum256([]byte("correlation")), ArchiveReference: "s3://zasp-evidence/runtime/v15/raw.json", ArchiveVersionID: "raw-version", ArchiveDigest: digest, EffectDigest: projected.ContentDigest, Items: projected.Items}
+	receipt := Receipt{ImplementationVersion: "runtime-projection-v1", Scope: scope, BatchID: projectionID(t, 9), Generation: 2, InputReference: "s3://zasp-evidence/correlation.json", InputVersionID: "correlation-version", InputDigest: sha256.Sum256([]byte("correlation")), ArchiveReference: "s3://zasp-evidence/runtime/v15/raw.json", ArchiveVersionID: "raw-version", ArchiveDigest: digest, EffectDigest: projected.ContentDigest, Items: projected.Items}
 	encoded, objectDigest, reference, err := EncodeReceipt(receipt)
 	if err != nil || objectDigest != sha256.Sum256(encoded) || reference.Validate() != nil {
 		t.Fatalf("encoded=%s digest=%x reference=%s err=%v", encoded, objectDigest, reference.String(), err)

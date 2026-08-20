@@ -21,7 +21,7 @@ func TestRuntimeProjectionExecutorPersistsExactSourceOwnedEvidence(t *testing.T)
 		t.Fatal(err)
 	}
 	lease.InputDigest = correlated.ContentDigest
-	correlationBody, correlationObjectDigest, correlationReference, err := runtimecorrelation.EncodeReceipt(runtimecorrelation.Receipt{ImplementationVersion: "runtime-correlate-v1", Scope: lease.Scope, BatchID: lease.BatchID, Generation: lease.Generation, InputReference: "s3://zasp-evidence/index.json", InputVersionID: "index-version", InputDigest: sha256.Sum256([]byte("index")), ArchiveReference: "s3://zasp-evidence/runtime/v15/raw.json", ArchiveVersionID: "raw-version", ArchiveDigest: archiveDigest, EffectDigest: correlated.ContentDigest, Results: correlated.Results})
+	correlationBody, correlationObjectDigest, correlationReference, err := runtimecorrelation.EncodeReceipt(runtimecorrelation.Receipt{ImplementationVersion: "runtime-correlation-v1", Scope: lease.Scope, BatchID: lease.BatchID, Generation: lease.Generation, InputReference: "s3://zasp-evidence/index.json", InputVersionID: "index-version", InputDigest: sha256.Sum256([]byte("index")), ArchiveReference: "s3://zasp-evidence/runtime/v15/raw.json", ArchiveVersionID: "raw-version", ArchiveDigest: archiveDigest, EffectDigest: correlated.ContentDigest, Results: correlated.Results})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,7 +29,7 @@ func TestRuntimeProjectionExecutorPersistsExactSourceOwnedEvidence(t *testing.T)
 	lease.InputVersionID = "correlation-receipt-version"
 	artifacts := &runtimeCorrelationArtifactStoreStub{inputReference: lease.InputReference, input: artifactstore.Artifact{Locator: artifactstore.Locator{Scope: lease.Scope, Reference: correlationReference, VersionID: lease.InputVersionID}, MediaType: "application/json", Body: correlationBody, Size: int64(len(correlationBody)), SHA256: correlationObjectDigest}, outputReference: runtimeTestReceiptReference(lease, mustProductID(t, "pid_00000093-0000-4000-8000-000000000093").String())}
 	reader := &runtimeArchivedReaderStub{body: body}
-	executor, err := newRuntimeProjectionExecutor(runtimeProjectionExecutorConfig{Reader: reader, Receipts: artifacts, ImplementationVersion: "runtime-project-v1"})
+	executor, err := newRuntimeProjectionExecutor(runtimeProjectionExecutorConfig{Reader: reader, Receipts: artifacts, ImplementationVersion: "runtime-projection-v1"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,12 +55,12 @@ func TestRuntimeProjectionExecutorRejectsCorrelationDriftBeforeArchiveRead(t *te
 		t.Fatal(err)
 	}
 	lease.InputDigest = sha256.Sum256([]byte("drift"))
-	correlationBody, correlationObjectDigest, correlationReference, _ := runtimecorrelation.EncodeReceipt(runtimecorrelation.Receipt{ImplementationVersion: "runtime-correlate-v1", Scope: lease.Scope, BatchID: lease.BatchID, Generation: lease.Generation, InputReference: "s3://zasp-evidence/index.json", InputVersionID: "index-version", InputDigest: sha256.Sum256([]byte("index")), ArchiveReference: "s3://zasp-evidence/runtime/v15/raw.json", ArchiveVersionID: "raw-version", ArchiveDigest: archiveDigest, EffectDigest: correlated.ContentDigest, Results: correlated.Results})
+	correlationBody, correlationObjectDigest, correlationReference, _ := runtimecorrelation.EncodeReceipt(runtimecorrelation.Receipt{ImplementationVersion: "runtime-correlation-v1", Scope: lease.Scope, BatchID: lease.BatchID, Generation: lease.Generation, InputReference: "s3://zasp-evidence/index.json", InputVersionID: "index-version", InputDigest: sha256.Sum256([]byte("index")), ArchiveReference: "s3://zasp-evidence/runtime/v15/raw.json", ArchiveVersionID: "raw-version", ArchiveDigest: archiveDigest, EffectDigest: correlated.ContentDigest, Results: correlated.Results})
 	lease.InputReference = runtimeTestReceiptReference(lease, correlationReference.String())
 	lease.InputVersionID = "correlation-receipt-version"
 	artifacts := &runtimeCorrelationArtifactStoreStub{inputReference: lease.InputReference, input: artifactstore.Artifact{Locator: artifactstore.Locator{Scope: lease.Scope, Reference: correlationReference, VersionID: lease.InputVersionID}, MediaType: "application/json", Body: correlationBody, Size: int64(len(correlationBody)), SHA256: correlationObjectDigest}}
 	reader := &runtimeArchivedReaderStub{body: body}
-	executor, _ := newRuntimeProjectionExecutor(runtimeProjectionExecutorConfig{Reader: reader, Receipts: artifacts, ImplementationVersion: "runtime-project-v1"})
+	executor, _ := newRuntimeProjectionExecutor(runtimeProjectionExecutorConfig{Reader: reader, Receipts: artifacts, ImplementationVersion: "runtime-projection-v1"})
 	if effect, err := executor.Execute(context.Background(), lease); !errors.Is(err, errRuntimeStageMalformed) || effect != (runtimeStageEffect{}) || reader.calls != 0 || artifacts.putCalls != 0 {
 		t.Fatalf("effect=%#v err=%v read=%d put=%d", effect, err, reader.calls, artifacts.putCalls)
 	}

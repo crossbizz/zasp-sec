@@ -65,7 +65,7 @@ func TestCorrelationReceiptRoundTripsExactIndexAndArchiveAuthority(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	receipt := Receipt{ImplementationVersion: "runtime-correlate-v1", Scope: scope, BatchID: correlationID(t, 9), Generation: 2, InputReference: "s3://zasp-evidence/index-receipt.json", InputVersionID: "index-version", InputDigest: sha256.Sum256([]byte("index")), ArchiveReference: "s3://zasp-evidence/raw.json", ArchiveVersionID: "raw-version", ArchiveDigest: archiveDigest, EffectDigest: effectDigest, Results: results}
+	receipt := Receipt{ImplementationVersion: "runtime-correlation-v1", Scope: scope, BatchID: correlationID(t, 9), Generation: 2, InputReference: "s3://zasp-evidence/index-receipt.json", InputVersionID: "index-version", InputDigest: sha256.Sum256([]byte("index")), ArchiveReference: "s3://zasp-evidence/raw.json", ArchiveVersionID: "raw-version", ArchiveDigest: archiveDigest, EffectDigest: effectDigest, Results: results}
 	body, objectDigest, reference, err := EncodeReceipt(receipt)
 	if err != nil || objectDigest != sha256.Sum256(body) || reference.Validate() != nil {
 		t.Fatalf("body=%s digest=%x reference=%s err=%v", body, objectDigest, reference.String(), err)

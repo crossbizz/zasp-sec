@@ -141,6 +141,24 @@ func TestComposeRuntimeProjectionBindsExactStageRepositoryAndExecutor(t *testing
 	}
 }
 
+func TestComposeRuntimeCompleteBindsCoordinatorStageWithoutQueueAuthority(t *testing.T) {
+	closed := false
+	config := validRuntimeCompleteConfig()
+	executor := runtimeStageExecutorFunc(func(context.Context, runtimeevent.StageLease) (runtimeStageEffect, error) {
+		return runtimeStageEffect{}, errRuntimeStageRetryable
+	})
+	dependencies, err := composeRuntimeStageWorkerRuntime(config, readyWorkerDatabase{}, &productionRuntimeStageDependencies{Stage: runtimeevent.RuntimeStageComplete, Executor: executor, ready: func(context.Context) error { return nil }, close: func() error { closed = true; return nil }})
+	if err != nil || dependencies.Processor == nil || dependencies.Ready == nil || dependencies.Close == nil {
+		t.Fatalf("dependencies=%#v err=%v", dependencies, err)
+	}
+	if err := dependencies.Ready(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := dependencies.Close(); err != nil || !closed {
+		t.Fatalf("close=%v closed=%v", err, closed)
+	}
+}
+
 func TestComposeDiscoveryWorkerRuntimeReadinessGatesQueueConsumption(t *testing.T) {
 	steps := []string{}
 	discovery := &productionDiscoveryDependencies{
@@ -506,7 +524,7 @@ func validRuntimeCorrelationConfig() workerRuntimeConfig {
 		Mode: workerModeRuntimeCorrelation, PostgresDSN: "postgres://runtime_correlation@postgres.internal/zasp?sslmode=verify-full", DatabaseAuthority: "zasp_runtime_correlation_worker", WorkerID: "runtime-correlation-01",
 		PollInterval: 50 * time.Millisecond, LeaseDuration: 30 * time.Second, BatchSize: 10, ShutdownTimeout: 20 * time.Second,
 		AWSRegion: "us-west-2", EvidenceBucket: "zasp-production-evidence", EvidenceOwner: "123456789012", EvidenceKMSKeyARN: "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111",
-		RuntimeStageRoleARN: "arn:aws:iam::123456789012:role/zasp-production-runtime-correlation", RuntimeStageTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", RuntimeStageVersion: "runtime-correlate-v1",
+		RuntimeStageRoleARN: "arn:aws:iam::123456789012:role/zasp-production-runtime-correlation", RuntimeStageTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", RuntimeStageVersion: "runtime-correlation-v1",
 	}
 }
 
@@ -515,7 +533,16 @@ func validRuntimeProjectionConfig() workerRuntimeConfig {
 		Mode: workerModeRuntimeProjection, PostgresDSN: "postgres://runtime_projection@postgres.internal/zasp?sslmode=verify-full", DatabaseAuthority: "zasp_runtime_projection_worker", WorkerID: "runtime-projection-01",
 		PollInterval: 50 * time.Millisecond, LeaseDuration: 30 * time.Second, BatchSize: 10, ShutdownTimeout: 20 * time.Second,
 		AWSRegion: "us-west-2", EvidenceBucket: "zasp-production-evidence", EvidenceOwner: "123456789012", EvidenceKMSKeyARN: "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111",
-		RuntimeStageRoleARN: "arn:aws:iam::123456789012:role/zasp-production-runtime-projection", RuntimeStageTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", RuntimeStageVersion: "runtime-project-v1",
+		RuntimeStageRoleARN: "arn:aws:iam::123456789012:role/zasp-production-runtime-projection", RuntimeStageTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", RuntimeStageVersion: "runtime-projection-v1",
+	}
+}
+
+func validRuntimeCompleteConfig() workerRuntimeConfig {
+	return workerRuntimeConfig{
+		Mode: workerModeRuntimeComplete, PostgresDSN: "postgres://runtime_complete@postgres.internal/zasp?sslmode=verify-full", DatabaseAuthority: "zasp_runtime_coordinator", WorkerID: "runtime-complete-01",
+		PollInterval: 50 * time.Millisecond, LeaseDuration: 30 * time.Second, BatchSize: 10, ShutdownTimeout: 20 * time.Second,
+		AWSRegion: "us-west-2", EvidenceBucket: "zasp-production-evidence", EvidenceOwner: "123456789012", EvidenceKMSKeyARN: "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111",
+		RuntimeStageRoleARN: "arn:aws:iam::123456789012:role/zasp-production-runtime-complete", RuntimeStageTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", RuntimeStageVersion: "runtime-complete-v1",
 	}
 }
 

@@ -83,7 +83,7 @@ func TestRuntimeStageProcessorCancelsOnLeaseLossWithoutFinishing(t *testing.T) {
 		close(canceled)
 		return runtimeStageEffect{}, ctx.Err()
 	})
-	processor, err := newRuntimeStageProcessor(runtimeStageProcessorConfig{Authority: authority, Executor: executor, Stage: runtimeevent.RuntimeStageProject, ImplementationVersion: "runtime-project-v1", WorkerID: "runtime-projection-01", LeaseSeconds: 5, BatchSize: 1, HeartbeatInterval: 10 * time.Millisecond, RetrySeconds: 30, NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil }})
+	processor, err := newRuntimeStageProcessor(runtimeStageProcessorConfig{Authority: authority, Executor: executor, Stage: runtimeevent.RuntimeStageProject, ImplementationVersion: "runtime-projection-v1", WorkerID: "runtime-projection-01", LeaseSeconds: 5, BatchSize: 1, HeartbeatInterval: 10 * time.Millisecond, RetrySeconds: 30, NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil }})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -143,5 +143,8 @@ func (function runtimeStageExecutorFunc) Execute(ctx context.Context, lease runt
 
 func runtimeStageLease(t *testing.T, stage runtimeevent.RuntimeStage) runtimeevent.StageLease {
 	t.Helper()
-	return runtimeevent.StageLease{Scope: workerScope(t), BatchID: workerID(t, "pid_70000002-0000-4000-8000-000000000001"), Generation: 1, Stage: stage, Attempt: 1, ImplementationVersion: "runtime-" + string(stage) + "-v1", InputDigest: sha256.Sum256([]byte("stage-input")), InputReference: "s3://runtime-evidence/runtime/v15/input.json", InputVersionID: "stage-input-version-1", LeaseExpiresAt: time.Now().Add(time.Minute)}
+	versions := map[runtimeevent.RuntimeStage]string{
+		runtimeevent.RuntimeStageArchive: "runtime-archive-v1", runtimeevent.RuntimeStageIndex: "runtime-index-v1", runtimeevent.RuntimeStageCorrelate: "runtime-correlation-v1", runtimeevent.RuntimeStageProject: "runtime-projection-v1", runtimeevent.RuntimeStageComplete: "runtime-complete-v1",
+	}
+	return runtimeevent.StageLease{Scope: workerScope(t), BatchID: workerID(t, "pid_70000002-0000-4000-8000-000000000001"), Generation: 1, Stage: stage, Attempt: 1, ImplementationVersion: versions[stage], InputDigest: sha256.Sum256([]byte("stage-input")), InputReference: "s3://runtime-evidence/runtime/v15/input.json", InputVersionID: "stage-input-version-1", LeaseExpiresAt: time.Now().Add(time.Minute)}
 }
