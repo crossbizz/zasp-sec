@@ -19,8 +19,8 @@ source modules and compiled client/server chunks.
 
 ## Production support boundary
 
-The production API publishes and mounts exactly 80 operations. The UI/API map
-reports `planned=53 api_available=17 available=63 public=80 internal=0`.
+The production API publishes and mounts exactly 84 operations. The UI/API map
+reports `planned=52 api_available=20 available=64 public=84 internal=0`.
 Findings and attack paths are the Batch 4 production risk slice:
 
 | Surface | Production support |
@@ -28,6 +28,7 @@ Findings and attack paths are the Batch 4 production risk slice:
 | Findings | Scoped list/detail, status update, and risk acceptance |
 | Attack paths | Scoped list/detail and ranked path-local break options |
 | Risk authority | Typed, scope-keyed PostgreSQL v9 serving projection |
+| Connector authorization | OAuth for GitHub/Okta and reference authorization for AWS/Kubernetes, capability-gated by composed runtime readiness |
 | Empty scopes | Honest empty state; no fixture or fake producer fallback |
 | Future enrichment | Provider ingestion, OpenSearch indexing, and Neo4j graph projection |
 
@@ -139,8 +140,8 @@ npm run ui-api:test
 npm run ui-api:check
 ```
 
-The current honest result is `UI/API coverage passed: planned=53
-api_available=17 available=63 public=80 internal=0.` The gate distinguishes
+The current honest result is `UI/API coverage passed: planned=52
+api_available=20 available=64 public=84 internal=0.` The gate distinguishes
 implemented API contracts from fully wired UI actions.
 M1-36e is Complete and separately owns local infrastructure smoke checks.
 
@@ -1044,7 +1045,7 @@ npm run ui-api:check
 The current fixed success line is:
 
 ```text
-UI/API coverage passed: planned=53 api_available=17 available=63 public=80 internal=0.
+UI/API coverage passed: planned=52 api_available=20 available=64 public=84 internal=0.
 ```
 
 M5 now has a local MVP slice for normalized Promptfoo attempts, curated packs,
