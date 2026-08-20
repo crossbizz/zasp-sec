@@ -245,6 +245,13 @@ func TestWorkflowRepositoryBindsIntegrationReceiptResultsToOperation(t *testing.
 			value.Result = json.RawMessage(`{"id":"` + integrationID + `","status":"deleted"}`)
 			return value
 		}(),
+		func() WorkflowMutationReceipt {
+			value := base
+			value.Operation = "deleteIntegration"
+			value.Intent = json.RawMessage(`{"body":{},"expected_version":1,"resource_id":"` + integrationID + `"}`)
+			value.Result = json.RawMessage(`{"id":"` + integrationID + `","connector_key":"github","name":"GitHub","configuration":{"installation_reference":"ref:github/installation/customer-0001"},"status":"revoking","created_at":"2026-08-19T00:00:00Z","updated_at":"2026-08-19T00:01:00Z"}`)
+			return value
+		}(),
 	}
 	for _, receipt := range valid {
 		if !validWorkflowMutationReceipt(receipt) {

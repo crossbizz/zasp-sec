@@ -16,7 +16,7 @@ export function workflowReceiptSummary(receipt: WorkflowMutationReceipt): Workfl
   case "policy":
     return { intent: policyIntent(operation, receipt.resource_id, intent.body), result: policyResult(result, receipt.resource_version) };
   case "integration":
-    return { intent: operation === "completeIntegrationOAuth" ? oauthCompletionIntent(receipt.intent as unknown as Record<string, unknown>) : operation === "completeIntegrationReferenceAuthorization" ? referenceAuthorizationIntent(receipt.intent as unknown as Record<string, unknown>) : integrationIntent(operation, receipt.resource_id, intent.body), result: operation === "deleteIntegration" ? integrationDeletionResult(result, receipt.resource_version) : integrationResult(result, receipt.resource_version) };
+    return { intent: operation === "completeIntegrationOAuth" ? oauthCompletionIntent(receipt.intent as unknown as Record<string, unknown>) : operation === "completeIntegrationReferenceAuthorization" ? referenceAuthorizationIntent(receipt.intent as unknown as Record<string, unknown>) : integrationIntent(operation, receipt.resource_id, intent.body), result: operation === "deleteIntegration" && result.status === "deleted" ? integrationDeletionResult(result, receipt.resource_version) : integrationResult(result, receipt.resource_version) };
   case "security_agent":
     return { intent: securityAgentIntent(operation, receipt.resource_id, intent.body), result: securityAgentResult(result, receipt.resource_version) };
   case "finding":

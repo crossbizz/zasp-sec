@@ -301,9 +301,17 @@ function decodeWorkflowReceiptPayload(operation: unknown, kind: unknown, resourc
   }
   if (kind === "integration") {
     if (operation === "deleteIntegration") {
-      const result = exactRecord(resultValue, ["id", "status"]);
-      productID(result.id); enumValue(result.status, ["deleted"]); emptyRecord(intent.body);
-      if (result.id !== resourceID) fail();
+      const terminal = Boolean(resultValue) && typeof resultValue === "object" && !Array.isArray(resultValue) && (resultValue as Record<string, unknown>).status === "deleted";
+      if (terminal) {
+        const result = exactRecord(resultValue, ["id", "status"]);
+        productID(result.id); enumValue(result.status, ["deleted"]);
+        if (result.id !== resourceID) fail();
+      } else {
+        decodeIntegration(resultValue);
+        const result = resultValue as Integration;
+        if (result.id !== resourceID || result.status !== "revoking") fail();
+      }
+      emptyRecord(intent.body);
       return;
     }
     decodeIntegration(resultValue);

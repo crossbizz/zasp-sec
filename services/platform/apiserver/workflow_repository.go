@@ -256,7 +256,7 @@ func validIntegrationWorkflowReceiptResult(value WorkflowMutationReceipt) bool {
 	if !stringIn(value.Operation, "createIntegration", "updateIntegration", "deleteIntegration") {
 		return true
 	}
-	if value.Operation == "deleteIntegration" {
+	if value.Operation == "deleteIntegration" && exactJSONFields(value.Result, "id", "status") {
 		var result struct {
 			ID     string `json:"id"`
 			Status string `json:"status"`
@@ -280,7 +280,7 @@ func validIntegrationWorkflowReceiptResult(value WorkflowMutationReceipt) bool {
 			return false
 		}
 	}
-	return true
+	return value.Operation != "deleteIntegration" || result.Status == "revoking"
 }
 
 func validDiscoveryWorkflowReceipt(value WorkflowMutationReceipt, identity RequestIdentity) bool {

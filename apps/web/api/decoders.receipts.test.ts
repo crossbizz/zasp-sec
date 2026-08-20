@@ -83,6 +83,12 @@ describe("workflow mutation receipt decoder", () => {
     expect(() => decodeWorkflowMutationReceipt(value)).toThrow("schema mismatch");
   });
 
+  it("accepts only the full revoking Integration before terminal deletion", () => {
+    const value = receipt("deleteIntegration");
+    value.result = { ...integration, status: "revoking" };
+    expect(decodeWorkflowMutationReceipt(value)).toEqual(value);
+  });
+
   it("rejects an integration deletion tombstone for create or update", () => {
     for (const operation of ["createIntegration", "updateIntegration"]) {
       const value = receipt(operation);
