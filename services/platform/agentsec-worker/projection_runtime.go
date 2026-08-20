@@ -17,6 +17,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/graphstore"
 	"github.com/zasp-ai/zasp-sec/services/platform/inventorysearch"
+	"github.com/zasp-ai/zasp-sec/services/platform/riskprojection"
 )
 
 const (
@@ -40,6 +41,7 @@ type projectionProjector interface {
 type projectionCandidate struct {
 	Scope                                             domain.Scope
 	SnapshotID, IntegrationID, Source, Kind, Version  string
+	Worker, LeaseToken                                string
 	Generation                                        int64
 	InputDigest                                       [sha256.Size]byte
 	ManifestReference, ManifestKey, ManifestVersionID string
@@ -322,7 +324,7 @@ func newProjectionProcessor(config projectionProcessorConfig) (*projectionProces
 	if config.HeartbeatInterval == 0 {
 		config.HeartbeatInterval = time.Duration(config.LeaseSeconds) * time.Second / 3
 	}
-	if config.Authority == nil || config.Projector == nil || !stringInWorker(config.Kind, "graph", "search") ||
+	if config.Authority == nil || config.Projector == nil || !stringInWorker(config.Kind, "risk", "graph", "search") ||
 		!workerIdentityPattern.MatchString(config.WorkerID) || config.LeaseSeconds < 5 || config.LeaseSeconds > 900 ||
 		config.BatchSize < 1 || config.BatchSize > 64 || config.HeartbeatInterval < 10*time.Millisecond ||
 		config.HeartbeatInterval > time.Duration(config.LeaseSeconds)*time.Second/2 || config.NewLeaseToken == nil {
@@ -374,7 +376,7 @@ func (processor *projectionProcessor) process(ctx context.Context, lease apiserv
 		}
 		heartbeatDone <- heartbeatErr
 	}()
-	candidate, err := processor.loadCandidate(workCtx, scope, lease)
+	candidate, err := processor.loadCandidate(workCtx, scope, lease, leaseToken)
 	var result projectionDriverResult
 	if err == nil {
 		result, err = processor.config.Projector.Apply(workCtx, candidate)
@@ -438,9 +440,10 @@ func (processor *projectionProcessor) heartbeat(ctx context.Context, scope domai
 	}
 }
 
-func (processor *projectionProcessor) loadCandidate(ctx context.Context, scope domain.Scope, lease apiserver.ProjectionWorkLease) (projectionCandidate, error) {
+func (processor *projectionProcessor) loadCandidate(ctx context.Context, scope domain.Scope, lease apiserver.ProjectionWorkLease, leaseToken string) (projectionCandidate, error) {
 	var candidate projectionCandidate
 	candidate.Scope, candidate.SnapshotID, candidate.Kind, candidate.Version = scope, lease.SnapshotID, lease.Kind, lease.Version
+	candidate.Worker, candidate.LeaseToken = processor.config.WorkerID, leaseToken
 	copy(candidate.InputDigest[:], lease.InputDigest)
 	for _, section := range []string{"entities", "relationships", "evidence"} {
 		afterID := ""
@@ -497,7 +500,8 @@ func (processor *projectionProcessor) finishFailure(ctx context.Context, scope d
 	if errors.Is(cause, context.Canceled) || errors.Is(cause, inventorysearch.ErrCanceled) || errors.Is(cause, graphstore.ErrSnapshotCanceled) {
 		outcome, code = "cancelled", "cancelled"
 	} else if errors.Is(cause, inventorysearch.ErrRetryable) || errors.Is(cause, inventorysearch.ErrUnknownOutcome) || errors.Is(cause, inventorysearch.ErrUnavailable) ||
-		errors.Is(cause, graphstore.ErrSnapshotRetryable) || errors.Is(cause, graphstore.ErrSnapshotUnknownOutcome) || errors.Is(cause, graphstore.ErrSnapshotUnavailable) || errors.Is(cause, apiserver.ErrRepositoryUnavailable) {
+		errors.Is(cause, graphstore.ErrSnapshotRetryable) || errors.Is(cause, graphstore.ErrSnapshotUnknownOutcome) || errors.Is(cause, graphstore.ErrSnapshotUnavailable) ||
+		errors.Is(cause, riskprojection.ErrUnavailable) || errors.Is(cause, apiserver.ErrRepositoryUnavailable) {
 		outcome, code, retry = "retryable", "projection_unavailable", 30
 	}
 	completion, err := processor.config.Authority.FinishProjectionWork(ctx, scope, apiserver.ProjectionWorkCompletion{

@@ -3,6 +3,7 @@ package apiserver
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,8 @@ import (
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/collection"
+	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/riskprojection"
 )
 
 type blockingDiscoveryExecutionDatabase struct{}
@@ -17,6 +20,46 @@ type blockingDiscoveryExecutionDatabase struct{}
 func (*blockingDiscoveryExecutionDatabase) SchemaVersion(ctx context.Context) (string, error) {
 	<-ctx.Done()
 	return "", ctx.Err()
+}
+
+func TestDiscoveryExecutionRepositoryAppliesOnlyLeaseFencedRiskProjectionInput(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	integrationID, _ := domain.ParseProductID("pid_93100001-0000-4000-8000-000000000001")
+	snapshotID, _ := domain.ParseProductID("pid_93100002-0000-4000-8000-000000000002")
+	itemID, _ := domain.ParseProductID("pid_93100003-0000-4000-8000-000000000003")
+	inputDigest := sha256.Sum256([]byte("candidate"))
+	contentDigest := sha256.Sum256([]byte("risk-input"))
+	receipt := "postgres:risk-input:" + snapshotID.String() + ":sha256:" + fmt.Sprintf("%x", contentDigest)
+	payload, err := json.Marshal(map[string]any{
+		"snapshot_id": snapshotID.String(), "integration_id": integrationID.String(), "source": "aws", "generation": int64(7),
+		"input_digest": inputDigest[:], "content_digest": contentDigest[:], "driver_receipt": receipt, "replayed": false,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{postgresExecutionApplyRiskProjectionSQL: payload}}
+	repository := newTestDiscoveryExecutionRepository(t, database, DiscoveryExecutionAuthorityProjectionRisk)
+	input := riskprojection.CompleteInput{
+		Scope: identity.Scope, IntegrationID: integrationID, SnapshotID: snapshotID, Source: "aws", Generation: 7, Version: "v1",
+		Worker: "projection-risk-01", LeaseToken: "projection-token-00000001", InputDigest: inputDigest,
+		Items: []riskprojection.Item{{Section: "entities", ID: itemID, Payload: json.RawMessage(`{"id":"` + itemID.String() + `","kind":"role"}`)}},
+	}
+	result, err := repository.ApplyRiskProjectionInput(context.Background(), input)
+	if err != nil || result.ContentDigest != contentDigest || result.Receipt != receipt || result.Replayed {
+		t.Fatalf("ApplyRiskProjectionInput() = %#v, %v", result, err)
+	}
+	if database.query != postgresExecutionApplyRiskProjectionSQL || len(database.args) != 12 || database.args[0] != identity.Scope.OrganizationID().String() || database.args[3] != snapshotID.String() || database.args[4] != "v1" || database.args[5] != "projection-risk-01" || database.args[6] != "projection-token-00000001" {
+		t.Fatalf("query=%q args=%#v", database.query, database.args)
+	}
+
+	graph := newTestDiscoveryExecutionRepository(t, database, DiscoveryExecutionAuthorityProjectionGraph)
+	if _, err := graph.ApplyRiskProjectionInput(context.Background(), input); !errors.Is(err, ErrRepositoryOperation) {
+		t.Fatalf("graph risk apply error=%v", err)
+	}
+	input.Items[0].Payload = json.RawMessage(`{"id":"pid_93100004-0000-4000-8000-000000000004"}`)
+	if _, err := repository.ApplyRiskProjectionInput(context.Background(), input); !errors.Is(err, ErrRepositoryOperation) {
+		t.Fatalf("mismatched item error=%v", err)
+	}
 }
 
 func (*blockingDiscoveryExecutionDatabase) QueryJSON(context.Context, string, ...any) (json.RawMessage, error) {

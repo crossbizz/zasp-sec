@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"regexp"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/collection"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
+	"github.com/zasp-ai/zasp-sec/services/platform/riskprojection"
 )
 
 const (
@@ -42,10 +44,12 @@ const (
 	postgresExecutionClaimProjectionSQL     = `SELECT zasp_execution_claim_projection_work($1,$2,$3,$4,$5)`
 	postgresExecutionHeartbeatProjectionSQL = `SELECT zasp_execution_heartbeat_projection($1,$2,$3,$4,$5,$6,$7,$8,$9)`
 	postgresExecutionFinishProjectionSQL    = `SELECT zasp_execution_finish_projection($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`
+	postgresExecutionApplyRiskProjectionSQL = `SELECT zasp_execution_apply_risk_projection($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb)`
 	postgresExecutionBindSubjectSQL         = `SELECT zasp_execution_bind_connection_subject($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11)`
 )
 
 var executionVersionPattern = regexp.MustCompile(`^[a-z][a-z0-9_.-]{1,63}$`)
+var riskProjectionReceiptPattern = regexp.MustCompile(`^postgres:risk-input:pid_[0-9a-f-]{36}:sha256:[0-9a-f]{64}$`)
 
 type DiscoveryExecutionRepository struct {
 	database  JSONDatabase
@@ -553,6 +557,66 @@ func (repository *DiscoveryExecutionRepository) HeartbeatProjectionWork(ctx cont
 	}
 	result.LeaseExpiresAt = result.LeaseExpiresAt.UTC()
 	return result, nil
+}
+
+func (repository *DiscoveryExecutionRepository) ApplyRiskProjectionInput(ctx context.Context, input riskprojection.CompleteInput) (riskprojection.ApplyResult, error) {
+	if !validExecutionRepository(repository, ctx) || repository.authority != DiscoveryExecutionAuthorityProjectionRisk || input.Scope.Validate() != nil ||
+		!validProductID(input.IntegrationID.String()) || !validProductID(input.SnapshotID.String()) || !stringIn(input.Source, "aws", "kubernetes", "github", "okta") ||
+		input.Generation < 1 || !executionVersionPattern.MatchString(input.Version) || !validWorkerLease(input.Worker, input.LeaseToken) || input.InputDigest == [sha256.Size]byte{} ||
+		input.Items == nil || len(input.Items) > 4_000 {
+		return riskprojection.ApplyResult{}, ErrRepositoryOperation
+	}
+	type storedItem struct {
+		Section string          `json:"section"`
+		ID      string          `json:"id"`
+		Payload json.RawMessage `json:"payload"`
+	}
+	items := make([]storedItem, len(input.Items))
+	lastKey := ""
+	for index, item := range input.Items {
+		key := item.Section + ":" + item.ID.String()
+		var identity struct {
+			ID string `json:"id"`
+		}
+		if !stringIn(item.Section, "entities", "relationships", "evidence") || !validProductID(item.ID.String()) || !discoveryValidJSONObject(item.Payload, 1<<20) ||
+			json.Unmarshal(item.Payload, &identity) != nil || identity.ID != item.ID.String() || key <= lastKey {
+			return riskprojection.ApplyResult{}, ErrRepositoryOperation
+		}
+		lastKey = key
+		items[index] = storedItem{Section: item.Section, ID: item.ID.String(), Payload: bytes.Clone(item.Payload)}
+	}
+	encoded, err := json.Marshal(items)
+	if err != nil || len(encoded) > 64<<20 {
+		return riskprojection.ApplyResult{}, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresExecutionApplyRiskProjectionSQL,
+		input.Scope.OrganizationID().String(), input.Scope.WorkspaceID().String(), input.Scope.EnvironmentID().String(), input.SnapshotID.String(), input.Version,
+		input.Worker, input.LeaseToken, input.IntegrationID.String(), input.Source, input.Generation, input.InputDigest[:], encoded)
+	if err != nil {
+		return riskprojection.ApplyResult{}, discoveryProviderError(err)
+	}
+	var result struct {
+		SnapshotID         string `json:"snapshot_id"`
+		IntegrationID      string `json:"integration_id"`
+		Source             string `json:"source"`
+		Generation         int64  `json:"generation"`
+		InputDigestValue   []byte `json:"input_digest"`
+		ContentDigestValue []byte `json:"content_digest"`
+		DriverReceipt      string `json:"driver_receipt"`
+		Replayed           bool   `json:"replayed"`
+	}
+	if decodeStrictDiscovery(payload, &result) != nil || result.SnapshotID != input.SnapshotID.String() || result.IntegrationID != input.IntegrationID.String() ||
+		result.Source != input.Source || result.Generation != input.Generation || len(result.InputDigestValue) != sha256.Size || !bytes.Equal(result.InputDigestValue, input.InputDigest[:]) ||
+		len(result.ContentDigestValue) != sha256.Size || !riskProjectionReceiptPattern.MatchString(result.DriverReceipt) ||
+		!strings.HasSuffix(result.DriverReceipt, hex.EncodeToString(result.ContentDigestValue)) {
+		return riskprojection.ApplyResult{}, ErrRepositoryUnavailable
+	}
+	var contentDigest [sha256.Size]byte
+	copy(contentDigest[:], result.ContentDigestValue)
+	return riskprojection.ApplyResult{
+		SnapshotID: input.SnapshotID, IntegrationID: input.IntegrationID, Source: input.Source, Generation: input.Generation,
+		InputDigest: input.InputDigest, ContentDigest: contentDigest, Receipt: result.DriverReceipt, Replayed: result.Replayed,
+	}, nil
 }
 
 func (repository *DiscoveryExecutionRepository) FinishProjectionWork(ctx context.Context, scope domain.Scope, input ProjectionWorkCompletion) (WorkCompletionResult, error) {
