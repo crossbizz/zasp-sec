@@ -100,6 +100,16 @@ func composeWorkerRuntime(ctx context.Context, config workerRuntimeConfig, datab
 			return workerRuntimeDependencies{}, errRuntimeUnavailable
 		}
 		return dependencies, nil
+	case workerModeProjectionRisk:
+		repository, err := apiserver.NewDiscoveryExecutionRepository(database, apiserver.DiscoveryExecutionAuthorityProjectionRisk)
+		if err != nil {
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
+		projector, err := newProductionRiskProjection(repository)
+		if err != nil {
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
+		return composeProjectionWorkerRuntime(config, database, projector)
 	case workerModeProjectionSearch:
 		projector, err := newProductionSearchProjection(ctx, config)
 		if err != nil {
@@ -247,11 +257,13 @@ func workerReadinessCacheTTL(time.Duration) time.Duration {
 }
 
 func composeProjectionWorkerRuntime(config workerRuntimeConfig, database apiserver.JSONDatabase, projector productionProjectionProjector) (workerRuntimeDependencies, error) {
-	if !stringInWorker(config.ProjectionKind, "graph", "search") || projector.projectionProjector == nil || projector.ready == nil || projector.close == nil {
+	if !stringInWorker(config.ProjectionKind, "risk", "graph", "search") || projector.projectionProjector == nil || projector.ready == nil || projector.close == nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
-	authority := apiserver.DiscoveryExecutionAuthorityProjectionGraph
-	if config.ProjectionKind == "search" {
+	authority := apiserver.DiscoveryExecutionAuthorityProjectionRisk
+	if config.ProjectionKind == "graph" {
+		authority = apiserver.DiscoveryExecutionAuthorityProjectionGraph
+	} else if config.ProjectionKind == "search" {
 		authority = apiserver.DiscoveryExecutionAuthorityProjectionSearch
 	}
 	repository, err := apiserver.NewDiscoveryExecutionRepository(database, authority)
@@ -267,7 +279,7 @@ func composeProjectionWorkerRuntime(config workerRuntimeConfig, database apiserv
 		_ = projector.close()
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
-	ready := func(ctx context.Context) error {
+	check := func(ctx context.Context) error {
 		if err := repository.Ready(ctx); err != nil {
 			return errRuntimeUnavailable
 		}
@@ -276,7 +288,12 @@ func composeProjectionWorkerRuntime(config workerRuntimeConfig, database apiserv
 		}
 		return nil
 	}
-	return workerRuntimeDependencies{Processor: processor, Ready: ready, Close: projector.close}, nil
+	ready, err := newBoundedCachedWorkerReadiness(check, minDuration(config.LeaseDuration/3, 5*time.Second), workerReadinessCacheTTL(config.PollInterval))
+	if err != nil {
+		_ = projector.close()
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
+	return workerRuntimeDependencies{Processor: readinessGatedWorkerProcessor{delegate: processor, ready: ready}, Ready: ready, Close: projector.close}, nil
 }
 
 func serveWorkerRuntime(ctx context.Context, output interface{ Write([]byte) (int, error) }, version string, config workerRuntimeConfig, dependencies workerRuntimeDependencies, listen func(string, string) (net.Listener, error)) (resultErr error) {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"reflect"
@@ -21,7 +22,7 @@ func TestProjectorAppliesCompleteSourceOwnedInputInCanonicalOrder(t *testing.T) 
 	contentDigest := sha256.Sum256([]byte("stored-risk-input"))
 	store := &recordingStore{result: ApplyResult{
 		SnapshotID: snapshotID, IntegrationID: integrationID, Source: "aws", Generation: 7,
-		InputDigest: inputDigest, ContentDigest: contentDigest, Receipt: "postgres:risk-input:pid_91000002-0000-4000-8000-000000000002:sha256:" + strings.Repeat("a", 64),
+		InputDigest: inputDigest, ContentDigest: contentDigest, Receipt: "postgres:risk-input:pid_91000002-0000-4000-8000-000000000002:sha256:" + hex.EncodeToString(contentDigest[:]),
 	}}
 	projector, err := NewProjector(store)
 	if err != nil {
@@ -100,6 +101,9 @@ func TestProjectorRejectsUnboundOrMalformedRiskInput(t *testing.T) {
 				t.Fatalf("Project() error = %v", err)
 			}
 		})
+	}
+	if _, err := projector.Project(context.Background(), valid); !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("Project(receipt digest mismatch) error = %v", err)
 	}
 }
 

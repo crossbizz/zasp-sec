@@ -12,12 +12,14 @@ import (
 type workerMode string
 
 const (
-	workerModeOutbox           workerMode = "outbox"
-	workerModeDiscovery        workerMode = "discovery"
-	workerModeScheduler        workerMode = "scheduler"
-	workerModeProjectionRisk   workerMode = "projection-risk"
-	workerModeProjectionGraph  workerMode = "projection-graph"
-	workerModeProjectionSearch workerMode = "projection-search"
+	workerModeOutbox               workerMode = "outbox"
+	workerModeDiscovery            workerMode = "discovery"
+	workerModeScheduler            workerMode = "scheduler"
+	workerModeProjectionRisk       workerMode = "projection-risk"
+	workerModeProjectionGraph      workerMode = "projection-graph"
+	workerModeProjectionSearch     workerMode = "projection-search"
+	workerModeProjectionGraphInit  workerMode = "projection-graph-init"
+	workerModeProjectionSearchInit workerMode = "projection-search-init"
 )
 
 var (
@@ -60,11 +62,41 @@ type workerRuntimeConfig struct {
 	OpenSearchIndex            string
 	Neo4jURI                   string
 	Neo4jCredential            string
+	Neo4jExpectedPrincipal     string
+	Neo4jExpectedRole          string
 	ProjectionRoleARN          string
 	ProjectionTokenFile        string
 	ProjectionSecretPrefix     string
 	OutboxRoleARN              string
 	OutboxTokenFile            string
+}
+
+func loadProjectionInitConfig(getenv func(string) string) (workerRuntimeConfig, error) {
+	if getenv == nil {
+		return workerRuntimeConfig{}, errWorkerConfiguration
+	}
+	timeout, err := time.ParseDuration(getenv("ZASP_PROJECTION_INIT_TIMEOUT"))
+	config := workerRuntimeConfig{
+		Mode: workerMode(getenv("ZASP_WORKER_MODE")), AWSRegion: getenv("ZASP_AWS_REGION"),
+		ProjectionRoleARN: getenv("ZASP_PROJECTION_INIT_ROLE_ARN"), ProjectionTokenFile: getenv("ZASP_PROJECTION_INIT_WEB_IDENTITY_TOKEN_FILE"),
+		LeaseDuration: timeout, ShutdownTimeout: timeout, OpenSearchURL: getenv("ZASP_OPENSEARCH_ENDPOINT"), OpenSearchIndex: getenv("ZASP_OPENSEARCH_INDEX"),
+		ProjectionSecretPrefix: getenv("ZASP_PROJECTION_SECRET_PREFIX"), Neo4jURI: getenv("ZASP_NEO4J_URI"), Neo4jCredential: getenv("ZASP_NEO4J_SCHEMA_CREDENTIAL_REFERENCE"),
+	}
+	if err != nil || !validProjectionInitConfig(config) {
+		return workerRuntimeConfig{}, errWorkerConfiguration
+	}
+	return config, nil
+}
+
+func validProjectionInitConfig(config workerRuntimeConfig) bool {
+	if config.Mode != workerModeProjectionSearchInit && config.Mode != workerModeProjectionGraphInit || config.LeaseDuration < 3*time.Second || config.LeaseDuration > 30*time.Second || !validProjectionAWSAuthority(config) {
+		return false
+	}
+	if config.Mode == workerModeProjectionSearchInit {
+		return validOpenSearchEndpoint(config.OpenSearchURL, config.AWSRegion) && config.OpenSearchIndex == "zasp-inventory-v1"
+	}
+	parsed, err := url.Parse(config.Neo4jURI)
+	return validProjectionSecretPrefix(config.ProjectionSecretPrefix) && err == nil && parsed.Scheme == "neo4j+s" && parsed.Hostname() != "" && parsed.Port() == "7687" && parsed.User == nil && parsed.Path == "" && parsed.RawQuery == "" && parsed.Fragment == "" && validNeo4jReference(config.Neo4jCredential)
 }
 
 func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, error) {
@@ -88,6 +120,7 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 		KubernetesEgressCIDRs: parseWorkerCIDRs(getenv("ZASP_KUBERNETES_EGRESS_CIDRS")), GitHubAppID: getenv("ZASP_GITHUB_APP_ID"), GitHubPrivateKeyReference: getenv("ZASP_GITHUB_PRIVATE_KEY_REFERENCE"),
 		OktaClientID: getenv("ZASP_OKTA_CLIENT_ID"), OktaClientSecretReference: getenv("ZASP_OKTA_CLIENT_SECRET_REFERENCE"), ProviderTimeout: providerTimeout, DiscoveryReadinessTimeout: discoveryReadinessTimeout,
 		OpenSearchURL: getenv("ZASP_OPENSEARCH_ENDPOINT"), OpenSearchIndex: getenv("ZASP_OPENSEARCH_INDEX"), Neo4jURI: getenv("ZASP_NEO4J_URI"), Neo4jCredential: getenv("ZASP_NEO4J_CREDENTIAL_REFERENCE"),
+		Neo4jExpectedPrincipal: getenv("ZASP_NEO4J_EXPECTED_PRINCIPAL"), Neo4jExpectedRole: getenv("ZASP_NEO4J_EXPECTED_ROLE"),
 		ProjectionRoleARN: getenv("ZASP_PROJECTION_ROLE_ARN"), ProjectionTokenFile: getenv("ZASP_PROJECTION_WEB_IDENTITY_TOKEN_FILE"), ProjectionSecretPrefix: getenv("ZASP_PROJECTION_SECRET_PREFIX"),
 		OutboxRoleARN: getenv("ZASP_OUTBOX_ROLE_ARN"), OutboxTokenFile: getenv("ZASP_OUTBOX_WEB_IDENTITY_TOKEN_FILE"),
 	}
@@ -128,6 +161,7 @@ var (
 	workerProjectionRolePattern = regexp.MustCompile(`^arn:aws:iam::[0-9]{12}:role/[A-Za-z0-9+=,.@_/-]{1,128}$`)
 	workerSecretPrefixPattern   = regexp.MustCompile(`^[a-z0-9][a-z0-9_./-]{2,127}$`)
 	projectionNeo4jIDPattern    = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{2,127}$`)
+	projectionPrincipalPattern  = regexp.MustCompile(`^[a-z][a-z0-9_-]{2,63}$`)
 )
 
 func validModeDependencies(config workerRuntimeConfig) bool {
@@ -140,7 +174,7 @@ func validModeDependencies(config workerRuntimeConfig) bool {
 		return validProjectionAWSAuthority(config) && validOpenSearchEndpoint(config.OpenSearchURL, config.AWSRegion) && config.OpenSearchIndex == "zasp-inventory-v1"
 	case workerModeProjectionGraph:
 		parsed, err := url.Parse(config.Neo4jURI)
-		return validProjectionAWSAuthority(config) && validProjectionSecretPrefix(config.ProjectionSecretPrefix) && err == nil && parsed.Scheme == "neo4j+s" && parsed.Hostname() != "" && parsed.Port() == "7687" && parsed.User == nil && parsed.Path == "" && parsed.RawQuery == "" && parsed.Fragment == "" && validNeo4jReference(config.Neo4jCredential)
+		return validProjectionAWSAuthority(config) && validProjectionSecretPrefix(config.ProjectionSecretPrefix) && err == nil && parsed.Scheme == "neo4j+s" && parsed.Hostname() != "" && parsed.Port() == "7687" && parsed.User == nil && parsed.Path == "" && parsed.RawQuery == "" && parsed.Fragment == "" && validNeo4jReference(config.Neo4jCredential) && projectionPrincipalPattern.MatchString(config.Neo4jExpectedPrincipal) && projectionPrincipalPattern.MatchString(config.Neo4jExpectedRole)
 	case workerModeScheduler:
 		return workerVersionPattern.MatchString(config.ParserVersion) && workerVersionPattern.MatchString(config.ToolVersion)
 	case workerModeProjectionRisk:

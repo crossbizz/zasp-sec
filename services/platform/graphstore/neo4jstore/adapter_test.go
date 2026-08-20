@@ -250,6 +250,45 @@ func TestAdapterReadinessVerifiesExactOwnedConstraintsWithoutDDL(t *testing.T) {
 	}
 }
 
+func TestProductionReadinessBindsExactWorkerPrincipalRoleAndNoDDL(t *testing.T) {
+	principal, role := "zasp-graph-worker", "zasp_projection_graph"
+	commands := expectedWorkerPrivilegeCommands(role)
+	commandRows := make([]graphRecord, len(commands))
+	for index, command := range commands {
+		commandRows[index] = graphRecord{Keys: privilegeCommandResultKeys, Values: []any{command}}
+	}
+	session := &fakeSession{tx: &fakeTransaction{results: []*fakeResult{
+		{keys: currentUserResultKeys, records: []graphRecord{{Keys: currentUserResultKeys, Values: []any{principal, []any{"PUBLIC", role}, false, false}}}},
+		{keys: privilegeCommandResultKeys, records: commandRows},
+		{keys: constraintResultKeys, records: validConstraintRows()},
+	}}}
+	adapter, err := newAdapterForProvider(&fakeProvider{session: session}, databaseName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	adapter.expectedPrincipal, adapter.expectedRole = principal, role
+	if err := adapter.Ready(context.Background()); err != nil {
+		t.Fatalf("Ready() error = %v", err)
+	}
+	if !reflect.DeepEqual(session.tx.queries, []string{showCurrentUserQuery, showRolePrivilegesQuery, showOwnedConstraintsQuery}) {
+		t.Fatalf("readiness queries = %#v", session.tx.queries)
+	}
+
+	hostileCommands := append([]string(nil), commands...)
+	hostileCommands = append(hostileCommands, "GRANT CREATE CONSTRAINT ON DATABASE neo4j TO `"+role+"`")
+	hostileRows := make([]graphRecord, len(hostileCommands))
+	for index, command := range hostileCommands {
+		hostileRows[index] = graphRecord{Keys: privilegeCommandResultKeys, Values: []any{command}}
+	}
+	adapter.provider = &fakeProvider{session: &fakeSession{tx: &fakeTransaction{results: []*fakeResult{
+		{keys: currentUserResultKeys, records: []graphRecord{{Keys: currentUserResultKeys, Values: []any{principal, []any{"PUBLIC", role}, false, false}}}},
+		{keys: privilegeCommandResultKeys, records: hostileRows},
+	}}}}
+	if err := adapter.Ready(context.Background()); !errors.Is(err, ErrSchema) {
+		t.Fatalf("Ready(DDL privilege) error = %v", err)
+	}
+}
+
 func TestEnsureSchemaRejectsMalformedOwnedState(t *testing.T) {
 	validRows := validConstraintRows()
 	tests := []struct {

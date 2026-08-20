@@ -201,7 +201,10 @@ func newProductionGraphProjection(ctx context.Context, config workerRuntimeConfi
 		return productionProjectionProjector{}, errRuntimeUnavailable
 	}
 	resolver := &projectionNeo4jAuthenticationResolver{client: authority.secrets, prefix: config.ProjectionSecretPrefix}
-	adapter, err := neo4jstore.NewProduction(ctx, neo4jstore.ProductionConfig{Endpoint: config.Neo4jURI, AuthenticationReference: config.Neo4jCredential, ReadinessTimeout: minDuration(config.LeaseDuration/3, 30*time.Second)}, resolver)
+	adapter, err := neo4jstore.NewProduction(ctx, neo4jstore.ProductionConfig{
+		Endpoint: config.Neo4jURI, AuthenticationReference: config.Neo4jCredential, ReadinessTimeout: minDuration(config.LeaseDuration/3, 30*time.Second),
+		ExpectedPrincipal: config.Neo4jExpectedPrincipal, ExpectedRole: config.Neo4jExpectedRole,
+	}, resolver)
 	if err != nil {
 		authority.transport.CloseIdleConnections()
 		return productionProjectionProjector{}, errRuntimeUnavailable

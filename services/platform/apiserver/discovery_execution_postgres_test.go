@@ -1105,6 +1105,66 @@ func TestProductionDiscoveryExecutionPostgresSchedulesSnapshotsAndMonotonicProje
 	if err := connection.QueryRow(ctx, `SELECT count(*) FILTER(WHERE source='aws'),count(*) FILTER(WHERE source='okta') FROM zasp_discovery_risk_projection_items WHERE integration_id=$1`, integrationID).Scan(&awsItemCount, &oktaItemCount); err != nil || awsItemCount != 0 || oktaItemCount != 1 {
 		t.Fatalf("risk source items aws=%d okta=%d err=%v", awsItemCount, oktaItemCount, err)
 	}
+	olderRiskSnapshotID := "pid_79000022-0000-4000-8000-000000000022"
+	newerRiskSnapshotID := "pid_79000023-0000-4000-8000-000000000023"
+	olderRiskDigest := sha256.Sum256([]byte("risk-kubernetes-generation-10"))
+	newerRiskDigest := sha256.Sum256([]byte("risk-kubernetes-generation-11"))
+	for _, candidate := range []struct {
+		id         string
+		generation int64
+		digest     [sha256.Size]byte
+		worker     string
+		token      string
+	}{{olderRiskSnapshotID, 10, olderRiskDigest, "projection-risk-10", "projection-risk-token-0010"}, {newerRiskSnapshotID, 11, newerRiskDigest, "projection-risk-11", "projection-risk-token-0011"}} {
+		if _, err := connection.Exec(ctx, `INSERT INTO zasp_discovery_snapshots(organization_id,workspace_id,environment_id,id,integration_id,sync_id,generation,source,manifest_reference,manifest_checksum,state,candidate_digest,apply_result,complete,is_last_good,collected_at,committed_at)
+			SELECT organization_id,workspace_id,environment_id,$2,integration_id,sync_id,$3,'kubernetes',manifest_reference,manifest_checksum,'complete',$4,'{}'::jsonb,true,false,transaction_timestamp(),transaction_timestamp() FROM zasp_discovery_snapshots WHERE id=$1`, snapshotID, candidate.id, candidate.generation, candidate.digest[:]); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := connection.Exec(ctx, `INSERT INTO zasp_discovery_snapshot_inputs(organization_id,workspace_id,environment_id,snapshot_id,integration_id,source,generation,candidate_digest,manifest_reference,manifest_key,manifest_version_id,manifest_checksum,manifest_size_bytes,manifest_media_type,manifest_schema_version,parser_version,tool_version,entities,relationships,evidence)
+			SELECT organization_id,workspace_id,environment_id,$2,integration_id,'kubernetes',$3::bigint,$4,manifest_reference,manifest_key||'-'||($3::bigint)::text,'version-'||($3::bigint)::text,manifest_checksum,manifest_size_bytes,manifest_media_type,manifest_schema_version,parser_version,tool_version,'[]'::jsonb,'[]'::jsonb,'[]'::jsonb FROM zasp_discovery_snapshot_inputs WHERE snapshot_id=$1`, snapshotID, candidate.id, candidate.generation, candidate.digest[:]); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := connection.Exec(ctx, `INSERT INTO zasp_projection_work(organization_id,workspace_id,environment_id,snapshot_id,kind,version,input_digest,state,attempt,lease_owner,lease_token,lease_expires_at) VALUES($1,$2,$3,$4,'risk','v1',$5,'leased',1,$6,$7,transaction_timestamp()+interval '30 seconds')`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), candidate.id, candidate.digest[:], candidate.worker, candidate.token); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := connection.Exec(ctx, `CREATE FUNCTION test_delay_older_risk_projection() RETURNS trigger LANGUAGE plpgsql AS $$BEGIN IF NEW.source='kubernetes' AND NEW.generation=10 THEN PERFORM pg_sleep(0.75); END IF; RETURN NEW; END$$; CREATE TRIGGER test_delay_older_risk_projection BEFORE INSERT ON zasp_discovery_risk_projection_current FOR EACH ROW EXECUTE FUNCTION test_delay_older_risk_projection()`); err != nil {
+		t.Fatal(err)
+	}
+	olderConnection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer olderConnection.Close(ctx)
+	newerConnection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer newerConnection.Close(ctx)
+	applyConcurrentRisk := func(candidateConnection *pgx.Conn, candidateID, worker, token string, generation int64, digest [sha256.Size]byte) error {
+		var result []byte
+		return candidateConnection.QueryRow(ctx, `SELECT zasp_execution_apply_risk_projection($1,$2,$3,$4,'v1',$5,$6,$7,'kubernetes',$8,$9,'[]'::jsonb)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), candidateID, worker, token, integrationID, generation, digest[:]).Scan(&result)
+	}
+	concurrentRiskErrors := make(chan error, 2)
+	go func() {
+		concurrentRiskErrors <- applyConcurrentRisk(olderConnection, olderRiskSnapshotID, "projection-risk-10", "projection-risk-token-0010", 10, olderRiskDigest)
+	}()
+	time.Sleep(100 * time.Millisecond)
+	go func() {
+		concurrentRiskErrors <- applyConcurrentRisk(newerConnection, newerRiskSnapshotID, "projection-risk-11", "projection-risk-token-0011", 11, newerRiskDigest)
+	}()
+	for range 2 {
+		if err := <-concurrentRiskErrors; err != nil {
+			t.Fatalf("concurrent first risk projection error=%v", err)
+		}
+	}
+	var concurrentRiskGeneration int64
+	if err := connection.QueryRow(ctx, `SELECT generation FROM zasp_discovery_risk_projection_current WHERE integration_id=$1 AND source='kubernetes'`, integrationID).Scan(&concurrentRiskGeneration); err != nil || concurrentRiskGeneration != 11 {
+		t.Fatalf("concurrent risk generation=%d err=%v, want newest 11", concurrentRiskGeneration, err)
+	}
+	if _, err := connection.Exec(ctx, `DROP TRIGGER test_delay_older_risk_projection ON zasp_discovery_risk_projection_current; DROP FUNCTION test_delay_older_risk_projection()`); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := connection.Exec(ctx, `UPDATE zasp_projection_work SET lease_expires_at=transaction_timestamp()-interval '1 second' WHERE snapshot_id=$1 AND kind='risk'`, oktaRiskSnapshotID); err != nil {
 		t.Fatal(err)
 	}

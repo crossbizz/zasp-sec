@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
@@ -102,7 +103,7 @@ func (projector *Projector) Project(ctx context.Context, candidate Candidate) (R
 	}
 	if result.SnapshotID != candidate.SnapshotID || result.IntegrationID != candidate.IntegrationID || result.Source != candidate.Source ||
 		result.Generation != candidate.Generation || result.InputDigest != candidate.InputDigest || result.ContentDigest == [sha256.Size]byte{} ||
-		!receiptPattern.MatchString(result.Receipt) {
+		!receiptPattern.MatchString(result.Receipt) || !strings.HasSuffix(result.Receipt, hex.EncodeToString(result.ContentDigest[:])) {
 		return Result{}, ErrUnavailable
 	}
 	return Result{Receipt: result.Receipt, Digest: result.ContentDigest}, nil

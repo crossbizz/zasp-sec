@@ -168,8 +168,45 @@ func TestComposeProjectionWorkerRuntimeBindsExactSearchAuthority(t *testing.T) {
 	}
 
 	config.Mode, config.ProjectionKind, config.DatabaseAuthority = workerModeProjectionRisk, "risk", "zasp_projection_risk_worker"
-	if _, err := composeProjectionWorkerRuntime(config, readyWorkerDatabase{}, productionProjectionProjector{projectionProjector: projector, ready: func(context.Context) error { return nil }, close: func() error { return nil }}); !errors.Is(err, errRuntimeUnavailable) {
-		t.Fatalf("risk composition error = %v", err)
+	riskDependencies, err := composeProjectionWorkerRuntime(config, readyWorkerDatabase{}, productionProjectionProjector{projectionProjector: projector, ready: func(context.Context) error { return nil }, close: func() error { return nil }})
+	if err != nil || riskDependencies.Processor == nil || riskDependencies.Ready == nil {
+		t.Fatalf("risk composition dependencies=%#v error=%v", riskDependencies, err)
+	}
+}
+
+func TestComposeWorkerRuntimeMountsDurableRiskProjection(t *testing.T) {
+	config := validSchedulerRuntimeConfig()
+	config.Mode, config.ProjectionKind = workerModeProjectionRisk, "risk"
+	config.DatabaseAuthority, config.WorkerID = "zasp_projection_risk_worker", "projection-risk-01"
+	dependencies, err := composeWorkerRuntime(context.Background(), config, readyWorkerDatabase{})
+	if err != nil || dependencies.Processor == nil || dependencies.Ready == nil || dependencies.Close == nil {
+		t.Fatalf("risk production dependencies=%#v error=%v", dependencies, err)
+	}
+	if err := dependencies.Ready(context.Background()); err != nil {
+		t.Fatalf("risk production readiness=%v", err)
+	}
+}
+
+func TestComposeProjectionWorkerRuntimeStopsBeforeClaimWhenRepositoryDrifts(t *testing.T) {
+	config := validSchedulerRuntimeConfig()
+	config.Mode, config.ProjectionKind = workerModeProjectionRisk, "risk"
+	config.DatabaseAuthority, config.WorkerID = "zasp_projection_risk_worker", "projection-risk-01"
+	database := &driftingWorkerDatabase{}
+	projector := &projectionProjectorStub{}
+	dependencies, err := composeProjectionWorkerRuntime(config, database, productionProjectionProjector{
+		projectionProjector: projector, ready: func(context.Context) error { return nil }, close: func() error { return nil },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	database.resetAndDrift()
+	if err := dependencies.Processor.RunOnce(context.Background()); !errors.Is(err, errWorkerExecution) {
+		t.Fatalf("repository-drift RunOnce error = %v", err)
+	}
+	for _, statement := range database.statementsSnapshot() {
+		if strings.Contains(statement, "claim_projection_work") {
+			t.Fatalf("repository drift reached projection claim: %q", statement)
+		}
 	}
 }
 

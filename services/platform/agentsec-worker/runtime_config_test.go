@@ -58,6 +58,7 @@ func TestProjectionModesRequireKindSpecificAuthority(t *testing.T) {
 			"ZASP_POLL_INTERVAL": "250ms", "ZASP_LEASE_DURATION": "30s", "ZASP_BATCH_SIZE": "8", "ZASP_SHUTDOWN_TIMEOUT": "20s",
 			"ZASP_OPENSEARCH_ENDPOINT": "https://vpc-zasp.us-west-2.es.amazonaws.com", "ZASP_OPENSEARCH_INDEX": "zasp-inventory-v1",
 			"ZASP_NEO4J_URI": "neo4j+s://neo4j.internal.example:7687", "ZASP_NEO4J_CREDENTIAL_REFERENCE": "ref:neo4j/auth/production",
+			"ZASP_NEO4J_EXPECTED_PRINCIPAL": "zasp-graph-worker", "ZASP_NEO4J_EXPECTED_ROLE": "zasp_projection_graph",
 			"ZASP_AWS_REGION": "us-west-2", "ZASP_PROJECTION_ROLE_ARN": "arn:aws:iam::123456789012:role/zasp-production-projection",
 			"ZASP_PROJECTION_WEB_IDENTITY_TOKEN_FILE": "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", "ZASP_PROJECTION_SECRET_PREFIX": "zasp-production/projection",
 		}
@@ -67,6 +68,32 @@ func TestProjectionModesRequireKindSpecificAuthority(t *testing.T) {
 		}
 		if config.ProjectionKind == "" {
 			t.Fatalf("%s omitted projection kind", mode)
+		}
+	}
+}
+
+func TestProjectionInitModesRequireDistinctOneShotAuthority(t *testing.T) {
+	t.Parallel()
+	base := map[string]string{
+		"ZASP_AWS_REGION": "us-west-2", "ZASP_PROJECTION_INIT_ROLE_ARN": "arn:aws:iam::123456789012:role/zasp-production-projection-init",
+		"ZASP_PROJECTION_INIT_WEB_IDENTITY_TOKEN_FILE": "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", "ZASP_PROJECTION_INIT_TIMEOUT": "20s",
+		"ZASP_OPENSEARCH_ENDPOINT": "https://vpc-zasp.us-west-2.es.amazonaws.com", "ZASP_OPENSEARCH_INDEX": "zasp-inventory-v1",
+		"ZASP_PROJECTION_SECRET_PREFIX": "zasp-production/projection", "ZASP_NEO4J_URI": "neo4j+s://neo4j.internal.example:7687", "ZASP_NEO4J_SCHEMA_CREDENTIAL_REFERENCE": "ref:neo4j/auth/schema-production",
+	}
+	for _, mode := range []string{"projection-search-init", "projection-graph-init"} {
+		values := cloneStringMap(base)
+		values["ZASP_WORKER_MODE"] = mode
+		config, err := loadProjectionInitConfig(mapLookup(values))
+		if err != nil || string(config.Mode) != mode || config.PostgresDSN != "" || config.ProjectionRoleARN != values["ZASP_PROJECTION_INIT_ROLE_ARN"] || config.LeaseDuration != 20*time.Second {
+			t.Fatalf("%s config=%#v error=%v", mode, config, err)
+		}
+	}
+	for _, missing := range []string{"ZASP_PROJECTION_INIT_ROLE_ARN", "ZASP_PROJECTION_INIT_WEB_IDENTITY_TOKEN_FILE", "ZASP_PROJECTION_INIT_TIMEOUT"} {
+		values := cloneStringMap(base)
+		values["ZASP_WORKER_MODE"] = "projection-search-init"
+		delete(values, missing)
+		if _, err := loadProjectionInitConfig(mapLookup(values)); !errors.Is(err, errWorkerConfiguration) {
+			t.Fatalf("missing %s error=%v", missing, err)
 		}
 	}
 }
@@ -89,6 +116,7 @@ func TestWorkerRuntimeConfigRequiresOnlyModeOwnedDependencies(t *testing.T) {
 		"ZASP_PROVIDER_TIMEOUT": "5s", "ZASP_DISCOVERY_READINESS_TIMEOUT": "5s",
 		"ZASP_OPENSEARCH_ENDPOINT": "https://vpc-zasp.us-west-2.es.amazonaws.com", "ZASP_OPENSEARCH_INDEX": "zasp-inventory-v1",
 		"ZASP_NEO4J_URI": "neo4j+s://neo4j.internal.example:7687", "ZASP_NEO4J_CREDENTIAL_REFERENCE": "ref:neo4j/auth/production",
+		"ZASP_NEO4J_EXPECTED_PRINCIPAL": "zasp-graph-worker", "ZASP_NEO4J_EXPECTED_ROLE": "zasp_projection_graph",
 		"ZASP_PROJECTION_ROLE_ARN": "arn:aws:iam::123456789012:role/zasp-production-projection", "ZASP_PROJECTION_WEB_IDENTITY_TOKEN_FILE": "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
 		"ZASP_PROJECTION_SECRET_PREFIX": "zasp-production/projection",
 	}
@@ -239,6 +267,7 @@ func TestGraphProjectionConfigRejectsAmbiguousSecretPaths(t *testing.T) {
 		"ZASP_AWS_REGION": "us-west-2", "ZASP_PROJECTION_ROLE_ARN": "arn:aws:iam::123456789012:role/zasp-production-projection-graph",
 		"ZASP_PROJECTION_WEB_IDENTITY_TOKEN_FILE": "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", "ZASP_PROJECTION_SECRET_PREFIX": "zasp-production/projection",
 		"ZASP_NEO4J_URI": "neo4j+s://neo4j.internal.example:7687", "ZASP_NEO4J_CREDENTIAL_REFERENCE": "ref:neo4j/auth/production",
+		"ZASP_NEO4J_EXPECTED_PRINCIPAL": "zasp-graph-worker", "ZASP_NEO4J_EXPECTED_ROLE": "zasp_projection_graph",
 	}
 	if _, err := loadWorkerRuntimeConfig(mapLookup(base)); err != nil {
 		t.Fatalf("valid graph config error = %v", err)

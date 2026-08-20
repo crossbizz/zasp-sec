@@ -117,19 +117,23 @@ func TestReadyChecksExactSignedInventoryIndex(t *testing.T) {
 	credentials := &credentialProvider{}
 	emptyDigest := sha256.Sum256(nil)
 	signer := &recordingSigner{check: func(_ context.Context, _ aws.Credentials, request *http.Request, payloadHash, service, region string, _ time.Time) {
-		if request.Method != http.MethodHead || request.URL.Path != "/"+indexName || request.URL.RawQuery != "" || payloadHash != hex.EncodeToString(emptyDigest[:]) || service != "es" || region != "us-west-2" {
+		if request.Method != http.MethodGet || request.URL.Path != "/"+indexName+"/_mapping" && request.URL.Path != "/"+indexName+"/_doc/"+schemaMarkerID || request.URL.RawQuery != "" || payloadHash != hex.EncodeToString(emptyDigest[:]) || service != "es" || region != "us-west-2" {
 			t.Fatalf("readiness request = %s %s?%s digest=%q service=%q region=%q", request.Method, request.URL.Path, request.URL.RawQuery, payloadHash, service, region)
 		}
 	}}
 	calls := 0
-	driver, err := newWithClient(validConfig(), credentials, signer, doerFunc(func(*http.Request) (*http.Response, error) {
+	driver, err := newWithClient(validConfig(), credentials, signer, doerFunc(func(request *http.Request) (*http.Response, error) {
 		calls++
-		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(""))}, nil
+		body := exactSchemaMappingResponse()
+		if strings.Contains(request.URL.Path, "/_doc/") {
+			body = exactSchemaMarkerResponse()
+		}
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body))}, nil
 	}), fixedClock)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := driver.Ready(context.Background()); err != nil || calls != 1 || credentials.calls.Load() != 1 || signer.calls.Load() != 1 {
+	if err := driver.Ready(context.Background()); err != nil || calls != 2 || credentials.calls.Load() != 2 || signer.calls.Load() != 2 {
 		t.Fatalf("Ready() error=%v calls=%d credentials=%d signer=%d", err, calls, credentials.calls.Load(), signer.calls.Load())
 	}
 
@@ -139,12 +143,63 @@ func TestReadyChecksExactSignedInventoryIndex(t *testing.T) {
 	if err := driver.Ready(context.Background()); !errors.Is(err, inventorysearch.ErrUnavailable) || strings.Contains(err.Error(), "provider detail") {
 		t.Fatalf("Ready(missing index) error = %v", err)
 	}
+	driver.client = doerFunc(func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`{"zasp-inventory-v1":{"mappings":{"dynamic":true,"properties":{}}}}`))}, nil
+	})
+	if err := driver.Ready(context.Background()); !errors.Is(err, inventorysearch.ErrDrift) {
+		t.Fatalf("Ready(mapping drift) error = %v", err)
+	}
+	readinessCall := 0
+	driver.client = doerFunc(func(*http.Request) (*http.Response, error) {
+		readinessCall++
+		body := exactSchemaMappingResponse()
+		if readinessCall == 2 {
+			body = strings.Replace(exactSchemaMarkerResponse(), expectedSchemaMarker().MappingDigest, "sha256:"+strings.Repeat("0", 64), 1)
+		}
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body))}, nil
+	})
+	if err := driver.Ready(context.Background()); !errors.Is(err, inventorysearch.ErrDrift) {
+		t.Fatalf("Ready(marker drift) error = %v", err)
+	}
 	canceled, cancel := context.WithCancel(context.Background())
 	cancel()
 	before := credentials.calls.Load()
 	if err := driver.Ready(canceled); !errors.Is(err, inventorysearch.ErrCanceled) || credentials.calls.Load() != before {
 		t.Fatalf("Ready(canceled) error=%v credential calls=%d", err, credentials.calls.Load())
 	}
+}
+
+func TestInitializeSchemaCreatesExactMappingAndImmutableMarkerThenReplays(t *testing.T) {
+	t.Parallel()
+	requests := []*http.Request{}
+	responses := []string{`{"error":{"type":"index_not_found_exception"},"status":404}`, `{"acknowledged":true,"shards_acknowledged":true,"index":"zasp-inventory-v1"}`, `{"_index":"zasp-inventory-v1","_id":"_zasp_schema_v1","found":false}`, `{"_index":"zasp-inventory-v1","_id":"_zasp_schema_v1","_version":1,"result":"created","_shards":{"total":2,"successful":2,"failed":0},"_seq_no":0,"_primary_term":1}`}
+	statuses := []int{404, 200, 404, 201}
+	driver, err := newWithClient(validConfig(), &credentialProvider{}, &recordingSigner{}, doerFunc(func(request *http.Request) (*http.Response, error) {
+		requests = append(requests, request.Clone(request.Context()))
+		index := len(requests) - 1
+		return &http.Response{StatusCode: statuses[index], Body: io.NopCloser(strings.NewReader(responses[index]))}, nil
+	}), fixedClock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := driver.InitializeSchema(context.Background()); err != nil {
+		t.Fatalf("InitializeSchema() error = %v", err)
+	}
+	if len(requests) != 4 || requests[0].Method != http.MethodGet || requests[0].URL.Path != "/"+indexName+"/_mapping" || requests[1].Method != http.MethodPut || requests[1].URL.Path != "/"+indexName || requests[2].Method != http.MethodGet || requests[3].Method != http.MethodPut || requests[3].URL.Path != "/"+indexName+"/_doc/"+schemaMarkerID {
+		t.Fatalf("schema requests = %#v", requests)
+	}
+}
+
+func exactSchemaMappingResponse() string {
+	var definition indexSchemaDefinition
+	_ = json.Unmarshal([]byte(indexSchemaJSON), &definition)
+	payload, _ := json.Marshal(map[string]indexSchemaDefinition{indexName: definition})
+	return string(payload)
+}
+
+func exactSchemaMarkerResponse() string {
+	payload, _ := json.Marshal(schemaMarkerRecord{Index: indexName, ID: schemaMarkerID, Version: 1, Sequence: 0, PrimaryTerm: 1, Found: true, Source: expectedSchemaMarker()})
+	return string(payload)
 }
 
 func TestStageCreatesExactSignedImmutableDocumentsAndAcceptsEmpty(t *testing.T) {

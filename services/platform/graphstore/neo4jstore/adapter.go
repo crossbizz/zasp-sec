@@ -38,6 +38,8 @@ const (
 	createSnapshotNodeConstraintQuery   = "CREATE CONSTRAINT zasp_graph_snapshot_node_identity_v1 IF NOT EXISTS FOR (node:ZaspInventoryGraphNode) REQUIRE (node.organization_id, node.workspace_id, node.environment_id, node.integration_id, node.source, node.node_id) IS UNIQUE"
 	createSnapshotEdgeConstraintQuery   = "CREATE CONSTRAINT zasp_graph_snapshot_edge_identity_v1 IF NOT EXISTS FOR ()-[edge:ZASP_INVENTORY_GRAPH_EDGE]-() REQUIRE (edge.organization_id, edge.workspace_id, edge.environment_id, edge.integration_id, edge.source, edge.edge_id) IS UNIQUE"
 	showOwnedConstraintsQuery           = "SHOW CONSTRAINTS YIELD name, type, entityType, labelsOrTypes, properties, ownedIndex WHERE name STARTS WITH $prefix RETURN name, type, entityType, labelsOrTypes, properties, ownedIndex ORDER BY name"
+	showCurrentUserQuery                = "SHOW CURRENT USER YIELD user, roles, passwordChangeRequired, suspended RETURN user, roles, passwordChangeRequired, suspended"
+	showRolePrivilegesQuery             = "SHOW ROLE $role PRIVILEGES AS COMMANDS YIELD command RETURN command ORDER BY command"
 )
 
 var (
@@ -54,6 +56,9 @@ var (
 	snapshotNodeConstraintProperties   = []any{"organization_id", "workspace_id", "environment_id", "integration_id", "source", "node_id"}
 	snapshotEdgeConstraintProperties   = []any{"organization_id", "workspace_id", "environment_id", "integration_id", "source", "edge_id"}
 	productionAuthReferencePattern     = regexp.MustCompile(`^ref:neo4j/auth/[a-z0-9][a-z0-9_./:-]{7,487}$`)
+	productionPrincipalPattern         = regexp.MustCompile(`^[a-z][a-z0-9_-]{2,63}$`)
+	currentUserResultKeys              = []string{"user", "roles", "passwordChangeRequired", "suspended"}
+	privilegeCommandResultKeys         = []string{"command"}
 )
 
 type accessMode uint8
@@ -97,11 +102,13 @@ type graphRecord struct {
 }
 
 type Adapter struct {
-	provider    sessionProvider
-	database    string
-	ownedDriver neo4j.Driver
-	closeOnce   sync.Once
-	closeErr    error
+	provider          sessionProvider
+	database          string
+	ownedDriver       neo4j.Driver
+	expectedPrincipal string
+	expectedRole      string
+	closeOnce         sync.Once
+	closeErr          error
 }
 
 // ProductionConfig identifies one verified-TLS Neo4j endpoint and an opaque
@@ -110,6 +117,8 @@ type ProductionConfig struct {
 	Endpoint                string
 	AuthenticationReference string
 	ReadinessTimeout        time.Duration
+	ExpectedPrincipal       string
+	ExpectedRole            string
 }
 
 // AuthenticationResolver is the only production authority that may turn the
@@ -137,7 +146,8 @@ func NewProduction(ctx context.Context, production ProductionConfig, resolver Au
 func newProductionAdapter(ctx context.Context, production ProductionConfig, resolver AuthenticationResolver, factory productionDriverFactory) (*Adapter, error) {
 	if ctx == nil || ctx.Err() != nil || nilInterface(resolver) || nilInterface(factory) || !validProductionEndpoint(production.Endpoint) ||
 		!productionAuthReferencePattern.MatchString(production.AuthenticationReference) || production.ReadinessTimeout < minimumReadinessTimeout ||
-		production.ReadinessTimeout > maximumReadinessTimeout {
+		production.ReadinessTimeout > maximumReadinessTimeout || (production.ExpectedPrincipal == "") != (production.ExpectedRole == "") ||
+		production.ExpectedPrincipal != "" && (!productionPrincipalPattern.MatchString(production.ExpectedPrincipal) || !productionPrincipalPattern.MatchString(production.ExpectedRole)) {
 		return nil, ErrConfiguration
 	}
 	readyCtx, cancel := context.WithTimeout(ctx, production.ReadinessTimeout)
@@ -161,6 +171,7 @@ func newProductionAdapter(ctx context.Context, production ProductionConfig, reso
 		return nil, ErrConfiguration
 	}
 	adapter.ownedDriver = driver
+	adapter.expectedPrincipal, adapter.expectedRole = production.ExpectedPrincipal, production.ExpectedRole
 	return adapter, nil
 }
 
@@ -306,7 +317,16 @@ func (adapter *Adapter) Ready(ctx context.Context) error {
 	if adapter == nil || nilInterface(adapter.provider) || adapter.database != databaseName || ctx == nil || ctx.Err() != nil {
 		return ErrSchema
 	}
-	return verifySchemaWithProvider(ctx, adapter.provider, adapter.database)
+	return verifyReadinessWithProvider(ctx, adapter.provider, adapter.database, adapter.expectedPrincipal, adapter.expectedRole)
+}
+
+// EnsureSchema executes the exact five-constraint DDL contract. Production
+// callers must expose this only from a separately privileged one-shot job.
+func (adapter *Adapter) EnsureSchema(ctx context.Context) error {
+	if adapter == nil || nilInterface(adapter.provider) || adapter.database != databaseName || ctx == nil || ctx.Err() != nil {
+		return ErrSchema
+	}
+	return ensureSchemaWithProvider(ctx, adapter.provider, adapter.database)
 }
 
 func encryptedDriver(driver neo4j.Driver) (encrypted bool) {
@@ -360,6 +380,78 @@ func verifySchemaWithProvider(ctx context.Context, provider sessionProvider, dat
 		}
 		return nil
 	})
+}
+
+func verifyReadinessWithProvider(ctx context.Context, provider sessionProvider, database, principal, role string) error {
+	if principal == "" && role == "" {
+		return verifySchemaWithProvider(ctx, provider, database)
+	}
+	if ctx == nil || ctx.Err() != nil || nilInterface(provider) || database != databaseName || !productionPrincipalPattern.MatchString(principal) || !productionPrincipalPattern.MatchString(role) {
+		return ErrSchema
+	}
+	return executeTransaction(ctx, provider, sessionConfig{Database: database, Access: accessRead}, ErrSchema, func(tx graphTransaction) error {
+		current, err := tx.Run(ctx, showCurrentUserQuery, map[string]any{})
+		if err != nil || !validCurrentUser(ctx, current, principal, role) {
+			return ErrSchema
+		}
+		privileges, err := tx.Run(ctx, showRolePrivilegesQuery, map[string]any{"role": role})
+		if err != nil || !validWorkerPrivileges(ctx, privileges, role) {
+			return ErrSchema
+		}
+		constraints, err := tx.Run(ctx, showOwnedConstraintsQuery, map[string]any{"prefix": constraintPrefix})
+		if err != nil || !validConstraintResult(ctx, constraints) {
+			return ErrSchema
+		}
+		return nil
+	})
+}
+
+func validCurrentUser(ctx context.Context, result graphResult, principal, role string) bool {
+	if nilInterface(result) {
+		return false
+	}
+	keys, err := result.Keys()
+	if err != nil || !slices.Equal(keys, currentUserResultKeys) || !result.Next(ctx) {
+		return false
+	}
+	record := result.Record()
+	roles, rolesOK := exactStringList(record.Values[1])
+	slices.Sort(roles)
+	valid := slices.Equal(record.Keys, currentUserResultKeys) && len(record.Values) == 4 && record.Values[0] == principal && rolesOK && slices.Equal(roles, []string{"PUBLIC", role}) && record.Values[2] == false && record.Values[3] == false
+	return valid && !result.Next(ctx) && result.Err() == nil && result.Consume(ctx) == nil
+}
+
+func validWorkerPrivileges(ctx context.Context, result graphResult, role string) bool {
+	if nilInterface(result) {
+		return false
+	}
+	keys, err := result.Keys()
+	if err != nil || !slices.Equal(keys, privilegeCommandResultKeys) {
+		return false
+	}
+	commands := []string{}
+	for result.Next(ctx) {
+		record := result.Record()
+		if !slices.Equal(record.Keys, privilegeCommandResultKeys) || len(record.Values) != 1 {
+			return false
+		}
+		command, ok := record.Values[0].(string)
+		if !ok {
+			return false
+		}
+		commands = append(commands, command)
+	}
+	return result.Err() == nil && result.Consume(ctx) == nil && slices.Equal(commands, expectedWorkerPrivilegeCommands(role))
+}
+
+func expectedWorkerPrivilegeCommands(role string) []string {
+	quoted := "`" + role + "`"
+	return []string{
+		"GRANT ACCESS ON DATABASE neo4j TO " + quoted,
+		"GRANT MATCH {*} ON GRAPH neo4j ELEMENTS * TO " + quoted,
+		"GRANT SHOW CONSTRAINT ON DATABASE neo4j TO " + quoted,
+		"GRANT WRITE ON GRAPH neo4j TO " + quoted,
+	}
 }
 
 func runEmpty(ctx context.Context, transaction graphTransaction, query string, parameters map[string]any) error {
