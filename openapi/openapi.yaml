@@ -1657,8 +1657,8 @@ components:
       required: [external_id_reference, region, role_arn]
       properties:
         external_id_reference: { type: string, pattern: '^ref:aws/external-id/[A-Za-z0-9][A-Za-z0-9._-]{7,127}$' }
-        region: { type: string, pattern: '^[a-z]{2}(?:-gov)?-[a-z]+-[1-9][0-9]?$' }
-        role_arn: { type: string, pattern: '^arn:aws(?:-[a-z]+)?:iam::[0-9]{12}:role/[A-Za-z0-9+=,.@_/-]{1,128}$' }
+        region: { type: string, pattern: '^[a-z]{2}-[a-z]+-[1-9][0-9]?$' }
+        role_arn: { type: string, pattern: '^arn:aws:iam::[0-9]{12}:role/[A-Za-z0-9+=,.@_/-]{1,128}$' }
     KubernetesReferenceAuthorizationConfiguration:
       type: object
       additionalProperties: false

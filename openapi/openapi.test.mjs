@@ -484,6 +484,8 @@ describe("production workflow concurrency contract", () => {
       assert.deepEqual(providerIntent.properties.configuration, { $ref: `#/components/schemas/${configuration}` });
       assert.deepEqual(providerIntent.properties.scope, { $ref: "#/components/schemas/ReferenceAuthorizationReceiptScope" });
     }
+    assert.equal(document.components.schemas.AWSReferenceAuthorizationConfiguration.properties.role_arn.pattern, "^arn:aws:iam::[0-9]{12}:role/[A-Za-z0-9+=,.@_/-]{1,128}$");
+    assert.equal(document.components.schemas.AWSReferenceAuthorizationConfiguration.properties.region.pattern, "^[a-z]{2}-[a-z]+-[1-9][0-9]?$");
   });
 
   it("publishes exactly the mounted Batch 4 risk slice and launch authorization operations without other overclaims", () => {

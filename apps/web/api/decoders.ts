@@ -5,9 +5,9 @@ const DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
 const CURSOR = /^(?:[A-Za-z0-9_-]{4})*(?:[A-Za-z0-9_-][AQgw]|[A-Za-z0-9_-]{2}[AEIMQUYcgkosw048])?$/;
 const IDEMPOTENCY_KEY = /^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$/;
 const POLICY_ID = /^policy-[a-z0-9][a-z0-9-]{0,120}$/;
-const AWS_ROLE_ARN = /^arn:aws(?:-[a-z]+)?:iam::[0-9]{12}:role\/[A-Za-z0-9+=,.@_/-]{1,128}$/;
+const AWS_ROLE_ARN = /^arn:aws:iam::[0-9]{12}:role\/[A-Za-z0-9+=,.@_/-]{1,128}$/;
 const AWS_EXTERNAL_ID_REFERENCE = /^ref:aws\/external-id\/[A-Za-z0-9][A-Za-z0-9._-]{7,127}$/;
-const AWS_REGION = /^[a-z]{2}(?:-gov)?-[a-z]+-[1-9][0-9]?$/;
+const AWS_REGION = /^[a-z]{2}-[a-z]+-[1-9][0-9]?$/;
 const KUBERNETES_CONNECTION_REFERENCE = /^ref:kubernetes\/connection\/[A-Za-z0-9][A-Za-z0-9._-]{7,127}$/;
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 

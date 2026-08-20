@@ -97,6 +97,8 @@ describe("workflow mutation receipt decoder", () => {
 		["mismatched integration", (value: ReturnType<typeof receipt>) => { value.intent = { ...value.intent, integration_id: "pid_20000001-0000-4000-8000-000000000099" }; }],
 		["mismatched idempotency key", (value: ReturnType<typeof receipt>) => { value.intent = { ...value.intent, idempotency_key: "wf_99999999-9999-4999-8999-999999999999" }; }],
 		["nested reference", (value: ReturnType<typeof receipt>) => { value.intent = { ...value.intent, configuration: { ...(value.result.configuration as Record<string, unknown>), external_id_reference: { value: "ref:aws/external-id/customer-0001" } } }; }],
+		["unsupported role partition", (value: ReturnType<typeof receipt>) => { const configuration = { ...(value.result.configuration as Record<string, unknown>), role_arn: "arn:aws-cn:iam::123456789012:role/zasp-discovery" }; value.result = { ...value.result, configuration }; value.intent = { ...value.intent, configuration }; }],
+		["unsupported government region", (value: ReturnType<typeof receipt>) => { const configuration = { ...(value.result.configuration as Record<string, unknown>), region: "us-gov-west-1" }; value.result = { ...value.result, configuration }; value.intent = { ...value.intent, configuration }; }],
 	])("rejects reference authorization %s", (_name, mutate) => {
 		const value = receipt("completeIntegrationReferenceAuthorization");
 		mutate(value);
