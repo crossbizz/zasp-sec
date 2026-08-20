@@ -123,13 +123,13 @@ test("rejects a production class paired with the wrong historical state", async 
 test("rejects a grouped production owner for component-only work", async () => {
   await withLedger(
     (ledger) => ledger.replace(
-      "M1\tM1-01e\tComplete\tcomponent-only\tT04-discovery-worker",
-      "M1\tM1-01e\tComplete\tcomponent-only\tTasks 2-9 production promotion",
+      "M1\tM1-01c\tComplete\tcomponent-only\tT10-product-ui",
+      "M1\tM1-01c\tComplete\tcomponent-only\tTasks 2-9 production promotion",
     ),
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /component-only requires one concrete owner task ID for M1-01e/,
+        /component-only requires one concrete owner task ID for M1-01c/,
       );
     },
   );
@@ -165,7 +165,7 @@ test("rejects audited production-class count drift", async () => {
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /production-available count is 242; expected 243/,
+        /production-available count is 293; expected 294/,
       );
     },
   );
@@ -175,8 +175,8 @@ test("rejects a cross-milestone class swap that preserves global totals", async 
   await withLedger(
     (ledger) => ledger
       .replace(
-        "M1\tM1-01e\tComplete\tcomponent-only\tT04-discovery-worker",
-        "M1\tM1-01e\tComplete\tproduction-available\tPROD-current-composition",
+        "M1\tM1-01c\tComplete\tcomponent-only\tT10-product-ui",
+        "M1\tM1-01c\tComplete\tproduction-available\tT10-product-ui",
       )
       .replace(
         "M2\tM2-01\tComplete\tproduction-available\tPROD-current-composition",
@@ -185,7 +185,27 @@ test("rejects a cross-milestone class swap that preserves global totals", async 
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /M1 production-available count is 46; expected 45/,
+        /M1 production-available count is 57; expected 56/,
+      );
+    },
+  );
+});
+
+test("rejects a same-owner same-milestone audited class swap", async () => {
+  await withLedger(
+    (ledger) => ledger
+      .replace(
+        "M3\tM3-41\tComplete\tproduction-available\tT06-runtime-data-plane",
+        "M3\tM3-41\tComplete\tcomponent-only\tT06-runtime-data-plane",
+      )
+      .replace(
+        "M3\tM3-42\tComplete\tcomponent-only\tT06-runtime-data-plane",
+        "M3\tM3-42\tComplete\tproduction-available\tT06-runtime-data-plane",
+      ),
+    async (ledgerPath) => {
+      await assert.rejects(
+        () => validateLedger({ ledgerPath, sourcePlanPath }),
+        /production class component-only does not match audited production-available for M3-41/,
       );
     },
   );
@@ -194,7 +214,7 @@ test("rejects a cross-milestone class swap that preserves global totals", async 
 test("rejects a published milestone matrix that drifts from the audited map", async () => {
   await withLedgerAndStatus(
     (ledger) => ledger,
-    (status) => status.replace("| M1 | 68 | 45 | 23 | 0 | 0 |", "| M1 | 68 | 46 | 22 | 0 | 0 |"),
+    (status) => status.replace("| M1 | 68 | 56 | 12 | 0 | 0 |", "| M1 | 68 | 57 | 11 | 0 | 0 |"),
     async ({ ledgerPath, statusPath }) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath, statusPath }),

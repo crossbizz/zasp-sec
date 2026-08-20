@@ -10,15 +10,15 @@ M0	M0-08	Complete	component-only	T04-discovery-worker	audited component-only pro
 M0	M0-09	Blocked	blocked/external	EXT-live-aws	audited external evidence gate: real AWS IAM proof
 M0	M0-10	Complete	component-only	T04-discovery-worker	audited component-only proof: Cartography proof
 M0	M0-11	Complete	component-only	T03-launch-connectors	audited component-only proof: Prowler proof
-M0	M0-12	Complete	component-only	T06-runtime-data-plane	audited component-only proof: Tetragon proof
-M0	M0-13	Complete	component-only	T06-runtime-data-plane	audited component-only proof: OTLP proof
+M0	M0-12	Complete	production-available	T06-runtime-data-plane	production evidence: Tetragon proof; verified by Task 6 source/deploy review and focused race/release gates
+M0	M0-13	Complete	production-available	T06-runtime-data-plane	production evidence: OTLP proof; verified by Task 6 source/deploy review and focused race/release gates
 M0	M0-14a	Complete	component-only	T03-launch-connectors	audited component-only proof: Nango free boot proof
 M0	M0-14b	Complete	component-only	T03-launch-connectors	audited component-only proof: Nango OAuth proof
 M0	M0-14c	Complete	component-only	T03-launch-connectors	audited component-only proof: Nango API key proof
 M0	M0-14	Complete	component-only	T03-launch-connectors	audited component-only proof: Nango free auth proof
 M0	M0-15	Complete	component-only	T03-launch-connectors	audited component-only proof: Nango proxy proof
 M0	M0-16	Complete	component-only	T12-red-team	audited component-only proof: Promptfoo proof
-M0	M0-17	Complete	component-only	T06-runtime-data-plane	audited component-only proof: OPA SDK proof
+M0	M0-17	Complete	production-available	T06-runtime-data-plane	production evidence: OPA SDK proof; verified by Task 6 source/deploy review and focused race/release gates
 M0	M0-18	Blocked	blocked/external	EXT-live-fargate	audited external evidence gate: Fargate verification proof
 M0	M0-19	Blocked	blocked/external	EXT-live-fargate	audited external evidence gate: Fargate egress proof
 M0	M0-20	Complete	component-only	T14-data-workflows	audited component-only proof: PostHog privacy proof
@@ -27,7 +27,7 @@ M0	M0-21a	Complete	component-only	T07-security-agent-authority	audited component
 M0	M0-22	Complete	component-only	T14-data-workflows	audited component-only proof: OTLP export proof
 M0	M0-23	Complete	production-available	T02-discovery-authority	Task 2 production gate: 44-package race, hostile PostgreSQL, migration/deploy contracts, clean patch, and independent 0/0/0 review at 48d9768
 M1	M1-01d	Complete	production-available	PROD-current-composition	audited shipped composition: platform API command
-M1	M1-01e	Complete	component-only	T04-discovery-worker	audited component-only proof: platform worker command
+M1	M1-01e	Complete	production-available	T04-discovery-worker	production evidence: platform worker command; verified by Task 4 source/deploy review and focused race/release gates
 M1	M1-01f	Complete	component-only	T06-runtime-data-plane	audited component-only proof: event ingest command
 M1	M1-01a	Complete	component-only	T06-runtime-data-plane	audited component-only proof: runtime gateway command
 M1	M1-01b	Complete	component-only	T04-discovery-worker	audited component-only proof: worker directories
@@ -43,17 +43,17 @@ M1	M1-08	Complete	production-available	PROD-current-composition	audited shipped 
 M1	M1-09	Complete	production-available	PROD-current-composition	audited shipped composition: idempotency helper
 M1	M1-10	Complete	production-available	PROD-current-composition	audited shipped composition: Neon schema baseline
 M1	M1-11	Complete	production-available	T02-discovery-authority	production PostgreSQL session-user authority, bounded claims/leases, UTC outputs, and actual-login compatibility proof at 48d9768
-M1	M1-12	Complete	component-only	T04-discovery-worker	audited component-only proof: S3 artifact interface
-M1	M1-13	Complete	component-only	T04-discovery-worker	audited component-only proof: SQS queue interface
-M1	M1-14	Complete	component-only	T04-discovery-worker	audited component-only proof: OpenSearch EventStore
-M1	M1-15	Complete	component-only	T04-discovery-worker	audited component-only proof: GraphStore interface
-M1	M1-16	Complete	component-only	T04-discovery-worker	audited component-only proof: Neo4j GraphStore
+M1	M1-12	Complete	production-available	T04-discovery-worker	production evidence: S3 artifact interface; verified by Task 4 source/deploy review and focused race/release gates
+M1	M1-13	Complete	production-available	T04-discovery-worker	production evidence: SQS queue interface; verified by Task 4 source/deploy review and focused race/release gates
+M1	M1-14	Complete	production-available	T04-discovery-worker	production evidence: OpenSearch EventStore; verified by Task 4 source/deploy review and focused race/release gates
+M1	M1-15	Complete	production-available	T04-discovery-worker	production evidence: GraphStore interface; verified by Task 4 source/deploy review and focused race/release gates
+M1	M1-16	Complete	production-available	T04-discovery-worker	production evidence: Neo4j GraphStore; verified by Task 4 source/deploy review and focused race/release gates
 M1	M1-17	Complete	production-available	PROD-current-composition	audited shipped composition: audit emitter contract
 M1	M1-18	Complete	production-available	PROD-current-composition	audited shipped composition: feature flag contract
 M1	M1-19	Complete	production-available	PROD-current-composition	audited shipped composition: analytics contract
 M1	M1-20	Complete	production-available	PROD-current-composition	audited shipped composition: AI gateway contract
 M1	M1-21	Complete	production-available	PROD-current-composition	audited shipped composition: observability contract
-M1	M1-22	Complete	component-only	T04-discovery-worker	audited component-only proof: event envelope
+M1	M1-22	Complete	production-available	T04-discovery-worker	production evidence: event envelope; verified by Task 4 source/deploy review and focused race/release gates
 M1	M1-23	Complete	production-available	PROD-current-composition	audited shipped composition: OpenAPI root
 M1	M1-24	Complete	production-available	PROD-current-composition	audited shipped composition: generated TS client
 M1	M1-25	Complete	production-available	PROD-current-composition	audited shipped composition: UI API map seed
@@ -61,8 +61,8 @@ M1	M1-26	Complete	production-available	PROD-current-composition	audited shipped 
 M1	M1-27	Complete	production-available	PROD-current-composition	audited shipped composition: raw fetch lint
 M1	M1-28a	Complete	production-available	PROD-current-composition	audited shipped composition: shared health handler
 M1	M1-28b	Complete	production-available	PROD-current-composition	audited shipped composition: platform health wiring
-M1	M1-28c	Complete	component-only	T06-runtime-data-plane	audited component-only proof: ingest health wiring
-M1	M1-28d	Complete	component-only	T06-runtime-data-plane	audited component-only proof: gateway health wiring
+M1	M1-28c	Complete	production-available	T06-runtime-data-plane	production evidence: ingest health wiring; verified by Task 6 source/deploy review and focused race/release gates
+M1	M1-28d	Complete	production-available	T06-runtime-data-plane	production evidence: gateway health wiring; verified by Task 6 source/deploy review and focused race/release gates
 M1	M1-28	Complete	production-available	PROD-current-composition	audited shipped composition: service health endpoints
 M1	M1-29	Complete	production-available	PROD-current-composition	audited shipped composition: system health aggregator model
 M1	M1-30a	Complete	component-only	T04-discovery-worker	audited component-only proof: local product manifests
@@ -71,8 +71,8 @@ M1	M1-30c	Complete	component-only	T04-discovery-worker	audited component-only pr
 M1	M1-30d	Complete	component-only	T04-discovery-worker	audited component-only proof: local AWS emulator manifest
 M1	M1-30	Complete	component-only	T04-discovery-worker	audited component-only proof: local dev manifests
 M1	M1-31	Complete	component-only	T04-discovery-worker	audited component-only proof: LocalStack client factory
-M1	M1-32	Complete	component-only	T04-discovery-worker	audited component-only proof: OpenSearch index template
-M1	M1-33	Complete	component-only	T04-discovery-worker	audited component-only proof: SQS queue definitions
+M1	M1-32	Complete	production-available	T04-discovery-worker	production evidence: OpenSearch index template; verified by Task 4 source/deploy review and focused race/release gates
+M1	M1-33	Complete	production-available	T04-discovery-worker	production evidence: SQS queue definitions; verified by Task 4 source/deploy review and focused race/release gates
 M1	M1-34	Complete	component-only	T04-discovery-worker	audited component-only proof: S3 bucket layout
 M1	M1-35	Complete	production-available	PROD-current-composition	audited shipped composition: base web shell
 M1	M1-36a	Complete	production-available	PROD-current-composition	audited shipped composition: M1 build check
@@ -186,10 +186,10 @@ M3	M3-06	Complete	production-available	PROD-current-composition	audited shipped 
 M3	M3-07	Complete	production-available	PROD-current-composition	audited shipped composition: API updateIntegration
 M3	M3-08	Complete	production-available	PROD-current-composition	audited shipped composition: API deleteIntegration
 M3	M3-09	Complete	component-only	T03-launch-connectors	audited component-only proof: API authorizeIntegration
-M3	M3-10	Complete	component-only	T04-discovery-worker	audited component-only proof: API syncIntegration
-M3	M3-11	Complete	component-only	T04-discovery-worker	audited component-only proof: API listIntegrationSyncs
-M3	M3-12	Complete	component-only	T04-discovery-worker	audited component-only proof: API getIntegrationSync
-M3	M3-13	Complete	component-only	T04-discovery-worker	audited component-only proof: integration job payload
+M3	M3-10	Complete	production-available	T04-discovery-worker	production evidence: API syncIntegration; verified by Task 4 source/deploy review and focused race/release gates
+M3	M3-11	Complete	production-available	T04-discovery-worker	production evidence: API listIntegrationSyncs; verified by Task 4 source/deploy review and focused race/release gates
+M3	M3-12	Complete	production-available	T04-discovery-worker	production evidence: API getIntegrationSync; verified by Task 4 source/deploy review and focused race/release gates
+M3	M3-13	Complete	production-available	T04-discovery-worker	production evidence: integration job payload; verified by Task 4 source/deploy review and focused race/release gates
 M3	M3-14	Blocked	blocked/external	EXT-live-aws	audited external evidence gate: AWS credential adapter
 M3	M3-15	Complete	component-only	T04-discovery-worker	audited component-only proof: Cartography runner
 M3	M3-16	Complete	component-only	T04-discovery-worker	audited component-only proof: Prowler runner
@@ -197,7 +197,7 @@ M3	M3-17	Complete	component-only	T04-discovery-worker	audited component-only pro
 M3	M3-18	Complete	component-only	T04-discovery-worker	audited component-only proof: Kubernetes normalization
 M3	M3-19	Complete	component-only	T04-discovery-worker	audited component-only proof: GitHub normalization
 M3	M3-20	Complete	component-only	T04-discovery-worker	audited component-only proof: IdP normalization
-M3	M3-21	Complete	component-only	T04-discovery-worker	audited component-only proof: integration freshness
+M3	M3-21	Complete	production-available	T04-discovery-worker	production evidence: integration freshness; verified by Task 4 source/deploy review and focused race/release gates
 M3	M3-22a	Complete	component-only	T03-launch-connectors	audited component-only proof: Nango private deployment
 M3	M3-22b	Complete	component-only	T03-launch-connectors	audited component-only proof: Nango free feature boundary
 M3	M3-22c	Complete	component-only	T03-launch-connectors	audited component-only proof: Nango storage secrets
@@ -205,32 +205,32 @@ M3	M3-22	Complete	component-only	T03-launch-connectors	audited component-only pr
 M3	M3-23	Complete	component-only	T03-launch-connectors	audited component-only proof: Nango connection adapter
 M3	M3-24	Complete	component-only	T03-launch-connectors	audited component-only proof: Nango auth callback
 M3	M3-25	Complete	component-only	T03-launch-connectors	audited component-only proof: Nango proxy wrapper
-M3	M3-26	Complete	component-only	T06-runtime-data-plane	audited component-only proof: sensor enrollment model
-M3	M3-27	Complete	component-only	T06-runtime-data-plane	audited component-only proof: API listSensors
-M3	M3-28	Complete	component-only	T06-runtime-data-plane	audited component-only proof: API createSensorEnrollment
-M3	M3-29	Complete	component-only	T06-runtime-data-plane	audited component-only proof: API getSensor
-M3	M3-30	Complete	component-only	T06-runtime-data-plane	audited component-only proof: API updateSensor
-M3	M3-31	Complete	component-only	T06-runtime-data-plane	audited component-only proof: API deleteSensor
-M3	M3-32	Complete	component-only	T06-runtime-data-plane	audited component-only proof: API rotateSensorToken
-M3	M3-33	Complete	component-only	T06-runtime-data-plane	audited component-only proof: API getSensorCoverage
-M3	M3-34	Complete	component-only	T06-runtime-data-plane	audited component-only proof: sensor heartbeat internal API
-M3	M3-35	Complete	component-only	T06-runtime-data-plane	audited component-only proof: Tetragon packaging
-M3	M3-36	Complete	component-only	T06-runtime-data-plane	audited component-only proof: Tetragon adapter
-M3	M3-37	Complete	component-only	T06-runtime-data-plane	audited component-only proof: Tetragon sensor health
-M3	M3-38	Complete	component-only	T06-runtime-data-plane	audited component-only proof: OTLP semantic adapter
-M3	M3-39	Complete	component-only	T06-runtime-data-plane	audited component-only proof: event ingest auth
-M3	M3-40	Complete	component-only	T06-runtime-data-plane	audited component-only proof: event ingest filter
-M3	M3-41	Complete	component-only	T06-runtime-data-plane	audited component-only proof: event batcher
+M3	M3-26	Complete	production-available	T06-runtime-data-plane	production evidence: sensor enrollment model; verified by Task 6 source/deploy review and focused race/release gates
+M3	M3-27	Complete	production-available	T06-runtime-data-plane	production evidence: API listSensors; verified by Task 6 source/deploy review and focused race/release gates
+M3	M3-28	Complete	production-available	T06-runtime-data-plane	production evidence: API createSensorEnrollment; verified by Task 6 source/deploy review and focused race/release gates
+M3	M3-29	Complete	production-available	T06-runtime-data-plane	production evidence: API getSensor; verified by Task 6 source/deploy review and focused race/release gates
+M3	M3-30	Complete	production-available	T06-runtime-data-plane	production evidence: API updateSensor; verified by Task 6 source/deploy review and focused race/release gates
+M3	M3-31	Complete	production-available	T06-runtime-data-plane	production evidence: API deleteSensor; verified by Task 6 source/deploy review and focused race/release gates
+M3	M3-32	Complete	production-available	T06-runtime-data-plane	production evidence: API rotateSensorToken; verified by Task 6 source/deploy review and focused race/release gates
+M3	M3-33	Complete	production-available	T06-runtime-data-plane	production evidence: API getSensorCoverage; verified by Task 6 source/deploy review and focused race/release gates
+M3	M3-34	Complete	production-available	T06-runtime-data-plane	production evidence: sensor heartbeat internal API; verified by Task 6 source/deploy review and focused race/release gates
+M3	M3-35	Complete	production-available	T06-runtime-data-plane	production evidence: Tetragon packaging; verified by Task 6 source/deploy review and focused race/release gates
+M3	M3-36	Complete	production-available	T06-runtime-data-plane	production evidence: Tetragon adapter; verified by Task 6 source/deploy review and focused race/release gates
+M3	M3-37	Complete	production-available	T06-runtime-data-plane	production evidence: Tetragon sensor health; verified by Task 6 source/deploy review and focused race/release gates
+M3	M3-38	Complete	production-available	T06-runtime-data-plane	production evidence: OTLP semantic adapter; verified by Task 6 source/deploy review and focused race/release gates
+M3	M3-39	Complete	production-available	T06-runtime-data-plane	production evidence: event ingest auth; verified by Task 6 source/deploy review and focused race/release gates
+M3	M3-40	Complete	production-available	T06-runtime-data-plane	production evidence: event ingest filter; canonical metadata-only bytes bind reservation, digest, artifact, and downstream decode
+M3	M3-41	Complete	production-available	T06-runtime-data-plane	production evidence: event batcher; verified by Task 6 source/deploy review and focused race/release gates
 M3	M3-42	Complete	component-only	T06-runtime-data-plane	audited component-only proof: ingest internal API
-M3	M3-43a	Complete	component-only	T06-runtime-data-plane	audited component-only proof: runtime batch consume
-M3	M3-43b	Complete	component-only	T06-runtime-data-plane	audited component-only proof: runtime event S3 archive
-M3	M3-43c	Complete	component-only	T06-runtime-data-plane	audited component-only proof: runtime event indexing
+M3	M3-43a	Complete	production-available	T06-runtime-data-plane	production evidence: runtime batch consume; verified by Task 6 source/deploy review and focused race/release gates
+M3	M3-43b	Complete	production-available	T06-runtime-data-plane	production evidence: runtime event S3 archive; verified by Task 6 source/deploy review and focused race/release gates
+M3	M3-43c	Complete	production-available	T06-runtime-data-plane	production evidence: runtime event indexing; verified by Task 6 source/deploy review and focused race/release gates
 M3	M3-43d	Complete	component-only	T06-runtime-data-plane	audited component-only proof: runtime correlation update
 M3	M3-43	Complete	component-only	T06-runtime-data-plane	audited component-only proof: runtime-event worker
-M3	M3-44	Complete	component-only	T06-runtime-data-plane	audited component-only proof: OpenSearch event indexer
-M3	M3-45	Complete	component-only	T04-discovery-worker	audited component-only proof: correlation exact path
-M3	M3-46	Complete	component-only	T04-discovery-worker	audited component-only proof: correlation runtime path
-M3	M3-47	Complete	component-only	T04-discovery-worker	audited component-only proof: correlation ambiguity
+M3	M3-44	Complete	production-available	T06-runtime-data-plane	production evidence: OpenSearch event indexer; verified by Task 6 source/deploy review and focused race/release gates
+M3	M3-45	Complete	production-available	T04-discovery-worker	production evidence: correlation exact path; verified by Task 4 source/deploy review and focused race/release gates
+M3	M3-46	Complete	production-available	T04-discovery-worker	production evidence: correlation runtime path; verified by Task 4 source/deploy review and focused race/release gates
+M3	M3-47	Complete	production-available	T04-discovery-worker	production evidence: correlation ambiguity; verified by Task 4 source/deploy review and focused race/release gates
 M3	M3-48a	Complete	production-available	PROD-current-composition	audited shipped composition: Connection catalog route
 M3	M3-48b	Complete	production-available	PROD-current-composition	audited shipped composition: Connection list route
 M3	M3-48c1	Complete	production-available	PROD-current-composition	audited shipped composition: Connection detail summary
@@ -249,7 +249,7 @@ M3	M3-52a	Complete	component-only	T04-discovery-worker	audited component-only pr
 M3	M3-52b	Complete	component-only	T06-runtime-data-plane	audited component-only proof: M3 sensor E2E
 M3	M3-52c	Complete	component-only	T06-runtime-data-plane	audited component-only proof: M3 OTLP eBPF ingest E2E
 M3	M3-52d	Complete	component-only	T04-discovery-worker	audited component-only proof: M3 queue index E2E
-M3	M3-52e	Complete	component-only	T04-discovery-worker	audited component-only proof: M3 freshness degrade E2E
+M3	M3-52e	Complete	production-available	T04-discovery-worker	production evidence: M3 freshness degrade E2E; verified by Task 4 source/deploy review and focused race/release gates
 M3	M3-52	Blocked	blocked/external	EXT-human-observation	audited external evidence gate: M3 gate
 M4	M4-01a	Complete	production-available	T05-inventory-cutover	v14 complete-snapshot E2E proves canonical AWS asset identity through public API and typed database authority
 M4	M4-01b	Complete	production-available	T05-inventory-cutover	v14 complete-snapshot E2E proves Kubernetes Agent reconciliation through public API and installed browser
@@ -377,11 +377,11 @@ M5	M5-34	Complete	component-only	T13-attack-lab	audited component-only proof: At
 M5	M5-35	Complete	component-only	T13-attack-lab	audited component-only proof: M5 gate
 M6	M6-01	Complete	production-available	PROD-current-composition	audited shipped composition: policy domain
 M6	M6-02	Complete	production-available	PROD-current-composition	audited shipped composition: policy validator
-M6	M6-03	Complete	component-only	T06-runtime-data-plane	audited component-only proof: OPA compiler
-M6	M6-04	Complete	component-only	T06-runtime-data-plane	audited component-only proof: embedded evaluator
-M6	M6-05	Complete	component-only	T06-runtime-data-plane	audited component-only proof: policy bundle signer
-M6	M6-06	Complete	component-only	T06-runtime-data-plane	audited component-only proof: runtime bundle cache
-M6	M6-07	Complete	component-only	T06-runtime-data-plane	audited component-only proof: internal policy bundle API
+M6	M6-03	Complete	production-available	T06-runtime-data-plane	production evidence: OPA compiler; verified by Task 6 source/deploy review and focused race/release gates
+M6	M6-04	Complete	production-available	T06-runtime-data-plane	production evidence: embedded evaluator; verified by Task 6 source/deploy review and focused race/release gates
+M6	M6-05	Complete	production-available	T06-runtime-data-plane	production evidence: policy bundle signer; verified by Task 6 source/deploy review and focused race/release gates
+M6	M6-06	Complete	production-available	T06-runtime-data-plane	production evidence: runtime bundle cache; verified by Task 6 source/deploy review and focused race/release gates
+M6	M6-07	Complete	production-available	T06-runtime-data-plane	production evidence: internal policy bundle API; verified by Task 6 source/deploy review and focused race/release gates
 M6	M6-08	Complete	production-available	PROD-current-composition	audited shipped composition: API listPolicies
 M6	M6-09	Complete	production-available	PROD-current-composition	audited shipped composition: API createPolicy
 M6	M6-10	Complete	production-available	PROD-current-composition	audited shipped composition: API getPolicy
@@ -398,9 +398,9 @@ M6	M6-20	Complete	component-only	T06-runtime-data-plane	audited component-only p
 M6	M6-21	Complete	component-only	T06-runtime-data-plane	audited component-only proof: runtime action context
 M6	M6-22	Complete	component-only	T06-runtime-data-plane	audited component-only proof: runtime Block response
 M6	M6-23	Complete	component-only	T06-runtime-data-plane	audited component-only proof: runtime Monitor event
-M6	M6-24	Complete	component-only	T06-runtime-data-plane	audited component-only proof: runtime decision internal API
-M6	M6-25	Complete	component-only	T06-runtime-data-plane	audited component-only proof: policy bundle fallback
-M6	M6-26	Complete	component-only	T06-runtime-data-plane	audited component-only proof: policy latency benchmark
+M6	M6-24	Complete	production-available	T06-runtime-data-plane	production evidence: runtime decision internal API; verified by Task 6 source/deploy review and focused race/release gates
+M6	M6-25	Complete	production-available	T06-runtime-data-plane	production evidence: policy bundle fallback; verified by Task 6 source/deploy review and focused race/release gates
+M6	M6-26	Complete	production-available	T06-runtime-data-plane	production evidence: policy latency benchmark; verified by Task 6 source/deploy review and focused race/release gates
 M6	M6-27	Complete	production-available	PROD-current-composition	audited shipped composition: Policies list UI
 M6	M6-28	Complete	production-available	PROD-current-composition	audited shipped composition: Policy wizard UI
 M6	M6-29	Complete	production-available	PROD-current-composition	audited shipped composition: Policy detail UI
