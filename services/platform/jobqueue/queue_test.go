@@ -303,8 +303,12 @@ func TestPublishRequiresExactFullDriverSuccess(t *testing.T) {
 			return []DriverPublished{results[1], results[0]}, nil
 		},
 	}, validConfig())
-	if _, err := queue.PublishBatch(context.Background(), jobs); err != nil {
+	result, err := queue.PublishBatch(context.Background(), jobs)
+	if err != nil {
 		t.Fatalf("unordered exact success error = %v", err)
+	}
+	if len(result.Acknowledgements) != len(jobs) || result.Acknowledgements[0].JobID != jobs[0].JobID || result.Acknowledgements[0].ProviderAck != "message-0" || result.Acknowledgements[1].JobID != jobs[1].JobID || result.Acknowledgements[1].ProviderAck != "message-1" {
+		t.Fatalf("publish acknowledgements drifted: %#v", result.Acknowledgements)
 	}
 }
 

@@ -47,7 +47,13 @@ type Job struct {
 }
 
 type PublishResult struct {
-	JobIDs []domain.ProductID
+	JobIDs           []domain.ProductID
+	Acknowledgements []PublishAcknowledgement
+}
+
+type PublishAcknowledgement struct {
+	JobID       domain.ProductID
+	ProviderAck string
 }
 
 type Delivery struct {
@@ -157,11 +163,17 @@ func (queue *Queue) PublishBatch(ctx context.Context, jobs []Job) (result Publis
 	if err != nil || operationCtx.Err() != nil || !exactPublished(published, messages) {
 		return PublishResult{}, ErrPublish
 	}
+	byJob := make(map[domain.ProductID]string, len(published))
+	for _, acknowledgement := range published {
+		byJob[acknowledgement.JobID] = acknowledgement.MessageID
+	}
 	jobIDs := make([]domain.ProductID, len(messages))
+	acknowledgements := make([]PublishAcknowledgement, len(messages))
 	for index, message := range messages {
 		jobIDs[index] = message.JobID
+		acknowledgements[index] = PublishAcknowledgement{JobID: message.JobID, ProviderAck: byJob[message.JobID]}
 	}
-	return PublishResult{JobIDs: jobIDs}, nil
+	return PublishResult{JobIDs: jobIDs, Acknowledgements: acknowledgements}, nil
 }
 
 func (queue *Queue) ConsumeBatch(ctx context.Context, maximum int) (deliveries []Delivery, resultErr error) {
