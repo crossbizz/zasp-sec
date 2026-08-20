@@ -264,6 +264,44 @@ func TestStoreDiscardUnknownOutcomeRequiresExactRetryBeforeRejectedResult(t *tes
 	}
 }
 
+func TestStoreActiveAdvanceDuringDiscardForcesRetryUntilRejectedResidueIsGone(t *testing.T) {
+	t.Parallel()
+
+	driver := newStatefulDriver()
+	store := mustStore(t, driver)
+	active := fixtureSnapshot(t)
+	active.Generation = 8
+	active.SnapshotID = mustProductID(t, "pid_80000000-0000-4000-8000-000000000008")
+	active.InputDigest = sha256.Sum256([]byte("snapshot-8-input"))
+	if _, err := store.ApplySnapshot(context.Background(), active); err != nil {
+		t.Fatalf("ApplySnapshot(active) error = %v", err)
+	}
+
+	newest := fixtureSnapshot(t)
+	newest.Generation = 9
+	newest.SnapshotID = mustProductID(t, "pid_90000000-0000-4000-8000-000000000009")
+	newest.InputDigest = sha256.Sum256([]byte("snapshot-9-input"))
+	newest.Documents = append([]Document(nil), newest.Documents[:1]...)
+	newestStage := captureDriverStage(t, newest)
+	driver.advanceOnDiscard = &newestStage
+
+	rejected := fixtureSnapshot(t)
+	rejected.SnapshotID = mustProductID(t, "pid_71000000-0000-4000-8000-000000000007")
+	if _, err := store.ApplySnapshot(context.Background(), rejected); !errors.Is(err, ErrUnknownOutcome) {
+		t.Fatalf("ApplySnapshot(active advanced) error = %v", err)
+	}
+	if driver.active != newestStage.Snapshot {
+		t.Fatalf("active after advance = %#v", driver.active)
+	}
+	if len(driver.documents) <= len(newestStage.Documents) {
+		t.Fatalf("first attempt incorrectly acknowledged rejected cleanup")
+	}
+	if _, err := store.ApplySnapshot(context.Background(), rejected); !errors.Is(err, ErrStale) {
+		t.Fatalf("ApplySnapshot(exact retry) error = %v", err)
+	}
+	assertOnlyDocumentIDs(t, driver.documents, documentIDs(newestStage.Documents))
+}
+
 func TestStoreBindsCanonicalContentDigestAndRejectsPhaseDrift(t *testing.T) {
 	t.Parallel()
 
@@ -528,10 +566,11 @@ func contentDigestFromApply(t *testing.T, snapshot Snapshot) [sha256.Size]byte {
 }
 
 type statefulDriver struct {
-	documents       map[string]DriverDocument
-	active          DriverSnapshot
-	activeIDs       []string
-	failDiscardOnce bool
+	documents        map[string]DriverDocument
+	active           DriverSnapshot
+	activeIDs        []string
+	failDiscardOnce  bool
+	advanceOnDiscard *DriverStage
 }
 
 func newStatefulDriver() *statefulDriver {
@@ -569,6 +608,24 @@ func (driver *statefulDriver) Activate(_ context.Context, input DriverActivation
 }
 
 func (driver *statefulDriver) DiscardStage(_ context.Context, input DriverDiscard) (DriverDiscarded, error) {
+	if driver.advanceOnDiscard != nil {
+		newest := *driver.advanceOnDiscard
+		driver.advanceOnDiscard = nil
+		candidateIDs := make(map[string]struct{}, len(input.CandidateDocumentIDs))
+		for _, id := range input.CandidateDocumentIDs {
+			candidateIDs[id] = struct{}{}
+		}
+		for id := range driver.documents {
+			if _, candidate := candidateIDs[id]; !candidate {
+				delete(driver.documents, id)
+			}
+		}
+		for _, document := range newest.Documents {
+			driver.documents[document.DocumentID] = document
+		}
+		driver.active = newest.Snapshot
+		driver.activeIDs = documentIDs(newest.Documents)
+	}
 	if driver.failDiscardOnce {
 		driver.failDiscardOnce = false
 		return DriverDiscarded{}, ErrUnknownOutcome
@@ -624,4 +681,18 @@ func assertOnlyDocumentIDs(t *testing.T, documents map[string]DriverDocument, wa
 			t.Fatalf("missing active document %q", id)
 		}
 	}
+}
+
+func captureDriverStage(t *testing.T, snapshot Snapshot) DriverStage {
+	t.Helper()
+	var captured DriverStage
+	driver := successfulDriver(nil)
+	driver.stage = func(_ context.Context, input DriverStage) (DriverStaged, error) {
+		captured = input
+		return DriverStaged{}, ErrUnknownOutcome
+	}
+	if _, err := mustStore(t, driver).ApplySnapshot(context.Background(), snapshot); !errors.Is(err, ErrUnknownOutcome) {
+		t.Fatalf("capture ApplySnapshot() error = %v", err)
+	}
+	return captured
 }

@@ -295,7 +295,10 @@ func (store *Store) ApplySnapshot(ctx context.Context, snapshot Snapshot) (Apply
 		}
 		discarded, discardErr := callDiscardStage(store.driver, ctx, discard)
 		if discardErr != nil {
-			return ApplyResult{}, sanitizeDriverError(discardErr)
+			if errors.Is(discardErr, ErrCanceled) || ctx.Err() != nil {
+				return ApplyResult{}, ErrCanceled
+			}
+			return ApplyResult{}, ErrUnknownOutcome
 		}
 		if discarded.CandidateSnapshot != discard.CandidateSnapshot || discarded.ActiveSnapshot != discard.ExpectedActiveSnapshot || !equalDocumentIDs(discarded.ActiveDocumentIDs, discard.ExpectedActiveDocumentIDs) || discarded.Removed < 0 {
 			return ApplyResult{}, ErrUnknownOutcome
