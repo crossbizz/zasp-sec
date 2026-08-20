@@ -38,9 +38,22 @@ type IdentityBinding struct {
 	Priority       int
 }
 
+type SourceFence struct {
+	Scope             domain.Scope
+	IntegrationID     domain.ProductID
+	Provider          string
+	Source            string
+	SnapshotID        domain.ProductID
+	Generation        int64
+	ContentDigest     [32]byte
+	ProjectionVersion int
+	ObservationCount  int
+}
+
 type Observation struct {
 	Binding                 IdentityBinding
 	SnapshotID              domain.ProductID
+	SnapshotContentDigest   [32]byte
 	Generation              int64
 	DisplayName             string
 	EvidenceID              domain.ProductID
@@ -59,6 +72,7 @@ type SourceObservation struct {
 	Namespace               string
 	SourceNativeID          string
 	SnapshotID              domain.ProductID
+	SnapshotContentDigest   [32]byte
 	Generation              int64
 	EvidenceID              domain.ProductID
 	ConfidenceBasisPoints   int
@@ -88,8 +102,11 @@ type EntityProjection struct {
 	Team                    string
 	Tags                    []string
 	ConfidenceBasisPoints   int
-	FirstSeen               time.Time
-	LastSeen                time.Time
+	WinningEvidenceID       domain.ProductID
+	WinningSnapshotID       domain.ProductID
+	WinningGeneration       int64
+	AggregateFirstSeen      time.Time
+	AggregateLastSeen       time.Time
 	ObservedAt              time.Time
 	FreshUntil              time.Time
 	ProjectionVersion       int
@@ -103,30 +120,61 @@ type EntityProjection struct {
 	Sources                 []SourceObservation
 }
 
-func Project(observations []Observation) ([]EntityProjection, error) {
-	return ProjectWithAnnotations(observations, nil)
+func Project(fences []SourceFence, observations []Observation) ([]EntityProjection, error) {
+	return ProjectWithAnnotations(fences, observations, nil)
 }
 
-func ProjectWithAnnotations(observations []Observation, annotations []Annotation) ([]EntityProjection, error) {
-	if len(observations) > 100_000 || len(annotations) > 100_000 {
+func ProjectWithAnnotations(fences []SourceFence, observations []Observation, annotations []Annotation) ([]EntityProjection, error) {
+	if len(fences) > 100_000 || len(observations) > 100_000 || len(annotations) > 100_000 {
 		return nil, ErrProjection
 	}
-	byIdentity := make(map[string]Observation, len(observations))
+	fenceBySource := make(map[string]SourceFence, len(fences))
+	observationCounts := make(map[string]int, len(fences))
+	for _, fence := range fences {
+		if !validFence(fence) {
+			return nil, ErrProjection
+		}
+		key := sourceKey(fence.Scope, fence.IntegrationID, fence.Provider, fence.Source)
+		if _, exists := fenceBySource[key]; exists {
+			return nil, ErrProjection
+		}
+		fenceBySource[key] = fence
+	}
+
+	byObservation := make(map[string]Observation, len(observations))
+	identityAuthority := make(map[string]IdentityBinding, len(observations))
 	byEntity := make(map[string][]Observation, len(observations))
 	for _, observation := range observations {
 		if !validObservation(observation) {
 			return nil, ErrProjection
 		}
-		identityKey := bindingKey(observation.Binding)
-		if current, exists := byIdentity[identityKey]; exists {
-			if current != observation {
+		currentSourceKey := sourceKey(observation.Binding.Scope, observation.Binding.IntegrationID, observation.Binding.Provider, observation.Binding.Source)
+		fence, exists := fenceBySource[currentSourceKey]
+		if !exists || !observationMatchesFence(observation, fence) {
+			return nil, ErrProjection
+		}
+		observationKey := currentSourceKey + "\x1f" + observation.Binding.Namespace + "\x1f" + observation.Binding.SourceNativeID
+		if _, duplicate := byObservation[observationKey]; duplicate {
+			return nil, ErrProjection
+		}
+		byObservation[observationKey] = observation
+		observationCounts[currentSourceKey]++
+
+		identityKey := identityAuthorityKey(observation.Binding)
+		if current, exists := identityAuthority[identityKey]; exists {
+			if current.Kind != observation.Binding.Kind || current.CanonicalID != observation.Binding.CanonicalID || current.RuleVersion != observation.Binding.RuleVersion || current.Priority != observation.Binding.Priority {
 				return nil, ErrProjection
 			}
-			continue
+		} else {
+			identityAuthority[identityKey] = observation.Binding
 		}
-		byIdentity[identityKey] = observation
 		entityKey := scopedEntityKey(observation.Binding.Scope, observation.Binding.CanonicalID)
 		byEntity[entityKey] = append(byEntity[entityKey], observation)
+	}
+	for key, fence := range fenceBySource {
+		if observationCounts[key] != fence.ObservationCount {
+			return nil, ErrProjection
+		}
 	}
 
 	annotationByEntity := make(map[string]Annotation, len(annotations))
@@ -160,9 +208,6 @@ func ProjectWithAnnotations(observations []Observation, annotations []Annotation
 		}
 		result = append(result, projection)
 	}
-	if len(annotationByEntity) != 0 {
-		return nil, ErrProjection
-	}
 	sort.Slice(result, func(left, right int) bool {
 		leftScope := scopeKey(result[left].Scope)
 		rightScope := scopeKey(result[right].Scope)
@@ -186,8 +231,11 @@ func projectEntity(values []Observation) (EntityProjection, error) {
 		Kind:                    winner.Binding.Kind,
 		DisplayName:             winner.DisplayName,
 		ConfidenceBasisPoints:   winner.ConfidenceBasisPoints,
-		FirstSeen:               winner.FirstSeen,
-		LastSeen:                winner.LastSeen,
+		WinningEvidenceID:       winner.EvidenceID,
+		WinningSnapshotID:       winner.SnapshotID,
+		WinningGeneration:       winner.Generation,
+		AggregateFirstSeen:      winner.FirstSeen,
+		AggregateLastSeen:       winner.LastSeen,
 		ObservedAt:              winner.ObservedAt,
 		FreshUntil:              winner.FreshUntil,
 		ProjectionVersion:       winner.SourceProjectionVersion,
@@ -203,20 +251,11 @@ func projectEntity(values []Observation) (EntityProjection, error) {
 		if value.Binding.Scope != projection.Scope || value.Binding.CanonicalID != projection.ID || value.Binding.Kind != projection.Kind {
 			return EntityProjection{}, ErrProjection
 		}
-		if value.FirstSeen.Before(projection.FirstSeen) {
-			projection.FirstSeen = value.FirstSeen
+		if value.FirstSeen.Before(projection.AggregateFirstSeen) {
+			projection.AggregateFirstSeen = value.FirstSeen
 		}
-		if value.LastSeen.After(projection.LastSeen) {
-			projection.LastSeen = value.LastSeen
-		}
-		if value.ObservedAt.After(projection.ObservedAt) {
-			projection.ObservedAt = value.ObservedAt
-		}
-		if value.FreshUntil.Before(projection.FreshUntil) {
-			projection.FreshUntil = value.FreshUntil
-		}
-		if value.SourceProjectionVersion > projection.ProjectionVersion {
-			projection.ProjectionVersion = value.SourceProjectionVersion
+		if value.LastSeen.After(projection.AggregateLastSeen) {
+			projection.AggregateLastSeen = value.LastSeen
 		}
 		projection.Sources = append(projection.Sources, SourceObservation{
 			IntegrationID:           value.Binding.IntegrationID,
@@ -225,6 +264,7 @@ func projectEntity(values []Observation) (EntityProjection, error) {
 			Namespace:               value.Binding.Namespace,
 			SourceNativeID:          value.Binding.SourceNativeID,
 			SnapshotID:              value.SnapshotID,
+			SnapshotContentDigest:   value.SnapshotContentDigest,
 			Generation:              value.Generation,
 			EvidenceID:              value.EvidenceID,
 			ConfidenceBasisPoints:   value.ConfidenceBasisPoints,
@@ -240,12 +280,23 @@ func projectEntity(values []Observation) (EntityProjection, error) {
 }
 
 func validObservation(value Observation) bool {
-	return validBinding(value.Binding) && !value.SnapshotID.IsZero() && value.Generation > 0 &&
+	return validBinding(value.Binding) && !value.SnapshotID.IsZero() && !zeroDigest(value.SnapshotContentDigest) && value.Generation > 0 &&
 		boundedText(value.DisplayName, 256) && !value.EvidenceID.IsZero() &&
 		value.ConfidenceBasisPoints >= 0 && value.ConfidenceBasisPoints <= 10_000 &&
 		canonicalTime(value.FirstSeen) && canonicalTime(value.LastSeen) && canonicalTime(value.ObservedAt) && canonicalTime(value.FreshUntil) &&
 		!value.LastSeen.Before(value.FirstSeen) && !value.ObservedAt.Before(value.LastSeen) && value.FreshUntil.After(value.ObservedAt) &&
 		value.SourceProjectionVersion > 0 && value.SourceProjectionVersion <= 1_000_000
+}
+
+func validFence(value SourceFence) bool {
+	return value.Scope.Validate() == nil && !value.IntegrationID.IsZero() && validToken(value.Provider) && validToken(value.Source) &&
+		!value.SnapshotID.IsZero() && value.Generation > 0 && !zeroDigest(value.ContentDigest) &&
+		value.ProjectionVersion > 0 && value.ProjectionVersion <= 1_000_000 && value.ObservationCount >= 0 && value.ObservationCount <= 100_000
+}
+
+func observationMatchesFence(value Observation, fence SourceFence) bool {
+	return value.Binding.Scope == fence.Scope && value.Binding.IntegrationID == fence.IntegrationID && value.Binding.Provider == fence.Provider && value.Binding.Source == fence.Source &&
+		value.SnapshotID == fence.SnapshotID && value.Generation == fence.Generation && value.SnapshotContentDigest == fence.ContentDigest && value.SourceProjectionVersion == fence.ProjectionVersion
 }
 
 func validBinding(value IdentityBinding) bool {
@@ -294,8 +345,12 @@ func lessObservation(left, right Observation) bool {
 	return leftKey < rightKey
 }
 
-func bindingKey(value IdentityBinding) string {
-	return strings.Join([]string{scopeKey(value.Scope), value.IntegrationID.String(), value.Provider, value.Source, value.Namespace, value.SourceNativeID}, "\x1f")
+func identityAuthorityKey(value IdentityBinding) string {
+	return strings.Join([]string{scopeKey(value.Scope), value.Provider, value.Source, value.Namespace, value.SourceNativeID}, "\x1f")
+}
+
+func sourceKey(scope domain.Scope, integrationID domain.ProductID, provider, source string) string {
+	return strings.Join([]string{scopeKey(scope), integrationID.String(), provider, source}, "\x1f")
 }
 
 func scopedEntityKey(scope domain.Scope, id domain.ProductID) string {
@@ -324,4 +379,8 @@ func optionalText(value string, maximum int) bool {
 
 func canonicalTime(value time.Time) bool {
 	return !value.IsZero() && value.Location() == time.UTC && value.Nanosecond() == 0
+}
+
+func zeroDigest(value [32]byte) bool {
+	return value == [32]byte{}
 }
