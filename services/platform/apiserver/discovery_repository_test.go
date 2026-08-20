@@ -17,6 +17,24 @@ type discoveryCallDatabase struct {
 	schema    string
 }
 
+type blockingDiscoveryPrincipalDatabase struct{}
+
+func (*blockingDiscoveryPrincipalDatabase) SchemaVersion(context.Context) (string, error) {
+	return DiscoveryExecutionSchemaVersion, nil
+}
+
+func (*blockingDiscoveryPrincipalDatabase) QueryJSON(ctx context.Context, query string, _ ...any) (json.RawMessage, error) {
+	if query == postgresExecutionReadySQL {
+		return json.RawMessage(`true`), nil
+	}
+	<-ctx.Done()
+	return nil, ctx.Err()
+}
+
+func (*blockingDiscoveryPrincipalDatabase) Exec(context.Context, string, ...any) error {
+	return errors.New("unexpected exec")
+}
+
 func (database *discoveryCallDatabase) SchemaVersion(context.Context) (string, error) {
 	if database.schema != "" {
 		return database.schema, nil
@@ -48,6 +66,32 @@ func TestNewDiscoveryRepositoryRequiresLiveDiscoverySchema(t *testing.T) {
 	database := &discoveryCallDatabase{schema: CoreSchemaVersion, responses: map[string]json.RawMessage{postgresDiscoveryReadySQL: json.RawMessage(`true`)}}
 	if _, err := newDiscoveryRepositoryUnchecked(database); !errors.Is(err, ErrRepositoryConfiguration) {
 		t.Fatalf("v9 schema accepted for discovery repository: %v", err)
+	}
+}
+
+func TestDiscoveryRepositoryConstructorsBoundEveryReadinessProbe(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		run  func() error
+	}{
+		{name: "schema", run: func() error {
+			_, err := newDiscoveryRepository(&blockingDiscoveryExecutionDatabase{}, 10*time.Millisecond)
+			return err
+		}},
+		{name: "principal", run: func() error {
+			_, err := newDiscoveryRepositoryForAuthority(&blockingDiscoveryPrincipalDatabase{}, DiscoveryDatabaseAuthorityAPI, 10*time.Millisecond)
+			return err
+		}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			started := time.Now()
+			if err := test.run(); !errors.Is(err, ErrRepositoryConfiguration) {
+				t.Fatalf("error=%v", err)
+			}
+			if elapsed := time.Since(started); elapsed > 250*time.Millisecond {
+				t.Fatalf("unbounded constructor elapsed=%s", elapsed)
+			}
+		})
 	}
 }
 

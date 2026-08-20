@@ -133,10 +133,23 @@ type DiscoveryRepository struct {
 }
 
 func newDiscoveryRepositoryUnchecked(database JSONDatabase) (*DiscoveryRepository, error) {
-	if nilInterface(database) {
+	return newDiscoveryRepository(database, 5*time.Second)
+}
+
+func newDiscoveryRepository(database JSONDatabase, readinessTimeout time.Duration) (*DiscoveryRepository, error) {
+	if readinessTimeout <= 0 || readinessTimeout > 30*time.Second {
 		return nil, ErrRepositoryConfiguration
 	}
-	version, err := database.SchemaVersion(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), readinessTimeout)
+	defer cancel()
+	return newDiscoveryRepositoryWithContext(ctx, database)
+}
+
+func newDiscoveryRepositoryWithContext(ctx context.Context, database JSONDatabase) (*DiscoveryRepository, error) {
+	if ctx == nil || nilInterface(database) {
+		return nil, ErrRepositoryConfiguration
+	}
+	version, err := database.SchemaVersion(ctx)
 	if err != nil || version != DiscoverySchemaVersion && version != ConnectorSchemaVersion && version != ReferenceSchemaVersion && version != DiscoveryExecutionSchemaVersion {
 		return nil, ErrRepositoryConfiguration
 	}
@@ -146,7 +159,7 @@ func newDiscoveryRepositoryUnchecked(database JSONDatabase) (*DiscoveryRepositor
 	} else if version == DiscoveryExecutionSchemaVersion {
 		readySQL, checksum, fingerprint = postgresExecutionReadySQL, migrations.ProductionDiscoveryExecution().Checksum(), migrations.ProductionDiscoveryExecutionSemanticFingerprint()
 	}
-	payload, err := database.QueryJSON(context.Background(), readySQL, checksum, fingerprint)
+	payload, err := database.QueryJSON(ctx, readySQL, checksum, fingerprint)
 	var ready bool
 	if err != nil || decodeStrictDiscovery(payload, &ready) != nil || !ready {
 		return nil, ErrRepositoryConfiguration
@@ -155,14 +168,23 @@ func newDiscoveryRepositoryUnchecked(database JSONDatabase) (*DiscoveryRepositor
 }
 
 func NewDiscoveryRepositoryForAuthority(database JSONDatabase, authority string) (*DiscoveryRepository, error) {
+	return newDiscoveryRepositoryForAuthority(database, authority, 5*time.Second)
+}
+
+func newDiscoveryRepositoryForAuthority(database JSONDatabase, authority string, readinessTimeout time.Duration) (*DiscoveryRepository, error) {
 	if !stringIn(authority, DiscoveryDatabaseAuthorityAPI, DiscoveryDatabaseAuthorityWorker, DiscoveryDatabaseAuthorityIngest, DiscoveryDatabaseAuthorityRuntime, DiscoveryDatabaseAuthorityOutbox, DiscoveryDatabaseAuthorityGateway) {
 		return nil, ErrRepositoryConfiguration
 	}
-	repository, err := newDiscoveryRepositoryUnchecked(database)
+	if readinessTimeout <= 0 || readinessTimeout > 30*time.Second {
+		return nil, ErrRepositoryConfiguration
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), readinessTimeout)
+	defer cancel()
+	repository, err := newDiscoveryRepositoryWithContext(ctx, database)
 	if err != nil {
 		return nil, err
 	}
-	payload, err := database.QueryJSON(context.Background(), postgresDiscoveryPrincipalReadySQL, authority)
+	payload, err := database.QueryJSON(ctx, postgresDiscoveryPrincipalReadySQL, authority)
 	var ready bool
 	if err != nil || decodeStrictDiscovery(payload, &ready) != nil || !ready {
 		return nil, ErrRepositoryConfiguration
