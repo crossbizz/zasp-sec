@@ -16,6 +16,7 @@ const seededProviderDetail = "seeded-provider-detail-must-not-escape"
 
 func TestAdapterRejectsInvalidConfiguration(t *testing.T) {
 	var _ graphstore.Driver = (*Adapter)(nil)
+	var _ graphstore.SnapshotDriver = (*Adapter)(nil)
 
 	var typedNil *fakeOfficialDriver
 	tests := []struct {
@@ -25,8 +26,9 @@ func TestAdapterRejectsInvalidConfiguration(t *testing.T) {
 	}{
 		{name: "nil driver", new: func() (*Adapter, error) { return New(nil, databaseName) }, wantError: ErrConfiguration},
 		{name: "typed nil driver", new: func() (*Adapter, error) { return New(typedNil, databaseName) }, wantError: ErrConfiguration},
-		{name: "wrong database", new: func() (*Adapter, error) { return New(&fakeOfficialDriver{}, "system") }, wantError: ErrConfiguration},
-		{name: "empty database", new: func() (*Adapter, error) { return New(&fakeOfficialDriver{}, "") }, wantError: ErrConfiguration},
+		{name: "unencrypted driver", new: func() (*Adapter, error) { return New(&fakeOfficialDriver{}, databaseName) }, wantError: ErrConfiguration},
+		{name: "wrong database", new: func() (*Adapter, error) { return New(&fakeOfficialDriver{encrypted: true}, "system") }, wantError: ErrConfiguration},
+		{name: "empty database", new: func() (*Adapter, error) { return New(&fakeOfficialDriver{encrypted: true}, "") }, wantError: ErrConfiguration},
 		{name: "nil provider", new: func() (*Adapter, error) { return newAdapterForProvider(nil, databaseName) }, wantError: ErrConfiguration},
 	}
 	for _, test := range tests {
@@ -46,7 +48,7 @@ func TestAdapterRejectsInvalidConfiguration(t *testing.T) {
 	if provider.calls != 0 {
 		t.Fatalf("New opened %d sessions, want side-effect free", provider.calls)
 	}
-	if adapter, err = New(&fakeOfficialDriver{}, databaseName); err != nil || adapter == nil {
+	if adapter, err = New(&fakeOfficialDriver{encrypted: true}, databaseName); err != nil || adapter == nil {
 		t.Fatalf("valid public New = (%v, %v)", adapter, err)
 	}
 }
@@ -58,11 +60,11 @@ func TestEnsureSchemaUsesExactConstraintsAndVerifiesState(t *testing.T) {
 		t.Fatalf("EnsureSchema = %v", err)
 	}
 
-	wantQueries := []string{createNodeConstraintQuery, createEdgeConstraintQuery, showOwnedConstraintsQuery}
+	wantQueries := []string{createNodeConstraintQuery, createEdgeConstraintQuery, createSnapshotMarkerConstraintQuery, createSnapshotNodeConstraintQuery, createSnapshotEdgeConstraintQuery, showOwnedConstraintsQuery}
 	if !reflect.DeepEqual(session.tx.queries, wantQueries) {
 		t.Fatalf("queries = %#v, want %#v", session.tx.queries, wantQueries)
 	}
-	if !reflect.DeepEqual(session.tx.parameters, []map[string]any{{}, {}, {"prefix": constraintPrefix}}) {
+	if !reflect.DeepEqual(session.tx.parameters, []map[string]any{{}, {}, {}, {}, {}, {"prefix": constraintPrefix}}) {
 		t.Fatalf("parameters = %#v", session.tx.parameters)
 	}
 	if provider.calls != 1 || !reflect.DeepEqual(provider.configs, []sessionConfig{{Database: databaseName, Access: accessWrite}}) {
@@ -71,8 +73,10 @@ func TestEnsureSchemaUsesExactConstraintsAndVerifiesState(t *testing.T) {
 	if session.tx.commitCalls != 1 || session.tx.rollbackCalls != 0 || session.closeCalls != 1 {
 		t.Fatalf("settlement commit=%d rollback=%d close=%d", session.tx.commitCalls, session.tx.rollbackCalls, session.closeCalls)
 	}
-	if session.tx.results[0].consumeCalls != 1 || session.tx.results[1].consumeCalls != 1 || session.tx.results[2].consumeCalls != 1 {
-		t.Fatalf("all schema results must be consumed exactly once")
+	for index, result := range session.tx.results {
+		if result.consumeCalls != 1 {
+			t.Fatalf("schema result %d consumed %d times", index, result.consumeCalls)
+		}
 	}
 }
 
@@ -83,24 +87,24 @@ func TestEnsureSchemaRejectsMalformedOwnedState(t *testing.T) {
 		keys    []string
 		records []graphRecord
 	}{
-		{name: "missing edge", keys: constraintResultKeys, records: validRows[:1]},
-		{name: "duplicate node", keys: constraintResultKeys, records: []graphRecord{validRows[0], validRows[0], validRows[1]}},
+		{name: "missing snapshot edge", keys: constraintResultKeys, records: validRows[:len(validRows)-1]},
+		{name: "duplicate node", keys: constraintResultKeys, records: append([]graphRecord{validRows[0]}, validRows...)},
 		{name: "extra owned", keys: constraintResultKeys, records: append(append([]graphRecord{}, validRows...), constraintRow("zasp_graph_extra_v1", "UNIQUENESS", "NODE", []any{nodeLabel}, []any{"node_id"}, "zasp_graph_extra_v1"))},
 		{name: "wrong keys", keys: []string{"name", "type"}, records: validRows},
-		{name: "wrong name", keys: constraintResultKeys, records: []graphRecord{constraintRow("ZASP_GRAPH_NODE_IDENTITY_V1", "UNIQUENESS", "NODE", []any{nodeLabel}, nodeConstraintProperties, nodeConstraint), validRows[1]}},
-		{name: "wrong type", keys: constraintResultKeys, records: []graphRecord{constraintRow(nodeConstraint, "NODE_KEY", "NODE", []any{nodeLabel}, nodeConstraintProperties, nodeConstraint), validRows[1]}},
-		{name: "node type used for relationship", keys: constraintResultKeys, records: []graphRecord{validRows[0], constraintRow(edgeConstraint, "UNIQUENESS", "RELATIONSHIP", []any{edgeType}, edgeConstraintProperties, edgeConstraint)}},
-		{name: "wrong entity", keys: constraintResultKeys, records: []graphRecord{constraintRow(nodeConstraint, "UNIQUENESS", "RELATIONSHIP", []any{nodeLabel}, nodeConstraintProperties, nodeConstraint), validRows[1]}},
-		{name: "extra label", keys: constraintResultKeys, records: []graphRecord{constraintRow(nodeConstraint, "UNIQUENESS", "NODE", []any{nodeLabel, "Foreign"}, nodeConstraintProperties, nodeConstraint), validRows[1]}},
-		{name: "wrong properties", keys: constraintResultKeys, records: []graphRecord{constraintRow(nodeConstraint, "UNIQUENESS", "NODE", []any{nodeLabel}, []any{"node_id"}, nodeConstraint), validRows[1]}},
-		{name: "string list alias", keys: constraintResultKeys, records: []graphRecord{constraintRow(nodeConstraint, "UNIQUENESS", "NODE", []string{nodeLabel}, nodeConstraintProperties, nodeConstraint), validRows[1]}},
-		{name: "wrong owned index", keys: constraintResultKeys, records: []graphRecord{constraintRow(nodeConstraint, "UNIQUENESS", "NODE", []any{nodeLabel}, nodeConstraintProperties, "foreign-index"), validRows[1]}},
+		{name: "wrong name", keys: constraintResultKeys, records: replaceConstraintRow(validRows, 0, constraintRow("ZASP_GRAPH_NODE_IDENTITY_V1", "UNIQUENESS", "NODE", []any{nodeLabel}, nodeConstraintProperties, nodeConstraint))},
+		{name: "wrong type", keys: constraintResultKeys, records: replaceConstraintRow(validRows, 0, constraintRow(nodeConstraint, "NODE_KEY", "NODE", []any{nodeLabel}, nodeConstraintProperties, nodeConstraint))},
+		{name: "node type used for relationship", keys: constraintResultKeys, records: replaceConstraintRow(validRows, 1, constraintRow(edgeConstraint, "UNIQUENESS", "RELATIONSHIP", []any{edgeType}, edgeConstraintProperties, edgeConstraint))},
+		{name: "wrong entity", keys: constraintResultKeys, records: replaceConstraintRow(validRows, 0, constraintRow(nodeConstraint, "UNIQUENESS", "RELATIONSHIP", []any{nodeLabel}, nodeConstraintProperties, nodeConstraint))},
+		{name: "extra label", keys: constraintResultKeys, records: replaceConstraintRow(validRows, 0, constraintRow(nodeConstraint, "UNIQUENESS", "NODE", []any{nodeLabel, "Foreign"}, nodeConstraintProperties, nodeConstraint))},
+		{name: "wrong properties", keys: constraintResultKeys, records: replaceConstraintRow(validRows, 0, constraintRow(nodeConstraint, "UNIQUENESS", "NODE", []any{nodeLabel}, []any{"node_id"}, nodeConstraint))},
+		{name: "string list alias", keys: constraintResultKeys, records: replaceConstraintRow(validRows, 0, constraintRow(nodeConstraint, "UNIQUENESS", "NODE", []string{nodeLabel}, nodeConstraintProperties, nodeConstraint))},
+		{name: "wrong owned index", keys: constraintResultKeys, records: replaceConstraintRow(validRows, 0, constraintRow(nodeConstraint, "UNIQUENESS", "NODE", []any{nodeLabel}, nodeConstraintProperties, "foreign-index"))},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			session := validSchemaSession()
-			session.tx.results[2] = &fakeResult{keys: test.keys, records: test.records}
+			session.tx.results[len(session.tx.results)-1] = &fakeResult{keys: test.keys, records: test.records}
 			err := ensureSchemaWithProvider(context.Background(), &fakeProvider{session: session}, databaseName)
 			if !errors.Is(err, ErrSchema) || strings.Contains(err.Error(), seededProviderDetail) {
 				t.Fatalf("EnsureSchema = %v, want fixed ErrSchema", err)
@@ -123,13 +127,21 @@ func TestEnsureSchemaContainsPanicsAndSettlesEveryBoundary(t *testing.T) {
 		{name: "begin error with candidate", mutate: func(_ *fakeProvider, session *fakeSession) { session.beginErr = providerError }},
 		{name: "begin panic", mutate: func(_ *fakeProvider, session *fakeSession) { session.beginPanic = true }},
 		{name: "run error", mutate: func(_ *fakeProvider, session *fakeSession) { session.tx.runErrorAt = 1 }},
-		{name: "keys error", mutate: func(_ *fakeProvider, session *fakeSession) { session.tx.results[2].keysErr = providerError }},
-		{name: "next panic", mutate: func(_ *fakeProvider, session *fakeSession) { session.tx.results[2].nextPanic = true }},
-		{name: "cursor error", mutate: func(_ *fakeProvider, session *fakeSession) { session.tx.results[2].cursorErr = providerError }},
-		{name: "consume error", mutate: func(_ *fakeProvider, session *fakeSession) { session.tx.results[2].consumeErr = providerError }},
+		{name: "keys error", mutate: func(_ *fakeProvider, session *fakeSession) {
+			session.tx.results[len(session.tx.results)-1].keysErr = providerError
+		}},
+		{name: "next panic", mutate: func(_ *fakeProvider, session *fakeSession) {
+			session.tx.results[len(session.tx.results)-1].nextPanic = true
+		}},
+		{name: "cursor error", mutate: func(_ *fakeProvider, session *fakeSession) {
+			session.tx.results[len(session.tx.results)-1].cursorErr = providerError
+		}},
+		{name: "consume error", mutate: func(_ *fakeProvider, session *fakeSession) {
+			session.tx.results[len(session.tx.results)-1].consumeErr = providerError
+		}},
 		{name: "commit error", mutate: func(_ *fakeProvider, session *fakeSession) { session.tx.commitErr = providerError }},
 		{name: "rollback error", mutate: func(_ *fakeProvider, session *fakeSession) {
-			session.tx.results[2].consumeErr = providerError
+			session.tx.results[len(session.tx.results)-1].consumeErr = providerError
 			session.tx.rollbackErr = providerError
 		}},
 		{name: "close error", mutate: func(_ *fakeProvider, session *fakeSession) { session.closeErr = providerError }},
@@ -174,6 +186,9 @@ func validSchemaSession() *fakeSession {
 	return &fakeSession{tx: &fakeTransaction{results: []*fakeResult{
 		{keys: []string{}, records: []graphRecord{}},
 		{keys: []string{}, records: []graphRecord{}},
+		{keys: []string{}, records: []graphRecord{}},
+		{keys: []string{}, records: []graphRecord{}},
+		{keys: []string{}, records: []graphRecord{}},
 		{keys: constraintResultKeys, records: validConstraintRows()},
 	}}}
 }
@@ -182,7 +197,16 @@ func validConstraintRows() []graphRecord {
 	return []graphRecord{
 		constraintRow(nodeConstraint, "UNIQUENESS", "NODE", []any{nodeLabel}, nodeConstraintProperties, nodeConstraint),
 		constraintRow(edgeConstraint, "RELATIONSHIP_UNIQUENESS", "RELATIONSHIP", []any{edgeType}, edgeConstraintProperties, edgeConstraint),
+		constraintRow(snapshotMarkerConstraint, "UNIQUENESS", "NODE", []any{snapshotMarkerLabel}, snapshotMarkerConstraintProperties, snapshotMarkerConstraint),
+		constraintRow(snapshotNodeConstraint, "UNIQUENESS", "NODE", []any{snapshotNodeLabel}, snapshotNodeConstraintProperties, snapshotNodeConstraint),
+		constraintRow(snapshotEdgeConstraint, "RELATIONSHIP_UNIQUENESS", "RELATIONSHIP", []any{snapshotEdgeType}, snapshotEdgeConstraintProperties, snapshotEdgeConstraint),
 	}
+}
+
+func replaceConstraintRow(rows []graphRecord, index int, replacement graphRecord) []graphRecord {
+	result := append([]graphRecord(nil), rows...)
+	result[index] = replacement
+	return result
 }
 
 func constraintRow(name, constraintType, entityType string, labelsOrTypes, properties any, ownedIndex string) graphRecord {
@@ -319,7 +343,7 @@ func (result *fakeResult) Consume(context.Context) error {
 	return result.consumeErr
 }
 
-type fakeOfficialDriver struct{}
+type fakeOfficialDriver struct{ encrypted bool }
 
 func (*fakeOfficialDriver) ExecuteQueryBookmarkManager() neo4j.BookmarkManager { return nil }
 func (*fakeOfficialDriver) Target() url.URL                                    { return url.URL{} }
@@ -331,5 +355,5 @@ func (*fakeOfficialDriver) VerifyAuthentication(context.Context, *neo4j.AuthToke
 	return nil
 }
 func (*fakeOfficialDriver) Close(context.Context) error                             { return nil }
-func (*fakeOfficialDriver) IsEncrypted() bool                                       { return false }
+func (driver *fakeOfficialDriver) IsEncrypted() bool                                { return driver.encrypted }
 func (*fakeOfficialDriver) GetServerInfo(context.Context) (neo4j.ServerInfo, error) { return nil, nil }

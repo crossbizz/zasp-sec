@@ -11,18 +11,24 @@ import (
 )
 
 const (
-	databaseName     = "neo4j"
-	nodeLabel        = "ZaspGraphNode"
-	edgeType         = "ZASP_GRAPH_EDGE"
-	nodeConstraint   = "zasp_graph_node_identity_v1"
-	edgeConstraint   = "zasp_graph_edge_identity_v1"
-	constraintPrefix = "zasp_graph_"
-	schemaVersion    = int64(1)
-	cleanupTimeout   = 2 * time.Second
+	databaseName             = "neo4j"
+	nodeLabel                = "ZaspGraphNode"
+	edgeType                 = "ZASP_GRAPH_EDGE"
+	nodeConstraint           = "zasp_graph_node_identity_v1"
+	edgeConstraint           = "zasp_graph_edge_identity_v1"
+	snapshotMarkerConstraint = "zasp_graph_projection_identity_v1"
+	snapshotNodeConstraint   = "zasp_graph_snapshot_node_identity_v1"
+	snapshotEdgeConstraint   = "zasp_graph_snapshot_edge_identity_v1"
+	constraintPrefix         = "zasp_graph_"
+	schemaVersion            = int64(1)
+	cleanupTimeout           = 2 * time.Second
 
-	createNodeConstraintQuery = "CREATE CONSTRAINT zasp_graph_node_identity_v1 IF NOT EXISTS FOR (node:ZaspGraphNode) REQUIRE (node.organization_id, node.workspace_id, node.environment_id, node.node_id) IS UNIQUE"
-	createEdgeConstraintQuery = "CREATE CONSTRAINT zasp_graph_edge_identity_v1 IF NOT EXISTS FOR ()-[edge:ZASP_GRAPH_EDGE]-() REQUIRE (edge.organization_id, edge.workspace_id, edge.environment_id, edge.edge_id) IS UNIQUE"
-	showOwnedConstraintsQuery = "SHOW CONSTRAINTS YIELD name, type, entityType, labelsOrTypes, properties, ownedIndex WHERE name STARTS WITH $prefix RETURN name, type, entityType, labelsOrTypes, properties, ownedIndex ORDER BY name"
+	createNodeConstraintQuery           = "CREATE CONSTRAINT zasp_graph_node_identity_v1 IF NOT EXISTS FOR (node:ZaspGraphNode) REQUIRE (node.organization_id, node.workspace_id, node.environment_id, node.node_id) IS UNIQUE"
+	createEdgeConstraintQuery           = "CREATE CONSTRAINT zasp_graph_edge_identity_v1 IF NOT EXISTS FOR ()-[edge:ZASP_GRAPH_EDGE]-() REQUIRE (edge.organization_id, edge.workspace_id, edge.environment_id, edge.edge_id) IS UNIQUE"
+	createSnapshotMarkerConstraintQuery = "CREATE CONSTRAINT zasp_graph_projection_identity_v1 IF NOT EXISTS FOR (marker:ZaspGraphProjection) REQUIRE (marker.organization_id, marker.workspace_id, marker.environment_id, marker.integration_id, marker.source) IS UNIQUE"
+	createSnapshotNodeConstraintQuery   = "CREATE CONSTRAINT zasp_graph_snapshot_node_identity_v1 IF NOT EXISTS FOR (node:ZaspInventoryGraphNode) REQUIRE (node.organization_id, node.workspace_id, node.environment_id, node.integration_id, node.source, node.node_id) IS UNIQUE"
+	createSnapshotEdgeConstraintQuery   = "CREATE CONSTRAINT zasp_graph_snapshot_edge_identity_v1 IF NOT EXISTS FOR ()-[edge:ZASP_INVENTORY_GRAPH_EDGE]-() REQUIRE (edge.organization_id, edge.workspace_id, edge.environment_id, edge.integration_id, edge.source, edge.edge_id) IS UNIQUE"
+	showOwnedConstraintsQuery           = "SHOW CONSTRAINTS YIELD name, type, entityType, labelsOrTypes, properties, ownedIndex WHERE name STARTS WITH $prefix RETURN name, type, entityType, labelsOrTypes, properties, ownedIndex ORDER BY name"
 )
 
 var (
@@ -31,9 +37,12 @@ var (
 	ErrUpsert        = errors.New("neo4j graph store upsert failed")
 	ErrRead          = errors.New("neo4j graph store read failed")
 
-	constraintResultKeys     = []string{"name", "type", "entityType", "labelsOrTypes", "properties", "ownedIndex"}
-	nodeConstraintProperties = []any{"organization_id", "workspace_id", "environment_id", "node_id"}
-	edgeConstraintProperties = []any{"organization_id", "workspace_id", "environment_id", "edge_id"}
+	constraintResultKeys               = []string{"name", "type", "entityType", "labelsOrTypes", "properties", "ownedIndex"}
+	nodeConstraintProperties           = []any{"organization_id", "workspace_id", "environment_id", "node_id"}
+	edgeConstraintProperties           = []any{"organization_id", "workspace_id", "environment_id", "edge_id"}
+	snapshotMarkerConstraintProperties = []any{"organization_id", "workspace_id", "environment_id", "integration_id", "source"}
+	snapshotNodeConstraintProperties   = []any{"organization_id", "workspace_id", "environment_id", "integration_id", "source", "node_id"}
+	snapshotEdgeConstraintProperties   = []any{"organization_id", "workspace_id", "environment_id", "integration_id", "source", "edge_id"}
 )
 
 type accessMode uint8
@@ -82,7 +91,7 @@ type Adapter struct {
 }
 
 func New(driver neo4j.Driver, database string) (*Adapter, error) {
-	if nilInterface(driver) {
+	if nilInterface(driver) || !encryptedDriver(driver) {
 		return nil, ErrConfiguration
 	}
 	return newAdapterForProvider(officialProvider{driver: driver}, database)
@@ -96,10 +105,19 @@ func newAdapterForProvider(provider sessionProvider, database string) (*Adapter,
 }
 
 func EnsureSchema(ctx context.Context, driver neo4j.Driver, database string) error {
-	if ctx == nil || nilInterface(driver) || database != databaseName {
+	if ctx == nil || nilInterface(driver) || !encryptedDriver(driver) || database != databaseName {
 		return ErrConfiguration
 	}
 	return ensureSchemaWithProvider(ctx, officialProvider{driver: driver}, database)
+}
+
+func encryptedDriver(driver neo4j.Driver) (encrypted bool) {
+	defer func() {
+		if recover() != nil {
+			encrypted = false
+		}
+	}()
+	return driver.IsEncrypted()
 }
 
 func ensureSchemaWithProvider(ctx context.Context, provider sessionProvider, database string) error {
@@ -114,6 +132,15 @@ func ensureSchemaWithProvider(ctx context.Context, provider sessionProvider, dat
 			return ErrSchema
 		}
 		if err := runEmpty(ctx, tx, createEdgeConstraintQuery, map[string]any{}); err != nil {
+			return ErrSchema
+		}
+		if err := runEmpty(ctx, tx, createSnapshotMarkerConstraintQuery, map[string]any{}); err != nil {
+			return ErrSchema
+		}
+		if err := runEmpty(ctx, tx, createSnapshotNodeConstraintQuery, map[string]any{}); err != nil {
+			return ErrSchema
+		}
+		if err := runEmpty(ctx, tx, createSnapshotEdgeConstraintQuery, map[string]any{}); err != nil {
 			return ErrSchema
 		}
 		result, err := tx.Run(ctx, showOwnedConstraintsQuery, map[string]any{"prefix": constraintPrefix})
@@ -141,7 +168,7 @@ func validConstraintResult(ctx context.Context, result graphResult) bool {
 	if err != nil || !slices.Equal(keys, constraintResultKeys) {
 		return false
 	}
-	seen := make(map[string]struct{}, 2)
+	seen := make(map[string]struct{}, 5)
 	for result.Next(ctx) {
 		record := result.Record()
 		if !slices.Equal(record.Keys, constraintResultKeys) || len(record.Values) != len(constraintResultKeys) {
@@ -164,7 +191,10 @@ func validConstraintResult(ctx context.Context, result graphResult) bool {
 	}
 	_, nodeSeen := seen[nodeConstraint]
 	_, edgeSeen := seen[edgeConstraint]
-	return len(seen) == 2 && nodeSeen && edgeSeen
+	_, markerSeen := seen[snapshotMarkerConstraint]
+	_, snapshotNodeSeen := seen[snapshotNodeConstraint]
+	_, snapshotEdgeSeen := seen[snapshotEdgeConstraint]
+	return len(seen) == 5 && nodeSeen && edgeSeen && markerSeen && snapshotNodeSeen && snapshotEdgeSeen
 }
 
 func validConstraintRow(name string, values []any) bool {
@@ -183,6 +213,15 @@ func validConstraintRow(name string, values []any) bool {
 	case edgeConstraint:
 		return constraintType == "RELATIONSHIP_UNIQUENESS" && entityType == "RELATIONSHIP" && slices.Equal(labelsOrTypes, []string{edgeType}) &&
 			slices.Equal(properties, []string{"organization_id", "workspace_id", "environment_id", "edge_id"})
+	case snapshotMarkerConstraint:
+		return constraintType == "UNIQUENESS" && entityType == "NODE" && slices.Equal(labelsOrTypes, []string{snapshotMarkerLabel}) &&
+			slices.Equal(properties, []string{"organization_id", "workspace_id", "environment_id", "integration_id", "source"})
+	case snapshotNodeConstraint:
+		return constraintType == "UNIQUENESS" && entityType == "NODE" && slices.Equal(labelsOrTypes, []string{snapshotNodeLabel}) &&
+			slices.Equal(properties, []string{"organization_id", "workspace_id", "environment_id", "integration_id", "source", "node_id"})
+	case snapshotEdgeConstraint:
+		return constraintType == "RELATIONSHIP_UNIQUENESS" && entityType == "RELATIONSHIP" && slices.Equal(labelsOrTypes, []string{snapshotEdgeType}) &&
+			slices.Equal(properties, []string{"organization_id", "workspace_id", "environment_id", "integration_id", "source", "edge_id"})
 	default:
 		return false
 	}
