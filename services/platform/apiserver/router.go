@@ -331,7 +331,7 @@ func validMethod(method string) bool {
 
 func validParameterName(name string) bool {
 	for index, character := range name {
-		if (character >= 'a' && character <= 'z') || (index > 0 && character >= '0' && character <= '9') || (index > 0 && character == '_') {
+		if (character >= 'a' && character <= 'z') || (index > 0 && character >= 'A' && character <= 'Z') || (index > 0 && character >= '0' && character <= '9') || (index > 0 && character == '_') {
 			continue
 		}
 		return false

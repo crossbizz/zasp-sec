@@ -218,6 +218,45 @@ func TestWorkflowRepositoryListsOAuthAndRemediationReceipts(t *testing.T) {
 	}
 }
 
+func TestWorkflowRepositoryAcceptsDiscoveryLifecycleReceipts(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	integrationID := "pid_82000001-0000-4000-8000-000000000001"
+	syncID := "pid_82000002-0000-4000-8000-000000000002"
+	scope := `{"organization_id":"` + identity.Scope.OrganizationID().String() + `","workspace_id":"` + identity.Scope.WorkspaceID().String() + `","environment_id":"` + identity.Scope.EnvironmentID().String() + `"}`
+	baseIntent := `"expected_version":1,"idempotency_key":"discovery-receipt-0001","integration_id":"` + integrationID + `","scope":` + scope
+	created := time.Date(2026, 8, 19, 0, 0, 0, 0, time.UTC)
+	tests := []WorkflowMutationReceipt{
+		{ID: "pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc", Operation: "syncIntegration", IdempotencyKey: "discovery-receipt-0001", Intent: json.RawMessage(`{"body":{},` + baseIntent + `}`), Result: json.RawMessage(`{"id":"` + syncID + `","integration_id":"` + integrationID + `","trigger_kind":"manual","status":"queued","attempt":0,"requested_at":"2026-08-19T00:00:00Z","started_at":null,"completed_at":null,"discovered_count":0,"changed_count":0,"removed_count":0,"snapshot_id":null,"last_error_code":null,"retry_at":null}`), ResourceKind: "integration_sync", ResourceID: syncID, ResourceVersion: 1, AuditID: "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", CorrelationID: "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", CreatedAt: created, ExpiresAt: created.Add(7 * 24 * time.Hour)},
+		{ID: "pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc", Operation: "putIntegrationSchedule", IdempotencyKey: "discovery-receipt-0001", Intent: json.RawMessage(`{"body":{"cadence_seconds":3600,"state":"enabled"},` + baseIntent + `}`), Result: json.RawMessage(`{"integration_id":"` + integrationID + `","cadence_seconds":3600,"state":"enabled","time_zone":"UTC","next_run_at":"2026-08-19T01:00:00Z","version":2,"created_at":"2026-08-19T00:00:00Z","updated_at":"2026-08-19T00:00:01Z"}`), ResourceKind: "integration_schedule", ResourceID: integrationID, ResourceVersion: 2, AuditID: "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", CorrelationID: "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", CreatedAt: created, ExpiresAt: created.Add(7 * 24 * time.Hour)},
+		{ID: "pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc", Operation: "deleteIntegrationSchedule", IdempotencyKey: "discovery-receipt-0001", Intent: json.RawMessage(`{"body":{},` + baseIntent + `}`), Result: json.RawMessage(`{"integration_id":"` + integrationID + `","cadence_seconds":3600,"state":"deleted","time_zone":"UTC","next_run_at":null,"version":2,"created_at":"2026-08-19T00:00:00Z","updated_at":"2026-08-19T00:00:01Z"}`), ResourceKind: "integration_schedule", ResourceID: integrationID, ResourceVersion: 2, AuditID: "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", CorrelationID: "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", CreatedAt: created, ExpiresAt: created.Add(7 * 24 * time.Hour)},
+	}
+	for _, receipt := range tests {
+		if !validWorkflowMutationReceipt(receipt) || !validDiscoveryWorkflowReceipt(receipt, identity) {
+			t.Fatalf("receipt rejected: %#v", receipt)
+		}
+		encoded, err := json.Marshal(receipt)
+		if err != nil {
+			t.Fatal(err)
+		}
+		repository, _ := NewPostgresRepository(&workflowCallDatabase{response: json.RawMessage(`{"items":[` + string(encoded) + `]}`)})
+		listed, err := repository.ListWorkflowMutationReceipts(context.Background(), identity, 20)
+		if err != nil || len(listed) != 1 || listed[0].Operation != receipt.Operation {
+			t.Fatalf("listed receipt=%#v err=%v", listed, err)
+		}
+	}
+
+	hostile := tests[0]
+	hostile.Intent = bytes.Replace(hostile.Intent, []byte(identity.Scope.OrganizationID().String()), []byte("pid_99999999-9999-4999-8999-999999999999"), 1)
+	if validDiscoveryWorkflowReceipt(hostile, identity) {
+		t.Fatal("foreign-scope discovery receipt accepted")
+	}
+	hostile = tests[1]
+	hostile.Result = bytes.Replace(hostile.Result, []byte(`"version":2`), []byte(`"version":3`), 1)
+	if validDiscoveryWorkflowReceipt(hostile, identity) {
+		t.Fatal("schedule version drift accepted")
+	}
+}
+
 func TestWorkflowRepositoryListsExactFindingRecoveryReceipt(t *testing.T) {
 	database := &workflowCallDatabase{response: json.RawMessage(`{"items":[{"id":"pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc","operation":"updateFinding","idempotency_key":"idem-risk-recovery-0001","intent":{"body":{"status":"under_review"},"expected_version":1,"resource_id":"pid_30000001-0000-4000-8000-000000000001"},"result":{"id":"pid_30000001-0000-4000-8000-000000000001","source":"posture","title":"Recover me","severity":"high","status":"under_review","evidence_ids":["pid_30000002-0000-4000-8000-000000000002"],"risk_factors":[],"version":2,"created_at":"2026-08-18T05:00:00-07:00","updated_at":"2026-08-18T05:01:00-07:00"},"resource_kind":"finding","resource_id":"pid_30000001-0000-4000-8000-000000000001","resource_version":2,"audit_id":"pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","correlation_id":"pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","created_at":"2026-08-18T12:00:00Z","expires_at":"2026-08-25T12:00:00Z"}]}`)}
 	repository, _ := NewPostgresRepository(database)

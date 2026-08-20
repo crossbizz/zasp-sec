@@ -47,14 +47,16 @@ type SessionGrant struct {
 }
 
 type CookiePolicy struct {
-	Secure                bool
-	WorkflowSigningKey    []byte
-	TokenRevealKey        []byte
-	Clock                 func() time.Time
-	BuildVersion          string
-	DeploymentMode        string
-	OrganizationID        string
-	ConnectorCapabilities ConnectorCapabilities
+	Secure                 bool
+	WorkflowSigningKey     []byte
+	TokenRevealKey         []byte
+	Clock                  func() time.Time
+	BuildVersion           string
+	DeploymentMode         string
+	OrganizationID         string
+	ConnectorCapabilities  ConnectorCapabilities
+	DiscoveryParserVersion string
+	DiscoveryToolVersion   string
 }
 
 type sessionRepository interface {
@@ -91,6 +93,24 @@ func NewProductionHandlers(repository *PostgresRepository, provider CallbackProv
 	if err != nil {
 		return Dependencies{}, nil, ErrRepositoryConfiguration
 	}
+	workflowSurface := http.Handler(workflow)
+	if repository.schema == DiscoveryExecutionSchemaVersion {
+		if !executionVersionPattern.MatchString(cookie.DiscoveryParserVersion) || !executionVersionPattern.MatchString(cookie.DiscoveryToolVersion) {
+			return Dependencies{}, nil, ErrRepositoryConfiguration
+		}
+		discoveryRepository, discoveryErr := NewDiscoveryRepositoryForAuthority(repository.database, DiscoveryDatabaseAuthorityAPI)
+		if discoveryErr != nil {
+			return Dependencies{}, nil, ErrRepositoryConfiguration
+		}
+		discoveryHandler, discoveryErr := NewDiscoveryPublicHTTPHandler(discoveryRepository, cookie.WorkflowSigningKey, DiscoveryPublicHandlerConfig{ParserVersion: cookie.DiscoveryParserVersion, ToolVersion: cookie.DiscoveryToolVersion, NewProductID: newWorkflowProductID})
+		if discoveryErr != nil {
+			return Dependencies{}, nil, ErrRepositoryConfiguration
+		}
+		workflowSurface, discoveryErr = NewDiscoveryWorkflowSurface(workflow, discoveryHandler)
+		if discoveryErr != nil {
+			return Dependencies{}, nil, ErrRepositoryConfiguration
+		}
+	}
 	risk, err := newRiskHTTPHandler(repository, cookie.WorkflowSigningKey, cookie.Clock)
 	if err != nil {
 		return Dependencies{}, nil, ErrRepositoryConfiguration
@@ -105,7 +125,7 @@ func NewProductionHandlers(repository *PostgresRepository, provider CallbackProv
 		Identity:  &identityHTTPHandler{repository: repository, administration: repository, provider: provider, signingKey: append([]byte(nil), cookie.WorkflowSigningKey...), tokenRevealKey: append([]byte(nil), cookie.TokenRevealKey...), now: cookie.Clock, version: version},
 		Inventory: &coreHTTPHandler{repository: repository, boundary: inventoryDependency},
 		Risk:      risk,
-		Workflow:  workflow,
+		Workflow:  workflowSurface,
 		Connector: connector,
 	}, mustDeploymentAuthenticator(repository.Authenticate, cookie.DeploymentMode, pinnedOrganization), nil
 }

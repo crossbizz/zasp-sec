@@ -93,13 +93,12 @@ test("reproduces the committed bytes and rejects changed or missing output witho
   }
 });
 
-test("exports the Batch 4 risk and launch authorization methods without removed overclaims", async () => {
+test("exports the Task 4 collection API and launch authorization methods without later-task overclaims", async () => {
   const generated = await readFile(generatedPath, "utf8");
-  for (const operationId of ["listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "authorizeIntegration", "authorizeIntegrationReference", "completeIntegrationOAuthCallback"]) {
+  for (const operationId of ["listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "authorizeIntegration", "authorizeIntegrationReference", "completeIntegrationOAuthCallback", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness"]) {
     assert.match(generated, new RegExp(`\\b${operationId}:`), operationId);
   }
   for (const operationId of [
-    "syncIntegration", "listIntegrationSyncs", "getIntegrationSync",
     "listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage",
     "updateAgent", "createFindingTicket", "listTests", "createTest", "getTest", "updateTest", "runTest", "listTestRuns", "getTestRun", "cancelTestRun",
     "listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun", "simulatePolicy", "listPolicyDecisions",
@@ -148,9 +147,33 @@ test("exports the Batch 4 risk and launch authorization methods without removed 
   assert.match(referenceOperation, /readonly ETag: components\["headers"\]\["WorkflowETag"\]/);
   assert.match(referenceOperation, /readonly "X-Audit-ID": components\["headers"\]\["WorkflowAuditID"\]/);
   assert.match(referenceOperation, /readonly "X-Mutation-Receipt-ID": components\["headers"\]\["WorkflowMutationReceiptID"\]/);
-  assert.match(generated, /readonly WorkflowMutationReceipt: components\["schemas"\]\["StandardWorkflowMutationReceipt"\] \| components\["schemas"\]\["OAuthCompletionWorkflowMutationReceipt"\] \| components\["schemas"\]\["ReferenceAuthorizationWorkflowMutationReceipt"\]/);
+  const syncStart = generated.indexOf("readonly syncIntegration:");
+  const syncEnd = generated.indexOf("readonly responses:", syncStart);
+  assert.notEqual(syncStart, -1);
+  const sync = generated.slice(syncStart, syncEnd);
+  assert.match(sync, /readonly "X-CSRF-Token"\?: components\["parameters"\]\["BrowserMutationCSRFToken"\]/);
+  assert.match(sync, /readonly Origin\?: components\["parameters"\]\["BrowserMutationOrigin"\]/);
+  assert.match(sync, /readonly "Idempotency-Key": components\["parameters"\]\["IdempotencyKey"\]/);
+  assert.match(sync, /readonly "If-Match": components\["parameters"\]\["ResourceVersion"\]/);
+  assert.match(sync, /readonly "application\/json": components\["schemas"\]\["EmptyInput"\]/);
+  assert.match(generated.slice(syncStart, generated.indexOf("readonly listIntegrationSyncs:", syncStart)), /readonly 202: \{[\s\S]*readonly "application\/json": components\["schemas"\]\["IntegrationSync"\]/);
+
+  const putScheduleStart = generated.indexOf("readonly putIntegrationSchedule:");
+  const putScheduleEnd = generated.indexOf("readonly responses:", putScheduleStart);
+  assert.notEqual(putScheduleStart, -1);
+  const putSchedule = generated.slice(putScheduleStart, putScheduleEnd);
+  assert.match(putSchedule, /readonly "If-Match": components\["parameters"\]\["ScheduleVersion"\]/);
+  assert.match(putSchedule, /readonly "application\/json": components\["schemas"\]\["IntegrationScheduleInput"\]/);
+
+  assert.match(generated, /readonly WorkflowMutationReceipt: components\["schemas"\]\["StandardWorkflowMutationReceipt"\] \| components\["schemas"\]\["OAuthCompletionWorkflowMutationReceipt"\] \| components\["schemas"\]\["ReferenceAuthorizationWorkflowMutationReceipt"\] \| components\["schemas"\]\["SyncIntegrationWorkflowMutationReceipt"\] \| components\["schemas"\]\["PutIntegrationScheduleWorkflowMutationReceipt"\] \| components\["schemas"\]\["DeleteIntegrationScheduleWorkflowMutationReceipt"\]/);
   assert.match(generated, /readonly operation: "completeIntegrationOAuth"/);
   assert.match(generated, /readonly operation: "completeIntegrationReferenceAuthorization"/);
+  assert.match(generated, /readonly operation: "syncIntegration"/);
+  assert.match(generated, /readonly operation: "putIntegrationSchedule"/);
+  assert.match(generated, /readonly operation: "deleteIntegrationSchedule"/);
+  assert.match(generated, /readonly resource_kind: "integration_sync"/);
+  assert.match(generated, /readonly status: components\["schemas"\]\["IntegrationSyncStatus"\]/);
+  assert.match(generated, /readonly projections: components\["schemas"\]\["IntegrationProjectionStatuses"\]/);
   assert.match(generated, /readonly provider: "aws"/);
   assert.match(generated, /readonly provider: "kubernetes"/);
   const callbackOperation = generated.slice(callbackStart, generated.indexOf("readonly createEnvironment:", callbackStart));

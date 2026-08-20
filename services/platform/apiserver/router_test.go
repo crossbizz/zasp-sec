@@ -80,6 +80,27 @@ func TestRouterProvidesValidatedProductIDPathParametersAndOperation(t *testing.T
 	}
 }
 
+func TestRouterAcceptsOpenAPILowerCamelPathParameters(t *testing.T) {
+	validID := "pid_20000001-0000-4000-8000-000000000001"
+	router, err := NewRouter([]Operation{{
+		Method: "GET", Pattern: "/api/v1/integrations/{id}/syncs/{syncId}", OperationID: "getIntegrationSync", Handler: http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			routed, ok := RoutedOperationFromRequest(request)
+			if !ok || routed.PathParameters["syncId"] != validID {
+				t.Fatalf("routed=%#v ok=%v", routed, ok)
+			}
+			writer.WriteHeader(http.StatusNoContent)
+		}),
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/integrations/"+validID+"/syncs/"+validID, nil))
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+}
+
 func TestRouterProvidesValidatedSessionIDPathParameters(t *testing.T) {
 	for _, operationID := range []string{"getSession", "listSessionEvents", "revokeSession"} {
 		t.Run(operationID, func(t *testing.T) {

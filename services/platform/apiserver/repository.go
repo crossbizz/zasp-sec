@@ -48,6 +48,7 @@ type JSONDatabase interface {
 
 type PostgresRepository struct {
 	database           JSONDatabase
+	schema             string
 	connectorWorkflows bool
 }
 
@@ -55,11 +56,13 @@ func NewPostgresRepository(database JSONDatabase) (*PostgresRepository, error) {
 	if nilInterface(database) {
 		return nil, ErrRepositoryConfiguration
 	}
-	version, err := database.SchemaVersion(context.Background())
-	if err != nil || version != CoreSchemaVersion && version != DiscoverySchemaVersion && version != ConnectorSchemaVersion && version != ReferenceSchemaVersion {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	version, err := database.SchemaVersion(ctx)
+	if err != nil || version != CoreSchemaVersion && version != DiscoverySchemaVersion && version != ConnectorSchemaVersion && version != ReferenceSchemaVersion && version != DiscoveryExecutionSchemaVersion {
 		return nil, ErrRepositoryConfiguration
 	}
-	return &PostgresRepository{database: database, connectorWorkflows: version == ConnectorSchemaVersion || version == ReferenceSchemaVersion}, nil
+	return &PostgresRepository{database: database, schema: version, connectorWorkflows: version == ConnectorSchemaVersion || version == ReferenceSchemaVersion || version == DiscoveryExecutionSchemaVersion}, nil
 }
 
 func (repository *PostgresRepository) Ready(ctx context.Context) error {
@@ -67,7 +70,7 @@ func (repository *PostgresRepository) Ready(ctx context.Context) error {
 		return ErrRepositoryUnavailable
 	}
 	version, err := repository.database.SchemaVersion(ctx)
-	if err != nil || version != CoreSchemaVersion && version != DiscoverySchemaVersion && version != ConnectorSchemaVersion && version != ReferenceSchemaVersion {
+	if err != nil || version != CoreSchemaVersion && version != DiscoverySchemaVersion && version != ConnectorSchemaVersion && version != ReferenceSchemaVersion && version != DiscoveryExecutionSchemaVersion || repository.schema != "" && version != repository.schema {
 		return ErrRepositoryUnavailable
 	}
 	if _, err := repository.CleanupExpiredWorkflowMutationReceipts(ctx, 1000); err != nil {

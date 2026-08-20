@@ -111,6 +111,20 @@ function verifyDocument(value, rawText) {
 			description: "Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header.",
 			schema: { type: "string", minLength: 32, maxLength: 256 },
 		},
+    BrowserMutationCSRFToken: {
+      name: "X-CSRF-Token",
+      in: "header",
+      required: false,
+      description: "Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session.",
+      schema: { type: "string", minLength: 32, maxLength: 256 },
+    },
+    BrowserMutationOrigin: {
+      name: "Origin",
+      in: "header",
+      required: false,
+      description: "Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin.",
+      schema: { type: "string", minLength: 9, maxLength: 2048, pattern: "^https://[^/?#]+$" },
+    },
     FreshAuth: {
       name: "X-Zasp-Fresh-Auth",
       in: "header",
@@ -145,6 +159,13 @@ function verifyDocument(value, rawText) {
       required: true,
       description: "Quoted current durable resource version.",
       schema: { type: "string", pattern: '^"[1-9][0-9]*"$' },
+    },
+    ScheduleVersion: {
+      name: "If-Match",
+      in: "header",
+      required: true,
+      description: "Quoted current schedule version, or quoted zero when creating the singleton schedule.",
+      schema: { type: "string", pattern: '^"(?:0|[1-9][0-9]*)"$' },
     },
   });
 
@@ -420,6 +441,9 @@ describe("production workflow concurrency contract", () => {
       { $ref: "#/components/schemas/StandardWorkflowMutationReceipt" },
       { $ref: "#/components/schemas/OAuthCompletionWorkflowMutationReceipt" },
       { $ref: "#/components/schemas/ReferenceAuthorizationWorkflowMutationReceipt" },
+      { $ref: "#/components/schemas/SyncIntegrationWorkflowMutationReceipt" },
+      { $ref: "#/components/schemas/PutIntegrationScheduleWorkflowMutationReceipt" },
+      { $ref: "#/components/schemas/DeleteIntegrationScheduleWorkflowMutationReceipt" },
     ]);
     const standard = document.components.schemas.StandardWorkflowMutationReceipt;
     assert.equal(standard.additionalProperties, false);
@@ -502,19 +526,120 @@ describe("production workflow concurrency contract", () => {
     assert.deepEqual(oauthIntent.properties.provider, { type: "string", pattern: "^(github|okta|nango:[a-z0-9][a-z0-9_-]{1,62})$" });
   });
 
-  it("publishes exactly the mounted Batch 4 risk slice and launch authorization operations without other overclaims", () => {
+  it("publishes the strict Task 4 sync, schedule, and freshness contract without internal execution authority", () => {
+    const sync = document.paths["/api/v1/integrations/{id}/sync"].post;
+    assert.equal(sync.operationId, "syncIntegration");
+    assert.deepEqual(sync.parameters, [
+      { $ref: "#/components/parameters/BrowserMutationCSRFToken" },
+      { $ref: "#/components/parameters/BrowserMutationOrigin" },
+      { $ref: "#/components/parameters/IdempotencyKey" },
+      { $ref: "#/components/parameters/ResourceVersion" },
+    ]);
+    assert.deepEqual(sync.requestBody.content["application/json"].schema, { $ref: "#/components/schemas/EmptyInput" });
+    assert.deepEqual(Object.keys(sync.responses), ["202", "400", "401", "403", "404", "409", "503", "default"]);
+    assert.deepEqual(sync.responses["202"].content["application/json"].schema, { $ref: "#/components/schemas/IntegrationSync" });
+    assert.deepEqual(Object.keys(sync.responses["202"].headers).sort(), ["Cache-Control", "ETag", "X-Audit-ID", "X-Mutation-Receipt-ID"]);
+
+    const list = document.paths["/api/v1/integrations/{id}/syncs"].get;
+    assert.equal(list.operationId, "listIntegrationSyncs");
+    assert.deepEqual(list.parameters, [
+      { $ref: "#/components/parameters/PageCursor" },
+      { $ref: "#/components/parameters/PageLimit" },
+    ]);
+    assert.deepEqual(list.responses["200"].content["application/json"].schema, { $ref: "#/components/schemas/IntegrationSyncPage" });
+    assert.deepEqual(Object.keys(list.responses["200"].headers), ["Cache-Control"]);
+
+    const detail = document.paths["/api/v1/integrations/{id}/syncs/{syncId}"].get;
+    assert.equal(detail.operationId, "getIntegrationSync");
+    assert.deepEqual(detail.responses["200"].content["application/json"].schema, { $ref: "#/components/schemas/IntegrationSync" });
+    assert.deepEqual(Object.keys(detail.responses["200"].headers).sort(), ["Cache-Control", "ETag"]);
+
+    const schedulePath = document.paths["/api/v1/integrations/{id}/schedule"];
+    assert.equal(schedulePath.get.operationId, "getIntegrationSchedule");
+    assert.equal(schedulePath.put.operationId, "putIntegrationSchedule");
+    assert.equal(schedulePath.delete.operationId, "deleteIntegrationSchedule");
+    assert.deepEqual(schedulePath.put.parameters, [
+      { $ref: "#/components/parameters/BrowserMutationCSRFToken" },
+      { $ref: "#/components/parameters/BrowserMutationOrigin" },
+      { $ref: "#/components/parameters/IdempotencyKey" },
+      { $ref: "#/components/parameters/ScheduleVersion" },
+    ]);
+    assert.deepEqual(schedulePath.put.requestBody.content["application/json"].schema, { $ref: "#/components/schemas/IntegrationScheduleInput" });
+    assert.deepEqual(schedulePath.put.responses["200"].content["application/json"].schema, { $ref: "#/components/schemas/IntegrationSchedule" });
+    assert.deepEqual(schedulePath.delete.parameters, [
+      { $ref: "#/components/parameters/BrowserMutationCSRFToken" },
+      { $ref: "#/components/parameters/BrowserMutationOrigin" },
+      { $ref: "#/components/parameters/IdempotencyKey" },
+      { $ref: "#/components/parameters/ResourceVersion" },
+    ]);
+
+    const freshness = document.paths["/api/v1/integrations/{id}/freshness"].get;
+    assert.equal(freshness.operationId, "getIntegrationFreshness");
+    assert.deepEqual(freshness.responses["200"].content["application/json"].schema, { $ref: "#/components/schemas/IntegrationFreshness" });
+    assert.deepEqual(Object.keys(freshness.responses["200"].headers).sort(), ["Cache-Control", "ETag"]);
+
+    const syncSchema = document.components.schemas.IntegrationSync;
+    assert.equal(syncSchema.additionalProperties, false);
+    assert.deepEqual(syncSchema.required, ["id", "integration_id", "trigger_kind", "status", "attempt", "requested_at", "started_at", "completed_at", "discovered_count", "changed_count", "removed_count", "snapshot_id", "last_error_code", "retry_at"]);
+    assert.deepEqual(document.components.schemas.IntegrationSyncStatus.enum, ["queued", "running", "succeeded", "failed", "cancelled"]);
+    assert.deepEqual(document.components.schemas.IntegrationSyncTriggerKind.enum, ["manual", "schedule", "retry"]);
+    assert.deepEqual(document.components.schemas.CollectionFailureCode.enum, ["retryable", "rate_limited", "denied", "revoked", "malformed", "partial", "terminal", "cancelled", "outcome_unknown"]);
+    assert.deepEqual(document.components.schemas.IntegrationSyncPage.required, ["items", "page_info"]);
+    assert.equal(document.components.schemas.IntegrationSyncPage.properties.items.maxItems, 100);
+    assert.deepEqual(document.components.schemas.IntegrationSyncPage.properties.page_info, { $ref: "#/components/schemas/PageInfo" });
+
+    const schedule = document.components.schemas.IntegrationSchedule;
+    assert.equal(schedule.additionalProperties, false);
+    assert.deepEqual(schedule.required, ["integration_id", "cadence_seconds", "state", "time_zone", "next_run_at", "version", "created_at", "updated_at"]);
+    assert.deepEqual(schedule.properties.time_zone, { type: "string", const: "UTC" });
+    assert.deepEqual(document.components.schemas.IntegrationScheduleInput.required, ["cadence_seconds", "state"]);
+    assert.deepEqual(document.components.schemas.IntegrationScheduleInput.properties.state.enum, ["enabled", "disabled"]);
+
+    const freshnessSchema = document.components.schemas.IntegrationFreshness;
+    assert.equal(freshnessSchema.additionalProperties, false);
+    assert.deepEqual(freshnessSchema.required, ["integration_id", "version", "last_good", "latest_sync", "projections", "updated_at"]);
+    assert.deepEqual(document.components.schemas.IntegrationProjectionStatus.required, ["state", "snapshot_id", "completed_at", "last_error_code"]);
+    assert.deepEqual(document.components.schemas.IntegrationProjectionStatus.properties.state.enum, ["current", "pending", "degraded", "unavailable"]);
+
+    const receipt = document.components.schemas.SyncIntegrationWorkflowMutationReceipt;
+    assert.equal(receipt.additionalProperties, false);
+    assert.deepEqual(receipt.required, document.components.schemas.StandardWorkflowMutationReceipt.required);
+    assert.deepEqual(receipt.properties.operation, { type: "string", const: "syncIntegration" });
+    assert.deepEqual(receipt.properties.resource_kind, { type: "string", const: "integration_sync" });
+    assert.deepEqual(receipt.properties.result, { $ref: "#/components/schemas/IntegrationSync" });
+    assert.deepEqual(receipt.properties.intent, { $ref: "#/components/schemas/SyncIntegrationReceiptIntent" });
+
+    const putScheduleReceipt = document.components.schemas.PutIntegrationScheduleWorkflowMutationReceipt;
+    assert.equal(putScheduleReceipt.additionalProperties, false);
+    assert.deepEqual(putScheduleReceipt.properties.operation, { type: "string", const: "putIntegrationSchedule" });
+    assert.deepEqual(putScheduleReceipt.properties.resource_kind, { type: "string", const: "integration_schedule" });
+    assert.deepEqual(putScheduleReceipt.properties.intent, { $ref: "#/components/schemas/PutIntegrationScheduleReceiptIntent" });
+    assert.deepEqual(putScheduleReceipt.properties.result, { $ref: "#/components/schemas/IntegrationSchedule" });
+    const deleteScheduleReceipt = document.components.schemas.DeleteIntegrationScheduleWorkflowMutationReceipt;
+    assert.equal(deleteScheduleReceipt.additionalProperties, false);
+    assert.deepEqual(deleteScheduleReceipt.properties.operation, { type: "string", const: "deleteIntegrationSchedule" });
+    assert.deepEqual(deleteScheduleReceipt.properties.resource_kind, { type: "string", const: "integration_schedule" });
+    assert.deepEqual(deleteScheduleReceipt.properties.intent, { $ref: "#/components/schemas/DeleteIntegrationScheduleReceiptIntent" });
+    assert.deepEqual(deleteScheduleReceipt.properties.result, { $ref: "#/components/schemas/IntegrationSchedule" });
+
+    const raw = JSON.stringify({ sync, list, detail, schedulePath, freshness, syncSchema, schedule, freshnessSchema, receipt });
+    for (const forbidden of ["job_id", "outbox_id", "manifest_key", "connection_reference", "credential_reference", "provider_cursor", "last_error"]) {
+      assert.equal(raw.includes(`\"${forbidden}\"`), false, forbidden);
+    }
+  });
+
+  it("publishes exactly the mounted Task 4 public surface without later-task overclaims", () => {
     const operations = new Map();
     for (const [path, pathItem] of Object.entries(document.paths)) {
       for (const [method, operation] of Object.entries(pathItem)) {
         if (operation?.operationId) operations.set(operation.operationId, { path, method, operation });
       }
     }
-    assert.equal(operations.size, 84);
-    for (const operationId of ["listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "completeIntegrationOAuthCallback"]) {
+    assert.equal(operations.size, 91);
+    for (const operationId of ["listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "completeIntegrationOAuthCallback", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness"]) {
       assert.ok(operations.has(operationId), operationId);
     }
     for (const operationId of [
-      "syncIntegration", "listIntegrationSyncs", "getIntegrationSync",
       "listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage",
       "updateAgent", "createFindingTicket",
       "listTests", "createTest", "getTest", "updateTest", "runTest", "listTestRuns", "getTestRun", "cancelTestRun",

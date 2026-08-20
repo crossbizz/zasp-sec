@@ -804,6 +804,167 @@ paths:
         '204': { description: Integration deleted., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }, X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/integrations/{id}/sync:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    post:
+      operationId: syncIntegration
+      summary: Queue an exact immutable collection attempt for an authorized integration
+      description: Creates or exactly replays one durable sync, job, outbox record, audit, and browser recovery receipt. BrowserSession requests require the same-origin Origin and CSRF headers; ProductAPIToken requests omit both. Internal job, outbox, credential, cursor, and artifact identifiers are never returned.
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ResourceVersion'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/EmptyInput' } } }
+      responses:
+        '202':
+          description: Durable integration sync accepted or exactly replayed.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }
+            X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' }
+            Cache-Control: { schema: { type: string, const: no-store } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/IntegrationSync' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/integrations/{id}/syncs:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: listIntegrationSyncs
+      summary: List bounded integration sync history in newest-first order
+      parameters:
+        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/PageLimit'
+      responses:
+        '200':
+          description: Authorized integration sync history.
+          headers: { Cache-Control: { schema: { type: string, const: no-store } } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/IntegrationSyncPage' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/integrations/{id}/syncs/{syncId}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+      - { name: syncId, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getIntegrationSync
+      summary: Get one authorized integration sync
+      responses:
+        '200':
+          description: Authorized integration sync.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            Cache-Control: { schema: { type: string, const: no-store } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/IntegrationSync' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/integrations/{id}/schedule:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getIntegrationSchedule
+      summary: Get the authorized integration schedule
+      responses:
+        '200':
+          description: Authorized singleton integration schedule.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            Cache-Control: { schema: { type: string, const: no-store } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/IntegrationSchedule' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    put:
+      operationId: putIntegrationSchedule
+      summary: Create or replace the authorized integration schedule
+      description: BrowserSession requests require the same-origin Origin and CSRF headers; ProductAPIToken requests omit both. The server owns next_run_at and accepts only UTC schedules.
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ScheduleVersion'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/IntegrationScheduleInput' } } }
+      responses:
+        '200':
+          description: Integration schedule created, replaced, or exactly replayed.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }
+            X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' }
+            Cache-Control: { schema: { type: string, const: no-store } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/IntegrationSchedule' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    delete:
+      operationId: deleteIntegrationSchedule
+      summary: Disable and delete the authorized integration schedule
+      description: BrowserSession requests require the same-origin Origin and CSRF headers; ProductAPIToken requests omit both.
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ResourceVersion'
+      responses:
+        '204':
+          description: Integration schedule deleted or exactly replayed.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }
+            X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' }
+            Cache-Control: { schema: { type: string, const: no-store } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/integrations/{id}/freshness:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getIntegrationFreshness
+      summary: Get last-good collection truth and independent projection freshness
+      responses:
+        '200':
+          description: Authorized integration freshness without internal artifact or worker authority.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            Cache-Control: { schema: { type: string, const: no-store } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/IntegrationFreshness' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/integrations/{id}/authorize:
     parameters:
       - name: id
@@ -1519,6 +1680,18 @@ components:
         type: string
         minLength: 32
         maxLength: 256
+    BrowserMutationCSRFToken:
+      name: X-CSRF-Token
+      in: header
+      required: false
+      description: Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session.
+      schema: { type: string, minLength: 32, maxLength: 256 }
+    BrowserMutationOrigin:
+      name: Origin
+      in: header
+      required: false
+      description: Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin.
+      schema: { type: string, minLength: 9, maxLength: 2048, pattern: '^https://[^/?#]+$' }
     FreshAuth:
       name: X-Zasp-Fresh-Auth
       in: header
@@ -1554,12 +1727,21 @@ components:
       required: true
       description: Quoted current durable resource version.
       schema: { type: string, pattern: '^"[1-9][0-9]*"$' }
+    ScheduleVersion:
+      name: If-Match
+      in: header
+      required: true
+      description: Quoted current schedule version, or quoted zero when creating the singleton schedule.
+      schema: { type: string, pattern: '^"(?:0|[1-9][0-9]*)"$' }
   schemas:
     WorkflowMutationReceipt:
       oneOf:
         - { $ref: '#/components/schemas/StandardWorkflowMutationReceipt' }
         - { $ref: '#/components/schemas/OAuthCompletionWorkflowMutationReceipt' }
         - { $ref: '#/components/schemas/ReferenceAuthorizationWorkflowMutationReceipt' }
+        - { $ref: '#/components/schemas/SyncIntegrationWorkflowMutationReceipt' }
+        - { $ref: '#/components/schemas/PutIntegrationScheduleWorkflowMutationReceipt' }
+        - { $ref: '#/components/schemas/DeleteIntegrationScheduleWorkflowMutationReceipt' }
     StandardWorkflowMutationReceipt:
       type: object
       additionalProperties: false
@@ -1610,6 +1792,57 @@ components:
         intent: { $ref: '#/components/schemas/ReferenceAuthorizationReceiptIntent' }
         result: { $ref: '#/components/schemas/Integration' }
         resource_kind: { type: string, const: integration }
+        resource_id: { $ref: '#/components/schemas/ProductID' }
+        resource_version: { type: integer, minimum: 1 }
+        audit_id: { $ref: '#/components/schemas/ProductID' }
+        correlation_id: { $ref: '#/components/schemas/ProductID' }
+        created_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+    SyncIntegrationWorkflowMutationReceipt:
+      type: object
+      additionalProperties: false
+      required: [id, operation, idempotency_key, intent, result, resource_kind, resource_id, resource_version, audit_id, correlation_id, created_at, expires_at]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        operation: { type: string, const: syncIntegration }
+        idempotency_key: { type: string, minLength: 16, maxLength: 128, pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]*$' }
+        intent: { $ref: '#/components/schemas/SyncIntegrationReceiptIntent' }
+        result: { $ref: '#/components/schemas/IntegrationSync' }
+        resource_kind: { type: string, const: integration_sync }
+        resource_id: { $ref: '#/components/schemas/ProductID' }
+        resource_version: { type: integer, minimum: 1 }
+        audit_id: { $ref: '#/components/schemas/ProductID' }
+        correlation_id: { $ref: '#/components/schemas/ProductID' }
+        created_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+    PutIntegrationScheduleWorkflowMutationReceipt:
+      type: object
+      additionalProperties: false
+      required: [id, operation, idempotency_key, intent, result, resource_kind, resource_id, resource_version, audit_id, correlation_id, created_at, expires_at]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        operation: { type: string, const: putIntegrationSchedule }
+        idempotency_key: { type: string, minLength: 16, maxLength: 128, pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]*$' }
+        intent: { $ref: '#/components/schemas/PutIntegrationScheduleReceiptIntent' }
+        result: { $ref: '#/components/schemas/IntegrationSchedule' }
+        resource_kind: { type: string, const: integration_schedule }
+        resource_id: { $ref: '#/components/schemas/ProductID' }
+        resource_version: { type: integer, minimum: 1 }
+        audit_id: { $ref: '#/components/schemas/ProductID' }
+        correlation_id: { $ref: '#/components/schemas/ProductID' }
+        created_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+    DeleteIntegrationScheduleWorkflowMutationReceipt:
+      type: object
+      additionalProperties: false
+      required: [id, operation, idempotency_key, intent, result, resource_kind, resource_id, resource_version, audit_id, correlation_id, created_at, expires_at]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        operation: { type: string, const: deleteIntegrationSchedule }
+        idempotency_key: { type: string, minLength: 16, maxLength: 128, pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]*$' }
+        intent: { $ref: '#/components/schemas/DeleteIntegrationScheduleReceiptIntent' }
+        result: { $ref: '#/components/schemas/IntegrationSchedule' }
+        resource_kind: { type: string, const: integration_schedule }
         resource_id: { $ref: '#/components/schemas/ProductID' }
         resource_version: { type: integer, minimum: 1 }
         audit_id: { $ref: '#/components/schemas/ProductID' }
@@ -1677,6 +1910,36 @@ components:
         environment_id: { $ref: '#/components/schemas/ProductID' }
         organization_id: { $ref: '#/components/schemas/ProductID' }
         workspace_id: { $ref: '#/components/schemas/ProductID' }
+    SyncIntegrationReceiptIntent:
+      type: object
+      additionalProperties: false
+      required: [scope, integration_id, expected_version, idempotency_key, body]
+      properties:
+        scope: { $ref: '#/components/schemas/ReferenceAuthorizationReceiptScope' }
+        integration_id: { $ref: '#/components/schemas/ProductID' }
+        expected_version: { type: integer, minimum: 1 }
+        idempotency_key: { type: string, minLength: 16, maxLength: 128, pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]*$' }
+        body: { $ref: '#/components/schemas/EmptyInput' }
+    PutIntegrationScheduleReceiptIntent:
+      type: object
+      additionalProperties: false
+      required: [scope, integration_id, expected_version, idempotency_key, body]
+      properties:
+        scope: { $ref: '#/components/schemas/ReferenceAuthorizationReceiptScope' }
+        integration_id: { $ref: '#/components/schemas/ProductID' }
+        expected_version: { type: integer, minimum: 0 }
+        idempotency_key: { type: string, minLength: 16, maxLength: 128, pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]*$' }
+        body: { $ref: '#/components/schemas/IntegrationScheduleInput' }
+    DeleteIntegrationScheduleReceiptIntent:
+      type: object
+      additionalProperties: false
+      required: [scope, integration_id, expected_version, idempotency_key, body]
+      properties:
+        scope: { $ref: '#/components/schemas/ReferenceAuthorizationReceiptScope' }
+        integration_id: { $ref: '#/components/schemas/ProductID' }
+        expected_version: { type: integer, minimum: 1 }
+        idempotency_key: { type: string, minLength: 16, maxLength: 128, pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]*$' }
+        body: { $ref: '#/components/schemas/EmptyInput' }
     AWSReferenceAuthorizationConfiguration:
       type: object
       additionalProperties: false
@@ -2880,34 +3143,105 @@ components:
           maxItems: 100
           items: { $ref: '#/components/schemas/Integration' }
         page_info: { $ref: '#/components/schemas/PageInfo' }
-    IntegrationSyncInput:
-      type: object
-      additionalProperties: false
-      required: [job_id]
-      properties:
-        job_id: { type: string, minLength: 8, maxLength: 128, pattern: '^job_[A-Za-z0-9_-]{4,123}$' }
+    IntegrationSyncTriggerKind:
+      type: string
+      enum: [manual, schedule, retry]
     IntegrationSyncStatus:
       type: string
-      enum: [queued, running, succeeded, failed]
+      enum: [queued, running, succeeded, failed, cancelled]
+    CollectionFailureCode:
+      type: string
+      enum: [retryable, rate_limited, denied, revoked, malformed, partial, terminal, cancelled, outcome_unknown]
     IntegrationSync:
       type: object
       additionalProperties: false
-      required: [id, integration_id, job_id, status, created_at, updated_at]
+      required: [id, integration_id, trigger_kind, status, attempt, requested_at, started_at, completed_at, discovered_count, changed_count, removed_count, snapshot_id, last_error_code, retry_at]
       properties:
         id: { $ref: '#/components/schemas/ProductID' }
         integration_id: { $ref: '#/components/schemas/ProductID' }
-        job_id: { type: string, minLength: 8, maxLength: 128, pattern: '^job_[A-Za-z0-9_-]{4,123}$' }
+        trigger_kind: { $ref: '#/components/schemas/IntegrationSyncTriggerKind' }
         status: { $ref: '#/components/schemas/IntegrationSyncStatus' }
-        created_at: { type: string, format: date-time }
-        updated_at: { type: string, format: date-time }
+        attempt: { type: integer, minimum: 0, maximum: 100 }
+        requested_at: { type: string, format: date-time }
+        started_at: { oneOf: [{ type: string, format: date-time }, { type: 'null' }] }
+        completed_at: { oneOf: [{ type: string, format: date-time }, { type: 'null' }] }
+        discovered_count: { type: integer, minimum: 0 }
+        changed_count: { type: integer, minimum: 0 }
+        removed_count: { type: integer, minimum: 0 }
+        snapshot_id: { oneOf: [{ $ref: '#/components/schemas/ProductID' }, { type: 'null' }] }
+        last_error_code: { oneOf: [{ $ref: '#/components/schemas/CollectionFailureCode' }, { type: 'null' }] }
+        retry_at: { oneOf: [{ type: string, format: date-time }, { type: 'null' }] }
     IntegrationSyncPage:
       type: object
       additionalProperties: false
-      required: [items]
+      required: [items, page_info]
       properties:
         items:
           type: array
+          maxItems: 100
           items: { $ref: '#/components/schemas/IntegrationSync' }
+        page_info: { $ref: '#/components/schemas/PageInfo' }
+    IntegrationScheduleState:
+      type: string
+      enum: [enabled, disabled, deleted]
+    IntegrationScheduleInput:
+      type: object
+      additionalProperties: false
+      required: [cadence_seconds, state]
+      properties:
+        cadence_seconds: { type: integer, minimum: 300, maximum: 2678400 }
+        state: { type: string, enum: [enabled, disabled] }
+    IntegrationSchedule:
+      type: object
+      additionalProperties: false
+      required: [integration_id, cadence_seconds, state, time_zone, next_run_at, version, created_at, updated_at]
+      properties:
+        integration_id: { $ref: '#/components/schemas/ProductID' }
+        cadence_seconds: { type: integer, minimum: 300, maximum: 2678400 }
+        state: { $ref: '#/components/schemas/IntegrationScheduleState' }
+        time_zone: { type: string, const: UTC }
+        next_run_at: { oneOf: [{ type: string, format: date-time }, { type: 'null' }] }
+        version: { type: integer, minimum: 1 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    IntegrationLastGoodSnapshot:
+      type: object
+      additionalProperties: false
+      required: [snapshot_id, collected_at, discovered_count, changed_count, removed_count]
+      properties:
+        snapshot_id: { $ref: '#/components/schemas/ProductID' }
+        collected_at: { type: string, format: date-time }
+        discovered_count: { type: integer, minimum: 0 }
+        changed_count: { type: integer, minimum: 0 }
+        removed_count: { type: integer, minimum: 0 }
+    IntegrationProjectionStatus:
+      type: object
+      additionalProperties: false
+      required: [state, snapshot_id, completed_at, last_error_code]
+      properties:
+        state: { type: string, enum: [current, pending, degraded, unavailable] }
+        snapshot_id: { oneOf: [{ $ref: '#/components/schemas/ProductID' }, { type: 'null' }] }
+        completed_at: { oneOf: [{ type: string, format: date-time }, { type: 'null' }] }
+        last_error_code: { oneOf: [{ $ref: '#/components/schemas/CollectionFailureCode' }, { type: 'null' }] }
+    IntegrationProjectionStatuses:
+      type: object
+      additionalProperties: false
+      required: [risk, graph, search]
+      properties:
+        risk: { $ref: '#/components/schemas/IntegrationProjectionStatus' }
+        graph: { $ref: '#/components/schemas/IntegrationProjectionStatus' }
+        search: { $ref: '#/components/schemas/IntegrationProjectionStatus' }
+    IntegrationFreshness:
+      type: object
+      additionalProperties: false
+      required: [integration_id, version, last_good, latest_sync, projections, updated_at]
+      properties:
+        integration_id: { $ref: '#/components/schemas/ProductID' }
+        version: { type: integer, minimum: 1 }
+        last_good: { oneOf: [{ $ref: '#/components/schemas/IntegrationLastGoodSnapshot' }, { type: 'null' }] }
+        latest_sync: { oneOf: [{ $ref: '#/components/schemas/IntegrationSync' }, { type: 'null' }] }
+        projections: { $ref: '#/components/schemas/IntegrationProjectionStatuses' }
+        updated_at: { type: string, format: date-time }
     SensorMode:
       type: string
       enum: [metadata_only, full]

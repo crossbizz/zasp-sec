@@ -192,7 +192,7 @@ func (repository *PostgresRepository) ListWorkflowMutationReceipts(ctx context.C
 		return nil, ErrRepositoryUnavailable
 	}
 	for index := range envelope.Items {
-		if !validWorkflowMutationReceipt(envelope.Items[index]) || !canonicalizeWorkflowMutationReceiptResult(&envelope.Items[index]) {
+		if !validWorkflowMutationReceipt(envelope.Items[index]) || !validDiscoveryWorkflowReceipt(envelope.Items[index], identity) || !canonicalizeWorkflowMutationReceiptResult(&envelope.Items[index]) {
 			return nil, ErrRepositoryUnavailable
 		}
 		envelope.Items[index].CreatedAt = envelope.Items[index].CreatedAt.UTC()
@@ -250,6 +250,45 @@ func validWorkflowMutationReceipt(value WorkflowMutationReceipt) bool {
 	}
 	operationKind, _, _, validOperation := workflowMutationTarget(value.Operation)
 	return validOperation && operationKind == value.ResourceKind && len(value.IdempotencyKey) >= 16 && len(value.IdempotencyKey) <= 128 && workflowKeyPattern.MatchString(value.IdempotencyKey) && validJSONObjectBody(value.Intent) && !containsSensitiveWorkflowField(value.Intent) && validJSONObjectBody(value.Result) && !containsSensitiveWorkflowField(value.Result) && validWorkflowID(value.ResourceKind, value.ResourceID) && value.ResourceVersion > 0 && !value.CreatedAt.IsZero() && value.ExpiresAt.After(value.CreatedAt) && !value.ExpiresAt.After(value.CreatedAt.Add(7*24*time.Hour))
+}
+
+func validDiscoveryWorkflowReceipt(value WorkflowMutationReceipt, identity RequestIdentity) bool {
+	if !stringIn(value.Operation, "syncIntegration", "putIntegrationSchedule", "deleteIntegrationSchedule") {
+		return true
+	}
+	if !exactJSONFields(value.Intent, "body", "expected_version", "idempotency_key", "integration_id", "scope") {
+		return false
+	}
+	var intent struct {
+		Body            json.RawMessage `json:"body"`
+		ExpectedVersion int64           `json:"expected_version"`
+		IdempotencyKey  string          `json:"idempotency_key"`
+		IntegrationID   string          `json:"integration_id"`
+		Scope           struct {
+			OrganizationID string `json:"organization_id"`
+			WorkspaceID    string `json:"workspace_id"`
+			EnvironmentID  string `json:"environment_id"`
+		} `json:"scope"`
+	}
+	if decodeStrictDiscovery(value.Intent, &intent) != nil || !exactJSONFields(extractJSONField(value.Intent, "scope"), "environment_id", "organization_id", "workspace_id") || intent.IdempotencyKey != value.IdempotencyKey || !validProductID(intent.IntegrationID) || intent.Scope.OrganizationID != identity.Scope.OrganizationID().String() || intent.Scope.WorkspaceID != identity.Scope.WorkspaceID().String() || intent.Scope.EnvironmentID != identity.Scope.EnvironmentID().String() {
+		return false
+	}
+	if value.Operation == "syncIntegration" {
+		var result IntegrationSync
+		return value.ResourceKind == "integration_sync" && intent.ExpectedVersion > 0 && value.ResourceVersion > 0 && exactJSONFields(intent.Body) && exactJSONFields(value.Result, publicIntegrationSyncFields...) && decodeStrictDiscovery(value.Result, &result) == nil && validPublicIntegrationSync(result, intent.IntegrationID, value.ResourceID) && result.TriggerKind == "manual" && result.Status == "queued" && result.Attempt == 0 && result.DiscoveredCount == 0 && result.ChangedCount == 0 && result.RemovedCount == 0
+	}
+	var result IntegrationSchedule
+	if value.ResourceKind != "integration_schedule" || intent.ExpectedVersion < 0 || value.ResourceID != intent.IntegrationID || value.ResourceVersion != intent.ExpectedVersion+1 || !exactJSONFields(value.Result, publicIntegrationScheduleFields...) || decodeStrictDiscovery(value.Result, &result) != nil || !validPublicIntegrationSchedule(result, intent.IntegrationID) || result.Version != value.ResourceVersion {
+		return false
+	}
+	if value.Operation == "putIntegrationSchedule" {
+		var body struct {
+			CadenceSeconds int    `json:"cadence_seconds"`
+			State          string `json:"state"`
+		}
+		return exactJSONFields(intent.Body, "cadence_seconds", "state") && decodeStrictDiscovery(intent.Body, &body) == nil && body.CadenceSeconds == result.CadenceSeconds && body.State == result.State && stringIn(body.State, "enabled", "disabled")
+	}
+	return intent.ExpectedVersion > 0 && exactJSONFields(intent.Body) && result.State == "deleted" && result.NextRunAt == nil
 }
 
 func (repository *PostgresRepository) ReplayWorkflow(ctx context.Context, identity RequestIdentity, operation, idempotencyKey string, intent json.RawMessage) (WorkflowMutationResult, bool, error) {
@@ -362,7 +401,7 @@ func validWorkflowMutation(value WorkflowMutation) bool {
 
 func validWorkflowKind(value string) bool {
 	switch value {
-	case "policy", "integration", "sensor", "security_agent", "security_agent_run", "security_agent_approval":
+	case "policy", "integration", "integration_sync", "integration_schedule", "sensor", "security_agent", "security_agent_run", "security_agent_approval":
 		return true
 	default:
 		return false

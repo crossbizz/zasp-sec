@@ -641,6 +641,25 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/integrations/{id}/freshness": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get last-good collection truth and independent projection freshness */
+        readonly get: operations["getIntegrationFreshness"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/integrations/{id}/reference-authorization": {
         readonly parameters: {
             readonly query?: never;
@@ -657,6 +676,94 @@ export type paths = {
          * @description Performs a bounded read-only provider identity and capability probe using only the integration's stored reference configuration, then atomically records an active integration and durable mutation receipt. The response never returns provider subjects, endpoints, credentials, external IDs, certificate authorities, tokens, or raw provider errors.
          */
         readonly post: operations["authorizeIntegrationReference"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/integrations/{id}/schedule": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get the authorized integration schedule */
+        readonly get: operations["getIntegrationSchedule"];
+        /**
+         * Create or replace the authorized integration schedule
+         * @description BrowserSession requests require the same-origin Origin and CSRF headers; ProductAPIToken requests omit both. The server owns next_run_at and accepts only UTC schedules.
+         */
+        readonly put: operations["putIntegrationSchedule"];
+        readonly post?: never;
+        /**
+         * Disable and delete the authorized integration schedule
+         * @description BrowserSession requests require the same-origin Origin and CSRF headers; ProductAPIToken requests omit both.
+         */
+        readonly delete: operations["deleteIntegrationSchedule"];
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/integrations/{id}/sync": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Queue an exact immutable collection attempt for an authorized integration
+         * @description Creates or exactly replays one durable sync, job, outbox record, audit, and browser recovery receipt. BrowserSession requests require the same-origin Origin and CSRF headers; ProductAPIToken requests omit both. Internal job, outbox, credential, cursor, and artifact identifiers are never returned.
+         */
+        readonly post: operations["syncIntegration"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/integrations/{id}/syncs": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** List bounded integration sync history in newest-first order */
+        readonly get: operations["listIntegrationSyncs"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/integrations/{id}/syncs/{syncId}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+                readonly syncId: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get one authorized integration sync */
+        readonly get: operations["getIntegrationSync"];
+        readonly put?: never;
+        readonly post?: never;
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -1453,6 +1560,8 @@ export type components = {
         };
         /** @enum {string} */
         readonly CapabilityState: "reachable" | "observed" | "verified" | "blocked";
+        /** @enum {string} */
+        readonly CollectionFailureCode: "retryable" | "rate_limited" | "denied" | "revoked" | "malformed" | "partial" | "terminal" | "cancelled" | "outcome_unknown";
         readonly ComplianceControl: {
             /** @description Bounded preview of the first 100 evidence identifiers ordered by identifier; use the paged evidence operation for the complete set. */
             readonly evidence_ids: readonly string[];
@@ -1538,6 +1647,31 @@ export type components = {
             readonly environment_class: "development" | "test" | "staging" | "production";
             readonly environment_id: components["schemas"]["ProductID"];
             readonly retention_days: number;
+        };
+        readonly DeleteIntegrationScheduleReceiptIntent: {
+            readonly body: components["schemas"]["EmptyInput"];
+            readonly expected_version: number;
+            readonly idempotency_key: string;
+            readonly integration_id: components["schemas"]["ProductID"];
+            readonly scope: components["schemas"]["ReferenceAuthorizationReceiptScope"];
+        };
+        readonly DeleteIntegrationScheduleWorkflowMutationReceipt: {
+            readonly audit_id: components["schemas"]["ProductID"];
+            readonly correlation_id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly expires_at: string;
+            readonly id: components["schemas"]["ProductID"];
+            readonly idempotency_key: string;
+            readonly intent: components["schemas"]["DeleteIntegrationScheduleReceiptIntent"];
+            /** @constant */
+            readonly operation: "deleteIntegrationSchedule";
+            readonly resource_id: components["schemas"]["ProductID"];
+            /** @constant */
+            readonly resource_kind: "integration_schedule";
+            readonly resource_version: number;
+            readonly result: components["schemas"]["IntegrationSchedule"];
         };
         readonly EmptyInput: Record<string, never>;
         readonly Environment: {
@@ -1688,10 +1822,27 @@ export type components = {
         readonly IntegrationConfiguration: {
             readonly [key: string]: string;
         };
+        readonly IntegrationFreshness: {
+            readonly integration_id: components["schemas"]["ProductID"];
+            readonly last_good: components["schemas"]["IntegrationLastGoodSnapshot"] | null;
+            readonly latest_sync: components["schemas"]["IntegrationSync"] | null;
+            readonly projections: components["schemas"]["IntegrationProjectionStatuses"];
+            /** Format: date-time */
+            readonly updated_at: string;
+            readonly version: number;
+        };
         readonly IntegrationInput: {
             readonly configuration: components["schemas"]["IntegrationConfiguration"];
             readonly connector_key: string;
             readonly name: string;
+        };
+        readonly IntegrationLastGoodSnapshot: {
+            readonly changed_count: number;
+            /** Format: date-time */
+            readonly collected_at: string;
+            readonly discovered_count: number;
+            readonly removed_count: number;
+            readonly snapshot_id: components["schemas"]["ProductID"];
         };
         readonly IntegrationOAuthCallbackValue: string;
         /** @enum {string} */
@@ -1700,26 +1851,65 @@ export type components = {
             readonly items: readonly components["schemas"]["Integration"][];
             readonly page_info: components["schemas"]["PageInfo"];
         };
+        readonly IntegrationProjectionStatus: {
+            readonly completed_at: string | null;
+            readonly last_error_code: components["schemas"]["CollectionFailureCode"] | null;
+            readonly snapshot_id: components["schemas"]["ProductID"] | null;
+            /** @enum {string} */
+            readonly state: "current" | "pending" | "degraded" | "unavailable";
+        };
+        readonly IntegrationProjectionStatuses: {
+            readonly graph: components["schemas"]["IntegrationProjectionStatus"];
+            readonly risk: components["schemas"]["IntegrationProjectionStatus"];
+            readonly search: components["schemas"]["IntegrationProjectionStatus"];
+        };
+        readonly IntegrationSchedule: {
+            readonly cadence_seconds: number;
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly integration_id: components["schemas"]["ProductID"];
+            readonly next_run_at: string | null;
+            readonly state: components["schemas"]["IntegrationScheduleState"];
+            /** @constant */
+            readonly time_zone: "UTC";
+            /** Format: date-time */
+            readonly updated_at: string;
+            readonly version: number;
+        };
+        readonly IntegrationScheduleInput: {
+            readonly cadence_seconds: number;
+            /** @enum {string} */
+            readonly state: "enabled" | "disabled";
+        };
+        /** @enum {string} */
+        readonly IntegrationScheduleState: "enabled" | "disabled" | "deleted";
         /** @enum {string} */
         readonly IntegrationStatus: "configured" | "pending_authorization" | "active" | "degraded" | "revoking";
         readonly IntegrationSync: {
-            /** Format: date-time */
-            readonly created_at: string;
+            readonly attempt: number;
+            readonly changed_count: number;
+            readonly completed_at: string | null;
+            readonly discovered_count: number;
             readonly id: components["schemas"]["ProductID"];
             readonly integration_id: components["schemas"]["ProductID"];
-            readonly job_id: string;
-            readonly status: components["schemas"]["IntegrationSyncStatus"];
+            readonly last_error_code: components["schemas"]["CollectionFailureCode"] | null;
+            readonly removed_count: number;
             /** Format: date-time */
-            readonly updated_at: string;
-        };
-        readonly IntegrationSyncInput: {
-            readonly job_id: string;
+            readonly requested_at: string;
+            readonly retry_at: string | null;
+            readonly snapshot_id: components["schemas"]["ProductID"] | null;
+            readonly started_at: string | null;
+            readonly status: components["schemas"]["IntegrationSyncStatus"];
+            readonly trigger_kind: components["schemas"]["IntegrationSyncTriggerKind"];
         };
         readonly IntegrationSyncPage: {
             readonly items: readonly components["schemas"]["IntegrationSync"][];
+            readonly page_info: components["schemas"]["PageInfo"];
         };
         /** @enum {string} */
-        readonly IntegrationSyncStatus: "queued" | "running" | "succeeded" | "failed";
+        readonly IntegrationSyncStatus: "queued" | "running" | "succeeded" | "failed" | "cancelled";
+        /** @enum {string} */
+        readonly IntegrationSyncTriggerKind: "manual" | "schedule" | "retry";
         readonly IntegrationUpdateInput: {
             readonly configuration: components["schemas"]["IntegrationConfiguration"];
             readonly name: string;
@@ -1882,6 +2072,31 @@ export type components = {
         };
         /** @description Canonical product identifier. */
         readonly ProductID: string;
+        readonly PutIntegrationScheduleReceiptIntent: {
+            readonly body: components["schemas"]["IntegrationScheduleInput"];
+            readonly expected_version: number;
+            readonly idempotency_key: string;
+            readonly integration_id: components["schemas"]["ProductID"];
+            readonly scope: components["schemas"]["ReferenceAuthorizationReceiptScope"];
+        };
+        readonly PutIntegrationScheduleWorkflowMutationReceipt: {
+            readonly audit_id: components["schemas"]["ProductID"];
+            readonly correlation_id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly expires_at: string;
+            readonly id: components["schemas"]["ProductID"];
+            readonly idempotency_key: string;
+            readonly intent: components["schemas"]["PutIntegrationScheduleReceiptIntent"];
+            /** @constant */
+            readonly operation: "putIntegrationSchedule";
+            readonly resource_id: components["schemas"]["ProductID"];
+            /** @constant */
+            readonly resource_kind: "integration_schedule";
+            readonly resource_version: number;
+            readonly result: components["schemas"]["IntegrationSchedule"];
+        };
         readonly RedTeamID: string;
         readonly ReferenceAuthorizationReceiptIntent: components["schemas"]["AWSReferenceAuthorizationReceiptIntent"] | components["schemas"]["KubernetesReferenceAuthorizationReceiptIntent"];
         readonly ReferenceAuthorizationReceiptScope: {
@@ -2276,6 +2491,31 @@ export type components = {
             readonly resource_version: number;
             readonly result: components["schemas"]["Policy"] | components["schemas"]["Integration"] | components["schemas"]["SecurityAgentDefinition"] | components["schemas"]["Finding"];
         };
+        readonly SyncIntegrationReceiptIntent: {
+            readonly body: components["schemas"]["EmptyInput"];
+            readonly expected_version: number;
+            readonly idempotency_key: string;
+            readonly integration_id: components["schemas"]["ProductID"];
+            readonly scope: components["schemas"]["ReferenceAuthorizationReceiptScope"];
+        };
+        readonly SyncIntegrationWorkflowMutationReceipt: {
+            readonly audit_id: components["schemas"]["ProductID"];
+            readonly correlation_id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly expires_at: string;
+            readonly id: components["schemas"]["ProductID"];
+            readonly idempotency_key: string;
+            readonly intent: components["schemas"]["SyncIntegrationReceiptIntent"];
+            /** @constant */
+            readonly operation: "syncIntegration";
+            readonly resource_id: components["schemas"]["ProductID"];
+            /** @constant */
+            readonly resource_kind: "integration_sync";
+            readonly resource_version: number;
+            readonly result: components["schemas"]["IntegrationSync"];
+        };
         readonly SystemComponent: {
             /** Format: date-time */
             readonly fresh_at: string;
@@ -2323,7 +2563,7 @@ export type components = {
             readonly expected_version: number;
             readonly resource_id: string;
         };
-        readonly WorkflowMutationReceipt: components["schemas"]["StandardWorkflowMutationReceipt"] | components["schemas"]["OAuthCompletionWorkflowMutationReceipt"] | components["schemas"]["ReferenceAuthorizationWorkflowMutationReceipt"];
+        readonly WorkflowMutationReceipt: components["schemas"]["StandardWorkflowMutationReceipt"] | components["schemas"]["OAuthCompletionWorkflowMutationReceipt"] | components["schemas"]["ReferenceAuthorizationWorkflowMutationReceipt"] | components["schemas"]["SyncIntegrationWorkflowMutationReceipt"] | components["schemas"]["PutIntegrationScheduleWorkflowMutationReceipt"] | components["schemas"]["DeleteIntegrationScheduleWorkflowMutationReceipt"];
         readonly WorkflowMutationReceiptPage: {
             readonly items: readonly components["schemas"]["WorkflowMutationReceipt"][];
         };
@@ -2359,6 +2599,10 @@ export type components = {
         };
     };
     parameters: {
+        /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+        readonly BrowserMutationCSRFToken: string;
+        /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+        readonly BrowserMutationOrigin: string;
         /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
         readonly CSRFToken: string;
         /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
@@ -2371,6 +2615,8 @@ export type components = {
         readonly PageLimit: number;
         /** @description Quoted current durable resource version. */
         readonly ResourceVersion: string;
+        /** @description Quoted current schedule version, or quoted zero when creating the singleton schedule. */
+        readonly ScheduleVersion: string;
     };
     requestBodies: never;
     headers: {
@@ -2416,6 +2662,7 @@ export type BuiltInRolePage = components['schemas']['BuiltInRolePage'];
 export type Capability = components['schemas']['Capability'];
 export type CapabilityPage = components['schemas']['CapabilityPage'];
 export type CapabilityState = components['schemas']['CapabilityState'];
+export type CollectionFailureCode = components['schemas']['CollectionFailureCode'];
 export type ComplianceControl = components['schemas']['ComplianceControl'];
 export type ComplianceControlPage = components['schemas']['ComplianceControlPage'];
 export type ComplianceEvidence = components['schemas']['ComplianceEvidence'];
@@ -2431,6 +2678,8 @@ export type ConnectorSetupField = components['schemas']['ConnectorSetupField'];
 export type Cursor = components['schemas']['Cursor'];
 export type DataControls = components['schemas']['DataControls'];
 export type DataControlsInput = components['schemas']['DataControlsInput'];
+export type DeleteIntegrationScheduleReceiptIntent = components['schemas']['DeleteIntegrationScheduleReceiptIntent'];
+export type DeleteIntegrationScheduleWorkflowMutationReceipt = components['schemas']['DeleteIntegrationScheduleWorkflowMutationReceipt'];
 export type EmptyInput = components['schemas']['EmptyInput'];
 export type Environment = components['schemas']['Environment'];
 export type EnvironmentCreateInput = components['schemas']['EnvironmentCreateInput'];
@@ -2455,15 +2704,22 @@ export type IntegrationAuthorization = components['schemas']['IntegrationAuthori
 export type IntegrationAuthorizationRemediationInput = components['schemas']['IntegrationAuthorizationRemediationInput'];
 export type IntegrationCatalogPage = components['schemas']['IntegrationCatalogPage'];
 export type IntegrationConfiguration = components['schemas']['IntegrationConfiguration'];
+export type IntegrationFreshness = components['schemas']['IntegrationFreshness'];
 export type IntegrationInput = components['schemas']['IntegrationInput'];
+export type IntegrationLastGoodSnapshot = components['schemas']['IntegrationLastGoodSnapshot'];
 export type IntegrationOAuthCallbackValue = components['schemas']['IntegrationOAuthCallbackValue'];
 export type IntegrationOAuthProviderError = components['schemas']['IntegrationOAuthProviderError'];
 export type IntegrationPage = components['schemas']['IntegrationPage'];
+export type IntegrationProjectionStatus = components['schemas']['IntegrationProjectionStatus'];
+export type IntegrationProjectionStatuses = components['schemas']['IntegrationProjectionStatuses'];
+export type IntegrationSchedule = components['schemas']['IntegrationSchedule'];
+export type IntegrationScheduleInput = components['schemas']['IntegrationScheduleInput'];
+export type IntegrationScheduleState = components['schemas']['IntegrationScheduleState'];
 export type IntegrationStatus = components['schemas']['IntegrationStatus'];
 export type IntegrationSync = components['schemas']['IntegrationSync'];
-export type IntegrationSyncInput = components['schemas']['IntegrationSyncInput'];
 export type IntegrationSyncPage = components['schemas']['IntegrationSyncPage'];
 export type IntegrationSyncStatus = components['schemas']['IntegrationSyncStatus'];
+export type IntegrationSyncTriggerKind = components['schemas']['IntegrationSyncTriggerKind'];
 export type IntegrationUpdateInput = components['schemas']['IntegrationUpdateInput'];
 export type InventoryKind = components['schemas']['InventoryKind'];
 export type InventoryPage = components['schemas']['InventoryPage'];
@@ -2490,6 +2746,8 @@ export type Principal = components['schemas']['Principal'];
 export type PrincipalPage = components['schemas']['PrincipalPage'];
 export type ProductError = components['schemas']['ProductError'];
 export type ProductId = components['schemas']['ProductID'];
+export type PutIntegrationScheduleReceiptIntent = components['schemas']['PutIntegrationScheduleReceiptIntent'];
+export type PutIntegrationScheduleWorkflowMutationReceipt = components['schemas']['PutIntegrationScheduleWorkflowMutationReceipt'];
 export type RedTeamId = components['schemas']['RedTeamID'];
 export type ReferenceAuthorizationReceiptIntent = components['schemas']['ReferenceAuthorizationReceiptIntent'];
 export type ReferenceAuthorizationReceiptScope = components['schemas']['ReferenceAuthorizationReceiptScope'];
@@ -2551,6 +2809,8 @@ export type SsoConnectionPage = components['schemas']['SSOConnectionPage'];
 export type SsoIdentityProvider = components['schemas']['SSOIdentityProvider'];
 export type SsoProtocol = components['schemas']['SSOProtocol'];
 export type StandardWorkflowMutationReceipt = components['schemas']['StandardWorkflowMutationReceipt'];
+export type SyncIntegrationReceiptIntent = components['schemas']['SyncIntegrationReceiptIntent'];
+export type SyncIntegrationWorkflowMutationReceipt = components['schemas']['SyncIntegrationWorkflowMutationReceipt'];
 export type SystemComponent = components['schemas']['SystemComponent'];
 export type SystemComponentPage = components['schemas']['SystemComponentPage'];
 export type SystemStatus = components['schemas']['SystemStatus'];
@@ -2567,12 +2827,15 @@ export type Workspace = components['schemas']['Workspace'];
 export type WorkspaceMutation = components['schemas']['WorkspaceMutation'];
 export type WorkspacePage = components['schemas']['WorkspacePage'];
 export type ResponseProductErrorResponse = components['responses']['ProductErrorResponse'];
+export type ParameterBrowserMutationCsrfToken = components['parameters']['BrowserMutationCSRFToken'];
+export type ParameterBrowserMutationOrigin = components['parameters']['BrowserMutationOrigin'];
 export type ParameterCsrfToken = components['parameters']['CSRFToken'];
 export type ParameterFreshAuth = components['parameters']['FreshAuth'];
 export type ParameterIdempotencyKey = components['parameters']['IdempotencyKey'];
 export type ParameterPageCursor = components['parameters']['PageCursor'];
 export type ParameterPageLimit = components['parameters']['PageLimit'];
 export type ParameterResourceVersion = components['parameters']['ResourceVersion'];
+export type ParameterScheduleVersion = components['parameters']['ScheduleVersion'];
 export type HeaderRetryAfter = components['headers']['RetryAfter'];
 export type HeaderWorkflowAuditId = components['headers']['WorkflowAuditID'];
 export type HeaderWorkflowETag = components['headers']['WorkflowETag'];
@@ -3765,6 +4028,36 @@ export interface operations {
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
+    readonly getIntegrationFreshness: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized integration freshness without internal artifact or worker authority. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["IntegrationFreshness"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
     readonly authorizeIntegrationReference: {
         readonly parameters: {
             readonly query?: never;
@@ -3808,6 +4101,233 @@ export interface operations {
             readonly 403: components["responses"]["ProductErrorResponse"];
             readonly 404: components["responses"]["ProductErrorResponse"];
             readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getIntegrationSchedule: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized singleton integration schedule. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["IntegrationSchedule"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly putIntegrationSchedule: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current schedule version, or quoted zero when creating the singleton schedule. */
+                readonly "If-Match": components["parameters"]["ScheduleVersion"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["IntegrationScheduleInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Integration schedule created, replaced, or exactly replayed. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly "X-Mutation-Receipt-ID": components["headers"]["WorkflowMutationReceiptID"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["IntegrationSchedule"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly deleteIntegrationSchedule: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Integration schedule deleted or exactly replayed. */
+            readonly 204: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly "X-Mutation-Receipt-ID": components["headers"]["WorkflowMutationReceiptID"];
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly syncIntegration: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["EmptyInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Durable integration sync accepted or exactly replayed. */
+            readonly 202: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly "X-Mutation-Receipt-ID": components["headers"]["WorkflowMutationReceiptID"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["IntegrationSync"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listIntegrationSyncs: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description Opaque cursor returned by the preceding page. */
+                readonly cursor?: components["parameters"]["PageCursor"];
+                /** @description Maximum number of records to return. */
+                readonly limit?: components["parameters"]["PageLimit"];
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized integration sync history. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["IntegrationSyncPage"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getIntegrationSync: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+                readonly syncId: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized integration sync. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["IntegrationSync"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
             readonly 503: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };

@@ -287,7 +287,44 @@ func newProductionTestServer(t *testing.T, database *persistentJSONDatabase) *ht
 }
 
 func fixtureCookiePolicy() CookiePolicy {
-	return CookiePolicy{Secure: true, WorkflowSigningKey: []byte("0123456789abcdef0123456789abcdef"), TokenRevealKey: []byte("0123456789abcdef0123456789abcdef"), Clock: func() time.Time { return time.Date(2026, 8, 18, 12, 0, 0, 0, time.UTC) }, DeploymentMode: "saas"}
+	return CookiePolicy{Secure: true, WorkflowSigningKey: []byte("0123456789abcdef0123456789abcdef"), TokenRevealKey: []byte("0123456789abcdef0123456789abcdef"), Clock: func() time.Time { return time.Date(2026, 8, 18, 12, 0, 0, 0, time.UTC) }, DeploymentMode: "saas", DiscoveryParserVersion: "parser-v1", DiscoveryToolVersion: "tool-v1"}
+}
+
+func TestProductionHandlersMountDiscoveryLifecycleAtV13(t *testing.T) {
+	integrationID := "pid_82000001-0000-4000-8000-000000000001"
+	now := "2026-08-19T00:00:00Z"
+	database := &discoveryCallDatabase{schema: DiscoveryExecutionSchemaVersion, responses: map[string]json.RawMessage{
+		postgresExecutionReadySQL:                json.RawMessage(`true`),
+		postgresDiscoveryPrincipalReadySQL:       json.RawMessage(`true`),
+		postgresExecutionPublicScheduleDetailSQL: json.RawMessage(`{"integration_id":"` + integrationID + `","cadence_seconds":3600,"state":"disabled","time_zone":"UTC","next_run_at":null,"version":2,"created_at":"` + now + `","updated_at":"` + now + `"}`),
+	}}
+	repository, err := NewPostgresRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handlers, _, err := NewProductionHandlers(repository, CallbackProviderFunc(func(context.Context, string, string) (SessionGrant, error) { return SessionGrant{}, nil }), http.NotFoundHandler(), fixtureCookiePolicy())
+	if err != nil {
+		t.Fatal(err)
+	}
+	composition, err := NewComposition(handlers)
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := fixtureRequestIdentity(t)
+	request := httptest.NewRequest(http.MethodGet, "https://app.zasp.test/api/v1/integrations/"+integrationID+"/schedule", nil)
+	request = request.WithContext(context.WithValue(request.Context(), identityContextKey{}, identity))
+	request.Header.Set(expectedScopeHeader, expectedScopeValue(identity.Scope))
+	response := httptest.NewRecorder()
+	composition.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || response.Header().Get("ETag") != `"2"` {
+		t.Fatalf("status=%d headers=%#v body=%s", response.Code, response.Header(), response.Body.String())
+	}
+
+	policy := fixtureCookiePolicy()
+	policy.DiscoveryParserVersion = ""
+	if _, _, err := NewProductionHandlers(repository, CallbackProviderFunc(func(context.Context, string, string) (SessionGrant, error) { return SessionGrant{}, nil }), http.NotFoundHandler(), policy); !errors.Is(err, ErrRepositoryConfiguration) {
+		t.Fatalf("missing parser version error=%v", err)
+	}
 }
 
 func TestDeploymentAuthenticatorPinsSingleTenantOrganization(t *testing.T) {
