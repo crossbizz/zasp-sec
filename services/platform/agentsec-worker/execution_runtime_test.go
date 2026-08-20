@@ -79,6 +79,18 @@ func TestDiscoveryProcessorRejectsForeignHydratedInputBeforeCollectorFactory(t *
 	}
 }
 
+func TestDiscoveryCollectionRequestUsesProjectionSafeSnapshotBounds(t *testing.T) {
+	scope := workerScope(t)
+	input := workerExecutionInput(scope, workerID(t, "pid_10000003-0000-4000-8000-000000000003").String())
+	request, ok := collectionRequest(scope, input)
+	if !ok {
+		t.Fatal("collectionRequest() rejected valid authority")
+	}
+	if request.Bounds.MaxItems != 1_000 {
+		t.Fatalf("MaxItems = %d, want projection-safe 1000", request.Bounds.MaxItems)
+	}
+}
+
 func TestDiscoveryProcessorNeverAppliesOrAcknowledgesPartialResult(t *testing.T) {
 	scope := workerScope(t)
 	jobID := workerID(t, "pid_10000003-0000-4000-8000-000000000003")
@@ -104,6 +116,27 @@ func TestDiscoveryProcessorNeverAppliesOrAcknowledgesPartialResult(t *testing.T)
 	}
 	if len(authority.finished.ResultDigest) != sha256.Size {
 		t.Fatalf("partial completion omitted checkpoint digest: %#v", authority.finished)
+	}
+}
+
+func TestDiscoveryProcessorPreservesTypedProviderRateLimitThroughDurableFinish(t *testing.T) {
+	t.Parallel()
+	scope := workerScope(t)
+	jobID := workerID(t, "pid_10000003-0000-4000-8000-000000000003")
+	input := workerExecutionInput(scope, jobID.String())
+	steps := []string{}
+	authority := &recordingDiscoveryAuthority{input: input, finishState: "retryable", steps: &steps}
+	queue := &recordingDiscoveryQueue{deliveries: []jobqueue.Delivery{{Job: jobqueue.Job{Scope: scope, JobID: jobID, Kind: "discovery", Payload: json.RawMessage(`{"version":1}`)}}}, steps: &steps}
+	failure, _ := collection.NewFailure(collection.FailureRateLimited, time.Now().UTC().Add(time.Minute))
+	processor, err := newDiscoveryProcessor(discoveryProcessorConfig{Authority: authority, Queue: queue, CollectorFactory: errorDiscoveryCollectorFactory{collector: &lifecycleJobCollector{err: failure}}, WorkerID: "discovery-01", LeaseSeconds: 30, BatchSize: 1, Now: time.Now, NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := processor.RunOnce(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if authority.finished.Outcome != "retryable" || authority.finished.LastErrorCode != string(collection.FailureRateLimited) || authority.finished.RetryAfterSeconds < 1 || authority.applied.JobID != "" {
+		t.Fatalf("typed finish/apply = %#v / %#v", authority.finished, authority.applied)
 	}
 }
 
@@ -477,7 +510,7 @@ func workerCollectionRequest(t *testing.T, input apiserver.ExecutionJobInput) co
 	if input.CursorProvider != nil {
 		cursor = collection.Cursor{Provider: *input.CursorProvider, Version: *input.CursorVersion, Value: *input.CursorValue}
 	}
-	return collection.Request{Scope: scope, IntegrationID: integration, ConnectionID: connection, JobID: job, Attempt: input.Attempt, Provider: input.Provider, CollectorVersion: input.CollectorVersion, CredentialClass: input.CredentialClass, CredentialReference: input.CredentialReference, ExpectedSubject: collection.SubjectBinding{Kind: input.SubjectKind, ID: input.SubjectID}, Cursor: cursor, ParserVersion: input.ParserVersion, ToolVersion: input.ToolVersion, Bounds: collection.Bounds{MaxPages: 100, MaxItems: 10000, MaxRawBytes: 64 << 20, Timeout: 20 * time.Second}}
+	return collection.Request{Scope: scope, IntegrationID: integration, ConnectionID: connection, JobID: job, Attempt: input.Attempt, Provider: input.Provider, CollectorVersion: input.CollectorVersion, CredentialClass: input.CredentialClass, CredentialReference: input.CredentialReference, ExpectedSubject: collection.SubjectBinding{Kind: input.SubjectKind, ID: input.SubjectID}, Cursor: cursor, ParserVersion: input.ParserVersion, ToolVersion: input.ToolVersion, Bounds: collection.Bounds{MaxPages: 100, MaxItems: 1000, MaxRawBytes: 64 << 20, Timeout: 20 * time.Second}}
 }
 
 func workerCompleteOutcome(t *testing.T, input apiserver.ExecutionJobInput) collection.CompleteResult {

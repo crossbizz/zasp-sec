@@ -20,8 +20,10 @@ import (
 )
 
 const (
-	projectionPageSize     = 500
-	projectionMaximumItems = 10_000
+	projectionPageSize             = 500
+	projectionMaximumEntities      = 1_000
+	projectionMaximumRelationships = 2_000
+	projectionMaximumEvidence      = 1_000
 )
 
 type projectionAuthority interface {
@@ -177,7 +179,7 @@ type projectionEvidence struct {
 }
 
 func decodeProjectionCandidate(candidate projectionCandidate, wantKind string) ([]projectionEntity, []projectionRelationship, bool) {
-	if candidate.Scope.Validate() != nil || candidate.Kind != wantKind || candidate.Generation < 1 || candidate.InputDigest == [sha256.Size]byte{} || len(candidate.Entities)+len(candidate.Relationships)+len(candidate.Evidence) > projectionMaximumItems {
+	if candidate.Scope.Validate() != nil || candidate.Kind != wantKind || candidate.Generation < 1 || candidate.InputDigest == [sha256.Size]byte{} || !validProjectionCounts(candidate) {
 		return nil, nil, false
 	}
 	entities := make([]projectionEntity, len(candidate.Entities))
@@ -252,6 +254,12 @@ func decodeProjectionCandidate(candidate projectionCandidate, wantKind string) (
 		}
 	}
 	return entities, relationships, true
+}
+
+func validProjectionCounts(candidate projectionCandidate) bool {
+	return len(candidate.Entities) <= projectionMaximumEntities &&
+		len(candidate.Relationships) <= projectionMaximumRelationships &&
+		len(candidate.Evidence) <= projectionMaximumEvidence
 }
 
 func decodeStrictProjection(raw json.RawMessage, destination any) bool {
@@ -371,17 +379,30 @@ func (processor *projectionProcessor) process(ctx context.Context, lease apiserv
 	if err == nil {
 		result, err = processor.config.Projector.Apply(workCtx, candidate)
 	}
+	if workCtx.Err() != nil {
+		cancel()
+		<-heartbeatDone
+		return errWorkerExecution
+	}
+	var finishErr error
+	if err != nil {
+		finishErr = processor.finishFailureBounded(workCtx, scope, lease, leaseToken, err)
+	} else if len(result.Receipt) < 16 || len(result.Receipt) > 512 || result.Digest == [sha256.Size]byte{} {
+		finishErr = errWorkerExecution
+	} else {
+		finishErr = processor.finishSuccessBounded(workCtx, scope, lease, leaseToken, result)
+	}
 	cancel()
 	if heartbeatErr := <-heartbeatDone; heartbeatErr != nil {
 		return errWorkerExecution
 	}
-	if err != nil {
-		return processor.finishFailure(ctx, scope, lease, leaseToken, err)
-	}
-	if len(result.Receipt) < 16 || len(result.Receipt) > 512 || result.Digest == [sha256.Size]byte{} {
-		return errWorkerExecution
-	}
-	completion, err := processor.config.Authority.FinishProjectionWork(ctx, scope, apiserver.ProjectionWorkCompletion{
+	return finishErr
+}
+
+func (processor *projectionProcessor) finishSuccessBounded(ctx context.Context, scope domain.Scope, lease apiserver.ProjectionWorkLease, leaseToken string, result projectionDriverResult) error {
+	finishCtx, cancel := context.WithTimeout(ctx, minDuration(time.Duration(processor.config.LeaseSeconds)*time.Second/3, 10*time.Second))
+	defer cancel()
+	completion, err := processor.config.Authority.FinishProjectionWork(finishCtx, scope, apiserver.ProjectionWorkCompletion{
 		SnapshotID: lease.SnapshotID, Kind: lease.Kind, Version: lease.Version, Worker: processor.config.WorkerID, LeaseToken: leaseToken,
 		Outcome: "succeeded", DriverReceipt: result.Receipt, DriverDigest: result.Digest[:],
 	})
@@ -389,6 +410,12 @@ func (processor *projectionProcessor) process(ctx context.Context, lease apiserv
 		return errWorkerExecution
 	}
 	return nil
+}
+
+func (processor *projectionProcessor) finishFailureBounded(ctx context.Context, scope domain.Scope, lease apiserver.ProjectionWorkLease, leaseToken string, cause error) error {
+	finishCtx, cancel := context.WithTimeout(ctx, minDuration(time.Duration(processor.config.LeaseSeconds)*time.Second/3, 10*time.Second))
+	defer cancel()
+	return processor.finishFailure(finishCtx, scope, lease, leaseToken, cause)
 }
 
 func (processor *projectionProcessor) heartbeat(ctx context.Context, scope domain.Scope, lease apiserver.ProjectionWorkLease, leaseToken string) error {
@@ -433,7 +460,7 @@ func (processor *projectionProcessor) loadCandidate(ctx context.Context, scope d
 			case "evidence":
 				candidate.Evidence = append(candidate.Evidence, cloneRawMessages(page.Items)...)
 			}
-			if len(candidate.Entities)+len(candidate.Relationships)+len(candidate.Evidence) > projectionMaximumItems {
+			if !validProjectionCounts(candidate) {
 				return projectionCandidate{}, errWorkerExecution
 			}
 			if page.NextID == nil {

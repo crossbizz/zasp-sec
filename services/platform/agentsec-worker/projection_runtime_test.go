@@ -84,6 +84,70 @@ func TestProjectionProcessorRenewsLeaseDuringSlowDriverAndCancelsOnLeaseLoss(t *
 	}
 }
 
+func TestProjectionProcessorKeepsLeaseAliveUntilDurableCompletion(t *testing.T) {
+	t.Parallel()
+	scope := projectionTestScope(t)
+	digest := sha256.Sum256([]byte("candidate"))
+	finishStarted := make(chan struct{})
+	allowFinish := make(chan struct{})
+	authority := &projectionAuthorityStub{
+		leases: []apiserver.ProjectionWorkLease{{
+			OrganizationID: scope.OrganizationID().String(), WorkspaceID: scope.WorkspaceID().String(), EnvironmentID: scope.EnvironmentID().String(),
+			SnapshotID: projectionID(4), Kind: "search", Version: "projection-v1", InputDigest: digest[:], Attempt: 1, LeaseExpiresAt: time.Now().UTC().Add(time.Minute),
+		}},
+		pages: projectionPages(t, scope, digest), finishStarted: finishStarted, allowFinish: allowFinish,
+	}
+	projector := &projectionProjectorStub{result: projectionDriverResult{Receipt: "opensearch:durable:receipt-0001", Digest: sha256.Sum256([]byte("driver-result"))}}
+	processor, err := newProjectionProcessor(projectionProcessorConfig{
+		Authority: authority, Projector: projector, Kind: "search", WorkerID: "projection-search-01", LeaseSeconds: 30, BatchSize: 1,
+		HeartbeatInterval: 10 * time.Millisecond, NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := make(chan error, 1)
+	go func() { result <- processor.RunOnce(context.Background()) }()
+	select {
+	case <-finishStarted:
+	case <-time.After(time.Second):
+		t.Fatal("durable completion did not start")
+	}
+	deadline := time.Now().Add(time.Second)
+	for authority.heartbeatCount() == 0 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if authority.heartbeatCount() == 0 {
+		t.Fatal("lease heartbeat stopped before durable completion")
+	}
+	close(allowFinish)
+	if err := <-result; err != nil {
+		t.Fatalf("RunOnce() error = %v", err)
+	}
+}
+
+func TestProjectionCandidateBoundsMatchProductionCollectionBounds(t *testing.T) {
+	t.Parallel()
+	scope := projectionTestScope(t)
+	digest := sha256.Sum256([]byte("candidate"))
+	base := projectionCandidate{Scope: scope, Kind: "search", Generation: 1, InputDigest: digest}
+
+	tooManyEntities := base
+	tooManyEntities.Entities = make([]json.RawMessage, 1_001)
+	if validProjectionCounts(tooManyEntities) {
+		t.Fatal("accepted more entities than the production collector can project")
+	}
+	tooManyRelationships := base
+	tooManyRelationships.Relationships = make([]json.RawMessage, 2_001)
+	if validProjectionCounts(tooManyRelationships) {
+		t.Fatal("accepted more relationships than the production collector can project")
+	}
+	tooMuchEvidence := base
+	tooMuchEvidence.Evidence = make([]json.RawMessage, 1_001)
+	if validProjectionCounts(tooMuchEvidence) {
+		t.Fatal("accepted more evidence than the production collector can project")
+	}
+}
+
 func TestProjectionProcessorDoesNotConstructRiskWorker(t *testing.T) {
 	t.Parallel()
 	if _, err := newProjectionProcessor(projectionProcessorConfig{Kind: "risk"}); !errors.Is(err, errWorkerExecution) {
@@ -180,6 +244,8 @@ type projectionAuthorityStub struct {
 	pages                  map[string]apiserver.SnapshotProjectionPage
 	heartbeatErr           error
 	pageErr                error
+	finishStarted          chan struct{}
+	allowFinish            chan struct{}
 	claimKind, claimWorker string
 	claimLimit, heartbeats int
 	finished               []apiserver.ProjectionWorkCompletion
@@ -213,10 +279,25 @@ func (stub *projectionAuthorityStub) HeartbeatProjectionWork(_ context.Context, 
 }
 
 func (stub *projectionAuthorityStub) FinishProjectionWork(_ context.Context, _ domain.Scope, input apiserver.ProjectionWorkCompletion) (apiserver.WorkCompletionResult, error) {
+	if stub.finishStarted != nil {
+		select {
+		case stub.finishStarted <- struct{}{}:
+		default:
+		}
+	}
+	if stub.allowFinish != nil {
+		<-stub.allowFinish
+	}
 	stub.mu.Lock()
 	defer stub.mu.Unlock()
 	stub.finished = append(stub.finished, input)
 	return apiserver.WorkCompletionResult{SnapshotID: input.SnapshotID, Kind: input.Kind, State: input.Outcome, Attempt: 1}, nil
+}
+
+func (stub *projectionAuthorityStub) heartbeatCount() int {
+	stub.mu.Lock()
+	defer stub.mu.Unlock()
+	return stub.heartbeats
 }
 
 type projectionProjectorStub struct {

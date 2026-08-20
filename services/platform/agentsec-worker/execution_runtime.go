@@ -343,6 +343,6 @@ func collectionRequest(scope domain.Scope, input apiserver.ExecutionJobInput) (c
 		}
 		cursor = collection.Cursor{Provider: *input.CursorProvider, Version: *input.CursorVersion, Value: *input.CursorValue}
 	}
-	request := collection.Request{Scope: scope, IntegrationID: integration, ConnectionID: connection, JobID: job, Attempt: input.Attempt, Provider: input.Provider, CollectorVersion: input.CollectorVersion, CredentialClass: input.CredentialClass, CredentialReference: input.CredentialReference, ExpectedSubject: collection.SubjectBinding{Kind: input.SubjectKind, ID: input.SubjectID}, Cursor: cursor, ParserVersion: input.ParserVersion, ToolVersion: input.ToolVersion, Bounds: collection.Bounds{MaxPages: 100, MaxItems: 10000, MaxRawBytes: 64 << 20, Timeout: 10 * time.Minute}}
+	request := collection.Request{Scope: scope, IntegrationID: integration, ConnectionID: connection, JobID: job, Attempt: input.Attempt, Provider: input.Provider, CollectorVersion: input.CollectorVersion, CredentialClass: input.CredentialClass, CredentialReference: input.CredentialReference, ExpectedSubject: collection.SubjectBinding{Kind: input.SubjectKind, ID: input.SubjectID}, Cursor: cursor, ParserVersion: input.ParserVersion, ToolVersion: input.ToolVersion, Bounds: collection.Bounds{MaxPages: 100, MaxItems: projectionMaximumEntities, MaxRawBytes: 64 << 20, Timeout: 10 * time.Minute}}
 	return request, request.Validate() == nil
 }
