@@ -29,19 +29,31 @@ locals {
     projection_risk     = var.database_principals.projection_risk
     projection_graph    = var.database_principals.projection_graph
     projection_search   = var.database_principals.projection_search
+    runtime_coordinator = var.database_principals.runtime_coordinator
+    runtime_archive     = var.database_principals.runtime_archive
+    runtime_index       = var.database_principals.runtime_index
+    runtime_correlation = var.database_principals.runtime_correlation
+    runtime_projection  = var.database_principals.runtime_projection
+    gateway_control     = var.database_principals.gateway_control
   }
   postgres_secret_principals = {
-    postgres-api-dsn               = local.database_principals.api
-    postgres-worker-dsn            = local.database_principals.discovery_worker
-    postgres-migration-dsn         = local.database_principals.migration
-    postgres-runtime-ingest-dsn    = local.database_principals.runtime_ingest
-    postgres-runtime-worker-dsn    = local.database_principals.runtime_worker
-    postgres-outbox-worker-dsn     = local.database_principals.outbox_worker
-    postgres-runtime-gateway-dsn   = local.database_principals.runtime_gateway
-    postgres-scheduler-dsn         = local.database_principals.discovery_scheduler
-    postgres-projection-risk-dsn   = local.database_principals.projection_risk
-    postgres-projection-graph-dsn  = local.database_principals.projection_graph
-    postgres-projection-search-dsn = local.database_principals.projection_search
+    postgres-api-dsn                 = local.database_principals.api
+    postgres-worker-dsn              = local.database_principals.discovery_worker
+    postgres-migration-dsn           = local.database_principals.migration
+    postgres-runtime-ingest-dsn      = local.database_principals.runtime_ingest
+    postgres-runtime-worker-dsn      = local.database_principals.runtime_worker
+    postgres-outbox-worker-dsn       = local.database_principals.outbox_worker
+    postgres-runtime-gateway-dsn     = local.database_principals.runtime_gateway
+    postgres-scheduler-dsn           = local.database_principals.discovery_scheduler
+    postgres-projection-risk-dsn     = local.database_principals.projection_risk
+    postgres-projection-graph-dsn    = local.database_principals.projection_graph
+    postgres-projection-search-dsn   = local.database_principals.projection_search
+    postgres-runtime-coordinator-dsn = local.database_principals.runtime_coordinator
+    postgres-runtime-archive-dsn     = local.database_principals.runtime_archive
+    postgres-runtime-index-dsn       = local.database_principals.runtime_index
+    postgres-runtime-correlation-dsn = local.database_principals.runtime_correlation
+    postgres-runtime-projection-dsn  = local.database_principals.runtime_projection
+    postgres-gateway-control-dsn     = local.database_principals.gateway_control
   }
   api_secret_names = toset([
     "postgres-api-dsn",
@@ -57,6 +69,17 @@ locals {
     "discovery-jobs" = { visibility = 30, schema = "agentsec.discovery-jobs.v1" }
     runtime-events   = { visibility = 120, schema = "agentsec.runtime-events.v1" }
     tests            = { visibility = 900, schema = "agentsec.tests.v1" }
+  }
+  runtime_irsa_contract = {
+    ingest          = { role_name = "runtime-ingest", principal = "system:serviceaccount:agentsec:zasp-runtime-ingest", database_secret = "postgres-runtime-ingest-dsn" }
+    gateway_control = { role_name = "gateway-control", principal = "system:serviceaccount:agentsec:zasp-gateway-control", database_secret = "postgres-gateway-control-dsn" }
+    outbox          = { role_name = "runtime-outbox", principal = "system:serviceaccount:agentsec:zasp-runtime-outbox", database_secret = "postgres-outbox-worker-dsn" }
+    coordinator     = { role_name = "runtime-coordinator", principal = "system:serviceaccount:agentsec:zasp-runtime-coordinator", database_secret = "postgres-runtime-coordinator-dsn" }
+    archive         = { role_name = "runtime-archive", principal = "system:serviceaccount:agentsec:zasp-runtime-archive", database_secret = "postgres-runtime-archive-dsn" }
+    index           = { role_name = "runtime-index", principal = "system:serviceaccount:agentsec:zasp-runtime-index", database_secret = "postgres-runtime-index-dsn" }
+    correlation     = { role_name = "runtime-correlation", principal = "system:serviceaccount:agentsec:zasp-runtime-correlation", database_secret = "postgres-runtime-correlation-dsn" }
+    projection      = { role_name = "runtime-projection", principal = "system:serviceaccount:agentsec:zasp-runtime-projection", database_secret = "postgres-runtime-projection-dsn" }
+    complete        = { role_name = "runtime-complete", principal = "system:serviceaccount:agentsec:zasp-runtime-complete", database_secret = "postgres-runtime-coordinator-dsn" }
   }
   connector_secret_root   = "${var.cluster_name}/connectors"
   connector_secret_prefix = "${local.connector_secret_root}/oauth"
@@ -93,8 +116,9 @@ locals {
       credential_class = "kubernetes_credential_reference"
     }
   }
-  bucket_name = "zasp-product-data-${md5(var.account_id)}"
-  partition   = startswith(var.region, "cn-") ? "aws-cn" : startswith(var.region, "us-gov-") ? "aws-us-gov" : "aws"
+  bucket_name             = "zasp-product-data-${md5(var.account_id)}"
+  runtime_raw_bucket_name = "zasp-runtime-raw-${md5(var.account_id)}"
+  partition               = startswith(var.region, "cn-") ? "aws-cn" : startswith(var.region, "us-gov-") ? "aws-us-gov" : "aws"
 }
 
 resource "aws_vpc" "staging" {
@@ -217,6 +241,17 @@ resource "aws_kms_alias" "connector_oauth" {
   target_key_id = aws_kms_key.connector_oauth.key_id
 }
 
+resource "aws_kms_key" "runtime_raw" {
+  description             = "ZASP immutable runtime raw objects and stage receipts"
+  deletion_window_in_days = 30
+  enable_key_rotation     = true
+}
+
+resource "aws_kms_alias" "runtime_raw" {
+  name          = "alias/${var.cluster_name}-runtime-raw"
+  target_key_id = aws_kms_key.runtime_raw.key_id
+}
+
 resource "aws_s3_bucket" "evidence" {
   bucket = local.bucket_name
 }
@@ -256,6 +291,83 @@ resource "aws_s3_bucket_lifecycle_configuration" "evidence" {
   }
 }
 
+resource "aws_s3_bucket" "runtime_raw" {
+  bucket = local.runtime_raw_bucket_name
+}
+
+resource "aws_s3_bucket_ownership_controls" "runtime_raw" {
+  bucket = aws_s3_bucket.runtime_raw.id
+  rule { object_ownership = "BucketOwnerEnforced" }
+}
+
+resource "aws_s3_bucket_public_access_block" "runtime_raw" {
+  bucket                  = aws_s3_bucket.runtime_raw.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_versioning" "runtime_raw" {
+  bucket = aws_s3_bucket.runtime_raw.id
+  versioning_configuration { status = "Enabled" }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "runtime_raw" {
+  bucket = aws_s3_bucket.runtime_raw.id
+  rule {
+    bucket_key_enabled = true
+    apply_server_side_encryption_by_default {
+      kms_master_key_id = aws_kms_key.runtime_raw.arn
+      sse_algorithm     = "aws:kms"
+    }
+  }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "runtime_raw" {
+  bucket = aws_s3_bucket.runtime_raw.id
+  rule {
+    id     = "runtime-version-retention"
+    status = "Enabled"
+    filter { prefix = "runtime/v15/" }
+    noncurrent_version_expiration { noncurrent_days = var.evidence_retention_days }
+    abort_incomplete_multipart_upload { days_after_initiation = 7 }
+  }
+}
+
+resource "aws_s3_bucket_policy" "runtime_raw" {
+  bucket = aws_s3_bucket.runtime_raw.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "DenyInsecureTransport"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "s3:*"
+        Resource  = [aws_s3_bucket.runtime_raw.arn, "${aws_s3_bucket.runtime_raw.arn}/*"]
+        Condition = { Bool = { "aws:SecureTransport" = "false" } }
+      },
+      {
+        Sid       = "DenyUnencryptedRuntimeWrites"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "s3:PutObject"
+        Resource  = "${aws_s3_bucket.runtime_raw.arn}/runtime/v15/*"
+        Condition = { StringNotEquals = { "s3:x-amz-server-side-encryption" = "aws:kms" } }
+      },
+      {
+        Sid       = "DenyWrongRuntimeKey"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "s3:PutObject"
+        Resource  = "${aws_s3_bucket.runtime_raw.arn}/runtime/v15/*"
+        Condition = { ArnNotEquals = { "s3:x-amz-server-side-encryption-aws-kms-key-id" = aws_kms_key.runtime_raw.arn } }
+      },
+    ]
+  })
+}
+
 resource "aws_secretsmanager_secret" "product" {
   for_each = toset([
     "postgres-api-dsn",
@@ -269,6 +381,12 @@ resource "aws_secretsmanager_secret" "product" {
     "postgres-projection-risk-dsn",
     "postgres-projection-graph-dsn",
     "postgres-projection-search-dsn",
+    "postgres-runtime-coordinator-dsn",
+    "postgres-runtime-archive-dsn",
+    "postgres-runtime-index-dsn",
+    "postgres-runtime-correlation-dsn",
+    "postgres-runtime-projection-dsn",
+    "postgres-gateway-control-dsn",
     "stytch-project-id",
     "stytch-secret",
     "stytch-public-token",
@@ -407,6 +525,109 @@ resource "aws_iam_openid_connect_provider" "eks" {
   url             = aws_eks_cluster.staging.identity[0].oidc[0].issuer
   client_id_list  = ["sts.amazonaws.com"]
   thumbprint_list = [data.tls_certificate.eks.certificates[0].sha1_fingerprint]
+}
+
+resource "aws_iam_role" "runtime" {
+  for_each = local.runtime_irsa_contract
+
+  name = "${var.cluster_name}-${each.value.role_name}"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Federated = aws_iam_openid_connect_provider.eks.arn }
+      Action    = "sts:AssumeRoleWithWebIdentity"
+      Condition = {
+        StringEquals = {
+          "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:aud" = "sts.amazonaws.com"
+          "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub" = each.value.principal
+        }
+      }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "runtime" {
+  for_each = local.runtime_irsa_contract
+  name     = "${var.cluster_name}-${each.value.role_name}-exact"
+  role     = aws_iam_role.runtime[each.key].id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [for statement in compact([
+      jsonencode({
+        Effect   = "Allow"
+        Action   = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"]
+        Resource = aws_secretsmanager_secret.product[each.value.database_secret].arn
+      }),
+      jsonencode({
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt"]
+        Resource = aws_kms_key.staging.arn
+        Condition = {
+          StringEquals = { "kms:ViaService" = "secretsmanager.${var.region}.amazonaws.com" }
+          StringLike   = { "kms:EncryptionContext:SecretARN" = aws_secretsmanager_secret.product[each.value.database_secret].arn }
+        }
+      }),
+      each.key == "gateway_control" ? null : jsonencode({ Effect = "Allow", Action = ["sts:GetCallerIdentity"], Resource = "*" }),
+      each.key == "outbox" ? jsonencode({
+        Effect   = "Allow"
+        Action   = ["sqs:SendMessage", "sqs:GetQueueAttributes"]
+        Resource = aws_sqs_queue.work["runtime-events"].arn
+      }) : null,
+      each.key == "outbox" ? jsonencode({
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey"]
+        Resource = aws_kms_key.staging.arn
+        Condition = { StringEquals = {
+          "kms:ViaService"                    = "sqs.${var.region}.amazonaws.com"
+          "kms:EncryptionContext:aws:sqs:arn" = aws_sqs_queue.work["runtime-events"].arn
+        } }
+      }) : null,
+      each.key == "coordinator" ? jsonencode({
+        Effect   = "Allow"
+        Action   = ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:ChangeMessageVisibility", "sqs:GetQueueAttributes"]
+        Resource = aws_sqs_queue.work["runtime-events"].arn
+      }) : null,
+      each.key == "coordinator" ? jsonencode({
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt"]
+        Resource = aws_kms_key.staging.arn
+        Condition = { StringEquals = {
+          "kms:ViaService"                    = "sqs.${var.region}.amazonaws.com"
+          "kms:EncryptionContext:aws:sqs:arn" = aws_sqs_queue.work["runtime-events"].arn
+        } }
+      }) : null,
+      contains(["ingest", "archive", "index", "correlation", "projection", "complete"], each.key) ? jsonencode({
+        Effect   = "Allow"
+        Action   = ["s3:ListBucket", "s3:GetBucketVersioning", "s3:GetEncryptionConfiguration"]
+        Resource = aws_s3_bucket.runtime_raw.arn
+      }) : null,
+      contains(["ingest", "archive", "index", "correlation", "projection", "complete"], each.key) ? jsonencode({
+        Effect   = "Allow"
+        Action   = compact(["s3:GetObject", each.key == "archive" ? null : "s3:PutObject"])
+        Resource = "${aws_s3_bucket.runtime_raw.arn}/runtime/v15/*"
+      }) : null,
+      contains(["ingest", "archive", "index", "correlation", "projection", "complete"], each.key) ? jsonencode({
+        Effect   = "Allow"
+        Action   = compact(["kms:Decrypt", each.key == "archive" ? null : "kms:GenerateDataKey"])
+        Resource = aws_kms_key.runtime_raw.arn
+        Condition = {
+          StringEquals = { "kms:ViaService" = "s3.${var.region}.amazonaws.com" }
+          StringLike   = { "kms:EncryptionContext:aws:s3:arn" = "${aws_s3_bucket.runtime_raw.arn}/*" }
+        }
+      }) : null,
+      contains(["ingest", "archive", "index", "correlation", "projection", "complete"], each.key) ? jsonencode({
+        Effect   = "Allow"
+        Action   = ["kms:DescribeKey"]
+        Resource = aws_kms_key.runtime_raw.arn
+      }) : null,
+      each.key == "index" ? jsonencode({
+        Effect   = "Allow"
+        Action   = ["es:ESHttpGet", "es:ESHttpPost", "es:ESHttpPut"]
+        Resource = "${aws_opensearch_domain.events.arn}/zasp-runtime-events-v1/*"
+      }) : null,
+    ]) : jsondecode(statement)]
+  })
 }
 
 resource "aws_iam_role" "api" {

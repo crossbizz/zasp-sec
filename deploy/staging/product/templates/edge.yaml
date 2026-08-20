@@ -1,3 +1,151 @@
 {{- if eq .Values.profile "customer_edge" }}
-{{- fail "customer_edge is not shipped: publish the exact executable image, entrypoint, security review, and deployed proof before enabling this profile" }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: { name: runtime-gateway, labels: { app.kubernetes.io/name: runtime-gateway, app.kubernetes.io/part-of: zasp } }
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: { name: runtime-gateway-cache, labels: { app.kubernetes.io/name: runtime-gateway, app.kubernetes.io/part-of: zasp } }
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: {{ required "runtimeGateway.policyCache.storageClassName is required" .Values.runtimeGateway.policyCache.storageClassName | quote }}
+  resources: { requests: { storage: 1Gi } }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: runtime-gateway, labels: { app.kubernetes.io/name: runtime-gateway, app.kubernetes.io/part-of: zasp } }
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  progressDeadlineSeconds: 600
+  strategy: { type: Recreate }
+  selector: { matchLabels: { app.kubernetes.io/name: runtime-gateway } }
+  template:
+    metadata: { labels: { app.kubernetes.io/name: runtime-gateway, app.kubernetes.io/part-of: zasp } }
+    spec:
+      serviceAccountName: runtime-gateway
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 30
+      securityContext: { runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532, fsGroup: 65532, seccompProfile: { type: RuntimeDefault } }
+      initContainers:
+        - name: materialize-config
+          image: {{ required "global.productImages.runtimeGateway must be an immutable digest" .Values.global.productImages.runtimeGateway | quote }}
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args:
+            - cp /source/credential/credential.json /config/credential.json; cp /source/policy/policy-keys.json /config/policy-keys.json; chmod 600 /config/credential.json /config/policy-keys.json
+          resources: { requests: { cpu: 10m, memory: 16Mi }, limits: { cpu: 100m, memory: 32Mi } }
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
+          volumeMounts:
+            - { name: credential-source, mountPath: /source/credential, readOnly: true }
+            - { name: policy-keys-source, mountPath: /source/policy, readOnly: true }
+            - { name: config, mountPath: /config }
+      containers:
+        - name: runtime-gateway
+          image: {{ required "global.productImages.runtimeGateway must be an immutable digest" .Values.global.productImages.runtimeGateway | quote }}
+          imagePullPolicy: IfNotPresent
+          ports: [{ name: product, containerPort: 8080, protocol: TCP }, { name: internal, containerPort: 8081, protocol: TCP }]
+          startupProbe: { httpGet: { path: /healthz, port: 8081 }, failureThreshold: 30, periodSeconds: 2, timeoutSeconds: 1 }
+          readinessProbe: { httpGet: { path: /readyz, port: 8081 }, failureThreshold: 3, periodSeconds: 5, timeoutSeconds: 2 }
+          livenessProbe: { httpGet: { path: /healthz, port: 8081 }, failureThreshold: 3, periodSeconds: 10, timeoutSeconds: 2 }
+          lifecycle: { preStop: { exec: { command: ["/bin/sh", "-c", "sleep 10"] } } }
+          resources: { requests: { cpu: 100m, memory: 128Mi, ephemeral-storage: 32Mi }, limits: { cpu: "1", memory: 512Mi, ephemeral-storage: 128Mi } }
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
+          env:
+            - { name: ZASP_GATEWAY_CONTROL_BASE_URL, value: {{ required "runtimeGateway.controlPlaneURL is required" .Values.runtimeGateway.controlPlaneURL | quote }} }
+            - { name: ZASP_GATEWAY_ORGANIZATION_ID, value: {{ required "runtimeGateway.organizationID is required" .Values.runtimeGateway.organizationID | quote }} }
+            - { name: ZASP_GATEWAY_WORKSPACE_ID, value: {{ required "runtimeGateway.workspaceID is required" .Values.runtimeGateway.workspaceID | quote }} }
+            - { name: ZASP_GATEWAY_ENVIRONMENT_ID, value: {{ required "runtimeGateway.environmentID is required" .Values.runtimeGateway.environmentID | quote }} }
+            - { name: ZASP_GATEWAY_DEVICE_ID, value: {{ required "runtimeGateway.deviceID is required" .Values.runtimeGateway.deviceID | quote }} }
+            - { name: ZASP_GATEWAY_CREDENTIAL_ID, value: {{ required "runtimeGateway.credentialID is required" .Values.runtimeGateway.credentialID | quote }} }
+            - { name: ZASP_GATEWAY_PRIVATE_KEY_FILE, value: /var/run/secrets/zasp-config/credential.json }
+            - { name: ZASP_GATEWAY_POLICY_KEYS_FILE, value: /var/run/secrets/zasp-config/policy-keys.json }
+            - { name: ZASP_GATEWAY_POLICY_CACHE_FILE, value: /var/lib/zasp/policy/cache.json }
+            - { name: ZASP_GATEWAY_BOOTSTRAP_FAILURE_MODE, value: closed }
+            - { name: ZASP_GATEWAY_MAX_REQUEST_BYTES, value: "65536" }
+            - { name: ZASP_GATEWAY_MAX_PENDING_EVENTS, value: "1024" }
+            - { name: ZASP_GATEWAY_OPERATION_TIMEOUT, value: "10s" }
+            - { name: ZASP_GATEWAY_SYNC_INTERVAL, value: "30s" }
+            - { name: ZASP_GATEWAY_SHUTDOWN_TIMEOUT, value: "15s" }
+          volumeMounts:
+            - { name: config, mountPath: /var/run/secrets/zasp-config, readOnly: true }
+            - { name: policy-cache, mountPath: /var/lib/zasp/policy }
+      volumes:
+        - name: credential-source
+          secret: { secretName: {{ required "runtimeGateway.credentialSecretName is required" .Values.runtimeGateway.credentialSecretName | quote }}, defaultMode: 288 }
+        - name: policy-keys-source
+          secret: { secretName: {{ required "runtimeGateway.policyKeysSecretName is required" .Values.runtimeGateway.policyKeysSecretName | quote }}, defaultMode: 288 }
+        - name: config
+          emptyDir: { sizeLimit: 1Mi }
+        - name: policy-cache
+          persistentVolumeClaim: { claimName: runtime-gateway-cache }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: runtime-gateway, labels: { app.kubernetes.io/name: runtime-gateway, app.kubernetes.io/part-of: zasp } }
+spec:
+  type: ClusterIP
+  selector: { app.kubernetes.io/name: runtime-gateway }
+  ports: [{ name: product, port: 8080, targetPort: product, protocol: TCP }, { name: internal, port: 8081, targetPort: internal, protocol: TCP }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: default-deny, labels: { app.kubernetes.io/part-of: zasp } }
+spec: { podSelector: {}, policyTypes: [Ingress, Egress] }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: dns-egress, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: runtime-gateway } }
+  policyTypes: [Egress]
+  egress:
+    - to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } } }]
+      ports: [{ protocol: UDP, port: 53 }, { protocol: TCP, port: 53 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: runtime-gateway-control-plane, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: runtime-gateway } }
+  policyTypes: [Egress]
+  egress:
+    - to:
+      {{- range $cidr := required "network.controlPlaneCIDRs is required" .Values.network.controlPlaneCIDRs }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
+      ports: [{ protocol: TCP, port: 443 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: runtime-gateway-monitoring, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: runtime-gateway } }
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .Values.monitoring.namespace }} } } }]
+      ports: [{ protocol: TCP, port: 8081 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: runtime-gateway-local-clients, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: runtime-gateway } }
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{ podSelector: {} }]
+      ports: [{ protocol: TCP, port: 8080 }]
+{{- if .Values.monitoring.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata: { name: runtime-gateway, labels: { app.kubernetes.io/name: runtime-gateway, app.kubernetes.io/part-of: zasp } }
+spec:
+  selector: { matchLabels: { app.kubernetes.io/name: runtime-gateway, app.kubernetes.io/part-of: zasp } }
+  namespaceSelector: { matchNames: [{{ .Release.Namespace | quote }}] }
+  endpoints: [{ port: internal, path: /metrics, interval: 30s, scrapeTimeout: 5s }]
+{{- end }}
 {{- end }}

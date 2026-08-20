@@ -1,0 +1,316 @@
+{{- if ne .Values.profile "customer_edge" }}
+{{- $root := . }}
+{{- range $account := list
+      (dict "key" "runtimeIngest" "role" true)
+      (dict "key" "gatewayControl" "role" true)
+      (dict "key" "runtimeOutbox" "role" true)
+      (dict "key" "runtimeCoordinator" "role" true)
+      (dict "key" "runtimeArchive" "role" true)
+      (dict "key" "runtimeIndex" "role" true)
+      (dict "key" "runtimeCorrelation" "role" true)
+      (dict "key" "runtimeProjection" "role" true)
+      (dict "key" "runtimeComplete" "role" true) }}
+{{- $serviceAccount := index $root.Values.serviceAccounts $account.key }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $serviceAccount.name }}
+  labels: { app.kubernetes.io/part-of: zasp }
+  {{- if $account.role }}
+  annotations:
+    eks.amazonaws.com/role-arn: {{ required (printf "serviceAccounts.%s.roleArn is required" $account.key) $serviceAccount.roleArn | quote }}
+  {{- end }}
+automountServiceAccountToken: false
+{{- end }}
+{{- range $secret := list
+      (dict "name" "zasp-production-runtime-ingest-secrets" "providerKey" "runtimeIngestProviderClassName" "objectKey" "runtimeIngestPostgresDSNObjectName")
+      (dict "name" "zasp-production-runtime-coordinator-secrets" "providerKey" "runtimeCoordinatorProviderClassName" "objectKey" "runtimeCoordinatorPostgresDSNObjectName")
+      (dict "name" "zasp-production-runtime-archive-secrets" "providerKey" "runtimeArchiveProviderClassName" "objectKey" "runtimeArchivePostgresDSNObjectName")
+      (dict "name" "zasp-production-runtime-index-secrets" "providerKey" "runtimeIndexProviderClassName" "objectKey" "runtimeIndexPostgresDSNObjectName")
+      (dict "name" "zasp-production-runtime-correlation-secrets" "providerKey" "runtimeCorrelationProviderClassName" "objectKey" "runtimeCorrelationPostgresDSNObjectName")
+      (dict "name" "zasp-production-runtime-projection-secrets" "providerKey" "runtimeProjectionProviderClassName" "objectKey" "runtimeProjectionPostgresDSNObjectName")
+      (dict "name" "zasp-production-gateway-control-secrets" "providerKey" "gatewayControlProviderClassName" "objectKey" "gatewayControlPostgresDSNObjectName") }}
+---
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata: { name: {{ index $root.Values.secrets $secret.providerKey }}, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  provider: aws
+  parameters:
+    region: {{ $root.Values.secrets.region | quote }}
+    objects: |
+      - objectName: {{ required (printf "secrets.%s is required" $secret.objectKey) (index $root.Values.secrets $secret.objectKey) | quote }}
+        objectType: secretsmanager
+        objectAlias: postgres-dsn
+{{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: agentsec-event-ingest, labels: { app.kubernetes.io/name: agentsec-event-ingest, app.kubernetes.io/part-of: zasp } }
+spec:
+  replicas: {{ .Values.replicas.runtimeIngest }}
+  revisionHistoryLimit: 3
+  progressDeadlineSeconds: 600
+  strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 1, maxUnavailable: 0 } }
+  selector: { matchLabels: { app.kubernetes.io/name: agentsec-event-ingest } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: agentsec-event-ingest, app.kubernetes.io/part-of: zasp }
+      annotations: { zasp.io/schema-version: {{ .Values.schema.expectedVersion | quote }} }
+    spec:
+      serviceAccountName: {{ .Values.serviceAccounts.runtimeIngest.name }}
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: {{ .Values.global.terminationGracePeriodSeconds }}
+      securityContext: { runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532, fsGroup: 65532, seccompProfile: { type: RuntimeDefault } }
+      topologySpreadConstraints:
+        - { maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: { matchLabels: { app.kubernetes.io/name: agentsec-event-ingest } } }
+        - { maxSkew: 1, topologyKey: kubernetes.io/hostname, whenUnsatisfiable: ScheduleAnyway, labelSelector: { matchLabels: { app.kubernetes.io/name: agentsec-event-ingest } } }
+      containers:
+        - name: event-ingest
+          image: {{ required "global.productImages.eventIngest must be an immutable digest" .Values.global.productImages.eventIngest | quote }}
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args: ['export ZASP_DATABASE_URL="$(cat /var/run/secrets/zasp-runtime-ingest/postgres-dsn)"; exec /app/event-ingest']
+          ports: [{ name: product, containerPort: 8080, protocol: TCP }, { name: internal, containerPort: 8081, protocol: TCP }]
+          startupProbe: { httpGet: { path: /healthz, port: 8081 }, failureThreshold: 30, periodSeconds: 2, timeoutSeconds: 1 }
+          readinessProbe: { httpGet: { path: /readyz, port: 8081 }, failureThreshold: 3, periodSeconds: 5, timeoutSeconds: 2 }
+          livenessProbe: { httpGet: { path: /healthz, port: 8081 }, failureThreshold: 3, periodSeconds: 10, timeoutSeconds: 2 }
+          lifecycle: { preStop: { exec: { command: ["/bin/sh", "-c", "sleep 10"] } } }
+          resources: { requests: { cpu: 100m, memory: 128Mi, ephemeral-storage: 64Mi }, limits: { cpu: "1", memory: 512Mi, ephemeral-storage: 256Mi } }
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
+          env:
+            - { name: ZASP_AWS_REGION, value: {{ required "runtime.awsRegion is required" .Values.runtime.awsRegion | quote }} }
+            - { name: ZASP_EVENT_INGEST_ROLE_ARN, value: {{ required "runtime.eventIngestRoleArn is required" .Values.runtime.eventIngestRoleArn | quote }} }
+            - { name: ZASP_EVENT_INGEST_WEB_IDENTITY_TOKEN_FILE, value: {{ required "runtime.webIdentityTokenFile is required" .Values.runtime.webIdentityTokenFile | quote }} }
+            - { name: ZASP_RUNTIME_RAW_BUCKET, value: {{ required "runtime.rawBucket is required" .Values.runtime.rawBucket | quote }} }
+            - { name: ZASP_RUNTIME_RAW_BUCKET_OWNER, value: {{ required "runtime.rawBucketOwner is required" .Values.runtime.rawBucketOwner | quote }} }
+            - { name: ZASP_RUNTIME_RAW_KMS_KEY_ARN, value: {{ required "runtime.rawKMSKeyArn is required" .Values.runtime.rawKMSKeyArn | quote }} }
+            - { name: ZASP_EVENT_INGEST_MAX_BYTES, value: "67108864" }
+            - { name: ZASP_EVENT_INGEST_OPERATION_TIMEOUT, value: "10s" }
+            - { name: ZASP_EVENT_INGEST_SHUTDOWN_TIMEOUT, value: "15s" }
+          volumeMounts:
+            - { name: database, mountPath: /var/run/secrets/zasp-runtime-ingest, readOnly: true }
+            - { name: web-identity, mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount, readOnly: true }
+      volumes:
+        - name: database
+          csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: {{ .Values.secrets.runtimeIngestProviderClassName | quote }} } }
+        - name: web-identity
+          projected: { defaultMode: 256, sources: [{ serviceAccountToken: { audience: sts.amazonaws.com, expirationSeconds: 900, path: token } }] }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: agentsec-gateway-control, labels: { app.kubernetes.io/name: agentsec-gateway-control, app.kubernetes.io/part-of: zasp } }
+spec:
+  replicas: {{ .Values.replicas.gatewayControl }}
+  revisionHistoryLimit: 3
+  progressDeadlineSeconds: 600
+  strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 1, maxUnavailable: 0 } }
+  selector: { matchLabels: { app.kubernetes.io/name: agentsec-gateway-control } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: agentsec-gateway-control, app.kubernetes.io/part-of: zasp }
+      annotations: { zasp.io/schema-version: {{ .Values.schema.expectedVersion | quote }} }
+    spec:
+      serviceAccountName: {{ .Values.serviceAccounts.gatewayControl.name }}
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: {{ .Values.global.terminationGracePeriodSeconds }}
+      securityContext: { runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532, fsGroup: 65532, seccompProfile: { type: RuntimeDefault } }
+      topologySpreadConstraints:
+        - { maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: { matchLabels: { app.kubernetes.io/name: agentsec-gateway-control } } }
+        - { maxSkew: 1, topologyKey: kubernetes.io/hostname, whenUnsatisfiable: ScheduleAnyway, labelSelector: { matchLabels: { app.kubernetes.io/name: agentsec-gateway-control } } }
+      containers:
+        - name: gateway-control
+          image: {{ required "global.productImages.gatewayControl must be an immutable digest" .Values.global.productImages.gatewayControl | quote }}
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args: ['export ZASP_DATABASE_URL="$(cat /var/run/secrets/zasp-gateway-control/postgres-dsn)"; exec /app/gateway-control']
+          ports: [{ name: product, containerPort: 8080, protocol: TCP }, { name: internal, containerPort: 8081, protocol: TCP }]
+          startupProbe: { httpGet: { path: /healthz, port: 8081 }, failureThreshold: 30, periodSeconds: 2, timeoutSeconds: 1 }
+          readinessProbe: { httpGet: { path: /readyz, port: 8081 }, failureThreshold: 3, periodSeconds: 5, timeoutSeconds: 2 }
+          livenessProbe: { httpGet: { path: /healthz, port: 8081 }, failureThreshold: 3, periodSeconds: 10, timeoutSeconds: 2 }
+          lifecycle: { preStop: { exec: { command: ["/bin/sh", "-c", "sleep 10"] } } }
+          resources: { requests: { cpu: 100m, memory: 128Mi, ephemeral-storage: 64Mi }, limits: { cpu: "1", memory: 512Mi, ephemeral-storage: 256Mi } }
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
+          env:
+            - { name: ZASP_GATEWAY_CONTROL_MAX_BODY_BYTES, value: "65536" }
+            - { name: ZASP_GATEWAY_CONTROL_OPERATION_TIMEOUT, value: "5s" }
+            - { name: ZASP_GATEWAY_CONTROL_READINESS_TTL, value: "30s" }
+            - { name: ZASP_GATEWAY_CONTROL_SHUTDOWN_TIMEOUT, value: "15s" }
+          volumeMounts: [{ name: database, mountPath: /var/run/secrets/zasp-gateway-control, readOnly: true }]
+      volumes:
+        - name: database
+          csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: {{ .Values.secrets.gatewayControlProviderClassName | quote }} } }
+{{- range $worker := list
+      (dict "name" "agentsec-runtime-outbox" "container" "runtime-outbox" "sa" "runtimeOutbox" "replicas" "runtimeOutbox" "mode" "runtime-outbox" "authority" "zasp_outbox_worker" "provider" "outboxProviderClassName" "mount" "zasp-outbox" "kind" "outbox" "role" "outboxRoleArn")
+      (dict "name" "agentsec-runtime-coordinator" "container" "runtime-coordinator" "sa" "runtimeCoordinator" "replicas" "runtimeCoordinator" "mode" "runtime-coordinator" "authority" "zasp_runtime_coordinator" "provider" "runtimeCoordinatorProviderClassName" "mount" "zasp-runtime-coordinator" "kind" "coordinator" "role" "coordinatorRoleArn")
+      (dict "name" "agentsec-runtime-archive" "container" "runtime-archive" "sa" "runtimeArchive" "replicas" "runtimeArchive" "mode" "runtime-archive" "authority" "zasp_runtime_archive_worker" "provider" "runtimeArchiveProviderClassName" "mount" "zasp-runtime-archive" "kind" "stage" "role" "archiveRoleArn" "version" "runtime-archive-v1")
+      (dict "name" "agentsec-runtime-index" "container" "runtime-index" "sa" "runtimeIndex" "replicas" "runtimeIndex" "mode" "runtime-index" "authority" "zasp_runtime_index_worker" "provider" "runtimeIndexProviderClassName" "mount" "zasp-runtime-index" "kind" "index" "role" "indexRoleArn" "version" "runtime-index-v1")
+      (dict "name" "agentsec-runtime-correlation" "container" "runtime-correlation" "sa" "runtimeCorrelation" "replicas" "runtimeCorrelation" "mode" "runtime-correlation" "authority" "zasp_runtime_correlation_worker" "provider" "runtimeCorrelationProviderClassName" "mount" "zasp-runtime-correlation" "kind" "stage" "role" "correlationRoleArn" "version" "runtime-correlation-v1")
+      (dict "name" "agentsec-runtime-projection" "container" "runtime-projection" "sa" "runtimeProjection" "replicas" "runtimeProjection" "mode" "runtime-projection" "authority" "zasp_runtime_projection_worker" "provider" "runtimeProjectionProviderClassName" "mount" "zasp-runtime-projection" "kind" "stage" "role" "projectionRoleArn" "version" "runtime-projection-v1")
+      (dict "name" "agentsec-runtime-complete" "container" "runtime-complete" "sa" "runtimeComplete" "replicas" "runtimeComplete" "mode" "runtime-complete" "authority" "zasp_runtime_coordinator" "provider" "runtimeCoordinatorProviderClassName" "mount" "zasp-runtime-coordinator" "kind" "stage" "role" "completeRoleArn" "version" "runtime-complete-v1") }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: {{ $worker.name }}, labels: { app.kubernetes.io/name: {{ $worker.name }}, app.kubernetes.io/part-of: zasp } }
+spec:
+  replicas: {{ index $root.Values.replicas $worker.replicas }}
+  revisionHistoryLimit: 3
+  progressDeadlineSeconds: 600
+  strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 1, maxUnavailable: 0 } }
+  selector: { matchLabels: { app.kubernetes.io/name: {{ $worker.name }} } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: {{ $worker.name }}, app.kubernetes.io/part-of: zasp }
+      annotations: { zasp.io/schema-version: {{ $root.Values.schema.expectedVersion | quote }} }
+    spec:
+      serviceAccountName: {{ (index $root.Values.serviceAccounts $worker.sa).name }}
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: {{ $root.Values.global.terminationGracePeriodSeconds }}
+      securityContext: { runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532, fsGroup: 65532, seccompProfile: { type: RuntimeDefault } }
+      topologySpreadConstraints:
+        - { maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: { matchLabels: { app.kubernetes.io/name: {{ $worker.name }} } } }
+        - { maxSkew: 1, topologyKey: kubernetes.io/hostname, whenUnsatisfiable: ScheduleAnyway, labelSelector: { matchLabels: { app.kubernetes.io/name: {{ $worker.name }} } } }
+      containers:
+        - name: {{ $worker.container }}
+          image: {{ required "global.productImages.agentsecWorker must be an immutable digest" $root.Values.global.productImages.agentsecWorker | quote }}
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args: ['export ZASP_POSTGRES_DSN="$(cat /var/run/secrets/{{ $worker.mount }}/postgres-dsn)"; exec /app/agentsec-worker']
+          ports: [{ name: internal, containerPort: 8081, protocol: TCP }]
+          startupProbe: { httpGet: { path: /healthz, port: 8081 }, failureThreshold: 30, periodSeconds: 2, timeoutSeconds: 1 }
+          readinessProbe: { httpGet: { path: /readyz, port: 8081 }, failureThreshold: 3, periodSeconds: 5, timeoutSeconds: 2 }
+          livenessProbe: { httpGet: { path: /healthz, port: 8081 }, failureThreshold: 3, periodSeconds: 10, timeoutSeconds: 2 }
+          lifecycle: { preStop: { exec: { command: ["/bin/sh", "-c", "sleep 10"] } } }
+          resources: { requests: { cpu: 100m, memory: 128Mi, ephemeral-storage: 64Mi }, limits: { cpu: "1", memory: 512Mi, ephemeral-storage: 256Mi } }
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
+          env:
+            - { name: ZASP_WORKER_MODE, value: {{ $worker.mode | quote }} }
+            - { name: ZASP_DATABASE_AUTHORITY, value: {{ $worker.authority | quote }} }
+            - name: ZASP_WORKER_ID
+              valueFrom: { fieldRef: { apiVersion: v1, fieldPath: metadata.name } }
+            - { name: ZASP_POLL_INTERVAL, value: "1s" }
+            - { name: ZASP_LEASE_DURATION, value: "30s" }
+            - { name: ZASP_BATCH_SIZE, value: "10" }
+            - { name: ZASP_SHUTDOWN_TIMEOUT, value: "15s" }
+            - { name: ZASP_AWS_REGION, value: {{ required "runtime.awsRegion is required" $root.Values.runtime.awsRegion | quote }} }
+            {{- if eq $worker.kind "outbox" }}
+            - { name: ZASP_RUNTIME_QUEUE_URL, value: {{ required "runtime.queueURL is required" $root.Values.runtime.queueURL | quote }} }
+            - { name: ZASP_OUTBOX_ROLE_ARN, value: {{ required "runtime.outboxRoleArn is required" $root.Values.runtime.outboxRoleArn | quote }} }
+            - { name: ZASP_OUTBOX_WEB_IDENTITY_TOKEN_FILE, value: {{ required "runtime.webIdentityTokenFile is required" $root.Values.runtime.webIdentityTokenFile | quote }} }
+            {{- else if eq $worker.kind "coordinator" }}
+            - { name: ZASP_RUNTIME_QUEUE_URL, value: {{ required "runtime.queueURL is required" $root.Values.runtime.queueURL | quote }} }
+            - { name: ZASP_RUNTIME_ROLE_ARN, value: {{ required "runtime.coordinatorRoleArn is required" $root.Values.runtime.coordinatorRoleArn | quote }} }
+            - { name: ZASP_RUNTIME_WEB_IDENTITY_TOKEN_FILE, value: {{ required "runtime.webIdentityTokenFile is required" $root.Values.runtime.webIdentityTokenFile | quote }} }
+            {{- else }}
+            - { name: ZASP_EVIDENCE_BUCKET, value: {{ required "runtime.rawBucket is required" $root.Values.runtime.rawBucket | quote }} }
+            - { name: ZASP_EVIDENCE_BUCKET_OWNER, value: {{ required "runtime.rawBucketOwner is required" $root.Values.runtime.rawBucketOwner | quote }} }
+            - { name: ZASP_EVIDENCE_KMS_KEY_ARN, value: {{ required "runtime.rawKMSKeyArn is required" $root.Values.runtime.rawKMSKeyArn | quote }} }
+            - { name: ZASP_RUNTIME_STAGE_ROLE_ARN, value: {{ required (printf "runtime.%s is required" $worker.role) (index $root.Values.runtime $worker.role) | quote }} }
+            - { name: ZASP_RUNTIME_STAGE_WEB_IDENTITY_TOKEN_FILE, value: {{ required "runtime.webIdentityTokenFile is required" $root.Values.runtime.webIdentityTokenFile | quote }} }
+            - { name: ZASP_RUNTIME_STAGE_VERSION, value: {{ $worker.version | quote }} }
+            {{- if eq $worker.kind "index" }}
+            - { name: ZASP_OPENSEARCH_ENDPOINT, value: {{ required "runtime.openSearchEndpoint is required" $root.Values.runtime.openSearchEndpoint | quote }} }
+            - { name: ZASP_OPENSEARCH_INDEX, value: {{ required "runtime.openSearchIndex is required" $root.Values.runtime.openSearchIndex | quote }} }
+            {{- end }}
+            {{- end }}
+          volumeMounts:
+            - { name: database, mountPath: /var/run/secrets/{{ $worker.mount }}, readOnly: true }
+            - { name: web-identity, mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount, readOnly: true }
+      volumes:
+        - name: database
+          csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: {{ index $root.Values.secrets $worker.provider | quote }} } }
+        - name: web-identity
+          projected: { defaultMode: 256, sources: [{ serviceAccountToken: { audience: sts.amazonaws.com, expirationSeconds: 900, path: token } }] }
+{{- end }}
+{{- range $service := list "agentsec-event-ingest" "agentsec-gateway-control" }}
+---
+apiVersion: v1
+kind: Service
+metadata: { name: {{ $service }}, labels: { app.kubernetes.io/name: {{ $service }}, app.kubernetes.io/part-of: zasp } }
+spec:
+  type: ClusterIP
+  selector: { app.kubernetes.io/name: {{ $service }} }
+  ports: [{ name: product, port: 8080, targetPort: product, protocol: TCP }, { name: internal, port: 8081, targetPort: internal, protocol: TCP }]
+{{- end }}
+{{- range $service := list "agentsec-runtime-outbox" "agentsec-runtime-coordinator" "agentsec-runtime-archive" "agentsec-runtime-index" "agentsec-runtime-correlation" "agentsec-runtime-projection" "agentsec-runtime-complete" }}
+---
+apiVersion: v1
+kind: Service
+metadata: { name: {{ $service }}, labels: { app.kubernetes.io/name: {{ $service }}, app.kubernetes.io/part-of: zasp } }
+spec:
+  type: ClusterIP
+  selector: { app.kubernetes.io/name: {{ $service }} }
+  ports: [{ name: internal, port: 8081, targetPort: internal, protocol: TCP }]
+{{- end }}
+{{- range $ingress := list
+      (dict "name" "event-ingest-from-ingress" "workload" "agentsec-event-ingest")
+      (dict "name" "gateway-control-from-ingress" "workload" "agentsec-gateway-control") }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: {{ $ingress.name }}, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: {{ $ingress.workload }} } }
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ $root.Values.network.ingressNamespace }} } } }]
+      ports: [{ protocol: TCP, port: 8080 }]
+{{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: gateway-control-database, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-gateway-control } }
+  policyTypes: [Egress]
+  egress:
+    - to: [{ ipBlock: { cidr: {{ required "network.postgresCIDR is required" .Values.network.postgresCIDR | quote }} } }]
+      ports: [{ protocol: TCP, port: 5432 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: task6-runtime-monitoring, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector:
+    matchExpressions:
+      - { key: app.kubernetes.io/name, operator: In, values: [agentsec-event-ingest, agentsec-gateway-control, agentsec-runtime-outbox, agentsec-runtime-coordinator, agentsec-runtime-archive, agentsec-runtime-index, agentsec-runtime-correlation, agentsec-runtime-projection, agentsec-runtime-complete] }
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .Values.monitoring.namespace }} } } }]
+      ports: [{ protocol: TCP, port: 8081 }]
+{{- range $policy := list
+      (dict "name" "event-ingest-dependencies" "workloads" (list "agentsec-event-ingest") "search" false)
+      (dict "name" "runtime-outbox-dependencies" "workloads" (list "agentsec-runtime-outbox") "search" false)
+      (dict "name" "runtime-coordinator-dependencies" "workloads" (list "agentsec-runtime-coordinator") "search" false)
+      (dict "name" "runtime-stage-dependencies" "workloads" (list "agentsec-runtime-archive" "agentsec-runtime-correlation" "agentsec-runtime-projection" "agentsec-runtime-complete") "search" false)
+      (dict "name" "runtime-index-dependencies" "workloads" (list "agentsec-runtime-index") "search" true) }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $policy.name }}
+  labels: { app.kubernetes.io/part-of: zasp }
+  annotations: { zasp.io/network-policy-boundary: native-cidr-snapshot }
+spec:
+  podSelector:
+    matchExpressions:
+      - { key: app.kubernetes.io/name, operator: In, values: {{ $policy.workloads | toJson }} }
+  policyTypes: [Egress]
+  egress:
+    - to: [{ ipBlock: { cidr: {{ required "network.postgresCIDR is required" $root.Values.network.postgresCIDR | quote }} } }]
+      ports: [{ protocol: TCP, port: 5432 }]
+    - to:
+      {{- range $cidr := required "network.runtimeEgressCIDRs is required" $root.Values.network.runtimeEgressCIDRs }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
+      ports: [{ protocol: TCP, port: 443 }]
+    {{- if $policy.search }}
+    - to: [{ ipBlock: { cidr: {{ required "network.opensearchCIDR is required" $root.Values.network.opensearchCIDR | quote }} } }]
+      ports: [{ protocol: TCP, port: 443 }]
+    {{- end }}
+{{- end }}
+{{- end }}

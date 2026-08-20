@@ -11,7 +11,8 @@ The production web surface is authenticated, capability-gated and API-backed. It
 - audit, compliance, retention and external-flow reads with unavailable provider/export actions honestly disabled;
 - scoped finding list/detail, status update and risk acceptance;
 - scoped attack-path list/detail and ranked path-local break options.
+- integration authorization, manual synchronization, UTC scheduling, sync history, and independent projection freshness.
 
-Red Team, Attack Lab, reports, guardrail prototype controls, tickets, AI explanations, provider/sensor sync, policy simulation/decision history, security-agent execution/approval, exports and deletion jobs are not supported production workflows. They remain capability-hidden until their provider, queue/artifact, authorization and recovery boundaries have deployed evidence.
+Red Team, Attack Lab, reports, guardrail prototype controls, tickets, AI explanations, sensor enrollment, policy simulation/decision history, security-agent execution/approval, exports and deletion jobs are not supported production workflows through the web application. They remain capability-hidden until their provider, queue/artifact, authorization and recovery boundaries have deployed evidence.
 
-PostgreSQL schema v9 is the durable product authority. OpenSearch and Neo4j are projections only and cannot authorize or override a PostgreSQL result. The deployment does not fall back to demo fixtures, browser-local product state or in-memory stores.
+PostgreSQL schema v15 is the durable product authority. OpenSearch and Neo4j are projections only and cannot authorize or override a PostgreSQL result. The deployment does not fall back to demo fixtures, browser-local product state or in-memory stores.

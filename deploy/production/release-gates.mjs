@@ -47,7 +47,7 @@ export async function runReadOnlySynthetic({ origin, token, allowHTTPLoopback = 
 
 export async function verifyReleaseSources() {
   const builds = await inspectContainerBuilds();
-  if (builds.length !== 3 || builds.some((build) => !build.readOnlyCompatible || build.containsSecret)) throw new Error("container gate rejected");
+  if (builds.length !== 6 || builds.some((build) => !build.readOnlyCompatible || build.containsSecret)) throw new Error("container gate rejected");
 
   const canary = await source("deploy/staging/product/templates/canary.yaml");
   const monitoring = await source("deploy/staging/product/templates/monitoring.yaml");
@@ -55,7 +55,7 @@ export async function verifyReleaseSources() {
 
   const requiredDocs = ["production-deployment.md", "backup-restore-rollback.md", "observability-and-canaries.md", "authentication-and-support.md", "supported-workflows.md"];
   const docs = await Promise.all(requiredDocs.map((name) => source(`docs/operations/${name}`)));
-  for (const phrase of ["schema v13", "Do not run `agentsec-migrate down`", "correlation ID", "must not ask", "not supported production workflows"]) {
+  for (const phrase of ["schema v15", "Do not run `agentsec-migrate down`", "correlation ID", "must not ask", "not supported production workflows"]) {
     if (!docs.some((document) => document.includes(phrase))) throw new Error("documentation gate rejected");
   }
 
@@ -79,20 +79,22 @@ export async function verifyReleaseSources() {
 
   const sensitiveSources = await Promise.all([
     source(".dockerignore"), source("deploy/production/api.Dockerfile"), source("deploy/production/web.Dockerfile"), source("deploy/production/worker.Dockerfile"),
-    source("deploy/staging/product/values.yaml"), source("deploy/staging/product/templates/secrets.yaml"), source("deploy/staging/product/templates/workloads.yaml"),
+    source("deploy/production/event-ingest.Dockerfile"), source("deploy/production/gateway-control.Dockerfile"), source("deploy/production/runtime-gateway.Dockerfile"),
+    source("deploy/staging/product/values.yaml"), source("deploy/staging/product/templates/secrets.yaml"), source("deploy/staging/product/templates/workloads.yaml"), source("deploy/staging/product/templates/runtime.yaml"), source("deploy/staging/product/templates/edge.yaml"),
   ]);
   const combined = sensitiveSources.join("\n");
-  if (/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|AKIA[0-9A-Z]{16}|sk_live_[A-Za-z0-9]{16,}/.test(combined) || !sensitiveSources[0].includes(".env") || !sensitiveSources[5].includes("secretsmanager") || !sensitiveSources[6].includes("/var/run/secrets/zasp")) throw new Error("secret gate rejected");
+  if (/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|AKIA[0-9A-Z]{16}|sk_live_[A-Za-z0-9]{16,}/.test(combined) || !sensitiveSources[0].includes(".env") || !sensitiveSources[8].includes("secretsmanager") || ![sensitiveSources[9], sensitiveSources[10], sensitiveSources[11]].join("\n").includes("/var/run/secrets/zasp")) throw new Error("secret gate rejected");
   const terraform = await source("deploy/staging/main.tf");
-  for (const contract of ["system:serviceaccount:agentsec:agentsec-api", "system:serviceaccount:agentsec:zasp-discovery-worker", "system:serviceaccount:agentsec:zasp-discovery-scheduler", "system:serviceaccount:agentsec:zasp-outbox-publisher", "system:serviceaccount:agentsec:zasp-projection-risk", "system:serviceaccount:agentsec:zasp-projection-graph", "system:serviceaccount:agentsec:zasp-projection-search", "system:serviceaccount:agentsec:agentsec-projection-graph-init", "system:serviceaccount:agentsec:agentsec-projection-search-init", "system:serviceaccount:agentsec:agentsec-migration", "system:serviceaccount:agentsec:agentsec-canary-secret-sync", "secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret", "sqs:SendMessage", "sqs:ReceiveMessage", "s3:PutObject", "discovery-jobs", "zasp-inventory-v1/_mapping", "_zasp_schema_v1", "neo4j/auth/runtime", "neo4j/auth/schema", "canary-read-token", "token-reveal-key", "stytch-secret", "postgres-api-dsn", "postgres-worker-dsn", "postgres-outbox-worker-dsn", "postgres-scheduler-dsn", "postgres-projection-risk-dsn", "postgres-projection-graph-dsn", "postgres-projection-search-dsn", "postgres-migration-dsn"]) {
+  for (const contract of ["system:serviceaccount:agentsec:agentsec-api", "system:serviceaccount:agentsec:zasp-discovery-worker", "system:serviceaccount:agentsec:zasp-discovery-scheduler", "system:serviceaccount:agentsec:zasp-outbox-publisher", "system:serviceaccount:agentsec:zasp-projection-risk", "system:serviceaccount:agentsec:zasp-projection-graph", "system:serviceaccount:agentsec:zasp-projection-search", "system:serviceaccount:agentsec:agentsec-projection-graph-init", "system:serviceaccount:agentsec:agentsec-projection-search-init", "system:serviceaccount:agentsec:agentsec-migration", "system:serviceaccount:agentsec:agentsec-canary-secret-sync", "system:serviceaccount:agentsec:zasp-runtime-ingest", "system:serviceaccount:agentsec:zasp-gateway-control", "system:serviceaccount:agentsec:zasp-runtime-outbox", "system:serviceaccount:agentsec:zasp-runtime-coordinator", "system:serviceaccount:agentsec:zasp-runtime-archive", "system:serviceaccount:agentsec:zasp-runtime-index", "system:serviceaccount:agentsec:zasp-runtime-correlation", "system:serviceaccount:agentsec:zasp-runtime-projection", "system:serviceaccount:agentsec:zasp-runtime-complete", "secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret", "sqs:SendMessage", "sqs:ReceiveMessage", "s3:PutObject", "discovery-jobs", "runtime-events", "zasp-inventory-v1/_mapping", "zasp-runtime-events-v1", "_zasp_schema_v1", "neo4j/auth/runtime", "neo4j/auth/schema", "canary-read-token", "token-reveal-key", "stytch-secret", "postgres-api-dsn", "postgres-worker-dsn", "postgres-outbox-worker-dsn", "postgres-runtime-ingest-dsn", "postgres-runtime-coordinator-dsn", "postgres-runtime-archive-dsn", "postgres-runtime-index-dsn", "postgres-runtime-correlation-dsn", "postgres-runtime-projection-dsn", "postgres-gateway-control-dsn", "postgres-scheduler-dsn", "postgres-projection-risk-dsn", "postgres-projection-graph-dsn", "postgres-projection-search-dsn", "postgres-migration-dsn"]) {
     if (!terraform.includes(contract)) throw new Error("secret identity gate rejected");
   }
-  const [workloads, projectionInit, resilience] = await Promise.all([
-    source("deploy/staging/product/templates/workloads.yaml"), source("deploy/staging/product/templates/projection-init.yaml"), source("deploy/staging/product/templates/resilience.yaml"),
+  const [workloads, runtimeWorkloads, projectionInit, resilience] = await Promise.all([
+    source("deploy/staging/product/templates/workloads.yaml"), source("deploy/staging/product/templates/runtime.yaml"), source("deploy/staging/product/templates/projection-init.yaml"), source("deploy/staging/product/templates/resilience.yaml"),
   ]);
   for (const contract of ["ZASP_WORKER_MODE", "projection-risk", "projection-graph", "projection-search", "ZASP_NEO4J_EXPECTED_PRINCIPAL", "ZASP_NEO4J_EXPECTED_ROLE"]) if (!workloads.includes(contract)) throw new Error("worker deployment gate rejected");
   for (const contract of ["projection-search-init", "projection-graph-init", "ZASP_PROJECTION_INIT_ROLE_ARN", "ZASP_PROJECTION_INIT_WEB_IDENTITY_TOKEN_FILE", "ZASP_PROJECTION_INIT_TIMEOUT", "ZASP_NEO4J_SCHEMA_CREDENTIAL_REFERENCE", "ZASP_OPENSEARCH_INDEX", 'helm.sh/hook-weight: "-7"']) if (!projectionInit.includes(contract)) throw new Error("projection init gate rejected");
   for (const contract of ["agentsec-discovery-worker", "agentsec-projection-risk", "agentsec-projection-graph", "agentsec-projection-search", "HorizontalPodAutoscaler", "PodDisruptionBudget", "default-deny"]) if (!resilience.includes(contract)) throw new Error("worker resilience gate rejected");
+  for (const contract of ["agentsec-event-ingest", "agentsec-gateway-control", "runtime-outbox", "runtime-coordinator", "runtime-archive", "runtime-index", "runtime-correlation", "runtime-projection", "runtime-complete", "ZASP_RUNTIME_RAW_BUCKET", "ZASP_RUNTIME_QUEUE_URL", "ZASP_OPENSEARCH_INDEX"]) if (!runtimeWorkloads.includes(contract)) throw new Error("runtime deployment gate rejected");
   for (const contract of [
     "ZaspDiscoverySchedulerUnavailable", "ZaspDiscoveryWorkerUnavailable", "ZaspOutboxPublisherUnavailable",
     "ZaspProjectionRiskUnavailable", "ZaspProjectionGraphUnavailable", "ZaspProjectionSearchUnavailable",
@@ -105,22 +107,30 @@ export async function verifyReleaseSources() {
   const workflow = await source(".github/workflows/runnable-ui.yml");
   if (!workflow.includes("fetch-depth: 0") || !workflow.includes("github.com/zricethezav/gitleaks/v8@v8.30.1") || !workflow.includes("npm run production:release:gate")) throw new Error("required CI gate rejected");
 
-  const definitions = [await source("deploy/production/web.Dockerfile"), await source("deploy/production/api.Dockerfile"), await source("deploy/production/worker.Dockerfile")];
+  const definitions = await Promise.all(["web", "api", "worker", "event-ingest", "gateway-control", "runtime-gateway"].map((name) => source(`deploy/production/${name}.Dockerfile`)));
   const imageReferences = new Set(definitions.flatMap((definition) => [...definition.matchAll(/^FROM\s+(\S+)/gm)].map((match) => match[1])));
   if (imageReferences.size !== 3 || [...imageReferences].some((reference) => !/@sha256:[0-9a-f]{64}$/.test(reference))) throw new Error("image definition gate rejected");
 
-  return deepFreeze({ canary: true, documentation: true, imageDefinitions: imageReferences.size, licensePolicy: true, trackedSecretScan: true, npmSpdxPackages: sbom.packages.length, goSpdxPackages: goSpdx.packages.length, goSpdx, requiredCI: true, task4Deployment: true });
+  return deepFreeze({ canary: true, documentation: true, imageDefinitions: builds.length, licensePolicy: true, trackedSecretScan: true, npmSpdxPackages: sbom.packages.length, goSpdxPackages: goSpdx.packages.length, goSpdx, requiredCI: true, task4Deployment: true, task6Deployment: true });
 }
 
 async function goSourceSBOM() {
   const template = "{{with .Module}}{{.Path}}\t{{.Version}}\t{{.Dir}}{{end}}";
-  const { stdout } = await exec("go", ["list", "-deps", "-f", template, "./agentsec-api", "./agentsec-migrate", "./agentsec-worker", "./cmd/zasp-healthcheck"], { cwd: path.join(root, "services/platform"), encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
+  const modulesToList = [
+    { cwd: path.join(root, "services/platform"), packages: ["./agentsec-api", "./agentsec-migrate", "./agentsec-worker", "./cmd/zasp-healthcheck"] },
+    { cwd: path.join(root, "services/event-ingest"), packages: ["."] },
+    { cwd: path.join(root, "services/gateway-control"), packages: ["."] },
+    { cwd: path.join(root, "services/runtime-gateway"), packages: ["."] },
+  ];
   const modules = new Map();
-  for (const line of stdout.split("\n")) {
-    if (!line) continue;
-    const [name, version, directory] = line.split("\t");
-    if (!name || !directory || modules.has(name)) continue;
-    modules.set(name, { name, version: version || "0.0.0-local", directory });
+  for (const entry of modulesToList) {
+    const { stdout } = await exec("go", ["list", "-deps", "-f", template, ...entry.packages], { cwd: entry.cwd, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
+    for (const line of stdout.split("\n")) {
+      if (!line) continue;
+      const [name, version, directory] = line.split("\t");
+      if (!name || !directory || modules.has(name)) continue;
+      modules.set(name, { name, version: version || "0.0.0-local", directory });
+    }
   }
   const packages = [];
   for (const dependency of [...modules.values()].sort((left, right) => left.name.localeCompare(right.name))) {

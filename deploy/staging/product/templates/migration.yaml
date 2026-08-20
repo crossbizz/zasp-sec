@@ -73,6 +73,12 @@ spec:
             - { name: ZASP_RUNTIME_WORKER_DB_PRINCIPAL, value: {{ required "databasePrincipals.runtimeWorker is required" .Values.databasePrincipals.runtimeWorker | quote }} }
             - { name: ZASP_OUTBOX_WORKER_DB_PRINCIPAL, value: {{ required "databasePrincipals.outboxWorker is required" .Values.databasePrincipals.outboxWorker | quote }} }
             - { name: ZASP_RUNTIME_GATEWAY_DB_PRINCIPAL, value: {{ required "databasePrincipals.runtimeGateway is required" .Values.databasePrincipals.runtimeGateway | quote }} }
+            - { name: ZASP_RUNTIME_COORDINATOR_DB_PRINCIPAL, value: {{ required "databasePrincipals.runtimeCoordinator is required" .Values.databasePrincipals.runtimeCoordinator | quote }} }
+            - { name: ZASP_RUNTIME_ARCHIVE_DB_PRINCIPAL, value: {{ required "databasePrincipals.runtimeArchive is required" .Values.databasePrincipals.runtimeArchive | quote }} }
+            - { name: ZASP_RUNTIME_INDEX_DB_PRINCIPAL, value: {{ required "databasePrincipals.runtimeIndex is required" .Values.databasePrincipals.runtimeIndex | quote }} }
+            - { name: ZASP_RUNTIME_CORRELATION_DB_PRINCIPAL, value: {{ required "databasePrincipals.runtimeCorrelation is required" .Values.databasePrincipals.runtimeCorrelation | quote }} }
+            - { name: ZASP_RUNTIME_PROJECTION_DB_PRINCIPAL, value: {{ required "databasePrincipals.runtimeProjection is required" .Values.databasePrincipals.runtimeProjection | quote }} }
+            - { name: ZASP_GATEWAY_CONTROL_DB_PRINCIPAL, value: {{ required "databasePrincipals.gatewayControl is required" .Values.databasePrincipals.gatewayControl | quote }} }
           volumeMounts: [{ name: migration-secrets, mountPath: /var/run/secrets/zasp-migration, readOnly: true }]
           resources: { requests: { cpu: 100m, memory: 64Mi }, limits: { cpu: "1", memory: 256Mi } }
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }

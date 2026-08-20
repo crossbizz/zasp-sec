@@ -10,7 +10,7 @@ spec:
   namespaceSelector: { matchNames: [{{ .Release.Namespace | quote }}] }
   endpoints:
     - { port: internal, path: /metrics, interval: 30s, scrapeTimeout: 5s }
-{{- range $name := list "agentsec-discovery-scheduler" "agentsec-outbox-publisher" "agentsec-projection-risk" "agentsec-projection-graph" "agentsec-projection-search" }}
+{{- range $name := list "agentsec-discovery-scheduler" "agentsec-outbox-publisher" "agentsec-projection-risk" "agentsec-projection-graph" "agentsec-projection-search" "agentsec-event-ingest" "agentsec-gateway-control" "agentsec-runtime-outbox" "agentsec-runtime-coordinator" "agentsec-runtime-archive" "agentsec-runtime-index" "agentsec-runtime-correlation" "agentsec-runtime-projection" "agentsec-runtime-complete" }}
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
@@ -99,6 +99,27 @@ spec:
           for: 5m
           labels: { severity: page }
           annotations: { summary: "Search projection worker is unavailable or absent" }
+        {{- range $runtime := list
+              (dict "alert" "ZaspEventIngestUnavailable" "name" "agentsec-event-ingest")
+              (dict "alert" "ZaspGatewayControlUnavailable" "name" "agentsec-gateway-control")
+              (dict "alert" "ZaspRuntimeOutboxUnavailable" "name" "agentsec-runtime-outbox")
+              (dict "alert" "ZaspRuntimeCoordinatorUnavailable" "name" "agentsec-runtime-coordinator")
+              (dict "alert" "ZaspRuntimeArchiveUnavailable" "name" "agentsec-runtime-archive")
+              (dict "alert" "ZaspRuntimeIndexUnavailable" "name" "agentsec-runtime-index")
+              (dict "alert" "ZaspRuntimeCorrelationUnavailable" "name" "agentsec-runtime-correlation")
+              (dict "alert" "ZaspRuntimeProjectionUnavailable" "name" "agentsec-runtime-projection")
+              (dict "alert" "ZaspRuntimeCompleteUnavailable" "name" "agentsec-runtime-complete") }}
+        - alert: {{ $runtime.alert }}
+          expr: kube_deployment_status_replicas_available{namespace="{{ $.Release.Namespace }}",deployment="{{ $runtime.name }}"} < 1 or absent(kube_deployment_status_replicas_available{namespace="{{ $.Release.Namespace }}",deployment="{{ $runtime.name }}"})
+          for: 5m
+          labels: { severity: page, workload: {{ $runtime.name }} }
+          annotations: { summary: "Runtime data-plane workload is unavailable or absent" }
+        {{- end }}
+        - alert: ZaspTask6RuntimeDependencyNotReady
+          expr: agentsec_ready{namespace="{{ .Release.Namespace }}",service=~"agentsec-(event-ingest|gateway-control|runtime-(outbox|coordinator|archive|index|correlation|projection|complete))"} == 0
+          for: 10m
+          labels: { severity: ticket }
+          annotations: { summary: "A runtime data-plane dependency is not ready" }
         - alert: ZaspTask4WorkerDependencyNotReady
           expr: agentsec_ready{namespace="{{ .Release.Namespace }}",service=~"agentsec-(discovery-(scheduler|worker)|outbox-publisher|projection-(risk|graph|search))"} == 0
           for: 10m

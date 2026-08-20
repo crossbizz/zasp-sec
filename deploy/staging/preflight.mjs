@@ -18,6 +18,15 @@ const identityContract = Object.freeze({
   projectionRisk: Object.freeze({ serviceAccount: "zasp-projection-risk", role: "projection-risk", deployment: true }),
   projectionGraph: Object.freeze({ serviceAccount: "zasp-projection-graph", role: "projection-graph", deployment: true }),
   projectionSearch: Object.freeze({ serviceAccount: "zasp-projection-search", role: "projection-search", deployment: true }),
+  runtimeIngest: Object.freeze({ serviceAccount: "zasp-runtime-ingest", role: "runtime-ingest", deployment: true }),
+  gatewayControl: Object.freeze({ serviceAccount: "zasp-gateway-control", role: "gateway-control", deployment: true }),
+  runtimeOutbox: Object.freeze({ serviceAccount: "zasp-runtime-outbox", role: "runtime-outbox", deployment: true }),
+  runtimeCoordinator: Object.freeze({ serviceAccount: "zasp-runtime-coordinator", role: "runtime-coordinator", deployment: true }),
+  runtimeArchive: Object.freeze({ serviceAccount: "zasp-runtime-archive", role: "runtime-archive", deployment: true }),
+  runtimeIndex: Object.freeze({ serviceAccount: "zasp-runtime-index", role: "runtime-index", deployment: true }),
+  runtimeCorrelation: Object.freeze({ serviceAccount: "zasp-runtime-correlation", role: "runtime-correlation", deployment: true }),
+  runtimeProjection: Object.freeze({ serviceAccount: "zasp-runtime-projection", role: "runtime-projection", deployment: true }),
+  runtimeComplete: Object.freeze({ serviceAccount: "zasp-runtime-complete", role: "runtime-complete", deployment: true }),
   migration: Object.freeze({ serviceAccount: "agentsec-migration", role: "migration", deployment: false }),
   projectionGraphInit: Object.freeze({ serviceAccount: "agentsec-projection-graph-init", role: "projection-graph-init", deployment: false }),
   projectionSearchInit: Object.freeze({ serviceAccount: "agentsec-projection-search-init", role: "projection-search-init", deployment: false }),
@@ -31,14 +40,14 @@ function exactKeys(value, keys) {
 
 export function validateReleaseInput(input) {
   if (!exactKeys(input, ["environment", "platformAccountID", "privateEndpointOnly", "endpoint_public_access", "productImages", "workloadIdentities"]) || input.environment !== "production" || !/^[0-9]{12}$/.test(input.platformAccountID) || input.platformAccountID === "000000000000" || input.privateEndpointOnly !== true || input.endpoint_public_access !== false) throw new Error("release preflight rejected");
-  if (!exactKeys(input.productImages, ["web", "agentsecApi", "agentsecWorker"]) || !Object.values(input.productImages).every((value) => digestPattern.test(value))) throw new Error("release preflight rejected");
+  if (!exactKeys(input.productImages, ["web", "agentsecApi", "agentsecWorker", "eventIngest", "gatewayControl", "runtimeGateway"]) || !Object.values(input.productImages).every((value) => digestPattern.test(value))) throw new Error("release preflight rejected");
   if (!exactKeys(input.workloadIdentities, Object.keys(identityContract))) throw new Error("release preflight rejected");
   for (const [name, expected] of Object.entries(identityContract)) {
     const identity = input.workloadIdentities[name];
     const expectedRole = expected.role === null ? null : `arn:aws:iam::${input.platformAccountID}:role/zasp-production-${expected.role}`;
     if (!exactKeys(identity, ["serviceAccount", "roleArn"]) || identity.serviceAccount !== expected.serviceAccount || identity.roleArn !== expectedRole) throw new Error("release preflight rejected");
   }
-  return Object.freeze({ environment: "production", privateEndpointOnly: true, images: 3, deployments: Object.values(identityContract).filter(({ deployment }) => deployment).length, cloudIdentities: Object.values(identityContract).filter(({ role }) => role !== null).length });
+  return Object.freeze({ environment: "production", privateEndpointOnly: true, images: 6, deployments: Object.values(identityContract).filter(({ deployment }) => deployment).length, cloudIdentities: Object.values(identityContract).filter(({ role }) => role !== null).length });
 }
 
 export function runPreflight(argv = process.argv.slice(2), runtime = { spawn: spawnSync, read: readFileSync }) {

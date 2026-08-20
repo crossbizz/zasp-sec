@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { inspectContainerBuilds, renderRelease } from "./release-contract.mjs";
+import { inspectContainerBuilds, renderCustomerEdgeRelease, renderRelease } from "./release-contract.mjs";
 
 const digest = (name, value) => `registry.example/zasp/${name}@sha256:${value.repeat(64)}`;
 const release = Object.freeze({
@@ -39,6 +39,23 @@ const release = Object.freeze({
     roleArn: "arn:aws:iam::123456789012:role/zasp-production-outbox", webIdentityTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
     egressCIDRs: Object.freeze(["10.70.0.0/28"]),
   }),
+  runtime: Object.freeze({
+    awsRegion: "us-west-2", queueURL: "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-runtime-events",
+    rawBucket: "zasp-production-runtime-raw", rawBucketOwner: "123456789012",
+    rawKMSKeyArn: "arn:aws:kms:us-west-2:123456789012:key/22222222-2222-4222-8222-222222222222",
+    openSearchEndpoint: "https://vpc-zasp.us-west-2.es.amazonaws.com", openSearchIndex: "zasp-runtime-events-v1",
+    webIdentityTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
+    eventIngestRoleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-ingest",
+    gatewayControlRoleArn: "arn:aws:iam::123456789012:role/zasp-production-gateway-control",
+    outboxRoleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-outbox",
+    coordinatorRoleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-coordinator",
+    archiveRoleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-archive",
+    indexRoleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-index",
+    correlationRoleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-correlation",
+    projectionRoleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-projection",
+    completeRoleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-complete",
+    egressCIDRs: Object.freeze(["10.71.0.0/28"]),
+  }),
   connectors: Object.freeze({
     awsRegion: "us-west-2",
     roleArn: "arn:aws:iam::123456789012:role/zasp-production-api-connectors",
@@ -62,7 +79,21 @@ const release = Object.freeze({
   }),
   images: Object.freeze({
     web: digest("web", "a"), agentsecApi: digest("api", "b"), agentsecWorker: digest("worker", "c"),
+    eventIngest: digest("event-ingest", "d"), gatewayControl: digest("gateway-control", "e"), runtimeGateway: digest("runtime-gateway", "f"),
   }),
+});
+const edgeRelease = Object.freeze({
+  controlPlaneURL: "https://app.zasp.example",
+  image: digest("runtime-gateway", "f"),
+  organizationID: "pid_10000001-0000-4000-8000-000000000001",
+  workspaceID: "pid_10000002-0000-4000-8000-000000000002",
+  environmentID: "pid_10000003-0000-4000-8000-000000000003",
+  deviceID: "pid_10000004-0000-4000-8000-000000000004",
+  credentialID: "pid_10000005-0000-4000-8000-000000000005",
+  credentialSecretName: "zasp-runtime-gateway-credential",
+  policyKeysSecretName: "zasp-runtime-gateway-policy-keys",
+  storageClassName: "gp3-encrypted",
+  controlPlaneCIDRs: Object.freeze(["10.80.0.0/28"]),
 });
 
 test("production container builds are exact, non-root, health-bound, and secret-free", async () => {
@@ -71,6 +102,9 @@ test("production container builds are exact, non-root, health-bound, and secret-
     { name: "web", user: "65532:65532", port: 3000 },
     { name: "agentsec-api", user: "65532:65532", port: 8080 },
     { name: "agentsec-worker", user: "65532:65532", port: 8081 },
+    { name: "event-ingest", user: "65532:65532", port: 8081 },
+    { name: "gateway-control", user: "65532:65532", port: 8081 },
+    { name: "runtime-gateway", user: "65532:65532", port: 8081 },
   ]);
   for (const build of builds) {
     assert.equal(build.readOnlyCompatible, true);
@@ -85,6 +119,48 @@ test("production container builds are exact, non-root, health-bound, and secret-
   assert.match(await readFile(new URL("../../next.config.ts", import.meta.url), "utf8"), /output:\s*["']standalone["']/);
 });
 
+test("customer edge renders one database-free runtime gateway with durable policy cache", async () => {
+  const resources = await renderCustomerEdgeRelease(edgeRelease);
+  const deployment = one(resources, "Deployment", "runtime-gateway");
+  const pod = deployment.spec.template.spec;
+  const container = pod.containers[0];
+  assert.equal(container.image, edgeRelease.image);
+  assert.equal(pod.serviceAccountName, "runtime-gateway");
+  assert.equal(pod.automountServiceAccountToken, false);
+  assert.equal(container.securityContext.readOnlyRootFilesystem, true);
+  assert.deepEqual(envOf(deployment), {
+    ZASP_GATEWAY_CONTROL_BASE_URL: edgeRelease.controlPlaneURL,
+    ZASP_GATEWAY_ORGANIZATION_ID: edgeRelease.organizationID,
+    ZASP_GATEWAY_WORKSPACE_ID: edgeRelease.workspaceID,
+    ZASP_GATEWAY_ENVIRONMENT_ID: edgeRelease.environmentID,
+    ZASP_GATEWAY_DEVICE_ID: edgeRelease.deviceID,
+    ZASP_GATEWAY_CREDENTIAL_ID: edgeRelease.credentialID,
+    ZASP_GATEWAY_PRIVATE_KEY_FILE: "/var/run/secrets/zasp-config/credential.json",
+    ZASP_GATEWAY_POLICY_KEYS_FILE: "/var/run/secrets/zasp-config/policy-keys.json",
+    ZASP_GATEWAY_POLICY_CACHE_FILE: "/var/lib/zasp/policy/cache.json",
+    ZASP_GATEWAY_BOOTSTRAP_FAILURE_MODE: "closed", ZASP_GATEWAY_MAX_REQUEST_BYTES: "65536",
+    ZASP_GATEWAY_MAX_PENDING_EVENTS: "1024", ZASP_GATEWAY_OPERATION_TIMEOUT: "10s",
+    ZASP_GATEWAY_SYNC_INTERVAL: "30s", ZASP_GATEWAY_SHUTDOWN_TIMEOUT: "15s",
+  });
+  assert.doesNotMatch(JSON.stringify(deployment), /ZASP_(?:POSTGRES|DATABASE)|postgres|DATABASE_URL/);
+  assert.deepEqual(pod.volumes.find(({ name }) => name === "credential-source").secret, { defaultMode: 288, secretName: edgeRelease.credentialSecretName });
+  assert.deepEqual(pod.volumes.find(({ name }) => name === "policy-keys-source").secret, { defaultMode: 288, secretName: edgeRelease.policyKeysSecretName });
+  assert.match(pod.initContainers[0].args[0], /cp \/source\/credential\/credential\.json \/config\/credential\.json/);
+  assert.match(pod.initContainers[0].args[0], /chmod 600 \/config\/credential\.json \/config\/policy-keys\.json/);
+  assert.equal(container.volumeMounts.some(({ name }) => name === "credential-source" || name === "policy-keys-source"), false);
+  assert.equal(pod.volumes.find(({ name }) => name === "policy-cache").persistentVolumeClaim.claimName, "runtime-gateway-cache");
+  const claim = one(resources, "PersistentVolumeClaim", "runtime-gateway-cache");
+  assert.equal(claim.spec.storageClassName, edgeRelease.storageClassName);
+  assert.equal(claim.spec.resources.requests.storage, "1Gi");
+  assert.equal(resources.some(({ kind }) => kind === "Ingress"), false);
+  assert.equal(resources.some(({ kind }) => kind === "PodDisruptionBudget"), false);
+  const egress = one(resources, "NetworkPolicy", "runtime-gateway-control-plane");
+  assert.deepEqual(egress.spec.egress.flatMap(({ to }) => to.map(({ ipBlock }) => ipBlock.cidr)), edgeRelease.controlPlaneCIDRs);
+  const monitoring = one(resources, "NetworkPolicy", "runtime-gateway-monitoring");
+  assert.deepEqual(monitoring.spec.ingress[0].ports, [{ protocol: "TCP", port: 8081 }]);
+  assert.equal(one(resources, "ServiceMonitor", "runtime-gateway").spec.endpoints[0].path, "/metrics");
+});
+
 test("release renders one TLS origin, split ports, private internals, and migration/schema gates", async () => {
   const resources = await renderRelease(release);
   const ingress = one(resources, "Ingress", "zasp-product");
@@ -92,16 +168,27 @@ test("release renders one TLS origin, split ports, private internals, and migrat
   assert.deepEqual(ingress.spec.rules[0].http.paths.map(({ path, backend }) => [path, backend.service.name, backend.service.port.number]), [
     ["/api/v1", "agentsec-api", 8080], ["/", "web", 3000],
   ]);
+  const runtimeIngress = one(resources, "Ingress", "zasp-runtime");
+  assert.equal(runtimeIngress.spec.tls[0].secretName, release.tlsSecretName);
+  assert.equal(runtimeIngress.spec.rules[0].host, release.host);
+  assert.equal(runtimeIngress.metadata.annotations["nginx.ingress.kubernetes.io/proxy-body-size"], "64m");
+  assert.deepEqual(runtimeIngress.spec.rules[0].http.paths.map(({ path, backend }) => [path, backend.service.name, backend.service.port.number]), [
+    ["/internal/v1/runtime-gateway/authority", "agentsec-gateway-control", 8080],
+    ["/internal/v1/policy-bundles", "agentsec-gateway-control", 8080],
+    ["/internal/v1/runtime/decisions", "agentsec-gateway-control", 8080],
+    ["/internal/v1/runtime/events", "agentsec-event-ingest", 8080],
+    ["/internal/v1/sensor/heartbeat", "agentsec-event-ingest", 8080],
+  ]);
   const annotations = ingress.metadata.annotations;
   for (const value of ["Strict-Transport-Security", "Content-Security-Policy", "X-Frame-Options", "X-Content-Type-Options", "Referrer-Policy", "Permissions-Policy"]) {
     assert.match(annotations["nginx.ingress.kubernetes.io/configuration-snippet"], new RegExp(value));
   }
   assert.deepEqual(one(resources, "Service", "agentsec-api").spec.ports.map(({ name, port }) => [name, port]), [["product", 8080], ["internal", 8081]]);
-  assert.equal(resources.some(({ kind, metadata }) => kind === "Ingress" && metadata?.name !== "zasp-product"), false);
+  assert.deepEqual(resources.filter(({ kind }) => kind === "Ingress").map(({ metadata }) => metadata.name).sort(), ["zasp-product", "zasp-runtime"]);
   assert.equal(resources.some(({ kind, metadata }) => kind === "Service" && ["neo4j", "nango", "otel-collector"].includes(metadata.name) && metadata.annotations?.["service.beta.kubernetes.io/aws-load-balancer-type"]), false);
-  assert.equal(one(resources, "Job", "agentsec-schema-v13").metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
-  assert.match(one(resources, "Job", "agentsec-schema-v13").spec.template.spec.containers[0].args[0], /exec \/app\/agentsec-migrate up/);
-  const migration = one(resources, "Job", "agentsec-schema-v13");
+  assert.equal(one(resources, "Job", "agentsec-schema-v15").metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
+  assert.match(one(resources, "Job", "agentsec-schema-v15").spec.template.spec.containers[0].args[0], /exec \/app\/agentsec-migrate up/);
+  const migration = one(resources, "Job", "agentsec-schema-v15");
   assert.equal(migration.spec.template.spec.serviceAccountName, "agentsec-migration");
   assert.equal(migration.spec.template.spec.containers[0].env.some(({ valueFrom }) => valueFrom?.secretKeyRef), false);
   assert.equal(migration.spec.template.spec.containers[0].volumeMounts[0].mountPath, "/var/run/secrets/zasp-migration");
@@ -118,14 +205,20 @@ test("release renders one TLS origin, split ports, private internals, and migrat
     ZASP_RUNTIME_WORKER_DB_PRINCIPAL: "zasp_runtime_worker_runtime",
     ZASP_OUTBOX_WORKER_DB_PRINCIPAL: "zasp_outbox_runtime",
     ZASP_RUNTIME_GATEWAY_DB_PRINCIPAL: "zasp_gateway_runtime",
+    ZASP_RUNTIME_COORDINATOR_DB_PRINCIPAL: "zasp_runtime_coordinator_runtime",
+    ZASP_RUNTIME_ARCHIVE_DB_PRINCIPAL: "zasp_runtime_archive_runtime",
+    ZASP_RUNTIME_INDEX_DB_PRINCIPAL: "zasp_runtime_index_runtime",
+    ZASP_RUNTIME_CORRELATION_DB_PRINCIPAL: "zasp_runtime_correlation_runtime",
+    ZASP_RUNTIME_PROJECTION_DB_PRINCIPAL: "zasp_runtime_projection_runtime",
+    ZASP_GATEWAY_CONTROL_DB_PRINCIPAL: "zasp_gateway_control_runtime",
   });
-  for (const [kind, name, weight] of [["ServiceAccount", "agentsec-migration", "-30"], ["SecretProviderClass", "zasp-production-migration-secrets", "-20"], ["Job", "agentsec-schema-v13", "-10"]]) {
+  for (const [kind, name, weight] of [["ServiceAccount", "agentsec-migration", "-30"], ["SecretProviderClass", "zasp-production-migration-secrets", "-20"], ["Job", "agentsec-schema-v15", "-10"]]) {
     const resource = one(resources, kind, name);
     assert.equal(resource.metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
     assert.equal(resource.metadata.annotations["helm.sh/hook-weight"], weight);
   }
-  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.metadata.annotations["zasp.io/schema-version"], "13");
-  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_EXPECTED_SCHEMA_VERSION").value, "13");
+  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.metadata.annotations["zasp.io/schema-version"], "15");
+  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_EXPECTED_SCHEMA_VERSION").value, "15");
   assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_DATABASE_AUTHORITY").value, "zasp_discovery_api");
   assert.equal(one(resources, "SecretProviderClass", release.secretProviderClass).spec.secretObjects[0].data.length, 7);
   assert.equal(one(resources, "SecretProviderClass", "zasp-production-migration-secrets").spec.secretObjects[0].data.length, 1);
@@ -149,20 +242,21 @@ test("release renders one TLS origin, split ports, private internals, and migrat
 
 test("release applies non-root rollout, zone and host spread, drain, PDB, and default-deny policies", async () => {
   const resources = await renderRelease(release);
-  assert.deepEqual(resources.filter(({ kind }) => kind === "Deployment").map(({ metadata }) => metadata.name).sort(), ["agentsec-api", "agentsec-discovery-scheduler", "agentsec-discovery-worker", "agentsec-outbox-publisher", "agentsec-projection-graph", "agentsec-projection-risk", "agentsec-projection-search", "web"]);
-  assert.deepEqual(resources.filter(({ kind }) => kind === "Service").map(({ metadata }) => metadata.name).sort(), ["agentsec-api", "agentsec-discovery-scheduler", "agentsec-discovery-worker", "agentsec-outbox-publisher", "agentsec-projection-graph", "agentsec-projection-risk", "agentsec-projection-search", "web"]);
-  for (const name of ["web", "agentsec-api", "agentsec-discovery-scheduler", "agentsec-discovery-worker", "agentsec-outbox-publisher", "agentsec-projection-risk", "agentsec-projection-graph", "agentsec-projection-search"]) {
+  const workloadNames = ["agentsec-api", "agentsec-discovery-scheduler", "agentsec-discovery-worker", "agentsec-event-ingest", "agentsec-gateway-control", "agentsec-outbox-publisher", "agentsec-projection-graph", "agentsec-projection-risk", "agentsec-projection-search", "agentsec-runtime-archive", "agentsec-runtime-complete", "agentsec-runtime-coordinator", "agentsec-runtime-correlation", "agentsec-runtime-index", "agentsec-runtime-outbox", "agentsec-runtime-projection", "web"];
+  assert.deepEqual(resources.filter(({ kind }) => kind === "Deployment").map(({ metadata }) => metadata.name).sort(), workloadNames);
+  assert.deepEqual(resources.filter(({ kind }) => kind === "Service").map(({ metadata }) => metadata.name).sort(), workloadNames);
+  for (const name of workloadNames) {
     const deployment = one(resources, "Deployment", name);
     assert.deepEqual(deployment.spec.strategy.rollingUpdate, { maxSurge: 1, maxUnavailable: 0 });
     assert.equal(deployment.spec.template.spec.securityContext.seccompProfile.type, "RuntimeDefault");
     assert.equal(deployment.spec.template.spec.containers[0].securityContext.runAsUser, 65532);
     assert.equal(deployment.spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem, true);
     assert.equal(deployment.spec.template.spec.containers[0].lifecycle.preStop.exec.command.at(-1), "sleep 10");
-	if (name !== "web") {
-	  const shutdown = deployment.spec.template.spec.containers[0].env.find(({ name: key }) => key === "ZASP_SHUTDOWN_TIMEOUT");
-	  assert.equal(shutdown.value, "15s");
-	  assert.ok(10 + Number.parseInt(shutdown.value, 10) + 5 <= deployment.spec.template.spec.terminationGracePeriodSeconds);
-	}
+    if (name !== "web") {
+      const shutdown = deployment.spec.template.spec.containers[0].env.find(({ name: key }) => ["ZASP_SHUTDOWN_TIMEOUT", "ZASP_EVENT_INGEST_SHUTDOWN_TIMEOUT", "ZASP_GATEWAY_CONTROL_SHUTDOWN_TIMEOUT"].includes(key));
+      assert.equal(shutdown.value, "15s");
+      assert.ok(10 + Number.parseInt(shutdown.value, 10) + 5 <= deployment.spec.template.spec.terminationGracePeriodSeconds);
+    }
     assert.deepEqual(deployment.spec.template.spec.topologySpreadConstraints.map(({ topologyKey }) => topologyKey), ["topology.kubernetes.io/zone", "kubernetes.io/hostname"]);
     assert.equal(one(resources, "PodDisruptionBudget", name).spec.minAvailable, 1);
   }
@@ -190,9 +284,101 @@ test("release applies non-root rollout, zone and host spread, drain, PDB, and de
   assert.equal(one(resources, "ServiceAccount", "zasp-projection-search").metadata.annotations["eks.amazonaws.com/role-arn"], release.projectionSearch.roleArn);
   assert.equal(one(resources, "SecretProviderClass", "zasp-production-projection-search-secrets").spec.secretObjects[0].data.length, 1);
   assert.doesNotMatch(JSON.stringify(search), /ZASP_NEO4J|ZASP_CONNECTOR_|AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY/);
-  assert.equal(JSON.stringify(resources).includes("event-ingest"), false);
-  assert.equal(JSON.stringify(resources).includes("runtime-gateway"), false);
+  assert.equal(resources.some(({ kind, metadata }) => kind === "Deployment" && metadata?.name === "runtime-gateway"), false);
   assert.equal(JSON.stringify(resources).includes("4317"), false);
+});
+
+test("release ships the complete v15 runtime data plane behind exact workload authorities", async () => {
+  const resources = await renderRelease(release);
+  const expected = [
+    ["agentsec-event-ingest", "eventIngest", "zasp-runtime-ingest", release.runtime.eventIngestRoleArn],
+    ["agentsec-gateway-control", "gatewayControl", "zasp-gateway-control", release.runtime.gatewayControlRoleArn],
+    ["agentsec-runtime-outbox", "agentsecWorker", "zasp-runtime-outbox", release.runtime.outboxRoleArn],
+    ["agentsec-runtime-coordinator", "agentsecWorker", "zasp-runtime-coordinator", release.runtime.coordinatorRoleArn],
+    ["agentsec-runtime-archive", "agentsecWorker", "zasp-runtime-archive", release.runtime.archiveRoleArn],
+    ["agentsec-runtime-index", "agentsecWorker", "zasp-runtime-index", release.runtime.indexRoleArn],
+    ["agentsec-runtime-correlation", "agentsecWorker", "zasp-runtime-correlation", release.runtime.correlationRoleArn],
+    ["agentsec-runtime-projection", "agentsecWorker", "zasp-runtime-projection", release.runtime.projectionRoleArn],
+    ["agentsec-runtime-complete", "agentsecWorker", "zasp-runtime-complete", release.runtime.completeRoleArn],
+  ];
+  for (const [name, imageKey, serviceAccount, roleArn] of expected) {
+    const deployment = one(resources, "Deployment", name);
+    const pod = deployment.spec.template.spec;
+    assert.equal(pod.serviceAccountName, serviceAccount);
+    assert.equal(pod.containers[0].image, release.images[imageKey]);
+    assert.equal(one(resources, "ServiceAccount", serviceAccount).metadata.annotations?.["eks.amazonaws.com/role-arn"], roleArn);
+    assert.equal(pod.automountServiceAccountToken, false);
+    assert.equal(pod.containers[0].securityContext.readOnlyRootFilesystem, true);
+  }
+  const modes = new Map([
+    ["agentsec-runtime-outbox", ["runtime-outbox", "zasp_outbox_worker"]],
+    ["agentsec-runtime-coordinator", ["runtime-coordinator", "zasp_runtime_coordinator"]],
+    ["agentsec-runtime-archive", ["runtime-archive", "zasp_runtime_archive_worker"]],
+    ["agentsec-runtime-index", ["runtime-index", "zasp_runtime_index_worker"]],
+    ["agentsec-runtime-correlation", ["runtime-correlation", "zasp_runtime_correlation_worker"]],
+    ["agentsec-runtime-projection", ["runtime-projection", "zasp_runtime_projection_worker"]],
+    ["agentsec-runtime-complete", ["runtime-complete", "zasp_runtime_coordinator"]],
+  ]);
+  for (const [name, [mode, authority]] of modes) {
+    const env = envOf(one(resources, "Deployment", name));
+    assert.equal(env.ZASP_WORKER_MODE, mode);
+    assert.equal(env.ZASP_DATABASE_AUTHORITY, authority);
+    assert.equal(env.AWS_ACCESS_KEY_ID, undefined);
+    assert.equal(env.AWS_SECRET_ACCESS_KEY, undefined);
+    assert.equal(env.AWS_SESSION_TOKEN, undefined);
+  }
+  assert.deepEqual(envOf(one(resources, "Deployment", "agentsec-gateway-control")), {
+    ZASP_GATEWAY_CONTROL_MAX_BODY_BYTES: "65536", ZASP_GATEWAY_CONTROL_OPERATION_TIMEOUT: "5s",
+    ZASP_GATEWAY_CONTROL_READINESS_TTL: "30s", ZASP_GATEWAY_CONTROL_SHUTDOWN_TIMEOUT: "15s",
+  });
+  assert.deepEqual(envOf(one(resources, "Deployment", "agentsec-event-ingest")), {
+    ZASP_AWS_REGION: release.runtime.awsRegion, ZASP_EVENT_INGEST_ROLE_ARN: release.runtime.eventIngestRoleArn,
+    ZASP_EVENT_INGEST_WEB_IDENTITY_TOKEN_FILE: release.runtime.webIdentityTokenFile,
+    ZASP_RUNTIME_RAW_BUCKET: release.runtime.rawBucket, ZASP_RUNTIME_RAW_BUCKET_OWNER: release.runtime.rawBucketOwner,
+    ZASP_RUNTIME_RAW_KMS_KEY_ARN: release.runtime.rawKMSKeyArn, ZASP_EVENT_INGEST_MAX_BYTES: "67108864",
+    ZASP_EVENT_INGEST_OPERATION_TIMEOUT: "10s", ZASP_EVENT_INGEST_SHUTDOWN_TIMEOUT: "15s",
+  });
+});
+
+test("release gives the runtime data plane bounded ingress and dependency egress", async () => {
+  const resources = await renderRelease(release);
+  for (const [policyName, workload] of [["event-ingest-from-ingress", "agentsec-event-ingest"], ["gateway-control-from-ingress", "agentsec-gateway-control"]]) {
+    const policy = one(resources, "NetworkPolicy", policyName);
+    assert.deepEqual(policy.spec.podSelector.matchLabels, { "app.kubernetes.io/name": workload });
+    assert.deepEqual(policy.spec.ingress[0].ports, [{ protocol: "TCP", port: 8080 }]);
+  }
+  const gateway = one(resources, "NetworkPolicy", "gateway-control-database");
+  assert.deepEqual(gateway.spec.egress, [{ to: [{ ipBlock: { cidr: "10.30.0.0/24" } }], ports: [{ protocol: "TCP", port: 5432 }] }]);
+  const monitoring = one(resources, "NetworkPolicy", "task6-runtime-monitoring");
+  assert.deepEqual(monitoring.spec.podSelector.matchExpressions[0].values.sort(), ["agentsec-event-ingest", "agentsec-gateway-control", "agentsec-runtime-archive", "agentsec-runtime-complete", "agentsec-runtime-coordinator", "agentsec-runtime-correlation", "agentsec-runtime-index", "agentsec-runtime-outbox", "agentsec-runtime-projection"].sort());
+  assert.deepEqual(monitoring.spec.ingress[0].ports, [{ protocol: "TCP", port: 8081 }]);
+  for (const name of ["event-ingest-dependencies", "runtime-outbox-dependencies", "runtime-coordinator-dependencies", "runtime-stage-dependencies", "runtime-index-dependencies"]) {
+    const policy = one(resources, "NetworkPolicy", name);
+    const rendered = JSON.stringify(policy);
+    assert.doesNotMatch(rendered, /0\.0\.0\.0\/0|::\/0/);
+    const cidrs = policy.spec.egress.flatMap(({ to }) => to.map(({ ipBlock }) => ipBlock.cidr));
+    assert.ok(cidrs.includes("10.30.0.0/24"));
+    for (const cidr of release.runtime.egressCIDRs) assert.ok(cidrs.includes(cidr));
+    assert.equal(cidrs.includes("10.50.0.0/24"), name === "runtime-index-dependencies");
+  }
+});
+
+test("release monitors, scales, and independently alerts every runtime workload", async () => {
+  const resources = await renderRelease(release);
+  const workloads = ["agentsec-event-ingest", "agentsec-gateway-control", "agentsec-runtime-outbox", "agentsec-runtime-coordinator", "agentsec-runtime-archive", "agentsec-runtime-index", "agentsec-runtime-correlation", "agentsec-runtime-projection", "agentsec-runtime-complete"];
+  const rules = one(resources, "PrometheusRule", "zasp-production-slos").spec.groups.flatMap(({ rules: groupRules }) => groupRules);
+  for (const name of workloads) {
+    const hpa = one(resources, "HorizontalPodAutoscaler", name);
+    assert.equal(hpa.spec.scaleTargetRef.name, name);
+    assert.equal(hpa.spec.minReplicas, 2);
+    assert.equal(hpa.spec.maxReplicas, 10);
+    assert.deepEqual(one(resources, "ServiceMonitor", name).spec.endpoints, [{ interval: "30s", path: "/metrics", port: "internal", scrapeTimeout: "5s" }]);
+    const alert = rules.find(({ labels, expr }) => labels?.workload === name && expr.includes(`deployment="${name}"`));
+    assert.ok(alert, `${name} availability alert`);
+    assert.match(alert.expr, /absent\(/);
+  }
+  const readiness = rules.find(({ alert }) => alert === "ZaspTask6RuntimeDependencyNotReady");
+  assert.ok(readiness.expr.includes('service=~"agentsec-(event-ingest|gateway-control|runtime-'));
 });
 
 test("release mounts distinct risk and graph projections behind exact DB, Neo4j, and schema authorities", async () => {
@@ -611,6 +797,54 @@ test("terraform isolates connector mutation and reference authorization behind o
   assert.match(outputs, /output "connector_secret_prefix"/);
   assert.match(outputs, /output "connector_runtime_config"/);
   for (const name of ["ZASP_CONNECTOR_AWS_REGION", "ZASP_CONNECTOR_ROLE_ARN", "ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE", "ZASP_CONNECTOR_KMS_KEY_ARN", "ZASP_CONNECTOR_SECRET_PREFIX", "ZASP_AWS_CUSTOMER_ROLE_PREFIXES", "ZASP_AWS_CUSTOMER_ROLE_ARNS", "ZASP_KUBERNETES_EGRESS_CIDRS", "ZASP_GITHUB_CLIENT_ID", "ZASP_GITHUB_CLIENT_SECRET_REFERENCE", "ZASP_GITHUB_APP_ID", "ZASP_GITHUB_PRIVATE_KEY_REFERENCE", "ZASP_OKTA_CLIENT_ID", "ZASP_OKTA_CLIENT_SECRET_REFERENCE"]) assert.match(outputs, new RegExp(name));
+  assert.doesNotMatch(terraform, /aws_secretsmanager_secret_version|secret_string|secret_binary/i);
+});
+
+test("terraform provisions the exact encrypted v15 runtime plane and isolated identities", async () => {
+  const [terraform, variables, outputs] = await Promise.all([
+    readFile(new URL("../staging/main.tf", import.meta.url), "utf8"),
+    readFile(new URL("../staging/variables.tf", import.meta.url), "utf8"),
+    readFile(new URL("../staging/outputs.tf", import.meta.url), "utf8"),
+  ]);
+  for (const resource of [
+    'resource "aws_kms_key" "runtime_raw"',
+    'resource "aws_s3_bucket" "runtime_raw"',
+    'resource "aws_s3_bucket_public_access_block" "runtime_raw"',
+    'resource "aws_s3_bucket_versioning" "runtime_raw"',
+    'resource "aws_s3_bucket_server_side_encryption_configuration" "runtime_raw"',
+    'resource "aws_s3_bucket_lifecycle_configuration" "runtime_raw"',
+    'resource "aws_iam_role" "runtime"',
+    'resource "aws_iam_role_policy" "runtime"',
+  ]) assert.match(terraform, new RegExp(resource.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(terraform, /runtime-events\s*=\s*\{ visibility = 120, schema = "agentsec\.runtime-events\.v1" \}/);
+  assert.match(terraform, /runtime_raw_bucket_name\s*=\s*"zasp-runtime-raw-\$\{md5\(var\.account_id\)\}"/);
+  assert.match(terraform, /versioning_configuration \{ status = "Enabled" \}/);
+  assert.match(terraform, /kms_master_key_id = aws_kms_key\.runtime_raw\.arn/);
+  for (const [key, account, secret] of [
+    ["ingest", "zasp-runtime-ingest", "postgres-runtime-ingest-dsn"],
+    ["gateway_control", "zasp-gateway-control", "postgres-gateway-control-dsn"],
+    ["outbox", "zasp-runtime-outbox", "postgres-outbox-worker-dsn"],
+    ["coordinator", "zasp-runtime-coordinator", "postgres-runtime-coordinator-dsn"],
+    ["archive", "zasp-runtime-archive", "postgres-runtime-archive-dsn"],
+    ["index", "zasp-runtime-index", "postgres-runtime-index-dsn"],
+    ["correlation", "zasp-runtime-correlation", "postgres-runtime-correlation-dsn"],
+    ["projection", "zasp-runtime-projection", "postgres-runtime-projection-dsn"],
+    ["complete", "zasp-runtime-complete", "postgres-runtime-coordinator-dsn"],
+  ]) {
+    assert.match(terraform, new RegExp(`${key}\\s*=\\s*\\{[\\s\\S]*?principal\\s*=\\s*"system:serviceaccount:agentsec:${account}"[\\s\\S]*?database_secret\\s*=\\s*"${secret}"`));
+  }
+  const runtimePolicy = terraform.slice(terraform.indexOf('resource "aws_iam_role_policy" "runtime"'), terraform.indexOf("\nresource ", terraform.indexOf('resource "aws_iam_role_policy" "runtime"') + 1));
+  for (const action of ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue", "sts:GetCallerIdentity", "sqs:SendMessage", "sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:ChangeMessageVisibility", "sqs:GetQueueAttributes", "s3:PutObject", "s3:GetObject", "s3:GetBucketVersioning", "s3:GetEncryptionConfiguration", "kms:GenerateDataKey", "kms:Decrypt", "kms:DescribeKey", "es:ESHttpGet", "es:ESHttpPost", "es:ESHttpPut"]) assert.match(runtimePolicy, new RegExp(action.replace(":", "\\:")));
+  assert.match(runtimePolicy, /aws_sqs_queue\.work\["runtime-events"\]\.arn/);
+  assert.match(runtimePolicy, /aws_s3_bucket\.runtime_raw\.arn/);
+  assert.match(runtimePolicy, /aws_opensearch_domain\.events\.arn/);
+  assert.doesNotMatch(runtimePolicy, /"(?:s3|sqs|es):\*"/);
+  for (const principal of ["runtime_coordinator", "runtime_archive", "runtime_index", "runtime_correlation", "runtime_projection", "gateway_control"]) {
+    assert.match(variables, new RegExp(`${principal}\\s*=\\s*string`));
+    assert.match(terraform, new RegExp(`${principal}\\s*=\\s*var\\.database_principals\\.${principal}`));
+  }
+  assert.match(outputs, /output "runtime_release_authority"/);
+  for (const name of ["queue_url", "raw_bucket", "raw_kms_key_arn", "opensearch_endpoint", "ingest_role_arn", "gateway_control_role_arn", "outbox_role_arn", "coordinator_role_arn", "archive_role_arn", "index_role_arn", "correlation_role_arn", "projection_role_arn", "complete_role_arn"]) assert.match(outputs, new RegExp(`${name}\\s*=`));
   assert.doesNotMatch(terraform, /aws_secretsmanager_secret_version|secret_string|secret_binary/i);
 });
 

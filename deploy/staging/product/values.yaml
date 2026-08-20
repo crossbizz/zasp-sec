@@ -10,6 +10,9 @@ global:
     web: ""
     agentsecApi: ""
     agentsecWorker: ""
+    eventIngest: ""
+    gatewayControl: ""
+    runtimeGateway: ""
   images:
     neo4j: neo4j:5.26.28-community@sha256:ff32db30b2baff97971e441b46bfd9c832c1b62c970398ef579244c06b21d357
     nango: nangohq/nango-server:hosted-7faf2c303bbb0322333f526e9ca31c0fe95ef58e@sha256:b191d8d5b072fec5984e28da67298e9dabd5dc3a2585f1ebff7e2f5b9dfb66ed
@@ -24,6 +27,15 @@ replicas:
   projectionGraph: 2
   projectionSearch: 2
   outboxPublisher: 2
+  runtimeIngest: 2
+  gatewayControl: 2
+  runtimeOutbox: 2
+  runtimeCoordinator: 2
+  runtimeArchive: 2
+  runtimeIndex: 2
+  runtimeCorrelation: 2
+  runtimeProjection: 2
+  runtimeComplete: 2
 ingress:
   enabled: true
   className: nginx
@@ -38,6 +50,13 @@ secrets:
   projectionGraphProviderClassName: zasp-production-projection-graph-secrets
   projectionSearchProviderClassName: zasp-production-projection-search-secrets
   outboxProviderClassName: zasp-production-outbox-secrets
+  runtimeIngestProviderClassName: zasp-production-runtime-ingest-secrets
+  runtimeCoordinatorProviderClassName: zasp-production-runtime-coordinator-secrets
+  runtimeArchiveProviderClassName: zasp-production-runtime-archive-secrets
+  runtimeIndexProviderClassName: zasp-production-runtime-index-secrets
+  runtimeCorrelationProviderClassName: zasp-production-runtime-correlation-secrets
+  runtimeProjectionProviderClassName: zasp-production-runtime-projection-secrets
+  gatewayControlProviderClassName: zasp-production-gateway-control-secrets
   canaryProviderClassName: zasp-production-canary-secrets
   region: us-west-2
   apiPostgresDSNObjectName: ""
@@ -48,6 +67,13 @@ secrets:
   projectionGraphPostgresDSNObjectName: ""
   projectionSearchPostgresDSNObjectName: ""
   outboxPostgresDSNObjectName: ""
+  runtimeIngestPostgresDSNObjectName: ""
+  runtimeCoordinatorPostgresDSNObjectName: ""
+  runtimeArchivePostgresDSNObjectName: ""
+  runtimeIndexPostgresDSNObjectName: ""
+  runtimeCorrelationPostgresDSNObjectName: ""
+  runtimeProjectionPostgresDSNObjectName: ""
+  gatewayControlPostgresDSNObjectName: ""
   stytchProjectIDObjectName: ""
   stytchSecretObjectName: ""
   stytchPublicTokenObjectName: ""
@@ -117,8 +143,25 @@ outbox:
   queueURL: ""
   roleArn: ""
   webIdentityTokenFile: /var/run/secrets/eks.amazonaws.com/serviceaccount/token
+runtime:
+  awsRegion: ""
+  queueURL: ""
+  rawBucket: ""
+  rawBucketOwner: ""
+  rawKMSKeyArn: ""
+  openSearchEndpoint: ""
+  openSearchIndex: zasp-runtime-events-v1
+  webIdentityTokenFile: /var/run/secrets/eks.amazonaws.com/serviceaccount/token
+  eventIngestRoleArn: ""
+  outboxRoleArn: ""
+  coordinatorRoleArn: ""
+  archiveRoleArn: ""
+  indexRoleArn: ""
+  correlationRoleArn: ""
+  projectionRoleArn: ""
+  completeRoleArn: ""
 schema:
-  expectedVersion: 13
+  expectedVersion: 15
   migrationTimeout: 10m
 databasePrincipals:
   migration: ""
@@ -132,6 +175,12 @@ databasePrincipals:
   projectionRisk: ""
   projectionGraph: ""
   projectionSearch: ""
+  runtimeCoordinator: ""
+  runtimeArchive: ""
+  runtimeIndex: ""
+  runtimeCorrelation: ""
+  runtimeProjection: ""
+  gatewayControl: ""
 serviceAccounts:
   web: agentsec-web
   api:
@@ -164,6 +213,33 @@ serviceAccounts:
   outbox:
     name: zasp-outbox-publisher
     roleArn: ""
+  runtimeIngest:
+    name: zasp-runtime-ingest
+    roleArn: ""
+  gatewayControl:
+    name: zasp-gateway-control
+    roleArn: ""
+  runtimeOutbox:
+    name: zasp-runtime-outbox
+    roleArn: ""
+  runtimeCoordinator:
+    name: zasp-runtime-coordinator
+    roleArn: ""
+  runtimeArchive:
+    name: zasp-runtime-archive
+    roleArn: ""
+  runtimeIndex:
+    name: zasp-runtime-index
+    roleArn: ""
+  runtimeCorrelation:
+    name: zasp-runtime-correlation
+    roleArn: ""
+  runtimeProjection:
+    name: zasp-runtime-projection
+    roleArn: ""
+  runtimeComplete:
+    name: zasp-runtime-complete
+    roleArn: ""
   canary: agentsec-canary
   canarySecretSync:
     name: agentsec-canary-secret-sync
@@ -177,6 +253,8 @@ network:
   opensearchCIDR: ""
   neo4jCIDR: ""
   outboxEgressCIDRs: []
+  runtimeEgressCIDRs: []
+  controlPlaneCIDRs: []
   stytchCIDR: ""
   canaryCIDR: ""
   # Native NetworkPolicy is CIDR-based, not an FQDN firewall. Operators must

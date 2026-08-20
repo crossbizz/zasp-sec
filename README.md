@@ -37,12 +37,16 @@ AI explanations, sensors/provider sync, policy simulation/decisions,
 security-agent execution/approvals, exports, and deletion jobs remain hidden
 until their provider, job, artifact, and recovery boundaries are complete.
 
-Production packaging now supplies separate non-root web/API images and one TLS
-ingress: `/api/v1` routes to API port 8080, `/` routes to web port 3000, and
-API health/readiness/metrics stay private on 8081. Secrets are resolved through
-secret-manager CSI references, schema v9 is a blocking release Job, and the
-chart includes default-deny network policy, disruption/spread/drain controls,
-read-only canaries, security headers, SLO alerts and immutable image inputs.
+Production packaging now supplies six immutable non-root images for the web,
+API, worker, event-ingest, gateway-control, and customer-edge runtime-gateway
+boundaries. Separate TLS ingress routes the public product and authenticated
+runtime control/data-plane paths while health, readiness, and metrics remain
+private on 8081. Secrets are resolved through secret-manager CSI references,
+schema v15 is a blocking release Job, and the hosted chart renders 17 isolated
+deployments with default-deny network policy, disruption/spread/drain controls,
+read-only canaries, security headers, SLO alerts, and exact cloud identities.
+The customer-edge profile contains only the database-free runtime gateway with
+a durable signed-policy cache and bounded control-plane egress.
 
 Run the hermetic source release gate with pinned Node 22.23.1:
 

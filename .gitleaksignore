@@ -107,3 +107,15 @@ db1a6dd76020d6724b8831b635db38ed6aa88203:services/platform/apiserver/connector_a
 db1a6dd76020d6724b8831b635db38ed6aa88203:services/platform/apiserver/connector_authorization_risk_postgres_test.go:generic-api-key:131
 729c943f0a6e04ba5a4374dce14c71d3c0b3b297:services/platform/agentsec-api/runtime_test.go:generic-api-key:207
 3835cba3a2dc053ad42f4d3944bd60563728686e:services/platform/agentsec-api/runtime_test.go:generic-api-key:185
+
+# Tasks 5 and 6 use descriptive idempotency, lease, and token literals only in
+# hermetic browser, HTTP, repository, and pipeline tests. Ignore only their
+# exact introduction findings; changed or relocated values remain detectable.
+5ec591b344681115798be20ec91ab2197b8155a9:app/features/sensors/api.test.ts:generic-api-key:29
+72e7147da70945abe342d9eabc499bbd08b6d1b3:services/platform/apiserver/sensor_public_handler_test.go:generic-api-key:145
+72e7147da70945abe342d9eabc499bbd08b6d1b3:services/platform/apiserver/sensor_public_repository_test.go:generic-api-key:85
+7cd1129fa621e6e9d8de3bd7d34e6703d2ebfd0d:services/platform/runtimeevent/production_pipeline_repository_test.go:generic-api-key:30
+7cd1129fa621e6e9d8de3bd7d34e6703d2ebfd0d:services/platform/runtimeevent/production_pipeline_repository_test.go:generic-api-key:76
+ab62e1b533a0a581a9e35574cb1457fbe9207fd4:services/platform/apiserver/sensor_public_repository_test.go:generic-api-key:83
+b69107ece17090ba344576f52da05cee9724ae1c:services/platform/apiserver/runtime_data_plane_postgres_test.go:generic-api-key:292
+b69107ece17090ba344576f52da05cee9724ae1c:services/platform/apiserver/runtime_data_plane_postgres_test.go:generic-api-key:294

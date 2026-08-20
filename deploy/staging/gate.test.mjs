@@ -24,9 +24,18 @@ const deployment = {
     { name: "agentsec-projection-risk", image: digest("registry.example/zasp/worker", "c"), serviceAccount: "zasp-projection-risk", roleArn: "arn:aws:iam::123456789012:role/zasp-production-projection-risk" },
     { name: "agentsec-projection-graph", image: digest("registry.example/zasp/worker", "c"), serviceAccount: "zasp-projection-graph", roleArn: "arn:aws:iam::123456789012:role/zasp-production-projection-graph" },
     { name: "agentsec-projection-search", image: digest("registry.example/zasp/worker", "c"), serviceAccount: "zasp-projection-search", roleArn: "arn:aws:iam::123456789012:role/zasp-production-projection-search" },
+    { name: "agentsec-event-ingest", image: digest("registry.example/zasp/event-ingest", "d"), serviceAccount: "zasp-runtime-ingest", roleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-ingest" },
+    { name: "agentsec-gateway-control", image: digest("registry.example/zasp/gateway-control", "e"), serviceAccount: "zasp-gateway-control", roleArn: "arn:aws:iam::123456789012:role/zasp-production-gateway-control" },
+    { name: "agentsec-runtime-outbox", image: digest("registry.example/zasp/worker", "c"), serviceAccount: "zasp-runtime-outbox", roleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-outbox" },
+    { name: "agentsec-runtime-coordinator", image: digest("registry.example/zasp/worker", "c"), serviceAccount: "zasp-runtime-coordinator", roleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-coordinator" },
+    { name: "agentsec-runtime-archive", image: digest("registry.example/zasp/worker", "c"), serviceAccount: "zasp-runtime-archive", roleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-archive" },
+    { name: "agentsec-runtime-index", image: digest("registry.example/zasp/worker", "c"), serviceAccount: "zasp-runtime-index", roleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-index" },
+    { name: "agentsec-runtime-correlation", image: digest("registry.example/zasp/worker", "c"), serviceAccount: "zasp-runtime-correlation", roleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-correlation" },
+    { name: "agentsec-runtime-projection", image: digest("registry.example/zasp/worker", "c"), serviceAccount: "zasp-runtime-projection", roleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-projection" },
+    { name: "agentsec-runtime-complete", image: digest("registry.example/zasp/worker", "c"), serviceAccount: "zasp-runtime-complete", roleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-complete" },
   ],
   jobIdentities: [
-    { name: "agentsec-schema-v13", serviceAccount: "agentsec-migration", roleArn: "arn:aws:iam::123456789012:role/zasp-production-migration" },
+    { name: "agentsec-schema-v15", serviceAccount: "agentsec-migration", roleArn: "arn:aws:iam::123456789012:role/zasp-production-migration" },
     { name: "agentsec-projection-graph-init-v1", serviceAccount: "agentsec-projection-graph-init", roleArn: "arn:aws:iam::123456789012:role/zasp-production-projection-graph-init" },
     { name: "agentsec-projection-search-init-v1", serviceAccount: "agentsec-projection-search-init", roleArn: "arn:aws:iam::123456789012:role/zasp-production-projection-search-init" },
     { name: "production-readonly-canary", serviceAccount: "agentsec-canary", roleArn: null },
@@ -34,7 +43,7 @@ const deployment = {
   ],
 };
 
-test("staging deployment binds eight deployments and every init/canary identity to one account", () => {
+test("staging deployment binds seventeen deployments and every init/canary identity to one account", () => {
   assert.deepEqual(buildStagingDeployment(deployment), deployment);
   const runtime = {
     start: () => "deploy-run-1",
@@ -46,7 +55,7 @@ test("staging deployment binds eight deployments and every init/canary identity 
   assert.throws(() => buildStagingDeployment({ ...deployment, serviceAccount: "shared-release" }), /rejected/);
   assert.throws(() => buildStagingDeployment({ ...deployment, workloads: [...deployment.workloads, { name: "unsupported-extra", image: digest("registry.example/zasp/extra", "c"), serviceAccount: "shared-release", roleArn: "arn:aws:iam::123456789012:role/zasp-production" }] }), /rejected/);
   assert.throws(() => buildStagingDeployment({ ...deployment, workloads: deployment.workloads.map((workload) => ({ ...workload, serviceAccount: "shared-release" })) }), /rejected/);
-  assert.throws(() => buildStagingDeployment({ ...deployment, jobIdentities: deployment.jobIdentities.map((identity) => identity.name === "agentsec-schema-v13" ? { ...identity, roleArn: "arn:aws:iam::210987654321:role/zasp-production-migration" } : identity) }), /rejected/);
+  assert.throws(() => buildStagingDeployment({ ...deployment, jobIdentities: deployment.jobIdentities.map((identity) => identity.name === "agentsec-schema-v15" ? { ...identity, roleArn: "arn:aws:iam::210987654321:role/zasp-production-migration" } : identity) }), /rejected/);
 });
 
 test("staging evidence is deterministic, credential-free, and gates exact private readiness", () => {

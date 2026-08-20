@@ -94,6 +94,12 @@ variable "database_principals" {
     projection_risk     = string
     projection_graph    = string
     projection_search   = string
+    runtime_coordinator = string
+    runtime_archive     = string
+    runtime_index       = string
+    runtime_correlation = string
+    runtime_projection  = string
+    gateway_control     = string
   })
   default = {
     migration           = "zasp_migration"
@@ -107,13 +113,19 @@ variable "database_principals" {
     projection_risk     = "zasp_projection_risk_runtime"
     projection_graph    = "zasp_projection_graph_runtime"
     projection_search   = "zasp_projection_search_runtime"
+    runtime_coordinator = "zasp_runtime_coordinator_runtime"
+    runtime_archive     = "zasp_runtime_archive_runtime"
+    runtime_index       = "zasp_runtime_index_runtime"
+    runtime_correlation = "zasp_runtime_correlation_runtime"
+    runtime_projection  = "zasp_runtime_projection_runtime"
+    gateway_control     = "zasp_gateway_control_runtime"
   }
 
   validation {
-    condition = length(distinct(values(var.database_principals))) == 11 && alltrue([
+    condition = length(distinct(values(var.database_principals))) == 17 && alltrue([
       for principal in values(var.database_principals) : can(regex("^[a-z][a-z0-9_]{2,62}$", principal))
     ])
-    error_message = "database_principals must contain eleven distinct bounded PostgreSQL login names."
+    error_message = "database_principals must contain seventeen distinct bounded PostgreSQL login names."
   }
 }
 

@@ -38,4 +38,45 @@ spec:
           - path: /
             pathType: Prefix
             backend: { service: { name: web, port: { number: 3000 } } }
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: zasp-runtime
+  labels: { app.kubernetes.io/part-of: zasp }
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "64m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "5"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "30"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
+      add_header X-Content-Type-Options "nosniff" always;
+      add_header Referrer-Policy "no-referrer" always;
+spec:
+  ingressClassName: {{ .Values.ingress.className | quote }}
+  tls:
+    - hosts: [{{ $host | quote }}]
+      secretName: {{ required "ingress.tlsSecretName is required" .Values.ingress.tlsSecretName | quote }}
+  rules:
+    - host: {{ $host | quote }}
+      http:
+        paths:
+          - path: /internal/v1/runtime-gateway/authority
+            pathType: Prefix
+            backend: { service: { name: agentsec-gateway-control, port: { number: 8080 } } }
+          - path: /internal/v1/policy-bundles
+            pathType: Prefix
+            backend: { service: { name: agentsec-gateway-control, port: { number: 8080 } } }
+          - path: /internal/v1/runtime/decisions
+            pathType: Prefix
+            backend: { service: { name: agentsec-gateway-control, port: { number: 8080 } } }
+          - path: /internal/v1/runtime/events
+            pathType: Prefix
+            backend: { service: { name: agentsec-event-ingest, port: { number: 8080 } } }
+          - path: /internal/v1/sensor/heartbeat
+            pathType: Prefix
+            backend: { service: { name: agentsec-event-ingest, port: { number: 8080 } } }
 {{- end }}

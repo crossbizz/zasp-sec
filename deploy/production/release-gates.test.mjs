@@ -47,7 +47,7 @@ test("release sources contain truthful runbooks, canary, SBOM/license/image/secr
   const result = await verifyReleaseSources();
   assert.equal(result.canary, true);
   assert.equal(result.documentation, true);
-  assert.equal(result.imageDefinitions, 3);
+  assert.equal(result.imageDefinitions, 6);
   assert.equal(result.licensePolicy, true);
   assert.equal(result.trackedSecretScan, true);
   assert.ok(result.npmSpdxPackages > 20);
@@ -84,6 +84,7 @@ test("release sources contain truthful runbooks, canary, SBOM/license/image/secr
   assert.throws(() => validateGoSpdxDocument({ ...result.goSpdx, creationInfo: { ...result.goSpdx.creationInfo, created: "2026-08-19T12:34:56.123Z" } }), /Go SBOM gate rejected/);
   assert.equal(result.requiredCI, true);
   assert.equal(result.task4Deployment, true);
+  assert.equal(result.task6Deployment, true);
 });
 
 function securityHeaders(extra) {

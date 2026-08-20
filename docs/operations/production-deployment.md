@@ -2,17 +2,20 @@
 
 ## Supported topology
 
-Zasp deploys immutable `web`, `agentsec-api`, and `agentsec-worker` images. Only web and API sit behind the TLS ingress: `/api/v1` routes to API port 8080 and every other path routes to web port 3000. Scheduler, outbox, discovery, and risk, graph, and search projection workers expose only private health, readiness, and metrics port 8081. Provider and projection endpoints have no public ingress.
+Zasp deploys immutable `web`, `agentsec-api`, `agentsec-worker`, `event-ingest`, `gateway-control`, and `runtime-gateway` images. Web and API use the product TLS ingress. A separate bounded runtime ingress on the same TLS origin routes only the private gateway-control and sensor heartbeat/event paths, with a 64 MiB limit isolated from the 16 KiB product API limit. Scheduler, outbox, discovery, projection, and runtime pipeline workers expose only private health, readiness, and metrics port 8081.
 
-The supported first profile is `values-saas.yaml`. Single-tenant requires its own release evidence before use. Helm fails closed when `customer_edge` is selected; an exact image, entrypoint, security review and deployed proof must ship before that profile can be enabled.
+The supported hosted profile is `values-saas.yaml`. Single-tenant requires its own release evidence before use. The `customer_edge` profile renders exactly one database-free runtime gateway with regular-file credential materialization, a durable policy-cache PVC, no cloud identity, bounded control-plane egress, and no public ingress.
 
 ## Build and attest
 
-Use the repository root as the build context. Supply the reviewed version to both Go builds and record all three resulting digests:
+Use the repository root as the build context. Supply the reviewed version to every Go build and record all six resulting digests:
 
 ```sh
 docker build --pull --build-arg VERSION="$REVIEWED_SHA" -f deploy/production/api.Dockerfile -t "$API_IMAGE" .
 docker build --pull --build-arg VERSION="$REVIEWED_SHA" -f deploy/production/worker.Dockerfile -t "$WORKER_IMAGE" .
+docker build --pull --build-arg VERSION="$REVIEWED_SHA" -f deploy/production/event-ingest.Dockerfile -t "$EVENT_INGEST_IMAGE" .
+docker build --pull --build-arg VERSION="$REVIEWED_SHA" -f deploy/production/gateway-control.Dockerfile -t "$GATEWAY_CONTROL_IMAGE" .
+docker build --pull --build-arg VERSION="$REVIEWED_SHA" -f deploy/production/runtime-gateway.Dockerfile -t "$RUNTIME_GATEWAY_IMAGE" .
 docker build --pull -f deploy/production/web.Dockerfile -t "$WEB_IMAGE" .
 npm run production:release:gate
 ```
@@ -21,7 +24,7 @@ The required CI gate scans all tracked Git history with the pinned Gitleaks vers
 
 ## Configure
 
-Create secret values only in the approved secret manager. Helm values contain object names and credential references, never values. Every PostgreSQL principal has its own DSN object and service account. The discovery worker alone receives its queue, evidence bucket and KMS key, connector reference namespace, provider identifiers, and explicit STS web-identity token. Risk is DB-only. Graph receives its DB principal plus the exact non-admin `ref:neo4j/auth/runtime` reference; the graph schema Job uses a distinct DDL secret and role. Search receives its DB principal and exact signed OpenSearch index paths; its index-init Job uses a distinct schema role. Web and the recurring canary receive no cloud identity, and application containers disable ambient service-account tokens. Configure exact TLS host, certificate secret, trusted ingress CIDRs, fixed provider/dependency CIDRs, immutable implementation versions, and immutable product image digests. `global.publicOrigin` must equal `https://<ingress.host>` exactly.
+Create secret values only in the approved secret manager. Helm values contain object names and credential references, never values. Every PostgreSQL principal has its own DSN object and service account. Discovery receives only its queue, evidence bucket/KMS key, connector references, and explicit web identity. Risk is DB-only. Graph and search use separate runtime and schema-init authorities. Task 6 adds a distinct runtime-events queue/DLQ, versioned runtime-raw bucket and KMS key, runtime OpenSearch index, and a non-union role for ingest, gateway control, outbox, coordinator, archive, index, correlation, projection, and completion. Web and the recurring canary receive no cloud identity, and application containers disable ambient service-account tokens. Configure exact TLS host, certificate secret, trusted ingress CIDRs, fixed provider/dependency CIDRs, immutable implementation versions, and immutable product image digests. `global.publicOrigin` must equal `https://<ingress.host>` exactly.
 
 Render and review before applying:
 
@@ -31,10 +34,10 @@ helm template zasp deploy/staging/product --namespace agentsec -f deploy/staging
 helm upgrade --install zasp deploy/staging/product --namespace agentsec --create-namespace --atomic --timeout 15m -f deploy/staging/product/values-saas.yaml -f release-values.yaml
 ```
 
-The pre-install/pre-upgrade lifecycle is serialized. The migration service account (-30), secret-provider class (-20), and bounded migration Job (-10) establish exact schema v13 first. Neo4j schema authority then installs the exact graph constraints with its DDL-only principal. OpenSearch index authority installs the strict mapping and immutable schema marker with its init-only principal. Only after every hook succeeds may Helm roll the scheduler, outbox, discovery, and projection Deployments. This ordering works on a fresh install without pre-existing Kubernetes Secrets, but it requires the Secrets Store CSI driver/provider, exact IRSA trusts, and reachable private dependency CIDRs. A failed hook or readiness check blocks promotion. Do not bypass, reorder, or reuse an init identity for a runtime worker.
+The pre-install/pre-upgrade lifecycle is serialized. The migration service account (-30), secret-provider class (-20), and bounded migration Job (-10) establish exact schema v15 first. Neo4j and OpenSearch init authorities then install their exact constraints, mappings, and immutable markers. Only after every hook succeeds may Helm roll discovery, projection, gateway-control, ingest, and runtime pipeline Deployments. This ordering works on a fresh install without pre-existing Kubernetes Secrets, but it requires the Secrets Store CSI driver/provider, exact IRSA trusts, and reachable private dependency CIDRs. A failed hook or readiness check blocks promotion. Do not bypass, reorder, or reuse an init identity for a runtime worker.
 
 ## Verify and promote
 
-Require all eight Deployments available, every schema/init Job complete, PDBs, topology spread, HPAs, default-deny NetworkPolicies, and internal Services/ServiceMonitors present. Prove port 8081 is unreachable outside the monitoring namespace and that no worker or provider Service is a LoadBalancer or NodePort. Verify exact worker identity and schema/principal readiness, queue redrive policy, evidence bucket versioning/KMS/owner checks, graph mapping/constraints, search mapping/marker, and the read-only public canary before promotion. Capacity/readiness alerts must be healthy; queue and projection lag evidence remains a required external metric gate until the worker exports a bounded lag series. Record the reviewed Git SHA, image digests, chart fingerprint, init receipts, CI run, public URL, and all external gate results.
+Require all 17 hosted Deployments available, every schema/init Job complete, PDBs, topology spread, HPAs, default-deny NetworkPolicies, and internal Services/ServiceMonitors present. Prove port 8081 is unreachable outside the monitoring namespace and that no worker Service is a LoadBalancer or NodePort. Verify exact identities, schema/principal readiness, both queue redrive policies, both versioned buckets and KMS keys, graph constraints, discovery and runtime search mappings/markers, gateway policy readiness, and the read-only public canary before promotion. Capacity/readiness alerts must be healthy; queue and projection lag evidence remains a required external metric gate until each source exports a bounded durable lag series. Record the reviewed Git SHA, six image digests, chart fingerprint, init receipts, CI run, public URL, and all external gate results.
 
 Never run this procedure against a shared namespace from a developer harness. The local combined proof owns its PostgreSQL/API/web/Chrome processes and temporary root, fingerprints them, and removes only those resources.

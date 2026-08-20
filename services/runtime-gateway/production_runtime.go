@@ -6,26 +6,80 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/zasp-ai/zasp-sec/services/platform/gatewaycontrol"
 	"github.com/zasp-ai/zasp-sec/services/platform/policy"
 )
 
 const gatewayEvidenceRecordInterval = 100 * time.Millisecond
 
-type productionGatewayDatabase struct {
-	pool *pgxpool.Pool
+type gatewayHTTPClient interface {
+	Ready(context.Context) error
+	Authority(context.Context, string) (gatewaycontrol.Authority, error)
+	Policy(context.Context, string, uint64) (*policy.GatewayPolicyEnvelope, error)
+	Record(context.Context, gatewaycontrol.DecisionEvent) error
+	Close() error
 }
 
-func (database *productionGatewayDatabase) QueryRow(ctx context.Context, statement string, arguments ...any) gatewayDatabaseRow {
-	if database == nil || database.pool == nil {
-		return gatewayErrorRow{}
+type gatewayHTTPClientFactory func(gatewaycontrol.HTTPClientConfig) (gatewayHTTPClient, error)
+
+type gatewayHTTPControl struct {
+	next gatewayHTTPClient
+}
+
+func (control gatewayHTTPControl) Ready(ctx context.Context) error {
+	if control.next == nil || control.next.Ready(ctx) != nil {
+		return errGatewayRuntime
 	}
-	return database.pool.QueryRow(ctx, statement, arguments...)
+	return nil
 }
 
-type gatewayErrorRow struct{}
+func (control gatewayHTTPControl) Authority(ctx context.Context, credentialID string) (gatewayAuthority, error) {
+	if control.next == nil {
+		return gatewayAuthority{}, errGatewayRuntime
+	}
+	value, err := control.next.Authority(ctx, credentialID)
+	if err != nil {
+		return gatewayAuthority{}, errGatewayRuntime
+	}
+	authority := gatewayAuthority{
+		OrganizationID: value.OrganizationID,
+		WorkspaceID:    value.WorkspaceID,
+		EnvironmentID:  value.EnvironmentID,
+		DeviceID:       value.DeviceID,
+		CredentialID:   value.CredentialID,
+		ReplayFloor:    value.ReplayFloor,
+	}
+	if !validGatewayAuthority(authority, credentialID) {
+		return gatewayAuthority{}, errGatewayRuntime
+	}
+	return authority, nil
+}
 
-func (gatewayErrorRow) Scan(...any) error { return errGatewayRepository }
+func (control gatewayHTTPControl) Policy(ctx context.Context, credentialID string, after uint64) (*policy.GatewayPolicyEnvelope, error) {
+	if control.next == nil {
+		return nil, errGatewayRuntime
+	}
+	value, err := control.next.Policy(ctx, credentialID, after)
+	if err != nil {
+		return nil, errGatewayRuntime
+	}
+	return value, nil
+}
+
+func (control gatewayHTTPControl) Record(ctx context.Context, event gatewayDecisionEvent) error {
+	if control.next == nil {
+		return errGatewayRuntime
+	}
+	value := gatewaycontrol.DecisionEvent{
+		CredentialID: event.CredentialID, DeviceID: event.DeviceID, EventID: event.EventID,
+		ExpectedFloor: event.ExpectedFloor, NextFloor: event.NextFloor, PolicyVersion: event.PolicyVersion,
+		Decision: event.Decision, ActionKind: event.ActionKind, Classification: cloneGatewayStrings(event.Classification), OccurredAt: event.OccurredAt,
+	}
+	if err := control.next.Record(ctx, value); err != nil {
+		return errGatewayRuntime
+	}
+	return nil
+}
 
 type boundGatewayControl struct {
 	next     gatewayControlPlane
@@ -34,32 +88,32 @@ type boundGatewayControl struct {
 
 func (control boundGatewayControl) Ready(ctx context.Context) error {
 	if control.next == nil {
-		return errGatewayRepository
+		return errGatewayRuntime
 	}
 	return control.next.Ready(ctx)
 }
 
 func (control boundGatewayControl) Authority(ctx context.Context, credentialID string) (gatewayAuthority, error) {
 	if control.next == nil || credentialID != control.expected.CredentialID {
-		return gatewayAuthority{}, errGatewayRepository
+		return gatewayAuthority{}, errGatewayRuntime
 	}
 	authority, err := control.next.Authority(ctx, credentialID)
 	if err != nil || !sameGatewayAuthority(authority, control.expected) {
-		return gatewayAuthority{}, errGatewayRepository
+		return gatewayAuthority{}, errGatewayRuntime
 	}
 	return authority, nil
 }
 
 func (control boundGatewayControl) Policy(ctx context.Context, credentialID string, afterSequence uint64) (*policy.GatewayPolicyEnvelope, error) {
 	if control.next == nil || credentialID != control.expected.CredentialID {
-		return nil, errGatewayRepository
+		return nil, errGatewayRuntime
 	}
 	return control.next.Policy(ctx, credentialID, afterSequence)
 }
 
 func (control boundGatewayControl) Record(ctx context.Context, event gatewayDecisionEvent) error {
 	if control.next == nil || event.CredentialID != control.expected.CredentialID || event.DeviceID != control.expected.DeviceID {
-		return errGatewayRepository
+		return errGatewayRuntime
 	}
 	return control.next.Record(ctx, event)
 }
@@ -73,47 +127,56 @@ type productionGatewayDependencies struct {
 }
 
 func buildProductionGatewayDependencies(ctx context.Context, config productionGatewayConfig) (productionGatewayDependencies, error) {
+	return buildProductionGatewayDependenciesWithFactory(ctx, config, func(clientConfig gatewaycontrol.HTTPClientConfig) (gatewayHTTPClient, error) {
+		return gatewaycontrol.NewHTTPClient(clientConfig)
+	})
+}
+
+func buildProductionGatewayDependenciesWithFactory(ctx context.Context, config productionGatewayConfig, factory gatewayHTTPClientFactory) (productionGatewayDependencies, error) {
 	if ctx == nil || ctx.Err() != nil || !validProductionGatewayConfig(config) {
 		return productionGatewayDependencies{}, errRuntimeUnavailable
 	}
-	poolConfig, err := pgxpool.ParseConfig(config.DatabaseURL)
+	if factory == nil {
+		return productionGatewayDependencies{}, errRuntimeUnavailable
+	}
+	credential, err := loadGatewayCredential(config.PrivateKeyFile, config.CredentialID)
 	if err != nil {
 		return productionGatewayDependencies{}, errRuntimeUnavailable
 	}
-	poolConfig.MaxConns = 4
-	poolConfig.MinConns = 0
-	poolConfig.HealthCheckPeriod = 30 * time.Second
-	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
-	if err != nil {
+	client, err := factory(gatewaycontrol.HTTPClientConfig{
+		BaseURL: config.ControlPlaneURL, OrganizationID: config.OrganizationID, WorkspaceID: config.WorkspaceID,
+		EnvironmentID: config.EnvironmentID, DeviceID: config.DeviceID, CredentialID: config.CredentialID,
+		KeyID: credential.KeyID, PrivateKey: credential.PrivateKey, OperationTimeout: config.OperationTimeout, Clock: gatewayUTCNow,
+	})
+	credential.Destroy()
+	if err != nil || client == nil {
+		if client != nil {
+			_ = client.Close()
+		}
 		return productionGatewayDependencies{}, errRuntimeUnavailable
 	}
-	failPool := func() (productionGatewayDependencies, error) {
-		pool.Close()
+	failClient := func() (productionGatewayDependencies, error) {
+		_ = client.Close()
 		return productionGatewayDependencies{}, errRuntimeUnavailable
 	}
 	keys, err := loadGatewayPolicyKeys(config.PolicyKeysFile)
 	if err != nil {
-		return failPool()
+		return failClient()
 	}
 	expected := gatewayAuthority{OrganizationID: config.OrganizationID, WorkspaceID: config.WorkspaceID, EnvironmentID: config.EnvironmentID, DeviceID: config.DeviceID, CredentialID: config.CredentialID}
-	cache, err := policy.NewGatewayPolicyDiskCache(config.PolicyCacheFile, keys, expected.Binding(), func() time.Time { return time.Now().UTC().Truncate(time.Second) })
+	cache, err := policy.NewGatewayPolicyDiskCache(config.PolicyCacheFile, keys, expected.Binding(), gatewayUTCNow)
 	if err != nil {
-		return failPool()
+		return failClient()
 	}
 	failCache := func() (productionGatewayDependencies, error) {
 		_ = cache.Close()
-		pool.Close()
+		_ = client.Close()
 		return productionGatewayDependencies{}, errRuntimeUnavailable
 	}
-	database := &productionGatewayDatabase{pool: pool}
-	repository, err := newGatewayPostgresControl(database, config.OperationTimeout)
-	if err != nil {
-		return failCache()
-	}
-	control := boundGatewayControl{next: repository, expected: expected}
+	control := boundGatewayControl{next: gatewayHTTPControl{next: client}, expected: expected}
 	runtime, err := newGatewayRuntime(gatewayRuntimeConfig{
 		Control: control, Cache: cache, CredentialID: config.CredentialID, BootstrapFailureMode: config.BootstrapFailureMode,
-		MaximumPendingEvents: config.MaximumPendingEvents, Now: func() time.Time { return time.Now().UTC().Truncate(time.Second) },
+		MaximumPendingEvents: config.MaximumPendingEvents, Now: gatewayUTCNow,
 	})
 	if err != nil {
 		return failCache()
@@ -132,7 +195,9 @@ func buildProductionGatewayDependencies(ctx context.Context, config productionGa
 			if err := cache.Close(); err != nil {
 				closeErr = errRuntimeUnavailable
 			}
-			pool.Close()
+			if err := client.Close(); err != nil {
+				closeErr = errRuntimeUnavailable
+			}
 		})
 		return closeErr
 	}
@@ -147,5 +212,7 @@ func buildProductionGatewayDependencies(ctx context.Context, config productionGa
 	}, nil
 }
 
-var _ gatewayDatabase = (*productionGatewayDatabase)(nil)
+func gatewayUTCNow() time.Time { return time.Now().UTC().Truncate(time.Second) }
+
 var _ gatewayControlPlane = boundGatewayControl{}
+var _ gatewayControlPlane = gatewayHTTPControl{}

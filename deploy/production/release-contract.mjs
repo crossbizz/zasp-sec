@@ -12,7 +12,8 @@ const root = path.resolve(here, "../..");
 const digestPattern = /^[a-z0-9][a-z0-9./_-]*(?::[A-Za-z0-9._-]+)?@sha256:[0-9a-f]{64}$/;
 const hostPattern = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
 const namePattern = /^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$/;
-const imageNames = Object.freeze(["web", "agentsecApi", "agentsecWorker"]);
+const productIDPattern = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const imageNames = Object.freeze(["web", "agentsecApi", "agentsecWorker", "eventIngest", "gatewayControl", "runtimeGateway"]);
 const discoveryKeys = Object.freeze([
   "parserVersion", "toolVersion", "awsCollectorVersion", "kubernetesCollectorVersion", "githubCollectorVersion", "oktaCollectorVersion",
   "awsRegion", "queueURL", "roleArn", "webIdentityTokenFile", "secretPrefix", "evidenceBucket", "evidenceBucketOwner", "evidenceKMSKeyArn",
@@ -22,6 +23,10 @@ const projectionSearchKeys = Object.freeze(["awsRegion", "endpoint", "index", "r
 const projectionRiskKeys = Object.freeze(["roleArn"]);
 const projectionGraphKeys = Object.freeze(["awsRegion", "endpoint", "endpointCIDR", "credentialReference", "schemaCredentialReference", "secretPrefix", "roleArn", "webIdentityTokenFile", "initRoleArn", "expectedPrincipal", "expectedRole"]);
 const outboxKeys = Object.freeze(["awsRegion", "queueURL", "roleArn", "webIdentityTokenFile", "egressCIDRs"]);
+const runtimeKeys = Object.freeze([
+  "awsRegion", "queueURL", "rawBucket", "rawBucketOwner", "rawKMSKeyArn", "openSearchEndpoint", "openSearchIndex", "webIdentityTokenFile",
+  "eventIngestRoleArn", "gatewayControlRoleArn", "outboxRoleArn", "coordinatorRoleArn", "archiveRoleArn", "indexRoleArn", "correlationRoleArn", "projectionRoleArn", "completeRoleArn", "egressCIDRs",
+]);
 const connectorKeys = Object.freeze(["awsRegion", "roleArn", "awsCustomerRolePrefixes", "awsCustomerRoleARNs", "webIdentityTokenFile", "kmsKeyArn", "secretPrefix", "githubClientID", "githubClientSecretReference", "githubAppID", "githubPrivateKeyReference", "oktaClientID", "oktaClientSecretReference"]);
 const connectorEgressKeys = Object.freeze(["aws", "github", "okta", "kubernetes"]);
 
@@ -30,6 +35,9 @@ export async function inspectContainerBuilds() {
     { name: "web", file: "web.Dockerfile", port: 3000 },
     { name: "agentsec-api", file: "api.Dockerfile", port: 8080 },
     { name: "agentsec-worker", file: "worker.Dockerfile", port: 8081 },
+    { name: "event-ingest", file: "event-ingest.Dockerfile", port: 8081 },
+    { name: "gateway-control", file: "gateway-control.Dockerfile", port: 8081 },
+    { name: "runtime-gateway", file: "runtime-gateway.Dockerfile", port: 8081 },
   ];
   return Promise.all(definitions.map(async ({ name, file, port }) => {
     const source = await readFile(path.join(here, file), "utf8");
@@ -63,6 +71,15 @@ export async function renderRelease(value) {
     ["serviceAccounts.projectionSearch.roleArn", value.projectionSearch.roleArn],
     ["serviceAccounts.projectionSearchInit.roleArn", value.projectionSearch.initRoleArn],
     ["serviceAccounts.outbox.roleArn", value.outbox.roleArn],
+    ["serviceAccounts.runtimeIngest.roleArn", value.runtime.eventIngestRoleArn],
+    ["serviceAccounts.gatewayControl.roleArn", value.runtime.gatewayControlRoleArn],
+    ["serviceAccounts.runtimeOutbox.roleArn", value.runtime.outboxRoleArn],
+    ["serviceAccounts.runtimeCoordinator.roleArn", value.runtime.coordinatorRoleArn],
+    ["serviceAccounts.runtimeArchive.roleArn", value.runtime.archiveRoleArn],
+    ["serviceAccounts.runtimeIndex.roleArn", value.runtime.indexRoleArn],
+    ["serviceAccounts.runtimeCorrelation.roleArn", value.runtime.correlationRoleArn],
+    ["serviceAccounts.runtimeProjection.roleArn", value.runtime.projectionRoleArn],
+    ["serviceAccounts.runtimeComplete.roleArn", value.runtime.completeRoleArn],
     ["serviceAccounts.canarySecretSync.roleArn", `arn:aws:iam::${platformAccountID}:role/zasp-production-canary-secret-sync`],
     ["ingress.host", value.host], ["ingress.tlsSecretName", value.tlsSecretName],
     ["secrets.providerClassName", value.secretProviderClass],
@@ -73,6 +90,13 @@ export async function renderRelease(value) {
     ["secrets.projectionGraphPostgresDSNObjectName", "zasp/production/postgres-projection-graph-dsn"],
     ["secrets.projectionSearchPostgresDSNObjectName", "zasp/production/postgres-projection-search-dsn"],
     ["secrets.outboxPostgresDSNObjectName", "zasp/production/postgres-outbox-worker-dsn"],
+    ["secrets.runtimeIngestPostgresDSNObjectName", "zasp/production/postgres-runtime-ingest-dsn"],
+    ["secrets.runtimeCoordinatorPostgresDSNObjectName", "zasp/production/postgres-runtime-coordinator-dsn"],
+    ["secrets.runtimeArchivePostgresDSNObjectName", "zasp/production/postgres-runtime-archive-dsn"],
+    ["secrets.runtimeIndexPostgresDSNObjectName", "zasp/production/postgres-runtime-index-dsn"],
+    ["secrets.runtimeCorrelationPostgresDSNObjectName", "zasp/production/postgres-runtime-correlation-dsn"],
+    ["secrets.runtimeProjectionPostgresDSNObjectName", "zasp/production/postgres-runtime-projection-dsn"],
+    ["secrets.gatewayControlPostgresDSNObjectName", "zasp/production/postgres-gateway-control-dsn"],
     ["secrets.migrationPostgresDSNObjectName", "zasp/production/postgres-migration-dsn"],
     ["secrets.stytchProjectIDObjectName", "zasp/production/stytch-project-id"],
     ["secrets.stytchSecretObjectName", "zasp/production/stytch-secret"],
@@ -92,6 +116,12 @@ export async function renderRelease(value) {
     ["databasePrincipals.projectionRisk", "zasp_projection_risk_runtime"],
     ["databasePrincipals.projectionGraph", "zasp_projection_graph_runtime"],
     ["databasePrincipals.projectionSearch", "zasp_projection_search_runtime"],
+    ["databasePrincipals.runtimeCoordinator", "zasp_runtime_coordinator_runtime"],
+    ["databasePrincipals.runtimeArchive", "zasp_runtime_archive_runtime"],
+    ["databasePrincipals.runtimeIndex", "zasp_runtime_index_runtime"],
+    ["databasePrincipals.runtimeCorrelation", "zasp_runtime_correlation_runtime"],
+    ["databasePrincipals.runtimeProjection", "zasp_runtime_projection_runtime"],
+    ["databasePrincipals.gatewayControl", "zasp_gateway_control_runtime"],
     ["discovery.parserVersion", value.discovery.parserVersion],
     ["discovery.toolVersion", value.discovery.toolVersion],
     ["discovery.awsCollectorVersion", value.discovery.awsCollectorVersion],
@@ -134,6 +164,24 @@ export async function renderRelease(value) {
     ["outbox.roleArn", value.outbox.roleArn],
     ["outbox.webIdentityTokenFile", value.outbox.webIdentityTokenFile],
     ...value.outbox.egressCIDRs.map((cidr, index) => [`network.outboxEgressCIDRs[${index}]`, cidr]),
+    ["runtime.awsRegion", value.runtime.awsRegion],
+    ["runtime.queueURL", value.runtime.queueURL],
+    ["runtime.rawBucket", value.runtime.rawBucket],
+    ["runtime.rawBucketOwner", value.runtime.rawBucketOwner],
+    ["runtime.rawKMSKeyArn", value.runtime.rawKMSKeyArn],
+    ["runtime.openSearchEndpoint", value.runtime.openSearchEndpoint],
+    ["runtime.openSearchIndex", value.runtime.openSearchIndex],
+    ["runtime.webIdentityTokenFile", value.runtime.webIdentityTokenFile],
+    ["runtime.eventIngestRoleArn", value.runtime.eventIngestRoleArn],
+    ["runtime.gatewayControlRoleArn", value.runtime.gatewayControlRoleArn],
+    ["runtime.outboxRoleArn", value.runtime.outboxRoleArn],
+    ["runtime.coordinatorRoleArn", value.runtime.coordinatorRoleArn],
+    ["runtime.archiveRoleArn", value.runtime.archiveRoleArn],
+    ["runtime.indexRoleArn", value.runtime.indexRoleArn],
+    ["runtime.correlationRoleArn", value.runtime.correlationRoleArn],
+    ["runtime.projectionRoleArn", value.runtime.projectionRoleArn],
+    ["runtime.completeRoleArn", value.runtime.completeRoleArn],
+    ...value.runtime.egressCIDRs.map((cidr, index) => [`network.runtimeEgressCIDRs[${index}]`, cidr]),
     ["network.postgresCIDR", "10.30.0.0/24"], ["network.stytchCIDR", "10.40.0.0/24"], ["network.opensearchCIDR", "10.50.0.0/24"],
     ["network.neo4jCIDR", value.projectionGraph.endpointCIDR],
     ["network.canaryCIDR", "10.60.0.0/24"],
@@ -174,8 +222,54 @@ export async function renderRelease(value) {
   return Object.freeze(resources);
 }
 
+export async function renderCustomerEdgeRelease(value) {
+  if (!validCustomerEdgeRelease(value)) throw new Error("edge release rejected");
+  const set = [
+    ["global.productImages.runtimeGateway", value.image],
+    ["runtimeGateway.controlPlaneURL", value.controlPlaneURL],
+    ["runtimeGateway.organizationID", value.organizationID],
+    ["runtimeGateway.workspaceID", value.workspaceID],
+    ["runtimeGateway.environmentID", value.environmentID],
+    ["runtimeGateway.deviceID", value.deviceID],
+    ["runtimeGateway.credentialID", value.credentialID],
+    ["runtimeGateway.credentialSecretName", value.credentialSecretName],
+    ["runtimeGateway.policyKeysSecretName", value.policyKeysSecretName],
+    ["runtimeGateway.policyCache.storageClassName", value.storageClassName],
+    ...value.controlPlaneCIDRs.map((cidr, index) => [`network.controlPlaneCIDRs[${index}]`, cidr]),
+  ];
+  const chart = path.join(root, "deploy/staging/product");
+  const edgeValues = path.join(chart, "values-customer-edge.yaml");
+  const valueArgs = [];
+  for (const [key, entry] of set) valueArgs.push("--set-string", `${key}=${entry.replaceAll("\\", "\\\\").replaceAll(",", "\\,")}`);
+  let stdout;
+  try {
+    await exec("helm", ["lint", chart, "--namespace", "agentsec", "--values", edgeValues, ...valueArgs], { cwd: root, encoding: "utf8", maxBuffer: 4 * 1024 * 1024 });
+    ({ stdout } = await exec("helm", ["template", "zasp", chart, "--namespace", "agentsec", "--values", edgeValues, ...valueArgs], { cwd: root, encoding: "utf8", maxBuffer: 4 * 1024 * 1024 }));
+  } catch {
+    throw new Error("edge release rejected");
+  }
+  const resources = [];
+  try {
+    loadAll(stdout, (document) => { if (document) resources.push(document); }, { schema: JSON_SCHEMA });
+  } catch {
+    throw new Error("edge release rejected");
+  }
+  const deployments = resources.filter(({ kind }) => kind === "Deployment");
+  const accounts = resources.filter(({ kind }) => kind === "ServiceAccount");
+  if (resources.length < 8 || resources.some((resource) => !resource?.apiVersion || !resource?.kind || !resource?.metadata?.name) || deployments.length !== 1 || deployments[0].metadata.name !== "runtime-gateway" || accounts.length !== 1 || accounts[0].metadata.name !== "runtime-gateway" || accounts[0].metadata.annotations?.["eks.amazonaws.com/role-arn"] !== undefined) throw new Error("edge release rejected");
+  return Object.freeze(resources);
+}
+
+function validCustomerEdgeRelease(value) {
+  const keys = ["controlPlaneURL", "image", "organizationID", "workspaceID", "environmentID", "deviceID", "credentialID", "credentialSecretName", "policyKeysSecretName", "storageClassName", "controlPlaneCIDRs"];
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).sort().join("\0") !== keys.sort().join("\0") || !digestPattern.test(value.image)) return false;
+  if (!/^https:\/\/(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(value.controlPlaneURL)) return false;
+  if (![value.organizationID, value.workspaceID, value.environmentID, value.deviceID, value.credentialID].every((identifier) => productIDPattern.test(identifier)) || new Set([value.organizationID, value.workspaceID, value.environmentID, value.deviceID, value.credentialID]).size !== 5) return false;
+  return namePattern.test(value.credentialSecretName) && namePattern.test(value.policyKeysSecretName) && value.credentialSecretName !== value.policyKeysSecretName && namePattern.test(value.storageClassName) && validCIDRList(value.controlPlaneCIDRs);
+}
+
 function validRelease(value) {
-  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).sort().join("\0") !== ["connectorEgressCIDRs", "connectors", "discovery", "projectionGraph", "projectionRisk", "projectionSearch", "outbox", "host", "images", "secretProviderClass", "tlsSecretName"].sort().join("\0")) return false;
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).sort().join("\0") !== ["connectorEgressCIDRs", "connectors", "discovery", "projectionGraph", "projectionRisk", "projectionSearch", "outbox", "runtime", "host", "images", "secretProviderClass", "tlsSecretName"].sort().join("\0")) return false;
   if (!hostPattern.test(value.host) || !namePattern.test(value.tlsSecretName) || !namePattern.test(value.secretProviderClass)) return false;
   if (!value.images || typeof value.images !== "object" || Array.isArray(value.images) || Object.keys(value.images).sort().join("\0") !== [...imageNames].sort().join("\0")) return false;
   if (!imageNames.every((name) => digestPattern.test(value.images[name]))) return false;
@@ -206,6 +300,16 @@ function validRelease(value) {
   const outboxRole = /^arn:aws:iam::([0-9]{12}):role\/zasp-production-outbox$/.exec(value.outbox.roleArn);
   const outboxQueue = /^https:\/\/sqs\.([a-z]{2}(?:-gov)?-[a-z]+-[0-9])\.amazonaws\.com\/([0-9]{12})\/agentsec-discovery-jobs$/.exec(value.outbox.queueURL);
   if (!outboxRole || !outboxQueue || value.outbox.awsRegion !== outboxQueue[1] || outboxRole[1] !== outboxQueue[2] || outboxRole[1] !== discoveryRole[1] || value.outbox.webIdentityTokenFile !== "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || !validCIDRList(value.outbox.egressCIDRs)) return false;
+  if (!value.runtime || typeof value.runtime !== "object" || Array.isArray(value.runtime) || Object.keys(value.runtime).sort().join("\0") !== [...runtimeKeys].sort().join("\0")) return false;
+  const runtimeQueue = /^https:\/\/sqs\.([a-z]{2}(?:-gov)?-[a-z]+-[0-9])\.amazonaws\.com\/([0-9]{12})\/agentsec-runtime-events$/.exec(value.runtime.queueURL);
+  const runtimeKMS = /^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.exec(value.runtime.rawKMSKeyArn);
+  const runtimeEndpoint = /^https:\/\/(?:search|vpc)-[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.([a-z]{2}(?:-gov)?-[a-z]+-[0-9])\.es\.amazonaws\.com$/.exec(value.runtime.openSearchEndpoint);
+  const runtimeRoleNames = Object.freeze({ eventIngest: "runtime-ingest", gatewayControl: "gateway-control", outbox: "runtime-outbox", coordinator: "runtime-coordinator", archive: "runtime-archive", index: "runtime-index", correlation: "runtime-correlation", projection: "runtime-projection", complete: "runtime-complete" });
+  const runtimeRoleARNs = Object.keys(runtimeRoleNames).map((key) => value.runtime[`${key}RoleArn`]);
+  const runtimeRoles = Object.entries(runtimeRoleNames).map(([key, roleName]) => new RegExp(`^arn:aws:iam::([0-9]{12}):role/zasp-production-${roleName}$`).exec(value.runtime[`${key}RoleArn`]));
+  if (!runtimeQueue || !runtimeKMS || !runtimeEndpoint || runtimeRoles.some((role) => !role) || new Set(runtimeRoleARNs).size !== runtimeRoles.length || runtimeRoles.some((role) => role[1] !== discoveryRole[1])) return false;
+  if (value.runtime.awsRegion !== runtimeQueue[1] || value.runtime.awsRegion !== runtimeKMS[1] || value.runtime.awsRegion !== runtimeEndpoint[1] || runtimeQueue[2] !== discoveryRole[1] || runtimeKMS[2] !== discoveryRole[1] || value.runtime.rawBucketOwner !== discoveryRole[1]) return false;
+  if (!namePattern.test(value.runtime.rawBucket) || value.runtime.openSearchIndex !== "zasp-runtime-events-v1" || value.runtime.webIdentityTokenFile !== "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || !validCIDRList(value.runtime.egressCIDRs)) return false;
   if (!value.connectors || typeof value.connectors !== "object" || Array.isArray(value.connectors) || Object.keys(value.connectors).sort().join("\0") !== [...connectorKeys].sort().join("\0")) return false;
   const role = /^arn:aws:iam::([0-9]{12}):role\/zasp-production-api-connectors$/.exec(value.connectors.roleArn);
   const kms = /^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.exec(value.connectors.kmsKeyArn);
@@ -233,6 +337,15 @@ export function validateRenderedRelease(resources, platformAccountID) {
     ["agentsec-projection-risk", "zasp-projection-risk"],
     ["agentsec-projection-graph", "zasp-projection-graph"],
     ["agentsec-projection-search", "zasp-projection-search"],
+    ["agentsec-event-ingest", "zasp-runtime-ingest"],
+    ["agentsec-gateway-control", "zasp-gateway-control"],
+    ["agentsec-runtime-outbox", "zasp-runtime-outbox"],
+    ["agentsec-runtime-coordinator", "zasp-runtime-coordinator"],
+    ["agentsec-runtime-archive", "zasp-runtime-archive"],
+    ["agentsec-runtime-index", "zasp-runtime-index"],
+    ["agentsec-runtime-correlation", "zasp-runtime-correlation"],
+    ["agentsec-runtime-projection", "zasp-runtime-projection"],
+    ["agentsec-runtime-complete", "zasp-runtime-complete"],
   ]);
   if (deployments.size !== deploymentIdentities.size || [...deploymentIdentities].some(([name, serviceAccount]) => deployments.get(name)?.spec?.template?.spec?.serviceAccountName !== serviceAccount)) throw new Error("release rejected");
   const identityContracts = new Map([
@@ -244,6 +357,15 @@ export function validateRenderedRelease(resources, platformAccountID) {
     ["zasp-projection-risk", "projection-risk"],
     ["zasp-projection-graph", "projection-graph"],
     ["zasp-projection-search", "projection-search"],
+    ["zasp-runtime-ingest", "runtime-ingest"],
+    ["zasp-gateway-control", "gateway-control"],
+    ["zasp-runtime-outbox", "runtime-outbox"],
+    ["zasp-runtime-coordinator", "runtime-coordinator"],
+    ["zasp-runtime-archive", "runtime-archive"],
+    ["zasp-runtime-index", "runtime-index"],
+    ["zasp-runtime-correlation", "runtime-correlation"],
+    ["zasp-runtime-projection", "runtime-projection"],
+    ["zasp-runtime-complete", "runtime-complete"],
     ["agentsec-migration", "migration"],
     ["agentsec-projection-graph-init", "projection-graph-init"],
     ["agentsec-projection-search-init", "projection-search-init"],
@@ -258,7 +380,7 @@ export function validateRenderedRelease(resources, platformAccountID) {
     if (!rendered || (role === null ? roleArn !== undefined : roleArn !== `arn:aws:iam::${platformAccountID}:role/zasp-production-${role}`)) throw new Error("release rejected");
   }
   for (const [kind, name, serviceAccount] of [
-    ["Job", "agentsec-schema-v13", "agentsec-migration"],
+    ["Job", "agentsec-schema-v15", "agentsec-migration"],
     ["Job", "agentsec-projection-graph-init-v1", "agentsec-projection-graph-init"],
     ["Job", "agentsec-projection-search-init-v1", "agentsec-projection-search-init"],
     ["CronJob", "production-readonly-canary", "agentsec-canary"],

@@ -8,7 +8,7 @@ Run a restore drill at least quarterly into a newly created isolated database. A
 
 ## Application rollback
 
-Stop promotion when error, latency, auth, dependency or canary budgets fail. Preserve correlation and trace IDs. If schema v13 remains compatible, use Helm rollback to the previously attested image digests and verify every worker readiness check plus the read-only synthetic before reopening traffic.
+Stop promotion when error, latency, auth, dependency or canary budgets fail. Preserve correlation and trace IDs. If schema v15 remains compatible, use Helm rollback to the previously attested image digests and verify every API, gateway, ingest, and worker readiness check plus the read-only synthetic before reopening traffic.
 
 Do not run `agentsec-migrate down` as a routine rollback. The command removes migrations through the baseline and is destructive. When a release cannot run safely on the current schema, block writes, restore the pre-release snapshot into a new isolated database, validate it, switch the secret reference atomically, and keep the failed database for investigation. Prefer a forward-compatible repair migration whenever possible.
 
@@ -16,4 +16,4 @@ Do not run `agentsec-migrate down` as a routine rollback. The command removes mi
 
 Provider calls use bounded timeout, concurrency and retry rules; non-idempotent mutations are never retried automatically. Keep the API ready only while PostgreSQL and required identity provider checks pass. For queue recovery, stop consumers, measure visible/in-flight/DLQ counts, redrive only after the poison message cause is fixed, preserve idempotency keys, and confirm each durable effect once. Never delete a queue or DLQ to clear an alert.
 
-For stale projections, keep PostgreSQL authoritative, disable the affected read surface, and retain immutable evidence. Verify the OpenSearch mapping/marker or Neo4j constraints with the separate init authority; never grant DDL to a runtime worker. Rebuild from durable source snapshots, compare scope/source/generation-keyed counts and content digests, then re-enable. Do not replay provider mutations or surface stale OpenSearch/Neo4j data as authoritative truth.
+For stale projections, keep PostgreSQL authoritative, disable the affected read surface, and retain immutable evidence. Verify the OpenSearch mapping/marker or Neo4j constraints with the separate init authority; never grant DDL to a runtime worker. Rebuild from version-pinned discovery snapshots or runtime-raw object versions, compare scope/source/generation-keyed counts and content digests, then re-enable. Do not replay provider mutations or surface stale OpenSearch/Neo4j data as authoritative truth.

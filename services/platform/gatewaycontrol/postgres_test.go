@@ -1,4 +1,4 @@
-package main
+package gatewaycontrol
 
 import (
 	"context"
@@ -9,21 +9,22 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
 
-func TestGatewayPostgresControlUsesExactV15ReadinessAndAuthority(t *testing.T) {
-	authority := gatewayRuntimeAuthority()
-	database := &gatewayDatabaseStub{responses: []any{
+func TestPostgresRepositoryUsesExactV15ReadinessAndAuthority(t *testing.T) {
+	authority := fixtureAuthority(make([]byte, 32))
+	database := &postgresDatabaseStub{responses: []any{
 		true,
 		json.RawMessage(`{"organization_id":"` + authority.OrganizationID + `","workspace_id":"` + authority.WorkspaceID + `","environment_id":"` + authority.EnvironmentID + `","device_id":"` + authority.DeviceID + `","device_version":3,"replay_floor":7,"credential_id":"` + authority.CredentialID + `","credential_generation":2,"key_id":"gateway-key-1","algorithm":"Ed25519","public_key":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","audience":"runtime-gateway","expires_at":"2026-08-21T12:00:00Z"}`),
 	}}
-	control, err := newGatewayPostgresControl(database, time.Second)
-	if err != nil || control.Ready(context.Background()) != nil {
-		t.Fatalf("control=%#v err=%v", control, err)
+	repository, err := NewPostgresRepository(database, time.Second)
+	if err != nil || repository.Ready(context.Background()) != nil {
+		t.Fatalf("repository=%#v err=%v", repository, err)
 	}
-	actual, err := control.Authority(context.Background(), authority.CredentialID)
-	if err != nil || actual.ReplayFloor != 7 || !sameGatewayAuthority(actual, authority) {
+	actual, err := repository.Authority(context.Background(), authority.CredentialID)
+	if err != nil || actual.ReplayFloor != 7 || !sameAuthority(actual, authority) {
 		t.Fatalf("authority=%#v err=%v", actual, err)
 	}
 	metadata := migrations.ProductionRuntimeDataPlane()
@@ -32,17 +33,17 @@ func TestGatewayPostgresControlUsesExactV15ReadinessAndAuthority(t *testing.T) {
 	}
 }
 
-func TestGatewayPostgresControlStrictlyDecodesPolicyAndNoUpdate(t *testing.T) {
-	authority := gatewayRuntimeAuthority()
-	database := &gatewayDatabaseStub{responses: []any{
+func TestPostgresRepositoryStrictlyDecodesPolicyAndNoUpdate(t *testing.T) {
+	authority := fixtureAuthority(make([]byte, 32))
+	database := &postgresDatabaseStub{responses: []any{
 		nil,
-		json.RawMessage(`{"contract_version":1,"key_id":"gateway-key-1","algorithm":"Ed25519","audience":"runtime-gateway-policy","organization_id":"` + authority.OrganizationID + `","workspace_id":"` + authority.WorkspaceID + `","environment_id":"` + authority.EnvironmentID + `","device_id":"` + authority.DeviceID + `","credential_id":"` + authority.CredentialID + `","sequence":3,"policy_version":2,"issued_at":"2026-08-20T11:00:00.000000Z","expires_at":"2026-08-20T13:00:00.000000Z","failure_mode":"closed","payload_digest":"` + strings.Repeat("a", 64) + `","policies":[],"signature":"` + strings.Repeat("A", 86) + `"}`),
+		json.RawMessage(`{"contract_version":1,"key_id":"gateway-key-1","algorithm":"Ed25519","audience":"runtime-gateway-policy","organization_id":"` + authority.OrganizationID + `","workspace_id":"` + authority.WorkspaceID + `","environment_id":"` + authority.EnvironmentID + `","device_id":"` + authority.DeviceID + `","credential_id":"` + authority.CredentialID + `","sequence":3,"policy_version":2,"issued_at":"2026-08-20T11:00:00Z","expires_at":"2026-08-20T13:00:00Z","failure_mode":"closed","payload_digest":"` + strings.Repeat("a", 64) + `","policies":[],"signature":"` + strings.Repeat("A", 86) + `"}`),
 	}}
-	control, _ := newGatewayPostgresControl(database, time.Second)
-	if envelope, err := control.Policy(context.Background(), authority.CredentialID, 2); err != nil || envelope != nil {
+	repository, _ := NewPostgresRepository(database, time.Second)
+	if envelope, err := repository.Policy(context.Background(), authority.CredentialID, 2); err != nil || envelope != nil {
 		t.Fatalf("no update envelope=%#v err=%v", envelope, err)
 	}
-	envelope, err := control.Policy(context.Background(), authority.CredentialID, 2)
+	envelope, err := repository.Policy(context.Background(), authority.CredentialID, 2)
 	if err != nil || envelope == nil || envelope.Sequence != 3 || envelope.PolicyVersion != 2 {
 		t.Fatalf("envelope=%#v err=%v", envelope, err)
 	}
@@ -51,12 +52,12 @@ func TestGatewayPostgresControlStrictlyDecodesPolicyAndNoUpdate(t *testing.T) {
 	}
 }
 
-func TestGatewayPostgresControlRecordsThroughServerCanonicalDigest(t *testing.T) {
-	authority := gatewayRuntimeAuthority()
-	event := gatewayDecisionEvent{CredentialID: authority.CredentialID, DeviceID: authority.DeviceID, EventID: gatewayRuntimeID(9), ExpectedFloor: 4, NextFloor: 5, PolicyVersion: 3, Decision: "monitor", ActionKind: "mcp", Classification: gatewayRuntimeClassification("monitored"), OccurredAt: gatewayRuntimeTime()}
-	database := &gatewayDatabaseStub{responses: []any{json.RawMessage(`{"event_id":"` + event.EventID + `","device_id":"` + event.DeviceID + `","sequence":5,"recorded_at":"2026-08-20T12:00:01Z","replayed":false}`)}}
-	control, _ := newGatewayPostgresControl(database, time.Second)
-	if err := control.Record(context.Background(), event); err != nil {
+func TestPostgresRepositoryRecordsThroughServerCanonicalDigest(t *testing.T) {
+	authority := fixtureAuthority(make([]byte, 32))
+	event := DecisionEvent{CredentialID: authority.CredentialID, DeviceID: authority.DeviceID, EventID: fixtureID(9), ExpectedFloor: 4, NextFloor: 5, PolicyVersion: 3, Decision: "monitor", ActionKind: "mcp", Classification: map[string]string{"category": "runtime", "route_class": "local", "resource_class": "tool", "outcome": "monitored"}, OccurredAt: time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC)}
+	database := &postgresDatabaseStub{responses: []any{json.RawMessage(`{"event_id":"` + event.EventID + `","device_id":"` + event.DeviceID + `","sequence":5,"recorded_at":"2026-08-20T12:00:01Z","replayed":false}`)}}
+	repository, _ := NewPostgresRepository(database, time.Second)
+	if err := repository.Record(context.Background(), event); err != nil {
 		t.Fatal(err)
 	}
 	call := database.calls[0]
@@ -68,45 +69,45 @@ func TestGatewayPostgresControlRecordsThroughServerCanonicalDigest(t *testing.T)
 	}
 }
 
-func TestGatewayPostgresControlRejectsHostileOutputs(t *testing.T) {
-	authority := gatewayRuntimeAuthority()
+func TestPostgresRepositoryRejectsHostileOutputs(t *testing.T) {
+	authority := fixtureAuthority(make([]byte, 32))
 	for _, response := range []any{
 		json.RawMessage(`{"organization_id":"` + authority.OrganizationID + `","workspace_id":"` + authority.WorkspaceID + `","environment_id":"` + authority.EnvironmentID + `","device_id":"` + authority.DeviceID + `","device_version":3,"replay_floor":7,"credential_id":"` + authority.CredentialID + `","credential_generation":2,"key_id":"gateway-key-1","algorithm":"Ed25519","public_key":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","audience":"runtime-gateway","expires_at":"2026-08-21T12:00:00Z","secret":"leak"}`),
 		json.RawMessage(`{"organization_id":"` + authority.OrganizationID + `","workspace_id":"` + authority.WorkspaceID + `","environment_id":"` + authority.EnvironmentID + `","device_id":"` + authority.DeviceID + `","device_version":3,"replay_floor":-1,"credential_id":"` + authority.CredentialID + `","credential_generation":2,"key_id":"gateway-key-1","algorithm":"Ed25519","public_key":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","audience":"runtime-gateway","expires_at":"2026-08-21T12:00:00Z"}`),
 	} {
-		control, _ := newGatewayPostgresControl(&gatewayDatabaseStub{responses: []any{response}}, time.Second)
-		if result, err := control.Authority(context.Background(), authority.CredentialID); !errors.Is(err, errGatewayRepository) || result.CredentialID != "" {
+		repository, _ := NewPostgresRepository(&postgresDatabaseStub{responses: []any{response}}, time.Second)
+		if result, err := repository.Authority(context.Background(), authority.CredentialID); err == nil || result.CredentialID != "" {
 			t.Fatalf("response=%s result=%#v err=%v", response, result, err)
 		}
 	}
 }
 
-type gatewayDatabaseCall struct {
+type postgresDatabaseCall struct {
 	statement string
 	arguments []any
 }
 
-type gatewayDatabaseStub struct {
+type postgresDatabaseStub struct {
 	responses []any
-	calls     []gatewayDatabaseCall
+	calls     []postgresDatabaseCall
 }
 
-func (database *gatewayDatabaseStub) QueryRow(_ context.Context, statement string, arguments ...any) gatewayDatabaseRow {
-	database.calls = append(database.calls, gatewayDatabaseCall{statement: statement, arguments: append([]any(nil), arguments...)})
+func (database *postgresDatabaseStub) QueryRow(_ context.Context, statement string, arguments ...any) pgx.Row {
+	database.calls = append(database.calls, postgresDatabaseCall{statement: statement, arguments: append([]any(nil), arguments...)})
 	if len(database.responses) == 0 {
-		return gatewayRowStub{err: errors.New("unexpected query")}
+		return postgresRowStub{err: errors.New("unexpected query")}
 	}
 	response := database.responses[0]
 	database.responses = database.responses[1:]
-	return gatewayRowStub{value: response}
+	return postgresRowStub{value: response}
 }
 
-type gatewayRowStub struct {
+type postgresRowStub struct {
 	value any
 	err   error
 }
 
-func (row gatewayRowStub) Scan(destinations ...any) error {
+func (row postgresRowStub) Scan(destinations ...any) error {
 	if row.err != nil {
 		return row.err
 	}

@@ -177,6 +177,28 @@ output "projection_graph_init_authority" {
     credential_secret_arn                        = aws_secretsmanager_secret.neo4j_projection_schema.arn
   }
 }
+output "runtime_release_authority" {
+  description = "Non-secret immutable Task 6 queue, object, index, and per-workload identity authority."
+  value = {
+    aws_region               = var.region
+    queue_url                = aws_sqs_queue.work["runtime-events"].id
+    raw_bucket               = aws_s3_bucket.runtime_raw.bucket
+    raw_bucket_owner         = var.account_id
+    raw_kms_key_arn          = aws_kms_key.runtime_raw.arn
+    opensearch_endpoint      = "https://${aws_opensearch_domain.events.endpoint}"
+    opensearch_index         = "zasp-runtime-events-v1"
+    web_identity_token_file  = "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
+    ingest_role_arn          = aws_iam_role.runtime["ingest"].arn
+    gateway_control_role_arn = aws_iam_role.runtime["gateway_control"].arn
+    outbox_role_arn          = aws_iam_role.runtime["outbox"].arn
+    coordinator_role_arn     = aws_iam_role.runtime["coordinator"].arn
+    archive_role_arn         = aws_iam_role.runtime["archive"].arn
+    index_role_arn           = aws_iam_role.runtime["index"].arn
+    correlation_role_arn     = aws_iam_role.runtime["correlation"].arn
+    projection_role_arn      = aws_iam_role.runtime["projection"].arn
+    complete_role_arn        = aws_iam_role.runtime["complete"].arn
+  }
+}
 output "canary_secret_sync_role_arn" {
   value = aws_iam_role.canary_secret_sync.arn
 }
