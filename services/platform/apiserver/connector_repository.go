@@ -19,6 +19,9 @@ const (
 	postgresConnectorStartOAuthSQL             = `SELECT zasp_connector_start_oauth($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14,$15::jsonb)`
 	postgresConnectorConsumeOAuthSQL           = `SELECT zasp_connector_consume_oauth($1,$2,$3,$4,$5,$6)`
 	postgresConnectorBeginEffectSQL            = `SELECT zasp_connector_begin_effect($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
+	postgresConnectorStagePKCECleanupSQL       = `SELECT zasp_connector_stage_pkce_cleanup($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`
+	postgresConnectorActivatePKCECleanupSQL    = `SELECT zasp_connector_activate_pkce_cleanup($1,$2,$3,$4)`
+	postgresConnectorCompletePKCECleanupSQL    = `SELECT zasp_connector_complete_pkce_cleanup($1,$2,$3,$4,$5,$6)`
 	postgresConnectorResolveEffectSQL          = `SELECT zasp_connector_resolve_effect($1,$2,$3,$4,$5,$6,$7::jsonb,$8)`
 	postgresConnectorPutCredentialSQL          = `SELECT zasp_connector_put_credential($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb)`
 	postgresConnectorCompleteOAuthSQL          = `SELECT zasp_connector_complete_oauth($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12)`
@@ -29,6 +32,7 @@ const (
 	postgresConnectorCompleteCleanupSQL        = `SELECT zasp_connector_complete_cleanup($1,$2,$3,$4)`
 	postgresConnectorCompleteLeasedCleanupSQL  = `SELECT zasp_connector_complete_cleanup($1,$2,$3,$4,$5,$6)`
 	postgresConnectorQuarantineSQL             = `SELECT zasp_connector_quarantine_reconciliation($1,$2,$3,$4,$5,$6,$7)`
+	postgresConnectorGetQuarantineSQL          = `SELECT zasp_connector_get_quarantine($1,$2,$3,$4)`
 	postgresConnectorRemediateQuarantineSQL    = `SELECT zasp_connector_remediate_quarantine($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::jsonb,$12,$13,$14)`
 )
 
@@ -43,6 +47,10 @@ type ConnectorAuthorizationRepository interface {
 	ResolveConnectorEffect(context.Context, domain.Scope, ConnectorEffectResolution) (ConnectorEffectRecord, error)
 	PutConnectorCredential(context.Context, domain.Scope, ConnectorCredentialPut) (ConnectorCredentialRecord, error)
 	CompleteOAuth(context.Context, domain.Scope, OAuthCompletion) (OAuthCompletionRecord, error)
+	StagePKCECleanup(context.Context, domain.Scope, PKCECleanupStage) (ConnectorEffectRecord, error)
+	ActivatePKCECleanup(context.Context, domain.Scope, string) (ConnectorEffectTransition, error)
+	CompletePKCECleanup(context.Context, domain.Scope, string) (ConnectorEffectTransition, error)
+	GetConnectorQuarantine(context.Context, domain.Scope, string) (ConnectorQuarantine, error)
 	CompleteConnectorCleanup(context.Context, domain.Scope, string) (ConnectorEffectTransition, error)
 	RemediateConnectorQuarantine(context.Context, RequestIdentity, ConnectorQuarantineRemediation) (WorkflowMutationResult, error)
 }
@@ -186,6 +194,56 @@ type ConnectorEffectResolution struct {
 	Metadata                                   json.RawMessage
 }
 
+type PKCECleanupStage struct {
+	ID, IntegrationID, OAuthAttemptID, Provider, Reference, Reason string
+	RequestDigest                                                  []byte
+	AvailableAt                                                    time.Time
+}
+
+func (repository *ConnectorRepository) StagePKCECleanup(ctx context.Context, scope domain.Scope, input PKCECleanupStage) (ConnectorEffectRecord, error) {
+	if !validConnectorRepository(repository, ctx) || scope.Validate() != nil || !validProductID(input.ID) || !validProductID(input.IntegrationID) || input.OAuthAttemptID != "" && !validProductID(input.OAuthAttemptID) || !validOAuthProvider(input.Provider) || !validOpaqueReference(input.Reference) || len(input.RequestDigest) != sha256.Size || !stringIn(input.Reason, "oauth_attempt_expiry", "oauth_start_rejected") || input.AvailableAt.Before(time.Now().Add(-time.Second)) || input.AvailableAt.After(time.Now().Add(10*time.Minute+time.Second)) {
+		return ConnectorEffectRecord{}, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresConnectorStagePKCECleanupSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), input.ID, input.IntegrationID, input.OAuthAttemptID, input.Provider, input.Reference, input.RequestDigest, input.AvailableAt, input.Reason)
+	if err != nil {
+		return ConnectorEffectRecord{}, discoveryProviderError(err)
+	}
+	return decodeConnectorEffect(payload, input.ID, input.IntegrationID, input.Provider, "pkce_cleanup")
+}
+
+func (repository *ConnectorRepository) ActivatePKCECleanup(ctx context.Context, scope domain.Scope, effectID string) (ConnectorEffectTransition, error) {
+	if !validConnectorRepository(repository, ctx) || scope.Validate() != nil || !validProductID(effectID) {
+		return ConnectorEffectTransition{}, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresConnectorActivatePKCECleanupSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), effectID)
+	if err != nil {
+		return ConnectorEffectTransition{}, discoveryProviderError(err)
+	}
+	return decodeConnectorTransition(payload, effectID, "unknown", 0)
+}
+
+func (repository *ConnectorRepository) CompletePKCECleanup(ctx context.Context, scope domain.Scope, effectID string) (ConnectorEffectTransition, error) {
+	if !validConnectorRepository(repository, ctx) || scope.Validate() != nil || !validProductID(effectID) {
+		return ConnectorEffectTransition{}, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresConnectorCompletePKCECleanupSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), effectID, "", "")
+	if err != nil {
+		return ConnectorEffectTransition{}, discoveryProviderError(err)
+	}
+	return decodeConnectorTransition(payload, effectID, "reconciled", 0)
+}
+
+func (repository *ConnectorRepository) CompletePKCECleanupReconciliation(ctx context.Context, lease ConnectorEffectLease) (ConnectorEffectTransition, error) {
+	if !validConnectorRepository(repository, ctx) || !validConnectorLease(lease) || lease.Operation != "pkce_cleanup" {
+		return ConnectorEffectTransition{}, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresConnectorCompletePKCECleanupSQL, lease.OrganizationID, lease.WorkspaceID, lease.EnvironmentID, lease.ID, lease.LeaseOwner, lease.LeaseToken)
+	if err != nil {
+		return ConnectorEffectTransition{}, discoveryProviderError(err)
+	}
+	return decodeConnectorTransition(payload, lease.ID, "reconciled", lease.Attempt)
+}
+
 func (repository *ConnectorRepository) ResolveConnectorEffect(ctx context.Context, scope domain.Scope, input ConnectorEffectResolution) (ConnectorEffectRecord, error) {
 	if !validConnectorRepository(repository, ctx) || scope.Validate() != nil || !validProductID(input.ID) || !stringIn(input.Status, "unknown", "failed") || input.ConnectionReference != "" && !validOpaqueReference(input.ConnectionReference) || input.ErrorCode != "" && !connectorCodePattern.MatchString(input.ErrorCode) || !validConnectorMetadata(input.Metadata) {
 		return ConnectorEffectRecord{}, ErrRepositoryOperation
@@ -220,7 +278,7 @@ type ConnectorCredentialRecord struct {
 }
 
 func (repository *ConnectorRepository) PutConnectorCredential(ctx context.Context, scope domain.Scope, input ConnectorCredentialPut) (ConnectorCredentialRecord, error) {
-	if !validConnectorRepository(repository, ctx) || scope.Validate() != nil || !validProductID(input.ID) || !validProductID(input.IntegrationID) || !validConnectorProvider(input.Provider) || !stringIn(input.CredentialClass, "aws_external_id", "kubernetes_cluster_reference", "github_app_reference", "github_oauth_grant_reference", "okta_refresh_reference", "nango_connection_reference") || !validOpaqueReference(input.CredentialReference) || input.Version < 1 || input.Version > 1000000 || !validConnectorMetadata(input.Metadata) {
+	if !validConnectorRepository(repository, ctx) || scope.Validate() != nil || !validProductID(input.ID) || !validProductID(input.IntegrationID) || !validConnectorProvider(input.Provider) || !stringIn(input.CredentialClass, "aws_external_id", "kubernetes_cluster_reference", "github_app_reference", "github_installation_reference", "okta_refresh_reference", "nango_connection_reference") || !validOpaqueReference(input.CredentialReference) || input.Version < 1 || input.Version > 1000000 || !validConnectorMetadata(input.Metadata) {
 		return ConnectorCredentialRecord{}, ErrRepositoryOperation
 	}
 	payload, err := repository.database.QueryJSON(ctx, postgresConnectorPutCredentialSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), input.ID, input.IntegrationID, input.Provider, input.CredentialClass, input.CredentialReference, input.Version, input.Metadata)
@@ -331,7 +389,7 @@ func (repository *ConnectorRepository) ClaimReconciliation(ctx context.Context, 
 	for index := range page.Items {
 		item := &page.Items[index]
 		digest, digestErr := hex.DecodeString(item.RequestDigest)
-		if digestErr != nil || len(digest) != 32 || !validProductID(item.OrganizationID) || !validProductID(item.WorkspaceID) || !validProductID(item.EnvironmentID) || !validProductID(item.ID) || !validProductID(item.IntegrationID) || item.Operation == "authorize" && (!validProductID(item.OAuthAttemptID) || !validProductID(item.PrincipalID) || !validConnectorScopes(item.RequestedScopes)) || item.Operation != "authorize" && (item.OAuthAttemptID != "" || item.PrincipalID != "" || item.RequestedScopes != nil) || item.Operation == "revoke" && !validOpaqueReference(item.ConnectionReference) || item.Operation == "authorize" && item.LastErrorCode == "cleanup_pending" && !validOpaqueReference(item.ConnectionReference) || item.Operation == "authorize" && item.LastErrorCode != "cleanup_pending" && item.ConnectionReference != "" || !stringIn(item.Operation, "authorize", "revoke") && item.ConnectionReference != "" || !validConnectorProvider(item.Provider) || !stringIn(item.Operation, "authorize", "bind", "test", "rotate", "revoke", "nango_connect") || item.LastErrorCode != "" && !connectorCodePattern.MatchString(item.LastErrorCode) || len(item.IdempotencyKey) < 16 || len(item.IdempotencyKey) > 128 || item.Attempt < 1 || item.Attempt > 100 || item.LeaseOwner != owner || len(item.LeaseToken) != 64 || !item.LeaseExpiresAt.After(now) || item.LeaseExpiresAt.After(now.Add(time.Duration(leaseSeconds)*time.Second+time.Second)) {
+		if digestErr != nil || len(digest) != 32 || !validProductID(item.OrganizationID) || !validProductID(item.WorkspaceID) || !validProductID(item.EnvironmentID) || !validProductID(item.ID) || !validProductID(item.IntegrationID) || item.Operation == "authorize" && (!validProductID(item.OAuthAttemptID) || !validProductID(item.PrincipalID) || !validConnectorScopes(item.RequestedScopes)) || item.Operation != "authorize" && item.Operation != "pkce_cleanup" && (item.OAuthAttemptID != "" || item.PrincipalID != "" || item.RequestedScopes != nil) || item.Operation == "pkce_cleanup" && (item.OAuthAttemptID != "" && !validProductID(item.OAuthAttemptID) || item.PrincipalID != "" && !validProductID(item.PrincipalID) || item.RequestedScopes != nil && !validConnectorScopes(item.RequestedScopes)) || item.Operation == "revoke" && !validOpaqueReference(item.ConnectionReference) || item.Operation == "pkce_cleanup" && !validOpaqueReference(item.ConnectionReference) || item.Operation == "authorize" && item.LastErrorCode == "cleanup_pending" && !validOpaqueReference(item.ConnectionReference) || item.Operation == "authorize" && item.LastErrorCode != "cleanup_pending" && item.ConnectionReference != "" || !stringIn(item.Operation, "authorize", "revoke", "pkce_cleanup") && item.ConnectionReference != "" || !validConnectorProvider(item.Provider) || !stringIn(item.Operation, "authorize", "bind", "test", "rotate", "revoke", "pkce_cleanup", "nango_connect") || item.LastErrorCode != "" && !connectorCodePattern.MatchString(item.LastErrorCode) || len(item.IdempotencyKey) < 16 || len(item.IdempotencyKey) > 128 || item.Attempt < 1 || item.Attempt > 100 || item.LeaseOwner != owner || len(item.LeaseToken) != 64 || !item.LeaseExpiresAt.After(now) || item.LeaseExpiresAt.After(now.Add(time.Duration(leaseSeconds)*time.Second+time.Second)) {
 			return nil, ErrRepositoryUnavailable
 		}
 		item.LeaseExpiresAt = item.LeaseExpiresAt.UTC()
@@ -411,7 +469,8 @@ func (repository *ConnectorRepository) CompleteConnectorCleanupReconciliation(ct
 }
 
 func (repository *ConnectorRepository) QuarantineConnectorReconciliation(ctx context.Context, lease ConnectorEffectLease, errorCode string) (ConnectorEffectTransition, error) {
-	if !validConnectorRepository(repository, ctx) || !validConnectorLease(lease) || lease.Operation != "authorize" || lease.Attempt != 100 || !connectorCodePattern.MatchString(errorCode) {
+	validReason := lease.Operation == "authorize" && stringIn(errorCode, "provider_outcome_ambiguous", "provider_cleanup_ambiguous") || lease.Operation == "revoke" && errorCode == "provider_revocation_ambiguous" || lease.Operation == "pkce_cleanup" && errorCode == "pkce_cleanup_ambiguous"
+	if !validConnectorRepository(repository, ctx) || !validConnectorLease(lease) || lease.Attempt != 100 || !validReason {
 		return ConnectorEffectTransition{}, ErrRepositoryOperation
 	}
 	payload, err := repository.database.QueryJSON(ctx, postgresConnectorQuarantineSQL, lease.OrganizationID, lease.WorkspaceID, lease.EnvironmentID, lease.ID, lease.LeaseOwner, lease.LeaseToken, errorCode)
@@ -428,8 +487,39 @@ type ConnectorQuarantineRemediation struct {
 	AuditID, CorrelationID, ReceiptID                        string
 }
 
+type ConnectorQuarantine struct {
+	ID                  string `json:"id"`
+	IntegrationID       string `json:"integration_id"`
+	Provider            string `json:"provider"`
+	Operation           string `json:"operation"`
+	ConnectionReference string `json:"connection_reference"`
+	Status              string `json:"status"`
+	Reason              string `json:"reason"`
+}
+
+func (repository *ConnectorRepository) GetConnectorQuarantine(ctx context.Context, scope domain.Scope, integrationID string) (ConnectorQuarantine, error) {
+	if !validConnectorRepository(repository, ctx) || scope.Validate() != nil || !validProductID(integrationID) {
+		return ConnectorQuarantine{}, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresConnectorGetQuarantineSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), integrationID)
+	if err != nil {
+		return ConnectorQuarantine{}, discoveryProviderError(err)
+	}
+	var result ConnectorQuarantine
+	if decodeStrictDiscovery(payload, &result) != nil {
+		return ConnectorQuarantine{}, ErrRepositoryUnavailable
+	}
+	validReason := stringIn(result.Reason, "provider_outcome_ambiguous", "provider_cleanup_ambiguous", "provider_revocation_ambiguous", "pkce_cleanup_ambiguous", "provider_outcome_remediated", "provider_cleanup_remediated", "provider_revocation_remediated", "pkce_cleanup_remediated")
+	needsReference := result.Operation == "pkce_cleanup" || result.Operation == "revoke" || result.Operation == "authorize" && stringIn(result.Reason, "provider_cleanup_ambiguous", "provider_cleanup_remediated")
+	validReference := needsReference && validOpaqueReference(result.ConnectionReference) || !needsReference && result.ConnectionReference == ""
+	if !validProductID(result.ID) || result.IntegrationID != integrationID || !validOAuthProvider(result.Provider) || !stringIn(result.Operation, "authorize", "revoke", "pkce_cleanup") || !validReference || !stringIn(result.Status, "unknown", "failed") || !validReason {
+		return ConnectorQuarantine{}, ErrRepositoryUnavailable
+	}
+	return result, nil
+}
+
 func (repository *ConnectorRepository) RemediateConnectorQuarantine(ctx context.Context, identity RequestIdentity, input ConnectorQuarantineRemediation) (WorkflowMutationResult, error) {
-	if !validConnectorRepository(repository, ctx) || !validRequestIdentity(identity, false) || !validProductID(input.EffectID) || !validProductID(input.IntegrationID) || !stringIn(input.Acknowledgement, "provider_grant_revoked_manually", "provider_grant_verified_absent") || len(input.IdempotencyKey) < 16 || len(input.IdempotencyKey) > 128 || !workflowKeyPattern.MatchString(input.IdempotencyKey) || input.ExpectedVersion < 1 || !validProductID(input.AuditID) || !validProductID(input.CorrelationID) || !validProductID(input.ReceiptID) || !validJSONObjectBody(input.Intent) || !validJSONObjectBody(input.Body) {
+	if !validConnectorRepository(repository, ctx) || !validRequestIdentity(identity, false) || !validProductID(input.EffectID) || !validProductID(input.IntegrationID) || !stringIn(input.Acknowledgement, "provider_grant_revoked_manually", "provider_grant_verified_absent") || len(input.IdempotencyKey) < 16 || len(input.IdempotencyKey) > 128 || !workflowKeyPattern.MatchString(input.IdempotencyKey) || input.ExpectedVersion < 1 || !validProductID(input.AuditID) || !validProductID(input.CorrelationID) || !validProductID(input.ReceiptID) || !validJSONObjectBody(input.Intent) {
 		return WorkflowMutationResult{}, ErrRepositoryOperation
 	}
 	payload, err := repository.database.QueryJSON(ctx, postgresConnectorRemediateQuarantineSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), input.EffectID, input.IntegrationID, identity.PrincipalID.String(), input.Acknowledgement, input.IdempotencyKey, input.ExpectedVersion, input.Intent, input.Body, input.AuditID, input.CorrelationID, input.ReceiptID)
@@ -446,8 +536,9 @@ func (repository *ConnectorRepository) RemediateConnectorQuarantine(ctx context.
 
 func validConnectorLease(lease ConnectorEffectLease) bool {
 	digest, err := hex.DecodeString(lease.RequestDigest)
-	validReference := lease.Operation == "revoke" && validOpaqueReference(lease.ConnectionReference) || lease.Operation == "authorize" && lease.LastErrorCode == "cleanup_pending" && validOpaqueReference(lease.ConnectionReference) || lease.Operation != "revoke" && (lease.Operation != "authorize" || lease.LastErrorCode != "cleanup_pending") && lease.ConnectionReference == ""
-	return err == nil && len(digest) == sha256.Size && validProductID(lease.OrganizationID) && validProductID(lease.WorkspaceID) && validProductID(lease.EnvironmentID) && validProductID(lease.ID) && validProductID(lease.IntegrationID) && validConnectorProvider(lease.Provider) && stringIn(lease.Operation, "authorize", "bind", "test", "rotate", "revoke", "nango_connect") && (lease.Operation != "authorize" || validProductID(lease.OAuthAttemptID) && validProductID(lease.PrincipalID) && validConnectorScopes(lease.RequestedScopes)) && (lease.Operation == "authorize" || lease.OAuthAttemptID == "" && lease.PrincipalID == "" && lease.RequestedScopes == nil) && validReference && (lease.LastErrorCode == "" || connectorCodePattern.MatchString(lease.LastErrorCode)) && len(lease.IdempotencyKey) >= 16 && len(lease.IdempotencyKey) <= 128 && lease.Attempt >= 1 && lease.Attempt <= 100 && len(lease.LeaseOwner) >= 3 && len(lease.LeaseOwner) <= 128 && len(lease.LeaseToken) == 64 && lease.LeaseExpiresAt.After(time.Now())
+	validReference := lease.Operation == "revoke" && validOpaqueReference(lease.ConnectionReference) || lease.Operation == "pkce_cleanup" && validOpaqueReference(lease.ConnectionReference) || lease.Operation == "authorize" && lease.LastErrorCode == "cleanup_pending" && validOpaqueReference(lease.ConnectionReference) || !stringIn(lease.Operation, "revoke", "pkce_cleanup") && (lease.Operation != "authorize" || lease.LastErrorCode != "cleanup_pending") && lease.ConnectionReference == ""
+	validParent := lease.Operation == "authorize" && validProductID(lease.OAuthAttemptID) && validProductID(lease.PrincipalID) && validConnectorScopes(lease.RequestedScopes) || lease.Operation == "pkce_cleanup" && (lease.OAuthAttemptID == "" || validProductID(lease.OAuthAttemptID)) && (lease.PrincipalID == "" || validProductID(lease.PrincipalID)) && (lease.RequestedScopes == nil || validConnectorScopes(lease.RequestedScopes)) || !stringIn(lease.Operation, "authorize", "pkce_cleanup") && lease.OAuthAttemptID == "" && lease.PrincipalID == "" && lease.RequestedScopes == nil
+	return err == nil && len(digest) == sha256.Size && validProductID(lease.OrganizationID) && validProductID(lease.WorkspaceID) && validProductID(lease.EnvironmentID) && validProductID(lease.ID) && validProductID(lease.IntegrationID) && validConnectorProvider(lease.Provider) && stringIn(lease.Operation, "authorize", "bind", "test", "rotate", "revoke", "pkce_cleanup", "nango_connect") && validParent && validReference && (lease.LastErrorCode == "" || connectorCodePattern.MatchString(lease.LastErrorCode)) && len(lease.IdempotencyKey) >= 16 && len(lease.IdempotencyKey) <= 128 && lease.Attempt >= 1 && lease.Attempt <= 100 && len(lease.LeaseOwner) >= 3 && len(lease.LeaseOwner) <= 128 && len(lease.LeaseToken) == 64 && lease.LeaseExpiresAt.After(time.Now())
 }
 
 func decodeConnectorTransition(payload json.RawMessage, effectID, status string, minimumAttempt int) (ConnectorEffectTransition, error) {

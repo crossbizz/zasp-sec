@@ -80,7 +80,29 @@ func TestConnectorAuthorizationPostgresOneTimeOAuthUnknownEffectAndReferenceOnly
 	if err := connection.QueryRow(ctx, `SELECT zasp_connector_start_oauth($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14,$15::jsonb)`, conflictArgs...).Scan(&replayed); err == nil {
 		t.Fatal("same OAuth attempt with changed digest succeeded")
 	}
+	secondAttemptArgs := append([]any(nil), args...)
+	secondAttemptArgs[3] = "pid_70000007-0000-4000-8000-000000000007"
+	secondState := sha256.Sum256([]byte("second-state"))
+	secondAttemptArgs[8] = secondState[:]
+	secondAttemptArgs[9] = "ref:oauth/pkce/attempt-0002"
+	if err := connection.QueryRow(ctx, `SELECT zasp_connector_start_oauth($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14,$15::jsonb)`, secondAttemptArgs...).Scan(&replayed); err == nil {
+		t.Fatal("second active OAuth attempt succeeded")
+	}
 	connectorRepository := &ConnectorRepository{database: database}
+	pkceCleanupID := "pid_70000006-0000-4000-8000-000000000006"
+	if _, err := connectorRepository.StagePKCECleanup(ctx, scope, PKCECleanupStage{ID: pkceCleanupID, IntegrationID: integrationID, OAuthAttemptID: attemptID, Provider: "github", Reference: "ref:oauth/pkce/attempt-0001", RequestDigest: requestDigest[:], AvailableAt: time.Now().UTC(), Reason: "oauth_attempt_expiry"}); err != nil {
+		t.Fatalf("stage PKCE cleanup: %v", err)
+	}
+	if _, err := connection.Exec(ctx, `UPDATE zasp_connector_effects SET updated_at=transaction_timestamp()-interval '16 seconds' WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND id=$4`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), pkceCleanupID); err != nil {
+		t.Fatal(err)
+	}
+	pkceLeases, err := connectorRepository.ClaimReconciliation(ctx, "pkce-worker-a", 30, 10)
+	if err != nil || len(pkceLeases) != 1 || pkceLeases[0].Operation != "pkce_cleanup" || pkceLeases[0].ConnectionReference != "ref:oauth/pkce/attempt-0001" {
+		t.Fatalf("claim PKCE cleanup = %#v, %v", pkceLeases, err)
+	}
+	if _, err := connectorRepository.CompletePKCECleanupReconciliation(ctx, pkceLeases[0]); err != nil {
+		t.Fatalf("complete PKCE cleanup valid=%v reference=%v parent=%v live=%v %#v: %v", validConnectorLease(pkceLeases[0]), validOpaqueReference(pkceLeases[0].ConnectionReference), validConnectorScopes(pkceLeases[0].RequestedScopes), pkceLeases[0].LeaseExpiresAt.After(time.Now()), pkceLeases[0], err)
+	}
 	foreignIdentity := identity
 	foreignIdentity.Scope = alternateScope(t, scope.OrganizationID())
 	if _, err := connectorRepository.ConsumeOAuth(ctx, foreignIdentity, stateDigest[:], sessionDigest[:]); !errors.Is(err, ErrRepositoryNotFound) {
@@ -114,7 +136,7 @@ func TestConnectorAuthorizationPostgresOneTimeOAuthUnknownEffectAndReferenceOnly
 	}
 
 	credentialID := "pid_70000004-0000-4000-8000-000000000004"
-	if err := connection.QueryRow(ctx, `SELECT zasp_connector_put_credential($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb)`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), credentialID, integrationID, "github", "github_oauth_grant_reference", "ref:github/install/123456", 1, json.RawMessage(`{"installation_id":"123456"}`)).Scan(&effect); err != nil {
+	if err := connection.QueryRow(ctx, `SELECT zasp_connector_put_credential($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb)`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), credentialID, integrationID, "github", "github_installation_reference", "ref:github/install/123456", 1, json.RawMessage(`{"installation_id":"123456"}`)).Scan(&effect); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := connection.Exec(ctx, `INSERT INTO zasp_connector_credentials(organization_id,workspace_id,environment_id,id,integration_id,provider,credential_class,credential_reference,version,metadata) VALUES($1,$2,$3,$4,$5,'github','installation_reference','plaintext-token',2,'{}')`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), "pid_70000005-0000-4000-8000-000000000005", integrationID); err == nil {
@@ -235,7 +257,7 @@ func TestConnectorAuthorizationPostgresPublicIntegrationMutationCreatesTypedOAut
 	if err != nil || len(authorizationLeases) != 1 || authorizationLeases[0].OAuthAttemptID != successAttemptID || authorizationLeases[0].PrincipalID != identity.PrincipalID.String() || !equalStringSet(authorizationLeases[0].RequestedScopes, []string{"read:org"}) {
 		t.Fatalf("authorization reconciliation claim = %#v, %v", authorizationLeases, err)
 	}
-	completion := OAuthCompletion{AttemptID: successAttemptID, EffectID: successEffectID, ConnectionID: "pid_71000009-0000-4000-8000-000000000009", ConnectionReference: "ref:github/grant/71000008-0000-4000-8000-000000000008", ProviderSubject: "installation:987654", CredentialID: "pid_71000010-0000-4000-8000-000000000010", CredentialClass: "github_oauth_grant_reference", Metadata: json.RawMessage(`{"installation_id":987654}`)}
+	completion := OAuthCompletion{AttemptID: successAttemptID, EffectID: successEffectID, ConnectionID: "pid_71000009-0000-4000-8000-000000000009", ConnectionReference: "ref:github/grant/71000008-0000-4000-8000-000000000008", ProviderSubject: "installation:987654", CredentialID: "pid_71000010-0000-4000-8000-000000000010", CredentialClass: "github_installation_reference", Metadata: json.RawMessage(`{"installation_id":987654}`)}
 	wrongAuthorizationLease := authorizationLeases[0]
 	wrongAuthorizationLease.LeaseToken = strings.Repeat("f", 64)
 	if _, err := connectorRepository.CompleteOAuthReconciliation(ctx, wrongAuthorizationLease, completion); err == nil {
@@ -423,6 +445,9 @@ func TestConnectorAuthorizationPostgresAmbiguousProviderOutcomeIsPermanentlyQuar
 	if transition, err := connectorRepository.QuarantineConnectorReconciliation(ctx, leases[0], "provider_outcome_ambiguous"); err != nil || transition.Status != "unknown" || transition.Attempt != 100 {
 		t.Fatalf("quarantine transition = %#v, %v", transition, err)
 	}
+	if quarantine, err := connectorRepository.GetConnectorQuarantine(ctx, identity.Scope, integrationID); err != nil || quarantine.ID != effectID || quarantine.Operation != "authorize" || quarantine.ConnectionReference != "" || quarantine.Reason != "provider_outcome_ambiguous" {
+		t.Fatalf("quarantine discovery = %#v, %v", quarantine, err)
+	}
 	var effectStatus, errorCode, integrationState, attemptStatus string
 	var auditCount int
 	if err := connection.QueryRow(ctx, `SELECT e.status,e.last_error_code,i.state,a.status,(SELECT count(*) FROM zasp_connector_audit audit WHERE audit.organization_id=e.organization_id AND audit.workspace_id=e.workspace_id AND audit.environment_id=e.environment_id AND audit.effect_id=e.id AND audit.reason_code='provider_outcome_ambiguous') FROM zasp_connector_effects e JOIN zasp_integrations i ON (i.organization_id,i.workspace_id,i.environment_id,i.id)=(e.organization_id,e.workspace_id,e.environment_id,e.integration_id) JOIN zasp_connector_oauth_attempts a ON (a.organization_id,a.workspace_id,a.environment_id,a.id)=(e.organization_id,e.workspace_id,e.environment_id,e.oauth_attempt_id) WHERE (e.organization_id,e.workspace_id,e.environment_id,e.id)=($1,$2,$3,$4)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), effectID).Scan(&effectStatus, &errorCode, &integrationState, &attemptStatus, &auditCount); err != nil || effectStatus != "unknown" || errorCode != "provider_outcome_ambiguous" || integrationState != "degraded" || attemptStatus != "consuming" || auditCount != 1 {
@@ -439,7 +464,7 @@ func TestConnectorAuthorizationPostgresAmbiguousProviderOutcomeIsPermanentlyQuar
 	quarantinedBody["status"] = "pending_authorization"
 	quarantinedBody["updated_at"] = "2026-08-19T00:02:00Z"
 	remediationBody, _ := json.Marshal(quarantinedBody)
-	remediation := ConnectorQuarantineRemediation{EffectID: effectID, IntegrationID: integrationID, Acknowledgement: "provider_grant_revoked_manually", IdempotencyKey: "idem-quarantine-remediation-0001", ExpectedVersion: 2, Intent: json.RawMessage(`{"body":{"acknowledgement":"provider_grant_revoked_manually","effect_id":"` + effectID + `"},"expected_version":2,"resource_id":"` + integrationID + `"}`), Body: remediationBody, AuditID: "pid_72000008-0000-4000-8000-000000000008", CorrelationID: "pid_72000009-0000-4000-8000-000000000009", ReceiptID: "pid_72000010-0000-4000-8000-000000000010"}
+	remediation := ConnectorQuarantineRemediation{EffectID: effectID, IntegrationID: integrationID, Acknowledgement: "provider_grant_revoked_manually", IdempotencyKey: "idem-quarantine-remediation-0001", ExpectedVersion: 2, Intent: json.RawMessage(`{"body":{"acknowledgement":"provider_grant_revoked_manually"},"expected_version":2,"resource_id":"` + integrationID + `"}`), Body: remediationBody, AuditID: "pid_72000008-0000-4000-8000-000000000008", CorrelationID: "pid_72000009-0000-4000-8000-000000000009", ReceiptID: "pid_72000010-0000-4000-8000-000000000010"}
 	remediated, err := connectorRepository.RemediateConnectorQuarantine(ctx, identity, remediation)
 	var remediatedBody map[string]any
 	if err != nil || json.Unmarshal(remediated.Body, &remediatedBody) != nil || remediatedBody["status"] != "pending_authorization" || remediated.Version != 3 || remediated.ReceiptID != remediation.ReceiptID {
@@ -454,6 +479,97 @@ func TestConnectorAuthorizationPostgresAmbiguousProviderOutcomeIsPermanentlyQuar
 	}
 	if _, err := connectorRepository.StartOAuth(ctx, identity, OAuthStart{AttemptID: "pid_72000007-0000-4000-8000-000000000007", IntegrationID: integrationID, Provider: "github", PKCEVerifierReference: "ref:oauth/pkce/blocked", SessionDigest: second[:], StateDigest: second[:], RequestDigest: second[:], RequestedScopes: []string{"read:org"}, ExpiresAt: time.Now().UTC().Add(5 * time.Minute), IntegrationVersion: 3, Configuration: json.RawMessage(`{"authorization_mode":"github_app"}`)}); err != nil {
 		t.Fatalf("fresh authorization after explicit remediation = %v", err)
+	}
+}
+
+func TestConnectorAuthorizationPostgresRevocationExhaustionIsVisibleAndRetriable(t *testing.T) {
+	dsn := startDisposablePostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	connection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close(ctx)
+	migrateToConnectorAuthorization(t, ctx, connection)
+	database, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
+	workflows, _ := NewPostgresRepository(database)
+	connectors := &ConnectorRepository{database: database}
+	identity := fixtureRequestIdentity(t)
+	integrationID := "pid_72100001-0000-4000-8000-000000000001"
+	create := WorkflowMutation{Action: "create", Kind: "integration", ID: integrationID, Operation: "createIntegration", IdempotencyKey: "idem-revoke-quarantine-create", Intent: json.RawMessage(`{"body":{"connector_key":"github"},"expected_version":0,"resource_id":""}`), Body: json.RawMessage(`{"id":"` + integrationID + `","connector_key":"github","name":"GitHub Revoke","configuration":{"authorization_mode":"github_app"},"status":"active","created_at":"2026-08-19T00:00:00Z","updated_at":"2026-08-19T00:00:00Z"}`), AuditID: "pid_72100002-0000-4000-8000-000000000002", CorrelationID: "pid_72100003-0000-4000-8000-000000000003", ReceiptID: "pid_72100004-0000-4000-8000-000000000004"}
+	if _, err := workflows.MutateWorkflow(ctx, identity, create); err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256([]byte("revocation-exhaustion"))
+	effectID := "pid_72100005-0000-4000-8000-000000000005"
+	if _, err := connectors.BeginConnectorEffect(ctx, identity.Scope, ConnectorEffectStart{ID: effectID, IntegrationID: integrationID, Provider: "github", Operation: "revoke", IdempotencyKey: "idem-revoke-quarantine-effect", RequestDigest: digest[:]}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connectors.ResolveConnectorEffect(ctx, identity.Scope, ConnectorEffectResolution{ID: effectID, Status: "unknown", ConnectionReference: "ref:github/installation/123456", ErrorCode: "revocation_requested", Metadata: json.RawMessage(`{}`)}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `UPDATE zasp_connector_effects SET attempt=99,updated_at=transaction_timestamp()-interval '16 seconds' WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND id=$4`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), effectID); err != nil {
+		t.Fatal(err)
+	}
+	leases, err := connectors.ClaimReconciliation(ctx, "connector-worker-a", 30, 10)
+	if err != nil || len(leases) != 1 || leases[0].Operation != "revoke" || leases[0].Attempt != 100 {
+		t.Fatalf("final revoke claim = %#v, %v", leases, err)
+	}
+	if _, err := connectors.QuarantineConnectorReconciliation(ctx, leases[0], "provider_revocation_ambiguous"); err != nil {
+		t.Fatal(err)
+	}
+	quarantine, err := connectors.GetConnectorQuarantine(ctx, identity.Scope, integrationID)
+	if err != nil || quarantine.Operation != "revoke" || quarantine.Reason != "provider_revocation_ambiguous" || quarantine.ConnectionReference != "ref:github/installation/123456" {
+		raw, _ := database.QueryJSON(ctx, postgresConnectorGetQuarantineSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), integrationID)
+		t.Fatalf("visible revoke quarantine = %#v, %v raw=%s", quarantine, err, raw)
+	}
+	remediation := ConnectorQuarantineRemediation{EffectID: effectID, IntegrationID: integrationID, Acknowledgement: "provider_grant_verified_absent", IdempotencyKey: "idem-revoke-quarantine-remediate", ExpectedVersion: 2, Intent: json.RawMessage(`{"body":{"acknowledgement":"provider_grant_verified_absent"},"expected_version":2,"resource_id":"` + integrationID + `"}`), Body: json.RawMessage(`{}`), AuditID: "pid_72100006-0000-4000-8000-000000000006", CorrelationID: "pid_72100007-0000-4000-8000-000000000007", ReceiptID: "pid_72100008-0000-4000-8000-000000000008"}
+	first, err := connectors.RemediateConnectorQuarantine(ctx, identity, remediation)
+	var firstBody map[string]any
+	if err != nil || first.Version != 3 || json.Unmarshal(first.Body, &firstBody) != nil || firstBody["status"] != "revoking" {
+		t.Fatalf("revoke remediation = %#v, %v", first, err)
+	}
+	if replay, err := connectors.RemediateConnectorQuarantine(ctx, identity, remediation); err != nil || !replay.Replayed || replay.Version != first.Version {
+		t.Fatalf("revoke remediation replay = %#v, %v", replay, err)
+	}
+	leases, err = connectors.ClaimReconciliation(ctx, "connector-worker-b", 30, 10)
+	if err != nil || len(leases) != 1 || leases[0].ID != effectID || leases[0].Attempt != 1 || leases[0].LastErrorCode != "provider_revocation_remediated" {
+		t.Fatalf("remediated revoke reclaim = %#v, %v", leases, err)
+	}
+
+	cleanupIntegrationID := "pid_72100011-0000-4000-8000-000000000011"
+	cleanupCreate := WorkflowMutation{Action: "create", Kind: "integration", ID: cleanupIntegrationID, Operation: "createIntegration", IdempotencyKey: "idem-cleanup-quarantine-create", Intent: json.RawMessage(`{"body":{"connector_key":"github"},"expected_version":0,"resource_id":""}`), Body: json.RawMessage(`{"id":"` + cleanupIntegrationID + `","connector_key":"github","name":"GitHub Cleanup","configuration":{"authorization_mode":"github_app"},"status":"active","created_at":"2026-08-19T00:00:00Z","updated_at":"2026-08-19T00:00:00Z"}`), AuditID: "pid_72100012-0000-4000-8000-000000000012", CorrelationID: "pid_72100013-0000-4000-8000-000000000013", ReceiptID: "pid_72100014-0000-4000-8000-000000000014"}
+	if _, err := workflows.MutateWorkflow(ctx, identity, cleanupCreate); err != nil {
+		t.Fatal(err)
+	}
+	cleanupEffectID := "pid_72100015-0000-4000-8000-000000000015"
+	if _, err := connectors.BeginConnectorEffect(ctx, identity.Scope, ConnectorEffectStart{ID: cleanupEffectID, IntegrationID: cleanupIntegrationID, Provider: "github", Operation: "authorize", IdempotencyKey: "idem-cleanup-quarantine-effect", RequestDigest: digest[:]}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connectors.ResolveConnectorEffect(ctx, identity.Scope, ConnectorEffectResolution{ID: cleanupEffectID, Status: "unknown", ConnectionReference: "ref:github/installation/654321", ErrorCode: "cleanup_pending", Metadata: json.RawMessage(`{}`)}); err != nil {
+		t.Fatal(err)
+	}
+	leaseToken := strings.Repeat("a", 64)
+	if _, err := connection.Exec(ctx, `UPDATE zasp_connector_effects SET attempt=100,lease_owner='connector-worker-a',lease_token=$5,updated_at=transaction_timestamp(),lease_expires_at=transaction_timestamp()+interval '30 seconds' WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND id=$4`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), cleanupEffectID, leaseToken); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := database.QueryJSON(ctx, postgresConnectorQuarantineSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), cleanupEffectID, "connector-worker-a", leaseToken, "provider_cleanup_ambiguous"); err != nil {
+		t.Fatalf("final cleanup quarantine: %v", err)
+	}
+	cleanupQuarantine, err := connectors.GetConnectorQuarantine(ctx, identity.Scope, cleanupIntegrationID)
+	if err != nil || cleanupQuarantine.Operation != "authorize" || cleanupQuarantine.Reason != "provider_cleanup_ambiguous" || cleanupQuarantine.ConnectionReference != "ref:github/installation/654321" {
+		t.Fatalf("visible cleanup quarantine = %#v, %v", cleanupQuarantine, err)
+	}
+	cleanupRemediation := ConnectorQuarantineRemediation{EffectID: cleanupEffectID, IntegrationID: cleanupIntegrationID, Acknowledgement: "provider_grant_verified_absent", IdempotencyKey: "idem-cleanup-quarantine-remed", ExpectedVersion: 2, Intent: json.RawMessage(`{"body":{"acknowledgement":"provider_grant_verified_absent"},"expected_version":2,"resource_id":"` + cleanupIntegrationID + `"}`), Body: json.RawMessage(`{}`), AuditID: "pid_72100016-0000-4000-8000-000000000016", CorrelationID: "pid_72100017-0000-4000-8000-000000000017", ReceiptID: "pid_72100018-0000-4000-8000-000000000018"}
+	cleanupResult, err := connectors.RemediateConnectorQuarantine(ctx, identity, cleanupRemediation)
+	var cleanupBody map[string]any
+	if err != nil || cleanupResult.Version != 3 || json.Unmarshal(cleanupResult.Body, &cleanupBody) != nil || cleanupBody["status"] != "active" {
+		t.Fatalf("cleanup remediation = %#v, %v", cleanupResult, err)
+	}
+	var cleanupStatus, cleanupReason string
+	if err := connection.QueryRow(ctx, `SELECT status,last_error_code FROM zasp_connector_effects WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND id=$4`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), cleanupEffectID).Scan(&cleanupStatus, &cleanupReason); err != nil || cleanupStatus != "failed" || cleanupReason != "provider_cleanup_remediated" {
+		t.Fatalf("terminal cleanup remediation = %q/%q, %v", cleanupStatus, cleanupReason, err)
 	}
 }
 
@@ -502,7 +618,7 @@ func TestConnectorAuthorizationPostgresCompletionRejectsChangedStoredIntentAtomi
 	if _, err := connectors.ResolveConnectorEffect(ctx, identity.Scope, ConnectorEffectResolution{ID: effectID, Status: "unknown", ErrorCode: "provider_effect_started", Metadata: json.RawMessage(`{}`)}); err != nil {
 		t.Fatal(err)
 	}
-	completion := OAuthCompletion{AttemptID: attemptID, EffectID: effectID, ConnectionID: "pid_72500010-0000-4000-8000-000000000010", ConnectionReference: "ref:github/grant/intent-lock", ProviderSubject: "installation:1", CredentialID: "pid_72500011-0000-4000-8000-000000000011", CredentialClass: "github_oauth_grant_reference", Metadata: json.RawMessage(`{"installation_id":1}`)}
+	completion := OAuthCompletion{AttemptID: attemptID, EffectID: effectID, ConnectionID: "pid_72500010-0000-4000-8000-000000000010", ConnectionReference: "ref:github/grant/intent-lock", ProviderSubject: "installation:1", CredentialID: "pid_72500011-0000-4000-8000-000000000011", CredentialClass: "github_installation_reference", Metadata: json.RawMessage(`{"installation_id":1}`)}
 	if _, err := connectors.CompleteOAuth(ctx, identity.Scope, completion); !errors.Is(err, ErrRepositoryConflict) {
 		t.Fatalf("completion after intent change = %v, want conflict", err)
 	}
@@ -512,6 +628,65 @@ func TestConnectorAuthorizationPostgresCompletionRejectsChangedStoredIntentAtomi
 		(SELECT count(*) FROM zasp_integration_connections WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND integration_id=$5),
 		(SELECT count(*) FROM zasp_connector_credentials WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND integration_id=$5)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), attemptID, integrationID).Scan(&attempts, &connections, &credentials); err != nil || attempts != 1 || connections != 0 || credentials != 0 {
 		t.Fatalf("intent conflict residue attempts=%d connections=%d credentials=%d err=%v", attempts, connections, credentials, err)
+	}
+}
+
+func TestConnectorAuthorizationPostgresDeleteAndStartSerializeOnWorkflowLock(t *testing.T) {
+	dsn := startDisposablePostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	connection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close(ctx)
+	migrateToConnectorAuthorization(t, ctx, connection)
+	second, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer second.Close(ctx)
+	database, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: second})
+	workflows, err := NewPostgresRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := fixtureRequestIdentity(t)
+	integrationID := "pid_72600001-0000-4000-8000-000000000001"
+	create := WorkflowMutation{Action: "create", Kind: "integration", ID: integrationID, Operation: "createIntegration", IdempotencyKey: "serialize-create-0001", Intent: json.RawMessage(`{"body":{"connector_key":"github"},"expected_version":0,"resource_id":""}`), Body: json.RawMessage(`{"id":"` + integrationID + `","connector_key":"github","name":"Serialized","configuration":{},"status":"pending_authorization","created_at":"2026-08-19T00:00:00Z","updated_at":"2026-08-19T00:00:00Z"}`), AuditID: "pid_72600002-0000-4000-8000-000000000002", CorrelationID: "pid_72600003-0000-4000-8000-000000000003", ReceiptID: "pid_72600004-0000-4000-8000-000000000004"}
+	if _, err := workflows.MutateWorkflow(ctx, identity, create); err != nil {
+		t.Fatal(err)
+	}
+	transaction, err := connection.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer transaction.Rollback(ctx)
+	if _, err := transaction.Exec(ctx, `SELECT 1 FROM zasp_workflow_records WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND kind='integration' AND id=$4 FOR UPDATE`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), integrationID); err != nil {
+		t.Fatal(err)
+	}
+	deletion := WorkflowMutation{Action: "delete", Kind: "integration", ID: integrationID, Operation: "deleteIntegration", IdempotencyKey: "serialize-delete-0001", ExpectedVersion: 1, Intent: json.RawMessage(`{"body":{},"expected_version":1,"resource_id":"` + integrationID + `"}`), Body: json.RawMessage(`{}`), AuditID: "pid_72600005-0000-4000-8000-000000000005", CorrelationID: "pid_72600006-0000-4000-8000-000000000006", ReceiptID: "pid_72600007-0000-4000-8000-000000000007"}
+	deleteDone := make(chan error, 1)
+	go func() { _, deleteErr := workflows.MutateWorkflow(ctx, identity, deletion); deleteDone <- deleteErr }()
+	select {
+	case err := <-deleteDone:
+		t.Fatalf("delete did not wait for workflow lock: %v", err)
+	case <-time.After(100 * time.Millisecond):
+	}
+	digest := sha256.Sum256([]byte("serialized-start"))
+	var started []byte
+	if err := transaction.QueryRow(ctx, postgresConnectorStartOAuthSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), "pid_72600008-0000-4000-8000-000000000008", integrationID, "github", identity.PrincipalID.String(), digest[:], digest[:], "ref:oauth/pkce/serialized-start", digest[:], `["read:org"]`, time.Now().UTC().Add(5*time.Minute), int64(1), `{}`).Scan(&started); err != nil {
+		t.Fatal(err)
+	}
+	if err := transaction.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-deleteDone; !errors.Is(err, ErrRepositoryConflict) {
+		t.Fatalf("delete after concurrent start = %v, want conflict", err)
+	}
+	var activeAttempts int
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_connector_oauth_attempts WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND integration_id=$4 AND status='pending'`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), integrationID).Scan(&activeAttempts); err != nil || activeAttempts != 1 {
+		t.Fatalf("serialized active attempts=%d err=%v", activeAttempts, err)
 	}
 }
 

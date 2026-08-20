@@ -30,6 +30,7 @@ type OAuthSecretMaterial struct {
 type ConnectorOAuthSecretStore interface {
 	Acquire(context.Context, string, OAuthSecretMaterial, time.Time) (OAuthSecretMaterial, error)
 	Consume(context.Context, string) ([]byte, error)
+	Delete(context.Context, string) error
 }
 
 type ConnectorOAuthGrant struct {
@@ -126,12 +127,11 @@ func (handler *connectorHTTPHandler) ServeHTTP(writer http.ResponseWriter, reque
 
 func (handler *connectorHTTPHandler) remediateQuarantine(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, integrationID string) {
 	var input struct {
-		EffectID        string `json:"effect_id"`
 		Acknowledgement string `json:"acknowledgement"`
 	}
 	idempotencyKey := request.Header.Get("Idempotency-Key")
 	expectedVersion, versionErr := parseVersion(request.Header.Get("If-Match"))
-	if request.Method != http.MethodPost || !identity.FreshAuthenticated || !validProductID(integrationID) || versionErr != nil || len(idempotencyKey) < 16 || len(idempotencyKey) > 128 || !workflowKeyPattern.MatchString(idempotencyKey) || decodeProductionJSON(request, &input) != nil || !validProductID(input.EffectID) || !stringIn(input.Acknowledgement, "provider_grant_revoked_manually", "provider_grant_verified_absent") {
+	if request.Method != http.MethodPost || !identity.FreshAuthenticated || !validProductID(integrationID) || versionErr != nil || len(idempotencyKey) < 16 || len(idempotencyKey) > 128 || !workflowKeyPattern.MatchString(idempotencyKey) || decodeProductionJSON(request, &input) != nil || !stringIn(input.Acknowledgement, "provider_grant_revoked_manually", "provider_grant_verified_absent") {
 		if !identity.FreshAuthenticated {
 			writeWorkflowMutationError(writer, request, ErrRepositoryAuthorization)
 		} else {
@@ -139,24 +139,36 @@ func (handler *connectorHTTPHandler) remediateQuarantine(writer http.ResponseWri
 		}
 		return
 	}
-	workflow, err := handler.workflows.GetWorkflow(request.Context(), identity.Scope, "integration", integrationID)
-	var body map[string]any
-	if err != nil || workflow.Version != expectedVersion || json.Unmarshal(workflow.Body, &body) != nil || body["id"] != integrationID || body["status"] != "degraded" {
-		writeProductionError(writer, request, firstError(err, ErrRepositoryConflict))
+	quarantine, err := handler.repository.GetConnectorQuarantine(request.Context(), identity.Scope, integrationID)
+	if err != nil {
+		writeProductionError(writer, request, err)
 		return
 	}
-	body["status"] = "pending_authorization"
-	body["updated_at"] = handler.now().UTC().Format(time.RFC3339Nano)
-	remediationBody, bodyErr := json.Marshal(body)
-	intent, intentErr := json.Marshal(map[string]any{"resource_id": integrationID, "expected_version": expectedVersion, "body": map[string]any{"effect_id": input.EffectID, "acknowledgement": input.Acknowledgement}})
-	auditID, auditErr := newWorkflowProductID()
-	receiptID, receiptErr := newWorkflowProductID()
-	correlationID := correlationIDFromContext(request.Context())
-	if bodyErr != nil || intentErr != nil || auditErr != nil || receiptErr != nil || !validProductID(correlationID) {
+	workflow, workflowErr := handler.workflows.GetWorkflow(request.Context(), identity.Scope, "integration", integrationID)
+	providerKey, providerConfiguration, workflowOK := authorizedOAuthIntegrationStatus(workflow, integrationID, "degraded", "pending_authorization", "active", "revoking")
+	definition, ready := handler.registry.Provider(request.Context(), providerKey)
+	provider, providerErr := connectorOAuthProvider(definition, providerConfiguration)
+	cleanupErr := providerErr
+	if workflowErr == nil && workflowOK && ready && providerKey == quarantine.Provider && providerErr == nil {
+		if quarantine.Operation == "pkce_cleanup" {
+			cleanupErr = handler.secrets.Delete(request.Context(), quarantine.ConnectionReference)
+		} else {
+			cleanupErr = provider.Discard(request.Context(), quarantine.ID, false)
+		}
+	}
+	if workflowErr != nil || !workflowOK || !ready || providerKey != quarantine.Provider || cleanupErr != nil {
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
 		return
 	}
-	result, err := handler.repository.RemediateConnectorQuarantine(request.Context(), identity, ConnectorQuarantineRemediation{EffectID: input.EffectID, IntegrationID: integrationID, Acknowledgement: input.Acknowledgement, IdempotencyKey: idempotencyKey, ExpectedVersion: expectedVersion, Intent: intent, Body: remediationBody, AuditID: auditID, CorrelationID: correlationID, ReceiptID: receiptID})
+	intent, intentErr := json.Marshal(map[string]any{"resource_id": integrationID, "expected_version": expectedVersion, "body": map[string]any{"acknowledgement": input.Acknowledgement}})
+	auditID, auditErr := newWorkflowProductID()
+	receiptID, receiptErr := newWorkflowProductID()
+	correlationID := correlationIDFromContext(request.Context())
+	if intentErr != nil || auditErr != nil || receiptErr != nil || !validProductID(correlationID) {
+		writeProductionError(writer, request, ErrRepositoryUnavailable)
+		return
+	}
+	result, err := handler.repository.RemediateConnectorQuarantine(request.Context(), identity, ConnectorQuarantineRemediation{EffectID: quarantine.ID, IntegrationID: integrationID, Acknowledgement: input.Acknowledgement, IdempotencyKey: idempotencyKey, ExpectedVersion: expectedVersion, Intent: intent, Body: json.RawMessage(`{}`), AuditID: auditID, CorrelationID: correlationID, ReceiptID: receiptID})
 	if err != nil {
 		writeProductionError(writer, request, err)
 		return
@@ -212,7 +224,18 @@ func (handler *connectorHTTPHandler) authorize(writer http.ResponseWriter, reque
 		AttemptID: attemptID, IntegrationID: integrationID, Provider: providerKey, SessionDigest: sessionDigest[:], StateDigest: stateDigest[:], PKCEVerifierReference: reference,
 		RequestDigest: requestDigest[:], RequestedScopes: definition.RequestedScopes, ExpiresAt: material.ExpiresAt.UTC(), IntegrationVersion: workflow.Version, Configuration: configurationJSON,
 	})
+	cleanupID := connectorDeterministicID(identity.Scope, attemptID, "pkce-cleanup")
 	if err != nil {
+		if cleanupErr := handler.secrets.Delete(request.Context(), reference); cleanupErr != nil {
+			_, _ = handler.repository.StagePKCECleanup(request.Context(), identity.Scope, PKCECleanupStage{ID: cleanupID, IntegrationID: integrationID, Provider: providerKey, Reference: reference, RequestDigest: requestDigest[:], AvailableAt: handler.now().UTC(), Reason: "oauth_start_rejected"})
+			writeProductionError(writer, request, ErrRepositoryUnavailable)
+			return
+		}
+		writeProductionError(writer, request, err)
+		return
+	}
+	if _, err := handler.repository.StagePKCECleanup(request.Context(), identity.Scope, PKCECleanupStage{ID: cleanupID, IntegrationID: integrationID, OAuthAttemptID: attempt.ID, Provider: providerKey, Reference: reference, RequestDigest: requestDigest[:], AvailableAt: attempt.ExpiresAt.UTC(), Reason: "oauth_attempt_expiry"}); err != nil {
+		_ = handler.secrets.Delete(request.Context(), reference)
 		writeProductionError(writer, request, err)
 		return
 	}
@@ -244,16 +267,19 @@ func (handler *connectorHTTPHandler) callback(writer http.ResponseWriter, reques
 	}
 	requestDigest, decodeErr := hex.DecodeString(consumption.RequestDigest)
 	effectID := connectorDeterministicID(identity.Scope, consumption.ID, "oauth-effect")
+	pkceCleanupID := connectorDeterministicID(identity.Scope, consumption.ID, "pkce-cleanup")
 	effect, err := handler.repository.BeginConnectorEffect(request.Context(), identity.Scope, ConnectorEffectStart{ID: effectID, IntegrationID: consumption.IntegrationID, OAuthAttemptID: consumption.ID, Provider: consumption.Provider, Operation: "authorize", IdempotencyKey: "oauth-authorize:" + consumption.ID, RequestDigest: requestDigest})
 	if decodeErr != nil || len(requestDigest) != sha256.Size || err != nil || effect.Status != "pending" && effect.Status != "unknown" {
 		writeProductionError(writer, request, firstError(err, ErrRepositoryConflict))
 		return
 	}
 	rejectConsumed := func(reason string) error {
+		_, activateErr := handler.repository.ActivatePKCECleanup(request.Context(), identity.Scope, pkceCleanupID)
 		verifier, consumeErr := handler.secrets.Consume(request.Context(), consumption.PKCEVerifierReference)
 		clear(verifier)
+		_, cleanupErr := handler.repository.CompletePKCECleanup(request.Context(), identity.Scope, pkceCleanupID)
 		_, resolveErr := handler.repository.ResolveConnectorEffect(request.Context(), identity.Scope, ConnectorEffectResolution{ID: effectID, Status: "failed", ErrorCode: reason, Metadata: json.RawMessage(`{}`)})
-		if consumeErr != nil || resolveErr != nil {
+		if activateErr != nil || consumeErr != nil || cleanupErr != nil || resolveErr != nil {
 			return ErrRepositoryUnavailable
 		}
 		return nil
@@ -295,10 +321,19 @@ func (handler *connectorHTTPHandler) callback(writer http.ResponseWriter, reques
 		http.Redirect(writer, request, consumption.ReturnPath, http.StatusSeeOther)
 		return
 	}
+	if _, err := handler.repository.ActivatePKCECleanup(request.Context(), identity.Scope, pkceCleanupID); err != nil {
+		writeProductionError(writer, request, err)
+		return
+	}
 	verifier, err := handler.secrets.Consume(request.Context(), consumption.PKCEVerifierReference)
 	if err != nil || !connectorPKCEVerifier(verifier) {
 		_, _ = handler.repository.ResolveConnectorEffect(request.Context(), identity.Scope, ConnectorEffectResolution{ID: effectID, Status: "failed", ErrorCode: "verifier_unavailable", Metadata: json.RawMessage(`{}`)})
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
+		return
+	}
+	if _, err := handler.repository.CompletePKCECleanup(request.Context(), identity.Scope, pkceCleanupID); err != nil {
+		clear(verifier)
+		writeProductionError(writer, request, err)
 		return
 	}
 	if _, err = handler.repository.ResolveConnectorEffect(request.Context(), identity.Scope, ConnectorEffectResolution{ID: effectID, Status: "unknown", ErrorCode: "provider_effect_started", Metadata: json.RawMessage(`{}`)}); err != nil {

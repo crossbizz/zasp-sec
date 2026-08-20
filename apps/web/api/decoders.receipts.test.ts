@@ -31,7 +31,7 @@ function receipt(operation: string) {
   if (operation === "rolloutPolicy") body = { state: "monitor", target_id: "pid_10000003-0000-4000-8000-000000000003" };
   if (operation === "createIntegration") body = { connector_key: integration.connector_key, name: integration.name, configuration: integration.configuration };
   if (operation === "updateIntegration") body = { name: integration.name, configuration: integration.configuration };
-  if (operation === "remediateIntegrationAuthorization") body = { effect_id: "pid_20000003-0000-4000-8000-000000000003", acknowledgement: "provider_grant_revoked_manually" };
+  if (operation === "remediateIntegrationAuthorization") body = { acknowledgement: "provider_grant_revoked_manually" };
   if (operation === "createSecurityAgent") body = Object.fromEntries(Object.entries(agent).filter(([key]) => key !== "id"));
   if (operation === "updateSecurityAgent") body = agent;
   return {

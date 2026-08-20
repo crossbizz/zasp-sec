@@ -219,7 +219,7 @@ function decodePolicyReceiptIntent(operation: string, body: unknown, result: Pol
 
 function decodeIntegrationReceiptIntent(operation: string, body: unknown, result: Integration): void {
   if (operation === "deleteIntegration") { emptyRecord(body); return; }
-  if (operation === "remediateIntegrationAuthorization") { const input = exactRecord(body, ["effect_id", "acknowledgement"]); productID(input.effect_id); enumValue(input.acknowledgement, ["provider_grant_revoked_manually", "provider_grant_verified_absent"]); if (result.status !== "pending_authorization") fail(); return; }
+  if (operation === "remediateIntegrationAuthorization") { const input = exactRecord(body, ["acknowledgement"]); enumValue(input.acknowledgement, ["provider_grant_revoked_manually", "provider_grant_verified_absent"]); enumValue(result.status, ["pending_authorization", "active", "revoking"]); return; }
   if (operation !== "createIntegration" && operation !== "updateIntegration") fail();
   const required = operation === "createIntegration" ? ["connector_key", "name", "configuration"] : ["name", "configuration"];
   const input = exactRecord(body, required);

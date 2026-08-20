@@ -2695,9 +2695,8 @@ components:
     IntegrationAuthorizationRemediationInput:
       type: object
       additionalProperties: false
-      required: [effect_id, acknowledgement]
+      required: [acknowledgement]
       properties:
-        effect_id: { $ref: '#/components/schemas/ProductID' }
         acknowledgement:
           type: string
           enum: [provider_grant_revoked_manually, provider_grant_verified_absent]

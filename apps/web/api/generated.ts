@@ -1645,7 +1645,6 @@ export type components = {
         readonly IntegrationAuthorizationRemediationInput: {
             /** @enum {string} */
             readonly acknowledgement: "provider_grant_revoked_manually" | "provider_grant_verified_absent";
-            readonly effect_id: components["schemas"]["ProductID"];
         };
         readonly IntegrationCatalogPage: {
             readonly items: readonly components["schemas"]["ConnectorManifest"][];

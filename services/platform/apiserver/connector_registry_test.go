@@ -9,7 +9,7 @@ import (
 func TestConnectorProviderRegistryIsOneProviderCapabilityAuthority(t *testing.T) {
 	githubReady := true
 	registry, err := NewConnectorProviderRegistry(map[string]ConnectorOAuthProviderDefinition{
-		"github": {Provider: &connectorProviderStub{}, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_oauth_grant_reference"},
+		"github": {Provider: &connectorProviderStub{}, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"},
 		"okta":   {Provider: &connectorProviderStub{}, RequestedScopes: []string{"offline_access", "okta.apps.read", "okta.groups.read", "okta.users.read"}, CredentialClass: "okta_refresh_reference"},
 	}, map[string]ConnectorCapabilityCheck{
 		"github": func(context.Context) error {

@@ -15,6 +15,7 @@ type ConnectorReconciliationRepository interface {
 	ClaimReconciliation(context.Context, string, int, int) ([]ConnectorEffectLease, error)
 	CompleteOAuthReconciliation(context.Context, ConnectorEffectLease, OAuthCompletion) (OAuthCompletionRecord, error)
 	CompleteConnectorCleanupReconciliation(context.Context, ConnectorEffectLease) (ConnectorEffectTransition, error)
+	CompletePKCECleanupReconciliation(context.Context, ConnectorEffectLease) (ConnectorEffectTransition, error)
 	QuarantineConnectorReconciliation(context.Context, ConnectorEffectLease, string) (ConnectorEffectTransition, error)
 	FailConnectorReconciliation(context.Context, ConnectorEffectLease, string) (ConnectorEffectTransition, error)
 	CompleteConnectorRevocation(context.Context, ConnectorEffectLease) (ConnectorEffectTransition, error)
@@ -24,6 +25,7 @@ type ConnectorReconcilerConfig struct {
 	Repository   ConnectorReconciliationRepository
 	Workflows    connectorWorkflowReader
 	Registry     *ConnectorProviderRegistry
+	Secrets      ConnectorOAuthSecretStore
 	Owner        string
 	LeaseSeconds int
 	Limit        int
@@ -34,6 +36,7 @@ type ConnectorReconciler struct {
 	repository   ConnectorReconciliationRepository
 	workflows    connectorWorkflowReader
 	registry     *ConnectorProviderRegistry
+	secrets      ConnectorOAuthSecretStore
 	owner        string
 	leaseSeconds int
 	limit        int
@@ -42,10 +45,10 @@ type ConnectorReconciler struct {
 }
 
 func NewConnectorReconciler(config ConnectorReconcilerConfig) (*ConnectorReconciler, error) {
-	if nilInterface(config.Repository) || nilInterface(config.Workflows) || config.Registry == nil || len(config.Owner) < 3 || len(config.Owner) > 128 || config.LeaseSeconds < 5 || config.LeaseSeconds > 300 || config.Limit < 1 || config.Limit > 100 || config.Interval < 10*time.Millisecond || config.Interval > time.Minute {
+	if nilInterface(config.Repository) || nilInterface(config.Workflows) || nilInterface(config.Secrets) || config.Registry == nil || len(config.Owner) < 3 || len(config.Owner) > 128 || config.LeaseSeconds < 5 || config.LeaseSeconds > 300 || config.Limit < 1 || config.Limit > 100 || config.Interval < 10*time.Millisecond || config.Interval > time.Minute {
 		return nil, ErrRepositoryConfiguration
 	}
-	return &ConnectorReconciler{repository: config.Repository, workflows: config.Workflows, registry: config.Registry, owner: config.Owner, leaseSeconds: config.LeaseSeconds, limit: config.Limit, interval: config.Interval}, nil
+	return &ConnectorReconciler{repository: config.Repository, workflows: config.Workflows, registry: config.Registry, secrets: config.Secrets, owner: config.Owner, leaseSeconds: config.LeaseSeconds, limit: config.Limit, interval: config.Interval}, nil
 }
 
 func (reconciler *ConnectorReconciler) Ready() bool {
@@ -59,7 +62,7 @@ func (reconciler *ConnectorReconciler) Run(ctx context.Context) error {
 	delay := reconciler.interval
 	for {
 		claimHealthy, err := reconciler.reconcileBatch(ctx)
-		if err != nil {
+		if err != nil && !claimHealthy {
 			reconciler.ready.Store(claimHealthy)
 			if delay < 30*time.Second {
 				delay *= 2
@@ -112,6 +115,17 @@ func (reconciler *ConnectorReconciler) reconcileLease(ctx context.Context, lease
 	}
 	providerContext, cancel := context.WithDeadline(ctx, providerDeadline)
 	defer cancel()
+	if lease.Operation == "pkce_cleanup" {
+		if err := reconciler.secrets.Delete(providerContext, lease.ConnectionReference); err != nil {
+			if lease.Attempt >= 100 {
+				_, quarantineErr := reconciler.repository.QuarantineConnectorReconciliation(providerContext, lease, "pkce_cleanup_ambiguous")
+				return quarantineErr
+			}
+			return err
+		}
+		_, err := reconciler.repository.CompletePKCECleanupReconciliation(providerContext, lease)
+		return err
+	}
 	if lease.Operation == "revoke" {
 		return reconciler.reconcileRevocation(providerContext, lease)
 	}
@@ -131,6 +145,10 @@ func (reconciler *ConnectorReconciler) reconcileLease(ctx context.Context, lease
 			return ErrRepositoryUnavailable
 		}
 		if err := provider.Discard(providerContext, lease.ID, false); err != nil {
+			if lease.Attempt >= 100 {
+				_, quarantineErr := reconciler.repository.QuarantineConnectorReconciliation(providerContext, lease, "provider_cleanup_ambiguous")
+				return quarantineErr
+			}
 			return err
 		}
 		_, err = reconciler.repository.CompleteConnectorCleanupReconciliation(providerContext, lease)
@@ -184,15 +202,15 @@ func (reconciler *ConnectorReconciler) reconcileRevocation(ctx context.Context, 
 	provider, providerErr := connectorOAuthProvider(definition, configuration)
 	if err != nil || !valid || !ready || providerKey != lease.Provider || providerErr != nil {
 		if lease.Attempt >= 100 {
-			_, failErr := reconciler.repository.FailConnectorReconciliation(ctx, lease, "revocation_intent_unavailable")
-			return failErr
+			_, quarantineErr := reconciler.repository.QuarantineConnectorReconciliation(ctx, lease, "provider_revocation_ambiguous")
+			return quarantineErr
 		}
 		return ErrRepositoryUnavailable
 	}
 	if err := provider.Revoke(ctx, lease.ConnectionReference); err != nil {
 		if lease.Attempt >= 100 {
-			_, failErr := reconciler.repository.FailConnectorReconciliation(ctx, lease, "revocation_exhausted")
-			return failErr
+			_, quarantineErr := reconciler.repository.QuarantineConnectorReconciliation(ctx, lease, "provider_revocation_ambiguous")
+			return quarantineErr
 		}
 		return err
 	}

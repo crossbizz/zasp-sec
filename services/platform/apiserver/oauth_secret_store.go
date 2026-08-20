@@ -84,6 +84,19 @@ func (store *durableOAuthSecretStore) Consume(ctx context.Context, reference str
 	return append([]byte(nil), stored.Verifier...), nil
 }
 
+func (store *durableOAuthSecretStore) Delete(ctx context.Context, reference string) error {
+	name, ok := store.name(reference)
+	if !ok || ctx == nil || ctx.Err() != nil {
+		return ErrRepositoryOperation
+	}
+	bounded, cancel := context.WithTimeout(ctx, store.timeout)
+	defer cancel()
+	if err := store.driver.Delete(bounded, name); err != nil && !errors.Is(err, ErrOAuthSecretNotFound) {
+		return ErrRepositoryUnavailable
+	}
+	return nil
+}
+
 func (store *durableOAuthSecretStore) read(ctx context.Context, name string) (OAuthSecretMaterial, error) {
 	payload, err := store.driver.Read(ctx, name)
 	if err != nil {
