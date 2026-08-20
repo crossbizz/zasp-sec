@@ -18,6 +18,7 @@ const (
 	maximumOperationTimeout = 30 * time.Second
 	maximumBatchMessages    = 10
 	maximumSQSBytes         = 1_048_576
+	maximumVisibility       = 12 * time.Hour
 	envelopeVersion         = 1
 )
 
@@ -27,6 +28,7 @@ var (
 	ErrPublish       = errors.New("job publish failed")
 	ErrConsume       = errors.New("job consume failed")
 	ErrAcknowledge   = errors.New("job acknowledge failed")
+	ErrVisibility    = errors.New("job visibility renewal failed")
 	kindPattern      = regexp.MustCompile(`^[a-z][a-z0-9._-]{0,62}$`)
 )
 
@@ -94,6 +96,7 @@ type DriverReceipt struct {
 type JobQueue interface {
 	PublishBatch(context.Context, []Job) (PublishResult, error)
 	ConsumeBatch(context.Context, int) ([]Delivery, error)
+	ExtendVisibility(context.Context, []Receipt, time.Duration) error
 	AcknowledgeBatch(context.Context, []Receipt) error
 }
 
@@ -101,6 +104,10 @@ type Driver interface {
 	PublishBatch(context.Context, []DriverMessage) ([]DriverPublished, error)
 	ConsumeBatch(context.Context, int) ([]DriverDelivery, error)
 	AcknowledgeBatch(context.Context, []DriverReceipt) ([]domain.ProductID, error)
+}
+
+type VisibilityDriver interface {
+	ExtendVisibility(context.Context, []DriverReceipt, int32) ([]domain.ProductID, error)
 }
 
 type Queue struct {
@@ -216,28 +223,9 @@ func (queue *Queue) AcknowledgeBatch(ctx context.Context, receipts []Receipt) (r
 	if !queue.usable() || ctx == nil || len(receipts) == 0 || len(receipts) > queue.config.MaximumBatchMessages {
 		return ErrAcknowledge
 	}
-	driverReceipts := make([]DriverReceipt, len(receipts))
-	seenJobs := make(map[domain.ProductID]struct{}, len(receipts))
-	seenMessages := make(map[string]struct{}, len(receipts))
-	seenHandles := make(map[string]struct{}, len(receipts))
-	for index, receipt := range receipts {
-		if receipt.owner != queue || !validProductID(receipt.jobID) || receipt.driver.JobID != receipt.jobID ||
-			receipt.driver.EntryID != receipt.jobID.String() || receipt.driver.MessageID == "" || receipt.driver.ReceiptHandle == "" {
-			return ErrAcknowledge
-		}
-		if _, exists := seenJobs[receipt.jobID]; exists {
-			return ErrAcknowledge
-		}
-		if _, exists := seenMessages[receipt.driver.MessageID]; exists {
-			return ErrAcknowledge
-		}
-		if _, exists := seenHandles[receipt.driver.ReceiptHandle]; exists {
-			return ErrAcknowledge
-		}
-		seenJobs[receipt.jobID] = struct{}{}
-		seenMessages[receipt.driver.MessageID] = struct{}{}
-		seenHandles[receipt.driver.ReceiptHandle] = struct{}{}
-		driverReceipts[index] = receipt.driver
+	driverReceipts, seenJobs, ok := queue.prepareReceipts(receipts)
+	if !ok {
+		return ErrAcknowledge
 	}
 
 	operationCtx, cancel := context.WithTimeout(ctx, queue.config.OperationTimeout)
@@ -250,6 +238,56 @@ func (queue *Queue) AcknowledgeBatch(ctx context.Context, receipts []Receipt) (r
 		return ErrAcknowledge
 	}
 	return nil
+}
+
+func (queue *Queue) ExtendVisibility(ctx context.Context, receipts []Receipt, visibility time.Duration) error {
+	if !queue.usable() || ctx == nil || len(receipts) == 0 || len(receipts) > queue.config.MaximumBatchMessages || visibility < time.Second || visibility > maximumVisibility || visibility%time.Second != 0 {
+		return ErrVisibility
+	}
+	driver, ok := queue.driver.(VisibilityDriver)
+	if !ok || nilInterface(driver) {
+		return ErrVisibility
+	}
+	driverReceipts, seenJobs, ok := queue.prepareReceipts(receipts)
+	if !ok {
+		return ErrVisibility
+	}
+	operationCtx, cancel := context.WithTimeout(ctx, queue.config.OperationTimeout)
+	defer cancel()
+	if operationCtx.Err() != nil {
+		return ErrVisibility
+	}
+	extended, err := visibilityDriver(driver, operationCtx, driverReceipts, int32(visibility/time.Second))
+	if err != nil || operationCtx.Err() != nil || !exactAcknowledged(extended, seenJobs) {
+		return ErrVisibility
+	}
+	return nil
+}
+
+func (queue *Queue) prepareReceipts(receipts []Receipt) ([]DriverReceipt, map[domain.ProductID]struct{}, bool) {
+	driverReceipts := make([]DriverReceipt, len(receipts))
+	seenJobs := make(map[domain.ProductID]struct{}, len(receipts))
+	seenMessages := make(map[string]struct{}, len(receipts))
+	seenHandles := make(map[string]struct{}, len(receipts))
+	for index, receipt := range receipts {
+		if receipt.owner != queue || !validProductID(receipt.jobID) || receipt.driver.JobID != receipt.jobID || receipt.driver.EntryID != receipt.jobID.String() || receipt.driver.MessageID == "" || receipt.driver.ReceiptHandle == "" {
+			return nil, nil, false
+		}
+		if _, exists := seenJobs[receipt.jobID]; exists {
+			return nil, nil, false
+		}
+		if _, exists := seenMessages[receipt.driver.MessageID]; exists {
+			return nil, nil, false
+		}
+		if _, exists := seenHandles[receipt.driver.ReceiptHandle]; exists {
+			return nil, nil, false
+		}
+		seenJobs[receipt.jobID] = struct{}{}
+		seenMessages[receipt.driver.MessageID] = struct{}{}
+		seenHandles[receipt.driver.ReceiptHandle] = struct{}{}
+		driverReceipts[index] = receipt.driver
+	}
+	return driverReceipts, seenJobs, true
 }
 
 func (queue *Queue) usable() bool {
@@ -458,6 +496,16 @@ func acknowledgeDriver(driver Driver, ctx context.Context, receipts []DriverRece
 		}
 	}()
 	return driver.AcknowledgeBatch(ctx, receipts)
+}
+
+func visibilityDriver(driver VisibilityDriver, ctx context.Context, receipts []DriverReceipt, seconds int32) (result []domain.ProductID, resultErr error) {
+	defer func() {
+		if recover() != nil {
+			result = nil
+			resultErr = ErrVisibility
+		}
+	}()
+	return driver.ExtendVisibility(ctx, receipts, seconds)
 }
 
 func nilInterface(value any) bool {
