@@ -73,27 +73,24 @@ describe("M1-01a runtime gateway command repository contract", () => {
     expect(tracker).toContain("R-11 remains Not run");
   });
 
-  it("keeps the gateway standalone with only the exact shared-health dependency", async () => {
+  it("preserves the command version boundary through production gateway composition", async () => {
     const [goModule, command, commandTest] = await Promise.all([
       readFile(resolve(repositoryRoot, "services/runtime-gateway/go.mod"), "utf8"),
       readFile(resolve(repositoryRoot, "services/runtime-gateway/main.go"), "utf8"),
       readFile(resolve(repositoryRoot, "services/runtime-gateway/main_test.go"), "utf8"),
     ]);
 
-    expect(goModule).toBe(
-      "module github.com/zasp-ai/zasp-sec/services/runtime-gateway\n\n" +
-        "go 1.25.0\n\n" +
-        "require github.com/zasp-ai/zasp-sec/services/health v0.0.0\n\n" +
-        "replace github.com/zasp-ai/zasp-sec/services/health => ../health\n",
-    );
+    expect(goModule).toContain("module github.com/zasp-ai/zasp-sec/services/runtime-gateway");
+    expect(goModule).toMatch(/github\.com\/zasp-ai\/zasp-sec\/services\/health v0\.0\.0/);
+    expect(goModule).toMatch(/github\.com\/zasp-ai\/zasp-sec\/services\/platform v0\.0\.0/);
+    expect(goModule).toContain("replace github.com/zasp-ai/zasp-sec/services/health => ../health");
+    expect(goModule).toContain("replace github.com/zasp-ai/zasp-sec/services/platform => ../platform");
     expect(command).toContain('buildVersion           = "dev"');
     expect(command).toContain('io.WriteString(output, "runtime-gateway build "+version+"\\n")');
     expect(command).toContain("len(version) > 64");
-    expect(command).not.toContain("os.Getenv");
-    expect(command).not.toContain('"net/http"');
-    expect(command).not.toContain('"flag"');
-    expect(command).not.toContain('"time"');
-    expect(command).not.toMatch(/mcp|opa|tool|proxy/i);
+    expect(command).toContain("loadProductionGatewayConfig(os.Getenv)");
+    expect(command).toContain("buildProductionGatewayDependencies(ctx, config)");
+    expect(command).toContain("serveProductionGateway(ctx, os.Stdout, buildVersion, config, dependencies, net.Listen)");
     expect(commandTest).toContain("TestRunPrintsExactBuildVersion");
     expect(commandTest).toContain("TestRunRejectsInvalidBuildVersionWithoutOutput");
     expect(commandTest).toContain("TestRunReturnsWriterFailure");

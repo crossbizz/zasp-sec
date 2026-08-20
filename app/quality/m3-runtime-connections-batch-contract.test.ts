@@ -6,18 +6,20 @@ import { describe, expect, it } from "vitest";
 const root = resolve(import.meta.dirname, "../..");
 
 describe("M3 runtime ingestion and connection surfaces batch", () => {
-  it("pins one bounded Tetragon wrapper and exactly three policy classes", async () => {
+  it("pins one bounded Tetragon wrapper and exact process, file, and network classes", async () => {
     const [chart, values, policies] = await Promise.all([
       readFile(resolve(root, "deploy/staging/tetragon/Chart.yaml"), "utf8"),
       readFile(resolve(root, "deploy/staging/tetragon/values.yaml"), "utf8"),
-      readFile(resolve(root, "deploy/staging/tetragon/templates/policies.yaml"), "utf8"),
+      readFile(resolve(root, "deploy/staging/product/templates/edge.yaml"), "utf8"),
     ]);
     expect(chart).toContain("version: 1.7.0");
     expect(values).toContain("quay.io/cilium/tetragon:v1.7.0@sha256:deda51c3f88e4d26b4d76c99ea207f2b05f9e40c210e0f04a37ca632ab7bf527");
     expect(values).toContain("quay.io/cilium/tetragon-operator:v1.7.0@sha256:074ffbd19208eed79f68e191ed606e05009f910b4bb5148efcf2973e13504b82");
-    expect(policies.match(/kind: TracingPolicy/g)).toHaveLength(3);
-    expect(policies).toMatch(/sys_execve[\s\S]*security_file_permission[\s\S]*tcp_connect/);
-    expect(policies).not.toMatch(/capabilities|credentials|packet_capture/i);
+    expect(values).toContain('exportAllowList: \'{"event_set":["PROCESS_EXEC","PROCESS_EXIT","PROCESS_KPROBE"]}\'');
+    const tracingPolicies = policies.split(/^---$/m).filter((document) => document.includes("kind: TracingPolicy"));
+    expect(tracingPolicies).toHaveLength(2);
+    expect(tracingPolicies.join("\n")).toMatch(/security_file_permission[\s\S]*tcp_connect/);
+    expect(tracingPolicies.join("\n")).not.toMatch(/capabilities|credentials|packet_capture/i);
   });
 
   it("keeps runtime ingest bounded, scoped, durable-before-ack, and ambiguity-safe", async () => {

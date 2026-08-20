@@ -83,7 +83,7 @@ describe("M1-28c event-ingest health wiring", () => {
 
     expect(command).toContain("net.Listen");
     expect(command).toContain('healthListenAddress = ":8081"');
-    expect(module).toContain("require github.com/zasp-ai/zasp-sec/services/health v0.0.0");
+    expect(module).toMatch(/github\.com\/zasp-ai\/zasp-sec\/services\/health v0\.0\.0/);
     expect(module).toContain("replace github.com/zasp-ai/zasp-sec/services/health => ../health");
     expect(JSON.parse(packageJson).scripts?.["event-ingest:health:test"]).toBe(
       "go test -C services/event-ingest -race -count=1 ./...",

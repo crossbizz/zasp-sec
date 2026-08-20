@@ -13,15 +13,20 @@ describe("M8-51e through M8-60b deployment-profile batch", () => {
     expect(saas).not.toContain("organizationID:");
     expect(single).toContain("deploymentMode: single_tenant");
     expect(single).toContain("organizationID: pid_11111111-1111-4111-8111-111111111111");
-    for (const value of ["sensor", "runtimeGateway", "policyCache", "enrollmentSecretRef", "saasAPIEndpoint"]) expect(edge).toContain(value);
+    for (const value of ["sensorAgent", "runtimeGateway", "policyCache", "tokenSecretName", "credentialSecretName", "policyKeysSecretName", "controlPlaneURL"]) expect(edge).toContain(value);
     for (const forbidden of ["web:", "agentsecApi:", "neo4j:", "nango:", "neon:", "stytch:"]) expect(edge).not.toContain(forbidden);
   });
 
-  it("fails closed for the deferred customer-edge workload until its image and release proof ship", () => {
+  it("ships only the bounded customer-edge gateway and sensor workloads", () => {
     const template = read("deploy/staging/product/templates/edge.yaml");
-    expect(template).toContain("customer_edge is not shipped");
-    expect(template).toContain("fail ");
-    for (const forbidden of ["kind: DaemonSet", "runtime-gateway", "tetragon", "privileged: true"]) expect(template).not.toContain(forbidden);
+    expect(template).toContain('{{- if eq .Values.profile "customer_edge" }}');
+    expect(template).toContain("kind: Deployment");
+    expect(template).toContain("kind: DaemonSet");
+    expect(template).toContain("name: runtime-gateway");
+    expect(template).toContain("name: sensor-agent");
+    expect(template).toContain("runtimeGateway.credentialSecretName is required");
+    expect(template).toContain("sensorAgent.tokenSecretName is required");
+    for (const forbidden of ["kind: Ingress", "privileged: true", "DATABASE_URL", "ZASP_POSTGRES"]) expect(template).not.toContain(forbidden);
   });
 
   it("adds usability, partner-value, quota, isolation, and SaaS golden models", () => {

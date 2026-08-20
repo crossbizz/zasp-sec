@@ -73,7 +73,7 @@ describe("M1-01f event ingest command repository contract", () => {
     expect(tracker).toContain("R-11 remains Not run");
   });
 
-  it("keeps ingest standalone and preserves its version boundary through later health wiring", async () => {
+  it("preserves the command version boundary through production ingest composition", async () => {
     const [goModule, command, commandTest] = await Promise.all([
       readFile(resolve(repositoryRoot, "services/event-ingest/go.mod"), "utf8"),
       readFile(resolve(repositoryRoot, "services/event-ingest/main.go"), "utf8"),
@@ -81,17 +81,16 @@ describe("M1-01f event ingest command repository contract", () => {
     ]);
 
     expect(goModule).toContain("module github.com/zasp-ai/zasp-sec/services/event-ingest");
-    expect(goModule).toContain("require github.com/zasp-ai/zasp-sec/services/health v0.0.0");
+    expect(goModule).toMatch(/github\.com\/zasp-ai\/zasp-sec\/services\/health v0\.0\.0/);
+    expect(goModule).toMatch(/github\.com\/zasp-ai\/zasp-sec\/services\/platform v0\.0\.0/);
     expect(goModule).toContain("replace github.com/zasp-ai/zasp-sec/services/health => ../health");
+    expect(goModule).toContain("replace github.com/zasp-ai/zasp-sec/services/platform => ../platform");
     expect(command).toContain('buildVersion           = "dev"');
     expect(command).toContain('io.WriteString(output, "event-ingest build "+version+"\\n")');
     expect(command).toContain("len(version) > 64");
-    expect(command).not.toContain("os.Getenv");
-    expect(command).toContain("net.Listen");
-    expect(command).not.toContain('"net/http"');
-    expect(command).not.toContain('"flag"');
-    expect(command).not.toContain('"time"');
-    expect(command).not.toMatch(/sqs|normalize|batch/i);
+    expect(command).toContain("loadProductionIngestConfig(os.Getenv)");
+    expect(command).toContain("buildProductionIngestDependencies(ctx, config)");
+    expect(command).toContain("serveProductionIngest(ctx, os.Stdout, buildVersion, config, dependencies, net.Listen)");
     expect(commandTest).toContain("TestRunPrintsExactBuildVersion");
     expect(commandTest).toContain("TestRunRejectsInvalidBuildVersionWithoutOutput");
     expect(commandTest).toContain("TestRunReturnsWriterFailure");
