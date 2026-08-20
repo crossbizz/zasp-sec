@@ -15,10 +15,11 @@ import (
 )
 
 var (
-	ErrInvalid   = errors.New("sensor input rejected")
-	ErrForbidden = errors.New("sensor authorization rejected")
-	ErrNotFound  = errors.New("sensor not found")
-	ErrConflict  = errors.New("sensor conflict")
+	ErrInvalid     = errors.New("sensor input rejected")
+	ErrForbidden   = errors.New("sensor authorization rejected")
+	ErrNotFound    = errors.New("sensor not found")
+	ErrConflict    = errors.New("sensor conflict")
+	ErrUnavailable = errors.New("sensor authority unavailable")
 )
 
 type IDGenerator func() (domain.ProductID, error)
