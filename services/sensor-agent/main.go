@@ -26,7 +26,7 @@ func main() {
 	if err != nil {
 		os.Exit(1)
 	}
-	dependencies, err := buildSensorAgentDependencies(config, nil)
+	dependencies, err := buildProductionSensorAgentDependencies(config)
 	if err != nil {
 		os.Exit(1)
 	}
@@ -36,7 +36,7 @@ func main() {
 }
 
 func serveSensorAgent(ctx context.Context, output io.Writer, version string, config sensorAgentConfig, dependencies sensorAgentDependencies, listen func(string, string) (net.Listener, error)) (resultErr error) {
-	if ctx == nil || output == nil || !validBuildVersion(version) || !validSensorAgentConfig(config) || dependencies.Processor == nil || dependencies.token == nil || listen == nil {
+	if ctx == nil || output == nil || !validBuildVersion(version) || !validSensorAgentConfig(config) || dependencies.Processor == nil || nilAgentValue(dependencies.Runtime) || dependencies.token == nil || listen == nil {
 		return errSensorRuntime
 	}
 	defer func() {
@@ -70,7 +70,7 @@ func serveSensorAgent(ctx context.Context, output io.Writer, version string, con
 	ticker := time.NewTicker(config.PollInterval)
 	defer ticker.Stop()
 	loopDone := make(chan error, 1)
-	go func() { loopDone <- runSensorAgentLoop(runtimeCtx, dependencies.Processor, ticker.C, handler.SetReady) }()
+	go func() { loopDone <- runSensorAgentLoop(runtimeCtx, dependencies.Runtime, ticker.C, handler.SetReady) }()
 	var first error
 	serverFinished, loopFinished := false, false
 	select {

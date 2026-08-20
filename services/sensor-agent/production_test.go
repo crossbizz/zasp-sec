@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"errors"
 	"io"
 	"net/http"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/sensoradapter"
+	corev1 "k8s.io/api/core/v1"
 )
 
 func TestBuildSensorAgentDependenciesUsesRegularRotatableTokenAndHardenedTransport(t *testing.T) {
@@ -69,6 +71,39 @@ func TestBuildSensorAgentDependenciesRejectsSymlinkOrPermissiveTokenBeforeProvid
 	}
 }
 
+func TestBuildClusteredSensorAgentDependenciesWiresExactEventProbeAndHeartbeat(t *testing.T) {
+	t.Parallel()
+	directory := t.TempDir()
+	tokenFile, logFile, cursorFile := filepath.Join(directory, "token"), filepath.Join(directory, "tetragon.log"), filepath.Join(directory, "cursor.json")
+	kernelFile, btfFile := filepath.Join(directory, "kernel"), filepath.Join(directory, "vmlinux")
+	writeSensorFixture(t, tokenFile, fixtureAgentToken(), 0o600)
+	writeSensorFixture(t, logFile, tetragonAgentFixture()+"\n", 0o600)
+	writeSensorFixture(t, kernelFile, "6.8.1\n", 0o444)
+	writeSensorFixture(t, btfFile, "btf", 0o444)
+	config := fixtureAgentConfig(tokenFile, logFile, cursorFile)
+	config.KernelFile, config.BTFFile = kernelFile, btfFile
+	api := newMemoryClusterAPI([]corev1.Pod{readyTetragonPod("tetragon-a", "node-a")})
+	paths := make([]string, 0, 2)
+	dependencies, err := buildClusteredSensorAgentDependencies(config, api, func(request *http.Request) (*http.Response, error) {
+		paths = append(paths, request.URL.Path)
+		status, body := http.StatusNoContent, ""
+		if request.URL.Path == "/internal/v1/runtime/events" {
+			status, body = http.StatusAccepted, `{"batch_id":"pid_10000001-0000-4000-8000-000000000001"}`
+		}
+		return &http.Response{StatusCode: status, Header: http.Header{"Cache-Control": []string{"no-store"}}, Body: io.NopCloser(strings.NewReader(body))}, nil
+	}, func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": []string{"text/plain"}}, Body: io.NopCloser(strings.NewReader(tetragonMetricsFixture()))}, nil
+	})
+	if err != nil {
+		t.Fatalf("buildClusteredSensorAgentDependencies: %v", err)
+	}
+	t.Cleanup(func() { _ = dependencies.Close() })
+	result, err := dependencies.Runtime.ProcessAvailable(context.Background())
+	if err != nil || result.Submitted != 1 || !reflect.DeepEqual(paths, []string{"/internal/v1/runtime/events", "/internal/v1/sensor/heartbeat"}) {
+		t.Fatalf("ProcessAvailable = %#v, %v, paths=%v", result, err, paths)
+	}
+}
+
 func TestRunSensorAgentLoopUpdatesReadinessAndStopsWithoutBusyPolling(t *testing.T) {
 	t.Parallel()
 	processor := &scriptedAgentProcessor{results: []agentProcessResult{{result: sensoradapter.StreamResult{Idle: true}}, {err: sensoradapter.ErrClientRetryable}, {result: sensoradapter.StreamResult{Submitted: 1}}}}
@@ -99,6 +134,68 @@ func TestRunSensorAgentLoopContainsProcessorPanic(t *testing.T) {
 	}
 }
 
+func TestClusteredAgentProcessorReportsEveryNodeAndDegradesFailures(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC)
+	for name, test := range map[string]struct {
+		streamErr  error
+		probeErr   error
+		clusterErr error
+		wantErr    bool
+		wantStatus string
+		wantDrops  uint64
+	}{
+		"healthy":         {wantStatus: "healthy"},
+		"stream failure":  {streamErr: sensoradapter.ErrClientRetryable, wantErr: true, wantStatus: "degraded", wantDrops: 1},
+		"probe failure":   {probeErr: ErrProbeRetryable, wantErr: true, wantStatus: "degraded"},
+		"cluster failure": {clusterErr: ErrClusterRetryable, wantErr: true, wantStatus: "healthy"},
+	} {
+		name, test := name, test
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			coordinator := &recordingClusterReporter{err: test.clusterErr}
+			processor := &clusteredAgentProcessor{
+				nodeName: "node-a",
+				stream: agentProcessorFunc(func(context.Context) (sensoradapter.StreamResult, error) {
+					return sensoradapter.StreamResult{Read: 1, Submitted: 1}, test.streamErr
+				}),
+				probe: nodeReporterFunc(func(context.Context, sensoradapter.StreamResult) (NodeReport, error) {
+					return NodeReport{NodeName: "node-a", ObservedAt: now, Status: "healthy", Capabilities: []string{"file", "network", "process"}, Kernel: "6.8.0", BTF: true}, test.probeErr
+				}),
+				coordinator: coordinator,
+			}
+			result, err := processor.ProcessAvailable(context.Background())
+			if (err != nil) != test.wantErr || result.Submitted != 1 || coordinator.calls != 1 || coordinator.report.Status != test.wantStatus || coordinator.report.Drops != test.wantDrops {
+				t.Fatalf("ProcessAvailable = %#v, %v, calls=%d, report=%#v", result, err, coordinator.calls, coordinator.report)
+			}
+		})
+	}
+}
+
+func TestClusteredAgentProcessorContainsProbeAndCoordinatorPanics(t *testing.T) {
+	t.Parallel()
+	for name, test := range map[string]struct {
+		probe       localNodeReporter
+		coordinator clusterReporter
+	}{
+		"probe": {probe: nodeReporterFunc(func(context.Context, sensoradapter.StreamResult) (NodeReport, error) { panic("provider-secret") }), coordinator: &recordingClusterReporter{}},
+		"coordinator": {probe: nodeReporterFunc(func(context.Context, sensoradapter.StreamResult) (NodeReport, error) {
+			return NodeReport{Status: "healthy", Capabilities: []string{"process"}, Kernel: "6.8.0"}, nil
+		}), coordinator: clusterReporterFunc(func(context.Context, NodeReport) error { panic("cluster-secret") })},
+	} {
+		name, test := name, test
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			processor := &clusteredAgentProcessor{nodeName: "node-a", stream: agentProcessorFunc(func(context.Context) (sensoradapter.StreamResult, error) {
+				return sensoradapter.StreamResult{Idle: true}, nil
+			}), probe: test.probe, coordinator: test.coordinator}
+			if _, err := processor.ProcessAvailable(context.Background()); !errors.Is(err, errSensorRuntime) || strings.Contains(err.Error(), "secret") {
+				t.Fatalf("ProcessAvailable = %v", err)
+			}
+		})
+	}
+}
+
 type agentProcessResult struct {
 	result sensoradapter.StreamResult
 	err    error
@@ -120,8 +217,32 @@ func (function agentProcessorFunc) ProcessAvailable(ctx context.Context) (sensor
 	return function(ctx)
 }
 
+type nodeReporterFunc func(context.Context, sensoradapter.StreamResult) (NodeReport, error)
+
+func (function nodeReporterFunc) Report(ctx context.Context, result sensoradapter.StreamResult) (NodeReport, error) {
+	return function(ctx, result)
+}
+
+type clusterReporterFunc func(context.Context, NodeReport) error
+
+func (function clusterReporterFunc) Tick(ctx context.Context, report NodeReport) error {
+	return function(ctx, report)
+}
+
+type recordingClusterReporter struct {
+	calls  int
+	report NodeReport
+	err    error
+}
+
+func (reporter *recordingClusterReporter) Tick(_ context.Context, report NodeReport) error {
+	reporter.calls++
+	reporter.report = report
+	return reporter.err
+}
+
 func fixtureAgentConfig(token, log, cursor string) sensorAgentConfig {
-	return sensorAgentConfig{ControlPlaneURL: "https://runtime.example.test", TokenFile: token, LogFile: log, CursorFile: cursor, BatchSize: 100, MaximumProcesses: 1000, PollInterval: time.Second, OperationTimeout: time.Second, ShutdownTimeout: 5 * time.Second}
+	return sensorAgentConfig{ControlPlaneURL: "https://runtime.example.test", TokenFile: token, LogFile: log, CursorFile: cursor, Namespace: "agentsec", PodName: "sensor-agent-a", NodeName: "node-a", KernelFile: "/proc/sys/kernel/osrelease", BTFFile: "/sys/kernel/btf/vmlinux", MetricsURL: "http://10.0.0.8:2112/metrics", BatchSize: 100, MaximumProcesses: 1000, PollInterval: time.Second, OperationTimeout: time.Second, ShutdownTimeout: 5 * time.Second, LeaseDuration: 15 * time.Second, ReportTTL: 30 * time.Second}
 }
 func fixtureAgentToken() string {
 	return "zasp_sensor_v1." + base64.RawURLEncoding.EncodeToString(bytes.Repeat([]byte{1}, 16)) + "." + base64.RawURLEncoding.EncodeToString(bytes.Repeat([]byte{2}, 32))

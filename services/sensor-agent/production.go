@@ -27,9 +27,32 @@ type tokenReader struct {
 }
 
 type sensorAgentDependencies struct {
-	Processor *sensoradapter.FileProcessor
-	token     *tokenReader
-	transport *http.Transport
+	Processor        *sensoradapter.FileProcessor
+	Runtime          agentProcessor
+	heartbeats       heartbeatSink
+	token            *tokenReader
+	transport        *http.Transport
+	metricsTransport *http.Transport
+}
+
+type clusterAuthorityAPI interface {
+	clusterLeaseAPI
+	clusterPodAPI
+}
+
+type localNodeReporter interface {
+	Report(context.Context, sensoradapter.StreamResult) (NodeReport, error)
+}
+
+type clusterReporter interface {
+	Tick(context.Context, NodeReport) error
+}
+
+type clusteredAgentProcessor struct {
+	nodeName    string
+	stream      agentProcessor
+	probe       localNodeReporter
+	coordinator clusterReporter
 }
 
 func buildSensorAgentDependencies(config sensorAgentConfig, injectedDo func(*http.Request) (*http.Response, error)) (sensorAgentDependencies, error) {
@@ -81,7 +104,51 @@ func buildSensorAgentDependencies(config sensorAgentConfig, injectedDo func(*htt
 		_ = reader.Close()
 		return sensorAgentDependencies{}, errSensorRuntime
 	}
-	return sensorAgentDependencies{Processor: processor, token: reader, transport: transport}, nil
+	return sensorAgentDependencies{Processor: processor, Runtime: processor, heartbeats: client, token: reader, transport: transport}, nil
+}
+
+func buildProductionSensorAgentDependencies(config sensorAgentConfig) (sensorAgentDependencies, error) {
+	if !validSensorAgentConfig(config) {
+		return sensorAgentDependencies{}, errSensorRuntime
+	}
+	api, err := newInClusterAPI(config.Namespace)
+	if err != nil {
+		return sensorAgentDependencies{}, errSensorRuntime
+	}
+	return buildClusteredSensorAgentDependencies(config, api, nil, nil)
+}
+
+func buildClusteredSensorAgentDependencies(config sensorAgentConfig, api clusterAuthorityAPI, controlPlaneDo, metricsDo func(*http.Request) (*http.Response, error)) (sensorAgentDependencies, error) {
+	if nilClusterValue(api) {
+		return sensorAgentDependencies{}, errSensorRuntime
+	}
+	dependencies, err := buildSensorAgentDependencies(config, controlPlaneDo)
+	if err != nil {
+		return sensorAgentDependencies{}, errSensorRuntime
+	}
+	fail := func() (sensorAgentDependencies, error) {
+		_ = dependencies.Close()
+		return sensorAgentDependencies{}, errSensorRuntime
+	}
+	if metricsDo == nil {
+		dependencies.metricsTransport = &http.Transport{
+			Proxy: nil, DialContext: (&net.Dialer{Timeout: 2 * time.Second, KeepAlive: 15 * time.Second}).DialContext,
+			DisableCompression: true, ForceAttemptHTTP2: false, MaxIdleConns: 2, MaxIdleConnsPerHost: 2,
+			ResponseHeaderTimeout: config.OperationTimeout, ExpectContinueTimeout: time.Second, MaxResponseHeaderBytes: 16 << 10,
+		}
+		metricsClient := &http.Client{Transport: dependencies.metricsTransport, Timeout: config.OperationTimeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+		metricsDo = metricsClient.Do
+	}
+	probe, err := NewLocalSensorProbe(LocalSensorProbeConfig{NodeName: config.NodeName, KernelFile: config.KernelFile, BTFFile: config.BTFFile, MetricsURL: config.MetricsURL, PollInterval: config.PollInterval, Do: metricsDo, Now: time.Now})
+	if err != nil {
+		return fail()
+	}
+	coordinator, err := NewClusterCoordinator(ClusterCoordinatorConfig{Namespace: config.Namespace, PodName: config.PodName, NodeName: config.NodeName, LeaseDuration: config.LeaseDuration, ReportTTL: config.ReportTTL, Leases: api, Pods: api, Heartbeats: dependencies.heartbeats, Now: time.Now})
+	if err != nil {
+		return fail()
+	}
+	dependencies.Runtime = &clusteredAgentProcessor{nodeName: config.NodeName, stream: dependencies.Processor, probe: probe, coordinator: coordinator}
+	return dependencies, nil
 }
 
 func (dependencies sensorAgentDependencies) ReadToken() ([]byte, error) {
@@ -97,6 +164,9 @@ func (dependencies sensorAgentDependencies) Close() error {
 	}
 	if dependencies.transport != nil {
 		dependencies.transport.CloseIdleConnections()
+	}
+	if dependencies.metricsTransport != nil {
+		dependencies.metricsTransport.CloseIdleConnections()
 	}
 	processorErr, tokenErr := dependencies.Processor.Close(), dependencies.token.Close()
 	if processorErr != nil || tokenErr != nil {
@@ -175,6 +245,51 @@ func (reader *tokenReader) Close() error {
 
 type agentProcessor interface {
 	ProcessAvailable(context.Context) (sensoradapter.StreamResult, error)
+}
+
+func (processor *clusteredAgentProcessor) ProcessAvailable(ctx context.Context) (sensoradapter.StreamResult, error) {
+	if processor == nil || ctx == nil || ctx.Err() != nil || !validKubernetesName(processor.nodeName) || nilAgentValue(processor.stream) || nilClusterValue(processor.probe) || nilClusterValue(processor.coordinator) {
+		return sensoradapter.StreamResult{}, errSensorRuntime
+	}
+	result, streamErr := safeProcessAvailable(processor.stream, ctx)
+	report, probeErr := safeNodeReport(processor.probe, ctx, result)
+	if !validNodeReportWithoutAuthority(report) {
+		report = NodeReport{NodeName: processor.nodeName, Status: "degraded", Capabilities: []string{"process"}, Kernel: "unknown"}
+	}
+	if streamErr != nil || probeErr != nil {
+		report.Status = "degraded"
+		if streamErr != nil && report.Drops < 1_000_000_000 {
+			report.Drops++
+		}
+	}
+	clusterErr := safeClusterReport(processor.coordinator, ctx, report)
+	if streamErr != nil || probeErr != nil || clusterErr != nil {
+		return result, errSensorRuntime
+	}
+	return result, nil
+}
+
+func validNodeReportWithoutAuthority(report NodeReport) bool {
+	return (report.Status == "healthy" || report.Status == "degraded") && validCapabilities(report.Capabilities) && boundedClusterText(report.Kernel, 128) && report.EventRate <= 1_000_000_000 && report.Drops <= 1_000_000_000
+}
+
+func safeNodeReport(probe localNodeReporter, ctx context.Context, result sensoradapter.StreamResult) (report NodeReport, err error) {
+	defer func() {
+		if recover() != nil {
+			report = NodeReport{}
+			err = ErrProbeRetryable
+		}
+	}()
+	return probe.Report(ctx, result)
+}
+
+func safeClusterReport(coordinator clusterReporter, ctx context.Context, report NodeReport) (err error) {
+	defer func() {
+		if recover() != nil {
+			err = ErrClusterRetryable
+		}
+	}()
+	return coordinator.Tick(ctx, report)
 }
 
 func runSensorAgentLoop(ctx context.Context, processor agentProcessor, ticks <-chan time.Time, setReady func(bool)) error {
