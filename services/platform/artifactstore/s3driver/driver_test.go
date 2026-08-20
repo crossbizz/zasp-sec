@@ -29,7 +29,7 @@ func TestDriverPutIsCreateOnlyAndReconcilesLostAcknowledgement(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Put() error = %v", err)
 	}
-	if created.VersionID != "version-1" || created.DriverLocator != object.DriverLocator || created.MediaType != object.MediaType || !bytes.Equal(created.Body, object.Body) {
+	if created.VersionID != "version-1" || created.Key != object.Key || created.Scope != object.Scope || created.Reference != object.Reference || created.MediaType != object.MediaType || !bytes.Equal(created.Body, object.Body) {
 		t.Fatalf("Put() = %#v", created)
 	}
 	client.assertExactCreateOnlyRequest(t, object)
@@ -55,10 +55,11 @@ func TestDriverGetPinsVersionAndValidatesEveryBoundary(t *testing.T) {
 	client := &fakeS3{}
 	driver := mustDriver(t, client)
 	object := fixtureObject(t)
-	if _, err := driver.Put(context.Background(), object); err != nil {
+	created, err := driver.Put(context.Background(), object)
+	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := driver.Get(context.Background(), object.DriverLocator)
+	got, err := driver.Get(context.Background(), created.DriverLocator)
 	if err != nil || got.VersionID != "version-1" || got.SHA256 != object.SHA256 || !bytes.Equal(got.Body, object.Body) {
 		t.Fatalf("Get() = %#v, %v", got, err)
 	}
@@ -76,10 +77,47 @@ func TestDriverGetPinsVersionAndValidatesEveryBoundary(t *testing.T) {
 		func(value *storedObject) { value.version = "" },
 	} {
 		client.mutateStored(mutate)
-		if _, err := driver.Get(context.Background(), object.DriverLocator); !errors.Is(err, ErrGet) {
+		if _, err := driver.Get(context.Background(), created.DriverLocator); !errors.Is(err, ErrGet) {
 			t.Fatalf("hostile Get error = %v", err)
 		}
 		client.restore(object)
+	}
+}
+
+func TestDriverReadUsesThePersistedVersionAcrossNewerVersionsAndDeleteMarkers(t *testing.T) {
+	client := &fakeS3{}
+	driver := mustDriver(t, client)
+	original := fixtureObject(t)
+	created, err := driver.Put(context.Background(), original)
+	if err != nil {
+		t.Fatal(err)
+	}
+	newer := original
+	newer.Body = []byte(`{"newer":true}`)
+	newer.Size = int64(len(newer.Body))
+	newer.SHA256 = sha256.Sum256(newer.Body)
+	client.installLatest(newer, "version-2")
+
+	got, err := driver.Get(context.Background(), created.DriverLocator)
+	if err != nil || got.VersionID != "version-1" || !bytes.Equal(got.Body, original.Body) {
+		t.Fatalf("version-pinned Get() = %#v, %v", got, err)
+	}
+	client.setCurrentUnavailable(true)
+	got, err = driver.Get(context.Background(), created.DriverLocator)
+	if err != nil || got.VersionID != "version-1" || !bytes.Equal(got.Body, original.Body) {
+		t.Fatalf("delete-marker Get() = %#v, %v", got, err)
+	}
+
+	unversioned := created.DriverLocator
+	unversioned.VersionID = ""
+	before := client.totalCalls()
+	if _, err := driver.Get(context.Background(), unversioned); !errors.Is(err, ErrArtifact) || client.totalCalls() != before {
+		t.Fatalf("unversioned Get() = %v, calls delta=%d", err, client.totalCalls()-before)
+	}
+	missing := created.DriverLocator
+	missing.VersionID = "version-missing"
+	if _, err := driver.Get(context.Background(), missing); !errors.Is(err, ErrGet) {
+		t.Fatalf("missing version error = %v", err)
 	}
 }
 
@@ -201,6 +239,8 @@ type observedPut struct {
 type fakeS3 struct {
 	mu                                     sync.Mutex
 	stored                                 *storedObject
+	versions                               map[string]*storedObject
+	currentUnavailable                     bool
 	put                                    observedPut
 	lastVersion                            string
 	putCalls, headCalls, getCalls, created int
@@ -234,6 +274,10 @@ func (client *fakeS3) PutObject(ctx context.Context, input *s3.PutObjectInput, o
 	}
 	client.created++
 	client.stored = &storedObject{body: bytes.Clone(body), contentType: aws.ToString(input.ContentType), checksum: aws.ToString(input.ChecksumSHA256), version: "version-1", kmsKey: aws.ToString(input.SSEKMSKeyId), metadata: cloneMap(input.Metadata)}
+	if client.versions == nil {
+		client.versions = map[string]*storedObject{}
+	}
+	client.versions[client.stored.version] = client.stored
 	if client.loseFirstPutResponse {
 		client.loseFirstPutResponse = false
 		return nil, errors.New("lost acknowledgement")
@@ -246,10 +290,15 @@ func (client *fakeS3) HeadObject(ctx context.Context, input *s3.HeadObjectInput,
 	defer client.mu.Unlock()
 	client.headCalls++
 	client.oneAttempt = append(client.oneAttempt, oneAttempt(options))
-	if ctx.Err() != nil || client.stored == nil {
+	value := client.stored
+	requestedVersion := aws.ToString(input.VersionId)
+	if requestedVersion != "" {
+		value = client.versions[requestedVersion]
+	}
+	if ctx.Err() != nil || value == nil || requestedVersion == "" && client.currentUnavailable {
 		return nil, errors.New("unavailable")
 	}
-	return &s3.HeadObjectOutput{ContentLength: aws.Int64(int64(len(client.stored.body))), ContentType: aws.String(client.stored.contentType), ChecksumSHA256: aws.String(client.stored.checksum), VersionId: aws.String(client.stored.version), Metadata: cloneMap(client.stored.metadata), ServerSideEncryption: s3types.ServerSideEncryptionAwsKms, SSEKMSKeyId: aws.String(client.stored.kmsKey)}, nil
+	return &s3.HeadObjectOutput{ContentLength: aws.Int64(int64(len(value.body))), ContentType: aws.String(value.contentType), ChecksumSHA256: aws.String(value.checksum), VersionId: aws.String(value.version), Metadata: cloneMap(value.metadata), ServerSideEncryption: s3types.ServerSideEncryptionAwsKms, SSEKMSKeyId: aws.String(value.kmsKey)}, nil
 }
 
 func (client *fakeS3) GetObject(ctx context.Context, input *s3.GetObjectInput, options ...func(*s3.Options)) (*s3.GetObjectOutput, error) {
@@ -258,10 +307,14 @@ func (client *fakeS3) GetObject(ctx context.Context, input *s3.GetObjectInput, o
 	client.getCalls++
 	client.oneAttempt = append(client.oneAttempt, oneAttempt(options))
 	client.lastVersion = aws.ToString(input.VersionId)
-	if ctx.Err() != nil || client.stored == nil {
+	value := client.stored
+	if requestedVersion := aws.ToString(input.VersionId); requestedVersion != "" {
+		value = client.versions[requestedVersion]
+	}
+	if ctx.Err() != nil || value == nil {
 		return nil, errors.New("unavailable")
 	}
-	return &s3.GetObjectOutput{Body: io.NopCloser(bytes.NewReader(client.stored.body)), ContentLength: aws.Int64(int64(len(client.stored.body))), ContentType: aws.String(client.stored.contentType), ChecksumSHA256: aws.String(client.stored.checksum), VersionId: aws.String(client.stored.version), Metadata: cloneMap(client.stored.metadata), ServerSideEncryption: s3types.ServerSideEncryptionAwsKms, SSEKMSKeyId: aws.String(client.stored.kmsKey)}, nil
+	return &s3.GetObjectOutput{Body: io.NopCloser(bytes.NewReader(value.body)), ContentLength: aws.Int64(int64(len(value.body))), ContentType: aws.String(value.contentType), ChecksumSHA256: aws.String(value.checksum), VersionId: aws.String(value.version), Metadata: cloneMap(value.metadata), ServerSideEncryption: s3types.ServerSideEncryptionAwsKms, SSEKMSKeyId: aws.String(value.kmsKey)}, nil
 }
 
 func oneAttempt(options []func(*s3.Options)) bool {
@@ -312,6 +365,25 @@ func (client *fakeS3) restore(object artifactstore.DriverObject) {
 	client.mu.Lock()
 	defer client.mu.Unlock()
 	client.stored = &storedObject{body: bytes.Clone(object.Body), contentType: object.MediaType, checksum: base64.StdEncoding.EncodeToString(object.SHA256[:]), version: "version-1", kmsKey: validConfig().KMSKeyARN, metadata: metadata(object)}
+	if client.versions == nil {
+		client.versions = map[string]*storedObject{}
+	}
+	client.versions[client.stored.version] = client.stored
+}
+func (client *fakeS3) installLatest(object artifactstore.DriverObject, version string) {
+	client.mu.Lock()
+	defer client.mu.Unlock()
+	value := &storedObject{body: bytes.Clone(object.Body), contentType: object.MediaType, checksum: base64.StdEncoding.EncodeToString(object.SHA256[:]), version: version, kmsKey: validConfig().KMSKeyARN, metadata: metadata(object)}
+	if client.versions == nil {
+		client.versions = map[string]*storedObject{}
+	}
+	client.versions[version] = value
+	client.stored = value
+}
+func (client *fakeS3) setCurrentUnavailable(value bool) {
+	client.mu.Lock()
+	defer client.mu.Unlock()
+	client.currentUnavailable = value
 }
 func (client *fakeS3) assertExactCreateOnlyRequest(t *testing.T, object artifactstore.DriverObject) {
 	t.Helper()

@@ -32,6 +32,7 @@ type Config struct {
 type Locator struct {
 	domain.Scope
 	Reference domain.EvidenceRef
+	VersionID string
 }
 
 type PutRequest struct {
@@ -46,13 +47,13 @@ type Artifact struct {
 	Body      []byte
 	Size      int64
 	SHA256    [sha256.Size]byte
-	VersionID string
 }
 
 type DriverLocator struct {
 	Key string
 	domain.Scope
 	Reference domain.EvidenceRef
+	VersionID string
 }
 
 type DriverObject struct {
@@ -61,7 +62,6 @@ type DriverObject struct {
 	Body      []byte
 	Size      int64
 	SHA256    [sha256.Size]byte
-	VersionID string
 }
 
 type Driver interface {
@@ -93,7 +93,7 @@ func (store *Store) Put(ctx context.Context, request PutRequest) (artifact Artif
 	if store == nil || nilInterface(store.driver) || ctx == nil {
 		return Artifact{}, ErrPut
 	}
-	if !validLocator(request.Locator) || !validMediaType(request.MediaType) ||
+	if !validLocator(request.Locator) || request.VersionID != "" || !validMediaType(request.MediaType) ||
 		len(request.Body) == 0 || int64(len(request.Body)) > store.config.MaximumBytes {
 		return Artifact{}, ErrArtifact
 	}
@@ -133,6 +133,7 @@ func (store *Store) Get(ctx context.Context, locator Locator) (artifact Artifact
 	if err != nil {
 		return Artifact{}, ErrArtifact
 	}
+	expected.VersionID = locator.VersionID
 	operationCtx, cancel := context.WithTimeout(ctx, store.config.OperationTimeout)
 	defer cancel()
 	if operationCtx.Err() != nil {
@@ -157,6 +158,7 @@ func (store *Store) Delete(ctx context.Context, locator Locator) (resultErr erro
 	if err != nil {
 		return ErrArtifact
 	}
+	driverLocator.VersionID = locator.VersionID
 	operationCtx, cancel := context.WithTimeout(ctx, store.config.OperationTimeout)
 	defer cancel()
 	if operationCtx.Err() != nil {
@@ -183,7 +185,7 @@ func buildDriverLocator(scope domain.Scope, reference domain.EvidenceRef) (Drive
 }
 
 func validLocator(locator Locator) bool {
-	return locator.Scope.Validate() == nil && locator.Reference.Validate() == nil
+	return locator.Scope.Validate() == nil && locator.Reference.Validate() == nil && validVersionID(locator.VersionID)
 }
 
 func validMediaType(value string) bool {
@@ -217,19 +219,23 @@ func validVersionID(value string) bool {
 }
 
 func exactDriverObject(value, expected DriverObject, maximumBytes int64) bool {
-	return validDriverObject(value, maximumBytes) && value.DriverLocator == expected.DriverLocator &&
+	return validDriverObject(value, maximumBytes) && sameDriverLocator(value.DriverLocator, expected.DriverLocator) &&
 		value.MediaType == expected.MediaType && value.Size == expected.Size && value.SHA256 == expected.SHA256 &&
 		bytes.Equal(value.Body, expected.Body)
 }
 
+func sameDriverLocator(value, expected DriverLocator) bool {
+	return value.Key == expected.Key && value.Scope == expected.Scope && value.Reference == expected.Reference &&
+		(expected.VersionID == "" || value.VersionID == expected.VersionID)
+}
+
 func artifactFromDriver(object DriverObject) Artifact {
 	return Artifact{
-		Locator:   Locator{Scope: object.Scope, Reference: object.Reference},
+		Locator:   Locator{Scope: object.Scope, Reference: object.Reference, VersionID: object.VersionID},
 		MediaType: object.MediaType,
 		Body:      bytes.Clone(object.Body),
 		Size:      object.Size,
 		SHA256:    object.SHA256,
-		VersionID: object.VersionID,
 	}
 }
 

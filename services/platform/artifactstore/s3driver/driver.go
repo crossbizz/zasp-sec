@@ -79,11 +79,16 @@ func (driver *Driver) Put(ctx context.Context, object artifactstore.DriverObject
 	if ctx.Err() != nil {
 		return artifactstore.DriverObject{}, ErrPut
 	}
-	stored, fetchErr := driver.fetch(ctx, object.DriverLocator)
-	if fetchErr != nil || !sameContent(stored, object) {
-		return artifactstore.DriverObject{}, ErrPut
+	var stored artifactstore.DriverObject
+	var fetchErr error
+	if putErr == nil && validPutOutput(output, driver.config.KMSKeyARN, checksum) {
+		locator := object.DriverLocator
+		locator.VersionID = aws.ToString(output.VersionId)
+		stored, fetchErr = driver.fetch(ctx, locator)
+	} else {
+		stored, fetchErr = driver.discover(ctx, object.DriverLocator)
 	}
-	if putErr == nil && !validPutOutput(output, stored, driver.config.KMSKeyARN, checksum) {
+	if fetchErr != nil || !sameContent(stored, object) {
 		return artifactstore.DriverObject{}, ErrPut
 	}
 	return stored, nil
@@ -94,7 +99,7 @@ func (driver *Driver) Get(ctx context.Context, locator artifactstore.DriverLocat
 	if !driver.ready(ctx) {
 		return artifactstore.DriverObject{}, ErrGet
 	}
-	if !validLocator(locator) {
+	if !validLocator(locator) || !validVersion(locator.VersionID) {
 		return artifactstore.DriverObject{}, ErrArtifact
 	}
 	return driver.fetch(ctx, locator)
@@ -112,14 +117,13 @@ func (driver *Driver) Delete(ctx context.Context, locator artifactstore.DriverLo
 
 func (driver *Driver) fetch(ctx context.Context, locator artifactstore.DriverLocator) (artifactstore.DriverObject, error) {
 	head, err := driver.client.HeadObject(ctx, &s3.HeadObjectInput{
-		Bucket: aws.String(driver.config.Bucket), Key: aws.String(locator.Key), ExpectedBucketOwner: aws.String(driver.config.ExpectedBucketOwner), ChecksumMode: s3types.ChecksumModeEnabled,
+		Bucket: aws.String(driver.config.Bucket), Key: aws.String(locator.Key), VersionId: aws.String(locator.VersionID), ExpectedBucketOwner: aws.String(driver.config.ExpectedBucketOwner), ChecksumMode: s3types.ChecksumModeEnabled,
 	}, oneAttemptOption)
-	if err != nil || ctx.Err() != nil || !validHead(head, driver.config) {
+	if err != nil || ctx.Err() != nil || !validHead(head, driver.config) || aws.ToString(head.VersionId) != locator.VersionID {
 		return artifactstore.DriverObject{}, ErrGet
 	}
-	version := aws.ToString(head.VersionId)
 	output, err := driver.client.GetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String(driver.config.Bucket), Key: aws.String(locator.Key), VersionId: aws.String(version), ExpectedBucketOwner: aws.String(driver.config.ExpectedBucketOwner), ChecksumMode: s3types.ChecksumModeEnabled,
+		Bucket: aws.String(driver.config.Bucket), Key: aws.String(locator.Key), VersionId: aws.String(locator.VersionID), ExpectedBucketOwner: aws.String(driver.config.ExpectedBucketOwner), ChecksumMode: s3types.ChecksumModeEnabled,
 	}, oneAttemptOption)
 	if err != nil || ctx.Err() != nil || output == nil || output.Body == nil {
 		return artifactstore.DriverObject{}, ErrGet
@@ -130,11 +134,25 @@ func (driver *Driver) fetch(ctx context.Context, locator artifactstore.DriverLoc
 		return artifactstore.DriverObject{}, ErrGet
 	}
 	digest := sha256.Sum256(body)
-	object := artifactstore.DriverObject{DriverLocator: locator, MediaType: aws.ToString(output.ContentType), Body: body, Size: int64(len(body)), SHA256: digest, VersionID: version}
+	object := artifactstore.DriverObject{DriverLocator: locator, MediaType: aws.ToString(output.ContentType), Body: body, Size: int64(len(body)), SHA256: digest}
 	if !driver.validObject(object) || !validGet(output, head, object, driver.config) {
 		return artifactstore.DriverObject{}, ErrGet
 	}
 	return cloneObject(object), nil
+}
+
+func (driver *Driver) discover(ctx context.Context, locator artifactstore.DriverLocator) (artifactstore.DriverObject, error) {
+	if !validLocator(locator) || locator.VersionID != "" {
+		return artifactstore.DriverObject{}, ErrGet
+	}
+	head, err := driver.client.HeadObject(ctx, &s3.HeadObjectInput{
+		Bucket: aws.String(driver.config.Bucket), Key: aws.String(locator.Key), ExpectedBucketOwner: aws.String(driver.config.ExpectedBucketOwner), ChecksumMode: s3types.ChecksumModeEnabled,
+	}, oneAttemptOption)
+	if err != nil || ctx.Err() != nil || !validHead(head, driver.config) {
+		return artifactstore.DriverObject{}, ErrGet
+	}
+	locator.VersionID = aws.ToString(head.VersionId)
+	return driver.fetch(ctx, locator)
 }
 
 func (driver *Driver) ready(ctx context.Context) bool {
@@ -151,7 +169,7 @@ func validLocator(locator artifactstore.DriverLocator) bool {
 		return false
 	}
 	want := "organizations/" + locator.OrganizationID().String() + "/workspaces/" + locator.WorkspaceID().String() + "/environments/" + locator.EnvironmentID().String() + "/artifacts/" + locator.Reference.String()
-	return locator.Key == want
+	return locator.Key == want && (locator.VersionID == "" || validVersion(locator.VersionID))
 }
 
 func validMediaType(value string) bool {
@@ -163,8 +181,8 @@ func validMediaType(value string) bool {
 	}
 }
 
-func validPutOutput(output *s3.PutObjectOutput, stored artifactstore.DriverObject, kmsKeyARN, checksum string) bool {
-	return output != nil && aws.ToString(output.VersionId) == stored.VersionID && aws.ToString(output.ChecksumSHA256) == checksum &&
+func validPutOutput(output *s3.PutObjectOutput, kmsKeyARN, checksum string) bool {
+	return output != nil && validVersion(aws.ToString(output.VersionId)) && aws.ToString(output.ChecksumSHA256) == checksum &&
 		output.ServerSideEncryption == s3types.ServerSideEncryptionAwsKms && aws.ToString(output.SSEKMSKeyId) == kmsKeyARN
 }
 
@@ -193,7 +211,7 @@ func metadata(object artifactstore.DriverObject) map[string]string {
 }
 
 func sameContent(left, right artifactstore.DriverObject) bool {
-	return left.DriverLocator == right.DriverLocator && left.MediaType == right.MediaType && left.Size == right.Size && left.SHA256 == right.SHA256 && bytes.Equal(left.Body, right.Body)
+	return left.Key == right.Key && left.Scope == right.Scope && left.Reference == right.Reference && left.MediaType == right.MediaType && left.Size == right.Size && left.SHA256 == right.SHA256 && bytes.Equal(left.Body, right.Body)
 }
 
 func checksumText(digest [sha256.Size]byte) string {
