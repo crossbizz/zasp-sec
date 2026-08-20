@@ -12,35 +12,37 @@ import (
 )
 
 const (
-	baselineVersion       = int64(1)
-	baselineName          = "schema_versions"
-	coreVersion           = int64(2)
-	coreName              = "production_core"
-	workflowVersion       = int64(3)
-	workflowName          = "production_workflows"
-	receiptVersion        = int64(4)
-	receiptName           = "workflow_receipts"
-	safetyVersion         = int64(5)
-	safetyName            = "workflow_receipt_safety"
-	provenanceVersion     = int64(6)
-	provenanceName        = "workflow_receipt_provenance"
-	administrationVersion = int64(7)
-	administrationName    = "production_administration"
-	revealGrantsVersion   = int64(8)
-	revealGrantsName      = "api_token_reveal_grants"
-	riskProjectionVersion = int64(9)
-	riskProjectionName    = "production_risk_projection"
-	discoveryVersion      = int64(10)
-	discoveryName         = "production_discovery"
-	connectorVersion      = int64(11)
-	connectorName         = "connector_authorization"
-	referenceVersion      = int64(12)
-	referenceName         = "reference_authorization"
-	executionVersion      = int64(13)
-	executionName         = "production_discovery_execution"
-	typedInventoryVersion = int64(14)
-	typedInventoryName    = "typed_inventory_cutover"
-	rollbackTimeout       = 5 * time.Second
+	baselineVersion         = int64(1)
+	baselineName            = "schema_versions"
+	coreVersion             = int64(2)
+	coreName                = "production_core"
+	workflowVersion         = int64(3)
+	workflowName            = "production_workflows"
+	receiptVersion          = int64(4)
+	receiptName             = "workflow_receipts"
+	safetyVersion           = int64(5)
+	safetyName              = "workflow_receipt_safety"
+	provenanceVersion       = int64(6)
+	provenanceName          = "workflow_receipt_provenance"
+	administrationVersion   = int64(7)
+	administrationName      = "production_administration"
+	revealGrantsVersion     = int64(8)
+	revealGrantsName        = "api_token_reveal_grants"
+	riskProjectionVersion   = int64(9)
+	riskProjectionName      = "production_risk_projection"
+	discoveryVersion        = int64(10)
+	discoveryName           = "production_discovery"
+	connectorVersion        = int64(11)
+	connectorName           = "connector_authorization"
+	referenceVersion        = int64(12)
+	referenceName           = "reference_authorization"
+	executionVersion        = int64(13)
+	executionName           = "production_discovery_execution"
+	typedInventoryVersion   = int64(14)
+	typedInventoryName      = "typed_inventory_cutover"
+	runtimeDataPlaneVersion = int64(15)
+	runtimeDataPlaneName    = "runtime_data_plane"
+	rollbackTimeout         = 5 * time.Second
 
 	tableExistsSQL                     = "SELECT to_regclass('public.zasp_schema_versions') IS NOT NULL"
 	countRowsSQL                       = `SELECT count(*) FROM "public"."zasp_schema_versions"`
@@ -55,12 +57,15 @@ const (
 	lockConnectorSQL                   = `LOCK TABLE "public"."zasp_connector_oauth_attempts", "public"."zasp_connector_effects", "public"."zasp_connector_credentials", "public"."zasp_connector_audit" IN ACCESS EXCLUSIVE MODE`
 	lockExecutionSQL                   = `LOCK TABLE "public"."zasp_discovery_execution_principals", "public"."zasp_discovery_connection_subjects", "public"."zasp_discovery_execution_quotas", "public"."zasp_discovery_generation_reservations", "public"."zasp_discovery_job_authorities", "public"."zasp_discovery_job_checkpoints", "public"."zasp_discovery_upgrade_transitions", "public"."zasp_discovery_snapshot_inputs", "public"."zasp_discovery_snapshot_projection_items", "public"."zasp_discovery_projection_cursors" IN ACCESS EXCLUSIVE MODE`
 	lockTypedInventorySQL              = `LOCK TABLE "public"."zasp_inventory_cutover_state" IN ACCESS EXCLUSIVE MODE`
+	lockRuntimeDataPlaneSQL            = `LOCK TABLE "public"."zasp_runtime_data_plane_state" IN ACCESS EXCLUSIVE MODE`
 	insertRowSQL                       = `INSERT INTO "public"."zasp_schema_versions" ("version", "name", "checksum") VALUES ($1, $2, $3)`
 	deleteRowSQL                       = `DELETE FROM "public"."zasp_schema_versions" WHERE "version" = $1 AND "name" = $2 AND "checksum" = $3`
 	referenceAuthorizationReadinessSQL = `SELECT zasp_reference_authorization_readiness($1,$2)`
 	discoveryExecutionReadinessSQL     = `SELECT zasp_execution_readiness($1,$2)`
 	typedInventoryReadinessSQL         = `SELECT zasp_inventory_readiness($1,$2)`
+	runtimeDataPlaneReadinessSQL       = `SELECT zasp_runtime_data_plane_readiness($1,$2)`
 	typedInventoryRollbackAllowedSQL   = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_inventory_cutover_state" WHERE "phase" = 'cutover')`
+	runtimeDataPlaneRollbackAllowedSQL = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_runtime_data_plane_state" WHERE "used_at" IS NOT NULL)`
 )
 
 var (
@@ -157,6 +162,12 @@ var typedInventoryUpSQL string
 
 //go:embed sql/0014_typed_inventory_cutover.down.sql
 var typedInventoryDownSQL string
+
+//go:embed sql/0015_runtime_data_plane.up.sql
+var runtimeDataPlaneUpSQL string
+
+//go:embed sql/0015_runtime_data_plane.down.sql
+var runtimeDataPlaneDownSQL string
 
 type Metadata struct {
 	version  int64
@@ -276,6 +287,13 @@ func ProductionTypedInventoryCutover() Metadata {
 	return Metadata{version: typedInventoryVersion, name: typedInventoryName, checksum: hex.EncodeToString(digest[:]), up: up, down: down}
 }
 
+func ProductionRuntimeDataPlane() Metadata {
+	up := strings.TrimSpace(runtimeDataPlaneUpSQL)
+	down := strings.TrimSpace(runtimeDataPlaneDownSQL)
+	digest := sha256.Sum256([]byte(up + "\x00" + down))
+	return Metadata{version: runtimeDataPlaneVersion, name: runtimeDataPlaneName, checksum: hex.EncodeToString(digest[:]), up: up, down: down}
+}
+
 func ProductionWorkflowsSemanticFingerprint() string {
 	const marker = "'production_workflows_fingerprint', '"
 	start := strings.Index(workflowUpSQL, marker)
@@ -336,6 +354,10 @@ func ProductionDiscoveryExecutionSemanticFingerprint() string {
 
 func ProductionTypedInventoryCutoverSemanticFingerprint() string {
 	return semanticFingerprint(typedInventoryUpSQL, "typed_inventory_cutover_fingerprint")
+}
+
+func ProductionRuntimeDataPlaneSemanticFingerprint() string {
+	return semanticFingerprint(runtimeDataPlaneUpSQL, "runtime_data_plane_fingerprint")
 }
 
 func semanticFingerprint(source, key string) string {
@@ -439,7 +461,7 @@ func (runner *Runner) Version(ctx context.Context) (int64, error) {
 	if err := scanRow(ctx, runner.database, countRowsSQL, nil, &count); err != nil {
 		return 0, fixedDatabaseError(ctx, err)
 	}
-	if count < 1 || count > 14 {
+	if count < 1 || count > 15 {
 		return 0, ErrInvalidState
 	}
 	metadata := []Metadata{Baseline()}
@@ -470,6 +492,8 @@ func (runner *Runner) Version(ctx context.Context) (int64, error) {
 		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution())
 	} else if count == 14 {
 		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover())
+	} else if count == 15 {
+		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane())
 	}
 	for _, expected := range metadata {
 		var version int64
@@ -1249,6 +1273,70 @@ func (runner *Runner) DownProductionTypedInventoryCutover(ctx context.Context) e
 	})
 }
 
+func (runner *Runner) UpProductionRuntimeDataPlane(ctx context.Context) error {
+	if runner == nil || nilInterface(runner.database) {
+		return ErrInvalidRunner
+	}
+	return runner.withTransaction(ctx, func(ctx context.Context, transaction Transaction) error {
+		for _, statement := range []string{lockTypedInventorySQL, lockExecutionSQL, lockDiscoverySQL, lockConnectorSQL, lockWorkflowMutationsSQL, lockTableSQL} {
+			if err := transaction.Exec(ctx, statement); err != nil {
+				return fixedDatabaseError(ctx, err)
+			}
+		}
+		if err := readProductionTypedInventoryCutoverState(ctx, transaction); err != nil {
+			return err
+		}
+		if err := requireMigrationReadiness(ctx, transaction, typedInventoryReadinessSQL, ProductionTypedInventoryCutover().Checksum(), ProductionTypedInventoryCutoverSemanticFingerprint()); err != nil {
+			return err
+		}
+		metadata := ProductionRuntimeDataPlane()
+		if err := transaction.Exec(ctx, metadata.UpSQL()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, insertRowSQL, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := readProductionRuntimeDataPlaneState(ctx, transaction); err != nil {
+			return err
+		}
+		return requireMigrationReadiness(ctx, transaction, runtimeDataPlaneReadinessSQL, metadata.Checksum(), ProductionRuntimeDataPlaneSemanticFingerprint())
+	})
+}
+
+func (runner *Runner) DownProductionRuntimeDataPlane(ctx context.Context) error {
+	if runner == nil || nilInterface(runner.database) {
+		return ErrInvalidRunner
+	}
+	return runner.withTransaction(ctx, func(ctx context.Context, transaction Transaction) error {
+		for _, statement := range []string{lockRuntimeDataPlaneSQL, lockTypedInventorySQL, lockExecutionSQL, lockDiscoverySQL, lockConnectorSQL, lockWorkflowMutationsSQL, lockTableSQL} {
+			if err := transaction.Exec(ctx, statement); err != nil {
+				return fixedDatabaseError(ctx, err)
+			}
+		}
+		if err := readProductionRuntimeDataPlaneState(ctx, transaction); err != nil {
+			return err
+		}
+		metadata := ProductionRuntimeDataPlane()
+		if err := requireMigrationReadiness(ctx, transaction, runtimeDataPlaneReadinessSQL, metadata.Checksum(), ProductionRuntimeDataPlaneSemanticFingerprint()); err != nil {
+			return err
+		}
+		var rollbackAllowed bool
+		if err := scanRow(ctx, transaction, runtimeDataPlaneRollbackAllowedSQL, nil, &rollbackAllowed); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if !rollbackAllowed {
+			return ErrInvalidState
+		}
+		if err := transaction.Exec(ctx, deleteRowSQL, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, metadata.DownSQL()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		return readProductionTypedInventoryCutoverState(ctx, transaction)
+	})
+}
+
 func (runner *Runner) Down(ctx context.Context) error {
 	if runner == nil || nilInterface(runner.database) {
 		return ErrInvalidRunner
@@ -1428,6 +1516,10 @@ func readProductionDiscoveryExecutionState(ctx context.Context, queryer Queryer)
 
 func readProductionTypedInventoryCutoverState(ctx context.Context, queryer Queryer) error {
 	return readExactReleaseState(ctx, queryer, []Metadata{Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover()})
+}
+
+func readProductionRuntimeDataPlaneState(ctx context.Context, queryer Queryer) error {
+	return readExactReleaseState(ctx, queryer, []Metadata{Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane()})
 }
 
 func readExactReleaseState(ctx context.Context, queryer Queryer, expected []Metadata) error {

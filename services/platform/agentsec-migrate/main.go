@@ -28,6 +28,12 @@ const (
 	projectionRiskPrincipalEnvironment     = "ZASP_PROJECTION_RISK_DB_PRINCIPAL"
 	projectionGraphPrincipalEnvironment    = "ZASP_PROJECTION_GRAPH_DB_PRINCIPAL"
 	projectionSearchPrincipalEnvironment   = "ZASP_PROJECTION_SEARCH_DB_PRINCIPAL"
+	runtimeCoordinatorPrincipalEnvironment = "ZASP_RUNTIME_COORDINATOR_DB_PRINCIPAL"
+	runtimeArchivePrincipalEnvironment     = "ZASP_RUNTIME_ARCHIVE_DB_PRINCIPAL"
+	runtimeIndexPrincipalEnvironment       = "ZASP_RUNTIME_INDEX_DB_PRINCIPAL"
+	runtimeCorrelationPrincipalEnvironment = "ZASP_RUNTIME_CORRELATION_DB_PRINCIPAL"
+	runtimeProjectionPrincipalEnvironment  = "ZASP_RUNTIME_PROJECTION_DB_PRINCIPAL"
+	gatewayControlPrincipalEnvironment     = "ZASP_GATEWAY_CONTROL_DB_PRINCIPAL"
 )
 
 var errInvalidMigrationCommand = errors.New("invalid release migration command")
@@ -36,6 +42,7 @@ var databasePrincipalPattern = regexp.MustCompile(`^[a-z][a-z0-9_]{2,62}$`)
 
 type discoveryPrincipalRegistration struct {
 	migration, api, discovery, ingest, runtime, outbox, gateway, scheduler, projectionRisk, projectionGraph, projectionSearch string
+	runtimeCoordinator, runtimeArchive, runtimeIndex, runtimeCorrelation, runtimeProjection, gatewayControl                   string
 }
 
 type principalQueryer interface {
@@ -67,6 +74,8 @@ type releaseMigrationRunner interface {
 	DownProductionDiscoveryExecution(context.Context) error
 	UpProductionTypedInventoryCutover(context.Context) error
 	DownProductionTypedInventoryCutover(context.Context) error
+	UpProductionRuntimeDataPlane(context.Context) error
+	DownProductionRuntimeDataPlane(context.Context) error
 	DownWorkflowReceiptSafety(context.Context) error
 	DownWorkflowReceipts(context.Context) error
 	DownWorkflows(context.Context) error
@@ -123,7 +132,9 @@ func registerReleasePrincipals(ctx context.Context, queryer principalQueryer, re
 		{`SELECT session_user=$1`, []any{registration.migration}},
 		{`SELECT zasp_discovery_register_principals($1,$2,$3,$4,$5,$6,$7)`, []any{registration.migration, registration.api, registration.discovery, registration.ingest, registration.runtime, registration.outbox, registration.gateway}},
 		{`SELECT zasp_execution_register_principals($1,$2,$3,$4,$5,$6)`, []any{registration.migration, registration.scheduler, registration.discovery, registration.projectionRisk, registration.projectionGraph, registration.projectionSearch}},
-		{`SELECT zasp_inventory_readiness($1,$2)`, []any{migrations.ProductionTypedInventoryCutover().Checksum(), migrations.ProductionTypedInventoryCutoverSemanticFingerprint()}},
+		{`SELECT zasp_runtime_register_principals($1,$2,$3,$4,$5,$6,$7)`, []any{registration.migration, registration.runtimeCoordinator, registration.runtimeArchive, registration.runtimeIndex, registration.runtimeCorrelation, registration.runtimeProjection, registration.gatewayControl}},
+		{statement: `SELECT zasp_runtime_principals_ready()`},
+		{`SELECT zasp_runtime_data_plane_readiness($1,$2)`, []any{migrations.ProductionRuntimeDataPlane().Checksum(), migrations.ProductionRuntimeDataPlaneSemanticFingerprint()}},
 	}
 	for _, check := range checks {
 		ready = false
@@ -145,8 +156,11 @@ func loadDiscoveryPrincipalRegistration(getenv func(string) string) (discoveryPr
 		outbox: getenv(outboxWorkerPrincipalEnvironment), gateway: getenv(runtimeGatewayPrincipalEnvironment),
 		scheduler: getenv(discoverySchedulerPrincipalEnvironment), projectionRisk: getenv(projectionRiskPrincipalEnvironment),
 		projectionGraph: getenv(projectionGraphPrincipalEnvironment), projectionSearch: getenv(projectionSearchPrincipalEnvironment),
+		runtimeCoordinator: getenv(runtimeCoordinatorPrincipalEnvironment), runtimeArchive: getenv(runtimeArchivePrincipalEnvironment),
+		runtimeIndex: getenv(runtimeIndexPrincipalEnvironment), runtimeCorrelation: getenv(runtimeCorrelationPrincipalEnvironment),
+		runtimeProjection: getenv(runtimeProjectionPrincipalEnvironment), gatewayControl: getenv(gatewayControlPrincipalEnvironment),
 	}
-	values := []string{registration.migration, registration.api, registration.discovery, registration.ingest, registration.runtime, registration.outbox, registration.gateway, registration.scheduler, registration.projectionRisk, registration.projectionGraph, registration.projectionSearch}
+	values := []string{registration.migration, registration.api, registration.discovery, registration.ingest, registration.runtime, registration.outbox, registration.gateway, registration.scheduler, registration.projectionRisk, registration.projectionGraph, registration.projectionSearch, registration.runtimeCoordinator, registration.runtimeArchive, registration.runtimeIndex, registration.runtimeCorrelation, registration.runtimeProjection, registration.gatewayControl}
 	seen := make(map[string]struct{}, len(values))
 	for _, value := range values {
 		if !databasePrincipalPattern.MatchString(value) {
@@ -268,10 +282,22 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 			}
 			version = 14
 		}
-		if version != 14 {
+		if version == 14 {
+			if err := runner.UpProductionRuntimeDataPlane(ctx); err != nil {
+				return err
+			}
+			version = 15
+		}
+		if version != 15 {
 			return migrations.ErrInvalidState
 		}
 	case "down":
+		if version == 15 {
+			if err := runner.DownProductionRuntimeDataPlane(ctx); err != nil {
+				return err
+			}
+			version = 14
+		}
 		if version == 14 {
 			if err := runner.DownProductionTypedInventoryCutover(ctx); err != nil {
 				return err
