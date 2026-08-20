@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, rm } from "node:fs/promises";
 import http from "node:http";
 import https from "node:https";
 import net from "node:net";
@@ -61,6 +61,8 @@ const cleanupController = installBoundedSignalCleanup(cleanupOwnedResources);
 try {
   const ports = await Promise.all(Array.from({ length: 7 }, reservePort));
   const [postgresPort, identityPort, apiPort, healthPort, webPort, proxyPort, chromePort] = ports;
+  const githubAppPrivateKey = path.join(temporaryRoot, "github-app-private-key.pem");
+  await generateHarnessGitHubAppPrivateKey(githubAppPrivateKey);
   const dsn = `postgres://zasp_e2e@127.0.0.1:${postgresPort}/postgres?sslmode=disable`;
   const apiDSN = `postgres://zasp_e2e_api@127.0.0.1:${postgresPort}/postgres?sslmode=disable`;
   postgres = await startPostgres(postgresPort);
@@ -124,6 +126,8 @@ try {
     ZASP_CONNECTOR_SECRET_PREFIX: "zasp-production-e2e/connectors/oauth",
     ZASP_GITHUB_CLIENT_ID: "Iv1.1234567890abcdef",
     ZASP_GITHUB_CLIENT_SECRET_REFERENCE: "ref:github/client-secret",
+    ZASP_GITHUB_APP_ID: "123456",
+    ZASP_GITHUB_PRIVATE_KEY_REFERENCE: "ref:github/app-private-key",
     ZASP_OKTA_CLIENT_ID: "0oa1234567890abcdef",
     ZASP_OKTA_CLIENT_SECRET_REFERENCE: "ref:okta/client-secret",
   };
@@ -706,7 +710,7 @@ try {
   assert.deepEqual(connectorForensics.cacheKeys, []);
   assert.deepEqual(connectorForensics.indexedDatabases, []);
   const connectorBrowserSurface = JSON.stringify({ connectorForensics, browserConsoleMessages });
-  assert.doesNotMatch(connectorBrowserSurface, /zasp_pat_|access_token|refresh_token|code_verifier|client_secret|authorization_url|authorization_attempt_id|connector-(?:code|state|cross-scope)|secret-test-local|ref:(?:github|okta)\/client-secret|MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY/i);
+  assert.doesNotMatch(connectorBrowserSurface, /zasp_pat_|access_token|refresh_token|code_verifier|client_secret|authorization_url|authorization_attempt_id|connector-(?:code|state|cross-scope)|secret-test-local|ref:(?:github\/(?:client-secret|app-private-key)|okta\/client-secret)|MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY/i);
   assert.equal(connectorForensics.navigationHistory.some((entry) => /[?&](?:code|state)=/i.test(`${entry.url} ${entry.userTypedURL}`)), false, "connector code/state remained in browser navigation history");
   console.log("combined E2E: connector tokens, state, verifier, and secrets absent from DOM, URL/history, storage, caches, IndexedDB, and console");
   assert.deepEqual(browserConsoleErrors, [], `browser console/exception errors: ${JSON.stringify(browserConsoleErrors)}`);
@@ -741,6 +745,12 @@ async function cleanupOwnedResources() {
   for (const child of children.reverse()) await stopChild(child);
   console.log("combined E2E: cleanup files");
   await rm(temporaryRoot, { recursive: true, force: true });
+}
+
+async function generateHarnessGitHubAppPrivateKey(target) {
+  await command("openssl", ["genpkey", "-algorithm", "RSA", "-pkeyopt", "rsa_keygen_bits:2048", "-out", target]);
+  await chmod(target, 0o600);
+  await command("openssl", ["rsa", "-in", target, "-check", "-noout"]);
 }
 
 async function startPostgres(port) {
