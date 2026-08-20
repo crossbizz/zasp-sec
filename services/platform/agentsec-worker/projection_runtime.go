@@ -347,6 +347,7 @@ func (processor *projectionProcessor) RunOnce(ctx context.Context) error {
 	}
 	leaseToken, err := processor.config.NewLeaseToken()
 	if err != nil || len(leaseToken) < 16 || len(leaseToken) > 128 {
+		processor.config.Metrics.observeFailure()
 		return errWorkerExecution
 	}
 	leases, err := processor.config.Authority.ClaimProjectionWork(ctx, processor.config.Kind, processor.config.WorkerID, leaseToken, processor.config.LeaseSeconds, processor.config.BatchSize)

@@ -226,6 +226,51 @@ func TestProjectionProcessorObservesClaimsInflightRetriesExhaustionAndLeaseLoss(
 	}
 }
 
+func TestProjectionProcessorCountsLeaseTokenFailuresExactlyOnceButNotShutdown(t *testing.T) {
+	t.Parallel()
+	for _, test := range []struct {
+		name     string
+		newToken func() (string, error)
+	}{
+		{name: "generation error", newToken: func() (string, error) { return "", errors.New("entropy unavailable") }},
+		{name: "malformed token", newToken: func() (string, error) { return "short", nil }},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			metrics := newWorkerMetrics()
+			processor, err := newProjectionProcessor(projectionProcessorConfig{
+				Authority: &projectionAuthorityStub{}, Projector: &projectionProjectorStub{}, Kind: "search", WorkerID: "projection-search-01",
+				LeaseSeconds: 30, BatchSize: 1, HeartbeatInterval: time.Second, NewLeaseToken: test.newToken, Metrics: metrics,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := processor.RunOnce(context.Background()); !errors.Is(err, errWorkerExecution) {
+				t.Fatalf("RunOnce() error = %v", err)
+			}
+			if got := metrics.failures.Load(); got != 1 {
+				t.Fatalf("failure count = %d, want 1", got)
+			}
+		})
+	}
+
+	metrics := newWorkerMetrics()
+	processor, err := newProjectionProcessor(projectionProcessorConfig{
+		Authority: &projectionAuthorityStub{}, Projector: &projectionProjectorStub{}, Kind: "search", WorkerID: "projection-search-01",
+		LeaseSeconds: 30, BatchSize: 1, HeartbeatInterval: time.Second, NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil }, Metrics: metrics,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := processor.RunOnce(canceled); !errors.Is(err, errWorkerExecution) {
+		t.Fatalf("canceled RunOnce() error = %v", err)
+	}
+	if got := metrics.failures.Load(); got != 0 {
+		t.Fatalf("shutdown failure count = %d, want 0", got)
+	}
+}
+
 func TestSearchProjectionProjectorStrictlyMapsCanonicalEntities(t *testing.T) {
 	t.Parallel()
 	candidate := projectionCandidateFromPages(t, "search")
