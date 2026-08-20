@@ -12,6 +12,7 @@ const release = Object.freeze({
   connectors: Object.freeze({
     awsRegion: "us-west-2",
     roleArn: "arn:aws:iam::123456789012:role/zasp-production-api-connectors",
+    awsCustomerRolePrefix: "arn:aws:iam::123456789012:role/zasp-reference/",
     webIdentityTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
     kmsKeyArn: "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111",
     secretPrefix: "zasp-production/connectors/oauth",
@@ -26,6 +27,7 @@ const release = Object.freeze({
     aws: Object.freeze(["10.50.0.0/28"]),
     github: Object.freeze(["192.0.2.0/28"]),
     okta: Object.freeze(["198.51.100.0/28"]),
+    kubernetes: Object.freeze(["203.0.113.0/28"]),
   }),
   images: Object.freeze({
     web: digest("web", "a"), agentsecApi: digest("api", "b"),
@@ -65,9 +67,9 @@ test("release renders one TLS origin, split ports, private internals, and migrat
   assert.deepEqual(one(resources, "Service", "agentsec-api").spec.ports.map(({ name, port }) => [name, port]), [["product", 8080], ["internal", 8081]]);
   assert.equal(resources.some(({ kind, metadata }) => kind === "Ingress" && metadata?.name !== "zasp-product"), false);
   assert.equal(resources.some(({ kind, metadata }) => kind === "Service" && ["neo4j", "nango", "otel-collector"].includes(metadata.name) && metadata.annotations?.["service.beta.kubernetes.io/aws-load-balancer-type"]), false);
-  assert.equal(one(resources, "Job", "agentsec-schema-v10").metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
-  assert.match(one(resources, "Job", "agentsec-schema-v10").spec.template.spec.containers[0].args[0], /exec \/app\/agentsec-migrate up/);
-  const migration = one(resources, "Job", "agentsec-schema-v10");
+  assert.equal(one(resources, "Job", "agentsec-schema-v12").metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
+  assert.match(one(resources, "Job", "agentsec-schema-v12").spec.template.spec.containers[0].args[0], /exec \/app\/agentsec-migrate up/);
+  const migration = one(resources, "Job", "agentsec-schema-v12");
   assert.equal(migration.spec.template.spec.serviceAccountName, "agentsec-migration");
   assert.equal(migration.spec.template.spec.containers[0].env.some(({ valueFrom }) => valueFrom?.secretKeyRef), false);
   assert.equal(migration.spec.template.spec.containers[0].volumeMounts[0].mountPath, "/var/run/secrets/zasp-migration");
@@ -81,13 +83,13 @@ test("release renders one TLS origin, split ports, private internals, and migrat
     ZASP_OUTBOX_WORKER_DB_PRINCIPAL: "zasp_outbox_runtime",
     ZASP_RUNTIME_GATEWAY_DB_PRINCIPAL: "zasp_gateway_runtime",
   });
-  for (const [kind, name, weight] of [["ServiceAccount", "agentsec-migration", "-30"], ["SecretProviderClass", "zasp-production-migration-secrets", "-20"], ["Job", "agentsec-schema-v10", "-10"]]) {
+  for (const [kind, name, weight] of [["ServiceAccount", "agentsec-migration", "-30"], ["SecretProviderClass", "zasp-production-migration-secrets", "-20"], ["Job", "agentsec-schema-v12", "-10"]]) {
     const resource = one(resources, kind, name);
     assert.equal(resource.metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
     assert.equal(resource.metadata.annotations["helm.sh/hook-weight"], weight);
   }
-  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.metadata.annotations["zasp.io/schema-version"], "10");
-  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_EXPECTED_SCHEMA_VERSION").value, "10");
+  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.metadata.annotations["zasp.io/schema-version"], "12");
+  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_EXPECTED_SCHEMA_VERSION").value, "12");
   assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_DATABASE_AUTHORITY").value, "zasp_discovery_api");
   assert.equal(one(resources, "SecretProviderClass", release.secretProviderClass).spec.secretObjects[0].data.length, 7);
   assert.equal(one(resources, "SecretProviderClass", "zasp-production-migration-secrets").spec.secretObjects[0].data.length, 1);
@@ -142,12 +144,14 @@ test("release gives only API an explicit connector identity, reference-only conf
   const pod = api.spec.template.spec;
   const container = pod.containers[0];
   const env = Object.fromEntries(container.env.map(({ name, value }) => [name, value]));
-  assert.deepEqual(Object.fromEntries(Object.entries(env).filter(([name]) => name.startsWith("ZASP_CONNECTOR_") || name.startsWith("ZASP_GITHUB_") || name.startsWith("ZASP_OKTA_"))), {
+  assert.deepEqual(Object.fromEntries(Object.entries(env).filter(([name]) => name.startsWith("ZASP_CONNECTOR_") || name.startsWith("ZASP_GITHUB_") || name.startsWith("ZASP_OKTA_") || name === "ZASP_AWS_CUSTOMER_ROLE_PREFIX" || name === "ZASP_KUBERNETES_EGRESS_CIDRS")), {
     ZASP_CONNECTOR_AWS_REGION: release.connectors.awsRegion,
     ZASP_CONNECTOR_ROLE_ARN: release.connectors.roleArn,
     ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE: release.connectors.webIdentityTokenFile,
     ZASP_CONNECTOR_KMS_KEY_ARN: release.connectors.kmsKeyArn,
     ZASP_CONNECTOR_SECRET_PREFIX: release.connectors.secretPrefix,
+    ZASP_AWS_CUSTOMER_ROLE_PREFIX: release.connectors.awsCustomerRolePrefix,
+    ZASP_KUBERNETES_EGRESS_CIDRS: release.connectorEgressCIDRs.kubernetes.join(","),
     ZASP_GITHUB_CLIENT_ID: release.connectors.githubClientID,
     ZASP_GITHUB_CLIENT_SECRET_REFERENCE: release.connectors.githubClientSecretReference,
     ZASP_GITHUB_APP_ID: release.connectors.githubAppID,
@@ -184,6 +188,7 @@ test("release gives only API an explicit connector identity, reference-only conf
     ...release.connectorEgressCIDRs.aws,
     ...release.connectorEgressCIDRs.github,
     ...release.connectorEgressCIDRs.okta,
+    ...release.connectorEgressCIDRs.kubernetes,
   ].sort());
   assert.ok(connectorEgress.spec.egress.every(({ ports }) => JSON.stringify(ports) === JSON.stringify([{ protocol: "TCP", port: 443 }])));
   assert.doesNotMatch(JSON.stringify(connectorEgress), /0\.0\.0\.0\/0|::\/0/);
@@ -232,8 +237,10 @@ test("release rejects unpinned images and hostile public identifiers", async () 
   await assert.rejects(() => renderRelease({ ...release, connectors: { ...release.connectors, roleArn: "arn:aws:iam::123456789012:role/zasp-production-api" } }), /release rejected/);
   await assert.rejects(() => renderRelease({ ...release, connectors: { ...release.connectors, webIdentityTokenFile: "/tmp/token" } }), /release rejected/);
   await assert.rejects(() => renderRelease({ ...release, connectors: { ...release.connectors, githubClientSecretReference: "raw-secret" } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, connectors: { ...release.connectors, awsCustomerRolePrefix: "arn:aws:iam::123456789012:role/*" } }), /release rejected/);
   await assert.rejects(() => renderRelease({ ...release, connectorEgressCIDRs: { ...release.connectorEgressCIDRs, github: ["0.0.0.0/0"] } }), /release rejected/);
   await assert.rejects(() => renderRelease({ ...release, connectorEgressCIDRs: { ...release.connectorEgressCIDRs, okta: [] } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, connectorEgressCIDRs: { ...release.connectorEgressCIDRs, kubernetes: [] } }), /release rejected/);
 });
 
 test("terraform binds each shipped secret consumer to one exact least-privilege IRSA role", async () => {
@@ -265,7 +272,7 @@ test("terraform binds each shipped secret consumer to one exact least-privilege 
   assert.match(terraform, /DatabasePrincipal/);
 });
 
-test("terraform isolates connector secret mutation behind one API-only web-identity role and exact KMS key", async () => {
+test("terraform isolates connector mutation and reference authorization behind one API-only web-identity role", async () => {
   const [terraform, variables, outputs] = await Promise.all([
     readFile(new URL("../staging/main.tf", import.meta.url), "utf8"),
     readFile(new URL("../staging/variables.tf", import.meta.url), "utf8"),
@@ -275,6 +282,7 @@ test("terraform isolates connector secret mutation behind one API-only web-ident
     'resource "aws_kms_key" "connector_oauth"',
     'resource "aws_kms_alias" "connector_oauth"',
     'resource "aws_secretsmanager_secret" "connector_provider"',
+    'resource "aws_secretsmanager_secret" "connector_reference"',
     'resource "aws_iam_role" "api_connectors"',
     'resource "aws_iam_role_policy" "api_connectors"',
   ]) assert.match(terraform, new RegExp(resource.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
@@ -292,10 +300,13 @@ test("terraform isolates connector secret mutation behind one API-only web-ident
   const policyStart = terraform.indexOf('resource "aws_iam_role_policy" "api_connectors"');
   const policy = terraform.slice(policyStart, terraform.indexOf("\nresource ", policyStart + 1));
   const actions = [...policy.matchAll(/Action\s*=\s*\[([\s\S]*?)\]/g)].flatMap(([, list]) => [...list.matchAll(/"([^"]+)"/g)].map(([, action]) => action)).sort();
-  assert.deepEqual(actions, ["kms:Decrypt", "kms:GenerateDataKey", "secretsmanager:CreateSecret", "secretsmanager:DeleteSecret", "secretsmanager:GetSecretValue", "secretsmanager:GetSecretValue"].sort());
+  assert.deepEqual(actions, ["kms:Decrypt", "kms:Decrypt", "kms:GenerateDataKey", "secretsmanager:CreateSecret", "secretsmanager:DeleteSecret", "secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue", "secretsmanager:GetSecretValue", "secretsmanager:GetSecretValue", "sts:AssumeRole"].sort());
   assert.match(policy, /Action\s*=\s*\["secretsmanager:GetSecretValue"\][\s\S]*?Resource\s*=\s*\[for secret in aws_secretsmanager_secret\.connector_provider : secret\.arn\]/);
   assert.doesNotMatch(policy, /secret:\$\{local\.connector_secret_root\}\/github\/\*/);
   assert.doesNotMatch(policy, /secret:\$\{local\.connector_secret_root\}\/okta\/\*/);
+  assert.match(policy, /Action\s*=\s*\["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"\][\s\S]*?Resource\s*=\s*\[for secret in aws_secretsmanager_secret\.connector_reference : secret\.arn\]/);
+  assert.match(policy, /Action\s*=\s*\["sts:AssumeRole"\][\s\S]*?Resource\s*=\s*var\.aws_reference_role_arns/);
+  assert.match(policy, /kms:EncryptionContext:SecretARN/);
   for (const namespace of [
     "secret:${local.connector_secret_prefix}/*",
     "secret:${local.connector_secret_root}/github/effect-manifest/*",
@@ -316,11 +327,14 @@ test("terraform isolates connector secret mutation behind one API-only web-ident
     assert.doesNotMatch(block, /aws_kms_key\.connector_oauth\.arn|connector_secret_prefix|connector_secret_root/, name);
   }
   assert.match(variables, /variable "connector_client_ids"/);
+  assert.match(variables, /variable "aws_reference_role_prefix"/);
+  assert.match(variables, /variable "aws_reference_role_arns"/);
+  assert.match(variables, /variable "connector_reference_ids"/);
   assert.match(outputs, /output "connector_role_arn"/);
   assert.match(outputs, /output "connector_kms_key_arn"/);
   assert.match(outputs, /output "connector_secret_prefix"/);
   assert.match(outputs, /output "connector_runtime_config"/);
-  for (const name of ["ZASP_CONNECTOR_AWS_REGION", "ZASP_CONNECTOR_ROLE_ARN", "ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE", "ZASP_CONNECTOR_KMS_KEY_ARN", "ZASP_CONNECTOR_SECRET_PREFIX", "ZASP_GITHUB_CLIENT_ID", "ZASP_GITHUB_CLIENT_SECRET_REFERENCE", "ZASP_GITHUB_APP_ID", "ZASP_GITHUB_PRIVATE_KEY_REFERENCE", "ZASP_OKTA_CLIENT_ID", "ZASP_OKTA_CLIENT_SECRET_REFERENCE"]) assert.match(outputs, new RegExp(name));
+  for (const name of ["ZASP_CONNECTOR_AWS_REGION", "ZASP_CONNECTOR_ROLE_ARN", "ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE", "ZASP_CONNECTOR_KMS_KEY_ARN", "ZASP_CONNECTOR_SECRET_PREFIX", "ZASP_AWS_CUSTOMER_ROLE_PREFIX", "ZASP_KUBERNETES_EGRESS_CIDRS", "ZASP_GITHUB_CLIENT_ID", "ZASP_GITHUB_CLIENT_SECRET_REFERENCE", "ZASP_GITHUB_APP_ID", "ZASP_GITHUB_PRIVATE_KEY_REFERENCE", "ZASP_OKTA_CLIENT_ID", "ZASP_OKTA_CLIENT_SECRET_REFERENCE"]) assert.match(outputs, new RegExp(name));
   assert.doesNotMatch(terraform, /aws_secretsmanager_secret_version|secret_string|secret_binary/i);
 });
 

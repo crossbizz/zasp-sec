@@ -41,6 +41,7 @@ secrets:
 connectors:
   awsRegion: ""
   roleArn: ""
+  awsCustomerRolePrefix: ""
   webIdentityTokenFile: /var/run/secrets/eks.amazonaws.com/serviceaccount/token
   kmsKeyArn: ""
   secretPrefix: ""
@@ -51,7 +52,7 @@ connectors:
   oktaClientID: ""
   oktaClientSecretReference: ""
 schema:
-  expectedVersion: 10
+  expectedVersion: 12
   migrationTimeout: 10m
 databasePrincipals:
   migration: ""
@@ -90,6 +91,7 @@ network:
     aws: []
     github: []
     okta: []
+    kubernetes: []
 canary:
   enabled: true
   schedule: "*/5 * * * *"

@@ -57,6 +57,8 @@ output "connector_runtime_config" {
     ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE = "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
     ZASP_CONNECTOR_KMS_KEY_ARN             = aws_kms_key.connector_oauth.arn
     ZASP_CONNECTOR_SECRET_PREFIX           = local.connector_secret_prefix
+    ZASP_AWS_CUSTOMER_ROLE_PREFIX          = var.aws_reference_role_prefix
+    ZASP_KUBERNETES_EGRESS_CIDRS           = join(",", var.kubernetes_connector_egress_cidrs)
     ZASP_GITHUB_CLIENT_ID                  = var.connector_client_ids.github
     ZASP_GITHUB_CLIENT_SECRET_REFERENCE    = "ref:github/client-secret"
     ZASP_GITHUB_APP_ID                     = var.github_app_id
@@ -64,6 +66,10 @@ output "connector_runtime_config" {
     ZASP_OKTA_CLIENT_ID                    = var.connector_client_ids.okta
     ZASP_OKTA_CLIENT_SECRET_REFERENCE      = "ref:okta/client-secret"
   }
+}
+output "connector_reference_secret_arns" {
+  description = "Reference-only secret metadata ARNs; values are provisioned outside Terraform."
+  value       = { for key, secret in aws_secretsmanager_secret.connector_reference : key => secret.arn }
 }
 output "migration_role_arn" {
   value = aws_iam_role.migration.arn

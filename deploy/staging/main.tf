@@ -65,6 +65,24 @@ locals {
       credential_class = "okta_oauth_client_secret"
     }
   }
+  connector_reference_secret_names = {
+    aws_external_id = {
+      name             = "${local.connector_secret_root}/aws/external-id/${var.connector_reference_ids.aws_external_id}"
+      credential_class = "aws_external_id_reference"
+    }
+    kubernetes_connection = {
+      name             = "${local.connector_secret_root}/kubernetes/connection/${var.connector_reference_ids.kubernetes_connection}"
+      credential_class = "kubernetes_connection_descriptor"
+    }
+    kubernetes_ca = {
+      name             = "${local.connector_secret_root}/kubernetes/ca/${var.connector_reference_ids.kubernetes_ca}"
+      credential_class = "kubernetes_ca_reference"
+    }
+    kubernetes_credential = {
+      name             = "${local.connector_secret_root}/kubernetes/credential/${var.connector_reference_ids.kubernetes_credential}"
+      credential_class = "kubernetes_credential_reference"
+    }
+  }
   bucket_name = "zasp-product-data-${md5(var.account_id)}"
   partition   = startswith(var.region, "cn-") ? "aws-cn" : startswith(var.region, "us-gov-") ? "aws-us-gov" : "aws"
 }
@@ -263,6 +281,15 @@ resource "aws_secretsmanager_secret" "connector_provider" {
   tags                    = { CredentialClass = each.value.credential_class }
 }
 
+resource "aws_secretsmanager_secret" "connector_reference" {
+  for_each = local.connector_reference_secret_names
+
+  name                    = each.value.name
+  kms_key_id              = aws_kms_key.connector_oauth.arn
+  recovery_window_in_days = 30
+  tags                    = { CredentialClass = each.value.credential_class }
+}
+
 resource "aws_sqs_queue" "dead_letter" {
   for_each = local.queue_contract
 
@@ -414,6 +441,11 @@ resource "aws_iam_role_policy" "api_connectors" {
         Resource = [for secret in aws_secretsmanager_secret.connector_provider : secret.arn]
       },
       {
+        Effect   = "Allow"
+        Action   = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"]
+        Resource = [for secret in aws_secretsmanager_secret.connector_reference : secret.arn]
+      },
+      {
         Effect = "Allow"
         Action = [
           "secretsmanager:CreateSecret",
@@ -434,10 +466,39 @@ resource "aws_iam_role_policy" "api_connectors" {
       },
       {
         Effect   = "Allow"
+        Action   = ["sts:AssumeRole"]
+        Resource = var.aws_reference_role_arns
+      },
+      {
+        Effect   = "Allow"
         Action   = ["kms:GenerateDataKey", "kms:Decrypt"]
         Resource = aws_kms_key.connector_oauth.arn
         Condition = {
           StringEquals = { "kms:ViaService" = "secretsmanager.${var.region}.amazonaws.com" }
+          ArnLike = {
+            "kms:EncryptionContext:SecretARN" = [
+              "arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_prefix}/*",
+              "arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_root}/github/effect-manifest/*",
+              "arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_root}/github/effect-outcome/*",
+              "arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_root}/github/revoked-installation/*",
+              "arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_root}/okta/effect-manifest/*",
+              "arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_root}/okta/effect-access/*",
+              "arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_root}/okta/effect-outcome/*",
+              "arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_root}/okta/refresh/*",
+              "arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_root}/okta/revoked-refresh/*",
+            ]
+          }
+        }
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt"]
+        Resource = aws_kms_key.connector_oauth.arn
+        Condition = {
+          StringEquals = {
+            "kms:ViaService"                  = "secretsmanager.${var.region}.amazonaws.com"
+            "kms:EncryptionContext:SecretARN" = concat([for secret in aws_secretsmanager_secret.connector_provider : secret.arn], [for secret in aws_secretsmanager_secret.connector_reference : secret.arn])
+          }
         }
       },
     ]

@@ -84,6 +84,8 @@ spec:
             - { name: ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE, value: {{ required "connectors.webIdentityTokenFile is required" $root.Values.connectors.webIdentityTokenFile | quote }} }
             - { name: ZASP_CONNECTOR_KMS_KEY_ARN, value: {{ required "connectors.kmsKeyArn is required" $root.Values.connectors.kmsKeyArn | quote }} }
             - { name: ZASP_CONNECTOR_SECRET_PREFIX, value: {{ required "connectors.secretPrefix is required" $root.Values.connectors.secretPrefix | quote }} }
+            - { name: ZASP_AWS_CUSTOMER_ROLE_PREFIX, value: {{ required "connectors.awsCustomerRolePrefix is required" $root.Values.connectors.awsCustomerRolePrefix | quote }} }
+            - { name: ZASP_KUBERNETES_EGRESS_CIDRS, value: {{ join "," (required "network.connectorEgressCIDRs.kubernetes is required" $root.Values.network.connectorEgressCIDRs.kubernetes) | quote }} }
             - { name: ZASP_GITHUB_CLIENT_ID, value: {{ required "connectors.githubClientID is required" $root.Values.connectors.githubClientID | quote }} }
             - { name: ZASP_GITHUB_CLIENT_SECRET_REFERENCE, value: {{ required "connectors.githubClientSecretReference is required" $root.Values.connectors.githubClientSecretReference | quote }} }
             - { name: ZASP_GITHUB_APP_ID, value: {{ required "connectors.githubAppID is required" $root.Values.connectors.githubAppID | quote }} }

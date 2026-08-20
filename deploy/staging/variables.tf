@@ -136,6 +136,60 @@ variable "github_app_id" {
   }
 }
 
+variable "aws_reference_role_prefix" {
+  description = "Canonical customer role path prefix accepted by the AWS reference authorization runtime."
+  type        = string
+  default     = "arn:aws:iam::000000000000:role/zasp-reference/"
+  validation {
+    condition     = can(regex("^arn:aws:iam::[0-9]{12}:role/[A-Za-z0-9+=,.@_/-]{1,120}/$", var.aws_reference_role_prefix)) && startswith(var.aws_reference_role_prefix, "arn:aws:iam::${var.account_id}:role/") && !strcontains(var.aws_reference_role_prefix, "*")
+    error_message = "aws_reference_role_prefix must be one wildcard-free role path prefix in the configured account."
+  }
+}
+
+variable "aws_reference_role_arns" {
+  description = "Exact customer roles the connector runtime may assume for read-only reference authorization."
+  type        = set(string)
+  default     = ["arn:aws:iam::000000000000:role/zasp-reference/customer-0001"]
+  validation {
+    condition = length(var.aws_reference_role_arns) >= 1 && length(var.aws_reference_role_arns) <= 32 && alltrue([
+      for role in var.aws_reference_role_arns : startswith(role, var.aws_reference_role_prefix) && role != var.aws_reference_role_prefix && !strcontains(role, "*") && can(regex("^arn:aws:iam::[0-9]{12}:role/[A-Za-z0-9+=,.@_/-]{1,128}$", role))
+    ])
+    error_message = "aws_reference_role_arns must contain one to 32 exact wildcard-free roles beneath aws_reference_role_prefix."
+  }
+}
+
+variable "connector_reference_ids" {
+  description = "Opaque identifiers for pre-provisioned reference-only AWS and Kubernetes secret metadata."
+  type = object({
+    aws_external_id       = string
+    kubernetes_connection = string
+    kubernetes_ca         = string
+    kubernetes_credential = string
+  })
+  default = {
+    aws_external_id       = "customer-0001"
+    kubernetes_connection = "customer-0001"
+    kubernetes_ca         = "customer-0001"
+    kubernetes_credential = "customer-0001"
+  }
+  validation {
+    condition     = alltrue([for identifier in values(var.connector_reference_ids) : can(regex("^[A-Za-z0-9][A-Za-z0-9._-]{7,127}$", identifier))])
+    error_message = "connector_reference_ids must contain four bounded opaque identifiers."
+  }
+}
+
+variable "kubernetes_connector_egress_cidrs" {
+  description = "Exact canonical customer Kubernetes API CIDRs admitted by both the runtime dialer and NetworkPolicy."
+  type        = list(string)
+  default     = ["203.0.113.0/28"]
+  validation {
+    condition = length(var.kubernetes_connector_egress_cidrs) >= 1 && length(var.kubernetes_connector_egress_cidrs) <= 16 && length(distinct(var.kubernetes_connector_egress_cidrs)) == length(var.kubernetes_connector_egress_cidrs) && alltrue([
+      for cidr in var.kubernetes_connector_egress_cidrs : can(cidrhost(cidr, 0)) && "${cidrhost(cidr, 0)}/${split("/", cidr)[1]}" == cidr && cidr != "0.0.0.0/0" && cidr != "::/0"
+    ])
+    error_message = "kubernetes_connector_egress_cidrs must contain one to 16 distinct canonical non-global CIDRs."
+  }
+}
+
 variable "endpoint_public_access" {
   description = "Whether the EKS API has a public endpoint; production must remain false."
   type        = bool
