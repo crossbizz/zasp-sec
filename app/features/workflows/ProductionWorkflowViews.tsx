@@ -105,8 +105,7 @@ export function ProductionIntegrationsView({ canWrite }: { canWrite: boolean }) 
   const retainedReferenceAuthorization = mutation.retainedIntent?.kind === "authorize-reference";
   useEffect(() => {
     if (!pendingRevocation) return;
-    const remaining = pendingRevocation.retryNotBefore - Date.now();
-    if (remaining <= 0) return;
+    const remaining = Math.max(0, pendingRevocation.retryNotBefore - Date.now());
     const timer = window.setTimeout(() => setRevocationClock(pendingRevocation.retryNotBefore), remaining);
     return () => window.clearTimeout(timer);
   }, [pendingRevocation]);

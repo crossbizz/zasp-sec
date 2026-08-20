@@ -308,6 +308,29 @@ describe("production integration deletion", () => {
     expect(calls.map(([, options]) => options.params.header["If-Match"])).toEqual(['"1"', '"1"']);
   });
 
+  it("enables an already-due retained revocation when the effect observes an elapsed deadline", async () => {
+    const now = vi.spyOn(Date, "now").mockImplementation(() => {
+      const stack = new Error().stack ?? "";
+      return stack.includes("ProductionWorkflowViews.tsx") && stack.includes("commitHookEffectListMount") ? 4_000 : 1_000;
+    });
+    const GET = vi.fn(async (path: string) => {
+      if (path === "/api/v1/integration-catalog") return jsonResult({ items: [] });
+      if (path === "/api/v1/integrations") return jsonResult({ items: [integration], page_info: { next_cursor: null, has_more: false } });
+      if (path === "/api/v1/integrations/{id}") return jsonResult(integration, 200, { ETag: '"1"' });
+      throw new Error(`unexpected GET ${path}`);
+    });
+    const DELETE = vi.fn(async () => jsonResult(revoking, 202, { ...receiptHeaders, "Retry-After": "2" }));
+    try {
+      render(<APIProvider client={{ GET, DELETE } as unknown as APIClient}><WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a"><ProductionIntegrationsView canWrite /></WorkflowMutationProvider></APIProvider>);
+      fireEvent.click(await screen.findByRole("button", { name: "Open GitHub" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Delete integration" }));
+      const retry = await screen.findByRole("button", { name: "Retry pending integration deletion" });
+      await waitFor(() => expect(retry).toBeEnabled());
+    } finally {
+      now.mockRestore();
+    }
+  });
+
 	it("formats opaque configuration references without rendering their values", async () => {
 		const user = userEvent.setup();
 		const aws: Integration = { ...integration, connector_key: "aws", name: "AWS", configuration: { role_arn: "arn:aws:iam::123456789012:role/zasp-discovery", external_id_reference: "ref:aws/external-id/customer-0001", region: "us-east-1" } };
