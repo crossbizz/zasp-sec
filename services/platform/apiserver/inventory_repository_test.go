@@ -105,14 +105,26 @@ func replaceInventoryJSON(value, old, replacement string) string {
 	return value
 }
 
-func TestInventoryRepositoryRequiresExactV14Readiness(t *testing.T) {
-	for _, schema := range []string{DiscoveryExecutionSchemaVersion, "future-v15"} {
+func TestInventoryRepositoryRequiresExactTypedAuthority(t *testing.T) {
+	for _, schema := range []string{DiscoveryExecutionSchemaVersion, "future-v16"} {
 		database := &inventoryJSONDatabase{schema: schema, responses: map[string]json.RawMessage{postgresInventoryReadinessSQL: json.RawMessage(`true`)}}
 		if _, err := NewPostgresInventoryRepository(database); !errors.Is(err, ErrRepositoryConfiguration) {
 			t.Fatalf("schema=%q error=%v", schema, err)
 		}
 	}
-	database := &inventoryJSONDatabase{schema: TypedInventorySchemaVersion, responses: map[string]json.RawMessage{postgresInventoryReadinessSQL: json.RawMessage(`false`)}}
+	for _, test := range []struct {
+		schema    string
+		statement string
+	}{
+		{schema: TypedInventorySchemaVersion, statement: postgresInventoryReadinessSQL},
+		{schema: RuntimeDataPlaneSchemaVersion, statement: postgresRuntimeDataPlaneReadinessSQL},
+	} {
+		database := &inventoryJSONDatabase{schema: test.schema, responses: map[string]json.RawMessage{test.statement: json.RawMessage(`true`)}}
+		if _, err := NewPostgresInventoryRepository(database); err != nil || database.statement != test.statement {
+			t.Fatalf("schema=%q statement=%q error=%v", test.schema, database.statement, err)
+		}
+	}
+	database := &inventoryJSONDatabase{schema: RuntimeDataPlaneSchemaVersion, responses: map[string]json.RawMessage{postgresRuntimeDataPlaneReadinessSQL: json.RawMessage(`false`)}}
 	if _, err := NewPostgresInventoryRepository(database); !errors.Is(err, ErrRepositoryConfiguration) {
 		t.Fatalf("false readiness error=%v", err)
 	}

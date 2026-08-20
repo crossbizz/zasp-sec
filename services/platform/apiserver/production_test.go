@@ -356,6 +356,27 @@ func TestProductionHandlersUseTypedInventoryAtV14(t *testing.T) {
 	}
 }
 
+func TestProductionHandlersPreserveDiscoveryAndTypedInventoryAtV15(t *testing.T) {
+	database := &discoveryCallDatabase{schema: RuntimeDataPlaneSchemaVersion, responses: map[string]json.RawMessage{
+		postgresRuntimeDataPlaneReadinessSQL: json.RawMessage(`true`),
+		postgresDiscoveryPrincipalReadySQL:   json.RawMessage(`true`),
+	}}
+	repository, err := NewPostgresRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handlers, _, err := NewProductionHandlers(repository, CallbackProviderFunc(func(context.Context, string, string) (SessionGrant, error) { return SessionGrant{}, nil }), http.NotFoundHandler(), fixtureCookiePolicy())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := handlers.Inventory.(*inventoryHTTPHandler); !ok {
+		t.Fatalf("inventory handler = %T", handlers.Inventory)
+	}
+	if _, ok := handlers.Workflow.(*discoveryWorkflowSurface); !ok {
+		t.Fatalf("workflow handler = %T", handlers.Workflow)
+	}
+}
+
 func TestDeploymentAuthenticatorPinsSingleTenantOrganization(t *testing.T) {
 	allowedScope := testScope(t, "8")
 	disallowedScope := testScope(t, "9")

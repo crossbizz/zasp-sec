@@ -18,6 +18,72 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/sensor"
 )
 
+func TestProductionRuntimeDataPlanePostgresKeepsInheritedProductAuthorityReady(t *testing.T) {
+	dsn := startDisposablePostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	connection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close(context.Background())
+	runner := migrateToTypedInventoryCutover(t, ctx, connection)
+	if err := runner.UpProductionRuntimeDataPlane(ctx); err != nil {
+		t.Fatalf("v15 migration: %v", err)
+	}
+
+	metadata := migrations.ProductionRuntimeDataPlane()
+	for _, role := range []string{
+		"zasp_discovery_api",
+		"zasp_discovery_worker",
+		"zasp_runtime_ingest",
+		"zasp_runtime_worker",
+		"zasp_outbox_worker",
+		"zasp_runtime_gateway",
+		"zasp_discovery_scheduler",
+		"zasp_projection_risk_worker",
+		"zasp_projection_graph_worker",
+		"zasp_projection_search_worker",
+	} {
+		t.Run(role, func(t *testing.T) {
+			transaction, err := connection.Begin(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer transaction.Rollback(context.Background())
+			if _, err := transaction.Exec(ctx, "SET LOCAL ROLE "+pgx.Identifier{role}.Sanitize()); err != nil {
+				t.Fatalf("set role: %v", err)
+			}
+			var ready bool
+			if err := transaction.QueryRow(ctx, `SELECT zasp_runtime_data_plane_readiness($1,$2)`, metadata.Checksum(), migrations.ProductionRuntimeDataPlaneSemanticFingerprint()).Scan(&ready); err != nil || !ready {
+				t.Fatalf("v15 readiness=%t err=%v", ready, err)
+			}
+		})
+	}
+
+	database, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if version, err := database.SchemaVersion(ctx); err != nil || version != RuntimeDataPlaneSchemaVersion {
+		t.Fatalf("schema version=(%q,%v)", version, err)
+	}
+	if _, err := NewPostgresRepository(database); err != nil {
+		t.Fatalf("product repository: %v", err)
+	}
+	if _, err := NewPostgresInventoryRepository(database); err != nil {
+		t.Fatalf("inventory repository: %v", err)
+	}
+
+	if _, err := connection.Exec(ctx, `GRANT EXECUTE ON FUNCTION zasp_inventory_page(text,text,text,text,text,integer) TO PUBLIC`); err != nil {
+		t.Fatal(err)
+	}
+	var ready bool
+	if err := connection.QueryRow(ctx, `SELECT zasp_runtime_data_plane_readiness($1,$2)`, metadata.Checksum(), migrations.ProductionRuntimeDataPlaneSemanticFingerprint()).Scan(&ready); err != nil || ready {
+		t.Fatalf("v15 inherited-authority drift readiness=%t err=%v", ready, err)
+	}
+}
+
 func TestProductionRuntimeDataPlanePostgresAuthenticatesTokenDerivedHeartbeat(t *testing.T) {
 	dsn := startDisposablePostgres(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)

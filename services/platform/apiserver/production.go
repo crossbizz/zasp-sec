@@ -112,7 +112,7 @@ func NewProductionHandlers(repository *PostgresRepository, provider CallbackProv
 		}
 	}
 	inventorySurface := http.Handler(&coreHTTPHandler{repository: repository, boundary: inventoryDependency})
-	if repository.schema == TypedInventorySchemaVersion {
+	if isTypedInventorySchema(repository.schema) {
 		inventoryRepository, inventoryErr := NewPostgresInventoryRepository(repository.database)
 		if inventoryErr != nil {
 			return Dependencies{}, nil, ErrRepositoryConfiguration

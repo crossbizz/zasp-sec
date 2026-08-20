@@ -64,10 +64,8 @@ func (repository *ReferenceAuthorizationRepository) Ready(ctx context.Context) e
 		return ErrRepositoryUnavailable
 	}
 	readySQL, checksum, fingerprint := postgresReferenceAuthorizationReadySQL, migrations.ReferenceAuthorization().Checksum(), migrations.ReferenceAuthorizationSemanticFingerprint()
-	if version == TypedInventorySchemaVersion {
-		readySQL, checksum, fingerprint = postgresInventoryReadinessSQL, migrations.ProductionTypedInventoryCutover().Checksum(), migrations.ProductionTypedInventoryCutoverSemanticFingerprint()
-	} else if version == DiscoveryExecutionSchemaVersion {
-		readySQL, checksum, fingerprint = postgresExecutionReadySQL, migrations.ProductionDiscoveryExecution().Checksum(), migrations.ProductionDiscoveryExecutionSemanticFingerprint()
+	if exactSQL, exactChecksum, exactFingerprint, ok := exactProductReadiness(version); ok {
+		readySQL, checksum, fingerprint = exactSQL, exactChecksum, exactFingerprint
 	}
 	payload, err := repository.database.QueryJSON(ctx, readySQL, checksum, fingerprint)
 	var ready bool

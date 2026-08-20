@@ -11,11 +11,15 @@ import (
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	platformidentity "github.com/zasp-ai/zasp-sec/services/platform/identity"
+	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
 
 const CoreSchemaVersion = "production-risk-projection-v1"
 const DiscoverySchemaVersion = "production-discovery-v1"
 const ConnectorSchemaVersion = "connector-authorization-v1"
+const RuntimeDataPlaneSchemaVersion = "runtime-data-plane-v1"
+
+const postgresRuntimeDataPlaneReadinessSQL = `SELECT to_jsonb(zasp_runtime_data_plane_readiness($1,$2))`
 
 const (
 	postgresAuthenticateSessionSQL = `SELECT jsonb_build_object('principal_id', session.principal_id, 'organization_id', session.organization_id, 'workspace_id', session.workspace_id, 'environment_id', session.environment_id, 'permissions', zasp_effective_scope_permissions(scope.permissions, membership.role), 'csrf_token', session.csrf_token, 'fresh_authenticated', session.authenticated_at > now() - interval '5 minutes', 'fresh_auth_expires_at', session.authenticated_at + interval '5 minutes') FROM zasp_product_sessions AS session JOIN zasp_identity_memberships AS membership ON membership.principal_id = session.principal_id AND membership.organization_id = session.organization_id AND membership.active JOIN zasp_authorized_scopes AS scope ON scope.principal_id = session.principal_id AND scope.organization_id = session.organization_id AND scope.workspace_id = session.workspace_id AND scope.environment_id = session.environment_id WHERE session.token_digest = digest($1, 'sha256') AND session.revoked_at IS NULL AND session.expires_at > now()`
@@ -87,7 +91,24 @@ func supportedProductSchema(version string) bool {
 }
 
 func isDiscoveryExecutionSchema(version string) bool {
-	return version == DiscoveryExecutionSchemaVersion || version == TypedInventorySchemaVersion
+	return version == DiscoveryExecutionSchemaVersion || isTypedInventorySchema(version)
+}
+
+func isTypedInventorySchema(version string) bool {
+	return version == TypedInventorySchemaVersion || version == RuntimeDataPlaneSchemaVersion
+}
+
+func exactProductReadiness(version string) (string, string, string, bool) {
+	switch version {
+	case DiscoveryExecutionSchemaVersion:
+		return postgresExecutionReadySQL, migrations.ProductionDiscoveryExecution().Checksum(), migrations.ProductionDiscoveryExecutionSemanticFingerprint(), true
+	case TypedInventorySchemaVersion:
+		return postgresInventoryReadinessSQL, migrations.ProductionTypedInventoryCutover().Checksum(), migrations.ProductionTypedInventoryCutoverSemanticFingerprint(), true
+	case RuntimeDataPlaneSchemaVersion:
+		return postgresRuntimeDataPlaneReadinessSQL, migrations.ProductionRuntimeDataPlane().Checksum(), migrations.ProductionRuntimeDataPlaneSemanticFingerprint(), true
+	default:
+		return "", "", "", false
+	}
 }
 
 func (repository *PostgresRepository) Authenticate(ctx context.Context, credential Credential) (RequestIdentity, error) {

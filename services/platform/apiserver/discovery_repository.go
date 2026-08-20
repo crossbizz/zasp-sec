@@ -231,10 +231,8 @@ func newDiscoveryRepositoryWithContext(ctx context.Context, database JSONDatabas
 	readySQL, checksum, fingerprint := postgresDiscoveryReadySQL, migrations.ProductionDiscovery().Checksum(), migrations.ProductionDiscoverySemanticFingerprint()
 	if version == ConnectorSchemaVersion || version == ReferenceSchemaVersion {
 		readySQL, checksum, fingerprint = postgresConnectorReadySQL, migrations.ConnectorAuthorization().Checksum(), migrations.ConnectorAuthorizationSemanticFingerprint()
-	} else if version == TypedInventorySchemaVersion {
-		readySQL, checksum, fingerprint = postgresInventoryReadinessSQL, migrations.ProductionTypedInventoryCutover().Checksum(), migrations.ProductionTypedInventoryCutoverSemanticFingerprint()
-	} else if version == DiscoveryExecutionSchemaVersion {
-		readySQL, checksum, fingerprint = postgresExecutionReadySQL, migrations.ProductionDiscoveryExecution().Checksum(), migrations.ProductionDiscoveryExecutionSemanticFingerprint()
+	} else if exactSQL, exactChecksum, exactFingerprint, ok := exactProductReadiness(version); ok {
+		readySQL, checksum, fingerprint = exactSQL, exactChecksum, exactFingerprint
 	}
 	payload, err := database.QueryJSON(ctx, readySQL, checksum, fingerprint)
 	var ready bool

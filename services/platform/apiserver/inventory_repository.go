@@ -12,7 +12,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
-	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
 
 const TypedInventorySchemaVersion = "typed-inventory-cutover-v1"
@@ -165,10 +164,14 @@ func NewPostgresInventoryRepository(database JSONDatabase) (*PostgresInventoryRe
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	version, err := database.SchemaVersion(ctx)
-	if err != nil || version != TypedInventorySchemaVersion {
+	if err != nil || !isTypedInventorySchema(version) {
 		return nil, ErrRepositoryConfiguration
 	}
-	payload, err := database.QueryJSON(ctx, postgresInventoryReadinessSQL, migrations.ProductionTypedInventoryCutover().Checksum(), migrations.ProductionTypedInventoryCutoverSemanticFingerprint())
+	readySQL, checksum, fingerprint, ok := exactProductReadiness(version)
+	if !ok {
+		return nil, ErrRepositoryConfiguration
+	}
+	payload, err := database.QueryJSON(ctx, readySQL, checksum, fingerprint)
 	var ready bool
 	if err != nil || decodeStrictInventory(payload, &ready) != nil || !ready {
 		return nil, ErrRepositoryConfiguration

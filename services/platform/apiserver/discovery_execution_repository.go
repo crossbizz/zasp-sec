@@ -12,7 +12,6 @@ import (
 
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/collection"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
-	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 	"github.com/zasp-ai/zasp-sec/services/platform/riskprojection"
 )
 
@@ -96,13 +95,15 @@ func discoveryExecutionReady(ctx context.Context, database JSONDatabase) bool {
 		return false
 	}
 	var ready bool
-	payload, err := database.QueryJSON(ctx, postgresInventoryReadinessSQL, migrations.ProductionTypedInventoryCutover().Checksum(), migrations.ProductionTypedInventoryCutoverSemanticFingerprint())
-	if err == nil && decodeStrictDiscovery(payload, &ready) == nil && ready {
-		return true
+	for _, version := range []string{RuntimeDataPlaneSchemaVersion, TypedInventorySchemaVersion, DiscoveryExecutionSchemaVersion} {
+		readySQL, checksum, fingerprint, _ := exactProductReadiness(version)
+		payload, err := database.QueryJSON(ctx, readySQL, checksum, fingerprint)
+		ready = false
+		if err == nil && decodeStrictDiscovery(payload, &ready) == nil && ready {
+			return true
+		}
 	}
-	payload, err = database.QueryJSON(ctx, postgresExecutionReadySQL, migrations.ProductionDiscoveryExecution().Checksum(), migrations.ProductionDiscoveryExecutionSemanticFingerprint())
-	ready = false
-	return err == nil && decodeStrictDiscovery(payload, &ready) == nil && ready
+	return false
 }
 
 type ExecutionJobInput struct {
