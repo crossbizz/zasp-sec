@@ -203,6 +203,21 @@ func TestWorkflowRepositoryListsReferenceAuthorizationReceipt(t *testing.T) {
 	}
 }
 
+func TestWorkflowRepositoryListsOAuthAndRemediationReceipts(t *testing.T) {
+	for name, receipt := range map[string]string{
+		"oauth":       `{"id":"pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc","operation":"completeIntegrationOAuth","idempotency_key":"oauth-completion:pid_74000002-0000-4000-8000-000000000002","intent":{"authorization_attempt_id":"pid_74000002-0000-4000-8000-000000000002","integration_id":"pid_74000001-0000-4000-8000-000000000001","provider":"github"},"result":{"id":"pid_74000001-0000-4000-8000-000000000001"},"resource_kind":"integration","resource_id":"pid_74000001-0000-4000-8000-000000000001","resource_version":2,"audit_id":"pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","correlation_id":"pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","created_at":"2026-08-19T00:01:00Z","expires_at":"2026-08-26T00:01:00Z"}`,
+		"remediation": `{"id":"pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc","operation":"remediateIntegrationAuthorization","idempotency_key":"quarantine-remediation-0001","intent":{"body":{"acknowledgement":"provider_grant_verified_absent"},"expected_version":2,"resource_id":"pid_74000001-0000-4000-8000-000000000001"},"result":{"id":"pid_74000001-0000-4000-8000-000000000001"},"resource_kind":"integration","resource_id":"pid_74000001-0000-4000-8000-000000000001","resource_version":3,"audit_id":"pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","correlation_id":"pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","created_at":"2026-08-19T00:01:00Z","expires_at":"2026-08-26T00:01:00Z"}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			repository, _ := NewPostgresRepository(&workflowCallDatabase{response: json.RawMessage(`{"items":[` + receipt + `]}`)})
+			receipts, err := repository.ListWorkflowMutationReceipts(context.Background(), fixtureRequestIdentity(t), 20)
+			if err != nil || len(receipts) != 1 || receipts[0].ResourceKind != "integration" {
+				t.Fatalf("connector receipt = (%#v, %v)", receipts, err)
+			}
+		})
+	}
+}
+
 func TestWorkflowRepositoryListsExactFindingRecoveryReceipt(t *testing.T) {
 	database := &workflowCallDatabase{response: json.RawMessage(`{"items":[{"id":"pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc","operation":"updateFinding","idempotency_key":"idem-risk-recovery-0001","intent":{"body":{"status":"under_review"},"expected_version":1,"resource_id":"pid_30000001-0000-4000-8000-000000000001"},"result":{"id":"pid_30000001-0000-4000-8000-000000000001","source":"posture","title":"Recover me","severity":"high","status":"under_review","evidence_ids":["pid_30000002-0000-4000-8000-000000000002"],"risk_factors":[],"version":2,"created_at":"2026-08-18T05:00:00-07:00","updated_at":"2026-08-18T05:01:00-07:00"},"resource_kind":"finding","resource_id":"pid_30000001-0000-4000-8000-000000000001","resource_version":2,"audit_id":"pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","correlation_id":"pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","created_at":"2026-08-18T12:00:00Z","expires_at":"2026-08-25T12:00:00Z"}]}`)}
 	repository, _ := NewPostgresRepository(database)
