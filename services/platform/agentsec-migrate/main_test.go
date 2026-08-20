@@ -402,6 +402,49 @@ func TestLoadDiscoveryPrincipalRegistrationRequiresDistinctSafeNames(t *testing.
 	}
 }
 
+type scriptedPrincipalRow struct{ value bool }
+
+func (row scriptedPrincipalRow) Scan(destinations ...any) error {
+	if len(destinations) != 1 {
+		return errors.New("scan arity")
+	}
+	value, ok := destinations[0].(*bool)
+	if !ok {
+		return errors.New("scan type")
+	}
+	*value = row.value
+	return nil
+}
+
+type scriptedPrincipalQueryer struct {
+	values     []bool
+	statements []string
+}
+
+func (queryer *scriptedPrincipalQueryer) QueryRow(_ context.Context, statement string, _ ...any) pgx.Row {
+	queryer.statements = append(queryer.statements, statement)
+	value := false
+	if len(queryer.values) > 0 {
+		value, queryer.values = queryer.values[0], queryer.values[1:]
+	}
+	return scriptedPrincipalRow{value: value}
+}
+
+func TestRegisterReleasePrincipalsRequiresPostRegistrationExecutionReadiness(t *testing.T) {
+	registration := discoveryPrincipalRegistration{migration: "migration_login", api: "api_login", discovery: "discovery_login", ingest: "ingest_login", runtime: "runtime_login", outbox: "outbox_login", gateway: "gateway_login", scheduler: "scheduler_login", projectionRisk: "risk_login", projectionGraph: "graph_login", projectionSearch: "search_login"}
+	queryer := &scriptedPrincipalQueryer{values: []bool{true, true, true, false}}
+	if err := registerReleasePrincipals(context.Background(), queryer, registration); !errors.Is(err, errReleasePrincipalRegistration) {
+		t.Fatalf("readiness error=%v", err)
+	}
+	if len(queryer.statements) != 4 || !strings.Contains(queryer.statements[3], "zasp_execution_readiness") {
+		t.Fatalf("registration statements=%#v", queryer.statements)
+	}
+	queryer = &scriptedPrincipalQueryer{values: []bool{true, true, true, true}}
+	if err := registerReleasePrincipals(context.Background(), queryer, registration); err != nil {
+		t.Fatalf("ready registration error=%v", err)
+	}
+}
+
 func TestAgentsecMigrateCLIReachesV13FromEmptyAndV12(t *testing.T) {
 	dsn := startMigrationPostgres(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)

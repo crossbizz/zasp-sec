@@ -31,10 +31,15 @@ const (
 )
 
 var errInvalidMigrationCommand = errors.New("invalid release migration command")
+var errReleasePrincipalRegistration = errors.New("release principal registration failed")
 var databasePrincipalPattern = regexp.MustCompile(`^[a-z][a-z0-9_]{2,62}$`)
 
 type discoveryPrincipalRegistration struct {
 	migration, api, discovery, ingest, runtime, outbox, gateway, scheduler, projectionRisk, projectionGraph, projectionSearch string
+}
+
+type principalQueryer interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
 }
 
 type releaseMigrationRunner interface {
@@ -98,18 +103,33 @@ func main() {
 		log.Fatal("release migration failed")
 	}
 	if len(arguments) == 1 && arguments[0] == "up" {
-		var registered bool
-		var migrationPrincipalMatches bool
-		if err := connection.QueryRow(ctx, `SELECT session_user=$1`, registration.migration).Scan(&migrationPrincipalMatches); err != nil || !migrationPrincipalMatches {
-			log.Fatal("release migration principal preflight failed")
-		}
-		if err := connection.QueryRow(ctx, `SELECT zasp_discovery_register_principals($1,$2,$3,$4,$5,$6,$7)`, registration.migration, registration.api, registration.discovery, registration.ingest, registration.runtime, registration.outbox, registration.gateway).Scan(&registered); err != nil || !registered {
-			log.Fatal("release migration principal registration failed")
-		}
-		if err := connection.QueryRow(ctx, `SELECT zasp_execution_register_principals($1,$2,$3,$4,$5,$6)`, registration.migration, registration.scheduler, registration.discovery, registration.projectionRisk, registration.projectionGraph, registration.projectionSearch).Scan(&registered); err != nil || !registered {
-			log.Fatal("release execution principal registration failed")
+		if err := registerReleasePrincipals(ctx, connection, registration); err != nil {
+			log.Fatal("release principal registration or readiness failed")
 		}
 	}
+}
+
+func registerReleasePrincipals(ctx context.Context, queryer principalQueryer, registration discoveryPrincipalRegistration) error {
+	if ctx == nil || ctx.Err() != nil || queryer == nil {
+		return errReleasePrincipalRegistration
+	}
+	var ready bool
+	checks := []struct {
+		statement string
+		arguments []any
+	}{
+		{`SELECT session_user=$1`, []any{registration.migration}},
+		{`SELECT zasp_discovery_register_principals($1,$2,$3,$4,$5,$6,$7)`, []any{registration.migration, registration.api, registration.discovery, registration.ingest, registration.runtime, registration.outbox, registration.gateway}},
+		{`SELECT zasp_execution_register_principals($1,$2,$3,$4,$5,$6)`, []any{registration.migration, registration.scheduler, registration.discovery, registration.projectionRisk, registration.projectionGraph, registration.projectionSearch}},
+		{`SELECT zasp_execution_readiness($1,$2)`, []any{migrations.ProductionDiscoveryExecution().Checksum(), migrations.ProductionDiscoveryExecutionSemanticFingerprint()}},
+	}
+	for _, check := range checks {
+		ready = false
+		if err := queryer.QueryRow(ctx, check.statement, check.arguments...).Scan(&ready); err != nil || !ready {
+			return errReleasePrincipalRegistration
+		}
+	}
+	return nil
 }
 
 func loadDiscoveryPrincipalRegistration(getenv func(string) string) (discoveryPrincipalRegistration, error) {

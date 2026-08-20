@@ -99,13 +99,15 @@ WHERE metadata.key = 'production_core_schema' AND metadata.value = CASE release.
   AND release.checksum = CASE release.version WHEN 9 THEN $1 WHEN 10 THEN $3 WHEN 11 THEN $5 ELSE $7 END
   AND COALESCE(release_fingerprint.value, expected_fingerprint.value) = CASE release.version WHEN 9 THEN $2 WHEN 10 THEN $4 WHEN 11 THEN $6 ELSE $8 END
   AND semantic_fingerprint.value = expected_fingerprint.value
-  AND NOT EXISTS (SELECT 1 FROM zasp_schema_versions newer WHERE newer.version>release.version)
-UNION ALL
-SELECT metadata.value
+  AND NOT EXISTS (SELECT 1 FROM zasp_schema_versions newer WHERE newer.version>release.version)`
+
+const postgresSchemaMarkerSQL = `SELECT value FROM zasp_schema_metadata WHERE key = 'production_core_schema'`
+
+const postgresDiscoveryExecutionSchemaVersionSQL = `SELECT metadata.value
 FROM zasp_schema_metadata AS metadata
 JOIN zasp_schema_versions AS release ON release.version = 13 AND release.name = 'production_discovery_execution'
 WHERE metadata.key = 'production_core_schema' AND metadata.value = 'production-discovery-execution-v1'
-  AND zasp_execution_readiness($9, $10)
+  AND zasp_execution_readiness($1, $2)
   AND NOT EXISTS (SELECT 1 FROM zasp_schema_versions newer WHERE newer.version > 13)`
 
 func expectedCoreSchemaChecksum() string { return migrations.ProductionRiskProjection().Checksum() }
@@ -161,8 +163,16 @@ func (database *PostgresJSONDatabase) SchemaVersion(ctx context.Context) (string
 	if database.closed || nilInterface(database.driver) {
 		return "", ErrRepositoryUnavailable
 	}
+	var marker string
+	if err := database.driver.QueryRow(ctx, postgresSchemaMarkerSQL).Scan(&marker); err != nil {
+		return "", classifyPostgresError(err)
+	}
 	var version string
-	if err := database.driver.QueryRow(ctx, postgresSchemaVersionSQL, expectedCoreSchemaChecksum(), expectedCoreSchemaFingerprint(), expectedDiscoverySchemaChecksum(), expectedDiscoverySchemaFingerprint(), expectedConnectorSchemaChecksum(), expectedConnectorSchemaFingerprint(), expectedReferenceSchemaChecksum(), expectedReferenceSchemaFingerprint(), expectedDiscoveryExecutionSchemaChecksum(), expectedDiscoveryExecutionSchemaFingerprint()).Scan(&version); err != nil {
+	if marker == DiscoveryExecutionSchemaVersion {
+		if err := database.driver.QueryRow(ctx, postgresDiscoveryExecutionSchemaVersionSQL, expectedDiscoveryExecutionSchemaChecksum(), expectedDiscoveryExecutionSchemaFingerprint()).Scan(&version); err != nil {
+			return "", classifyPostgresError(err)
+		}
+	} else if err := database.driver.QueryRow(ctx, postgresSchemaVersionSQL, expectedCoreSchemaChecksum(), expectedCoreSchemaFingerprint(), expectedDiscoverySchemaChecksum(), expectedDiscoverySchemaFingerprint(), expectedConnectorSchemaChecksum(), expectedConnectorSchemaFingerprint(), expectedReferenceSchemaChecksum(), expectedReferenceSchemaFingerprint()).Scan(&version); err != nil {
 		return "", classifyPostgresError(err)
 	}
 	if version == "" {

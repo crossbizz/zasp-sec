@@ -46,6 +46,10 @@ func TestProductionDiscoveryExecutionMigrationOwnsLeasedExecutionAuthority(t *te
 		"production_discovery_execution_fingerprint",
 		"SECURITY DEFINER",
 		"SET search_path TO pg_catalog, public",
+		"attempt<5",
+		"SELECT * INTO input_row FROM zasp_discovery_snapshot_inputs",
+		"shobj_description",
+		"pg_auth_members",
 	} {
 		if !strings.Contains(metadata.UpSQL(), required) {
 			t.Fatalf("production discovery execution migration missing %q", required)
@@ -54,7 +58,13 @@ func TestProductionDiscoveryExecutionMigrationOwnsLeasedExecutionAuthority(t *te
 	if fingerprint := ProductionDiscoveryExecutionSemanticFingerprint(); len(fingerprint) != 64 || !strings.Contains(metadata.UpSQL(), fingerprint) || !strings.Contains(metadata.DownSQL(), fingerprint) {
 		t.Fatalf("production discovery execution fingerprint = %q", fingerprint)
 	}
-	for _, required := range []string{"semantic schema drift blocks rollback", "production discovery execution data blocks rollback", "reference-authorization-v1"} {
+	if strings.Contains(metadata.UpSQL(), "SELECT * INTO STRICT input_row FROM zasp_discovery_snapshot_inputs") {
+		t.Fatal("freshness fails on legacy snapshots without v13 snapshot input authority")
+	}
+	if strings.Contains(metadata.UpSQL(), "attempt<100") {
+		t.Fatal("projection claim index permits attempts beyond the terminal budget")
+	}
+	for _, required := range []string{"semantic schema drift blocks rollback", "production discovery execution data blocks rollback", "requestIntegrationSync", "putIntegrationSchedule", "deleteIntegrationSchedule", "reference-authorization-v1"} {
 		if !strings.Contains(metadata.DownSQL(), required) {
 			t.Fatalf("production discovery execution rollback missing %q", required)
 		}

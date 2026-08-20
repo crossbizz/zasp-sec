@@ -26,8 +26,11 @@ func TestPostgresSchemaReadinessRequiresExactWorkflowRelease(t *testing.T) {
 	if !strings.Contains(postgresSchemaVersionSQL, "release.version = 12") || !strings.Contains(postgresSchemaVersionSQL, "release.name = 'reference_authorization'") || !strings.Contains(postgresSchemaVersionSQL, "reference_authorization_fingerprint") || !strings.Contains(postgresSchemaVersionSQL, "pg_get_triggerdef") {
 		t.Fatalf("schema readiness query does not require reference authorization and connector triggers: %s", postgresSchemaVersionSQL)
 	}
-	if !strings.Contains(postgresSchemaVersionSQL, "release.version = 13") || !strings.Contains(postgresSchemaVersionSQL, "release.name = 'production_discovery_execution'") || !strings.Contains(postgresSchemaVersionSQL, "zasp_execution_readiness($9, $10)") {
-		t.Fatalf("schema readiness query does not require production discovery execution readiness: %s", postgresSchemaVersionSQL)
+	if strings.Contains(postgresSchemaVersionSQL, "zasp_execution_readiness") || strings.Contains(postgresSchemaVersionSQL, "release.version = 13") {
+		t.Fatalf("legacy schema readiness query directly references v13 authority: %s", postgresSchemaVersionSQL)
+	}
+	if !strings.Contains(postgresDiscoveryExecutionSchemaVersionSQL, "release.version = 13") || !strings.Contains(postgresDiscoveryExecutionSchemaVersionSQL, "release.name = 'production_discovery_execution'") || !strings.Contains(postgresDiscoveryExecutionSchemaVersionSQL, "zasp_execution_readiness($1, $2)") {
+		t.Fatalf("v13 schema readiness query does not require production discovery execution readiness: %s", postgresDiscoveryExecutionSchemaVersionSQL)
 	}
 	if !strings.Contains(postgresSchemaVersionSQL, "production_discovery_release_fingerprint") || !strings.Contains(postgresSchemaVersionSQL, "COALESCE(release_fingerprint.value, expected_fingerprint.value)") {
 		t.Fatalf("schema readiness query does not recognize the v11-to-v10 compatibility contract: %s", postgresSchemaVersionSQL)
@@ -47,6 +50,7 @@ func TestPostgresSchemaReadinessRequiresExactWorkflowRelease(t *testing.T) {
 
 func TestPostgresJSONDatabaseRunsSchemaReadAndWriteBoundaries(t *testing.T) {
 	driver := &databaseDriver{responses: map[string][]byte{
+		postgresSchemaMarkerSQL:  []byte(CoreSchemaVersion),
 		postgresSchemaVersionSQL: []byte(CoreSchemaVersion),
 		"SELECT payload":         []byte(`{"items":[]}`),
 	}}
@@ -58,7 +62,7 @@ func TestPostgresJSONDatabaseRunsSchemaReadAndWriteBoundaries(t *testing.T) {
 	if err != nil || version != CoreSchemaVersion {
 		t.Fatalf("version = (%q, %v)", version, err)
 	}
-	if !reflect.DeepEqual(driver.queryArguments, []any{expectedCoreSchemaChecksum(), expectedCoreSchemaFingerprint(), expectedDiscoverySchemaChecksum(), expectedDiscoverySchemaFingerprint(), expectedConnectorSchemaChecksum(), expectedConnectorSchemaFingerprint(), expectedReferenceSchemaChecksum(), expectedReferenceSchemaFingerprint(), expectedDiscoveryExecutionSchemaChecksum(), expectedDiscoveryExecutionSchemaFingerprint()}) {
+	if !reflect.DeepEqual(driver.queryArguments, []any{expectedCoreSchemaChecksum(), expectedCoreSchemaFingerprint(), expectedDiscoverySchemaChecksum(), expectedDiscoverySchemaFingerprint(), expectedConnectorSchemaChecksum(), expectedConnectorSchemaFingerprint(), expectedReferenceSchemaChecksum(), expectedReferenceSchemaFingerprint()}) {
 		t.Fatalf("schema checksum arguments = %#v", driver.queryArguments)
 	}
 	payload, err := database.QueryJSON(context.Background(), "SELECT payload", "organization")
@@ -73,6 +77,24 @@ func TestPostgresJSONDatabaseRunsSchemaReadAndWriteBoundaries(t *testing.T) {
 	}
 	if err := database.Close(); err != nil || driver.closes != 1 {
 		t.Fatalf("close = (%v, %d)", err, driver.closes)
+	}
+}
+
+func TestPostgresJSONDatabaseUsesV13ReadinessOnlyForV13Marker(t *testing.T) {
+	driver := &databaseDriver{responses: map[string][]byte{
+		postgresSchemaMarkerSQL:                    []byte(DiscoveryExecutionSchemaVersion),
+		postgresDiscoveryExecutionSchemaVersionSQL: []byte(DiscoveryExecutionSchemaVersion),
+	}}
+	database, err := NewPostgresJSONDatabase(driver)
+	if err != nil {
+		t.Fatal(err)
+	}
+	version, err := database.SchemaVersion(context.Background())
+	if err != nil || version != DiscoveryExecutionSchemaVersion {
+		t.Fatalf("version = (%q, %v)", version, err)
+	}
+	if !reflect.DeepEqual(driver.queryArguments, []any{expectedDiscoveryExecutionSchemaChecksum(), expectedDiscoveryExecutionSchemaFingerprint()}) {
+		t.Fatalf("v13 schema checksum arguments = %#v", driver.queryArguments)
 	}
 }
 

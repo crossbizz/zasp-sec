@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 )
@@ -103,6 +104,29 @@ func TestDiscoveryExecutionScheduleCompletionValidationIsClockIndependent(t *tes
 	}
 }
 
+func TestDiscoveryExecutionScheduleInputUsesDatabaseCadenceBounds(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	scheduleID := "pid_80600001-0000-4000-8000-000000000001"
+	integrationID := "pid_80600002-0000-4000-8000-000000000002"
+	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{}}
+	repository := newTestDiscoveryExecutionRepository(t, database, DiscoveryExecutionAuthorityScheduler)
+	lease := time.Now().UTC().Add(30 * time.Second).Format(time.RFC3339Nano)
+	next := time.Now().UTC().Add(time.Hour).Format(time.RFC3339Nano)
+
+	for _, cadence := range []int{300, 2678400} {
+		database.responses[postgresExecutionScheduleInputSQL] = json.RawMessage(`{"organization_id":"` + identity.Scope.OrganizationID().String() + `","workspace_id":"` + identity.Scope.WorkspaceID().String() + `","environment_id":"` + identity.Scope.EnvironmentID().String() + `","schedule_id":"` + scheduleID + `","integration_id":"` + integrationID + `","cadence_seconds":` + fmt.Sprint(cadence) + `,"time_zone":"UTC","next_run_at":"` + next + `","version":1,"lease_expires_at":"` + lease + `"}`)
+		if _, err := repository.GetDiscoveryScheduleInput(context.Background(), identity.Scope, scheduleID, "scheduler-01", "schedule-token-000000001"); err != nil {
+			t.Fatalf("cadence %d rejected: %v", cadence, err)
+		}
+	}
+	for _, cadence := range []int{299, 2678401} {
+		database.responses[postgresExecutionScheduleInputSQL] = json.RawMessage(`{"organization_id":"` + identity.Scope.OrganizationID().String() + `","workspace_id":"` + identity.Scope.WorkspaceID().String() + `","environment_id":"` + identity.Scope.EnvironmentID().String() + `","schedule_id":"` + scheduleID + `","integration_id":"` + integrationID + `","cadence_seconds":` + fmt.Sprint(cadence) + `,"time_zone":"UTC","next_run_at":"` + next + `","version":1,"lease_expires_at":"` + lease + `"}`)
+		if _, err := repository.GetDiscoveryScheduleInput(context.Background(), identity.Scope, scheduleID, "scheduler-01", "schedule-token-000000001"); !errors.Is(err, ErrRepositoryUnavailable) {
+			t.Fatalf("cadence %d error=%v", cadence, err)
+		}
+	}
+}
+
 func TestDiscoveryExecutionRepositoryStrictDeliveryReplayAndProjectionStatus(t *testing.T) {
 	identity := fixtureRequestIdentity(t)
 	jobID := "pid_81000001-0000-4000-8000-000000000001"
@@ -165,6 +189,25 @@ func TestDiscoveryExecutionProjectionClaimsAreKindBound(t *testing.T) {
 				t.Fatalf("cross-kind claim error=%v", err)
 			}
 		})
+	}
+}
+
+func TestDiscoveryExecutionProjectionAttemptLimitMatchesDatabase(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{}}
+	repository := newTestDiscoveryExecutionRepository(t, database, DiscoveryExecutionAuthorityProjectionRisk)
+	lease := time.Now().UTC().Add(30 * time.Second).Format(time.RFC3339Nano)
+	digest := "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE="
+	database.responses[postgresExecutionClaimProjectionSQL] = json.RawMessage(`{"items":[{"organization_id":"` + identity.Scope.OrganizationID().String() + `","workspace_id":"` + identity.Scope.WorkspaceID().String() + `","environment_id":"` + identity.Scope.EnvironmentID().String() + `","snapshot_id":"pid_82900001-0000-4000-8000-000000000001","kind":"risk","version":"v1","input_digest":"` + digest + `","attempt":6,"lease_expires_at":"` + lease + `"}]}`)
+	if _, err := repository.ClaimProjectionWork(context.Background(), "risk", "projection-worker-01", "projection-token-00000001", 30, 8); !errors.Is(err, ErrRepositoryUnavailable) {
+		t.Fatalf("attempt 6 claim output error=%v", err)
+	}
+
+	snapshotID := "pid_82900001-0000-4000-8000-000000000001"
+	database.responses[postgresExecutionFinishProjectionSQL] = json.RawMessage(`{"snapshot_id":"` + snapshotID + `","kind":"risk","state":"failed","attempt":6}`)
+	completion := ProjectionWorkCompletion{SnapshotID: snapshotID, Kind: "risk", Version: "v1", Worker: "projection-worker-01", LeaseToken: "projection-token-00000001", Outcome: "failed", LastError: "projection_failed"}
+	if _, err := repository.FinishProjectionWork(context.Background(), identity.Scope, completion); !errors.Is(err, ErrRepositoryUnavailable) {
+		t.Fatalf("attempt 6 completion output error=%v", err)
 	}
 }
 

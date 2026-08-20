@@ -295,7 +295,7 @@ func (repository *DiscoveryExecutionRepository) GetDiscoveryScheduleInput(ctx co
 		return ExecutionScheduleInput{}, discoveryProviderError(err)
 	}
 	var result ExecutionScheduleInput
-	if decodeStrictDiscovery(payload, &result) != nil || result.OrganizationID != scope.OrganizationID().String() || result.WorkspaceID != scope.WorkspaceID().String() || result.EnvironmentID != scope.EnvironmentID().String() || result.ScheduleID != scheduleID || !validProductID(result.IntegrationID) || result.CadenceSeconds < 60 || result.CadenceSeconds > 604800 || len(result.TimeZone) < 1 || len(result.TimeZone) > 64 || result.NextRunAt.IsZero() || result.Version < 1 || !validLeaseExpiration(result.LeaseExpiresAt, 900) {
+	if decodeStrictDiscovery(payload, &result) != nil || result.OrganizationID != scope.OrganizationID().String() || result.WorkspaceID != scope.WorkspaceID().String() || result.EnvironmentID != scope.EnvironmentID().String() || result.ScheduleID != scheduleID || !validProductID(result.IntegrationID) || result.CadenceSeconds < 300 || result.CadenceSeconds > 2678400 || len(result.TimeZone) < 1 || len(result.TimeZone) > 64 || result.NextRunAt.IsZero() || result.Version < 1 || !validLeaseExpiration(result.LeaseExpiresAt, 900) {
 		return ExecutionScheduleInput{}, ErrRepositoryUnavailable
 	}
 	result.NextRunAt, result.LeaseExpiresAt = result.NextRunAt.UTC(), result.LeaseExpiresAt.UTC()
@@ -476,7 +476,7 @@ func (repository *DiscoveryExecutionRepository) ClaimProjectionWork(ctx context.
 	}
 	for index := range envelope.Items {
 		item := &envelope.Items[index]
-		if !validLeaseScope(item.OrganizationID, item.WorkspaceID, item.EnvironmentID) || !validProductID(item.SnapshotID) || item.Kind != kind || !executionVersionPattern.MatchString(item.Version) || len(item.InputDigest) != sha256.Size || item.Attempt < 1 || item.Attempt > 100 || !validLeaseExpiration(item.LeaseExpiresAt, leaseSeconds) {
+		if !validLeaseScope(item.OrganizationID, item.WorkspaceID, item.EnvironmentID) || !validProductID(item.SnapshotID) || item.Kind != kind || !executionVersionPattern.MatchString(item.Version) || len(item.InputDigest) != sha256.Size || item.Attempt < 1 || item.Attempt > 5 || !validLeaseExpiration(item.LeaseExpiresAt, leaseSeconds) {
 			return nil, ErrRepositoryUnavailable
 		}
 		item.InputDigest = bytes.Clone(item.InputDigest)
@@ -515,7 +515,7 @@ func (repository *DiscoveryExecutionRepository) FinishProjectionWork(ctx context
 		return WorkCompletionResult{}, discoveryProviderError(err)
 	}
 	var result WorkCompletionResult
-	if decodeStrictDiscovery(payload, &result) != nil || result.SnapshotID != input.SnapshotID || result.Kind != input.Kind || !validCompletionState(input.Outcome, result.State) || result.Attempt < 1 || result.Attempt > 100 || result.CompletedAt != nil {
+	if decodeStrictDiscovery(payload, &result) != nil || result.SnapshotID != input.SnapshotID || result.Kind != input.Kind || !validCompletionState(input.Outcome, result.State) || result.Attempt < 1 || result.Attempt > 5 || result.CompletedAt != nil {
 		return WorkCompletionResult{}, ErrRepositoryUnavailable
 	}
 	return result, nil
@@ -556,7 +556,7 @@ func (repository *DiscoveryExecutionRepository) GetProjectionStatus(ctx context.
 	}
 	for index, kind := range []string{"graph", "risk", "search"} {
 		item := &result.Projections[index]
-		if item.Kind != kind || !stringIn(item.WorkState, "pending", "leased", "retryable", "succeeded", "failed", "cancelled") || !executionVersionPattern.MatchString(item.WorkVersion) || !bytes.Equal(item.WorkInputDigest, result.InputDigest) || item.Attempt < 0 || item.Attempt > 100 {
+		if item.Kind != kind || !stringIn(item.WorkState, "pending", "leased", "retryable", "succeeded", "failed", "cancelled") || !executionVersionPattern.MatchString(item.WorkVersion) || !bytes.Equal(item.WorkInputDigest, result.InputDigest) || item.Attempt < 0 || item.Attempt > 5 {
 			return ProjectionStatus{}, ErrRepositoryUnavailable
 		}
 		if item.Current {

@@ -40,20 +40,22 @@ const (
 	executionName         = "production_discovery_execution"
 	rollbackTimeout       = 5 * time.Second
 
-	tableExistsSQL           = "SELECT to_regclass('public.zasp_schema_versions') IS NOT NULL"
-	countRowsSQL             = `SELECT count(*) FROM "public"."zasp_schema_versions"`
-	readRowSQL               = `SELECT "version", "name", "checksum" FROM "public"."zasp_schema_versions" ORDER BY "version"`
-	readVersionSQL           = `SELECT "version", "name", "checksum" FROM "public"."zasp_schema_versions" WHERE "version" = $1`
-	lockTableSQL             = `LOCK TABLE "public"."zasp_schema_versions" IN ACCESS EXCLUSIVE MODE`
-	lockWorkflowMutationsSQL = `LOCK TABLE "public"."zasp_workflow_idempotency" IN ACCESS EXCLUSIVE MODE`
-	lockAdministrationSQL    = `LOCK TABLE "public"."zasp_identity_memberships", "public"."zasp_product_sessions", "public"."zasp_product_api_tokens", "public"."zasp_organizations", "public"."zasp_workspaces", "public"."zasp_environments", "public"."zasp_group_mappings", "public"."zasp_admin_audit", "public"."zasp_session_events", "public"."zasp_compliance_controls", "public"."zasp_compliance_evidence", "public"."zasp_data_controls" IN ACCESS EXCLUSIVE MODE`
-	lockRevealGrantsSQL      = `LOCK TABLE "public"."zasp_admin_idempotency", "public"."zasp_api_token_reveal_grants", "public"."zasp_product_api_tokens" IN ACCESS EXCLUSIVE MODE`
-	lockRiskProjectionSQL    = `LOCK TABLE "public"."zasp_risk_findings", "public"."zasp_risk_finding_evidence", "public"."zasp_risk_finding_factors", "public"."zasp_risk_attack_paths", "public"."zasp_risk_attack_path_nodes", "public"."zasp_risk_attack_path_evidence", "public"."zasp_risk_break_options", "public"."zasp_workflow_idempotency", "public"."zasp_workflow_audit", "public"."zasp_workflow_receipts" IN ACCESS EXCLUSIVE MODE`
-	lockDiscoverySQL         = `LOCK TABLE "public"."zasp_discovery_principal_bindings", "public"."zasp_integrations", "public"."zasp_integration_connections", "public"."zasp_discovery_schedules", "public"."zasp_discovery_syncs", "public"."zasp_discovery_jobs", "public"."zasp_discovery_snapshots", "public"."zasp_discovery_cursors", "public"."zasp_inventory_entities", "public"."zasp_inventory_source_observations", "public"."zasp_inventory_relationships", "public"."zasp_inventory_evidence", "public"."zasp_sensors", "public"."zasp_sensor_tokens", "public"."zasp_sensor_heartbeats", "public"."zasp_runtime_batches", "public"."zasp_runtime_stages", "public"."zasp_discovery_outbox", "public"."zasp_projection_work", "public"."zasp_gateway_devices", "public"."zasp_gateway_enrollment_tokens", "public"."zasp_gateway_credentials", "public"."zasp_gateway_policy_subscriptions" IN ACCESS EXCLUSIVE MODE`
-	lockConnectorSQL         = `LOCK TABLE "public"."zasp_connector_oauth_attempts", "public"."zasp_connector_effects", "public"."zasp_connector_credentials", "public"."zasp_connector_audit" IN ACCESS EXCLUSIVE MODE`
-	lockExecutionSQL         = `LOCK TABLE "public"."zasp_discovery_execution_principals", "public"."zasp_discovery_connection_subjects", "public"."zasp_discovery_execution_quotas", "public"."zasp_discovery_generation_reservations", "public"."zasp_discovery_job_authorities", "public"."zasp_discovery_upgrade_transitions", "public"."zasp_discovery_snapshot_inputs", "public"."zasp_discovery_snapshot_projection_items", "public"."zasp_discovery_projection_cursors" IN ACCESS EXCLUSIVE MODE`
-	insertRowSQL             = `INSERT INTO "public"."zasp_schema_versions" ("version", "name", "checksum") VALUES ($1, $2, $3)`
-	deleteRowSQL             = `DELETE FROM "public"."zasp_schema_versions" WHERE "version" = $1 AND "name" = $2 AND "checksum" = $3`
+	tableExistsSQL                     = "SELECT to_regclass('public.zasp_schema_versions') IS NOT NULL"
+	countRowsSQL                       = `SELECT count(*) FROM "public"."zasp_schema_versions"`
+	readRowSQL                         = `SELECT "version", "name", "checksum" FROM "public"."zasp_schema_versions" ORDER BY "version"`
+	readVersionSQL                     = `SELECT "version", "name", "checksum" FROM "public"."zasp_schema_versions" WHERE "version" = $1`
+	lockTableSQL                       = `LOCK TABLE "public"."zasp_schema_versions" IN ACCESS EXCLUSIVE MODE`
+	lockWorkflowMutationsSQL           = `LOCK TABLE "public"."zasp_workflow_idempotency" IN ACCESS EXCLUSIVE MODE`
+	lockAdministrationSQL              = `LOCK TABLE "public"."zasp_identity_memberships", "public"."zasp_product_sessions", "public"."zasp_product_api_tokens", "public"."zasp_organizations", "public"."zasp_workspaces", "public"."zasp_environments", "public"."zasp_group_mappings", "public"."zasp_admin_audit", "public"."zasp_session_events", "public"."zasp_compliance_controls", "public"."zasp_compliance_evidence", "public"."zasp_data_controls" IN ACCESS EXCLUSIVE MODE`
+	lockRevealGrantsSQL                = `LOCK TABLE "public"."zasp_admin_idempotency", "public"."zasp_api_token_reveal_grants", "public"."zasp_product_api_tokens" IN ACCESS EXCLUSIVE MODE`
+	lockRiskProjectionSQL              = `LOCK TABLE "public"."zasp_risk_findings", "public"."zasp_risk_finding_evidence", "public"."zasp_risk_finding_factors", "public"."zasp_risk_attack_paths", "public"."zasp_risk_attack_path_nodes", "public"."zasp_risk_attack_path_evidence", "public"."zasp_risk_break_options", "public"."zasp_workflow_idempotency", "public"."zasp_workflow_audit", "public"."zasp_workflow_receipts" IN ACCESS EXCLUSIVE MODE`
+	lockDiscoverySQL                   = `LOCK TABLE "public"."zasp_discovery_principal_bindings", "public"."zasp_integrations", "public"."zasp_integration_connections", "public"."zasp_discovery_schedules", "public"."zasp_discovery_syncs", "public"."zasp_discovery_jobs", "public"."zasp_discovery_snapshots", "public"."zasp_discovery_cursors", "public"."zasp_inventory_entities", "public"."zasp_inventory_source_observations", "public"."zasp_inventory_relationships", "public"."zasp_inventory_evidence", "public"."zasp_sensors", "public"."zasp_sensor_tokens", "public"."zasp_sensor_heartbeats", "public"."zasp_runtime_batches", "public"."zasp_runtime_stages", "public"."zasp_discovery_outbox", "public"."zasp_projection_work", "public"."zasp_gateway_devices", "public"."zasp_gateway_enrollment_tokens", "public"."zasp_gateway_credentials", "public"."zasp_gateway_policy_subscriptions" IN ACCESS EXCLUSIVE MODE`
+	lockConnectorSQL                   = `LOCK TABLE "public"."zasp_connector_oauth_attempts", "public"."zasp_connector_effects", "public"."zasp_connector_credentials", "public"."zasp_connector_audit" IN ACCESS EXCLUSIVE MODE`
+	lockExecutionSQL                   = `LOCK TABLE "public"."zasp_discovery_execution_principals", "public"."zasp_discovery_connection_subjects", "public"."zasp_discovery_execution_quotas", "public"."zasp_discovery_generation_reservations", "public"."zasp_discovery_job_authorities", "public"."zasp_discovery_upgrade_transitions", "public"."zasp_discovery_snapshot_inputs", "public"."zasp_discovery_snapshot_projection_items", "public"."zasp_discovery_projection_cursors" IN ACCESS EXCLUSIVE MODE`
+	insertRowSQL                       = `INSERT INTO "public"."zasp_schema_versions" ("version", "name", "checksum") VALUES ($1, $2, $3)`
+	deleteRowSQL                       = `DELETE FROM "public"."zasp_schema_versions" WHERE "version" = $1 AND "name" = $2 AND "checksum" = $3`
+	referenceAuthorizationReadinessSQL = `SELECT zasp_reference_authorization_readiness($1,$2)`
+	discoveryExecutionReadinessSQL     = `SELECT zasp_execution_readiness($1,$2)`
 )
 
 var (
@@ -1107,6 +1109,9 @@ func (runner *Runner) UpProductionDiscoveryExecution(ctx context.Context) error 
 		if err := readReferenceAuthorizationState(ctx, transaction); err != nil {
 			return err
 		}
+		if err := requireMigrationReadiness(ctx, transaction, referenceAuthorizationReadinessSQL, ReferenceAuthorization().Checksum(), ReferenceAuthorizationSemanticFingerprint()); err != nil {
+			return err
+		}
 		metadata := ProductionDiscoveryExecution()
 		if err := transaction.Exec(ctx, metadata.UpSQL()); err != nil {
 			return fixedDatabaseError(ctx, err)
@@ -1114,8 +1119,22 @@ func (runner *Runner) UpProductionDiscoveryExecution(ctx context.Context) error 
 		if err := transaction.Exec(ctx, insertRowSQL, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
 			return fixedDatabaseError(ctx, err)
 		}
-		return readProductionDiscoveryExecutionState(ctx, transaction)
+		if err := readProductionDiscoveryExecutionState(ctx, transaction); err != nil {
+			return err
+		}
+		return requireMigrationReadiness(ctx, transaction, discoveryExecutionReadinessSQL, metadata.Checksum(), ProductionDiscoveryExecutionSemanticFingerprint())
 	})
+}
+
+func requireMigrationReadiness(ctx context.Context, queryer Queryer, statement, checksum, fingerprint string) error {
+	var ready bool
+	if err := scanRow(ctx, queryer, statement, []any{checksum, fingerprint}, &ready); err != nil {
+		return fixedDatabaseError(ctx, err)
+	}
+	if !ready {
+		return ErrInvalidState
+	}
+	return nil
 }
 
 func (runner *Runner) DownProductionDiscoveryExecution(ctx context.Context) error {

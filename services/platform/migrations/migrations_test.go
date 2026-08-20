@@ -174,6 +174,49 @@ func exactRows() []Row {
 	}
 }
 
+func exactReleaseRows(metadata ...Metadata) []Row {
+	rows := []Row{fakeRow{values: []any{int64(len(metadata))}}}
+	for _, release := range metadata {
+		rows = append(rows, fakeRow{values: []any{release.Version(), release.Name(), release.Checksum()}})
+	}
+	return rows
+}
+
+func TestRunnerProductionDiscoveryExecutionRequiresLiveAdjacentReadiness(t *testing.T) {
+	adjacent := []Metadata{Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization()}
+	execution := append(append([]Metadata(nil), adjacent...), ProductionDiscoveryExecution())
+
+	t.Run("preflight drift is mutation free", func(t *testing.T) {
+		transaction := &fakeTransaction{rows: append(exactReleaseRows(adjacent...), fakeRow{values: []any{false}})}
+		database := &fakeDatabase{transaction: transaction}
+		runner, _ := NewRunner(database)
+		if err := runner.UpProductionDiscoveryExecution(context.Background()); !errors.Is(err, ErrInvalidState) {
+			t.Fatalf("preflight error=%v", err)
+		}
+		if transaction.execs != 4 {
+			t.Fatalf("preflight mutated schema after %d lock operations", transaction.execs)
+		}
+		if contains(database.events, "exec:"+compactSQL(ProductionDiscoveryExecution().UpSQL())) {
+			t.Fatalf("preflight executed v13 migration: %#v", database.events)
+		}
+	})
+
+	t.Run("postflight readiness is required", func(t *testing.T) {
+		rows := append(exactReleaseRows(adjacent...), fakeRow{values: []any{true}})
+		rows = append(rows, exactReleaseRows(execution...)...)
+		rows = append(rows, fakeRow{values: []any{false}})
+		transaction := &fakeTransaction{rows: rows}
+		database := &fakeDatabase{transaction: transaction}
+		runner, _ := NewRunner(database)
+		if err := runner.UpProductionDiscoveryExecution(context.Background()); !errors.Is(err, ErrInvalidState) {
+			t.Fatalf("postflight error=%v", err)
+		}
+		if !contains(database.events, "rollback") {
+			t.Fatalf("postflight did not rollback: %#v", database.events)
+		}
+	})
+}
+
 func TestBaselineMetadataIsStableAndOpaque(t *testing.T) {
 	metadata := Baseline()
 	const expectedUp = `CREATE TABLE "public"."zasp_schema_versions" (
