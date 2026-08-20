@@ -473,7 +473,7 @@ func (repository *ConnectorRepository) CompleteConnectorCleanupReconciliation(ct
 
 func (repository *ConnectorRepository) QuarantineConnectorReconciliation(ctx context.Context, lease ConnectorEffectLease, errorCode string) (ConnectorEffectTransition, error) {
 	validReason := lease.Operation == "authorize" && stringIn(errorCode, "provider_outcome_ambiguous", "provider_cleanup_ambiguous") || lease.Operation == "revoke" && errorCode == "provider_revocation_ambiguous" || lease.Operation == "pkce_cleanup" && errorCode == "pkce_cleanup_ambiguous"
-	if !validConnectorRepository(repository, ctx) || !validConnectorLease(lease) || lease.Attempt != 100 || !validReason {
+	if !validConnectorRepository(repository, ctx) || !validConnectorLeaseIdentity(lease) || lease.Attempt != 100 || !validReason {
 		return ConnectorEffectTransition{}, ErrRepositoryOperation
 	}
 	payload, err := repository.database.QueryJSON(ctx, postgresConnectorQuarantineSQL, lease.OrganizationID, lease.WorkspaceID, lease.EnvironmentID, lease.ID, lease.LeaseOwner, lease.LeaseToken, errorCode)
@@ -538,10 +538,14 @@ func (repository *ConnectorRepository) RemediateConnectorQuarantine(ctx context.
 }
 
 func validConnectorLease(lease ConnectorEffectLease) bool {
+	return validConnectorLeaseIdentity(lease) && lease.LeaseExpiresAt.After(time.Now())
+}
+
+func validConnectorLeaseIdentity(lease ConnectorEffectLease) bool {
 	digest, err := hex.DecodeString(lease.RequestDigest)
 	validReference := lease.Operation == "revoke" && validOpaqueReference(lease.ConnectionReference) || lease.Operation == "pkce_cleanup" && validOpaqueReference(lease.ConnectionReference) || lease.Operation == "authorize" && lease.LastErrorCode == "cleanup_pending" && validOpaqueReference(lease.ConnectionReference) || !stringIn(lease.Operation, "revoke", "pkce_cleanup") && (lease.Operation != "authorize" || lease.LastErrorCode != "cleanup_pending") && lease.ConnectionReference == ""
 	validParent := lease.Operation == "authorize" && validProductID(lease.OAuthAttemptID) && validProductID(lease.PrincipalID) && validConnectorScopes(lease.RequestedScopes) || lease.Operation == "pkce_cleanup" && (lease.OAuthAttemptID == "" || validProductID(lease.OAuthAttemptID)) && (lease.PrincipalID == "" || validProductID(lease.PrincipalID)) && (lease.RequestedScopes == nil || validConnectorScopes(lease.RequestedScopes)) || !stringIn(lease.Operation, "authorize", "pkce_cleanup") && lease.OAuthAttemptID == "" && lease.PrincipalID == "" && lease.RequestedScopes == nil
-	return err == nil && len(digest) == sha256.Size && validProductID(lease.OrganizationID) && validProductID(lease.WorkspaceID) && validProductID(lease.EnvironmentID) && validProductID(lease.ID) && validProductID(lease.IntegrationID) && validConnectorProvider(lease.Provider) && stringIn(lease.Operation, "authorize", "bind", "test", "rotate", "revoke", "pkce_cleanup", "nango_connect") && validParent && validReference && (lease.LastErrorCode == "" || connectorCodePattern.MatchString(lease.LastErrorCode)) && len(lease.IdempotencyKey) >= 16 && len(lease.IdempotencyKey) <= 128 && lease.Attempt >= 1 && lease.Attempt <= 100 && len(lease.LeaseOwner) >= 3 && len(lease.LeaseOwner) <= 128 && len(lease.LeaseToken) == 64 && lease.LeaseExpiresAt.After(time.Now())
+	return err == nil && len(digest) == sha256.Size && validProductID(lease.OrganizationID) && validProductID(lease.WorkspaceID) && validProductID(lease.EnvironmentID) && validProductID(lease.ID) && validProductID(lease.IntegrationID) && validConnectorProvider(lease.Provider) && stringIn(lease.Operation, "authorize", "bind", "test", "rotate", "revoke", "pkce_cleanup", "nango_connect") && validParent && validReference && (lease.LastErrorCode == "" || connectorCodePattern.MatchString(lease.LastErrorCode)) && len(lease.IdempotencyKey) >= 16 && len(lease.IdempotencyKey) <= 128 && lease.Attempt >= 1 && lease.Attempt <= 100 && len(lease.LeaseOwner) >= 3 && len(lease.LeaseOwner) <= 128 && len(lease.LeaseToken) == 64 && !lease.LeaseExpiresAt.IsZero()
 }
 
 func decodeConnectorTransition(payload json.RawMessage, effectID, status string, minimumAttempt int) (ConnectorEffectTransition, error) {

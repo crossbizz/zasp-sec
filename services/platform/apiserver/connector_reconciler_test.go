@@ -482,6 +482,40 @@ func TestConnectorReconcilerProcessesSlowProvidersWithoutStarvingOtherLeases(t *
 	}
 }
 
+func TestConnectorReconciliationBatchDoesNotCollapseDistinctNangoProviders(t *testing.T) {
+	leasing := func(ordinal int, provider string) ConnectorEffectLease {
+		return ConnectorEffectLease{ID: fmt.Sprintf("pid_730000%02d-0000-4000-8000-%012d", ordinal, ordinal), Provider: provider, Operation: "authorize"}
+	}
+	leases := make([]ConnectorEffectLease, 0, 26)
+	for ordinal := 1; ordinal <= 25; ordinal++ {
+		leases = append(leases, leasing(ordinal, "nango:one"))
+	}
+	fastID := "pid_73000026-0000-4000-8000-000000000026"
+	leases = append(leases, ConnectorEffectLease{ID: fastID, Provider: "nango:two", Operation: "authorize"})
+	completed := make(chan string, len(leases))
+	done := make(chan error, 1)
+	go func() {
+		done <- runConnectorReconciliationBatch(context.Background(), leases, func(_ context.Context, lease ConnectorEffectLease) error {
+			if lease.Provider == "nango:one" {
+				time.Sleep(250 * time.Millisecond)
+			}
+			completed <- lease.ID
+			return nil
+		})
+	}()
+	select {
+	case id := <-completed:
+		if id != fastID {
+			t.Fatalf("slow nango provider completed before exact fast provider: %s", id)
+		}
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("nango:two starved behind saturated nango:one")
+	}
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+}
+
 type connectorDeadlineRepositoryStub struct {
 	connectorReconciliationRepositoryStub
 	quarantineContextErr error
@@ -519,6 +553,21 @@ func TestConnectorReconcilerReservesLiveLeaseTimeForFinalAttemptQuarantine(t *te
 	}
 	if repository.quarantined != "provider_outcome_ambiguous" || repository.quarantineContextErr != nil {
 		t.Fatalf("finalization used expired provider context: quarantine=%q context_err=%v", repository.quarantined, repository.quarantineContextErr)
+	}
+}
+
+func TestConnectorReconcilerQuarantinesExpiredFinalAttemptBeforeProviderWork(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	integrationID := "pid_70000001-0000-4000-8000-000000000001"
+	attemptID := "pid_70000002-0000-4000-8000-000000000002"
+	workflow := connectorWorkflowValue(integrationID, "github")
+	digest := connectorAuthorizationIntentDigestValues(identity.Scope, identity.PrincipalID.String(), workflow, integrationID, attemptID, "github", map[string]string{}, []string{"read:org", "repo"})
+	repository := &connectorDeadlineRepositoryStub{connectorReconciliationRepositoryStub: connectorReconciliationRepositoryStub{lease: ConnectorEffectLease{OrganizationID: identity.Scope.OrganizationID().String(), WorkspaceID: identity.Scope.WorkspaceID().String(), EnvironmentID: identity.Scope.EnvironmentID().String(), ID: "pid_70000003-0000-4000-8000-000000000003", IntegrationID: integrationID, OAuthAttemptID: attemptID, PrincipalID: identity.PrincipalID.String(), RequestedScopes: []string{"read:org", "repo"}, Provider: "github", Operation: "authorize", IdempotencyKey: "oauth-authorize:" + attemptID, RequestDigest: hex.EncodeToString(digest[:]), Attempt: 100, LeaseOwner: "connector-worker-a", LeaseToken: hex.EncodeToString(make([]byte, sha256.Size)), LeaseExpiresAt: time.Now().Add(-time.Second)}}}
+	provider := &connectorRecoveryProvider{grant: ConnectorOAuthGrant{ConnectionReference: "ref:github/installation/123456", ProviderSubject: "installation:123456", CredentialClass: "github_installation_reference", Metadata: json.RawMessage(`{"installation_id":123456}`)}}
+	registry, _ := NewConnectorProviderRegistry(map[string]ConnectorOAuthProviderDefinition{"github": {Provider: provider, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"}}, nil)
+	reconciler, _ := NewConnectorReconciler(ConnectorReconcilerConfig{Repository: repository, Workflows: connectorWorkflowStub{value: workflow}, Registry: registry, Secrets: &connectorSecretStub{}, Owner: "connector-worker-a", LeaseSeconds: 30, Limit: 10, Interval: time.Second})
+	if err := reconciler.reconcileOnce(context.Background()); err != nil || repository.quarantined != "provider_outcome_ambiguous" || provider.recoverCalls != 0 {
+		t.Fatalf("expired final attempt err=%v quarantine=%q provider_calls=%d", err, repository.quarantined, provider.recoverCalls)
 	}
 }
 

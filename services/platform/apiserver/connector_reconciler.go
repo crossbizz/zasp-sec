@@ -103,26 +103,18 @@ func (reconciler *ConnectorReconciler) reconcileBatch(ctx context.Context) (bool
 	if len(leases) == 0 {
 		return true, nil
 	}
-	lanes := make(map[string][]ConnectorEffectLease, 4)
-	for _, lease := range leases {
-		lane := lease.Provider
-		if lease.Operation == "pkce_cleanup" {
-			lane = "pkce_cleanup"
-		} else if lane != "github" && lane != "okta" {
-			lane = "nango"
-		}
-		lanes[lane] = append(lanes[lane], lease)
-	}
+	return true, runConnectorReconciliationBatch(ctx, leases, reconciler.reconcileLease)
+}
+
+func runConnectorReconciliationBatch(ctx context.Context, leases []ConnectorEffectLease, reconcile func(context.Context, ConnectorEffectLease) error) error {
 	results := make(chan error, len(leases))
 	var workers sync.WaitGroup
-	workers.Add(len(lanes))
-	for _, lane := range lanes {
-		go func(items []ConnectorEffectLease) {
+	workers.Add(len(leases))
+	for _, lease := range leases {
+		go func(item ConnectorEffectLease) {
 			defer workers.Done()
-			for _, lease := range items {
-				results <- reconciler.reconcileLease(ctx, lease)
-			}
-		}(lane)
+			results <- reconcile(ctx, item)
+		}(lease)
 	}
 	workers.Wait()
 	close(results)
@@ -130,14 +122,14 @@ func (reconciler *ConnectorReconciler) reconcileBatch(ctx context.Context) (bool
 	for err := range results {
 		result = errors.Join(result, err)
 	}
-	return true, result
+	return result
 }
 
 func (reconciler *ConnectorReconciler) reconcileLease(ctx context.Context, lease ConnectorEffectLease) error {
 	now := time.Now()
 	finalizationDeadline := lease.LeaseExpiresAt.Add(-100 * time.Millisecond)
 	if !finalizationDeadline.After(now) {
-		return ErrRepositoryConflict
+		return reconciler.quarantineExpiredFinalAttempt(ctx, lease)
 	}
 	providerReserve := 2 * time.Second
 	if available := finalizationDeadline.Sub(now); providerReserve >= available {
@@ -145,7 +137,7 @@ func (reconciler *ConnectorReconciler) reconcileLease(ctx context.Context, lease
 	}
 	providerDeadline := finalizationDeadline.Add(-providerReserve)
 	if !providerDeadline.After(now) {
-		return ErrRepositoryConflict
+		return reconciler.quarantineExpiredFinalAttempt(ctx, lease)
 	}
 	providerContext, cancel := context.WithDeadline(ctx, providerDeadline)
 	defer cancel()
@@ -225,6 +217,24 @@ func (reconciler *ConnectorReconciler) reconcileLease(ctx context.Context, lease
 	}
 	_, err = reconciler.repository.CompleteConnectorCleanupReconciliation(finalizationContext, lease)
 	return reconciler.quarantineFinalAttempt(finalizationContext, lease, "provider_cleanup_ambiguous", err)
+}
+
+func (reconciler *ConnectorReconciler) quarantineExpiredFinalAttempt(ctx context.Context, lease ConnectorEffectLease) error {
+	if lease.Attempt < 100 {
+		return ErrRepositoryConflict
+	}
+	code := "provider_outcome_ambiguous"
+	if lease.Operation == "pkce_cleanup" {
+		code = "pkce_cleanup_ambiguous"
+	} else if lease.Operation == "revoke" {
+		code = "provider_revocation_ambiguous"
+	} else if lease.LastErrorCode == "cleanup_pending" {
+		code = "provider_cleanup_ambiguous"
+	}
+	finalizationContext, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	_, err := reconciler.repository.QuarantineConnectorReconciliation(finalizationContext, lease, code)
+	return err
 }
 
 func (reconciler *ConnectorReconciler) reconcileRevocation(providerContext, finalizationContext context.Context, lease ConnectorEffectLease) error {

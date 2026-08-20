@@ -707,6 +707,51 @@ func TestConnectorAuthorizationPostgresConsumedAttemptCannotBeExpiredByPKCEClean
 	}
 }
 
+func TestConnectorAuthorizationPostgresClaimReturnsOneImmediatelyRunnableLeasePerExactLane(t *testing.T) {
+	dsn := startDisposablePostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	connection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close(ctx)
+	migrateToConnectorAuthorization(t, ctx, connection)
+	database, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
+	workflows, _ := NewPostgresRepository(database)
+	connectors := &ConnectorRepository{database: database}
+	identity := fixtureRequestIdentity(t)
+	integrationID := "pid_72400001-0000-4000-8000-000000000001"
+	create := WorkflowMutation{Action: "create", Kind: "integration", ID: integrationID, Operation: "createIntegration", IdempotencyKey: "idem-fair-claim-create-0001", Intent: json.RawMessage(`{"body":{"connector_key":"github"},"expected_version":0,"resource_id":""}`), Body: json.RawMessage(`{"id":"` + integrationID + `","connector_key":"github","name":"Fair Claim","configuration":{"authorization_mode":"github_app"},"status":"pending_authorization","created_at":"2026-08-19T00:00:00Z","updated_at":"2026-08-19T00:00:00Z"}`), AuditID: "pid_72400002-0000-4000-8000-000000000002", CorrelationID: "pid_72400003-0000-4000-8000-000000000003", ReceiptID: "pid_72400004-0000-4000-8000-000000000004"}
+	if _, err := workflows.MutateWorkflow(ctx, identity, create); err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256([]byte("fair-claim"))
+	for ordinal := 1; ordinal <= 25; ordinal++ {
+		effectID := fmt.Sprintf("pid_724001%02d-0000-4000-8000-%012d", ordinal, ordinal)
+		if _, err := connection.Exec(ctx, `INSERT INTO zasp_connector_effects(organization_id,workspace_id,environment_id,id,integration_id,provider,operation,idempotency_key,request_digest,status,connection_reference,attempt,available_at,updated_at) VALUES($1,$2,$3,$4,$5,'github','revoke',$6,$7,'unknown','ref:github/installation/123456',99,transaction_timestamp()-interval '1 minute',transaction_timestamp()-interval '1 minute')`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), effectID, integrationID, fmt.Sprintf("fair-revoke-%04d", ordinal), digest[:]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	leases, err := connectors.ClaimReconciliation(ctx, "connector-worker-fair", 30, 25)
+	if err != nil || len(leases) != 1 || leases[0].Provider != "github" || leases[0].Operation != "revoke" || leases[0].Attempt != 100 {
+		t.Fatalf("fair exact-lane claim=%#v err=%v", leases, err)
+	}
+	if _, err := connection.Exec(ctx, `UPDATE zasp_connector_effects SET updated_at=transaction_timestamp()-interval '2 seconds',lease_expires_at=transaction_timestamp()-interval '1 second' WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND id=$4`, leases[0].OrganizationID, leases[0].WorkspaceID, leases[0].EnvironmentID, leases[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connectors.QuarantineConnectorReconciliation(ctx, leases[0], "provider_revocation_ambiguous"); err != nil {
+		t.Fatalf("fenced expired attempt-100 terminalization = %v", err)
+	}
+	if _, err := connectors.QuarantineConnectorReconciliation(ctx, leases[0], "provider_revocation_ambiguous"); !errors.Is(err, ErrRepositoryConflict) {
+		t.Fatalf("stale terminalization replay = %v", err)
+	}
+	var stranded int
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_connector_effects WHERE attempt=100 AND status='unknown' AND last_error_code IS DISTINCT FROM 'provider_revocation_ambiguous'`).Scan(&stranded); err != nil || stranded != 0 {
+		t.Fatalf("stranded final attempts=%d err=%v", stranded, err)
+	}
+}
+
 func TestConnectorAuthorizationPostgresCompletionRejectsChangedStoredIntentAtomically(t *testing.T) {
 	dsn := startDisposablePostgres(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
