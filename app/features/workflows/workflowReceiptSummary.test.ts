@@ -46,6 +46,19 @@ describe("truthful workflow receipt summary", () => {
 		for (const hidden of Object.values(configuration)) expect(serialized).not.toContain(hidden);
 	});
 
+	it("summarizes OAuth completion intent without assuming a standard workflow body", () => {
+		const result = { id: "pid_20000001-0000-4000-8000-000000000001", connector_key: "github", name: "GitHub", configuration: { installation_reference: "ref:github/installation/customer-0001" }, status: "active", created_at: "2026-08-18T12:00:00Z", updated_at: "2026-08-18T12:00:00Z" };
+		const intent = { authorization_attempt_id: "pid_55555555-5555-4555-8555-555555555555", integration_id: result.id, provider: "github" };
+		const receipt = { ...base, idempotency_key: `oauth-completion:${intent.authorization_attempt_id}`, operation: "completeIntegrationOAuth", intent, result, resource_kind: "integration", resource_id: result.id } as unknown as WorkflowMutationReceipt;
+		const summary = workflowReceiptSummary(receipt);
+		expect(summary.intent).toEqual([
+			{ label: "Requested integration", value: result.id },
+			{ label: "Requested provider", value: "github" },
+		]);
+		expect(JSON.stringify(summary)).not.toContain(intent.authorization_attempt_id);
+		expect(JSON.stringify(summary)).not.toContain(result.configuration.installation_reference);
+	});
+
   it("summarizes Security Agent create, update, and delete receipts from allowlisted fields", () => {
     const result = { id: "pid_20000002-0000-4000-8000-000000000002", name: "Credential responder", trigger_kind: "finding", trigger_source: "credential", environment_ids: ["pid_10000003-0000-4000-8000-000000000003"], autonomy: "supervised", max_steps: 10, max_duration_seconds: 900, temporary_policy_seconds: 3600, ai_token_budget: 4000, concurrency_limit: 2, allowed_actions: ["run_test"], verification_kind: "test_run", definition_version: 1, enabled: true };
     const createInput = Object.fromEntries(Object.entries(result).filter(([key]) => key !== "id"));

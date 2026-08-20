@@ -134,7 +134,7 @@ export function decodeWorkflowMutationReceipt(value: unknown, expectedScopeKey?:
   const record = exactRecord(value, ["id", "operation", "idempotency_key", "intent", "result", "resource_kind", "resource_id", "resource_version", "audit_id", "correlation_id", "created_at", "expires_at"]);
   productID(record.id);
   if (typeof record.idempotency_key !== "string" || !IDEMPOTENCY_KEY.test(record.idempotency_key)) fail();
-  enumValue(record.operation, ["createPolicy", "updatePolicy", "deletePolicy", "rolloutPolicy", "disablePolicy", "createIntegration", "updateIntegration", "deleteIntegration", "remediateIntegrationAuthorization", "completeIntegrationReferenceAuthorization", "createSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent", "updateFinding", "acceptFindingRisk"]);
+  enumValue(record.operation, ["createPolicy", "updatePolicy", "deletePolicy", "rolloutPolicy", "disablePolicy", "createIntegration", "updateIntegration", "deleteIntegration", "remediateIntegrationAuthorization", "completeIntegrationOAuth", "completeIntegrationReferenceAuthorization", "createSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent", "updateFinding", "acceptFindingRisk"]);
   enumValue(record.resource_kind, ["policy", "integration", "security_agent", "finding"]);
   if (typeof record.resource_id !== "string" || !workflowResourceID(record.resource_kind, record.resource_id)) fail();
   positiveInteger(record.resource_version);
@@ -170,6 +170,15 @@ function decodeWorkflowReceiptPayload(operation: unknown, kind: unknown, resourc
     const result = resultValue as Integration;
     if (kind !== "integration" || result.id !== resourceID || result.status !== "active") fail();
     decodeReferenceAuthorizationReceiptIntent(intentValue, result, resourceID, resourceVersion, idempotencyKey, expectedScopeKey);
+    return;
+  }
+  if (operation === "completeIntegrationOAuth") {
+    decodeIntegration(resultValue);
+    const result = resultValue as Integration;
+    const intent = exactRecord(intentValue, ["authorization_attempt_id", "integration_id", "provider"]);
+    productID(intent.authorization_attempt_id); productID(intent.integration_id);
+    if (typeof intent.provider !== "string" || !/^(github|okta|nango:[a-z0-9][a-z0-9_-]{1,62})$/.test(intent.provider)) fail();
+    if (kind !== "integration" || result.id !== resourceID || result.status !== "active" || intent.integration_id !== resourceID || intent.provider !== result.connector_key || idempotencyKey !== `oauth-completion:${intent.authorization_attempt_id}`) fail();
     return;
   }
   const intent = exactRecord(intentValue, ["body", "expected_version", "resource_id"]);

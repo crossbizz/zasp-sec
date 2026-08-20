@@ -14,12 +14,16 @@ export function workflowReceiptSummary(receipt: WorkflowMutationReceipt): Workfl
   case "policy":
     return { intent: policyIntent(operation, receipt.resource_id, intent.body), result: policyResult(result, receipt.resource_version) };
   case "integration":
-    return { intent: operation === "completeIntegrationReferenceAuthorization" ? referenceAuthorizationIntent(receipt.intent as unknown as Record<string, unknown>) : integrationIntent(operation, receipt.resource_id, intent.body), result: integrationResult(result, receipt.resource_version) };
+    return { intent: operation === "completeIntegrationOAuth" ? oauthCompletionIntent(receipt.intent as unknown as Record<string, unknown>) : operation === "completeIntegrationReferenceAuthorization" ? referenceAuthorizationIntent(receipt.intent as unknown as Record<string, unknown>) : integrationIntent(operation, receipt.resource_id, intent.body), result: integrationResult(result, receipt.resource_version) };
   case "security_agent":
     return { intent: securityAgentIntent(operation, receipt.resource_id, intent.body), result: securityAgentResult(result, receipt.resource_version) };
   case "finding":
     return { intent: findingIntent(operation, receipt.resource_id, intent.body), result: findingResult(result, receipt.resource_version) };
   }
+}
+
+function oauthCompletionIntent(intent: Record<string, unknown>): readonly WorkflowReceiptSummaryField[] {
+  return [field("Requested integration", intent.integration_id), field("Requested provider", intent.provider)];
 }
 
 function referenceAuthorizationIntent(intent: Record<string, unknown>): readonly WorkflowReceiptSummaryField[] {

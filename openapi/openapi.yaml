@@ -1558,6 +1558,7 @@ components:
     WorkflowMutationReceipt:
       oneOf:
         - { $ref: '#/components/schemas/StandardWorkflowMutationReceipt' }
+        - { $ref: '#/components/schemas/OAuthCompletionWorkflowMutationReceipt' }
         - { $ref: '#/components/schemas/ReferenceAuthorizationWorkflowMutationReceipt' }
     StandardWorkflowMutationReceipt:
       type: object
@@ -1576,6 +1577,23 @@ components:
             - { $ref: '#/components/schemas/Finding' }
         resource_kind: { type: string, enum: [policy, integration, security_agent, finding] }
         resource_id: { type: string, minLength: 1, maxLength: 128 }
+        resource_version: { type: integer, minimum: 1 }
+        audit_id: { $ref: '#/components/schemas/ProductID' }
+        correlation_id: { $ref: '#/components/schemas/ProductID' }
+        created_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+    OAuthCompletionWorkflowMutationReceipt:
+      type: object
+      additionalProperties: false
+      required: [id, operation, idempotency_key, intent, result, resource_kind, resource_id, resource_version, audit_id, correlation_id, created_at, expires_at]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        operation: { type: string, const: completeIntegrationOAuth }
+        idempotency_key: { type: string, minLength: 16, maxLength: 128, pattern: '^oauth-completion:pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' }
+        intent: { $ref: '#/components/schemas/OAuthCompletionReceiptIntent' }
+        result: { $ref: '#/components/schemas/Integration' }
+        resource_kind: { type: string, const: integration }
+        resource_id: { $ref: '#/components/schemas/ProductID' }
         resource_version: { type: integer, minimum: 1 }
         audit_id: { $ref: '#/components/schemas/ProductID' }
         correlation_id: { $ref: '#/components/schemas/ProductID' }
@@ -1617,6 +1635,14 @@ components:
             - { $ref: '#/components/schemas/SecurityAgentDefinition' }
             - { $ref: '#/components/schemas/FindingUpdateInput' }
             - { $ref: '#/components/schemas/FindingAcceptanceInput' }
+    OAuthCompletionReceiptIntent:
+      type: object
+      additionalProperties: false
+      required: [authorization_attempt_id, integration_id, provider]
+      properties:
+        authorization_attempt_id: { $ref: '#/components/schemas/ProductID' }
+        integration_id: { $ref: '#/components/schemas/ProductID' }
+        provider: { type: string, pattern: '^(github|okta|nango:[a-z0-9][a-z0-9_-]{1,62})$' }
     ReferenceAuthorizationReceiptIntent:
       oneOf:
         - { $ref: '#/components/schemas/AWSReferenceAuthorizationReceiptIntent' }

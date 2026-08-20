@@ -1766,6 +1766,29 @@ export type components = {
         readonly NameInput: {
             readonly name: string;
         };
+        readonly OAuthCompletionReceiptIntent: {
+            readonly authorization_attempt_id: components["schemas"]["ProductID"];
+            readonly integration_id: components["schemas"]["ProductID"];
+            readonly provider: string;
+        };
+        readonly OAuthCompletionWorkflowMutationReceipt: {
+            readonly audit_id: components["schemas"]["ProductID"];
+            readonly correlation_id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly expires_at: string;
+            readonly id: components["schemas"]["ProductID"];
+            readonly idempotency_key: string;
+            readonly intent: components["schemas"]["OAuthCompletionReceiptIntent"];
+            /** @constant */
+            readonly operation: "completeIntegrationOAuth";
+            readonly resource_id: components["schemas"]["ProductID"];
+            /** @constant */
+            readonly resource_kind: "integration";
+            readonly resource_version: number;
+            readonly result: components["schemas"]["Integration"];
+        };
         readonly Organization: {
             readonly domain: string;
             readonly id: components["schemas"]["ProductID"];
@@ -2300,7 +2323,7 @@ export type components = {
             readonly expected_version: number;
             readonly resource_id: string;
         };
-        readonly WorkflowMutationReceipt: components["schemas"]["StandardWorkflowMutationReceipt"] | components["schemas"]["ReferenceAuthorizationWorkflowMutationReceipt"];
+        readonly WorkflowMutationReceipt: components["schemas"]["StandardWorkflowMutationReceipt"] | components["schemas"]["OAuthCompletionWorkflowMutationReceipt"] | components["schemas"]["ReferenceAuthorizationWorkflowMutationReceipt"];
         readonly WorkflowMutationReceiptPage: {
             readonly items: readonly components["schemas"]["WorkflowMutationReceipt"][];
         };
@@ -2449,6 +2472,8 @@ export type KubernetesReferenceAuthorizationConfiguration = components['schemas'
 export type KubernetesReferenceAuthorizationReceiptIntent = components['schemas']['KubernetesReferenceAuthorizationReceiptIntent'];
 export type MemberRoleInput = components['schemas']['MemberRoleInput'];
 export type NameInput = components['schemas']['NameInput'];
+export type OAuthCompletionReceiptIntent = components['schemas']['OAuthCompletionReceiptIntent'];
+export type OAuthCompletionWorkflowMutationReceipt = components['schemas']['OAuthCompletionWorkflowMutationReceipt'];
 export type Organization = components['schemas']['Organization'];
 export type PageInfo = components['schemas']['PageInfo'];
 export type Permission = components['schemas']['Permission'];

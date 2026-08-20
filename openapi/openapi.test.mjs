@@ -418,6 +418,7 @@ describe("production workflow concurrency contract", () => {
     const receipt = document.components.schemas.WorkflowMutationReceipt;
     assert.deepEqual(receipt.oneOf, [
       { $ref: "#/components/schemas/StandardWorkflowMutationReceipt" },
+      { $ref: "#/components/schemas/OAuthCompletionWorkflowMutationReceipt" },
       { $ref: "#/components/schemas/ReferenceAuthorizationWorkflowMutationReceipt" },
     ]);
     const standard = document.components.schemas.StandardWorkflowMutationReceipt;
@@ -430,6 +431,13 @@ describe("production workflow concurrency contract", () => {
     assert.deepEqual(reference.properties.intent, { $ref: "#/components/schemas/ReferenceAuthorizationReceiptIntent" });
     assert.deepEqual(reference.properties.result, { $ref: "#/components/schemas/Integration" });
     assert.deepEqual(reference.properties.resource_kind, { type: "string", const: "integration" });
+    const oauth = document.components.schemas.OAuthCompletionWorkflowMutationReceipt;
+    assert.equal(oauth.additionalProperties, false);
+    assert.deepEqual(oauth.required, standard.required);
+    assert.deepEqual(oauth.properties.operation, { type: "string", const: "completeIntegrationOAuth" });
+    assert.deepEqual(oauth.properties.intent, { $ref: "#/components/schemas/OAuthCompletionReceiptIntent" });
+    assert.deepEqual(oauth.properties.result, { $ref: "#/components/schemas/Integration" });
+    assert.deepEqual(oauth.properties.resource_kind, { type: "string", const: "integration" });
     assert.equal(document.components.schemas.WorkflowMutationReceiptPage.properties.items.maxItems, 50);
   });
 
@@ -486,6 +494,12 @@ describe("production workflow concurrency contract", () => {
     }
     assert.equal(document.components.schemas.AWSReferenceAuthorizationConfiguration.properties.role_arn.pattern, "^arn:aws:iam::[0-9]{12}:role/[A-Za-z0-9+=,.@_/-]{1,128}$");
     assert.equal(document.components.schemas.AWSReferenceAuthorizationConfiguration.properties.region.pattern, "^[a-z]{2}-[a-z]+-[1-9][0-9]?$");
+    const oauthIntent = document.components.schemas.OAuthCompletionReceiptIntent;
+    assert.equal(oauthIntent.additionalProperties, false);
+    assert.deepEqual(oauthIntent.required, ["authorization_attempt_id", "integration_id", "provider"]);
+    assert.deepEqual(oauthIntent.properties.authorization_attempt_id, { $ref: "#/components/schemas/ProductID" });
+    assert.deepEqual(oauthIntent.properties.integration_id, { $ref: "#/components/schemas/ProductID" });
+    assert.deepEqual(oauthIntent.properties.provider, { type: "string", pattern: "^(github|okta|nango:[a-z0-9][a-z0-9_-]{1,62})$" });
   });
 
   it("publishes exactly the mounted Batch 4 risk slice and launch authorization operations without other overclaims", () => {

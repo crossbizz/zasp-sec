@@ -148,7 +148,8 @@ test("exports the Batch 4 risk and launch authorization methods without removed 
   assert.match(referenceOperation, /readonly ETag: components\["headers"\]\["WorkflowETag"\]/);
   assert.match(referenceOperation, /readonly "X-Audit-ID": components\["headers"\]\["WorkflowAuditID"\]/);
   assert.match(referenceOperation, /readonly "X-Mutation-Receipt-ID": components\["headers"\]\["WorkflowMutationReceiptID"\]/);
-  assert.match(generated, /readonly WorkflowMutationReceipt: components\["schemas"\]\["StandardWorkflowMutationReceipt"\] \| components\["schemas"\]\["ReferenceAuthorizationWorkflowMutationReceipt"\]/);
+  assert.match(generated, /readonly WorkflowMutationReceipt: components\["schemas"\]\["StandardWorkflowMutationReceipt"\] \| components\["schemas"\]\["OAuthCompletionWorkflowMutationReceipt"\] \| components\["schemas"\]\["ReferenceAuthorizationWorkflowMutationReceipt"\]/);
+  assert.match(generated, /readonly operation: "completeIntegrationOAuth"/);
   assert.match(generated, /readonly operation: "completeIntegrationReferenceAuthorization"/);
   assert.match(generated, /readonly provider: "aws"/);
   assert.match(generated, /readonly provider: "kubernetes"/);

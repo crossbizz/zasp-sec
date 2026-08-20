@@ -29,6 +29,7 @@ type MutableReceipt = {
 function receipt(operation: string): MutableReceipt {
   const kind = operation.includes("Integration") ? "integration" : operation.includes("SecurityAgent") ? "security_agent" : "policy";
   const result = operation === "remediateIntegrationAuthorization" ? { ...integration, status: "pending_authorization" }
+    : operation === "completeIntegrationOAuth" ? { ...integration, connector_key: "github", configuration: { installation_reference: "ref:github/installation/customer-0001" }, status: "active" }
     : operation === "completeIntegrationReferenceAuthorization" ? { ...integration, connector_key: "aws", configuration: { role_arn: "arn:aws:iam::123456789012:role/zasp-discovery", external_id_reference: "ref:aws/external-id/customer-0001", region: "us-east-1" }, status: "active" }
     : kind === "integration" ? integration : kind === "security_agent" ? agent
     : operation === "rolloutPolicy" ? { ...policy, rollout: "monitor" }
@@ -43,14 +44,16 @@ function receipt(operation: string): MutableReceipt {
   if (operation === "remediateIntegrationAuthorization") body = { acknowledgement: "provider_grant_revoked_manually" };
   if (operation === "createSecurityAgent") body = Object.fromEntries(Object.entries(agent).filter(([key]) => key !== "id"));
   if (operation === "updateSecurityAgent") body = agent;
-  const intent = operation === "completeIntegrationReferenceAuthorization" ? {
+  const authorizationAttemptID = "pid_55555555-5555-4555-8555-555555555555";
+  const intent = operation === "completeIntegrationOAuth" ? { authorization_attempt_id: authorizationAttemptID, integration_id: result.id, provider: "github" }
+  : operation === "completeIntegrationReferenceAuthorization" ? {
     configuration: (result as Record<string, unknown>).configuration, expected_version: 1, idempotency_key: "wf_11111111-1111-4111-8111-111111111111",
     integration_id: result.id, provider: "aws",
     scope: { organization_id: "pid_10000001-0000-4000-8000-000000000001", workspace_id: "pid_10000002-0000-4000-8000-000000000002", environment_id: "pid_10000003-0000-4000-8000-000000000003" },
   } : { body, expected_version: create ? 0 : 1, resource_id: create ? "" : resourceID };
   return {
     id: "pid_11111111-1111-4111-8111-111111111111", operation,
-    idempotency_key: "wf_11111111-1111-4111-8111-111111111111",
+    idempotency_key: operation === "completeIntegrationOAuth" ? `oauth-completion:${authorizationAttemptID}` : "wf_11111111-1111-4111-8111-111111111111",
     intent,
     result, resource_kind: kind, resource_id: resourceID, resource_version: create ? 1 : 2,
     audit_id: "pid_33333333-3333-4333-8333-333333333333",
@@ -62,7 +65,7 @@ function receipt(operation: string): MutableReceipt {
 describe("workflow mutation receipt decoder", () => {
   it.each([
     "createPolicy", "updatePolicy", "deletePolicy", "rolloutPolicy", "disablePolicy",
-    "createIntegration", "updateIntegration", "deleteIntegration", "remediateIntegrationAuthorization", "completeIntegrationReferenceAuthorization",
+    "createIntegration", "updateIntegration", "deleteIntegration", "remediateIntegrationAuthorization", "completeIntegrationOAuth", "completeIntegrationReferenceAuthorization",
     "createSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent",
   ])("accepts an exact %s intent and authoritative result", (operation) => {
     expect(decodeWorkflowMutationReceipt(receipt(operation), operation === "completeIntegrationReferenceAuthorization" ? expectedScope : undefined)).toEqual(receipt(operation));
@@ -103,6 +106,24 @@ describe("workflow mutation receipt decoder", () => {
 		const value = receipt("completeIntegrationReferenceAuthorization");
 		mutate(value);
 		expect(() => decodeWorkflowMutationReceipt(value, expectedScope)).toThrow("schema mismatch");
+	});
+
+	it.each([
+		["extra member", (value: ReturnType<typeof receipt>) => { value.intent = { ...value.intent, token: "raw" }; }],
+		["mismatched provider", (value: ReturnType<typeof receipt>) => { value.intent = { ...value.intent, provider: "okta" }; }],
+		["mismatched integration", (value: ReturnType<typeof receipt>) => { value.intent = { ...value.intent, integration_id: "pid_20000001-0000-4000-8000-000000000099" }; }],
+		["mismatched idempotency key", (value: ReturnType<typeof receipt>) => { value.idempotency_key = "oauth-completion:pid_99999999-9999-4999-8999-999999999999"; }],
+	])("rejects OAuth completion %s", (_name, mutate) => {
+		const value = receipt("completeIntegrationOAuth");
+		mutate(value);
+		expect(() => decodeWorkflowMutationReceipt(value)).toThrow("schema mismatch");
+	});
+
+	it("accepts the bounded Nango OAuth provider authority", () => {
+		const value = receipt("completeIntegrationOAuth");
+		value.intent = { ...value.intent, provider: "nango:github-enterprise" };
+		value.result = { ...(value.result as Record<string, unknown>), connector_key: "nango:github-enterprise" };
+		expect(decodeWorkflowMutationReceipt(value)).toEqual(value);
 	});
 
 	it("requires reference authorization receipts to match the current captured scope", () => {
