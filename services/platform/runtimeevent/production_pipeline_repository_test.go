@@ -56,7 +56,7 @@ func TestPostgresProductionPipelineRepositoryBindsStageClaimHeartbeatAndFinish(t
 	database := &productionIngestDatabaseStub{responses: []json.RawMessage{
 		json.RawMessage(`[{
           "organization_id":"` + scope.OrganizationID().String() + `","workspace_id":"` + scope.WorkspaceID().String() + `","environment_id":"` + scope.EnvironmentID().String() + `",
-          "batch_id":"` + batchID.String() + `","generation":4,"stage":"index","attempt":2,"implementation_version":"runtime-index-v1","predecessor_digest":"` + strings.Repeat("a", 64) + `","input_digest":"` + strings.Repeat("b", 64) + `","lease_expires_at":"2030-08-20T12:00:30Z"
+          "batch_id":"` + batchID.String() + `","generation":4,"stage":"index","attempt":2,"implementation_version":"runtime-index-v1","predecessor_digest":"` + strings.Repeat("a", 64) + `","input_digest":"` + strings.Repeat("b", 64) + `","input_reference":"s3://zasp-runtime/results/archive.json","input_version_id":"version-3","lease_expires_at":"2030-08-20T12:00:30Z"
         }]`),
 		json.RawMessage(`{"batch_id":"` + batchID.String() + `","generation":4,"stage":"index","lease_expires_at":"2030-08-20T12:00:45Z"}`),
 		json.RawMessage(`{"batch_id":"` + batchID.String() + `","generation":4,"stage":"index","state":"succeeded","attempt":2,"input_digest":"` + strings.Repeat("b", 64) + `","implementation_version":"runtime-index-v1","effect_digest":"` + strings.Repeat("c", 64) + `","result_reference":"s3://zasp-runtime/results/index.json","result_version_id":"version-4","result_digest":"` + strings.Repeat("d", 64) + `","error_class":null}`),
@@ -66,7 +66,7 @@ func TestPostgresProductionPipelineRepositoryBindsStageClaimHeartbeatAndFinish(t
 		t.Fatal(err)
 	}
 	leases, err := repository.ClaimStages(context.Background(), "runtime-index-01", "0123456789abcdef", 30, 1)
-	if err != nil || len(leases) != 1 || leases[0].Scope != scope || leases[0].Stage != RuntimeStageIndex || leases[0].Attempt != 2 {
+	if err != nil || len(leases) != 1 || leases[0].Scope != scope || leases[0].Stage != RuntimeStageIndex || leases[0].Attempt != 2 || leases[0].InputReference != "s3://zasp-runtime/results/archive.json" || leases[0].InputVersionID != "version-3" {
 		t.Fatalf("leases=%#v err=%v", leases, err)
 	}
 	lease := leases[0]
@@ -100,7 +100,7 @@ func TestPostgresProductionPipelineRepositoryRejectsAuthorityAndHostileOutput(t 
 }
 
 func TestProductionPipelineLeaseValidationRejectsExpiredAndCrossStageValues(t *testing.T) {
-	lease := StageLease{Scope: fixtureScope(t, 140), BatchID: fixtureID(t, 143), Generation: 1, Stage: RuntimeStageArchive, Attempt: 1, ImplementationVersion: "runtime-archive-v1", InputDigest: sha256.Sum256([]byte("input")), LeaseExpiresAt: time.Now().UTC().Add(time.Minute)}
+	lease := StageLease{Scope: fixtureScope(t, 140), BatchID: fixtureID(t, 143), Generation: 1, Stage: RuntimeStageArchive, Attempt: 1, ImplementationVersion: "runtime-archive-v1", InputDigest: sha256.Sum256([]byte("input")), InputReference: "s3://zasp-runtime/runtime/v15/raw.json", InputVersionID: "version-1", LeaseExpiresAt: time.Now().UTC().Add(time.Minute)}
 	if !validStageLease(lease, RuntimeStageArchive, time.Now().UTC()) {
 		t.Fatal("valid lease rejected")
 	}

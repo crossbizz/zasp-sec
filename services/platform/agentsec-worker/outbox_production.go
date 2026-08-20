@@ -42,7 +42,7 @@ type outboxWebIdentityProvider struct {
 }
 
 func (provider *outboxWebIdentityProvider) Retrieve(ctx context.Context) (aws.Credentials, error) {
-	if provider == nil || provider.client == nil || ctx == nil || ctx.Err() != nil || !workerProjectionRolePattern.MatchString(provider.roleARN) || provider.tokenFile == "" || provider.timeout < time.Second || provider.timeout > 30*time.Second || provider.session != "" && provider.session != "zasp-outbox-worker" && provider.session != "zasp-runtime-outbox-worker" && provider.session != "zasp-runtime-coordinator" {
+	if provider == nil || provider.client == nil || ctx == nil || ctx.Err() != nil || !workerProjectionRolePattern.MatchString(provider.roleARN) || provider.tokenFile == "" || provider.timeout < time.Second || provider.timeout > 30*time.Second || provider.session != "" && provider.session != "zasp-outbox-worker" && provider.session != "zasp-runtime-outbox-worker" && provider.session != "zasp-runtime-coordinator" && provider.session != "zasp-runtime-archive-worker" {
 		return aws.Credentials{}, errRuntimeUnavailable
 	}
 	file, err := os.Open(provider.tokenFile)

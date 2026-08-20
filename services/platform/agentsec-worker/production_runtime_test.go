@@ -10,6 +10,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimeevent"
 )
 
 func TestComposeWorkerRuntimeMountsOnlyProductionReadyModes(t *testing.T) {
@@ -56,6 +58,25 @@ func TestComposeRuntimeCoordinatorBindsV15RepositoryAndQueueReadiness(t *testing
 		Queue: queue, ready: func(context.Context) error { return nil }, close: func() error { closed = true; return nil },
 	})
 	if err != nil || dependencies.Processor == nil || dependencies.Ready == nil || dependencies.Close == nil {
+		t.Fatalf("dependencies=%#v err=%v", dependencies, err)
+	}
+	if err := dependencies.Ready(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := dependencies.Close(); err != nil || !closed {
+		t.Fatalf("close=%v closed=%v", err, closed)
+	}
+}
+
+func TestComposeRuntimeArchiveBindsExactStageRepositoryAndExecutor(t *testing.T) {
+	closed := false
+	config := validRuntimeArchiveConfig()
+	lease := runtimeStageLease(t, runtimeevent.RuntimeStageArchive)
+	executor := runtimeStageExecutorFunc(func(context.Context, runtimeevent.StageLease) (runtimeStageEffect, error) {
+		return runtimeStageEffect{}, errRuntimeStageRetryable
+	})
+	dependencies, err := composeRuntimeStageWorkerRuntime(config, readyWorkerDatabase{}, &productionRuntimeStageDependencies{Stage: runtimeevent.RuntimeStageArchive, Executor: executor, ready: func(context.Context) error { return nil }, close: func() error { closed = true; return nil }})
+	if err != nil || dependencies.Processor == nil || dependencies.Ready == nil || dependencies.Close == nil || lease.Stage != runtimeevent.RuntimeStageArchive {
 		t.Fatalf("dependencies=%#v err=%v", dependencies, err)
 	}
 	if err := dependencies.Ready(context.Background()); err != nil {
@@ -404,6 +425,15 @@ func validRuntimeCoordinatorConfig() workerRuntimeConfig {
 		PollInterval: 50 * time.Millisecond, LeaseDuration: 30 * time.Second, BatchSize: 10, ShutdownTimeout: 20 * time.Second,
 		RuntimeQueueURL: "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-runtime-events", AWSRegion: "us-west-2",
 		RuntimeRoleARN: "arn:aws:iam::123456789012:role/zasp-production-runtime-coordinator", RuntimeTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
+	}
+}
+
+func validRuntimeArchiveConfig() workerRuntimeConfig {
+	return workerRuntimeConfig{
+		Mode: workerModeRuntimeArchive, PostgresDSN: "postgres://runtime_archive@postgres.internal/zasp?sslmode=verify-full", DatabaseAuthority: "zasp_runtime_archive_worker", WorkerID: "runtime-archive-01",
+		PollInterval: 50 * time.Millisecond, LeaseDuration: 30 * time.Second, BatchSize: 10, ShutdownTimeout: 20 * time.Second,
+		AWSRegion: "us-west-2", EvidenceBucket: "zasp-production-evidence", EvidenceOwner: "123456789012", EvidenceKMSKeyARN: "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111",
+		RuntimeStageRoleARN: "arn:aws:iam::123456789012:role/zasp-production-runtime-archive", RuntimeStageTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", RuntimeStageVersion: "runtime-archive-v1",
 	}
 }
 

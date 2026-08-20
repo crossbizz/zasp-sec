@@ -296,6 +296,37 @@ func TestRuntimeCoordinatorRequiresDistinctConsumerAuthority(t *testing.T) {
 	}
 }
 
+func TestRuntimeArchiveRequiresNonUnionEvidenceAuthority(t *testing.T) {
+	t.Parallel()
+	base := map[string]string{
+		"ZASP_WORKER_MODE": "runtime-archive", "ZASP_POSTGRES_DSN": "postgres://runtime_archive@postgres.internal/zasp?sslmode=verify-full",
+		"ZASP_DATABASE_AUTHORITY": "zasp_runtime_archive_worker", "ZASP_WORKER_ID": "runtime-archive-01", "ZASP_POLL_INTERVAL": "250ms", "ZASP_LEASE_DURATION": "30s", "ZASP_BATCH_SIZE": "10", "ZASP_SHUTDOWN_TIMEOUT": "20s",
+		"ZASP_AWS_REGION": "us-west-2", "ZASP_EVIDENCE_BUCKET": "zasp-production-evidence", "ZASP_EVIDENCE_BUCKET_OWNER": "123456789012", "ZASP_EVIDENCE_KMS_KEY_ARN": "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111",
+		"ZASP_RUNTIME_STAGE_ROLE_ARN": "arn:aws:iam::123456789012:role/zasp-production-runtime-archive", "ZASP_RUNTIME_STAGE_WEB_IDENTITY_TOKEN_FILE": "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", "ZASP_RUNTIME_STAGE_VERSION": "runtime-archive-v1",
+	}
+	config, err := loadWorkerRuntimeConfig(mapLookup(base))
+	if err != nil || config.Mode != workerModeRuntimeArchive || config.RuntimeStageVersion != "runtime-archive-v1" {
+		t.Fatalf("runtime archive config=%#v err=%v", config, err)
+	}
+	for name, mutate := range map[string]func(map[string]string){
+		"wrong version":  func(values map[string]string) { values["ZASP_RUNTIME_STAGE_VERSION"] = "runtime-archive-v2" },
+		"publisher role": func(values map[string]string) { values["ZASP_OUTBOX_ROLE_ARN"] = values["ZASP_RUNTIME_STAGE_ROLE_ARN"] },
+		"wrong account":  func(values map[string]string) { values["ZASP_EVIDENCE_BUCKET_OWNER"] = "210987654321" },
+		"kms region": func(values map[string]string) {
+			values["ZASP_EVIDENCE_KMS_KEY_ARN"] = "arn:aws:kms:us-east-1:123456789012:key/11111111-1111-4111-8111-111111111111"
+		},
+		"ambient token": func(values map[string]string) { delete(values, "ZASP_RUNTIME_STAGE_WEB_IDENTITY_TOKEN_FILE") },
+	} {
+		t.Run(name, func(t *testing.T) {
+			values := cloneStringMap(base)
+			mutate(values)
+			if _, err := loadWorkerRuntimeConfig(mapLookup(values)); !errors.Is(err, errWorkerConfiguration) {
+				t.Fatalf("error=%v", err)
+			}
+		})
+	}
+}
+
 func TestProjectionRuntimeRejectsAmbientOrDriftedProductionAuthority(t *testing.T) {
 	t.Parallel()
 	base := map[string]string{

@@ -867,7 +867,9 @@ BEGIN
   INSERT INTO zasp_runtime_stage_fairness(stage,organization_id,last_claimed_at) SELECT stage_value,claimed.organization_id,transaction_timestamp() FROM claimed
   ON CONFLICT(stage,organization_id) DO UPDATE SET last_claimed_at=excluded.last_claimed_at RETURNING organization_id
  )
- SELECT COALESCE(jsonb_agg(jsonb_build_object('organization_id',claimed.organization_id,'workspace_id',claimed.workspace_id,'environment_id',claimed.environment_id,'batch_id',claimed.batch_id,'generation',claimed.batch_generation,'stage',claimed.stage,'attempt',claimed.attempt,'implementation_version',claimed.implementation_version,'predecessor_digest',CASE WHEN claimed.predecessor_digest IS NULL THEN NULL ELSE encode(claimed.predecessor_digest,'hex') END,'input_digest',encode(claimed.input_digest,'hex'),'lease_expires_at',claimed.lease_expires_at) ORDER BY claimed.organization_id,claimed.batch_id),'[]'::jsonb) INTO result_value FROM claimed;
+ SELECT COALESCE(jsonb_agg(jsonb_build_object('organization_id',claimed.organization_id,'workspace_id',claimed.workspace_id,'environment_id',claimed.environment_id,'batch_id',claimed.batch_id,'generation',claimed.batch_generation,'stage',claimed.stage,'attempt',claimed.attempt,'implementation_version',claimed.implementation_version,'predecessor_digest',CASE WHEN claimed.predecessor_digest IS NULL THEN NULL ELSE encode(claimed.predecessor_digest,'hex') END,'input_digest',encode(claimed.input_digest,'hex'),'input_reference',CASE WHEN claimed.stage_order=1 THEN authority_row.raw_artifact_reference ELSE predecessor.result_reference END,'input_version_id',CASE WHEN claimed.stage_order=1 THEN authority_row.raw_artifact_version_id ELSE predecessor.result_version_id END,'lease_expires_at',claimed.lease_expires_at) ORDER BY claimed.organization_id,claimed.batch_id),'[]'::jsonb) INTO result_value
+ FROM claimed JOIN zasp_runtime_batch_authorities authority_row ON (authority_row.organization_id,authority_row.workspace_id,authority_row.environment_id,authority_row.batch_id,authority_row.batch_generation)=(claimed.organization_id,claimed.workspace_id,claimed.environment_id,claimed.batch_id,claimed.batch_generation)
+ LEFT JOIN zasp_runtime_stage_work predecessor ON (predecessor.organization_id,predecessor.workspace_id,predecessor.environment_id,predecessor.batch_id,predecessor.stage_order)=(claimed.organization_id,claimed.workspace_id,claimed.environment_id,claimed.batch_id,claimed.stage_order-1);
  IF stage_value='archive' AND jsonb_array_length(result_value)>0 THEN UPDATE zasp_runtime_batch_authorities authority_row SET state='processing' WHERE EXISTS(SELECT 1 FROM jsonb_array_elements(result_value) item WHERE (authority_row.organization_id,authority_row.workspace_id,authority_row.environment_id,authority_row.batch_id)=(item->>'organization_id',item->>'workspace_id',item->>'environment_id',item->>'batch_id'));END IF;
  RETURN result_value;
 END $$;
@@ -1100,7 +1102,7 @@ $$;
 ALTER FUNCTION public.zasp_runtime_data_plane_security_ready() OWNER TO zasp_discovery_authority;
 REVOKE ALL ON FUNCTION public.zasp_runtime_data_plane_security_ready() FROM PUBLIC;
 
-INSERT INTO public.zasp_schema_metadata(key,value) VALUES('runtime_data_plane_fingerprint', '832123377e20d8e9e9db0c1100d933d95e1bfed670c4be1361a537b92102042e');
+INSERT INTO public.zasp_schema_metadata(key,value) VALUES('runtime_data_plane_fingerprint', '7a0fff9111ac648b0f841c62ae5a67e073fdb58ced2ed60ce52c138f11041f6b');
 DO $schema_marker$ BEGIN UPDATE zasp_schema_metadata SET value='runtime-data-plane-v1' WHERE key='production_core_schema' AND value='typed-inventory-cutover-v1';IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='runtime data plane schema marker drift';END IF;END $schema_marker$;
 
 CREATE FUNCTION public.zasp_runtime_data_plane_readiness(expected_checksum text,expected_fingerprint text) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $$

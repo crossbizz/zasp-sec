@@ -450,6 +450,8 @@ func TestProductionRuntimeDataPlanePostgresAuthenticatesTokenDerivedHeartbeat(t 
 		Attempt               int       `json:"attempt"`
 		ImplementationVersion string    `json:"implementation_version"`
 		InputDigest           string    `json:"input_digest"`
+		InputReference        string    `json:"input_reference"`
+		InputVersionID        string    `json:"input_version_id"`
 		LeaseExpiresAt        time.Time `json:"lease_expires_at"`
 	}
 	var archiveClaims []stageClaim
@@ -457,7 +459,7 @@ func TestProductionRuntimeDataPlanePostgresAuthenticatesTokenDerivedHeartbeat(t 
 	if err := archiveConnection.QueryRow(ctx, `SELECT zasp_runtime_claim_stage('archive-worker','archive-lease-token-0001',30,1)`).Scan(&archiveClaimJSON); err != nil {
 		t.Fatalf("archive claim: %v", err)
 	}
-	if err := json.Unmarshal(archiveClaimJSON, &archiveClaims); err != nil || len(archiveClaims) != 1 || archiveClaims[0].BatchID != batchID || archiveClaims[0].Generation != 1 || archiveClaims[0].Stage != "archive" || archiveClaims[0].Attempt != 1 || archiveClaims[0].ImplementationVersion != "runtime-archive-v1" || archiveClaims[0].InputDigest != fmt.Sprintf("%x", contentDigest) || archiveClaims[0].LeaseExpiresAt.IsZero() {
+	if err := json.Unmarshal(archiveClaimJSON, &archiveClaims); err != nil || len(archiveClaims) != 1 || archiveClaims[0].BatchID != batchID || archiveClaims[0].Generation != 1 || archiveClaims[0].Stage != "archive" || archiveClaims[0].Attempt != 1 || archiveClaims[0].ImplementationVersion != "runtime-archive-v1" || archiveClaims[0].InputDigest != fmt.Sprintf("%x", contentDigest) || archiveClaims[0].InputReference != artifactReference || archiveClaims[0].InputVersionID != artifactVersion || archiveClaims[0].LeaseExpiresAt.IsZero() {
 		t.Fatalf("archive claims=%s decoded=%#v err=%v", archiveClaimJSON, archiveClaims, err)
 	}
 	if _, err := archiveConnection.Exec(ctx, `SELECT zasp_runtime_heartbeat_stage($1,$2,$3,$4,1,'archive-worker','wrong-archive-lease',30)`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), batchID); err == nil {
@@ -481,14 +483,14 @@ func TestProductionRuntimeDataPlanePostgresAuthenticatesTokenDerivedHeartbeat(t 
 	if err := indexConnection.QueryRow(ctx, `SELECT zasp_runtime_claim_stage('index-worker','index-lease-token-0001',30,1)`).Scan(&indexClaimJSON); err != nil {
 		t.Fatalf("index claim: %v", err)
 	}
-	if err := json.Unmarshal(indexClaimJSON, &indexClaims); err != nil || len(indexClaims) != 1 || indexClaims[0].BatchID != batchID || indexClaims[0].InputDigest != fmt.Sprintf("%x", effectDigest) {
+	if err := json.Unmarshal(indexClaimJSON, &indexClaims); err != nil || len(indexClaims) != 1 || indexClaims[0].BatchID != batchID || indexClaims[0].InputDigest != fmt.Sprintf("%x", effectDigest) || indexClaims[0].InputReference != "s3://zasp-runtime/normalized/version-v15-0001" || indexClaims[0].InputVersionID != "normalized-version-v15-0001" {
 		t.Fatalf("index claims=%s decoded=%#v err=%v", indexClaimJSON, indexClaims, err)
 	}
 	finishStage := func(label string, stageConnection *pgx.Conn, worker, leaseToken, implementation string, inputDigest [32]byte, attempt int) [32]byte {
 		t.Helper()
 		effect := sha256.Sum256([]byte(label + "-effect-v1"))
 		result := sha256.Sum256([]byte(label + "-result-v1"))
-		resultReference := "ref:runtime/" + label + "/" + batchID
+		resultReference := "s3://zasp-runtime/results/" + label + "/" + batchID
 		resultVersion := label + "-version-v15-0001"
 		var completed json.RawMessage
 		if err := stageConnection.QueryRow(ctx, `SELECT zasp_runtime_finish_stage($1,$2,$3,$4,1,$5,$6,$7,$8,$9,'succeeded',$10,$11,$12,$13,NULL,0)`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), batchID, worker, leaseToken, attempt, inputDigest[:], implementation, effect[:], resultReference, resultVersion, result[:]).Scan(&completed); err != nil {

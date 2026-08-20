@@ -125,6 +125,8 @@ type StageLease struct {
 	ImplementationVersion string
 	PredecessorDigest     *[sha256.Size]byte
 	InputDigest           [sha256.Size]byte
+	InputReference        string
+	InputVersionID        string
 	LeaseExpiresAt        time.Time
 }
 
@@ -368,7 +370,7 @@ func validDeliveryOutcome(outcome DeliveryOutcome, errorClass string) bool {
 }
 
 func validStageLease(lease StageLease, expected RuntimeStage, now time.Time) bool {
-	if lease.Scope.Validate() != nil || lease.BatchID.IsZero() || lease.Generation < 1 || lease.Stage != expected || lease.Attempt < 1 || lease.Attempt > 100 || !validProductionText(lease.ImplementationVersion, 64) || lease.InputDigest == [sha256.Size]byte{} || !lease.LeaseExpiresAt.After(now) {
+	if lease.Scope.Validate() != nil || lease.BatchID.IsZero() || lease.Generation < 1 || lease.Stage != expected || lease.Attempt < 1 || lease.Attempt > 100 || !validProductionText(lease.ImplementationVersion, 64) || lease.InputDigest == [sha256.Size]byte{} || !validProductionText(lease.InputReference, 1024) || !strings.HasPrefix(lease.InputReference, "s3://") || !validProductionText(lease.InputVersionID, 1024) || !lease.LeaseExpiresAt.After(now) {
 		return false
 	}
 	return lease.PredecessorDigest == nil || *lease.PredecessorDigest != [sha256.Size]byte{}
@@ -502,13 +504,15 @@ type stageLeaseWire struct {
 	ImplementationVersion string    `json:"implementation_version"`
 	PredecessorDigest     *string   `json:"predecessor_digest"`
 	InputDigest           string    `json:"input_digest"`
+	InputReference        string    `json:"input_reference"`
+	InputVersionID        string    `json:"input_version_id"`
 	LeaseExpiresAt        time.Time `json:"lease_expires_at"`
 }
 
 func (wire stageLeaseWire) result(expected RuntimeStage) (StageLease, bool) {
 	scope, batchID, ok := parsePipelineScope(wire.OrganizationID, wire.WorkspaceID, wire.EnvironmentID, wire.BatchID)
 	inputDigest, inputOK := decodeProductionDigest(wire.InputDigest)
-	result := StageLease{Scope: scope, BatchID: batchID, Generation: wire.Generation, Stage: RuntimeStage(wire.Stage), Attempt: wire.Attempt, ImplementationVersion: wire.ImplementationVersion, InputDigest: inputDigest, LeaseExpiresAt: wire.LeaseExpiresAt.UTC()}
+	result := StageLease{Scope: scope, BatchID: batchID, Generation: wire.Generation, Stage: RuntimeStage(wire.Stage), Attempt: wire.Attempt, ImplementationVersion: wire.ImplementationVersion, InputDigest: inputDigest, InputReference: wire.InputReference, InputVersionID: wire.InputVersionID, LeaseExpiresAt: wire.LeaseExpiresAt.UTC()}
 	if wire.PredecessorDigest != nil {
 		predecessor, predecessorOK := decodeProductionDigest(*wire.PredecessorDigest)
 		if !predecessorOK {

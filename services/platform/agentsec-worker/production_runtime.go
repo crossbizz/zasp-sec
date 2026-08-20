@@ -113,6 +113,17 @@ func composeWorkerRuntime(ctx context.Context, config workerRuntimeConfig, datab
 			return workerRuntimeDependencies{}, errRuntimeUnavailable
 		}
 		return dependencies, nil
+	case workerModeRuntimeArchive:
+		stage, err := newProductionRuntimeArchive(ctx, config)
+		if err != nil {
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
+		dependencies, err := composeRuntimeStageWorkerRuntime(config, database, stage)
+		if err != nil {
+			_ = stage.Close()
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
+		return dependencies, nil
 	case workerModeProjectionRisk:
 		repository, err := apiserver.NewDiscoveryExecutionRepository(database, apiserver.DiscoveryExecutionAuthorityProjectionRisk)
 		if err != nil {
@@ -170,6 +181,31 @@ func composeRuntimeCoordinatorWorkerRuntime(config workerRuntimeConfig, database
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
 	return workerRuntimeDependencies{Processor: readinessGatedWorkerProcessor{delegate: processor, ready: ready}, Ready: ready, Close: runtimeQueue.Close}, nil
+}
+
+func composeRuntimeStageWorkerRuntime(config workerRuntimeConfig, database apiserver.JSONDatabase, stage *productionRuntimeStageDependencies) (workerRuntimeDependencies, error) {
+	if !validWorkerRuntimeConfig(config) || database == nil || stage == nil || stage.Executor == nil || stage.ready == nil || stage.close == nil || config.Mode != workerModeRuntimeArchive || stage.Stage != runtimeevent.RuntimeStageArchive {
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
+	repository, err := runtimeevent.NewPostgresProductionPipelineRepository(database, runtimeevent.ProductionPipelineAuthorityArchive)
+	if err != nil {
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
+	check := func(ctx context.Context) error {
+		if repository.Ready(ctx) != nil || stage.Ready(ctx) != nil {
+			return errRuntimeUnavailable
+		}
+		return nil
+	}
+	ready, err := newBoundedCachedWorkerReadiness(check, minDuration(config.LeaseDuration/3, 5*time.Second), workerReadinessCacheTTL(config.PollInterval))
+	if err != nil {
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
+	processor, err := newRuntimeStageProcessor(runtimeStageProcessorConfig{Authority: repository, Executor: stage.Executor, Stage: stage.Stage, ImplementationVersion: config.RuntimeStageVersion, WorkerID: config.WorkerID, LeaseSeconds: int(config.LeaseDuration / time.Second), BatchSize: min(config.BatchSize, 10), HeartbeatInterval: config.LeaseDuration / 3, RetrySeconds: int(config.LeaseDuration / time.Second), NewLeaseToken: newWorkerLeaseToken})
+	if err != nil {
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
+	return workerRuntimeDependencies{Processor: readinessGatedWorkerProcessor{delegate: processor, ready: ready}, Ready: ready, Close: stage.Close}, nil
 }
 
 func productionDiscoveryDependenciesConfig(config workerRuntimeConfig) productionDiscoveryDependencyConfig {
