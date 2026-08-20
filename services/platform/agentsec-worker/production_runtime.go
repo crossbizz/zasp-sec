@@ -44,17 +44,25 @@ func buildWorkerRuntime(ctx context.Context, config workerRuntimeConfig) (worker
 		pool.Close()
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
-	dependencies, err := composeWorkerRuntime(config, database)
+	dependencies, err := composeWorkerRuntime(connectCtx, config, database)
 	if err != nil {
 		_ = database.Close()
 		return workerRuntimeDependencies{}, err
 	}
-	dependencies.Close = database.Close
+	closeDependencies := dependencies.Close
+	dependencies.Close = func() error {
+		dependencyErr := closeDependencies()
+		databaseErr := database.Close()
+		if dependencyErr != nil {
+			return dependencyErr
+		}
+		return databaseErr
+	}
 	return dependencies, nil
 }
 
-func composeWorkerRuntime(config workerRuntimeConfig, database apiserver.JSONDatabase) (workerRuntimeDependencies, error) {
-	if !validWorkerRuntimeConfig(config) || database == nil {
+func composeWorkerRuntime(ctx context.Context, config workerRuntimeConfig, database apiserver.JSONDatabase) (workerRuntimeDependencies, error) {
+	if ctx == nil || ctx.Err() != nil || !validWorkerRuntimeConfig(config) || database == nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
 	switch config.Mode {
@@ -68,12 +76,57 @@ func composeWorkerRuntime(config workerRuntimeConfig, database apiserver.JSONDat
 			return workerRuntimeDependencies{}, errRuntimeUnavailable
 		}
 		return workerRuntimeDependencies{Processor: processor, Ready: repository.Ready, Close: func() error { return nil }}, nil
+	case workerModeProjectionSearch:
+		projector, err := newProductionSearchProjection(ctx, config)
+		if err != nil {
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
+		return composeProjectionWorkerRuntime(config, database, projector)
+	case workerModeProjectionGraph:
+		projector, err := newProductionGraphProjection(ctx, config)
+		if err != nil {
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
+		return composeProjectionWorkerRuntime(config, database, projector)
 	default:
 		// Modes with an external provider or projection side effect are composed
 		// only when their exact production driver is supplied. Returning unavailable
 		// keeps the workload and public capability honest.
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
+}
+
+func composeProjectionWorkerRuntime(config workerRuntimeConfig, database apiserver.JSONDatabase, projector productionProjectionProjector) (workerRuntimeDependencies, error) {
+	if !stringInWorker(config.ProjectionKind, "graph", "search") || projector.projectionProjector == nil || projector.ready == nil || projector.close == nil {
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
+	authority := apiserver.DiscoveryExecutionAuthorityProjectionGraph
+	if config.ProjectionKind == "search" {
+		authority = apiserver.DiscoveryExecutionAuthorityProjectionSearch
+	}
+	repository, err := apiserver.NewDiscoveryExecutionRepository(database, authority)
+	if err != nil {
+		_ = projector.close()
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
+	processor, err := newProjectionProcessor(projectionProcessorConfig{
+		Authority: repository, Projector: projector.projectionProjector, Kind: config.ProjectionKind, WorkerID: config.WorkerID,
+		LeaseSeconds: int(config.LeaseDuration / time.Second), BatchSize: config.BatchSize, HeartbeatInterval: config.LeaseDuration / 3, NewLeaseToken: newWorkerLeaseToken,
+	})
+	if err != nil {
+		_ = projector.close()
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
+	ready := func(ctx context.Context) error {
+		if err := repository.Ready(ctx); err != nil {
+			return errRuntimeUnavailable
+		}
+		if err := projector.ready(ctx); err != nil {
+			return errRuntimeUnavailable
+		}
+		return nil
+	}
+	return workerRuntimeDependencies{Processor: processor, Ready: ready, Close: projector.close}, nil
 }
 
 func serveWorkerRuntime(ctx context.Context, output interface{ Write([]byte) (int, error) }, version string, config workerRuntimeConfig, dependencies workerRuntimeDependencies, listen func(string, string) (net.Listener, error)) error {

@@ -13,7 +13,7 @@ import (
 func TestComposeWorkerRuntimeMountsOnlyProductionReadyModes(t *testing.T) {
 	database := readyWorkerDatabase{}
 	scheduler := validSchedulerRuntimeConfig()
-	dependencies, err := composeWorkerRuntime(scheduler, database)
+	dependencies, err := composeWorkerRuntime(context.Background(), scheduler, database)
 	if err != nil || dependencies.Processor == nil || dependencies.Ready == nil {
 		t.Fatalf("scheduler dependencies=%#v err=%v", dependencies, err)
 	}
@@ -25,8 +25,40 @@ func TestComposeWorkerRuntimeMountsOnlyProductionReadyModes(t *testing.T) {
 	discovery.EvidenceBucket = "zasp-production-evidence"
 	discovery.EvidenceOwner = "123456789012"
 	discovery.EvidenceKMSKeyARN = "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111"
-	if _, err := composeWorkerRuntime(discovery, database); !errors.Is(err, errRuntimeUnavailable) {
+	if _, err := composeWorkerRuntime(context.Background(), discovery, database); !errors.Is(err, errRuntimeUnavailable) {
 		t.Fatalf("uncomposed discovery mode error=%v", err)
+	}
+}
+
+func TestComposeProjectionWorkerRuntimeBindsExactSearchAuthority(t *testing.T) {
+	t.Parallel()
+	config := validSchedulerRuntimeConfig()
+	config.Mode, config.ProjectionKind = workerModeProjectionSearch, "search"
+	config.DatabaseAuthority, config.WorkerID = "zasp_projection_search_worker", "projection-search-01"
+	config.AWSRegion = "us-west-2"
+	config.ProjectionRoleARN = "arn:aws:iam::123456789012:role/zasp-production-projection-search"
+	config.ProjectionTokenFile = "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
+	config.OpenSearchURL, config.OpenSearchIndex = "https://vpc-zasp.us-west-2.es.amazonaws.com", "zasp-inventory-v1"
+	closed := false
+	projector := &projectionProjectorStub{}
+	dependencies, err := composeProjectionWorkerRuntime(config, readyWorkerDatabase{}, productionProjectionProjector{
+		projectionProjector: projector,
+		ready:               func(context.Context) error { return nil },
+		close:               func() error { closed = true; return nil },
+	})
+	if err != nil || dependencies.Processor == nil || dependencies.Ready == nil || dependencies.Close == nil {
+		t.Fatalf("projection dependencies=%#v err=%v", dependencies, err)
+	}
+	if err := dependencies.Ready(context.Background()); err != nil {
+		t.Fatalf("projection readiness = %v", err)
+	}
+	if err := dependencies.Close(); err != nil || !closed {
+		t.Fatalf("projection close = %v, closed=%v", err, closed)
+	}
+
+	config.Mode, config.ProjectionKind, config.DatabaseAuthority = workerModeProjectionRisk, "risk", "zasp_projection_risk_worker"
+	if _, err := composeProjectionWorkerRuntime(config, readyWorkerDatabase{}, productionProjectionProjector{projectionProjector: projector, ready: func(context.Context) error { return nil }, close: func() error { return nil }}); !errors.Is(err, errRuntimeUnavailable) {
+		t.Fatalf("risk composition error = %v", err)
 	}
 }
 
