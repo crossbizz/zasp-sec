@@ -50,6 +50,90 @@ func TestOutboxProcessorPublishesDiscoveryJobsAndAcknowledgesProviderMessages(t 
 	}
 }
 
+func TestOutboxProcessorPublishesRuntimeJobsWithExactOutboxAuthority(t *testing.T) {
+	event := runtimeOutboxEvent(t)
+	jobID := mustProductID(t, firstPayloadJobID(t, event))
+	authority := &recordingOutboxAuthority{events: []apiserver.DiscoveryOutboxEvent{event}}
+	publisher := &recordingOutboxPublisher{result: jobqueue.PublishResult{
+		JobIDs:           []domain.ProductID{jobID},
+		Acknowledgements: []jobqueue.PublishAcknowledgement{{JobID: jobID, ProviderAck: canonicalProviderAck(t, "runtime-message-1")}},
+	}}
+	processor, err := newOutboxProcessor(outboxProcessorConfig{
+		Authority: authority, Publisher: publisher, Topic: runtimeOutboxTopic, WorkerID: "runtime-outbox-01", LeaseSeconds: 30, BatchSize: 10, RetrySeconds: 30,
+		NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil }, Ready: readyOutboxDependency,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := processor.RunOnce(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(publisher.jobs) != 1 || publisher.jobs[0].Kind != "runtime" || publisher.jobs[0].JobID != jobID {
+		t.Fatalf("published jobs = %#v", publisher.jobs)
+	}
+	var wantDigest [sha256.Size]byte
+	copy(wantDigest[:], event.PayloadDigest)
+	if publisher.jobs[0].AuthorityDigest != wantDigest || !json.Valid(publisher.jobs[0].Payload) {
+		t.Fatalf("published authority = %x payload=%q", publisher.jobs[0].AuthorityDigest, publisher.jobs[0].Payload)
+	}
+	if got := fmt.Sprint(authority.acknowledged); got != fmt.Sprint([]string{event.ID + ":" + canonicalProviderAck(t, "runtime-message-1")}) {
+		t.Fatalf("acknowledged = %v", authority.acknowledged)
+	}
+}
+
+func TestRuntimeOutboxJobRejectsAuthorityDriftBeforePublish(t *testing.T) {
+	base := runtimeOutboxEvent(t)
+	cases := []struct {
+		name   string
+		mutate func(*apiserver.DiscoveryOutboxEvent, map[string]any)
+	}{
+		{name: "topic", mutate: func(event *apiserver.DiscoveryOutboxEvent, _ map[string]any) { event.Topic = discoveryOutboxTopic }},
+		{name: "version", mutate: func(event *apiserver.DiscoveryOutboxEvent, _ map[string]any) { event.PayloadVersion = 1 }},
+		{name: "key", mutate: func(event *apiserver.DiscoveryOutboxEvent, _ map[string]any) { event.DeterministicKey += "-drift" }},
+		{name: "batch", mutate: func(_ *apiserver.DiscoveryOutboxEvent, payload map[string]any) {
+			payload["batch_id"] = "pid_90000009-0000-4000-8000-000000000009"
+		}},
+		{name: "generation", mutate: func(_ *apiserver.DiscoveryOutboxEvent, payload map[string]any) { payload["generation"] = float64(2) }},
+		{name: "pipeline", mutate: func(_ *apiserver.DiscoveryOutboxEvent, payload map[string]any) {
+			payload["pipeline_version"] = float64(14)
+		}},
+		{name: "artifact key", mutate: func(_ *apiserver.DiscoveryOutboxEvent, payload map[string]any) {
+			payload["artifact_key"] = "runtime/v15/foreign"
+		}},
+		{name: "artifact reference", mutate: func(_ *apiserver.DiscoveryOutboxEvent, payload map[string]any) {
+			payload["artifact_reference"] = "s3://foreign/runtime/v15/foreign"
+		}},
+		{name: "checksum", mutate: func(_ *apiserver.DiscoveryOutboxEvent, payload map[string]any) { payload["artifact_checksum"] = "00" }},
+		{name: "media", mutate: func(_ *apiserver.DiscoveryOutboxEvent, payload map[string]any) {
+			payload["payload_media_type"] = "text/plain"
+		}},
+		{name: "schema", mutate: func(_ *apiserver.DiscoveryOutboxEvent, payload map[string]any) {
+			payload["payload_schema_version"] = "runtime-event-v2"
+		}},
+		{name: "extra", mutate: func(_ *apiserver.DiscoveryOutboxEvent, payload map[string]any) { payload["secret"] = "must-not-pass" }},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			event := base
+			event.Payload = append([]byte(nil), base.Payload...)
+			event.PayloadDigest = append([]byte(nil), base.PayloadDigest...)
+			var payload map[string]any
+			if err := json.Unmarshal(event.Payload, &payload); err != nil {
+				t.Fatal(err)
+			}
+			testCase.mutate(&event, payload)
+			if body, err := json.Marshal(payload); err == nil && !jsonEqual(body, base.Payload) {
+				event.Payload = body
+				digest := sha256.Sum256(body)
+				event.PayloadDigest = digest[:]
+			}
+			if job, _, ok := discoveryJobForOutbox(event, runtimeOutboxTopic); ok || job.JobID != (domain.ProductID{}) {
+				t.Fatalf("drift accepted: %#v", job)
+			}
+		})
+	}
+}
+
 func TestOutboxProcessorRenewsLeaseWhilePublisherIsBlocked(t *testing.T) {
 	event := outboxEvent(t, "pid_80000091-0000-4000-8000-000000000091", "pid_80000092-0000-4000-8000-000000000092")
 	jobID := mustProductID(t, firstPayloadJobID(t, event))
@@ -467,6 +551,32 @@ func outboxEvent(t *testing.T, outboxID, jobID string) apiserver.DiscoveryOutbox
 		OrganizationID: scope.OrganizationID().String(), WorkspaceID: scope.WorkspaceID().String(), EnvironmentID: scope.EnvironmentID().String(),
 		ID: outboxID, Topic: discoveryOutboxTopic, DeterministicKey: "sync:" + syncID, PayloadVersion: 1, Payload: payload, PayloadDigest: digest[:], Attempt: 1,
 	}
+}
+
+func runtimeOutboxEvent(t *testing.T) apiserver.DiscoveryOutboxEvent {
+	t.Helper()
+	scope := workerScope(t)
+	batchID := "pid_89000001-0000-4000-8000-000000000001"
+	jobID := "pid_89000002-0000-4000-8000-000000000002"
+	sensorID := "pid_89000003-0000-4000-8000-000000000003"
+	key := fmt.Sprintf("runtime/v15/%s/%s/%s/%s/%020d/%s.json", scope.OrganizationID(), scope.WorkspaceID(), scope.EnvironmentID(), sensorID, 1, batchID)
+	payload, err := json.Marshal(map[string]any{
+		"batch_id": batchID, "job_id": jobID, "generation": int64(1), "pipeline_version": 15,
+		"artifact_reference": "s3://zasp-runtime-prod/" + key, "artifact_key": key, "artifact_version_id": "version-1",
+		"artifact_checksum": "10112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "artifact_size_bytes": int64(4096),
+		"payload_media_type": "application/json", "payload_schema_version": "runtime-event-v1", "event_count": 2,
+		"request_digest": "20112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256(payload)
+	return apiserver.DiscoveryOutboxEvent{OrganizationID: scope.OrganizationID().String(), WorkspaceID: scope.WorkspaceID().String(), EnvironmentID: scope.EnvironmentID().String(), ID: "pid_89000004-0000-4000-8000-000000000004", Topic: runtimeOutboxTopic, DeterministicKey: "runtime:" + batchID, PayloadVersion: 15, Payload: payload, PayloadDigest: digest[:], Attempt: 1}
+}
+
+func jsonEqual(left, right []byte) bool {
+	var leftValue, rightValue any
+	return json.Unmarshal(left, &leftValue) == nil && json.Unmarshal(right, &rightValue) == nil && fmt.Sprint(leftValue) == fmt.Sprint(rightValue)
 }
 
 func firstPayloadJobID(t *testing.T, event apiserver.DiscoveryOutboxEvent) string {

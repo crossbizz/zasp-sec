@@ -156,6 +156,46 @@ func TestQueuePublishesConsumesAndAcknowledgesScopedBatch(t *testing.T) {
 	}
 }
 
+func TestQueuePreservesOptionalAuthorityDigestWithoutChangingLegacyEnvelope(t *testing.T) {
+	t.Parallel()
+
+	scope := fixtureScope(t)
+	jobID := mustProductID(t, "pid_51000000-0000-4000-8000-000000000005")
+	authorityDigest := sha256.Sum256([]byte("exact-postgres-jsonb-payload"))
+	job := Job{Scope: scope, JobID: jobID, Kind: "runtime", Payload: []byte(`{"batch_id":"pid_52000000-0000-4000-8000-000000000005"}`), AuthorityDigest: authorityDigest}
+	legacy := job
+	legacy.AuthorityDigest = [sha256.Size]byte{}
+
+	withAuthority, ok := canonicalBody(job)
+	if !ok || !bytes.Contains(withAuthority, []byte(`"authority_digest":"`+hex.EncodeToString(authorityDigest[:])+`"`)) {
+		t.Fatalf("authority envelope = %q, ok=%v", withAuthority, ok)
+	}
+	legacyBody, ok := canonicalBody(legacy)
+	if !ok || bytes.Contains(legacyBody, []byte("authority_digest")) || !bytes.Equal(legacyBody, expectedBody(legacy)) {
+		t.Fatalf("legacy envelope changed = %q, ok=%v", legacyBody, ok)
+	}
+
+	queue := mustQueue(t, noCallDriver(), validConfig())
+	message := DriverMessage{EntryID: jobID.String(), Scope: scope, JobID: jobID, Kind: job.Kind, Body: withAuthority, SHA256: sha256.Sum256(withAuthority)}
+	decoded, ok := queue.decodeMessage(message)
+	if !ok || decoded.AuthorityDigest != authorityDigest || !bytes.Equal(decoded.Payload, job.Payload) {
+		t.Fatalf("decoded = %#v, ok=%v", decoded, ok)
+	}
+
+	for _, malformed := range []string{
+		`"authority_digest":""`,
+		`"authority_digest":"00"`,
+		`"authority_digest":"` + strings.Repeat("0", 64) + `"`,
+		`"authority_digest":"` + strings.Repeat("A", 64) + `"`,
+	} {
+		body := bytes.Replace(withAuthority, []byte(`"authority_digest":"`+hex.EncodeToString(authorityDigest[:])+`"`), []byte(malformed), 1)
+		message.Body, message.SHA256 = body, sha256.Sum256(body)
+		if decoded, ok := queue.decodeMessage(message); ok || decoded.JobID != (domain.ProductID{}) || decoded.Payload != nil {
+			t.Fatalf("malformed authority %q decoded = %#v, ok=%v", malformed, decoded, ok)
+		}
+	}
+}
+
 func TestNewRejectsInvalidConfigurationAndDriver(t *testing.T) {
 	t.Parallel()
 

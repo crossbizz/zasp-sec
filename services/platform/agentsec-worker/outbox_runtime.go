@@ -7,8 +7,10 @@ import (
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"regexp"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -18,13 +20,17 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/jobqueue"
 )
 
-const discoveryOutboxTopic = "discovery-jobs"
+const (
+	discoveryOutboxTopic = "discovery-jobs"
+	runtimeOutboxTopic   = "runtime-events"
+)
 
 const outboxAcknowledgementAttempts = 3
 
 var (
 	discoveryRequestDigestPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
 	providerAckPattern            = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
+	runtimeS3ReferencePattern     = regexp.MustCompile(`^s3://[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]/[A-Za-z0-9][A-Za-z0-9._/-]*$`)
 )
 
 type outboxAuthority interface {
@@ -54,7 +60,7 @@ type outboxProcessorConfig struct {
 type outboxProcessor struct{ config outboxProcessorConfig }
 
 func newOutboxProcessor(config outboxProcessorConfig) (*outboxProcessor, error) {
-	if config.Authority == nil || config.Publisher == nil || config.Topic != discoveryOutboxTopic || !workerIdentityPattern.MatchString(config.WorkerID) || config.LeaseSeconds < 5 || config.LeaseSeconds > 900 || config.BatchSize < 1 || config.BatchSize > 10 || config.RetrySeconds < 1 || config.RetrySeconds > 3600 || config.NewLeaseToken == nil || config.Ready == nil {
+	if config.Authority == nil || config.Publisher == nil || config.Topic != discoveryOutboxTopic && config.Topic != runtimeOutboxTopic || !workerIdentityPattern.MatchString(config.WorkerID) || config.LeaseSeconds < 5 || config.LeaseSeconds > 900 || config.BatchSize < 1 || config.BatchSize > 10 || config.RetrySeconds < 1 || config.RetrySeconds > 3600 || config.NewLeaseToken == nil || config.Ready == nil {
 		return nil, errWorkerExecution
 	}
 	if config.HeartbeatInterval == 0 {
@@ -260,6 +266,9 @@ type discoveryOutboxPayload struct {
 }
 
 func discoveryJobForOutbox(event apiserver.DiscoveryOutboxEvent, expectedTopic string) (jobqueue.Job, domain.Scope, bool) {
+	if expectedTopic == runtimeOutboxTopic {
+		return runtimeJobForOutbox(event)
+	}
 	organization, organizationErr := domain.ParseProductID(event.OrganizationID)
 	workspace, workspaceErr := domain.ParseProductID(event.WorkspaceID)
 	environment, environmentErr := domain.ParseProductID(event.EnvironmentID)
@@ -282,6 +291,61 @@ func discoveryJobForOutbox(event apiserver.DiscoveryOutboxEvent, expectedTopic s
 		return jobqueue.Job{}, domain.Scope{}, false
 	}
 	return jobqueue.Job{Scope: scope, JobID: jobID, Kind: "discovery", Payload: bytes.Clone(event.Payload)}, scope, true
+}
+
+type runtimeOutboxPayload struct {
+	BatchID           string `json:"batch_id"`
+	JobID             string `json:"job_id"`
+	Generation        int64  `json:"generation"`
+	PipelineVersion   int    `json:"pipeline_version"`
+	ArtifactReference string `json:"artifact_reference"`
+	ArtifactKey       string `json:"artifact_key"`
+	ArtifactVersionID string `json:"artifact_version_id"`
+	ArtifactChecksum  string `json:"artifact_checksum"`
+	ArtifactSizeBytes int64  `json:"artifact_size_bytes"`
+	PayloadMediaType  string `json:"payload_media_type"`
+	PayloadSchema     string `json:"payload_schema_version"`
+	EventCount        int    `json:"event_count"`
+	RequestDigest     string `json:"request_digest"`
+}
+
+func runtimeJobForOutbox(event apiserver.DiscoveryOutboxEvent) (jobqueue.Job, domain.Scope, bool) {
+	organization, organizationErr := domain.ParseProductID(event.OrganizationID)
+	workspace, workspaceErr := domain.ParseProductID(event.WorkspaceID)
+	environment, environmentErr := domain.ParseProductID(event.EnvironmentID)
+	outboxID, outboxErr := domain.ParseProductID(event.ID)
+	scope, scopeErr := domain.NewScope(organization, workspace, environment)
+	payloadDigest := sha256.Sum256(event.Payload)
+	if organizationErr != nil || workspaceErr != nil || environmentErr != nil || outboxErr != nil || scopeErr != nil || outboxID.IsZero() || event.Topic != runtimeOutboxTopic || event.PayloadVersion != 15 || len(event.Payload) == 0 || len(event.Payload) > 65_536 || len(event.PayloadDigest) != sha256.Size || subtle.ConstantTimeCompare(event.PayloadDigest, payloadDigest[:]) != 1 || event.Attempt < 1 || event.Attempt > 100 {
+		return jobqueue.Job{}, domain.Scope{}, false
+	}
+	var payload runtimeOutboxPayload
+	decoder := json.NewDecoder(bytes.NewReader(event.Payload))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&payload); err != nil || !errors.Is(decoder.Decode(&struct{}{}), io.EOF) {
+		return jobqueue.Job{}, domain.Scope{}, false
+	}
+	batchID, batchErr := domain.ParseProductID(payload.BatchID)
+	jobID, jobErr := domain.ParseProductID(payload.JobID)
+	if batchErr != nil || jobErr != nil || batchID.IsZero() || jobID.IsZero() || payload.Generation < 1 || payload.PipelineVersion != 15 || event.DeterministicKey != "runtime:"+payload.BatchID || !validRuntimeArtifactKey(scope, batchID, payload.Generation, payload.ArtifactKey) || !runtimeS3ReferencePattern.MatchString(payload.ArtifactReference) || !strings.HasSuffix(payload.ArtifactReference, "/"+payload.ArtifactKey) || !validRuntimeVersion(payload.ArtifactVersionID) || !discoveryRequestDigestPattern.MatchString(payload.ArtifactChecksum) || payload.ArtifactChecksum == strings.Repeat("0", 64) || payload.ArtifactSizeBytes < 1 || payload.ArtifactSizeBytes > 64<<20 || payload.PayloadMediaType != "application/json" || payload.PayloadSchema != "runtime-event-v1" || payload.EventCount < 1 || payload.EventCount > 1000 || !discoveryRequestDigestPattern.MatchString(payload.RequestDigest) || payload.RequestDigest == strings.Repeat("0", 64) {
+		return jobqueue.Job{}, domain.Scope{}, false
+	}
+	var authorityDigest [sha256.Size]byte
+	copy(authorityDigest[:], event.PayloadDigest)
+	return jobqueue.Job{Scope: scope, JobID: jobID, Kind: "runtime", Payload: bytes.Clone(event.Payload), AuthorityDigest: authorityDigest}, scope, true
+}
+
+func validRuntimeArtifactKey(scope domain.Scope, batchID domain.ProductID, generation int64, key string) bool {
+	parts := strings.Split(key, "/")
+	if len(parts) != 8 || parts[0] != "runtime" || parts[1] != "v15" || parts[2] != scope.OrganizationID().String() || parts[3] != scope.WorkspaceID().String() || parts[4] != scope.EnvironmentID().String() || parts[6] != fmt.Sprintf("%020d", generation) || parts[7] != batchID.String()+".json" {
+		return false
+	}
+	sensorID, err := domain.ParseProductID(parts[5])
+	return err == nil && !sensorID.IsZero()
+}
+
+func validRuntimeVersion(value string) bool {
+	return len(value) >= 1 && len(value) <= 1024 && value == strings.TrimSpace(value) && !strings.ContainsAny(value, "\r\n\x00")
 }
 
 func exactOutboxPublishResult(result jobqueue.PublishResult, jobs []jobqueue.Job) bool {

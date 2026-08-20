@@ -43,10 +43,11 @@ type Config struct {
 }
 
 type Job struct {
-	Scope   domain.Scope
-	JobID   domain.ProductID
-	Kind    string
-	Payload []byte
+	Scope           domain.Scope
+	JobID           domain.ProductID
+	Kind            string
+	Payload         []byte
+	AuthorityDigest [sha256.Size]byte
 }
 
 type PublishResult struct {
@@ -140,13 +141,14 @@ type Queue struct {
 }
 
 type envelope struct {
-	Version        int             `json:"version"`
-	JobID          string          `json:"job_id"`
-	OrganizationID string          `json:"organization_id"`
-	WorkspaceID    string          `json:"workspace_id"`
-	EnvironmentID  string          `json:"environment_id"`
-	Kind           string          `json:"kind"`
-	Payload        json.RawMessage `json:"payload"`
+	Version         int             `json:"version"`
+	JobID           string          `json:"job_id"`
+	OrganizationID  string          `json:"organization_id"`
+	WorkspaceID     string          `json:"workspace_id"`
+	EnvironmentID   string          `json:"environment_id"`
+	Kind            string          `json:"kind"`
+	Payload         json.RawMessage `json:"payload"`
+	AuthorityDigest string          `json:"authority_digest,omitempty"`
 }
 
 func New(driver Driver, config Config) (*Queue, error) {
@@ -381,14 +383,19 @@ func canonicalBody(job Job) ([]byte, bool) {
 	if err := json.Compact(&compact, job.Payload); err != nil || compact.Len() == 0 {
 		return nil, false
 	}
+	authorityDigest := ""
+	if job.AuthorityDigest != ([sha256.Size]byte{}) {
+		authorityDigest = hex.EncodeToString(job.AuthorityDigest[:])
+	}
 	body, err := json.Marshal(envelope{
-		Version:        envelopeVersion,
-		JobID:          job.JobID.String(),
-		OrganizationID: job.Scope.OrganizationID().String(),
-		WorkspaceID:    job.Scope.WorkspaceID().String(),
-		EnvironmentID:  job.Scope.EnvironmentID().String(),
-		Kind:           job.Kind,
-		Payload:        json.RawMessage(bytes.Clone(compact.Bytes())),
+		Version:         envelopeVersion,
+		JobID:           job.JobID.String(),
+		OrganizationID:  job.Scope.OrganizationID().String(),
+		WorkspaceID:     job.Scope.WorkspaceID().String(),
+		EnvironmentID:   job.Scope.EnvironmentID().String(),
+		Kind:            job.Kind,
+		Payload:         json.RawMessage(bytes.Clone(compact.Bytes())),
+		AuthorityDigest: authorityDigest,
 	})
 	return body, err == nil
 }
@@ -429,7 +436,18 @@ func (queue *Queue) decodeMessage(message DriverMessage) (Job, bool) {
 	if err != nil {
 		return Job{}, false
 	}
-	job := Job{Scope: scope, JobID: jobID, Kind: decoded.Kind, Payload: bytes.Clone(decoded.Payload)}
+	var authorityDigest [sha256.Size]byte
+	if decoded.AuthorityDigest != "" {
+		decodedDigest, err := hex.DecodeString(decoded.AuthorityDigest)
+		if err != nil || len(decodedDigest) != sha256.Size || decoded.AuthorityDigest != hex.EncodeToString(decodedDigest) {
+			return Job{}, false
+		}
+		copy(authorityDigest[:], decodedDigest)
+		if authorityDigest == ([sha256.Size]byte{}) {
+			return Job{}, false
+		}
+	}
+	job := Job{Scope: scope, JobID: jobID, Kind: decoded.Kind, Payload: bytes.Clone(decoded.Payload), AuthorityDigest: authorityDigest}
 	canonical, ok := canonicalBody(job)
 	if !ok || decoded.Version != envelopeVersion || scope != message.Scope || jobID != message.JobID ||
 		decoded.Kind != message.Kind || !bytes.Equal(canonical, message.Body) {
