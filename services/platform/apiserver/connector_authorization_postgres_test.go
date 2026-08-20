@@ -249,7 +249,7 @@ func TestConnectorAuthorizationPostgresPublicIntegrationMutationCreatesTypedOAut
 	if err := connection.QueryRow(ctx, `SELECT status,last_error_code FROM zasp_connector_effects WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND id=$4`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), successEffectID).Scan(&cleanupStatus, &cleanupCode); err != nil || cleanupStatus != "unknown" || cleanupCode != "cleanup_pending" {
 		t.Fatalf("post-completion cleanup authority = %q/%q, %v", cleanupStatus, cleanupCode, err)
 	}
-	if _, err := connection.Exec(ctx, `UPDATE zasp_connector_effects SET updated_at=transaction_timestamp()-interval '16 seconds' WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND id=$4`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), successEffectID); err != nil {
+	if _, err := connection.Exec(ctx, `UPDATE zasp_connector_effects SET updated_at=transaction_timestamp()-interval '16 seconds',lease_expires_at=transaction_timestamp()-interval '1 second' WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND id=$4`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), successEffectID); err != nil {
 		t.Fatal(err)
 	}
 	cleanupLeases, err := connectorRepository.ClaimReconciliation(ctx, "connector-worker-a", 30, 10)

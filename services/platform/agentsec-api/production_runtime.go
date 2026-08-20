@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -14,7 +15,9 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
+	"github.com/zasp-ai/zasp-sec/services/platform/connectors/awsdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/githubdiscovery"
+	"github.com/zasp-ai/zasp-sec/services/platform/connectors/kubernetesdiscovery"
 )
 
 func buildRuntimeDependencies(ctx context.Context, config RuntimeConfig) (RuntimeDependencies, error) {
@@ -81,6 +84,10 @@ func composeRuntimeDependencies(config RuntimeConfig, database apiserver.JSONDat
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
+	referenceRepository, err := apiserver.NewReferenceAuthorizationRepository(tracedDatabase)
+	if err != nil {
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
 	secretsClient, secretsTransport, err := newConnectorSecretsClient(config)
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
@@ -134,6 +141,43 @@ func composeRuntimeDependencies(config RuntimeConfig, database apiserver.JSONDat
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
+	referenceResolver := &referenceSecretResolver{driver: secretsDriver, root: strings.TrimSuffix(config.ConnectorSecretPrefix, "/oauth")}
+	referenceAWSClient, referenceAWSTransport, err := newReferenceAWSClient(config)
+	if err != nil {
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	connectorResources = append(connectorResources, transportCloser{referenceAWSTransport})
+	awsAdapter, err := awsdiscovery.NewAdapter(referenceAWSClient, referenceResolver, config.ProviderTimeout)
+	if err != nil {
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	referenceProbes := map[string]apiserver.ReferenceAuthorizationProbe{"aws": &awsReferenceProbe{adapter: awsAdapter}}
+	referenceChecks := map[string]apiserver.ConnectorCapabilityCheck{"aws": func(context.Context) error { return nil }}
+	if len(config.KubernetesEgressCIDRs) > 0 {
+		cidrs, cidrErr := parseReferenceCIDRs(config.KubernetesEgressCIDRs)
+		if cidrErr != nil {
+			return RuntimeDependencies{}, errRuntimeUnavailable
+		}
+		probeClient := &kubernetesProbeClient{resolver: referenceResolver, cidrs: cidrs, lookup: net.DefaultResolver.LookupIPAddr, timeout: config.ProviderTimeout}
+		kubernetesAdapter, adapterErr := kubernetesdiscovery.NewAdapter(probeClient, config.ProviderTimeout)
+		if adapterErr != nil {
+			return RuntimeDependencies{}, errRuntimeUnavailable
+		}
+		referenceProbes["kubernetes"] = &kubernetesReferenceProbe{adapter: kubernetesAdapter, resolver: referenceResolver}
+		referenceChecks["kubernetes"] = func(context.Context) error { return nil }
+	}
+	referenceRegistry, err := apiserver.NewReferenceConnectorRegistry(referenceProbes, referenceChecks)
+	if err != nil {
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	referenceHandler, err := apiserver.NewReferenceAuthorizationHTTPHandler(apiserver.ReferenceAuthorizationHTTPConfig{Repository: referenceRepository, Workflows: repository, Registry: referenceRegistry})
+	if err != nil {
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	connectorSurface, err := apiserver.NewConnectorSurfaceHandler(connectorHandler, referenceHandler)
+	if err != nil {
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
 	workerOwner, err := newConnectorWorkerOwner(os.Getenv("HOSTNAME"), rand.Reader)
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
@@ -142,7 +186,7 @@ func composeRuntimeDependencies(config RuntimeConfig, database apiserver.JSONDat
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
-	handlers, authenticate, err := apiserver.NewProductionHandlers(repository, tracedProvider, connectorHandler, apiserver.CookiePolicy{Secure: config.CookieSecure, WorkflowSigningKey: []byte(config.WorkflowSigningKey), TokenRevealKey: config.TokenRevealKey, Clock: func() time.Time { return time.Now().UTC().Truncate(time.Second) }, BuildVersion: buildVersion, DeploymentMode: config.DeploymentMode, OrganizationID: config.OrganizationID, ConnectorCapabilities: connectorRegistry})
+	handlers, authenticate, err := apiserver.NewProductionHandlers(repository, tracedProvider, connectorSurface, apiserver.CookiePolicy{Secure: config.CookieSecure, WorkflowSigningKey: []byte(config.WorkflowSigningKey), TokenRevealKey: config.TokenRevealKey, Clock: func() time.Time { return time.Now().UTC().Truncate(time.Second) }, BuildVersion: buildVersion, DeploymentMode: config.DeploymentMode, OrganizationID: config.OrganizationID, ConnectorCapabilities: apiserver.CombinedConnectorCapabilities{OAuth: connectorRegistry, Reference: referenceRegistry}})
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
@@ -170,6 +214,9 @@ func composeRuntimeDependencies(config RuntimeConfig, database apiserver.JSONDat
 			return errRuntimeUnavailable
 		}
 		if err := connectorRepository.Ready(ctx); err != nil {
+			return errRuntimeUnavailable
+		}
+		if err := referenceRepository.Ready(ctx); err != nil {
 			return errRuntimeUnavailable
 		}
 		if err := tracedProvider.Ready(ctx); err != nil {

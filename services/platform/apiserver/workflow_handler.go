@@ -780,7 +780,7 @@ func parseVersion(value string) (int64, error) {
 func quoteVersion(value int64) string { return `"` + strconv.FormatInt(value, 10) + `"` }
 func decodeEmptyInput(request *http.Request) error {
 	var value map[string]any
-	if decodeProductionJSON(request, &value) != nil || len(value) != 0 {
+	if decodeProductionJSON(request, &value) != nil || value == nil || len(value) != 0 {
 		return ErrRepositoryOperation
 	}
 	return nil

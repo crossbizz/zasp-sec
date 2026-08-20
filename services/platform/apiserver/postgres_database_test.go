@@ -23,6 +23,9 @@ func TestPostgresSchemaReadinessRequiresExactWorkflowRelease(t *testing.T) {
 	if !strings.Contains(postgresSchemaVersionSQL, "release.version = 11") || !strings.Contains(postgresSchemaVersionSQL, "release.name = 'connector_authorization'") || !strings.Contains(postgresSchemaVersionSQL, "connector_authorization_fingerprint") {
 		t.Fatalf("schema readiness query does not require connector authorization release: %s", postgresSchemaVersionSQL)
 	}
+	if !strings.Contains(postgresSchemaVersionSQL, "release.version = 12") || !strings.Contains(postgresSchemaVersionSQL, "release.name = 'reference_authorization'") || !strings.Contains(postgresSchemaVersionSQL, "reference_authorization_fingerprint") || !strings.Contains(postgresSchemaVersionSQL, "pg_get_triggerdef") {
+		t.Fatalf("schema readiness query does not require reference authorization and connector triggers: %s", postgresSchemaVersionSQL)
+	}
 	if !strings.Contains(postgresSchemaVersionSQL, "production_discovery_release_fingerprint") || !strings.Contains(postgresSchemaVersionSQL, "COALESCE(release_fingerprint.value, expected_fingerprint.value)") {
 		t.Fatalf("schema readiness query does not recognize the v11-to-v10 compatibility contract: %s", postgresSchemaVersionSQL)
 	}
@@ -52,7 +55,7 @@ func TestPostgresJSONDatabaseRunsSchemaReadAndWriteBoundaries(t *testing.T) {
 	if err != nil || version != CoreSchemaVersion {
 		t.Fatalf("version = (%q, %v)", version, err)
 	}
-	if !reflect.DeepEqual(driver.queryArguments, []any{expectedCoreSchemaChecksum(), expectedCoreSchemaFingerprint(), expectedDiscoverySchemaChecksum(), expectedDiscoverySchemaFingerprint(), expectedConnectorSchemaChecksum(), expectedConnectorSchemaFingerprint()}) {
+	if !reflect.DeepEqual(driver.queryArguments, []any{expectedCoreSchemaChecksum(), expectedCoreSchemaFingerprint(), expectedDiscoverySchemaChecksum(), expectedDiscoverySchemaFingerprint(), expectedConnectorSchemaChecksum(), expectedConnectorSchemaFingerprint(), expectedReferenceSchemaChecksum(), expectedReferenceSchemaFingerprint()}) {
 		t.Fatalf("schema checksum arguments = %#v", driver.queryArguments)
 	}
 	payload, err := database.QueryJSON(context.Background(), "SELECT payload", "organization")

@@ -53,6 +53,8 @@ type RuntimeConfig struct {
 	ConnectorTokenFile          string
 	ConnectorKMSKeyARN          string
 	ConnectorSecretPrefix       string
+	AWSCustomerRolePrefix       string
+	KubernetesEgressCIDRs       []string
 	GitHubClientID              string
 	GitHubSecretReference       string
 	GitHubAppID                 string
@@ -98,6 +100,7 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 		ReadinessInterval: readinessInterval, ReadinessMaxInterval: readinessMaxInterval,
 		PostgresDSN: getenv("ZASP_POSTGRES_DSN"), StytchBaseURL: getenv("ZASP_STYTCH_BASE_URL"), StytchAuthorizeURL: getenv("ZASP_STYTCH_AUTHORIZE_URL"), StytchProjectID: getenv("ZASP_STYTCH_PROJECT_ID"), StytchSecret: getenv("ZASP_STYTCH_SECRET"), StytchPublicToken: getenv("ZASP_STYTCH_PUBLIC_TOKEN"), StytchOrganizationID: getenv("ZASP_STYTCH_ORGANIZATION_ID"), WorkflowSigningKey: getenv("ZASP_WORKFLOW_SIGNING_KEY"),
 		ConnectorAWSRegion: getenv("ZASP_CONNECTOR_AWS_REGION"), ConnectorRoleARN: getenv("ZASP_CONNECTOR_ROLE_ARN"), ConnectorTokenFile: getenv("ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE"), ConnectorKMSKeyARN: getenv("ZASP_CONNECTOR_KMS_KEY_ARN"), ConnectorSecretPrefix: getenv("ZASP_CONNECTOR_SECRET_PREFIX"),
+		AWSCustomerRolePrefix: getenv("ZASP_AWS_CUSTOMER_ROLE_PREFIX"), KubernetesEgressCIDRs: parseTrustedProxyCIDRs(getenv("ZASP_KUBERNETES_EGRESS_CIDRS")),
 		GitHubClientID: getenv("ZASP_GITHUB_CLIENT_ID"), GitHubSecretReference: getenv("ZASP_GITHUB_CLIENT_SECRET_REFERENCE"), GitHubAppID: getenv("ZASP_GITHUB_APP_ID"), GitHubPrivateKeyReference: getenv("ZASP_GITHUB_PRIVATE_KEY_REFERENCE"), OktaClientID: getenv("ZASP_OKTA_CLIENT_ID"), OktaSecretReference: getenv("ZASP_OKTA_CLIENT_SECRET_REFERENCE"),
 		NangoBaseURL: getenv("ZASP_NANGO_BASE_URL"), NangoServiceSecretReference: getenv("ZASP_NANGO_SERVICE_SECRET_REFERENCE"), NangoEnvironment: getenv("ZASP_NANGO_ENVIRONMENT"),
 	}
@@ -139,8 +142,14 @@ func validRuntimeConfig(config RuntimeConfig) bool {
 	if len(config.TrustedProxyCIDRs) == 0 || config.RequestRatePerSecond < 1 || config.RequestRatePerSecond > 10000 || config.RequestBurst < 1 || config.RequestBurst > 10000 {
 		return false
 	}
-	if !connectorRegionPattern.MatchString(config.ConnectorAWSRegion) || !connectorRolePattern.MatchString(config.ConnectorRoleARN) || config.ConnectorTokenFile != "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || !connectorKMSPattern.MatchString(config.ConnectorKMSKeyARN) || !connectorPrefixPattern.MatchString(config.ConnectorSecretPrefix) || !strings.HasSuffix(config.ConnectorSecretPrefix, "/oauth") || !githubClientPattern.MatchString(config.GitHubClientID) || !connectorReferencePattern.MatchString(config.GitHubSecretReference) || !githubAppIDPattern.MatchString(config.GitHubAppID) || !connectorReferencePattern.MatchString(config.GitHubPrivateKeyReference) || !oktaClientPattern.MatchString(config.OktaClientID) || !connectorReferencePattern.MatchString(config.OktaSecretReference) {
+	if !connectorRegionPattern.MatchString(config.ConnectorAWSRegion) || !connectorRolePattern.MatchString(config.ConnectorRoleARN) || config.ConnectorTokenFile != "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || !connectorKMSPattern.MatchString(config.ConnectorKMSKeyARN) || !connectorPrefixPattern.MatchString(config.ConnectorSecretPrefix) || !strings.HasSuffix(config.ConnectorSecretPrefix, "/oauth") || !awsCustomerRolePrefixPattern.MatchString(config.AWSCustomerRolePrefix) || !githubClientPattern.MatchString(config.GitHubClientID) || !connectorReferencePattern.MatchString(config.GitHubSecretReference) || !githubAppIDPattern.MatchString(config.GitHubAppID) || !connectorReferencePattern.MatchString(config.GitHubPrivateKeyReference) || !oktaClientPattern.MatchString(config.OktaClientID) || !connectorReferencePattern.MatchString(config.OktaSecretReference) {
 		return false
+	}
+	for _, value := range config.KubernetesEgressCIDRs {
+		_, network, parseErr := net.ParseCIDR(value)
+		if parseErr != nil || network.String() != value {
+			return false
+		}
 	}
 	if !validOptionalNangoConfig(config) {
 		return false

@@ -56,10 +56,10 @@ func NewPostgresRepository(database JSONDatabase) (*PostgresRepository, error) {
 		return nil, ErrRepositoryConfiguration
 	}
 	version, err := database.SchemaVersion(context.Background())
-	if err != nil || version != CoreSchemaVersion && version != DiscoverySchemaVersion && version != ConnectorSchemaVersion {
+	if err != nil || version != CoreSchemaVersion && version != DiscoverySchemaVersion && version != ConnectorSchemaVersion && version != ReferenceSchemaVersion {
 		return nil, ErrRepositoryConfiguration
 	}
-	return &PostgresRepository{database: database, connectorWorkflows: version == ConnectorSchemaVersion}, nil
+	return &PostgresRepository{database: database, connectorWorkflows: version == ConnectorSchemaVersion || version == ReferenceSchemaVersion}, nil
 }
 
 func (repository *PostgresRepository) Ready(ctx context.Context) error {
@@ -67,7 +67,7 @@ func (repository *PostgresRepository) Ready(ctx context.Context) error {
 		return ErrRepositoryUnavailable
 	}
 	version, err := repository.database.SchemaVersion(ctx)
-	if err != nil || version != CoreSchemaVersion && version != DiscoverySchemaVersion && version != ConnectorSchemaVersion {
+	if err != nil || version != CoreSchemaVersion && version != DiscoverySchemaVersion && version != ConnectorSchemaVersion && version != ReferenceSchemaVersion {
 		return ErrRepositoryUnavailable
 	}
 	if _, err := repository.CleanupExpiredWorkflowMutationReceipts(ctx, 1000); err != nil {

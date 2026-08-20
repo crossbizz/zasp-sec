@@ -78,8 +78,8 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
 			public[key] = documented.OperationID
 		}
 	}
-	if len(seen) != 83 || len(public) != 83 {
-		t.Fatalf("mounted/public operation counts = %d/%d, want 83/83", len(seen), len(public))
+	if len(seen) != 84 || len(public) != 84 {
+		t.Fatalf("mounted/public operation counts = %d/%d, want 84/84", len(seen), len(public))
 	}
 	for key, operationID := range public {
 		if _, mounted := seen[key]; !mounted {
@@ -172,6 +172,10 @@ func TestConnectorOAuthOperationsHaveExactBrowserSecurity(t *testing.T) {
 	authorize, ok := definitions["authorizeIntegration"]
 	if !ok || authorize.Method != http.MethodPost || authorize.Pattern != "/api/v1/integrations/{id}/authorize" || authorize.Permission != "manage_workflows" || !equalStrings(authorize.Security, []string{"BrowserExpectedScope", "BrowserSession"}) {
 		t.Fatalf("authorize definition = %#v, exists=%v", authorize, ok)
+	}
+	reference, ok := definitions["authorizeIntegrationReference"]
+	if !ok || reference.Method != http.MethodPost || reference.Pattern != "/api/v1/integrations/{id}/reference-authorization" || reference.Permission != "manage_workflows" || !equalStrings(reference.Security, []string{"BrowserExpectedScope", "BrowserSession"}) {
+		t.Fatalf("reference authorize definition = %#v, exists=%v", reference, ok)
 	}
 	remediation, ok := definitions["remediateIntegrationAuthorization"]
 	if !ok || remediation.Method != http.MethodPost || remediation.Pattern != "/api/v1/integrations/{id}/authorization-remediation" || remediation.Permission != "manage_workflows" || !equalStrings(remediation.Security, []string{"BrowserExpectedScope", "BrowserSession"}) {

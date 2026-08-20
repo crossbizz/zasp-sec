@@ -91,13 +91,13 @@ const postgresSchemaVersionSQL = `WITH semantic_objects AS (
 )
 SELECT metadata.value
 FROM zasp_schema_metadata AS metadata
-JOIN zasp_schema_versions AS release ON (release.version = 9 AND release.name = 'production_risk_projection') OR (release.version = 10 AND release.name = 'production_discovery') OR (release.version = 11 AND release.name = 'connector_authorization')
-JOIN zasp_schema_metadata AS expected_fingerprint ON expected_fingerprint.key = CASE release.version WHEN 9 THEN 'production_risk_projection_fingerprint' WHEN 10 THEN 'production_discovery_fingerprint' ELSE 'connector_authorization_fingerprint' END
+JOIN zasp_schema_versions AS release ON (release.version = 9 AND release.name = 'production_risk_projection') OR (release.version = 10 AND release.name = 'production_discovery') OR (release.version = 11 AND release.name = 'connector_authorization') OR (release.version = 12 AND release.name = 'reference_authorization')
+JOIN zasp_schema_metadata AS expected_fingerprint ON expected_fingerprint.key = CASE release.version WHEN 9 THEN 'production_risk_projection_fingerprint' WHEN 10 THEN 'production_discovery_fingerprint' WHEN 11 THEN 'connector_authorization_fingerprint' ELSE 'reference_authorization_fingerprint' END
 LEFT JOIN zasp_schema_metadata AS release_fingerprint ON release.version = 10 AND release_fingerprint.key = 'production_discovery_release_fingerprint'
 CROSS JOIN semantic_fingerprint
-WHERE metadata.key = 'production_core_schema' AND metadata.value = CASE release.version WHEN 9 THEN 'production-risk-projection-v1' WHEN 10 THEN 'production-discovery-v1' ELSE 'connector-authorization-v1' END
-  AND release.checksum = CASE release.version WHEN 9 THEN $1 WHEN 10 THEN $3 ELSE $5 END
-  AND COALESCE(release_fingerprint.value, expected_fingerprint.value) = CASE release.version WHEN 9 THEN $2 WHEN 10 THEN $4 ELSE $6 END
+WHERE metadata.key = 'production_core_schema' AND metadata.value = CASE release.version WHEN 9 THEN 'production-risk-projection-v1' WHEN 10 THEN 'production-discovery-v1' WHEN 11 THEN 'connector-authorization-v1' ELSE 'reference-authorization-v1' END
+  AND release.checksum = CASE release.version WHEN 9 THEN $1 WHEN 10 THEN $3 WHEN 11 THEN $5 ELSE $7 END
+  AND COALESCE(release_fingerprint.value, expected_fingerprint.value) = CASE release.version WHEN 9 THEN $2 WHEN 10 THEN $4 WHEN 11 THEN $6 ELSE $8 END
   AND semantic_fingerprint.value = expected_fingerprint.value
   AND NOT EXISTS (SELECT 1 FROM zasp_schema_versions newer WHERE newer.version>release.version)`
 
@@ -112,6 +112,10 @@ func expectedDiscoverySchemaFingerprint() string {
 func expectedConnectorSchemaChecksum() string { return migrations.ConnectorAuthorization().Checksum() }
 func expectedConnectorSchemaFingerprint() string {
 	return migrations.ConnectorAuthorizationSemanticFingerprint()
+}
+func expectedReferenceSchemaChecksum() string { return migrations.ReferenceAuthorization().Checksum() }
+func expectedReferenceSchemaFingerprint() string {
+	return migrations.ReferenceAuthorizationSemanticFingerprint()
 }
 
 type PostgresRow interface{ Scan(...any) error }
@@ -145,7 +149,7 @@ func (database *PostgresJSONDatabase) SchemaVersion(ctx context.Context) (string
 		return "", ErrRepositoryUnavailable
 	}
 	var version string
-	if err := database.driver.QueryRow(ctx, postgresSchemaVersionSQL, expectedCoreSchemaChecksum(), expectedCoreSchemaFingerprint(), expectedDiscoverySchemaChecksum(), expectedDiscoverySchemaFingerprint(), expectedConnectorSchemaChecksum(), expectedConnectorSchemaFingerprint()).Scan(&version); err != nil {
+	if err := database.driver.QueryRow(ctx, postgresSchemaVersionSQL, expectedCoreSchemaChecksum(), expectedCoreSchemaFingerprint(), expectedDiscoverySchemaChecksum(), expectedDiscoverySchemaFingerprint(), expectedConnectorSchemaChecksum(), expectedConnectorSchemaFingerprint(), expectedReferenceSchemaChecksum(), expectedReferenceSchemaFingerprint()).Scan(&version); err != nil {
 		return "", classifyPostgresError(err)
 	}
 	if version == "" {

@@ -82,7 +82,7 @@ func (repository *ConnectorRepository) ready(ctx context.Context) error {
 		return ErrRepositoryUnavailable
 	}
 	version, err := repository.database.SchemaVersion(ctx)
-	if err != nil || version != ConnectorSchemaVersion {
+	if err != nil || version != ConnectorSchemaVersion && version != ReferenceSchemaVersion {
 		return ErrRepositoryUnavailable
 	}
 	payload, err := repository.database.QueryJSON(ctx, postgresConnectorReadySQL, migrations.ConnectorAuthorization().Checksum(), migrations.ConnectorAuthorizationSemanticFingerprint())

@@ -197,6 +197,24 @@ func (runner *scriptedMigrationRunner) DownConnectorAuthorization(context.Contex
 	return nil
 }
 
+func (runner *scriptedMigrationRunner) UpReferenceAuthorization(context.Context) error {
+	runner.events = append(runner.events, "up-reference-authorization")
+	if runner.errAt == "up-reference-authorization" {
+		return errors.New("detail")
+	}
+	runner.version = 12
+	return nil
+}
+
+func (runner *scriptedMigrationRunner) DownReferenceAuthorization(context.Context) error {
+	runner.events = append(runner.events, "down-reference-authorization")
+	if runner.errAt == "down-reference-authorization" {
+		return errors.New("detail")
+	}
+	runner.version = 11
+	return nil
+}
+
 func (runner *scriptedMigrationRunner) DownWorkflowReceiptSafety(context.Context) error {
 	runner.events = append(runner.events, "down-receipt-safety")
 	if runner.errAt == "down-receipt-safety" {
@@ -274,6 +292,9 @@ func TestRunReleaseMigrationReachesExactTargetStateIdempotently(t *testing.T) {
 		{direction: "down", version: 0, want: []string{"version", "version"}},
 	} {
 		t.Run(test.direction+string(rune('0'+test.version)), func(t *testing.T) {
+			if test.direction == "up" {
+				test.want = append(append(append([]string(nil), test.want[:len(test.want)-1]...), "up-reference-authorization"), test.want[len(test.want)-1])
+			}
 			runner := &scriptedMigrationRunner{version: test.version}
 			if err := runReleaseMigration(context.Background(), runner, []string{test.direction}); err != nil {
 				t.Fatal(err)
@@ -290,8 +311,31 @@ func TestRunReleaseMigrationReachesExactTargetStateIdempotently(t *testing.T) {
 	}
 }
 
+func TestRunReleaseMigrationIncludesReferenceAuthorizationRelease(t *testing.T) {
+	up := &scriptedMigrationRunner{version: 11}
+	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || !equalMigrationEvents(up.events, []string{"version", "up-reference-authorization", "version"}) {
+		t.Fatalf("v11 to v12 = %#v, %v", up.events, err)
+	}
+	down := &scriptedMigrationRunner{version: 12}
+	if err := runReleaseMigration(context.Background(), down, []string{"down"}); err != nil || len(down.events) < 3 || down.events[1] != "down-reference-authorization" {
+		t.Fatalf("v12 down = %#v, %v", down.events, err)
+	}
+}
+
+func equalMigrationEvents(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
+			return false
+		}
+	}
+	return true
+}
+
 func TestRunReleaseMigrationRejectsDriftAndHonorsDeadline(t *testing.T) {
-	if err := runReleaseMigration(context.Background(), &scriptedMigrationRunner{version: 12}, []string{"up"}); !errors.Is(err, migrations.ErrInvalidState) {
+	if err := runReleaseMigration(context.Background(), &scriptedMigrationRunner{version: 13}, []string{"up"}); !errors.Is(err, migrations.ErrInvalidState) {
 		t.Fatalf("drift error = %v", err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -325,7 +369,7 @@ func TestLoadDiscoveryPrincipalRegistrationRequiresDistinctSafeNames(t *testing.
 	}
 }
 
-func TestAgentsecMigrateCLIReachesV11FromEmptyAndV10(t *testing.T) {
+func TestAgentsecMigrateCLIReachesV12FromEmptyAndV11(t *testing.T) {
 	dsn := startMigrationPostgres(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
@@ -354,7 +398,7 @@ func TestAgentsecMigrateCLIReachesV11FromEmptyAndV10(t *testing.T) {
 		if output, commandErr := command.CombinedOutput(); commandErr != nil {
 			t.Fatalf("%s: %v output=%q", label, commandErr, output)
 		}
-		if version, versionErr := runner.Version(ctx); versionErr != nil || version != 11 {
+		if version, versionErr := runner.Version(ctx); versionErr != nil || version != 12 {
 			t.Fatalf("%s version = (%d, %v)", label, version, versionErr)
 		}
 		var bindings int
@@ -362,7 +406,7 @@ func TestAgentsecMigrateCLIReachesV11FromEmptyAndV10(t *testing.T) {
 			t.Fatalf("%s principal bindings=%d err=%v", label, bindings, err)
 		}
 	}
-	runCLI("empty to v11")
+	runCLI("empty to v12")
 	var connectorReady bool
 	if err := connection.QueryRow(ctx, `SELECT zasp_connector_security_ready()`).Scan(&connectorReady); err != nil || !connectorReady {
 		t.Fatalf("connector security ready before down=%v err=%v", connectorReady, err)
@@ -371,10 +415,10 @@ func TestAgentsecMigrateCLIReachesV11FromEmptyAndV10(t *testing.T) {
 	if err := connection.QueryRow(ctx, `SELECT zasp_connector_readiness($1,$2)`, migrations.ConnectorAuthorization().Checksum(), migrations.ConnectorAuthorizationSemanticFingerprint()).Scan(&connectorReleaseReady); err != nil || !connectorReleaseReady {
 		t.Fatalf("connector release ready before down=%v err=%v", connectorReleaseReady, err)
 	}
-	if err := runner.DownConnectorAuthorization(ctx); err != nil {
-		t.Fatalf("v11 to v10 fixture: %v", err)
+	if err := runner.DownReferenceAuthorization(ctx); err != nil {
+		t.Fatalf("v12 to v11 fixture: %v", err)
 	}
-	runCLI("v10 to v11")
+	runCLI("v11 to v12")
 }
 
 func TestRunReleaseMigrationRejectsAmbiguousInputsAndStopsOnFailure(t *testing.T) {
@@ -403,22 +447,22 @@ func TestReleaseMigrationReachesExactPostgresTargetFromEmptyV1AndV2AndRejectsDri
 		t.Fatal(err)
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
-		t.Fatalf("empty to v11: %v", err)
+		t.Fatalf("empty to v12: %v", err)
 	}
-	if version, err := runner.Version(ctx); err != nil || version != 11 {
-		t.Fatalf("v11 = (%d, %v)", version, err)
+	if version, err := runner.Version(ctx); err != nil || version != 12 {
+		t.Fatalf("v12 = (%d, %v)", version, err)
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
-		t.Fatalf("v11 retry: %v", err)
+		t.Fatalf("v12 retry: %v", err)
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"down"}); err != nil {
-		t.Fatalf("v11 to empty: %v", err)
+		t.Fatalf("v12 to empty: %v", err)
 	}
 	if err := runner.Up(ctx); err != nil {
 		t.Fatalf("create v1: %v", err)
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
-		t.Fatalf("v1 to v11: %v", err)
+		t.Fatalf("v1 to v12: %v", err)
 	}
 	if _, err := connection.Exec(ctx, `UPDATE zasp_schema_versions SET checksum = repeat('0', 64) WHERE version = 2`); err != nil {
 		t.Fatal(err)
@@ -442,7 +486,10 @@ func TestV6ReceiptlessPATReplayUsesDurableMarkerAndBlocksEveryRollbackWithoutPar
 		t.Fatal(err)
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
-		t.Fatalf("empty to v11: %v", err)
+		t.Fatalf("empty to v12: %v", err)
+	}
+	if err := runner.DownReferenceAuthorization(ctx); err != nil {
+		t.Fatalf("v12 to v11 fixture: %v", err)
 	}
 	if err := runner.DownConnectorAuthorization(ctx); err != nil {
 		t.Fatalf("v11 to v10 fixture: %v", err)
@@ -864,6 +911,9 @@ func migrateToV6(t *testing.T, ctx context.Context, connection *pgx.Conn) *migra
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
 		t.Fatalf("migrate to v6: %v", err)
+	}
+	if err := runner.DownReferenceAuthorization(ctx); err != nil {
+		t.Fatalf("down reference authorization: %v", err)
 	}
 	if err := runner.DownConnectorAuthorization(ctx); err != nil {
 		t.Fatalf("down connector authorization: %v", err)
