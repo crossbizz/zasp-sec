@@ -16,6 +16,8 @@ const platform = path.join(root, "services", "platform");
 const postgresBin = "/opt/homebrew/bin";
 const chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const productHostname = "zasp.production-e2e.test";
+const terminalRevocationIntegrationID = "pid_72000001-0000-4000-8000-000000000001";
+const reloadRevocationIntegrationID = "pid_72000002-0000-4000-8000-000000000002";
 
 if (process.version !== FIXED_NODE_VERSION) throw new Error(`production combined E2E requires Node ${FIXED_NODE_VERSION}`);
 
@@ -30,6 +32,7 @@ let browser;
 let secondBrowserTab;
 let observedSessionCookie = false;
 const lostPolicyResponseKeys = [];
+const integrationDeleteRequests = [];
 const workflowPageRequests = { policies: [], integrations: [] };
 const riskPageRequests = { findings: [], attackPaths: [] };
 const riskRecoverySequence = [];
@@ -52,6 +55,7 @@ const scopeOverlapProof = {
 };
 let injectLaterReceiptOnNextAcknowledgement = false;
 let expireNextReceiptBeforeAcknowledgement = false;
+let loseNextIntegrationDeleteResponse = true;
 let loseNextFindingResponse = true;
 let failNextRiskRecoveryRefetch = false;
 let delayRiskDetailResponses = false;
@@ -431,13 +435,84 @@ try {
   await navigateBrowser(browser.cdp, `${publicOrigin}/connectors`);
   await waitForBrowserText(browser.cdp, /Durable local connector configuration/);
   await waitForBrowserText(browser.cdp, /Paged integration 1001/);
-  assert.equal(await browserCountAriaPrefix(browser.cdp, "Open "), 1001, "integration UI did not traverse exactly 1001 stable IDs");
+  assert.equal(await browserCountAriaPrefix(browser.cdp, "Open "), 1003, "integration UI did not traverse exactly 1001 paged and two revocation fixture IDs");
   assert.equal(workflowPageRequests.integrations.length, 11, "integration UI pagination requested an extra or missing page");
   assert.equal(await browserHasInteractiveText(browser.cdp, /^(?:Authorize|Connect GitHub|Connect Okta|Connect AWS|Connect Kubernetes)$/i), false, "Task3 connector authorization controls appeared before the Task10 product UI cutover");
   const connectorUIRequests = productAPIRequests.slice(connectorUIRequestStart).map((request) => request.path);
   assert.equal(connectorUIRequests.some((requestPath) => requestPath === connectorAuthorizePath || requestPath === connectorCallbackPath), false, "product UI invoked a Task3 connector authorization operation");
   assert.doesNotMatch(await browserBodyText(browser.cdp), /authorization_(?:url|attempt_id)|code_verifier/i);
   console.log("combined E2E: connector authorization operations remain absent from product UI");
+
+  const expectedProductionScope = "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003";
+  const terminalDeleteStart = integrationDeleteRequests.length;
+  await clickBrowserAria(browser.cdp, "Open Harness terminal revocation");
+  await waitForBrowserText(browser.cdp, /Harness terminal revocation/);
+  await clickBrowserText(browser.cdp, "Delete integration");
+  const terminalPending = await waitForBrowserText(browser.cdp, /Provider revocation is pending/);
+  await waitForScopeOverlap(() => integrationDeleteRequests.length >= terminalDeleteStart + 2, "lost integration DELETE was not retried");
+  const terminalPendingRequests = integrationDeleteRequests.slice(terminalDeleteStart);
+  assert.deepEqual(terminalPendingRequests.map((request) => request.status), [202, 202], "lost DELETE did not replay the real asynchronous response");
+  assert.match(terminalPendingRequests[0].idempotencyKey, /^wf_[0-9a-f-]+$/);
+  assert.equal(terminalPendingRequests[0].ifMatch, '"1"');
+  assert.equal(new Set(terminalPendingRequests.map((request) => request.idempotencyKey)).size, 1, "same idempotency key + If-Match was not retained across lost DELETE response");
+  assert.equal(new Set(terminalPendingRequests.map((request) => request.ifMatch)).size, 1, "same idempotency key + If-Match was not retained across lost DELETE response");
+  assert.equal(await connectorRevocationWitness(dsn, terminalRevocationIntegrationID), "revoking|degraded|revoke:unknown|revoking|revoking|verified", "real DELETE 202 durable revoking receipt/effect state was incomplete");
+  assert.match(terminalPending, /Harness terminal revocation[\s\S]*revoking/);
+  assert.doesNotMatch(terminalPending, /Integration deleted/);
+  assert.equal(await browserHasAriaLabel(browser.cdp, "Open Harness terminal revocation"), true, "202 removed the integration before terminal provider completion");
+  assert.equal(await browserTextControlDisabled(browser.cdp, "Close"), true, "202 did not lock modal dismissal");
+  assert.equal(await browserTextControlDisabled(browser.cdp, "Save changes"), true, "202 did not lock integration edits");
+  assert.equal(await browserTextControlDisabled(browser.cdp, "Delete integration"), true, "202 did not lock a competing delete");
+  assert.equal(await browserTextControlDisabled(browser.cdp, "Retry pending integration deletion"), false, "202 did not offer the retained exact retry");
+  console.log("combined E2E: real DELETE 202 durable revoking receipt and no premature deleted toast/removal proven");
+
+  await completeHarnessConnectorRevocation(dsn, terminalRevocationIntegrationID);
+  await clickBrowserText(browser.cdp, "Retry pending integration deletion");
+  await waitForBrowserText(browser.cdp, /Integration deleted\. Audit pid_/);
+  await waitForScopeOverlap(() => integrationDeleteRequests.length >= terminalDeleteStart + 3, "retained terminal DELETE was not sent");
+  const terminalRequests = integrationDeleteRequests.slice(terminalDeleteStart);
+  assert.deepEqual(terminalRequests.map((request) => request.status), [202, 202, 204]);
+  assert.equal(new Set(terminalRequests.map((request) => request.idempotencyKey)).size, 1, "same idempotency key + If-Match changed before terminal 204");
+  assert.equal(new Set(terminalRequests.map((request) => request.ifMatch)).size, 1, "same idempotency key + If-Match changed before terminal 204");
+  await waitForBrowserAction(browser.cdp, `document.querySelector(${JSON.stringify('[aria-label="Open Harness terminal revocation"]')}) === null`);
+
+  const reloadDeleteStart = integrationDeleteRequests.length;
+  await clickBrowserAria(browser.cdp, "Open Harness reload revocation");
+  await waitForBrowserText(browser.cdp, /Harness reload revocation/);
+  await clickBrowserText(browser.cdp, "Delete integration");
+  await waitForBrowserText(browser.cdp, /Provider revocation is pending/);
+  await waitForScopeOverlap(() => integrationDeleteRequests.length >= reloadDeleteStart + 1, "reload integration DELETE did not reach the product API");
+  const reloadPendingRequest = integrationDeleteRequests[reloadDeleteStart];
+  assert.equal(reloadPendingRequest.status, 202);
+  assert.match(reloadPendingRequest.idempotencyKey, /^wf_[0-9a-f-]+$/);
+  assert.equal(reloadPendingRequest.ifMatch, '"1"');
+  assert.equal(await connectorRevocationWitness(dsn, reloadRevocationIntegrationID), "revoking|degraded|revoke:unknown|revoking|revoking|verified", "reload DELETE did not durably stage revocation");
+  await reloadBrowser(browser.cdp);
+  const reloadRecovery = await waitForBrowserText(browser.cdp, /Recover committed operations/);
+  assert.match(reloadRecovery, /Delete Integration[\s\S]*revoking/);
+  assert.doesNotMatch(reloadRecovery, /Integration deleted/);
+  assert.equal(await browserHasAriaLabel(browser.cdp, "Open Harness reload revocation"), true, "reload hid a still-revoking integration");
+  assert.equal(await browserAriaControlDisabled(browser.cdp, "Open Harness reload revocation"), true, "reload did not retain the scope mutation lock");
+  assert.equal(await browserTextControlDisabled(browser.cdp, "Configure Generic Webhook"), true, "reload enabled a competing integration mutation");
+  console.log("combined E2E: reload revocation receipt remained locked and pending without a deleted claim");
+
+  await completeHarnessConnectorRevocation(dsn, reloadRevocationIntegrationID);
+  const reloadTerminal = await browserRepeatIntegrationDelete(browser.cdp, reloadRevocationIntegrationID, reloadPendingRequest.idempotencyKey, reloadPendingRequest.ifMatch, expectedProductionScope);
+  assert.equal(reloadTerminal.status, 204, `reloaded exact DELETE did not reach terminal 204: ${JSON.stringify(reloadTerminal)}`);
+  assert.equal(reloadTerminal.body, "");
+  await waitForScopeOverlap(() => integrationDeleteRequests.length >= reloadDeleteStart + 2, "reloaded exact DELETE was not observed at the public API");
+  const reloadRequests = integrationDeleteRequests.slice(reloadDeleteStart);
+  assert.deepEqual(reloadRequests.map((request) => request.status), [202, 204]);
+  assert.equal(new Set(reloadRequests.map((request) => request.idempotencyKey)).size, 1, "same idempotency key + If-Match changed across reload");
+  assert.equal(new Set(reloadRequests.map((request) => request.ifMatch)).size, 1, "same idempotency key + If-Match changed across reload");
+  const integrationRefetchStart = workflowPageRequests.integrations.length;
+  await clickBrowserText(browser.cdp, "Acknowledge recovered result");
+  await waitForBrowserMissing(browser.cdp, '[aria-label="Mutation recovery"]');
+  await waitForScopeOverlap(() => workflowPageRequests.integrations.length > integrationRefetchStart, "terminal recovery did not refetch integrations");
+  await waitForBrowserAction(browser.cdp, `document.querySelector(${JSON.stringify('[aria-label="Open Harness reload revocation"]')}) === null`);
+  assert.doesNotMatch(await browserBodyText(browser.cdp), /Integration deleted/);
+  console.log("combined E2E: public 202-to-204 integration deletion, reload recovery, and no hidden provider/API bypass proven");
+
   await clickBrowserText(browser.cdp, "Configure Generic Webhook");
   await waitForBrowserActive(browser.cdp, "Close");
   assert.equal(await browserDialogIsolation(browser.cdp), true, "active production modal did not isolate its background");
@@ -716,6 +791,7 @@ try {
   assert.deepEqual(browserConsoleErrors, [], `browser console/exception errors: ${JSON.stringify(browserConsoleErrors)}`);
   console.log("combined E2E: browser console and exception stream remained clean");
   assert.equal(proxyFailure, undefined, `proxy fixture failed: ${proxyFailure}`);
+  console.log("combined E2E: live provider revocation NOT RUN; harness exercised only explicit external-provider completion simulation");
   console.log("combined E2E: live AWS/GitHub/Okta connector success remains typed external evidence");
 
   console.log("production combined E2E passed: callback/cookie/bootstrap, risk pagination/recovery, administration, PAT/receipt recovery, responsive keyboard focus, durable restart/reload, tenant denial");
@@ -880,6 +956,15 @@ SELECT 'pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-0
   'pid_' || lpad(ordinal::text, 8, '0') || '-0000-4000-8000-' || lpad(ordinal::text, 12, '0'),
   jsonb_build_object('id', 'pid_' || lpad(ordinal::text, 8, '0') || '-0000-4000-8000-' || lpad(ordinal::text, 12, '0'), 'connector_key', 'generic-webhook', 'name', 'Paged integration ' || lpad(ordinal::text, 4, '0'), 'configuration', jsonb_build_object('destination_url', 'https://paged.invalid/' || ordinal, 'signing_secret_reference', 'secret_ref_paged_' || ordinal), 'status', 'configured', 'created_at', '2026-08-18T10:00:00Z', 'updated_at', '2026-08-18T10:00:00Z')
 FROM generate_series(1, 1001) AS ordinal;
+INSERT INTO zasp_workflow_records (organization_id,workspace_id,environment_id,kind,id,body) VALUES
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','integration','${terminalRevocationIntegrationID}',jsonb_build_object('id','${terminalRevocationIntegrationID}','connector_key','github','name','Harness terminal revocation','configuration',jsonb_build_object('authorization_mode','github_app'),'status','configured','created_at','2026-08-18T10:00:00Z','updated_at','2026-08-18T10:00:00Z')),
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','integration','${reloadRevocationIntegrationID}',jsonb_build_object('id','${reloadRevocationIntegrationID}','connector_key','github','name','Harness reload revocation','configuration',jsonb_build_object('authorization_mode','github_app'),'status','configured','created_at','2026-08-18T10:00:00Z','updated_at','2026-08-18T10:00:00Z'));
+INSERT INTO zasp_integrations(organization_id,workspace_id,environment_id,id,kind,connector_version,display_name,configuration,state) VALUES
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','${terminalRevocationIntegrationID}','github','1.0.0','Harness terminal revocation','{"authorization_mode":"github_app"}'::jsonb,'active'),
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','${reloadRevocationIntegrationID}','github','1.0.0','Harness reload revocation','{"authorization_mode":"github_app"}'::jsonb,'active');
+INSERT INTO zasp_integration_connections(organization_id,workspace_id,environment_id,integration_id,id,provider,connection_reference,state,verified_at) VALUES
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','${terminalRevocationIntegrationID}','pid_72000011-0000-4000-8000-000000000011','github','ref:github/harness-terminal-revocation','verified',transaction_timestamp()),
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','${reloadRevocationIntegrationID}','pid_72000012-0000-4000-8000-000000000012','github','ref:github/harness-reload-revocation','verified',transaction_timestamp());
 `;
   await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1"], { input: sql });
 }
@@ -902,6 +987,50 @@ async function connectorDurableCounts(dsn) {
     (SELECT count(*) FROM zasp_connector_credentials),
     (SELECT count(*) FROM zasp_connector_audit);`]);
   return result.stdout.trim();
+}
+
+async function connectorRevocationWitness(dsn, integrationID) {
+  assert.ok([terminalRevocationIntegrationID, reloadRevocationIntegrationID].includes(integrationID), "unexpected harness revocation target");
+  const result = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-v", "ON_ERROR_STOP=1", "-c", `SELECT concat_ws('|',
+    COALESCE((SELECT body->>'status' FROM zasp_workflow_records WHERE organization_id='pid_10000001-0000-4000-8000-000000000001' AND workspace_id='pid_10000002-0000-4000-8000-000000000002' AND environment_id='pid_10000003-0000-4000-8000-000000000003' AND kind='integration' AND id='${integrationID}' AND deleted_at IS NULL),'missing'),
+    COALESCE((SELECT state FROM zasp_integrations WHERE organization_id='pid_10000001-0000-4000-8000-000000000001' AND workspace_id='pid_10000002-0000-4000-8000-000000000002' AND environment_id='pid_10000003-0000-4000-8000-000000000003' AND id='${integrationID}'),'missing'),
+    COALESCE((SELECT operation||':'||status FROM zasp_connector_effects WHERE organization_id='pid_10000001-0000-4000-8000-000000000001' AND workspace_id='pid_10000002-0000-4000-8000-000000000002' AND environment_id='pid_10000003-0000-4000-8000-000000000003' AND integration_id='${integrationID}' AND operation='revoke'),'missing'),
+    COALESCE((SELECT response->'body'->>'status' FROM zasp_workflow_idempotency WHERE organization_id='pid_10000001-0000-4000-8000-000000000001' AND workspace_id='pid_10000002-0000-4000-8000-000000000002' AND environment_id='pid_10000003-0000-4000-8000-000000000003' AND operation='deleteIntegration' AND response->'body'->>'id'='${integrationID}'),'missing'),
+    COALESCE((SELECT result->>'status' FROM zasp_workflow_receipts WHERE organization_id='pid_10000001-0000-4000-8000-000000000001' AND workspace_id='pid_10000002-0000-4000-8000-000000000002' AND environment_id='pid_10000003-0000-4000-8000-000000000003' AND operation='deleteIntegration' AND resource_id='${integrationID}'),'missing'),
+    COALESCE((SELECT state FROM zasp_integration_connections WHERE organization_id='pid_10000001-0000-4000-8000-000000000001' AND workspace_id='pid_10000002-0000-4000-8000-000000000002' AND environment_id='pid_10000003-0000-4000-8000-000000000003' AND integration_id='${integrationID}'),'missing')
+  );`]);
+  return result.stdout.trim();
+}
+
+async function completeHarnessConnectorRevocation(dsn, integrationID) {
+  assert.ok([terminalRevocationIntegrationID, reloadRevocationIntegrationID].includes(integrationID), "unexpected harness completion target");
+  const owner = "production-e2e-external-provider-completion";
+  const token = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+  // This is an external-provider completion simulation after the real public API has
+  // staged an unknown revoke effect. It never calls or claims success from a provider.
+  const sql = `
+DO $fixture$
+DECLARE effect_value text;
+BEGIN
+  SELECT id INTO STRICT effect_value FROM zasp_connector_effects
+  WHERE organization_id='pid_10000001-0000-4000-8000-000000000001'
+    AND workspace_id='pid_10000002-0000-4000-8000-000000000002'
+    AND environment_id='pid_10000003-0000-4000-8000-000000000003'
+    AND integration_id='${integrationID}' AND operation='revoke' AND status='unknown';
+  UPDATE zasp_connector_effects SET lease_owner='${owner}',lease_token='${token}',lease_expires_at=transaction_timestamp()+interval '30 seconds',updated_at=transaction_timestamp()
+  WHERE organization_id='pid_10000001-0000-4000-8000-000000000001'
+    AND workspace_id='pid_10000002-0000-4000-8000-000000000002'
+    AND environment_id='pid_10000003-0000-4000-8000-000000000003' AND id=effect_value;
+  PERFORM zasp_connector_complete_revocation('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003',effect_value,'${owner}','${token}');
+END $fixture$;
+SELECT concat_ws('|',
+  (SELECT status FROM zasp_connector_effects WHERE integration_id='${integrationID}' AND operation='revoke'),
+  (SELECT state FROM zasp_integrations WHERE id='${integrationID}'),
+  (SELECT body->>'status' FROM zasp_workflow_records WHERE kind='integration' AND id='${integrationID}'),
+  (SELECT state FROM zasp_integration_connections WHERE integration_id='${integrationID}')
+);`;
+  const result = await command(path.join(postgresBin, "psql"), [dsn, "-qAt", "-v", "ON_ERROR_STOP=1"], { input: sql });
+  assert.equal(result.stdout.trim(), "reconciled|deleted|deleted|revoked", "external-provider completion simulation did not atomically terminalize durable revocation");
 }
 
 async function seedInvestigationSession(dsn) {
@@ -996,6 +1125,7 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
     const tokenRotate = request.method === "POST" && /^\/api\/v1\/admin\/api-tokens\/pid_[0-9a-f-]+\/rotate$/.test(target.pathname);
     const tokenReveal = request.method === "POST" && /^\/api\/v1\/admin\/api-token-reveal-grants\/pid_[0-9a-f-]+\/reveal$/.test(target.pathname);
     const tokenAcknowledge = request.method === "DELETE" && /^\/api\/v1\/admin\/api-token-reveal-grants\/pid_[0-9a-f-]+$/.test(target.pathname);
+    const integrationDeleteID = request.method === "DELETE" && /^\/api\/v1\/integrations\/pid_[0-9a-f-]+$/.test(target.pathname) ? target.pathname.split("/").at(-1) : undefined;
     if (tokenCreate) tokenMutationKeys.create.push(String(request.headers["idempotency-key"] ?? ""));
     if (tokenRotate) tokenMutationKeys.rotate.push(String(request.headers["idempotency-key"] ?? ""));
     if (request.method === "GET" && target.pathname === "/api/v1/policies") workflowPageRequests.policies.push(target.search);
@@ -1033,6 +1163,23 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
     };
     delete upstreamHeaders["x-zasp-e2e-tab"];
     const upstream = http.request({ hostname: "127.0.0.1", port: upstreamPort, method: request.method, path: request.url, headers: upstreamHeaders }, (upstreamResponse) => {
+      if (integrationDeleteID) {
+        integrationDeleteRequests.push({
+          id: integrationDeleteID,
+          idempotencyKey: String(request.headers["idempotency-key"] ?? ""),
+          ifMatch: String(request.headers["if-match"] ?? ""),
+          status: upstreamResponse.statusCode ?? 0,
+        });
+        if (integrationDeleteID === terminalRevocationIntegrationID && loseNextIntegrationDeleteResponse && upstreamResponse.statusCode === 202) {
+          loseNextIntegrationDeleteResponse = false;
+          upstreamResponse.resume();
+          upstreamResponse.once("end", () => {
+            response.writeHead(202, { ...upstreamResponse.headers, "content-type": "application/json", "cache-control": "no-store" });
+            response.end("{}");
+          });
+          return;
+        }
+      }
       if (findingRecoveryRefetch) riskRecoverySequence.push(`GET:${upstreamResponse.statusCode}`);
       if (receiptAcknowledgement) riskRecoverySequence.push(`POST:${upstreamResponse.statusCode}`);
       if (riskDetailKind && delayRiskDetailResponses) {
@@ -1388,6 +1535,16 @@ async function browserTextControlDisabled(cdp, text) {
   return evaluated.result?.value;
 }
 
+async function browserHasAriaLabel(cdp, label) {
+  const evaluated = await cdp.send("Runtime.evaluate", { expression: `document.querySelector(${JSON.stringify(`[aria-label="${label}"]`)}) !== null`, returnByValue: true });
+  return evaluated.result?.value === true;
+}
+
+async function browserAriaControlDisabled(cdp, label) {
+  const evaluated = await cdp.send("Runtime.evaluate", { expression: `(() => { const element = document.querySelector(${JSON.stringify(`[aria-label="${label}"]`)}); return element instanceof HTMLButtonElement ? element.disabled : null; })()`, returnByValue: true });
+  return evaluated.result?.value;
+}
+
 async function browserLabeledControlDisabled(cdp, label) {
   const evaluated = await cdp.send("Runtime.evaluate", { expression: `(() => { const text = ${JSON.stringify(label)}; const field = [...document.querySelectorAll('label')].find((candidate) => [...candidate.querySelectorAll('span')].some((span) => span.textContent?.trim() === text)); const control = field?.querySelector('button,input,select,textarea'); return control instanceof HTMLButtonElement || control instanceof HTMLInputElement || control instanceof HTMLSelectElement || control instanceof HTMLTextAreaElement ? control.disabled : null; })()`, returnByValue: true });
   return evaluated.result?.value;
@@ -1523,6 +1680,27 @@ async function browserConnectorAuthorizeRejection(cdp, target, expectedScope) {
 async function browserFetchJSON(cdp, target, headers) {
   const evaluated = await cdp.send("Runtime.evaluate", {
     expression: `(async () => { const response = await fetch(${JSON.stringify(target)}, { headers: ${JSON.stringify(headers)} }); return { status: response.status, body: await response.json() }; })()`,
+    awaitPromise: true,
+    returnByValue: true,
+  });
+  return evaluated.result.value;
+}
+
+async function browserRepeatIntegrationDelete(cdp, integrationID, idempotencyKey, ifMatch, expectedScope) {
+  const evaluated = await cdp.send("Runtime.evaluate", {
+    expression: `(async () => {
+      const bootstrap = await fetch('/api/v1/session/bootstrap', { cache: 'no-store' }).then((response) => response.json());
+      const response = await fetch(${JSON.stringify(`/api/v1/integrations/${integrationID}`)}, {
+        method: 'DELETE', cache: 'no-store',
+        headers: {
+          'Idempotency-Key': ${JSON.stringify(idempotencyKey)},
+          'If-Match': ${JSON.stringify(ifMatch)},
+          'X-CSRF-Token': bootstrap.csrf_token,
+          'X-Zasp-Expected-Scope': ${JSON.stringify(expectedScope)},
+        },
+      });
+      return { status: response.status, headers: Object.fromEntries(response.headers.entries()), body: await response.text() };
+    })()`,
     awaitPromise: true,
     returnByValue: true,
   });
