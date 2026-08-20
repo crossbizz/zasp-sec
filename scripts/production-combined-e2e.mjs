@@ -15,6 +15,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const platform = path.join(root, "services", "platform");
 const postgresBin = "/opt/homebrew/bin";
 const chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const productHostname = "zasp.production-e2e.test";
 
 if (process.version !== FIXED_NODE_VERSION) throw new Error(`production combined E2E requires Node ${FIXED_NODE_VERSION}`);
 
@@ -36,6 +37,7 @@ const delayedRiskDetailResponses = [];
 const lostFindingResponseKeys = [];
 const productAPIRequests = [];
 const browserConsoleErrors = [];
+const browserConsoleMessages = [];
 const administrationRequests = [];
 const lostTokenResponses = { create: false, rotate: false, reveal: false, acknowledge: false };
 const tokenMutationKeys = { create: [], rotate: [] };
@@ -60,18 +62,34 @@ try {
   const ports = await Promise.all(Array.from({ length: 7 }, reservePort));
   const [postgresPort, identityPort, apiPort, healthPort, webPort, proxyPort, chromePort] = ports;
   const dsn = `postgres://zasp_e2e@127.0.0.1:${postgresPort}/postgres?sslmode=disable`;
+  const apiDSN = `postgres://zasp_e2e_api@127.0.0.1:${postgresPort}/postgres?sslmode=disable`;
   postgres = await startPostgres(postgresPort);
+  await provisionPostgresPrincipals(dsn);
   console.log("combined E2E: disposable PostgreSQL ready");
 
   const migrate = path.join(temporaryRoot, "agentsec-migrate");
   const apiBinary = path.join(temporaryRoot, "agentsec-api");
   await command("go", ["build", "-o", migrate, "./agentsec-migrate"], { cwd: platform });
   await command("go", ["build", "-o", apiBinary, "./agentsec-api"], { cwd: platform });
-  await command(migrate, ["up"], { env: { ...process.env, ZASP_POSTGRES_DSN: dsn, ZASP_MIGRATION_TIMEOUT: "20s" } });
+  await command(migrate, ["up"], { env: {
+    ...process.env,
+    ZASP_POSTGRES_DSN: dsn,
+    ZASP_MIGRATION_TIMEOUT: "20s",
+    ZASP_MIGRATION_DB_PRINCIPAL: "zasp_e2e",
+    ZASP_DISCOVERY_API_DB_PRINCIPAL: "zasp_e2e_api",
+    ZASP_DISCOVERY_WORKER_DB_PRINCIPAL: "zasp_e2e_discovery",
+    ZASP_RUNTIME_INGEST_DB_PRINCIPAL: "zasp_e2e_ingest",
+    ZASP_RUNTIME_WORKER_DB_PRINCIPAL: "zasp_e2e_runtime",
+    ZASP_OUTBOX_WORKER_DB_PRINCIPAL: "zasp_e2e_outbox",
+    ZASP_RUNTIME_GATEWAY_DB_PRINCIPAL: "zasp_e2e_gateway",
+  } });
+  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version=11;"]);
+  assert.equal(schemaRelease.stdout.trim(), "11|connector_authorization", "combined E2E did not migrate to the connector authorization release");
+  console.log("combined E2E: schema 11 connector_authorization verified");
   await seedPostgres(dsn);
   console.log("combined E2E: migrations and durable seed ready");
 
-  const publicOrigin = `https://127.0.0.1:${proxyPort}`;
+  const publicOrigin = `https://${productHostname}:${proxyPort}`;
   identity = await startIdentityServer(identityPort, publicOrigin);
   const apiEnvironment = {
     ...process.env,
@@ -90,7 +108,7 @@ try {
     ZASP_SHUTDOWN_TIMEOUT: "5s",
     ZASP_READINESS_INTERVAL: "100ms",
     ZASP_READINESS_MAX_INTERVAL: "1s",
-    ZASP_POSTGRES_DSN: dsn,
+    ZASP_POSTGRES_DSN: apiDSN,
     ZASP_STYTCH_BASE_URL: `http://127.0.0.1:${identityPort}`,
     ZASP_STYTCH_AUTHORIZE_URL: `http://127.0.0.1:${identityPort}/v1/b2b/public/oauth/google/start`,
     ZASP_STYTCH_PROJECT_ID: "project-test-local",
@@ -99,12 +117,25 @@ try {
     ZASP_STYTCH_ORGANIZATION_ID: "organization-test-local",
     ZASP_WORKFLOW_SIGNING_KEY: "0123456789abcdef0123456789abcdef",
     ZASP_TOKEN_REVEAL_KEY: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY",
+    ZASP_CONNECTOR_AWS_REGION: "us-east-1",
+    ZASP_CONNECTOR_ROLE_ARN: "arn:aws:iam::000000000000:role/zasp-production-e2e-api-connectors",
+    ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
+    ZASP_CONNECTOR_KMS_KEY_ARN: "arn:aws:kms:us-east-1:000000000000:key/11111111-1111-1111-1111-111111111111",
+    ZASP_CONNECTOR_SECRET_PREFIX: "zasp-production-e2e/connectors/oauth",
+    ZASP_GITHUB_CLIENT_ID: "Iv1.1234567890abcdef",
+    ZASP_GITHUB_CLIENT_SECRET_REFERENCE: "ref:github/client-secret",
+    ZASP_OKTA_CLIENT_ID: "0oa1234567890abcdef",
+    ZASP_OKTA_CLIENT_SECRET_REFERENCE: "ref:okta/client-secret",
   };
   api = startChild(apiBinary, [], { env: apiEnvironment });
 	try {
 		await waitForHTTP(`http://127.0.0.1:${healthPort}/readyz`, 200);
 	} catch (error) {
-		throw new Error(`${error instanceof Error ? error.message : "API readiness failed"}: ${api.output()}`);
+		if (api.exitCode === null && api.signalCode === null) {
+			api.kill("SIGQUIT");
+			await Promise.race([once(api, "exit"), delay(1_000)]);
+		}
+		throw new Error(`${error instanceof Error ? error.message : "API readiness failed"}; exit=${api.exitCode}; signal=${api.signalCode}: ${api.output()}`);
 	}
   console.log("combined E2E: Go product and internal listeners ready");
 
@@ -115,9 +146,25 @@ try {
 
   const key = path.join(temporaryRoot, "tls.key");
   const certificate = path.join(temporaryRoot, "tls.crt");
-  await command("openssl", ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1", "-subj", "/CN=127.0.0.1", "-addext", "subjectAltName=IP:127.0.0.1", "-keyout", key, "-out", certificate]);
+  await command("openssl", ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1", "-subj", `/CN=${productHostname}`, "-addext", `subjectAltName=DNS:${productHostname}`, "-keyout", key, "-out", certificate]);
   proxy = await startProxy(proxyPort, apiPort, webPort, key, certificate, dsn);
   await waitForHTTP(`${publicOrigin}/sign-in`, 200, true);
+
+  const connectorAuthorizeOperation = "/api/v1/integrations/{id}/authorize";
+  const connectorAuthorizePath = connectorAuthorizeOperation.replace("{id}", "pid_71000001-0000-4000-8000-000000000001");
+  const connectorCallbackPath = "/api/v1/integrations/oauth/callback";
+  const providerCallsBeforeRejections = identityOAuthStarts;
+  const unauthorizedAuthorize = await requestHTTPSJSON(`${publicOrigin}${connectorAuthorizePath}`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "idempotency-key": "connector-e2e-unauthorized-authorize" },
+  }, "{}");
+  assertRejectedConnectorResponse(unauthorizedAuthorize, 401, "authentication_required", "unauthorized connector authorization");
+  const unauthorizedCallback = await requestHTTPSJSON(`${publicOrigin}${connectorCallbackPath}?code=connector-code-probe&state=connector-state-probe`, { method: "GET" });
+  assertRejectedConnectorResponse(unauthorizedCallback, 401, "authentication_required", "unauthorized connector callback");
+  const rejectedConnectorCounts = await connectorDurableCounts(dsn);
+  assert.equal(rejectedConnectorCounts, "0|0|0|0", "unauthorized connector requests wrote durable state");
+  assert.equal(identityOAuthStarts, providerCallsBeforeRejections, "rejected connector requests unexpectedly started an identity/provider flow");
+  console.log("combined E2E: unauthorized connector boundaries, no-store/no-referrer, and zero provider/AWS calls proven");
 
   const patHeaders = { authorization: "Bearer production-e2e-product-token-with-at-least-32-bytes", "content-type": "application/json", "idempotency-key": "production-e2e-pat-0001" };
   const patBody = JSON.stringify({ id: "policy-pat-e2e", name: "PAT E2E boundary", scope: "environment", trigger: "tool", conditions: [{ field: "action", operator: "equals", value: "read" }], action: "monitor", rollout: "draft", failure_mode: "open" });
@@ -143,7 +190,7 @@ try {
   const patRiskBody = JSON.stringify({ status: "under_review" });
   const patRiskUpdated = await requestHTTPSJSON(`${publicOrigin}/api/v1/findings/${patFindingID}`, { method: "PATCH", headers: patRiskHeaders }, patRiskBody);
   const patRiskReplayed = await requestHTTPSJSON(`${publicOrigin}/api/v1/findings/${patFindingID}`, { method: "PATCH", headers: patRiskHeaders }, patRiskBody);
-  assert.equal(patRiskUpdated.status, 200);
+  assert.equal(patRiskUpdated.status, 200, `PAT risk mutation failed: ${JSON.stringify(patRiskUpdated)}`);
   assert.deepEqual(patRiskReplayed.body, patRiskUpdated.body);
   assert.equal(patRiskUpdated.headers["x-mutation-receipt-id"], undefined);
   assert.equal(patRiskReplayed.headers["x-mutation-receipt-id"], undefined);
@@ -170,6 +217,25 @@ try {
   console.log("combined E2E: browser callback, cookie, bootstrap, and durable data proven");
 
   const sharedSessionCookie = await getBrowserSessionCookie(browser.cdp, publicOrigin);
+  const providerCallsBeforeScopedRejections = identityOAuthStarts;
+  const crossScopeState = "connector-cross-scope-state-0001";
+  await seedCrossScopeConnectorAttempt(dsn, crossScopeState);
+  const crossScopeCallback = await requestHTTPSJSON(`${publicOrigin}${connectorCallbackPath}?code=connector-cross-scope-code-0001&state=${crossScopeState}`, {
+    method: "GET",
+    headers: { cookie: `${sharedSessionCookie.name}=${sharedSessionCookie.value}` },
+  });
+  assertRejectedConnectorResponse(crossScopeCallback, 404, "not_found", "cross-scope connector callback");
+  const crossScopeAuthorize = await browserConnectorAuthorizeRejection(
+    browser.cdp,
+    connectorAuthorizePath,
+    "pid_10000001-0000-4000-8000-000000000001/pid_10000022-0000-4000-8000-000000000022/pid_10000023-0000-4000-8000-000000000023",
+  );
+  assertRejectedConnectorResponse(crossScopeAuthorize, 409, "scope_stale", "cross-scope connector authorization");
+  const scopedRejectionCounts = await connectorDurableCounts(dsn);
+  assert.equal(scopedRejectionCounts, "1|0|0|0", "scope-bound connector rejections mutated their pending witness or created effects");
+  assert.equal(identityOAuthStarts, providerCallsBeforeScopedRejections, "scope-bound connector rejections unexpectedly started a provider flow");
+  console.log("combined E2E: callback and authorization scope boundaries rejected with zero provider/AWS calls");
+
   await setBrowserTabHeader(browser.cdp, "first");
   secondBrowserTab = await startBrowserTab(chromePort, `${publicOrigin}/`, sharedSessionCookie);
   await waitForBrowserText(secondBrowserTab, /Security overview/);
@@ -357,11 +423,17 @@ try {
   await clickBrowserText(browser.cdp, "Enforce policy");
   await waitForBrowserText(browser.cdp, /Policy is enforced\. Audit pid_/);
 
+  const connectorUIRequestStart = productAPIRequests.length;
   await navigateBrowser(browser.cdp, `${publicOrigin}/connectors`);
   await waitForBrowserText(browser.cdp, /Durable local connector configuration/);
   await waitForBrowserText(browser.cdp, /Paged integration 1001/);
   assert.equal(await browserCountAriaPrefix(browser.cdp, "Open "), 1001, "integration UI did not traverse exactly 1001 stable IDs");
   assert.equal(workflowPageRequests.integrations.length, 11, "integration UI pagination requested an extra or missing page");
+  assert.equal(await browserHasInteractiveText(browser.cdp, /^(?:Authorize|Connect GitHub|Connect Okta|Connect AWS|Connect Kubernetes)$/i), false, "Task3 connector authorization controls appeared before the Task10 product UI cutover");
+  const connectorUIRequests = productAPIRequests.slice(connectorUIRequestStart).map((request) => request.path);
+  assert.equal(connectorUIRequests.some((requestPath) => requestPath === connectorAuthorizePath || requestPath === connectorCallbackPath), false, "product UI invoked a Task3 connector authorization operation");
+  assert.doesNotMatch(await browserBodyText(browser.cdp), /authorization_(?:url|attempt_id)|code_verifier/i);
+  console.log("combined E2E: connector authorization operations remain absent from product UI");
   await clickBrowserText(browser.cdp, "Configure Generic Webhook");
   await waitForBrowserActive(browser.cdp, "Close");
   assert.equal(await browserDialogIsolation(browser.cdp), true, "active production modal did not isolate its background");
@@ -628,9 +700,19 @@ try {
   assert.equal(deniedFinding.status, 404);
   assert.equal(deniedFinding.body.code, "not_found");
   assert.doesNotMatch(JSON.stringify(deniedFinding.body), /Foreign tenant finding/);
+  const connectorForensics = await browserConnectorForensics(browser.cdp);
+  assert.deepEqual(connectorForensics.local, {});
+  assert.deepEqual(connectorForensics.session, {});
+  assert.deepEqual(connectorForensics.cacheKeys, []);
+  assert.deepEqual(connectorForensics.indexedDatabases, []);
+  const connectorBrowserSurface = JSON.stringify({ connectorForensics, browserConsoleMessages });
+  assert.doesNotMatch(connectorBrowserSurface, /zasp_pat_|access_token|refresh_token|code_verifier|client_secret|authorization_url|authorization_attempt_id|connector-(?:code|state|cross-scope)|secret-test-local|ref:(?:github|okta)\/client-secret|MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY/i);
+  assert.equal(connectorForensics.navigationHistory.some((entry) => /[?&](?:code|state)=/i.test(`${entry.url} ${entry.userTypedURL}`)), false, "connector code/state remained in browser navigation history");
+  console.log("combined E2E: connector tokens, state, verifier, and secrets absent from DOM, URL/history, storage, caches, IndexedDB, and console");
   assert.deepEqual(browserConsoleErrors, [], `browser console/exception errors: ${JSON.stringify(browserConsoleErrors)}`);
   console.log("combined E2E: browser console and exception stream remained clean");
   assert.equal(proxyFailure, undefined, `proxy fixture failed: ${proxyFailure}`);
+  console.log("combined E2E: live AWS/GitHub/Okta connector success remains typed external evidence");
 
   console.log("production combined E2E passed: callback/cookie/bootstrap, risk pagination/recovery, administration, PAT/receipt recovery, responsive keyboard focus, durable restart/reload, tenant denial");
 } finally {
@@ -676,6 +758,18 @@ async function startPostgres(port) {
 async function stopPostgres(value) {
   await command(path.join(postgresBin, "pg_ctl"), ["-D", value.data, "-m", "fast", "-w", "stop"], { reject: false, timeout: 10_000 });
   await stopChild(value.child);
+}
+
+async function provisionPostgresPrincipals(dsn) {
+  const sql = `
+CREATE ROLE zasp_e2e_api LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+CREATE ROLE zasp_e2e_discovery LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+CREATE ROLE zasp_e2e_ingest LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+CREATE ROLE zasp_e2e_runtime LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+CREATE ROLE zasp_e2e_outbox LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+CREATE ROLE zasp_e2e_gateway LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+`;
+  await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1"], { input: sql });
 }
 
 async function seedPostgres(dsn) {
@@ -780,6 +874,26 @@ FROM generate_series(1, 1001) AS ordinal;
   await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1"], { input: sql });
 }
 
+async function seedCrossScopeConnectorAttempt(dsn, state) {
+  const sql = `
+INSERT INTO zasp_integrations(organization_id,workspace_id,environment_id,id,kind,connector_version,display_name,configuration,state)
+VALUES ('pid_10000001-0000-4000-8000-000000000001','pid_10000022-0000-4000-8000-000000000022','pid_10000023-0000-4000-8000-000000000023','pid_71000001-0000-4000-8000-000000000001','github','v1','Cross-scope GitHub witness','{}'::jsonb,'authorizing');
+INSERT INTO zasp_connector_oauth_attempts(organization_id,workspace_id,environment_id,id,integration_id,provider,principal_id,session_digest,state_hash,pkce_verifier_reference,request_digest,requested_scopes,expires_at)
+SELECT 'pid_10000001-0000-4000-8000-000000000001','pid_10000022-0000-4000-8000-000000000022','pid_10000023-0000-4000-8000-000000000023','pid_71000002-0000-4000-8000-000000000002','pid_71000001-0000-4000-8000-000000000001','github','pid_10000004-0000-4000-8000-000000000004',token_digest,digest('${state}','sha256'),'ref:harness/cross-scope-verifier',digest('cross-scope-request','sha256'),'["read:org","repo"]'::jsonb,transaction_timestamp()+interval '5 minutes'
+FROM zasp_product_sessions WHERE principal_id='pid_10000004-0000-4000-8000-000000000004' AND organization_id='pid_10000001-0000-4000-8000-000000000001' AND workspace_id='pid_10000002-0000-4000-8000-000000000002' AND environment_id='pid_10000003-0000-4000-8000-000000000003' AND revoked_at IS NULL AND expires_at>transaction_timestamp();
+`;
+  await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1"], { input: sql });
+}
+
+async function connectorDurableCounts(dsn) {
+  const result = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT
+    (SELECT count(*) FROM zasp_connector_oauth_attempts),
+    (SELECT count(*) FROM zasp_connector_effects),
+    (SELECT count(*) FROM zasp_connector_credentials),
+    (SELECT count(*) FROM zasp_connector_audit);`]);
+  return result.stdout.trim();
+}
+
 async function seedInvestigationSession(dsn) {
   const sql = `
 INSERT INTO zasp_product_sessions(token_digest,csrf_token,session_id,principal_id,organization_id,workspace_id,environment_id,permissions,expires_at) VALUES
@@ -862,6 +976,8 @@ async function startIdentityServer(port, publicOrigin) {
 
 async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn) {
   const server = https.createServer({ key: await readFile(keyPath), cert: await readFile(certificatePath) }, async (request, response) => {
+    // The production ingress applies this policy to every route, including middleware rejections.
+    response.setHeader("Referrer-Policy", "no-referrer");
     const target = new URL(request.url ?? "/", "https://combined.invalid");
     if (target.pathname.startsWith("/api/")) productAPIRequests.push({ method: request.method, path: target.pathname, host: String(request.headers.host ?? "") });
     const browserTab = String(request.headers["x-zasp-e2e-tab"] ?? "");
@@ -899,9 +1015,9 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
     const upstreamPort = request.url?.startsWith("/api/v1/") ? apiPort : webPort;
     const upstreamHeaders = {
       ...request.headers,
-      host: `127.0.0.1:${port}`,
+      host: request.headers.host,
       "x-forwarded-for": "127.0.0.1",
-      "x-forwarded-host": `127.0.0.1:${port}`,
+      "x-forwarded-host": request.headers.host,
       "x-forwarded-port": String(port),
       "x-forwarded-proto": "https",
     };
@@ -1044,7 +1160,7 @@ function releaseRiskDetailResponse(kind, override = {}) {
 }
 
 async function startBrowser(profile, port, target) {
-  const child = startChild(chrome, ["--headless=new", "--no-first-run", "--disable-background-networking", "--disable-component-update", "--ignore-certificate-errors", `--user-data-dir=${profile}`, `--remote-debugging-port=${port}`, target]);
+  const child = startChild(chrome, ["--headless=new", "--no-first-run", "--disable-background-networking", "--disable-component-update", "--ignore-certificate-errors", `--host-resolver-rules=MAP ${productHostname} 127.0.0.1`, `--user-data-dir=${profile}`, `--remote-debugging-port=${port}`, target]);
   let page;
   for (let attempt = 0; attempt < 200; attempt += 1) {
     try {
@@ -1066,7 +1182,9 @@ async function startBrowser(profile, port, target) {
   await cdp.send("Log.enable");
   cdp.on("Runtime.exceptionThrown", (parameters) => browserConsoleErrors.push({ kind: "exception", text: parameters.exceptionDetails?.text ?? "unknown exception" }));
   cdp.on("Runtime.consoleAPICalled", (parameters) => {
-    if (parameters.type === "error" || parameters.type === "assert") browserConsoleErrors.push({ kind: parameters.type, text: parameters.args?.map((argument) => argument.value ?? argument.description ?? "").join(" ") });
+    const text = parameters.args?.map((argument) => argument.value ?? argument.description ?? "").join(" ") ?? "";
+    browserConsoleMessages.push({ kind: parameters.type, text });
+    if (parameters.type === "error" || parameters.type === "assert") browserConsoleErrors.push({ kind: parameters.type, text });
   });
   cdp.on("Log.entryAdded", (parameters) => {
     if (parameters.entry?.level === "error" && parameters.entry?.source === "javascript") browserConsoleErrors.push({ kind: "log", text: parameters.entry.text });
@@ -1169,6 +1287,28 @@ async function browserStorageHistoryAndCaches(cdp) {
     returnByValue: true,
   });
   return evaluated.result?.value;
+}
+
+async function browserConnectorForensics(cdp) {
+  const evaluated = await cdp.send("Runtime.evaluate", {
+    expression: `(async () => ({
+      dom: document.documentElement?.outerHTML ?? '',
+      local: Object.fromEntries(Object.entries(localStorage)),
+      session: Object.fromEntries(Object.entries(sessionStorage)),
+      historyState: history.state,
+      href: location.href,
+      resources: performance.getEntriesByType('resource').map((entry) => entry.name),
+      cacheKeys: 'caches' in globalThis ? await caches.keys() : [],
+      indexedDatabases: typeof indexedDB.databases === 'function' ? (await indexedDB.databases()).map((database) => database.name ?? '') : [],
+    }))()`,
+    awaitPromise: true,
+    returnByValue: true,
+  });
+  const navigation = await cdp.send("Page.getNavigationHistory");
+  return {
+    ...evaluated.result?.value,
+    navigationHistory: navigation.entries.map((entry) => ({ url: entry.url, userTypedURL: entry.userTypedURL ?? "" })),
+  };
 }
 
 async function assertResponsiveRiskLayout(cdp, heading) {
@@ -1318,7 +1458,7 @@ async function waitForBrowserAction(cdp, expression) {
 
 async function requestHTTPSJSON(target, options, body) {
   return new Promise((resolve, reject) => {
-    const request = https.request(target, { ...options, rejectUnauthorized: false }, (response) => {
+    const request = https.request(target, { ...options, lookup: productLoopbackLookup, rejectUnauthorized: false }, (response) => {
       let payload = "";
       response.setEncoding("utf8");
       response.on("data", (chunk) => { payload += chunk; });
@@ -1333,6 +1473,41 @@ async function requestHTTPSJSON(target, options, body) {
     request.on("error", reject);
     request.end(body);
   });
+}
+
+function assertRejectedConnectorResponse(response, status, code, label) {
+  assert.equal(response.status, status, `${label} status`);
+  assert.equal(response.headers["cache-control"], "no-store", `${label} cache policy`);
+  assert.equal(response.headers["referrer-policy"], "no-referrer", `${label} referrer policy`);
+  assert.equal(response.headers.location, undefined, `${label} redirected outside the product boundary`);
+  assert.equal(response.body?.code, code, `${label} error code`);
+  assert.deepEqual(Object.keys(response.body ?? {}).sort(), ["code", "correlation_id", "message", "retryable"], `${label} returned a non-strict error envelope`);
+  assert.doesNotMatch(JSON.stringify(response.body), /access_token|refresh_token|code_verifier|client_secret|authorization_url|authorization_attempt_id|credential_reference|secret_reference/i, `${label} exposed connector material`);
+}
+
+async function browserConnectorAuthorizeRejection(cdp, target, expectedScope) {
+  const evaluated = await cdp.send("Runtime.evaluate", {
+    expression: `(async () => {
+      const bootstrap = await fetch('/api/v1/session/bootstrap', { cache: 'no-store' }).then((response) => response.json());
+      const response = await fetch(${JSON.stringify(target)}, {
+        method: 'POST',
+        cache: 'no-store',
+        redirect: 'manual',
+        headers: {
+          'content-type': 'application/json',
+          'Idempotency-Key': 'connector-e2e-cross-scope-authorize',
+          'X-CSRF-Token': bootstrap.csrf_token,
+          'X-Zasp-Expected-Scope': ${JSON.stringify(expectedScope)},
+        },
+        body: '{}',
+      });
+      const text = await response.text();
+      return { status: response.status, headers: Object.fromEntries(response.headers.entries()), body: text === '' ? null : JSON.parse(text) };
+    })()`,
+    awaitPromise: true,
+    returnByValue: true,
+  });
+  return evaluated.result.value;
 }
 
 async function browserFetchJSON(cdp, target, headers) {
@@ -1472,16 +1647,22 @@ async function reservePort() {
 }
 
 async function waitForHTTP(target, expected, insecure = false) {
+  let last = { status: 0, body: "" };
   for (let attempt = 0; attempt < 200; attempt += 1) {
-    const status = await new Promise((resolve) => {
+    last = await new Promise((resolve) => {
       const transport = target.startsWith("https:") ? https : http;
-      const request = transport.get(target, { rejectUnauthorized: !insecure }, (response) => { response.resume(); resolve(response.statusCode); });
-      request.on("error", () => resolve(0));
+      const request = transport.get(target, { ...(target.startsWith("https:") ? { lookup: productLoopbackLookup } : {}), rejectUnauthorized: !insecure }, (response) => {
+        let body = "";
+        response.setEncoding("utf8");
+        response.on("data", (chunk) => { if (body.length < 2_048) body += chunk; });
+        response.on("end", () => resolve({ status: response.statusCode ?? 0, body: body.slice(0, 2_048) }));
+      });
+      request.on("error", (error) => resolve({ status: 0, body: String(error.message ?? error) }));
     });
-    if (status === expected) return;
+    if (last.status === expected) return;
     await delay(50);
   }
-  throw new Error(`endpoint did not become ready: ${target}`);
+  throw new Error(`endpoint did not become ready: ${target}; last=${JSON.stringify(last)}`);
 }
 
 async function readBody(request) {
@@ -1500,3 +1681,8 @@ async function closeServer(server) {
 }
 
 function delay(milliseconds) { return new Promise((resolve) => setTimeout(resolve, milliseconds)); }
+
+function productLoopbackLookup(_hostname, options, callback) {
+  if (options?.all) callback(null, [{ address: "127.0.0.1", family: 4 }]);
+  else callback(null, "127.0.0.1", 4);
+}
