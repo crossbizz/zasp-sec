@@ -20,6 +20,7 @@ const (
 	maximumBatchMessages    = 10
 	maximumSQSBytes         = 1_048_576
 	maximumVisibility       = 12 * time.Hour
+	maximumReceiveCount     = 1_000_000_000
 	envelopeVersion         = 1
 )
 
@@ -59,8 +60,9 @@ type PublishAcknowledgement struct {
 }
 
 type Delivery struct {
-	Job     Job
-	Receipt Receipt
+	Job          Job
+	Receipt      Receipt
+	ReceiveCount int
 }
 
 type Receipt struct {
@@ -71,6 +73,16 @@ type Receipt struct {
 
 func (receipt Receipt) JobID() domain.ProductID {
 	return receipt.jobID
+}
+
+// MessageKey returns a bounded, non-reversible identifier for the provider
+// message. The provider's opaque identifier never crosses this boundary.
+func (receipt Receipt) MessageKey() string {
+	if !providerMessageIDPattern.MatchString(receipt.driver.MessageID) {
+		return ""
+	}
+	digest := sha256.Sum256([]byte(receipt.driver.MessageID))
+	return "sha256_" + hex.EncodeToString(digest[:])
 }
 
 type DriverMessage struct {
@@ -92,6 +104,7 @@ type DriverDelivery struct {
 	Message       DriverMessage
 	MessageID     string
 	ReceiptHandle string
+	ReceiveCount  int
 }
 
 type DriverReceipt struct {
@@ -214,7 +227,7 @@ func (queue *Queue) ConsumeBatch(ctx context.Context, maximum int) (deliveries [
 	var aggregate int64
 	for index, returnedDelivery := range returned {
 		job, ok := queue.decodeMessage(returnedDelivery.Message)
-		if !ok || returnedDelivery.MessageID == "" || returnedDelivery.ReceiptHandle == "" {
+		if !ok || !providerMessageIDPattern.MatchString(returnedDelivery.MessageID) || len(returnedDelivery.ReceiptHandle) < 1 || len(returnedDelivery.ReceiptHandle) > 8192 || returnedDelivery.ReceiveCount < 1 || returnedDelivery.ReceiveCount > maximumReceiveCount {
 			return nil, ErrConsume
 		}
 		if _, exists := seenJobs[job.JobID]; exists {
@@ -240,7 +253,8 @@ func (queue *Queue) ConsumeBatch(ctx context.Context, maximum int) (deliveries [
 			ReceiptHandle: returnedDelivery.ReceiptHandle,
 		}
 		deliveries[index] = Delivery{
-			Job: job,
+			Job:          job,
+			ReceiveCount: returnedDelivery.ReceiveCount,
 			Receipt: Receipt{
 				jobID:  job.JobID,
 				driver: driverReceipt,

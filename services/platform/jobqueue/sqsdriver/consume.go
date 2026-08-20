@@ -125,6 +125,7 @@ func (driver *Driver) classifiedDelivery(message types.Message) (ClassifiedDeliv
 			},
 			MessageID:     messageID,
 			ReceiptHandle: receiptHandle,
+			ReceiveCount:  receiveCount,
 		},
 		FailureDisposition: disposition,
 	}, receiveCount, true

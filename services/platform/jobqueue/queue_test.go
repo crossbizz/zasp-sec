@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"reflect"
@@ -88,6 +89,7 @@ func TestQueuePublishesConsumesAndAcknowledgesScopedBatch(t *testing.T) {
 				Message:       cloneMessage(message),
 				MessageID:     fmt.Sprintf("provider-message-%d", index+1),
 				ReceiptHandle: fmt.Sprintf("opaque-receipt-%d", index+1),
+				ReceiveCount:  index + 1,
 			}
 		}
 		return results, nil
@@ -136,8 +138,10 @@ func TestQueuePublishesConsumesAndAcknowledgesScopedBatch(t *testing.T) {
 		t.Fatalf("delivery count = %d", len(deliveries))
 	}
 	for index, delivery := range deliveries {
+		messageDigest := sha256.Sum256([]byte(fmt.Sprintf("provider-message-%d", index+1)))
+		wantMessageKey := "sha256_" + hex.EncodeToString(messageDigest[:])
 		if delivery.Job.Scope != scope || delivery.Job.JobID != jobs[index].JobID ||
-			delivery.Job.Kind != jobs[index].Kind || delivery.Receipt.JobID() != jobs[index].JobID {
+			delivery.Job.Kind != jobs[index].Kind || delivery.Receipt.JobID() != jobs[index].JobID || delivery.ReceiveCount != index+1 || delivery.Receipt.MessageKey() != wantMessageKey {
 			t.Fatalf("delivery %d = %#v", index, delivery)
 		}
 	}
@@ -350,8 +354,8 @@ func TestConsumeRejectsMalformedForeignAndNoncanonicalDeliveries(t *testing.T) {
 	}
 	base := func() []DriverDelivery {
 		return []DriverDelivery{
-			{Message: cloneDriverMessage(messages[0]), MessageID: "message-1", ReceiptHandle: "receipt-1"},
-			{Message: cloneDriverMessage(messages[1]), MessageID: "message-2", ReceiptHandle: "receipt-2"},
+			{Message: cloneDriverMessage(messages[0]), MessageID: "message-1", ReceiptHandle: "receipt-1", ReceiveCount: 1},
+			{Message: cloneDriverMessage(messages[1]), MessageID: "message-2", ReceiptHandle: "receipt-2", ReceiveCount: 2},
 		}
 	}
 	otherScope, err := domain.NewScope(
@@ -374,6 +378,7 @@ func TestConsumeRejectsMalformedForeignAndNoncanonicalDeliveries(t *testing.T) {
 		{name: "checksum", mutate: func(values []DriverDelivery) []DriverDelivery { values[0].Message.SHA256[0] ^= 1; return values }},
 		{name: "message id", mutate: func(values []DriverDelivery) []DriverDelivery { values[0].MessageID = ""; return values }},
 		{name: "receipt", mutate: func(values []DriverDelivery) []DriverDelivery { values[0].ReceiptHandle = ""; return values }},
+		{name: "receive count", mutate: func(values []DriverDelivery) []DriverDelivery { values[0].ReceiveCount = 0; return values }},
 		{name: "duplicate job", mutate: func(values []DriverDelivery) []DriverDelivery {
 			values[1].Message = cloneDriverMessage(values[0].Message)
 			return values
@@ -731,6 +736,7 @@ func TestConsumeDefensivelyCopiesDriverBytesAndAcceptsEmptyQueue(t *testing.T) {
 		Message:       cloneDriverMessage(messages[0]),
 		MessageID:     "message",
 		ReceiptHandle: "receipt",
+		ReceiveCount:  1,
 	}}
 	driver.consume = func(context.Context, int) ([]DriverDelivery, error) { return returned, nil }
 	deliveries, err := queue.ConsumeBatch(context.Background(), 1)
@@ -841,8 +847,8 @@ func queueWithDeliveries(t *testing.T) (*Queue, []Delivery) {
 	}
 	driver.consume = func(context.Context, int) ([]DriverDelivery, error) {
 		return []DriverDelivery{
-			{Message: cloneDriverMessage(messages[0]), MessageID: "message-1", ReceiptHandle: "receipt-1"},
-			{Message: cloneDriverMessage(messages[1]), MessageID: "message-2", ReceiptHandle: "receipt-2"},
+			{Message: cloneDriverMessage(messages[0]), MessageID: "message-1", ReceiptHandle: "receipt-1", ReceiveCount: 1},
+			{Message: cloneDriverMessage(messages[1]), MessageID: "message-2", ReceiptHandle: "receipt-2", ReceiveCount: 2},
 		}, nil
 	}
 	deliveries, err := queue.ConsumeBatch(context.Background(), 2)
