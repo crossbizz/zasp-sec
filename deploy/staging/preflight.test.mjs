@@ -18,6 +18,10 @@ const input = {
     runtimeGateway: digest("zasp/runtime-gateway", "f"),
     sensorAgent: digest("zasp/sensor-agent", "1"),
   },
+  dependencyImages: {
+    nango: "nangohq/nango-server:hosted-7faf2c303bbb0322333f526e9ca31c0fe95ef58e@sha256:b191d8d5b072fec5984e28da67298e9dabd5dc3a2585f1ebff7e2f5b9dfb66ed",
+    otelCollector: "otel/opentelemetry-collector-contrib:0.158.0@sha256:c5918f78992ee73b0d6f0e599423ac5ec52dd5d9726733114d6eca53d5a32ed5",
+  },
   workloadIdentities: {
     web: { serviceAccount: "agentsec-web", roleArn: null },
     agentsecApi: { serviceAccount: "agentsec-api", roleArn: "arn:aws:iam::123456789012:role/zasp-production-api" },
@@ -36,6 +40,9 @@ const input = {
     runtimeCorrelation: { serviceAccount: "zasp-runtime-correlation", roleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-correlation" },
     runtimeProjection: { serviceAccount: "zasp-runtime-projection", roleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-projection" },
     runtimeComplete: { serviceAccount: "zasp-runtime-complete", roleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-complete" },
+    nango: { serviceAccount: "nango", roleArn: null },
+    nangoMigrate: { serviceAccount: "nango-migrate", roleArn: null },
+    otelCollector: { serviceAccount: "otel-collector", roleArn: null },
     migration: { serviceAccount: "agentsec-migration", roleArn: "arn:aws:iam::123456789012:role/zasp-production-migration" },
     projectionGraphInit: { serviceAccount: "agentsec-projection-graph-init", roleArn: "arn:aws:iam::123456789012:role/zasp-production-projection-graph-init" },
     projectionSearchInit: { serviceAccount: "agentsec-projection-search-init", roleArn: "arn:aws:iam::123456789012:role/zasp-production-projection-search-init" },
@@ -44,10 +51,10 @@ const input = {
   },
 };
 
-test("release preflight validates all seven images and least-privilege identities", () => {
+test("release preflight validates all nine images and least-privilege identities", () => {
   const calls = [];
   const value = runPreflight(["--input", "release.json"], { read: () => JSON.stringify(input), spawn: (tool, args, options) => { calls.push({ tool, args, options }); return { status: 0 }; } });
-  assert.deepEqual(value, { environment: "production", privateEndpointOnly: true, images: 7, deployments: 17, cloudIdentities: 20 });
+  assert.deepEqual(value, { environment: "production", privateEndpointOnly: true, images: 9, deployments: 19, cloudIdentities: 20 });
   assert.deepEqual(calls.map(({ tool, args }) => ({ tool, args })), [
     { tool: "terraform", args: ["version", "-json"] },
     { tool: "helm", args: ["version", "--short"] },
@@ -66,6 +73,7 @@ test("release preflight rejects public access, mutable images, stale workloads, 
     { ...input, platformAccountID: "000000000000" },
     { ...input, productImages: { ...input.productImages, web: "zasp/web:latest" } },
     { ...input, productImages: { ...input.productImages, extra: digest("zasp/extra", "c") } },
+    { ...input, dependencyImages: { ...input.dependencyImages, nango: "nangohq/nango-server:latest" } },
     { ...input, workloadIdentities: { ...input.workloadIdentities, web: { serviceAccount: "shared-release", roleArn: "arn:aws:iam::123456789012:role/zasp-production" } } },
     { ...input, workloadIdentities: { ...input.workloadIdentities, projectionGraph: { ...input.workloadIdentities.projectionGraph, roleArn: "arn:aws:iam::210987654321:role/zasp-production-projection-graph" } } },
     { ...input, retiredSecurityGroupID: "sg-1234abcd" },

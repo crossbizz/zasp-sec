@@ -96,6 +96,17 @@ connectors:
   githubPrivateKeyReference: ""
   oktaClientID: ""
   oktaClientSecretReference: ""
+nango:
+  replicas: 2
+  storageSecretName: ""
+  databaseEgressCIDRs: []
+  providerEgressCIDRs: []
+telemetry:
+  replicas: 2
+  backend: none
+  endpoint: ""
+  authSecretName: ""
+  egressCIDRs: []
 discovery:
   parserVersion: ""
   toolVersion: ""

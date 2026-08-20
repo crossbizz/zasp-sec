@@ -1,0 +1,280 @@
+{{- if ne .Values.profile "customer_edge" }}
+{{- $remote := ne .Values.telemetry.backend "none" -}}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: otel-collector
+  labels: { app.kubernetes.io/name: otel-collector, app.kubernetes.io/part-of: zasp }
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector
+  labels: { app.kubernetes.io/name: otel-collector, app.kubernetes.io/part-of: zasp }
+data:
+  collector.yaml: |
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:13133
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 384
+        spike_limit_mib: 64
+      transform/redact_content:
+        error_mode: propagate
+        trace_statements:
+          - 'set(resource.schema_url, "")'
+          - 'set(resource.attributes["service.namespace"], "agentsec")'
+          - 'set(resource.attributes["service.name"], "unknown") where resource.attributes["service.name"] != "agentsec-api" and resource.attributes["service.name"] != "agentsec-worker"'
+          - 'set(resource.attributes["service.version"], "redacted")'
+          - 'set(resource.attributes["deployment.environment.name"], "unknown") where resource.attributes["deployment.environment.name"] != "development" and resource.attributes["deployment.environment.name"] != "test" and resource.attributes["deployment.environment.name"] != "staging" and resource.attributes["deployment.environment.name"] != "production"'
+          - 'set(scope.name, "redacted")'
+          - 'set(scope.version, "")'
+          - 'set(scope.schema_url, "")'
+          - 'set(scope.attributes, {})'
+          - 'set(span.name, "redacted")'
+          - 'set(span.status.message, "")'
+          - 'set(span.trace_state, "")'
+          - 'set(spanevent.name, "redacted")'
+        metric_statements:
+          - 'set(resource.schema_url, "")'
+          - 'set(resource.attributes["service.namespace"], "agentsec")'
+          - 'set(resource.attributes["service.name"], "unknown") where resource.attributes["service.name"] != "agentsec-api" and resource.attributes["service.name"] != "agentsec-worker"'
+          - 'set(resource.attributes["service.version"], "redacted")'
+          - 'set(resource.attributes["deployment.environment.name"], "unknown") where resource.attributes["deployment.environment.name"] != "development" and resource.attributes["deployment.environment.name"] != "test" and resource.attributes["deployment.environment.name"] != "staging" and resource.attributes["deployment.environment.name"] != "production"'
+          - 'set(scope.name, "redacted")'
+          - 'set(scope.version, "")'
+          - 'set(scope.schema_url, "")'
+          - 'set(scope.attributes, {})'
+          - 'set(metric.description, "")'
+          - 'set(metric.unit, "")'
+          - 'set(metric.metadata, {})'
+          - 'set(exemplar.filtered_attributes, {})'
+        log_statements:
+          - 'set(resource.schema_url, "")'
+          - 'set(resource.attributes["service.namespace"], "agentsec")'
+          - 'set(resource.attributes["service.name"], "unknown") where resource.attributes["service.name"] != "agentsec-api" and resource.attributes["service.name"] != "agentsec-worker"'
+          - 'set(resource.attributes["service.version"], "redacted")'
+          - 'set(resource.attributes["deployment.environment.name"], "unknown") where resource.attributes["deployment.environment.name"] != "development" and resource.attributes["deployment.environment.name"] != "test" and resource.attributes["deployment.environment.name"] != "staging" and resource.attributes["deployment.environment.name"] != "production"'
+          - 'set(scope.name, "redacted")'
+          - 'set(scope.version, "")'
+          - 'set(scope.schema_url, "")'
+          - 'set(scope.attributes, {})'
+          - 'set(log.body, "")'
+          - 'set(log.event_name, "redacted")'
+          - 'set(log.severity_text, "")'
+      filter/drop_unsafe_trace_links:
+        error_mode: propagate
+        trace_conditions:
+          - 'Len(span.links) > 0'
+      filter/allow_metrics:
+        error_mode: propagate
+        metric_conditions:
+          - 'metric.name != "agentsec_ready" and metric.name != "agentsec_build_info" and metric.name != "zasp_http_requests_total" and metric.name != "zasp_http_request_duration_seconds" and metric.name != "zasp_http_slo_requests_total" and metric.name != "zasp_http_slo_request_duration_seconds" and metric.name != "zasp_http_rate_limited_total" and metric.name != "zasp_auth_rejections_total" and metric.name != "zasp_dependency_operations_total" and metric.name != "zasp_job_operations_total" and metric.name != "zasp_postgres_pool_connections" and metric.name != "zasp_metrics_render_overflow" and metric.name != "zasp_worker_claimed_total" and metric.name != "zasp_worker_active" and metric.name != "zasp_worker_inflight" and metric.name != "zasp_worker_lease_loss_total" and metric.name != "zasp_worker_retry_total" and metric.name != "zasp_worker_exhaustion_total" and metric.name != "zasp_worker_failure_total" and metric.name != "zasp_worker_driver_ready" and metric.name != "zasp_worker_projection_backlog_age_seconds"'
+      redaction:
+        allow_all_keys: false
+        allowed_keys:
+          - service.name
+          - service.namespace
+          - service.version
+          - deployment.environment.name
+        redact_all_types: true
+        blocked_key_patterns:
+          - '(?i).*(?:authorization|cookie|credential|password|secret|token|api[_-]?key).*'
+        blocked_values:
+          - '(?i)bearer[ ]+[a-z0-9._~+/-]+=*'
+          - '(?i)(?:api[_-]?key|password|secret|token)=[^&[:space:]]+'
+        summary: silent
+      batch:
+        send_batch_size: 512
+        send_batch_max_size: 1024
+        timeout: 5s
+    exporters:
+      {{- if $remote }}
+      otlphttp/remote:
+        endpoint: ${env:OTEL_EXPORTER_OTLP_ENDPOINT}
+        headers:
+          Authorization: ${env:OTEL_EXPORTER_OTLP_AUTHORIZATION}
+        timeout: 5s
+        sending_queue:
+          enabled: true
+          num_consumers: 2
+          queue_size: 256
+          sizer: requests
+          wait_for_result: false
+          block_on_overflow: false
+        retry_on_failure:
+          enabled: true
+          initial_interval: 1s
+          max_interval: 5s
+          max_elapsed_time: 60s
+      {{- else }}
+      nop: {}
+      {{- end }}
+    service:
+      telemetry:
+        metrics:
+          readers:
+            - pull:
+                exporter:
+                  prometheus:
+                    host: 0.0.0.0
+                    port: 8888
+      extensions: [health_check]
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, filter/drop_unsafe_trace_links, transform/redact_content, redaction, batch]
+          exporters: [{{ if $remote }}otlphttp/remote{{ else }}nop{{ end }}]
+        metrics:
+          receivers: [otlp]
+          processors: [memory_limiter, transform/redact_content, filter/allow_metrics, redaction, batch]
+          exporters: [{{ if $remote }}otlphttp/remote{{ else }}nop{{ end }}]
+        logs:
+          receivers: [otlp]
+          processors: [memory_limiter, transform/redact_content, redaction, batch]
+          exporters: [{{ if $remote }}otlphttp/remote{{ else }}nop{{ end }}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+  labels: { app.kubernetes.io/name: otel-collector, app.kubernetes.io/part-of: zasp }
+spec:
+  replicas: {{ .Values.telemetry.replicas }}
+  revisionHistoryLimit: 3
+  progressDeadlineSeconds: 600
+  strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 1, maxUnavailable: 0 } }
+  selector: { matchLabels: { app.kubernetes.io/name: otel-collector } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: otel-collector, app.kubernetes.io/part-of: zasp }
+    spec:
+      serviceAccountName: otel-collector
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: {{ .Values.global.terminationGracePeriodSeconds }}
+      securityContext: { runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532, fsGroup: 65532, seccompProfile: { type: RuntimeDefault } }
+      topologySpreadConstraints:
+        - { maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: { matchLabels: { app.kubernetes.io/name: otel-collector } } }
+        - { maxSkew: 1, topologyKey: kubernetes.io/hostname, whenUnsatisfiable: ScheduleAnyway, labelSelector: { matchLabels: { app.kubernetes.io/name: otel-collector } } }
+      containers:
+        - name: otel-collector
+          image: {{ required "global.images.otelCollector must be an immutable digest" .Values.global.images.otelCollector | quote }}
+          imagePullPolicy: IfNotPresent
+          args: ["--config=/etc/otelcol/collector.yaml"]
+          ports:
+            - { name: otlp-grpc, containerPort: 4317, protocol: TCP }
+            - { name: otlp-http, containerPort: 4318, protocol: TCP }
+            - { name: health, containerPort: 13133, protocol: TCP }
+            - { name: metrics, containerPort: 8888, protocol: TCP }
+          {{- if $remote }}
+          env:
+            - { name: OTEL_EXPORTER_OTLP_ENDPOINT, value: {{ required "telemetry.endpoint is required" .Values.telemetry.endpoint | quote }} }
+            - name: OTEL_EXPORTER_OTLP_AUTHORIZATION
+              valueFrom: { secretKeyRef: { name: {{ required "telemetry.authSecretName is required" .Values.telemetry.authSecretName | quote }}, key: authorization } }
+          {{- end }}
+          startupProbe: { httpGet: { path: /, port: health, scheme: HTTP }, failureThreshold: 30, periodSeconds: 2, timeoutSeconds: 1 }
+          readinessProbe: { httpGet: { path: /, port: health, scheme: HTTP }, failureThreshold: 3, periodSeconds: 5, timeoutSeconds: 2 }
+          livenessProbe: { httpGet: { path: /, port: health, scheme: HTTP }, failureThreshold: 3, periodSeconds: 10, timeoutSeconds: 2 }
+          lifecycle: { preStop: { exec: { command: ["/bin/sh", "-c", "sleep 10"] } } }
+          resources: { requests: { cpu: 100m, memory: 256Mi, ephemeral-storage: 64Mi }, limits: { cpu: "1", memory: 512Mi, ephemeral-storage: 256Mi } }
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
+          volumeMounts: [{ name: config, mountPath: /etc/otelcol, readOnly: true }]
+      volumes: [{ name: config, configMap: { name: otel-collector, defaultMode: 292 } }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector
+  labels: { app.kubernetes.io/name: otel-collector, app.kubernetes.io/part-of: zasp }
+spec:
+  type: ClusterIP
+  selector: { app.kubernetes.io/name: otel-collector }
+  ports:
+    - { name: otlp-grpc, port: 4317, targetPort: otlp-grpc, protocol: TCP }
+    - { name: otlp-http, port: 4318, targetPort: otlp-http, protocol: TCP }
+    - { name: health, port: 13133, targetPort: health, protocol: TCP }
+    - { name: metrics, port: 8888, targetPort: metrics, protocol: TCP }
+{{- if .Values.monitoring.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: otel-collector
+  labels: { app.kubernetes.io/name: otel-collector, app.kubernetes.io/part-of: zasp }
+spec:
+  selector: { matchLabels: { app.kubernetes.io/name: otel-collector } }
+  endpoints: [{ interval: 30s, path: /metrics, port: metrics, scrapeTimeout: 5s }]
+{{- if $remote }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: otel-collector
+  labels: { app.kubernetes.io/name: otel-collector, app.kubernetes.io/part-of: zasp }
+spec:
+  groups:
+    - name: zasp-otel-collector
+      rules:
+        - alert: ZaspOTelCollectorQueueLoss
+          expr: >-
+            sum(increase({__name__=~"otelcol_exporter_enqueue_failed_(log_records|metric_points|spans)",service="otel-collector",exporter="otlphttp/remote"}[5m])) > 0
+          labels: { severity: page }
+          annotations:
+            summary: OpenTelemetry remote queue dropped telemetry
+            runbook_url: https://zasp.example/runbooks/observability-and-canaries#collector
+        - alert: ZaspOTelCollectorQueueMetricMissing
+          expr: >-
+            absent(otelcol_exporter_queue_capacity{service="otel-collector",exporter="otlphttp/remote"})
+          for: 10m
+          labels: { severity: page }
+          annotations:
+            summary: OpenTelemetry remote queue capacity metric disappeared
+            runbook_url: https://zasp.example/runbooks/observability-and-canaries#collector
+{{- end }}
+{{- end }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: otel-collector
+  labels: { app.kubernetes.io/name: otel-collector, app.kubernetes.io/part-of: zasp }
+spec:
+  minAvailable: 1
+  selector: { matchLabels: { app.kubernetes.io/name: otel-collector } }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: otel-collector-private
+  labels: { app.kubernetes.io/name: otel-collector, app.kubernetes.io/part-of: zasp }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: otel-collector } }
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from: [{ podSelector: { matchLabels: { app.kubernetes.io/part-of: zasp } } }]
+      ports: [{ protocol: TCP, port: 4317 }, { protocol: TCP, port: 4318 }, { protocol: TCP, port: 13133 }]
+    - from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .Values.monitoring.namespace }} } } }]
+      ports: [{ protocol: TCP, port: 8888 }]
+  egress:
+    - to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } } }]
+      ports: [{ protocol: UDP, port: 53 }, { protocol: TCP, port: 53 }]
+    {{- if $remote }}
+    - to:
+      {{- range $cidr := required "telemetry.egressCIDRs is required" .Values.telemetry.egressCIDRs }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
+      ports: [{ protocol: TCP, port: 443 }]
+    {{- end }}
+{{- end }}

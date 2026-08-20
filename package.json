@@ -31,6 +31,8 @@
     "local:product:run": "node deploy/local/run.mjs",
     "production:combined-e2e:test": "node --test scripts/production-combined-e2e.test.mjs && node scripts/production-combined-e2e.mjs",
     "production:release:test": "node --test deploy/production/release-contract.test.mjs deploy/production/release-gates.test.mjs",
+    "production:nango-image:proof": "node --test deploy/production/nango-image-proof.test.mjs",
+    "production:otel-redaction:proof": "node --test deploy/production/otel-redaction-proof.test.mjs",
     "production:release:gate": "node scripts/production-release-gate.mjs",
     "production:imports:test": "node --test scripts/check-production-imports.test.mjs",
     "production:imports:source": "node scripts/check-production-imports.mjs --source",

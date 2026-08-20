@@ -85,6 +85,7 @@ test("release sources contain truthful runbooks, canary, SBOM/license/image/secr
   assert.equal(result.requiredCI, true);
   assert.equal(result.task4Deployment, true);
   assert.equal(result.task6Deployment, true);
+  assert.equal(result.privateDependencies, true);
 });
 
 function securityHeaders(extra) {

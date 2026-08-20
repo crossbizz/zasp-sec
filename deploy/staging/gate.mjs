@@ -18,11 +18,14 @@ const expectedWorkloads = Object.freeze([
   Object.freeze({ name: "agentsec-runtime-correlation", serviceAccount: "zasp-runtime-correlation", role: "runtime-correlation" }),
   Object.freeze({ name: "agentsec-runtime-projection", serviceAccount: "zasp-runtime-projection", role: "runtime-projection" }),
   Object.freeze({ name: "agentsec-runtime-complete", serviceAccount: "zasp-runtime-complete", role: "runtime-complete" }),
+  Object.freeze({ name: "nango", serviceAccount: "nango", role: null, image: "nangohq/nango-server:hosted-7faf2c303bbb0322333f526e9ca31c0fe95ef58e@sha256:b191d8d5b072fec5984e28da67298e9dabd5dc3a2585f1ebff7e2f5b9dfb66ed" }),
+  Object.freeze({ name: "otel-collector", serviceAccount: "otel-collector", role: null, image: "otel/opentelemetry-collector-contrib:0.158.0@sha256:c5918f78992ee73b0d6f0e599423ac5ec52dd5d9726733114d6eca53d5a32ed5" }),
 ]);
 const expectedJobIdentities = Object.freeze([
   Object.freeze({ name: "agentsec-schema-v15", serviceAccount: "agentsec-migration", role: "migration" }),
   Object.freeze({ name: "agentsec-projection-graph-init-v1", serviceAccount: "agentsec-projection-graph-init", role: "projection-graph-init" }),
   Object.freeze({ name: "agentsec-projection-search-init-v1", serviceAccount: "agentsec-projection-search-init", role: "projection-search-init" }),
+  Object.freeze({ name: "nango-migrate", serviceAccount: "nango-migrate", role: null }),
   Object.freeze({ name: "production-readonly-canary", serviceAccount: "agentsec-canary", role: null }),
   Object.freeze({ name: "zasp-canary-secret-sync", serviceAccount: "agentsec-canary-secret-sync", role: "canary-secret-sync" }),
 ]);
@@ -46,7 +49,7 @@ export function buildStagingDeployment(value) {
   for (let index = 0; index < expectedWorkloads.length; index += 1) {
     const workload = value.workloads[index];
     const expected = expectedWorkloads[index];
-    if (!exactKeys(workload, ["name", "image", "serviceAccount", "roleArn"]) || workload.name !== expected.name || workload.serviceAccount !== expected.serviceAccount || !digestPattern.test(workload.image)) throw new Error("staging gate rejected");
+    if (!exactKeys(workload, ["name", "image", "serviceAccount", "roleArn"]) || workload.name !== expected.name || workload.serviceAccount !== expected.serviceAccount || !digestPattern.test(workload.image) || (expected.image && workload.image !== expected.image)) throw new Error("staging gate rejected");
     const roleArn = expected.role === null ? null : `arn:aws:iam::${value.platformAccountID}:role/zasp-production-${expected.role}`;
     if (workload.roleArn !== roleArn) throw new Error("staging gate rejected");
   }

@@ -606,8 +606,8 @@ M8	M8-09c	Complete	production-available	T15-deployment	shipped worker and ingest
 M8	M8-09	Complete	production-available	T15-deployment	shipped release composes private worker and event-ingest connectivity with exact shutdown authority; release render gate 20/20 at b0caf99
 M8	M8-10	Complete	production-available	T15-deployment	customer-edge release ships a private runtime-gateway Deployment and Service with durable bounded policy cache and no database dependency; release render gate 20/20 at b0caf99
 M8	M8-11	Complete	production-available	T15-deployment	hosted release selects one verified neo4j+s external endpoint with exact CIDR and secret refs, separate schema init, and no Neo4j ingress; release render gate 20/20 at b0caf99
-M8	M8-12	Complete	missing	T15-deployment	audited absent shipping composition: Helm Nango free
-M8	M8-13	Complete	missing	T15-deployment	audited absent shipping composition: Helm OTel Collector
+M8	M8-12	Complete	production-available	T15-deployment	audited shipped composition: exact-pinned private Nango with serialized migration, verified database TLS, bounded egress, pinned-image proof, and zero-finding release review
+M8	M8-13	Complete	production-available	T15-deployment	audited shipped composition: exact-pinned private OTel Collector with fail-closed bounded redaction and release proof
 M8	M8-14	Complete	production-available	T15-deployment	customer-edge release renders the exact-digest Tetragon 1.7 wrapper, documented privilege boundary, two tracing policies, and disable-safe sensor profile; release render gate 20/20 at b0caf99
 M8	M8-15	Complete	production-available	PROD-current-composition	audited shipped composition: Pod disruption/topology
 M8	M8-16	Complete	component-only	T16-recovery-ops	audited component-only proof: preflight base

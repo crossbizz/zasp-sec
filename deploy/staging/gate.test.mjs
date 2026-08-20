@@ -33,17 +33,20 @@ const deployment = {
     { name: "agentsec-runtime-correlation", image: digest("registry.example/zasp/worker", "c"), serviceAccount: "zasp-runtime-correlation", roleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-correlation" },
     { name: "agentsec-runtime-projection", image: digest("registry.example/zasp/worker", "c"), serviceAccount: "zasp-runtime-projection", roleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-projection" },
     { name: "agentsec-runtime-complete", image: digest("registry.example/zasp/worker", "c"), serviceAccount: "zasp-runtime-complete", roleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-complete" },
+    { name: "nango", image: "nangohq/nango-server:hosted-7faf2c303bbb0322333f526e9ca31c0fe95ef58e@sha256:b191d8d5b072fec5984e28da67298e9dabd5dc3a2585f1ebff7e2f5b9dfb66ed", serviceAccount: "nango", roleArn: null },
+    { name: "otel-collector", image: "otel/opentelemetry-collector-contrib:0.158.0@sha256:c5918f78992ee73b0d6f0e599423ac5ec52dd5d9726733114d6eca53d5a32ed5", serviceAccount: "otel-collector", roleArn: null },
   ],
   jobIdentities: [
     { name: "agentsec-schema-v15", serviceAccount: "agentsec-migration", roleArn: "arn:aws:iam::123456789012:role/zasp-production-migration" },
     { name: "agentsec-projection-graph-init-v1", serviceAccount: "agentsec-projection-graph-init", roleArn: "arn:aws:iam::123456789012:role/zasp-production-projection-graph-init" },
     { name: "agentsec-projection-search-init-v1", serviceAccount: "agentsec-projection-search-init", roleArn: "arn:aws:iam::123456789012:role/zasp-production-projection-search-init" },
+    { name: "nango-migrate", serviceAccount: "nango-migrate", roleArn: null },
     { name: "production-readonly-canary", serviceAccount: "agentsec-canary", roleArn: null },
     { name: "zasp-canary-secret-sync", serviceAccount: "agentsec-canary-secret-sync", roleArn: "arn:aws:iam::123456789012:role/zasp-production-canary-secret-sync" },
   ],
 };
 
-test("staging deployment binds seventeen deployments and every init/canary identity to one account", () => {
+test("staging deployment binds nineteen deployments and every init/canary identity to one account", () => {
   assert.deepEqual(buildStagingDeployment(deployment), deployment);
   const runtime = {
     start: () => "deploy-run-1",

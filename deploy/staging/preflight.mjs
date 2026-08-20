@@ -9,6 +9,10 @@ const toolChecks = Object.freeze([
 ]);
 export const requiredTools = Object.freeze(toolChecks.map(({ tool }) => tool));
 const digestPattern = /^[a-z0-9./_-]+(?::[a-zA-Z0-9._-]+)?@sha256:[0-9a-f]{64}$/;
+const dependencyImages = Object.freeze({
+  nango: "nangohq/nango-server:hosted-7faf2c303bbb0322333f526e9ca31c0fe95ef58e@sha256:b191d8d5b072fec5984e28da67298e9dabd5dc3a2585f1ebff7e2f5b9dfb66ed",
+  otelCollector: "otel/opentelemetry-collector-contrib:0.158.0@sha256:c5918f78992ee73b0d6f0e599423ac5ec52dd5d9726733114d6eca53d5a32ed5",
+});
 const identityContract = Object.freeze({
   web: Object.freeze({ serviceAccount: "agentsec-web", role: null, deployment: true }),
   agentsecApi: Object.freeze({ serviceAccount: "agentsec-api", role: "api", deployment: true }),
@@ -27,6 +31,9 @@ const identityContract = Object.freeze({
   runtimeCorrelation: Object.freeze({ serviceAccount: "zasp-runtime-correlation", role: "runtime-correlation", deployment: true }),
   runtimeProjection: Object.freeze({ serviceAccount: "zasp-runtime-projection", role: "runtime-projection", deployment: true }),
   runtimeComplete: Object.freeze({ serviceAccount: "zasp-runtime-complete", role: "runtime-complete", deployment: true }),
+  nango: Object.freeze({ serviceAccount: "nango", role: null, deployment: true }),
+  nangoMigrate: Object.freeze({ serviceAccount: "nango-migrate", role: null, deployment: false }),
+  otelCollector: Object.freeze({ serviceAccount: "otel-collector", role: null, deployment: true }),
   migration: Object.freeze({ serviceAccount: "agentsec-migration", role: "migration", deployment: false }),
   projectionGraphInit: Object.freeze({ serviceAccount: "agentsec-projection-graph-init", role: "projection-graph-init", deployment: false }),
   projectionSearchInit: Object.freeze({ serviceAccount: "agentsec-projection-search-init", role: "projection-search-init", deployment: false }),
@@ -39,15 +46,16 @@ function exactKeys(value, keys) {
 }
 
 export function validateReleaseInput(input) {
-  if (!exactKeys(input, ["environment", "platformAccountID", "privateEndpointOnly", "endpoint_public_access", "productImages", "workloadIdentities"]) || input.environment !== "production" || !/^[0-9]{12}$/.test(input.platformAccountID) || input.platformAccountID === "000000000000" || input.privateEndpointOnly !== true || input.endpoint_public_access !== false) throw new Error("release preflight rejected");
+  if (!exactKeys(input, ["environment", "platformAccountID", "privateEndpointOnly", "endpoint_public_access", "productImages", "dependencyImages", "workloadIdentities"]) || input.environment !== "production" || !/^[0-9]{12}$/.test(input.platformAccountID) || input.platformAccountID === "000000000000" || input.privateEndpointOnly !== true || input.endpoint_public_access !== false) throw new Error("release preflight rejected");
   if (!exactKeys(input.productImages, ["web", "agentsecApi", "agentsecWorker", "eventIngest", "gatewayControl", "runtimeGateway", "sensorAgent"]) || !Object.values(input.productImages).every((value) => digestPattern.test(value))) throw new Error("release preflight rejected");
+  if (!exactKeys(input.dependencyImages, Object.keys(dependencyImages)) || Object.entries(dependencyImages).some(([name, image]) => input.dependencyImages[name] !== image)) throw new Error("release preflight rejected");
   if (!exactKeys(input.workloadIdentities, Object.keys(identityContract))) throw new Error("release preflight rejected");
   for (const [name, expected] of Object.entries(identityContract)) {
     const identity = input.workloadIdentities[name];
     const expectedRole = expected.role === null ? null : `arn:aws:iam::${input.platformAccountID}:role/zasp-production-${expected.role}`;
     if (!exactKeys(identity, ["serviceAccount", "roleArn"]) || identity.serviceAccount !== expected.serviceAccount || identity.roleArn !== expectedRole) throw new Error("release preflight rejected");
   }
-  return Object.freeze({ environment: "production", privateEndpointOnly: true, images: 7, deployments: Object.values(identityContract).filter(({ deployment }) => deployment).length, cloudIdentities: Object.values(identityContract).filter(({ role }) => role !== null).length });
+  return Object.freeze({ environment: "production", privateEndpointOnly: true, images: 9, deployments: Object.values(identityContract).filter(({ deployment }) => deployment).length, cloudIdentities: Object.values(identityContract).filter(({ role }) => role !== null).length });
 }
 
 export function runPreflight(argv = process.argv.slice(2), runtime = { spawn: spawnSync, read: readFileSync }) {

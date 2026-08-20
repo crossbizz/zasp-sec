@@ -31,6 +31,8 @@ const runtimeKeys = Object.freeze([
 ]);
 const connectorKeys = Object.freeze(["awsRegion", "roleArn", "awsCustomerRolePrefixes", "awsCustomerRoleARNs", "webIdentityTokenFile", "kmsKeyArn", "secretPrefix", "githubClientID", "githubClientSecretReference", "githubAppID", "githubPrivateKeyReference", "oktaClientID", "oktaClientSecretReference"]);
 const connectorEgressKeys = Object.freeze(["aws", "github", "okta", "kubernetes"]);
+const nangoKeys = Object.freeze(["storageSecretName", "databaseEgressCIDRs", "providerEgressCIDRs"]);
+const telemetryKeys = Object.freeze(["backend", "endpoint", "authSecretName", "egressCIDRs"]);
 
 export async function inspectContainerBuilds() {
   const definitions = [
@@ -202,6 +204,13 @@ export async function renderRelease(value) {
     ...value.connectors.awsCustomerRolePrefixes.map((prefix, index) => [`connectors.awsCustomerRolePrefixes[${index}]`, prefix]),
     ...value.connectors.awsCustomerRoleARNs.map((roleARN, index) => [`connectors.awsCustomerRoleARNs[${index}]`, roleARN]),
     ...connectorEgressKeys.flatMap((provider) => value.connectorEgressCIDRs[provider].map((cidr, index) => [`network.connectorEgressCIDRs.${provider}[${index}]`, cidr])),
+    ["nango.storageSecretName", value.nango.storageSecretName],
+    ...value.nango.databaseEgressCIDRs.map((cidr, index) => [`nango.databaseEgressCIDRs[${index}]`, cidr]),
+    ...value.nango.providerEgressCIDRs.map((cidr, index) => [`nango.providerEgressCIDRs[${index}]`, cidr]),
+    ["telemetry.backend", value.telemetry.backend],
+    ["telemetry.endpoint", value.telemetry.endpoint],
+    ["telemetry.authSecretName", value.telemetry.authSecretName],
+    ...value.telemetry.egressCIDRs.map((cidr, index) => [`telemetry.egressCIDRs[${index}]`, cidr]),
     ...imageNames.map((name) => [`global.productImages.${name}`, value.images[name]]),
   ];
   const chart = path.join(root, "deploy/staging/product");
@@ -289,7 +298,7 @@ function validCustomerEdgeRelease(value) {
 }
 
 function validRelease(value) {
-  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).sort().join("\0") !== ["connectorEgressCIDRs", "connectors", "discovery", "projectionGraph", "projectionRisk", "projectionSearch", "outbox", "runtime", "host", "images", "secretProviderClass", "tlsSecretName"].sort().join("\0")) return false;
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).sort().join("\0") !== ["connectorEgressCIDRs", "connectors", "discovery", "projectionGraph", "projectionRisk", "projectionSearch", "outbox", "runtime", "nango", "telemetry", "host", "images", "secretProviderClass", "tlsSecretName"].sort().join("\0")) return false;
   if (!hostPattern.test(value.host) || !namePattern.test(value.tlsSecretName) || !namePattern.test(value.secretProviderClass)) return false;
   if (!value.images || typeof value.images !== "object" || Array.isArray(value.images) || Object.keys(value.images).sort().join("\0") !== [...imageNames].sort().join("\0")) return false;
   if (!imageNames.every((name) => digestPattern.test(value.images[name]))) return false;
@@ -341,7 +350,14 @@ function validRelease(value) {
   if (!/^0oa[A-Za-z0-9]{16}$/.test(value.connectors.oktaClientID) || value.connectors.oktaClientSecretReference !== "ref:okta/client-secret") return false;
   if (value.discovery.githubAppID !== value.connectors.githubAppID || value.discovery.githubPrivateKeyReference !== value.connectors.githubPrivateKeyReference || value.discovery.oktaClientID !== value.connectors.oktaClientID || value.discovery.oktaClientSecretReference !== value.connectors.oktaClientSecretReference) return false;
   if (!value.connectorEgressCIDRs || typeof value.connectorEgressCIDRs !== "object" || Array.isArray(value.connectorEgressCIDRs) || Object.keys(value.connectorEgressCIDRs).sort().join("\0") !== [...connectorEgressKeys].sort().join("\0")) return false;
-  return connectorEgressKeys.every((provider) => validCIDRList(value.connectorEgressCIDRs[provider]));
+  if (!connectorEgressKeys.every((provider) => validCIDRList(value.connectorEgressCIDRs[provider]))) return false;
+  if (!value.nango || typeof value.nango !== "object" || Array.isArray(value.nango) || Object.keys(value.nango).sort().join("\0") !== [...nangoKeys].sort().join("\0") || !namePattern.test(value.nango.storageSecretName) || !validPrivateCIDRList(value.nango.databaseEgressCIDRs) || !validProviderCIDRList(value.nango.providerEgressCIDRs)) return false;
+  if (hasCIDROverlap([...value.nango.databaseEgressCIDRs, ...value.nango.providerEgressCIDRs])) return false;
+  if (!value.telemetry || typeof value.telemetry !== "object" || Array.isArray(value.telemetry) || Object.keys(value.telemetry).sort().join("\0") !== [...telemetryKeys].sort().join("\0")) return false;
+  if (value.telemetry.backend === "none") return value.telemetry.endpoint === "" && value.telemetry.authSecretName === "" && Array.isArray(value.telemetry.egressCIDRs) && value.telemetry.egressCIDRs.length === 0;
+  if (!namePattern.test(value.telemetry.authSecretName) || value.telemetry.authSecretName === value.nango.storageSecretName || !validProviderCIDRList(value.telemetry.egressCIDRs)) return false;
+  if (value.telemetry.backend === "grafana") return /^https:\/\/otlp-gateway-[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?\.grafana\.net\/otlp$/.test(value.telemetry.endpoint);
+  return value.telemetry.backend === "newrelic" && value.telemetry.endpoint === "https://otlp.nr-data.net";
 }
 
 export function validateRenderedRelease(resources, platformAccountID) {
@@ -366,6 +382,8 @@ export function validateRenderedRelease(resources, platformAccountID) {
     ["agentsec-runtime-correlation", "zasp-runtime-correlation"],
     ["agentsec-runtime-projection", "zasp-runtime-projection"],
     ["agentsec-runtime-complete", "zasp-runtime-complete"],
+    ["nango", "nango"],
+    ["otel-collector", "otel-collector"],
   ]);
   if (deployments.size !== deploymentIdentities.size || [...deploymentIdentities].some(([name, serviceAccount]) => deployments.get(name)?.spec?.template?.spec?.serviceAccountName !== serviceAccount)) throw new Error("release rejected");
   const identityContracts = new Map([
@@ -386,6 +404,9 @@ export function validateRenderedRelease(resources, platformAccountID) {
     ["zasp-runtime-correlation", "runtime-correlation"],
     ["zasp-runtime-projection", "runtime-projection"],
     ["zasp-runtime-complete", "runtime-complete"],
+    ["nango", null],
+    ["nango-migrate", null],
+    ["otel-collector", null],
     ["agentsec-migration", "migration"],
     ["agentsec-projection-graph-init", "projection-graph-init"],
     ["agentsec-projection-search-init", "projection-search-init"],
@@ -399,30 +420,63 @@ export function validateRenderedRelease(resources, platformAccountID) {
     const roleArn = rendered?.metadata?.annotations?.["eks.amazonaws.com/role-arn"];
     if (!rendered || (role === null ? roleArn !== undefined : roleArn !== `arn:aws:iam::${platformAccountID}:role/zasp-production-${role}`)) throw new Error("release rejected");
   }
-  for (const [kind, name, serviceAccount] of [
-    ["Job", "agentsec-schema-v15", "agentsec-migration"],
-    ["Job", "agentsec-projection-graph-init-v1", "agentsec-projection-graph-init"],
-    ["Job", "agentsec-projection-search-init-v1", "agentsec-projection-search-init"],
-    ["CronJob", "production-readonly-canary", "agentsec-canary"],
-    ["Job", "zasp-canary-secret-sync", "agentsec-canary-secret-sync"],
-  ]) {
-    const resource = resources.find((candidate) => candidate.kind === kind && candidate.metadata?.name === name);
-    const pod = kind === "CronJob" ? resource?.spec?.jobTemplate?.spec?.template?.spec : resource?.spec?.template?.spec;
-    if (pod?.serviceAccountName !== serviceAccount) throw new Error("release rejected");
-  }
+  const jobIdentities = new Map([
+    ["agentsec-schema-v15", "agentsec-migration"],
+    ["agentsec-projection-graph-init-v1", "agentsec-projection-graph-init"],
+    ["agentsec-projection-search-init-v1", "agentsec-projection-search-init"],
+    ["nango-migrate", "nango-migrate"],
+    ["zasp-canary-secret-sync", "agentsec-canary-secret-sync"],
+  ]);
+  const jobs = resources.filter(({ kind }) => kind === "Job");
+  if (jobs.length !== jobIdentities.size || jobs.some((resource) => jobIdentities.get(resource.metadata?.name) !== resource.spec?.template?.spec?.serviceAccountName)) throw new Error("release rejected");
+  const cronJobIdentities = new Map([["production-readonly-canary", "agentsec-canary"]]);
+  const cronJobs = resources.filter(({ kind }) => kind === "CronJob");
+  if (cronJobs.length !== cronJobIdentities.size || cronJobs.some((resource) => cronJobIdentities.get(resource.metadata?.name) !== resource.spec?.jobTemplate?.spec?.template?.spec?.serviceAccountName)) throw new Error("release rejected");
   return Object.freeze({ deployments: deployments.size, identities: accounts.size, platformAccountID });
 }
 
 function validCIDRList(value) {
   if (!Array.isArray(value) || value.length < 1 || value.length > 16 || new Set(value).size !== value.length) return false;
+  return value.every((cidr) => cidrRange(cidr) !== undefined);
+}
+
+function validPrivateCIDRList(value) {
+  if (!validCIDRList(value) || hasCIDROverlap(value)) return false;
   return value.every((cidr) => {
-    if (typeof cidr !== "string" || cidr.includes(" ")) return false;
-    const match = /^([^/]+)\/([0-9]{1,2})$/.exec(cidr);
-    if (!match || isIP(match[1]) !== 4 || match[1].split(".").some((part) => String(Number(part)) !== part)) return false;
-    const prefix = Number(match[2]);
-    if (prefix < 1 || prefix > 32) return false;
-    const address = match[1].split(".").reduce((result, part) => ((result << 8) | Number(part)) >>> 0, 0);
-    const mask = prefix === 32 ? 0xffffffff : (0xffffffff << (32 - prefix)) >>> 0;
-    return (address & mask) >>> 0 === address;
+    const { first, second, prefix } = cidrRange(cidr);
+    return prefix >= 24 && (first === 10 || (first === 172 && second >= 16 && second <= 31) || (first === 192 && second === 168));
   });
+}
+
+function validProviderCIDRList(value) {
+  if (!validCIDRList(value) || hasCIDROverlap(value)) return false;
+  return value.every((cidr) => {
+    const { first, second, prefix } = cidrRange(cidr);
+    const nonPublic = first === 0 || first === 10 || first === 127 || first >= 224 ||
+      (first === 100 && second >= 64 && second <= 127) ||
+      (first === 169 && second === 254) ||
+      (first === 172 && second >= 16 && second <= 31) ||
+      (first === 192 && second === 168) ||
+      (first === 198 && (second === 18 || second === 19));
+    return prefix >= 16 && !nonPublic;
+  });
+}
+
+function hasCIDROverlap(value) {
+  const ranges = value.map(cidrRange).sort((left, right) => left.start - right.start || left.end - right.end);
+  return ranges.some((range, index) => index > 0 && range.start <= ranges[index - 1].end);
+}
+
+function cidrRange(cidr) {
+  if (typeof cidr !== "string" || cidr.includes(" ")) return undefined;
+  const match = /^([^/]+)\/([0-9]{1,2})$/.exec(cidr);
+  if (!match || isIP(match[1]) !== 4 || match[1].split(".").some((part) => String(Number(part)) !== part)) return undefined;
+  const prefix = Number(match[2]);
+  if (prefix < 1 || prefix > 32) return undefined;
+  const octets = match[1].split(".").map(Number);
+  const address = octets.reduce((result, part) => ((result << 8) | part) >>> 0, 0);
+  const mask = prefix === 32 ? 0xffffffff : (0xffffffff << (32 - prefix)) >>> 0;
+  const start = (address & mask) >>> 0;
+  if (start !== address) return undefined;
+  return { start, end: start + (2 ** (32 - prefix)) - 1, prefix, first: octets[0], second: octets[1] };
 }

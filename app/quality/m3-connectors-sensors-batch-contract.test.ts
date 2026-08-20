@@ -1,22 +1,24 @@
+import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { promisify } from "node:util";
 
 import { describe, expect, it } from "vitest";
 
 const root = resolve(import.meta.dirname, "../..");
+const exec = promisify(execFile);
 
 describe("M3 connector and sensor implementation batch", () => {
   it("keeps Nango private, pinned, bounded, and secret-referenced", async () => {
-    const manifest = await readFile(resolve(root, "deploy/staging/nango/manifest.yaml"), "utf8");
-    expect(manifest).toContain("nangohq/nango-server:hosted-7faf2c303bbb0322333f526e9ca31c0fe95ef58e@sha256:b191d8d5b072fec5984e28da67298e9dabd5dc3a2585f1ebff7e2f5b9dfb66ed");
-    expect(manifest).toContain("type: ClusterIP");
-    expect(manifest).not.toMatch(/kind: (?:Ingress|LoadBalancer)/);
-    expect(manifest).toContain('NANGO_ENABLED_FEATURES, value: "auth,proxy"');
-    expect(manifest).toContain('NANGO_FUNCTIONS_ENABLED, value: "false"');
-    expect(manifest).toContain('NANGO_WEBHOOKS_ENABLED, value: "false"');
-    expect(manifest).toContain('NANGO_MCP_ENABLED, value: "false"');
-    expect(manifest.match(/secretKeyRef:/g)).toHaveLength(2);
-    expect(manifest).toContain("readOnlyRootFilesystem: true");
+    const { stdout } = await exec(process.execPath, [
+      "--test",
+      "--test-reporter=tap",
+      "--test-name-pattern=production release renders private Nango",
+      "deploy/production/release-contract.test.mjs",
+    ], { cwd: root, encoding: "utf8" });
+
+    expect(stdout).toMatch(/# pass 1\n/);
+    expect(stdout).toMatch(/# fail 0\n/);
   });
 
   it("publishes all seven sensor operations without credential internals", async () => {

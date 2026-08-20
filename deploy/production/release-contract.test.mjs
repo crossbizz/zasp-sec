@@ -1,105 +1,14 @@
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { promisify } from "node:util";
+import { load } from "js-yaml";
 
-import { inspectContainerBuilds, renderCustomerEdgeRelease, renderRelease } from "./release-contract.mjs";
+import { inspectContainerBuilds, renderCustomerEdgeRelease, renderRelease, validateRenderedRelease } from "./release-contract.mjs";
+import { customerEdgeReleaseFixture as edgeRelease, productionReleaseFixture as release } from "./release-fixture.mjs";
 
-const digest = (name, value) => `registry.example/zasp/${name}@sha256:${value.repeat(64)}`;
-const release = Object.freeze({
-  host: "app.zasp.example",
-  tlsSecretName: "zasp-product-tls",
-  secretProviderClass: "zasp-production-secrets",
-  discovery: Object.freeze({
-    parserVersion: "inventory-parser-2026.08.20", toolVersion: "collector-tool-2026.08.20",
-    awsCollectorVersion: "aws-collector-2026.08.20", kubernetesCollectorVersion: "kubernetes-collector-2026.08.20",
-    githubCollectorVersion: "github-collector-2026.08.20", oktaCollectorVersion: "okta-collector-2026.08.20",
-    awsRegion: "us-west-2", queueURL: "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-discovery-jobs",
-    roleArn: "arn:aws:iam::123456789012:role/zasp-production-discovery-worker", webIdentityTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
-    secretPrefix: "zasp-production/connectors", evidenceBucket: "zasp-production-evidence", evidenceBucketOwner: "123456789012",
-    evidenceKMSKeyArn: "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111",
-    githubAppID: "123456", githubPrivateKeyReference: "ref:github/app-private-key",
-    oktaClientID: "0oa1234567890abcdef", oktaClientSecretReference: "ref:okta/client-secret",
-    providerTimeout: "5s", readinessTimeout: "5s",
-  }),
-  projectionSearch: Object.freeze({
-    awsRegion: "us-west-2", endpoint: "https://vpc-zasp.us-west-2.es.amazonaws.com", index: "zasp-inventory-v1",
-    roleArn: "arn:aws:iam::123456789012:role/zasp-production-projection-search", webIdentityTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
-    initRoleArn: "arn:aws:iam::123456789012:role/zasp-production-projection-search-init",
-  }),
-  projectionRisk: Object.freeze({ roleArn: "arn:aws:iam::123456789012:role/zasp-production-projection-risk" }),
-  projectionGraph: Object.freeze({
-    awsRegion: "us-west-2", endpoint: "neo4j+s://neo4j.internal.example:7687", endpointCIDR: "10.55.0.0/24",
-    credentialReference: "ref:neo4j/auth/runtime", secretPrefix: "zasp-production/projection",
-    roleArn: "arn:aws:iam::123456789012:role/zasp-production-projection-graph", webIdentityTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
-    schemaCredentialReference: "ref:neo4j/auth/schema", initRoleArn: "arn:aws:iam::123456789012:role/zasp-production-projection-graph-init",
-    expectedPrincipal: "zasp_projection_runtime", expectedRole: "publisher",
-  }),
-  outbox: Object.freeze({
-    awsRegion: "us-west-2", queueURL: "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-discovery-jobs",
-    roleArn: "arn:aws:iam::123456789012:role/zasp-production-outbox", webIdentityTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
-    egressCIDRs: Object.freeze(["10.70.0.0/28"]),
-  }),
-  runtime: Object.freeze({
-    awsRegion: "us-west-2", queueURL: "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-runtime-events",
-    rawBucket: "zasp-production-runtime-raw", rawBucketOwner: "123456789012",
-    rawKMSKeyArn: "arn:aws:kms:us-west-2:123456789012:key/22222222-2222-4222-8222-222222222222",
-    openSearchEndpoint: "https://vpc-zasp.us-west-2.es.amazonaws.com", openSearchIndex: "zasp-runtime-events-v1",
-    webIdentityTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
-    eventIngestRoleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-ingest",
-    gatewayControlRoleArn: "arn:aws:iam::123456789012:role/zasp-production-gateway-control",
-    outboxRoleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-outbox",
-    coordinatorRoleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-coordinator",
-    archiveRoleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-archive",
-    indexRoleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-index",
-    correlationRoleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-correlation",
-    projectionRoleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-projection",
-    completeRoleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-complete",
-    egressCIDRs: Object.freeze(["10.71.0.0/28"]),
-  }),
-  connectors: Object.freeze({
-    awsRegion: "us-west-2",
-    roleArn: "arn:aws:iam::123456789012:role/zasp-production-api-connectors",
-    awsCustomerRolePrefixes: Object.freeze(["arn:aws:iam::111111111111:role/zasp,reference/", "arn:aws:iam::222222222222:role/zasp-reference/"]),
-    awsCustomerRoleARNs: Object.freeze(["arn:aws:iam::111111111111:role/zasp,reference/customer-0001", "arn:aws:iam::222222222222:role/zasp-reference/customer-0002"]),
-    webIdentityTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
-    kmsKeyArn: "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111",
-    secretPrefix: "zasp-production/connectors/oauth",
-    githubClientID: "Iv1.1234567890abcdef",
-    githubClientSecretReference: "ref:github/client-secret",
-    githubAppID: "123456",
-    githubPrivateKeyReference: "ref:github/app-private-key",
-    oktaClientID: "0oa1234567890abcdef",
-    oktaClientSecretReference: "ref:okta/client-secret",
-  }),
-  connectorEgressCIDRs: Object.freeze({
-    aws: Object.freeze(["10.50.0.0/28"]),
-    github: Object.freeze(["192.0.2.0/28"]),
-    okta: Object.freeze(["198.51.100.0/28"]),
-    kubernetes: Object.freeze(["203.0.113.0/28"]),
-  }),
-  images: Object.freeze({
-    web: digest("web", "a"), agentsecApi: digest("api", "b"), agentsecWorker: digest("worker", "c"),
-    eventIngest: digest("event-ingest", "d"), gatewayControl: digest("gateway-control", "e"), runtimeGateway: digest("runtime-gateway", "f"), sensorAgent: digest("sensor-agent", "1"),
-  }),
-});
-const edgeRelease = Object.freeze({
-  controlPlaneURL: "https://app.zasp.example",
-  image: digest("runtime-gateway", "f"),
-  sensorImage: digest("sensor-agent", "1"),
-  organizationID: "pid_10000001-0000-4000-8000-000000000001",
-  workspaceID: "pid_10000002-0000-4000-8000-000000000002",
-  environmentID: "pid_10000003-0000-4000-8000-000000000003",
-  deviceID: "pid_10000004-0000-4000-8000-000000000004",
-  credentialID: "pid_10000005-0000-4000-8000-000000000005",
-  credentialSecretName: "zasp-runtime-gateway-credential",
-  policyKeysSecretName: "zasp-runtime-gateway-policy-keys",
-  sensorTokenSecretName: "zasp-sensor-token",
-  storageClassName: "gp3-encrypted",
-  controlPlaneCIDRs: Object.freeze(["10.80.0.0/28"]),
-  kubernetesAPICIDRs: Object.freeze(["10.96.0.1/32"]),
-  nodeCIDRs: Object.freeze(["10.0.0.0/16"]),
-  stateHostPath: "/var/lib/zasp-sensor",
-});
+const exec = promisify(execFile);
 
 test("production container builds are exact, non-root, health-bound, and secret-free", async () => {
   const builds = await inspectContainerBuilds();
@@ -250,6 +159,253 @@ test("customer edge rejects mutable sensors, broad networks, shared secrets, and
   ]) await assert.rejects(() => renderCustomerEdgeRelease(value), /edge release rejected/);
 });
 
+test("production release renders private Nango dependency plus a fail-closed local Collector", async () => {
+  const resources = await renderRelease(release);
+
+  const nango = one(resources, "Deployment", "nango");
+  assert.equal(nango.spec.replicas, 2);
+  assert.match(nango.spec.template.spec.containers[0].image, /^nangohq\/nango-server:hosted-[a-f0-9]+@sha256:[a-f0-9]{64}$/);
+  assert.equal(nango.spec.template.spec.serviceAccountName, "nango");
+  assert.equal(nango.spec.template.spec.automountServiceAccountToken, false);
+  assert.equal(nango.spec.template.spec.securityContext.runAsUser, 1000);
+  assert.equal(nango.spec.template.spec.securityContext.runAsGroup, 1000);
+  assert.equal(nango.spec.template.spec.containers[0].securityContext.runAsUser, 1000);
+  assert.equal(nango.spec.template.spec.containers[0].securityContext.runAsGroup, 1000);
+  assert.deepEqual(Object.fromEntries(nango.spec.template.spec.containers[0].env.filter(({ value }) => value !== undefined).map(({ name, value }) => [name, value])), {
+    CSP_REPORT_ONLY: "true",
+    FLAG_AUTH_ROLES_ENABLED: "false",
+    FLAG_SERVE_CONNECT_UI: "false",
+    NANGO_CLOUD: "false",
+    NANGO_DB_APPLICATION_NAME: "zasp-production-nango",
+    NANGO_DB_POOL_MAX: "20",
+    NANGO_DB_POOL_MIN: "0",
+    NANGO_DB_SCHEMA: "nango",
+    NANGO_DB_SSL: "true",
+    NANGO_ENTERPRISE: "false",
+    NANGO_LOGS_ENABLED: "false",
+    NANGO_MIGRATE_AT_START: "false",
+    NANGO_SERVER_URL: "http://nango.agentsec.svc.cluster.local:3003",
+    NANGO_PUBLIC_SERVER_URL: "http://nango.agentsec.svc.cluster.local:3003",
+    NANGO_TELEMETRY_SDK: "false",
+    RECORDS_DATABASE_POOL_MAX: "20",
+    RECORDS_DATABASE_POOL_MIN: "0",
+    RECORDS_DATABASE_SCHEMA: "nango_records",
+    RECORDS_DATABASE_SSL: "true",
+    SERVER_PORT: "3003",
+  });
+  assert.deepEqual(nango.spec.template.spec.containers[0].env.find(({ name }) => name === "NANGO_DATABASE_URL").valueFrom.secretKeyRef, { name: release.nango.storageSecretName, key: "database-url" });
+  assert.equal(nango.spec.template.spec.containers[0].env.some(({ name }) => name === "FLAG_AUTH_ENABLED"), false);
+  assert.match(nango.spec.template.spec.containers[0].args[0], /sslmode.*verify-full/);
+  assert.match(nango.spec.template.spec.containers[0].args[0], /exec node packages\/server\/dist\/server\.js/);
+  assert.doesNotMatch(nango.spec.template.spec.containers[0].args[0], /packages\/server\/entrypoint\.sh/);
+  const databaseURLGuard = nango.spec.template.spec.containers[0].args[0].split("\n")[0];
+  const fixtureDatabaseURL = ({
+    username = "nango",
+    password = "fixture-only",
+    port = "5432",
+    query = "?sslmode=verify-full",
+  } = {}) => {
+    const value = new URL(`postgresql://db.internal.example:${port}/nango${query}`);
+    value.username = username;
+    if (password !== null) value.password = password;
+    return value.href;
+  };
+  const validDatabaseURL = fixtureDatabaseURL();
+  const runDatabaseURLGuard = (nangoURL, recordsURL = nangoURL) => exec("/bin/sh", ["-ec", databaseURLGuard], {
+    encoding: "utf8",
+    env: { PATH: process.env.PATH ?? "", NANGO_DATABASE_URL: nangoURL, RECORDS_DATABASE_URL: recordsURL },
+  });
+  assert.deepEqual(await runDatabaseURLGuard(validDatabaseURL), { stdout: "", stderr: "" });
+  for (const [nangoURL, recordsURL] of [
+    [fixtureDatabaseURL({ query: "" }), undefined],
+    [fixtureDatabaseURL({ query: "?sslmode=no-verify" }), undefined],
+    [fixtureDatabaseURL({ query: "?sslmode=verify-full&sslmode=disable" }), undefined],
+    [fixtureDatabaseURL({ query: "?sslmode=verify-full&application_name=unsafe" }), undefined],
+    [fixtureDatabaseURL({ port: "6432" }), undefined],
+    [fixtureDatabaseURL({ password: null }), undefined],
+    [validDatabaseURL, fixtureDatabaseURL({ username: "other" })],
+  ]) await assert.rejects(() => runDatabaseURLGuard(nangoURL, recordsURL));
+  assert.equal(nango.spec.template.spec.containers[0].env.some(({ name }) => name === "NANGO_DB_NAME"), false);
+  assert.deepEqual(nango.spec.template.spec.containers[0].env.find(({ name }) => name === "NANGO_ENCRYPTION_KEY").valueFrom.secretKeyRef, { name: release.nango.storageSecretName, key: "encryption-key" });
+  assert.deepEqual(nango.spec.template.spec.containers[0].env.find(({ name }) => name === "RECORDS_DATABASE_URL").valueFrom.secretKeyRef, { name: release.nango.storageSecretName, key: "database-url" });
+  assert.deepEqual(nango.spec.template.spec.containers[0].startupProbe.httpGet, { path: "/ready", port: "http", scheme: "HTTP" });
+  assert.deepEqual(nango.spec.template.spec.containers[0].readinessProbe.httpGet, { path: "/ready", port: "http", scheme: "HTTP" });
+  assert.deepEqual(nango.spec.template.spec.containers[0].livenessProbe.httpGet, { path: "/health", port: "http", scheme: "HTTP" });
+  assert.equal(nango.spec.template.spec.containers[0].env.find(({ name }) => name === "NANGO_MIGRATE_AT_START").value, "false");
+  const nangoMigration = one(resources, "Job", "nango-migrate");
+  assert.equal(nangoMigration.metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
+  assert.equal(nangoMigration.metadata.annotations["helm.sh/hook-weight"], "-20");
+  assert.equal(nangoMigration.metadata.annotations["helm.sh/hook-delete-policy"], "before-hook-creation,hook-succeeded");
+  assert.equal(nangoMigration.spec.backoffLimit, 1);
+  assert.equal(nangoMigration.spec.activeDeadlineSeconds, 600);
+  assert.equal(nangoMigration.spec.template.spec.serviceAccountName, "nango-migrate");
+  assert.equal(nangoMigration.spec.template.spec.automountServiceAccountToken, false);
+  assert.equal(nangoMigration.spec.template.spec.containers[0].image, nango.spec.template.spec.containers[0].image);
+  assert.deepEqual(nangoMigration.spec.template.spec.containers[0].command, ["/bin/sh", "-ec"]);
+  assert.match(nangoMigration.spec.template.spec.containers[0].args[0], /sslmode.*verify-full/);
+  assert.match(nangoMigration.spec.template.spec.containers[0].args[0], /exec node packages\/server\/dist\/migrate\.js/);
+  assert.equal(nangoMigration.spec.template.spec.containers[0].securityContext.runAsUser, 1000);
+  assert.equal(nangoMigration.spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem, true);
+  assert.equal(nangoMigration.spec.template.spec.containers[0].env.find(({ name }) => name === "RECORDS_DATABASE_SSL").value, "true");
+  assert.equal(nangoMigration.spec.template.spec.containers[0].env.some(({ name, value }) => name === "NANGO_MIGRATE_AT_START" && value === "true"), false);
+  const migrationAccount = one(resources, "ServiceAccount", "nango-migrate");
+  assert.equal(migrationAccount.metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
+  assert.equal(migrationAccount.metadata.annotations["helm.sh/hook-weight"], "-22");
+  assert.equal(migrationAccount.metadata.annotations["helm.sh/hook-delete-policy"], "before-hook-creation");
+  const migrationNetwork = one(resources, "NetworkPolicy", "nango-migrate-private");
+  assert.equal(migrationNetwork.metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
+  assert.equal(migrationNetwork.metadata.annotations["helm.sh/hook-weight"], "-21");
+  assert.equal(migrationNetwork.metadata.annotations["helm.sh/hook-delete-policy"], "before-hook-creation");
+  assert.deepEqual(migrationNetwork.spec.podSelector.matchLabels, { "app.kubernetes.io/name": "nango-migrate" });
+  assert.equal(one(resources, "Service", "nango").spec.type, "ClusterIP");
+  assert.equal(one(resources, "PodDisruptionBudget", "nango").spec.minAvailable, 1);
+  const nangoNetwork = one(resources, "NetworkPolicy", "nango-private");
+  assert.deepEqual(nangoNetwork.spec.egress.flatMap(({ to }) => to.map(({ ipBlock }) => ipBlock?.cidr).filter(Boolean)).sort(), [...release.nango.databaseEgressCIDRs, ...release.nango.providerEgressCIDRs].sort());
+  assert.doesNotMatch(JSON.stringify(nangoNetwork), /0\.0\.0\.0\/0|::\/0/);
+  assert.equal(resources.some(({ kind, metadata }) => kind === "Ingress" && /nango/i.test(metadata.name)), false);
+  assert.equal(resources.some(({ metadata }) => /(?:runner|persist|orchestrat|functions|webhooks|jobs)/i.test(metadata.name) && /nango/i.test(metadata.name)), false);
+
+  const collector = one(resources, "Deployment", "otel-collector");
+  assert.equal(collector.spec.replicas, 2);
+  assert.match(collector.spec.template.spec.containers[0].image, /^otel\/opentelemetry-collector-contrib:0\.158\.0@sha256:[a-f0-9]{64}$/);
+  assert.equal(collector.spec.template.spec.automountServiceAccountToken, false);
+  assert.equal(one(resources, "Service", "otel-collector").spec.type, "ClusterIP");
+  assert.deepEqual(one(resources, "Service", "otel-collector").spec.ports.map(({ port }) => port), [4317, 4318, 13133, 8888]);
+  assert.equal(one(resources, "PodDisruptionBudget", "otel-collector").spec.minAvailable, 1);
+  const config = load(one(resources, "ConfigMap", "otel-collector").data["collector.yaml"]);
+  assert.deepEqual(config.processors.memory_limiter, { check_interval: "1s", limit_mib: 384, spike_limit_mib: 64 });
+  assert.deepEqual(config.processors.batch, { send_batch_size: 512, send_batch_max_size: 1024, timeout: "5s" });
+  assert.deepEqual(config.processors["transform/redact_content"], {
+    error_mode: "propagate",
+    trace_statements: [
+      'set(resource.schema_url, "")',
+      'set(resource.attributes["service.namespace"], "agentsec")',
+      'set(resource.attributes["service.name"], "unknown") where resource.attributes["service.name"] != "agentsec-api" and resource.attributes["service.name"] != "agentsec-worker"',
+      'set(resource.attributes["service.version"], "redacted")',
+      'set(resource.attributes["deployment.environment.name"], "unknown") where resource.attributes["deployment.environment.name"] != "development" and resource.attributes["deployment.environment.name"] != "test" and resource.attributes["deployment.environment.name"] != "staging" and resource.attributes["deployment.environment.name"] != "production"',
+      'set(scope.name, "redacted")',
+      'set(scope.version, "")',
+      'set(scope.schema_url, "")',
+      'set(scope.attributes, {})',
+      'set(span.name, "redacted")',
+      'set(span.status.message, "")',
+      'set(span.trace_state, "")',
+      'set(spanevent.name, "redacted")',
+    ],
+    metric_statements: [
+      'set(resource.schema_url, "")',
+      'set(resource.attributes["service.namespace"], "agentsec")',
+      'set(resource.attributes["service.name"], "unknown") where resource.attributes["service.name"] != "agentsec-api" and resource.attributes["service.name"] != "agentsec-worker"',
+      'set(resource.attributes["service.version"], "redacted")',
+      'set(resource.attributes["deployment.environment.name"], "unknown") where resource.attributes["deployment.environment.name"] != "development" and resource.attributes["deployment.environment.name"] != "test" and resource.attributes["deployment.environment.name"] != "staging" and resource.attributes["deployment.environment.name"] != "production"',
+      'set(scope.name, "redacted")',
+      'set(scope.version, "")',
+      'set(scope.schema_url, "")',
+      'set(scope.attributes, {})',
+      'set(metric.description, "")',
+      'set(metric.unit, "")',
+      'set(metric.metadata, {})',
+      'set(exemplar.filtered_attributes, {})',
+    ],
+    log_statements: [
+      'set(resource.schema_url, "")',
+      'set(resource.attributes["service.namespace"], "agentsec")',
+      'set(resource.attributes["service.name"], "unknown") where resource.attributes["service.name"] != "agentsec-api" and resource.attributes["service.name"] != "agentsec-worker"',
+      'set(resource.attributes["service.version"], "redacted")',
+      'set(resource.attributes["deployment.environment.name"], "unknown") where resource.attributes["deployment.environment.name"] != "development" and resource.attributes["deployment.environment.name"] != "test" and resource.attributes["deployment.environment.name"] != "staging" and resource.attributes["deployment.environment.name"] != "production"',
+      'set(scope.name, "redacted")',
+      'set(scope.version, "")',
+      'set(scope.schema_url, "")',
+      'set(scope.attributes, {})',
+      'set(log.body, "")',
+      'set(log.event_name, "redacted")',
+      'set(log.severity_text, "")',
+    ],
+  });
+  assert.deepEqual(config.processors["filter/drop_unsafe_trace_links"], { error_mode: "propagate", trace_conditions: ["Len(span.links) > 0"] });
+  assert.deepEqual(config.processors["filter/allow_metrics"], {
+    error_mode: "propagate",
+    metric_conditions: ['metric.name != "agentsec_ready" and metric.name != "agentsec_build_info" and metric.name != "zasp_http_requests_total" and metric.name != "zasp_http_request_duration_seconds" and metric.name != "zasp_http_slo_requests_total" and metric.name != "zasp_http_slo_request_duration_seconds" and metric.name != "zasp_http_rate_limited_total" and metric.name != "zasp_auth_rejections_total" and metric.name != "zasp_dependency_operations_total" and metric.name != "zasp_job_operations_total" and metric.name != "zasp_postgres_pool_connections" and metric.name != "zasp_metrics_render_overflow" and metric.name != "zasp_worker_claimed_total" and metric.name != "zasp_worker_active" and metric.name != "zasp_worker_inflight" and metric.name != "zasp_worker_lease_loss_total" and metric.name != "zasp_worker_retry_total" and metric.name != "zasp_worker_exhaustion_total" and metric.name != "zasp_worker_failure_total" and metric.name != "zasp_worker_driver_ready" and metric.name != "zasp_worker_projection_backlog_age_seconds"'],
+  });
+  assert.equal(config.processors.redaction.allow_all_keys, false);
+  assert.equal(config.processors.redaction.summary, "silent");
+  assert.deepEqual(config.service.telemetry.metrics.readers, [{ pull: { exporter: { prometheus: { host: "0.0.0.0", port: 8888 } } } }]);
+  assert.deepEqual(Object.keys(config.exporters), ["nop"]);
+  assert.deepEqual(config.service.pipelines.traces.processors, ["memory_limiter", "filter/drop_unsafe_trace_links", "transform/redact_content", "redaction", "batch"]);
+  assert.deepEqual(config.service.pipelines.metrics.processors, ["memory_limiter", "transform/redact_content", "filter/allow_metrics", "redaction", "batch"]);
+  assert.deepEqual(config.service.pipelines.logs.processors, ["memory_limiter", "transform/redact_content", "redaction", "batch"]);
+  for (const signal of ["traces", "metrics", "logs"]) assert.deepEqual(config.service.pipelines[signal].exporters, ["nop"]);
+  const collectorNetwork = one(resources, "NetworkPolicy", "otel-collector-private");
+  assert.equal(collectorNetwork.spec.egress.length, 1);
+  assert.deepEqual(collectorNetwork.spec.ingress[0], {
+    from: [{ podSelector: { matchLabels: { "app.kubernetes.io/part-of": "zasp" } } }],
+    ports: [{ protocol: "TCP", port: 4317 }, { protocol: "TCP", port: 4318 }, { protocol: "TCP", port: 13133 }],
+  });
+  assert.deepEqual(one(resources, "ServiceMonitor", "otel-collector").spec.endpoints, [{ interval: "30s", path: "/metrics", port: "metrics", scrapeTimeout: "5s" }]);
+  assert.equal(resources.some(({ kind, metadata }) => kind === "PrometheusRule" && metadata.name === "otel-collector"), false);
+  assert.equal(resources.some(({ kind, metadata }) => kind === "Ingress" && /otel/i.test(metadata.name)), false);
+  assert.doesNotMatch(JSON.stringify(collector), /OTEL_EXPORTER_OTLP_(?:ENDPOINT|AUTHORIZATION)/);
+});
+
+test("rendered release rejects an unreviewed job identity", async () => {
+  const resources = await renderRelease(release);
+  const names = resources.filter(({ kind }) => kind === "Job").map(({ metadata }) => metadata.name).sort();
+  assert.deepEqual(names, ["agentsec-projection-graph-init-v1", "agentsec-projection-search-init-v1", "agentsec-schema-v15", "nango-migrate", "zasp-canary-secret-sync"]);
+  assert.throws(() => validateRenderedRelease([...resources, {
+    apiVersion: "batch/v1",
+    kind: "Job",
+    metadata: { name: "unreviewed-job" },
+    spec: { template: { spec: { serviceAccountName: "nango" } } },
+  }], "123456789012"), /release rejected/);
+});
+
+test("Grafana and New Relic Collector overlays bound remote failure with one exact secret", async () => {
+  for (const telemetry of [
+    { backend: "grafana", endpoint: "https://otlp-gateway-prod-us-west-0.grafana.net/otlp", authSecretName: "otel-grafana", egressCIDRs: ["192.0.2.16/28"] },
+    { backend: "newrelic", endpoint: "https://otlp.nr-data.net", authSecretName: "otel-newrelic", egressCIDRs: ["198.51.100.16/28"] },
+  ]) {
+    const resources = await renderRelease({ ...release, telemetry });
+    const collector = one(resources, "Deployment", "otel-collector");
+    const config = load(one(resources, "ConfigMap", "otel-collector").data["collector.yaml"]);
+    assert.deepEqual(config.exporters["otlphttp/remote"], {
+      endpoint: "${env:OTEL_EXPORTER_OTLP_ENDPOINT}",
+      headers: { Authorization: "${env:OTEL_EXPORTER_OTLP_AUTHORIZATION}" },
+      timeout: "5s",
+      sending_queue: { enabled: true, num_consumers: 2, queue_size: 256, sizer: "requests", wait_for_result: false, block_on_overflow: false },
+      retry_on_failure: { enabled: true, initial_interval: "1s", max_interval: "5s", max_elapsed_time: "60s" },
+    });
+    for (const signal of ["traces", "metrics", "logs"]) assert.deepEqual(config.service.pipelines[signal].exporters, ["otlphttp/remote"]);
+    const env = collector.spec.template.spec.containers[0].env;
+    assert.equal(env.find(({ name }) => name === "OTEL_EXPORTER_OTLP_ENDPOINT").value, telemetry.endpoint);
+    assert.deepEqual(env.find(({ name }) => name === "OTEL_EXPORTER_OTLP_AUTHORIZATION").valueFrom.secretKeyRef, { name: telemetry.authSecretName, key: "authorization" });
+    const network = one(resources, "NetworkPolicy", "otel-collector-private");
+    assert.deepEqual(network.spec.egress.flatMap(({ to }) => to.map(({ ipBlock }) => ipBlock?.cidr).filter(Boolean)), telemetry.egressCIDRs);
+    const queueRule = one(resources, "PrometheusRule", "otel-collector");
+    assert.deepEqual(queueRule.spec.groups[0].rules, [
+      {
+        alert: "ZaspOTelCollectorQueueLoss",
+        expr: 'sum(increase({__name__=~"otelcol_exporter_enqueue_failed_(log_records|metric_points|spans)",service="otel-collector",exporter="otlphttp/remote"}[5m])) > 0',
+        labels: { severity: "page" },
+        annotations: {
+          summary: "OpenTelemetry remote queue dropped telemetry",
+          runbook_url: "https://zasp.example/runbooks/observability-and-canaries#collector",
+        },
+      },
+      {
+        alert: "ZaspOTelCollectorQueueMetricMissing",
+        expr: 'absent(otelcol_exporter_queue_capacity{service="otel-collector",exporter="otlphttp/remote"})',
+        for: "10m",
+        labels: { severity: "page" },
+        annotations: {
+          summary: "OpenTelemetry remote queue capacity metric disappeared",
+          runbook_url: "https://zasp.example/runbooks/observability-and-canaries#collector",
+        },
+      },
+    ]);
+    assert.equal(resources.some(({ kind }) => kind === "Secret"), false);
+  }
+});
+
 test("release renders one TLS origin, split ports, private internals, and migration/schema gates", async () => {
   const resources = await renderRelease(release);
   const ingress = one(resources, "Ingress", "zasp-product");
@@ -331,17 +487,18 @@ test("release renders one TLS origin, split ports, private internals, and migrat
 
 test("release applies non-root rollout, zone and host spread, drain, PDB, and default-deny policies", async () => {
   const resources = await renderRelease(release);
-  const workloadNames = ["agentsec-api", "agentsec-discovery-scheduler", "agentsec-discovery-worker", "agentsec-event-ingest", "agentsec-gateway-control", "agentsec-outbox-publisher", "agentsec-projection-graph", "agentsec-projection-risk", "agentsec-projection-search", "agentsec-runtime-archive", "agentsec-runtime-complete", "agentsec-runtime-coordinator", "agentsec-runtime-correlation", "agentsec-runtime-index", "agentsec-runtime-outbox", "agentsec-runtime-projection", "web"];
+  const workloadNames = ["agentsec-api", "agentsec-discovery-scheduler", "agentsec-discovery-worker", "agentsec-event-ingest", "agentsec-gateway-control", "agentsec-outbox-publisher", "agentsec-projection-graph", "agentsec-projection-risk", "agentsec-projection-search", "agentsec-runtime-archive", "agentsec-runtime-complete", "agentsec-runtime-coordinator", "agentsec-runtime-correlation", "agentsec-runtime-index", "agentsec-runtime-outbox", "agentsec-runtime-projection", "nango", "otel-collector", "web"];
   assert.deepEqual(resources.filter(({ kind }) => kind === "Deployment").map(({ metadata }) => metadata.name).sort(), workloadNames);
   assert.deepEqual(resources.filter(({ kind }) => kind === "Service").map(({ metadata }) => metadata.name).sort(), workloadNames);
   for (const name of workloadNames) {
     const deployment = one(resources, "Deployment", name);
     assert.deepEqual(deployment.spec.strategy.rollingUpdate, { maxSurge: 1, maxUnavailable: 0 });
     assert.equal(deployment.spec.template.spec.securityContext.seccompProfile.type, "RuntimeDefault");
-    assert.equal(deployment.spec.template.spec.containers[0].securityContext.runAsUser, 65532);
+    if (name !== "nango") assert.equal(deployment.spec.template.spec.containers[0].securityContext.runAsUser, 65532);
+    else assert.equal(deployment.spec.template.spec.containers[0].securityContext.runAsNonRoot, true);
     assert.equal(deployment.spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem, true);
     assert.equal(deployment.spec.template.spec.containers[0].lifecycle.preStop.exec.command.at(-1), "sleep 10");
-    if (name !== "web") {
+    if (name !== "web" && name !== "nango" && name !== "otel-collector") {
       const shutdown = deployment.spec.template.spec.containers[0].env.find(({ name: key }) => ["ZASP_SHUTDOWN_TIMEOUT", "ZASP_EVENT_INGEST_SHUTDOWN_TIMEOUT", "ZASP_GATEWAY_CONTROL_SHUTDOWN_TIMEOUT"].includes(key));
       assert.equal(shutdown.value, "15s");
       assert.ok(10 + Number.parseInt(shutdown.value, 10) + 5 <= deployment.spec.template.spec.terminationGracePeriodSeconds);
@@ -374,7 +531,7 @@ test("release applies non-root rollout, zone and host spread, drain, PDB, and de
   assert.equal(one(resources, "SecretProviderClass", "zasp-production-projection-search-secrets").spec.secretObjects[0].data.length, 1);
   assert.doesNotMatch(JSON.stringify(search), /ZASP_NEO4J|ZASP_CONNECTOR_|AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY/);
   assert.equal(resources.some(({ kind, metadata }) => kind === "Deployment" && metadata?.name === "runtime-gateway"), false);
-  assert.equal(JSON.stringify(resources).includes("4317"), false);
+  assert.deepEqual(one(resources, "Service", "otel-collector").spec.ports.map(({ port }) => port), [4317, 4318, 13133, 8888]);
 });
 
 test("release ships the complete v15 runtime data plane behind exact workload authorities", async () => {
@@ -640,8 +797,8 @@ test("release gives only API an explicit connector identity, reference-only conf
   assert.doesNotMatch(JSON.stringify(connectorEgress), /0\.0\.0\.0\/0|::\/0/);
 
   const rendered = JSON.stringify(resources);
-  assert.doesNotMatch(rendered, /kind":"(?:Deployment|Service|Ingress)"[^}]*"name":"nango"/);
-  assert.doesNotMatch(rendered, /ZASP_NANGO_|NANGO_SECRET|nango.*ready/i);
+  for (const workload of resources.filter(({ kind, metadata }) => ["Deployment", "Job", "CronJob"].includes(kind) && !["nango", "nango-migrate"].includes(metadata.name))) assert.doesNotMatch(JSON.stringify(workload), /NANGO_/);
+  assert.equal(resources.filter(({ kind }) => kind === "Deployment").some(({ metadata }) => /nango-(?:runner|persist|orchestrat|functions|webhooks|jobs)/i.test(metadata.name)), false);
   assert.doesNotMatch(rendered, /github-client-secret-value|okta-client-secret-value/);
   assert.equal(one(resources, "SecretProviderClass", release.secretProviderClass).spec.secretObjects[0].data.length, 7);
 });
@@ -732,6 +889,26 @@ test("release rejects unpinned images and hostile public identifiers", async () 
   await assert.rejects(() => renderRelease({ ...release, connectorEgressCIDRs: { ...release.connectorEgressCIDRs, github: ["0.0.0.0/0"] } }), /release rejected/);
   await assert.rejects(() => renderRelease({ ...release, connectorEgressCIDRs: { ...release.connectorEgressCIDRs, okta: [] } }), /release rejected/);
   await assert.rejects(() => renderRelease({ ...release, connectorEgressCIDRs: { ...release.connectorEgressCIDRs, kubernetes: [] } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, nango: { ...release.nango, storageSecretName: "" } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, nango: { ...release.nango, databaseEgressCIDRs: ["0.0.0.0/0"] } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, nango: { ...release.nango, databaseEgressCIDRs: ["10.0.0.0/8"] } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, nango: { ...release.nango, databaseEgressCIDRs: ["172.16.0.0/12"] } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, nango: { ...release.nango, databaseEgressCIDRs: ["192.168.0.0/16"] } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, nango: { ...release.nango, databaseEgressCIDRs: ["203.0.113.32/28"] } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, nango: { ...release.nango, providerEgressCIDRs: release.nango.databaseEgressCIDRs } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, nango: { ...release.nango, providerEgressCIDRs: ["0.0.0.0/1", "128.0.0.0/1"] } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, nango: { ...release.nango, providerEgressCIDRs: ["10.40.0.0/24"] } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, nango: { ...release.nango, providerEgressCIDRs: ["192.0.2.0/24", "192.0.2.0/25"] } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, nango: { ...release.nango, databaseEgressCIDRs: ["10.30.0.0/24", "10.30.0.0/25"] } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, nango: { ...release.nango, ambient: true } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, telemetry: { backend: "none", endpoint: "https://otlp.nr-data.net", authSecretName: "", egressCIDRs: [] } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, telemetry: { backend: "grafana", endpoint: "https://example.com/otlp", authSecretName: "otel-grafana", egressCIDRs: ["192.0.2.16/28"] } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, telemetry: { backend: "grafana", endpoint: "https://otlp-gateway-prod-us-west-0.grafana.net/otlp", authSecretName: release.nango.storageSecretName, egressCIDRs: ["192.0.2.16/28"] } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, telemetry: { backend: "grafana", endpoint: "https://otlp-gateway-prod-us-west-0.grafana.net/otlp", authSecretName: "otel-grafana", egressCIDRs: ["0.0.0.0/1", "128.0.0.0/1"] } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, telemetry: { backend: "grafana", endpoint: "https://otlp-gateway-prod-us-west-0.grafana.net/otlp", authSecretName: "otel-grafana", egressCIDRs: ["10.40.0.0/24"] } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, telemetry: { backend: "grafana", endpoint: "https://otlp-gateway-prod-us-west-0.grafana.net/otlp", authSecretName: "otel-grafana", egressCIDRs: ["192.0.2.0/24", "192.0.2.0/25"] } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, telemetry: { backend: "newrelic", endpoint: "https://otlp-gateway-prod-us-west-0.grafana.net/otlp", authSecretName: "otel-newrelic", egressCIDRs: ["198.51.100.16/28"] } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, telemetry: { backend: "newrelic", endpoint: "https://otlp.nr-data.net", authSecretName: "otel-newrelic", egressCIDRs: [] } }), /release rejected/);
 });
 
 test("terraform binds each shipped secret consumer to one exact least-privilege IRSA role", async () => {

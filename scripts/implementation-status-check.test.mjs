@@ -165,7 +165,7 @@ test("rejects audited production-class count drift", async () => {
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /production-available count is 304; expected 305/,
+        /production-available count is 306; expected 307/,
       );
     },
   );
@@ -214,7 +214,7 @@ test("rejects a same-owner same-milestone audited class swap", async () => {
 test("rejects demotion of audited shipped deployment tasks", async () => {
   for (const id of [
     "M8-09a", "M8-09b", "M8-09c", "M8-09", "M8-10", "M8-11", "M8-14",
-    "M8-57a", "M8-57b", "M8-57c", "M8-57",
+    "M8-12", "M8-13", "M8-57a", "M8-57b", "M8-57c", "M8-57",
   ]) {
     await withLedger(
       (ledger) => ledger.replace(
