@@ -206,7 +206,8 @@ func validProjectionSecretPrefix(value string) bool {
 }
 
 func validNeo4jReference(value string) bool {
-	return strings.HasPrefix(value, "ref:neo4j/") && projectionNeo4jIDPattern.MatchString(strings.TrimPrefix(value, "ref:neo4j/"))
+	const prefix = "ref:neo4j/auth/"
+	return strings.HasPrefix(value, prefix) && projectionNeo4jIDPattern.MatchString(strings.TrimPrefix(value, prefix))
 }
 
 func validSQSURL(value string) bool {

@@ -47,11 +47,11 @@ func TestNeo4jSecretsResolverMapsOpaqueReferenceAndRejectsMalformedSecret(t *tes
 	secret := `{"scheme":"basic","principal":"neo4j","credentials":"password-material"}`
 	api := &projectionSecretsStub{output: &secretsmanager.GetSecretValueOutput{SecretString: &secret}}
 	resolver := &projectionNeo4jAuthenticationResolver{client: api, prefix: "zasp-production/projection"}
-	manager, err := resolver.ResolveNeo4jAuthentication(context.Background(), "ref:neo4j/production")
+	manager, err := resolver.ResolveNeo4jAuthentication(context.Background(), "ref:neo4j/auth/production")
 	if err != nil || manager == nil {
 		t.Fatalf("ResolveNeo4jAuthentication() = %#v, %v", manager, err)
 	}
-	if api.secretID != "zasp-production/projection/neo4j/production" {
+	if api.secretID != "zasp-production/projection/neo4j/auth/production" {
 		t.Fatalf("secret id = %q", api.secretID)
 	}
 	token, err := manager.GetAuthToken(context.Background())
@@ -61,8 +61,32 @@ func TestNeo4jSecretsResolverMapsOpaqueReferenceAndRejectsMalformedSecret(t *tes
 
 	malformed := `{"scheme":"basic","principal":"neo4j","credentials":"password-material","access_token":"escape"}`
 	api.output = &secretsmanager.GetSecretValueOutput{SecretString: &malformed}
-	if manager, err := resolver.ResolveNeo4jAuthentication(context.Background(), "ref:neo4j/production"); !errors.Is(err, errRuntimeUnavailable) || manager != nil {
+	if manager, err := resolver.ResolveNeo4jAuthentication(context.Background(), "ref:neo4j/auth/production"); !errors.Is(err, errRuntimeUnavailable) || manager != nil {
 		t.Fatalf("malformed secret = %#v, %v", manager, err)
+	}
+	if manager, err := resolver.ResolveNeo4jAuthentication(context.Background(), "ref:neo4j/production"); !errors.Is(err, errRuntimeUnavailable) || manager != nil {
+		t.Fatalf("legacy ambiguous reference = %#v, %v", manager, err)
+	}
+}
+
+func TestProjectionCallerIdentityBindsExactConfiguredRole(t *testing.T) {
+	t.Parallel()
+	api := &projectionIdentityStub{output: &sts.GetCallerIdentityOutput{
+		Account: aws.String("123456789012"), Arn: aws.String("arn:aws:sts::123456789012:assumed-role/zasp-production-projection-search/zasp-projection-worker"), UserId: aws.String("AROATEST:zasp-projection-worker"),
+	}}
+	roleARN := "arn:aws:iam::123456789012:role/zasp-production-projection-search"
+	if err := verifyProjectionCallerIdentity(context.Background(), api, roleARN); err != nil || api.calls != 1 {
+		t.Fatalf("verifyProjectionCallerIdentity() error=%v calls=%d", err, api.calls)
+	}
+	for _, output := range []*sts.GetCallerIdentityOutput{
+		{Account: aws.String("210987654321"), Arn: aws.String("arn:aws:sts::210987654321:assumed-role/zasp-production-projection-search/zasp-projection-worker"), UserId: aws.String("AROATEST:zasp-projection-worker")},
+		{Account: aws.String("123456789012"), Arn: aws.String("arn:aws:sts::123456789012:assumed-role/other-role/zasp-projection-worker"), UserId: aws.String("AROATEST:zasp-projection-worker")},
+		{Account: aws.String("123456789012"), Arn: aws.String("arn:aws:iam::123456789012:role/zasp-production-projection-search"), UserId: aws.String("AROATEST")},
+	} {
+		api.output = output
+		if err := verifyProjectionCallerIdentity(context.Background(), api, roleARN); !errors.Is(err, errRuntimeUnavailable) || strings.Contains(err.Error(), "other-role") {
+			t.Fatalf("hostile identity %#v error = %v", output, err)
+		}
 	}
 }
 
@@ -81,6 +105,17 @@ type projectionSecretsStub struct {
 	secretID string
 	output   *secretsmanager.GetSecretValueOutput
 	err      error
+}
+
+type projectionIdentityStub struct {
+	calls  int
+	output *sts.GetCallerIdentityOutput
+	err    error
+}
+
+func (stub *projectionIdentityStub) GetCallerIdentity(context.Context, *sts.GetCallerIdentityInput, ...func(*sts.Options)) (*sts.GetCallerIdentityOutput, error) {
+	stub.calls++
+	return stub.output, stub.err
 }
 
 func (stub *projectionSecretsStub) GetSecretValue(_ context.Context, input *secretsmanager.GetSecretValueInput, _ ...func(*secretsmanager.Options)) (*secretsmanager.GetSecretValueOutput, error) {

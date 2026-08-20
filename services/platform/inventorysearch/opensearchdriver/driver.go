@@ -120,6 +120,18 @@ func (driver *Driver) Close() {
 	}
 }
 
+// Ready performs a signed, read-only check against the exact inventory index.
+func (driver *Driver) Ready(ctx context.Context) error {
+	result, err := driver.request(ctx, http.MethodHead, "/"+indexName, "", nil, false)
+	if err != nil {
+		return err
+	}
+	if result.status != http.StatusOK || len(result.body) != 0 {
+		return inventorysearch.ErrUnavailable
+	}
+	return nil
+}
+
 type response struct {
 	status int
 	body   []byte

@@ -112,6 +112,41 @@ func TestNewRequiresExplicitAWSAuthorityAndBuildsStrictTLSClient(t *testing.T) {
 	}
 }
 
+func TestReadyChecksExactSignedInventoryIndex(t *testing.T) {
+	t.Parallel()
+	credentials := &credentialProvider{}
+	emptyDigest := sha256.Sum256(nil)
+	signer := &recordingSigner{check: func(_ context.Context, _ aws.Credentials, request *http.Request, payloadHash, service, region string, _ time.Time) {
+		if request.Method != http.MethodHead || request.URL.Path != "/"+indexName || request.URL.RawQuery != "" || payloadHash != hex.EncodeToString(emptyDigest[:]) || service != "es" || region != "us-west-2" {
+			t.Fatalf("readiness request = %s %s?%s digest=%q service=%q region=%q", request.Method, request.URL.Path, request.URL.RawQuery, payloadHash, service, region)
+		}
+	}}
+	calls := 0
+	driver, err := newWithClient(validConfig(), credentials, signer, doerFunc(func(*http.Request) (*http.Response, error) {
+		calls++
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(""))}, nil
+	}), fixedClock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := driver.Ready(context.Background()); err != nil || calls != 1 || credentials.calls.Load() != 1 || signer.calls.Load() != 1 {
+		t.Fatalf("Ready() error=%v calls=%d credentials=%d signer=%d", err, calls, credentials.calls.Load(), signer.calls.Load())
+	}
+
+	driver.client = doerFunc(func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusNotFound, Body: io.NopCloser(strings.NewReader("provider detail must not escape"))}, nil
+	})
+	if err := driver.Ready(context.Background()); !errors.Is(err, inventorysearch.ErrUnavailable) || strings.Contains(err.Error(), "provider detail") {
+		t.Fatalf("Ready(missing index) error = %v", err)
+	}
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	before := credentials.calls.Load()
+	if err := driver.Ready(canceled); !errors.Is(err, inventorysearch.ErrCanceled) || credentials.calls.Load() != before {
+		t.Fatalf("Ready(canceled) error=%v credential calls=%d", err, credentials.calls.Load())
+	}
+}
+
 func TestStageCreatesExactSignedImmutableDocumentsAndAcceptsEmpty(t *testing.T) {
 	t.Parallel()
 

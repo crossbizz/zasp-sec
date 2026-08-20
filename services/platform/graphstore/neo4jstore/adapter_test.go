@@ -227,6 +227,29 @@ func TestEnsureSchemaUsesExactConstraintsAndVerifiesState(t *testing.T) {
 	}
 }
 
+func TestAdapterReadinessVerifiesExactOwnedConstraintsWithoutDDL(t *testing.T) {
+	session := &fakeSession{tx: &fakeTransaction{results: []*fakeResult{{keys: constraintResultKeys, records: validConstraintRows()}}}}
+	provider := &fakeProvider{session: session}
+	adapter, err := newAdapterForProvider(provider, databaseName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := adapter.Ready(context.Background()); err != nil {
+		t.Fatalf("Ready() error = %v", err)
+	}
+	if provider.calls != 1 || !reflect.DeepEqual(provider.configs, []sessionConfig{{Database: databaseName, Access: accessRead}}) ||
+		!reflect.DeepEqual(session.tx.queries, []string{showOwnedConstraintsQuery}) ||
+		!reflect.DeepEqual(session.tx.parameters, []map[string]any{{"prefix": constraintPrefix}}) || session.tx.commitCalls != 1 {
+		t.Fatalf("readiness authority calls=%d configs=%#v queries=%#v parameters=%#v commits=%d", provider.calls, provider.configs, session.tx.queries, session.tx.parameters, session.tx.commitCalls)
+	}
+
+	hostile := &fakeSession{tx: &fakeTransaction{results: []*fakeResult{{keys: constraintResultKeys, records: validConstraintRows()[:4]}}}}
+	adapter.provider = &fakeProvider{session: hostile}
+	if err := adapter.Ready(context.Background()); !errors.Is(err, ErrSchema) || strings.Contains(err.Error(), seededProviderDetail) {
+		t.Fatalf("Ready(missing constraint) error = %v", err)
+	}
+}
+
 func TestEnsureSchemaRejectsMalformedOwnedState(t *testing.T) {
 	validRows := validConstraintRows()
 	tests := []struct {

@@ -300,6 +300,15 @@ func EnsureSchema(ctx context.Context, driver neo4j.Driver, database string) err
 	return ensureSchemaWithProvider(ctx, officialProvider{driver: driver}, database)
 }
 
+// Ready verifies the exact owned schema using read authority only. Schema DDL
+// remains the responsibility of the separately privileged EnsureSchema path.
+func (adapter *Adapter) Ready(ctx context.Context) error {
+	if adapter == nil || nilInterface(adapter.provider) || adapter.database != databaseName || ctx == nil || ctx.Err() != nil {
+		return ErrSchema
+	}
+	return verifySchemaWithProvider(ctx, adapter.provider, adapter.database)
+}
+
 func encryptedDriver(driver neo4j.Driver) (encrypted bool) {
 	defer func() {
 		if recover() != nil {
@@ -332,6 +341,19 @@ func ensureSchemaWithProvider(ctx context.Context, provider sessionProvider, dat
 		if err := runEmpty(ctx, tx, createSnapshotEdgeConstraintQuery, map[string]any{}); err != nil {
 			return ErrSchema
 		}
+		result, err := tx.Run(ctx, showOwnedConstraintsQuery, map[string]any{"prefix": constraintPrefix})
+		if err != nil || nilInterface(result) || !validConstraintResult(ctx, result) {
+			return ErrSchema
+		}
+		return nil
+	})
+}
+
+func verifySchemaWithProvider(ctx context.Context, provider sessionProvider, database string) error {
+	if ctx == nil || ctx.Err() != nil || nilInterface(provider) || database != databaseName {
+		return ErrSchema
+	}
+	return executeTransaction(ctx, provider, sessionConfig{Database: database, Access: accessRead}, ErrSchema, func(tx graphTransaction) error {
 		result, err := tx.Run(ctx, showOwnedConstraintsQuery, map[string]any{"prefix": constraintPrefix})
 		if err != nil || nilInterface(result) || !validConstraintResult(ctx, result) {
 			return ErrSchema

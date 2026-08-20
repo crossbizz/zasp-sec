@@ -38,6 +38,17 @@ type projectionSecretsAPI interface {
 	GetSecretValue(context.Context, *secretsmanager.GetSecretValueInput, ...func(*secretsmanager.Options)) (*secretsmanager.GetSecretValueOutput, error)
 }
 
+type projectionCallerIdentityAPI interface {
+	GetCallerIdentity(context.Context, *sts.GetCallerIdentityInput, ...func(*sts.Options)) (*sts.GetCallerIdentityOutput, error)
+}
+
+type projectionAWSAuthority struct {
+	credentials aws.CredentialsProvider
+	secrets     *secretsmanager.Client
+	identity    projectionCallerIdentityAPI
+	transport   *http.Transport
+}
+
 type projectionWebIdentityProvider struct {
 	client    projectionAssumeRoleAPI
 	roleARN   string
@@ -81,10 +92,11 @@ type projectionNeo4jAuthenticationResolver struct {
 }
 
 func (resolver *projectionNeo4jAuthenticationResolver) ResolveNeo4jAuthentication(ctx context.Context, reference string) (auth.TokenManager, error) {
-	if resolver == nil || resolver.client == nil || ctx == nil || ctx.Err() != nil || !workerSecretPrefixPattern.MatchString(resolver.prefix) || !strings.HasPrefix(reference, "ref:neo4j/") {
+	const referencePrefix = "ref:neo4j/auth/"
+	if resolver == nil || resolver.client == nil || ctx == nil || ctx.Err() != nil || !workerSecretPrefixPattern.MatchString(resolver.prefix) || !strings.HasPrefix(reference, referencePrefix) {
 		return nil, errRuntimeUnavailable
 	}
-	identifier := strings.TrimPrefix(reference, "ref:neo4j/")
+	identifier := strings.TrimPrefix(reference, referencePrefix)
 	if !projectionNeo4jIDPattern.MatchString(identifier) {
 		return nil, errRuntimeUnavailable
 	}
@@ -108,7 +120,7 @@ func (resolver *projectionNeo4jAuthenticationResolver) ResolveNeo4jAuthenticatio
 
 func (resolver *projectionNeo4jAuthenticationResolver) readBasicToken(ctx context.Context, identifier string) (neo4j.AuthToken, error) {
 	stage := "AWSCURRENT"
-	output, err := resolver.client.GetSecretValue(ctx, &secretsmanager.GetSecretValueInput{SecretId: aws.String(resolver.prefix + "/neo4j/" + identifier), VersionStage: &stage})
+	output, err := resolver.client.GetSecretValue(ctx, &secretsmanager.GetSecretValueInput{SecretId: aws.String(resolver.prefix + "/neo4j/auth/" + identifier), VersionStage: &stage})
 	if err != nil || output == nil || output.SecretString != nil == (len(output.SecretBinary) > 0) {
 		return neo4j.AuthToken{}, errRuntimeUnavailable
 	}
@@ -142,58 +154,56 @@ type productionProjectionProjector struct {
 }
 
 func newProductionSearchProjection(ctx context.Context, config workerRuntimeConfig) (productionProjectionProjector, error) {
-	credentials, secretsClient, transport, err := newProjectionAWSAuthority(config)
-	_ = secretsClient
+	authority, err := newProjectionAWSAuthority(config)
 	if err != nil {
 		return productionProjectionProjector{}, errRuntimeUnavailable
 	}
 	requestTimeout := minDuration(time.Duration(config.LeaseDuration)/3, 30*time.Second)
 	driver, err := opensearchdriver.New(opensearchdriver.Config{
 		Endpoint: config.OpenSearchURL, Region: config.AWSRegion, RequestTimeout: requestTimeout, MaximumRequestBytes: 8 << 20, MaximumResponseBytes: 8 << 20,
-	}, credentials, v4.NewSigner(), func() time.Time { return time.Now().UTC() })
+	}, authority.credentials, v4.NewSigner(), func() time.Time { return time.Now().UTC() })
 	if err != nil {
-		transport.CloseIdleConnections()
+		authority.transport.CloseIdleConnections()
 		return productionProjectionProjector{}, errRuntimeUnavailable
 	}
 	store, err := inventorysearch.New(driver, inventorysearch.Config{MaximumDocuments: 10_000, MaximumDocumentBytes: 65_536, MaximumBatchBytes: 8 << 20, MaximumResults: 100})
 	if err != nil {
 		driver.Close()
-		transport.CloseIdleConnections()
+		authority.transport.CloseIdleConnections()
 		return productionProjectionProjector{}, errRuntimeUnavailable
 	}
 	projector, err := newSearchProjectionProjector(store)
 	if err != nil {
 		driver.Close()
-		transport.CloseIdleConnections()
+		authority.transport.CloseIdleConnections()
 		return productionProjectionProjector{}, errRuntimeUnavailable
 	}
 	ready := func(readyCtx context.Context) error {
 		if readyCtx == nil || readyCtx.Err() != nil {
 			return errRuntimeUnavailable
 		}
-		_, retrieveErr := credentials.Retrieve(readyCtx)
-		if retrieveErr != nil {
+		if verifyProjectionCallerIdentity(readyCtx, authority.identity, config.ProjectionRoleARN) != nil || driver.Ready(readyCtx) != nil {
 			return errRuntimeUnavailable
 		}
 		return nil
 	}
 	if err := ready(ctx); err != nil {
 		driver.Close()
-		transport.CloseIdleConnections()
+		authority.transport.CloseIdleConnections()
 		return productionProjectionProjector{}, errRuntimeUnavailable
 	}
-	return productionProjectionProjector{projectionProjector: projector, ready: ready, close: func() error { driver.Close(); transport.CloseIdleConnections(); return nil }}, nil
+	return productionProjectionProjector{projectionProjector: projector, ready: ready, close: func() error { driver.Close(); authority.transport.CloseIdleConnections(); return nil }}, nil
 }
 
 func newProductionGraphProjection(ctx context.Context, config workerRuntimeConfig) (productionProjectionProjector, error) {
-	_, secretsClient, transport, err := newProjectionAWSAuthority(config)
+	authority, err := newProjectionAWSAuthority(config)
 	if err != nil {
 		return productionProjectionProjector{}, errRuntimeUnavailable
 	}
-	resolver := &projectionNeo4jAuthenticationResolver{client: secretsClient, prefix: config.ProjectionSecretPrefix}
+	resolver := &projectionNeo4jAuthenticationResolver{client: authority.secrets, prefix: config.ProjectionSecretPrefix}
 	adapter, err := neo4jstore.NewProduction(ctx, neo4jstore.ProductionConfig{Endpoint: config.Neo4jURI, AuthenticationReference: config.Neo4jCredential, ReadinessTimeout: minDuration(config.LeaseDuration/3, 30*time.Second)}, resolver)
 	if err != nil {
-		transport.CloseIdleConnections()
+		authority.transport.CloseIdleConnections()
 		return productionProjectionProjector{}, errRuntimeUnavailable
 	}
 	store, err := graphstore.New(adapter, graphstore.Config{OperationTimeout: minDuration(config.LeaseDuration/2, 30*time.Second), MaximumNodes: 1_000, MaximumEdges: 2_000, MaximumDepth: 8})
@@ -201,34 +211,46 @@ func newProductionGraphProjection(ctx context.Context, config workerRuntimeConfi
 		closeCtx, cancel := context.WithTimeout(ctx, time.Second)
 		_ = adapter.Close(closeCtx)
 		cancel()
-		transport.CloseIdleConnections()
+		authority.transport.CloseIdleConnections()
 		return productionProjectionProjector{}, errRuntimeUnavailable
 	}
 	projector, err := newGraphProjectionProjector(store)
 	if err != nil {
+		closeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), time.Second)
+		_ = adapter.Close(closeCtx)
+		cancel()
+		authority.transport.CloseIdleConnections()
+		return productionProjectionProjector{}, errRuntimeUnavailable
+	}
+	ready := func(readyCtx context.Context) error {
+		if readyCtx == nil || readyCtx.Err() != nil || verifyProjectionCallerIdentity(readyCtx, authority.identity, config.ProjectionRoleARN) != nil || adapter.Ready(readyCtx) != nil {
+			return errRuntimeUnavailable
+		}
+		return nil
+	}
+	if err := ready(ctx); err != nil {
+		closeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), time.Second)
+		_ = adapter.Close(closeCtx)
+		cancel()
+		authority.transport.CloseIdleConnections()
 		return productionProjectionProjector{}, errRuntimeUnavailable
 	}
 	return productionProjectionProjector{
 		projectionProjector: projector,
-		ready: func(readyCtx context.Context) error {
-			if readyCtx == nil || readyCtx.Err() != nil {
-				return errRuntimeUnavailable
-			}
-			return nil
-		},
+		ready:               ready,
 		close: func() error {
-			closeCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			closeCtx, cancel := context.WithTimeout(context.Background(), minDuration(config.ShutdownTimeout, config.LeaseDuration/3))
 			defer cancel()
 			closeErr := adapter.Close(closeCtx)
-			transport.CloseIdleConnections()
+			authority.transport.CloseIdleConnections()
 			return closeErr
 		},
 	}, nil
 }
 
-func newProjectionAWSAuthority(config workerRuntimeConfig) (aws.CredentialsProvider, *secretsmanager.Client, *http.Transport, error) {
+func newProjectionAWSAuthority(config workerRuntimeConfig) (projectionAWSAuthority, error) {
 	if !validProjectionAWSAuthority(config) {
-		return nil, nil, nil, errRuntimeUnavailable
+		return projectionAWSAuthority{}, errRuntimeUnavailable
 	}
 	transport := &http.Transport{
 		Proxy: nil, DialContext: (&net.Dialer{Timeout: 3 * time.Second, KeepAlive: 30 * time.Second}).DialContext, ForceAttemptHTTP2: true,
@@ -239,7 +261,26 @@ func newProjectionAWSAuthority(config workerRuntimeConfig) (aws.CredentialsProvi
 	provider := &projectionWebIdentityProvider{client: sts.NewFromConfig(base), roleARN: config.ProjectionRoleARN, tokenFile: config.ProjectionTokenFile, timeout: minDuration(config.LeaseDuration/3, 30*time.Second)}
 	credentials := aws.NewCredentialsCache(provider)
 	base.Credentials = credentials
-	return credentials, secretsmanager.NewFromConfig(base), transport, nil
+	return projectionAWSAuthority{credentials: credentials, secrets: secretsmanager.NewFromConfig(base), identity: sts.NewFromConfig(base), transport: transport}, nil
+}
+
+func verifyProjectionCallerIdentity(ctx context.Context, api projectionCallerIdentityAPI, roleARN string) (resultErr error) {
+	defer func() {
+		if recover() != nil {
+			resultErr = errRuntimeUnavailable
+		}
+	}()
+	match := regexp.MustCompile(`^arn:aws:iam::([0-9]{12}):role/(?:[A-Za-z0-9+=,.@_-]+/)*([A-Za-z0-9+=,.@_-]{1,64})$`).FindStringSubmatch(roleARN)
+	if ctx == nil || ctx.Err() != nil || nilWorkerDependency(api) || len(match) != 3 {
+		return errRuntimeUnavailable
+	}
+	output, err := api.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{}, func(options *sts.Options) { options.Retryer = aws.NopRetryer{} })
+	if err != nil || output == nil || aws.ToString(output.Account) != match[1] ||
+		aws.ToString(output.Arn) != "arn:aws:sts::"+match[1]+":assumed-role/"+match[2]+"/zasp-projection-worker" ||
+		len(aws.ToString(output.UserId)) < 3 || len(aws.ToString(output.UserId)) > 256 || !strings.HasSuffix(aws.ToString(output.UserId), ":zasp-projection-worker") {
+		return errRuntimeUnavailable
+	}
+	return nil
 }
 
 var (

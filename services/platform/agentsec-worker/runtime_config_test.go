@@ -57,7 +57,7 @@ func TestProjectionModesRequireKindSpecificAuthority(t *testing.T) {
 			"ZASP_DATABASE_AUTHORITY": authority, "ZASP_WORKER_ID": mode + "-01",
 			"ZASP_POLL_INTERVAL": "250ms", "ZASP_LEASE_DURATION": "30s", "ZASP_BATCH_SIZE": "8", "ZASP_SHUTDOWN_TIMEOUT": "20s",
 			"ZASP_OPENSEARCH_ENDPOINT": "https://vpc-zasp.us-west-2.es.amazonaws.com", "ZASP_OPENSEARCH_INDEX": "zasp-inventory-v1",
-			"ZASP_NEO4J_URI": "neo4j+s://neo4j.internal.example:7687", "ZASP_NEO4J_CREDENTIAL_REFERENCE": "ref:neo4j/production",
+			"ZASP_NEO4J_URI": "neo4j+s://neo4j.internal.example:7687", "ZASP_NEO4J_CREDENTIAL_REFERENCE": "ref:neo4j/auth/production",
 			"ZASP_AWS_REGION": "us-west-2", "ZASP_PROJECTION_ROLE_ARN": "arn:aws:iam::123456789012:role/zasp-production-projection",
 			"ZASP_PROJECTION_WEB_IDENTITY_TOKEN_FILE": "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", "ZASP_PROJECTION_SECRET_PREFIX": "zasp-production/projection",
 		}
@@ -88,7 +88,7 @@ func TestWorkerRuntimeConfigRequiresOnlyModeOwnedDependencies(t *testing.T) {
 		"ZASP_GITHUB_APP_ID": "123456", "ZASP_GITHUB_PRIVATE_KEY_REFERENCE": "ref:github/app-private-key-0001", "ZASP_OKTA_CLIENT_ID": "0oa1234567890abcdef", "ZASP_OKTA_CLIENT_SECRET_REFERENCE": "ref:okta/client-secret-0001",
 		"ZASP_PROVIDER_TIMEOUT": "5s", "ZASP_DISCOVERY_READINESS_TIMEOUT": "5s",
 		"ZASP_OPENSEARCH_ENDPOINT": "https://vpc-zasp.us-west-2.es.amazonaws.com", "ZASP_OPENSEARCH_INDEX": "zasp-inventory-v1",
-		"ZASP_NEO4J_URI": "neo4j+s://neo4j.internal.example:7687", "ZASP_NEO4J_CREDENTIAL_REFERENCE": "ref:neo4j/production",
+		"ZASP_NEO4J_URI": "neo4j+s://neo4j.internal.example:7687", "ZASP_NEO4J_CREDENTIAL_REFERENCE": "ref:neo4j/auth/production",
 		"ZASP_PROJECTION_ROLE_ARN": "arn:aws:iam::123456789012:role/zasp-production-projection", "ZASP_PROJECTION_WEB_IDENTITY_TOKEN_FILE": "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
 		"ZASP_PROJECTION_SECRET_PREFIX": "zasp-production/projection",
 	}
@@ -238,7 +238,7 @@ func TestGraphProjectionConfigRejectsAmbiguousSecretPaths(t *testing.T) {
 		"ZASP_DATABASE_AUTHORITY": "zasp_projection_graph_worker", "ZASP_WORKER_ID": "projection-graph-01", "ZASP_POLL_INTERVAL": "250ms", "ZASP_LEASE_DURATION": "30s", "ZASP_BATCH_SIZE": "8", "ZASP_SHUTDOWN_TIMEOUT": "20s",
 		"ZASP_AWS_REGION": "us-west-2", "ZASP_PROJECTION_ROLE_ARN": "arn:aws:iam::123456789012:role/zasp-production-projection-graph",
 		"ZASP_PROJECTION_WEB_IDENTITY_TOKEN_FILE": "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", "ZASP_PROJECTION_SECRET_PREFIX": "zasp-production/projection",
-		"ZASP_NEO4J_URI": "neo4j+s://neo4j.internal.example:7687", "ZASP_NEO4J_CREDENTIAL_REFERENCE": "ref:neo4j/production",
+		"ZASP_NEO4J_URI": "neo4j+s://neo4j.internal.example:7687", "ZASP_NEO4J_CREDENTIAL_REFERENCE": "ref:neo4j/auth/production",
 	}
 	if _, err := loadWorkerRuntimeConfig(mapLookup(base)); err != nil {
 		t.Fatalf("valid graph config error = %v", err)
@@ -246,7 +246,7 @@ func TestGraphProjectionConfigRejectsAmbiguousSecretPaths(t *testing.T) {
 	for _, hostile := range []struct{ key, value string }{
 		{"ZASP_PROJECTION_SECRET_PREFIX", "zasp-production/../projection"},
 		{"ZASP_PROJECTION_SECRET_PREFIX", "zasp-production//projection"},
-		{"ZASP_NEO4J_CREDENTIAL_REFERENCE", "ref:neo4j/production/other"},
+		{"ZASP_NEO4J_CREDENTIAL_REFERENCE", "ref:neo4j/auth/production/other"},
 	} {
 		values := cloneStringMap(base)
 		values[hostile.key] = hostile.value
