@@ -236,7 +236,10 @@ func (reconciler *ConnectorReconciler) reconcileLease(ctx context.Context, lease
 		_, err = reconciler.repository.CompleteConnectorCleanupReconciliation(finalizationContext, lease)
 		return reconciler.quarantineFinalAttempt(finalizationContext, lease, "provider_cleanup_ambiguous", err)
 	}
-	if err != nil || !valid || !ready || providerKey != lease.Provider || !equalStringSet(definition.RequestedScopes, lease.RequestedScopes) {
+	if err != nil || !valid || !ready {
+		return reconciler.quarantineFinalAttempt(finalizationContext, lease, "provider_outcome_ambiguous", ErrRepositoryUnavailable)
+	}
+	if providerKey != lease.Provider || !equalStringSet(definition.RequestedScopes, lease.RequestedScopes) {
 		return reconciler.failAfterCleanup(providerContext, finalizationContext, lease, nil, "authorization_intent_changed")
 	}
 	expected := connectorAuthorizationIntentDigestValues(scope, lease.PrincipalID, workflow, lease.IntegrationID, lease.OAuthAttemptID, lease.Provider, configuration, definition.RequestedScopes)

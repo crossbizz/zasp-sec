@@ -57,6 +57,12 @@ func (stub connectorWorkflowMapStub) GetWorkflow(_ context.Context, _ domain.Sco
 	return value, nil
 }
 
+type connectorWorkflowErrorStub struct{ err error }
+
+func (stub connectorWorkflowErrorStub) GetWorkflow(context.Context, domain.Scope, string, string) (WorkflowValue, error) {
+	return WorkflowValue{}, stub.err
+}
+
 type connectorDelayedRevocationProvider struct{ delay time.Duration }
 
 func (*connectorDelayedRevocationProvider) AuthorizationURL(string, string) (string, error) {
@@ -408,6 +414,46 @@ func TestConnectorReconcilerRecoversDurableOutcomeWithoutRepeatingProviderEffect
 	}
 	if provider.completeCalls != 0 || provider.discardCalls != 1 || provider.discardRequestedRevoke || repository.failedCode != "" || repository.quarantined != "provider_outcome_ambiguous" || repository.completed.AttemptID != "" {
 		t.Fatalf("missing outcome quarantine provider=%#v completed=%#v failed=%q quarantined=%q", provider, repository.completed, repository.failedCode, repository.quarantined)
+	}
+}
+
+func TestConnectorReconcilerNeverRejectsUnknownOutcomeOnTransientWorkflowFailure(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	integrationID := "pid_70700001-0000-4000-8000-000000000001"
+	attemptID := "pid_70700002-0000-4000-8000-000000000002"
+	lease := ConnectorEffectLease{OrganizationID: identity.Scope.OrganizationID().String(), WorkspaceID: identity.Scope.WorkspaceID().String(), EnvironmentID: identity.Scope.EnvironmentID().String(), ID: "pid_70700003-0000-4000-8000-000000000003", IntegrationID: integrationID, OAuthAttemptID: attemptID, PrincipalID: identity.PrincipalID.String(), RequestedScopes: []string{"read:org", "repo"}, Provider: "github", Operation: "authorize", IdempotencyKey: "transient-workflow-read-0001", RequestDigest: hex.EncodeToString(make([]byte, sha256.Size)), Attempt: 99, LeaseOwner: "connector-worker-a", LeaseToken: hex.EncodeToString(make([]byte, sha256.Size)), LeaseExpiresAt: time.Now().Add(time.Minute)}
+	repository := &connectorReconciliationRepositoryStub{lease: lease}
+	provider := &connectorRecoveryProvider{}
+	registry, _ := NewConnectorProviderRegistry(map[string]ConnectorOAuthProviderDefinition{"github": {Provider: provider, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"}}, nil)
+	reconciler, _ := NewConnectorReconciler(ConnectorReconcilerConfig{Repository: repository, Workflows: connectorWorkflowErrorStub{err: context.Canceled}, Registry: registry, Secrets: &connectorSecretStub{}, Owner: "connector-worker-a", LeaseSeconds: 30, Limit: 1, Interval: time.Second})
+	if err := reconciler.reconcileOnce(context.Background()); err == nil || repository.failedCode != "" || repository.quarantined != "" || provider.discardCalls != 0 || provider.recoverCalls != 0 {
+		t.Fatalf("transient attempt rejected err=%v failed=%q quarantine=%q discard=%d recover=%d", err, repository.failedCode, repository.quarantined, provider.discardCalls, provider.recoverCalls)
+	}
+	repository.lease.Attempt = 100
+	if err := reconciler.reconcileOnce(context.Background()); err != nil || repository.failedCode != "" || repository.quarantined != "provider_outcome_ambiguous" || provider.discardCalls != 0 || provider.recoverCalls != 0 {
+		t.Fatalf("final transient attempt err=%v failed=%q quarantine=%q discard=%d recover=%d", err, repository.failedCode, repository.quarantined, provider.discardCalls, provider.recoverCalls)
+	}
+}
+
+func TestConnectorReconcilerNeverRejectsUnknownOutcomeOnProviderReadinessFailure(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	integrationID := "pid_70710001-0000-4000-8000-000000000001"
+	attemptID := "pid_70710002-0000-4000-8000-000000000002"
+	workflow := connectorWorkflowValue(integrationID, "github")
+	lease := ConnectorEffectLease{OrganizationID: identity.Scope.OrganizationID().String(), WorkspaceID: identity.Scope.WorkspaceID().String(), EnvironmentID: identity.Scope.EnvironmentID().String(), ID: "pid_70710003-0000-4000-8000-000000000003", IntegrationID: integrationID, OAuthAttemptID: attemptID, PrincipalID: identity.PrincipalID.String(), RequestedScopes: []string{"read:org", "repo"}, Provider: "github", Operation: "authorize", IdempotencyKey: "transient-provider-readiness-0001", RequestDigest: hex.EncodeToString(make([]byte, sha256.Size)), Attempt: 99, LeaseOwner: "connector-worker-a", LeaseToken: hex.EncodeToString(make([]byte, sha256.Size)), LeaseExpiresAt: time.Now().Add(time.Minute)}
+	repository := &connectorReconciliationRepositoryStub{lease: lease}
+	provider := &connectorRecoveryProvider{}
+	registry, _ := NewConnectorProviderRegistry(
+		map[string]ConnectorOAuthProviderDefinition{"github": {Provider: provider, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"}},
+		map[string]ConnectorCapabilityCheck{"github": func(context.Context) error { return ErrRepositoryUnavailable }},
+	)
+	reconciler, _ := NewConnectorReconciler(ConnectorReconcilerConfig{Repository: repository, Workflows: connectorWorkflowStub{value: workflow}, Registry: registry, Secrets: &connectorSecretStub{}, Owner: "connector-worker-a", LeaseSeconds: 30, Limit: 1, Interval: time.Second})
+	if err := reconciler.reconcileOnce(context.Background()); err == nil || repository.failedCode != "" || repository.quarantined != "" || provider.discardCalls != 0 || provider.recoverCalls != 0 {
+		t.Fatalf("transient readiness rejected err=%v failed=%q quarantine=%q discard=%d recover=%d", err, repository.failedCode, repository.quarantined, provider.discardCalls, provider.recoverCalls)
+	}
+	repository.lease.Attempt = 100
+	if err := reconciler.reconcileOnce(context.Background()); err != nil || repository.failedCode != "" || repository.quarantined != "provider_outcome_ambiguous" || provider.discardCalls != 0 || provider.recoverCalls != 0 {
+		t.Fatalf("final transient readiness err=%v failed=%q quarantine=%q discard=%d recover=%d", err, repository.failedCode, repository.quarantined, provider.discardCalls, provider.recoverCalls)
 	}
 }
 
