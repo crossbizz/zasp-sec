@@ -19,6 +19,7 @@ replicas:
   web: 3
   agentsecApi: 3
   discoveryScheduler: 2
+  projectionSearch: 2
 ingress:
   enabled: true
   className: nginx
@@ -29,12 +30,14 @@ secrets:
   migrationProviderClassName: zasp-production-migration-secrets
   workerProviderClassName: zasp-production-worker-secrets
   schedulerProviderClassName: zasp-production-scheduler-secrets
+  projectionSearchProviderClassName: zasp-production-projection-search-secrets
   canaryProviderClassName: zasp-production-canary-secrets
   region: us-west-2
   apiPostgresDSNObjectName: ""
   migrationPostgresDSNObjectName: ""
   workerPostgresDSNObjectName: ""
   schedulerPostgresDSNObjectName: ""
+  projectionSearchPostgresDSNObjectName: ""
   stytchProjectIDObjectName: ""
   stytchSecretObjectName: ""
   stytchPublicTokenObjectName: ""
@@ -59,6 +62,12 @@ connectors:
 discovery:
   parserVersion: ""
   toolVersion: ""
+projectionSearch:
+  awsRegion: ""
+  endpoint: ""
+  index: zasp-inventory-v1
+  roleArn: ""
+  webIdentityTokenFile: /var/run/secrets/eks.amazonaws.com/serviceaccount/token
 schema:
   expectedVersion: 13
   migrationTimeout: 10m
@@ -88,6 +97,9 @@ serviceAccounts:
   scheduler:
     name: zasp-discovery-scheduler
     roleArn: ""
+  projectionSearch:
+    name: zasp-projection-search
+    roleArn: ""
   canary: agentsec-canary
   canarySecretSync:
     name: agentsec-canary-secret-sync
@@ -98,6 +110,7 @@ monitoring:
 network:
   ingressNamespace: ingress-nginx
   postgresCIDR: ""
+  opensearchCIDR: ""
   stytchCIDR: ""
   canaryCIDR: ""
   # Native NetworkPolicy is CIDR-based, not an FQDN firewall. Operators must

@@ -82,6 +82,19 @@ output "worker_role_arn" {
 output "scheduler_role_arn" {
   value = aws_iam_role.scheduler.arn
 }
+output "projection_search_role_arn" {
+  value = aws_iam_role.projection_search.arn
+}
+output "projection_search_runtime_config" {
+  description = "Non-secret, explicit production search projection authority."
+  value = {
+    ZASP_AWS_REGION                         = var.region
+    ZASP_PROJECTION_ROLE_ARN                = aws_iam_role.projection_search.arn
+    ZASP_PROJECTION_WEB_IDENTITY_TOKEN_FILE = "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
+    ZASP_OPENSEARCH_ENDPOINT                = "https://${aws_opensearch_domain.events.endpoint}"
+    ZASP_OPENSEARCH_INDEX                   = "zasp-inventory-v1"
+  }
+}
 output "canary_secret_sync_role_arn" {
   value = aws_iam_role.canary_secret_sync.arn
 }

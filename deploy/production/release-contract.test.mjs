@@ -10,6 +10,10 @@ const release = Object.freeze({
   tlsSecretName: "zasp-product-tls",
   secretProviderClass: "zasp-production-secrets",
   discovery: Object.freeze({ parserVersion: "inventory-parser-2026.08.20", toolVersion: "collector-tool-2026.08.20" }),
+  projectionSearch: Object.freeze({
+    awsRegion: "us-west-2", endpoint: "https://vpc-zasp.us-west-2.es.amazonaws.com", index: "zasp-inventory-v1",
+    roleArn: "arn:aws:iam::123456789012:role/zasp-production-projection-search", webIdentityTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
+  }),
   connectors: Object.freeze({
     awsRegion: "us-west-2",
     roleArn: "arn:aws:iam::123456789012:role/zasp-production-api-connectors",
@@ -120,9 +124,9 @@ test("release renders one TLS origin, split ports, private internals, and migrat
 
 test("release applies non-root rollout, zone and host spread, drain, PDB, and default-deny policies", async () => {
   const resources = await renderRelease(release);
-  assert.deepEqual(resources.filter(({ kind }) => kind === "Deployment").map(({ metadata }) => metadata.name).sort(), ["agentsec-api", "agentsec-discovery-scheduler", "web"]);
+  assert.deepEqual(resources.filter(({ kind }) => kind === "Deployment").map(({ metadata }) => metadata.name).sort(), ["agentsec-api", "agentsec-discovery-scheduler", "agentsec-projection-search", "web"]);
   assert.deepEqual(resources.filter(({ kind }) => kind === "Service").map(({ metadata }) => metadata.name).sort(), ["agentsec-api", "web"]);
-  for (const name of ["web", "agentsec-api", "agentsec-discovery-scheduler"]) {
+  for (const name of ["web", "agentsec-api", "agentsec-discovery-scheduler", "agentsec-projection-search"]) {
     const deployment = one(resources, "Deployment", name);
     assert.deepEqual(deployment.spec.strategy.rollingUpdate, { maxSurge: 1, maxUnavailable: 0 });
     assert.equal(deployment.spec.template.spec.securityContext.seccompProfile.type, "RuntimeDefault");
@@ -150,6 +154,17 @@ test("release applies non-root rollout, zone and host spread, drain, PDB, and de
   assert.equal(schedulerEnv.ZASP_DISCOVERY_TOOL_VERSION, release.discovery.toolVersion);
   assert.equal(scheduler.spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_WORKER_ID").valueFrom.fieldRef.fieldPath, "metadata.name");
   assert.doesNotMatch(JSON.stringify(scheduler), /ZASP_DISCOVERY_QUEUE_URL|ZASP_OPENSEARCH_ENDPOINT|ZASP_NEO4J_URI|ZASP_CONNECTOR_/);
+  const search = one(resources, "Deployment", "agentsec-projection-search");
+  const searchEnv = Object.fromEntries(search.spec.template.spec.containers[0].env.map(({ name, value }) => [name, value]));
+  assert.deepEqual(Object.fromEntries(Object.entries(searchEnv).filter(([name]) => name !== "ZASP_WORKER_ID")), {
+    ZASP_WORKER_MODE: "projection-search", ZASP_DATABASE_AUTHORITY: "zasp_projection_search_worker", ZASP_POLL_INTERVAL: "1s", ZASP_LEASE_DURATION: "30s", ZASP_BATCH_SIZE: "8", ZASP_SHUTDOWN_TIMEOUT: "15s",
+    ZASP_AWS_REGION: release.projectionSearch.awsRegion, ZASP_PROJECTION_ROLE_ARN: release.projectionSearch.roleArn, ZASP_PROJECTION_WEB_IDENTITY_TOKEN_FILE: release.projectionSearch.webIdentityTokenFile,
+    ZASP_OPENSEARCH_ENDPOINT: release.projectionSearch.endpoint, ZASP_OPENSEARCH_INDEX: release.projectionSearch.index,
+  });
+  assert.equal(search.spec.template.spec.serviceAccountName, "zasp-projection-search");
+  assert.equal(one(resources, "ServiceAccount", "zasp-projection-search").metadata.annotations["eks.amazonaws.com/role-arn"], release.projectionSearch.roleArn);
+  assert.equal(one(resources, "SecretProviderClass", "zasp-production-projection-search-secrets").spec.secretObjects[0].data.length, 1);
+  assert.doesNotMatch(JSON.stringify(search), /ZASP_NEO4J|ZASP_CONNECTOR_|AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY/);
   assert.equal(JSON.stringify(resources).includes("event-ingest"), false);
   assert.equal(JSON.stringify(resources).includes("runtime-gateway"), false);
   assert.equal(JSON.stringify(resources).includes("4317"), false);
@@ -273,6 +288,7 @@ test("terraform binds each shipped secret consumer to one exact least-privilege 
     ["api", "agentsec-api", "api_secret_names"],
     ["worker", "zasp-discovery-worker", "postgres-worker-dsn"],
     ["scheduler", "zasp-discovery-scheduler", "postgres-scheduler-dsn"],
+    ["projection_search", "zasp-projection-search", "postgres-projection-search-dsn"],
     ["migration", "agentsec-migration", "postgres-migration-dsn"],
     ["canary_secret_sync", "agentsec-canary-secret-sync", "canary-read-token"],
   ]) {
@@ -285,6 +301,12 @@ test("terraform binds each shipped secret consumer to one exact least-privilege 
     assert.match(block.slice(0, block.indexOf("\n}\n") + 3), /secretsmanager:DescribeSecret.*secretsmanager:GetSecretValue/s);
     assert.doesNotMatch(block.slice(0, block.indexOf("\n}\n") + 3), /s3:|sqs:|es:|kms:Encrypt|kms:GenerateDataKey/);
   }
+  const projectionPolicyStart = terraform.indexOf('resource "aws_iam_role_policy" "projection_search"');
+  const projectionPolicy = terraform.slice(projectionPolicyStart, terraform.indexOf("\nresource ", projectionPolicyStart + 1));
+  assert.match(projectionPolicy, /secretsmanager:DescribeSecret.*secretsmanager:GetSecretValue/s);
+  assert.match(projectionPolicy, /es:ESHttpGet.*es:ESHttpPost.*es:ESHttpPut/s);
+  assert.match(projectionPolicy, /aws_opensearch_domain\.events\.arn/);
+  assert.doesNotMatch(projectionPolicy, /es:\*|Resource\s*=\s*"\*"|s3:|sqs:/);
   const apiSecrets = terraform.slice(terraform.indexOf("api_secret_names"), terraform.indexOf("queue_contract"));
   assert.match(apiSecrets, /postgres-api-dsn/);
   assert.doesNotMatch(apiSecrets, /postgres-worker-dsn|postgres-migration-dsn/);

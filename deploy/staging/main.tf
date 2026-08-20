@@ -563,6 +563,36 @@ resource "aws_iam_role_policy" "scheduler" {
   ] })
 }
 
+resource "aws_iam_role" "projection_search" {
+  name = "${var.cluster_name}-projection-search"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow", Principal = { Federated = aws_iam_openid_connect_provider.eks.arn }, Action = "sts:AssumeRoleWithWebIdentity"
+      Condition = { StringEquals = {
+        "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:aud" = "sts.amazonaws.com"
+        "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub" = "system:serviceaccount:agentsec:zasp-projection-search"
+      } }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "projection_search" {
+  name = "${var.cluster_name}-projection-search"
+  role = aws_iam_role.projection_search.id
+  policy = jsonencode({ Version = "2012-10-17", Statement = [
+    { Effect = "Allow", Action = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"], Resource = aws_secretsmanager_secret.product["postgres-projection-search-dsn"].arn },
+    {
+      Effect = "Allow", Action = ["kms:Decrypt"], Resource = aws_kms_key.staging.arn
+      Condition = { StringEquals = {
+        "kms:ViaService"                  = "secretsmanager.${var.region}.amazonaws.com"
+        "kms:EncryptionContext:SecretARN" = aws_secretsmanager_secret.product["postgres-projection-search-dsn"].arn
+      } }
+    },
+    { Effect = "Allow", Action = ["es:ESHttpGet", "es:ESHttpPost", "es:ESHttpPut"], Resource = "${aws_opensearch_domain.events.arn}/zasp-inventory-v1/*" },
+  ] })
+}
+
 resource "aws_iam_role" "migration" {
   name = "${var.cluster_name}-migration"
   assume_role_policy = jsonencode({

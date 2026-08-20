@@ -14,6 +14,7 @@ const hostPattern = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a
 const namePattern = /^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$/;
 const imageNames = Object.freeze(["web", "agentsecApi", "agentsecWorker"]);
 const discoveryKeys = Object.freeze(["parserVersion", "toolVersion"]);
+const projectionSearchKeys = Object.freeze(["awsRegion", "endpoint", "index", "roleArn", "webIdentityTokenFile"]);
 const connectorKeys = Object.freeze(["awsRegion", "roleArn", "awsCustomerRolePrefixes", "awsCustomerRoleARNs", "webIdentityTokenFile", "kmsKeyArn", "secretPrefix", "githubClientID", "githubClientSecretReference", "githubAppID", "githubPrivateKeyReference", "oktaClientID", "oktaClientSecretReference"]);
 const connectorEgressKeys = Object.freeze(["aws", "github", "okta", "kubernetes"]);
 
@@ -48,12 +49,14 @@ export async function renderRelease(value) {
     ["serviceAccounts.migration.roleArn", "arn:aws:iam::123456789012:role/zasp-production-migration"],
     ["serviceAccounts.worker.roleArn", "arn:aws:iam::123456789012:role/zasp-production-worker"],
     ["serviceAccounts.scheduler.roleArn", "arn:aws:iam::123456789012:role/zasp-production-discovery-scheduler"],
+    ["serviceAccounts.projectionSearch.roleArn", value.projectionSearch.roleArn],
     ["serviceAccounts.canarySecretSync.roleArn", "arn:aws:iam::123456789012:role/zasp-production-canary-sync"],
     ["ingress.host", value.host], ["ingress.tlsSecretName", value.tlsSecretName],
     ["secrets.providerClassName", value.secretProviderClass],
     ["secrets.apiPostgresDSNObjectName", "zasp/production/postgres-api-dsn"],
     ["secrets.workerPostgresDSNObjectName", "zasp/production/postgres-worker-dsn"],
     ["secrets.schedulerPostgresDSNObjectName", "zasp/production/postgres-scheduler-dsn"],
+    ["secrets.projectionSearchPostgresDSNObjectName", "zasp/production/postgres-projection-search-dsn"],
     ["secrets.migrationPostgresDSNObjectName", "zasp/production/postgres-migration-dsn"],
     ["secrets.stytchProjectIDObjectName", "zasp/production/stytch-project-id"],
     ["secrets.stytchSecretObjectName", "zasp/production/stytch-secret"],
@@ -75,7 +78,12 @@ export async function renderRelease(value) {
     ["databasePrincipals.projectionSearch", "zasp_projection_search_runtime"],
     ["discovery.parserVersion", value.discovery.parserVersion],
     ["discovery.toolVersion", value.discovery.toolVersion],
-    ["network.postgresCIDR", "10.30.0.0/24"], ["network.stytchCIDR", "10.40.0.0/24"],
+    ["projectionSearch.awsRegion", value.projectionSearch.awsRegion],
+    ["projectionSearch.endpoint", value.projectionSearch.endpoint],
+    ["projectionSearch.index", value.projectionSearch.index],
+    ["projectionSearch.roleArn", value.projectionSearch.roleArn],
+    ["projectionSearch.webIdentityTokenFile", value.projectionSearch.webIdentityTokenFile],
+    ["network.postgresCIDR", "10.30.0.0/24"], ["network.stytchCIDR", "10.40.0.0/24"], ["network.opensearchCIDR", "10.50.0.0/24"],
     ["network.canaryCIDR", "10.60.0.0/24"],
     ["connectors.awsRegion", value.connectors.awsRegion],
     ["connectors.roleArn", value.connectors.roleArn],
@@ -112,12 +120,16 @@ export async function renderRelease(value) {
 }
 
 function validRelease(value) {
-  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).sort().join("\0") !== ["connectorEgressCIDRs", "connectors", "discovery", "host", "images", "secretProviderClass", "tlsSecretName"].sort().join("\0")) return false;
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).sort().join("\0") !== ["connectorEgressCIDRs", "connectors", "discovery", "projectionSearch", "host", "images", "secretProviderClass", "tlsSecretName"].sort().join("\0")) return false;
   if (!hostPattern.test(value.host) || !namePattern.test(value.tlsSecretName) || !namePattern.test(value.secretProviderClass)) return false;
   if (!value.images || typeof value.images !== "object" || Array.isArray(value.images) || Object.keys(value.images).sort().join("\0") !== [...imageNames].sort().join("\0")) return false;
   if (!imageNames.every((name) => digestPattern.test(value.images[name]))) return false;
   if (!value.discovery || typeof value.discovery !== "object" || Array.isArray(value.discovery) || Object.keys(value.discovery).sort().join("\0") !== [...discoveryKeys].sort().join("\0")) return false;
   if (!discoveryKeys.every((name) => /^[a-z][a-z0-9_.-]{1,63}$/.test(value.discovery[name])) || Object.values(value.discovery).some((version) => version === "parser-v1" || version === "tool-v1")) return false;
+  if (!value.projectionSearch || typeof value.projectionSearch !== "object" || Array.isArray(value.projectionSearch) || Object.keys(value.projectionSearch).sort().join("\0") !== [...projectionSearchKeys].sort().join("\0")) return false;
+  const searchRole = /^arn:aws:iam::([0-9]{12}):role\/zasp-production-projection-search$/.exec(value.projectionSearch.roleArn);
+  const searchEndpoint = /^https:\/\/(?:search|vpc)-[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.([a-z]{2}(?:-gov)?-[a-z]+-[0-9])\.es\.amazonaws\.com$/.exec(value.projectionSearch.endpoint);
+  if (!searchRole || !searchEndpoint || value.projectionSearch.awsRegion !== searchEndpoint[1] || value.projectionSearch.index !== "zasp-inventory-v1" || value.projectionSearch.webIdentityTokenFile !== "/var/run/secrets/eks.amazonaws.com/serviceaccount/token") return false;
   if (!value.connectors || typeof value.connectors !== "object" || Array.isArray(value.connectors) || Object.keys(value.connectors).sort().join("\0") !== [...connectorKeys].sort().join("\0")) return false;
   const role = /^arn:aws:iam::([0-9]{12}):role\/zasp-production-api-connectors$/.exec(value.connectors.roleArn);
   const kms = /^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.exec(value.connectors.kmsKeyArn);
