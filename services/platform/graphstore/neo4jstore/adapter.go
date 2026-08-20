@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/neo4j/neo4j-go-driver/v6/neo4j"
@@ -41,6 +42,7 @@ const (
 
 var (
 	ErrConfiguration = errors.New("neo4j graph store configuration rejected")
+	ErrClose         = errors.New("neo4j graph store close failed")
 	ErrSchema        = errors.New("neo4j graph store schema rejected")
 	ErrUpsert        = errors.New("neo4j graph store upsert failed")
 	ErrRead          = errors.New("neo4j graph store read failed")
@@ -95,8 +97,11 @@ type graphRecord struct {
 }
 
 type Adapter struct {
-	provider sessionProvider
-	database string
+	provider    sessionProvider
+	database    string
+	ownedDriver neo4j.Driver
+	closeOnce   sync.Once
+	closeErr    error
 }
 
 // ProductionConfig identifies one verified-TLS Neo4j endpoint and an opaque
@@ -150,7 +155,13 @@ func newProductionAdapter(ctx context.Context, production ProductionConfig, reso
 		closeProductionDriver(readyCtx, driver)
 		return nil, ErrConfiguration
 	}
-	return newAdapterForProvider(officialProvider{driver: driver}, databaseName)
+	adapter, err := newAdapterForProvider(officialProvider{driver: driver}, databaseName)
+	if err != nil {
+		closeProductionDriver(readyCtx, driver)
+		return nil, ErrConfiguration
+	}
+	adapter.ownedDriver = driver
+	return adapter, nil
 }
 
 func newAdapterForDriver(driver neo4j.Driver, database string) (*Adapter, error) {
@@ -239,8 +250,40 @@ func closeProductionDriver(ctx context.Context, driver neo4j.Driver) {
 	}
 	closeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cleanupTimeout)
 	defer cancel()
-	defer func() { _ = recover() }()
-	_ = driver.Close(closeCtx)
+	_ = closeOwnedDriver(closeCtx, driver)
+}
+
+// Close releases the production-owned Neo4j driver exactly once. Adapters
+// created around injected drivers or providers remain non-owning.
+func (adapter *Adapter) Close(ctx context.Context) error {
+	if adapter == nil {
+		return ErrClose
+	}
+	adapter.closeOnce.Do(func() {
+		driver := adapter.ownedDriver
+		adapter.ownedDriver = nil
+		if nilInterface(driver) {
+			return
+		}
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		closeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cleanupTimeout)
+		defer cancel()
+		if !closeOwnedDriver(closeCtx, driver) {
+			adapter.closeErr = ErrClose
+		}
+	})
+	return adapter.closeErr
+}
+
+func closeOwnedDriver(ctx context.Context, driver neo4j.Driver) (closed bool) {
+	defer func() {
+		if recover() != nil {
+			closed = false
+		}
+	}()
+	return driver.Close(ctx) == nil && ctx.Err() == nil
 }
 
 func newAdapterForProvider(provider sessionProvider, database string) (*Adapter, error) {

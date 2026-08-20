@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -81,6 +82,82 @@ func TestProductionAdapterOwnsVerifiedTLSAuthenticationAndReadiness(t *testing.T
 				t.Fatalf("TLS config = %#v, want system trust with verified TLS 1.2+", factory.tlsConfig)
 			}
 		})
+	}
+}
+
+func TestProductionAdapterClosesOwnedDriverOnceWithBoundedCleanupContext(t *testing.T) {
+	driver := &fakeOfficialDriver{encrypted: true}
+	resolver := &productionAuthResolverStub{manager: neo4j.BasicAuth("graph-user", "graph-password", "")}
+	adapter, err := newProductionAdapter(context.Background(), ProductionConfig{
+		Endpoint:                "neo4j+s://graph.example.test:7687",
+		AuthenticationReference: "ref:neo4j/auth/production-0001",
+		ReadinessTimeout:        time.Second,
+	}, resolver, &productionDriverFactoryStub{driver: driver})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	const callers = 8
+	errorsSeen := make(chan error, callers)
+	var wait sync.WaitGroup
+	for range callers {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			errorsSeen <- adapter.Close(canceled)
+		}()
+	}
+	wait.Wait()
+	close(errorsSeen)
+	for closeErr := range errorsSeen {
+		if closeErr != nil {
+			t.Fatalf("Close() error = %v", closeErr)
+		}
+	}
+	if driver.closeCalls != 1 {
+		t.Fatalf("driver close calls = %d, want 1", driver.closeCalls)
+	}
+	if driver.closeContextErr != nil {
+		t.Fatalf("driver close context entered canceled: %v", driver.closeContextErr)
+	}
+	closeWindow := driver.closeDeadline.Sub(driver.closeStartedAt)
+	if driver.closeDeadline.IsZero() || driver.closeStartedAt.IsZero() || closeWindow <= 0 || closeWindow > cleanupTimeout {
+		t.Fatalf("driver close deadline = %v, want fresh deadline within %v", driver.closeDeadline, cleanupTimeout)
+	}
+
+	externalDriver := &fakeOfficialDriver{encrypted: true}
+	external, err := newAdapterForDriver(externalDriver, databaseName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := external.Close(context.Background()); err != nil {
+		t.Fatalf("non-owning Close() error = %v", err)
+	}
+	if externalDriver.closeCalls != 0 {
+		t.Fatalf("non-owning adapter closed external driver %d times", externalDriver.closeCalls)
+	}
+}
+
+func TestProductionAdapterCloseReturnsStableRedactedFailure(t *testing.T) {
+	driver := &fakeOfficialDriver{encrypted: true, closeErr: errors.New(seededProviderDetail)}
+	adapter, err := newProductionAdapter(context.Background(), ProductionConfig{
+		Endpoint:                "neo4j+s://graph.example.test:7687",
+		AuthenticationReference: "ref:neo4j/auth/production-0001",
+		ReadinessTimeout:        time.Second,
+	}, &productionAuthResolverStub{manager: neo4j.BasicAuth("graph-user", "graph-password", "")}, &productionDriverFactoryStub{driver: driver})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	first := adapter.Close(context.Background())
+	second := adapter.Close(context.Background())
+	if !errors.Is(first, ErrClose) || !errors.Is(second, ErrClose) || first.Error() != second.Error() || strings.Contains(first.Error(), seededProviderDetail) {
+		t.Fatalf("Close() errors = (%v, %v), want stable redacted ErrClose", first, second)
+	}
+	if driver.closeCalls != 1 {
+		t.Fatalf("driver close calls = %d, want 1", driver.closeCalls)
 	}
 }
 
@@ -469,6 +546,9 @@ type fakeOfficialDriver struct {
 	connectivityCalls   int
 	authenticationCalls int
 	closeCalls          int
+	closeContextErr     error
+	closeStartedAt      time.Time
+	closeDeadline       time.Time
 }
 
 func (*fakeOfficialDriver) ExecuteQueryBookmarkManager() neo4j.BookmarkManager { return nil }
@@ -484,8 +564,11 @@ func (driver *fakeOfficialDriver) VerifyAuthentication(context.Context, *neo4j.A
 	driver.authenticationCalls++
 	return driver.authenticationErr
 }
-func (driver *fakeOfficialDriver) Close(context.Context) error {
+func (driver *fakeOfficialDriver) Close(ctx context.Context) error {
 	driver.closeCalls++
+	driver.closeContextErr = ctx.Err()
+	driver.closeStartedAt = time.Now()
+	driver.closeDeadline, _ = ctx.Deadline()
 	return driver.closeErr
 }
 func (driver *fakeOfficialDriver) IsEncrypted() bool                                { return driver.encrypted }
