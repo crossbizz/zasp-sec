@@ -354,14 +354,14 @@ describe("production workflow concurrency contract", () => {
     const creates = new Set(["createIntegration", "createSensorEnrollment", "createPolicy", "createSecurityAgent", "runSecurityAgent"]);
     const durableReceiptMutations = new Set([
       "createIntegration", "updateIntegration", "deleteIntegration",
-	  "remediateIntegrationAuthorization",
+	  "remediateIntegrationAuthorization", "authorizeIntegrationReference",
       "createPolicy", "updatePolicy", "deletePolicy", "rolloutPolicy", "disablePolicy",
       "createSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent",
       "updateFinding", "acceptFindingRisk",
     ]);
     const operations = [
       "createIntegration", "updateIntegration", "deleteIntegration",
-	  "remediateIntegrationAuthorization",
+	  "remediateIntegrationAuthorization", "authorizeIntegrationReference",
       "createPolicy", "updatePolicy", "deletePolicy", "rolloutPolicy", "disablePolicy",
       "createSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent",
       "updateFinding", "acceptFindingRisk",
@@ -378,12 +378,13 @@ describe("production workflow concurrency contract", () => {
       const refs = (operation.parameters ?? []).map((parameter) => parameter.$ref);
       assert.ok(refs.includes("#/components/parameters/IdempotencyKey"), `${operationId} idempotency`);
       if (!creates.has(operationId)) assert.ok(refs.includes("#/components/parameters/ResourceVersion"), `${operationId} version`);
-      if (operationId === "decideSecurityAgentApproval") assert.ok(refs.includes("#/components/parameters/FreshAuth"), `${operationId} fresh auth`);
+      if (operationId === "decideSecurityAgentApproval" || operationId === "authorizeIntegrationReference") assert.ok(refs.includes("#/components/parameters/FreshAuth"), `${operationId} fresh auth`);
       const success = Object.entries(operation.responses).find(([status]) => status.startsWith("2"))?.[1];
       const expectedHeaders = durableReceiptMutations.has(operationId)
         ? ["ETag", "X-Audit-ID", "X-Mutation-Receipt-ID"]
         : ["ETag", "X-Audit-ID"];
 	  if (operationId === "deleteIntegration") expectedHeaders.push("Retry-After");
+	  if (operationId === "authorizeIntegrationReference") expectedHeaders.push("Cache-Control");
 	  expectedHeaders.sort();
       assert.deepEqual(Object.keys(success.headers ?? {}).sort(), expectedHeaders);
     }
@@ -464,8 +465,8 @@ describe("production workflow concurrency contract", () => {
         if (operation?.operationId) operations.set(operation.operationId, { path, method, operation });
       }
     }
-    assert.equal(operations.size, 83);
-    for (const operationId of ["listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "authorizeIntegration", "remediateIntegrationAuthorization", "completeIntegrationOAuthCallback"]) {
+    assert.equal(operations.size, 84);
+    for (const operationId of ["listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "completeIntegrationOAuthCallback"]) {
       assert.ok(operations.has(operationId), operationId);
     }
     for (const operationId of [
@@ -569,6 +570,33 @@ describe("production workflow concurrency contract", () => {
       type: "string",
       enum: ["invalid_request", "unauthorized_client", "access_denied", "unsupported_response_type", "invalid_scope", "server_error", "temporarily_unavailable"],
     });
+  });
+
+  it("publishes strict fresh browser-only reference authorization", () => {
+    const path = document.paths["/api/v1/integrations/{id}/reference-authorization"];
+    assert.deepEqual(path.parameters, [{
+      name: "id",
+      in: "path",
+      required: true,
+      schema: { $ref: "#/components/schemas/ProductID" },
+    }]);
+    const operation = path.post;
+    assert.equal(operation.operationId, "authorizeIntegrationReference");
+    assert.deepEqual(operation.security, [{ BrowserSession: [], BrowserExpectedScope: [] }]);
+    assert.deepEqual(operation.parameters, [
+      { $ref: "#/components/parameters/CSRFToken" },
+      { $ref: "#/components/parameters/FreshAuth" },
+      { $ref: "#/components/parameters/IdempotencyKey" },
+      { $ref: "#/components/parameters/ResourceVersion" },
+    ]);
+    assert.equal(operation.requestBody.required, true);
+    assert.deepEqual(operation.requestBody.content["application/json"].schema, { $ref: "#/components/schemas/EmptyInput" });
+    const success = operation.responses["200"];
+    assert.deepEqual(success.content["application/json"].schema, { $ref: "#/components/schemas/Integration" });
+    assert.deepEqual(Object.keys(success.headers).sort(), ["Cache-Control", "ETag", "X-Audit-ID", "X-Mutation-Receipt-ID"]);
+    assert.deepEqual(success.headers["Cache-Control"].schema, { type: "string", const: "no-store" });
+    assert.deepEqual(Object.keys(operation.responses), ["200", "400", "401", "403", "404", "409", "503", "default"]);
+    assert.ok(document.components.schemas.WorkflowMutationReceipt.properties.operation.enum.includes("completeIntegrationReferenceAuthorization"));
   });
 
   it("binds risk reads and mutations to strict pagination, security, and recovery contracts", () => {

@@ -610,7 +610,7 @@ export type paths = {
         readonly put?: never;
         /**
          * Acknowledge external cleanup of a quarantined authorization
-         * @description State-only operator acknowledgement after independently verifying that an ambiguous provider grant is absent or manually revoked. This operation performs no provider or secret action.
+         * @description Operator acknowledgement after independently verifying that an ambiguous provider grant is absent or manually revoked. Before the audited database transition, the service idempotently deletes only deterministic local PKCE or OAuth-effect artifacts that can exist for the quarantined operation; it never performs a provider mutation.
          */
         readonly post: operations["remediateIntegrationAuthorization"];
         readonly delete?: never;
@@ -635,6 +635,28 @@ export type paths = {
          * @description Creates or replays an exact authorization attempt for the current browser principal and scope. The response contains only the durable attempt reference, a bounded HTTPS provider authorization target, and its expiry; it never returns OAuth state, a PKCE verifier, a provider token, a refresh credential, or secret material.
          */
         readonly post: operations["authorizeIntegration"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/integrations/{id}/reference-authorization": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Authorize a reference-backed cloud or Kubernetes integration
+         * @description Performs a bounded read-only provider identity and capability probe using only the integration's stored reference configuration, then atomically records an active integration and durable mutation receipt. The response never returns provider subjects, endpoints, credentials, external IDs, certificate authorities, tokens, or raw provider errors.
+         */
+        readonly post: operations["authorizeIntegrationReference"];
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -2221,7 +2243,7 @@ export type components = {
             readonly idempotency_key: string;
             readonly intent: components["schemas"]["WorkflowMutationIntent"];
             /** @enum {string} */
-            readonly operation: "createPolicy" | "updatePolicy" | "deletePolicy" | "rolloutPolicy" | "disablePolicy" | "createIntegration" | "updateIntegration" | "deleteIntegration" | "remediateIntegrationAuthorization" | "createSecurityAgent" | "updateSecurityAgent" | "deleteSecurityAgent" | "updateFinding" | "acceptFindingRisk";
+            readonly operation: "createPolicy" | "updatePolicy" | "deletePolicy" | "rolloutPolicy" | "disablePolicy" | "createIntegration" | "updateIntegration" | "deleteIntegration" | "remediateIntegrationAuthorization" | "completeIntegrationReferenceAuthorization" | "createSecurityAgent" | "updateSecurityAgent" | "deleteSecurityAgent" | "updateFinding" | "acceptFindingRisk";
             readonly resource_id: string;
             /** @enum {string} */
             readonly resource_kind: "policy" | "integration" | "security_agent" | "finding";
@@ -3648,6 +3670,53 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["IntegrationAuthorization"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly authorizeIntegrationReference: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for an approval decision. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["EmptyInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Reference-backed integration authorized by a successful read-only provider probe. */
+            readonly 200: {
+                headers: {
+                    /** @description Prevent authorization results from being stored. */
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly "X-Mutation-Receipt-ID": components["headers"]["WorkflowMutationReceiptID"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["Integration"];
                 };
             };
             readonly 400: components["responses"]["ProductErrorResponse"];

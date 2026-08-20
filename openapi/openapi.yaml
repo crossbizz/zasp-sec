@@ -850,6 +850,54 @@ paths:
         '409': { $ref: '#/components/responses/ProductErrorResponse' }
         '503': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/integrations/{id}/reference-authorization:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/ProductID' }
+    post:
+      operationId: authorizeIntegrationReference
+      summary: Authorize a reference-backed cloud or Kubernetes integration
+      description: >-
+        Performs a bounded read-only provider identity and capability probe
+        using only the integration's stored reference configuration, then
+        atomically records an active integration and durable mutation receipt.
+        The response never returns provider subjects, endpoints, credentials,
+        external IDs, certificate authorities, tokens, or raw provider errors.
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/FreshAuth'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ResourceVersion'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmptyInput' }
+      responses:
+        '200':
+          description: Reference-backed integration authorized by a successful read-only provider probe.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }
+            X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' }
+            Cache-Control:
+              description: Prevent authorization results from being stored.
+              schema: { type: string, const: no-store }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Integration' }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/integrations/{id}/authorization-remediation:
     parameters:
       - name: id
@@ -1513,7 +1561,7 @@ components:
       required: [id, operation, idempotency_key, intent, result, resource_kind, resource_id, resource_version, audit_id, correlation_id, created_at, expires_at]
       properties:
         id: { $ref: '#/components/schemas/ProductID' }
-        operation: { type: string, enum: [createPolicy, updatePolicy, deletePolicy, rolloutPolicy, disablePolicy, createIntegration, updateIntegration, deleteIntegration, remediateIntegrationAuthorization, createSecurityAgent, updateSecurityAgent, deleteSecurityAgent, updateFinding, acceptFindingRisk] }
+        operation: { type: string, enum: [createPolicy, updatePolicy, deletePolicy, rolloutPolicy, disablePolicy, createIntegration, updateIntegration, deleteIntegration, remediateIntegrationAuthorization, completeIntegrationReferenceAuthorization, createSecurityAgent, updateSecurityAgent, deleteSecurityAgent, updateFinding, acceptFindingRisk] }
         idempotency_key: { type: string, minLength: 16, maxLength: 128, pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]*$' }
         intent: { $ref: '#/components/schemas/WorkflowMutationIntent' }
         result:
