@@ -5,6 +5,10 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const productionEntries = ["app/page.tsx", "app/[...path]/page.tsx"];
 const sourceExtensions = ["", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"];
+const allowedExactSources = new Set([
+  "app/features/sensors/ProductionSensorView.tsx",
+  "app/features/sensors/api.ts",
+]);
 const forbiddenExactSources = new Set([
   "app/domain/store.tsx",
   "app/domain/seed.ts",
@@ -12,6 +16,7 @@ const forbiddenExactSources = new Set([
   "app/features/agents/AgentSecurityView.tsx",
   "app/features/connectors/ConnectorViews.tsx",
   "app/features/policies/PoliciesView.tsx",
+  "app/features/sensors/SensorView.tsx",
 ]);
 const forbiddenSourcePrefixes = [
   "app/features/discovery/",
@@ -42,6 +47,7 @@ function repositoryPath(root, path) {
 }
 
 function sourceViolation(path) {
+  if (allowedExactSources.has(path)) return null;
   if (forbiddenExactSources.has(path) || forbiddenSourcePrefixes.some((prefix) => path.startsWith(prefix))) {
     return "demo module";
   }
