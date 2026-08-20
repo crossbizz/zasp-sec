@@ -129,8 +129,8 @@ export function decodePolicy(value: unknown): Policy {
 }
 
 export function decodePolicyPage(value: unknown): { readonly items: readonly Policy[]; readonly page_info: { readonly next_cursor: string; readonly has_more: true } | { readonly next_cursor: null; readonly has_more: false } } { const record = exactRecord(value, ["items", "page_info"]); for (const item of array(record.items, 100)) decodePolicy(item); decodePageInfo(record.page_info); return value as { readonly items: readonly Policy[]; readonly page_info: { readonly next_cursor: string; readonly has_more: true } | { readonly next_cursor: null; readonly has_more: false } }; }
-export function decodeWorkflowMutationReceiptPage(value: unknown): WorkflowMutationReceiptPage { const record = exactRecord(value, ["items"]); for (const item of array(record.items, 50)) decodeWorkflowMutationReceipt(item); return value as WorkflowMutationReceiptPage; }
-export function decodeWorkflowMutationReceipt(value: unknown): WorkflowMutationReceipt {
+export function decodeWorkflowMutationReceiptPage(value: unknown, expectedScopeKey?: string): WorkflowMutationReceiptPage { const record = exactRecord(value, ["items"]); for (const item of array(record.items, 50)) decodeWorkflowMutationReceipt(item, expectedScopeKey); return value as WorkflowMutationReceiptPage; }
+export function decodeWorkflowMutationReceipt(value: unknown, expectedScopeKey?: string): WorkflowMutationReceipt {
   const record = exactRecord(value, ["id", "operation", "idempotency_key", "intent", "result", "resource_kind", "resource_id", "resource_version", "audit_id", "correlation_id", "created_at", "expires_at"]);
   productID(record.id);
   if (typeof record.idempotency_key !== "string" || !IDEMPOTENCY_KEY.test(record.idempotency_key)) fail();
@@ -142,7 +142,7 @@ export function decodeWorkflowMutationReceipt(value: unknown): WorkflowMutationR
   dateTime(record.created_at); dateTime(record.expires_at);
   const lifetime = Date.parse(record.expires_at) - Date.parse(record.created_at);
   if (lifetime <= 0 || lifetime > SEVEN_DAYS_MS || containsReadableWorkflowSecret(record.intent) || containsReadableWorkflowSecret(record.result)) fail();
-  decodeWorkflowReceiptPayload(record.operation, record.resource_kind, record.resource_id, record.resource_version as number, record.idempotency_key as string, record.intent, record.result);
+  decodeWorkflowReceiptPayload(record.operation, record.resource_kind, record.resource_id, record.resource_version as number, record.idempotency_key as string, record.intent, record.result, expectedScopeKey);
   return value as WorkflowMutationReceipt;
 }
 export function decodePolicySimulation(value: unknown): PolicySimulation { const record = exactRecord(value, ["matches", "would_block", "example_session_ids"]); boundedInteger(record.matches, 0, 100); boundedInteger(record.would_block, 0, 100); stringArray(record.example_session_ids, 5); return value as PolicySimulation; }
@@ -159,7 +159,7 @@ export function decodeSecurityAgentPage(value: unknown): SecurityAgentPage { con
 export function decodeSecurityAgentTemplate(value: unknown): SecurityAgentTemplate { const record = exactRecord(value, ["id", "name", "version", "trigger_kind", "default_actions", "verification_condition"]); productID(record.id); boundedString(record.name, 1, 256); positiveInteger(record.version); enumValue(record.trigger_kind, ["finding", "attack_path", "runtime_decision"]); stringArray(record.default_actions, 32, 128, 1); boundedString(record.verification_condition, 1, 256); return value as SecurityAgentTemplate; }
 export function decodeSecurityAgentTemplatePage(value: unknown): { readonly items: readonly SecurityAgentTemplate[] } { const record = exactRecord(value, ["items"]); for (const item of array(record.items, 20)) decodeSecurityAgentTemplate(item); return value as { readonly items: readonly SecurityAgentTemplate[] }; }
 
-function decodeWorkflowReceiptPayload(operation: unknown, kind: unknown, resourceID: string, resourceVersion: number, idempotencyKey: string, intentValue: unknown, resultValue: unknown): void {
+function decodeWorkflowReceiptPayload(operation: unknown, kind: unknown, resourceID: string, resourceVersion: number, idempotencyKey: string, intentValue: unknown, resultValue: unknown, expectedScopeKey?: string): void {
   const expectedKind = typeof operation === "string" && operation.includes("Integration") ? "integration"
     : typeof operation === "string" && operation.includes("SecurityAgent") ? "security_agent"
     : typeof operation === "string" && operation.includes("Finding") ? "finding"
@@ -169,7 +169,7 @@ function decodeWorkflowReceiptPayload(operation: unknown, kind: unknown, resourc
     decodeIntegration(resultValue);
     const result = resultValue as Integration;
     if (kind !== "integration" || result.id !== resourceID || result.status !== "active") fail();
-    decodeReferenceAuthorizationReceiptIntent(intentValue, result, resourceID, resourceVersion, idempotencyKey);
+    decodeReferenceAuthorizationReceiptIntent(intentValue, result, resourceID, resourceVersion, idempotencyKey, expectedScopeKey);
     return;
   }
   const intent = exactRecord(intentValue, ["body", "expected_version", "resource_id"]);
@@ -242,7 +242,7 @@ function decodeIntegrationReceiptIntent(operation: string, body: unknown, result
   if (input.name !== result.name || !sameJSON(input.configuration, result.configuration)) fail();
 }
 
-function decodeReferenceAuthorizationReceiptIntent(value: unknown, result: Integration, resourceID: string, resourceVersion: number, receiptIdempotencyKey: string): void {
+function decodeReferenceAuthorizationReceiptIntent(value: unknown, result: Integration, resourceID: string, resourceVersion: number, receiptIdempotencyKey: string, expectedScopeKey?: string): void {
   const input = exactRecord(value, ["configuration", "expected_version", "idempotency_key", "integration_id", "provider", "scope"]);
   if (!Number.isSafeInteger(input.expected_version) || (input.expected_version as number) < 1 || (input.expected_version as number) + 1 !== resourceVersion) fail();
   if (input.idempotency_key !== receiptIdempotencyKey || input.integration_id !== resourceID) fail();
@@ -250,6 +250,7 @@ function decodeReferenceAuthorizationReceiptIntent(value: unknown, result: Integ
   if (input.provider !== result.connector_key) fail();
   const scope = exactRecord(input.scope, ["environment_id", "organization_id", "workspace_id"]);
   productID(scope.environment_id); productID(scope.organization_id); productID(scope.workspace_id);
+  if (!expectedScopeKey || `${scope.organization_id}/${scope.workspace_id}/${scope.environment_id}` !== expectedScopeKey) fail();
   decodeIntegrationConfiguration(input.provider as string, input.configuration);
   if (!sameJSON(input.configuration, result.configuration)) fail();
 }

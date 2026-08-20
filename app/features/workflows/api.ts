@@ -237,7 +237,7 @@ export function createWorkflowRecoveryAPI(client: APIClient, capturedScopeKey = 
   if (!capturedScopeKey) throw new APITransportError("invalid_configuration", "Workflow recovery scope is required");
   return {
     async listReceipts(signal?: AbortSignal): Promise<readonly WorkflowMutationReceipt[]> {
-	  return requireAPIData(await client.GET("/api/v1/workflow-mutation-receipts", { params: { query: { limit: 50 } }, headers: { "X-Zasp-Expected-Scope": capturedScopeKey }, signal }), decodeWorkflowMutationReceiptPage).items;
+	  return requireAPIData(await client.GET("/api/v1/workflow-mutation-receipts", { params: { query: { limit: 50 } }, headers: { "X-Zasp-Expected-Scope": capturedScopeKey }, signal }), (value) => decodeWorkflowMutationReceiptPage(value, capturedScopeKey)).items;
     },
     async acknowledgeReceipt(id: string): Promise<void> {
       // Keep each recovery service tied to the immutable scope identity that
@@ -261,7 +261,7 @@ export function createWorkflowReceiptReconciler(client: APIClient, capturedScope
   const headers = { "X-Zasp-Expected-Scope": capturedScopeKey };
   return async (receipt: WorkflowMutationReceipt, signal: AbortSignal): Promise<void> => {
     const expectedVersion = `"${receipt.resource_version}"`;
-    switch (receipt.operation) {
+    switch (receipt.operation as string) {
       case "createPolicy": case "updatePolicy": case "rolloutPolicy": case "disablePolicy": {
         const value = requireWorkflowVersioned(await client.GET("/api/v1/policies/{id}", { params: { path: { id: receipt.resource_id } }, headers, signal }), decodePolicy);
         requireRecoveredVersion(value.version, expectedVersion);
@@ -269,7 +269,7 @@ export function createWorkflowReceiptReconciler(client: APIClient, capturedScope
       }
       case "deletePolicy":
         return requireRecoveredDeletion(await client.GET("/api/v1/policies/{id}", { params: { path: { id: receipt.resource_id } }, headers, signal }));
-      case "createIntegration": case "updateIntegration": {
+      case "createIntegration": case "updateIntegration": case "completeIntegrationReferenceAuthorization": {
         const value = requireWorkflowVersioned(await client.GET("/api/v1/integrations/{id}", { params: { path: { id: receipt.resource_id } }, headers, signal }), decodeIntegration);
         requireRecoveredVersion(value.version, expectedVersion);
         return;

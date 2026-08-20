@@ -4,11 +4,38 @@ import { APIProductError, APITransportError, type APIClient } from "../../../app
 import { decodeIntegrationPage, decodePolicyPage } from "../../../apps/web/api/decoders";
 import type { Integration, Policy } from "../../../apps/web/api/generated";
 import { createSecurityAgentsAPI } from "../securityagents/SecurityAgentsView";
-import { createIntegrationsAPI, createPoliciesAPI, createRetainedWorkflowMutationController, createWorkflowMutationAttempt, createWorkflowRecoveryAPI, workflowIdempotencyKey } from "./api";
+import { createIntegrationsAPI, createPoliciesAPI, createRetainedWorkflowMutationController, createWorkflowMutationAttempt, createWorkflowReceiptReconciler, createWorkflowRecoveryAPI, workflowIdempotencyKey } from "./api";
 
 const policy: Policy = { id: "policy-production", name: "Production", scope: "environment", trigger: "tool", conditions: [{ field: "action", operator: "equals", value: "write" }], action: "monitor", rollout: "draft", failure_mode: "open" };
 const environmentID = "pid_10000003-0000-4000-8000-000000000003";
+const capturedScope = "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003";
 const integration: Integration = { id: "pid_20000001-0000-4000-8000-000000000001", connector_key: "github", name: "GitHub", configuration: { authorization_mode: "github_app" }, status: "revoking", created_at: "2026-08-19T00:00:00Z", updated_at: "2026-08-19T00:01:00Z" };
+const referenceIntegration: Integration = { id: "pid_20000001-0000-4000-8000-000000000001", connector_key: "aws", name: "AWS", configuration: { role_arn: "arn:aws:iam::123456789012:role/zasp-discovery", external_id_reference: "ref:aws/external-id/customer-0001", region: "us-east-1" }, status: "active", created_at: "2026-08-19T00:00:00Z", updated_at: "2026-08-19T00:01:00Z" };
+
+function referenceAuthorizationReceipt(scope = capturedScope) {
+	const [organizationID, workspaceID, environmentID] = scope.split("/");
+	return {
+		id: "pid_11111111-1111-4111-8111-111111111111",
+		operation: "completeIntegrationReferenceAuthorization",
+		idempotency_key: "wf_11111111-1111-4111-8111-111111111111",
+		intent: {
+			configuration: referenceIntegration.configuration,
+			expected_version: 1,
+			idempotency_key: "wf_11111111-1111-4111-8111-111111111111",
+			integration_id: referenceIntegration.id,
+			provider: "aws",
+			scope: { organization_id: organizationID, workspace_id: workspaceID, environment_id: environmentID },
+		},
+		result: referenceIntegration,
+		resource_kind: "integration",
+		resource_id: referenceIntegration.id,
+		resource_version: 2,
+		audit_id: "pid_33333333-3333-4333-8333-333333333333",
+		correlation_id: "pid_44444444-4444-4444-8444-444444444444",
+		created_at: "2026-08-19T00:00:00Z",
+		expires_at: "2026-08-25T00:00:00Z",
+	};
+}
 
 describe("production workflow API", () => {
 	it.each(["2", "999"])("retains a strictly decoded 202 integration revocation with Retry-After %s", async (retryAfter) => {
@@ -118,7 +145,6 @@ describe("production workflow API", () => {
 	});
 
 	it("pins receipt acknowledgement and relist to the captured scope assertion", async () => {
-		const captured = "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003";
 		const headers: string[] = [];
 		const client = {
 			GET: vi.fn(async (_path: string, options: { headers?: Record<string, string> }) => {
@@ -130,13 +156,37 @@ describe("production workflow API", () => {
 				return { response: new Response(null, { status: 204 }) };
 			}),
 		} as unknown as APIClient;
-		const recovery = createWorkflowRecoveryAPI(client, captured);
+		const recovery = createWorkflowRecoveryAPI(client, capturedScope);
 		await Promise.all([
 			recovery.acknowledgeReceipt("pid_60000001-0000-4000-8000-000000000001"),
 			recovery.listReceipts(),
 		]);
 		expect(headers).toHaveLength(2);
-		expect(headers).toEqual([captured, captured]);
+		expect(headers).toEqual([capturedScope, capturedScope]);
+	});
+
+	it("rejects a recovered reference authorization receipt from a foreign valid scope", async () => {
+		const foreignScope = "pid_90000001-0000-4000-8000-000000000001/pid_90000002-0000-4000-8000-000000000002/pid_90000003-0000-4000-8000-000000000003";
+		const data = { items: [referenceAuthorizationReceipt(foreignScope)] };
+		const GET = vi.fn(async () => ({ data, response: new Response(JSON.stringify(data), { status: 200, headers: { "Content-Type": "application/json" } }) }));
+
+		await expect(createWorkflowRecoveryAPI({ GET } as unknown as APIClient, capturedScope).listReceipts()).rejects.toMatchObject({ kind: "invalid_response" });
+	});
+
+	it("authoritatively refetches reference authorization recovery and requires its exact receipt version", async () => {
+		const GET = vi.fn()
+			.mockResolvedValueOnce({ data: referenceIntegration, response: new Response(JSON.stringify(referenceIntegration), { status: 200, headers: { "Content-Type": "application/json", ETag: '"2"' } }) })
+			.mockResolvedValueOnce({ data: referenceIntegration, response: new Response(JSON.stringify(referenceIntegration), { status: 200, headers: { "Content-Type": "application/json", ETag: '"3"' } }) });
+		const reconcile = createWorkflowReceiptReconciler({ GET } as unknown as APIClient, capturedScope);
+		const receipt = referenceAuthorizationReceipt() as unknown as Parameters<typeof reconcile>[0];
+
+		await expect(reconcile(receipt, new AbortController().signal)).resolves.toBeUndefined();
+		await expect(reconcile(receipt, new AbortController().signal)).rejects.toMatchObject({ kind: "invalid_response" });
+		expect(GET).toHaveBeenNthCalledWith(1, "/api/v1/integrations/{id}", {
+			params: { path: { id: referenceIntegration.id } },
+			headers: { "X-Zasp-Expected-Scope": capturedScope },
+			signal: expect.any(AbortSignal),
+		});
 	});
 	it("strictly decodes paginated policy and integration pages", () => {
 		const final = { next_cursor: null, has_more: false } as const;

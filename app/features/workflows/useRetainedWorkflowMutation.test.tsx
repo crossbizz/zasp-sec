@@ -3,9 +3,9 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { APIProductError, APITransportError } from "../../../apps/web/api/client";
+import { APIProductError, APITransportError, type APIClient } from "../../../apps/web/api/client";
 import type { Integration, WorkflowMutationReceipt } from "../../../apps/web/api/generated";
-import { IntegrationRevocationPending, type WorkflowReceipt, type WorkflowRecoveryAPI } from "./api";
+import { createWorkflowReceiptReconciler, IntegrationRevocationPending, type WorkflowReceipt, type WorkflowRecoveryAPI } from "./api";
 import { WorkflowMutationProvider, useRetainedWorkflowMutation } from "./useRetainedWorkflowMutation";
 
 type Intent = { name: string };
@@ -233,6 +233,40 @@ describe("observable scope-owned workflow mutation registry", () => {
     expect(acknowledgeReceipt).toHaveBeenCalledWith(receipt.id);
     expect(screen.getByRole("button", { name: "Start integration" })).toBeEnabled();
   });
+
+	it("retains a reference authorization receipt when its authoritative integration version does not match", async () => {
+		const user = userEvent.setup();
+		const expectedScope = "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003";
+		const integration = {
+			id: "pid_20000001-0000-4000-8000-000000000001", connector_key: "aws", name: "AWS",
+			configuration: { role_arn: "arn:aws:iam::123456789012:role/zasp-discovery", external_id_reference: "ref:aws/external-id/customer-0001", region: "us-east-1" },
+			status: "active", created_at: "2026-08-19T00:00:00Z", updated_at: "2026-08-19T00:01:00Z",
+		} as const;
+		const receipt = {
+			...receiptFixture("pid_11111111-1111-4111-8111-111111111111"),
+			operation: "completeIntegrationReferenceAuthorization",
+			intent: {
+				configuration: integration.configuration, expected_version: 1,
+				idempotency_key: "wf_11111111-1111-4111-8111-111111111111", integration_id: integration.id, provider: "aws",
+				scope: { organization_id: "pid_10000001-0000-4000-8000-000000000001", workspace_id: "pid_10000002-0000-4000-8000-000000000002", environment_id: "pid_10000003-0000-4000-8000-000000000003" },
+			},
+			result: integration, resource_kind: "integration", resource_id: integration.id, resource_version: 2,
+		} as unknown as WorkflowMutationReceipt;
+		const GET = vi.fn(async () => ({ data: integration, response: new Response(JSON.stringify(integration), { status: 200, headers: { "Content-Type": "application/json", ETag: '"3"' } }) }));
+		const acknowledgeReceipt = vi.fn();
+		const reconcileReceipt = createWorkflowReceiptReconciler({ GET } as unknown as APIClient, expectedScope);
+
+		render(<WorkflowMutationProvider scopeKey={`principal/${expectedScope}`} recovery={{ listReceipts: async () => [receipt], acknowledgeReceipt }} reconcileReceipt={reconcileReceipt}>
+			<Probe operation="integrations" name="integration" send={async () => "unused"} />
+		</WorkflowMutationProvider>);
+
+		await screen.findByRole("heading", { name: "Recover committed operations" });
+		await user.click(screen.getByRole("button", { name: "Acknowledge recovered result" }));
+		expect(await screen.findByRole("alert")).toHaveTextContent("Authoritative resource version does not match the committed receipt");
+		expect(acknowledgeReceipt).not.toHaveBeenCalled();
+		expect(screen.getByRole("heading", { name: "Recover committed operations" })).toBeVisible();
+		expect(screen.getByRole("button", { name: "Start integration" })).toBeDisabled();
+	});
 
   it("retains an ambiguous attempt but blocks retry transport after current authorization is lost", async () => {
     const user = userEvent.setup();
