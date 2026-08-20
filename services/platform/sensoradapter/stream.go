@@ -12,14 +12,19 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
+	"strings"
 	"sync"
 	"syscall"
+	"time"
 )
 
 const (
 	cursorContractVersion = "tetragon-cursor-v1"
 	maximumTetragonFile   = 128 << 20
 	maximumCursorBytes    = 4096
+	maximumLogFiles       = 32
+	rotationTimestamp     = "2006-01-02T15-04-05.000"
 )
 
 var ErrStream = errors.New("sensor stream rejected")
@@ -121,26 +126,43 @@ func (processor *FileProcessor) ProcessAvailable(ctx context.Context) (StreamRes
 	if err != nil {
 		return StreamResult{}, err
 	}
-	file, info, device, inode, err := openPinnedLog(processor.logRoot, processor.logName)
-	if err != nil {
-		return StreamResult{}, err
-	}
-	defer file.Close()
-	if info.Size() < 0 || info.Size() > maximumTetragonFile {
-		return StreamResult{}, ErrStream
-	}
-	if !found {
-		state = cursorState{Version: cursorContractVersion, Device: device, Inode: inode}
-	} else if state.Device != device || state.Inode != inode || state.Offset > info.Size() {
-		state.Device, state.Inode, state.Offset = device, inode, 0
-		processor.normalizer.reset()
-		processor.reconstructed = true
-	} else if !processor.reconstructed && state.Offset > 0 {
-		if state.Offset > maximumTetragonFile || processor.reconstruct(file, state.Offset) != nil {
+	var file *os.File
+	var info os.FileInfo
+	selectedName := ""
+	for transitions := 0; transitions <= maximumLogFiles; transitions++ {
+		var device, inode uint64
+		file, info, device, inode, selectedName, err = openCursorLog(processor.logRoot, processor.logName, state, found)
+		if err != nil || info.Size() < 0 || info.Size() > maximumTetragonFile || found && state.Offset > info.Size() {
+			if file != nil {
+				_ = file.Close()
+			}
 			return StreamResult{}, ErrStream
 		}
-		processor.reconstructed = true
+		if !found {
+			state = cursorState{Version: cursorContractVersion, Device: device, Inode: inode}
+			found = true
+			processor.reconstructed = true
+		} else if !processor.reconstructed {
+			if state.Offset > 0 && (state.Offset > maximumTetragonFile || processor.reconstruct(file, state.Offset) != nil) {
+				_ = file.Close()
+				return StreamResult{}, ErrStream
+			}
+			processor.reconstructed = true
+		}
+		if selectedName == processor.logName || state.Offset != info.Size() {
+			break
+		}
+		_ = file.Close()
+		state, err = nextLogState(processor.logRoot, processor.logName, selectedName, device, inode, state.Dropped)
+		if err != nil {
+			return StreamResult{}, err
+		}
+		file = nil
 	}
+	if file == nil {
+		return StreamResult{}, ErrStream
+	}
+	defer file.Close()
 	lines, nextOffset, partial, err := readCompleteLines(file, state.Offset, processor.maximumLines)
 	if err != nil {
 		return StreamResult{}, err
@@ -159,6 +181,12 @@ func (processor *FileProcessor) ProcessAvailable(ctx context.Context) (StreamRes
 		events = append(events, event)
 	}
 	state.Offset = nextOffset
+	if selectedName != processor.logName && nextOffset == info.Size() {
+		state, err = nextLogState(processor.logRoot, processor.logName, selectedName, state.Device, state.Inode, state.Dropped)
+		if err != nil {
+			return StreamResult{}, err
+		}
+	}
 	result := StreamResult{Read: len(lines), Submitted: len(events), Dropped: state.Dropped - droppedBefore}
 	if len(events) == 0 {
 		if err := writeCursorState(processor.cursorRoot, processor.cursorName, state); err != nil {
@@ -348,6 +376,121 @@ func openPinnedLog(root *os.Root, name string) (*os.File, os.FileInfo, uint64, u
 		return nil, nil, 0, 0, ErrStream
 	}
 	return file, opened, uint64(stat.Dev), uint64(stat.Ino), nil
+}
+
+func openCursorLog(root *os.Root, currentName string, state cursorState, found bool) (*os.File, os.FileInfo, uint64, uint64, string, error) {
+	if !found {
+		file, info, device, inode, err := openPinnedLog(root, currentName)
+		return file, info, device, inode, currentName, err
+	}
+	names, err := orderedLogNames(root, currentName)
+	if err != nil {
+		return nil, nil, 0, 0, "", err
+	}
+	var match *os.File
+	var matchInfo os.FileInfo
+	var matchDevice, matchInode uint64
+	matchName := ""
+	for _, name := range names {
+		file, info, device, inode, openErr := openPinnedLog(root, name)
+		if openErr != nil {
+			if match != nil {
+				_ = match.Close()
+			}
+			return nil, nil, 0, 0, "", openErr
+		}
+		if device == state.Device && inode == state.Inode {
+			if match != nil {
+				_ = match.Close()
+				_ = file.Close()
+				return nil, nil, 0, 0, "", ErrStream
+			}
+			match, matchInfo, matchDevice, matchInode, matchName = file, info, device, inode, name
+			continue
+		}
+		_ = file.Close()
+	}
+	if match != nil {
+		return match, matchInfo, matchDevice, matchInode, matchName, nil
+	}
+	return nil, nil, 0, 0, "", ErrStream
+}
+
+func nextLogState(root *os.Root, currentName, selectedName string, device, inode, dropped uint64) (cursorState, error) {
+	names, err := orderedLogNames(root, currentName)
+	if err != nil {
+		return cursorState{}, err
+	}
+	for index, name := range names {
+		if name != selectedName {
+			continue
+		}
+		selected, _, selectedDevice, selectedInode, openErr := openPinnedLog(root, name)
+		if openErr != nil {
+			return cursorState{}, openErr
+		}
+		_ = selected.Close()
+		if selectedDevice != device || selectedInode != inode || index+1 >= len(names) {
+			return cursorState{}, ErrStream
+		}
+		next, _, nextDevice, nextInode, openErr := openPinnedLog(root, names[index+1])
+		if openErr != nil {
+			return cursorState{}, openErr
+		}
+		_ = next.Close()
+		if nextDevice == device && nextInode == inode {
+			return cursorState{}, ErrStream
+		}
+		return cursorState{Version: cursorContractVersion, Device: nextDevice, Inode: nextInode, Dropped: dropped}, nil
+	}
+	return cursorState{}, ErrStream
+}
+
+func orderedLogNames(root *os.Root, currentName string) ([]string, error) {
+	if root == nil || !validLogName(currentName) {
+		return nil, ErrStream
+	}
+	directory, err := root.Open(".")
+	if err != nil {
+		return nil, ErrStream
+	}
+	defer directory.Close()
+	entries, readErr := directory.ReadDir(maximumLogFiles + 1)
+	if readErr != nil && !errors.Is(readErr, io.EOF) || len(entries) > maximumLogFiles {
+		return nil, ErrStream
+	}
+	rotated := make([]string, 0, len(entries))
+	currentFound := false
+	for _, entry := range entries {
+		name := entry.Name()
+		if name == currentName {
+			currentFound = true
+			continue
+		}
+		if validRotatedLogName(currentName, name) {
+			rotated = append(rotated, name)
+		}
+	}
+	if !currentFound {
+		return nil, ErrStream
+	}
+	sort.Strings(rotated)
+	return append(rotated, currentName), nil
+}
+
+func validLogName(name string) bool {
+	return name != "" && filepath.Base(name) == name && name != "." && name != ".."
+}
+
+func validRotatedLogName(currentName, candidate string) bool {
+	extension := filepath.Ext(currentName)
+	prefix := strings.TrimSuffix(currentName, extension) + "-"
+	if !validLogName(candidate) || !strings.HasPrefix(candidate, prefix) || !strings.HasSuffix(candidate, extension) {
+		return false
+	}
+	stamp := strings.TrimSuffix(strings.TrimPrefix(candidate, prefix), extension)
+	parsed, err := time.Parse(rotationTimestamp, stamp)
+	return err == nil && parsed.Format(rotationTimestamp) == stamp
 }
 
 func openPinnedParent(path string) (*os.Root, string, error) {

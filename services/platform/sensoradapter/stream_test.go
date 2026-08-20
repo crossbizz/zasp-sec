@@ -50,7 +50,7 @@ func TestFileProcessorRetriesExactBatchAndCursorAfterUnknownIngest(t *testing.T)
 	}
 }
 
-func TestFileProcessorDefersPartialLinesAndResetsOnRotation(t *testing.T) {
+func TestFileProcessorDefersPartialLinesAndContinuesAfterExactRotation(t *testing.T) {
 	t.Parallel()
 	directory := t.TempDir()
 	logPath, cursorPath := filepath.Join(directory, "tetragon.log"), filepath.Join(directory, "cursor.json")
@@ -64,12 +64,94 @@ func TestFileProcessorDefersPartialLinesAndResetsOnRotation(t *testing.T) {
 	if result, err := processor.ProcessAvailable(context.Background()); err != nil || result.Submitted != 1 {
 		t.Fatalf("completed line = %#v, %v", result, err)
 	}
-	if err := os.Rename(logPath, logPath+".1"); err != nil {
+	if err := os.Rename(logPath, filepath.Join(directory, "tetragon-2026-08-20T11-59-59.000.log")); err != nil {
 		t.Fatalf("rotate: %v", err)
 	}
-	writeFixtureLog(t, logPath, strings.ReplaceAll(tetragonExecFixture(), "exec-1", "exec-2")+"\n")
+	rotatedExec := strings.ReplaceAll(tetragonExecFixture(), "exec-1", "exec-2")
+	rotatedExec = strings.Replace(rotatedExec, `"pid":42`, `"pid":43`, 1)
+	writeFixtureLog(t, logPath, rotatedExec+"\n")
 	if result, err := processor.ProcessAvailable(context.Background()); err != nil || result.Submitted != 1 || len(sink.calls) != 2 {
 		t.Fatalf("rotated ProcessAvailable = %#v, %v, calls=%d", result, err, len(sink.calls))
+	}
+}
+
+func TestFileProcessorDrainsPinnedRotatedTailBeforeCurrentFileAcrossRestart(t *testing.T) {
+	t.Parallel()
+	directory := t.TempDir()
+	logPath, cursorPath := filepath.Join(directory, "tetragon.log"), filepath.Join(directory, "cursor.json")
+	writeFixtureLog(t, logPath, tetragonExecFixture()+"\n"+tetragonFileFixture()+"\n")
+	firstSink := &recordingStreamSink{}
+	first := newFixtureFileProcessorLimit(t, logPath, cursorPath, firstSink, 1)
+	if result, err := first.ProcessAvailable(context.Background()); err != nil || result.Submitted != 1 || firstSink.calls[0][0].Class != "process" {
+		t.Fatalf("first ProcessAvailable = %#v, %v, calls=%#v", result, err, firstSink.calls)
+	}
+	if err := first.Close(); err != nil {
+		t.Fatalf("first Close: %v", err)
+	}
+	firstRotated := filepath.Join(directory, "tetragon-2026-08-20T12-00-00.000.log")
+	if err := os.Rename(logPath, firstRotated); err != nil {
+		t.Fatalf("rotate: %v", err)
+	}
+	writeFixtureLog(t, logPath, tetragonNetworkFixture()+"\n")
+	secondRotated := filepath.Join(directory, "tetragon-2026-08-20T12-00-01.000.log")
+	if err := os.Rename(logPath, secondRotated); err != nil {
+		t.Fatalf("second rotate: %v", err)
+	}
+	currentExec := strings.ReplaceAll(tetragonExecFixture(), "exec-1", "exec-2")
+	currentExec = strings.Replace(currentExec, `"pid":42`, `"pid":43`, 1)
+	writeFixtureLog(t, logPath, currentExec+"\n")
+	secondSink := &recordingStreamSink{}
+	second := newFixtureFileProcessorLimit(t, logPath, cursorPath, secondSink, 1)
+	t.Cleanup(func() { _ = second.Close() })
+	if result, err := second.ProcessAvailable(context.Background()); err != nil || result.Submitted != 1 || len(secondSink.calls) != 1 || secondSink.calls[0][0].Class != "file" {
+		t.Fatalf("rotated tail = %#v, %v, calls=%#v", result, err, secondSink.calls)
+	}
+	if result, err := second.ProcessAvailable(context.Background()); err != nil || result.Submitted != 1 || len(secondSink.calls) != 2 || secondSink.calls[1][0].Class != "network" {
+		t.Fatalf("second rotated file = %#v, %v, calls=%#v", result, err, secondSink.calls)
+	}
+	if result, err := second.ProcessAvailable(context.Background()); err != nil || result.Submitted != 1 || len(secondSink.calls) != 3 || secondSink.calls[2][0].Class != "process" {
+		t.Fatalf("current file = %#v, %v, calls=%#v", result, err, secondSink.calls)
+	}
+}
+
+func TestFileProcessorFailsClosedWhenUnreadRotatedInodeIsMissing(t *testing.T) {
+	t.Parallel()
+	directory := t.TempDir()
+	logPath, cursorPath := filepath.Join(directory, "tetragon.log"), filepath.Join(directory, "cursor.json")
+	writeFixtureLog(t, logPath, tetragonExecFixture()+"\n"+tetragonFileFixture()+"\n")
+	sink := &recordingStreamSink{}
+	processor := newFixtureFileProcessorLimit(t, logPath, cursorPath, sink, 1)
+	t.Cleanup(func() { _ = processor.Close() })
+	if result, err := processor.ProcessAvailable(context.Background()); err != nil || result.Submitted != 1 {
+		t.Fatalf("first ProcessAvailable = %#v, %v", result, err)
+	}
+	if err := os.Remove(logPath); err != nil {
+		t.Fatalf("remove unread inode: %v", err)
+	}
+	writeFixtureLog(t, logPath, tetragonNetworkFixture()+"\n")
+	cursorBefore := readFixtureCursor(t, cursorPath)
+	if result, err := processor.ProcessAvailable(context.Background()); err == nil || result != (StreamResult{}) || len(sink.calls) != 1 || readFixtureCursor(t, cursorPath) != cursorBefore {
+		t.Fatalf("missing rotated inode = %#v, %v, calls=%#v", result, err, sink.calls)
+	}
+}
+
+func TestFileProcessorRejectsAmbiguousHardLinkedRotation(t *testing.T) {
+	t.Parallel()
+	directory := t.TempDir()
+	logPath, cursorPath := filepath.Join(directory, "tetragon.log"), filepath.Join(directory, "cursor.json")
+	writeFixtureLog(t, logPath, tetragonExecFixture()+"\n"+tetragonFileFixture()+"\n")
+	sink := &recordingStreamSink{}
+	processor := newFixtureFileProcessorLimit(t, logPath, cursorPath, sink, 1)
+	t.Cleanup(func() { _ = processor.Close() })
+	if result, err := processor.ProcessAvailable(context.Background()); err != nil || result.Submitted != 1 {
+		t.Fatalf("first ProcessAvailable = %#v, %v", result, err)
+	}
+	if err := os.Link(logPath, filepath.Join(directory, "tetragon-2026-08-20T12-00-00.000.log")); err != nil {
+		t.Fatalf("hard link: %v", err)
+	}
+	cursorBefore := readFixtureCursor(t, cursorPath)
+	if result, err := processor.ProcessAvailable(context.Background()); err == nil || result != (StreamResult{}) || len(sink.calls) != 1 || readFixtureCursor(t, cursorPath) != cursorBefore {
+		t.Fatalf("ambiguous rotation = %#v, %v, calls=%#v", result, err, sink.calls)
 	}
 }
 
@@ -155,12 +237,16 @@ func (sink *recordingStreamSink) Ingest(_ context.Context, events []RuntimeEvent
 }
 
 func newFixtureFileProcessor(t *testing.T, logPath, cursorPath string, sink StreamSink) *FileProcessor {
+	return newFixtureFileProcessorLimit(t, logPath, cursorPath, sink, 10)
+}
+
+func newFixtureFileProcessorLimit(t *testing.T, logPath, cursorPath string, sink StreamSink, maximumLines int) *FileProcessor {
 	t.Helper()
 	normalizer, err := NewNormalizer(128)
 	if err != nil {
 		t.Fatalf("NewNormalizer: %v", err)
 	}
-	processor, err := NewFileProcessor(FileProcessorConfig{LogPath: logPath, CursorPath: cursorPath, Normalizer: normalizer, Sink: sink, MaximumLines: 10})
+	processor, err := NewFileProcessor(FileProcessorConfig{LogPath: logPath, CursorPath: cursorPath, Normalizer: normalizer, Sink: sink, MaximumLines: maximumLines})
 	if err != nil {
 		t.Fatalf("NewFileProcessor: %v", err)
 	}
