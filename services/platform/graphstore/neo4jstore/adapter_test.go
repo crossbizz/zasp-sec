@@ -2,17 +2,87 @@ package neo4jstore
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"net/url"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/neo4j/neo4j-go-driver/v6/neo4j"
+	"github.com/neo4j/neo4j-go-driver/v6/neo4j/auth"
+	"github.com/neo4j/neo4j-go-driver/v6/neo4j/config"
 	"github.com/zasp-ai/zasp-sec/services/platform/graphstore"
 )
 
 const seededProviderDetail = "seeded-provider-detail-must-not-escape"
+
+func TestProductionAdapterOwnsVerifiedTLSAuthenticationAndReadiness(t *testing.T) {
+	validReference := "ref:neo4j/auth/production-0001"
+	tests := []struct {
+		name      string
+		endpoint  string
+		reference string
+		resolver  *productionAuthResolverStub
+		driver    *fakeOfficialDriver
+	}{
+		{name: "insecure neo4j", endpoint: "neo4j://graph.example.test:7687", reference: validReference},
+		{name: "insecure bolt", endpoint: "bolt://graph.example.test:7687", reference: validReference},
+		{name: "self signed neo4j", endpoint: "neo4j+ssc://graph.example.test:7687", reference: validReference},
+		{name: "self signed bolt", endpoint: "bolt+ssc://graph.example.test:7687", reference: validReference},
+		{name: "userinfo", endpoint: "neo4j+s://admin:secret@graph.example.test:7687", reference: validReference},
+		{name: "query", endpoint: "neo4j+s://graph.example.test:7687?policy=hostile", reference: validReference},
+		{name: "path", endpoint: "neo4j+s://graph.example.test:7687/database", reference: validReference},
+		{name: "fragment", endpoint: "neo4j+s://graph.example.test:7687#secret", reference: validReference},
+		{name: "missing host", endpoint: "neo4j+s://", reference: validReference},
+		{name: "missing reference", endpoint: "neo4j+s://graph.example.test:7687"},
+		{name: "malformed reference", endpoint: "neo4j+s://graph.example.test:7687", reference: "secret-inline"},
+		{name: "resolver failure", endpoint: "neo4j+s://graph.example.test:7687", reference: validReference, resolver: &productionAuthResolverStub{err: errors.New(seededProviderDetail)}},
+		{name: "no auth", endpoint: "neo4j+s://graph.example.test:7687", reference: validReference, resolver: &productionAuthResolverStub{manager: neo4j.NoAuth()}},
+		{name: "connectivity failure", endpoint: "neo4j+s://graph.example.test:7687", reference: validReference, driver: &fakeOfficialDriver{encrypted: true, connectivityErr: errors.New(seededProviderDetail)}},
+		{name: "authentication failure", endpoint: "neo4j+s://graph.example.test:7687", reference: validReference, driver: &fakeOfficialDriver{encrypted: true, authenticationErr: errors.New(seededProviderDetail)}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			resolver := test.resolver
+			if resolver == nil {
+				resolver = &productionAuthResolverStub{manager: neo4j.BasicAuth("graph-user", "graph-password", "")}
+			}
+			driver := test.driver
+			if driver == nil {
+				driver = &fakeOfficialDriver{encrypted: true}
+			}
+			factory := &productionDriverFactoryStub{driver: driver}
+			adapter, err := newProductionAdapter(context.Background(), ProductionConfig{Endpoint: test.endpoint, AuthenticationReference: test.reference, ReadinessTimeout: time.Second}, resolver, factory)
+			if adapter != nil || !errors.Is(err, ErrConfiguration) || strings.Contains(err.Error(), seededProviderDetail) {
+				t.Fatalf("new production adapter = (%v, %v), want redacted ErrConfiguration", adapter, err)
+			}
+			if test.driver != nil && (test.driver.connectivityErr != nil || test.driver.authenticationErr != nil) && test.driver.closeCalls != 1 {
+				t.Fatalf("failed readiness closed driver %d times, want 1", test.driver.closeCalls)
+			}
+		})
+	}
+
+	for _, endpoint := range []string{"neo4j+s://graph.example.test:7687", "bolt+s://graph.example.test:7687"} {
+		t.Run(endpoint, func(t *testing.T) {
+			driver := &fakeOfficialDriver{encrypted: true}
+			resolver := &productionAuthResolverStub{manager: neo4j.BasicAuth("graph-user", "graph-password", "")}
+			factory := &productionDriverFactoryStub{driver: driver}
+			adapter, err := newProductionAdapter(context.Background(), ProductionConfig{Endpoint: endpoint, AuthenticationReference: validReference, ReadinessTimeout: time.Second}, resolver, factory)
+			if err != nil || adapter == nil {
+				t.Fatalf("new production adapter = (%v, %v)", adapter, err)
+			}
+			if resolver.calls != 1 || resolver.reference != validReference || factory.calls != 1 || factory.endpoint != endpoint ||
+				driver.connectivityCalls != 1 || driver.authenticationCalls != 1 || driver.closeCalls != 0 {
+				t.Fatalf("authority calls resolver=%d/%q factory=%d/%q connectivity=%d authentication=%d close=%d", resolver.calls, resolver.reference, factory.calls, factory.endpoint, driver.connectivityCalls, driver.authenticationCalls, driver.closeCalls)
+			}
+			if factory.tlsConfig == nil || factory.tlsConfig.InsecureSkipVerify || factory.tlsConfig.MinVersion < tls.VersionTLS12 || factory.tlsConfig.RootCAs != nil {
+				t.Fatalf("TLS config = %#v, want system trust with verified TLS 1.2+", factory.tlsConfig)
+			}
+		})
+	}
+}
 
 func TestAdapterRejectsInvalidConfiguration(t *testing.T) {
 	var _ graphstore.Driver = (*Adapter)(nil)
@@ -24,11 +94,11 @@ func TestAdapterRejectsInvalidConfiguration(t *testing.T) {
 		new       func() (*Adapter, error)
 		wantError error
 	}{
-		{name: "nil driver", new: func() (*Adapter, error) { return New(nil, databaseName) }, wantError: ErrConfiguration},
-		{name: "typed nil driver", new: func() (*Adapter, error) { return New(typedNil, databaseName) }, wantError: ErrConfiguration},
-		{name: "unencrypted driver", new: func() (*Adapter, error) { return New(&fakeOfficialDriver{}, databaseName) }, wantError: ErrConfiguration},
-		{name: "wrong database", new: func() (*Adapter, error) { return New(&fakeOfficialDriver{encrypted: true}, "system") }, wantError: ErrConfiguration},
-		{name: "empty database", new: func() (*Adapter, error) { return New(&fakeOfficialDriver{encrypted: true}, "") }, wantError: ErrConfiguration},
+		{name: "nil driver", new: func() (*Adapter, error) { return newAdapterForDriver(nil, databaseName) }, wantError: ErrConfiguration},
+		{name: "typed nil driver", new: func() (*Adapter, error) { return newAdapterForDriver(typedNil, databaseName) }, wantError: ErrConfiguration},
+		{name: "unencrypted driver", new: func() (*Adapter, error) { return newAdapterForDriver(&fakeOfficialDriver{}, databaseName) }, wantError: ErrConfiguration},
+		{name: "wrong database", new: func() (*Adapter, error) { return newAdapterForDriver(&fakeOfficialDriver{encrypted: true}, "system") }, wantError: ErrConfiguration},
+		{name: "empty database", new: func() (*Adapter, error) { return newAdapterForDriver(&fakeOfficialDriver{encrypted: true}, "") }, wantError: ErrConfiguration},
 		{name: "nil provider", new: func() (*Adapter, error) { return newAdapterForProvider(nil, databaseName) }, wantError: ErrConfiguration},
 	}
 	for _, test := range tests {
@@ -48,8 +118,8 @@ func TestAdapterRejectsInvalidConfiguration(t *testing.T) {
 	if provider.calls != 0 {
 		t.Fatalf("New opened %d sessions, want side-effect free", provider.calls)
 	}
-	if adapter, err = New(&fakeOfficialDriver{encrypted: true}, databaseName); err != nil || adapter == nil {
-		t.Fatalf("valid public New = (%v, %v)", adapter, err)
+	if adapter, err = newAdapterForDriver(&fakeOfficialDriver{encrypted: true}, databaseName); err != nil || adapter == nil {
+		t.Fatalf("valid driver adapter = (%v, %v)", adapter, err)
 	}
 }
 
@@ -273,6 +343,9 @@ type fakeTransaction struct {
 	commitCalls        int
 	rollbackCalls      int
 	rollbackContextErr error
+	lockVersion        int64
+	lockVersionBefore  int64
+	lockTouched        bool
 }
 
 func (transaction *fakeTransaction) Run(_ context.Context, query string, parameters map[string]any) (graphResult, error) {
@@ -285,6 +358,11 @@ func (transaction *fakeTransaction) Run(_ context.Context, query string, paramet
 	if transaction.runCalls > len(transaction.results) {
 		return nil, errors.New(seededProviderDetail)
 	}
+	if query == lockSnapshotQuery {
+		transaction.lockVersionBefore = transaction.lockVersion
+		transaction.lockVersion++
+		transaction.lockTouched = true
+	}
 	return transaction.results[transaction.runCalls-1], nil
 }
 
@@ -296,6 +374,9 @@ func (transaction *fakeTransaction) Commit(context.Context) error {
 func (transaction *fakeTransaction) Rollback(ctx context.Context) error {
 	transaction.rollbackCalls++
 	transaction.rollbackContextErr = ctx.Err()
+	if transaction.rollbackErr == nil && transaction.lockTouched {
+		transaction.lockVersion = transaction.lockVersionBefore
+	}
 	return transaction.rollbackErr
 }
 
@@ -343,17 +424,69 @@ func (result *fakeResult) Consume(context.Context) error {
 	return result.consumeErr
 }
 
-type fakeOfficialDriver struct{ encrypted bool }
+type productionAuthResolverStub struct {
+	manager   auth.TokenManager
+	err       error
+	calls     int
+	reference string
+}
+
+func (resolver *productionAuthResolverStub) ResolveNeo4jAuthentication(_ context.Context, reference string) (auth.TokenManager, error) {
+	resolver.calls++
+	resolver.reference = reference
+	return resolver.manager, resolver.err
+}
+
+type productionDriverFactoryStub struct {
+	driver    neo4j.Driver
+	err       error
+	calls     int
+	endpoint  string
+	tlsConfig *tls.Config
+}
+
+func (factory *productionDriverFactoryStub) New(endpoint string, manager auth.TokenManager, configurers ...func(*config.Config)) (neo4j.Driver, error) {
+	factory.calls++
+	factory.endpoint = endpoint
+	if manager == nil {
+		return nil, errors.New("missing auth manager")
+	}
+	driverConfig := &config.Config{}
+	for _, configure := range configurers {
+		configure(driverConfig)
+	}
+	if driverConfig.TlsConfig != nil {
+		factory.tlsConfig = driverConfig.TlsConfig.Clone()
+	}
+	return factory.driver, factory.err
+}
+
+type fakeOfficialDriver struct {
+	encrypted           bool
+	connectivityErr     error
+	authenticationErr   error
+	closeErr            error
+	connectivityCalls   int
+	authenticationCalls int
+	closeCalls          int
+}
 
 func (*fakeOfficialDriver) ExecuteQueryBookmarkManager() neo4j.BookmarkManager { return nil }
 func (*fakeOfficialDriver) Target() url.URL                                    { return url.URL{} }
 func (*fakeOfficialDriver) NewSession(context.Context, neo4j.SessionConfig) neo4j.Session {
 	return nil
 }
-func (*fakeOfficialDriver) VerifyConnectivity(context.Context) error { return nil }
-func (*fakeOfficialDriver) VerifyAuthentication(context.Context, *neo4j.AuthToken) error {
-	return nil
+func (driver *fakeOfficialDriver) VerifyConnectivity(context.Context) error {
+	driver.connectivityCalls++
+	return driver.connectivityErr
 }
-func (*fakeOfficialDriver) Close(context.Context) error                             { return nil }
+func (driver *fakeOfficialDriver) VerifyAuthentication(context.Context, *neo4j.AuthToken) error {
+	driver.authenticationCalls++
+	return driver.authenticationErr
+}
+func (driver *fakeOfficialDriver) Close(context.Context) error {
+	driver.closeCalls++
+	return driver.closeErr
+}
 func (driver *fakeOfficialDriver) IsEncrypted() bool                                { return driver.encrypted }
 func (*fakeOfficialDriver) GetServerInfo(context.Context) (neo4j.ServerInfo, error) { return nil, nil }

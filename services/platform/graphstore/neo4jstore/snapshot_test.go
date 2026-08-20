@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -49,10 +50,11 @@ func TestReplaceSnapshotUsesOneLockedTransactionAndExactReplay(t *testing.T) {
 	if !reflect.DeepEqual(replay.tx.queries, []string{lockSnapshotQuery, readbackSnapshotQuery}) {
 		t.Fatalf("replay queries = %#v", replay.tx.queries)
 	}
-	for _, session := range []*fakeSession{fresh, replay} {
-		if session.tx.commitCalls != 1 || session.tx.rollbackCalls != 0 || session.closeCalls != 1 {
-			t.Fatalf("settlement commit=%d rollback=%d close=%d", session.tx.commitCalls, session.tx.rollbackCalls, session.closeCalls)
-		}
+	if fresh.tx.commitCalls != 1 || fresh.tx.rollbackCalls != 0 || fresh.closeCalls != 1 {
+		t.Fatalf("fresh settlement commit=%d rollback=%d close=%d", fresh.tx.commitCalls, fresh.tx.rollbackCalls, fresh.closeCalls)
+	}
+	if replay.tx.commitCalls != 0 || replay.tx.rollbackCalls != 1 || replay.closeCalls != 1 || replay.tx.lockVersion != 41 {
+		t.Fatalf("replay settlement commit=%d rollback=%d close=%d lock=%d, want durable marker unchanged at 41", replay.tx.commitCalls, replay.tx.rollbackCalls, replay.closeCalls, replay.tx.lockVersion)
 	}
 	if !reflect.DeepEqual(provider.configs, []sessionConfig{{Database: databaseName, Access: accessWrite}, {Database: databaseName, Access: accessWrite}}) {
 		t.Fatalf("session configs = %#v", provider.configs)
@@ -65,7 +67,7 @@ func TestReplaceSnapshotEmptyRemovesPriorProjection(t *testing.T) {
 	empty := validSnapshotProjection(8, snapshot8ID)
 	empty.Nodes = []graphstore.DriverSnapshotNode{}
 	empty.Edges = []graphstore.DriverSnapshotEdge{}
-	empty.Snapshot.ContentDigest = sha256.Sum256([]byte("empty-content"))
+	empty.Snapshot.ContentDigest = graphstore.CanonicalSnapshotContentDigest(empty.Snapshot, empty.Nodes, empty.Edges)
 	session := validSnapshotWriteSession(empty, snapshotMarker(active), 1, 2)
 	adapter, _ := newAdapterForProvider(&fakeProvider{session: session}, databaseName)
 
@@ -91,18 +93,31 @@ func TestReplaceSnapshotRejectsStaleAndSameGenerationDriftBeforeCleanup(t *testi
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			session := &fakeSession{tx: &fakeTransaction{results: []*fakeResult{snapshotMarkerResult(snapshotMarker(active))}}}
+			session := &fakeSession{tx: &fakeTransaction{results: []*fakeResult{snapshotMarkerResult(snapshotMarker(active))}, lockVersion: 73}}
 			adapter, _ := newAdapterForProvider(&fakeProvider{session: session}, databaseName)
 			got, err := adapter.ReplaceSnapshot(context.Background(), test.input)
 			wantResult := graphstore.DriverSnapshotReplaced{CandidateSnapshot: test.input.Snapshot, ActiveSnapshot: active.Snapshot, NodeIDs: snapshotNodeIDs(active), EdgeIDs: snapshotEdgeIDs(active), Outcome: graphstore.DriverSnapshotNoMutation}
 			if !errors.Is(err, test.want) || err.Error() != test.want.Error() || !reflect.DeepEqual(got, wantResult) {
 				t.Fatalf("ReplaceSnapshot() = (%#v, %v), want %v", got, err, test.want)
 			}
-			if !reflect.DeepEqual(session.tx.queries, []string{lockSnapshotQuery}) || session.tx.commitCalls != 1 || session.tx.rollbackCalls != 0 {
-				t.Fatalf("stale settlement queries=%#v commit=%d rollback=%d", session.tx.queries, session.tx.commitCalls, session.tx.rollbackCalls)
+			if !reflect.DeepEqual(session.tx.queries, []string{lockSnapshotQuery}) || session.tx.commitCalls != 0 || session.tx.rollbackCalls != 1 || session.tx.lockVersion != 73 {
+				t.Fatalf("stale settlement queries=%#v commit=%d rollback=%d lock=%d, want marker unchanged", session.tx.queries, session.tx.commitCalls, session.tx.rollbackCalls, session.tx.lockVersion)
 			}
 		})
 	}
+
+	t.Run("failed no-mutation rollback is unknown", func(t *testing.T) {
+		input := validSnapshotProjection(7, snapshot7ID)
+		session := &fakeSession{tx: &fakeTransaction{results: []*fakeResult{snapshotMarkerResult(snapshotMarker(active))}, lockVersion: 89, rollbackErr: errors.New(seededProviderDetail)}}
+		adapter, _ := newAdapterForProvider(&fakeProvider{session: session}, databaseName)
+		got, err := adapter.ReplaceSnapshot(context.Background(), input)
+		if !errors.Is(err, graphstore.ErrSnapshotUnknownOutcome) || !reflect.DeepEqual(got, graphstore.DriverSnapshotReplaced{}) || strings.Contains(err.Error(), seededProviderDetail) {
+			t.Fatalf("ReplaceSnapshot(failed rollback) = (%#v, %v)", got, err)
+		}
+		if session.tx.commitCalls != 0 || session.tx.rollbackCalls != 1 || session.tx.lockVersion != 90 {
+			t.Fatalf("failed rollback settlement commit=%d rollback=%d lock=%d, want unproven mutation", session.tx.commitCalls, session.tx.rollbackCalls, session.tx.lockVersion)
+		}
+	})
 }
 
 func TestReplaceSnapshotReconcilesCommitLostAcknowledgement(t *testing.T) {
@@ -160,6 +175,15 @@ func TestReplaceSnapshotRejectsMalformedDirectInputAndContainsProviderFailures(t
 	}{
 		{name: "zero generation", mutate: func(value *graphstore.DriverSnapshotProjection) { value.Snapshot.Generation = 0 }},
 		{name: "zero digest", mutate: func(value *graphstore.DriverSnapshotProjection) { value.Snapshot.InputDigest = [sha256.Size]byte{} }},
+		{name: "noncanonical content digest", mutate: func(value *graphstore.DriverSnapshotProjection) {
+			value.Snapshot.ContentDigest = sha256.Sum256([]byte("attacker-selected-content-digest"))
+			for index := range value.Nodes {
+				value.Nodes[index].Snapshot = value.Snapshot
+			}
+			for index := range value.Edges {
+				value.Edges[index].Snapshot = value.Snapshot
+			}
+		}},
 		{name: "invalid source", mutate: func(value *graphstore.DriverSnapshotProjection) { value.Snapshot.Source = "AWS" }},
 		{name: "foreign node binding", mutate: func(value *graphstore.DriverSnapshotProjection) { value.Nodes[0].Snapshot.SnapshotID = snapshot8ID }},
 		{name: "foreign edge binding", mutate: func(value *graphstore.DriverSnapshotProjection) { value.Edges[0].Snapshot.Generation++ }},
@@ -203,11 +227,60 @@ func TestSnapshotCleanupQueryFencesSourceAndRelationshipEvolution(t *testing.T) 
 	}
 }
 
+func TestSnapshotQueriesAndParsersBoundMarkerAndReadbackCollections(t *testing.T) {
+	for _, fragment := range []string{"size(marker.node_ids) AS marker_node_count", "marker.node_ids[0..$node_limit] AS node_ids", "size(marker.edge_ids) AS marker_edge_count", "marker.edge_ids[0..$edge_limit] AS edge_ids"} {
+		if !strings.Contains(lockSnapshotQuery, fragment) {
+			t.Fatalf("lockSnapshotQuery missing bounded marker fragment %q", fragment)
+		}
+	}
+	for _, fragment := range []string{"count(node) AS node_count", "LIMIT $node_limit", "count(edge) AS edge_count", "LIMIT $edge_limit"} {
+		if !strings.Contains(readbackSnapshotQuery, fragment) {
+			t.Fatalf("readbackSnapshotQuery missing bounded readback fragment %q", fragment)
+		}
+	}
+	parameters := snapshotParameters(validSnapshotProjection(7, snapshot7ID))
+	if parameters["node_limit"] != maximumSnapshotNodes+1 || parameters["edge_limit"] != maximumSnapshotEdges+1 {
+		t.Fatalf("query bounds = node:%v edge:%v", parameters["node_limit"], parameters["edge_limit"])
+	}
+
+	marker := snapshotMarker(validSnapshotProjection(7, snapshot7ID))
+	marker.NodeIDs = makeSnapshotProductIDs(maximumSnapshotNodes + 1)
+	marker.EdgeIDs = makeSnapshotProductIDs(maximumSnapshotEdges + 1)
+	if _, ok := parseSnapshotMarker(snapshotMarkerValues(marker), graphstore.DriverSnapshot{OrganizationID: organizationID, WorkspaceID: workspaceID, EnvironmentID: environmentID, IntegrationID: integrationID, Source: "aws"}); ok {
+		t.Fatal("marker parser accepted max+1 node and edge IDs")
+	}
+
+	nodeProjection := validSnapshotProjection(7, snapshot7ID)
+	nodeProjection.Nodes = make([]graphstore.DriverSnapshotNode, maximumSnapshotNodes+1)
+	for index, id := range makeSnapshotProductIDs(len(nodeProjection.Nodes)) {
+		nodeProjection.Nodes[index] = graphstore.DriverSnapshotNode{Snapshot: nodeProjection.Snapshot, NodeID: id, Kind: "cloud_account"}
+	}
+	if _, ok := parseSnapshotNodes(snapshotNodeReadback(nodeProjection), nodeProjection.Snapshot); ok {
+		t.Fatal("node parser accepted max+1 records")
+	}
+
+	edgeProjection := validSnapshotProjection(7, snapshot7ID)
+	edgeProjection.Edges = make([]graphstore.DriverSnapshotEdge, maximumSnapshotEdges+1)
+	for index, id := range makeSnapshotProductIDs(len(edgeProjection.Edges)) {
+		edgeProjection.Edges[index] = graphstore.DriverSnapshotEdge{Snapshot: edgeProjection.Snapshot, EdgeID: id, Kind: "contains_identity", SourceID: nodeAID, TargetID: nodeBID}
+	}
+	if _, ok := parseSnapshotEdges(snapshotEdgeReadback(edgeProjection), edgeProjection.Snapshot); ok {
+		t.Fatal("edge parser accepted max+1 records")
+	}
+}
+
+func makeSnapshotProductIDs(count int) []string {
+	result := make([]string, count)
+	for index := range result {
+		result[index] = fmt.Sprintf("pid_%08x-0000-4000-8000-%012x", index+1, index+1)
+	}
+	return result
+}
+
 func validSnapshotProjection(generation int64, snapshotID string) graphstore.DriverSnapshotProjection {
 	inputDigest := sha256.Sum256([]byte("input-" + snapshotID))
-	contentDigest := sha256.Sum256([]byte("content-" + snapshotID))
-	binding := graphstore.DriverSnapshot{OrganizationID: organizationID, WorkspaceID: workspaceID, EnvironmentID: environmentID, IntegrationID: integrationID, Source: "aws", SnapshotID: snapshotID, Generation: generation, InputDigest: inputDigest, ContentDigest: contentDigest}
-	return graphstore.DriverSnapshotProjection{
+	binding := graphstore.DriverSnapshot{OrganizationID: organizationID, WorkspaceID: workspaceID, EnvironmentID: environmentID, IntegrationID: integrationID, Source: "aws", SnapshotID: snapshotID, Generation: generation, InputDigest: inputDigest}
+	projection := graphstore.DriverSnapshotProjection{
 		Snapshot: binding,
 		Nodes: []graphstore.DriverSnapshotNode{
 			{Snapshot: binding, NodeID: nodeAID, Kind: "cloud_account"},
@@ -215,6 +288,15 @@ func validSnapshotProjection(generation int64, snapshotID string) graphstore.Dri
 		},
 		Edges: []graphstore.DriverSnapshotEdge{{Snapshot: binding, EdgeID: edgeID, Kind: "contains_identity", SourceID: nodeAID, TargetID: nodeBID}},
 	}
+	binding.ContentDigest = graphstore.CanonicalSnapshotContentDigest(binding, projection.Nodes, projection.Edges)
+	projection.Snapshot = binding
+	for index := range projection.Nodes {
+		projection.Nodes[index].Snapshot = binding
+	}
+	for index := range projection.Edges {
+		projection.Edges[index].Snapshot = binding
+	}
+	return projection
 }
 
 func emptySnapshotMarker() snapshotMarkerState { return snapshotMarkerState{} }
@@ -228,7 +310,7 @@ func snapshotMarkerResult(marker snapshotMarkerState) *fakeResult {
 }
 
 func snapshotMarkerValues(marker snapshotMarkerState) []any {
-	return []any{marker.Snapshot.Generation, marker.Snapshot.SnapshotID, hex.EncodeToString(marker.Snapshot.InputDigest[:]), hex.EncodeToString(marker.Snapshot.ContentDigest[:]), stringsToAny(marker.NodeIDs), stringsToAny(marker.EdgeIDs), stringsToAny(snapshotMarkerProperties)}
+	return []any{marker.Snapshot.Generation, marker.Snapshot.SnapshotID, hex.EncodeToString(marker.Snapshot.InputDigest[:]), hex.EncodeToString(marker.Snapshot.ContentDigest[:]), int64(len(marker.NodeIDs)), stringsToAny(marker.NodeIDs), int64(len(marker.EdgeIDs)), stringsToAny(marker.EdgeIDs), stringsToAny(snapshotMarkerProperties)}
 }
 
 func validSnapshotWriteSession(input graphstore.DriverSnapshotProjection, marker snapshotMarkerState, removedEdges, removedNodes int64) *fakeSession {
@@ -244,7 +326,7 @@ func validSnapshotWriteSession(input graphstore.DriverSnapshotProjection, marker
 }
 
 func validSnapshotReplaySession(input graphstore.DriverSnapshotProjection) *fakeSession {
-	return &fakeSession{tx: &fakeTransaction{results: []*fakeResult{snapshotMarkerResult(snapshotMarker(input)), snapshotReadbackResult(input)}}}
+	return &fakeSession{tx: &fakeTransaction{results: []*fakeResult{snapshotMarkerResult(snapshotMarker(input)), snapshotReadbackResult(input)}, lockVersion: 41}}
 }
 
 func validSnapshotReadSession(input graphstore.DriverSnapshotProjection) *fakeSession {
@@ -257,7 +339,7 @@ func countResult(key string, value int64) *fakeResult {
 
 func snapshotReadbackResult(input graphstore.DriverSnapshotProjection) *fakeResult {
 	values := snapshotMarkerValues(snapshotMarker(input))
-	values = append(values, snapshotNodeReadback(input), snapshotEdgeReadback(input))
+	values = append(values, int64(len(input.Nodes)), snapshotNodeReadback(input), int64(len(input.Edges)), snapshotEdgeReadback(input))
 	return &fakeResult{keys: snapshotReadbackKeys, records: []graphRecord{{Keys: snapshotReadbackKeys, Values: values}}}
 }
 

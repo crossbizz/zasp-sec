@@ -21,18 +21,18 @@ const (
 	snapshotEdgeType     = "ZASP_INVENTORY_GRAPH_EDGE"
 	snapshotMarkerLabel  = "ZaspGraphProjection"
 
-	lockSnapshotQuery        = "MERGE (marker:ZaspGraphProjection {organization_id: $organization_id, workspace_id: $workspace_id, environment_id: $environment_id, integration_id: $integration_id, source: $source}) ON CREATE SET marker.snapshot_id = '', marker.generation = 0, marker.input_digest = $zero_digest, marker.content_digest = $zero_digest, marker.node_ids = [], marker.edge_ids = [], marker.schema_version = $schema_version, marker.lock_version = 0 SET marker.lock_version = marker.lock_version + 1 WITH marker WHERE size(keys(marker)) = 13 AND all(key IN keys(marker) WHERE key IN ['organization_id', 'workspace_id', 'environment_id', 'integration_id', 'source', 'snapshot_id', 'generation', 'input_digest', 'content_digest', 'node_ids', 'edge_ids', 'schema_version', 'lock_version']) AND marker.schema_version = $schema_version RETURN marker.generation AS generation, marker.snapshot_id AS snapshot_id, marker.input_digest AS input_digest, marker.content_digest AS content_digest, marker.node_ids AS node_ids, marker.edge_ids AS edge_ids, keys(marker) AS marker_property_keys"
+	lockSnapshotQuery        = "MERGE (marker:ZaspGraphProjection {organization_id: $organization_id, workspace_id: $workspace_id, environment_id: $environment_id, integration_id: $integration_id, source: $source}) ON CREATE SET marker.snapshot_id = '', marker.generation = 0, marker.input_digest = $zero_digest, marker.content_digest = $zero_digest, marker.node_ids = [], marker.edge_ids = [], marker.schema_version = $schema_version, marker.lock_version = 0 SET marker.lock_version = marker.lock_version + 1 WITH marker WHERE size(keys(marker)) = 13 AND all(key IN keys(marker) WHERE key IN ['organization_id', 'workspace_id', 'environment_id', 'integration_id', 'source', 'snapshot_id', 'generation', 'input_digest', 'content_digest', 'node_ids', 'edge_ids', 'schema_version', 'lock_version']) AND marker.schema_version = $schema_version RETURN marker.generation AS generation, marker.snapshot_id AS snapshot_id, marker.input_digest AS input_digest, marker.content_digest AS content_digest, size(marker.node_ids) AS marker_node_count, marker.node_ids[0..$node_limit] AS node_ids, size(marker.edge_ids) AS marker_edge_count, marker.edge_ids[0..$edge_limit] AS edge_ids, keys(marker) AS marker_property_keys"
 	removeSnapshotEdgesQuery = "MATCH ()-[edge:ZASP_INVENTORY_GRAPH_EDGE]->() WHERE edge.organization_id = $organization_id AND edge.workspace_id = $workspace_id AND edge.environment_id = $environment_id AND edge.integration_id = $integration_id AND edge.source = $source AND NOT any(input IN $edges WHERE input.edge_id = edge.edge_id AND input.kind = edge.kind AND input.source_id = startNode(edge).node_id AND input.target_id = endNode(edge).node_id AND startNode(edge).organization_id = $organization_id AND startNode(edge).workspace_id = $workspace_id AND startNode(edge).environment_id = $environment_id AND startNode(edge).integration_id = $integration_id AND startNode(edge).source = $source AND endNode(edge).organization_id = $organization_id AND endNode(edge).workspace_id = $workspace_id AND endNode(edge).environment_id = $environment_id AND endNode(edge).integration_id = $integration_id AND endNode(edge).source = $source) DELETE edge RETURN count(edge) AS removed"
 	removeSnapshotNodesQuery = "MATCH (node:ZaspInventoryGraphNode {organization_id: $organization_id, workspace_id: $workspace_id, environment_id: $environment_id, integration_id: $integration_id, source: $source}) WHERE NOT node.node_id IN $node_ids DETACH DELETE node RETURN count(node) AS removed"
 	upsertSnapshotNodesQuery = "UNWIND $nodes AS input MERGE (node:ZaspInventoryGraphNode {organization_id: $organization_id, workspace_id: $workspace_id, environment_id: $environment_id, integration_id: $integration_id, source: $source, node_id: input.node_id}) SET node.kind = input.kind, node.snapshot_id = $snapshot_id, node.generation = $generation, node.input_digest = $input_digest, node.content_digest = $content_digest, node.schema_version = $schema_version WITH node, input WHERE size(keys(node)) = 12 AND all(key IN keys(node) WHERE key IN ['organization_id', 'workspace_id', 'environment_id', 'integration_id', 'source', 'node_id', 'kind', 'snapshot_id', 'generation', 'input_digest', 'content_digest', 'schema_version']) AND node.kind = input.kind AND node.snapshot_id = $snapshot_id AND node.generation = $generation AND node.input_digest = $input_digest AND node.content_digest = $content_digest AND node.schema_version = $schema_version RETURN count(node) AS matched"
 	upsertSnapshotEdgesQuery = "UNWIND $edges AS input MATCH (source:ZaspInventoryGraphNode {organization_id: $organization_id, workspace_id: $workspace_id, environment_id: $environment_id, integration_id: $integration_id, source: $source, node_id: input.source_id}) MATCH (target:ZaspInventoryGraphNode {organization_id: $organization_id, workspace_id: $workspace_id, environment_id: $environment_id, integration_id: $integration_id, source: $source, node_id: input.target_id}) MERGE (source)-[edge:ZASP_INVENTORY_GRAPH_EDGE {organization_id: $organization_id, workspace_id: $workspace_id, environment_id: $environment_id, integration_id: $integration_id, source: $source, edge_id: input.edge_id}]->(target) SET edge.kind = input.kind, edge.snapshot_id = $snapshot_id, edge.generation = $generation, edge.input_digest = $input_digest, edge.content_digest = $content_digest, edge.schema_version = $schema_version WITH edge, input WHERE size(keys(edge)) = 12 AND all(key IN keys(edge) WHERE key IN ['organization_id', 'workspace_id', 'environment_id', 'integration_id', 'source', 'edge_id', 'kind', 'snapshot_id', 'generation', 'input_digest', 'content_digest', 'schema_version']) AND edge.kind = input.kind AND edge.snapshot_id = $snapshot_id AND edge.generation = $generation AND edge.input_digest = $input_digest AND edge.content_digest = $content_digest AND edge.schema_version = $schema_version RETURN count(edge) AS matched"
 	activateSnapshotQuery    = "MATCH (marker:ZaspGraphProjection {organization_id: $organization_id, workspace_id: $workspace_id, environment_id: $environment_id, integration_id: $integration_id, source: $source}) SET marker.snapshot_id = $snapshot_id, marker.generation = $generation, marker.input_digest = $input_digest, marker.content_digest = $content_digest, marker.node_ids = $node_ids, marker.edge_ids = $edge_ids, marker.schema_version = $schema_version WITH marker WHERE size(keys(marker)) = 13 AND all(key IN keys(marker) WHERE key IN ['organization_id', 'workspace_id', 'environment_id', 'integration_id', 'source', 'snapshot_id', 'generation', 'input_digest', 'content_digest', 'node_ids', 'edge_ids', 'schema_version', 'lock_version']) AND marker.snapshot_id = $snapshot_id AND marker.generation = $generation AND marker.input_digest = $input_digest AND marker.content_digest = $content_digest AND marker.node_ids = $node_ids AND marker.edge_ids = $edge_ids AND marker.schema_version = $schema_version RETURN count(marker) AS activated"
-	readbackSnapshotQuery    = "MATCH (marker:ZaspGraphProjection {organization_id: $organization_id, workspace_id: $workspace_id, environment_id: $environment_id, integration_id: $integration_id, source: $source}) OPTIONAL MATCH (node:ZaspInventoryGraphNode {organization_id: $organization_id, workspace_id: $workspace_id, environment_id: $environment_id, integration_id: $integration_id, source: $source}) WITH marker, node ORDER BY node.node_id WITH marker, collect(CASE WHEN node IS NULL THEN null ELSE {organization_id: node.organization_id, workspace_id: node.workspace_id, environment_id: node.environment_id, integration_id: node.integration_id, source: node.source, node_id: node.node_id, kind: node.kind, snapshot_id: node.snapshot_id, generation: node.generation, input_digest: node.input_digest, content_digest: node.content_digest, schema_version: node.schema_version, property_keys: keys(node)} END) AS nodes OPTIONAL MATCH ()-[edge:ZASP_INVENTORY_GRAPH_EDGE]->() WHERE edge.organization_id = $organization_id AND edge.workspace_id = $workspace_id AND edge.environment_id = $environment_id AND edge.integration_id = $integration_id AND edge.source = $source AND startNode(edge).organization_id = $organization_id AND startNode(edge).workspace_id = $workspace_id AND startNode(edge).environment_id = $environment_id AND startNode(edge).integration_id = $integration_id AND startNode(edge).source = $source AND endNode(edge).organization_id = $organization_id AND endNode(edge).workspace_id = $workspace_id AND endNode(edge).environment_id = $environment_id AND endNode(edge).integration_id = $integration_id AND endNode(edge).source = $source WITH marker, nodes, edge ORDER BY edge.edge_id RETURN marker.generation AS generation, marker.snapshot_id AS snapshot_id, marker.input_digest AS input_digest, marker.content_digest AS content_digest, marker.node_ids AS node_ids, marker.edge_ids AS edge_ids, keys(marker) AS marker_property_keys, nodes, collect(CASE WHEN edge IS NULL THEN null ELSE {organization_id: edge.organization_id, workspace_id: edge.workspace_id, environment_id: edge.environment_id, integration_id: edge.integration_id, source: edge.source, edge_id: edge.edge_id, kind: edge.kind, source_id: startNode(edge).node_id, target_id: endNode(edge).node_id, snapshot_id: edge.snapshot_id, generation: edge.generation, input_digest: edge.input_digest, content_digest: edge.content_digest, schema_version: edge.schema_version, property_keys: keys(edge)} END) AS edges"
+	readbackSnapshotQuery    = "MATCH (marker:ZaspGraphProjection {organization_id: $organization_id, workspace_id: $workspace_id, environment_id: $environment_id, integration_id: $integration_id, source: $source}) CALL { WITH marker MATCH (node:ZaspInventoryGraphNode {organization_id: $organization_id, workspace_id: $workspace_id, environment_id: $environment_id, integration_id: $integration_id, source: $source}) RETURN count(node) AS node_count } CALL { WITH marker MATCH (node:ZaspInventoryGraphNode {organization_id: $organization_id, workspace_id: $workspace_id, environment_id: $environment_id, integration_id: $integration_id, source: $source}) WITH node ORDER BY node.node_id LIMIT $node_limit RETURN collect({organization_id: node.organization_id, workspace_id: node.workspace_id, environment_id: node.environment_id, integration_id: node.integration_id, source: node.source, node_id: node.node_id, kind: node.kind, snapshot_id: node.snapshot_id, generation: node.generation, input_digest: node.input_digest, content_digest: node.content_digest, schema_version: node.schema_version, property_keys: keys(node)}) AS nodes } CALL { WITH marker MATCH ()-[edge:ZASP_INVENTORY_GRAPH_EDGE]->() WHERE edge.organization_id = $organization_id AND edge.workspace_id = $workspace_id AND edge.environment_id = $environment_id AND edge.integration_id = $integration_id AND edge.source = $source AND startNode(edge).organization_id = $organization_id AND startNode(edge).workspace_id = $workspace_id AND startNode(edge).environment_id = $environment_id AND startNode(edge).integration_id = $integration_id AND startNode(edge).source = $source AND endNode(edge).organization_id = $organization_id AND endNode(edge).workspace_id = $workspace_id AND endNode(edge).environment_id = $environment_id AND endNode(edge).integration_id = $integration_id AND endNode(edge).source = $source RETURN count(edge) AS edge_count } CALL { WITH marker MATCH ()-[edge:ZASP_INVENTORY_GRAPH_EDGE]->() WHERE edge.organization_id = $organization_id AND edge.workspace_id = $workspace_id AND edge.environment_id = $environment_id AND edge.integration_id = $integration_id AND edge.source = $source AND startNode(edge).organization_id = $organization_id AND startNode(edge).workspace_id = $workspace_id AND startNode(edge).environment_id = $environment_id AND startNode(edge).integration_id = $integration_id AND startNode(edge).source = $source AND endNode(edge).organization_id = $organization_id AND endNode(edge).workspace_id = $workspace_id AND endNode(edge).environment_id = $environment_id AND endNode(edge).integration_id = $integration_id AND endNode(edge).source = $source WITH edge ORDER BY edge.edge_id LIMIT $edge_limit RETURN collect({organization_id: edge.organization_id, workspace_id: edge.workspace_id, environment_id: edge.environment_id, integration_id: edge.integration_id, source: edge.source, edge_id: edge.edge_id, kind: edge.kind, source_id: startNode(edge).node_id, target_id: endNode(edge).node_id, snapshot_id: edge.snapshot_id, generation: edge.generation, input_digest: edge.input_digest, content_digest: edge.content_digest, schema_version: edge.schema_version, property_keys: keys(edge)}) AS edges } RETURN marker.generation AS generation, marker.snapshot_id AS snapshot_id, marker.input_digest AS input_digest, marker.content_digest AS content_digest, size(marker.node_ids) AS marker_node_count, marker.node_ids[0..$node_limit] AS node_ids, size(marker.edge_ids) AS marker_edge_count, marker.edge_ids[0..$edge_limit] AS edge_ids, keys(marker) AS marker_property_keys, node_count, nodes, edge_count, edges"
 )
 
 var (
-	snapshotMarkerKeys       = []string{"generation", "snapshot_id", "input_digest", "content_digest", "node_ids", "edge_ids", "marker_property_keys"}
-	snapshotReadbackKeys     = []string{"generation", "snapshot_id", "input_digest", "content_digest", "node_ids", "edge_ids", "marker_property_keys", "nodes", "edges"}
+	snapshotMarkerKeys       = []string{"generation", "snapshot_id", "input_digest", "content_digest", "marker_node_count", "node_ids", "marker_edge_count", "edge_ids", "marker_property_keys"}
+	snapshotReadbackKeys     = []string{"generation", "snapshot_id", "input_digest", "content_digest", "marker_node_count", "node_ids", "marker_edge_count", "edge_ids", "marker_property_keys", "node_count", "nodes", "edge_count", "edges"}
 	snapshotMarkerProperties = []string{"content_digest", "edge_ids", "environment_id", "generation", "input_digest", "integration_id", "lock_version", "node_ids", "organization_id", "schema_version", "snapshot_id", "source", "workspace_id"}
 	snapshotNodeProperties   = []string{"content_digest", "environment_id", "generation", "input_digest", "integration_id", "kind", "node_id", "organization_id", "schema_version", "snapshot_id", "source", "workspace_id"}
 	snapshotEdgeProperties   = []string{"content_digest", "edge_id", "environment_id", "generation", "input_digest", "integration_id", "kind", "organization_id", "schema_version", "snapshot_id", "source", "workspace_id"}
@@ -100,7 +100,7 @@ func (adapter *Adapter) replaceSnapshot(ctx context.Context, projection graphsto
 		if ctx.Err() != nil {
 			return settledSnapshotResult(ctx, transaction, projection, graphstore.ErrSnapshotCanceled)
 		}
-		if !commitSnapshotTransaction(ctx, transaction) {
+		if !rollbackSnapshotTransaction(ctx, transaction) {
 			return graphstore.DriverSnapshotReplaced{}, graphstore.ErrSnapshotUnknownOutcome
 		}
 		return graphstore.DriverSnapshotReplaced{CandidateSnapshot: projection.Snapshot, ActiveSnapshot: marker.Snapshot, NodeIDs: append([]string(nil), marker.NodeIDs...), EdgeIDs: append([]string(nil), marker.EdgeIDs...), Outcome: graphstore.DriverSnapshotNoMutation}, decision
@@ -112,7 +112,7 @@ func (adapter *Adapter) replaceSnapshot(ctx context.Context, projection graphsto
 		if ctx.Err() != nil {
 			return settledSnapshotResult(ctx, transaction, projection, graphstore.ErrSnapshotCanceled)
 		}
-		if !commitSnapshotTransaction(ctx, transaction) {
+		if !rollbackSnapshotTransaction(ctx, transaction) {
 			return graphstore.DriverSnapshotReplaced{}, graphstore.ErrSnapshotUnknownOutcome
 		}
 		expected.Replayed = true
@@ -203,6 +203,9 @@ func canonicalSnapshotProjection(projection graphstore.DriverSnapshotProjection)
 		edgeIDs[index] = edge.EdgeID
 		edges[index] = map[string]any{"edge_id": edge.EdgeID, "kind": edge.Kind, "source_id": edge.SourceID, "target_id": edge.TargetID}
 	}
+	if binding.ContentDigest != graphstore.CanonicalSnapshotContentDigest(binding, projection.Nodes, projection.Edges) {
+		return nil, graphstore.DriverSnapshotReplaced{}, false
+	}
 	parameters := snapshotParameters(projection)
 	parameters["nodes"] = nodes
 	parameters["edges"] = edges
@@ -228,6 +231,7 @@ func snapshotParameters(projection graphstore.DriverSnapshotProjection) map[stri
 		"input_digest": hex.EncodeToString(binding.InputDigest[:]), "content_digest": hex.EncodeToString(binding.ContentDigest[:]),
 		"node_ids": snapshotNodeIDs(projection), "edge_ids": snapshotEdgeIDs(projection),
 		"nodes": nodes, "edges": edges, "schema_version": schemaVersion,
+		"node_limit": maximumSnapshotNodes + 1, "edge_limit": maximumSnapshotEdges + 1,
 		"zero_digest": hex.EncodeToString(make([]byte, sha256.Size)),
 	}
 }
@@ -280,12 +284,14 @@ func readSnapshotProjection(ctx context.Context, transaction graphTransaction, p
 	if !ok {
 		return graphstore.DriverSnapshotProjection{}, graphstore.ErrSnapshotDrift
 	}
-	nodes, ok := parseSnapshotNodes(record.Values[7], marker.Snapshot)
-	if !ok {
+	nodeCount, nodeCountOK := record.Values[9].(int64)
+	nodes, ok := parseSnapshotNodes(record.Values[10], marker.Snapshot)
+	if !ok || !nodeCountOK || nodeCount < 0 || nodeCount > maximumSnapshotNodes || nodeCount != int64(len(nodes)) {
 		return graphstore.DriverSnapshotProjection{}, graphstore.ErrSnapshotDrift
 	}
-	edges, ok := parseSnapshotEdges(record.Values[8], marker.Snapshot)
-	if !ok {
+	edgeCount, edgeCountOK := record.Values[11].(int64)
+	edges, ok := parseSnapshotEdges(record.Values[12], marker.Snapshot)
+	if !ok || !edgeCountOK || edgeCount < 0 || edgeCount > maximumSnapshotEdges || edgeCount != int64(len(edges)) {
 		return graphstore.DriverSnapshotProjection{}, graphstore.ErrSnapshotDrift
 	}
 	if !slices.Equal(marker.NodeIDs, snapshotNodeIDs(graphstore.DriverSnapshotProjection{Nodes: nodes})) ||
@@ -303,12 +309,15 @@ func parseSnapshotMarker(values []any, binding graphstore.DriverSnapshot) (snaps
 	snapshotID, snapshotOK := values[1].(string)
 	inputText, inputOK := values[2].(string)
 	contentText, contentOK := values[3].(string)
-	nodeIDs, nodeOK := exactSortedProductIDs(values[4])
-	edgeIDs, edgeOK := exactSortedProductIDs(values[5])
-	propertyKeys, propertyOK := exactStringList(values[6])
+	nodeCount, nodeCountOK := values[4].(int64)
+	nodeIDs, nodeOK := exactSortedProductIDs(values[5], maximumSnapshotNodes)
+	edgeCount, edgeCountOK := values[6].(int64)
+	edgeIDs, edgeOK := exactSortedProductIDs(values[7], maximumSnapshotEdges)
+	propertyKeys, propertyOK := exactStringList(values[8])
 	inputDigest, inputDigestOK := decodeSnapshotDigest(inputText)
 	contentDigest, contentDigestOK := decodeSnapshotDigest(contentText)
-	if !generationOK || !snapshotOK || !inputOK || !contentOK || !nodeOK || !edgeOK || !propertyOK || !inputDigestOK || !contentDigestOK ||
+	if !generationOK || !snapshotOK || !inputOK || !contentOK || !nodeCountOK || !nodeOK || !edgeCountOK || !edgeOK || !propertyOK || !inputDigestOK || !contentDigestOK ||
+		nodeCount < 0 || nodeCount > maximumSnapshotNodes || nodeCount != int64(len(nodeIDs)) || edgeCount < 0 || edgeCount > maximumSnapshotEdges || edgeCount != int64(len(edgeIDs)) ||
 		!sameStringSet(propertyKeys, snapshotMarkerProperties) || generation < 0 {
 		return snapshotMarkerState{}, false
 	}
@@ -334,7 +343,7 @@ func parseSnapshotMarker(values []any, binding graphstore.DriverSnapshot) (snaps
 
 func parseSnapshotNodes(value any, binding graphstore.DriverSnapshot) ([]graphstore.DriverSnapshotNode, bool) {
 	items, ok := value.([]any)
-	if !ok {
+	if !ok || len(items) > maximumSnapshotNodes {
 		return nil, false
 	}
 	nodes := make([]graphstore.DriverSnapshotNode, len(items))
@@ -357,7 +366,7 @@ func parseSnapshotNodes(value any, binding graphstore.DriverSnapshot) ([]graphst
 
 func parseSnapshotEdges(value any, binding graphstore.DriverSnapshot) ([]graphstore.DriverSnapshotEdge, bool) {
 	items, ok := value.([]any)
-	if !ok {
+	if !ok || len(items) > maximumSnapshotEdges {
 		return nil, false
 	}
 	edges := make([]graphstore.DriverSnapshotEdge, len(items))
@@ -410,9 +419,9 @@ func exactSnapshotProjection(left, right graphstore.DriverSnapshotProjection) bo
 	return left.Snapshot == right.Snapshot && slices.Equal(left.Nodes, right.Nodes) && slices.Equal(left.Edges, right.Edges)
 }
 
-func exactSortedProductIDs(value any) ([]string, bool) {
+func exactSortedProductIDs(value any, maximum int) ([]string, bool) {
 	items, ok := exactStringList(value)
-	if !ok {
+	if !ok || len(items) > maximum {
 		return nil, false
 	}
 	for index, item := range items {
@@ -483,10 +492,7 @@ func safeSingleRecord(ctx context.Context, result graphResult, keys []string) (r
 }
 
 func settleSnapshotFailure(ctx context.Context, transaction graphTransaction, cause error) error {
-	rollbackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cleanupTimeout)
-	rolledBack := safeRollback(rollbackCtx, transaction)
-	cancel()
-	if !rolledBack {
+	if !rollbackSnapshotTransaction(ctx, transaction) {
 		return graphstore.ErrSnapshotUnknownOutcome
 	}
 	if ctx.Err() != nil || errors.Is(cause, graphstore.ErrSnapshotCanceled) {
@@ -496,6 +502,12 @@ func settleSnapshotFailure(ctx context.Context, transaction graphTransaction, ca
 		return graphstore.ErrSnapshotDrift
 	}
 	return graphstore.ErrSnapshotRetryable
+}
+
+func rollbackSnapshotTransaction(ctx context.Context, transaction graphTransaction) bool {
+	rollbackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cleanupTimeout)
+	defer cancel()
+	return safeRollback(rollbackCtx, transaction)
 }
 
 func settledSnapshotResult(ctx context.Context, transaction graphTransaction, projection graphstore.DriverSnapshotProjection, cause error) (graphstore.DriverSnapshotReplaced, error) {

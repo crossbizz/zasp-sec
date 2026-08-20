@@ -2,12 +2,18 @@ package neo4jstore
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
+	"net/url"
 	"reflect"
+	"regexp"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/neo4j/neo4j-go-driver/v6/neo4j"
+	"github.com/neo4j/neo4j-go-driver/v6/neo4j/auth"
+	"github.com/neo4j/neo4j-go-driver/v6/neo4j/config"
 )
 
 const (
@@ -22,6 +28,8 @@ const (
 	constraintPrefix         = "zasp_graph_"
 	schemaVersion            = int64(1)
 	cleanupTimeout           = 2 * time.Second
+	minimumReadinessTimeout  = 100 * time.Millisecond
+	maximumReadinessTimeout  = 30 * time.Second
 
 	createNodeConstraintQuery           = "CREATE CONSTRAINT zasp_graph_node_identity_v1 IF NOT EXISTS FOR (node:ZaspGraphNode) REQUIRE (node.organization_id, node.workspace_id, node.environment_id, node.node_id) IS UNIQUE"
 	createEdgeConstraintQuery           = "CREATE CONSTRAINT zasp_graph_edge_identity_v1 IF NOT EXISTS FOR ()-[edge:ZASP_GRAPH_EDGE]-() REQUIRE (edge.organization_id, edge.workspace_id, edge.environment_id, edge.edge_id) IS UNIQUE"
@@ -43,6 +51,7 @@ var (
 	snapshotMarkerConstraintProperties = []any{"organization_id", "workspace_id", "environment_id", "integration_id", "source"}
 	snapshotNodeConstraintProperties   = []any{"organization_id", "workspace_id", "environment_id", "integration_id", "source", "node_id"}
 	snapshotEdgeConstraintProperties   = []any{"organization_id", "workspace_id", "environment_id", "integration_id", "source", "edge_id"}
+	productionAuthReferencePattern     = regexp.MustCompile(`^ref:neo4j/auth/[a-z0-9][a-z0-9_./:-]{7,487}$`)
 )
 
 type accessMode uint8
@@ -90,11 +99,148 @@ type Adapter struct {
 	database string
 }
 
-func New(driver neo4j.Driver, database string) (*Adapter, error) {
+// ProductionConfig identifies one verified-TLS Neo4j endpoint and an opaque
+// authentication reference. It never accepts inline credentials.
+type ProductionConfig struct {
+	Endpoint                string
+	AuthenticationReference string
+	ReadinessTimeout        time.Duration
+}
+
+// AuthenticationResolver is the only production authority that may turn the
+// configured opaque reference into a Neo4j authentication manager.
+type AuthenticationResolver interface {
+	ResolveNeo4jAuthentication(context.Context, string) (auth.TokenManager, error)
+}
+
+type productionDriverFactory interface {
+	New(string, auth.TokenManager, ...func(*config.Config)) (neo4j.Driver, error)
+}
+
+type officialDriverFactory struct{}
+
+func (officialDriverFactory) New(endpoint string, manager auth.TokenManager, configurers ...func(*config.Config)) (neo4j.Driver, error) {
+	return neo4j.NewDriver(endpoint, manager, configurers...)
+}
+
+// NewProduction owns endpoint validation, authentication resolution, driver
+// creation, and bounded connectivity/authentication readiness verification.
+func NewProduction(ctx context.Context, production ProductionConfig, resolver AuthenticationResolver) (*Adapter, error) {
+	return newProductionAdapter(ctx, production, resolver, officialDriverFactory{})
+}
+
+func newProductionAdapter(ctx context.Context, production ProductionConfig, resolver AuthenticationResolver, factory productionDriverFactory) (*Adapter, error) {
+	if ctx == nil || ctx.Err() != nil || nilInterface(resolver) || nilInterface(factory) || !validProductionEndpoint(production.Endpoint) ||
+		!productionAuthReferencePattern.MatchString(production.AuthenticationReference) || production.ReadinessTimeout < minimumReadinessTimeout ||
+		production.ReadinessTimeout > maximumReadinessTimeout {
+		return nil, ErrConfiguration
+	}
+	readyCtx, cancel := context.WithTimeout(ctx, production.ReadinessTimeout)
+	defer cancel()
+	manager, err := resolveProductionAuthentication(readyCtx, resolver, production.AuthenticationReference)
+	if err != nil || !authenticatedTokenManager(readyCtx, manager) {
+		return nil, ErrConfiguration
+	}
+	driver, err := newProductionDriver(factory, production.Endpoint, manager)
+	if err != nil || nilInterface(driver) || !encryptedDriver(driver) {
+		closeProductionDriver(readyCtx, driver)
+		return nil, ErrConfiguration
+	}
+	if !verifyProductionDriver(readyCtx, driver) {
+		closeProductionDriver(readyCtx, driver)
+		return nil, ErrConfiguration
+	}
+	return newAdapterForProvider(officialProvider{driver: driver}, databaseName)
+}
+
+func newAdapterForDriver(driver neo4j.Driver, database string) (*Adapter, error) {
 	if nilInterface(driver) || !encryptedDriver(driver) {
 		return nil, ErrConfiguration
 	}
 	return newAdapterForProvider(officialProvider{driver: driver}, database)
+}
+
+func validProductionEndpoint(endpoint string) bool {
+	if len(endpoint) < 1 || len(endpoint) > 2048 || strings.TrimSpace(endpoint) != endpoint {
+		return false
+	}
+	parsed, err := url.Parse(endpoint)
+	if err != nil || parsed == nil || parsed.Opaque != "" || parsed.User != nil || parsed.RawQuery != "" || parsed.ForceQuery || parsed.Fragment != "" ||
+		parsed.Path != "" || parsed.RawPath != "" || parsed.Hostname() == "" {
+		return false
+	}
+	return parsed.Scheme == "neo4j+s" || parsed.Scheme == "bolt+s"
+}
+
+func resolveProductionAuthentication(ctx context.Context, resolver AuthenticationResolver, reference string) (manager auth.TokenManager, err error) {
+	defer func() {
+		if recover() != nil {
+			manager = nil
+			err = ErrConfiguration
+		}
+	}()
+	manager, err = resolver.ResolveNeo4jAuthentication(ctx, reference)
+	if err != nil || nilInterface(manager) {
+		return nil, ErrConfiguration
+	}
+	return manager, nil
+}
+
+func authenticatedTokenManager(ctx context.Context, manager auth.TokenManager) (valid bool) {
+	defer func() {
+		if recover() != nil {
+			valid = false
+		}
+	}()
+	token, err := manager.GetAuthToken(ctx)
+	if err != nil || ctx.Err() != nil || token.Tokens == nil {
+		return false
+	}
+	scheme, schemeOK := token.Tokens["scheme"].(string)
+	credentials, credentialsOK := token.Tokens["credentials"].(string)
+	if !schemeOK || !credentialsOK || len(credentials) < 1 || len(credentials) > 8192 {
+		return false
+	}
+	switch scheme {
+	case "basic":
+		principal, ok := token.Tokens["principal"].(string)
+		return ok && len(principal) >= 1 && len(principal) <= 512
+	case "bearer", "kerberos":
+		return true
+	default:
+		return false
+	}
+}
+
+func newProductionDriver(factory productionDriverFactory, endpoint string, manager auth.TokenManager) (driver neo4j.Driver, err error) {
+	defer func() {
+		if recover() != nil {
+			driver = nil
+			err = ErrConfiguration
+		}
+	}()
+	return factory.New(endpoint, manager, func(driverConfig *config.Config) {
+		driverConfig.TlsConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+	})
+}
+
+func verifyProductionDriver(ctx context.Context, driver neo4j.Driver) (ready bool) {
+	defer func() {
+		if recover() != nil {
+			ready = false
+		}
+	}()
+	return driver.VerifyConnectivity(ctx) == nil && ctx.Err() == nil && driver.VerifyAuthentication(ctx, nil) == nil && ctx.Err() == nil
+}
+
+func closeProductionDriver(ctx context.Context, driver neo4j.Driver) {
+	if nilInterface(driver) {
+		return
+	}
+	closeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cleanupTimeout)
+	defer cancel()
+	defer func() { _ = recover() }()
+	_ = driver.Close(closeCtx)
 }
 
 func newAdapterForProvider(provider sessionProvider, database string) (*Adapter, error) {

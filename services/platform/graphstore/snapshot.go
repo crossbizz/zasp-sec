@@ -238,7 +238,7 @@ func buildDriverSnapshotProjection(snapshot CompleteSnapshot, config Config) (Dr
 		driverEdges[index] = DriverSnapshotEdge{EdgeID: edge.EdgeID.String(), Kind: edge.Kind, SourceID: edge.SourceID.String(), TargetID: edge.TargetID.String()}
 	}
 
-	binding.ContentDigest = graphSnapshotContentDigest(binding, driverNodes, driverEdges)
+	binding.ContentDigest = CanonicalSnapshotContentDigest(binding, driverNodes, driverEdges)
 	for index := range driverNodes {
 		driverNodes[index].Snapshot = binding
 	}
@@ -248,7 +248,9 @@ func buildDriverSnapshotProjection(snapshot CompleteSnapshot, config Config) (Dr
 	return DriverSnapshotProjection{Snapshot: binding, Nodes: driverNodes, Edges: driverEdges}, nodeIDs, edgeIDs, true
 }
 
-func graphSnapshotContentDigest(snapshot DriverSnapshot, nodes []DriverSnapshotNode, edges []DriverSnapshotEdge) [sha256.Size]byte {
+// CanonicalSnapshotContentDigest binds one ordered, complete driver projection.
+// Snapshot drivers must verify this digest before opening an external session.
+func CanonicalSnapshotContentDigest(snapshot DriverSnapshot, nodes []DriverSnapshotNode, edges []DriverSnapshotEdge) [sha256.Size]byte {
 	hasher := sha256.New()
 	writeGraphDigestString(hasher, snapshotContentDigestDomain)
 	writeGraphDigestString(hasher, snapshot.OrganizationID)
