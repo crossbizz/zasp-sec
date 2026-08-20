@@ -142,7 +142,7 @@ func TestProductionDiscoveryExecutionWorkerConstructorsUseSecurityDefinerReadine
 		t.Fatal(err)
 	}
 	defer connection.Close(ctx)
-	migrateToProductionDiscoveryExecution(t, ctx, connection)
+	runner := migrateToProductionDiscoveryExecution(t, ctx, connection)
 
 	const createPrincipals = `
 CREATE ROLE execution_api_login LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
@@ -248,6 +248,27 @@ CREATE ROLE execution_search_login LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATE
 		t.Fatal(err)
 	}
 	assertConstructors(true, "restored v13 authority")
+	if err := runner.UpProductionTypedInventoryCutover(ctx); err != nil {
+		t.Fatalf("typed inventory migration: %v", err)
+	}
+	assertConstructors(true, "exact v14 authority")
+	apiConfiguration, err := pgx.ParseConfig(dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	apiConfiguration.User = "execution_api_login"
+	apiConnection, err := pgx.ConnectConfig(ctx, apiConfiguration)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer apiConnection.Close(context.Background())
+	apiDatabase, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: apiConnection})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if schema, err := apiDatabase.SchemaVersion(ctx); err != nil || schema != TypedInventorySchemaVersion {
+		t.Fatalf("v14 API schema=%q err=%v", schema, err)
+	}
 }
 
 func TestProductionDiscoveryExecutionFingerprintIsStableAcrossMigrationPrincipalAndOwnerReapply(t *testing.T) {

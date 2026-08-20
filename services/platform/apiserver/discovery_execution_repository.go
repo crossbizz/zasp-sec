@@ -31,7 +31,7 @@ const (
 	postgresExecutionClaimDeliverySQL       = `SELECT zasp_execution_claim_delivery($1,$2,$3,$4,$5,$6,$7)`
 	postgresExecutionHeartbeatJobSQL        = `SELECT zasp_execution_heartbeat_job($1,$2,$3,$4,$5,$6,$7)`
 	postgresExecutionCheckpointPartialSQL   = `SELECT zasp_execution_checkpoint_partial($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`
-	postgresExecutionFinishJobSQL           = `SELECT zasp_execution_finish_job($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`
+	postgresExecutionFinishJobSQL           = `SELECT zasp_execution_finish_job($1,$2,$3,$4,$5,$6,$7,$8,NULLIF($9,''),NULLIF($10,''),$11)`
 	postgresExecutionClaimJobsSQL           = `SELECT zasp_execution_claim_jobs($1,$2,$3,$4)`
 	postgresExecutionScheduleInputSQL       = `SELECT zasp_execution_schedule_input($1,$2,$3,$4,$5,$6)`
 	postgresExecutionHeartbeatScheduleSQL   = `SELECT zasp_execution_heartbeat_schedule($1,$2,$3,$4,$5,$6,$7)`
@@ -95,8 +95,13 @@ func discoveryExecutionReady(ctx context.Context, database JSONDatabase) bool {
 	if ctx == nil || ctx.Err() != nil || nilInterface(database) {
 		return false
 	}
-	payload, err := database.QueryJSON(ctx, postgresExecutionReadySQL, migrations.ProductionDiscoveryExecution().Checksum(), migrations.ProductionDiscoveryExecutionSemanticFingerprint())
 	var ready bool
+	payload, err := database.QueryJSON(ctx, postgresInventoryReadinessSQL, migrations.ProductionTypedInventoryCutover().Checksum(), migrations.ProductionTypedInventoryCutoverSemanticFingerprint())
+	if err == nil && decodeStrictDiscovery(payload, &ready) == nil && ready {
+		return true
+	}
+	payload, err = database.QueryJSON(ctx, postgresExecutionReadySQL, migrations.ProductionDiscoveryExecution().Checksum(), migrations.ProductionDiscoveryExecutionSemanticFingerprint())
+	ready = false
 	return err == nil && decodeStrictDiscovery(payload, &ready) == nil && ready
 }
 

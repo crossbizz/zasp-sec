@@ -25,6 +25,69 @@ func migrateToTypedInventoryCutover(t *testing.T, ctx context.Context, connectio
 	return runner
 }
 
+func TestProductionTypedInventoryCutoverPostgresPreservesWorkflowAndRiskMutations(t *testing.T) {
+	dsn := startDisposablePostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	connection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close(context.Background())
+	runner := migrateToTypedInventoryCutover(t, ctx, connection)
+	database, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
+	if err != nil {
+		t.Fatal(err)
+	}
+	repository, err := NewPostgresRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBearerToken
+	policy := json.RawMessage(`{"id":"policy-v14-compatibility","name":"V14 compatibility","scope":"environment","trigger":"tool","conditions":[{"field":"action","operator":"equals","value":"read"}],"action":"monitor","rollout":"draft","failure_mode":"open"}`)
+	workflow, err := repository.MutateWorkflow(ctx, identity, WorkflowMutation{
+		Action: "create", Kind: "policy", ID: "policy-v14-compatibility", Operation: "createPolicy", IdempotencyKey: "aaaaaaaaaaaaaaaa",
+		Intent: json.RawMessage(`{"body":` + string(policy) + `,"expected_version":0,"resource_id":""}`), Body: policy,
+		AuditID: "pid_74000001-0000-4000-8000-000000000001", CorrelationID: "pid_74000002-0000-4000-8000-000000000002",
+	})
+	if err != nil || workflow.Version != 1 || workflow.Replayed {
+		t.Fatalf("v14 workflow mutation=%#v err=%v", workflow, err)
+	}
+	findingID := "pid_74000003-0000-4000-8000-000000000003"
+	seedConnectorRiskFinding(t, ctx, connection, identity, findingID)
+	risk, err := repository.MutateRiskFinding(ctx, identity, RiskFindingMutation{
+		Operation: "updateFinding", FindingID: findingID, IdempotencyKey: "bbbbbbbbbbbbbbbb", ExpectedVersion: 1, Status: "resolved",
+		AuditID: "pid_74000004-0000-4000-8000-000000000004", CorrelationID: "pid_74000005-0000-4000-8000-000000000005",
+	})
+	if err != nil || risk.Version != 2 || risk.Body.Status != "resolved" {
+		t.Fatalf("v14 risk mutation=%#v err=%v", risk, err)
+	}
+	if err := runner.DownProductionTypedInventoryCutover(ctx); err != nil {
+		t.Fatalf("v14 down: %v", err)
+	}
+	repository, err = NewPostgresRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondPolicy := json.RawMessage(`{"id":"policy-v13-restored","name":"V13 restored","scope":"environment","trigger":"tool","conditions":[{"field":"action","operator":"equals","value":"read"}],"action":"monitor","rollout":"draft","failure_mode":"open"}`)
+	workflow, err = repository.MutateWorkflow(ctx, identity, WorkflowMutation{
+		Action: "create", Kind: "policy", ID: "policy-v13-restored", Operation: "createPolicy", IdempotencyKey: "cccccccccccccccc",
+		Intent: json.RawMessage(`{"body":` + string(secondPolicy) + `,"expected_version":0,"resource_id":""}`), Body: secondPolicy,
+		AuditID: "pid_74000006-0000-4000-8000-000000000006", CorrelationID: "pid_74000007-0000-4000-8000-000000000007",
+	})
+	if err != nil || workflow.Version != 1 {
+		t.Fatalf("restored v13 workflow mutation=%#v err=%v", workflow, err)
+	}
+	risk, err = repository.MutateRiskFinding(ctx, identity, RiskFindingMutation{
+		Operation: "updateFinding", FindingID: findingID, IdempotencyKey: "dddddddddddddddd", ExpectedVersion: 2, Status: "open",
+		AuditID: "pid_74000008-0000-4000-8000-000000000008", CorrelationID: "pid_74000009-0000-4000-8000-000000000009",
+	})
+	if err != nil || risk.Version != 3 || risk.Body.Status != "open" {
+		t.Fatalf("restored v13 risk mutation=%#v err=%v", risk, err)
+	}
+}
+
 func TestProductionTypedInventoryCutoverPostgresAppliesExactTypedSnapshot(t *testing.T) {
 	dsn := startDisposablePostgres(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -119,6 +182,10 @@ func TestProductionTypedInventoryCutoverPostgresAppliesExactTypedSnapshot(t *tes
 	inventoryRepository, err := NewPostgresInventoryRepository(database)
 	if err != nil {
 		t.Fatalf("typed repository: %v", err)
+	}
+	home, err := inventoryRepository.GetHomeSummary(ctx, scope)
+	if err != nil || home.AgentCount != 0 || home.HighRiskPaths != 0 || !home.Healthy || home.AttentionRequired {
+		t.Fatalf("typed home = %#v / %v", home, err)
 	}
 	page, err := inventoryRepository.ListInventoryPage(ctx, scope, InventoryKindAsset, "", 100)
 	if err != nil || len(page.Items) != 1 || page.Items[0].ID != entityID || page.NextKey != "" || page.Items[0].EvidenceID != evidenceID || page.Items[0].ConfidenceBasisPoints != 9000 {

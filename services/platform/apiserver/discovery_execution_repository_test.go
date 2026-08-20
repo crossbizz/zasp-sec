@@ -87,9 +87,12 @@ func newTestDiscoveryExecutionRepository(t *testing.T, database *discoveryCallDa
 }
 
 type executionReadinessOnlyDatabase struct {
-	schemaCalls int
-	ready       json.RawMessage
-	principal   json.RawMessage
+	schemaCalls    int
+	inventoryCalls int
+	executionCalls int
+	inventoryReady json.RawMessage
+	ready          json.RawMessage
+	principal      json.RawMessage
 }
 
 func (database *executionReadinessOnlyDatabase) SchemaVersion(context.Context) (string, error) {
@@ -99,12 +102,43 @@ func (database *executionReadinessOnlyDatabase) SchemaVersion(context.Context) (
 
 func (database *executionReadinessOnlyDatabase) QueryJSON(_ context.Context, query string, _ ...any) (json.RawMessage, error) {
 	switch query {
+	case postgresInventoryReadinessSQL:
+		database.inventoryCalls++
+		if database.inventoryReady == nil {
+			return nil, errors.New("typed inventory authority unavailable")
+		}
+		return database.inventoryReady, nil
 	case postgresExecutionReadySQL:
+		database.executionCalls++
 		return database.ready, nil
 	case postgresExecutionPrincipalReadySQL, postgresDiscoveryPrincipalReadySQL:
 		return database.principal, nil
 	default:
 		return nil, errors.New("unexpected query")
+	}
+}
+
+func TestDiscoveryExecutionConstructorsPreferTypedV14Readiness(t *testing.T) {
+	database := &executionReadinessOnlyDatabase{
+		inventoryReady: json.RawMessage(`true`),
+		ready:          json.RawMessage(`false`),
+		principal:      json.RawMessage(`true`),
+	}
+	repository, err := NewDiscoveryExecutionRepository(database, DiscoveryExecutionAuthorityScheduler)
+	if err != nil {
+		t.Fatalf("v14 constructor error=%v", err)
+	}
+	if err := repository.Ready(context.Background()); err != nil {
+		t.Fatalf("v14 Ready() error=%v", err)
+	}
+	if database.schemaCalls != 0 || database.inventoryCalls != 2 || database.executionCalls != 0 {
+		t.Fatalf("readiness calls schema=%d inventory=%d execution=%d", database.schemaCalls, database.inventoryCalls, database.executionCalls)
+	}
+}
+
+func TestDiscoveryExecutionFinishSQLNullsSuccessfulErrorFields(t *testing.T) {
+	if !strings.Contains(postgresExecutionFinishJobSQL, "NULLIF($9,'')") || !strings.Contains(postgresExecutionFinishJobSQL, "NULLIF($10,'')") {
+		t.Fatalf("finish SQL does not preserve nullable success errors: %s", postgresExecutionFinishJobSQL)
 	}
 }
 

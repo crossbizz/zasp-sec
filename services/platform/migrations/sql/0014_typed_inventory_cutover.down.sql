@@ -1,5 +1,5 @@
 DO $semantic_guard$ BEGIN
- IF zasp_inventory_live_fingerprint()<>'593bbe1b461cc872407cf9195092e45f4fdbb0aa2f55517481dfa03fe2169067' OR NOT zasp_inventory_security_ready() THEN
+ IF zasp_inventory_live_fingerprint()<>'707a81d31a7dfd00cf7f5c60c081bf4c567054e7cf761b80cb142855adaacabd' OR NOT zasp_inventory_security_ready() THEN
   RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='typed inventory semantic drift blocks rollback';
  END IF;
  IF EXISTS(SELECT 1 FROM zasp_inventory_cutover_state WHERE phase='cutover') THEN
@@ -46,6 +46,8 @@ DROP TABLE zasp_inventory_identity_bindings;
 DROP TABLE zasp_inventory_identity_rules;
 DROP TABLE zasp_inventory_legacy_restore;
 DROP TABLE zasp_inventory_cutover_state;
+
+REVOKE SELECT ON zasp_risk_attack_paths FROM zasp_discovery_authority;
 
 ALTER TABLE zasp_inventory_evidence
  DROP COLUMN tool_version,

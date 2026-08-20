@@ -25,6 +25,7 @@ func TestProductionTypedInventoryCutoverRegistersImmutableV14Authority(t *testin
 		"zasp_execution_readiness",
 		"SECURITY DEFINER",
 		"SET search_path TO pg_catalog, public",
+		"GRANT EXECUTE ON FUNCTION %s TO zasp_discovery_api,zasp_discovery_worker,zasp_runtime_ingest,zasp_runtime_worker,zasp_outbox_worker,zasp_runtime_gateway,zasp_discovery_scheduler,zasp_projection_risk_worker,zasp_projection_graph_worker,zasp_projection_search_worker",
 	} {
 		if !strings.Contains(metadata.UpSQL(), required) {
 			t.Fatalf("typed inventory migration missing %q", required)
