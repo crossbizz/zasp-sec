@@ -30,6 +30,21 @@ func TestLoadProductionIngestConfigRequiresExactAuthority(t *testing.T) {
 			}
 		})
 	}
+	for _, databaseURL := range []string{
+		"postgres://zasp_runtime_ingest@postgres.internal/zasp",
+		"postgres://zasp_runtime_ingest@postgres.internal/zasp?sslmode=disable",
+		"postgres://zasp_runtime_ingest@postgres.internal/zasp?sslmode=require",
+		"postgres://zasp_runtime_ingest@postgres.internal/zasp?sslmode=verify-full&application_name=event-ingest",
+		"postgres://zasp_runtime_ingest@postgres.internal/zasp?sslmode=verify-full&sslmode=verify-full",
+	} {
+		t.Run(databaseURL, func(t *testing.T) {
+			candidate := validProductionIngestEnvironment()
+			candidate["ZASP_DATABASE_URL"] = databaseURL
+			if _, err := loadProductionIngestConfig(func(name string) string { return candidate[name] }); !errors.Is(err, errRuntimeUnavailable) {
+				t.Fatalf("error=%v", err)
+			}
+		})
+	}
 }
 
 func TestProductionIngestRuntimeGatesRequestsOnCombinedReadiness(t *testing.T) {

@@ -92,7 +92,7 @@ func validProductionIngestConfig(config productionIngestConfig) bool {
 	database, databaseErr := url.Parse(config.DatabaseURL)
 	role := productionRolePattern.FindStringSubmatch(config.RoleARN)
 	kms := productionKMSPattern.FindStringSubmatch(config.KMSKeyARN)
-	return databaseErr == nil && database.String() == config.DatabaseURL && (database.Scheme == "postgres" || database.Scheme == "postgresql") && database.User != nil && database.Hostname() != "" && database.Path != "" && database.Fragment == "" &&
+	return databaseErr == nil && database.String() == config.DatabaseURL && (database.Scheme == "postgres" || database.Scheme == "postgresql") && database.User != nil && database.Hostname() != "" && database.Path != "" && database.Fragment == "" && database.RawQuery == "sslmode=verify-full" &&
 		productionRegionPattern.MatchString(config.Region) && len(role) == 2 && len(kms) == 3 && role[1] == config.ExpectedBucketOwner && kms[1] == config.Region && kms[2] == config.ExpectedBucketOwner &&
 		config.TokenFile == projectedServiceAccountTokenPath && productionBucketPattern.MatchString(config.Bucket) && productionAccountPattern.MatchString(config.ExpectedBucketOwner) &&
 		config.MaximumBytes >= 1<<20 && config.MaximumBytes <= 64<<20 && config.OperationTimeout >= time.Second && config.OperationTimeout <= 30*time.Second && config.ShutdownTimeout >= time.Second && config.ShutdownTimeout <= time.Minute
