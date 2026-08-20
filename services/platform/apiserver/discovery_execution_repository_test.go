@@ -19,8 +19,7 @@ import (
 type blockingDiscoveryExecutionDatabase struct{}
 
 func (*blockingDiscoveryExecutionDatabase) SchemaVersion(ctx context.Context) (string, error) {
-	<-ctx.Done()
-	return "", ctx.Err()
+	return "", errors.New("schema metadata must not be read")
 }
 
 func TestDiscoveryExecutionRepositoryAppliesOnlyLeaseFencedRiskProjectionInput(t *testing.T) {
@@ -63,8 +62,12 @@ func TestDiscoveryExecutionRepositoryAppliesOnlyLeaseFencedRiskProjectionInput(t
 	}
 }
 
-func (*blockingDiscoveryExecutionDatabase) QueryJSON(context.Context, string, ...any) (json.RawMessage, error) {
-	return nil, errors.New("unexpected query")
+func (*blockingDiscoveryExecutionDatabase) QueryJSON(ctx context.Context, query string, _ ...any) (json.RawMessage, error) {
+	if query != postgresExecutionReadySQL {
+		return nil, errors.New("unexpected query")
+	}
+	<-ctx.Done()
+	return nil, ctx.Err()
 }
 
 func (*blockingDiscoveryExecutionDatabase) Exec(context.Context, string, ...any) error {
@@ -81,6 +84,66 @@ func newTestDiscoveryExecutionRepository(t *testing.T, database *discoveryCallDa
 		t.Fatal(err)
 	}
 	return repository
+}
+
+type executionReadinessOnlyDatabase struct {
+	schemaCalls int
+	ready       json.RawMessage
+	principal   json.RawMessage
+}
+
+func (database *executionReadinessOnlyDatabase) SchemaVersion(context.Context) (string, error) {
+	database.schemaCalls++
+	return "", errors.New("permission denied")
+}
+
+func (database *executionReadinessOnlyDatabase) QueryJSON(_ context.Context, query string, _ ...any) (json.RawMessage, error) {
+	switch query {
+	case postgresExecutionReadySQL:
+		return database.ready, nil
+	case postgresExecutionPrincipalReadySQL, postgresDiscoveryPrincipalReadySQL:
+		return database.principal, nil
+	default:
+		return nil, errors.New("unexpected query")
+	}
+}
+
+func (*executionReadinessOnlyDatabase) Exec(context.Context, string, ...any) error {
+	return errors.New("unexpected exec")
+}
+
+func TestDiscoveryExecutionConstructorsUseOnlySecurityDefinerReadiness(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		construct func(JSONDatabase) (interface{ Ready(context.Context) error }, error)
+	}{
+		{
+			name: "scheduler",
+			construct: func(database JSONDatabase) (interface{ Ready(context.Context) error }, error) {
+				return NewDiscoveryExecutionRepository(database, DiscoveryExecutionAuthorityScheduler)
+			},
+		},
+		{
+			name: "outbox",
+			construct: func(database JSONDatabase) (interface{ Ready(context.Context) error }, error) {
+				return NewDiscoveryExecutionOutboxRepository(database)
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			database := &executionReadinessOnlyDatabase{ready: json.RawMessage(`true`), principal: json.RawMessage(`true`)}
+			repository, err := test.construct(database)
+			if err != nil {
+				t.Fatalf("constructor error=%v", err)
+			}
+			if err := repository.Ready(context.Background()); err != nil {
+				t.Fatalf("Ready() error=%v", err)
+			}
+			if database.schemaCalls != 0 {
+				t.Fatalf("direct schema metadata calls=%d", database.schemaCalls)
+			}
+		})
+	}
 }
 
 func TestDiscoveryExecutionRepositoryStrictlyHydratesCollectionInput(t *testing.T) {

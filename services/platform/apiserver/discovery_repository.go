@@ -246,6 +246,25 @@ func NewDiscoveryRepositoryForAuthority(database JSONDatabase, authority string)
 	return newDiscoveryRepositoryForAuthority(database, authority, 5*time.Second)
 }
 
+// NewDiscoveryExecutionOutboxRepository constructs the v13 topic-bound outbox
+// authority without requiring the runtime login to read schema metadata tables.
+func NewDiscoveryExecutionOutboxRepository(database JSONDatabase) (*DiscoveryRepository, error) {
+	if nilInterface(database) {
+		return nil, ErrRepositoryConfiguration
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if !discoveryExecutionReady(ctx, database) {
+		return nil, ErrRepositoryConfiguration
+	}
+	payload, err := database.QueryJSON(ctx, postgresDiscoveryPrincipalReadySQL, DiscoveryDatabaseAuthorityOutbox)
+	var ready bool
+	if err != nil || decodeStrictDiscovery(payload, &ready) != nil || !ready {
+		return nil, ErrRepositoryConfiguration
+	}
+	return &DiscoveryRepository{database: database, schema: DiscoveryExecutionSchemaVersion, authority: DiscoveryDatabaseAuthorityOutbox}, nil
+}
+
 func newDiscoveryRepositoryForAuthority(database JSONDatabase, authority string, readinessTimeout time.Duration) (*DiscoveryRepository, error) {
 	if !stringIn(authority, DiscoveryDatabaseAuthorityAPI, DiscoveryDatabaseAuthorityWorker, DiscoveryDatabaseAuthorityIngest, DiscoveryDatabaseAuthorityRuntime, DiscoveryDatabaseAuthorityOutbox, DiscoveryDatabaseAuthorityGateway) {
 		return nil, ErrRepositoryConfiguration
@@ -272,9 +291,15 @@ func (repository *DiscoveryRepository) Ready(ctx context.Context) error {
 	if !validDiscoveryRepository(repository, ctx) || repository.authority == "" {
 		return ErrRepositoryUnavailable
 	}
-	candidate, err := newDiscoveryRepositoryWithContext(ctx, repository.database)
-	if err != nil || candidate.schema != repository.schema {
-		return ErrRepositoryUnavailable
+	if repository.schema == DiscoveryExecutionSchemaVersion && repository.authority == DiscoveryDatabaseAuthorityOutbox {
+		if !discoveryExecutionReady(ctx, repository.database) {
+			return ErrRepositoryUnavailable
+		}
+	} else {
+		candidate, err := newDiscoveryRepositoryWithContext(ctx, repository.database)
+		if err != nil || candidate.schema != repository.schema {
+			return ErrRepositoryUnavailable
+		}
 	}
 	payload, err := repository.database.QueryJSON(ctx, postgresDiscoveryPrincipalReadySQL, repository.authority)
 	var ready bool

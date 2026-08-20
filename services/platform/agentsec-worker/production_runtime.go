@@ -174,7 +174,7 @@ func composeOutboxWorkerRuntime(config workerRuntimeConfig, database apiserver.J
 	if !validWorkerRuntimeConfig(config) || database == nil || publisher == nil || publisherReady == nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
-	repository, err := apiserver.NewDiscoveryRepositoryForAuthority(database, apiserver.DiscoveryDatabaseAuthorityOutbox)
+	repository, err := apiserver.NewDiscoveryExecutionOutboxRepository(database)
 	if err != nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}

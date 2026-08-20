@@ -133,6 +133,123 @@ func TestProductionDiscoveryExecutionPostgresInstallsExactAuthority(t *testing.T
 	}
 }
 
+func TestProductionDiscoveryExecutionWorkerConstructorsUseSecurityDefinerReadiness(t *testing.T) {
+	dsn := startDisposablePostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	connection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close(ctx)
+	migrateToProductionDiscoveryExecution(t, ctx, connection)
+
+	const createPrincipals = `
+CREATE ROLE execution_api_login LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+CREATE ROLE execution_discovery_login LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+CREATE ROLE execution_ingest_login LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+CREATE ROLE execution_runtime_login LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+CREATE ROLE execution_outbox_login LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+CREATE ROLE execution_gateway_login LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+CREATE ROLE execution_scheduler_login LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+CREATE ROLE execution_risk_login LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+CREATE ROLE execution_graph_login LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+CREATE ROLE execution_search_login LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`
+	if _, err := connection.Exec(ctx, createPrincipals); err != nil {
+		t.Fatal(err)
+	}
+	var registered bool
+	if err := connection.QueryRow(ctx, `SELECT zasp_discovery_register_principals(session_user,'execution_api_login','execution_discovery_login','execution_ingest_login','execution_runtime_login','execution_outbox_login','execution_gateway_login')`).Scan(&registered); err != nil || !registered {
+		t.Fatalf("discovery principal registration=%t err=%v", registered, err)
+	}
+	if err := connection.QueryRow(ctx, `SELECT zasp_execution_register_principals(session_user,'execution_scheduler_login','execution_discovery_login','execution_risk_login','execution_graph_login','execution_search_login')`).Scan(&registered); err != nil || !registered {
+		t.Fatalf("execution principal registration=%t err=%v", registered, err)
+	}
+
+	type constructorCase struct {
+		principal            string
+		deniesSchemaMetadata bool
+		construct            func(JSONDatabase) error
+	}
+	cases := []constructorCase{
+		{principal: "execution_scheduler_login", deniesSchemaMetadata: true, construct: func(database JSONDatabase) error {
+			_, err := NewDiscoveryExecutionRepository(database, DiscoveryExecutionAuthorityScheduler)
+			return err
+		}},
+		{principal: "execution_discovery_login", construct: func(database JSONDatabase) error {
+			_, err := NewDiscoveryExecutionRepository(database, DiscoveryExecutionAuthorityWorker)
+			return err
+		}},
+		{principal: "execution_risk_login", deniesSchemaMetadata: true, construct: func(database JSONDatabase) error {
+			_, err := NewDiscoveryExecutionRepository(database, DiscoveryExecutionAuthorityProjectionRisk)
+			return err
+		}},
+		{principal: "execution_graph_login", deniesSchemaMetadata: true, construct: func(database JSONDatabase) error {
+			_, err := NewDiscoveryExecutionRepository(database, DiscoveryExecutionAuthorityProjectionGraph)
+			return err
+		}},
+		{principal: "execution_search_login", deniesSchemaMetadata: true, construct: func(database JSONDatabase) error {
+			_, err := NewDiscoveryExecutionRepository(database, DiscoveryExecutionAuthorityProjectionSearch)
+			return err
+		}},
+		{principal: "execution_outbox_login", construct: func(database JSONDatabase) error {
+			_, err := NewDiscoveryExecutionOutboxRepository(database)
+			return err
+		}},
+	}
+
+	constructAs := func(test constructorCase) error {
+		configuration, err := pgx.ParseConfig(dsn)
+		if err != nil {
+			return err
+		}
+		configuration.User = test.principal
+		principalConnection, err := pgx.ConnectConfig(ctx, configuration)
+		if err != nil {
+			return err
+		}
+		defer principalConnection.Close(context.Background())
+		var marker string
+		if err := principalConnection.QueryRow(ctx, postgresSchemaMarkerSQL).Scan(&marker); err == nil && test.deniesSchemaMetadata {
+			return fmt.Errorf("%s unexpectedly read schema metadata", test.principal)
+		}
+		database, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: principalConnection})
+		if err != nil {
+			return err
+		}
+		return test.construct(database)
+	}
+	assertConstructors := func(wantReady bool, condition string) {
+		t.Helper()
+		for _, test := range cases {
+			err := constructAs(test)
+			if wantReady && err != nil {
+				t.Fatalf("%s constructor under %s: %v", test.principal, condition, err)
+			}
+			if !wantReady && !errors.Is(err, ErrRepositoryConfiguration) {
+				t.Fatalf("%s constructor under %s error=%v", test.principal, condition, err)
+			}
+		}
+	}
+
+	assertConstructors(true, "exact v13 authority")
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_schema_versions(version,name,checksum) VALUES(14,'hostile_future',repeat('0',64))`); err != nil {
+		t.Fatal(err)
+	}
+	assertConstructors(false, "future schema version")
+	if _, err := connection.Exec(ctx, `DELETE FROM zasp_schema_versions WHERE version=14`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `UPDATE zasp_schema_metadata SET value=repeat('0',64) WHERE key='production_discovery_execution_fingerprint'`); err != nil {
+		t.Fatal(err)
+	}
+	assertConstructors(false, "fingerprint drift")
+	if _, err := connection.Exec(ctx, `UPDATE zasp_schema_metadata SET value=$1 WHERE key='production_discovery_execution_fingerprint'`, migrations.ProductionDiscoveryExecutionSemanticFingerprint()); err != nil {
+		t.Fatal(err)
+	}
+	assertConstructors(true, "restored v13 authority")
+}
+
 func TestProductionDiscoveryExecutionFingerprintIsStableAcrossMigrationPrincipalAndOwnerReapply(t *testing.T) {
 	dsn := startDisposablePostgresAs(t, "zasp_e2e")
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)

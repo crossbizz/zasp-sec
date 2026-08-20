@@ -69,10 +69,6 @@ func newDiscoveryExecutionRepository(database JSONDatabase, authority string, re
 	}
 	probeContext, cancel := context.WithTimeout(context.Background(), readinessTimeout)
 	defer cancel()
-	version, err := database.SchemaVersion(probeContext)
-	if err != nil || version != DiscoveryExecutionSchemaVersion {
-		return nil, ErrRepositoryConfiguration
-	}
 	repository := &DiscoveryExecutionRepository{database: database, authority: authority}
 	if err := repository.Ready(probeContext); err != nil {
 		return nil, ErrRepositoryConfiguration
@@ -84,20 +80,24 @@ func (repository *DiscoveryExecutionRepository) Ready(ctx context.Context) error
 	if !validExecutionRepository(repository, ctx) {
 		return ErrRepositoryUnavailable
 	}
-	version, err := repository.database.SchemaVersion(ctx)
-	if err != nil || version != DiscoveryExecutionSchemaVersion {
+	if !discoveryExecutionReady(ctx, repository.database) {
 		return ErrRepositoryUnavailable
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresExecutionReadySQL, migrations.ProductionDiscoveryExecution().Checksum(), migrations.ProductionDiscoveryExecutionSemanticFingerprint())
+	payload, err := repository.database.QueryJSON(ctx, postgresExecutionPrincipalReadySQL, repository.authority)
 	var ready bool
 	if err != nil || decodeStrictDiscovery(payload, &ready) != nil || !ready {
 		return ErrRepositoryUnavailable
 	}
-	payload, err = repository.database.QueryJSON(ctx, postgresExecutionPrincipalReadySQL, repository.authority)
-	if err != nil || decodeStrictDiscovery(payload, &ready) != nil || !ready {
-		return ErrRepositoryUnavailable
-	}
 	return nil
+}
+
+func discoveryExecutionReady(ctx context.Context, database JSONDatabase) bool {
+	if ctx == nil || ctx.Err() != nil || nilInterface(database) {
+		return false
+	}
+	payload, err := database.QueryJSON(ctx, postgresExecutionReadySQL, migrations.ProductionDiscoveryExecution().Checksum(), migrations.ProductionDiscoveryExecutionSemanticFingerprint())
+	var ready bool
+	return err == nil && decodeStrictDiscovery(payload, &ready) == nil && ready
 }
 
 type ExecutionJobInput struct {
