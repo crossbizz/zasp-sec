@@ -6,6 +6,7 @@ import type { APIClient } from "../../../apps/web/api/client";
 import type { Integration } from "../../../apps/web/api/generated";
 import { APIProvider } from "../../api/APIProvider";
 import { ProductionIntegrationsView } from "./ProductionWorkflowViews";
+import { WorkflowMutationProvider } from "./useRetainedWorkflowMutation";
 
 const integration: Integration = {
   id: "pid_20000001-0000-4000-8000-000000000001",
@@ -41,7 +42,7 @@ describe("production integration deletion", () => {
       .mockResolvedValueOnce({ response: new Response(null, { status: 204, headers: receiptHeaders }) });
     const client = { GET, DELETE } as unknown as APIClient;
 
-    const surface = (canWrite: boolean) => <APIProvider client={client}><ProductionIntegrationsView canWrite={canWrite} /></APIProvider>;
+    const surface = (canWrite: boolean, route: "integrations" | "other" = "integrations") => <APIProvider client={client}><WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a">{route === "integrations" ? <ProductionIntegrationsView canWrite={canWrite} /> : <p>Other route</p>}</WorkflowMutationProvider></APIProvider>;
     const view = render(surface(true));
     await user.click(await screen.findByRole("button", { name: "Open GitHub" }));
     vi.useFakeTimers();
@@ -59,21 +60,28 @@ describe("production integration deletion", () => {
     expect(screen.queryByText(/Integration deleted/)).not.toBeInTheDocument();
     expect(listCalls).toBe(1);
 
+    view.rerender(surface(true, "other"));
+    expect(screen.getByText("Other route")).toBeVisible();
+    expect(DELETE).toHaveBeenCalledTimes(1);
     view.rerender(surface(false));
     expect(screen.getByRole("status")).toHaveTextContent("Provider revocation is pending");
+    expect(screen.queryByText(/The response was lost/)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Retry pending integration deletion" })).not.toBeInTheDocument();
     view.rerender(surface(true));
     const retry = screen.getByRole("button", { name: "Retry pending integration deletion" });
     expect(retry).toBeDisabled();
+    fireEvent.click(retry);
+    expect(DELETE).toHaveBeenCalledTimes(1);
     await act(async () => { await vi.advanceTimersByTimeAsync(1_999); });
     expect(retry).toBeDisabled();
+    expect(DELETE).toHaveBeenCalledTimes(1);
     await act(async () => { await vi.advanceTimersByTimeAsync(1); });
     expect(retry).toBeEnabled();
     await act(async () => { fireEvent.click(retry); });
     vi.useRealTimers();
     expect(await screen.findByRole("status")).toHaveTextContent("Integration deleted. Audit pid_30000001-0000-4000-8000-000000000001");
     expect(screen.queryByRole("dialog", { name: "GitHub" })).not.toBeInTheDocument();
-    await waitFor(() => expect(listCalls).toBe(2));
+    await waitFor(() => expect(listCalls).toBe(3));
     const calls = DELETE.mock.calls as unknown as Array<[string, { params: { header: Record<string, string> } }]>;
     expect(calls).toHaveLength(2);
     expect(new Set(calls.map(([, options]) => options.params.header["Idempotency-Key"])).size).toBe(1);

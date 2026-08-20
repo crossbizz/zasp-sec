@@ -4,8 +4,8 @@ import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { APIProductError, APITransportError } from "../../../apps/web/api/client";
-import type { WorkflowMutationReceipt } from "../../../apps/web/api/generated";
-import type { WorkflowRecoveryAPI } from "./api";
+import type { Integration, WorkflowMutationReceipt } from "../../../apps/web/api/generated";
+import { IntegrationRevocationPending, type WorkflowReceipt, type WorkflowRecoveryAPI } from "./api";
 import { WorkflowMutationProvider, useRetainedWorkflowMutation } from "./useRetainedWorkflowMutation";
 
 type Intent = { name: string };
@@ -29,6 +29,32 @@ function Probe({ operation, name, send, enabled = true, exposeRetry = false }: {
 }
 
 describe("observable scope-owned workflow mutation registry", () => {
+	it("transport-blocks a known pending retry until its scope-owned deadline survives owner remount", async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date("2026-08-19T00:00:00Z"));
+		const receipt: WorkflowReceipt<Integration> = {
+			value: { id: "pid_20000001-0000-4000-8000-000000000001", connector_key: "github", name: "GitHub", configuration: { authorization_mode: "github_app" }, status: "revoking", created_at: "2026-08-19T00:00:00Z", updated_at: "2026-08-19T00:01:00Z" },
+			version: '"2"', auditID: "pid_30000001-0000-4000-8000-000000000001", receiptID: "pid_30000002-0000-4000-8000-000000000002",
+		};
+		const send = vi.fn()
+			.mockRejectedValueOnce(new IntegrationRevocationPending(receipt, 2))
+			.mockResolvedValueOnce("deleted");
+		const surface = (mounted: boolean) => <WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a">{mounted ? <Probe operation="integrations" name="integration" send={send} exposeRetry /> : <p>Other route</p>}</WorkflowMutationProvider>;
+		const view = render(surface(true));
+
+		await act(async () => { screen.getByRole("button", { name: "Start integration" }).click(); });
+		expect(send).toHaveBeenCalledTimes(1);
+		view.rerender(surface(false));
+		view.rerender(surface(true));
+		await act(async () => { screen.getByRole("button", { name: "Force retry integration" }).click(); });
+		expect(send).toHaveBeenCalledTimes(1);
+		await act(async () => { await vi.advanceTimersByTimeAsync(1_999); screen.getByRole("button", { name: "Force retry integration" }).click(); });
+		expect(send).toHaveBeenCalledTimes(1);
+		await act(async () => { await vi.advanceTimersByTimeAsync(1); screen.getByRole("button", { name: "Force retry integration" }).click(); });
+		expect(send).toHaveBeenCalledTimes(2);
+		vi.useRealTimers();
+	});
+
   it("notifies every mounted consumer for in-flight, ambiguous, retried, and cleared transitions", async () => {
     const user = userEvent.setup();
     const request = deferred<string>();

@@ -29,6 +29,11 @@ const productID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[
 export type Versioned<T> = { value: T; version: string };
 export type WorkflowReceipt<T> = Versioned<T> & { auditID: string; receiptID: string };
 export type WorkflowMutationAttempt = Readonly<{ idempotencyKey: string }>;
+export type KnownWorkflowMutationPending = Readonly<{
+  kind: "integration_revocation";
+  receipt: WorkflowReceipt<Integration>;
+  retryNotBefore: number;
+}>;
 export class IntegrationRevocationPending extends Error {
   readonly receipt: WorkflowReceipt<Integration>;
   readonly retryAfterSeconds: number;
@@ -46,6 +51,7 @@ export type RetainedWorkflowMutationController<I> = {
   hasAmbiguousAttempt(): boolean;
   isUnresolved(): boolean;
   canRetry(): boolean;
+  knownPending(): KnownWorkflowMutationPending | null;
   resolveAfterServerReconciliation(): void;
 };
 
@@ -98,7 +104,7 @@ export async function executeWorkflowMutation<T>(send: (attempt: WorkflowMutatio
 }
 
 export function createRetainedWorkflowMutationController<I>(): RetainedWorkflowMutationController<I> {
-  let pending: { attempt: WorkflowMutationAttempt; intent: I; send: (intent: I, attempt: WorkflowMutationAttempt) => Promise<unknown> } | undefined;
+  let pending: { attempt: WorkflowMutationAttempt; intent: I; send: (intent: I, attempt: WorkflowMutationAttempt) => Promise<unknown>; known?: KnownWorkflowMutationPending } | undefined;
   let inFlight: Promise<unknown> | undefined;
   return {
     execute<T>(intent: I, send: (intent: I, attempt: WorkflowMutationAttempt) => Promise<T>): Promise<T> {
@@ -113,7 +119,11 @@ export function createRetainedWorkflowMutationController<I>(): RetainedWorkflowM
       if (inFlight) return inFlight as Promise<T>;
       inFlight = active.send(active.intent, active.attempt).then(
         (result) => { if (pending === active) pending = undefined; return result; },
-        (error: unknown) => { if (!isRetainableWorkflowMutationError(error) && pending === active) pending = undefined; throw error; },
+        (error: unknown) => {
+          if (error instanceof IntegrationRevocationPending && pending === active) active.known = knownIntegrationRevocation(error);
+          if (!isRetainableWorkflowMutationError(error) && pending === active) pending = undefined;
+          throw error;
+        },
       ).finally(() => { inFlight = undefined; });
       return inFlight as Promise<T>;
     },
@@ -122,18 +132,27 @@ export function createRetainedWorkflowMutationController<I>(): RetainedWorkflowM
       const active = pending;
       inFlight = active.send(active.intent, active.attempt).then(
         (result) => { if (pending === active) pending = undefined; return result; },
-        (error: unknown) => { if (!isRetainableWorkflowMutationError(error) && pending === active) pending = undefined; throw error; },
+        (error: unknown) => {
+          if (error instanceof IntegrationRevocationPending && pending === active) active.known = knownIntegrationRevocation(error);
+          if (!isRetainableWorkflowMutationError(error) && pending === active) pending = undefined;
+          throw error;
+        },
       ).finally(() => { inFlight = undefined; });
       return inFlight as Promise<T>;
     },
     hasAmbiguousAttempt() { return pending !== undefined && inFlight === undefined; },
     isUnresolved() { return pending !== undefined; },
     canRetry() { return pending !== undefined && inFlight === undefined; },
+    knownPending() { return pending?.known ?? null; },
     resolveAfterServerReconciliation() {
       if (inFlight) throw new Error("Cannot reconcile a workflow mutation while its request is in flight");
       pending = undefined;
     },
   };
+}
+
+function knownIntegrationRevocation(error: IntegrationRevocationPending): KnownWorkflowMutationPending {
+  return Object.freeze({ kind: "integration_revocation", receipt: error.receipt, retryNotBefore: Date.now() + error.retryAfterSeconds * 1_000 });
 }
 
 function canonicalFrozenIntent<I>(intent: I): I {

@@ -10,6 +10,7 @@ import {
   createRetainedWorkflowMutationController,
   createWorkflowReceiptReconciler,
   createWorkflowRecoveryAPI,
+  type KnownWorkflowMutationPending,
   type WorkflowMutationAttempt,
   type WorkflowRecoveryAPI,
 } from "./api";
@@ -28,6 +29,7 @@ type RecoveryState = {
 type ScopeSnapshot = {
   isUnresolved: boolean;
   canRetry: boolean;
+  knownPending: KnownWorkflowMutationPending | null;
   recovery: RecoveryState | null;
 };
 
@@ -73,7 +75,7 @@ class WorkflowMutationStore {
       || scopeControllers.some((controller) => controller.isUnresolved());
     const owner = operationKey ? this.controllers.get(registryKey(scopeKey, operationKey)) : undefined;
     const canRetry = this.recoveryActivity === 0 && Boolean(owner?.canRetry()) && recovery?.status !== "loading" && recovery?.status !== "error" && !recovery?.receipts.length;
-    return { isUnresolved, canRetry, recovery };
+    return { isUnresolved, canRetry, knownPending: owner?.knownPending() ?? null, recovery };
   }
 
   execute<I, T>(scopeKey: string, operationKey: string, intent: I, send: (intent: I, attempt: WorkflowMutationAttempt) => Promise<T>): Promise<T> {
@@ -97,7 +99,9 @@ class WorkflowMutationStore {
 
   retry<T>(scopeKey: string, operationKey: string): Promise<T> {
     const controller = this.get<unknown>(scopeKey, operationKey);
-    if (!this.snapshot(scopeKey, operationKey).canRetry) return Promise.reject(new Error("No settled ambiguous workflow mutation is available to retry"));
+    const snapshot = this.snapshot(scopeKey, operationKey);
+    if (!snapshot.canRetry) return Promise.reject(new Error("No settled ambiguous workflow mutation is available to retry"));
+    if (snapshot.knownPending && Date.now() < snapshot.knownPending.retryNotBefore) return Promise.reject(new Error("The retained workflow mutation is not ready to retry"));
     const promise = controller.retry<T>();
     this.notify();
     void promise.then(() => this.notify(), () => this.notify());
@@ -306,7 +310,7 @@ export function useRetainedWorkflowMutation<I>(operationKey = "component-local",
     ? store.retry<T>(scopeKey, operationKey)
     : Promise.reject(new Error("The current scope is not authorized to retry this workflow mutation")), [enabled, operationKey, scopeKey, store]);
   const resolveAfterServerReconciliation = useCallback(() => store.resolve(scopeKey, operationKey), [operationKey, scopeKey, store]);
-  return { execute, retry, isUnresolved: snapshot.isUnresolved, canRetry: enabled && snapshot.canRetry, hasAmbiguousAttempt: snapshot.canRetry, resolveAfterServerReconciliation } as const;
+  return { execute, retry, isUnresolved: snapshot.isUnresolved, canRetry: enabled && snapshot.canRetry, hasAmbiguousAttempt: snapshot.canRetry, knownPending: snapshot.knownPending, retryNotBefore: snapshot.knownPending?.retryNotBefore ?? null, resolveAfterServerReconciliation } as const;
 }
 
 function WorkflowRecoveryPanel({ store, scopeKey }: { store: WorkflowMutationStore; scopeKey: string }) {
