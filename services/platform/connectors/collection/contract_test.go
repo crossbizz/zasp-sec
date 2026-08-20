@@ -3,11 +3,62 @@ package collection
 import (
 	"context"
 	"errors"
+	"fmt"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
+
+func TestResultsMustMatchTheExactRequestedProviderSubject(t *testing.T) {
+	for _, provider := range []Provider{ProviderAWS, ProviderKubernetes, ProviderGitHub, ProviderOkta} {
+		request := validRequest(t, provider, credentialForProvider(provider))
+		manifest := validManifest(t, request)
+		wrong := subjectForProvider(provider)
+		switch provider {
+		case ProviderAWS:
+			wrong.ID = "210987654321"
+		case ProviderKubernetes:
+			wrong.ID = "cluster.example/other"
+		case ProviderGitHub:
+			wrong.ID = "654321"
+		case ProviderOkta:
+			wrong.ID = "other.okta.com"
+		}
+		candidate, err := NewSnapshotCandidate(provider, request.ParserVersion, request.ToolVersion, []byte(`[]`), []byte(`[]`), []byte(`[]`))
+		if err != nil {
+			t.Fatalf("%s NewSnapshotCandidate: %v", provider, err)
+		}
+		if _, err := NewCompleteResult(request, wrong, Cursor{Provider: provider, Version: "cursor_v1", Value: "next"}, manifest, candidate); !errors.Is(err, ErrContract) {
+			t.Fatalf("%s accepted a different provider subject: %v", provider, err)
+		}
+		if _, err := NewPartialResult(request, wrong, Cursor{Provider: provider, Version: "cursor_v1", Value: "next"}, manifest, FailurePartial); !errors.Is(err, ErrContract) {
+			t.Fatalf("%s partial accepted a different provider subject: %v", provider, err)
+		}
+	}
+}
+
+func TestProviderSubjectsUseExactProviderGrammar(t *testing.T) {
+	invalid := map[Provider][]string{
+		ProviderAWS:        {"123", "12345678901x"},
+		ProviderKubernetes: {"https://cluster.example", "cluster example/customer"},
+		ProviderGitHub:     {"0", "01", "installation-123"},
+		ProviderOkta:       {"https://acme.okta.com", "ACME.okta.com"},
+	}
+	for provider, ids := range invalid {
+		request := validRequest(t, provider, credentialForProvider(provider))
+		manifest := validManifest(t, request)
+		for _, id := range ids {
+			binding := subjectForProvider(provider)
+			binding.ID = id
+			if _, err := NewPartialResult(request, binding, Cursor{Provider: provider, Version: "cursor_v1", Value: "next"}, manifest, FailurePartial); !errors.Is(err, ErrContract) {
+				t.Fatalf("%s accepted subject %q: %v", provider, id, err)
+			}
+		}
+	}
+}
 
 func TestCompleteAndPartialResultsAreStructurallyDisjoint(t *testing.T) {
 	request := validRequest(t, ProviderAWS, CredentialAWSAssumeRole)
@@ -42,6 +93,72 @@ func TestCompleteAndPartialResultsAreStructurallyDisjoint(t *testing.T) {
 	}
 	if _, err := NewSnapshotCandidate(ProviderAWS, "parser_v1", "tool_v1", []byte(`[{ "id":"pid_10000005-0000-4000-8000-000000000005"}]`), []byte(`[]`), []byte(`[]`)); !errors.Is(err, ErrContract) {
 		t.Fatalf("non-canonical snapshot accepted: %v", err)
+	}
+}
+
+func TestRawManifestRejectsUnversionedOrUnscopedArtifactBindings(t *testing.T) {
+	request := validRequest(t, ProviderAWS, CredentialAWSAssumeRole)
+	object := RawObject{
+		reference: mustEvidenceRef(t, "pid_10000006-0000-4000-8000-000000000006"),
+		checksum:  [32]byte{1}, size: 128, mediaType: "application/json", schema: "raw_v1",
+		parser: request.ParserVersion, tool: request.ToolVersion,
+	}
+	manifest := RawObject{
+		reference: mustEvidenceRef(t, "pid_10000007-0000-4000-8000-000000000007"),
+		checksum:  [32]byte{2}, size: 256, mediaType: "application/json", schema: "manifest_v1",
+		parser: request.ParserVersion, tool: request.ToolVersion,
+	}
+	if _, err := NewRawManifest(manifest, []RawObject{object}); !errors.Is(err, ErrContract) {
+		t.Fatalf("unversioned and unscoped manifest accepted: %v", err)
+	}
+}
+
+func TestSnapshotEvidenceMustBeAnExactManifestArtifactMember(t *testing.T) {
+	request := validRequest(t, ProviderAWS, CredentialAWSAssumeRole)
+	manifest := validManifest(t, request)
+	entities := []byte(`[{"id":"pid_10000005-0000-4000-8000-000000000005","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{},"attributes":{}}]`)
+	exactObjectReference := "s3://zasp-evidence/organizations/pid_10000010-0000-4000-8000-000000000010/workspaces/pid_10000011-0000-4000-8000-000000000011/environments/pid_10000012-0000-4000-8000-000000000012/artifacts/pid_10000006-0000-4000-8000-000000000006"
+	candidate, err := NewSnapshotCandidate(ProviderAWS, request.ParserVersion, request.ToolVersion, entities, []byte(`[]`), evidenceForArtifactBinding(exactObjectReference, "s3-version-object-1"))
+	if err != nil {
+		t.Fatalf("NewSnapshotCandidate exact: %v", err)
+	}
+	if _, err := NewCompleteResult(request, request.ExpectedSubject, Cursor{Provider: ProviderAWS, Version: "cursor_v1", Value: "next"}, manifest, candidate); err != nil {
+		t.Fatalf("exact manifest membership rejected: %v", err)
+	}
+	candidate, err = NewSnapshotCandidate(ProviderAWS, request.ParserVersion, request.ToolVersion, entities, []byte(`[]`), evidenceForArtifactBinding(exactObjectReference, "wrong-version"))
+	if err != nil {
+		t.Fatalf("NewSnapshotCandidate: %v", err)
+	}
+	if _, err := NewCompleteResult(request, request.ExpectedSubject, Cursor{Provider: ProviderAWS, Version: "cursor_v1", Value: "next"}, manifest, candidate); !errors.Is(err, ErrContract) {
+		t.Fatalf("evidence outside exact manifest membership accepted: %v", err)
+	}
+	candidate, err = NewSnapshotCandidate(ProviderAWS, request.ParserVersion, request.ToolVersion, entities, []byte(`[]`), evidenceForArtifactBinding("s3://other-bucket/organizations/pid_10000010-0000-4000-8000-000000000010/workspaces/pid_10000011-0000-4000-8000-000000000011/environments/pid_10000012-0000-4000-8000-000000000012/artifacts/pid_10000006-0000-4000-8000-000000000006", "s3-version-object-1"))
+	if err != nil {
+		t.Fatalf("NewSnapshotCandidate wrong object reference: %v", err)
+	}
+	if _, err := NewCompleteResult(request, request.ExpectedSubject, Cursor{Provider: ProviderAWS, Version: "cursor_v1", Value: "next"}, manifest, candidate); !errors.Is(err, ErrContract) {
+		t.Fatalf("evidence with mismatched object reference accepted: %v", err)
+	}
+}
+
+func evidenceForArtifactBinding(objectReference, version string) []byte {
+	return []byte(fmt.Sprintf(`[{"id":"pid_10000009-0000-4000-8000-000000000009","entity_id":"pid_10000005-0000-4000-8000-000000000005","object_reference":%q,"artifact_reference":"pid_10000006-0000-4000-8000-000000000006","artifact_key":"organizations/pid_10000010-0000-4000-8000-000000000010/workspaces/pid_10000011-0000-4000-8000-000000000011/environments/pid_10000012-0000-4000-8000-000000000012/artifacts/pid_10000006-0000-4000-8000-000000000006","artifact_version_id":%q,"checksum_hex":"0100000000000000000000000000000000000000000000000000000000000000","size_bytes":128,"media_type":"application/json","schema_version":"raw_v1","parser_version":"parser_v1","tool_version":"tool_v1"}]`, objectReference, version))
+}
+
+func TestPartialResultRejectsCrossScopeManifest(t *testing.T) {
+	request := validRequest(t, ProviderAWS, CredentialAWSAssumeRole)
+	manifest := validManifest(t, request)
+	otherScope, err := domain.NewScope(
+		mustID(t, "pid_10000020-0000-4000-8000-000000000020"),
+		mustID(t, "pid_10000021-0000-4000-8000-000000000021"),
+		mustID(t, "pid_10000022-0000-4000-8000-000000000022"),
+	)
+	if err != nil {
+		t.Fatalf("NewScope: %v", err)
+	}
+	request.Scope = otherScope
+	if _, err := NewPartialResult(request, request.ExpectedSubject, Cursor{Provider: ProviderAWS, Version: "cursor_v1", Value: "next"}, manifest, FailurePartial); !errors.Is(err, ErrContract) {
+		t.Fatalf("cross-scope manifest accepted: %v", err)
 	}
 }
 
@@ -175,7 +292,7 @@ func TestWorkerCredentialMaterialIsReferenceBoundAndZeroizedAfterUse(t *testing.
 	credentialRequest := CredentialRequest{
 		Scope: request.Scope, IntegrationID: request.IntegrationID, ConnectionID: request.ConnectionID,
 		JobID: request.JobID, Attempt: request.Attempt, Provider: request.Provider,
-		Class: request.CredentialClass, Reference: request.CredentialReference,
+		Class: request.CredentialClass, Reference: request.CredentialReference, ExpectedSubject: request.ExpectedSubject,
 	}
 	if _, err := NewCredentialMaterial(credentialRequest, []byte("already-expired"), time.Now().Add(-time.Second)); !errors.Is(err, ErrCredential) {
 		t.Fatalf("expired material accepted: %v", err)
@@ -267,7 +384,7 @@ func TestProviderAdapterResolvesOnlyTheExactWorkerCredentialAndZeroizesBorrow(t 
 
 func TestProviderAdapterDestroysMaterialReturnedWithResolverFailure(t *testing.T) {
 	request := validRequest(t, ProviderAWS, CredentialAWSAssumeRole)
-	credentialRequest := CredentialRequest{Scope: request.Scope, IntegrationID: request.IntegrationID, ConnectionID: request.ConnectionID, JobID: request.JobID, Attempt: request.Attempt, Provider: request.Provider, Class: request.CredentialClass, Reference: request.CredentialReference}
+	credentialRequest := CredentialRequest{Scope: request.Scope, IntegrationID: request.IntegrationID, ConnectionID: request.ConnectionID, JobID: request.JobID, Attempt: request.Attempt, Provider: request.Provider, Class: request.CredentialClass, Reference: request.CredentialReference, ExpectedSubject: request.ExpectedSubject}
 	material, err := NewCredentialMaterial(credentialRequest, []byte("ephemeral-provider-credential"), time.Now().Add(time.Hour))
 	if err != nil {
 		t.Fatalf("NewCredentialMaterial: %v", err)
@@ -287,6 +404,176 @@ func TestProviderAdapterDestroysMaterialReturnedWithResolverFailure(t *testing.T
 	}
 	if err := material.Use(credentialRequest, func([]byte) error { return nil }); !errors.Is(err, ErrCredential) {
 		t.Fatalf("failed resolver material remained usable: %v", err)
+	}
+}
+
+func TestProviderAdapterRejectsHostileClientOutcomeBeforeReturningIt(t *testing.T) {
+	request := validRequest(t, ProviderAWS, CredentialAWSAssumeRole)
+	credentialRequest := credentialRequestFor(request)
+	adapter, err := NewProviderAdapter(ProviderAWS, CredentialAWSAssumeRole, resolverFunc(func(context.Context, CredentialRequest) (*CredentialMaterial, error) {
+		return NewCredentialMaterial(credentialRequest, []byte("ephemeral-provider-credential"), time.Now().Add(time.Hour))
+	}), providerClientFunc(func(context.Context, Request, []byte) (Outcome, error) {
+		return PartialResult{}, nil
+	}))
+	if err != nil {
+		t.Fatalf("NewProviderAdapter: %v", err)
+	}
+	if _, err := adapter.Collect(context.Background(), request); !errors.Is(err, ErrContract) {
+		t.Fatalf("hostile client outcome returned: %v", err)
+	}
+}
+
+func TestProviderAdapterClonesValidatedClientOutcome(t *testing.T) {
+	request := validRequest(t, ProviderAWS, CredentialAWSAssumeRole)
+	credentialRequest := credentialRequestFor(request)
+	partial, err := NewPartialResult(request, request.ExpectedSubject, Cursor{Provider: ProviderAWS, Version: "cursor_v1", Value: "next"}, validManifest(t, request), FailurePartial)
+	if err != nil {
+		t.Fatalf("NewPartialResult: %v", err)
+	}
+	adapter, err := NewProviderAdapter(ProviderAWS, CredentialAWSAssumeRole, resolverFunc(func(context.Context, CredentialRequest) (*CredentialMaterial, error) {
+		return NewCredentialMaterial(credentialRequest, []byte("ephemeral-provider-credential"), time.Now().Add(time.Hour))
+	}), providerClientFunc(func(context.Context, Request, []byte) (Outcome, error) {
+		return partial, nil
+	}))
+	if err != nil {
+		t.Fatalf("NewProviderAdapter: %v", err)
+	}
+	outcome, err := adapter.Collect(context.Background(), request)
+	if err != nil {
+		t.Fatalf("Collect: %v", err)
+	}
+	partial.manifest.objects[0].versionID = "mutated-after-return"
+	returned, ok := outcome.(PartialResult)
+	if !ok || returned.Manifest().Objects()[0].VersionID() != "s3-version-object-1" {
+		t.Fatalf("adapter returned mutable provider outcome: %#v", outcome)
+	}
+}
+
+func TestCollectionCancellationAndDeadlineHaveStableFailureCodes(t *testing.T) {
+	request := validRequest(t, ProviderAWS, CredentialAWSAssumeRole)
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	adapter, err := NewProviderAdapter(ProviderAWS, CredentialAWSAssumeRole, resolverFunc(func(context.Context, CredentialRequest) (*CredentialMaterial, error) {
+		t.Fatal("resolver called for cancelled collection")
+		return nil, nil
+	}), providerClientFunc(func(context.Context, Request, []byte) (Outcome, error) {
+		t.Fatal("provider called for cancelled collection")
+		return nil, nil
+	}))
+	if err != nil {
+		t.Fatalf("NewProviderAdapter: %v", err)
+	}
+	if _, err := adapter.Collect(cancelled, request); failureCode(err) != FailureCancelled {
+		t.Fatalf("cancelled collection error = %v", err)
+	}
+
+	request.Bounds.Timeout = 100 * time.Millisecond
+	adapter, err = NewProviderAdapter(ProviderAWS, CredentialAWSAssumeRole, resolverFunc(func(ctx context.Context, _ CredentialRequest) (*CredentialMaterial, error) {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}), providerClientFunc(func(context.Context, Request, []byte) (Outcome, error) {
+		t.Fatal("provider called after resolver deadline")
+		return nil, nil
+	}))
+	if err != nil {
+		t.Fatalf("NewProviderAdapter deadline: %v", err)
+	}
+	if _, err := adapter.Collect(context.Background(), request); failureCode(err) != FailureRetryable {
+		t.Fatalf("deadline collection error = %v", err)
+	}
+}
+
+func TestRegistryMapsCollectorCancellationAndDeadline(t *testing.T) {
+	request := validRequest(t, ProviderAWS, CredentialAWSAssumeRole)
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	registrations := validRegistrations(t, collectorFunc(func(context.Context, Request) (Outcome, error) {
+		t.Fatal("collector called for an already-cancelled request")
+		return nil, nil
+	}))
+	registry, err := NewRegistry(registrations)
+	if err != nil {
+		t.Fatalf("NewRegistry: %v", err)
+	}
+	if _, err := registry.Collect(cancelled, request); failureCode(err) != FailureCancelled {
+		t.Fatalf("cancelled registry collection error = %v", err)
+	}
+
+	registrations = validRegistrations(t, collectorFunc(func(ctx context.Context, _ Request) (Outcome, error) {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}))
+	registry, err = NewRegistry(registrations)
+	if err != nil {
+		t.Fatalf("NewRegistry deadline: %v", err)
+	}
+	deadline, deadlineCancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer deadlineCancel()
+	if _, err := registry.Collect(deadline, request); failureCode(err) != FailureRetryable {
+		t.Fatalf("deadline registry collection error = %v", err)
+	}
+}
+
+func TestReadinessIsSingleFlightAndRegistryOwnsTimestamp(t *testing.T) {
+	var calls atomic.Int32
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	registrations := validRegistrations(t, collectorFunc(func(context.Context, Request) (Outcome, error) { return nil, nil }))
+	registrations[0].Readiness = readinessFunc(func(context.Context) Readiness {
+		if calls.Add(1) == 1 {
+			close(entered)
+		}
+		<-release
+		return Readiness{Provider: ProviderAWS, CollectorVersion: "collector_v1", Ready: true, Code: ReadinessReady, CheckedAt: time.Date(1999, 1, 1, 0, 0, 0, 0, time.FixedZone("hostile", 3600))}
+	})
+	registry, err := NewRegistry(registrations)
+	if err != nil {
+		t.Fatalf("NewRegistry: %v", err)
+	}
+	startedAt := time.Now().UTC()
+	results := make(chan Readiness, 8)
+	var group sync.WaitGroup
+	for range 8 {
+		group.Add(1)
+		go func() {
+			defer group.Done()
+			results <- registry.CheckReadiness(context.Background(), ProviderAWS, "collector_v1")
+		}()
+	}
+	<-entered
+	time.Sleep(25 * time.Millisecond)
+	close(release)
+	group.Wait()
+	close(results)
+	if got := calls.Load(); got != 1 {
+		t.Fatalf("concurrent readiness probes = %d, want 1", got)
+	}
+	var checkedAt time.Time
+	for status := range results {
+		if !status.Ready || status.Code != ReadinessReady || status.CheckedAt.Before(startedAt) || status.CheckedAt.Location() != time.UTC {
+			t.Fatalf("registry readiness = %#v", status)
+		}
+		if checkedAt.IsZero() {
+			checkedAt = status.CheckedAt
+		} else if status.CheckedAt != checkedAt {
+			t.Fatalf("single flight returned different timestamps: %s != %s", status.CheckedAt, checkedAt)
+		}
+	}
+}
+
+func failureCode(err error) FailureCode {
+	var failure *Failure
+	if errors.As(err, &failure) {
+		return failure.Code()
+	}
+	return ""
+}
+
+func credentialRequestFor(request Request) CredentialRequest {
+	return CredentialRequest{
+		Scope: request.Scope, IntegrationID: request.IntegrationID, ConnectionID: request.ConnectionID,
+		JobID: request.JobID, Attempt: request.Attempt, Provider: request.Provider,
+		Class: request.CredentialClass, Reference: request.CredentialReference, ExpectedSubject: request.ExpectedSubject,
 	}
 }
 
@@ -364,6 +651,7 @@ func validRequest(t *testing.T, provider Provider, class CredentialClass) Reques
 		ConnectionID: mustID(t, "pid_10000002-0000-4000-8000-000000000002"), JobID: mustID(t, "pid_10000003-0000-4000-8000-000000000003"),
 		Attempt: 1, Provider: provider, CollectorVersion: "collector_v1", CredentialClass: class,
 		CredentialReference: "ref:" + string(provider) + "/connection/customer-0001",
+		ExpectedSubject:     subjectForProvider(provider),
 		Cursor:              Cursor{Provider: provider, Version: "cursor_v1", Value: "initial"}, ParserVersion: "parser_v1", ToolVersion: "tool_v1",
 		Bounds: Bounds{MaxPages: 10, MaxItems: 1000, MaxRawBytes: 8 * 1024 * 1024, Timeout: 30 * time.Second},
 	}
@@ -371,11 +659,15 @@ func validRequest(t *testing.T, provider Provider, class CredentialClass) Reques
 
 func validManifest(t *testing.T, request Request) RawManifest {
 	t.Helper()
-	object, err := NewRawObject(mustEvidenceRef(t, "pid_10000006-0000-4000-8000-000000000006"), [32]byte{1}, 128, "application/json", "raw_v1", request.ParserVersion, request.ToolVersion)
+	objectReference := mustEvidenceRef(t, "pid_10000006-0000-4000-8000-000000000006")
+	objectKey := "organizations/pid_10000010-0000-4000-8000-000000000010/workspaces/pid_10000011-0000-4000-8000-000000000011/environments/pid_10000012-0000-4000-8000-000000000012/artifacts/pid_10000006-0000-4000-8000-000000000006"
+	object, err := NewRawObject(request.Scope, objectReference, objectKey, "s3-version-object-1", "s3://zasp-evidence/"+objectKey, [32]byte{1}, 128, "application/json", "raw_v1", request.ParserVersion, request.ToolVersion)
 	if err != nil {
 		t.Fatalf("NewRawObject: %v", err)
 	}
-	manifestObject, err := NewRawObject(mustEvidenceRef(t, "pid_10000007-0000-4000-8000-000000000007"), [32]byte{2}, 256, "application/json", "manifest_v1", request.ParserVersion, request.ToolVersion)
+	manifestReference := mustEvidenceRef(t, "pid_10000007-0000-4000-8000-000000000007")
+	manifestKey := "organizations/pid_10000010-0000-4000-8000-000000000010/workspaces/pid_10000011-0000-4000-8000-000000000011/environments/pid_10000012-0000-4000-8000-000000000012/artifacts/pid_10000007-0000-4000-8000-000000000007"
+	manifestObject, err := NewRawObject(request.Scope, manifestReference, manifestKey, "s3-version-manifest-1", "s3://zasp-evidence/"+manifestKey, [32]byte{2}, 256, "application/json", "manifest_v1", request.ParserVersion, request.ToolVersion)
 	if err != nil {
 		t.Fatalf("NewRawObject manifest: %v", err)
 	}

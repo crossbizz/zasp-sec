@@ -11,6 +11,7 @@ import (
 	"errors"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -28,12 +29,14 @@ const (
 )
 
 var (
-	ErrContract      = errors.New("collection contract rejected")
-	ErrCredential    = errors.New("collection credential rejected")
-	versionPattern   = regexp.MustCompile(`^[a-z][a-z0-9_.-]{1,63}$`)
-	tokenPattern     = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
-	checksumPattern  = regexp.MustCompile(`^[0-9a-f]{64}$`)
-	referencePattern = regexp.MustCompile(`^ref:(aws|kubernetes|github|okta)/[a-z0-9][a-z0-9_./:-]{7,507}$`)
+	ErrContract              = errors.New("collection contract rejected")
+	ErrCredential            = errors.New("collection credential rejected")
+	versionPattern           = regexp.MustCompile(`^[a-z][a-z0-9_.-]{1,63}$`)
+	tokenPattern             = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
+	checksumPattern          = regexp.MustCompile(`^[0-9a-f]{64}$`)
+	referencePattern         = regexp.MustCompile(`^ref:(aws|kubernetes|github|okta)/[a-z0-9][a-z0-9_./:-]{7,507}$`)
+	awsSubjectPattern        = regexp.MustCompile(`^[0-9]{12}$`)
+	kubernetesSubjectPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9.-]{0,252}/[a-z0-9][a-z0-9._-]{0,127}$`)
 )
 
 type Provider string
@@ -117,6 +120,7 @@ type Request struct {
 	CollectorVersion    string
 	CredentialClass     CredentialClass
 	CredentialReference string
+	ExpectedSubject     SubjectBinding
 	Cursor              Cursor
 	ParserVersion       string
 	ToolVersion         string
@@ -128,7 +132,7 @@ func (request Request) Validate() error {
 		request.IntegrationID == request.ConnectionID || request.IntegrationID == request.JobID || request.ConnectionID == request.JobID ||
 		request.Attempt < 1 || request.Attempt > 100 || !request.Provider.valid() || !versionPattern.MatchString(request.CollectorVersion) ||
 		!credentialMatchesProvider(request.CredentialClass, request.Provider) || !validCredentialReference(request.Provider, request.CredentialReference) ||
-		!request.Cursor.valid(request.Provider) || !versionPattern.MatchString(request.ParserVersion) || !versionPattern.MatchString(request.ToolVersion) || !request.Bounds.valid() {
+		!request.ExpectedSubject.valid(request.Provider) || !request.Cursor.valid(request.Provider) || !versionPattern.MatchString(request.ParserVersion) || !versionPattern.MatchString(request.ToolVersion) || !request.Bounds.valid() {
 		return ErrContract
 	}
 	return nil
@@ -141,28 +145,54 @@ type SubjectBinding struct {
 
 func (binding SubjectBinding) valid(provider Provider) bool {
 	want := map[Provider]string{ProviderAWS: "aws_account", ProviderKubernetes: "kubernetes_cluster", ProviderGitHub: "github_installation", ProviderOkta: "okta_tenant"}[provider]
-	return binding.Kind == want && boundedText(binding.ID, 512)
+	if binding.Kind != want || !boundedText(binding.ID, 512) {
+		return false
+	}
+	switch provider {
+	case ProviderAWS:
+		return awsSubjectPattern.MatchString(binding.ID)
+	case ProviderKubernetes:
+		return kubernetesSubjectPattern.MatchString(binding.ID) && !strings.Contains(binding.ID, "..")
+	case ProviderGitHub:
+		if binding.ID == "0" || strings.HasPrefix(binding.ID, "0") {
+			return false
+		}
+		_, err := strconv.ParseUint(binding.ID, 10, 64)
+		return err == nil
+	case ProviderOkta:
+		return validDNSName(binding.ID)
+	default:
+		return false
+	}
 }
 
 type RawObject struct {
-	reference domain.EvidenceRef
-	checksum  [sha256.Size]byte
-	size      int64
-	mediaType string
-	schema    string
-	parser    string
-	tool      string
+	scope           domain.Scope
+	reference       domain.EvidenceRef
+	key             string
+	versionID       string
+	objectReference string
+	checksum        [sha256.Size]byte
+	size            int64
+	mediaType       string
+	schema          string
+	parser          string
+	tool            string
 }
 
-func NewRawObject(reference domain.EvidenceRef, checksum [sha256.Size]byte, size int64, mediaType, schemaVersion, parserVersion, toolVersion string) (RawObject, error) {
-	value := RawObject{reference: reference, checksum: checksum, size: size, mediaType: mediaType, schema: schemaVersion, parser: parserVersion, tool: toolVersion}
+func NewRawObject(scope domain.Scope, reference domain.EvidenceRef, key, versionID, objectReference string, checksum [sha256.Size]byte, size int64, mediaType, schemaVersion, parserVersion, toolVersion string) (RawObject, error) {
+	value := RawObject{scope: scope, reference: reference, key: key, versionID: versionID, objectReference: objectReference, checksum: checksum, size: size, mediaType: mediaType, schema: schemaVersion, parser: parserVersion, tool: toolVersion}
 	if !value.valid() {
 		return RawObject{}, ErrContract
 	}
 	return value, nil
 }
 
+func (object RawObject) Scope() domain.Scope           { return object.scope }
 func (object RawObject) Reference() domain.EvidenceRef { return object.reference }
+func (object RawObject) Key() string                   { return object.key }
+func (object RawObject) VersionID() string             { return object.versionID }
+func (object RawObject) ObjectReference() string       { return object.objectReference }
 func (object RawObject) Checksum() [sha256.Size]byte   { return object.checksum }
 func (object RawObject) Size() int64                   { return object.size }
 func (object RawObject) MediaType() string             { return object.mediaType }
@@ -171,7 +201,8 @@ func (object RawObject) ParserVersion() string         { return object.parser }
 func (object RawObject) ToolVersion() string           { return object.tool }
 
 func (object RawObject) valid() bool {
-	return object.reference.Validate() == nil && object.checksum != ([sha256.Size]byte{}) && object.size >= 1 && object.size <= maximumRawBytes &&
+	return object.scope.Validate() == nil && object.reference.Validate() == nil && object.key == artifactKey(object.scope, object.reference) && validArtifactVersionID(object.versionID) && validS3ObjectReference(object.objectReference, object.key) &&
+		object.checksum != ([sha256.Size]byte{}) && object.size >= 1 && object.size <= maximumRawBytes &&
 		validMediaType(object.mediaType) && versionPattern.MatchString(object.schema) && versionPattern.MatchString(object.parser) && versionPattern.MatchString(object.tool)
 }
 
@@ -200,7 +231,7 @@ func (manifest RawManifest) valid() bool {
 	last := ""
 	for _, object := range manifest.objects {
 		current := object.reference.String()
-		if !object.valid() || current <= last || current == manifest.manifest.reference.String() {
+		if !object.valid() || object.scope != manifest.manifest.scope || current <= last || current == manifest.manifest.reference.String() {
 			return false
 		}
 		last = current
@@ -218,6 +249,7 @@ type SnapshotCandidate struct {
 	entityCount   int
 	relationCount int
 	evidenceCount int
+	evidenceItems []normalizedEvidence
 	digest        [sha256.Size]byte
 }
 
@@ -240,14 +272,19 @@ type normalizedRelationship struct {
 }
 
 type normalizedEvidence struct {
-	ID              string `json:"id"`
-	EntityID        string `json:"entity_id,omitempty"`
-	FindingID       string `json:"finding_id,omitempty"`
-	ObjectReference string `json:"object_reference"`
-	ChecksumHex     string `json:"checksum_hex"`
-	MediaType       string `json:"media_type"`
-	SchemaVersion   string `json:"schema_version"`
-	ParserVersion   string `json:"parser_version"`
+	ID                string `json:"id"`
+	EntityID          string `json:"entity_id,omitempty"`
+	FindingID         string `json:"finding_id,omitempty"`
+	ObjectReference   string `json:"object_reference"`
+	ArtifactReference string `json:"artifact_reference"`
+	ArtifactKey       string `json:"artifact_key"`
+	ArtifactVersionID string `json:"artifact_version_id"`
+	ChecksumHex       string `json:"checksum_hex"`
+	SizeBytes         int64  `json:"size_bytes"`
+	MediaType         string `json:"media_type"`
+	SchemaVersion     string `json:"schema_version"`
+	ParserVersion     string `json:"parser_version"`
+	ToolVersion       string `json:"tool_version"`
 }
 
 func NewSnapshotCandidate(source Provider, parserVersion, toolVersion string, entities, relationships, evidence []byte) (SnapshotCandidate, error) {
@@ -270,7 +307,7 @@ func NewSnapshotCandidate(source Provider, parserVersion, toolVersion string, en
 	}
 	var digest [sha256.Size]byte
 	copy(digest[:], hash.Sum(nil))
-	return SnapshotCandidate{source: source, parser: parserVersion, tool: toolVersion, entities: entityCopy, relationships: relationshipCopy, evidence: evidenceCopy, entityCount: len(entityItems), relationCount: len(relationshipItems), evidenceCount: len(evidenceItems), digest: digest}, nil
+	return SnapshotCandidate{source: source, parser: parserVersion, tool: toolVersion, entities: entityCopy, relationships: relationshipCopy, evidence: evidenceCopy, entityCount: len(entityItems), relationCount: len(relationshipItems), evidenceCount: len(evidenceItems), evidenceItems: append([]normalizedEvidence(nil), evidenceItems...), digest: digest}, nil
 }
 
 func (candidate SnapshotCandidate) Source() Provider      { return candidate.source }
@@ -323,7 +360,7 @@ func (result CompleteResult) NextCursor() Cursor          { return result.cursor
 func (result CompleteResult) Manifest() RawManifest       { return cloneManifest(result.manifest) }
 func (result CompleteResult) Snapshot() SnapshotCandidate { return cloneSnapshot(result.snapshot) }
 func (result CompleteResult) validFor(request Request) bool {
-	return request.Validate() == nil && result.binding.valid(request.Provider) && result.cursor.validResult(request.Provider) && result.manifest.valid() && result.snapshot.valid(request) && manifestFitsRequest(result.manifest, request)
+	return request.Validate() == nil && result.binding == request.ExpectedSubject && result.cursor.validResult(request.Provider) && result.manifest.valid() && result.snapshot.valid(request) && manifestFitsRequest(result.manifest, request) && snapshotEvidenceFitsManifest(result.snapshot, result.manifest, request)
 }
 func (result CompleteResult) clone() Outcome {
 	result.manifest = cloneManifest(result.manifest)
@@ -352,7 +389,7 @@ func (result PartialResult) NextCursor() Cursor      { return result.cursor }
 func (result PartialResult) Manifest() RawManifest   { return cloneManifest(result.manifest) }
 func (result PartialResult) Reason() FailureCode     { return result.reason }
 func (result PartialResult) validFor(request Request) bool {
-	return request.Validate() == nil && result.reason == FailurePartial && result.binding.valid(request.Provider) && result.cursor.validResult(request.Provider) && result.manifest.valid() && manifestFitsRequest(result.manifest, request)
+	return request.Validate() == nil && result.reason == FailurePartial && result.binding == request.ExpectedSubject && result.cursor.validResult(request.Provider) && result.manifest.valid() && manifestFitsRequest(result.manifest, request)
 }
 func (result PartialResult) clone() Outcome {
 	result.manifest = cloneManifest(result.manifest)
@@ -413,19 +450,20 @@ func (code FailureCode) valid() bool {
 }
 
 type CredentialRequest struct {
-	Scope         domain.Scope
-	IntegrationID domain.ProductID
-	ConnectionID  domain.ProductID
-	JobID         domain.ProductID
-	Attempt       int
-	Provider      Provider
-	Class         CredentialClass
-	Reference     string
+	Scope           domain.Scope
+	IntegrationID   domain.ProductID
+	ConnectionID    domain.ProductID
+	JobID           domain.ProductID
+	Attempt         int
+	Provider        Provider
+	Class           CredentialClass
+	Reference       string
+	ExpectedSubject SubjectBinding
 }
 
 func (request CredentialRequest) valid() bool {
 	return request.Scope.Validate() == nil && validProductID(request.IntegrationID) && validProductID(request.ConnectionID) && validProductID(request.JobID) && request.Attempt >= 1 && request.Attempt <= 100 &&
-		credentialMatchesProvider(request.Class, request.Provider) && validCredentialReference(request.Provider, request.Reference)
+		credentialMatchesProvider(request.Class, request.Provider) && validCredentialReference(request.Provider, request.Reference) && request.ExpectedSubject.valid(request.Provider)
 }
 
 type CredentialMaterial struct {
@@ -491,19 +529,26 @@ func NewProviderAdapter(provider Provider, class CredentialClass, resolver Worke
 }
 
 func (adapter *ProviderAdapter) Collect(ctx context.Context, request Request) (Outcome, error) {
-	if adapter == nil || ctx == nil || ctx.Err() != nil || request.Validate() != nil || request.Provider != adapter.provider || request.CredentialClass != adapter.class {
+	if adapter == nil || ctx == nil || request.Validate() != nil || request.Provider != adapter.provider || request.CredentialClass != adapter.class {
 		return nil, ErrContract
+	}
+	if ctx.Err() != nil {
+		return nil, collectionDependencyError(ctx.Err())
 	}
 	bounded, cancel := context.WithTimeout(ctx, request.Bounds.Timeout)
 	defer cancel()
 	credentialRequest := CredentialRequest{
 		Scope: request.Scope, IntegrationID: request.IntegrationID, ConnectionID: request.ConnectionID, JobID: request.JobID,
 		Attempt: request.Attempt, Provider: request.Provider, Class: request.CredentialClass, Reference: request.CredentialReference,
+		ExpectedSubject: request.ExpectedSubject,
 	}
 	material, err := adapter.resolver.ResolveCollectionCredential(bounded, credentialRequest)
 	if err != nil || material == nil || bounded.Err() != nil {
 		if material != nil {
 			material.Destroy()
+		}
+		if bounded.Err() != nil {
+			err = bounded.Err()
 		}
 		return nil, collectionDependencyError(err)
 	}
@@ -515,9 +560,15 @@ func (adapter *ProviderAdapter) Collect(ctx context.Context, request Request) (O
 		return callErr
 	})
 	if err != nil || bounded.Err() != nil {
+		if bounded.Err() != nil {
+			err = bounded.Err()
+		}
 		return nil, collectionDependencyError(err)
 	}
-	return outcome, nil
+	if nilInterface(outcome) || !outcome.validFor(request) {
+		return nil, ErrContract
+	}
+	return outcome.clone(), nil
 }
 
 func callProviderClient(client ProviderClient, ctx context.Context, request Request, credential []byte) (outcome Outcome, resultErr error) {
@@ -533,6 +584,14 @@ func callProviderClient(client ProviderClient, ctx context.Context, request Requ
 func collectionDependencyError(err error) error {
 	var failure *Failure
 	if errors.As(err, &failure) && failure != nil && failure.code.valid() {
+		return failure
+	}
+	if errors.Is(err, context.Canceled) {
+		failure, _ := NewFailure(FailureCancelled, time.Time{})
+		return failure
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		failure, _ := NewFailure(FailureRetryable, time.Time{})
 		return failure
 	}
 	return ErrContract
@@ -584,13 +643,20 @@ type registryKey struct {
 
 type Registry struct {
 	registrations map[registryKey]Registration
+	readinessMu   sync.Mutex
+	readiness     map[registryKey]*readinessCall
+}
+
+type readinessCall struct {
+	done   chan struct{}
+	status Readiness
 }
 
 func NewRegistry(registrations []Registration) (*Registry, error) {
 	if len(registrations) < 4 || len(registrations) > maximumRegistrations {
 		return nil, ErrContract
 	}
-	registry := &Registry{registrations: make(map[registryKey]Registration, len(registrations))}
+	registry := &Registry{registrations: make(map[registryKey]Registration, len(registrations)), readiness: make(map[registryKey]*readinessCall)}
 	providers := map[Provider]bool{}
 	for _, registration := range registrations {
 		if !registration.Provider.valid() || !versionPattern.MatchString(registration.CollectorVersion) || !credentialMatchesProvider(registration.CredentialClass, registration.Provider) || nilInterface(registration.Collector) || nilInterface(registration.Readiness) || registration.ReadinessTimeout < 100*time.Millisecond || registration.ReadinessTimeout > 10*time.Second {
@@ -612,8 +678,11 @@ func NewRegistry(registrations []Registration) (*Registry, error) {
 }
 
 func (registry *Registry) Collect(ctx context.Context, request Request) (Outcome, error) {
-	if registry == nil || ctx == nil || ctx.Err() != nil || request.Validate() != nil {
+	if registry == nil || ctx == nil || request.Validate() != nil {
 		return nil, ErrContract
+	}
+	if ctx.Err() != nil {
+		return nil, collectionDependencyError(ctx.Err())
 	}
 	registration, ok := registry.registrations[registryKey{provider: request.Provider, version: request.CollectorVersion}]
 	if !ok || registration.CredentialClass != request.CredentialClass {
@@ -621,7 +690,8 @@ func (registry *Registry) Collect(ctx context.Context, request Request) (Outcome
 	}
 	outcome, err := callCollector(registration.Collector, ctx, request)
 	if err != nil {
-		failure, ok := err.(*Failure)
+		mapped := collectionDependencyError(err)
+		failure, ok := mapped.(*Failure)
 		if !ok || failure == nil || !failure.code.valid() {
 			return nil, ErrContract
 		}
@@ -646,33 +716,50 @@ func (registry *Registry) CheckReadiness(ctx context.Context, provider Provider,
 	if !ok {
 		return missing
 	}
+	key := registryKey{provider: provider, version: collectorVersion}
+	registry.readinessMu.Lock()
+	if existing := registry.readiness[key]; existing != nil {
+		registry.readinessMu.Unlock()
+		select {
+		case <-existing.done:
+			return existing.status
+		case <-ctx.Done():
+			return Readiness{Provider: provider, CollectorVersion: collectorVersion, Code: ReadinessCancelled, CheckedAt: time.Now().UTC()}
+		}
+	}
+	call := &readinessCall{done: make(chan struct{})}
+	registry.readiness[key] = call
+	registry.readinessMu.Unlock()
+
 	bounded, cancel := context.WithTimeout(ctx, registration.ReadinessTimeout)
-	defer cancel()
-	result := make(chan Readiness, 1)
-	go func() { result <- callReadiness(registration.Readiness, bounded) }()
-	var status Readiness
-	select {
-	case status = <-result:
-	case <-bounded.Done():
+	status := callReadiness(registration.Readiness, bounded)
+	boundedErr := bounded.Err()
+	cancel()
+	checkedAt := time.Now().UTC()
+	if boundedErr != nil {
 		code := ReadinessDependencyUnavailable
 		if ctx.Err() != nil {
 			code = ReadinessCancelled
 		}
-		return Readiness{Provider: provider, CollectorVersion: collectorVersion, Code: code, CheckedAt: time.Now().UTC()}
+		status = Readiness{Provider: provider, CollectorVersion: collectorVersion, Code: code}
+	} else if status.Provider != provider || status.CollectorVersion != collectorVersion {
+		status = Readiness{Provider: provider, CollectorVersion: collectorVersion, Code: ReadinessContractInvalid}
 	}
-	if status.Provider != provider || status.CollectorVersion != collectorVersion || status.CheckedAt.IsZero() || status.CheckedAt.Location() != time.UTC {
-		return Readiness{Provider: provider, CollectorVersion: collectorVersion, Code: ReadinessContractInvalid}
-	}
+	status.CheckedAt = checkedAt
 	if status.Ready {
 		if status.Code != "" && status.Code != ReadinessReady {
-			return Readiness{Provider: provider, CollectorVersion: collectorVersion, Code: ReadinessContractInvalid}
+			status = Readiness{Provider: provider, CollectorVersion: collectorVersion, Code: ReadinessContractInvalid, CheckedAt: checkedAt}
+		} else {
+			status.Code = ReadinessReady
 		}
-		status.Code = ReadinessReady
-		return status
+	} else if status.Code != ReadinessDependencyUnavailable && status.Code != ReadinessUnconfigured && status.Code != ReadinessCancelled && status.Code != ReadinessContractInvalid {
+		status = Readiness{Provider: provider, CollectorVersion: collectorVersion, Code: ReadinessContractInvalid, CheckedAt: checkedAt}
 	}
-	if status.Code != ReadinessDependencyUnavailable && status.Code != ReadinessUnconfigured && status.Code != ReadinessCancelled {
-		return Readiness{Provider: provider, CollectorVersion: collectorVersion, Code: ReadinessContractInvalid}
-	}
+	registry.readinessMu.Lock()
+	call.status = status
+	delete(registry.readiness, key)
+	close(call.done)
+	registry.readinessMu.Unlock()
 	return status
 }
 
@@ -696,7 +783,7 @@ func callReadiness(probe ReadinessProbe, ctx context.Context) (status Readiness)
 }
 
 func manifestFitsRequest(manifest RawManifest, request Request) bool {
-	if len(manifest.objects) > request.Bounds.MaxPages || manifest.manifest.parser != request.ParserVersion || manifest.manifest.tool != request.ToolVersion {
+	if manifest.manifest.scope != request.Scope || len(manifest.objects) > request.Bounds.MaxPages || manifest.manifest.parser != request.ParserVersion || manifest.manifest.tool != request.ToolVersion {
 		return false
 	}
 	total := manifest.manifest.size
@@ -772,8 +859,9 @@ func normalizedEvidenceItems(value []byte, entityIDs map[string]struct{}) ([]byt
 	for _, item := range items {
 		_, entityExists := entityIDs[item.EntityID]
 		if !validProductIDText(item.ID) || (item.EntityID != "") == (item.FindingID != "") || item.EntityID != "" && !entityExists || item.FindingID != "" && !validProductIDText(item.FindingID) ||
-			!boundedText(item.ObjectReference, 2048) || !strings.HasPrefix(item.ObjectReference, "s3://") || strings.ContainsAny(item.ObjectReference, "?#") || !checksumPattern.MatchString(item.ChecksumHex) ||
-			!validMediaType(item.MediaType) || !versionPattern.MatchString(item.SchemaVersion) || !versionPattern.MatchString(item.ParserVersion) {
+			!validProductIDText(item.ArtifactReference) || !boundedText(item.ArtifactKey, 2048) || !validS3ObjectReference(item.ObjectReference, item.ArtifactKey) || !validArtifactVersionID(item.ArtifactVersionID) || !checksumPattern.MatchString(item.ChecksumHex) ||
+			item.SizeBytes < 1 || item.SizeBytes > maximumRawBytes || !validMediaType(item.MediaType) || !versionPattern.MatchString(item.SchemaVersion) ||
+			!versionPattern.MatchString(item.ParserVersion) || !versionPattern.MatchString(item.ToolVersion) {
 			return nil, nil, false
 		}
 		if _, duplicate := ids[item.ID]; duplicate {
@@ -827,7 +915,79 @@ func cloneSnapshot(candidate SnapshotCandidate) SnapshotCandidate {
 	candidate.entities = bytes.Clone(candidate.entities)
 	candidate.relationships = bytes.Clone(candidate.relationships)
 	candidate.evidence = bytes.Clone(candidate.evidence)
+	candidate.evidenceItems = append([]normalizedEvidence(nil), candidate.evidenceItems...)
 	return candidate
+}
+
+func snapshotEvidenceFitsManifest(candidate SnapshotCandidate, manifest RawManifest, request Request) bool {
+	objects := make(map[string]RawObject, len(manifest.objects))
+	for _, object := range manifest.objects {
+		if object.scope != request.Scope {
+			return false
+		}
+		objects[object.reference.String()] = object
+	}
+	for _, evidence := range candidate.evidenceItems {
+		object, exists := objects[evidence.ArtifactReference]
+		if !exists || object.key != evidence.ArtifactKey || object.versionID != evidence.ArtifactVersionID || object.objectReference != evidence.ObjectReference || object.size != evidence.SizeBytes ||
+			object.mediaType != evidence.MediaType || object.schema != evidence.SchemaVersion || object.parser != evidence.ParserVersion || object.tool != evidence.ToolVersion ||
+			checksumHex(object.checksum) != evidence.ChecksumHex {
+			return false
+		}
+	}
+	return true
+}
+
+func artifactKey(scope domain.Scope, reference domain.EvidenceRef) string {
+	if scope.Validate() != nil || reference.Validate() != nil {
+		return ""
+	}
+	return "organizations/" + scope.OrganizationID().String() +
+		"/workspaces/" + scope.WorkspaceID().String() +
+		"/environments/" + scope.EnvironmentID().String() +
+		"/artifacts/" + reference.String()
+}
+
+func validArtifactVersionID(value string) bool {
+	if len(value) < 1 || len(value) > 1024 {
+		return false
+	}
+	for _, character := range value {
+		if character < 0x21 || character == 0x7f {
+			return false
+		}
+	}
+	return true
+}
+
+func validS3ObjectReference(value, key string) bool {
+	if !boundedText(value, 2048) || !strings.HasPrefix(value, "s3://") || strings.ContainsAny(value, "?#") {
+		return false
+	}
+	bucket, path, found := strings.Cut(strings.TrimPrefix(value, "s3://"), "/")
+	return found && validS3Bucket(bucket) && path == key
+}
+
+func validS3Bucket(value string) bool {
+	if len(value) < 3 || len(value) > 63 || value[0] == '-' || value[len(value)-1] == '-' || strings.Contains(value, "..") {
+		return false
+	}
+	for _, character := range value {
+		if character != '-' && character != '.' && (character < 'a' || character > 'z') && (character < '0' || character > '9') {
+			return false
+		}
+	}
+	return true
+}
+
+func checksumHex(value [sha256.Size]byte) string {
+	const digits = "0123456789abcdef"
+	result := make([]byte, sha256.Size*2)
+	for index, octet := range value {
+		result[index*2] = digits[octet>>4]
+		result[index*2+1] = digits[octet&0x0f]
+	}
+	return string(result)
 }
 
 func validCredentialReference(provider Provider, value string) bool {
@@ -861,6 +1021,23 @@ func boundedText(value string, maximum int) bool {
 	for _, character := range value {
 		if unicode.IsControl(character) {
 			return false
+		}
+	}
+	return true
+}
+
+func validDNSName(value string) bool {
+	if len(value) > 253 || strings.Contains(value, "..") || !strings.Contains(value, ".") {
+		return false
+	}
+	for _, label := range strings.Split(value, ".") {
+		if len(label) < 1 || len(label) > 63 || label[0] == '-' || label[len(label)-1] == '-' {
+			return false
+		}
+		for _, character := range label {
+			if character != '-' && (character < 'a' || character > 'z') && (character < '0' || character > '9') {
+				return false
+			}
 		}
 	}
 	return true
