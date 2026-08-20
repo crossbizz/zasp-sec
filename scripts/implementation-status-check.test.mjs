@@ -165,7 +165,7 @@ test("rejects audited production-class count drift", async () => {
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /production-available count is 293; expected 294/,
+        /production-available count is 304; expected 305/,
       );
     },
   );
@@ -209,6 +209,26 @@ test("rejects a same-owner same-milestone audited class swap", async () => {
       );
     },
   );
+});
+
+test("rejects demotion of audited shipped deployment tasks", async () => {
+  for (const id of [
+    "M8-09a", "M8-09b", "M8-09c", "M8-09", "M8-10", "M8-11", "M8-14",
+    "M8-57a", "M8-57b", "M8-57c", "M8-57",
+  ]) {
+    await withLedger(
+      (ledger) => ledger.replace(
+        new RegExp(`(M8\\t${id}\\tComplete\\t)production-available`),
+        "$1missing",
+      ),
+      async (ledgerPath) => {
+        await assert.rejects(
+          () => validateLedger({ ledgerPath, sourcePlanPath }),
+          new RegExp(`production class missing does not match audited production-available for ${id}`),
+        );
+      },
+    );
+  }
 });
 
 test("rejects a published milestone matrix that drifts from the audited map", async () => {

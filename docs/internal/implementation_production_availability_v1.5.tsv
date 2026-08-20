@@ -600,15 +600,15 @@ M8	M8-08a	Complete	production-available	PROD-current-composition	audited shipped
 M8	M8-08b	Complete	production-available	PROD-current-composition	audited shipped composition: Helm API deployment
 M8	M8-08c	Complete	production-available	PROD-current-composition	audited shipped composition: Helm web/API services
 M8	M8-08	Complete	production-available	PROD-current-composition	audited shipped composition: Helm web/api
-M8	M8-09a	Complete	missing	T15-deployment	audited absent shipping composition: Helm worker deployment
-M8	M8-09b	Complete	missing	T15-deployment	audited absent shipping composition: Helm event-ingest deployment
-M8	M8-09c	Complete	missing	T15-deployment	audited absent shipping composition: Worker/ingest shutdown settings
-M8	M8-09	Complete	missing	T15-deployment	audited absent shipping composition: Helm worker/ingest
-M8	M8-10	Complete	missing	T15-deployment	audited absent shipping composition: Helm runtime gateway
-M8	M8-11	Complete	missing	T15-deployment	audited absent shipping composition: Helm Neo4j
+M8	M8-09a	Complete	production-available	T15-deployment	shipped private agentsec worker Deployments use immutable images, probes, and bounded resources; release render gate 20/20 at b0caf99
+M8	M8-09b	Complete	production-available	T15-deployment	shipped replicated event-ingest Deployment and internal Service bind probes, internal auth, and isolated runtime identity; release render gate 20/20 at b0caf99
+M8	M8-09c	Complete	production-available	T15-deployment	shipped worker and ingest pods bind nonzero termination grace, preStop drain, and bounded shutdown; release render gate 20/20 at b0caf99
+M8	M8-09	Complete	production-available	T15-deployment	shipped release composes private worker and event-ingest connectivity with exact shutdown authority; release render gate 20/20 at b0caf99
+M8	M8-10	Complete	production-available	T15-deployment	customer-edge release ships a private runtime-gateway Deployment and Service with durable bounded policy cache and no database dependency; release render gate 20/20 at b0caf99
+M8	M8-11	Complete	production-available	T15-deployment	hosted release selects one verified neo4j+s external endpoint with exact CIDR and secret refs, separate schema init, and no Neo4j ingress; release render gate 20/20 at b0caf99
 M8	M8-12	Complete	missing	T15-deployment	audited absent shipping composition: Helm Nango free
 M8	M8-13	Complete	missing	T15-deployment	audited absent shipping composition: Helm OTel Collector
-M8	M8-14	Complete	missing	T15-deployment	audited absent shipping composition: Helm Tetragon
+M8	M8-14	Complete	production-available	T15-deployment	customer-edge release renders the exact-digest Tetragon 1.7 wrapper, documented privilege boundary, two tracing policies, and disable-safe sensor profile; release render gate 20/20 at b0caf99
 M8	M8-15	Complete	production-available	PROD-current-composition	audited shipped composition: Pod disruption/topology
 M8	M8-16	Complete	component-only	T16-recovery-ops	audited component-only proof: preflight base
 M8	M8-17a	Complete	component-only	T16-recovery-ops	audited component-only proof: preflight IAM IRSA
@@ -696,10 +696,10 @@ M8	M8-52	Blocked	blocked/external	EXT-human-observation	audited external evidenc
 M8	M8-53	Blocked	blocked/external	EXT-human-observation	audited external evidence gate: design-partner value gate
 M8	M8-55	Complete	production-available	PROD-current-composition	audited shipped composition: SaaS values profile
 M8	M8-56	Complete	component-only	T15-deployment	audited component-only proof: single-tenant values profile
-M8	M8-57a	Complete	missing	T15-deployment	audited absent shipping composition: customer edge sensor values
-M8	M8-57b	Complete	missing	T15-deployment	audited absent shipping composition: customer edge runtime gateway values
-M8	M8-57c	Complete	missing	T15-deployment	audited absent shipping composition: customer edge enrollment values
-M8	M8-57	Complete	missing	T15-deployment	audited absent shipping composition: customer edge Helm profile
+M8	M8-57a	Complete	production-available	T15-deployment	customer-edge values render exact-pinned Tetragon plus the sensor adapter and no hosted control-plane workload; release render gate 20/20 at b0caf99
+M8	M8-57b	Complete	production-available	T15-deployment	customer-edge values render runtime gateway, durable local policy cache, and bounded SaaS destination with no Neon or graph dependency; release render gate 20/20 at b0caf99
+M8	M8-57c	Complete	production-available	T15-deployment	customer-edge render requires scoped Organization, Workspace, Environment, device, and secret references without plaintext credentials; release render gate 20/20 at b0caf99
+M8	M8-57	Complete	production-available	T15-deployment	supported customer-edge profile composes only runtime gateway, sensor adapter, and Tetragon with no hosted web, API, database, graph, or Nango dependency; release render gate 20/20 at b0caf99
 M8	M8-58a	Complete	component-only	T16-recovery-ops	audited component-only proof: SaaS quota load fixture
 M8	M8-58b	Blocked	blocked/external	EXT-cloud-deploy	audited external evidence gate: SaaS quota load trigger
 M8	M8-58	Blocked	blocked/external	EXT-cloud-deploy	audited external evidence gate: SaaS Organization quota result

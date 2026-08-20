@@ -75,10 +75,10 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 294 |
+| Production-available | 305 |
 | Component-only | 360 |
 | Blocked/external | 61 |
-| Missing | 13 |
+| Missing | 2 |
 
 `production-available` is the readiness measure: it requires source-reachable
 production composition, not merely a component proof or external evidence.
@@ -106,6 +106,10 @@ production composition, not merely a component proof or external evidence.
   workloads and the Task 6 sensor/ingest/runtime/gateway plane with isolated
   identities. Live managed providers, OpenSearch, Neo4j, SQS, S3, and KMS
   remain explicit external evidence rather than locally fabricated success.
+- The deployment audit promotes the shipped private worker/ingest plane,
+  verified external Neo4j switch, exact-pinned Tetragon wrapper, runtime
+  gateway, and customer-edge profile. Private Nango and the bounded OTel
+  Collector remain the only missing shipping compositions.
 - The customer-edge chart and live disposable three-node Kubernetes proof run
   exact-pinned Tetragon plus the non-root sensor, preserve zero drops and full
   capability reports, forward real process events, and survive leader loss.
@@ -131,8 +135,8 @@ production composition, not merely a component proof or external evidence.
 | M6 | 36 | 21 | 15 | 0 | 0 |
 | M7 | 62 | 37 | 25 | 0 | 0 |
 | M7A | 113 | 21 | 92 | 0 | 0 |
-| M8 | 141 | 10 | 66 | 52 | 13 |
-| **Total** | **728** | **294** | **360** | **61** | **13** |
+| M8 | 141 | 21 | 66 | 52 | 2 |
+| **Total** | **728** | **305** | **360** | **61** | **2** |
 
 ## Prerequisite work
 

@@ -20,10 +20,10 @@ const allowedProductionClasses = new Set([
   "missing",
 ]);
 const expectedClassCounts = new Map([
-  ["production-available", 294],
+  ["production-available", 305],
   ["component-only", 360],
   ["blocked/external", 61],
-  ["missing", 13],
+  ["missing", 2],
 ]);
 const expectedMilestoneClassCounts = new Map([
   ["M0", new Map([["production-available", 7], ["component-only", 17], ["blocked/external", 3], ["missing", 0]])],
@@ -36,7 +36,7 @@ const expectedMilestoneClassCounts = new Map([
   ["M6", new Map([["production-available", 21], ["component-only", 15], ["blocked/external", 0], ["missing", 0]])],
   ["M7", new Map([["production-available", 37], ["component-only", 25], ["blocked/external", 0], ["missing", 0]])],
   ["M7A", new Map([["production-available", 21], ["component-only", 92], ["blocked/external", 0], ["missing", 0]])],
-  ["M8", new Map([["production-available", 10], ["component-only", 66], ["blocked/external", 52], ["missing", 13]])],
+  ["M8", new Map([["production-available", 21], ["component-only", 66], ["blocked/external", 52], ["missing", 2]])],
 ]);
 const productionOwnerTaskIDs = new Set([
   "T02-discovery-authority",
@@ -58,13 +58,17 @@ const productionOwnerTaskIDs = new Set([
 const auditedProductionClassOwners = new Set([
   "T04-discovery-worker",
   "T06-runtime-data-plane",
+  "T15-deployment",
 ]);
 const auditedProductionAvailableIDs = new Set([
   "M0-12", "M0-13", "M0-17",
   "M1-01e", "M1-12", "M1-13", "M1-14", "M1-15", "M1-16", "M1-22", "M1-28c", "M1-28d", "M1-32", "M1-33",
   "M3-10", "M3-11", "M3-12", "M3-13", "M3-21", "M3-26", "M3-27", "M3-28", "M3-29", "M3-30", "M3-31", "M3-32", "M3-33", "M3-34", "M3-35", "M3-36", "M3-37", "M3-38", "M3-39", "M3-40", "M3-41", "M3-43a", "M3-43b", "M3-43c", "M3-44", "M3-45", "M3-46", "M3-47", "M3-52e",
   "M6-03", "M6-04", "M6-05", "M6-06", "M6-07", "M6-24", "M6-25", "M6-26",
+  "M8-09a", "M8-09b", "M8-09c", "M8-09", "M8-10", "M8-11", "M8-14",
+  "M8-57a", "M8-57b", "M8-57c", "M8-57",
 ]);
+const auditedMissingIDs = new Set(["M8-12", "M8-13"]);
 const externalGateIDs = new Set([
   "EXT-cloud-deploy",
   "EXT-human-observation",
@@ -252,7 +256,7 @@ export async function validateLedger({
     if (auditedProductionClassOwners.has(row.owner)) {
       const expectedProductionClass = auditedProductionAvailableIDs.has(row.id)
         ? "production-available"
-        : "component-only";
+        : auditedMissingIDs.has(row.id) ? "missing" : "component-only";
       if (row.productionClass !== expectedProductionClass) {
         errors.push(`production class ${row.productionClass} does not match audited ${expectedProductionClass} for ${row.id}`);
       }
