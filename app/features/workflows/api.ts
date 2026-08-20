@@ -31,11 +31,13 @@ export type WorkflowReceipt<T> = Versioned<T> & { auditID: string; receiptID: st
 export type WorkflowMutationAttempt = Readonly<{ idempotencyKey: string }>;
 export class IntegrationRevocationPending extends Error {
   readonly receipt: WorkflowReceipt<Integration>;
+  readonly retryAfterSeconds: number;
 
-  constructor(receipt: WorkflowReceipt<Integration>) {
+  constructor(receipt: WorkflowReceipt<Integration>, retryAfterSeconds: number) {
     super("Integration provider revocation is pending");
     this.name = "IntegrationRevocationPending";
     this.receipt = receipt;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }
 export type RetainedWorkflowMutationController<I> = {
@@ -205,7 +207,7 @@ export function createIntegrationsAPI(client: APIClient) {
       return executeWorkflowMutation(async (active) => requireWorkflowReceipt(await client.PATCH("/api/v1/integrations/{id}", { params: { path: { id }, header: workflowMutationHeaders(active, version) as { "Idempotency-Key": string; "If-Match": string } }, body: value }), decodeIntegration), attempt);
     },
     async deleteIntegration(id: string, version: string, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<void>> {
-      return executeWorkflowMutation(async (active) => requireIntegrationDeletion(await client.DELETE("/api/v1/integrations/{id}", { params: { path: { id }, header: workflowMutationHeaders(active, version) as { "Idempotency-Key": string; "If-Match": string } } })), attempt);
+      return executeWorkflowMutation(async (active) => requireIntegrationDeletion(await client.DELETE("/api/v1/integrations/{id}", { params: { path: { id }, header: workflowMutationHeaders(active, version) as { "Idempotency-Key": string; "If-Match": string } } }), id), attempt);
     },
   };
 }
@@ -305,14 +307,15 @@ export function requireWorkflowEmptyReceipt(response: Response): WorkflowReceipt
   return { value: undefined, version, auditID, receiptID };
 }
 
-function requireIntegrationDeletion(result: APIResult<unknown>): WorkflowReceipt<void> {
+function requireIntegrationDeletion(result: APIResult<unknown>, requestedID: string): WorkflowReceipt<void> {
   if (result.error) requireAPIData<never>(result);
   if (result.response.status === 202) {
     const receipt = requireWorkflowReceipt(result, decodeIntegration);
-    if (receipt.value.status !== "revoking" || result.response.headers.get("Retry-After") !== "1") {
+    const retryAfter = result.response.headers.get("Retry-After");
+    if (receipt.value.id !== requestedID || receipt.value.status !== "revoking" || !retryAfter || !/^[1-9][0-9]{0,2}$/.test(retryAfter)) {
       throw new APITransportError("invalid_response", "Integration deletion returned invalid revocation progress");
     }
-    throw new IntegrationRevocationPending(receipt);
+    throw new IntegrationRevocationPending(receipt, Number(retryAfter));
   }
   if (result.response.status !== 204 || result.data !== undefined) {
     throw new APITransportError("invalid_response", "Integration deletion returned an invalid terminal response");

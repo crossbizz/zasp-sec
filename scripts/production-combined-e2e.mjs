@@ -55,7 +55,7 @@ const scopeOverlapProof = {
 };
 let injectLaterReceiptOnNextAcknowledgement = false;
 let expireNextReceiptBeforeAcknowledgement = false;
-let loseNextIntegrationDeleteResponse = true;
+let malformNextIntegrationDeleteResponse = true;
 let loseNextFindingResponse = true;
 let failNextRiskRecoveryRefetch = false;
 let delayRiskDetailResponses = false;
@@ -449,13 +449,13 @@ try {
   await waitForBrowserText(browser.cdp, /Harness terminal revocation/);
   await clickBrowserText(browser.cdp, "Delete integration");
   const terminalPending = await waitForBrowserText(browser.cdp, /Provider revocation is pending/);
-  await waitForScopeOverlap(() => integrationDeleteRequests.length >= terminalDeleteStart + 2, "lost integration DELETE was not retried");
+  await waitForScopeOverlap(() => integrationDeleteRequests.length >= terminalDeleteStart + 2, "malformed public 202 response replay was not observed");
   const terminalPendingRequests = integrationDeleteRequests.slice(terminalDeleteStart);
-  assert.deepEqual(terminalPendingRequests.map((request) => request.status), [202, 202], "lost DELETE did not replay the real asynchronous response");
+  assert.deepEqual(terminalPendingRequests.map((request) => request.status), [202, 202], "malformed public 202 response replay did not reach the real asynchronous response");
   assert.match(terminalPendingRequests[0].idempotencyKey, /^wf_[0-9a-f-]+$/);
   assert.equal(terminalPendingRequests[0].ifMatch, '"1"');
-  assert.equal(new Set(terminalPendingRequests.map((request) => request.idempotencyKey)).size, 1, "same idempotency key + If-Match was not retained across lost DELETE response");
-  assert.equal(new Set(terminalPendingRequests.map((request) => request.ifMatch)).size, 1, "same idempotency key + If-Match was not retained across lost DELETE response");
+  assert.equal(new Set(terminalPendingRequests.map((request) => request.idempotencyKey)).size, 1, "same idempotency key + If-Match was not retained across malformed 202 response");
+  assert.equal(new Set(terminalPendingRequests.map((request) => request.ifMatch)).size, 1, "same idempotency key + If-Match was not retained across malformed 202 response");
   assert.equal(await connectorRevocationWitness(dsn, terminalRevocationIntegrationID), "revoking|degraded|revoke:unknown|revoking|revoking|verified", "real DELETE 202 durable revoking receipt/effect state was incomplete");
   assert.match(terminalPending, /Harness terminal revocation[\s\S]*revoking/);
   assert.doesNotMatch(terminalPending, /Integration deleted/);
@@ -497,10 +497,10 @@ try {
   console.log("combined E2E: reload revocation receipt remained locked and pending without a deleted claim");
 
   await completeHarnessConnectorRevocation(dsn, reloadRevocationIntegrationID);
-  const reloadTerminal = await browserRepeatIntegrationDelete(browser.cdp, reloadRevocationIntegrationID, reloadPendingRequest.idempotencyKey, reloadPendingRequest.ifMatch, expectedProductionScope);
-  assert.equal(reloadTerminal.status, 204, `reloaded exact DELETE did not reach terminal 204: ${JSON.stringify(reloadTerminal)}`);
+  const reloadTerminal = await browserHarnessDirectIntegrationDeleteReplay(browser.cdp, reloadRevocationIntegrationID, reloadPendingRequest.idempotencyKey, reloadPendingRequest.ifMatch, expectedProductionScope);
+  assert.equal(reloadTerminal.status, 204, `harness direct-public-API replay did not reach terminal 204: ${JSON.stringify(reloadTerminal)}`);
   assert.equal(reloadTerminal.body, "");
-  await waitForScopeOverlap(() => integrationDeleteRequests.length >= reloadDeleteStart + 2, "reloaded exact DELETE was not observed at the public API");
+  await waitForScopeOverlap(() => integrationDeleteRequests.length >= reloadDeleteStart + 2, "harness direct-public-API replay was not observed at the public API");
   const reloadRequests = integrationDeleteRequests.slice(reloadDeleteStart);
   assert.deepEqual(reloadRequests.map((request) => request.status), [202, 204]);
   assert.equal(new Set(reloadRequests.map((request) => request.idempotencyKey)).size, 1, "same idempotency key + If-Match changed across reload");
@@ -511,7 +511,7 @@ try {
   await waitForScopeOverlap(() => workflowPageRequests.integrations.length > integrationRefetchStart, "terminal recovery did not refetch integrations");
   await waitForBrowserAction(browser.cdp, `document.querySelector(${JSON.stringify('[aria-label="Open Harness reload revocation"]')}) === null`);
   assert.doesNotMatch(await browserBodyText(browser.cdp), /Integration deleted/);
-  console.log("combined E2E: public 202-to-204 integration deletion, reload recovery, and no hidden provider/API bypass proven");
+  console.log("combined E2E: public 202-to-204 integration deletion and harness direct-public-API replay after reload proven; this is not frontend persistence");
 
   await clickBrowserText(browser.cdp, "Configure Generic Webhook");
   await waitForBrowserActive(browser.cdp, "Close");
@@ -1170,8 +1170,8 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
           ifMatch: String(request.headers["if-match"] ?? ""),
           status: upstreamResponse.statusCode ?? 0,
         });
-        if (integrationDeleteID === terminalRevocationIntegrationID && loseNextIntegrationDeleteResponse && upstreamResponse.statusCode === 202) {
-          loseNextIntegrationDeleteResponse = false;
+        if (integrationDeleteID === terminalRevocationIntegrationID && malformNextIntegrationDeleteResponse && upstreamResponse.statusCode === 202) {
+          malformNextIntegrationDeleteResponse = false;
           upstreamResponse.resume();
           upstreamResponse.once("end", () => {
             response.writeHead(202, { ...upstreamResponse.headers, "content-type": "application/json", "cache-control": "no-store" });
@@ -1686,7 +1686,7 @@ async function browserFetchJSON(cdp, target, headers) {
   return evaluated.result.value;
 }
 
-async function browserRepeatIntegrationDelete(cdp, integrationID, idempotencyKey, ifMatch, expectedScope) {
+async function browserHarnessDirectIntegrationDeleteReplay(cdp, integrationID, idempotencyKey, ifMatch, expectedScope) {
   const evaluated = await cdp.send("Runtime.evaluate", {
     expression: `(async () => {
       const bootstrap = await fetch('/api/v1/session/bootstrap', { cache: 'no-store' }).then((response) => response.json());

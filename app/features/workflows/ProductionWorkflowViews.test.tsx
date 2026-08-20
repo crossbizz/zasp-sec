@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -37,16 +37,20 @@ describe("production integration deletion", () => {
       throw new Error(`unexpected GET ${path}`);
     });
     const DELETE = vi.fn()
-      .mockResolvedValueOnce(jsonResult(revoking, 202, { ...receiptHeaders, "Retry-After": "1" }))
+      .mockResolvedValueOnce(jsonResult(revoking, 202, { ...receiptHeaders, "Retry-After": "2" }))
       .mockResolvedValueOnce({ response: new Response(null, { status: 204, headers: receiptHeaders }) });
     const client = { GET, DELETE } as unknown as APIClient;
 
     const surface = (canWrite: boolean) => <APIProvider client={client}><ProductionIntegrationsView canWrite={canWrite} /></APIProvider>;
     const view = render(surface(true));
     await user.click(await screen.findByRole("button", { name: "Open GitHub" }));
-    await user.click(await screen.findByRole("button", { name: "Delete integration" }));
+    vi.useFakeTimers();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Delete integration" }));
+      await Promise.resolve();
+    });
 
-    expect(await screen.findByRole("status")).toHaveTextContent("Provider revocation is pending");
+    expect(screen.getByRole("status")).toHaveTextContent("Provider revocation is pending");
     const dialog = screen.getByRole("dialog", { name: "GitHub" });
     expect(dialog).toHaveTextContent("revoking");
     for (const button of within(dialog).getAllByRole("button", { name: "Close" })) expect(button).toBeDisabled();
@@ -59,7 +63,14 @@ describe("production integration deletion", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Provider revocation is pending");
     expect(screen.queryByRole("button", { name: "Retry pending integration deletion" })).not.toBeInTheDocument();
     view.rerender(surface(true));
-    await user.click(screen.getByRole("button", { name: "Retry pending integration deletion" }));
+    const retry = screen.getByRole("button", { name: "Retry pending integration deletion" });
+    expect(retry).toBeDisabled();
+    await act(async () => { await vi.advanceTimersByTimeAsync(1_999); });
+    expect(retry).toBeDisabled();
+    await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+    expect(retry).toBeEnabled();
+    await act(async () => { fireEvent.click(retry); });
+    vi.useRealTimers();
     expect(await screen.findByRole("status")).toHaveTextContent("Integration deleted. Audit pid_30000001-0000-4000-8000-000000000001");
     expect(screen.queryByRole("dialog", { name: "GitHub" })).not.toBeInTheDocument();
     await waitFor(() => expect(listCalls).toBe(2));

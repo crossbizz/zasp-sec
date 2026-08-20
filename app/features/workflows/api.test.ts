@@ -11,11 +11,11 @@ const environmentID = "pid_10000003-0000-4000-8000-000000000003";
 const integration: Integration = { id: "pid_20000001-0000-4000-8000-000000000001", connector_key: "github", name: "GitHub", configuration: { authorization_mode: "github_app" }, status: "revoking", created_at: "2026-08-19T00:00:00Z", updated_at: "2026-08-19T00:01:00Z" };
 
 describe("production workflow API", () => {
-	it("retains a strictly decoded 202 integration revocation instead of reporting deletion", async () => {
+	it.each(["2", "999"])("retains a strictly decoded 202 integration revocation with Retry-After %s", async (retryAfter) => {
 		const DELETE = vi.fn(async () => ({
 			data: integration,
 			response: new Response(JSON.stringify(integration), { status: 202, headers: {
-				"Content-Type": "application/json", ETag: '"2"', "Retry-After": "1",
+				"Content-Type": "application/json", ETag: '"2"', "Retry-After": retryAfter,
 				"X-Audit-ID": "pid_30000001-0000-4000-8000-000000000001",
 				"X-Mutation-Receipt-ID": "pid_30000002-0000-4000-8000-000000000002",
 			} }),
@@ -24,11 +24,41 @@ describe("production workflow API", () => {
 
 		await expect(createIntegrationsAPI({ DELETE } as unknown as APIClient).deleteIntegration(integration.id, '"1"', attempt)).rejects.toMatchObject({
 			name: "IntegrationRevocationPending",
+			retryAfterSeconds: Number(retryAfter),
 			receipt: { value: integration, version: '"2"', auditID: "pid_30000001-0000-4000-8000-000000000001", receiptID: "pid_30000002-0000-4000-8000-000000000002" },
 		});
 		expect(DELETE).toHaveBeenCalledOnce();
 		const calls = DELETE.mock.calls as unknown as Array<[string, { params: { header: Record<string, string> } }]>;
 		expect(calls[0]?.[1]).toMatchObject({ params: { header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": '"1"' } } });
+	});
+
+	it.each([undefined, "0", "1000"])("rejects invalid Retry-After %s on a 202 integration deletion", async (retryAfter) => {
+		const headers: Record<string, string> = {
+			"Content-Type": "application/json", ETag: '"2"',
+			"X-Audit-ID": "pid_30000001-0000-4000-8000-000000000001",
+			"X-Mutation-Receipt-ID": "pid_30000002-0000-4000-8000-000000000002",
+		};
+		if (retryAfter !== undefined) headers["Retry-After"] = retryAfter;
+		const DELETE = vi.fn(async () => ({
+			data: integration,
+			response: new Response(JSON.stringify(integration), { status: 202, headers }),
+		}));
+
+		await expect(createIntegrationsAPI({ DELETE } as unknown as APIClient).deleteIntegration(integration.id, '"1"')).rejects.toMatchObject({ kind: "invalid_response" });
+	});
+
+	it("rejects a 202 integration deletion response for a different integration", async () => {
+		const mismatched = { ...integration, id: "pid_20000001-0000-4000-8000-000000000099" };
+		const DELETE = vi.fn(async () => ({
+			data: mismatched,
+			response: new Response(JSON.stringify(mismatched), { status: 202, headers: {
+				"Content-Type": "application/json", ETag: '"2"', "Retry-After": "2",
+				"X-Audit-ID": "pid_30000001-0000-4000-8000-000000000001",
+				"X-Mutation-Receipt-ID": "pid_30000002-0000-4000-8000-000000000002",
+			} }),
+		}));
+
+		await expect(createIntegrationsAPI({ DELETE } as unknown as APIClient).deleteIntegration(integration.id, '"1"')).rejects.toMatchObject({ kind: "invalid_response" });
 	});
 
 	it("rejects a 202 integration deletion response unless it is exactly revoking", async () => {
