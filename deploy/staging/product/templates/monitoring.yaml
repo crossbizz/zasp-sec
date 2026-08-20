@@ -100,7 +100,7 @@ spec:
           labels: { severity: page }
           annotations: { summary: "Search projection worker is unavailable or absent" }
         - alert: ZaspTask4WorkerDependencyNotReady
-          expr: agentsec_ready{service="agentsec-worker"} == 0
+          expr: agentsec_ready{namespace="{{ .Release.Namespace }}",service=~"agentsec-(discovery-(scheduler|worker)|outbox-publisher|projection-(risk|graph|search))"} == 0
           for: 10m
           labels: { severity: ticket }
           annotations: { summary: "A discovery or projection worker dependency is not ready" }

@@ -410,13 +410,13 @@ test("release renders read-only synthetic and exact SLO budgets without credenti
     assert.match(availability.expr, /absent\(/);
   }
   for (const [alert, metric] of [
-    ["ZaspTask4WorkerDependencyNotReady", 'agentsec_ready{service="agentsec-worker"} == 0'],
+    ["ZaspTask4WorkerDependencyNotReady", 'agentsec_ready{namespace="agentsec",service=~"agentsec-(discovery-(scheduler|worker)|outbox-publisher|projection-(risk|graph|search))"} == 0'],
     ["ZaspProjectionBacklogAge", "zasp_worker_projection_backlog_age_seconds"],
     ["ZaspWorkerLeaseLoss", "zasp_worker_lease_loss_total"],
     ["ZaspWorkerExhaustion", "zasp_worker_exhaustion_total"],
   ]) {
     const rule = rules.spec.groups.flatMap(({ rules: groupRules }) => groupRules).find((candidate) => candidate.alert === alert);
-    assert.match(rule.expr, new RegExp(metric.replace(/[{}]/g, "\\$&")));
+    assert.ok(rule.expr.includes(metric));
   }
   for (const [alert, service] of [
     ["ZaspProjectionRiskDriverNotReady", "agentsec-projection-risk"],
