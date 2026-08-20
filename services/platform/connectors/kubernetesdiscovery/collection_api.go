@@ -21,6 +21,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/collection"
+	"github.com/zasp-ai/zasp-sec/services/platform/connectors/internal/providercollection"
 )
 
 const (
@@ -30,8 +31,8 @@ const (
 )
 
 var (
-	kubernetesPageCursorPattern = regexp.MustCompile(`^kubernetes:(namespaces|deployments):([A-Za-z0-9_-]+|start)$`)
-	kubernetesDoneCursorPattern = regexp.MustCompile(`^kubernetes:complete:[0-9a-f]{16}$`)
+	kubernetesPageCursorPattern = regexp.MustCompile(`^kubernetes:(namespaces|deployments):([1-9][0-9]{0,5}):([A-Za-z0-9_-]+|start):([0-9a-f]{16})$`)
+	kubernetesDoneCursorPattern = regexp.MustCompile(`^kubernetes:complete:([0-9a-f]{16}):[0-9a-f]{16}$`)
 	kubernetesNamePattern       = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$`)
 	kubernetesUIDPattern        = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$`)
 )
@@ -77,8 +78,11 @@ func newKubernetesCollectionAPI(endpoint string, roundTripper http.RoundTripper,
 }
 
 func (api *KubernetesCollectionAPI) FetchCollectionPage(ctx context.Context, credential []byte, request CollectionPageRequest) (CollectionPage, error) {
-	phase, continuation, includeCluster, ok := api.validPageRequest(request)
-	if api == nil || api.client == nil || ctx == nil || ctx.Err() != nil || !validKubernetesCollectionCredential(credential) || !ok {
+	phase, continuation, lineagePage, includeCluster, ok := api.validPageRequest(request)
+	if ctx != nil && ctx.Err() != nil {
+		return CollectionPage{}, providercollection.ClassifyProviderError(ctx, ctx.Err())
+	}
+	if api == nil || api.client == nil || ctx == nil || !validKubernetesCollectionCredential(credential) || !ok {
 		return CollectionPage{}, ErrInvalid
 	}
 	pageLimit := request.RemainingItems
@@ -113,11 +117,11 @@ func (api *KubernetesCollectionAPI) FetchCollectionPage(ctx context.Context, cre
 	response, err := doKubernetesCollectionRequest(api.client, providerRequest)
 	if err != nil || bounded.Err() != nil || response == nil {
 		closeKubernetesResponse(response)
-		return CollectionPage{}, ErrDenied
+		return CollectionPage{}, providercollection.ClassifyProviderHTTPFailure(bounded, err, 0, "", time.Now().UTC())
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
-		return CollectionPage{}, ErrDenied
+		return CollectionPage{}, providercollection.ClassifyProviderHTTPFailure(bounded, nil, response.StatusCode, response.Header.Get("Retry-After"), time.Now().UTC())
 	}
 	responseLimit := request.RemainingBytes
 	if responseLimit > kubernetesMaximumResponseBytes {
@@ -125,32 +129,32 @@ func (api *KubernetesCollectionAPI) FetchCollectionPage(ctx context.Context, cre
 	}
 	body, ok := readKubernetesCollectionBody(response.Body, responseLimit)
 	if !ok {
-		return CollectionPage{}, ErrDenied
+		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 	}
 	var payload kubernetesCollectionList
 	if !decodeKubernetesCollectionResponse(body, &payload) || len(payload.Items) > pageLimit {
-		return CollectionPage{}, ErrDenied
+		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 	}
 	entities, relationships, ok := normalizeKubernetesCollectionPage(request.Subject, phase, includeCluster, payload)
 	if !ok {
-		return CollectionPage{}, ErrDenied
+		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 	}
 	complete := false
 	next := collection.Cursor{Provider: collection.ProviderKubernetes, Version: "cursor_v1"}
 	if payload.Metadata.Continue != "" {
 		if !validKubernetesContinuation(payload.Metadata.Continue) {
-			return CollectionPage{}, ErrDenied
+			return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 		}
-		next.Value = "kubernetes:" + phase + ":" + base64.RawURLEncoding.EncodeToString([]byte(payload.Metadata.Continue))
+		next = nextKubernetesPageCursor(request.Subject, phase, lineagePage+1, base64.RawURLEncoding.EncodeToString([]byte(payload.Metadata.Continue)))
 	} else if phase == "namespaces" {
-		next.Value = "kubernetes:deployments:start"
+		next = nextKubernetesPageCursor(request.Subject, "deployments", lineagePage+1, "start")
 	} else {
 		complete = true
 		next = nextKubernetesCompleteCursor(request.Cursor, request.Subject.ID)
 	}
 	page, err := NewCollectionPage(request.Subject, next, complete, entities, relationships)
 	if err != nil || int64(len(page.Raw)) > request.RemainingBytes || bytes.Contains(page.Raw, credential) {
-		return CollectionPage{}, ErrDenied
+		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 	}
 	return page, nil
 }
@@ -305,30 +309,37 @@ func marshalKubernetesRelationship(id, kind, sourceNativeID, from, to, relations
 	}{id, kind, sourceNativeID, from, to, attributes})
 }
 
-func (api *KubernetesCollectionAPI) validPageRequest(request CollectionPageRequest) (string, string, bool, bool) {
+func (api *KubernetesCollectionAPI) validPageRequest(request CollectionPageRequest) (string, string, int, bool, bool) {
 	initialCursor := request.Cursor == (collection.Cursor{})
 	if api == nil || request.Provider != collection.ProviderKubernetes || request.Subject.Kind != "kubernetes_cluster" || (!initialCursor && (request.Cursor.Provider != collection.ProviderKubernetes || request.Cursor.Version != "cursor_v1")) || request.RemainingItems < 1 || request.RemainingBytes < kubernetesMinimumCollectionBytes {
-		return "", "", false, false
+		return "", "", 0, false, false
 	}
 	parts := strings.SplitN(request.Subject.ID, "/", 2)
 	if len(parts) != 2 || strings.ToLower(parts[0]) != api.host || !kubernetesNamePattern.MatchString(parts[1]) {
-		return "", "", false, false
+		return "", "", 0, false, false
 	}
-	if initialCursor || request.Cursor.Value == "initial" || kubernetesDoneCursorPattern.MatchString(request.Cursor.Value) {
-		return "namespaces", "", true, request.Page == 1
+	if initialCursor || request.Cursor.Value == "initial" {
+		return "namespaces", "", 1, true, request.Page == 1
+	}
+	if match := kubernetesDoneCursorPattern.FindStringSubmatch(request.Cursor.Value); len(match) == 2 {
+		return "namespaces", "", 1, true, request.Page == 1 && match[1] == providercollection.CompleteCursorBinding(collection.ProviderKubernetes, request.Subject)
 	}
 	match := kubernetesPageCursorPattern.FindStringSubmatch(request.Cursor.Value)
-	if len(match) != 3 || request.Page < 1 || len(match[2]) > 2048 {
-		return "", "", false, false
+	if len(match) != 5 || request.Page < 1 || len(match[3]) > 2048 {
+		return "", "", 0, false, false
 	}
-	if match[2] == "start" {
-		return match[1], "", false, match[1] == "deployments"
+	page, err := strconv.Atoi(match[2])
+	if err != nil || page != request.Page || match[4] != providercollection.CursorBinding(collection.ProviderKubernetes, request.Subject, match[1], page, match[3]) {
+		return "", "", 0, false, false
 	}
-	decoded, err := base64.RawURLEncoding.DecodeString(match[2])
+	if match[3] == "start" {
+		return match[1], "", page, false, match[1] == "deployments"
+	}
+	decoded, err := base64.RawURLEncoding.DecodeString(match[3])
 	if err != nil || !validKubernetesContinuation(string(decoded)) {
-		return "", "", false, false
+		return "", "", 0, false, false
 	}
-	return match[1], string(decoded), false, true
+	return match[1], string(decoded), page, false, true
 }
 
 func parseKubernetesCollectionEndpoint(value string) (*url.URL, bool) {
@@ -376,7 +387,12 @@ func deterministicKubernetesInventoryID(subject collection.SubjectBinding, kind,
 
 func nextKubernetesCompleteCursor(prior collection.Cursor, subjectID string) collection.Cursor {
 	digest := sha256.Sum256([]byte(prior.Value + "\x1f" + subjectID + "\x1fcomplete"))
-	return collection.Cursor{Provider: collection.ProviderKubernetes, Version: "cursor_v1", Value: fmt.Sprintf("kubernetes:complete:%x", digest[:8])}
+	subject := collection.SubjectBinding{Kind: "kubernetes_cluster", ID: subjectID}
+	return collection.Cursor{Provider: collection.ProviderKubernetes, Version: "cursor_v1", Value: fmt.Sprintf("kubernetes:complete:%s:%x", providercollection.CompleteCursorBinding(collection.ProviderKubernetes, subject), digest[:8])}
+}
+
+func nextKubernetesPageCursor(subject collection.SubjectBinding, phase string, page int, continuation string) collection.Cursor {
+	return collection.Cursor{Provider: collection.ProviderKubernetes, Version: "cursor_v1", Value: fmt.Sprintf("kubernetes:%s:%d:%s:%s", phase, page, continuation, providercollection.CursorBinding(collection.ProviderKubernetes, subject, phase, page, continuation))}
 }
 
 func decodeKubernetesCollectionResponse(body []byte, destination any) bool {

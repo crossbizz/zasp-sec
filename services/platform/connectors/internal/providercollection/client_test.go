@@ -234,11 +234,13 @@ func TestClientStopsAtExactItemBudgetAndPublishesPartialWithoutAnotherProviderCa
 func TestClientResumesFromVersionPinnedManifestAndReturnsExactUnion(t *testing.T) {
 	t.Parallel()
 	request := testRequest(t, collection.ProviderAWS)
-	request.Bounds.MaxPages = 1
+	request.Bounds.MaxPages = 2
 	firstEntity := json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{},"attributes":{}}`)
-	firstPage := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "continue"}, false, []json.RawMessage{firstEntity}, nil)
+	firstPage := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "page-2"}, false, []json.RawMessage{firstEntity}, nil)
+	secondEntity := json.RawMessage(`{"id":"pid_40000002-0000-4000-8000-000000000002","kind":"aws_role","source_native_id":"arn:aws:iam::123456789012:role/read","display_name":"read","stable_fields":{},"attributes":{}}`)
+	secondPage := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "continue"}, false, []json.RawMessage{secondEntity}, nil)
 	store := &recordingArtifacts{bucket: "zasp-evidence"}
-	firstClient, err := New(Config{Provider: request.Provider, API: &recordingAPI{pages: []Page{firstPage}}, Artifacts: store, CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock})
+	firstClient, err := New(Config{Provider: request.Provider, API: &recordingAPI{pages: []Page{firstPage, secondPage}}, Artifacts: store, CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -253,10 +255,10 @@ func TestClientResumesFromVersionPinnedManifestAndReturnsExactUnion(t *testing.T
 
 	request.Attempt++
 	request.Cursor = partial.NextCursor()
-	request.Bounds.MaxPages = 2
-	secondEntity := json.RawMessage(`{"id":"pid_40000002-0000-4000-8000-000000000002","kind":"aws_role","source_native_id":"arn:aws:iam::123456789012:role/read","display_name":"read","stable_fields":{},"attributes":{}}`)
-	tail := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "complete"}, true, []json.RawMessage{secondEntity}, nil)
-	api := &recordingAPI{pages: []Page{tail}}
+	request.Bounds.MaxPages = 3
+	thirdEntity := json.RawMessage(`{"id":"pid_40000003-0000-4000-8000-000000000003","kind":"aws_role","source_native_id":"arn:aws:iam::123456789012:role/audit","display_name":"audit","stable_fields":{},"attributes":{}}`)
+	tail := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "complete"}, true, []json.RawMessage{thirdEntity}, nil)
+	api := &recordingAPI{pages: []Page{tail}, pageOffset: 2}
 	base, _ := New(Config{Provider: request.Provider, API: api, Artifacts: store, CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock})
 	resumed, err := base.WithResumeSeed(seed)
 	if err != nil {
@@ -264,17 +266,20 @@ func TestClientResumesFromVersionPinnedManifestAndReturnsExactUnion(t *testing.T
 	}
 	outcome, err = resumed.CollectWithCredential(context.Background(), request, []byte("temporary-aws-credential"))
 	complete, ok := outcome.(collection.CompleteResult)
-	if err != nil || !ok || complete.Snapshot().EntityCount() != 2 || len(complete.Manifest().Objects()) != 2 || api.calls != 1 {
+	if err != nil || !ok || complete.Snapshot().EntityCount() != 3 || len(complete.Manifest().Objects()) != 3 || api.calls != 1 || len(api.requests) != 1 || api.requests[0].Page != 3 {
 		t.Fatalf("resumed = %T / %v entities=%d objects=%d calls=%d", outcome, err, complete.Snapshot().EntityCount(), len(complete.Manifest().Objects()), api.calls)
 	}
 
-	delete(store.objects, descriptor.Reference().String())
-	api = &recordingAPI{pages: []Page{tail}}
+	priorObject := partial.Manifest().Objects()[0]
+	priorArtifact := store.objects[priorObject.Reference().String()]
+	delete(store.objects, priorObject.Reference().String())
+	api = &recordingAPI{pages: []Page{tail}, pageOffset: 2}
 	base, _ = New(Config{Provider: request.Provider, API: api, Artifacts: store, CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock})
 	resumed, _ = base.WithResumeSeed(seed)
 	if _, err := resumed.CollectWithCredential(context.Background(), request, []byte("temporary-aws-credential")); !failureHasCode(err, collection.FailureOutcomeUnknown) || api.calls != 0 {
-		t.Fatalf("missing checkpoint error/calls = %v / %d", err, api.calls)
+		t.Fatalf("missing pinned page error/calls = %v / %d", err, api.calls)
 	}
+	store.objects[priorObject.Reference().String()] = priorArtifact
 }
 
 func TestClientReservesManifestCapacityBeforeFetchingOrWritingRawPages(t *testing.T) {
@@ -615,11 +620,12 @@ func failureHasCode(err error, code collection.FailureCode) bool {
 }
 
 type recordingAPI struct {
-	pages     []Page
-	steps     *[]string
-	calls     int
-	requests  []PageRequest
-	readiness func(context.Context) error
+	pages      []Page
+	steps      *[]string
+	calls      int
+	requests   []PageRequest
+	readiness  func(context.Context) error
+	pageOffset int
 }
 
 func (api *recordingAPI) FetchCollectionPage(_ context.Context, credential []byte, request PageRequest) (Page, error) {
@@ -628,7 +634,7 @@ func (api *recordingAPI) FetchCollectionPage(_ context.Context, credential []byt
 	if api.steps != nil {
 		*api.steps = append(*api.steps, fmt.Sprintf("fetch:%d", api.calls))
 	}
-	if len(credential) == 0 || request.Page != api.calls || api.calls > len(api.pages) {
+	if len(credential) == 0 || request.Page != api.calls+api.pageOffset || api.calls > len(api.pages) {
 		return Page{}, collection.ErrContract
 	}
 	return api.pages[api.calls-1], nil

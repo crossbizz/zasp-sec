@@ -19,6 +19,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/collection"
+	"github.com/zasp-ai/zasp-sec/services/platform/connectors/internal/providercollection"
 )
 
 const (
@@ -29,8 +30,8 @@ const (
 )
 
 var (
-	githubCollectionCursorPattern = regexp.MustCompile(`^github:repositories:([1-9][0-9]{0,5}):([1-9][0-9]{0,2})$`)
-	githubCompleteCursorPattern   = regexp.MustCompile(`^github:complete:[0-9a-f]{16}$`)
+	githubCollectionCursorPattern = regexp.MustCompile(`^github:repositories:([1-9][0-9]{0,5}):([1-9][0-9]{0,5}):([0-9]{1,3}):([0-9a-f]{16})$`)
+	githubCompleteCursorPattern   = regexp.MustCompile(`^github:complete:([0-9a-f]{16}):[0-9a-f]{16}$`)
 	githubNamePattern             = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,100}$`)
 )
 
@@ -61,27 +62,27 @@ func newInstallationCollectionAPI(roundTripper http.RoundTripper, timeout time.D
 }
 
 func (api *InstallationCollectionAPI) FetchCollectionPage(ctx context.Context, credential []byte, request CollectionPageRequest) (CollectionPage, error) {
-	providerPage, pageLimit, includeInstallation, ok := validInstallationPageRequest(request)
-	if api == nil || api.client == nil || ctx == nil || ctx.Err() != nil || !validInstallationCredential(credential) || !ok {
+	phase, lineagePage, providerPage, pageLimit, ok := validInstallationPageRequest(request)
+	if ctx != nil && ctx.Err() != nil {
+		return CollectionPage{}, providercollection.ClassifyProviderError(ctx, ctx.Err())
+	}
+	if api == nil || api.client == nil || ctx == nil || !validInstallationCredential(credential) || !ok {
 		return CollectionPage{}, ErrInvalid
 	}
-	remainingRepositories := request.RemainingItems
-	if includeInstallation {
-		remainingRepositories--
-	}
-	if remainingRepositories < 1 {
-		return CollectionPage{}, ErrInvalid
-	}
-	if pageLimit == 0 {
-		pageLimit = remainingRepositories
-		if pageLimit > githubMaximumPageItems {
-			pageLimit = githubMaximumPageItems
+	providerURL := githubCollectionEndpoint + "/installation"
+	if phase == "repositories" {
+		if pageLimit == 0 {
+			pageLimit = request.RemainingItems
+			if pageLimit > githubMaximumPageItems {
+				pageLimit = githubMaximumPageItems
+			}
 		}
+		query := url.Values{}
+		query.Set("page", strconv.Itoa(providerPage))
+		query.Set("per_page", strconv.Itoa(pageLimit))
+		providerURL = githubCollectionEndpoint + "/installation/repositories?" + query.Encode()
 	}
-	query := url.Values{}
-	query.Set("page", strconv.Itoa(providerPage))
-	query.Set("per_page", strconv.Itoa(pageLimit))
-	providerRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, githubCollectionEndpoint+"/installation/repositories?"+query.Encode(), nil)
+	providerRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, providerURL, nil)
 	if err != nil {
 		return CollectionPage{}, ErrInvalid
 	}
@@ -96,11 +97,11 @@ func (api *InstallationCollectionAPI) FetchCollectionPage(ctx context.Context, c
 	response, err := doInstallationRequest(api.client, providerRequest)
 	if err != nil || bounded.Err() != nil || response == nil {
 		closeInstallationResponse(response)
-		return CollectionPage{}, ErrProvider
+		return CollectionPage{}, providercollection.ClassifyProviderHTTPFailure(bounded, err, 0, "", time.Now().UTC())
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
-		return CollectionPage{}, ErrProvider
+		return CollectionPage{}, providercollection.ClassifyProviderHTTPFailure(bounded, nil, response.StatusCode, response.Header.Get("Retry-After"), time.Now().UTC())
 	}
 	responseLimit := request.RemainingBytes
 	if responseLimit > githubMaximumResponseBytes {
@@ -108,24 +109,46 @@ func (api *InstallationCollectionAPI) FetchCollectionPage(ctx context.Context, c
 	}
 	body, ok := readInstallationBody(response.Body, responseLimit)
 	if !ok {
-		return CollectionPage{}, ErrProvider
+		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
+	}
+	if phase == "installation" {
+		var payload installationResponse
+		if !decodeInstallationResponse(body, &payload) {
+			return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
+		}
+		if strconv.FormatInt(payload.ID, 10) != request.Subject.ID {
+			return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureDenied)
+		}
+		if !validGitHubText(payload.Account.Login, 100) || payload.Account.ID < 1 || payload.Account.ID > 1<<53 || payload.Account.Type != "Organization" && payload.Account.Type != "User" {
+			return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
+		}
+		entity, normalizeOK := normalizeVerifiedInstallation(request.Subject, payload)
+		if !normalizeOK {
+			return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
+		}
+		next := nextGitHubPageCursor(request.Subject, lineagePage+1, 1, 0)
+		page, pageErr := NewCollectionPage(request.Subject, next, false, []json.RawMessage{entity}, nil)
+		if pageErr != nil || int64(len(page.Raw)) > request.RemainingBytes || bytes.Contains(page.Raw, credential) {
+			return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
+		}
+		return page, nil
 	}
 	var payload installationRepositoriesResponse
-	if !decodeInstallationResponse(body, &payload) || len(payload.Repositories) > pageLimit || len(payload.Repositories) > remainingRepositories || payload.TotalCount < len(payload.Repositories) {
-		return CollectionPage{}, ErrProvider
+	if !decodeInstallationResponse(body, &payload) || len(payload.Repositories) > pageLimit || len(payload.Repositories) > request.RemainingItems || payload.TotalCount < len(payload.Repositories) {
+		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 	}
-	entities, relationships, ok := normalizeInstallationRepositories(request.Subject, includeInstallation, payload.Repositories)
+	entities, relationships, ok := normalizeInstallationRepositories(request.Subject, payload.Repositories)
 	if !ok {
-		return CollectionPage{}, ErrProvider
+		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 	}
 	complete := providerPage*pageLimit >= payload.TotalCount
-	next := collection.Cursor{Provider: collection.ProviderGitHub, Version: "cursor_v1", Value: fmt.Sprintf("github:repositories:%d:%d", providerPage+1, pageLimit)}
+	next := nextGitHubPageCursor(request.Subject, lineagePage+1, providerPage+1, pageLimit)
 	if complete {
 		next = nextGitHubCompleteCursor(request.Cursor, request.Subject.ID, payload.TotalCount)
 	}
 	page, err := NewCollectionPage(request.Subject, next, complete, entities, relationships)
 	if err != nil || int64(len(page.Raw)) > request.RemainingBytes || bytes.Contains(page.Raw, credential) {
-		return CollectionPage{}, ErrProvider
+		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 	}
 	return page, nil
 }
@@ -165,6 +188,25 @@ type installationRepositoriesResponse struct {
 	Repositories []installationRepository `json:"repositories"`
 }
 
+type installationResponse struct {
+	ID      int64 `json:"id"`
+	Account struct {
+		ID    int64  `json:"id"`
+		Login string `json:"login"`
+		Type  string `json:"type"`
+	} `json:"account"`
+}
+
+func normalizeVerifiedInstallation(subject collection.SubjectBinding, installation installationResponse) (json.RawMessage, bool) {
+	installationEntityID := deterministicGitHubInventoryID(subject, "github_installation", subject.ID)
+	stable, _ := json.Marshal(struct {
+		InstallationID int64  `json:"installation_id"`
+		Owner          string `json:"owner"`
+	}{InstallationID: installation.ID, Owner: installation.Account.Login})
+	entity, err := marshalGitHubEntity(installationEntityID, "github_installation", "github:installation:"+subject.ID, "GitHub installation "+installation.Account.Login, stable, json.RawMessage(`{}`))
+	return entity, err == nil
+}
+
 type installationRepository struct {
 	ID            int64  `json:"id"`
 	Name          string `json:"name"`
@@ -177,29 +219,14 @@ type installationRepository struct {
 	} `json:"owner"`
 }
 
-func normalizeInstallationRepositories(subject collection.SubjectBinding, includeInstallation bool, repositories []installationRepository) ([]json.RawMessage, []json.RawMessage, bool) {
+func normalizeInstallationRepositories(subject collection.SubjectBinding, repositories []installationRepository) ([]json.RawMessage, []json.RawMessage, bool) {
 	installationID, err := strconv.ParseInt(subject.ID, 10, 64)
 	if err != nil || installationID < 1 || installationID > 1<<53 {
 		return nil, nil, false
 	}
 	installationEntityID := deterministicGitHubInventoryID(subject, "github_installation", subject.ID)
-	entities := make([]json.RawMessage, 0, len(repositories)+1)
+	entities := make([]json.RawMessage, 0, len(repositories))
 	relationships := make([]json.RawMessage, 0, len(repositories))
-	if includeInstallation {
-		owner := "installation"
-		if len(repositories) > 0 {
-			owner = repositories[0].Owner.Login
-		}
-		stable, _ := json.Marshal(struct {
-			InstallationID int64  `json:"installation_id"`
-			Owner          string `json:"owner"`
-		}{InstallationID: installationID, Owner: owner})
-		entity, marshalErr := marshalGitHubEntity(installationEntityID, "github_installation", "github:installation:"+subject.ID, "GitHub installation "+subject.ID, stable, json.RawMessage(`{}`))
-		if marshalErr != nil {
-			return nil, nil, false
-		}
-		entities = append(entities, entity)
-	}
 	seen := make(map[int64]struct{}, len(repositories))
 	for _, repository := range repositories {
 		if repository.ID < 1 || repository.ID > 1<<53 || !githubNamePattern.MatchString(repository.Name) || !validGitHubText(repository.Owner.Login, 100) || repository.FullName != repository.Owner.Login+"/"+repository.Name || !validGitHubText(repository.DefaultBranch, 255) {
@@ -262,25 +289,30 @@ func marshalGitHubRelationship(id, kind, sourceNativeID, from, to string) (json.
 	}{id, kind, sourceNativeID, from, to, json.RawMessage(`{"type":"installation_repository"}`)})
 }
 
-func validInstallationPageRequest(request CollectionPageRequest) (int, int, bool, bool) {
+func validInstallationPageRequest(request CollectionPageRequest) (string, int, int, int, bool) {
 	initialCursor := request.Cursor == (collection.Cursor{})
 	if request.Provider != collection.ProviderGitHub || request.Subject.Kind != "github_installation" || (!initialCursor && (request.Cursor.Provider != collection.ProviderGitHub || request.Cursor.Version != "cursor_v1")) || request.RemainingItems < 1 || request.RemainingBytes < githubMinimumCollectionBytes {
-		return 0, 0, false, false
+		return "", 0, 0, 0, false
 	}
 	installationID, err := strconv.ParseUint(request.Subject.ID, 10, 64)
 	if err != nil || installationID < 1 || installationID > 1<<53 || strings.HasPrefix(request.Subject.ID, "0") {
-		return 0, 0, false, false
+		return "", 0, 0, 0, false
 	}
-	if initialCursor || request.Cursor.Value == "initial" || githubCompleteCursorPattern.MatchString(request.Cursor.Value) {
-		return 1, 0, true, request.Page == 1
+	if initialCursor || request.Cursor.Value == "initial" {
+		return "installation", 1, 0, 0, request.Page == 1
+	}
+	if match := githubCompleteCursorPattern.FindStringSubmatch(request.Cursor.Value); len(match) == 2 {
+		return "installation", 1, 0, 0, request.Page == 1 && match[1] == providercollection.CompleteCursorBinding(collection.ProviderGitHub, request.Subject)
 	}
 	match := githubCollectionCursorPattern.FindStringSubmatch(request.Cursor.Value)
-	if len(match) != 3 {
-		return 0, 0, false, false
+	if len(match) != 5 {
+		return "", 0, 0, 0, false
 	}
-	page, err := strconv.Atoi(match[1])
-	pageLimit, limitErr := strconv.Atoi(match[2])
-	return page, pageLimit, false, err == nil && limitErr == nil && pageLimit >= 1 && pageLimit <= githubMaximumPageItems && request.Page == page
+	lineage, lineageErr := strconv.Atoi(match[1])
+	providerPage, pageErr := strconv.Atoi(match[2])
+	pageLimit, limitErr := strconv.Atoi(match[3])
+	continuation := match[2] + ":" + match[3]
+	return "repositories", lineage, providerPage, pageLimit, lineageErr == nil && pageErr == nil && limitErr == nil && pageLimit >= 0 && pageLimit <= githubMaximumPageItems && request.Page == lineage && match[4] == providercollection.CursorBinding(collection.ProviderGitHub, request.Subject, "repositories", lineage, continuation)
 }
 
 func validInstallationCredential(value []byte) bool {
@@ -316,7 +348,13 @@ func deterministicGitHubInventoryID(subject collection.SubjectBinding, kind, nat
 
 func nextGitHubCompleteCursor(prior collection.Cursor, subjectID string, total int) collection.Cursor {
 	digest := sha256.Sum256([]byte(prior.Value + "\x1f" + subjectID + "\x1f" + strconv.Itoa(total)))
-	return collection.Cursor{Provider: collection.ProviderGitHub, Version: "cursor_v1", Value: fmt.Sprintf("github:complete:%x", digest[:8])}
+	subject := collection.SubjectBinding{Kind: "github_installation", ID: subjectID}
+	return collection.Cursor{Provider: collection.ProviderGitHub, Version: "cursor_v1", Value: fmt.Sprintf("github:complete:%s:%x", providercollection.CompleteCursorBinding(collection.ProviderGitHub, subject), digest[:8])}
+}
+
+func nextGitHubPageCursor(subject collection.SubjectBinding, lineage, providerPage, pageLimit int) collection.Cursor {
+	continuation := strconv.Itoa(providerPage) + ":" + strconv.Itoa(pageLimit)
+	return collection.Cursor{Provider: collection.ProviderGitHub, Version: "cursor_v1", Value: fmt.Sprintf("github:repositories:%d:%s:%s", lineage, continuation, providercollection.CursorBinding(collection.ProviderGitHub, subject, "repositories", lineage, continuation))}
 }
 
 func decodeInstallationResponse(body []byte, destination any) bool {

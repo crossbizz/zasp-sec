@@ -54,7 +54,7 @@ func TestKubernetesCollectionAPIPaginatesNamespacesThenWorkloadsCanonically(t *t
 	if err != nil {
 		t.Fatalf("FetchCollectionPage(namespaces) error = %v", err)
 	}
-	if first.Complete || first.Cursor.Value != "kubernetes:deployments:start" || len(first.Entities) != 2 || len(first.Relationships) != 1 || bytes.Contains(first.Raw, credential) || !bytes.Equal(first.Raw, mustKubernetesCollectionPage(t, first).Raw) {
+	if first.Complete || first.Cursor != nextKubernetesPageCursor(request.Subject, "deployments", 2, "start") || len(first.Entities) != 2 || len(first.Relationships) != 1 || bytes.Contains(first.Raw, credential) || !bytes.Equal(first.Raw, mustKubernetesCollectionPage(t, first).Raw) {
 		t.Fatalf("namespace page = %#v / %s", first, first.Raw)
 	}
 	request.Cursor = first.Cursor
@@ -107,8 +107,44 @@ func TestKubernetesCollectionAPIBindsEndpointCursorAndRejectsSecrets(t *testing.
 		t.Run(name, func(t *testing.T) {
 			roundTripper := &kubernetesRoundTripper{responses: []kubernetesHTTPResponse{{status: http.StatusOK, body: providerBody}}}
 			api, _ := newKubernetesCollectionAPI("https://cluster.example", roundTripper, time.Second)
-			if _, err := api.FetchCollectionPage(context.Background(), []byte(credential), valid); !errors.Is(err, ErrDenied) || strings.Contains(err.Error(), credential) || len(roundTripper.requests) != 1 {
+			if _, err := api.FetchCollectionPage(context.Background(), []byte(credential), valid); !kubernetesFailureHasCode(err, collection.FailureMalformed) || strings.Contains(err.Error(), credential) || len(roundTripper.requests) != 1 {
 				t.Fatalf("secret response error/calls = %q / %d", err, len(roundTripper.requests))
+			}
+		})
+	}
+	foreignCursor := nextKubernetesPageCursor(collection.SubjectBinding{Kind: "kubernetes_cluster", ID: "cluster.example/other"}, "deployments", 2, "start")
+	foreign := valid
+	foreign.Cursor = foreignCursor
+	foreign.Page = 2
+	roundTripper := &kubernetesRoundTripper{}
+	api, _ := newKubernetesCollectionAPI("https://cluster.example", roundTripper, time.Second)
+	if _, err := api.FetchCollectionPage(context.Background(), []byte(credential), foreign); !errors.Is(err, ErrInvalid) || len(roundTripper.requests) != 0 {
+		t.Fatalf("foreign cursor error/calls = %v / %d", err, len(roundTripper.requests))
+	}
+	jump := valid
+	jump.Cursor = nextKubernetesPageCursor(jump.Subject, "deployments", 2, "start")
+	jump.Page = 3
+	if _, err := api.FetchCollectionPage(context.Background(), []byte(credential), jump); !errors.Is(err, ErrInvalid) || len(roundTripper.requests) != 0 {
+		t.Fatalf("jump cursor error/calls = %v / %d", err, len(roundTripper.requests))
+	}
+}
+
+func TestKubernetesCollectionAPIClassifiesRateLimitAndServerFailures(t *testing.T) {
+	t.Parallel()
+	request := CollectionPageRequest{Provider: collection.ProviderKubernetes, Subject: collection.SubjectBinding{Kind: "kubernetes_cluster", ID: "cluster.example/prod"}, Cursor: collection.Cursor{Provider: collection.ProviderKubernetes, Version: "cursor_v1", Value: "initial"}, Page: 1, RemainingItems: 4, RemainingBytes: 4096}
+	for name, test := range map[string]struct {
+		response kubernetesHTTPResponse
+		code     collection.FailureCode
+	}{
+		"rate limited": {response: kubernetesHTTPResponse{status: http.StatusTooManyRequests, header: http.Header{"Retry-After": []string{"2"}}, body: `{}`}, code: collection.FailureRateLimited},
+		"server":       {response: kubernetesHTTPResponse{status: http.StatusServiceUnavailable, body: `{}`}, code: collection.FailureRetryable},
+	} {
+		t.Run(name, func(t *testing.T) {
+			roundTripper := &kubernetesRoundTripper{responses: []kubernetesHTTPResponse{test.response}}
+			api, _ := newKubernetesCollectionAPI("https://cluster.example", roundTripper, time.Second)
+			_, err := api.FetchCollectionPage(context.Background(), []byte("kubernetes-bearer-secret-value"), request)
+			if !kubernetesFailureHasCode(err, test.code) {
+				t.Fatalf("failure = %v, want %s", err, test.code)
 			}
 		})
 	}
@@ -133,4 +169,9 @@ func mustKubernetesCollectionPage(t *testing.T, page CollectionPage) CollectionP
 		t.Fatalf("NewCollectionPage() error = %v", err)
 	}
 	return canonical
+}
+
+func kubernetesFailureHasCode(err error, code collection.FailureCode) bool {
+	var failure *collection.Failure
+	return errors.As(err, &failure) && failure.Code() == code
 }

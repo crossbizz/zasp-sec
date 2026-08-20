@@ -81,6 +81,7 @@ func (client *Client) loadResumeSeed(ctx context.Context, request collection.Req
 		entityObjects: make(map[string]collection.RawObject), entitySourceIDs: make(map[string]struct{}), relationshipIDs: make(map[string]struct{}), relationshipSourceIDs: make(map[string]struct{}), evidenceLengths: make([][]int, 0, len(document.Objects)),
 	}
 	lastReference := ""
+	cursorMatches := 0
 	for _, descriptor := range document.Objects {
 		if descriptor.Reference <= lastReference {
 			return resumeState{}, collection.ErrContract
@@ -89,6 +90,9 @@ func (client *Client) loadResumeSeed(ctx context.Context, request collection.Req
 		object, page, loadErr := client.loadResumePage(ctx, request, descriptor)
 		if loadErr != nil || page.Complete {
 			return resumeState{}, collection.ErrContract
+		}
+		if page.Cursor == seed.Cursor {
+			cursorMatches++
 		}
 		state.objects = append(state.objects, object)
 		state.pages = append(state.pages, page)
@@ -132,7 +136,7 @@ func (client *Client) loadResumeSeed(ctx context.Context, request collection.Req
 		}
 		state.evidenceLengths = append(state.evidenceLengths, lengths)
 	}
-	if len(state.objects) == 0 {
+	if len(state.objects) == 0 || cursorMatches != 1 {
 		return resumeState{}, collection.ErrContract
 	}
 	return state, nil

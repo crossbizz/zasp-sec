@@ -20,6 +20,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/collection"
+	"github.com/zasp-ai/zasp-sec/services/platform/connectors/internal/providercollection"
 )
 
 const (
@@ -29,8 +30,8 @@ const (
 )
 
 var (
-	oktaPageCursorPattern     = regexp.MustCompile(`^okta:(users|groups|applications):([A-Za-z0-9_-]+|start)$`)
-	oktaCompleteCursorPattern = regexp.MustCompile(`^okta:complete:[0-9a-f]{16}$`)
+	oktaPageCursorPattern     = regexp.MustCompile(`^okta:(users|groups|applications):([1-9][0-9]{0,5}):([A-Za-z0-9_-]+|start):([0-9a-f]{16})$`)
+	oktaCompleteCursorPattern = regexp.MustCompile(`^okta:complete:([0-9a-f]{16}):[0-9a-f]{16}$`)
 	oktaObjectIDPattern       = regexp.MustCompile(`^(00u|00g|0oa)[A-Za-z0-9]{16,64}$`)
 )
 
@@ -65,8 +66,11 @@ func newOktaCollectionAPI(issuer string, roundTripper http.RoundTripper, timeout
 }
 
 func (api *OktaCollectionAPI) FetchCollectionPage(ctx context.Context, credential []byte, request CollectionPageRequest) (CollectionPage, error) {
-	phase, after, includeTenant, ok := api.validPageRequest(request)
-	if api == nil || api.client == nil || ctx == nil || ctx.Err() != nil || !validOktaCollectionCredential(credential) || !ok {
+	phase, after, lineagePage, includeTenant, ok := api.validPageRequest(request)
+	if ctx != nil && ctx.Err() != nil {
+		return CollectionPage{}, providercollection.ClassifyProviderError(ctx, ctx.Err())
+	}
+	if api == nil || api.client == nil || ctx == nil || !validOktaCollectionCredential(credential) || !ok {
 		return CollectionPage{}, ErrInvalid
 	}
 	pageLimit := request.RemainingItems
@@ -98,11 +102,11 @@ func (api *OktaCollectionAPI) FetchCollectionPage(ctx context.Context, credentia
 	response, err := doOktaCollectionRequest(api.client, providerRequest)
 	if err != nil || bounded.Err() != nil || response == nil {
 		closeOktaCollectionResponse(response)
-		return CollectionPage{}, ErrProvider
+		return CollectionPage{}, providercollection.ClassifyProviderHTTPFailure(bounded, err, 0, "", time.Now().UTC())
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
-		return CollectionPage{}, ErrProvider
+		return CollectionPage{}, providercollection.ClassifyProviderHTTPFailure(bounded, nil, response.StatusCode, response.Header.Get("Retry-After"), time.Now().UTC())
 	}
 	responseLimit := request.RemainingBytes
 	if responseLimit > oktaMaximumResponseBytes {
@@ -110,40 +114,40 @@ func (api *OktaCollectionAPI) FetchCollectionPage(ctx context.Context, credentia
 	}
 	body, ok := readOktaCollectionBody(response.Body, responseLimit)
 	if !ok {
-		return CollectionPage{}, ErrProvider
+		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 	}
 	var objects []json.RawMessage
 	if !decodeOktaCollectionResponse(body, &objects) || len(objects) > pageLimit {
-		return CollectionPage{}, ErrProvider
+		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 	}
 	entities, relationships, ok := normalizeOktaCollectionPage(request.Subject, phase, includeTenant, objects)
 	if !ok {
-		return CollectionPage{}, ErrProvider
+		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 	}
 	nextAfter, ok := api.oktaNextCursor(response.Header, path)
 	if !ok {
-		return CollectionPage{}, ErrProvider
+		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 	}
 	complete := false
 	next := collection.Cursor{Provider: collection.ProviderOkta, Version: "cursor_v1"}
 	if nextAfter != "" {
-		next.Value = "okta:" + phase + ":" + base64.RawURLEncoding.EncodeToString([]byte(nextAfter))
+		next = nextOktaPageCursor(request.Subject, phase, lineagePage+1, base64.RawURLEncoding.EncodeToString([]byte(nextAfter)))
 	} else {
 		switch phase {
 		case "users":
-			next.Value = "okta:groups:start"
+			next = nextOktaPageCursor(request.Subject, "groups", lineagePage+1, "start")
 		case "groups":
-			next.Value = "okta:applications:start"
+			next = nextOktaPageCursor(request.Subject, "applications", lineagePage+1, "start")
 		case "applications":
 			complete = true
 			next = nextOktaCompleteCursor(request.Cursor, request.Subject.ID)
 		default:
-			return CollectionPage{}, ErrProvider
+			return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 		}
 	}
 	page, err := NewOktaCollectionPage(request.Subject, next, complete, entities, relationships)
 	if err != nil || int64(len(page.Raw)) > request.RemainingBytes || bytes.Contains(page.Raw, credential) {
-		return CollectionPage{}, ErrProvider
+		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 	}
 	return page, nil
 }
@@ -289,26 +293,33 @@ func marshalOktaRelationship(id, kind, sourceNativeID, from, to string) (json.Ra
 	}{id, kind, sourceNativeID, from, to, json.RawMessage(`{"type":"tenant_object"}`)})
 }
 
-func (api *OktaCollectionAPI) validPageRequest(request CollectionPageRequest) (string, string, bool, bool) {
+func (api *OktaCollectionAPI) validPageRequest(request CollectionPageRequest) (string, string, int, bool, bool) {
 	initialCursor := request.Cursor == (collection.Cursor{})
 	if api == nil || request.Provider != collection.ProviderOkta || request.Subject.Kind != "okta_tenant" || request.Subject.ID != api.tenant || (!initialCursor && (request.Cursor.Provider != collection.ProviderOkta || request.Cursor.Version != "cursor_v1")) || request.RemainingItems < 1 || request.RemainingBytes < oktaMinimumCollectionBytes {
-		return "", "", false, false
+		return "", "", 0, false, false
 	}
-	if initialCursor || request.Cursor.Value == "initial" || oktaCompleteCursorPattern.MatchString(request.Cursor.Value) {
-		return "users", "", true, request.Page == 1
+	if initialCursor || request.Cursor.Value == "initial" {
+		return "users", "", 1, true, request.Page == 1
+	}
+	if match := oktaCompleteCursorPattern.FindStringSubmatch(request.Cursor.Value); len(match) == 2 {
+		return "users", "", 1, true, request.Page == 1 && match[1] == providercollection.CompleteCursorBinding(collection.ProviderOkta, request.Subject)
 	}
 	match := oktaPageCursorPattern.FindStringSubmatch(request.Cursor.Value)
-	if len(match) != 3 || len(match[2]) > 2048 || request.Page < 1 {
-		return "", "", false, false
+	if len(match) != 5 || len(match[3]) > 2048 || request.Page < 1 {
+		return "", "", 0, false, false
 	}
-	if match[2] == "start" {
-		return match[1], "", false, match[1] != "users"
+	page, err := strconv.Atoi(match[2])
+	if err != nil || page != request.Page || match[4] != providercollection.CursorBinding(collection.ProviderOkta, request.Subject, match[1], page, match[3]) {
+		return "", "", 0, false, false
 	}
-	decoded, err := base64.RawURLEncoding.DecodeString(match[2])
+	if match[3] == "start" {
+		return match[1], "", page, false, match[1] != "users"
+	}
+	decoded, err := base64.RawURLEncoding.DecodeString(match[3])
 	if err != nil || !validOktaAfter(string(decoded)) {
-		return "", "", false, false
+		return "", "", 0, false, false
 	}
-	return match[1], string(decoded), false, true
+	return match[1], string(decoded), page, false, true
 }
 
 func (api *OktaCollectionAPI) oktaNextCursor(header http.Header, expectedPath string) (string, bool) {
@@ -396,7 +407,12 @@ func deterministicOktaInventoryID(subject collection.SubjectBinding, kind, nativ
 
 func nextOktaCompleteCursor(prior collection.Cursor, subjectID string) collection.Cursor {
 	digest := sha256.Sum256([]byte(prior.Value + "\x1f" + subjectID + "\x1fcomplete"))
-	return collection.Cursor{Provider: collection.ProviderOkta, Version: "cursor_v1", Value: fmt.Sprintf("okta:complete:%x", digest[:8])}
+	subject := collection.SubjectBinding{Kind: "okta_tenant", ID: subjectID}
+	return collection.Cursor{Provider: collection.ProviderOkta, Version: "cursor_v1", Value: fmt.Sprintf("okta:complete:%s:%x", providercollection.CompleteCursorBinding(collection.ProviderOkta, subject), digest[:8])}
+}
+
+func nextOktaPageCursor(subject collection.SubjectBinding, phase string, page int, after string) collection.Cursor {
+	return collection.Cursor{Provider: collection.ProviderOkta, Version: "cursor_v1", Value: fmt.Sprintf("okta:%s:%d:%s:%s", phase, page, after, providercollection.CursorBinding(collection.ProviderOkta, subject, phase, page, after))}
 }
 
 func decodeOktaCollectionResponse(body []byte, destination any) bool {

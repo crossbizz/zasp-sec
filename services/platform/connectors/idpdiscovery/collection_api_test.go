@@ -65,7 +65,7 @@ func TestOktaCollectionAPIPaginatesUsersGroupsAndApplicationsCanonically(t *test
 		request.Cursor = page.Cursor
 		request.RemainingItems -= len(page.Entities)
 	}
-	if pages[0].Complete || pages[0].Cursor.Value != "okta:groups:start" || len(pages[0].Entities) != 2 || len(pages[0].Relationships) != 1 || pages[1].Complete || pages[1].Cursor.Value != "okta:applications:start" || len(pages[1].Entities) != 1 || !pages[2].Complete || !strings.HasPrefix(pages[2].Cursor.Value, "okta:complete:") || len(pages[2].Entities) != 1 {
+	if pages[0].Complete || pages[0].Cursor != nextOktaPageCursor(request.Subject, "groups", 2, "start") || len(pages[0].Entities) != 2 || len(pages[0].Relationships) != 1 || pages[1].Complete || pages[1].Cursor != nextOktaPageCursor(request.Subject, "applications", 3, "start") || len(pages[1].Entities) != 1 || !pages[2].Complete || !strings.HasPrefix(pages[2].Cursor.Value, "okta:complete:") || len(pages[2].Entities) != 1 {
 		t.Fatalf("pages = %#v", pages)
 	}
 	wantURLs := []string{"https://acme.okta.com/api/v1/users?limit=3", "https://acme.okta.com/api/v1/groups?limit=2", "https://acme.okta.com/api/v1/apps?limit=1"}
@@ -110,7 +110,7 @@ func TestOktaCollectionAPIAcceptsOnlySameTenantOpaqueNextCursor(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			hostile := &oktaRoundTripper{responses: []oktaHTTPResponse{{status: http.StatusOK, body: `[]`, header: http.Header{"Link": []string{link}}}}}
 			api, _ = newOktaCollectionAPI("https://acme.okta.com", hostile, time.Second)
-			if _, err := api.FetchCollectionPage(context.Background(), []byte("okta-access-secret-value"), CollectionPageRequest{Provider: collection.ProviderOkta, Subject: request.Subject, Cursor: collection.Cursor{Provider: collection.ProviderOkta, Version: "cursor_v1", Value: "initial"}, Page: 1, RemainingItems: 4, RemainingBytes: 4096}); !errors.Is(err, ErrProvider) || len(hostile.requests) != 1 {
+			if _, err := api.FetchCollectionPage(context.Background(), []byte("okta-access-secret-value"), CollectionPageRequest{Provider: collection.ProviderOkta, Subject: request.Subject, Cursor: collection.Cursor{Provider: collection.ProviderOkta, Version: "cursor_v1", Value: "initial"}, Page: 1, RemainingItems: 4, RemainingBytes: 4096}); !oktaFailureHasCode(err, collection.FailureMalformed) || len(hostile.requests) != 1 {
 				t.Fatalf("hostile link error/calls = %v / %d", err, len(hostile.requests))
 			}
 		})
@@ -122,7 +122,8 @@ func TestOktaCollectionAPIAcceptsTerminalSelfLinkWithoutInventingAnotherProvider
 	self := http.Header{"Link": []string{`<https://acme.okta.com/api/v1/apps?limit=1>; rel="self"`}}
 	roundTripper := &oktaRoundTripper{responses: []oktaHTTPResponse{{status: http.StatusOK, body: `[{"id":"0oa1234567890ABCDE1","name":"oidc_client","label":"Portal","status":"ACTIVE"}]`, header: self}}}
 	api, _ := newOktaCollectionAPI("https://acme.okta.com", roundTripper, time.Second)
-	page, err := api.FetchCollectionPage(context.Background(), []byte("okta-access-secret-value"), CollectionPageRequest{Provider: collection.ProviderOkta, Subject: collection.SubjectBinding{Kind: "okta_tenant", ID: "acme.okta.com"}, Cursor: collection.Cursor{Provider: collection.ProviderOkta, Version: "cursor_v1", Value: "okta:applications:start"}, Page: 3, RemainingItems: 1, RemainingBytes: 4096})
+	subject := collection.SubjectBinding{Kind: "okta_tenant", ID: "acme.okta.com"}
+	page, err := api.FetchCollectionPage(context.Background(), []byte("okta-access-secret-value"), CollectionPageRequest{Provider: collection.ProviderOkta, Subject: subject, Cursor: nextOktaPageCursor(subject, "applications", 3, "start"), Page: 3, RemainingItems: 1, RemainingBytes: 4096})
 	if err != nil || !page.Complete || len(roundTripper.requests) != 1 {
 		t.Fatalf("terminal self-link page/error/calls = %#v / %v / %d", page, err, len(roundTripper.requests))
 	}
@@ -134,8 +135,26 @@ func TestOktaCollectionAPIRejectsCredentialEchoFromProviderData(t *testing.T) {
 	roundTripper := &oktaRoundTripper{responses: []oktaHTTPResponse{{status: http.StatusOK, body: `[{"id":"00u1234567890ABCDE1","status":"ACTIVE","profile":{"login":"alice@example.com","displayName":"okta-access-secret-value"}}]`}}}
 	api, _ := newOktaCollectionAPI("https://acme.okta.com", roundTripper, time.Second)
 	_, err := api.FetchCollectionPage(context.Background(), []byte(credential), CollectionPageRequest{Provider: collection.ProviderOkta, Subject: collection.SubjectBinding{Kind: "okta_tenant", ID: "acme.okta.com"}, Cursor: collection.Cursor{Provider: collection.ProviderOkta, Version: "cursor_v1", Value: "initial"}, Page: 1, RemainingItems: 4, RemainingBytes: 4096})
-	if !errors.Is(err, ErrProvider) || strings.Contains(err.Error(), credential) || len(roundTripper.requests) != 1 {
+	if !oktaFailureHasCode(err, collection.FailureMalformed) || strings.Contains(err.Error(), credential) || len(roundTripper.requests) != 1 {
 		t.Fatalf("credential echo error/calls = %q / %d", err, len(roundTripper.requests))
+	}
+}
+
+func TestOktaCollectionAPIRejectsCursorTransplantAndClassifiesRateLimit(t *testing.T) {
+	t.Parallel()
+	subject := collection.SubjectBinding{Kind: "okta_tenant", ID: "acme.okta.com"}
+	request := CollectionPageRequest{Provider: collection.ProviderOkta, Subject: subject, Cursor: nextOktaPageCursor(collection.SubjectBinding{Kind: "okta_tenant", ID: "other.okta.com"}, "groups", 2, "start"), Page: 2, RemainingItems: 2, RemainingBytes: 4096}
+	roundTripper := &oktaRoundTripper{}
+	api, _ := newOktaCollectionAPI("https://acme.okta.com", roundTripper, time.Second)
+	if _, err := api.FetchCollectionPage(context.Background(), []byte("okta-access-secret-value"), request); !errors.Is(err, ErrInvalid) || len(roundTripper.requests) != 0 {
+		t.Fatalf("foreign cursor error/calls = %v / %d", err, len(roundTripper.requests))
+	}
+	rateLimited := &oktaRoundTripper{responses: []oktaHTTPResponse{{status: http.StatusTooManyRequests, header: http.Header{"Retry-After": []string{"3"}}, body: `{}`}}}
+	api, _ = newOktaCollectionAPI("https://acme.okta.com", rateLimited, time.Second)
+	request.Cursor = collection.Cursor{Provider: collection.ProviderOkta, Version: "cursor_v1", Value: "initial"}
+	request.Page = 1
+	if _, err := api.FetchCollectionPage(context.Background(), []byte("okta-access-secret-value"), request); !oktaFailureHasCode(err, collection.FailureRateLimited) {
+		t.Fatalf("rate limit failure = %v", err)
 	}
 }
 
@@ -163,4 +182,9 @@ func mustOktaCollectionPage(t *testing.T, page CollectionPage) CollectionPage {
 		t.Fatalf("NewOktaCollectionPage() error = %v", err)
 	}
 	return canonical
+}
+
+func oktaFailureHasCode(err error, code collection.FailureCode) bool {
+	var failure *collection.Failure
+	return errors.As(err, &failure) && failure.Code() == code
 }

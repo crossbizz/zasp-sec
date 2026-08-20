@@ -179,7 +179,10 @@ func (client *Client) Check(ctx context.Context) collection.Readiness {
 }
 
 func (client *Client) CollectWithCredential(ctx context.Context, request collection.Request, credential []byte) (collection.Outcome, error) {
-	if client == nil || ctx == nil || ctx.Err() != nil || request.Validate() != nil || request.Provider != client.provider || request.CollectorVersion != client.collectorVersion || request.ParserVersion != client.parserVersion || request.ToolVersion != client.toolVersion || len(credential) < 16 || len(credential) > 65_536 {
+	if ctx != nil && ctx.Err() != nil {
+		return nil, ClassifyProviderError(ctx, ctx.Err())
+	}
+	if client == nil || ctx == nil || request.Validate() != nil || request.Provider != client.provider || request.CollectorVersion != client.collectorVersion || request.ParserVersion != client.parserVersion || request.ToolVersion != client.toolVersion || len(credential) < 16 || len(credential) > 65_536 {
 		return nil, collection.ErrContract
 	}
 	if now := client.clock(); now.IsZero() || now.Location() != time.UTC {
@@ -203,7 +206,7 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 	relationshipSourceIDs := make(map[string]struct{})
 	snapshotLimit := newSnapshotBudget(maximumArtifactBytes)
 	complete := false
-	remainingPages := request.Bounds.MaxPages
+	seededPages := 0
 	if client.resume != nil {
 		seed, seedErr := client.loadResumeSeed(ctx, request)
 		if seedErr != nil {
@@ -219,18 +222,18 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 		remainingRawBytes -= seed.rawBytes
 		remainingItems -= len(seed.entities)
 		remainingRelationships -= len(seed.relationships)
-		remainingPages -= len(seed.objects)
+		seededPages = len(seed.objects)
 		for index, page := range seed.pages {
 			if !snapshotLimit.addPage(page.Entities, page.Relationships, seed.evidenceLengths[index]) {
 				return nil, outcomeUnknown()
 			}
 		}
-		if remainingRawBytes < 1 || remainingItems < 0 || remainingRelationships < 0 || remainingPages < 0 {
+		if remainingRawBytes < 1 || remainingItems < 0 || remainingRelationships < 0 || seededPages > request.Bounds.MaxPages {
 			return nil, outcomeUnknown()
 		}
 	}
 
-	for pageNumber := 1; pageNumber <= remainingPages; pageNumber++ {
+	for pageNumber := seededPages + 1; pageNumber <= request.Bounds.MaxPages; pageNumber++ {
 		if remainingItems < 1 {
 			if len(objects) == 0 {
 				return nil, collection.ErrContract

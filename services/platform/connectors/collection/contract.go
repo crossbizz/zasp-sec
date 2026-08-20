@@ -516,6 +516,9 @@ type ProviderClient interface {
 }
 
 type ResumeSeed struct {
+	// CheckpointDigest is the durable repository authority binding this pinned
+	// manifest to the leased job. Provider clients cannot recompute the SQL
+	// digest, but require the nonzero value before loading any artifact.
 	CheckpointVersion int64
 	CheckpointDigest  []byte
 	Cursor            Cursor

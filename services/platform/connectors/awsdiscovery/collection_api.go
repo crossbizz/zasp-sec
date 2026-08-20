@@ -11,12 +11,13 @@ import (
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/collection"
+	"github.com/zasp-ai/zasp-sec/services/platform/connectors/internal/providercollection"
 )
 
 const minimumIdentityPageBytes int64 = 4096
 
 var (
-	identityCursorPattern  = regexp.MustCompile(`^aws:complete:[0-9a-f]{16}$`)
+	identityCursorPattern  = regexp.MustCompile(`^aws:complete:([0-9a-f]{16}):[0-9a-f]{16}$`)
 	assumedRolePathPattern = regexp.MustCompile(`^[A-Za-z0-9+=,.@_/-]{1,900}$`)
 )
 
@@ -40,7 +41,10 @@ func NewIdentityCollectionAPI(caller CollectionIdentityCaller, timeout time.Dura
 }
 
 func (api *IdentityCollectionAPI) FetchCollectionPage(ctx context.Context, credential []byte, request CollectionPageRequest) (CollectionPage, error) {
-	if api == nil || nilCollectionIdentityCaller(api.caller) || ctx == nil || ctx.Err() != nil || len(credential) < 16 || len(credential) > 65_536 || !validIdentityPageRequest(request) {
+	if ctx != nil && ctx.Err() != nil {
+		return CollectionPage{}, providercollection.ClassifyProviderError(ctx, ctx.Err())
+	}
+	if api == nil || nilCollectionIdentityCaller(api.caller) || ctx == nil || len(credential) < 16 || len(credential) > 65_536 || !validIdentityPageRequest(request) {
 		return CollectionPage{}, ErrInvalid
 	}
 	bounded, cancel := context.WithTimeout(ctx, api.timeout)
@@ -48,8 +52,14 @@ func (api *IdentityCollectionAPI) FetchCollectionPage(ctx context.Context, crede
 	borrowed := append([]byte(nil), credential...)
 	identity, err := callCollectionIdentity(api.caller, bounded, borrowed)
 	clear(borrowed)
-	if err != nil || bounded.Err() != nil || identity.AccountID != request.Subject.ID || !validCollectionIdentity(identity) {
-		return CollectionPage{}, ErrDenied
+	if err != nil || bounded.Err() != nil {
+		return CollectionPage{}, providercollection.ClassifyProviderError(bounded, err)
+	}
+	if identity.AccountID != request.Subject.ID {
+		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureDenied)
+	}
+	if !validCollectionIdentity(identity) {
+		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 	}
 	stable, _ := json.Marshal(struct {
 		AccountID string `json:"account_id"`
@@ -66,11 +76,11 @@ func (api *IdentityCollectionAPI) FetchCollectionPage(ctx context.Context, crede
 		SourceNativeID: identity.AccountID, DisplayName: "AWS account " + identity.AccountID, StableFields: stable, Attributes: json.RawMessage(`{}`),
 	})
 	if err != nil {
-		return CollectionPage{}, ErrInvalid
+		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 	}
 	page, err := NewCollectionPage(request.Subject, nextIdentityCursor(request.Cursor, identity.AccountID), true, []json.RawMessage{entity}, nil)
 	if err != nil || int64(len(page.Raw)) > request.RemainingBytes {
-		return CollectionPage{}, ErrInvalid
+		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 	}
 	return page, nil
 }
@@ -88,8 +98,10 @@ func (api *IdentityCollectionAPI) CheckCollectionReadiness(ctx context.Context) 
 }
 
 func validIdentityPageRequest(request CollectionPageRequest) bool {
-	cursorValid := request.Cursor == (collection.Cursor{}) ||
-		(request.Cursor.Provider == collection.ProviderAWS && request.Cursor.Version == "cursor_v1" && (request.Cursor.Value == "initial" || identityCursorPattern.MatchString(request.Cursor.Value)))
+	cursorValid := request.Cursor == (collection.Cursor{}) || request.Cursor.Provider == collection.ProviderAWS && request.Cursor.Version == "cursor_v1" && request.Cursor.Value == "initial"
+	if match := identityCursorPattern.FindStringSubmatch(request.Cursor.Value); len(match) == 2 {
+		cursorValid = request.Cursor.Provider == collection.ProviderAWS && request.Cursor.Version == "cursor_v1" && match[1] == providercollection.CompleteCursorBinding(collection.ProviderAWS, request.Subject)
+	}
 	return request.Provider == collection.ProviderAWS && request.Subject.Kind == "aws_account" && awsAccountIDPattern.MatchString(request.Subject.ID) &&
 		cursorValid &&
 		request.Page == 1 && request.RemainingItems >= 1 && request.RemainingBytes >= minimumIdentityPageBytes
@@ -111,7 +123,8 @@ func deterministicIdentityEntityID(subject collection.SubjectBinding, kind, nati
 
 func nextIdentityCursor(prior collection.Cursor, accountID string) collection.Cursor {
 	digest := sha256.Sum256([]byte(prior.Value + "\x1f" + accountID))
-	return collection.Cursor{Provider: collection.ProviderAWS, Version: "cursor_v1", Value: fmt.Sprintf("aws:complete:%x", digest[:8])}
+	subject := collection.SubjectBinding{Kind: "aws_account", ID: accountID}
+	return collection.Cursor{Provider: collection.ProviderAWS, Version: "cursor_v1", Value: fmt.Sprintf("aws:complete:%s:%x", providercollection.CompleteCursorBinding(collection.ProviderAWS, subject), digest[:8])}
 }
 
 func callCollectionIdentity(caller CollectionIdentityCaller, ctx context.Context, credential []byte) (identity Identity, resultErr error) {

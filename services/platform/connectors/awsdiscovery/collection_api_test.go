@@ -95,10 +95,24 @@ func TestIdentityCollectionAPIRejectsHostileInputAndProviderOutputWithoutLeakage
 		t.Run(name, func(t *testing.T) {
 			api, _ := NewIdentityCollectionAPI(caller, time.Second)
 			_, err := api.FetchCollectionPage(context.Background(), []byte("temporary-aws-credential-value"), valid)
-			if !errors.Is(err, ErrDenied) || strings.Contains(err.Error(), secret) || strings.Contains(err.Error(), "aws-collection-secret") || caller.calls != 1 {
+			want := collection.FailureMalformed
+			if name == "wrong account" {
+				want = collection.FailureDenied
+			}
+			if name == "error" || name == "panic" {
+				want = collection.FailureRetryable
+			}
+			if !awsFailureHasCode(err, want) || strings.Contains(err.Error(), secret) || strings.Contains(err.Error(), "aws-collection-secret") || caller.calls != 1 {
 				t.Fatalf("FetchCollectionPage() error/calls = %q / %d", err, caller.calls)
 			}
 		})
+	}
+	foreign := valid
+	foreign.Cursor = nextIdentityCursor(collection.Cursor{}, "999999999999")
+	caller := &recordingCollectionIdentityCaller{}
+	api, _ := NewIdentityCollectionAPI(caller, time.Second)
+	if _, err := api.FetchCollectionPage(context.Background(), []byte("temporary-aws-credential-value"), foreign); !errors.Is(err, ErrInvalid) || caller.calls != 0 {
+		t.Fatalf("foreign complete cursor error/calls = %v / %d", err, caller.calls)
 	}
 }
 
@@ -120,6 +134,19 @@ func TestIdentityCollectionAPIReadinessIsBoundedAndRedacted(t *testing.T) {
 	}
 }
 
+func TestIdentityCollectionAPIPreservesTypedCallerRateLimit(t *testing.T) {
+	t.Parallel()
+	failure, _ := collection.NewFailure(collection.FailureRateLimited, time.Now().UTC().Add(time.Minute))
+	caller := &recordingCollectionIdentityCaller{err: failure}
+	api, _ := NewIdentityCollectionAPI(caller, time.Second)
+	request := CollectionPageRequest{Provider: collection.ProviderAWS, Subject: collection.SubjectBinding{Kind: "aws_account", ID: "123456789012"}, Cursor: collection.Cursor{}, Page: 1, RemainingItems: 1, RemainingBytes: 4096}
+	_, err := api.FetchCollectionPage(context.Background(), []byte("temporary-aws-credential-value"), request)
+	var got *collection.Failure
+	if !errors.As(err, &got) || got != failure || caller.calls != 1 {
+		t.Fatalf("rate limit identity/calls = %p/%p / %d", got, failure, caller.calls)
+	}
+}
+
 func mustAWSCollectionPage(t *testing.T, page CollectionPage) CollectionPage {
 	t.Helper()
 	canonical, err := NewCollectionPage(page.Subject, page.Cursor, page.Complete, page.Entities, page.Relationships)
@@ -127,4 +154,9 @@ func mustAWSCollectionPage(t *testing.T, page CollectionPage) CollectionPage {
 		t.Fatalf("NewCollectionPage() error = %v", err)
 	}
 	return canonical
+}
+
+func awsFailureHasCode(err error, code collection.FailureCode) bool {
+	var failure *collection.Failure
+	return errors.As(err, &failure) && failure.Code() == code
 }
