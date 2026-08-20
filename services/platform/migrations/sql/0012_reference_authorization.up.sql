@@ -169,6 +169,10 @@ DO $release_evolution$ DECLARE definition text; BEGIN
  definition:=replace(definition,'connector-authorization-v1','reference-authorization-v1'); definition:=replace(definition,'release."version" = 11','release."version" = 12'); definition:=replace(definition,'release."name" = ''connector_authorization''','release."name" = ''reference_authorization'''); definition:=replace(definition,'later_release."version" > 11','later_release."version" > 12'); EXECUTE definition;
  SELECT pg_get_functiondef('public.zasp_risk_mutate(text,text,text,text,text,text,text,bigint,text,text,text,text,text)'::regprocedure) INTO definition;
  definition:=replace(definition,'connector-authorization-v1','reference-authorization-v1'); definition:=replace(replace(definition,'release."version"=11','release."version"=12'),'release."version" = 11','release."version" = 12'); definition:=replace(replace(definition,'release."name"=''connector_authorization''','release."name"=''reference_authorization'''),'release."name" = ''connector_authorization''','release."name" = ''reference_authorization'''); definition:=replace(replace(definition,'later."version">11','later."version">12'),'later."version" > 11','later."version" > 12'); EXECUTE definition;
+ SELECT pg_get_functiondef('public.zasp_connector_complete_oauth(text,text,text,text,text,text,text,text,text,text,jsonb,bytea)'::regprocedure) INTO definition;
+ definition:=replace(definition,'to_jsonb(transaction_timestamp())','to_jsonb(to_char(transaction_timestamp() AT TIME ZONE ''UTC'',''YYYY-MM-DD"T"HH24:MI:SS.US"Z"''))'); EXECUTE definition;
+ SELECT pg_get_functiondef('public.zasp_connector_quarantine_reconciliation(text,text,text,text,text,text,text)'::regprocedure) INTO definition;
+ definition:=replace(definition,'to_jsonb(transaction_timestamp())','to_jsonb(to_char(transaction_timestamp() AT TIME ZONE ''UTC'',''YYYY-MM-DD"T"HH24:MI:SS.US"Z"''))'); EXECUTE definition;
 END $release_evolution$;
 
 CREATE OR REPLACE FUNCTION public.zasp_connector_readiness(expected_checksum text,expected_fingerprint text) RETURNS boolean LANGUAGE sql STABLE AS $$
@@ -183,5 +187,5 @@ ALTER FUNCTION zasp_connector_readiness(text,text) OWNER TO zasp_discovery_autho
 REVOKE ALL ON FUNCTION zasp_connector_readiness(text,text) FROM PUBLIC,zasp_discovery_worker,zasp_runtime_ingest,zasp_runtime_worker,zasp_outbox_worker,zasp_runtime_gateway;
 GRANT EXECUTE ON FUNCTION zasp_connector_readiness(text,text) TO zasp_discovery_api,zasp_discovery_worker;
 
-INSERT INTO zasp_schema_metadata(key,value) VALUES ('reference_authorization_fingerprint', '7a61633f69e6d15e65add13244976b61c2dc99728eebadea4dfd8bc3d2986304');
+INSERT INTO zasp_schema_metadata(key,value) VALUES ('reference_authorization_fingerprint', '104a089c5193e41f07cd21f276492e1953aa5c2e4e3f91425c11080e8b2026d4');
 UPDATE zasp_schema_metadata SET value='reference-authorization-v1',applied_at=transaction_timestamp() WHERE key='production_core_schema' AND value='connector-authorization-v1';

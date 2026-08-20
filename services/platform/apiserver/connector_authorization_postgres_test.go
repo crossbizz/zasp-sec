@@ -146,7 +146,7 @@ func TestConnectorAuthorizationPostgresPublicIntegrationMutationCreatesTypedOAut
 		t.Fatal(err)
 	}
 	defer connection.Close(ctx)
-	migrateToConnectorAuthorization(t, ctx, connection)
+	migrateToReferenceAuthorization(t, ctx, connection)
 	database, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
 	if err != nil {
 		t.Fatal(err)
@@ -282,7 +282,11 @@ func TestConnectorAuthorizationPostgresPublicIntegrationMutationCreatesTypedOAut
 	}
 	active, err := repository.GetWorkflow(ctx, identity.Scope, "integration", integrationID)
 	var activeBody map[string]any
-	if err != nil || json.Unmarshal(active.Body, &activeBody) != nil || active.Version != 3 || activeBody["status"] != "active" {
+	if err != nil || json.Unmarshal(active.Body, &activeBody) != nil {
+		t.Fatalf("public OAuth completion status = %#v, %v", active, err)
+	}
+	activeUpdatedAt, _ := activeBody["updated_at"].(string)
+	if active.Version != 3 || activeBody["status"] != "active" || !strings.HasSuffix(activeUpdatedAt, "Z") {
 		t.Fatalf("public OAuth completion status = %#v, %v", active, err)
 	}
 	receipts, err := repository.ListWorkflowMutationReceipts(ctx, identity, 20)
@@ -377,7 +381,7 @@ func TestConnectorAuthorizationPostgresAmbiguousProviderOutcomeIsPermanentlyQuar
 		t.Fatal(err)
 	}
 	defer connection.Close(ctx)
-	migrateToConnectorAuthorization(t, ctx, connection)
+	migrateToReferenceAuthorization(t, ctx, connection)
 	database, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
 	if err != nil {
 		t.Fatal(err)
@@ -431,7 +435,11 @@ func TestConnectorAuthorizationPostgresAmbiguousProviderOutcomeIsPermanentlyQuar
 	}
 	workflow, err := workflowRepository.GetWorkflow(ctx, identity.Scope, "integration", integrationID)
 	var quarantinedBody map[string]any
-	if err != nil || json.Unmarshal(workflow.Body, &quarantinedBody) != nil || workflow.Version != 2 || quarantinedBody["status"] != "degraded" {
+	if err != nil || json.Unmarshal(workflow.Body, &quarantinedBody) != nil {
+		t.Fatalf("operator-visible quarantined workflow = %#v body=%v, %v", workflow, quarantinedBody, err)
+	}
+	quarantinedUpdatedAt, _ := quarantinedBody["updated_at"].(string)
+	if workflow.Version != 2 || quarantinedBody["status"] != "degraded" || !strings.HasSuffix(quarantinedUpdatedAt, "Z") {
 		t.Fatalf("operator-visible quarantined workflow = %#v body=%v, %v", workflow, quarantinedBody, err)
 	}
 	quarantinedBody["status"] = "pending_authorization"
