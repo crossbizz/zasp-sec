@@ -94,7 +94,10 @@ BEGIN
     OR integration_row.state NOT IN('pending','authorizing','degraded') THEN
     RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='reference authorization intent changed';
   END IF;
-  desired_body:=jsonb_set(jsonb_set(workflow_row.body,'{status}','"active"'::jsonb),'{updated_at}',to_jsonb(transaction_timestamp()));
+  desired_body:=jsonb_set(
+    jsonb_set(workflow_row.body,'{status}','"active"'::jsonb),
+    '{updated_at}',
+    to_jsonb(to_char(transaction_timestamp() AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')));
   result_value:=zasp_connector_workflow_mutate(
     'update','integration',integration_value,organization_value,workspace_value,environment_value,principal_value,
     'completeIntegrationReferenceAuthorization',idempotency_value,expected_version_value,intent_value,desired_body,
@@ -180,5 +183,5 @@ ALTER FUNCTION zasp_connector_readiness(text,text) OWNER TO zasp_discovery_autho
 REVOKE ALL ON FUNCTION zasp_connector_readiness(text,text) FROM PUBLIC,zasp_discovery_worker,zasp_runtime_ingest,zasp_runtime_worker,zasp_outbox_worker,zasp_runtime_gateway;
 GRANT EXECUTE ON FUNCTION zasp_connector_readiness(text,text) TO zasp_discovery_api,zasp_discovery_worker;
 
-INSERT INTO zasp_schema_metadata(key,value) VALUES ('reference_authorization_fingerprint', '7df2066d41071e3a21e3df8968eeae6cadf4489b2a8b7c45c43bac7aeb47696c');
+INSERT INTO zasp_schema_metadata(key,value) VALUES ('reference_authorization_fingerprint', '7a61633f69e6d15e65add13244976b61c2dc99728eebadea4dfd8bc3d2986304');
 UPDATE zasp_schema_metadata SET value='reference-authorization-v1',applied_at=transaction_timestamp() WHERE key='production_core_schema' AND value='connector-authorization-v1';

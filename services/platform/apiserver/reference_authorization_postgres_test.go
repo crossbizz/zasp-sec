@@ -112,6 +112,20 @@ func TestReferenceAuthorizationPostgresAtomicallyActivatesAndReplaysWithoutChurn
 	if err := connection.QueryRow(ctx, query, args...).Scan(&replay); err != nil {
 		t.Fatal(err)
 	}
+	for name, payload := range map[string][]byte{"first": first, "concurrent replay": secondResult.payload, "exact replay": replay} {
+		var result struct {
+			Body struct {
+				UpdatedAt string `json:"updated_at"`
+			} `json:"body"`
+		}
+		if err := json.Unmarshal(payload, &result); err != nil {
+			t.Fatalf("%s reference result decode: %v payload=%s", name, err, payload)
+		}
+		updatedAt, err := time.Parse(time.RFC3339Nano, result.Body.UpdatedAt)
+		if err != nil || !strings.HasSuffix(result.Body.UpdatedAt, "Z") || strings.Contains(result.Body.UpdatedAt, "+00:00") || updatedAt.Location() != time.UTC {
+			t.Fatalf("%s reference updated_at=%q parsed=%v err=%v", name, result.Body.UpdatedAt, updatedAt, err)
+		}
+	}
 	var replayed struct {
 		Replayed  bool   `json:"replayed"`
 		ReceiptID string `json:"receipt_id"`

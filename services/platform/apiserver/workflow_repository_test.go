@@ -194,6 +194,15 @@ func TestWorkflowRepositoryListsAndAcknowledgesOnlyExactPrincipalScopeReceipts(t
 	}
 }
 
+func TestWorkflowRepositoryListsReferenceAuthorizationReceipt(t *testing.T) {
+	database := &workflowCallDatabase{response: json.RawMessage(`{"items":[{"id":"pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc","operation":"completeIntegrationReferenceAuthorization","idempotency_key":"reference-authorize-0001","intent":{"configuration":{"external_id_reference":"ref:aws/external-id/customer-0001","region":"us-east-1","role_arn":"arn:aws:iam::123456789012:role/zasp-discovery"},"expected_version":1,"idempotency_key":"reference-authorize-0001","integration_id":"pid_74000001-0000-4000-8000-000000000001","provider":"aws","scope":{"environment_id":"pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee","organization_id":"pid_oooooooo-oooo-4ooo-8ooo-oooooooooooo","workspace_id":"pid_wwwwwwww-wwww-4www-8www-wwwwwwwwwwww"}},"result":{"id":"pid_74000001-0000-4000-8000-000000000001","connector_key":"aws","name":"AWS","configuration":{"external_id_reference":"ref:aws/external-id/customer-0001","region":"us-east-1","role_arn":"arn:aws:iam::123456789012:role/zasp-discovery"},"status":"active","created_at":"2026-08-19T00:00:00Z","updated_at":"2026-08-19T00:01:00Z"},"resource_kind":"integration","resource_id":"pid_74000001-0000-4000-8000-000000000001","resource_version":2,"audit_id":"pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","correlation_id":"pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","created_at":"2026-08-19T00:01:00Z","expires_at":"2026-08-26T00:01:00Z"}]}`)}
+	repository, _ := NewPostgresRepository(database)
+	receipts, err := repository.ListWorkflowMutationReceipts(context.Background(), fixtureRequestIdentity(t), 20)
+	if err != nil || len(receipts) != 1 || receipts[0].Operation != referenceAuthorizationOperation || receipts[0].ResourceKind != "integration" {
+		t.Fatalf("reference authorization receipts = (%#v, %v)", receipts, err)
+	}
+}
+
 func TestWorkflowRepositoryListsExactFindingRecoveryReceipt(t *testing.T) {
 	database := &workflowCallDatabase{response: json.RawMessage(`{"items":[{"id":"pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc","operation":"updateFinding","idempotency_key":"idem-risk-recovery-0001","intent":{"body":{"status":"under_review"},"expected_version":1,"resource_id":"pid_30000001-0000-4000-8000-000000000001"},"result":{"id":"pid_30000001-0000-4000-8000-000000000001","source":"posture","title":"Recover me","severity":"high","status":"under_review","evidence_ids":["pid_30000002-0000-4000-8000-000000000002"],"risk_factors":[],"version":2,"created_at":"2026-08-18T05:00:00-07:00","updated_at":"2026-08-18T05:01:00-07:00"},"resource_kind":"finding","resource_id":"pid_30000001-0000-4000-8000-000000000001","resource_version":2,"audit_id":"pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","correlation_id":"pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","created_at":"2026-08-18T12:00:00Z","expires_at":"2026-08-25T12:00:00Z"}]}`)}
 	repository, _ := NewPostgresRepository(database)
