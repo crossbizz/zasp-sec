@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -14,6 +15,17 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/idpdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/kubernetesdiscovery"
 )
+
+func TestProviderPackagesExposeTheTrustedRedactedPageBoundary(t *testing.T) {
+	t.Parallel()
+	subject := collection.SubjectBinding{Kind: "aws_account", ID: "123456789012"}
+	cursor := collection.Cursor{Provider: collection.ProviderAWS, Version: "cursor_v1", Value: "done"}
+	entity := json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{},"attributes":{}}`)
+	page, err := awsdiscovery.NewCollectionPage(subject, cursor, true, []json.RawMessage{entity}, nil)
+	if err != nil || len(page.Raw) == 0 || !bytes.Contains(page.Raw, entity) {
+		t.Fatalf("NewCollectionPage() = %#v, %v", page, err)
+	}
+}
 
 func TestEveryFirstPartyProviderExportsACollectionClient(t *testing.T) {
 	t.Parallel()
@@ -32,7 +44,7 @@ func TestEveryFirstPartyProviderExportsACollectionClient(t *testing.T) {
 			client   collection.ProviderClient
 			err      error
 		} {
-			client, err := awsdiscovery.NewCollectionClient(api, store, awsdiscovery.CollectionClientConfig{Bucket: "zasp-evidence", CollectorVersion: "collector_v1", Clock: clock})
+			client, err := awsdiscovery.NewCollectionClient(api, store, awsdiscovery.CollectionClientConfig{CollectorVersion: "collector_v1", ParserVersion: "parser_v1", ToolVersion: "tool_v1", Clock: clock})
 			return struct {
 				name     string
 				provider collection.Provider
@@ -46,7 +58,7 @@ func TestEveryFirstPartyProviderExportsACollectionClient(t *testing.T) {
 			client   collection.ProviderClient
 			err      error
 		} {
-			client, err := kubernetesdiscovery.NewCollectionClient(api, store, kubernetesdiscovery.CollectionClientConfig{Bucket: "zasp-evidence", CollectorVersion: "collector_v1", Clock: clock})
+			client, err := kubernetesdiscovery.NewCollectionClient(api, store, kubernetesdiscovery.CollectionClientConfig{CollectorVersion: "collector_v1", ParserVersion: "parser_v1", ToolVersion: "tool_v1", Clock: clock})
 			return struct {
 				name     string
 				provider collection.Provider
@@ -60,7 +72,7 @@ func TestEveryFirstPartyProviderExportsACollectionClient(t *testing.T) {
 			client   collection.ProviderClient
 			err      error
 		} {
-			client, err := githubdiscovery.NewCollectionClient(api, store, githubdiscovery.CollectionClientConfig{Bucket: "zasp-evidence", CollectorVersion: "collector_v1", Clock: clock})
+			client, err := githubdiscovery.NewCollectionClient(api, store, githubdiscovery.CollectionClientConfig{CollectorVersion: "collector_v1", ParserVersion: "parser_v1", ToolVersion: "tool_v1", Clock: clock})
 			return struct {
 				name     string
 				provider collection.Provider
@@ -74,7 +86,7 @@ func TestEveryFirstPartyProviderExportsACollectionClient(t *testing.T) {
 			client   collection.ProviderClient
 			err      error
 		} {
-			client, err := idpdiscovery.NewOktaCollectionClient(api, store, idpdiscovery.CollectionClientConfig{Bucket: "zasp-evidence", CollectorVersion: "collector_v1", Clock: clock})
+			client, err := idpdiscovery.NewOktaCollectionClient(api, store, idpdiscovery.CollectionClientConfig{CollectorVersion: "collector_v1", ParserVersion: "parser_v1", ToolVersion: "tool_v1", Clock: clock})
 			return struct {
 				name     string
 				provider collection.Provider
@@ -116,4 +128,11 @@ func (collectionArtifacts) Get(context.Context, artifactstore.Locator) (artifact
 }
 func (collectionArtifacts) Delete(context.Context, artifactstore.Locator) error {
 	return artifactstore.ErrDelete
+}
+
+func (collectionArtifacts) ObjectReference(locator artifactstore.Locator) (string, error) {
+	if locator.Scope.Validate() != nil || locator.Reference.Validate() != nil || locator.VersionID == "" {
+		return "", artifactstore.ErrArtifact
+	}
+	return "s3://zasp-evidence/organizations/" + locator.OrganizationID().String() + "/workspaces/" + locator.WorkspaceID().String() + "/environments/" + locator.EnvironmentID().String() + "/artifacts/" + locator.Reference.String(), nil
 }

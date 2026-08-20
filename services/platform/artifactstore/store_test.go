@@ -117,6 +117,25 @@ func TestStorePreservesAnOpaqueDriverVersionWithoutLettingItChangeContentIdentit
 	}
 }
 
+func TestStoreObjectReferenceUsesTheExactVersionedDriverAuthority(t *testing.T) {
+	t.Parallel()
+	request := validPutRequest(t)
+	driver := &recordingDriver{reference: func(locator DriverLocator) (string, error) {
+		if locator.Scope != request.Scope || locator.Reference != request.Reference || locator.VersionID != "version-1" || locator.Key == "" {
+			t.Fatalf("object reference locator = %#v", locator)
+		}
+		return "s3://zasp-evidence/" + locator.Key, nil
+	}}
+	store := mustStore(t, driver, validConfig())
+	locator := request.Locator
+	locator.VersionID = "version-1"
+	var authority ObjectReferencingArtifactStore = store
+	reference, err := authority.ObjectReference(locator)
+	if err != nil || reference != "s3://zasp-evidence/organizations/"+request.OrganizationID().String()+"/workspaces/"+request.WorkspaceID().String()+"/environments/"+request.EnvironmentID().String()+"/artifacts/"+request.Reference.String() {
+		t.Fatalf("ObjectReference() = %q, %v", reference, err)
+	}
+}
+
 func TestNewRejectsInvalidConfigurationAndDriver(t *testing.T) {
 	t.Parallel()
 
@@ -466,9 +485,10 @@ func TestStoreSupportsConcurrentIndependentOperations(t *testing.T) {
 }
 
 type recordingDriver struct {
-	put    func(context.Context, DriverObject) (DriverObject, error)
-	get    func(context.Context, DriverLocator) (DriverObject, error)
-	delete func(context.Context, DriverLocator) error
+	put       func(context.Context, DriverObject) (DriverObject, error)
+	get       func(context.Context, DriverLocator) (DriverObject, error)
+	delete    func(context.Context, DriverLocator) error
+	reference func(DriverLocator) (string, error)
 }
 
 type memoryDriver struct {
@@ -529,6 +549,13 @@ func (driver *recordingDriver) Delete(ctx context.Context, locator DriverLocator
 		return nil
 	}
 	return driver.delete(ctx, locator)
+}
+
+func (driver *recordingDriver) ObjectReference(locator DriverLocator) (string, error) {
+	if driver.reference == nil {
+		return "", ErrArtifact
+	}
+	return driver.reference(locator)
 }
 
 func mustStore(t *testing.T, driver Driver, config Config) *Store {

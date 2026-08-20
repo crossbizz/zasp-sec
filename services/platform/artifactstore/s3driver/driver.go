@@ -51,6 +51,7 @@ type Driver struct {
 }
 
 var _ artifactstore.Driver = (*Driver)(nil)
+var _ artifactstore.DriverObjectReferencer = (*Driver)(nil)
 
 func New(client API, config Config) (*Driver, error) {
 	if nilInterface(client) || !bucketPattern.MatchString(config.Bucket) || !ownerPattern.MatchString(config.ExpectedBucketOwner) ||
@@ -113,6 +114,13 @@ func (driver *Driver) Delete(ctx context.Context, locator artifactstore.DriverLo
 		return ErrArtifact
 	}
 	return ErrImmutable
+}
+
+func (driver *Driver) ObjectReference(locator artifactstore.DriverLocator) (string, error) {
+	if driver == nil || !validLocator(locator) || locator.VersionID == "" {
+		return "", ErrArtifact
+	}
+	return "s3://" + driver.config.Bucket + "/" + locator.Key, nil
 }
 
 func (driver *Driver) fetch(ctx context.Context, locator artifactstore.DriverLocator) (artifactstore.DriverObject, error) {

@@ -24,19 +24,23 @@ import (
 const (
 	rawSchemaVersion      = "raw_v1"
 	manifestSchemaVersion = "manifest_v1"
+	redactedPageVersion   = "redacted_page_v1"
 	maximumArtifactBytes  = 64 * 1024 * 1024
+	manifestBaseReserve   = 8 * 1024
+	manifestObjectReserve = 8 * 1024
 )
 
 var (
 	errConfiguration = errors.New("provider collection configuration rejected")
 	versionPattern   = regexp.MustCompile(`^[a-z][a-z0-9_.-]{1,63}$`)
-	bucketPattern    = regexp.MustCompile(`^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$`)
 )
 
 type API interface {
 	FetchCollectionPage(context.Context, []byte, PageRequest) (Page, error)
 	CheckCollectionReadiness(context.Context) error
 }
+
+type ArtifactAuthority = artifactstore.ObjectReferencingArtifactStore
 
 type PageRequest struct {
 	Provider       collection.Provider
@@ -56,33 +60,83 @@ type Page struct {
 	Complete      bool
 }
 
+type redactedPageDocument struct {
+	Version       string              `json:"version"`
+	Provider      collection.Provider `json:"provider"`
+	Subject       manifestSubject     `json:"subject"`
+	Cursor        redactedPageCursor  `json:"cursor"`
+	Complete      bool                `json:"complete"`
+	Entities      []json.RawMessage   `json:"entities"`
+	Relationships []json.RawMessage   `json:"relationships"`
+}
+
+type redactedPageCursor struct {
+	Provider collection.Provider `json:"provider"`
+	Version  string              `json:"version"`
+	Value    string              `json:"value"`
+}
+
+type normalizedPageEntity struct {
+	ID             string          `json:"id"`
+	Kind           string          `json:"kind"`
+	SourceNativeID string          `json:"source_native_id"`
+	DisplayName    string          `json:"display_name"`
+	StableFields   json.RawMessage `json:"stable_fields"`
+	Attributes     json.RawMessage `json:"attributes"`
+}
+
+type normalizedPageRelationship struct {
+	ID             string          `json:"id"`
+	Kind           string          `json:"kind"`
+	SourceNativeID string          `json:"source_native_id"`
+	FromEntityID   string          `json:"from_entity_id"`
+	ToEntityID     string          `json:"to_entity_id"`
+	Attributes     json.RawMessage `json:"attributes"`
+}
+
+func NewPage(provider collection.Provider, subject collection.SubjectBinding, cursor collection.Cursor, complete bool, entities, relationships []json.RawMessage) (Page, error) {
+	if !validProvider(provider) || !validCursor(cursor, provider) || !validNormalizedInventory(provider, entities, relationships) {
+		return Page{}, collection.ErrContract
+	}
+	page := Page{Subject: subject, Cursor: cursor, Entities: cloneRawMessages(entities), Relationships: cloneRawMessages(relationships), Complete: complete}
+	body, err := canonicalPageBody(provider, page)
+	if err != nil || len(body) > maximumArtifactBytes {
+		return Page{}, collection.ErrContract
+	}
+	page.Raw = body
+	return page, nil
+}
+
 type Config struct {
 	Provider         collection.Provider
 	API              API
-	Artifacts        artifactstore.ArtifactStore
-	Bucket           string
+	Artifacts        ArtifactAuthority
 	CollectorVersion string
+	ParserVersion    string
+	ToolVersion      string
 	Clock            func() time.Time
 }
 
 type Client struct {
 	provider         collection.Provider
 	api              API
-	artifacts        artifactstore.ArtifactStore
-	bucket           string
+	artifacts        ArtifactAuthority
 	collectorVersion string
+	parserVersion    string
+	toolVersion      string
 	clock            func() time.Time
 }
 
 func New(config Config) (*Client, error) {
-	if !validProvider(config.Provider) || nilInterface(config.API) || nilInterface(config.Artifacts) || config.Clock == nil || !validBucket(config.Bucket) || !versionPattern.MatchString(config.CollectorVersion) {
+	if !validProvider(config.Provider) || nilInterface(config.API) || nilInterface(config.Artifacts) || config.Clock == nil ||
+		!versionPattern.MatchString(config.CollectorVersion) || !versionPattern.MatchString(config.ParserVersion) || !versionPattern.MatchString(config.ToolVersion) {
 		return nil, errConfiguration
 	}
 	now := config.Clock()
 	if now.IsZero() || now.Location() != time.UTC {
 		return nil, errConfiguration
 	}
-	return &Client{provider: config.Provider, api: config.API, artifacts: config.Artifacts, bucket: config.Bucket, collectorVersion: config.CollectorVersion, clock: config.Clock}, nil
+	return &Client{provider: config.Provider, api: config.API, artifacts: config.Artifacts, collectorVersion: config.CollectorVersion, parserVersion: config.ParserVersion, toolVersion: config.ToolVersion, clock: config.Clock}, nil
 }
 
 func (client *Client) Check(ctx context.Context) collection.Readiness {
@@ -109,6 +163,8 @@ func (client *Client) Check(ctx context.Context) collection.Readiness {
 	if err := checkReadiness(client.api, ctx); err != nil {
 		if ctx.Err() != nil {
 			status.Code = collection.ReadinessCancelled
+		} else if errors.Is(err, collection.ErrContract) {
+			status.Code = collection.ReadinessContractInvalid
 		} else {
 			status.Code = collection.ReadinessDependencyUnavailable
 		}
@@ -120,7 +176,7 @@ func (client *Client) Check(ctx context.Context) collection.Readiness {
 }
 
 func (client *Client) CollectWithCredential(ctx context.Context, request collection.Request, credential []byte) (collection.Outcome, error) {
-	if client == nil || ctx == nil || ctx.Err() != nil || request.Validate() != nil || request.Provider != client.provider || len(credential) < 16 || len(credential) > 65_536 {
+	if client == nil || ctx == nil || ctx.Err() != nil || request.Validate() != nil || request.Provider != client.provider || request.CollectorVersion != client.collectorVersion || request.ParserVersion != client.parserVersion || request.ToolVersion != client.toolVersion || len(credential) < 16 || len(credential) > 65_536 {
 		return nil, collection.ErrContract
 	}
 	if now := client.clock(); now.IsZero() || now.Location() != time.UTC {
@@ -128,7 +184,11 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 	}
 
 	cursor := request.Cursor
-	remainingBytes := request.Bounds.MaxRawBytes
+	manifestReserve := int64(manifestBaseReserve + request.Bounds.MaxPages*manifestObjectReserve)
+	if manifestReserve >= request.Bounds.MaxRawBytes || manifestReserve > maximumArtifactBytes {
+		return nil, collection.ErrContract
+	}
+	remainingBytes := request.Bounds.MaxRawBytes - manifestReserve
 	remainingItems := request.Bounds.MaxItems
 	remainingRelationships := request.Bounds.MaxItems * 2
 	objects := make([]collection.RawObject, 0, request.Bounds.MaxPages)
@@ -143,10 +203,13 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 		page, err := fetchPage(client.api, ctx, borrowed, pageRequest)
 		clear(borrowed)
 		if err != nil {
+			if errors.Is(err, collection.ErrContract) {
+				return nil, malformedFailure()
+			}
 			return nil, err
 		}
 		if !validPage(page, request, cursor, credential, remainingItems, remainingRelationships, remainingBytes) {
-			return nil, collection.ErrContract
+			return nil, malformedFailure()
 		}
 		pageEntityIDs := make([]string, len(page.Entities))
 		for index, entity := range page.Entities {
@@ -164,11 +227,12 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 		if err != nil {
 			return nil, collection.ErrContract
 		}
-		artifact, err := putArtifact(client.artifacts, ctx, artifactstore.PutRequest{Locator: artifactstore.Locator{Scope: request.Scope, Reference: reference}, MediaType: "application/json", Body: bytes.Clone(page.Raw)})
+		locator := artifactstore.Locator{Scope: request.Scope, Reference: reference}
+		artifact, err := putArtifact(client.artifacts, ctx, artifactstore.PutRequest{Locator: locator, MediaType: "application/json", Body: bytes.Clone(page.Raw)})
 		if err != nil {
 			return nil, outcomeUnknown()
 		}
-		object, err := rawObjectFromArtifact(request, client.bucket, artifact, rawSchemaVersion)
+		object, err := rawObjectFromArtifact(request, locator, artifact, rawSchemaVersion, client.artifacts)
 		if err != nil {
 			return nil, outcomeUnknown()
 		}
@@ -194,18 +258,19 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 		return objects[left].Reference().String() < objects[right].Reference().String()
 	})
 	manifestBody, err := marshalManifest(request, cursor, objects)
-	if err != nil || len(manifestBody) > maximumArtifactBytes || int64(len(manifestBody)) > remainingBytes {
+	if err != nil || len(manifestBody) > maximumArtifactBytes || int64(len(manifestBody)) > manifestReserve {
 		return nil, collection.ErrContract
 	}
 	manifestReference, err := deterministicEvidenceReference(request, "manifest")
 	if err != nil {
 		return nil, collection.ErrContract
 	}
-	manifestArtifact, err := putArtifact(client.artifacts, ctx, artifactstore.PutRequest{Locator: artifactstore.Locator{Scope: request.Scope, Reference: manifestReference}, MediaType: "application/json", Body: manifestBody})
+	manifestLocator := artifactstore.Locator{Scope: request.Scope, Reference: manifestReference}
+	manifestArtifact, err := putArtifact(client.artifacts, ctx, artifactstore.PutRequest{Locator: manifestLocator, MediaType: "application/json", Body: manifestBody})
 	if err != nil {
 		return nil, outcomeUnknown()
 	}
-	manifestObject, err := rawObjectFromArtifact(request, client.bucket, manifestArtifact, manifestSchemaVersion)
+	manifestObject, err := rawObjectFromArtifact(request, manifestLocator, manifestArtifact, manifestSchemaVersion, client.artifacts)
 	if err != nil {
 		return nil, outcomeUnknown()
 	}
@@ -237,24 +302,159 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 }
 
 func validPage(page Page, request collection.Request, prior collection.Cursor, credential []byte, remainingItems, remainingRelationships int, remainingBytes int64) bool {
-	if page.Subject != request.ExpectedSubject || !validCursor(page.Cursor, request.Provider) || page.Cursor == prior || len(page.Raw) == 0 || len(page.Raw) > maximumArtifactBytes || int64(len(page.Raw)) > remainingBytes || !safeJSON(page.Raw) || bytes.Contains(page.Raw, credential) || len(page.Entities) > remainingItems || len(page.Relationships) > remainingRelationships {
+	canonical, err := canonicalPageBody(request.Provider, page)
+	if page.Subject != request.ExpectedSubject || !validCursor(page.Cursor, request.Provider) || page.Cursor == prior || err != nil || len(page.Raw) == 0 || len(page.Raw) > maximumArtifactBytes || int64(len(page.Raw)) > remainingBytes || !bytes.Equal(canonical, page.Raw) || bytes.Contains(page.Raw, credential) || len(page.Entities) > remainingItems || len(page.Relationships) > remainingRelationships {
 		return false
 	}
-	for _, item := range page.Entities {
-		if !validJSONObject(item) || bytes.Contains(item, credential) {
+	return validNormalizedInventory(request.Provider, page.Entities, page.Relationships)
+}
+
+func canonicalPageBody(provider collection.Provider, page Page) ([]byte, error) {
+	if !validNormalizedInventory(provider, page.Entities, page.Relationships) {
+		return nil, collection.ErrContract
+	}
+	return json.Marshal(redactedPageDocument{
+		Version: redactedPageVersion, Provider: provider, Subject: manifestSubject{Kind: page.Subject.Kind, ID: page.Subject.ID},
+		Cursor: redactedPageCursor{Provider: page.Cursor.Provider, Version: page.Cursor.Version, Value: page.Cursor.Value}, Complete: page.Complete,
+		Entities: cloneRawMessages(page.Entities), Relationships: cloneRawMessages(page.Relationships),
+	})
+}
+
+func validNormalizedInventory(provider collection.Provider, entities, relationships []json.RawMessage) bool {
+	if len(entities) > 100_000 || len(relationships) > 200_000 {
+		return false
+	}
+	var total int64
+	for _, entity := range entities {
+		total += int64(len(entity))
+		if total > maximumArtifactBytes {
+			return false
+		}
+		if !validProviderEntity(provider, entity) {
 			return false
 		}
 	}
-	for _, item := range page.Relationships {
-		if !validJSONObject(item) || bytes.Contains(item, credential) {
+	for _, relationship := range relationships {
+		total += int64(len(relationship))
+		if total > maximumArtifactBytes {
+			return false
+		}
+		if !validProviderRelationship(relationship) {
 			return false
 		}
 	}
 	return true
 }
 
+func validProviderEntity(provider collection.Provider, raw json.RawMessage) bool {
+	var entity normalizedPageEntity
+	if !decodeExactObject(raw, &entity) || !validProductIDText(entity.ID) || len(entity.SourceNativeID) < 1 || len(entity.SourceNativeID) > 1024 || len(entity.DisplayName) < 1 || len(entity.DisplayName) > 256 {
+		return false
+	}
+	kinds, stable, attributes := providerEntitySchema(provider)
+	if !kinds[entity.Kind] || !validScalarObject(entity.StableFields, stable) || !validScalarObject(entity.Attributes, attributes) {
+		return false
+	}
+	if provider == collection.ProviderKubernetes && entity.Kind == "kubernetes_resource" {
+		var fields map[string]any
+		if json.Unmarshal(entity.StableFields, &fields) != nil || strings.EqualFold(fmt.Sprint(fields["resource_kind"]), "Secret") {
+			return false
+		}
+	}
+	return true
+}
+
+func providerEntitySchema(provider collection.Provider) (map[string]bool, map[string]bool, map[string]bool) {
+	switch provider {
+	case collection.ProviderAWS:
+		return tokenSet("aws_account", "aws_role", "aws_resource", "aws_service"), tokenSet("account_id", "arn", "region", "resource_type", "service", "name"), tokenSet("state", "status")
+	case collection.ProviderKubernetes:
+		return tokenSet("kubernetes_cluster", "kubernetes_namespace", "kubernetes_resource", "kubernetes_workload"), tokenSet("cluster", "namespace", "api_group", "api_version", "resource_kind", "name"), tokenSet("state", "status", "namespaced")
+	case collection.ProviderGitHub:
+		return tokenSet("github_installation", "github_organization", "github_repository"), tokenSet("installation_id", "owner", "repository", "visibility", "name"), tokenSet("archived", "default_branch", "state")
+	case collection.ProviderOkta:
+		return tokenSet("okta_tenant", "okta_application", "okta_group", "okta_user"), tokenSet("tenant", "object_type", "name"), tokenSet("status", "state")
+	default:
+		return nil, nil, nil
+	}
+}
+
+func validProviderRelationship(raw json.RawMessage) bool {
+	var relationship normalizedPageRelationship
+	if !decodeExactObject(raw, &relationship) || !validProductIDText(relationship.ID) || !validProductIDText(relationship.FromEntityID) || !validProductIDText(relationship.ToEntityID) || relationship.FromEntityID == relationship.ToEntityID || len(relationship.SourceNativeID) < 1 || len(relationship.SourceNativeID) > 1024 {
+		return false
+	}
+	return tokenSet("contains", "member_of", "attached_to", "manages", "owns", "trusts", "depends_on")[relationship.Kind] && validScalarObject(relationship.Attributes, tokenSet("state", "type"))
+}
+
+func validScalarObject(raw json.RawMessage, allowed map[string]bool) bool {
+	if !validJSONObject(raw) {
+		return false
+	}
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.UseNumber()
+	var fields map[string]any
+	if decoder.Decode(&fields) != nil || fields == nil {
+		return false
+	}
+	for key, value := range fields {
+		if !allowed[key] {
+			return false
+		}
+		switch scalar := value.(type) {
+		case string:
+			if len(scalar) > 2048 || !utf8.ValidString(scalar) {
+				return false
+			}
+		case bool, json.Number:
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func decodeExactObject(raw json.RawMessage, destination any) bool {
+	if !validJSONObject(raw) {
+		return false
+	}
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	if decoder.Decode(destination) != nil {
+		return false
+	}
+	encoded, err := json.Marshal(destination)
+	return err == nil && bytes.Equal(encoded, raw)
+}
+
+func tokenSet(values ...string) map[string]bool {
+	result := make(map[string]bool, len(values))
+	for _, value := range values {
+		result[value] = true
+	}
+	return result
+}
+
+func cloneRawMessages(values []json.RawMessage) []json.RawMessage {
+	result := make([]json.RawMessage, len(values))
+	for index := range values {
+		result[index] = bytes.Clone(values[index])
+	}
+	return result
+}
+
+func validProductIDText(value string) bool {
+	_, err := domain.ParseProductID(value)
+	return err == nil
+}
+
 func outcomeUnknown() error {
 	failure, _ := collection.NewFailure(collection.FailureOutcomeUnknown, time.Time{})
+	return failure
+}
+
+func malformedFailure() error {
+	failure, _ := collection.NewFailure(collection.FailureMalformed, time.Time{})
 	return failure
 }
 
@@ -307,18 +507,21 @@ type evidenceItem struct {
 }
 
 type manifestDocument struct {
-	Version        string               `json:"version"`
-	Provider       collection.Provider  `json:"provider"`
-	Subject        manifestSubject      `json:"subject"`
-	IntegrationID  string               `json:"integration_id"`
-	ConnectionID   string               `json:"connection_id"`
-	JobID          string               `json:"job_id"`
-	CursorProvider collection.Provider  `json:"cursor_provider"`
-	CursorVersion  string               `json:"cursor_version"`
-	CursorValue    string               `json:"cursor_value"`
-	ParserVersion  string               `json:"parser_version"`
-	ToolVersion    string               `json:"tool_version"`
-	Objects        []manifestDescriptor `json:"objects"`
+	Version          string               `json:"version"`
+	RequestDigest    string               `json:"request_digest"`
+	Provider         collection.Provider  `json:"provider"`
+	Subject          manifestSubject      `json:"subject"`
+	IntegrationID    string               `json:"integration_id"`
+	ConnectionID     string               `json:"connection_id"`
+	JobID            string               `json:"job_id"`
+	Attempt          int                  `json:"attempt"`
+	CollectorVersion string               `json:"collector_version"`
+	CursorProvider   collection.Provider  `json:"cursor_provider"`
+	CursorVersion    string               `json:"cursor_version"`
+	CursorValue      string               `json:"cursor_value"`
+	ParserVersion    string               `json:"parser_version"`
+	ToolVersion      string               `json:"tool_version"`
+	Objects          []manifestDescriptor `json:"objects"`
 }
 
 type manifestDescriptor struct {
@@ -338,25 +541,36 @@ type manifestSubject struct {
 }
 
 func marshalManifest(request collection.Request, cursor collection.Cursor, objects []collection.RawObject) ([]byte, error) {
+	requestDigest, err := collectionRequestDigest(request)
+	if err != nil {
+		return nil, err
+	}
 	descriptors := make([]manifestDescriptor, len(objects))
 	for index, object := range objects {
 		checksum := object.Checksum()
 		descriptors[index] = manifestDescriptor{Reference: object.Reference().String(), Key: object.Key(), VersionID: object.VersionID(), ObjectReference: object.ObjectReference(), ChecksumHex: hex.EncodeToString(checksum[:]), SizeBytes: object.Size(), MediaType: object.MediaType(), SchemaVersion: object.SchemaVersion()}
 	}
-	return json.Marshal(manifestDocument{Version: manifestSchemaVersion, Provider: request.Provider, Subject: manifestSubject{Kind: request.ExpectedSubject.Kind, ID: request.ExpectedSubject.ID}, IntegrationID: request.IntegrationID.String(), ConnectionID: request.ConnectionID.String(), JobID: request.JobID.String(), CursorProvider: cursor.Provider, CursorVersion: cursor.Version, CursorValue: cursor.Value, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Objects: descriptors})
+	return json.Marshal(manifestDocument{Version: manifestSchemaVersion, RequestDigest: hex.EncodeToString(requestDigest[:]), Provider: request.Provider, Subject: manifestSubject{Kind: request.ExpectedSubject.Kind, ID: request.ExpectedSubject.ID}, IntegrationID: request.IntegrationID.String(), ConnectionID: request.ConnectionID.String(), JobID: request.JobID.String(), Attempt: request.Attempt, CollectorVersion: request.CollectorVersion, CursorProvider: cursor.Provider, CursorVersion: cursor.Version, CursorValue: cursor.Value, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Objects: descriptors})
 }
 
-func rawObjectFromArtifact(request collection.Request, bucket string, artifact artifactstore.Artifact, schema string) (collection.RawObject, error) {
+func rawObjectFromArtifact(request collection.Request, expected artifactstore.Locator, artifact artifactstore.Artifact, schema string, authority ArtifactAuthority) (collection.RawObject, error) {
 	key := artifactKey(request.Scope, artifact.Reference)
-	if artifact.Scope != request.Scope || artifact.Reference.Validate() != nil || artifact.VersionID == "" || artifact.MediaType != "application/json" || artifact.Size != int64(len(artifact.Body)) || artifact.SHA256 != sha256.Sum256(artifact.Body) {
+	if artifact.Scope != expected.Scope || artifact.Reference != expected.Reference || expected.VersionID != "" || artifact.VersionID == "" || artifact.MediaType != "application/json" || artifact.Size != int64(len(artifact.Body)) || artifact.SHA256 != sha256.Sum256(artifact.Body) {
 		return collection.RawObject{}, collection.ErrContract
 	}
-	return collection.NewRawObject(request.Scope, artifact.Reference, key, artifact.VersionID, "s3://"+bucket+"/"+key, artifact.SHA256, artifact.Size, artifact.MediaType, schema, request.ParserVersion, request.ToolVersion)
+	objectReference, err := artifactObjectReference(authority, artifact.Locator)
+	if err != nil {
+		return collection.RawObject{}, collection.ErrContract
+	}
+	return collection.NewRawObject(request.Scope, artifact.Reference, key, artifact.VersionID, objectReference, artifact.SHA256, artifact.Size, artifact.MediaType, schema, request.ParserVersion, request.ToolVersion)
 }
 
 func deterministicEvidenceReference(request collection.Request, suffix string) (domain.EvidenceRef, error) {
-	seed := strings.Join([]string{request.Scope.OrganizationID().String(), request.Scope.WorkspaceID().String(), request.Scope.EnvironmentID().String(), request.IntegrationID.String(), request.JobID.String(), string(request.Provider), suffix}, "\x1f")
-	digest := sha256.Sum256([]byte(seed))
+	requestDigest, err := collectionRequestDigest(request)
+	if err != nil {
+		return domain.EvidenceRef{}, err
+	}
+	digest := sha256.Sum256(append(append([]byte{}, requestDigest[:]...), []byte("\x1f"+suffix)...))
 	digest[6] = (digest[6] & 0x0f) | 0x40
 	digest[8] = (digest[8] & 0x3f) | 0x80
 	text := fmt.Sprintf("pid_%x-%x-%x-%x-%x", digest[0:4], digest[4:6], digest[6:8], digest[8:10], digest[10:16])
@@ -365,6 +579,53 @@ func deterministicEvidenceReference(request collection.Request, suffix string) (
 		return domain.EvidenceRef{}, err
 	}
 	return domain.NewEvidenceRef(id)
+}
+
+func collectionRequestDigest(request collection.Request) ([sha256.Size]byte, error) {
+	type digestScope struct {
+		OrganizationID string `json:"organization_id"`
+		WorkspaceID    string `json:"workspace_id"`
+		EnvironmentID  string `json:"environment_id"`
+	}
+	type digestCursor struct {
+		Provider collection.Provider `json:"provider"`
+		Version  string              `json:"version"`
+		Value    string              `json:"value"`
+	}
+	type digestBounds struct {
+		MaxPages    int   `json:"max_pages"`
+		MaxItems    int   `json:"max_items"`
+		MaxRawBytes int64 `json:"max_raw_bytes"`
+		TimeoutNS   int64 `json:"timeout_ns"`
+	}
+	type digestRequest struct {
+		Scope               digestScope                `json:"scope"`
+		IntegrationID       string                     `json:"integration_id"`
+		ConnectionID        string                     `json:"connection_id"`
+		JobID               string                     `json:"job_id"`
+		Attempt             int                        `json:"attempt"`
+		Provider            collection.Provider        `json:"provider"`
+		CollectorVersion    string                     `json:"collector_version"`
+		CredentialClass     collection.CredentialClass `json:"credential_class"`
+		CredentialReference string                     `json:"credential_reference"`
+		ExpectedSubject     collection.SubjectBinding  `json:"expected_subject"`
+		Cursor              digestCursor               `json:"cursor"`
+		ParserVersion       string                     `json:"parser_version"`
+		ToolVersion         string                     `json:"tool_version"`
+		Bounds              digestBounds               `json:"bounds"`
+	}
+	encoded, err := json.Marshal(digestRequest{
+		Scope:         digestScope{OrganizationID: request.Scope.OrganizationID().String(), WorkspaceID: request.Scope.WorkspaceID().String(), EnvironmentID: request.Scope.EnvironmentID().String()},
+		IntegrationID: request.IntegrationID.String(), ConnectionID: request.ConnectionID.String(), JobID: request.JobID.String(), Attempt: request.Attempt,
+		Provider: request.Provider, CollectorVersion: request.CollectorVersion, CredentialClass: request.CredentialClass, CredentialReference: request.CredentialReference,
+		ExpectedSubject: request.ExpectedSubject, Cursor: digestCursor{Provider: request.Cursor.Provider, Version: request.Cursor.Version, Value: request.Cursor.Value},
+		ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion,
+		Bounds: digestBounds{MaxPages: request.Bounds.MaxPages, MaxItems: request.Bounds.MaxItems, MaxRawBytes: request.Bounds.MaxRawBytes, TimeoutNS: int64(request.Bounds.Timeout)},
+	})
+	if err != nil {
+		return [sha256.Size]byte{}, collection.ErrContract
+	}
+	return sha256.Sum256(encoded), nil
 }
 
 func artifactKey(scope domain.Scope, reference domain.EvidenceRef) string {
@@ -456,10 +717,6 @@ func validProvider(provider collection.Provider) bool {
 	}
 }
 
-func validBucket(value string) bool {
-	return bucketPattern.MatchString(value) && !strings.Contains(value, "..")
-}
-
 func fetchPage(api API, ctx context.Context, credential []byte, request PageRequest) (page Page, resultErr error) {
 	defer func() {
 		if recover() != nil {
@@ -487,6 +744,16 @@ func putArtifact(store artifactstore.ArtifactStore, ctx context.Context, request
 		}
 	}()
 	return store.Put(ctx, request)
+}
+
+func artifactObjectReference(authority ArtifactAuthority, locator artifactstore.Locator) (reference string, resultErr error) {
+	defer func() {
+		if recover() != nil {
+			reference = ""
+			resultErr = collection.ErrContract
+		}
+	}()
+	return authority.ObjectReference(locator)
 }
 
 func nilInterface(value any) bool {

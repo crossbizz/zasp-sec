@@ -22,6 +22,7 @@ var (
 	ErrPut           = errors.New("artifact put failed")
 	ErrGet           = errors.New("artifact get failed")
 	ErrDelete        = errors.New("artifact delete failed")
+	ErrReference     = errors.New("artifact reference failed")
 )
 
 type Config struct {
@@ -74,6 +75,15 @@ type ArtifactStore interface {
 	Put(context.Context, PutRequest) (Artifact, error)
 	Get(context.Context, Locator) (Artifact, error)
 	Delete(context.Context, Locator) error
+}
+
+type ObjectReferencingArtifactStore interface {
+	ArtifactStore
+	ObjectReference(Locator) (string, error)
+}
+
+type DriverObjectReferencer interface {
+	ObjectReference(DriverLocator) (string, error)
 }
 
 type Store struct {
@@ -168,6 +178,32 @@ func (store *Store) Delete(ctx context.Context, locator Locator) (resultErr erro
 		return ErrDelete
 	}
 	return nil
+}
+
+func (store *Store) ObjectReference(locator Locator) (reference string, resultErr error) {
+	if store == nil || nilInterface(store.driver) || !validLocator(locator) || locator.VersionID == "" {
+		return "", ErrReference
+	}
+	driver, ok := store.driver.(DriverObjectReferencer)
+	if !ok || nilInterface(driver) {
+		return "", ErrReference
+	}
+	driverLocator, err := buildDriverLocator(locator.Scope, locator.Reference)
+	if err != nil {
+		return "", ErrReference
+	}
+	driverLocator.VersionID = locator.VersionID
+	defer func() {
+		if recover() != nil {
+			reference = ""
+			resultErr = ErrReference
+		}
+	}()
+	reference, err = driver.ObjectReference(driverLocator)
+	if err != nil || reference == "" {
+		return "", ErrReference
+	}
+	return reference, nil
 }
 
 func buildDriverLocator(scope domain.Scope, reference domain.EvidenceRef) (DriverLocator, error) {

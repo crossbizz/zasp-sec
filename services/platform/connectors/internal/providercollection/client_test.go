@@ -21,22 +21,13 @@ func TestClientWritesRawPagesThenManifestAndReturnsBoundCompleteSnapshot(t *test
 	steps := []string{}
 	store := &recordingArtifacts{bucket: "zasp-evidence", steps: &steps}
 	api := &recordingAPI{steps: &steps, pages: []Page{
-		{
-			Subject:  request.ExpectedSubject,
-			Cursor:   collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "page-2"},
-			Raw:      []byte(`{"accounts":[{"id":"123456789012"}]}`),
-			Entities: []json.RawMessage{json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{},"attributes":{}}`)},
-		},
-		{
-			Subject:       request.ExpectedSubject,
-			Cursor:        collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "complete"},
-			Raw:           []byte(`{"roles":[{"arn":"arn:aws:iam::123456789012:role/read"}]}`),
-			Entities:      []json.RawMessage{json.RawMessage(`{"id":"pid_40000002-0000-4000-8000-000000000002","kind":"aws_role","source_native_id":"arn:aws:iam::123456789012:role/read","display_name":"read","stable_fields":{},"attributes":{}}`)},
-			Relationships: []json.RawMessage{json.RawMessage(`{"id":"pid_40000003-0000-4000-8000-000000000003","kind":"contains","source_native_id":"123456789012/read","from_entity_id":"pid_40000001-0000-4000-8000-000000000001","to_entity_id":"pid_40000002-0000-4000-8000-000000000002","attributes":{}}`)},
-			Complete:      true,
-		},
+		mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "page-2"}, false,
+			[]json.RawMessage{json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{},"attributes":{}}`)}, nil),
+		mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "complete"}, true,
+			[]json.RawMessage{json.RawMessage(`{"id":"pid_40000002-0000-4000-8000-000000000002","kind":"aws_role","source_native_id":"arn:aws:iam::123456789012:role/read","display_name":"read","stable_fields":{},"attributes":{}}`)},
+			[]json.RawMessage{json.RawMessage(`{"id":"pid_40000003-0000-4000-8000-000000000003","kind":"contains","source_native_id":"123456789012/read","from_entity_id":"pid_40000001-0000-4000-8000-000000000001","to_entity_id":"pid_40000002-0000-4000-8000-000000000002","attributes":{}}`)}),
 	}}
-	client, err := New(Config{Provider: collection.ProviderAWS, API: api, Artifacts: store, Bucket: store.bucket, CollectorVersion: "collector_v1", Clock: fixedClock})
+	client, err := New(Config{Provider: collection.ProviderAWS, API: api, Artifacts: store, CollectorVersion: "collector_v1", ParserVersion: "parser_v1", ToolVersion: "tool_v1", Clock: fixedClock})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,12 +65,8 @@ func TestClientReturnsPartialOnlyAfterManifestLastWhenPageBoundIsReached(t *test
 	request.Bounds.MaxPages = 1
 	steps := []string{}
 	store := &recordingArtifacts{bucket: "zasp-evidence", steps: &steps}
-	api := &recordingAPI{steps: &steps, pages: []Page{{
-		Subject: request.ExpectedSubject,
-		Cursor:  collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "continue"},
-		Raw:     []byte(`{"items":[]}`),
-	}}}
-	client, err := New(Config{Provider: request.Provider, API: api, Artifacts: store, Bucket: store.bucket, CollectorVersion: "collector_v1", Clock: fixedClock})
+	api := &recordingAPI{steps: &steps, pages: []Page{mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "continue"}, false, nil, nil)}}
+	client, err := New(Config{Provider: request.Provider, API: api, Artifacts: store, CollectorVersion: "collector_v1", ParserVersion: "parser_v1", ToolVersion: "tool_v1", Clock: fixedClock})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,6 +80,33 @@ func TestClientReturnsPartialOnlyAfterManifestLastWhenPageBoundIsReached(t *test
 	}
 	if fmt.Sprint(steps) != "[fetch:1 put:raw put:manifest]" {
 		t.Fatalf("steps = %v", steps)
+	}
+}
+
+func TestClientReservesManifestCapacityBeforeFetchingOrWritingRawPages(t *testing.T) {
+	t.Parallel()
+	request := testRequest(t, collection.ProviderKubernetes)
+	request.Bounds.MaxPages = 1
+	request.Bounds.MaxRawBytes = 64 * 1024
+	page := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "continue"}, false, nil, nil)
+	api := &recordingAPI{pages: []Page{page}}
+	store := &recordingArtifacts{bucket: "zasp-evidence"}
+	client, err := New(Config{Provider: request.Provider, API: api, Artifacts: store, CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.CollectWithCredential(context.Background(), request, []byte("cluster-credential")); err != nil {
+		t.Fatal(err)
+	}
+	if len(api.requests) != 1 || api.requests[0].RemainingBytes <= 0 || api.requests[0].RemainingBytes >= request.Bounds.MaxRawBytes {
+		t.Fatalf("provider raw budget = %#v, max=%d", api.requests, request.Bounds.MaxRawBytes)
+	}
+	var used int64
+	for _, put := range store.requests {
+		used += int64(len(put.Body))
+	}
+	if used > request.Bounds.MaxRawBytes {
+		t.Fatalf("artifact bytes = %d, max=%d", used, request.Bounds.MaxRawBytes)
 	}
 }
 
@@ -115,15 +129,15 @@ func TestClientRejectsHostileProviderOutputBeforeArtifactMutation(t *testing.T) 
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
-			page := Page{Subject: request.ExpectedSubject, Cursor: collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "done"}, Raw: []byte(`{"repositories":[]}`), Complete: true}
+			page := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "done"}, true, nil, nil)
 			mutate(&page)
 			store := &recordingArtifacts{bucket: "zasp-evidence"}
-			client, err := New(Config{Provider: request.Provider, API: &recordingAPI{pages: []Page{page}}, Artifacts: store, Bucket: store.bucket, CollectorVersion: "collector_v1", Clock: fixedClock})
+			client, err := New(Config{Provider: request.Provider, API: &recordingAPI{pages: []Page{page}}, Artifacts: store, CollectorVersion: "collector_v1", ParserVersion: "parser_v1", ToolVersion: "tool_v1", Clock: fixedClock})
 			if err != nil {
 				t.Fatal(err)
 			}
-			if _, err := client.CollectWithCredential(context.Background(), request, []byte("installation-token")); !errors.Is(err, collection.ErrContract) {
-				t.Fatalf("error = %v, want collection.ErrContract", err)
+			if _, err := client.CollectWithCredential(context.Background(), request, []byte("installation-token")); !failureHasCode(err, collection.FailureMalformed) {
+				t.Fatalf("error = %v, want malformed", err)
 			}
 			if len(store.requests) != 0 {
 				t.Fatalf("hostile provider output wrote %d artifacts", len(store.requests))
@@ -132,13 +146,42 @@ func TestClientRejectsHostileProviderOutputBeforeArtifactMutation(t *testing.T) 
 	}
 }
 
+func TestNewPageAllowsOnlyCanonicalProviderInventoryWithoutSecrets(t *testing.T) {
+	t.Parallel()
+	subject := collection.SubjectBinding{Kind: "aws_account", ID: "123456789012"}
+	cursor := collection.Cursor{Provider: collection.ProviderAWS, Version: "cursor_v1", Value: "done"}
+	valid := json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{"account_id":"123456789012"},"attributes":{"state":"active"}}`)
+	page, err := NewPage(collection.ProviderAWS, subject, cursor, true, []json.RawMessage{valid}, nil)
+	if err != nil || len(page.Raw) == 0 || !bytes.Contains(page.Raw, valid) {
+		t.Fatalf("NewPage(valid) = %#v, %v", page, err)
+	}
+	for name, entity := range map[string]json.RawMessage{
+		"token":             json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{"token":"secret"},"attributes":{}}`),
+		"secret access key": json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{"secret_access_key":"secret"},"attributes":{}}`),
+		"client key data":   json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{"client_key_data":"secret"},"attributes":{}}`),
+		"nested data":       json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{"account_id":{"data":"secret"}},"attributes":{}}`),
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := NewPage(collection.ProviderAWS, subject, cursor, true, []json.RawMessage{entity}, nil); !errors.Is(err, collection.ErrContract) {
+				t.Fatalf("NewPage(secret) error = %v", err)
+			}
+		})
+	}
+	kubernetesSubject := collection.SubjectBinding{Kind: "kubernetes_cluster", ID: "api.example.com/production"}
+	kubernetesCursor := collection.Cursor{Provider: collection.ProviderKubernetes, Version: "cursor_v1", Value: "done"}
+	secretResource := json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"kubernetes_resource","source_native_id":"default/secret","display_name":"secret","stable_fields":{"cluster":"api.example.com/production","namespace":"default","resource_kind":"Secret","name":"secret"},"attributes":{}}`)
+	if _, err := NewPage(collection.ProviderKubernetes, kubernetesSubject, kubernetesCursor, true, []json.RawMessage{secretResource}, nil); !errors.Is(err, collection.ErrContract) {
+		t.Fatalf("NewPage(kubernetes Secret) error = %v", err)
+	}
+}
+
 func TestClientNeverWritesManifestAfterRawArtifactFailure(t *testing.T) {
 	t.Parallel()
 	request := testRequest(t, collection.ProviderOkta)
 	steps := []string{}
 	store := &recordingArtifacts{bucket: "zasp-evidence", steps: &steps, failAt: 1}
-	page := Page{Subject: request.ExpectedSubject, Cursor: collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "done"}, Raw: []byte(`{"users":[]}`), Complete: true}
-	client, err := New(Config{Provider: request.Provider, API: &recordingAPI{steps: &steps, pages: []Page{page}}, Artifacts: store, Bucket: store.bucket, CollectorVersion: "collector_v1", Clock: fixedClock})
+	page := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "done"}, true, nil, nil)
+	client, err := New(Config{Provider: request.Provider, API: &recordingAPI{steps: &steps, pages: []Page{page}}, Artifacts: store, CollectorVersion: "collector_v1", ParserVersion: "parser_v1", ToolVersion: "tool_v1", Clock: fixedClock})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,14 +193,55 @@ func TestClientNeverWritesManifestAfterRawArtifactFailure(t *testing.T) {
 	}
 }
 
+func TestClientRejectsAnArtifactStoredUnderADifferentLocator(t *testing.T) {
+	t.Parallel()
+	request := testRequest(t, collection.ProviderOkta)
+	wrongReference, err := domain.NewEvidenceRef(mustID(t, "pid_40000004-0000-4000-8000-000000000004"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := &recordingArtifacts{bucket: "zasp-evidence", mutateArtifact: func(value *artifactstore.Artifact) {
+		value.Reference = wrongReference
+	}}
+	page := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "done"}, true, nil, nil)
+	client, err := New(Config{Provider: request.Provider, API: &recordingAPI{pages: []Page{page}}, Artifacts: store, CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.CollectWithCredential(context.Background(), request, []byte("okta-refresh-material")); !failureHasCode(err, collection.FailureOutcomeUnknown) {
+		t.Fatalf("mismatched artifact locator error = %v", err)
+	}
+}
+
+func TestClientUsesTheArtifactAuthorityForTheExactObjectReference(t *testing.T) {
+	t.Parallel()
+	request := testRequest(t, collection.ProviderAWS)
+	store := &recordingArtifacts{bucket: "zasp-evidence"}
+	page := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "done"}, true, nil, nil)
+	client, err := New(Config{Provider: request.Provider, API: &recordingAPI{pages: []Page{page}}, Artifacts: store, CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock})
+	if err != nil {
+		t.Fatal(err)
+	}
+	outcome, err := client.CollectWithCredential(context.Background(), request, []byte("temporary-aws-credential"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	complete := outcome.(collection.CompleteResult)
+	descriptor := complete.Manifest().Descriptor()
+	want := "s3://zasp-evidence/" + descriptor.Key()
+	if descriptor.ObjectReference() != want {
+		t.Fatalf("object reference = %q, want %q", descriptor.ObjectReference(), want)
+	}
+}
+
 func TestClientReplayIsByteIdenticalAcrossClockAdvance(t *testing.T) {
 	t.Parallel()
 	request := testRequest(t, collection.ProviderAWS)
-	page := Page{Subject: request.ExpectedSubject, Cursor: collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "done"}, Raw: []byte(`{"accounts":[]}`), Complete: true}
+	page := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "done"}, true, nil, nil)
 	api := &recordingAPI{pages: []Page{page}}
 	store := &recordingArtifacts{bucket: "zasp-evidence"}
 	now := fixedClock()
-	client, err := New(Config{Provider: request.Provider, API: api, Artifacts: store, Bucket: store.bucket, CollectorVersion: "collector_v1", Clock: func() time.Time { return now }})
+	client, err := New(Config{Provider: request.Provider, API: api, Artifacts: store, CollectorVersion: "collector_v1", ParserVersion: "parser_v1", ToolVersion: "tool_v1", Clock: func() time.Time { return now }})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,19 +262,153 @@ func TestClientReplayIsByteIdenticalAcrossClockAdvance(t *testing.T) {
 	}
 }
 
+func TestClientArtifactIdentityBindsTheEntireCollectionRequest(t *testing.T) {
+	t.Parallel()
+	request := testRequest(t, collection.ProviderAWS)
+	page := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "done"}, true, nil, nil)
+	api := &recordingAPI{pages: []Page{page}}
+	store := &recordingArtifacts{bucket: "zasp-evidence"}
+	client, err := New(Config{Provider: request.Provider, API: api, Artifacts: store, CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.CollectWithCredential(context.Background(), request, []byte("temporary-aws-credential")); err != nil {
+		t.Fatal(err)
+	}
+	firstRaw := store.requests[0].Reference
+	firstManifest := store.requests[1].Reference
+	var manifest struct {
+		Attempt          int    `json:"attempt"`
+		CollectorVersion string `json:"collector_version"`
+		RequestDigest    string `json:"request_digest"`
+	}
+	if err := json.Unmarshal(store.requests[1].Body, &manifest); err != nil || manifest.Attempt != request.Attempt || manifest.CollectorVersion != request.CollectorVersion || len(manifest.RequestDigest) != 64 {
+		t.Fatalf("manifest request authority = %#v, err=%v", manifest, err)
+	}
+
+	request.Attempt++
+	api.calls = 0
+	if _, err := client.CollectWithCredential(context.Background(), request, []byte("temporary-aws-credential")); err != nil {
+		t.Fatal(err)
+	}
+	if store.requests[2].Reference == firstRaw || store.requests[3].Reference == firstManifest {
+		t.Fatalf("attempt change reused artifact identity: raw=%s manifest=%s", store.requests[2].Reference.String(), store.requests[3].Reference.String())
+	}
+}
+
+func TestArtifactIdentityChangesForEveryIndependentRequestAuthority(t *testing.T) {
+	t.Parallel()
+	base := testRequest(t, collection.ProviderAWS)
+	want, err := deterministicEvidenceReference(base, "raw-page-000001")
+	if err != nil {
+		t.Fatal(err)
+	}
+	changes := map[string]func(*collection.Request){
+		"scope": func(value *collection.Request) {
+			value.Scope, _ = domain.NewScope(mustID(t, "pid_10000011-0000-4000-8000-000000000011"), value.Scope.WorkspaceID(), value.Scope.EnvironmentID())
+		},
+		"integration": func(value *collection.Request) {
+			value.IntegrationID = mustID(t, "pid_20000011-0000-4000-8000-000000000011")
+		},
+		"connection": func(value *collection.Request) {
+			value.ConnectionID = mustID(t, "pid_20000012-0000-4000-8000-000000000012")
+		},
+		"job":                  func(value *collection.Request) { value.JobID = mustID(t, "pid_20000013-0000-4000-8000-000000000013") },
+		"attempt":              func(value *collection.Request) { value.Attempt++ },
+		"collector":            func(value *collection.Request) { value.CollectorVersion = "collector_v2" },
+		"credential reference": func(value *collection.Request) { value.CredentialReference = "ref:aws/connection/customer-0002" },
+		"subject":              func(value *collection.Request) { value.ExpectedSubject.ID = "210987654321" },
+		"cursor":               func(value *collection.Request) { value.Cursor.Value = "next" },
+		"parser":               func(value *collection.Request) { value.ParserVersion = "parser_v2" },
+		"tool":                 func(value *collection.Request) { value.ToolVersion = "tool_v2" },
+		"bounds":               func(value *collection.Request) { value.Bounds.MaxItems++ },
+	}
+	for name, mutate := range changes {
+		t.Run(name, func(t *testing.T) {
+			changed := base
+			mutate(&changed)
+			if err := changed.Validate(); err != nil {
+				t.Fatalf("changed request invalid: %v", err)
+			}
+			got, err := deterministicEvidenceReference(changed, "raw-page-000001")
+			if err != nil || got == want {
+				t.Fatalf("artifact identity = %s, base=%s, err=%v", got.String(), want.String(), err)
+			}
+		})
+	}
+}
+
+func TestClientRejectsCollectorParserAndToolVersionDriftBeforeProviderIO(t *testing.T) {
+	t.Parallel()
+	request := testRequest(t, collection.ProviderAWS)
+	api := &recordingAPI{}
+	store := &recordingArtifacts{bucket: "zasp-evidence"}
+	client, err := New(Config{
+		Provider: request.Provider, API: api, Artifacts: store,
+		CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, mutate := range map[string]func(*collection.Request){
+		"collector": func(value *collection.Request) { value.CollectorVersion = "collector_v2" },
+		"parser":    func(value *collection.Request) { value.ParserVersion = "parser_v2" },
+		"tool":      func(value *collection.Request) { value.ToolVersion = "tool_v2" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			changed := request
+			mutate(&changed)
+			if _, err := client.CollectWithCredential(context.Background(), changed, []byte("temporary-aws-credential")); !errors.Is(err, collection.ErrContract) {
+				t.Fatalf("version drift error = %v", err)
+			}
+		})
+	}
+	if api.calls != 0 || len(store.requests) != 0 {
+		t.Fatalf("version drift reached dependencies: api=%d artifacts=%d", api.calls, len(store.requests))
+	}
+}
+
+func TestClientReadinessDistinguishesProviderContractFailureFromOutage(t *testing.T) {
+	t.Parallel()
+	request := testRequest(t, collection.ProviderAWS)
+	store := &recordingArtifacts{bucket: "zasp-evidence"}
+	for name, test := range map[string]struct {
+		readiness func(context.Context) error
+		want      collection.ReadinessCode
+	}{
+		"contract": {readiness: func(context.Context) error { return collection.ErrContract }, want: collection.ReadinessContractInvalid},
+		"panic":    {readiness: func(context.Context) error { panic("provider-secret") }, want: collection.ReadinessContractInvalid},
+		"outage":   {readiness: func(context.Context) error { return errors.New("provider-secret") }, want: collection.ReadinessDependencyUnavailable},
+	} {
+		t.Run(name, func(t *testing.T) {
+			client, err := New(Config{Provider: request.Provider, API: &recordingAPI{readiness: test.readiness}, Artifacts: store, CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock})
+			if err != nil {
+				t.Fatal(err)
+			}
+			status := client.Check(context.Background())
+			if status.Ready || status.Code != test.want {
+				t.Fatalf("readiness = %#v, want %s", status, test.want)
+			}
+		})
+	}
+}
+
 func failureHasCode(err error, code collection.FailureCode) bool {
 	var failure *collection.Failure
 	return errors.As(err, &failure) && failure.Code() == code
 }
 
 type recordingAPI struct {
-	pages []Page
-	steps *[]string
-	calls int
+	pages     []Page
+	steps     *[]string
+	calls     int
+	requests  []PageRequest
+	readiness func(context.Context) error
 }
 
 func (api *recordingAPI) FetchCollectionPage(_ context.Context, credential []byte, request PageRequest) (Page, error) {
 	api.calls++
+	api.requests = append(api.requests, request)
 	if api.steps != nil {
 		*api.steps = append(*api.steps, fmt.Sprintf("fetch:%d", api.calls))
 	}
@@ -200,14 +418,20 @@ func (api *recordingAPI) FetchCollectionPage(_ context.Context, credential []byt
 	return api.pages[api.calls-1], nil
 }
 
-func (*recordingAPI) CheckCollectionReadiness(context.Context) error { return nil }
+func (api *recordingAPI) CheckCollectionReadiness(ctx context.Context) error {
+	if api.readiness != nil {
+		return api.readiness(ctx)
+	}
+	return nil
+}
 
 type recordingArtifacts struct {
-	bucket   string
-	steps    *[]string
-	requests []artifactstore.PutRequest
-	failAt   int
-	objects  map[string]artifactstore.Artifact
+	bucket         string
+	steps          *[]string
+	requests       []artifactstore.PutRequest
+	failAt         int
+	objects        map[string]artifactstore.Artifact
+	mutateArtifact func(*artifactstore.Artifact)
 }
 
 func (store *recordingArtifacts) Put(_ context.Context, request artifactstore.PutRequest) (artifactstore.Artifact, error) {
@@ -234,6 +458,9 @@ func (store *recordingArtifacts) Put(_ context.Context, request artifactstore.Pu
 	}
 	artifact := artifactstore.Artifact{Locator: artifactstore.Locator{Scope: request.Scope, Reference: request.Reference, VersionID: fmt.Sprintf("s3-version-%d", len(store.objects)+1)}, MediaType: request.MediaType, Body: bytes.Clone(request.Body), Size: int64(len(request.Body)), SHA256: sha256.Sum256(request.Body)}
 	store.objects[key] = artifact
+	if store.mutateArtifact != nil {
+		store.mutateArtifact(&artifact)
+	}
 	return artifact, nil
 }
 
@@ -242,6 +469,13 @@ func (*recordingArtifacts) Get(context.Context, artifactstore.Locator) (artifact
 }
 func (*recordingArtifacts) Delete(context.Context, artifactstore.Locator) error {
 	return artifactstore.ErrDelete
+}
+
+func (store *recordingArtifacts) ObjectReference(locator artifactstore.Locator) (string, error) {
+	if store == nil || store.bucket != "zasp-evidence" || locator.Scope.Validate() != nil || locator.Reference.Validate() != nil || locator.VersionID == "" {
+		return "", artifactstore.ErrArtifact
+	}
+	return "s3://" + store.bucket + "/" + artifactKey(locator.Scope, locator.Reference), nil
 }
 
 func testRequest(t *testing.T, provider collection.Provider) collection.Request {
@@ -281,3 +515,12 @@ func mustID(t *testing.T, value string) domain.ProductID {
 }
 
 func fixedClock() time.Time { return time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC) }
+
+func mustPage(t *testing.T, provider collection.Provider, subject collection.SubjectBinding, cursor collection.Cursor, complete bool, entities, relationships []json.RawMessage) Page {
+	t.Helper()
+	page, err := NewPage(provider, subject, cursor, complete, entities, relationships)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return page
+}

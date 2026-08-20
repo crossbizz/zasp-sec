@@ -84,6 +84,22 @@ func TestDriverGetPinsVersionAndValidatesEveryBoundary(t *testing.T) {
 	}
 }
 
+func TestDriverBuildsTheObjectReferenceFromItsExactBucketAuthority(t *testing.T) {
+	t.Parallel()
+	driver := mustDriver(t, &fakeS3{})
+	locator := fixtureObject(t).DriverLocator
+	locator.VersionID = "version-1"
+	reference, err := driver.ObjectReference(locator)
+	if err != nil || reference != "s3://"+validConfig().Bucket+"/"+locator.Key {
+		t.Fatalf("ObjectReference() = %q, %v", reference, err)
+	}
+	invalid := locator
+	invalid.Key += "/drift"
+	if reference, err := driver.ObjectReference(invalid); !errors.Is(err, ErrArtifact) || reference != "" {
+		t.Fatalf("invalid ObjectReference() = %q, %v", reference, err)
+	}
+}
+
 func TestDriverReadUsesThePersistedVersionAcrossNewerVersionsAndDeleteMarkers(t *testing.T) {
 	client := &fakeS3{}
 	driver := mustDriver(t, client)
