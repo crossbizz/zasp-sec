@@ -251,13 +251,13 @@ M3	M3-52c	Complete	component-only	T06-runtime-data-plane	audited component-only 
 M3	M3-52d	Complete	component-only	T04-discovery-worker	audited component-only proof: M3 queue index E2E
 M3	M3-52e	Complete	component-only	T04-discovery-worker	audited component-only proof: M3 freshness degrade E2E
 M3	M3-52	Blocked	blocked/external	EXT-human-observation	audited external evidence gate: M3 gate
-M4	M4-01a	Complete	component-only	T05-inventory-cutover	audited component-only proof: canonical asset ID reconciliation
-M4	M4-01b	Complete	component-only	T05-inventory-cutover	audited component-only proof: Agent reconciliation
-M4	M4-01c	Complete	component-only	T05-inventory-cutover	audited component-only proof: Tool reconciliation
-M4	M4-01d	Complete	component-only	T05-inventory-cutover	audited component-only proof: Identity reconciliation
-M4	M4-01e	Complete	component-only	T05-inventory-cutover	audited component-only proof: Runtime reconciliation
-M4	M4-01f	Complete	component-only	T05-inventory-cutover	audited component-only proof: canonical relationship projection
-M4	M4-01	Complete	component-only	T05-inventory-cutover	audited component-only proof: asset reconciliation gate
+M4	M4-01a	Complete	production-available	T05-inventory-cutover	v14 complete-snapshot E2E proves canonical AWS asset identity through public API and typed database authority
+M4	M4-01b	Complete	production-available	T05-inventory-cutover	v14 complete-snapshot E2E proves Kubernetes Agent reconciliation through public API and installed browser
+M4	M4-01c	Complete	production-available	T05-inventory-cutover	v14 complete-snapshot E2E proves GitHub Tool reconciliation through public API and installed browser
+M4	M4-01d	Complete	production-available	T05-inventory-cutover	v14 complete-snapshot E2E proves Okta Identity reconciliation through public API and installed browser
+M4	M4-01e	Complete	production-available	T05-inventory-cutover	v14 complete-snapshot E2E proves Kubernetes Runtime reconciliation through public API and installed browser
+M4	M4-01f	Complete	production-available	T05-inventory-cutover	v14 complete-snapshot E2E proves canonical relationship projection with exact source and evidence bindings
+M4	M4-01	Complete	production-available	T05-inventory-cutover	v14 cutover gate proves public typed inventory is derived only from authoritative complete snapshots
 M4	M4-02	Complete	component-only	T05-inventory-cutover	audited component-only proof: agent ownership/tags
 M4	M4-03	Complete	production-available	PROD-current-composition	audited shipped composition: API listAgents
 M4	M4-04	Complete	production-available	PROD-current-composition	audited shipped composition: API getAgent
@@ -327,7 +327,7 @@ M4	M4-55	Complete	production-available	PROD-current-composition	audited shipped 
 M4	M4-56	Complete	production-available	PROD-current-composition	audited shipped composition: Finding detail UI
 M4	M4-57	Complete	production-available	PROD-current-composition	audited shipped composition: Attack Paths UI
 M4	M4-58	Complete	production-available	PROD-current-composition	audited shipped composition: Home UI
-M4	M4-59a	Complete	component-only	T05-inventory-cutover	audited component-only proof: inventory golden test
+M4	M4-59a	Complete	production-available	T05-inventory-cutover	installed-Chrome v14 golden journey proves typed lists, detail, deep-link reload, multi-source retention, partial/failed retention, and complete-empty removal
 M4	M4-59b	Complete	component-only	T05-inventory-cutover	audited component-only proof: capability golden test
 M4	M4-59c	Complete	component-only	T05-inventory-cutover	audited component-only proof: posture golden test
 M4	M4-59d	Complete	component-only	T05-inventory-cutover	audited component-only proof: attack path golden test

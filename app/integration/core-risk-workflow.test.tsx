@@ -11,8 +11,8 @@ describe("connected core risk workflow", () => {
 	it("loads API inventory detail and reloads the authoritative result", async () => {
     const fetch = vi.fn(async (request: Request) => {
       const path = new URL(request.url).pathname;
-      if (path === "/api/v1/agents") return jsonResponse({ items: [agent()] });
-			if (path === `/api/v1/agents/${agent().id}`) return jsonResponse(agent());
+      if (path === "/api/v1/agents") return jsonResponse(page([agent()]));
+			if (path === `/api/v1/agents/${agent().id}`) return jsonResponse(detail(agent()));
       return jsonResponse({ code: "not_found", message: "Resource not found", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: false }, 404);
     });
 		const client = createAPIClient({ fetch, generateCorrelationID: () => "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee" });
@@ -31,8 +31,9 @@ describe("connected core risk workflow", () => {
     const fetch = vi.fn(async (request: Request) => {
       const url = new URL(request.url);
       if (url.pathname === "/api/v1/home/summary") return jsonResponse({ agent_count: 1, high_risk_paths: 1, verified_changes: 0, blocked_changes: 0, pending_approvals: 0, oldest_approval_age_seconds: 0, needs_human_runs: 0, failed_runs: 0, inconclusive_runs: 0, recent_contained: 0, recent_remediated: 0, healthy: true, attention_required: false });
-      if (url.pathname === "/api/v1/tools") return jsonResponse({ items: [{ ...agent(), id: "pid_20000003-0000-4000-8000-000000000003", name: "Customer records MCP", kind: "tool" }] });
-      if (url.pathname === "/api/v1/tools/pid_20000003-0000-4000-8000-000000000003") return jsonResponse({ ...agent(), id: "pid_20000003-0000-4000-8000-000000000003", name: "Customer records MCP", kind: "tool" });
+      const tool = { ...agent(), id: "pid_20000003-0000-4000-8000-000000000003", name: "Customer records MCP", kind: "tool" as const };
+      if (url.pathname === "/api/v1/tools") return jsonResponse(page([tool]));
+      if (url.pathname === "/api/v1/tools/pid_20000003-0000-4000-8000-000000000003") return jsonResponse(detail(tool));
       return jsonResponse({ code: "not_found", message: "Resource not found", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: false }, 404);
     });
     const client = createAPIClient({ fetch, generateCorrelationID: () => "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", getCSRFToken: () => "cccccccccccccccccccccccccccccccc" });
@@ -62,7 +63,7 @@ describe("connected core risk workflow", () => {
         agentCalls += 1;
         agentSignals.push(request.signal);
         return agentCalls === 1
-          ? Promise.resolve(jsonResponse({ items: [agent()] }))
+          ? Promise.resolve(jsonResponse(page([agent()])))
           : lateAgents.promise;
       }
       if (path === "/api/v1/tools") return delayedTools.promise;
@@ -92,7 +93,7 @@ describe("connected core risk workflow", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Product API unavailable");
     expect(screen.queryByText("Support agent")).not.toBeInTheDocument();
 
-    lateAgents.resolve(jsonResponse({ items: [{ ...agent(), name: "Late route A agent" }] }));
+    lateAgents.resolve(jsonResponse(page([{ ...agent(), name: "Late route A agent" }])));
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Product API unavailable"));
     expect(screen.queryByText("Late route A agent")).not.toBeInTheDocument();
   });
@@ -107,7 +108,7 @@ describe("connected core risk workflow", () => {
       }
       calls += 1;
       signals.push(request.signal);
-      return calls === 1 ? Promise.resolve(jsonResponse({ items: [agent()] })) : lateAgents.promise;
+      return calls === 1 ? Promise.resolve(jsonResponse(page([agent()]))) : lateAgents.promise;
     });
     const client = createAPIClient({ fetch, generateCorrelationID: () => "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee" });
     function Workflow() {
@@ -129,14 +130,24 @@ describe("connected core risk workflow", () => {
     expect(screen.queryByText("Support agent")).not.toBeInTheDocument();
     expect(signals[1]?.aborted).toBe(true);
 
-    lateAgents.resolve(jsonResponse({ items: [{ ...agent(), name: "Late disabled agent" }] }));
+    lateAgents.resolve(jsonResponse(page([{ ...agent(), name: "Late disabled agent" }])));
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Product route unavailable"));
     expect(screen.queryByText("Late disabled agent")).not.toBeInTheDocument();
   });
 });
 
 function agent() {
-  return { id: "pid_20000001-0000-4000-8000-000000000001", name: "Support agent", kind: "agent", owner: "security", team: "platform", tags: [], evidence_id: "pid_20000006-0000-4000-8000-000000000006", first_seen: "2026-08-18T09:00:00Z", last_seen: "2026-08-18T10:00:00Z" };
+  return { id: "pid_20000001-0000-4000-8000-000000000001", name: "Support agent", kind: "agent" as const, owner: "security", team: "platform", tags: [], evidence_id: "pid_20000006-0000-4000-8000-000000000006", confidence_basis_points: 9500, first_seen: "2026-08-18T09:00:00Z", last_seen: "2026-08-18T10:00:00Z", observed_at: "2026-08-18T10:00:00Z", fresh_until: "2026-08-18T10:15:00Z", freshness_state: "fresh" as const, version: 1 };
+}
+function page<T>(items: readonly T[]) {
+  return { items, page_info: { next_cursor: null, has_more: false } };
+}
+function detail(summary: Omit<ReturnType<typeof agent>, "kind"> & { kind: "agent" | "tool" }) {
+  return {
+    summary,
+    sources: [{ integration_id: "pid_30000001-0000-4000-8000-000000000001", provider: "kubernetes", source: "kubernetes", source_identifier: `sha256:${"b".repeat(64)}`, snapshot_id: "pid_40000001-0000-4000-8000-000000000001", generation: 1, evidence_id: summary.evidence_id, confidence_basis_points: summary.confidence_basis_points, observed_at: summary.observed_at, fresh_until: summary.fresh_until, projection_version: 1, winning: true }],
+    evidence: [{ id: summary.evidence_id, checksum: `sha256:${"a".repeat(64)}`, media_type: "application/json", schema_version: "raw_v1", parser_version: "parser_v1", tool_version: "tool_v1", collected_at: summary.observed_at, size_bytes: 128 }],
+  };
 }
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });

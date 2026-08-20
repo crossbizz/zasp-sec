@@ -2,7 +2,7 @@
 
 **Source plan:** `docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md`
 **Source PRD:** `docs/internal/agent_security_platform_PRD_v1.5.md`
-**Last updated:** August 19, 2026
+**Last updated:** August 20, 2026
 **Execution branch:** `codex/production-auto-discovery`
 
 This file preserves the authoritative historical execution evidence for the
@@ -75,8 +75,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 235 |
-| Component-only | 419 |
+| Production-available | 243 |
+| Component-only | 411 |
 | Blocked/external | 61 |
 | Missing | 13 |
 
@@ -85,25 +85,24 @@ production composition, not merely a component proof or external evidence.
 
 ## Production-availability audit basis
 
-- `README.md` and `services/platform/apiserver/composition_test.go` establish
-  the 80-operation production API boundary and keep sync, sensor, runtime, and
-  Security Agent execution operations unmounted.
-- Immutable release v10 now supplies the shipped PostgreSQL discovery/runtime
-  authority, strict repositories, session-user-bound database principals,
-  migration/release wiring, bounded recovery state machines, and durable
-  runtime-envelope handoff. Public connector operations and future worker
-  processes remain owned by Tasks 3 through 6 and are not claimed here.
-- `services/platform/agentsec-worker`, `services/event-ingest`, and
-  `services/runtime-gateway` are health-only executables; their component
-  packages do not constitute a running product loop.
+- Immutable releases through v14 supply the shipped PostgreSQL discovery and
+  typed-inventory authority, strict repositories, scoped database principals,
+  migration/release wiring, durable execution handoff, and guarded rollback.
+- `services/platform/agentsec-worker` composes scheduler, discovery, outbox,
+  and independent risk/graph/search projection modes. Managed cloud/provider
+  success remains external evidence and is not promoted by the local journey.
 - Memory-backed sensor, runtime-event, and Security Agent repositories remain
   component evidence rather than durable production authority.
-- `app/components/ZaspProductionApp.tsx` exposes only capability-gated routes
-  backed by the mounted production API; connector authorization/sync and
-  Security Agent execution remain hidden.
-- `deploy/staging/product/templates` ships web and API only; the worker,
-  ingest, gateway, Nango, Neo4j, collector, and customer-edge claims remain
-  component-only or missing until a composed workload is shipped.
+- `app/components/ZaspProductionApp.tsx` exposes capability-gated typed
+  inventory routes backed by the mounted production API. The installed-Chrome
+  journey proves list/detail/deep-link reload without generic inventory seeds.
+- `deploy/staging/product/templates` ships the Task 4 discovery and projection
+  workloads with isolated identities; live managed providers, OpenSearch,
+  Neo4j, SQS, and S3 remain explicit external evidence.
+- Task 5 promotes only canonical asset/Agent/Tool/Identity/Runtime and
+  relationship inventory plus its golden journey. Ownership mutations,
+  capabilities, posture/findings, and attack paths remain component-only
+  because authoritative Task 5 derivation was not proven.
 - `docs/operations/production-deployment.md` and release contracts retain
   image, provider, DNS/TLS, secret, tracing, and public-deployment evidence as
   explicit external gates.
@@ -117,13 +116,13 @@ production composition, not merely a component proof or external evidence.
 | M1A | 10 | 0 | 6 | 4 | 0 |
 | M2 | 72 | 50 | 22 | 0 | 0 |
 | M3 | 75 | 13 | 60 | 2 | 0 |
-| M4 | 82 | 42 | 40 | 0 | 0 |
+| M4 | 82 | 50 | 32 | 0 | 0 |
 | M5 | 42 | 0 | 42 | 0 | 0 |
 | M6 | 36 | 13 | 23 | 0 | 0 |
 | M7 | 62 | 37 | 25 | 0 | 0 |
 | M7A | 113 | 21 | 92 | 0 | 0 |
 | M8 | 141 | 10 | 66 | 52 | 13 |
-| **Total** | **728** | **235** | **419** | **61** | **13** |
+| **Total** | **728** | **243** | **411** | **61** | **13** |
 
 ## Prerequisite work
 

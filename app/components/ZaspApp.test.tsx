@@ -142,7 +142,7 @@ describe("Zasp application", () => {
 			{ organization_id: "pid_10000001-0000-4000-8000-000000000001", workspace_id: "pid_10000022-0000-4000-8000-000000000022", environment_id: "pid_10000023-0000-4000-8000-000000000023", label: "Staging" },
 		] });
         if (path === "/api/v1/home/summary") return apiJSON({ agent_count: 1, high_risk_paths: 1, verified_changes: 0, blocked_changes: 0, pending_approvals: 0, oldest_approval_age_seconds: 0, needs_human_runs: 0, failed_runs: 0, inconclusive_runs: 0, recent_contained: 0, recent_remediated: 0, healthy: true, attention_required: false });
-        if (path === "/api/v1/agents") return apiJSON({ items: [] });
+        if (path === "/api/v1/agents") return apiJSON({ items: [], page_info: { next_cursor: null, has_more: false } });
         return apiJSON({ code: "not_found", message: "Resource not found", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: false }, 404);
       },
     });

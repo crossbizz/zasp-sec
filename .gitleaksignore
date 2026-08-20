@@ -95,3 +95,15 @@ e17eb5670ce1a04d2daf071c460164858aeaa10b:services/platform/apiserver/workflow_ha
 # the hermetic repository validator test. Ignore only its exact introduction
 # finding; changed or relocated values remain detectable.
 1cd938e715bdcb07d6d66b338455f72f0d31f671:services/platform/apiserver/workflow_repository_test.go:generic-api-key:224
+
+# The production branch contains rebased equivalents of the synthetic test
+# fixtures above. Ignore only their exact rewritten-commit fingerprints; new,
+# changed, or relocated values remain detectable by the full-history gate.
+3d6c759e353ec9a0fe0753b53e23f259e9228dd4:services/platform/apiserver/workflow_repository_test.go:generic-api-key:224
+af141b8648b87bba64cf338131da43352a86dc63:services/platform/agentsec-api/runtime_test.go:generic-api-key:305
+68ddcd935f346e3f7db20f711713e28b7522b373:services/platform/apiserver/workflow_handler_test.go:generic-api-key:462
+68ddcd935f346e3f7db20f711713e28b7522b373:services/platform/apiserver/workflow_handler_test.go:generic-api-key:480
+db1a6dd76020d6724b8831b635db38ed6aa88203:services/platform/apiserver/connector_authorization_risk_postgres_test.go:generic-api-key:47
+db1a6dd76020d6724b8831b635db38ed6aa88203:services/platform/apiserver/connector_authorization_risk_postgres_test.go:generic-api-key:131
+729c943f0a6e04ba5a4374dce14c71d3c0b3b297:services/platform/agentsec-api/runtime_test.go:generic-api-key:207
+3835cba3a2dc053ad42f4d3944bd60563728686e:services/platform/agentsec-api/runtime_test.go:generic-api-key:185

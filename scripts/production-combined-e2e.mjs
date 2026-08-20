@@ -19,6 +19,12 @@ const productHostname = "zasp.production-e2e.test";
 const terminalRevocationIntegrationID = "pid_72000001-0000-4000-8000-000000000001";
 const reloadRevocationIntegrationID = "pid_72000002-0000-4000-8000-000000000002";
 const task4DiscoveryIntegrationID = "pid_73000001-0000-4000-8000-000000000001";
+const task5KubernetesAIntegrationID = "pid_74000001-0000-4000-8000-000000000001";
+const task5KubernetesBIntegrationID = "pid_74000002-0000-4000-8000-000000000002";
+const task5KubernetesPartialIntegrationID = "pid_74000003-0000-4000-8000-000000000003";
+const task5KubernetesFailedIntegrationID = "pid_74000004-0000-4000-8000-000000000004";
+const task5GitHubIntegrationID = "pid_75000001-0000-4000-8000-000000000001";
+const task5OktaIntegrationID = "pid_76000001-0000-4000-8000-000000000001";
 
 if (process.version !== FIXED_NODE_VERSION) throw new Error(`production combined E2E requires Node ${FIXED_NODE_VERSION}`);
 
@@ -78,9 +84,11 @@ try {
   const migrate = path.join(temporaryRoot, "agentsec-migrate");
   const apiBinary = path.join(temporaryRoot, "agentsec-api");
   const workerBinary = path.join(temporaryRoot, "agentsec-worker");
+  const workerE2EBinary = path.join(temporaryRoot, "agentsec-worker-e2e");
   await command("go", ["build", "-o", migrate, "./agentsec-migrate"], { cwd: platform });
   await command("go", ["build", "-o", apiBinary, "./agentsec-api"], { cwd: platform });
   await command("go", ["build", "-o", workerBinary, "./agentsec-worker"], { cwd: platform });
+  await command("go", ["test", "-c", "-o", workerE2EBinary, "./agentsec-worker"], { cwd: platform, timeout: 120_000 });
   await command(migrate, ["up"], { env: {
     ...process.env,
     ZASP_POSTGRES_DSN: dsn,
@@ -97,9 +105,9 @@ try {
     ZASP_PROJECTION_GRAPH_DB_PRINCIPAL: "zasp_e2e_projection_graph",
     ZASP_PROJECTION_SEARCH_DB_PRINCIPAL: "zasp_e2e_projection_search",
   } });
-  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version=13;"]);
-  assert.equal(schemaRelease.stdout.trim(), "13|production_discovery_execution", "combined E2E did not migrate to the production discovery execution release");
-  console.log("combined E2E: schema 13 production_discovery_execution verified");
+  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version=14;"]);
+  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover", "combined E2E did not migrate to the typed inventory cutover release");
+  console.log("combined E2E: schema 14 typed_inventory_cutover verified");
   await seedPostgres(dsn);
   console.log("combined E2E: migrations and durable seed ready");
 
@@ -176,6 +184,7 @@ try {
   const connectorAuthorizePath = connectorAuthorizeOperation.replace("{id}", "pid_71000001-0000-4000-8000-000000000001");
   const connectorCallbackPath = "/api/v1/integrations/oauth/callback";
   const providerCallsBeforeRejections = identityOAuthStarts;
+  const connectorCountsBeforeRejections = await connectorDurableCounts(dsn);
   const unauthorizedAuthorize = await requestHTTPSJSON(`${publicOrigin}${connectorAuthorizePath}`, {
     method: "POST",
     headers: { "content-type": "application/json", "idempotency-key": "connector-e2e-unauthorized-authorize" },
@@ -184,7 +193,7 @@ try {
   const unauthorizedCallback = await requestHTTPSJSON(`${publicOrigin}${connectorCallbackPath}?code=connector-code-probe&state=connector-state-probe`, { method: "GET" });
   assertRejectedConnectorResponse(unauthorizedCallback, 401, "authentication_required", "unauthorized connector callback");
   const rejectedConnectorCounts = await connectorDurableCounts(dsn);
-  assert.equal(rejectedConnectorCounts, "0|0|0|0", "unauthorized connector requests wrote durable state");
+  assert.equal(rejectedConnectorCounts, connectorCountsBeforeRejections, "unauthorized connector requests wrote durable state");
   assert.equal(identityOAuthStarts, providerCallsBeforeRejections, "rejected connector requests unexpectedly started an identity/provider flow");
   console.log("combined E2E: unauthorized connector boundaries, no-store/no-referrer, and zero provider/AWS calls proven");
 
@@ -192,8 +201,8 @@ try {
   const patBody = JSON.stringify({ id: "policy-pat-e2e", name: "PAT E2E boundary", scope: "environment", trigger: "tool", conditions: [{ field: "action", operator: "equals", value: "read" }], action: "monitor", rollout: "draft", failure_mode: "open" });
   const patCreated = await requestHTTPSJSON(`${publicOrigin}/api/v1/policies`, { method: "POST", headers: patHeaders }, patBody);
   const patReplayed = await requestHTTPSJSON(`${publicOrigin}/api/v1/policies`, { method: "POST", headers: patHeaders }, patBody);
-  assert.equal(patCreated.status, 201);
-  assert.equal(patReplayed.status, 201);
+  assert.equal(patCreated.status, 201, `PAT create failed: ${JSON.stringify(patCreated)}`);
+  assert.equal(patReplayed.status, 201, `PAT replay failed: ${JSON.stringify(patReplayed)}`);
   assert.equal(patCreated.headers["x-mutation-receipt-id"], undefined);
   assert.equal(patReplayed.headers["x-mutation-receipt-id"], undefined);
   assert.deepEqual(patReplayed.body, patCreated.body);
@@ -226,6 +235,7 @@ try {
   const task4Public = await exercisePublicDiscoveryLifecycle(publicOrigin, dsn, patHeaders.authorization);
   assert.equal(task4Public.integrationID, task4DiscoveryIntegrationID);
   await exerciseTask4ProductionWorkerBoundaries(workerBinary, postgresPort, dsn);
+  await exerciseTypedInventoryDiscoveryLifecycle(publicOrigin, dsn, postgresPort, workerE2EBinary, patHeaders.authorization, task4Public);
 
   const profile = path.join(temporaryRoot, "chrome-profile");
   browser = await startBrowser(profile, chromePort, `${publicOrigin}/api/v1/session/start?return_to=%2Fdiscovery%2Fassets`);
@@ -242,9 +252,14 @@ try {
   assert.doesNotMatch(signedIn, /Recover committed operations|PAT E2E boundary/);
   console.log("combined E2E: browser callback, cookie, bootstrap, and durable data proven");
   await assertTask4BrowserPublicState(browser.cdp, publicOrigin, task4Public.syncID);
+  await assertTypedInventoryBrowserState(browser.cdp, publicOrigin);
+  await exerciseTypedInventoryRetention(publicOrigin, dsn, postgresPort, workerE2EBinary, patHeaders.authorization);
+  await navigateBrowser(browser.cdp, `${publicOrigin}/discovery/assets`);
+  await waitForBrowserText(browser.cdp, /No records in this scope/);
 
   const sharedSessionCookie = await getBrowserSessionCookie(browser.cdp, publicOrigin);
   const providerCallsBeforeScopedRejections = identityOAuthStarts;
+  const scopedRejectionCountsBefore = (await connectorDurableCounts(dsn)).split("|").map(Number);
   const crossScopeState = "connector-cross-scope-state-0001";
   await seedCrossScopeConnectorAttempt(dsn, crossScopeState);
   const crossScopeCallback = await requestHTTPSJSON(`${publicOrigin}${connectorCallbackPath}?code=connector-cross-scope-code-0001&state=${crossScopeState}`, {
@@ -259,7 +274,7 @@ try {
   );
   assertRejectedConnectorResponse(crossScopeAuthorize, 409, "scope_stale", "cross-scope connector authorization");
   const scopedRejectionCounts = await connectorDurableCounts(dsn);
-  assert.equal(scopedRejectionCounts, "1|0|0|0", "scope-bound connector rejections mutated their pending witness or created effects");
+  assert.equal(scopedRejectionCounts, [scopedRejectionCountsBefore[0] + 1, ...scopedRejectionCountsBefore.slice(1)].join("|"), "scope-bound connector rejections mutated their pending witness or created effects");
   assert.equal(identityOAuthStarts, providerCallsBeforeScopedRejections, "scope-bound connector rejections unexpectedly started a provider flow");
   console.log("combined E2E: callback and authorization scope boundaries rejected with zero provider/AWS calls");
 
@@ -920,10 +935,7 @@ INSERT INTO zasp_product_api_tokens (token_digest, principal_id, organization_id
 (digest('production-e2e-product-token-with-at-least-32-bytes', 'sha256'),'pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','["view","manage_workflows","manage_findings"]'::jsonb,transaction_timestamp() + interval '1 hour');
 INSERT INTO zasp_core_payloads (organization_id, workspace_id, environment_id, operation, payload) VALUES
 ('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','session_bootstrap:pid_10000004-0000-4000-8000-000000000004','{"principal":{"id":"pid_10000004-0000-4000-8000-000000000004","organization_id":"pid_10000001-0000-4000-8000-000000000001","organization_reference":"organization-local","member_reference":"member-local","role":"security_admin","active":true},"organization_id":"pid_10000001-0000-4000-8000-000000000001","workspace_id":"pid_10000002-0000-4000-8000-000000000002","environment_id":"pid_10000003-0000-4000-8000-000000000003","permissions":["view"],"capabilities":["inventory.read","scope.switch"],"csrf_token":"cccccccccccccccccccccccccccccccc","correlation_id":"pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"}'::jsonb),
-('pid_10000001-0000-4000-8000-000000000001','pid_10000022-0000-4000-8000-000000000022','pid_10000023-0000-4000-8000-000000000023','session_bootstrap:pid_10000004-0000-4000-8000-000000000004','{"principal":{"id":"pid_10000004-0000-4000-8000-000000000004","organization_id":"pid_10000001-0000-4000-8000-000000000001","organization_reference":"organization-local","member_reference":"member-local","role":"security_admin","active":true},"organization_id":"pid_10000001-0000-4000-8000-000000000001","workspace_id":"pid_10000022-0000-4000-8000-000000000022","environment_id":"pid_10000023-0000-4000-8000-000000000023","permissions":["view"],"capabilities":["inventory.read","scope.switch"],"csrf_token":"dddddddddddddddddddddddddddddddd","correlation_id":"pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"}'::jsonb),
-('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','home','{"agent_count":1,"high_risk_paths":0,"verified_changes":0,"blocked_changes":0,"pending_approvals":0,"oldest_approval_age_seconds":0,"needs_human_runs":0,"failed_runs":0,"inconclusive_runs":0,"recent_contained":0,"recent_remediated":0,"healthy":true,"attention_required":false}'::jsonb),
-('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','agents','{"items":[{"id":"pid_20000001-0000-4000-8000-000000000001","name":"Support agent","kind":"agent","owner":"security","team":"platform","tags":["production"],"evidence_id":"pid_20000006-0000-4000-8000-000000000006","first_seen":"2026-08-18T09:00:00Z","last_seen":"2026-08-18T10:00:00Z"}]}'::jsonb),
-('pid_90000001-0000-4000-8000-000000000001','pid_90000002-0000-4000-8000-000000000002','pid_90000003-0000-4000-8000-000000000003','agent:pid_90000001-0000-4000-8000-000000000001','{"id":"pid_90000001-0000-4000-8000-000000000001","name":"Foreign tenant agent","kind":"agent","owner":"foreign","team":"foreign","tags":[],"evidence_id":"pid_90000006-0000-4000-8000-000000000006","first_seen":"2026-08-18T09:00:00Z","last_seen":"2026-08-18T10:00:00Z"}'::jsonb);
+('pid_10000001-0000-4000-8000-000000000001','pid_10000022-0000-4000-8000-000000000022','pid_10000023-0000-4000-8000-000000000023','session_bootstrap:pid_10000004-0000-4000-8000-000000000004','{"principal":{"id":"pid_10000004-0000-4000-8000-000000000004","organization_id":"pid_10000001-0000-4000-8000-000000000001","organization_reference":"organization-local","member_reference":"member-local","role":"security_admin","active":true},"organization_id":"pid_10000001-0000-4000-8000-000000000001","workspace_id":"pid_10000022-0000-4000-8000-000000000022","environment_id":"pid_10000023-0000-4000-8000-000000000023","permissions":["view"],"capabilities":["inventory.read","scope.switch"],"csrf_token":"dddddddddddddddddddddddddddddddd","correlation_id":"pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"}'::jsonb);
 INSERT INTO zasp_risk_findings (organization_id,workspace_id,environment_id,id,source,rule,title,severity,status,agent_id,path_id,created_at,updated_at)
 SELECT 'pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003',
   'pid_' || (30000000+ordinal)::text || '-0000-4000-8000-' || lpad(ordinal::text,12,'0'), 'posture','public_input',
@@ -1005,6 +1017,32 @@ INSERT INTO zasp_integration_connections(organization_id,workspace_id,environmen
 INSERT INTO zasp_discovery_connection_subjects(organization_id,workspace_id,environment_id,integration_id,connection_id,provider,subject_kind,subject_id,connection_version,configuration_digest,source)
 SELECT organization_id,workspace_id,environment_id,id,'pid_73000002-0000-4000-8000-000000000002','aws','aws_account','123456789012',1,digest(convert_to(configuration::text,'UTF8'),'sha256'),'reference'
 FROM zasp_integrations WHERE id='${task4DiscoveryIntegrationID}';
+INSERT INTO zasp_integrations(organization_id,workspace_id,environment_id,id,kind,connector_version,display_name,configuration,state) VALUES
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','${task5KubernetesAIntegrationID}','kubernetes','1.0.0','Harness Kubernetes source A','{"cluster":"prod.example/cluster-a"}'::jsonb,'active'),
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','${task5KubernetesBIntegrationID}','kubernetes','1.0.0','Harness Kubernetes source B','{"cluster":"prod.example/cluster-a"}'::jsonb,'active'),
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','${task5KubernetesPartialIntegrationID}','kubernetes','1.0.0','Harness Kubernetes partial','{"cluster":"prod.example/cluster-partial"}'::jsonb,'active'),
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','${task5KubernetesFailedIntegrationID}','kubernetes','1.0.0','Harness Kubernetes failed','{"cluster":"prod.example/cluster-failed"}'::jsonb,'active'),
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','${task5GitHubIntegrationID}','github','1.0.0','Harness GitHub inventory','{"installation_id":"424242"}'::jsonb,'active'),
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','${task5OktaIntegrationID}','okta','1.0.0','Harness Okta inventory','{"tenant":"e2e.okta.com"}'::jsonb,'active');
+INSERT INTO zasp_integration_connections(organization_id,workspace_id,environment_id,integration_id,id,provider,connection_reference,state,verified_at) VALUES
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','${task5KubernetesAIntegrationID}','pid_74000011-0000-4000-8000-000000000011','kubernetes','ref:kubernetes/cluster/e2e-a','verified',transaction_timestamp()),
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','${task5KubernetesBIntegrationID}','pid_74000012-0000-4000-8000-000000000012','kubernetes','ref:kubernetes/cluster/e2e-b','verified',transaction_timestamp()),
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','${task5KubernetesPartialIntegrationID}','pid_74000013-0000-4000-8000-000000000013','kubernetes','ref:kubernetes/cluster/e2e-partial','verified',transaction_timestamp()),
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','${task5KubernetesFailedIntegrationID}','pid_74000014-0000-4000-8000-000000000014','kubernetes','ref:kubernetes/cluster/e2e-failed','verified',transaction_timestamp()),
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','${task5GitHubIntegrationID}','pid_75000011-0000-4000-8000-000000000011','github','ref:github/installation/e2e-424242','verified',transaction_timestamp()),
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','${task5OktaIntegrationID}','pid_76000011-0000-4000-8000-000000000011','okta','ref:okta/refresh/e2e-tenant','verified',transaction_timestamp());
+INSERT INTO zasp_discovery_connection_subjects(organization_id,workspace_id,environment_id,integration_id,connection_id,provider,subject_kind,subject_id,connection_version,configuration_digest,source)
+SELECT organization_id,workspace_id,environment_id,id,
+ CASE id WHEN '${task5KubernetesAIntegrationID}' THEN 'pid_74000011-0000-4000-8000-000000000011' WHEN '${task5KubernetesBIntegrationID}' THEN 'pid_74000012-0000-4000-8000-000000000012' WHEN '${task5KubernetesPartialIntegrationID}' THEN 'pid_74000013-0000-4000-8000-000000000013' ELSE 'pid_74000014-0000-4000-8000-000000000014' END,
+ 'kubernetes','kubernetes_cluster',CASE id WHEN '${task5KubernetesAIntegrationID}' THEN 'prod.example/cluster-a' WHEN '${task5KubernetesBIntegrationID}' THEN 'prod.example/cluster-a' WHEN '${task5KubernetesPartialIntegrationID}' THEN 'prod.example/cluster-partial' ELSE 'prod.example/cluster-failed' END,1,digest(convert_to(configuration::text,'UTF8'),'sha256'),'reference'
+FROM zasp_integrations WHERE id IN('${task5KubernetesAIntegrationID}','${task5KubernetesBIntegrationID}','${task5KubernetesPartialIntegrationID}','${task5KubernetesFailedIntegrationID}');
+INSERT INTO zasp_connector_credentials(organization_id,workspace_id,environment_id,id,integration_id,provider,credential_class,credential_reference,version,metadata) VALUES
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','pid_75000021-0000-4000-8000-000000000021','${task5GitHubIntegrationID}','github','github_installation_reference','ref:github/installation/e2e-424242',1,'{"installation_id":"424242"}'::jsonb),
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','pid_76000021-0000-4000-8000-000000000021','${task5OktaIntegrationID}','okta','okta_refresh_reference','ref:okta/refresh/e2e-tenant',1,'{"tenant":"e2e.okta.com"}'::jsonb);
+SELECT zasp_inventory_backfill_scope('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003');
+SELECT zasp_inventory_cutover_scope('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003');
+SELECT zasp_inventory_backfill_scope('pid_10000001-0000-4000-8000-000000000001','pid_10000022-0000-4000-8000-000000000022','pid_10000023-0000-4000-8000-000000000023');
+SELECT zasp_inventory_cutover_scope('pid_10000001-0000-4000-8000-000000000001','pid_10000022-0000-4000-8000-000000000022','pid_10000023-0000-4000-8000-000000000023');
 `;
   await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1"], { input: sql });
 }
@@ -1106,6 +1144,167 @@ async function exercisePublicDiscoveryLifecycle(publicOrigin, dsn, authorization
   assert.equal(durable.stdout.trim(), "1|1|1|0|queued|0", "Task4 public replay or no-completion boundary drifted");
   console.log("combined E2E: zero fake collection/projection database completion; queued public work awaits real workers");
   return { integrationID: task4DiscoveryIntegrationID, syncID: syncAccepted.body.id };
+}
+
+async function exerciseTypedInventoryDiscoveryLifecycle(publicOrigin, dsn, postgresPort, workerE2EBinary, authorization, task4Public) {
+  await runDeterministicLocalDiscovery(workerE2EBinary, postgresPort, dsn, task4Public.syncID, "complete");
+  const completed = [];
+  for (const [integrationID, suffix, scenario] of [
+    [task5KubernetesAIntegrationID, "kubernetes-a", "complete"],
+    [task5KubernetesBIntegrationID, "kubernetes-b", "shared"],
+    [task5GitHubIntegrationID, "github", "complete"],
+    [task5OktaIntegrationID, "okta", "complete"],
+  ]) {
+    const sync = await requestManualDiscoverySync(publicOrigin, authorization, integrationID, `production-e2e-typed-${suffix}-0001`);
+    await runDeterministicLocalDiscovery(workerE2EBinary, postgresPort, dsn, sync.id, scenario);
+    completed.push(sync);
+  }
+
+	const headers = { authorization };
+	const typedState = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',
+		(SELECT count(*) FROM zasp_inventory_entities WHERE state='active' AND product_kind='agent'),
+		(SELECT count(*) FROM zasp_inventory_entities WHERE state='active'),
+		(SELECT count(*) FROM zasp_inventory_source_observations WHERE source_state='present'),
+		(SELECT string_agg(concat_ws(':',id,state,COALESCE(product_kind,'null')),',' ORDER BY id) FROM zasp_inventory_entities),
+		(SELECT string_agg(concat_ws(':',input.integration_id,input.source,jsonb_array_length(input.entities),jsonb_array_length(input.evidence)),',' ORDER BY input.integration_id) FROM zasp_discovery_snapshot_inputs input JOIN zasp_discovery_snapshots snapshot ON (snapshot.organization_id,snapshot.workspace_id,snapshot.environment_id,snapshot.integration_id,snapshot.id)=(input.organization_id,input.workspace_id,input.environment_id,input.integration_id,input.snapshot_id) WHERE snapshot.is_last_good),
+		(SELECT string_agg(concat_ws(':',integration_id,state,COALESCE(last_error_code,'none')),',' ORDER BY integration_id) FROM zasp_discovery_syncs WHERE integration_id=ANY(ARRAY[${[task4DiscoveryIntegrationID, task5KubernetesAIntegrationID, task5KubernetesBIntegrationID, task5GitHubIntegrationID, task5OktaIntegrationID].map((value) => `'${value}'`).join(",")}]))
+	);`]);
+	const home = await requestHTTPSJSON(`${publicOrigin}/api/v1/home/summary`, { method: "GET", headers });
+	assert.equal(home.status, 200, `typed inventory home failed: ${JSON.stringify(home)}`);
+	assert.equal(home.body.agent_count, 1, `typed home disagreed with current inventory: ${typedState.stdout.trim()}`);
+  const agents = await assertTypedInventoryPage(publicOrigin, headers, "/api/v1/agents", "Support agent", "agent");
+  await assertTypedInventoryPage(publicOrigin, headers, "/api/v1/tools", "Automation repository", "tool");
+  await assertTypedInventoryPage(publicOrigin, headers, "/api/v1/identities", "Security operators", "identity");
+  await assertTypedInventoryPage(publicOrigin, headers, "/api/v1/runtimes", "Production runtime", "runtime");
+  assert.equal(agents[0].id, "pid_21000001-0000-4000-8000-000000000001");
+
+  const agentDetail = await requestHTTPSJSON(`${publicOrigin}/api/v1/agents/pid_21000001-0000-4000-8000-000000000001`, { method: "GET", headers });
+  assert.equal(agentDetail.status, 200, `typed agent detail failed: ${JSON.stringify(agentDetail)}`);
+  assert.equal(agentDetail.body.summary.name, "Support agent");
+  assert.equal(agentDetail.body.sources.length, 2);
+  assert.equal(agentDetail.body.evidence.length, 2);
+  assert.equal(agentDetail.body.sources.filter((source) => source.winning).length, 1);
+  assert.equal(agentDetail.body.sources.every((source) => source.provider === "kubernetes" && /^sha256:[0-9a-f]{64}$/.test(source.source_identifier)), true);
+  assert.equal(agentDetail.body.evidence.every((evidence) => /^sha256:[0-9a-f]{64}$/.test(evidence.checksum) && evidence.parser_version === "inventory-parser-2026.08.20" && evidence.tool_version === "collector-tool-2026.08.20"), true);
+
+  const relationships = await requestHTTPSJSON(`${publicOrigin}/api/v1/agents/pid_21000001-0000-4000-8000-000000000001/relationships?limit=100`, { method: "GET", headers });
+  assert.equal(relationships.status, 200, `typed relationship page failed: ${JSON.stringify(relationships)}`);
+  assert.deepEqual(relationships.body.page_info, { has_more: false, next_cursor: null });
+  assert.equal(relationships.body.items.length, 1);
+  assert.equal(relationships.body.items[0].to_id, "pid_21000002-0000-4000-8000-000000000002");
+
+  const completedSync = await requestHTTPSJSON(`${publicOrigin}/api/v1/integrations/${task4DiscoveryIntegrationID}/syncs/${task4Public.syncID}`, { method: "GET", headers });
+  assert.equal(completedSync.status, 200);
+  assert.equal(completedSync.body.status, "succeeded");
+  assert.equal(completedSync.body.discovered_count, 1);
+  const freshness = await requestHTTPSJSON(`${publicOrigin}/api/v1/integrations/${task4DiscoveryIntegrationID}/freshness`, { method: "GET", headers });
+  assert.equal(freshness.status, 200);
+  assert.equal(freshness.body.last_good.discovered_count, 1);
+  assert.deepEqual(Object.values(freshness.body.projections).map((projection) => projection.state), ["pending", "pending", "pending"]);
+
+  const forensics = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',
+    (SELECT count(*) FROM zasp_core_payloads WHERE operation IN('home','agents','tools','identities','runtimes') OR operation ~ '^(agent|tool|identity|runtime|asset):'),
+    (SELECT count(*) FROM zasp_inventory_entities WHERE state='active' AND product_kind='agent'),
+    (SELECT count(*) FROM zasp_inventory_entities WHERE state='active' AND product_kind='tool'),
+    (SELECT count(*) FROM zasp_inventory_entities WHERE state='active' AND product_kind='identity'),
+    (SELECT count(*) FROM zasp_inventory_entities WHERE state='active' AND product_kind='runtime'),
+    (SELECT count(*) FROM zasp_inventory_entities WHERE state='active' AND product_kind='asset'),
+    (SELECT count(*) FROM zasp_discovery_snapshots WHERE state='complete' AND is_last_good AND integration_id IN('${task4DiscoveryIntegrationID}','${task5KubernetesAIntegrationID}','${task5KubernetesBIntegrationID}','${task5GitHubIntegrationID}','${task5OktaIntegrationID}')),
+    (SELECT count(*) FROM zasp_inventory_source_observations WHERE source_state='present'),
+    (SELECT count(*) FROM zasp_inventory_evidence evidence JOIN zasp_inventory_source_observations observation ON (observation.organization_id,observation.workspace_id,observation.environment_id,observation.integration_id,observation.snapshot_id,observation.entity_id,observation.evidence_id)=(evidence.organization_id,evidence.workspace_id,evidence.environment_id,evidence.integration_id,evidence.snapshot_id,evidence.entity_id,evidence.id) WHERE observation.source_state='present'),
+    (SELECT count(*) FROM zasp_inventory_relationships WHERE state='present')
+  );`]);
+  assert.equal(forensics.stdout.trim(), "0|1|1|1|1|1|5|6|6|1", "typed inventory authority was not derived from exact complete snapshots");
+  assert.equal(completed.length, 4);
+  console.log("combined E2E: typed inventory public routes derive only from complete discovery snapshots");
+  console.log("combined E2E: typed inventory database forensics proved exact current source/snapshot/evidence bindings");
+}
+
+async function exerciseTypedInventoryRetention(publicOrigin, dsn, postgresPort, workerE2EBinary, authorization) {
+  const headers = { authorization };
+  const sourceAEmpty = await requestManualDiscoverySync(publicOrigin, authorization, task5KubernetesAIntegrationID, "production-e2e-typed-kubernetes-a-empty");
+  await runDeterministicLocalDiscovery(workerE2EBinary, postgresPort, dsn, sourceAEmpty.id, "empty");
+  let agents = await requestHTTPSJSON(`${publicOrigin}/api/v1/agents?limit=100`, { method: "GET", headers });
+  assert.equal(agents.status, 200);
+  assert.equal(agents.body.items.length, 1);
+  const retained = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',
+    (SELECT count(*) FROM zasp_inventory_source_observations WHERE entity_id='pid_21000001-0000-4000-8000-000000000001' AND source_state='present'),
+    (SELECT state FROM zasp_inventory_entities WHERE id='pid_21000001-0000-4000-8000-000000000001'),
+    (SELECT count(*) FROM zasp_inventory_relationships WHERE state='present')
+  );`]);
+  assert.equal(retained.stdout.trim(), "1|active|0", "complete-empty source A removed source B authority");
+  console.log("combined E2E: second-source retention proven after complete-empty source A");
+
+  const partial = await requestManualDiscoverySync(publicOrigin, authorization, task5KubernetesPartialIntegrationID, "production-e2e-typed-kubernetes-partial");
+  await runDeterministicLocalDiscovery(workerE2EBinary, postgresPort, dsn, partial.id, "partial");
+  const failed = await requestManualDiscoverySync(publicOrigin, authorization, task5KubernetesFailedIntegrationID, "production-e2e-typed-kubernetes-failed");
+  await runDeterministicLocalDiscovery(workerE2EBinary, postgresPort, dsn, failed.id, "failed");
+  agents = await requestHTTPSJSON(`${publicOrigin}/api/v1/agents?limit=100`, { method: "GET", headers });
+  assert.equal(agents.status, 200);
+  assert.equal(agents.body.items.length, 1);
+  const retainedAfterFailure = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',
+    (SELECT state FROM zasp_discovery_syncs WHERE id='${partial.id}'),
+    (SELECT last_error_code FROM zasp_discovery_syncs WHERE id='${partial.id}'),
+    (SELECT state FROM zasp_discovery_syncs WHERE id='${failed.id}'),
+    (SELECT last_error_code FROM zasp_discovery_syncs WHERE id='${failed.id}'),
+    (SELECT count(*) FROM zasp_inventory_source_observations WHERE entity_id='pid_21000001-0000-4000-8000-000000000001' AND source_state='present')
+  );`]);
+  assert.equal(retainedAfterFailure.stdout.trim(), "queued|partial|failed|malformed|1", "failed or partial collection changed last complete inventory");
+  console.log("combined E2E: failed and partial discovery retained the last complete inventory");
+
+  const sourceBEmpty = await requestManualDiscoverySync(publicOrigin, authorization, task5KubernetesBIntegrationID, "production-e2e-typed-kubernetes-b-empty");
+  await runDeterministicLocalDiscovery(workerE2EBinary, postgresPort, dsn, sourceBEmpty.id, "empty");
+  agents = await requestHTTPSJSON(`${publicOrigin}/api/v1/agents?limit=100`, { method: "GET", headers });
+  assert.equal(agents.status, 200);
+  assert.deepEqual(agents.body, { items: [], page_info: { has_more: false, next_cursor: null } });
+  const removed = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',
+    (SELECT state FROM zasp_inventory_entities WHERE id='pid_21000001-0000-4000-8000-000000000001'),
+    (SELECT count(*) FROM zasp_inventory_source_observations WHERE entity_id='pid_21000001-0000-4000-8000-000000000001' AND source_state='present')
+  );`]);
+  assert.equal(removed.stdout.trim(), "tombstoned|0", "complete-empty source removal left active authority");
+  console.log("combined E2E: complete-empty source removal proven after the final authoritative source disappeared");
+}
+
+async function requestManualDiscoverySync(publicOrigin, authorization, integrationID, idempotencyKey) {
+  const response = await requestHTTPSJSON(`${publicOrigin}/api/v1/integrations/${integrationID}/sync`, {
+    method: "POST",
+    headers: { authorization, "content-type": "application/json", "idempotency-key": idempotencyKey, "if-match": '"1"' },
+  }, "{}");
+  assertTask4PublicResponse(response, 202, `typed inventory sync ${integrationID}`);
+  assert.equal(response.body.integration_id, integrationID);
+  assert.equal(response.body.status, "queued");
+  return response.body;
+}
+
+async function runDeterministicLocalDiscovery(workerE2EBinary, postgresPort, dsn, syncID, scenario) {
+  const job = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT job.id FROM zasp_discovery_jobs job JOIN zasp_discovery_syncs sync ON (sync.organization_id,sync.workspace_id,sync.environment_id,sync.id)=(job.organization_id,job.workspace_id,job.environment_id,job.authority_id) WHERE sync.id='${syncID}' AND job.kind='discovery';`]);
+  const jobID = job.stdout.trim();
+  assert.match(jobID, /^pid_[0-9a-f-]{36}$/, `missing deterministic worker job for ${syncID}`);
+  const result = await command(workerE2EBinary, ["-test.run=^TestProductionCombinedE2EDiscoveryWorker$", "-test.v", "-test.count=1"], {
+    cwd: platform,
+    timeout: 60_000,
+    env: {
+      ...process.env,
+      ZASP_COMBINED_E2E_WORKER_DSN: `postgres://zasp_e2e_discovery@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,
+      ZASP_COMBINED_E2E_JOB_ID: jobID,
+      ZASP_COMBINED_E2E_SCENARIO: scenario,
+      ZASP_COMBINED_E2E_PARSER_VERSION: "inventory-parser-2026.08.20",
+      ZASP_COMBINED_E2E_TOOL_VERSION: "collector-tool-2026.08.20",
+    },
+  });
+  assert.match(result.stdout, /deterministic local provider and artifact authority completed public sync/);
+  console.log(`combined E2E: deterministic local provider and artifact authority completed public sync (${scenario})`);
+}
+
+async function assertTypedInventoryPage(publicOrigin, headers, pathValue, expectedName, expectedKind) {
+  const response = await requestHTTPSJSON(`${publicOrigin}${pathValue}?limit=100`, { method: "GET", headers });
+  assert.equal(response.status, 200, `typed inventory page failed: ${pathValue} ${JSON.stringify(response)}`);
+  assert.deepEqual(response.body.page_info, { has_more: false, next_cursor: null });
+  assert.equal(response.body.items.length, 1);
+  assert.equal(response.body.items[0].name, expectedName);
+  assert.equal(response.body.items[0].kind, expectedKind);
+  assert.match(response.body.items[0].evidence_id, /^pid_[0-9a-f-]{36}$/);
+  return response.body.items;
 }
 
 async function exerciseTask4ProductionWorkerBoundaries(workerBinary, postgresPort, dsn) {
@@ -1737,29 +1936,29 @@ async function assertTask4BrowserPublicState(cdp, publicOrigin, syncID) {
   await waitForBrowserText(cdp, /Harness AWS discovery/);
   await clickBrowserAria(cdp, "Open Harness AWS discovery");
   await waitForBrowserText(cdp, /Automatic discovery/);
-  await waitForBrowserText(cdp, /Risk projection: unavailable/);
+  await waitForBrowserText(cdp, /Risk projection: pending/);
   await waitForBrowserText(cdp, /No automatic sync schedule/);
-  let discovery = await waitForBrowserText(cdp, /queued/);
-  assert.match(discovery, /Risk projection: unavailable/);
-  assert.match(discovery, /Graph projection: unavailable/);
-  assert.match(discovery, /Search projection: unavailable/);
+  let discovery = await waitForBrowserText(cdp, /succeeded/);
+  assert.match(discovery, /Risk projection: pending/);
+  assert.match(discovery, /Graph projection: pending/);
+  assert.match(discovery, /Search projection: pending/);
   assert.match(discovery, /No automatic sync schedule/);
-  assert.match(discovery, /queued/);
-  await clickBrowserAria(cdp, "Open queued sync");
-  discovery = await waitForBrowserText(cdp, /Sync detail: queued/);
-  assert.match(discovery, /0 discovered/);
+  assert.match(discovery, /succeeded/);
+  await clickBrowserAria(cdp, "Open succeeded sync");
+  discovery = await waitForBrowserText(cdp, /Sync detail: succeeded/);
+  assert.match(discovery, /1 discovered/);
   assert.match(syncID, /^pid_[0-9a-f-]{36}$/);
 
   await reloadBrowser(cdp);
   await waitForBrowserText(cdp, /Harness AWS discovery/);
   await clickBrowserAria(cdp, "Open Harness AWS discovery");
   await waitForBrowserText(cdp, /Automatic discovery/);
-  await waitForBrowserText(cdp, /Risk projection: unavailable/);
+  await waitForBrowserText(cdp, /Risk projection: pending/);
   await waitForBrowserText(cdp, /No automatic sync schedule/);
-  const reloaded = await waitForBrowserText(cdp, /queued/);
-  assert.match(reloaded, /Risk projection: unavailable/);
+  const reloaded = await waitForBrowserText(cdp, /succeeded/);
+  assert.match(reloaded, /Risk projection: pending/);
   assert.match(reloaded, /No automatic sync schedule/);
-  assert.match(reloaded, /queued/);
+  assert.match(reloaded, /succeeded/);
   console.log("combined E2E: Task4 reload preserved authoritative discovery state");
 
   const forensics = await browserConnectorForensics(cdp);
@@ -1775,6 +1974,27 @@ async function assertTask4BrowserPublicState(cdp, publicOrigin, syncID) {
   assert.doesNotMatch(JSON.stringify(resources), /production-e2e-manual-sync-0001|production-e2e-schedule-(?:put|delete)-0001|ref:aws\/external-id\/production-e2e|artifact_(?:key|uri)|worker_(?:id|identity)|lease_(?:owner|token)/i);
   console.log("combined E2E: Task4 discovery forensics found no token, credential reference, artifact key, cursor, or worker identity in persistent browser state");
   console.log("combined E2E: Task4 opaque pagination cursors remained same-origin transport-only data");
+}
+
+async function assertTypedInventoryBrowserState(cdp, publicOrigin) {
+  await navigateBrowser(cdp, `${publicOrigin}/discovery/assets`);
+  await waitForBrowserText(cdp, /Support agent/);
+  await clickBrowserAria(cdp, "Open Support agent");
+  let detail = await waitForBrowserText(cdp, /Canonical record/);
+  assert.match(detail, /Source authority/);
+  assert.match(detail, /2 source observations/);
+  assert.match(await browserCurrentURL(cdp), /inventory=pid_21000001-0000-4000-8000-000000000001/);
+  await reloadBrowser(cdp);
+  detail = await waitForBrowserText(cdp, /Canonical record/);
+  assert.match(detail, /Support agent/);
+  assert.match(await browserCurrentURL(cdp), /inventory=pid_21000001-0000-4000-8000-000000000001/);
+  await navigateBrowser(cdp, `${publicOrigin}/inventory/tools`);
+  await waitForBrowserText(cdp, /Automation repository/);
+  await navigateBrowser(cdp, `${publicOrigin}/identities`);
+  await waitForBrowserText(cdp, /Security operators/);
+  await navigateBrowser(cdp, `${publicOrigin}/inventory/runtimes`);
+  await waitForBrowserText(cdp, /Production runtime/);
+  console.log("combined E2E: typed inventory browser deep-link reload proven across agents, tools, identities, and runtimes");
 }
 
 async function navigateBrowser(cdp, url) {
