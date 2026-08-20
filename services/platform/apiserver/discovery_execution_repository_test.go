@@ -8,6 +8,21 @@ import (
 	"time"
 )
 
+type blockingDiscoveryExecutionDatabase struct{}
+
+func (*blockingDiscoveryExecutionDatabase) SchemaVersion(ctx context.Context) (string, error) {
+	<-ctx.Done()
+	return "", ctx.Err()
+}
+
+func (*blockingDiscoveryExecutionDatabase) QueryJSON(context.Context, string, ...any) (json.RawMessage, error) {
+	return nil, errors.New("unexpected query")
+}
+
+func (*blockingDiscoveryExecutionDatabase) Exec(context.Context, string, ...any) error {
+	return errors.New("unexpected exec")
+}
+
 func newTestDiscoveryExecutionRepository(t *testing.T, database *discoveryCallDatabase, authority string) *DiscoveryExecutionRepository {
 	t.Helper()
 	database.schema = DiscoveryExecutionSchemaVersion
@@ -28,12 +43,13 @@ func TestDiscoveryExecutionRepositoryStrictlyHydratesCollectionInput(t *testing.
 	jobID := "pid_80000001-0000-4000-8000-000000000001"
 	integrationID := "pid_80000002-0000-4000-8000-000000000002"
 	connectionID := "pid_80000003-0000-4000-8000-000000000003"
-	database.responses[postgresExecutionJobInputSQL] = json.RawMessage(`{"organization_id":"` + identity.Scope.OrganizationID().String() + `","workspace_id":"` + identity.Scope.WorkspaceID().String() + `","environment_id":"` + identity.Scope.EnvironmentID().String() + `","job_id":"` + jobID + `","attempt":1,"lease_expires_at":"` + now.Format(time.RFC3339Nano) + `","sync_id":"pid_80000004-0000-4000-8000-000000000004","integration_id":"` + integrationID + `","connection_id":"` + connectionID + `","provider":"aws","collector_version":"collector_v1","credential_class":"aws_assume_role","credential_reference":"ref:aws/external-id/customer-0001","subject_kind":"aws_account","subject_id":"123456789012","cursor_provider":null,"cursor_version":null,"cursor_value":null,"parser_version":"parser_v1","tool_version":"tool_v1","configuration":{"external_id_reference":"ref:aws/external-id/customer-0001","region":"us-east-1","role_arn":"arn:aws:iam::123456789012:role/zasp-discovery"}}`)
+	snapshotID := "pid_80000005-0000-4000-8000-000000000005"
+	database.responses[postgresExecutionJobInputSQL] = json.RawMessage(`{"organization_id":"` + identity.Scope.OrganizationID().String() + `","workspace_id":"` + identity.Scope.WorkspaceID().String() + `","environment_id":"` + identity.Scope.EnvironmentID().String() + `","job_id":"` + jobID + `","attempt":1,"lease_expires_at":"` + now.Format(time.RFC3339Nano) + `","sync_id":"pid_80000004-0000-4000-8000-000000000004","integration_id":"` + integrationID + `","connection_id":"` + connectionID + `","snapshot_id":"` + snapshotID + `","generation":1,"provider":"aws","collector_version":"collector_v1","credential_class":"aws_assume_role","credential_reference":"ref:aws/external-id/customer-0001","subject_kind":"aws_account","subject_id":"123456789012","cursor_provider":null,"cursor_version":null,"cursor_value":null,"parser_version":"parser_v1","tool_version":"tool_v1","configuration":{"external_id_reference":"ref:aws/external-id/customer-0001","region":"us-east-1","role_arn":"arn:aws:iam::123456789012:role/zasp-discovery"}}`)
 	input, err := repository.GetDiscoveryJobInput(context.Background(), identity.Scope, jobID, "worker-01", "lease-token-000000000001")
 	if err != nil || input.JobID != jobID || input.ExpectedSubject.ID != "123456789012" || input.LeaseExpiresAt.Location() != time.UTC {
 		t.Fatalf("input=%#v err=%v", input, err)
 	}
-	database.responses[postgresExecutionJobInputSQL] = json.RawMessage(`{"organization_id":"` + identity.Scope.OrganizationID().String() + `","workspace_id":"` + identity.Scope.WorkspaceID().String() + `","environment_id":"` + identity.Scope.EnvironmentID().String() + `","job_id":"` + jobID + `","attempt":1,"lease_expires_at":"` + now.Format(time.RFC3339Nano) + `","sync_id":"pid_80000004-0000-4000-8000-000000000004","integration_id":"` + integrationID + `","connection_id":"` + connectionID + `","provider":"aws","collector_version":"collector_v1","credential_class":"aws_assume_role","credential_reference":"ref:aws/external-id/customer-0001","subject_kind":"aws_account","subject_id":"123456789012","cursor_provider":null,"cursor_version":null,"cursor_value":null,"parser_version":"parser_v1","tool_version":"tool_v1","configuration":{},"access_token":"leak"}`)
+	database.responses[postgresExecutionJobInputSQL] = json.RawMessage(`{"organization_id":"` + identity.Scope.OrganizationID().String() + `","workspace_id":"` + identity.Scope.WorkspaceID().String() + `","environment_id":"` + identity.Scope.EnvironmentID().String() + `","job_id":"` + jobID + `","attempt":1,"lease_expires_at":"` + now.Format(time.RFC3339Nano) + `","sync_id":"pid_80000004-0000-4000-8000-000000000004","integration_id":"` + integrationID + `","connection_id":"` + connectionID + `","snapshot_id":"` + snapshotID + `","generation":1,"provider":"aws","collector_version":"collector_v1","credential_class":"aws_assume_role","credential_reference":"ref:aws/external-id/customer-0001","subject_kind":"aws_account","subject_id":"123456789012","cursor_provider":null,"cursor_version":null,"cursor_value":null,"parser_version":"parser_v1","tool_version":"tool_v1","configuration":{},"access_token":"leak"}`)
 	if _, err := repository.GetDiscoveryJobInput(context.Background(), identity.Scope, jobID, "worker-01", "lease-token-000000000001"); !errors.Is(err, ErrRepositoryUnavailable) {
 		t.Fatalf("unknown output field error=%v", err)
 	}
@@ -52,5 +68,72 @@ func TestDiscoveryExecutionRepositoryRejectsWrongAuthorityAndExpiredLease(t *tes
 	database.responses[postgresExecutionHeartbeatJobSQL] = json.RawMessage(`{"id":"pid_80000001-0000-4000-8000-000000000001","lease_expires_at":"` + time.Now().UTC().Add(-time.Millisecond).Format(time.RFC3339Nano) + `"}`)
 	if _, err := repository.HeartbeatDiscoveryJob(context.Background(), identity.Scope, JobHeartbeat{JobID: "pid_80000001-0000-4000-8000-000000000001", Worker: "worker-01", LeaseToken: "lease-token-000000000001", LeaseSeconds: 30}); !errors.Is(err, ErrRepositoryUnavailable) {
 		t.Fatalf("expired heartbeat output error=%v", err)
+	}
+}
+
+func TestDiscoveryExecutionRepositoryConstructorBoundsReadinessProbe(t *testing.T) {
+	started := time.Now()
+	if _, err := newDiscoveryExecutionRepository(&blockingDiscoveryExecutionDatabase{}, DiscoveryExecutionAuthorityWorker, 10*time.Millisecond); !errors.Is(err, ErrRepositoryConfiguration) {
+		t.Fatalf("blocking readiness error=%v", err)
+	}
+	if elapsed := time.Since(started); elapsed > 250*time.Millisecond {
+		t.Fatalf("bounded readiness elapsed=%s", elapsed)
+	}
+}
+
+func TestDiscoveryExecutionScheduleCompletionValidationIsClockIndependent(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	scheduleID := "pid_80500001-0000-4000-8000-000000000001"
+	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{}}
+	repository := newTestDiscoveryExecutionRepository(t, database, DiscoveryExecutionAuthorityScheduler)
+	past := time.Date(2025, 1, 2, 3, 4, 5, 0, time.UTC)
+	database.responses[postgresExecutionCompleteScheduleSQL] = json.RawMessage(`{"id":"` + scheduleID + `","state":"enabled","next_run_at":"` + past.Format(time.RFC3339Nano) + `","version":2}`)
+	if result, err := repository.CompleteDiscoverySchedule(context.Background(), identity.Scope, DiscoveryScheduleCompletion{ID: scheduleID, Worker: "scheduler-01", LeaseToken: "schedule-token-000000001", Outcome: "released", NextRunAt: past}); err != nil || !result.NextRunAt.Equal(past) {
+		t.Fatalf("past schedule completion result=%#v err=%v", result, err)
+	}
+	future := time.Now().UTC().Add(time.Hour).Round(time.Microsecond)
+	database.responses[postgresExecutionCompleteScheduleSQL] = json.RawMessage(`{"id":"` + scheduleID + `","state":"disabled","next_run_at":"` + future.Format(time.RFC3339Nano) + `","version":3}`)
+	if result, err := repository.CompleteDiscoverySchedule(context.Background(), identity.Scope, DiscoveryScheduleCompletion{ID: scheduleID, Worker: "scheduler-01", LeaseToken: "schedule-token-000000001", Outcome: "disabled", NextRunAt: future}); err != nil || result.State != "disabled" {
+		t.Fatalf("disabled schedule completion result=%#v err=%v", result, err)
+	}
+	for _, invalid := range []time.Time{{}, future.In(time.FixedZone("skew", 3600))} {
+		if _, err := repository.CompleteDiscoverySchedule(context.Background(), identity.Scope, DiscoveryScheduleCompletion{ID: scheduleID, Worker: "scheduler-01", LeaseToken: "schedule-token-000000001", Outcome: "advanced", NextRunAt: invalid}); !errors.Is(err, ErrRepositoryOperation) {
+			t.Fatalf("invalid next run %v error=%v", invalid, err)
+		}
+	}
+}
+
+func TestDiscoveryExecutionRepositoryStrictDeliveryReplayAndProjectionStatus(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	jobID := "pid_81000001-0000-4000-8000-000000000001"
+	snapshotID := "pid_81000002-0000-4000-8000-000000000002"
+	digest := "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE="
+	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{}}
+	worker := newTestDiscoveryExecutionRepository(t, database, DiscoveryExecutionAuthorityWorker)
+	database.responses[postgresExecutionClaimDeliverySQL] = json.RawMessage(`{"id":"` + jobID + `","disposition":"ack_terminal","state":"succeeded","attempt":1}`)
+	claim, err := worker.ClaimDiscoveryDelivery(context.Background(), identity.Scope, jobID, "worker-01", "lease-token-000000000001", 30)
+	if err != nil || claim.Disposition != "ack_terminal" {
+		t.Fatalf("terminal claim=%#v err=%v", claim, err)
+	}
+	database.responses[postgresExecutionClaimDeliverySQL] = json.RawMessage(`{"id":"` + jobID + `","disposition":"claimed","state":"leased","attempt":1,"authority_id":"pid_81000003-0000-4000-8000-000000000003","lease_expires_at":"` + time.Now().UTC().Add(30*time.Second).Format(time.RFC3339Nano) + `","lease_owner":"leak"}`)
+	if _, err := worker.ClaimDiscoveryDelivery(context.Background(), identity.Scope, jobID, "worker-01", "lease-token-000000000001", 30); !errors.Is(err, ErrRepositoryUnavailable) {
+		t.Fatalf("hostile delivery output error=%v", err)
+	}
+	completedAt := time.Now().UTC().Add(-time.Second).Format(time.RFC3339Nano)
+	database.responses[postgresExecutionFinishJobSQL] = json.RawMessage(`{"id":"` + jobID + `","state":"succeeded","attempt":1,"completed_at":"` + completedAt + `"}`)
+	if completion, err := worker.FinishDiscoveryJob(context.Background(), identity.Scope, DiscoveryJobCompletion{ID: jobID, Worker: "worker-01", LeaseToken: "lease-token-000000000001", Outcome: "succeeded", ResultDigest: make([]byte, 32)}); err != nil || completion.State != "succeeded" || completion.CompletedAt == nil || completion.CompletedAt.Location() != time.UTC {
+		t.Fatalf("job completion=%#v err=%v", completion, err)
+	}
+
+	database = &discoveryCallDatabase{responses: map[string]json.RawMessage{}}
+	projection := newTestDiscoveryExecutionRepository(t, database, DiscoveryExecutionAuthorityProjection)
+	database.responses[postgresExecutionProjectionStatusSQL] = json.RawMessage(`{"integration_id":"pid_81000004-0000-4000-8000-000000000004","source":"aws","snapshot_id":"` + snapshotID + `","generation":7,"input_digest":"` + digest + `","projections":[{"kind":"graph","work_state":"succeeded","work_version":"v1","work_input_digest":"` + digest + `","attempt":1,"current_snapshot_id":"` + snapshotID + `","current_generation":7,"current_input_digest":"` + digest + `","current":true},{"kind":"risk","work_state":"pending","work_version":"v1","work_input_digest":"` + digest + `","attempt":0,"current_snapshot_id":null,"current_generation":null,"current_input_digest":null,"current":false},{"kind":"search","work_state":"pending","work_version":"v1","work_input_digest":"` + digest + `","attempt":0,"current_snapshot_id":null,"current_generation":null,"current_input_digest":null,"current":false}]}`)
+	status, err := projection.GetProjectionStatus(context.Background(), identity.Scope, snapshotID)
+	if err != nil || len(status.Projections) != 3 || !status.Projections[0].Current || status.Projections[1].Current {
+		t.Fatalf("projection status=%#v err=%v", status, err)
+	}
+	database.responses[postgresExecutionProjectionStatusSQL] = json.RawMessage(`{"integration_id":"pid_81000004-0000-4000-8000-000000000004","source":"aws","snapshot_id":"` + snapshotID + `","generation":7,"input_digest":"` + digest + `","projections":[]}`)
+	if _, err := projection.GetProjectionStatus(context.Background(), identity.Scope, snapshotID); !errors.Is(err, ErrRepositoryUnavailable) {
+		t.Fatalf("incomplete projection status error=%v", err)
 	}
 }

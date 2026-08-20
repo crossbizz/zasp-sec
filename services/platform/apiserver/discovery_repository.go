@@ -127,7 +127,10 @@ type RuntimeAuthorityRepository interface {
 	CompleteRuntimeStage(context.Context, domain.Scope, RuntimeStageCompletion) error
 }
 
-type DiscoveryRepository struct{ database JSONDatabase }
+type DiscoveryRepository struct {
+	database JSONDatabase
+	schema   string
+}
 
 func newDiscoveryRepositoryUnchecked(database JSONDatabase) (*DiscoveryRepository, error) {
 	if nilInterface(database) {
@@ -148,7 +151,7 @@ func newDiscoveryRepositoryUnchecked(database JSONDatabase) (*DiscoveryRepositor
 	if err != nil || decodeStrictDiscovery(payload, &ready) != nil || !ready {
 		return nil, ErrRepositoryConfiguration
 	}
-	return &DiscoveryRepository{database: database}, nil
+	return &DiscoveryRepository{database: database, schema: version}, nil
 }
 
 func NewDiscoveryRepositoryForAuthority(database JSONDatabase, authority string) (*DiscoveryRepository, error) {
@@ -442,15 +445,26 @@ func (repository *DiscoveryRepository) RequestDiscoverySync(ctx context.Context,
 	if !validDiscoveryRepository(repository, ctx) || !validRequestIdentity(identity, false) || !validSyncRequest(input) {
 		return SyncRequestResult{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresDiscoveryRequestSyncSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), input.IntegrationID, input.SyncID, input.JobID, input.OutboxID, input.IdempotencyKey, input.RequestDigest, input.TriggerKind, input.ParserVersion, input.ToolVersion)
+	statement := postgresDiscoveryRequestSyncSQL
+	if repository.schema == DiscoveryExecutionSchemaVersion {
+		statement = postgresExecutionRequestSyncSQL
+	}
+	payload, err := repository.database.QueryJSON(ctx, statement, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), input.IntegrationID, input.SyncID, input.JobID, input.OutboxID, input.IdempotencyKey, input.RequestDigest, input.TriggerKind, input.ParserVersion, input.ToolVersion)
 	if err != nil {
 		return SyncRequestResult{}, discoveryProviderError(err)
 	}
 	var result SyncRequestResult
-	if decodeStrictDiscovery(payload, &result) != nil || result.SyncID != input.SyncID || result.JobID != input.JobID || result.OutboxID != input.OutboxID || result.State != "queued" {
+	if decodeStrictDiscovery(payload, &result) != nil || !validSyncRequestResult(input, result) {
 		return SyncRequestResult{}, ErrRepositoryUnavailable
 	}
 	return result, nil
+}
+
+func validSyncRequestResult(input SyncRequest, result SyncRequestResult) bool {
+	if result.State != "queued" || !validProductID(result.SyncID) || !validProductID(result.JobID) || !validProductID(result.OutboxID) {
+		return false
+	}
+	return result.Replayed || result.SyncID == input.SyncID && result.JobID == input.JobID && result.OutboxID == input.OutboxID
 }
 
 type CompleteSnapshot struct {

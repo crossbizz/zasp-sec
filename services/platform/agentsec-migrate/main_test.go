@@ -445,8 +445,51 @@ func TestAgentsecMigrateCLIReachesV13FromEmptyAndV12(t *testing.T) {
 	}
 	var executionReleaseReady bool
 	if err := connection.QueryRow(ctx, `SELECT zasp_execution_readiness($1,$2)`, migrations.ProductionDiscoveryExecution().Checksum(), migrations.ProductionDiscoveryExecutionSemanticFingerprint()).Scan(&executionReleaseReady); err != nil || !executionReleaseReady {
-		t.Fatalf("execution release ready before down=%v err=%v", executionReleaseReady, err)
+		var securityReady, referenceReady bool
+		var memberships string
+		_ = connection.QueryRow(ctx, `SELECT zasp_execution_security_ready(),zasp_reference_authorization_security_ready(),COALESCE(string_agg(role_name||':'||member_name||':'||admin_option,',' ORDER BY role_name,member_name),'') FROM (SELECT role.rolname role_name,member.rolname member_name,membership.admin_option::text FROM pg_auth_members membership JOIN pg_roles role ON role.oid=membership.roleid JOIN pg_roles member ON member.oid=membership.member WHERE role.rolname IN('zasp_discovery_scheduler','zasp_projection_worker')) memberships`).Scan(&securityReady, &referenceReady, &memberships)
+		t.Fatalf("execution release ready before down=%v security=%v reference=%v memberships=%s err=%v", executionReleaseReady, securityReady, referenceReady, memberships, err)
 	}
+	var executionBindings int
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_discovery_execution_principals`).Scan(&executionBindings); err != nil || executionBindings != 3 {
+		t.Fatalf("execution principal bindings=%d err=%v", executionBindings, err)
+	}
+	connectAs := func(principal string) *pgx.Conn {
+		t.Helper()
+		configuration, parseErr := pgx.ParseConfig(dsn)
+		if parseErr != nil {
+			t.Fatal(parseErr)
+		}
+		configuration.User = principal
+		principalConnection, connectErr := pgx.ConnectConfig(ctx, configuration)
+		if connectErr != nil {
+			t.Fatal(connectErr)
+		}
+		return principalConnection
+	}
+	type privilegeCase struct {
+		principal, authority, allowed, denied, legacyDenied string
+	}
+	for _, test := range []privilegeCase{
+		{principalNames[1], "zasp_discovery_worker", "zasp_execution_finish_job(text,text,text,text,text,text,text,bytea,text,integer)", "zasp_execution_claim_schedules(text,text,integer,integer)", "zasp_discovery_apply_snapshot(text,text,text,text,text,text,bigint,text,text,bytea,timestamptz,text,text,jsonb,jsonb,jsonb)"},
+		{principalNames[6], "zasp_discovery_scheduler", "zasp_execution_claim_schedules(text,text,integer,integer)", "zasp_execution_claim_jobs(text,text,integer,integer)", "zasp_discovery_claim_schedules(text,text,integer,integer)"},
+		{principalNames[7], "zasp_projection_worker", "zasp_execution_claim_projection_work(text,text,integer,integer)", "zasp_execution_claim_jobs(text,text,integer,integer)", "zasp_discovery_claim_projection_work(text,text,integer,integer)"},
+	} {
+		principalConnection := connectAs(test.principal)
+		var principalReady, allowed, denied, legacyDenied bool
+		if err := principalConnection.QueryRow(ctx, `SELECT zasp_execution_principal_ready($1),has_function_privilege(session_user,$2,'EXECUTE'),has_function_privilege(session_user,$3,'EXECUTE'),has_function_privilege(session_user,$4,'EXECUTE')`, test.authority, test.allowed, test.denied, test.legacyDenied).Scan(&principalReady, &allowed, &denied, &legacyDenied); err != nil || !principalReady || !allowed || denied || legacyDenied {
+			principalConnection.Close(context.Background())
+			t.Fatalf("execution privileges principal=%s ready=%v allowed=%v denied=%v legacy=%v err=%v", test.principal, principalReady, allowed, denied, legacyDenied, err)
+		}
+		principalConnection.Close(context.Background())
+	}
+	apiConnection := connectAs(principalNames[0])
+	var apiRead, apiWorker bool
+	if err := apiConnection.QueryRow(ctx, `SELECT has_function_privilege(session_user,'zasp_execution_sync_detail(text,text,text,text,text)','EXECUTE'),has_function_privilege(session_user,'zasp_execution_claim_jobs(text,text,integer,integer)','EXECUTE')`).Scan(&apiRead, &apiWorker); err != nil || !apiRead || apiWorker {
+		apiConnection.Close(context.Background())
+		t.Fatalf("execution API privileges read=%v worker=%v err=%v", apiRead, apiWorker, err)
+	}
+	apiConnection.Close(context.Background())
 	if err := runner.DownProductionDiscoveryExecution(ctx); err != nil {
 		t.Fatalf("v13 to v12 fixture: %v", err)
 	}

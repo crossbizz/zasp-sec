@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/collection"
@@ -21,14 +22,20 @@ const (
 
 	postgresExecutionReadySQL             = `SELECT to_jsonb(zasp_execution_readiness($1,$2))`
 	postgresExecutionPrincipalReadySQL    = `SELECT to_jsonb(zasp_execution_principal_ready($1))`
+	postgresExecutionRequestSyncSQL       = `SELECT zasp_execution_request_sync($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`
 	postgresExecutionJobInputSQL          = `SELECT zasp_execution_job_input($1,$2,$3,$4,$5,$6)`
+	postgresExecutionClaimDeliverySQL     = `SELECT zasp_execution_claim_delivery($1,$2,$3,$4,$5,$6,$7)`
 	postgresExecutionHeartbeatJobSQL      = `SELECT zasp_execution_heartbeat_job($1,$2,$3,$4,$5,$6,$7)`
+	postgresExecutionFinishJobSQL         = `SELECT zasp_execution_finish_job($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
 	postgresExecutionClaimJobsSQL         = `SELECT zasp_execution_claim_jobs($1,$2,$3,$4)`
 	postgresExecutionScheduleInputSQL     = `SELECT zasp_execution_schedule_input($1,$2,$3,$4,$5,$6)`
 	postgresExecutionHeartbeatScheduleSQL = `SELECT zasp_execution_heartbeat_schedule($1,$2,$3,$4,$5,$6,$7)`
 	postgresExecutionClaimSchedulesSQL    = `SELECT zasp_execution_claim_schedules($1,$2,$3,$4)`
+	postgresExecutionScheduledSyncSQL     = `SELECT zasp_execution_request_scheduled_sync($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`
+	postgresExecutionCompleteScheduleSQL  = `SELECT zasp_execution_complete_schedule($1,$2,$3,$4,$5,$6,$7,$8)`
 	postgresExecutionApplySnapshotSQL     = `SELECT zasp_execution_apply_complete_snapshot($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20::jsonb,$21::jsonb,$22::jsonb)`
 	postgresExecutionProjectionPageSQL    = `SELECT zasp_execution_snapshot_projection_page($1,$2,$3,$4,$5,NULLIF($6,''),$7)`
+	postgresExecutionProjectionStatusSQL  = `SELECT zasp_execution_projection_status($1,$2,$3,$4)`
 	postgresExecutionClaimProjectionSQL   = `SELECT zasp_execution_claim_projection_work($1,$2,$3,$4)`
 	postgresExecutionFinishProjectionSQL  = `SELECT zasp_execution_finish_projection($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`
 	postgresExecutionBindSubjectSQL       = `SELECT zasp_execution_bind_connection_subject($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11)`
@@ -42,15 +49,24 @@ type DiscoveryExecutionRepository struct {
 }
 
 func NewDiscoveryExecutionRepository(database JSONDatabase, authority string) (*DiscoveryExecutionRepository, error) {
+	return newDiscoveryExecutionRepository(database, authority, 5*time.Second)
+}
+
+func newDiscoveryExecutionRepository(database JSONDatabase, authority string, readinessTimeout time.Duration) (*DiscoveryExecutionRepository, error) {
 	if nilInterface(database) || !stringIn(authority, DiscoveryExecutionAuthorityScheduler, DiscoveryExecutionAuthorityWorker, DiscoveryExecutionAuthorityProjection) {
 		return nil, ErrRepositoryConfiguration
 	}
-	version, err := database.SchemaVersion(context.Background())
+	if readinessTimeout <= 0 || readinessTimeout > 5*time.Second {
+		return nil, ErrRepositoryConfiguration
+	}
+	probeContext, cancel := context.WithTimeout(context.Background(), readinessTimeout)
+	defer cancel()
+	version, err := database.SchemaVersion(probeContext)
 	if err != nil || version != DiscoveryExecutionSchemaVersion {
 		return nil, ErrRepositoryConfiguration
 	}
 	repository := &DiscoveryExecutionRepository{database: database, authority: authority}
-	if err := repository.Ready(context.Background()); err != nil {
+	if err := repository.Ready(probeContext); err != nil {
 		return nil, ErrRepositoryConfiguration
 	}
 	return repository, nil
@@ -86,6 +102,8 @@ type ExecutionJobInput struct {
 	SyncID              string                     `json:"sync_id"`
 	IntegrationID       string                     `json:"integration_id"`
 	ConnectionID        string                     `json:"connection_id"`
+	SnapshotID          string                     `json:"snapshot_id"`
+	Generation          int64                      `json:"generation"`
 	Provider            collection.Provider        `json:"provider"`
 	CollectorVersion    string                     `json:"collector_version"`
 	CredentialClass     collection.CredentialClass `json:"credential_class"`
@@ -99,6 +117,46 @@ type ExecutionJobInput struct {
 	ToolVersion         string                     `json:"tool_version"`
 	Configuration       json.RawMessage            `json:"configuration"`
 	ExpectedSubject     collection.SubjectBinding  `json:"-"`
+}
+
+type DiscoveryDeliveryClaim struct {
+	ID             string     `json:"id"`
+	Disposition    string     `json:"disposition"`
+	State          string     `json:"state"`
+	AuthorityID    string     `json:"authority_id,omitempty"`
+	Attempt        int        `json:"attempt"`
+	LeaseExpiresAt *time.Time `json:"lease_expires_at,omitempty"`
+}
+
+func (repository *DiscoveryExecutionRepository) ClaimDiscoveryDelivery(ctx context.Context, scope domain.Scope, jobID, worker, leaseToken string, leaseSeconds int) (DiscoveryDeliveryClaim, error) {
+	if !validExecutionRepository(repository, ctx) || repository.authority != DiscoveryExecutionAuthorityWorker || scope.Validate() != nil || !validProductID(jobID) || !validWorkerLease(worker, leaseToken) || leaseSeconds < 5 || leaseSeconds > 900 {
+		return DiscoveryDeliveryClaim{}, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresExecutionClaimDeliverySQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), jobID, worker, leaseToken, leaseSeconds)
+	if err != nil {
+		return DiscoveryDeliveryClaim{}, discoveryProviderError(err)
+	}
+	var result DiscoveryDeliveryClaim
+	if decodeStrictDiscovery(payload, &result) != nil || result.ID != jobID || result.Attempt < 0 || result.Attempt > 5 || !stringIn(result.Disposition, "claimed", "busy", "ack_terminal") {
+		return DiscoveryDeliveryClaim{}, ErrRepositoryUnavailable
+	}
+	switch result.Disposition {
+	case "claimed":
+		if result.State != "leased" || !validProductID(result.AuthorityID) || result.LeaseExpiresAt == nil || !validLeaseExpiration(*result.LeaseExpiresAt, leaseSeconds) || result.Attempt < 1 {
+			return DiscoveryDeliveryClaim{}, ErrRepositoryUnavailable
+		}
+		expiresAt := result.LeaseExpiresAt.UTC()
+		result.LeaseExpiresAt = &expiresAt
+	case "busy":
+		if result.LeaseExpiresAt != nil || result.AuthorityID != "" || !stringIn(result.State, "queued", "retryable", "leased") {
+			return DiscoveryDeliveryClaim{}, ErrRepositoryUnavailable
+		}
+	case "ack_terminal":
+		if result.LeaseExpiresAt != nil || result.AuthorityID != "" || !stringIn(result.State, "succeeded", "failed", "cancelled") {
+			return DiscoveryDeliveryClaim{}, ErrRepositoryUnavailable
+		}
+	}
+	return result, nil
 }
 
 func (repository *DiscoveryExecutionRepository) GetDiscoveryJobInput(ctx context.Context, scope domain.Scope, jobID, worker, leaseToken string) (ExecutionJobInput, error) {
@@ -142,6 +200,25 @@ func (repository *DiscoveryExecutionRepository) HeartbeatDiscoveryJob(ctx contex
 		return LeaseHeartbeatResult{}, ErrRepositoryUnavailable
 	}
 	result.LeaseExpiresAt = result.LeaseExpiresAt.UTC()
+	return result, nil
+}
+
+func (repository *DiscoveryExecutionRepository) FinishDiscoveryJob(ctx context.Context, scope domain.Scope, input DiscoveryJobCompletion) (WorkCompletionResult, error) {
+	if !validExecutionRepository(repository, ctx) || repository.authority != DiscoveryExecutionAuthorityWorker || scope.Validate() != nil || !validProductID(input.ID) || !validWorkerLease(input.Worker, input.LeaseToken) || !stringIn(input.Outcome, "succeeded", "retryable", "failed", "cancelled") || len(input.ResultDigest) != 0 && len(input.ResultDigest) != sha256.Size || input.Outcome == "succeeded" && input.LastError != "" || input.Outcome != "succeeded" && (len(input.LastError) < 1 || len(input.LastError) > 1024) || input.RetryAfterSeconds < 0 || input.RetryAfterSeconds > 3600 {
+		return WorkCompletionResult{}, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresExecutionFinishJobSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), input.ID, input.Worker, input.LeaseToken, input.Outcome, input.ResultDigest, input.LastError, input.RetryAfterSeconds)
+	if err != nil {
+		return WorkCompletionResult{}, discoveryProviderError(err)
+	}
+	var result WorkCompletionResult
+	if decodeStrictDiscovery(payload, &result) != nil || result.ID != input.ID || !validCompletionState(input.Outcome, result.State) || result.Attempt < 1 || result.Attempt > 5 || (result.State == "retryable") != (result.CompletedAt == nil) || result.CompletedAt != nil && !validPastServerTime(*result.CompletedAt) {
+		return WorkCompletionResult{}, ErrRepositoryUnavailable
+	}
+	if result.CompletedAt != nil {
+		completedAt := result.CompletedAt.UTC()
+		result.CompletedAt = &completedAt
+	}
 	return result, nil
 }
 
@@ -243,6 +320,46 @@ func (repository *DiscoveryExecutionRepository) HeartbeatDiscoverySchedule(ctx c
 	return result, nil
 }
 
+type ScheduledSyncRequest struct {
+	ScheduleID, Worker, LeaseToken string
+	SyncRequest
+}
+
+func (repository *DiscoveryExecutionRepository) RequestScheduledSync(ctx context.Context, identity RequestIdentity, input ScheduledSyncRequest) (SyncRequestResult, error) {
+	if !validExecutionRepository(repository, ctx) || repository.authority != DiscoveryExecutionAuthorityScheduler || !validRequestIdentity(identity, false) || !validProductID(input.ScheduleID) || !validWorkerLease(input.Worker, input.LeaseToken) || !validSyncRequest(input.SyncRequest) || input.TriggerKind != "schedule" {
+		return SyncRequestResult{}, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresExecutionScheduledSyncSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), input.ScheduleID, input.Worker, input.LeaseToken, input.IntegrationID, input.SyncID, input.JobID, input.OutboxID, input.IdempotencyKey, input.RequestDigest, input.ParserVersion, input.ToolVersion)
+	if err != nil {
+		return SyncRequestResult{}, discoveryProviderError(err)
+	}
+	var result SyncRequestResult
+	if decodeStrictDiscovery(payload, &result) != nil || !validSyncRequestResult(input.SyncRequest, result) {
+		return SyncRequestResult{}, ErrRepositoryUnavailable
+	}
+	return result, nil
+}
+
+func (repository *DiscoveryExecutionRepository) CompleteDiscoverySchedule(ctx context.Context, scope domain.Scope, input DiscoveryScheduleCompletion) (DiscoveryScheduleCompletionResult, error) {
+	if !validExecutionRepository(repository, ctx) || repository.authority != DiscoveryExecutionAuthorityScheduler || scope.Validate() != nil || !validProductID(input.ID) || !validWorkerLease(input.Worker, input.LeaseToken) || !stringIn(input.Outcome, "advanced", "released", "disabled") || input.NextRunAt.IsZero() || input.NextRunAt.Location() != time.UTC {
+		return DiscoveryScheduleCompletionResult{}, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresExecutionCompleteScheduleSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), input.ID, input.Worker, input.LeaseToken, input.Outcome, input.NextRunAt)
+	if err != nil {
+		return DiscoveryScheduleCompletionResult{}, discoveryProviderError(err)
+	}
+	var result DiscoveryScheduleCompletionResult
+	wantState := "enabled"
+	if input.Outcome == "disabled" {
+		wantState = "disabled"
+	}
+	if decodeStrictDiscovery(payload, &result) != nil || result.ID != input.ID || result.State != wantState || !result.NextRunAt.Equal(input.NextRunAt) || result.Version < 1 {
+		return DiscoveryScheduleCompletionResult{}, ErrRepositoryUnavailable
+	}
+	result.NextRunAt = result.NextRunAt.UTC()
+	return result, nil
+}
+
 type ExecutionCompleteSnapshot struct {
 	CompleteSnapshot
 	ManifestKey, ManifestVersionID, ManifestMediaType, ManifestSchemaVersion, ParserVersion, ToolVersion string
@@ -256,7 +373,7 @@ type ExecutionSnapshotApplyResult struct {
 }
 
 func (repository *DiscoveryExecutionRepository) ApplyCompleteSnapshot(ctx context.Context, scope domain.Scope, input ExecutionCompleteSnapshot) (ExecutionSnapshotApplyResult, error) {
-	if !validExecutionRepository(repository, ctx) || repository.authority != DiscoveryExecutionAuthorityWorker || scope.Validate() != nil || !validCompleteSnapshot(input.CompleteSnapshot) || len(input.ManifestKey) < 32 || len(input.ManifestKey) > 1024 || len(input.ManifestVersionID) < 1 || len(input.ManifestVersionID) > 1024 || input.ManifestSizeBytes < 1 || input.ManifestSizeBytes > 512<<20 || input.ManifestMediaType != "application/json" || !executionVersionPattern.MatchString(input.ManifestSchemaVersion) || !executionVersionPattern.MatchString(input.ParserVersion) || !executionVersionPattern.MatchString(input.ToolVersion) {
+	if !validExecutionRepository(repository, ctx) || repository.authority != DiscoveryExecutionAuthorityWorker || scope.Validate() != nil || !validCompleteSnapshot(input.CompleteSnapshot) || len(input.ManifestKey) < 32 || len(input.ManifestKey) > 1024 || !strings.HasSuffix(input.ManifestReference, "/"+input.ManifestKey) || len(input.ManifestReference) != strings.LastIndex(input.ManifestReference, "/"+input.ManifestKey)+1+len(input.ManifestKey) || len(input.ManifestVersionID) < 1 || len(input.ManifestVersionID) > 1024 || input.ManifestSizeBytes < 1 || input.ManifestSizeBytes > 512<<20 || input.ManifestMediaType != "application/json" || !executionVersionPattern.MatchString(input.ManifestSchemaVersion) || !executionVersionPattern.MatchString(input.ParserVersion) || !executionVersionPattern.MatchString(input.ToolVersion) {
 		return ExecutionSnapshotApplyResult{}, ErrRepositoryOperation
 	}
 	payload, err := repository.database.QueryJSON(ctx, postgresExecutionApplySnapshotSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), input.IntegrationID, input.SyncID, input.SnapshotID, input.Generation, input.Source, input.ManifestReference, input.ManifestKey, input.ManifestVersionID, input.ManifestChecksum, input.ManifestSizeBytes, input.ManifestMediaType, input.ManifestSchemaVersion, input.CollectedAt, input.CursorValue, input.ParserVersion, input.ToolVersion, input.Entities, input.Relationships, input.Evidence)
@@ -339,6 +456,98 @@ func (repository *DiscoveryExecutionRepository) GetSnapshotProjectionPage(ctx co
 	}, nil
 }
 
+func (repository *DiscoveryExecutionRepository) ClaimProjectionWork(ctx context.Context, worker, leaseToken string, leaseSeconds, limit int) ([]ProjectionWorkLease, error) {
+	if !validExecutionRepository(repository, ctx) || repository.authority != DiscoveryExecutionAuthorityProjection || !validWorkerLease(worker, leaseToken) || leaseSeconds < 5 || leaseSeconds > 900 || limit < 1 || limit > 64 {
+		return nil, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresExecutionClaimProjectionSQL, worker, leaseToken, leaseSeconds, limit)
+	if err != nil {
+		return nil, discoveryProviderError(err)
+	}
+	var envelope struct {
+		Items []ProjectionWorkLease `json:"items"`
+	}
+	if decodeStrictDiscovery(payload, &envelope) != nil || envelope.Items == nil || len(envelope.Items) > limit {
+		return nil, ErrRepositoryUnavailable
+	}
+	for index := range envelope.Items {
+		item := &envelope.Items[index]
+		if !validLeaseScope(item.OrganizationID, item.WorkspaceID, item.EnvironmentID) || !validProductID(item.SnapshotID) || !stringIn(item.Kind, "risk", "graph", "search") || !executionVersionPattern.MatchString(item.Version) || len(item.InputDigest) != sha256.Size || item.Attempt < 1 || item.Attempt > 100 || !validLeaseExpiration(item.LeaseExpiresAt, leaseSeconds) {
+			return nil, ErrRepositoryUnavailable
+		}
+		item.InputDigest = bytes.Clone(item.InputDigest)
+		item.LeaseExpiresAt = item.LeaseExpiresAt.UTC()
+	}
+	return envelope.Items, nil
+}
+
+func (repository *DiscoveryExecutionRepository) FinishProjectionWork(ctx context.Context, scope domain.Scope, input ProjectionWorkCompletion) (WorkCompletionResult, error) {
+	if !validExecutionRepository(repository, ctx) || repository.authority != DiscoveryExecutionAuthorityProjection || scope.Validate() != nil || !validProductID(input.SnapshotID) || !stringIn(input.Kind, "risk", "graph", "search") || !executionVersionPattern.MatchString(input.Version) || !validWorkerLease(input.Worker, input.LeaseToken) || !stringIn(input.Outcome, "succeeded", "retryable", "failed", "cancelled") || input.Outcome == "succeeded" && input.LastError != "" || input.Outcome != "succeeded" && (len(input.LastError) < 1 || len(input.LastError) > 1024) || input.RetryAfterSeconds < 0 || input.RetryAfterSeconds > 3600 {
+		return WorkCompletionResult{}, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresExecutionFinishProjectionSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), input.SnapshotID, input.Kind, input.Version, input.Worker, input.LeaseToken, input.Outcome, input.LastError, input.RetryAfterSeconds)
+	if err != nil {
+		return WorkCompletionResult{}, discoveryProviderError(err)
+	}
+	var result WorkCompletionResult
+	if decodeStrictDiscovery(payload, &result) != nil || result.SnapshotID != input.SnapshotID || result.Kind != input.Kind || !validCompletionState(input.Outcome, result.State) || result.Attempt < 1 || result.Attempt > 100 || result.CompletedAt != nil {
+		return WorkCompletionResult{}, ErrRepositoryUnavailable
+	}
+	return result, nil
+}
+
+type ProjectionStatusItem struct {
+	Kind               string  `json:"kind"`
+	WorkState          string  `json:"work_state"`
+	WorkVersion        string  `json:"work_version"`
+	WorkInputDigest    []byte  `json:"work_input_digest"`
+	Attempt            int     `json:"attempt"`
+	CurrentSnapshotID  *string `json:"current_snapshot_id"`
+	CurrentGeneration  *int64  `json:"current_generation"`
+	CurrentInputDigest []byte  `json:"current_input_digest"`
+	Current            bool    `json:"current"`
+}
+
+type ProjectionStatus struct {
+	IntegrationID string                 `json:"integration_id"`
+	Source        string                 `json:"source"`
+	SnapshotID    string                 `json:"snapshot_id"`
+	Generation    int64                  `json:"generation"`
+	InputDigest   []byte                 `json:"input_digest"`
+	Projections   []ProjectionStatusItem `json:"projections"`
+}
+
+func (repository *DiscoveryExecutionRepository) GetProjectionStatus(ctx context.Context, scope domain.Scope, snapshotID string) (ProjectionStatus, error) {
+	if !validExecutionRepository(repository, ctx) || repository.authority != DiscoveryExecutionAuthorityProjection || scope.Validate() != nil || !validProductID(snapshotID) {
+		return ProjectionStatus{}, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresExecutionProjectionStatusSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), snapshotID)
+	if err != nil {
+		return ProjectionStatus{}, discoveryProviderError(err)
+	}
+	var result ProjectionStatus
+	if decodeStrictDiscovery(payload, &result) != nil || !validProductID(result.IntegrationID) || !stringIn(result.Source, "aws", "kubernetes", "github", "okta") || result.SnapshotID != snapshotID || result.Generation < 1 || len(result.InputDigest) != sha256.Size || len(result.Projections) != 3 {
+		return ProjectionStatus{}, ErrRepositoryUnavailable
+	}
+	for index, kind := range []string{"graph", "risk", "search"} {
+		item := &result.Projections[index]
+		if item.Kind != kind || !stringIn(item.WorkState, "pending", "leased", "retryable", "succeeded", "failed", "cancelled") || !executionVersionPattern.MatchString(item.WorkVersion) || !bytes.Equal(item.WorkInputDigest, result.InputDigest) || item.Attempt < 0 || item.Attempt > 100 {
+			return ProjectionStatus{}, ErrRepositoryUnavailable
+		}
+		if item.Current {
+			if item.WorkState != "succeeded" || item.CurrentSnapshotID == nil || *item.CurrentSnapshotID != snapshotID || item.CurrentGeneration == nil || *item.CurrentGeneration != result.Generation || !bytes.Equal(item.CurrentInputDigest, result.InputDigest) {
+				return ProjectionStatus{}, ErrRepositoryUnavailable
+			}
+		} else if item.CurrentSnapshotID == nil != (item.CurrentGeneration == nil) || item.CurrentSnapshotID == nil != (item.CurrentInputDigest == nil) {
+			return ProjectionStatus{}, ErrRepositoryUnavailable
+		}
+		item.WorkInputDigest = bytes.Clone(item.WorkInputDigest)
+		item.CurrentInputDigest = bytes.Clone(item.CurrentInputDigest)
+	}
+	result.InputDigest = bytes.Clone(result.InputDigest)
+	return result, nil
+}
+
 func validExecutionRepository(repository *DiscoveryExecutionRepository, ctx context.Context) bool {
 	return repository != nil && !nilInterface(repository.database) && ctx != nil && ctx.Err() == nil
 }
@@ -348,7 +557,7 @@ func validWorkerLease(worker, token string) bool {
 }
 
 func validExecutionJobInput(scope domain.Scope, jobID string, input ExecutionJobInput) bool {
-	if input.OrganizationID != scope.OrganizationID().String() || input.WorkspaceID != scope.WorkspaceID().String() || input.EnvironmentID != scope.EnvironmentID().String() || input.JobID != jobID || !validProductID(input.SyncID) || !validProductID(input.IntegrationID) || !validProductID(input.ConnectionID) || input.Attempt < 1 || input.Attempt > 5 || !validLeaseExpiration(input.LeaseExpiresAt, 900) || !executionVersionPattern.MatchString(input.CollectorVersion) || !executionVersionPattern.MatchString(input.ParserVersion) || !executionVersionPattern.MatchString(input.ToolVersion) || !validOpaqueReference(input.CredentialReference) || !validReferenceOnlyJSON(input.Configuration) {
+	if input.OrganizationID != scope.OrganizationID().String() || input.WorkspaceID != scope.WorkspaceID().String() || input.EnvironmentID != scope.EnvironmentID().String() || input.JobID != jobID || !validProductID(input.SyncID) || !validProductID(input.IntegrationID) || !validProductID(input.ConnectionID) || !validProductID(input.SnapshotID) || input.Generation < 1 || input.Attempt < 1 || input.Attempt > 5 || !validLeaseExpiration(input.LeaseExpiresAt, 900) || !executionVersionPattern.MatchString(input.CollectorVersion) || !executionVersionPattern.MatchString(input.ParserVersion) || !executionVersionPattern.MatchString(input.ToolVersion) || !validOpaqueReference(input.CredentialReference) || !validReferenceOnlyJSON(input.Configuration) {
 		return false
 	}
 	integrationID, integrationErr := domain.ParseProductID(input.IntegrationID)
