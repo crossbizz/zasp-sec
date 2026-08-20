@@ -113,13 +113,15 @@ func composeWorkerRuntime(ctx context.Context, config workerRuntimeConfig, datab
 			return workerRuntimeDependencies{}, errRuntimeUnavailable
 		}
 		return dependencies, nil
-	case workerModeRuntimeArchive, workerModeRuntimeIndex:
+	case workerModeRuntimeArchive, workerModeRuntimeIndex, workerModeRuntimeCorrelation:
 		var stage *productionRuntimeStageDependencies
 		var err error
 		if config.Mode == workerModeRuntimeArchive {
 			stage, err = newProductionRuntimeArchive(ctx, config)
-		} else {
+		} else if config.Mode == workerModeRuntimeIndex {
 			stage, err = newProductionRuntimeIndex(ctx, config)
+		} else {
+			stage, err = newProductionRuntimeCorrelation(ctx, config)
 		}
 		if err != nil {
 			return workerRuntimeDependencies{}, errRuntimeUnavailable
@@ -221,6 +223,8 @@ func runtimeStageBinding(mode workerMode) (runtimeevent.RuntimeStage, runtimeeve
 		return runtimeevent.RuntimeStageArchive, runtimeevent.ProductionPipelineAuthorityArchive, true
 	case workerModeRuntimeIndex:
 		return runtimeevent.RuntimeStageIndex, runtimeevent.ProductionPipelineAuthorityIndex, true
+	case workerModeRuntimeCorrelation:
+		return runtimeevent.RuntimeStageCorrelate, runtimeevent.ProductionPipelineAuthorityCorrelation, true
 	default:
 		return "", "", false
 	}

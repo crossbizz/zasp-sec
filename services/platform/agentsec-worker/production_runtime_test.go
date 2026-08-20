@@ -105,6 +105,24 @@ func TestComposeRuntimeIndexBindsExactStageRepositoryAndExecutor(t *testing.T) {
 	}
 }
 
+func TestComposeRuntimeCorrelationBindsExactStageRepositoryAndExecutor(t *testing.T) {
+	closed := false
+	config := validRuntimeCorrelationConfig()
+	executor := runtimeStageExecutorFunc(func(context.Context, runtimeevent.StageLease) (runtimeStageEffect, error) {
+		return runtimeStageEffect{}, errRuntimeStageRetryable
+	})
+	dependencies, err := composeRuntimeStageWorkerRuntime(config, readyWorkerDatabase{}, &productionRuntimeStageDependencies{Stage: runtimeevent.RuntimeStageCorrelate, Executor: executor, ready: func(context.Context) error { return nil }, close: func() error { closed = true; return nil }})
+	if err != nil || dependencies.Processor == nil || dependencies.Ready == nil || dependencies.Close == nil {
+		t.Fatalf("dependencies=%#v err=%v", dependencies, err)
+	}
+	if err := dependencies.Ready(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := dependencies.Close(); err != nil || !closed {
+		t.Fatalf("close=%v closed=%v", err, closed)
+	}
+}
+
 func TestComposeDiscoveryWorkerRuntimeReadinessGatesQueueConsumption(t *testing.T) {
 	steps := []string{}
 	discovery := &productionDiscoveryDependencies{
@@ -462,6 +480,15 @@ func validRuntimeIndexConfig() workerRuntimeConfig {
 		AWSRegion: "us-west-2", EvidenceBucket: "zasp-production-evidence", EvidenceOwner: "123456789012", EvidenceKMSKeyARN: "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111",
 		RuntimeStageRoleARN: "arn:aws:iam::123456789012:role/zasp-production-runtime-index", RuntimeStageTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", RuntimeStageVersion: "runtime-index-v1",
 		OpenSearchURL: "https://vpc-zasp.us-west-2.es.amazonaws.com", OpenSearchIndex: "zasp-runtime-events-v1",
+	}
+}
+
+func validRuntimeCorrelationConfig() workerRuntimeConfig {
+	return workerRuntimeConfig{
+		Mode: workerModeRuntimeCorrelation, PostgresDSN: "postgres://runtime_correlation@postgres.internal/zasp?sslmode=verify-full", DatabaseAuthority: "zasp_runtime_correlation_worker", WorkerID: "runtime-correlation-01",
+		PollInterval: 50 * time.Millisecond, LeaseDuration: 30 * time.Second, BatchSize: 10, ShutdownTimeout: 20 * time.Second,
+		AWSRegion: "us-west-2", EvidenceBucket: "zasp-production-evidence", EvidenceOwner: "123456789012", EvidenceKMSKeyARN: "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111",
+		RuntimeStageRoleARN: "arn:aws:iam::123456789012:role/zasp-production-runtime-correlation", RuntimeStageTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", RuntimeStageVersion: "runtime-correlate-v1",
 	}
 }
 
