@@ -2,6 +2,10 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"io"
 	"net/http"
 	"strings"
@@ -24,7 +28,12 @@ func connectorJSONResponse(status int, body string) *http.Response {
 
 func TestGitHubExchangeUsesFixedEndpointsStrictParsersAndReferenceOnlyResult(t *testing.T) {
 	secret := "github-client-secret-value"
-	secretAPI := &connectorSecretsAPIStub{values: map[string][]byte{"zasp/github/app-secret-0001": []byte(secret)}}
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	privateKeyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(privateKey)})
+	secretAPI := &connectorSecretsAPIStub{values: map[string][]byte{"zasp/github/app-secret-0001": []byte(secret), "zasp/github/app-private-key-0001": privateKeyPEM}}
 	calls := 0
 	client := &http.Client{Transport: connectorRoundTripFunc(func(request *http.Request) (*http.Response, error) {
 		calls++
@@ -44,24 +53,34 @@ func TestGitHubExchangeUsesFixedEndpointsStrictParsersAndReferenceOnlyResult(t *
 				t.Fatalf("revocation request = %s %s %#v", request.Method, request.URL, request.Header)
 			}
 			return &http.Response{StatusCode: http.StatusNoContent, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(""))}, nil
+		case 4:
+			if request.Method != http.MethodDelete || request.URL.String() != "https://api.github.com/app/installations/123456" || !strings.HasPrefix(request.Header.Get("Authorization"), "Bearer eyJ") {
+				t.Fatalf("installation revoke request = %s %s %#v", request.Method, request.URL, request.Header)
+			}
+			return &http.Response{StatusCode: http.StatusNoContent, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(""))}, nil
 		default:
 			t.Fatalf("unexpected provider call %d", calls)
 			return nil, nil
 		}
 	})}
-	exchange := &githubExchangeClient{http: client, secrets: &connectorProviderSecrets{driver: &connectorSecretsDriver{client: secretAPI}, root: "zasp", kmsKey: "kms"}}
+	exchange := &githubExchangeClient{http: client, secrets: &connectorProviderSecrets{driver: &connectorSecretsDriver{client: secretAPI}, root: "zasp", kmsKey: "kms"}, appID: "123456", privateKeyReference: "ref:github/app-private-key-0001"}
 	result, err := exchange.Exchange(context.Background(), githubdiscovery.ExchangeRequest{EffectID: "pid_70000003-0000-4000-8000-000000000003", ClientID: "Iv1.1234567890abcdef", ClientSecretReference: "ref:github/app-secret-0001", CallbackURL: "https://app.zasp.example/api/v1/integrations/oauth/callback", Code: "provider-code-0001", PKCEVerifier: []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_")})
-	if err != nil || result.Reference != "ref:github/grant/70000003-0000-4000-8000-000000000003" || result.AccountLogin != "acme" || calls != 2 {
+	if err != nil || result.Reference != "ref:github/installation/123456" || result.AccountLogin != "acme" || calls != 3 {
 		t.Fatalf("GitHub exchange = %#v, %v, calls=%d", result, err, calls)
 	}
 	if strings.Contains(result.Reference, secret) {
 		t.Fatal("secret reached reference-only result")
 	}
+	for name, value := range secretAPI.values {
+		if strings.Contains(name, "70000003-0000-4000-8000-000000000003") && strings.Contains(string(value), "github-access-token-value") {
+			t.Fatalf("OAuth access token persisted at %q", name)
+		}
+	}
 	recovered, err := exchange.Recover(context.Background(), "pid_70000003-0000-4000-8000-000000000003")
-	if err != nil || recovered.Reference != result.Reference || calls != 2 {
+	if err != nil || recovered.Reference != result.Reference || calls != 3 {
 		t.Fatalf("durable GitHub recovery = %#v, %v, calls=%d", recovered, err, calls)
 	}
-	if err := exchange.Discard(context.Background(), "pid_70000003-0000-4000-8000-000000000003", false); err != nil || calls != 2 {
+	if err := exchange.Discard(context.Background(), "pid_70000003-0000-4000-8000-000000000003", false); err != nil || calls != 3 {
 		t.Fatalf("GitHub effect cleanup: %v calls=%d", err, calls)
 	}
 	adapter, err := githubdiscovery.NewAdapter(githubdiscovery.Config{ClientID: "Iv1.1234567890abcdef", ClientSecretReference: "ref:github/app-secret-0001", CallbackURL: "https://app.zasp.example/api/v1/integrations/oauth/callback"}, exchange, time.Second)
@@ -69,14 +88,14 @@ func TestGitHubExchangeUsesFixedEndpointsStrictParsersAndReferenceOnlyResult(t *
 		t.Fatal(err)
 	}
 	provider := &githubOAuthProvider{adapter: adapter}
-	if err := provider.Revoke(context.Background(), result.Reference); err != nil || calls != 3 {
+	if err := provider.Revoke(context.Background(), result.Reference); err != nil || calls != 4 {
 		t.Fatalf("GitHub durable grant revoke: %v calls=%d", err, calls)
 	}
-	if err := provider.Revoke(context.Background(), result.Reference); err != nil || calls != 3 {
+	if err := provider.Revoke(context.Background(), result.Reference); err != nil || calls != 4 {
 		t.Fatalf("GitHub durable grant revoke replay: %v calls=%d", err, calls)
 	}
-	if err := provider.Revoke(context.Background(), "ref:github/grant/70000009-0000-4000-8000-000000000009"); err == nil || calls != 3 {
-		t.Fatalf("GitHub missing revocation proof accepted: %v calls=%d", err, calls)
+	if err := provider.Revoke(context.Background(), "ref:github/grant/70000009"); err == nil || calls != 4 {
+		t.Fatalf("GitHub non-installation reference accepted: %v calls=%d", err, calls)
 	}
 
 	calls = 0
@@ -108,6 +127,48 @@ func TestGitHubRecoveryAfterProviderResponseBeforeFirstGrantWriteNeverRepeatsExc
 		if _, err := exchange.Recover(context.Background(), effectID); err != githubdiscovery.ErrOutcomeNotFound || providerCalls != 0 {
 			t.Fatalf("restart %d recovery = %v provider_calls=%d", restart, err, providerCalls)
 		}
+	}
+}
+
+func TestGitHubAppMintsInstallationTokenInMemoryOnly(t *testing.T) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	privateKeyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(privateKey)})
+	secretAPI := &connectorSecretsAPIStub{values: map[string][]byte{"zasp/github/app-private-key-0001": privateKeyPEM}}
+	wantToken := "installation-" + strings.Repeat("x", 32)
+	expiresAt := time.Now().UTC().Add(30 * time.Minute).Truncate(time.Second)
+	providerCalls := 0
+	client := &githubExchangeClient{http: &http.Client{Transport: connectorRoundTripFunc(func(request *http.Request) (*http.Response, error) {
+		providerCalls++
+		if request.Method != http.MethodPost || request.URL.String() != "https://api.github.com/app/installations/123456/access_tokens" || !strings.HasPrefix(request.Header.Get("Authorization"), "Bearer eyJ") {
+			t.Fatalf("installation-token request = %s %s %#v", request.Method, request.URL, request.Header)
+		}
+		return connectorJSONResponse(http.StatusCreated, `{"token":"`+wantToken+`","expires_at":"`+expiresAt.Format(time.RFC3339)+`"}`), nil
+	})}, secrets: &connectorProviderSecrets{driver: &connectorSecretsDriver{client: secretAPI}, root: "zasp", kmsKey: "kms"}, appID: "123456", privateKeyReference: "ref:github/app-private-key-0001"}
+	token, actualExpiry, err := client.MintInstallationToken(context.Background(), "ref:github/installation/123456")
+	if err != nil || string(token) != wantToken || !actualExpiry.Equal(expiresAt) || providerCalls != 1 {
+		t.Fatalf("minted installation token length=%d expiry=%v calls=%d err=%v", len(token), actualExpiry, providerCalls, err)
+	}
+	for name, value := range secretAPI.values {
+		if strings.Contains(string(value), wantToken) {
+			t.Fatalf("installation token persisted at %q", name)
+		}
+	}
+	clear(token)
+}
+
+func TestProviderManifestDecodersRejectMalformedDurableState(t *testing.T) {
+	store := &connectorProviderSecrets{driver: &connectorSecretsDriver{client: &connectorSecretsAPIStub{values: map[string][]byte{
+		"zasp/github/effect-manifest/bad": []byte(`{"client_id":`),
+		"zasp/okta/effect-manifest/bad":   []byte(`{"issuer":[]}`),
+	}}}, root: "zasp", kmsKey: "kms"}
+	if _, err := readGitHubManifest(context.Background(), store, "ref:github/effect-manifest/bad"); err == nil {
+		t.Fatal("malformed GitHub manifest accepted")
+	}
+	if _, err := readOktaManifest(context.Background(), store, "ref:okta/effect-manifest/bad"); err == nil {
+		t.Fatal("malformed Okta manifest accepted")
 	}
 }
 

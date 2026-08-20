@@ -13,7 +13,7 @@ const digestPattern = /^[a-z0-9][a-z0-9./_-]*(?::[A-Za-z0-9._-]+)?@sha256:[0-9a-
 const hostPattern = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
 const namePattern = /^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$/;
 const imageNames = Object.freeze(["web", "agentsecApi"]);
-const connectorKeys = Object.freeze(["awsRegion", "roleArn", "webIdentityTokenFile", "kmsKeyArn", "secretPrefix", "githubClientID", "githubClientSecretReference", "oktaClientID", "oktaClientSecretReference"]);
+const connectorKeys = Object.freeze(["awsRegion", "roleArn", "webIdentityTokenFile", "kmsKeyArn", "secretPrefix", "githubClientID", "githubClientSecretReference", "githubAppID", "githubPrivateKeyReference", "oktaClientID", "oktaClientSecretReference"]);
 const connectorEgressKeys = Object.freeze(["aws", "github", "okta"]);
 
 export async function inspectContainerBuilds() {
@@ -74,6 +74,8 @@ export async function renderRelease(value) {
     ["connectors.secretPrefix", value.connectors.secretPrefix],
     ["connectors.githubClientID", value.connectors.githubClientID],
     ["connectors.githubClientSecretReference", value.connectors.githubClientSecretReference],
+    ["connectors.githubAppID", value.connectors.githubAppID],
+    ["connectors.githubPrivateKeyReference", value.connectors.githubPrivateKeyReference],
     ["connectors.oktaClientID", value.connectors.oktaClientID],
     ["connectors.oktaClientSecretReference", value.connectors.oktaClientSecretReference],
     ...connectorEgressKeys.flatMap((provider) => value.connectorEgressCIDRs[provider].map((cidr, index) => [`network.connectorEgressCIDRs.${provider}[${index}]`, cidr])),
@@ -107,7 +109,7 @@ function validRelease(value) {
   const kms = /^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.exec(value.connectors.kmsKeyArn);
   if (!/^[a-z]{2}(?:-gov)?-[a-z]+-[0-9]$/.test(value.connectors.awsRegion) || !role || !kms || kms[1] !== value.connectors.awsRegion || kms[2] !== role[1]) return false;
   if (value.connectors.webIdentityTokenFile !== "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || value.connectors.secretPrefix !== "zasp-production/connectors/oauth") return false;
-  if (!/^Iv1\.[A-Za-z0-9]{16}$/.test(value.connectors.githubClientID) || value.connectors.githubClientSecretReference !== "ref:github/client-secret") return false;
+  if (!/^Iv1\.[A-Za-z0-9]{16}$/.test(value.connectors.githubClientID) || value.connectors.githubClientSecretReference !== "ref:github/client-secret" || !/^[1-9][0-9]{0,15}$/.test(value.connectors.githubAppID) || value.connectors.githubPrivateKeyReference !== "ref:github/app-private-key") return false;
   if (!/^0oa[A-Za-z0-9]{16}$/.test(value.connectors.oktaClientID) || value.connectors.oktaClientSecretReference !== "ref:okta/client-secret") return false;
   if (!value.connectorEgressCIDRs || typeof value.connectorEgressCIDRs !== "object" || Array.isArray(value.connectorEgressCIDRs) || Object.keys(value.connectorEgressCIDRs).sort().join("\0") !== [...connectorEgressKeys].sort().join("\0")) return false;
   return connectorEgressKeys.every((provider) => validCIDRList(value.connectorEgressCIDRs[provider]));

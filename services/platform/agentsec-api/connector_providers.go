@@ -3,8 +3,15 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/tls"
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"io"
 	"mime"
@@ -83,8 +90,10 @@ func (store *connectorProviderSecrets) name(reference string) (string, bool) {
 }
 
 type githubExchangeClient struct {
-	http    *http.Client
-	secrets *connectorProviderSecrets
+	http                *http.Client
+	secrets             *connectorProviderSecrets
+	appID               string
+	privateKeyReference string
 }
 
 type githubEffectManifest struct {
@@ -97,18 +106,13 @@ type githubEffectOutcome struct {
 	Connection githubdiscovery.Connection `json:"connection"`
 }
 
-type githubGrantSecret struct {
-	Manifest    githubEffectManifest `json:"manifest"`
-	AccessToken string               `json:"access_token"`
-}
-
 type githubRevocationProof struct {
 	Reference string `json:"reference"`
 	Revoked   bool   `json:"revoked"`
 }
 
 func (client *githubExchangeClient) Exchange(ctx context.Context, request githubdiscovery.ExchangeRequest) (githubdiscovery.Connection, error) {
-	manifestReference, tokenReference, outcomeReference, ok := connectorEffectReferences("github", request.EffectID)
+	manifestReference, _, outcomeReference, ok := connectorEffectReferences("github", request.EffectID)
 	if !ok {
 		return githubdiscovery.Connection{}, errRuntimeUnavailable
 	}
@@ -137,12 +141,6 @@ func (client *githubExchangeClient) Exchange(ctx context.Context, request github
 	if performConnectorJSON(client.http, tokenRequest, &token, 32<<10) != nil || len(token.AccessToken) < 20 || len(token.AccessToken) > 4096 || !strings.EqualFold(token.TokenType, "bearer") {
 		return githubdiscovery.Connection{}, errRuntimeUnavailable
 	}
-	grantSecret := githubGrantSecret{Manifest: manifest, AccessToken: token.AccessToken}
-	grantJSON, _ := json.Marshal(grantSecret)
-	if err := client.secrets.put(ctx, tokenReference, grantJSON); err != nil {
-		_ = client.revokeGrant(ctx, grantSecret)
-		return githubdiscovery.Connection{}, errRuntimeUnavailable
-	}
 	installationsRequest, _ := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/user/installations?per_page=2", nil)
 	installationsRequest.Header.Set("Accept", "application/vnd.github+json")
 	installationsRequest.Header.Set("Authorization", "Bearer "+token.AccessToken)
@@ -159,15 +157,19 @@ func (client *githubExchangeClient) Exchange(ctx context.Context, request github
 		} `json:"installations"`
 	}
 	if performConnectorJSON(client.http, installationsRequest, &page, 128<<10) != nil || page.TotalCount != 1 || len(page.Installations) != 1 {
-		_ = client.revokeGrant(ctx, grantSecret)
-		_ = client.secrets.delete(ctx, tokenReference)
+		_ = client.revokeOAuthGrant(ctx, manifest, token.AccessToken)
+		token.AccessToken = ""
 		return githubdiscovery.Connection{}, errRuntimeUnavailable
 	}
 	installation := page.Installations[0]
-	grantReference := "ref:github/grant/" + strings.TrimPrefix(request.EffectID, "pid_")
-	connection := githubdiscovery.Connection{Reference: grantReference, InstallationID: installation.ID, AccountLogin: installation.Account.Login, RepositorySelection: installation.RepositorySelection, Permissions: installation.Permissions}
+	connection := githubdiscovery.Connection{Reference: "ref:github/installation/" + strconv.FormatInt(installation.ID, 10), InstallationID: installation.ID, AccountLogin: installation.Account.Login, RepositorySelection: installation.RepositorySelection, Permissions: installation.Permissions}
 	outcomeJSON, _ := json.Marshal(githubEffectOutcome{Manifest: manifest, Connection: connection})
-	if err := client.secrets.put(ctx, grantReference, grantJSON); err != nil || client.secrets.put(ctx, outcomeReference, outcomeJSON) != nil || client.secrets.delete(ctx, tokenReference) != nil {
+	if client.revokeOAuthGrant(ctx, manifest, token.AccessToken) != nil {
+		token.AccessToken = ""
+		return githubdiscovery.Connection{}, errRuntimeUnavailable
+	}
+	token.AccessToken = ""
+	if client.secrets.put(ctx, outcomeReference, outcomeJSON) != nil {
 		return githubdiscovery.Connection{}, errRuntimeUnavailable
 	}
 	return connection, nil
@@ -190,30 +192,19 @@ func (client *githubExchangeClient) Recover(ctx context.Context, effectID string
 	if err != nil || decodeConnectorSecretJSON(outcomeBytes, &outcome) != nil || outcome.Manifest != manifest {
 		return githubdiscovery.Connection{}, errRuntimeUnavailable
 	}
-	grantBytes, grantErr := client.secrets.resolve(ctx, outcome.Connection.Reference)
-	var grant githubGrantSecret
-	if grantErr != nil || decodeConnectorSecretJSON(grantBytes, &grant) != nil || grant.Manifest != manifest || len(grant.AccessToken) < 20 || len(grant.AccessToken) > 4096 {
-		return githubdiscovery.Connection{}, errRuntimeUnavailable
-	}
 	return outcome.Connection, nil
 }
 
 func (client *githubExchangeClient) Discard(ctx context.Context, effectID string, revoke bool) error {
-	manifestReference, tokenReference, outcomeReference, ok := connectorEffectReferences("github", effectID)
+	manifestReference, _, outcomeReference, ok := connectorEffectReferences("github", effectID)
 	if !ok {
 		return errRuntimeUnavailable
 	}
 	if revoke {
-		foundGrant, err := client.cleanupGrant(ctx, "ref:github/grant/"+strings.TrimPrefix(effectID, "pid_"))
-		if err != nil {
+		outcome, err := client.Recover(ctx, effectID)
+		if err != nil || client.Revoke(ctx, outcome.Reference) != nil {
 			return errRuntimeUnavailable
 		}
-		foundTransient, err := client.cleanupGrant(ctx, tokenReference)
-		if err != nil || !foundGrant && !foundTransient {
-			return errRuntimeUnavailable
-		}
-	} else if err := deleteConnectorSecret(ctx, client.secrets, tokenReference); err != nil {
-		return errRuntimeUnavailable
 	}
 	if deleteConnectorSecret(ctx, client.secrets, outcomeReference) != nil || deleteConnectorSecret(ctx, client.secrets, manifestReference) != nil {
 		return errRuntimeUnavailable
@@ -222,39 +213,29 @@ func (client *githubExchangeClient) Discard(ctx context.Context, effectID string
 }
 
 func (client *githubExchangeClient) Revoke(ctx context.Context, reference string) error {
-	found, err := client.cleanupGrant(ctx, reference)
-	if err != nil || !found {
+	const prefix = "ref:github/installation/"
+	proofReference, proofOK := githubRevocationProofReference(reference)
+	if !proofOK {
+		return errRuntimeUnavailable
+	}
+	if proofBytes, proofErr := client.secrets.resolve(ctx, proofReference); proofErr == nil {
+		var proof githubRevocationProof
+		if decodeConnectorSecretJSON(proofBytes, &proof) == nil && proof.Revoked && proof.Reference == reference {
+			return nil
+		}
+		return errRuntimeUnavailable
+	} else if !errors.Is(proofErr, apiserver.ErrOAuthSecretNotFound) {
+		return errRuntimeUnavailable
+	}
+	installationID, err := strconv.ParseInt(strings.TrimPrefix(reference, prefix), 10, 64)
+	if err != nil || !strings.HasPrefix(reference, prefix) || installationID < 1 || client.deleteInstallation(ctx, installationID) != nil {
+		return errRuntimeUnavailable
+	}
+	proofJSON, _ := json.Marshal(githubRevocationProof{Reference: reference, Revoked: true})
+	if client.secrets.put(ctx, proofReference, proofJSON) != nil {
 		return errRuntimeUnavailable
 	}
 	return nil
-}
-
-func (client *githubExchangeClient) cleanupGrant(ctx context.Context, reference string) (bool, error) {
-	value, err := client.secrets.resolve(ctx, reference)
-	if errors.Is(err, apiserver.ErrOAuthSecretNotFound) {
-		proofReference, ok := githubRevocationProofReference(reference)
-		if !ok {
-			return false, errRuntimeUnavailable
-		}
-		proofBytes, proofErr := client.secrets.resolve(ctx, proofReference)
-		var proof githubRevocationProof
-		if proofErr != nil || decodeConnectorSecretJSON(proofBytes, &proof) != nil || !proof.Revoked || proof.Reference != reference {
-			return false, nil
-		}
-		return true, nil
-	}
-	var grant githubGrantSecret
-	if err != nil || decodeConnectorSecretJSON(value, &grant) != nil || len(grant.AccessToken) < 20 || len(grant.AccessToken) > 4096 || client.revokeGrant(ctx, grant) != nil {
-		clear(value)
-		return true, errRuntimeUnavailable
-	}
-	clear(value)
-	proofReference, ok := githubRevocationProofReference(reference)
-	proofJSON, _ := json.Marshal(githubRevocationProof{Reference: reference, Revoked: true})
-	if !ok || client.secrets.put(ctx, proofReference, proofJSON) != nil {
-		return true, errRuntimeUnavailable
-	}
-	return true, client.secrets.delete(ctx, reference)
 }
 
 func githubRevocationProofReference(reference string) (string, bool) {
@@ -268,28 +249,100 @@ func githubRevocationProofReference(reference string) (string, bool) {
 		return "", false
 	}
 	switch parts[0] {
-	case "grant":
-		return prefix + "revoked-grant/" + parts[1], true
-	case "effect-token":
-		return prefix + "revoked-effect-token/" + parts[1], true
+	case "installation":
+		return prefix + "revoked-installation/" + parts[1], true
 	default:
 		return "", false
 	}
 }
 
-func (client *githubExchangeClient) revokeGrant(ctx context.Context, grant githubGrantSecret) error {
-	secret, err := client.secrets.resolve(ctx, grant.Manifest.ClientSecretReference)
+func (client *githubExchangeClient) revokeOAuthGrant(ctx context.Context, manifest githubEffectManifest, accessToken string) error {
+	secret, err := client.secrets.resolve(ctx, manifest.ClientSecretReference)
 	if err != nil {
 		return errRuntimeUnavailable
 	}
-	payload, _ := json.Marshal(map[string]string{"access_token": grant.AccessToken})
-	request, _ := http.NewRequestWithContext(ctx, http.MethodDelete, "https://api.github.com/applications/"+url.PathEscape(grant.Manifest.ClientID)+"/grant", bytes.NewReader(payload))
-	request.SetBasicAuth(grant.Manifest.ClientID, string(secret))
+	payload, _ := json.Marshal(map[string]string{"access_token": accessToken})
+	request, _ := http.NewRequestWithContext(ctx, http.MethodDelete, "https://api.github.com/applications/"+url.PathEscape(manifest.ClientID)+"/grant", bytes.NewReader(payload))
+	request.SetBasicAuth(manifest.ClientID, string(secret))
 	clear(secret)
 	request.Header.Set("Accept", "application/vnd.github+json")
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("X-GitHub-Api-Version", "2022-11-28")
 	return performConnectorRevocation(client.http, request)
+}
+
+func (client *githubExchangeClient) deleteInstallation(ctx context.Context, installationID int64) error {
+	token, err := client.appJWT(ctx)
+	if err != nil {
+		return err
+	}
+	request, _ := http.NewRequestWithContext(ctx, http.MethodDelete, "https://api.github.com/app/installations/"+strconv.FormatInt(installationID, 10), nil)
+	request.Header.Set("Accept", "application/vnd.github+json")
+	request.Header.Set("Authorization", "Bearer "+token)
+	request.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+	return performConnectorRevocation(client.http, request)
+}
+
+func (client *githubExchangeClient) MintInstallationToken(ctx context.Context, reference string) ([]byte, time.Time, error) {
+	const prefix = "ref:github/installation/"
+	if client == nil || ctx == nil || ctx.Err() != nil || !strings.HasPrefix(reference, prefix) {
+		return nil, time.Time{}, errRuntimeUnavailable
+	}
+	installationID, err := strconv.ParseInt(strings.TrimPrefix(reference, prefix), 10, 64)
+	if err != nil || installationID < 1 {
+		return nil, time.Time{}, errRuntimeUnavailable
+	}
+	appToken, err := client.appJWT(ctx)
+	if err != nil {
+		return nil, time.Time{}, errRuntimeUnavailable
+	}
+	request, _ := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.github.com/app/installations/"+strconv.FormatInt(installationID, 10)+"/access_tokens", strings.NewReader(`{}`))
+	request.Header.Set("Accept", "application/vnd.github+json")
+	request.Header.Set("Authorization", "Bearer "+appToken)
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+	var response struct {
+		Token     string    `json:"token"`
+		ExpiresAt time.Time `json:"expires_at"`
+	}
+	if performConnectorJSON(client.http, request, &response, 32<<10) != nil || len(response.Token) < 20 || len(response.Token) > 4096 || !response.ExpiresAt.After(time.Now().Add(time.Minute)) || response.ExpiresAt.After(time.Now().Add(65*time.Minute)) {
+		response.Token = ""
+		return nil, time.Time{}, errRuntimeUnavailable
+	}
+	result := []byte(response.Token)
+	response.Token = ""
+	return result, response.ExpiresAt.UTC(), nil
+}
+
+func (client *githubExchangeClient) appJWT(ctx context.Context) (string, error) {
+	if client == nil || client.secrets == nil || client.appID == "" || !connectorReferencePattern.MatchString(client.privateKeyReference) {
+		return "", errRuntimeUnavailable
+	}
+	keyBytes, err := client.secrets.resolve(ctx, client.privateKeyReference)
+	if err != nil {
+		return "", errRuntimeUnavailable
+	}
+	block, _ := pem.Decode(keyBytes)
+	clear(keyBytes)
+	if block == nil || block.Type != "RSA PRIVATE KEY" {
+		return "", errRuntimeUnavailable
+	}
+	key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	clear(block.Bytes)
+	if err != nil || key.N.BitLen() < 2048 {
+		return "", errRuntimeUnavailable
+	}
+	now := time.Now().UTC()
+	header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"RS256","typ":"JWT"}`))
+	payloadBytes, _ := json.Marshal(map[string]any{"iat": now.Add(-30 * time.Second).Unix(), "exp": now.Add(5 * time.Minute).Unix(), "iss": client.appID})
+	payload := base64.RawURLEncoding.EncodeToString(payloadBytes)
+	unsigned := header + "." + payload
+	digest := sha256.Sum256([]byte(unsigned))
+	signature, err := rsa.SignPKCS1v15(rand.Reader, key, crypto.SHA256, digest[:])
+	if err != nil {
+		return "", errRuntimeUnavailable
+	}
+	return unsigned + "." + base64.RawURLEncoding.EncodeToString(signature), nil
 }
 
 type oktaExchangeClient struct {
@@ -505,7 +558,7 @@ func readGitHubManifest(ctx context.Context, store *connectorProviderSecrets, re
 	value, err := store.resolve(ctx, reference)
 	var result githubEffectManifest
 	if err != nil || decodeConnectorSecretJSON(value, &result) != nil || result.ClientID == "" || !strings.HasPrefix(result.ClientSecretReference, "ref:") {
-		return githubEffectManifest{}, err
+		return githubEffectManifest{}, errRuntimeUnavailable
 	}
 	return result, nil
 }
@@ -514,7 +567,7 @@ func readOktaManifest(ctx context.Context, store *connectorProviderSecrets, refe
 	value, err := store.resolve(ctx, reference)
 	var result oktaEffectManifest
 	if err != nil || decodeConnectorSecretJSON(value, &result) != nil || result.Issuer == "" || result.ClientID == "" || !strings.HasPrefix(result.ClientSecretReference, "ref:") {
-		return oktaEffectManifest{}, err
+		return oktaEffectManifest{}, errRuntimeUnavailable
 	}
 	return result, nil
 }
@@ -613,7 +666,7 @@ func (provider *githubOAuthProvider) Complete(ctx context.Context, effectID, cod
 		return apiserver.ConnectorOAuthGrant{}, errRuntimeUnavailable
 	}
 	metadata, err := json.Marshal(map[string]any{"account_login": value.AccountLogin, "installation_id": value.InstallationID, "permissions": value.Permissions, "repository_selection": value.RepositorySelection})
-	return apiserver.ConnectorOAuthGrant{ConnectionReference: value.Reference, ProviderSubject: "installation:" + strconv.FormatInt(value.InstallationID, 10), CredentialClass: "github_oauth_grant_reference", Metadata: metadata}, err
+	return apiserver.ConnectorOAuthGrant{ConnectionReference: value.Reference, ProviderSubject: "installation:" + strconv.FormatInt(value.InstallationID, 10), CredentialClass: "github_installation_reference", Metadata: metadata}, err
 }
 func (provider *githubOAuthProvider) Recover(ctx context.Context, effectID string) (apiserver.ConnectorOAuthGrant, error) {
 	value, err := provider.adapter.Recover(ctx, effectID)
@@ -624,7 +677,7 @@ func (provider *githubOAuthProvider) Recover(ctx context.Context, effectID strin
 		return apiserver.ConnectorOAuthGrant{}, errRuntimeUnavailable
 	}
 	metadata, err := json.Marshal(map[string]any{"account_login": value.AccountLogin, "installation_id": value.InstallationID, "permissions": value.Permissions, "repository_selection": value.RepositorySelection})
-	return apiserver.ConnectorOAuthGrant{ConnectionReference: value.Reference, ProviderSubject: "installation:" + strconv.FormatInt(value.InstallationID, 10), CredentialClass: "github_oauth_grant_reference", Metadata: metadata}, err
+	return apiserver.ConnectorOAuthGrant{ConnectionReference: value.Reference, ProviderSubject: "installation:" + strconv.FormatInt(value.InstallationID, 10), CredentialClass: "github_installation_reference", Metadata: metadata}, err
 }
 func (provider *githubOAuthProvider) Discard(ctx context.Context, effectID string, revoke bool) error {
 	if err := provider.adapter.Discard(ctx, effectID, revoke); err != nil {

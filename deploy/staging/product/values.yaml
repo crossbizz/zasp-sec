@@ -46,6 +46,8 @@ connectors:
   secretPrefix: ""
   githubClientID: ""
   githubClientSecretReference: ""
+  githubAppID: ""
+  githubPrivateKeyReference: ""
   oktaClientID: ""
   oktaClientSecretReference: ""
 schema:

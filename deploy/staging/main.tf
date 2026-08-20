@@ -52,8 +52,18 @@ locals {
   connector_secret_root   = "${var.cluster_name}/connectors"
   connector_secret_prefix = "${local.connector_secret_root}/oauth"
   connector_provider_secret_names = {
-    github = "${local.connector_secret_root}/github/client-secret"
-    okta   = "${local.connector_secret_root}/okta/client-secret"
+    github_client_secret = {
+      name             = "${local.connector_secret_root}/github/client-secret"
+      credential_class = "github_oauth_client_secret"
+    }
+    github_app_private_key = {
+      name             = "${local.connector_secret_root}/github/app-private-key"
+      credential_class = "github_app_private_key"
+    }
+    okta_client_secret = {
+      name             = "${local.connector_secret_root}/okta/client-secret"
+      credential_class = "okta_oauth_client_secret"
+    }
   }
   bucket_name = "zasp-product-data-${md5(var.account_id)}"
   partition   = startswith(var.region, "cn-") ? "aws-cn" : startswith(var.region, "us-gov-") ? "aws-us-gov" : "aws"
@@ -247,10 +257,10 @@ resource "aws_secretsmanager_secret" "product" {
 resource "aws_secretsmanager_secret" "connector_provider" {
   for_each = local.connector_provider_secret_names
 
-  name                    = each.value
+  name                    = each.value.name
   kms_key_id              = aws_kms_key.connector_oauth.arn
   recovery_window_in_days = 30
-  tags                    = { CredentialClass = "${each.key}_oauth_client_secret" }
+  tags                    = { CredentialClass = each.value.credential_class }
 }
 
 resource "aws_sqs_queue" "dead_letter" {

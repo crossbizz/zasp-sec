@@ -59,6 +59,8 @@ output "connector_runtime_config" {
     ZASP_CONNECTOR_SECRET_PREFIX           = local.connector_secret_prefix
     ZASP_GITHUB_CLIENT_ID                  = var.connector_client_ids.github
     ZASP_GITHUB_CLIENT_SECRET_REFERENCE    = "ref:github/client-secret"
+    ZASP_GITHUB_APP_ID                     = var.github_app_id
+    ZASP_GITHUB_PRIVATE_KEY_REFERENCE      = "ref:github/app-private-key"
     ZASP_OKTA_CLIENT_ID                    = var.connector_client_ids.okta
     ZASP_OKTA_CLIENT_SECRET_REFERENCE      = "ref:okta/client-secret"
   }

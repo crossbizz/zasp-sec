@@ -126,6 +126,16 @@ variable "connector_client_ids" {
   }
 }
 
+variable "github_app_id" {
+  description = "Non-secret numeric GitHub App identifier used to mint bounded App JWTs."
+  type        = string
+  default     = "123456"
+  validation {
+    condition     = can(regex("^[1-9][0-9]{0,15}$", var.github_app_id))
+    error_message = "github_app_id must be a canonical positive numeric GitHub App identifier."
+  }
+}
+
 variable "endpoint_public_access" {
   description = "Whether the EKS API has a public endpoint; production must remain false."
   type        = bool

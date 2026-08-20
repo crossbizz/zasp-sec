@@ -112,16 +112,18 @@ func composeRuntimeDependencies(config RuntimeConfig, database apiserver.JSONDat
 		}
 	}()
 	providerSecrets := &connectorProviderSecrets{driver: secretsDriver, root: strings.TrimSuffix(config.ConnectorSecretPrefix, "/oauth"), kmsKey: config.ConnectorKMSKeyARN}
-	githubAdapter, err := githubdiscovery.NewAdapter(githubdiscovery.Config{ClientID: config.GitHubClientID, ClientSecretReference: config.GitHubSecretReference, CallbackURL: config.PublicOrigin + "/api/v1/integrations/oauth/callback"}, &githubExchangeClient{http: providerHTTP, secrets: providerSecrets}, config.ProviderTimeout)
+	githubAdapter, err := githubdiscovery.NewAdapter(githubdiscovery.Config{ClientID: config.GitHubClientID, ClientSecretReference: config.GitHubSecretReference, CallbackURL: config.PublicOrigin + "/api/v1/integrations/oauth/callback"}, &githubExchangeClient{http: providerHTTP, secrets: providerSecrets, appID: config.GitHubAppID, privateKeyReference: config.GitHubPrivateKeyReference}, config.ProviderTimeout)
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
 	connectorRegistry, err := apiserver.NewConnectorProviderRegistry(map[string]apiserver.ConnectorOAuthProviderDefinition{
-		"github": {Provider: &githubOAuthProvider{adapter: githubAdapter}, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_oauth_grant_reference"},
+		"github": {Provider: &githubOAuthProvider{adapter: githubAdapter}, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"},
 		"okta":   {Factory: &oktaOAuthFactory{clientID: config.OktaClientID, secretReference: config.OktaSecretReference, callback: config.PublicOrigin + "/api/v1/integrations/oauth/callback", exchange: &oktaExchangeClient{http: providerHTTP, secrets: providerSecrets}, timeout: config.ProviderTimeout}, RequestedScopes: []string{"offline_access", "okta.apps.read", "okta.groups.read", "okta.users.read"}, CredentialClass: "okta_refresh_reference"},
 	}, map[string]apiserver.ConnectorCapabilityCheck{
-		"github": func(ctx context.Context) error { return providerSecrets.ready(ctx, config.GitHubSecretReference) },
-		"okta":   func(ctx context.Context) error { return providerSecrets.ready(ctx, config.OktaSecretReference) },
+		"github": func(ctx context.Context) error {
+			return errors.Join(providerSecrets.ready(ctx, config.GitHubSecretReference), providerSecrets.ready(ctx, config.GitHubPrivateKeyReference))
+		},
+		"okta": func(ctx context.Context) error { return providerSecrets.ready(ctx, config.OktaSecretReference) },
 	})
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
@@ -132,7 +134,7 @@ func composeRuntimeDependencies(config RuntimeConfig, database apiserver.JSONDat
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
-	connectorReconciler, err := apiserver.NewConnectorReconciler(apiserver.ConnectorReconcilerConfig{Repository: connectorRepository, Workflows: repository, Registry: connectorRegistry, Owner: "agentsec-api-connector", LeaseSeconds: 30, Limit: 25, Interval: time.Second})
+	connectorReconciler, err := apiserver.NewConnectorReconciler(apiserver.ConnectorReconcilerConfig{Repository: connectorRepository, Workflows: repository, Registry: connectorRegistry, Secrets: secretStore, Owner: "agentsec-api-connector", LeaseSeconds: 30, Limit: 25, Interval: time.Second})
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}

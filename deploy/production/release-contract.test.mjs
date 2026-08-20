@@ -17,6 +17,8 @@ const release = Object.freeze({
     secretPrefix: "zasp-production/connectors/oauth",
     githubClientID: "Iv1.1234567890abcdef",
     githubClientSecretReference: "ref:github/client-secret",
+    githubAppID: "123456",
+    githubPrivateKeyReference: "ref:github/app-private-key",
     oktaClientID: "0oa1234567890abcdef",
     oktaClientSecretReference: "ref:okta/client-secret",
   }),
@@ -143,6 +145,8 @@ test("release gives only API an explicit connector identity, reference-only conf
     ZASP_CONNECTOR_SECRET_PREFIX: release.connectors.secretPrefix,
     ZASP_GITHUB_CLIENT_ID: release.connectors.githubClientID,
     ZASP_GITHUB_CLIENT_SECRET_REFERENCE: release.connectors.githubClientSecretReference,
+    ZASP_GITHUB_APP_ID: release.connectors.githubAppID,
+    ZASP_GITHUB_PRIVATE_KEY_REFERENCE: release.connectors.githubPrivateKeyReference,
     ZASP_OKTA_CLIENT_ID: release.connectors.oktaClientID,
     ZASP_OKTA_CLIENT_SECRET_REFERENCE: release.connectors.oktaClientSecretReference,
   });
@@ -269,6 +273,14 @@ test("terraform isolates connector secret mutation behind one API-only web-ident
     'resource "aws_iam_role" "api_connectors"',
     'resource "aws_iam_role_policy" "api_connectors"',
   ]) assert.match(terraform, new RegExp(resource.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  for (const [key, suffix, credentialClass] of [
+    ["github_client_secret", "github/client-secret", "github_oauth_client_secret"],
+    ["github_app_private_key", "github/app-private-key", "github_app_private_key"],
+    ["okta_client_secret", "okta/client-secret", "okta_oauth_client_secret"],
+  ]) {
+    assert.match(terraform, new RegExp(`${key}\\s*=\\s*\\{[\\s\\S]*?name\\s*=\\s*"\\$\\{local\\.connector_secret_root\\}/${suffix}"[\\s\\S]*?credential_class\\s*=\\s*"${credentialClass}"`));
+  }
+  assert.match(terraform, /tags\s*=\s*\{ CredentialClass = each\.value\.credential_class \}/);
   const role = terraform.slice(terraform.indexOf('resource "aws_iam_role" "api_connectors"'), terraform.indexOf('resource "aws_iam_role_policy" "api_connectors"'));
   assert.match(role, /system:serviceaccount:agentsec:agentsec-api/);
   assert.match(role, /sts:AssumeRoleWithWebIdentity/);
@@ -294,7 +306,7 @@ test("terraform isolates connector secret mutation behind one API-only web-ident
   assert.match(outputs, /output "connector_kms_key_arn"/);
   assert.match(outputs, /output "connector_secret_prefix"/);
   assert.match(outputs, /output "connector_runtime_config"/);
-  for (const name of ["ZASP_CONNECTOR_AWS_REGION", "ZASP_CONNECTOR_ROLE_ARN", "ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE", "ZASP_CONNECTOR_KMS_KEY_ARN", "ZASP_CONNECTOR_SECRET_PREFIX", "ZASP_GITHUB_CLIENT_ID", "ZASP_GITHUB_CLIENT_SECRET_REFERENCE", "ZASP_OKTA_CLIENT_ID", "ZASP_OKTA_CLIENT_SECRET_REFERENCE"]) assert.match(outputs, new RegExp(name));
+  for (const name of ["ZASP_CONNECTOR_AWS_REGION", "ZASP_CONNECTOR_ROLE_ARN", "ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE", "ZASP_CONNECTOR_KMS_KEY_ARN", "ZASP_CONNECTOR_SECRET_PREFIX", "ZASP_GITHUB_CLIENT_ID", "ZASP_GITHUB_CLIENT_SECRET_REFERENCE", "ZASP_GITHUB_APP_ID", "ZASP_GITHUB_PRIVATE_KEY_REFERENCE", "ZASP_OKTA_CLIENT_ID", "ZASP_OKTA_CLIENT_SECRET_REFERENCE"]) assert.match(outputs, new RegExp(name));
   assert.doesNotMatch(terraform, /aws_secretsmanager_secret_version|secret_string|secret_binary/i);
 });
 

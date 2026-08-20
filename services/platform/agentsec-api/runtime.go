@@ -55,6 +55,8 @@ type RuntimeConfig struct {
 	ConnectorSecretPrefix       string
 	GitHubClientID              string
 	GitHubSecretReference       string
+	GitHubAppID                 string
+	GitHubPrivateKeyReference   string
 	OktaClientID                string
 	OktaSecretReference         string
 	NangoBaseURL                string
@@ -96,7 +98,7 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 		ReadinessInterval: readinessInterval, ReadinessMaxInterval: readinessMaxInterval,
 		PostgresDSN: getenv("ZASP_POSTGRES_DSN"), StytchBaseURL: getenv("ZASP_STYTCH_BASE_URL"), StytchAuthorizeURL: getenv("ZASP_STYTCH_AUTHORIZE_URL"), StytchProjectID: getenv("ZASP_STYTCH_PROJECT_ID"), StytchSecret: getenv("ZASP_STYTCH_SECRET"), StytchPublicToken: getenv("ZASP_STYTCH_PUBLIC_TOKEN"), StytchOrganizationID: getenv("ZASP_STYTCH_ORGANIZATION_ID"), WorkflowSigningKey: getenv("ZASP_WORKFLOW_SIGNING_KEY"),
 		ConnectorAWSRegion: getenv("ZASP_CONNECTOR_AWS_REGION"), ConnectorRoleARN: getenv("ZASP_CONNECTOR_ROLE_ARN"), ConnectorTokenFile: getenv("ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE"), ConnectorKMSKeyARN: getenv("ZASP_CONNECTOR_KMS_KEY_ARN"), ConnectorSecretPrefix: getenv("ZASP_CONNECTOR_SECRET_PREFIX"),
-		GitHubClientID: getenv("ZASP_GITHUB_CLIENT_ID"), GitHubSecretReference: getenv("ZASP_GITHUB_CLIENT_SECRET_REFERENCE"), OktaClientID: getenv("ZASP_OKTA_CLIENT_ID"), OktaSecretReference: getenv("ZASP_OKTA_CLIENT_SECRET_REFERENCE"),
+		GitHubClientID: getenv("ZASP_GITHUB_CLIENT_ID"), GitHubSecretReference: getenv("ZASP_GITHUB_CLIENT_SECRET_REFERENCE"), GitHubAppID: getenv("ZASP_GITHUB_APP_ID"), GitHubPrivateKeyReference: getenv("ZASP_GITHUB_PRIVATE_KEY_REFERENCE"), OktaClientID: getenv("ZASP_OKTA_CLIENT_ID"), OktaSecretReference: getenv("ZASP_OKTA_CLIENT_SECRET_REFERENCE"),
 		NangoBaseURL: getenv("ZASP_NANGO_BASE_URL"), NangoServiceSecretReference: getenv("ZASP_NANGO_SERVICE_SECRET_REFERENCE"), NangoEnvironment: getenv("ZASP_NANGO_ENVIRONMENT"),
 	}
 	revealKey := getenv("ZASP_TOKEN_REVEAL_KEY")
@@ -137,7 +139,7 @@ func validRuntimeConfig(config RuntimeConfig) bool {
 	if len(config.TrustedProxyCIDRs) == 0 || config.RequestRatePerSecond < 1 || config.RequestRatePerSecond > 10000 || config.RequestBurst < 1 || config.RequestBurst > 10000 {
 		return false
 	}
-	if !connectorRegionPattern.MatchString(config.ConnectorAWSRegion) || !connectorRolePattern.MatchString(config.ConnectorRoleARN) || config.ConnectorTokenFile != "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || !connectorKMSPattern.MatchString(config.ConnectorKMSKeyARN) || !connectorPrefixPattern.MatchString(config.ConnectorSecretPrefix) || !strings.HasSuffix(config.ConnectorSecretPrefix, "/oauth") || !githubClientPattern.MatchString(config.GitHubClientID) || !connectorReferencePattern.MatchString(config.GitHubSecretReference) || !oktaClientPattern.MatchString(config.OktaClientID) || !connectorReferencePattern.MatchString(config.OktaSecretReference) {
+	if !connectorRegionPattern.MatchString(config.ConnectorAWSRegion) || !connectorRolePattern.MatchString(config.ConnectorRoleARN) || config.ConnectorTokenFile != "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || !connectorKMSPattern.MatchString(config.ConnectorKMSKeyARN) || !connectorPrefixPattern.MatchString(config.ConnectorSecretPrefix) || !strings.HasSuffix(config.ConnectorSecretPrefix, "/oauth") || !githubClientPattern.MatchString(config.GitHubClientID) || !connectorReferencePattern.MatchString(config.GitHubSecretReference) || !githubAppIDPattern.MatchString(config.GitHubAppID) || !connectorReferencePattern.MatchString(config.GitHubPrivateKeyReference) || !oktaClientPattern.MatchString(config.OktaClientID) || !connectorReferencePattern.MatchString(config.OktaSecretReference) {
 		return false
 	}
 	if !validOptionalNangoConfig(config) {
@@ -170,6 +172,7 @@ var connectorKMSPattern = regexp.MustCompile(`^arn:aws:kms:[a-z]{2}(?:-gov)?-[a-
 var connectorPrefixPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9/_-]{2,127}$`)
 var connectorReferencePattern = regexp.MustCompile(`^ref:(?:github|okta)/[a-z0-9][a-z0-9_./:-]{3,507}$`)
 var githubClientPattern = regexp.MustCompile(`^Iv1\.[A-Za-z0-9]{16}$`)
+var githubAppIDPattern = regexp.MustCompile(`^[1-9][0-9]{0,15}$`)
 var oktaClientPattern = regexp.MustCompile(`^0oa[A-Za-z0-9]{16}$`)
 var nangoReferencePattern = regexp.MustCompile(`^ref:nango/[a-z0-9][a-z0-9_./:-]{7,507}$`)
 var nangoEnvironmentPattern = regexp.MustCompile(`^[a-z][a-z0-9_-]{2,63}$`)

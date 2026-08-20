@@ -20,3 +20,4 @@ connector_client_ids = {
   github = "Iv1.1234567890abcdef"
   okta   = "0oa1234567890abcdef"
 }
+github_app_id = "123456"

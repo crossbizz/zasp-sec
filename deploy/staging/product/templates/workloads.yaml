@@ -86,6 +86,8 @@ spec:
             - { name: ZASP_CONNECTOR_SECRET_PREFIX, value: {{ required "connectors.secretPrefix is required" $root.Values.connectors.secretPrefix | quote }} }
             - { name: ZASP_GITHUB_CLIENT_ID, value: {{ required "connectors.githubClientID is required" $root.Values.connectors.githubClientID | quote }} }
             - { name: ZASP_GITHUB_CLIENT_SECRET_REFERENCE, value: {{ required "connectors.githubClientSecretReference is required" $root.Values.connectors.githubClientSecretReference | quote }} }
+            - { name: ZASP_GITHUB_APP_ID, value: {{ required "connectors.githubAppID is required" $root.Values.connectors.githubAppID | quote }} }
+            - { name: ZASP_GITHUB_PRIVATE_KEY_REFERENCE, value: {{ required "connectors.githubPrivateKeyReference is required" $root.Values.connectors.githubPrivateKeyReference | quote }} }
             - { name: ZASP_OKTA_CLIENT_ID, value: {{ required "connectors.oktaClientID is required" $root.Values.connectors.oktaClientID | quote }} }
             - { name: ZASP_OKTA_CLIENT_SECRET_REFERENCE, value: {{ required "connectors.oktaClientSecretReference is required" $root.Values.connectors.oktaClientSecretReference | quote }} }
             {{- end }}
