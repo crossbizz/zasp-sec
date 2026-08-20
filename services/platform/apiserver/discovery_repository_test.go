@@ -63,6 +63,60 @@ func TestDiscoveryRepositoryClaimsOnlyExactOutboxTopicAndPreservesPayloadBytes(t
 	}
 }
 
+func TestDiscoveryRepositoryHeartbeatsOnlyTheExactTopicLeaseSet(t *testing.T) {
+	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{
+		postgresExecutionHeartbeatOutboxTopicSQL: json.RawMessage(`{"id":"discovery-jobs","lease_expires_at":"` + time.Now().UTC().Add(30*time.Second).Format(time.RFC3339Nano) + `","remaining_count":2}`),
+	}}
+	repository := newTestDiscoveryRepository(t, database)
+	result, err := repository.HeartbeatOutboxTopic(context.Background(), "discovery-jobs", "worker-a", "lease-token-00000001", 30, 2)
+	if err != nil || result.ID != "discovery-jobs" || result.LeaseExpiresAt.Location() != time.UTC {
+		t.Fatalf("heartbeat=%#v err=%v", result, err)
+	}
+	want := []any{"discovery-jobs", "worker-a", "lease-token-00000001", 30, 2}
+	if database.query != postgresExecutionHeartbeatOutboxTopicSQL || !reflect.DeepEqual(database.args, want) {
+		t.Fatalf("query=%q args=%#v", database.query, database.args)
+	}
+	database.responses[postgresExecutionHeartbeatOutboxTopicSQL] = json.RawMessage(`{"id":"discovery-jobs","lease_expires_at":"` + time.Now().UTC().Add(30*time.Second).Format(time.RFC3339Nano) + `","remaining_count":1}`)
+	if _, err := repository.HeartbeatOutboxTopic(context.Background(), "discovery-jobs", "worker-a", "lease-token-00000001", 30, 2); !errors.Is(err, ErrRepositoryUnavailable) {
+		t.Fatalf("short lease-set response error=%v", err)
+	}
+	for _, input := range []struct {
+		topic string
+		count int
+	}{{topic: "runtime-events", count: 2}, {topic: "discovery-jobs", count: 0}, {topic: "discovery-jobs", count: 11}} {
+		if _, err := repository.HeartbeatOutboxTopic(context.Background(), input.topic, "worker-a", "lease-token-00000001", 30, input.count); !errors.Is(err, ErrRepositoryOperation) {
+			t.Fatalf("topic=%q count=%d error=%v", input.topic, input.count, err)
+		}
+	}
+}
+
+func TestDiscoveryRepositoryUsesTopicFencedOutboxTransitions(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	id := "pid_40000013-0000-4000-8000-000000000013"
+	providerAck := "sha256:" + strings.Repeat("a", 64)
+	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{
+		postgresExecutionAckOutboxTopicSQL:   json.RawMessage(`{"id":"` + id + `","published_at":"2026-08-20T00:00:00Z","provider_ack":"` + providerAck + `","remaining_count":1}`),
+		postgresExecutionRetryOutboxTopicSQL: json.RawMessage(`{"id":"` + id + `","available_at":"` + time.Now().UTC().Add(30*time.Second).Format(time.RFC3339Nano) + `","remaining_count":0}`),
+	}}
+	repository := newTestDiscoveryRepository(t, database)
+	ack, err := repository.AcknowledgeOutboxTopic(context.Background(), "discovery-jobs", identity.Scope, id, "worker-a", "lease-token-00000001", providerAck)
+	if err != nil || ack.RemainingCount != 1 {
+		t.Fatalf("ack=%#v err=%v", ack, err)
+	}
+	retry, err := repository.RetryOutboxTopic(context.Background(), "discovery-jobs", identity.Scope, id, "worker-a", "lease-token-00000001", 30, "queue_publish_unknown")
+	if err != nil || retry.RemainingCount != 0 {
+		t.Fatalf("retry=%#v err=%v", retry, err)
+	}
+	for _, badAck := range []string{"secret-value", "sha256:" + strings.Repeat("A", 64), "sha256:" + strings.Repeat("a", 63)} {
+		if _, err := repository.AcknowledgeOutboxTopic(context.Background(), "discovery-jobs", identity.Scope, id, "worker-a", "lease-token-00000001", badAck); !errors.Is(err, ErrRepositoryOperation) {
+			t.Fatalf("bad acknowledgement %q error=%v", badAck, err)
+		}
+	}
+	if _, err := repository.RetryOutboxTopic(context.Background(), "discovery-jobs", identity.Scope, id, "worker-a", "lease-token-00000001", 30, "provider said secret-value"); !errors.Is(err, ErrRepositoryOperation) {
+		t.Fatalf("raw retry code error=%v", err)
+	}
+}
+
 type discoveryCallDatabase struct {
 	workflowCallDatabase
 	responses map[string]json.RawMessage

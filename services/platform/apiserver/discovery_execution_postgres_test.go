@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -1228,13 +1229,25 @@ func TestProductionDiscoveryExecutionPostgresClaimsExactOutboxTopicWithCanonical
 	if string(claimed[0].Payload) != canonicalPayload || !bytes.Equal(computed[:], claimed[0].PayloadDigest) {
 		t.Fatalf("payload=%q canonical=%q digest=%x expected=%x", claimed[0].Payload, canonicalPayload, computed, claimed[0].PayloadDigest)
 	}
+	heartbeat, err := repository.HeartbeatOutboxTopic(ctx, "discovery-jobs", "outbox-worker", "outbox-lease-token-7b01", 30, 1)
+	if err != nil || heartbeat.ID != "discovery-jobs" || !heartbeat.LeaseExpiresAt.After(time.Now()) {
+		t.Fatalf("heartbeat=%#v err=%v", heartbeat, err)
+	}
 	providerAck := "sha256:" + strings.Repeat("b", 64)
-	if err := repository.AcknowledgeOutbox(ctx, identity.Scope, discoveryID, "outbox-worker", "outbox-lease-token-7b01", providerAck); err != nil {
-		t.Fatal(err)
+	acknowledgement, err := repository.AcknowledgeOutboxTopic(ctx, "discovery-jobs", identity.Scope, discoveryID, "outbox-worker", "outbox-lease-token-7b01", providerAck)
+	if err != nil || acknowledgement.RemainingCount != 0 {
+		t.Fatalf("ack=%#v err=%v", acknowledgement, err)
 	}
 	// Exact retry models a committed acknowledgement whose response was lost.
-	if err := repository.AcknowledgeOutbox(ctx, identity.Scope, discoveryID, "outbox-worker", "outbox-lease-token-7b01", providerAck); err != nil {
-		t.Fatalf("lost acknowledgement replay: %v", err)
+	acknowledgement, err = repository.AcknowledgeOutboxTopic(ctx, "discovery-jobs", identity.Scope, discoveryID, "outbox-worker", "outbox-lease-token-7b01", providerAck)
+	if err != nil || acknowledgement.RemainingCount != 0 {
+		t.Fatalf("lost acknowledgement replay=%#v err=%v", acknowledgement, err)
+	}
+	if _, err := connection.Exec(ctx, `SELECT zasp_execution_ack_outbox('discovery-jobs',$1,$2,$3,$4,'outbox-worker','outbox-lease-token-7b01','secret-value')`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), discoveryID); err == nil {
+		t.Fatal("raw provider acknowledgement succeeded")
+	}
+	if _, err := connection.Exec(ctx, `SELECT zasp_execution_retry_outbox('discovery-jobs',$1,$2,$3,$4,'outbox-worker','outbox-lease-token-7b01',30,'provider said secret-value')`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), discoveryID); err == nil {
+		t.Fatal("raw provider retry code succeeded")
 	}
 	claimed, err = repository.ClaimOutboxTopic(ctx, "discovery-jobs", "outbox-worker", "outbox-lease-token-7b02", 30, 10)
 	if err != nil || len(claimed) != 0 {
@@ -1245,9 +1258,9 @@ func TestProductionDiscoveryExecutionPostgresClaimsExactOutboxTopicWithCanonical
 	if err := connection.QueryRow(ctx, `SELECT (SELECT provider_ack FROM zasp_discovery_outbox WHERE id=$1),(SELECT state FROM zasp_discovery_outbox WHERE id=$2)`, discoveryID, foreignID).Scan(&storedAck, &foreignState); err != nil || storedAck != providerAck || foreignState != "pending" {
 		t.Fatalf("stored_ack=%q foreign_state=%q err=%v", storedAck, foreignState, err)
 	}
-	var newClaim, legacyClaim bool
-	if err := connection.QueryRow(ctx, `SELECT has_function_privilege('zasp_outbox_worker','zasp_execution_claim_outbox(text,text,text,integer,integer)','EXECUTE'),has_function_privilege('zasp_outbox_worker','zasp_discovery_claim_outbox(text,text,integer,integer)','EXECUTE')`).Scan(&newClaim, &legacyClaim); err != nil || !newClaim || legacyClaim {
-		t.Fatalf("new_claim=%t legacy_claim=%t err=%v", newClaim, legacyClaim, err)
+	var newClaim, newHeartbeat, newAck, newRetry, legacyClaim, legacyAck, legacyRetry bool
+	if err := connection.QueryRow(ctx, `SELECT has_function_privilege('zasp_outbox_worker','zasp_execution_claim_outbox(text,text,text,integer,integer)','EXECUTE'),has_function_privilege('zasp_outbox_worker','zasp_execution_heartbeat_outbox(text,text,text,integer,integer)','EXECUTE'),has_function_privilege('zasp_outbox_worker','zasp_execution_ack_outbox(text,text,text,text,text,text,text,text)','EXECUTE'),has_function_privilege('zasp_outbox_worker','zasp_execution_retry_outbox(text,text,text,text,text,text,text,integer,text)','EXECUTE'),has_function_privilege('zasp_outbox_worker','zasp_discovery_claim_outbox(text,text,integer,integer)','EXECUTE'),has_function_privilege('zasp_outbox_worker','zasp_discovery_ack_outbox(text,text,text,text,text,text,text)','EXECUTE'),has_function_privilege('zasp_outbox_worker','zasp_discovery_retry_outbox(text,text,text,text,text,text,integer,text)','EXECUTE')`).Scan(&newClaim, &newHeartbeat, &newAck, &newRetry, &legacyClaim, &legacyAck, &legacyRetry); err != nil || !newClaim || !newHeartbeat || !newAck || !newRetry || legacyClaim || legacyAck || legacyRetry {
+		t.Fatalf("new=%t/%t/%t/%t legacy=%t/%t/%t err=%v", newClaim, newHeartbeat, newAck, newRetry, legacyClaim, legacyAck, legacyRetry, err)
 	}
 	if _, err := connection.Exec(ctx, `GRANT EXECUTE ON FUNCTION zasp_discovery_claim_outbox(text,text,integer,integer) TO zasp_outbox_worker`); err != nil {
 		t.Fatal(err)
@@ -1262,8 +1275,104 @@ func TestProductionDiscoveryExecutionPostgresClaimsExactOutboxTopicWithCanonical
 	if err := runner.DownProductionDiscoveryExecution(ctx); err != nil {
 		t.Fatalf("v13 outbox rollback: %v", err)
 	}
-	var legacyRestored, newRemoved, referenceReady bool
-	if err := connection.QueryRow(ctx, `SELECT has_function_privilege('zasp_outbox_worker','zasp_discovery_claim_outbox(text,text,integer,integer)','EXECUTE'),to_regprocedure('zasp_execution_claim_outbox(text,text,text,integer,integer)') IS NULL,zasp_reference_authorization_readiness($1,$2)`, migrations.ReferenceAuthorization().Checksum(), migrations.ReferenceAuthorizationSemanticFingerprint()).Scan(&legacyRestored, &newRemoved, &referenceReady); err != nil || !legacyRestored || !newRemoved || !referenceReady {
-		t.Fatalf("rollback legacy=%t new_removed=%t reference=%t err=%v", legacyRestored, newRemoved, referenceReady, err)
+	var legacyRestored, newRemoved, heartbeatRemoved, referenceReady bool
+	if err := connection.QueryRow(ctx, `SELECT has_function_privilege('zasp_outbox_worker','zasp_discovery_claim_outbox(text,text,integer,integer)','EXECUTE'),to_regprocedure('zasp_execution_claim_outbox(text,text,text,integer,integer)') IS NULL,to_regprocedure('zasp_execution_heartbeat_outbox(text,text,text,integer,integer)') IS NULL,zasp_reference_authorization_readiness($1,$2)`, migrations.ReferenceAuthorization().Checksum(), migrations.ReferenceAuthorizationSemanticFingerprint()).Scan(&legacyRestored, &newRemoved, &heartbeatRemoved, &referenceReady); err != nil || !legacyRestored || !newRemoved || !heartbeatRemoved || !referenceReady {
+		t.Fatalf("rollback legacy=%t new_removed=%t heartbeat_removed=%t reference=%t err=%v", legacyRestored, newRemoved, heartbeatRemoved, referenceReady, err)
+	}
+}
+
+func TestProductionDiscoveryExecutionPostgresOutboxClaimsAreFairAndOneLiveLeasePerOrganization(t *testing.T) {
+	dsn := startDisposablePostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	firstConnection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer firstConnection.Close(ctx)
+	migrateToProductionDiscoveryExecution(t, ctx, firstConnection)
+	secondConnection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer secondConnection.Close(ctx)
+
+	organizations := []string{
+		"pid_7c000001-0000-4000-8000-000000000001",
+		"pid_7c000002-0000-4000-8000-000000000002",
+		"pid_7c000003-0000-4000-8000-000000000003",
+	}
+	workspace := "pid_7c000010-0000-4000-8000-000000000010"
+	environment := "pid_7c000011-0000-4000-8000-000000000011"
+	for organizationIndex, organization := range organizations {
+		rows := 1
+		if organizationIndex == 0 {
+			rows = 2
+		}
+		for row := 0; row < rows; row++ {
+			id := fmt.Sprintf("pid_7c0001%02d-0000-4000-8000-%012d", organizationIndex, organizationIndex*10+row+1)
+			key := fmt.Sprintf("sync:pid_7c0002%02d-0000-4000-8000-%012d", organizationIndex, organizationIndex*10+row+1)
+			if _, err := firstConnection.Exec(ctx, `INSERT INTO zasp_discovery_outbox(organization_id,workspace_id,environment_id,id,topic,deterministic_key,payload_version,payload,payload_digest) VALUES($1,$2,$3,$4,'discovery-jobs',$5,1,'{}'::jsonb,digest('{}','sha256'))`, organization, workspace, environment, id, key); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	firstDatabase, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: firstConnection})
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondDatabase, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: secondConnection})
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstRepository, err := newDiscoveryRepositoryUnchecked(firstDatabase)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondRepository, err := newDiscoveryRepositoryUnchecked(secondDatabase)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	type claimResult struct {
+		items []DiscoveryOutboxEvent
+		err   error
+	}
+	start := make(chan struct{})
+	results := make(chan claimResult, 2)
+	go func() {
+		<-start
+		items, claimErr := firstRepository.ClaimOutboxTopic(ctx, "discovery-jobs", "outbox-worker-a", "outbox-lease-token-7c01", 30, 1)
+		results <- claimResult{items: items, err: claimErr}
+	}()
+	go func() {
+		<-start
+		items, claimErr := secondRepository.ClaimOutboxTopic(ctx, "discovery-jobs", "outbox-worker-b", "outbox-lease-token-7c02", 30, 1)
+		results <- claimResult{items: items, err: claimErr}
+	}()
+	close(start)
+	claimedOrganizations := map[string]struct{}{}
+	for index := 0; index < 2; index++ {
+		result := <-results
+		if result.err != nil || len(result.items) != 1 {
+			t.Fatalf("concurrent claim %#v err=%v", result.items, result.err)
+		}
+		claimedOrganizations[result.items[0].OrganizationID] = struct{}{}
+	}
+	if len(claimedOrganizations) != 2 {
+		t.Fatalf("same organization leased by concurrent replicas: %v", claimedOrganizations)
+	}
+	third, err := firstRepository.ClaimOutboxTopic(ctx, "discovery-jobs", "outbox-worker-c", "outbox-lease-token-7c03", 30, 1)
+	if err != nil || len(third) != 1 {
+		t.Fatalf("later organization claim=%#v err=%v", third, err)
+	}
+	if _, duplicate := claimedOrganizations[third[0].OrganizationID]; duplicate {
+		t.Fatalf("later organization starved by live backlog: %#v", third)
+	}
+	if _, err := firstConnection.Exec(ctx, `UPDATE zasp_discovery_outbox SET lease_expires_at=transaction_timestamp()-interval '1 second' WHERE lease_token='outbox-lease-token-7c03'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := firstRepository.HeartbeatOutboxTopic(ctx, "discovery-jobs", "outbox-worker-c", "outbox-lease-token-7c03", 30, 1); err == nil {
+		t.Fatal("expired owner heartbeat succeeded")
 	}
 }

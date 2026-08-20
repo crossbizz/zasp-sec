@@ -37,6 +37,9 @@ const (
 	postgresDiscoveryEntityPageSQL              = `SELECT zasp_discovery_entity_page($1,$2,$3,NULLIF($4,''),$5)`
 	postgresDiscoveryClaimOutboxSQL             = `SELECT zasp_discovery_claim_outbox($1,$2,$3,$4)`
 	postgresExecutionClaimOutboxTopicSQL        = `SELECT zasp_execution_claim_outbox($1,$2,$3,$4,$5)`
+	postgresExecutionHeartbeatOutboxTopicSQL    = `SELECT zasp_execution_heartbeat_outbox($1,$2,$3,$4,$5)`
+	postgresExecutionAckOutboxTopicSQL          = `SELECT zasp_execution_ack_outbox($1,$2,$3,$4,$5,$6,$7,$8)`
+	postgresExecutionRetryOutboxTopicSQL        = `SELECT zasp_execution_retry_outbox($1,$2,$3,$4,$5,$6,$7,$8,$9)`
 	postgresDiscoveryAckOutboxSQL               = `SELECT zasp_discovery_ack_outbox($1,$2,$3,$4,$5,$6,$7)`
 	postgresDiscoveryIssueSensorTokenSQL        = `SELECT zasp_discovery_issue_sensor_token($1,$2,$3,$4,$5,$6,$7,$8)`
 	postgresDiscoveryGatewayEnrollSQL           = `SELECT zasp_discovery_gateway_enroll($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`
@@ -73,6 +76,7 @@ const (
 var referenceOnlyKeyPattern = regexp.MustCompile(`(?i)(secret|password|token|credential|private.?key|session)`)
 var opaqueReferencePattern = regexp.MustCompile(`^ref:[a-z0-9][a-z0-9_./:-]+$`)
 var s3ObjectReferencePattern = regexp.MustCompile(`^s3://([a-z0-9][a-z0-9.-]{1,61}[a-z0-9])/([A-Za-z0-9][A-Za-z0-9._/-]*)$`)
+var outboxProviderAckPattern = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 
 type IntegrationRepository interface {
 	CreateIntegration(context.Context, RequestIdentity, IntegrationCreate) (DiscoveryIntegration, error)
@@ -101,6 +105,71 @@ type OutboxRepository interface {
 
 type TopicOutboxRepository interface {
 	ClaimOutboxTopic(context.Context, string, string, string, int, int) ([]DiscoveryOutboxEvent, error)
+	HeartbeatOutboxTopic(context.Context, string, string, string, int, int) (OutboxLeaseHeartbeatResult, error)
+	AcknowledgeOutboxTopic(context.Context, string, domain.Scope, string, string, string, string) (OutboxLeaseTransitionResult, error)
+	RetryOutboxTopic(context.Context, string, domain.Scope, string, string, string, int, string) (OutboxLeaseTransitionResult, error)
+}
+
+type OutboxLeaseHeartbeatResult struct {
+	ID             string    `json:"id"`
+	LeaseExpiresAt time.Time `json:"lease_expires_at"`
+	RemainingCount int       `json:"remaining_count"`
+}
+
+type OutboxLeaseTransitionResult struct {
+	ID             string    `json:"id"`
+	ProviderAck    string    `json:"provider_ack,omitempty"`
+	PublishedAt    time.Time `json:"published_at,omitempty"`
+	AvailableAt    time.Time `json:"available_at,omitempty"`
+	RemainingCount int       `json:"remaining_count"`
+}
+
+func (repository *DiscoveryRepository) HeartbeatOutboxTopic(ctx context.Context, topic, worker, leaseToken string, leaseSeconds, expectedCount int) (OutboxLeaseHeartbeatResult, error) {
+	if !validDiscoveryRepository(repository, ctx) || topic != "discovery-jobs" || len(worker) < 1 || len(worker) > 128 || len(leaseToken) < 16 || len(leaseToken) > 128 || leaseSeconds < 5 || leaseSeconds > 900 || expectedCount < 1 || expectedCount > 10 {
+		return OutboxLeaseHeartbeatResult{}, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresExecutionHeartbeatOutboxTopicSQL, topic, worker, leaseToken, leaseSeconds, expectedCount)
+	if err != nil {
+		return OutboxLeaseHeartbeatResult{}, discoveryProviderError(err)
+	}
+	var result OutboxLeaseHeartbeatResult
+	if decodeStrictDiscovery(payload, &result) != nil || result.ID != topic || result.RemainingCount != expectedCount || !validLeaseExpiration(result.LeaseExpiresAt, leaseSeconds) {
+		return OutboxLeaseHeartbeatResult{}, ErrRepositoryUnavailable
+	}
+	result.LeaseExpiresAt = result.LeaseExpiresAt.UTC()
+	return result, nil
+}
+
+func (repository *DiscoveryRepository) AcknowledgeOutboxTopic(ctx context.Context, topic string, scope domain.Scope, id, worker, leaseToken, providerAck string) (OutboxLeaseTransitionResult, error) {
+	if !validDiscoveryRepository(repository, ctx) || topic != "discovery-jobs" || scope.Validate() != nil || !validProductID(id) || len(worker) < 1 || len(worker) > 128 || len(leaseToken) < 16 || len(leaseToken) > 128 || !outboxProviderAckPattern.MatchString(providerAck) {
+		return OutboxLeaseTransitionResult{}, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresExecutionAckOutboxTopicSQL, topic, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id, worker, leaseToken, providerAck)
+	if err != nil {
+		return OutboxLeaseTransitionResult{}, discoveryProviderError(err)
+	}
+	var result OutboxLeaseTransitionResult
+	if decodeStrictDiscovery(payload, &result) != nil || result.ID != id || result.ProviderAck != providerAck || !validPastServerTime(result.PublishedAt) || !result.AvailableAt.IsZero() || result.RemainingCount < 0 || result.RemainingCount > 9 {
+		return OutboxLeaseTransitionResult{}, ErrRepositoryUnavailable
+	}
+	result.PublishedAt = result.PublishedAt.UTC()
+	return result, nil
+}
+
+func (repository *DiscoveryRepository) RetryOutboxTopic(ctx context.Context, topic string, scope domain.Scope, id, worker, leaseToken string, retrySeconds int, code string) (OutboxLeaseTransitionResult, error) {
+	if !validDiscoveryRepository(repository, ctx) || topic != "discovery-jobs" || scope.Validate() != nil || !validProductID(id) || len(worker) < 1 || len(worker) > 128 || len(leaseToken) < 16 || len(leaseToken) > 128 || retrySeconds < 1 || retrySeconds > 3600 || code != "queue_publish_unknown" {
+		return OutboxLeaseTransitionResult{}, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresExecutionRetryOutboxTopicSQL, topic, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id, worker, leaseToken, retrySeconds, code)
+	if err != nil {
+		return OutboxLeaseTransitionResult{}, discoveryProviderError(err)
+	}
+	var result OutboxLeaseTransitionResult
+	if decodeStrictDiscovery(payload, &result) != nil || result.ID != id || result.ProviderAck != "" || !result.PublishedAt.IsZero() || !validRetryAvailability(result.AvailableAt, retrySeconds) || result.RemainingCount < 0 || result.RemainingCount > 9 {
+		return OutboxLeaseTransitionResult{}, ErrRepositoryUnavailable
+	}
+	result.AvailableAt = result.AvailableAt.UTC()
+	return result, nil
 }
 
 type DiscoveryWorkerRepository interface {

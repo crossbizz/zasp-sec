@@ -12,6 +12,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -72,6 +73,40 @@ type productionOutboxPublisher struct {
 	close     func() error
 }
 
+type cachedOutboxReadiness struct {
+	mu        sync.Mutex
+	check     func(context.Context) error
+	ttl       time.Duration
+	checkedAt time.Time
+	now       func() time.Time
+}
+
+func newCachedOutboxReadiness(check func(context.Context) error, ttl time.Duration) (*cachedOutboxReadiness, error) {
+	if check == nil || ttl < time.Second || ttl > time.Minute {
+		return nil, errRuntimeUnavailable
+	}
+	now := time.Now
+	return &cachedOutboxReadiness{check: check, ttl: ttl, checkedAt: now(), now: now}, nil
+}
+
+func (readiness *cachedOutboxReadiness) Ready(ctx context.Context) error {
+	if readiness == nil || ctx == nil || ctx.Err() != nil {
+		return errRuntimeUnavailable
+	}
+	readiness.mu.Lock()
+	defer readiness.mu.Unlock()
+	now := readiness.now()
+	elapsed := now.Sub(readiness.checkedAt)
+	if elapsed >= 0 && elapsed < readiness.ttl {
+		return nil
+	}
+	if err := readiness.check(ctx); err != nil {
+		return errRuntimeUnavailable
+	}
+	readiness.checkedAt = now
+	return nil
+}
+
 func newProductionOutboxPublisher(ctx context.Context, config workerRuntimeConfig) (productionOutboxPublisher, error) {
 	if ctx == nil || ctx.Err() != nil || !validOutboxAWSAuthority(config) {
 		return productionOutboxPublisher{}, errRuntimeUnavailable
@@ -87,6 +122,24 @@ func newProductionOutboxPublisher(ctx context.Context, config workerRuntimeConfi
 	}
 	base.Credentials = credentials
 	sqsClient := sqs.NewFromConfig(base)
+	liveCheck := func(readyCtx context.Context) error {
+		if readyCtx == nil || readyCtx.Err() != nil {
+			return errRuntimeUnavailable
+		}
+		if _, err := credentials.Retrieve(readyCtx); err != nil || outboxQueueReady(readyCtx, sqsClient, config) != nil {
+			return errRuntimeUnavailable
+		}
+		return nil
+	}
+	if err := liveCheck(ctx); err != nil {
+		transport.CloseIdleConnections()
+		return productionOutboxPublisher{}, errRuntimeUnavailable
+	}
+	readiness, err := newCachedOutboxReadiness(liveCheck, 30*time.Second)
+	if err != nil {
+		transport.CloseIdleConnections()
+		return productionOutboxPublisher{}, errRuntimeUnavailable
+	}
 	driver, err := sqsdriver.New(sqsClient, sqsdriver.Config{QueueURL: config.DiscoveryQueueURL, ReceiveWaitSeconds: 0, VisibilityTimeoutSeconds: int32(config.LeaseDuration / time.Second), MaximumReceiveCount: 5})
 	if err != nil {
 		transport.CloseIdleConnections()
@@ -97,23 +150,14 @@ func newProductionOutboxPublisher(ctx context.Context, config workerRuntimeConfi
 		transport.CloseIdleConnections()
 		return productionOutboxPublisher{}, errRuntimeUnavailable
 	}
-	ready := func(readyCtx context.Context) error {
-		if readyCtx == nil || readyCtx.Err() != nil {
-			return errRuntimeUnavailable
-		}
-		if _, err := credentials.Retrieve(readyCtx); err != nil || outboxQueueReady(readyCtx, sqsClient, config) != nil {
-			return errRuntimeUnavailable
-		}
-		return nil
-	}
 	closePublisher := func() error {
-		drainCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		drainCtx, cancel := context.WithTimeout(context.Background(), minDuration(config.ShutdownTimeout, config.LeaseDuration/2))
 		defer cancel()
 		err := driver.Drain(drainCtx)
 		transport.CloseIdleConnections()
 		return err
 	}
-	return productionOutboxPublisher{publisher: queue, ready: ready, close: closePublisher}, nil
+	return productionOutboxPublisher{publisher: queue, ready: readiness.Ready, close: closePublisher}, nil
 }
 
 func outboxQueueReady(ctx context.Context, api outboxQueueReadinessAPI, config workerRuntimeConfig) error {

@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
@@ -26,7 +28,7 @@ func TestOutboxProcessorPublishesDiscoveryJobsAndAcknowledgesProviderMessages(t 
 	}}
 	processor, err := newOutboxProcessor(outboxProcessorConfig{
 		Authority: authority, Publisher: publisher, Topic: discoveryOutboxTopic, WorkerID: "outbox-01", LeaseSeconds: 30, BatchSize: 10, RetrySeconds: 30,
-		NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil },
+		NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil }, Ready: readyOutboxDependency,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -48,6 +50,124 @@ func TestOutboxProcessorPublishesDiscoveryJobsAndAcknowledgesProviderMessages(t 
 	}
 }
 
+func TestOutboxProcessorRenewsLeaseWhilePublisherIsBlocked(t *testing.T) {
+	event := outboxEvent(t, "pid_80000091-0000-4000-8000-000000000091", "pid_80000092-0000-4000-8000-000000000092")
+	jobID := mustProductID(t, firstPayloadJobID(t, event))
+	authority := &recordingOutboxAuthority{events: []apiserver.DiscoveryOutboxEvent{event}}
+	release := make(chan struct{})
+	publisher := &blockingOutboxPublisher{entered: make(chan struct{}, 1), release: release, result: jobqueue.PublishResult{JobIDs: []domain.ProductID{jobID}, Acknowledgements: []jobqueue.PublishAcknowledgement{{JobID: jobID, ProviderAck: canonicalProviderAck(t, "provider-heartbeat")}}}}
+	processor, err := newOutboxProcessor(outboxProcessorConfig{Authority: authority, Publisher: publisher, Topic: discoveryOutboxTopic, WorkerID: "outbox-01", LeaseSeconds: 5, BatchSize: 1, RetrySeconds: 30, HeartbeatInterval: 20 * time.Millisecond, NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil }, Ready: readyOutboxDependency})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := make(chan error, 1)
+	go func() { result <- processor.RunOnce(context.Background()) }()
+	select {
+	case <-publisher.entered:
+	case <-time.After(time.Second):
+		t.Fatal("publisher did not start")
+	}
+	deadline := time.Now().Add(time.Second)
+	for authority.heartbeatCount() < 2 && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if authority.heartbeatCount() < 2 {
+		t.Fatalf("heartbeat calls=%d", authority.heartbeatCount())
+	}
+	close(release)
+	if err := <-result; err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestOutboxProcessorRenewsLeaseWhileDatabaseAcknowledgementIsBlocked(t *testing.T) {
+	event := outboxEvent(t, "pid_80000101-0000-4000-8000-000000000101", "pid_80000102-0000-4000-8000-000000000102")
+	jobID := mustProductID(t, firstPayloadJobID(t, event))
+	authority := &recordingOutboxAuthority{events: []apiserver.DiscoveryOutboxEvent{event}, ackEntered: make(chan struct{}, 1), ackRelease: make(chan struct{})}
+	publisher := &recordingOutboxPublisher{result: jobqueue.PublishResult{JobIDs: []domain.ProductID{jobID}, Acknowledgements: []jobqueue.PublishAcknowledgement{{JobID: jobID, ProviderAck: canonicalProviderAck(t, "provider-blocked-ack")}}}}
+	processor, err := newOutboxProcessor(outboxProcessorConfig{Authority: authority, Publisher: publisher, Topic: discoveryOutboxTopic, WorkerID: "outbox-01", LeaseSeconds: 5, BatchSize: 1, RetrySeconds: 30, HeartbeatInterval: 20 * time.Millisecond, NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil }, Ready: readyOutboxDependency})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := make(chan error, 1)
+	go func() { result <- processor.RunOnce(context.Background()) }()
+	select {
+	case <-authority.ackEntered:
+	case <-time.After(time.Second):
+		t.Fatal("acknowledgement did not start")
+	}
+	before := authority.heartbeatCount()
+	deadline := time.Now().Add(time.Second)
+	for authority.heartbeatCount() <= before && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if authority.heartbeatCount() <= before {
+		t.Fatalf("lease was not renewed during blocked acknowledgement: before=%d after=%d", before, authority.heartbeatCount())
+	}
+	close(authority.ackRelease)
+	if err := <-result; err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestOutboxProcessorCancelsBlockedPublishWhenLeaseHeartbeatFails(t *testing.T) {
+	event := outboxEvent(t, "pid_80000111-0000-4000-8000-000000000111", "pid_80000112-0000-4000-8000-000000000112")
+	authority := &recordingOutboxAuthority{events: []apiserver.DiscoveryOutboxEvent{event}, heartbeatFailAfter: 1}
+	publisher := &contextOutboxPublisher{entered: make(chan struct{}, 1), cancelled: make(chan struct{}, 1)}
+	processor, err := newOutboxProcessor(outboxProcessorConfig{Authority: authority, Publisher: publisher, Topic: discoveryOutboxTopic, WorkerID: "outbox-01", LeaseSeconds: 5, BatchSize: 1, RetrySeconds: 30, HeartbeatInterval: 20 * time.Millisecond, NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil }, Ready: readyOutboxDependency})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := make(chan error, 1)
+	go func() { result <- processor.RunOnce(context.Background()) }()
+	select {
+	case <-publisher.entered:
+	case <-time.After(time.Second):
+		t.Fatal("publisher did not start")
+	}
+	select {
+	case <-publisher.cancelled:
+	case <-time.After(time.Second):
+		t.Fatal("lease loss did not cancel blocked publisher")
+	}
+	if err := <-result; !errors.Is(err, errWorkerExecution) {
+		t.Fatalf("lease loss error=%v", err)
+	}
+}
+
+func TestOutboxProcessorCancelsBlockedAcknowledgementWhenLeaseHeartbeatFails(t *testing.T) {
+	event := outboxEvent(t, "pid_80000131-0000-4000-8000-000000000131", "pid_80000132-0000-4000-8000-000000000132")
+	jobID := mustProductID(t, firstPayloadJobID(t, event))
+	authority := &recordingOutboxAuthority{events: []apiserver.DiscoveryOutboxEvent{event}, heartbeatFailAfter: 2, ackEntered: make(chan struct{}, 1), ackRelease: make(chan struct{})}
+	publisher := &recordingOutboxPublisher{result: jobqueue.PublishResult{JobIDs: []domain.ProductID{jobID}, Acknowledgements: []jobqueue.PublishAcknowledgement{{JobID: jobID, ProviderAck: canonicalProviderAck(t, "provider-lease-loss")}}}}
+	processor, err := newOutboxProcessor(outboxProcessorConfig{Authority: authority, Publisher: publisher, Topic: discoveryOutboxTopic, WorkerID: "outbox-01", LeaseSeconds: 5, BatchSize: 1, RetrySeconds: 30, HeartbeatInterval: 20 * time.Millisecond, NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil }, Ready: readyOutboxDependency})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := make(chan error, 1)
+	go func() { result <- processor.RunOnce(context.Background()) }()
+	select {
+	case <-authority.ackEntered:
+	case <-time.After(time.Second):
+		t.Fatal("acknowledgement did not start")
+	}
+	select {
+	case err := <-result:
+		if !errors.Is(err, errWorkerExecution) {
+			t.Fatalf("lease loss error=%v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("lease loss did not cancel blocked acknowledgement")
+	}
+}
+
+func TestOutboxProcessorRequiresHeartbeatByHalfLease(t *testing.T) {
+	_, err := newOutboxProcessor(outboxProcessorConfig{Authority: &recordingOutboxAuthority{}, Publisher: &recordingOutboxPublisher{}, Topic: discoveryOutboxTopic, WorkerID: "outbox-01", LeaseSeconds: 5, BatchSize: 1, RetrySeconds: 30, HeartbeatInterval: 2501 * time.Millisecond, NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil }, Ready: readyOutboxDependency})
+	if !errors.Is(err, errWorkerExecution) {
+		t.Fatalf("late heartbeat error=%v", err)
+	}
+}
+
 func TestOutboxProcessorRetriesEveryLeaseAfterUnknownPublishOutcome(t *testing.T) {
 	first := outboxEvent(t, "pid_80000021-0000-4000-8000-000000000021", "pid_80000022-0000-4000-8000-000000000022")
 	second := outboxEvent(t, "pid_80000031-0000-4000-8000-000000000031", "pid_80000032-0000-4000-8000-000000000032")
@@ -55,7 +175,7 @@ func TestOutboxProcessorRetriesEveryLeaseAfterUnknownPublishOutcome(t *testing.T
 	publisher := &recordingOutboxPublisher{err: errors.New("sqs body contains secret-value")}
 	processor, err := newOutboxProcessor(outboxProcessorConfig{
 		Authority: authority, Publisher: publisher, Topic: discoveryOutboxTopic, WorkerID: "outbox-01", LeaseSeconds: 30, BatchSize: 10, RetrySeconds: 45,
-		NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil },
+		NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil }, Ready: readyOutboxDependency,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -78,7 +198,7 @@ func TestOutboxProcessorRejectsForeignTopicAndScopeBeforePublish(t *testing.T) {
 	publisher := &recordingOutboxPublisher{}
 	processor, err := newOutboxProcessor(outboxProcessorConfig{
 		Authority: authority, Publisher: publisher, Topic: discoveryOutboxTopic, WorkerID: "outbox-01", LeaseSeconds: 30, BatchSize: 10, RetrySeconds: 30,
-		NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil },
+		NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil }, Ready: readyOutboxDependency,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -115,7 +235,7 @@ func TestOutboxProcessorRejectsPayloadDigestDriftBeforePublish(t *testing.T) {
 	publisher := &recordingOutboxPublisher{}
 	processor, err := newOutboxProcessor(outboxProcessorConfig{
 		Authority: authority, Publisher: publisher, Topic: discoveryOutboxTopic, WorkerID: "outbox-01", LeaseSeconds: 30, BatchSize: 1, RetrySeconds: 30,
-		NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil },
+		NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil }, Ready: readyOutboxDependency,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -136,7 +256,7 @@ func TestOutboxProcessorRetriesExactDatabaseAcknowledgementWithoutRepublishing(t
 		publisher := &recordingOutboxPublisher{result: jobqueue.PublishResult{JobIDs: []domain.ProductID{jobID}, Acknowledgements: []jobqueue.PublishAcknowledgement{{JobID: jobID, ProviderAck: canonicalProviderAck(t, "provider-message")}}}}
 		processor, err := newOutboxProcessor(outboxProcessorConfig{
 			Authority: authority, Publisher: publisher, Topic: discoveryOutboxTopic, WorkerID: "outbox-01", LeaseSeconds: 30, BatchSize: 1, RetrySeconds: 30,
-			NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil },
+			NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil }, Ready: readyOutboxDependency,
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -161,7 +281,7 @@ func TestOutboxProcessorRejectsMalformedPublishAcknowledgementsWithoutDatabaseAc
 		authority := &recordingOutboxAuthority{events: []apiserver.DiscoveryOutboxEvent{event}}
 		processor, err := newOutboxProcessor(outboxProcessorConfig{
 			Authority: authority, Publisher: &recordingOutboxPublisher{result: result}, Topic: discoveryOutboxTopic, WorkerID: "outbox-01", LeaseSeconds: 30, BatchSize: 1, RetrySeconds: 30,
-			NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil },
+			NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil }, Ready: readyOutboxDependency,
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -175,26 +295,97 @@ func TestOutboxProcessorRejectsMalformedPublishAcknowledgementsWithoutDatabaseAc
 	}
 }
 
+func TestOutboxProcessorChecksLiveQueueBeforeClaiming(t *testing.T) {
+	authority := &recordingOutboxAuthority{events: []apiserver.DiscoveryOutboxEvent{outboxEvent(t, "pid_80000121-0000-4000-8000-000000000121", "pid_80000122-0000-4000-8000-000000000122")}}
+	publisher := &recordingOutboxPublisher{}
+	processor, err := newOutboxProcessor(outboxProcessorConfig{Authority: authority, Publisher: publisher, Topic: discoveryOutboxTopic, WorkerID: "outbox-01", LeaseSeconds: 30, BatchSize: 1, RetrySeconds: 30, NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil }, Ready: func(context.Context) error { return errRuntimeUnavailable }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := processor.RunOnce(context.Background()); !errors.Is(err, errWorkerExecution) {
+		t.Fatalf("not-ready error=%v", err)
+	}
+	if authority.claimCount() != 0 || publisher.calls != 0 {
+		t.Fatalf("not-ready side effects: claims=%d publishes=%d", authority.claimCount(), publisher.calls)
+	}
+}
+
+func readyOutboxDependency(context.Context) error { return nil }
+
 type recordingOutboxAuthority struct {
+	mu                                  sync.Mutex
 	events                              []apiserver.DiscoveryOutboxEvent
 	claimTopic, claimWorker, claimToken string
 	acknowledged, retried               []string
 	ackCalls, ackFailures               int
 	ackLostResponse                     bool
 	ackCommitted                        map[string]struct{}
+	heartbeatCalls                      int
+	heartbeatFailAfter                  int
+	claimCalls                          int
+	remaining                           int
+	claimed                             bool
+	ackEntered                          chan struct{}
+	ackRelease                          chan struct{}
+}
+
+func (authority *recordingOutboxAuthority) HeartbeatOutboxTopic(_ context.Context, topic, _, _ string, seconds, _ int) (apiserver.OutboxLeaseHeartbeatResult, error) {
+	authority.mu.Lock()
+	authority.heartbeatCalls++
+	calls := authority.heartbeatCalls
+	failAfter := authority.heartbeatFailAfter
+	remaining := authority.remaining
+	authority.mu.Unlock()
+	if failAfter > 0 && calls > failAfter {
+		return apiserver.OutboxLeaseHeartbeatResult{}, errors.New("lease lost")
+	}
+	expires := time.Now().Add(time.Duration(seconds) * time.Second).UTC()
+	return apiserver.OutboxLeaseHeartbeatResult{ID: topic, LeaseExpiresAt: expires, RemainingCount: remaining}, nil
+}
+
+func (authority *recordingOutboxAuthority) heartbeatCount() int {
+	authority.mu.Lock()
+	defer authority.mu.Unlock()
+	return authority.heartbeatCalls
 }
 
 func (authority *recordingOutboxAuthority) ClaimOutboxTopic(_ context.Context, topic, worker, token string, _, _ int) ([]apiserver.DiscoveryOutboxEvent, error) {
+	authority.mu.Lock()
+	authority.claimCalls++
+	if !authority.claimed {
+		authority.remaining = len(authority.events)
+		authority.claimed = true
+	}
+	authority.mu.Unlock()
 	authority.claimTopic, authority.claimWorker, authority.claimToken = topic, worker, token
 	return append([]apiserver.DiscoveryOutboxEvent(nil), authority.events...), nil
 }
 
-func (authority *recordingOutboxAuthority) AcknowledgeOutbox(_ context.Context, _ domain.Scope, id, _, _, providerAck string) error {
+func (authority *recordingOutboxAuthority) claimCount() int {
+	authority.mu.Lock()
+	defer authority.mu.Unlock()
+	return authority.claimCalls
+}
+
+func (authority *recordingOutboxAuthority) AcknowledgeOutboxTopic(ctx context.Context, _ string, _ domain.Scope, id, _, _, providerAck string) (apiserver.OutboxLeaseTransitionResult, error) {
+	if authority.ackEntered != nil {
+		select {
+		case authority.ackEntered <- struct{}{}:
+		default:
+		}
+		select {
+		case <-authority.ackRelease:
+		case <-ctx.Done():
+			return apiserver.OutboxLeaseTransitionResult{}, ctx.Err()
+		}
+	}
+	authority.mu.Lock()
+	defer authority.mu.Unlock()
 	authority.ackCalls++
 	key := id + ":" + providerAck
 	if authority.ackCommitted != nil {
 		if _, replay := authority.ackCommitted[key]; replay {
-			return nil
+			return apiserver.OutboxLeaseTransitionResult{ID: id, ProviderAck: providerAck, PublishedAt: time.Now().UTC(), RemainingCount: authority.remaining}, nil
 		}
 	}
 	if authority.ackFailures > 0 {
@@ -205,16 +396,21 @@ func (authority *recordingOutboxAuthority) AcknowledgeOutbox(_ context.Context, 
 			}
 			authority.ackCommitted[key] = struct{}{}
 			authority.acknowledged = append(authority.acknowledged, key)
+			authority.remaining--
 		}
-		return errors.New("database response unavailable")
+		return apiserver.OutboxLeaseTransitionResult{}, errors.New("database response unavailable")
 	}
 	authority.acknowledged = append(authority.acknowledged, key)
-	return nil
+	authority.remaining--
+	return apiserver.OutboxLeaseTransitionResult{ID: id, ProviderAck: providerAck, PublishedAt: time.Now().UTC(), RemainingCount: authority.remaining}, nil
 }
 
-func (authority *recordingOutboxAuthority) RetryOutbox(_ context.Context, _ domain.Scope, id, _, _ string, seconds int, code string) error {
+func (authority *recordingOutboxAuthority) RetryOutboxTopic(_ context.Context, _ string, _ domain.Scope, id, _, _ string, seconds int, code string) (apiserver.OutboxLeaseTransitionResult, error) {
+	authority.mu.Lock()
+	defer authority.mu.Unlock()
 	authority.retried = append(authority.retried, fmt.Sprintf("%s:%d:%s", id, seconds, code))
-	return nil
+	authority.remaining--
+	return apiserver.OutboxLeaseTransitionResult{ID: id, AvailableAt: time.Now().UTC().Add(time.Duration(seconds) * time.Second), RemainingCount: authority.remaining}, nil
 }
 
 type recordingOutboxPublisher struct {
@@ -222,6 +418,30 @@ type recordingOutboxPublisher struct {
 	result jobqueue.PublishResult
 	err    error
 	calls  int
+}
+
+type blockingOutboxPublisher struct {
+	entered chan struct{}
+	release <-chan struct{}
+	result  jobqueue.PublishResult
+}
+
+type contextOutboxPublisher struct {
+	entered   chan struct{}
+	cancelled chan struct{}
+}
+
+func (publisher *contextOutboxPublisher) PublishBatch(ctx context.Context, _ []jobqueue.Job) (jobqueue.PublishResult, error) {
+	publisher.entered <- struct{}{}
+	<-ctx.Done()
+	publisher.cancelled <- struct{}{}
+	return jobqueue.PublishResult{}, ctx.Err()
+}
+
+func (publisher *blockingOutboxPublisher) PublishBatch(context.Context, []jobqueue.Job) (jobqueue.PublishResult, error) {
+	publisher.entered <- struct{}{}
+	<-publisher.release
+	return publisher.result, nil
 }
 
 func (publisher *recordingOutboxPublisher) PublishBatch(_ context.Context, jobs []jobqueue.Job) (jobqueue.PublishResult, error) {

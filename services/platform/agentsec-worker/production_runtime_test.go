@@ -38,7 +38,7 @@ func TestComposeOutboxWorkerRuntimeBindsExactTopicAuthority(t *testing.T) {
 	config.AWSRegion = "us-west-2"
 	config.OutboxRoleARN = "arn:aws:iam::123456789012:role/zasp-production-outbox"
 	config.OutboxTokenFile = "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
-	dependencies, err := composeOutboxWorkerRuntime(config, readyWorkerDatabase{}, &recordingOutboxPublisher{})
+	dependencies, err := composeOutboxWorkerRuntime(config, readyWorkerDatabase{}, &recordingOutboxPublisher{}, readyOutboxDependency)
 	if err != nil || dependencies.Processor == nil || dependencies.Ready == nil || dependencies.Close == nil {
 		t.Fatalf("outbox dependencies=%#v err=%v", dependencies, err)
 	}
@@ -128,6 +128,36 @@ func TestServeWorkerRuntimeBoundsShutdownWhenProcessorIgnoresCancellation(t *tes
 	}
 	close(release)
 }
+
+func TestServeWorkerRuntimeSurfacesDependencyDrainFailure(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	config := validSchedulerRuntimeConfig()
+	listeners := make(chan net.Listener, 1)
+	result := make(chan error, 1)
+	go func() {
+		result <- serveWorkerRuntime(ctx, &bytes.Buffer{}, "test", config, workerRuntimeDependencies{Processor: immediateWorkerProcessor{}, Ready: func(context.Context) error { return nil }, Close: func() error { return errors.New("redacted drain failure") }}, func(string, string) (net.Listener, error) {
+			listener, err := net.Listen("tcp", "127.0.0.1:0")
+			if err == nil {
+				listeners <- listener
+			}
+			return listener, err
+		})
+	}()
+	select {
+	case <-listeners:
+		cancel()
+	case <-time.After(time.Second):
+		cancel()
+		t.Fatal("worker did not listen")
+	}
+	if err := <-result; !errors.Is(err, errRuntimeUnavailable) {
+		t.Fatalf("drain failure error=%v", err)
+	}
+}
+
+type immediateWorkerProcessor struct{}
+
+func (immediateWorkerProcessor) RunOnce(context.Context) error { return nil }
 
 type blockingWorkerProcessor struct {
 	entered chan<- struct{}

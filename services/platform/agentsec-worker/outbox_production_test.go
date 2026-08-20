@@ -59,6 +59,33 @@ func TestOutboxQueueReadinessBindsExactARNAndRedrivePolicy(t *testing.T) {
 	}
 }
 
+func TestOutboxReadinessCachesSuccessfulLiveCheckAcrossEmptyPolls(t *testing.T) {
+	calls := 0
+	readiness, err := newCachedOutboxReadiness(func(context.Context) error {
+		calls++
+		return nil
+	}, time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for index := 0; index < 100; index++ {
+		if err := readiness.Ready(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if calls != 0 {
+		t.Fatalf("cached readiness called dependency %d times", calls)
+	}
+	readiness.checkedAt = readiness.checkedAt.Add(-2 * time.Second)
+	if err := readiness.Ready(context.Background()); err != nil || calls != 1 {
+		t.Fatalf("stale readiness err=%v calls=%d", err, calls)
+	}
+	readiness.now = func() time.Time { return readiness.checkedAt.Add(-time.Second) }
+	if err := readiness.Ready(context.Background()); err != nil || calls != 2 {
+		t.Fatalf("wall-clock rollback readiness err=%v calls=%d", err, calls)
+	}
+}
+
 type outboxQueueReadinessStub struct {
 	input  *sqs.GetQueueAttributesInput
 	output *sqs.GetQueueAttributesOutput

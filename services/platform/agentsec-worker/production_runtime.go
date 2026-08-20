@@ -71,7 +71,7 @@ func composeWorkerRuntime(ctx context.Context, config workerRuntimeConfig, datab
 		if err != nil {
 			return workerRuntimeDependencies{}, errRuntimeUnavailable
 		}
-		dependencies, err := composeOutboxWorkerRuntime(config, database, publisher.publisher)
+		dependencies, err := composeOutboxWorkerRuntime(config, database, publisher.publisher, publisher.ready)
 		if err != nil {
 			_ = publisher.close()
 			return workerRuntimeDependencies{}, errRuntimeUnavailable
@@ -115,8 +115,8 @@ func composeWorkerRuntime(ctx context.Context, config workerRuntimeConfig, datab
 	}
 }
 
-func composeOutboxWorkerRuntime(config workerRuntimeConfig, database apiserver.JSONDatabase, publisher outboxPublisher) (workerRuntimeDependencies, error) {
-	if !validWorkerRuntimeConfig(config) || database == nil || publisher == nil {
+func composeOutboxWorkerRuntime(config workerRuntimeConfig, database apiserver.JSONDatabase, publisher outboxPublisher, publisherReady func(context.Context) error) (workerRuntimeDependencies, error) {
+	if !validWorkerRuntimeConfig(config) || database == nil || publisher == nil || publisherReady == nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
 	repository, err := apiserver.NewDiscoveryRepositoryForAuthority(database, apiserver.DiscoveryDatabaseAuthorityOutbox)
@@ -125,7 +125,7 @@ func composeOutboxWorkerRuntime(config workerRuntimeConfig, database apiserver.J
 	}
 	processor, err := newOutboxProcessor(outboxProcessorConfig{
 		Authority: repository, Publisher: publisher, Topic: discoveryOutboxTopic, WorkerID: config.WorkerID,
-		LeaseSeconds: int(config.LeaseDuration / time.Second), BatchSize: min(config.BatchSize, 10), RetrySeconds: int(config.LeaseDuration / time.Second), NewLeaseToken: newWorkerLeaseToken,
+		LeaseSeconds: int(config.LeaseDuration / time.Second), BatchSize: min(config.BatchSize, 10), RetrySeconds: int(config.LeaseDuration / time.Second), NewLeaseToken: newWorkerLeaseToken, Ready: publisherReady,
 	})
 	if err != nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
@@ -166,11 +166,15 @@ func composeProjectionWorkerRuntime(config workerRuntimeConfig, database apiserv
 	return workerRuntimeDependencies{Processor: processor, Ready: ready, Close: projector.close}, nil
 }
 
-func serveWorkerRuntime(ctx context.Context, output interface{ Write([]byte) (int, error) }, version string, config workerRuntimeConfig, dependencies workerRuntimeDependencies, listen func(string, string) (net.Listener, error)) error {
+func serveWorkerRuntime(ctx context.Context, output interface{ Write([]byte) (int, error) }, version string, config workerRuntimeConfig, dependencies workerRuntimeDependencies, listen func(string, string) (net.Listener, error)) (resultErr error) {
 	if ctx == nil || output == nil || !validBuildVersion(version) || !validWorkerRuntimeConfig(config) || dependencies.Processor == nil || dependencies.Ready == nil || dependencies.Close == nil || listen == nil {
 		return errRuntimeUnavailable
 	}
-	defer dependencies.Close()
+	defer func() {
+		if closeErr := dependencies.Close(); closeErr != nil && resultErr == nil {
+			resultErr = errRuntimeUnavailable
+		}
+	}()
 	if err := run(output, version); err != nil {
 		return err
 	}
