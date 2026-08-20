@@ -180,6 +180,7 @@ type productionRawArtifactStub struct {
 func (stub *productionRawArtifactStub) Put(_ context.Context, request RawArtifactPut) (RawArtifact, error) {
 	stub.putCalls++
 	stub.put = request
+	stub.put.Body = bytes.Clone(request.Body)
 	if stub.err != nil {
 		return RawArtifact{}, stub.err
 	}

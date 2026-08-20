@@ -175,7 +175,9 @@ func (handler *ProductionIngestHandler) ServeHTTP(writer http.ResponseWriter, re
 		writeProductionIngestError(writer, http.StatusServiceUnavailable, true)
 		return
 	}
-	artifact, err := safeProductionArtifactPut(ctx, handler.config.Artifacts, RawArtifactPut{Scope: authority.Scope, Key: reservation.ArtifactKey, MediaType: "application/json", Body: bytes.Clone(body), ContentDigest: digest})
+	rawRequest := RawArtifactPut{Scope: authority.Scope, Key: reservation.ArtifactKey, MediaType: "application/json", Body: bytes.Clone(body), ContentDigest: digest}
+	artifact, err := safeProductionArtifactPut(ctx, handler.config.Artifacts, rawRequest)
+	clear(rawRequest.Body)
 	if err != nil || !validRawArtifact(artifact, authority.Scope, reservation.ArtifactKey, digest, int64(len(body))) {
 		writeProductionIngestError(writer, http.StatusServiceUnavailable, true)
 		return
