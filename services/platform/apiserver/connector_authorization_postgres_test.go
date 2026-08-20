@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -236,5 +237,72 @@ func TestConnectorAuthorizationPostgresPublicIntegrationMutationCreatesTypedOAut
 	var typedState string
 	if err := connection.QueryRow(ctx, `SELECT state FROM zasp_integrations WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND id=$4`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), integrationID).Scan(&typedState); err != nil || typedState != "deleted" {
 		t.Fatalf("typed integration delete = %q, %v", typedState, err)
+	}
+}
+
+func TestConnectorAuthorizationPostgresLegacyWebhookReferenceBridgeRejectsInlineSecretsAtomically(t *testing.T) {
+	dsn := startDisposablePostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	connection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close(ctx)
+	migrateToConnectorAuthorization(t, ctx, connection)
+	database, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
+	if err != nil {
+		t.Fatal(err)
+	}
+	repository, err := NewPostgresRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := fixtureRequestIdentity(t)
+	validID := "pid_73000001-0000-4000-8000-000000000001"
+	validConfig := `{"destination_url":"https://example.test/hooks","signing_secret_reference":"secret_ref_combined_e2e"}`
+	valid := connectorWebhookMutation(validID, "webhook-reference-create-0001", validConfig, 1)
+	if result, err := repository.MutateWorkflow(ctx, identity, valid); err != nil || result.Version != 1 {
+		t.Fatalf("legacy webhook reference bridge = %#v, %v", result, err)
+	}
+	var storedConfigurationMatches bool
+	if err := connection.QueryRow(ctx, `SELECT configuration=$5::jsonb FROM zasp_integrations WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND id=$4`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), validID, validConfig).Scan(&storedConfigurationMatches); err != nil || !storedConfigurationMatches {
+		t.Fatalf("typed webhook configuration matches = %t, %v", storedConfigurationMatches, err)
+	}
+
+	hostile := []string{
+		`{"destination_url":"https://example.test/hooks","signing_secret":"inline-value"}`,
+		`{"destination_url":"https://example.test/hooks","signing_secret_reference":"inline-value"}`,
+		`{"destination_url":"https://example.test/hooks","signing_secret_reference":{"value":"secret_ref_nested"}}`,
+		`{"destination_url":"https://example.test/hooks","nested":{"signing_secret_reference":"secret_ref_nested"}}`,
+		`{"destination_url":"https://example.test/hooks","password_reference":"secret_ref_password"}`,
+		`{"destination_url":"https://example.test/hooks","signing_secret_reference":"secret_ref_valid","token":"inline-value"}`,
+		`{"destination_url":"https://example.test/hooks","signing_secret_reference":"secret_ref_value?query=inline"}`,
+	}
+	for index, configuration := range hostile {
+		id := fmt.Sprintf("pid_730000%02x-0000-4000-8000-0000000000%02x", index+2, index+2)
+		mutation := connectorWebhookMutation(id, fmt.Sprintf("webhook-hostile-create-%04d", index+1), configuration, index+2)
+		if _, err := repository.MutateWorkflow(ctx, identity, mutation); !errors.Is(err, ErrRepositoryOperation) {
+			t.Fatalf("hostile webhook configuration %s = %v, want operation rejection", configuration, err)
+		}
+		var records, typed, idempotency, audits, receipts int
+		if err := connection.QueryRow(ctx, `SELECT
+			(SELECT count(*) FROM zasp_workflow_records WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND id=$4),
+			(SELECT count(*) FROM zasp_integrations WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND id=$4),
+			(SELECT count(*) FROM zasp_workflow_idempotency WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND idempotency_key=$5),
+			(SELECT count(*) FROM zasp_workflow_audit WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND resource_id=$4),
+			(SELECT count(*) FROM zasp_workflow_receipts WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND resource_id=$4)`,
+			identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), id, mutation.IdempotencyKey).Scan(&records, &typed, &idempotency, &audits, &receipts); err != nil || records != 0 || typed != 0 || idempotency != 0 || audits != 0 || receipts != 0 {
+			t.Fatalf("hostile webhook residue = records:%d typed:%d idempotency:%d audits:%d receipts:%d err:%v", records, typed, idempotency, audits, receipts, err)
+		}
+	}
+}
+
+func connectorWebhookMutation(id, idempotencyKey, configuration string, ordinal int) WorkflowMutation {
+	return WorkflowMutation{
+		Action: "create", Kind: "integration", ID: id, Operation: "createIntegration", IdempotencyKey: idempotencyKey, ExpectedVersion: 0,
+		Intent:  json.RawMessage(`{"body":{"connector_key":"generic-webhook"},"expected_version":0,"resource_id":""}`),
+		Body:    json.RawMessage(`{"id":"` + id + `","connector_key":"generic-webhook","name":"Webhook","configuration":` + configuration + `,"status":"authorized","created_at":"2026-08-19T00:00:00Z","updated_at":"2026-08-19T00:00:00Z"}`),
+		AuditID: fmt.Sprintf("pid_731000%02x-0000-4000-8000-0000000000%02x", ordinal, ordinal), CorrelationID: fmt.Sprintf("pid_732000%02x-0000-4000-8000-0000000000%02x", ordinal, ordinal), ReceiptID: fmt.Sprintf("pid_733000%02x-0000-4000-8000-0000000000%02x", ordinal, ordinal),
 	}
 }

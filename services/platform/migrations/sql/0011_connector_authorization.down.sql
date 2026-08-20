@@ -12,7 +12,7 @@ BEGIN
     UNION ALL SELECT 'index',table_class.relname||'.'||index_class.relname,jsonb_build_object('definition',regexp_replace(pg_get_indexdef(index_value.indexrelid,0,true),E'\\s+',' ','g'),'unique',index_value.indisunique,'primary',index_value.indisprimary,'exclusion',index_value.indisexclusion,'valid',index_value.indisvalid,'ready',index_value.indisready) FROM pg_index index_value JOIN pg_class table_class ON table_class.oid=index_value.indrelid JOIN pg_class index_class ON index_class.oid=index_value.indexrelid JOIN pg_namespace namespace ON namespace.oid=table_class.relnamespace WHERE namespace.nspname='public' AND left(table_class.relname,5)='zasp_'
     UNION ALL SELECT 'function',procedure.proname||'('||pg_get_function_identity_arguments(procedure.oid)||')',jsonb_build_object('result',pg_get_function_result(procedure.oid),'language',language.lanname,'kind',procedure.prokind,'volatility',procedure.provolatile,'strict',procedure.proisstrict,'security_definer',procedure.prosecdef,'leakproof',procedure.proleakproof,'parallel',procedure.proparallel,'config',COALESCE(to_jsonb(procedure.proconfig),'[]'::jsonb),'body',regexp_replace(btrim(procedure.prosrc),E'\\s+',' ','g')) FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace JOIN pg_language language ON language.oid=procedure.prolang WHERE namespace.nspname='public' AND left(procedure.proname,5)='zasp_'
   ) SELECT encode(digest(convert_to(COALESCE(jsonb_agg(jsonb_build_array(object_kind,object_identity,definition) ORDER BY object_kind,object_identity)::text,'[]'),'UTF8'),'sha256'),'hex') INTO actual_fingerprint FROM semantic_objects;
-  IF actual_fingerprint<>'3d21ec8953f6c3d9066c34a7f663f5543d18b96c226b890e47204083d3f5f478' THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='semantic schema drift blocks rollback'; END IF;
+  IF actual_fingerprint<>'59127e045743484d04d056f60f2a51ab87f21c93087407f874b8239daa461d4c' THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='semantic schema drift blocks rollback'; END IF;
 END $rollback_guard$;
 
 DO $data_guard$ BEGIN
@@ -54,6 +54,13 @@ DROP FUNCTION zasp_connector_metadata_only(jsonb);
 DROP FUNCTION zasp_connector_scopes_valid(jsonb);
 DROP FUNCTION zasp_connector_provider_valid(text);
 REVOKE SELECT,INSERT,UPDATE,DELETE ON zasp_workflow_records,zasp_workflow_idempotency,zasp_workflow_audit,zasp_workflow_receipts FROM zasp_discovery_authority;
+
+CREATE OR REPLACE FUNCTION "public"."zasp_reference_only"(value jsonb) RETURNS boolean
+LANGUAGE sql IMMUTABLE STRICT AS $$
+    SELECT jsonb_typeof(value)='object'
+       AND octet_length(value::text)<=16384
+       AND value::text !~* '"[^"]*(secret|password|token|credential|private.?key|session)[^"]*"[[:space:]]*:'
+$$;
 
 CREATE OR REPLACE FUNCTION "public"."zasp_discovery_readiness"(expected_checksum text,expected_fingerprint text) RETURNS boolean LANGUAGE sql STABLE AS $$
  WITH semantic_objects AS (

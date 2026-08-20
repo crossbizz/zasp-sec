@@ -1,4 +1,15 @@
 -- Release v11: durable first-party and isolated long-tail connector authorization.
+CREATE OR REPLACE FUNCTION "public"."zasp_reference_only"(value jsonb) RETURNS boolean
+LANGUAGE sql IMMUTABLE STRICT AS $$
+    SELECT jsonb_typeof(value)='object'
+       AND octet_length(value::text)<=16384
+       AND (NOT value ? 'signing_secret_reference'
+            OR jsonb_typeof(value->'signing_secret_reference')='string'
+               AND length(value->>'signing_secret_reference') BETWEEN 12 AND 256
+               AND value->>'signing_secret_reference' ~ '^secret_ref_[A-Za-z0-9][A-Za-z0-9._:/-]{0,244}$')
+       AND (value-'signing_secret_reference')::text !~* '"[^"]*(secret|password|token|credential|private.?key|session)[^"]*"[[:space:]]*:'
+$$;
+
 CREATE OR REPLACE FUNCTION "public"."zasp_discovery_readiness"(expected_checksum text,expected_fingerprint text) RETURNS boolean LANGUAGE sql STABLE AS $$
  WITH semantic_objects AS (
    SELECT 'table'::text object_kind,class.relname::text object_identity,jsonb_build_object('row_security',class.relrowsecurity,'force_row_security',class.relforcerowsecurity,'persistence',class.relpersistence) definition FROM pg_class class JOIN pg_namespace namespace ON namespace.oid=class.relnamespace WHERE namespace.nspname='public' AND left(class.relname,5)='zasp_' AND class.relkind IN ('r','p')
@@ -322,7 +333,7 @@ DO $risk_migration$ DECLARE definition text; BEGIN
  EXECUTE definition;
 END $risk_migration$;
 
-INSERT INTO zasp_schema_metadata(key,value) VALUES ('connector_authorization_fingerprint', '3d21ec8953f6c3d9066c34a7f663f5543d18b96c226b890e47204083d3f5f478');
+INSERT INTO zasp_schema_metadata(key,value) VALUES ('connector_authorization_fingerprint', '59127e045743484d04d056f60f2a51ab87f21c93087407f874b8239daa461d4c');
 UPDATE zasp_schema_metadata SET value='a3ee9cb3bfd3e6ed0d37399817432ec9ebdc4e4a66b778d2e1b79c62f99a65f9' WHERE key='production_discovery_fingerprint' AND EXISTS(SELECT 1 FROM zasp_schema_metadata WHERE key='production_discovery_release_fingerprint');
 DELETE FROM zasp_schema_metadata WHERE key='production_discovery_release_fingerprint';
 UPDATE zasp_schema_metadata SET value='connector-authorization-v1',applied_at=transaction_timestamp() WHERE key='production_core_schema' AND value='production-discovery-v1';
