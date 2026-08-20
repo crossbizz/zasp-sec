@@ -144,6 +144,12 @@ func (store *Store) ApplySnapshot(ctx context.Context, snapshot CompleteSnapshot
 	defer cancel()
 	acknowledged, err := replaceSnapshotDriver(driver, operationCtx, cloneDriverSnapshotProjection(projection))
 	if operationCtx.Err() != nil {
+		if err != nil {
+			stable := sanitizeSnapshotDriverError(err)
+			if !errors.Is(stable, ErrSnapshotUnknownOutcome) && validNoMutationAcknowledgement(acknowledged, projection, stable) {
+				return SnapshotApplyResult{}, stable
+			}
+		}
 		return SnapshotApplyResult{}, ErrSnapshotUnknownOutcome
 	}
 	if err != nil {

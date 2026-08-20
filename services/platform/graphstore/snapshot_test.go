@@ -187,6 +187,16 @@ func TestSnapshotMutationAmbiguityFailsUnknown(t *testing.T) {
 			t.Fatalf("ApplySnapshot(commit then cancel) error = %v", err)
 		}
 	})
+	t.Run("cancellation with no mutation proof", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		driver := &snapshotFunctionDriver{Driver: noCallDriver(), replace: func(_ context.Context, input DriverSnapshotProjection) (DriverSnapshotReplaced, error) {
+			cancel()
+			return noMutationSnapshotAcknowledgement(input, ErrSnapshotCanceled), ErrSnapshotCanceled
+		}}
+		if _, err := mustGraphStore(t, driver).ApplySnapshot(ctx, snapshot); !errors.Is(err, ErrSnapshotCanceled) {
+			t.Fatalf("ApplySnapshot(cancel no mutation) error = %v", err)
+		}
+	})
 	t.Run("driver panic", func(t *testing.T) {
 		driver := &snapshotFunctionDriver{Driver: noCallDriver(), replace: func(context.Context, DriverSnapshotProjection) (DriverSnapshotReplaced, error) {
 			panic("secret after mutation")
