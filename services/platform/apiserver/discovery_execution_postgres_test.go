@@ -3,6 +3,7 @@ package apiserver
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -1181,5 +1182,88 @@ func TestProductionDiscoveryExecutionPostgresOAuthCredentialAtomicallyBindsSubje
 	var residue int
 	if err := connection.QueryRow(ctx, `SELECT (SELECT count(*) FROM zasp_connector_credentials WHERE integration_id=$1)+(SELECT count(*) FROM zasp_discovery_connection_subjects WHERE integration_id=$1)`, invalidIntegration).Scan(&residue); err != nil || residue != 0 {
 		t.Fatalf("invalid OAuth subject residue=%d err=%v", residue, err)
+	}
+}
+
+func TestProductionDiscoveryExecutionPostgresClaimsExactOutboxTopicWithCanonicalPayload(t *testing.T) {
+	dsn := startDisposablePostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	connection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close(ctx)
+	runner := migrateToProductionDiscoveryExecution(t, ctx, connection)
+	identity := fixtureRequestIdentity(t)
+	scopeArguments := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String()}
+	discoveryID := "pid_7b000001-0000-4000-8000-000000000001"
+	foreignID := "pid_7b000002-0000-4000-8000-000000000002"
+	if _, err := connection.Exec(ctx, `
+		INSERT INTO zasp_discovery_outbox(organization_id,workspace_id,environment_id,id,topic,deterministic_key,payload_version,payload,payload_digest)
+		VALUES($1,$2,$3,$4,'discovery-jobs','sync:pid_7b000003-0000-4000-8000-000000000003',1,$6::jsonb,digest(convert_to($6::jsonb::text,'UTF8'),'sha256')),
+		      ($1,$2,$3,$5,'runtime-events','runtime:7b000004',1,$7::jsonb,digest(convert_to($7::jsonb::text,'UTF8'),'sha256'))`,
+		append(scopeArguments, discoveryID, foreignID,
+			`{"workspace_id":"`+identity.Scope.WorkspaceID().String()+`","sync_id":"pid_7b000003-0000-4000-8000-000000000003","request_digest":"`+strings.Repeat("a", 64)+`","organization_id":"`+identity.Scope.OrganizationID().String()+`","job_id":"pid_7b000004-0000-4000-8000-000000000004","integration_id":"pid_7b000005-0000-4000-8000-000000000005","environment_id":"`+identity.Scope.EnvironmentID().String()+`"}`,
+			`{"batch_id":"pid_7b000006-0000-4000-8000-000000000006"}`)...); err != nil {
+		t.Fatal(err)
+	}
+	database, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
+	if err != nil {
+		t.Fatal(err)
+	}
+	repository, err := newDiscoveryRepositoryUnchecked(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	claimed, err := repository.ClaimOutboxTopic(ctx, "discovery-jobs", "outbox-worker", "outbox-lease-token-7b01", 30, 10)
+	if err != nil || len(claimed) != 1 || claimed[0].ID != discoveryID || claimed[0].Topic != "discovery-jobs" {
+		t.Fatalf("claim=%#v err=%v", claimed, err)
+	}
+	var canonicalPayload string
+	if err := connection.QueryRow(ctx, `SELECT payload::text FROM zasp_discovery_outbox WHERE id=$1`, discoveryID).Scan(&canonicalPayload); err != nil {
+		t.Fatal(err)
+	}
+	computed := sha256.Sum256(claimed[0].Payload)
+	if string(claimed[0].Payload) != canonicalPayload || !bytes.Equal(computed[:], claimed[0].PayloadDigest) {
+		t.Fatalf("payload=%q canonical=%q digest=%x expected=%x", claimed[0].Payload, canonicalPayload, computed, claimed[0].PayloadDigest)
+	}
+	providerAck := "sha256:" + strings.Repeat("b", 64)
+	if err := repository.AcknowledgeOutbox(ctx, identity.Scope, discoveryID, "outbox-worker", "outbox-lease-token-7b01", providerAck); err != nil {
+		t.Fatal(err)
+	}
+	// Exact retry models a committed acknowledgement whose response was lost.
+	if err := repository.AcknowledgeOutbox(ctx, identity.Scope, discoveryID, "outbox-worker", "outbox-lease-token-7b01", providerAck); err != nil {
+		t.Fatalf("lost acknowledgement replay: %v", err)
+	}
+	claimed, err = repository.ClaimOutboxTopic(ctx, "discovery-jobs", "outbox-worker", "outbox-lease-token-7b02", 30, 10)
+	if err != nil || len(claimed) != 0 {
+		t.Fatalf("published reclaim=%#v err=%v", claimed, err)
+	}
+	var storedAck string
+	var foreignState string
+	if err := connection.QueryRow(ctx, `SELECT (SELECT provider_ack FROM zasp_discovery_outbox WHERE id=$1),(SELECT state FROM zasp_discovery_outbox WHERE id=$2)`, discoveryID, foreignID).Scan(&storedAck, &foreignState); err != nil || storedAck != providerAck || foreignState != "pending" {
+		t.Fatalf("stored_ack=%q foreign_state=%q err=%v", storedAck, foreignState, err)
+	}
+	var newClaim, legacyClaim bool
+	if err := connection.QueryRow(ctx, `SELECT has_function_privilege('zasp_outbox_worker','zasp_execution_claim_outbox(text,text,text,integer,integer)','EXECUTE'),has_function_privilege('zasp_outbox_worker','zasp_discovery_claim_outbox(text,text,integer,integer)','EXECUTE')`).Scan(&newClaim, &legacyClaim); err != nil || !newClaim || legacyClaim {
+		t.Fatalf("new_claim=%t legacy_claim=%t err=%v", newClaim, legacyClaim, err)
+	}
+	if _, err := connection.Exec(ctx, `GRANT EXECUTE ON FUNCTION zasp_discovery_claim_outbox(text,text,integer,integer) TO zasp_outbox_worker`); err != nil {
+		t.Fatal(err)
+	}
+	var ready bool
+	if err := connection.QueryRow(ctx, `SELECT zasp_execution_security_ready()`).Scan(&ready); err != nil || ready {
+		t.Fatalf("legacy claim grant readiness=%t err=%v", ready, err)
+	}
+	if _, err := connection.Exec(ctx, `REVOKE EXECUTE ON FUNCTION zasp_discovery_claim_outbox(text,text,integer,integer) FROM zasp_outbox_worker`); err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.DownProductionDiscoveryExecution(ctx); err != nil {
+		t.Fatalf("v13 outbox rollback: %v", err)
+	}
+	var legacyRestored, newRemoved, referenceReady bool
+	if err := connection.QueryRow(ctx, `SELECT has_function_privilege('zasp_outbox_worker','zasp_discovery_claim_outbox(text,text,integer,integer)','EXECUTE'),to_regprocedure('zasp_execution_claim_outbox(text,text,text,integer,integer)') IS NULL,zasp_reference_authorization_readiness($1,$2)`, migrations.ReferenceAuthorization().Checksum(), migrations.ReferenceAuthorizationSemanticFingerprint()).Scan(&legacyRestored, &newRemoved, &referenceReady); err != nil || !legacyRestored || !newRemoved || !referenceReady {
+		t.Fatalf("rollback legacy=%t new_removed=%t reference=%t err=%v", legacyRestored, newRemoved, referenceReady, err)
 	}
 }

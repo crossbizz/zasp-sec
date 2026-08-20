@@ -63,8 +63,13 @@ func TestProductionDiscoveryExecutionMigrationOwnsLeasedExecutionAuthority(t *te
 	if strings.Contains(metadata.UpSQL(), "SELECT * INTO STRICT input_row FROM zasp_discovery_snapshot_inputs") {
 		t.Fatal("freshness fails on legacy snapshots without v13 snapshot input authority")
 	}
-	if strings.Contains(metadata.UpSQL(), "attempt<100") {
-		t.Fatal("projection claim index permits attempts beyond the terminal budget")
+	projectionIndexStart := strings.Index(metadata.UpSQL(), "CREATE INDEX zasp_execution_projection_claim_idx")
+	if projectionIndexStart < 0 {
+		t.Fatal("projection claim index is missing")
+	}
+	projectionIndexEnd := strings.Index(metadata.UpSQL()[projectionIndexStart:], ";")
+	if projectionIndexEnd < 0 || !strings.Contains(metadata.UpSQL()[projectionIndexStart:projectionIndexStart+projectionIndexEnd], "attempt<5") || strings.Contains(metadata.UpSQL()[projectionIndexStart:projectionIndexStart+projectionIndexEnd], "attempt<100") {
+		t.Fatal("projection claim index does not enforce the terminal attempt budget")
 	}
 	for _, required := range []string{"semantic schema drift blocks rollback", "production discovery execution data blocks rollback", "requestIntegrationSync", "putIntegrationSchedule", "deleteIntegrationSchedule", "reference-authorization-v1"} {
 		if !strings.Contains(metadata.DownSQL(), required) {

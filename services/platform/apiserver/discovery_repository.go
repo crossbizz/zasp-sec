@@ -36,6 +36,7 @@ const (
 	postgresDiscoveryApplySnapshotSQL           = `SELECT zasp_discovery_apply_snapshot($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb,$15::jsonb,$16::jsonb)`
 	postgresDiscoveryEntityPageSQL              = `SELECT zasp_discovery_entity_page($1,$2,$3,NULLIF($4,''),$5)`
 	postgresDiscoveryClaimOutboxSQL             = `SELECT zasp_discovery_claim_outbox($1,$2,$3,$4)`
+	postgresExecutionClaimOutboxTopicSQL        = `SELECT zasp_execution_claim_outbox($1,$2,$3,$4,$5)`
 	postgresDiscoveryAckOutboxSQL               = `SELECT zasp_discovery_ack_outbox($1,$2,$3,$4,$5,$6,$7)`
 	postgresDiscoveryIssueSensorTokenSQL        = `SELECT zasp_discovery_issue_sensor_token($1,$2,$3,$4,$5,$6,$7,$8)`
 	postgresDiscoveryGatewayEnrollSQL           = `SELECT zasp_discovery_gateway_enroll($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`
@@ -96,6 +97,10 @@ type OutboxRepository interface {
 	ClaimOutbox(context.Context, string, string, int, int) ([]DiscoveryOutboxEvent, error)
 	AcknowledgeOutbox(context.Context, domain.Scope, string, string, string, string) error
 	RetryOutbox(context.Context, domain.Scope, string, string, string, int, string) error
+}
+
+type TopicOutboxRepository interface {
+	ClaimOutboxTopic(context.Context, string, string, string, int, int) ([]DiscoveryOutboxEvent, error)
 }
 
 type DiscoveryWorkerRepository interface {
@@ -598,6 +603,18 @@ func (repository *DiscoveryRepository) ClaimOutbox(ctx context.Context, worker, 
 		return nil, ErrRepositoryOperation
 	}
 	payload, err := repository.database.QueryJSON(ctx, postgresDiscoveryClaimOutboxSQL, worker, leaseToken, leaseSeconds, limit)
+	return decodeDiscoveryOutboxClaims(payload, err, "", leaseSeconds, limit)
+}
+
+func (repository *DiscoveryRepository) ClaimOutboxTopic(ctx context.Context, topic, worker, leaseToken string, leaseSeconds, limit int) ([]DiscoveryOutboxEvent, error) {
+	if !validDiscoveryRepository(repository, ctx) || topic != "discovery-jobs" || len(worker) < 1 || len(worker) > 128 || len(leaseToken) < 16 || len(leaseToken) > 128 || leaseSeconds < 5 || leaseSeconds > 900 || limit < 1 || limit > 10 {
+		return nil, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresExecutionClaimOutboxTopicSQL, topic, worker, leaseToken, leaseSeconds, limit)
+	return decodeDiscoveryOutboxClaims(payload, err, topic, leaseSeconds, limit)
+}
+
+func decodeDiscoveryOutboxClaims(payload json.RawMessage, err error, expectedTopic string, leaseSeconds, limit int) ([]DiscoveryOutboxEvent, error) {
 	if err != nil {
 		return nil, discoveryProviderError(err)
 	}
@@ -609,7 +626,7 @@ func (repository *DiscoveryRepository) ClaimOutbox(ctx context.Context, worker, 
 	}
 	for index := range envelope.Items {
 		item := &envelope.Items[index]
-		if !validProductID(item.OrganizationID) || !validProductID(item.WorkspaceID) || !validProductID(item.EnvironmentID) || !validProductID(item.ID) || !stringIn(item.Topic, "discovery-jobs", "runtime-events", "projection-work") || len(item.DeterministicKey) < 16 || len(item.DeterministicKey) > 256 || item.PayloadVersion < 1 || item.PayloadVersion > 32 || !discoveryValidJSONObject(item.Payload, 65536) || len(item.PayloadDigest) != sha256.Size || item.Attempt < 1 || item.Attempt > 100 || !validLeaseExpiration(item.LeaseExpiresAt, leaseSeconds) {
+		if !validProductID(item.OrganizationID) || !validProductID(item.WorkspaceID) || !validProductID(item.EnvironmentID) || !validProductID(item.ID) || !stringIn(item.Topic, "discovery-jobs", "runtime-events", "projection-work") || expectedTopic != "" && item.Topic != expectedTopic || len(item.DeterministicKey) < 16 || len(item.DeterministicKey) > 256 || item.PayloadVersion < 1 || item.PayloadVersion > 32 || !discoveryValidJSONObject(item.Payload, 65536) || len(item.PayloadDigest) != sha256.Size || item.Attempt < 1 || item.Attempt > 100 || !validLeaseExpiration(item.LeaseExpiresAt, leaseSeconds) {
 			return nil, ErrRepositoryUnavailable
 		}
 		item.LeaseExpiresAt = item.LeaseExpiresAt.UTC()

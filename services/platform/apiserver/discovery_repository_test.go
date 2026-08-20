@@ -1,14 +1,67 @@
 package apiserver
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
+
+type legacyOutboxRepositoryFixture struct{}
+
+func (*legacyOutboxRepositoryFixture) ClaimOutbox(context.Context, string, string, int, int) ([]DiscoveryOutboxEvent, error) {
+	return nil, nil
+}
+func (*legacyOutboxRepositoryFixture) AcknowledgeOutbox(context.Context, domain.Scope, string, string, string, string) error {
+	return nil
+}
+func (*legacyOutboxRepositoryFixture) RetryOutbox(context.Context, domain.Scope, string, string, string, int, string) error {
+	return nil
+}
+
+var _ OutboxRepository = (*legacyOutboxRepositoryFixture)(nil)
+var _ TopicOutboxRepository = (*DiscoveryRepository)(nil)
+
+func TestDiscoveryRepositoryClaimsOnlyExactOutboxTopicAndPreservesPayloadBytes(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	payload, marshalErr := json.Marshal(map[string]string{
+		"environment_id": identity.Scope.EnvironmentID().String(), "integration_id": "pid_40000005-0000-4000-8000-000000000005",
+		"job_id": "pid_40000004-0000-4000-8000-000000000004", "organization_id": identity.Scope.OrganizationID().String(),
+		"request_digest": strings.Repeat("a", 64), "sync_id": "pid_40000006-0000-4000-8000-000000000006", "workspace_id": identity.Scope.WorkspaceID().String(),
+	})
+	if marshalErr != nil {
+		t.Fatal(marshalErr)
+	}
+	digest := sha256.Sum256(payload)
+	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{}}
+	repository := newTestDiscoveryRepository(t, database)
+	envelope, marshalErr := json.Marshal(map[string]any{"items": []DiscoveryOutboxEvent{{
+		OrganizationID: identity.Scope.OrganizationID().String(), WorkspaceID: identity.Scope.WorkspaceID().String(), EnvironmentID: identity.Scope.EnvironmentID().String(),
+		ID: "pid_40000003-0000-4000-8000-000000000003", Topic: "discovery-jobs", DeterministicKey: "sync:pid_40000006-0000-4000-8000-000000000006",
+		PayloadVersion: 1, Payload: payload, PayloadDigest: digest[:], Attempt: 1, LeaseExpiresAt: time.Now().UTC().Add(30 * time.Second),
+	}}})
+	if marshalErr != nil {
+		t.Fatal(marshalErr)
+	}
+	database.responses[postgresExecutionClaimOutboxTopicSQL] = envelope
+	claimed, err := repository.ClaimOutboxTopic(context.Background(), "discovery-jobs", "worker-a", "lease-token-00000001", 30, 10)
+	if err != nil || len(claimed) != 1 || !bytes.Equal(claimed[0].Payload, payload) || !bytes.Equal(claimed[0].PayloadDigest, digest[:]) {
+		t.Fatalf("claim=%#v err=%v", claimed, err)
+	}
+	if database.query != postgresExecutionClaimOutboxTopicSQL || !reflect.DeepEqual(database.args, []any{"discovery-jobs", "worker-a", "lease-token-00000001", 30, 10}) {
+		t.Fatalf("query=%q args=%#v", database.query, database.args)
+	}
+	if _, err := repository.ClaimOutboxTopic(context.Background(), "runtime-events", "worker-a", "lease-token-00000001", 30, 10); !errors.Is(err, ErrRepositoryOperation) {
+		t.Fatalf("foreign topic error=%v", err)
+	}
+}
 
 type discoveryCallDatabase struct {
 	workflowCallDatabase
