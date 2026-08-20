@@ -44,17 +44,15 @@ func TestProviderSubjectsUseExactProviderGrammar(t *testing.T) {
 	invalid := map[Provider][]string{
 		ProviderAWS:        {"123", "12345678901x"},
 		ProviderKubernetes: {"https://cluster.example", "cluster example/customer"},
-		ProviderGitHub:     {"0", "01", "installation-123"},
-		ProviderOkta:       {"https://acme.okta.com", "ACME.okta.com"},
+		ProviderGitHub:     {"0", "01", "installation-123", "9007199254740993"},
+		ProviderOkta:       {"https://acme.okta.com", "ACME.okta.com", "evil.example.com", "okta.com"},
 	}
 	for provider, ids := range invalid {
-		request := validRequest(t, provider, credentialForProvider(provider))
-		manifest := validManifest(t, request)
 		for _, id := range ids {
 			binding := subjectForProvider(provider)
 			binding.ID = id
-			if _, err := NewPartialResult(request, binding, Cursor{Provider: provider, Version: "cursor_v1", Value: "next"}, manifest, FailurePartial); !errors.Is(err, ErrContract) {
-				t.Fatalf("%s accepted subject %q: %v", provider, id, err)
+			if binding.valid(provider) {
+				t.Fatalf("%s accepted subject %q", provider, id)
 			}
 		}
 	}
@@ -558,6 +556,70 @@ func TestReadinessIsSingleFlightAndRegistryOwnsTimestamp(t *testing.T) {
 		} else if status.CheckedAt != checkedAt {
 			t.Fatalf("single flight returned different timestamps: %s != %s", status.CheckedAt, checkedAt)
 		}
+	}
+}
+
+func TestReadinessIgnoringContextIsBoundedWithoutProbeAccumulation(t *testing.T) {
+	var calls atomic.Int32
+	release := make(chan struct{})
+	defer close(release)
+	registrations := validRegistrations(t, collectorFunc(func(context.Context, Request) (Outcome, error) { return nil, nil }))
+	registrations[0].ReadinessTimeout = 100 * time.Millisecond
+	registrations[0].Readiness = readinessFunc(func(context.Context) Readiness {
+		calls.Add(1)
+		<-release
+		return Readiness{Provider: ProviderAWS, CollectorVersion: "collector_v1", Ready: true, Code: ReadinessReady}
+	})
+	registry, err := NewRegistry(registrations)
+	if err != nil {
+		t.Fatalf("NewRegistry: %v", err)
+	}
+	for attempt := 0; attempt < 3; attempt++ {
+		started := time.Now()
+		status := registry.CheckReadiness(context.Background(), ProviderAWS, "collector_v1")
+		if elapsed := time.Since(started); elapsed > 300*time.Millisecond || status.Ready || status.Code != ReadinessDependencyUnavailable {
+			t.Fatalf("attempt %d elapsed=%s status=%#v", attempt, elapsed, status)
+		}
+	}
+	if got := calls.Load(); got != 1 {
+		t.Fatalf("noncooperative readiness probes = %d, want one fenced probe", got)
+	}
+}
+
+func TestReadinessLeaderCancellationDoesNotCancelLiveFollower(t *testing.T) {
+	var calls atomic.Int32
+	var enteredOnce sync.Once
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	registrations := validRegistrations(t, collectorFunc(func(context.Context, Request) (Outcome, error) { return nil, nil }))
+	registrations[0].Readiness = readinessFunc(func(context.Context) Readiness {
+		calls.Add(1)
+		enteredOnce.Do(func() { close(entered) })
+		<-release
+		return Readiness{Provider: ProviderAWS, CollectorVersion: "collector_v1", Ready: true, Code: ReadinessReady}
+	})
+	registry, err := NewRegistry(registrations)
+	if err != nil {
+		t.Fatalf("NewRegistry: %v", err)
+	}
+	leaderContext, cancelLeader := context.WithCancel(context.Background())
+	leader := make(chan Readiness, 1)
+	go func() { leader <- registry.CheckReadiness(leaderContext, ProviderAWS, "collector_v1") }()
+	<-entered
+	cancelLeader()
+	if status := <-leader; status.Code != ReadinessCancelled {
+		t.Fatalf("cancelled leader status = %#v", status)
+	}
+	follower := make(chan Readiness, 1)
+	go func() { follower <- registry.CheckReadiness(context.Background(), ProviderAWS, "collector_v1") }()
+	time.Sleep(25 * time.Millisecond)
+	if got := calls.Load(); got != 1 {
+		t.Fatalf("follower started a second readiness probe before shared completion: %d", got)
+	}
+	close(release)
+	status := <-follower
+	if !status.Ready || status.Code != ReadinessReady || calls.Load() != 1 {
+		t.Fatalf("live follower status=%#v calls=%d", status, calls.Load())
 	}
 }
 

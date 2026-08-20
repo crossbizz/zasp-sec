@@ -37,6 +37,7 @@ var (
 	referencePattern         = regexp.MustCompile(`^ref:(aws|kubernetes|github|okta)/[a-z0-9][a-z0-9_./:-]{7,507}$`)
 	awsSubjectPattern        = regexp.MustCompile(`^[0-9]{12}$`)
 	kubernetesSubjectPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9.-]{0,252}/[a-z0-9][a-z0-9._-]{0,127}$`)
+	oktaSubjectPattern       = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]\.okta\.com$`)
 )
 
 type Provider string
@@ -157,10 +158,10 @@ func (binding SubjectBinding) valid(provider Provider) bool {
 		if binding.ID == "0" || strings.HasPrefix(binding.ID, "0") {
 			return false
 		}
-		_, err := strconv.ParseUint(binding.ID, 10, 64)
-		return err == nil
+		value, err := strconv.ParseUint(binding.ID, 10, 64)
+		return err == nil && value <= 1<<53
 	case ProviderOkta:
-		return validDNSName(binding.ID)
+		return oktaSubjectPattern.MatchString(binding.ID)
 	default:
 		return false
 	}
@@ -717,50 +718,58 @@ func (registry *Registry) CheckReadiness(ctx context.Context, provider Provider,
 		return missing
 	}
 	key := registryKey{provider: provider, version: collectorVersion}
+	call := registry.readinessCall(key, registration)
+	timer := time.NewTimer(registration.ReadinessTimeout)
+	defer timer.Stop()
+	select {
+	case <-call.done:
+		return call.status
+	case <-ctx.Done():
+		return Readiness{Provider: provider, CollectorVersion: collectorVersion, Code: ReadinessCancelled, CheckedAt: time.Now().UTC()}
+	case <-timer.C:
+		return Readiness{Provider: provider, CollectorVersion: collectorVersion, Code: ReadinessDependencyUnavailable, CheckedAt: time.Now().UTC()}
+	}
+}
+
+func (registry *Registry) readinessCall(key registryKey, registration Registration) *readinessCall {
 	registry.readinessMu.Lock()
 	if existing := registry.readiness[key]; existing != nil {
 		registry.readinessMu.Unlock()
-		select {
-		case <-existing.done:
-			return existing.status
-		case <-ctx.Done():
-			return Readiness{Provider: provider, CollectorVersion: collectorVersion, Code: ReadinessCancelled, CheckedAt: time.Now().UTC()}
-		}
+		return existing
 	}
 	call := &readinessCall{done: make(chan struct{})}
 	registry.readiness[key] = call
 	registry.readinessMu.Unlock()
-
-	bounded, cancel := context.WithTimeout(ctx, registration.ReadinessTimeout)
-	status := callReadiness(registration.Readiness, bounded)
-	boundedErr := bounded.Err()
-	cancel()
-	checkedAt := time.Now().UTC()
-	if boundedErr != nil {
-		code := ReadinessDependencyUnavailable
-		if ctx.Err() != nil {
-			code = ReadinessCancelled
+	go func() {
+		bounded, cancel := context.WithTimeout(context.Background(), registration.ReadinessTimeout)
+		status := callReadiness(registration.Readiness, bounded)
+		boundedErr := bounded.Err()
+		cancel()
+		checkedAt := time.Now().UTC()
+		if boundedErr != nil {
+			status = Readiness{Provider: key.provider, CollectorVersion: key.version, Code: ReadinessDependencyUnavailable}
+		} else if status.Provider != key.provider || status.CollectorVersion != key.version {
+			status = Readiness{Provider: key.provider, CollectorVersion: key.version, Code: ReadinessContractInvalid}
 		}
-		status = Readiness{Provider: provider, CollectorVersion: collectorVersion, Code: code}
-	} else if status.Provider != provider || status.CollectorVersion != collectorVersion {
-		status = Readiness{Provider: provider, CollectorVersion: collectorVersion, Code: ReadinessContractInvalid}
-	}
-	status.CheckedAt = checkedAt
-	if status.Ready {
-		if status.Code != "" && status.Code != ReadinessReady {
-			status = Readiness{Provider: provider, CollectorVersion: collectorVersion, Code: ReadinessContractInvalid, CheckedAt: checkedAt}
-		} else {
-			status.Code = ReadinessReady
+		status.CheckedAt = checkedAt
+		if status.Ready {
+			if status.Code != "" && status.Code != ReadinessReady {
+				status = Readiness{Provider: key.provider, CollectorVersion: key.version, Code: ReadinessContractInvalid, CheckedAt: checkedAt}
+			} else {
+				status.Code = ReadinessReady
+			}
+		} else if status.Code != ReadinessDependencyUnavailable && status.Code != ReadinessUnconfigured && status.Code != ReadinessCancelled && status.Code != ReadinessContractInvalid {
+			status = Readiness{Provider: key.provider, CollectorVersion: key.version, Code: ReadinessContractInvalid, CheckedAt: checkedAt}
 		}
-	} else if status.Code != ReadinessDependencyUnavailable && status.Code != ReadinessUnconfigured && status.Code != ReadinessCancelled && status.Code != ReadinessContractInvalid {
-		status = Readiness{Provider: provider, CollectorVersion: collectorVersion, Code: ReadinessContractInvalid, CheckedAt: checkedAt}
-	}
-	registry.readinessMu.Lock()
-	call.status = status
-	delete(registry.readiness, key)
-	close(call.done)
-	registry.readinessMu.Unlock()
-	return status
+		registry.readinessMu.Lock()
+		call.status = status
+		if registry.readiness[key] == call {
+			delete(registry.readiness, key)
+		}
+		close(call.done)
+		registry.readinessMu.Unlock()
+	}()
+	return call
 }
 
 func callCollector(collector Collector, ctx context.Context, request Request) (outcome Outcome, resultErr error) {
@@ -1021,23 +1030,6 @@ func boundedText(value string, maximum int) bool {
 	for _, character := range value {
 		if unicode.IsControl(character) {
 			return false
-		}
-	}
-	return true
-}
-
-func validDNSName(value string) bool {
-	if len(value) > 253 || strings.Contains(value, "..") || !strings.Contains(value, ".") {
-		return false
-	}
-	for _, label := range strings.Split(value, ".") {
-		if len(label) < 1 || len(label) > 63 || label[0] == '-' || label[len(label)-1] == '-' {
-			return false
-		}
-		for _, character := range label {
-			if character != '-' && (character < 'a' || character > 'z') && (character < '0' || character > '9') {
-				return false
-			}
 		}
 	}
 	return true
