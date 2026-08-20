@@ -300,10 +300,20 @@ func cloneDriverSnapshotProjection(value DriverSnapshotProjection) DriverSnapsho
 }
 
 func sanitizeSnapshotDriverError(err error) error {
-	for _, stable := range []error{ErrSnapshotCanceled, ErrSnapshotRetryable, ErrSnapshotUnknownOutcome, ErrSnapshotStale, ErrSnapshotDrift, ErrSnapshotDenied, ErrSnapshotUnavailable} {
+	if errors.Is(err, ErrSnapshotUnknownOutcome) {
+		return ErrSnapshotUnknownOutcome
+	}
+	var matched error
+	for _, stable := range []error{ErrSnapshotCanceled, ErrSnapshotRetryable, ErrSnapshotStale, ErrSnapshotDrift, ErrSnapshotDenied, ErrSnapshotUnavailable} {
 		if errors.Is(err, stable) {
-			return stable
+			if matched != nil {
+				return ErrSnapshotUnknownOutcome
+			}
+			matched = stable
 		}
+	}
+	if matched != nil {
+		return matched
 	}
 	return ErrSnapshotUnavailable
 }

@@ -93,6 +93,25 @@ func TestStoreSnapshotGenerationAndDriftErrorsRemainStableAndRedacted(t *testing
 	}
 }
 
+func TestSnapshotUnknownAndJoinedErrorClassesFailClosed(t *testing.T) {
+	t.Parallel()
+
+	for _, joined := range []error{
+		errors.Join(ErrSnapshotCanceled, ErrSnapshotUnknownOutcome),
+		errors.Join(ErrSnapshotRetryable, ErrSnapshotUnknownOutcome),
+		errors.Join(ErrSnapshotDenied, ErrSnapshotUnknownOutcome),
+		errors.Join(ErrSnapshotCanceled, ErrSnapshotRetryable),
+		errors.Join(ErrSnapshotStale, ErrSnapshotDrift),
+	} {
+		driver := &snapshotFunctionDriver{Driver: noCallDriver(), replace: func(_ context.Context, input DriverSnapshotProjection) (DriverSnapshotReplaced, error) {
+			return noMutationSnapshotAcknowledgement(input, ErrSnapshotCanceled), errors.Join(joined, errors.New("secret=must-not-escape"))
+		}}
+		if _, err := mustGraphStore(t, driver).ApplySnapshot(context.Background(), fixtureCompleteSnapshot(t, 7, "7")); !errors.Is(err, ErrSnapshotUnknownOutcome) || err.Error() != ErrSnapshotUnknownOutcome.Error() {
+			t.Fatalf("ApplySnapshot(%v) error = %q", joined, err)
+		}
+	}
+}
+
 func TestStoreRejectsHostileSnapshotAcknowledgementAndLegacyOnlyDriver(t *testing.T) {
 	t.Parallel()
 
