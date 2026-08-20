@@ -86,11 +86,12 @@ func TestGatewayPolicyCacheRejectsRollbackAndAcceptsExactReplay(t *testing.T) {
 	if err := cache.Store(next); err != nil {
 		t.Fatal(err)
 	}
-	current, state, err := cache.Current(now.Add(time.Minute))
+	current, state, err := cache.Current()
 	if err != nil || state != GatewayPolicyValid || current.Sequence != 6 {
 		t.Fatalf("current=%+v state=%q err=%v", current, state, err)
 	}
-	_, state, err = cache.Current(next.ExpiresAt.Add(time.Second))
+	cache.now = func() time.Time { return next.ExpiresAt.Add(time.Second) }
+	_, state, err = cache.Current()
 	if err != nil || state != GatewayPolicyExpiredOpen {
 		t.Fatalf("expired state=%q err=%v", state, err)
 	}
@@ -101,7 +102,7 @@ func TestGatewayPolicyDiskCacheWrites0600AndReverifiesOnRestore(t *testing.T) {
 	now := gatewayFixtureTime()
 	binding := gatewayFixtureBinding()
 	keys, _ := NewGatewayPolicyKeys(map[string]ed25519.PublicKey{"gateway-key-1": public})
-	path := filepath.Join(t.TempDir(), "gateway-policy.json")
+	path := filepath.Join(gatewayRealTempDir(t), "gateway-policy.json")
 	cache, err := NewGatewayPolicyDiskCache(path, keys, binding, func() time.Time { return now })
 	if err != nil {
 		t.Fatal(err)
@@ -118,7 +119,7 @@ func TestGatewayPolicyDiskCacheWrites0600AndReverifiesOnRestore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	current, state, err := restored.Current(now)
+	current, state, err := restored.Current()
 	if err != nil || state != GatewayPolicyValid || current.Sequence != 1 {
 		t.Fatalf("restored=%+v state=%q err=%v", current, state, err)
 	}
@@ -154,7 +155,7 @@ func TestGatewayPolicyCacheRejectsNoncanonicalDiskAndClockPanic(t *testing.T) {
 		t.Fatal("panicking clock accepted")
 	}
 
-	path := filepath.Join(t.TempDir(), "gateway-policy.json")
+	path := filepath.Join(gatewayRealTempDir(t), "gateway-policy.json")
 	cache, err := NewGatewayPolicyDiskCache(path, keys, binding, func() time.Time { return now })
 	if err != nil {
 		t.Fatal(err)
@@ -188,14 +189,114 @@ func TestGatewayPolicyEnvelopeClonesKeysPoliciesAndConditions(t *testing.T) {
 	}
 	envelope.Policies[0].Conditions[0].Value = "mutated"
 	public[0] ^= 1
-	current, _, err := cache.Current(now)
+	current, _, err := cache.Current()
 	if err != nil || current.Policies[0].Conditions[0].Value != "shell" {
 		t.Fatalf("current=%+v err=%v", current, err)
 	}
 	current.Policies[0].Conditions[0].Value = "mutated-again"
-	replay, _, _ := cache.Current(now)
+	replay, _, _ := cache.Current()
 	if replay.Policies[0].Conditions[0].Value != "shell" {
 		t.Fatal("cache returned mutable state")
+	}
+}
+
+func TestGatewayPolicyCacheNeverReactivatesExpiredPolicyAfterClockRollbackOrRestart(t *testing.T) {
+	public, private, _ := ed25519.GenerateKey(rand.Reader)
+	clock := gatewayFixtureTime()
+	binding := gatewayFixtureBinding()
+	keys, _ := NewGatewayPolicyKeys(map[string]ed25519.PublicKey{"gateway-key-1": public})
+	path := filepath.Join(gatewayRealTempDir(t), "gateway-policy.json")
+	cache, err := NewGatewayPolicyDiskCache(path, keys, binding, func() time.Time { return clock })
+	if err != nil {
+		t.Fatal(err)
+	}
+	envelope := gatewayFixtureEnvelope(t, private, clock, binding, 1, 1, "closed")
+	if err := cache.Store(envelope); err != nil {
+		t.Fatal(err)
+	}
+	clock = envelope.ExpiresAt.Add(time.Second)
+	if _, state, err := cache.Current(); err != nil || state != GatewayPolicyExpiredClosed {
+		t.Fatalf("first expiry state=%q err=%v", state, err)
+	}
+	clock = gatewayFixtureTime()
+	if _, state, err := cache.Current(); err != nil || state != GatewayPolicyExpiredClosed {
+		t.Fatalf("rollback reactivated policy: state=%q err=%v", state, err)
+	}
+	restored, err := NewGatewayPolicyDiskCache(path, keys, binding, func() time.Time { return clock })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, state, err := restored.Current(); err != nil || state != GatewayPolicyExpiredClosed {
+		t.Fatalf("restart rollback reactivated policy: state=%q err=%v", state, err)
+	}
+}
+
+func TestGatewayPolicyCacheBindsFailureModeToPolicyVersion(t *testing.T) {
+	public, private, _ := ed25519.GenerateKey(rand.Reader)
+	now := gatewayFixtureTime()
+	binding := gatewayFixtureBinding()
+	keys, _ := NewGatewayPolicyKeys(map[string]ed25519.PublicKey{"gateway-key-1": public})
+	cache, _ := NewGatewayPolicyCache(keys, binding, func() time.Time { return now })
+	first := gatewayFixtureEnvelope(t, private, now, binding, 5, 9, "closed")
+	if err := cache.Store(first); err != nil {
+		t.Fatal(err)
+	}
+	drift := gatewayFixtureEnvelope(t, private, now, binding, 6, 9, "open")
+	if err := cache.Store(drift); err == nil {
+		t.Fatal("same policy version changed failure mode")
+	}
+}
+
+func TestGatewayPolicyDiskCacheRejectsSymlinkedParentAndLeafReplacement(t *testing.T) {
+	public, private, _ := ed25519.GenerateKey(rand.Reader)
+	now := gatewayFixtureTime()
+	binding := gatewayFixtureBinding()
+	keys, _ := NewGatewayPolicyKeys(map[string]ed25519.PublicKey{"gateway-key-1": public})
+	root := gatewayRealTempDir(t)
+	realDirectory := filepath.Join(root, "real")
+	if err := os.Mkdir(realDirectory, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	symlinkDirectory := filepath.Join(root, "linked")
+	if err := os.Symlink(realDirectory, symlinkDirectory); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NewGatewayPolicyDiskCache(filepath.Join(symlinkDirectory, "policy.json"), keys, binding, func() time.Time { return now }); err == nil {
+		t.Fatal("symlinked parent accepted")
+	}
+
+	path := filepath.Join(realDirectory, "policy.json")
+	cache, err := NewGatewayPolicyDiskCache(path, keys, binding, func() time.Time { return now })
+	if err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(root, "target.json")
+	if err := os.WriteFile(target, []byte("unchanged"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, path); err != nil {
+		t.Fatal(err)
+	}
+	if err := cache.Store(gatewayFixtureEnvelope(t, private, now, binding, 1, 1, "closed")); err == nil {
+		t.Fatal("symlink leaf replacement accepted")
+	}
+	if raw, err := os.ReadFile(target); err != nil || string(raw) != "unchanged" {
+		t.Fatalf("symlink target changed: %q err=%v", raw, err)
+	}
+}
+
+func TestGatewayPolicyEnvelopeRejectsOversizedOrNoncanonicalSignatureBeforeVerification(t *testing.T) {
+	public, private, _ := ed25519.GenerateKey(rand.Reader)
+	now := gatewayFixtureTime()
+	binding := gatewayFixtureBinding()
+	keys, _ := NewGatewayPolicyKeys(map[string]ed25519.PublicKey{"gateway-key-1": public})
+	envelope := gatewayFixtureEnvelope(t, private, now, binding, 1, 1, "closed")
+	for _, signature := range []string{strings.Repeat("A", maximumGatewayPolicyBytes), envelope.Signature + "="} {
+		candidate := cloneGatewayPolicyEnvelope(envelope)
+		candidate.Signature = signature
+		if _, err := VerifyGatewayPolicyEnvelope(candidate, keys, binding, now); err == nil {
+			t.Fatalf("signature accepted: length=%d", len(signature))
+		}
 	}
 }
 
@@ -248,4 +349,13 @@ func gatewayFixtureBinding() GatewayPolicyBinding {
 
 func gatewayFixtureTime() time.Time {
 	return time.Date(2026, 8, 19, 21, 0, 0, 0, time.UTC)
+}
+
+func gatewayRealTempDir(t *testing.T) string {
+	t.Helper()
+	path, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return path
 }

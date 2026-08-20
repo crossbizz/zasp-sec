@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/ed25519"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -14,6 +15,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -25,10 +27,12 @@ var ErrGatewayPolicy = errors.New("gateway policy rejected")
 var gatewayKeyIDPattern = regexp.MustCompile(`^[a-z][a-z0-9_-]{7,63}$`)
 
 const (
-	GatewayPolicyValid         = "valid"
-	GatewayPolicyExpiredOpen   = "expired_open"
-	GatewayPolicyExpiredClosed = "expired_closed"
-	maximumGatewayPolicyBytes  = 1024 * 1024
+	GatewayPolicyValid            = "valid"
+	GatewayPolicyExpiredOpen      = "expired_open"
+	GatewayPolicyExpiredClosed    = "expired_closed"
+	maximumGatewayPolicyBytes     = 1024 * 1024
+	maximumGatewayPolicyDiskBytes = maximumGatewayPolicyBytes + 512
+	ed25519RawURLSignatureLength  = 86
 )
 
 type GatewayPolicyBinding struct {
@@ -55,6 +59,11 @@ type GatewayPolicyEnvelope struct {
 	PayloadDigest   string           `json:"payload_digest"`
 	Policies        []CompiledPolicy `json:"policies"`
 	Signature       string           `json:"signature"`
+}
+
+type gatewayPolicyDiskState struct {
+	Envelope   GatewayPolicyEnvelope `json:"envelope"`
+	ObservedAt time.Time             `json:"observed_at"`
 }
 
 type GatewayPolicyKeys struct {
@@ -92,12 +101,19 @@ func verifyGatewayPolicyEnvelope(envelope GatewayPolicyEnvelope, keys GatewayPol
 	if !exists || len(publicKey) != ed25519.PublicKeySize {
 		return GatewayPolicyEnvelope{}, ErrGatewayPolicy
 	}
+	if len(envelope.Signature) != ed25519RawURLSignatureLength {
+		return GatewayPolicyEnvelope{}, ErrGatewayPolicy
+	}
+	encoded, err := json.Marshal(envelope)
+	if err != nil || len(encoded) > maximumGatewayPolicyBytes {
+		return GatewayPolicyEnvelope{}, ErrGatewayPolicy
+	}
 	digest, payload, err := canonicalGatewayPolicyPayload(envelope)
 	if err != nil || digest != envelope.PayloadDigest {
 		return GatewayPolicyEnvelope{}, ErrGatewayPolicy
 	}
 	signature, err := base64.RawURLEncoding.DecodeString(envelope.Signature)
-	if err != nil || len(signature) != ed25519.SignatureSize || !ed25519.Verify(publicKey, payload, signature) {
+	if err != nil || len(signature) != ed25519.SignatureSize || base64.RawURLEncoding.EncodeToString(signature) != envelope.Signature || !ed25519.Verify(publicKey, payload, signature) {
 		return GatewayPolicyEnvelope{}, ErrGatewayPolicy
 	}
 	verified := cloneGatewayPolicyEnvelope(envelope)
@@ -161,12 +177,13 @@ func canonicalGatewayPolicyPayload(envelope GatewayPolicyEnvelope) (string, []by
 }
 
 type GatewayPolicyCache struct {
-	mu      sync.RWMutex
-	keys    GatewayPolicyKeys
-	binding GatewayPolicyBinding
-	now     func() time.Time
-	path    string
-	current *GatewayPolicyEnvelope
+	mu         sync.Mutex
+	keys       GatewayPolicyKeys
+	binding    GatewayPolicyBinding
+	now        func() time.Time
+	path       string
+	current    *GatewayPolicyEnvelope
+	observedAt time.Time
 }
 
 func NewGatewayPolicyCache(keys GatewayPolicyKeys, binding GatewayPolicyBinding, now func() time.Time) (*GatewayPolicyCache, error) {
@@ -174,46 +191,39 @@ func NewGatewayPolicyCache(keys GatewayPolicyKeys, binding GatewayPolicyBinding,
 }
 
 func NewGatewayPolicyDiskCache(path string, keys GatewayPolicyKeys, binding GatewayPolicyBinding, now func() time.Time) (*GatewayPolicyCache, error) {
-	if !filepath.IsAbs(path) || filepath.Base(path) == "." || filepath.Base(path) == string(filepath.Separator) {
+	if !filepath.IsAbs(path) || filepath.Clean(path) != path || filepath.Base(path) == "." || filepath.Base(path) == string(filepath.Separator) {
 		return nil, ErrGatewayPolicy
 	}
 	cache, err := newGatewayPolicyCache(path, keys, binding, now)
 	if err != nil {
 		return nil, err
 	}
-	info, err := os.Lstat(path)
+	raw, err := readGatewayPolicyFile(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return cache, nil
 	}
-	if err != nil || !info.Mode().IsRegular() || info.Mode().Perm() != 0o600 || info.Size() < 2 || info.Size() > maximumGatewayPolicyBytes {
-		return nil, ErrGatewayPolicy
-	}
-	file, err := os.Open(path)
 	if err != nil {
 		return nil, ErrGatewayPolicy
 	}
-	defer file.Close()
-	raw, err := io.ReadAll(io.LimitReader(file, maximumGatewayPolicyBytes+1))
-	if err != nil || len(raw) > maximumGatewayPolicyBytes {
-		return nil, ErrGatewayPolicy
-	}
-	envelope, err := decodeGatewayPolicyEnvelope(bytes.NewReader(raw))
+	state, err := decodeGatewayPolicyDiskState(bytes.NewReader(raw))
 	if err != nil {
 		return nil, err
 	}
 	nowValue, ok := gatewayNow(cache.now)
-	if !ok {
+	if !ok || !canonicalGatewayTime(state.ObservedAt) {
 		return nil, ErrGatewayPolicy
 	}
-	verified, err := verifyGatewayPolicyEnvelope(envelope, cache.keys, cache.binding, nowValue, true)
+	effectiveNow := laterGatewayTime(nowValue, state.ObservedAt)
+	verified, err := verifyGatewayPolicyEnvelope(state.Envelope, cache.keys, cache.binding, effectiveNow, true)
 	if err != nil {
 		return nil, err
 	}
-	canonical, err := json.Marshal(verified)
+	canonical, err := marshalGatewayPolicyDiskState(verified, state.ObservedAt)
 	if err != nil || !bytes.Equal(raw, canonical) {
 		return nil, ErrGatewayPolicy
 	}
 	cache.current = &verified
+	cache.observedAt = state.ObservedAt
 	return cache, nil
 }
 
@@ -225,26 +235,28 @@ func newGatewayPolicyCache(path string, keys GatewayPolicyKeys, binding GatewayP
 	if err != nil {
 		return nil, err
 	}
-	if _, ok := gatewayNow(now); !ok {
+	nowValue, ok := gatewayNow(now)
+	if !ok {
 		return nil, ErrGatewayPolicy
 	}
-	return &GatewayPolicyCache{keys: clonedKeys, binding: binding, now: now, path: path}, nil
+	return &GatewayPolicyCache{keys: clonedKeys, binding: binding, now: now, path: path, observedAt: nowValue}, nil
 }
 
 func (cache *GatewayPolicyCache) Store(envelope GatewayPolicyEnvelope) error {
 	if cache == nil || cache.now == nil {
 		return ErrGatewayPolicy
 	}
-	now, ok := gatewayNow(cache.now)
+	nowValue, ok := gatewayNow(cache.now)
 	if !ok {
 		return ErrGatewayPolicy
 	}
-	verified, err := VerifyGatewayPolicyEnvelope(envelope, cache.keys, cache.binding, now)
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	effectiveNow := laterGatewayTime(nowValue, cache.observedAt)
+	verified, err := VerifyGatewayPolicyEnvelope(envelope, cache.keys, cache.binding, effectiveNow)
 	if err != nil {
 		return err
 	}
-	cache.mu.Lock()
-	defer cache.mu.Unlock()
 	if cache.current != nil {
 		if verified.Sequence < cache.current.Sequence || verified.PolicyVersion < cache.current.PolicyVersion {
 			return ErrGatewayPolicy
@@ -254,40 +266,56 @@ func (cache *GatewayPolicyCache) Store(envelope GatewayPolicyEnvelope) error {
 				return ErrGatewayPolicy
 			}
 			if cache.path != "" {
-				return writeGatewayPolicyFile(cache.path, verified)
+				if err := writeGatewayPolicyFile(cache.path, verified, effectiveNow); err != nil {
+					return err
+				}
 			}
+			cache.observedAt = effectiveNow
 			return nil
 		}
-		if verified.PolicyVersion == cache.current.PolicyVersion && !equalGatewayPolicies(verified.Policies, cache.current.Policies) {
+		if verified.PolicyVersion == cache.current.PolicyVersion && !equalGatewayPolicySemantics(verified, *cache.current) {
 			return ErrGatewayPolicy
 		}
 	}
 	if cache.path != "" {
-		if err := writeGatewayPolicyFile(cache.path, verified); err != nil {
+		if err := writeGatewayPolicyFile(cache.path, verified, effectiveNow); err != nil {
 			return err
 		}
 	}
 	cloned := cloneGatewayPolicyEnvelope(verified)
 	cache.current = &cloned
+	cache.observedAt = effectiveNow
 	return nil
 }
 
-func (cache *GatewayPolicyCache) Current(now time.Time) (GatewayPolicyEnvelope, string, error) {
-	if cache == nil || !canonicalGatewayTime(now) {
+func (cache *GatewayPolicyCache) Current() (GatewayPolicyEnvelope, string, error) {
+	if cache == nil || cache.now == nil {
 		return GatewayPolicyEnvelope{}, "", ErrGatewayPolicy
 	}
-	cache.mu.RLock()
+	nowValue, ok := gatewayNow(cache.now)
+	if !ok {
+		return GatewayPolicyEnvelope{}, "", ErrGatewayPolicy
+	}
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
 	if cache.current == nil {
-		cache.mu.RUnlock()
 		return GatewayPolicyEnvelope{}, "", ErrGatewayPolicy
 	}
 	current := cloneGatewayPolicyEnvelope(*cache.current)
-	cache.mu.RUnlock()
-	verified, err := verifyGatewayPolicyEnvelope(current, cache.keys, cache.binding, now, true)
+	effectiveNow := laterGatewayTime(nowValue, cache.observedAt)
+	verified, err := verifyGatewayPolicyEnvelope(current, cache.keys, cache.binding, effectiveNow, true)
 	if err != nil {
 		return GatewayPolicyEnvelope{}, "", err
 	}
-	if now.Before(verified.ExpiresAt) {
+	if effectiveNow.After(cache.observedAt) {
+		if cache.path != "" {
+			if err := writeGatewayPolicyFile(cache.path, verified, effectiveNow); err != nil {
+				return GatewayPolicyEnvelope{}, "", err
+			}
+		}
+		cache.observedAt = effectiveNow
+	}
+	if effectiveNow.Before(verified.ExpiresAt) {
 		return verified, GatewayPolicyValid, nil
 	}
 	if verified.FailureMode == "open" {
@@ -310,26 +338,95 @@ func decodeGatewayPolicyEnvelope(reader io.Reader) (GatewayPolicyEnvelope, error
 	return envelope, nil
 }
 
-func writeGatewayPolicyFile(path string, envelope GatewayPolicyEnvelope) (result error) {
-	bytesValue, err := json.Marshal(cloneGatewayPolicyEnvelope(envelope))
-	if err != nil || len(bytesValue) > maximumGatewayPolicyBytes {
-		return ErrGatewayPolicy
+func decodeGatewayPolicyDiskState(reader io.Reader) (gatewayPolicyDiskState, error) {
+	decoder := json.NewDecoder(bufio.NewReader(reader))
+	decoder.DisallowUnknownFields()
+	var state gatewayPolicyDiskState
+	if err := decoder.Decode(&state); err != nil {
+		return gatewayPolicyDiskState{}, ErrGatewayPolicy
 	}
-	directory := filepath.Dir(path)
-	temporary, err := os.CreateTemp(directory, ".zasp-gateway-policy-*")
+	var trailing any
+	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
+		return gatewayPolicyDiskState{}, ErrGatewayPolicy
+	}
+	return state, nil
+}
+
+func marshalGatewayPolicyDiskState(envelope GatewayPolicyEnvelope, observedAt time.Time) ([]byte, error) {
+	if !canonicalGatewayTime(observedAt) {
+		return nil, ErrGatewayPolicy
+	}
+	bytesValue, err := json.Marshal(gatewayPolicyDiskState{Envelope: cloneGatewayPolicyEnvelope(envelope), ObservedAt: observedAt})
+	if err != nil || len(bytesValue) > maximumGatewayPolicyDiskBytes {
+		return nil, ErrGatewayPolicy
+	}
+	return bytesValue, nil
+}
+
+func readGatewayPolicyFile(path string) ([]byte, error) {
+	root, name, err := openGatewayPolicyRoot(path)
+	if err != nil {
+		return nil, ErrGatewayPolicy
+	}
+	defer root.Close()
+	before, err := root.Lstat(name)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, os.ErrNotExist
+	}
+	if err != nil || !before.Mode().IsRegular() || before.Mode().Perm() != 0o600 || before.Size() < 2 || before.Size() > maximumGatewayPolicyDiskBytes {
+		return nil, ErrGatewayPolicy
+	}
+	file, err := root.Open(name)
+	if err != nil {
+		return nil, ErrGatewayPolicy
+	}
+	defer file.Close()
+	opened, err := file.Stat()
+	if err != nil || !os.SameFile(before, opened) || !opened.Mode().IsRegular() || opened.Mode().Perm() != 0o600 {
+		return nil, ErrGatewayPolicy
+	}
+	after, err := root.Lstat(name)
+	if err != nil || !os.SameFile(opened, after) || after.Mode()&os.ModeSymlink != 0 {
+		return nil, ErrGatewayPolicy
+	}
+	raw, err := io.ReadAll(io.LimitReader(file, maximumGatewayPolicyDiskBytes+1))
+	if err != nil || len(raw) > maximumGatewayPolicyDiskBytes {
+		return nil, ErrGatewayPolicy
+	}
+	return raw, nil
+}
+
+func writeGatewayPolicyFile(path string, envelope GatewayPolicyEnvelope, observedAt time.Time) (result error) {
+	bytesValue, err := marshalGatewayPolicyDiskState(envelope, observedAt)
 	if err != nil {
 		return ErrGatewayPolicy
 	}
-	temporaryPath := temporary.Name()
+	root, name, err := openGatewayPolicyRoot(path)
+	if err != nil {
+		return ErrGatewayPolicy
+	}
+	defer root.Close()
+	if info, statErr := root.Lstat(name); statErr == nil {
+		if !info.Mode().IsRegular() || info.Mode().Perm() != 0o600 {
+			return ErrGatewayPolicy
+		}
+	} else if !errors.Is(statErr, os.ErrNotExist) {
+		return ErrGatewayPolicy
+	}
+	temporaryName, err := gatewayPolicyTemporaryName()
+	if err != nil {
+		return ErrGatewayPolicy
+	}
+	temporary, err := root.OpenFile(temporaryName, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return ErrGatewayPolicy
+	}
 	defer func() {
 		_ = temporary.Close()
 		if result != nil {
-			_ = os.Remove(temporaryPath)
+			_ = root.Remove(temporaryName)
 		}
 	}()
-	if err := temporary.Chmod(0o600); err != nil {
-		return ErrGatewayPolicy
-	}
 	if _, err := temporary.Write(bytesValue); err != nil {
 		return ErrGatewayPolicy
 	}
@@ -339,10 +436,10 @@ func writeGatewayPolicyFile(path string, envelope GatewayPolicyEnvelope) (result
 	if err := temporary.Close(); err != nil {
 		return ErrGatewayPolicy
 	}
-	if err := os.Rename(temporaryPath, path); err != nil {
+	if err := root.Rename(temporaryName, name); err != nil {
 		return ErrGatewayPolicy
 	}
-	directoryFile, err := os.Open(directory)
+	directoryFile, err := root.Open(".")
 	if err != nil {
 		return ErrGatewayPolicy
 	}
@@ -351,6 +448,65 @@ func writeGatewayPolicyFile(path string, envelope GatewayPolicyEnvelope) (result
 		return ErrGatewayPolicy
 	}
 	return nil
+}
+
+func openGatewayPolicyRoot(path string) (*os.Root, string, error) {
+	if !filepath.IsAbs(path) || filepath.Clean(path) != path {
+		return nil, "", ErrGatewayPolicy
+	}
+	name := filepath.Base(path)
+	if name == "." || name == string(filepath.Separator) {
+		return nil, "", ErrGatewayPolicy
+	}
+	root, err := os.OpenRoot(string(filepath.Separator))
+	if err != nil {
+		return nil, "", ErrGatewayPolicy
+	}
+	directory := filepath.Dir(path)
+	relative, err := filepath.Rel(string(filepath.Separator), directory)
+	if err != nil {
+		root.Close()
+		return nil, "", ErrGatewayPolicy
+	}
+	if relative == "." {
+		return root, name, nil
+	}
+	for _, component := range splitGatewayPath(relative) {
+		before, statErr := root.Lstat(component)
+		if statErr != nil || !before.IsDir() || before.Mode()&os.ModeSymlink != 0 {
+			root.Close()
+			return nil, "", ErrGatewayPolicy
+		}
+		child, openErr := root.OpenRoot(component)
+		if openErr != nil {
+			root.Close()
+			return nil, "", ErrGatewayPolicy
+		}
+		opened, openStatErr := child.Stat(".")
+		after, afterErr := root.Lstat(component)
+		root.Close()
+		if openStatErr != nil || afterErr != nil || !os.SameFile(before, opened) || !os.SameFile(opened, after) || after.Mode()&os.ModeSymlink != 0 {
+			child.Close()
+			return nil, "", ErrGatewayPolicy
+		}
+		root = child
+	}
+	return root, name, nil
+}
+
+func splitGatewayPath(path string) []string {
+	if path == "." || path == "" {
+		return nil
+	}
+	return strings.Split(path, string(filepath.Separator))
+}
+
+func gatewayPolicyTemporaryName() (string, error) {
+	var bytesValue [16]byte
+	if _, err := rand.Read(bytesValue[:]); err != nil {
+		return "", ErrGatewayPolicy
+	}
+	return ".zasp-gateway-policy-" + hex.EncodeToString(bytesValue[:]), nil
 }
 
 func validGatewayBinding(value GatewayPolicyBinding) bool {
@@ -373,6 +529,13 @@ func gatewayNow(now func() time.Time) (time.Time, bool) {
 	return value, canonicalGatewayTime(value)
 }
 
+func laterGatewayTime(left, right time.Time) time.Time {
+	if right.After(left) {
+		return right
+	}
+	return left
+}
+
 func cloneGatewayPolicyEnvelope(value GatewayPolicyEnvelope) GatewayPolicyEnvelope {
 	policies := value.Policies
 	value.Policies = make([]CompiledPolicy, len(policies))
@@ -393,8 +556,14 @@ func equalGatewayEnvelope(left, right GatewayPolicyEnvelope) bool {
 	return leftErr == nil && rightErr == nil && bytes.Equal(leftBytes, rightBytes)
 }
 
-func equalGatewayPolicies(left, right []CompiledPolicy) bool {
-	leftBytes, leftErr := json.Marshal(left)
-	rightBytes, rightErr := json.Marshal(right)
+func equalGatewayPolicySemantics(left, right GatewayPolicyEnvelope) bool {
+	leftBytes, leftErr := json.Marshal(struct {
+		FailureMode string           `json:"failure_mode"`
+		Policies    []CompiledPolicy `json:"policies"`
+	}{FailureMode: left.FailureMode, Policies: left.Policies})
+	rightBytes, rightErr := json.Marshal(struct {
+		FailureMode string           `json:"failure_mode"`
+		Policies    []CompiledPolicy `json:"policies"`
+	}{FailureMode: right.FailureMode, Policies: right.Policies})
 	return leftErr == nil && rightErr == nil && bytes.Equal(leftBytes, rightBytes)
 }
