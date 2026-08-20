@@ -384,10 +384,12 @@ func TestLoadDiscoveryPrincipalRegistrationRequiresDistinctSafeNames(t *testing.
 		outboxWorkerPrincipalEnvironment:       "zasp_test_outbox_login",
 		runtimeGatewayPrincipalEnvironment:     "zasp_test_gateway_login",
 		discoverySchedulerPrincipalEnvironment: "zasp_test_scheduler_login",
-		projectionWorkerPrincipalEnvironment:   "zasp_test_projection_login",
+		projectionRiskPrincipalEnvironment:     "zasp_test_projection_risk_login",
+		projectionGraphPrincipalEnvironment:    "zasp_test_projection_graph_login",
+		projectionSearchPrincipalEnvironment:   "zasp_test_projection_search_login",
 	}
 	registration, err := loadDiscoveryPrincipalRegistration(func(key string) string { return values[key] })
-	if err != nil || registration.migration != values[migrationPrincipalEnvironment] || registration.api != values[discoveryAPIPrincipalEnvironment] || registration.gateway != values[runtimeGatewayPrincipalEnvironment] || registration.scheduler != values[discoverySchedulerPrincipalEnvironment] || registration.projection != values[projectionWorkerPrincipalEnvironment] {
+	if err != nil || registration.migration != values[migrationPrincipalEnvironment] || registration.api != values[discoveryAPIPrincipalEnvironment] || registration.gateway != values[runtimeGatewayPrincipalEnvironment] || registration.scheduler != values[discoverySchedulerPrincipalEnvironment] || registration.projectionRisk != values[projectionRiskPrincipalEnvironment] || registration.projectionGraph != values[projectionGraphPrincipalEnvironment] || registration.projectionSearch != values[projectionSearchPrincipalEnvironment] {
 		t.Fatalf("registration=%#v err=%v", registration, err)
 	}
 	delete(values, runtimeWorkerPrincipalEnvironment)
@@ -410,7 +412,7 @@ func TestAgentsecMigrateCLIReachesV13FromEmptyAndV12(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	principalNames := []string{"zasp_cli_api_login", "zasp_cli_discovery_login", "zasp_cli_ingest_login", "zasp_cli_runtime_login", "zasp_cli_outbox_login", "zasp_cli_gateway_login", "zasp_cli_scheduler_login", "zasp_cli_projection_login"}
+	principalNames := []string{"zasp_cli_api_login", "zasp_cli_discovery_login", "zasp_cli_ingest_login", "zasp_cli_runtime_login", "zasp_cli_outbox_login", "zasp_cli_gateway_login", "zasp_cli_scheduler_login", "zasp_cli_projection_risk_login", "zasp_cli_projection_graph_login", "zasp_cli_projection_search_login"}
 	for _, principal := range principalNames {
 		if _, err := connection.Exec(ctx, fmt.Sprintf(`CREATE ROLE %s LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`, principal)); err != nil {
 			t.Fatal(err)
@@ -421,7 +423,8 @@ func TestAgentsecMigrateCLIReachesV13FromEmptyAndV12(t *testing.T) {
 		"ZASP_DISCOVERY_API_DB_PRINCIPAL=" + principalNames[0], "ZASP_DISCOVERY_WORKER_DB_PRINCIPAL=" + principalNames[1],
 		"ZASP_RUNTIME_INGEST_DB_PRINCIPAL=" + principalNames[2], "ZASP_RUNTIME_WORKER_DB_PRINCIPAL=" + principalNames[3],
 		"ZASP_OUTBOX_WORKER_DB_PRINCIPAL=" + principalNames[4], "ZASP_RUNTIME_GATEWAY_DB_PRINCIPAL=" + principalNames[5],
-		"ZASP_DISCOVERY_SCHEDULER_DB_PRINCIPAL=" + principalNames[6], "ZASP_PROJECTION_WORKER_DB_PRINCIPAL=" + principalNames[7],
+		"ZASP_DISCOVERY_SCHEDULER_DB_PRINCIPAL=" + principalNames[6], "ZASP_PROJECTION_RISK_DB_PRINCIPAL=" + principalNames[7],
+		"ZASP_PROJECTION_GRAPH_DB_PRINCIPAL=" + principalNames[8], "ZASP_PROJECTION_SEARCH_DB_PRINCIPAL=" + principalNames[9],
 	}
 	runCLI := func(label string) {
 		t.Helper()
@@ -447,11 +450,11 @@ func TestAgentsecMigrateCLIReachesV13FromEmptyAndV12(t *testing.T) {
 	if err := connection.QueryRow(ctx, `SELECT zasp_execution_readiness($1,$2)`, migrations.ProductionDiscoveryExecution().Checksum(), migrations.ProductionDiscoveryExecutionSemanticFingerprint()).Scan(&executionReleaseReady); err != nil || !executionReleaseReady {
 		var securityReady, referenceReady bool
 		var memberships string
-		_ = connection.QueryRow(ctx, `SELECT zasp_execution_security_ready(),zasp_reference_authorization_security_ready(),COALESCE(string_agg(role_name||':'||member_name||':'||admin_option,',' ORDER BY role_name,member_name),'') FROM (SELECT role.rolname role_name,member.rolname member_name,membership.admin_option::text FROM pg_auth_members membership JOIN pg_roles role ON role.oid=membership.roleid JOIN pg_roles member ON member.oid=membership.member WHERE role.rolname IN('zasp_discovery_scheduler','zasp_projection_worker')) memberships`).Scan(&securityReady, &referenceReady, &memberships)
+		_ = connection.QueryRow(ctx, `SELECT zasp_execution_security_ready(),zasp_reference_authorization_security_ready(),COALESCE(string_agg(role_name||':'||member_name||':'||admin_option,',' ORDER BY role_name,member_name),'') FROM (SELECT role.rolname role_name,member.rolname member_name,membership.admin_option::text FROM pg_auth_members membership JOIN pg_roles role ON role.oid=membership.roleid JOIN pg_roles member ON member.oid=membership.member WHERE role.rolname IN('zasp_discovery_scheduler','zasp_projection_risk_worker','zasp_projection_graph_worker','zasp_projection_search_worker')) memberships`).Scan(&securityReady, &referenceReady, &memberships)
 		t.Fatalf("execution release ready before down=%v security=%v reference=%v memberships=%s err=%v", executionReleaseReady, securityReady, referenceReady, memberships, err)
 	}
 	var executionBindings int
-	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_discovery_execution_principals`).Scan(&executionBindings); err != nil || executionBindings != 3 {
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_discovery_execution_principals`).Scan(&executionBindings); err != nil || executionBindings != 5 {
 		t.Fatalf("execution principal bindings=%d err=%v", executionBindings, err)
 	}
 	connectAs := func(principal string) *pgx.Conn {
@@ -471,9 +474,11 @@ func TestAgentsecMigrateCLIReachesV13FromEmptyAndV12(t *testing.T) {
 		principal, authority, allowed, denied, legacyDenied string
 	}
 	for _, test := range []privilegeCase{
-		{principalNames[1], "zasp_discovery_worker", "zasp_execution_finish_job(text,text,text,text,text,text,text,bytea,text,integer)", "zasp_execution_claim_schedules(text,text,integer,integer)", "zasp_discovery_apply_snapshot(text,text,text,text,text,text,bigint,text,text,bytea,timestamptz,text,text,jsonb,jsonb,jsonb)"},
+		{principalNames[1], "zasp_discovery_worker", "zasp_execution_finish_job(text,text,text,text,text,text,text,bytea,text,text,integer)", "zasp_execution_claim_schedules(text,text,integer,integer)", "zasp_discovery_apply_snapshot(text,text,text,text,text,text,bigint,text,text,bytea,timestamptz,text,text,jsonb,jsonb,jsonb)"},
 		{principalNames[6], "zasp_discovery_scheduler", "zasp_execution_claim_schedules(text,text,integer,integer)", "zasp_execution_claim_jobs(text,text,integer,integer)", "zasp_discovery_claim_schedules(text,text,integer,integer)"},
-		{principalNames[7], "zasp_projection_worker", "zasp_execution_claim_projection_work(text,text,integer,integer)", "zasp_execution_claim_jobs(text,text,integer,integer)", "zasp_discovery_claim_projection_work(text,text,integer,integer)"},
+		{principalNames[7], "zasp_projection_risk_worker", "zasp_execution_claim_projection_work(text,text,text,integer,integer)", "zasp_execution_claim_jobs(text,text,integer,integer)", "zasp_discovery_claim_projection_work(text,text,integer,integer)"},
+		{principalNames[8], "zasp_projection_graph_worker", "zasp_execution_claim_projection_work(text,text,text,integer,integer)", "zasp_execution_claim_jobs(text,text,integer,integer)", "zasp_discovery_claim_projection_work(text,text,integer,integer)"},
+		{principalNames[9], "zasp_projection_search_worker", "zasp_execution_claim_projection_work(text,text,text,integer,integer)", "zasp_execution_claim_jobs(text,text,integer,integer)", "zasp_discovery_claim_projection_work(text,text,integer,integer)"},
 	} {
 		principalConnection := connectAs(test.principal)
 		var principalReady, allowed, denied, legacyDenied bool
@@ -483,15 +488,27 @@ func TestAgentsecMigrateCLIReachesV13FromEmptyAndV12(t *testing.T) {
 		}
 		principalConnection.Close(context.Background())
 	}
+	riskConnection := connectAs(principalNames[7])
+	var projectionClaim []byte
+	if err := riskConnection.QueryRow(ctx, `SELECT zasp_execution_claim_projection_work('risk','risk-worker','risk-lease-token-0001',30,1)`).Scan(&projectionClaim); err != nil {
+		riskConnection.Close(context.Background())
+		t.Fatalf("risk projection claim: %v", err)
+	}
+	if err := riskConnection.QueryRow(ctx, `SELECT zasp_execution_claim_projection_work('graph','risk-worker','risk-lease-token-0001',30,1)`).Scan(&projectionClaim); err == nil {
+		riskConnection.Close(context.Background())
+		t.Fatal("risk principal claimed graph projection")
+	}
+	riskConnection.Close(context.Background())
 	apiConnection := connectAs(principalNames[0])
-	var apiRead, apiWorker bool
-	if err := apiConnection.QueryRow(ctx, `SELECT has_function_privilege(session_user,'zasp_execution_sync_detail(text,text,text,text,text)','EXECUTE'),has_function_privilege(session_user,'zasp_execution_claim_jobs(text,text,integer,integer)','EXECUTE')`).Scan(&apiRead, &apiWorker); err != nil || !apiRead || apiWorker {
+	var apiRead, apiWorker, legacySync, rawSubject, legacyReference bool
+	if err := apiConnection.QueryRow(ctx, `SELECT has_function_privilege(session_user,'zasp_execution_sync_detail(text,text,text,text,text)','EXECUTE'),has_function_privilege(session_user,'zasp_execution_claim_jobs(text,text,integer,integer)','EXECUTE'),has_function_privilege(session_user,'zasp_discovery_request_sync(text,text,text,text,text,text,text,text,text,bytea,text,text,text)','EXECUTE'),has_function_privilege(session_user,'zasp_execution_bind_connection_subject(text,text,text,text,text,text,text,text,bigint,jsonb,text)','EXECUTE'),has_function_privilege(session_user,'zasp_complete_reference_authorization(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)','EXECUTE')`).Scan(&apiRead, &apiWorker, &legacySync, &rawSubject, &legacyReference); err != nil || !apiRead || apiWorker || legacySync || rawSubject || legacyReference {
 		apiConnection.Close(context.Background())
-		t.Fatalf("execution API privileges read=%v worker=%v err=%v", apiRead, apiWorker, err)
+		t.Fatalf("execution API privileges read=%v worker=%v legacy_sync=%v raw_subject=%v legacy_reference=%v err=%v", apiRead, apiWorker, legacySync, rawSubject, legacyReference, err)
 	}
 	apiConnection.Close(context.Background())
 	if err := runner.DownProductionDiscoveryExecution(ctx); err != nil {
-		t.Fatalf("v13 to v12 fixture: %v", err)
+		_, detail := connection.Exec(ctx, migrations.ProductionDiscoveryExecution().DownSQL())
+		t.Fatalf("v13 to v12 fixture: %v detail=%#v", err, detail)
 	}
 	if err := runner.DownReferenceAuthorization(ctx); err != nil {
 		t.Fatalf("v12 to v11 fixture: %v", err)

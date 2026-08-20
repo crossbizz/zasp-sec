@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
 
@@ -65,7 +68,7 @@ func TestProductionDiscoveryExecutionPostgresInstallsExactAuthority(t *testing.T
 		_ = connection.QueryRow(ctx, `SELECT zasp_execution_security_ready(),zasp_reference_authorization_security_ready(),zasp_discovery_security_ready()`).Scan(&securityReady, &referenceReady, &discoveryReady)
 		t.Fatalf("execution readiness=%t security=%t reference=%t discovery=%t err=%v", ready, securityReady, referenceReady, discoveryReady, err)
 	}
-	if _, err := connection.Exec(ctx, `GRANT EXECUTE ON FUNCTION zasp_execution_advance_projection_cursor(text,text,text,text,text,bigint,bytea) TO zasp_projection_worker`); err != nil {
+	if _, err := connection.Exec(ctx, `GRANT EXECUTE ON FUNCTION zasp_execution_advance_projection_cursor(text,text,text,text,text,bigint,bytea) TO zasp_projection_risk_worker`); err != nil {
 		t.Fatal(err)
 	}
 	if err := connection.QueryRow(ctx, `SELECT zasp_execution_readiness($1,$2)`, migrations.ProductionDiscoveryExecution().Checksum(), liveFingerprint).Scan(&ready); err != nil || ready {
@@ -74,7 +77,7 @@ func TestProductionDiscoveryExecutionPostgresInstallsExactAuthority(t *testing.T
 	if err := runner.DownProductionDiscoveryExecution(ctx); err == nil {
 		t.Fatal("security drift did not block rollback")
 	}
-	if _, err := connection.Exec(ctx, `REVOKE EXECUTE ON FUNCTION zasp_execution_advance_projection_cursor(text,text,text,text,text,bigint,bytea) FROM zasp_projection_worker`); err != nil {
+	if _, err := connection.Exec(ctx, `REVOKE EXECUTE ON FUNCTION zasp_execution_advance_projection_cursor(text,text,text,text,text,bigint,bytea) FROM zasp_projection_risk_worker`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := connection.Exec(ctx, `CREATE ROLE zasp_execution_rogue LOGIN; GRANT zasp_discovery_scheduler TO zasp_execution_rogue`); err != nil {
@@ -88,6 +91,15 @@ func TestProductionDiscoveryExecutionPostgresInstallsExactAuthority(t *testing.T
 	}
 	if err := connection.QueryRow(ctx, `SELECT zasp_execution_readiness($1,$2)`, migrations.ProductionDiscoveryExecution().Checksum(), liveFingerprint).Scan(&ready); err != nil || !ready {
 		t.Fatalf("restored execution readiness=%t err=%v", ready, err)
+	}
+	if _, err := connection.Exec(ctx, `ALTER TABLE zasp_discovery_syncs DISABLE TRIGGER zasp_execution_sync_version`); err != nil {
+		t.Fatal(err)
+	}
+	if err := connection.QueryRow(ctx, `SELECT zasp_execution_security_ready()`).Scan(&ready); err != nil || ready {
+		t.Fatalf("disabled sync trigger security readiness=%t err=%v", ready, err)
+	}
+	if _, err := connection.Exec(ctx, `ALTER TABLE zasp_discovery_syncs ENABLE TRIGGER zasp_execution_sync_version`); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -161,6 +173,69 @@ func TestProductionDiscoveryExecutionPostgresBackfillsOnlyExactSubjects(t *testi
 	}
 	if err := connection.QueryRow(ctx, `SELECT state FROM zasp_integrations WHERE id=$1`, k8Integration).Scan(&k8State); err != nil || k8State != "active" {
 		t.Fatalf("kubernetes reauthorization state=%s err=%v", k8State, err)
+	}
+}
+
+func TestProductionDiscoveryExecutionPublicMutationsReplayAndReceipts(t *testing.T) {
+	dsn := startDisposablePostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	connection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close(ctx)
+	identity := fixtureRequestIdentity(t)
+	integrationID := "pid_77500001-0000-4000-8000-000000000001"
+	connectionID := "pid_77500002-0000-4000-8000-000000000002"
+	configuration := json.RawMessage(`{"external_id_reference":"ref:aws/external-id/customer-0075","region":"us-east-1","role_arn":"arn:aws:iam::123456789012:role/zasp-discovery"}`)
+	runner := migrateToReferenceAuthorization(t, ctx, connection)
+	seedReferenceAuthorizedIntegration(t, ctx, connection, "aws", integrationID, connectionID, "ref:aws/external-id/customer-0075", configuration, "5")
+	if err := runner.UpProductionDiscoveryExecution(ctx); err != nil {
+		t.Fatal(err)
+	}
+	var integrationVersion int64
+	if err := connection.QueryRow(ctx, `SELECT version FROM zasp_integrations WHERE id=$1`, integrationID).Scan(&integrationVersion); err != nil {
+		t.Fatal(err)
+	}
+	digest := make([]byte, 32)
+	digest[0] = 75
+	syncArgs := []any{
+		identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), integrationID,
+		"public-sync-idempotency-0075", integrationVersion,
+		"pid_77500003-0000-4000-8000-000000000003", "pid_77500004-0000-4000-8000-000000000004", "pid_77500005-0000-4000-8000-000000000005",
+		digest, "parser-v1", "tool-v1", "pid_77500006-0000-4000-8000-000000000006", "pid_77500007-0000-4000-8000-000000000007", "",
+	}
+	var payload []byte
+	if err := connection.QueryRow(ctx, `SELECT zasp_execution_public_request_sync($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`, syncArgs...).Scan(&payload); err != nil || !bytes.Contains(payload, []byte(`"receipt_id": ""`)) || !bytes.Contains(payload, []byte(`"replayed": false`)) {
+		t.Fatalf("PAT sync first response=%s err=%v", payload, err)
+	}
+	firstSync := string(payload)
+	if err := connection.QueryRow(ctx, `SELECT zasp_execution_public_request_sync($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`, syncArgs...).Scan(&payload); err != nil || string(payload) == firstSync || !bytes.Contains(payload, []byte(`"replayed": true`)) || !bytes.Contains(payload, []byte(`"receipt_id": ""`)) {
+		t.Fatalf("PAT sync replay=%s err=%v first=%s", payload, err, firstSync)
+	}
+	var receiptCount int
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_workflow_receipts WHERE resource_kind='integration_sync' AND resource_id=$1`, syncArgs[7]).Scan(&receiptCount); err != nil || receiptCount != 0 {
+		t.Fatalf("PAT sync receipts=%d err=%v", receiptCount, err)
+	}
+	if err := connection.QueryRow(ctx, `SELECT zasp_execution_sync_history($1,$2,$3,$4,NULL,NULL,20)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), integrationID).Scan(&payload); err != nil || !bytes.Contains(payload, []byte(`"items": [`)) {
+		t.Fatalf("sync first history page=%s err=%v", payload, err)
+	}
+	scheduleArgs := []any{
+		identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), integrationID,
+		"public-schedule-idem-0075", int64(0), 300, "disabled", "pid_77500008-0000-4000-8000-000000000008", "pid_77500009-0000-4000-8000-000000000009", "pid_77500010-0000-4000-8000-000000000010",
+	}
+	if err := connection.QueryRow(ctx, `SELECT zasp_execution_public_put_schedule($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`, scheduleArgs...).Scan(&payload); err != nil || !bytes.Contains(payload, []byte(`"next_run_at": null`)) || !bytes.Contains(payload, []byte(`"replayed": false`)) {
+		t.Fatalf("browser schedule first response=%s err=%v", payload, err)
+	}
+	if err := connection.QueryRow(ctx, `SELECT zasp_execution_public_put_schedule($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`, scheduleArgs...).Scan(&payload); err != nil || !bytes.Contains(payload, []byte(`"replayed": true`)) {
+		t.Fatalf("browser schedule replay=%s err=%v", payload, err)
+	}
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_workflow_receipts WHERE resource_kind='integration_schedule' AND resource_id=$1 AND receipt_id=$2`, integrationID, scheduleArgs[11]).Scan(&receiptCount); err != nil || receiptCount != 1 {
+		t.Fatalf("browser schedule receipts=%d err=%v", receiptCount, err)
+	}
+	if err := connection.QueryRow(ctx, `SELECT zasp_workflow_receipt_list($1,$2,$3,$4,20)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String()).Scan(&payload); err != nil || !bytes.Contains(payload, []byte(`"operation": "putIntegrationSchedule"`)) || !bytes.Contains(payload, []byte(`"resource_id": "`+integrationID+`"`)) {
+		t.Fatalf("browser schedule receipt list=%s err=%v", payload, err)
 	}
 }
 
@@ -244,7 +319,7 @@ func TestProductionDiscoveryExecutionPostgresHydratesAndFencesLeasedJob(t *testi
 	}
 	resultDigest := make([]byte, 32)
 	resultDigest[0] = 9
-	if err := connection.QueryRow(ctx, `SELECT zasp_execution_finish_job($1,$2,$3,$4,$5,$6,'succeeded',$7,'',0)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), jobID, worker, token, resultDigest).Scan(&payload); err != nil {
+	if err := connection.QueryRow(ctx, `SELECT zasp_execution_finish_job($1,$2,$3,$4,$5,$6,'failed',$7,'terminal','terminal collection failure',0)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), jobID, worker, token, resultDigest).Scan(&payload); err != nil {
 		t.Fatal(err)
 	}
 	if err := connection.QueryRow(ctx, `SELECT zasp_execution_claim_delivery($1,$2,$3,$4,'redelivery-worker','redelivery-token-0000001',30)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), jobID).Scan(&payload); err != nil || !bytes.Contains(payload, []byte(`"disposition": "ack_terminal"`)) {
@@ -408,14 +483,23 @@ func TestProductionDiscoveryExecutionPostgresBindsRequestIntentAndSerializesQuot
 	wait.Wait()
 	close(reservationResults)
 	generations := map[int64]string{}
+	conflicts := 0
 	for item := range reservationResults {
-		if item.err != nil || !validProductID(item.snapshotID) {
+		if item.err != nil {
+			var postgresError *pgconn.PgError
+			if !errors.As(item.err, &postgresError) || postgresError.Code != "55P03" {
+				t.Fatalf("concurrent generation reservation=%#v", item)
+			}
+			conflicts++
+			continue
+		}
+		if !validProductID(item.snapshotID) {
 			t.Fatalf("concurrent generation reservation=%#v", item)
 		}
 		generations[item.generation] = item.snapshotID
 	}
-	if len(generations) != 2 || generations[1] == "" || generations[2] == "" || generations[1] == generations[2] {
-		t.Fatalf("concurrent generations=%#v", generations)
+	if len(generations) != 1 || generations[1] == "" || conflicts != 1 {
+		t.Fatalf("serialized concurrent generations=%#v conflicts=%d", generations, conflicts)
 	}
 }
 
@@ -466,7 +550,7 @@ func TestProductionDiscoveryExecutionPostgresSchedulesSnapshotsAndMonotonicProje
 	if err := connection.QueryRow(ctx, `SELECT zasp_execution_request_scheduled_sync($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), scheduleID, "scheduler-01", "schedule-token-000000001", integrationID, syncID, jobID, outboxID, "execution-sync-0002", requestDigest, "parser_v1", "tool_v1").Scan(&payload); err != nil {
 		t.Fatal(err)
 	}
-	if err := connection.QueryRow(ctx, `SELECT zasp_execution_sync_detail($1,$2,$3,$4,$5)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), integrationID, syncID).Scan(&payload); err != nil || !bytes.Contains(payload, []byte(`"state": "queued"`)) || !bytes.Contains(payload, []byte(`"version": 1`)) {
+	if err := connection.QueryRow(ctx, `SELECT zasp_execution_sync_detail($1,$2,$3,$4,$5)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), integrationID, syncID).Scan(&payload); err != nil || !bytes.Contains(payload, []byte(`"status": "queued"`)) || !bytes.Contains(payload, []byte(`"version": 1`)) {
 		t.Fatalf("queued sync detail=%s err=%v", payload, err)
 	}
 	if err := connection.QueryRow(ctx, `SELECT zasp_execution_sync_detail($1,$2,$3,'pid_79000009-0000-4000-8000-000000000009',$4)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), syncID).Scan(&payload); err == nil {
@@ -494,13 +578,13 @@ func TestProductionDiscoveryExecutionPostgresSchedulesSnapshotsAndMonotonicProje
 	if err := connection.QueryRow(ctx, `SELECT zasp_execution_complete_schedule($1,$2,$3,$4,'scheduler-02','schedule-token-000000002','disabled',$5)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), scheduleID, disabledNextRun).Scan(&payload); err != nil || !bytes.Contains(payload, []byte(`"state": "disabled"`)) {
 		t.Fatalf("disabled schedule completion=%s err=%v", payload, err)
 	}
-	if err := connection.QueryRow(ctx, `SELECT zasp_execution_schedule_detail($1,$2,$3,$4,$5)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), integrationID, scheduleID).Scan(&payload); err != nil || !bytes.Contains(payload, []byte(`"state": "disabled"`)) {
+	if err := connection.QueryRow(ctx, `SELECT zasp_execution_schedule_detail($1,$2,$3,$4)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), integrationID).Scan(&payload); err != nil || !bytes.Contains(payload, []byte(`"state": "disabled"`)) || !bytes.Contains(payload, []byte(`"next_run_at": null`)) {
 		t.Fatalf("disabled schedule detail=%s err=%v", payload, err)
 	}
 	if err := connection.QueryRow(ctx, `SELECT zasp_execution_claim_delivery($1,$2,$3,$4,'discovery-worker-02','delivery-token-0000000002',30)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), jobID).Scan(&payload); err != nil {
 		t.Fatal(err)
 	}
-	if err := connection.QueryRow(ctx, `SELECT zasp_execution_sync_detail($1,$2,$3,$4,$5)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), integrationID, syncID).Scan(&payload); err != nil || !bytes.Contains(payload, []byte(`"state": "running"`)) || !bytes.Contains(payload, []byte(`"version": 2`)) {
+	if err := connection.QueryRow(ctx, `SELECT zasp_execution_sync_detail($1,$2,$3,$4,$5)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), integrationID, syncID).Scan(&payload); err != nil || !bytes.Contains(payload, []byte(`"status": "running"`)) || !bytes.Contains(payload, []byte(`"version": 2`)) {
 		t.Fatalf("running sync detail=%s err=%v", payload, err)
 	}
 	if err := connection.QueryRow(ctx, `SELECT zasp_execution_job_input($1,$2,$3,$4,'discovery-worker-02','delivery-token-0000000002')`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), jobID).Scan(&payload); err != nil {
@@ -518,16 +602,24 @@ func TestProductionDiscoveryExecutionPostgresSchedulesSnapshotsAndMonotonicProje
 	manifestReference := "s3://zasp-evidence-prod/" + manifestKey
 	manifestChecksum := make([]byte, 32)
 	manifestChecksum[0] = 3
-	applyQuery := `SELECT zasp_execution_apply_complete_snapshot($1,$2,$3,$4,$5,$6,$7,'aws',$8,$9,'version-0001',$10,128,'application/json','manifest_v1',$11,'cursor-0001','parser_v1','tool_v1','[]'::jsonb,'[]'::jsonb,'[]'::jsonb)`
-	applyArgs := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), integrationID, syncID, snapshotID, reserved.Generation, manifestReference, manifestKey, manifestChecksum, time.Now().UTC()}
+	applyQuery := `SELECT zasp_execution_apply_complete_snapshot($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'aws',$11,$12,'version-0001',$13,128,'application/json','manifest_v1',$14,'cursor-0001','parser_v1','tool_v1','[]'::jsonb,'[]'::jsonb,'[]'::jsonb)`
+	applyArgs := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), jobID, "discovery-worker-02", "delivery-token-0000000002", integrationID, syncID, snapshotID, reserved.Generation, manifestReference, manifestKey, manifestChecksum, time.Now().UTC()}
 	wrongManifestArgs := append([]any(nil), applyArgs...)
-	wrongManifestArgs[8] = manifestKey + "-other"
+	wrongManifestArgs[11] = manifestKey + "-other"
 	if err := connection.QueryRow(ctx, applyQuery, wrongManifestArgs...).Scan(&payload); err == nil {
 		t.Fatal("mismatched manifest reference/key succeeded")
 	}
 	var snapshotResidue int
 	if err := connection.QueryRow(ctx, `SELECT (SELECT count(*) FROM zasp_discovery_snapshots WHERE id=$1)+(SELECT count(*) FROM zasp_discovery_snapshot_inputs WHERE snapshot_id=$1)`, snapshotID).Scan(&snapshotResidue); err != nil || snapshotResidue != 0 {
 		t.Fatalf("mismatched manifest residue=%d err=%v", snapshotResidue, err)
+	}
+	staleLeaseArgs := append([]any(nil), applyArgs...)
+	staleLeaseArgs[5] = "stale-delivery-token-0001"
+	if err := connection.QueryRow(ctx, applyQuery, staleLeaseArgs...).Scan(&payload); err == nil {
+		t.Fatal("stale delivery lease applied snapshot")
+	}
+	if err := connection.QueryRow(ctx, `SELECT (SELECT count(*) FROM zasp_discovery_snapshots WHERE id=$1)+(SELECT count(*) FROM zasp_discovery_snapshot_inputs WHERE snapshot_id=$1)`, snapshotID).Scan(&snapshotResidue); err != nil || snapshotResidue != 0 {
+		t.Fatalf("stale delivery residue=%d err=%v", snapshotResidue, err)
 	}
 	if err := connection.QueryRow(ctx, applyQuery, applyArgs...).Scan(&payload); err != nil {
 		t.Fatal(err)
@@ -543,8 +635,20 @@ func TestProductionDiscoveryExecutionPostgresSchedulesSnapshotsAndMonotonicProje
 	if err := connection.QueryRow(ctx, applyQuery, applyArgs...).Scan(&payload); err != nil || string(payload) != firstApply {
 		t.Fatalf("snapshot exact replay=%s err=%v first=%s", payload, err, firstApply)
 	}
-	if err := connection.QueryRow(ctx, `SELECT zasp_execution_sync_detail($1,$2,$3,$4,$5)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), integrationID, syncID).Scan(&payload); err != nil || !bytes.Contains(payload, []byte(`"state": "succeeded"`)) || !bytes.Contains(payload, []byte(`"version": 3`)) {
+	if err := connection.QueryRow(ctx, `SELECT zasp_execution_sync_detail($1,$2,$3,$4,$5)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), integrationID, syncID).Scan(&payload); err != nil || !bytes.Contains(payload, []byte(`"status": "succeeded"`)) || !bytes.Contains(payload, []byte(`"version": 3`)) {
 		t.Fatalf("succeeded sync detail=%s err=%v", payload, err)
+	}
+	if _, err := connection.Exec(ctx, `UPDATE zasp_discovery_jobs SET attempt=5,updated_at=transaction_timestamp(),lease_expires_at=transaction_timestamp()+interval '10 milliseconds' WHERE id=$1`, jobID); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(20 * time.Millisecond)
+	if err := connection.QueryRow(ctx, `SELECT zasp_execution_claim_jobs('recovery-worker','recovery-token-00000001',30,1)`).Scan(&payload); err != nil {
+		t.Fatal(err)
+	}
+	var recoveredState string
+	var recoveredDigest []byte
+	if err := connection.QueryRow(ctx, `SELECT state,result_digest FROM zasp_discovery_jobs WHERE id=$1`, jobID).Scan(&recoveredState, &recoveredDigest); err != nil || recoveredState != "succeeded" || !bytes.Equal(recoveredDigest, applied.CandidateDigest) {
+		t.Fatalf("committed attempt-five recovery state=%q digest=%x err=%v", recoveredState, recoveredDigest, err)
 	}
 	historyOne := "pid_79000010-0000-4000-8000-000000000010"
 	historyTwo := "pid_79000011-0000-4000-8000-000000000011"
@@ -574,7 +678,7 @@ func TestProductionDiscoveryExecutionPostgresSchedulesSnapshotsAndMonotonicProje
 	if err := connection.QueryRow(ctx, `SELECT zasp_execution_sync_history($1,$2,$3,$4,$5,$6,2)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), integrationID, *history.NextRequestedAt, *history.NextID).Scan(&payload); err != nil || json.Unmarshal(payload, &history) != nil || len(history.Items) != 1 || history.Items[0].ID != syncID {
 		t.Fatalf("stable sync history continuation=%s err=%v", payload, err)
 	}
-	if err := connection.QueryRow(ctx, `SELECT zasp_execution_last_good_freshness($1,$2,$3,$4)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), integrationID).Scan(&payload); err != nil || !bytes.Contains(payload, []byte(`"fresh": false`)) || !bytes.Contains(payload, []byte(`"kind": "graph"`)) || !bytes.Contains(payload, []byte(`"kind": "risk"`)) || !bytes.Contains(payload, []byte(`"kind": "search"`)) {
+	if err := connection.QueryRow(ctx, `SELECT zasp_execution_last_good_freshness($1,$2,$3,$4)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), integrationID).Scan(&payload); err != nil || !bytes.Contains(payload, []byte(`"graph": {"state": "pending"`)) || !bytes.Contains(payload, []byte(`"risk": {"state": "pending"`)) || !bytes.Contains(payload, []byte(`"search": {"state": "pending"`)) {
 		t.Fatalf("initial freshness=%s err=%v", payload, err)
 	}
 	if _, err := connection.Exec(ctx, `INSERT INTO zasp_discovery_snapshot_projection_items(organization_id,workspace_id,environment_id,snapshot_id,integration_id,source,section,item_id,payload) SELECT $1,$2,$3,$4,$5,'aws','entities','pid_82000000-0000-4000-8000-'||lpad(value::text,12,'0'),jsonb_build_object('id','pid_82000000-0000-4000-8000-'||lpad(value::text,12,'0')) FROM generate_series(1,1000) value`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), snapshotID, integrationID); err != nil {
@@ -609,11 +713,16 @@ func TestProductionDiscoveryExecutionPostgresSchedulesSnapshotsAndMonotonicProje
 		t.Fatalf("projection keyset plan=%s err=%v", plan, err)
 	}
 	for range 3 {
-		if err := connection.QueryRow(ctx, `SELECT zasp_execution_claim_projection_work('projection-worker-01','projection-token-00000001',30,3)`).Scan(&payload); err != nil {
+		if err := connection.QueryRow(ctx, `SELECT zasp_execution_claim_projection_work('search','projection-worker-01','projection-token-00000001',30,3)`).Scan(&payload); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := connection.QueryRow(ctx, `SELECT zasp_execution_finish_projection($1,$2,$3,$4,'search','v1','projection-worker-01','projection-token-00000001','succeeded','',0)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), snapshotID).Scan(&payload); err != nil {
+	if err := connection.QueryRow(ctx, `SELECT zasp_execution_heartbeat_projection($1,$2,$3,$4,'search','v1','projection-worker-01','projection-token-00000001',30)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), snapshotID).Scan(&payload); err != nil {
+		t.Fatal(err)
+	}
+	driverDigest := make([]byte, 32)
+	driverDigest[0] = 4
+	if err := connection.QueryRow(ctx, `SELECT zasp_execution_finish_projection($1,$2,$3,$4,'search','v1','projection-worker-01','projection-token-00000001','succeeded','projection-receipt-00000001',$5,'',0)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), snapshotID, driverDigest).Scan(&payload); err != nil {
 		t.Fatal(err)
 	}
 	if err := connection.QueryRow(ctx, `SELECT zasp_execution_projection_status($1,$2,$3,$4)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), snapshotID).Scan(&payload); err != nil {
@@ -630,7 +739,7 @@ func TestProductionDiscoveryExecutionPostgresSchedulesSnapshotsAndMonotonicProje
 	if err := json.Unmarshal(payload, &projectionStatus); err != nil || projectionStatus.IntegrationID != integrationID || projectionStatus.Source != "aws" || len(projectionStatus.Projections) != 3 || projectionStatus.Projections[0].Current || projectionStatus.Projections[1].Current || !projectionStatus.Projections[2].Current {
 		t.Fatalf("projection status=%s err=%v", payload, err)
 	}
-	if err := connection.QueryRow(ctx, `SELECT zasp_execution_last_good_freshness($1,$2,$3,$4)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), integrationID).Scan(&payload); err != nil || !bytes.Contains(payload, []byte(`"fresh": false`)) || !bytes.Contains(payload, []byte(`"current": true`)) {
+	if err := connection.QueryRow(ctx, `SELECT zasp_execution_last_good_freshness($1,$2,$3,$4)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), integrationID).Scan(&payload); err != nil || !bytes.Contains(payload, []byte(`"search": {"state": "current"`)) || !bytes.Contains(payload, []byte(`"risk": {"state": "pending"`)) {
 		t.Fatalf("partial projection freshness=%s err=%v", payload, err)
 	}
 	if err := connection.QueryRow(ctx, `SELECT zasp_execution_advance_projection_cursor($1,$2,$3,'search',$4,0,$5)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), snapshotID, applied.CandidateDigest).Scan(&payload); err == nil {
@@ -661,6 +770,22 @@ func TestProductionDiscoveryExecutionPostgresDownRestoresReferenceAuthorization(
 	if err := connection.QueryRow(ctx, `SELECT integration.state,integration.version,integration.updated_at,connection.state,connection.version,connection.verified_at,connection.updated_at,workflow.body,workflow.version,workflow.updated_at FROM zasp_integrations integration JOIN zasp_integration_connections connection ON (connection.organization_id,connection.workspace_id,connection.environment_id,connection.integration_id)=(integration.organization_id,integration.workspace_id,integration.environment_id,integration.id) JOIN zasp_workflow_records workflow ON (workflow.organization_id,workflow.workspace_id,workflow.environment_id,workflow.id,workflow.kind)=(integration.organization_id,integration.workspace_id,integration.environment_id,integration.id,'integration') WHERE integration.id=$1`, integrationID).Scan(&priorIntegrationState, &priorIntegrationVersion, &priorIntegrationUpdated, &priorConnectionState, &priorConnectionVersion, &priorConnectionVerified, &priorConnectionUpdated, &priorWorkflowBody, &priorWorkflowVersion, &priorWorkflowUpdated); err != nil {
 		t.Fatal(err)
 	}
+	var readinessDefinition string
+	if err := connection.QueryRow(ctx, `SELECT pg_get_functiondef('zasp_reference_authorization_readiness(text,text)'::regprocedure)`).Scan(&readinessDefinition); err != nil {
+		t.Fatal(err)
+	}
+	semanticDefinition := strings.Replace(readinessDefinition, "public.zasp_reference_authorization_readiness(expected_checksum text, expected_fingerprint text)", "public.test_reference_semantic_objects()", 1)
+	semanticDefinition = strings.Replace(semanticDefinition, "RETURNS boolean", "RETURNS jsonb", 1)
+	finalSelect := strings.Index(semanticDefinition, " SELECT EXISTS(SELECT 1 FROM zasp_schema_versions")
+	endBody := strings.LastIndex(semanticDefinition, "$function$")
+	semanticDefinition = semanticDefinition[:finalSelect] + " SELECT jsonb_agg(jsonb_build_array(object_kind,object_identity,definition) ORDER BY object_kind,object_identity) FROM semantic_objects\n" + semanticDefinition[endBody:]
+	if _, err := connection.Exec(ctx, semanticDefinition); err != nil {
+		t.Fatal(err)
+	}
+	var beforeSemantic []byte
+	if err := connection.QueryRow(ctx, `SELECT test_reference_semantic_objects()`).Scan(&beforeSemantic); err != nil {
+		t.Fatal(err)
+	}
 	if err := runner.UpProductionDiscoveryExecution(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -675,9 +800,28 @@ func TestProductionDiscoveryExecutionPostgresDownRestoresReferenceAuthorization(
 	if version, versionErr := runner.Version(ctx); versionErr != nil || version != 12 {
 		t.Fatalf("down version=%d err=%v", version, versionErr)
 	}
+	var afterSemantic []byte
+	if err := connection.QueryRow(ctx, `SELECT test_reference_semantic_objects()`).Scan(&afterSemantic); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(beforeSemantic, afterSemantic) {
+		t.Fatal("v13 down did not exactly restore v12 semantic objects")
+	}
 	var ready bool
 	if err := connection.QueryRow(ctx, `SELECT zasp_reference_authorization_readiness($1,$2)`, migrations.ReferenceAuthorization().Checksum(), migrations.ReferenceAuthorizationSemanticFingerprint()).Scan(&ready); err != nil || !ready {
-		t.Fatalf("reference readiness after v13 down=%t err=%v", ready, err)
+		var securityReady bool
+		var marker, fingerprint string
+		var version int
+		_ = connection.QueryRow(ctx, `SELECT zasp_reference_authorization_security_ready(),(SELECT value FROM zasp_schema_metadata WHERE key='production_core_schema'),(SELECT value FROM zasp_schema_metadata WHERE key='reference_authorization_fingerprint'),(SELECT max(version) FROM zasp_schema_versions)`).Scan(&securityReady, &marker, &fingerprint, &version)
+		var connectorReady bool
+		var discoveryReady bool
+		var apiFunctions []string
+		_ = connection.QueryRow(ctx, `SELECT zasp_connector_security_ready(),zasp_discovery_security_ready(),ARRAY(SELECT p.proname||'('||replace(oidvectortypes(p.proargtypes),', ',',')||')' FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.proname=ANY(ARRAY['zasp_complete_reference_authorization','zasp_reference_authorization_configuration_valid','zasp_reference_authorization_exact_replay','zasp_reference_authorization_readiness','zasp_reference_authorization_replay','zasp_reference_authorization_security_ready']) AND has_function_privilege('zasp_discovery_api',p.oid,'EXECUTE') ORDER BY 1)`).Scan(&connectorReady, &discoveryReady, &apiFunctions)
+		t.Fatalf("reference readiness after v13 down=%t security=%t connector=%t discovery=%t marker=%q fingerprint=%q expected=%q version=%d api_functions=%v err=%v", ready, securityReady, connectorReady, discoveryReady, marker, fingerprint, migrations.ReferenceAuthorizationSemanticFingerprint(), version, apiFunctions, err)
+	}
+	var executionRoleCount int
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM pg_roles WHERE rolname IN('zasp_discovery_scheduler','zasp_projection_risk_worker','zasp_projection_graph_worker','zasp_projection_search_worker')`).Scan(&executionRoleCount); err != nil || executionRoleCount != 0 {
+		t.Fatalf("managed execution roles after down=%d err=%v", executionRoleCount, err)
 	}
 	var restoredIntegrationState, restoredConnectionState string
 	var restoredIntegrationVersion, restoredConnectionVersion, restoredWorkflowVersion int64

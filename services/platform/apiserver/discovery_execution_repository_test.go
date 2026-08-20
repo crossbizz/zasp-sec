@@ -126,7 +126,7 @@ func TestDiscoveryExecutionRepositoryStrictDeliveryReplayAndProjectionStatus(t *
 	}
 
 	database = &discoveryCallDatabase{responses: map[string]json.RawMessage{}}
-	projection := newTestDiscoveryExecutionRepository(t, database, DiscoveryExecutionAuthorityProjection)
+	projection := newTestDiscoveryExecutionRepository(t, database, DiscoveryExecutionAuthorityProjectionGraph)
 	database.responses[postgresExecutionProjectionStatusSQL] = json.RawMessage(`{"integration_id":"pid_81000004-0000-4000-8000-000000000004","source":"aws","snapshot_id":"` + snapshotID + `","generation":7,"input_digest":"` + digest + `","projections":[{"kind":"graph","work_state":"succeeded","work_version":"v1","work_input_digest":"` + digest + `","attempt":1,"current_snapshot_id":"` + snapshotID + `","current_generation":7,"current_input_digest":"` + digest + `","current":true},{"kind":"risk","work_state":"pending","work_version":"v1","work_input_digest":"` + digest + `","attempt":0,"current_snapshot_id":null,"current_generation":null,"current_input_digest":null,"current":false},{"kind":"search","work_state":"pending","work_version":"v1","work_input_digest":"` + digest + `","attempt":0,"current_snapshot_id":null,"current_generation":null,"current_input_digest":null,"current":false}]}`)
 	status, err := projection.GetProjectionStatus(context.Background(), identity.Scope, snapshotID)
 	if err != nil || len(status.Projections) != 3 || !status.Projections[0].Current || status.Projections[1].Current {
@@ -135,5 +135,56 @@ func TestDiscoveryExecutionRepositoryStrictDeliveryReplayAndProjectionStatus(t *
 	database.responses[postgresExecutionProjectionStatusSQL] = json.RawMessage(`{"integration_id":"pid_81000004-0000-4000-8000-000000000004","source":"aws","snapshot_id":"` + snapshotID + `","generation":7,"input_digest":"` + digest + `","projections":[]}`)
 	if _, err := projection.GetProjectionStatus(context.Background(), identity.Scope, snapshotID); !errors.Is(err, ErrRepositoryUnavailable) {
 		t.Fatalf("incomplete projection status error=%v", err)
+	}
+}
+
+func TestDiscoveryExecutionProjectionClaimsAreKindBound(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		authority string
+		kind      string
+	}{
+		{DiscoveryExecutionAuthorityProjectionRisk, "risk"},
+		{DiscoveryExecutionAuthorityProjectionGraph, "graph"},
+		{DiscoveryExecutionAuthorityProjectionSearch, "search"},
+	} {
+		t.Run(test.kind, func(t *testing.T) {
+			database := &discoveryCallDatabase{responses: map[string]json.RawMessage{}}
+			repository := newTestDiscoveryExecutionRepository(t, database, test.authority)
+			database.responses[postgresExecutionClaimProjectionSQL] = json.RawMessage(`{"items":[]}`)
+			items, err := repository.ClaimProjectionWork(context.Background(), test.kind, "projection-worker-01", "projection-token-00000001", 30, 8)
+			if err != nil || items == nil {
+				t.Fatalf("ClaimProjectionWork(%s) items=%#v err=%v", test.kind, items, err)
+			}
+			if len(database.args) != 5 || database.args[0] != test.kind {
+				t.Fatalf("claim args=%#v, want kind first", database.args)
+			}
+			other := map[string]string{"risk": "graph", "graph": "search", "search": "risk"}[test.kind]
+			if _, err := repository.ClaimProjectionWork(context.Background(), other, "projection-worker-01", "projection-token-00000001", 30, 8); !errors.Is(err, ErrRepositoryOperation) {
+				t.Fatalf("cross-kind claim error=%v", err)
+			}
+		})
+	}
+}
+
+func TestDiscoveryExecutionProjectionCompletionRequiresDurableDriverReceipt(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	snapshotID := "pid_83000001-0000-4000-8000-000000000001"
+	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{}}
+	repository := newTestDiscoveryExecutionRepository(t, database, DiscoveryExecutionAuthorityProjectionSearch)
+	now := time.Now().UTC().Add(30 * time.Second)
+	database.responses[postgresExecutionHeartbeatProjectionSQL] = json.RawMessage(`{"id":"` + snapshotID + `","lease_expires_at":"` + now.Format(time.RFC3339Nano) + `"}`)
+	if result, err := repository.HeartbeatProjectionWork(context.Background(), identity.Scope, ProjectionHeartbeat{SnapshotID: snapshotID, Kind: "search", Version: "v1", Worker: "projection-worker-01", LeaseToken: "projection-token-00000001", LeaseSeconds: 30}); err != nil || result.ID != snapshotID {
+		t.Fatalf("projection heartbeat=%#v err=%v", result, err)
+	}
+	database.responses[postgresExecutionFinishProjectionSQL] = json.RawMessage(`{"snapshot_id":"` + snapshotID + `","kind":"search","state":"succeeded","attempt":1}`)
+	completion := ProjectionWorkCompletion{SnapshotID: snapshotID, Kind: "search", Version: "v1", Worker: "projection-worker-01", LeaseToken: "projection-token-00000001", Outcome: "succeeded", DriverReceipt: "search-receipt-00000001", DriverDigest: make([]byte, 32)}
+	if result, err := repository.FinishProjectionWork(context.Background(), identity.Scope, completion); err != nil || result.State != "succeeded" {
+		t.Fatalf("projection completion=%#v err=%v", result, err)
+	}
+	completion.DriverReceipt = ""
+	if _, err := repository.FinishProjectionWork(context.Background(), identity.Scope, completion); !errors.Is(err, ErrRepositoryOperation) {
+		t.Fatalf("missing result receipt error=%v", err)
 	}
 }

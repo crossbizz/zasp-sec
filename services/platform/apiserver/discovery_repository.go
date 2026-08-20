@@ -1061,9 +1061,9 @@ func (repository *DiscoveryRepository) CompleteDiscoverySchedule(ctx context.Con
 }
 
 type DiscoveryJobCompletion struct {
-	ID, Worker, LeaseToken, Outcome, LastError string
-	ResultDigest                               []byte
-	RetryAfterSeconds                          int
+	ID, Worker, LeaseToken, Outcome, LastErrorCode, LastError string
+	ResultDigest                                              []byte
+	RetryAfterSeconds                                         int
 }
 type WorkCompletionResult struct {
 	ID          string     `json:"id"`
@@ -1094,8 +1094,9 @@ func (repository *DiscoveryRepository) FinishDiscoveryJob(ctx context.Context, s
 }
 
 type ProjectionWorkCompletion struct {
-	SnapshotID, Kind, Version, Worker, LeaseToken, Outcome, LastError string
-	RetryAfterSeconds                                                 int
+	SnapshotID, Kind, Version, Worker, LeaseToken, Outcome, DriverReceipt, LastError string
+	DriverDigest                                                                     []byte
+	RetryAfterSeconds                                                                int
 }
 
 func (repository *DiscoveryRepository) FinishProjectionWork(ctx context.Context, scope domain.Scope, input ProjectionWorkCompletion) (WorkCompletionResult, error) {

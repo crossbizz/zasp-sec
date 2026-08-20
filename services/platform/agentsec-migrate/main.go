@@ -25,14 +25,16 @@ const (
 	outboxWorkerPrincipalEnvironment       = "ZASP_OUTBOX_WORKER_DB_PRINCIPAL"
 	runtimeGatewayPrincipalEnvironment     = "ZASP_RUNTIME_GATEWAY_DB_PRINCIPAL"
 	discoverySchedulerPrincipalEnvironment = "ZASP_DISCOVERY_SCHEDULER_DB_PRINCIPAL"
-	projectionWorkerPrincipalEnvironment   = "ZASP_PROJECTION_WORKER_DB_PRINCIPAL"
+	projectionRiskPrincipalEnvironment     = "ZASP_PROJECTION_RISK_DB_PRINCIPAL"
+	projectionGraphPrincipalEnvironment    = "ZASP_PROJECTION_GRAPH_DB_PRINCIPAL"
+	projectionSearchPrincipalEnvironment   = "ZASP_PROJECTION_SEARCH_DB_PRINCIPAL"
 )
 
 var errInvalidMigrationCommand = errors.New("invalid release migration command")
 var databasePrincipalPattern = regexp.MustCompile(`^[a-z][a-z0-9_]{2,62}$`)
 
 type discoveryPrincipalRegistration struct {
-	migration, api, discovery, ingest, runtime, outbox, gateway, scheduler, projection string
+	migration, api, discovery, ingest, runtime, outbox, gateway, scheduler, projectionRisk, projectionGraph, projectionSearch string
 }
 
 type releaseMigrationRunner interface {
@@ -104,7 +106,7 @@ func main() {
 		if err := connection.QueryRow(ctx, `SELECT zasp_discovery_register_principals($1,$2,$3,$4,$5,$6,$7)`, registration.migration, registration.api, registration.discovery, registration.ingest, registration.runtime, registration.outbox, registration.gateway).Scan(&registered); err != nil || !registered {
 			log.Fatal("release migration principal registration failed")
 		}
-		if err := connection.QueryRow(ctx, `SELECT zasp_execution_register_principals($1,$2,$3,$4)`, registration.migration, registration.scheduler, registration.discovery, registration.projection).Scan(&registered); err != nil || !registered {
+		if err := connection.QueryRow(ctx, `SELECT zasp_execution_register_principals($1,$2,$3,$4,$5,$6)`, registration.migration, registration.scheduler, registration.discovery, registration.projectionRisk, registration.projectionGraph, registration.projectionSearch).Scan(&registered); err != nil || !registered {
 			log.Fatal("release execution principal registration failed")
 		}
 	}
@@ -119,9 +121,10 @@ func loadDiscoveryPrincipalRegistration(getenv func(string) string) (discoveryPr
 		api:       getenv(discoveryAPIPrincipalEnvironment), discovery: getenv(discoveryWorkerPrincipalEnvironment),
 		ingest: getenv(runtimeIngestPrincipalEnvironment), runtime: getenv(runtimeWorkerPrincipalEnvironment),
 		outbox: getenv(outboxWorkerPrincipalEnvironment), gateway: getenv(runtimeGatewayPrincipalEnvironment),
-		scheduler: getenv(discoverySchedulerPrincipalEnvironment), projection: getenv(projectionWorkerPrincipalEnvironment),
+		scheduler: getenv(discoverySchedulerPrincipalEnvironment), projectionRisk: getenv(projectionRiskPrincipalEnvironment),
+		projectionGraph: getenv(projectionGraphPrincipalEnvironment), projectionSearch: getenv(projectionSearchPrincipalEnvironment),
 	}
-	values := []string{registration.migration, registration.api, registration.discovery, registration.ingest, registration.runtime, registration.outbox, registration.gateway, registration.scheduler, registration.projection}
+	values := []string{registration.migration, registration.api, registration.discovery, registration.ingest, registration.runtime, registration.outbox, registration.gateway, registration.scheduler, registration.projectionRisk, registration.projectionGraph, registration.projectionSearch}
 	seen := make(map[string]struct{}, len(values))
 	for _, value := range values {
 		if !databasePrincipalPattern.MatchString(value) {
