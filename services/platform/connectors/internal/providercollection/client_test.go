@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -75,6 +76,53 @@ func TestClientSupportsMaximumPageBoundWhenTheActualCollectionIsSmall(t *testing
 	}
 	if len(store.requests) != 2 {
 		t.Fatalf("artifact writes = %d, want raw+manifest", len(store.requests))
+	}
+}
+
+func TestClientCheckpointsBeforeAnEscapeHeavyNextCursorCanOverflowTheManifest(t *testing.T) {
+	t.Parallel()
+	request := testRequest(t, collection.ProviderAWS)
+	first := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "short"}, false, nil, nil)
+	maximumCursor := collection.Cursor{Provider: request.Provider, Version: strings.Repeat("a", 64), Value: strings.Repeat("<", 2048)}
+	second := mustPage(t, request.Provider, request.ExpectedSubject, maximumCursor, true, nil, nil)
+
+	for range 3 {
+		reserve, err := nextManifestDescriptorReserve(request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		reference, err := deterministicEvidenceReference(request, "raw-page-000001")
+		if err != nil {
+			t.Fatal(err)
+		}
+		locator := artifactstore.Locator{Scope: request.Scope, Reference: reference}
+		artifact := artifactstore.Artifact{Locator: artifactstore.Locator{Scope: request.Scope, Reference: reference, VersionID: "s3-version-1"}, MediaType: "application/json", Body: bytes.Clone(first.Raw), Size: int64(len(first.Raw)), SHA256: sha256.Sum256(first.Raw)}
+		object, err := rawObjectFromArtifact(request, locator, artifact, rawSchemaVersion, &recordingArtifacts{bucket: "zasp-evidence"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		currentManifest, err := marshalManifest(request, first.Cursor, []collection.RawObject{object})
+		if err != nil {
+			t.Fatal(err)
+		}
+		request.Bounds.MaxRawBytes = int64(len(first.Raw)+len(currentManifest)+len(second.Raw)) + reserve
+	}
+	if err := request.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	api := &recordingAPI{pages: []Page{first, second}}
+	store := &recordingArtifacts{bucket: "zasp-evidence"}
+	client, err := New(Config{Provider: request.Provider, API: api, Artifacts: store, CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock})
+	if err != nil {
+		t.Fatal(err)
+	}
+	outcome, err := client.CollectWithCredential(context.Background(), request, []byte("temporary-aws-credential"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	partial, ok := outcome.(collection.PartialResult)
+	if !ok || api.calls != 2 || partial.NextCursor() != first.Cursor || len(store.requests) != 2 {
+		t.Fatalf("result=%T calls=%d cursor=%#v writes=%d", outcome, api.calls, partial.NextCursor(), len(store.requests))
 	}
 }
 

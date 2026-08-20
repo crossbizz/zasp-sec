@@ -228,6 +228,17 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 		if !validPage(page, request, cursor, credential, remainingItems, remainingRelationships, remainingBytes) {
 			return nil, malformedFailure()
 		}
+		nextManifestBody, nextManifestErr := marshalManifest(request, page.Cursor, objects)
+		nextRemainingBytes := remainingRawBytes - int64(len(nextManifestBody)) - descriptorReserve
+		if nextManifestErr != nil || len(nextManifestBody) > maximumArtifactBytes {
+			return nil, collection.ErrContract
+		}
+		if nextRemainingBytes < 1 || int64(len(page.Raw)) > nextRemainingBytes {
+			if len(objects) == 0 {
+				return nil, collection.ErrContract
+			}
+			break
+		}
 		pageEntityIDs := make([]string, len(page.Entities))
 		pageEntitySources := make([]string, len(page.Entities))
 		for index, entity := range page.Entities {
